@@ -17,6 +17,9 @@ import {
   isRateLimitError,
   retryAfterMsFrom,
   cooldownDelayMs,
+  SWEEP_PAUSE_WAVES,
+  SWEEP_SPACING_BACKOFF_FACTOR,
+  sweepSpacingMs,
 } from './rateLimit'
 import { TransportError } from './transport'
 import fixture from './hotspotActivity.fixture.json'
@@ -102,6 +105,40 @@ describe('cooldownDelayMs (the bounded ladder)', () => {
   it('a degenerate wave value never underflows below the first rung', () => {
     expect(cooldownDelayMs(0, null, 0)).toBe(ACTIVITY_COOLDOWN_BASE_MS)
     expect(cooldownDelayMs(-4, null, 0)).toBe(ACTIVITY_COOLDOWN_BASE_MS)
+  })
+})
+
+describe('the sweep progressive layer (project-checker-rate-limiting)', () => {
+  it('pins the pause bound and the backoff factor, so a drift is a decision', () => {
+    expect(SWEEP_PAUSE_WAVES).toBe(3)
+    expect(SWEEP_SPACING_BACKOFF_FACTOR).toBe(4)
+  })
+
+  it('spacing after wave k is strictly wider than after wave k-1, up to the pause bound', () => {
+    // The brief's monotonicity contract, stated over every rung the schedule
+    // can serve rather than at two samples.
+    for (let k = 1; k <= SWEEP_PAUSE_WAVES; k += 1) {
+      expect(sweepSpacingMs(k, ACTIVITY_START_SPACING_DEFAULT_MS))
+        .toBeGreaterThan(sweepSpacingMs(k - 1, ACTIVITY_START_SPACING_DEFAULT_MS))
+    }
+  })
+
+  it('wave 0 is exactly the shipped floor — no widening before a wave is observed', () => {
+    expect(sweepSpacingMs(0, ACTIVITY_START_SPACING_DEFAULT_MS))
+      .toBe(ACTIVITY_START_SPACING_DEFAULT_MS)
+  })
+
+  it('degenerate and past-bound wave values are clamped, never non-finite', () => {
+    // Past the bound the pass has paused, so the schedule's tail is clamped
+    // (the cooldownDelayMs precedent: a huge wave count can never overflow).
+    expect(sweepSpacingMs(-3, 150)).toBe(150)
+    expect(sweepSpacingMs(2.9, 150)).toBe(sweepSpacingMs(2, 150))
+    expect(sweepSpacingMs(50, 150)).toBe(sweepSpacingMs(SWEEP_PAUSE_WAVES, 150))
+    expect(Number.isFinite(sweepSpacingMs(Number.MAX_SAFE_INTEGER, 150))).toBe(true)
+  })
+
+  it('a zeroed base (the test seam) stays zero at every wave — full-speed suites are untouched', () => {
+    for (let k = 0; k <= SWEEP_PAUSE_WAVES + 1; k += 1) expect(sweepSpacingMs(k, 0)).toBe(0)
   })
 })
 

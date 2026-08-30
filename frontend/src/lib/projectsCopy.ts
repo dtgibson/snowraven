@@ -1,14 +1,16 @@
-// User-facing copy for the Projects section (design-spec.md, the eleven display
-// states) — county-shading-and-project-stats.
+// User-facing copy for the Projects section (design-spec.md, the twelve display
+// states) — county-shading-and-project-stats; `paused` added by
+// project-checker-rate-limiting.
 //
 // It lives in `lib/` rather than beside the component because a non-component
 // export from a `.tsx` trips `react-refresh/only-export-components` — the same
 // constraint that put `lib/exoticCopy.ts` and `lib/helpLinks.ts` here.
 //
-// THE ELEVEN STATES ARE NOT ELEVEN HAND-WRITTEN STRINGS. There is ONE pure tally
+// THE TWELVE STATES ARE NOT TWELVE HAND-WRITTEN STRINGS. There is ONE pure tally
 // clause plus one clause per state, so the denominator is carried by the
 // FUNCTION rather than by discipline: a tally without its context is not
-// expressible, and a twelfth state is one row of copy.
+// expressible, and a thirteenth state is one row of copy — the `paused` row
+// below was added on exactly that promise.
 //
 // Voice: informative, never promotional. Plain sentences that state a fact and
 // stop. NO EM DASHES in any string in this file (the standing sweep), straight
@@ -183,6 +185,29 @@ export function projectsCopy(status: ProjectsStatus, found: number): ProjectsCop
         note: `Resuming asks only about the other ${countRef(status.total - status.checked)}, ${estimateClause(status.total - status.checked)}.`,
         actions: [{ id: 'resume', label: 'Resume' }],
       }
+    case 'paused': {
+      // The cooldown state's escalation (project-checker-rate-limiting): after
+      // SWEEP_PAUSE_WAVES 429 waves in one pass the sweep stops itself instead
+      // of leaning on eBird's limiter every minute for the rest of the run.
+      // Session-only — nothing about the pause is persisted, so a relaunch
+      // resolves to `partial`, which claims nothing. The hour is guidance
+      // copy, not an enforced lockout, which is why Resume stays offered.
+      // Unlike `stopped`, this state IS reachable at checked 0 and at
+      // remaining 0 (a paused re-check), so both branches are spelled out.
+      const remaining = status.total - status.checked
+      return {
+        icon: 'clock', tone: 'warning',
+        msg: status.checked === 0
+          ? `eBird has asked the app to slow down several times, so the check paused itself. ${noneCheckedClause(status.total)}`
+          : `eBird has asked the app to slow down several times, so the check paused itself. ${fraction(status.checked, status.total)} checked, and every answer so far is kept.`,
+        note: remaining === 0
+          ? `Waiting about an hour gives eBird's limit time to reset. Every checklist here already has a stored answer, so nothing is waiting to be asked.`
+          : status.checked === 0
+            ? `Waiting about an hour gives eBird's limit time to reset. Resuming starts from the beginning: ${fmt(status.total)} ${plural(status.total, 'request', 'requests')}, ${estimateClause(status.total)}.`
+            : `Waiting about an hour gives eBird's limit time to reset. Resuming asks only about the other ${countRef(remaining)}, ${estimateClause(remaining)}.`,
+        actions: [{ id: 'resume', label: 'Resume' }],
+      }
+    }
     case 'partial':
       // After a relaunch the app genuinely cannot tell a deliberate stop from a
       // quit, and nothing about a stop is persisted, so this sentence states
@@ -272,5 +297,15 @@ export const UNNAMED_PROJECT_NOTE =
 
 export const PROJECTS_SUBLABEL = 'Projects you have contributed to'
 export const PORTALS_SUBLABEL = 'How you submitted'
+
+/** Micro-caption above the decorative participation chart. Constant, no
+ *  counts — it labels a decoration whose accessible equivalent is the rows, and
+ *  it lives here so the copy-corpus sweep sees every user-visible string. */
+export const PROJECTS_CHART_CAPTION = 'Checklists per project'
+/** The chart-ownership fallback (no projects block rendered, so the chart
+ *  charts portals). A portal is NEVER called a project anywhere in this
+ *  section — the portals note says so in as many words — so the fallback
+ *  caption must not either. */
+export const PORTALS_CHART_CAPTION = 'Checklists per portal'
 export const PORTALS_NOTE =
   'The app or portal a checklist came in through, not a project. A project with its own portal appears in both places.'

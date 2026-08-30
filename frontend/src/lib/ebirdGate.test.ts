@@ -12,6 +12,7 @@ import {
 } from './ebirdGate'
 import {
   ACTIVITY_START_SPACING_DEFAULT_MS, ACTIVITY_RATE_LIMIT_RETRIES,
+  ACTIVITY_COOLDOWN_MAX_MS,
   _setActivityStartSpacingMsForTests,
 } from './rateLimit'
 
@@ -150,6 +151,46 @@ describe('the one shared cooldown', () => {
   })
 })
 
+describe('the monotonic wave counter (observation only — project-checker-rate-limiting)', () => {
+  it('advances in lockstep with the policy ladder but is NOT reset by a post-cooldown success', async () => {
+    // The whole point of the second counter: the policy ladder deliberately
+    // resets so single-shot lookups recover fast, while a pass differencing
+    // waveCount over its own window still sees every wave of the session.
+    noteEbirdRateLimit(rateLimit429(null), Date.now(), 0)
+    expect(ebirdGateState().cooldownWave).toBe(1)
+    expect(ebirdGateState().waveCount).toBe(1)
+    await drain(2100)
+    noteEbirdSuccess(Date.now())
+    expect(ebirdGateState().cooldownWave).toBe(0)   // policy: reset
+    expect(ebirdGateState().waveCount).toBe(1)      // observation: monotonic
+    noteEbirdRateLimit(rateLimit429(null), Date.now(), 0)
+    expect(ebirdGateState().waveCount).toBe(2)
+  })
+
+  it('a burst inside an active cooldown is still ONE wave on the counter', () => {
+    const now = Date.now()
+    noteEbirdRateLimit(rateLimit429(null), now, 0)
+    noteEbirdRateLimit(rateLimit429(null), now + 1, 0)
+    noteEbirdRateLimit(rateLimit429(null), now + 2, 0)
+    expect(ebirdGateState().waveCount).toBe(1)
+  })
+
+  it('observation only: the counter never feeds the delay, so single-shot cooldowns are untouched', async () => {
+    // Ten historical waves on the monotonic counter, ladder reset by a
+    // post-cooldown success: the next 429 still backs off from the BASE. This
+    // is the "never leaks into Map Explorer lookups" guarantee at the gate.
+    for (let i = 0; i < 10; i += 1) {
+      noteEbirdRateLimit(rateLimit429(null), Date.now(), 0)
+      await drain(ACTIVITY_COOLDOWN_MAX_MS + 100)
+      noteEbirdSuccess(Date.now())
+    }
+    expect(ebirdGateState().waveCount).toBe(10)
+    const before = Date.now()
+    noteEbirdRateLimit(rateLimit429(null), before, 0)
+    expect(ebirdGateState().cooldownUntil - before).toBe(2000) // base, not a rung 11 figure
+  })
+})
+
 describe('the note/read API the activity controller shares', () => {
   it('noteEbirdStart is what spaces the next start (ebirdWaitMs reads it live)', () => {
     const now = Date.now()
@@ -163,7 +204,7 @@ describe('the note/read API the activity controller shares', () => {
     noteEbirdRateLimit(rateLimit429(30), Date.now(), 0)
     noteEbirdStart(Date.now())
     _resetEbirdGateForTests()
-    expect(ebirdGateState()).toEqual({ cooldownUntil: 0, cooldownWave: 0, lastStart: 0 })
+    expect(ebirdGateState()).toEqual({ cooldownUntil: 0, cooldownWave: 0, waveCount: 0, lastStart: 0 })
     let ran = false
     const call = gatedEbirdCall(async () => { ran = true; return 1 })
     await drain(0)

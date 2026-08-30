@@ -1,21 +1,40 @@
 // @vitest-environment jsdom
 //
-// The Projects section's eleven display states, its live region and its progress
+// The Projects section's twelve display states, its live region and its progress
 // bar (county-shading-and-project-stats, FR-49 through FR-56; QA-52, QA-53,
-// QA-54, QA-55, QA-56, QA-58, QA-59, QA-63, QA-64).
+// QA-54, QA-55, QA-56, QA-58, QA-59, QA-63, QA-64; `paused` added by
+// project-checker-rate-limiting).
 //
 // The controller is supplied directly here, because the question is what each
 // STATE renders — its sentence, its supporting note and exactly the controls it
 // can actually perform. The controller's own behaviour is covered in
 // useChecklistProjects.test.tsx.
 
-import { describe, it, expect, vi, afterEach } from 'vitest'
+import { describe, it, expect, vi, afterEach, afterAll } from 'vitest'
 import { render, fireEvent, cleanup } from '@testing-library/react'
 import { ProjectsSection } from './ProjectsSection'
 import type { ChecklistProjectsController, ProjectsStatus } from '../lib/useChecklistProjects'
-import type { ProjectsView } from '../lib/checklistProjects'
+import type { ProjectsView, ProjectRow } from '../lib/checklistProjects'
 
 afterEach(cleanup)
+
+// recharts bundles @reduxjs/toolkit, whose autoBatch enhancer arms a 100 ms
+// fallback timer when a chart mounts (the participation chart here). Wait it
+// out BEFORE this file's jsdom environment is torn down, so the timer fires
+// where cancelAnimationFrame still exists — the node-env shim in test-setup.ts
+// never installs in jsdom files. Same pattern as BirdingStats.test.tsx.
+afterAll(() => new Promise((r) => setTimeout(r, 120)))
+
+// jsdom has no ResizeObserver; recharts' ResponsiveContainer wants one. The
+// chart is decorative (aria-hidden + inert) and none of these tests asserts
+// recharts-internal geometry, so a no-op observer is sufficient and honest.
+if (typeof globalThis.ResizeObserver === 'undefined') {
+  globalThis.ResizeObserver = class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  } as unknown as typeof ResizeObserver
+}
 
 const EMPTY_VIEW: ProjectsView = { projects: [], portals: [], checked: 0, total: 3252, skipped: 0 }
 
@@ -34,13 +53,14 @@ const show = (status: ProjectsStatus, view: Partial<ProjectsView> = {}) => {
   return { ...r, c }
 }
 
-// ── The eleven states: distinct copy and exactly their own controls ──────────
+// ── The twelve states: distinct copy and exactly their own controls ──────────
 
 const STATES: Array<[string, ProjectsStatus, Partial<ProjectsView>, string[]]> = [
   ['never-run', { kind: 'never-run', total: 3252, skipped: 0 }, {}, ['Check projects']],
   ['running', { kind: 'running', checked: 412, total: 3252 }, { checked: 412 }, ['Stop']],
   ['cooldown', { kind: 'cooldown', checked: 412, total: 3252, seconds: 7 }, { checked: 412 }, ['Stop']],
   ['stopped', { kind: 'stopped', checked: 412, total: 3252 }, { checked: 412 }, ['Resume']],
+  ['paused', { kind: 'paused', checked: 412, total: 3252 }, { checked: 412 }, ['Resume']],
   ['partial', { kind: 'partial', checked: 412, total: 3252, remaining: 2840 }, { checked: 412 }, ['Check the rest']],
   ['complete', { kind: 'complete', checked: 3252, total: 3252 }, { checked: 3252 }, ['Check again']],
   ['unanswered', { kind: 'unanswered', checked: 3200, total: 3252, failed: 52 }, { checked: 3200 }, ['Try again']],
@@ -50,7 +70,7 @@ const STATES: Array<[string, ProjectsStatus, Partial<ProjectsView>, string[]]> =
   ['error', { kind: 'error', checked: 412, total: 3252 }, { checked: 412 }, ['Try again']],
 ]
 
-describe('the eleven display states (FR-51, QA-54)', () => {
+describe('the twelve display states (FR-51, QA-54)', () => {
   it.each(STATES)('%s renders its own copy and exactly its own controls', (_name, status, view, controls) => {
     const { container } = show(status, view)
     const buttons = [...container.querySelectorAll('.sr-proj-act')].map(b => b.textContent?.trim())
@@ -68,8 +88,8 @@ describe('the eleven display states (FR-51, QA-54)', () => {
       r.unmount()
       return text
     })
-    // offline and error each have two shapes; these eleven rows are the ones
-    // FR-51 names, all distinct.
+    // offline and error each have two shapes; these twelve rows are the ones
+    // FR-51 names (plus the paused row), all distinct.
     expect(new Set(sentences).size).toBe(STATES.length)
   })
 
@@ -396,6 +416,196 @@ describe('the results rows (FR-54, FR-55, FR-56)', () => {
     const { container } = show({ kind: 'never-run', total: 3252, skipped: 0 })
     expect(container.querySelector('.sr-proj-rows')).toBeNull()
     expect(container.querySelector('.sr-proj-portals')).toBeNull()
+  })
+})
+
+describe('the participation chart (projects-stats-card)', () => {
+  const proj = (n: number, checklists: number): ProjectRow => ({
+    key: `p${n}`, label: `Project ${n}`, named: true, checklists,
+    firstDate: '2026-01-01', lastDate: '2026-06-01',
+  })
+  const manyProjects = (count: number): ProjectRow[] =>
+    Array.from({ length: count }, (_, i) => proj(i + 1, 100 - i))
+
+  const CATEGORICAL = [
+    'var(--sr-accent)', 'var(--sr-graph-photo)', 'var(--sr-graph-audio)', 'var(--sr-graph-video)',
+  ]
+
+  it('renders with ≥2 projects: an aria-hidden + inert wrapper inside the chart-aside grid', () => {
+    const { container } = show({ kind: 'complete', checked: 3252, total: 3252 }, {
+      checked: 3252, projects: manyProjects(4),
+    })
+    const grid = container.querySelector('.sr-grid-chart-aside')!
+    expect(grid).toBeTruthy()
+    const viz = grid.querySelector('.sr-proj-viz')!
+    expect(viz).toBeTruthy()
+    // The literal attributes, both load-bearing: recharts leaves a focusable
+    // root <svg> otherwise, and aria-hidden alone leaves an axe
+    // aria-hidden-focus ghost. React 19 emits boolean inert correctly.
+    expect(viz.getAttribute('aria-hidden')).toBe('true')
+    expect(viz.hasAttribute('inert')).toBe(true)
+    // The caption labels the decoration, inside the inert wrapper.
+    expect(viz.querySelector('.sr-proj-viz-cap')!.textContent).toBe('Checklists per project')
+    // The rows sit beside it in the same grid.
+    expect(grid.querySelectorAll('.sr-proj-row')).toHaveLength(4)
+  })
+
+  it('every figure stays in the rows as text — the chart adds no accessible content', () => {
+    const { container } = show({ kind: 'complete', checked: 3252, total: 3252 }, {
+      checked: 3252, projects: manyProjects(3),
+    })
+    // Text rows are intact and complete (the sole accessible carrier).
+    const rows = [...container.querySelectorAll('.sr-proj-row')]
+    expect(rows).toHaveLength(3)
+    expect(rows[0].querySelector('.sr-proj-n')!.textContent).toBe('100 checklists')
+    expect(rows[0].querySelector('.sr-proj-meta')!.textContent).toContain('3% of the 3,252 checked')
+    // Everything the chart renders sits under the inert wrapper.
+    const viz = container.querySelector('.sr-proj-viz')!
+    for (const svg of container.querySelectorAll('svg.recharts-surface')) {
+      expect(viz.contains(svg)).toBe(true)
+    }
+  })
+
+  it('the height formula is container-level px: 24 per charted row plus 8', () => {
+    const four = show({ kind: 'complete', checked: 3252, total: 3252 }, {
+      checked: 3252, projects: manyProjects(4),
+    })
+    const sizer4 = four.container.querySelector('.sr-proj-viz > div:last-child') as HTMLElement
+    expect(sizer4.style.height).toBe('104px')   // 24 * 4 + 8
+    four.unmount()
+    const two = show({ kind: 'complete', checked: 3252, total: 3252 }, {
+      checked: 3252, projects: manyProjects(2),
+    })
+    const sizer2 = two.container.querySelector('.sr-proj-viz > div:last-child') as HTMLElement
+    expect(sizer2.style.height).toBe('56px')    // 24 * 2 + 8
+  })
+
+  it('the chart gate: one project renders a plain flat block — no chart, no grid, no dot', () => {
+    const { container } = show({ kind: 'complete', checked: 214, total: 214 }, {
+      checked: 214, total: 214, projects: [proj(1, 3)],
+    })
+    expect(container.querySelector('.sr-proj-viz')).toBeNull()
+    expect(container.querySelector('.sr-grid-chart-aside')).toBeNull()
+    expect(container.querySelector('.sr-proj-dot')).toBeNull()
+    // The row itself still states the fact.
+    expect(container.querySelectorAll('.sr-proj-row')).toHaveLength(1)
+  })
+
+  it('dots render only on rows that have a bar, INSIDE the name span, in the fixed categorical order', () => {
+    const { container } = show({ kind: 'complete', checked: 3252, total: 3252 }, {
+      checked: 3252, projects: manyProjects(10),
+    })
+    // First 8 rows are charted; rows 9 and 10 keep full text rows, no dot.
+    const rows = [...container.querySelectorAll('.sr-proj-row')]
+    expect(rows).toHaveLength(10)
+    const dots = [...container.querySelectorAll('.sr-proj-dot')] as HTMLElement[]
+    expect(dots).toHaveLength(8)
+    expect(rows[8].querySelector('.sr-proj-dot')).toBeNull()
+    expect(rows[9].querySelector('.sr-proj-dot')).toBeNull()
+    for (const [i, dot] of dots.entries()) {
+      // Inside .sr-proj-name — never a direct row child, or the ≤640 stacking
+      // rule (`.sr-proj-row > *:not(.sr-only)` → width:100%) would seize it.
+      expect(dot.parentElement!.className).toContain('sr-proj-name')
+      expect(dot.getAttribute('aria-hidden')).toBe('true')
+      // Fixed order, never cycled: accent, photo, audio, video, then slate.
+      const expected = i < 4 ? CATEGORICAL[i] : 'var(--sr-chart-slate)'
+      expect(dot.style.background, `dot ${i}`).toBe(expected)
+    }
+  })
+
+  it('charts at most 8 bars however many projects exist', () => {
+    const { container } = show({ kind: 'complete', checked: 3252, total: 3252 }, {
+      checked: 3252, projects: manyProjects(12),
+    })
+    const sizer = container.querySelector('.sr-proj-viz > div:last-child') as HTMLElement
+    expect(sizer.style.height).toBe('200px')    // 24 * 8 + 8, not 24 * 12 + 8
+    expect(container.querySelectorAll('.sr-proj-dot')).toHaveLength(8)
+  })
+
+  it('mounts mid-sweep the moment two projects exist (the gate is the rows, not the status)', () => {
+    const { container } = show({ kind: 'running', checked: 1204, total: 3300 }, {
+      checked: 1204, total: 3300, projects: manyProjects(2),
+    })
+    expect(container.querySelector('.sr-proj-viz')).toBeTruthy()
+  })
+
+  it('the entrance is keyed by charted-row COUNT: a new bar replays it, a progress tick does not', () => {
+    // The .sr-proj-viz animation rides the class; React replays it exactly when
+    // the keyed wrapper REMOUNTS. Same-count re-renders (bar widths moving
+    // during a sweep) must keep the node, so the entrance never fires per tick.
+    const status: ProjectsStatus = { kind: 'running', checked: 100, total: 3300 }
+    const first = controller(status, { checked: 100, total: 3300, projects: manyProjects(2) }, 1)
+    const { container, rerender } = render(<ProjectsSection controller={first} onGoToSettings={() => {}} />)
+    const before = container.querySelector('.sr-proj-viz')
+
+    // A progress tick: same two projects, new counts. Node identity holds.
+    const tick = controller(status, {
+      checked: 120, total: 3300,
+      projects: [proj(1, 60), proj(2, 40)],
+    }, 2)
+    rerender(<ProjectsSection controller={tick} onGoToSettings={() => {}} />)
+    expect(container.querySelector('.sr-proj-viz')).toBe(before)
+
+    // A third project appears: the chartable shape changed, the wrapper remounts.
+    const grown = controller(status, { checked: 140, total: 3300, projects: manyProjects(3) }, 3)
+    rerender(<ProjectsSection controller={grown} onGoToSettings={() => {}} />)
+    const after = container.querySelector('.sr-proj-viz')
+    expect(after).toBeTruthy()
+    expect(after).not.toBe(before)
+  })
+
+  it('portals stay chartless and dotless while the projects block renders', () => {
+    const { container } = show({ kind: 'complete', checked: 3252, total: 3252 }, {
+      checked: 3252,
+      projects: manyProjects(3),
+      portals: [
+        { code: 'EBIRD', label: 'eBird', named: true, checklists: 3000 },
+        { code: 'EBIRD_MERLIN', label: 'Merlin', named: true, checklists: 252 },
+      ],
+    })
+    // Exactly ONE chart on the card, and it belongs to the projects block.
+    expect(container.querySelectorAll('.sr-proj-viz')).toHaveLength(1)
+    const portals = container.querySelector('.sr-proj-portals')!
+    expect(portals.querySelector('.sr-proj-dot')).toBeNull()
+    expect(portals.closest('.sr-grid-chart-aside')).toBeNull()
+  })
+
+  it('chart ownership falls back to portals when no projects exist and portals has ≥2 rows', () => {
+    const { container } = show({ kind: 'complete', checked: 3252, total: 3252 }, {
+      checked: 3252, projects: [],
+      portals: [
+        { code: 'EBIRD', label: 'eBird', named: true, checklists: 3000 },
+        { code: 'EBIRD_MERLIN', label: 'Merlin', named: true, checklists: 252 },
+      ],
+    })
+    const viz = container.querySelector('.sr-proj-viz')!
+    expect(viz).toBeTruthy()
+    // A portal is NEVER called a project, the caption included.
+    expect(viz.querySelector('.sr-proj-viz-cap')!.textContent).toBe('Checklists per portal')
+    expect(viz.hasAttribute('inert')).toBe(true)
+    // The portal rows own the grid and carry the linking dots.
+    const grid = container.querySelector('.sr-grid-chart-aside')!
+    expect(grid.querySelectorAll('.sr-proj-portalrow')).toHaveLength(2)
+    const dots = [...grid.querySelectorAll('.sr-proj-dot')] as HTMLElement[]
+    expect(dots).toHaveLength(2)
+    expect(dots[0].parentElement!.className).toContain('nm')
+  })
+
+  it('a single portal with no projects stays flat: no chart, no dots', () => {
+    const { container } = show({ kind: 'complete', checked: 214, total: 214 }, {
+      checked: 214, total: 214, projects: [],
+      portals: [{ code: 'EBIRD', label: 'eBird', named: true, checklists: 209 }],
+    })
+    expect(container.querySelector('.sr-proj-viz')).toBeNull()
+    expect(container.querySelector('.sr-proj-dot')).toBeNull()
+    expect(container.querySelector('.sr-grid-chart-aside')).toBeNull()
+  })
+
+  it('QA-30 still holds with the chart mounted: no identifier is a link, no href anywhere', () => {
+    const { container } = show({ kind: 'complete', checked: 3252, total: 3252 }, {
+      checked: 3252, projects: manyProjects(5),
+    })
+    expect(container.querySelectorAll('a')).toHaveLength(0)
   })
 })
 

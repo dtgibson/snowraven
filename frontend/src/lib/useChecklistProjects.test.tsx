@@ -59,7 +59,7 @@ import { _resetProjectsCacheForTests, setProjectsMaxChecklists, getSnapshot } fr
 import { _resetEbirdGateForTests, ebirdGateState, gatedEbirdCall } from './ebirdGate'
 import {
   _setActivityStartSpacingMsForTests, ACTIVITY_START_SPACING_DEFAULT_MS,
-  ACTIVITY_RATE_LIMIT_RETRIES,
+  ACTIVITY_RATE_LIMIT_RETRIES, SWEEP_PAUSE_WAVES, sweepSpacingMs,
 } from './rateLimit'
 
 function lists(n: number, from = 1): ChecklistEntry[] {
@@ -777,6 +777,159 @@ describe('pacing (FR-43, QA-45)', () => {
     expect(net.startsWall[0] - pressedAt).toBeGreaterThan(0)
     expect(net.startsWall[0]).toBeGreaterThanOrEqual(until)
     await expect(other).resolves.toBe('ok')
+  }, 30000)
+})
+
+// ── The progressive pause (project-checker-rate-limiting) ────────────────────
+//
+// The v0.5.92 ladder resets on a single post-cooldown success, so sustained
+// sweep volume re-trips eBird's limiter roughly every minute, forever. The
+// sweep now counts 429 waves over its own pass window (the gate's monotonic
+// waveCount, observation only), widens its own spacing per wave, and after
+// SWEEP_PAUSE_WAVES pauses itself through the existing stop machinery. Like
+// QA-47, the wave-driven tests run at full duration through the real gate —
+// the waves are separated by the cooldowns the 429s themselves open — and
+// every claim is asserted as WORK DONE (client-observed request starts, status
+// transitions, store contents), never elapsed time.
+describe('the progressive pause (project-checker-rate-limiting)', () => {
+  const always429 = async (): Promise<{ projId: string; projectIds: number[] }> => {
+    throw Object.assign(new Error('429'), { status: 429, retryAfterSec: 1 })
+  }
+
+  it('after the bounded number of waves the pass issues NO further request and reports paused', async () => {
+    net.handler = always429
+    render(<Harness checklists={lists(5)} />)
+    await waitFor(() => expect(kind()).toBe('never-run'))
+    await press('start')
+    await waitFor(() => expect(kind()).toBe('paused'), { timeout: 15000 })
+
+    // WORK DONE: the newest checklist rode out its bounded retries — each 429
+    // landing outside the previous cooldown, so each was a real wave — and the
+    // pass then paused BEFORE the second checklist. Not one request more.
+    expect(net.calls.map(c => c.path))
+      .toEqual(Array(1 + ACTIVITY_RATE_LIMIT_RETRIES).fill('/checklists/S5'))
+    expect(ebirdGateState().waveCount).toBe(SWEEP_PAUSE_WAVES)
+    // And it STAYS paused: nothing further goes out on its own.
+    await act(async () => { await new Promise(r => setTimeout(r, 120)) })
+    expect(net.calls).toHaveLength(1 + ACTIVITY_RATE_LIMIT_RETRIES)
+    expect(kind()).toBe('paused')
+    // The paused state outranks unanswered — the failed id is real, but the
+    // one suggestion that helps (wait about an hour) must not be buried.
+    expect(screen.getByTestId('failed').textContent).toBe('S5')
+    expect(num('checked')).toBe(0)
+  }, 30000)
+
+  it('a pause keeps every answer paid for, and Resume asks only about the unanswered — BOTH kinds', async () => {
+    // Two newest answered, the third exhausts its retries (three waves), pause
+    // lands before the fourth. The unanswered are then the failed id AND the
+    // never-reached ids; a resume that re-asked only the failed one would
+    // strand the rest, and one that re-asked everything would spend paid-for
+    // answers again.
+    net.handler = async (id) => {
+      if (id === 'S5' || id === 'S4') return { projId: 'EBIRD', projectIds: [] }
+      throw Object.assign(new Error('429'), { status: 429, retryAfterSec: 1 })
+    }
+    render(<Harness checklists={lists(5)} />)
+    await waitFor(() => expect(kind()).toBe('never-run'))
+    await press('start')
+    await waitFor(() => expect(kind()).toBe('paused'), { timeout: 15000 })
+    expect(num('checked')).toBe(2)
+    expect(getSnapshot().size).toBe(2)
+
+    // The user comes back later. The hour is guidance copy, not an enforced
+    // lockout, so the stand-in for "later" is clearing the seconds-scale gate
+    // state — the pause itself lives in the controller and is cleared by the
+    // press, exactly as after a manual Stop.
+    _resetEbirdGateForTests()
+    net.handler = null
+    net.calls.length = 0
+    await press('resume')
+    await waitFor(() => expect(kind()).toBe('complete'), { timeout: 15000 })
+    expect(net.calls.map(c => c.path).sort())
+      .toEqual(['/checklists/S1', '/checklists/S2', '/checklists/S3'])
+    expect(num('checked')).toBe(5)
+  }, 30000)
+
+  it('after a wave the sweep spaces its OWN starts at the widened interval, client-observed', async () => {
+    // The applied half of the schedule (the pure monotonic ladder is pinned in
+    // rateLimit.test.ts): one wave, then every subsequent start at least
+    // sweepSpacingMs(1, base) apart. Base 40 ms through the shipped seam keeps
+    // the widened interval (160 ms) measurable while the pass stays fast.
+    _setActivityStartSpacingMsForTests(40)
+    let first = true
+    net.handler = async () => {
+      if (first) {
+        first = false
+        throw Object.assign(new Error('429'), { status: 429, retryAfterSec: 1 })
+      }
+      return { projId: 'EBIRD', projectIds: [] }
+    }
+    render(<Harness checklists={lists(4)} />)
+    await waitFor(() => expect(kind()).toBe('never-run'))
+    await press('start')
+    await waitFor(() => expect(kind()).toBe('complete'), { timeout: 15000 })
+
+    // Starts: S4 (429), S4 retry, then S3, S2, S1 — all three post-wave.
+    expect(net.starts).toHaveLength(5)
+    expect(num('checked')).toBe(4)
+    const widened = sweepSpacingMs(1, 40)
+    expect(widened).toBeGreaterThan(40)          // non-vacuity: it IS wider
+    for (let i = 2; i < net.starts.length; i += 1) {
+      // Timer-coarseness tolerance; the claim is the FLOOR, not an interval.
+      expect(net.starts[i] - net.starts[i - 1], `start ${i}`)
+        .toBeGreaterThanOrEqual(widened - 25)
+    }
+  }, 30000)
+
+  it('the pause NEVER leaks into single-shot lookups, and their success does not resume the sweep', async () => {
+    // The Map Explorer's enforcement point is only ever gated by the
+    // seconds-scale cooldown the 429s opened — the hour-scale pause is sweep
+    // policy in the controller, not gate policy. gatedEbirdCall IS the wrapper
+    // the transport chokepoint uses, so this is the second surface itself.
+    net.handler = always429
+    render(<Harness checklists={lists(2)} />)
+    await waitFor(() => expect(kind()).toBe('never-run'))
+    await press('start')
+    await waitFor(() => expect(kind()).toBe('paused'), { timeout: 15000 })
+    const sweepCalls = net.calls.length
+
+    let ranAt = 0
+    await expect(gatedEbirdCall(async () => { ranAt = Date.now(); return 'ok' }))
+      .resolves.toBe('ok')                       // it ran — no hour-scale wait
+    expect(ranAt).toBeGreaterThan(0)
+    // The lookup's post-cooldown success reset the gate's POLICY ladder, and
+    // the sweep is still paused: neither state leaks into the other.
+    expect(ebirdGateState().cooldownWave).toBe(0)
+    expect(kind()).toBe('paused')
+    expect(net.calls.length).toBe(sweepCalls)    // and the sweep sent nothing
+  }, 30000)
+
+  it('nothing about the pause is persisted: a fresh mount resolves to partial, which claims nothing', async () => {
+    // Two answers already on disk keep the drive-to-pause short: the first
+    // pending target exhausts its retries and the pass pauses.
+    disk.doc = {
+      version: 1,
+      entries: {
+        S1: { proj: 'EBIRD', ids: [], at: Date.now() },
+        S2: { proj: 'EBIRD', ids: [], at: Date.now() },
+      },
+      order: ['S1', 'S2'],
+    }
+    net.handler = always429
+    render(<Harness checklists={lists(4)} />)
+    await waitFor(() => expect(num('checked')).toBe(2))
+    await press('start')
+    await waitFor(() => expect(kind()).toBe('paused'), { timeout: 15000 })
+
+    // The relaunch. The store document survives (the answers were paid for);
+    // the pause does not — the state resolves to `partial`, which states
+    // counts only, exactly the v1.0.5 raw-fields rule's intent.
+    cleanup()
+    net.handler = null
+    render(<Harness checklists={lists(4)} />)
+    await waitFor(() => expect(num('checked')).toBe(2))
+    await waitFor(() => expect(kind()).toBe('partial'))
+    expect(screen.getByTestId('remaining').textContent).toBe('2')
   }, 30000)
 })
 

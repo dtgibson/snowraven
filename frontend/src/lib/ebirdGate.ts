@@ -36,11 +36,19 @@ interface EbirdGateState {
   /** Consecutive 429 WAVES (a 429 arriving outside any active cooldown);
    *  drives the bounded exponential. Reset by a post-cooldown success. */
   cooldownWave: number
+  /** MONOTONIC count of 429 waves this session — OBSERVATION ONLY. A pass
+   *  counts waves over its own window by differencing this against a
+   *  pass-start reading (the projects sweep's progressive layer). It advances
+   *  in lockstep with cooldownWave but is never reset by a success and is
+   *  never consulted by the gate's own policy, so the cooldown/reset
+   *  semantics for single-shot lookups are untouched by its existence. Reset
+   *  only by the test seam. */
+  waveCount: number
   /** ms epoch of the last governed request start (global start spacing). */
   lastStart: number
 }
 
-const state: EbirdGateState = { cooldownUntil: 0, cooldownWave: 0, lastStart: 0 }
+const state: EbirdGateState = { cooldownUntil: 0, cooldownWave: 0, waveCount: 0, lastStart: 0 }
 
 /** Read-only view of the shared pacing state (the activity controller's
  *  pass-start "already rate limited?" read; tests). */
@@ -67,7 +75,10 @@ export function noteEbirdStart(now: number): void {
  *  A burst of simultaneous 429s counts as one wave (only a 429 arriving
  *  outside an active cooldown advances the ladder). */
 export function noteEbirdRateLimit(err: unknown, now: number, random: number): void {
-  if (now >= state.cooldownUntil) state.cooldownWave += 1
+  if (now >= state.cooldownUntil) {
+    state.cooldownWave += 1
+    state.waveCount += 1
+  }
   const delay = rateLimit.cooldownDelayMs(
     state.cooldownWave, rateLimit.retryAfterMsFrom(err), random,
   )
@@ -139,6 +150,7 @@ export async function gatedEbirdCall<T>(doCall: () => Promise<T>): Promise<T> {
 export function _resetEbirdGateForTests(): void {
   state.cooldownUntil = 0
   state.cooldownWave = 0
+  state.waveCount = 0
   state.lastStart = 0
   startChain = Promise.resolve()
 }

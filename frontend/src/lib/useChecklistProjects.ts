@@ -24,6 +24,15 @@
 // neither, never both". A 429 raised here slows the Map Explorer and vice
 // versa, because the state is module-scoped in lib/ebirdGate.ts.
 //
+// On top of the gate, the sweep carries its OWN progressive per-pass layer
+// (project-checker-rate-limiting): each 429 wave observed during a pass widens
+// the sweep's inter-request spacing for the rest of that pass
+// (sweepSpacingMs), and after SWEEP_PAUSE_WAVES waves the pass pauses itself
+// through the existing stop machinery and shows the `paused` state. The gate's
+// ladder resets on a post-cooldown success by design, which is right for
+// single-shot lookups and is exactly why sustained sweep volume needs this
+// layer: without it a large backup re-trips the limiter every minute, forever.
+//
 // CONCURRENCY IS 1 — a sequential pump, not the activity controller's pool of
 // 4. The 150 ms start spacing is the governor, so a pool buys no throughput; it
 // only deepens the gate's queue and makes Stop less crisp. Sequential also makes
@@ -38,7 +47,9 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import type { ChecklistEntry } from '../types'
 import { transport } from './transport'
 import { gatedEbirdCall, ebirdGateState } from './ebirdGate'
-import { isRateLimitError } from './rateLimit'
+import {
+  isRateLimitError, ACTIVITY_START_SPACING_MS, sweepSpacingMs, SWEEP_PAUSE_WAVES,
+} from './rateLimit'
 import { classifyLiveError } from './offlineMessage'
 import { SUBMISSION_KEY_RE } from './checklistId'
 import {
@@ -56,7 +67,7 @@ import {
 export const PROJECTS_ANNOUNCE_INTERVAL_MS = 2000
 
 /**
- * The eleven display states. Every variant that can render a tally carries
+ * The twelve display states. Every variant that can render a tally carries
  * `checked` and `total` AS REQUIRED FIELDS, so "no tally renders alone" is
  * structurally impossible to violate rather than a thing to remember.
  * `no-key` carries none because it renders no tally.
@@ -66,6 +77,7 @@ export type ProjectsStatus =
   | { kind: 'running'; checked: number; total: number }
   | { kind: 'cooldown'; checked: number; total: number; seconds: number }
   | { kind: 'stopped'; checked: number; total: number }
+  | { kind: 'paused'; checked: number; total: number }
   | { kind: 'partial'; checked: number; total: number; remaining: number }
   | { kind: 'complete'; checked: number; total: number }
   | { kind: 'unanswered'; checked: number; total: number; failed: number }
@@ -130,6 +142,11 @@ async function fetchProjects(submissionId: string): Promise<{ projId: string; pr
   return { projId, projectIds }
 }
 
+/** The pump's extra-spacing wait (the progressive per-pass layer). */
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms))
+}
+
 /**
  * The resting status when no pass is running. MODULE-LEVEL AND PURE: every input
  * it needs is passed in, so the ref reads happen at the CALL SITE — an effect or
@@ -149,10 +166,18 @@ export function restingStatus(v: ProjectsView, o: {
   atCapacity: boolean
   failed: number
   stopped: boolean
+  paused: boolean
 }): ProjectsStatus {
   if (o.hasEbirdKey === false) return { kind: 'no-key' }
   const { checked, total } = v
   if (o.atCapacity) return { kind: 'at-capacity', checked, total, capacity: PROJECTS_MAX_CHECKLISTS }
+  // Above `unanswered` and the checked-0 `never-run` branch deliberately: the
+  // waves that trip the pause usually exhaust at least one id's bounded
+  // retries, and a paused pass that showed `unanswered` (or, with nothing yet
+  // answered, `never-run`) would bury the one suggestion that helps — wait
+  // about an hour. Session-only: nothing about the pause is persisted, so a
+  // relaunch resolves to `partial`, which claims nothing.
+  if (o.paused) return { kind: 'paused', checked, total }
   if (o.failed > 0) return { kind: 'unanswered', checked, total, failed: o.failed }
   if (!o.online) return { kind: 'offline', checked, total }
   if (checked === 0) return { kind: 'never-run', total, skipped: v.skipped }
@@ -179,6 +204,13 @@ export function useChecklistProjects(
   const runningRef = useRef(false)
   const cancelRef = useRef(false)
   const stoppedRef = useRef(false)
+  /** The auto-pause (project-checker-rate-limiting). SESSION-ONLY, like the
+   *  failure set below: nothing about a pause is persisted (that is what keeps
+   *  the honest `partial` falling out on relaunch), and the pause is SWEEP
+   *  policy, never gate policy — an hour-scale pause must not leak into the
+   *  Map Explorer's single-shot lookups, which the shared gate governs
+   *  correctly today. */
+  const pausedRef = useRef(false)
   /** Session-only. Nothing about a failure is persisted, so these reset on
    *  relaunch and the state resolves to `partial` — which claims nothing. */
   const failedRef = useRef<Set<string>>(new Set())
@@ -237,6 +269,7 @@ export function useChecklistProjects(
     generationRef.current += 1
     cancelRef.current = true
     stoppedRef.current = interrupted
+    pausedRef.current = false
     failedRef.current = new Set()
     atCapacityRef.current = false
     // Deferred to a microtask so the effect body never calls setState
@@ -252,6 +285,7 @@ export function useChecklistProjects(
     atCapacity: atCapacityRef.current,
     failed: failedRef.current.size,
     stopped: stoppedRef.current,
+    paused: pausedRef.current,
   }), [hasEbirdKey, online])
 
   // The resting status is recomputed whenever its inputs change AND no pass is
@@ -268,8 +302,18 @@ export function useChecklistProjects(
     runningRef.current = true
     cancelRef.current = false
     stoppedRef.current = false
+    pausedRef.current = false
     const generation = generationRef.current
     const alive = () => generation === generationRef.current
+
+    // The progressive per-pass layer (project-checker-rate-limiting). Waves
+    // are observed by DIFFERENCING the gate's monotonic counter over this
+    // pass's own window — deliberately key-global, so a wave the Map Explorer
+    // raises mid-pass widens the sweep too (the KEY is over the limit, not a
+    // surface). The counter is observation only; the gate's cooldown/reset
+    // semantics are untouched.
+    const wavesAtStart = ebirdGateState().waveCount
+    const wavesThisPass = () => ebirdGateState().waveCount - wavesAtStart
 
     try {
       await loadSnapshot()
@@ -348,6 +392,34 @@ export function useChecklistProjects(
       try {
         for (const id of targets) {
           if (cancelRef.current || !alive()) break
+          const waves = wavesThisPass()
+          if (waves >= SWEEP_PAUSE_WAVES) {
+            // The bound: the pass pauses ITSELF through the existing stop
+            // machinery rather than leaning on eBird's limiter every minute
+            // for the rest of an eight-minute sweep. Checked at the loop top
+            // deliberately, so a pass whose LAST item rode the final wave
+            // simply ends and reports its own terminal state (`unanswered`
+            // stays `unanswered`) — there is nothing left to protect. Every
+            // answer already paid for is in the store; Resume works exactly
+            // as after a manual Stop.
+            pausedRef.current = true
+            cancelRef.current = true
+            break
+          }
+          if (waves > 0) {
+            // Widen the sweep's OWN inter-request spacing for the rest of the
+            // pass: the FULL widened interval slept between the previous
+            // answer and the next ask, so consecutive sweep starts are at
+            // least sweepSpacingMs apart by construction. Deliberately NOT
+            // "widened minus the gate's floor": the floor elapses DURING a
+            // sleep (the gate spaces from the last global start), so the two
+            // do not add, and subtracting it would quietly under-deliver the
+            // schedule. Slower than the floor is always contract-compliant.
+            // The LIVE spacing binding keeps the zero-spacing test seam at
+            // full speed (0 * anything is 0).
+            await sleep(sweepSpacingMs(waves, ACTIVITY_START_SPACING_MS))
+            if (cancelRef.current || !alive()) break
+          }
           try {
             // gatedEbirdCall supplies every element of the pacing contract:
             // serialized starts at 150 ms, the ONE key-global cooldown honoring
@@ -428,8 +500,15 @@ export function useChecklistProjects(
     // pending. Both fall out of the same derivation: an answered id has an
     // entry and a failed one does not, so no request is ever issued for an
     // already-answered checklist.
+    //
+    // AFTER A PAUSE the unanswered are BOTH kinds — the ids whose bounded
+    // retries the waves exhausted AND the ids the pass never reached — and
+    // 'pending' is exactly that set (a failed id has no store entry either).
+    // The {only} narrowing is the `unanswered` state's semantics, where the
+    // failures are the only thing left; taking it here would strand the
+    // never-reached remainder unasked.
     const failed = failedRef.current
-    if (failed.size > 0) { void runPass({ only: new Set(failed) }); return }
+    if (!pausedRef.current && failed.size > 0) { void runPass({ only: new Set(failed) }); return }
     void runPass('pending')
   }, [runPass])
 
