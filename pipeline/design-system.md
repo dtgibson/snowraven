@@ -101,6 +101,28 @@ italic at 0.71875rem `--sr-text-gray`.
   invert at large text scale. The deliberately smaller uppercase section labels are
   spans and stay outside it by design; so does a trailing count-and-view cluster,
   which is not a filter.
+- **Species pickers:** any species selection over a long list goes through the
+  shared `SpeciesCombobox` type-to-find picker, never a scroll-only native
+  `<select>`: search icon, text input (`role="combobox"` with full ARIA listbox
+  wiring, `useId`-namespaced ids so two instances coexist on one page), a
+  filtered listbox narrowing by common or scientific name, and an always-present
+  unfiltered italic clearing row ("All species") so the control is always
+  clearable; Enter commits the active option, else the first *species* match,
+  and is a no-op on zero matches. Three size registers map onto their hosts —
+  `md` (40px, the Species Detail hero scale), `sm` (30px, 220px cap), `panel`
+  (34px / 0.8125rem / radius 6, full-width, the filter panel's SELECT_STYLE
+  register) — pick by the host's control register, never restyle per consumer.
+  Rows are escaped plain text with the scientific name muted (never `<BirdName>`
+  inside a form control); the secondary span is capped at `max-width: 40%` with
+  `.sr-truncate` on both spans, so the common name keeps the majority of the row
+  at any width and text scale. The listbox opens with a 140ms ease-out entrance
+  scaled from the input (`cubic-bezier(0.2, 0, 0, 1)`, transform-origin top
+  center; reduced motion renders it instantly), shared across all sizes so the
+  pickers cannot drift; close is instant. Placeholder is state-voiced ("All
+  species"), so a filter column keeps reading as current values. Escape closes
+  only the open listbox and bubbles once closed, so a hosting sheet or
+  fullscreen surface keeps its own Escape behavior. `.sr-input-16` rides the
+  `className` prop onto the `<input>` itself.
 - **A preference whose copy multiplies:** when N independent switches mean 2^N
   labels, generate every string from ONE ordered manifest plus pure functions —
   the switch labels, their accessible names, the primary button, and the sentence
