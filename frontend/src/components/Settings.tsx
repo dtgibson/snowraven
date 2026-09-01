@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { BookOpen, ChevronDown, ChevronUp, Copy, Eye, EyeOff, FileCheck, FileQuestion, Loader2, Lock, Navigation } from 'lucide-react'
 import type { StoredFileInfo, StoredFilesStatus } from '../types'
 import { applyTheme, readStoredPreference, persistThemePreference, clearThemePreference, hydrateStoredTheme } from '../lib/theme'
@@ -1180,6 +1180,61 @@ function RebuildCachesButton() {
   )
 }
 
+// ---- Acknowledgments section ----
+//
+// The tab's quietest register (the Troubleshooting card shape, per the approved
+// design): SectionHeader + a card holding one quiet bordered button that opens
+// an inline grid-rows disclosure. Deliberately static content: no storage-seam,
+// transport, or platform calls, no isTauri(), no persisted state — the reveal
+// is session-only useState (settings-acknowledgments FR-12/FR-13/FR-14).
+//
+// The panel is CLIPPED to zero rather than unmounted (grid-template-rows
+// 0fr/1fr), so while closed its content would stay in the accessibility tree
+// even as aria-expanded="false" says otherwise; `inert` on the clipped inner
+// div is what removes it — the same fix, on the same grid-rows shape, as the
+// escapee disclosure and the Map Explorer's collapsed filter panel. There is
+// deliberately NO live region here: the entries are reference material, not an
+// event, and the state change is already carried by aria-expanded (the repo's
+// "the collapsing content IS what would be announced" rule). Collapse keeps
+// focus on the toggle by construction — the button never unmounts.
+function AcknowledgmentsSection() {
+  const [open, setOpen] = useState(false)
+  const panelId = useId()
+  return (
+    <div style={{ marginTop: 24 }}>
+      <SectionHeader label="Acknowledgments" />
+      <div style={{ border: '1px solid var(--sr-border)', borderRadius: 10, background: 'var(--sr-surface)', overflow: 'hidden' }}>
+        <div style={{ padding: '14px 16px' }}>
+          <button
+            type="button"
+            tabIndex={0}
+            className="sr-touch-target sr-ack-toggle"
+            aria-expanded={open}
+            aria-controls={panelId}
+            onClick={() => setOpen(v => !v)}
+          >
+            {open ? 'Hide acknowledgments' : 'View acknowledgments'}
+          </button>
+        </div>
+        <div id={panelId} className={open ? 'sr-ack-reveal sr-ack-reveal--open' : 'sr-ack-reveal'}>
+          <div className="sr-ack-reveal-inner" inert={!open}>
+            <div className="sr-ack-panel">
+              <div className="sr-ack-entry">
+                <div className="sr-ack-name">The Cornell Lab of Ornithology and the Macaulay Library</div>
+                <p className="sr-ack-for">For creating a wonderful platform for tracking birding data, and for making it freely available.</p>
+              </div>
+              <div className="sr-ack-entry">
+                <div className="sr-ack-name">Deven Simonson</div>
+                <p className="sr-ack-for">For providing early access to Weft to help build the SnowRaven app.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 interface SettingsProps {
   onKeysSaved?: () => void
   onFilesSaved?: () => void
@@ -1723,6 +1778,11 @@ export function Settings({
           </div>
         </div>
       )}
+
+      {/* Last section of the tab on EVERY platform: rendered after the
+          Tauri-gated Troubleshooting block, so it follows Troubleshooting on
+          desktop and Tab Layout on web/Pi and iOS. No existing section moves. */}
+      <AcknowledgmentsSection />
 
     </div>
     </>

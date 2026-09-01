@@ -2,6 +2,11 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [1.0.10] - 2026-08-31
+
+### Added
+- **An Acknowledgments section in Settings.** The Settings tab now ends with a small Acknowledgments section on every platform. Press "View acknowledgments" to read the app's two thank-yous, in place: to The Cornell Lab of Ornithology and the Macaulay Library, for creating a wonderful platform for tracking birding data and for making it freely available; and to Deven Simonson, for providing early access to Weft to help build the SnowRaven app. The same button closes it again. The section works entirely offline, needs no API key, and stores nothing; every other Settings section is unchanged.
+
 ## [1.0.9] - 2026-08-30
 
 ### Fixed

@@ -610,6 +610,10 @@ On narrow screens and mobile browsers the tab bar automatically collapses into a
 
 In the Mac and Windows desktop apps, the Settings tab includes a Troubleshooting section with a **Rebuild caches & restart** button. If the map or species lookups stop working, rebuilding the app's local caches usually fixes it; the app clears its cached taxonomy data and restarts. This section does not appear in the web/Pi version.
 
+### Acknowledgments
+
+The last section of the Settings tab holds the app's thank-yous. Press **View acknowledgments** to open them in place, and the same button (now **Hide acknowledgments**) to close them again. There are two: The Cornell Lab of Ornithology and the Macaulay Library, for creating a wonderful platform for tracking birding data and for making it freely available; and Deven Simonson, for providing early access to Weft to help build the SnowRaven app. The section is the same on every platform, works entirely offline, and stores nothing.
+
 ---
 
 ## Using SnowRaven offline

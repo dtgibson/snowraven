@@ -2528,6 +2528,77 @@ h1, h2, h3, h4, h5, h6 {
   color: var(--sr-text-muted);
 }
 
+/* ── Settings → Acknowledgments (settings-acknowledgments) ──────────────────
+   The tab's quietest register: one quiet bordered toggle in the card, and a
+   grid-rows disclosure below it. Layout lives here rather than in a React
+   inline style (a media query cannot reach an inline style); every color is a
+   token, in both themes. The global prefers-reduced-motion block collapses the
+   transitions toward zero without removing them. */
+
+/* The toggle: the Rebuild caches / Replace register, sized here (not inline)
+   so the ≤640 tier can relax the fixed height and let the label wrap. The open
+   state takes the app's standard active-state tint, exactly like a pressed
+   segmented control; the accent appears ONLY there — the collapsed section
+   carries no accent at all. */
+.sr-ack-toggle {
+  height: 32px; padding: 0 12px;
+  border: 1.5px solid var(--sr-border);
+  background: var(--sr-surface);
+  color: var(--sr-text);
+  border-radius: 6px;
+  font-size: 0.75rem; font-weight: 500; font-family: inherit;
+  cursor: pointer; white-space: nowrap;
+  transition: border-color 0.12s ease-out, background 0.12s ease-out, color 0.12s ease-out;
+}
+.sr-ack-toggle:hover { border-color: var(--sr-border-medium); background: var(--sr-surface-subtle); }
+.sr-ack-toggle[aria-expanded="true"] {
+  border-color: var(--sr-accent-border);
+  background: var(--sr-accent-bg);
+  color: var(--sr-accent);
+  font-weight: 600;
+}
+.sr-ack-toggle[aria-expanded="true"]:hover { background: var(--sr-accent-bg-hover); }
+
+/* Origin-aware reveal: the panel grows downward from the toggle row, on the
+   house grid-rows shape (0fr/1fr wrapper + overflow-hidden inner). The panel
+   is clipped rather than unmounted, which is exactly why the component puts
+   `inert` on the inner element while closed. */
+.sr-ack-reveal {
+  display: grid; grid-template-rows: 0fr;
+  transition: grid-template-rows 200ms cubic-bezier(0.2, 0, 0, 1);
+}
+.sr-ack-reveal--open { grid-template-rows: 1fr; }
+.sr-ack-reveal-inner { overflow: hidden; min-height: 0; }
+.sr-ack-panel {
+  border-top: 1px solid var(--sr-border-subtle);
+  background: var(--sr-surface-faint);
+  padding: 4px 16px;
+  opacity: 0;
+  transform: translateY(-4px);
+  transform-origin: top center;
+  transition: opacity 160ms ease-out, transform 200ms cubic-bezier(0.2, 0, 0, 1);
+}
+.sr-ack-reveal--open .sr-ack-panel { opacity: 1; transform: none; }
+
+/* Exactly two entries, each a name line plus a "For ..." line. Text wraps;
+   nothing here carries a fixed width, so 320px at 200% text scale holds. */
+.sr-ack-entry { padding: 13px 0 14px; }
+.sr-ack-entry + .sr-ack-entry { border-top: 1px solid var(--sr-border-subtle); }
+.sr-ack-name {
+  font-size: 0.84375rem; font-weight: 600; color: var(--sr-text);
+  margin-bottom: 3px; line-height: 1.4; overflow-wrap: break-word;
+}
+.sr-ack-for {
+  font-size: 0.8125rem; color: var(--sr-text-muted);
+  line-height: 1.55; margin: 0; overflow-wrap: break-word;
+}
+
+/* Phone tier: the toggle relaxes its fixed height and lets the label wrap
+   (min-height comes from .sr-touch-target on the element), and the panel's
+   side padding tightens. Those declarations live in the established ≤640 tier
+   block further down, NOT in a new standalone media block here: the tier-guard
+   tests locate "the phone tier" as the file's first multi-line 640px block. */
+
 .sr-map-sidebar-close {
   display: none;
   align-items: center;
@@ -3246,6 +3317,14 @@ select:focus-visible {
   /* Touch-target min-height lands only on phones (rem → holds at 200% text
      scale). Desktop keeps the control's intentional compact height. */
   .sr-touch-target { min-height: 2.75rem; }
+
+  /* Settings → Acknowledgments: the toggle takes the touch posture above
+     (min-height from .sr-touch-target on the element); here its fixed height
+     and nowrap relax so a wrapped label grows the button instead of clipping,
+     and the panel's side padding tightens. Scoped to the feature's own
+     subtree, beside its base rules' intent (settings-acknowledgments). */
+  .sr-ack-toggle { height: auto; white-space: normal; }
+  .sr-ack-panel { padding: 4px 12px; }
 
   /* Icon-only buttons in dense map rows grow to a ~40px tap box on phones
      (both dimensions, rem). Keeps the glyph size and radius; desktop untouched. */

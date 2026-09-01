@@ -1,0 +1,743 @@
+<title>Settings Acknowledgments Mockup</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  /* ================================================================
+     SnowRaven design tokens (verbatim subset of frontend/src/globals.css,
+     both themes) so the mockup renders as SnowRaven, not a generic app.
+     ================================================================ */
+  :root {
+    --sr-text-scale: 1;
+
+    --sr-bg: #F9FAFB;
+    --sr-surface: #FFFFFF;
+    --sr-surface-subtle: #F4F4F5;
+    --sr-surface-faint: #FAFAFA;
+
+    --sr-text: #0F1117;
+    --sr-text-muted: #6B6B74;
+    --sr-text-disabled: #A1A1AA;
+
+    --sr-border: #E4E4E7;
+    --sr-border-subtle: #F4F4F5;
+    --sr-border-medium: #C4C4CE;
+
+    --sr-accent: #277448;
+    --sr-accent-strong: #1A5C38;
+    --sr-accent-bg: #E8F5EE;
+    --sr-accent-bg-hover: #F0FAF4;
+    --sr-accent-border: rgba(39,116,72,0.25);
+    --sr-accent-border-strong: rgba(39,116,72,0.7);
+    --sr-accent-surface: #fafffd;
+    --sr-on-accent: #FFFFFF;
+
+    --sr-gray-400: #8E8E96;
+    --sr-card-shadow: 0 1px 4px rgba(15,17,23,0.06), 0 4px 16px rgba(15,17,23,0.04);
+    --sr-switch-thumb: #FFFFFF;
+    --sr-switch-thumb-shadow: 0 1px 2px rgba(15,17,23,0.25);
+
+    /* Same stack as globals.css --font-sans / --font-mono (the app's shipped
+       type; design-system.md fixes it, so the mockup does not restyle it). */
+    --font-sans: 'Inter', BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif;
+    --font-mono: ui-monospace, 'SF Mono', 'Cascadia Mono', Menlo, monospace;
+  }
+  [data-theme="dark"] {
+    --sr-bg: #09090B;
+    --sr-surface: #18181B;
+    --sr-surface-subtle: #27272A;
+    --sr-surface-faint: #1C1C1F;
+
+    --sr-text: #F4F4F5;
+    --sr-text-muted: #A1A1AA;
+    --sr-text-disabled: #52525B;
+
+    --sr-border: #27272A;
+    --sr-border-subtle: #1F1F23;
+    --sr-border-medium: #3F3F46;
+
+    --sr-accent: #34D399;
+    --sr-accent-strong: #34D399;
+    --sr-accent-bg: #052E16;
+    --sr-accent-bg-hover: #064E3B;
+    --sr-accent-border: rgba(52,211,153,0.2);
+    --sr-accent-border-strong: rgba(52,211,153,0.5);
+    --sr-accent-surface: #021a0f;
+    --sr-on-accent: #052E16;
+
+    --sr-gray-400: #52525B;
+  }
+
+  html { font-size: calc(16px * var(--sr-text-scale)); }
+  body {
+    margin: 0;
+    background: var(--sr-bg);
+    color: var(--sr-text);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  * { box-sizing: border-box; }
+  button { font-family: inherit; }
+  .sr-only {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+  }
+  :focus-visible { outline: 2px solid var(--sr-accent); outline-offset: 2px; }
+
+  /* ================================================================
+     Mockup review toolbar (design-review chrome, NOT part of the app)
+     ================================================================ */
+  .mock-toolbar {
+    position: sticky; top: 0; z-index: 10;
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    padding: 10px 16px;
+    background: var(--sr-surface);
+    border-bottom: 1px solid var(--sr-border);
+    box-shadow: var(--sr-card-shadow);
+    font-size: 0.75rem;
+  }
+  .mock-toolbar .mock-title { font-weight: 700; font-size: 0.75rem; letter-spacing: 0.02em; }
+  .mock-toolbar .mock-title span { color: var(--sr-text-muted); font-weight: 500; }
+  .mock-group { display: flex; align-items: center; gap: 5px; }
+  .mock-group > span { color: var(--sr-text-muted); font-weight: 600; font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.06em; }
+  .mock-btn {
+    height: 26px; padding: 0 10px; border-radius: 6px; cursor: pointer;
+    border: 1.5px solid var(--sr-border); background: var(--sr-surface-subtle);
+    color: var(--sr-text-muted); font-size: 0.71875rem; font-weight: 500;
+    transition: background 0.12s ease-out, color 0.12s ease-out, border-color 0.12s ease-out;
+  }
+  .mock-btn[aria-pressed="true"] {
+    border-color: var(--sr-accent-border); background: var(--sr-accent-bg);
+    color: var(--sr-accent); font-weight: 600;
+  }
+
+  /* ================================================================
+     Simulated app viewport
+     ================================================================ */
+  .stage { display: flex; flex-direction: column; align-items: center; padding: 28px 16px 60px; }
+  .frame {
+    width: min(100%, 980px);
+    background: var(--sr-bg);
+    border: 1px solid var(--sr-border-medium);
+    border-radius: 12px;
+    overflow: hidden;
+    transition: width 0.18s ease-out;
+  }
+  .frame[data-width="phone"] { width: 320px; }
+
+  /* App header + tab strip (abbreviated: the real header renders the
+     RavenGlyph brand mark beside the wordmark; not re-inlined here by rule). */
+  .app-header {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 20px 0;
+    background: var(--sr-bg);
+  }
+  .app-wordmark { font-size: 1.0625rem; font-weight: 700; letter-spacing: -0.01em; color: var(--sr-text); }
+  .app-wordmark .accent { color: var(--sr-accent); }
+  .app-tabs {
+    display: flex; align-items: center; gap: 2px; flex-wrap: wrap;
+    padding: 8px 12px 0;
+    border-bottom: 1px solid var(--sr-border);
+    background: var(--sr-bg);
+  }
+  .app-tab {
+    padding: 7px 10px 9px; border: none; background: none; cursor: default;
+    font-size: 0.78125rem; font-weight: 500; color: var(--sr-text-muted);
+    border-bottom: 2px solid transparent; margin-bottom: -1px;
+  }
+  .app-tab[aria-current="page"] { color: var(--sr-accent); font-weight: 600; border-bottom-color: var(--sr-accent); }
+  .frame[data-width="phone"] .app-tab.hide-narrow { display: none; }
+  .app-tab.more-narrow { display: none; }
+  .frame[data-width="phone"] .app-tab.more-narrow { display: inline-block; }
+
+  /* Settings panel: real geometry (padding 40px 24px 24px; max-width 680). */
+  .settings-scroll { padding: 40px 24px 24px; }
+  .frame[data-width="phone"] .settings-scroll { padding: 28px 12px 20px; }
+  .panel { width: 100%; max-width: 680px; margin: 0 auto; }
+
+  /* ---- Section vocabulary (SectionHeader + cards), verbatim shapes ---- */
+  .sec-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .sec-header > span {
+    font-size: 0.6875rem; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.07em; color: var(--sr-text-muted);
+  }
+  .sec-header > i { flex: 1; height: 1px; background: var(--sr-border); }
+  .card {
+    border: 1px solid var(--sr-border); border-radius: 10px;
+    background: var(--sr-surface); overflow: hidden; margin-bottom: 24px;
+  }
+
+  /* Action row (the Help & Documentation shape: icon tile, title, one-line
+     description, trailing action button). */
+  .action-row {
+    display: flex; align-items: center; justify-content: space-between;
+    flex-wrap: wrap; gap: 8px 12px; min-width: 0; padding: 16px;
+  }
+  .action-row .lead { display: flex; align-items: center; gap: 16px; flex: 1; min-width: 0; }
+  .icon-tile {
+    width: 40px; height: 40px; border-radius: 10px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--sr-accent-bg); border: 1px solid var(--sr-accent-border);
+    color: var(--sr-accent);
+  }
+  .icon-tile.small { width: 38px; height: 38px; border-radius: 9px; border: none; }
+  .icon-tile.neutral { background: var(--sr-surface-subtle); border: none; color: var(--sr-text-disabled); }
+  .row-text { flex: 1; min-width: 0; }
+  .row-title { font-size: 0.84375rem; font-weight: 600; color: var(--sr-text); margin-bottom: 2px; }
+  .row-desc { font-size: 0.75rem; color: var(--sr-text-muted); line-height: 1.5; }
+  .btn-accent {
+    height: 34px; padding: 0 16px; flex-shrink: 0;
+    background: var(--sr-accent); color: var(--sr-on-accent);
+    border: none; border-radius: 7px;
+    font-size: 0.8125rem; font-weight: 600; cursor: pointer; white-space: nowrap;
+    transition: background 0.12s ease-out, color 0.12s ease-out, box-shadow 0.12s ease-out;
+  }
+  .btn-accent:hover { background: var(--sr-accent-strong); }
+  [data-theme="dark"] .btn-accent:hover { box-shadow: 0 0 0 3px var(--sr-accent-border); }
+  .btn-quiet {
+    height: 32px; padding: 0 12px;
+    border: 1.5px solid var(--sr-border); background: var(--sr-surface); color: var(--sr-text);
+    border-radius: 6px; font-size: 0.75rem; font-weight: 500; cursor: pointer; white-space: nowrap;
+    transition: border-color 0.12s ease-out, background 0.12s ease-out;
+  }
+  .btn-quiet:hover { border-color: var(--sr-border-medium); background: var(--sr-surface-subtle); }
+
+  /* Phone tier: stacked action rows + touch-target posture (mirrors
+     .sr-action-row-stack at <=480 and .sr-touch-target at <=640; keyed on the
+     frame's width toggle here so the 320px demo works inside a wide window). */
+  .frame[data-width="phone"] .action-row { flex-direction: column; align-items: stretch; }
+  .frame[data-width="phone"] .action-row > *:not(.sr-only) { width: 100%; }
+  .frame[data-width="phone"] .btn-accent,
+  .frame[data-width="phone"] .btn-quiet { min-height: 44px; height: auto; white-space: normal; }
+  @media (max-width: 640px) {
+    .action-row { flex-direction: column; align-items: stretch; }
+    .action-row > *:not(.sr-only) { width: 100%; }
+    .btn-accent, .btn-quiet { min-height: 44px; height: auto; white-space: normal; }
+  }
+
+  /* Padded card body rows */
+  .body-row { padding: 14px 16px; }
+  .body-row + .body-row { border-top: 1px solid var(--sr-border); }
+  .body-title { font-size: 0.84375rem; font-weight: 600; color: var(--sr-text); margin-bottom: 4px; }
+  .body-note { font-size: 0.75rem; color: var(--sr-text-muted); margin: 0 0 10px; line-height: 1.5; }
+
+  /* Segmented control (RadioGroup visual) */
+  .seg { display: flex; gap: 6px; flex-wrap: wrap; }
+  .seg button {
+    flex: 1; min-width: 64px; height: 34px; border-radius: 6px; cursor: pointer;
+    border: 1.5px solid var(--sr-border); background: var(--sr-surface-subtle);
+    color: var(--sr-text-muted); font-size: 0.8125rem; font-weight: 500;
+    transition: background 0.12s ease-out, color 0.12s ease-out, border-color 0.12s ease-out;
+  }
+  .seg button[aria-pressed="true"] {
+    border-color: var(--sr-accent-border); background: var(--sr-accent-bg);
+    color: var(--sr-accent); font-weight: 600;
+  }
+  .seg button .sub { display: block; font-size: 0.6875rem; font-weight: 400; margin-top: 1px; }
+  .seg button.tall { height: auto; min-height: 48px; padding: 6px 4px; }
+
+  /* Bare toggle switch (36x20 track, 16px knob) */
+  .switch {
+    width: 36px; height: 20px; border-radius: 10px; flex-shrink: 0;
+    border: none; cursor: pointer; position: relative;
+    background: var(--sr-gray-400);
+    transition: background 0.15s ease-out;
+  }
+  .switch[aria-checked="true"] { background: var(--sr-accent); }
+  .switch::after {
+    content: ''; position: absolute; top: 2px; left: 2px;
+    width: 16px; height: 16px; border-radius: 50%;
+    background: var(--sr-switch-thumb); box-shadow: var(--sr-switch-thumb-shadow);
+    transition: transform 0.15s ease-out;
+  }
+  .switch[aria-checked="true"]::after { transform: translateX(16px); }
+
+  /* Share example block */
+  .share-example {
+    margin: 10px 0 6px; padding: 10px 12px;
+    background: var(--sr-surface-faint); border: 1px solid var(--sr-border-subtle);
+    border-radius: 8px; overflow-x: auto;
+    font-family: var(--font-mono); font-size: 0.71875rem; line-height: 1.6;
+    color: var(--sr-text); white-space: pre;
+  }
+  .share-caption {
+    display: flex; align-items: center; gap: 5px; margin-top: 12px;
+    font-size: 0.6875rem; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.06em; color: var(--sr-text-muted);
+  }
+  .share-part { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 7px 0; }
+  .share-part span { font-size: 0.8125rem; color: var(--sr-text); }
+
+  /* Key / file rows */
+  .kv-mono { font-family: var(--font-mono); letter-spacing: 2px; font-size: 0.8125rem; color: var(--sr-text); }
+  .link-quiet { background: none; border: none; padding: 0; font-size: 0.75rem; font-weight: 500; color: var(--sr-accent); cursor: pointer; }
+  .file-meta { font-size: 0.75rem; color: var(--sr-text-muted); margin-top: 2px; }
+  .file-meta b { color: var(--sr-text); font-weight: 600; }
+
+  /* Inputs (Default Location) */
+  .loc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(7rem, 100%), 1fr)); gap: 8px; margin-bottom: 12px; }
+  .loc-grid label { display: block; font-size: 0.6875rem; font-weight: 600; color: var(--sr-text-muted); margin-bottom: 4px; }
+  .loc-grid input {
+    width: 100%; height: 34px; padding: 0 8px;
+    border: 1.5px solid var(--sr-border); border-radius: 6px;
+    font-size: max(16px, 0.75rem); font-family: var(--font-mono);
+    color: var(--sr-text); background: var(--sr-surface);
+  }
+  .loc-grid input:focus { border-color: var(--sr-accent); outline: none; }
+
+  /* Tab layout rows */
+  .tab-row { display: flex; align-items: center; gap: 10px; padding: 9px 16px; }
+  .tab-row + .tab-row { border-top: 1px solid var(--sr-border-subtle); }
+  .tab-row .name { flex: 1; min-width: 0; font-size: 0.8125rem; font-weight: 500; color: var(--sr-text); }
+  .move-btn {
+    width: 26px; height: 26px; display: flex; align-items: center; justify-content: center;
+    border: 1px solid var(--sr-border); border-radius: 6px; background: var(--sr-surface);
+    color: var(--sr-text-muted); cursor: pointer;
+  }
+  .move-btn[disabled] { color: var(--sr-text-disabled); cursor: default; }
+
+  /* ================================================================
+     THE NEW SECTION: Acknowledgments (inline disclosure)
+     ================================================================ */
+
+  /* The toggle is the tab's quietest button register (the Rebuild caches /
+     Replace treatment). Open state takes the app's established active-state
+     tint, exactly like a pressed segmented control. */
+  .ack-toggle { transition: border-color 0.12s ease-out, background 0.12s ease-out, color 0.12s ease-out; }
+  .ack-toggle[aria-expanded="true"] {
+    border-color: var(--sr-accent-border);
+    background: var(--sr-accent-bg);
+    color: var(--sr-accent);
+    font-weight: 600;
+  }
+  .ack-toggle[aria-expanded="true"]:hover { background: var(--sr-accent-bg-hover); }
+
+  /* Grid-collapse disclosure (the app's shipped disclosure mechanism):
+     0fr -> 1fr on the wrapper, overflow hidden on the inner element. Enter is
+     ease-out under 300ms and origin-aware: the panel grows downward from the
+     toggle row above it, and its content settles from -4px with the same
+     cubic-bezier(0.2, 0, 0, 1) the species picker's listbox ships. */
+  .ack-reveal {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 0.2s cubic-bezier(0.2, 0, 0, 1);
+  }
+  .ack-reveal.open { grid-template-rows: 1fr; }
+  .ack-reveal-inner { overflow: hidden; min-height: 0; }
+  .ack-panel {
+    border-top: 1px solid var(--sr-border-subtle);
+    background: var(--sr-surface-faint);
+    padding: 4px 16px;
+    opacity: 0;
+    transform: translateY(-4px);
+    transform-origin: top center;
+    transition: opacity 0.16s ease-out, transform 0.2s cubic-bezier(0.2, 0, 0, 1);
+  }
+  .ack-reveal.open .ack-panel { opacity: 1; transform: translateY(0); }
+  .frame[data-width="phone"] .ack-panel { padding: 4px 12px; }
+
+  .ack-entry { padding: 13px 0 14px; }
+  .ack-entry + .ack-entry { border-top: 1px solid var(--sr-border-subtle); }
+  .ack-name { font-size: 0.84375rem; font-weight: 600; color: var(--sr-text); margin-bottom: 3px; line-height: 1.4; }
+  .ack-for { font-size: 0.8125rem; color: var(--sr-text-muted); line-height: 1.55; margin: 0; }
+
+  /* ================================================================
+     Designer notes (review chrome, outside the app frame)
+     ================================================================ */
+  .notes {
+    width: min(100%, 980px); margin-top: 22px;
+    border: 1px dashed var(--sr-border-medium); border-radius: 10px;
+    padding: 16px 18px; background: var(--sr-surface);
+    font-size: 0.75rem; line-height: 1.6; color: var(--sr-text-muted);
+  }
+  .notes h2 { font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--sr-text-muted); margin: 0 0 8px; }
+  .notes ul { margin: 0; padding-left: 18px; }
+  .notes li { margin-bottom: 5px; }
+  .notes b { color: var(--sr-text); font-weight: 600; }
+
+  /* Reduced motion: the app's global rule shortens transitions toward zero
+     rather than removing them (transitionend still fires); mirrored here. */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      transition-delay: 0s !important;
+      transition-timing-function: linear !important;
+      transition-property: none !important;
+    }
+    .ack-reveal, .ack-panel { transition-property: grid-template-rows, opacity, transform !important; }
+    .ack-reveal { transition: grid-template-rows 0.01s linear !important; }
+    .ack-panel { transition: opacity 0.01s linear, transform 0.01s linear !important; }
+  }
+</style>
+
+<!-- ══════════════ Mockup review toolbar (not part of the app) ══════════════ -->
+<div class="mock-toolbar">
+  <div class="mock-title">Settings · Acknowledgments <span>design mockup</span></div>
+  <div class="mock-group" role="group" aria-label="Theme">
+    <span>Theme</span>
+    <button class="mock-btn" id="tbLight" aria-pressed="true" onclick="setTheme('light')">Light</button>
+    <button class="mock-btn" id="tbDark" aria-pressed="false" onclick="setTheme('dark')">Dark</button>
+  </div>
+  <div class="mock-group" role="group" aria-label="Frame width">
+    <span>Width</span>
+    <button class="mock-btn" id="tbDesktop" aria-pressed="true" onclick="setWidth('desktop')">Desktop</button>
+    <button class="mock-btn" id="tbPhone" aria-pressed="false" onclick="setWidth('phone')">320px phone</button>
+  </div>
+  <div class="mock-group" role="group" aria-label="Text scale">
+    <span>Text</span>
+    <button class="mock-btn tb-scale" data-scale="1" aria-pressed="true" onclick="setScale(1)">100%</button>
+    <button class="mock-btn tb-scale" data-scale="2" aria-pressed="false" onclick="setScale(2)">200%</button>
+  </div>
+</div>
+
+<div class="stage">
+  <!-- ══════════════ Simulated SnowRaven viewport ══════════════ -->
+  <div class="frame" id="frame" data-width="desktop">
+
+    <div class="app-header">
+      <div class="app-wordmark"><span class="accent">Snow</span>Raven</div>
+    </div>
+    <nav class="app-tabs" aria-label="Tabs (illustrative)">
+      <button class="app-tab">Statistics</button>
+      <button class="app-tab hide-narrow">Map Explorer</button>
+      <button class="app-tab hide-narrow">Species Detail</button>
+      <button class="app-tab hide-narrow">Multimedia</button>
+      <button class="app-tab hide-narrow">Breeding Codes</button>
+      <button class="app-tab hide-narrow">Checklists</button>
+      <button class="app-tab hide-narrow">Calendar</button>
+      <button class="app-tab hide-narrow">Weather</button>
+      <button class="app-tab more-narrow">More ▾</button>
+      <button class="app-tab" aria-current="page">Settings</button>
+    </nav>
+
+    <div class="settings-scroll">
+      <div class="panel">
+
+        <!-- ════════ Help & Documentation (existing, unchanged) ════════ -->
+        <div class="sec-header"><span>Help &amp; Documentation</span><i></i></div>
+        <div class="card">
+          <div class="action-row">
+            <div class="lead">
+              <div class="icon-tile">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+              </div>
+              <div class="row-text">
+                <div class="row-title">SnowRaven Documentation</div>
+                <div class="row-desc">Setup guides, feature walkthroughs, and API key instructions. Available offline.</div>
+              </div>
+            </div>
+            <button class="btn-accent" tabindex="0">Open documentation</button>
+          </div>
+        </div>
+
+        <!-- ════════ Appearance (existing, unchanged) ════════ -->
+        <div class="sec-header"><span>Appearance</span><i></i></div>
+        <div class="card">
+          <div class="body-row">
+            <div class="body-title" style="margin-bottom: 10px;">Color scheme</div>
+            <div class="seg" role="group" aria-label="Color theme">
+              <button id="segSystem" aria-pressed="false" onclick="setThemeSystem()">System</button>
+              <button id="segLight" aria-pressed="true" onclick="setTheme('light')">Light</button>
+              <button id="segDark" aria-pressed="false" onclick="setTheme('dark')">Dark</button>
+            </div>
+          </div>
+          <div class="body-row">
+            <div class="body-title">Text size</div>
+            <p class="body-note">Scale text throughout the app (up to 200%). Also follows your device's text-size setting.</p>
+            <div class="seg" role="group" aria-label="Text size">
+              <button class="seg-scale" data-scale="1" aria-pressed="true" onclick="setScale(1)">100%</button>
+              <button class="seg-scale" data-scale="1.25" aria-pressed="false" onclick="setScale(1.25)">125%</button>
+              <button class="seg-scale" data-scale="1.5" aria-pressed="false" onclick="setScale(1.5)">150%</button>
+              <button class="seg-scale" data-scale="2" aria-pressed="false" onclick="setScale(2)">200%</button>
+            </div>
+          </div>
+          <div class="body-row">
+            <div class="body-title">Date format</div>
+            <p class="body-note">How dates are shown throughout the app.</p>
+            <div class="seg" role="group" aria-label="Date format">
+              <button class="tall" aria-pressed="true">Month first<span class="sub">Aug 31, 2026</span></button>
+              <button class="tall" aria-pressed="false">Day first<span class="sub">31 Aug 2026</span></button>
+              <button class="tall" aria-pressed="false">ISO<span class="sub">2026-08-31</span></button>
+            </div>
+          </div>
+          <div class="body-row" style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+            <div class="row-text">
+              <div class="row-title">Disable embedded media</div>
+              <div class="row-desc">Replaces Macaulay Library players with direct links, so nothing loads from macaulaylibrary.org.</div>
+            </div>
+            <button class="switch" role="switch" aria-checked="false" aria-label="Disable embedded media" tabindex="0" onclick="flip(this)"></button>
+          </div>
+        </div>
+
+        <!-- ════════ Sharing (existing, unchanged) ════════ -->
+        <div class="sec-header"><span>Sharing</span><i></i></div>
+        <div class="card">
+          <div class="body-row">
+            <div class="body-title">Copying a location</div>
+            <p class="body-note">What gets copied when you copy a location from a map pin. Coordinates are decimal degrees to five places, latitude first.</p>
+            <div class="share-part"><span>Coordinates</span><button class="switch" role="switch" aria-checked="true" aria-label="Include coordinates" tabindex="0" onclick="flip(this)"></button></div>
+            <div class="share-part"><span>Apple Maps link</span><button class="switch" role="switch" aria-checked="true" aria-label="Include Apple Maps link" tabindex="0" onclick="flip(this)"></button></div>
+            <div class="share-part"><span>Google Maps link</span><button class="switch" role="switch" aria-checked="true" aria-label="Include Google Maps link" tabindex="0" onclick="flip(this)"></button></div>
+            <div class="share-caption">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+              Example
+            </div>
+            <pre class="share-example">38.54321, -121.98765
+https://maps.apple.com/?ll=38.54321,-121.98765
+https://maps.google.com/?q=38.54321,-121.98765</pre>
+          </div>
+        </div>
+
+        <!-- ════════ API Keys (existing, unchanged) ════════ -->
+        <div class="sec-header"><span>API Keys</span><i></i></div>
+        <div class="card" style="margin-bottom: 8px;">
+          <div class="action-row">
+            <div class="lead">
+              <div class="icon-tile small">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              </div>
+              <div class="row-text">
+                <div class="row-title">eBird API Key</div>
+                <div style="display: flex; align-items: center; gap: 8px; margin-top: 2px;">
+                  <span class="kv-mono">&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;</span>
+                  <button class="link-quiet" tabindex="0">Show</button>
+                </div>
+              </div>
+            </div>
+            <button class="btn-quiet" tabindex="0">Replace</button>
+          </div>
+          <div style="border-top: 1px solid var(--sr-border-subtle);">
+            <div class="action-row">
+              <div class="lead">
+                <div class="icon-tile small">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                </div>
+                <div class="row-text">
+                  <div class="row-title">OpenWeather API Key</div>
+                  <div style="display: flex; align-items: center; gap: 8px; margin-top: 2px;">
+                    <span class="kv-mono">&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;</span>
+                    <button class="link-quiet" tabindex="0">Show</button>
+                  </div>
+                </div>
+              </div>
+              <button class="btn-quiet" tabindex="0">Replace</button>
+            </div>
+          </div>
+        </div>
+        <p class="body-note" style="margin: 0 0 24px;">Keys are stored locally on this device and sent only to eBird and OpenWeather.</p>
+
+        <!-- ════════ Default Files (existing, unchanged) ════════ -->
+        <div class="sec-header"><span>Default Files</span><i></i></div>
+        <div class="card" style="margin-bottom: 10px;">
+          <div class="action-row">
+            <div class="lead">
+              <div class="icon-tile small">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>
+              </div>
+              <div class="row-text">
+                <div class="row-title">eBird Backup</div>
+                <div class="file-meta"><b>MyEBirdData.csv</b> &middot; 2.6 MB &middot; loaded Aug 24, 2026</div>
+              </div>
+            </div>
+            <button class="btn-quiet" tabindex="0">Replace</button>
+          </div>
+          <div style="border-top: 1px solid var(--sr-border-subtle);">
+            <div class="action-row">
+              <div class="lead">
+                <div class="icon-tile small">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>
+                </div>
+                <div class="row-text">
+                  <div class="row-title">ML Export</div>
+                  <div class="file-meta"><b>ML_2026-08_selects.csv</b> &middot; 1.1 MB &middot; loaded Aug 24, 2026</div>
+                </div>
+              </div>
+              <button class="btn-quiet" tabindex="0">Replace</button>
+            </div>
+          </div>
+        </div>
+        <p class="body-note" style="margin: 0 0 24px;">Files are stored in this app's local data directory and load automatically when you open the relevant tab.</p>
+
+        <!-- ════════ Default Location (existing, unchanged) ════════ -->
+        <div class="sec-header"><span>Default Location</span><i></i></div>
+        <div class="card">
+          <div class="body-row">
+            <p class="body-note">Set a home location for the Map Explorer. These coordinates load automatically every time you open the map tab.</p>
+            <button class="btn-quiet" tabindex="0" style="display: inline-flex; align-items: center; gap: 7px; margin-bottom: 12px;">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--sr-accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
+              Use my location
+            </button>
+            <div class="loc-grid">
+              <div><label for="mock-lat">Latitude</label><input id="mock-lat" value="38.54321"></div>
+              <div><label for="mock-lng">Longitude</label><input id="mock-lng" value="-121.98765"></div>
+              <div><label for="mock-rad">Radius (mi)</label><input id="mock-rad" value="5"></div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+              <button class="btn-accent" style="height: 32px; font-size: 0.75rem; font-weight: 500; border-radius: 6px;" tabindex="0">Save</button>
+              <button class="btn-quiet" tabindex="0">Clear</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ════════ Tab Layout (existing, unchanged; condensed rows) ════════ -->
+        <div class="sec-header"><span>Tab Layout</span><i></i></div>
+        <div class="card">
+          <div class="body-row" style="padding-bottom: 8px;">
+            <p class="body-note" style="margin-bottom: 0;">Reorder tabs, or hide the ones you don't use. Settings is always available.</p>
+          </div>
+          <div class="tab-row">
+            <button class="move-btn" disabled aria-label="Move Statistics up"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m18 15-6-6-6 6"/></svg></button>
+            <button class="move-btn" aria-label="Move Statistics down"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+            <span class="name">Statistics</span>
+            <button class="switch" role="switch" aria-checked="true" aria-label="Show Statistics tab" tabindex="0" onclick="flip(this)"></button>
+          </div>
+          <div class="tab-row">
+            <button class="move-btn" aria-label="Move Map Explorer up"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m18 15-6-6-6 6"/></svg></button>
+            <button class="move-btn" aria-label="Move Map Explorer down"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+            <span class="name">Map Explorer</span>
+            <button class="switch" role="switch" aria-checked="true" aria-label="Show Map Explorer tab" tabindex="0" onclick="flip(this)"></button>
+          </div>
+          <div class="tab-row">
+            <button class="move-btn" aria-label="Move Species Detail up"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m18 15-6-6-6 6"/></svg></button>
+            <button class="move-btn" aria-label="Move Species Detail down"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+            <span class="name">Species Detail</span>
+            <button class="switch" role="switch" aria-checked="true" aria-label="Show Species Detail tab" tabindex="0" onclick="flip(this)"></button>
+          </div>
+          <div class="tab-row" style="border-bottom: 1px solid var(--sr-border-subtle);">
+            <button class="move-btn" aria-label="Move Weather up"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m18 15-6-6-6 6"/></svg></button>
+            <button class="move-btn" disabled aria-label="Move Weather down"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+            <span class="name">Weather</span>
+            <button class="switch" role="switch" aria-checked="false" aria-label="Show Weather tab" tabindex="0" onclick="flip(this)"></button>
+          </div>
+          <div class="body-row" style="border-top: none; padding-top: 10px;">
+            <div class="row-desc" style="margin-bottom: 10px;">&hellip; six more tabs, abbreviated in this mockup.</div>
+            <button class="btn-quiet" tabindex="0">Restore defaults</button>
+          </div>
+        </div>
+
+        <!-- ════════ Troubleshooting (existing, unchanged; desktop app shown) ════════ -->
+        <div class="sec-header"><span>Troubleshooting</span><i></i></div>
+        <div class="card">
+          <div class="body-row">
+            <p class="body-note">If the map or species lookups stop working, rebuilding the app's local caches usually fixes it. The app will restart.</p>
+            <button class="btn-quiet" tabindex="0">Rebuild caches</button>
+          </div>
+        </div>
+
+        <!-- ════════════════════════════════════════════════════════════
+             NEW: Acknowledgments (last section of the tab)
+             SectionHeader + one quiet row in the Troubleshooting register:
+             no icon tile, no title, no description; the header names the
+             section and the button opens an inline disclosure in the card.
+             ════════════════════════════════════════════════════════════ -->
+        <div class="sec-header"><span>Acknowledgments</span><i></i></div>
+        <div class="card" style="margin-bottom: 0;">
+          <div class="body-row">
+            <button class="btn-quiet ack-toggle" id="ackToggle" tabindex="0"
+                    aria-expanded="false" aria-controls="ackPanel"
+                    onclick="toggleAck()">View acknowledgments</button>
+          </div>
+
+          <!-- Grid-collapse disclosure: inert + unreachable while closed. -->
+          <div class="ack-reveal" id="ackReveal">
+            <div class="ack-reveal-inner">
+              <div class="ack-panel" id="ackPanel" inert>
+                <div class="ack-entry">
+                  <div class="ack-name">The Cornell Lab of Ornithology and the Macaulay Library</div>
+                  <p class="ack-for">For creating a wonderful platform for tracking birding data, and for making it freely available.</p>
+                </div>
+                <div class="ack-entry">
+                  <div class="ack-name">Deven Simonson</div>
+                  <p class="ack-for">For providing early access to Weft to help build the SnowRaven app.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /panel -->
+    </div><!-- /settings-scroll -->
+  </div><!-- /frame -->
+
+  <!-- ══════════════ Designer notes (review chrome, not the app) ══════════════ -->
+  <div class="notes">
+    <h2>Designer notes for this review (revision 2: subtler)</h2>
+    <ul>
+      <li><b>Subtler, per your feedback.</b> The Heart icon tile, the "With thanks" title, and the description line are gone. The section is now the tab's quietest register (the Troubleshooting shape): the uppercase section header names it, and the card holds one plain bordered button. No accent slab, no flourish.</li>
+      <li><b>Reveal: inline disclosure, not an overlay</b> (unchanged). The panel expands inside the card, directly under the button. Collapse keeps focus on the button; the collapsed panel is inert (unreachable by Tab and hidden from assistive technology).</li>
+      <li><b>Placement: last section of the Settings tab</b> (unchanged), after Troubleshooting on desktop, after Tab Layout on web and iOS where Troubleshooting does not render. No existing section moves.</li>
+      <li><b>No outbound links</b> (unchanged); the Deven Simonson entry never links regardless.</li>
+      <li><b>Entries:</b> approved copy kept verbatim, each as a name line plus a "For &hellip;" line.</li>
+      <li><b>Motion:</b> the panel grows from the toggle row (grid-collapse, 200ms ease-out, cubic-bezier(0.2, 0, 0, 1), the app's shipped listbox easing) with a small settle from above; the button goes from the quiet bordered treatment to the app's standard accent-tinted active state while open. Reduced motion renders both near-instantly.</li>
+      <li><b>320px and 200%:</b> use the toolbar toggles above. The button takes the 44px touch-target posture and the panel text wraps with no horizontal scroll. In the real build these hang off the existing ≤640/≤480 tiers.</li>
+      <li><b>Illustrative context:</b> every section above the new one is existing shipped UI, reproduced here (some rows condensed) so the new section can be judged in place; nothing about them changes.</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+  // ---- Mockup controls ------------------------------------------------
+  var root = document.documentElement;
+  var frame = document.getElementById('frame');
+  var systemDark = window.matchMedia('(prefers-color-scheme: dark)');
+  var followSystem = false;
+
+  function press(el, on) { el.setAttribute('aria-pressed', on ? 'true' : 'false'); }
+
+  function applyThemeButtons(theme) {
+    press(document.getElementById('tbLight'), theme === 'light');
+    press(document.getElementById('tbDark'), theme === 'dark');
+    press(document.getElementById('segLight'), !followSystem && theme === 'light');
+    press(document.getElementById('segDark'), !followSystem && theme === 'dark');
+    press(document.getElementById('segSystem'), followSystem);
+  }
+  function setTheme(theme) {
+    followSystem = false;
+    root.setAttribute('data-theme', theme);
+    applyThemeButtons(theme);
+  }
+  function setThemeSystem() {
+    followSystem = true;
+    var theme = systemDark.matches ? 'dark' : 'light';
+    root.setAttribute('data-theme', theme);
+    applyThemeButtons(theme);
+  }
+  systemDark.addEventListener('change', function () { if (followSystem) setThemeSystem(); });
+
+  function setWidth(w) {
+    frame.setAttribute('data-width', w);
+    press(document.getElementById('tbDesktop'), w === 'desktop');
+    press(document.getElementById('tbPhone'), w === 'phone');
+  }
+
+  function setScale(s) {
+    root.style.setProperty('--sr-text-scale', String(s));
+    document.querySelectorAll('.tb-scale, .seg-scale').forEach(function (b) {
+      press(b, parseFloat(b.getAttribute('data-scale')) === s);
+    });
+  }
+
+  // Decorative switches in the illustrative sections just flip visually.
+  function flip(el) {
+    el.setAttribute('aria-checked', el.getAttribute('aria-checked') === 'true' ? 'false' : 'true');
+  }
+
+  // ---- The Acknowledgments disclosure (the feature under review) ------
+  // One toggle path: aria-expanded + label swap on the button, grid-collapse
+  // on the wrapper, inert on the panel while closed. Collapse keeps focus on
+  // the button (focus never moves), and repeated cycles are idempotent by
+  // construction: the same three attributes flip back and forth.
+  var ackToggle = document.getElementById('ackToggle');
+  var ackReveal = document.getElementById('ackReveal');
+  var ackPanel = document.getElementById('ackPanel');
+
+  function toggleAck() {
+    var open = ackToggle.getAttribute('aria-expanded') === 'true';
+    var next = !open;
+    ackToggle.setAttribute('aria-expanded', next ? 'true' : 'false');
+    ackToggle.textContent = next ? 'Hide acknowledgments' : 'View acknowledgments';
+    ackReveal.classList.toggle('open', next);
+    if (next) { ackPanel.removeAttribute('inert'); } else { ackPanel.setAttribute('inert', ''); }
+  }
+
+  // Initial theme follows the reviewer's system, like the app's default.
+  setThemeSystem();
+</script>

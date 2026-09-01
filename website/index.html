@@ -45,7 +45,7 @@
       <a class="brand" href="#top" aria-label="SnowRaven home">
         <img class="brand-mark" src="assets/logo.svg" alt="" width="28" height="28" />
         <span class="brand-name">Snow<span class="brand-accent">Raven</span></span>
-        <span class="version-pill" aria-label="Version 1.0.7">v1.0.7</span>
+        <span class="version-pill" aria-label="Version 1.0.10">v1.0.10</span>
       </a>
 
       <nav class="primary-nav" aria-label="Primary">
@@ -177,18 +177,12 @@
             <h3>Weather &amp; Tide Lookup</h3>
             <p>
               Paste an eBird checklist ID and get a clean, ready-to-paste weather summary:
-              temperature, wind with its Beaufort description, humidity, dew point,
-              sunrise and sunset, and the moon phase on night checklists. The same lookup
-              fills in the historical tide from the nearest NOAA station, observed or
-              predicted, with the surrounding highs and lows. Copy weather and tide
-              together in one click. You can also skip the checklist entirely: Current
-              shows the live weather and tide for where you are, and Predict forecasts
-              both for a place and time you choose (about a week ahead for weather, and
-              much further for the tide). A weather backlog at the bottom of the tab lists
-              your recent checklists that still have no weather block (built from your own
-              backup, newest first) so you can work down the ones you missed instead of
-              looking them up one at a time, with a Copy weather &amp; go action that copies a
-              checklist's weather and opens its eBird comment page to paste.
+              temperature, wind, humidity, dew point, sunrise and sunset, and the moon
+              phase on night checklists, plus the historical tide from the nearest NOAA
+              station. Current shows the live weather and tide for where you are, Predict
+              forecasts both for a place and time you choose, and a backlog lists your
+              recent checklists that still have no weather block, so you can work down
+              the ones you missed.
             </p>
           </div>
           <figure class="feature-media shot-slot" data-shot="weather">
@@ -205,26 +199,14 @@
             </span>
             <h3>Species Detail</h3>
             <p>
-              Your complete history with any species. Sighting stats, breeding codes, the
-              species you most often see it with, field notes, top locations (public eBird
-              hotspots link to their hotspot page, wherever a location name appears in the app),
-              sightings-over-time graphs, and a map of every observation, all in one view.
-              A <strong>Subspecies Explorer</strong> lists every species in your data with
-              subspecies or form detail, and a per-species breakdown shows how your reports
-              divide between each reported form and plain species-level reports, as counts and
-              percentages that sum to exactly 100%. It follows the page's filters, includes
-              only countable forms per eBird's own rule, and works entirely offline from your
-              file, with no API key.
-              A <strong>Counties</strong> switch on that map shades every US county where you
-              have recorded the bird, tinted by how many of your checklists there reported it,
-              so the counties you have birded without finding it stay a plain outline. It is
-              computed from your own file, so it needs no connection and no API key, and it
-              reshades the moment you pick a different species, leaving your Pins or Heatmap choice as you set it.
-              A <strong>Recent Media</strong> section plays your most recent photo, audio
-              recording, and video of that species inline from the Macaulay Library, each with
-              its capture date, a link to the recording itself, and the checklist it came from.
-              If an embed is slow, blocked, or you are offline, it shows those same links in
-              place of a blank frame, and recovers on its own once you are back.
+              Your complete history with any species: sighting stats, breeding codes, field
+              notes, top locations, sightings-over-time graphs, and a map of every
+              observation, all in one view. A <strong>Subspecies Explorer</strong> breaks
+              your reports down by subspecies and form, a <strong>Counties</strong> switch
+              shades every US county where you have recorded the bird (offline, from your
+              own file, no API key), and a <strong>Recent Media</strong> section plays your
+              latest photo, audio, and video of it inline from the Macaulay Library,
+              showing plain links instead when an embed can't load.
             </p>
           </div>
           <figure class="feature-media shot-slot" data-shot="species">
@@ -242,44 +224,24 @@
             <h3>Statistics</h3>
             <p>
               A full analytics dashboard built from your own data: life-list totals and
-              growth, top species, firsts and milestones, temporal and geographic patterns,
-              effort and methodology, data quality, breeding stats, and deep media
-              statistics (documentation coverage, age/sex and behavior breakdowns),
-              where the photo, audio, and behavior counts link straight to the matching
-              media in your Macaulay Library.
-              A Frivolous Lists section at the bottom adds a few playful, self-completing
-              collections, just for fun.
-            </p>
-            <p>
-              Two count rules sit in the tab header, both off by default.
-              One, Count all forms, follows eBird's own rule for what counts as a species:
-              a form that leaves the species in doubt does not count (a spuh, a slash, a
-              hybrid, an undescribed form), while a form that only leaves the subspecies
-              in doubt counts as its parent species. It moves the Species tile and most
-              of the cards, though media documentation coverage and the Frivolous Lists
-              always use countable species, whichever way it is set, and say so where
-              their figures appear. The other, Count escapees,
-              follows eBird's own life-list rule: Naturalized and Provisional exotics
-              count toward a life list, Escapee does not. SnowRaven works out which of
-              your birds eBird tags as escapees by asking about the smallest set of your
-              checklists that covers every species you have recorded, then names every
-              bird it leaves out and why. Those birds stay on your Life List; only the
-              count changes. Both are per-session, resetting on relaunch.
+              growth, firsts and milestones, temporal and geographic patterns, effort,
+              data quality, breeding stats, deep media statistics, and a few playful
+              Frivolous Lists. Two off-by-default count rules in the tab header follow
+              eBird's own rules for what counts: Count all forms decides whether forms
+              that leave the species in doubt (a spuh, a slash, a hybrid) are counted,
+              and Count escapees follows eBird's life-list rule for exotics (Naturalized
+              and Provisional count, Escapee does not), naming every bird it leaves out.
+              Both are per-session, resetting on relaunch.
             </p>
             <p>
               The Geographic Stats map carries the same <strong>Counties</strong> overlay,
               shaded by species or by checklists, with numbers that match the county tables
               beside it, and the Map Explorer's too while Count all forms is off (the Map
               Explorer always applies the countable-species rule). A <strong>Projects</strong>
-              section reports which eBird projects your
-              checklists were submitted to, the California Breeding Bird Atlas among them.
-              Your backup does not record that at all, so each checklist has to be asked about
-              on its own. Nothing is sent until you press Check projects, and the section tells
-              you the exact cost first: how many requests, and roughly how long. It can be
-              stopped and resumed, answers are stored on your device so an interrupted run
-              picks up where it left off, and every tally is shown with the number of
-              checklists it was drawn from, so a partial answer reads as a floor rather than
-              as a finished total.
+              section reports which eBird projects your checklists were submitted to:
+              nothing is sent until you press Check projects, the section states the exact
+              cost first, it can be stopped and resumed, and every tally shows how many
+              checklists it was drawn from.
             </p>
             <p class="feature-tag">Light or dark, your choice. Dark mode shown.</p>
           </div>
@@ -297,16 +259,13 @@
             </span>
             <h3>Calendar</h3>
             <p>
-              A year of your birding as twelve month grids, like a wall calendar's twelve
-              pages, each day carrying a number: the species you saw, the checklists you
-              submitted, or the total count of individual birds you recorded, your choice.
-              Each day is shaded by how busy it was, so the shape of your year reads at a
-              glance: busy migration weeks, quiet mid-summer, a big count-day spike.
-              Type-to-find a single species to see the seasonal shape of when you record it,
-              page across every year your data covers or fold them all into one combined grid,
-              switch between the big month grids and a whole-year overview of shaded, dated
-              thumbnails, turn on a colorblind-friendly texture mode, and click any day for
-              its checklists, each with its start time, location, and species count.
+              A year of your birding as twelve month grids, each day carrying the species,
+              checklists, or total count you recorded and shaded by how busy it was, so
+              the shape of your year reads at a glance. Filter to a single species, page
+              across every year or fold them all into one combined grid, switch to a
+              whole-year overview of thumbnails, turn on a colorblind-friendly texture
+              mode, and click any day for its checklists. Entirely offline, from your
+              already-loaded backup.
             </p>
           </div>
           <figure class="feature-media shot-slot" data-shot="calendar">
@@ -323,83 +282,29 @@
             </span>
             <h3>Map Explorer</h3>
             <p>
-              An interactive map of your sightings with an optional heatmap, nearby eBird
-              hotspots colored by whether you've visited them, media targets, and a California
-              Breeding Bird Atlas overlay. The sightings view's filter panel narrows what you
-              see by species, with the same type-to-find picker the rest of the app uses
-              (start typing a common or scientific name), and by date range, county, breeding
-              code, and media. The hotspot pins can also be colored, opt-in, by
-              what you want to know: My species and My checklists color each hotspot by your
-              own countable species or checklist count there, entirely offline from your
-              loaded backup, and Recent activity colors them by how many species the whole
-              eBird community reported at each hotspot in the last week or 30 days, fetched
-              with your own key a few hotspots at a time and cached on your device for six
-              hours, so the busiest hotspots near you stand out at a glance. The values ride
-              a five-class blue ramp with a legend showing each class's true range, a hollow
-              pin honestly means "asked, and the answer is zero", a dashed gray pin means
-              "not checked yet", and the popup and keyboard list state every number in
-              words, so the reading never depends on color alone. An opt-in Use Tier Rings
-              switch, remembered between sessions, adds a segmented ring to each ramp pin
-              (a pin's tier fills that many of five segments), mirrored in the legend and
-              popup, so tiers are readable with no color perception at all. Optional county lines draw US county boundaries over
-              the current view, kept crisp and accurate at every zoom because they come straight
-              from the map's own tiles, and can shade each county by how many species (or checklists) you've
-              recorded there, drawn from your own loaded backup, with a legend, a popup per county,
-              and a keyboard-accessible list of the counties in view. A third Completeness metric
-              shades each county by how complete your county list is (your countable species there
-              measured against everything ever reported to eBird for that county, on a fixed 0–100%
-              scale), with a per-county progress bar, your newest county species, and a short list of
-              targets you haven't recorded there yet. That one metric needs a connection and your own
-              eBird API key (the app says so right at the control); lookups stay bounded to the
-              counties you've birded in view and are cached on your device for 30 days, so fetched
-              counties keep shading offline. An optional colorblind-friendly
-              Use Textures mode paints each county as a crosshatch whose density rises with your count,
-              so you can rank counties without relying on color. Only one of the atlas or county
-              shadings is active at a time, and while a shading ramp is on the basemap's land mutes to
-              grey so the ramp stands out. A Point Size control lets you shrink or hide the sighting
-              points so a shaded map reads through underneath. A Nearby Lifers section maps where species you
-              haven't recorded yet were reported recently near a point you choose, each spot
-              a labeled pin colored by how recently it was seen, with dates and checklist
-              links a click away. Nearby Lifers and Media Targets each carry a locator dot at
-              their exact coordinate and a Labels / Dots toggle, so you can collapse the marker
-              chips to clean dots for an overview of where the birds are. Set a time range and radius, search a place name, use
-              your location, or right-click the map (long-press on touch) to drop a pin and
-              search from there. Move or zoom the map away from the last search and a Search this area
-              button appears on the map, wherever there is room for it above the map's own
-              corner buttons, re-running that view's search over the area you are looking at in
-              one press. It works out both the center and the radius from the view, sizing the
-              circle so everything on screen falls inside it, rounding up to one of the
-              sidebar's own four radius sizes and stopping at 25 miles. The center is written
-              into the sidebar's coordinate boxes and your Radius setting is left alone, so the
-              size searched and the size shown there can differ. The area the search actually covered is drawn on the map, with the
-              ground outside it gently dimmed, so you can see at a glance whether the pins in
-              front of you are the answer to what you are looking at. Once pressed, a second press cannot
-              stack a second lookup: a keyboard press leaves the button in place, greyed out
-              and inert and announced as already searched, while a click or tap may instead
-              let it leave the corner. Either way it goes live again as soon as you move the
-              map somewhere new. Panning on
-              its own never searches: nothing is sent until you press. The map's own controls carry the same three round buttons on
-              every view that shows a map, so sharing a spot, centering on where you are, and
-              going fullscreen never cost a trip through the filters panel, and if location is
-              off or denied the reason and the fix appear on the map itself. Switch between street, satellite, and topo basemaps, with a
-              hiking-trails layer.
+              An interactive map of your sightings, with a heatmap and filters for
+              species, date range, county, breeding code, and media, plus nearby eBird
+              hotspots, a Nearby Lifers view mapping where species you haven't recorded
+              were reported recently, Media Targets, and a California Breeding Bird Atlas
+              overlay. Hotspot pins can be colored by whether you've visited them, or,
+              opt-in, by your own species or checklist counts there or by the community's
+              recent activity, with an optional tier-ring mode so the reading never
+              depends on color alone. County lines can shade each county by your own
+              species or checklist counts, offline from your backup, or by how complete
+              your county list is against everything ever reported to eBird there (that
+              one metric needs a connection and your own key), with a colorblind-friendly
+              texture mode. Search a place name, use your location, drop a pin, or press
+              Search this area after moving the map; nothing is sent until you press.
+              Street, satellite, and topo basemaps, plus a hiking-trails layer.
             </p>
             <p>
-              The same gesture also <strong>shares a spot</strong>. Right-click, or long-press
-              on touch, on your sightings map, a species' locations map, the statistics map, or
-              a named bird's map, and a share pin plants at the exact point you pressed, showing
-              its coordinates. Drag it to fine-tune, then copy a block you can
-              paste into a text message: the coordinates in decimal degrees, plus a Google Maps
-              and an Apple Maps link that open that spot for whoever you send it to. The
-              coordinate line on its own pastes straight into any maps app's search box, and
-              Settings has an independent switch for each of the three lines, so you can send
-              any combination you like. Every map carries a round button in the same corner for
-              this: a flag that drops the pin at the center of the view on the maps where you
-              place your own pin, and a map pin on the Hotspots, Nearby Lifers, and Media
-              Targets views, where it opens the same popup your search center already offers. Either way the whole flow works from the
-              keyboard without a pointer gesture. It is all assembled locally as
-              plain text: no shortener, no lookup, nothing fetched, so it works with no
-              connection and no coordinate leaves your device.
+              Any birding map also <strong>shares a spot</strong>: right-click (long-press
+              on touch) to plant a share pin at the exact point you pressed, drag it to
+              fine-tune, and copy the coordinates plus Google Maps and Apple Maps links,
+              ready to paste into a message. Settings chooses which of the three lines you
+              send, a corner button drives the whole flow from the keyboard, and it is all
+              assembled locally as plain text, so it works offline and no coordinate
+              leaves your device.
             </p>
           </div>
           <figure class="feature-media shot-slot shot-swap" data-shot="map">
@@ -417,16 +322,11 @@
             </span>
             <h3>Multimedia</h3>
             <p>
-              Your life list as a media checklist: photo, audio, and video coverage for every
-              species, so you can see at a glance what you still need to capture. Filter by sex
-              and age (pull up just your juveniles, or the males of a dimorphic species) with
-              counts and links straight to the matching media in your Macaulay Library.
-              An Unbounded toggle lets the full table scroll with the page instead of
-              inside a fixed-width box, and a <strong>Pin column labels</strong> toggle keeps
-              the row of column headings in view as you scroll down the list, so you always
-              know which count a number is. It is off by default and per-session, resetting on relaunch,
-              and it is the same control, and the same behavior, as Pin code labels on the
-              Breeding Codes tab.
+              Your life list as a media checklist: photo, audio, and video coverage for
+              every species, so you can see at a glance what you still need to capture.
+              Filter by sex and age (pull up just your juveniles, or the males of a
+              dimorphic species), with counts and links straight to the matching media in
+              your Macaulay Library.
             </p>
           </div>
           <figure class="feature-media shot-slot" data-shot="multimedia">
@@ -444,24 +344,10 @@
             <h3>Breeding Codes</h3>
             <p>
               Every species you've recorded a breeding code for, laid out as a color-coded
-              matrix across all eBird codes. Sort and filter by tier to see exactly where your
-              breeding evidence stands. An <strong>Unbounded</strong> toggle drops the table's
-              horizontal scroll constraint so a full row is visible at once rather than scrolling
-              within a fixed width, and <strong>Pin code labels</strong> keeps the row of code
-              headings in view as you scroll down a long species list, so you always know which
-              column a circle sits in. It is off by default and per-session, resetting on relaunch.
-              What counts as a species follows eBird's own rule: a form that leaves the
-              species in doubt does not count (a spuh, a slash, a hybrid, an undescribed
-              form), while a form that only leaves the subspecies in doubt counts as its
-              parent species. On a phone, in either view,
-              the columns tighten to dot-width so more fit at once, and the species-name column
-              stays fixed on the left as you scroll the codes sideways in the normal view. Long
-              filter meanings wrap inside their pills, and a long bird name can wrap above its
-              eBird and Birds of the World links. Every label remains complete, both links remain
-              available with their full touch targets, and nothing escapes the name column. The
-              tier legend below the table spells out what each code means, wrapping onto a second
-              line rather than shortening a label when the screen is narrow. You can pinch to zoom
-              in on any part of the grid.
+              matrix across all eBird codes, with tier and per-code filters to see exactly
+              where your breeding evidence stands. A legend below the table spells out
+              what each code means, and on a phone the columns tighten to dot-width, with
+              the species-name column staying fixed on the left in the normal view.
             </p>
           </div>
           <figure class="feature-media shot-slot" data-shot="breeding">
@@ -481,23 +367,12 @@
               Give an individual bird a name in your eBird species comment with a
               <code>[name:…]</code> tag (like <code>[name:Winky]</code>), and SnowRaven
               gathers every sighting of that individual: its species, when you first and
-              last saw it, how long you've followed it, how many times, and each checklist
-              it appears on, with its location and a map of everywhere that bird has been
-              seen. It also ranks that bird's own top locations, counted only from the
-              checklists carrying its tag, so a place the species floods but your bird
-              visited once stays where it belongs. If you've saved your Macaulay Library
-              export too, each individual also
-              gathers its own photos, audio, and video as inline players from the Macaulay
-              Library, each labeled with its date and checklist. An asset's own caption or
-              media note wins if it carries a name tag; otherwise the species comment you
-              tagged is used, so the media from a tagged observation is attributed without
-              captioning every file. Named birds also surface per-species on Species Detail.
-            </p>
-            <p>
-              Prefer no inline players? Turn on <strong>Disable embedded media</strong> in
-              Settings. It is off by default; when enabled, player areas say “Embedded media
-              is disabled in Settings.” while dates, checklists, and direct Macaulay Library
-              links stay available.
+              last saw it, how long you've followed it, each checklist with its location,
+              a map of everywhere that bird has been seen, and its own top locations. With
+              your Macaulay Library export saved, each individual also gathers its own
+              photos, audio, and video as inline players, matched by the same tag. Prefer
+              no inline players anywhere? Turn on <strong>Disable embedded media</strong>
+              in Settings; direct Macaulay Library links stay available.
             </p>
           </div>
           <figure class="feature-media shot-slot" data-shot="named-birds">
@@ -571,18 +446,14 @@
             <h3>Offline support</h3>
             <p>
               Out in the field with no signal, SnowRaven keeps working from the data
-              already loaded on your device. The maps and every analytical tab open
-              offline once they've loaded online once: your sightings, heatmap, atlas,
-              labels, and taxonomically sorted names with their icons all draw, even on a
-              first cold start of the day. A checklist's weather and tide you looked up
+              already on your device. The maps and every analytical tab open offline once
+              they've loaded online once, and a checklist's weather and tide you looked up
               earlier re-show, marked as the last loaded result.
             </p>
             <p>
-              SnowRaven is honest about the edges. Live lookups (current weather and tide,
-              place search, the Checklist Comparer, nearby-bird overlays, and app updates)
-              still need a connection; offline you see the last loaded result where one
-              exists, or a plain note that you're offline. Only the vector street basemap
-              works offline; satellite, topo, and trails need a connection.
+              It is honest about the edges: live lookups (current weather and tide, place
+              search, the Checklist Comparer, nearby-bird overlays, and app updates) still
+              need a connection, and only the vector street basemap works offline.
             </p>
           </div>
           <figure class="feature-media feature-mock" aria-hidden="true">
@@ -700,7 +571,7 @@
     <section class="closing band">
       <div class="container closing-inner">
         <h2>A personal project, shared freely</h2>
-        <p>SnowRaven began as a tool for one birder's own data, and it's shared here, open source and free, in case other birders find it useful. It works alongside eBird and the Macaulay Library, building on the exports they let you download so you can look at your own observations from new angles. There's nothing to sign up for, and nothing to buy.</p>
+        <p>SnowRaven began as a tool for one birder's own data, and it's shared here, open source and free, in case other birders find it useful. It works alongside eBird and the Macaulay Library, building on the exports they let you download. There's nothing to sign up for, and nothing to buy. The app says its own thank-you, too: an Acknowledgments section at the bottom of Settings credits the Cornell Lab of Ornithology and the Macaulay Library, and Deven Simonson.</p>
         <div class="cta-row center">
           <a class="btn btn-primary" href="https://github.com/dtgibson/snowraven/releases/latest" target="_blank" rel="noopener">Download SnowRaven</a>
           <a class="btn btn-secondary on-dark" href="https://github.com/dtgibson/snowraven" target="_blank" rel="noopener">View the source on GitHub</a>
@@ -733,7 +604,7 @@
         Tides from NOAA Tides &amp; Currents. The weather lookup mirrors the format pioneered by
         <a href="https://raincrow.app" target="_blank" rel="noopener">raincrow.app</a>.
       </p>
-      <p class="footer-version">SnowRaven v1.0.7 · Free &amp; open source</p>
+      <p class="footer-version">SnowRaven v1.0.10 · Free &amp; open source</p>
     </div>
   </footer>
 </body>
