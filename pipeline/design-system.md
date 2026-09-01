@@ -84,6 +84,18 @@ italic at 0.71875rem `--sr-text-gray`.
 ## Patterns (which component for what)
 - **Cards:** `SectionCard` + `SectionHead` (icon tile + title + muted sub).
   Radius 10–12px, `--sr-card-shadow`, 1px `--sr-border`.
+- **Quiet section (the Settings tab's quietest register):** a section whose job
+  is reference or utility rather than configuration drops the icon tile, row
+  title, and description entirely — the uppercase `SectionHeader` alone names
+  it, over a card holding one quiet bordered button (the Rebuild caches /
+  Replace register: 1.5px `--sr-border`, `--sr-surface` fill, `--sr-text`
+  label, radius 6). Where the section has content to show, it opens as an
+  inline grid-collapse disclosure inside the same card (`0fr/1fr` wrapper,
+  `overflow: hidden` inner, `inert` while closed, no live region — the content
+  is reference material, and `aria-expanded` carries the state change), with
+  the accent appearing only in the toggle's open-state tint. Troubleshooting
+  and Acknowledgments are the exemplars; pick this register over the
+  icon-tile action row when the section should not compete for attention.
 - **Tab pages:** house header (30px accent-bg icon tile + h2 + one-line muted
   description); Phase union loading → SetupRequired → error → ready;
   defer-mount via App's `mountedTabs`.
