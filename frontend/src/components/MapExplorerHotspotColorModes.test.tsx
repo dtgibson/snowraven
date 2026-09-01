@@ -74,12 +74,22 @@ vi.mock('../lib/transport', () => ({
       net.calls.push({ path, params })
       if (path === '/map/hotspots') return HOTSPOT_ROWS
       if (path === '/map/hotspot-activity') {
+        // Activity classification windows against the REAL clock
+        // (useHotspotActivity's module-level SESSION_NOW_MS), so these dates
+        // must be generated relative to now — absolute literals age out of the
+        // 7-day window and turn the t1 assertion red on a calendar boundary
+        // (bit on 2026-09-01, with the file otherwise untouched).
+        const relDt = (daysAgo: number, hm: string) => {
+          const t = new Date(Date.now() - daysAgo * 86400000)
+          const p = (n: number) => String(n).padStart(2, '0')
+          return `${t.getFullYear()}-${p(t.getMonth() + 1)}-${p(t.getDate())} ${hm}`
+        }
         return {
           locId: params?.locId,
           species: params?.locId === 'L9'
             ? [
-                { speciesCode: 'a1', obsDt: '2026-08-24 08:00' },
-                { speciesCode: 'a2', obsDt: '2026-08-20 07:00' },
+                { speciesCode: 'a1', obsDt: relDt(1, '08:00') },
+                { speciesCode: 'a2', obsDt: relDt(4, '07:00') },
               ]
             : [],
         }
