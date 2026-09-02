@@ -1,5 +1,25 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  iOS entitlements (wired by project.yml `entitlements.path`). The three iCloud
+  keys for iCloud Sync (icloud-sync); Xcode injects the application-identifier
+  and team-identifier keys itself on iOS, so they are not listed here. The App
+  Store profile must be regenerated after the App ID gains the iCloud
+  capability (see the snowraven-release skill).
+-->
 <plist version="1.0">
-<dict/>
+<dict>
+	<key>com.apple.developer.icloud-container-identifiers</key>
+	<array>
+		<string>iCloud.com.dtgibson.snowraven</string>
+	</array>
+	<key>com.apple.developer.ubiquity-container-identifiers</key>
+	<array>
+		<string>iCloud.com.dtgibson.snowraven</string>
+	</array>
+	<key>com.apple.developer.icloud-services</key>
+	<array>
+		<string>CloudDocuments</string>
+	</array>
+</dict>
 </plist>

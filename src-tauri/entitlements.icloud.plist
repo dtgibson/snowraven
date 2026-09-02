@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  RELEASE-ONLY macOS entitlements (icloud-sync). Applied by release.sh through
+  the tauri.icloud.conf.json overlay TOGETHER with the embedded Developer ID
+  provisioning profile that authorizes the restricted iCloud keys; never by
+  the committed tauri.conf.json (which keeps ./entitlements.plist), so a plain
+  `npm run desktop:build` or a dev binary produces today's bundle and lands in
+  the "This build cannot use iCloud" state instead of a bundle whose
+  signature claims what its profile does not back.
+
+  The application-identifier and team-identifier keys are what Xcode injects
+  for a profile-backed app and Tauri's codesign does not; without them the
+  profile does not authorize the restricted keys. The team id is the
+  parenthesized suffix of APPLE_SIGNING_IDENTITY and is public (present in
+  every signed bundle). No App Sandbox: not required for Developer ID, and it
+  would restrict ~/Library/Mobile Documents.
+-->
+<plist version="1.0">
+<dict>
+  <key>com.apple.security.personal-information.location</key>
+  <true/>
+  <key>com.apple.developer.icloud-container-identifiers</key>
+  <array>
+    <string>iCloud.com.dtgibson.snowraven</string>
+  </array>
+  <key>com.apple.developer.ubiquity-container-identifiers</key>
+  <array>
+    <string>iCloud.com.dtgibson.snowraven</string>
+  </array>
+  <key>com.apple.developer.icloud-services</key>
+  <array>
+    <string>CloudDocuments</string>
+  </array>
+  <key>com.apple.application-identifier</key>
+  <string>8QKC3L2FKP.com.snowraven</string>
+  <key>com.apple.developer.team-identifier</key>
+  <string>8QKC3L2FKP</string>
+</dict>
+</plist>

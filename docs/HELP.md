@@ -596,6 +596,24 @@ Enter and manage your eBird and OpenWeather API keys. Keys are saved securely: i
 
 Upload your eBird backup CSV and Macaulay Library export. Each file is stored for you: in the desktop app, in the local app data directory; in web/Pi mode, on the server. Files load automatically when you open the relevant tab. Use Upload new to replace a stored file, or Clear to remove it.
 
+### iCloud Sync (Mac, iPhone and iPad)
+
+On the Mac, iPhone and iPad apps, an iCloud Sync section sits directly below Default Files. It is off until you turn it on. With it on, your eBird backup and your Macaulay Library export are kept the same on every Mac, iPhone and iPad signed in to your iCloud account: upload a fresh export on any one of them and the others use it, with no second upload. Windows, web and Pi installs have no iCloud Sync section.
+
+**Turning it on.** Flip the switch. A note first says what goes to iCloud (the two files, and for each its name, when it was uploaded, which device it came from (its name), its size and a checksum), whose account it goes to (your own iCloud account, on Apple's servers, with no SnowRaven server in the path and nothing the developer can see), what happens next, and how to turn it off. Press **Turn on** to proceed or **Cancel** to leave it off. Nothing is written to iCloud until you press Turn on. Your API keys, settings and caches are never synced.
+
+**What happens next.** SnowRaven checks iCloud when you turn sync on, when the app starts, each time it comes back to the front, and when iCloud reports a change; on the Mac it also checks every few minutes while the window is open. For each file, the most recently uploaded copy wins, whole: if iCloud holds a newer copy it replaces the one on this device, and if this device's copy is newer it goes up. Nothing is merged. A file that arrives from another device reaches every tab straight away, without a relaunch.
+
+**What the rows tell you.** With sync on, each Default Files row shows where its current file came from ("From this device" or the other device's name) and when, and one of eight states as plain text: **Up to date**; **Syncing, uploading**; **Syncing, downloading**; **In iCloud, not downloaded here** (a newer file exists in iCloud but has not reached this device yet, so the app keeps using the copy it has; press **Download now** to fetch it); **Waiting to upload** (a file uploaded while offline, which goes up when the connection returns); **iCloud unavailable** (signed out or iCloud Drive off, so the app keeps working from its local copy until iCloud returns); **Sync off**; and **Could not sync** (with the reason and a **Retry** button). After a check has replaced a file, the row says so ("Replaced by the file from ...") until your next action on that row. The section also shows when iCloud was last checked, and a **Check now** button runs a check on demand.
+
+**Clearing a file with sync on** removes it from this device and from iCloud, and every other device with sync on removes its copy at its next check, so the row asks you to confirm first. Devices with sync off keep theirs. With sync off, Clear is the same instant local action as everywhere else.
+
+**Turning it off** needs no confirmation: the files on this device stay put, and the copies in iCloud are left alone. **Remove synced files from iCloud** deletes the copies in your iCloud account without touching any device; it appears whenever iCloud holds copies, whether sync is on or off. A device with sync on uploads its copy again at its next check, so turn sync off on each device first if you want iCloud to stay empty.
+
+**One device, more than one Apple ID.** Sync follows whichever iCloud account the device is signed in to: if you sign out and into a different Apple ID on the same device with sync on, the next check syncs with that account's copies.
+
+**If the switch cannot be turned on**, a note beneath it says why: sign in to iCloud in System Settings (or Settings on iPhone and iPad), allow SnowRaven under iCloud Drive in the system settings, or, for a build that was not signed for iCloud (a development build, for instance), that this build cannot use iCloud.
+
 ### Default Location
 
 Set a home location used by the Map Explorer. Click **Use my location** to fill in your coordinates automatically (the same detection the Map Explorer offers), or enter latitude and longitude by hand. Set a search radius in miles, then click Save. The radius defaults to 5 miles. The Map Explorer uses these coordinates as its starting center and zoom level, including the starting point for the Nearby Lifers section.
@@ -633,6 +651,7 @@ SnowRaven keeps working without a connection. Every analytical tab and every map
 - **Live weather and tide lookups** are online-only, but a reading you've loaded before re-shows offline (above).
 - **County Completeness lookups** need a connection and your eBird API key. Counties you fetched in the last 30 days still shade from the on-device cache, and the popup's local pieces (your countable count and Recently added list) work fully offline; only new county lookups wait for a connection.
 - **These features are online-only with no offline fallback**, and they show a clear "you're offline" message: place and address search, the Checklist Comparer, live nearby-bird overlays, and downloading an app update.
+- **iCloud Sync waits for a connection.** With sync on and no network, each Mac, iPhone or iPad keeps working from its own copy of the files, the Settings rows show the last check time, and a file you upload offline is used at once and reads "Waiting to upload" until the connection returns.
 
 ---
 

@@ -25,6 +25,7 @@ vi.mock('../lib/platform', () => ({
   isTauri: vi.fn(() => false),
   isIOS: vi.fn(() => false),
   isWindows: vi.fn(() => false),
+  isMacOS: vi.fn(() => false),
 }))
 vi.mock('../lib/observationsCache', () => ({ clearEbirdObservationsCache: vi.fn() }))
 vi.mock('../lib/mlExportCache', () => ({ clearMLExportCache: vi.fn() }))

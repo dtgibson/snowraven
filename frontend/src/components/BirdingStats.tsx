@@ -33,6 +33,7 @@ import type { MediaGraphInterval } from '../lib/sightingsGraph'
 import { jumpTo } from '../lib/scroll'
 import { loadEbirdObservations } from '../lib/observationsCache'
 import { loadMLExport } from '../lib/mlExportCache'
+import { useFilesEpoch } from '../lib/useFilesEpoch'
 import type { MLExportRow } from '../lib/parseMLExport'
 import { normalizeSpeciesName, isNonCountableForm } from '../lib/speciesUtils'
 import { COUNT_FORMS_TOGGLE_LABEL } from '../lib/countabilityCopy'
@@ -157,7 +158,9 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
   const [computed, setComputed] = useState(false)
   const [mapReady, setMapReady] = useState(false)
 
-  // Auto-load eBird backup + ML export on mount
+  // Auto-load eBird backup + ML export on mount, and again whenever a data
+  // file changes (see the deps comment below).
+  const filesEpoch = useFilesEpoch()
   useEffect(() => {
     let cancelled = false
     async function load() {
@@ -234,7 +237,10 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
     }
     load()
     return () => { cancelled = true }
-  }, [])
+    // filesEpoch: a new or cleared data file (a Settings upload or an iCloud
+    // arrival) re-runs the load, so the tab reflects it without a relaunch
+    // (icloud-sync FR-35). It was mount-only before.
+  }, [filesEpoch])
 
   // Is an eBird key configured? One of the three auto-start conditions for the
   // exotic-provenance pass (the other two are online and a non-fresh cache).

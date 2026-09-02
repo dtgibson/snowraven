@@ -28,6 +28,20 @@ export function isIOS(): boolean {
   }
 }
 
+// macOS check, the same sync platform() probe as isIOS() (icloud-sync schema,
+// "Frontend modules and seams"). Exists only for CAPABILITY branching: the
+// iCloud Sync gate (`showICloudSync` in platformGates.ts) is
+// isTauri() && (isIOS() || isMacOS()), so Windows desktop, web and Pi are
+// false by construction. Never use it for layout.
+export function isMacOS(): boolean {
+  if (!isTauri()) return false;
+  try {
+    return platform() === 'macos';
+  } catch {
+    return false;
+  }
+}
+
 // OS-within-platform check. In the WebView2 used by the Windows desktop build,
 // navigator.userAgent contains "Windows". Used to degrade platform-specific
 // features (e.g. native geolocation) that aren't implemented on Windows yet.

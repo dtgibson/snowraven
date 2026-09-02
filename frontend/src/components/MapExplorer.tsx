@@ -17,6 +17,7 @@ import { SetupRequired } from './SetupRequired'
 import { EBIRD_BACKUP_STEPS } from './setupCopy'
 import { loadEbirdObservations } from '../lib/observationsCache'
 import { loadMLExport } from '../lib/mlExportCache'
+import { useFilesEpoch } from '../lib/useFilesEpoch'
 import type { MLExportRow } from '../lib/parseMLExport'
 import { observationMediaFormats, matchesMediaFilter } from '../lib/observationMedia'
 import type { MediaFilter } from '../lib/observationMedia'
@@ -661,7 +662,9 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
       .catch(() => {})
   }, [])
 
-  // Load observations + ML export
+  // Load observations + ML export on mount, and again whenever a data file
+  // changes (a Settings upload or an iCloud arrival: icloud-sync FR-35).
+  const filesEpoch = useFilesEpoch()
   useEffect(() => {
     let cancelled = false
     async function load() {
@@ -690,7 +693,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
     }
     load()
     return () => { cancelled = true }
-  }, [])
+  }, [filesEpoch])
 
   // Pre-fetch taxonomy codes for target species once data is loaded
   const fetchTargetCodes = useCallback(async (observations: ObservationEntry[], mlRows: MLExportRow[]) => {

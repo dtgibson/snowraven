@@ -2,7 +2,7 @@
 // (schema §2.5's conditional-surfaces list). Kept as named predicates in one
 // module so the FR they implement is greppable and unit-testable with
 // isIOS() mocked both ways — components consume the gate, not raw isIOS().
-import { isIOS } from './platform';
+import { isIOS, isMacOS, isTauri } from './platform';
 
 // FR-14 — the in-app update affordance is ABSENT on iOS/iPadOS: updates flow
 // through TestFlight / the App Store, and the updater/process plugins are not
@@ -32,4 +32,15 @@ export function supportsAppRelaunch(): boolean {
 // `sr-map-panel-ios` classes in globals.css. Desktop and web are untouched.
 export function compactChrome(): boolean {
   return isIOS();
+}
+
+// icloud-sync FR-01/FR-02: the iCloud Sync section, its toggle, its notes and
+// its actions render ONLY in the macOS and iOS/iPadOS apps, and the sync
+// controller boots only there. One predicate, consumed by Settings.tsx and
+// App.tsx, so the platform decision is greppable and unit-testable with the
+// platform probes mocked both ways. Windows desktop (isTauri true, neither OS
+// probe true), web and Pi (isTauri false) are false by construction, so no
+// iCloud markup exists on those builds (gated markup, never hidden markup).
+export function showICloudSync(): boolean {
+  return isTauri() && (isIOS() || isMacOS());
 }

@@ -1,6 +1,6 @@
 # SnowRaven Privacy Policy
 
-**Effective date:** August 25, 2026
+**Effective date:** September 1, 2026
 
 ## Overview
 
@@ -56,6 +56,14 @@ The maps in SnowRaven are drawn using map tiles served by third-party providers.
 ## iOS App
 
 The iOS/iPadOS app is the same local-first application: your files, keys, and settings live in the app's sandbox on your device, are included in your device/iCloud backups under the iOS defaults, and are removed when you delete the app. The app collects nothing and adds no service connections beyond those listed above.
+
+## iCloud Sync
+
+On the Mac, iPhone and iPad apps, SnowRaven can keep your two data files the same across your own devices through iCloud. This is off until you turn it on in Settings, and it is a different thing from the iOS device backup described above: it is sync between your own devices, under your own account.
+
+- **What is stored in iCloud.** With iCloud Sync on, SnowRaven writes your eBird backup and your Macaulay Library export into an iCloud container that belongs to your Apple ID, together with a small record for each file: its name, when it was uploaded, its size and a checksum of its contents, and which device it came from (the device's name, its kind, and a random identifier the app makes up on that device, which is not a hardware or account identifier). Nothing else is written: your API keys, app settings, map preferences and cached lookups stay on each device and are never synced.
+- **Whose account.** The copies live only in your own iCloud account, on Apple's servers, and move only between devices signed in to that account. There is no SnowRaven server in the path, and the developer has no way to see, receive, or access what you sync. The container is private to the app and does not appear in iCloud Drive's file listing. Apple's handling of iCloud data is described in [Apple's privacy policy](https://www.apple.com/legal/privacy/).
+- **Turning it off and removing the copies.** Switch iCloud Sync off at any time in Settings; the files on each device stay in place and keep working. **Remove synced files from iCloud** in the same section deletes the copies in your iCloud account without touching any device. Deleting the app or its data on one device does not by itself remove the copies in iCloud, so use that control first if you want iCloud empty.
 
 ## Embedded Bird Media and Link Icons
 

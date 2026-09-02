@@ -69,14 +69,36 @@ describe('website/privacy.html ↔ PRIVACY_POLICY.md parity', () => {
     expect(pageH2s.map(h => h.id)).toEqual(policySections.map(textToId))
   })
 
-  it('covers all 12 sections, including the iOS App section added at the App Store launch', () => {
-    expect(policySections).toHaveLength(12)
-    for (const label of ['Overview', 'iOS App', 'Software Updates', 'Contact']) {
+  it('covers all 13 sections, including iOS App (App Store launch) and iCloud Sync (v1.0.11)', () => {
+    expect(policySections).toHaveLength(13)
+    for (const label of ['Overview', 'iOS App', 'iCloud Sync', 'Software Updates', 'Contact']) {
       expect(policySections).toContain(label)
     }
     // The iOS App section sits between Map Tiles and the embedded-media
-    // section, where the launch edit placed it.
+    // section, where the launch edit placed it; iCloud Sync follows it,
+    // deliberately distinct from the iOS backup sentence (icloud-sync NFR-08).
     expect(policySections.indexOf('iOS App')).toBe(policySections.indexOf('Map Tiles') + 1)
+    expect(policySections.indexOf('iCloud Sync')).toBe(policySections.indexOf('iOS App') + 1)
+  })
+
+  it('the iCloud Sync section states the four required things on both sides (NFR-08)', () => {
+    const section = (text: string, start: RegExp, end: RegExp) => {
+      const a = text.search(start)
+      expect(a).toBeGreaterThanOrEqual(0)
+      const rest = text.slice(a + 1)
+      const b = rest.search(end)
+      return b > 0 ? rest.slice(0, b) : rest
+    }
+    const md = section(policy, /^## iCloud Sync$/m, /^## /m)
+    const html = section(page, /<h2 id="icloud-sync">/, /<h2 /)
+    for (const text of [md, html]) {
+      expect(text).toMatch(/eBird backup and your Macaulay Library export/) // what is stored
+      expect(text).toMatch(/your own iCloud account/) // whose account
+      expect(text).toMatch(/developer has no way to see/) // developer never sees it
+      expect(text).toMatch(/Remove synced files from iCloud/) // how to remove
+      expect(text).toMatch(/never synced/) // keys, settings, caches stay local
+      expect(text).not.toContain('\u2014')
+    }
   })
 
   it('the lead band headline is not an h2 (the h2 sequence belongs to the policy alone)', () => {

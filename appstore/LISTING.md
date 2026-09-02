@@ -191,6 +191,17 @@ definition of "collect" and none changing the answer:
   nothing about the user beyond what any request carries (IP address), goes
   device-to-Cornell in the apps, and is disabled entirely by the Disable
   embedded media setting.
+- **iCloud Sync (v1.0.11):** an opt-in, off-by-default toggle on Mac, iPhone
+  and iPad that copies the user's two data files (and a small record naming
+  each file, its upload time, and a random per-device id with the device's
+  name) into an iCloud container tied to the user's own Apple ID, so the
+  user's other devices can pick them up. It is device-to-Apple, under the
+  user's account, initiated by the user, and the developer has no server and
+  no access to the container: nothing reaches the developer, so "Data Not
+  Collected" holds. It is sync between the user's own devices, distinct from
+  the iOS device backup, and the privacy policy describes it on its own terms
+  (what is stored, whose account, that the developer never sees it, how to
+  remove it). API keys, settings and caches are never written to it.
 
 Nuance to hold onto if App Review pushes back on the label because
 location/coordinates reach OpenWeather or NOAA: the app is a client for

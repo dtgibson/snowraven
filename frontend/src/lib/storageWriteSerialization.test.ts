@@ -86,6 +86,7 @@ vi.mock('./platform', () => ({
   isTauri: () => true,
   isIOS: () => false,
   isWindows: () => false,
+  isMacOS: () => false,
 }));
 
 // Load the mocked module STATICALLY before any test runs. Without this, the

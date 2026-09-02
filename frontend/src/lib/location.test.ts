@@ -7,6 +7,7 @@ import type { LocationError } from './location'
 vi.mock('./platform', () => ({
   isTauri: vi.fn(() => false),
   isWindows: vi.fn(() => false),
+  isMacOS: vi.fn(() => false),
   isIOS: vi.fn(() => false),
 }))
 // The geolocation plugin is dynamically imported inside getCurrentLocationIOS;

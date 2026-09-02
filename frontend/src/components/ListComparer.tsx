@@ -8,6 +8,7 @@ import { ChecklistComparer } from './ChecklistComparer'
 import { ResultsView } from './ResultsView'
 import { transport } from '../lib/transport'
 import { storage } from '../lib/storage'
+import { useFilesEpoch } from '../lib/useFilesEpoch'
 import type { KeyStatus } from '../lib/keyStatus'
 import { withNormalizedParents } from '../lib/speciesUtils'
 
@@ -33,18 +34,26 @@ export function ListComparer({ onOpenSpecies, keyStatus, onGoToSettings }: {
   // Two comparison modes: life lists (CSV backups) vs. individual eBird checklists.
   const [mode, setMode] = useState<'lists' | 'checklists'>('checklists')
 
+  // Re-checked whenever a data file changes (a Settings upload or an iCloud
+  // arrival or clear), so "My List" appears or disappears without a relaunch
+  // (icloud-sync FR-35). It was mount-only before.
+  const filesEpoch = useFilesEpoch()
   useEffect(() => {
+    let cancelled = false
     storage.getFilesStatus()
       .then(data => {
+        if (cancelled) return
         const hasEbird = data.ebird != null
         setStoredEbirdStatus(hasEbird ? 'available' : 'unavailable')
         if (!hasEbird) setListAMode('upload')
       })
       .catch(() => {
+        if (cancelled) return
         setStoredEbirdStatus('unavailable')
         setListAMode('upload')
       })
-  }, [])
+    return () => { cancelled = true }
+  }, [filesEpoch])
 
   const processFile = useCallback((slot: 'a' | 'b', filename: string, file: File) => {
     const setFile = slot === 'a' ? setFileA : setFileB

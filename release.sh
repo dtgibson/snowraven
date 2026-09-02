@@ -11,6 +11,18 @@
 # build — so the Mac's whole job is, once on the pinned Node (see .nvmrc):
 #     zsh -lc ./release.sh
 #
+# iCloud Sync (v1.0.11) adds one release-time input: the Developer ID
+# provisioning profile that authorizes the app's iCloud entitlements, at
+#   ~/.tauri/snowraven-developerid.provisionprofile
+# (never in the repo). The build applies src-tauri/tauri.icloud.conf.json,
+# which pairs src-tauri/entitlements.icloud.plist with that profile embedded at
+# Contents/embedded.provisionprofile, and the post-build check refuses to
+# publish a bundle missing either. Portal prerequisites (one-time, human): the
+# explicit macOS App ID com.snowraven, the iCloud container
+# iCloud.com.dtgibson.snowraven assigned to both App IDs, and a "Developer ID
+# Application" profile for com.snowraven with iCloud. Details: the
+# snowraven-release skill and pipeline/icloud-sync/schema.md.
+#
 # Required env vars (live in the Mac login profile, which is why it's run as
 # `zsh -lc ./release.sh` so they're sourced):
 #   APPLE_SIGNING_IDENTITY  your Developer ID Application cert name, e.g.:
@@ -62,6 +74,25 @@ TAG="v$VERSION"
 # one bundle (see the platform JSON below) — Tauri's updater_arch() reports
 # "aarch64" on Apple Silicon and "x86_64" on Intel, so both keys are required.
 MAC_TARGET="universal-apple-darwin"
+
+# iCloud Sync (v1.0.11): the release-time overlay pairs the iCloud entitlements
+# with the embedded Developer ID provisioning profile. The profile lives
+# outside the repo; the build reads a gitignored copy inside src-tauri/ (the
+# overlay's `files` source path is relative to src-tauri/), removed afterwards.
+ICLOUD_PROFILE="$HOME/.tauri/snowraven-developerid.provisionprofile"
+ICLOUD_CONTAINER="iCloud.com.dtgibson.snowraven"
+ICLOUD_OVERLAY="src-tauri/tauri.icloud.conf.json"
+ICLOUD_ENTITLEMENTS="src-tauri/entitlements.icloud.plist"
+ICLOUD_PROFILE_COPY="src-tauri/embedded.provisionprofile"
+# The decoded profile (a mktemp path, set by the preflight) and the profile
+# copy inside src-tauri/ are both removed on every exit path.
+PROFILE_PLIST=""
+cleanup_release_temps() {
+  rm -f "$ICLOUD_PROFILE_COPY"
+  [[ -n "${PROFILE_PLIST:-}" ]] && rm -f "$PROFILE_PLIST"
+  return 0
+}
+trap cleanup_release_temps EXIT
 
 # Build outside iCloud Drive to avoid extended-attribute interference with codesign.
 export CARGO_TARGET_DIR="$HOME/.snowraven-build"
@@ -138,6 +169,43 @@ else
     rustup target list --installed 2>/dev/null | grep -qx "$tgt" \
       || die "Rust target '$tgt' is not installed (required for the universal build). Install it with: rustup target add $tgt"
   done
+
+  # iCloud Sync: the Developer ID provisioning profile must exist, decode, name
+  # this app and the container, and not have expired (it expires with the
+  # Developer ID certificate; regenerate it in the portal and re-download).
+  need plutil "part of macOS; the profile check decodes a plist."
+  [[ -x /usr/libexec/PlistBuddy ]] || die "/usr/libexec/PlistBuddy is missing (part of macOS); the profile check reads dotted entitlement keys with it."
+  [[ -f "$ICLOUD_OVERLAY" ]]      || die "iCloud overlay $ICLOUD_OVERLAY is missing from the checkout."
+  [[ -f "$ICLOUD_ENTITLEMENTS" ]] || die "iCloud entitlements $ICLOUD_ENTITLEMENTS are missing from the checkout."
+  [[ -f "$ICLOUD_PROFILE" ]] || die "Developer ID provisioning profile not found at $ICLOUD_PROFILE. Create a 'Developer ID Application' profile for com.snowraven with iCloud in the Apple Developer portal (Certificates, Identifiers & Profiles) and download it to that path. See the snowraven-release skill."
+  # A private mktemp path (never a fixed name in the world-writable /tmp),
+  # removed by the EXIT trap above.
+  PROFILE_PLIST=$(mktemp -t snowraven-profile) || die "mktemp failed."
+  security cms -D -i "$ICLOUD_PROFILE" > "$PROFILE_PLIST" 2>/dev/null \
+    || die "could not decode $ICLOUD_PROFILE (security cms -D failed). Re-download the profile from the portal."
+  # PlistBuddy, NOT `plutil -extract Entitlements.com.apple.application-identifier`:
+  # plutil reads the dots inside the key NAME as key-path separators and reports
+  # "No value at that key path", which the `|| true` would turn into an empty
+  # id and a false "different App ID" abort (QA round 1, Failure 1). Every
+  # other key read below is a top-level key with no dots, where plutil is fine.
+  PROFILE_APP_ID=$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:com.apple.application-identifier' "$PROFILE_PLIST" 2>/dev/null || true)
+  [[ "$PROFILE_APP_ID" == *.com.snowraven ]] \
+    || die "the profile's application-identifier is '$PROFILE_APP_ID', not <TEAMID>.com.snowraven. It is a profile for a different App ID; regenerate it for com.snowraven."
+  # The container must be in the profile's ENTITLEMENTS (a dotted key, so
+  # PlistBuddy again), not merely somewhere in the decoded plist.
+  PROFILE_CONTAINERS=$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:com.apple.developer.ubiquity-container-identifiers' "$PROFILE_PLIST" 2>/dev/null || true)
+  grep -q "$ICLOUD_CONTAINER" <<<"$PROFILE_CONTAINERS" \
+    || die "the profile's entitlements do not carry the iCloud container $ICLOUD_CONTAINER. Enable iCloud on the com.snowraven App ID, assign the container, and regenerate the profile."
+  # Top-level key: `plutil -extract ... raw` prints the date as ISO 8601 UTC
+  # ("2044-08-27T23:13:18Z"), so a string comparison against the same form
+  # of "now" is a correct instant comparison (both zero-padded, both Z).
+  PROFILE_EXPIRES=$(plutil -extract ExpirationDate raw -o - "$PROFILE_PLIST" 2>/dev/null || true)
+  NOW_UTC=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+  [[ "$PROFILE_EXPIRES" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$ ]] \
+    || die "could not read the profile's ExpirationDate (got '$PROFILE_EXPIRES'). Re-download the profile from the portal."
+  [[ "$PROFILE_EXPIRES" > "$NOW_UTC" ]] \
+    || die "the provisioning profile expired on $PROFILE_EXPIRES. Regenerate it in the portal and re-download to $ICLOUD_PROFILE."
+  echo "==> iCloud profile OK: $PROFILE_APP_ID, container $ICLOUD_CONTAINER, expires $PROFILE_EXPIRES"
 fi
 
 echo "==> SnowRaven $TAG (universal macOS: aarch64 + x86_64)"
@@ -201,8 +269,14 @@ touch src-tauri/src/main.rs
 echo "==> Building frontend..."
 npm --prefix frontend run build
 
-echo "==> Building Tauri app (universal binary — compiles both arches, takes a while)..."
-npm run desktop:build -- --target "$MAC_TARGET"
+# The profile copy is consumed by the overlay's `files` mapping and must never
+# be left behind in the checkout (it is gitignored, but a clean tree is the
+# next release's precondition). Removed on every exit path.
+cp "$ICLOUD_PROFILE" "$ICLOUD_PROFILE_COPY"
+
+echo "==> Building Tauri app (universal binary, compiles both arches, takes a while) with the iCloud overlay..."
+npm run desktop:build -- --target "$MAC_TARGET" --config "$(pwd)/$ICLOUD_OVERLAY"
+rm -f "$ICLOUD_PROFILE_COPY"
 
 if [[ ! -f "$DMG" ]]; then
   echo "Error: DMG not found at $DMG — build may have failed."
@@ -224,6 +298,23 @@ if [[ "$BUNDLE_VERSION" != "$VERSION" ]]; then
   exit 1
 fi
 echo "==> Bundle version verified: $BUNDLE_VERSION"
+
+# ── iCloud entitlements + embedded profile check (NFR-06 / QA-42) ────────────
+# The updater .app.tar.gz is packed from this same .app, so one check covers
+# both artifacts. A bundle that carries the restricted iCloud keys without the
+# profile (or the profile without the keys) would launch into "This build
+# cannot use iCloud" at best and fail to launch at worst; refuse to publish it.
+APP="$BUNDLE_DIR/macos/SnowRaven.app"
+[[ -f "$APP/Contents/embedded.provisionprofile" ]] \
+  || die "the signed bundle has no Contents/embedded.provisionprofile: the overlay's files mapping did not land. Aborting before publish."
+ENT_XML=$(codesign -d --entitlements - --xml "$APP" 2>/dev/null || codesign -d --entitlements :- "$APP" 2>/dev/null || true)
+for key in com.apple.developer.icloud-container-identifiers com.apple.developer.ubiquity-container-identifiers com.apple.developer.icloud-services; do
+  grep -q "$key" <<<"$ENT_XML" || die "the signed bundle's entitlements lack $key: the iCloud overlay was not applied. Aborting before publish."
+done
+grep -q "$ICLOUD_CONTAINER" <<<"$ENT_XML" || die "the signed bundle's entitlements do not name $ICLOUD_CONTAINER. Aborting before publish."
+codesign --verify --deep --strict "$APP" \
+  || die "codesign --verify --deep --strict failed on the bundle (the embedded profile must be inside the seal, i.e. copied before signing). Aborting before publish."
+echo "==> iCloud entitlements and embedded profile verified in $APP"
 
 # ── Style the DMG (headless) — inject the committed Finder layout ─────────────
 # The build runs under CI=true so Tauri's bundle_dmg.sh skips its GUI-only Finder

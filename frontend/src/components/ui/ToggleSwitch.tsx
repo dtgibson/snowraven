@@ -10,6 +10,10 @@ interface ToggleSwitchProps {
       the control, with a slightly larger track that holds its own without the
       frame. For rows whose visible label is the row text (Settings). */
   bare?: boolean
+  /** Name the switch by another element (its section header) instead of the
+      hidden label span, and describe it by others (icloud-sync). */
+  labelledBy?: string
+  describedBy?: string
 }
 
 /**
@@ -24,6 +28,8 @@ export function ToggleSwitch({
   disabled = false,
   busy = false,
   bare = false,
+  labelledBy,
+  describedBy,
 }: ToggleSwitchProps) {
   // Track/knob geometry: the bare variant is slightly larger (36×20 / 16px)
   // because it stands alone without the frame; the boxed default stays 28×16.
@@ -35,6 +41,8 @@ export function ToggleSwitch({
       role="switch"
       aria-checked={checked}
       aria-busy={busy || undefined}
+      aria-labelledby={labelledBy}
+      aria-describedby={describedBy}
       onClick={onChange}
       disabled={disabled}
       className={bare ? 'sr-touch-target' : undefined}

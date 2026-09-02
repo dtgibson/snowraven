@@ -6,6 +6,9 @@ import { isOfflineError } from './lib/offlineDetect'
 import { OfflineMessage, StalenessCue } from './components/OfflineMessage'
 import { storage } from './lib/storage'
 import { isTauri } from './lib/platform'
+import { showICloudSync } from './lib/platformGates'
+import { notifyFilesChanged } from './lib/filesChanged'
+import { useFilesEpoch } from './lib/useFilesEpoch'
 import { compactChrome } from './lib/platformGates'
 import { copyText } from './lib/clipboard'
 import { extractChecklistId, isValidChecklistId } from './lib/checklistId'
@@ -181,7 +184,10 @@ export default function App() {
   const [mapFullscreen, setMapFullscreen] = useState(false)
   const [updateStatus, setUpdateStatus] = useState<UpdateStatus>({ kind: 'idle' })
   const [keyStatus, setKeyStatus] = useState<KeyStatus | null>(null)
-  const [filesVersion, setFilesVersion] = useState(0)
+  // The data-file epoch (lib/filesChanged.ts): bumped by a Settings upload or
+  // clear AND by an iCloud arrival or synced clear, so every prop-threaded tab
+  // below re-enters its loading phase either way (icloud-sync FR-35).
+  const filesVersion = useFilesEpoch()
   const [keysVersion, setKeysVersion] = useState(0)
   // Bumped when the date-format preference changes. formatDate() reads the pref
   // from a module-var at render time, so bumping this re-renders the whole tree
@@ -234,7 +240,7 @@ export default function App() {
   const footerRef = useRef<HTMLParagraphElement>(null)
   useMapPanelChrome(mainRef, footerRef)
 
-  const handleFilesSaved = useCallback(() => setFilesVersion(v => v + 1), [])
+  const handleFilesSaved = useCallback(() => notifyFilesChanged(), [])
 
   const navigateToMediaList = useCallback(() => {
     setActiveTab('life-list')
@@ -412,6 +418,19 @@ export default function App() {
       if (!cancelled && pref) applyTheme(pref)
     })
     return () => { cancelled = true }
+  }, [])
+
+  // iCloud Sync controller (macOS and iOS only). Boots AFTER first paint via a
+  // zero-delay timer and a dynamic import, so nothing on the launch path waits
+  // on it and nothing iCloud-specific rides the entry chunk (icloud-sync
+  // FR-06; entryChunk.test.ts guards the import). On Windows, web and Pi the
+  // gate is false and the module is never fetched.
+  useEffect(() => {
+    if (!showICloudSync()) return
+    const t = setTimeout(() => {
+      void import('./lib/icloud/icloudSync').then(m => m.bootICloudSync()).catch(() => {})
+    }, 0)
+    return () => clearTimeout(t)
   }, [])
 
   // After first paint, warm the lazy chunks during idle time so opening a heavy tab

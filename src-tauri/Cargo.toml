@@ -51,11 +51,35 @@ tauri-plugin-process = "2"
 tauri-plugin-geolocation = "2"
 tauri-plugin-dialog = "2"
 
-[target.'cfg(target_os = "macos")'.dependencies]
+# Apple-only (macOS + iOS): the objc2 bindings shared by the macOS location
+# command and the iCloud Sync native layer (src/icloud.rs), plus the SHA-256
+# digest the shared-record format carries. sha2 is apple-only BY USE (only
+# icloud.rs computes a digest), so it belongs here rather than in
+# [dependencies]; the cross-platform rule (CLAUDE.md) cuts the other way for
+# crates a Windows/Linux command needs. objc2-foundation's default feature set
+# already enables every framework module listed; the list is spelled out so the
+# surface icloud.rs depends on is visible here rather than implied by defaults.
+[target.'cfg(any(target_os = "macos", target_os = "ios"))'.dependencies]
 objc2 = "0.6"
-objc2-foundation = "0.3"
+objc2-foundation = { version = "0.3", features = [
+  "NSFileManager", "NSFileCoordinator", "NSMetadata", "NSMetadataAttributes",
+  "NSNotification", "NSHost", "NSURL", "NSString", "NSArray", "NSDictionary",
+  "NSError", "NSData", "NSOperation", "NSPredicate", "NSValue", "block2",
+] }
+block2 = "0.6"
+sha2 = "0.10"
+
+# macOS-only: CoreLocation for the native get_location command and the oneshot
+# channel it completes through. Genuinely macOS-only crates stay here.
+[target.'cfg(target_os = "macos")'.dependencies]
 objc2-core-location = "0.3"
 tokio = { version = "1", features = ["sync"] }
+
+# iOS-only: UIDevice for the sync device label and platform (iphone/ipad).
+# A separate iOS block rather than the android|ios mobile block above, because
+# objc2-ui-kit is an Apple-vendor crate and has no meaning on Android.
+[target.'cfg(target_os = "ios")'.dependencies]
+objc2-ui-kit = { version = "0.3", features = ["UIDevice"] }
 
 [target.'cfg(target_os = "windows")'.dependencies]
 windows = { version = "0.58", features = [

@@ -382,6 +382,7 @@ const NEVER_A_FAB_ANCESTOR: Record<string, string> = {
   'sr-action-row-stack': 'a label-plus-action row; same, and it is sidebar/panel furniture',
   'sr-proj-row': 'a Projects-section result row on the Statistics tab, which mounts no map at all',
   'sr-proj-portalrow': 'the subordinate portal row in the same section; same reasoning',
+  'sr-dlg-actions': 'the shared modal dialog action row (components/ui/ModalDialog.tsx); a dialog panel never wraps a map, so no FAB sits under it',
   'sr-map-sidebar-overlay': 'the filters sidebar, which the cluster sits outside of (and is hidden while it is open)',
   'maplibregl-ctrl-group': "maplibre's own control stack, injected inside the canvas container",
   'maplibregl-ctrl': 'same, one level up',

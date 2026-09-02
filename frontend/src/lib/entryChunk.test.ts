@@ -317,6 +317,36 @@ describe('entry-chunk exclusion (NFR-03 / QA-30)', () => {
     expect(mobilePlugins).toEqual([])
   })
 
+  // ── iCloud Sync (icloud-sync, NFR-09 / QA-44): the controller and the
+  // native wrapper (which statically import @tauri-apps/api) are reached only
+  // through App.tsx's `import('./lib/icloud/icloudSync')` after first paint;
+  // the entry-safe state store, copy module and file epoch ARE on the graph,
+  // which is what makes the negatives mean something.
+  it('the iCloud Sync controller and native wrapper are off the entry graph', () => {
+    expect(has('lib/icloud/icloudSync.ts')).toBe(false)
+    expect(has('lib/icloud/icloudNative.ts')).toBe(false)
+    // The event module is imported only by the native wrapper; core is already
+    // on the graph through lib/location.ts, so only event is a usable negative.
+    expect([...externals]).not.toContain('@tauri-apps/api/event')
+  })
+
+  it('the iCloud Sync state store, copy and the file epoch ARE on the entry graph (guards the guard)', () => {
+    expect(has('lib/icloud/icloudState.ts')).toBe(true)
+    expect(has('lib/icloud/icloudCopy.ts')).toBe(true)
+    expect(has('lib/filesChanged.ts')).toBe(true)
+    expect(has('lib/useFilesEpoch.ts')).toBe(true)
+    expect(has('lib/platformGates.ts')).toBe(true)
+    // And the negative above is asserting about a real edge: the controller
+    // reaches the native wrapper through `import()` (a dynamic edge this
+    // walker deliberately does not follow), and the wrapper's OWN closure is
+    // what carries @tauri-apps/api/event.
+    const ctrlSrc = readFileSync(resolve(SRC, 'lib/icloud/icloudSync.ts'), 'utf8')
+    expect(ctrlSrc).toContain("import('./icloudNative')")
+    const wrapper = closureFrom(resolve(SRC, 'lib/icloud/icloudNative.ts'))
+    expect([...wrapper.externals]).toContain('@tauri-apps/api/event')
+    expect([...wrapper.externals]).toContain('@tauri-apps/api/core')
+  })
+
   it('the App entry actually exists (guards against a broken closure root)', () => {
     expect(files.has(APP)).toBe(true)
     expect(files.size).toBeGreaterThan(20) // a real graph, not an empty/short-circuited one

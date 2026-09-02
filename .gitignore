@@ -27,6 +27,10 @@ data/
 
 # Tauri / Rust build output
 src-tauri/target/
+# The Developer ID provisioning profile release.sh copies in for the iCloud
+# overlay build (icloud-sync); the real file lives at
+# ~/.tauri/snowraven-developerid.provisionprofile, never in the repo.
+src-tauri/embedded.provisionprofile
 # gen/schemas is regenerated at build; gen/apple is COMMITTED (mobile-app
 # schema §2.1 — it holds hand-edited state: project.yml, Info.plist,
 # ExportOptions, entitlements). Build products inside gen/apple are excluded

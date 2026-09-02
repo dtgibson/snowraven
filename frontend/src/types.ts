@@ -42,6 +42,12 @@ export interface BreedingSortState {
 export interface StoredFileInfo {
   filename: string
   uploadedAt: string
+  // icloud-sync (v1.0.11), both optional and backward compatible: an entry
+  // written before 1.0.11 carries neither. `origin` is which device uploaded
+  // the file; `replacedBySyncAt` is set only by a synced pull (FR-25) and is
+  // cleared by the next user action on that row.
+  origin?: { deviceId: string; label: string; platform: 'mac' | 'iphone' | 'ipad' }
+  replacedBySyncAt?: string
 }
 export interface StoredFilesStatus {
   ebird: StoredFileInfo | null

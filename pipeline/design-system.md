@@ -22,6 +22,11 @@ never promotional.
   `--sr-text-gray` metadata, `--sr-text-disabled` counts/placeholders.
 - **Borders:** `--sr-border`, `--sr-border-subtle` (row separators),
   `--sr-border-medium` (interactive outlines).
+- **Scrim:** `--sr-scrim` (v1.0.11, icloud-sync) is the modal backdrop, the
+  app's own ink at an alpha rather than pure black (light
+  `rgba(15,17,23,0.36)`, dark `rgba(9,9,11,0.6)`). Every fixed overlay
+  backdrop uses it through `.sr-dlg-root`; do not re-inline an
+  `rgba(0,0,0,...)` scrim. The shared shell is `components/ui/ModalDialog.tsx`.
 - **Quote blocks:** `--sr-quote-bg`/`--sr-quote-border` (v0.5.26) for quoted
   user comments.
 - **Tiers:** `--sr-tier-N` (+`-rgb` triplets) for breeding-code tiers.

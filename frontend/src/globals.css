@@ -160,6 +160,11 @@
   --sr-switch-thumb: #FFFFFF;
   --sr-switch-thumb-shadow: 0 1px 2px rgba(0,0,0,0.25);
 
+  /* Modal scrim (icloud-sync): the app's own ink at an alpha, never pure
+     black, so every overlay backdrop reads as tinted rather than dead grey.
+     Dark theme carries its own deeper value below. */
+  --sr-scrim: rgba(15,17,23,0.36);
+
   /* Calendar day-shade ramp — deep green, identical in both themes, sized so a
      WHITE on-cell number clears 4.5:1 on EVERY tier (unlike --sr-county-N, whose
      light top tiers carry no on-fill text). 5 classes so >=1.2:1 adjacency ALSO
@@ -442,6 +447,10 @@
      chrome, carries no text; --sr-gray-400 off-track is contrast-tuned against this white). */
   --sr-switch-thumb: #FFFFFF;
   --sr-switch-thumb-shadow: 0 1px 2px rgba(0,0,0,0.25);
+
+  /* Modal scrim, deliberately NOT the :root value: the near-black --sr-bg
+     needs a heavier veil to read as a backdrop at all. */
+  --sr-scrim: rgba(9,9,11,0.6);
 
   /* Calendar day-shade ramp — identical to :root by design (deep green, theme-
      identical). Deep enough that the single WHITE --sr-cal-fg number clears
@@ -2599,6 +2608,111 @@ h1, h2, h3, h4, h5, h6 {
    block further down, NOT in a new standalone media block here: the tier-guard
    tests locate "the phone tier" as the file's first multi-line 640px block. */
 
+/* ── Settings → iCloud Sync (icloud-sync) ──────────────────────────────────
+   The per-row sync line under "Saved", the iCloud Sync section's rows, the
+   three button registers the feature reuses, and the shared modal dialog
+   shell (components/ui/ModalDialog.tsx). Colours are --sr-* tokens only,
+   both themes; the one new token is --sr-scrim. Motion is ease-out and under
+   200ms; the global prefers-reduced-motion rule collapses every transition
+   toward zero without removing it (transitionend still fires, which the
+   dialog's close relies on). Phone-tier declarations live in the established
+   ≤640 tier further down (the tier-guard rule). */
+
+/* The sync line is a stable polite status region whose CHILDREN are replaced:
+   it is always rendered while the platform gate is true (empty when a row has
+   no sync view), and no rule below hides it (display:none on a live region is
+   the insert-with-first-message trap; icloudSyncCss.test.ts scans for it).
+   Empty, it takes no space. The cross-fade animates exactly what changed. */
+.sr-sync-line {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px;
+  margin-top: 5px; font-size: 0.75rem; line-height: 1.45; color: var(--sr-text-muted);
+  transition: opacity 0.16s ease-out;
+}
+.sr-sync-line:empty { margin-top: 0; }
+.sr-sync-line--fading { opacity: 0; transition-duration: 0.12s; }
+.sr-sync-state { display: inline-flex; align-items: center; gap: 5px; font-weight: 600; color: var(--sr-text-muted); white-space: nowrap; }
+.sr-sync-state svg { flex-shrink: 0; }
+.sr-sync-state--error { color: var(--sr-error); }
+.sr-sync-sep { color: var(--sr-text-disabled); }
+.sr-sync-more { min-width: 0; overflow-wrap: anywhere; }
+
+/* The filename line in a Default Files row now wraps: at 320px and 200% text
+   scale the nowrap "Saved <date>" span clipped under the card's overflow. */
+.sr-file-line { display: flex; align-items: center; flex-wrap: wrap; gap: 2px 6px; margin-top: 2px; min-width: 0; }
+
+/* The three shipped button registers this tab already uses, as classes so the
+   hover states live here rather than in inline handlers. */
+.sr-btn-quiet {
+  height: 32px; padding: 0 12px;
+  border: 1.5px solid var(--sr-border); background: var(--sr-surface); color: var(--sr-text);
+  border-radius: 6px; font-size: 0.75rem; font-weight: 500; font-family: inherit;
+  cursor: pointer; white-space: nowrap;
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: border-color 0.12s ease-out, background 0.12s ease-out, color 0.12s ease-out, opacity 0.12s ease-out;
+}
+.sr-btn-quiet:hover { border-color: var(--sr-border-medium); background: var(--sr-surface-subtle); }
+.sr-btn-quiet--danger { border-color: var(--sr-error-border); background: var(--sr-surface); color: var(--sr-error); }
+.sr-btn-quiet--danger:hover { background: var(--sr-error-bg); }
+.sr-btn-quiet[disabled] { border-color: var(--sr-border); background: var(--sr-surface-subtle); color: var(--sr-text-disabled); cursor: not-allowed; }
+.sr-btn-quiet[aria-busy="true"] { opacity: 0.65; cursor: progress; }
+.sr-btn-inline { height: 26px; padding: 0 9px; font-size: 0.71875rem; }
+.sr-btn-accent {
+  height: 32px; padding: 0 14px;
+  background: var(--sr-accent); color: var(--sr-on-accent);
+  border: none; border-radius: 6px;
+  font-size: 0.75rem; font-weight: 600; font-family: inherit; cursor: pointer; white-space: nowrap;
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: background 0.12s ease-out, box-shadow 0.12s ease-out;
+}
+.sr-btn-accent:hover { background: var(--sr-accent-strong); }
+[data-theme="dark"] .sr-btn-accent:hover { box-shadow: 0 0 0 3px var(--sr-accent-border); }
+
+/* The section's rows. */
+.sr-ics-row { padding: 14px 16px; }
+.sr-ics-row + .sr-ics-row { border-top: 1px solid var(--sr-border-subtle); }
+.sr-ics-toggle-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.sr-ics-desc { margin: 0; font-size: 0.8125rem; color: var(--sr-text-muted); line-height: 1.5; }
+.sr-ics-note { margin: 6px 0 0; font-size: 0.75rem; color: var(--sr-text); line-height: 1.5; }
+.sr-ics-status-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 12px; }
+.sr-ics-status-row--empty { padding: 0; border-top: 0; }
+.sr-ics-status { font-size: 0.75rem; color: var(--sr-text-muted); line-height: 1.45; }
+
+/* Dialog shell: scrim + panel. The panel scales in from the trigger (the
+   component sets transform-origin) and closes a touch faster. */
+.sr-dlg-root {
+  position: fixed; inset: 0; z-index: 1200;
+  background: var(--sr-scrim);
+  display: flex; align-items: center; justify-content: center; padding: 16px;
+  opacity: 0; transition: opacity 0.16s ease-out;
+}
+/* iOS app only: a tall panel must not sit under the status bar or the
+   Dynamic Island. Pad the top edge only (the panel is centred; the scrim
+   itself may cover the inset). Gated on .sr-ios-app, never a bare env(). */
+.sr-ios-app .sr-dlg-root { padding-top: calc(16px + env(safe-area-inset-top, 0px)); }
+.sr-dlg-root--open { opacity: 1; }
+.sr-dlg-root--closing { transition-duration: 0.12s; }
+.sr-dlg {
+  width: calc(100% - 32px); max-width: 420px; max-height: 80vh; overflow: auto;
+  background: var(--sr-surface); color: var(--sr-text);
+  border: 1px solid var(--sr-border); border-radius: 14px; box-shadow: var(--sr-card-shadow);
+  opacity: 0; transform: scale(0.94);
+  transition: opacity 0.16s ease-out, transform 0.18s cubic-bezier(0.2, 0, 0, 1);
+}
+.sr-dlg-root--open .sr-dlg { opacity: 1; transform: none; }
+.sr-dlg-root--closing .sr-dlg { transition-duration: 0.12s; }
+.sr-dlg-head { padding: 16px 18px 12px; border-bottom: 1px solid var(--sr-border-subtle); }
+.sr-dlg-title { margin: 0; font-size: 1rem; font-weight: 700; letter-spacing: -0.01em; line-height: 1.3; color: var(--sr-text); }
+.sr-dlg-body { padding: 14px 18px 4px; }
+.sr-dlg-item { padding: 0 0 12px; }
+.sr-dlg-lead { margin: 0 0 2px; font-size: 0.8125rem; font-weight: 600; color: var(--sr-text); }
+.sr-dlg-text { margin: 0 0 10px; font-size: 0.8125rem; color: var(--sr-text-muted); line-height: 1.55; }
+.sr-dlg-item .sr-dlg-text { margin: 0; }
+.sr-dlg-text strong { color: var(--sr-text); font-weight: 600; overflow-wrap: anywhere; }
+.sr-dlg-files { margin: 0 0 12px; padding: 0 0 0 18px; font-size: 0.8125rem; color: var(--sr-text); line-height: 1.6; }
+.sr-dlg-files li { overflow-wrap: anywhere; }
+.sr-dlg-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; padding: 8px 18px 16px; }
+.sr-dlg-actions > * { min-width: 96px; }
+
 .sr-map-sidebar-close {
   display: none;
   align-items: center;
@@ -3325,6 +3439,25 @@ select:focus-visible {
      subtree, beside its base rules' intent (settings-acknowledgments). */
   .sr-ack-toggle { height: auto; white-space: normal; }
   .sr-ack-panel { padding: 4px 12px; }
+
+  /* Settings → iCloud Sync (icloud-sync): every button of the feature takes
+     the 44px touch posture and may wrap; the inline Download now / Retry drop
+     to their own full-width line under the state text; Check now fills the
+     status row; Remove fills its row; dialog buttons stack full width and the
+     panel loses a little side margin. Scoped to the feature's own classes. */
+  .sr-btn-quiet, .sr-btn-accent, .sr-btn-inline { min-height: 2.75rem; height: auto; white-space: normal; }
+  /* The state label wraps on a phone: "In iCloud, not downloaded here" measures
+     444px at 320px / 200% text scale against a 279px content box and was
+     clipped by the card (QA round 1, Failure 2). The glyph keeps flex-shrink: 0
+     and sits on the first line (flex-start, nudged to the first line's
+     x-height); desktop keeps the nowrap label. */
+  .sr-sync-state { white-space: normal; align-items: flex-start; }
+  .sr-sync-state svg { margin-top: 0.2em; }
+  .sr-sync-line .sr-btn-inline { flex: 1 1 100%; }
+  .sr-ics-status-row .sr-btn-quiet { flex: 1 1 100%; }
+  .sr-ics-remove-row .sr-btn-quiet { width: 100%; }
+  .sr-dlg { width: calc(100% - 24px); }
+  .sr-dlg-actions > * { flex: 1 1 100%; }
 
   /* Icon-only buttons in dense map rows grow to a ~40px tap box on phones
      (both dimensions, rem). Keeps the glyph size and radius; desktop untouched. */

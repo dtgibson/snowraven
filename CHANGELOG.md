@@ -2,6 +2,11 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [1.0.11] - 2026-09-01
+
+### Added
+- **iCloud Sync on Mac, iPhone and iPad.** A new iCloud Sync section in Settings, off by default, keeps your eBird backup and your Macaulay Library export the same on every Mac, iPhone and iPad signed in to your iCloud account: upload a fresh export on one device and the others use it, with no second upload. Before it turns on, a note says exactly what goes to iCloud (the two files and each one's name, upload time and device), whose account it is (your own, on Apple's servers, with no SnowRaven server in the path and nothing the developer can see), what happens now, and how to turn it off. Each file row then shows where its current file came from and when, and one of eight plain-text states: up to date, uploading, downloading, in iCloud but not downloaded here (with a Download now button), waiting to upload, iCloud unavailable, sync off, or could not sync (with the reason and a Retry button). The most recently uploaded copy of each file wins, whole; nothing is merged. With sync on, Clear asks first because it reaches every synced device, and a separate Remove synced files from iCloud control deletes the copies in your account without touching any device. Your API keys, settings and caches never leave the device, the app keeps working from its local files when iCloud is unreachable, and a newly synced file reaches every tab without a relaunch. Windows, web and Pi are unchanged: no toggle, no copy, no behavior change. The release recipe now embeds an iCloud provisioning profile in the Mac app and checks for it before publishing; a build without it says so in Settings rather than failing quietly.
+
 ## [1.0.10] - 2026-08-31
 
 ### Added

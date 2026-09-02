@@ -2,6 +2,10 @@
 mod location;
 #[cfg(target_os = "windows")]
 mod location_windows;
+// iCloud Sync native layer (macOS + iOS only): the ubiquity container side of
+// frontend/src/lib/icloud/. Never compiled into Windows/Linux binaries.
+#[cfg(any(target_os = "macos", target_os = "ios"))]
+mod icloud;
 
 use keyring::Entry;
 use std::sync::OnceLock;
@@ -78,6 +82,22 @@ pub fn run() {
             location::get_location,
             #[cfg(target_os = "windows")]
             location_windows::get_location,
+            #[cfg(any(target_os = "macos", target_os = "ios"))]
+            icloud::icloud_status,
+            #[cfg(any(target_os = "macos", target_os = "ios"))]
+            icloud::icloud_read_record,
+            #[cfg(any(target_os = "macos", target_os = "ios"))]
+            icloud::icloud_push,
+            #[cfg(any(target_os = "macos", target_os = "ios"))]
+            icloud::icloud_push_cleared,
+            #[cfg(any(target_os = "macos", target_os = "ios"))]
+            icloud::icloud_pull,
+            #[cfg(any(target_os = "macos", target_os = "ios"))]
+            icloud::icloud_start_download,
+            #[cfg(any(target_os = "macos", target_os = "ios"))]
+            icloud::icloud_remove_all,
+            #[cfg(any(target_os = "macos", target_os = "ios"))]
+            icloud::icloud_watch,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application")

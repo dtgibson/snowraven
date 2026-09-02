@@ -1,5 +1,8 @@
 import { useEffect, useId, useRef, useState } from 'react'
-import { BookOpen, ChevronDown, ChevronUp, Copy, Eye, EyeOff, FileCheck, FileQuestion, Loader2, Lock, Navigation } from 'lucide-react'
+import {
+  BookOpen, ChevronDown, ChevronUp, CircleAlert, CloudCheck, CloudDownload, CloudOff, CloudUpload,
+  Copy, Eye, EyeOff, FileCheck, FileQuestion, Loader2, Lock, Navigation,
+} from 'lucide-react'
 import type { StoredFileInfo, StoredFilesStatus } from '../types'
 import { applyTheme, readStoredPreference, persistThemePreference, clearThemePreference, hydrateStoredTheme } from '../lib/theme'
 import type { ThemePreference } from '../lib/theme'
@@ -9,7 +12,18 @@ import { storage } from '../lib/storage'
 import { formatDate, setDateFormatPref, asDateFormatPref } from '../lib/formatDate'
 import type { DateFormatPref } from '../lib/formatDate'
 import { isTauri, isIOS } from '../lib/platform'
-import { supportsAppRelaunch } from '../lib/platformGates'
+import { supportsAppRelaunch, showICloudSync } from '../lib/platformGates'
+import { useFilesEpoch } from '../lib/useFilesEpoch'
+import { useICloudState, icloudActions } from '../lib/icloud/icloudState'
+import type { SlotView } from '../lib/icloud/icloudState'
+import type { Slot } from '../lib/icloud/icloudRecord'
+import type { FileOrigin } from '../lib/storage'
+import {
+  ICS_HEADER, ICS_DESCRIPTION, AVAILABILITY_NOTES, STATE_LABELS, PLATFORM_WORD, hereWord,
+  fromText, fromWithTimeText, replacedText, statusText, CHECK_FAILED_SUFFIX, announcerText, BUTTONS,
+  ENABLE_TITLE, enableNoteItems, REMOVE_TITLE, REMOVE_INTRO, removeOutro, clearTitle, clearBody,
+} from '../lib/icloud/icloudCopy'
+import { ModalDialog } from './ui/ModalDialog'
 import { fileRowButtonLabel } from '../lib/fileRowCopy'
 import { IOS_IMPORT_MECHANISM, pickCsvViaDialog } from '../lib/iosImport'
 import { getCurrentLocation, describeLocationError } from '../lib/location'
@@ -275,10 +289,23 @@ interface FileRowProps {
   // default iOS path (Mechanism A) is the file input below — WebKit presents
   // the native document picker for it.
   onNativePick?: () => void
-  onDelete: () => void
+  // The Clear button hands its own element to the parent, so the sync-on
+  // confirmation can scale in from it and return focus to it afterwards (or
+  // to Upload/Import, which `uploadRef` names, once Clear has gone disabled).
+  onDelete: (trigger: HTMLButtonElement) => void
+  uploadRef?: React.Ref<HTMLButtonElement>
+  // icloud-sync: `syncLine` is the platform gate (render the status region at
+  // all); `sync` is the row's current view, null = mounted but empty.
+  syncLine?: boolean
+  sync?: SlotView | null
+  onDownloadNow?: () => void
+  onRetry?: () => void
 }
 
-function FileRow({ label, sublabel, info, uploading, error, onUpload, onNativePick, onDelete }: FileRowProps) {
+function FileRow({
+  label, sublabel, info, uploading, error, onUpload, onNativePick, onDelete, uploadRef,
+  syncLine = false, sync = null, onDownloadNow, onRetry,
+}: FileRowProps) {
   const inputRef = useRef<HTMLInputElement>(null)
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -311,18 +338,22 @@ function FileRow({ label, sublabel, info, uploading, error, onUpload, onNativePi
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: '0.84375rem', fontWeight: 600, color: 'var(--sr-text)' }}>{label}</div>
           {info ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2, minWidth: 0 }}>
+            // The line WRAPS (class, not inline): at 320px and 200% text scale
+            // the nowrap "Saved" span clipped under the card's overflow, and the
+            // sync line below relies on the same column being allowed to wrap.
+            <div className="sr-file-line">
               <span style={{
                 fontSize: '0.8125rem', fontWeight: 500, color: 'var(--sr-text)',
                 maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
               }} title={info.filename}>{info.filename}</span>
-              <span style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)', whiteSpace: 'nowrap' }}>
+              <span style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)' }}>
                 · Saved {formatUploadDate(info.uploadedAt)}
               </span>
             </div>
           ) : (
             <div style={{ fontSize: '0.8125rem', color: 'var(--sr-text-muted)', marginTop: 2 }}>{sublabel}</div>
           )}
+          {syncLine && <SyncLine view={sync} onDownloadNow={onDownloadNow} onRetry={onRetry} />}
         </div>
         </div>
 
@@ -339,6 +370,8 @@ function FileRow({ label, sublabel, info, uploading, error, onUpload, onNativePi
           )}
 
           <button tabIndex={0}
+            ref={uploadRef}
+            className="sr-touch-target"
             onClick={handlePickClick}
             disabled={uploading}
             style={{
@@ -359,7 +392,8 @@ function FileRow({ label, sublabel, info, uploading, error, onUpload, onNativePi
           </button>
 
           <button tabIndex={0}
-            onClick={onDelete}
+            className="sr-touch-target"
+            onClick={e => onDelete(e.currentTarget)}
             disabled={!info}
             style={{
               height: 32, padding: '0 12px',
@@ -395,6 +429,285 @@ function FileRow({ label, sublabel, info, uploading, error, onUpload, onNativePi
         </div>
       )}
     </div>
+  )
+}
+
+// ---- iCloud Sync: the per-row sync line (icloud-sync FR-23 to FR-29) ----
+
+function prefersReducedMotion(): boolean {
+  return typeof window !== 'undefined'
+    && typeof window.matchMedia === 'function'
+    && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+}
+
+// One row's sync content: [glyph] state label · provenance [action]. The label
+// is text (never colour alone); the glyph is reinforcement; the middot lives
+// INSIDE the provenance span so a wrapped line never ends on a dangling dot.
+// Label and filename strings from a shared record render only as children.
+function SyncContent({ view, onDownloadNow, onRetry }: {
+  view: SlotView
+  onDownloadNow?: () => void
+  onRetry?: () => void
+}) {
+  const label = STATE_LABELS[view.state]
+  let Icon = CloudCheck
+  let error = false
+  let more: string | null = null
+  let action: 'download' | 'retry' | null = null
+  const withTime = () => view.uploadedAt
+    ? fromWithTimeText(view.fromThisDevice, view.origin, formatUploadDate(view.uploadedAt))
+    : fromText(view.fromThisDevice, view.origin)
+  switch (view.state) {
+    case 'up-to-date':
+      Icon = CloudCheck
+      // FR-25: the "Replaced by" line TAKES THE PLACE of the provenance while set.
+      more = view.replacedAt
+        ? replacedText(view.origin, formatUploadDate(view.replacedAt))
+        : fromText(view.fromThisDevice, view.origin)
+      break
+    case 'uploading':
+      Icon = CloudUpload; more = fromText(view.fromThisDevice, view.origin); break
+    case 'downloading':
+      Icon = CloudDownload; more = withTime(); break
+    case 'in-icloud-not-downloaded':
+      Icon = CloudDownload; more = withTime(); action = 'download'; break
+    case 'waiting-to-upload':
+      Icon = CloudUpload; more = fromText(view.fromThisDevice, view.origin); break
+    case 'unavailable':
+      Icon = CloudOff; more = fromText(view.fromThisDevice, view.origin); break
+    case 'off':
+      Icon = CloudOff; break
+    case 'error':
+      Icon = CircleAlert; error = true; more = view.reason ?? null; action = 'retry'; break
+  }
+  return (
+    <>
+      <span className={'sr-sync-state' + (error ? ' sr-sync-state--error' : '')}>
+        <Icon size={13} strokeWidth={2.2} aria-hidden />
+        {label}
+      </span>
+      {more && (
+        <>
+          <span className="sr-only">. </span>
+          <span className="sr-sync-more"><span className="sr-sync-sep" aria-hidden>·</span> {more}</span>
+        </>
+      )}
+      {action === 'download' && (
+        <button type="button" tabIndex={0} className="sr-btn-quiet sr-btn-inline sr-touch-target" onClick={onDownloadNow}>
+          {BUTTONS.downloadNow}
+        </button>
+      )}
+      {action === 'retry' && (
+        <button type="button" tabIndex={0} className="sr-btn-quiet sr-btn-inline sr-touch-target" onClick={onRetry}>
+          {BUTTONS.retry}
+        </button>
+      )}
+    </>
+  )
+}
+
+// The stable status region. ALWAYS rendered while the platform gate is true
+// (empty when the row has no view); its children are replaced on change and
+// the element itself never unmounts and is never display:none (the house
+// live-region posture), so a state change is announced once. A view-to-view
+// change cross-fades (120ms out, swap, 160ms in via the class transition);
+// the first fill and the clear to empty are instant, and reduced motion swaps
+// instantly. The fade class is toggled on the element through the ref rather
+// than through state so the effect stays free of synchronous setState.
+function SyncLine({ view, onDownloadNow, onRetry }: {
+  view: SlotView | null
+  onDownloadNow?: () => void
+  onRetry?: () => void
+}) {
+  const lineRef = useRef<HTMLDivElement>(null)
+  const key = view ? JSON.stringify(view) : ''
+  const [shown, setShown] = useState<{ key: string; view: SlotView | null }>({ key, view })
+
+  useEffect(() => {
+    if (key === shown.key) return
+    const el = lineRef.current
+    const instant = !shown.view || !view || prefersReducedMotion()
+    if (!instant) el?.classList.add('sr-sync-line--fading')
+    const t = setTimeout(() => {
+      setShown({ key, view })
+      el?.classList.remove('sr-sync-line--fading')
+    }, instant ? 0 : 120)
+    return () => {
+      clearTimeout(t)
+      el?.classList.remove('sr-sync-line--fading')
+    }
+  }, [key, view, shown.key, shown.view])
+
+  return (
+    <div ref={lineRef} role="status" className="sr-sync-line">
+      {shown.view ? <SyncContent view={shown.view} onDownloadNow={onDownloadNow} onRetry={onRetry} /> : null}
+    </div>
+  )
+}
+
+// ---- iCloud Sync section (icloud-sync FR-03, FR-08, FR-26, FR-32, FR-33) ----
+//
+// Rendered only while showICloudSync() (gated markup, never hidden markup).
+// Reads the entry-safe state store and calls the actions the controller
+// installed; nothing here imports the controller or @tauri-apps/api.
+function ICloudSyncSection() {
+  const ics = useICloudState()
+  const headerId = useId()
+  const descId = useId()
+  const noteId = useId()
+  const switchWrapRef = useRef<HTMLSpanElement>(null)
+  const removeBtnRef = useRef<HTMLButtonElement>(null)
+  const [enableOpen, setEnableOpen] = useState(false)
+  const [removeOpen, setRemoveOpen] = useState(false)
+  const [userChecking, setUserChecking] = useState(false)
+  // One announcement per user-pressed Check now, sequence-keyed so a repeat
+  // press is a real DOM replacement (the v0.5.80 live-region rule). The time
+  // in the text makes repeated presses distinct too.
+  const [announce, setAnnounce] = useState<{ text: string; seq: number }>({ text: '', seq: 0 })
+
+  const available = ics.availability === 'available'
+  const note = ics.availability === 'available' || ics.availability === 'unknown'
+    ? null
+    : AVAILABILITY_NOTES[ics.availability]
+  const here = hereWord(ics.platform)
+  const showStatus = ics.syncEnabled || ics.lastCheckAt !== null
+  const status = showStatus
+    ? statusText(ics.lastCheckAt ? formatUploadDate(ics.lastCheckAt) : null) + (ics.checkFailed ? ` ${CHECK_FAILED_SUFFIX}` : '')
+    : ''
+
+  const switchEl = () => switchWrapRef.current?.querySelector<HTMLElement>('[role="switch"]') ?? null
+
+  function handleToggle() {
+    if (!ics.syncEnabled) { setEnableOpen(true); return }
+    // FR-32: off needs no confirmation.
+    void icloudActions.disable()
+  }
+
+  function handleTurnOn() {
+    setEnableOpen(false)
+    void icloudActions.enable()
+  }
+
+  async function handleCheckNow() {
+    setUserChecking(true)
+    try {
+      const outcome = await icloudActions.checkNow()
+      const at = outcome.at ? formatUploadDate(outcome.at) : null
+      setAnnounce(a => ({ text: announcerText(outcome, at), seq: a.seq + 1 }))
+    } finally {
+      setUserChecking(false)
+    }
+  }
+
+  function handleRemove() {
+    setRemoveOpen(false)
+    void icloudActions.removeFromICloud()
+  }
+
+  return (
+    <>
+      <SectionHeader label={ICS_HEADER} id={headerId} />
+      <div style={{ border: '1px solid var(--sr-border)', borderRadius: 10, background: 'var(--sr-surface)', overflow: 'hidden', marginBottom: 24 }}>
+        <div className="sr-ics-row sr-ics-toggle-row">
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p id={descId} className="sr-ics-desc">{ICS_DESCRIPTION}</p>
+            {note && <p id={noteId} className="sr-ics-note">{note}</p>}
+          </div>
+          <span ref={switchWrapRef} style={{ display: 'inline-flex', flexShrink: 0 }}>
+            <ToggleSwitch
+              bare
+              labelVisible={false}
+              label={ICS_HEADER}
+              labelledBy={headerId}
+              describedBy={note ? `${descId} ${noteId}` : descId}
+              checked={ics.syncEnabled}
+              disabled={!available}
+              onChange={handleToggle}
+            />
+          </span>
+        </div>
+
+        {/* Plain text, deliberately NOT a live region: the five-minute poll would
+            otherwise announce a new time every five minutes while Settings is
+            open. A user-pressed Check now announces its result once through the
+            always-mounted sr-only region beside it. The row collapses (never
+            unmounts) while there is nothing to say, so that region is stable. */}
+        <div className={'sr-ics-row sr-ics-status-row' + (showStatus ? '' : ' sr-ics-status-row--empty')}>
+          <span className="sr-ics-status">{status}</span>
+          <span className="sr-only" role="status">
+            {announce.text ? <span key={announce.seq}>{announce.text}</span> : null}
+          </span>
+          {ics.syncEnabled && available && (
+            <button
+              type="button"
+              tabIndex={0}
+              className="sr-btn-quiet sr-touch-target"
+              disabled={userChecking}
+              aria-busy={userChecking || undefined}
+              onClick={() => { void handleCheckNow() }}
+            >
+              {userChecking ? BUTTONS.checking : BUTTONS.checkNow}
+            </button>
+          )}
+        </div>
+
+        {available && ics.sharedExists && (
+          <div className="sr-ics-row sr-ics-remove-row">
+            <button
+              ref={removeBtnRef}
+              type="button"
+              tabIndex={0}
+              className="sr-btn-quiet sr-touch-target"
+              onClick={() => setRemoveOpen(true)}
+            >
+              {BUTTONS.remove}
+            </button>
+          </div>
+        )}
+      </div>
+
+      <ModalDialog
+        open={enableOpen}
+        title={ENABLE_TITLE}
+        trigger={switchEl}
+        onRequestClose={() => setEnableOpen(false)}
+        initialFocus="last"
+        actions={
+          <>
+            <button type="button" tabIndex={0} className="sr-btn-quiet sr-touch-target" onClick={() => setEnableOpen(false)}>{BUTTONS.cancel}</button>
+            <button type="button" tabIndex={0} className="sr-btn-accent sr-touch-target" onClick={handleTurnOn}>{BUTTONS.turnOn}</button>
+          </>
+        }
+      >
+        {enableNoteItems(here).map(item => (
+          <div key={item.lead} className="sr-dlg-item">
+            <p className="sr-dlg-lead">{item.lead}</p>
+            <p className="sr-dlg-text">{item.text}</p>
+          </div>
+        ))}
+      </ModalDialog>
+
+      <ModalDialog
+        open={removeOpen}
+        title={REMOVE_TITLE}
+        trigger={() => removeBtnRef.current}
+        fallbackFocus={switchEl}
+        onRequestClose={() => setRemoveOpen(false)}
+        initialFocus="first"
+        actions={
+          <>
+            <button type="button" tabIndex={0} className="sr-btn-quiet sr-touch-target" onClick={() => setRemoveOpen(false)}>{BUTTONS.cancel}</button>
+            <button type="button" tabIndex={0} className="sr-btn-quiet sr-btn-quiet--danger sr-touch-target" onClick={handleRemove}>{BUTTONS.removeConfirm}</button>
+          </>
+        }
+      >
+        <p className="sr-dlg-text">{REMOVE_INTRO}</p>
+        <ul className="sr-dlg-files">
+          {ics.sharedFilenames.map((name, i) => <li key={`${i}-${name}`}>{name}</li>)}
+        </ul>
+        <p className="sr-dlg-text">{removeOutro(here)}</p>
+      </ModalDialog>
+    </>
   )
 }
 
@@ -842,7 +1155,7 @@ function EmbeddedMediaRow({ value, saving, error, onChange }: {
 
 // ---- Section header ----
 
-function SectionHeader({ label }: { label: string }) {
+function SectionHeader({ label, id }: { label: string; id?: string }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
       {/* No `white-space: nowrap` (v1.0.4). Uppercased and letter-spaced, the
@@ -852,7 +1165,7 @@ function SectionHeader({ label }: { label: string }) {
           wrap is self-limiting: a flex item only breaks a line it cannot fit, and
           no header comes close at any desktop width, so this is byte-identical
           everywhere else. The divider below then sits beside the final line. */}
-      <span style={{
+      <span id={id} style={{
         fontSize: '0.6875rem', fontWeight: 600, textTransform: 'uppercase',
         letterSpacing: '0.07em', color: 'var(--sr-text-muted)',
       }}>
@@ -1304,11 +1617,30 @@ export function Settings({
   const [mapDefaultsHasSaved, setMapDefaultsHasSaved] = useState(false)
   const savedChipTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  useEffect(() => {
-    storage.getFilesStatus()
-      .then(data => setStatus(data))
-      .catch(() => {})
+  // iCloud Sync (macOS and iOS only). The gate is a sync platform probe; the
+  // state store is entry-safe and reads as 'unknown' until the controller
+  // (dynamic-imported by App) has booted.
+  const syncGate = showICloudSync()
+  const ics = useICloudState()
+  const ebirdUploadRef = useRef<HTMLButtonElement>(null)
+  const mlUploadRef = useRef<HTMLButtonElement>(null)
+  // A sync-on Clear awaiting confirmation: which row, and the Clear button
+  // that opened it (the dialog scales in from it and returns focus to it).
+  const [clearReq, setClearReq] = useState<{ slot: Slot; trigger: HTMLButtonElement } | null>(null)
 
+  // The file rows re-read their metadata whenever a data file changes: a
+  // Settings upload here, or an iCloud arrival or synced clear applied by the
+  // controller (icloud-sync FR-35). Runs on mount too.
+  const filesEpoch = useFilesEpoch()
+  useEffect(() => {
+    let cancelled = false
+    storage.getFilesStatus()
+      .then(data => { if (!cancelled) setStatus(data) })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [filesEpoch])
+
+  useEffect(() => {
     Promise.all([storage.getApiKey('ebird'), storage.getApiKey('openweather')])
       .then(([ebird, openweather]) => setKeys({ ebird, openweather }))
       .catch(() => {})
@@ -1345,11 +1677,22 @@ export function Settings({
     setError(null)
     try {
       const content = await getContent()
-      await storage.writeFile(slot, content, filename)
+      // With sync on, the entry records this device as the file's origin
+      // (FR-11/FR-19); the controller then pushes it on the check that the
+      // save triggers. The iCloud upload never delays the local result (FR-36).
+      const origin: FileOrigin | undefined = syncGate && ics.syncEnabled && ics.deviceId
+        ? {
+            deviceId: ics.deviceId,
+            label: ics.deviceLabel || PLATFORM_WORD[ics.platform ?? 'mac'],
+            platform: ics.platform ?? 'mac',
+          }
+        : undefined
+      await storage.writeFile(slot, content, filename, origin)
       if (slot === 'ebird') { clearEbirdObservationsCache(); invalidateHotspotSet() }
       if (slot === 'ml') clearMLExportCache()
       const updatedStatus = await storage.getFilesStatus()
       setStatus(updatedStatus)
+      if (origin) icloudActions.fileSaved(slot)
       onFilesSaved?.()
     } catch {
       setError('Upload failed. Please try again.')
@@ -1378,6 +1721,8 @@ export function Settings({
     await importFileContent(slot, filename, () => Promise.resolve(content))
   }
 
+  // Today's instant local clear, unchanged and unconfirmed (the sync-off path
+  // on every platform; design-spec.md resolved open item 3).
   const handleDeleteFile = async (slot: 'ebird' | 'ml') => {
     const setError = slot === 'ebird' ? setEbirdError : setMlError
     setError(null)
@@ -1389,6 +1734,25 @@ export function Settings({
     } catch {
       setError('Delete failed. Please try again.')
     }
+  }
+
+  // With sync on, Clear reaches other devices (FR-30), so it asks first; the
+  // confirmed action routes through the controller, which removes the file
+  // here and writes the cleared marker to iCloud.
+  const requestDelete = (slot: 'ebird' | 'ml', trigger: HTMLButtonElement) => {
+    if (syncGate && ics.syncEnabled) { setClearReq({ slot, trigger }); return }
+    void handleDeleteFile(slot)
+  }
+
+  const confirmClearWithSync = () => {
+    const req = clearReq
+    setClearReq(null)
+    if (!req) return
+    const setError = req.slot === 'ebird' ? setEbirdError : setMlError
+    setError(null)
+    void icloudActions.clearWithSync(req.slot).catch(() => {
+      setError('Delete failed. Please try again.')
+    })
   }
 
   // Key handlers
@@ -1613,7 +1977,12 @@ export function Settings({
           error={ebirdError}
           onUpload={file => handleUpload('ebird', file)}
           onNativePick={() => { void handleNativePick('ebird') }}
-          onDelete={() => handleDeleteFile('ebird')}
+          onDelete={trigger => requestDelete('ebird', trigger)}
+          uploadRef={ebirdUploadRef}
+          syncLine={syncGate}
+          sync={ics.slots.ebird}
+          onDownloadNow={() => { void icloudActions.downloadNow('ebird') }}
+          onRetry={() => { void icloudActions.retry('ebird') }}
         />
         <div style={{ borderTop: '1px solid var(--sr-border-subtle)' }}>
           <FileRow
@@ -1624,7 +1993,12 @@ export function Settings({
             error={mlError}
             onUpload={file => handleUpload('ml', file)}
             onNativePick={() => { void handleNativePick('ml') }}
-            onDelete={() => handleDeleteFile('ml')}
+            onDelete={trigger => requestDelete('ml', trigger)}
+            uploadRef={mlUploadRef}
+            syncLine={syncGate}
+            sync={ics.slots.ml}
+            onDownloadNow={() => { void icloudActions.downloadNow('ml') }}
+            onRetry={() => { void icloudActions.retry('ml') }}
           />
         </div>
       </div>
@@ -1634,6 +2008,10 @@ export function Settings({
           ? 'Files are stored in this app\'s local data directory and load automatically when you open the relevant tab.'
           : 'Files are stored on this server and load automatically when you open the relevant tab.'}
       </p>
+
+      {/* iCloud Sync: directly below Default Files, macOS and iOS only (gated
+          markup, never hidden markup). No section below it moves. */}
+      {syncGate && <ICloudSyncSection />}
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
         <span style={{ fontSize: '0.6875rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--sr-text-muted)', whiteSpace: 'nowrap' }}>
@@ -1785,6 +2163,31 @@ export function Settings({
       <AcknowledgmentsSection />
 
     </div>
+
+    {/* Clear with sync on (FR-30): confirms before a clear that reaches every
+        synced device. Scales in from the row's Clear; after a confirmed clear
+        that button is disabled, so focus lands on the row's Upload/Import. */}
+    {syncGate && (
+      <ModalDialog
+        open={clearReq !== null}
+        title={clearTitle(clearReq?.slot === 'ml' ? 'ML Export' : 'eBird Backup')}
+        trigger={() => clearReq?.trigger ?? null}
+        fallbackFocus={() => (clearReq?.slot === 'ml' ? mlUploadRef.current : ebirdUploadRef.current)}
+        onRequestClose={() => setClearReq(null)}
+        initialFocus="first"
+        actions={
+          <>
+            <button type="button" tabIndex={0} className="sr-btn-quiet sr-touch-target" onClick={() => setClearReq(null)}>{BUTTONS.cancel}</button>
+            <button type="button" tabIndex={0} className="sr-btn-quiet sr-btn-quiet--danger sr-touch-target" onClick={confirmClearWithSync}>{BUTTONS.clearConfirm}</button>
+          </>
+        }
+      >
+        <p className="sr-dlg-text">
+          <strong>{(clearReq ? status[clearReq.slot]?.filename : null) ?? ''}</strong>
+          {clearBody(hereWord(ics.platform))}
+        </p>
+      </ModalDialog>
+    )}
     </>
   )
 }

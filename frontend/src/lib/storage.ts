@@ -1,8 +1,25 @@
 import { isTauri } from './platform';
 
+// Which device uploaded a data file (icloud-sync FR-11/FR-13). `deviceId` is
+// a random per-install id (32 lowercase hex), never a hardware or account
+// identifier; `label` is the user's device name or the platform word.
+export interface FileOrigin {
+  deviceId: string;
+  label: string;
+  platform: 'mac' | 'iphone' | 'ipad';
+}
+
 export interface FileMetadata {
   filename: string;
   uploadedAt: string;
+  // icloud-sync (v1.0.11). Both optional and backward compatible: an entry
+  // written before 1.0.11 has neither and is "local, no origin" (FR-17: equal
+  // upload time with a shared record means identical; the first push stamps
+  // `origin` = this device without touching `uploadedAt`).
+  origin?: FileOrigin;
+  // Set only by a synced pull that replaced the local copy (FR-25); a user
+  // action on the row replaces the whole entry and so clears it.
+  replacedBySyncAt?: string;
 }
 
 export interface FilesStatus {
@@ -47,8 +64,34 @@ export interface StorageAdapter {
   deleteSetting(key: string): Promise<void>;
   getFilesStatus(): Promise<FilesStatus>;
   readFile(name: 'ebird' | 'ml'): Promise<string | null>;
-  writeFile(name: 'ebird' | 'ml', content: string, filename: string): Promise<void>;
+  // `origin` (icloud-sync): written into the metadata entry when given (a
+  // user upload with sync on passes this device), never `replacedBySyncAt`.
+  writeFile(name: 'ebird' | 'ml', content: string, filename: string, origin?: FileOrigin): Promise<void>;
   deleteFile(name: 'ebird' | 'ml'): Promise<void>;
+
+  // ── iCloud Sync (icloud-sync FR-15/FR-16/FR-31/FR-39; desktop + iOS only) ──
+  // Every sync-originated write to metadata.json is one link on the same
+  // per-document chain as writeFile/deleteFile, so a user upload and a synced
+  // arrival can never clobber each other. Each takes the local entry's
+  // `uploadedAt` the decision was made against and returns false, touching
+  // nothing, when the entry has changed since (a user upload landed during
+  // the download: the user wins, and the next check pushes it, FR-39).
+  //
+  // applySyncedFile: `materialize` performs the native pull (the csv bytes
+  // never cross IPC); it runs INSIDE the link, and if it throws the link
+  // rejects with metadata untouched (FR-29).
+  applySyncedFile(
+    name: 'ebird' | 'ml',
+    entry: FileMetadata,
+    expectLocalUploadedAt: string | null,
+    materialize: () => Promise<void>,
+  ): Promise<boolean>;
+  // applySyncedClear: the deleteFile body under the same guard.
+  applySyncedClear(name: 'ebird' | 'ml', expectLocalUploadedAt: string | null): Promise<boolean>;
+  // stampFileOrigin: after a push, record this device as the origin of an
+  // entry that has none (a pre-1.0.11 upload), only while it is still the
+  // entry that was pushed. Never touches `uploadedAt`.
+  stampFileOrigin(name: 'ebird' | 'ml', origin: FileOrigin, expectUploadedAt: string): Promise<boolean>;
 
   // ── Offline support — persisted style (FR-01/02/05/06/42) ──
   getStyleBlob(variant: string): Promise<PersistedStyle | null>;
@@ -122,6 +165,21 @@ class WebStorage implements StorageAdapter {
     await fetch(`/settings/files/${name}`, { method: 'DELETE' });
   }
 
+  // iCloud Sync never runs on web/Pi (the platform gate is false there), so
+  // these are unreachable; they reject rather than silently no-op so a
+  // mis-wired caller fails loudly.
+  applySyncedFile(): Promise<boolean> {
+    return Promise.reject(new Error('not supported'));
+  }
+
+  applySyncedClear(): Promise<boolean> {
+    return Promise.reject(new Error('not supported'));
+  }
+
+  stampFileOrigin(): Promise<boolean> {
+    return Promise.reject(new Error('not supported'));
+  }
+
   // ── Offline support ──
   // Persisted style + replay round-trip through the generic /settings/{key} route
   // (one file per key on the backend → FR-42 satisfied structurally). getSetting/
@@ -166,6 +224,30 @@ const FILE_PATHS: Record<'ebird' | 'ml', string> = {
 const STYLE_DIR = `${DATA_DIR}/map-style`;
 const REPLAY_PATH = `${DATA_DIR}/replay.json`;
 const styleFilePath = (variant: string) => `${STYLE_DIR}/${variant}.json`;
+
+// metadata.json is a persisted runtime document, so its optional `origin` is
+// validated on the read side too (the v1.0.5 "validate at the chokepoint" rule
+// applied to a document the app does not solely author): a deviceId that is
+// not 32 lowercase hex, a label that is not a string, or an unknown platform
+// drops the whole origin, and the entry reads as "local, no origin". The id
+// names a staging file natively, so a malformed one never reaches a path.
+const ORIGIN_DEVICE_ID_RE = /^[0-9a-f]{32}$/;
+function normalizeMetaEntry(entry: FileMetadata | null | undefined): FileMetadata | null {
+  if (!entry || typeof entry !== 'object') return null;
+  if (typeof entry.filename !== 'string' || typeof entry.uploadedAt !== 'string') return null;
+  const out: FileMetadata = { filename: entry.filename, uploadedAt: entry.uploadedAt };
+  if (typeof entry.replacedBySyncAt === 'string') out.replacedBySyncAt = entry.replacedBySyncAt;
+  const o = entry.origin;
+  if (
+    o && typeof o === 'object'
+    && typeof o.deviceId === 'string' && ORIGIN_DEVICE_ID_RE.test(o.deviceId)
+    && typeof o.label === 'string'
+    && (o.platform === 'mac' || o.platform === 'iphone' || o.platform === 'ipad')
+  ) {
+    out.origin = { deviceId: o.deviceId, label: o.label, platform: o.platform };
+  }
+  return out;
+}
 
 class TauriStorage implements StorageAdapter {
   // The fs plugin is dynamically imported ONCE per adapter and every method
@@ -281,7 +363,7 @@ class TauriStorage implements StorageAdapter {
   private async readMeta(): Promise<FilesStatus> {
     try {
       const meta = await this.readJson<{ ebird?: FileMetadata | null; ml?: FileMetadata | null }>(META_PATH);
-      return { ebird: meta.ebird ?? null, ml: meta.ml ?? null };
+      return { ebird: normalizeMetaEntry(meta.ebird), ml: normalizeMetaEntry(meta.ml) };
     } catch {
       return { ebird: null, ml: null };
     }
@@ -302,7 +384,25 @@ class TauriStorage implements StorageAdapter {
     }
   }
 
-  async writeFile(name: 'ebird' | 'ml', content: string, filename: string): Promise<void> {
+  // Unchained metadata write, the primitive every chained metadata link ends
+  // with (same rule as readMeta: never call a chained method from a link).
+  private async writeMeta(meta: FilesStatus): Promise<void> {
+    const { writeTextFile, BaseDirectory } = await this.fs();
+    await writeTextFile(META_PATH, JSON.stringify(meta), { baseDir: BaseDirectory.AppLocalData });
+  }
+
+  // Unchained csv removal (best-effort: an already-absent file is not an error).
+  private async removeCsv(name: 'ebird' | 'ml'): Promise<void> {
+    const { remove, exists, BaseDirectory } = await this.fs();
+    const path = FILE_PATHS[name];
+    try {
+      if (await exists(path, { baseDir: BaseDirectory.AppLocalData })) {
+        await remove(path, { baseDir: BaseDirectory.AppLocalData });
+      }
+    } catch { /* best-effort */ }
+  }
+
+  async writeFile(name: 'ebird' | 'ml', content: string, filename: string, origin?: FileOrigin): Promise<void> {
     // The CSV write rides the metadata link so the content and its metadata
     // entry stay consistent with each other under overlapping calls.
     return this.chain(META_PATH, async () => {
@@ -310,23 +410,69 @@ class TauriStorage implements StorageAdapter {
       await mkdir(DATA_DIR, { baseDir: BaseDirectory.AppLocalData, recursive: true });
       await writeTextFile(FILE_PATHS[name], content, { baseDir: BaseDirectory.AppLocalData });
       const meta = await this.readMeta();
-      meta[name] = { filename, uploadedAt: new Date().toISOString() };
-      await writeTextFile(META_PATH, JSON.stringify(meta), { baseDir: BaseDirectory.AppLocalData });
+      // A user action writes a fresh entry: `origin` when sync supplied one,
+      // and never `replacedBySyncAt` (this is what clears the FR-25 notice).
+      meta[name] = origin
+        ? { filename, uploadedAt: new Date().toISOString(), origin }
+        : { filename, uploadedAt: new Date().toISOString() };
+      await this.writeMeta(meta);
     });
   }
 
   async deleteFile(name: 'ebird' | 'ml'): Promise<void> {
     return this.chain(META_PATH, async () => {
-      const { remove, exists, writeTextFile, BaseDirectory } = await this.fs();
-      const path = FILE_PATHS[name];
-      try {
-        if (await exists(path, { baseDir: BaseDirectory.AppLocalData })) {
-          await remove(path, { baseDir: BaseDirectory.AppLocalData });
-        }
-      } catch { /* best-effort */ }
+      await this.removeCsv(name);
       const meta = await this.readMeta();
       meta[name] = null;
-      await writeTextFile(META_PATH, JSON.stringify(meta), { baseDir: BaseDirectory.AppLocalData });
+      await this.writeMeta(meta);
+    });
+  }
+
+  // ── iCloud Sync links (icloud-sync FR-39) ──
+  // Each is ONE link on the metadata chain, serialized with writeFile and
+  // deleteFile. The guard compares the current entry's uploadedAt with the
+  // one the controller decided against; a mismatch means a user action
+  // landed in between, and the link returns false having touched nothing.
+
+  async applySyncedFile(
+    name: 'ebird' | 'ml',
+    entry: FileMetadata,
+    expectLocalUploadedAt: string | null,
+    materialize: () => Promise<void>,
+  ): Promise<boolean> {
+    return this.chain(META_PATH, async () => {
+      const before = await this.readMeta();
+      if ((before[name]?.uploadedAt ?? null) !== expectLocalUploadedAt) return false;
+      // The native pull writes the csv; it is not a chained op (rule 1 holds).
+      // If it throws, this link rejects and the metadata stays as it was.
+      await materialize();
+      const meta = await this.readMeta();
+      meta[name] = entry;
+      await this.writeMeta(meta);
+      return true;
+    });
+  }
+
+  async applySyncedClear(name: 'ebird' | 'ml', expectLocalUploadedAt: string | null): Promise<boolean> {
+    return this.chain(META_PATH, async () => {
+      const before = await this.readMeta();
+      if ((before[name]?.uploadedAt ?? null) !== expectLocalUploadedAt) return false;
+      await this.removeCsv(name);
+      const meta = await this.readMeta();
+      meta[name] = null;
+      await this.writeMeta(meta);
+      return true;
+    });
+  }
+
+  async stampFileOrigin(name: 'ebird' | 'ml', origin: FileOrigin, expectUploadedAt: string): Promise<boolean> {
+    return this.chain(META_PATH, async () => {
+      const meta = await this.readMeta();
+      const current = meta[name];
+      if (!current || current.uploadedAt !== expectUploadedAt || current.origin) return false;
+      meta[name] = { ...current, origin };
+      await this.writeMeta(meta);
+      return true;
     });
   }
 
