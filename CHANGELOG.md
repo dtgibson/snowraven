@@ -2,6 +2,12 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [1.0.13] - 2026-09-02
+
+### Changed
+- **The Mac and Windows apps reopen the way you left them.** Resize the window, move it where you want it, or maximize it, and the next launch comes back at that size, in that place, and maximized if that is how you left it. Until now every launch opened the same default window, which mattered more than it sounds because the app restarts on its own after an update and after "Rebuild caches & restart". A window is never restored somewhere you cannot reach it: if you saved it on a second display that is no longer attached, or on a screen larger than the one it now opens on, it is brought fully back onto a visible screen and shrunk to fit if it has to be, never below the size the window has always been allowed to shrink to. A window deliberately straddling two screens, or nudged down over the Dock, is left exactly where you put it. The first launch after this update is unchanged, because there is nothing saved yet. Nothing about this is shared between devices; the size and position stay on the machine they belong to. iPhone, iPad, web and Pi are unchanged.
+- **Very large eBird backups load without running out of memory.** Reading a backup used to build a complete second copy of the file in memory, in pieces, before turning any of it into observations, and that copy was roughly nineteen times the size of the file itself. A 6.6 MB export briefly needed about 126 MB; a very large one could exhaust the memory available to it and fail to load at all, with no explanation. The file is now read a row at a time, so the extra copy never exists: an export large enough to reliably fail before now loads to completion, and the app needs roughly a fifth of the memory to do it. Two smaller savings come with it. The app no longer holds the entire text of your backup in memory for the whole session just to answer one question about its first line, and one internal store of recent map lookups, the only one without a limit, now keeps a fixed number of entries instead of growing for as long as the app is open. What the app shows you is identical in every case, which was checked against your own export row by row and against the awkward files that break parsers.
+
 ## [1.0.12] - 2026-09-01
 
 ### Added

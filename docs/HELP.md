@@ -15,6 +15,8 @@ The recommended setup sequence is:
 3. Upload your eBird backup file (`MyEBirdData.csv`) in Settings. This powers the Species Detail, Statistics, Calendar, Map Explorer, Breeding Codes, Multimedia, Named Birds, Checklists, and List Comparer tabs.
 4. Upload your ML export from Macaulay Library in Settings. This is optional but unlocks media-specific features in Multimedia, Species Detail, and Statistics.
 
+**The desktop window remembers itself.** On Mac and Windows, SnowRaven reopens at the size and position you last left it, and maximized if that is how you closed it. If the window was last on a display that is no longer attached, or on a screen larger than the one it now opens on, it is brought fully back onto a visible screen and shrunk to fit if it needs to be, so it is never left somewhere you cannot reach it. A window you deliberately straddled across two screens, or nudged down over the Dock, is left where you put it. This is per-machine: it is not part of iCloud Sync, so each of your computers keeps its own window. The iPhone, iPad, web, and Raspberry Pi versions are unaffected.
+
 ---
 
 ## API Keys
