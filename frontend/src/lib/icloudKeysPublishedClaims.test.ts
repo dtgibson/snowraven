@@ -21,9 +21,13 @@
 // - no em dash in any of them, nor in the feature's copy module (QA-45).
 /// <reference types="node" />
 import { describe, it, expect } from 'vitest'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 
-const read = (p: string) => readFileSync(new URL(`../../../${p}`, import.meta.url), 'utf8')
+const at = (p: string) => new URL(`../../../${p}`, import.meta.url)
+const read = (p: string) => readFileSync(at(p), 'utf8')
+// Per-run docs are gitignored (pipeline/.gitignore), so they exist on the build
+// machine but not in a fresh clone or CI; check them only where they are present.
+const PER_RUN_DOCS = ['pipeline/icloud-api-key-sync/how-to-see.md'].filter((p) => existsSync(at(p)))
 const strip = (html: string) => html
   .replace(/<[^>]+>/g, '')
   .replace(/&amp;/g, '&').replace(/&#39;|&rsquo;/g, "'").replace(/&nbsp;/g, ' ')
@@ -190,7 +194,7 @@ describe('NFR-05 / QA-45: no em dash in the published surfaces or the feature co
     'frontend/src/lib/icloud/keyReconcile.ts',
     'frontend/src/lib/keysChanged.ts',
     'frontend/src/lib/useKeysEpoch.ts',
-    'pipeline/icloud-api-key-sync/how-to-see.md',
+    ...PER_RUN_DOCS,
   ])('%s carries no em dash', (name) => {
     expect(read(name).includes('—'), name).toBe(false)
   })
