@@ -1,7 +1,7 @@
 import { useEffect, useId, useMemo, useState } from 'react'
 import { Loader2, AlertCircle, Camera, Mic, Video, MapPin, Calendar, MessageSquare, ChevronDown, Pin } from 'lucide-react'
 import { SetupRequired } from './SetupRequired'
-import { ML_EXPORT_STEPS } from './setupCopy'
+import { ML_EXPORT_STEPS, EBIRD_BACKUP_LOAD_ERROR, ML_EXPORT_LOAD_ERROR } from './setupCopy'
 import { ToggleSwitch } from './ui/ToggleSwitch'
 import { formatDate as formatDateLabel } from '../lib/formatDate'
 import type { LifeListEntry } from '../lib/parseLifeList'
@@ -424,11 +424,24 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
         if (cancelled) return
         if (!status.ml) { setPhase({ tag: 'setup-required' }); return }
 
+        // This tab reads the ML file itself rather than going through loadMLExport:
+        // that helper swallows a bad parse to null and has no detectFileType gate,
+        // which is not what the Multimedia tab needs (DECISIONS.md, v0.5.52). The
+        // read can still throw on file-read IO, and an unguarded throw lands in the
+        // outer catch, which renders "Macaulay Library Export Required" while an
+        // export is plainly stored. `.catch(() => null)` would be a DIFFERENT lie
+        // (a silently empty Multimedia list), so record the failure and say so.
+        // Reachable on web/Pi, where WebStorage.readFile is a bare fetch.
+        let mlReadFailed = false
         const [mlText, ebird] = await Promise.all([
-          storage.readFile('ml'),
+          storage.readFile('ml').catch(() => { mlReadFailed = true; return null }),
           status.ebird ? loadEbirdObservations() : Promise.resolve(null),
         ])
         if (cancelled) return
+        if (mlReadFailed) {
+          setPhase({ tag: 'error', message: ML_EXPORT_LOAD_ERROR })
+          return
+        }
 
         // A stored backup that came back falsy could not be loaded (an unparseable
         // file, or a parse worker that died). Say so, rather than quietly rendering
@@ -437,7 +450,7 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
         // photographed. Same wording and terminal state as the other tabs; a backup
         // that was never stored still degrades to the ML-only list, as before.
         if (status.ebird && !ebird) {
-          setPhase({ tag: 'error', message: "Couldn't load your eBird backup from Settings. Try re-uploading it." })
+          setPhase({ tag: 'error', message: EBIRD_BACKUP_LOAD_ERROR })
           return
         }
 
@@ -509,7 +522,7 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
   if (phase.tag === 'error') {
     return (
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: 40 }}>
-        <div style={{
+        <div className="sr-wrap-anywhere" style={{
           display: 'flex', alignItems: 'center', gap: 8,
           padding: '9px 13px', background: 'var(--sr-error-bg)', borderRadius: 8,
           fontSize: '0.8125rem', color: 'var(--sr-error)', maxWidth: 480,

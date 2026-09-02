@@ -65,6 +65,8 @@ The eBird backup is used by: Species Detail, Statistics, Calendar, Map Explorer,
 
 eBird generates the export with all observations up to the download date. Re-upload the file whenever you want your tabs to reflect recent checklists.
 
+If a tab says it couldn't load your eBird backup, the file is still stored but SnowRaven could not read it, so re-upload `MyEBirdData.csv` in Settings under Default Files (the Multimedia tab says the same about your ML export).
+
 ### ML export
 
 Your ML export is a spreadsheet of all the media you have uploaded to the Macaulay Library (photos, audio recordings, and videos), including catalog IDs, media types, and the species associated with each item.

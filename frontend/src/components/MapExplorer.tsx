@@ -14,7 +14,7 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'r
 // appear beside this cluster. Not an oversight.
 import { AlertCircle, Binoculars, Camera, ChevronDown, Crosshair, Filter, Info, Loader2, LocateFixed, Maximize2, Minimize2, MapPin, Search, X } from 'lucide-react'
 import { SetupRequired } from './SetupRequired'
-import { EBIRD_BACKUP_STEPS } from './setupCopy'
+import { EBIRD_BACKUP_STEPS, EBIRD_BACKUP_LOAD_ERROR } from './setupCopy'
 import { loadEbirdObservations } from '../lib/observationsCache'
 import { loadMLExport } from '../lib/mlExportCache'
 import { useFilesEpoch } from '../lib/useFilesEpoch'
@@ -675,13 +675,18 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
 
         const [ebird, ml] = await Promise.all([
           loadEbirdObservations(),
-          status.ml ? loadMLExport() : Promise.resolve(null),
+          // .catch: loadMLExport catches parse errors but not the file-read IO (the
+          // read sits outside its try), so an ML failure must degrade to no-media
+          // here rather than reject this Promise.all into the outer catch, which
+          // would claim there is no eBird backup while one is plainly loaded.
+          // Reachable on web/Pi, where WebStorage.readFile is a bare fetch.
+          status.ml ? loadMLExport().catch(() => null) : Promise.resolve(null),
         ])
         if (cancelled) return
         // A stored-but-unloadable backup is NOT "you have no backup". Same wording
         // and same terminal state as every other observations tab.
         if (!ebird) {
-          setPhase({ tag: 'error', message: "Couldn't load your eBird backup from Settings. Try re-uploading it." })
+          setPhase({ tag: 'error', message: EBIRD_BACKUP_LOAD_ERROR })
           return
         }
 
@@ -3216,7 +3221,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
             />
           ) : loadErrorMessage !== null && viewMode === 'sightings' ? (
             <div role="alert" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: 40 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 13px', background: 'var(--sr-error-bg)', borderRadius: 8, fontSize: '0.8125rem', color: 'var(--sr-error)', maxWidth: 480 }}>
+              <div className="sr-wrap-anywhere" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 13px', background: 'var(--sr-error-bg)', borderRadius: 8, fontSize: '0.8125rem', color: 'var(--sr-error)', maxWidth: 480 }}>
                 <AlertCircle size={14} strokeWidth={2.5} style={{ flexShrink: 0 }} aria-hidden />
                 {loadErrorMessage}
               </div>

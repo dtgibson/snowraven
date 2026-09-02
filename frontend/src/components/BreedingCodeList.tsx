@@ -1,7 +1,7 @@
 import { useEffect, useId, useMemo, useState } from 'react'
 import { AlertCircle, Loader2, MapPin, Calendar, Pin } from 'lucide-react'
 import { SetupRequired } from './SetupRequired'
-import { EBIRD_BACKUP_STEPS } from './setupCopy'
+import { EBIRD_BACKUP_STEPS, EBIRD_BACKUP_LOAD_ERROR } from './setupCopy'
 import { formatDate as formatDateLabel } from '../lib/formatDate'
 import { deriveBreedingData, aggregateBreedingRows } from '../lib/parseBreedingCodes'
 import type { BreedingData, BreedingEntry, BreedingCodeRow } from '../lib/parseBreedingCodes'
@@ -163,8 +163,9 @@ export function BreedingCodeList({ onGoToSettings, filesVersion, onOpenSpecies }
         if (cancelled) return
         if (!status.ebird) { setPhase({ tag: 'setup-required' }); return }
         const ebird = await loadEbirdObservations()   // shared parse — no second CSV walk
-        if (!ebird || cancelled) {
-          setPhase({ tag: 'error', message: "Couldn't load your eBird backup from Settings. Try re-uploading it." })
+        if (cancelled) return   // a cancelled run writes no state at all
+        if (!ebird) {
+          setPhase({ tag: 'error', message: EBIRD_BACKUP_LOAD_ERROR })
           return
         }
         // headerLine, not the whole CSV: deriveBreedingData uses the text only for
@@ -239,7 +240,7 @@ export function BreedingCodeList({ onGoToSettings, filesVersion, onOpenSpecies }
   if (phase.tag === 'error') {
     return (
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: 40 }}>
-        <div style={{
+        <div className="sr-wrap-anywhere" style={{
           display: 'flex', alignItems: 'center', gap: 8,
           padding: '9px 13px', background: 'var(--sr-error-bg)', borderRadius: 8,
           fontSize: '0.8125rem', color: 'var(--sr-error)', maxWidth: 480,

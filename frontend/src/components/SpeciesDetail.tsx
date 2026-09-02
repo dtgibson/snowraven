@@ -5,7 +5,7 @@ import {
   MapPin, Play, Calendar, SlidersHorizontal, Share2, Tag,
 } from 'lucide-react'
 import { SetupRequired } from './SetupRequired'
-import { EBIRD_BACKUP_STEPS } from './setupCopy'
+import { EBIRD_BACKUP_STEPS, EBIRD_BACKUP_LOAD_ERROR } from './setupCopy'
 import { ToggleSwitch } from './ui/ToggleSwitch'
 import { loadEbirdObservations } from '../lib/observationsCache'
 import { loadMLExport } from '../lib/mlExportCache'
@@ -200,11 +200,16 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
 
         const [ebird, ml] = await Promise.all([
           loadEbirdObservations(),
-          status.ml ? loadMLExport() : Promise.resolve(null),
+          // .catch: loadMLExport catches parse errors but not the file-read IO (the
+          // read sits outside its try), so an ML failure must degrade to no-media
+          // here rather than reject this Promise.all into the outer catch, which
+          // would claim there is no eBird backup while one is plainly loaded.
+          // Reachable on web/Pi, where WebStorage.readFile is a bare fetch.
+          status.ml ? loadMLExport().catch(() => null) : Promise.resolve(null),
         ])
         if (cancelled) return
 
-        if (!ebird) { setPhase({ tag: 'error', message: "Couldn't load your eBird backup from Settings. Try re-uploading it." }); return }
+        if (!ebird) { setPhase({ tag: 'error', message: EBIRD_BACKUP_LOAD_ERROR }); return }
 
         const observations = ebird.observations
 
@@ -590,7 +595,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
   if (phase.tag === 'error') {
     return (
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: 40 }}>
-        <div style={{
+        <div className="sr-wrap-anywhere" style={{
           display: 'flex', alignItems: 'center', gap: 8,
           padding: '9px 13px', background: 'var(--sr-error-bg)', borderRadius: 8,
           fontSize: '0.8125rem', color: 'var(--sr-error)', maxWidth: 480,

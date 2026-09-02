@@ -23,7 +23,7 @@ import {
 } from 'lucide-react'
 import type { ObservationEntry } from '../types'
 import { SetupRequired } from './SetupRequired'
-import { EBIRD_BACKUP_STEPS } from './setupCopy'
+import { EBIRD_BACKUP_STEPS, EBIRD_BACKUP_LOAD_ERROR } from './setupCopy'
 import { storage } from '../lib/storage'
 import { loadEbirdObservations } from '../lib/observationsCache'
 import { useProvenanceLookup } from '../lib/useProvenanceLookup'
@@ -784,7 +784,7 @@ export function Calendar({ onGoToSettings, filesVersion }: {
         const ebird = await loadEbirdObservations()
         if (cancelled) return
         if (!ebird) {
-          setPhase({ tag: 'error', message: "Couldn't load your eBird backup from Settings. Try re-uploading it." })
+          setPhase({ tag: 'error', message: EBIRD_BACKUP_LOAD_ERROR })
           return
         }
         const years = dataYears(ebird.observations)
@@ -911,7 +911,7 @@ export function Calendar({ onGoToSettings, filesVersion }: {
   if (phase.tag === 'error') {
     return (
       <div role="alert" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: 40 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 13px', background: 'var(--sr-error-bg)', borderRadius: 8, fontSize: '0.8125rem', color: 'var(--sr-error)', maxWidth: 480 }}>
+        <div className="sr-wrap-anywhere" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 13px', background: 'var(--sr-error-bg)', borderRadius: 8, fontSize: '0.8125rem', color: 'var(--sr-error)', maxWidth: 480 }}>
           <AlertCircle size={14} strokeWidth={2.5} style={{ flexShrink: 0 }} aria-hidden />
           {phase.message}
         </div>
