@@ -166,11 +166,51 @@ describe('dialog shell', () => {
   })
 
   it('no iCloud Sync rule hardcodes a hex or rgb colour', () => {
-    const own = all.filter(r => /\.sr-(sync|ics|dlg|btn-quiet|btn-accent|btn-inline|file-line)/.test(r.selector))
+    const own = all.filter(r => /\.sr-(sync|ics|dlg|btn-quiet|btn-accent|btn-inline|file-line|key-line)/.test(r.selector))
     expect(own.length).toBeGreaterThan(20)
     for (const r of own) {
       expect(r.body, r.selector).not.toMatch(/#[0-9a-fA-F]{3,8}\b/)
       expect(r.body, r.selector).not.toMatch(/rgba?\(\s*\d/)
     }
+  })
+})
+
+// ── icloud-api-key-sync: the five new classes (design-spec.md "Design Tokens
+// Applied"), each a top-level rule beside its family, tokens only, and the
+// key-row value line allowed to wrap like the file line.
+describe('icloud-api-key-sync classes', () => {
+  it.each([
+    ['.sr-ics-key-label', /font-size:\s*0\.8125rem/, /font-weight:\s*600/],
+    ['.sr-ics-remove-actions', /display:\s*flex/, /flex-wrap:\s*wrap/],
+    ['.sr-ics-pending', /font-size:\s*0\.75rem/, /color:\s*var\(--sr-text-muted\)/],
+    ['.sr-dlg-fine', /border-top:\s*1px solid var\(--sr-border-subtle\)/, /font-size:\s*0\.75rem/],
+    ['.sr-key-line', /flex-wrap:\s*wrap/, /min-width:\s*0/],
+  ] as const)('%s exists once, top-level, with its register', (sel, a, b) => {
+    const { open, close } = phoneTier()
+    const rules = withSubject(sel)
+    expect(rules.length).toBe(1)
+    expect(rules[0].offset < open || rules[0].offset > close).toBe(true)
+    expect(rules[0].body).toMatch(a)
+    expect(rules[0].body).toMatch(b)
+    expect(rules[0].body).not.toMatch(/#[0-9a-fA-F]{3,8}\b/)
+    expect(rules[0].body).not.toMatch(/rgba?\(\s*\d/)
+  })
+
+  it('the key line wraps exactly as the file line does (the same reason: Show / Hide at 320px and 200%)', () => {
+    const key = withSubject('.sr-key-line')[0]
+    const file = withSubject('.sr-file-line')[0]
+    for (const decl of ['display: flex', 'align-items: center', 'flex-wrap: wrap', 'min-width: 0']) {
+      expect(key.body).toContain(decl)
+      expect(file.body).toContain(decl)
+    }
+  })
+
+  it('the phone tier already stacks BOTH Remove buttons through the shipped .sr-ics-remove-row .sr-btn-quiet rule', () => {
+    const { open, close } = phoneTier()
+    const stack = all.find(r => r.selector === '.sr-ics-remove-row .sr-btn-quiet' && r.offset > open && r.offset < close)
+    expect(stack).toBeTruthy()
+    expect(stack!.body).toMatch(/width:\s*100%/)
+    // No standalone rule for the new wrapper in the tier: the descendant rule reaches it.
+    expect(all.some(r => r.selector.includes('.sr-ics-remove-actions') && r.offset > open && r.offset < close)).toBe(false)
   })
 })

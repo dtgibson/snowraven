@@ -27,6 +27,37 @@ export interface FilesStatus {
   ml: FileMetadata | null;
 }
 
+// ── API key entries (icloud-api-key-sync; schema.md "api-keys.json") ────────
+// The values in api-keys.json stay top-level strings (byte-compatible with
+// every shipped document); a sibling `meta` object carries, per slot, when
+// the key was last changed and which device changed it, or a cleared marker
+// left by a Clear made with the key switch on. A key with no meta entry is an
+// UNTIMED key (saved before 1.0.12): it reads `changedAt: null`, never "now".
+
+export type KeySlot = 'ebird' | 'openweather';
+
+export type ApiKeyMeta =
+  | { state: 'key'; changedAt: string; origin?: FileOrigin; replacedBySyncAt?: string }
+  | { state: 'cleared'; clearedAt: string; origin: FileOrigin };
+
+export interface ApiKeysDoc {
+  ebird?: string;
+  openweather?: string;
+  meta?: Partial<Record<KeySlot, ApiKeyMeta>>;
+}
+
+export type ApiKeyEntry =
+  | { state: 'key'; value: string; changedAt: string | null; origin: FileOrigin | null; replacedBySyncAt: string | null }
+  | { state: 'cleared'; clearedAt: string; origin: FileOrigin };
+export type ApiKeyEntries = Record<KeySlot, ApiKeyEntry | null>;
+
+// The guard every sync-originated key link takes: the local entry the
+// controller decided against (FR-26). Compared in memory inside the seam.
+export type ExpectedKeyEntry =
+  | { state: 'key'; value: string; changedAt: string | null }
+  | { state: 'cleared'; clearedAt: string }
+  | null;
+
 // ── Offline-support persisted shapes ──────────────────────────────────────────
 // Both stores live in their OWN files on desktop (never settings.json — FR-42)
 // and as one-file-per-key generic settings on web/Pi.
@@ -56,9 +87,38 @@ export interface ReplayStore {
 }
 
 export interface StorageAdapter {
-  getApiKey(service: 'ebird' | 'openweather'): Promise<string | null>;
-  setApiKey(service: 'ebird' | 'openweather', value: string): Promise<void>;
-  deleteApiKey(service: 'ebird' | 'openweather'): Promise<void>;
+  getApiKey(service: KeySlot): Promise<string | null>;
+  // `origin` (icloud-api-key-sync FR-12): on Tauri builds every save stamps a
+  // change time and, when given, this device as the key's origin; never
+  // `replacedBySyncAt`. Web ignores it.
+  setApiKey(service: KeySlot, value: string, origin?: FileOrigin): Promise<void>;
+  // Removes the value AND its meta entry, marker included (FR-31).
+  deleteApiKey(service: KeySlot): Promise<void>;
+
+  // ── iCloud API key sync (icloud-api-key-sync; desktop + iOS only) ──
+  // Every link below rides the api-keys.json chain with setApiKey and
+  // deleteApiKey, so a user save and a synced arrival can never clobber each
+  // other. The guarded links take the local entry the controller decided
+  // against and return false, touching nothing, when it has changed since.
+  getApiKeyEntries(): Promise<ApiKeyEntries>;
+  // A Clear made with the key switch on: the value goes, a cleared marker
+  // (clear time, this device) stays until the slot changes again (FR-28, OQ-8).
+  clearApiKeyWithMarker(slot: KeySlot, marker: { clearedAt: string; origin: FileOrigin }): Promise<void>;
+  // A received key lands with the shared entry's time and origin (FR-23);
+  // `replaced` stamps replacedBySyncAt when a different local key existed.
+  applySyncedKey(
+    slot: KeySlot,
+    entry: { value: string; changedAt: string; origin: FileOrigin },
+    expect: ExpectedKeyEntry,
+    replaced: boolean,
+  ): Promise<boolean>;
+  // A received cleared marker that wins removes the local key and keeps the
+  // PEER's marker so the row can say who cleared it (FR-24, FR-42).
+  applySyncedKeyClear(slot: KeySlot, marker: { clearedAt: string; origin: FileOrigin }, expect: ExpectedKeyEntry): Promise<boolean>;
+  // Sets a key's time and origin without touching its value, only while the
+  // value is still the one decided against: the seed stamp (FR-13), the adopt
+  // stamp (OQ-3), and the origin stamp after a push of an origin-less key.
+  stampApiKeyEntry(slot: KeySlot, stamp: { changedAt: string; origin: FileOrigin }, expectValue: string): Promise<boolean>;
   getSetting<T>(key: string): Promise<T | null>;
   setSetting<T>(key: string, value: T): Promise<void>;
   deleteSetting(key: string): Promise<void>;
@@ -103,14 +163,14 @@ export interface StorageAdapter {
 }
 
 class WebStorage implements StorageAdapter {
-  async getApiKey(service: 'ebird' | 'openweather'): Promise<string | null> {
+  async getApiKey(service: KeySlot): Promise<string | null> {
     const res = await fetch('/settings/keys');
     if (!res.ok) return null;
     const data = await res.json() as Record<string, string | null>;
     return data[service] ?? null;
   }
 
-  async setApiKey(service: 'ebird' | 'openweather', value: string): Promise<void> {
+  async setApiKey(service: KeySlot, value: string): Promise<void> {
     await fetch(`/settings/keys/${service}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -118,8 +178,31 @@ class WebStorage implements StorageAdapter {
     });
   }
 
-  async deleteApiKey(service: 'ebird' | 'openweather'): Promise<void> {
+  async deleteApiKey(service: KeySlot): Promise<void> {
     await fetch(`/settings/keys/${service}`, { method: 'DELETE' });
+  }
+
+  // iCloud API key sync never runs on web/Pi (the platform gate is false
+  // there); unreachable, and they reject rather than no-op, as the file-sync
+  // links below do.
+  getApiKeyEntries(): Promise<ApiKeyEntries> {
+    return Promise.reject(new Error('not supported'));
+  }
+
+  clearApiKeyWithMarker(): Promise<void> {
+    return Promise.reject(new Error('not supported'));
+  }
+
+  applySyncedKey(): Promise<boolean> {
+    return Promise.reject(new Error('not supported'));
+  }
+
+  applySyncedKeyClear(): Promise<boolean> {
+    return Promise.reject(new Error('not supported'));
+  }
+
+  stampApiKeyEntry(): Promise<boolean> {
+    return Promise.reject(new Error('not supported'));
   }
 
   async getSetting<T>(key: string): Promise<T | null> {
@@ -249,6 +332,105 @@ function normalizeMetaEntry(entry: FileMetadata | null | undefined): FileMetadat
   return out;
 }
 
+// api-keys.json is a persisted runtime document too, and from 1.0.12 it
+// carries a `meta` sibling beside the values. One normalizer, applied by every
+// reader: a value survives on its own (a string of length >= 1); a malformed
+// `meta` is dropped whole (every key reads untimed); a malformed entry is
+// dropped on its own; a change time is NEVER defaulted to now on read
+// (FR-12). Both inconsistencies resolve in favour of the value: a key entry
+// with no value is dropped, and a cleared marker beside a present value is
+// dropped (the value wins and reads untimed). The value itself is not
+// bounds-checked here: a local key outside the record bounds keeps working
+// locally; only the upload refuses it.
+const KEY_SLOTS_LOCAL: readonly KeySlot[] = ['ebird', 'openweather'];
+
+function normalizeKeyOrigin(o: unknown): FileOrigin | null {
+  if (!o || typeof o !== 'object') return null;
+  const { deviceId, label, platform } = o as { deviceId?: unknown; label?: unknown; platform?: unknown };
+  if (typeof deviceId !== 'string' || !ORIGIN_DEVICE_ID_RE.test(deviceId)) return null;
+  if (typeof label !== 'string') return null;
+  if (platform !== 'mac' && platform !== 'iphone' && platform !== 'ipad') return null;
+  return { deviceId, label, platform };
+}
+
+function parseableTime(v: unknown): v is string {
+  return typeof v === 'string' && Number.isFinite(Date.parse(v));
+}
+
+function normalizeKeyMetaEntry(raw: unknown, hasValue: boolean): ApiKeyMeta | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as Record<string, unknown>;
+  if (r.state === 'key') {
+    if (!hasValue) return null;
+    if (!parseableTime(r.changedAt)) return null;
+    const out: ApiKeyMeta = { state: 'key', changedAt: r.changedAt };
+    const origin = normalizeKeyOrigin(r.origin);
+    if (origin) out.origin = origin;
+    if (typeof r.replacedBySyncAt === 'string') out.replacedBySyncAt = r.replacedBySyncAt;
+    return out;
+  }
+  if (r.state === 'cleared') {
+    if (hasValue) return null;
+    if (!parseableTime(r.clearedAt)) return null;
+    const origin = normalizeKeyOrigin(r.origin);
+    if (!origin) return null;
+    return { state: 'cleared', clearedAt: r.clearedAt, origin };
+  }
+  return null;
+}
+
+export function normalizeApiKeysDoc(raw: unknown): ApiKeysDoc {
+  const out: ApiKeysDoc = {};
+  if (!raw || typeof raw !== 'object') return out;
+  const r = raw as Record<string, unknown>;
+  for (const slot of KEY_SLOTS_LOCAL) {
+    const v = r[slot];
+    if (typeof v === 'string' && v.length > 0) out[slot] = v;
+  }
+  const meta = r.meta;
+  if (!meta || typeof meta !== 'object' || Array.isArray(meta)) return out;
+  const m = meta as Record<string, unknown>;
+  for (const slot of KEY_SLOTS_LOCAL) {
+    const entry = normalizeKeyMetaEntry(m[slot], out[slot] !== undefined);
+    if (entry) {
+      out.meta ??= {};
+      out.meta[slot] = entry;
+    }
+  }
+  return out;
+}
+
+/** The seam's view of one slot, from a normalized document. */
+function keyEntryOf(doc: ApiKeysDoc, slot: KeySlot): ApiKeyEntry | null {
+  const value = doc[slot];
+  const meta = doc.meta?.[slot];
+  if (value !== undefined) {
+    if (meta && meta.state === 'key') {
+      return {
+        state: 'key',
+        value,
+        changedAt: meta.changedAt,
+        origin: meta.origin ?? null,
+        replacedBySyncAt: meta.replacedBySyncAt ?? null,
+      };
+    }
+    return { state: 'key', value, changedAt: null, origin: null, replacedBySyncAt: null };
+  }
+  if (meta && meta.state === 'cleared') return { state: 'cleared', clearedAt: meta.clearedAt, origin: meta.origin };
+  return null;
+}
+
+/** FR-26: is the current entry the one the controller decided against? */
+function sameLocalEntry(current: ApiKeyEntry | null, expect: ExpectedKeyEntry): boolean {
+  if (current === null || expect === null) return current === null && expect === null;
+  if (current.state !== expect.state) return false;
+  if (current.state === 'key' && expect.state === 'key') {
+    return current.value === expect.value && current.changedAt === expect.changedAt;
+  }
+  if (current.state === 'cleared' && expect.state === 'cleared') return current.clearedAt === expect.clearedAt;
+  return false;
+}
+
 class TauriStorage implements StorageAdapter {
   // The fs plugin is dynamically imported ONCE per adapter and every method
   // awaits the same promise. Besides skipping a resolver round-trip per call,
@@ -301,31 +483,114 @@ class TauriStorage implements StorageAdapter {
     await writeTextFile(path, JSON.stringify(data), { baseDir: BaseDirectory.AppLocalData });
   }
 
-  async getApiKey(service: 'ebird' | 'openweather'): Promise<string | null> {
+  // Unchained api-keys read, the primitive every chained key link calls
+  // (rule 1: never call a chained method from inside a link). Every reader
+  // goes through the one normalizer.
+  private async readKeysDoc(): Promise<ApiKeysDoc> {
+    try {
+      return normalizeApiKeysDoc(await this.readJson<Record<string, unknown>>(API_KEYS_PATH));
+    } catch {
+      return {};
+    }
+  }
+
+  private writeKeysDoc(doc: ApiKeysDoc): Promise<void> {
+    return this.writeJson(API_KEYS_PATH, doc as Record<string, unknown>);
+  }
+
+  async getApiKey(service: KeySlot): Promise<string | null> {
     return this.chain(API_KEYS_PATH, async () => {
-      try {
-        const keys = await this.readJson<Record<string, string>>(API_KEYS_PATH);
-        const value = keys[service];
-        return value && value.length > 0 ? value : null;
-      } catch {
-        return null;
-      }
+      const doc = await this.readKeysDoc();
+      return doc[service] ?? null;
     });
   }
 
-  async setApiKey(service: 'ebird' | 'openweather', value: string): Promise<void> {
+  async setApiKey(service: KeySlot, value: string, origin?: FileOrigin): Promise<void> {
     return this.chain(API_KEYS_PATH, async () => {
-      const keys = await this.readJson<Record<string, string>>(API_KEYS_PATH).catch(() => ({} as Record<string, string>));
-      keys[service] = value;
-      await this.writeJson(API_KEYS_PATH, keys);
+      const doc = await this.readKeysDoc();
+      doc[service] = value;
+      // A user save writes a fresh meta entry: the change time, this device
+      // when known, and never `replacedBySyncAt` (which clears the FR-41
+      // notice), exactly as writeFile does for a file.
+      doc.meta ??= {};
+      doc.meta[service] = origin
+        ? { state: 'key', changedAt: new Date().toISOString(), origin }
+        : { state: 'key', changedAt: new Date().toISOString() };
+      await this.writeKeysDoc(doc);
     });
   }
 
-  async deleteApiKey(service: 'ebird' | 'openweather'): Promise<void> {
+  async deleteApiKey(service: KeySlot): Promise<void> {
     return this.chain(API_KEYS_PATH, async () => {
-      const keys = await this.readJson<Record<string, string>>(API_KEYS_PATH).catch(() => ({} as Record<string, string>));
-      delete keys[service];
-      await this.writeJson(API_KEYS_PATH, keys);
+      const doc = await this.readKeysDoc();
+      delete doc[service];
+      if (doc.meta) delete doc.meta[service];
+      await this.writeKeysDoc(doc);
+    });
+  }
+
+  // ── iCloud API key sync links (icloud-api-key-sync FR-23, FR-26, FR-28) ──
+
+  async getApiKeyEntries(): Promise<ApiKeyEntries> {
+    return this.chain(API_KEYS_PATH, async () => {
+      const doc = await this.readKeysDoc();
+      return { ebird: keyEntryOf(doc, 'ebird'), openweather: keyEntryOf(doc, 'openweather') };
+    });
+  }
+
+  async clearApiKeyWithMarker(slot: KeySlot, marker: { clearedAt: string; origin: FileOrigin }): Promise<void> {
+    return this.chain(API_KEYS_PATH, async () => {
+      const doc = await this.readKeysDoc();
+      delete doc[slot];
+      doc.meta ??= {};
+      doc.meta[slot] = { state: 'cleared', clearedAt: marker.clearedAt, origin: marker.origin };
+      await this.writeKeysDoc(doc);
+    });
+  }
+
+  async applySyncedKey(
+    slot: KeySlot,
+    entry: { value: string; changedAt: string; origin: FileOrigin },
+    expect: ExpectedKeyEntry,
+    replaced: boolean,
+  ): Promise<boolean> {
+    return this.chain(API_KEYS_PATH, async () => {
+      const doc = await this.readKeysDoc();
+      if (!sameLocalEntry(keyEntryOf(doc, slot), expect)) return false;
+      doc[slot] = entry.value;
+      doc.meta ??= {};
+      doc.meta[slot] = replaced
+        ? { state: 'key', changedAt: entry.changedAt, origin: entry.origin, replacedBySyncAt: new Date().toISOString() }
+        : { state: 'key', changedAt: entry.changedAt, origin: entry.origin };
+      await this.writeKeysDoc(doc);
+      return true;
+    });
+  }
+
+  async applySyncedKeyClear(slot: KeySlot, marker: { clearedAt: string; origin: FileOrigin }, expect: ExpectedKeyEntry): Promise<boolean> {
+    return this.chain(API_KEYS_PATH, async () => {
+      const doc = await this.readKeysDoc();
+      if (!sameLocalEntry(keyEntryOf(doc, slot), expect)) return false;
+      delete doc[slot];
+      doc.meta ??= {};
+      doc.meta[slot] = { state: 'cleared', clearedAt: marker.clearedAt, origin: marker.origin };
+      await this.writeKeysDoc(doc);
+      return true;
+    });
+  }
+
+  async stampApiKeyEntry(slot: KeySlot, stamp: { changedAt: string; origin: FileOrigin }, expectValue: string): Promise<boolean> {
+    return this.chain(API_KEYS_PATH, async () => {
+      const doc = await this.readKeysDoc();
+      const current = keyEntryOf(doc, slot);
+      if (!current || current.state !== 'key' || current.value !== expectValue) return false;
+      doc.meta ??= {};
+      // The value is never touched; a replacedBySyncAt already set survives.
+      doc.meta[slot] = current.replacedBySyncAt
+        ? { state: 'key', changedAt: stamp.changedAt, origin: stamp.origin, replacedBySyncAt: current.replacedBySyncAt }
+        : { state: 'key', changedAt: stamp.changedAt, origin: stamp.origin };
+      await this.writeKeysDoc(doc);
+      return true;
     });
   }
 

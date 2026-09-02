@@ -9,6 +9,7 @@
 
 import { useSyncExternalStore } from 'react'
 import type { OriginPlatform, Slot } from './icloudRecord'
+import { KEY_SLOTS, type KeySlot } from './keyRecord'
 
 export type Availability =
   | 'unknown'
@@ -40,6 +41,25 @@ export interface SlotView {
   reason?: string
 }
 
+/** The five key-row states (icloud-api-key-sync FR-39) plus Sync off (FR-40); nothing else. */
+export type KeySlotState = 'up-to-date' | 'syncing' | 'waiting-to-upload' | 'unavailable' | 'off' | 'error'
+
+export interface KeySlotView {
+  state: KeySlotState
+  fromThisDevice: boolean
+  origin?: { label: string; platform: OriginPlatform }
+  /** FR-38 provenance time, from the local meta */
+  changedAt?: string
+  /** FR-41: "Replaced by the key from <origin>, changed <replacedAt>" while set */
+  replacedAt?: string
+  /** FR-42: the row holds no key; "Cleared from <origin>, <clearedAt>" while set */
+  clearedAt?: string
+  /** FR-30: "This clear has not reached iCloud yet." */
+  clearPending?: boolean
+  /** one sentence for 'error'; from the closed reason table, never a value */
+  reason?: string
+}
+
 export interface ICloudState {
   availability: Availability
   syncEnabled: boolean
@@ -56,6 +76,18 @@ export interface ICloudState {
   sharedExists: boolean
   /** the filenames of the shared files present, for the Remove confirmation */
   sharedFilenames: string[]
+
+  // ── icloud-api-key-sync ──
+  /** the effective key switch (persisted keysEnabled && enabled) */
+  keySyncEnabled: boolean
+  /** the key switch has been on on this device at least once (FR-40) */
+  keySyncEverOn: boolean
+  /** iCloud is known to hold keys.record.json (FR-34: show "Remove synced keys from iCloud") */
+  keyRecordExists: boolean
+  /** a switch-off or Remove that could not reach iCloud; the retry is armed (FR-33) */
+  keyRemovalPending: boolean
+  /** per key row; null = no sync line on that row */
+  keySlots: Record<KeySlot, KeySlotView | null>
 }
 
 export interface CheckOutcome {
@@ -77,6 +109,26 @@ export interface ICloudActions {
   clearWithSync(slot: Slot): Promise<void>
   /** Settings saved a file locally with sync on: show "Syncing, uploading" and check. */
   fileSaved(slot: Slot): void
+
+  // ── icloud-api-key-sync ──
+  /** after the note's Turn on (FR-04) */
+  enableKeys(): Promise<void>
+  /** FR-32: no confirmation; local keys stay; the copy in iCloud is removed */
+  disableKeys(): Promise<void>
+  /** FR-34 */
+  removeKeysFromICloud(): Promise<void>
+  /** FR-28, after the confirmation */
+  clearKeyWithSync(slot: KeySlot): Promise<void>
+  /** the key row's Retry */
+  retryKey(slot: KeySlot): Promise<void>
+  /** Settings saved a key locally with the key switch on: row "Syncing", check. */
+  keySaved(slot: KeySlot): void
+}
+
+function emptyKeySlots(): Record<KeySlot, KeySlotView | null> {
+  const out = {} as Record<KeySlot, KeySlotView | null>
+  for (const slot of KEY_SLOTS) out[slot] = null
+  return out
 }
 
 const INITIAL: ICloudState = {
@@ -91,6 +143,11 @@ const INITIAL: ICloudState = {
   slots: { ebird: null, ml: null },
   sharedExists: false,
   sharedFilenames: [],
+  keySyncEnabled: false,
+  keySyncEverOn: false,
+  keyRecordExists: false,
+  keyRemovalPending: false,
+  keySlots: emptyKeySlots(),
 }
 
 let state: ICloudState = INITIAL
@@ -116,6 +173,11 @@ export function setSlotView(slot: Slot, view: SlotView | null): void {
   setICloudState({ slots: { ...state.slots, [slot]: view } })
 }
 
+/** Replace one key row's view (null = no sync line on that row). */
+export function setKeySlotView(slot: KeySlot, view: KeySlotView | null): void {
+  setICloudState({ keySlots: { ...state.keySlots, [slot]: view } })
+}
+
 /** Test helper: back to the pre-controller state. */
 export function resetICloudState(): void {
   state = INITIAL
@@ -135,6 +197,12 @@ const NOOP_ACTIONS: ICloudActions = {
   removeFromICloud: async () => {},
   clearWithSync: async () => {},
   fileSaved: () => {},
+  enableKeys: async () => {},
+  disableKeys: async () => {},
+  removeKeysFromICloud: async () => {},
+  clearKeyWithSync: async () => {},
+  retryKey: async () => {},
+  keySaved: () => {},
 }
 
 /**
@@ -153,6 +221,12 @@ export const icloudActions: ICloudActions = {
   removeFromICloud: () => installed.removeFromICloud(),
   clearWithSync: (slot) => installed.clearWithSync(slot),
   fileSaved: (slot) => installed.fileSaved(slot),
+  enableKeys: () => installed.enableKeys(),
+  disableKeys: () => installed.disableKeys(),
+  removeKeysFromICloud: () => installed.removeKeysFromICloud(),
+  clearKeyWithSync: (slot) => installed.clearKeyWithSync(slot),
+  retryKey: (slot) => installed.retryKey(slot),
+  keySaved: (slot) => installed.keySaved(slot),
 }
 
 export function installICloudActions(actions: ICloudActions | null): void {

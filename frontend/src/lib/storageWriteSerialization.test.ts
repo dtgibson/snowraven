@@ -244,7 +244,12 @@ describe('api-keys.json write serialization', () => {
     await drainReadsFirst();
     await Promise.all([p1, p2]);
 
-    expect(JSON.parse(harness.files.get(API_KEYS_PATH)!)).toEqual({ ebird: 'EB', openweather: 'OW' });
+    // The values are still top-level strings; since icloud-api-key-sync
+    // (FR-12) each save also stamps a `meta` entry with its change time.
+    const doc = JSON.parse(harness.files.get(API_KEYS_PATH)!) as { ebird: string; openweather: string; meta: Record<string, { state: string }> };
+    expect(doc).toMatchObject({ ebird: 'EB', openweather: 'OW' });
+    expect(doc.meta.ebird.state).toBe('key');
+    expect(doc.meta.openweather.state).toBe('key');
     expect(await storage.getApiKey('ebird')).toBe('EB');
     expect(await storage.getApiKey('openweather')).toBe('OW');
   });

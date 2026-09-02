@@ -21,13 +21,13 @@ SnowRaven turns the eBird and Macaulay Library exports you already have into a p
 - **Settings**: keys, files, appearance (light/dark, text size to 200%, date format), sharing preferences, tab layout, and (on Mac, iPhone and iPad) iCloud Sync, plus an Acknowledgments section crediting The Cornell Lab of Ornithology and the Macaulay Library, and Deven Simonson.
 - **Offline**: every analytical tab and map keeps working without a connection once it has loaded online at least once; genuinely live lookups (weather and tide, place search, nearby-bird overlays, app updates) need the network and say so plainly.
 
-**iCloud Sync (Mac, iPhone and iPad):** an opt-in switch in Settings, off by default, keeps your eBird backup and Macaulay Library export the same on every Apple device signed in to your own iCloud account, so a fresh export uploaded once is used everywhere. Only the two files and their upload details are synced, into your own account; API keys, settings and caches stay on each device, and the developer never sees any of it.
+**iCloud Sync (Mac, iPhone and iPad):** an opt-in switch in Settings, off by default, keeps your eBird backup and Macaulay Library export the same on every Apple device signed in to your own iCloud account, so a fresh export uploaded once is used everywhere. Only the two files and their upload details are synced by that switch, into your own account. A second off-by-default **Sync API keys** switch in the same section can share your eBird and OpenWeather keys the same way, with its own plain-language note first, so a key entered once on any device is used by every device that also turns it on. Settings and caches stay on each device, and the developer never sees any of it.
 
 A companion browser extension, [SnowRaven Mini](https://github.com/dtgibson/snowraven-mini), runs the same weather and tide lookup right on the eBird checklist page. It's separate from SnowRaven and not required by it.
 
 ## Privacy
 
-Local-first, and it collects nothing: no accounts, no analytics, no telemetry, no developer-operated server. Your exports, settings, and API keys stay on your device, and network requests go directly from your device to the services the app draws from, with your own keys where keys are needed. Details: [Privacy Policy](PRIVACY_POLICY.md) · [Accessibility statement](ACCESSIBILITY.md).
+Local-first, and it collects nothing: no accounts, no analytics, no telemetry, no developer-operated server. Your exports and settings stay on your device, and so do your API keys unless you turn on the optional iCloud key sync on a Mac, iPhone or iPad, which copies them only into your own iCloud account. Network requests go directly from your device to the services the app draws from, with your own keys where keys are needed. Details: [Privacy Policy](PRIVACY_POLICY.md) · [Accessibility statement](ACCESSIBILITY.md).
 
 ## Requirements
 

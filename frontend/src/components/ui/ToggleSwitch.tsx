@@ -14,6 +14,10 @@ interface ToggleSwitchProps {
       hidden label span, and describe it by others (icloud-sync). */
   labelledBy?: string
   describedBy?: string
+  /** Not operable, but still focusable so an associated reason is read in
+      place (icloud-api-key-sync FR-02): renders aria-disabled="true", ignores
+      activation, and takes the disabled look. */
+  ariaDisabled?: boolean
 }
 
 /**
@@ -30,7 +34,9 @@ export function ToggleSwitch({
   bare = false,
   labelledBy,
   describedBy,
+  ariaDisabled = false,
 }: ToggleSwitchProps) {
+  const inert = disabled || ariaDisabled
   // Track/knob geometry: the bare variant is slightly larger (36×20 / 16px)
   // because it stands alone without the frame; the boxed default stays 28×16.
   const trackW = bare ? 36 : 28
@@ -43,23 +49,24 @@ export function ToggleSwitch({
       aria-busy={busy || undefined}
       aria-labelledby={labelledBy}
       aria-describedby={describedBy}
-      onClick={onChange}
+      aria-disabled={ariaDisabled || undefined}
+      onClick={ariaDisabled ? undefined : onChange}
       disabled={disabled}
       className={bare ? 'sr-touch-target' : undefined}
       style={bare ? {
         display: 'inline-flex', alignItems: 'center', gap: 7,
         padding: 7, borderRadius: 999,
         border: 'none', background: 'none',
-        cursor: disabled ? 'not-allowed' : 'pointer', fontFamily: 'inherit', fontSize: '0.75rem', fontWeight: 500,
-        color: disabled ? 'var(--sr-text-disabled)' : 'var(--sr-text-muted)', whiteSpace: 'nowrap',
-        opacity: disabled ? 0.72 : 1,
+        cursor: inert ? 'not-allowed' : 'pointer', fontFamily: 'inherit', fontSize: '0.75rem', fontWeight: 500,
+        color: inert ? 'var(--sr-text-disabled)' : 'var(--sr-text-muted)', whiteSpace: 'nowrap',
+        opacity: inert ? 0.72 : 1, transition: 'opacity 150ms ease-out',
       } : {
         display: 'inline-flex', alignItems: 'center', gap: 7,
         height: 30, padding: '0 10px 0 8px', borderRadius: 6,
         border: '1.5px solid var(--sr-border)', background: 'var(--sr-surface)',
-        cursor: disabled ? 'not-allowed' : 'pointer', fontFamily: 'inherit', fontSize: '0.75rem', fontWeight: 500,
-        color: disabled ? 'var(--sr-text-disabled)' : 'var(--sr-text-muted)', whiteSpace: 'nowrap',
-        opacity: disabled ? 0.72 : 1,
+        cursor: inert ? 'not-allowed' : 'pointer', fontFamily: 'inherit', fontSize: '0.75rem', fontWeight: 500,
+        color: inert ? 'var(--sr-text-disabled)' : 'var(--sr-text-muted)', whiteSpace: 'nowrap',
+        opacity: inert ? 0.72 : 1, transition: 'opacity 150ms ease-out',
       }}
     >
       <div style={{

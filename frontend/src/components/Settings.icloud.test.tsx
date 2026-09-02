@@ -45,6 +45,7 @@ import {
   type ICloudActions, type SlotView, type SlotState,
 } from '../lib/icloud/icloudState'
 import type { Slot } from '../lib/icloud/icloudRecord'
+import type { KeySlot } from '../lib/icloud/keyRecord'
 import * as copy from '../lib/icloud/icloudCopy'
 
 const FILES = {
@@ -62,6 +63,13 @@ function fakeActions(): ICloudActions {
     removeFromICloud: vi.fn(async () => {}),
     clearWithSync: vi.fn<(slot: Slot) => Promise<void>>(async () => {}),
     fileSaved: vi.fn<(slot: Slot) => void>(() => {}),
+    // icloud-api-key-sync (the key tests live in Settings.icloudKeys.test.tsx)
+    enableKeys: vi.fn(async () => {}),
+    disableKeys: vi.fn(async () => {}),
+    removeKeysFromICloud: vi.fn(async () => {}),
+    clearKeyWithSync: vi.fn<(slot: KeySlot) => Promise<void>>(async () => {}),
+    retryKey: vi.fn<(slot: KeySlot) => Promise<void>>(async () => {}),
+    keySaved: vi.fn<(slot: KeySlot) => void>(() => {}),
   }
 }
 
@@ -98,11 +106,13 @@ function fileRowClear(filename: string): HTMLButtonElement {
   return within(row).getByRole('button', { name: 'Clear' }) as HTMLButtonElement
 }
 
-/** The eBird row's status region (the first `.sr-sync-line`). */
+/** The eBird BACKUP row's status region. Since icloud-api-key-sync the two
+ *  API Keys rows (which render above Default Files) carry a region each too,
+ *  so there are four in all and the file rows are the third and fourth. */
 function ebirdSyncLine(): HTMLElement {
   const lines = document.querySelectorAll<HTMLElement>('.sr-sync-line')
-  expect(lines.length).toBe(2)
-  return lines[0]
+  expect(lines.length).toBe(4)
+  return lines[2]
 }
 
 beforeEach(() => {
@@ -151,8 +161,9 @@ describe('platform gate (FR-01, QA-01)', () => {
     expect(iFiles).toBeGreaterThanOrEqual(0)
     expect(iSync).toBeGreaterThan(iFiles)
     expect(iLoc).toBeGreaterThan(iSync)
-    // Both rows carry a mounted, empty status region (children replaced, never remounted).
-    expect(document.querySelectorAll('.sr-sync-line').length).toBe(2)
+    // Both file rows carry a mounted, empty status region (children replaced,
+    // never remounted); since icloud-api-key-sync the two key rows do too.
+    expect(document.querySelectorAll('.sr-sync-line').length).toBe(4)
     expect(ebirdSyncLine().getAttribute('role')).toBe('status')
     expect(ebirdSyncLine().textContent).toBe('')
   })
@@ -207,7 +218,7 @@ describe('enable note (FR-08, QA-08) and turning off (FR-32)', () => {
       expect(within(dialog).getByText(item.lead)).toBeTruthy()
       expect(within(dialog).getByText(item.text)).toBeTruthy()
     }
-    expect(within(dialog).getByText(/stay on this Mac\./)).toBeTruthy()
+    expect(within(dialog).getByText(/stay on this Mac, and so do your API keys unless you also turn on Sync API keys\./)).toBeTruthy()
     expect(sw.getAttribute('aria-checked')).toBe('false')
     fireEvent.click(within(dialog).getByRole('button', { name: copy.BUTTONS.cancel }))
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
@@ -234,7 +245,7 @@ describe('enable note (FR-08, QA-08) and turning off (FR-32)', () => {
     renderSettings()
     fireEvent.click(await screen.findByRole('switch', { name: copy.ICS_HEADER }))
     const dialog = await screen.findByRole('dialog', { name: copy.ENABLE_TITLE })
-    expect(within(dialog).getByText(/stay on this iPhone\./)).toBeTruthy()
+    expect(within(dialog).getByText(/stay on this iPhone, and so do your API keys unless you also turn on Sync API keys\./)).toBeTruthy()
     fireEvent.click(within(dialog).getByRole('button', { name: copy.BUTTONS.turnOn }))
     expect(actions.enable).toHaveBeenCalledTimes(1)
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())

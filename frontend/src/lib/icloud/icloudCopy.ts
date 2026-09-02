@@ -4,8 +4,9 @@
 // No em dash (U+2014) anywhere in this file's strings (repo rule).
 
 import type { OriginPlatform } from './icloudRecord'
-import type { Availability, SlotState } from './icloudState'
+import type { Availability, KeySlotState, SlotState } from './icloudState'
 import type { ICloudError } from './icloudNativeTypes'
+import type { KeySlot } from './keyRecord'
 
 export const ICS_HEADER = 'iCloud Sync'
 export const ICS_DESCRIPTION =
@@ -102,6 +103,7 @@ export const BUTTONS = {
   checkNow: 'Check now',
   checking: 'Checking…',
   remove: 'Remove synced files from iCloud',
+  removeKeys: 'Remove synced keys from iCloud',
   downloadNow: 'Download now',
   retry: 'Retry',
   cancel: 'Cancel',
@@ -116,7 +118,7 @@ export function enableNoteItems(here: string): { lead: string; text: string }[] 
   return [
     {
       lead: 'What goes to iCloud',
-      text: `Your eBird backup and your Macaulay Library export, along with each file's name, when it was uploaded, which device it came from (its name), its size and a checksum. Nothing else: your API keys, settings and caches stay on ${here}.`,
+      text: `Your eBird backup and your Macaulay Library export, along with each file's name, when it was uploaded, which device it came from (its name), its size and a checksum. Nothing else: your settings and caches stay on ${here}, and so do your API keys unless you also turn on Sync API keys.`,
     },
     {
       lead: 'Whose account',
@@ -147,3 +149,121 @@ export function clearTitle(rowTitle: string): string {
 export function clearBody(here: string): string {
   return ` will be removed from ${here} and from iCloud. Every Mac, iPhone and iPad with iCloud Sync on removes its copy at its next check. Devices with sync off keep theirs.`
 }
+
+// ── icloud-api-key-sync (design-spec.md Content Notes; the complete new set) ──
+
+/** The key switch row (FR-01, FR-02). */
+export const KEY_SWITCH_LABEL = 'Sync API keys'
+export const KEY_SWITCH_DESCRIPTION =
+  'Keeps your eBird and OpenWeather keys the same on every Mac, iPhone and iPad that also turns this on.'
+/** The reason while iCloud is available but the file switch is off. */
+export const KEY_SWITCH_REASON_FILE_SYNC_OFF = 'Turn on iCloud Sync first.'
+
+/** The service word for each slot; never a value (FR-21). */
+export const KEY_SERVICE_WORD: Record<KeySlot, string> = { ebird: 'eBird', openweather: 'OpenWeather' }
+export const KEY_ROW_TITLE: Record<KeySlot, string> = { ebird: 'eBird API Key', openweather: 'OpenWeather API Key' }
+
+/** FR-39: the five key-row states plus Sync off, as text. */
+export const KEY_STATE_LABELS: Record<KeySlotState, string> = {
+  'up-to-date': 'Up to date',
+  syncing: 'Syncing',
+  'waiting-to-upload': 'Waiting to upload',
+  unavailable: 'iCloud unavailable',
+  off: 'Sync off',
+  error: 'Could not sync',
+}
+
+/** FR-38 provenance: "From this device, changed <time>" / "From <devName>, changed <time>". */
+export function fromChangedText(
+  fromThisDevice: boolean,
+  origin: { label: string; platform: OriginPlatform } | undefined,
+  formattedTime: string,
+): string {
+  return `${fromText(fromThisDevice, origin)}, changed ${formattedTime}`
+}
+
+/** FR-41 line; takes the place of the provenance while set. */
+export function keyReplacedText(origin: { label: string; platform: OriginPlatform } | undefined, formattedTime: string): string {
+  const who = origin ? devName(origin) : 'another device'
+  return `Replaced by the key from ${who}, changed ${formattedTime}`
+}
+
+/** FR-42 line, on a row that holds no key. */
+export function keyClearedText(origin: { label: string; platform: OriginPlatform } | undefined, formattedTime: string): string {
+  const who = origin ? devName(origin) : 'another device'
+  return `Cleared from ${who}, ${formattedTime}`
+}
+
+/** FR-30 sentence, under Waiting to upload while a Clear has not reached iCloud. */
+export const CLEAR_PENDING_TEXT = 'This clear has not reached iCloud yet.'
+
+/**
+ * Key reasons (closed table, one sentence, never a value): 'key-shape' and
+ * 'key-time' (the two write-chokepoint refusals; the second added in the
+ * security fix round, Finding 1) plus the native codes.
+ */
+export type KeyReasonCode = ICloudError | 'key-shape' | 'key-time'
+export const KEY_REASONS: Record<'key-shape' | 'key-time' | 'timeout' | 'unknown', string> = {
+  'key-shape': 'This key has characters iCloud sync cannot carry.',
+  'key-time': 'The date and time on this device are too far off to sync this key.',
+  timeout: 'iCloud did not respond in time.',
+  unknown: 'iCloud could not be read.',
+}
+export function keyReasonFor(code: KeyReasonCode): string {
+  if (code === 'key-shape') return KEY_REASONS['key-shape']
+  if (code === 'key-time') return KEY_REASONS['key-time']
+  if (code === 'timeout') return KEY_REASONS.timeout
+  return KEY_REASONS.unknown
+}
+
+/** FR-33: the pending line under Remove synced keys from iCloud. */
+export const KEY_REMOVAL_PENDING_TEXT =
+  'Waiting to remove the key copy from iCloud. SnowRaven will try again when iCloud is reachable.'
+
+/** The enable note for keys (FR-04): six required elements, then one closing line. */
+export const ENABLE_KEYS_TITLE = 'Turn on API key sync'
+export function enableKeysNoteItems(here: string): { lead: string; text: string }[] {
+  return [
+    {
+      lead: 'What goes to iCloud',
+      text: `Your eBird key and your OpenWeather key, exactly as you entered them, and for each one when it was last changed and which device changed it (its name and kind). Settings and caches stay on ${here}.`,
+    },
+    {
+      lead: 'Whose account',
+      text: "Your own iCloud account, on Apple's servers, in the same private SnowRaven folder as your synced files. SnowRaven has no server of its own, so the keys never pass through one, and the developer cannot see them.",
+    },
+    {
+      lead: 'How Apple protects it',
+      text: "Apple encrypts the keys in transit and at rest. They are end-to-end encrypted only if Advanced Data Protection is turned on for your iCloud account; without it, Apple's standard iCloud protection applies, the same as for your synced files.",
+    },
+    {
+      lead: 'Which devices',
+      text: 'Every Mac, iPhone and iPad signed in to this iCloud account that also turns on Sync API keys. A device with the switch off keeps its own keys and receives nothing.',
+    },
+    {
+      lead: 'What happens next',
+      text: 'A device with no key takes the shared one. When two devices hold different keys, the most recently changed key wins. Clearing a key on any sharing device clears it on the others at their next check.',
+    },
+    {
+      lead: 'How to stop',
+      text: `Switch Sync API keys off at any time: the keys on ${here} stay put and the copy in iCloud is removed. Remove synced keys from iCloud is also available whenever iCloud holds a copy.`,
+    },
+  ]
+}
+export const ENABLE_KEYS_FINE = 'Nothing is written to iCloud until you choose Turn on.'
+
+/** Clear with key sync on (FR-28). */
+export function keyClearTitle(slot: KeySlot): string {
+  return `Clear ${KEY_ROW_TITLE[slot]}?`
+}
+export function keyClearBody(slot: KeySlot, here: string): string {
+  return `Your ${KEY_SERVICE_WORD[slot]} key will be removed from ${here}, from iCloud, and from every device sharing keys at its next check. Devices with Sync API keys off keep theirs.`
+}
+
+/** Remove synced keys from iCloud (FR-34, FR-35). */
+export const REMOVE_KEYS_TITLE = 'Remove synced keys from iCloud?'
+export function removeKeysBody(here: string): string {
+  return `Your eBird key and your OpenWeather key will be deleted from your iCloud account. The keys on ${here} and on your other devices are not touched.`
+}
+export const REMOVE_KEYS_OUTRO =
+  'To keep iCloud empty, turn Sync API keys off on each device first: a device with key sync on uploads its keys again at its next check.'

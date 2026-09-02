@@ -30,22 +30,36 @@
 //! writable space and the local data dir is a persisted runtime document, so
 //! both are treated as untrusted at the FILE-TYPE level as well as at the
 //! record level: every read, status and delete goes through
-//! `symlink_metadata` and refuses anything that is not a regular file (a
-//! symlink is deleted as a link, never followed), a read is bounded by the
-//! on-disk length BEFORE the bytes are loaded, the record's string fields are
+//! `symlink_metadata` and never opens anything that is not a regular file (a
+//! record there, like one past its size bound or one that is not UTF-8, reads
+//! as the empty text the validator treats as absent, so it heals by overwrite;
+//! a symlink or a directory at a fixed name is deleted as such, never
+//! followed), a read is bounded by the on-disk length BEFORE the bytes are
+//! loaded, the record's string fields are
 //! sanitized to the validator's exact bounds at the write chokepoint so a
 //! self-authored record always validates on every device, and the device id
 //! that names a staging file is validated at the command boundary.
 //!
 //! The two csv filenames and the container id below are pinned to the
 //! frontend constants by `frontend/src/lib/icloudPaths.parity.test.ts`.
+//!
+//! icloud-api-key-sync (1.0.12): one more fixed-name record,
+//! `keys.record.json`, holds the user's two API keys while the key switch is
+//! on. Three commands compose the helpers above (`icloud_read_keys`,
+//! `icloud_write_keys`, `icloud_remove_keys`); the eight shipped commands are
+//! untouched, and `icloud_remove_all` never names the key record (FR-35).
+//! A key value is used only to build the record: it appears in no `format!`,
+//! no log and no error string, and the input struct carrying it derives no
+//! `Debug`. The Rust writer REFUSES (never rewrites) a value, a time, a
+//! device id or a platform outside the validator's bounds; only the label is
+//! sanitized, as for file records.
 
 use std::cell::RefCell;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::ptr::NonNull;
 use std::sync::{mpsc, Mutex, OnceLock};
-use std::time::Duration;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use block2::{RcBlock, StackBlock};
 use objc2::runtime::{AnyObject, ProtocolObject};
@@ -79,6 +93,28 @@ const MAX_LABEL_UNITS: usize = 64;
 /// as an empty string, which the validator rejects as malformed.
 const MAX_RECORD_BYTES: u64 = 16 * 1024;
 const MAX_FILENAME_UNITS: usize = 255;
+
+/// icloud-api-key-sync: the shared key record's fixed name (never derived
+/// from content, FR-17). Parity-pinned to `KEYS_RECORD_NAME` in
+/// `frontend/src/lib/icloud/keyRecord.ts`.
+const KEYS_RECORD_NAME: &str = "keys.record.json";
+/// Key value bounds (FR-19): 1 to 128 printable ASCII bytes, 0x21..=0x7E
+/// (no space, no control, no non-ASCII), parity-pinned to `MAX_KEY_VALUE`,
+/// `KEY_CHAR_MIN` and `KEY_CHAR_MAX` in keyRecord.ts. ASCII, so bytes equal
+/// UTF-16 code units.
+const MAX_KEY_VALUE_LEN: usize = 128;
+const KEY_CHAR_MIN: u8 = 0x21;
+const KEY_CHAR_MAX: u8 = 0x7E;
+/// A time string in a key entry as the WRITERS accept it (security fix
+/// round, Findings 1 and 2): exactly the 24-byte canonical ISO shape the
+/// frontend's `toISOString` emits, a real calendar instant, and inside the
+/// reader's plausibility window (not before 2000-01-01T00:00:00.000Z, not
+/// more than a day past this device's clock). Parity-pinned to
+/// `ISO_TIME_LEN`, `MIN_TIME` and `MAX_FUTURE_MS` in icloudRecord.ts; the
+/// reader's looser 64-unit `MAX_TIME_TEXT` bound stays on that side only.
+const ISO_TIME_LEN: usize = 24;
+const MIN_TIME_MS: i64 = 946_684_800_000;
+const MAX_FUTURE_MS: i64 = 86_400_000;
 
 /// The per-command wall-clock budget (NFR-04: a check with iCloud unreachable
 /// gives up within 10 s; the frontend runs two record reads per check).
@@ -172,6 +208,97 @@ pub struct PushResult {
 #[serde(rename_all = "camelCase")]
 pub struct RemoveResult {
     pub removed: u32,
+}
+
+// ── icloud-api-key-sync: the shared key record ─────────────────────────────
+
+/// `icloud_read_keys` mode: existence only (what FR-36 permits with the key
+/// switch off), or the raw record text as well.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum KeysReadMode {
+    Status,
+    Record,
+}
+
+/// The key record's ubiquity flags, the same four a csv reports, so
+/// "Waiting to upload" works the same way for keys.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct KeyRecordStatus {
+    pub present: bool,
+    pub downloaded: bool,
+    pub downloading: bool,
+    pub uploaded: bool,
+    pub uploading: bool,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct KeysRead {
+    pub record: Option<String>,
+    pub status: KeyRecordStatus,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct KeysWriteResult {
+    pub uploaded: bool,
+}
+
+/// One slot as the frontend hands it in (already through the TypeScript
+/// chokepoint). Deliberately NO `Debug`: the value must never be formatted.
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct KeyEntryInput {
+    pub state: String,
+    pub value: Option<String>,
+    pub changed_at: Option<String>,
+    pub cleared_at: Option<String>,
+    pub origin: Origin,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct KeySlotsInput {
+    pub ebird: Option<KeyEntryInput>,
+    pub openweather: Option<KeyEntryInput>,
+}
+
+/// One slot as written. Field order IS the serialized order the frontend's
+/// `serializeKeyRecord` mirrors (the golden test pins it): state, value,
+/// changedAt | clearedAt, origin. No `Debug` (it carries the value).
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct KeyEntryFile {
+    state: &'static str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    value: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    changed_at: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    cleared_at: Option<String>,
+    origin: Origin,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct KeySlotsFile {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    ebird: Option<KeyEntryFile>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    openweather: Option<KeyEntryFile>,
+}
+
+/// The shared key record as written to `keys.record.json` (schema.md,
+/// "Container: the shared key record"). `kind` binds the record to its name
+/// as `slot` does for a file record; an absent slot is omitted, never null.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct KeyRecordFile {
+    version: u8,
+    kind: &'static str,
+    slots: KeySlotsFile,
 }
 
 /// The shared record as written to `<slot>.record.json` (schema.md, "Shared
@@ -413,6 +540,140 @@ fn valid_device_id(id: &str) -> bool {
     id.len() == 32 && id.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
 }
 
+/// A key value inside the record's bounds: 1..=128 bytes, every byte printable
+/// ASCII 0x21..=0x7E. Refused (never rewritten) when outside them.
+fn valid_key_value(v: &str) -> bool {
+    let n = v.len();
+    n >= 1 && n <= MAX_KEY_VALUE_LEN && v.bytes().all(|b| (KEY_CHAR_MIN..=KEY_CHAR_MAX).contains(&b))
+}
+
+/// Days since 1970-01-01 of a proleptic Gregorian civil date (Howard
+/// Hinnant's days_from_civil); month and day are range-checked by the caller.
+fn days_from_civil(y: i64, m: u32, d: u32) -> i64 {
+    let y = if m <= 2 { y - 1 } else { y };
+    let era = if y >= 0 { y } else { y - 399 } / 400;
+    let yoe = y - era * 400;
+    let mp = (i64::from(m) + 9) % 12;
+    let doy = (153 * mp + 2) / 5 + i64::from(d) - 1;
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    era * 146_097 + doe - 719_468
+}
+
+fn days_in_month(y: i64, m: u32) -> u32 {
+    match m {
+        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
+        4 | 6 | 9 | 11 => 30,
+        _ => {
+            if (y % 4 == 0 && y % 100 != 0) || y % 400 == 0 {
+                29
+            } else {
+                28
+            }
+        }
+    }
+}
+
+/// Parse the writers' exact time shape, `YYYY-MM-DDTHH:MM:SS.mmmZ` (what the
+/// frontend's `toISOString` emits), into UTC epoch milliseconds. None for any
+/// other byte layout or a field outside its calendar range, which is exactly
+/// what the TypeScript twin's byte-equal round trip refuses (`isWritableTime`
+/// in icloudRecord.ts; the parity test runs one fixture through both).
+fn parse_iso_time_ms(t: &str) -> Option<i64> {
+    let b = t.as_bytes();
+    if b.len() != ISO_TIME_LEN {
+        return None;
+    }
+    const DIGITS: [usize; 17] = [0, 1, 2, 3, 5, 6, 8, 9, 11, 12, 14, 15, 17, 18, 20, 21, 22];
+    if !DIGITS.iter().all(|&i| b[i].is_ascii_digit()) {
+        return None;
+    }
+    if b[4] != b'-' || b[7] != b'-' || b[10] != b'T' || b[13] != b':' || b[16] != b':' || b[19] != b'.' || b[23] != b'Z' {
+        return None;
+    }
+    let num = |from: usize, to: usize| -> i64 { b[from..to].iter().fold(0i64, |acc, d| acc * 10 + i64::from(d - b'0')) };
+    let (y, mo, d) = (num(0, 4), num(5, 7), num(8, 10));
+    let (h, mi, s, ms) = (num(11, 13), num(14, 16), num(17, 19), num(20, 23));
+    if !(1..=12).contains(&mo) {
+        return None;
+    }
+    if d < 1 || d > i64::from(days_in_month(y, mo as u32)) {
+        return None;
+    }
+    if h > 23 || mi > 59 || s > 59 {
+        return None;
+    }
+    let days = days_from_civil(y, mo as u32, d as u32);
+    Some(days * 86_400_000 + h * 3_600_000 + mi * 60_000 + s * 1000 + ms)
+}
+
+/// A change or clear time as the writers accept it, and both writers accept
+/// exactly the same set (icloudPaths.parity.test.ts pins the fixture): the
+/// canonical ISO shape, a real calendar instant, not before 2000-01-01 and
+/// not more than a day past `now_ms`, which is the reader's own plausibility
+/// window (security fix round, Findings 1 and 2). Refused, never rewritten.
+fn valid_time_text(t: &str, now_ms: i64) -> bool {
+    parse_iso_time_ms(t).map_or(false, |ms| ms >= MIN_TIME_MS && ms <= now_ms + MAX_FUTURE_MS)
+}
+
+/// This device's clock as UTC epoch milliseconds; a clock before 1970 reads
+/// as 0, which fails every window check closed.
+fn unix_now_ms() -> i64 {
+    SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_millis() as i64).unwrap_or(0)
+}
+
+fn platform_fallback(platform: &str) -> &'static str {
+    if platform == "ipad" {
+        "iPad"
+    } else if platform == "iphone" {
+        "iPhone"
+    } else {
+        "Mac"
+    }
+}
+
+/// The Rust write chokepoint for one key entry (icloud-api-key-sync FR-19).
+/// The TypeScript chokepoint has already produced a valid entry, so anything
+/// outside the bounds here is a programming error to fail closed on: the
+/// state, value, time (its shape AND its window against `now_ms`, the same
+/// predicate as `isWritableTime`), device id and platform are REFUSED rather
+/// than rewritten; only the label is sanitized, exactly as for a file record.
+/// Every `Err` is a member of the closed frontend union and carries no value.
+fn sanitize_key_entry(input: KeyEntryInput, now_ms: i64) -> Result<KeyEntryFile, String> {
+    if !valid_device_id(&input.origin.device_id) {
+        return Err("unknown".to_string());
+    }
+    let platform = input.origin.platform;
+    if platform != "mac" && platform != "iphone" && platform != "ipad" {
+        return Err("unknown".to_string());
+    }
+    let origin = Origin {
+        device_id: input.origin.device_id,
+        label: sanitize_label(&input.origin.label, platform_fallback(&platform)),
+        platform,
+    };
+    match input.state.as_str() {
+        "key" => {
+            let value = input.value.ok_or_else(|| "unknown".to_string())?;
+            if !valid_key_value(&value) {
+                return Err("unknown".to_string());
+            }
+            let changed_at = input.changed_at.ok_or_else(|| "unknown".to_string())?;
+            if !valid_time_text(&changed_at, now_ms) {
+                return Err("unknown".to_string());
+            }
+            Ok(KeyEntryFile { state: "key", value: Some(value), changed_at: Some(changed_at), cleared_at: None, origin })
+        }
+        "cleared" => {
+            let cleared_at = input.cleared_at.ok_or_else(|| "unknown".to_string())?;
+            if !valid_time_text(&cleared_at, now_ms) {
+                return Err("unknown".to_string());
+            }
+            Ok(KeyEntryFile { state: "cleared", value: None, changed_at: None, cleared_at: Some(cleared_at), origin })
+        }
+        _ => Err("unknown".to_string()),
+    }
+}
+
 /// `symlink_metadata`-based: the path is a regular file (not a symlink, not a
 /// directory, not a device) and this is its on-disk length. Anything else is
 /// `unavailable` and is never opened.
@@ -560,6 +821,47 @@ fn clear_staging(tmp_dir: &Path, device_id: Option<&str>) -> u32 {
     removed
 }
 
+/// Remove every staging entry for ONE target name (`<anyDeviceId>-<target>`)
+/// in `Documents/.tmp/`, from any device: a crash between staging and rename
+/// would leave a complete key record in the container, and "the copy is
+/// gone" must be exact (icloud-api-key-sync FR-32). Never touches a csv or a
+/// file-record staging entry. Regular files and symlinks are removed as such.
+fn clear_staging_for(tmp_dir: &Path, target_name: &str) -> u32 {
+    let mut removed = 0u32;
+    let entries = match fs::read_dir(tmp_dir) {
+        Ok(e) => e,
+        Err(_) => return 0,
+    };
+    let suffix = format!("-{}", target_name);
+    for entry in entries.flatten() {
+        let name = entry.file_name();
+        let name = name.to_string_lossy();
+        if !name.ends_with(&suffix) {
+            continue;
+        }
+        let path = entry.path();
+        let is_dir = fs::symlink_metadata(&path).map(|m| m.file_type().is_dir()).unwrap_or(false);
+        let ok = if is_dir { fs::remove_dir_all(&path).is_ok() } else { fs::remove_file(&path).is_ok() };
+        if ok {
+            removed += 1;
+        }
+    }
+    removed
+}
+
+/// Rename the staged file onto its target. A directory planted at a fixed
+/// name would make that rename fail on every check (rename(2) never replaces
+/// a directory with a file), so it is removed first, inside the coordinated
+/// replacing write, and the record heals by overwrite like every other
+/// unreadable shape (security fix round, Finding 3). A symlink there is
+/// replaced by the rename itself, as a link, never followed.
+fn replace_item(tmp: &Path, dst: &Path) -> Result<(), String> {
+    if fs::symlink_metadata(dst).map(|m| m.file_type().is_dir()).unwrap_or(false) {
+        fs::remove_dir_all(dst).map_err(|_| "unavailable".to_string())?;
+    }
+    fs::rename(tmp, dst).map_err(|_| "unavailable".to_string())
+}
+
 /// Write `bytes` to a temp file beside the target inside the container, then
 /// coordinated-rename it onto `target` (atomic on the same volume). The temp
 /// name carries the device id so two devices staging the same slot never
@@ -578,13 +880,32 @@ fn atomic_container_write(docs: &Path, target_name: &str, device_id: &str, bytes
     fs::write(&tmp, bytes).map_err(|_| "unavailable".to_string())?;
     let target = docs.join(target_name);
     let url = file_url(&target);
-    let result = coordinated_write(&url, NSFileCoordinatorWritingOptions::ForReplacing, |dst| {
-        fs::rename(&tmp, dst).map_err(|_| "unavailable".to_string())
-    });
+    let result = coordinated_write(&url, NSFileCoordinatorWritingOptions::ForReplacing, |dst| replace_item(&tmp, dst));
     if result.is_err() {
         let _ = fs::remove_file(&tmp);
     }
     result
+}
+
+/// A symlink or a directory planted at an item's fixed name (a csv, a file
+/// record or the key record; `coordinated_delete` is called with nothing
+/// else) is removed as such, never followed and never handed to the
+/// coordinator, since it is not an item this app wrote. `None` when the path
+/// holds neither, so the coordinated delete proceeds. A directory was
+/// refused until the security fix round (Finding 3), which left a key
+/// removal pending indefinitely; Remove is now always a recovery path.
+fn remove_planted_item(target: &Path) -> Result<Option<bool>, String> {
+    if let Ok(meta) = fs::symlink_metadata(target) {
+        if meta.file_type().is_symlink() {
+            fs::remove_file(target).map_err(|_| "unavailable".to_string())?;
+            return Ok(Some(true));
+        }
+        if meta.file_type().is_dir() {
+            fs::remove_dir_all(target).map_err(|_| "unavailable".to_string())?;
+            return Ok(Some(true));
+        }
+    }
+    Ok(None)
 }
 
 /// Coordinated delete of a container item (the logical URL: NSFileManager
@@ -592,16 +913,8 @@ fn atomic_container_write(docs: &Path, target_name: &str, device_id: &str, bytes
 /// would not). Absent items are not an error.
 fn coordinated_delete(docs: &Path, name: &str) -> Result<bool, String> {
     let target = docs.join(name);
-    // A symlink planted at the item's name is removed as a LINK (never
-    // followed); a directory is refused outright.
-    if let Ok(meta) = fs::symlink_metadata(&target) {
-        if meta.file_type().is_symlink() {
-            fs::remove_file(&target).map_err(|_| "unavailable".to_string())?;
-            return Ok(true);
-        }
-        if meta.file_type().is_dir() {
-            return Err("unavailable".to_string());
-        }
+    if let Some(done) = remove_planted_item(&target)? {
+        return Ok(done);
     }
     if !item_present(docs, name) {
         return Ok(false);
@@ -737,42 +1050,49 @@ pub async fn icloud_status(app: AppHandle) -> Result<Status, String> {
     Ok(Status { state, device_label, platform })
 }
 
+/// The bytes at a record's path, as the frontend validator will see them
+/// (security fix round, Finding 3, closing the 1.0.11 review's Finding 9
+/// for every record at this one site). A regular file inside the size bound
+/// reads as its text. Every shape the validator must treat as ABSENT, so
+/// the next check overwrites it and Remove clears it, reads as the EMPTY
+/// string, which the validator rejects as malformed-json: a symlink or a
+/// directory planted at the name (never opened), a file past the 16 KB
+/// bound (never loaded), and bytes that are not UTF-8. Only a genuine I/O
+/// error is `unavailable`, and an item that vanished is None.
+fn record_text_at(p: &Path) -> Result<Option<String>, String> {
+    match fs::symlink_metadata(p) {
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(_) => return Err("unavailable".to_string()),
+        Ok(meta) => {
+            if !meta.file_type().is_file() || meta.len() > MAX_RECORD_BYTES {
+                return Ok(Some(String::new()));
+            }
+        }
+    }
+    match fs::read(p) {
+        Ok(bytes) => Ok(Some(String::from_utf8(bytes).unwrap_or_default())),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(_) => Err("unavailable".to_string()),
+    }
+}
+
+/// The one read path for every record in the container (a file record or
+/// the key record): the raw text, or None when absent. A coordinated read of
+/// an undownloaded record downloads it first (a record is a few hundred
+/// bytes); offline that wait is what the command timeout bounds.
+fn read_record_text(docs: &Path, name: &str) -> Result<Option<String>, String> {
+    if !item_present(docs, name) {
+        return Ok(None);
+    }
+    let url = file_url(&docs.join(name));
+    coordinated_read(&url, record_text_at)
+}
+
 #[tauri::command]
 pub async fn icloud_read_record(slot: Slot) -> Result<RecordRead, String> {
     blocking(move || {
         let docs = container_documents().ok_or_else(|| "unavailable".to_string())?;
-        let name = slot.record_name();
-        let record = if item_present(&docs, &name) {
-            let url = file_url(&docs.join(&name));
-            // A coordinated read of an undownloaded record downloads it first
-            // (the record is a few hundred bytes); offline that wait is what
-            // the command timeout bounds.
-            coordinated_read(&url, |p| {
-                // Not a regular file (a symlink, a directory) -> never opened.
-                // A record is a few hundred bytes; anything past the
-                // validator's 4 KB text bound is not a record, and is not
-                // read into memory either (it would be rejected anyway).
-                match fs::symlink_metadata(p) {
-                    Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
-                    Err(_) => return Err("unavailable".to_string()),
-                    Ok(meta) => {
-                        if !meta.file_type().is_file() {
-                            return Err("unavailable".to_string());
-                        }
-                        if meta.len() > MAX_RECORD_BYTES {
-                            return Ok(Some(String::new()));
-                        }
-                    }
-                }
-                match fs::read_to_string(p) {
-                    Ok(s) => Ok(Some(s)),
-                    Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
-                    Err(_) => Err("unavailable".to_string()),
-                }
-            })?
-        } else {
-            None
-        };
+        let record = read_record_text(&docs, &slot.record_name())?;
         Ok(RecordRead { record, file: csv_status(&docs, slot) })
     })
     .await
@@ -966,6 +1286,71 @@ pub async fn icloud_remove_all() -> Result<RemoveResult, String> {
     .await
 }
 
+// ── icloud-api-key-sync: the key record commands ────────────────────────────
+
+fn key_record_status(docs: &Path) -> KeyRecordStatus {
+    if !item_present(docs, KEYS_RECORD_NAME) {
+        return KeyRecordStatus { present: false, downloaded: false, downloading: false, uploaded: false, uploading: false };
+    }
+    let f = ubiquity_flags(&docs.join(KEYS_RECORD_NAME));
+    KeyRecordStatus { present: true, downloaded: f.downloaded, downloading: f.downloading, uploaded: f.uploaded, uploading: f.uploading }
+}
+
+/// The key record's status, and in `record` mode its raw text (the frontend
+/// validates it; Rust never parses a record). Inside `blocking`, so the 8 s
+/// timeout bounds an on-demand download of a placeholder record.
+#[tauri::command]
+pub async fn icloud_read_keys(mode: KeysReadMode) -> Result<KeysRead, String> {
+    blocking(move || {
+        let docs = container_documents().ok_or_else(|| "unavailable".to_string())?;
+        let record = match mode {
+            KeysReadMode::Record => read_record_text(&docs, KEYS_RECORD_NAME)?,
+            KeysReadMode::Status => None,
+        };
+        Ok(KeysRead { record, status: key_record_status(&docs) })
+    })
+    .await
+}
+
+/// Write the whole key record atomically (staging under
+/// `.tmp/<deviceId>-keys.record.json`, coordinated replace). Every entry is
+/// refused-or-passed by `sanitize_key_entry` BEFORE anything touches the
+/// container; the key value is used only to build the record.
+#[tauri::command]
+pub async fn icloud_write_keys(device_id: String, slots: KeySlotsInput) -> Result<KeysWriteResult, String> {
+    if !valid_device_id(&device_id) {
+        return Err("unknown".to_string());
+    }
+    let now_ms = unix_now_ms();
+    let ebird = slots.ebird.map(|e| sanitize_key_entry(e, now_ms)).transpose()?;
+    let openweather = slots.openweather.map(|e| sanitize_key_entry(e, now_ms)).transpose()?;
+    let record = KeyRecordFile { version: 1, kind: "keys", slots: KeySlotsFile { ebird, openweather } };
+    let json = serde_json::to_vec(&record).map_err(|_| "unknown".to_string())?;
+    blocking(move || {
+        let docs = container_documents().ok_or_else(|| "unavailable".to_string())?;
+        fs::create_dir_all(&docs).map_err(|_| "unavailable".to_string())?;
+        atomic_container_write(&docs, KEYS_RECORD_NAME, &device_id, &json)?;
+        Ok(KeysWriteResult { uploaded: key_record_status(&docs).uploaded })
+    })
+    .await
+}
+
+/// Delete the key record and every key staging entry from any device; never
+/// a csv or a file record (FR-35). Absent items are not an error.
+#[tauri::command]
+pub async fn icloud_remove_keys() -> Result<RemoveResult, String> {
+    blocking(move || {
+        let docs = container_documents().ok_or_else(|| "unavailable".to_string())?;
+        let mut removed = 0u32;
+        if coordinated_delete(&docs, KEYS_RECORD_NAME)? {
+            removed += 1;
+        }
+        removed += clear_staging_for(&docs.join(".tmp"), KEYS_RECORD_NAME);
+        Ok(RemoveResult { removed })
+    })
+    .await
+}
+
 // ── Change detection (NSMetadataQuery) ──────────────────────────────────────
 
 struct Watch {
@@ -1124,6 +1509,119 @@ mod tests {
         let _ = fs::remove_dir_all(&dir);
     }
 
+    // ── icloud-api-key-sync ──
+
+    /// 2026-09-01T16:00:00.000Z as V8's Date.parse reads it (the clock every
+    /// key chokepoint test runs against; NOW in the frontend parity test).
+    const NOW_MS: i64 = 1_788_278_400_000;
+
+    fn sanitize(input: KeyEntryInput) -> Result<KeyEntryFile, String> {
+        sanitize_key_entry(input, NOW_MS)
+    }
+
+    /// Pinned byte-equal to `KEY_RECORD_GOLDEN` in keyRecord.ts by the parity test.
+    const KEY_RECORD_GOLDEN: &str = r#"{"version":1,"kind":"keys","slots":{"ebird":{"state":"key","value":"FixtureKey0001abcd","changedAt":"2026-08-31T01:48:00.000Z","origin":{"deviceId":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","label":"Dave's MacBook Pro","platform":"mac"}},"openweather":{"state":"cleared","clearedAt":"2026-09-01T15:40:00.000Z","origin":{"deviceId":"ffffffffffffffffffffffffffffffff","label":"iPhone","platform":"iphone"}}}}"#;
+
+    fn key_input(state: &str, value: Option<&str>, time: &str, label: &str, platform: &str, id: &str) -> KeyEntryInput {
+        KeyEntryInput {
+            state: state.to_string(),
+            value: value.map(|v| v.to_string()),
+            changed_at: if state == "key" { Some(time.to_string()) } else { None },
+            cleared_at: if state == "cleared" { Some(time.to_string()) } else { None },
+            origin: Origin { device_id: id.to_string(), label: label.to_string(), platform: platform.to_string() },
+        }
+    }
+
+    #[test]
+    fn key_values_are_1_to_128_printable_ascii() {
+        assert!(valid_key_value("FixtureKey0001abcd"));
+        assert!(valid_key_value(&"0123456789abcdef".repeat(2))); // a 32-hex shape
+        assert!(valid_key_value(&"x".repeat(128)));
+        assert!(!valid_key_value(""));
+        assert!(!valid_key_value(&"x".repeat(129)));
+        assert!(!valid_key_value("has space"));
+        assert!(!valid_key_value("tab\there"));
+        assert!(!valid_key_value("ctrl\u{1}"));
+        assert!(!valid_key_value("del\u{7f}"));
+        assert!(!valid_key_value("non-ascii-\u{e9}"));
+    }
+
+    #[test]
+    fn key_entries_are_refused_never_rewritten_except_the_label() {
+        let me = "a".repeat(32);
+        // A good key entry passes, with its label cleaned.
+        let ok = sanitize(key_input("key", Some("FixtureKey0001abcd"), "2026-08-31T01:48:00.000Z", "Dave\u{7}s Mac", "mac", &me)).unwrap();
+        assert_eq!(ok.origin.label, "Daves Mac");
+        assert_eq!(ok.value.as_deref(), Some("FixtureKey0001abcd"));
+        // Each bad shape is refused with the closed-union code, never rewritten.
+        for bad in ["", "has space", "non-ascii-\u{e9}", "ctrl\u{1}"] {
+            assert_eq!(sanitize(key_input("key", Some(bad), "2026-08-31T01:48:00.000Z", "Mac", "mac", &me)).err().as_deref(), Some("unknown"));
+        }
+        let long = "x".repeat(129);
+        assert!(sanitize(key_input("key", Some(&long), "2026-08-31T01:48:00.000Z", "Mac", "mac", &me)).is_err());
+        assert!(sanitize(key_input("key", None, "2026-08-31T01:48:00.000Z", "Mac", "mac", &me)).is_err());
+        assert!(sanitize(key_input("key", Some("ok"), "", "Mac", "mac", &me)).is_err());
+        assert!(sanitize(key_input("key", Some("ok"), &"9".repeat(65), "Mac", "mac", &me)).is_err());
+        assert!(sanitize(key_input("key", Some("ok"), "2026-08-31T01:48:00.000Z", "Mac", "windows", &me)).is_err());
+        assert!(sanitize(key_input("key", Some("ok"), "2026-08-31T01:48:00.000Z", "Mac", "mac", "../../etc")).is_err());
+        assert!(sanitize(key_input("file", Some("ok"), "2026-08-31T01:48:00.000Z", "Mac", "mac", &me)).is_err());
+        // A cleared marker needs its time and no value.
+        let cleared = sanitize(key_input("cleared", None, "2026-09-01T15:40:00.000Z", "iPhone", "iphone", &"f".repeat(32))).unwrap();
+        assert!(cleared.value.is_none());
+        assert_eq!(cleared.cleared_at.as_deref(), Some("2026-09-01T15:40:00.000Z"));
+        assert!(sanitize(key_input("cleared", None, "", "iPhone", "iphone", &"f".repeat(32))).is_err());
+    }
+
+    #[test]
+    fn sanitizing_a_sanitized_key_entry_is_idempotent() {
+        let me = "a".repeat(32);
+        let once = sanitize(key_input("key", Some("FixtureKey0001abcd"), "2026-08-31T01:48:00.000Z", "  Dave\u{7}s Mac  ", "mac", &me)).unwrap();
+        let again = sanitize(KeyEntryInput {
+            state: once.state.to_string(),
+            value: once.value.clone(),
+            changed_at: once.changed_at.clone(),
+            cleared_at: once.cleared_at.clone(),
+            origin: once.origin.clone(),
+        })
+        .unwrap();
+        assert_eq!(serde_json::to_string(&once).unwrap(), serde_json::to_string(&again).unwrap());
+    }
+
+    #[test]
+    fn key_record_golden_matches_the_frontend_literal() {
+        let record = KeyRecordFile {
+            version: 1,
+            kind: "keys",
+            slots: KeySlotsFile {
+                ebird: Some(sanitize(key_input("key", Some("FixtureKey0001abcd"), "2026-08-31T01:48:00.000Z", "Dave's MacBook Pro", "mac", &"a".repeat(32))).unwrap()),
+                openweather: Some(sanitize(key_input("cleared", None, "2026-09-01T15:40:00.000Z", "iPhone", "iphone", &"f".repeat(32))).unwrap()),
+            },
+        };
+        assert_eq!(serde_json::to_string(&record).unwrap(), KEY_RECORD_GOLDEN);
+        // An absent slot is omitted, never null.
+        let one = KeyRecordFile { version: 1, kind: "keys", slots: KeySlotsFile { ebird: None, openweather: None } };
+        assert_eq!(serde_json::to_string(&one).unwrap(), r#"{"version":1,"kind":"keys","slots":{}}"#);
+    }
+
+    #[test]
+    fn key_staging_clear_removes_only_key_staging_entries_from_any_device() {
+        let dir = std::env::temp_dir().join(format!("sr-icloud-keystaging-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        let me = "a".repeat(32);
+        let peer = "f".repeat(32);
+        fs::write(dir.join(format!("{}-{}", me, KEYS_RECORD_NAME)), b"x").unwrap();
+        fs::write(dir.join(format!("{}-{}", peer, KEYS_RECORD_NAME)), b"y").unwrap();
+        fs::write(dir.join(format!("{}-ebird-backup.csv", me)), b"csv").unwrap();
+        fs::write(dir.join(format!("{}-ebird.record.json", me)), b"rec").unwrap();
+        assert_eq!(clear_staging_for(&dir, KEYS_RECORD_NAME), 2);
+        assert!(dir.join(format!("{}-ebird-backup.csv", me)).exists());
+        assert!(dir.join(format!("{}-ebird.record.json", me)).exists());
+        assert!(!dir.join(format!("{}-{}", peer, KEYS_RECORD_NAME)).exists());
+        assert_eq!(clear_staging_for(&dir, KEYS_RECORD_NAME), 0);
+        let _ = fs::remove_dir_all(&dir);
+    }
+
     #[test]
     fn staging_clear_is_scoped_by_device_id() {
         let dir = std::env::temp_dir().join(format!("sr-icloud-staging-{}", std::process::id()));
@@ -1136,6 +1634,123 @@ mod tests {
         assert_eq!(clear_staging(&dir, Some(&me)), 1);
         assert!(dir.join(format!("{}-ebird-backup.csv", peer)).exists());
         assert_eq!(clear_staging(&dir, None), 1);
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    // ── Security fix round (security-report.md Findings 1 to 3) ──
+
+    #[test]
+    fn writable_times_agree_with_the_frontend_fixture() {
+        // The SAME rows, in the same order, that icloudPaths.parity.test.ts
+        // runs through isWritableTime; that test asserts every row is spelled
+        // here and counts them, so the two tables cannot drift apart.
+        let rows: [(&str, bool); 19] = [
+            ("2026-09-01T16:00:00.000Z", true),
+            ("2000-01-01T00:00:00.000Z", true),
+            ("2024-02-29T12:34:56.789Z", true),
+            ("2026-09-02T16:00:00.000Z", true),
+            ("2026-09-02T16:00:00.001Z", false),
+            ("1999-12-31T23:59:59.999Z", false),
+            ("2026-09-01T16:00:00Z", false),
+            ("2026-09-01T16:00:00.000+00:00", false),
+            ("2026-09-01T16:00:00.000z", false),
+            ("2026-09-01T16:00:00.0000Z", false),
+            ("2026-09-01T16:00:00.000Z\n", false),
+            (" 2026-09-01T16:00:00.000Z", false),
+            ("2026-02-30T00:00:00.000Z", false),
+            ("2100-02-29T00:00:00.000Z", false),
+            ("2026-09-01T24:00:00.000Z", false),
+            ("2026-13-01T00:00:00.000Z", false),
+            ("2026-09-01T16:00:60.000Z", false),
+            ("Sep 1, 2026 (é)", false),
+            ("", false),
+        ];
+        for (t, ok) in rows {
+            assert_eq!(valid_time_text(t, NOW_MS), ok, "{:?}", t);
+        }
+        // The parser lands on the epoch values V8's Date.parse reads (numbers
+        // pinned from Node, never derived from this parser).
+        assert_eq!(parse_iso_time_ms("2026-09-01T16:00:00.000Z"), Some(NOW_MS));
+        assert_eq!(parse_iso_time_ms("2000-01-01T00:00:00.000Z"), Some(MIN_TIME_MS));
+        assert_eq!(parse_iso_time_ms("1970-01-01T00:00:00.000Z"), Some(0));
+        assert_eq!(parse_iso_time_ms("2024-02-29T12:34:56.789Z"), Some(1_709_210_096_789));
+        assert_eq!(parse_iso_time_ms("2026-09-02T16:00:00.000Z"), Some(NOW_MS + MAX_FUTURE_MS));
+        assert_eq!(parse_iso_time_ms("1999-12-31T23:59:59.999Z"), Some(MIN_TIME_MS - 1));
+    }
+
+    #[test]
+    fn a_key_entry_with_an_implausible_time_is_refused_never_rewritten() {
+        let me = "a".repeat(32);
+        let peer = "f".repeat(32);
+        // Exactly one day ahead passes; a millisecond past it, 25 hours ahead,
+        // before 2000, and a parseable-but-not-canonical time (which the
+        // frontend READER accepts) are each refused with the closed code.
+        assert!(sanitize(key_input("key", Some("ok"), "2026-09-02T16:00:00.000Z", "Mac", "mac", &me)).is_ok());
+        assert!(sanitize(key_input("cleared", None, "2026-09-02T16:00:00.000Z", "iPhone", "iphone", &peer)).is_ok());
+        for bad in ["2026-09-02T16:00:00.001Z", "2026-09-02T17:00:00.000Z", "1999-12-31T23:59:59.999Z", "Sep 1, 2026 (é)", "2026-09-01T16:00:00Z"] {
+            assert_eq!(sanitize(key_input("key", Some("ok"), bad, "Mac", "mac", &me)).err().as_deref(), Some("unknown"), "{:?}", bad);
+            assert_eq!(sanitize(key_input("cleared", None, bad, "iPhone", "iphone", &peer)).err().as_deref(), Some("unknown"), "{:?}", bad);
+        }
+        // The window follows the clock handed in: the 25-hours-ahead entry passes a clock a day later.
+        assert!(sanitize_key_entry(key_input("key", Some("ok"), "2026-09-02T17:00:00.000Z", "Mac", "mac", &me), NOW_MS + MAX_FUTURE_MS).is_ok());
+    }
+
+    #[test]
+    fn a_directory_or_symlink_at_a_fixed_record_name_reads_as_empty_and_is_removed() {
+        let dir = std::env::temp_dir().join(format!("sr-icloud-planted-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        let planted = dir.join(KEYS_RECORD_NAME);
+        fs::create_dir_all(&planted).unwrap();
+        fs::write(planted.join("inner.txt"), b"x").unwrap();
+        // Reads as the EMPTY text (the validator rejects it as malformed-json
+        // and treats the record as absent), never as `unavailable`.
+        assert_eq!(record_text_at(&planted).unwrap().as_deref(), Some(""));
+        // A symlink at a record's name likewise, and it is never followed.
+        let real = dir.join("real.json");
+        fs::write(&real, b"{}").unwrap();
+        let link = dir.join(Slot::Ebird.record_name());
+        std::os::unix::fs::symlink(&real, &link).unwrap();
+        assert_eq!(record_text_at(&link).unwrap().as_deref(), Some(""));
+        // Remove is always a recovery path: the directory goes, the symlink
+        // goes as a link, and the file it pointed at stays.
+        assert_eq!(remove_planted_item(&planted).unwrap(), Some(true));
+        assert!(fs::symlink_metadata(&planted).is_err());
+        assert_eq!(remove_planted_item(&link).unwrap(), Some(true));
+        assert!(fs::symlink_metadata(&link).is_err());
+        assert!(real.exists());
+        // Nothing planted (a regular file, or nothing at all): None, so the
+        // coordinated delete proceeds, and the regular file is untouched here.
+        assert_eq!(remove_planted_item(&real).unwrap(), None);
+        assert_eq!(remove_planted_item(&dir.join("absent")).unwrap(), None);
+        assert!(real.exists());
+        // And a replacing write heals a directory at the target by overwrite.
+        fs::create_dir_all(&planted).unwrap();
+        fs::write(planted.join("inner.txt"), b"x").unwrap();
+        let tmp = dir.join("staged");
+        fs::write(&tmp, KEY_RECORD_GOLDEN.as_bytes()).unwrap();
+        replace_item(&tmp, &planted).unwrap();
+        assert_eq!(record_text_at(&planted).unwrap().as_deref(), Some(KEY_RECORD_GOLDEN));
+        assert!(!tmp.exists());
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn non_utf8_record_bytes_read_as_empty_text() {
+        let dir = std::env::temp_dir().join(format!("sr-icloud-utf8-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        let p = dir.join(KEYS_RECORD_NAME);
+        fs::write(&p, [0xff, 0xfe, b'{', b'}']).unwrap();
+        assert_eq!(record_text_at(&p).unwrap().as_deref(), Some(""));
+        // A real record reads as its text; one past the size bound is not
+        // loaded; one that vanished is None.
+        fs::write(&p, KEY_RECORD_GOLDEN.as_bytes()).unwrap();
+        assert_eq!(record_text_at(&p).unwrap().as_deref(), Some(KEY_RECORD_GOLDEN));
+        fs::write(&p, vec![b' '; (MAX_RECORD_BYTES + 1) as usize]).unwrap();
+        assert_eq!(record_text_at(&p).unwrap().as_deref(), Some(""));
+        fs::remove_file(&p).unwrap();
+        assert!(record_text_at(&p).unwrap().is_none());
         let _ = fs::remove_dir_all(&dir);
     }
 }

@@ -1,6 +1,6 @@
-import { useEffect, useId, useRef, useState } from 'react'
+import { useEffect, useId, useImperativeHandle, useRef, useState } from 'react'
 import {
-  BookOpen, ChevronDown, ChevronUp, CircleAlert, CloudCheck, CloudDownload, CloudOff, CloudUpload,
+  BookOpen, ChevronDown, ChevronUp, CircleAlert, Cloud, CloudCheck, CloudDownload, CloudOff, CloudUpload,
   Copy, Eye, EyeOff, FileCheck, FileQuestion, Loader2, Lock, Navigation,
 } from 'lucide-react'
 import type { StoredFileInfo, StoredFilesStatus } from '../types'
@@ -14,14 +14,20 @@ import type { DateFormatPref } from '../lib/formatDate'
 import { isTauri, isIOS } from '../lib/platform'
 import { supportsAppRelaunch, showICloudSync } from '../lib/platformGates'
 import { useFilesEpoch } from '../lib/useFilesEpoch'
+import { useKeysEpoch } from '../lib/useKeysEpoch'
 import { useICloudState, icloudActions } from '../lib/icloud/icloudState'
-import type { SlotView } from '../lib/icloud/icloudState'
+import type { KeySlotView, SlotView } from '../lib/icloud/icloudState'
 import type { Slot } from '../lib/icloud/icloudRecord'
+import type { KeySlot } from '../lib/icloud/keyRecord'
 import type { FileOrigin } from '../lib/storage'
 import {
   ICS_HEADER, ICS_DESCRIPTION, AVAILABILITY_NOTES, STATE_LABELS, PLATFORM_WORD, hereWord,
   fromText, fromWithTimeText, replacedText, statusText, CHECK_FAILED_SUFFIX, announcerText, BUTTONS,
   ENABLE_TITLE, enableNoteItems, REMOVE_TITLE, REMOVE_INTRO, removeOutro, clearTitle, clearBody,
+  KEY_SWITCH_LABEL, KEY_SWITCH_DESCRIPTION, KEY_SWITCH_REASON_FILE_SYNC_OFF, KEY_STATE_LABELS,
+  fromChangedText, keyReplacedText, keyClearedText, CLEAR_PENDING_TEXT, KEY_REMOVAL_PENDING_TEXT,
+  ENABLE_KEYS_TITLE, enableKeysNoteItems, ENABLE_KEYS_FINE, keyClearTitle, keyClearBody,
+  REMOVE_KEYS_TITLE, removeKeysBody, REMOVE_KEYS_OUTRO,
 } from '../lib/icloud/icloudCopy'
 import { ModalDialog } from './ui/ModalDialog'
 import { fileRowButtonLabel } from '../lib/fileRowCopy'
@@ -353,7 +359,7 @@ function FileRow({
           ) : (
             <div style={{ fontSize: '0.8125rem', color: 'var(--sr-text-muted)', marginTop: 2 }}>{sublabel}</div>
           )}
-          {syncLine && <SyncLine view={sync} onDownloadNow={onDownloadNow} onRetry={onRetry} />}
+          {syncLine && <SyncLine view={sync} render={v => <SyncContent view={v} onDownloadNow={onDownloadNow} onRetry={onRetry} />} />}
         </div>
         </div>
 
@@ -506,6 +512,62 @@ function SyncContent({ view, onDownloadNow, onRetry }: {
   )
 }
 
+// One KEY row's sync content (icloud-api-key-sync FR-38 to FR-42): the same
+// shape as SyncContent, over the five key states plus Sync off. The FR-41
+// "Replaced by" line and the FR-42 "Cleared from" line take the place of the
+// provenance while set; the FR-30 sentence rides under Waiting to upload while
+// a Clear has not reached iCloud. Every string comes from icloudCopy.ts
+// builders, never from a value (FR-44).
+function KeySyncContent({ view, onRetry }: { view: KeySlotView; onRetry?: () => void }) {
+  const label = KEY_STATE_LABELS[view.state]
+  let Icon = CloudCheck
+  let error = false
+  let more: string | null = null
+  let action: 'retry' | null = null
+  const provenance = () => view.changedAt
+    ? fromChangedText(view.fromThisDevice, view.origin, formatUploadDate(view.changedAt))
+    : null
+  switch (view.state) {
+    case 'up-to-date':
+      Icon = CloudCheck
+      more = view.replacedAt
+        ? keyReplacedText(view.origin, formatUploadDate(view.replacedAt))
+        : view.clearedAt
+          ? keyClearedText(view.origin, formatUploadDate(view.clearedAt))
+          : provenance()
+      break
+    case 'syncing':
+      Icon = Cloud; more = provenance(); break
+    case 'waiting-to-upload':
+      Icon = CloudUpload; more = view.clearPending ? CLEAR_PENDING_TEXT : provenance(); break
+    case 'unavailable':
+      Icon = CloudOff; more = provenance(); break
+    case 'off':
+      Icon = CloudOff; break
+    case 'error':
+      Icon = CircleAlert; error = true; more = view.reason ?? null; action = 'retry'; break
+  }
+  return (
+    <>
+      <span className={'sr-sync-state' + (error ? ' sr-sync-state--error' : '')}>
+        <Icon size={13} strokeWidth={2.2} aria-hidden />
+        {label}
+      </span>
+      {more && (
+        <>
+          <span className="sr-only">. </span>
+          <span className="sr-sync-more"><span className="sr-sync-sep" aria-hidden>·</span> {more}</span>
+        </>
+      )}
+      {action === 'retry' && (
+        <button type="button" tabIndex={0} className="sr-btn-quiet sr-btn-inline sr-touch-target" onClick={onRetry}>
+          {BUTTONS.retry}
+        </button>
+      )}
+    </>
+  )
+}
+
 // The stable status region. ALWAYS rendered while the platform gate is true
 // (empty when the row has no view); its children are replaced on change and
 // the element itself never unmounts and is never display:none (the house
@@ -514,14 +576,16 @@ function SyncContent({ view, onDownloadNow, onRetry }: {
 // the first fill and the clear to empty are instant, and reduced motion swaps
 // instantly. The fade class is toggled on the element through the ref rather
 // than through state so the effect stays free of synchronous setState.
-function SyncLine({ view, onDownloadNow, onRetry }: {
-  view: SlotView | null
-  onDownloadNow?: () => void
-  onRetry?: () => void
+// Generic over the view (a file row's SlotView or a key row's KeySlotView):
+// the caller supplies the content renderer, and the region itself is shared,
+// not forked (icloud-api-key-sync design-spec.md, Component Usage).
+function SyncLine<V extends object>({ view, render }: {
+  view: V | null
+  render: (view: V) => React.ReactNode
 }) {
   const lineRef = useRef<HTMLDivElement>(null)
   const key = view ? JSON.stringify(view) : ''
-  const [shown, setShown] = useState<{ key: string; view: SlotView | null }>({ key, view })
+  const [shown, setShown] = useState<{ key: string; view: V | null }>({ key, view })
 
   useEffect(() => {
     if (key === shown.key) return
@@ -540,7 +604,7 @@ function SyncLine({ view, onDownloadNow, onRetry }: {
 
   return (
     <div ref={lineRef} role="status" className="sr-sync-line">
-      {shown.view ? <SyncContent view={shown.view} onDownloadNow={onDownloadNow} onRetry={onRetry} /> : null}
+      {shown.view ? render(shown.view) : null}
     </div>
   )
 }
@@ -555,10 +619,18 @@ function ICloudSyncSection() {
   const headerId = useId()
   const descId = useId()
   const noteId = useId()
+  const keyLabelId = useId()
+  const keyDescId = useId()
+  const keyNoteId = useId()
+  const keyPendingId = useId()
   const switchWrapRef = useRef<HTMLSpanElement>(null)
+  const keySwitchWrapRef = useRef<HTMLSpanElement>(null)
   const removeBtnRef = useRef<HTMLButtonElement>(null)
+  const removeKeysBtnRef = useRef<HTMLButtonElement>(null)
   const [enableOpen, setEnableOpen] = useState(false)
+  const [enableKeysOpen, setEnableKeysOpen] = useState(false)
   const [removeOpen, setRemoveOpen] = useState(false)
+  const [removeKeysOpen, setRemoveKeysOpen] = useState(false)
   const [userChecking, setUserChecking] = useState(false)
   // One announcement per user-pressed Check now, sequence-keyed so a repeat
   // press is a real DOM replacement (the v0.5.80 live-region rule). The time
@@ -576,6 +648,7 @@ function ICloudSyncSection() {
     : ''
 
   const switchEl = () => switchWrapRef.current?.querySelector<HTMLElement>('[role="switch"]') ?? null
+  const keySwitchEl = () => keySwitchWrapRef.current?.querySelector<HTMLElement>('[role="switch"]') ?? null
 
   function handleToggle() {
     if (!ics.syncEnabled) { setEnableOpen(true); return }
@@ -587,6 +660,37 @@ function ICloudSyncSection() {
     setEnableOpen(false)
     void icloudActions.enable()
   }
+
+  // ── The key switch (icloud-api-key-sync FR-01, FR-02, FR-04, FR-32) ──
+  // Operable only while the file switch is on and iCloud is available;
+  // otherwise aria-disabled (still focusable, so its reason is read in place):
+  // the file switch's availability note for a non-available state, or "Turn
+  // on iCloud Sync first." while available but the file switch is off. The
+  // reason is said once, never repeated (FR-02).
+  const keyOperable = ics.syncEnabled && available
+  const keyReason = available && !ics.syncEnabled ? KEY_SWITCH_REASON_FILE_SYNC_OFF : null
+  const keyDescribedBy = keyReason
+    ? `${keyDescId} ${keyNoteId}`
+    : note ? `${keyDescId} ${noteId}` : keyDescId
+
+  function handleKeyToggle() {
+    if (!keyOperable) return
+    if (!ics.keySyncEnabled) { setEnableKeysOpen(true); return }
+    // FR-32: off needs no confirmation (OQ-5).
+    void icloudActions.disableKeys()
+  }
+
+  function handleTurnOnKeys() {
+    setEnableKeysOpen(false)
+    void icloudActions.enableKeys()
+  }
+
+  function handleRemoveKeys() {
+    setRemoveKeysOpen(false)
+    void icloudActions.removeKeysFromICloud()
+  }
+
+  const showRemoveKeys = ics.keyRecordExists || ics.keyRemovalPending
 
   async function handleCheckNow() {
     setUserChecking(true)
@@ -627,6 +731,30 @@ function ICloudSyncSection() {
           </span>
         </div>
 
+        {/* The key switch (icloud-api-key-sync): a sub-option of the section,
+            directly below the file switch, off by default, never folded into
+            it (FR-01). Its reason appears the instant its cause changes, with
+            no animation (a consequence shows where the cause is). */}
+        <div className="sr-ics-row sr-ics-toggle-row">
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div id={keyLabelId} className="sr-ics-key-label">{KEY_SWITCH_LABEL}</div>
+            <p id={keyDescId} className="sr-ics-desc">{KEY_SWITCH_DESCRIPTION}</p>
+            {keyReason && <p id={keyNoteId} className="sr-ics-note">{keyReason}</p>}
+          </div>
+          <span ref={keySwitchWrapRef} style={{ display: 'inline-flex', flexShrink: 0 }}>
+            <ToggleSwitch
+              bare
+              labelVisible={false}
+              label={KEY_SWITCH_LABEL}
+              labelledBy={keyLabelId}
+              describedBy={keyDescribedBy}
+              checked={ics.keySyncEnabled}
+              ariaDisabled={!keyOperable}
+              onChange={handleKeyToggle}
+            />
+          </span>
+        </div>
+
         {/* Plain text, deliberately NOT a live region: the five-minute poll would
             otherwise announce a new time every five minutes while Settings is
             open. A user-pressed Check now announces its result once through the
@@ -651,17 +779,38 @@ function ICloudSyncSection() {
           )}
         </div>
 
-        {available && ics.sharedExists && (
+        {available && (ics.sharedExists || showRemoveKeys) && (
           <div className="sr-ics-row sr-ics-remove-row">
-            <button
-              ref={removeBtnRef}
-              type="button"
-              tabIndex={0}
-              className="sr-btn-quiet sr-touch-target"
-              onClick={() => setRemoveOpen(true)}
-            >
-              {BUTTONS.remove}
-            </button>
+            {/* Two Remove controls, each naming only what it removes (FR-35);
+                the keys control stays while a removal is pending (FR-33). */}
+            <div className="sr-ics-remove-actions">
+              {ics.sharedExists && (
+                <button
+                  ref={removeBtnRef}
+                  type="button"
+                  tabIndex={0}
+                  className="sr-btn-quiet sr-touch-target"
+                  onClick={() => setRemoveOpen(true)}
+                >
+                  {BUTTONS.remove}
+                </button>
+              )}
+              {showRemoveKeys && (
+                <button
+                  ref={removeKeysBtnRef}
+                  type="button"
+                  tabIndex={0}
+                  className="sr-btn-quiet sr-touch-target"
+                  aria-describedby={ics.keyRemovalPending ? keyPendingId : undefined}
+                  onClick={() => setRemoveKeysOpen(true)}
+                >
+                  {BUTTONS.removeKeys}
+                </button>
+              )}
+            </div>
+            {ics.keyRemovalPending && (
+              <p id={keyPendingId} className="sr-ics-pending">{KEY_REMOVAL_PENDING_TEXT}</p>
+            )}
           </div>
         )}
       </div>
@@ -707,6 +856,52 @@ function ICloudSyncSection() {
         </ul>
         <p className="sr-dlg-text">{removeOutro(here)}</p>
       </ModalDialog>
+
+      {/* The enable note for keys (icloud-api-key-sync FR-04): six required
+          elements and one closing promise. Nothing is written before Turn on;
+          Escape, the backdrop and Cancel leave the switch off. */}
+      <ModalDialog
+        open={enableKeysOpen}
+        title={ENABLE_KEYS_TITLE}
+        trigger={keySwitchEl}
+        onRequestClose={() => setEnableKeysOpen(false)}
+        initialFocus="last"
+        actions={
+          <>
+            <button type="button" tabIndex={0} className="sr-btn-quiet sr-touch-target" onClick={() => setEnableKeysOpen(false)}>{BUTTONS.cancel}</button>
+            <button type="button" tabIndex={0} className="sr-btn-accent sr-touch-target" onClick={handleTurnOnKeys}>{BUTTONS.turnOn}</button>
+          </>
+        }
+      >
+        {enableKeysNoteItems(here).map(item => (
+          <div key={item.lead} className="sr-dlg-item">
+            <p className="sr-dlg-lead">{item.lead}</p>
+            <p className="sr-dlg-text">{item.text}</p>
+          </div>
+        ))}
+        <p className="sr-dlg-fine">{ENABLE_KEYS_FINE}</p>
+      </ModalDialog>
+
+      {/* Remove synced keys from iCloud (FR-34): names the two keys by service,
+          never by value; touches no device's local keys. Focus returns to the
+          keys button if still rendered, else to the key switch. */}
+      <ModalDialog
+        open={removeKeysOpen}
+        title={REMOVE_KEYS_TITLE}
+        trigger={() => removeKeysBtnRef.current}
+        fallbackFocus={keySwitchEl}
+        onRequestClose={() => setRemoveKeysOpen(false)}
+        initialFocus="first"
+        actions={
+          <>
+            <button type="button" tabIndex={0} className="sr-btn-quiet sr-touch-target" onClick={() => setRemoveKeysOpen(false)}>{BUTTONS.cancel}</button>
+            <button type="button" tabIndex={0} className="sr-btn-quiet sr-btn-quiet--danger sr-touch-target" onClick={handleRemoveKeys}>{BUTTONS.removeConfirm}</button>
+          </>
+        }
+      >
+        <p className="sr-dlg-text">{removeKeysBody(here)}</p>
+        <p className="sr-dlg-text">{REMOVE_KEYS_OUTRO}</p>
+      </ModalDialog>
     </>
   )
 }
@@ -728,16 +923,29 @@ interface KeyRowProps {
   onCancelEdit: () => void
   onInputChange: (v: string) => void
   onSave: () => void
-  onDelete: () => void
+  // The Clear button hands its own element to the parent, so the key-sync
+  // confirmation can scale in from it and return focus to it afterwards (or
+  // to Update / Add key, which `updateRef` names, once Clear has gone disabled).
+  onDelete: (trigger: HTMLButtonElement) => void
+  updateRef?: React.Ref<HTMLButtonElement>
+  // icloud-api-key-sync: `syncLine` is the platform gate (render the status
+  // region at all); `sync` is the row's current view, null = mounted but empty.
+  syncLine?: boolean
+  sync?: KeySlotView | null
+  onRetry?: () => void
 }
 
 function KeyRow({
   label, sublabel, hint, value, visible, editing, input, saving, error,
   onToggleVisible, onStartEdit, onCancelEdit, onInputChange, onSave, onDelete,
+  updateRef, syncLine = false, sync = null, onRetry,
 }: KeyRowProps) {
   const isSet = value !== null
   const startEditRef = useRef<HTMLButtonElement>(null)
   const wasEditingRef = useRef(editing)
+  // The parent's `updateRef` sees the same button (the key-sync Clear
+  // confirmation returns focus to it once Clear has gone disabled).
+  useImperativeHandle(updateRef, () => startEditRef.current as HTMLButtonElement)
 
   // When the editor closes (Save or Cancel), the focused Save/Cancel button
   // unmounts. Move focus to the Update/Add-key button that replaces it so it
@@ -763,7 +971,10 @@ function KeyRow({
           <div style={{ fontSize: '0.84375rem', fontWeight: 600, color: 'var(--sr-text)' }}>{label}</div>
           {!editing && (
             isSet ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2 }}>
+              // The value line WRAPS (class, not inline): at 320px and 200%
+              // text scale Show / Hide drops under the masked value instead of
+              // being squeezed (icloud-api-key-sync design-spec.md).
+              <div className="sr-key-line">
                 <span style={{
                   fontFamily: 'monospace', letterSpacing: visible ? 'normal' : 2,
                   fontSize: visible ? '0.75rem' : '0.8125rem', color: 'var(--sr-text)',
@@ -787,6 +998,7 @@ function KeyRow({
               <div style={{ fontSize: '0.8125rem', color: 'var(--sr-text-muted)', marginTop: 2 }}>{sublabel}</div>
             )
           )}
+          {syncLine && !editing && <SyncLine view={sync} render={v => <KeySyncContent view={v} onRetry={onRetry} />} />}
         </div>
         </div>
 
@@ -815,7 +1027,7 @@ function KeyRow({
               {isSet ? 'Update' : 'Add key'}
             </button>
             <button tabIndex={0}
-              onClick={onDelete}
+              onClick={e => onDelete(e.currentTarget)}
               disabled={!isSet}
               style={{
                 height: 32, padding: '0 12px',
@@ -1624,9 +1836,13 @@ export function Settings({
   const ics = useICloudState()
   const ebirdUploadRef = useRef<HTMLButtonElement>(null)
   const mlUploadRef = useRef<HTMLButtonElement>(null)
+  const ebirdKeyUpdateRef = useRef<HTMLButtonElement>(null)
+  const openweatherKeyUpdateRef = useRef<HTMLButtonElement>(null)
   // A sync-on Clear awaiting confirmation: which row, and the Clear button
   // that opened it (the dialog scales in from it and returns focus to it).
   const [clearReq, setClearReq] = useState<{ slot: Slot; trigger: HTMLButtonElement } | null>(null)
+  // The same for a key row with the key switch on (icloud-api-key-sync FR-28).
+  const [keyClearReq, setKeyClearReq] = useState<{ slot: KeySlot; trigger: HTMLButtonElement } | null>(null)
 
   // The file rows re-read their metadata whenever a data file changes: a
   // Settings upload here, or an iCloud arrival or synced clear applied by the
@@ -1640,11 +1856,20 @@ export function Settings({
     return () => { cancelled = true }
   }, [filesEpoch])
 
+  // The key rows re-read their values whenever a key changes: a save or clear
+  // here, or a synced key applied or cleared by the iCloud controller
+  // (icloud-api-key-sync FR-23/FR-24). Runs on mount too.
+  const keysEpoch = useKeysEpoch()
   useEffect(() => {
+    void keysEpoch
+    let cancelled = false
     Promise.all([storage.getApiKey('ebird'), storage.getApiKey('openweather')])
-      .then(([ebird, openweather]) => setKeys({ ebird, openweather }))
+      .then(([ebird, openweather]) => { if (!cancelled) setKeys({ ebird, openweather }) })
       .catch(() => {})
+    return () => { cancelled = true }
+  }, [keysEpoch])
 
+  useEffect(() => {
     storage.getSetting<{ lat: number; lng: number; dist: number }>('map-defaults')
       .then(data => {
         if (data) {
@@ -1765,7 +1990,17 @@ export function Settings({
     setSaving(true)
     setError(null)
     try {
-      await storage.setApiKey(slot, input.trim())
+      // On Apple builds the save stamps this device as the key's origin
+      // whenever a device id exists (icloud-api-key-sync FR-12), switch on or
+      // off; label sanitization happens at the push chokepoint, not here.
+      const origin: FileOrigin | undefined = syncGate && ics.deviceId
+        ? {
+            deviceId: ics.deviceId,
+            label: ics.deviceLabel || PLATFORM_WORD[ics.platform ?? 'mac'],
+            platform: ics.platform ?? 'mac',
+          }
+        : undefined
+      await storage.setApiKey(slot, input.trim(), origin)
       // A new eBird key must invalidate live eBird responses cached under the
       // old one (hotspots / recent-obs / region-info), or they'd
       // linger up to the 90s TTL. It also rebuilds the public-hotspot Set — a Set
@@ -1774,6 +2009,10 @@ export function Settings({
       setKeys(prev => ({ ...prev, [slot]: input.trim() }))
       setEditing(false)
       setInput('')
+      // The local save has completed; with the key switch on the controller
+      // shows "Syncing" and pushes it (the upload never delays the local
+      // result, FR-27).
+      if (syncGate && ics.keySyncEnabled) icloudActions.keySaved(slot)
       onKeysSaved?.()
     } catch {
       setError('Could not save key. Please try again.')
@@ -1795,6 +2034,28 @@ export function Settings({
     } catch {
       setError('Could not clear key.')
     }
+  }
+
+  // With the key switch on, Clear reaches other devices (FR-28), so it asks
+  // first; the confirmed action routes through the controller, which removes
+  // the key here, records the marker, and pushes it. With it off, Clear is
+  // today's instant local clear (FR-31).
+  const requestDeleteKey = (slot: KeySlot, trigger: HTMLButtonElement) => {
+    if (syncGate && ics.keySyncEnabled) { setKeyClearReq({ slot, trigger }); return }
+    void handleDeleteKey(slot)
+  }
+
+  const confirmClearKeyWithSync = () => {
+    const req = keyClearReq
+    setKeyClearReq(null)
+    if (!req) return
+    const setError = req.slot === 'ebird' ? setEbirdKeyError : setOpenweatherKeyError
+    const setVisible = req.slot === 'ebird' ? setEbirdKeyVisible : setOpenweatherKeyVisible
+    setError(null)
+    setVisible(false)
+    void icloudActions.clearKeyWithSync(req.slot)
+      .then(() => { setKeys(prev => ({ ...prev, [req.slot]: null })) })
+      .catch(() => { setError('Could not clear key.') })
   }
 
   const startEdit = (slot: 'ebird' | 'openweather') => {
@@ -1936,7 +2197,11 @@ export function Settings({
           onCancelEdit={() => cancelEdit('ebird')}
           onInputChange={setEbirdKeyInput}
           onSave={() => handleSaveKey('ebird')}
-          onDelete={() => handleDeleteKey('ebird')}
+          onDelete={trigger => requestDeleteKey('ebird', trigger)}
+          updateRef={ebirdKeyUpdateRef}
+          syncLine={syncGate}
+          sync={ics.keySlots.ebird}
+          onRetry={() => { void icloudActions.retryKey('ebird') }}
         />
         <div style={{ borderTop: '1px solid var(--sr-border-subtle)' }}>
           <KeyRow
@@ -1955,7 +2220,11 @@ export function Settings({
             onCancelEdit={() => cancelEdit('openweather')}
             onInputChange={setOpenweatherKeyInput}
             onSave={() => handleSaveKey('openweather')}
-            onDelete={() => handleDeleteKey('openweather')}
+            onDelete={trigger => requestDeleteKey('openweather', trigger)}
+            updateRef={openweatherKeyUpdateRef}
+            syncLine={syncGate}
+            sync={ics.keySlots.openweather}
+            onRetry={() => { void icloudActions.retryKey('openweather') }}
           />
         </div>
       </div>
@@ -2186,6 +2455,29 @@ export function Settings({
           <strong>{(clearReq ? status[clearReq.slot]?.filename : null) ?? ''}</strong>
           {clearBody(hereWord(ics.platform))}
         </p>
+      </ModalDialog>
+    )}
+
+    {/* Clear a key with the key switch on (icloud-api-key-sync FR-28): names
+        the service, this device, iCloud and the other sharing devices, never
+        the value. After a confirmed clear the row's Clear is disabled, so
+        focus lands on its Update / Add key. */}
+    {syncGate && (
+      <ModalDialog
+        open={keyClearReq !== null}
+        title={keyClearTitle(keyClearReq?.slot ?? 'ebird')}
+        trigger={() => keyClearReq?.trigger ?? null}
+        fallbackFocus={() => (keyClearReq?.slot === 'openweather' ? openweatherKeyUpdateRef.current : ebirdKeyUpdateRef.current)}
+        onRequestClose={() => setKeyClearReq(null)}
+        initialFocus="first"
+        actions={
+          <>
+            <button type="button" tabIndex={0} className="sr-btn-quiet sr-touch-target" onClick={() => setKeyClearReq(null)}>{BUTTONS.cancel}</button>
+            <button type="button" tabIndex={0} className="sr-btn-quiet sr-btn-quiet--danger sr-touch-target" onClick={confirmClearKeyWithSync}>{BUTTONS.clearConfirm}</button>
+          </>
+        }
+      >
+        <p className="sr-dlg-text">{keyClearBody(keyClearReq?.slot ?? 'ebird', hereWord(ics.platform))}</p>
       </ModalDialog>
     )}
     </>

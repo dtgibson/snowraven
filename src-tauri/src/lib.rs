@@ -98,6 +98,12 @@ pub fn run() {
             icloud::icloud_remove_all,
             #[cfg(any(target_os = "macos", target_os = "ios"))]
             icloud::icloud_watch,
+            #[cfg(any(target_os = "macos", target_os = "ios"))]
+            icloud::icloud_read_keys,
+            #[cfg(any(target_os = "macos", target_os = "ios"))]
+            icloud::icloud_write_keys,
+            #[cfg(any(target_os = "macos", target_os = "ios"))]
+            icloud::icloud_remove_keys,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application")

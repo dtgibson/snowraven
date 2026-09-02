@@ -73,6 +73,12 @@ function makeNative(status: NativeStatus['state'] = 'available') {
       }
       return { removed }
     },
+    // icloud-api-key-sync: the key record does not exist in this file's
+    // scenarios (the key switch is never on here); status-only reads answer
+    // "absent", and the two writers are never reached.
+    async readKeys(mode) { rec('readKeys', mode); return { record: null, status: { present: false, downloaded: false, downloading: false, uploaded: false, uploading: false } } },
+    async writeKeys() { rec('writeKeys'); return { uploaded: true } },
+    async removeKeys() { rec('removeKeys'); return { removed: 0 } },
     async watch(enabled) { rec('watch', enabled) },
     async onChanged(cb) { changed = cb; return () => { changed = null } },
     async onIdentityChanged(cb) { identity = cb; return () => { identity = null } },
@@ -119,6 +125,12 @@ function makeStorage(meta: FilesStatus = { ebird: null, ml: null }) {
       files[name] = { ...cur, origin }
       return true
     },
+    // icloud-api-key-sync: no keys in this file's scenarios.
+    async getApiKeyEntries() { return { ebird: null, openweather: null } },
+    async clearApiKeyWithMarker() {},
+    async applySyncedKey() { return false },
+    async applySyncedKeyClear() { return false },
+    async stampApiKeyEntry() { return false },
   }
   return { storage, settings, files, csv }
 }
@@ -133,6 +145,9 @@ function makeDeps(native: ICloudNativeLayer, storage: ControllerDeps['storage'])
     invalidate,
     notifyFilesChanged,
     subscribeFilesChanged: (cb) => { subscribers.add(cb); return () => { subscribers.delete(cb) } },
+    invalidateKey: () => {},
+    notifyKeysChanged: () => {},
+    subscribeKeysChanged: () => () => {},
     now: () => clock,
     mintDeviceId: () => ME,
     view: null,

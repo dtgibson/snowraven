@@ -4,6 +4,7 @@
 // `@tauri-apps/api` onto the entry chunk. No runtime import of anything.
 
 import type { OriginPlatform, RecordOrigin, Slot } from './icloudRecord'
+import type { KeySlot, SharedKeyEntry } from './keyRecord'
 
 /** The closed error union every native failure maps to (no Apple text). */
 export type ICloudError =
@@ -75,8 +76,37 @@ export interface NativePushResult {
   uploaded: boolean
 }
 
+// ── The shared key record (icloud-api-key-sync; schema.md "Native layer additions") ──
+
+/** The four ubiquity flags of the key record, the same shape a csv reports. */
+export interface NativeKeyRecordStatus {
+  present: boolean
+  downloaded: boolean
+  downloading: boolean
+  uploaded: boolean
+  uploading: boolean
+}
+
+/** 'status' = existence only (what FR-36 permits with the key switch off); 'record' = the raw text too. */
+export type NativeKeysReadMode = 'status' | 'record'
+
+export interface NativeKeysRead {
+  /** the raw record text, only in 'record' mode; null when absent (or in 'status' mode) */
+  record: string | null
+  status: NativeKeyRecordStatus
+}
+
+/** What the controller hands the native writer per slot: an already-sanitized entry. */
+export type KeyEntryInput = SharedKeyEntry
+export type KeySlotsInput = Partial<Record<KeySlot, KeyEntryInput>>
+
+export interface NativeKeysWriteResult {
+  /** whether iCloud already holds the record just written (see NativeFileStatus.uploaded) */
+  uploaded: boolean
+}
+
 /**
- * The seven commands and two events, as the controller sees them. The real
+ * The commands and two events, as the controller sees them. The real
  * implementation is icloudNative.ts; tests inject a fake.
  */
 export interface ICloudNativeLayer {
@@ -87,6 +117,12 @@ export interface ICloudNativeLayer {
   pull(slot: Slot, expectedSha256: string, expectedByteLength: number): Promise<void>
   startDownload(slot: Slot): Promise<void>
   removeAll(): Promise<{ removed: number }>
+  /** icloud-api-key-sync: the key record's status (and text in 'record' mode). */
+  readKeys(mode: NativeKeysReadMode): Promise<NativeKeysRead>
+  /** Write the whole key record atomically; the value is used only to build it. */
+  writeKeys(deviceId: string, slots: KeySlotsInput): Promise<NativeKeysWriteResult>
+  /** Delete the key record (and any key staging entry), never a csv or a file record. */
+  removeKeys(): Promise<{ removed: number }>
   watch(enabled: boolean): Promise<void>
   onChanged(cb: () => void): Promise<() => void>
   onIdentityChanged(cb: () => void): Promise<() => void>

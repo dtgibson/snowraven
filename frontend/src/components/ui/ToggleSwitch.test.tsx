@@ -62,4 +62,33 @@ describe('ToggleSwitch', () => {
     fireEvent.click(btn)
     expect(onChange).toHaveBeenCalledTimes(1)
   })
+
+  // icloud-api-key-sync FR-02: the aria-disabled mode keeps the switch
+  // focusable (so an associated reason is read in place), announces
+  // aria-disabled, ignores activation, and takes the disabled look.
+  it('ariaDisabled keeps the switch focusable, announces aria-disabled, and ignores activation', () => {
+    const onChange = vi.fn()
+    render(<ToggleSwitch label="Sync API keys" labelVisible={false} bare ariaDisabled checked={false} onChange={onChange} />)
+    const btn = screen.getByRole('switch', { name: 'Sync API keys' }) as HTMLButtonElement
+    expect(btn.getAttribute('aria-disabled')).toBe('true')
+    expect(btn.disabled).toBe(false)
+    expect(btn.tabIndex).toBe(0)
+    btn.focus()
+    expect(document.activeElement).toBe(btn)
+    fireEvent.click(btn)
+    fireEvent.keyDown(btn, { key: 'Enter' })
+    expect(onChange).not.toHaveBeenCalled()
+    expect(btn.style.cursor).toBe('not-allowed')
+    expect(btn.style.opacity).toBe('0.72')
+    expect(btn.style.transition).toContain('opacity')
+  })
+
+  it('without ariaDisabled the bare switch carries no aria-disabled and activates', () => {
+    const onChange = vi.fn()
+    render(<ToggleSwitch label="Sync API keys" labelVisible={false} bare checked={false} onChange={onChange} />)
+    const btn = screen.getByRole('switch', { name: 'Sync API keys' })
+    expect(btn.hasAttribute('aria-disabled')).toBe(false)
+    fireEvent.click(btn)
+    expect(onChange).toHaveBeenCalledTimes(1)
+  })
 })

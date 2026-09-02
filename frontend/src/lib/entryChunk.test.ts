@@ -347,6 +347,22 @@ describe('entry-chunk exclusion (NFR-03 / QA-30)', () => {
     expect([...wrapper.externals]).toContain('@tauri-apps/api/core')
   })
 
+  // ── iCloud API key sync (icloud-api-key-sync NFR-08 / QA-47): the entry
+  // graph may carry the store, the platform gate, the copy, the record
+  // types/bounds and the keys epoch; the pure RECONCILE table is
+  // controller-only (proving the logic did not leak into Settings), and the
+  // controller and wrapper stay off as before.
+  it('the keys epoch and the key record module ARE on the entry graph; the key reconcile table is NOT', () => {
+    expect(has('lib/keysChanged.ts')).toBe(true)
+    expect(has('lib/useKeysEpoch.ts')).toBe(true)
+    expect(has('lib/icloud/keyRecord.ts')).toBe(true)
+    expect(has('lib/icloud/keyReconcile.ts')).toBe(false)
+    // And the controller (off the graph) really is what reaches the table.
+    const ctrl = closureFrom(resolve(SRC, 'lib/icloud/icloudSync.ts'))
+    expect(hasIn(ctrl.files, 'lib/icloud/keyReconcile.ts')).toBe(true)
+    expect(hasIn(ctrl.files, 'lib/icloud/keyRecord.ts')).toBe(true)
+  })
+
   it('the App entry actually exists (guards against a broken closure root)', () => {
     expect(files.has(APP)).toBe(true)
     expect(files.size).toBeGreaterThan(20) // a real graph, not an empty/short-circuited one

@@ -34,6 +34,7 @@ import { jumpTo } from '../lib/scroll'
 import { loadEbirdObservations } from '../lib/observationsCache'
 import { loadMLExport } from '../lib/mlExportCache'
 import { useFilesEpoch } from '../lib/useFilesEpoch'
+import { useKeysEpoch } from '../lib/useKeysEpoch'
 import type { MLExportRow } from '../lib/parseMLExport'
 import { normalizeSpeciesName, isNonCountableForm } from '../lib/speciesUtils'
 import { COUNT_FORMS_TOGGLE_LABEL } from '../lib/countabilityCopy'
@@ -244,13 +245,18 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
 
   // Is an eBird key configured? One of the three auto-start conditions for the
   // exotic-provenance pass (the other two are online and a non-fresh cache).
+  // Re-read on every key epoch (a Settings save, or a synced key applied or
+  // cleared by the iCloud controller), so the missing-key behaviour tracks the
+  // key without a relaunch (icloud-api-key-sync FR-24). It was mount-only before.
+  const keysEpoch = useKeysEpoch()
   useEffect(() => {
+    void keysEpoch
     let cancelled = false
     storage.getApiKey('ebird')
       .then(k => { if (!cancelled) setHasEbirdKey(!!k) })
       .catch(() => { if (!cancelled) setHasEbirdKey(false) })
     return () => { cancelled = true }
-  }, [])
+  }, [keysEpoch])
 
   const online = useOnline()
 

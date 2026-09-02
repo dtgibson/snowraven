@@ -134,6 +134,32 @@ export function isPlausibleTime(v: unknown, nowMs: number): v is string {
   return t >= MIN_TIME && t <= nowMs + MAX_FUTURE_MS
 }
 
+/**
+ * The WRITERS' time shape: exactly what `Date.prototype.toISOString` emits
+ * for the years 0000 to 9999 (24 printable ASCII code units). Explicit ASCII
+ * classes, per the twinned-guard rule; the Rust twin checks the same byte
+ * layout (`parse_iso_time_ms` in src-tauri/src/icloud.rs).
+ */
+export const ISO_TIME_LEN = 24
+export const ISO_TIME_RE = /^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{3}Z$/
+
+/**
+ * A time as the two write chokepoints accept it, and they accept exactly the
+ * same set (icloudPaths.parity.test.ts pins both): the canonical ISO shape
+ * above, a real calendar instant (the round trip through Date is byte-equal,
+ * so a February 30th or a 24:00 is refused, as the Rust field check refuses
+ * them), and inside the reader's plausibility window. Deliberately STRICTER
+ * than isPlausibleTime: the reader stays lenient so a peer's odd but
+ * parseable time can still be compared, while a writer never emits one and
+ * never re-writes one it read (security fix round, Findings 1 and 2).
+ */
+export function isWritableTime(v: unknown, nowMs: number): v is string {
+  if (typeof v !== 'string' || v.length !== ISO_TIME_LEN || !ISO_TIME_RE.test(v)) return false
+  const t = Date.parse(v)
+  if (!Number.isFinite(t) || new Date(t).toISOString() !== v) return false
+  return t >= MIN_TIME && t <= nowMs + MAX_FUTURE_MS
+}
+
 function validOrigin(v: unknown): RecordOrigin | null {
   if (!isRecord(v)) return null
   const { deviceId, label, platform } = v

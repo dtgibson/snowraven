@@ -45,7 +45,7 @@
       <a class="brand" href="#top" aria-label="SnowRaven home">
         <img class="brand-mark" src="assets/logo.svg" alt="" width="28" height="28" />
         <span class="brand-name">Snow<span class="brand-accent">Raven</span></span>
-        <span class="version-pill" aria-label="Version 1.0.11">v1.0.11</span>
+        <span class="version-pill" aria-label="Version 1.0.12">v1.0.12</span>
       </a>
 
       <nav class="primary-nav" aria-label="Primary">
@@ -127,7 +127,9 @@
           <p>
             SnowRaven has no account, no analytics, no telemetry, and no server we operate.
             Your eBird backup, Macaulay Library export, settings, and API keys never leave
-            your computer. When you ask for data, it talks directly to the services it
+            your computer, unless you turn on the optional iCloud Sync on a Mac, iPhone or iPad,
+            which copies the two files, and your API keys only with its separate Sync API keys
+            switch, into your own iCloud account and nowhere else. When you ask for data, it talks directly to the services it
             draws from: eBird and OpenWeather with your own keys, plus keyless sources
             (OpenStreetMap, map tiles, NOAA tides, and the Cornell Lab sites that bird-link
             icons and, while enabled, embedded Macaulay media load from). There is no SnowRaven server in the middle.
@@ -149,7 +151,7 @@
           </li>
           <li>
             <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
-            <div><strong>Keys &amp; data stay local</strong><span>Your files and API keys live on your machine.</span></div>
+            <div><strong>Keys &amp; data stay local</strong><span>Your files and API keys live on your machine; syncing either through iCloud is your own opt-in, into your own account.</span></div>
           </li>
           <li>
             <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12a7 7 0 0 1 14 0"/><rect x="3" y="12" width="18" height="8" rx="2"/><path d="M12 16v1"/></svg>
@@ -562,7 +564,9 @@
               (a free export of your data) and an optional Macaulay Library export. They stay on your device.
               On a Mac, iPhone or iPad, an optional iCloud Sync switch in Settings (off by default)
               keeps those two files the same across your own Apple devices through your own iCloud
-              account, so an export uploaded once is used everywhere; nothing else is synced.
+              account, so an export uploaded once is used everywhere. A second switch, also off by
+              default, can share your two API keys the same way, so a key entered once is used on
+              every device that turns it on. Settings and caches are never synced.
             </p>
             <p class="req-note">Already installed? Desktop apps update from <strong>Check For Updates</strong> in the footer; self-hosted installs run <code>./update.sh</code>.</p>
           </aside>
@@ -607,7 +611,7 @@
         Tides from NOAA Tides &amp; Currents. The weather lookup mirrors the format pioneered by
         <a href="https://raincrow.app" target="_blank" rel="noopener">raincrow.app</a>.
       </p>
-      <p class="footer-version">SnowRaven v1.0.11 · Free &amp; open source</p>
+      <p class="footer-version">SnowRaven v1.0.12 · Free &amp; open source</p>
     </div>
   </footer>
 </body>

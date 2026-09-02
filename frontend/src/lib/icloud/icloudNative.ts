@@ -1,4 +1,4 @@
-// Typed wrappers over the seven native commands and two events in
+// Typed wrappers over the native commands and two events in
 // src-tauri/src/icloud.rs (icloud-sync; schema.md "Native layer"). This file
 // is NEVER on the entry graph: it imports @tauri-apps/api statically and is
 // reached only through the dynamic-imported controller (entryChunk.test.ts).
@@ -10,10 +10,15 @@ import type { Slot } from './icloudRecord'
 import {
   toICloudError,
   type ICloudNativeLayer,
+  type NativeKeysRead,
+  type NativeKeysWriteResult,
   type NativePushResult,
   type NativeRecordRead,
   type NativeStatus,
 } from './icloudNativeTypes'
+
+/** The key record's fixed name; pinned to `KEYS_RECORD_NAME` in icloud.rs by the parity test. */
+export { KEYS_RECORD_NAME } from './keyRecord'
 
 /** Pinned to `ICLOUD_CONTAINER_ID` in icloud.rs by icloudPaths.parity.test.ts. */
 export const ICLOUD_CONTAINER_ID = 'iCloud.com.dtgibson.snowraven'
@@ -45,6 +50,9 @@ export const icloudNative: ICloudNativeLayer = {
     call<void>('icloud_pull', { slot, expectedSha256, expectedByteLength }),
   startDownload: (slot) => call<void>('icloud_start_download', { slot }),
   removeAll: () => call<{ removed: number }>('icloud_remove_all'),
+  readKeys: (mode) => call<NativeKeysRead>('icloud_read_keys', { mode }),
+  writeKeys: (deviceId, slots) => call<NativeKeysWriteResult>('icloud_write_keys', { deviceId, slots }),
+  removeKeys: () => call<{ removed: number }>('icloud_remove_keys'),
   watch: (enabled) => call<void>('icloud_watch', { enabled }),
   onChanged: (cb) => listen(ICLOUD_CHANGED_EVENT, () => cb()),
   onIdentityChanged: (cb) => listen(ICLOUD_IDENTITY_EVENT, () => cb()),

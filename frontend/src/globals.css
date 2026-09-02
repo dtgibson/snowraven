@@ -2677,6 +2677,23 @@ h1, h2, h3, h4, h5, h6 {
 .sr-ics-status-row--empty { padding: 0; border-top: 0; }
 .sr-ics-status { font-size: 0.75rem; color: var(--sr-text-muted); line-height: 1.45; }
 
+/* icloud-api-key-sync: the key switch row is a sub-option of the section,
+   so its visible label is the dialog-lead register (0.8125/600), not the
+   row-title register; the section header stays the loudest thing in the
+   card. Two Remove controls share one wrapping row, each naming only what it
+   removes (the phone tier's .sr-ics-remove-row .sr-btn-quiet rule stacks
+   both full width); the pending line sits under them, wired to the keys
+   button by aria-describedby. */
+.sr-ics-key-label { margin: 0 0 2px; font-size: 0.8125rem; font-weight: 600; color: var(--sr-text); line-height: 1.4; }
+.sr-ics-remove-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.sr-ics-pending { margin: 8px 0 0; font-size: 0.75rem; color: var(--sr-text-muted); line-height: 1.5; }
+
+/* The API Keys rows' value line now wraps (icloud-api-key-sync): at 320px
+   and 200% text scale Show / Hide drops under the masked value instead of
+   being squeezed; the value keeps its own max-width + ellipsis + nowrap.
+   Same fix, same reason as .sr-file-line. */
+.sr-key-line { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; margin-top: 2px; min-width: 0; }
+
 /* Dialog shell: scrim + panel. The panel scales in from the trigger (the
    component sets transform-origin) and closes a touch faster. */
 .sr-dlg-root {
@@ -2712,6 +2729,9 @@ h1, h2, h3, h4, h5, h6 {
 .sr-dlg-files li { overflow-wrap: anywhere; }
 .sr-dlg-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; padding: 8px 18px 16px; }
 .sr-dlg-actions > * { min-width: 96px; }
+/* The enable note's closing line (icloud-api-key-sync): one quiet promise
+   under a hairline, in the dialog's own register; no new token or size. */
+.sr-dlg-fine { margin: 2px 0 8px; padding-top: 10px; border-top: 1px solid var(--sr-border-subtle); font-size: 0.75rem; color: var(--sr-text-muted); line-height: 1.5; }
 
 .sr-map-sidebar-close {
   display: none;

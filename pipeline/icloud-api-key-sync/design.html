@@ -1,0 +1,1299 @@
+<title>iCloud API Key Sync Mockup</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  /* ================================================================
+     SnowRaven design tokens (verbatim subset of frontend/src/globals.css,
+     both themes) so the mockup renders as SnowRaven, not a generic app.
+     ================================================================ */
+  :root {
+    --sr-text-scale: 1;
+
+    --sr-bg: #F9FAFB;
+    --sr-surface: #FFFFFF;
+    --sr-surface-subtle: #F4F4F5;
+    --sr-surface-faint: #FAFAFA;
+
+    --sr-text: #0F1117;
+    --sr-text-muted: #6B6B74;
+    --sr-text-disabled: #A1A1AA;
+
+    --sr-border: #E4E4E7;
+    --sr-border-subtle: #F4F4F5;
+    --sr-border-medium: #C4C4CE;
+
+    --sr-accent: #277448;
+    --sr-accent-strong: #1A5C38;
+    --sr-accent-bg: #E8F5EE;
+    --sr-accent-bg-hover: #F0FAF4;
+    --sr-accent-border: rgba(39,116,72,0.25);
+    --sr-on-accent: #FFFFFF;
+
+    --sr-error: #D31F1F;
+    --sr-error-bg: #FEF2F2;
+    --sr-error-border: #FECACA;
+
+    --sr-gray-400: #8E8E96;
+    /* Shadows are the app's own ink at an alpha (design-system.md), never
+       pure black. */
+    --sr-card-shadow: 0 1px 4px rgba(15,17,23,0.06), 0 4px 16px rgba(15,17,23,0.04);
+    --sr-switch-thumb: #FFFFFF;
+    --sr-switch-thumb-shadow: 0 1px 2px rgba(15,17,23,0.25);
+    --sr-scrim: rgba(15,17,23,0.36);
+
+    /* Same stack as globals.css --font-sans (the app's shipped type;
+       design-system.md fixes it, so the mockup does not restyle it). */
+    --font-sans: 'Inter', BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif;
+    --font-mono: ui-monospace, 'SF Mono', 'Cascadia Mono', Menlo, monospace;
+  }
+  [data-theme="dark"] {
+    --sr-bg: #09090B;
+    --sr-surface: #18181B;
+    --sr-surface-subtle: #27272A;
+    --sr-surface-faint: #1C1C1F;
+
+    --sr-text: #F4F4F5;
+    --sr-text-muted: #A1A1AA;
+    --sr-text-disabled: #52525B;
+
+    --sr-border: #27272A;
+    --sr-border-subtle: #1F1F23;
+    --sr-border-medium: #3F3F46;
+
+    --sr-accent: #34D399;
+    --sr-accent-strong: #34D399;
+    --sr-accent-bg: #052E16;
+    --sr-accent-bg-hover: #064E3B;
+    --sr-accent-border: rgba(52,211,153,0.2);
+    --sr-on-accent: #052E16;
+
+    --sr-error: #F87171;
+    --sr-error-bg: #1C0505;
+    --sr-error-border: #7F1D1D;
+
+    --sr-gray-400: #6E6E78;
+    --sr-card-shadow: 0 1px 4px rgba(9,9,11,0.4), 0 4px 16px rgba(9,9,11,0.25);
+    --sr-scrim: rgba(9,9,11,0.6);
+  }
+
+  html { font-size: calc(16px * var(--sr-text-scale)); }
+  body {
+    margin: 0;
+    background: var(--sr-bg);
+    color: var(--sr-text);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  * { box-sizing: border-box; }
+  button { font-family: inherit; }
+  [hidden] { display: none !important; }
+  .sr-only {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+  }
+  /* The app's global focus ring (globals.css): 3px accent outline, offset 3,
+     soft accent halo. */
+  button:focus-visible, [role="switch"]:focus-visible, [tabindex]:focus-visible {
+    outline: 3px solid var(--sr-accent); outline-offset: 3px;
+    box-shadow: 0 0 0 6px rgba(45,134,83,0.12);
+  }
+
+  /* ================================================================
+     Mockup review chrome (NOT part of the app)
+     ================================================================ */
+  .mock-toolbar {
+    position: sticky; top: 0; z-index: 10;
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    padding: 10px 16px;
+    background: var(--sr-surface);
+    border-bottom: 1px solid var(--sr-border);
+    box-shadow: var(--sr-card-shadow);
+    font-size: 0.75rem;
+  }
+  .mock-toolbar .mock-title { font-weight: 700; font-size: 0.75rem; letter-spacing: 0.02em; }
+  .mock-toolbar .mock-title span { color: var(--sr-text-muted); font-weight: 500; }
+  .mock-group { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+  .mock-group > span { color: var(--sr-text-muted); font-weight: 600; font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.06em; }
+  .mock-btn {
+    height: 26px; padding: 0 10px; border-radius: 6px; cursor: pointer;
+    border: 1.5px solid var(--sr-border); background: var(--sr-surface-subtle);
+    color: var(--sr-text-muted); font-size: 0.71875rem; font-weight: 500;
+    transition: background 0.12s ease-out, color 0.12s ease-out, border-color 0.12s ease-out;
+  }
+  .mock-btn[aria-pressed="true"] {
+    border-color: var(--sr-accent-border); background: var(--sr-accent-bg);
+    color: var(--sr-accent); font-weight: 600;
+  }
+  /* The state strip: dashed so it reads as review scaffolding, not app. */
+  .mock-states {
+    display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+    padding: 8px 16px 10px;
+    border-bottom: 1px dashed var(--sr-border-medium);
+    background: var(--sr-surface-faint);
+    font-size: 0.75rem;
+  }
+  .mock-states > span { color: var(--sr-text-muted); font-weight: 600; font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.06em; margin-right: 4px; }
+  .mock-states .mock-btn.nav { min-width: 30px; padding: 0 8px; font-weight: 700; }
+
+  /* ================================================================
+     Simulated app viewport
+     ================================================================ */
+  .stage { display: flex; flex-direction: column; align-items: center; padding: 28px 16px 60px; }
+  .frame {
+    position: relative;
+    width: min(100%, 980px);
+    background: var(--sr-bg);
+    border: 1px solid var(--sr-border-medium);
+    border-radius: 12px;
+    overflow: hidden;
+    transition: width 0.18s ease-out;
+  }
+  /* 641px: the desktop tier at its narrowest (one pixel above the 640 phone
+     boundary), so the un-stacked layout is reviewed where it is tightest. */
+  .frame[data-device="narrow"] { width: min(100%, 641px); }
+  .frame[data-device="se"] { width: 320px; border-radius: 18px; }
+  .frame[data-phone] .app-header { padding-top: 26px; }
+
+  .app-header { display: flex; align-items: center; gap: 10px; padding: 12px 20px 0; background: var(--sr-bg); }
+  .app-wordmark { font-size: 1.0625rem; font-weight: 700; letter-spacing: -0.01em; color: var(--sr-text); }
+  .app-wordmark .accent { color: var(--sr-accent); }
+  .app-tabs {
+    display: flex; align-items: center; gap: 2px; flex-wrap: wrap;
+    padding: 8px 12px 0; border-bottom: 1px solid var(--sr-border); background: var(--sr-bg);
+  }
+  .app-tab {
+    padding: 7px 10px 9px; border: none; background: none; cursor: default;
+    font-size: 0.78125rem; font-weight: 500; color: var(--sr-text-muted);
+    border-bottom: 2px solid transparent; margin-bottom: -1px;
+  }
+  .app-tab[aria-current="page"] { color: var(--sr-accent); font-weight: 600; border-bottom-color: var(--sr-accent); }
+  .frame[data-phone] .app-tab.hide-narrow { display: none; }
+  .app-tab.more-narrow { display: none; }
+  .frame[data-phone] .app-tab.more-narrow { display: inline-block; }
+
+  /* Settings panel: real geometry (padding 40px 24px 24px; max-width 680). */
+  .settings-scroll { padding: 40px 24px 24px; }
+  .frame[data-phone] .settings-scroll { padding: 28px 12px 20px; }
+  .panel { width: 100%; max-width: 680px; margin: 0 auto; }
+
+  /* ---- Section vocabulary (SectionHeader + cards), verbatim shapes ---- */
+  .sec-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .sec-header > span {
+    font-size: 0.6875rem; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.07em; color: var(--sr-text-muted);
+  }
+  .sec-header > i { flex: 1; height: 1px; background: var(--sr-border); }
+  .card {
+    border: 1px solid var(--sr-border); border-radius: 10px;
+    background: var(--sr-surface); overflow: hidden; margin-bottom: 24px;
+  }
+  .body-note { font-size: 0.75rem; color: var(--sr-text-muted); margin: 0 0 10px; line-height: 1.5; }
+  .row-desc { font-size: 0.8125rem; color: var(--sr-text-muted); line-height: 1.5; margin-top: 2px; }
+  .row-title { font-size: 0.84375rem; font-weight: 600; color: var(--sr-text); }
+  .row-text { flex: 1; min-width: 0; }
+  .sr-min0 { min-width: 0; }
+  .ellipsis-note { font-size: 0.75rem; color: var(--sr-text-muted); line-height: 1.5; margin: 0 0 24px; }
+
+  /* Action row (the FileRow / KeyRow shape: icon tile, title, meta, trailing actions). */
+  .action-row {
+    display: flex; align-items: center; justify-content: space-between;
+    flex-wrap: wrap; gap: 8px 12px; min-width: 0; padding: 14px 16px;
+  }
+  .action-row .lead { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; }
+  .icon-tile {
+    width: 38px; height: 38px; border-radius: 9px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.16s ease-out, color 0.16s ease-out;
+  }
+  .icon-tile.accent { background: var(--sr-accent-bg); color: var(--sr-accent); }
+  .icon-tile.neutral { background: var(--sr-surface-subtle); color: var(--sr-text-disabled); }
+  .file-line { display: flex; align-items: center; flex-wrap: wrap; gap: 2px 6px; margin-top: 2px; min-width: 0; }
+  .file-name {
+    font-size: 0.8125rem; font-weight: 500; color: var(--sr-text);
+    max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .file-saved { font-size: 0.75rem; color: var(--sr-text-muted); }
+  .row-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; flex-wrap: wrap; }
+  .pill {
+    display: inline-flex; align-items: center; height: 24px; padding: 0 10px;
+    background: var(--sr-surface-subtle); border-radius: 12px;
+    font-size: 0.6875rem; font-weight: 500; color: var(--sr-text-muted); white-space: nowrap;
+  }
+  /* The key row's value line (the shipped KeyRow, allowed to wrap so Show can
+     drop below the masked value at 320px and 200% text). */
+  .key-line { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; margin-top: 2px; min-width: 0; }
+  .key-value {
+    font-family: var(--font-mono); font-size: 0.8125rem; letter-spacing: 2px; color: var(--sr-text);
+    max-width: 220px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .key-value.is-visible { font-size: 0.75rem; letter-spacing: normal; }
+  .link-quiet { background: none; border: none; padding: 0; font-size: 0.75rem; font-weight: 500; color: var(--sr-accent); cursor: pointer; flex-shrink: 0; }
+
+  /* Buttons: the three shipped registers in this tab. */
+  .btn-quiet {
+    height: 32px; padding: 0 12px;
+    border: 1.5px solid var(--sr-border); background: var(--sr-surface); color: var(--sr-text);
+    border-radius: 6px; font-size: 0.75rem; font-weight: 500; cursor: pointer; white-space: nowrap;
+    display: inline-flex; align-items: center; justify-content: center;
+    transition: border-color 0.12s ease-out, background 0.12s ease-out, color 0.12s ease-out, opacity 0.12s ease-out;
+  }
+  .btn-quiet:hover { border-color: var(--sr-border-medium); background: var(--sr-surface-subtle); }
+  .btn-quiet.is-accent { border-color: var(--sr-accent-border); background: var(--sr-accent-bg); color: var(--sr-accent); }
+  .btn-quiet.is-accent:hover { background: var(--sr-accent-bg-hover); }
+  .btn-quiet.is-danger { border-color: var(--sr-error-border); background: var(--sr-surface); color: var(--sr-error); }
+  .btn-quiet.is-danger:hover { background: var(--sr-error-bg); }
+  .btn-quiet[disabled] {
+    border-color: var(--sr-border); background: var(--sr-surface-subtle); color: var(--sr-text-disabled);
+    cursor: not-allowed;
+  }
+  .btn-quiet[aria-busy="true"] { opacity: 0.65; cursor: progress; }
+  .btn-accent {
+    height: 32px; padding: 0 14px;
+    background: var(--sr-accent); color: var(--sr-on-accent);
+    border: none; border-radius: 6px;
+    font-size: 0.75rem; font-weight: 600; cursor: pointer; white-space: nowrap;
+    display: inline-flex; align-items: center; justify-content: center;
+    transition: background 0.12s ease-out, box-shadow 0.12s ease-out;
+  }
+  .btn-accent:hover { background: var(--sr-accent-strong); }
+  [data-theme="dark"] .btn-accent:hover { box-shadow: 0 0 0 3px var(--sr-accent-border); }
+  .btn-inline { height: 26px; padding: 0 9px; font-size: 0.71875rem; }
+
+  /* Bare toggle switch (36x20 track, 16px knob), the shipped ToggleSwitch bare
+     variant. `disabled` is the file switch's shipped treatment; `aria-disabled`
+     is the key switch's (still focusable, so its reason can be read). Same look. */
+  .switch {
+    width: 36px; height: 20px; border-radius: 10px; flex-shrink: 0;
+    border: none; cursor: pointer; position: relative; padding: 0;
+    background: var(--sr-gray-400);
+    transition: background 0.15s ease-out, opacity 0.15s ease-out;
+  }
+  .switch[aria-checked="true"] { background: var(--sr-accent); }
+  .switch::after {
+    content: ''; position: absolute; top: 2px; left: 2px;
+    width: 16px; height: 16px; border-radius: 50%;
+    background: var(--sr-switch-thumb); box-shadow: var(--sr-switch-thumb-shadow);
+    transition: transform 0.15s ease-out;
+  }
+  .switch[aria-checked="true"]::after { transform: translateX(16px); }
+  .switch[disabled], .switch[aria-disabled="true"] { opacity: 0.72; cursor: not-allowed; }
+
+  /* Inputs (Default Location, condensed context) */
+  .loc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(7rem, 100%), 1fr)); gap: 8px; margin-bottom: 12px; }
+  .loc-grid label { display: block; font-size: 0.6875rem; font-weight: 600; color: var(--sr-text-muted); margin-bottom: 4px; }
+  .loc-grid input {
+    width: 100%; height: 34px; padding: 0 8px;
+    border: 1.5px solid var(--sr-border); border-radius: 6px;
+    font-size: max(16px, 0.75rem); font-family: var(--font-mono);
+    color: var(--sr-text); background: var(--sr-surface);
+  }
+  .loc-grid input:focus { border-color: var(--sr-accent); outline: none; }
+  .body-row { padding: 14px 16px; }
+
+  /* ================================================================
+     THE SHIPPED FEATURE (1.0.11): per-row sync line + the iCloud Sync section.
+     Verbatim from globals.css (.sr-sync-line, .sr-ics-*), mockup-prefixed.
+     ================================================================ */
+  .sync-line {
+    display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px;
+    margin-top: 5px; font-size: 0.75rem; line-height: 1.45; color: var(--sr-text-muted);
+    transition: opacity 0.16s ease-out;
+  }
+  .sync-line:empty { margin-top: 0; }
+  .sync-line.is-fading { opacity: 0; transition-duration: 0.12s; }
+  .sync-state { display: inline-flex; align-items: center; gap: 5px; font-weight: 600; color: var(--sr-text-muted); white-space: nowrap; }
+  .sync-state svg { flex-shrink: 0; }
+  .sync-state.is-error { color: var(--sr-error); }
+  .sync-sep { color: var(--sr-text-disabled); }
+  .sync-more { min-width: 0; overflow-wrap: anywhere; }
+
+  .ics-row { padding: 14px 16px; }
+  .ics-row + .ics-row { border-top: 1px solid var(--sr-border-subtle); }
+  .ics-toggle-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .ics-desc { margin: 0; font-size: 0.8125rem; color: var(--sr-text-muted); line-height: 1.5; }
+  .ics-note { margin: 6px 0 0; font-size: 0.75rem; color: var(--sr-text); line-height: 1.5; }
+  .ics-status-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 12px; }
+  .ics-status-row.is-empty { padding: 0; border-top: 0; }
+  .ics-status { font-size: 0.75rem; color: var(--sr-text-muted); line-height: 1.45; }
+
+  /* ================================================================
+     THE FEATURE UNDER REVIEW: the key switch row, the second Remove control
+     and its pending line, and the key rows' provenance + state line (which
+     reuses .sync-line unchanged).
+     ================================================================ */
+
+  /* The key switch row: a sub-option of the section, so its visible label is
+     the dialog-lead register (0.8125/600), not the row-title register; the
+     section header stays the loudest thing in the card. Its helper is the same
+     muted description as the file row; its one-line reason, when it is not
+     operable, is the same instruction register as the availability note. */
+  .ics-key-label { margin: 0 0 2px; font-size: 0.8125rem; font-weight: 600; color: var(--sr-text); line-height: 1.4; }
+
+  /* Two Remove controls in one row, each naming only what it removes; they
+     wrap on a narrow desktop and stack full-width on the phone tier. The
+     pending line sits under the keys button and is wired to it by
+     aria-describedby. */
+  .ics-remove-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  .ics-pending { margin: 8px 0 0; font-size: 0.75rem; color: var(--sr-text-muted); line-height: 1.5; }
+
+  /* Confirmations: the app's shipped ModalDialog shell (.sr-dlg-*): surface
+     panel, radius 14, card shadow, 1rem/700 title. It scales in from the
+     control that opened it (transform-origin set from the trigger), ease-out
+     under 200ms, and closes a touch faster. */
+  .dlg-root {
+    position: absolute; inset: 0; z-index: 5;
+    background: var(--sr-scrim);
+    opacity: 0; transition: opacity 0.16s ease-out;
+  }
+  .dlg-root.open { opacity: 1; }
+  .dlg-root.closing { transition-duration: 0.12s; }
+  .dlg {
+    position: absolute; left: 0; right: 0; margin: 0 auto;
+    width: calc(100% - 32px); max-width: 420px; max-height: 80vh; overflow: auto;
+    background: var(--sr-surface); color: var(--sr-text);
+    border: 1px solid var(--sr-border); border-radius: 14px; box-shadow: var(--sr-card-shadow);
+    opacity: 0; transform: scale(0.94);
+    transition: opacity 0.16s ease-out, transform 0.18s cubic-bezier(0.2, 0, 0, 1);
+  }
+  .dlg-root.open .dlg { opacity: 1; transform: none; }
+  .dlg-root.closing .dlg { transition-duration: 0.12s; }
+  .frame[data-phone] .dlg { width: calc(100% - 24px); }
+  .dlg-head { padding: 16px 18px 12px; border-bottom: 1px solid var(--sr-border-subtle); }
+  .dlg-title { margin: 0; font-size: 1rem; font-weight: 700; letter-spacing: -0.01em; line-height: 1.3; }
+  .dlg-body { padding: 14px 18px 4px; }
+  .dlg-item { padding: 0 0 12px; }
+  .dlg-lead { margin: 0 0 2px; font-size: 0.8125rem; font-weight: 600; color: var(--sr-text); }
+  .dlg-text { margin: 0 0 10px; font-size: 0.8125rem; color: var(--sr-text-muted); line-height: 1.55; }
+  .dlg-item .dlg-text { margin: 0; }
+  .dlg-text b { color: var(--sr-text); font-weight: 600; overflow-wrap: anywhere; }
+  .dlg-files { margin: 0 0 12px; padding: 0 0 0 18px; font-size: 0.8125rem; color: var(--sr-text); line-height: 1.6; }
+  .dlg-files li { overflow-wrap: anywhere; }
+  /* The enable note's closing line: the one promise the note makes about
+     itself, in the quietest register so it reads as reassurance, not a rule. */
+  .dlg-fine { margin: 2px 0 8px; padding-top: 10px; border-top: 1px solid var(--sr-border-subtle); font-size: 0.75rem; color: var(--sr-text-muted); line-height: 1.5; }
+  .dlg-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; padding: 8px 18px 16px; }
+  .dlg-actions > * { min-width: 96px; }
+
+  /* Phone tier: stacked rows + touch-target posture (mirrors
+     .sr-action-row-stack at <=480 and .sr-touch-target at <=640; keyed on the
+     frame's device toggle here so the 320px demo works inside a wide window). */
+  .frame[data-phone] .action-row { flex-direction: column; align-items: stretch; }
+  .frame[data-phone] .action-row > *:not(.sr-only) { width: 100%; }
+  .frame[data-phone] .row-actions .btn-quiet { flex: 1 1 auto; }
+  .frame[data-phone] .btn-quiet,
+  .frame[data-phone] .btn-accent { min-height: 2.75rem; height: auto; white-space: normal; }
+  .frame[data-phone] .sync-line .btn-inline { flex: 1 1 100%; }
+  .frame[data-phone] .ics-status-row .btn-quiet { flex: 1 1 100%; }
+  .frame[data-phone] .ics-remove-actions .btn-quiet { width: 100%; }
+  .frame[data-phone] .dlg-actions > * { flex: 1 1 100%; }
+  @media (max-width: 640px) {
+    .action-row { flex-direction: column; align-items: stretch; }
+    .action-row > *:not(.sr-only) { width: 100%; }
+    .row-actions .btn-quiet { flex: 1 1 auto; }
+    .btn-quiet, .btn-accent { min-height: 2.75rem; height: auto; white-space: normal; }
+    .sync-line .btn-inline { flex: 1 1 100%; }
+    .ics-status-row .btn-quiet { flex: 1 1 100%; }
+    .ics-remove-actions .btn-quiet { width: 100%; }
+    .dlg-actions > * { flex: 1 1 100%; }
+  }
+
+  /* ================================================================
+     Designer notes (review chrome, outside the app frame)
+     ================================================================ */
+  .notes {
+    width: min(100%, 980px); margin-top: 22px;
+    border: 1px dashed var(--sr-border-medium); border-radius: 10px;
+    padding: 16px 18px; background: var(--sr-surface);
+    font-size: 0.75rem; line-height: 1.6; color: var(--sr-text-muted);
+  }
+  .notes h2 { font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--sr-text-muted); margin: 0 0 8px; }
+  .notes ul { margin: 0; padding-left: 18px; }
+  .notes li { margin-bottom: 5px; }
+  .notes b { color: var(--sr-text); font-weight: 600; }
+
+  /* Reduced motion: the app's global rule shortens transitions toward zero
+     rather than removing them (transitionend still fires); mirrored here. */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      transition-duration: 0.01s !important;
+      transition-delay: 0s !important;
+      transition-timing-function: linear !important;
+    }
+  }
+</style>
+
+<!-- ══════════════ Mockup review chrome (not part of the app) ══════════════ -->
+<div class="mock-toolbar">
+  <div class="mock-title">Settings · iCloud Sync · API keys <span>design mockup</span></div>
+  <div class="mock-group" role="group" aria-label="Theme">
+    <span>Theme</span>
+    <button class="mock-btn" id="tb-system" aria-pressed="true" onclick="setTheme('system')">System</button>
+    <button class="mock-btn" id="tb-light" aria-pressed="false" onclick="setTheme('light')">Light</button>
+    <button class="mock-btn" id="tb-dark" aria-pressed="false" onclick="setTheme('dark')">Dark</button>
+  </div>
+  <div class="mock-group" role="group" aria-label="Width">
+    <span>Width</span>
+    <button class="mock-btn" id="dv-mac" aria-pressed="true" onclick="setDevice('mac')">Mac</button>
+    <button class="mock-btn" id="dv-narrow" aria-pressed="false" onclick="setDevice('narrow')">641px</button>
+    <button class="mock-btn" id="dv-se" aria-pressed="false" onclick="setDevice('se')">320px</button>
+  </div>
+  <div class="mock-group" role="group" aria-label="Text scale">
+    <span>Text</span>
+    <button class="mock-btn tb-scale" data-scale="1" aria-pressed="true" onclick="setScale(1)">100%</button>
+    <button class="mock-btn tb-scale" data-scale="2" aria-pressed="false" onclick="setScale(2)">200%</button>
+  </div>
+</div>
+<div class="mock-states" role="group" aria-label="Mockup state" id="stateStrip">
+  <span>Mockup state</span>
+  <button class="mock-btn nav" onclick="stepScenario(-1)" aria-label="Previous state">&larr;</button>
+  <button class="mock-btn nav" onclick="stepScenario(1)" aria-label="Next state">&rarr;</button>
+  <!-- scenario buttons are generated -->
+</div>
+
+<div class="stage">
+  <!-- ══════════════ Simulated SnowRaven viewport ══════════════ -->
+  <div class="frame" id="frame" data-device="mac">
+
+    <div class="app-header">
+      <div class="app-wordmark"><span class="accent">Snow</span>Raven</div>
+    </div>
+    <nav class="app-tabs" aria-label="Tabs (illustrative)">
+      <button class="app-tab">Statistics</button>
+      <button class="app-tab hide-narrow">Map Explorer</button>
+      <button class="app-tab hide-narrow">Species Detail</button>
+      <button class="app-tab hide-narrow">Multimedia</button>
+      <button class="app-tab hide-narrow">Breeding Codes</button>
+      <button class="app-tab hide-narrow">Checklists</button>
+      <button class="app-tab hide-narrow">Calendar</button>
+      <button class="app-tab hide-narrow">Weather</button>
+      <button class="app-tab more-narrow">More &#9662;</button>
+      <button class="app-tab" aria-current="page">Settings</button>
+    </nav>
+
+    <div class="settings-scroll">
+      <div class="panel">
+
+        <p class="ellipsis-note">&hellip; Help &amp; Documentation, Appearance and Sharing sit above, unchanged and abbreviated here.</p>
+
+        <!-- ════════════════════════════════════════════════════════════
+             API Keys (existing rows). The addition is one line under the
+             masked value, in exactly the Default Files sync-line shape:
+             [glyph] state · provenance [Retry]. Nothing else in the row moves.
+             ════════════════════════════════════════════════════════════ -->
+        <div class="sec-header"><span>API Keys</span><i></i></div>
+        <div class="card" id="keysCard" style="margin-bottom: 8px;">
+          <div class="action-row key-row" id="key-ebird">
+            <div class="lead sr-min0">
+              <div class="icon-tile accent" data-part="tile"></div>
+              <div class="row-text">
+                <div class="row-title">eBird API Key</div>
+                <div data-part="meta"></div>
+                <div class="sync-line" role="status" data-part="sync"></div>
+              </div>
+            </div>
+            <div class="row-actions" data-part="actions"></div>
+          </div>
+          <div style="border-top: 1px solid var(--sr-border-subtle);">
+            <div class="action-row key-row" id="key-openweather">
+              <div class="lead sr-min0">
+                <div class="icon-tile accent" data-part="tile"></div>
+                <div class="row-text">
+                  <div class="row-title">OpenWeather API Key</div>
+                  <div data-part="meta"></div>
+                  <div class="sync-line" role="status" data-part="sync"></div>
+                </div>
+              </div>
+              <div class="row-actions" data-part="actions"></div>
+            </div>
+          </div>
+        </div>
+        <p class="body-note" style="margin: 0 0 24px;">Keys are stored in this app's local data directory and take effect immediately; no restart needed.</p>
+
+        <!-- ════════ Default Files (shipped 1.0.11 rows with their sync line; condensed) ════════ -->
+        <div class="sec-header"><span>Default Files</span><i></i></div>
+        <div class="card" id="filesCard" style="margin-bottom: 10px;">
+          <div class="action-row file-row" id="row-ebird">
+            <div class="lead sr-min0">
+              <div class="icon-tile accent" data-part="tile"></div>
+              <div class="row-text">
+                <div class="row-title">eBird Backup</div>
+                <div data-part="meta"></div>
+                <div class="sync-line" role="status" data-part="sync"></div>
+              </div>
+            </div>
+            <div class="row-actions" data-part="actions"></div>
+          </div>
+          <div style="border-top: 1px solid var(--sr-border-subtle);">
+            <div class="action-row file-row" id="row-ml">
+              <div class="lead sr-min0">
+                <div class="icon-tile accent" data-part="tile"></div>
+                <div class="row-text">
+                  <div class="row-title">ML Export</div>
+                  <div data-part="meta"></div>
+                  <div class="sync-line" role="status" data-part="sync"></div>
+                </div>
+              </div>
+              <div class="row-actions" data-part="actions"></div>
+            </div>
+          </div>
+        </div>
+        <p class="body-note" style="margin: 0 0 24px;">Files are stored in this app's local data directory and load automatically when you open the relevant tab.</p>
+
+        <!-- ════════════════════════════════════════════════════════════
+             iCloud Sync (shipped section), grown by one switch.
+             Row 1: the file switch, as shipped.
+             Row 2 (NEW): "Sync API keys", its helper, and its one-line reason
+                    while it cannot be operated.
+             Row 3: the status row, as shipped (one check covers both passes).
+             Row 4: the Remove controls, now two, each naming what it removes,
+                    with the pending line after an offline turn-off.
+             ════════════════════════════════════════════════════════════ -->
+        <div class="sec-header"><span id="icsHeader">iCloud Sync</span><i></i></div>
+        <div class="card" id="icsCard">
+          <div class="ics-row ics-toggle-row">
+            <div class="row-text">
+              <p class="ics-desc" id="icsDesc">Keeps your eBird backup and ML export the same on every Mac, iPhone and iPad signed in to your iCloud account.</p>
+              <p class="ics-note" id="icsNote" hidden></p>
+            </div>
+            <button class="switch" id="icsSwitch" type="button" role="switch" aria-checked="false"
+                    aria-labelledby="icsHeader" aria-describedby="icsDesc icsNote" tabindex="0"></button>
+          </div>
+
+          <div class="ics-row ics-toggle-row ics-key-row">
+            <div class="row-text">
+              <div class="ics-key-label" id="keyLabel">Sync API keys</div>
+              <p class="ics-desc" id="keyDesc">Keeps your eBird and OpenWeather keys the same on every Mac, iPhone and iPad that also turns this on.</p>
+              <p class="ics-note" id="keyNote" hidden>Turn on iCloud Sync first.</p>
+            </div>
+            <button class="switch" id="keySwitch" type="button" role="switch" aria-checked="false"
+                    aria-labelledby="keyLabel" aria-describedby="keyDesc keyNote" tabindex="0"></button>
+          </div>
+
+          <div class="ics-row ics-status-row is-empty" id="icsStatusRow">
+            <span class="ics-status" id="icsStatus"></span>
+            <span class="sr-only" id="icsAnnounce" role="status"></span>
+            <button class="btn-quiet" id="icsCheck" type="button" tabindex="0" hidden>Check now</button>
+          </div>
+
+          <div class="ics-row ics-remove-row" id="icsRemoveRow" hidden>
+            <div class="ics-remove-actions">
+              <button class="btn-quiet" id="icsRemoveFiles" type="button" tabindex="0" hidden>Remove synced files from iCloud</button>
+              <button class="btn-quiet" id="icsRemoveKeys" type="button" tabindex="0" aria-describedby="keyPending" hidden>Remove synced keys from iCloud</button>
+            </div>
+            <p class="ics-pending" id="keyPending" hidden>Waiting to remove the key copy from iCloud. SnowRaven will try again when iCloud is reachable.</p>
+          </div>
+        </div>
+
+        <!-- ════════ Default Location (existing, unchanged; condensed) ════════ -->
+        <div class="sec-header"><span>Default Location</span><i></i></div>
+        <div class="card">
+          <div class="body-row">
+            <p class="body-note">Set a home location for the Map Explorer. These coordinates load automatically every time you open the map tab.</p>
+            <div class="loc-grid">
+              <div><label for="mock-lat">Latitude</label><input id="mock-lat" value="38.54321"></div>
+              <div><label for="mock-lng">Longitude</label><input id="mock-lng" value="-121.98765"></div>
+              <div><label for="mock-rad">Radius (mi)</label><input id="mock-rad" value="5"></div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+              <button class="btn-accent" tabindex="0" type="button">Save</button>
+              <button class="btn-quiet" tabindex="0" type="button">Clear</button>
+            </div>
+          </div>
+        </div>
+        <p class="ellipsis-note" style="margin-bottom: 0;">&hellip; Tab Layout, Troubleshooting and Acknowledgments follow, unchanged.</p>
+
+      </div><!-- /panel -->
+    </div><!-- /settings-scroll -->
+
+    <!-- Confirmation dialog (one element, content per kind). Lives inside the
+         frame here so the narrow demos contain it; the build uses the shared
+         ModalDialog shell. -->
+    <div class="dlg-root" id="dlgRoot" role="presentation" hidden>
+      <div class="dlg" id="dlg" role="dialog" aria-modal="true" aria-labelledby="dlgTitle">
+        <div class="dlg-head"><h2 class="dlg-title" id="dlgTitle"></h2></div>
+        <div class="dlg-body" id="dlgBody"></div>
+        <div class="dlg-actions" id="dlgActions"></div>
+      </div>
+    </div>
+  </div><!-- /frame -->
+
+  <!-- ══════════════ Designer notes (review chrome, not the app) ══════════════ -->
+  <div class="notes">
+    <h2>Designer notes for this review</h2>
+    <ul>
+      <li><b>What you are looking at.</b> The shipped iCloud Sync section grown by one switch, "Sync API keys", directly under the file switch, off by default. Its helper line matches the file description's shape; while it cannot be operated it carries its one-line reason ("Turn on iCloud Sync first.", or the same availability note the file switch shows). The status row and Check now cover both passes. The Remove row now holds two controls, each naming only what it removes.</li>
+      <li><b>The note before turn-on</b> (state 3) is the focal moment. Six leads in the app's plain voice: what goes to iCloud, whose account, how Apple protects it, which devices, what happens next, how to stop, and one closing line promising nothing is written until Turn on. The protection item says exactly what iCloud provides: encrypted in transit and at rest by Apple, end-to-end only with Advanced Data Protection.</li>
+      <li><b>Provenance and state on the key rows</b> reuse the Default Files sync line unchanged: a small glyph, the state label as text, then "From this device, changed &lt;time&gt;" or "From iPad, changed &lt;time&gt;". Replaced and Cleared lines take the place of the provenance while set; Retry sits on the same line. Each line is the same polite status region as the file rows.</li>
+      <li><b>The state strip</b> flips through every state in the contract. The live controls also work: both switches, the Turn on path (Syncing to Up to date), Show and Hide, Check now, Retry, Clear with key sync on (its confirmation names the reach), both Remove controls and their confirmations.</li>
+      <li><b>Widths.</b> Mac (980), 641px (the desktop tier at its narrowest), and 320px (the phone tier: rows stack, buttons take the 44px posture). State 16 carries a 64-character device label with no spaces, the longest line any state can produce; try it at 320px and 200% text.</li>
+      <li><b>Nothing new in the palette or type.</b> Every color is a shipped token in both themes; every size is a register the tab already uses. Windows and web builds render none of this.</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+  // ---- Mockup controls ------------------------------------------------
+  var root = document.documentElement;
+  var frame = document.getElementById('frame');
+  var systemDark = window.matchMedia('(prefers-color-scheme: dark)');
+  var reducedMq = window.matchMedia('(prefers-reduced-motion: reduce)');
+  var themeMode = 'system';
+  function rm() { return reducedMq.matches; }
+  function press(el, on) { if (el) el.setAttribute('aria-pressed', on ? 'true' : 'false'); }
+
+  function setTheme(mode) {
+    themeMode = mode;
+    var t = mode === 'system' ? (systemDark.matches ? 'dark' : 'light') : mode;
+    root.setAttribute('data-theme', t);
+    ['system', 'light', 'dark'].forEach(function (m) { press(document.getElementById('tb-' + m), m === mode); });
+  }
+  systemDark.addEventListener('change', function () { if (themeMode === 'system') setTheme('system'); });
+
+  function setDevice(d) {
+    model.platform = d === 'se' ? 'iphone' : 'mac';
+    frame.setAttribute('data-device', d);
+    if (d === 'se') frame.setAttribute('data-phone', 'true'); else frame.removeAttribute('data-phone');
+    ['mac', 'narrow', 'se'].forEach(function (k) { press(document.getElementById('dv-' + k), k === d); });
+    render();
+    if (dlgOpen) { buildDialog(dlgKind, dlgSlot); placeDialog(); }
+  }
+
+  function setScale(s) {
+    root.style.setProperty('--sr-text-scale', String(s));
+    document.querySelectorAll('.tb-scale').forEach(function (b) { press(b, parseFloat(b.getAttribute('data-scale')) === s); });
+    if (dlgOpen) placeDialog();
+  }
+
+  // ---- Fixtures ---------------------------------------------------------
+  // A 64-code-unit label with no spaces: the longest line any state can
+  // produce (schema.md, NFR-04), for the 320px / 200% measurement.
+  var LONG_LABEL = 'DavesMacBookPro16inch2024WorkLaptopBirdingFieldMachineBackupUnit';
+  var DEV = {
+    mac:    { label: "Dave's MacBook Pro", platform: 'mac' },
+    iphone: { label: 'iPhone',             platform: 'iphone' },
+    ipad:   { label: 'iPad',               platform: 'ipad' },
+    long:   { label: LONG_LABEL,           platform: 'mac' }
+  };
+  var PLAT = { mac: 'Mac', iphone: 'iPhone', ipad: 'iPad' };
+  var HERE = { mac: 'this Mac', iphone: 'this iPhone' };
+  var T_EBIRD_FILE = 'Aug 24, 2026 at 3:12 PM';
+  var T_ML_FILE    = 'Aug 24, 2026 at 3:20 PM';
+  var T_CHECK      = 'Sep 1, 2026 at 9:14 AM';
+  var T_KEY_EB     = 'Aug 30, 2026 at 6:48 PM';   // eBird key, entered on this device
+  var T_KEY_OW_LOC = 'Aug 30, 2026 at 6:51 PM';   // OpenWeather key, entered on this device
+  var T_KEY_OW     = 'Sep 1, 2026 at 8:02 AM';    // OpenWeather key, changed on the iPad
+  var T_CLEARED    = 'Sep 1, 2026 at 8:40 AM';    // cleared on the iPhone
+  var FILES = {
+    ebird: { name: 'MyEBirdData.csv',        saved: T_EBIRD_FILE },
+    ml:    { name: 'ML_2026-08-24_dave.csv', saved: T_ML_FILE }
+  };
+  var FILE_SUB = {
+    ebird: 'Your eBird sightings export, used across most tabs',
+    ml: 'Your Macaulay Library export, powers the Multimedia tab'
+  };
+  // Fictional key values, realistic in shape (eBird: short token; OpenWeather: 32 hex).
+  var KEYS = {
+    ebird:       { value: 'q7v3kd9m2pah', changedAt: T_KEY_EB, origin: 'this' },
+    openweather: { value: '3f8c1a2e9b7d4c6f0a1b2c3d4e5f6a7b', changedAt: T_KEY_OW_LOC, origin: 'this' }
+  };
+  var KEY_TITLE = { ebird: 'eBird API Key', openweather: 'OpenWeather API Key' };
+  var KEY_SERVICE = { ebird: 'eBird', openweather: 'OpenWeather' };
+  var NOTES = {
+    'not-signed-in': 'Sign in to iCloud in System Settings (or Settings on iPhone and iPad) to use sync.',
+    'drive-off': 'Allow SnowRaven under iCloud Drive in the system settings. If it is already allowed, this build cannot use iCloud.',
+    'build': 'This build cannot use iCloud.'
+  };
+  var KEY_REASONS = {
+    'key-shape': 'This key has characters iCloud sync cannot carry.',
+    'timeout': 'iCloud did not respond in time.',
+    'unknown': 'iCloud could not be read.'
+  };
+  var SVG = 'viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"';
+  var ICON = {
+    lock: '<svg width="18" height="18" stroke-width="1.75" ' + SVG + '><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>',
+    fileCheck: '<svg width="18" height="18" stroke-width="1.75" ' + SVG + '><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="m9 15 2 2 4-4"/></svg>',
+    cloudCheck: '<svg width="13" height="13" stroke-width="2.2" ' + SVG + '><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/><path d="m9 13 2 2 4-4"/></svg>',
+    cloud: '<svg width="13" height="13" stroke-width="2.2" ' + SVG + '><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>',
+    cloudUp: '<svg width="13" height="13" stroke-width="2.2" ' + SVG + '><path d="M12 13v8"/><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="m8 17 4-4 4 4"/></svg>',
+    cloudOff: '<svg width="13" height="13" stroke-width="2.2" ' + SVG + '><path d="m2 2 20 20"/><path d="M5.782 5.782A7 7 0 0 0 9 19h8.5a4.5 4.5 0 0 0 1.307-.193"/><path d="M21.532 16.5A4.5 4.5 0 0 0 17.5 10h-1.79A7.008 7.008 0 0 0 10 5.07"/></svg>',
+    alert: '<svg width="13" height="13" stroke-width="2.2" ' + SVG + '><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>'
+  };
+
+  // ---- Model ------------------------------------------------------------
+  // Mirrors ICloudState plus the fields this feature adds: keySyncEnabled
+  // (enabled && keysEnabled), keySyncEverOn, keyRecordExists,
+  // keyRemovalPending, keySlots. `platform` is the viewport's own device.
+  var model = {
+    platform: 'mac', avail: 'available',
+    enabled: false, keysEnabled: false, keysEverOn: false, keyRecord: false, keyPending: false,
+    lastCheck: null, sharedFiles: false,
+    files: { ebird: copy(FILES.ebird), ml: copy(FILES.ml) },
+    fileSync: { ebird: null, ml: null },
+    keys: { ebird: copy(KEYS.ebird), openweather: copy(KEYS.openweather) },
+    keySync: { ebird: null, openweather: null },
+    visible: { ebird: false, openweather: false }
+  };
+  var seq = 0; // cancels in-flight simulated transfers when the scenario changes
+
+  function copy(o) { return o ? JSON.parse(JSON.stringify(o)) : o; }
+  function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+  function nowStamp() {
+    var d = new Date(), M = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    var h = d.getHours(), ap = h >= 12 ? 'PM' : 'AM'; h = h % 12 || 12;
+    return M[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear() + ' at ' + h + ':' + ('0' + d.getMinutes()).slice(-2) + ' ' + ap;
+  }
+  function here() { return HERE[model.platform]; }
+  function keySyncOn() { return model.enabled && model.keysEnabled; }
+  // 'this' is the viewport's own device; a peer named after the viewport's own
+  // platform swaps to the other family so a peer never reads as this device.
+  function resolveOrigin(o) {
+    if (o === 'this') return model.platform === 'mac' ? DEV.mac : DEV.iphone;
+    if (o === 'iphone' && model.platform === 'iphone') return DEV.mac;
+    if (o === 'mac' && model.platform === 'mac') return DEV.iphone;
+    return DEV[o];
+  }
+  function isThis(o) { return o === 'this'; }
+  // One naming rule for a device everywhere (the shipped devName): the label
+  // plus " (Mac)" / " (iPhone)" / " (iPad)", collapsing when the label already
+  // is the platform word.
+  function devName(dev) {
+    return esc(dev.label) + (dev.label === PLAT[dev.platform] ? '' : ' (' + PLAT[dev.platform] + ')');
+  }
+  function fromLabel(o) { return isThis(o) ? 'From this device' : 'From ' + devName(resolveOrigin(o)); }
+  function fromChanged(o, t) { return fromLabel(o) + ', changed ' + t; }
+
+  // ---- Scenarios (the state switcher) -------------------------------------
+  function onBase() {
+    return {
+      avail: 'available', enabled: true, keysEnabled: true, keysEverOn: true, keyRecord: true, keyPending: false,
+      lastCheck: T_CHECK, sharedFiles: true,
+      files: { ebird: copy(FILES.ebird), ml: copy(FILES.ml) },
+      fileSync: { ebird: { state: 'up-to-date', origin: 'this' }, ml: { state: 'up-to-date', origin: 'ipad' } },
+      keys: { ebird: copy(KEYS.ebird), openweather: { value: KEYS.openweather.value, changedAt: T_KEY_OW, origin: 'ipad' } },
+      keySync: { ebird: { state: 'up-to-date', origin: 'this', changedAt: T_KEY_EB }, openweather: { state: 'up-to-date', origin: 'ipad', changedAt: T_KEY_OW } }
+    };
+  }
+  function keysOffBase() {
+    // File sync on, key switch never on: the key rows are byte-identical to today.
+    return Object.assign(onBase(), {
+      keysEnabled: false, keysEverOn: false, keyRecord: false,
+      keys: { ebird: copy(KEYS.ebird), openweather: copy(KEYS.openweather) },
+      keySync: { ebird: null, openweather: null }
+    });
+  }
+  function allOffBase(avail) {
+    return {
+      avail: avail || 'available', enabled: false, keysEnabled: false, keysEverOn: false, keyRecord: false, keyPending: false,
+      lastCheck: null, sharedFiles: false,
+      files: { ebird: copy(FILES.ebird), ml: copy(FILES.ml) },
+      fileSync: { ebird: null, ml: null },
+      keys: { ebird: copy(KEYS.ebird), openweather: copy(KEYS.openweather) },
+      keySync: { ebird: null, openweather: null }
+    };
+  }
+  var SC = [
+    { label: '1 Key sync off', set: keysOffBase() },
+    { label: '2 iCloud Sync off', set: allOffBase() },
+    { label: '2b Not signed in', set: allOffBase('not-signed-in') },
+    { label: '3 Enable note', set: keysOffBase(), dialog: 'enableKeys' },
+    { label: '4 Up to date', set: onBase() },
+    { label: '5 Syncing', set: Object.assign(onBase(), { keySync: { ebird: { state: 'syncing', origin: 'this', changedAt: T_CHECK }, openweather: { state: 'up-to-date', origin: 'ipad', changedAt: T_KEY_OW } } }) },
+    { label: '6 Waiting to upload', set: Object.assign(onBase(), { keySync: { ebird: { state: 'waiting-to-upload', origin: 'this', changedAt: T_CHECK }, openweather: { state: 'up-to-date', origin: 'ipad', changedAt: T_KEY_OW } } }) },
+    { label: '7 iCloud unavailable', set: Object.assign(onBase(), { avail: 'not-signed-in',
+        fileSync: { ebird: { state: 'unavailable', origin: 'this' }, ml: { state: 'unavailable', origin: 'ipad' } },
+        keySync: { ebird: { state: 'unavailable', origin: 'this', changedAt: T_KEY_EB }, openweather: { state: 'unavailable', origin: 'ipad', changedAt: T_KEY_OW } } }) },
+    { label: '8 Could not sync', set: Object.assign(onBase(), { keySync: { ebird: { state: 'up-to-date', origin: 'this', changedAt: T_KEY_EB }, openweather: { state: 'error', reason: 'key-shape', origin: 'this', changedAt: T_KEY_OW_LOC } } }) },
+    { label: '9 Replaced', set: Object.assign(onBase(), {
+        keys: { ebird: { value: 'x2n8wq4tk7dm', changedAt: T_KEY_OW, origin: 'ipad' }, openweather: { value: KEYS.openweather.value, changedAt: T_KEY_OW, origin: 'ipad' } },
+        keySync: { ebird: { state: 'up-to-date', origin: 'ipad', changedAt: T_KEY_OW, replacedAt: T_KEY_OW }, openweather: { state: 'up-to-date', origin: 'ipad', changedAt: T_KEY_OW } } }) },
+    { label: '10 Cleared elsewhere', set: Object.assign(onBase(), {
+        keys: { ebird: null, openweather: { value: KEYS.openweather.value, changedAt: T_KEY_OW, origin: 'ipad' } },
+        keySync: { ebird: { state: 'up-to-date', origin: 'iphone', clearedAt: T_CLEARED }, openweather: { state: 'up-to-date', origin: 'ipad', changedAt: T_KEY_OW } } }) },
+    { label: '11 Clear confirmation', set: onBase(), dialog: 'clearKey', slot: 'ebird' },
+    { label: '12 Clear pending', set: Object.assign(onBase(), {
+        keys: { ebird: null, openweather: { value: KEYS.openweather.value, changedAt: T_KEY_OW, origin: 'ipad' } },
+        keySync: { ebird: { state: 'waiting-to-upload', clearPending: true }, openweather: { state: 'up-to-date', origin: 'ipad', changedAt: T_KEY_OW } } }) },
+    { label: '13 Remove keys confirmation', set: onBase(), dialog: 'removeKeys' },
+    { label: '14 Pending removal', set: Object.assign(onBase(), { keysEnabled: false, keyRecord: true, keyPending: true,
+        keySync: { ebird: { state: 'off' }, openweather: { state: 'off' } } }) },
+    { label: '15 Key sync turned off', set: Object.assign(onBase(), { keysEnabled: false, keyRecord: false,
+        keySync: { ebird: { state: 'off' }, openweather: { state: 'off' } } }) },
+    { label: '16 Longest line', set: Object.assign(onBase(), {
+        keys: { ebird: { value: 'x2n8wq4tk7dm', changedAt: T_KEY_OW, origin: 'long' }, openweather: { value: KEYS.openweather.value, changedAt: T_KEY_OW, origin: 'ipad' } },
+        keySync: { ebird: { state: 'up-to-date', origin: 'long', changedAt: T_KEY_OW, replacedAt: T_KEY_OW }, openweather: { state: 'up-to-date', origin: 'ipad', changedAt: T_KEY_OW } } }) }
+  ];
+  var scenarioIndex = 0;
+  var strip = document.getElementById('stateStrip');
+  SC.forEach(function (s, i) {
+    var b = document.createElement('button');
+    b.className = 'mock-btn sc-btn'; b.type = 'button'; b.textContent = s.label;
+    b.setAttribute('aria-pressed', i === 0 ? 'true' : 'false');
+    b.addEventListener('click', function () { applyScenario(i); });
+    strip.appendChild(b);
+  });
+  function markScenario(i) {
+    scenarioIndex = i;
+    document.querySelectorAll('.sc-btn').forEach(function (b, j) { press(b, j === i); });
+  }
+  function applyScenario(i) {
+    var s = SC[i];
+    seq++;
+    if (dlgOpen) closeDialog(false, true);
+    var set = copy(s.set);
+    ['avail', 'enabled', 'keysEnabled', 'keysEverOn', 'keyRecord', 'keyPending', 'lastCheck', 'sharedFiles', 'files', 'fileSync', 'keys', 'keySync']
+      .forEach(function (k) { model[k] = set[k]; });
+    model.visible = { ebird: false, openweather: false };
+    markScenario(i);
+    render();
+    if (s.dialog === 'enableKeys') openDialog('enableKeys', keySw);
+    if (s.dialog === 'removeKeys') openDialog('removeKeys', removeKeysBtn);
+    if (s.dialog === 'clearKey') openDialog('clearKey', keyRowEl(s.slot).querySelector('[data-act="clear"]'), s.slot);
+  }
+  function stepScenario(d) { applyScenario((scenarioIndex + d + SC.length) % SC.length); }
+
+  // ---- Rendering ----------------------------------------------------------
+  var sw = document.getElementById('icsSwitch');
+  var keySw = document.getElementById('keySwitch');
+  var note = document.getElementById('icsNote');
+  var keyNote = document.getElementById('keyNote');
+  var statusRow = document.getElementById('icsStatusRow');
+  var statusEl = document.getElementById('icsStatus');
+  var checkBtn = document.getElementById('icsCheck');
+  var removeRow = document.getElementById('icsRemoveRow');
+  var removeFilesBtn = document.getElementById('icsRemoveFiles');
+  var removeKeysBtn = document.getElementById('icsRemoveKeys');
+  var pendingEl = document.getElementById('keyPending');
+  var fileRowKeys = { ebird: '', ml: '' };
+  var keyRowKeys = { ebird: '', openweather: '' };
+
+  function rowEl(slot) { return document.getElementById('row-' + slot); }
+  function keyRowEl(slot) { return document.getElementById('key-' + slot); }
+
+  // The shipped file-row line (1.0.11), unchanged.
+  function fileLineHtml(v) {
+    if (!v) return '';
+    var label, icon, more = '';
+    switch (v.state) {
+      case 'up-to-date': label = 'Up to date'; icon = ICON.cloudCheck; more = fromLabel(v.origin); break;
+      case 'uploading': label = 'Syncing, uploading'; icon = ICON.cloudUp; more = fromLabel(v.origin); break;
+      case 'unavailable': label = 'iCloud unavailable'; icon = ICON.cloudOff; more = fromLabel(v.origin); break;
+      case 'off': label = 'Sync off'; icon = ICON.cloudOff; break;
+    }
+    var h = '<span class="sync-state">' + icon + label + '</span>';
+    if (more) h += '<span class="sr-only">. </span><span class="sync-more"><span class="sync-sep" aria-hidden="true">&middot;</span> ' + more + '</span>';
+    return h;
+  }
+
+  // The key-row line: the five key states (FR-39), Sync off (FR-40), and the
+  // Replaced (FR-41), Cleared (FR-42) and clear-pending (FR-30) fragments.
+  // Every string is built from the closed label set plus the origin label,
+  // the platform word and the formatted time; never from a value (FR-44).
+  function keyLineHtml(v) {
+    if (!v) return '';
+    var label, icon, more = '', action = '', err = false;
+    switch (v.state) {
+      case 'up-to-date':
+        label = 'Up to date'; icon = ICON.cloudCheck;
+        if (v.replacedAt) more = 'Replaced by the key from ' + devName(resolveOrigin(v.origin)) + ', changed ' + v.replacedAt;
+        else if (v.clearedAt) more = 'Cleared from ' + devName(resolveOrigin(v.origin)) + ', ' + v.clearedAt;
+        else more = fromChanged(v.origin, v.changedAt);
+        break;
+      case 'syncing':
+        label = 'Syncing'; icon = ICON.cloud; more = v.origin ? fromChanged(v.origin, v.changedAt) : ''; break;
+      case 'waiting-to-upload':
+        label = 'Waiting to upload'; icon = ICON.cloudUp;
+        more = v.clearPending ? 'This clear has not reached iCloud yet.' : fromChanged(v.origin, v.changedAt);
+        break;
+      case 'unavailable':
+        label = 'iCloud unavailable'; icon = ICON.cloudOff; more = fromChanged(v.origin, v.changedAt); break;
+      case 'off':
+        label = 'Sync off'; icon = ICON.cloudOff; break;
+      case 'error':
+        label = 'Could not sync'; icon = ICON.alert; err = true; more = KEY_REASONS[v.reason] || KEY_REASONS.unknown;
+        action = '<button class="btn-quiet btn-inline" type="button" tabindex="0" data-act="retry">Retry</button>';
+        break;
+    }
+    var h = '<span class="sync-state' + (err ? ' is-error' : '') + '">' + icon + label + '</span>';
+    // The separator lives inside the provenance span so a wrapped line never
+    // ends on a dangling middot.
+    if (more) h += '<span class="sr-only">. </span><span class="sync-more"><span class="sync-sep" aria-hidden="true">&middot;</span> ' + more + '</span>';
+    return h + action;
+  }
+
+  function setSyncLine(el, html) {
+    if (el.innerHTML === html) return;
+    if (rm() || !el.innerHTML || !html) { el.innerHTML = html; el.classList.remove('is-fading'); return; }
+    el.classList.add('is-fading');
+    var my = seq;
+    setTimeout(function () { if (my !== seq) return; el.innerHTML = html; el.classList.remove('is-fading'); }, 120);
+  }
+
+  function renderFileRow(slot) {
+    var row = rowEl(slot), f = model.files[slot], ios = model.platform !== 'mac';
+    var key = (f ? f.name + '|' + f.saved : 'none') + '|' + ios;
+    if (fileRowKeys[slot] !== key) {
+      fileRowKeys[slot] = key;
+      var tile = row.querySelector('[data-part="tile"]');
+      tile.className = 'icon-tile ' + (f ? 'accent' : 'neutral');
+      tile.innerHTML = ICON.fileCheck;
+      row.querySelector('[data-part="meta"]').innerHTML = f
+        ? '<div class="file-line"><span class="file-name" title="' + esc(f.name) + '">' + esc(f.name) + '</span><span class="file-saved">&middot; Saved ' + f.saved + '</span></div>'
+        : '<div class="row-desc">' + FILE_SUB[slot] + '</div>';
+      var up = ios ? 'Import new…' : 'Upload new';
+      row.querySelector('[data-part="actions"]').innerHTML =
+        '<button class="btn-quiet is-accent" type="button" tabindex="0">' + up + '</button>' +
+        '<button class="btn-quiet is-danger" type="button" tabindex="0">Clear</button>';
+    }
+    setSyncLine(row.querySelector('[data-part="sync"]'), fileLineHtml(model.fileSync[slot]));
+  }
+
+  function renderKeyRow(slot) {
+    var row = keyRowEl(slot), k = model.keys[slot], vis = model.visible[slot];
+    var key = (k ? k.value : 'none') + '|' + vis;
+    if (keyRowKeys[slot] !== key) {
+      keyRowKeys[slot] = key;
+      var tile = row.querySelector('[data-part="tile"]');
+      tile.className = 'icon-tile ' + (k ? 'accent' : 'neutral');
+      tile.innerHTML = ICON.lock;
+      row.querySelector('[data-part="meta"]').innerHTML = k
+        ? '<div class="key-line"><span class="key-value' + (vis ? ' is-visible' : '') + '">' + (vis ? esc(k.value) : '&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;') + '</span>' +
+          '<button class="link-quiet" type="button" tabindex="0" data-act="show" aria-label="' + (vis ? 'Hide' : 'Show') + ' API key">' + (vis ? 'Hide' : 'Show') + '</button></div>'
+        : '<div class="row-desc">Not configured</div>';
+      row.querySelector('[data-part="actions"]').innerHTML =
+        (k ? '' : '<span class="pill">No key saved</span>') +
+        '<button class="btn-quiet" type="button" tabindex="0">' + (k ? 'Update' : 'Add key') + '</button>' +
+        '<button class="btn-quiet is-danger" type="button" tabindex="0" data-act="clear"' + (k ? '' : ' disabled') + '>Clear</button>';
+    }
+    setSyncLine(row.querySelector('[data-part="sync"]'), keyLineHtml(model.keySync[slot]));
+  }
+
+  function render() {
+    var avail = model.avail === 'available';
+
+    // File switch (shipped): disabled while unavailable, keeps its checked state.
+    sw.setAttribute('aria-checked', model.enabled ? 'true' : 'false');
+    sw.disabled = !avail;
+    if (avail) { note.hidden = true; note.textContent = ''; }
+    else { note.hidden = false; note.textContent = NOTES[model.avail]; }
+
+    // Key switch (new): operable only while the file switch is on and iCloud
+    // is available. Otherwise aria-disabled (still focusable, so the reason is
+    // read): the file switch's availability note for a non-available state,
+    // or "Turn on iCloud Sync first." while available but file sync is off.
+    var keyOperable = model.enabled && avail;
+    keySw.setAttribute('aria-checked', keySyncOn() ? 'true' : 'false');
+    if (keyOperable) {
+      keySw.removeAttribute('aria-disabled');
+      keyNote.hidden = true;
+      keySw.setAttribute('aria-describedby', 'keyDesc');
+    } else if (!avail) {
+      keySw.setAttribute('aria-disabled', 'true');
+      keyNote.hidden = true;
+      keySw.setAttribute('aria-describedby', 'keyDesc icsNote');
+    } else {
+      keySw.setAttribute('aria-disabled', 'true');
+      keyNote.hidden = false;
+      keySw.setAttribute('aria-describedby', 'keyDesc keyNote');
+    }
+
+    var showStatus = model.enabled || !!model.lastCheck;
+    statusRow.classList.toggle('is-empty', !showStatus);
+    var txt = showStatus ? (model.lastCheck ? 'Last checked ' + model.lastCheck : 'Never checked') : '';
+    if (statusEl.textContent !== txt) statusEl.textContent = txt;
+    checkBtn.hidden = !(model.enabled && avail);
+
+    // Remove row: each control appears while iCloud is known to hold its
+    // thing; the keys control also stays while a removal is pending (FR-33).
+    var showFiles = avail && model.sharedFiles;
+    var showKeys = avail && (model.keyRecord || model.keyPending);
+    removeFilesBtn.hidden = !showFiles;
+    removeKeysBtn.hidden = !showKeys;
+    pendingEl.hidden = !(showKeys && model.keyPending);
+    removeRow.hidden = !(showFiles || showKeys);
+
+    renderFileRow('ebird'); renderFileRow('ml');
+    renderKeyRow('ebird'); renderKeyRow('openweather');
+  }
+
+  // ---- Live behaviors (the feature under review) ---------------------------
+  // Removing the key record from iCloud (FR-32): when reachable, the record
+  // is gone after the write; the mockup takes 1.2s to show the button leaving.
+  function removeKeyRecord() {
+    if (!model.keyRecord) return;
+    var my = ++seq;
+    setTimeout(function () {
+      if (my !== seq) return;
+      model.keyRecord = false; model.keyPending = false;
+      render();
+    }, rm() ? 300 : 1200);
+  }
+
+  function turnKeysOff() {
+    model.keysEnabled = false;
+    ['ebird', 'openweather'].forEach(function (s) {
+      model.keySync[s] = (model.keysEverOn || model.keyRecord) ? { state: 'off' } : null;
+    });
+    render();
+    if (model.avail === 'available') removeKeyRecord();
+  }
+
+  sw.addEventListener('click', function () {
+    if (sw.disabled) return;
+    if (!model.enabled) { openDialog('enableFiles', sw); return; }
+    // Turning file sync off needs no confirmation (FR-32 of 1.0.11) and turns
+    // the key switch off in the same action (FR-07).
+    seq++;
+    model.enabled = false;
+    ['ebird', 'ml'].forEach(function (s) { model.fileSync[s] = model.sharedFiles ? { state: 'off' } : null; });
+    turnKeysOff();
+  });
+
+  keySw.addEventListener('click', function () {
+    if (keySw.getAttribute('aria-disabled') === 'true') return;
+    if (!keySyncOn()) { openDialog('enableKeys', keySw); return; }
+    seq++;
+    turnKeysOff();
+  });
+
+  function turnFilesOn() {
+    var my = ++seq;
+    model.enabled = true; model.lastCheck = null;
+    ['ebird', 'ml'].forEach(function (s) { model.fileSync[s] = { state: 'uploading', origin: 'this' }; });
+    render();
+    setTimeout(function () {
+      if (my !== seq) return;
+      ['ebird', 'ml'].forEach(function (s) { model.fileSync[s] = { state: 'up-to-date', origin: 'this' }; });
+      model.lastCheck = nowStamp(); model.sharedFiles = true;
+      render();
+    }, rm() ? 300 : 1400);
+  }
+
+  // After Turn on: each local key uploads (the seed), then reads Up to date,
+  // From this device (FR-13, FR-14 first row).
+  function turnKeysOn() {
+    var my = ++seq;
+    model.keysEnabled = true; model.keysEverOn = true;
+    ['ebird', 'openweather'].forEach(function (s) {
+      model.keySync[s] = model.keys[s] ? { state: 'syncing', origin: model.keys[s].origin, changedAt: model.keys[s].changedAt } : null;
+    });
+    render();
+    setTimeout(function () {
+      if (my !== seq) return;
+      ['ebird', 'openweather'].forEach(function (s) {
+        if (model.keys[s]) model.keySync[s] = { state: 'up-to-date', origin: model.keys[s].origin, changedAt: model.keys[s].changedAt };
+      });
+      model.keyRecord = true; model.keyPending = false; model.lastCheck = nowStamp();
+      render();
+    }, rm() ? 300 : 1400);
+  }
+
+  checkBtn.addEventListener('click', function () {
+    var my = ++seq;
+    checkBtn.setAttribute('aria-busy', 'true'); checkBtn.disabled = true; checkBtn.textContent = 'Checking…';
+    setTimeout(function () {
+      checkBtn.removeAttribute('aria-busy'); checkBtn.disabled = false; checkBtn.textContent = 'Check now';
+      if (my !== seq) return;
+      model.lastCheck = nowStamp();
+      // A pending removal is retried by the check (FR-33).
+      if (model.keyPending) { model.keyRecord = false; model.keyPending = false; }
+      render();
+      document.getElementById('icsAnnounce').textContent = 'Checked ' + model.lastCheck + '. Nothing to transfer.';
+    }, 900);
+  });
+
+  removeFilesBtn.addEventListener('click', function () { openDialog('removeFiles', removeFilesBtn); });
+  removeKeysBtn.addEventListener('click', function () { openDialog('removeKeys', removeKeysBtn); });
+
+  document.getElementById('keysCard').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-act]');
+    if (!b || b.disabled) return;
+    var row = b.closest('.key-row'), slot = row.id.replace('key-', ''), act = b.getAttribute('data-act');
+    if (act === 'show') { model.visible[slot] = !model.visible[slot]; render(); row.querySelector('[data-act="show"]').focus(); return; }
+    if (act === 'clear') {
+      if (keySyncOn()) { openDialog('clearKey', b, slot); return; }
+      // Key sync off: today's instant local clear, no confirmation (FR-31).
+      seq++; model.keys[slot] = null; model.keySync[slot] = null; render();
+      return;
+    }
+    if (act === 'retry') {
+      var my = ++seq, k = model.keys[slot];
+      model.keySync[slot] = { state: 'syncing', origin: k.origin, changedAt: k.changedAt };
+      render();
+      setTimeout(function () {
+        if (my !== seq) return;
+        model.keySync[slot] = { state: 'up-to-date', origin: k.origin, changedAt: k.changedAt };
+        model.lastCheck = nowStamp();
+        render();
+      }, rm() ? 300 : 1400);
+    }
+  });
+
+  // ---- Dialog ---------------------------------------------------------------
+  var dlgRoot = document.getElementById('dlgRoot');
+  var dlg = document.getElementById('dlg');
+  var dlgTitle = document.getElementById('dlgTitle');
+  var dlgBody = document.getElementById('dlgBody');
+  var dlgActions = document.getElementById('dlgActions');
+  var dlgOpen = false, dlgKind = null, dlgSlot = null, dlgTrigger = null;
+
+  function item(lead, text) {
+    return '<div class="dlg-item"><p class="dlg-lead">' + lead + '</p><p class="dlg-text">' + text + '</p></div>';
+  }
+  function buildDialog(kind, slot) {
+    var h = here(), primary;
+    dlgActions.innerHTML = '';
+    if (kind === 'enableKeys') {
+      // FR-04: the six required elements, in the app's plain voice, saying
+      // exactly what iCloud provides and no more (NFR-02). Never a key value.
+      dlgTitle.textContent = 'Turn on API key sync';
+      dlgBody.innerHTML =
+        item('What goes to iCloud', 'Your eBird key and your OpenWeather key, exactly as you entered them, and for each one when it was last changed and which device changed it (its name and kind). Settings and caches stay on ' + h + '.') +
+        item('Whose account', 'Your own iCloud account, on Apple\'s servers, in the same private SnowRaven folder as your synced files. SnowRaven has no server of its own, so the keys never pass through one, and the developer cannot see them.') +
+        item('How Apple protects it', 'Apple encrypts the keys in transit and at rest. They are end-to-end encrypted only if Advanced Data Protection is turned on for your iCloud account; without it, Apple\'s standard iCloud protection applies, the same as for your synced files.') +
+        item('Which devices', 'Every Mac, iPhone and iPad signed in to this iCloud account that also turns on Sync API keys. A device with the switch off keeps its own keys and receives nothing.') +
+        item('What happens next', 'A device with no key takes the shared one. When two devices hold different keys, the most recently changed key wins. Clearing a key on any sharing device clears it on the others at their next check.') +
+        item('How to stop', 'Switch Sync API keys off at any time: the keys on ' + h + ' stay put and the copy in iCloud is removed. Remove synced keys from iCloud is also available whenever iCloud holds a copy.') +
+        '<p class="dlg-fine">Nothing is written to iCloud until you choose Turn on.</p>';
+      addAction('Cancel', 'btn-quiet', function () { closeDialog(true); });
+      primary = addAction('Turn on', 'btn-accent', function () { closeDialog(true); turnKeysOn(); });
+    } else if (kind === 'enableFiles') {
+      // The shipped 1.0.11 note. One sentence is amended (NFR-02): it may no
+      // longer claim that keys never leave the device without naming the key
+      // switch as the exception. Everything else is unchanged.
+      dlgTitle.textContent = 'Turn on iCloud Sync';
+      dlgBody.innerHTML =
+        item('What goes to iCloud', 'Your eBird backup and your Macaulay Library export, along with each file\'s name, when it was uploaded, which device it came from (its name), its size and a checksum. Nothing else: your settings and caches stay on ' + h + ', and so do your API keys unless you also turn on Sync API keys.') +
+        item('Whose account', 'Your own iCloud account, on Apple\'s servers. SnowRaven has no server of its own, so the files never pass through one, and the developer cannot see them.') +
+        item('What happens now', 'If iCloud already holds a newer copy of a file, it replaces the copy on ' + h + '. If the copy here is newer, it goes up to iCloud.') +
+        item('Turning it off', 'Switch iCloud Sync off at any time; the files on ' + h + ' stay put. To delete the copies in iCloud, use Remove synced files from iCloud.');
+      addAction('Cancel', 'btn-quiet', function () { closeDialog(true); });
+      primary = addAction('Turn on', 'btn-accent', function () { closeDialog(true); turnFilesOn(); });
+    } else if (kind === 'removeKeys') {
+      // FR-34: names the two keys by service, never by value; says no device's
+      // local keys are touched and that a sharing device uploads again.
+      dlgTitle.textContent = 'Remove synced keys from iCloud?';
+      dlgBody.innerHTML =
+        '<p class="dlg-text">Your eBird key and your OpenWeather key will be deleted from your iCloud account. The keys on ' + h + ' and on your other devices are not touched.</p>' +
+        '<p class="dlg-text">To keep iCloud empty, turn Sync API keys off on each device first: a device with key sync on uploads its keys again at its next check.</p>';
+      primary = addAction('Cancel', 'btn-quiet', function () { closeDialog(true); });
+      addAction('Remove from iCloud', 'btn-quiet is-danger', function () {
+        closeDialog(true);
+        seq++; model.keyRecord = false; model.keyPending = false;
+        if (keySyncOn()) {
+          // This device has key sync on, so it uploads again at its next check
+          // (the confirmation says so): Syncing, then Up to date, and the
+          // control returns because iCloud holds a record again.
+          var my = ++seq;
+          ['ebird', 'openweather'].forEach(function (s) { if (model.keys[s]) model.keySync[s] = { state: 'syncing', origin: model.keys[s].origin, changedAt: model.keys[s].changedAt }; });
+          render();
+          setTimeout(function () {
+            if (my !== seq) return;
+            ['ebird', 'openweather'].forEach(function (s) { if (model.keys[s]) model.keySync[s] = { state: 'up-to-date', origin: model.keys[s].origin, changedAt: model.keys[s].changedAt }; });
+            model.keyRecord = true; model.lastCheck = nowStamp();
+            render();
+          }, rm() ? 300 : 1600);
+        } else {
+          render();
+          if (!removeKeysBtn.hidden) removeKeysBtn.focus(); else keySw.focus();
+        }
+      });
+    } else if (kind === 'removeFiles') {
+      dlgTitle.textContent = 'Remove synced files from iCloud?';
+      dlgBody.innerHTML =
+        '<p class="dlg-text">These files will be deleted from your iCloud account:</p>' +
+        '<ul class="dlg-files"><li>' + esc(FILES.ebird.name) + '</li><li>' + esc(FILES.ml.name) + '</li></ul>' +
+        '<p class="dlg-text">The copies on ' + h + ' and on your other devices are not touched. To keep iCloud empty, turn iCloud Sync off on each device first: a device with sync on uploads its copy again at its next check.</p>';
+      primary = addAction('Cancel', 'btn-quiet', function () { closeDialog(true); });
+      addAction('Remove from iCloud', 'btn-quiet is-danger', function () {
+        closeDialog(true);
+        seq++; model.sharedFiles = false;
+        ['ebird', 'ml'].forEach(function (s) { model.fileSync[s] = model.enabled ? { state: 'up-to-date', origin: 'this' } : null; });
+        render();
+      });
+    } else if (kind === 'clearKey') {
+      // FR-28: names the reach and the service, never the value.
+      dlgTitle.textContent = 'Clear ' + KEY_TITLE[slot] + '?';
+      dlgBody.innerHTML =
+        '<p class="dlg-text">Your ' + KEY_SERVICE[slot] + ' key will be removed from ' + h + ', from iCloud, and from every device sharing keys at its next check. Devices with Sync API keys off keep theirs.</p>';
+      primary = addAction('Cancel', 'btn-quiet', function () { closeDialog(true); });
+      addAction('Clear from all synced devices', 'btn-quiet is-danger', function () {
+        closeDialog(false);
+        // The local key goes at once; the cleared marker uploads, then the row
+        // shows today's empty state (FR-28). Offline, it would read
+        // "Waiting to upload · This clear has not reached iCloud yet." (state 12).
+        var my = ++seq;
+        model.keys[slot] = null; model.keySync[slot] = { state: 'syncing' };
+        render();
+        var up = keyRowEl(slot).querySelector('.row-actions .btn-quiet');
+        if (up) up.focus();
+        setTimeout(function () {
+          if (my !== seq) return;
+          model.keySync[slot] = null; model.lastCheck = nowStamp();
+          render();
+        }, rm() ? 300 : 1200);
+      });
+    }
+    return primary;
+  }
+  function addAction(label, cls, fn) {
+    var b = document.createElement('button');
+    b.type = 'button'; b.className = cls; b.tabIndex = 0; b.textContent = label;
+    b.addEventListener('click', fn);
+    dlgActions.appendChild(b);
+    return b;
+  }
+  function placeDialog() {
+    var fr = frame.getBoundingClientRect();
+    var visTop = Math.max(0, -fr.top);
+    var visBot = Math.min(fr.height, window.innerHeight - fr.top);
+    var band = Math.max(240, visBot - visTop);
+    var top = visTop + Math.max(12, (band - dlg.offsetHeight) / 2);
+    dlg.style.top = Math.min(top, Math.max(12, fr.height - dlg.offsetHeight - 12)) + 'px';
+  }
+  function setOrigin(trigger) {
+    if (!trigger) { dlg.style.transformOrigin = '50% 50%'; return; }
+    var t = trigger.getBoundingClientRect(), p = dlg.getBoundingClientRect();
+    dlg.style.transformOrigin = (t.left + t.width / 2 - p.left) + 'px ' + (t.top + t.height / 2 - p.top) + 'px';
+  }
+  function openDialog(kind, trigger, slot) {
+    dlgKind = kind; dlgSlot = slot || null; dlgTrigger = trigger || null;
+    var primary = buildDialog(kind, slot);
+    dlgRoot.hidden = false;
+    dlgRoot.classList.remove('open', 'closing');
+    placeDialog();
+    setOrigin(trigger);
+    void dlg.offsetWidth;
+    requestAnimationFrame(function () { dlgRoot.classList.add('open'); });
+    dlgOpen = true;
+    if (primary) primary.focus();
+  }
+  function closeDialog(restore, instant) {
+    if (!dlgOpen) return;
+    dlgOpen = false;
+    var trig = dlgTrigger;
+    dlgRoot.classList.remove('open');
+    dlgRoot.classList.add('closing');
+    var done = function () {
+      dlgRoot.hidden = true; dlgRoot.classList.remove('closing');
+      if (restore && trig && document.contains(trig) && !trig.disabled && !trig.hidden) trig.focus();
+    };
+    if (instant || rm()) done(); else setTimeout(done, 130);
+  }
+  dlgRoot.addEventListener('mousedown', function (e) { if (e.target === dlgRoot) closeDialog(true); });
+  document.addEventListener('keydown', function (e) {
+    if (!dlgOpen) return;
+    if (e.key === 'Escape') { e.preventDefault(); closeDialog(true); return; }
+    if (e.key !== 'Tab') return;
+    var f = Array.from(dlg.querySelectorAll('button, a[href], [tabindex]:not([tabindex="-1"])')).filter(function (el) { return !el.disabled; });
+    if (f.length < 2) { e.preventDefault(); if (f[0]) f[0].focus(); return; }
+    var first = f[0], last = f[f.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  });
+  window.addEventListener('resize', function () { if (dlgOpen) placeDialog(); });
+  window.addEventListener('scroll', function () { if (dlgOpen) placeDialog(); }, { passive: true });
+
+  // ---- Boot -------------------------------------------------------------------
+  setTheme('system');
+  applyScenario(0);
+</script>

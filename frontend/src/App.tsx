@@ -9,6 +9,8 @@ import { isTauri } from './lib/platform'
 import { showICloudSync } from './lib/platformGates'
 import { notifyFilesChanged } from './lib/filesChanged'
 import { useFilesEpoch } from './lib/useFilesEpoch'
+import { notifyKeysChanged } from './lib/keysChanged'
+import { useKeysEpoch } from './lib/useKeysEpoch'
 import { compactChrome } from './lib/platformGates'
 import { copyText } from './lib/clipboard'
 import { extractChecklistId, isValidChecklistId } from './lib/checklistId'
@@ -188,7 +190,11 @@ export default function App() {
   // clear AND by an iCloud arrival or synced clear, so every prop-threaded tab
   // below re-enters its loading phase either way (icloud-sync FR-35).
   const filesVersion = useFilesEpoch()
-  const [keysVersion, setKeysVersion] = useState(0)
+  // The API-key epoch (lib/keysChanged.ts): bumped by a Settings save or
+  // clear AND by an iCloud key arrival or synced clear, so the missing-key
+  // notices below and the prop-threaded Map Explorer re-read the keys either
+  // way, without a relaunch (icloud-api-key-sync FR-23/FR-24).
+  const keysVersion = useKeysEpoch()
   // Bumped when the date-format preference changes. formatDate() reads the pref
   // from a module-var at render time, so bumping this re-renders the whole tree
   // and every date reflects the new preference immediately (no remount).
@@ -329,13 +335,15 @@ export default function App() {
         storage.getApiKey('openweather'),
       ])
       setKeyStatus({ ebird, openweather })
-      setKeysVersion(v => v + 1)
     } catch {
       // silently fail — notices just won't appear
     }
   }, [])
 
-  useEffect(() => { const run = async () => { await fetchKeyStatus() }; run() }, [fetchKeyStatus])
+  // Re-reads on mount and on every key epoch (a save here, or a synced key
+  // applied by the iCloud controller); `keysVersion` is the trigger, not an
+  // input, so it is read to keep the dependency honest.
+  useEffect(() => { void keysVersion; const run = async () => { await fetchKeyStatus() }; run() }, [fetchKeyStatus, keysVersion])
 
   // Cold-start detection for the first-run welcome: only when no keys, no data files,
   // and not previously dismissed. Resolves to false fast for returning users (no flash).
@@ -1350,7 +1358,7 @@ export default function App() {
       >
         {mountedTabs.has('settings') && (
           <Settings
-            onKeysSaved={fetchKeyStatus}
+            onKeysSaved={notifyKeysChanged}
             onFilesSaved={handleFilesSaved}
             onDateFormatChange={handleDateFormatChange}
             onOpenHelp={() => setHelpOpen(true)}

@@ -72,7 +72,7 @@ Once your data has loaded, the maps and every analytical tab keep working offlin
 
 PRIVACY
 
-SnowRaven collects nothing: no analytics, no telemetry, no crash reporting, no ads, and no accounts. Your files, settings, and API keys stay on your device. When you ask for live data, the app talks directly to the service that has it, using your own free API keys where one is needed. The full privacy policy is at snowraven.dtgibson.com/privacy.html.
+SnowRaven collects nothing: no analytics, no telemetry, no crash reporting, no ads, and no accounts. Your files and settings stay on your device, and so do your API keys unless you turn on the optional iCloud key sync, which copies them only into your own iCloud account. When you ask for live data, the app talks directly to the service that has it, using your own free API keys where one is needed. The full privacy policy is at snowraven.dtgibson.com/privacy.html.
 
 WHAT YOU'LL NEED
 
@@ -201,7 +201,23 @@ definition of "collect" and none changing the answer:
   Collected" holds. It is sync between the user's own devices, distinct from
   the iOS device backup, and the privacy policy describes it on its own terms
   (what is stored, whose account, that the developer never sees it, how to
-  remove it). API keys, settings and caches are never written to it.
+  remove it). Settings and caches are never written to it.
+- **iCloud API key sync (v1.0.12):** a second opt-in, off-by-default switch
+  inside the same iCloud Sync section, available only while file sync is on,
+  that writes the user's two API keys (each with its change time and the
+  device that changed it) as one small record into the same private container
+  tied to the user's own Apple ID, so the user's other devices that also turn
+  it on pick them up. The posture is unchanged: device-to-Apple, under the
+  user's own account, initiated by the user's own explicit act after a note
+  that says exactly what leaves the device and how Apple protects it
+  (encrypted in transit and at rest; end-to-end encrypted only with Advanced
+  Data Protection). The developer has no server and no access to the
+  container, so nothing reaches the developer and "Data Not Collected"
+  holds. Turning the switch off removes the key copy from iCloud, and a
+  separate Remove synced keys from iCloud control deletes it at any time; the
+  privacy policy describes the key path on its own terms (what is stored, how
+  it is protected, how to remove it) and never claims more protection than
+  iCloud provides.
 
 Nuance to hold onto if App Review pushes back on the label because
 location/coordinates reach OpenWeather or NOAA: the app is a client for
