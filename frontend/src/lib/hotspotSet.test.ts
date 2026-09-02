@@ -137,7 +137,7 @@ describe('invalidateHotspotSet', () => {
 describe('loadHotspotSet', () => {
   it('builds the set from the cached backup', async () => {
     const { loadHotspotSet } = await fresh()
-    loadObsMock.mockResolvedValue({ text: '', observations: [obs('US-CA')] })
+    loadObsMock.mockResolvedValue({ headerLine: '', observations: [obs('US-CA')] })
     getMock.mockResolvedValue(['L1', 'L2'])
     const set = await loadHotspotSet()
     expect([...set].sort()).toEqual(['L1', 'L2'])

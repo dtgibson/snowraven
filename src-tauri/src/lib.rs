@@ -6,6 +6,11 @@ mod location_windows;
 // frontend/src/lib/icloud/. Never compiled into Windows/Linux binaries.
 #[cfg(any(target_os = "macos", target_os = "ios"))]
 mod icloud;
+// Post-restore on-screen clamp for the remembered window geometry (macOS +
+// Windows). Same platform set as the tauri-plugin-window-state dependency,
+// spelled with tauri's `desktop` cfg here because Cargo has no such cfg.
+#[cfg(desktop)]
+mod window_geometry;
 
 use keyring::Entry;
 use std::sync::OnceLock;
@@ -59,10 +64,34 @@ pub fn run() {
 
     // Desktop-only: the in-app updater + process restart. Absent from mobile
     // binaries entirely (FR-14 — updates flow through TestFlight/App Store).
+    // Window state joins them: the app reopens at the size, position and
+    // maximized/fullscreen state it was last closed at, on macOS and Windows.
     #[cfg(desktop)]
     let builder = builder
         .plugin(tauri_plugin_updater::Builder::new().build())
-        .plugin(tauri_plugin_process::init());
+        .plugin(tauri_plugin_process::init())
+        .plugin(
+            tauri_plugin_window_state::Builder::default()
+                // Spelled out rather than taking the plugin's StateFlags::all()
+                // default; window_geometry::PERSISTED_STATE carries the reason
+                // and a test that pins it.
+                .with_state_flags(window_geometry::PERSISTED_STATE)
+                // Spelled out too, though it is the plugin's own default: the
+                // same constant names the file window_geometry::saved_state
+                // reads back, so the write and the read cannot drift, and that
+                // module never has to ask the plugin for the name through a
+                // call that panics when the plugin is absent.
+                .with_filename(window_geometry::STATE_FILENAME)
+                .build(),
+        )
+        // Runs after the plugin's own restore (which happens while the config
+        // window is created, strictly before this closure), so it corrects a
+        // restored rect that no longer fits the displays actually attached.
+        // See src/window_geometry.rs for why the plugin's guard is not enough.
+        .setup(|app| {
+            window_geometry::keep_window_on_screen(app.handle());
+            Ok(())
+        });
 
     // Mobile-only: geolocation ("Use my location", schema §2.7) and dialog
     // (the Mechanism B document-picker fallback, schema §2.6). Grants live in

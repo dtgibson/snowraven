@@ -69,7 +69,7 @@ vi.mock('../lib/storage', () => ({
   },
 }))
 vi.mock('../lib/observationsCache', () => ({
-  loadEbirdObservations: vi.fn(async () => ({ text: '', observations: OBSERVATIONS })),
+  loadEbirdObservations: vi.fn(async () => ({ headerLine: '', observations: OBSERVATIONS })),
 }))
 vi.mock('../lib/mlExportCache', () => ({ loadMLExport: vi.fn(async () => null) }))
 vi.mock('../lib/transport', () => ({

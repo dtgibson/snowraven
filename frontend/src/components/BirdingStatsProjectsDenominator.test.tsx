@@ -64,7 +64,7 @@ const FIXTURE_OBS: ObservationEntry[] = [
 ]
 
 vi.mock('../lib/observationsCache', () => ({
-  loadEbirdObservations: vi.fn(async () => ({ text: '', observations: FIXTURE_OBS })),
+  loadEbirdObservations: vi.fn(async () => ({ headerLine: '', observations: FIXTURE_OBS })),
 }))
 vi.mock('../lib/mlExportCache', () => ({ loadMLExport: vi.fn(async () => null) }))
 vi.mock('../lib/storage', () => ({

@@ -167,7 +167,9 @@ export function BreedingCodeList({ onGoToSettings, filesVersion, onOpenSpecies }
           setPhase({ tag: 'error', message: "Couldn't load your eBird backup from Settings. Try re-uploading it." })
           return
         }
-        const data = deriveBreedingData(ebird.observations, ebird.text)
+        // headerLine, not the whole CSV: deriveBreedingData uses the text only for
+        // hasBreedingCodeColumn, which reads the first line (see observationsCache).
+        const data = deriveBreedingData(ebird.observations, ebird.headerLine)
         if (!data.hasBreedingCodeColumn) {
           setPhase({ tag: 'error', message: "The stored file doesn't look like an eBird backup. Re-upload MyEBirdData.csv in Settings → Default Files → eBird Backup." })
           return

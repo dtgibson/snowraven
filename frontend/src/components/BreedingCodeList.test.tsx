@@ -28,7 +28,7 @@ vi.mock('../lib/storage', () => ({
 }))
 
 vi.mock('../lib/observationsCache', () => ({
-  loadEbirdObservations: vi.fn(async () => ({ text: CSV_HEADER, observations: OBSERVATIONS })),
+  loadEbirdObservations: vi.fn(async () => ({ headerLine: CSV_HEADER, observations: OBSERVATIONS })),
 }))
 
 vi.mock('../lib/transport', () => ({

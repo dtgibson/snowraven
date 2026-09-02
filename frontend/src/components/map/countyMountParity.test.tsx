@@ -78,7 +78,7 @@ const STATS_OBS = [
     count: 2, breedingCode: null, speciesComments: '', catalogIds: [] },
 ]
 vi.mock('../../lib/observationsCache', () => ({
-  loadEbirdObservations: vi.fn(async () => ({ text: '', observations: STATS_OBS })),
+  loadEbirdObservations: vi.fn(async () => ({ headerLine: '', observations: STATS_OBS })),
 }))
 vi.mock('../../lib/mlExportCache', () => ({ loadMLExport: vi.fn(async () => null) }))
 vi.mock('../../lib/storage', () => ({

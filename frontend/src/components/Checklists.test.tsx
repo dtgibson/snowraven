@@ -70,7 +70,7 @@ vi.mock('../lib/storage', () => ({
   storage: { getFilesStatus: vi.fn(async () => filesStatus) },
 }))
 vi.mock('../lib/observationsCache', () => ({
-  loadEbirdObservations: vi.fn(async () => ({ text: '', observations })),
+  loadEbirdObservations: vi.fn(async () => ({ headerLine: '', observations })),
 }))
 vi.mock('../lib/mlExportCache', () => ({
   loadMLExport: vi.fn(async () => null),
