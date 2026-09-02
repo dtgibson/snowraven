@@ -2,6 +2,13 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [1.0.14] - 2026-09-02
+
+### Fixed
+- **A backup that failed to load no longer leaves the app spinning forever.** A very large eBird backup whose background reading died quietly could leave the app waiting for an answer that was never coming: the spinner never stopped, and because every tab shares that one reading of your file, every other tab that uses your observations was stuck too for the rest of the session, until you re-saved or cleared the file in Settings. The fallback made it worse, retrying the same reading on the main thread and freezing the window. A reading that dies is now always noticed, the tab says it could not load your backup instead of spinning, the failure never repeats the work that just failed, and a later attempt starts fresh rather than joining the dead one.
+- **Clearing your eBird backup really clears it.** Clearing the file in Settings removed the file but left behind the things worked out from it: which of your checklists had been answered about escaped birds, the record of which checklists belong to projects, which counties you have birded, and the saved weather and tide readings for your checklists. All of that now goes with the file, from every place a clear can happen, including a clear that arrives from another device. Loading a newer export is unchanged and still keeps your answers, which is what lets it ask only about the checklists it has not seen before. If some part cannot be removed, the app says so instead of reporting success. And open tabs notice the clear straight away rather than showing the old data until the next launch.
+- **Honest messages when a saved file will not load.** A stored file that could not be read used to send you to the setup screen, telling you to upload a backup you already had. Every tab that reads your data now says what actually happened, and names the file and where to fix it. The Multimedia tab says so too, instead of quietly showing a shorter list.
+
 ## [1.0.13] - 2026-09-02
 
 ### Changed
