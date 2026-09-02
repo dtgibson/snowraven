@@ -430,6 +430,17 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
         ])
         if (cancelled) return
 
+        // A stored backup that came back falsy could not be loaded (an unparseable
+        // file, or a parse worker that died). Say so, rather than quietly rendering
+        // the ML-only list as though the user had never saved a backup: without the
+        // eBird backbone this tab silently omits every species seen but not
+        // photographed. Same wording and terminal state as the other tabs; a backup
+        // that was never stored still degrades to the ML-only list, as before.
+        if (status.ebird && !ebird) {
+          setPhase({ tag: 'error', message: "Couldn't load your eBird backup from Settings. Try re-uploading it." })
+          return
+        }
+
         let entries: LifeListEntry[] = []
         let mediaMap: Record<string, string> = {}
         let rows: MLExportRow[] = []

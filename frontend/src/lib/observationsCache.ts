@@ -29,10 +29,55 @@ let inflight: Promise<LoadedEbird | null> | null = null
 // repopulate the cache with now-stale content.
 let generation = 0
 
-// Parse off the main thread via a Web Worker so the UI stays responsive while a
-// large export is parsed (especially on low-power / Raspberry Pi deployments).
-// Falls back to a synchronous parse if Workers are unavailable or the worker errors,
-// so behavior is identical everywhere — just smoother where Workers are supported.
+// How long a healthy parse is allowed to take before the worker is presumed dead.
+//
+// A worker that dies without dispatching `error` — an OOM kill, a crash — gives the
+// main thread NO event to settle on, so the only remaining evidence of death is
+// silence, and silence has to be bounded by a clock. The bound scales with the input
+// because the thing being waited on does: a budget right for a 1 MB export would fire
+// on a healthy 100 MB one, and firing on a slow-but-healthy parse would be a worse
+// bug than the hang it replaces.
+//
+// Measured on the tracked demo export and multiples of it (Node 24 / V8, quiet
+// machine): 57-75 million characters per second — 13 to 18 ms per megabyte, flat
+// across 1.4 MB, 6.8 MB and 27 MB, so the parse is linear in the input and the
+// allowance can be too. The allowance below is 4 SECONDS per megabyte, roughly 250x
+// slower than measured. That clears the slowest device this app ships to (a Pi's
+// browser, an older iPhone's WKWebView) by a wide margin even with the heap under GC
+// pressure, and still turns an unbounded hang into a bounded failure: ~34 s for the
+// demo export, ~56 s for the 6.6 MB reference export, ~10 min for a 148 MB one.
+// The floor covers worker spawn, module evaluation and the structured clone of the
+// request on a busy device — none of which scale with the file.
+const PARSE_BUDGET_FLOOR_MS = 30_000
+const PARSE_BUDGET_MS_PER_CHAR = 0.004
+
+function parseBudgetMs(chars: number): number {
+  return PARSE_BUDGET_FLOOR_MS + chars * PARSE_BUDGET_MS_PER_CHAR
+}
+
+/**
+ * Parse off the main thread via a Web Worker so the UI stays responsive while a
+ * large export is parsed (especially on low-power / Raspberry Pi deployments).
+ *
+ * SETTLE CONTRACT — every path settles, and the worker is always torn down.
+ * `onmessage` and `onerror` alone are not enough. A worker that dies without
+ * dispatching `error` leaves nothing to settle on, and the promise this returns is
+ * memoized in `inflight`, so ONE such death hung every observations tab for the rest
+ * of the session and leaked the dead worker with it. The paths are now: a reply
+ * (resolve); a worker error (reject); a reply that cannot be structured-cloned back
+ * to us (`messageerror`, reject); a request that cannot be cloned out (`postMessage`
+ * throws, reject); and silence past the budget above (reject). Whichever fires first
+ * wins — it clears the watchdog, detaches the handlers, and terminates the worker.
+ *
+ * A rejection deliberately does NOT re-parse on this thread. The old `onerror` branch
+ * did, which re-ran the identical allocation that had just failed, on the thread that
+ * paints, and only terminated the worker after it returned.
+ * `loadEbirdObservations` turns a rejection into `null`, which every tab already
+ * reads as "couldn't load your backup" rather than "you have no backup".
+ *
+ * Where Workers do not exist at all (an older browser, jsdom under vitest) the parse
+ * runs here. That is the ONLY parse on that path — not a retry of a failed one.
+ */
 function parseOffThread(text: string): Promise<ObservationEntry[]> {
   let worker: Worker
   try {
@@ -40,16 +85,39 @@ function parseOffThread(text: string): Promise<ObservationEntry[]> {
   } catch {
     return Promise.resolve(parseEbirdObservations(text))
   }
-  return new Promise<ObservationEntry[]>((resolve) => {
-    worker.onmessage = (e: MessageEvent<ObservationEntry[]>) => {
-      resolve(e.data)
+  return new Promise<ObservationEntry[]>((resolve, reject) => {
+    let settled = false
+
+    // The one exit. Idempotent, so a late event after the watchdog (or an `error`
+    // that follows a `messageerror`) cannot resolve an already-rejected promise or
+    // terminate twice. `watchdog` is declared below and read only from inside these
+    // closures, none of which can run before that line executes.
+    const settle = (act: () => void) => {
+      if (settled) return
+      settled = true
+      clearTimeout(watchdog)
+      worker.onmessage = null
+      worker.onerror = null
+      worker.onmessageerror = null
       worker.terminate()
+      act()
     }
-    worker.onerror = () => {
-      resolve(parseEbirdObservations(text))
-      worker.terminate()
+    const fail = (reason: string) => settle(() => reject(new Error(reason)))
+
+    const watchdog = setTimeout(() => fail('EBIRD_PARSE_TIMEOUT'), parseBudgetMs(text.length))
+
+    worker.onmessage = (e: MessageEvent<ObservationEntry[]>) => settle(() => resolve(e.data))
+    worker.onerror = () => fail('EBIRD_PARSE_WORKER_ERROR')
+    worker.onmessageerror = () => fail('EBIRD_PARSE_REPLY_UNREADABLE')
+
+    // Cloning the CSV out to the worker can itself fail on a very large export.
+    // Inside the executor a throw would reject, but the worker would leak and the
+    // watchdog would keep a timer alive for minutes; route it through `settle`.
+    try {
+      worker.postMessage(text)
+    } catch {
+      fail('EBIRD_PARSE_POST_FAILED')
     }
-    worker.postMessage(text)
   })
 }
 
@@ -100,8 +168,18 @@ export function firstLine(content: string): string {
 
 /**
  * Read the stored eBird backup and parse it into observations, memoized by file
- * content. Returns null when no eBird file is stored. The returned `headerLine` is
- * the CSV's first line only — the full text is NOT retained (see the note above).
+ * content. The returned `headerLine` is the CSV's first line only — the full text is
+ * NOT retained (see the note above).
+ *
+ * Returns null when the backup cannot be handed back: no eBird file is stored, OR
+ * the stored file could not be parsed (the worker died, the reply was unreadable,
+ * the CSV was not an eBird export). ONE falsy answer for both, deliberately: every
+ * tab already reads a falsy result as "couldn't load your eBird backup from
+ * Settings", whereas a THROWN load lands in each tab's outer catch, which maps to
+ * `setup-required` — telling the user to upload a backup they plainly already have.
+ * A failed load is not cached and does not survive in `inflight`, so the next mount,
+ * re-save or file arrival starts a fresh attempt rather than re-joining a dead
+ * promise.
  */
 export async function loadEbirdObservations(): Promise<LoadedEbird | null> {
   if (cache) return cache
@@ -114,7 +192,16 @@ export async function loadEbirdObservations(): Promise<LoadedEbird | null> {
 async function loadFresh(myGen: number): Promise<LoadedEbird | null> {
   const text = await storage.readFile('ebird')
   if (text === null) return null
-  const observations = await parseOffThread(text)
+  let observations: ObservationEntry[]
+  try {
+    observations = await parseOffThread(text)
+  } catch {
+    // A parse that failed for any reason — including a worker that died without
+    // saying so — is reported as "no usable backup", never as a throw. See the
+    // note on loadEbirdObservations for why the distinction matters to the tabs.
+    // Nothing is cached, so the next caller re-reads and re-parses.
+    return null
+  }
   // `text` goes out of scope with this call — only the header line survives it.
   const result: LoadedEbird = { headerLine: firstLine(text), observations }
   // Don't cache if the file was invalidated while we were parsing.

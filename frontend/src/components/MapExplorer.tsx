@@ -677,7 +677,13 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
           loadEbirdObservations(),
           status.ml ? loadMLExport() : Promise.resolve(null),
         ])
-        if (!ebird || cancelled) { setPhase({ tag: 'setup-required' }); return }
+        if (cancelled) return
+        // A stored-but-unloadable backup is NOT "you have no backup". Same wording
+        // and same terminal state as every other observations tab.
+        if (!ebird) {
+          setPhase({ tag: 'error', message: "Couldn't load your eBird backup from Settings. Try re-uploading it." })
+          return
+        }
 
         const observations = ebird.observations
 
@@ -1504,10 +1510,13 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
   }
 
   const isSetupRequired = phase.tag === 'setup-required'
-  // The one branch below that replaces <SnowMap> with <SetupRequired>. The
-  // location FAB is gated on this and on nothing else: "is there a map", never
-  // "is there data" (FR-02).
-  const mapMounted = !(isSetupRequired && viewMode === 'sightings')
+  const loadErrorMessage = phase.tag === 'error' ? phase.message : null
+  // The two branches below that replace <SnowMap> — with <SetupRequired> when no
+  // backup is stored, with the load-failure panel when one is stored but unusable.
+  // The location FAB is gated on this and on nothing else: "is there a map", never
+  // "is there data" (FR-02), so it stays absent for both, for the same reason: no
+  // MapEffects is mounted to consume a panTarget either way.
+  const mapMounted = !((isSetupRequired || loadErrorMessage !== null) && viewMode === 'sightings')
   // One name on all four views: the promise is identical everywhere. On the three
   // centre views the same press MAY also run a search, but only when both
   // coordinate fields were empty — a condition the user cannot see, so a name
@@ -3205,6 +3214,16 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
               steps={EBIRD_BACKUP_STEPS}
               onGoToSettings={onGoToSettings}
             />
+          ) : loadErrorMessage !== null && viewMode === 'sightings' ? (
+            <div role="alert" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: 40 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 13px', background: 'var(--sr-error-bg)', borderRadius: 8, fontSize: '0.8125rem', color: 'var(--sr-error)', maxWidth: 480 }}>
+                <AlertCircle size={14} strokeWidth={2.5} style={{ flexShrink: 0 }} aria-hidden />
+                {loadErrorMessage}
+              </div>
+              <button type="button" tabIndex={0} onClick={onGoToSettings} style={{ height: 32, padding: '0 14px', borderRadius: 6, border: '1.5px solid var(--sr-border)', background: 'var(--sr-surface)', color: 'var(--sr-text-muted)', fontSize: '0.75rem', fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer' }}>
+                Go to Settings
+              </button>
+            </div>
           ) : (
             <SnowMap
               initialViewState={{ longitude: -100, latitude: 45, zoom: 4 }}

@@ -23,6 +23,11 @@ export type PointSize = 'normal' | 'small' | 'off'
 export type MapPhase =
   | { tag: 'loading-saved' }
   | { tag: 'setup-required' }
+  // A backup IS stored but could not be loaded (an unparseable file, or a parse
+  // worker that died). Distinct from 'setup-required' on purpose: that one tells the
+  // user to upload a backup, which is a lie when they already have one. Matches the
+  // failure branch every other observations tab has had all along.
+  | { tag: 'error'; message: string }
   | { tag: 'ready'; observations: ObservationEntry[]; mlRows: MLExportRow[]; mediaMap: Record<string, string>; hasML: boolean }
 
 export type BreedingFilter = 'all' | 'possible' | 'probable' | 'confirmed'
