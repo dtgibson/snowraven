@@ -85,7 +85,7 @@ beforeEach(() => {
   getFilesStatus.mockReset()
   getFilesStatus.mockImplementation(async () => filesStatus)
   loadEbird.mockReset()
-  loadEbird.mockImplementation(async () => ({ text: '', observations }))
+  loadEbird.mockImplementation(async () => ({ headerLine: '', observations }))
 })
 afterEach(cleanup)
 
