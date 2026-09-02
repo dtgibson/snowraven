@@ -117,7 +117,10 @@ italic at 0.71875rem `--sr-text-gray`.
   per keydown; motion follows the global reduced-motion rule. Use it for the
   destructive or cross-device confirmation (the sync-on Clear, Remove from
   iCloud) and the pre-enable note; a plain local action that reads the same
-  as before stays unconfirmed.
+  as before stays unconfirmed. A note that ends on one quiet promise ("Nothing
+  is written to iCloud until you choose Turn on.") carries it in `.sr-dlg-fine`:
+  0.75rem muted text over a `--sr-border-subtle` top rule, below the body and
+  above the actions.
 - **Tab pages:** house header (30px accent-bg icon tile + h2 + one-line muted
   description); Phase union loading → SetupRequired → error → ready;
   defer-mount via App's `mountedTabs`.
@@ -252,7 +255,30 @@ italic at 0.71875rem `--sr-text-gray`.
   row's own text (Settings-style title + description + trailing switch) passes
   `bare`: chromeless, larger 36×20 track / 16px knob, same thumb/track tokens,
   global focus ring, `.sr-touch-target`. Never leave the boxed chrome around a
-  label-hidden switch (it reads as an empty box).
+  label-hidden switch (it reads as an empty box). A switch that is not operable
+  but must say why in place (a sub-option gated on another switch) passes
+  `ariaDisabled`: `aria-disabled="true"`, still focusable, ignores activation,
+  takes the disabled look (`opacity: 0.72`, `cursor: not-allowed`), with the
+  one-line reason in its `aria-describedby`; native `disabled` is for a switch
+  with nothing to explain at the control.
+- **Row status line (a row that reports where its data came from and its sync
+  state):** the shared `SyncLine` in `Settings.tsx` (`.sr-sync-line`), a
+  `role="status"` element rendered from the start inside the row's text column
+  under the value line, empty when the row has no view, its children replaced
+  on change and never unmounted or `display: none`, cross-fading between views
+  (first fill and clear-to-empty instant; reduced motion instant). It is
+  generic over the view and takes a render prop, so a new row kind supplies
+  its content (`SyncContent`, `KeySyncContent`) and never forks the region:
+  a 13px lucide cloud glyph (`aria-hidden`), the state as text (600, one of a
+  closed label set), an sr-only full stop, then a muted detail span
+  (`.sr-sync-more`, `overflow-wrap: anywhere`, its middot inside it) carrying
+  provenance ("From this device, changed <time>", "Replaced by the key from
+  <device>"), then an inline action (Retry, Download now). The one failure
+  state colors the label `--sr-error` as reinforcement of the text, never
+  alone. Phone tier: the label wraps and the inline action takes the full row
+  width; the row's own value or filename line wraps too, so Show / Hide drops
+  under the value at 320px and 200% text. Default Files rows and API Keys rows
+  are the two instances.
 - **Phone wide-table:** a wide matrix/table (many narrow columns beside a label
   column) is made comfortable on a phone by (1) narrowing the data columns to
   dot-width via a single CSS class at the ≤640 tier — never an inline width — with
