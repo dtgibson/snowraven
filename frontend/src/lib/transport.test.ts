@@ -221,6 +221,11 @@ describe('CachedTransport.getReplayable (opt-in replay)', () => {
   const get = vi.fn();
   const replayKey = vi.fn((path: string, params?: Record<string, string>) =>
     `${path}|${JSON.stringify(params ?? {})}`);
+  // The store's purge counter, standing in for a Clear the test can fire mid
+  // request. getReplayable must read it BEFORE the GET and hand that value to
+  // put — the store refuses on a mismatch (clear-means-clear).
+  let generation = 0;
+  const purgeGeneration = vi.fn(() => generation);
   const offline = vi.fn();
 
   beforeEach(() => {
@@ -228,8 +233,10 @@ describe('CachedTransport.getReplayable (opt-in replay)', () => {
     put.mockReset();
     get.mockReset().mockResolvedValue(null);
     replayKey.mockClear();
+    generation = 0;
+    purgeGeneration.mockClear();
     offline.mockReset().mockReturnValue(false);
-    vi.doMock('./replayStore', () => ({ put, get, replayKey }));
+    vi.doMock('./replayStore', () => ({ put, get, replayKey, purgeGeneration }));
     vi.doMock('./offlineDetect', () => ({ isOfflineError: offline, isNoKeyError: () => false }));
   });
 
@@ -245,7 +252,22 @@ describe('CachedTransport.getReplayable (opt-in replay)', () => {
     const { transport } = await import('./transport');
     const res = await transport.getReplayable<{ formatted: string }>('/weather/S1');
     expect(res).toEqual({ data: { formatted: 'sunny' }, replayedAt: null });
-    expect(put).toHaveBeenCalledWith('/weather/S1|{}', { formatted: 'sunny' });
+    expect(put).toHaveBeenCalledWith('/weather/S1|{}', { formatted: 'sunny' }, 0);
+  });
+
+  it('hands put the generation captured BEFORE the request, not after it', async () => {
+    // A Clear lands while the GET is outstanding. The transport cannot re-read
+    // the counter afterwards — it would read the post-purge value and the store
+    // would accept a `/weather/S…` answer fetched for the export that was just
+    // deleted (the Weather Backlog keeps a run of these in flight). Passing the
+    // pre-request capture is what lets the store refuse it.
+    vi.stubGlobal('fetch', vi.fn().mockImplementation(() => {
+      generation += 1; // the purge, mid-flight
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({ formatted: 'sunny' }) });
+    }));
+    const { transport } = await import('./transport');
+    await transport.getReplayable<{ formatted: string }>('/weather/S1000009');
+    expect(put).toHaveBeenCalledWith('/weather/S1000009|{}', { formatted: 'sunny' }, 0);
   });
 
   it('offline error WITH a prior hit → returns the hit + its loadedAt, no put', async () => {

@@ -61,7 +61,7 @@ function fakeActions(): ICloudActions {
     downloadNow: vi.fn<(slot: Slot) => Promise<void>>(async () => {}),
     retry: vi.fn<(slot: Slot) => Promise<void>>(async () => {}),
     removeFromICloud: vi.fn(async () => {}),
-    clearWithSync: vi.fn<(slot: Slot) => Promise<void>>(async () => {}),
+    clearWithSync: vi.fn<(slot: Slot) => Promise<readonly string[]>>(async () => []),
     fileSaved: vi.fn<(slot: Slot) => void>(() => {}),
     // icloud-api-key-sync (the key tests live in Settings.icloudKeys.test.tsx)
     enableKeys: vi.fn(async () => {}),
@@ -431,6 +431,32 @@ describe('Clear with sync on and off (FR-30, QA-28)', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: copy.BUTTONS.clearConfirm }))
     expect(actions.clearWithSync).toHaveBeenCalledWith('ebird')
     expect(storageMock.deleteFile).not.toHaveBeenCalled()
+    // A clean sweep (the default: it resolves []) says nothing extra.
+    expect(screen.queryByText(/could not be deleted/)).toBeNull()
+  })
+
+  it('a store that would not purge is surfaced on the SYNCED clear path too', async () => {
+    // The same sentence as the local path, one path over. The two paths were
+    // symmetric in the CODE and asymmetric in the EVIDENCE: deleting the
+    // surfacing from the synced path left every test in this build green, which
+    // is the same shape of gap as the missing fourth race row and the untested
+    // composed seam. `clearWithSync` resolves with the stores that failed; the
+    // sync itself succeeded, so this must not read as a failed clear.
+    gate(true)
+    setICloudState({ availability: 'available', syncEnabled: true, platform: 'mac' })
+    // `actions` is typed as the real ICloudActions, so reach the double
+    // through its mock type rather than widening the interface for a test.
+    vi.mocked(actions.clearWithSync).mockResolvedValueOnce(['exotic-provenance-v1'])
+    renderSettings()
+    await screen.findByText('MyEBirdData.csv')
+    fireEvent.click(fileRowClear('MyEBirdData.csv'))
+    const dialog = await screen.findByRole('dialog', { name: 'Clear eBird Backup?' })
+    fireEvent.click(within(dialog).getByRole('button', { name: copy.BUTTONS.clearConfirm }))
+
+    expect(await screen.findByText(
+      'File removed, but some data worked out from it could not be deleted. Clearing again after your next upload will remove it.',
+    )).toBeTruthy()
+    expect(screen.queryByText('Delete failed. Please try again.')).toBeNull()
   })
 
   it('with sync off, Clear is today\'s instant local clear with no dialog and no iCloud mention', async () => {

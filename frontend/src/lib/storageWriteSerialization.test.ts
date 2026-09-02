@@ -236,6 +236,87 @@ describe('settings.json write serialization (settings-write-clobber)', () => {
   });
 });
 
+// clear-means-clear: the derived-store purge rewrites settings.json (three of
+// its four stores live there), so it owes this same chain. It does NOT hand-roll
+// a read-modify-write — each store calls `storage.deleteSetting`, which is
+// already a chained link — and these tests hold that the resulting interleaving
+// is safe in both directions. The fourth store, data/replay.json, is its own
+// file with a single writer and joins no chain.
+describe('clear-path purge interleaving (clear-means-clear)', () => {
+  const PURGED = ['exotic-provenance-v1', 'checklist-projects-v1', 'county-completeness-v1'];
+
+  async function seed(): Promise<void> {
+    for (const key of PURGED) await storage.setSetting(key, { version: 1, entries: { S1: 1 } });
+    await storage.setSetting('map-defaults', { lat: 37, lng: -122, dist: 5 });
+    await storage.setSetting('tab-layout', ['weather', 'calendar']);
+  }
+
+  it('a purge overlapping an unrelated save: every key goes, every other key stays', async () => {
+    await seed();
+
+    // The 1.0.8 clobber shape, aimed at the purge: all three deletes and a
+    // concurrent save take their base read before any of them writes. Pre-chain,
+    // the last writer's stale base resurrects whatever the others had removed.
+    harness.manual = true;
+    const ops = [
+      storage.deleteSetting(PURGED[0]),
+      storage.setSetting('icloud-sync', { version: 1, enabled: true }),
+      storage.deleteSetting(PURGED[1]),
+      storage.deleteSetting(PURGED[2]),
+    ];
+    await drainReadsFirst();
+    await Promise.all(ops);
+
+    expect(settingsDoc()).toEqual({
+      'map-defaults': { lat: 37, lng: -122, dist: 5 },
+      'tab-layout': ['weather', 'calendar'],
+      'icloud-sync': { version: 1, enabled: true },
+    });
+  });
+
+  it('a debounced store flush racing the purge cannot resurrect a purged document', async () => {
+    await seed();
+
+    // The live race: a store's own 250 ms whole-document flush fires while the
+    // user's Clear is running. The store-level supersession guards stop this
+    // flush being issued at all; the chain is what makes it harmless if one
+    // ever is, which is why both layers exist.
+    harness.manual = true;
+    const flush = storage.setSetting(PURGED[1], { version: 1, entries: { S1: 1, S2: 2 } });
+    const purge = Promise.all(PURGED.map((k) => storage.deleteSetting(k)));
+    await drainReadsFirst();
+    await Promise.all([flush, purge]);
+
+    // Call order decides: the flush was issued first, so each delete lands after
+    // it and every purged key is gone.
+    for (const key of PURGED) expect(await storage.getSetting(key)).toBeNull();
+    expect(settingsDoc()).toEqual({
+      'map-defaults': { lat: 37, lng: -122, dist: 5 },
+      'tab-layout': ['weather', 'calendar'],
+    });
+  });
+
+  it('a randomized resolution order gives the same answer', async () => {
+    await seed();
+
+    harness.manual = true;
+    const ops: Promise<void>[] = [
+      ...PURGED.map((k) => storage.deleteSetting(k)),
+      storage.setSetting('theme', 'dark'),
+      storage.setSetting('text-scale', 1.25),
+    ];
+    await drainRandom(lcg(0x5ea11ed));
+    await Promise.all(ops);
+
+    expect(settingsDoc()).toEqual({
+      'map-defaults': { lat: 37, lng: -122, dist: 5 },
+      'tab-layout': ['weather', 'calendar'],
+      theme: 'dark',
+      'text-scale': 1.25,
+    });
+  });
+});
+
 describe('api-keys.json write serialization', () => {
   it('overlapping setApiKey calls both persist', async () => {
     harness.manual = true;

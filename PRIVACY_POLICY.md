@@ -13,7 +13,7 @@ SnowRaven keeps your data on your own device by choice and design. You keep it, 
 - Your API keys, app settings, and the files you upload (your eBird backup and Macaulay Library export) are stored only on your device (in the desktop app's local data directory, or in the iOS app's on-device sandbox on iPhone and iPad), or on your own machine when you self-host the web/Pi version, unless you turn on the optional iCloud Sync on a Mac, iPhone or iPad, which copies the two data files, and your API keys only if you also turn on its separate Sync API keys switch, into your own iCloud account and nowhere else (see the iCloud Sync section below). They are never uploaded to the developer or to any service the developer runs.
 - All processing of your eBird and media files happens locally, on your own device, while you use the app.
 - There is no SnowRaven account, no login, and no SnowRaven-operated server sitting between you and your data.
-- You can delete your stored files and keys at any time from the Settings tab, or by removing the app's data directory.
+- You can delete your stored files and keys at any time from the Settings tab, or by removing the app's data directory. Clearing your eBird backup also removes what was worked out from it and saved on your device: the escapee and Projects answers for your checklists, the county species lists behind the map's Completeness shading, and the saved weather and tide readings for your checklists. Replacing a file with a newer export keeps those saved answers, which is what lets a newer export ask only about the checklists that have not been answered yet.
 
 ## No Data Collection
 

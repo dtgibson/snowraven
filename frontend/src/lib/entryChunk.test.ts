@@ -177,6 +177,20 @@ describe('entry-chunk exclusion (NFR-03 / QA-30)', () => {
     expect(has('components/map/CountyCompletenessPopup.tsx')).toBe(false)
   })
 
+  it('the clear-path teardown rides the entry chunk without dragging a store onto it', () => {
+    // clear-means-clear. Settings.tsx IS on this graph and imports the teardown
+    // plainly, so the registry itself is here — it is a slot table with no
+    // static imports at all. Every store it tears down is reached through
+    // `import()`, which is what keeps countyCompletenessCache (asserted absent
+    // above) and the rest off first paint. If a row is ever "simplified" into a
+    // static import, that assertion goes red rather than the bundle growing
+    // silently.
+    expect(has('lib/clearDerived.ts')).toBe(true)
+    const registry = closureFrom(resolve(SRC, 'lib/clearDerived.ts'))
+    expect(registry.files.size).toBe(1)          // itself, and nothing else
+    expect([...registry.externals]).toEqual([])
+  })
+
   it('the Pin Share map-coupled files are only reachable through a lazy map tab (NFR-10)', () => {
     // Settings.tsx IS on App.tsx's static graph and imports lib/shareCopyPreference,
     // which re-exports ShareCopySelection from lib/shareLocation — so BOTH of those

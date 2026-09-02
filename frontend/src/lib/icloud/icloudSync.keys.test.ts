@@ -230,6 +230,7 @@ function makeDeps(native: ICloudNativeLayer, storage: ControllerDeps['storage'])
     native,
     storage,
     invalidate,
+    purgeDerived: async () => [],
     notifyFilesChanged,
     subscribeFilesChanged: () => () => {},
     invalidateKey,

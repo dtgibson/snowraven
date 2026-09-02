@@ -67,7 +67,7 @@ function fakeActions(): ICloudActions {
     downloadNow: vi.fn<(slot: Slot) => Promise<void>>(async () => {}),
     retry: vi.fn<(slot: Slot) => Promise<void>>(async () => {}),
     removeFromICloud: vi.fn(async () => {}),
-    clearWithSync: vi.fn<(slot: Slot) => Promise<void>>(async () => {}),
+    clearWithSync: vi.fn<(slot: Slot) => Promise<readonly string[]>>(async () => []),
     fileSaved: vi.fn<(slot: Slot) => void>(() => {}),
     enableKeys: vi.fn(async () => {}),
     disableKeys: vi.fn(async () => {}),

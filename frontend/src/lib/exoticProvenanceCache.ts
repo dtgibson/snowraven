@@ -215,6 +215,16 @@ export function sanitizeStore(loaded: unknown): ProvenanceStore {
 let _store: ProvenanceStore | null = null
 let _loading: Promise<ProvenanceStore> | null = null
 
+// Monotone purge counter (clear-means-clear). The identity check `store !==
+// _store` that the other durable stores use is not sufficient HERE, because
+// `mergeChecklist` is a public entry point that calls `ensureLoaded()` for
+// itself: after a purge it would load the fresh EMPTY mirror, find its own
+// store identical to it, and merge in observations from the very export the
+// user just cleared. A generation captured before the first await answers the
+// real question — "did a Clear happen since this work began?" — which identity
+// alone cannot.
+let _purgeGeneration = 0
+
 // Snapshot memo: rebuilt only when the mirror actually changes, so a render pass
 // that reads it repeatedly never re-materializes the Set and Map.
 let _snapshot: ProvenanceSnapshot = EMPTY_SNAPSHOT
@@ -263,6 +273,11 @@ async function ensureLoaded(): Promise<ProvenanceStore> {
   if (_loading) return _loading
   _loading = (async () => {
     const loaded = await storage.getSetting<ProvenanceStore>(PROVENANCE_STORE_KEY).catch(() => null)
+    // A purge landed while this read was in flight (clear-means-clear): it has
+    // already installed the authoritative empty mirror, and `loaded` is the
+    // PRE-purge document. Adopting it would resurrect every checklist id and
+    // species name the user just cleared.
+    if (_store) return _store
     _store = sanitizeStore(loaded)
     rebuildSnapshot(_store)
     return _store
@@ -333,7 +348,12 @@ export async function mergeChecklist(
   admissible: ReadonlySet<string>,
   nowMs: number,
 ): Promise<void> {
+  const gen = _purgeGeneration
   const store = await ensureLoaded()
+  // A Clear landed while this merge was getting under way. The observations in
+  // hand were fetched for a checklist id that came out of the export the user
+  // just deleted, so they are not written to either the mirror or the disk.
+  if (gen !== _purgeGeneration || store !== _store) return
   if (_workStats) _workStats.merges += 1
 
   for (const o of observations) {
@@ -393,7 +413,11 @@ export async function mergeChecklist(
  * No-ops when the list is unchanged, so a re-render never schedules a write.
  */
 export async function publishExcludedNames(names: readonly string[]): Promise<void> {
+  const gen = _purgeGeneration
   const store = await ensureLoaded()
+  // Same guard as mergeChecklist, and it matters at least as much here: these
+  // are escapee COMMON NAMES carried verbatim from the user's export.
+  if (gen !== _purgeGeneration || store !== _store) return
   const next = [...names].slice(0, MAX_PUBLISHED_NAMES).sort()
   if (next.length === store.excludedNames.length && next.every((n, i) => n === store.excludedNames[i])) return
   store.excludedNames = next
@@ -489,6 +513,7 @@ export function dedupedFetchChecklist(
   },
 ): Promise<{ fromNetwork: boolean }> {
   return (async () => {
+    const gen = _purgeGeneration
     const store = await ensureLoaded()
     if (!opts?.refetch
       && Object.hasOwn(store.checklists, submissionId)
@@ -508,6 +533,10 @@ export function dedupedFetchChecklist(
     _inflight.set(submissionId, p)
     try {
       const obs = await p
+      // A Clear landed while this request was in flight. `mergeChecklist` would
+      // refuse it on its own generation guard; returning here as well keeps the
+      // decision where a reader looks for it, and skips the pointless load.
+      if (gen !== _purgeGeneration) return { fromNetwork: true }
       await mergeChecklist(submissionId, obs, admissible, Date.now())
       return { fromNetwork: true }
     } catch (err) {
@@ -531,6 +560,8 @@ function scheduleWrite(store: ProvenanceStore): void {
   if (_writeTimer) clearTimeout(_writeTimer)
   _writeTimer = setTimeout(() => {
     _writeTimer = null
+    // Superseded by a purge: this closure holds the PRE-purge document.
+    if (store !== _store) return
     const snapshot: ProvenanceStore = {
       version: store.version,
       checklists: { ...store.checklists },
@@ -547,6 +578,36 @@ function scheduleWrite(store: ProvenanceStore): void {
     void storage.setSetting<ProvenanceStore>(PROVENANCE_STORE_KEY, snapshot)
       .catch(() => { /* best-effort — the mirror stays the live source */ })
   }, WRITE_DEBOUNCE_MS)
+}
+
+// ── Clear-path teardown (clear-means-clear) ───────────────────────────────────
+
+/**
+ * Drop the whole document — the consulted-checklist ledger, the species index
+ * and the published escapee names — from the mirror AND from disk.
+ *
+ * This is the PRODUCTION purge, distinct from `_resetProvenanceCacheForTests`
+ * below: that one only detaches the mirror (a test's next load re-reads the
+ * document), where this one removes the stored document itself. It is called
+ * only from the shared clear-path teardown (`lib/clearDerived.ts`), never on a
+ * replace: `PRIVACY_POLICY.md` publishes that loading a newer export re-asks
+ * only unanswered checklists, and purging on upload would falsify it.
+ *
+ * `deleteSetting` is the seam's own read-modify-write on `settings.json`, so it
+ * already runs as one link on that document's `docChains` promise chain — a
+ * purge racing a debounced flush from another store cannot clobber it.
+ */
+export async function purgeProvenanceStore(): Promise<void> {
+  // Supersede a pending flush first: it holds the pre-purge document.
+  if (_writeTimer) { clearTimeout(_writeTimer); _writeTimer = null }
+  _inflight.clear()
+  _purgeGeneration += 1
+  // A NEW object, which is what lets an in-flight merge notice it is holding a
+  // detached document. `_loading` is deliberately left alone: its own guard
+  // above sees the installed mirror and keeps it.
+  _store = EMPTY_STORE()
+  rebuildSnapshot(_store)
+  await storage.deleteSetting(PROVENANCE_STORE_KEY)
 }
 
 /** Test seam: deterministic work performed since the last reset. */

@@ -106,7 +106,9 @@ export interface ICloudActions {
   downloadNow(slot: Slot): Promise<void>
   retry(slot: Slot): Promise<void>
   removeFromICloud(): Promise<void>
-  clearWithSync(slot: Slot): Promise<void>
+  /** Resolves with the derived stores that could not be purged (usually none)
+   *  — the caller owns the message (clear-means-clear). */
+  clearWithSync(slot: Slot): Promise<readonly string[]>
   /** Settings saved a file locally with sync on: show "Syncing, uploading" and check. */
   fileSaved(slot: Slot): void
 
@@ -195,7 +197,7 @@ const NOOP_ACTIONS: ICloudActions = {
   downloadNow: async () => {},
   retry: async () => {},
   removeFromICloud: async () => {},
-  clearWithSync: async () => {},
+  clearWithSync: async () => [],
   fileSaved: () => {},
   enableKeys: async () => {},
   disableKeys: async () => {},

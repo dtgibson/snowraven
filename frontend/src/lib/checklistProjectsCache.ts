@@ -225,6 +225,10 @@ async function ensureLoaded(): Promise<ChecklistProjectsStore> {
   if (_loading) return _loading
   _loading = (async () => {
     const loaded = await storage.getSetting<ChecklistProjectsStore>(PROJECTS_STORE_KEY).catch(() => null)
+    // A purge landed while this read was in flight (clear-means-clear): it has
+    // already installed the authoritative empty mirror, and `loaded` is the
+    // PRE-purge document holding the submission ids the user just cleared.
+    if (_store) return _store
     _store = sanitizeStore(loaded)
     rebuildSnapshot(_store)
     return _store
@@ -283,6 +287,12 @@ function mergeEntry(
   submissionId: string,
   entry: ChecklistProjectsEntry,
 ): boolean {
+  // A purge replaced the mirror while the loader was in flight. `store` is the
+  // detached pre-purge document; merging into it would rebuild the snapshot
+  // from purged data and schedule a write that re-lands it. Reported as NOT
+  // refused: nothing was declined by the cap, only persistence was skipped, and
+  // the caller still receives and counts its answer for this session.
+  if (store !== _store) return false
   if (_workStats) _workStats.merges += 1
   if (!Object.hasOwn(store.entries, submissionId)) {
     // Admission gates NEW KEYS ONLY, on the CONTAINER'S OWN SIZE — the array
@@ -390,6 +400,8 @@ function scheduleWrite(store: ChecklistProjectsStore): void {
   if (_writeTimer) clearTimeout(_writeTimer)
   _writeTimer = setTimeout(() => {
     _writeTimer = null
+    // Superseded by a purge: this closure holds the PRE-purge document.
+    if (store !== _store) return
     const snapshot: ChecklistProjectsStore = {
       version: store.version,
       // Null-prototype target: Object.assign uses [[Set]], so copying an own
@@ -409,6 +421,30 @@ function scheduleWrite(store: ChecklistProjectsStore): void {
     void storage.setSetting<ChecklistProjectsStore>(PROJECTS_STORE_KEY, snapshot)
       .catch(() => { /* best-effort — the mirror stays the live source */ })
   }, WRITE_DEBOUNCE_MS)
+}
+
+// ── Clear-path teardown (clear-means-clear) ──────────────────────────────────
+
+/**
+ * Drop every entry — the whole submission-id-keyed ledger — from the mirror AND
+ * from disk. The PRODUCTION purge, distinct from
+ * `_resetProjectsCacheForTests` below, which only detaches the mirror.
+ *
+ * Called only from the shared clear-path teardown (`lib/clearDerived.ts`).
+ * NEVER on a replace: this store's 365-day incremental premise is that a newer
+ * export re-asks only the checklists it has not answered yet (FR-24,
+ * `PRIVACY_POLICY.md`), and purging on upload would force a full eight-minute
+ * re-sweep on every upload.
+ *
+ * `deleteSetting` is the seam's own `settings.json` read-modify-write, so it
+ * runs as one link on that document's `docChains` chain.
+ */
+export async function purgeProjectsStore(): Promise<void> {
+  if (_writeTimer) { clearTimeout(_writeTimer); _writeTimer = null }
+  _inflight.clear()
+  _store = EMPTY_STORE()
+  rebuildSnapshot(_store)
+  await storage.deleteSetting(PROJECTS_STORE_KEY)
 }
 
 /** Test seam: deterministic work performed since the last reset. */

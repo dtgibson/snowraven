@@ -115,6 +115,15 @@ export interface ControllerDeps {
   >
   /** the cache invalidations Settings runs for this slot today */
   invalidate: (slot: Slot) => void
+  /**
+   * The CLEAR-PATH teardown of the durable stores derived from this slot's file
+   * (`lib/clearDerived.ts`). Deliberately a SEPARATE dependency from
+   * `invalidate`, which also serves the synced ARRIVAL — a replace, where
+   * purging would falsify PRIVACY_POLICY.md's "loading a newer export asks only
+   * about checklists that have not been answered yet". Only the two clear
+   * paths below (`delete-local` and `clearWithSync`) may call it.
+   */
+  purgeDerived: (slot: Slot) => Promise<readonly string[]>
   notifyFilesChanged: () => void
   subscribeFilesChanged: (cb: () => void) => () => void
   /** the cache invalidations Settings runs after a key save or clear (ebird: the network cache and the hotspot set) */
@@ -581,6 +590,24 @@ export function createICloudController(deps: ControllerDeps): ICloudController {
         const applied = await deps.storage.applySyncedClear(slot, meta.uploadedAt)
         if (!applied) return false
         deps.invalidate(slot)
+        // Clear path: the derived stores go too (clear-means-clear). The pull
+        // above is a REPLACE and deliberately does not do this.
+        //
+        // The failed-store list is deliberately not surfaced HERE, and the
+        // asymmetry with clearWithSync below is the point: this is a clear that
+        // arrived from another device during a background check, so there is no
+        // user waiting on an answer, and the only surface this path owns is the
+        // slot view, whose error state says "Could not sync" — false about the
+        // operation that actually happened, since the sync SUCCEEDED.
+        //
+        // Recovery here is narrower than on the other two paths, so do not read
+        // it as "the next Clear re-attempts": applySyncedClear nulls the slot's
+        // metadata entry, so a repeat synced clear short-circuits at the `!meta`
+        // guard above, before it ever reaches the purge. It takes an upload and
+        // then a clear of this slot. (The `!applied` guard is a different case:
+        // a conflicting upload landing mid-check, where nothing was cleared and
+        // skipping the purge is correct.)
+        await deps.purgeDerived(slot)
         notifyFiles()
         setSlotView(slot, null)
         return true
@@ -1277,10 +1304,16 @@ export function createICloudController(deps: ControllerDeps): ICloudController {
     }
   }
 
-  async function clearWithSync(slot: Slot): Promise<void> {
+  /** Resolves with the derived stores that could NOT be purged (usually none);
+   *  the caller owns the message. The iCloud half runs either way — a local
+   *  document that would not delete is not a reason to leave this device's
+   *  cleared marker unpublished. */
+  async function clearWithSync(slot: Slot): Promise<readonly string[]> {
     const clearedAt = isoNow(deps.now)
     await deps.storage.deleteFile(slot)
     deps.invalidate(slot)
+    // Clear path: the derived stores go too (clear-means-clear).
+    const failedPurges = await deps.purgeDerived(slot)
     notifyFiles()
     setSlotView(slot, null)
     shared[slot] = null
@@ -1296,6 +1329,7 @@ export function createICloudController(deps: ControllerDeps): ICloudController {
       const err = toICloudError(raw)
       setSlotView(slot, { state: 'error', fromThisDevice: true, reason: reasonFor(err.code) })
     }
+    return failedPurges
   }
 
   function fileSaved(slot: Slot): void {
@@ -1476,7 +1510,7 @@ let booted: Promise<void> | null = null
 export function bootICloudSync(): Promise<void> {
   if (booted) return booted
   booted = (async () => {
-    const [{ storage }, { icloudNative }, obs, ml, hs, fc, nc, kc] = await Promise.all([
+    const [{ storage }, { icloudNative }, obs, ml, hs, fc, nc, kc, cd] = await Promise.all([
       import('../storage'),
       import('./icloudNative'),
       import('../observationsCache'),
@@ -1485,6 +1519,7 @@ export function bootICloudSync(): Promise<void> {
       import('../filesChanged'),
       import('../networkCache'),
       import('../keysChanged'),
+      import('../clearDerived'),
     ])
     const controller = createICloudController({
       native: icloudNative,
@@ -1497,6 +1532,9 @@ export function bootICloudSync(): Promise<void> {
         }
         if (slot === 'ml') ml.clearMLExportCache()
       },
+      // The clear-path teardown, wired SEPARATELY from `invalidate` above so a
+      // synced arrival (which shares `invalidate`) can never reach it.
+      purgeDerived: (slot) => cd.purgeDerivedOnClear(slot),
       notifyFilesChanged: fc.notifyFilesChanged,
       subscribeFilesChanged: fc.subscribeFilesChanged,
       invalidateKey: (slot) => {
