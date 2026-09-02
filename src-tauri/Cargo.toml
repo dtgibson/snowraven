@@ -40,9 +40,17 @@ tzf-rs = "0.4"
 # Desktop-only: the in-app updater and process restart/exit. NOT compiled into
 # mobile binaries — FR-14's "no self-update capability" holds at the binary
 # level (also the App Review posture). Registration is #[cfg(desktop)] in lib.rs.
+#
+# tauri-plugin-window-state belongs here for the same reason, and ONLY here: the
+# crate is `#![cfg(not(any(target_os = "android", target_os = "ios")))]` at crate
+# level, so it does not exist on mobile at all, and iOS has no resizable window
+# to remember. The CLAUDE.md rule from the tzf-rs post-mortem cuts this way, not
+# the other: the cfg says where a crate is REAL, and putting a desktop-only crate
+# in [dependencies] is what breaks the iOS build.
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
+tauri-plugin-window-state = "2"
 
 # Mobile-only (schema §2.7/§2.6): geolocation for "Use my location" (the desktop
 # native get_location paths are byte-untouched), and dialog for the Mechanism B
@@ -64,15 +72,24 @@ objc2 = "0.6"
 objc2-foundation = { version = "0.3", features = [
   "NSFileManager", "NSFileCoordinator", "NSMetadata", "NSMetadataAttributes",
   "NSNotification", "NSHost", "NSURL", "NSString", "NSArray", "NSDictionary",
-  "NSError", "NSData", "NSOperation", "NSPredicate", "NSValue", "block2",
+  "NSError", "NSData", "NSOperation", "NSPredicate", "NSValue", "NSGeometry",
+  "block2",
 ] }
 block2 = "0.6"
 sha2 = "0.10"
 
 # macOS-only: CoreLocation for the native get_location command and the oneshot
 # channel it completes through. Genuinely macOS-only crates stay here.
+#
+# objc2-app-kit is here for NSScreen (src/window_geometry.rs). It is macOS-only
+# by API: iOS has UIScreen, not NSScreen. It is ALREADY in the macOS dependency
+# graph via tao, so naming it directly adds no crate to the build; it is named
+# because we call it, not because it is new. Needed because tao's own
+# available_monitors() is backed by CGGetActiveDisplayList, which reports zero
+# displays on macOS 26 (measured; see window_geometry.rs).
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2-core-location = "0.3"
+objc2-app-kit = { version = "0.3", features = ["NSScreen"] }
 tokio = { version = "1", features = ["sync"] }
 
 # iOS-only: UIDevice for the sync device label and platform (iphone/ipad).
