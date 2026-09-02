@@ -137,12 +137,17 @@ function makeStorage(meta: FilesStatus = { ebird: null, ml: null }) {
 
 function makeDeps(native: ICloudNativeLayer, storage: ControllerDeps['storage']) {
   const invalidate = vi.fn()
+  // clear-means-clear: the clear-path teardown, separate from `invalidate` so a
+  // test can assert which of the two a given path reaches.
+  // Resolves with the stores that FAILED to purge; [] is a clean sweep.
+  const purgeDerived = vi.fn<(slot: Slot) => Promise<readonly string[]>>(async () => [])
   const notifyFilesChanged = vi.fn()
   const subscribers = new Set<() => void>()
   const deps: ControllerDeps = {
     native,
     storage,
     invalidate,
+    purgeDerived,
     notifyFilesChanged,
     subscribeFilesChanged: (cb) => { subscribers.add(cb); return () => { subscribers.delete(cb) } },
     invalidateKey: () => {},
@@ -158,7 +163,7 @@ function makeDeps(native: ICloudNativeLayer, storage: ControllerDeps['storage'])
     downloadNowWaitMs: 5,
     downloadPollMs: 1,
   }
-  return { deps, invalidate, notifyFilesChanged, fireFilesChanged: () => { for (const cb of subscribers) cb() } }
+  return { deps, invalidate, purgeDerived, notifyFilesChanged, fireFilesChanged: () => { for (const cb of subscribers) cb() } }
 }
 
 const local = (uploadedAt: string, origin?: FileOrigin): FileMetadata => ({ filename: 'MyEBirdData.csv', uploadedAt, ...(origin ? { origin } : {}) })
@@ -305,6 +310,48 @@ describe('the reconciliation applied (FR-14 to FR-17, FR-31, FR-34)', () => {
     expect(invalidate).toHaveBeenCalledWith('ebird')
     expect(notifyFilesChanged).toHaveBeenCalled()
     expect(getICloudState().slots.ebird).toBeNull()
+  })
+
+  it('FR-31 the synced clear purges the derived stores too (clear-means-clear)', async () => {
+    const n = makeNative()
+    n.setShared('ebird', clearedRec('ebird', T_NEW))
+    const st = makeStorage({ ebird: local(T_OLD, { deviceId: ME, label: 'Mac', platform: 'mac' }), ml: null })
+    const { deps, purgeDerived } = makeDeps(n.native, st.storage)
+    const c = createICloudController(deps)
+    await c.boot()
+    await c.enable()
+    expect(purgeDerived).toHaveBeenCalledWith('ebird')
+  })
+
+  it('a synced ARRIVAL purges nothing: a replace is not a clear (clear-means-clear)', async () => {
+    // The load-bearing negative of the whole change. `invalidate` is shared by
+    // the pull and the two clear paths, so a purge hung on THAT callback would
+    // fire here — and PRIVACY_POLICY.md publishes that loading a newer export
+    // "asks only about checklists that have not been answered yet". The pull
+    // must invalidate and notify exactly as before, and purge nothing.
+    const n = makeNative()
+    n.setShared('ebird', fileRec('ebird', T_NEW))
+    const st = makeStorage({ ebird: local(T_OLD, { deviceId: ME, label: 'Mac', platform: 'mac' }), ml: null })
+    const { deps, invalidate, purgeDerived, notifyFilesChanged } = makeDeps(n.native, st.storage)
+    const c = createICloudController(deps)
+    await c.boot()
+    await c.enable()
+    expect(st.files.ebird?.uploadedAt).toBe(T_NEW)   // the replace really happened
+    expect(invalidate).toHaveBeenCalledWith('ebird')
+    expect(notifyFilesChanged).toHaveBeenCalled()
+    expect(purgeDerived).not.toHaveBeenCalled()
+  })
+
+  it('a push purges nothing either (this device\'s file wins, nothing local changes)', async () => {
+    const n = makeNative()
+    n.setShared('ebird', fileRec('ebird', T_OLD))
+    const st = makeStorage({ ebird: local(T_NEW, { deviceId: ME, label: 'Mac', platform: 'mac' }), ml: null })
+    const { deps, purgeDerived } = makeDeps(n.native, st.storage)
+    const c = createICloudController(deps)
+    await c.boot()
+    await c.enable()
+    expect(n.calls.some(x => x.cmd === 'push')).toBe(true)
+    expect(purgeDerived).not.toHaveBeenCalled()
   })
 
   it('FR-31 (QA-29) a local copy newer than the cleared marker is kept and pushed over it', async () => {
@@ -516,6 +563,18 @@ describe('clear, turn off, remove (FR-30, FR-32, FR-33)', () => {
     expect(notifyFilesChanged).toHaveBeenCalled()
     expect(n.container.record.ebird).toContain('"state":"cleared"')
     expect(getICloudState().slots.ebird).toBeNull()
+  })
+
+  it('clearWithSync purges the derived stores (clear-means-clear)', async () => {
+    const n = makeNative()
+    const st = makeStorage({ ebird: local(T_OLD), ml: null })
+    const { deps, purgeDerived } = makeDeps(n.native, st.storage)
+    const c = createICloudController(deps)
+    await c.boot()
+    await c.enable()
+    await c.clearWithSync('ebird')
+    expect(purgeDerived).toHaveBeenCalledWith('ebird')
+    expect(purgeDerived).toHaveBeenCalledTimes(1)
   })
 
   it('a cleared marker that could not be pushed is finished on the next check instead of pulling the file back', async () => {

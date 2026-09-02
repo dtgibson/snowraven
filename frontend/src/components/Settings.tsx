@@ -38,6 +38,7 @@ import { clearEbirdObservationsCache } from '../lib/observationsCache'
 import { clearMLExportCache } from '../lib/mlExportCache'
 import { clearNetworkCache } from '../lib/networkCache'
 import { invalidateHotspotSet } from '../lib/hotspotSet'
+import { purgeDerivedOnClear } from '../lib/clearDerived'
 import {
   buildSharePayload, selectedParts, shareModeLine, sharePartName,
   SHARE_PARTS, SHARE_EMPTY_SETTINGS,
@@ -1946,6 +1947,13 @@ export function Settings({
     await importFileContent(slot, filename, () => Promise.resolve(content))
   }
 
+  // Both clear paths report a partial clear with the same sentence, because it
+  // is the same event: the file went, one derived document did not. It says
+  // what is still saved and what removes it, rather than "try again" on an
+  // action the user can no longer repeat (the row is empty now).
+  const CLEAR_INCOMPLETE =
+    'File removed, but some data worked out from it could not be deleted. Clearing again after your next upload will remove it.'
+
   // Today's instant local clear, unchanged and unconfirmed (the sync-off path
   // on every platform; design-spec.md resolved open item 3).
   const handleDeleteFile = async (slot: 'ebird' | 'ml') => {
@@ -1955,7 +1963,21 @@ export function Settings({
       await storage.deleteFile(slot)
       if (slot === 'ebird') { clearEbirdObservationsCache(); invalidateHotspotSet() }
       if (slot === 'ml') clearMLExportCache()
+      // Clear means clear (clear-means-clear): the durable stores derived from
+      // this file go with it. CLEAR ONLY — `importFileContent` above is a
+      // REPLACE and deliberately does not call this.
+      const failedPurges = await purgeDerivedOnClear(slot)
       setStatus(prev => ({ ...prev, [slot]: null }))
+      // Every path that saves, replaces or removes a stored data file bumps the
+      // files epoch, this handler included. There is no exception for "the tab
+      // that did it already knows": the other tabs are hidden with display:none
+      // rather than unmounted, and their loaders key on the epoch, so without
+      // this they keep rendering the cleared backup until a relaunch.
+      onFilesSaved?.()
+      // The file IS gone, so this is not a failed delete and must not be
+      // reported as one; what failed is a document derived from it, which the
+      // next Clear of this slot re-attempts.
+      if (failedPurges.length > 0) setError(CLEAR_INCOMPLETE)
     } catch {
       setError('Delete failed. Please try again.')
     }
@@ -1975,7 +1997,9 @@ export function Settings({
     if (!req) return
     const setError = req.slot === 'ebird' ? setEbirdError : setMlError
     setError(null)
-    void icloudActions.clearWithSync(req.slot).catch(() => {
+    void icloudActions.clearWithSync(req.slot).then(failedPurges => {
+      if (failedPurges.length > 0) setError(CLEAR_INCOMPLETE)
+    }).catch(() => {
       setError('Delete failed. Please try again.')
     })
   }

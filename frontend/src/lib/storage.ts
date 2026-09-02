@@ -223,7 +223,11 @@ class WebStorage implements StorageAdapter {
   }
 
   async deleteSetting(key: string): Promise<void> {
-    await fetch(`/settings/${key}`, { method: 'DELETE' });
+    const res = await fetch(`/settings/${key}`, { method: 'DELETE' });
+    // Same reasoning as setSetting above: a resolved fetch is not a deleted
+    // setting. It matters most on the clear path, where a swallowed non-2xx
+    // left a derived document on disk while the UI reported a completed Clear.
+    if (!res.ok) throw new Error(`Setting delete failed (${res.status})`);
   }
 
   async getFilesStatus(): Promise<FilesStatus> {

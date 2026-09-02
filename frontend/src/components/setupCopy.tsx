@@ -28,3 +28,24 @@ export const ML_EXPORT_STEPS: ReactNode[] = [
   <>Click <strong>Save Spreadsheet</strong>; don't rename the downloaded file</>,
   <>Upload it in <strong>Settings → Default Files → ML Export</strong></>,
 ]
+
+// ── Terse load-failure copy ──────────────────────────────────────────────────
+// These are the `error` phase's messages, NOT the `setup-required` panel's. The
+// two phases are deliberately distinct (DECISIONS.md, 2026-05-22): `setup-required`
+// means "go configure this in Settings first" and shows the SetupRequired guidance
+// component with the steps above; `error` means "a file IS stored and it would not
+// load" and shows a terse message with a Go to Settings button. Do not put the
+// steps arrays into an error message; do name the file and the Settings path, the
+// way BreedingCodeList's wrong-file branch already does, so the message is honest
+// AND useful. Single-sourced because nine surfaces carry the eBird one and they
+// drifted before (two spellings in ListComparer alone).
+
+/** A stored eBird backup that could not be read or parsed. */
+export const EBIRD_BACKUP_LOAD_ERROR =
+  "Couldn't load your eBird backup. Re-upload MyEBirdData.csv in Settings → Default Files → eBird Backup."
+
+/** A stored Macaulay Library export that could not be read. Named by its Settings
+ * slot rather than a filename: the download's name varies (it carries the user's
+ * ML user id) and ML_EXPORT_STEPS tells them not to rename it. */
+export const ML_EXPORT_LOAD_ERROR =
+  "Couldn't load your Macaulay Library export. Re-upload it in Settings → Default Files → ML Export."

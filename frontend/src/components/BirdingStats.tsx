@@ -55,7 +55,7 @@ import { ESCAPEE_TOGGLE_LABEL } from '../lib/exoticCopy'
 import { useOnline } from '../lib/useOnline'
 import type { Granularity, PeriodGranularity } from '../lib/birdingStats'
 import { SetupRequired } from './SetupRequired'
-import { EBIRD_BACKUP_STEPS } from './setupCopy'
+import { EBIRD_BACKUP_STEPS, EBIRD_BACKUP_LOAD_ERROR } from './setupCopy'
 import { formatDate as fmtDate } from '../lib/formatDate'
 import type { ObservationEntry, ChecklistEntry } from '../types'
 import { transport } from '../lib/transport'
@@ -173,11 +173,17 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
 
         const [ebird, ml] = await Promise.all([
           loadEbirdObservations(),
-          status.ml ? loadMLExport() : Promise.resolve(null),
+          // .catch: loadMLExport catches parse errors but not the file-read IO (the
+          // read sits outside its try), so an ML failure must degrade to no-media
+          // here rather than reject this Promise.all into the outer catch, which
+          // would claim there is no eBird backup while one is plainly loaded.
+          // Reachable on web/Pi, where WebStorage.readFile is a bare fetch.
+          status.ml ? loadMLExport().catch(() => null) : Promise.resolve(null),
         ])
 
-        if (!ebird || cancelled) {
-          setPhase({ tag: 'error', message: "Couldn't load your eBird backup from Settings. Try re-uploading it." })
+        if (cancelled) return   // a cancelled run writes no state at all
+        if (!ebird) {
+          setPhase({ tag: 'error', message: EBIRD_BACKUP_LOAD_ERROR })
           return
         }
 
@@ -567,7 +573,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
     return (
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 24px' }}>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, textAlign: 'center', maxWidth: 420 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--sr-error)', fontSize: '0.875rem' }}>
+          <div className="sr-wrap-anywhere" style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--sr-error)', fontSize: '0.875rem' }}>
             <AlertCircle size={16} style={{ flexShrink: 0 }} />
             {phase.message}
           </div>

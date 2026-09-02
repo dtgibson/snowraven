@@ -15,6 +15,14 @@ vi.mock('./storage', () => ({
 
 import * as replayStore from './replayStore';
 
+// `put`'s third argument — the purge generation captured BEFORE the request —
+// is required, so the production chokepoint cannot forget it (clear-means-clear;
+// transport.getReplayable captures it above its GET). These tests are about
+// keying, caps and eviction rather than that race, so they capture at call time,
+// which is what a caller with nothing in flight would do.
+const put = (key: string, data: unknown): Promise<void> =>
+  replayStore.put(key, data, replayStore.purgeGeneration());
+
 beforeEach(() => {
   vi.useFakeTimers();
   _disk = null;
@@ -61,7 +69,7 @@ describe('replayKey', () => {
 describe('put / get round-trip', () => {
   it('put stores data with loadedAt + bytes; get returns the entry', async () => {
     vi.setSystemTime(new Date('2026-06-20T12:00:00Z'));
-    await replayStore.put('/weather/S1?', { formatted: 'sunny' });
+    await put('/weather/S1?', { formatted: 'sunny' });
     const hit = await replayStore.get('/weather/S1?');
     expect(hit).not.toBeNull();
     expect(hit!.data).toEqual({ formatted: 'sunny' });
@@ -75,16 +83,16 @@ describe('put / get round-trip', () => {
 
   it('getReplayedAt returns the timestamp or null', async () => {
     vi.setSystemTime(new Date('2026-06-20T08:00:00Z'));
-    await replayStore.put('/tide/S9?', { body: 'x' });
+    await put('/tide/S9?', { body: 'x' });
     expect(await replayStore.getReplayedAt('/tide/S9?')).toBe(Date.parse('2026-06-20T08:00:00Z'));
     expect(await replayStore.getReplayedAt('/tide/missing')).toBeNull();
   });
 
   it('re-putting a key updates data + loadedAt and keeps one entry', async () => {
     vi.setSystemTime(new Date('2026-06-20T01:00:00Z'));
-    await replayStore.put('/weather/S1?', { v: 1 });
+    await put('/weather/S1?', { v: 1 });
     vi.setSystemTime(new Date('2026-06-20T02:00:00Z'));
-    await replayStore.put('/weather/S1?', { v: 2 });
+    await put('/weather/S1?', { v: 2 });
     const hit = await replayStore.get('/weather/S1?');
     expect(hit!.data).toEqual({ v: 2 });
     expect(hit!.loadedAt).toBe(Date.parse('2026-06-20T02:00:00Z'));
@@ -95,7 +103,7 @@ describe('eviction (OQ-07 / QA-24)', () => {
   it('CAP+1 distinct puts → exactly CAP entries, oldest-loaded evicted, most-recent survives', async () => {
     replayStore.setReplayMaxEntries(5);
     for (let i = 0; i < 6; i++) {
-      await replayStore.put(`/weather/S${i}?`, { i });
+      await put(`/weather/S${i}?`, { i });
     }
     // CAP = 5: S0 (oldest) evicted, S1..S5 remain.
     expect(await replayStore.get('/weather/S0?')).toBeNull();
@@ -109,11 +117,11 @@ describe('eviction (OQ-07 / QA-24)', () => {
 
   it('re-putting an existing oldest key moves it to the tail (it is no longer the eviction victim)', async () => {
     replayStore.setReplayMaxEntries(3);
-    await replayStore.put('/a', { n: 1 });
-    await replayStore.put('/b', { n: 2 });
-    await replayStore.put('/c', { n: 3 });
-    await replayStore.put('/a', { n: 11 }); // a → tail; order now b,c,a
-    await replayStore.put('/d', { n: 4 });  // over cap → evict b (now oldest)
+    await put('/a', { n: 1 });
+    await put('/b', { n: 2 });
+    await put('/c', { n: 3 });
+    await put('/a', { n: 11 }); // a → tail; order now b,c,a
+    await put('/d', { n: 4 });  // over cap → evict b (now oldest)
     expect(await replayStore.get('/b')).toBeNull();
     expect(await replayStore.get('/a')).not.toBeNull();
     expect((await replayStore.get('/a'))!.data).toEqual({ n: 11 });
@@ -124,7 +132,7 @@ describe('eviction (OQ-07 / QA-24)', () => {
     // about two entries.
     const big = (i: number) => ({ pad: 'x'.repeat(100), i });
     replayStore.setReplayMaxBytes(JSON.stringify(big(0)).length * 2 + 10);
-    for (let i = 0; i < 5; i++) await replayStore.put(`/k${i}`, big(i));
+    for (let i = 0; i < 5; i++) await put(`/k${i}`, big(i));
     let total = 0, count = 0;
     for (let i = 0; i < 5; i++) {
       const hit = await replayStore.get(`/k${i}`);
@@ -137,12 +145,12 @@ describe('eviction (OQ-07 / QA-24)', () => {
 
   it('keeps one sole newest entry even when it exceeds the payload-length budget', async () => {
     replayStore.setReplayMaxBytes(10);
-    await replayStore.put('/huge', { pad: 'x'.repeat(1000) });
+    await put('/huge', { pad: 'x'.repeat(1000) });
     expect(await replayStore.get('/huge')).not.toBeNull();
   });
 
   it('debounced write persists the whole document through the seam', async () => {
-    await replayStore.put('/weather/S1?', { v: 1 });
+    await put('/weather/S1?', { v: 1 });
     expect(setSpy).not.toHaveBeenCalled(); // debounced, not yet flushed
     await vi.advanceTimersByTimeAsync(300);
     expect(setSpy).toHaveBeenCalledTimes(1);
@@ -164,7 +172,7 @@ describe('eviction (OQ-07 / QA-24)', () => {
     _disk = { version: 1, entries, order };
 
     const newest = '/weather/S300?';
-    await replayStore.put(newest, { i: cap });
+    await put(newest, { i: cap });
     expect(await replayStore.get('/weather/S0?')).toBeNull();
     expect(await replayStore.get(newest)).not.toBeNull();
 
@@ -208,7 +216,7 @@ describe('eviction (OQ-07 / QA-24)', () => {
     };
     replayStore.setReplayMaxBytes(oldBytes + newBytes - 1);
 
-    await replayStore.put('/new', newData);
+    await put('/new', newData);
     expect(await replayStore.get('/old')).toBeNull();
     expect((await replayStore.get('/new'))?.bytes).toBe(newBytes);
     expect(replayStore._getReplayStoreWorkStatsForTests()).toMatchObject({
@@ -232,7 +240,7 @@ describe('load from a non-empty disk store', () => {
     replayStore.setReplayMaxEntries(2);
     expect(await replayStore.get('/old/a')).not.toBeNull();
     // A new put over the entry cap evicts the oldest LOADED on-disk entry (/old/a).
-    await replayStore.put('/new/c', { c: 3 });
+    await put('/new/c', { c: 3 });
     expect(await replayStore.get('/old/a')).toBeNull();
     expect(await replayStore.get('/old/b')).not.toBeNull();
     expect(await replayStore.get('/new/c')).not.toBeNull();

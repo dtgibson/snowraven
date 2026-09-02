@@ -4,6 +4,7 @@ import { parseEbirdCSV } from '../lib/parseEbird'
 import { compareSpecies } from '../lib/compare'
 import type { FileData, ComparisonResult, SortOrder } from '../types'
 import { DropZone } from './DropZone'
+import { EBIRD_BACKUP_LOAD_ERROR } from './setupCopy'
 import { ChecklistComparer } from './ChecklistComparer'
 import { ResultsView } from './ResultsView'
 import { transport } from '../lib/transport'
@@ -11,6 +12,11 @@ import { storage } from '../lib/storage'
 import { useFilesEpoch } from '../lib/useFilesEpoch'
 import type { KeyStatus } from '../lib/keyStatus'
 import { withNormalizedParents } from '../lib/speciesUtils'
+
+/** The comparison failed for a reason that is not the stored backup's. Deliberately
+ *  names no file: attributing an unknown failure to MyEBirdData.csv is the
+ *  mis-attribution this slot used to carry. One site, so it is not in setupCopy. */
+const COMPARE_FAILED = 'Something went wrong comparing these lists. Try again.'
 
 export function ListComparer({ onOpenSpecies, keyStatus, onGoToSettings }: {
   onOpenSpecies?: (commonName: string) => void
@@ -106,12 +112,27 @@ export function ListComparer({ onOpenSpecies, keyStatus, onGoToSettings }: {
     try {
       let listA = fileA
       if (listAMode === 'my-list') {
-        const text = await storage.readFile('ebird')
-        if (!text) {
-          setErrorA("Couldn't load your eBird backup from Settings. Try re-uploading it.")
+        // ONLY the stored-backup read and parse may be reported AS the backup.
+        // The outer catch used to cover this whole function, so any failure told
+        // the user to re-upload MyEBirdData.csv -- and once the message gained
+        // the filename and the Settings path it started saying so confidently.
+        // Nothing below this block is about the backup: compareSpecies is pure
+        // over two already-parsed FileData, and fetchTaxonCodes is unawaited with
+        // its own internal catch, so today no throw down there can reach the
+        // outer catch at all. This narrowing is therefore a guard on the CLAIM
+        // rather than a live bug fix: it is what stops the next statement added
+        // here from silently inheriting the backup's message.
+        try {
+          const text = await storage.readFile('ebird')
+          if (!text) {
+            setErrorA(EBIRD_BACKUP_LOAD_ERROR)
+            return
+          }
+          listA = parseEbirdCSV('My List', text)
+        } catch {
+          setErrorA(EBIRD_BACKUP_LOAD_ERROR)
           return
         }
-        listA = parseEbirdCSV('My List', text)
       }
       if (!listA) return
 
@@ -125,7 +146,9 @@ export function ListComparer({ onOpenSpecies, keyStatus, onGoToSettings }: {
       setResultAIsMine(listAMode === 'my-list')
       fetchTaxonCodes([...compResult.both, ...compResult.aOnly, ...compResult.bOnly])
     } catch {
-      setErrorA("Couldn't load your eBird backup. Try re-uploading it in Settings.")
+      // Reached only by a failure that is NOT the stored backup's (the read and
+      // parse return above). Names no file, because we do not know which one.
+      setErrorA(COMPARE_FAILED)
     } finally {
       setComparing(false)
     }
@@ -285,7 +308,7 @@ export function ListComparer({ onOpenSpecies, keyStatus, onGoToSettings }: {
           </div>
 
           {errorA && listAMode === 'my-list' && (
-            <p role="alert" style={{ fontSize: '0.75rem', color: 'var(--sr-error)', marginBottom: 12, margin: '0 0 12px' }}>
+            <p role="alert" className="sr-wrap-anywhere" style={{ fontSize: '0.75rem', color: 'var(--sr-error)', marginBottom: 12, margin: '0 0 12px' }}>
               {errorA}
             </p>
           )}

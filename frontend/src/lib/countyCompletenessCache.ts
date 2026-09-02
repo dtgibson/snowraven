@@ -151,6 +151,10 @@ async function ensureLoaded(): Promise<CountyCompletenessStore> {
   if (_loading) return _loading
   _loading = (async () => {
     const loaded = await storage.getSetting<CountyCompletenessStore>(COMPLETENESS_STORE_KEY).catch(() => null)
+    // A purge landed while this read was in flight (clear-means-clear): it has
+    // already installed the authoritative empty mirror, and `loaded` is the
+    // PRE-purge document whose KEY SET says which counties the user has birded.
+    if (_store) return _store
     // Normalize + VALIDATE: an absent/partial document becomes the empty shape
     // and malformed entries are dropped (sanitizeStore), so callers never
     // branch on missing fields and never dereference a corrupt entry.
@@ -183,6 +187,10 @@ export async function loadAll(): Promise<ReadonlyMap<string, CountyCompletenessC
 }
 
 function putEntry(store: CountyCompletenessStore, regionCode: string, data: CountyEbirdData, fetchedAt: number): void {
+  // A purge replaced the mirror while the loader was in flight; `store` is the
+  // detached pre-purge document. The caller still gets its live answer for this
+  // session — only persistence is skipped, so the cleared key set stays cleared.
+  if (store !== _store) return
   if (_workStats) _workStats.puts += 1
   const bytes = JSON.stringify(data).length
   const existing = store.entries[regionCode]
@@ -285,6 +293,8 @@ function scheduleWrite(store: CountyCompletenessStore): void {
   if (_writeTimer) clearTimeout(_writeTimer)
   _writeTimer = setTimeout(() => {
     _writeTimer = null
+    // Superseded by a purge: this closure holds the PRE-purge document.
+    if (store !== _store) return
     const snapshot: CountyCompletenessStore = {
       version: store.version,
       entries: { ...store.entries },
@@ -299,6 +309,35 @@ function scheduleWrite(store: CountyCompletenessStore): void {
     void storage.setSetting<CountyCompletenessStore>(COMPLETENESS_STORE_KEY, snapshot)
       .catch(() => { /* best-effort — the mirror stays the live source */ })
   }, WRITE_DEBOUNCE_MS)
+}
+
+// ── Clear-path teardown (clear-means-clear) ───────────────────────────────────
+
+/**
+ * Drop every cached county from the mirror AND from disk. The PRODUCTION
+ * purge, distinct from `_resetCountyCompletenessCacheForTests` below, which
+ * only detaches the mirror.
+ *
+ * WHY THIS STORE IS IN THE TEARDOWN, when its PAYLOADS are eBird's public data
+ * and nothing of the user's: an entry exists only for a county
+ * `useCountyCompleteness` decided to fetch, and it fetches only where the
+ * loaded export gives that county `countableCount >= 1`. So the KEY SET is
+ * derived from the user's own observations — it is the list of counties they
+ * have birded — and leaving it behind after a Clear is exactly the gap this
+ * teardown closes. The stated cost is that those county lookups re-fetch after
+ * a clear and a re-upload.
+ *
+ * Called only from the shared clear-path teardown (`lib/clearDerived.ts`),
+ * never on a replace: a newer export of the same history has the same counties,
+ * and re-fetching them all on every upload would be a 30-day TTL thrown away
+ * for nothing.
+ */
+export async function purgeCountyCompletenessStore(): Promise<void> {
+  if (_writeTimer) { clearTimeout(_writeTimer); _writeTimer = null }
+  _inflight.clear()
+  _store = EMPTY_STORE()
+  _totalBytes = 0
+  await storage.deleteSetting(COMPLETENESS_STORE_KEY)
 }
 
 /** Test seam: deterministic work performed since the last reset. */

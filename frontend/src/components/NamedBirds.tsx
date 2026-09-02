@@ -6,7 +6,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Loader2, AlertCircle, Tag } from 'lucide-react'
 import { SetupRequired } from './SetupRequired'
-import { EBIRD_BACKUP_STEPS } from './setupCopy'
+import { EBIRD_BACKUP_STEPS, EBIRD_BACKUP_LOAD_ERROR } from './setupCopy'
 import { loadEbirdObservations } from '../lib/observationsCache'
 import { loadMLExport } from '../lib/mlExportCache'
 import { storage } from '../lib/storage'
@@ -62,8 +62,9 @@ export function NamedBirds({ onGoToSettings, filesVersion, onOpenSpecies, embedA
         if (cancelled) return
         if (!status.ebird) { setPhase({ tag: 'setup-required' }); return }
         const ebird = await loadEbirdObservations()
-        if (!ebird || cancelled) {
-          setPhase({ tag: 'error', message: "Couldn't load your eBird backup from Settings. Try re-uploading it." })
+        if (cancelled) return   // a cancelled run writes no state at all
+        if (!ebird) {
+          setPhase({ tag: 'error', message: EBIRD_BACKUP_LOAD_ERROR })
           return
         }
         const birds = computeNamedBirds(ebird.observations)
@@ -128,7 +129,7 @@ export function NamedBirds({ onGoToSettings, filesVersion, onOpenSpecies, embedA
   if (phase.tag === 'error') {
     return (
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: 40 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 13px', background: 'var(--sr-error-bg)', borderRadius: 8, fontSize: '0.8125rem', color: 'var(--sr-error)', maxWidth: 480 }}>
+        <div className="sr-wrap-anywhere" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 13px', background: 'var(--sr-error-bg)', borderRadius: 8, fontSize: '0.8125rem', color: 'var(--sr-error)', maxWidth: 480 }}>
           <AlertCircle size={14} strokeWidth={2.5} style={{ flexShrink: 0 }} aria-hidden />
           {phase.message}
         </div>

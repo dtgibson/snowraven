@@ -274,9 +274,16 @@ class CachedTransport implements TransportAdapter {
   // never overwrites or clears the prior entry, so errors are never cached.
   async getReplayable<T>(path: string, params?: Record<string, string>): Promise<ReplayableResult<T>> {
     const key = replayStore.replayKey(path, params);
+    // Captured BEFORE the request, and handed back to `put` after it lands: a
+    // Clear while this GET is outstanding must not persist the answer, because
+    // a `/weather/S…` / `/tide/S…` key is a checklist id read out of the export
+    // being deleted (the Weather Backlog fires a run of them while the tab sits
+    // mounted). `put` is entered only after the answer arrives, so it cannot
+    // observe that race on its own.
+    const gen = replayStore.purgeGeneration();
     try {
       const data = await this.get<T>(path, params);
-      void replayStore.put(key, data); // best-effort, off the blocking path
+      void replayStore.put(key, data, gen); // best-effort, off the blocking path
       return { data, replayedAt: null };
     } catch (err) {
       if (isOfflineError(err)) {

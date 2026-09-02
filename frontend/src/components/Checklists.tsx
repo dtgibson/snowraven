@@ -13,7 +13,7 @@ import {
 } from 'lucide-react'
 import type { ObservationEntry } from '../types'
 import { SetupRequired } from './SetupRequired'
-import { EBIRD_BACKUP_STEPS } from './setupCopy'
+import { EBIRD_BACKUP_STEPS, EBIRD_BACKUP_LOAD_ERROR } from './setupCopy'
 import { storage } from '../lib/storage'
 import { transport } from '../lib/transport'
 import { loadEbirdObservations } from '../lib/observationsCache'
@@ -428,8 +428,9 @@ export function Checklists({ onGoToSettings, filesVersion, onOpenSpecies }: {
           loadEbirdObservations(),
           loadMLExport().catch(() => null),
         ])
-        if (!ebird || cancelled) {
-          setPhase({ tag: 'error', message: "Couldn't load your eBird backup from Settings. Try re-uploading it." })
+        if (cancelled) return   // a cancelled run writes no state at all
+        if (!ebird) {
+          setPhase({ tag: 'error', message: EBIRD_BACKUP_LOAD_ERROR })
           return
         }
         const mediaMap: Record<string, string> | null = ml?.mediaMap ?? null
@@ -527,7 +528,7 @@ export function Checklists({ onGoToSettings, filesVersion, onOpenSpecies }: {
   if (phase.tag === 'error') {
     return (
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: 40 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 13px', background: 'var(--sr-error-bg)', borderRadius: 8, fontSize: '0.8125rem', color: 'var(--sr-error)', maxWidth: 480 }}>
+        <div className="sr-wrap-anywhere" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 13px', background: 'var(--sr-error-bg)', borderRadius: 8, fontSize: '0.8125rem', color: 'var(--sr-error)', maxWidth: 480 }}>
           <AlertCircle size={14} strokeWidth={2.5} style={{ flexShrink: 0 }} aria-hidden />
           {phase.message}
         </div>
