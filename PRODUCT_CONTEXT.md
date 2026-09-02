@@ -5,6 +5,10 @@ It records what has been built and key decisions made during development.
 
 ## Features Built
 
+### iCloud Sync (complete -- September 2026, v1.0.11)
+
+An opt-in, off-by-default iCloud Sync section in Settings on the Mac, iPhone and iPad apps keeps the eBird backup and the Macaulay Library export the same across the user's own Apple devices through their own iCloud account (the most recently uploaded copy wins, whole; each file row shows which device its copy came from, when, and one of eight plain-text sync states), while API keys, settings and caches stay device-local and Windows, web and Pi are unchanged.
+
 ### Settings Acknowledgments (complete — September 2026, v1.0.10)
 
 The Settings tab closes with an Acknowledgments section on every platform — its quietest register: one bordered "View acknowledgments" button revealing two entries inline (The Cornell Lab of Ornithology and the Macaulay Library, for creating the platform and making it freely available; Deven Simonson, for early access to Weft), fully offline with no network call, no persisted state, and no platform branching.
@@ -37,7 +41,7 @@ SnowRaven is distributed through the public iOS App Store: the 1.0.0 debut (a de
 - **The listing, compliance record, and review package are committed artifacts**: `appstore/LISTING.md` (every listing field with verified counts, the "Data Not Collected" privacy-label reasoning, age rating, categories Reference + Weather, free with no monetization) and `appstore/REVIEW_NOTES.md` (a key-free reviewer script over the hosted demo dataset and the keyless features, within ASC's 4,000-char ceiling). The reviewer demo dataset at `website/demo/` is the deterministic generator's own output.
 - **The privacy policy has a first-party page**: `website/privacy.html` is Apple's privacy policy URL, mirroring PRIVACY_POLICY.md (which gained its iOS App section, sandbox-storage and location-permission clauses, and the App Store update path); `privacyPageParity.test.ts` pins the section set, order, and anchors so the two cannot drift.
 - **Screenshots are a regenerable pipeline**: `website/tools/capture-appstore.mjs` captures both device families at Apple's required sizes from the synthetic demo dataset, dimension-verified, committed under `appstore/screenshots/`.
-- **The App Store is a standing release leg**: after `release.sh` and the TestFlight upload, the same uploaded build is submitted for review; a rejection stalls only the store leg, fix-forward. The availability prose (README, website, founding product brief) is staged in the pipeline's `phase-b-availability.md` and lands on approval day.
+- **The App Store is a standing release leg**: after `release.sh` and the TestFlight upload, the same uploaded build is submitted for review; a rejection stalls only the store leg, fix-forward. The TestFlight export uses a manually created App Store profile carrying the iCloud capability plus a manual-signing export, because Xcode's automatic profile repair is closed on this account (the release runbook holds the recipe). The availability prose (README, website, founding product brief) is staged in the pipeline's `phase-b-availability.md` and lands on approval day.
 
 ### New app icon + map-wide eBird rate-limit cooldown (complete — August 2026, v0.5.93)
 
@@ -843,6 +847,7 @@ A Settings tab (rightmost in the tab bar) where users upload and persistently st
 - On app mount, Breeding Codes, Media List, and Species Detail tabs start in `loading-saved` phase (spinner), auto-fetch their stored file, parse it, and enter the ready state automatically
 - `onKeysSaved` callback prop on `<Settings>` triggers a re-fetch of key status in App.tsx when a key is saved or deleted
 - **Rebuild Caches (Tauri only):** A "Troubleshooting" section (visible only when `isTauri()` is true) contains a "Rebuild Caches" button that deletes the `snowraven-taxonomy` IndexedDB database (key: `taxonomy-v2025`) and calls `relaunch()` to restart the app with a fresh taxonomy fetch on next load
+- **iCloud Sync (macOS and iOS only):** a section directly below Default Files with one off-by-default switch and a plain-language note before it turns on; with sync on, each Default Files row also shows where its file came from and its sync state, Clear asks first because it reaches every synced device, and a separate "Remove synced files from iCloud" control deletes the copies in the user's account without touching any device. Windows, web and Pi render nothing.
 
 **Key files:**
 - `backend/routers/settings.py` — 7 endpoints: `GET /settings/files`, `POST/GET/DELETE /settings/files/ebird`, `POST/GET/DELETE /settings/files/ml`; writes to fixed paths in `data/`
@@ -1219,7 +1224,7 @@ An interactive map tab with three view modes for exploring birding locations: si
 - `frontend/vite.config.ts` — `/map` and `/nominatim` proxies; `/settings` already proxied, covers `/settings/map-defaults`
 - `frontend/src/App.tsx` — `'map-explorer'` tab
 - `src-tauri/src/location.rs` — `get_location` Tauri command; `CLLocationManager` + `LocationDelegate` via `objc2-core-location`; `thread_local` `LOCATION_SESSION` keeps manager/delegate alive during async callback
-- `src-tauri/entitlements.plist` — `com.apple.security.personal-information.location` for hardened runtime
+- `src-tauri/entitlements.plist` — `com.apple.security.personal-information.location` for hardened runtime; this committed default carries no iCloud entitlement. The shipped Mac release adds the restricted iCloud entitlements paired with an embedded Developer ID provisioning profile through a release-time overlay, so a plain build has neither and lands in Settings' "This build cannot use iCloud" state; the iOS build's entitlements carry the same iCloud container keys.
 - `src-tauri/Info.plist` — `NSLocationWhenInUseUsageDescription` for macOS location permission dialog
 - `src-tauri/capabilities/default.json` — `geolocation:allow-check-permissions`, `geolocation:allow-request-permissions`, `geolocation:allow-get-current-position` (for future iOS/Android)
 
@@ -1490,7 +1495,7 @@ The architectural foundation for a signed, distributable Mac and Windows desktop
 - Phase 1: Weather formatter golden tests — TypeScript formatter that matches Python output
 - Phase 2: `TauriStorage` → OS keychain (Mac Keychain / Windows Credential Manager via stronghold plugin) — **abandoned**: keychain requires `com.apple.security.keychain-access-groups` macOS entitlement (not configured) and fails silently; API keys moved to `tauri-plugin-fs` + `AppLocalData` in Phase 4
 - Phase 3: `TauriTransport` → direct external API calls (eBird, OpenWeather, Nominatim); API keys travel as HTTP headers, not URL params; CSP must be explicitly set before this ships
-- Phase 4: `TauriStorage` → app data directory via `tauri-plugin-fs` + `AppLocalData`; all persistent data (API keys, settings, file metadata, CSV files) stored in `AppLocalData/data/`; `mkdir` must be called before every write (directory may not pre-exist on fresh install)
+- Phase 4: `TauriStorage` → app data directory via `tauri-plugin-fs` + `AppLocalData`; all persistent data (API keys, settings, file metadata, CSV files) stored in `AppLocalData/data/`; `mkdir` must be called before every write (directory may not pre-exist on fresh install). On Apple builds a file's metadata entry also carries an origin (which device uploaded it, and when a synced copy replaced the local one), and the iCloud Sync preference, device id and last-known shared state live under one `icloud-sync` key in the settings document.
 - Phase 5: Tauri updater plugin; in-app auto-update replaces the current GitHub releases check
 - Phase 6: backend decommission; fully standalone distribution
 
@@ -1829,7 +1834,7 @@ CSS variables (`var(--sr-*)`) are not reliably inherited inside Leaflet popup DO
 Flexbox `flex: 1` on media items causes a single item to stretch to full width, making a lone photo embed look awkward (wide + constrained height). CSS grid with three equal fixed columns means one item takes 1/3 width, two items take 2/3, three items fill all columns — proportional regardless of item count. Mobile overrides to `grid-template-columns: 1fr` (single column, taller iframes). `scrolling="no"` + `overflow: hidden` on the iframe suppress any scrollbars the embedded content would otherwise produce.
 
 **Server-side file storage uses fixed on-disk filenames; client filename in metadata only**
-`data/ebird-backup.csv` and `data/ml-export.csv` are the fixed on-disk paths regardless of what the user uploads. The original filename is stored in `data/metadata.json` (`{"ebird": {"filename": "...", "uploadedAt": "..."}, "ml": ...}`) for display only — never used to construct a file path. This eliminates path traversal risk entirely. `data/` is gitignored. `DATA_DIR` is resolved from `__file__` in `settings.py` (three `.parent` hops) so the path is correct regardless of CWD when uvicorn starts. Any future stored file type should follow the same fixed-filename + metadata sidecar pattern.
+`data/ebird-backup.csv` and `data/ml-export.csv` are the fixed on-disk paths regardless of what the user uploads. The original filename is stored in `data/metadata.json` (`{"ebird": {"filename": "...", "uploadedAt": "..."}, "ml": ...}`, plus, on Apple builds, an `origin` block naming the device that uploaded it) for display only — never used to construct a file path. This eliminates path traversal risk entirely. `data/` is gitignored. `DATA_DIR` is resolved from `__file__` in `settings.py` (three `.parent` hops) so the path is correct regardless of CWD when uvicorn starts. Any future stored file type should follow the same fixed-filename + metadata sidecar pattern.
 
 **`loading-saved` → `setup-required` → `ready` | `error` phase progression for stored-file tabs**
 `BreedingCodeList`, `LifeList`, and `SpeciesDetail` initialize to `{ tag: 'loading-saved' }`. On auto-load: success → `ready`; no file configured in Settings → `setup-required` (shows the SetupRequired guidance screen with "Go to Settings"); fetch/parse failure → `error` (shows an inline error message). The `idle` tag does not exist in these components — there is no state where the tab is waiting for the user to upload something. Any future tab that checks for a stored default on mount must use `loading-saved` as the initial phase and distinguish `setup-required` (no file) from `error` (file exists but failed) rather than using a single `idle` catch-all.

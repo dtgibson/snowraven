@@ -22,11 +22,11 @@ never promotional.
   `--sr-text-gray` metadata, `--sr-text-disabled` counts/placeholders.
 - **Borders:** `--sr-border`, `--sr-border-subtle` (row separators),
   `--sr-border-medium` (interactive outlines).
-- **Scrim:** `--sr-scrim` (v1.0.11, icloud-sync) is the modal backdrop, the
-  app's own ink at an alpha rather than pure black (light
-  `rgba(15,17,23,0.36)`, dark `rgba(9,9,11,0.6)`). Every fixed overlay
-  backdrop uses it through `.sr-dlg-root`; do not re-inline an
-  `rgba(0,0,0,...)` scrim. The shared shell is `components/ui/ModalDialog.tsx`.
+- **Scrim:** `--sr-scrim` is the modal backdrop, the app's own ink at an
+  alpha rather than pure black (light `rgba(15,17,23,0.36)`, dark
+  `rgba(9,9,11,0.6)`). Every fixed overlay backdrop uses it through
+  `.sr-dlg-root`; do not re-inline an `rgba(0,0,0,...)` scrim. The shared
+  shell is `components/ui/ModalDialog.tsx` (see Patterns).
 - **Quote blocks:** `--sr-quote-bg`/`--sr-quote-border` (v0.5.26) for quoted
   user comments.
 - **Tiers:** `--sr-tier-N` (+`-rgb` triplets) for breeding-code tiers.
@@ -101,6 +101,23 @@ italic at 0.71875rem `--sr-text-gray`.
   the accent appearing only in the toggle's open-state tint. Troubleshooting
   and Acknowledgments are the exemplars; pick this register over the
   icon-tile action row when the section should not compete for attention.
+- **Confirmation dialog:** any fixed-position confirmation or short note
+  that must be read before an action proceeds renders through the shared
+  `components/ui/ModalDialog.tsx` shell (`.sr-dlg-*` in globals.css), never
+  a re-inlined overlay. A `position: fixed; inset: 0` root on `--sr-scrim`
+  centers a `--sr-surface` panel (`calc(100% - 32px)` wide, max 420px, max
+  80vh with internal scroll, 1px `--sr-border`, radius 14,
+  `--sr-card-shadow`): a `1rem/700` title over a `--sr-border-subtle` rule,
+  body prose, then a right-aligned action row of 96px-minimum buttons that
+  stack full width at the 44px posture on the phone tiers. The caller passes
+  a `trigger` getter (the control that opened it: the origin of the scale-in
+  and where focus returns on close) and, for a trigger that may unmount or
+  go disabled while open, a `fallbackFocus`. Escape, the backdrop and every
+  button close through one path; the focus trap re-queries its focusables
+  per keydown; motion follows the global reduced-motion rule. Use it for the
+  destructive or cross-device confirmation (the sync-on Clear, Remove from
+  iCloud) and the pre-enable note; a plain local action that reads the same
+  as before stays unconfirmed.
 - **Tab pages:** house header (30px accent-bg icon tile + h2 + one-line muted
   description); Phase union loading → SetupRequired → error → ready;
   defer-mount via App's `mountedTabs`.
