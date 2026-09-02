@@ -5,6 +5,10 @@ It records what has been built and key decisions made during development.
 
 ## Features Built
 
+### Honest failures, and a clear that really clears (complete -- September 2026, v1.0.14)
+
+A stored file that cannot be read is now reported as what it is: every tab that reads the user's data names the file and where to fix it instead of sending the user to the setup screen for a backup they already have, the Multimedia tab says so too rather than quietly showing a shorter list, and a background reading of the backup that dies is always noticed rather than leaving that tab (and every other tab sharing the same reading) spinning for the rest of the session, with the failure never repeating the work that just failed and a later attempt starting fresh. And clearing the eBird backup in Settings now removes everything worked out from it -- the escaped-bird answers, the record of which checklists belong to projects, which counties have been birded, and the saved checklist weather and tide -- from every path a clear can take, including one arriving from another device; open tabs notice the clear immediately instead of showing the old data until the next launch, a part that cannot be removed is reported rather than counted as success, and loading a newer export is unchanged and still keeps those answers, which is what lets it ask only about checklists it has not seen before.
+
 ### Window state on desktop, and large backups that load (complete -- September 2026, v1.0.13)
 
 The Mac and Windows apps reopen at the size, position and maximized/fullscreen state they were last closed at, and a window whose saved display is gone, or which no longer fits the screen it lands on, is brought fully back onto visible desktop rather than restored out of reach -- while a window deliberately straddling two screens, or nudged down over the Dock, is left exactly where the user put it; the first launch after the update is unchanged, and iPhone, iPad, web and Pi have no window state at all. And a very large eBird backup loads without exhausting memory: the export is read a row at a time instead of building a roughly 19x in-memory copy of it first, so an export large enough to fail reliably now loads to completion on about a fifth of the heap, with the whole-file text no longer held for the session and the last uncapped in-memory lookup store now fixed-size -- what the app shows is identical in every case.
@@ -847,7 +851,7 @@ A Settings tab (rightmost in the tab bar) where users upload and persistently st
 **What it does:**
 - Two file management sections: eBird Backup and ML Export — each shows stored filename + upload date, or an empty "No file saved" state
 - Upload sends `multipart/form-data` POST; validated server-side (`.csv` extension only, 50 MB limit)
-- Clear button removes the stored file from disk and clears metadata; disabled when no file is stored
+- Clear button removes the stored file from disk, clears metadata, and (since v1.0.14) purges the durable stores derived from that file; disabled when no file is stored
 - On app mount, Breeding Codes, Media List, and Species Detail tabs start in `loading-saved` phase (spinner), auto-fetch their stored file, parse it, and enter the ready state automatically
 - `onKeysSaved` callback prop on `<Settings>` triggers a re-fetch of key status in App.tsx when a key is saved or deleted
 - **Rebuild Caches (Tauri only):** A "Troubleshooting" section (visible only when `isTauri()` is true) contains a "Rebuild Caches" button that deletes the `snowraven-taxonomy` IndexedDB database (key: `taxonomy-v2025`) and calls `relaunch()` to restart the app with a fresh taxonomy fetch on next load
