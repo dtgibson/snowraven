@@ -1,4 +1,5 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
+import { focusablesIn, useFocusTrap } from '../../lib/useFocusTrap'
 
 // The app's shipped dialog shape (the Calendar day-details overlay), extracted
 // into one component because the iCloud Sync feature opens three of them
@@ -37,7 +38,11 @@ interface ModalDialogProps {
 
 type Phase = 'closed' | 'enter' | 'open' | 'closing'
 
-const FOCUSABLE = 'button, a[href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+// The Tab trap and the focusable-candidate selector moved to lib/useFocusTrap.ts
+// (map-fullscreen-toggle D-08), so the embedded maps' fullscreen overlay and this
+// dialog share ONE implementation. The extraction is behaviour-preserving: this
+// component keeps the default trap options, which are its shipped behaviour byte
+// for byte. Escape deliberately did NOT move — see that file's header for why.
 const CLOSE_FALLBACK_MS = 130
 
 export function ModalDialog({
@@ -107,7 +112,7 @@ export function ModalDialog({
     if (phase !== 'enter') return
     const panel = panelRef.current
     if (!panel) return
-    const focusables = Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(el => !el.hasAttribute('disabled'))
+    const focusables = focusablesIn(panel)
     const target = initialFocus === 'first' ? focusables[0] : focusables[focusables.length - 1]
     target?.focus()
   }, [phase, initialFocus])
@@ -138,37 +143,26 @@ export function ModalDialog({
     }
   }, [phase])
 
-  // Escape and the Tab trap, re-querying focusables per keydown.
+  // Escape. Stays here rather than in the shared hook: this one preventDefaults
+  // and routes through onRequestClose, while the map overlay's must be a
+  // bubble-phase listener armed only while expanded so the share popup keeps the
+  // innermost layer. Tab is disjoint from Escape, so splitting the one listener
+  // into two changes nothing about how either behaves.
+  const trapped = phase === 'enter' || phase === 'open'
   useEffect(() => {
-    if (phase !== 'enter' && phase !== 'open') return
+    if (!trapped) return
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') {
-        e.preventDefault()
-        onRequestClose()
-        return
-      }
-      if (e.key !== 'Tab') return
-      const root = panelRef.current
-      if (!root) return
-      const focusables = Array.from(root.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(el => !el.hasAttribute('disabled'))
-      if (focusables.length < 2) {
-        e.preventDefault()
-        focusables[0]?.focus()
-        return
-      }
-      const first = focusables[0]
-      const last = focusables[focusables.length - 1]
-      if (e.shiftKey && document.activeElement === first) {
-        e.preventDefault()
-        last.focus()
-      } else if (!e.shiftKey && document.activeElement === last) {
-        e.preventDefault()
-        first.focus()
-      }
+      if (e.key !== 'Escape') return
+      e.preventDefault()
+      onRequestClose()
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
-  }, [phase, onRequestClose])
+  }, [trapped, onRequestClose])
+
+  // The Tab trap, re-querying focusables per keydown. Default options, which is
+  // exactly what this component did before the extraction.
+  useFocusTrap(trapped, panelRef)
 
   if (phase === 'closed') return null
 

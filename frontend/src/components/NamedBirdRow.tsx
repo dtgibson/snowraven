@@ -8,7 +8,7 @@
 // the individual has usable coordinates (FR-23); on the single-open Named Birds
 // tab at most one map (one WebGL context) is ever mounted.
 
-import { useMemo, lazy, Suspense } from 'react'
+import { useMemo, useRef, lazy, Suspense } from 'react'
 import { ChevronRight, ChevronDown, Map as MapIcon } from 'lucide-react'
 import { formatDate, formatSightingDuration } from '../lib/formatDate'
 import { buildSightingMarkers } from '../lib/sightingMarkers'
@@ -18,6 +18,12 @@ import { NamedBirdMedia } from './NamedBirdMedia'
 import { NamedBirdLocations } from './NamedBirdLocations'
 import type { NamedBird } from '../lib/namedBirds'
 import type { NamedBirdAsset } from '../lib/namedBirdMedia'
+// react-only (it imports `react` and ./useFocusTrap and nothing else), which is
+// what lets this file — which IS on App.tsx's static import graph — call it
+// directly. The map-side half of the feature lives in
+// components/map/MapCornerControls.tsx and must never be imported from here; it
+// arrives with SightingsMap through the lazy import below.
+import { useMapFullscreen, MapFullscreenProvider } from '../lib/useMapFullscreen'
 
 // SightingsMap (and the ~1 MB maplibre-gl it pulls) is lazy-loaded so it stays
 // out of the app's entry chunk and off first paint — this static import was the
@@ -46,6 +52,18 @@ export function NamedBirdRow({ bird, open, onToggle, showSpecies, showMap, rende
   // Empty → no map rendered (FR-23). Cheap, but memoized so the array identity is
   // stable for SightingsMap / MapBoundsFitter across re-renders.
   const cardMarkers = useMemo(() => buildSightingMarkers(bird.sightings), [bird.sightings])
+
+  // Fullscreen for the card map. `active` is the whole teardown story here: this
+  // ROW stays mounted when the accordion closes — only its `{open && (...)}`
+  // subtree unmounts — so a hook at the row's top level would never see an
+  // unmount, and an expanded map would leave a body scroll lock and a document
+  // Escape listener behind. `active` going false collapses and releases both.
+  const cardMapRef = useRef<HTMLDivElement>(null)
+  const cardMapFs = useMapFullscreen({
+    containerRef: cardMapRef,
+    baseClass: 'sr-named-map',
+    active: open && showMap && cardMarkers.length > 0,
+  })
 
   return (
     <div style={{ border: '1px solid var(--sr-border)', borderRadius: 10, overflow: 'hidden', background: 'var(--sr-surface)', boxShadow: 'var(--sr-card-shadow)' }}>
@@ -161,13 +179,25 @@ export function NamedBirdRow({ bird, open, onToggle, showSpecies, showMap, rende
                 <MapIcon size={12} strokeWidth={2.2} aria-hidden />
                 Where {bird.name} has been seen
               </div>
-              <div className="sr-named-map" style={{ borderRadius: 10, overflow: 'hidden', border: '1px solid var(--sr-border)' }}>
-                <Suspense fallback={<div style={{ padding: 24, textAlign: 'center', fontSize: '0.75rem', color: 'var(--sr-text-muted)' }}>Loading map…</div>}>
-                  {/* compact: this card map is 220px tall and often half the page
-                      wide, so the share popup and its drop button take the denser
-                      density. Passed explicitly rather than relying on a default. */}
-                  <SightingsMap markers={cardMarkers} switcher={false} compact />
-                </Suspense>
+              {/* The border, radius and clip moved into the .sr-named-map rule in
+                  globals.css: an inline declaration is specificity 1,0,0, so the
+                  expanded panel class could never drop them for the fullscreen
+                  state. `switcher={false}` stays false in BOTH states — a control
+                  that does not exist collapsed and appears expanded is
+                  fullscreen-specific chrome, and turning it on would also open a
+                  settings.json base-map write path from a card that has never had
+                  one. */}
+              <div ref={cardMapRef} className={cardMapFs.className}>
+                <MapFullscreenProvider value={cardMapFs}>
+                  <Suspense fallback={<div style={{ padding: 24, textAlign: 'center', fontSize: '0.75rem', color: 'var(--sr-text-muted)' }}>Loading map…</div>}>
+                    {/* compact: this card map is 220px tall and often half the page
+                        wide, so the share popup, its drop button and the fullscreen
+                        toggle take the denser density — in both states, since
+                        nothing about a control should change size as a side effect
+                        of the toggle. Passed explicitly rather than by default. */}
+                    <SightingsMap markers={cardMarkers} switcher={false} compact />
+                  </Suspense>
+                </MapFullscreenProvider>
               </div>
             </div>
           )}

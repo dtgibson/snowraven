@@ -1228,8 +1228,15 @@ describe('the search-outcome live region (QA-27)', () => {
     // The area WAS searched: the record is written and the indicator drawn.
     expect(drawn.record).toBeTruthy()
     expect(screen.getByTestId('searched-area')).toBeTruthy()
-    // ...and no error state anywhere.
-    expect(document.querySelector('[role="alert"]')).toBeNull()
+    // ...and no error state anywhere. Asserted as "no alert region carries
+    // text", not "no alert region exists": since tab-error-panel-alerts the
+    // load-failure region is mounted in every phase and sits idle and EMPTY, so
+    // that it is already in the accessibility tree when a message arrives
+    // (DECISIONS.md v0.5.83). A presence check here would now be asserting the
+    // defect that change fixed.
+    for (const el of document.querySelectorAll('[role="alert"]')) {
+      expect(el.textContent).toBe('')
+    }
   })
 
   /**

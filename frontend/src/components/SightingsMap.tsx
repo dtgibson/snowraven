@@ -10,14 +10,14 @@
 // coordinate (buildSightingMarkers); this component is presentational +
 // popup-state only.
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Marker, Popup } from 'react-map-gl/maplibre'
 import { SnowMap } from './SnowMap'
 import { MapBoundsFitter } from './speciesDetail/MapBoundsFitter'
 import { formatDate } from '../lib/formatDate'
 import { ChecklistLink } from './ChecklistLink'
 import { neutralizeMarkerWrapper } from '../lib/mapPins'
-import { SharePin } from './map/SharePin'
+import { MapCornerControls } from './map/MapCornerControls'
 import { CountyLayer } from './map/CountyLayer'
 import { BasemapDesaturation } from './map/BasemapDesaturation'
 import { SHADED_PIN_OPACITY } from '../lib/countyShadingUi'
@@ -86,7 +86,17 @@ export function SightingsMap({
   const selected = selectedCoord
     ? markers.find(m => `${m.lat},${m.lng}` === selectedCoord) ?? null
     : null
-  const coords = markers.map(m => [m.lat, m.lng] as [number, number])
+  // MEMOIZED, and it is not a micro-optimization. MapBoundsFitter's effect deps
+  // are [map, coordinates] and its body calls fitBounds(..., { duration: 0 }), so
+  // a fresh array identity on every render re-frames the map on every render.
+  // That was a shipped defect: opening a pin popup sets state here, re-renders,
+  // and snapped the map back to the fitted bounds, discarding whatever the user
+  // had panned or zoomed to. It would also have made the fullscreen toggle
+  // re-frame both of this component's mounts on every expand and collapse, since
+  // the toggle's state lives in the host and re-renders this component. `markers`
+  // is already memoized at both call sites, so the fitter now runs when the
+  // marker set genuinely changes and never otherwise.
+  const coords = useMemo(() => markers.map(m => [m.lat, m.lng] as [number, number]), [markers])
   // Shading is only "on" once the geometry has actually loaded and aggregates
   // exist, so the basemap never mutes against a layer that cannot draw.
   const shadeOn = countyShade && !!countyData && !!countyAggregates && !!countyTiers
@@ -181,10 +191,15 @@ export function SightingsMap({
         </>
       )}
       <MapBoundsFitter coordinates={coords} />
-      {/* Pin Share, surfaces C and F in one change: Species Detail's Sighting
-          Locations (Pins mode) and the Named Birds per-individual card map are
-          this component's only two consumers. */}
-      <SharePin key={sharePinResetKey} compact={compact} buttonHost="corner" />
+      {/* The corner row: the share-pin drop button, then the fullscreen toggle.
+          Pin Share reaches surfaces C and F through here (Species Detail's
+          Sighting Locations in Pins mode and the Named Birds per-individual card
+          map are this component's only two consumers), and so does fullscreen —
+          which is how the capability is added ONCE and both callers receive it,
+          with no new prop on this component at all. The toggle appears only when
+          a host has wrapped the map in a MapFullscreenProvider; without one this
+          renders the share button and nothing else, exactly as before. */}
+      <MapCornerControls compact={compact} sharePinResetKey={sharePinResetKey} />
     </SnowMap>
   )
 }

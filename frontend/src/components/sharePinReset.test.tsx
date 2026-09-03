@@ -94,21 +94,61 @@ describe('path 2 — Species Detail Heatmap mode, via its own inline SharePin', 
 describe('SpeciesDetail wires the reset on BOTH of its map branches', () => {
   // This file runs under jsdom, where import.meta.url is an http URL — so the
   // source is resolved from the vitest root (frontend/) instead.
-  const path = resolve(process.cwd(), 'src/components/SpeciesDetail.tsx')
-  if (!existsSync(path)) throw new Error(`could not locate SpeciesDetail.tsx from ${process.cwd()}`)
-  const src = readFileSync(path, 'utf8')
+  const read = (rel: string) => {
+    const path = resolve(process.cwd(), rel)
+    if (!existsSync(path)) throw new Error(`could not locate ${rel} from ${process.cwd()}`)
+    return stripComments(readFileSync(path, 'utf8'))
+  }
+  const src = read('src/components/SpeciesDetail.tsx')
+  const corner = read('src/components/map/MapCornerControls.tsx')
 
   it('the Pins branch passes selectedSpecies as SightingsMap\'s sharePinResetKey', () => {
     expect(src).toMatch(/<SightingsMap[^>]*sharePinResetKey=\{selectedSpecies\}/)
   })
 
-  it('the Heatmap branch keys its own SharePin on selectedSpecies', () => {
-    expect(src).toMatch(/<SharePin\s+key=\{selectedSpecies\}/)
+  it('the Heatmap branch passes selectedSpecies as its corner row\'s sharePinResetKey', () => {
+    // map-fullscreen-toggle moved the inline <SharePin> into the shared corner
+    // row, which is where the fullscreen toggle joins it. The reset key is now
+    // threaded one level: the branch hands it to the row, and the row keys the
+    // pin on it (asserted separately below, so a break in either link fails).
+    expect(src).toMatch(/<MapCornerControls[^>]*sharePinResetKey=\{selectedSpecies\}/)
+  })
+
+  it('the corner row keys the share pin on the value it is handed (the composed seam)', () => {
+    // Without this the assertion above proves only that a prop is PASSED. Two
+    // half-tests can both stay green while the halves stop fitting together.
+    expect(corner).toMatch(/<SharePin\s+key=\{sharePinResetKey\}/)
   })
 
   it('mounts a share pin on BOTH branches, so toggling the mode cannot lose the feature', () => {
-    // Pins mode gets it through SightingsMap; heatmap mode mounts its own.
+    // Pins mode gets it through SightingsMap; heatmap mode mounts the row itself.
     expect(src).toMatch(/<SightingsMap\b/)
-    expect(src).toMatch(/<SharePin\b/)
+    expect(src).toMatch(/<MapCornerControls\b/)
   })
 })
+
+/** Drop whole-line `//` comments and any line a block comment opens or
+ *  continues. A `toMatch` over raw source is satisfied by a COMMENTED-OUT call,
+ *  which is precisely the state a half-reverted change is in. Line-based, so it
+ *  cannot damage a `//` inside a string on a code line, and it fails in the safe
+ *  direction: a line wrongly dropped turns a guard red, which is loud. */
+function stripComments(src: string): string {
+  let inBlock = false
+  const lines = src.split('\n').filter(line => {
+    const t = line.trim()
+    if (inBlock) { if (t.includes('*/')) inBlock = false; return false }
+    if (t.startsWith('//')) return false
+    if (t.startsWith('/*') || t.startsWith('{/*')) {
+      if (!t.includes('*/')) inBlock = true
+      return false
+    }
+    return true
+  }).join('\n')
+  // ...and inline block comments on a CODE line, which the line filter cannot
+  // see. Mutation-verified: commenting out a call in place (`/* collapse() */`)
+  // is the shape a half-reverted change is in, and without this the guard stayed
+  // green through it. Stated limit, deliberately not closed: a MID-LINE `//`
+  // comment still slips, because stripping those would truncate any string
+  // containing `//` (a URL) and fail in the unsafe direction.
+  return lines.replace(/\/\*[\s\S]*?\*\//g, '')
+}

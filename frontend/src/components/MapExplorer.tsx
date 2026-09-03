@@ -14,6 +14,7 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'r
 // appear beside this cluster. Not an oversight.
 import { AlertCircle, Binoculars, Camera, ChevronDown, Crosshair, Filter, Info, Loader2, LocateFixed, Maximize2, Minimize2, MapPin, Search, X } from 'lucide-react'
 import { SetupRequired } from './SetupRequired'
+import { TabLoadErrorAlert } from './ui/TabLoadErrorAlert'
 import { EBIRD_BACKUP_STEPS, EBIRD_BACKUP_LOAD_ERROR } from './setupCopy'
 import { loadEbirdObservations } from '../lib/observationsCache'
 import { loadMLExport } from '../lib/mlExportCache'
@@ -675,11 +676,12 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
 
         const [ebird, ml] = await Promise.all([
           loadEbirdObservations(),
-          // .catch: loadMLExport catches parse errors but not the file-read IO (the
-          // read sits outside its try), so an ML failure must degrade to no-media
-          // here rather than reject this Promise.all into the outer catch, which
-          // would claim there is no eBird backup while one is plainly loaded.
-          // Reachable on web/Pi, where WebStorage.readFile is a bare fetch.
+          // .catch: defense in depth, and deliberately kept. Since v1.0.15 the read
+          // sits INSIDE loadMLExport's own try, so it resolves null on a read or a
+          // parse failure and this guard has nothing left to catch. It stays because
+          // the cost of being wrong is asymmetric: a rejection here rejects the whole
+          // Promise.all into the outer catch, which claims there is no eBird backup
+          // while one is plainly loaded — over a shared seam four tabs read through.
           status.ml ? loadMLExport().catch(() => null) : Promise.resolve(null),
         ])
         if (cancelled) return
@@ -1506,14 +1508,18 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
 
   // ── Render ────────────────────────────────────────────────────────────────────
 
-  if (phase.tag === 'loading-saved') {
-    return (
-      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <Loader2 size={22} className="spin" style={{ color: 'var(--sr-accent)' }} />
-      </div>
-    )
-  }
-
+  // The loading phase used to be an early `return` of a bare centred spinner.
+  // It is folded into the one tree below instead, so the load-failure live region
+  // sits at a FIXED position in the map area across every phase this tab can be
+  // in and React reconciles it to the same DOM node -- a region that is created
+  // along with its message does not announce (DECISIONS.md v0.5.83), and
+  // `loading-saved -> error` is exactly how a first-load failure arrives here.
+  // The mode bar and the sidebar stay gated off while loading, and the spinner is
+  // centred in a map area that fills the tab, so the loading view renders exactly
+  // as it did before; `mapMounted` is false during loading, so every control that
+  // presupposes a map (the FAB cluster's contents, the search-area button) stays
+  // absent as it was under the early return.
+  const isLoadingSaved = phase.tag === 'loading-saved'
   const isSetupRequired = phase.tag === 'setup-required'
   const loadErrorMessage = phase.tag === 'error' ? phase.message : null
   // The two branches below that replace <SnowMap> — with <SetupRequired> when no
@@ -1521,7 +1527,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
   // The location FAB is gated on this and on nothing else: "is there a map", never
   // "is there data" (FR-02), so it stays absent for both, for the same reason: no
   // MapEffects is mounted to consume a panTarget either way.
-  const mapMounted = !((isSetupRequired || loadErrorMessage !== null) && viewMode === 'sightings')
+  const mapMounted = !isLoadingSaved && !((isSetupRequired || loadErrorMessage !== null) && viewMode === 'sightings')
   // One name on all four views: the promise is identical everywhere. On the three
   // centre views the same press MAY also run a search, but only when both
   // coordinate fields were empty — a condition the user cannot see, so a name
@@ -2815,6 +2821,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
       {/* Mode bar — flexWrap so the four pills drop to a second/third line on a
           narrow phone (or at a large in-app text size) instead of forcing the
           whole panel into horizontal overflow. */}
+      {!isLoadingSaved && (
       <div role="group" aria-label="Map view mode" style={{ display: 'flex', flexWrap: 'wrap', gap: 8, padding: '10px 16px', borderBottom: '1px solid var(--sr-border)', background: 'var(--sr-surface)', flexShrink: 0 }}>
         {MAP_VIEW_MODE_ORDER.map(({ mode, label }) => {
           const icon =
@@ -2874,6 +2881,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
           )
         })}
       </div>
+      )}
 
       {/* Content: sidebar + map. On iOS builds ONLY, fullscreen adds
           sr-map-ios-fullscreen (globals.css): the sidebar becomes the
@@ -2891,6 +2899,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
         )}
 
         {/* Sidebar */}
+        {!isLoadingSaved && (
         <div
           ref={sidebarRef}
           className={`sr-map-sidebar-overlay${sidebarOpen ? '' : ' sr-map-sidebar-hidden'}`}
@@ -2923,6 +2932,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
           {viewMode === 'targets'  && targetsSidebar}
           {viewMode === 'lifers'   && lifersSidebar}
         </div>
+        )}
 
         {/* Map area. The ref is the CONTAINER half of the OI-01 fit measurement
             (useSearchControlFit) — the box the control row must stay inside,
@@ -3013,7 +3023,15 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                 </span>
               ) : null}
             </div>
-            {!sidebarOpen && (
+            {/* `!isLoadingSaved` joins the shipped `!sidebarOpen` gate rather than
+                replacing it. The loading phase used to be an early return, so no
+                FAB existed then; now that the tree renders while loading, two of
+                these are NOT covered by `mapMounted` (the fullscreen button gates
+                on `onToggleFullscreen`, and the Filters pill on nothing at all)
+                and would appear over an empty map area on a phone. The cluster
+                WRAPPER above stays unconditional, per the v0.5.83 contract that
+                keeps its live region in the accessibility tree. */}
+            {!sidebarOpen && !isLoadingSaved && (
               <>
               {/* "Search this area" — the fragment's FIRST child, which is what
                   satisfies FR-04 BY POSITION: there is no duplicated
@@ -3212,24 +3230,38 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
               </>
             )}
           </div>
-          {isSetupRequired && viewMode === 'sightings' ? (
+          {/* The load-failure live region, mounted OUTSIDE the branch below and
+              therefore present in EVERY phase this tab can be in — loading, the
+              map, setup-required and the failure itself. It used to be the
+              `role="alert"` on the error branch of that very ternary, which
+              created the region at the instant its text existed: the
+              insert-with-first-message trap (DECISIONS.md v0.5.83,
+              `.claude/rules/ui.md`). This tab needs the always-mounted form more
+              than most — its load effect does not reset the phase on a files-epoch
+              reload, so a backup that stops being readable goes ready → error in
+              one commit with no loading phase between. Idle it carries no styles
+              and no content, so it computes to zero height above the map and
+              shifts nothing. Keep it a SIBLING of the branch, never inside it. */}
+          <TabLoadErrorAlert
+            message={viewMode === 'sightings' ? loadErrorMessage : null}
+            onGoToSettings={onGoToSettings}
+          />
+          {isLoadingSaved ? (
+            /* height:100% rather than flex:1 — the map area is a block box, so
+               only an explicit height gives the centring something to resolve
+               against. With the mode bar and sidebar gated off it fills the tab,
+               so this renders exactly the centred spinner the early return did. */
+            <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Loader2 size={22} className="spin" style={{ color: 'var(--sr-accent)' }} />
+            </div>
+          ) : isSetupRequired && viewMode === 'sightings' ? (
             <SetupRequired
               title="eBird Backup Required"
               body="Map Explorer needs your eBird backup to show your sightings on the map. Hotspot and Media Targets modes also benefit from a backup for visited classification."
               steps={EBIRD_BACKUP_STEPS}
               onGoToSettings={onGoToSettings}
             />
-          ) : loadErrorMessage !== null && viewMode === 'sightings' ? (
-            <div role="alert" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: 40 }}>
-              <div className="sr-wrap-anywhere" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 13px', background: 'var(--sr-error-bg)', borderRadius: 8, fontSize: '0.8125rem', color: 'var(--sr-error)', maxWidth: 480 }}>
-                <AlertCircle size={14} strokeWidth={2.5} style={{ flexShrink: 0 }} aria-hidden />
-                {loadErrorMessage}
-              </div>
-              <button type="button" tabIndex={0} onClick={onGoToSettings} style={{ height: 32, padding: '0 14px', borderRadius: 6, border: '1.5px solid var(--sr-border)', background: 'var(--sr-surface)', color: 'var(--sr-text-muted)', fontSize: '0.75rem', fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer' }}>
-                Go to Settings
-              </button>
-            </div>
-          ) : (
+          ) : loadErrorMessage !== null && viewMode === 'sightings' ? null : (
             <SnowMap
               initialViewState={{ longitude: -100, latitude: 45, zoom: 4 }}
               style={{ height: '100%', width: '100%' }}

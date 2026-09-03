@@ -903,16 +903,43 @@ h1, h2, h3, h4, h5, h6 {
   gap: 12px;
 }
 
+/* Species Detail's Sighting Locations map. NOTE for any future phone-tier
+   height override on the three container rules in this group: it must be scoped
+   `:not(.sr-map-fs-panel)`, exactly as the ≤640 rule at the end of this file
+   already is. Both that rule and `.sr-map-fs-panel` are one class deep and the
+   media block always comes last, so an unscoped override wins over the expanded
+   panel and the fullscreen map renders at the in-flow height. */
 .sr-map-container {
   height: 380px;
   width: 100%;
 }
 
 /* Per-individual sightings map inside an expanded Named Birds card — shorter
-   than the Species Detail map so it fits a collapsible card (height only). */
+   than the Species Detail map so it fits a collapsible card. The border, radius
+   and clip were inline in NamedBirdRow.tsx until map-fullscreen-toggle; they had
+   to move here, because an inline declaration is specificity 1,0,0 and
+   `.sr-map-fs-panel` could never drop them for the expanded state. */
 .sr-named-map {
   height: 220px;
   width: 100%;
+  border: 1px solid var(--sr-border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+/* Statistics' Geographic Stats map. It had NO class at all before
+   map-fullscreen-toggle — height, radius, border and clip were an inline style
+   object, and an inline `height: 320px` can never be beaten by the expanded
+   panel's `height: 100dvh`. The SAME class goes on the pre-`mapReady`
+   placeholder twin, whose whole job is to keep the exact box so the SnowMap
+   mount causes zero layout shift; the two boxes now agree by construction
+   rather than by two hand-kept copies. */
+.sr-geo-map {
+  height: 320px;
+  width: 100%;
+  border: 1px solid var(--sr-border);
+  border-radius: 8px;
+  overflow: hidden;
 }
 
 .sr-media-grid {
@@ -1511,6 +1538,61 @@ h1, h2, h3, h4, h5, h6 {
    through .sr-map-content, NOT through this panel directly — see that rule's
    comment for the mechanism. */
 .sr-ios-app .sr-map-fullscreen-panel {
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+}
+
+/* ── EMBEDDED-map fullscreen panel (feature: map-fullscreen-toggle) ──────────
+   The expanded state of Species Detail's Sighting Locations map (both its Pins
+   and Heatmap branches), the Named Birds per-individual card map, and the
+   Statistics Geographic Stats map. ONE class for all four mounts, composed onto
+   whichever base class the host container already carries, so "the three
+   surfaces are identical when expanded" is a property of this stylesheet rather
+   than of anyone's discipline, and the iOS rule, the opaque ground and the
+   entrance are each written once.
+
+   The first four declarations are byte-identical to .sr-map-fullscreen-panel
+   above: the app has ONE fullscreen geometry, not two. It is a separate rule
+   rather than a second selector on that one because these four also need the
+   opaque ground and the border/radius reset, and because the Map Explorer's
+   panel is explicitly out of this feature's scope.
+
+   It MUST sit below .sr-map-container / .sr-named-map / .sr-geo-map: all four
+   rules are one class deep, so only source order decides the height.
+
+   background: an embedded map's overlay covers a LIVE page, not a dimmed one, so
+   it has to be opaque from frame one; the ground is visible only for the moment
+   before a map style resolves. No scrim: there is nothing behind to dim, and a
+   scrim is a modal gesture on something that is not a modal.
+
+   border/radius: dropped while expanded. A full-window map with rounded corners
+   and a hairline shows the page ground in four corners and reads as a rendering
+   fault. The clip stays, and the collapsed box is restored exactly by removing
+   this class. */
+.sr-map-fs-panel {
+  position: fixed;
+  inset: 0;
+  height: 100dvh;
+  z-index: 1200;
+  background: var(--sr-bg);
+  border: none;
+  border-radius: 0;
+  overflow: hidden;
+}
+
+/* iOS safe areas for the embedded fullscreen panel, mirroring the Map Explorer
+   rule above declaration for declaration and for the same reasons: GATED on
+   .sr-ios-app, because index.html ships viewport-fit=cover to browsers too and a
+   bare env() here would change shipped web rendering in iOS Safari; PADDING
+   rather than a smaller box, so the panel still measures exactly 100dvh
+   (box-sizing: border-box is global) and only its content box moves inward,
+   which is what carries the map's own `height: 100%` and therefore the base
+   switcher's `top: 8px` clear of the status bar and the Dynamic Island in both
+   rotations; and top/left/right ONLY, because the canvas is meant to bleed to
+   the home indicator. The corner row insets its own bottom instead — see
+   .sr-ios-app .sr-map-fs-panel .sr-map-corner-row further down. */
+.sr-ios-app .sr-map-fs-panel {
   padding-top: env(safe-area-inset-top, 0px);
   padding-left: env(safe-area-inset-left, 0px);
   padding-right: env(safe-area-inset-right, 0px);
@@ -2202,6 +2284,91 @@ h1, h2, h3, h4, h5, h6 {
   z-index: 1050;
 }
 .sr-share-corner--compact { bottom: 12px; right: 12px; }
+
+/* ── The embedded maps' corner ROW (feature: map-fullscreen-toggle) ──────────
+   .sr-share-corner held ONE control, so it needed no layout. The four embedded
+   mounts now hold two — the share drop button, then the fullscreen toggle — and
+   this row is .sr-share-corner's anchors plus .sr-map-fab-cluster's proven flex
+   quartet. It paints nothing: a transparent wrapper, which is why the only
+   colour this feature adds anywhere is the panel's background above.
+
+   It is a SEPARATE rule from .sr-share-corner rather than a widening of it,
+   because the two must never render together (two absolutely positioned
+   bottom-right wrappers would stack); the corner arm survives for SharePin's own
+   test suite and for any future single-control caller.
+
+   flex-wrap + justify-content + row-gap + max-width are lifted wholesale from
+   the cluster, where their own comment records why: without them an overlong row
+   overflows to the LEFT, off the edge of the map, where page scrollWidth still
+   reads a clean viewport width and certifies a broken build. The 32px is 2x the
+   row's own 16px inset, so a wrapped row keeps a matching left gutter (24px /
+   12px on the compact tier).
+
+   pointer-events is NEW WORK here rather than inherited boilerplate: with one
+   button there is no gap, and with two the 10px between them would be a dead
+   strip that swallows a map drag. */
+.sr-map-corner-row {
+  position: absolute;
+  bottom: 20px;
+  right: 16px;
+  z-index: 1050;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  row-gap: 10px;
+  max-width: calc(100% - 32px);
+  pointer-events: none;
+}
+.sr-map-corner-row button { pointer-events: auto; }
+.sr-map-corner-row--compact { bottom: 12px; right: 12px; max-width: calc(100% - 24px); }
+
+/* THE MOTION. The panel itself does not animate, and each reason is a real
+   constraint rather than restraint: a scaling live canvas tears (MapLibre renders
+   at the final size while CSS scales the element), a transform is the one
+   property this feature is forbidden (the overlay depends on `position: fixed`
+   resolving against the viewport, and an ancestor transform would make it resolve
+   against that ancestor instead), and a fade would show the live page through a
+   half-transparent map for ~80ms, which is exactly what the opaque ground exists
+   to prevent. So the geometry change is instant and what animates is the one
+   thing that genuinely travelled: the corner row, arriving in its new corner.
+
+   Entrance only; collapsing is instant, because animating an in-flow box back
+   into place means fading the page itself in, which reads as a flicker. The app
+   already made this call once, on SpeciesCombobox's listbox.
+
+   The transform is safe: it sits on a DESCENDANT of the fixed container, not an
+   ancestor, so it cannot create a containing block for the panel, and nothing
+   inside the row is position: fixed.
+
+   Reduced motion needs no rule of its own — the end state IS the resting state,
+   so the global prefers-reduced-motion block further down collapses this to
+   nothing and loses nothing. Do not add a per-component media query. */
+@keyframes sr-map-corner-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+.sr-map-fs-panel .sr-map-corner-row {
+  animation: sr-map-corner-in 150ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* iOS, expanded only: the panel rule deliberately pads top/left/right and not
+   bottom, so the canvas bleeds to the home indicator — which leaves the corner
+   row's discs sitting over it. That inset reaches the base switcher and the zoom
+   stack for free (the map fills the panel's padded content box) but not this
+   row, which is absolutely positioned against the map. Gated on BOTH .sr-ios-app
+   and the expanded class: the collapsed in-flow map already sits inside the
+   body's own safe-area padding, and a bottom inset there would push two discs up
+   into a 220px card map for nothing. RIGHT is deliberately not re-inset — the
+   panel's own padding-right already moved that edge, and double-insetting is the
+   failure the shipped panel's comment warns about. */
+.sr-ios-app .sr-map-fs-panel .sr-map-corner-row {
+  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+}
+.sr-ios-app .sr-map-fs-panel .sr-map-corner-row--compact {
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+}
 
 /* The drop button — the keyboard route (FR-38) and, deliberately, the primary
    route: a right-click-only feature has near-zero discoverability. Its circle
@@ -3738,7 +3905,15 @@ select:focus-visible {
 
   .sr-two-col { grid-template-columns: 1fr; }
   .sr-compare-panels { grid-template-columns: 1fr; }
-  .sr-map-container { height: 300px; }
+  /* `:not(.sr-map-fs-panel)` is load-bearing, not tidiness. This rule and
+     `.sr-map-fs-panel { height: 100dvh }` are both one class deep, and this
+     media block sits at the END of the file, so an unscoped selector wins on
+     source order and the EXPANDED Species Detail map renders 300px tall at
+     phone width — the feature silently broken on exactly the tier that needs it
+     most. The `:not()` adds its argument's specificity, so this rule is (0,2,0)
+     and still wins wherever it is meant to. Any future phone-tier height
+     override on .sr-named-map or .sr-geo-map owes the same guard. */
+  .sr-map-container:not(.sr-map-fs-panel) { height: 300px; }
   .sr-media-grid { grid-template-columns: 1fr; }
   .sr-media-disabled-list { grid-template-columns: 1fr; }
   .sr-media-iframe { height: 360px; }
@@ -4148,3 +4323,37 @@ select:focus-visible {
   from { opacity: 0; transform: scaleY(0.96); }
   to   { opacity: 1; transform: scaleY(1); }
 }
+
+/* ── Tab load-failure live region ──────────────────────────────────────────────
+   (improve: tab-error-panel-alerts)
+
+   The three elements of components/ui/TabLoadErrorAlert.tsx: an always-mounted
+   frame, the always-mounted `role="alert"` region inside it, and (Statistics
+   only) the column between them. All three exist from the tab's first render and
+   are EMPTY until a load fails, which is the whole point of the component -- a
+   live region must already be in the accessibility tree when its message
+   arrives.
+
+   THERE IS DELIBERATELY NO `:empty { display: none }` RULE HERE, AND NONE MAY BE
+   ADDED -- not on the region, and not on the frame or the inner column either,
+   since hiding an ancestor removes the region just as completely. `display: none`
+   takes an element out of the ACCESSIBILITY TREE, not merely out of view, so a
+   region hidden while idle is inserted into the tree at the same instant its
+   first content arrives: the documented way to make a live region fail to
+   announce, and exactly the v0.5.83 defect (`.sr-map-geo-error:empty
+   { display: none }`) that this whole change exists to stop repeating on eight
+   more surfaces. It would also defeat the sequence-keyed child, whose premise is
+   a STABLE region whose child is replaced.
+
+   These rules earn their keep as the guarded anchor rather than as styling: the
+   populated appearance comes from inline styles in the component (byte-identical
+   to the eight panels that shipped before this change), and an EMPTY flex
+   container with no content and no padding computes to zero height, so an idle
+   region costs no space and shifts nothing. Top-level on purpose -- they apply at
+   every width. Guarded by lib/tabLoadAlertCss.test.ts, which asserts both the
+   positive `display: flex` (so the absence scan cannot pass vacuously by these
+   rules simply having been deleted) and that no rule at ANY depth gives any of
+   the three selectors a hiding display, visibility, or content-visibility. */
+.sr-tab-load-alert-frame { display: flex; }
+.sr-tab-load-alert-inner { display: flex; }
+.sr-tab-load-alert { display: flex; }

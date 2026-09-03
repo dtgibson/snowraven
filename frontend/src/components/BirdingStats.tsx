@@ -1,8 +1,7 @@
-import { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react'
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import {
-  BarChart2, Trophy, Clock, MapPin, ShieldCheck, Dna,
-  AlertCircle, Loader2, ChevronDown, ChevronUp, Calendar, Video,
-  ListOrdered, Award, Sparkles, ClipboardList,
+  BarChart2, Trophy, Clock, MapPin, ShieldCheck, Dna, Loader2, ChevronDown,
+  ChevronUp, Calendar, Video, ListOrdered, Award, Sparkles, ClipboardList
 } from 'lucide-react'
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -10,7 +9,8 @@ import {
 } from 'recharts'
 import { Marker, Popup } from 'react-map-gl/maplibre'
 import { SnowMap } from './SnowMap'
-import { SharePin } from './map/SharePin'
+import { MapCornerControls } from './map/MapCornerControls'
+import { useMapFullscreen, MapFullscreenProvider } from '../lib/useMapFullscreen'
 // STATIC imports, deliberately (FR-21): entryChunk.test.ts's walker follows
 // STATIC edges only, so its guard-the-guard ("this host's subtree reaches
 // CountyLayer") is satisfiable only this way. Safe because this component is
@@ -55,6 +55,7 @@ import { ESCAPEE_TOGGLE_LABEL } from '../lib/exoticCopy'
 import { useOnline } from '../lib/useOnline'
 import type { Granularity, PeriodGranularity } from '../lib/birdingStats'
 import { SetupRequired } from './SetupRequired'
+import { TabLoadErrorAlert } from './ui/TabLoadErrorAlert'
 import { EBIRD_BACKUP_STEPS, EBIRD_BACKUP_LOAD_ERROR } from './setupCopy'
 import { formatDate as fmtDate } from '../lib/formatDate'
 import type { ObservationEntry, ChecklistEntry } from '../types'
@@ -173,11 +174,12 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
 
         const [ebird, ml] = await Promise.all([
           loadEbirdObservations(),
-          // .catch: loadMLExport catches parse errors but not the file-read IO (the
-          // read sits outside its try), so an ML failure must degrade to no-media
-          // here rather than reject this Promise.all into the outer catch, which
-          // would claim there is no eBird backup while one is plainly loaded.
-          // Reachable on web/Pi, where WebStorage.readFile is a bare fetch.
+          // .catch: defense in depth, and deliberately kept. Since v1.0.15 the read
+          // sits INSIDE loadMLExport's own try, so it resolves null on a read or a
+          // parse failure and this guard has nothing left to catch. It stays because
+          // the cost of being wrong is asymmetric: a rejection here rejects the whole
+          // Promise.all into the outer catch, which claims there is no eBird backup
+          // while one is plainly loaded — over a shared seam four tabs read through.
           status.ml ? loadMLExport().catch(() => null) : Promise.resolve(null),
         ])
 
@@ -484,6 +486,36 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
   // Geographic stats
   const geo = useMemo(() => computeGeo(checklists, filteredObs), [checklists, filteredObs])
 
+  // Fullscreen for the Geographic Stats map. The pin test is lifted to this
+  // level from the IIFE that renders the map (hooks cannot live in there) and
+  // asks the same question the two ranked-pin arrays answer: is there a pin with
+  // a coordinate? Together with `mapReady` that is FR-05's "no map, no toggle" —
+  // the loading placeholder draws no map, so it offers nothing to expand.
+  const geoHasPins = useMemo(
+    () => geo.topLocations.some(l => l.lat !== null) || geo.topLocationsBySpecies.some(l => l.lat !== null),
+    [geo],
+  )
+  const geoMapRef = useRef<HTMLDivElement>(null)
+  const geoFs = useMapFullscreen({
+    containerRef: geoMapRef,
+    baseClass: 'sr-geo-map',
+    active: mapReady && geoHasPins,
+  })
+
+  // Opening a species from the county popup leaves this tab entirely, so the
+  // expanded map must collapse and release its scroll lock and Escape handler on
+  // the way out. The tab does unmount, so the hook's own teardown would cover it
+  // — this makes the release deterministic and observable rather than racing a
+  // lazy tab teardown. `undefined` in, `undefined` out, so CountyLayer's own
+  // gating on the prop is unchanged.
+  const collapseGeoFs = geoFs.collapse
+  const handleGeoOpenSpecies = useMemo(
+    () => (onOpenSpecies
+      ? (commonName: string) => { collapseGeoFs(); onOpenSpecies(commonName) }
+      : undefined),
+    [collapseGeoFs, onOpenSpecies],
+  )
+
   // ── County shading for the Geographic Stats map (FR-14, FR-15) ────────────
   // Built from the EXACT `filteredObs` / `checklists` memos that feed
   // `computeGeo` above, so the map and the ranked county tables beside it cannot
@@ -549,47 +581,49 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
   }, [mediaGraphResult.data, mediaInterval, mediaViewMode])
 
   // ── Phase gates (all hooks above) ────────────────────────────────────────
+  //
+  // The load-failure live region is declared ONCE here and rendered at fragment
+  // index 0 of BOTH returns below, so React reconciles it to the same DOM node
+  // across every phase transition and it is in the accessibility tree before any
+  // message lands in it. Three early returns used to carry the error panel's
+  // markup inline, which would have created a `role="alert"` at the instant its
+  // text existed — the insert-with-first-message trap (DECISIONS.md v0.5.83).
+  //
+  // WHY THIS TAB ALSO CARRIES IT IN THE READY RETURN, where the six sibling tabs
+  // need it only in the gate: those tabs' load effects set the phase back to
+  // `loading-saved` as their first statement, so `error` is only ever entered
+  // from a phase the gate renders. THIS effect does not — a files-epoch bump
+  // (a Settings upload, an iCloud arrival) reloads in place, leaving the built
+  // statistics on screen, and a backup that then fails to read goes ready →
+  // error in one commit with no loading phase between. Without the ready-side
+  // mount that transition would insert the region along with its message, which
+  // is precisely the defect. Do not "tidy" it away; `TabLoadErrorAlert.test.tsx`
+  // drives ready → error on this tab and asserts node identity.
+  const loadAlert = (
+    <TabLoadErrorAlert
+      message={phase.tag === 'error' ? phase.message : null}
+      onGoToSettings={onGoToSettings}
+      variant="stats"
+    />
+  )
 
-  if (phase.tag === 'loading-saved') {
+  if (phase.tag !== 'ready') {
     return (
-      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <Loader2 size={24} strokeWidth={2} className="spin" style={{ color: 'var(--sr-accent)' }} />
-      </div>
-    )
-  }
-
-  if (phase.tag === 'setup-required') {
-    return (
-      <SetupRequired
-        title="Statistics require your eBird backup"
-        body="Upload your eBird backup to see comprehensive statistics about your birding history: life list, effort, geography, and more."
-        steps={EBIRD_BACKUP_STEPS}
-        onGoToSettings={onGoToSettings}
-      />
-    )
-  }
-
-  if (phase.tag === 'error') {
-    return (
-      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 24px' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, textAlign: 'center', maxWidth: 420 }}>
-          <div className="sr-wrap-anywhere" style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--sr-error)', fontSize: '0.875rem' }}>
-            <AlertCircle size={16} style={{ flexShrink: 0 }} />
-            {phase.message}
+      <>
+        {loadAlert}
+        {phase.tag === 'setup-required' ? (
+          <SetupRequired
+            title="Statistics require your eBird backup"
+            body="Upload your eBird backup to see comprehensive statistics about your birding history: life list, effort, geography, and more."
+            steps={EBIRD_BACKUP_STEPS}
+            onGoToSettings={onGoToSettings}
+          />
+        ) : phase.tag === 'error' ? null : (
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Loader2 size={24} strokeWidth={2} className="spin" style={{ color: 'var(--sr-accent)' }} />
           </div>
-          <button tabIndex={0}
-            onClick={onGoToSettings}
-            style={{
-              display: 'inline-flex', alignItems: 'center', gap: 7, padding: '8px 16px',
-              background: 'var(--sr-accent)', color: 'var(--sr-on-accent)',
-              border: 'none', borderRadius: 8, fontSize: '0.84375rem', fontWeight: 500,
-              fontFamily: 'inherit', cursor: 'pointer',
-            }}
-          >
-            Go to Settings →
-          </button>
-        </div>
-      </div>
+        )}
+      </>
     )
   }
 
@@ -613,6 +647,11 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
   ]
 
   return (
+    <>
+    {/* Index 0 in this return as well as in the gate above — see the phase-gate
+        note. Idle it carries no styles and no content, so it computes to zero
+        height and shifts nothing on the statistics page. */}
+    {loadAlert}
     <div style={{ width: '100%', maxWidth: 900, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 20, paddingBottom: 40 }}>
 
       {/* Page header */}
@@ -1131,11 +1170,16 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
           if (clPins.length === 0 && spPins.length === 0) return null
           return (
             <div style={{ marginBottom: 20 }}>
-              {/* Idle-deferred map: the placeholder keeps the EXACT box (height
-                  320, border, radius) so the SnowMap mount causes zero layout
-                  shift. mapReady flips on requestIdleCallback after `computed`. */}
+              {/* Idle-deferred map: the placeholder keeps the EXACT box so the
+                  SnowMap mount causes zero layout shift. Both boxes now carry the
+                  SAME `.sr-geo-map` class rather than two hand-kept copies of an
+                  inline style, so they agree by construction; the class also
+                  exists because an inline `height: 320px` is specificity 1,0,0
+                  and could never be beaten by the expanded panel's `100dvh`.
+                  mapReady flips on requestIdleCallback after `computed`. */}
               {mapReady ? (
-                <div style={{ height: 320, borderRadius: 8, overflow: 'hidden', border: '1px solid var(--sr-border)' }}>
+                <div ref={geoMapRef} className={geoFs.className}>
+                  <MapFullscreenProvider value={geoFs}>
                   <SnowMap
                     initialViewState={{ longitude: 0, latitude: 20, zoom: 1 }}
                     style={{ width: '100%', height: '100%' }}
@@ -1181,19 +1225,22 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
                           metric={countyMetric}
                           useTextures={countyUseTextures}
                           isPublicHotspot={isHotspot}
-                          onOpenSpecies={onOpenSpecies}
+                          onOpenSpecies={handleGeoOpenSpecies}
                           taxonCodeFor={codeFor}
                         />
                         <BasemapDesaturation active={countyShadeOn} />
                       </>
                     )}
-                    {/* Pin Share, surface E. No reset key needed: this map has no
-                        entity behind it that can change under a mounted map. */}
-                    <SharePin compact={false} buttonHost="corner" />
+                    {/* The corner row: the share-pin drop button (surface E),
+                        then the fullscreen toggle. No share-pin reset key
+                        needed: this map has no entity behind it that can change
+                        under a mounted map. */}
+                    <MapCornerControls compact={false} />
                   </SnowMap>
+                  </MapFullscreenProvider>
                 </div>
               ) : (
-                <div style={{ height: 320, borderRadius: 8, overflow: 'hidden', border: '1px solid var(--sr-border)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div className="sr-geo-map" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <span role="status" style={{ fontSize: '0.8125rem', color: 'var(--sr-text-muted)' }}>Loading map…</span>
                 </div>
               )}
@@ -2230,5 +2277,6 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
       </>
       )}
     </div>
+    </>
   )
 }
