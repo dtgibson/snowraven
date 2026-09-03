@@ -21,7 +21,7 @@ export function CommentText({ raw, decoded = false }: { raw: string; decoded?: b
         // Belt-and-suspenders: only ever emit an <a> for an http(s) href, even though
         // linkify already guarantees that — so a future change there can't widen it.
         seg.href && /^https?:\/\//i.test(seg.href) ? (
-          <a key={i} href={seg.href} target="_blank" rel="noopener noreferrer"
+          <a key={i} tabIndex={0} href={seg.href} target="_blank" rel="noopener noreferrer"
             style={{ color: 'var(--sr-accent)', textDecoration: 'underline', wordBreak: 'break-word' }}>
             {seg.text}
             <span className="sr-only"> (opens in a new tab)</span>

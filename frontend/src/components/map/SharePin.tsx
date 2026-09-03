@@ -181,6 +181,7 @@ export function SharePin({ compact, buttonHost }: {
               name leads with the coordinates exactly as rendered (WCAG 2.5.3). */}
           <button
             key={plantSeq}
+            tabIndex={0}
             type="button"
             // No compact variant: the sprite's own width/height carry the
             // density, and the 44px touch target is 44px at both.

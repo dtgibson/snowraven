@@ -16,6 +16,7 @@ export function SpeciesLinks({ speciesCode, commonName }: SpeciesLinksProps) {
       verticalAlign: 'middle',
     }}>
       <a
+        tabIndex={0}
         href={`https://ebird.org/species/${speciesCode}`}
         target="_blank"
         rel="noreferrer"
@@ -43,6 +44,7 @@ export function SpeciesLinks({ speciesCode, commonName }: SpeciesLinksProps) {
         </span>
       </a>
       <a
+        tabIndex={0}
         href={`https://birdsoftheworld.org/bow/species/${speciesCode}/cur/introduction`}
         target="_blank"
         rel="noreferrer"

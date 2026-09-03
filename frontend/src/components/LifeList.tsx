@@ -633,6 +633,7 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
           <MessageSquare size={13} strokeWidth={2.2} style={{ color: 'var(--sr-accent)', flexShrink: 0 }} />
           <span>{commentCount === 1 ? '1 media comment is' : `${commentCount} media comments are`} searchable below the table.</span>
           <a
+            tabIndex={0}
             href="#media-comments"
             onClick={e => {
               e.preventDefault()

@@ -144,6 +144,7 @@ export function NamedBirdMedia({
           {remaining > 0 && (
             <div style={{ marginTop: 12 }}>
               <button
+                tabIndex={0}
                 type="button"
                 className="sr-touch-target"
                 onClick={handleShowMore}

@@ -250,6 +250,7 @@ function BacklogRowView({
         <span style={{ flex: '1 1 auto', minWidth: 6 }} aria-hidden="true" />
         {/* #3 copy weather & go */}
         <button
+          tabIndex={0}
           type="button"
           onClick={runAction3}
           disabled={busy}
@@ -299,14 +300,14 @@ function BacklogRowView({
         <RowStatus tone="warn" icon={<KeyRound {...ICON} aria-hidden="true" />}>
           <b>Weather lookup needs an API key.</b> Add your eBird &amp; OpenWeather keys in{' '}
           {onGoToSettings ? (
-            <button type="button" onClick={onGoToSettings} style={statusLinkStyle}>Settings →</button>
+            <button tabIndex={0} type="button" onClick={onGoToSettings} style={statusLinkStyle}>Settings →</button>
           ) : <b>Settings</b>}{' '}to use this action. Nothing was copied.
         </RowStatus>
       )}
       {state.kind === 'error-other' && (
         <RowStatus tone="error" icon={<CircleAlert {...ICON} aria-hidden="true" />}>
           <b>Weather lookup failed.</b> Something went wrong fetching this checklist's weather. Nothing was copied and the comment page wasn't opened.{' '}
-          <button type="button" onClick={runAction3} style={statusLinkStyle}>Try again</button>
+          <button tabIndex={0} type="button" onClick={runAction3} style={statusLinkStyle}>Try again</button>
         </RowStatus>
       )}
       {state.kind === 'error-bad-id' && (
@@ -358,7 +359,7 @@ function StateBlock({ icon, title, body, cta, accentIcon }: {
       <div style={{ fontSize: '0.9375rem', fontWeight: 600 }}>{title}</div>
       <p style={{ fontSize: '0.8125rem', color: 'var(--sr-text-muted)', margin: '6px auto 0', maxWidth: 360, lineHeight: 1.5 }}>{body}</p>
       {cta && (
-        <button type="button" onClick={cta.onClick} style={{
+        <button tabIndex={0} type="button" onClick={cta.onClick} style={{
           display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 14, height: 36, padding: '0 15px',
           background: 'var(--sr-accent)', color: 'var(--sr-on-accent)', border: 'none', borderRadius: 8,
           fontFamily: 'inherit', fontSize: '0.8125rem', fontWeight: 600, cursor: 'pointer',
@@ -410,6 +411,7 @@ export function WeatherBacklog({ rows, lookupWeather, onCopy, isHotspot, onGoToS
     <div style={{ width: '100%' }}>
       {/* Collapsed entry point */}
       <button
+        tabIndex={0}
         type="button"
         aria-expanded={expanded}
         onClick={onToggleExpand}
@@ -466,6 +468,7 @@ export function WeatherBacklog({ rows, lookupWeather, onCopy, isHotspot, onGoToS
                 {/* Widen toggle (role=switch) */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginTop: 12, padding: '9px 11px', background: 'var(--sr-surface-faint)', border: '1px solid var(--sr-border-subtle)', borderRadius: 9 }}>
                   <button
+                    tabIndex={0}
                     type="button"
                     role="switch"
                     aria-checked={includeWidened}
@@ -515,6 +518,7 @@ export function WeatherBacklog({ rows, lookupWeather, onCopy, isHotspot, onGoToS
                   {page.hasMore && (
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, flexWrap: 'wrap', padding: '14px 18px', borderTop: '1px solid var(--sr-border-subtle)' }}>
                       <button
+                        tabIndex={0}
                         type="button"
                         onClick={() => setShown(s => Math.min(s + PAGE_SIZE, backlog.length))}
                         className="sr-touch-target"
@@ -523,6 +527,7 @@ export function WeatherBacklog({ rows, lookupWeather, onCopy, isHotspot, onGoToS
                         Show next {PAGE_SIZE}
                       </button>
                       <button
+                        tabIndex={0}
                         type="button"
                         onClick={() => setShown(backlog.length)}
                         className="sr-touch-target"

@@ -198,6 +198,7 @@ export function SharePopup({ lat, lng, compact, offset, onClose }: {
       {/* Styled as maplibre's own close button so it inherits the existing theming
           and the ~44px coarse-pointer target already in globals.css. */}
       <button
+        tabIndex={0}
         type="button"
         className="maplibregl-popup-close-button"
         aria-label="Close and remove the pin"
@@ -224,6 +225,7 @@ export function SharePopup({ lat, lng, compact, offset, onClose }: {
         ) : (
           <>
             <button
+              tabIndex={0}
               type="button"
               className="sr-share-copy-btn sr-touch-target"
               data-state={copied ? 'done' : undefined}
@@ -250,7 +252,7 @@ export function SharePopup({ lat, lng, compact, offset, onClose }: {
             </p>
             <div className="sr-share-fail-bar">
               <span>Text to copy</span>
-              <button type="button" className="sr-share-link-btn" onClick={selectAll}>Select all</button>
+              <button tabIndex={0} type="button" className="sr-share-link-btn" onClick={selectAll}>Select all</button>
             </div>
             <pre ref={payloadRef} className="sr-share-payload">{payload}</pre>
           </div>

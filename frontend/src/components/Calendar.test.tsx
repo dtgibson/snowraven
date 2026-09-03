@@ -468,10 +468,29 @@ describe('Calendar — spuh toggle (QA-49)', () => {
     const formsSwitch = screen.getByRole('switch', { name: /Count all forms/ })
     expect(formsSwitch.getAttribute('aria-checked')).toBe('false')
 
-    // switch to Checklists → the settling row toggle becomes inert (tabindex -1, aria-disabled)
+    // Switch to Checklists → the settling-row toggle becomes inoperable, but it
+    // STAYS a tab stop. Until v1.0.16 it dropped to tabindex="-1", which put the
+    // one-line reason for its state out of reach of the keyboard user it is
+    // written for; .claude/rules/ui.md's aria-disabled rule says a control whose
+    // REASON must be readable in place stays focusable, with the reason wired
+    // through aria-describedby. Inoperability is the onClick guard's job, not
+    // the tab order's.
     fireEvent.click(screen.getByRole('button', { name: 'Checklists' }))
-    expect(formsSwitch.getAttribute('tabindex')).toBe('-1')
+    expect(formsSwitch.getAttribute('tabindex')).toBe('0')
     expect(formsSwitch.getAttribute('aria-disabled')).toBe('true')
+
+    // ...and the reason is ASSOCIATED, not merely adjacent: the id it points at
+    // resolves to the helper note already rendered beside it (associate a
+    // neighbouring note rather than repeating it).
+    const describedBy = formsSwitch.getAttribute('aria-describedby')
+    expect(describedBy).toBeTruthy()
+    const reason = document.getElementById(describedBy!)
+    expect(reason).toBeTruthy()
+    expect(reason!.textContent?.trim().length).toBeGreaterThan(0)
+
+    // Still inoperable: activating it changes nothing.
+    fireEvent.click(formsSwitch)
+    expect(formsSwitch.getAttribute('aria-checked')).toBe('false')
   })
 
   it('turning it ON re-tiers the Species grid and updates the view sub-line', async () => {
@@ -538,7 +557,8 @@ describe('Calendar — per-species filter (searchable combobox)', () => {
     fireEvent.click(robin)
 
     expect(formsSwitch.getAttribute('aria-disabled')).toBe('true')
-    expect(formsSwitch.getAttribute('tabindex')).toBe('-1')
+    // Stays reachable while unavailable (v1.0.16) — see the QA-49 case above.
+    expect(formsSwitch.getAttribute('tabindex')).toBe('0')
     // Sub-line reflects the narrowing.
     expect(screen.getByText(/American Robin only/)).toBeTruthy()
   })
@@ -846,5 +866,128 @@ describe('Calendar — popup focus restore & single-open (QA-37 / QA-38)', () =>
       expect(dialogs).toHaveLength(1)
       expect(dialogs[0].getAttribute('aria-label')).toMatch(/\w{3}, Mar 15, 2025/)
     })
+  })
+})
+
+describe('Calendar — the day dialog has real tab stops on WebKit (v1.0.16)', () => {
+  // WHY THIS EXISTS. ACCESSIBILITY.md publishes, of this dialog, "focus moves
+  // into the dialog, stays there while it is open." That sentence was FALSE on
+  // the shipped Mac, iPhone and iPad apps until v1.0.16, and the failure was not
+  // in the trap — it was in the population the trap was reasoning about.
+  //
+  // The dialog hand-rolls its own trap (Calendar.tsx) with the app's focusable
+  // selector but NO focusin containment arm, so it contains by comparing
+  // document.activeElement against the first/last entry of a querySelectorAll
+  // list. That is a PREDICTION of the engine's tab order, which DECISIONS.md
+  // v1.0.15 forbids. The dialog's only focusable content is the Close button and
+  // one ChecklistLink per checklist row, and NEITHER carried an explicit
+  // tabIndex — so under WebKit's default tab mode the dialog held ZERO tab stops
+  // while the trap's list held several. closeRef.current?.focus() put focus in;
+  // the first Tab went to the next explicitly-tabindexed element in the
+  // document, which is behind the modal; activeElement === last was never true,
+  // nothing called preventDefault, and focus was gone on the first press.
+  //
+  // WHAT IS ASSERTED, and why it is not a reproduced tab order: that every
+  // element the trap's own selector finds inside the dialog carries an explicit
+  // tabindex="0". THAT is the property that makes the engine's order irrelevant
+  // — it is what makes WebKit's real order equal the trap's list, which is the
+  // coincidence the containment logic depends on. jsdom has no tab order
+  // (.claude/rules/ui.md), so walking one here would only re-assert the broken
+  // assumption the defect came from.
+  //
+  // WHY THAT IS ENOUGH *HERE* AND NOT IN GENERAL, which is the load-bearing bit:
+  // the two lists can disagree in BOTH directions. Marking every button and link
+  // closes one direction. The other is <summary>, which WebKit visits and the
+  // selector below does not match, and native form controls, which WebKit visits
+  // whatever their tabIndex. This dialog contains NONE of those — verified: its
+  // whole focusable content is one Close <button> plus one ChecklistLink per row,
+  // with no <input>, <select>, <textarea> or <summary> anywhere in DayPopup or
+  // PopupChecklistRow. So here the two lists are equal by construction rather
+  // than by luck. The last test in this block asserts that, because it is exactly
+  // what a future addition to this dialog would quietly break.
+
+  // The dialog's own selector, character for character (Calendar.tsx). Copied on
+  // purpose: if the component's copy drifts, this guard should keep measuring
+  // what the component actually traps, and the divergence shows up as a failure.
+  const TRAP_SELECTOR = 'button, a[href], [tabindex]:not([tabindex="-1"])'
+
+  const focusablesIn = (root: HTMLElement): HTMLElement[] =>
+    Array.from(root.querySelectorAll<HTMLElement>(TRAP_SELECTOR))
+      .filter(el => !el.hasAttribute('disabled'))
+
+  it('a day with checklists holds MORE THAN ONE tab stop, so the trap can wrap at all', async () => {
+    render(<Calendar {...props} />)
+    await screen.findByText('March')
+    fireEvent.click(screen.getByRole('button', { name: /Mar 14, 2025: 3\. Open day details/ }))
+    const dialog = await screen.findByRole('dialog')
+
+    const focusables = focusablesIn(dialog)
+    // The pre-fix count on WebKit was 0. The trap's own `focusables.length < 2`
+    // branch pins focus on a single stop, so >= 2 is what exercises the wrap.
+    expect(focusables.length).toBeGreaterThanOrEqual(2)
+  })
+
+  it('EVERY focusable in the dialog is an explicit tab stop — the trap list and WebKit\'s order coincide', async () => {
+    render(<Calendar {...props} />)
+    await screen.findByText('March')
+    fireEvent.click(screen.getByRole('button', { name: /Mar 14, 2025: 3\. Open day details/ }))
+    const dialog = await screen.findByRole('dialog')
+
+    const unmarked = focusablesIn(dialog)
+      .filter(el => el.getAttribute('tabindex') !== '0')
+      .map(el => `<${el.tagName.toLowerCase()}> ${el.getAttribute('aria-label') ?? el.textContent?.trim().slice(0, 40)}`)
+
+    expect(unmarked).toEqual([])
+  })
+
+  it('the Close button and the checklist links are the two kinds, and both are marked', async () => {
+    render(<Calendar {...props} />)
+    await screen.findByText('March')
+    fireEvent.click(screen.getByRole('button', { name: /Mar 14, 2025: 3\. Open day details/ }))
+    const dialog = await screen.findByRole('dialog')
+
+    // Named individually so a future change that drops one reads as a missing
+    // control rather than as a number that moved.
+    expect(within(dialog).getByRole('button', { name: 'Close day details' }).getAttribute('tabindex')).toBe('0')
+
+    const links = within(dialog).getAllByRole('link')
+    expect(links.length).toBeGreaterThan(0)
+    for (const link of links) expect(link.getAttribute('tabindex')).toBe('0')
+  })
+
+  it('the dialog holds no element the trap could MISS — no input, select or summary', async () => {
+    // The converse direction, and the one marking attributes cannot fix. WebKit
+    // visits a <summary> and every native form control regardless of tabIndex,
+    // while the trap's selector matches the form controls but NOT <summary>. A
+    // <summary> added inside this dialog would therefore be a real tab stop that
+    // the trap's list does not contain, and the end-wrap would fire one element
+    // early — the v1.0.15 defect shape, reflected. Nothing here today; this
+    // fails the moment that stops being true.
+    render(<Calendar {...props} />)
+    await screen.findByText('March')
+    fireEvent.click(screen.getByRole('button', { name: /Mar 14, 2025: 3\. Open day details/ }))
+    const dialog = await screen.findByRole('dialog')
+
+    expect(dialog.querySelectorAll('summary')).toHaveLength(0)
+    expect(dialog.querySelectorAll('input, select, textarea')).toHaveLength(0)
+
+    // ...so the trap's list and the set WebKit actually visits are the same set.
+    const trapList = focusablesIn(dialog)
+    const webkitVisits = Array.from(
+      dialog.querySelectorAll<HTMLElement>('[tabindex="0"], input, select, textarea, summary'),
+    ).filter(el => !el.hasAttribute('disabled'))
+    expect(webkitVisits).toEqual(trapList)
+    expect(trapList.length).toBeGreaterThanOrEqual(2)
+  })
+
+  it('focus starts on the Close button, which is inside the dialog', async () => {
+    render(<Calendar {...props} />)
+    await screen.findByText('March')
+    fireEvent.click(screen.getByRole('button', { name: /Mar 14, 2025: 3\. Open day details/ }))
+    const dialog = await screen.findByRole('dialog')
+
+    const close = within(dialog).getByRole('button', { name: 'Close day details' })
+    await waitFor(() => expect(document.activeElement).toBe(close))
+    expect(dialog.contains(document.activeElement)).toBe(true)
   })
 })

@@ -734,7 +734,7 @@ export default function App() {
         color: 'var(--sr-text)',
       }}
     >
-      <a href="#sr-main" className="sr-skip-link">Skip to main content</a>
+      <a tabIndex={0} href="#sr-main" className="sr-skip-link">Skip to main content</a>
 
       {/* Header — banner landmark; the wordmark is the page's h1. On iOS the
           chrome compacts to a slim single-line bar (no tagline) so header +
@@ -937,6 +937,7 @@ export default function App() {
                   truncates the other. */}
               {state.status === 'success' && (
                 <a
+                  tabIndex={0}
                   href={`https://ebird.org/edit/effort?subID=${state.checklistId}`}
                   target="_blank"
                   rel="noreferrer"
@@ -1122,7 +1123,7 @@ export default function App() {
         </div>
         <p style={{ width: '100%', maxWidth: 540, margin: '14px 0 0', textAlign: 'center', fontSize: '0.75rem', color: 'var(--sr-text-footer)' }}>
           Also for your browser:{' '}
-          <a href="https://github.com/dtgibson/snowraven-mini" target="_blank" rel="noreferrer" aria-label="SnowRaven Mini on GitHub (opens in a new tab)" style={{ color: 'inherit', textDecoration: 'underline' }}>SnowRaven Mini</a>
+          <a tabIndex={0} href="https://github.com/dtgibson/snowraven-mini" target="_blank" rel="noreferrer" aria-label="SnowRaven Mini on GitHub (opens in a new tab)" style={{ color: 'inherit', textDecoration: 'underline' }}>SnowRaven Mini</a>
           , a Chrome/Firefox extension with this same weather and tide lookup.
         </p>
       </div>

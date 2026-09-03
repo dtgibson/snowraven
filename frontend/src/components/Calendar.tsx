@@ -119,13 +119,19 @@ function SegControl<T extends string>({ options, value, onChange, ariaLabel }: {
   )
 }
 
+// The id of the "Count all forms" helper note, so the switch beside it can point
+// at that note as its reason via aria-describedby. Static rather than useId:
+// the note is rendered exactly once on this tab.
+const COUNT_FORMS_HELPER_ID = 'sr-cal-count-forms-helper'
+
 // A small role="switch" toggle, sized-variant aware (the ToggleSwitch pattern).
-function Switch({ label, checked, onChange, small, disabled }: {
+function Switch({ label, checked, onChange, small, disabled, describedBy }: {
   label: string
   checked: boolean
   onChange: () => void
   small?: boolean
   disabled?: boolean
+  describedBy?: string
 }) {
   const trackW = small ? 30 : 34
   const trackH = small ? 18 : 20
@@ -136,7 +142,13 @@ function Switch({ label, checked, onChange, small, disabled }: {
       role="switch"
       aria-checked={checked}
       aria-disabled={disabled || undefined}
-      tabIndex={disabled ? -1 : 0}
+      aria-describedby={describedBy}
+      // Stays a tab stop while unavailable, per .claude/rules/ui.md's aria-disabled
+      // rule: this switch is marked aria-disabled rather than natively disabled
+      // precisely so its REASON is readable in place, and a tabIndex of -1 would
+      // put that reason out of reach of the keyboard user it is written for. The
+      // onClick guard below, not the tab order, is what makes it inoperable.
+      tabIndex={0}
       onClick={() => { if (!disabled) onChange() }}
       // fontSize sits on the BUTTON, not on the label span below, so the shared
       // .sr-ctl-row phone-tier rule (globals.css) can reach it: a size declared on
@@ -621,6 +633,7 @@ function DayPopup({ cell, view, includeForms, showFormsNote, onClose }: {
             {showFormsNote && !combined && <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginTop: 2 }}>{COUNT_FORMS_POPUP_NOTE}</div>}
           </div>
           <button
+            tabIndex={0}
             ref={closeRef}
             type="button"
             onClick={onClose}
@@ -1005,16 +1018,17 @@ export function Calendar({ onGoToSettings, filesVersion }: {
           <div className="sr-cal-year-group">
             <span style={ctrlLabelStyle}>Year</span>
             <div className="sr-cal-year-nav">
-              <button type="button" onClick={goPrev} disabled={prevDisabled} aria-label="Previous year with data" style={navBtnStyle(prevDisabled)}>
+              <button tabIndex={0} type="button" onClick={goPrev} disabled={prevDisabled} aria-label="Previous year with data" style={navBtnStyle(prevDisabled)}>
                 <ChevronLeft size={15} strokeWidth={2.4} aria-hidden />
               </button>
               <span style={{ minWidth: 74, textAlign: 'center', fontSize: '0.9375rem', fontWeight: 700, color: 'var(--sr-text)', fontVariantNumeric: 'tabular-nums' }}>
                 {combined ? '·' : (view.kind === 'year' ? view.year : '')}
               </span>
-              <button type="button" onClick={goNext} disabled={nextDisabled} aria-label="Next year with data" style={navBtnStyle(nextDisabled)}>
+              <button tabIndex={0} type="button" onClick={goNext} disabled={nextDisabled} aria-label="Next year with data" style={navBtnStyle(nextDisabled)}>
                 <ChevronRight size={15} strokeWidth={2.4} aria-hidden />
               </button>
               <button
+                tabIndex={0}
                 type="button"
                 onClick={toggleAllYears}
                 aria-pressed={combined}
@@ -1061,8 +1075,11 @@ export function Calendar({ onGoToSettings, filesVersion }: {
             pointerEvents: formsDisabled ? 'none' : 'auto',
           }}
         >
-          <Switch small label={COUNT_FORMS_TOGGLE_LABEL} checked={includeForms} onChange={() => setIncludeForms(v => !v)} disabled={formsDisabled} />
-          <p style={{ margin: 0, fontSize: '0.6875rem', lineHeight: 1.35, color: 'var(--sr-text-muted)' }}>
+          {/* The helper note beside the switch IS the switch's reason, so it is
+              associated rather than repeated (.claude/rules/ui.md: "when a
+              neighbouring note already states it, associate that note"). */}
+          <Switch small label={COUNT_FORMS_TOGGLE_LABEL} checked={includeForms} onChange={() => setIncludeForms(v => !v)} disabled={formsDisabled} describedBy={COUNT_FORMS_HELPER_ID} />
+          <p id={COUNT_FORMS_HELPER_ID} style={{ margin: 0, fontSize: '0.6875rem', lineHeight: 1.35, color: 'var(--sr-text-muted)' }}>
             {COUNT_FORMS_HELPER}
           </p>
           {/* FR-33: the Species metric reflects the escapee rule once Statistics

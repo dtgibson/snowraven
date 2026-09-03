@@ -127,6 +127,7 @@ export function CenterPin({ lat, lng, onMove, onActivate, buttonRef }: {
       onDragEnd={e => { suppressClickRef.current = true; onMove(e.lngLat.lat, e.lngLat.lng) }}
     >
       <button
+        tabIndex={0}
         type="button"
         ref={buttonRef}
         className="sr-center-pin-btn"

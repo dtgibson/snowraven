@@ -26,6 +26,20 @@
 // measurement, written up in
 // pipeline/map-fab-keyboard-reachable/pr-description.md.
 //
+// WHY THIS FILE SURVIVED lib/tabOrderCoverage.test.ts (v1.0.16, the app-wide
+// fix), which asserts the same attribute over EVERY shipped .tsx file. Neither
+// guard subsumes the other, and deleting this one as "now redundant" would lose
+// real coverage:
+//   * THAT file reads SOURCE, so it sees every file including the ones no test
+//     has ever mounted — but a tabIndex a component strips at RENDER time behind
+//     its own conditional still reads as tabIndex={0} in source, and it is blind
+//     to that.
+//   * THIS file reads the RENDERED DOM, so it catches exactly that case, on the
+//     surfaces where ACCESSIBILITY.md publishes these controls as the ONLY
+//     keyboard route to something (the corner cluster, the Atlas blocks panel).
+//     What it cannot see is a file nobody mounted, which is most of the app.
+// Source coverage is broad and shallow; render coverage is narrow and deep.
+//
 // SHAPE: one ROSTER, one template (.claude/rules/testing.md, v1.0.14). The six
 // source sites the fix touched are rows, so a seventh corner control added
 // without a tabIndex reads as a MISSING ROW rather than as nothing at all. The
