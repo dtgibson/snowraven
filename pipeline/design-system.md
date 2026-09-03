@@ -228,6 +228,30 @@ italic at 0.71875rem `--sr-text-gray`.
   a new row genuinely has nowhere to fit, WITHHOLD it and leave its function
   reachable where it already was — measured against a term the control cannot
   itself move, never gated at a fixed breakpoint.
+- **Map fullscreen (a small map made to fill the window):** the toggle is the
+  Map Explorer's own control repeated verbatim -- the same `.sr-map-fab` disc in
+  the map's bottom-right corner, the same `Maximize2` / `Minimize2` glyphs, the
+  same "Enter fullscreen" / "Exit fullscreen" names -- so the vocabulary is
+  learned once and works everywhere it appears. On an embedded map it joins a
+  `.sr-map-corner-row` holding the share button first, then the toggle; the
+  Map Explorer's fuller cluster keeps its location button, and a map that is a
+  location INPUT rather than a data view gets no row at all. **The exit is the
+  same button in the same corner in its other state:** it does not move, does not
+  become an X, does not gain a label, and does not change size on expanding -- a
+  toggle whose exit moves is two controls wearing one name, and a control that
+  grows under the finger that just pressed it is a second state change nobody
+  asked for. Expanding is a class swap on the map's own container, so it is
+  literally the same map: same pins, same base map, same centre and zoom, an open
+  popup still open, a dropped pin still dropped. **No scrim** -- there is nothing
+  behind to dim, a scrim is a modal gesture on something that is not a modal, and
+  `--sr-scrim` belongs to the dialog shell. Border and radius drop while
+  expanded, the clip stays, and the ground is opaque. Nothing animates but the
+  corner row's entrance, because a scaling live canvas tears and a transform on
+  the panel would break `position: fixed`. Escape exits and returns focus to the
+  toggle; Tab stays inside; expanded, the map takes the scroll wheel and a
+  one-finger pan, because the page it was sharing gestures with is no longer
+  behind it. Controls that sit BESIDE a map rather than on it stay on the page:
+  they are set before expanding, not duplicated into the overlay.
 - **Inline media (ML embeds):** Macaulay Library `.../asset/<id>/embed` iframe in
   a `.sr-media-grid` (3-up → 1 col ≤640), `.sr-media-iframe` footprint. Height is a
   modifier class per surface, and each surface keeps its own classes so the two can
