@@ -1,8 +1,7 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import {
-  BarChart2, Trophy, Clock, MapPin, ShieldCheck, Dna,
-  AlertCircle, Loader2, ChevronDown, ChevronUp, Calendar, Video,
-  ListOrdered, Award, Sparkles, ClipboardList,
+  BarChart2, Trophy, Clock, MapPin, ShieldCheck, Dna, Loader2, ChevronDown,
+  ChevronUp, Calendar, Video, ListOrdered, Award, Sparkles, ClipboardList
 } from 'lucide-react'
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -56,6 +55,7 @@ import { ESCAPEE_TOGGLE_LABEL } from '../lib/exoticCopy'
 import { useOnline } from '../lib/useOnline'
 import type { Granularity, PeriodGranularity } from '../lib/birdingStats'
 import { SetupRequired } from './SetupRequired'
+import { TabLoadErrorAlert } from './ui/TabLoadErrorAlert'
 import { EBIRD_BACKUP_STEPS, EBIRD_BACKUP_LOAD_ERROR } from './setupCopy'
 import { formatDate as fmtDate } from '../lib/formatDate'
 import type { ObservationEntry, ChecklistEntry } from '../types'
@@ -581,47 +581,49 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
   }, [mediaGraphResult.data, mediaInterval, mediaViewMode])
 
   // ── Phase gates (all hooks above) ────────────────────────────────────────
+  //
+  // The load-failure live region is declared ONCE here and rendered at fragment
+  // index 0 of BOTH returns below, so React reconciles it to the same DOM node
+  // across every phase transition and it is in the accessibility tree before any
+  // message lands in it. Three early returns used to carry the error panel's
+  // markup inline, which would have created a `role="alert"` at the instant its
+  // text existed — the insert-with-first-message trap (DECISIONS.md v0.5.83).
+  //
+  // WHY THIS TAB ALSO CARRIES IT IN THE READY RETURN, where the six sibling tabs
+  // need it only in the gate: those tabs' load effects set the phase back to
+  // `loading-saved` as their first statement, so `error` is only ever entered
+  // from a phase the gate renders. THIS effect does not — a files-epoch bump
+  // (a Settings upload, an iCloud arrival) reloads in place, leaving the built
+  // statistics on screen, and a backup that then fails to read goes ready →
+  // error in one commit with no loading phase between. Without the ready-side
+  // mount that transition would insert the region along with its message, which
+  // is precisely the defect. Do not "tidy" it away; `TabLoadErrorAlert.test.tsx`
+  // drives ready → error on this tab and asserts node identity.
+  const loadAlert = (
+    <TabLoadErrorAlert
+      message={phase.tag === 'error' ? phase.message : null}
+      onGoToSettings={onGoToSettings}
+      variant="stats"
+    />
+  )
 
-  if (phase.tag === 'loading-saved') {
+  if (phase.tag !== 'ready') {
     return (
-      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <Loader2 size={24} strokeWidth={2} className="spin" style={{ color: 'var(--sr-accent)' }} />
-      </div>
-    )
-  }
-
-  if (phase.tag === 'setup-required') {
-    return (
-      <SetupRequired
-        title="Statistics require your eBird backup"
-        body="Upload your eBird backup to see comprehensive statistics about your birding history: life list, effort, geography, and more."
-        steps={EBIRD_BACKUP_STEPS}
-        onGoToSettings={onGoToSettings}
-      />
-    )
-  }
-
-  if (phase.tag === 'error') {
-    return (
-      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 24px' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, textAlign: 'center', maxWidth: 420 }}>
-          <div className="sr-wrap-anywhere" style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--sr-error)', fontSize: '0.875rem' }}>
-            <AlertCircle size={16} style={{ flexShrink: 0 }} />
-            {phase.message}
+      <>
+        {loadAlert}
+        {phase.tag === 'setup-required' ? (
+          <SetupRequired
+            title="Statistics require your eBird backup"
+            body="Upload your eBird backup to see comprehensive statistics about your birding history: life list, effort, geography, and more."
+            steps={EBIRD_BACKUP_STEPS}
+            onGoToSettings={onGoToSettings}
+          />
+        ) : phase.tag === 'error' ? null : (
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Loader2 size={24} strokeWidth={2} className="spin" style={{ color: 'var(--sr-accent)' }} />
           </div>
-          <button tabIndex={0}
-            onClick={onGoToSettings}
-            style={{
-              display: 'inline-flex', alignItems: 'center', gap: 7, padding: '8px 16px',
-              background: 'var(--sr-accent)', color: 'var(--sr-on-accent)',
-              border: 'none', borderRadius: 8, fontSize: '0.84375rem', fontWeight: 500,
-              fontFamily: 'inherit', cursor: 'pointer',
-            }}
-          >
-            Go to Settings →
-          </button>
-        </div>
-      </div>
+        )}
+      </>
     )
   }
 
@@ -645,6 +647,11 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
   ]
 
   return (
+    <>
+    {/* Index 0 in this return as well as in the gate above — see the phase-gate
+        note. Idle it carries no styles and no content, so it computes to zero
+        height and shifts nothing on the statistics page. */}
+    {loadAlert}
     <div style={{ width: '100%', maxWidth: 900, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 20, paddingBottom: 40 }}>
 
       {/* Page header */}
@@ -2270,5 +2277,6 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
       </>
       )}
     </div>
+    </>
   )
 }

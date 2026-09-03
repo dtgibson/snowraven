@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
-  AlertCircle, Loader2, ChevronDown,
-  Search, ExternalLink, Image, Mic, Video, Eye, MessageSquare, Dna,
-  MapPin, Play, Calendar, SlidersHorizontal, Share2, Tag,
+  Loader2, ChevronDown, Search, ExternalLink, Image, Mic, Video, Eye,
+  MessageSquare, Dna, MapPin, Play, Calendar, SlidersHorizontal, Share2,
+  Tag
 } from 'lucide-react'
 import { SetupRequired } from './SetupRequired'
+import { TabLoadErrorAlert } from './ui/TabLoadErrorAlert'
 import { EBIRD_BACKUP_STEPS, EBIRD_BACKUP_LOAD_ERROR } from './setupCopy'
 import { ToggleSwitch } from './ui/ToggleSwitch'
 import { loadEbirdObservations } from '../lib/observationsCache'
@@ -592,48 +593,37 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
 
   // ── Render ─────────────────────────────────────────────────────────────
 
-  if (phase.tag === 'loading-saved') {
+  // ── Phase gates ───────────────────────────────────────────────────────────
+  // ONE gate for every pre-ready phase, with the load-failure live region ABOVE
+  // the phase branch rather than inside the error arm. These were three separate
+  // early returns, so a `role="alert"` written on the error panel would be
+  // CREATED at the instant its text existed -- the insert-with-first-message trap
+  // (DECISIONS.md v0.5.83, `.claude/rules/ui.md`). `TabLoadErrorAlert` is the
+  // first child of every branch here, so React reconciles it to the same DOM node
+  // and the region is already in the accessibility tree when the message arrives.
+  // This tab's load effect resets the phase to `loading-saved` before every
+  // reload, so the error phase is only ever entered from a phase this gate has
+  // already rendered.
+  if (phase.tag !== 'ready') {
     return (
-      <div role="status" aria-label="Loading saved eBird data" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <Loader2 size={24} strokeWidth={2} className="spin" style={{ color: 'var(--sr-accent)' }} aria-hidden="true" />
-      </div>
-    )
-  }
-
-  if (phase.tag === 'setup-required') {
-    return (
-      <SetupRequired
-        title="eBird Backup Required"
-        body="Species Detail loads automatically from your stored eBird backup. Upload it once in Settings and this tab will always be ready."
-        steps={EBIRD_BACKUP_STEPS}
-        onGoToSettings={onGoToSettings}
-      />
-    )
-  }
-
-  if (phase.tag === 'error') {
-    return (
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: 40 }}>
-        <div className="sr-wrap-anywhere" style={{
-          display: 'flex', alignItems: 'center', gap: 8,
-          padding: '9px 13px', background: 'var(--sr-error-bg)', borderRadius: 8,
-          fontSize: '0.8125rem', color: 'var(--sr-error)', maxWidth: 480,
-        }}>
-          <AlertCircle size={14} strokeWidth={2.5} style={{ flexShrink: 0 }} />
-          {phase.message}
-        </div>
-        <button tabIndex={0}
-          onClick={onGoToSettings}
-          style={{
-            height: 32, padding: '0 14px', borderRadius: 6,
-            border: '1.5px solid var(--sr-border)', background: 'var(--sr-surface)',
-            color: 'var(--sr-text-muted)', fontSize: '0.75rem', fontWeight: 500,
-            fontFamily: 'inherit', cursor: 'pointer',
-          }}
-        >
-          Go to Settings
-        </button>
-      </div>
+      <>
+        <TabLoadErrorAlert
+          message={phase.tag === 'error' ? phase.message : null}
+          onGoToSettings={onGoToSettings}
+        />
+        {phase.tag === 'setup-required' ? (
+          <SetupRequired
+            title="eBird Backup Required"
+            body="Species Detail loads automatically from your stored eBird backup. Upload it once in Settings and this tab will always be ready."
+            steps={EBIRD_BACKUP_STEPS}
+            onGoToSettings={onGoToSettings}
+          />
+        ) : phase.tag === 'error' ? null : (
+          <div role="status" aria-label="Loading saved eBird data" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Loader2 size={24} strokeWidth={2} className="spin" style={{ color: 'var(--sr-accent)' }} aria-hidden="true" />
+          </div>
+        )}
+      </>
     )
   }
 

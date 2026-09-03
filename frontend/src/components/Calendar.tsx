@@ -18,11 +18,11 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
-  Loader2, AlertCircle, CalendarDays, ChevronLeft, ChevronRight,
-  LayoutGrid, Grid2x2, X,
+  Loader2, CalendarDays, ChevronLeft, ChevronRight, LayoutGrid, Grid2x2, X
 } from 'lucide-react'
 import type { ObservationEntry } from '../types'
 import { SetupRequired } from './SetupRequired'
+import { TabLoadErrorAlert } from './ui/TabLoadErrorAlert'
 import { EBIRD_BACKUP_STEPS, EBIRD_BACKUP_LOAD_ERROR } from './setupCopy'
 import { storage } from '../lib/storage'
 import { loadEbirdObservations } from '../lib/observationsCache'
@@ -891,45 +891,43 @@ export function Calendar({ onGoToSettings, filesVersion }: {
   }
 
   // ── Phase gates ──
-  if (phase.tag === 'loading') {
+  // ONE gate for every pre-ready phase, with the load-failure live region ABOVE
+  // the phase branch rather than inside the error arm. The four branches used to
+  // be four early returns, which meant the error panel's `role="alert"` was
+  // created at the instant its text existed -- the insert-with-first-message trap
+  // (DECISIONS.md v0.5.83). `TabLoadErrorAlert` is now the first child of every
+  // one of them, so React reconciles it to the same DOM node and the region is
+  // already in the accessibility tree when the message arrives. The Calendar's
+  // load effect resets the phase to `loading` before every reload, so the error
+  // phase is only ever entered from a phase this gate renders.
+  if (phase.tag !== 'ready') {
     return (
-      <div role="status" aria-label="Loading calendar" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <Loader2 size={24} strokeWidth={2} className="spin" style={{ color: 'var(--sr-accent)' }} aria-hidden />
-      </div>
-    )
-  }
-  if (phase.tag === 'setup-required') {
-    return (
-      <SetupRequired
-        title="eBird Backup Required"
-        body="The Calendar tab loads automatically from your stored eBird backup. You haven't saved one yet."
-        steps={EBIRD_BACKUP_STEPS}
-        onGoToSettings={onGoToSettings}
-      />
-    )
-  }
-  if (phase.tag === 'error') {
-    return (
-      <div role="alert" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: 40 }}>
-        <div className="sr-wrap-anywhere" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 13px', background: 'var(--sr-error-bg)', borderRadius: 8, fontSize: '0.8125rem', color: 'var(--sr-error)', maxWidth: 480 }}>
-          <AlertCircle size={14} strokeWidth={2.5} style={{ flexShrink: 0 }} aria-hidden />
-          {phase.message}
-        </div>
-        <button type="button" onClick={onGoToSettings} style={{ height: 32, padding: '0 14px', borderRadius: 6, border: '1.5px solid var(--sr-border)', background: 'var(--sr-surface)', color: 'var(--sr-text-muted)', fontSize: '0.75rem', fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer' }}>
-          Go to Settings
-        </button>
-      </div>
-    )
-  }
-  if (phase.tag === 'empty') {
-    return (
-      <div role="status" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, padding: 40, textAlign: 'center' }}>
-        <CalendarDays size={30} strokeWidth={1.75} style={{ color: 'var(--sr-text-muted)' }} aria-hidden />
-        <div style={{ fontSize: '0.9375rem', fontWeight: 600, color: 'var(--sr-text)' }}>No dated observations found</div>
-        <div style={{ fontSize: '0.8125rem', color: 'var(--sr-text-muted)', maxWidth: 420, lineHeight: 1.55 }}>
-          Your eBird backup loaded, but it has no observations with valid dates to lay out on a calendar.
-        </div>
-      </div>
+      <>
+        <TabLoadErrorAlert
+          message={phase.tag === 'error' ? phase.message : null}
+          onGoToSettings={onGoToSettings}
+        />
+        {phase.tag === 'setup-required' ? (
+          <SetupRequired
+            title="eBird Backup Required"
+            body="The Calendar tab loads automatically from your stored eBird backup. You haven't saved one yet."
+            steps={EBIRD_BACKUP_STEPS}
+            onGoToSettings={onGoToSettings}
+          />
+        ) : phase.tag === 'empty' ? (
+          <div role="status" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, padding: 40, textAlign: 'center' }}>
+            <CalendarDays size={30} strokeWidth={1.75} style={{ color: 'var(--sr-text-muted)' }} aria-hidden />
+            <div style={{ fontSize: '0.9375rem', fontWeight: 600, color: 'var(--sr-text)' }}>No dated observations found</div>
+            <div style={{ fontSize: '0.8125rem', color: 'var(--sr-text-muted)', maxWidth: 420, lineHeight: 1.55 }}>
+              Your eBird backup loaded, but it has no observations with valid dates to lay out on a calendar.
+            </div>
+          </div>
+        ) : phase.tag === 'error' ? null : (
+          <div role="status" aria-label="Loading calendar" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Loader2 size={24} strokeWidth={2} className="spin" style={{ color: 'var(--sr-accent)' }} aria-hidden />
+          </div>
+        )}
+      </>
     )
   }
 

@@ -4323,3 +4323,37 @@ select:focus-visible {
   from { opacity: 0; transform: scaleY(0.96); }
   to   { opacity: 1; transform: scaleY(1); }
 }
+
+/* ── Tab load-failure live region ──────────────────────────────────────────────
+   (improve: tab-error-panel-alerts)
+
+   The three elements of components/ui/TabLoadErrorAlert.tsx: an always-mounted
+   frame, the always-mounted `role="alert"` region inside it, and (Statistics
+   only) the column between them. All three exist from the tab's first render and
+   are EMPTY until a load fails, which is the whole point of the component -- a
+   live region must already be in the accessibility tree when its message
+   arrives.
+
+   THERE IS DELIBERATELY NO `:empty { display: none }` RULE HERE, AND NONE MAY BE
+   ADDED -- not on the region, and not on the frame or the inner column either,
+   since hiding an ancestor removes the region just as completely. `display: none`
+   takes an element out of the ACCESSIBILITY TREE, not merely out of view, so a
+   region hidden while idle is inserted into the tree at the same instant its
+   first content arrives: the documented way to make a live region fail to
+   announce, and exactly the v0.5.83 defect (`.sr-map-geo-error:empty
+   { display: none }`) that this whole change exists to stop repeating on eight
+   more surfaces. It would also defeat the sequence-keyed child, whose premise is
+   a STABLE region whose child is replaced.
+
+   These rules earn their keep as the guarded anchor rather than as styling: the
+   populated appearance comes from inline styles in the component (byte-identical
+   to the eight panels that shipped before this change), and an EMPTY flex
+   container with no content and no padding computes to zero height, so an idle
+   region costs no space and shifts nothing. Top-level on purpose -- they apply at
+   every width. Guarded by lib/tabLoadAlertCss.test.ts, which asserts both the
+   positive `display: flex` (so the absence scan cannot pass vacuously by these
+   rules simply having been deleted) and that no rule at ANY depth gives any of
+   the three selectors a hiding display, visibility, or content-visibility. */
+.sr-tab-load-alert-frame { display: flex; }
+.sr-tab-load-alert-inner { display: flex; }
+.sr-tab-load-alert { display: flex; }
