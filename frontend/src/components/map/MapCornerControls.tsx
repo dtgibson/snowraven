@@ -113,6 +113,12 @@ export function MapCornerControls({ compact, sharePinResetKey }: {
           <button
             type="button"
             ref={registerToggle}
+            // Explicit tabIndex, and NOT redundant: WebKit's default tab mode
+            // skips a plain <button> entirely (measurement in
+            // lib/useFocusTrap.ts's header), so without it the one control whose
+            // whole job is entering fullscreen is unreachable by keyboard on the
+            // shipped Mac and iOS apps.
+            tabIndex={0}
             // Vocabulary verbatim from the Map Explorer's shipped toggle. The
             // px `size=` below is the no-CSS fallback only: `.sr-map-fab svg`
             // sizes the glyph in rem through --sr-fab-glyph, which is what keeps

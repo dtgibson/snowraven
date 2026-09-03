@@ -3119,6 +3119,13 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                 <button
                   type="button"
                   ref={centerShareFabRef}
+                  /* Explicit tabIndex, and NOT redundant: WebKit's default tab
+                     mode skips a plain <button> entirely (measurement in
+                     lib/useFocusTrap.ts's header), so without it this disc is
+                     unreachable by keyboard on the shipped Mac and iOS apps.
+                     Same remedy as "Search this area" above and the fullscreen
+                     toggle and Filters pill below. */
+                  tabIndex={0}
                   className="sr-map-fab sr-map-fab--std sr-map-center-share-btn"
                   /* aria-EXPANDED, not aria-pressed: the share button's pressed
                      state means "this map is holding a pin", a property of the
@@ -3179,6 +3186,10 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
               {mapMounted && (
                 <button
                   type="button"
+                  /* Explicit tabIndex, for the same WebKit reason as the disc
+                     above: a plain <button> is not a tab stop in WebKit's
+                     default tab mode. */
+                  tabIndex={0}
                   className="sr-map-fab sr-map-fab--std sr-map-locate-btn"
                   /* aria-disabled, NOT disabled: disabling a focused button drops
                      focus to <body> in most browsers, which would break FR-06 for

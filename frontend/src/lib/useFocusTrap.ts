@@ -29,15 +29,24 @@
 // and DIFFERENT set: elements with an explicit tabindex, native form controls
 // and <summary>. Plain <button> and <a href> are skipped entirely.
 //
-// Measured inside the expanded Species Detail overlay: the trap's list held 22
-// entries ending at the fullscreen toggle, while WebKit's real forward order ran
-// canvas -> attribution <summary> -> the three base-map buttons -> the Trails
-// checkbox and then straight OUT of the overlay. The share drop button and the
-// fullscreen toggle carry no explicit tabindex, so `activeEl === last` never
-// became true and the end-wrap never fired. The keydown containment arm did
-// fire, but on the NEXT Tab — one hop too late, with focus already resting on a
-// control the opaque panel was covering, and a keystroke typed into it and read
-// back to prove it.
+// Measured inside the expanded Species Detail overlay AT v1.0.15: the trap's list
+// held 22 entries ending at the fullscreen toggle, while WebKit's real forward
+// order ran canvas -> attribution <summary> -> the three base-map buttons -> the
+// Trails checkbox and then straight OUT of the overlay. At the time of that
+// measurement the share drop button and the fullscreen toggle carried no
+// explicit tabindex, so `activeEl === last` never became true and the end-wrap
+// never fired. The keydown containment arm did fire, but on the NEXT Tab — one
+// hop too late, with focus already resting on a control the opaque panel was
+// covering, and a keystroke typed into it and read back to prove it.
+//
+// Those two controls DO carry `tabIndex={0}` as of v1.0.16
+// (map-fab-keyboard-reachable), which is why the measurement above is written in
+// the past tense. THIS CHANGES NOTHING HERE, in either direction. It does not
+// license going back to keydown-only prediction: a prediction that happens to be
+// right for the controls someone remembered to tabindex is still a prediction,
+// and the next unmarked <button> or <a href> added inside a trapped surface
+// reopens the identical defect silently. Containment stays driven by `focusin`.
+// FOCUSABLE_SELECTOR is unaffected either — it already matched both by `button`.
 //
 // `focusin` needs no prediction at all. It fires after focus has moved and
 // before the user can type, so containment reacts to where focus ACTUALLY went

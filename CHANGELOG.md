@@ -2,6 +2,14 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [1.0.16] - 2026-09-03
+
+### Fixed
+- **The buttons in a map's corner can be reached with the Tab key on the Mac, iPhone and iPad apps.** The share button, the location button, the fullscreen button and the "Atlas blocks in view" panel are ordinary buttons, and Apple's WebKit engine, which those three apps run on, does not put an ordinary button in the tab order unless the page asks it to. Nothing asked. So a keyboard-only user on those platforms could not reach any of them at all, including the fullscreen button added in 1.0.15 whose only job is to enter fullscreen, and including the Map Explorer's "Atlas blocks in view" list, which is the only keyboard route there is to a block's breeding summary and its eBird atlas link. The corner buttons now ask explicitly, on every map that has them: the Map Explorer, Species Detail's Sighting Locations map in both views, the Statistics Geographic Stats map and the per-individual map on a Named Birds card. So does the Atlas panel. Tab reaches them in the order they are read, and Enter or Space presses them. The web and Windows versions were never affected and are unchanged.
+
+### Changed
+- **The accessibility statement now says exactly which controls this applies to, and which ones it does not yet.** `ACCESSIBILITY.md` claimed that every button and link in the app was in the tab order, which was true on the web and Windows and was never true on the Mac, iPhone and iPad apps for the reason above. It now states the platform difference up front, and under Known Exceptions it describes the shape of what is left rather than handing you a list to trust: the gap belongs to individual controls that have not yet been marked, not to particular screens, so the examples given (every link in the app, the sortable column headers, various buttons on Statistics, the Calendar and the Weather Backlog, and the markers drawn over a map) are named as examples and say so. Everything affected is reachable on those platforms with the system's own full keyboard access turned on, and marking the rest explicitly is recorded as open work.
+
 ## [1.0.15] - 2026-09-02
 
 ### Added
