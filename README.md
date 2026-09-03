@@ -18,7 +18,7 @@ SnowRaven turns the eBird and Macaulay Library exports you already have into a p
 - **Named Birds**: track individual birds you've named in species comments with a `[name:…]` tag: each one's history, its own map, and its own media.
 - **Checklists**: search everything you've ever written in a comment, and filter your checklists by comments, media, breeding codes, protocol, county, and dates.
 - **List Comparer**: compare two life lists, or two individual checklists side by side.
-- **Settings**: keys, files, appearance (light/dark, text size to 200%, date format), sharing preferences, tab layout, and (on Mac, iPhone and iPad) iCloud Sync, plus an Acknowledgments section crediting The Cornell Lab of Ornithology and the Macaulay Library, and Deven Simonson.
+- **Settings**: keys, files, appearance (light/dark, text size to 200%, date format), sharing preferences, tab layout, and (on Mac, iPhone and iPad) iCloud Sync, plus an Acknowledgments section.
 - **Offline**: every analytical tab and map keeps working without a connection once it has loaded online at least once; genuinely live lookups (weather and tide, place search, nearby-bird overlays, app updates) need the network and say so plainly.
 - **Desktop window**: on Mac and Windows the app reopens at the size, position and maximized state you left it in, and is brought back onto a visible screen if the display it was saved on is gone. Per-machine, never synced.
 
