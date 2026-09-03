@@ -1,6 +1,6 @@
 # SnowRaven
 
-Self-hosted birding tools and data explorer for your eBird workflow: a native Mac or Windows app, or self-hosted on a Raspberry Pi (or any computer on your network).
+Self-hosted birding tools and data explorer for your eBird workflow: a native Mac, Windows, iPhone or iPad app, or self-hosted on a Raspberry Pi (or any computer on your network).
 
 SnowRaven turns the eBird and Macaulay Library exports you already have into a personal birding dashboard: weather and tides for your checklists, per-species history, life-list analytics, media-coverage tracking, breeding-code history, a calendar of your birding, and an interactive map. Everything runs on your own device, from your own data.
 
@@ -42,6 +42,7 @@ Most tabs also use your own data files: your **eBird backup** (`MyEBirdData.csv`
 ## Installation
 
 - **Mac**: download `SnowRaven_x.x.x_universal.dmg` from the [latest release](https://github.com/dtgibson/snowraven/releases/latest) (one universal build for Apple Silicon and Intel), drag SnowRaven to Applications, and right-click the app and choose **Open** on first launch.
+- **iPhone / iPad**: get SnowRaven from the [App Store](https://apps.apple.com/app/id6787719977). Free, no account, iOS 16 or later. Updates arrive through the App Store like any other app.
 - **Windows**: download `SnowRaven_x.x.x_x64-setup.exe` from the [latest release](https://github.com/dtgibson/snowraven/releases/latest) and run it. The app isn't code-signed yet, so SmartScreen may warn "unknown publisher": click **More info → Run anyway**. (In-app updates are cryptographically verified regardless.)
 - **Raspberry Pi / Linux**: one command on your Pi (or any Debian/Ubuntu machine) handles packages, the build, API keys, and an optional auto-start service:
 
@@ -49,7 +50,7 @@ Most tabs also use your own data files: your **eBird backup** (`MyEBirdData.csv`
   curl -fsSL https://raw.githubusercontent.com/dtgibson/snowraven/main/install.sh | bash
   ```
 
-**Updating**: desktop apps update in place from **Check For Updates** in the footer; self-hosted installs run `./update.sh`. (The `npm` security summary that update prints comes from build-only tooling that never ships; a production-scoped `npm audit --omit=dev` reports zero.)
+**Updating**: desktop apps update in place from **Check For Updates** in the footer; iPhone and iPad update through the [App Store](https://apps.apple.com/app/id6787719977); self-hosted installs run `./update.sh`. (The `npm` security summary that update prints comes from build-only tooling that never ships; a production-scoped `npm audit --omit=dev` reports zero.)
 
 ## Build from source
 
