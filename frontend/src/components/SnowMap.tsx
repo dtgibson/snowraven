@@ -2,7 +2,14 @@
 // (the tuned OpenFreeMap vector base) and toggles satellite/topo/trails as
 // layers within it — so no source ever disappears (the water mask always has
 // its geometry) and base switches preserve pan/zoom. Optional brand-styled base
-// switcher (Map / Satellite / Topo + Trails), zoom controls, and auto-resize.
+// switcher (Map / Satellite / Topo + Trails) and zoom controls.
+//
+// THIS WRAPPER DOES NOT RESIZE THE MAP. The header claimed "auto-resize" for
+// several releases and nothing in the file ever implemented one: no
+// ResizeObserver, no map.resize() call, nothing. Corrected rather than left as
+// documentation debt, because it is the sentence that would talk the next person
+// out of the explicit resize a container-size change needs. MapCornerControls
+// owns that call for the embedded maps' fullscreen toggle.
 
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { useEffect, useId, useMemo, useState, type ReactNode } from 'react'

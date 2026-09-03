@@ -9,13 +9,14 @@ SnowRaven turns the eBird and Macaulay Library exports you already have into a p
 ## What it does
 
 - **Weather & Tide Lookup**: paste a checklist ID and get a paste-ready historical weather summary plus the tide from the nearest NOAA station. Current and forecast lookups work too, and a backlog lists your recent checklists still missing a weather block.
-- **Species Detail**: your complete history with any species: stats, top locations, field notes, subspecies breakdowns, a sightings map with county shading, and embedded Macaulay Library media.
+- **Species Detail**: your complete history with any species: stats, top locations, field notes, subspecies breakdowns, a sightings map with county shading that expands to fill the window, and embedded Macaulay Library media.
 - **Statistics**: life-list totals and growth, milestones, temporal and geographic patterns, effort, data quality, breeding and media stats, escapee accounting per eBird's life-list rule, and which eBird projects your checklists were submitted to (checked on demand with your own key). Its Geographic Stats map shades counties with numbers that match the county tables beside it, and the Map Explorer's too while Count all forms is off (the Map Explorer always applies the countable-species rule).
 - **Calendar**: your birding year as twelve month grids, each day shaded by how busy it was. Entirely offline.
 - **Map Explorer**: your sightings with heatmap and filters, nearby hotspots, nearby lifers, media targets, a breeding-atlas overlay, county lines and coverage shading, and a share-a-spot pin that copies coordinates and map links as plain text.
 - **Multimedia**: photo, audio, and video coverage for every species on your life list, with sex and age filters, to see what you still need to capture.
 - **Breeding Codes**: every species you've recorded breeding evidence for, as a color-coded code-by-species matrix.
 - **Named Birds**: track individual birds you've named in species comments with a `[name:…]` tag: each one's history, its own map, and its own media.
+- **Maps that get out of the box**: the Sighting Locations map, the Geographic Stats map and a Named Birds card map each carry a fullscreen button in the bottom-right corner, the one the Map Explorer has always had. They expand to fill the window and collapse back, keeping the same view, the same open popup and the same dropped share pin; Escape closes them and returns the focus to the button.
 - **Checklists**: search everything you've ever written in a comment, and filter your checklists by comments, media, breeding codes, protocol, county, and dates.
 - **List Comparer**: compare two life lists, or two individual checklists side by side.
 - **Settings**: keys, files, appearance (light/dark, text size to 200%, date format), sharing preferences, tab layout, and (on Mac, iPhone and iPad) iCloud Sync, plus an Acknowledgments section.

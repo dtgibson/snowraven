@@ -63,7 +63,8 @@ import { SightingsGraph } from './speciesDetail/SightingsGraph'
 import { ChartViewTip } from './ChartViewTip'
 import { HeatmapLayer } from './speciesDetail/HeatmapLayer'
 import { MapBoundsFitter } from './speciesDetail/MapBoundsFitter'
-import { SharePin } from './map/SharePin'
+import { MapCornerControls } from './map/MapCornerControls'
+import { useMapFullscreen, MapFullscreenProvider } from '../lib/useMapFullscreen'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -513,6 +514,23 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
     (): [number, number, number][] => coordMarkers.map(m => [m.lat, m.lng, heatWeight(m.sightings.length, heatIntensity)]),
     [coordMarkers, heatIntensity]
   )
+
+  // Fullscreen for the Sighting Locations map. The state belongs to the
+  // CONTAINER that wraps both branches, not to either map: Pins mounts the shared
+  // SightingsMap and Heatmap mounts its own inline SnowMap, so state held inside
+  // a map would die on a mode switch. Held here, switching modes while expanded
+  // stays expanded, and whichever branch is rendering shows the Exit toggle.
+  //
+  // `resetKey` reuses the value already threaded as the share pin's reset key,
+  // for the reason recorded there: this map keeps its JSX position across a
+  // species change, so nothing unmounts and stale state would otherwise survive.
+  const mapBoxRef = useRef<HTMLDivElement>(null)
+  const mapFs = useMapFullscreen({
+    containerRef: mapBoxRef,
+    baseClass: 'sr-map-container',
+    active: coordMarkers.length > 0,
+    resetKey: selectedSpecies,
+  })
 
   // Graph data (lifted from SightingsGraph for hasGraphData check and GraphOptions card)
   const graphResult = useMemo(
@@ -1341,7 +1359,8 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                   </div>
                 </div>
               )}
-              <div className="sr-map-container">
+              <div ref={mapBoxRef} className={mapFs.className}>
+                <MapFullscreenProvider value={mapFs}>
                 {/* Pins mode: the shared SightingsMap owns the markers + popup +
                     its own MapBoundsFitter. Heatmap mode keeps its inline SnowMap
                     with the HeatmapLayer and a top-level MapBoundsFitter, so the
@@ -1406,9 +1425,14 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                       </>
                     )}
                     <MapBoundsFitter coordinates={uniqueCoords} />
-                    <SharePin key={selectedSpecies} compact={false} buttonHost="corner" />
+                    {/* The corner row (share drop button, then fullscreen
+                        toggle). Both branches mount it, or a user switching
+                        modes silently loses the feature — the exact trap the
+                        share-pin build hit and fixed on this same pair. */}
+                    <MapCornerControls compact={false} sharePinResetKey={selectedSpecies} />
                   </SnowMap>
                 )}
+                </MapFullscreenProvider>
               </div>
 
               {/* The shading panel, beneath the map. Everything that changes how

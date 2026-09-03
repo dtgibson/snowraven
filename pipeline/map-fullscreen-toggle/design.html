@@ -1,0 +1,1196 @@
+<!doctype html>
+<html lang="en" data-theme="light" data-scale="1" data-vp="desktop">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Map Fullscreen Toggle</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=IBM+Plex+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ══════════════════════════════════════════════════════════════════════════
+   SnowRaven . Map Fullscreen Toggle . Stage 4 design mockup
+
+   Two layers, deliberately distinguishable:
+
+   1. THE APP LAYER  (.app*, .sr-*)  reproduces shipped SnowRaven. Every value
+      is the real one from frontend/src/globals.css, every colour is a --sr-*
+      token declared in both themes, and the type face is the product's own
+      (Inter). Nothing here is invented.
+
+   2. THE DOCUMENT LAYER (.doc*) is this spec talking about the app. It uses a
+      serif display face (Newsreader), echoing the serif SR brand mark, so the
+      reader can always tell a note from the product.
+
+   Scale simulation: the app scales all text from a root font-size the in-app
+   Text Size control multiplies. A mockup cannot move the real root without
+   destroying the document layer, so app-surface values are written as
+   calc(N * var(--rem)) where --rem is the simulated root. That is exact, and
+   immune to em nesting.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── App tokens, verbatim from globals.css (both themes) ────────────────── */
+:root {
+  --sr-text-scale: 1;
+  --rem: calc(16px * var(--sr-text-scale));
+
+  --sr-bg: #F9FAFB;
+  --sr-surface: #FFFFFF;
+  --sr-surface-subtle: #F4F4F5;
+  --sr-surface-faint: #FAFAFA;
+  --sr-text: #0F1117;
+  --sr-text-muted: #6B6B74;
+  --sr-text-gray: #6B7280;
+  --sr-border: #E4E4E7;
+  --sr-border-subtle: #F4F4F5;
+  --sr-border-medium: #C4C4CE;
+  --sr-accent: #277448;
+  --sr-accent-strong: #1A5C38;
+  --sr-accent-bg: #E8F5EE;
+  --sr-accent-border: rgba(39,116,72,0.25);
+  --sr-accent-border-strong: rgba(39,116,72,0.7);
+  --sr-on-accent: #FFFFFF;
+  --sr-card-shadow: 0 1px 4px rgba(15,17,23,0.06), 0 4px 16px rgba(15,17,23,0.04);
+
+  /* Map-anchored tokens: identical in both themes, because the canvas is the
+     always-light basemap whatever the app theme is. */
+  --sr-map-pin-visited: #2D8653;
+  --sr-map-pin-stroke: #3F3F46;
+  --sr-rank-pin-circle: #277448;
+  --sr-rank-pin-square: #1D4ED8;
+  --sr-share-pin: #B4341F;
+  --sr-share-pin-ink: #FFFFFF;
+
+  /* The stand-in basemap. Map-anchored by the same rule, tinted (never a dead
+     neutral), and present only in this mockup: the real surface is a MapLibre
+     canvas rendering CARTO Positron. */
+  --mk-land: #F4F5F2;
+  --mk-land-alt: #EBEDE8;
+  --mk-water: #C6D5DC;
+  --mk-park: #E3EBDE;
+  --mk-road: #FDFDFB;
+  --mk-road-edge: #E1E3DD;
+  --mk-label: #6B7280;
+
+  /* Document layer */
+  --doc-bg: #FBFAF7;
+  --doc-surface: #FFFFFF;
+  --doc-ink: #1A1D24;
+  --doc-ink-soft: #565B66;
+  --doc-rule: #E6E3DC;
+  --doc-rule-soft: #F0EDE6;
+  --doc-accent: #277448;
+  --doc-mark: #B4341F;
+  --doc-glow: rgba(39,116,72,0.055);
+}
+[data-theme="dark"] {
+  --sr-bg: #09090B;
+  --sr-surface: #18181B;
+  --sr-surface-subtle: #27272A;
+  --sr-surface-faint: #1C1C1F;
+  --sr-text: #F4F4F5;
+  --sr-text-muted: #A1A1AA;
+  --sr-text-gray: #8A8A92;
+  --sr-border: #27272A;
+  --sr-border-subtle: #1F1F23;
+  --sr-border-medium: #3F3F46;
+  --sr-accent: #34D399;
+  --sr-accent-strong: #34D399;
+  --sr-accent-bg: #052E16;
+  --sr-accent-border: rgba(52,211,153,0.2);
+  --sr-accent-border-strong: rgba(52,211,153,0.5);
+  --sr-on-accent: #FFFFFF;
+  --sr-card-shadow: 0 1px 4px rgba(4,4,6,0.4), 0 4px 16px rgba(4,4,6,0.25);
+
+  --doc-bg: #0C0D10;
+  --doc-surface: #14161A;
+  --doc-ink: #EDEBE6;
+  --doc-ink-soft: #9CA1AC;
+  --doc-rule: #24272D;
+  --doc-rule-soft: #1A1D22;
+  --doc-accent: #34D399;
+  --doc-mark: #E4795F;
+  --doc-glow: rgba(52,211,153,0.06);
+}
+
+* { box-sizing: border-box; }
+
+/* ── Document layer ─────────────────────────────────────────────────────── */
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  font-family: 'IBM Plex Sans', 'Avenir Next', 'Helvetica Neue', sans-serif;
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  color: var(--doc-ink);
+  background:
+    radial-gradient(1100px 620px at 78% -8%, var(--doc-glow), transparent 62%),
+    radial-gradient(900px 520px at 4% 34%, var(--doc-glow), transparent 58%),
+    var(--doc-bg);
+  background-attachment: fixed;
+  -webkit-font-smoothing: antialiased;
+}
+.doc-display, .doc-h2, .doc-h3, .doc-lede {
+  font-family: 'Newsreader', 'Iowan Old Style', Georgia, serif;
+  font-optical-sizing: auto;
+}
+.doc-eyebrow {
+  font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.11em;
+  text-transform: uppercase; color: var(--doc-accent); margin: 0 0 10px;
+}
+.doc-display {
+  font-size: clamp(2rem, 4.6vw, 3.05rem); font-weight: 600; line-height: 1.04;
+  letter-spacing: -0.022em; margin: 0 0 14px; color: var(--doc-ink);
+}
+.doc-lede {
+  font-size: clamp(1.0625rem, 1.7vw, 1.25rem); font-weight: 400; line-height: 1.52;
+  color: var(--doc-ink-soft); margin: 0; max-width: 46ch;
+}
+.doc-h2 {
+  font-size: clamp(1.375rem, 2.3vw, 1.75rem); font-weight: 600; line-height: 1.18;
+  letter-spacing: -0.014em; margin: 0 0 6px; color: var(--doc-ink);
+}
+.doc-h3 {
+  font-size: 1.1875rem; font-weight: 600; letter-spacing: -0.01em;
+  margin: 0 0 6px; color: var(--doc-ink);
+}
+.doc-label {
+  font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.09em;
+  text-transform: uppercase; color: var(--doc-ink-soft); margin: 0;
+}
+.doc-p { margin: 0 0 12px; max-width: 68ch; color: var(--doc-ink-soft); }
+.doc-p strong { color: var(--doc-ink); font-weight: 600; }
+.doc-p:last-child { margin-bottom: 0; }
+code, .mono {
+  font-family: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, monospace;
+  font-size: 0.8125em; letter-spacing: -0.01em;
+}
+code {
+  background: color-mix(in srgb, var(--doc-accent) 9%, transparent);
+  color: var(--doc-ink); padding: 0.1em 0.36em; border-radius: 4px;
+}
+
+/* ── Page frame: asymmetric split, sticky rail ──────────────────────────── */
+.wrap { max-width: 1280px; margin: 0 auto; padding: 0 28px 96px; }
+.masthead {
+  position: sticky; top: 0; z-index: 900;
+  background: color-mix(in srgb, var(--doc-bg) 88%, transparent);
+  backdrop-filter: blur(14px) saturate(1.3);
+  border-bottom: 1px solid var(--doc-rule);
+}
+.masthead-in {
+  max-width: 1280px; margin: 0 auto; padding: 11px 28px;
+  display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
+}
+.mast-mark {
+  font-family: 'Newsreader', Georgia, serif; font-size: 1.0625rem; font-weight: 600;
+  letter-spacing: -0.01em; color: var(--doc-ink); margin-right: auto;
+}
+.mast-mark span { color: var(--doc-ink-soft); font-weight: 400; }
+.ctlset { display: flex; align-items: center; gap: 7px; }
+.ctlset > .doc-label { margin-right: 2px; font-size: 0.625rem; letter-spacing: 0.08em; }
+.seg { display: inline-flex; background: var(--doc-rule-soft); border: 1px solid var(--doc-rule); border-radius: 8px; padding: 2px; gap: 2px; }
+.seg button {
+  font: inherit; font-size: 0.75rem; font-weight: 500; font-family: inherit;
+  padding: 4px 11px; border: 0; border-radius: 6px; cursor: pointer;
+  background: transparent; color: var(--doc-ink-soft);
+  transition: background 150ms cubic-bezier(0.16,1,0.3,1), color 150ms cubic-bezier(0.16,1,0.3,1);
+}
+.seg button:hover { color: var(--doc-ink); }
+.seg button[aria-pressed="true"] {
+  background: var(--doc-surface); color: var(--doc-ink); font-weight: 600;
+  box-shadow: 0 1px 2px rgba(15,17,23,0.08);
+}
+.seg button:focus-visible, .doc a:focus-visible { outline: 2px solid var(--doc-accent); outline-offset: 2px; }
+
+.hero { padding: 72px 0 54px; border-bottom: 1px solid var(--doc-rule); }
+.hero-grid { display: grid; grid-template-columns: minmax(0,1.35fr) minmax(0,1fr); gap: 44px; align-items: end; }
+.hero-grid > * { min-width: 0; }
+.hero-facts { display: grid; gap: 0; border-top: 2px solid var(--doc-ink); }
+.fact { display: grid; grid-template-columns: 8.5rem 1fr; gap: 14px; padding: 11px 0; border-bottom: 1px solid var(--doc-rule); }
+.fact dt { font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--doc-ink-soft); padding-top: 2px; }
+.fact dd { margin: 0; font-size: 0.875rem; color: var(--doc-ink); }
+
+.split { display: grid; grid-template-columns: 190px minmax(0,1fr); gap: 52px; align-items: start; padding-top: 46px; }
+.split > * { min-width: 0; }
+.rail { position: sticky; top: 74px; }
+.rail ol { list-style: none; margin: 0; padding: 0; counter-reset: r; }
+.rail li { counter-increment: r; }
+.rail a {
+  display: block; padding: 7px 0 7px 26px; position: relative;
+  font-size: 0.8125rem; color: var(--doc-ink-soft); text-decoration: none;
+  border-left: 2px solid var(--doc-rule-soft); padding-left: 15px;
+  transition: color 150ms ease-out, border-color 150ms ease-out;
+}
+.rail a::before {
+  content: counter(r, decimal-leading-zero); position: absolute; left: 15px;
+  font-size: 0.625rem; font-weight: 700; letter-spacing: 0.06em; color: var(--doc-ink-soft);
+  opacity: 0.55;
+}
+.rail a { padding-left: 44px; }
+.rail a:hover { color: var(--doc-ink); border-color: var(--doc-accent); }
+
+section.doc { padding: 0 0 72px; scroll-margin-top: 78px; }
+.sec-head { border-top: 2px solid var(--doc-ink); padding-top: 14px; margin-bottom: 26px; }
+.sec-head .doc-label { margin-bottom: 8px; }
+.sec-head .doc-p { margin-top: 8px; }
+
+/* Notes and callouts */
+.note {
+  border-left: 3px solid var(--doc-accent); padding: 2px 0 2px 16px;
+  margin: 20px 0; color: var(--doc-ink-soft); max-width: 66ch;
+}
+.note .doc-label { color: var(--doc-accent); margin-bottom: 4px; }
+.note--mark { border-left-color: var(--doc-mark); }
+.note--mark .doc-label { color: var(--doc-mark); }
+
+.decision { border-top: 1px solid var(--doc-rule); padding: 20px 0 0; margin-top: 20px; }
+.decision:first-of-type { border-top: 0; margin-top: 0; padding-top: 0; }
+.verdict {
+  display: inline-flex; align-items: center; gap: 7px; margin-bottom: 9px;
+  font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  padding: 3px 10px; border-radius: 999px;
+  background: color-mix(in srgb, var(--doc-accent) 12%, transparent);
+  color: var(--doc-accent); border: 1px solid color-mix(in srgb, var(--doc-accent) 32%, transparent);
+}
+
+table.spec { width: 100%; border-collapse: collapse; margin: 18px 0 0; font-size: 0.8125rem; }
+table.spec th {
+  text-align: left; font-size: 0.625rem; font-weight: 700; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--doc-ink-soft); padding: 0 14px 8px 0;
+  border-bottom: 1px solid var(--doc-ink);
+}
+table.spec td { padding: 10px 14px 10px 0; border-bottom: 1px solid var(--doc-rule); color: var(--doc-ink-soft); vertical-align: top; }
+table.spec td:first-child { color: var(--doc-ink); font-weight: 500; white-space: nowrap; }
+.tscroll { overflow-x: auto; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   APP LAYER
+   ══════════════════════════════════════════════════════════════════════════ */
+/* ACCEPTED LINT FINDING (banned-font). This one declaration is the product's
+   own type stack, copied byte for byte from globals.css:809. The doctrine's own
+   precedence rule gives design-system.md the specifics, and rendering the app in
+   a face it does not ship would make this mockup lie about the thing it exists to
+   show. The document layer around it carries the distinctive faces instead. */
+.app {
+  font-family: 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
+  color: var(--sr-text);
+  font-size: calc(0.875 * var(--rem));
+  line-height: 1.5;
+}
+.appframe {
+  background: var(--sr-bg);
+  border: 1px solid var(--doc-rule);
+  border-radius: 14px;
+  padding: 18px;
+}
+[data-vp="phone"] .appframe { max-width: 320px; padding: 10px; }
+
+/* SectionCard, the app's card shell */
+.sr-card {
+  background: var(--sr-surface);
+  border: 1px solid var(--sr-border);
+  border-radius: 12px;
+  box-shadow: var(--sr-card-shadow);
+  overflow: hidden;
+}
+.sr-card-head { display: flex; align-items: center; gap: 10px; padding: 14px 18px 10px; }
+.sr-card-tile {
+  width: 30px; height: 30px; flex: none;
+  display: grid; place-items: center; border-radius: 8px;
+  background: var(--sr-accent-bg); color: var(--sr-accent);
+}
+.sr-card-tile svg { width: 15px; height: 15px; }
+.sr-card-title { font-size: calc(1.125 * var(--rem)); font-weight: 700; letter-spacing: -0.01em; margin: 0; line-height: 1.25; }
+.sr-card-sub { font-size: calc(0.8125 * var(--rem)); color: var(--sr-text-muted); margin: 2px 0 0; line-height: 1.45; }
+.sr-card-body { padding: 0 18px 14px; }
+
+.sr-microlabel {
+  display: flex; align-items: center; gap: 6px; margin: 0 0 7px;
+  font-size: calc(0.6875 * var(--rem)); font-weight: 700; letter-spacing: 0.04em; line-height: 1.35;
+  text-transform: uppercase; color: var(--sr-text-muted);
+}
+.sr-microlabel svg { width: 12px; height: 12px; flex: none; }
+
+/* Mode pills (Species Detail Pins / Heatmap) */
+.sr-pillrow { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
+.sr-pill {
+  font: inherit; font-family: inherit;
+  font-size: calc(0.75 * var(--rem)); font-weight: 500;
+  min-height: 30px; padding: 4px 12px;
+  border-radius: 15px;
+  border: 1px solid var(--sr-border); background: var(--sr-surface); color: var(--sr-text-muted);
+  cursor: pointer;
+  transition: background 140ms cubic-bezier(0.16,1,0.3,1), color 140ms cubic-bezier(0.16,1,0.3,1), border-color 140ms cubic-bezier(0.16,1,0.3,1);
+}
+.sr-pill[aria-pressed="true"] { background: var(--sr-accent-bg); color: var(--sr-accent); border-color: var(--sr-accent-border-strong); font-weight: 600; }
+.sr-pill:hover { background: var(--sr-surface-subtle); }
+.sr-pill[aria-pressed="true"]:hover { background: var(--sr-accent-bg); }
+
+/* ── The three map containers, real values from globals.css ─────────────── */
+.sr-map-container { height: calc(380px * 1); width: 100%; position: relative; }
+.sr-named-map { height: 220px; width: 100%; position: relative; border-radius: 10px; overflow: hidden; border: 1px solid var(--sr-border); }
+.sr-geo-map   { height: 320px; width: 100%; position: relative; border-radius: 8px;  overflow: hidden; border: 1px solid var(--sr-border); }
+[data-vp="phone"] .sr-map-container { height: 300px; }
+
+/* ── The shared expanded panel. ONE rule serves all four mounts. ────────── */
+.sr-map-fs-panel {
+  position: fixed;
+  inset: 0;
+  height: 100dvh;
+  z-index: 1200;
+  background: var(--sr-bg);
+  border: none;
+  border-radius: 0;
+  overflow: hidden;
+}
+/* The phone-tier height override must not out-order the panel. */
+@media (max-width: 640px) {
+  .sr-map-container:not(.sr-map-fs-panel) { height: 300px; }
+}
+[data-vp="phone"] .sr-map-container.sr-map-fs-panel { height: 100dvh; }
+
+/* ── Stand-in map surface ───────────────────────────────────────────────── */
+.mk { position: absolute; inset: 0; overflow: hidden; background: var(--mk-land); }
+.mk-svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.mk-pin { position: absolute; transform: translate(-50%, -100%); line-height: 0; filter: drop-shadow(0 1px 1.5px rgba(15,17,23,0.3)); }
+.mk-pin svg { width: calc(1.5 * var(--rem)); height: calc(1.875 * var(--rem)); }
+.mk-rank { position: absolute; transform: translate(-50%,-50%); display: grid; place-items: center;
+  width: calc(1.5 * var(--rem)); height: calc(1.5 * var(--rem));
+  font-size: calc(0.625 * var(--rem)); font-weight: 700; color: #FFFFFF;
+  background: var(--sr-rank-pin-circle); border-radius: 50%;
+  box-shadow: 0 1px 2px rgba(15,17,23,0.35); }
+.mk-rank.is-sq { background: var(--sr-rank-pin-square); border-radius: 3px; }
+
+/* MapLibre chrome reproductions */
+.mk-nav {
+  position: absolute; top: 10px; left: 10px; z-index: 1;
+  display: flex; flex-direction: column;
+  background: var(--mk-road); border-radius: 4px; box-shadow: 0 0 0 2px rgba(15,17,23,0.1);
+  overflow: hidden;
+}
+.mk-nav button {
+  width: 29px; height: 29px; border: 0; background: transparent; cursor: pointer;
+  color: #33333d; font: 700 15px/1 'Inter', sans-serif; display: grid; place-items: center;
+}
+.mk-nav button + button { border-top: 1px solid #ddd7d0; }
+.mk-attr {
+  position: absolute; bottom: 0; left: 0; z-index: 1;
+  background: rgba(253,253,251,0.8); color: #4a4f57;
+  font-size: 11px; padding: 1px 6px 1px 4px; border-radius: 0 3px 0 0;
+}
+
+/* Base switcher, .sr-map-layers verbatim */
+.sr-map-layers {
+  position: absolute; top: 8px; right: 8px; z-index: 1;
+  display: flex; flex-direction: column; gap: 7px; padding: 7px;
+  background: var(--sr-surface); border: 1px solid var(--sr-border);
+  border-radius: 10px; box-shadow: 0 2px 10px rgba(15,17,23,0.15);
+  max-width: calc(100% - 16px);
+}
+.sr-map-layers-seg { display: inline-flex; flex-wrap: wrap; gap: 2px; background: var(--sr-surface-subtle); border-radius: 7px; padding: 2px; }
+.sr-map-layers-seg button {
+  padding: 4px 10px; border: none; border-radius: 5px; cursor: pointer;
+  font-family: inherit; font-size: calc(0.75 * var(--rem)); font-weight: 500;
+  color: var(--sr-text-muted); background: transparent;
+  transition: background 0.15s, color 0.15s;
+}
+.sr-map-layers-seg button.is-active { background: var(--sr-surface); color: var(--sr-text); font-weight: 600; box-shadow: 0 1px 2px rgba(15,17,23,0.08); }
+.sr-map-layers-trails { display: flex; align-items: center; gap: 6px; padding: 0 2px; font-size: calc(0.75 * var(--rem)); color: var(--sr-text); cursor: pointer; }
+.sr-map-layers-trails input { accent-color: var(--sr-accent); cursor: pointer; }
+
+/* ══ THE NEW CORNER ROW ══════════════════════════════════════════════════
+   .sr-share-corner's shipped anchors, plus .sr-map-fab-cluster's proven
+   flex quartet. Nothing here paints a colour: the row is a transparent
+   wrapper, so the only colour this feature adds anywhere is the panel's
+   background: var(--sr-bg).                                              */
+.sr-map-corner-row {
+  position: absolute;
+  bottom: 20px;
+  right: 16px;
+  z-index: 1050;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  row-gap: 10px;
+  max-width: calc(100% - 32px);
+  pointer-events: none;
+}
+.sr-map-corner-row button { pointer-events: auto; }
+.sr-map-corner-row--compact { bottom: 12px; right: 12px; max-width: calc(100% - 24px); }
+.sr-map-fab-slot { display: contents; }
+
+/* The FAB family, verbatim (the one deviation is noted in the spec: the
+   shipped base shadow is legacy pure black; the app's own ink is used here
+   and the feature changes neither). */
+.sr-map-fab {
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 0; flex: none;
+  background: var(--sr-surface); color: var(--sr-text);
+  border: 1px solid var(--sr-border); border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(15,17,23,0.18);
+  transition: background 140ms cubic-bezier(0.16,1,0.3,1),
+              color 140ms cubic-bezier(0.16,1,0.3,1),
+              border-color 140ms cubic-bezier(0.16,1,0.3,1);
+}
+.sr-map-fab svg { width: var(--sr-fab-glyph); height: var(--sr-fab-glyph); }
+.sr-map-fab:hover { background: var(--sr-surface-subtle); }
+.sr-map-fab:focus-visible { outline: 2px solid var(--sr-accent); outline-offset: 2px; }
+.sr-map-fab--std     { --sr-fab-glyph: calc(1.0625 * var(--rem)); width: calc(2.25 * var(--rem));  height: calc(2.25 * var(--rem)); }
+.sr-map-fab--compact { --sr-fab-glyph: calc(0.9375 * var(--rem)); width: calc(1.875 * var(--rem)); height: calc(1.875 * var(--rem)); }
+@media (max-width: 640px) {
+  .sr-map-fab--std     { width: calc(2.75 * var(--rem)); height: calc(2.75 * var(--rem)); }
+  .sr-map-fab--compact { width: calc(2.5 * var(--rem));  height: calc(2.5 * var(--rem)); }
+}
+[data-vp="phone"] .sr-map-fab--std     { width: calc(2.75 * var(--rem)); height: calc(2.75 * var(--rem)); }
+[data-vp="phone"] .sr-map-fab--compact { width: calc(2.5 * var(--rem));  height: calc(2.5 * var(--rem)); }
+.sr-share-drop-btn[aria-pressed="true"] {
+  background: var(--sr-accent-bg); color: var(--sr-accent); border-color: var(--sr-accent-border-strong);
+}
+/* State-driven glyph swap: the ARIA state is the single source of truth. */
+.sr-map-fullscreen-btn .g-min { display: none; }
+.sr-map-fullscreen-btn[aria-pressed="true"] .g-max { display: none; }
+.sr-map-fullscreen-btn[aria-pressed="true"] .g-min { display: block; }
+
+/* ── THE MOTION ─────────────────────────────────────────────────────────
+   The panel itself does not animate: it must be opaque from frame one, or
+   the page behind shows through (FR-25). What animates is the corner row,
+   the one thing that genuinely moved, arriving in its new corner. Entrance
+   only; collapse is instant, matching SpeciesCombobox's shipped rule.
+   The end state is the resting state, so the app's global reduced-motion
+   block collapses this to nothing and loses nothing.                     */
+@keyframes sr-map-corner-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+.sr-map-fs-panel .sr-map-corner-row {
+  animation: sr-map-corner-in 150ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+/* iOS: the panel rule pads top/left/right only, deliberately, so the canvas
+   bleeds to the home indicator. The corner row is the one thing that must
+   not, so it insets its own bottom, and only while expanded. */
+.sr-ios-app .sr-map-fs-panel .sr-map-corner-row {
+  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+}
+.sr-ios-app .sr-map-fs-panel .sr-map-corner-row--compact {
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+}
+
+/* App-wide reduced-motion collapse, mirroring globals.css:2972 */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ── Mockup-only affordances ────────────────────────────────────────────── */
+.stagegrid { display: grid; gap: 34px; }
+.demo { display: grid; grid-template-columns: minmax(0,1fr) 260px; gap: 30px; align-items: start; }
+.demo > * { min-width: 0; }
+.demo-side .doc-label { margin-bottom: 8px; }
+.demo-side .doc-p { font-size: 0.8125rem; margin-bottom: 10px; }
+.mountid {
+  display: inline-flex; align-items: center; gap: 8px; margin-bottom: 10px;
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 0.6875rem; font-weight: 600;
+  letter-spacing: 0.04em; color: var(--doc-mark);
+  padding: 2px 8px; border: 1px solid color-mix(in srgb, var(--doc-mark) 30%, transparent);
+  border-radius: 5px; background: color-mix(in srgb, var(--doc-mark) 8%, transparent);
+}
+.hint {
+  margin-top: 10px; font-size: 0.75rem; color: var(--doc-ink-soft);
+  display: flex; align-items: center; gap: 7px;
+}
+.kbd {
+  font-family: ui-monospace, Menlo, monospace; font-size: 0.6875rem; font-weight: 600;
+  border: 1px solid var(--doc-rule); border-bottom-width: 2px; border-radius: 5px;
+  padding: 1px 6px; background: var(--doc-surface); color: var(--doc-ink);
+}
+
+/* Control-state figure */
+.states { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1px; background: var(--doc-rule); border: 1px solid var(--doc-rule); border-radius: 12px; overflow: hidden; }
+.state { background: var(--doc-surface); padding: 24px 22px; }
+.state-demo { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; padding: 18px; border-radius: 10px; background: var(--mk-land); }
+.state dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 5px 12px; font-size: 0.75rem; }
+.state dt { color: var(--doc-ink-soft); font-family: ui-monospace, Menlo, monospace; font-size: 0.6875rem; }
+.state dd { margin: 0; color: var(--doc-ink); font-weight: 500; }
+
+/* Absent-state figure: the two boxes that never carry a toggle */
+.absent { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-top: 20px; }
+.absent-cell { min-width: 0; }
+.absent-cell .doc-label { margin-bottom: 9px; }
+.absent-cell .doc-p { font-size: 0.8125rem; margin-top: 9px; margin-bottom: 0; }
+.sr-geo-map--ph {
+  display: flex; align-items: center; justify-content: center;
+  background: var(--sr-surface);
+}
+.sr-geo-map--ph span { font-size: calc(0.8125 * var(--rem)); color: var(--sr-text-muted); }
+.sr-named-map--empty {
+  display: flex; align-items: center; justify-content: center; height: 96px;
+  background: var(--sr-surface-faint);
+}
+.sr-named-map--empty span { font-size: calc(0.75 * var(--rem)); color: var(--sr-text-muted); text-align: center; padding: 0 14px; }
+
+/* Measurement figure */
+.measure { border: 1px solid var(--doc-rule); border-radius: 12px; background: var(--doc-surface); padding: 24px; }
+.ruler { display: flex; align-items: flex-end; gap: 0; margin: 18px 0 6px; }
+
+.exitbar {
+  position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%);
+  z-index: 1300; display: none; align-items: center; gap: 10px;
+  padding: 8px 14px; border-radius: 999px;
+  background: var(--doc-surface); border: 1px solid var(--doc-rule);
+  box-shadow: 0 6px 24px rgba(15,17,23,0.18); font-size: 0.75rem; color: var(--doc-ink-soft);
+}
+body.is-fs .exitbar { display: flex; }
+
+.footer { border-top: 1px solid var(--doc-rule); padding-top: 22px; font-size: 0.8125rem; color: var(--doc-ink-soft); }
+
+@media (max-width: 1040px) {
+  .split { grid-template-columns: minmax(0, 1fr); gap: 30px; }
+  .rail { position: static; }
+  .rail ol { display: flex; flex-wrap: wrap; gap: 4px; }
+  .rail a { border-left: 0; border-bottom: 2px solid var(--doc-rule-soft); padding: 6px 12px 6px 34px; }
+  .rail a::before { left: 12px; }
+  .demo { grid-template-columns: minmax(0, 1fr); gap: 18px; }
+  .hero-grid { grid-template-columns: minmax(0, 1fr); gap: 32px; align-items: start; }
+}
+@media (max-width: 620px) {
+  .wrap { padding: 0 18px 72px; }
+  .masthead-in { padding: 10px 18px; }
+  .mast-mark { width: 100%; margin-right: 0; }
+  .hero { padding: 40px 0 34px; }
+}
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <div class="masthead-in">
+    <div class="mast-mark">SnowRaven <span>/ Map Fullscreen Toggle</span></div>
+    <div class="ctlset">
+      <p class="doc-label">Theme</p>
+      <div class="seg" role="group" aria-label="Theme">
+        <button type="button" data-theme-btn="light" aria-pressed="true">Light</button>
+        <button type="button" data-theme-btn="dark" aria-pressed="false">Dark</button>
+      </div>
+    </div>
+    <div class="ctlset">
+      <p class="doc-label">Text size</p>
+      <div class="seg" role="group" aria-label="In-app text scale">
+        <button type="button" data-scale-btn="1" aria-pressed="true">100%</button>
+        <button type="button" data-scale-btn="2" aria-pressed="false">200%</button>
+      </div>
+    </div>
+    <div class="ctlset">
+      <p class="doc-label">Viewport</p>
+      <div class="seg" role="group" aria-label="Viewport tier">
+        <button type="button" data-vp-btn="desktop" aria-pressed="true">Desktop</button>
+        <button type="button" data-vp-btn="phone" aria-pressed="false">320px</button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="hero">
+    <div class="hero-grid">
+      <div>
+        <p class="doc-eyebrow">Stage 4 &middot; Design</p>
+        <h1 class="doc-display">The same map,<br>given the whole window.</h1>
+        <p class="doc-lede">Three embedded maps in SnowRaven answer a question inside a 220 to 380 pixel box. This adds one button that lets each of them fill the screen, and nothing else. No new controls appear, nothing moves, nothing is remembered.</p>
+      </div>
+      <dl class="hero-facts">
+        <div class="fact"><dt>Feature</dt><dd><code>map-fullscreen-toggle</code></dd></div>
+        <div class="fact"><dt>Mounts</dt><dd>M1, M2 Species Detail &middot; M3 Named Birds &middot; M4 Statistics</dd></div>
+        <div class="fact"><dt>New tokens</dt><dd>None. One new colour declaration in total.</dd></div>
+        <div class="fact"><dt>New components</dt><dd>None. Existing FAB family, existing share slot.</dd></div>
+        <div class="fact"><dt>Design system</dt><dd>Extended, not evolved. No deviations logged.</dd></div>
+      </dl>
+    </div>
+  </div>
+
+  <div class="split">
+    <nav class="rail" aria-label="Sections">
+      <ol>
+        <li><a href="#control">The control</a></li>
+        <li><a href="#surfaces">The three surfaces</a></li>
+        <li><a href="#expanded">The expanded state</a></li>
+        <li><a href="#motion">Motion</a></li>
+        <li><a href="#decisions">Open questions</a></li>
+        <li><a href="#measures">Measurements</a></li>
+      </ol>
+    </nav>
+
+    <main>
+
+    <!-- ═══ 1. THE CONTROL ═══════════════════════════════════════════════ -->
+    <section class="doc" id="control">
+      <div class="sec-head">
+        <p class="doc-label">01 &middot; The control</p>
+        <h2 class="doc-h2">One button, borrowed whole from the Map Explorer</h2>
+        <p class="doc-p">There is no new button language here. The Map Explorer has shipped a circular fullscreen FAB for sixty-odd versions, and this is that control, in that vocabulary, joined to the share-pin drop button in a single bottom-right row. A user who has expanded the Map Explorer already knows how to expand a Named Birds card.</p>
+      </div>
+
+      <div class="states app">
+        <div class="state">
+          <p class="doc-label" style="margin-bottom:12px">Collapsed</p>
+          <div class="state-demo">
+            <button type="button" class="sr-map-fab sr-map-fab--std sr-share-drop-btn" aria-pressed="false" aria-label="Drop a pin here" title="Drop a pin here">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+            </button>
+            <button type="button" class="sr-map-fab sr-map-fab--std sr-map-fullscreen-btn" aria-pressed="false" aria-label="Enter fullscreen" title="Enter fullscreen">
+              <svg class="g-max" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+            </button>
+          </div>
+          <dl>
+            <dt>name</dt><dd>Enter fullscreen</dd>
+            <dt>aria-pressed</dt><dd>false</dd>
+            <dt>glyph</dt><dd>lucide Maximize2</dd>
+            <dt>class</dt><dd>sr-map-fab--std</dd>
+          </dl>
+        </div>
+        <div class="state">
+          <p class="doc-label" style="margin-bottom:12px">Expanded</p>
+          <div class="state-demo">
+            <button type="button" class="sr-map-fab sr-map-fab--std sr-share-drop-btn" aria-pressed="true" aria-label="Remove the pin" title="Remove the pin">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+            </button>
+            <button type="button" class="sr-map-fab sr-map-fab--std sr-map-fullscreen-btn" aria-pressed="true" aria-label="Exit fullscreen" title="Exit fullscreen">
+              <svg class="g-max" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+              <svg class="g-min" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7"/></svg>
+            </button>
+          </div>
+          <dl>
+            <dt>name</dt><dd>Exit fullscreen</dd>
+            <dt>aria-pressed</dt><dd>true</dd>
+            <dt>glyph</dt><dd>lucide Minimize2</dd>
+            <dt>class</dt><dd>sr-map-fab--std (unchanged)</dd>
+          </dl>
+        </div>
+      </div>
+
+      <div class="note">
+        <p class="doc-label">Where the exit lives</p>
+        <p class="doc-p">In exactly the place the enter lived. The button does not move to a corner of the window, does not become an X, and does not gain a label. It is one control in its other state, which is what <code>aria-pressed</code> is for, and leaving it under the finger that just pressed it is the whole reason a toggle beats a pair of buttons. <span style="color:var(--doc-ink)">Escape is the second route</span>, and it already appears in <code>ACCESSIBILITY.md</code> for the Map Explorer, so this makes that sentence true of every map rather than adding a claim to it.</p>
+      </div>
+
+      <h3 class="doc-h3" style="margin-top:32px">The row</h3>
+      <p class="doc-p">Share button first, fullscreen second, left to right, matching the Map Explorer cluster. The order is DOM order: the share button portals into a <code>display: contents</code> slot that is physically first, so reading order, tab order and visual order are the same thing and no <code>order</code> property exists anywhere.</p>
+      <p class="doc-p">The row is a transparent flex wrapper. It paints nothing, so the only colour this feature introduces on any surface is <code>background: var(--sr-bg)</code> on the expanded panel. Two declarations are carried over from the Map Explorer cluster on purpose: <code>pointer-events: none</code> on the row with <code>auto</code> on its buttons, because the 10px gap between two discs would otherwise be a dead strip that swallows a map drag, and the <code>flex-wrap</code> quartet, which changes no rendered position at any supported width but bounds the failure if a third control is ever proposed for this row.</p>
+    </section>
+
+    <!-- ═══ 2. THE SURFACES ══════════════════════════════════════════════ -->
+    <section class="doc" id="surfaces">
+      <div class="sec-head">
+        <p class="doc-label">02 &middot; The three surfaces</p>
+        <h2 class="doc-h2">Live. Press a toggle.</h2>
+        <p class="doc-p">Each map below expands for real: fixed panel, Escape to exit, focus trapped inside, body scroll locked, focus returned to the toggle. The basemap is a stand-in drawing, everything around it is the shipped stylesheet.</p>
+      </div>
+
+      <div class="stagegrid">
+
+        <!-- M1 -->
+        <div class="demo">
+          <div class="app">
+            <div class="appframe">
+              <div class="sr-card">
+                <div class="sr-card-head">
+                  <div class="sr-card-tile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 20 3 17V4l6 3m0 13 6-3m-6 3V7m6 10 6 3V7l-6-3m0 13V4m0 0L9 7"/></svg></div>
+                  <div>
+                    <p class="sr-card-title">Sighting Locations</p>
+                    <p class="sr-card-sub">Varied Thrush &middot; 34 sightings with coordinates</p>
+                  </div>
+                </div>
+                <div class="sr-card-body">
+                  <div class="sr-pillrow" role="group" aria-label="Map mode">
+                    <button type="button" class="sr-pill" aria-pressed="true">Pins</button>
+                    <button type="button" class="sr-pill" aria-pressed="false">Heatmap</button>
+                  </div>
+                  <div class="sr-map-container" data-fsroot data-fslabel="Species Detail sighting locations">
+                    <div class="mk" data-mk="coast">
+                      <div class="mk-nav" aria-hidden="true"><button type="button" tabindex="-1">+</button><button type="button" tabindex="-1">&minus;</button></div>
+                      <div class="sr-map-layers">
+                        <div class="sr-map-layers-seg" role="group" aria-label="Base map">
+                          <button type="button" class="is-active">Map</button>
+                          <button type="button">Satellite</button>
+                          <button type="button">Topo (US)</button>
+                        </div>
+                        <label class="sr-map-layers-trails"><input type="checkbox"> Trails</label>
+                      </div>
+                      <div class="mk-attr">&copy; OpenStreetMap, CARTO</div>
+                      <div class="sr-map-corner-row">
+                        <div class="sr-map-fab-slot">
+                          <button type="button" class="sr-map-fab sr-map-fab--std sr-share-drop-btn" aria-pressed="false" aria-label="Drop a pin here">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+                          </button>
+                        </div>
+                        <button type="button" class="sr-map-fab sr-map-fab--std sr-map-fullscreen-btn" data-fsbtn aria-pressed="false" aria-label="Enter fullscreen">
+                          <svg class="g-max" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+                          <svg class="g-min" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7"/></svg>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="demo-side">
+            <span class="mountid">M1 &middot; M2</span>
+            <p class="doc-label">Species Detail</p>
+            <p class="doc-p">380px tall, 300px on a phone. Pins and Heatmap are two separate map mounts inside one container, so the state belongs to the container: expand in Pins, switch to Heatmap, and it is still expanded with a working exit.</p>
+            <p class="doc-p">The base switcher is already here and stays exactly where it is. Given the whole window it simply has more room.</p>
+            <p class="hint"><span class="kbd">Esc</span> exits and returns focus to the toggle.</p>
+          </div>
+        </div>
+
+        <!-- M3 -->
+        <div class="demo">
+          <div class="app">
+            <div class="appframe">
+              <div class="sr-card">
+                <div class="sr-card-head">
+                  <div class="sr-card-tile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 7h.01M3.4 18H12a8 8 0 0 0 8-8V7a4 4 0 0 0-7.28-2.3L2 20"/><path d="m20 7 2 .5-2 .5M10 18v3M14 17.75V21M7 18a6 6 0 0 0 3.84-10.61"/></svg></div>
+                  <div>
+                    <p class="sr-card-title">Winky</p>
+                    <p class="sr-card-sub">Great Horned Owl &middot; 22 sightings &middot; followed 3 yrs. 5 mos.</p>
+                  </div>
+                </div>
+                <div class="sr-card-body" style="padding:0 14px 14px">
+                  <p class="sr-microlabel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 20 3 17V4l6 3m0 13 6-3m-6 3V7m6 10 6 3V7l-6-3m0 13V4m0 0L9 7"/></svg>Where Winky has been seen</p>
+                  <div class="sr-named-map" data-fsroot data-fslabel="Named bird card map">
+                    <div class="mk" data-mk="woods">
+                      <div class="mk-nav" aria-hidden="true"><button type="button" tabindex="-1">+</button><button type="button" tabindex="-1">&minus;</button></div>
+                      <div class="mk-attr">&copy; OpenStreetMap, CARTO</div>
+                      <div class="sr-map-corner-row sr-map-corner-row--compact">
+                        <div class="sr-map-fab-slot">
+                          <button type="button" class="sr-map-fab sr-map-fab--compact sr-share-drop-btn" aria-pressed="false" aria-label="Drop a pin here">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+                          </button>
+                        </div>
+                        <button type="button" class="sr-map-fab sr-map-fab--compact sr-map-fullscreen-btn" data-fsbtn aria-pressed="false" aria-label="Enter fullscreen">
+                          <svg class="g-max" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+                          <svg class="g-min" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7"/></svg>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="demo-side">
+            <span class="mountid">M3</span>
+            <p class="doc-label">Named Birds card</p>
+            <p class="doc-p">220px, the smallest map in the app and the one this feature is really for: a strip that has to answer "where does this bird turn up" now gets the window.</p>
+            <p class="doc-p">Compact density, in both states. No base switcher, in both states. Expanding changes the size of the map and nothing else at all.</p>
+            <p class="hint"><span class="kbd">Esc</span> exits and returns focus to the toggle.</p>
+          </div>
+        </div>
+
+        <!-- M4 -->
+        <div class="demo">
+          <div class="app">
+            <div class="appframe">
+              <div class="sr-card">
+                <div class="sr-card-head">
+                  <div class="sr-card-tile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10zM2 12h20"/></svg></div>
+                  <div>
+                    <p class="sr-card-title">Geographic Stats</p>
+                    <p class="sr-card-sub">Top 20 locations by checklists and by species</p>
+                  </div>
+                </div>
+                <div class="sr-card-body">
+                  <div class="sr-geo-map" data-fsroot data-fslabel="Statistics geographic map">
+                    <div class="mk" data-mk="ranked">
+                      <div class="mk-nav" aria-hidden="true"><button type="button" tabindex="-1">+</button><button type="button" tabindex="-1">&minus;</button></div>
+                      <div class="sr-map-layers">
+                        <div class="sr-map-layers-seg" role="group" aria-label="Base map">
+                          <button type="button" class="is-active">Map</button>
+                          <button type="button">Satellite</button>
+                          <button type="button">Topo (US)</button>
+                        </div>
+                        <label class="sr-map-layers-trails"><input type="checkbox"> Trails</label>
+                      </div>
+                      <div class="mk-attr">&copy; OpenStreetMap, CARTO</div>
+                      <div class="sr-map-corner-row">
+                        <div class="sr-map-fab-slot">
+                          <button type="button" class="sr-map-fab sr-map-fab--std sr-share-drop-btn" aria-pressed="false" aria-label="Drop a pin here">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+                          </button>
+                        </div>
+                        <button type="button" class="sr-map-fab sr-map-fab--std sr-map-fullscreen-btn" data-fsbtn aria-pressed="false" aria-label="Enter fullscreen">
+                          <svg class="g-max" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+                          <svg class="g-min" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7"/></svg>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="demo-side">
+            <span class="mountid">M4</span>
+            <p class="doc-label">Statistics</p>
+            <p class="doc-p">320px holding twenty ranked pins, several of which sit on top of each other at that size. Expanding is the only way to read Cape May Point apart from South Cape May Meadows.</p>
+            <p class="doc-p">Its box has no CSS class today. Giving it one is a prerequisite, not a nicety, and the loading placeholder that stands in its footprint takes the same class.</p>
+            <p class="hint"><span class="kbd">Esc</span> exits and returns focus to the toggle.</p>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ═══ 3. EXPANDED ══════════════════════════════════════════════════ -->
+    <section class="doc" id="expanded">
+      <div class="sec-head">
+        <p class="doc-label">03 &middot; The expanded state</p>
+        <h2 class="doc-h2">One rule, four mounts, no chrome of its own</h2>
+        <p class="doc-p">The expanded geometry is a single shared class, <code>.sr-map-fs-panel</code>, added alongside whichever base class the container already has. One rule means the three surfaces are identical when expanded as a property of the stylesheet rather than of anyone's discipline, and it means the iOS inset, the background and the entrance are each written once.</p>
+      </div>
+
+      <div class="tscroll">
+      <table class="spec">
+        <thead><tr><th>Declaration</th><th>Value</th><th>Why</th></tr></thead>
+        <tbody>
+          <tr><td>position, inset, height, z-index</td><td><code>fixed</code>, <code>0</code>, <code>100dvh</code>, <code>1200</code></td><td>Byte-identical to the shipped Map Explorer panel. One fullscreen geometry in the app, not two.</td></tr>
+          <tr><td>background</td><td><code>var(--sr-bg)</code></td><td>Opaque from the first frame. The surface behind is a live page, not a dimmed one, so a gutter or a slow style load must never show it.</td></tr>
+          <tr><td>border, border-radius</td><td><code>none</code>, <code>0</code></td><td>A full window map with rounded corners and a hairline shows the page ground in four corners and reads as a rendering fault. Restored exactly on collapse.</td></tr>
+          <tr><td>overflow</td><td><code>hidden</code> (kept)</td><td>The clip is what keeps the canvas and its controls inside the box. It has no bearing on the corners.</td></tr>
+          <tr><td>iOS padding</td><td>top, left, right only</td><td>Mirrors the shipped panel rule, gated on <code>.sr-ios-app</code>, never a bare <code>env()</code>. The canvas is meant to bleed to the home indicator.</td></tr>
+        </tbody>
+      </table>
+      </div>
+
+      <div class="note note--mark">
+        <p class="doc-label">A specificity trap worth naming now</p>
+        <p class="doc-p">The phone tier sets <code>.sr-map-container { height: 300px }</code> inside the <code>@media (max-width: 640px)</code> block at the very end of <code>globals.css</code>. Both that and the panel rule are one class deep, and the media block always comes last, so at phone width <strong>the expanded map would be 300px tall.</strong> The fix is to scope that one declaration <code>.sr-map-container:not(.sr-map-fs-panel)</code>, and to leave a note on the other two container rules that any future phone-tier height override owes the same guard. Raising the panel rule's specificity artificially would work and would be the wrong shape.</p>
+      </div>
+
+      <div class="note note--mark">
+        <p class="doc-label">The corner row needs its own iOS bottom inset</p>
+        <p class="doc-p">The panel pads top, left and right, deliberately. That inset reaches the base switcher and the top-left zoom stack for free, because the map fills the panel's content box, but it leaves the corner row sitting over the home indicator. So the row insets its own bottom, <strong>and only while expanded</strong>: the collapsed in-flow map already sits inside the body's own safe-area padding, and a bottom inset there would push two discs up into a 220px card map for no reason. Right is not re-inset, because the panel's own padding already moved that edge.</p>
+      </div>
+
+      <h3 class="doc-h3" style="margin-top:32px">Where the toggle is not</h3>
+      <p class="doc-p">The button exists only where a map exists. Two boxes in this feature's territory hold no map, and neither grows a control: they would offer to expand nothing.</p>
+
+      <div class="absent app">
+        <div class="absent-cell">
+          <p class="doc-label">Statistics, before the map mounts</p>
+          <div class="sr-geo-map sr-geo-map--ph" style="height:150px">
+            <span role="status">Loading map&hellip;</span>
+          </div>
+          <p class="doc-p">The placeholder is deferred to idle and must keep the exact box, so it takes the same new <code>.sr-geo-map</code> class and causes zero layout shift when the real map replaces it. No toggle, because there is nothing yet to expand.</p>
+        </div>
+        <div class="absent-cell">
+          <p class="doc-label">A named bird with no coordinates</p>
+          <div class="sr-named-map sr-named-map--empty">
+            <span>No sighting of this bird carries a location.</span>
+          </div>
+          <p class="doc-p">The card draws no map at all rather than an empty one, and the same is true of a species with no usable coordinates on Species Detail. The absent map is the reason the toggle is absent, not a separate rule to remember.</p>
+        </div>
+      </div>
+
+      <h3 class="doc-h3" style="margin-top:32px">What does not change</h3>
+      <p class="doc-p">Nothing appears, nothing disappears, nothing resizes. Not the base switcher, not the drop button, not the toggle's own size modifier. The map keeps its centre, its zoom, its open popup, its dropped share pin, its base layer and its county shading, because it is the same map instance the whole time. A control that only existed at full window would be a second feature with its own layout budget, and the map at full window is not short of room, it is short of nothing.</p>
+    </section>
+
+    <!-- ═══ 4. MOTION ════════════════════════════════════════════════════ -->
+    <section class="doc" id="motion">
+      <div class="sec-head">
+        <p class="doc-label">04 &middot; Motion</p>
+        <h2 class="doc-h2">The panel does not fly. The controls settle.</h2>
+        <p class="doc-p">The instinct is to scale the map up from the button that opened it. That instinct is wrong here for three separate reasons, and naming them is more useful than the animation would have been.</p>
+      </div>
+
+      <p class="doc-p"><strong>A scaling live canvas tears.</strong> MapLibre renders at the final size while CSS scales the element, so the tiles stretch and snap at the end of the transition, and it fights the explicit resize the feature has to perform on every mode change anyway.</p>
+      <p class="doc-p"><strong>A transform is the one property this feature is forbidden.</strong> The whole overlay depends on <code>position: fixed</code> resolving against the viewport, which any ancestor transform destroys. QA checks that specifically <em>while an entrance animation is running</em>. A transform on the panel itself is defensible on paper and costs a measurement round to prove; it is not worth it for a flourish.</p>
+      <p class="doc-p"><strong>A fade would show the page through.</strong> The panel must be opaque from frame one. Fading it in from zero opacity means the Named Birds table is visible behind a half-transparent map for eighty milliseconds, which is the exact thing the opaque-background requirement exists to prevent.</p>
+
+      <p class="doc-p">So the geometry change is instant, and what animates is the one thing that genuinely travelled: <strong>the corner row, arriving in its new corner.</strong> A 150ms rise and fade, the app's own ease-out, entrance only.</p>
+
+      <div class="tscroll">
+      <table class="spec">
+        <thead><tr><th>Interaction</th><th>Easing</th><th>Duration</th><th>Origin</th><th>Reduced motion</th><th>Implemented by</th></tr></thead>
+        <tbody>
+          <tr><td>Panel expand / collapse</td><td>none</td><td>0ms</td><td>n/a</td><td>identical</td><td>class swap</td></tr>
+          <tr><td>Corner row entrance</td><td><code>cubic-bezier(0.16, 1, 0.3, 1)</code></td><td>150ms</td><td>6px below rest</td><td>collapsed by the global block</td><td>CSS keyframe</td></tr>
+          <tr><td>Corner row exit</td><td>none</td><td>0ms</td><td>n/a</td><td>identical</td><td>class removal</td></tr>
+          <tr><td>FAB hover / press</td><td><code>cubic-bezier(0.16, 1, 0.3, 1)</code></td><td>140ms</td><td>in place</td><td>collapsed by the global block</td><td>shipped <code>.sr-map-fab</code></td></tr>
+          <tr><td>Glyph swap</td><td>none</td><td>0ms</td><td>n/a</td><td>identical</td><td><code>aria-pressed</code> selector</td></tr>
+        </tbody>
+      </table>
+      </div>
+
+      <div class="note">
+        <p class="doc-label">Why entrance only</p>
+        <p class="doc-p">Collapsing puts an in-flow box back where it was. Animating that would mean fading the page itself in, which reads as a flicker. The app already made this call once: <code>SpeciesCombobox</code>'s listbox opens on a 140ms ease-out and closes instantly. This is that rule, not a shortcut. Every animation's end state is its resting state, so the app's global reduced-motion block collapses all of it and nothing is lost. No per-component media query is added, and the design system says not to add one.</p>
+      </div>
+    </section>
+
+    <!-- ═══ 5. DECISIONS ═════════════════════════════════════════════════ -->
+    <section class="doc" id="decisions">
+      <div class="sec-head">
+        <p class="doc-label">05 &middot; Open questions</p>
+        <h2 class="doc-h2">The two that were mine</h2>
+      </div>
+
+      <div class="decision">
+        <span class="verdict">OQ-08 &middot; No</span>
+        <h3 class="doc-h3">The Named Birds card map does not gain a base switcher when expanded</h3>
+        <p class="doc-p">The strongest argument is not the one about write paths. It is that the card map <strong>does not participate in the base-map preference at all</strong>: with the switcher off, the map never reads the stored setting either, so it is always Positron regardless of what the user picked on Species Detail or the Map Explorer. Adding the control while expanded would not be revealing a setting that was already in effect. It would be introducing a second, divergent base-map state on a card, and a new write into <code>settings.json</code> from a surface that has never written one.</p>
+        <p class="doc-p">And it fails the plainer test too: a control that does not exist collapsed and appears expanded is fullscreen-specific chrome, which is out of scope by name. The card answers one question, where this individual has been seen, and the basemap is not part of that question.</p>
+      </div>
+
+      <div class="decision">
+        <span class="verdict">OQ-09 &middot; Stays compact</span>
+        <h3 class="doc-h3">The Named Birds toggle keeps <code>--compact</code> at full window</h3>
+        <p class="doc-p">There is a real argument the other way, so it is worth stating: at full window on a desktop the expanded card map would carry 30px discs where the other three carry 36px, and that is an inconsistency at exactly the moment the surfaces look most alike.</p>
+        <p class="doc-p">It loses on three counts. A control that grows under the finger that just pressed it is a second state change the user did not ask for, on the one map where the button sits closest to the edge. The touch and target floors are already met without it: at the phone tier compact is 2.5rem, which is 40px at normal text and 80px at 200%, comfortably past the 24px minimum and at the app's own touch posture. And the difference is six pixels on desktop, where nothing is being tapped.</p>
+      </div>
+
+      <div class="decision">
+        <span class="verdict">Design calls</span>
+        <h3 class="doc-h3">Four more, decided rather than deferred</h3>
+        <div class="tscroll">
+        <table class="spec">
+          <thead><tr><th>Question</th><th>Decision</th><th>Because</th></tr></thead>
+          <tbody>
+            <tr><td>Border and radius when expanded</td><td>Dropped, clip kept</td><td>Rounded corners at full window show the page ground and read as a bug.</td></tr>
+            <tr><td>One expanded class or three</td><td>One, <code>.sr-map-fs-panel</code></td><td>Makes "the three surfaces look identical expanded" a stylesheet property, and writes the iOS rule once.</td></tr>
+            <tr><td>Where the exit sits</td><td>Same corner, same button</td><td>A toggle whose exit moves is two controls wearing one name.</td></tr>
+            <tr><td>Dimming or scrim behind</td><td>Neither</td><td>There is nothing behind to dim. The panel is opaque and covers the viewport; a scrim would be a modal gesture on something that is not a modal.</td></tr>
+          </tbody>
+        </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ 6. MEASUREMENTS ══════════════════════════════════════════════ -->
+    <section class="doc" id="measures">
+      <div class="sec-head">
+        <p class="doc-label">06 &middot; Measurements</p>
+        <h2 class="doc-h2">The row at 320px and 200% text</h2>
+        <p class="doc-p">The tightest case this feature has. These are the row's own widths, which are exact because every value is in rem: at 200% in-app text scale the root is 32px. The container widths they sit inside are per surface and must be measured in a browser against the built stylesheet, not calculated here.</p>
+      </div>
+
+      <div class="measure">
+        <div class="tscroll">
+        <table class="spec">
+          <thead><tr><th>Register</th><th>Disc</th><th>Gap</th><th>Row</th><th>Anchor</th><th>From right edge</th><th>Glyph ratio</th></tr></thead>
+          <tbody>
+            <tr><td>--std, phone, 200%</td><td>2.75rem = 88.0px</td><td>10px</td><td>186.0px</td><td>16px</td><td><strong>202.0px</strong></td><td>34.0 / 88.0 = 0.386</td></tr>
+            <tr><td>--std, phone, 100%</td><td>2.75rem = 44.0px</td><td>10px</td><td>98.0px</td><td>16px</td><td>114.0px</td><td>17.0 / 44.0 = 0.386</td></tr>
+            <tr><td>--std, desktop</td><td>2.25rem = 36.0px</td><td>10px</td><td>82.0px</td><td>16px</td><td>98.0px</td><td>17.0 / 36.0 = 0.472</td></tr>
+            <tr><td>--compact, phone, 200%</td><td>2.5rem = 80.0px</td><td>10px</td><td>170.0px</td><td>12px</td><td><strong>182.0px</strong></td><td>30.0 / 80.0 = 0.375</td></tr>
+            <tr><td>--compact, phone, 100%</td><td>2.5rem = 40.0px</td><td>10px</td><td>90.0px</td><td>12px</td><td>102.0px</td><td>15.0 / 40.0 = 0.375</td></tr>
+            <tr><td>--compact, desktop</td><td>1.875rem = 30.0px</td><td>10px</td><td>70.0px</td><td>12px</td><td>82.0px</td><td>15.0 / 30.0 = 0.500</td></tr>
+          </tbody>
+        </table>
+        </div>
+        <p class="doc-p" style="margin-top:18px">The glyph ratio is constant across the two scales <em>within</em> a tier, which is the point of sizing the glyph in rem through <code>--sr-fab-glyph</code> rather than leaving it on lucide's pixel <code>size</code> attribute. It changes between the desktop and phone tiers because the phone tier grows the disc and not the glyph, which is the shipped family's own posture and not this feature's to alter. Every disc in every row clears the 24 by 24 target minimum, the smallest being the desktop compact disc at 30px, and reaches the app's roughly 44px touch posture at the phone tier.</p>
+        <p class="doc-p" style="margin-top:14px"><strong>The row wraps rather than overflowing.</strong> It carries the Map Explorer cluster's <code>flex-wrap</code> and <code>max-width</code> pair, so if it ever cannot fit, the second disc drops to a line below, still right-aligned, still reachable. Without that pair it would overflow to the <em>left</em>, off the edge of the map, where page <code>scrollWidth</code> would still read a clean 320 and certify a broken build. The arithmetic: it wraps only if the container's content width falls below <strong>218px</strong> in the standard register or <strong>194px</strong> in compact. Measured here it does not wrap at any theme, tier or scale, but the container widths belong to three different hosts, so whether that holds is the Tester's measurement, not this page's claim.</p>
+      </div>
+
+      <div class="note">
+        <p class="doc-label">Both themes</p>
+        <p class="doc-p">The map canvas is the always-light basemap whatever the app theme is, so in dark mode the expanded panel is a light map inside a dark app. That is the shipped Map Explorer appearance, and the controls carry it: a <code>--sr-surface</code> disc reads as near black on the light canvas in dark theme and as white with a hairline and the family's shadow in light theme. Neither is new, and the panel's <code>--sr-bg</code> ground is only ever visible for the moment before a style resolves. Flip the theme control above with a map expanded to see it.</p>
+      </div>
+
+      <p class="doc-p" style="margin-top:26px">The feature adds no token, no shadow, no new colour value and no new font size. Every declaration it introduces is either a token reference or a geometry value copied from a shipped rule.</p>
+
+      <div class="note">
+        <p class="doc-label">Provenance of the numbers above</p>
+        <p class="doc-p">Measured against this file in Chromium and WebKit through Playwright, at 1280px and 320px, at 100% and 200% in-app text scale, in both themes: twelve runs, identical in both engines. Also confirmed on every run, with a map expanded: the panel's rect equals the viewport rect exactly, no ancestor of the panel carries a <code>transform</code>, <code>filter</code>, <code>backdrop-filter</code>, <code>perspective</code>, <code>contain</code> or <code>will-change</code>, page <code>scrollWidth</code> never exceeds <code>innerWidth</code>, no control's box leaves its map, and no interactive target falls under 24 by 24. Escape collapses, focus returns to the toggle, the collapsed box measures identical to its pre-expand box, and <code>document.body</code>'s captured <code>overflow</code> is restored rather than assumed.</p>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <p style="margin:0 0 6px"><strong style="color:var(--doc-ink)">Design system: extended, not evolved.</strong> No deviation to log.</p>
+      <p style="margin:0">One reproduction detail: the shipped <code>.sr-map-fab</code> base shadow is a legacy pure black <code>rgba(0,0,0,0.18)</code>, predating the house rule that every shadow is tinted with the app's own ink. This mockup draws it with the ink value. The feature changes neither, since that rule is shared with the Map Explorer cluster and touching it would move shipped pixels there.</p>
+    </footer>
+
+    </main>
+  </div>
+</div>
+
+<div class="exitbar" role="status">
+  <span>Fullscreen. Press <span class="kbd">Esc</span> or the toggle to exit.</span>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ── Masthead controls ────────────────────────────────────────────── */
+  function bindSeg(attr, apply) {
+    var btns = Array.prototype.slice.call(document.querySelectorAll('[' + attr + ']'));
+    btns.forEach(function (b) {
+      b.addEventListener('click', function () {
+        btns.forEach(function (o) { o.setAttribute('aria-pressed', String(o === b)); });
+        apply(b.getAttribute(attr));
+      });
+    });
+  }
+  bindSeg('data-theme-btn', function (v) { document.documentElement.setAttribute('data-theme', v); });
+  bindSeg('data-scale-btn', function (v) {
+    document.documentElement.setAttribute('data-scale', v);
+    document.documentElement.style.setProperty('--sr-text-scale', v);
+  });
+  bindSeg('data-vp-btn', function (v) { document.documentElement.setAttribute('data-vp', v); });
+
+  /* ── Stand-in basemaps ─────────────────────────────────────────────
+     Drawn, not fetched: the real surface is a MapLibre canvas. Shapes
+     differ per mount so the three demos do not read as one screenshot. */
+  var SCENES = {
+    coast: { water: 'M300 0 L520 0 L520 420 L250 420 C300 340 250 250 320 180 C370 128 280 60 300 0 Z',
+             river: 'M300 420 C330 330 268 268 336 196 C382 146 320 74 340 0',
+             parks: ['M40 60 h120 v86 h-120 Z', 'M60 250 h96 v76 h-96 Z'],
+             roads: ['M0 118 H520', 'M0 268 H520', 'M118 0 V420', 'M212 0 V420', 'M0 348 H520'],
+             labels: [[46,104,'Puget Sound'],[46,296,'Nisqually'],[356,150,'Olympia']],
+             pins: [[22,34],[27,52],[19,66],[34,44],[41,58],[15,44],[30,71],[45,36],[24,80],[38,26],[12,55],[47,72]] },
+    woods: { water: 'M0 200 C90 176 120 234 220 210 C310 190 360 226 520 206 L520 260 L0 260 Z',
+             river: 'M60 0 C96 60 62 110 110 158 C150 198 118 240 140 260',
+             parks: ['M180 30 h190 v110 h-190 Z'],
+             roads: ['M0 96 H520', 'M0 240 H520', 'M300 0 V260', 'M96 0 V260'],
+             labels: [[188,60,'Wharton State Forest'],[24,132,'Batsto']],
+             pins: [[38,42],[44,56],[33,64],[49,38],[41,72],[36,52]] },
+    ranked: { water: 'M0 300 C120 268 220 320 340 292 C430 272 480 300 520 288 L520 380 L0 380 Z',
+             river: 'M420 0 C400 70 442 120 408 180 C380 230 412 280 396 380',
+             parks: ['M30 40 h130 v92 h-130 Z','M330 60 h140 v70 h-140 Z'],
+             roads: ['M0 140 H520','M0 250 H520','M150 0 V380','M270 0 V380','M0 60 H520'],
+             labels: [[36,80,'Cape May Point'],[336,102,'Brigantine'],[40,332,'Delaware Bay']],
+             ranks: [[16,30,1,0],[29,22,2,1],[41,36,3,0],[24,48,4,1],[52,28,5,0],[36,58,6,0],[62,44,7,1],[46,70,8,0],[70,34,9,0],[58,64,10,1],[80,50,11,0],[33,78,12,0]] }
+  };
+
+  function draw(el, key) {
+    var s = SCENES[key]; if (!s) return;
+    var ns = 'http://www.w3.org/2000/svg';
+    var svg = document.createElementNS(ns, 'svg');
+    svg.setAttribute('class', 'mk-svg');
+    svg.setAttribute('viewBox', '0 0 520 ' + (key === 'ranked' ? 380 : key === 'woods' ? 260 : 420));
+    svg.setAttribute('preserveAspectRatio', 'xMidYMid slice');
+    svg.setAttribute('aria-hidden', 'true');
+    function add(tag, attrs) {
+      var n = document.createElementNS(ns, tag);
+      for (var k in attrs) n.setAttribute(k, attrs[k]);
+      svg.appendChild(n); return n;
+    }
+    add('rect', { x: 0, y: 0, width: 520, height: 420, fill: 'var(--mk-land)' });
+    (s.parks || []).forEach(function (d) { add('path', { d: d, fill: 'var(--mk-park)' }); });
+    add('path', { d: s.water, fill: 'var(--mk-water)' });
+    (s.roads || []).forEach(function (d) {
+      add('path', { d: d, stroke: 'var(--mk-road-edge)', 'stroke-width': 5, fill: 'none' });
+      add('path', { d: d, stroke: 'var(--mk-road)', 'stroke-width': 3, fill: 'none' });
+    });
+    add('path', { d: s.river, stroke: 'var(--mk-water)', 'stroke-width': 7, fill: 'none', 'stroke-linecap': 'round' });
+    (s.labels || []).forEach(function (l) {
+      var t = add('text', { x: l[0], y: l[1], fill: 'var(--mk-label)', 'font-size': 11.5,
+        'font-family': "'Inter', system-ui, sans-serif", 'font-weight': 500, 'letter-spacing': 0.3 });
+      t.textContent = l[2];
+    });
+    el.insertBefore(svg, el.firstChild);
+
+    (s.pins || []).forEach(function (p) {
+      var d = document.createElement('div');
+      d.className = 'mk-pin'; d.style.left = p[0] + '%'; d.style.top = p[1] + '%';
+      d.setAttribute('aria-hidden', 'true');
+      d.innerHTML = '<svg viewBox="0 0 24 30"><path d="M12 1c5 0 9 4 9 9 0 6.6-9 19-9 19S3 16.6 3 10c0-5 4-9 9-9Z" fill="var(--sr-map-pin-visited)" stroke="var(--sr-map-pin-stroke)" stroke-width="1.4"/><circle cx="12" cy="10" r="3.4" fill="#FFFFFF"/></svg>';
+      el.insertBefore(d, el.firstChild.nextSibling);
+    });
+    (s.ranks || []).forEach(function (p) {
+      var d = document.createElement('div');
+      d.className = 'mk-rank' + (p[3] ? ' is-sq' : '');
+      d.style.left = p[0] + '%'; d.style.top = p[1] + '%';
+      d.setAttribute('aria-hidden', 'true');
+      d.textContent = p[2];
+      el.insertBefore(d, el.firstChild.nextSibling);
+    });
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('[data-mk]'), function (el) {
+    draw(el, el.getAttribute('data-mk'));
+  });
+
+  /* ── Fullscreen behaviour, as specified ────────────────────────────
+     Class swap on the container, no remount, no portal, no DOM move.
+     Escape on a bubble-phase document listener armed only while
+     expanded. Focus trap re-queries per Tab keydown. Body overflow
+     captured and restored, never assumed. */
+  var FOCUSABLE = 'button, a[href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+  var openRoot = null, openBtn = null, prevOverflow = null;
+
+  function focusables(root) {
+    return Array.prototype.filter.call(root.querySelectorAll(FOCUSABLE), function (el) {
+      return !el.hasAttribute('disabled') && el.getClientRects().length > 0;
+    });
+  }
+
+  function onKey(e) {
+    if (!openRoot) return;
+    if (e.key === 'Escape') { e.preventDefault(); collapse(); return; }
+    if (e.key !== 'Tab') return;
+    var f = focusables(openRoot);
+    if (f.length < 2) return;
+    var first = f[0], last = f[f.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  }
+
+  function expand(root, btn) {
+    if (openRoot) collapse();
+    openRoot = root; openBtn = btn;
+    prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    document.body.classList.add('is-fs');
+    root.classList.add('sr-map-fs-panel');
+    btn.setAttribute('aria-pressed', 'true');
+    btn.setAttribute('aria-label', 'Exit fullscreen');
+    btn.setAttribute('title', 'Exit fullscreen');
+    document.addEventListener('keydown', onKey, false);
+  }
+
+  function collapse() {
+    if (!openRoot) return;
+    var root = openRoot, btn = openBtn;
+    document.removeEventListener('keydown', onKey, false);
+    root.classList.remove('sr-map-fs-panel');
+    document.body.style.overflow = prevOverflow === null ? '' : prevOverflow;
+    document.body.classList.remove('is-fs');
+    openRoot = null; openBtn = null; prevOverflow = null;
+    if (btn) {
+      btn.setAttribute('aria-pressed', 'false');
+      btn.setAttribute('aria-label', 'Enter fullscreen');
+      btn.setAttribute('title', 'Enter fullscreen');
+      btn.focus();
+    }
+  }
+
+  Array.prototype.forEach.call(document.querySelectorAll('[data-fsbtn]'), function (btn) {
+    btn.addEventListener('click', function () {
+      var root = btn.closest('[data-fsroot]');
+      if (!root) return;
+      if (root === openRoot) collapse(); else expand(root, btn);
+    });
+  });
+
+  /* The share drop button, so the row has two real controls to tab between. */
+  Array.prototype.forEach.call(document.querySelectorAll('.sr-map-corner-row .sr-share-drop-btn'), function (b) {
+    b.addEventListener('click', function () {
+      var on = b.getAttribute('aria-pressed') === 'true';
+      b.setAttribute('aria-pressed', String(!on));
+      b.setAttribute('aria-label', !on ? 'Remove the pin' : 'Drop a pin here');
+    });
+  });
+})();
+</script>
+</body>
+</html>

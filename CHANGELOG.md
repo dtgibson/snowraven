@@ -2,6 +2,14 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [1.0.15] - 2026-09-02
+
+### Added
+- **Make a small map fill the window.** Three of the maps that live in a box on a scrolling page now expand: Species Detail's Sighting Locations map (in both Pins and Heatmap view), the Statistics Geographic Stats map, and the per-individual map on a Named Birds card. Each has a fullscreen button in its bottom-right corner, next to the share button, the same one the Map Explorer has always had. Press it and the map you are already looking at fills the window: the same pins, the same base map, the same centre and zoom, a popup still open, a share pin still dropped, the county shading exactly as you set it. Press it again and the map goes back into its box the size it was, keeping whatever you did while it was expanded. Nothing is re-loaded and nothing is re-drawn from scratch, so there is no jump back to the starting view and no second download of the county outlines. Escape closes it too and puts the keyboard focus back on the button you pressed, and while a map is expanded the Tab key stays inside it. Expanded, the map zooms with the scroll wheel and pans with one finger, because there is no page behind it to scroll; back in its box it goes back to the two-finger pan that keeps a thumb-scroll moving the page. On iPhone and iPad the controls stay clear of the status bar, the Dynamic Island and the home indicator in both rotations. The controls that sit beside a map rather than on it, like the Heatmap Intensity slider and the Counties switches, stay on the page: set them before you expand. The Map Explorer is unchanged.
+
+### Fixed
+- **Opening a pin on a map no longer throws away where you had scrolled to.** On Species Detail's Sighting Locations map and the Named Birds card map, clicking a pin to read its dates snapped the map back to the view it started at, undoing any panning or zooming you had done to get there. The map now stays exactly where you put it.
+
 ## [1.0.14] - 2026-09-02
 
 ### Fixed

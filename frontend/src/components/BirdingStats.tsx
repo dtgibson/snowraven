@@ -1,4 +1,4 @@
-import { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react'
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import {
   BarChart2, Trophy, Clock, MapPin, ShieldCheck, Dna,
   AlertCircle, Loader2, ChevronDown, ChevronUp, Calendar, Video,
@@ -10,7 +10,8 @@ import {
 } from 'recharts'
 import { Marker, Popup } from 'react-map-gl/maplibre'
 import { SnowMap } from './SnowMap'
-import { SharePin } from './map/SharePin'
+import { MapCornerControls } from './map/MapCornerControls'
+import { useMapFullscreen, MapFullscreenProvider } from '../lib/useMapFullscreen'
 // STATIC imports, deliberately (FR-21): entryChunk.test.ts's walker follows
 // STATIC edges only, so its guard-the-guard ("this host's subtree reaches
 // CountyLayer") is satisfiable only this way. Safe because this component is
@@ -483,6 +484,36 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
 
   // Geographic stats
   const geo = useMemo(() => computeGeo(checklists, filteredObs), [checklists, filteredObs])
+
+  // Fullscreen for the Geographic Stats map. The pin test is lifted to this
+  // level from the IIFE that renders the map (hooks cannot live in there) and
+  // asks the same question the two ranked-pin arrays answer: is there a pin with
+  // a coordinate? Together with `mapReady` that is FR-05's "no map, no toggle" —
+  // the loading placeholder draws no map, so it offers nothing to expand.
+  const geoHasPins = useMemo(
+    () => geo.topLocations.some(l => l.lat !== null) || geo.topLocationsBySpecies.some(l => l.lat !== null),
+    [geo],
+  )
+  const geoMapRef = useRef<HTMLDivElement>(null)
+  const geoFs = useMapFullscreen({
+    containerRef: geoMapRef,
+    baseClass: 'sr-geo-map',
+    active: mapReady && geoHasPins,
+  })
+
+  // Opening a species from the county popup leaves this tab entirely, so the
+  // expanded map must collapse and release its scroll lock and Escape handler on
+  // the way out. The tab does unmount, so the hook's own teardown would cover it
+  // — this makes the release deterministic and observable rather than racing a
+  // lazy tab teardown. `undefined` in, `undefined` out, so CountyLayer's own
+  // gating on the prop is unchanged.
+  const collapseGeoFs = geoFs.collapse
+  const handleGeoOpenSpecies = useMemo(
+    () => (onOpenSpecies
+      ? (commonName: string) => { collapseGeoFs(); onOpenSpecies(commonName) }
+      : undefined),
+    [collapseGeoFs, onOpenSpecies],
+  )
 
   // ── County shading for the Geographic Stats map (FR-14, FR-15) ────────────
   // Built from the EXACT `filteredObs` / `checklists` memos that feed
@@ -1131,11 +1162,16 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
           if (clPins.length === 0 && spPins.length === 0) return null
           return (
             <div style={{ marginBottom: 20 }}>
-              {/* Idle-deferred map: the placeholder keeps the EXACT box (height
-                  320, border, radius) so the SnowMap mount causes zero layout
-                  shift. mapReady flips on requestIdleCallback after `computed`. */}
+              {/* Idle-deferred map: the placeholder keeps the EXACT box so the
+                  SnowMap mount causes zero layout shift. Both boxes now carry the
+                  SAME `.sr-geo-map` class rather than two hand-kept copies of an
+                  inline style, so they agree by construction; the class also
+                  exists because an inline `height: 320px` is specificity 1,0,0
+                  and could never be beaten by the expanded panel's `100dvh`.
+                  mapReady flips on requestIdleCallback after `computed`. */}
               {mapReady ? (
-                <div style={{ height: 320, borderRadius: 8, overflow: 'hidden', border: '1px solid var(--sr-border)' }}>
+                <div ref={geoMapRef} className={geoFs.className}>
+                  <MapFullscreenProvider value={geoFs}>
                   <SnowMap
                     initialViewState={{ longitude: 0, latitude: 20, zoom: 1 }}
                     style={{ width: '100%', height: '100%' }}
@@ -1181,19 +1217,22 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
                           metric={countyMetric}
                           useTextures={countyUseTextures}
                           isPublicHotspot={isHotspot}
-                          onOpenSpecies={onOpenSpecies}
+                          onOpenSpecies={handleGeoOpenSpecies}
                           taxonCodeFor={codeFor}
                         />
                         <BasemapDesaturation active={countyShadeOn} />
                       </>
                     )}
-                    {/* Pin Share, surface E. No reset key needed: this map has no
-                        entity behind it that can change under a mounted map. */}
-                    <SharePin compact={false} buttonHost="corner" />
+                    {/* The corner row: the share-pin drop button (surface E),
+                        then the fullscreen toggle. No share-pin reset key
+                        needed: this map has no entity behind it that can change
+                        under a mounted map. */}
+                    <MapCornerControls compact={false} />
                   </SnowMap>
+                  </MapFullscreenProvider>
                 </div>
               ) : (
-                <div style={{ height: 320, borderRadius: 8, overflow: 'hidden', border: '1px solid var(--sr-border)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div className="sr-geo-map" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <span role="status" style={{ fontSize: '0.8125rem', color: 'var(--sr-text-muted)' }}>Loading map…</span>
                 </div>
               )}

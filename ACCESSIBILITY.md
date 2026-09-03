@@ -64,7 +64,7 @@ A **Disable embedded media** switch in Settings (**off by default**) turns them 
 
 ## Focus Management
 
-Where focus matters, SnowRaven manages it deliberately. Opening the Map Explorer's filter panel on a small screen moves focus into the panel and keeps it there while open; closing it (with Escape, the Close button, or by tapping the backdrop) returns focus to the button that opened it. Escape also exits map fullscreen and returns focus to the fullscreen toggle, so a keyboard user is never dropped to the page body.
+Where focus matters, SnowRaven manages it deliberately. Opening the Map Explorer's filter panel on a small screen moves focus into the panel and keeps it there while open; closing it (with Escape, the Close button, or by tapping the backdrop) returns focus to the button that opened it. Escape also exits map fullscreen and returns focus to the fullscreen toggle, so a keyboard user is never dropped to the page body. That holds on every map that has a fullscreen button: the Map Explorer, Species Detail's Sighting Locations map in both its Pins and Heatmap views, the Statistics Geographic Stats map, and the per-individual map on a Named Birds card. On those last three the expanded map also keeps the Tab key inside it, because unlike the Map Explorer the page it covers is still there behind it; the set of controls it can reach is re-read each time rather than remembered, so controls that appear and disappear while the map is open (a pin's popup, the share pin) are included as they come and go. Where switching the map's view replaces the fullscreen button itself, as Species Detail's Pins and Heatmap views do, Escape still lands on the button that is on screen rather than on the one that opened it.
 
 ---
 
