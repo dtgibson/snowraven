@@ -174,11 +174,12 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
 
         const [ebird, ml] = await Promise.all([
           loadEbirdObservations(),
-          // .catch: loadMLExport catches parse errors but not the file-read IO (the
-          // read sits outside its try), so an ML failure must degrade to no-media
-          // here rather than reject this Promise.all into the outer catch, which
-          // would claim there is no eBird backup while one is plainly loaded.
-          // Reachable on web/Pi, where WebStorage.readFile is a bare fetch.
+          // .catch: defense in depth, and deliberately kept. Since v1.0.15 the read
+          // sits INSIDE loadMLExport's own try, so it resolves null on a read or a
+          // parse failure and this guard has nothing left to catch. It stays because
+          // the cost of being wrong is asymmetric: a rejection here rejects the whole
+          // Promise.all into the outer catch, which claims there is no eBird backup
+          // while one is plainly loaded — over a shared seam four tabs read through.
           status.ml ? loadMLExport().catch(() => null) : Promise.resolve(null),
         ])
 

@@ -172,8 +172,10 @@ export function firstLine(content: string): string {
  * NOT retained (see the note above).
  *
  * Returns null when the backup cannot be handed back: no eBird file is stored, OR
- * the stored file could not be parsed (the worker died, the reply was unreadable,
- * the CSV was not an eBird export). ONE falsy answer for both, deliberately: every
+ * the stored file could not be READ (the backend was unreachable, the body was
+ * truncated mid-download), OR it could not be parsed (the worker died, the reply
+ * was unreadable, the CSV was not an eBird export). This promise structurally
+ * cannot reject. ONE falsy answer for all of them, deliberately: every
  * tab already reads a falsy result as "couldn't load your eBird backup from
  * Settings", whereas a THROWN load lands in each tab's outer catch, which maps to
  * `setup-required` — telling the user to upload a backup they plainly already have.
@@ -190,15 +192,22 @@ export async function loadEbirdObservations(): Promise<LoadedEbird | null> {
 }
 
 async function loadFresh(myGen: number): Promise<LoadedEbird | null> {
-  const text = await storage.readFile('ebird')
-  if (text === null) return null
+  let text: string
   let observations: ObservationEntry[]
+  // The READ is inside this try, not above it. It used to sit outside, so a read
+  // rejection was the one failure in here that escaped as a throw — and on web/Pi
+  // that is an ordinary event, not an exotic one: `WebStorage.readFile` is a bare
+  // `fetch` + `res.text()`, so an unreachable backend rejects the fetch and a body
+  // truncated mid-download rejects the text, over a ~6 MB CSV served off a Pi.
   try {
+    const read = await storage.readFile('ebird')
+    if (read === null) return null
+    text = read
     observations = await parseOffThread(text)
   } catch {
-    // A parse that failed for any reason — including a worker that died without
-    // saying so — is reported as "no usable backup", never as a throw. See the
-    // note on loadEbirdObservations for why the distinction matters to the tabs.
+    // A read or parse that failed for any reason — including a worker that died
+    // without saying so — is reported as "no usable backup", never as a throw. See
+    // the note on loadEbirdObservations for why the distinction matters to the tabs.
     // Nothing is cached, so the next caller re-reads and re-parses.
     return null
   }

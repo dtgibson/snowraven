@@ -422,8 +422,10 @@ export function Checklists({ onGoToSettings, filesVersion, onOpenSpecies }: {
         // Load the eBird backup and the optional ML export concurrently (matches
         // BirdingStats/MapExplorer/SpeciesDetail). The ML export is optional:
         // without it, per-type media filters hide and "has media" falls back to
-        // the backup's catalog numbers (FR-22). loadMLExport catches parse errors
-        // but not file-read IO, so guard it with .catch to degrade gracefully.
+        // the backup's catalog numbers (FR-22). The .catch is defense in depth:
+        // since v1.0.15 loadMLExport resolves null on a read OR a parse failure, and
+        // the guard stays so a regression in that shared seam can never reject this
+        // Promise.all into the outer catch and claim the backup is missing.
         const [ebird, ml] = await Promise.all([
           loadEbirdObservations(),
           loadMLExport().catch(() => null),

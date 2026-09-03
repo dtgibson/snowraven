@@ -71,7 +71,9 @@ export function NamedBirds({ onGoToSettings, filesVersion, onOpenSpecies, embedA
         setPhase({ tag: 'ready', birds })
         if (birds.length > 0) fetchTaxonCodes(birds)
         // Optional ML media join — loaded independently, never gating the tab. A
-        // missing/unparseable export leaves mlRows null (no media section anywhere).
+        // missing, unreadable or unparseable export leaves mlRows null (no media
+        // section anywhere): since v1.0.15 loadMLExport resolves null for all three,
+        // so the try/catch below is defense in depth rather than the live path.
         try {
           const ml = await loadMLExport()
           if (!cancelled) setMlRows(ml?.rows ?? null)

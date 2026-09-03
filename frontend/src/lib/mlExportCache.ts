@@ -9,8 +9,9 @@ let cache: MLExportResult | null = null
 let inflight: Promise<MLExportResult | null> | null = null
 let generation = 0
 
-/** Parsed ML export, memoized. Returns null when no ML file is stored (or it's
- * unparseable — the ML export is optional, so callers treat null as "no media"). */
+/** Parsed ML export, memoized. Returns null when no ML file is stored, when the
+ * stored file could not be read, or when it is unparseable — the ML export is
+ * optional, so callers treat null as "no media". This promise cannot reject. */
 export async function loadMLExport(): Promise<MLExportResult | null> {
   if (cache) return cache
   if (!inflight) {
@@ -20,13 +21,17 @@ export async function loadMLExport(): Promise<MLExportResult | null> {
 }
 
 async function loadFresh(myGen: number): Promise<MLExportResult | null> {
-  const text = await storage.readFile('ml')
-  if (text === null) return null
   let result: MLExportResult | null
+  // The READ is inside this try, not above it. It used to sit outside, so a read
+  // rejection escaped as a throw while the docstring promised null — and on web/Pi
+  // that is an ordinary event: `WebStorage.readFile` is a bare `fetch` + `res.text()`,
+  // so an unreachable backend rejects the fetch and a truncated body rejects the text.
   try {
+    const text = await storage.readFile('ml')
+    if (text === null) return null
     result = parseMLExport(text)
   } catch {
-    result = null // ML export is optional; an unparseable file is treated as none
+    result = null // ML export is optional; an unreadable or unparseable file is treated as none
   }
   if (myGen === generation && result) cache = result
   return result
