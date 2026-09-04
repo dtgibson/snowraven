@@ -6,7 +6,7 @@
 // Reports what it observes. A null result (WebKit tabbing to everything) is a
 // real outcome and is reported as such, not as a pass.
 import { createRequire } from 'node:module'
-const require = createRequire('/Users/developer/devwork/snowraven/website/tools/')
+const require = createRequire(new URL('../../website/tools/', import.meta.url))
 const { webkit, chromium } = require('playwright')
 
 const PAGE = `<!doctype html><meta charset=utf-8><title>t</title><body>
