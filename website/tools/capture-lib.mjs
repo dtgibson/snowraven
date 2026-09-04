@@ -18,43 +18,109 @@ export async function makePage(browser, theme, vp, deviceScaleFactor = 2) {
   return { ctx, p };
 }
 
-// Select a tab by its EXACT rendered text, in whichever form the nav is showing:
-// the horizontal strip (wide viewports) or the collapsed dropdown (narrow ones,
-// and any viewport too small for the strip). Waits for the nav to exist first,
-// so it cannot race the initial CSV load.
+// Select a destination by its EXACT rendered text, in whichever form the
+// navigation is showing. Waits for the nav to exist first, so it cannot race the
+// initial CSV load.
 //
-// A miss THROWS. It used to return false, which meant a renamed label — or a nav
-// that had collapsed to a dropdown — silently yielded a screenshot of whatever
+// THREE FORMS, because the nav is one component at three densities (nav-rework):
+//   * the vertical SIDEBAR and the icon RAIL are both a role="tablist" of
+//     role="tab" buttons. The rail's buttons have no visible text, so match the
+//     aria-label as well as the text content — this is the case the old
+//     strip-only matcher would have failed on with a plausible-looking error.
+//   * the phone BOTTOM BAR holds four favourites plus a More button that opens a
+//     sheet. A destination is either a cell or a row of that sheet, so try the
+//     bar first and open the sheet only if it is not there.
+//
+// A miss THROWS. It used to return false, which meant a renamed label, or a nav
+// in a shape the matcher did not know, silently yielded a screenshot of whatever
 // tab was already open, with an exit code of 0. Both of those actually happened.
 // A wrong-but-plausible screenshot is far worse than a missing one, so this fails
 // loudly instead. (Still check the output images by eye: this catches the
 // wrong-tab class of failure, not a tab that rendered badly.)
 export async function selectTab(p, name) {
-  await p.waitForSelector('[role="tab"], button[aria-haspopup="listbox"]', { timeout: 30000 });
+  await p.waitForSelector('[role="tab"], .sr-navbar-cell', { timeout: 30000 });
 
-  const strip = await p.$$('[role="tab"]');
-  if (strip.length) {
-    const seen = [];
-    for (const h of strip) {
-      const text = (await h.textContent() || '').trim();
+  // The name a control offers: its visible text, else its accessible label (the
+  // rail draws icons only).
+  const nameOf = async h =>
+    ((await h.textContent()) || '').trim() || ((await h.getAttribute('aria-label')) || '').trim();
+
+  const clickMatch = async (handles, seen) => {
+    for (const h of handles) {
+      const text = await nameOf(h);
       seen.push(text);
-      if (text === name) { await h.click(); return; }
+      if (text === name) { await h.click(); return true; }
     }
-    throw new Error(`tab "${name}" not in the tab strip — saw: ${seen.join(' | ')}`);
+    return false;
+  };
+
+  // Sidebar / rail: one vertical tablist holding every destination.
+  const tabs = await p.$$('[role="tab"]');
+  if (tabs.length) {
+    const seen = [];
+    if (await clickMatch(tabs, seen)) return;
+    throw new Error(`destination "${name}" not in the nav list — saw: ${seen.join(' | ')}`);
   }
 
-  // Collapsed nav: open the listbox, then pick the option.
-  const trigger = await p.$('button[aria-haspopup="listbox"]');
-  if (!trigger) throw new Error(`no tab strip and no nav dropdown while looking for "${name}"`);
-  await trigger.click();
-  await p.waitForTimeout(400);
+  // Phone: the four favourites in the bar, then the More sheet for the rest.
   const seen = [];
-  for (const o of await p.$$('[role="option"], [role="listbox"] button, [role="listbox"] li')) {
-    const text = (await o.textContent() || '').trim();
-    seen.push(text);
-    if (text === name) { await o.click(); return; }
+  if (await clickMatch(await p.$$('.sr-navbar-cell'), seen)) return;
+
+  const more = await p.$('.sr-navbar button[aria-haspopup="dialog"]');
+  if (!more) throw new Error(`no nav list and no bottom bar while looking for "${name}"`);
+  await more.click();
+  await p.waitForSelector('[role="dialog"] .sr-nav-item', { timeout: 5000 });
+  await p.waitForTimeout(400);   // let the sheet finish rising
+  if (await clickMatch(await p.$$('[role="dialog"] .sr-nav-item'), seen)) return;
+  throw new Error(`destination "${name}" not in the bottom bar or the More sheet — saw: ${seen.join(' | ')}`);
+}
+
+// ---- demo-dataset guard: fail closed BEFORE the first frame ----
+//
+// SHARED, and that is the point (security review, nav-rework). A capture script
+// photographs whatever backend it is pointed at. Pointed at one serving a real
+// export — the exact mistake SR_DATA_DIR exists to prevent — it produces
+// correctly-dimensioned, publishable images of real personal sighting locations
+// and exits 0. This guard lived only in capture-appstore.mjs while capture.mjs,
+// which writes every image on the public website, had nothing but a
+// sanity-check-by-eye instruction in the README. It lives here now so that EVERY
+// script writing a published artifact gets it, including the next one.
+//
+// The marker is STRUCTURAL rather than a species or checklist count, which
+// legitimately moves whenever the generator is re-run: gen-demo-data.mjs issues
+// submission ids above eBird's live allocation (S9xxxxxxxxx), so no real export
+// can carry them. Read from the BACKEND, not from the CSV on disk — the file
+// being demo data proves nothing about what the server is serving, which is the
+// process-hygiene failure a leftover backend on the same port produces.
+//
+// Fails closed in all three directions: demo data passes, a non-demo export is
+// refused by id range, and a backend that cannot be read at all is refused
+// rather than assumed empty.
+export async function assertBackendServesDemoData(base, log = console.log) {
+  let csv;
+  try {
+    const res = await fetch(`${base}/settings/files/ebird`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    csv = await res.text();
+  } catch (e) {
+    throw new Error(
+      `could not read the backend's eBird export from ${base} to verify it is the demo dataset: ${e.message}`);
   }
-  throw new Error(`tab "${name}" not in the nav dropdown — saw: ${seen.join(' | ')}`);
+  const ids = new Set();
+  for (const line of csv.split('\n').slice(1)) {
+    const sub = line.slice(0, line.indexOf(','));
+    if (sub.startsWith('S')) ids.add(sub);
+  }
+  if (ids.size === 0) throw new Error('no submission ids found in the backend export — refusing to capture');
+  const foreign = [...ids].filter(id => !/^S9\d{9}$/.test(id));
+  if (foreign.length) {
+    throw new Error(
+      `backend at ${base} is NOT serving the synthetic demo dataset ` +
+      `(${foreign.length} of ${ids.size} submission ids are outside the demo range, e.g. ${foreign[0]}). ` +
+      `Refusing to capture. Start the backend with ` +
+      `SR_DATA_DIR=<repo>/website/tools/demo-data before running this script.`);
+  }
+  log(`demo-dataset guard OK (${ids.size} synthetic checklists)`);
 }
 
 // ---- demo exotic-provenance stub (shared by both capture scripts) ----

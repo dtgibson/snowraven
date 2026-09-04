@@ -9,7 +9,7 @@
 // Output: ./shots/*.png  (then run process-img.mjs to make the WebP assets).
 import { chromium } from 'playwright';
 import { mkdirSync } from 'node:fs';
-import { GL, makePage, selectTab, buildProvenanceStub, installProvenanceRoutes } from './capture-lib.mjs';
+import { GL, makePage, selectTab, buildProvenanceStub, installProvenanceRoutes, assertBackendServesDemoData } from './capture-lib.mjs';
 
 const BASE = process.env.BASE || 'http://localhost:1620';
 const CHECKLIST = process.env.CHECKLIST || 'S354229002'; // coastal -> shows tide
@@ -23,13 +23,38 @@ const WEATHER_REPLAY = process.env.WEATHER_REPLAY === '1';
 const OUT = new URL('./shots/', import.meta.url).pathname;
 mkdirSync(OUT, { recursive: true });
 
-// Desktop capture width. LOAD-BEARING, not arbitrary: TabNav collapses the tab
-// strip into a dropdown the moment it would overflow (needed > clientWidth - 48).
-// With the current ten tabs + Settings the strip needs ~1409px, so it collapses
-// below a ~1457px viewport — the old 1440 capture width now lands on the WRONG
-// side of that line and photographs a dropdown instead of the navigation. 1600
-// clears it with headroom. If a future tab pushes the strip past ~1550, raise
-// this (the shots are downscaled to 1600px wide, so going wider is cheap).
+// FAIL CLOSED BEFORE THE FIRST FRAME. Every image on the public website is
+// written by this script, so a backend accidentally serving a real export would
+// publish real sighting locations and exit 0. The README's sanity-check-by-eye
+// was the only thing standing here until the security review in nav-rework; the
+// structural id-range guard is shared with capture-appstore.mjs and lives in
+// capture-lib.mjs.
+// (uses the default console.log — `log` is declared further down.)
+await assertBackendServesDemoData(BASE);
+
+// Desktop capture width. STILL LOAD-BEARING, for a different reason than before.
+//
+// It used to be a race against the tab strip's overflow: the strip needed
+// ~1409px and collapsed into a dropdown below a ~1457px viewport, so the old
+// 1440 width silently photographed a dropdown instead of the navigation, and
+// 1600 was chosen to clear that line. The strip and its dropdown are gone
+// (nav-rework), so that threshold no longer exists.
+//
+// What the width now decides is WHICH DENSITY of the one responsive nav gets
+// photographed. The nav shows the labelled sidebar while
+//
+//     viewport - 13.5rem - (the active tab's own sidebar) >= 640
+//
+// and the icon rail otherwise, where 13.5rem is 216px at the capture's 1x scale
+// and the Map Explorer reserves clamp(240px, 28vw, 300px) for its own sidebar.
+// The binding case is therefore the map shot: it needs at least ~1156px, while
+// every other tab needs ~856px. 1600 photographs the sidebar on every tab with
+// roughly 440px of headroom on the tightest one.
+//
+// So: keep this comfortably above ~1156. Going wider is cheap (the shots are
+// downscaled to 1600px), and going below ~1156 does not fail loudly — it
+// quietly photographs the rail, which is a real density but not the one these
+// shots are meant to show. Check the images.
 const DESKTOP_VP = { width: 1600, height: 900 };
 
 // page()/selectTab() and the GL flags live in capture-lib.mjs (shared with
@@ -98,14 +123,21 @@ await tab('Species Detail', 'species-light.png', { settle: 4200, clipH: 980, pre
   await p.waitForTimeout(800); await p.keyboard.press('Escape').catch(() => {});
 } });
 
-// Mobile Statistics — nav is a dropdown at narrow widths
+// Mobile Statistics — at 402px the nav is the bottom bar plus its More sheet,
+// and Statistics is a favourite, so selectTab finds it in the bar itself. The
+// shot deliberately includes the bar: it is the phone navigation.
 await (async () => {
   const { ctx, p } = await page('light', { width: 402, height: 880 });
   try {
     await p.goto(BASE, { waitUntil: 'domcontentloaded' });
     await selectTab(p, 'Statistics');
     await p.waitForLoadState('networkidle').catch(() => {}); await p.waitForTimeout(4000);
-    await p.screenshot({ path: `${OUT}stats-mobile.png`, clip: { x: 0, y: 0, width: 402, height: 860 } });
+    // FULL viewport height, not the old 860 of 880. The phone navigation is a
+    // FIXED bar at the bottom of the screen now, measured at 56.5px on this
+    // viewport, so a clip 20px short of the bottom cut it in half: the icons
+    // survived and every label fell outside the frame. Nothing failed, and the
+    // shot looked plausible. Any clip on a phone capture has to include the bar.
+    await p.screenshot({ path: `${OUT}stats-mobile.png`, clip: { x: 0, y: 0, width: 402, height: 880 } });
     log('OK stats-mobile.png');
   } catch (e) { log('FAIL stats-mobile.png', e.message.split('\n')[0]); }
   await ctx.close();

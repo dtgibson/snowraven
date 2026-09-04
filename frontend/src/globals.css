@@ -152,6 +152,22 @@
      a light haze is invisible against the near-black --sr-bg. */
   --sr-sticky-shadow: 0 3px 6px -2px rgba(15,17,23,0.12);
 
+  /* The UPWARD twin of --sr-sticky-shadow, for the phone bottom navigation bar
+     sitting over scrolling content (nav-rework). Same convention as its sibling:
+     a full-value shadow token, tinted with the app's own ink rather than pure
+     black, and dark gets its OWN deeper value below because a light 12% haze is
+     invisible against the near-black --sr-bg. */
+  --sr-nav-bar-shadow: 0 -3px 6px -2px rgba(15,17,23,0.12);
+
+  /* The phone bottom bar's MEASURED height, published on <html> by TabNav while
+     the bar is mounted and removed when it is not. 0px here so every other
+     density -- and the first frame before the measurement lands -- reserves
+     nothing. The bar is text, so it grows with --sr-text-scale and its labels
+     drop out under a container query at large scales; no constant is right at
+     both ends, which is why this is measured rather than budgeted. Geometry, not
+     colour, so it carries one value rather than a per-theme pair. */
+  --sr-navbar-h: 0px;
+
   /* Switch (on/off toggle) thumb — theme-neutral white knob, IDENTICAL in both themes
      (a white knob reads correctly on the accent/gray-400 track in light AND dark; the
      --sr-gray-400 off-track above is contrast-tuned against this white). The knob carries
@@ -442,6 +458,12 @@
      the milestone-badge post-mortem cuts both ways: this token carries no text,
      so there is no AA question, but it does have to be visible.) */
   --sr-sticky-shadow: 0 3px 8px -2px rgba(2,2,4,0.60);
+
+  /* The bottom bar's upward haze, deliberately NOT the :root value, for exactly
+     the reason its downward twin above is not: --sr-bg is #09090B here, so the
+     light 12% haze would be invisible and the bar would read as flat against the
+     content passing under it. Carries no text, so no AA question. */
+  --sr-nav-bar-shadow: 0 -3px 8px -2px rgba(2,2,4,0.60);
 
   /* Switch thumb — same white knob + shadow as :root by design (theme-neutral control
      chrome, carries no text; --sr-gray-400 off-track is contrast-tuned against this white). */
@@ -1455,11 +1477,19 @@ h1, h2, h3, h4, h5, h6 {
    toolbar, and a min-height keeps the map usable on short/landscape viewports
    (the page scrolls rather than the map vanishing).
 
-   The subtracted term is the app chrome — body safe-area padding + header + tab
-   nav above, footer below — and it is MEASURED, not assumed. `--sr-map-chrome`
-   is published on <main> by lib/mapPanelChrome.ts; the literals here are only
-   the pre-measurement fallback, so first paint is byte-identical to what it was
-   before the measurement existed.
+   The subtracted term is the app chrome — everything on the page that is not the
+   map — and it is MEASURED, not assumed. `--sr-map-chrome` is published on <main>
+   by lib/mapPanelChrome.ts; the literals here are only the pre-measurement
+   fallback, so first paint is byte-identical to what it was before the
+   measurement existed.
+
+   WHAT THAT CHROME IS depends on the nav's density, which is exactly why it is
+   measured rather than written down: at sidebar and rail density the nav is a
+   COLUMN beside the content and takes no height at all, so the term is close to
+   the footer alone; at phone density it is the brand header above plus a FIXED
+   bottom bar, which is not in <main>'s sibling flow and is measured separately
+   and added. The fallback literals below predate all of it and are deliberately
+   left alone: their job is only to make the first frame identical.
 
    The literals were also simply wrong, which is why they are no longer the
    answer: measured in Chromium and WebKit, the real chrome is 252px at 1434px
@@ -1487,10 +1517,13 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 /* 2. The Map Explorer panel sizes to the VISIBLE viewport under the compact
-      chrome — safe-area top inset (body padding) + compact header (~42px) +
-      tab nav (~66px) ≈ 108px, budgeted 112px — so the map AND its FAB cluster
-      (fullscreen/Filters) are above the fold when the tab opens, at any width
-      and either iPad orientation (dvh + env are orientation-aware; no JS).
+      chrome, so the map AND its FAB cluster (fullscreen/Filters) are above the
+      fold when the tab opens, at any width and either iPad orientation (dvh +
+      env are orientation-aware; no JS). The 112px literal is the PRE-MEASUREMENT
+      FALLBACK and describes the chrome as it was when it was written (safe-area
+      top inset + compact header + the old horizontal tab nav); it is kept
+      unchanged so the first frame is what it always was, and the measured
+      `--sr-map-chrome` is what actually governs after that.
       The double-class selector out-specifies both the base rule and the ≤640
       media-tier rule. min-height keeps a usable map (with page scroll) on
       short landscape-phone viewports. */
@@ -4357,3 +4390,299 @@ select:focus-visible {
 .sr-tab-load-alert-frame { display: flex; }
 .sr-tab-load-alert-inner { display: flex; }
 .sr-tab-load-alert { display: flex; }
+
+/* ── Main navigation ───────────────────────────────────────────────────────────
+   (improve: nav-rework)
+
+   ONE responsive nav over the eleven destinations at three densities, replacing
+   the horizontal strip that swapped itself for a single all-or-nothing dropdown:
+   a 13.5rem sidebar on wide windows, a 3.75rem icon rail when width is tight, and
+   a bottom bar of four favourites plus a More sheet at phone widths. Which one
+   renders is decided in JS from measured available width (lib/navDensity.ts), so
+   NONE of the density selection lives in a media query -- the classes below are
+   applied by components/TabNav.tsx and are top-level on purpose.
+
+   ALL of it is here rather than inline: the repo's lift-layout-to-a-class rule,
+   and specifically because an inline `position: fixed` / `position: sticky`
+   (specificity 1,0,0) could never be reached by the .sr-ios-app safe-area gates
+   further down, which is the trap .claude/rules/ui.md records three times over.
+
+   MOTION. Every transition here is ease-out and under 300ms, and the global
+   prefers-reduced-motion block earlier in this file collapses all of them to
+   ~1 microsecond. Each animation's end state IS its resting state, so nothing is
+   lost when it is collapsed and no per-rule reduced-motion query is needed (the
+   standing note at the Pin Share and SpeciesCombobox blocks).
+
+   THE PAGE REMAINS THE SCROLLPORT. `.sr-content` deliberately sets no `overflow`
+   and `<main>` is not a scroll container: the two sticky pinned-label bands
+   (Breeding Codes, Multimedia) anchor to the PAGE precisely because nothing
+   between them and the viewport sets overflow, and their scroll-margin-top focus
+   guards are written for that scrollport. The nav column gets its own scroll by
+   being `position: sticky` at a fixed 100dvh instead, which leaves the page's
+   scrolling exactly where it was. */
+
+/* The shell: nav column beside content column at sidebar/rail density, one
+   column at phone density (where the bar is fixed to the viewport instead). */
+.sr-shell { display: flex; flex: 1; min-width: 0; }
+.sr-shell--phone { flex-direction: column; padding-bottom: var(--sr-navbar-h, 0px); }
+
+/* The content column. `min-width: 0` so a wide table inside it can shrink rather
+   than pushing the nav off screen; no `overflow`, per the note above. */
+.sr-content { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+
+/* ---- densities 1 and 2: the nav column ---------------------------------- */
+
+/* Sticky rather than fixed, and `align-self: flex-start` rather than the flex
+   row's default stretch: a stretched item fills the row and has no room to
+   stick. The result is "full window height with its own vertical scroll" while
+   the PAGE keeps scrolling the content column. */
+.sr-nav-col {
+  flex-shrink: 0;
+  align-self: flex-start;
+  position: sticky;
+  top: 0;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--sr-surface);
+  border-right: 1px solid var(--sr-border);
+  width: 13.5rem;             /* 216px at 1x; sized in rem, so it tracks --sr-text-scale */
+  padding: 14px 10px 10px;
+  overflow-y: auto;
+}
+.sr-nav-col--rail {
+  width: 3.75rem;             /* 60px at 1x */
+  padding: 14px 6px 10px;
+  align-items: center;
+}
+
+/* THE WIDTH TRANSITION IS OPT-IN, AND THAT IS THE WHOLE POINT. TabNav adds this
+   class for the MANUAL collapse toggle only and removes it again on the
+   transitionend. A DERIVED density change happens continuously during a window
+   drag and must be instant: animating it would reflow the content column on
+   every frame, which on the Map Explorer tab is a MapLibre resize storm. */
+.sr-nav-col--anim { transition: width 200ms cubic-bezier(0.2, 0, 0, 1); }
+/* The labels arrive just behind the widening rather than stretching with it. */
+.sr-nav-col--anim .sr-nav-item span,
+.sr-nav-col--anim .sr-nav-collapse span {
+  transition: opacity 160ms ease-out 40ms, transform 160ms ease-out 40ms;
+}
+
+/* Brand. In the rail the wordmark is still in the DOM as an .sr-only h1, so the
+   page never loses its h1 at any density. */
+.sr-nav-brand { display: flex; align-items: center; gap: 9px; padding: 2px 6px 0; margin-bottom: 2px; }
+.sr-nav-col--rail .sr-nav-brand { padding: 2px 0 0; justify-content: center; }
+.sr-nav-brand svg { flex-shrink: 0; }
+.sr-nav-word { font-size: 1.0625rem; font-weight: 700; letter-spacing: -0.4px; margin: 0; white-space: nowrap; }
+.sr-nav-word span { color: var(--sr-accent); }
+.sr-nav-tagline {
+  font-size: 0.6875rem; line-height: 1.45; color: var(--sr-text-muted);
+  margin: 5px 6px 14px; padding: 0;
+}
+.sr-nav-col--rail .sr-nav-brandgap { height: 14px; }
+
+.sr-nav-list { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.sr-nav-group { display: flex; flex-direction: column; gap: 2px; }
+
+/* The shared row anatomy. The sidebar, the rail and the More sheet are all this
+   row at three sizes, which is what makes them read as one component. */
+.sr-nav-item {
+  position: relative;
+  display: flex; align-items: center; gap: 10px;
+  width: 100%; min-height: 34px;
+  padding: 7px 10px;
+  border: 0; border-radius: 8px;
+  background: none;
+  color: var(--sr-text-muted);
+  font-family: inherit;
+  font-size: 0.84375rem; font-weight: 500; text-align: left;
+  cursor: pointer;
+  transition: background-color 120ms ease-out, color 120ms ease-out;
+}
+.sr-nav-item > svg { flex-shrink: 0; }
+/* Ellipsis is a BACKSTOP only. The column and the labels are both sized in rem,
+   so their ratio is fixed at every in-app text scale and at every browser/OS
+   default font size; it is not expected to fire for any member of TAB_LABELS. */
+.sr-nav-item span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sr-nav-item:hover { background: var(--sr-surface-subtle); color: var(--sr-text); }
+.sr-nav-item--active,
+.sr-nav-item--active:hover {
+  background: var(--sr-accent-bg);
+  color: var(--sr-accent);
+  font-weight: 600;
+}
+/* The strip's 2px bottom border, rotated. THREE cues carry the active state
+   (fill, colour, weight) and this fourth one is a SHAPE, because --sr-accent-bg
+   against --sr-surface is a deliberately quiet tint. --sr-accent on --sr-bg is
+   5.46:1, well past the 3:1 a non-text graphic owes. */
+.sr-nav-item--active::before {
+  content: ""; position: absolute; left: 0; top: 50%;
+  width: 3px; height: 60%; border-radius: 0 2px 2px 0;
+  background: var(--sr-accent);
+  transform: translateY(-50%) scaleY(1);
+  transform-origin: center;
+  animation: sr-nav-bar-in 140ms cubic-bezier(0.2, 0, 0, 1) both;
+}
+@keyframes sr-nav-bar-in {
+  from { transform: translateY(-50%) scaleY(0.35); opacity: 0; }
+  to   { transform: translateY(-50%) scaleY(1); opacity: 1; }
+}
+
+.sr-nav-col--rail .sr-nav-item {
+  width: 40px; height: 40px; min-height: 40px;
+  padding: 0; justify-content: center; gap: 0;
+}
+.sr-nav-col--rail .sr-nav-item span { display: none; }
+.sr-nav-col--rail .sr-nav-item--active::before { left: -6px; height: 22px; }
+
+/* The ONE separator that is always true: Settings is appended after the saved
+   order and is never part of it, so its position is structural rather than
+   chosen. Every other destination is peer to every other, which is precisely
+   what the saved order asserts -- hence no named groups, which a user's next
+   reorder would make false. */
+.sr-nav-sep { height: 1px; background: var(--sr-border); margin: 8px 4px; border: 0; flex-shrink: 0; }
+.sr-nav-col--rail .sr-nav-sep { width: 28px; margin: 8px auto; }
+
+/* Deliberate empty space: it IS the reclaimed space. */
+.sr-nav-spacer { flex: 1; min-height: 18px; }
+
+.sr-nav-collapse {
+  display: flex; align-items: center; gap: 10px;
+  width: 100%; min-height: 32px; padding: 6px 10px;
+  border: 0; border-radius: 8px; background: none;
+  color: var(--sr-text-muted);
+  font-family: inherit;
+  font-size: 0.75rem; font-weight: 600;
+  cursor: pointer;
+  transition: background-color 120ms ease-out, color 120ms ease-out;
+}
+.sr-nav-collapse:hover { background: var(--sr-surface-subtle); color: var(--sr-text); }
+.sr-nav-col--rail .sr-nav-collapse { width: 40px; height: 40px; padding: 0; justify-content: center; gap: 0; }
+.sr-nav-col--rail .sr-nav-collapse span { display: none; }
+
+/* ---- the rail tooltip ----------------------------------------------------
+   `position: fixed`, and it HAS to be: .sr-nav-col scrolls vertically, and a box
+   with `overflow-y: auto` computes overflow-x to `auto` as well, so a tooltip
+   parented inside the column would be clipped at its edge. Fixed also makes the
+   two offsets viewport-relative, which is why this is the one pinned surface in
+   the app that needs NO .sr-ios-app gate: TabNav computes them from a live
+   getBoundingClientRect(), which already has the safe-area inset in it.
+   Origin-aware -- it scales from the trigger's leading edge, not from its own
+   centre. */
+.sr-nav-tip {
+  position: fixed;
+  top: var(--sr-nav-tip-top, 0px);
+  left: var(--sr-nav-tip-left, 0px);
+  z-index: 1250;
+  padding: 5px 9px; border-radius: 7px;
+  background: var(--sr-surface); border: 1px solid var(--sr-border);
+  box-shadow: var(--sr-card-shadow);
+  color: var(--sr-text); font-size: 0.75rem; font-weight: 600; white-space: nowrap;
+  pointer-events: none;
+  opacity: 0; transform: translateY(-50%) scale(0.96); transform-origin: left center;
+  transition: opacity 140ms cubic-bezier(0.2, 0, 0, 1), transform 140ms cubic-bezier(0.2, 0, 0, 1);
+}
+.sr-nav-tip--on { opacity: 1; transform: translateY(-50%) scale(1); }
+
+/* ---- density 3: the phone bottom bar -------------------------------------
+   FIXED, not in flow: a bottom bar that scrolls away is not a bottom bar. That
+   is also why its height has to be published (--sr-navbar-h above) and added to
+   the Map Explorer's chrome budget separately -- it is not in <main>'s sibling
+   flow, so lib/mapPanelChrome.ts's `above`/`below` terms cannot see it. */
+.sr-navbar {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  z-index: 1200;
+  display: grid; grid-template-columns: repeat(var(--sr-navbar-cells, 5), minmax(0, 1fr));
+  background: var(--sr-surface);
+  border-top: 1px solid var(--sr-border);
+  box-shadow: var(--sr-nav-bar-shadow);
+  container-type: inline-size;
+}
+.sr-navbar-cell {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  min-height: 52px; padding: 7px 3px 8px;
+  border: 0; background: none; cursor: pointer;
+  color: var(--sr-text-muted);
+  font-family: inherit;
+  transition: background-color 120ms ease-out, color 120ms ease-out;
+}
+.sr-navbar-cell:hover { background: var(--sr-surface-subtle); }
+.sr-navbar-cell--active { color: var(--sr-accent); }
+.sr-navbar-cell--active .sr-navbar-glyph { background: var(--sr-accent-bg); }
+.sr-navbar-glyph {
+  display: flex; align-items: center; justify-content: center;
+  width: 40px; height: 26px; border-radius: 13px;
+  transition: background-color 140ms ease-out;
+}
+.sr-navbar-label {
+  font-size: 0.625rem; font-weight: 600; line-height: 1.15; text-align: center;
+  white-space: normal; overflow-wrap: break-word;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.sr-navbar-cell--active .sr-navbar-label { font-weight: 700; }
+/* LABELS APPEAR ONLY WHILE THEY FIT, decided by a CONTAINER query rather than a
+   viewport breakpoint or any JS. The bar is the query container and its five
+   equal cells make 17rem of bar equal 3.4rem of cell, which is where the longest
+   unbreakable favourite word stops fitting. `rem` inside a container query
+   resolves against the ROOT font size, which --sr-text-scale multiplies, so the
+   labels DROP OUT at large text scale instead of clipping -- the sanctioned
+   house pattern for cell-sized legibility (.claude/rules/ui.md). This is a
+   layout claim and jsdom cannot see it: re-measure the real ink in Chromium AND
+   WebKit at 320 / 390 / 430px against 1x and 200% before shipping the value. */
+@container (max-width: 17rem) {
+  .sr-navbar-label { display: none; }
+}
+
+/* ---- the More sheet ------------------------------------------------------
+   A bottom sheet, deliberately NOT the shared ModalDialog: that shell is centred
+   and is for confirmations, and this is a navigation surface that must read as
+   rising from the bar it was opened from. It borrows the shell's BEHAVIOURS
+   (one close path, per-keydown focus-trap re-query, focus return), not its box.
+   Above the bar's own 1200 so the panel rises over it. */
+.sr-nav-sheet-root {
+  position: fixed; inset: 0; z-index: 1260;
+  background: var(--sr-scrim);
+  display: flex; align-items: flex-end;
+  opacity: 0; transition: opacity 160ms ease-out;
+}
+.sr-nav-sheet-root--open { opacity: 1; }
+.sr-nav-sheet {
+  width: 100%; max-height: min(70dvh, 460px);
+  background: var(--sr-surface);
+  border-top: 1px solid var(--sr-border);
+  border-radius: 16px 16px 0 0;
+  box-shadow: var(--sr-card-shadow);
+  padding: 8px 10px 14px;
+  overflow: auto;
+  /* Its origin IS the bar it rises from. */
+  transform: translateY(100%);
+  transition: transform 220ms cubic-bezier(0.2, 0, 0, 1);
+}
+.sr-nav-sheet-root--open .sr-nav-sheet { transform: translateY(0); }
+.sr-nav-sheet-handle { width: 36px; height: 4px; border-radius: 2px; background: var(--sr-border-medium); margin: 4px auto 8px; }
+.sr-nav-sheet h2 { font-size: 1rem; font-weight: 700; margin: 0 0 8px; padding: 0 6px; letter-spacing: -0.01em; }
+/* The sidebar row at phone scale: same anatomy, one size up, 44px touch posture. */
+.sr-nav-sheet .sr-nav-item { min-height: 44px; font-size: 0.9375rem; }
+
+/* ---- iOS safe areas ------------------------------------------------------
+   GATED ON .sr-ios-app, NEVER a bare env(): index.html ships viewport-fit=cover
+   to browsers too, so an ungated rule would change shipped WEB rendering on every
+   notched phone. Desktop is env()=0 either way; web/Pi never carries the class.
+
+   The nav column is `position: sticky`, so it resolves `top` against the
+   SCROLLPORT and escapes `.sr-ios-app body`'s padding-top -- the same escape as
+   the two pinned table bands. It is RE-POINTED (an offset moves) and its
+   viewport-height cap subtracts the same inset, or the column over-extends by
+   exactly the inset, which is invisible on a phone and live on iPad.
+
+   The bar and the sheet are full-width boxes at the BOTTOM edge, so they PAD
+   rather than move; `box-sizing: border-box` is global here, so the sheet's cap
+   is unchanged and only its content box moves inward. Top/left/right are not
+   touched on either: neither declares them in a way an inset would help. */
+.sr-ios-app .sr-nav-col {
+  top: env(safe-area-inset-top, 0px);
+  height: calc(100dvh - env(safe-area-inset-top, 0px));
+}
+.sr-ios-app .sr-navbar { padding-bottom: calc(6px + env(safe-area-inset-bottom, 0px)); }
+.sr-ios-app .sr-nav-sheet { padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px)); }

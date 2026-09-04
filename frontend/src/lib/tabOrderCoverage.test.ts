@@ -131,10 +131,13 @@ const allSites = (): Site[] => shippedComponents().flatMap(sitesIn)
  *
  * THEY ARE NOT ALL ONE KIND, and saying so matters, because the prose that
  * publishes them has to be true of EACH:
- *   - THREE are roving-tabindex GROUPS: the container holds one tab stop and the
- *     arrow keys move within it (the tab bar, its collapsed dropdown, the
+ *   - TWO are roving-tabindex GROUPS: the container holds one tab stop and the
+ *     arrow keys move within it (the main navigation's vertical tablist, and the
  *     Settings choice rows). ACCESSIBILITY.md describes these under Keyboard
- *     Navigation.
+ *     Navigation. It was THREE until the nav rework: the horizontal tab strip's
+ *     collapsed dropdown was a role="option" listbox and the second group, and
+ *     the responsive nav that replaced it uses plain trapped buttons in its More
+ *     sheet, so that row is retired rather than rewritten.
  *   - ONE is a redundant affordance and is NOT roving: the species selector's
  *     chevron is a fixed tabIndex={-1}, and the arrow keys never move to it.
  *     They move an aria-activedescendant index on the <input> beside it, which
@@ -167,15 +170,9 @@ const allSites = (): Site[] => shippedComponents().flatMap(sitesIn)
 const EXCLUSIONS: ReadonlyArray<{ file: string; tabIndex: string; count: number; why: string }> = [
   {
     file: 'components/TabNav.tsx',
-    tabIndex: '{activeTab === item.id ? 0 : -1}',
+    tabIndex: '{active ? 0 : -1}',
     count: 1,
-    why: 'roving group: role="tab", so the tablist holds one stop and ArrowLeft/ArrowRight move between tabs',
-  },
-  {
-    file: 'components/TabNav.tsx',
-    tabIndex: '{-1}',
-    count: 1,
-    why: 'roving group: role="option" in the collapsed tab-bar listbox, moved by the programmatic focus ArrowUp/ArrowDown drive',
+    why: 'roving group: role="tab" in the main navigation\'s VERTICAL tablist (aria-orientation="vertical"), so the tablist holds one stop and ArrowUp/ArrowDown move between destinations. The nav\'s other controls — the collapse toggle, the five bottom-bar cells, every More-sheet row — are plain tabIndex={0} buttons and are deliberately NOT here',
   },
   {
     file: 'components/Settings.tsx',
@@ -243,9 +240,10 @@ describe('every control the app renders itself is an explicit tab stop', () => {
   })
 
   it('the roster accounts for every non-{0} site exactly once, so prose and code cannot drift', () => {
-    // ACCESSIBILITY.md names these exceptions individually. If a sixth appears,
+    // ACCESSIBILITY.md names these exceptions individually. If a FIFTH appears,
     // or a rostered one gains a sibling, that prose has become false and this
-    // fails. Compared as a COUNTED multiset rather than a de-duplicated set: a
+    // fails. (It was five rows and a sixth would have broken it, until the nav
+    // rework retired the collapsed dropdown's listbox.) Compared as a COUNTED multiset rather than a de-duplicated set: a
     // set collapses two sites sharing a file and an initializer into one entry,
     // which is the exact hole the row counts above exist to close.
     const nonZero = allSites().filter(s => s.tabIndex !== '{0}')

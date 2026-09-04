@@ -61,7 +61,7 @@
 import { chromium } from 'playwright';
 import { mkdirSync } from 'node:fs';
 import sharp from 'sharp';
-import { GL, makePage, selectTab, buildProvenanceStub, installProvenanceRoutes } from './capture-lib.mjs';
+import { GL, makePage, selectTab, buildProvenanceStub, installProvenanceRoutes, assertBackendServesDemoData } from './capture-lib.mjs';
 
 const BASE = process.env.BASE || 'http://localhost:1620';
 const CHECKLIST = process.env.CHECKLIST || 'S354229002'; // coastal -> shows tide
@@ -80,46 +80,11 @@ const POPUP_LOCATION = 'Jamaica Bay Wildlife Refuge';
 const OUT_ROOT = new URL('../../appstore/screenshots/', import.meta.url).pathname;
 const log = (...a) => console.log(...a);
 
-// ---- demo-dataset guard: fail closed BEFORE the first frame ----
-// This script photographs whatever backend BASE points at. Pointed at one
-// serving a real export — the exact mistake SR_DATA_DIR exists to prevent — it
-// would produce correctly-dimensioned, publishable App Store PNGs of real
-// personal sighting locations and exit 0. The eye-review rule is the second
-// layer; this is the first.
-//
-// The marker is STRUCTURAL rather than a species or checklist count, which
-// legitimately moves whenever the generator is re-run: gen-demo-data.mjs issues
-// submission ids above eBird's live allocation (S9xxxxxxxxx), so no real export
-// can carry them. Read from the BACKEND, not from the CSV on disk — the file
-// being demo data proves nothing about what the server is serving.
-async function assertBackendServesDemoData() {
-  let csv;
-  try {
-    const res = await fetch(`${BASE}/settings/files/ebird`);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    csv = await res.text();
-  } catch (e) {
-    throw new Error(
-      `could not read the backend's eBird export from ${BASE} to verify it is the demo dataset: ${e.message}`);
-  }
-  const ids = new Set();
-  for (const line of csv.split('\n').slice(1)) {
-    const sub = line.slice(0, line.indexOf(','));
-    if (sub.startsWith('S')) ids.add(sub);
-  }
-  if (ids.size === 0) throw new Error('no submission ids found in the backend export — refusing to capture');
-  const foreign = [...ids].filter(id => !/^S9\d{9}$/.test(id));
-  if (foreign.length) {
-    throw new Error(
-      `backend at ${BASE} is NOT serving the synthetic demo dataset ` +
-      `(${foreign.length} of ${ids.size} submission ids are outside the demo range, e.g. ${foreign[0]}). ` +
-      `Refusing to capture. Start the backend with ` +
-      `SR_DATA_DIR=<repo>/website/tools/demo-data before running this script.`);
-  }
-  log(`demo-dataset guard OK (${ids.size} synthetic checklists)`);
-}
+// The demo-dataset guard now lives in capture-lib.mjs, so capture.mjs gets it
+// too — this script's private copy was the only one, while the script writing
+// every image on the public website had none (security review, nav-rework).
 
-await assertBackendServesDemoData();
+await assertBackendServesDemoData(BASE, log);
 
 const browser = await chromium.launch({ headless: true, args: GL });
 const failures = [];

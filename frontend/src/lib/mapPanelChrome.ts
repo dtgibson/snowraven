@@ -11,14 +11,30 @@
 // signature of a fixed constant rather than of anything height-dependent.
 //
 // A constant cannot be right here, and not only because these three numbers
-// differ from each other and from 178. The chrome is header + tab nav + footer,
-// all of which are TEXT, so all of which grow with the in-app text scale. Across
-// the five widths and four scales measured, the real chrome runs from 223px to
-// 484px — a 2.2x spread against one 178px literal, and at the top of that range
-// 484px of an 800px viewport — so no single number can cover it. The tab strip
-// also collapses into a dropdown the moment it would overflow (~1457px with the
-// current tab count), which changes the chrome height at a threshold that moves
-// whenever a tab is added.
+// differ from each other and from 178. The chrome is TEXT, so it grows with the
+// in-app text scale. Across the five widths and four scales measured, the real
+// chrome ran from 223px to 484px — a 2.2x spread against one 178px literal, and
+// at the top of that range 484px of an 800px viewport — so no single number can
+// cover it.
+//
+// WHAT THE CHROME IS HAS SINCE CHANGED SHAPE, and the measurement absorbed it
+// without a line of arithmetic moving, which is the argument for measuring
+// rather than budgeting (nav-rework):
+//
+//   * At SIDEBAR and RAIL density the app shell is a ROW. `main.parentElement`
+//     is the content column, and the brand header has moved into the nav column
+//     beside it, so `above` collapses to roughly the body's safe-area padding
+//     and `below` is the footer alone. Those two are still the whole of what the
+//     panel shares the viewport with, so the sum is still right.
+//   * At PHONE density the nav is a FIXED bottom bar. That one is NOT in
+//     <main>'s sibling flow at all, so neither term can see it, and its measured
+//     height has to be added explicitly — the `fixedBelow` argument below. Left
+//     out, the map panel and the footer would both sit underneath it.
+//
+// The old tab strip that collapsed into a dropdown at a threshold that moved
+// whenever a tab was added is gone; the density it was replaced by is derived
+// from measured width (lib/navDensity.ts) and changes these same boxes, so it is
+// observed for free.
 //
 // SO THE NUMBER IS MEASURED. This module publishes the real chrome as a px
 // custom property and the stylesheet's calc consumes it, keeping the old
@@ -60,22 +76,32 @@ export const MAP_CHROME_VAR = '--sr-map-chrome'
  * good value should stand.
  *
  * `above` is the distance from the document's top to the top of `<main>`, i.e.
- * the safe-area body padding plus the header plus the tab nav. `below` is the
- * distance from the bottom of `<main>` to the bottom of the footer. The panel
- * lives inside `<main>`, so the two of them are the whole of what the panel has
- * to share the viewport with, and the panel's OWN height appears in neither —
- * which is what makes this free of the feedback loop that measuring the page
+ * the safe-area body padding plus whatever chrome sits above the content (at
+ * phone density the brand header; at sidebar and rail density essentially
+ * nothing, because the brand has moved into the nav column). `below` is the
+ * distance from the bottom of `<main>` to the bottom of the footer.
+ *
+ * `fixedBelow` is the third term and the one that is NOT a sibling relationship:
+ * the height of the phone bottom bar, which is `position: fixed` and therefore
+ * invisible to both of the others. It is 0 at every other density. Without it the
+ * panel would be sized as though the bar were not there and would run underneath
+ * it, taking the footer with it.
+ *
+ * The panel lives inside `<main>`, so its OWN height appears in none of the three
+ * — which is what makes this free of the feedback loop that measuring the page
  * height would have.
  *
  * Rejected rather than clamped:
  *   * a non-finite reading, which is what an unlaid-out box gives;
- *   * a negative one, which is geometrically impossible (the panel is BETWEEN
- *     these two) and therefore means the reading is not of the real layout;
+ *   * a negative `above` or `fixedBelow`, which is geometrically impossible and
+ *     therefore means the reading is not of the real layout;
  *   * `below <= 0`, which means there is no layout at all — the footer always
  *     has text and padding, so a zero says jsdom or a pre-layout pass, not a
  *     footer of height zero.
- * Publishing 0 in any of those cases would size the panel to a full 100dvh and
- * push the whole chrome off the bottom, i.e. exactly the defect but worse, so
+ * `fixedBelow` is the one term allowed to be zero, because zero is its correct
+ * and usual value: there is no bar at all above the phone tier.
+ * Publishing 0 in any of the rejected cases would size the panel to a full 100dvh
+ * and push the whole chrome off the bottom, i.e. exactly the defect but worse, so
  * these return `null` and write nothing.
  *
  * Rounding is `ceil`, deliberately: it can only ever make the panel up to a pixel
@@ -91,10 +117,10 @@ export const MAP_CHROME_VAR = '--sr-map-chrome'
  * holds whatever this returns, including a chrome legitimately taller than the
  * viewport (a short landscape phone at 200% text scale reaches that).
  */
-export function mapPanelChromePx(above: number, below: number): number | null {
-  if (!Number.isFinite(above) || !Number.isFinite(below)) return null
-  if (above < 0 || below <= 0) return null
-  return Math.ceil(above + below)
+export function mapPanelChromePx(above: number, below: number, fixedBelow = 0): number | null {
+  if (!Number.isFinite(above) || !Number.isFinite(below) || !Number.isFinite(fixedBelow)) return null
+  if (above < 0 || below <= 0 || fixedBelow < 0) return null
+  return Math.ceil(above + below + fixedBelow)
 }
 
 /**
@@ -114,24 +140,44 @@ export function mapPanelChromePx(above: number, below: number): number | null {
  *     the footer, which sums to the same chrome. Measuring the PANEL's own top
  *     would have broken here (a fixed box reports a viewport-relative top);
  *     measuring `<main>` is what avoids needing to know.
+ *   * Sidebar or rail density: `<main>`'s parent is the content column and the
+ *     nav is a sibling of THAT, so it is outside both terms and correctly so —
+ *     it takes width from the content column, never height.
+ *
+ * `navBar` is the phone bottom bar or null. It is measured directly rather than
+ * inferred, for the same reason everything else here is: it is text, it grows
+ * with the in-app text scale, and its labels drop out under a container query at
+ * large scales, so no constant is right at both ends.
  */
-export function measureMapPanelChrome(main: HTMLElement, footer: HTMLElement): number | null {
+export function measureMapPanelChrome(
+  main: HTMLElement,
+  footer: HTMLElement,
+  navBar?: HTMLElement | null,
+): number | null {
   const docTop = document.documentElement.getBoundingClientRect().top
   const mainRect = main.getBoundingClientRect()
   const footRect = footer.getBoundingClientRect()
-  return mapPanelChromePx(mainRect.top - docTop, footRect.bottom - mainRect.bottom)
+  const barHeight = navBar ? navBar.getBoundingClientRect().height : 0
+  return mapPanelChromePx(mainRect.top - docTop, footRect.bottom - mainRect.bottom, barHeight)
 }
 
 /**
  * The elements whose SIZE decides the chrome: everything in the app shell except
  * `<main>` itself.
  *
- * Descends one level through a `display: contents` wrapper because such an
- * element has no box of its own — a ResizeObserver on it reports 0×0 and never
- * fires — and App wraps the tab nav in exactly that so the nav stays the flex
- * item. Without the descent, a tab strip collapsing into its dropdown at an
- * unchanged viewport width (which an in-app text-scale change can do on its own)
- * would go unobserved.
+ * At sidebar and rail density `main.parentElement` is the CONTENT COLUMN, so the
+ * set is the footer alone; at phone density it also holds the brand header. The
+ * nav column is a sibling of the content column rather than of `<main>`, and is
+ * correctly outside the set: it takes width from the content column, never
+ * height. The phone bottom bar is `position: fixed` and outside it too, which is
+ * why `useMapPanelChrome` takes that element separately.
+ *
+ * DESCENDS ONE LEVEL through a `display: contents` child, because such an element
+ * has no box of its own: a ResizeObserver on it reports 0×0 and never fires, so
+ * everything inside it would go unobserved. App no longer wraps the nav in one
+ * (the nav column is a real box now and carries its own `inert`), so this is a
+ * general property of the walk rather than a description of one line — which is
+ * the form it needs, since the next such wrapper will not come with a comment.
  *
  * `<main>` is excluded on purpose and it is the whole reason there is no
  * feedback here: nothing observed changes size when the panel's height changes,
@@ -168,6 +214,7 @@ export function chromeBoxes(main: HTMLElement): Element[] {
 export function useMapPanelChrome(
   mainRef: RefObject<HTMLElement | null>,
   footerRef: RefObject<HTMLElement | null>,
+  navBar: HTMLElement | null = null,
 ): void {
   const published = useRef<number | null>(null)
 
@@ -175,11 +222,11 @@ export function useMapPanelChrome(
     const main = mainRef.current
     const footer = footerRef.current
     if (!main || !footer) return
-    const chrome = measureMapPanelChrome(main, footer)
+    const chrome = measureMapPanelChrome(main, footer, navBar)
     if (chrome === null || chrome === published.current) return
     published.current = chrome
     main.style.setProperty(MAP_CHROME_VAR, `${chrome}px`)
-  }, [mainRef, footerRef])
+  }, [mainRef, footerRef, navBar])
 
   // Before paint, so the map tab opens at the right height rather than at the
   // fallback constant's and then correcting.
@@ -189,6 +236,11 @@ export function useMapPanelChrome(
     const ro = new ResizeObserver(measure)
     const main = mainRef.current
     if (main) for (const el of chromeBoxes(main)) ro.observe(el)
+    // The bottom bar is not among those — it is fixed, so it is nobody's sibling
+    // — and it is passed as an ELEMENT rather than a ref precisely so that its
+    // arrival and departure re-run this effect and rebuild the observer. A ref
+    // would have left the observer watching an element that had unmounted.
+    if (navBar) ro.observe(navBar)
     return () => ro.disconnect()
-  }, [measure, mainRef])
+  }, [measure, mainRef, navBar])
 }

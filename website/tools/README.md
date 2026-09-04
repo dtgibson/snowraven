@@ -49,6 +49,16 @@ npx playwright install chromium
    sightings, `SR_DATA_DIR` did not take — stop and fix that first, because the
    published screenshots would otherwise contain your real locations.
 
+   **Both capture scripts now enforce this themselves**, before the first frame:
+   `assertBackendServesDemoData` in `capture-lib.mjs` reads the export the BACKEND
+   is serving (never the file on disk, which proves nothing about what the server
+   answered with) and refuses unless every submission id is in the synthetic
+   `S9xxxxxxxxx` range. It fails closed on a real export, on a partially
+   contaminated one, on an empty one, and on a backend it cannot reach. The guard
+   lived only in `capture-appstore.mjs` until the nav-rework security review; the
+   script that writes every image on the public website had only the eye-check
+   above. Your own eye is still the second layer, not the first.
+
 3. **Capture** (drives the app with Playwright; the live Weather + Tide shot uses a real
    **public** coastal eBird checklist so a tide shows — override with `CHECKLIST=...` if
    the default has aged out):
@@ -56,6 +66,24 @@ npx playwright install chromium
    ```
    BASE=http://localhost:1620 node capture.mjs        # -> ./shots/*.png
    ```
+
+   **The capture width is load-bearing.** The app has ONE responsive navigation at
+   three densities, chosen from the width actually available: a labelled sidebar
+   while `viewport - 13.5rem - (the active tab's own sidebar) >= 640`, an icon rail
+   otherwise, and a bottom bar at 640px and under. The desktop shots are meant to
+   show the sidebar, and the binding case is the Map Explorer, which reserves
+   `clamp(240px, 28vw, 300px)` for its own sidebar and therefore needs about
+   1,156px; every other tab needs about 856px. `DESKTOP_VP` is 1600 for that
+   headroom. Dropping below the threshold does not fail loudly, it quietly
+   photographs the rail, so check the images. (Until the nav rework this width
+   was defending a different line entirely, the old tab strip's ~1,457px collapse
+   into a dropdown; that threshold no longer exists.)
+
+   The App Store captures inherit the same rule and land on both sides of it by
+   design: the iPhone viewport (440px) gets the bottom bar, and the iPad one
+   (1032px) gets the sidebar on every tab except the Map Explorer, where the map's
+   own sidebar puts it into the rail. `selectTab` reads a control's `aria-label`
+   when it has no visible text, which is what makes it work in the rail.
 
    The Statistics escapee pass is answered from the demo dataset itself (a shared
    stub in `capture-lib.mjs`, also used by the App Store capture). The demo's

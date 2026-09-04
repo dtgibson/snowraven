@@ -2,6 +2,12 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [1.0.17] - 2026-09-04
+
+### Changed
+- **The way you move between tabs has been rebuilt.** Eleven tabs had outgrown the strip across the top of the window. The strip swapped itself for a single dropdown the moment it would not fit, and it stopped fitting at a width most windows are narrower than, so the dropdown was what you usually got: all eleven tabs in one list, scrolling on a short screen. There is now one navigation that changes shape with the room it has. On a wide window it is a list down the side, with names. When there is less room it becomes a narrow strip of icons. On a phone it is a bar along the bottom holding your first four tabs, with a More button for the rest. Which one you get follows the width actually available rather than what kind of device you are on, so a half-screen window on a Mac and an iPad in portrait get the same treatment for the same reason. On the Map Explorer, where the map has a panel of its own, the navigation steps down to icons by itself once the two would leave too little room for the map, and steps back when you close the panel. There is a Collapse control at the foot of the side list if you want the icons sooner; it lasts for the session and is never remembered against a window it would be wrong for. Your own tab order is used everywhere, and the tabs you have hidden stay hidden: the four on the phone bar are simply the first four you have chosen to show, so the reorder controls in Settings already decide them and nothing new is saved. The name and tagline move into the top of the side list, which gives every tab back the strip's worth of height at the top of the window: the map is taller, Statistics starts higher, and the Breeding Codes table shows more rows. Everything stays reachable with the Tab key on all six platforms, the More panel keeps the keyboard inside it and closes with Escape, and at large text sizes the phone bar drops its labels rather than clipping them.
+- **Multimedia has a new icon.** At the size the icon-only strip draws it, the old one was indistinguishable from the Checklists clipboard. It is now a picture frame. The tab is still called Multimedia and nothing about it has moved.
+
 ## [1.0.16] - 2026-09-03
 
 ### Fixed

@@ -87,6 +87,22 @@ body (0.84375rem/1.55 for content, 0.8125rem for descriptions), label/caption
 italic at 0.71875rem `--sr-text-gray`.
 
 ## Patterns (which component for what)
+- **Main navigation:** one responsive nav over the eleven destinations at three
+  densities (sidebar `13.5rem`, icon rail `3.75rem`, phone bottom bar of four
+  favourites + a More sheet), chosen from measured available width against a
+  640px content floor, never a device check. The saved order is flat and
+  authoritative; the only separator is the structural hairline above Settings,
+  because Settings is appended after that order and is never part of it, while
+  every other destination is peer to every other. Active state is
+  `--sr-accent-bg` + `--sr-accent` + weight + a 3px leading accent bar, so three
+  cues carry it and one of them is a shape. Nav-scale lucide icons run 15 to 20px
+  (a deliberate extension of the 11 to 15px in-content range: at these densities
+  the icon is doing identification work rather than decorating a label). The
+  brand block lives in the nav column at the wide densities and in the page
+  header at phone width, so `<main>` starts at the top of the window.
+  `--sr-nav-bar-shadow` is the upward twin of `--sr-sticky-shadow`. The width
+  transition is opt-in (`.sr-nav-col--anim`) and runs on the manual collapse
+  toggle ONLY: a derived density change during a window drag must be instant.
 - **Cards:** `SectionCard` + `SectionHead` (icon tile + title + muted sub).
   Radius 10–12px, `--sr-card-shadow`, 1px `--sr-border`.
 - **Quiet section (the Settings tab's quietest register):** a section whose job

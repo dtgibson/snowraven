@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect, useMemo, lazy, Suspense, createContext, useContext } from 'react'
-import { Search, Loader2, ClipboardCopy, Check, AlertCircle, ExternalLink, List, Dna, BookOpen, BarChart2, Tag, ClipboardList, CalendarDays } from 'lucide-react'
+import { Search, Loader2, ClipboardCopy, Check, AlertCircle, ExternalLink } from 'lucide-react'
 import { transport, TransportError } from './lib/transport'
 import { classifyLiveError, OFFLINE_MESSAGE, NO_KEY_MESSAGE, type LiveErrorKind } from './lib/offlineMessage'
 import { isOfflineError } from './lib/offlineDetect'
@@ -30,6 +30,9 @@ import { NamedBirds } from './components/NamedBirds'
 import { Settings } from './components/Settings'
 import { WelcomeScreen } from './components/WelcomeScreen'
 import { TabNav, type NavItem } from './components/TabNav'
+import { TAB_ICONS } from './lib/tabIcons'
+import { useIsPhone } from './lib/useIsPhone'
+import type { ContentReserve } from './lib/navDensity'
 import { RavenGlyph } from './components/RavenGlyph'
 import { OutboundLink } from './components/OutboundLink'
 // Footer update affordance — renders null on iOS/iPadOS (FR-14, mobile-app).
@@ -102,34 +105,6 @@ type TideState =
   | { status: 'outside-us'; station: string; distanceMi: number }
   | { status: 'unavailable' }
   | { status: 'error'; errorKind: LiveErrorKind }
-
-// Tab icon lookup — kept outside the component so it's never recreated
-const TAB_ICONS: Record<ConfigurableTab, React.ReactNode> = {
-  'weather': (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/>
-    </svg>
-  ),
-  'species-detail': <BookOpen size={14} strokeWidth={2.5} aria-hidden="true" />,
-  'birding-stats':  <BarChart2 size={14} strokeWidth={2.5} aria-hidden="true" />,
-  'map-explorer': (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/>
-      <line x1="9" y1="3" x2="9" y2="18"/>
-      <line x1="15" y1="6" x2="15" y2="21"/>
-    </svg>
-  ),
-  'life-list':      <List size={14} strokeWidth={2.5} aria-hidden="true" />,
-  'breeding-codes': <Dna size={14} strokeWidth={2.5} aria-hidden="true" />,
-  'named-birds':    <Tag size={14} strokeWidth={2.5} aria-hidden="true" />,
-  'checklists':     <ClipboardList size={14} strokeWidth={2.5} aria-hidden="true" />,
-  'calendar':       <CalendarDays size={14} strokeWidth={2.5} aria-hidden="true" />,
-  'comparer': (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M21 6H3"/><path d="M10 12H3"/><path d="M10 18H3"/><polyline points="15 12 18 15 21 12"/><path d="M18 6v9"/>
-    </svg>
-  ),
-}
 
 // Tabs that mount on first open and then stay mounted, so their state + parsed data
 // survive tab switches without re-loading. Everything EXCEPT the always-present
@@ -248,7 +223,30 @@ export default function App() {
   // everything below it.
   const mainRef = useRef<HTMLElement>(null)
   const footerRef = useRef<HTMLParagraphElement>(null)
-  useMapPanelChrome(mainRef, footerRef)
+  // The phone bottom bar, when one is showing. It is `position: fixed`, so it is
+  // NOT in <main>'s sibling flow and neither `above` nor `below` can see it — its
+  // measured height has to be added to the chrome explicitly, or the map panel
+  // and the footer sit underneath it (nav-rework).
+  // STATE, not a ref: the bar mounts and unmounts with the density, and the chrome
+  // measurement has to rebuild its ResizeObserver when it does — which a ref's
+  // silent mutation would never tell it.
+  const [navBarEl, setNavBarEl] = useState<HTMLElement | null>(null)
+  useMapPanelChrome(mainRef, footerRef, navBarEl)
+
+  // The app shell, whose width is what the nav's density derivation measures.
+  // Deliberately the shell and never the nav's own box: the shell's width is set
+  // by the app root and cannot move when the nav changes density, which is what
+  // makes the derivation feedback-free.
+  // STATE for the same reason navBarEl is: the nav measures this box, and React
+  // attaches a PARENT's ref only after its children's layout effects have run, so
+  // a ref would read null on the first commit and the nav's ResizeObserver would
+  // never attach at all.
+  const [shellEl, setShellEl] = useState<HTMLElement | null>(null)
+  // Owned here rather than inside the nav because App PLACES the nav by density:
+  // a column inside the shell at sidebar/rail density, a fixed bar after it at
+  // phone density. Putting the bar first in the DOM and moving it visually would
+  // desynchronize tab order from reading order (WCAG 2.4.3).
+  const isPhone = useIsPhone()
 
   const handleFilesSaved = useCallback(() => notifyFilesChanged(), [])
 
@@ -710,23 +708,18 @@ export default function App() {
   const hasResult = state.status === 'success'
 
   // Navigable destinations in saved order, hidden tabs removed, Settings last.
-  // Shared by both the desktop bar and the compact dropdown (see TabNav).
+  // ONE list, rendered by the nav at whichever of its three densities is showing
+  // (sidebar, icon rail, or the phone bar's four favourites plus a More sheet).
+  // Every icon comes from the single authoritative table in lib/tabIcons.tsx --
+  // Settings' included, which used to be inlined here -- so a glyph change
+  // reaches every density from one place.
   const navItems: NavItem[] = useMemo(() => {
     const items: NavItem[] = visibleTabs(tabLayout).map(tab => ({
       id: tab,
       label: TAB_LABELS[tab],
       icon: TAB_ICONS[tab],
     }))
-    items.push({
-      id: 'settings',
-      label: 'Settings',
-      icon: (
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
-          <circle cx="12" cy="12" r="3"/>
-        </svg>
-      ),
-    })
+    items.push({ id: 'settings', label: 'Settings', icon: TAB_ICONS['settings'] })
     return items
   }, [tabLayout])
 
@@ -738,6 +731,18 @@ export default function App() {
   // map panel itself is the overlay, so those are left alone. (React 19 supports
   // the boolean `inert` prop; supported in both desktop webviews.)
   const chromeInert = mapFullscreen && activeTab === 'map-explorer'
+
+  // What the ACTIVE tab's own in-flow sidebar will take out of the content
+  // column, which the nav's threshold subtracts before deciding whether a
+  // sidebar still leaves a usable content column. Only the Map Explorer has one
+  // (clamp(240px, 28vw, 300px), in flow above the phone tier). Fullscreen takes
+  // it out of flow entirely, so it reserves nothing then.
+  //
+  // The result is that the Map Explorer case is settled by the ARITHMETIC rather
+  // than by a rule saying the map always gets the rail: a 2560px monitor keeps
+  // both sidebars, a 1024px window does not.
+  const navReserve: ContentReserve =
+    activeTab === 'map-explorer' && !mapFullscreen ? 'map-sidebar' : 'none'
 
   return (
     <TabLoadingAnnouncerContext.Provider value={setTabLoadingLabel}>
@@ -757,33 +762,52 @@ export default function App() {
     >
       <a tabIndex={0} href="#sr-main" className="sr-skip-link">Skip to main content</a>
 
-      {/* Header — banner landmark; the wordmark is the page's h1. On iOS the
-          chrome compacts to a slim single-line bar (no tagline) so header +
-          tab nav cost far less vertical space — a preview-driven composition
-          fix (pipeline/mobile-app/decisions.md); the compact padding lives in
-          .sr-header-compact (globals.css). Desktop/web unchanged. */}
-      <header inert={chromeInert} className={compactChrome() ? 'sr-header sr-header-compact' : 'sr-header'} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '48px 24px 0', flexShrink: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: compactChrome() ? 7 : 10, marginBottom: compactChrome() ? 0 : 6 }}>
-          <RavenGlyph size={compactChrome() ? 20 : 30} style={{ color: 'var(--sr-accent)' }} />
-          <h1 style={{ fontSize: compactChrome() ? '1.125rem' : '1.625rem', fontWeight: 700, letterSpacing: '-0.6px', margin: 0 }}>
-            Snow<span style={{ color: 'var(--sr-accent)' }}>Raven</span>
-          </h1>
-        </div>
-        {!compactChrome() && (
-          <p style={{ fontSize: '0.875rem', color: 'var(--sr-text-muted)', marginBottom: 28 }}>
-            Self-hosted birding tools and data explorer
-          </p>
+      {/* THE SHELL. At sidebar/rail density this is a ROW: the nav column on the
+          leading edge, the content column beside it. At phone density it is a
+          single column and the nav is a fixed bar below it instead.
+
+          The nav column is a REAL BOX carrying its own `inert`, replacing the
+          `display: contents` wrapper the tab strip used to need. That wrapper had
+          no box of its own, so a ResizeObserver on it reported 0x0 and never
+          fired — which is why chromeBoxes() in lib/mapPanelChrome.ts descends one
+          level through such a child. The descent stays, and its reason is now a
+          general one rather than a description of this line. */}
+      <div className={isPhone ? 'sr-shell sr-shell--phone' : 'sr-shell'} ref={setShellEl}>
+        {!isPhone && (
+          <TabNav
+            items={navItems}
+            activeTab={activeTab}
+            onSelect={setActiveTab}
+            isPhone={false}
+            shell={shellEl}
+            reserve={navReserve}
+            inert={chromeInert}
+          />
         )}
-      </header>
 
-      {/* Tab navigation — bar on desktop, dropdown on narrow screens (see TabNav).
-          Wrapped so it can be made inert behind the fullscreen map overlay
-          (display:contents keeps the wrapper layout-neutral). */}
-      <div style={{ display: 'contents' }} inert={chromeInert}>
-        <TabNav items={navItems} activeTab={activeTab} onSelect={setActiveTab} />
-      </div>
+        <div className="sr-content">
+          {/* The brand header exists at PHONE density only. On wide windows the
+              wordmark, the raven and the tagline live in the nav column instead,
+              so <main> starts at the top of the window — roughly 150px of
+              vertical space returned to every tab, which is the composition win
+              this rework is for. On iOS the phone header keeps its compact
+              single-line form (.sr-header-compact, globals.css). */}
+          {isPhone && (
+            <header inert={chromeInert} className={compactChrome() ? 'sr-header sr-header-compact' : 'sr-header'} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '48px 24px 0', flexShrink: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: compactChrome() ? 7 : 10, marginBottom: compactChrome() ? 0 : 6 }}>
+                <RavenGlyph size={compactChrome() ? 20 : 30} style={{ color: 'var(--sr-accent)' }} />
+                <h1 style={{ fontSize: compactChrome() ? '1.125rem' : '1.625rem', fontWeight: 700, letterSpacing: '-0.6px', margin: 0 }}>
+                  Snow<span style={{ color: 'var(--sr-accent)' }}>Raven</span>
+                </h1>
+              </div>
+              {!compactChrome() && (
+                <p style={{ fontSize: '0.875rem', color: 'var(--sr-text-muted)', marginBottom: 28 }}>
+                  Self-hosted birding tools and data explorer
+                </p>
+              )}
+            </header>
+          )}
 
-      {/* Weather tab content */}
       <main id="sr-main" ref={mainRef} tabIndex={-1} style={{ outline: 'none' }}>
       {/* Persistent (always-mounted) polite region for the lazy-tab loading state,
           living OUTSIDE every Suspense boundary so it pre-exists its text change —
@@ -1438,6 +1462,35 @@ export default function App() {
           onInstall={handleInstallUpdate}
         />
       </p>
+        </div>{/* .sr-content */}
+
+        {/* THE FOOTER STAYS IN THE CONTENT COLUMN, BELOW <main>, and moving it
+            into the nav column would break lib/mapPanelChrome.ts's `below` term
+            — which is the distance from the bottom of <main> to the bottom of
+            the footer, and is only meaningful while the two are siblings. */}
+      </div>{/* .sr-shell */}
+
+      {/* At phone density the nav is a FIXED bottom bar of the first four
+          favourites plus a More sheet, rendered AFTER the shell so its place in
+          the reading and tab order matches where it sits on screen (WCAG 2.4.3).
+
+          NOT RENDERED AT ALL while the fullscreen map is up, where the other
+          chrome is merely `inert`. The difference is that this one is `position:
+          fixed` at the same z-index as `.sr-map-fullscreen-panel` and comes after
+          it in the DOM, so an inert bar would still PAINT over the fullscreen
+          map. Removing it also matches the shipped behaviour the fullscreen mode
+          already had, where the phone nav is hidden rather than covered. */}
+      {isPhone && !chromeInert && (
+        <TabNav
+          items={navItems}
+          activeTab={activeTab}
+          onSelect={setActiveTab}
+          isPhone
+          shell={shellEl}
+          reserve={navReserve}
+          navBarRef={setNavBarEl}
+        />
+      )}
 
       {coldStart === true && !welcomeDismissed && (
         <WelcomeScreen

@@ -1502,7 +1502,7 @@ function TabLayoutSection({ tabOrder, tabHidden, onReorder, onToggleVisibility, 
       <p aria-live="polite" className="sr-only">{moveAnnounce}</p>
       <div style={{ border: '1px solid var(--sr-border)', borderRadius: 10, background: 'var(--sr-surface)', overflow: 'hidden' }}>
         <p style={{ padding: '11px 16px', fontSize: '0.75rem', color: 'var(--sr-text-muted)', lineHeight: 1.5, borderBottom: '1px solid var(--sr-border-subtle)' }}>
-          Drag a row, or use the Move up / Move down buttons, to reorder. Use the eye icon to show or hide individual tabs.
+          Drag a row, or use the Move up / Move down buttons, to reorder. Use the eye icon to show or hide individual tabs. On phones the first four shown here become the bottom bar; the rest live under More.
         </p>
 
         <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>

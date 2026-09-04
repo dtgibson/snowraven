@@ -1,0 +1,1083 @@
+<title>SnowRaven Navigation</title>
+<style>
+/* ==========================================================================
+   MOCKUP PRESENTATION CHROME
+   Everything prefixed .mk- is the presentation layer around the app. It is
+   deliberately a different register (serif display, wider measure) so the
+   rendered app inside the stage never gets confused with the annotation
+   around it. No webfont: this file has zero external dependencies, so the
+   display face is a system-available serif stack.
+   ========================================================================== */
+
+:root {
+  --mk-display: 'Iowan Old Style', 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, serif;
+  --mk-body: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mk-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace;
+  --mk-ease: cubic-bezier(0.2, 0, 0, 1);
+}
+
+/* ---- SnowRaven tokens, copied verbatim from frontend/src/globals.css -----
+   Only the subset this mockup paints with. Values are the shipped ones; the
+   nav introduces exactly ONE new token (--sr-nav-bar-shadow), marked below. */
+.sr-app {
+  --sr-bg: #F9FAFB;
+  --sr-surface: #FFFFFF;
+  --sr-surface-subtle: #F4F4F5;
+  --sr-surface-faint: #FAFAFA;
+  --sr-text: #0F1117;
+  --sr-text-muted: #6B6B74;
+  --sr-text-gray: #6B7280;
+  --sr-text-footer: #6B7280;
+  --sr-border: #E4E4E7;
+  --sr-border-subtle: #F4F4F5;
+  --sr-border-medium: #C4C4CE;
+  --sr-border-input: #8A8A91;
+  --sr-accent: #277448;
+  --sr-accent-strong: #1A5C38;
+  --sr-accent-bg: #E8F5EE;
+  --sr-accent-bg-hover: #F0FAF4;
+  --sr-accent-border: rgba(39,116,72,0.25);
+  --sr-on-accent: #FFFFFF;
+  --sr-card-shadow: 0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+  --sr-sticky-shadow: 0 3px 6px -2px rgba(15,17,23,0.12);
+  --sr-scrim: rgba(15,17,23,0.36);
+  --sr-map-pin-visited: #2D8653;
+  --sr-map-pin-unvisited: #5B7FA6;
+  --sr-map-pin-personal: #B0701B;
+  --sr-map-pin-stroke: #3F3F46;
+  --sr-hotspot-2: #24709A;
+  --sr-hotspot-4: #153F63;
+  --font-sans: 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
+
+  /* NEW TOKEN — the upward twin of --sr-sticky-shadow, for the phone bottom
+     bar. Defined in BOTH themes (see the dark block below), as the rules
+     require. Tinted with the app's own ink, never pure black. */
+  --sr-nav-bar-shadow: 0 -3px 6px -2px rgba(15,17,23,0.12);
+
+  /* MOCKUP-ONLY. The real map canvas is painted by MapLibre (Positron), not
+     by CSS, so these are a representation of that basemap for the mockup and
+     are NOT proposed app tokens. */
+  --mk-map-land: #F2F1EE;
+  --mk-map-water: #D7E3EA;
+  --mk-map-road: #E6E4E0;
+}
+
+.sr-app[data-theme="dark"] {
+  --sr-bg: #09090B;
+  --sr-surface: #18181B;
+  --sr-surface-subtle: #27272A;
+  --sr-surface-faint: #1C1C1F;
+  --sr-text: #F4F4F5;
+  --sr-text-muted: #A1A1AA;
+  --sr-text-gray: #8A8A92;
+  --sr-text-footer: #8A8A92;
+  --sr-border: #27272A;
+  --sr-border-subtle: #1F1F23;
+  --sr-border-medium: #3F3F46;
+  --sr-border-input: #707078;
+  --sr-accent: #34D399;
+  --sr-accent-strong: #34D399;
+  --sr-accent-bg: #052E16;
+  --sr-accent-bg-hover: #064E3B;
+  --sr-accent-border: rgba(52,211,153,0.2);
+  --sr-on-accent: #052E16;
+  --sr-card-shadow: 0 1px 4px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.25);
+  --sr-sticky-shadow: 0 3px 8px -2px rgba(2,2,4,0.60);
+  --sr-scrim: rgba(9,9,11,0.6);
+  --sr-nav-bar-shadow: 0 -3px 8px -2px rgba(2,2,4,0.60);
+}
+
+/* ---- page ---------------------------------------------------------------- */
+body { margin: 0; }
+
+.mk {
+  --mk-ink: #14161C;
+  --mk-ink-soft: #565A66;
+  --mk-paper: #F4F2ED;
+  --mk-paper-2: #FBFAF7;
+  --mk-line: #DEDACF;
+  --mk-accent: #277448;
+  min-height: 100vh;
+  background:
+    radial-gradient(1100px 480px at 12% -8%, rgba(39,116,72,0.07), transparent 60%),
+    linear-gradient(180deg, #FBFAF7 0%, #F4F2ED 42%, #EFEDE6 100%);
+  color: var(--mk-ink);
+  font-family: var(--mk-body);
+  font-size: 14px;
+  line-height: 1.55;
+  padding: 0 0 72px;
+}
+.mk[data-theme="dark"] {
+  --mk-ink: #EDEBE5;
+  --mk-ink-soft: #A3A19A;
+  --mk-paper: #17181B;
+  --mk-paper-2: #1E1F23;
+  --mk-line: #32333A;
+  --mk-accent: #34D399;
+  background:
+    radial-gradient(1100px 480px at 12% -8%, rgba(52,211,153,0.09), transparent 60%),
+    linear-gradient(180deg, #131418 0%, #0E0F12 55%, #0A0B0D 100%);
+}
+
+.mk-wrap { max-width: 1180px; margin: 0 auto; padding: 0 28px; }
+
+.mk-head { padding: 52px 0 26px; }
+.mk-eyebrow {
+  font-family: var(--mk-body);
+  font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--mk-accent); margin: 0 0 12px;
+}
+.mk-h1 {
+  font-family: var(--mk-display);
+  font-size: clamp(30px, 4.4vw, 46px); font-weight: 400; line-height: 1.06;
+  letter-spacing: -0.016em; margin: 0 0 14px;
+}
+.mk-h1 em { font-style: italic; color: var(--mk-accent); }
+.mk-lede {
+  font-family: var(--mk-display); font-size: 17px; line-height: 1.62;
+  color: var(--mk-ink-soft); max-width: 63ch; margin: 0;
+}
+
+.mk-h2 {
+  font-family: var(--mk-display); font-size: 25px; font-weight: 400;
+  letter-spacing: -0.012em; margin: 0 0 6px;
+}
+.mk-sec { padding-top: 44px; }
+.mk-sec > p { max-width: 68ch; color: var(--mk-ink-soft); margin: 0 0 18px; }
+
+.mk-panel {
+  background: var(--mk-paper-2);
+  border: 1px solid var(--mk-line);
+  border-radius: 14px;
+  padding: 16px 18px;
+}
+
+/* control bar */
+.mk-bar {
+  position: sticky; top: 0; z-index: 40;
+  background: color-mix(in srgb, var(--mk-paper) 88%, transparent);
+  backdrop-filter: saturate(1.4) blur(10px);
+  border-bottom: 1px solid var(--mk-line);
+}
+.mk-bar-in { max-width: 1180px; margin: 0 auto; padding: 11px 28px; display: flex; flex-wrap: wrap; gap: 10px 22px; align-items: center; }
+.mk-grp { display: flex; align-items: center; gap: 8px; }
+.mk-grp > span {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.11em; text-transform: uppercase;
+  color: var(--mk-ink-soft);
+}
+.mk-seg { display: inline-flex; background: var(--mk-paper-2); border: 1px solid var(--mk-line); border-radius: 9px; padding: 2px; gap: 2px; }
+.mk-btn {
+  font: inherit; font-size: 12.5px; font-weight: 600;
+  padding: 5px 11px; border-radius: 7px; border: 0; background: transparent;
+  color: var(--mk-ink-soft); cursor: pointer;
+  transition: background-color 120ms var(--mk-ease), color 120ms var(--mk-ease);
+}
+.mk-btn:hover { background: color-mix(in srgb, var(--mk-accent) 10%, transparent); color: var(--mk-ink); }
+.mk-btn[aria-pressed="true"] { background: var(--mk-accent); color: #FFFFFF; }
+.mk[data-theme="dark"] .mk-btn[aria-pressed="true"] { color: #06210F; }
+.mk-btn:focus-visible { outline: 3px solid var(--mk-accent); outline-offset: 2px; }
+
+.mk-range { width: 210px; accent-color: var(--mk-accent); }
+.mk-check { display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; font-weight: 600; color: var(--mk-ink-soft); cursor: pointer; }
+.mk-check input { accent-color: var(--mk-accent); width: 14px; height: 14px; }
+
+/* derivation readout */
+.mk-readout {
+  font-family: var(--mk-mono); font-size: 12.5px; line-height: 1.7;
+  padding: 12px 16px; border-radius: 11px;
+  background: var(--mk-paper-2); border: 1px solid var(--mk-line);
+  color: var(--mk-ink-soft);
+  margin: 22px 0 14px;
+  overflow-x: auto; white-space: nowrap;
+}
+.mk-readout b { color: var(--mk-ink); font-weight: 700; }
+.mk-readout .mk-out { color: var(--mk-accent); font-weight: 700; }
+
+/* the window frame around the app */
+.mk-stagewrap {
+  overflow-x: auto;
+  /* full-bleed so a 1,512 px stage fits on a wide display without the page
+     itself scrolling sideways */
+  margin-left: calc(50% - 50vw); margin-right: calc(50% - 50vw);
+  padding: 4px 28px 12px;
+}
+.mk-stagewrap > * { margin: 0 auto; }
+.mk-frame {
+  border-radius: 13px;
+  border: 1px solid var(--mk-line);
+  background: var(--mk-paper-2);
+  box-shadow: 0 2px 6px rgba(20,22,28,0.05), 0 18px 46px rgba(20,22,28,0.10);
+  overflow: hidden;
+  transition: width 220ms var(--mk-ease);
+}
+.mk[data-theme="dark"] .mk-frame { box-shadow: 0 2px 6px rgba(0,0,0,0.5), 0 18px 46px rgba(0,0,0,0.45); }
+.mk-titlebar {
+  height: 27px; display: flex; align-items: center; gap: 6px; padding: 0 11px;
+  border-bottom: 1px solid var(--mk-line);
+  background: var(--mk-paper);
+}
+.mk-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--mk-line); }
+.mk-titlebar span { margin-left: 8px; font-size: 10.5px; font-weight: 600; letter-spacing: 0.04em; color: var(--mk-ink-soft); }
+
+.mk-cap { font-size: 12.5px; color: var(--mk-ink-soft); margin: 10px 2px 0; }
+.mk-cap b { color: var(--mk-ink); font-weight: 700; }
+
+.mk-notes { display: grid; grid-template-columns: repeat(auto-fit, minmax(268px, 1fr)); gap: 14px; margin-top: 22px; }
+.mk-note { background: var(--mk-paper-2); border: 1px solid var(--mk-line); border-left: 3px solid var(--mk-accent); border-radius: 4px 12px 12px 4px; padding: 13px 15px; }
+.mk-note h4 { margin: 0 0 5px; font-size: 12.5px; font-weight: 700; letter-spacing: 0.01em; }
+.mk-note p { margin: 0; font-size: 12.5px; color: var(--mk-ink-soft); line-height: 1.6; }
+.mk-note--warn { border-left-color: #B0701B; }
+
+.mk-foot { margin-top: 52px; padding-top: 20px; border-top: 1px solid var(--mk-line); font-size: 12.5px; color: var(--mk-ink-soft); }
+
+/* ==========================================================================
+   THE APP — class names below are the ones proposed for globals.css.
+   Layout lives in classes only; nothing here is an inline style.
+   ========================================================================== */
+
+.sr-app {
+  font-family: var(--font-sans);
+  background: var(--sr-bg);
+  color: var(--sr-text);
+  height: 620px;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.sr-app * { box-sizing: border-box; }
+.sr-app button { font-family: inherit; }
+.sr-app button:focus-visible,
+.sr-app a:focus-visible,
+.sr-app [tabindex]:focus-visible {
+  outline: 3px solid var(--sr-accent);
+  outline-offset: 3px;
+  border-radius: 8px;
+}
+
+.sr-shell { display: flex; flex: 1; min-width: 0; }
+.sr-shell--phone, .sr-shell--stack { flex-direction: column; }
+.sr-ph-header { padding: 14px 16px 8px; }
+.sr-ph-header .sr-brandrow { margin-bottom: 0; }
+.sr-ph-header h1 { font-size: 1.125rem; }
+.sr-today-check { margin-left: auto; display: flex; }
+
+/* ---- nav column (sidebar + rail share it) -------------------------------- */
+.sr-nav-col {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--sr-surface);
+  border-right: 1px solid var(--sr-border);
+  width: 13.5rem;             /* 216px at 1x; grows with --sr-text-scale */
+  padding: 14px 10px 10px;
+  overflow-y: auto;
+}
+.sr-nav-col--rail {
+  width: 3.75rem;             /* 60px at 1x */
+  padding: 14px 6px 10px;
+  align-items: center;
+}
+.sr-nav-col--anim { transition: width 200ms var(--mk-ease); }
+
+.sr-nav-brand { display: flex; align-items: center; gap: 9px; padding: 2px 6px 0; margin-bottom: 2px; }
+.sr-nav-col--rail .sr-nav-brand { padding: 2px 0 0; justify-content: center; }
+.sr-nav-brand svg { color: var(--sr-accent); flex-shrink: 0; }
+.sr-nav-word { font-size: 1.0625rem; font-weight: 700; letter-spacing: -0.4px; margin: 0; white-space: nowrap; }
+.sr-nav-word span { color: var(--sr-accent); }
+.sr-nav-tagline {
+  font-size: 0.6875rem; line-height: 1.45; color: var(--sr-text-muted);
+  margin: 5px 6px 14px; padding: 0;
+}
+.sr-nav-col--rail .sr-nav-tagline { display: none; }
+.sr-nav-col--rail .sr-nav-brandgap { height: 14px; }
+
+.sr-nav-list { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.sr-nav-group { display: flex; flex-direction: column; gap: 2px; }
+
+.sr-nav-item {
+  position: relative;
+  display: flex; align-items: center; gap: 10px;
+  width: 100%; min-height: 34px;
+  padding: 7px 10px;
+  border: 0; border-radius: 8px;
+  background: none;
+  color: var(--sr-text-muted);
+  font-size: 0.84375rem; font-weight: 500; text-align: left;
+  cursor: pointer;
+  transition: background-color 120ms var(--mk-ease), color 120ms var(--mk-ease);
+}
+.sr-nav-item > svg { flex-shrink: 0; }
+.sr-nav-item span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sr-nav-item:hover { background: var(--sr-surface-subtle); color: var(--sr-text); }
+.sr-nav-item--active,
+.sr-nav-item--active:hover {
+  background: var(--sr-accent-bg);
+  color: var(--sr-accent);
+  font-weight: 600;
+}
+/* leading-edge accent bar: the strip's 2px underline, rotated. A second,
+   non-colour cue for the active row. */
+.sr-nav-item--active::before {
+  content: ""; position: absolute; left: 0; top: 50%;
+  width: 3px; height: 60%; border-radius: 0 2px 2px 0;
+  background: var(--sr-accent);
+  transform: translateY(-50%) scaleY(1);
+  transform-origin: center;
+  animation: sr-nav-bar-in 140ms var(--mk-ease) both;
+}
+@keyframes sr-nav-bar-in { from { transform: translateY(-50%) scaleY(0.35); opacity: 0; } to { transform: translateY(-50%) scaleY(1); opacity: 1; } }
+
+.sr-nav-col--rail .sr-nav-item {
+  width: 40px; height: 40px; min-height: 40px;
+  padding: 0; justify-content: center; gap: 0;
+}
+.sr-nav-col--rail .sr-nav-item span { display: none; }
+.sr-nav-col--rail .sr-nav-item--active::before { left: -6px; height: 22px; }
+
+.sr-nav-sep { height: 1px; background: var(--sr-border); margin: 8px 4px; border: 0; flex-shrink: 0; }
+.sr-nav-col--rail .sr-nav-sep { width: 28px; margin: 8px auto; }
+
+.sr-nav-spacer { flex: 1; min-height: 18px; }
+
+.sr-nav-collapse {
+  display: flex; align-items: center; gap: 10px;
+  width: 100%; min-height: 32px; padding: 6px 10px;
+  border: 0; border-radius: 8px; background: none;
+  color: var(--sr-text-muted); font-size: 0.75rem; font-weight: 600;
+  cursor: pointer;
+  transition: background-color 120ms var(--mk-ease), color 120ms var(--mk-ease);
+}
+.sr-nav-collapse:hover { background: var(--sr-surface-subtle); color: var(--sr-text); }
+.sr-nav-col--rail .sr-nav-collapse { width: 40px; height: 40px; padding: 0; justify-content: center; gap: 0; }
+.sr-nav-col--rail .sr-nav-collapse span { display: none; }
+
+/* rail tooltip — origin-aware, scales from the trigger's leading edge */
+.sr-nav-tip {
+  position: absolute; z-index: 1250;
+  padding: 5px 9px; border-radius: 7px;
+  background: var(--sr-surface); border: 1px solid var(--sr-border);
+  box-shadow: var(--sr-card-shadow);
+  color: var(--sr-text); font-size: 0.75rem; font-weight: 600; white-space: nowrap;
+  pointer-events: none;
+  opacity: 0; transform: scale(0.96); transform-origin: left center;
+  transition: opacity 140ms var(--mk-ease), transform 140ms var(--mk-ease);
+}
+.sr-nav-tip--on { opacity: 1; transform: scale(1); }
+
+/* ---- content column ------------------------------------------------------ */
+.sr-content { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
+.sr-main { flex: 1; min-height: 0; overflow: auto; padding: 26px 26px 8px; }
+.sr-main--fill { display: flex; flex-direction: column; overflow: hidden; }
+.sr-main--fill .sr-map-wrap { flex: 1; min-height: 0; height: auto; }
+.sr-measure { max-width: 940px; margin: 0 auto; }
+.sr-shell--phone .sr-main { padding: 16px 16px 8px; }
+.sr-app-footer { padding: 8px 24px 14px; font-size: 0.6875rem; color: var(--sr-text-footer); flex-shrink: 0; }
+.sr-shell--phone .sr-app-footer { padding: 6px 16px 10px; }
+
+/* the shipped tab-page header register */
+.sr-page-h { display: flex; align-items: flex-start; gap: 9px; margin: 0 0 16px; }
+.sr-page-h svg { color: var(--sr-accent); flex-shrink: 0; margin-top: 3px; }
+.sr-page-h h2 { font-size: 1.375rem; font-weight: 700; margin: 0 0 3px; letter-spacing: -0.01em; }
+.sr-page-h p { font-size: 0.8125rem; color: var(--sr-text-muted); margin: 0; }
+
+.sr-card { background: var(--sr-surface); border: 1px solid var(--sr-border); border-radius: 11px; box-shadow: var(--sr-card-shadow); padding: 14px 16px; }
+.sr-cardgrid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(232px, 1fr)); }
+.sr-card h3 { font-size: 0.8125rem; font-weight: 700; margin: 0 0 4px; }
+.sr-card .sr-sub { font-size: 0.71875rem; color: var(--sr-text-gray); margin: 0 0 8px; }
+.sr-quote { font-size: 0.78125rem; line-height: 1.55; color: var(--sr-text); background: var(--sr-surface-subtle); border-left: 3px solid var(--sr-accent-border); border-radius: 0 6px 6px 0; padding: 8px 10px; margin: 0 0 10px; }
+.sr-row { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--sr-border-subtle); font-size: 0.8125rem; }
+.sr-row:last-child { border-bottom: 0; }
+.sr-row i { font-style: italic; font-size: 0.71875rem; color: var(--sr-text-gray); }
+.sr-row b { font-weight: 600; font-variant-numeric: tabular-nums; color: var(--sr-text-muted); }
+.sr-btn-accent { border: 0; border-radius: 7px; background: var(--sr-accent); color: var(--sr-on-accent); font-size: 0.78125rem; font-weight: 600; padding: 7px 13px; cursor: pointer; }
+.sr-stack { display: flex; flex-direction: column; gap: 12px; }
+.sr-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(112px, 1fr)); gap: 10px; }
+.sr-tile { background: var(--sr-surface); border: 1px solid var(--sr-border); border-radius: 10px; padding: 10px 12px; }
+.sr-tile b { display: block; font-size: 1.25rem; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.sr-tile span { font-size: 0.6875rem; color: var(--sr-text-muted); }
+
+/* ---- Map Explorer surface (the width competitor) ------------------------- */
+.sr-map-wrap { display: flex; gap: 0; border: 1px solid var(--sr-border); border-radius: 11px; overflow: hidden; height: 100%; min-height: 300px; background: var(--sr-surface); }
+.sr-map-sidebar-overlay {
+  width: clamp(240px, 28vw, 300px);
+  flex-shrink: 0;
+  border-right: 1px solid var(--sr-border);
+  background: var(--sr-surface-faint);
+  padding: 12px;
+  overflow: auto;
+}
+.sr-map-lbl { font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--sr-text-muted); margin: 0 0 6px; }
+.sr-map-lbl--gap { margin-top: 16px; }
+.sr-seg { display: flex; border: 1px solid var(--sr-border-input); border-radius: 7px; overflow: hidden; margin-bottom: 12px; }
+.sr-seg button { flex: 1; border: 0; background: var(--sr-surface); color: var(--sr-text-muted); font-size: 0.75rem; font-weight: 600; padding: 6px 4px; cursor: pointer; }
+.sr-seg button[aria-pressed="true"] { background: var(--sr-accent-bg); color: var(--sr-accent); }
+.sr-fake-input { border: 1px solid var(--sr-border-input); border-radius: 7px; background: var(--sr-surface); padding: 6px 9px; font-size: 0.78125rem; color: var(--sr-text); margin-bottom: 12px; }
+.sr-map-canvas { flex: 1; min-width: 0; position: relative; background: var(--mk-map-land); overflow: hidden; }
+.sr-map-canvas .w1 { position: absolute; inset: auto -10% -18% -20%; height: 58%; background: var(--mk-map-water); border-radius: 46% 54% 38% 62% / 60% 40% 60% 40%; }
+.sr-map-canvas .w2 { position: absolute; top: -22%; right: -14%; width: 46%; height: 52%; background: var(--mk-map-water); border-radius: 50% 50% 62% 38% / 44% 56% 44% 56%; }
+.sr-map-canvas .r1, .sr-map-canvas .r2, .sr-map-canvas .r3 { position: absolute; background: var(--mk-map-road); }
+.sr-map-canvas .r1 { left: 0; right: 0; top: 38%; height: 3px; }
+.sr-map-canvas .r2 { top: 0; bottom: 0; left: 33%; width: 3px; }
+.sr-map-canvas .r3 { left: 0; right: 0; top: 70%; height: 2px; }
+.sr-pin--v { background: var(--sr-map-pin-visited); }
+.sr-pin--u { background: var(--sr-map-pin-unvisited); }
+.sr-pin--p { background: var(--sr-map-pin-personal); }
+.sr-pin { position: absolute; width: 15px; height: 15px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); border: 1.5px solid var(--sr-map-pin-stroke); }
+.sr-map-chip { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); background: var(--sr-surface); border: 1px solid var(--sr-border); border-radius: 20px; padding: 4px 11px; font-size: 0.71875rem; color: var(--sr-text-muted); white-space: nowrap; }
+
+/* ---- phone bottom bar ---------------------------------------------------- */
+.sr-navbar {
+  flex-shrink: 0;
+  display: grid; grid-template-columns: repeat(5, 1fr);
+  background: var(--sr-surface);
+  border-top: 1px solid var(--sr-border);
+  box-shadow: var(--sr-nav-bar-shadow);
+  container-type: inline-size;
+  /* iOS only in the real build: .sr-ios-app .sr-navbar { padding-bottom: calc(6px + env(safe-area-inset-bottom, 0px)); } */
+}
+.sr-navbar-cell {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  min-height: 52px; padding: 7px 3px 8px;
+  border: 0; background: none; cursor: pointer;
+  color: var(--sr-text-muted);
+  transition: background-color 120ms var(--mk-ease), color 120ms var(--mk-ease);
+}
+.sr-navbar-cell:hover { background: var(--sr-surface-subtle); }
+.sr-navbar-cell--active { color: var(--sr-accent); }
+.sr-navbar-cell--active .sr-navbar-glyph { background: var(--sr-accent-bg); }
+.sr-navbar-glyph { display: flex; align-items: center; justify-content: center; width: 40px; height: 26px; border-radius: 13px; transition: background-color 140ms var(--mk-ease); }
+.sr-navbar-label {
+  font-size: 0.625rem; font-weight: 600; line-height: 1.15; text-align: center;
+  white-space: normal; overflow-wrap: break-word;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+/* The bar is the query container; five equal cells, so 17rem of bar is 3.4rem
+   of cell — the width at which the longest unbreakable word in the favourites
+   ("Statistics") still fits its cell. rem in a container query resolves against
+   the ROOT font size, which --sr-text-scale multiplies, so this drops the
+   labels at large text scale instead of clipping them: no JS, no viewport
+   breakpoint. Measure the real ink in Chromium AND WebKit at 320 px / 1x and
+   320 px / 200% before shipping the value. */
+@container (max-width: 17rem) { .sr-navbar-label { display: none; } }
+.sr-navbar-cell--active .sr-navbar-label { font-weight: 700; }
+
+/* ---- More sheet ---------------------------------------------------------- */
+.sr-nav-sheet-root {
+  position: absolute; inset: 0; z-index: 1200;
+  background: var(--sr-scrim);
+  display: flex; align-items: flex-end;
+  opacity: 0; transition: opacity 160ms var(--mk-ease);
+}
+.sr-nav-sheet-root--open { opacity: 1; }
+.sr-nav-sheet {
+  width: 100%; max-height: min(70%, 460px);
+  background: var(--sr-surface);
+  border-top: 1px solid var(--sr-border);
+  border-radius: 16px 16px 0 0;
+  box-shadow: var(--sr-card-shadow);
+  padding: 8px 10px 14px;
+  overflow: auto;
+  transform: translateY(100%);
+  transition: transform 220ms var(--mk-ease);
+}
+.sr-nav-sheet-root--open .sr-nav-sheet { transform: translateY(0); }
+.sr-nav-sheet-root--closing { transition-duration: 140ms; }
+.sr-nav-sheet-root--closing .sr-nav-sheet { transition-duration: 140ms; }
+.sr-nav-sheet-handle { width: 36px; height: 4px; border-radius: 2px; background: var(--sr-border-medium); margin: 4px auto 8px; }
+.sr-nav-sheet h2 { font-size: 1rem; font-weight: 700; margin: 0 0 8px; padding: 0 6px; letter-spacing: -0.01em; }
+.sr-nav-sheet .sr-nav-item { min-height: 44px; font-size: 0.9375rem; }
+
+/* ---- TODAY (the shipped nav, for comparison) ----------------------------- */
+.sr-today-header { display: flex; flex-direction: column; align-items: center; padding: 34px 24px 0; flex-shrink: 0; }
+.sr-today-header .sr-brandrow { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.sr-today-header h1 { font-size: 1.625rem; font-weight: 700; letter-spacing: -0.6px; margin: 0; }
+.sr-today-header h1 span { color: var(--sr-accent); }
+.sr-today-header p { font-size: 0.875rem; color: var(--sr-text-muted); margin: 0 0 24px; }
+.sr-today-strip { border-bottom: 1px solid var(--sr-border); flex-shrink: 0; }
+.sr-today-strip nav { display: flex; justify-content: center; padding: 0 24px; }
+.sr-today-tab {
+  display: flex; align-items: center; gap: 6px; padding: 10px 16px;
+  border: 0; border-bottom: 2px solid transparent; background: none;
+  font-size: 0.875rem; font-weight: 500; color: var(--sr-text-muted);
+  white-space: nowrap; cursor: pointer; margin-bottom: -1px;
+}
+.sr-today-tab--active { color: var(--sr-accent); border-bottom-color: var(--sr-accent); }
+.sr-today-dd { padding: 12px 16px; position: relative; flex-shrink: 0; border-bottom: 1px solid var(--sr-border); }
+.sr-today-trigger {
+  width: 100%; display: flex; align-items: center; justify-content: space-between;
+  padding: 11px 14px; border-radius: 8px; border: 1px solid var(--sr-border-medium);
+  background: var(--sr-surface); color: var(--sr-text);
+  font-size: 0.9375rem; font-weight: 600; cursor: pointer;
+}
+.sr-today-trigger .lhs { display: flex; align-items: center; gap: 10px; color: var(--sr-accent); }
+.sr-today-menu {
+  position: absolute; left: 16px; right: 16px; top: calc(100% - 2px);
+  background: var(--sr-surface); border: 1px solid var(--sr-border); border-radius: 8px;
+  box-shadow: var(--sr-card-shadow); padding: 6px; z-index: 1200;
+  max-height: 260px; overflow-y: auto;
+}
+.sr-today-opt { width: 100%; display: flex; align-items: center; gap: 11px; padding: 11px 12px; border: 0; background: none; border-radius: 6px; font-size: 0.9375rem; font-weight: 500; color: var(--sr-text); text-align: left; cursor: pointer; }
+.sr-today-opt--active { background: var(--sr-accent-bg); color: var(--sr-accent); font-weight: 600; }
+
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border-width: 0; }
+
+/* ---- reduced motion: every transition and animation in the design has a
+        calm, near-instant fallback ------------------------------------------ */
+@media (prefers-reduced-motion: reduce) {
+  .mk-frame,
+  .sr-nav-col--anim,
+  .sr-nav-item,
+  .sr-nav-collapse,
+  .sr-navbar-cell,
+  .sr-navbar-glyph,
+  .sr-nav-tip,
+  .sr-nav-sheet-root,
+  .sr-nav-sheet,
+  .mk-btn { transition: none !important; }
+  .sr-nav-item--active::before { animation: none !important; }
+}
+</style>
+
+<div class="mk" id="mk" data-theme="light">
+
+  <div class="mk-bar">
+    <div class="mk-bar-in">
+      <div class="mk-grp">
+        <span>Width</span>
+        <input class="mk-range" id="w" type="range" min="320" max="1600" step="2" value="1512" aria-label="Window width in pixels">
+        <div class="mk-seg" role="group" aria-label="Width presets">
+          <button class="mk-btn" data-w="1512" tabindex="0">1512</button>
+          <button class="mk-btn" data-w="1024" tabindex="0">1024</button>
+          <button class="mk-btn" data-w="834" tabindex="0">834</button>
+          <button class="mk-btn" data-w="720" tabindex="0">720</button>
+          <button class="mk-btn" data-w="390" tabindex="0">390</button>
+        </div>
+      </div>
+      <div class="mk-grp">
+        <span>Theme</span>
+        <div class="mk-seg" role="group" aria-label="Theme">
+          <button class="mk-btn" id="th-l" tabindex="0">Light</button>
+          <button class="mk-btn" id="th-d" tabindex="0">Dark</button>
+        </div>
+      </div>
+      <div class="mk-grp">
+        <span>Nav</span>
+        <div class="mk-seg" role="group" aria-label="Which navigation">
+          <button class="mk-btn" id="nv-new" tabindex="0">Proposed</button>
+          <button class="mk-btn" id="nv-old" tabindex="0">Today</button>
+        </div>
+      </div>
+      <label class="mk-check"><input type="checkbox" id="ic" tabindex="0"> Proposed Multimedia icon</label>
+    </div>
+  </div>
+
+  <div class="mk-wrap">
+
+    <div class="mk-head">
+      <p class="mk-eyebrow">SnowRaven &middot; nav-rework &middot; design pass</p>
+      <h1 class="mk-h1">Eleven destinations, <em>one</em> navigation,<br>three densities.</h1>
+      <p class="mk-lede">
+        The horizontal strip needs about 1,409&nbsp;px and swaps for a single scrolling
+        dropdown the moment it would overflow &mdash; so an unmaximised laptop window, an
+        iPad and every phone all get the dropdown. This replaces it with a vertical
+        sidebar, an icon rail and a phone bottom bar, chosen from measured available
+        width. Drag the width slider and watch the density change; switch <b>Nav</b> to
+        <b>Today</b> at any width to see what ships now.
+      </p>
+    </div>
+
+    <div class="mk-readout" id="readout"></div>
+
+    <div class="mk-stagewrap">
+      <div class="mk-frame" id="frame">
+        <div class="mk-titlebar"><i class="mk-dot"></i><i class="mk-dot"></i><i class="mk-dot"></i><span id="framelabel"></span></div>
+        <div class="sr-app" id="stage" data-theme="light"></div>
+      </div>
+    </div>
+
+    <p class="mk-cap" id="cap"></p>
+
+    <div class="mk-sec">
+      <h2 class="mk-h2">What each density is doing</h2>
+      <div class="mk-notes">
+        <div class="mk-note">
+          <h4>Sidebar &mdash; the brand comes with it</h4>
+          <p>The wordmark, glyph and tagline move out of the page header and into the top of the nav column, so the content column starts at the top of the window. That is roughly 150&nbsp;px of vertical chrome returned to every tab, on every wide window.</p>
+        </div>
+        <div class="mk-note">
+          <h4>Grouping: one line, and only one</h4>
+          <p>No named groups. The user reorders freely, so any category label becomes a lie the first time they do. The one honest separator sits above Settings, whose position is structurally fixed &mdash; it is appended after the saved order and is never part of it.</p>
+        </div>
+        <div class="mk-note">
+          <h4>Settings is not pinned to the bottom</h4>
+          <p>It sits directly under the list behind its hairline, exactly as the shipped dropdown already draws it. Pinned to the floor it would read as a different kind of thing, and it would float alone whenever the user hides most tabs.</p>
+        </div>
+        <div class="mk-note">
+          <h4>Collapse narrows, never widens</h4>
+          <p>The toggle can step an affordable sidebar down to the rail. It can never force a sidebar the measurement says will not fit, so it cannot contradict the derivation &mdash; and it is session-only, so nothing new is stored and no relaunch can restore a density that is wrong for the window.</p>
+        </div>
+        <div class="mk-note">
+          <h4>Rail: three ways to know where you are going</h4>
+          <p>The icon, a tooltip on hover and keyboard focus, and an <code>aria-label</code> that is always present. Where you <em>are</em> is answered by the page header the tab already draws &mdash; which is the touch answer on iPad portrait, where there is no hover.</p>
+        </div>
+        <div class="mk-note mk-note--warn">
+          <h4>One proposed icon change</h4>
+          <p>Multimedia uses lucide <code>List</code> today, which is indistinguishable from Checklists&rsquo; <code>ClipboardList</code> at rail size. <code>Images</code> is proposed instead. Toggle it in the bar above to compare. <strong>Approved:</strong> Multimedia ships with <code>Images</code>.</p>
+        </div>
+      </div>
+    </div>
+
+    <p class="mk-foot">
+      Mockup only. Colours are the shipped <code>--sr-*</code> tokens in both themes; one new token
+      (<code>--sr-nav-bar-shadow</code>) is defined in both. The map canvas is a CSS stand-in for
+      the MapLibre Positron basemap, not a proposed token set.
+    </p>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  // ---- geometry constants (the real ones the Engineer will use) ------------
+  var SIDEBAR_REM = 13.5;   // 216px at 1x — rem, so it tracks --sr-text-scale
+  var RAIL_REM    = 3.75;   // 60px at 1x
+  var FLOOR       = 640;    // the app's own phone boundary: the sidebar may
+                            // never squeeze the content into the tier below
+  var PHONE       = 640;    // (max-width: 640px) — useIsPhone's established MQ
+  var ROOT_PX     = 16;     // the mockup renders at 1x
+
+  var TABS = [
+    { id: 'weather',        label: 'Weather',        icon: 'cloud' },
+    { id: 'birding-stats',  label: 'Statistics',     icon: 'bars' },
+    { id: 'calendar',       label: 'Calendar',       icon: 'cal' },
+    { id: 'species-detail', label: 'Species Detail', icon: 'book' },
+    { id: 'map-explorer',   label: 'Map Explorer',   icon: 'map' },
+    { id: 'life-list',      label: 'Multimedia',     icon: 'list' },
+    { id: 'breeding-codes', label: 'Breeding Codes', icon: 'dna' },
+    { id: 'checklists',     label: 'Checklists',     icon: 'clip' },
+    { id: 'comparer',       label: 'List Comparer',  icon: 'cmp' },
+    { id: 'named-birds',    label: 'Named Birds',    icon: 'tag' },
+    { id: 'settings',       label: 'Settings',       icon: 'gear' }
+  ];
+
+  var P = {
+    cloud: '<path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/>',
+    bars:  '<path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/>',
+    cal:   '<path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/>',
+    book:  '<path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/>',
+    map:   '<polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" y1="3" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="21"/>',
+    list:  '<line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>',
+    images:'<path d="M18 22H4a2 2 0 0 1-2-2V6"/><path d="m22 13-1.296-1.296a2.41 2.41 0 0 0-3.408 0L11 18"/><circle cx="12" cy="8" r="2"/><rect width="16" height="16" x="6" y="2" rx="2"/>',
+    dna:   '<path d="m10 16 1.5 1.5"/><path d="m14 8-1.5-1.5"/><path d="M15 2c-1.8 2-2.5 4-2.8 6"/><path d="m16.5 10.5 1 1"/><path d="m17 6-2.9-2.9"/><path d="M2 15c6.7-6 13.3 0 20-6"/><path d="m20 9 .9.9"/><path d="M3.1 14.1 4 15"/><path d="m6.5 12.5 1 1"/><path d="m7 18 2.9 2.9"/><path d="M9 22c1.8-2 2.5-4 2.8-6"/>',
+    clip:  '<rect width="8" height="4" x="8" y="2" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/>',
+    cmp:   '<path d="M21 6H3"/><path d="M10 12H3"/><path d="M10 18H3"/><polyline points="15 12 18 15 21 12"/><path d="M18 6v9"/>',
+    tag:   '<path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r=".9"/>',
+    gear:  '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
+    more:  '<circle cx="12" cy="12" r="1.4"/><circle cx="19" cy="12" r="1.4"/><circle cx="5" cy="12" r="1.4"/>',
+    close: '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/><path d="m16 15-3-3 3-3"/>',
+    open:  '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/><path d="m14 9 3 3-3 3"/>',
+    chev:  '<path d="m6 9 6 6 6-6"/>',
+    check: '<path d="M20 6 9 17l-5-5"/>'
+  };
+
+  var RAVEN = 'M 150.79 440.77 L 176.47 435.39 L 197.48 429.33 L 213.04 423.88 L 245.73 409.97 L 270.63 397.28 L 296.30 381.80 L 318.09 366.18 L 336.57 350.44 L 352.33 334.58 L 367.31 316.20 L 379.08 297.53 L 385.19 285.08 L 389.91 273.41 L 395.34 253.95 L 396.99 244.61 L 398.12 232.16 L 397.64 214.27 L 393.73 194.04 L 386.46 169.91 L 384.84 159.02 L 385.60 149.68 L 388.70 139.57 L 394.35 130.77 L 399.02 125.85 L 405.25 120.87 L 417.70 113.66 L 430.15 109.05 L 445.71 105.74 L 451.93 105.05 L 464.38 105.06 L 473.72 106.67 L 484.62 111.08 L 485.38 110.77 L 485.11 101.44 L 483.21 95.21 L 479.17 87.44 L 473.72 81.39 L 464.38 74.65 L 449.60 68.35 L 437.93 65.33 L 410.69 60.66 L 402.71 53.19 L 392.02 45.17 L 381.12 38.75 L 373.34 35.08 L 354.67 28.85 L 339.10 26.17 L 322.76 25.37 L 311.09 26.27 L 297.08 28.66 L 288.52 31.10 L 273.74 37.43 L 262.07 44.46 L 253.51 51.19 L 244.65 60.19 L 234.69 73.42 L 226.06 88.21 L 215.97 110.77 L 198.93 152.79 L 199.81 153.14 L 210.71 148.11 L 230.16 141.75 L 241.83 139.37 L 254.28 138.31 L 267.51 138.63 L 281.50 141.12 L 293.19 144.94 L 303.31 150.17 L 311.57 155.91 L 321.42 166.02 L 327.70 175.36 L 332.88 187.08 L 335.35 196.37 L 336.92 208.82 L 336.90 218.94 L 334.38 236.06 L 328.50 255.51 L 319.29 274.96 L 307.20 294.01 L 289.43 316.20 L 271.40 335.03 L 248.84 355.96 L 146.83 440.71 L 147.68 441.18 Z M 361.37 83.54 L 355.44 83.04 L 349.39 79.65 L 345.70 75.76 L 340.28 67.20 L 335.99 63.61 L 331.05 60.97 L 331.32 60.45 L 343.77 60.10 L 354.67 61.50 L 367.12 66.26 L 376.07 72.64 L 374.90 74.46 L 367.89 80.74 Z M 384.80 96.77 L 381.12 97.22 L 379.95 96.77 L 389.68 89.61 L 398.24 84.87 L 409.14 81.06 L 423.14 79.17 L 436.37 79.99 L 446.49 82.49 L 458.16 88.01 L 465.16 93.23 L 467.68 95.99 L 466.72 96.57 L 440.26 94.09 L 416.92 93.78 L 399.02 94.86 Z M 27.07 486.63 L 42.63 480.11 L 57.41 472.78 L 83.87 457.96 L 111.11 441.03 L 146.90 416.35 L 188.78 384.68 L 227.05 353.61 L 252.69 330.99 L 266.74 317.42 L 278.01 305.31 L 291.95 288.19 L 298.64 278.72 L 306.04 266.40 L 311.49 255.51 L 315.26 246.17 L 317.53 239.17 L 319.92 228.27 L 321.08 218.94 L 321.06 210.38 L 320.04 201.82 L 318.42 194.81 L 315.25 187.03 L 311.19 180.03 L 307.72 175.36 L 302.53 170.13 L 295.53 164.95 L 286.97 160.39 L 276.07 156.55 L 269.07 154.98 L 260.51 153.84 L 248.84 153.69 L 231.72 155.87 L 220.82 158.88 L 212.26 162.07 L 203.81 166.02 L 195.15 171.24 L 186.59 177.15 L 176.64 185.48 L 162.41 200.26 L 153.88 211.15 L 143.79 226.74 L 136.73 239.17 L 125.74 261.73 L 109.38 300.64 L 78.90 379.23 L 79.98 379.55 L 90.87 375.49 L 106.44 367.80 L 123.56 357.64 L 148.46 339.41 L 149.24 339.06 L 149.37 339.55 L 133.67 359.67 L 120.96 373.01 L 107.66 384.68 L 87.69 397.91 L 62.88 436.82 L 44.33 463.27 L 26.62 485.84 Z';
+
+  function ic(name, size, stroke) {
+    return '<svg width="' + size + '" height="' + size + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+      'stroke-width="' + stroke + '" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + P[name] + '</svg>';
+  }
+  function raven(size) {
+    return '<svg width="' + size + '" height="' + size + '" viewBox="0 0 512 512" aria-hidden="true" focusable="false">' +
+      '<path fill="currentColor" fill-rule="evenodd" clip-rule="evenodd" d="' + RAVEN + '"/></svg>';
+  }
+  function iconFor(t) {
+    if (t.icon === 'list' && S.newIcon) return 'images';
+    return t.icon;
+  }
+  function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
+
+  // ---- state ---------------------------------------------------------------
+  var S = { w: 1512, theme: 'light', nav: 'new', active: 'weather', collapsed: false,
+            sheet: false, newIcon: false, ddOpen: false };
+
+  var stage = document.getElementById('stage');
+  var frame = document.getElementById('frame');
+  var mk = document.getElementById('mk');
+  var readout = document.getElementById('readout');
+  var cap = document.getElementById('cap');
+  var framelabel = document.getElementById('framelabel');
+
+  // ---- the density derivation ---------------------------------------------
+  function reserveFor(w) {
+    // Map Explorer publishes its own in-flow sidebar width as --sr-nav-reserve;
+    // every other tab publishes nothing. clamp(240px, 28vw, 300px).
+    if (S.active !== 'map-explorer' || w <= PHONE) return 0;
+    return Math.round(Math.min(300, Math.max(240, w * 0.28)));
+  }
+  function derive(w) {
+    if (w <= PHONE) return 'phone';
+    var nav = Math.round(SIDEBAR_REM * ROOT_PX);
+    return (w - nav - reserveFor(w) >= FLOOR) ? 'sidebar' : 'rail';
+  }
+  function effective(w) {
+    var d = derive(w);
+    return (d === 'sidebar' && S.collapsed) ? 'rail' : d;
+  }
+
+  // ---- content -------------------------------------------------------------
+  var SUBS = {
+    'weather':        '1,284 checklists &middot; eBird backup 2 days old',
+    'birding-stats':  '1,284 checklists &middot; 412 species &middot; 14 counties',
+    'calendar':       'First-of-year arrivals by week &middot; 2019&ndash;2026',
+    'species-detail': 'Blackburnian Warbler &middot; 37 observations',
+    'map-explorer':   '86 hotspots in view &middot; 40 km radius',
+    'life-list':      '218 species with media &middot; 1,904 assets',
+    'breeding-codes': '23 codes &middot; 96 species with breeding evidence',
+    'checklists':     '1,284 checklists &middot; 62 locations',
+    'comparer':       'Compare two checklists side by side',
+    'named-birds':    '14 named individuals',
+    'settings':       'Files, keys, appearance and iCloud sync'
+  };
+
+  var SPECIES = [
+    ['Blackburnian Warbler', 'Setophaga fusca', '4'],
+    ['Semipalmated Sandpiper', 'Calidris pusilla', '61'],
+    ['Red-necked Grebe', 'Podiceps grisegena', '9'],
+    ['American Redstart', 'Setophaga ruticilla', '12'],
+    ['Caspian Tern', 'Hydroprogne caspia', '23']
+  ];
+
+  function speciesRows(n) {
+    var h = '';
+    for (var i = 0; i < n; i++) {
+      var s = SPECIES[i % SPECIES.length];
+      h += '<div class="sr-row"><span>' + s[0] + ' <i>' + s[1] + '</i></span><b>' + s[2] + '</b></div>';
+    }
+    return h;
+  }
+
+  function weatherBody() {
+    return '<div class="sr-stack">' +
+      '<div class="sr-card">' +
+        '<h3>Tommy Thompson Park, Toronto</h3>' +
+        '<p class="sr-sub">S212847391 &middot; 3 Sep 2026, 07:14 &middot; 42 species</p>' +
+        '<p class="sr-quote">Clear, 14&deg;C, wind NW 8&nbsp;km/h, humidity 72%.<br>' +
+        'Low tide 06:52 (0.3&nbsp;m) &middot; High tide 13:10 (1.9&nbsp;m). Moon: waning gibbous, 78%.</p>' +
+        '<button class="sr-btn-accent" tabindex="0">Copy weather &amp; go</button>' +
+      '</div>' +
+      '<div class="sr-cardgrid">' +
+        '<div class="sr-card"><h3>Ashbridges Bay Park</h3><p class="sr-sub">S212791044 &middot; 1 Sep 2026 &middot; 28 species</p>' + speciesRows(3) + '</div>' +
+        '<div class="sr-card"><h3>Colonel Samuel Smith Park</h3><p class="sr-sub">S212654820 &middot; 30 Aug 2026 &middot; 35 species</p>' + speciesRows(3) + '</div>' +
+        '<div class="sr-card"><h3>Rattray Marsh CA, Mississauga</h3><p class="sr-sub">S212510337 &middot; 27 Aug 2026 &middot; 31 species</p>' + speciesRows(3) + '</div>' +
+      '</div></div>';
+  }
+
+  function mapBody() {
+    return '<div class="sr-map-wrap">' +
+      '<div class="sr-map-sidebar-overlay">' +
+        '<p class="sr-map-lbl">Show</p>' +
+        '<div class="sr-seg"><button aria-pressed="true" tabindex="0">Hotspots</button><button aria-pressed="false" tabindex="0">Sightings</button></div>' +
+        '<p class="sr-map-lbl">Radius</p>' +
+        '<div class="sr-fake-input">40 km</div>' +
+        '<button class="sr-btn-accent" tabindex="0">Search this area</button>' +
+        '<p class="sr-map-lbl sr-map-lbl--gap">In view (86)</p>' +
+        '<div class="sr-row"><span>Tommy Thompson Park</span><b>231</b></div>' +
+        '<div class="sr-row"><span>Ashbridges Bay Park</span><b>184</b></div>' +
+        '<div class="sr-row"><span>Rattray Marsh CA</span><b>167</b></div>' +
+        '<div class="sr-row"><span>Col. Sam Smith Park</span><b>159</b></div>' +
+        '<div class="sr-row"><span>Humber Bay Park East</span><b>146</b></div>' +
+      '</div>' +
+      '<div class="sr-map-canvas">' +
+        '<i class="w1"></i><i class="w2"></i><i class="r1"></i><i class="r2"></i><i class="r3"></i>' +
+        '<i class="sr-pin sr-pin--v" style="left:26%;top:31%"></i>' +
+        '<i class="sr-pin sr-pin--u" style="left:48%;top:22%"></i>' +
+        '<i class="sr-pin sr-pin--v" style="left:61%;top:44%"></i>' +
+        '<i class="sr-pin sr-pin--p" style="left:38%;top:57%"></i>' +
+        '<i class="sr-pin sr-pin--u" style="left:73%;top:63%"></i>' +
+        '<div class="sr-map-chip">86 hotspots &middot; Toronto &amp; Peel</div>' +
+      '</div></div>';
+  }
+
+  function genericBody() {
+    return '<div class="sr-stack">' +
+      '<div class="sr-tiles">' +
+        '<div class="sr-tile"><b>412</b><span>species</span></div>' +
+        '<div class="sr-tile"><b>1,284</b><span>checklists</span></div>' +
+        '<div class="sr-tile"><b>14</b><span>counties</span></div>' +
+        '<div class="sr-tile"><b>96</b><span>breeding</span></div>' +
+      '</div>' +
+      '<div class="sr-card"><h3>Most recent</h3><p class="sr-sub">Toronto &amp; Peel, last 30 days</p>' + speciesRows(5) + '</div>' +
+    '</div>';
+  }
+
+  function pageHeader(t) {
+    return '<div class="sr-page-h">' + ic(iconFor(t), 20, 2) +
+      '<div><h2>' + esc(t.label) + '</h2><p>' + SUBS[t.id] + '</p></div></div>';
+  }
+
+  function contentHtml() {
+    var t = TABS.filter(function (x) { return x.id === S.active; })[0] || TABS[0];
+    var isMap = t.id === 'map-explorer';
+    var body = isMap ? mapBody() : (t.id === 'weather' ? weatherBody() : genericBody());
+    var inner = isMap
+      ? pageHeader(t) + body
+      : '<div class="sr-measure">' + pageHeader(t) + body + '</div>';
+    return '<main class="sr-main' + (isMap ? ' sr-main--fill' : '') + '" id="sr-main">' + inner + '</main>' +
+           '<footer class="sr-app-footer">SnowRaven 1.0.16 &middot; Data from eBird &middot; Help</footer>';
+  }
+
+  // ---- nav renderers -------------------------------------------------------
+  function navItem(t, size, stroke, rail) {
+    var active = t.id === S.active;
+    return '<button class="sr-nav-item' + (active ? ' sr-nav-item--active' : '') + '"' +
+      ' role="tab" id="tab-' + t.id + '" aria-controls="panel-' + t.id + '"' +
+      ' aria-selected="' + active + '" tabindex="' + (active ? '0' : '-1') + '"' +
+      ' data-go="' + t.id + '"' + (rail ? ' aria-label="' + esc(t.label) + '" data-tip="' + esc(t.label) + '"' : '') + '>' +
+      ic(iconFor(t), size, stroke) + '<span>' + esc(t.label) + '</span></button>';
+  }
+
+  function navColumn(rail) {
+    var size = rail ? 18 : 15, stroke = rail ? 2 : 2.25;
+    var rows = '', i;
+    for (i = 0; i < TABS.length - 1; i++) rows += navItem(TABS[i], size, stroke, rail);
+    var settings = navItem(TABS[TABS.length - 1], size, stroke, rail);
+
+    var brand = rail
+      ? '<div class="sr-nav-brand">' + raven(22) + '<h1 class="sr-only">SnowRaven</h1></div><div class="sr-nav-brandgap"></div>'
+      : '<div class="sr-nav-brand">' + raven(22) + '<h1 class="sr-nav-word">Snow<span>Raven</span></h1></div>' +
+        '<p class="sr-nav-tagline">Self-hosted birding tools and data explorer</p>';
+
+    var showToggle = derive(S.w) === 'sidebar';
+    var toggle = showToggle
+      ? '<button class="sr-nav-collapse" id="collapse" tabindex="0" aria-expanded="' + (!S.collapsed) + '"' +
+        ' aria-label="' + (S.collapsed ? 'Expand navigation' : 'Collapse navigation') + '">' +
+        ic(S.collapsed ? 'open' : 'close', 16, 2) + '<span>Collapse</span></button>'
+      : '';
+
+    return '<div class="sr-nav-col' + (rail ? ' sr-nav-col--rail' : '') + ' sr-nav-col--anim" id="navcol">' +
+      brand +
+      '<nav aria-label="Main navigation" class="sr-nav-list">' +
+        '<div role="tablist" aria-orientation="vertical" class="sr-nav-group" id="tablist">' + rows + '</div>' +
+        '<hr class="sr-nav-sep">' + settings +
+      '</nav>' +
+      '<div class="sr-nav-spacer"></div>' + toggle +
+      '</div>';
+  }
+
+  function phoneNav() {
+    var fav = TABS.slice(0, 4);
+    var overflowActive = !fav.some(function (t) { return t.id === S.active; });
+    var cells = '';
+    fav.forEach(function (t) {
+      var a = t.id === S.active;
+      cells += '<button class="sr-navbar-cell' + (a ? ' sr-navbar-cell--active' : '') + '"' +
+        ' tabindex="0" data-go="' + t.id + '" aria-current="' + (a ? 'true' : 'false') + '">' +
+        '<span class="sr-navbar-glyph">' + ic(iconFor(t), 20, 2) + '</span>' +
+        '<span class="sr-navbar-label">' + esc(t.label) + '</span></button>';
+    });
+    cells += '<button class="sr-navbar-cell' + (overflowActive ? ' sr-navbar-cell--active' : '') + '"' +
+      ' id="more" tabindex="0" aria-haspopup="dialog" aria-expanded="' + S.sheet + '" aria-label="More destinations">' +
+      '<span class="sr-navbar-glyph">' + ic('more', 20, 2) + '</span>' +
+      '<span class="sr-navbar-label">More</span></button>';
+    return '<nav class="sr-navbar" aria-label="Main navigation">' + cells + '</nav>';
+  }
+
+  function sheetHtml() {
+    var rest = TABS.slice(4);
+    var rows = rest.map(function (t) {
+      var a = t.id === S.active;
+      return '<button class="sr-nav-item' + (a ? ' sr-nav-item--active' : '') + '" tabindex="0"' +
+        ' data-go="' + t.id + '" aria-current="' + (a ? 'true' : 'false') + '">' +
+        ic(iconFor(t), 17, 2.1) + '<span>' + esc(t.label) + '</span></button>';
+    });
+    // Settings keeps its hairline here too — same structural separator.
+    rows.splice(rows.length - 1, 0, '<hr class="sr-nav-sep">');
+    return '<div class="sr-nav-sheet-root" id="sheetroot" role="dialog" aria-modal="true" aria-label="More destinations">' +
+      '<div class="sr-nav-sheet"><div class="sr-nav-sheet-handle"></div><h2>More</h2>' + rows.join('') + '</div></div>';
+  }
+
+  // ---- today (shipped) -----------------------------------------------------
+  function todayHtml() {
+    var STRIP_NEEDS = 1409, COLLAPSE_AT = 1457;
+    var fits = S.w >= COLLAPSE_AT;
+    var header = '<header class="sr-today-header">' +
+      '<div class="sr-brandrow">' + raven(30) + '<h1>Snow<span>Raven</span></h1></div>' +
+      '<p>Self-hosted birding tools and data explorer</p></header>';
+    if (fits) {
+      var tabs = TABS.map(function (t) {
+        var a = t.id === S.active;
+        return '<button class="sr-today-tab' + (a ? ' sr-today-tab--active' : '') + '" tabindex="' + (a ? '0' : '-1') +
+          '" data-go="' + t.id + '">' + ic(iconFor(t), 14, 2.5) + esc(t.label) + '</button>';
+      }).join('');
+      return header + '<div class="sr-today-strip"><nav aria-label="Main navigation">' + tabs + '</nav></div>' + contentHtml();
+    }
+    var act = TABS.filter(function (x) { return x.id === S.active; })[0] || TABS[0];
+    var menu = S.ddOpen ? '<div class="sr-today-menu" role="listbox">' + TABS.map(function (t) {
+      var a = t.id === S.active;
+      return (t.id === 'settings' ? '<hr class="sr-nav-sep">' : '') +
+        '<button class="sr-today-opt' + (a ? ' sr-today-opt--active' : '') + '" role="option" aria-selected="' + a +
+        '" tabindex="-1" data-go="' + t.id + '">' + ic(iconFor(t), 14, 2.5) + '<span>' + esc(t.label) + '</span>' +
+        (a ? '<span class="sr-today-check">' + ic('check', 16, 2.5) + '</span>' : '') + '</button>';
+    }).join('') + '</div>' : '';
+    return header + '<div class="sr-today-dd">' +
+      '<button class="sr-today-trigger" id="ddtrigger" tabindex="0" aria-haspopup="listbox" aria-expanded="' + S.ddOpen + '">' +
+      '<span class="lhs">' + ic(iconFor(act), 14, 2.5) + '<span style="color:var(--sr-text)">' + esc(act.label) + '</span></span>' +
+      ic('chev', 18, 2) + '</button>' + menu + '</div>' + contentHtml();
+  }
+
+  // ---- render --------------------------------------------------------------
+  function render() {
+    var d = effective(S.w);
+    frame.style.width = S.w + 'px';
+    stage.setAttribute('data-theme', S.theme);
+    stage.setAttribute('data-nav-density', d);
+    mk.setAttribute('data-theme', S.theme);
+
+    if (S.nav === 'old') {
+      stage.innerHTML = '<div class="sr-shell sr-shell--stack' + (S.w <= PHONE ? ' sr-shell--phone' : '') + '">' + todayHtml() + '</div>';
+    } else if (d === 'phone') {
+      stage.innerHTML = '<div class="sr-shell sr-shell--phone">' +
+        '<header class="sr-today-header sr-ph-header"><div class="sr-brandrow">' +
+        raven(20) + '<h1>Snow<span>Raven</span></h1></div></header>' +
+        contentHtml() + phoneNav() + '</div>' + (S.sheet ? sheetHtml() : '');
+    } else {
+      stage.innerHTML = '<div class="sr-shell">' + navColumn(d === 'rail') +
+        '<div class="sr-content">' + contentHtml() + '</div></div>';
+    }
+
+    // presets + segmented pressed states
+    Array.prototype.forEach.call(document.querySelectorAll('[data-w]'), function (b) {
+      b.setAttribute('aria-pressed', String(Number(b.getAttribute('data-w')) === S.w));
+    });
+    document.getElementById('th-l').setAttribute('aria-pressed', String(S.theme === 'light'));
+    document.getElementById('th-d').setAttribute('aria-pressed', String(S.theme === 'dark'));
+    document.getElementById('nv-new').setAttribute('aria-pressed', String(S.nav === 'new'));
+    document.getElementById('nv-old').setAttribute('aria-pressed', String(S.nav === 'old'));
+
+    // sheet entrance on the next frame so the transform transition runs
+    if (S.sheet) {
+      var root = document.getElementById('sheetroot');
+      if (root) requestAnimationFrame(function () { root.classList.add('sr-nav-sheet-root--open'); });
+    }
+
+    writeReadout(d);
+  }
+
+  function writeReadout(d) {
+    var nav = Math.round(SIDEBAR_REM * ROOT_PX);
+    var res = reserveFor(S.w);
+    var out;
+    if (S.w <= PHONE) {
+      out = '<b>' + S.w + '</b> px available &le; <b>640</b> px phone boundary ' +
+            '&rarr; <span class="mk-out">phone bottom bar</span> &middot; 4 favourites + More';
+    } else {
+      var left = S.w - nav - res;
+      out = '<b>' + S.w + '</b> available &minus; <b>' + nav + '</b> nav' +
+            (res ? ' &minus; <b>' + res + '</b> Map Explorer sidebar' : '') +
+            ' = <b>' + left + '</b> px content ' + (left >= FLOOR ? '&ge;' : '&lt;') + ' <b>640</b> floor &rarr; ' +
+            '<span class="mk-out">' + (left >= FLOOR ? 'sidebar' : 'icon rail') + '</span>';
+      if (left >= FLOOR && S.collapsed) out += ' <span class="mk-out">&rarr; collapsed to rail by the toggle</span>';
+    }
+    readout.innerHTML = out;
+    framelabel.textContent = 'SnowRaven — ' + S.w + '×620 — ' + (S.nav === 'old' ? 'today' : d);
+
+    var caps = {
+      sidebar: '<b>Sidebar.</b> The brand block has moved into the nav column, so the content starts at the top of the window — about 150&nbsp;px of chrome returned to every tab. The saved order runs top to bottom, one hairline above Settings, and the collapse control sits at the foot of the column.',
+      rail: '<b>Icon rail.</b> Hover or tab through the icons to see the tooltip scale in from the rail edge. The destination you are on is named by the page header the tab already draws, so the rail never has to carry it.',
+      phone: '<b>Phone bottom bar.</b> The first four of the saved visible order, plus More. Press <b>More</b> to see the sheet rise from the bar. On iOS the bar takes the home-indicator inset; on the web build it does not.'
+    };
+    cap.innerHTML = S.nav === 'old'
+      ? (S.w >= 1457
+          ? '<b>Today, above the collapse threshold.</b> The strip fits only from about 1,457&nbsp;px — which is why the website screenshots are captured at 1,600&nbsp;px.'
+          : '<b>Today, below the collapse threshold.</b> All eleven destinations become one dropdown, scrolling on short and landscape viewports. This is the common case, not the narrow-screen case.')
+      : caps[d];
+  }
+
+  // ---- interaction ---------------------------------------------------------
+  document.getElementById('w').addEventListener('input', function (e) {
+    S.w = Number(e.target.value); S.sheet = false; S.ddOpen = false; render();
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('[data-w]'), function (b) {
+    b.addEventListener('click', function () {
+      S.w = Number(b.getAttribute('data-w'));
+      document.getElementById('w').value = S.w;
+      S.sheet = false; S.ddOpen = false; render();
+    });
+  });
+  document.getElementById('th-l').addEventListener('click', function () { S.theme = 'light'; render(); });
+  document.getElementById('th-d').addEventListener('click', function () { S.theme = 'dark'; render(); });
+  document.getElementById('nv-new').addEventListener('click', function () { S.nav = 'new'; S.ddOpen = false; render(); });
+  document.getElementById('nv-old').addEventListener('click', function () { S.nav = 'old'; S.sheet = false; render(); });
+  document.getElementById('ic').addEventListener('change', function (e) { S.newIcon = e.target.checked; render(); });
+
+  function closeSheet() {
+    var root = document.getElementById('sheetroot');
+    if (!root) { S.sheet = false; return; }
+    root.classList.add('sr-nav-sheet-root--closing');
+    root.classList.remove('sr-nav-sheet-root--open');
+    setTimeout(function () { S.sheet = false; render(); }, 140);
+  }
+
+  stage.addEventListener('click', function (e) {
+    var go = e.target.closest ? e.target.closest('[data-go]') : null;
+    if (go) {
+      S.active = go.getAttribute('data-go');
+      if (S.sheet) { closeSheet(); } else { S.ddOpen = false; render(); }
+      return;
+    }
+    if (e.target.closest && e.target.closest('#collapse')) { S.collapsed = !S.collapsed; render(); return; }
+    if (e.target.closest && e.target.closest('#more')) { S.sheet = true; render(); return; }
+    if (e.target.closest && e.target.closest('#ddtrigger')) { S.ddOpen = !S.ddOpen; render(); return; }
+    if (e.target.id === 'sheetroot') { closeSheet(); return; }
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') { if (S.sheet) closeSheet(); else if (S.ddOpen) { S.ddOpen = false; render(); } }
+    // vertical roving: the sidebar/rail tablist moves on Up/Down, Home/End
+    var list = document.getElementById('tablist');
+    if (!list || !list.contains(document.activeElement)) return;
+    var ids = TABS.slice(0, TABS.length - 1).map(function (t) { return t.id; });
+    var i = ids.indexOf(S.active);
+    if (i === -1) return;
+    if (e.key === 'ArrowDown') { e.preventDefault(); S.active = ids[(i + 1) % ids.length]; render(); focusActive(); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); S.active = ids[(i - 1 + ids.length) % ids.length]; render(); focusActive(); }
+    else if (e.key === 'Home') { e.preventDefault(); S.active = ids[0]; render(); focusActive(); }
+    else if (e.key === 'End') { e.preventDefault(); S.active = ids[ids.length - 1]; render(); focusActive(); }
+  });
+  function focusActive() { var el = document.getElementById('tab-' + S.active); if (el) el.focus(); }
+
+  // rail tooltip — hover, keyboard focus, and touch hold
+  var tip = document.createElement('div');
+  tip.className = 'sr-nav-tip';
+  // inside the app, so it inherits the app's tokens and theme
+  stage.appendChild(tip);
+  var holdTimer = null;
+  function showTip(el) {
+    var label = el.getAttribute('data-tip');
+    if (!label) return;
+    if (tip.parentNode !== stage) stage.appendChild(tip);
+    tip.textContent = label;
+    var r = el.getBoundingClientRect();
+    var s = stage.getBoundingClientRect();
+    tip.style.left = (r.right - s.left + 10) + 'px';
+    tip.style.top = (r.top - s.top + r.height / 2 - 13) + 'px';
+    tip.classList.add('sr-nav-tip--on');
+  }
+  function hideTip() { tip.classList.remove('sr-nav-tip--on'); if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; } }
+  stage.addEventListener('mouseover', function (e) { var el = e.target.closest && e.target.closest('[data-tip]'); if (el) showTip(el); });
+  stage.addEventListener('mouseout', hideTip);
+  stage.addEventListener('focusin', function (e) { var el = e.target.closest && e.target.closest('[data-tip]'); if (el) showTip(el); });
+  stage.addEventListener('focusout', hideTip);
+  stage.addEventListener('pointerdown', function (e) {
+    var el = e.target.closest && e.target.closest('[data-tip]');
+    if (el && e.pointerType === 'touch') holdTimer = setTimeout(function () { showTip(el); }, 350);
+  });
+  stage.addEventListener('pointerup', hideTip);
+  window.addEventListener('scroll', hideTip, { passive: true });
+
+  render();
+})();
+</script>
