@@ -27,6 +27,10 @@ so you can exercise every feature without any account or key:
 - Demo Macaulay Library export:
   https://snowraven.dtgibson.com/demo/snowraven-demo-ml-export.csv
 
+Where to find the tabs: on iPad, a list down the left in landscape and
+icons in portrait (hold one for its name); on iPhone, a bottom bar of the
+first four, with the rest and Settings behind More.
+
 STEP 1: IMPORT THE DEMO DATA
 
 1. In Safari on the test device, download both CSV files above (long-press
