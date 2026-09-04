@@ -24,7 +24,13 @@
 // eight hand-written copies, because the failure mode is per-tab (each has its
 // own phase switch and its own load effect) while the guarantee is identical, so
 // a dropped tab has to be visible as a missing row rather than as an absent file.
-// The roster's length is pinned so a tab cannot quietly leave it.
+// The roster's length is pinned so a tab cannot quietly leave it. It is a roster
+// of TABS, not of everything that renders `TabLoadErrorAlert`: v1.0.16 added the
+// Weather tab's checklist-backlog section, which is a disclosure whose panel
+// unmounts rather than a tab, so it mounts the region outside that disclosure
+// and its identity assertion lives with the rest of that family's claims in
+// `honestLoadFailures.test.tsx`. A future NON-tab consumer belongs there too;
+// a future tab belongs here.
 //
 // WHY THE THIRD TEST DOES NOT ASSERT THE REGION IS PRESENT WHILE A TAB IS READY.
 // It is not, on six of the eight, and it does not need to be: those six reset the

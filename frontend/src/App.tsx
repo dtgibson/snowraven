@@ -37,7 +37,8 @@ import { UpdateFooter, type UpdateStatus } from './components/UpdateFooter'
 import { WeatherForecastPanel } from './components/WeatherForecastPanel'
 import { WeatherBacklog } from './components/WeatherBacklog'
 import { loadEbirdObservations } from './lib/observationsCache'
-import { buildChecklistRows, type ChecklistRowData } from './lib/checklistsTab'
+import { buildChecklistRows } from './lib/checklistsTab'
+import { resolveBacklogRows, BACKLOG_SUPERSEDED, type ResolvedBacklogRows } from './lib/weatherBacklogLoad'
 import { useEmbeddedMediaPreference } from './lib/useEmbeddedMediaPreference'
 import { useMapPanelChrome } from './lib/mapPanelChrome'
 
@@ -202,9 +203,12 @@ export default function App() {
   const [mediaListFilter, setMediaListFilter] = useState<'is-target' | undefined>(undefined)
   // Weather Backlog (bottom of the Weather tab). Rows are built lazily — only
   // after the user first expands the backlog — so the default Weather tab paint
-  // stays free of a backup parse. `undefined` = not yet requested; `null` = no
-  // backup loaded (needs-data state); an array = built rows.
-  const [backlogRows, setBacklogRows] = useState<ChecklistRowData[] | null | undefined>(undefined)
+  // stays free of a backup parse. `undefined` = still building; `null` = no backup
+  // STORED (the needs-data guidance); `BACKLOG_LOAD_FAILED` = one is stored and it
+  // would not load; an array = built rows. The last two are separate states on one
+  // prop because they need opposite copy, and one prop because a flag beside it
+  // would admit "failed and ready at once".
+  const [backlogRows, setBacklogRows] = useState<ResolvedBacklogRows | undefined>(undefined)
   const [backlogRequested, setBacklogRequested] = useState(false)
   // Click any bird name → open + select it on the Species Detail tab (single-use).
   const [requestedSpecies, setRequestedSpecies] = useState<string | undefined>(undefined)
@@ -562,15 +566,32 @@ export default function App() {
   // sets backlogRequested), and rebuild when the eBird backup changes
   // (filesVersion). loadEbirdObservations is the parse-once cache, so this does
   // not re-parse a backup another tab already loaded.
+  //
+  // The decision itself lives in `lib/weatherBacklogLoad.ts`, not here: no test
+  // in this repo renders `App.tsx`, so a branch written in this effect would be
+  // unguarded. What is left here is one liveness check and one setter.
+  //
+  // No `.catch`, deliberately, and it is the same reasoning rather than an
+  // omission: `resolveBacklogRows` never rejects, so the guard lives one layer
+  // down where a test can drive it. That is a property of its shape, not a hope
+  // about it -- every call it makes into one of these four functions is inside a
+  // `try` there, both liveness checks and the row build included, with no stated
+  // exceptions, and its own statements cannot throw. Its docstring owns the claim
+  // and names the two ways this build got it wrong before getting it right; if an
+  // exception is ever added there, this call site owes a `.catch`. The effect
+  // this replaced needed its own `.catch` precisely because it had no such layer.
   useEffect(() => {
     if (!backlogRequested) return
     let alive = true
-    void loadEbirdObservations()
-      .then(res => {
-        if (!alive) return
-        setBacklogRows(res ? buildChecklistRows(res.observations, null) : null)
-      })
-      .catch(() => { if (alive) setBacklogRows(null) })
+    void resolveBacklogRows({
+      getFilesStatus: () => storage.getFilesStatus(),
+      loadObservations: loadEbirdObservations,
+      buildRows: observations => buildChecklistRows(observations, null),
+      isCurrent: () => alive,
+    }).then(next => {
+      if (!alive || next === BACKLOG_SUPERSEDED) return
+      setBacklogRows(next)
+    })
     return () => { alive = false }
   }, [backlogRequested, filesVersion])
 

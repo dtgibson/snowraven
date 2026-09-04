@@ -1,6 +1,14 @@
 // The shared load-failure live region for the eight data tabs (Statistics, the
 // Calendar, Checklists, Breeding Codes, Named Birds, Species Detail, Multimedia
-// and the Map Explorer).
+// and the Map Explorer), and since v1.0.16 for one surface that is not a tab:
+// the Weather tab's checklist-backlog section. That one mounts this component
+// OUTSIDE its own disclosure rather than at fragment index 0 of a phase branch,
+// because its panel unmounts on collapse and a region mounted inside it would
+// arrive with its message on every re-expand; `WeatherBacklog.tsx` explains it
+// at the call site. Nothing here changed for it -- an always-mounted region
+// whose child is replaced is exactly what it needed -- but a reader checking the
+// call sites against the eight tabs named above should know there is a consumer
+// outside that list whose guarantee is carried differently.
 //
 // WHY THIS IS A COMPONENT AND NOT SIX COPIES OF `role="alert"`.
 //

@@ -65,7 +65,7 @@ The eBird backup is used by: Species Detail, Statistics, Calendar, Map Explorer,
 
 eBird generates the export with all observations up to the download date. Re-upload the file whenever you want your tabs to reflect recent checklists.
 
-If a tab says it couldn't load your eBird backup, the file is still stored but SnowRaven could not read it or could not make sense of it, so re-upload `MyEBirdData.csv` in Settings under Default Files. The Multimedia tab has its own version of this for your ML export, described under ML export below.
+If a tab, or the weather backlog on the Weather tab, says it couldn't load your eBird backup, the file is still stored but SnowRaven could not read it or could not make sense of it, so re-upload `MyEBirdData.csv` in Settings under Default Files. The Multimedia tab has its own version of this for your ML export, described under ML export below.
 
 ### ML export
 
@@ -116,7 +116,7 @@ Each row shows the checklist's date, location, species count, protocol, effort, 
 - **Open comment/edit page:** opens the checklist's comment/edit page on eBird in a new tab, ready for you to paste into.
 - **Copy weather & go:** looks up that checklist's weather, copies the block to your clipboard (weather only), and, on a successful copy, opens the comment/edit page so you can paste right away. If the lookup can't complete, the row tells you exactly why: you're offline, an API key is missing (with a nudge to Settings), or a general error. The comment page is **not** opened, so you never land on eBird with nothing on your clipboard. Each row's state is its own, so you can work several in a row.
 
-By default the list shows only your **complete, non-incidental** checklists. A toggle, **Also show incomplete & incidental**, widens the list to include those too; a widened row is marked with a small chip so the wider list is never ambiguous. The list shows the first 100 matches, with **Show next 100** and **Show all** controls when there are more. If no backup is loaded, the section explains that it needs your eBird backup first; if every recent checklist already has weather, it says so rather than showing an empty list.
+By default the list shows only your **complete, non-incidental** checklists. A toggle, **Also show incomplete & incidental**, widens the list to include those too; a widened row is marked with a small chip so the wider list is never ambiguous. The list shows the first 100 matches, with **Show next 100** and **Show all** controls when there are more. If you have not saved an eBird backup yet, the section explains that it needs one first and offers a shortcut to import it. If a backup is saved but SnowRaven could not turn it into a list of checklists, the section says it couldn't load your backup and offers a shortcut to Settings instead, rather than asking you to import a file you already have. If every recent checklist already has weather, it says so rather than showing an empty list.
 
 Locations in this list are plain text in this version.
 

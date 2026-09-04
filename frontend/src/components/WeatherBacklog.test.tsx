@@ -2,6 +2,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react'
 import { WeatherBacklog } from './WeatherBacklog'
+import { BACKLOG_LOAD_FAILED } from '../lib/weatherBacklogLoad'
+import { EBIRD_BACKUP_LOAD_ERROR } from './setupCopy'
 import type { ChecklistRowData } from '../lib/checklistsTab'
 import type { ChecklistEntry } from '../types'
 import { openExternalUrl } from '../lib/openExternal'
@@ -106,6 +108,19 @@ describe('needs-data state', () => {
     expand()
     expect(screen.getByText(/load your eBird backup first/i)).toBeTruthy()
     expect(screen.queryByRole('heading', { name: /checklists missing weather/i })).toBeNull()
+  })
+
+  it('rows === BACKLOG_LOAD_FAILED reports the failure instead of the missing-backup state', () => {
+    renderBacklog({ rows: BACKLOG_LOAD_FAILED, onGoToImport: vi.fn(), onGoToSettings: vi.fn() })
+    expand()
+    expect(screen.getByText(EBIRD_BACKUP_LOAD_ERROR)).toBeTruthy()
+    // The lie: a backup IS stored in this state, so neither the title nor the
+    // Go to Import CTA belongs to it.
+    expect(screen.queryByText(/load your eBird backup first/i)).toBeNull()
+    expect(screen.queryByRole('button', { name: /go to import/i })).toBeNull()
+    // And it is not a silently empty list either.
+    expect(screen.queryByRole('heading', { name: /checklists missing weather/i })).toBeNull()
+    expect(screen.getByRole('button', { name: /go to settings/i })).toBeTruthy()
   })
 
   it('the Go to Import CTA navigates', () => {
@@ -385,13 +400,23 @@ describe('accessibility', () => {
     expect(sw.getAttribute('aria-checked')).toBe('true')
   })
 
-  it('failures render as role=alert', async () => {
+  it('row failures render as role=alert', async () => {
     const lookupWeather = vi.fn().mockRejectedValue(new TypeError('Failed to fetch'))
     renderBacklog({ rows: [defaultRow('S1')], lookupWeather })
     expand()
     fireEvent.click(screen.getByRole('button', { name: ACT3 }))
-    const alert = await screen.findByRole('alert')
-    expect(alert.textContent).toMatch(/you're offline/i)
+    await screen.findByText(/you're offline/i)
+    // Since v1.0.16 the section also carries an always-mounted, EMPTY
+    // load-failure alert region (a live region has to be in the accessibility
+    // tree before its message lands, DECISIONS.md v0.5.83), so `role="alert"` is
+    // no longer a singleton here. That is the documented consequence rather than
+    // a surprise: when a region becomes always-mounted, every alert-PRESENCE
+    // assertion in the repo has to become an alert-CARRIES-TEXT one, or it starts
+    // asserting the defect. The claim is unchanged — the row failure is announced
+    // from an alert region, and it is the only thing being announced.
+    const spoken = screen.getAllByRole('alert').filter(el => el.textContent !== '')
+    expect(spoken.length).toBe(1)
+    expect(spoken[0].textContent).toMatch(/you're offline/i)
   })
 
   it('a polite live region announces success', async () => {
