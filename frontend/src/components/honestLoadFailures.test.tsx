@@ -26,6 +26,12 @@
 //     `if (!ebird || cancelled)` spelling wrote the error phase when `ebird` was
 //     truthy and `cancelled` was true, i.e. a stale run painted an error over a
 //     tab a newer run had already made ready.
+//  D. (v1.0.16) The same claim, one step further in: on Multimedia a stored ML
+//     export that cannot be turned into ROWS is a load failure too, not only one
+//     that cannot be READ. A falsy read, a stored file that is not an ML export,
+//     and a parse that throws all used to render as a successful load, three of
+//     them as a list with every photo and recording missing and nothing on
+//     screen saying so. All four routes now land on the one message.
 //
 // HOW THE COPY ROWS DIVIDE THE WORK, because it is easy to misread them. The
 // per-surface rows import the same constant the components import, so they can
@@ -442,7 +448,10 @@ describe('Finding A: an ML-export read failure never changes what a tab says abo
     const mlBox = await screen.findByText(ML_EXPORT_LOAD_ERROR)
     expect(mlBox.className).toContain('sr-wrap-anywhere')
     // Not "you haven't saved one yet" (the lie), and not a silently empty
-    // Multimedia list either (what `.catch(() => null)` would have produced).
+    // Multimedia list either. That second one used to depend on this `catch`
+    // recording the failure; since v1.0.16 a null from the catch lands on the
+    // same message as a rejection, and Finding D below covers the routes that
+    // reach it without one.
     expect(screen.queryByText(/Macaulay Library Export Required/)).toBeNull()
     expect(screen.queryByRole('switch', { name: /Show all forms/ })).toBeNull()
     // And it does not blame the eBird backup, which loaded fine.
@@ -454,6 +463,92 @@ describe('Finding A: an ML-export read failure never changes what a tab says abo
     render(<LifeList {...settingsProps} filesVersion={0} />)
 
     expect(await screen.findByRole('switch', { name: /Show all forms/ })).toBeTruthy()
+    expect(screen.queryByText(ML_EXPORT_LOAD_ERROR)).toBeNull()
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FINDING D — a stored export that cannot become rows is a FAILURE, not an
+// empty one
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// Finding A's Multimedia row above guards the one route that was already
+// guarded: a read that REJECTS, which is web/Pi-only (on the desktop the only
+// statement outside `TauriStorage.readFile`'s own try is a memoized `fs()` that
+// has already fulfilled). The rows here are the four routes that were not
+// guarded, and they are reachable on every platform.
+
+describe('Finding D: Multimedia reports a stored ML export that cannot be turned into rows', () => {
+  const ML_UNUSABLE_STORED: { name: string; ml: () => Promise<string | null> }[] = [
+    {
+      // WebStorage.readFile returns null on any non-ok response, so a 500 from
+      // /settings/files/ml is silent rather than a rejection.
+      name: 'the read resolves null (a non-ok /settings/files/ml response on web/Pi)',
+      ml: async () => null,
+    },
+    {
+      // TauriStorage.writeFile is a direct writeTextFile with no temp-and-rename,
+      // so an interrupted write leaves a truncated file with its metadata intact.
+      name: 'the stored file is zero bytes (an interrupted write leaves one behind)',
+      ml: async () => '',
+    },
+    {
+      // importFileContent validates only the .csv extension, so the eBird backup
+      // uploaded into the ML Export slot stores without complaint.
+      name: 'the stored file is an eBird backup, not an ML export',
+      ml: async () => EBIRD_CSV,
+    },
+    {
+      // The same truncation as row 2, cut a few columns later. The export's
+      // header runs ML Catalog Number, Format, Common Name (the real column order,
+      // mirrored in website/tools/gen-demo-data.mjs), so a cut between the second
+      // and third still satisfies detectFileType's substring test and then throws
+      // INVALID_ML_EXPORT on the column parseMLExport requires by exact name.
+      name: 'the header is truncated after Format but before Common Name',
+      ml: async () => 'Catalog Number,Format\n1,Photo',
+    },
+  ]
+
+  it.each(ML_UNUSABLE_STORED.map(r => [r.name, r] as const))(
+    'Multimedia reports a load failure when %s',
+    async (_name, route) => {
+      H.getFilesStatus.mockImplementation(async () => BOTH_FILES)
+      H.readFile.mockImplementation(async (slot: string) => (slot === 'ml' ? route.ml() : EBIRD_CSV))
+      render(<LifeList {...settingsProps} filesVersion={0} />)
+
+      const mlBox = await screen.findByText(ML_EXPORT_LOAD_ERROR)
+      expect(mlBox.className).toContain('sr-wrap-anywhere')
+      // Not the setup panel: an export IS stored (the 1.0.14 lie).
+      expect(screen.queryByText(/Macaulay Library Export Required/)).toBeNull()
+      expect(screen.queryByText(ML_STEPS_MARKER)).toBeNull()
+      // And not a rendered list with no media, which is indistinguishable from a
+      // birder who has photographed nothing.
+      expect(screen.queryByRole('switch', { name: /Show all forms/ })).toBeNull()
+      // The eBird backup loaded fine here, so it is not blamed.
+      expect(screen.queryByText(EBIRD_BACKUP_LOAD_ERROR)).toBeNull()
+    },
+  )
+
+  it('Multimedia blames the export, not the backup, when both fail at once', async () => {
+    // The four checks above run BEFORE the eBird guard, so all of them share one
+    // precedence rather than two of them being pre-empted by an eBird failure.
+    H.getFilesStatus.mockImplementation(async () => BOTH_FILES)
+    H.readFile.mockImplementation(async (slot: string) => (slot === 'ml' ? '' : EBIRD_CSV))
+    H.loadEbird.mockImplementation(async () => null)
+    render(<LifeList {...settingsProps} filesVersion={0} />)
+
+    expect(await screen.findByText(ML_EXPORT_LOAD_ERROR)).toBeTruthy()
+    expect(screen.queryByText(EBIRD_BACKUP_LOAD_ERROR)).toBeNull()
+  })
+
+  it('Multimedia still shows the guidance panel when no export is stored (the absent case)', async () => {
+    // A backup IS stored here, so this proves the panel is about the ML slot
+    // specifically, and that the new checks did not swallow the absent case.
+    H.getFilesStatus.mockImplementation(async () => EBIRD_ONLY)
+    render(<LifeList {...settingsProps} filesVersion={0} />)
+
+    expect(await screen.findByText(/Macaulay Library Export Required/)).toBeTruthy()
+    expect(screen.getByText(ML_STEPS_MARKER)).toBeTruthy()
     expect(screen.queryByText(ML_EXPORT_LOAD_ERROR)).toBeNull()
   })
 })

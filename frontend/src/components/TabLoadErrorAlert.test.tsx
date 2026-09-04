@@ -119,8 +119,14 @@ vi.mock('../lib/storage', () => ({
     getSetting: vi.fn(async () => null),
     setSetting: vi.fn(async () => {}),
     getApiKey: vi.fn(async () => null),
-    // The Multimedia tab reads the ML file itself rather than through the cache.
-    readFile: vi.fn(async () => 'ML Catalog Number,Format\n1,Photo\n'),
+    // The Multimedia tab reads the ML file itself rather than through the cache,
+    // and since v1.0.16 it reports an export it cannot turn into rows as its OWN
+    // load failure, ahead of the eBird guard. So this fixture has to be a VALID
+    // export -- it needs the Common Name column parseMLExport requires -- or that
+    // tab's row here fails on the ML message instead of reaching the eBird one
+    // these tests are about. It lost that column silently before, when a bad
+    // parse was pre-empted by the eBird failure and never ran.
+    readFile: vi.fn(async () => 'ML Catalog Number,Format,Common Name\n1,Photo,American Robin\n'),
   },
 }))
 

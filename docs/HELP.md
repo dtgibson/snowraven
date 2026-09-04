@@ -65,7 +65,7 @@ The eBird backup is used by: Species Detail, Statistics, Calendar, Map Explorer,
 
 eBird generates the export with all observations up to the download date. Re-upload the file whenever you want your tabs to reflect recent checklists.
 
-If a tab says it couldn't load your eBird backup, the file is still stored but SnowRaven could not read it, so re-upload `MyEBirdData.csv` in Settings under Default Files (the Multimedia tab says the same about your ML export).
+If a tab says it couldn't load your eBird backup, the file is still stored but SnowRaven could not read it or could not make sense of it, so re-upload `MyEBirdData.csv` in Settings under Default Files. The Multimedia tab has its own version of this for your ML export, described under ML export below.
 
 ### ML export
 
@@ -76,6 +76,8 @@ To download it, sign in at [macaulaylibrary.org](https://macaulaylibrary.org) an
 In SnowRaven, upload the file in Settings under Default Files, and **leave the filename unchanged**. The downloaded filename contains your Macaulay Library user ID, and SnowRaven reads that ID from the filename to link directly to your own media pages. If you rename the file, those links still work but are no longer personalized to your account.
 
 The ML export is used by: Multimedia (media counts and species coverage), Species Detail (embedded recent media and media count indicators), Statistics (the Media card), and Named Birds (the media matched to each named individual). These features are not available from the eBird backup alone.
+
+If the Multimedia tab says it couldn't load your ML export, the file is saved but SnowRaven could not turn it into a species list, either because it could not read the file or because what is stored is not an ML export. Uploading `MyEBirdData.csv` into the ML Export slot does that: both files end in `.csv`, so it is accepted. Re-upload the spreadsheet in Settings under Default Files. That message is different from the "Macaulay Library Export Required" panel, which appears only when no export is saved at all.
 
 ---
 
