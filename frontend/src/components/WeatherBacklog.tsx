@@ -10,11 +10,13 @@
 //      edit page so the user can paste. On ANY failure the page is NOT opened and
 //      the failure is surfaced inline (offline / missing-key / generic error).
 //
-// The component is PRESENTATIONAL: it receives already-built ChecklistRowData[]
-// (or null → needs-data state), a state-free weather-lookup wrapper, the copyText
-// seam, and an optional isHotspot resolver as props. The Weather tab owns loading
-// the backup and building the lookup wrapper, so the single-checklist lookup UI is
-// never touched (NFR-10). Session-only state, no persistence.
+// The component is PRESENTATIONAL: it receives the settled result of the backup
+// load as one prop — already-built rows, or no backup stored (needs-data), or a
+// backup that is stored and would not load (the shared load-failure message) —
+// plus a state-free weather-lookup wrapper, the copyText seam, and an optional
+// isHotspot resolver. The Weather tab owns loading the backup and building the
+// lookup wrapper, so the single-checklist lookup UI is never touched (NFR-10).
+// Session-only state, no persistence.
 //
 // See pipeline/weather-backlog/{prd,schema,design-spec,decisions}.md.
 
@@ -23,8 +25,10 @@ import {
   List, ChevronDown, SquarePen, Copy, Check, Loader2,
   TriangleAlert, CircleAlert, WifiOff, KeyRound, FileText, CheckCircle2, Download,
 } from 'lucide-react'
-import type { ChecklistRowData } from '../lib/checklistsTab'
 import { computeBacklog, pageBacklog, PAGE_SIZE, type BacklogRow } from '../lib/weatherBacklog'
+import { BACKLOG_LOAD_FAILED, type ResolvedBacklogRows } from '../lib/weatherBacklogLoad'
+import { EBIRD_BACKUP_LOAD_ERROR } from './setupCopy'
+import { TabLoadErrorAlert } from './ui/TabLoadErrorAlert'
 import { ChecklistLink } from './ChecklistLink'
 import { OutboundLink } from './OutboundLink'
 import { HotspotLink } from './HotspotLink'
@@ -37,9 +41,12 @@ import { openExternalUrl } from '../lib/openExternal'
 // ── Props ────────────────────────────────────────────────────────────────────
 
 export interface WeatherBacklogProps {
-  /** Already-built rows; null when no eBird backup is loaded (→ needs-data);
-   *  undefined while the rows are still being built (→ brief loading state). */
-  rows: ChecklistRowData[] | null | undefined
+  /** Already-built rows; `null` when no eBird backup is STORED (→ needs-data);
+   *  `BACKLOG_LOAD_FAILED` when one is stored and could not be turned into rows
+   *  (→ the shared load-failure message); undefined while the rows are still
+   *  being built (→ brief loading state). Four states on one prop, because a
+   *  failure flag beside it would admit "failed and ready at once". */
+  rows: ResolvedBacklogRows | undefined
   /** State-free per-checklist weather lookup → the formatted block, or null on a
    *  failed lookup. It must THROW (so classifyLiveError can classify the cause)
    *  or return null; returning null is treated as a generic error. Reuses the
@@ -250,6 +257,7 @@ function BacklogRowView({
         <span style={{ flex: '1 1 auto', minWidth: 6 }} aria-hidden="true" />
         {/* #3 copy weather & go */}
         <button
+          tabIndex={0}
           type="button"
           onClick={runAction3}
           disabled={busy}
@@ -299,14 +307,14 @@ function BacklogRowView({
         <RowStatus tone="warn" icon={<KeyRound {...ICON} aria-hidden="true" />}>
           <b>Weather lookup needs an API key.</b> Add your eBird &amp; OpenWeather keys in{' '}
           {onGoToSettings ? (
-            <button type="button" onClick={onGoToSettings} style={statusLinkStyle}>Settings →</button>
+            <button tabIndex={0} type="button" onClick={onGoToSettings} style={statusLinkStyle}>Settings →</button>
           ) : <b>Settings</b>}{' '}to use this action. Nothing was copied.
         </RowStatus>
       )}
       {state.kind === 'error-other' && (
         <RowStatus tone="error" icon={<CircleAlert {...ICON} aria-hidden="true" />}>
           <b>Weather lookup failed.</b> Something went wrong fetching this checklist's weather. Nothing was copied and the comment page wasn't opened.{' '}
-          <button type="button" onClick={runAction3} style={statusLinkStyle}>Try again</button>
+          <button tabIndex={0} type="button" onClick={runAction3} style={statusLinkStyle}>Try again</button>
         </RowStatus>
       )}
       {state.kind === 'error-bad-id' && (
@@ -316,6 +324,14 @@ function BacklogRowView({
       )}
     </div>
   )
+}
+
+// The expanded panel's card chrome. Shared with the load-failure wrapper so the
+// failure reads as the same box the panel would have been, rather than as a
+// second treatment that can drift from it.
+const panelCardStyle: React.CSSProperties = {
+  width: '100%', marginTop: 12, background: 'var(--sr-surface)',
+  border: '1px solid var(--sr-border)', borderRadius: 12, boxShadow: 'var(--sr-card-shadow)',
 }
 
 const statusLinkStyle: React.CSSProperties = {
@@ -358,7 +374,7 @@ function StateBlock({ icon, title, body, cta, accentIcon }: {
       <div style={{ fontSize: '0.9375rem', fontWeight: 600 }}>{title}</div>
       <p style={{ fontSize: '0.8125rem', color: 'var(--sr-text-muted)', margin: '6px auto 0', maxWidth: 360, lineHeight: 1.5 }}>{body}</p>
       {cta && (
-        <button type="button" onClick={cta.onClick} style={{
+        <button tabIndex={0} type="button" onClick={cta.onClick} style={{
           display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 14, height: 36, padding: '0 15px',
           background: 'var(--sr-accent)', color: 'var(--sr-on-accent)', border: 'none', borderRadius: 8,
           fontFamily: 'inherit', fontSize: '0.8125rem', fontWeight: 600, cursor: 'pointer',
@@ -393,11 +409,22 @@ export function WeatherBacklog({ rows, lookupWeather, onCopy, isHotspot, onGoToS
     }
   }, [everExpanded, onFirstExpand])
 
+  // `Array.isArray`, not a truthiness test: `BACKLOG_LOAD_FAILED` is a non-empty
+  // string and would sail through `rows ? …` into computeBacklog.
   const backlog = useMemo(
-    () => (rows ? computeBacklog(rows, { includeWidened }) : []),
+    () => (Array.isArray(rows) ? computeBacklog(rows, { includeWidened }) : []),
     [rows, includeWidened],
   )
   const page = useMemo(() => pageBacklog(backlog, shown), [backlog, shown])
+
+  // A backup IS stored and it would not load. Shown only while the section is
+  // open: collapsing empties the region, so re-opening inserts a fresh message
+  // node into a region that was already there.
+  const showLoadFailure = expanded && rows === BACKLOG_LOAD_FAILED
+
+  // TabLoadErrorAlert's "Go to Settings" is not optional the way this section's
+  // other affordances are, and every call site in the app passes the handler.
+  const goToSettings = useCallback(() => { onGoToSettings?.() }, [onGoToSettings])
 
   const toggleWiden = useCallback(() => {
     // Reset pagination in the handler so a stale offset can't mis-page the new
@@ -410,6 +437,7 @@ export function WeatherBacklog({ rows, lookupWeather, onCopy, isHotspot, onGoToS
     <div style={{ width: '100%' }}>
       {/* Collapsed entry point */}
       <button
+        tabIndex={0}
         type="button"
         aria-expanded={expanded}
         onClick={onToggleExpand}
@@ -433,8 +461,8 @@ export function WeatherBacklog({ rows, lookupWeather, onCopy, isHotspot, onGoToS
         />
       </button>
 
-      {expanded && (
-        <div style={{ width: '100%', marginTop: 12, background: 'var(--sr-surface)', border: '1px solid var(--sr-border)', borderRadius: 12, boxShadow: 'var(--sr-card-shadow)' }}>
+      {expanded && !showLoadFailure && (
+        <div style={panelCardStyle}>
           {rows === undefined ? (
             <div role="status" aria-live="polite" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, padding: '34px 24px', color: 'var(--sr-text-muted)', fontSize: '0.8125rem' }}>
               <Loader2 width={18} height={18} strokeWidth={2} className="spin" aria-hidden="true" />
@@ -466,6 +494,7 @@ export function WeatherBacklog({ rows, lookupWeather, onCopy, isHotspot, onGoToS
                 {/* Widen toggle (role=switch) */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginTop: 12, padding: '9px 11px', background: 'var(--sr-surface-faint)', border: '1px solid var(--sr-border-subtle)', borderRadius: 9 }}>
                   <button
+                    tabIndex={0}
                     type="button"
                     role="switch"
                     aria-checked={includeWidened}
@@ -515,6 +544,7 @@ export function WeatherBacklog({ rows, lookupWeather, onCopy, isHotspot, onGoToS
                   {page.hasMore && (
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, flexWrap: 'wrap', padding: '14px 18px', borderTop: '1px solid var(--sr-border-subtle)' }}>
                       <button
+                        tabIndex={0}
                         type="button"
                         onClick={() => setShown(s => Math.min(s + PAGE_SIZE, backlog.length))}
                         className="sr-touch-target"
@@ -523,6 +553,7 @@ export function WeatherBacklog({ rows, lookupWeather, onCopy, isHotspot, onGoToS
                         Show next {PAGE_SIZE}
                       </button>
                       <button
+                        tabIndex={0}
                         type="button"
                         onClick={() => setShown(backlog.length)}
                         className="sr-touch-target"
@@ -541,6 +572,37 @@ export function WeatherBacklog({ rows, lookupWeather, onCopy, isHotspot, onGoToS
           )}
         </div>
       )}
+
+      {/* The load-failure region, MOUNTED ALWAYS -- collapsed, expanded, and in
+          every other state -- and filled afterwards.
+
+          `role="alert"` announces a mutation observed on a node that is ALREADY
+          in the accessibility tree, so a region created carrying its text is a
+          single insertion with nothing registered to observe it and the sentence
+          is simply never spoken (DECISIONS.md v0.5.83, and v1.0.15 where eight
+          tab panels carried it in exactly that shape). On those tabs the shared
+          component is mounted at fragment index 0 of every branch that can reach
+          the error phase, which is enough there because a tab's panel does not
+          unmount under it. This is not a tab: it is a disclosure whose panel
+          UNMOUNTS on collapse, so a region mounted inside the panel would hold
+          the guarantee on the first expand -- the panel always opens on the
+          spinner -- and lose it on every collapse-then-re-expand, where the
+          region and its message would arrive in one commit. Hoisting it out of
+          the disclosure is what makes both paths hold; it is the same structural
+          repair, one level up, not a new idea.
+
+          Idle it carries no inline styles and no content, so it computes to zero
+          height and shifts nothing, and it is never HIDDEN to achieve that --
+          hiding a live region is the other route into the same trap. The card
+          chrome goes on this wrapper only while the failure is showing, and the
+          panel above is not rendered in that state, so the two are never both on
+          screen. */}
+      <div style={showLoadFailure ? panelCardStyle : undefined}>
+        <TabLoadErrorAlert
+          message={showLoadFailure ? EBIRD_BACKUP_LOAD_ERROR : null}
+          onGoToSettings={goToSettings}
+        />
+      </div>
     </div>
   )
 }

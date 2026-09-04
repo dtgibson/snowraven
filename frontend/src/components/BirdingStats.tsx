@@ -698,6 +698,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
         {navSections.map(t => (
           <a
             key={t}
+            tabIndex={0}
             className="sr-touch-target"
             href={`#${sectionSlug(t)}`}
             onClick={e => { e.preventDefault(); jumpTo(document.getElementById(sectionSlug(t))) }}
@@ -809,6 +810,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
                 {(['weekly', 'monthly', 'yearly', 'total'] as const).map(g => (
                   <button
                     key={g}
+                    tabIndex={0}
                     className="sr-touch-target"
                     onClick={() => setAccGranularity(g)}
                     aria-pressed={accGranularity === g}
@@ -1202,11 +1204,30 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
                         </DimmablePin>
                       </Marker>
                     ))}
-                    {/* closeButton enabled so the popup is keyboard-dismissable —
-                        maplibre renders a real <button aria-label="Close popup">
-                        (themed in globals.css); F044. */}
+                    {/* Our own close button rather than maplibre's, for the reason
+                        the old comment here claimed and did not get: maplibre's
+                        injected <button> carries no tabIndex, and WebKit's default
+                        tab mode gives a plain <button> no place in the tab order,
+                        so on the Mac, iPhone and iPad apps this popup was NOT
+                        keyboard-dismissable at all. Library DOM is out of reach of
+                        the source guard in lib/tabOrderCoverage.test.ts, so the
+                        button is brought into the app's own markup instead of
+                        being stamped imperatively. Same class, same glyph and the
+                        same accessible name as maplibre's, so it inherits the
+                        existing theming and the ~44px coarse-pointer target in
+                        globals.css and nothing moves; this is the pattern
+                        map/SharePopup.tsx already uses. F044. */}
                     {geoPopup && (
-                      <Popup longitude={geoPopup.lng} latitude={geoPopup.lat} anchor="bottom" offset={16} onClose={() => setGeoPopup(null)} closeButton>
+                      <Popup longitude={geoPopup.lng} latitude={geoPopup.lat} anchor="bottom" offset={16} onClose={() => setGeoPopup(null)} closeButton={false}>
+                        <button
+                          tabIndex={0}
+                          type="button"
+                          className="maplibregl-popup-close-button"
+                          aria-label="Close popup"
+                          onClick={() => setGeoPopup(null)}
+                        >
+                          ×
+                        </button>
                         <span style={{ fontSize: '0.8125rem' }}>{geoPopup.title}</span><br /><span style={{ color: 'var(--sr-text-muted)', fontSize: '0.75rem' }}>{geoPopup.sub}</span>
                       </Popup>
                     )}
@@ -2006,6 +2027,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
                 ] as const).map(f => (
                   <button
                     key={f.key}
+                    tabIndex={0}
                     className="sr-touch-target"
                     onClick={() => setBreedingFilter(f.key)}
                     aria-pressed={breedingFilter === f.key}
@@ -2108,6 +2130,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
                 {(['per-period', 'cumulative'] as const).map(m => (
                   <button
                     key={m}
+                    tabIndex={0}
                     className="sr-touch-target"
                     onClick={() => setMediaViewMode(m)}
                     aria-pressed={mediaViewMode === m}
@@ -2129,6 +2152,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
               {(['weekly', 'monthly', 'yearly', 'total'] as const).map(g => (
                 <button
                   key={g}
+                  tabIndex={0}
                   className="sr-touch-target"
                   onClick={() => setMediaInterval(g)}
                   aria-pressed={mediaInterval === g}

@@ -24,7 +24,13 @@
 // eight hand-written copies, because the failure mode is per-tab (each has its
 // own phase switch and its own load effect) while the guarantee is identical, so
 // a dropped tab has to be visible as a missing row rather than as an absent file.
-// The roster's length is pinned so a tab cannot quietly leave it.
+// The roster's length is pinned so a tab cannot quietly leave it. It is a roster
+// of TABS, not of everything that renders `TabLoadErrorAlert`: v1.0.16 added the
+// Weather tab's checklist-backlog section, which is a disclosure whose panel
+// unmounts rather than a tab, so it mounts the region outside that disclosure
+// and its identity assertion lives with the rest of that family's claims in
+// `honestLoadFailures.test.tsx`. A future NON-tab consumer belongs there too;
+// a future tab belongs here.
 //
 // WHY THE THIRD TEST DOES NOT ASSERT THE REGION IS PRESENT WHILE A TAB IS READY.
 // It is not, on six of the eight, and it does not need to be: those six reset the
@@ -119,8 +125,14 @@ vi.mock('../lib/storage', () => ({
     getSetting: vi.fn(async () => null),
     setSetting: vi.fn(async () => {}),
     getApiKey: vi.fn(async () => null),
-    // The Multimedia tab reads the ML file itself rather than through the cache.
-    readFile: vi.fn(async () => 'ML Catalog Number,Format\n1,Photo\n'),
+    // The Multimedia tab reads the ML file itself rather than through the cache,
+    // and since v1.0.16 it reports an export it cannot turn into rows as its OWN
+    // load failure, ahead of the eBird guard. So this fixture has to be a VALID
+    // export -- it needs the Common Name column parseMLExport requires -- or that
+    // tab's row here fails on the ML message instead of reaching the eBird one
+    // these tests are about. It lost that column silently before, when a bad
+    // parse was pre-empted by the eBird failure and never ran.
+    readFile: vi.fn(async () => 'ML Catalog Number,Format,Common Name\n1,Photo,American Robin\n'),
   },
 }))
 

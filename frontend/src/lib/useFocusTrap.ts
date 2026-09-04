@@ -29,15 +29,44 @@
 // and DIFFERENT set: elements with an explicit tabindex, native form controls
 // and <summary>. Plain <button> and <a href> are skipped entirely.
 //
-// Measured inside the expanded Species Detail overlay: the trap's list held 22
-// entries ending at the fullscreen toggle, while WebKit's real forward order ran
-// canvas -> attribution <summary> -> the three base-map buttons -> the Trails
-// checkbox and then straight OUT of the overlay. The share drop button and the
-// fullscreen toggle carry no explicit tabindex, so `activeEl === last` never
-// became true and the end-wrap never fired. The keydown containment arm did
-// fire, but on the NEXT Tab — one hop too late, with focus already resting on a
-// control the opaque panel was covering, and a keystroke typed into it and read
-// back to prove it.
+// Measured inside the expanded Species Detail overlay AT v1.0.15: the trap's list
+// held 22 entries ending at the fullscreen toggle, while WebKit's real forward
+// order ran canvas -> attribution <summary> -> the three base-map buttons -> the
+// Trails checkbox and then straight OUT of the overlay. At the time of that
+// measurement the share drop button and the fullscreen toggle carried no
+// explicit tabindex, so `activeEl === last` never became true and the end-wrap
+// never fired. The keydown containment arm did fire, but on the NEXT Tab — one
+// hop too late, with focus already resting on a control the opaque panel was
+// covering, and a keystroke typed into it and read back to prove it.
+//
+// Those two controls DO carry `tabIndex={0}` as of v1.0.16, and so now does
+// EVERY intrinsic <button> and <a href> in the app's own sources
+// (webkit-tab-order-app-wide; lib/tabOrderCoverage.test.ts enforces it over
+// every shipped .tsx on every build, five rostered exceptions aside: three
+// roving groups, the combobox chevron, and the natively-disabled offline base
+// map).
+// That is why the measurement above is written in the past tense.
+//
+// THIS CHANGES NOTHING HERE, in either direction, and the temptation to conclude
+// otherwise is now STRONGER than it was, so the reasons are worth being exact
+// about. The gap between the trap's list and WebKit's real order has narrowed,
+// not closed, and it is still open in three places the coverage guard cannot
+// reach:
+//   1. LIBRARY DOM. The guard reads SnowRaven's sources. maplibre injects real
+//      <button>s of its own (the +/- zoom controls, and the close button on the
+//      popups that still use its own), and they carry no tabindex. Any one of
+//      them inside a trapped surface is in the trap's list and NOT in WebKit's
+//      order — the exact v1.0.15 shape.
+//   2. <summary>, which fails in the OTHER direction and is live today: WebKit
+//      visits it, and FOCUSABLE_SELECTOR below does not match it, so the trap's
+//      list is missing an element the engine stops on. maplibre's
+//      AttributionControl renders one, which is why the map overlay opts into
+//      `containOutsideFocus`.
+//   3. RENDER-TIME stripping. A source-level guard sees tabIndex={0}; it cannot
+//      see a component that drops the attribute behind its own conditional.
+// A prediction that happens to be right for the elements someone remembered to
+// mark is still a prediction. Containment stays driven by `focusin`.
+// FOCUSABLE_SELECTOR is unaffected either — it already matched both by `button`.
 //
 // `focusin` needs no prediction at all. It fires after focus has moved and
 // before the user can type, so containment reacts to where focus ACTUALLY went

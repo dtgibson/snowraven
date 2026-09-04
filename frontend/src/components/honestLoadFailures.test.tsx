@@ -1,13 +1,16 @@
 // @vitest-environment jsdom
 //
-// honest-load-failures (Fix lane, Spool bundle build 3).
+// honest-load-failures (Fix lane, Spool bundle builds 3 and 4).
 //
-// Three findings, one file, because all three are the same claim on the same
-// nine surfaces: what a tab SAYS about a stored file must match what is
-// actually true of it. The rosters below are the artifact — a tenth surface, or
-// a fifth cancel-guarded loader, reads as a MISSING ROW rather than as nothing
-// at all. (`pipeline/clear-means-clear/pr-description.md`: symmetry in the code
-// is not symmetry in the evidence.)
+// One claim, several findings, one file: what a surface SAYS about a stored file
+// must match what is actually true of it. No count of those surfaces is written
+// down here on purpose — three defensible rosters (what carries the shared
+// message, what carries `TabLoadErrorAlert`, what reads a stored file at all)
+// give three different numbers, so a number would be wrong somewhere the moment
+// it was written. The rosters below are the artifact instead: a new surface, or a
+// fifth cancel-guarded loader, reads as a MISSING ROW rather than as nothing at
+// all. (`pipeline/clear-means-clear/pr-description.md`: symmetry in the code is
+// not symmetry in the evidence.)
 //
 //  A. An ML-export read failure must never change what a tab says about the
 //     eBird BACKUP. `loadMLExport` awaits `storage.readFile('ml')` OUTSIDE its
@@ -26,6 +29,22 @@
 //     `if (!ebird || cancelled)` spelling wrote the error phase when `ebird` was
 //     truthy and `cancelled` was true, i.e. a stale run painted an error over a
 //     tab a newer run had already made ready.
+//  D. (v1.0.16) The same claim, one step further in: on Multimedia a stored ML
+//     export that cannot be turned into ROWS is a load failure too, not only one
+//     that cannot be READ. A falsy read, a stored file that is not an ML export,
+//     and a parse that throws all used to render as a successful load, three of
+//     them as a list with every photo and recording missing and nothing on
+//     screen saying so. All four routes now land on the one message.
+//  E. (v1.0.16) The Weather tab's checklist-backlog section was the one
+//     `loadEbirdObservations` caller in the app that rendered a claim about the
+//     backup with no upstream `getFilesStatus()` branch, so every failure there
+//     collapsed onto "Load your eBird backup first" with a Go to Import button —
+//     the setup-shaped lie, over a backup Settings lists as saved. It asks now.
+//     Its rows are not in the tab rosters below, because it is a section rather
+//     than a tab (`lib/tabLayout.ts` is what a tab is), and that difference is
+//     load-bearing rather than cosmetic: its panel UNMOUNTS on collapse, so its
+//     alert region has to live outside the disclosure to keep the guarantee the
+//     eight tabs get for free.
 //
 // HOW THE COPY ROWS DIVIDE THE WORK, because it is easy to misread them. The
 // per-surface rows import the same constant the components import, so they can
@@ -34,10 +53,15 @@
 // reference point derived from the thing being verified. The content claim is
 // pinned exactly once, by the first test, against literals written here.
 //
-// WHAT THIS FILE CANNOT PROVE: that the longer message wraps without horizontal
-// overflow at 320px / 200% text scale. jsdom has no layout engine, so the rows
-// assert the MECHANISM (the wrap class); the pixels are the Playwright text-ink
-// measurement recorded in the PR notes.
+// WHAT THIS FILE CANNOT PROVE, and where the evidence for it lives. jsdom has no
+// layout engine and no accessibility tree, so the rows here assert MECHANISMS:
+// the wrap class rather than the absence of overflow at 320px / 200% text scale,
+// and React's reconciliation of the alert region rather than whether that region
+// is announceable. The tab surfaces' pixels are the Playwright text-ink
+// measurement recorded in build 3's PR notes; Finding E's are reproducible, along
+// with both engines' reading of the region, by running
+// `pipeline/weather-backlog-honest-load-failure/verify-backlog-alert.mjs`
+// against a production build.
 
 import { describe, it, expect, vi, beforeEach, afterEach, afterAll } from 'vitest'
 import { render, screen, cleanup, waitFor, fireEvent, act } from '@testing-library/react'
@@ -130,6 +154,13 @@ import { SpeciesDetail } from './SpeciesDetail'
 import { MapExplorer } from './MapExplorer'
 import { LifeList } from './LifeList'
 import { ListComparer } from './ListComparer'
+import { WeatherBacklog } from './WeatherBacklog'
+import {
+  resolveBacklogRows,
+  BACKLOG_LOAD_FAILED,
+  BACKLOG_SUPERSEDED,
+} from '../lib/weatherBacklogLoad'
+import type { ChecklistRowData } from '../lib/checklistsTab'
 
 // ── Fixtures ─────────────────────────────────────────────────────────────────
 // The header carries a Breeding Code column so BreedingCodeList reaches `ready`
@@ -442,7 +473,10 @@ describe('Finding A: an ML-export read failure never changes what a tab says abo
     const mlBox = await screen.findByText(ML_EXPORT_LOAD_ERROR)
     expect(mlBox.className).toContain('sr-wrap-anywhere')
     // Not "you haven't saved one yet" (the lie), and not a silently empty
-    // Multimedia list either (what `.catch(() => null)` would have produced).
+    // Multimedia list either. That second one used to depend on this `catch`
+    // recording the failure; since v1.0.16 a null from the catch lands on the
+    // same message as a rejection, and Finding D below covers the routes that
+    // reach it without one.
     expect(screen.queryByText(/Macaulay Library Export Required/)).toBeNull()
     expect(screen.queryByRole('switch', { name: /Show all forms/ })).toBeNull()
     // And it does not blame the eBird backup, which loaded fine.
@@ -454,6 +488,92 @@ describe('Finding A: an ML-export read failure never changes what a tab says abo
     render(<LifeList {...settingsProps} filesVersion={0} />)
 
     expect(await screen.findByRole('switch', { name: /Show all forms/ })).toBeTruthy()
+    expect(screen.queryByText(ML_EXPORT_LOAD_ERROR)).toBeNull()
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FINDING D — a stored export that cannot become rows is a FAILURE, not an
+// empty one
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// Finding A's Multimedia row above guards the one route that was already
+// guarded: a read that REJECTS, which is web/Pi-only (on the desktop the only
+// statement outside `TauriStorage.readFile`'s own try is a memoized `fs()` that
+// has already fulfilled). The rows here are the four routes that were not
+// guarded, and they are reachable on every platform.
+
+describe('Finding D: Multimedia reports a stored ML export that cannot be turned into rows', () => {
+  const ML_UNUSABLE_STORED: { name: string; ml: () => Promise<string | null> }[] = [
+    {
+      // WebStorage.readFile returns null on any non-ok response, so a 500 from
+      // /settings/files/ml is silent rather than a rejection.
+      name: 'the read resolves null (a non-ok /settings/files/ml response on web/Pi)',
+      ml: async () => null,
+    },
+    {
+      // TauriStorage.writeFile is a direct writeTextFile with no temp-and-rename,
+      // so an interrupted write leaves a truncated file with its metadata intact.
+      name: 'the stored file is zero bytes (an interrupted write leaves one behind)',
+      ml: async () => '',
+    },
+    {
+      // importFileContent validates only the .csv extension, so the eBird backup
+      // uploaded into the ML Export slot stores without complaint.
+      name: 'the stored file is an eBird backup, not an ML export',
+      ml: async () => EBIRD_CSV,
+    },
+    {
+      // The same truncation as row 2, cut a few columns later. The export's
+      // header runs ML Catalog Number, Format, Common Name (the real column order,
+      // mirrored in website/tools/gen-demo-data.mjs), so a cut between the second
+      // and third still satisfies detectFileType's substring test and then throws
+      // INVALID_ML_EXPORT on the column parseMLExport requires by exact name.
+      name: 'the header is truncated after Format but before Common Name',
+      ml: async () => 'Catalog Number,Format\n1,Photo',
+    },
+  ]
+
+  it.each(ML_UNUSABLE_STORED.map(r => [r.name, r] as const))(
+    'Multimedia reports a load failure when %s',
+    async (_name, route) => {
+      H.getFilesStatus.mockImplementation(async () => BOTH_FILES)
+      H.readFile.mockImplementation(async (slot: string) => (slot === 'ml' ? route.ml() : EBIRD_CSV))
+      render(<LifeList {...settingsProps} filesVersion={0} />)
+
+      const mlBox = await screen.findByText(ML_EXPORT_LOAD_ERROR)
+      expect(mlBox.className).toContain('sr-wrap-anywhere')
+      // Not the setup panel: an export IS stored (the 1.0.14 lie).
+      expect(screen.queryByText(/Macaulay Library Export Required/)).toBeNull()
+      expect(screen.queryByText(ML_STEPS_MARKER)).toBeNull()
+      // And not a rendered list with no media, which is indistinguishable from a
+      // birder who has photographed nothing.
+      expect(screen.queryByRole('switch', { name: /Show all forms/ })).toBeNull()
+      // The eBird backup loaded fine here, so it is not blamed.
+      expect(screen.queryByText(EBIRD_BACKUP_LOAD_ERROR)).toBeNull()
+    },
+  )
+
+  it('Multimedia blames the export, not the backup, when both fail at once', async () => {
+    // The four checks above run BEFORE the eBird guard, so all of them share one
+    // precedence rather than two of them being pre-empted by an eBird failure.
+    H.getFilesStatus.mockImplementation(async () => BOTH_FILES)
+    H.readFile.mockImplementation(async (slot: string) => (slot === 'ml' ? '' : EBIRD_CSV))
+    H.loadEbird.mockImplementation(async () => null)
+    render(<LifeList {...settingsProps} filesVersion={0} />)
+
+    expect(await screen.findByText(ML_EXPORT_LOAD_ERROR)).toBeTruthy()
+    expect(screen.queryByText(EBIRD_BACKUP_LOAD_ERROR)).toBeNull()
+  })
+
+  it('Multimedia still shows the guidance panel when no export is stored (the absent case)', async () => {
+    // A backup IS stored here, so this proves the panel is about the ML slot
+    // specifically, and that the new checks did not swallow the absent case.
+    H.getFilesStatus.mockImplementation(async () => EBIRD_ONLY)
+    render(<LifeList {...settingsProps} filesVersion={0} />)
+
+    expect(await screen.findByText(/Macaulay Library Export Required/)).toBeTruthy()
+    expect(screen.getByText(ML_STEPS_MARKER)).toBeTruthy()
     expect(screen.queryByText(ML_EXPORT_LOAD_ERROR)).toBeNull()
   })
 })
@@ -533,4 +653,291 @@ describe('Finding C: a stale run resolving a truthy backup leaves a ready tab al
       await loader.ready()
     },
   )
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FINDING E — the Weather Backlog asks whether a backup is STORED before it says
+// anything about one
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// WHY THIS FINDING IS DRIVEN THROUGH A FUNCTION AND NOT A RENDER. The branch
+// being fixed lived in an `App.tsx` effect, and no test in this repo renders
+// `App.tsx`. Asserting only that the component renders the right thing for the
+// right prop would leave the code that CHOOSES the prop unguarded — symmetry in
+// the code without symmetry in the evidence — so the decision was lifted into
+// `lib/weatherBacklogLoad.ts` and is driven here directly, with its dependencies
+// handed in rather than mocked. That also keeps it out of the trap this file
+// already documents: it mocks `lib/observationsCache` wholesale, so a test that
+// reached this code through the module graph would be mocking one of the two
+// things it is trying to prove the loader consults.
+//
+// The rows cover every answer the loader can reach: the two honest states, every
+// route into the failure one, the two it must stay silent about, and the claim
+// the call site rests on, which is that the promise never rejects. What is left
+// at the call site after the lift is one liveness check and one setter, with no
+// `.catch`, so a route out of this function that is neither a resolved state nor
+// a caught throw would park the section on its spinner for the session.
+
+/** Enough of an observation for `buildChecklistRows`, which is stubbed here. */
+const BACKLOG_ROWS = [] as unknown as ChecklistRowData[]
+
+function backlogDeps(over: Partial<Parameters<typeof resolveBacklogRows>[0]> = {}) {
+  return {
+    getFilesStatus: async () => EBIRD_ONLY,
+    loadObservations: async () => LOADED,
+    buildRows: () => BACKLOG_ROWS,
+    isCurrent: () => true,
+    ...over,
+  }
+}
+
+describe('Finding E: the Weather Backlog load decision', () => {
+  it('builds the rows when a stored backup loads (the absent case)', async () => {
+    expect(await resolveBacklogRows(backlogDeps())).toBe(BACKLOG_ROWS)
+  })
+
+  it('reports NO BACKUP only when none is stored', async () => {
+    const r = await resolveBacklogRows(backlogDeps({ getFilesStatus: async () => NO_FILES }))
+    // `null` is the needs-data state, which keeps its "Load your eBird backup
+    // first" title and its Go to Import CTA. That half is deliberately untouched:
+    // it is the right answer to a genuinely unconfigured app (the
+    // setup-required / error split, DECISIONS.md 2026-05-22).
+    expect(r).toBeNull()
+  })
+
+  it('does NOT consult the backup at all when none is stored', async () => {
+    // Non-vacuity for the row above: the honest branch has to come from the
+    // status read, not from the load happening to succeed.
+    const loadObservations = vi.fn(async () => LOADED)
+    await resolveBacklogRows(backlogDeps({ getFilesStatus: async () => NO_FILES, loadObservations }))
+    expect(loadObservations).not.toHaveBeenCalled()
+  })
+
+  const STORED_BUT_UNUSABLE: { name: string; load: () => Promise<typeof LOADED | null> }[] = [
+    {
+      // Since v1.0.14 `loadEbirdObservations` resolves null for a read that
+      // failed, a file that read back empty, and a parse that failed alike — an
+      // interrupted `writeTextFile` (there is no temp-and-rename) leaves a
+      // truncated CSV with its metadata intact, and the eBird Backup slot accepts
+      // any `.csv`, so a wrong file stores without complaint.
+      name: 'the load resolves falsy',
+      load: async () => null,
+    },
+    {
+      // Defense in depth rather than the live path: v1.0.15 moved the read inside
+      // the cache's own try, so this promise structurally cannot reject today.
+      // The catch is kept, and what matters is that it points at the honest state
+      // — before this fix it landed on the same setup-shaped lie as everything
+      // else.
+      name: 'the load rejects',
+      load: async () => { throw new TypeError('Failed to fetch') },
+    },
+  ]
+
+  it.each(STORED_BUT_UNUSABLE.map(r => [r.name, r] as const))(
+    'reports a LOAD FAILURE when a backup is stored and %s',
+    async (_name, route) => {
+      expect(await resolveBacklogRows(backlogDeps({ loadObservations: route.load })))
+        .toBe(BACKLOG_LOAD_FAILED)
+    },
+  )
+
+  it('reports a load failure when the status read itself fails', async () => {
+    // Beyond the letter of the brief, and deliberate: when the section cannot
+    // find out whether a backup is stored, "you have no backup" is a claim it
+    // has no basis for, and it is the exact claim this family exists to remove.
+    // Reachable on web/Pi, where `getFilesStatus` is a bare fetch at a backend
+    // that can be unreachable.
+    const r = await resolveBacklogRows(backlogDeps({
+      getFilesStatus: async () => { throw new TypeError('Failed to fetch') },
+    }))
+    expect(r).toBe(BACKLOG_LOAD_FAILED)
+  })
+
+  it('writes nothing when the run is superseded during the status read', async () => {
+    // The status read is the async boundary this fix ADDS, so it is the one that
+    // had no liveness check before it existed.
+    const loadObservations = vi.fn(async () => LOADED)
+    const r = await resolveBacklogRows(backlogDeps({ isCurrent: () => false, loadObservations }))
+    expect(r).toBe(BACKLOG_SUPERSEDED)
+    expect(loadObservations).not.toHaveBeenCalled()
+  })
+
+  it('reports a load failure when the ROW BUILD throws', async () => {
+    // The effect this replaced wrapped its whole `.then` body in one `.catch`, so
+    // this route was covered before the lift and has to stay covered after it.
+    // `buildChecklistRows` is a pure pass over normalized records, so it is
+    // remote -- but uncaught it escapes past a `.then` with no `.catch` and the
+    // section parks on "Building your backlog…" for the rest of the session,
+    // which is worse than the message this build exists to fix.
+    const r = await resolveBacklogRows(backlogDeps({
+      buildRows: () => { throw new TypeError('cannot read properties of undefined') },
+    }))
+    expect(r).toBe(BACKLOG_LOAD_FAILED)
+  })
+
+  it('never rejects when the liveness check throws on its LATER call', async () => {
+    // The named case, because it is the one a roster missed. `isCurrent` is called
+    // twice, and only the first call sits inside the status read's try, so a
+    // predicate that throws immediately is caught and reads as guarded while one
+    // that throws after the observations load rejected the whole promise. There
+    // is no good answer to a throwing liveness predicate, so it takes the same
+    // visible one as everything else here rather than escaping to nobody.
+    let calls = 0
+    const deps = backlogDeps({
+      isCurrent: () => { calls += 1; if (calls === 2) throw new TypeError('boom'); return true },
+    })
+    await expect(resolveBacklogRows(deps)).resolves.toBe(BACKLOG_LOAD_FAILED)
+    expect(calls).toBe(2)   // non-vacuity: the later call really was reached
+  })
+
+  it('never rejects, whichever dependency throws and however late', async () => {
+    // The property `App.tsx` relies on: it calls this with a `.then` and no
+    // `.catch`, because the guard belongs where a test can drive it.
+    //
+    // ITERATED OVER THE DEPENDENCY OBJECT, NEVER A LIST OF NAMES. The first
+    // attempt at this row named three of the four members in a literal array, and
+    // a roster cannot see what it does not name: the omitted one was `isCurrent`,
+    // whose second call site was the only unguarded statement in the module. A
+    // fifth dependency called outside every `try` produced no failure at all.
+    // `Object.keys` closes that by construction, since TypeScript already forces
+    // this fixture to carry every member of `BacklogLoadDeps` for the call below
+    // to compile -- so adding a dependency adds its rows here whether or not
+    // anyone remembers this file.
+    //
+    // AND THE nth-CALL SWEEP IS THE OTHER HALF. A member called more than once
+    // has more than one site, and they are not equally guarded; throwing only on
+    // the first call is exactly what made the defect invisible.
+    const KEYS = Object.keys(backlogDeps())
+    const NTH_MAX = 3
+    const LEGAL: unknown[] = [BACKLOG_LOAD_FAILED, BACKLOG_SUPERSEDED, null]
+    let checked = 0
+
+    for (const key of KEYS) {
+      for (let nth = 1; nth <= NTH_MAX; nth += 1) {
+        const base = backlogDeps() as unknown as Record<string, (...args: never[]) => unknown>
+        const real = base[key]
+        let calls = 0
+        base[key] = (...args: never[]) => {
+          calls += 1
+          if (calls === nth) throw new TypeError(`${key} threw on call ${nth}`)
+          return real(...args)
+        }
+        const deps = base as unknown as Parameters<typeof resolveBacklogRows>[0]
+
+        const [settled] = await Promise.allSettled([resolveBacklogRows(deps)])
+        // Compared as a labelled string so a failure names the member and the
+        // call number instead of reporting 'rejected' with no context.
+        expect(`${key}#${nth}: ${settled.status}`).toBe(`${key}#${nth}: fulfilled`)
+        const value = (settled as PromiseFulfilledResult<unknown>).value
+        // A throw on a call that never happens leaves the healthy path intact, so
+        // the resolved value is a legal state rather than always the failure one.
+        expect(Array.isArray(value) || LEGAL.includes(value)).toBe(true)
+        checked += 1
+      }
+    }
+
+    // Non-vacuity: an empty or partial key list would otherwise pass silently.
+    expect(checked).toBe(KEYS.length * NTH_MAX)
+    expect(KEYS.length).toBeGreaterThanOrEqual(4)
+  })
+
+  it('writes nothing when a superseded run finally settles TRUTHY', async () => {
+    // Finding C's rule, at this surface: a cancelled run writes no state at all,
+    // including the state it would otherwise have been right about. Cancelled
+    // here only AFTER the observations load, so the earlier guard cannot be what
+    // makes this pass.
+    let calls = 0
+    const buildRows = vi.fn(() => BACKLOG_ROWS)
+    const r = await resolveBacklogRows(backlogDeps({
+      isCurrent: () => { calls += 1; return calls < 2 },
+      buildRows,
+    }))
+    expect(r).toBe(BACKLOG_SUPERSEDED)
+    // And it does not spend a full row build on an answer nobody will read.
+    expect(buildRows).not.toHaveBeenCalled()
+  })
+})
+
+describe('Finding E: what the Weather Backlog section renders for each of those', () => {
+  const ENTRY = /list checklists with no weather blocks/i
+  const backlogProps = {
+    lookupWeather: async () => null,
+    onCopy: async () => true,
+    onGoToSettings: () => {},
+    onGoToImport: () => {},
+  }
+  const toggle = () => fireEvent.click(screen.getByRole('button', { name: ENTRY }))
+
+  it('a stored backup that would not load names the file and the Settings path', () => {
+    render(<WeatherBacklog {...backlogProps} rows={BACKLOG_LOAD_FAILED} />)
+    toggle()
+
+    const box = screen.getByText(EBIRD_BACKUP_LOAD_ERROR)
+    expect(box.className).toContain('sr-wrap-anywhere')
+    // Not the setup-shaped panel: a backup IS stored in this state, and telling
+    // someone to import one they have already imported is the defect itself.
+    expect(screen.queryByText(/Load your eBird backup first/)).toBeNull()
+    expect(screen.queryByRole('button', { name: /Go to Import/ })).toBeNull()
+    expect(screen.queryByText(EBIRD_STEPS_MARKER)).toBeNull()
+    // And a way out of it, the same one the tabs offer.
+    expect(screen.getByRole('button', { name: /Go to Settings/ })).toBeTruthy()
+  })
+
+  it('no backup stored still shows the guidance and its Go to Import CTA', () => {
+    render(<WeatherBacklog {...backlogProps} rows={null} />)
+    toggle()
+
+    expect(screen.getByText(/Load your eBird backup first/)).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Go to Import/ })).toBeTruthy()
+    expect(screen.queryByText(EBIRD_BACKUP_LOAD_ERROR)).toBeNull()
+  })
+
+  it('the alert region is the SAME node before and after the message, across a collapse', () => {
+    // The guarantee `TabLoadErrorAlert` exists to provide: `role="alert"`
+    // announces a mutation on a node ALREADY in the accessibility tree, so a
+    // region created carrying its text announces nothing (DECISIONS.md v0.5.83).
+    // The eight tabs get this from mounting the component at fragment index 0 of
+    // every phase branch. This section cannot: its panel UNMOUNTS on collapse, so
+    // a region mounted inside the panel would hold on the first expand — the
+    // panel always opens on the spinner — and lose it on every re-expand. Hence
+    // the region lives OUTSIDE the disclosure, and the assertion is node
+    // IDENTITY: a build that moves it back inside still renders an alert with the
+    // right text and still passes every presence and textContent check.
+    const { container } = render(<WeatherBacklog {...backlogProps} rows={BACKLOG_LOAD_FAILED} />)
+    const region = container.querySelector('[role="alert"]')
+    expect(region).toBeTruthy()
+    expect(region!.textContent).toBe('')      // present, and empty, while collapsed
+
+    toggle()                                   // first expand
+    expect(container.querySelector('[role="alert"]')).toBe(region)
+    expect(region!.textContent).toBe(EBIRD_BACKUP_LOAD_ERROR)
+
+    toggle()                                   // collapse — the panel unmounts
+    expect(container.querySelector('[role="alert"]')).toBe(region)
+    expect(region!.textContent).toBe('')
+
+    toggle()                                   // re-expand: the path a panel-mounted region loses
+    expect(container.querySelector('[role="alert"]')).toBe(region)
+    expect(region!.textContent).toBe(EBIRD_BACKUP_LOAD_ERROR)
+  })
+
+  it('the region is present and empty in every state that is not the failure', () => {
+    // Non-vacuity for the row above, and the property the tabs state as "the
+    // region existed, empty, in the commit before the message": the region is not
+    // something the failure state brings with it.
+    const { container, rerender } = render(<WeatherBacklog {...backlogProps} rows={undefined} />)
+    toggle()
+    const region = container.querySelector('[role="alert"]')
+    expect(region!.textContent).toBe('')       // while the rows are still building
+    expect(screen.getByText(/Building your backlog/)).toBeTruthy()
+
+    rerender(<WeatherBacklog {...backlogProps} rows={null} />)
+    expect(container.querySelector('[role="alert"]')).toBe(region)
+    expect(region!.textContent).toBe('')       // and while the guidance shows
+
+    rerender(<WeatherBacklog {...backlogProps} rows={BACKLOG_LOAD_FAILED} />)
+    expect(container.querySelector('[role="alert"]')).toBe(region)
+    expect(region!.textContent).toBe(EBIRD_BACKUP_LOAD_ERROR)
+  })
 })

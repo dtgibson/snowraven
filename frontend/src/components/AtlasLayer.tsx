@@ -273,6 +273,13 @@ export function AtlasLayer({ data, shade = false, breedingByBlock = null, useTex
         >
           <button
             type="button"
+            /* Explicit tabIndex, and NOT redundant: WebKit's default tab mode
+               skips a plain <button> entirely (measurement in
+               lib/useFocusTrap.ts's header). This panel is the ONLY keyboard
+               route to a block's popup, and ACCESSIBILITY.md publishes it as
+               such, so without it that published claim is false on the Mac and
+               iOS apps. CountyLayer's identical panel already carries it. */
+            tabIndex={0}
             onClick={() => setListOpen(o => !o)}
             aria-expanded={listOpen}
             style={{
@@ -297,6 +304,10 @@ export function AtlasLayer({ data, shade = false, breedingByBlock = null, useTex
                     <li role="listitem" key={row.code}>
                       <button
                         type="button"
+                        /* Same WebKit reason as the disclosure above: without an
+                           explicit tabIndex the rows open, but no keyboard on
+                           the Mac or iOS apps can reach them. */
+                        tabIndex={0}
                         onClick={() => openBlockFromList(row)}
                         aria-pressed={isSelected}
                         className="sr-inview-row"

@@ -62,6 +62,11 @@ export function ChecklistLink({ submissionId, label, size = 'sm', compact = fals
 
   return (
     <a
+      // WebKit's default tab mode skips a plain <a href> entirely, so without
+      // this the app's every "open checklist on eBird" link is off the keyboard's
+      // path on the Mac, iPhone and iPad builds. One edit, 24 call sites -- and
+      // it is what gives the Calendar's day-details dialog its second tab stop.
+      tabIndex={0}
       href={`https://ebird.org/checklist/${submissionId}`}
       target="_blank"
       rel="noreferrer"

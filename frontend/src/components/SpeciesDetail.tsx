@@ -988,6 +988,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                           <span style={{ fontSize: '0.8125rem', fontWeight: 500, color: 'var(--sr-text)', flex: 1 }}>{type}s</span>
                           {count > 0 ? (
                             <a
+                              tabIndex={0}
                               href={link}
                               target="_blank"
                               rel="noreferrer"

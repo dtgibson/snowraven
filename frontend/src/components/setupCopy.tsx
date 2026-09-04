@@ -37,14 +37,24 @@ export const ML_EXPORT_STEPS: ReactNode[] = [
 // load" and shows a terse message with a Go to Settings button. Do not put the
 // steps arrays into an error message; do name the file and the Settings path, the
 // way BreedingCodeList's wrong-file branch already does, so the message is honest
-// AND useful. Single-sourced because nine surfaces carry the eBird one and they
+// AND useful. Single-sourced because these are carried by many surfaces and they
 // drifted before (two spellings in ListComparer alone).
+//
+// No count of those surfaces is written down here, deliberately. Three defensible
+// rosters give three different numbers (what carries these two strings, what
+// carries `TabLoadErrorAlert`, what reads a stored file at all), so any number
+// put here is wrong on somebody's reading and goes stale on the next surface: it
+// already had, reading "nine" once the Weather tab's checklist backlog started
+// carrying the eBird one in v1.0.16. The checkable claim is the property. Every
+// surface that tells a user a STORED file would not load renders one of these two
+// constants, and `components/honestLoadFailures.test.tsx` is where that is
+// asserted surface by surface.
 
 /** A stored eBird backup that could not be read or parsed. */
 export const EBIRD_BACKUP_LOAD_ERROR =
   "Couldn't load your eBird backup. Re-upload MyEBirdData.csv in Settings → Default Files → eBird Backup."
 
-/** A stored Macaulay Library export that could not be read. Named by its Settings
+/** A stored Macaulay Library export that could not be read or parsed. Named by its Settings
  * slot rather than a filename: the download's name varies (it carries the user's
  * ML user id) and ML_EXPORT_STEPS tells them not to rename it. */
 export const ML_EXPORT_LOAD_ERROR =

@@ -266,7 +266,7 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
                 minWidth: 200,
               }}
             >
-              <button type="button" style={sortBtn(sort.column === 'name', 'flex-start')} onClick={() => handleHeaderClick('name')}>
+              <button tabIndex={0} type="button" style={sortBtn(sort.column === 'name', 'flex-start')} onClick={() => handleHeaderClick('name')}>
                 Entries{sortIndicator('name')}
               </button>
             </th>
@@ -286,7 +286,7 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
                   textAlign: 'center',
                 }}
               >
-                <button type="button" aria-label={`Sort by ${label}`} style={sortBtn(sort.column === col, 'center')} onClick={() => handleHeaderClick(col)}>
+                <button tabIndex={0} type="button" aria-label={`Sort by ${label}`} style={sortBtn(sort.column === col, 'center')} onClick={() => handleHeaderClick(col)}>
                   {icon}
                   {label}
                   {sortIndicator(col)}
@@ -304,7 +304,7 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
                 borderLeft: '1px solid var(--sr-border)',
               }}
             >
-              <button type="button" style={{ ...sortBtn(true, 'center'), color: 'var(--sr-accent)' }} onClick={() => handleHeaderClick('total')}>
+              <button tabIndex={0} type="button" style={{ ...sortBtn(true, 'center'), color: 'var(--sr-accent)' }} onClick={() => handleHeaderClick('total')}>
                 Total
                 {sortIndicator('total')}
               </button>
@@ -353,6 +353,7 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
                   <div style={iconCell}>
                     {photoCount > 0
                       ? <a
+                          tabIndex={0}
                           href={mlUrl('Photo', userId, taxonCode, sexFilter, ageFilter)}
                           target="_blank"
                           rel="noreferrer"
@@ -368,6 +369,7 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
                   <div style={iconCell}>
                     {audioCount > 0
                       ? <a
+                          tabIndex={0}
                           href={mlUrl('Audio', userId, taxonCode, sexFilter, ageFilter)}
                           target="_blank"
                           rel="noreferrer"
@@ -383,6 +385,7 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
                   <div style={iconCell}>
                     {videoCount > 0
                       ? <a
+                          tabIndex={0}
                           href={mlUrl('Video', userId, taxonCode, sexFilter, ageFilter)}
                           target="_blank"
                           rel="noreferrer"
@@ -398,6 +401,7 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
                   <div style={{ display: 'flex', justifyContent: 'center' }}>
                     {totalCount > 0
                       ? <a
+                          tabIndex={0}
                           href={mlUrlAll(userId, taxonCode, sexFilter, ageFilter)}
                           target="_blank"
                           rel="noreferrer"

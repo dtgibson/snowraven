@@ -7,7 +7,7 @@ import { ToggleSwitch } from './ui/ToggleSwitch'
 import { formatDate as formatDateLabel } from '../lib/formatDate'
 import type { LifeListEntry } from '../lib/parseLifeList'
 import { parseMLExport, aggregateMLRows } from '../lib/parseMLExport'
-import type { MLExportRow } from '../lib/parseMLExport'
+import type { MLExportResult, MLExportRow } from '../lib/parseMLExport'
 import { assetMatchesFacet, buildCatalogAgeSex } from '../lib/mediaStats'
 import type { AgeClass, Sex } from '../lib/mediaStats'
 import { loadEbirdObservations } from '../lib/observationsCache'
@@ -427,19 +427,51 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
 
         // This tab reads the ML file itself rather than going through loadMLExport:
         // that helper swallows a bad parse to null and has no detectFileType gate,
-        // which is not what the Multimedia tab needs (DECISIONS.md, v0.5.52). The
-        // read can still throw on file-read IO, and an unguarded throw lands in the
-        // outer catch, which renders "Macaulay Library Export Required" while an
-        // export is plainly stored. `.catch(() => null)` would be a DIFFERENT lie
-        // (a silently empty Multimedia list), so record the failure and say so.
-        // Reachable on web/Pi, where WebStorage.readFile is a bare fetch.
+        // which is not what the Multimedia tab needs (DECISIONS.md, v0.5.52).
         let mlReadFailed = false
         const [mlText, ebird] = await Promise.all([
           storage.readFile('ml').catch(() => { mlReadFailed = true; return null }),
           status.ebird ? loadEbirdObservations() : Promise.resolve(null),
         ])
         if (cancelled) return
-        if (mlReadFailed) {
+
+        // `status.ml` is truthy here, so an export IS stored: every way it can fail
+        // to become rows is a LOAD FAILURE, and all four land on the one message.
+        // Both alternatives are lies the 1.0.14 family exists to remove. A throw
+        // reaching the outer catch renders "Macaulay Library Export Required" over
+        // an export that is plainly stored; falling through to `ready` renders a
+        // list with every photo and recording silently missing, and says nothing at
+        // all. List Comparer is the precedent for collapsing the routes onto one
+        // string (ListComparer.tsx: read-throw, read-empty and wrong-file, one
+        // message for all three).
+        //   1. the read REJECTED (`mlReadFailed`). Web/Pi only: WebStorage.readFile
+        //      is a bare fetch. On the desktop `readFile`'s one statement outside
+        //      its own try is the memoized `await this.fs()`, which has already
+        //      fulfilled by the time getFilesStatus returned (storage.ts).
+        //   2. it resolved FALSY. `null` from a non-ok web/Pi response or a desktop
+        //      read error, or `''` from a zero-byte file: writeFile is a direct
+        //      writeTextFile with no temp-and-rename, so an interrupted write can
+        //      leave one behind.
+        //   3. the stored file is not an ML export at all. importFileContent
+        //      validates only the `.csv` extension, so MyEBirdData.csv uploaded into
+        //      the ML Export slot stores happily and detectFileType rejects it here.
+        //   4. parseMLExport throws INVALID_ML_EXPORT: no header row, or a header
+        //      missing one of the three columns it requires by exact name (Catalog
+        //      Number, Common Name, Format). detectFileType is a looser substring
+        //      test over the same line, so it does not subsume this.
+        // `mlReadFailed` is implied by `!mlText`, since the catch returns null. It
+        // is KEPT for the reason 1.0.15 kept all five ML `.catch(() => null)`
+        // guards: it names the reject route AT the call site, so a later catch that
+        // returns something truthy cannot quietly rejoin the ready path.
+        // These four run BEFORE the eBird guard so they share one precedence: on the
+        // tab the export gates, an unusable export is reported as itself even when
+        // the backup failed too. parseMLExport is pure, so an eBird failure below
+        // discards its result and still writes no state.
+        let parsedMl: MLExportResult | null = null
+        if (!mlReadFailed && mlText && detectFileType(mlText) === 'ml-export') {
+          try { parsedMl = parseMLExport(mlText) } catch { parsedMl = null }
+        }
+        if (!parsedMl) {
           setPhase({ tag: 'error', message: ML_EXPORT_LOAD_ERROR })
           return
         }
@@ -455,20 +487,12 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
           return
         }
 
-        let entries: LifeListEntry[] = []
-        let mediaMap: Record<string, string> = {}
-        let rows: MLExportRow[] = []
+        const { entries, mediaMap, rows } = parsedMl
         let hasEbirdBackbone = false
         let ebirdObs: ObservationEntry[] = []
 
-        if (mlText && detectFileType(mlText) === 'ml-export') {
-          const parsed = parseMLExport(mlText)
-          entries = parsed.entries
-          mediaMap = parsed.mediaMap
-          rows = parsed.rows
-          setMlUserId(parseMLUserId(status.ml.filename))
-          setRawRows(rows)
-        }
+        setMlUserId(parseMLUserId(status.ml.filename))
+        setRawRows(rows)
 
         if (ebird) {
           ebirdObs = ebird.observations
@@ -633,6 +657,7 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
           <MessageSquare size={13} strokeWidth={2.2} style={{ color: 'var(--sr-accent)', flexShrink: 0 }} />
           <span>{commentCount === 1 ? '1 media comment is' : `${commentCount} media comments are`} searchable below the table.</span>
           <a
+            tabIndex={0}
             href="#media-comments"
             onClick={e => {
               e.preventDefault()

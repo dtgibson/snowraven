@@ -260,7 +260,7 @@ export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, f
                   minWidth: NAME_COL_WIDTH,
                 }}
               >
-                <button type="button" style={sortBtn(sort.column === 'name', 'flex-start')} onClick={() => handleHeaderClick('name')}>
+                <button tabIndex={0} type="button" style={sortBtn(sort.column === 'name', 'flex-start')} onClick={() => handleHeaderClick('name')}>
                   Species{sortIndicator('name')}
                 </button>
               </th>
@@ -289,6 +289,7 @@ export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, f
                         the full meaning so screen-reader / touch users get it
                         without the UA title tooltip (which never fires on focus). */}
                     <button
+                      tabIndex={0}
                       type="button"
                       aria-label={`Sort by ${def.label} (${code})`}
                       style={sortBtn(sort.column === code, 'center')}

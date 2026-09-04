@@ -65,7 +65,7 @@ The eBird backup is used by: Species Detail, Statistics, Calendar, Map Explorer,
 
 eBird generates the export with all observations up to the download date. Re-upload the file whenever you want your tabs to reflect recent checklists.
 
-If a tab says it couldn't load your eBird backup, the file is still stored but SnowRaven could not read it, so re-upload `MyEBirdData.csv` in Settings under Default Files (the Multimedia tab says the same about your ML export).
+If a tab, or the weather backlog on the Weather tab, says it couldn't load your eBird backup, the file is still stored but SnowRaven could not read it or could not make sense of it, so re-upload `MyEBirdData.csv` in Settings under Default Files. The Multimedia tab has its own version of this for your ML export, described under ML export below.
 
 ### ML export
 
@@ -76,6 +76,8 @@ To download it, sign in at [macaulaylibrary.org](https://macaulaylibrary.org) an
 In SnowRaven, upload the file in Settings under Default Files, and **leave the filename unchanged**. The downloaded filename contains your Macaulay Library user ID, and SnowRaven reads that ID from the filename to link directly to your own media pages. If you rename the file, those links still work but are no longer personalized to your account.
 
 The ML export is used by: Multimedia (media counts and species coverage), Species Detail (embedded recent media and media count indicators), Statistics (the Media card), and Named Birds (the media matched to each named individual). These features are not available from the eBird backup alone.
+
+If the Multimedia tab says it couldn't load your ML export, the file is saved but SnowRaven could not turn it into a species list, either because it could not read the file or because what is stored is not an ML export. Uploading `MyEBirdData.csv` into the ML Export slot does that: both files end in `.csv`, so it is accepted. Re-upload the spreadsheet in Settings under Default Files. That message is different from the "Macaulay Library Export Required" panel, which appears only when no export is saved at all.
 
 ---
 
@@ -114,7 +116,7 @@ Each row shows the checklist's date, location, species count, protocol, effort, 
 - **Open comment/edit page:** opens the checklist's comment/edit page on eBird in a new tab, ready for you to paste into.
 - **Copy weather & go:** looks up that checklist's weather, copies the block to your clipboard (weather only), and, on a successful copy, opens the comment/edit page so you can paste right away. If the lookup can't complete, the row tells you exactly why: you're offline, an API key is missing (with a nudge to Settings), or a general error. The comment page is **not** opened, so you never land on eBird with nothing on your clipboard. Each row's state is its own, so you can work several in a row.
 
-By default the list shows only your **complete, non-incidental** checklists. A toggle, **Also show incomplete & incidental**, widens the list to include those too; a widened row is marked with a small chip so the wider list is never ambiguous. The list shows the first 100 matches, with **Show next 100** and **Show all** controls when there are more. If no backup is loaded, the section explains that it needs your eBird backup first; if every recent checklist already has weather, it says so rather than showing an empty list.
+By default the list shows only your **complete, non-incidental** checklists. A toggle, **Also show incomplete & incidental**, widens the list to include those too; a widened row is marked with a small chip so the wider list is never ambiguous. The list shows the first 100 matches, with **Show next 100** and **Show all** controls when there are more. If you have not saved an eBird backup yet, the section explains that it needs one first and offers a shortcut to import it. If a backup is saved but SnowRaven could not turn it into a list of checklists, the section says it couldn't load your backup and offers a shortcut to Settings instead, rather than asking you to import a file you already have. If every recent checklist already has weather, it says so rather than showing an empty list.
 
 Locations in this list are plain text in this version.
 
@@ -381,7 +383,7 @@ Paste that into a text message and the two links are tappable, opening the exact
 
 If the clipboard write is refused (this can happen in some browsers), the popup says so and shows the full text with a **Select all** button, so you can copy it by hand. It never claims a copy that did not happen.
 
-**Where it works.** Copying a location works on every map in the app. The share pin you drop yourself is on Map Explorer's My Sightings view, Species Detail's Sighting Locations map (both Pins and Heatmap), the Statistics Geographic Stats map, and the per-individual map on a Named Birds card. On Hotspots, Nearby Lifers, and Media Targets, right-click and long-press are already taken by the search center, so instead the **search center pin itself** is clickable: click it (or reach it with the keyboard) and the same copy popup opens. The map pin button in the corner opens that same popup, which is useful when the pin has scrolled off screen. Dropping and dragging that pin behaves exactly as it always has.
+**Where it works.** Copying a location works on every map in the app. The share pin you drop yourself is on Map Explorer's My Sightings view, Species Detail's Sighting Locations map (both Pins and Heatmap), the Statistics Geographic Stats map, and the per-individual map on a Named Birds card. On Hotspots, Nearby Lifers, and Media Targets, right-click and long-press are already taken by the search center, so instead the **search center pin itself** is clickable: click it, or reach it with the keyboard, and the same copy popup opens. The map pin button in the corner opens that same popup too, which is what you want when the pin has scrolled off screen. Both are reachable by Tab on every platform. Dropping and dragging that pin behaves exactly as it always has.
 
 **Closing.** Press **Esc**, or the popup's close button, to remove the pin and the popup together. Switching to a different map view clears it too. The pin is not saved anywhere: it is per-session, resetting on relaunch, and nothing about it is written to disk.
 
@@ -417,7 +419,7 @@ The pins always tell you honestly what is known: a **hollow** pin means the answ
 
 Below the legend, the panel lists the ten closest hotspots you have not visited, ranked by distance from your center point. Selecting a row opens that hotspot's details popup on the map and pans to it; a small ↗ link beside each row still opens that hotspot's page on eBird.
 
-**Atlas blocks overlay.** A **California atlas blocks** toggle overlays the official California Breeding Bird Atlas block boundaries on the map. The grid is drawn for the area you are looking at and appears once you zoom in; at very wide views a "Zoom in to see atlas blocks" hint appears instead, so the whole-state view stays uncluttered. Click any block to open a popup with its name, a link to its eBird California atlas page, and (when shading is on) your highest breeding code there plus how many of your breeding records fall inside it. The boundaries are generated from a compact bundled dataset, so the overlay works offline with no extra download, and outside California nothing is drawn. This overlay is available in the My Sightings, Hotspots, Nearby Lifers, and Media Targets panels.
+**Atlas blocks overlay.** A **California atlas blocks** toggle overlays the official California Breeding Bird Atlas block boundaries on the map. The grid is drawn for the area you are looking at and appears once you zoom in; at very wide views a "Zoom in to see atlas blocks" hint appears instead, so the whole-state view stays uncluttered. Click any block to open a popup with its name, a link to its eBird California atlas page, and (when shading is on) your highest breeding code there plus how many of your breeding records fall inside it. A keyboard-accessible **Atlas blocks in view** panel on the map lists the blocks currently on screen, so those popups are reachable without a mouse: Tab to a row, then Enter or Space to open it and pan there. The boundaries are generated from a compact bundled dataset, so the overlay works offline with no extra download, and outside California nothing is drawn. This overlay is available in the My Sightings, Hotspots, Nearby Lifers, and Media Targets panels.
 
 When the overlay is on, a **Shade by My Highest Breeding Code** toggle appears. It tints each block by the strongest breeding code *you* have personally entered there: darkest for Confirmed, down through Probable to Possible. The shading reflects only your own records, never anyone else's, and requires your eBird backup to be loaded in Settings. When shading is on, any heatmap or pins automatically dim so the tier colors stay legible on top.
 

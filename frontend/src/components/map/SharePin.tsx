@@ -132,6 +132,14 @@ export function SharePin({ compact, buttonHost }: {
     <button
       type="button"
       ref={dropButtonRef}
+      // Explicit tabIndex, and NOT redundant: WebKit's default tab mode (macOS
+      // "Keyboard navigation" off, which is the default and what WKWebView
+      // follows) visits only explicitly-tabindexed elements, native form
+      // controls and <summary>, so a plain <button> is skipped entirely on the
+      // shipped Mac and iOS apps. The measurement is in lib/useFocusTrap.ts's
+      // header; the remedy is the one "Search this area" already uses
+      // (v0.5.91). This one button serves all five share-pin surfaces.
+      tabIndex={0}
       // The circle comes from the shared FAB base + a size modifier
       // (uniform-map-fabs); .sr-share-drop-btn is now a state hook carrying the
       // [aria-pressed] tint, and --compact a density hook. Every 1x value is
@@ -173,6 +181,7 @@ export function SharePin({ compact, buttonHost }: {
               name leads with the coordinates exactly as rendered (WCAG 2.5.3). */}
           <button
             key={plantSeq}
+            tabIndex={0}
             type="button"
             // No compact variant: the sprite's own width/height carry the
             // density, and the 44px touch target is 44px at both.

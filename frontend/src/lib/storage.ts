@@ -642,6 +642,17 @@ class TauriStorage implements StorageAdapter {
     return this.chain(META_PATH, () => this.readMeta());
   }
 
+  // `await this.fs()` stays OUTSIDE the try deliberately (v1.0.16). Containing it
+  // would be behaviour-neutral in every case reachable today and harmful in the one
+  // case that is not: `fsModule` is memoized with `??=` and never reset, so a
+  // rejection here is PERMANENT for the session, and folding a permanent failure
+  // into a `null` return is exactly the "report a failure as no data" the 1.0.14
+  // honest-load-failure family removed. The 1.0.15 cache fix is not a precedent for
+  // moving it: that contained a TRANSIENT per-call failure inside a layer that
+  // clears its memo, so the next mount retried. Callers that must distinguish the
+  // two do it at their own call site -- LifeList.tsx reports a rejection and a falsy
+  // result as the same load failure, which is what makes the throw route safe to
+  // leave uncaught here.
   async readFile(name: 'ebird' | 'ml'): Promise<string | null> {
     const { readTextFile, exists, BaseDirectory } = await this.fs();
     const path = FILE_PATHS[name];
