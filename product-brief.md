@@ -31,7 +31,7 @@ A birder installs SnowRaven, points it at their eBird backup and Macaulay export
 - Local-first and privacy-first — collects nothing, runs no developer-operated server, your data stays on your device.
 - Works alongside eBird and the Macaulay Library; never replaces or competes with them.
 - No accounts, no authentication — your own API keys, entered once.
-- Distributed as a standalone Mac/Windows desktop app and a self-hosted Pi/Linux install.
+- Distributed as a standalone Mac/Windows desktop app, on the iPhone and iPad App Store, and as a self-hosted Pi/Linux install.
 - Network calls only device-to-provider (eBird, OpenWeather, OpenStreetMap/Nominatim, NOAA, map-tile hosts, Cornell Lab media/icons), with the user's keys where needed, on demand — the full list is disclosed in PRIVACY_POLICY.md.
 
 ## Out of Scope
