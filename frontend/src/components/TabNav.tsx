@@ -47,11 +47,14 @@ import {
   useState,
   type RefObject,
 } from 'react'
-import { MoreHorizontal, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
+import { MoreHorizontal, PanelLeftClose, PanelLeftOpen, Search } from 'lucide-react'
 import type { Tab } from '../lib/tabLayout'
 import { NAV_ICON, type TabIcon } from '../lib/tabIcons'
 import { RavenGlyph } from './RavenGlyph'
 import { useFocusTrap } from '../lib/useFocusTrap'
+import { PALETTE_COPY } from '../lib/paletteCopy'
+import { chordHintText, resolveChordHint } from '../lib/paletteHint'
+import type { PaletteOpener } from '../lib/paletteFocus'
 import {
   deriveWideDensity,
   resolveDensity,
@@ -98,6 +101,13 @@ export interface TabNavProps {
   navBarRef?: (el: HTMLElement | null) => void
   /** True while the fullscreen map overlay is up: the whole nav leaves the tab order. */
   inert?: boolean
+  /**
+   * Open the command palette, handing App the control that opened it so focus
+   * can be returned there on close (command-palette FR-05 to FR-08, FR-12).
+   * Threaded to NavColumn and to NavBottomBar -> NavMoreSheet at the same depth
+   * `onSelect` already travels.
+   */
+  onOpenPalette: (opener: PaletteOpener) => void
 }
 
 /** The tagline, moved from under the page wordmark to under the sidebar wordmark. */
@@ -186,7 +196,7 @@ function useDerivedDensity(
 // ---------------------------------------------------------------------------
 
 export function TabNav(props: TabNavProps) {
-  const { items, activeTab, onSelect, isPhone, shell, reserve, navBarRef, inert } = props
+  const { items, activeTab, onSelect, isPhone, shell, reserve, navBarRef, inert, onOpenPalette } = props
 
   // Session-only, deliberately NOT persisted. A stored density can be restored
   // into a window where it is wrong, leaving the user to find a control that
@@ -224,6 +234,7 @@ export function TabNav(props: TabNavProps) {
         onSelect={onSelect}
         navBarRef={navBarRef}
         inert={inert}
+        onOpenPalette={onOpenPalette}
       />
     )
   }
@@ -242,6 +253,7 @@ export function TabNav(props: TabNavProps) {
       collapsed={manuallyCollapsed}
       onToggleCollapse={toggleCollapse}
       inert={inert}
+      onOpenPalette={onOpenPalette}
     />
   )
 }
@@ -261,16 +273,22 @@ interface NavColumnProps {
   collapsed: boolean
   onToggleCollapse: () => void
   inert?: boolean
+  onOpenPalette: (opener: PaletteOpener) => void
 }
 
 function NavColumn(props: NavColumnProps) {
   const {
     items, activeTab, onSelect, rail, animating,
-    onAnimationSettled, showCollapse, collapsed, onToggleCollapse, inert,
+    onAnimationSettled, showCollapse, collapsed, onToggleCollapse, inert, onOpenPalette,
   } = props
 
   const glyph = rail ? NAV_ICON.rail : NAV_ICON.sidebar
   const tip = useRailTooltip(rail)
+  const searchRef = useRef<HTMLButtonElement>(null)
+  // Presentation only, and evaluated at render with no matchMedia listener: a
+  // pointer-capability change mid-session is not worth a subscription. The
+  // listener accepts both chords regardless of what this resolves to.
+  const hint = resolveChordHint()
 
   const selectAndFocus = (id: Tab) => {
     onSelect(id)
@@ -324,6 +342,42 @@ function NavColumn(props: NavColumnProps) {
       {rail
         ? <div className="sr-nav-brandgap" />
         : <p className="sr-nav-tagline">{TAGLINE}</p>}
+
+      {/* THE PALETTE'S ENTRY POINT (command-palette FR-05, FR-06), rendered
+          between the brand block and the destination list and therefore OUTSIDE
+          the role="tablist" div, which holds role="tab" children only.
+
+          It takes the rail's shipped hover / :focus-visible / touch-hold name
+          treatment from useRailTooltip for free, and carries aria-label in the
+          rail exactly as the destination buttons do, so getByRole('button',
+          { name }) resolves it at BOTH densities. The hint is aria-hidden --
+          the accessible name is "Search" and an announced glyph would only
+          clutter it -- and the chord reaches assistive technology the correct
+          way instead, through aria-keyshortcuts, which is true on every
+          platform whatever the hint displays. */}
+      <button
+        ref={searchRef}
+        tabIndex={0}
+        type="button"
+        className="sr-nav-search"
+        aria-keyshortcuts="Meta+K Control+K"
+        aria-label={rail ? PALETTE_COPY.controlLabel : undefined}
+        onClick={() => onOpenPalette({ trigger: () => searchRef.current })}
+        {...tip.handlers(PALETTE_COPY.controlLabel)}
+      >
+        <Search size={glyph.size} strokeWidth={glyph.strokeWidth} aria-hidden="true" />
+        <span className="sr-nav-search-label">{PALETTE_COPY.controlLabel}</span>
+        {hint !== 'none' && (
+          <span className="sr-nav-search-hint" aria-hidden="true">{chordHintText(hint)}</span>
+        )}
+      </button>
+      {/* In the rail the control's box chrome goes with its label, so this
+          hairline is what says "not a destination" -- the nav's own structural
+          separator, and structurally true for the same reason Settings' is: the
+          search control is not in the saved order and is not a destination,
+          while every destination is peer to every other. At sidebar density the
+          control keeps its own field chrome and needs no rule. */}
+      {rail && <hr className="sr-nav-sep" aria-hidden="true" />}
 
       {/* The <nav> is the navigation landmark; role="tablist" lives on the inner
           div so it does not override the landmark (a node cannot be both). */}
@@ -552,9 +606,10 @@ interface NavBottomBarProps {
   onSelect: (tab: Tab) => void
   navBarRef?: (el: HTMLElement | null) => void
   inert?: boolean
+  onOpenPalette: (opener: PaletteOpener) => void
 }
 
-function NavBottomBar({ items, activeTab, onSelect, navBarRef, inert }: NavBottomBarProps) {
+function NavBottomBar({ items, activeTab, onSelect, navBarRef, inert, onOpenPalette }: NavBottomBarProps) {
   const [sheetOpen, setSheetOpen] = useState(false)
   const moreRef = useRef<HTMLButtonElement>(null)
   const barRef = useRef<HTMLElement>(null)
@@ -575,6 +630,15 @@ function NavBottomBar({ items, activeTab, onSelect, navBarRef, inert }: NavBotto
     setSheetOpen(false)
     if (returnFocus) moreRef.current?.focus()
   }, [])
+
+  // FR-08. The sheet closes with `returnFocus` FALSE -- deliberately, because
+  // focus is going to the palette's query input, not back to the More button --
+  // and the opener is the More button, since the sheet's own row unmounts with
+  // the sheet. The getter is created HERE because `moreRef` lives here.
+  const openPaletteFromSheet = useCallback(() => {
+    closeSheet(false)
+    onOpenPalette({ trigger: () => moreRef.current })
+  }, [closeSheet, onOpenPalette])
 
   return (
     <>
@@ -639,6 +703,7 @@ function NavBottomBar({ items, activeTab, onSelect, navBarRef, inert }: NavBotto
           inert={inert}
           onSelect={id => { onSelect(id); closeSheet(true) }}
           onClose={() => closeSheet(true)}
+          onOpenSearch={openPaletteFromSheet}
         />
       )}
     </>
@@ -699,6 +764,8 @@ interface NavMoreSheetProps {
   onSelect: (tab: Tab) => void
   onClose: () => void
   inert?: boolean
+  /** Close this sheet and open the command palette (command-palette FR-07, FR-08). */
+  onOpenSearch: () => void
 }
 
 /**
@@ -720,7 +787,8 @@ interface NavMoreSheetProps {
  * comparing `document.activeElement` against the ends of a `querySelectorAll`
  * list, which is a PREDICTION of the engine's tab order. That prediction is
  * correct here only because every focusable in this panel carries a literal
- * `tabIndex={0}` — the rows, and nothing else is focusable inside it — so
+ * `tabIndex={0}` — the destination rows and the search row above them, and
+ * nothing else is focusable inside it — so
  * WebKit's default tab mode visits exactly the list the hook built. Where that
  * stopped being true is precisely the v1.0.15 measurement in `useFocusTrap`'s
  * own header: unmarked controls made the real order end five elements early and
@@ -741,9 +809,10 @@ interface NavMoreSheetProps {
  * `MapExplorer`), which is a change to a working close path and is not worth
  * making on a panel whose every control is already explicitly marked.
  */
-function NavMoreSheet({ items, activeTab, onSelect, onClose, inert }: NavMoreSheetProps) {
+function NavMoreSheet({ items, activeTab, onSelect, onClose, inert, onOpenSearch }: NavMoreSheetProps) {
   const panelRef = useRef<HTMLDivElement>(null)
   const [open, setOpen] = useState(false)
+  const hint = resolveChordHint()
 
   useFocusTrap(true, panelRef)
 
@@ -786,6 +855,25 @@ function NavMoreSheet({ items, activeTab, onSelect, onClose, inert }: NavMoreShe
     >
       <div className="sr-nav-sheet" ref={panelRef}>
         <div className="sr-nav-sheet-handle" aria-hidden="true" />
+        {/* ABOVE the <h2>, because that heading names the destination list and
+            not the search. The bottom bar's own anatomy is untouched: four
+            favourites plus More, no fifth cell (FR-07). This button carries a
+            literal tabIndex={0} like every other focusable in this panel, which
+            is what keeps the focus trap's keydown prediction and WebKit's real
+            tab order in agreement -- see this component's header. */}
+        <button
+          tabIndex={0}
+          type="button"
+          className="sr-nav-search"
+          aria-keyshortcuts="Meta+K Control+K"
+          onClick={onOpenSearch}
+        >
+          <Search size={NAV_ICON.sheet.size} strokeWidth={NAV_ICON.sheet.strokeWidth} aria-hidden="true" />
+          <span className="sr-nav-search-label">{PALETTE_COPY.controlLabel}</span>
+          {hint !== 'none' && (
+            <span className="sr-nav-search-hint" aria-hidden="true">{chordHintText(hint)}</span>
+          )}
+        </button>
         <h2>More</h2>
         {items.map((item, i) => {
           const active = item.id === activeTab

@@ -19,6 +19,36 @@ The recommended setup sequence is:
 
 ---
 
+## Search
+
+Search takes you straight to a thing you can name: any of the destinations you have visible, or any species in your own eBird backup. Type a few letters, press Enter, and you are there.
+
+**Opening it.** Press **Cmd-K** or **Ctrl-K** from anywhere in the app. Both work on every platform, so the same habit travels between a Mac and a PC. There is also a visible **Search** control in the navigation: at the top of the sidebar on a wide window, as a magnifier at the top of the icon column on a narrower one, and as the first row of the More sheet on a phone. Pressing the key combination again closes it, as does Escape, the Close button, or clicking the dimmed area around it. Whichever way you close it, keyboard focus returns to the control you opened it from; if that control has gone away, been switched off, or ended up behind an expanded map, focus lands on the main content instead, so it is never dropped.
+
+**What it searches.** Destinations first, then species:
+
+- **Destinations.** Every tab you have visible, in your saved order, with Settings last. A tab you have hidden in Settings does not appear here. With nothing typed, that whole visible list is shown, so Search doubles as a quick way to jump between tabs.
+- **Species.** Every distinct bird name in your eBird backup, matched against the common name and the scientific name at once, so `calypte` finds Anna's Hummingbird. Subspecies and other forms are included, exactly as your export records them. Choosing one opens Species Detail on that bird, even if you have hidden that tab. Species only appear once you have typed something.
+
+Species results are listed alphabetically by common name, and the list stops after a fixed number of them. When it does, a line beneath the results says how many are being shown, so the cut is never silent; keep typing to narrow them.
+
+**Moving around.** The Up and Down arrow keys move the highlight through the whole list, crossing from destinations into species without a separate keystroke, and they stop at the ends rather than wrapping around. Enter opens the highlighted result, or the first one if you have not highlighted anything. Escape closes.
+
+**What it says about your backup.** The destination half always works, even before anything has been read from disk. The species half tells you which situation you are in, and the messages read differently on purpose:
+
+- **Reading your eBird backup.** The shared read of your export is still in progress. Species join the results in the same open search when it finishes; there is no need to close and reopen.
+- **Searching species needs your eBird backup.** No backup is saved yet. Upload `MyEBirdData.csv` in Settings, Default Files, eBird Backup.
+- **Couldn't load your eBird backup.** A backup *is* saved and it could not be read. Re-upload it in the same place. This is a different message from the one above on purpose: you are not being told to import a file the app can already see.
+- **Nothing matches that search.** Your backup loaded and nothing in it, or in the destination list, matches what you typed.
+
+Replacing or clearing your backup in Settings reaches an open search straight away, so it never offers species from a file that is gone.
+
+**How much of the screen it takes, and where the keys are shown.** On a phone, and in any browser window 640 pixels wide or narrower, Search fills the screen; wider than that it is a box in the middle of the window. The key combination is written beside the Search control wherever that control shows its name, which is the sidebar on a wide window and the More sheet's Search row on a phone; the icon column has no room for it beside a bare magnifier, so it is not shown there. Along the bottom, the arrow, Enter and Escape keys are spelled out with what each one does. Where the main way you point at the screen is touch rather than a mouse or trackpad, an iPhone or iPad included, no key is shown at all: not beside the control, and not along the bottom. Both combinations still work there if you attach a keyboard.
+
+**It works offline and needs no key.** Search makes no network request at all and stores nothing. Everything it offers is already on your device.
+
+---
+
 ## API Keys
 
 An API key is a private code that identifies your account when the app contacts an external data service. Think of it like a password the app uses on your behalf. Both keys required by SnowRaven are free.

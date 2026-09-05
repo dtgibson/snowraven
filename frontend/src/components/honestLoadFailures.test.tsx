@@ -155,6 +155,9 @@ import { MapExplorer } from './MapExplorer'
 import { LifeList } from './LifeList'
 import { ListComparer } from './ListComparer'
 import { WeatherBacklog } from './WeatherBacklog'
+import { CommandPalette } from './CommandPalette'
+import { PALETTE_COPY } from '../lib/paletteCopy'
+import type { PaletteNavItem } from '../lib/paletteRows'
 import {
   resolveBacklogRows,
   BACKLOG_LOAD_FAILED,
@@ -939,5 +942,106 @@ describe('Finding E: what the Weather Backlog section renders for each of those'
     rerender(<WeatherBacklog {...backlogProps} rows={BACKLOG_LOAD_FAILED} />)
     expect(container.querySelector('[role="alert"]')).toBe(region)
     expect(region!.textContent).toBe(EBIRD_BACKUP_LOAD_ERROR)
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FINDING B, at the command palette (command-palette FR-33 / FR-35, QA-34)
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// WHY THIS IS ITS OWN BLOCK RATHER THAN A ROW IN `EBIRD_MESSAGE_TABS`, because
+// the schema asked for a row there and the roster's own shape refuses it. Every
+// row in that array declares a `setupTitle` and a `stepsMarker`, and both tests
+// over it turn on the surface having a `setup-required` PHASE: the first asserts
+// the steps are absent and a "Go to Settings" button is present, and the second
+// asserts that with no file stored the SetupRequired panel renders instead. The
+// palette has no such phase and never will. It is not a tab (`lib/tabLayout.ts`
+// is what a tab is), it renders no guidance panel and no Go to Settings button,
+// and it keeps working for destinations in all four states -- so a row there
+// would have to be given two fields that describe nothing, and the second test
+// would assert a panel this surface must never show.
+//
+// It is the same reasoning that keeps the Weather backlog out of the tab
+// rosters, one step further: that one is a section rather than a tab, and this
+// one is an overlay rather than either. What the palette DOES owe is the same
+// claim -- a stored file it cannot load is named honestly, and a file that is
+// genuinely absent is named differently -- so both directions are here.
+//
+// These rows prove DELIVERY only, like every other per-surface row in this file:
+// they import the same constant the component imports. The CONTENT claim is
+// pinned exactly once, by the first test in this file.
+
+const PALETTE_ICON = (() => null) as unknown as PaletteNavItem['icon']
+const PALETTE_ITEMS: PaletteNavItem[] = [
+  { id: 'weather', label: 'Weather', icon: PALETTE_ICON },
+  { id: 'settings', label: 'Settings', icon: PALETTE_ICON },
+]
+
+function renderPalette() {
+  return render(
+    <CommandPalette
+      items={PALETTE_ITEMS}
+      onSelectTab={() => {}}
+      onOpenSpecies={() => {}}
+      onClose={() => {}}
+    />,
+  )
+}
+
+describe('Finding B: the command palette says which of the two it is', () => {
+  it('shows the shared message when a STORED backup will not load', async () => {
+    H.getFilesStatus.mockImplementation(async () => EBIRD_ONLY)
+    H.loadEbird.mockImplementation(async () => null)
+    renderPalette()
+
+    expect(await screen.findByText(EBIRD_BACKUP_LOAD_ERROR)).toBeTruthy()
+    // NOT the setup-shaped sentence, which is the lie this bundle is named for.
+    expect(screen.queryByText(PALETTE_COPY.speciesNoBackup)).toBeNull()
+    // And the palette keeps working for destinations regardless, which is the
+    // one thing it does that no tab in the roster above does.
+    expect(screen.getByRole('option', { name: 'Weather' })).toBeTruthy()
+  })
+
+  it('shows its OWN needs-a-backup sentence when none is stored (the absent case)', async () => {
+    H.getFilesStatus.mockImplementation(async () => NO_FILES)
+    renderPalette()
+
+    expect(await screen.findByText(PALETTE_COPY.speciesNoBackup)).toBeTruthy()
+    expect(screen.queryByText(EBIRD_BACKUP_LOAD_ERROR)).toBeNull()
+    // It points at the same Settings path the steps panel would, without being
+    // a steps panel: the palette has no setup-required phase.
+    expect(PALETTE_COPY.speciesNoBackup).toContain('Settings → Default Files → eBird Backup')
+    expect(screen.queryByText(EBIRD_STEPS_MARKER)).toBeNull()
+  })
+
+  it('reports a load failure when the STATUS READ itself fails, never the absence', async () => {
+    // Reachable on web and the Pi, where getFilesStatus is a bare fetch at a
+    // backend that can be unreachable. With no way to see the file, "you have no
+    // backup" is a claim this surface has no basis for.
+    H.getFilesStatus.mockImplementation(async () => { throw new TypeError('Failed to fetch') })
+    renderPalette()
+
+    expect(await screen.findByText(EBIRD_BACKUP_LOAD_ERROR)).toBeTruthy()
+    expect(screen.queryByText(PALETTE_COPY.speciesNoBackup)).toBeNull()
+  })
+
+  it('carries the message in an alert-capable region that existed before it (FR-37)', async () => {
+    // The region is mounted from the palette's FIRST commit and filled
+    // afterwards -- a region that arrives with its message is the standard way
+    // for an announcement to be missed. Asserted as the reconciliation property
+    // (same node before and after), which is what jsdom can actually see; the
+    // accessibility tree is a browser measurement.
+    H.getFilesStatus.mockImplementation(async () => EBIRD_ONLY)
+    H.loadEbird.mockImplementation(async () => null)
+    const { container } = renderPalette()
+    const region = container.querySelector('[role="status"]')
+    expect(region).toBeTruthy()
+
+    await screen.findByText(EBIRD_BACKUP_LOAD_ERROR)
+    expect(container.querySelector('[role="status"]')).toBe(region)
+    // The region holds the sentence and NOTHING else: no button inside it, so
+    // what is read out is the sentence itself.
+    expect(region!.textContent).toBe(EBIRD_BACKUP_LOAD_ERROR)
+    expect(region!.querySelectorAll('button, a[href]')).toHaveLength(0)
   })
 })

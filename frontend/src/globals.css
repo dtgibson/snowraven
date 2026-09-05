@@ -4718,3 +4718,272 @@ select:focus-visible {
 }
 .sr-ios-app .sr-navbar { padding-bottom: calc(6px + env(safe-area-inset-bottom, 0px)); }
 .sr-ios-app .sr-nav-sheet { padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px)); }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   COMMAND PALETTE (feature: command-palette)
+
+   A top-anchored modal search overlay over the app's destinations and the
+   species in the user's own eBird backup, plus the navigation's entry-point
+   control at the three densities.
+
+   NO NEW TOKEN AND NO NEW COLOUR. Every value below resolves from a `var(--sr-*)`
+   already defined in BOTH `:root` and `[data-theme="dark"]`; there is no hex, no
+   `rgb()` and no `rgba()` anywhere in this block (`paletteCss.test.ts` scans for
+   them). The panel entrance reuses the shipped SpeciesCombobox listbox timing
+   verbatim (140ms, cubic-bezier(0.2, 0, 0, 1), origin top) so the pickers and the
+   palette cannot drift, and the scrim reuses the shipped sheet/dialog fade.
+
+   POSITIONING LIVES HERE, NEVER INLINE. An inline `inset: 0` is specificity
+   (1,0,0) and would put the iOS safe-area inset permanently out of reach -- the
+   standing rule this app has now proven three times over.
+
+   PHONE-TIER RULES ARE IN A ≤640 BLOCK AT THE END OF THIS SECTION rather than in
+   the established phone tier further up the file. The base rules above them are
+   the last in the file, so a phone rule placed earlier would LOSE to them on
+   source order at equal specificity. The established tier stays the file's FIRST
+   multi-line 640px block, which is what the offset-question tier guards resolve,
+   so nothing they measure moves.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ---- the entry-point control -------------------------------------------
+   One control at three sizes, the way .sr-nav-item is one row at three
+   densities. It deliberately does NOT reuse .sr-nav-item: that row says "a
+   screen lives here", and this says "typing happens here". It is a FIELD --
+   --sr-border-input boundary, radius 8, --sr-surface-faint fill -- so it is
+   visibly the same object the palette's own query field turns into. */
+.sr-nav-search {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%; min-height: 32px; margin: 0 0 10px;
+  padding: 0 8px 0 9px;
+  border: 1px solid var(--sr-border-input);   /* the ≥3:1 non-text form-control token */
+  border-radius: 8px;
+  background: var(--sr-surface-faint);
+  color: var(--sr-text-muted);
+  font-family: inherit;
+  font-size: 0.84375rem; font-weight: 500; text-align: left;
+  cursor: pointer;
+  transition: background-color 120ms ease-out, border-color 120ms ease-out, color 120ms ease-out;
+}
+.sr-nav-search:hover { background: var(--sr-surface-subtle); border-color: var(--sr-text-muted); color: var(--sr-text); }
+.sr-nav-search > svg { flex-shrink: 0; }
+.sr-nav-search-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sr-nav-search-hint {
+  flex-shrink: 0; display: inline-flex; align-items: center; gap: 2px;
+  padding: 1px 5px; border-radius: 4px;
+  border: 1px solid var(--sr-border-medium); background: var(--sr-surface-subtle);
+  color: var(--sr-text-muted); font-size: 0.625rem; font-weight: 700; letter-spacing: 0.02em;
+}
+/* RAIL: THE BOX CHROME GOES WITH THE LABEL. Boxed chrome around a
+   label-hidden control reads as an empty box -- the same rule the shared
+   ToggleSwitch already follows when it drops to `bare`. What says "this is
+   not a destination" here is the structural hairline the component draws
+   below it, the nav's own separator vocabulary. */
+.sr-nav-col--rail .sr-nav-search {
+  width: 40px; height: 40px; min-height: 40px;
+  padding: 0; justify-content: center; gap: 0; margin-bottom: 0;
+  border: 0; background: none;
+}
+.sr-nav-col--rail .sr-nav-search:hover { background: var(--sr-surface-subtle); color: var(--sr-text); }
+.sr-nav-col--rail .sr-nav-search-label,
+.sr-nav-col--rail .sr-nav-search-hint { display: none; }
+/* More sheet: the same control at the sheet's 44px touch posture. */
+.sr-nav-sheet .sr-nav-search { min-height: 44px; font-size: 0.9375rem; }
+
+/* ---- the overlay --------------------------------------------------------
+   z-index 1280, and the number is reasoned rather than nominal: above
+   .sr-nav-sheet-root's 1260 and .sr-nav-tip's 1250 so the palette rises over
+   both, and below .sr-skip-link:focus's 1300 -- which is harmless, because the
+   skip link is parked off-screen until focused and the focus trap makes it
+   unreachable while the palette is open. */
+.sr-palette-root {
+  position: fixed; inset: 0; z-index: 1280;
+  background: var(--sr-scrim);
+  display: flex; align-items: flex-start; justify-content: center;
+  padding: 11vh 16px 16px;
+  animation: sr-palette-scrim-in 160ms ease-out;
+}
+/* iOS app only: a top-anchored fixed overlay does not inherit the body's
+   safe-area padding. Gated on .sr-ios-app, never a bare env(): index.html ships
+   viewport-fit=cover to browsers too, so an ungated rule would change shipped
+   WEB rendering on every notched phone. */
+.sr-ios-app .sr-palette-root { padding-top: calc(11vh + env(safe-area-inset-top, 0px)); }
+
+.sr-palette-panel {
+  display: flex; flex-direction: column;
+  width: min(100%, 36rem);
+  /* 100% resolves against the root's CONTENT box -- the viewport minus its own
+     padding -- so the cap needs no viewport unit and the iOS inset is already
+     subtracted. */
+  max-height: min(34rem, 100%);
+  background: var(--sr-surface); color: var(--sr-text);
+  border: 1px solid var(--sr-border); border-radius: 14px;
+  box-shadow: var(--sr-card-shadow);
+  overflow: hidden;
+  transform-origin: top center;
+  animation: sr-palette-in 140ms cubic-bezier(0.2, 0, 0, 1);
+}
+@keyframes sr-palette-scrim-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes sr-palette-in {
+  from { opacity: 0; transform: scaleY(0.98); }
+  to   { opacity: 1; transform: scaleY(1); }
+}
+
+/* ---- head: the field the entry control turns into -----------------------
+   A real bordered field rather than the usual borderless palette input, and
+   deliberately: the palette autofocuses, so the global input:focus-visible ring
+   is on screen essentially the whole time the overlay is open. A borderless
+   input would have forced an override of the app's ONE focus treatment for a
+   cosmetic gain. There is therefore no :focus-visible rule here at all -- the
+   shipped global ring hugs this border unchanged. */
+.sr-palette-head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 12px; flex-shrink: 0;
+  border-bottom: 1px solid var(--sr-border-subtle);
+}
+.sr-palette-field { position: relative; flex: 1; min-width: 0; display: flex; }
+.sr-palette-field > svg {
+  position: absolute; left: 11px; top: 50%; transform: translateY(-50%);
+  color: var(--sr-text-muted); pointer-events: none;
+}
+.sr-palette-input {
+  width: 100%; height: 2.5rem; min-width: 0;
+  padding: 0 12px 0 34px;
+  border: 1.5px solid var(--sr-border-input); border-radius: 8px;
+  background: var(--sr-surface); color: var(--sr-text);
+  font-family: inherit; font-size: 1rem; font-weight: 500;
+  transition: border-color 120ms ease-out;
+}
+.sr-palette-input::placeholder { color: var(--sr-text-muted); font-weight: 400; }
+.sr-palette-close {
+  flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;
+  width: 2.5rem; height: 2.5rem; padding: 0;
+  border: 0; border-radius: 8px; background: none;
+  color: var(--sr-text-muted); cursor: pointer;
+  transition: background-color 120ms ease-out, color 120ms ease-out;
+}
+.sr-palette-close:hover { background: var(--sr-surface-subtle); color: var(--sr-text); }
+
+/* ---- results ------------------------------------------------------------
+   THE SCROLLER IS NOT THE LISTBOX. A listbox may own only `option` and `group`
+   children, so the cap line and the status region are siblings below it inside
+   this scrollport, and each group heading is a role="presentation" child of its
+   own role="group" wrapper. */
+.sr-palette-results {
+  flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+  padding-bottom: 4px;
+}
+.sr-palette-group {
+  padding: 11px 14px 5px;
+  font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--sr-text-muted);
+}
+.sr-palette-results > [role="listbox"] > [role="group"]:first-child > .sr-palette-group { padding-top: 8px; }
+
+.sr-palette-row {
+  display: flex; align-items: center; gap: 10px;
+  min-height: 2.25rem; padding: 9px 14px;
+  cursor: pointer; color: var(--sr-text-muted);
+  transition: background-color 120ms ease-out;
+}
+.sr-palette-row:hover { background: var(--sr-surface-subtle); }
+/* The active option is the shipped SpeciesCombobox treatment byte for byte --
+   --sr-accent-bg-hover fill plus a 2px inset accent outline -- so ONE listbox
+   vocabulary serves the three pickers and the palette. `transition: none` is
+   deliberate: an arrow key must move the highlight in the same frame as the
+   press. This rule follows the hover rule at equal specificity, so it wins. */
+.sr-palette-row--active {
+  background: var(--sr-accent-bg-hover);
+  outline: 2px solid var(--sr-accent); outline-offset: -2px;
+  transition: none;
+}
+.sr-palette-row--active .sr-palette-row-icon { color: var(--sr-accent); }
+.sr-palette-row-icon { flex-shrink: 0; display: flex; color: var(--sr-text-muted); }
+/* The four load-bearing bits of the shipped picker's row, carried verbatim: the
+   primary at `flex: 1` (basis 0), the secondary at `flex: 0 1 auto` (basis auto)
+   PLUS a percentage max-width, and truncation on BOTH spans. Without the cap,
+   flex serves the secondary its full intrinsic width first and a long scientific
+   name crushes the common name toward a zero-width box. */
+.sr-palette-row-name {
+  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 0.875rem; font-weight: 500; color: var(--sr-text);
+}
+.sr-palette-row-sci {
+  flex: 0 1 auto; max-width: 40%; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: right;
+  font-size: 0.71875rem; font-style: italic; color: var(--sr-text-muted);
+}
+
+/* ---- non-option lines: the cap note and the status region ---------------- */
+.sr-palette-note {
+  margin: 4px 14px 0; padding: 9px 0 4px;
+  border-top: 1px solid var(--sr-border-subtle);
+  font-size: 0.75rem; line-height: 1.5; color: var(--sr-text-muted);
+}
+/* The role="status" region is ALWAYS mounted and EMPTY until it has a sentence:
+   a live region created together with its first message never announces. All
+   padding and typography live on the child line, so the idle region computes to
+   ZERO HEIGHT WITHOUT ANY RULE HIDING IT -- `display: none` on a live region
+   removes it from the accessibility tree and is the same trap by another route.
+   Nothing here or anywhere else may set a hiding value on this element or an
+   ancestor; paletteCss.test.ts asserts that. */
+.sr-palette-status { display: block; }
+.sr-palette-status-line {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 10px 14px 12px;
+  font-size: 0.8125rem; line-height: 1.55; color: var(--sr-text-muted);
+  overflow-wrap: anywhere;
+}
+.sr-palette-status-line > svg { flex-shrink: 0; margin-top: 2px; }
+
+/* ---- footer key legend --------------------------------------------------
+   Rendered only when the chord hint resolves to cmd or ctrl, which is FR-46's
+   rule extended one step: a user with no keyboard is not shown a key legend
+   either. It holds no interactive element and adds no tab stop. */
+.sr-palette-foot {
+  flex-shrink: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px;
+  padding: 8px 14px; background: var(--sr-surface-faint);
+  border-top: 1px solid var(--sr-border-subtle);
+  font-size: 0.6875rem; color: var(--sr-text-muted);
+}
+.sr-palette-legend { display: inline-flex; align-items: center; gap: 5px; }
+.sr-palette-kbd {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 1.25rem; height: 1.125rem; padding: 0 4px;
+  border: 1px solid var(--sr-border-medium); border-radius: 4px;
+  background: var(--sr-surface-subtle); color: var(--sr-text-muted);
+  font-family: inherit; font-size: 0.625rem; font-weight: 700; line-height: 1;
+}
+
+/* ---- phone: a full-height sheet, not a centred box -----------------------
+   A centred box moves under a software keyboard and leaves the first results
+   off screen. Full height keeps the query field and the first rows visible at
+   320px and 200% in-app text scale. Sizes in rem so the 44px touch posture
+   holds at every text scale.
+
+   This block sits AFTER the base rules above rather than in the established
+   ≤640 tier further up the file, because those base rules are the file's last
+   and would otherwise win on source order. See the section header. */
+@media (max-width: 640px) {
+  .sr-palette-root { padding: 0; align-items: stretch; }
+  .sr-ios-app .sr-palette-root { padding-top: env(safe-area-inset-top, 0px); }
+  .sr-palette-panel {
+    width: 100%; height: 100%; max-height: 100%;
+    border: 0; border-radius: 0;
+  }
+  .sr-palette-head { padding: 10px 12px; }
+  .sr-palette-row { min-height: 2.75rem; }
+  .sr-palette-close { width: 2.75rem; height: 2.75rem; }
+  /* The panel reaches the bottom edge here, so the footer strip needs the home
+     indicator's inset of its own; the root's top inset is handled above. */
+  .sr-ios-app .sr-palette-foot { padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px)); }
+}
+
+/* The global prefers-reduced-motion block already collapses every animation and
+   transition in this file to ~1 microsecond, and each animation's end state IS
+   its resting state, so nothing is lost. This is the explicit local statement of
+   the same guarantee, so a future edit here cannot quietly ship motion that only
+   the global block was holding back. */
+@media (prefers-reduced-motion: reduce) {
+  .sr-palette-root, .sr-palette-panel { animation: none; }
+  .sr-palette-row, .sr-palette-close, .sr-nav-search { transition: none; }
+}

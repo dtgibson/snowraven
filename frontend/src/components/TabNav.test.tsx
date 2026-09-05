@@ -71,6 +71,7 @@ function Harness({ width = 1512, ...props }: HarnessProps) {
         onSelect={() => {}}
         isPhone={false}
         reserve={'none' as ContentReserve}
+        onOpenPalette={() => {}}
         {...props}
         shell={shell}
       />

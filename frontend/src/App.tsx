@@ -44,6 +44,8 @@ import { buildChecklistRows } from './lib/checklistsTab'
 import { resolveBacklogRows, BACKLOG_SUPERSEDED, type ResolvedBacklogRows } from './lib/weatherBacklogLoad'
 import { useEmbeddedMediaPreference } from './lib/useEmbeddedMediaPreference'
 import { useMapPanelChrome } from './lib/mapPanelChrome'
+import { usePaletteHotkey } from './lib/usePaletteHotkey'
+import { restoreOpenerFocus, type PaletteOpener } from './lib/paletteFocus'
 
 // Lazy chunks. The map (maplibre-gl ~270 KB gz), stats (recharts ~112 KB gz), Species
 // Detail, and Help are kept out of the entry bundle so first paint is light. Named
@@ -62,6 +64,10 @@ const importCalendar = () => import('./components/Calendar')
 // inside NamedBirdRow; this is just the idle prefetch (same module → same chunk),
 // so opening a row stays instant for returning users.
 const importSightingsMap = () => import('./components/SightingsMap')
+// The command palette. Lazy on the same HelpDocs pattern as the seven above --
+// only the chord listener, the hint, the copy and the focus helper ride the
+// entry chunk (command-palette NFR-01; entryChunk.test.ts guards both halves).
+const importCommandPalette = () => import('./components/CommandPalette')
 const MapExplorer = lazy(() => importMapExplorer().then(m => ({ default: m.MapExplorer })))
 const SpeciesDetail = lazy(() => importSpeciesDetail().then(m => ({ default: m.SpeciesDetail })))
 const BirdingStats = lazy(() => importBirdingStats().then(m => ({ default: m.BirdingStats })))
@@ -69,6 +75,7 @@ const HelpDocs = lazy(() => importHelpDocs().then(m => ({ default: m.HelpDocs })
 const ListComparer = lazy(() => importListComparer().then(m => ({ default: m.ListComparer })))
 const Checklists = lazy(() => importChecklists().then(m => ({ default: m.Checklists })))
 const Calendar = lazy(() => importCalendar().then(m => ({ default: m.Calendar })))
+const CommandPalette = lazy(() => importCommandPalette().then(m => ({ default: m.CommandPalette })))
 import {
   type ConfigurableTab,
   type Tab,
@@ -264,6 +271,67 @@ export default function App() {
 
   const clearRequestedSpecies = useCallback(() => setRequestedSpecies(undefined), [])
 
+  // ── The command palette ────────────────────────────────────────────────────
+  //
+  // Focus return (FR-12) uses the shipped ModalDialog trigger-getter contract and
+  // the `restoreFiltersFocusRef` shape from MapExplorer.tsx: the restore MUST run
+  // in an effect on the commit AFTER the close, because the palette unmounts on
+  // close and an effect inside it could not run then. The decision itself lives
+  // in lib/paletteFocus.ts so it is testable without rendering App.tsx; what is
+  // left here is one call. `mainRef.current` is the final fallback -- <main> is
+  // always present and never inert -- so focus can never land on <body>.
+  const paletteOpenerRef = useRef<PaletteOpener | null>(null)
+  const restorePaletteFocusRef = useRef(false)
+  const [paletteOpen, setPaletteOpen] = useState(false)
+
+  const openPalette = useCallback((opener: PaletteOpener | null) => {
+    paletteOpenerRef.current = opener
+    setPaletteOpen(true)
+  }, [])
+  const closePalette = useCallback(() => {
+    restorePaletteFocusRef.current = true
+    setPaletteOpen(false)
+  }, [])
+  useEffect(() => {
+    if (paletteOpen || !restorePaletteFocusRef.current) return
+    restorePaletteFocusRef.current = false
+    restoreOpenerFocus(paletteOpenerRef.current, mainRef.current)
+  }, [paletteOpen])
+
+  // The chord, always armed, at `window` in the capture phase. The opener is
+  // captured EAGERLY here: the element handed back is `document.activeElement`
+  // as of the press, closed over, because a getter that re-read it later would
+  // return the palette's own query input.
+  usePaletteHotkey({
+    open: paletteOpen,
+    onOpen: activeElement => openPalette({ trigger: () => activeElement }),
+    onClose: closePalette,
+  })
+
+  // FR-19, and NOT `setActiveTab` passed raw. `mapFullscreen` is a plain
+  // useState that nothing resets on a tab change; instead every App-level path
+  // that navigates AWAY from a fullscreen Map Explorer collapses it first
+  // (onGoToSettings, onNavigateToMediaList, onOpenSpecies). Until now that
+  // convention could not be violated, because while the map is fullscreen the
+  // wide nav is inert and the phone bar is not rendered at all. THE PALETTE IS
+  // THE FIRST SURFACE THAT CAN: FR-14 requires it to be fully operable in
+  // exactly that state, and passing `setActiveTab` raw would leave
+  // mapFullscreen true with activeTab elsewhere, silently returning the user to
+  // a fullscreen map the next time they open the Map Explorer. It does NOT
+  // collapse when the palette selects the Map Explorer itself -- collapsing a
+  // map the user is looking at and did not ask to collapse would be a second
+  // defect in the other direction.
+  const selectTabFromPalette = useCallback((tab: Tab) => {
+    if (tab !== 'map-explorer') setMapFullscreen(false)
+    setActiveTab(tab)
+  }, [])
+
+  // FR-28. Byte-for-byte the wrapper MapExplorer already receives.
+  const openSpeciesFromPalette = useCallback((name: string) => {
+    setMapFullscreen(false)
+    navigateToSpeciesDetail(name)
+  }, [navigateToSpeciesDetail])
+
   // Persist the layout durably per platform: storage seam on desktop (file-backed,
   // survives relaunch), localStorage on web/Pi (durable there and read synchronously
   // for a flash-free first paint).
@@ -447,6 +515,14 @@ export default function App() {
   // is instant for returning users — without adding their weight to the first paint.
   useEffect(() => {
     const warm = () => {
+      // FIRST IN THE LIST, and that is load-bearing rather than tidy ordering:
+      // the palette is the only chunk reachable from a GLOBAL CHORD at any
+      // moment, while every other one needs a deliberate tab switch. Its
+      // Suspense fallback is `null`, so without this line a cold first Cmd-K
+      // renders NOTHING until the chunk lands -- and QA-20 would still pass,
+      // because it tests the parse rather than the chunk. First paint is
+      // unaffected: `warm` runs after paint, during idle.
+      void importCommandPalette().catch(() => {})
       void importMapExplorer().catch(() => {})
       void importSpeciesDetail().catch(() => {})
       void importBirdingStats().catch(() => {})
@@ -782,6 +858,7 @@ export default function App() {
             shell={shellEl}
             reserve={navReserve}
             inert={chromeInert}
+            onOpenPalette={openPalette}
           />
         )}
 
@@ -1489,7 +1566,25 @@ export default function App() {
           shell={shellEl}
           reserve={navReserve}
           navBarRef={setNavBarEl}
+          onOpenPalette={openPalette}
         />
+      )}
+
+      {/* THE COMMAND PALETTE, a sibling of .sr-shell at the App root -- the same
+          position as WelcomeScreen and HelpDocs. `chromeInert` is applied to
+          exactly three boxes (the non-phone <TabNav> root, the phone <header>
+          and the footer <p>), so the palette sits outside all three BY
+          CONSTRUCTION and stays fully operable over a fullscreen Map Explorer
+          (FR-14) with no inert handling anywhere. */}
+      {paletteOpen && (
+        <Suspense fallback={null}>
+          <CommandPalette
+            items={navItems}
+            onSelectTab={selectTabFromPalette}
+            onOpenSpecies={openSpeciesFromPalette}
+            onClose={closePalette}
+          />
+        </Suspense>
       )}
 
       {coldStart === true && !welcomeDismissed && (

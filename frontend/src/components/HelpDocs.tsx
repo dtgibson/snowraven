@@ -17,6 +17,7 @@ import { helpInlineTokenRe, isSafeHelpLinkTarget, parseHelpLinkToken } from '../
 // versions they rendered in the body yet were unreachable from the sidebar.
 const TOC: { id: string; label: string; sub: boolean }[] = [
   { id: 'getting-started',      label: 'Getting Started',        sub: false },
+  { id: 'search',               label: 'Search',                 sub: false },
   { id: 'api-keys',             label: 'API Keys',               sub: false },
   { id: 'ebird-api-key',        label: 'eBird API key',          sub: true  },
   { id: 'openweather-api-key',  label: 'OpenWeather API key',    sub: true  },

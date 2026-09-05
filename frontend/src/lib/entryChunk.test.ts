@@ -377,6 +377,76 @@ describe('entry-chunk exclusion (NFR-03 / QA-30)', () => {
     expect(hasIn(ctrl.files, 'lib/icloud/keyRecord.ts')).toBe(true)
   })
 
+  // ── The command palette (command-palette NFR-01 / QA-57). Every negative is
+  // paired with a positive, per this file's own convention: an unpaired negative
+  // passes vacuously on a build that never wired the feature at all.
+  it('the palette overlay and its lazy half are OFF the entry graph', () => {
+    expect(has('components/CommandPalette.tsx')).toBe(false)
+    expect(has('lib/speciesIndex.ts')).toBe(false)
+    expect(has('lib/speciesMatch.ts')).toBe(false)
+    expect(has('lib/paletteRows.ts')).toBe(false)
+    expect(has('lib/paletteSpeciesLoad.ts')).toBe(false)
+    // SpeciesCombobox really is off it: its only three importers (Calendar,
+    // Species Detail, Map Explorer) are all lazy, and the palette must not
+    // become a fourth, static one.
+    expect(has('components/SpeciesCombobox.tsx')).toBe(false)
+  })
+
+  it('the entry-safe half IS on it, which is what makes those negatives mean something', () => {
+    // The chord has to work before any lazy chunk has loaded, and the nav's
+    // search control needs its label and its hint at first paint. These four are
+    // the whole of what rides the entry chunk for this feature.
+    expect(has('lib/usePaletteHotkey.ts')).toBe(true)
+    expect(has('lib/paletteCopy.ts')).toBe(true)
+    expect(has('lib/paletteHint.ts')).toBe(true)
+    expect(has('lib/paletteFocus.ts')).toBe(true)
+    // The dynamic edge this walker deliberately cannot see, in the one source
+    // form App.tsx spells it -- including the idle prefetch, which is the whole
+    // of FR-20's "no wait" on a COLD first chord press and the single easiest
+    // line in this feature to lose in a merge.
+    const appSrc = readFileSync(APP, 'utf8')
+    expect(appSrc).toContain("import('./components/CommandPalette')")
+    expect(appSrc).toContain('void importCommandPalette()')
+  })
+
+  it('and the palette subtree really does reach what those negatives exclude', () => {
+    // Guards the guard: without this, the five negatives above would pass on a
+    // build where the palette was never wired to any of them.
+    const pal = closureFrom(resolve(SRC, 'components/CommandPalette.tsx'))
+    expect(hasIn(pal.files, 'lib/speciesIndex.ts')).toBe(true)
+    expect(hasIn(pal.files, 'lib/speciesMatch.ts')).toBe(true)
+    expect(hasIn(pal.files, 'lib/paletteRows.ts')).toBe(true)
+    expect(hasIn(pal.files, 'lib/paletteSpeciesLoad.ts')).toBe(true)
+    expect(pal.files.size).toBeGreaterThan(5)
+    expect(maplibreIn(pal.externals)).toEqual([])
+  })
+
+  it('the palette adds no BirdName edge, which is the honest form of NFR-01', () => {
+    // PRD CORRECTION, and it is deliberate rather than an oversight. NFR-01 and
+    // QA-57 say `<BirdName>` is off App.tsx's entry graph. That is TRUE of
+    // SpeciesCombobox and FALSE of BirdName, which is statically reachable from
+    // App.tsx by three independent chains this feature cannot touch:
+    //   App.tsx -> NamedBirds.tsx
+    //   App.tsx -> LifeList.tsx -> LifeListTable.tsx
+    //   App.tsx -> BreedingCodeList.tsx -> BreedingCodeTable.tsx
+    // So `expect(has('components/BirdName.tsx')).toBe(false)` would go RED on
+    // arrival, and the tempting repair -- editing the assertion -- is what this
+    // file's own header names as THE failure mode. The palette's real obligation
+    // is not to add a FOURTH edge, and FR-27 already forbids the only way it
+    // could, so that is what is asserted, on the palette's own subtree.
+    //
+    // DO NOT "fix" this later by adding the App-level negative. Moving BirdName
+    // off the entry graph means moving NamedBirds, LifeListTable and
+    // BreedingCodeTable off it, which is a separate build and belongs on the
+    // ROADMAP.
+    const pal = closureFrom(resolve(SRC, 'components/CommandPalette.tsx'))
+    expect(hasIn(pal.files, 'components/BirdName.tsx')).toBe(false)
+    expect(hasIn(pal.files, 'components/SpeciesCombobox.tsx')).toBe(false)
+    // Non-vacuity for the correction itself: the three chains really are there,
+    // so this is a statement about the world rather than a convenient story.
+    expect(has('components/BirdName.tsx')).toBe(true)
+  })
+
   it('the App entry actually exists (guards against a broken closure root)', () => {
     expect(files.has(APP)).toBe(true)
     expect(files.size).toBeGreaterThan(20) // a real graph, not an empty/short-circuited one
