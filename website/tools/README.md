@@ -89,7 +89,12 @@ npx playwright install chromium
    stub in `capture-lib.mjs`, also used by the App Store capture). The demo's
    submission ids are synthetic and above eBird's live allocation, so a real
    lookup 404s and the tab would correctly render "eBird could not be reached" —
-   an honest state, and not what the site should show.
+   an honest state, and not what the site should show. The stub is installed
+   only on the three Statistics contexts, because registering any Playwright
+   route on a context, whatever its pattern, cancels every cross-origin `<img>`
+   load in it, which is exactly what the eBird and Birds of the World glyphs
+   beside species names are; installed on every context it photographed empty
+   glyph slots on Species Detail, Breeding Codes, Multimedia and Named Birds.
 
    If `backend/.env` carries no usable OpenWeather key, add `WEATHER_REPLAY=1`
    to serve the weather shot from the app's stored replay result instead of a

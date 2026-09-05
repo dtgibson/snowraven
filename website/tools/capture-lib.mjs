@@ -166,7 +166,25 @@ export async function buildProvenanceStub(base, csvUrl) {
 
 /** Install the escapee-pass stubs on a context. Playwright resolves a request
  *  against the MOST RECENTLY registered matching route, so install these before
- *  any catch-all a caller adds. */
+ *  any catch-all a caller adds.
+ *
+ *  SCOPE IT: install this only on the contexts whose frame depends on it (the
+ *  Statistics shots), never on every context. Registering ANY Playwright route
+ *  on a context, whatever its pattern, cancels every cross-origin <img> load in
+ *  that context. Measured with Playwright 1.62.1 / Chromium 1234 over a CDP
+ *  Network session: both SpeciesLinks glyph requests (the ebird.org and
+ *  birdsoftheworld.org favicons) are issued and die with net::ERR_ABORTED
+ *  canceled=true, identically for this stub's own checklists pattern and for a
+ *  pattern that matches nothing; with no route registered both load.
+ *  Same-origin traffic and fetch()-initiated cross-origin calls are unaffected;
+ *  the breakage is specific to <img> element loads. SpeciesLinks hides a glyph
+ *  whose load fails, so a tab that renders BirdName / SpeciesLinks photographs
+ *  empty glyph slots on any context this is installed on. capture.mjs installed
+ *  it on every context until the capture-provenance-route-scope fix and shipped
+ *  four website shots that way. Both consumers now pass it per shot (each
+ *  script's `statsRoutes`). The one other route either script registers is the
+ *  per-shot WEATHER_REPLAY abort on the weather context, whose frame has no
+ *  glyph; that one is intentional. */
 export async function installProvenanceRoutes(ctx, stub) {
   await ctx.route('**/checklists/**', async (route) => {
     const m = route.request().url().match(/\/checklists\/(S\d+)/);

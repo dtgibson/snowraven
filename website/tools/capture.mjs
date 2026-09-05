@@ -59,27 +59,53 @@ const DESKTOP_VP = { width: 1600, height: 900 };
 
 // page()/selectTab() and the GL flags live in capture-lib.mjs (shared with
 // capture-appstore.mjs). This wrapper pins the website shots' deviceScaleFactor
-// of 2, exactly as before the extraction.
+// of 2, exactly as before the extraction. It registers NO routes: a context
+// gets a route only from a shot's own `routes` hook, and only where that shot's
+// frame depends on it (see the note below).
 const browser = await chromium.launch({ headless: true, args: GL });
+const page = (theme, vp) => makePage(browser, theme, vp, 2);
+const log = (...a) => console.log(...a);
 
 // The Statistics escapee pass is answered from the demo dataset, never the real
 // eBird API: the demo's submission ids are synthetic, so a live lookup 404s and
-// the tab correctly renders "eBird could not be reached" — an honest state, and
-// not what the website should photograph. Built once and installed on every
-// context (harmless on tabs that make no such lookup).
+// the tab correctly renders "eBird could not be reached", an honest state and
+// not what the website should photograph. The stub is built once and installed
+// ONLY on the three Statistics contexts (the two desktop shots and the mobile
+// block), passed per shot as `routes: statsRoutes`, the same per-shot shape
+// capture-appstore.mjs uses for its 02-statistics shot.
+//
+// Until this fix it was installed on every context, under a comment calling
+// that "harmless on tabs that make no such lookup". It is not harmless.
+// Registering ANY Playwright route on a context, whatever its pattern, cancels
+// every cross-origin <img> load in that context. Measured with Playwright
+// 1.62.1 / Chromium 1234 over a CDP Network session: both SpeciesLinks glyph
+// requests (https://ebird.org/favicon.ico, a 302 to S3, and
+// https://birdsoftheworld.org/favicon.ico, a direct 200) are issued and die
+// with net::ERR_ABORTED canceled=true, no CORS error and no blocked reason,
+// identically for the real **/checklists/** pattern and for a pattern that
+// matches nothing, eager or loading="lazy"; with no route registered both load
+// (48px natural). Same-origin traffic, fetch()-initiated cross-origin calls
+// and the map tiles are unaffected; the breakage is specific to <img> element
+// loads. SpeciesLinks hides a glyph whose load fails, so the blanket install
+// photographed empty 14px slots beside every species name on Species Detail,
+// Breeding Codes, Multimedia and Named Birds, where an online user sees the
+// eBird and Birds of the World glyphs.
+//
+// The rule: a route is scoped to the contexts whose frame DEPENDS on it, never
+// registered on a context "just in case". Accepted, stated cost: the
+// Statistics contexts keep the stub, so the one glyph in their frame (the
+// "First species ever" card) stays absent, as it already does on the App Store
+// Statistics shot. The only other route in this file is the per-shot
+// WEATHER_REPLAY abort on the weather context, whose frame has no glyph; that
+// one is intentional and stays.
 const provenanceStub = await buildProvenanceStub(BASE, new URL('./demo-data/ebird-backup.csv', import.meta.url));
-
-const page = async (theme, vp) => {
-  const made = await makePage(browser, theme, vp, 2);
-  await installProvenanceRoutes(made.ctx, provenanceStub);
-  return made;
-};
-const log = (...a) => console.log(...a);
+const statsRoutes = (ctx) => installProvenanceRoutes(ctx, provenanceStub);
 
 // --- generic data tab ---
-async function tab(name, file, { theme = 'light', vp = DESKTOP_VP, settle = 4000, clipH = 900, prep = null } = {}) {
+async function tab(name, file, { theme = 'light', vp = DESKTOP_VP, settle = 4000, clipH = 900, prep = null, routes = null } = {}) {
   const { ctx, p } = await page(theme, vp);
   try {
+    if (routes) await routes(ctx);
     await p.goto(BASE, { waitUntil: 'domcontentloaded' });
     await selectTab(p, name);
     await p.waitForLoadState('networkidle').catch(() => {});
@@ -91,8 +117,8 @@ async function tab(name, file, { theme = 'light', vp = DESKTOP_VP, settle = 4000
   await ctx.close();
 }
 
-await tab('Statistics', 'stats-light.png', { clipH: 900 });
-await tab('Statistics', 'stats-dark.png', { theme: 'dark', clipH: 900 });
+await tab('Statistics', 'stats-light.png', { clipH: 900, routes: statsRoutes });
+await tab('Statistics', 'stats-dark.png', { theme: 'dark', clipH: 900, routes: statsRoutes });
 await tab('Map Explorer', 'map-light.png', { settle: 6000, clipH: 860 });
 await tab('Map Explorer', 'map-dark.png', { theme: 'dark', settle: 6000, clipH: 860 });
 await tab('Breeding Codes', 'breeding-light.png', { settle: 4200, clipH: 900 });
@@ -129,6 +155,7 @@ await tab('Species Detail', 'species-light.png', { settle: 4200, clipH: 980, pre
 await (async () => {
   const { ctx, p } = await page('light', { width: 402, height: 880 });
   try {
+    await statsRoutes(ctx); // the third and last Statistics context
     await p.goto(BASE, { waitUntil: 'domcontentloaded' });
     await selectTab(p, 'Statistics');
     await p.waitForLoadState('networkidle').catch(() => {}); await p.waitForTimeout(4000);
@@ -149,7 +176,9 @@ await (async () => {
   try {
     // Fail the live weather call at the connection level so the app serves its
     // stored replay result (the same code path as offline reuse); the tide and
-    // everything else stay live.
+    // everything else stay live. A route on THIS context is fine: the weather
+    // frame renders no species glyph (see the route-scoping note above
+    // statsRoutes), and it is registered here, per shot, not in page().
     if (WEATHER_REPLAY) await ctx.route(`**/weather/${CHECKLIST}*`, (route) => route.abort());
     await p.goto(BASE, { waitUntil: 'domcontentloaded' });
     await selectTab(p, 'Weather'); await p.waitForTimeout(400);
