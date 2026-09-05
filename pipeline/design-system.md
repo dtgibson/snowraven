@@ -291,7 +291,11 @@ italic at 0.71875rem `--sr-text-gray`.
   checklist, and direct-asset links. Settings uses the existing trailing
   `ToggleSwitch` row with explanatory copy; no modal, Save button, or new token.
 - **Switches:** the shared `ToggleSwitch` is a boxed pill-button when it carries
-  its own visible label (the app-wide default). A row whose visible label is the
+  its own visible label (the app-wide default): chrome on the `.sr-toggle` class
+  (`--sr-border` 1.5px, `--sr-surface` fill, radius 6, height 30) with a hover
+  state of `--sr-border-medium` + `--sr-surface-subtle` at 120ms ease-out, gated
+  off `disabled` and `aria-disabled` so an inert switch stays at rest; the track
+  is `--sr-gray-400` off / `--sr-accent` on. A row whose visible label is the
   row's own text (Settings-style title + description + trailing switch) passes
   `bare`: chromeless, larger 36×20 track / 16px knob, same thumb/track tokens,
   global focus ring, `.sr-touch-target`. Never leave the boxed chrome around a

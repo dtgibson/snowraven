@@ -51,8 +51,9 @@ cd frontend && npm run dev
 
 ### Running tests
 ```
-cd backend && python -m pytest tests/ -v
+cd backend && .venv/bin/python -m pytest tests/ -v
 ```
+The backend interpreter is the project venv at `backend/.venv`; a bare `python` is not on PATH on the dev machine, so `python: command not found` is a PATH miss, not a backend failure (v1.0.18).
 
 ### Standing rules and lazy-loaded convention files
 
