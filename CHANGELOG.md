@@ -2,7 +2,7 @@
 
 All notable changes to SnowRaven are documented here.
 
-## [1.0.19] - 2026-09-04
+## [1.0.19] - 2026-09-05
 
 ### Changed
 - **The Map Explorer now comes before the Calendar in the default tab order.** Out of the box the tabs used to run Weather, Statistics, Calendar, Species Detail, Map Explorer and then the rest. The Calendar and the Map Explorer have traded places, so the default now runs Weather, Statistics, Map Explorer, Species Detail, Calendar, Multimedia, Breeding Codes, Checklists, List Comparer and Named Birds, with Settings last as always. On a phone this puts the map in the bottom bar: the bar holds your first four tabs, so its default four are now Weather, Statistics, Map Explorer and Species Detail, and the Calendar moves to the top of the More list, where the map used to be. If you have arranged your tabs into an order of your own in Settings, nothing moves; your order is kept exactly as you saved it. If your saved order was still the old default, because you had never reordered or had pressed Restore defaults, it follows the new one from the next launch, and any tabs you had hidden stay hidden. Weather is still first, so the app still opens where it did.

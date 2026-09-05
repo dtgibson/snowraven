@@ -194,7 +194,22 @@ italic at 0.71875rem `--sr-text-gray`.
 - **Bird names:** ALWAYS `<BirdName>` (link gated on hasEntry, favicons via
   taxon codes).
 - **Links out:** eBird checklist links only behind `SUBMISSION_ID_RE`
-  (`/^S\d+$/`); `target="_blank" rel="noreferrer"`; accent + ExternalLink glyph.
+  (`/^S\d+$/`); a species code only behind `SPECIES_CODE_RE`
+  (`/^[a-z0-9-]{2,16}$/`), rendering nothing on a miss exactly as a missing code
+  already does; `target="_blank" rel="noreferrer"`; accent + ExternalLink glyph.
+  **A raster mark that can fail gets a bundled glyph fallback in its own reserved
+  slot, never an empty one.** The `<img>` stays mounted and hidden, a lucide glyph
+  is revealed in the same fixed slot, and `onLoad` restores the raster in place —
+  per image, so a mixed pair is a real and ordinary state. The fallback pair is
+  chosen for **silhouette difference** (circle against square) rather than for
+  depiction, because at 14px an outline is all that survives; both glyphs are
+  full-bleed so they sit beside a surviving raster at matching optical weight.
+  The glyph is **set** to `--sr-text` rather than left on `currentColor`, and
+  inherits the host anchor's existing opacity step — the muted tokens were
+  measured at 0.75 and fail the 3:1 non-text floor in light theme
+  (`--sr-text-muted` 2.93:1, `--sr-text-gray` 2.77:1), so ink is the only token
+  that clears in both themes. **A substitution is not an entrance: nothing
+  animates.** `SpeciesLinks` is the exemplar.
 - **Icons:** Lucide, 11–15px, stroke ~2.2, purposeful only.
 - **Maps:** `<SnowMap>`/`SightingsMap` wrappers only.
 - **Map tools & transient pins:** a pointer gesture on a map (right-click /
