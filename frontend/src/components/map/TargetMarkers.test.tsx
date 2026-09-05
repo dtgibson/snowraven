@@ -9,6 +9,8 @@
 //     <button>, its aria-label, and the popup behavior
 //   - the escaped media-icon label markup is preserved (visibility gated, not the
 //     escaping)
+//   - the popup carries an APP-OWNED close button (maplibre's own is off)
+//     routed through onSelect(null)
 
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent, within, cleanup } from '@testing-library/react'
@@ -16,16 +18,19 @@ import type { ReactNode } from 'react'
 import { TargetMarkers } from './TargetMarkers'
 import type { DisplayTargetPin } from '../../lib/mapExplorerTypes'
 
+// Every prop each Popup is mounted with, so `closeButton` and `closeOnClick`
+// are assertable. The stub deliberately renders NO close button of its own: the
+// app owns that control now, and a stub button would hide its absence.
+const popupProps = vi.hoisted(() => [] as Record<string, unknown>[])
+
 vi.mock('react-map-gl/maplibre', () => ({
   Marker: ({ children, onClick }: { children?: ReactNode; onClick?: (e: { originalEvent: { stopPropagation: () => void } }) => void }) => (
     <div data-testid="marker" onClick={() => onClick?.({ originalEvent: { stopPropagation: () => {} } })}>{children}</div>
   ),
-  Popup: ({ children, onClose }: { children?: ReactNode; onClose?: () => void }) => (
-    <div role="dialog" data-testid="popup">
-      <button type="button" aria-label="Close" onClick={() => onClose?.()}>×</button>
-      {children}
-    </div>
-  ),
+  Popup: (props: Record<string, unknown>) => {
+    popupProps.push(props)
+    return <div role="dialog" data-testid="popup">{props.children as ReactNode}</div>
+  },
   useMap: () => ({ current: undefined }),
 }))
 vi.mock('../SnowMap', () => ({ SnowMap: ({ children }: { children?: ReactNode }) => <div>{children}</div> }))
@@ -57,7 +62,7 @@ const baseProps = {
   onOpenSpecies: () => {},
 }
 
-afterEach(() => cleanup())
+afterEach(() => { cleanup(); popupProps.length = 0 })
 
 describe('TargetMarkers', () => {
   it('renders a real <button> per location group with a descriptive aria-label', () => {
@@ -100,5 +105,36 @@ describe('TargetMarkers', () => {
     expect(popup.textContent).toContain('Coyote Hills Regional Park')
     expect(within(popup).getByText("Lewis's Woodpecker")).toBeTruthy()
     expect(within(popup).getByText('Sage Thrasher')).toBeTruthy()
+  })
+
+  // maplibre's injected close button carries no tabIndex, and WebKit's default
+  // tab mode (what the shipped Mac, iPhone and iPad apps run) gives a plain
+  // <button> no place in the tab order, so a popup opened from the marker chip
+  // could only be closed from the sidebar row that did not open it. The app
+  // draws the control instead, which is also what puts it inside
+  // lib/tabOrderCoverage.test.ts.
+  it('turns maplibre’s own close button OFF and leaves closeOnClick at its default', () => {
+    render(<TargetMarkers {...baseProps} sel="L100" onSelect={() => {}} />)
+    const popup = popupProps.at(-1)!
+    expect(popup.closeButton).toBe(false)
+    // Unchanged by the fix: this popup has always used maplibre's default.
+    expect(popup.closeOnClick).toBeUndefined()
+  })
+
+  it('draws an app-owned close button with its own accessible name and an explicit tab stop', () => {
+    render(<TargetMarkers {...baseProps} sel="L100" onSelect={() => {}} />)
+    const close = screen.getByRole('button', { name: 'Close the media targets popup' })
+    expect(close.tagName).toBe('BUTTON')
+    expect(close.getAttribute('tabindex')).toBe('0')
+    // maplibre's own class, so it inherits the existing theming and the coarse-
+    // pointer target already in globals.css.
+    expect(close.className).toBe('maplibregl-popup-close-button')
+  })
+
+  it('routes the app-owned close button through onSelect(null), the popup’s own clearing path', () => {
+    const onSelect = vi.fn()
+    render(<TargetMarkers {...baseProps} sel="L100" onSelect={onSelect} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Close the media targets popup' }))
+    expect(onSelect).toHaveBeenCalledWith(null)
   })
 })

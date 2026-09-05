@@ -107,7 +107,28 @@ export function TargetMarkers({ pins, speciesCodeMap, hasEntryFor, onOpenSpecies
         )
       })}
       {selGroup && selRep && (
-        <Popup longitude={selRep.lng} latitude={selRep.lat} anchor="bottom" offset={14} onClose={() => onSelect(null)} maxWidth="min(280px, 80vw)">
+        // closeButton={false} and the app's own button below, NOT maplibre's.
+        // maplibre's injected <button> carries no tabIndex, and WebKit's default
+        // tab mode (what the shipped Mac, iPhone and iPad apps run) gives a
+        // plain <button> no place in the tab order, so a popup opened from the
+        // marker chip could only be closed from the sidebar row that did not
+        // open it. Library DOM is also out of reach of the source guard in
+        // lib/tabOrderCoverage.test.ts. closeOnClick is left at maplibre's
+        // default (true), unchanged: only the close control changes owner.
+        <Popup longitude={selRep.lng} latitude={selRep.lat} anchor="bottom" offset={14} onClose={() => onSelect(null)} closeButton={false} maxWidth="min(280px, 80vw)">
+              {/* Same class as maplibre's own, so it inherits the existing
+                  theming and the ~44px coarse-pointer target in globals.css and
+                  nothing moves for a mouse user. BirdingStats.tsx is the
+                  reference. */}
+              <button
+                tabIndex={0}
+                type="button"
+                className="maplibregl-popup-close-button"
+                aria-label="Close the media targets popup"
+                onClick={() => onSelect(null)}
+              >
+                ×
+              </button>
               <div className="sr-map-popup-body" style={{ minWidth: 200, maxWidth: 260 }}>
                 <div className="sr-wrap-anywhere" style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginBottom: 8 }}>📍 {selRep.locName}</div>
                 {selGroup.map((pin, j) => {

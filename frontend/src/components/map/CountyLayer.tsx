@@ -424,9 +424,32 @@ export function CountyLayer({
             offset={10}
             closeOnClick={false}
             onClose={() => setSel(null)}
+            // The app draws the close button (below), not maplibre. maplibre's
+            // injected <button> carries no tabIndex, and WebKit's default tab
+            // mode (what the shipped Mac, iPhone and iPad apps run) gives a
+            // plain <button> no place in the tab order, so this popup had no
+            // keyboard close at all; library DOM is also out of reach of the
+            // source guard in lib/tabOrderCoverage.test.ts. Nothing here touches
+            // the fit arithmetic: maplibre's own .maplibregl-popup-close-button
+            // is position:absolute;right:0;top:0, so an identically-classed app
+            // button adds nothing to content flow, and countyPopupFit measures
+            // the MAP container rather than the popup.
+            closeButton={false}
             maxWidth={`${COUNTY_POPUP_MAX_PX}px`}
             className="sr-county-popup"
           >
+            {/* Same class as maplibre's own, so it inherits the existing theming
+                and the ~44px coarse-pointer target in globals.css and nothing
+                moves for a mouse user. BirdingStats.tsx is the reference. */}
+            <button
+              tabIndex={0}
+              type="button"
+              className="maplibregl-popup-close-button"
+              aria-label="Close the county popup"
+              onClick={() => setSel(null)}
+            >
+              ×
+            </button>
             <div className="sr-map-popup-body sr-county-popup-body" style={{ fontSize: '0.8125rem' }}>
               {selRegion ? (
                 <OutboundLink

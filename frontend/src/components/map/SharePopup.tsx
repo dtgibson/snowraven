@@ -186,7 +186,9 @@ export function SharePopup({ lat, lng, compact, offset, onClose }: {
       latitude={lat}
       offset={offset}
       // Our own close button (below) so the accessible name can be the honest
-      // "Close and remove the pin" — maplibre hardcodes "Close popup" on its own.
+      // "Close and remove the pin". maplibre 5.24.0 names its own button nothing
+      // at all: _createCloseButton sets only `type` and an innerHTML times sign,
+      // no aria-label, so the glyph was the name.
       closeButton={false}
       // A stray map click must not destroy the pin; FR-09 lists the close
       // control, Escape and leaving the map, not an incidental click.

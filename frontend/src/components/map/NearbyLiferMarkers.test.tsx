@@ -8,8 +8,9 @@
 //   - every marker is a real <button> labeled by name / "{n} species", with an
 //     aria-label naming the lifer(s) and the location
 //   - clicking a marker lifts the selection (onSelect(locId))
-//   - the popup lists each lifer (name + checklist link) and has a close
-//     affordance routed through onSelect(null)
+//   - the popup lists each lifer (name + checklist link) and carries an
+//     APP-OWNED close button (maplibre's own is off) routed through
+//     onSelect(null)
 
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent, within, cleanup } from '@testing-library/react'
@@ -17,19 +18,21 @@ import type { ReactNode } from 'react'
 import { NearbyLiferMarkers } from './NearbyLiferMarkers'
 import type { NearbyLiferLocation } from '../../lib/mapExplorerTypes'
 
+// Every prop each Popup is mounted with, so `closeButton` and `closeOnClick`
+// are assertable. The stub deliberately renders NO close button of its own: the
+// app owns that control now, and a stub button would hide its absence.
+const popupProps = vi.hoisted(() => [] as Record<string, unknown>[])
+
 // Plain React stubs — render the children as DOM so the marker <button> and the
-// popup contents are queryable; expose Popup's onClose via a "Close" button so
-// the close affordance is testable without maplibre's controls.
+// popup contents are queryable.
 vi.mock('react-map-gl/maplibre', () => ({
   Marker: ({ children, onClick }: { children?: ReactNode; onClick?: (e: { originalEvent: { stopPropagation: () => void } }) => void }) => (
     <div data-testid="marker" onClick={() => onClick?.({ originalEvent: { stopPropagation: () => {} } })}>{children}</div>
   ),
-  Popup: ({ children, onClose }: { children?: ReactNode; onClose?: () => void }) => (
-    <div role="dialog" data-testid="popup">
-      <button type="button" aria-label="Close" onClick={() => onClose?.()}>×</button>
-      {children}
-    </div>
-  ),
+  Popup: (props: Record<string, unknown>) => {
+    popupProps.push(props)
+    return <div role="dialog" data-testid="popup">{props.children as ReactNode}</div>
+  },
   useMap: () => ({ current: undefined }),
 }))
 
@@ -64,7 +67,7 @@ const baseProps = {
   onOpenSpecies: () => {},
 }
 
-afterEach(() => cleanup())
+afterEach(() => { cleanup(); popupProps.length = 0 })
 
 describe('NearbyLiferMarkers', () => {
   it('renders one real <button> marker per location — species name for one lifer, "{n} species" for several — with a descriptive aria-label', () => {
@@ -113,11 +116,35 @@ describe('NearbyLiferMarkers', () => {
     expect(links.some(a => a.getAttribute('href') === 'https://ebird.org/checklist/S222')).toBe(true)
   })
 
-  it('routes the popup close affordance through onSelect(null)', () => {
+  // maplibre's injected close button carries no tabIndex, and WebKit's default
+  // tab mode (what the shipped Mac, iPhone and iPad apps run) gives a plain
+  // <button> no place in the tab order, so a popup opened from the marker chip
+  // could only be closed from the sidebar row that did not open it. The app
+  // draws the control instead, which is also what puts it inside
+  // lib/tabOrderCoverage.test.ts.
+  it('turns maplibre’s own close button OFF and keeps closeOnClick false', () => {
+    render(<NearbyLiferMarkers {...baseProps} sel="L100" onSelect={() => {}} />)
+    const popup = popupProps.at(-1)!
+    expect(popup.closeButton).toBe(false)
+    // A stray map click must not dismiss this popup; unchanged by the fix.
+    expect(popup.closeOnClick).toBe(false)
+  })
+
+  it('draws an app-owned close button with its own accessible name and an explicit tab stop', () => {
+    render(<NearbyLiferMarkers {...baseProps} sel="L100" onSelect={() => {}} />)
+    const close = screen.getByRole('button', { name: 'Close the nearby lifers popup' })
+    expect(close.tagName).toBe('BUTTON')
+    expect(close.getAttribute('tabindex')).toBe('0')
+    // maplibre's own class, so it inherits the existing theming and the coarse-
+    // pointer target already in globals.css.
+    expect(close.className).toBe('maplibregl-popup-close-button')
+  })
+
+  it('routes the app-owned close button through onSelect(null), the popup’s own clearing path', () => {
     const onSelect = vi.fn()
     render(<NearbyLiferMarkers {...baseProps} sel="L100" onSelect={onSelect} />)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Close the nearby lifers popup' }))
     expect(onSelect).toHaveBeenCalledWith(null)
   })
 

@@ -1673,6 +1673,9 @@ Native "Use my location" on Windows, completing parity with macOS and Pi/web.
 
 ## Considered and Rejected
 
+### Shared Button/Link primitives
+Reached Stage 1 (scoping only). Declined because the primitives would absorb nothing (181 of 235 control sites carry bespoke inline styles, 137 with no className at all), the tab-stop guarantee they would buy is already enforced by `tabOrderCoverage.test.ts`, and migrating a control removes it from that guard's intrinsic-tag population -- so the refactor trades a working structural guarantee for an ergonomic one. Worth revisiting alongside a real design-system pass, which is what would give a primitive a visual contract to carry. See DECISIONS.md (2026-09-05) and `pipeline/shared-button-link-primitives/`.
+
 ### Recent Arrivals (Map Explorer)
 Reached Stage 1 (strategy only). Abandoned because the eBird API can't support it: nearby (geo) observation lookups cap at 30 days back, and there's no radius-scoped historical endpoint, so detecting a 3–9 month absence within X miles of a point isn't feasible without coarse county-level sampling or accumulating history over time. See DECISIONS.md (2026-05-28) for the full rationale.
 

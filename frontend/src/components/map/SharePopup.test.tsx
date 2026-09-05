@@ -98,7 +98,8 @@ describe('SharePopup contents (FR-08 / FR-30)', () => {
   it('mounts the maplibre popup with our own close button and no click-to-dismiss', () => {
     mount()
     const props = popupProps.at(-1)!
-    // Our close button carries the honest name; maplibre hardcodes "Close popup".
+    // Our close button carries the honest name. maplibre 5.24.0 sets no
+    // aria-label on its own at all, so its name was the times-sign glyph.
     expect(props.closeButton).toBe(false)
     // A stray map click must not destroy the pin.
     expect(props.closeOnClick).toBe(false)

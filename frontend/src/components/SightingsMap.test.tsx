@@ -52,11 +52,44 @@ describe('SightingsMap keyboard access', () => {
     expect(screen.getByTestId('popup')).toBeTruthy()
   })
 
-  it('mounts the popup WITH a close button so it is keyboard-dismissable (F044)', () => {
+  // The three tests below replace one that asserted `popup.closeButton` was NOT
+  // false — i.e. that maplibre drew the close button. That assertion encoded the
+  // defect under a name claiming the opposite: maplibre's injected <button>
+  // carries no tabIndex, and WebKit's default tab mode (what the shipped Mac,
+  // iPhone and iPad apps run) gives a plain <button> no place in the tab order,
+  // so the control it was vouching for was not reachable by Tab at all. The
+  // contract now asserted is that the library's button is OFF and the app draws
+  // its own, which is also what puts it inside lib/tabOrderCoverage.test.ts.
+  it('turns maplibre’s own close button OFF so the app can draw its own (F044)', () => {
     render(<SightingsMap markers={MARKERS} />)
     fireEvent.click(screen.getByRole('button', { name: /2 sightings/ }))
-    const popup = popupProps.at(-1)!
-    // closeButton must NOT be disabled (maplibre renders a real <button aria-label="Close popup">).
-    expect(popup.closeButton).not.toBe(false)
+    expect(popupProps.at(-1)!.closeButton).toBe(false)
+  })
+
+  it('draws an app-owned close button with its own accessible name and an explicit tab stop', () => {
+    render(<SightingsMap markers={MARKERS} />)
+    fireEvent.click(screen.getByRole('button', { name: /2 sightings/ }))
+    const close = screen.getByRole('button', { name: 'Close the sighting locations popup' })
+    expect(close.tagName).toBe('BUTTON')
+    // The literal attribute is the property that makes WebKit's tab order
+    // irrelevant; jsdom has no tab order to measure.
+    expect(close.getAttribute('tabindex')).toBe('0')
+    // maplibre's own class, so it inherits the existing theming and the coarse-
+    // pointer target already in globals.css.
+    expect(close.className).toBe('maplibregl-popup-close-button')
+  })
+
+  it('the app-owned close button clears the selection through the popup’s own path', () => {
+    render(<SightingsMap markers={MARKERS} />)
+    fireEvent.click(screen.getByRole('button', { name: /2 sightings/ }))
+    expect(screen.getByTestId('popup')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Close the sighting locations popup' }))
+    expect(screen.queryByTestId('popup')).toBeNull()
+  })
+
+  it('leaves closeOnClick at maplibre’s default so the pointer semantics are unchanged', () => {
+    render(<SightingsMap markers={MARKERS} />)
+    fireEvent.click(screen.getByRole('button', { name: /2 sightings/ }))
+    expect(popupProps.at(-1)!.closeOnClick).toBeUndefined()
   })
 })

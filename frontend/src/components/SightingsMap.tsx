@@ -157,7 +157,27 @@ export function SightingsMap({
         )
       })}
       {selected && (
-        <Popup longitude={selected.lng} latitude={selected.lat} anchor="bottom" offset={36} onClose={() => setSelectedCoord(null)} maxWidth="min(260px, 80vw)">
+        // closeButton={false} and the app's own button below, NOT maplibre's.
+        // maplibre's injected <button> carries no tabIndex, and WebKit's default
+        // tab mode (what the shipped Mac, iPhone and iPad apps run) gives a
+        // plain <button> no place in the tab order, so this popup had no
+        // keyboard close at all. Library DOM is also out of reach of the source
+        // guard in lib/tabOrderCoverage.test.ts. closeOnClick is left at
+        // maplibre's default (true), unchanged: only the close control changes
+        // owner. F044.
+        <Popup longitude={selected.lng} latitude={selected.lat} anchor="bottom" offset={36} onClose={() => setSelectedCoord(null)} closeButton={false} maxWidth="min(260px, 80vw)">
+          {/* Same class as maplibre's own, so it inherits the existing theming
+              and the ~44px coarse-pointer target in globals.css and nothing
+              moves for a mouse user. BirdingStats.tsx is the reference. */}
+          <button
+            tabIndex={0}
+            type="button"
+            className="maplibregl-popup-close-button"
+            aria-label="Close the sighting locations popup"
+            onClick={() => setSelectedCoord(null)}
+          >
+            ×
+          </button>
           <div style={{ fontSize: '0.8125rem', lineHeight: 1.7, minWidth: 120 }}>
             {selected.sightings.slice(0, 6).map(({ submissionId, date }, i) => (
               <div key={`${submissionId}-${i}`}>

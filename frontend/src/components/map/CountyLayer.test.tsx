@@ -9,7 +9,7 @@
 // Plain React stubs for react-map-gl — no maplibre-gl, no WebGL.
 
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest'
-import { render, fireEvent } from '@testing-library/react'
+import { render, fireEvent, screen, cleanup } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { CountyLayer } from './CountyLayer'
 import type { CountyFC } from '../../lib/countyBoundaries'
@@ -67,7 +67,14 @@ vi.mock('react-map-gl/maplibre', () => ({
     return <>{children}</>
   },
   Layer: (props: Record<string, unknown>) => { h.layerLog.push(props); return null },
-  Popup: (props: Record<string, unknown>) => { h.popupLog.push(props); return null },
+  // The children are rendered so the app-owned close button below is
+  // queryable; every prop is logged so `closeButton` and the fit ceiling are
+  // assertable. The stub draws no close button of its own -- the app owns that
+  // control now, and a stub button would hide its absence.
+  Popup: (props: Record<string, unknown>) => {
+    h.popupLog.push(props)
+    return <div data-testid="popup">{props.children as ReactNode}</div>
+  },
   useMap: () => ({ current: h.map }),
 }))
 
@@ -84,6 +91,7 @@ const data = {
 const tiers = { tierFor: () => 0 } as unknown as CountyTiers
 
 beforeEach(() => {
+  cleanup()
   h.layerLog.length = 0; h.sourceLog.length = 0; h.popupLog.length = 0
   h.ctrl.hasVector = true
   h.container.removeAttribute('style')
@@ -229,5 +237,70 @@ describe('CountyLayer wires the popup to the containment geometry', () => {
     expect(h.container.style.getPropertyValue(COUNTY_POPUP_FIT_VARS.maxWidth))
       .toBe(`${COUNTY_POPUP_MAX_PX}px`)
     expect(h.container.hasAttribute(COUNTY_POPUP_SHEET_ATTR)).toBe(false)
+  })
+})
+
+// ── The county popup's close button (map-popup-keyboard-close) ──────────────
+//
+// The county popup used to render maplibre's own close button. maplibre's
+// injected <button> carries no tabIndex, and WebKit's default tab mode (what the
+// shipped Mac, iPhone and iPad apps run) gives a plain <button> no place in the
+// tab order, so this popup had no keyboard close at all: the "Counties in view"
+// rows opened it and nothing dismissed it. Library DOM is also out of reach of
+// the source guard in lib/tabOrderCoverage.test.ts, so the control is drawn in
+// the app's own markup rather than stamped imperatively.
+//
+// One CountyLayer edit reaches all three county mounts (Map Explorer, Species
+// Detail's Sighting Locations, Statistics' Geographic Stats).
+
+/** Open the county popup the only way a keyboard can: the in-view panel. */
+const openCountyPopup = (container: HTMLElement): void => {
+  const disclosure = container.querySelector('.sr-county-inview button')
+  expect(disclosure, 'the Counties in view disclosure is rendered').toBeTruthy()
+  fireEvent.click(disclosure!)
+  const row = container.querySelector('.sr-inview-row')
+  expect(row, 'a county row is offered').toBeTruthy()
+  fireEvent.click(row!)
+}
+
+describe('CountyLayer draws the popup close button itself', () => {
+  it('turns maplibre’s own close button OFF and keeps closeOnClick false', () => {
+    const { container } = render(<CountyLayer data={data} tiers={tiers} metric="species" shade />)
+    openCountyPopup(container)
+    const popup = h.popupLog[h.popupLog.length - 1]
+    expect(popup.closeButton).toBe(false)
+    // A stray map click must not dismiss this popup; unchanged by the fix.
+    expect(popup.closeOnClick).toBe(false)
+  })
+
+  it('draws an app-owned close button with its own accessible name and an explicit tab stop', () => {
+    const { container } = render(<CountyLayer data={data} tiers={tiers} metric="species" shade />)
+    openCountyPopup(container)
+    const close = screen.getByRole('button', { name: 'Close the county popup' })
+    expect(close.tagName).toBe('BUTTON')
+    expect(close.getAttribute('tabindex')).toBe('0')
+    // maplibre's own class, so it inherits the existing theming and the coarse-
+    // pointer target already in globals.css.
+    expect(close.className).toBe('maplibregl-popup-close-button')
+  })
+
+  it('the app-owned close button clears the selection through the popup’s own path', () => {
+    const { container } = render(<CountyLayer data={data} tiers={tiers} metric="species" shade />)
+    openCountyPopup(container)
+    expect(screen.getByTestId('popup')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Close the county popup' }))
+    expect(screen.queryByTestId('popup')).toBeNull()
+  })
+
+  it('leaves the containment geometry untouched: the same ceiling and the same class', () => {
+    const { container } = render(<CountyLayer data={data} tiers={tiers} metric="species" shade />)
+    openCountyPopup(container)
+    const popup = h.popupLog[h.popupLog.length - 1]
+    // maplibre positions .maplibregl-popup-close-button absolutely, so the app
+    // button adds nothing to content flow and the fit arithmetic is unmoved.
+    expect(popup.className).toBe('sr-county-popup')
+    expect(popup.maxWidth).toBe(`${COUNTY_POPUP_MAX_PX}px`)
+    expect(h.container.style.getPropertyValue(COUNTY_POPUP_FIT_VARS.maxWidth))
+      .toBe(`${COUNTY_POPUP_MAX_PX}px`)
   })
 })
