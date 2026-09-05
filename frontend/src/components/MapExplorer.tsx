@@ -983,8 +983,13 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
   // Open a sighting's popup from the sidebar: select it (same owner the pin click
   // sets) AND pan so the popup lands in view if the pin was near the edge.
   // Activating the already-selected row TOGGLES the popup closed — the rows carry
-  // aria-pressed, and the keyboard path needs a dismissal (the map popups have no
-  // close button and MapLibre has no built-in Escape).
+  // aria-pressed, and the keyboard path needs a dismissal, because THIS popup
+  // (SightingMarkers, closeButton={false} with no replacement) has no close
+  // button of its own and MapLibre has no built-in Escape. That is specific to
+  // the sighting and hotspot popups: as of the map-popup-keyboard-close fix the
+  // atlas, county, Media Targets and Nearby Lifers popups each draw their own
+  // close button, so openLiferFromList below is NOT the only dismissal for the
+  // popup it opens.
   const openSightingFromList = useCallback((loc: LocationGroup) => {
     if (selectedSightingLocId === loc.locId) { setSelectedSightingLocId(null); return }
     setSelectedSightingLocId(loc.locId)

@@ -1212,18 +1212,25 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
                         keyboard-dismissable at all. Library DOM is out of reach of
                         the source guard in lib/tabOrderCoverage.test.ts, so the
                         button is brought into the app's own markup instead of
-                        being stamped imperatively. Same class, same glyph and the
-                        same accessible name as maplibre's, so it inherits the
-                        existing theming and the ~44px coarse-pointer target in
-                        globals.css and nothing moves; this is the pattern
-                        map/SharePopup.tsx already uses. F044. */}
+                        being stamped imperatively. Same class and same glyph, so
+                        it inherits the existing theming and the ~44px
+                        coarse-pointer target in globals.css and nothing moves;
+                        this is the pattern map/SharePopup.tsx already uses. The
+                        NAME is the app's own and deliberately not maplibre's:
+                        maplibre 5.24.0's _createCloseButton sets only `type` and
+                        an innerHTML times sign, no aria-label at all, so the
+                        library's control was named by that glyph. Every
+                        app-drawn popup close button says which popup it closes,
+                        which ACCESSIBILITY.md publishes as a property over all
+                        of them; the pins here are the "Top locations by
+                        checklists" and "Top locations by species" ranks. F044. */}
                     {geoPopup && (
                       <Popup longitude={geoPopup.lng} latitude={geoPopup.lat} anchor="bottom" offset={16} onClose={() => setGeoPopup(null)} closeButton={false}>
                         <button
                           tabIndex={0}
                           type="button"
                           className="maplibregl-popup-close-button"
-                          aria-label="Close popup"
+                          aria-label="Close the top location popup"
                           onClick={() => setGeoPopup(null)}
                         >
                           ×

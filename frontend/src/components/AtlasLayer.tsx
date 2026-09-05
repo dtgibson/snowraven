@@ -218,7 +218,28 @@ export function AtlasLayer({ data, shade = false, breedingByBlock = null, useTex
         <Layer id="sr-atlas-fill" type="fill" minzoom={6} paint={fillPaint} beforeId={insertBelow} />
         <Layer id="sr-atlas-line" type="line" minzoom={6} paint={linePaint} beforeId={insertBelow} />
         {sel && (
-          <Popup longitude={sel.lng} latitude={sel.lat} anchor="bottom" offset={8} closeOnClick={false} onClose={() => setSel(null)} maxWidth="240px">
+          // closeButton={false} and the app's own button below, NOT maplibre's.
+          // maplibre's injected <button> carries no tabIndex, and WebKit's
+          // default tab mode (what the shipped Mac, iPhone and iPad apps run)
+          // gives a plain <button> no place in the tab order, so this popup had
+          // no keyboard close at all. Library DOM is also out of reach of the
+          // source guard in lib/tabOrderCoverage.test.ts, so the control is
+          // brought into the app's own markup rather than stamped imperatively.
+          // closeOnClick stays false: the pointer semantics are unchanged and
+          // only the close control changes owner.
+          <Popup longitude={sel.lng} latitude={sel.lat} anchor="bottom" offset={8} closeOnClick={false} onClose={() => setSel(null)} closeButton={false} maxWidth="240px">
+            {/* Same class as maplibre's own, so it inherits the existing theming
+                and the ~44px coarse-pointer target in globals.css and nothing
+                moves for a mouse user. BirdingStats.tsx is the reference. */}
+            <button
+              tabIndex={0}
+              type="button"
+              className="maplibregl-popup-close-button"
+              aria-label="Close the atlas block popup"
+              onClick={() => setSel(null)}
+            >
+              ×
+            </button>
             <div style={{ minWidth: 160 }}>
               {sel.code ? (
                 <OutboundLink href={`${ATLAS_BLOCK_URL}${encodeURIComponent(sel.code)}`}
