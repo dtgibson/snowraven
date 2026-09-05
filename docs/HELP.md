@@ -85,6 +85,8 @@ To get your key:
 
 SnowRaven works with two data files you export from your own eBird and Macaulay Library accounts. Once uploaded in Settings, they are stored for you (in the desktop app, in the app's local data directory; in web/Pi mode, on the server) and load automatically every time you open the app.
 
+Each slot checks what you give it before saving. A file that is not a `.csv`, a file larger than 50 MB, and a file whose contents are not the export that slot is for are all turned away with a line under the row saying which of those it was, and whatever was already saved there stays exactly as it was. So dropping `MyEBirdData.csv` into the ML Export slot no longer stores it and leaves the Multimedia tab to report it later; the row tells you at once, and says which slot each file belongs in.
+
 ### eBird backup
 
 Your eBird backup is a full export of all your eBird observations: every checklist, every species, every location. It is the primary data source for most of SnowRaven's features.
@@ -107,7 +109,7 @@ In SnowRaven, upload the file in Settings under Default Files, and **leave the f
 
 The ML export is used by: Multimedia (media counts and species coverage), Species Detail (embedded recent media and media count indicators), Statistics (the Media card), and Named Birds (the media matched to each named individual). These features are not available from the eBird backup alone.
 
-If the Multimedia tab says it couldn't load your ML export, the file is saved but SnowRaven could not turn it into a species list, either because it could not read the file or because what is stored is not an ML export. Uploading `MyEBirdData.csv` into the ML Export slot does that: both files end in `.csv`, so it is accepted. Re-upload the spreadsheet in Settings under Default Files. That message is different from the "Macaulay Library Export Required" panel, which appears only when no export is saved at all.
+If the Multimedia tab says it couldn't load your ML export, the file is saved but SnowRaven could not turn it into a species list, either because it could not read the file or because what is stored is not an ML export. Re-upload the spreadsheet in Settings under Default Files. That message is different from the "Macaulay Library Export Required" panel, which appears only when no export is saved at all.
 
 ---
 
@@ -637,7 +639,7 @@ Enter and manage your eBird and OpenWeather API keys. Keys are saved securely: i
 
 ### Default Files
 
-Upload your eBird backup CSV and Macaulay Library export. Each file is stored for you: in the desktop app, in the local app data directory; in web/Pi mode, on the server. Files load automatically when you open the relevant tab. Use Upload new to replace a stored file, or Clear to remove it. Clearing the eBird backup also removes everything SnowRaven had worked out from it and saved on this device: the escapee answers and the Projects answers on the Statistics tab, the county species lists behind the map's Completeness shading, and the saved weather and tide readings for your checklists. Every tab you have open notices straight away, with no relaunch. Replacing a file is deliberately not the same thing: upload a newer export and those saved answers are kept, which is what lets a newer export ask only about the checklists that have not been answered yet. Weather and tide you looked up for a place you typed yourself are kept either way, because they did not come from your export.
+Upload your eBird backup CSV and Macaulay Library export. Each file is stored for you: in the desktop app, in the local app data directory; in web/Pi mode, on the server. Files load automatically when you open the relevant tab. Use Upload new to replace a stored file, or Clear to remove it. A file that is not a `.csv`, one larger than 50 MB, or one that is not the export for the slot you dropped it into is refused with a line under that row explaining why, and the file already saved there is left alone. Clearing the eBird backup also removes everything SnowRaven had worked out from it and saved on this device: the escapee answers and the Projects answers on the Statistics tab, the county species lists behind the map's Completeness shading, and the saved weather and tide readings for your checklists. Every tab you have open notices straight away, with no relaunch. Replacing a file is deliberately not the same thing: upload a newer export and those saved answers are kept, which is what lets a newer export ask only about the checklists that have not been answered yet. Weather and tide you looked up for a place you typed yourself are kept either way, because they did not come from your export.
 
 ### iCloud Sync (Mac, iPhone and iPad)
 

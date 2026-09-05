@@ -6,7 +6,9 @@ import { ML_EXPORT_STEPS, EBIRD_BACKUP_LOAD_ERROR, ML_EXPORT_LOAD_ERROR } from '
 import { ToggleSwitch } from './ui/ToggleSwitch'
 import { formatDate as formatDateLabel } from '../lib/formatDate'
 import type { LifeListEntry } from '../lib/parseLifeList'
-import { parseMLExport, aggregateMLRows } from '../lib/parseMLExport'
+import { aggregateMLRows } from '../lib/parseMLExport'
+import { parseMLExportOffThread } from '../lib/parseMLExportOffThread'
+import { detectExportType } from '../lib/detectExportType'
 import type { MLExportResult, MLExportRow } from '../lib/parseMLExport'
 import { assetMatchesFacet, buildCatalogAgeSex } from '../lib/mediaStats'
 import type { AgeClass, Sex } from '../lib/mediaStats'
@@ -92,15 +94,6 @@ function buildComprehensiveEntries(
 function parseMLUserId(filename: string): string | null {
   const match = filename.match(/^ML__.*_([A-Za-z0-9]+)\.csv$/i)
   return match ? match[1] : null
-}
-
-function detectFileType(text: string): 'ml-export' | 'ebird' | 'unknown' {
-  const firstLine = (text.split(/\r?\n/)[0] ?? '').toLowerCase()
-  const hasCatalogNumber = firstLine.includes('catalog number')
-  const hasFormat = firstLine.includes('format')
-  if (hasCatalogNumber && hasFormat) return 'ml-export'
-  if (firstLine.includes('submission id')) return 'ebird'
-  return 'unknown'
 }
 
 function pillStyle(active: 'none' | 'positive' | 'negative'): React.CSSProperties {
@@ -426,8 +419,10 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
         if (!status.ml) { setPhase({ tag: 'setup-required' }); return }
 
         // This tab reads the ML file itself rather than going through loadMLExport:
-        // that helper swallows a bad parse to null and has no detectFileType gate,
-        // which is not what the Multimedia tab needs (DECISIONS.md, v0.5.52).
+        // that helper swallows a bad parse to null and has no detectExportType gate,
+        // which is not what the Multimedia tab needs (DECISIONS.md, v0.5.52). That
+        // split STAYS (ml-export-hardening): the parse below moved off the main
+        // thread separately from the cache's, rather than the two being merged.
         let mlReadFailed = false
         const [mlText, ebird] = await Promise.all([
           storage.readFile('ml').catch(() => { mlReadFailed = true; return null }),
@@ -436,41 +431,50 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
         if (cancelled) return
 
         // `status.ml` is truthy here, so an export IS stored: every way it can fail
-        // to become rows is a LOAD FAILURE, and all four land on the one message.
+        // to become rows is a LOAD FAILURE, and each one lands on the one message.
         // Both alternatives are lies the 1.0.14 family exists to remove. A throw
         // reaching the outer catch renders "Macaulay Library Export Required" over
         // an export that is plainly stored; falling through to `ready` renders a
         // list with every photo and recording silently missing, and says nothing at
         // all. List Comparer is the precedent for collapsing the routes onto one
         // string (ListComparer.tsx: read-throw, read-empty and wrong-file, one
-        // message for all three).
-        //   1. the read REJECTED (`mlReadFailed`). Web/Pi only: WebStorage.readFile
-        //      is a bare fetch. On the desktop `readFile`'s one statement outside
-        //      its own try is the memoized `await this.fs()`, which has already
-        //      fulfilled by the time getFilesStatus returned (storage.ts).
-        //   2. it resolved FALSY. `null` from a non-ok web/Pi response or a desktop
-        //      read error, or `''` from a zero-byte file: writeFile is a direct
-        //      writeTextFile with no temp-and-rename, so an interrupted write can
-        //      leave one behind.
-        //   3. the stored file is not an ML export at all. importFileContent
-        //      validates only the `.csv` extension, so MyEBirdData.csv uploaded into
-        //      the ML Export slot stores happily and detectFileType rejects it here.
-        //   4. parseMLExport throws INVALID_ML_EXPORT: no header row, or a header
-        //      missing one of the three columns it requires by exact name (Catalog
-        //      Number, Common Name, Format). detectFileType is a looser substring
-        //      test over the same line, so it does not subsume this.
+        // message for all three). The routes, which are examples of the rule rather
+        // than a closed roster:
+        //   - the read REJECTED (`mlReadFailed`). Web/Pi only: WebStorage.readFile
+        //     is a bare fetch. On the desktop `readFile`'s one statement outside
+        //     its own try is the memoized `await this.fs()`, which has already
+        //     fulfilled by the time getFilesStatus returned (storage.ts).
+        //   - it resolved FALSY. `null` from a non-ok web/Pi response or a desktop
+        //     read error, or `''` from a zero-byte file: writeFile is a direct
+        //     writeTextFile with no temp-and-rename, so an interrupted write can
+        //     leave one behind.
+        //   - the stored file is not an ML export at all, and detectExportType
+        //     rejects it here. Since ml-export-hardening an UPLOAD can no longer
+        //     put one there: Settings refuses a file whose header does not match
+        //     the slot, on every platform. The route stays live for a file stored
+        //     before that guard shipped and for one that arrived by iCloud sync,
+        //     which is a pull rather than a user upload and is not guarded.
+        //   - the parse rejects with INVALID_ML_EXPORT: no header row, or a header
+        //     missing one of the three columns `parseMLExport` requires by exact
+        //     name (Catalog Number, Common Name, Format). detectExportType is a
+        //     looser substring test over the same line, so it does not subsume this.
+        //   - the parse worker died, or went silent past its measured budget
+        //     (parseMLExportOffThread's settle contract). It rejects rather than
+        //     hanging, and lands here like any other unusable export.
         // `mlReadFailed` is implied by `!mlText`, since the catch returns null. It
         // is KEPT for the reason 1.0.15 kept all five ML `.catch(() => null)`
         // guards: it names the reject route AT the call site, so a later catch that
         // returns something truthy cannot quietly rejoin the ready path.
-        // These four run BEFORE the eBird guard so they share one precedence: on the
+        // These run BEFORE the eBird guard so they share one precedence: on the
         // tab the export gates, an unusable export is reported as itself even when
-        // the backup failed too. parseMLExport is pure, so an eBird failure below
-        // discards its result and still writes no state.
+        // the backup failed too. The parse is pure and off-thread, so an eBird
+        // failure below discards its result and still writes no state.
         let parsedMl: MLExportResult | null = null
-        if (!mlReadFailed && mlText && detectFileType(mlText) === 'ml-export') {
-          try { parsedMl = parseMLExport(mlText) } catch { parsedMl = null }
+        if (!mlReadFailed && mlText && detectExportType(mlText) === 'ml') {
+          try { parsedMl = await parseMLExportOffThread(mlText) } catch { parsedMl = null }
         }
+        // The parse is awaited now, so the tab can have been left since the read.
+        if (cancelled) return
         if (!parsedMl) {
           setPhase({ tag: 'error', message: ML_EXPORT_LOAD_ERROR })
           return

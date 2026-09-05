@@ -521,8 +521,11 @@ describe('Finding D: Multimedia reports a stored ML export that cannot be turned
       ml: async () => '',
     },
     {
-      // importFileContent validates only the .csv extension, so the eBird backup
-      // uploaded into the ML Export slot stores without complaint.
+      // Since ml-export-hardening an UPLOAD can no longer put one there: the
+      // import chokepoint refuses a file whose header does not match the slot, on
+      // every platform. The route is still live and still owed this row, for a
+      // file stored before that guard shipped and for one that arrived by iCloud
+      // sync, which is a pull rather than a user upload and is not guarded.
       name: 'the stored file is an eBird backup, not an ML export',
       ml: async () => EBIRD_CSV,
     },

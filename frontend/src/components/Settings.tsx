@@ -32,6 +32,7 @@ import {
 import { ModalDialog } from './ui/ModalDialog'
 import { fileRowButtonLabel } from '../lib/fileRowCopy'
 import { IOS_IMPORT_MECHANISM, pickCsvViaDialog } from '../lib/iosImport'
+import { refuseByFilename, refuseByContent } from '../lib/uploadGuard'
 import { getCurrentLocation, describeLocationError } from '../lib/location'
 import type { LocationError } from '../lib/location'
 import { clearEbirdObservationsCache } from '../lib/observationsCache'
@@ -1883,11 +1884,18 @@ export function Settings({
       .catch(() => {})
   }, [])
 
-  // File handlers. The tail (extension guard → storage.writeFile → cache
+  // File handlers. The tail (upload guards → storage.writeFile → cache
   // invalidation → metadata refresh) is shared by BOTH import mechanisms
   // (mobile-app schema §2.6): the file-input path hands it a File's text, the
   // iOS dialog path hands it an already-read string — so persistence, replace,
   // error, and metadata semantics stay one code path (FR-10/11/12/13).
+  //
+  // THIS IS THE ONE PLACE AN UPLOAD IS REFUSED, on every platform. The file input
+  // serves desktop, web, Pi, iPhone and iPad alike (`IOS_IMPORT_MECHANISM` is
+  // 'input'), and the native picker path calls straight into here, so the guards
+  // below are not one platform's opinion of a file. They live in lib/uploadGuard
+  // as a pair rather than as three inline conditions, so an import path added
+  // later gets all of them or visibly none.
   const importFileContent = async (
     slot: 'ebird' | 'ml',
     filename: string,
@@ -1895,14 +1903,28 @@ export function Settings({
   ) => {
     const setUploading = slot === 'ebird' ? setEbirdUploading : setMlUploading
     const setError = slot === 'ebird' ? setEbirdError : setMlError
-    if (!filename.toLowerCase().endsWith('.csv')) {
-      setError('Only .csv files are accepted.')
+    // The name check runs BEFORE the read, so a huge non-CSV is never pulled into
+    // memory to be refused afterwards.
+    const nameRefusal = refuseByFilename(filename)
+    if (nameRefusal) {
+      setError(nameRefusal)
       return
     }
     setUploading(true)
     setError(null)
     try {
       const content = await getContent()
+      // Size, then content. Both refusals render in this row's existing error
+      // line, and both leave whatever was already stored exactly as it was: a
+      // refused upload is not a replace. Without them an oversized file was
+      // written straight to disk on desktop and iOS, and an eBird backup dropped
+      // into the ML Export slot stored happily and failed on the Multimedia tab
+      // later, where nothing could say which file was wrong.
+      const contentRefusal = refuseByContent(slot, content)
+      if (contentRefusal) {
+        setError(contentRefusal)
+        return
+      }
       // With sync on, the entry records this device as the file's origin
       // (FR-11/FR-19); the controller then pushes it on the check that the
       // save triggers. The iCloud upload never delays the local result (FR-36).

@@ -245,11 +245,26 @@ class WebStorage implements StorageAdapter {
   async writeFile(name: 'ebird' | 'ml', content: string, filename: string): Promise<void> {
     const form = new FormData();
     form.append('file', new Blob([content], { type: 'text/csv' }), filename);
-    await fetch(`/settings/files/${name}`, { method: 'POST', body: form });
+    const res = await fetch(`/settings/files/${name}`, { method: 'POST', body: form });
+    // The same reasoning as setSetting and deleteSetting above, on the path where
+    // it was doing the most damage. A resolved fetch is not a saved file: the
+    // backend answers 413 over its 50 MB cap and 400 on a non-.csv name, and with
+    // the response discarded BOTH landed in Settings as a completed upload, over a
+    // slot whose stored file was still the old one (or still nothing). Web and Pi
+    // were the only platforms the cap ever ran on, and the only ones that could not
+    // report it.
+    if (!res.ok) throw new Error(`File save failed (${res.status})`);
   }
 
   async deleteFile(name: 'ebird' | 'ml'): Promise<void> {
-    await fetch(`/settings/files/${name}`, { method: 'DELETE' });
+    const res = await fetch(`/settings/files/${name}`, { method: 'DELETE' });
+    // 404 is NOT a failure here. The backend answers it when no file is stored,
+    // which is the state the caller asked for, and reporting it would put "Delete
+    // failed. Please try again." over a row that is already empty and a button the
+    // user can no longer press — the exact message v1.0.14 removed from the clear
+    // path one method at a time. Every other non-2xx is a real failure and is
+    // raised, so a clear can no longer report a file it did not remove.
+    if (!res.ok && res.status !== 404) throw new Error(`File delete failed (${res.status})`);
   }
 
   // iCloud Sync never runs on web/Pi (the platform gate is false there), so
