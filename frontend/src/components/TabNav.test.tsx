@@ -24,12 +24,15 @@ import type { ContentReserve } from '../lib/navDensity'
 // A glyph the tests can find without caring what it draws.
 const icon = ({ size }: { size: number }) => <svg data-size={size} aria-hidden="true" />
 
+// Mirrors DEFAULT_TAB_ORDER (lib/tabLayout.ts) plus Settings, so "the first four
+// of the saved visible order" below describes the shipped default and not only
+// the mechanism. Map Explorer third and Calendar fifth since 1.0.19.
 const ELEVEN: NavItem[] = [
   { id: 'weather', label: 'Weather', icon },
   { id: 'birding-stats', label: 'Statistics', icon },
-  { id: 'calendar', label: 'Calendar', icon },
-  { id: 'species-detail', label: 'Species Detail', icon },
   { id: 'map-explorer', label: 'Map Explorer', icon },
+  { id: 'species-detail', label: 'Species Detail', icon },
+  { id: 'calendar', label: 'Calendar', icon },
   { id: 'life-list', label: 'Multimedia', icon },
   { id: 'breeding-codes', label: 'Breeding Codes', icon },
   { id: 'checklists', label: 'Checklists', icon },
@@ -300,7 +303,7 @@ describe('density 3 — the phone bottom bar', () => {
     const cells = document.querySelectorAll('.sr-navbar-cell')
     expect(cells).toHaveLength(5)
     expect([...cells].map(c => c.textContent)).toEqual([
-      'Weather', 'Statistics', 'Calendar', 'Species Detail', 'More',
+      'Weather', 'Statistics', 'Map Explorer', 'Species Detail', 'More',
     ])
   })
 
@@ -321,10 +324,10 @@ describe('density 3 — the phone bottom bar', () => {
   })
 
   it('marks the active favourite with aria-current and nothing else', () => {
-    phone({ activeTab: 'calendar' })
+    phone({ activeTab: 'map-explorer' })
     const current = document.querySelectorAll('[aria-current="true"]')
     expect(current).toHaveLength(1)
-    expect(current[0].textContent).toBe('Calendar')
+    expect(current[0].textContent).toBe('Map Explorer')
   })
 
   it('gives MORE the active treatment when the active destination is under it', () => {
@@ -379,7 +382,7 @@ describe('the More sheet', () => {
     openSheet()
     const rows = document.querySelectorAll('.sr-nav-sheet .sr-nav-item')
     expect([...rows].map(r => r.textContent)).toEqual([
-      'Map Explorer', 'Multimedia', 'Breeding Codes', 'Checklists',
+      'Calendar', 'Multimedia', 'Breeding Codes', 'Checklists',
       'List Comparer', 'Named Birds', 'Settings',
     ])
   })
