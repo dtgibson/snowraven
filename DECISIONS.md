@@ -4,6 +4,26 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 ---
 
+## Shared Button/Link primitives are DECLINED on measurement, and the deciding fact is that migrating a control REMOVES it from the guard that enforces its tab stop -- 2026-09-05 (Spool bundle, v1.0.19)
+
+**Decision: not built.** Reached Stage 1 (Evaluator scoping only, no code). Pulled from the saved-idea inbox as build 4 of a five-build Spool spin, scoped, and returned to the inbox with its measurements. Artifacts retained in `pipeline/shared-button-link-primitives/`.
+
+**The idea was to add shared `<Button>` / `<Link>` primitives so a new component inherits its keyboard tab stop instead of remembering `tabIndex={0}`**, on the reasoning that v1.0.16's `tabOrderCoverage.test.ts` is a net rather than a floor. Three findings at HEAD, none available when the idea was written, say otherwise.
+
+**(1) The primitives would absorb nothing.** 181 of 235 sites carry a bespoke inline `style` (median 320 source chars, 68 over 400, max 1320) and 137 carry `style` with no `className` at all. There is no shared visual contract for a primitive to own; over today's code it is a passthrough whose only content is a `tabIndex` default.
+
+**(2) That default is already enforced.** `tabOrderCoverage.test.ts` fails a new unmarked control loudly today, which is the guarantee the primitive was meant to buy.
+
+**(3) The deciding fact: the guard's population is INTRINSIC TAGS, so every migrated site is a site the guard stops watching.** Its own non-vacuity floors (more than 150 buttons, more than 10 anchors) leave headroom of 71 buttons and 3 anchors before it goes red on emptiness -- so even a "bounded subset" migration is bounded by the guard rather than by coherence, and a full migration would delete the guard by attrition. A migrate-nothing variant that failed a NEW intrinsic control would have to fail a correct `tabIndex={0}` control, the pattern 235 shipped sites use and `.claude/rules/ui.md` mandates, or carry a 235-row baseline roster -- the blanket-pardon shape v1.0.16 closed with cardinality.
+
+**The idea's recorded size is stale in both directions and its override premise is wrong.** Measured by the guard's own AST population: **235 sites (221 `<button>` plus 14 `<a href>`) across 55 of 80 shipped `.tsx`**, against the idea's 218 buttons across 79 files. The four non-`{0}` sites are not "three roving groups": they are three different kinds -- two roving groups (the navigation's vertical tablist over 11 destinations, and Settings' `RadioGroup` over three groups), one non-roving redundant chevron, and one base-map button the platform removes via native `disabled`, which is not a tab-order decision at all. A single boolean override prop cannot model three kinds, so the trap the idea names is worse than it recorded.
+
+**What a future build should do.** The idea's own closing line is confirmed rather than contradicted: primitives are worth doing alongside a real design-system pass, because the pass is what creates the visual contract they would carry. `pipeline/design-system.md` names registers (SectionCard, the quiet bordered button, ToggleSwitch, ModalDialog, the map corner row) but no primitives, and its Accessibility commitments line codifies the per-call-site rule verbatim. Whoever takes it must also keep the guard whole: a primitive-aware guard has to assert the property over the primitive's own call sites before the intrinsic population shrinks, not after. The stale 218/79/three-roving figures in `ROADMAP.md` and `.claude/rules/ui.md` are corrected in this bundle.
+
+**Bundle risk, stated because it also mattered:** a 235-site mechanical refactor as build 4 of 5, landing on one human sign-off with a single full-suite run at the end, against a suite with a known four-identity flake profile at HEAD, is the change most likely to make that end-of-bundle run un-diagnosable.
+
+---
+
 ## The v0.5.87 scope sentence gains ONE named exception rather than a reversal: Species Detail reads the escapee rule passively behind an off-by-default reveal switch, the preference is separate and session-only on purpose, a hidden species is REVEALED rather than dropped, and the App Store leg is held in writing -- 2026-09-04 (v1.0.18)
 
 **Decision: shipped** as an Improve run with a design pass -- `267a36f` (the change), `fc42f03` (iOS 1.0.18 build 1 stamp), tag `v1.0.18`. Every leg but one shipped the same day: macOS universal notarized and stapled, the Windows installer re-signed locally with `latest.json` (key id `f80c63fb3b636306` on all three entries), the website at 1.0.18, and iOS build `1.0.18.1` VALID on TestFlight. The App Store leg is HELD by user decision (below). QA PASSED on the first pass -- 4507 frontend tests and 311 backend, 0 failed, plus a real-engine pass in Chromium and WebKit at 14 configurations with zero overflow and zero clipped labels -- and Security PASSED WITH NOTES, no Critical or High: one Informational accepted and two pre-existing Lows recorded for the roadmap.
