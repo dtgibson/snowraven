@@ -43,8 +43,26 @@ describe('BirdName', () => {
     const slots = container.querySelectorAll('.sr-favicon-slot')
     expect(slots.length).toBe(2)
     for (const slot of slots) {
+      // The favicon is the mark a user normally sees, and the slot is its box.
       expect(slot.querySelector('img.sr-favicon')).toBeTruthy()
+      expect(slot.querySelector('svg')).toBeNull()
     }
+  })
+
+  it('shows a fallback glyph in the same slot when a favicon fails, never an empty one', () => {
+    const { container } = render(<BirdName commonName="Anna's Hummingbird" taxonCode="annhum" />)
+    for (const img of container.querySelectorAll('img.sr-favicon')) fireEvent.error(img)
+
+    const slots = container.querySelectorAll('.sr-favicon-slot')
+    expect(slots.length).toBe(2)
+    for (const slot of slots) {
+      // The image is never unmounted -- it holds the reserved box and can still
+      // report a late success -- and the glyph is revealed over it.
+      expect(slot.querySelector('img.sr-favicon')).toBeTruthy()
+      expect(slot.querySelector('svg')).toBeTruthy()
+    }
+    // The names the links announce are unchanged by the substitution.
+    expect(screen.getByRole('link', { name: "View Anna's Hummingbird on eBird (opens in a new tab)" })).toBeTruthy()
   })
 
   it('shows the scientific name only when showSci is set', () => {

@@ -1,0 +1,757 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Species link marks — the fallback state</title>
+<style>
+  /* ── Document chrome ──────────────────────────────────────────────────────
+     A design-refinement sheet, not an app screen. The display face is a
+     distinctive locally-resident serif (never Inter / system-ui, which is
+     reserved BELOW for the app specimens, where fidelity to the shipped type
+     is the point). Neutrals are tinted toward SnowRaven's ink #0F1117. */
+  :root {
+    --ink:        #14161d;
+    --ink-soft:   #4a4d5a;
+    --ink-faint:  #82859a;
+    --paper:      #f6f5f2;
+    --paper-2:    #fffefb;
+    --rule:       #dedbd3;
+    --rule-soft:  #eae7e0;
+    --clover:     #277448;
+    --clover-bg:  #e8f2ea;
+    --warn:       #8a4a1e;
+    --warn-bg:    #f6ecdf;
+    --display: 'Iowan Old Style', 'Charter', 'Palatino Linotype', Palatino,
+               'Book Antiqua', Georgia, serif;
+    --ui: ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    padding: 0 0 96px;
+    color: var(--ink);
+    font-family: var(--ui);
+    font-size: 15px;
+    line-height: 1.6;
+    background:
+      radial-gradient(120% 70% at 84% -8%, rgba(39,116,72,0.09) 0%, rgba(39,116,72,0) 62%),
+      radial-gradient(90% 55% at 4% 6%, rgba(20,22,29,0.07) 0%, rgba(20,22,29,0) 58%),
+      linear-gradient(178deg, #fbfaf7 0%, var(--paper) 42%, #f1efe9 100%);
+    background-attachment: fixed;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 28px; }
+
+  /* Type roles: display / body / label */
+  .display { font-family: var(--display); font-weight: 400; letter-spacing: -0.018em; }
+  h1 { font-family: var(--display); font-size: 2.6rem; line-height: 1.08;
+       letter-spacing: -0.024em; font-weight: 400; margin: 0 0 10px; }
+  h2 { font-family: var(--display); font-size: 1.5rem; line-height: 1.18;
+       letter-spacing: -0.018em; font-weight: 400; margin: 0 0 6px; }
+  h3 { font-family: var(--ui); font-size: 0.9375rem; font-weight: 650;
+       letter-spacing: -0.005em; margin: 0 0 6px; }
+  .label { font-family: var(--ui); font-size: 0.6875rem; font-weight: 680;
+           letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-faint); }
+  .lede { font-size: 1.0625rem; line-height: 1.58; color: var(--ink-soft); max-width: 62ch; }
+  p { margin: 0 0 12px; }
+  code, .mono { font-family: var(--mono); font-size: 0.8125em; }
+  .num { font-variant-numeric: tabular-nums; }
+
+  /* ── Masthead: asymmetric, one focal point ───────────────────────────── */
+  header.mast {
+    border-bottom: 1px solid var(--rule);
+    padding: 62px 0 34px;
+    margin-bottom: 40px;
+  }
+  .mast-grid { display: grid; grid-template-columns: minmax(0,1.45fr) minmax(0,1fr);
+               gap: 44px; align-items: end; }
+  .mast-meta { border-left: 2px solid var(--clover); padding-left: 16px; }
+  .mast-meta dl { margin: 0; display: grid; grid-template-columns: auto 1fr;
+                  gap: 3px 14px; font-size: 0.8125rem; }
+  .mast-meta dt { color: var(--ink-faint); font-weight: 600; }
+  .mast-meta dd { margin: 0; color: var(--ink-soft); }
+
+  section { margin: 0 0 54px; }
+  .sec-head { display: flex; align-items: baseline; gap: 14px;
+              border-bottom: 1px solid var(--rule-soft); padding-bottom: 8px; margin-bottom: 20px; }
+  .sec-head .label { flex: 0 0 auto; }
+  .sec-head h2 { margin: 0; }
+
+  /* ── The specimen: the focal point ───────────────────────────────────── */
+  .themes { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 22px; }
+  @media (max-width: 900px) { .themes { grid-template-columns: 1fr; } }
+
+  .sp {
+    /* Real SnowRaven token values, verbatim from frontend/src/globals.css */
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid var(--rule);
+    box-shadow: 0 1px 2px rgba(20,22,29,0.05), 0 10px 26px -14px rgba(20,22,29,0.28);
+  }
+  .sp.light {
+    --sr-bg: #F9FAFB; --sr-surface: #FFFFFF; --sr-surface-subtle: #F4F4F5;
+    --sr-surface-faint: #FAFAFA; --sr-quote-bg: #EFF1F3; --sr-quote-border: #277448;
+    --sr-text: #0F1117; --sr-text-muted: #6B6B74; --sr-text-gray: #6B7280;
+    --sr-border: #E4E4E7; --sr-border-subtle: #F4F4F5; --sr-accent: #277448;
+    --fav-ink: #2b4c3f; --fav-alpha: 1;
+  }
+  .sp.dark {
+    --sr-bg: #09090B; --sr-surface: #18181B; --sr-surface-subtle: #27272A;
+    --sr-surface-faint: #1C1C1F; --sr-quote-bg: #2E2E33; --sr-quote-border: #34D399;
+    --sr-text: #F4F4F5; --sr-text-muted: #A1A1AA; --sr-text-gray: #8A8A92;
+    --sr-border: #27272A; --sr-border-subtle: #1F1F23; --sr-accent: #34D399;
+    /* the shipped [data-theme="dark"] img.sr-favicon rule: brightness(0) invert(1); opacity .65 */
+    --fav-ink: #FFFFFF; --fav-alpha: 0.65;
+  }
+  .sp-head {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 10px 16px; background: var(--sr-surface-faint);
+    border-bottom: 1px solid var(--sr-border);
+    font-family: var(--ui); font-size: 0.6875rem; font-weight: 680;
+    letter-spacing: 0.1em; text-transform: uppercase; color: var(--sr-text-muted);
+  }
+  .sp-body { background: var(--sr-bg); padding: 4px 0 14px; }
+
+  /* App specimen type: deliberately the SHIPPED face, not this sheet's display
+     face. globals.css declares --font-sans as 'Inter', system-ui, 'Segoe UI',
+     Roboto, sans-serif -- but no Inter webfont is ever loaded, so what the Mac,
+     iPhone and iPad apps actually render is the platform UI face. That is what
+     the specimen below inherits, which makes it a truer specimen than naming
+     Inter would. */
+  .app { font-family: -apple-system, 'Segoe UI', sans-serif; }
+
+  .state {
+    padding: 13px 16px 12px;
+    border-bottom: 1px solid var(--sr-border-subtle);
+  }
+  .state:last-child { border-bottom: 0; }
+  .state-cap {
+    font-size: 0.6875rem; font-weight: 650; letter-spacing: 0.045em;
+    color: var(--sr-text-muted); margin-bottom: 9px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .state-cap .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--sr-accent); flex: 0 0 auto; }
+  .state-cap .dot.off { background: var(--sr-text-gray); }
+
+  /* Surface swatches a bird name really sits on */
+  .rows { display: flex; flex-direction: column; }
+  .row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 7px 10px; border-radius: 6px;
+  }
+  .row.on-surface { background: var(--sr-surface); border: 1px solid var(--sr-border); }
+  .row.on-subtle  { background: var(--sr-surface-subtle); border: 1px solid transparent; margin-top: 4px; }
+  .row.on-quote   { background: var(--sr-quote-bg); border-left: 3px solid var(--sr-quote-border);
+                    border-radius: 0 6px 6px 0; margin-top: 4px; }
+  .row-note { margin-left: auto; font-size: 0.625rem; letter-spacing: 0.05em;
+              text-transform: uppercase; color: var(--sr-text-gray); }
+
+  /* ── The real thing: BirdName + SpeciesLinks geometry ─────────────────── */
+  .sr-birdname { display: inline-flex; flex-direction: column; gap: 1px; min-width: 0;
+                 vertical-align: top; }
+  .sr-birdname-inline { flex-direction: row; align-items: center; }
+  .sr-birdname-row { display: flex; align-items: center; min-width: 0; }
+  .sr-birdname-text { font-weight: 500; color: var(--sr-text); font-size: 0.84375rem; }
+  .sr-birdname-link { font-weight: 500; color: var(--sr-text); font-size: 0.84375rem;
+                      text-decoration: none; cursor: pointer; }
+  .sr-birdname-link:hover, .sr-birdname-link:focus-visible {
+    color: var(--sr-accent); text-decoration: underline; }
+  .sr-birdname-sci { font-style: italic; color: var(--sr-text-gray); font-size: 0.71875rem; }
+
+  .sl { display: inline-flex; align-items: center; gap: 5px; margin-left: 6px;
+        vertical-align: middle; }
+  .sl a {
+    opacity: 0.75; display: inline-flex; align-items: center;
+    padding: 5px; margin: -5px; color: var(--sr-text); text-decoration: none;
+  }
+  .sl a:hover, .sl a:focus-visible { opacity: 1; }
+  .sr-favicon-slot { display: inline-flex; width: 14px; height: 14px;
+                     align-items: center; justify-content: center; flex-shrink: 0;
+                     position: relative; }
+  .sr-favicon-slot svg { display: block; }
+  /* Stand-in for the raster favicon (see the note under the specimen). */
+  .fav { display: block; width: 14px; height: 14px; color: var(--fav-ink); opacity: var(--fav-alpha); }
+
+  /* ── Magnified geometry ──────────────────────────────────────────────── */
+  .geo { display: grid; grid-template-columns: repeat(auto-fit, minmax(212px, 1fr)); gap: 18px; }
+  .geo-card { background: var(--paper-2); border: 1px solid var(--rule); border-radius: 10px;
+              padding: 16px 16px 14px; }
+  .geo-card.rejected { background: #faf8f4; border-style: dashed; }
+  .geo-stage { display: flex; align-items: flex-end; gap: 16px; margin-bottom: 12px; }
+  .geo-big { color: var(--ink); }
+  .geo-1x { display: flex; align-items: center; gap: 6px; padding-bottom: 4px; }
+  .geo-1x .sr-favicon-slot { color: var(--ink); opacity: 0.75; }
+  .geo-name { font-family: var(--mono); font-size: 0.75rem; font-weight: 600; color: var(--ink); }
+  .geo-why { font-size: 0.8125rem; line-height: 1.5; color: var(--ink-soft); margin: 6px 0 0; }
+  .verdict { display: inline-block; font-size: 0.625rem; font-weight: 700;
+             letter-spacing: 0.08em; text-transform: uppercase; padding: 2px 7px;
+             border-radius: 3px; margin-bottom: 8px; }
+  .verdict.take { background: var(--clover-bg); color: var(--clover); }
+  .verdict.drop { background: var(--warn-bg); color: var(--warn); }
+
+  /* ── Decisions ───────────────────────────────────────────────────────── */
+  .decs { display: grid; grid-template-columns: repeat(auto-fit, minmax(268px,1fr)); gap: 1px;
+          background: var(--rule-soft); border: 1px solid var(--rule-soft); border-radius: 10px;
+          overflow: hidden; }
+  .dec { background: var(--paper-2); padding: 16px 18px 17px; }
+  .dec .label { display: block; margin-bottom: 7px; }
+  .dec .call { font-family: var(--display); font-size: 1.1875rem; line-height: 1.25;
+               letter-spacing: -0.012em; margin: 0 0 7px; }
+  .dec p { font-size: 0.84375rem; line-height: 1.52; color: var(--ink-soft); margin: 0; }
+  .dec .call em { font-style: normal; color: var(--clover); }
+
+  /* ── Contrast table ──────────────────────────────────────────────────── */
+  table { border-collapse: collapse; width: 100%; font-size: 0.84375rem; }
+  caption { text-align: left; font-size: 0.8125rem; color: var(--ink-soft);
+            padding-bottom: 10px; }
+  th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--rule-soft);
+           vertical-align: top; }
+  th { font-size: 0.6875rem; letter-spacing: 0.08em; text-transform: uppercase;
+       color: var(--ink-faint); font-weight: 680; border-bottom: 1px solid var(--rule); }
+  td.r { text-align: right; font-variant-numeric: tabular-nums; font-weight: 620; }
+  tr.fail td { color: var(--warn); }
+  tr.floor td { border-top: 1px solid var(--rule); font-weight: 650; }
+  .chip { display: inline-block; width: 11px; height: 11px; border-radius: 2px;
+          border: 1px solid rgba(20,22,29,0.18); vertical-align: -1px; margin-right: 7px; }
+  .tbl-wrap { overflow-x: auto; }
+
+  .callout {
+    border-left: 2px solid var(--clover); background: rgba(39,116,72,0.045);
+    padding: 14px 18px; border-radius: 0 8px 8px 0; margin: 0 0 18px;
+    font-size: 0.875rem; line-height: 1.56; color: var(--ink-soft); max-width: 78ch;
+  }
+  .callout strong { color: var(--ink); font-weight: 650; }
+  .twocol { display: grid; grid-template-columns: minmax(0,1.25fr) minmax(0,1fr); gap: 34px; }
+  @media (max-width: 860px) { .twocol, .mast-grid { grid-template-columns: 1fr; } h1 { font-size: 2.1rem; } }
+
+  .foot { border-top: 1px solid var(--rule); padding-top: 18px; font-size: 0.8125rem;
+          color: var(--ink-faint); }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<header class="mast">
+  <div class="wrap mast-grid">
+    <div>
+      <span class="label">SnowRaven · Improve lane · design refinement</span>
+      <h1>The two marks beside a&nbsp;bird&nbsp;name,<br>when the favicon never&nbsp;arrives.</h1>
+      <p class="lede">Online, nothing changes. Offline or behind a blocker, the 14px slot that
+        holds an eBird or Birds of the World favicon today holds an invisible, still-clickable
+        hole. This sheet settles what goes in it instead.</p>
+    </div>
+    <div class="mast-meta">
+      <dl>
+        <dt>Surface</dt><dd><code>components/SpeciesLinks.tsx</code></dd>
+        <dt>Scope</dt><dd>The failure state only</dd>
+        <dt>Slot</dt><dd>14&times;14px, unchanged</dd>
+        <dt>Glyphs</dt><dd>lucide <code>Globe</code> + <code>SquareLibrary</code></dd>
+        <dt>Floor</dt><dd>7.96:1 light · 7.63:1 dark <span style="color:var(--clover)">(3:1 required)</span></dd>
+      </dl>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- ═══ THE SPECIMEN ════════════════════════════════════════════════════ -->
+  <section>
+    <div class="sec-head">
+      <span class="label">01</span>
+      <h2>All four states, both themes</h2>
+    </div>
+
+    <div class="themes">
+
+      <!-- ─────────────── LIGHT ─────────────── -->
+      <div class="sp light">
+        <div class="sp-head"><span>Light theme</span><span>14px slot</span></div>
+        <div class="sp-body app">
+
+          <div class="state">
+            <div class="state-cap"><span class="dot"></span> Both favicons loaded &mdash; today, unchanged</div>
+            <div class="rows">
+              <div class="row on-surface">
+                <span class="sr-birdname sr-birdname-inline">
+                  <span class="sr-birdname-row">
+                    <a class="sr-birdname-link" href="#" tabindex="0">Northern Cardinal</a>
+                    <span class="sl">
+                      <a href="#" tabindex="0" title="View Northern Cardinal on eBird"><span class="sr-favicon-slot"><svg class="fav" viewBox="0 0 16 16" aria-hidden="true"><rect width="16" height="16" rx="3.2" fill="currentColor"/><path d="M4.3 10.6c1.5-3.6 3.6-5.3 6.4-5.5-.5 1.2-.4 2.1.2 3-1.7.2-2.9.9-3.6 2.2h2.6c-1 1.3-2.4 1.7-4.3 1.3z" fill="#fff" opacity=".92"/></svg></span></a>
+                      <a href="#" tabindex="0" title="View Northern Cardinal on Birds of the World"><span class="sr-favicon-slot"><svg class="fav" viewBox="0 0 16 16" aria-hidden="true"><rect width="16" height="16" rx="3.2" fill="currentColor"/><path d="M4.6 4.4h3.1c1.8 0 2.8.7 2.8 1.9 0 .8-.4 1.3-1.2 1.6 1 .2 1.6.9 1.6 1.8 0 1.3-1 2-2.9 2H4.6zm1.7 3h1.2c.7 0 1.1-.3 1.1-.8s-.4-.8-1.1-.8H6.3zm0 3.1h1.4c.8 0 1.2-.3 1.2-.9s-.4-.8-1.2-.8H6.3z" fill="#fff" opacity=".92"/></svg></span></a>
+                    </span>
+                  </span>
+                </span>
+                <span class="row-note">on --sr-surface</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="state">
+            <div class="state-cap"><span class="dot off"></span> eBird failed &mdash; the mixed pair</div>
+            <div class="rows">
+              <div class="row on-surface">
+                <span class="sr-birdname sr-birdname-inline">
+                  <span class="sr-birdname-row">
+                    <a class="sr-birdname-link" href="#" tabindex="0">Ring-billed Gull</a>
+                    <span class="sl">
+                      <a href="#" tabindex="0" title="View Ring-billed Gull on eBird"><span class="sr-favicon-slot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg></span></a>
+                      <a href="#" tabindex="0" title="View Ring-billed Gull on Birds of the World"><span class="sr-favicon-slot"><svg class="fav" viewBox="0 0 16 16" aria-hidden="true"><rect width="16" height="16" rx="3.2" fill="currentColor"/><path d="M4.6 4.4h3.1c1.8 0 2.8.7 2.8 1.9 0 .8-.4 1.3-1.2 1.6 1 .2 1.6.9 1.6 1.8 0 1.3-1 2-2.9 2H4.6zm1.7 3h1.2c.7 0 1.1-.3 1.1-.8s-.4-.8-1.1-.8H6.3zm0 3.1h1.4c.8 0 1.2-.3 1.2-.9s-.4-.8-1.2-.8H6.3z" fill="#fff" opacity=".92"/></svg></span></a>
+                    </span>
+                  </span>
+                </span>
+                <span class="row-note">on --sr-surface</span>
+              </div>
+              <div class="row on-subtle">
+                <span class="sr-birdname sr-birdname-inline">
+                  <span class="sr-birdname-row">
+                    <a class="sr-birdname-link" href="#" tabindex="0">Ring-billed Gull</a>
+                    <span class="sl">
+                      <a href="#" tabindex="0"><span class="sr-favicon-slot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg></span></a>
+                      <a href="#" tabindex="0"><span class="sr-favicon-slot"><svg class="fav" viewBox="0 0 16 16" aria-hidden="true"><rect width="16" height="16" rx="3.2" fill="currentColor"/><path d="M4.6 4.4h3.1c1.8 0 2.8.7 2.8 1.9 0 .8-.4 1.3-1.2 1.6 1 .2 1.6.9 1.6 1.8 0 1.3-1 2-2.9 2H4.6zm1.7 3h1.2c.7 0 1.1-.3 1.1-.8s-.4-.8-1.1-.8H6.3zm0 3.1h1.4c.8 0 1.2-.3 1.2-.9s-.4-.8-1.2-.8H6.3z" fill="#fff" opacity=".92"/></svg></span></a>
+                    </span>
+                  </span>
+                </span>
+                <span class="row-note">row hover</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="state">
+            <div class="state-cap"><span class="dot off"></span> Birds of the World failed</div>
+            <div class="rows">
+              <div class="row on-surface">
+                <span class="sr-birdname sr-birdname-inline">
+                  <span class="sr-birdname-row">
+                    <span class="sr-birdname-text">Rock Pigeon</span>
+                    <span class="sl">
+                      <a href="#" tabindex="0" title="View Rock Pigeon on eBird"><span class="sr-favicon-slot"><svg class="fav" viewBox="0 0 16 16" aria-hidden="true"><rect width="16" height="16" rx="3.2" fill="currentColor"/><path d="M4.3 10.6c1.5-3.6 3.6-5.3 6.4-5.5-.5 1.2-.4 2.1.2 3-1.7.2-2.9.9-3.6 2.2h2.6c-1 1.3-2.4 1.7-4.3 1.3z" fill="#fff" opacity=".92"/></svg></span></a>
+                      <a href="#" tabindex="0" title="View Rock Pigeon on Birds of the World"><span class="sr-favicon-slot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M7 7v10"/><path d="M11 7v10"/><path d="m15 7 2 10"/></svg></span></a>
+                    </span>
+                  </span>
+                </span>
+                <span class="row-note">no entry &mdash; plain name</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="state">
+            <div class="state-cap"><span class="dot off"></span> Both failed &mdash; every mark, offline</div>
+            <div class="rows">
+              <div class="row on-surface">
+                <span class="sr-birdname">
+                  <span class="sr-birdname-row">
+                    <a class="sr-birdname-link" href="#" tabindex="0">Red-winged Blackbird</a>
+                    <span class="sl">
+                      <a href="#" tabindex="0" title="View Red-winged Blackbird on eBird"><span class="sr-favicon-slot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg></span></a>
+                      <a href="#" tabindex="0" title="View Red-winged Blackbird on Birds of the World"><span class="sr-favicon-slot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M7 7v10"/><path d="M11 7v10"/><path d="m15 7 2 10"/></svg></span></a>
+                    </span>
+                  </span>
+                  <span class="sr-birdname-sci">Agelaius phoeniceus</span>
+                </span>
+                <span class="row-note">stacked sci name</span>
+              </div>
+              <div class="row on-quote">
+                <span class="sr-birdname sr-birdname-inline">
+                  <span class="sr-birdname-row">
+                    <a class="sr-birdname-link" href="#" tabindex="0">American Robin</a>
+                    <span class="sl">
+                      <a href="#" tabindex="0"><span class="sr-favicon-slot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg></span></a>
+                      <a href="#" tabindex="0"><span class="sr-favicon-slot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M7 7v10"/><path d="M11 7v10"/><path d="m15 7 2 10"/></svg></span></a>
+                    </span>
+                  </span>
+                </span>
+                <span class="row-note">quote block</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ─────────────── DARK ─────────────── -->
+      <div class="sp dark">
+        <div class="sp-head"><span>Dark theme</span><span>14px slot</span></div>
+        <div class="sp-body app">
+
+          <div class="state">
+            <div class="state-cap"><span class="dot"></span> Both favicons loaded &mdash; today, unchanged</div>
+            <div class="rows">
+              <div class="row on-surface">
+                <span class="sr-birdname sr-birdname-inline">
+                  <span class="sr-birdname-row">
+                    <a class="sr-birdname-link" href="#" tabindex="0">Northern Cardinal</a>
+                    <span class="sl">
+                      <a href="#" tabindex="0" title="View Northern Cardinal on eBird"><span class="sr-favicon-slot"><svg class="fav" viewBox="0 0 16 16" aria-hidden="true"><rect width="16" height="16" rx="3.2" fill="currentColor"/></svg></span></a>
+                      <a href="#" tabindex="0" title="View Northern Cardinal on Birds of the World"><span class="sr-favicon-slot"><svg class="fav" viewBox="0 0 16 16" aria-hidden="true"><rect width="16" height="16" rx="3.2" fill="currentColor"/></svg></span></a>
+                    </span>
+                  </span>
+                </span>
+                <span class="row-note">silhouetted by the shipped filter</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="state">
+            <div class="state-cap"><span class="dot off"></span> eBird failed &mdash; the mixed pair</div>
+            <div class="rows">
+              <div class="row on-surface">
+                <span class="sr-birdname sr-birdname-inline">
+                  <span class="sr-birdname-row">
+                    <a class="sr-birdname-link" href="#" tabindex="0">Ring-billed Gull</a>
+                    <span class="sl">
+                      <a href="#" tabindex="0" title="View Ring-billed Gull on eBird"><span class="sr-favicon-slot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg></span></a>
+                      <a href="#" tabindex="0" title="View Ring-billed Gull on Birds of the World"><span class="sr-favicon-slot"><svg class="fav" viewBox="0 0 16 16" aria-hidden="true"><rect width="16" height="16" rx="3.2" fill="currentColor"/></svg></span></a>
+                    </span>
+                  </span>
+                </span>
+                <span class="row-note">on --sr-surface</span>
+              </div>
+              <div class="row on-subtle">
+                <span class="sr-birdname sr-birdname-inline">
+                  <span class="sr-birdname-row">
+                    <a class="sr-birdname-link" href="#" tabindex="0">Ring-billed Gull</a>
+                    <span class="sl">
+                      <a href="#" tabindex="0"><span class="sr-favicon-slot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg></span></a>
+                      <a href="#" tabindex="0"><span class="sr-favicon-slot"><svg class="fav" viewBox="0 0 16 16" aria-hidden="true"><rect width="16" height="16" rx="3.2" fill="currentColor"/></svg></span></a>
+                    </span>
+                  </span>
+                </span>
+                <span class="row-note">row hover</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="state">
+            <div class="state-cap"><span class="dot off"></span> Birds of the World failed</div>
+            <div class="rows">
+              <div class="row on-surface">
+                <span class="sr-birdname sr-birdname-inline">
+                  <span class="sr-birdname-row">
+                    <span class="sr-birdname-text">Rock Pigeon</span>
+                    <span class="sl">
+                      <a href="#" tabindex="0" title="View Rock Pigeon on eBird"><span class="sr-favicon-slot"><svg class="fav" viewBox="0 0 16 16" aria-hidden="true"><rect width="16" height="16" rx="3.2" fill="currentColor"/></svg></span></a>
+                      <a href="#" tabindex="0" title="View Rock Pigeon on Birds of the World"><span class="sr-favicon-slot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M7 7v10"/><path d="M11 7v10"/><path d="m15 7 2 10"/></svg></span></a>
+                    </span>
+                  </span>
+                </span>
+                <span class="row-note">no entry &mdash; plain name</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="state">
+            <div class="state-cap"><span class="dot off"></span> Both failed &mdash; every mark, offline</div>
+            <div class="rows">
+              <div class="row on-surface">
+                <span class="sr-birdname">
+                  <span class="sr-birdname-row">
+                    <a class="sr-birdname-link" href="#" tabindex="0">Red-winged Blackbird</a>
+                    <span class="sl">
+                      <a href="#" tabindex="0" title="View Red-winged Blackbird on eBird"><span class="sr-favicon-slot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg></span></a>
+                      <a href="#" tabindex="0" title="View Red-winged Blackbird on Birds of the World"><span class="sr-favicon-slot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M7 7v10"/><path d="M11 7v10"/><path d="m15 7 2 10"/></svg></span></a>
+                    </span>
+                  </span>
+                  <span class="sr-birdname-sci">Agelaius phoeniceus</span>
+                </span>
+                <span class="row-note">stacked sci name</span>
+              </div>
+              <div class="row on-quote">
+                <span class="sr-birdname sr-birdname-inline">
+                  <span class="sr-birdname-row">
+                    <a class="sr-birdname-link" href="#" tabindex="0">American Robin</a>
+                    <span class="sl">
+                      <a href="#" tabindex="0"><span class="sr-favicon-slot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg></span></a>
+                      <a href="#" tabindex="0"><span class="sr-favicon-slot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M7 7v10"/><path d="M11 7v10"/><path d="m15 7 2 10"/></svg></span></a>
+                    </span>
+                  </span>
+                </span>
+                <span class="row-note">quote block</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <p class="callout" style="margin-top:18px">
+      <strong>About the favicons in this sheet.</strong> The two rasters are drawn as neutral
+      stand-ins, not the real eBird and Birds of the World marks &mdash; nothing third-party is
+      copied or bundled here, exactly as nothing is in the build. They are drawn at the real
+      14&times;14 full-bleed footprint and, in the dark panel, as the flat white silhouette at
+      0.65 opacity that the shipped <code>[data-theme="dark"] img.sr-favicon</code> filter
+      actually produces. That is what the mixed pair has to sit beside, so it is what matters
+      here.
+    </p>
+  </section>
+
+  <!-- ═══ GEOMETRY ═══════════════════════════════════════════════════════ -->
+  <section>
+    <div class="sec-head">
+      <span class="label">02</span>
+      <h2>Why this pair, at 14&nbsp;pixels</h2>
+    </div>
+    <p class="callout">
+      <strong>Circle against square is the strongest difference two 14px marks can have.</strong>
+      Both candidates draw to the edge of the box, so the pair matches the full-bleed rasters
+      they stand in for &mdash; and matches each other. Everything below is the real lucide
+      v1.14.0 geometry at stroke 2.2, shown at 8&times; with the shipped 14px beside it.
+    </p>
+    <div class="geo">
+
+      <div class="geo-card">
+        <span class="verdict take">eBird</span>
+        <div class="geo-stage">
+          <svg class="geo-big" width="112" height="112" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
+          <div class="geo-1x">
+            <span class="sr-favicon-slot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg></span>
+          </div>
+        </div>
+        <div class="geo-name">Globe</div>
+        <p class="geo-why">The worldwide observation network. Three strokes, all long and
+          widely separated &mdash; the interior survives at 14px on a 1&times; display, which
+          is the whole test. Ink box 20 units; outer extent 12.95px in the 14px slot.</p>
+      </div>
+
+      <div class="geo-card">
+        <span class="verdict take">Birds of the World</span>
+        <div class="geo-stage">
+          <svg class="geo-big" width="112" height="112" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M7 7v10"/><path d="M11 7v10"/><path d="m15 7 2 10"/></svg>
+          <div class="geo-1x">
+            <span class="sr-favicon-slot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M7 7v10"/><path d="M11 7v10"/><path d="m15 7 2 10"/></svg></span>
+          </div>
+        </div>
+        <div class="geo-name">SquareLibrary</div>
+        <p class="geo-why">The shelf of species accounts. The frame carries the identification
+          on its own, so the mark still reads even where the three spines merge; the leaning
+          spine is the tell. Ink box 18 units; outer extent 11.8px &mdash; smaller than the
+          circle by measurement, equal to it by eye.</p>
+      </div>
+
+      <div class="geo-card rejected">
+        <span class="verdict drop">Not used</span>
+        <div class="geo-stage">
+          <svg class="geo-big" width="112" height="112" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+          <div class="geo-1x">
+            <span class="sr-favicon-slot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg></span>
+          </div>
+        </div>
+        <div class="geo-name">BookOpen &mdash; proposed</div>
+        <p class="geo-why">This is the Species Detail tab glyph. The bird name it would sit
+          beside is itself the button to Species Detail, so an open book here points at the
+          wrong destination from two inches away. Overridden.</p>
+      </div>
+
+      <div class="geo-card rejected">
+        <span class="verdict drop">Not used</span>
+        <div class="geo-stage">
+          <svg class="geo-big" width="112" height="112" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 10h4"/><path d="M19 7V4a1 1 0 0 0-1-1h-2a1 1 0 0 0-1 1v3"/><path d="M20 21a2 2 0 0 0 2-2v-3.851c0-1.39-2-2.962-2-4.829V8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v11a2 2 0 0 0 2 2z"/><path d="M 22 16 L 2 16"/><path d="M4 21a2 2 0 0 1-2-2v-3.851c0-1.39 2-2.962 2-4.829V8a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v11a2 2 0 0 1-2 2z"/><path d="M9 7V4a1 1 0 0 0-1-1H6a1 1 0 0 0-1 1v3"/></svg>
+          <div class="geo-1x">
+            <span class="sr-favicon-slot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 10h4"/><path d="M19 7V4a1 1 0 0 0-1-1h-2a1 1 0 0 0-1 1v3"/><path d="M20 21a2 2 0 0 0 2-2v-3.851c0-1.39-2-2.962-2-4.829V8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v11a2 2 0 0 0 2 2z"/><path d="M 22 16 L 2 16"/><path d="M4 21a2 2 0 0 1-2-2v-3.851c0-1.39 2-2.962 2-4.829V8a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v11a2 2 0 0 1-2 2z"/><path d="M9 7V4a1 1 0 0 0-1-1H6a1 1 0 0 0-1 1v3"/></svg></span>
+          </div>
+        </div>
+        <div class="geo-name">Binoculars &mdash; proposed</div>
+        <p class="geo-why">Already the Map Explorer's "lifers" mode glyph, and eleven strokes
+          inside 14px collapse to a dark blob well before the meaning arrives. Overridden.</p>
+      </div>
+
+      <div class="geo-card rejected">
+        <span class="verdict drop">Not used</span>
+        <div class="geo-stage">
+          <svg class="geo-big" width="112" height="112" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.54 15H17a2 2 0 0 0-2 2v4.54"/><path d="M7 3.34V5a3 3 0 0 0 3 3a2 2 0 0 1 2 2c0 1.1.9 2 2 2a2 2 0 0 0 2-2c0-1.1.9-2 2-2h3.17"/><path d="M11 21.95V18a2 2 0 0 0-2-2a2 2 0 0 1-2-2v-1a2 2 0 0 0-2-2H2.05"/><circle cx="12" cy="12" r="10"/></svg>
+          <div class="geo-1x">
+            <span class="sr-favicon-slot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.54 15H17a2 2 0 0 0-2 2v4.54"/><path d="M7 3.34V5a3 3 0 0 0 3 3a2 2 0 0 1 2 2c0 1.1.9 2 2 2a2 2 0 0 0 2-2c0-1.1.9-2 2-2h3.17"/><path d="M11 21.95V18a2 2 0 0 0-2-2a2 2 0 0 1-2-2v-1a2 2 0 0 0-2-2H2.05"/><circle cx="12" cy="12" r="10"/></svg></span>
+          </div>
+        </div>
+        <div class="geo-name">Earth</div>
+        <p class="geo-why">The same circle as Globe, filled with 2-unit continental jogs that
+          are sub-pixel at 14px. It becomes a circle with grit in it.</p>
+      </div>
+
+      <div class="geo-card rejected">
+        <span class="verdict drop">Not used</span>
+        <div class="geo-stage">
+          <svg class="geo-big" width="112" height="112" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 7v14"/><path d="M16 12h2"/><path d="M16 8h2"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/><path d="M6 12h2"/><path d="M6 8h2"/></svg>
+          <div class="geo-1x">
+            <span class="sr-favicon-slot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 7v14"/><path d="M16 12h2"/><path d="M16 8h2"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/><path d="M6 12h2"/><path d="M6 8h2"/></svg></span>
+          </div>
+        </div>
+        <div class="geo-name">BookOpenText</div>
+        <p class="geo-why">Its four text ticks are 2 units long &mdash; 1.17px at this size, so
+          they vanish. What is left is BookOpen, inheriting BookOpen's collision.</p>
+      </div>
+
+      <div class="geo-card rejected">
+        <span class="verdict drop">Not used</span>
+        <div class="geo-stage">
+          <svg class="geo-big" width="112" height="112" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 6 4 14"/><path d="M12 6v14"/><path d="M8 8v12"/><path d="M4 4v16"/></svg>
+          <div class="geo-1x">
+            <span class="sr-favicon-slot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 6 4 14"/><path d="M12 6v14"/><path d="M8 8v12"/><path d="M4 4v16"/></svg></span>
+          </div>
+        </div>
+        <div class="geo-name">Library</div>
+        <p class="geo-why">Right idea, wrong frame. Four bare spines with nothing to hold them
+          have no silhouette: beside a solid raster favicon in the mixed pair they read as a
+          fragment, not a mark. <code>SquareLibrary</code> is the same idea with a boundary.</p>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ═══ DECISIONS ══════════════════════════════════════════════════════ -->
+  <section>
+    <div class="sec-head">
+      <span class="label">03</span>
+      <h2>The calls</h2>
+    </div>
+    <div class="decs">
+      <div class="dec">
+        <span class="label">Decision 1 · glyphs</span>
+        <p class="call"><em>Globe</em> for eBird, <em>SquareLibrary</em> for Birds of the World.</p>
+        <p>The idea's <code>Binoculars</code> / <code>BookOpen</code> pair is overridden: both
+          are spoken for in this app, and a book beside a name that already navigates to
+          Species Detail points at the wrong place. Circle against rounded square is the
+          cleanest 14px separation available.</p>
+      </div>
+      <div class="dec">
+        <span class="label">Decision 2 · size &amp; stroke</span>
+        <p class="call">14px nominal, stroke <em>2.2</em>, round caps, both marks.</p>
+        <p>The favicon's own footprint, so the slot never moves. Stroke 2.2 in a 24 viewBox
+          renders 1.28px at 14px &mdash; the design system's in-content weight. No per-glyph
+          size correction: the square's larger enclosed area already balances the circle.</p>
+      </div>
+      <div class="dec">
+        <span class="label">Decision 3 · color</span>
+        <p class="call">Set to <em>var(--sr-text)</em>, carried by the anchor's existing
+          0.75&nbsp;/&nbsp;1 opacity step.</p>
+        <p>Set explicitly, never inherited &mdash; <code>currentColor</code> alone would pick up
+          the accent inside a link context on some of the ten surfaces. No new hover rule and
+          no dark-mode filter: <code>--sr-text</code> flips themes by itself.</p>
+      </div>
+      <div class="dec">
+        <span class="label">Decision 4 · contrast</span>
+        <p class="call"><em>7.96:1</em> light, <em>7.63:1</em> dark, at rest, worst case.</p>
+        <p>Against a 3:1 floor. Both muted tokens were measured and both fail in light
+          (<code>--sr-text-muted</code> 2.93:1, <code>--sr-text-gray</code> 2.77:1 at 0.75
+          opacity), so ink is the only token that clears in both themes.</p>
+      </div>
+      <div class="dec">
+        <span class="label">Decision 5 · the mixed pair</span>
+        <p class="call">Acceptable as drawn, because both glyphs are <em>full-bleed</em>.</p>
+        <p>A raster favicon fills its 14px box; so do these. The pair keeps one size, one
+          spacing and one baseline, and reads as two marks of the same kind &mdash; which is
+          why the bare <code>Library</code> was dropped.</p>
+      </div>
+      <div class="dec">
+        <span class="label">Decision 6 · motion</span>
+        <p class="call">None. This is a <em>substitution</em>, not an entrance.</p>
+        <p>Offline, <code>onError</code> fires on every mark in a 200-row table at
+          unpredictable moments; any transition would be the doctrine's staggered-fade-in
+          anti-pattern, and <code>onLoad</code> would need to undo it. Nothing animates, so
+          there is no reduced-motion clause to write.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ CONTRAST ═══════════════════════════════════════════════════════ -->
+  <section>
+    <div class="twocol">
+      <div>
+        <div class="sec-head">
+          <span class="label">04</span>
+          <h2>Measured, not assumed</h2>
+        </div>
+        <div class="tbl-wrap">
+        <table>
+          <caption>WCAG 2.1 relative luminance for <code>--sr-text</code> composited at the
+            anchor's resting <code>opacity: 0.75</code> over every surface token a bird name
+            renders on. The fallback is app-drawn UI, so 1.4.11 applies and the floor is 3:1.</caption>
+          <thead>
+            <tr><th>Surface</th><th>Value</th><th style="text-align:right">At rest</th><th style="text-align:right">Hover</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><span class="chip" style="background:#FFFFFF"></span>--sr-surface</td><td class="mono">#FFFFFF</td><td class="r">8.52:1</td><td class="r">18.9:1</td></tr>
+            <tr><td><span class="chip" style="background:#FAFAFA"></span>--sr-surface-faint</td><td class="mono">#FAFAFA</td><td class="r">8.32:1</td><td class="r">18.1:1</td></tr>
+            <tr><td><span class="chip" style="background:#F9FAFB"></span>--sr-bg</td><td class="mono">#F9FAFB</td><td class="r">8.32:1</td><td class="r">18.1:1</td></tr>
+            <tr><td><span class="chip" style="background:#F4F4F5"></span>--sr-surface-subtle</td><td class="mono">#F4F4F5</td><td class="r">8.09:1</td><td class="r">17.2:1</td></tr>
+            <tr><td><span class="chip" style="background:#E8F5EE"></span>--sr-accent-bg</td><td class="mono">#E8F5EE</td><td class="r">8.00:1</td><td class="r">16.8:1</td></tr>
+            <tr class="floor"><td><span class="chip" style="background:#EFF1F3"></span>--sr-quote-bg <strong>(worst, light)</strong></td><td class="mono">#EFF1F3</td><td class="r">7.96:1</td><td class="r">16.7:1</td></tr>
+            <tr><td><span class="chip" style="background:#09090B"></span>--sr-bg (dark)</td><td class="mono">#09090B</td><td class="r">10.2:1</td><td class="r">18.1:1</td></tr>
+            <tr><td><span class="chip" style="background:#18181B"></span>--sr-surface (dark)</td><td class="mono">#18181B</td><td class="r">9.44:1</td><td class="r">16.1:1</td></tr>
+            <tr><td><span class="chip" style="background:#27272A"></span>--sr-surface-subtle (dark)</td><td class="mono">#27272A</td><td class="r">8.26:1</td><td class="r">13.6:1</td></tr>
+            <tr class="floor"><td><span class="chip" style="background:#2E2E33"></span>--sr-quote-bg (dark) <strong>(worst, dark)</strong></td><td class="mono">#2E2E33</td><td class="r">7.63:1</td><td class="r">12.3:1</td></tr>
+          </tbody>
+        </table>
+        </div>
+      </div>
+      <div>
+        <div class="sec-head">
+          <span class="label">05</span>
+          <h2>Rejected tokens</h2>
+        </div>
+        <div class="tbl-wrap">
+        <table>
+          <caption>Why the quieter tokens could not be used, at the same 0.75 resting opacity.</caption>
+          <thead><tr><th>Token</th><th style="text-align:right">Light</th><th style="text-align:right">Dark</th></tr></thead>
+          <tbody>
+            <tr class="fail"><td>--sr-text-muted<br><span class="mono" style="color:var(--ink-faint)">#6B6B74 / #A1A1AA</span></td><td class="r">2.93:1</td><td class="r">3.65:1</td></tr>
+            <tr class="fail"><td>--sr-text-gray<br><span class="mono" style="color:var(--ink-faint)">#6B7280 / #8A8A92</span></td><td class="r">2.77:1</td><td class="r">2.87:1</td></tr>
+            <tr class="floor"><td>--sr-text<br><span class="mono" style="color:var(--ink-faint)">#0F1117 / #F4F4F5</span></td><td class="r">7.96:1</td><td class="r">7.63:1</td></tr>
+          </tbody>
+        </table>
+        </div>
+        <p class="callout" style="margin-top:16px">
+          <strong>One token has to clear the floor in both themes.</strong>
+          <code>--sr-text-muted</code> passes in dark and fails in light &mdash; splitting it
+          per theme would be two rules where one will do, and the second would drift.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ BOUNDARIES ═════════════════════════════════════════════════════ -->
+  <section>
+    <div class="sec-head">
+      <span class="label">06</span>
+      <h2>What this refinement does not touch</h2>
+    </div>
+    <div class="twocol">
+      <div>
+        <p>The success state is untouched: both favicons load from both hosts on exactly the
+          schedule they do today, at the same size, in the same slots. The dark-mode
+          <code>img.sr-favicon</code> filter is left alone and deliberately does not reach the
+          glyph &mdash; <code>brightness(0) invert(1)</code> over a token-colored stroke would
+          fight the token it is meant to honour.</p>
+        <p>Nothing moves in either direction: the 14px slot, the 5px gap, the 6px left margin,
+          the 5px padding with its matching negative margin, and the resulting 24&times;24
+          targets are all as shipped. The glyph is <code>aria-hidden</code>, so the anchor's
+          accessible name is the only name announced &mdash; unchanged, and still the only
+          place the destination is spelled out.</p>
+      </div>
+      <div>
+        <p>In dark theme the glyph sits at a higher measured contrast than the silhouetted
+          favicon beside it (9.4:1 against 5.0:1 on <code>--sr-surface</code>). That gap is
+          left in place on purpose: a 1.28px outline covers roughly a quarter of the ink a
+          filled raster does, so the two land at comparable weight to the eye, and closing the
+          numbers would mean either dimming the fallback toward its 3:1 floor or brightening
+          the shipped success state, which is out of scope.</p>
+        <p>No new token is minted, no new dependency is added, and no CSS in
+          <code>.sr-favicon-slot</code> changes &mdash; the two guards that parse it stay
+          green.</p>
+      </div>
+    </div>
+  </section>
+
+  <p class="foot">
+    SnowRaven 1.0.19 &middot; <code>pipeline/species-link-glyph-fallback/design.html</code>
+    &middot; glyph geometry read from <code>lucide-react@1.14.0</code>, token values from
+    <code>frontend/src/globals.css</code>
+  </p>
+</div>
+</body>
+</html>

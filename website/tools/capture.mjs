@@ -86,16 +86,23 @@ const log = (...a) => console.log(...a);
 // matches nothing, eager or loading="lazy"; with no route registered both load
 // (48px natural). Same-origin traffic, fetch()-initiated cross-origin calls
 // and the map tiles are unaffected; the breakage is specific to <img> element
-// loads. SpeciesLinks hides a glyph whose load fails, so the blanket install
-// photographed empty 14px slots beside every species name on Species Detail,
-// Breeding Codes, Multimedia and Named Birds, where an online user sees the
-// eBird and Birds of the World glyphs.
+// loads. Under the build that shipped this comment SpeciesLinks hid a mark
+// whose load failed, so the blanket install photographed empty 14px slots
+// beside every species name on Species Detail, Breeding Codes, Multimedia and
+// Named Birds, where an online user sees the eBird and Birds of the World
+// icons. Since v1.0.19 a failed favicon is answered with a bundled lucide
+// glyph in the same slot, so a cancelled load no longer photographs as a hole.
 //
 // The rule: a route is scoped to the contexts whose frame DEPENDS on it, never
 // registered on a context "just in case". Accepted, stated cost: the
-// Statistics contexts keep the stub, so the one glyph in their frame (the
-// "First species ever" card) stays absent, as it already does on the App Store
-// Statistics shot. The only other route in this file is the per-shot
+// Statistics contexts keep the stub, so both favicons in their frame are still
+// cancelled, and the one mark pair in the shot (the "First species ever" card)
+// now photographs as the FALLBACK glyphs, a Globe and a SquareLibrary in app
+// ink, rather than as the two site icons an online user sees. Recapturing the
+// Statistics frames is DEFERRED, and the honest fix is capture-side rather
+// than app-side: the route stub is what cancels the cross-origin image loads,
+// so a recapture on a keyed rig would simply photograph the fallback glyphs
+// again. The only other route in this file is the per-shot
 // WEATHER_REPLAY abort on the weather context, whose frame has no glyph; that
 // one is intentional and stays.
 const provenanceStub = await buildProvenanceStub(BASE, new URL('./demo-data/ebird-backup.csv', import.meta.url));

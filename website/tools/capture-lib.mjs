@@ -177,9 +177,11 @@ export async function buildProvenanceStub(base, csvUrl) {
  *  canceled=true, identically for this stub's own checklists pattern and for a
  *  pattern that matches nothing; with no route registered both load.
  *  Same-origin traffic and fetch()-initiated cross-origin calls are unaffected;
- *  the breakage is specific to <img> element loads. SpeciesLinks hides a glyph
- *  whose load fails, so a tab that renders BirdName / SpeciesLinks photographs
- *  empty glyph slots on any context this is installed on. capture.mjs installed
+ *  the breakage is specific to <img> element loads. Since v1.0.19 SpeciesLinks
+ *  answers a failed favicon with a bundled lucide glyph in the same slot, so a
+ *  tab that renders BirdName / SpeciesLinks photographs those FALLBACK glyphs
+ *  (a Globe and a SquareLibrary, in app ink) on any context this is installed
+ *  on -- it photographed empty slots before that build. capture.mjs installed
  *  it on every context until the capture-provenance-route-scope fix and shipped
  *  four website shots that way. Both consumers now pass it per shot (each
  *  script's `statsRoutes`). The one other route either script registers is the
