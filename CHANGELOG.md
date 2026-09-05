@@ -2,6 +2,14 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [1.0.18] - 2026-09-04
+
+### Added
+- **Species Detail has a Show escapees switch, so its species count now matches Statistics.** The two tabs read the same backup and used to show different species counts once Statistics had checked exotic status: Statistics leaves out a species that eBird tags Exotic: Escapee on every checklist you recorded it on, following eBird's own life-list rule, while Species Detail listed every species and counted them all. A third switch in the Species Detail toolbar, after Show subspecies and Show all forms, now carries that rule. It is off by default, so the "N species" figure reads the same as the Species figure on Statistics and those birds are out of the species selector; turn it on and they come back, along with the number. The tab never asks eBird anything of its own: it reads the answer Statistics already saved on this device, so if Statistics has never run the check nothing changes, and a species stays listed while any checklist carrying it has not been checked. Under Show subspecies a domestic form of an escapee hides with its parent. Clicking an escapee's name in the Statistics list, or picking one in the Subspecies and forms control, turns the switch on and opens the species rather than opening the tab with nothing selected, and the same now holds for a form hidden by Show all forms. The switch is per-session, resetting on relaunch, and is not shared with the Count escapees checkbox on Statistics.
+
+### Changed
+- **The boxed switches respond to the pointer.** Show subspecies, Show all forms and the other framed switches across the app (Species Detail, Multimedia, Statistics, Checklists) now step their border and fill to the hover tones when the pointer is over them, in both themes. A switch that cannot be operated does not.
+
 ## [1.0.17] - 2026-09-04
 
 ### Changed

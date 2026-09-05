@@ -28,6 +28,8 @@ import { useHotspotSet } from '../lib/useHotspotSet'
 import type { ObservationEntry, MediaType } from '../types'
 import { normalizeSpeciesName, isNonCountableForm } from '../lib/speciesUtils'
 import { SHOW_FORMS_TOGGLE_LABEL } from '../lib/countabilityCopy'
+import { SHOW_ESCAPEES_TOGGLE_LABEL } from '../lib/exoticCopy'
+import { useProvenanceLookup } from '../lib/useProvenanceLookup'
 import { transport } from '../lib/transport'
 import { storage } from '../lib/storage'
 import { formatDate } from '../lib/formatDate'
@@ -77,6 +79,11 @@ type Phase =
 
 const COMMENTS_PAGE = 10
 
+// A stable empty input for the passive provenance hook while the backup is not
+// ready, so its confirmation pass is memoized on one reference rather than a
+// fresh `[]` per render (the Map Explorer's shape).
+const EMPTY_OBSERVATIONS: ObservationEntry[] = []
+
 // ── Main component ─────────────────────────────────────────────────────────
 
 export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, onRequestedSpeciesConsumed, embedAllowed }: { onGoToSettings: () => void; filesVersion?: number; requestedSpecies?: string; onRequestedSpeciesConsumed?: () => void; embedAllowed: boolean }) {
@@ -91,6 +98,12 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
 
   const [mergeSubspecies, setMergeSubspecies] = useState(true)
   const [showSpuh, setShowSpuh] = useState(false)
+  // "Show escapees": its own session-only state, never persisted and never
+  // shared with Statistics' `includeEscapees`. Both default to off, which is
+  // what makes the two tabs' figures agree; a shared store would let a press on
+  // Statistics silently reshape this selector, and possibly deselect the open
+  // species, while this tab sits hidden but mounted.
+  const [showEscapees, setShowEscapees] = useState(false)
 
   const [countyFilter, setCountyFilter] = useState<string | null>(null)
   const [dateRange, setDateRange] = useState<{ from: string; to: string }>({ from: '', to: '' })
@@ -160,6 +173,18 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
       selectSpecies(null)
     }
     setShowSpuh(nextShowSpuh)
+  }
+
+  // Mirrors handleToggleSpuh: switching off while an escapee species is the
+  // open one deselects it, so the selector never shows a name its own list no
+  // longer carries. Under "Show subspecies" the selection is a raw form name,
+  // hence the normalization, which is the same key the display layer uses.
+  const handleToggleEscapees = () => {
+    const next = !showEscapees
+    if (!next && selectedSpecies && escapeeNames.has(normalizeSpeciesName(selectedSpecies))) {
+      selectSpecies(null)
+    }
+    setShowEscapees(next)
   }
 
   const fetchTaxonData = async (obs: ObservationEntry[]) => {
@@ -272,24 +297,58 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
     return { sciNameMap: seen, sortedSpeciesList: sorted, countableKeys }
   }, [phase, taxonOrders, mergeSubspecies])
 
-  // Apply the countable-form filter ("Show all forms").
-  const displaySpeciesList = useMemo(
-    () => showSpuh ? sortedSpeciesList : sortedSpeciesList.filter(name => countableKeys.has(name)),
-    [sortedSpeciesList, showSpuh, countableKeys]
-  )
+  // The escapee rule, read PASSIVELY (the Calendar and Map Explorer pattern).
+  // `useProvenanceLookup` touches the storage seam and the pure model only: it
+  // imports no network module, needs no key, and initiates nothing; Statistics
+  // is the only initiator (FR-17), and `exoticProvenanceGraph.test.ts` enforces
+  // that by the import graph. Each published name is confirmed against the
+  // persisted checklist ledger using THIS tab's observations, so a name whose
+  // carrying checklist is not in the ledger stays visible. With an empty cache
+  // the set is empty and every number and option here is byte-identical to
+  // before the switch existed.
+  const escapeeNames = useProvenanceLookup(phase.tag === 'ready' ? phase.observations : EMPTY_OBSERVATIONS)
+
+  // Apply the countable-form filter ("Show all forms"), then the escapee layer
+  // ("Show escapees") on top of it. The two compose and neither replaces the
+  // other; `countableKeys` is untouched. The escapee set is keyed by normalized
+  // name, so under "Show subspecies" a raw form key ("Muscovy Duck (Domestic
+  // type)") hides with its parent. The "N species" figure is this list's length,
+  // so the rows and the number agree by construction.
+  const displaySpeciesList = useMemo(() => {
+    const countable = showSpuh ? sortedSpeciesList : sortedSpeciesList.filter(name => countableKeys.has(name))
+    if (showEscapees || escapeeNames.size === 0) return countable
+    return countable.filter(name => !escapeeNames.has(normalizeSpeciesName(name)))
+  }, [sortedSpeciesList, showSpuh, countableKeys, showEscapees, escapeeNames])
+
+  // Select a key of `sortedSpeciesList` that a toolbar switch may be hiding.
+  // A target that is in the export but absent from the selector is REVEALED
+  // rather than dropped: whichever switch hides it is turned on first, then it
+  // is selected. One condition covers both switches, so a name hidden by "Show
+  // all forms" (a hybrid clicked on Multimedia with that tab's switch on) is
+  // revealed exactly as an escapee clicked in the Statistics list is. On a key
+  // that is already visible neither branch fires, so this is a plain select.
+  const revealAndSelect = useCallback((match: string) => {
+    if (!countableKeys.has(match)) setShowSpuh(true)
+    if (escapeeNames.has(normalizeSpeciesName(match))) setShowEscapees(true)
+    selectSpecies(match)
+  }, [countableKeys, escapeeNames])
 
   // Select a species and scroll the detail back to the top (used by in-tab
   // BirdName clicks — Reported With / Top Locations — and external requests).
+  // The visible list is searched first, so a request never flips a switch it
+  // does not need to; only a target hidden by a switch falls through to the
+  // full key list and the reveal above.
   const rootRef = useRef<HTMLDivElement>(null)
   const openSpeciesInTab = useCallback((name: string) => {
     const target = mergeSubspecies ? normalizeSpeciesName(name) : name
-    const match = displaySpeciesList.includes(target)
-      ? target
-      : displaySpeciesList.find(n => normalizeSpeciesName(n) === normalizeSpeciesName(name))
+    const norm = normalizeSpeciesName(name)
+    const findIn = (list: readonly string[]): string | undefined =>
+      list.includes(target) ? target : list.find(n => normalizeSpeciesName(n) === norm)
+    const match = findIn(displaySpeciesList) ?? findIn(sortedSpeciesList)
     if (!match) return
-    selectSpecies(match)
+    revealAndSelect(match)
     requestAnimationFrame(() => smoothScrollIntoView(rootRef.current))
-  }, [mergeSubspecies, displaySpeciesList])
+  }, [mergeSubspecies, displaySpeciesList, sortedSpeciesList, revealAndSelect])
 
   // Consume an external "open this species" request once data is ready (single-use).
   // Deferred to a microtask so the selection state-update isn't applied
@@ -384,10 +443,13 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
   // prefers-reduced-motion and focuses the tabindex="-1" container). Deferred
   // a frame so the selection render has committed and the section exists.
   const breakdownRef = useRef<HTMLDivElement>(null)
+  // Through the reveal: the explorer lists every species with a form noted,
+  // which includes an escapee-only species carrying a domestic-type form, so a
+  // pick here can land on a name "Show escapees" is hiding from the selector.
   const pickExplorerSpecies = useCallback((name: string) => {
-    selectSpecies(name)
+    revealAndSelect(name)
     requestAnimationFrame(() => jumpTo(breakdownRef.current, { block: 'nearest' }))
-  }, [])
+  }, [revealAndSelect])
 
   // Media counts
   const mediaCounts = useMemo(
@@ -633,12 +695,20 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
   return (
     <div ref={rootRef} style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
 
-      {/* Toolbar. .sr-ctl-row keeps the two switches at the same phone-tier size as
-          the .sr-input-16 combobox directly beneath them (globals.css). */}
+      {/* Toolbar. .sr-ctl-row keeps the three switches at the same phone-tier size
+          as the .sr-input-16 combobox directly beneath them (globals.css). Order:
+          the merge control first, then the two reveal switches on the countability
+          axis (countabilityCopy.ts). "Show escapees" always renders, whether or not
+          Statistics has ever run the check: with an empty set it is a no-op, and a
+          control that appeared after a Statistics visit would be a layout shift and
+          a discoverability gap. The count is a polite live region (parity with the
+          Multimedia count): its text changes only when the number does, so a press
+          that hides nothing announces nothing. */}
       <div className="sr-ctl-row" style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexShrink: 0, flexWrap: 'wrap' }}>
         <ToggleSwitch label="Show subspecies" checked={!mergeSubspecies} onChange={handleToggleMerge} />
         <ToggleSwitch label={SHOW_FORMS_TOGGLE_LABEL} checked={showSpuh} onChange={handleToggleSpuh} />
-        <span style={{ marginLeft: 'auto', fontSize: '0.75rem', color: 'var(--sr-text-muted)' }}>
+        <ToggleSwitch label={SHOW_ESCAPEES_TOGGLE_LABEL} checked={showEscapees} onChange={handleToggleEscapees} />
+        <span aria-live="polite" style={{ marginLeft: 'auto', fontSize: '0.75rem', color: 'var(--sr-text-muted)' }}>
           {displaySpeciesList.length} species
         </span>
       </div>

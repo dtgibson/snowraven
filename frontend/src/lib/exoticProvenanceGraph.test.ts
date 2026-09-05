@@ -173,11 +173,24 @@ describe('the Calendar tab adds no network dependency (QA-40)', () => {
   })
 })
 
+describe('Species Detail reads the rule passively (species-detail-escapee-toggle)', () => {
+  it('Species Detail reads provenance through the passive hook only', () => {
+    // The tab already reaches `transport` for its own taxonomy batch, so the
+    // Calendar's whole-closure assertion does not transfer; what is asserted is
+    // the FR-17 half that does: the Show escapees layer is fed by the passive
+    // reader, and the tab never becomes a second initiator by importing the
+    // controller.
+    const code = readFileSync(resolve(SRC, 'components/SpeciesDetail.tsx'), 'utf8')
+    expect(code).toContain("from '../lib/useProvenanceLookup'")
+    expect(code).not.toContain('useExoticProvenance')
+  })
+})
+
 describe('only Statistics initiates a provenance request (FR-17, QA-22)', () => {
   it('useExoticProvenance is imported by exactly one component', () => {
     // A shared hook mounted outside Statistics would silently make some other
     // tab a requester. Enumerating the importers is what keeps that visible.
-    const roots = ['components/BirdingStats.tsx', 'components/Calendar.tsx', 'components/MapExplorer.tsx']
+    const roots = ['components/BirdingStats.tsx', 'components/Calendar.tsx', 'components/MapExplorer.tsx', 'components/SpeciesDetail.tsx']
     const importers = roots.filter(r => closure(r).has('lib/useExoticProvenance.ts'))
     expect(importers).toEqual(['components/BirdingStats.tsx'])
   })

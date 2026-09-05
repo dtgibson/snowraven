@@ -1,0 +1,617 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Show Escapees Toolbar</title>
+<script>
+(function () {
+  var dark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  if (/theme=dark/.test(location.search)) dark = true;
+  else if (/theme=light/.test(location.search)) dark = false;
+  document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+})();
+</script>
+<style>
+/* ────────────────────────────────────────────────────────────────────────────
+   Tokens: copied verbatim from frontend/src/globals.css (:root and
+   [data-theme="dark"]), the subset this surface touches. Names identical so
+   the Engineer can diff against the real sheet.
+   ──────────────────────────────────────────────────────────────────────────── */
+:root {
+  --sr-bg: #F9FAFB;
+  --sr-surface: #FFFFFF;
+  --sr-surface-subtle: #F4F4F5;
+  --sr-surface-faint: #FAFAFA;
+  --sr-text: #0F1117;
+  --sr-text-muted: #6B6B74;
+  --sr-text-gray: #6B7280;
+  --sr-border: #E4E4E7;
+  --sr-border-subtle: #F4F4F5;
+  --sr-border-medium: #C4C4CE;
+  --sr-border-input: #8A8A91;
+  --sr-accent: #277448;
+  --sr-accent-strong: #1A5C38;
+  --sr-accent-bg: #E8F5EE;
+  --sr-accent-bg-hover: #F0FAF4;
+  --sr-accent-border: rgba(39,116,72,0.25);
+  --sr-accent-surface: #fafffd;
+  --sr-on-accent: #FFFFFF;
+  --sr-gray-400: #8E8E96;
+  --sr-switch-thumb: #FFFFFF;
+  --sr-switch-thumb-shadow: 0 1px 2px rgba(0,0,0,0.25); /* shipped value, verbatim */
+  --sr-sticky-shadow: 0 3px 6px -2px rgba(15,17,23,0.12);
+  --font-sans: 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif; /* the app's shipped face (design-system.md: Type) */
+  color-scheme: light;
+}
+[data-theme="dark"] {
+  --sr-bg: #09090B;
+  --sr-surface: #18181B;
+  --sr-surface-subtle: #27272A;
+  --sr-surface-faint: #1C1C1F;
+  --sr-text: #F4F4F5;
+  --sr-text-muted: #A1A1AA;
+  --sr-text-gray: #8A8A92;
+  --sr-border: #27272A;
+  --sr-border-subtle: #1F1F23;
+  --sr-border-medium: #3F3F46;
+  --sr-border-input: #707078;
+  --sr-accent: #34D399;
+  --sr-accent-strong: #34D399;
+  --sr-accent-bg: #052E16;
+  --sr-accent-bg-hover: #064E3B;
+  --sr-accent-border: rgba(52,211,153,0.2);
+  --sr-accent-surface: #021a0f;
+  --sr-on-accent: #052E16;
+  --sr-gray-400: #6E6E78;
+  --sr-switch-thumb: #FFFFFF;
+  --sr-switch-thumb-shadow: 0 1px 2px rgba(0,0,0,0.25);
+  --sr-sticky-shadow: 0 3px 8px -2px rgba(2,2,4,0.60);
+  color-scheme: dark;
+}
+
+/* ── Page (the editorial layer around the product frames) ──────────────── */
+* { box-sizing: border-box; }
+html { background: var(--sr-bg); }
+body {
+  margin: 0; font-family: var(--font-sans); font-size: 16px; line-height: 1.5;
+  color: var(--sr-text);
+  background:
+    radial-gradient(120% 60% at 50% -10%, var(--sr-accent-surface) 0%, var(--sr-bg) 70%);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+.pg { max-width: 1160px; margin: 0 auto; padding: 40px 24px 96px; }
+.pg-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; flex-wrap: wrap; margin-bottom: 44px; }
+.pg-kicker { margin: 0 0 6px; font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--sr-accent); }
+.pg-title { margin: 0 0 8px; font-size: 1.75rem; font-weight: 700; letter-spacing: -0.015em; line-height: 1.2; }
+.pg-sub { margin: 0; max-width: 62ch; font-size: 0.9375rem; color: var(--sr-text-muted); }
+.pg-theme {
+  display: inline-flex; align-items: center; gap: 8px; flex-shrink: 0;
+  height: 34px; padding: 0 12px; border-radius: 8px;
+  border: 1.5px solid var(--sr-border); background: var(--sr-surface); color: var(--sr-text);
+  font: inherit; font-size: 0.8125rem; font-weight: 500; cursor: pointer;
+  transition: border-color 120ms ease-out, background 120ms ease-out;
+}
+.pg-theme:hover { border-color: var(--sr-border-medium); background: var(--sr-surface-subtle); }
+.pg-theme svg { width: 15px; height: 15px; color: var(--sr-text-muted); }
+
+.pg-section { margin: 0 0 56px; }
+.pg-section-head { max-width: 72ch; margin-bottom: 18px; }
+.pg-num { font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--sr-text-muted); margin: 0 0 6px; }
+.pg-h2 { margin: 0 0 8px; font-size: 1.25rem; font-weight: 700; letter-spacing: -0.01em; line-height: 1.25; }
+.pg-cap { margin: 0; font-size: 0.875rem; line-height: 1.55; color: var(--sr-text-muted); }
+.pg-cap + .pg-cap { margin-top: 8px; }
+.pg-fine { margin: 10px 0 0; font-size: 0.75rem; line-height: 1.55; color: var(--sr-text-muted); max-width: 72ch; }
+.pg-stack { display: flex; flex-direction: column; gap: 22px; }
+.pg-row { display: flex; gap: 22px; align-items: flex-start; flex-wrap: wrap; }
+.pg-scroll { overflow-x: auto; padding-bottom: 6px; }
+
+.pg-seg { display: inline-flex; gap: 2px; padding: 2px; border-radius: 7px; background: var(--sr-surface-subtle); margin: 0 0 16px; }
+.pg-seg button {
+  padding: 4px 10px; border: none; border-radius: 5px; font: inherit; font-size: 0.75rem; font-weight: 500;
+  color: var(--sr-text-muted); background: transparent; cursor: pointer;
+  transition: background 120ms ease-out, color 120ms ease-out;
+}
+.pg-seg button:hover { color: var(--sr-text); }
+.pg-seg button[aria-pressed="true"] { background: var(--sr-surface); color: var(--sr-text); font-weight: 600; box-shadow: var(--sr-sticky-shadow); }
+.pg-seg-label { display: inline-block; margin-right: 10px; font-size: 0.75rem; color: var(--sr-text-muted); }
+
+/* ── Frame: one stand-in for the app's content column at a given width ──── */
+.frame { flex-shrink: 0; }
+.frame-label { display: flex; align-items: baseline; gap: 10px; margin: 0 0 8px; font-size: 0.75rem; color: var(--sr-text-muted); }
+.frame-label b { font-weight: 600; color: var(--sr-text); }
+.frame-body {
+  --scale: 1;
+  font-size: calc(16px * var(--scale)); line-height: 1.5;
+  background: var(--sr-bg);
+  border: 1px solid var(--sr-border); border-radius: 12px;
+  padding: 22px 24px 24px;
+  box-shadow: var(--sr-sticky-shadow);
+}
+.frame--wide .frame-body { width: 808px; }
+.frame--640  .frame-body { width: 640px; }
+.frame--320  .frame-body { width: 320px; --scale: 2; }
+.frame--fluid .frame-body { width: 100%; }
+
+/* ── Product: the Species Detail toolbar row, verbatim geometry ─────────── */
+/* SpeciesDetail.tsx: the inline style on the toolbar's .sr-ctl-row */
+.sr-ctl-row { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-shrink: 0; flex-wrap: wrap; }
+
+/* ui/ToggleSwitch.tsx, boxed default: every value below is the shipped one.
+   The ONE addition is the :hover rule (proposed deviation, see design-refinement.md). */
+.sr-toggle {
+  display: inline-flex; align-items: center; gap: 7px;
+  height: 30px; padding: 0 10px 0 8px; border-radius: 6px;
+  border: 1.5px solid var(--sr-border); background: var(--sr-surface);
+  cursor: pointer; font-family: inherit; font-size: 0.75em; font-weight: 500;
+  color: var(--sr-text-muted); white-space: nowrap;
+  opacity: 1; transition: opacity 150ms ease-out, border-color 120ms ease-out, background 120ms ease-out;
+}
+.sr-toggle:hover, .sr-toggle.is-hover { border-color: var(--sr-border-medium); background: var(--sr-surface-subtle); }
+.sr-toggle-track {
+  width: 28px; height: 16px; border-radius: 8px; flex-shrink: 0; position: relative;
+  background: var(--sr-gray-400); transition: background 180ms ease-out;
+}
+.sr-toggle[aria-checked="true"] .sr-toggle-track { background: var(--sr-accent); }
+.sr-toggle-knob {
+  width: 12px; height: 12px; border-radius: 50%;
+  background: var(--sr-switch-thumb); position: absolute; top: 2px; left: 2px;
+  transition: left 180ms ease-out; box-shadow: var(--sr-switch-thumb-shadow);
+}
+.sr-toggle[aria-checked="true"] .sr-toggle-knob { left: 14px; }
+
+/* SpeciesDetail.tsx: the trailing count span */
+.sr-count { margin-left: auto; font-size: 0.75em; color: var(--sr-text-muted); }
+
+/* Global focus ring (globals.css) */
+button:focus-visible, [role="switch"]:focus-visible, [tabindex]:focus-visible, .sr-toggle.is-focus {
+  outline: 3px solid var(--sr-accent); outline-offset: 3px;
+  box-shadow: 0 0 0 6px rgba(45, 134, 83, 0.12);
+}
+input:focus-visible {
+  outline: 2px solid var(--sr-accent); outline-offset: 0;
+  border-color: var(--sr-accent) !important;
+  box-shadow: 0 0 0 4px rgba(45, 134, 83, 0.12);
+}
+
+/* Phone tier (globals.css, the ≤640 block), emulated with a class because three
+   widths share one page. The declarations are the shipped ones. */
+.tier-phone .sr-input-16,
+.tier-phone .sr-ctl-row :is(button, select, input) { font-size: max(16px, 0.75em) !important; }
+
+/* ── Product: SpeciesCombobox, size md (the Species Detail hero register) ── */
+.sr-picker { position: relative; min-width: 0; margin-bottom: 16px; }
+.sr-picker-field { position: relative; }
+.sr-picker-icon { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--sr-text-muted); pointer-events: none; display: flex; }
+.sr-picker-icon svg { width: 15px; height: 15px; }
+.sr-picker-input {
+  width: 100%; height: 40px; padding: 0 34px 0 38px;
+  border: 1.5px solid var(--sr-border-input); border-radius: 8px;
+  font-size: 0.875em; font-weight: 400; font-family: inherit;
+  color: var(--sr-text); background: var(--sr-surface);
+  transition: border-color 0.15s; min-width: 0;
+}
+.sr-picker-input.has-value { font-weight: 500; }
+.sr-picker-input::placeholder { color: var(--sr-text-muted); opacity: 1; }
+.sr-picker.is-open .sr-picker-input { border-color: var(--sr-accent); border-radius: 8px 8px 0 0; border-bottom-color: transparent; font-weight: 400; }
+.sr-picker-chevron {
+  position: absolute; right: 7px; top: 50%; transform: translateY(-50%) rotate(0deg);
+  transition: transform 0.15s; cursor: pointer; color: var(--sr-text-muted); display: flex;
+  background: transparent; border: none; padding: 4px;
+}
+.sr-picker-chevron svg { width: 16px; height: 16px; }
+.sr-picker.is-open .sr-picker-chevron { transform: translateY(-50%) rotate(180deg); }
+
+/* The listbox. Rendered IN FLOW in this mockup (the shipped one is absolute over
+   the content beneath, which these frames do not have); the entrance is the
+   shipped 140ms scaleY from the input's edge. */
+.sr-combobox-list {
+  background: var(--sr-surface);
+  border: 1.5px solid var(--sr-accent); border-top: none; border-radius: 0 0 8px 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.1); /* shipped value, verbatim */
+  max-height: 260px; overflow-y: auto;
+  transform-origin: top center;
+  animation: sr-combobox-list-in 140ms cubic-bezier(0.2, 0, 0, 1);
+}
+.sr-combobox-list[hidden] { display: none; }
+@keyframes sr-combobox-list-in {
+  from { opacity: 0; transform: scaleY(0.96); }
+  to   { opacity: 1; transform: scaleY(1); }
+}
+.sr-opt { display: flex; align-items: center; gap: 10px; padding: 9px 14px; cursor: pointer; background: transparent; }
+.sr-opt:hover { background: var(--sr-surface-subtle); }
+.sr-opt[aria-selected="true"] { background: var(--sr-accent-bg); }
+.sr-opt.is-active { background: var(--sr-accent-bg-hover); outline: 2px solid var(--sr-accent); outline-offset: -2px; }
+.sr-opt-check { width: 16px; flex-shrink: 0; color: var(--sr-accent); display: flex; }
+.sr-opt-check svg { width: 13px; height: 13px; }
+.sr-opt-name { font-size: 0.84375em; font-weight: 500; color: var(--sr-text); flex: 1; }
+.sr-opt[aria-selected="true"] .sr-opt-name { color: var(--sr-accent); }
+.sr-opt-name.is-all { font-style: italic; }
+.sr-opt-sci { font-size: 0.6875em; font-style: italic; color: var(--sr-text-muted); flex: 0 1 auto; max-width: 40%; text-align: right; }
+.sr-truncate { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sr-empty { padding: 12px 14px; font-size: 0.8125em; color: var(--sr-text-muted); }
+
+/* ── States strip ───────────────────────────────────────────────────────── */
+.states { display: flex; gap: 28px; flex-wrap: wrap; }
+.state { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.state-name { font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--sr-text-muted); }
+.state .frame-body { padding: 16px 18px; }
+
+#measure { display: none; }
+#measure.on { display: block; margin-top: 24px; font-size: 12px; white-space: pre-wrap; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
+}
+@media (max-width: 720px) {
+  .pg { padding: 28px 16px 72px; }
+  .pg-title { font-size: 1.5rem; }
+}
+</style>
+</head>
+<body>
+<div class="pg">
+  <header class="pg-head">
+    <div>
+      <p class="pg-kicker">Species Detail · toolbar refinement</p>
+      <h1 class="pg-title">A third switch: Show escapees</h1>
+      <p class="pg-sub">At the default, Species Detail now reads the same count as the Statistics headline. One press puts the three escapee-only species back in the selector, and the number with them.</p>
+    </div>
+    <button type="button" class="pg-theme" id="themeBtn" tabindex="0" aria-pressed="false">
+      <svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+      <span id="themeLabel">Dark theme</span>
+    </button>
+  </header>
+
+  <!-- 01 ─────────────────────────────────────────────────────────────── -->
+  <section class="pg-section" aria-labelledby="h-01">
+    <div class="pg-section-head">
+      <p class="pg-num">01 · Today and refined</p>
+      <h2 class="pg-h2" id="h-01">The toolbar row, before and after</h2>
+      <p class="pg-cap">Same export, same row. Today the figure reads 267 while Statistics reads 264, because this tab has no counterpart to the escapee rule. Refined, a third switch carries that rule in the tab's own verb: off by default, so the two tabs agree at their defaults, and one press restores Graylag Goose, Swan Goose and Muscovy Duck along with the number.</p>
+    </div>
+    <div class="pg-scroll">
+      <div class="pg-stack">
+        <div class="frame frame--wide">
+          <p class="frame-label"><b>Today</b> two switches, 267 species</p>
+          <div class="frame-body" data-surface data-base="267"></div>
+        </div>
+        <div class="frame frame--wide">
+          <p class="frame-label"><b>Refined</b> three switches, 264 species at the default</p>
+          <div class="frame-body" data-surface data-base="264" data-esc></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 02 ─────────────────────────────────────────────────────────────── -->
+  <section class="pg-section" aria-labelledby="h-02">
+    <div class="pg-section-head">
+      <p class="pg-num">02 · The press</p>
+      <h2 class="pg-h2" id="h-02">Show escapees, off and on</h2>
+      <p class="pg-cap">Off hides the three escapee-only species and reads 264; on restores them and reads 267. Switching off while an escapee is selected clears the selection, exactly as Show all forms does for a form. With Show subspecies on, a domestic-type form hides with its parent.</p>
+      <p class="pg-cap">The list is pinned open here so the rows can be watched. The shipped picker closes on any click outside it and shows the changed list on its next open.</p>
+    </div>
+    <div class="pg-scroll">
+      <div class="frame frame--wide">
+        <p class="frame-label"><b>Refined</b> live, list open</p>
+        <div class="frame-body" data-surface data-base="264" data-esc data-open data-pinned></div>
+      </div>
+    </div>
+    <p class="pg-fine">264 and 267 are the reference export's figures. The Show subspecies and Show all forms deltas in this page (+14 and +6) are stand-ins; the app derives them from the export.</p>
+  </section>
+
+  <!-- 03 ─────────────────────────────────────────────────────────────── -->
+  <section class="pg-section" aria-labelledby="h-03">
+    <div class="pg-section-head">
+      <p class="pg-num">03 · Three widths</p>
+      <h2 class="pg-h2" id="h-03">One control group at every width</h2>
+      <p class="pg-cap">Nothing new in the layout. The row wraps as it does today, the phone tier raises every control in it to max(16px, 0.75rem), and the count keeps its right edge on whichever line it lands. The 320px column is pinned at 200% text size; the control below sets the other two.</p>
+    </div>
+    <div>
+      <span class="pg-seg-label">Text size</span>
+      <div class="pg-seg" role="group" aria-label="Text size for the wide and 640px frames">
+        <button type="button" tabindex="0" data-scale="1" aria-pressed="true">100%</button>
+        <button type="button" tabindex="0" data-scale="1.5" aria-pressed="false">150%</button>
+        <button type="button" tabindex="0" data-scale="2" aria-pressed="false">200%</button>
+      </div>
+    </div>
+    <div class="pg-scroll">
+      <div class="pg-stack">
+        <div class="frame frame--wide">
+          <p class="frame-label"><b>Desktop</b> 760px content column</p>
+          <div class="frame-body" data-surface data-base="264" data-esc data-scaled></div>
+        </div>
+        <div class="pg-row">
+          <div class="frame frame--640">
+            <p class="frame-label"><b>640px</b> phone tier, 592px content column</p>
+            <div class="frame-body tier-phone" data-surface data-base="264" data-esc data-scaled></div>
+          </div>
+          <div class="frame frame--320">
+            <p class="frame-label"><b>320px at 200%</b> 272px content column</p>
+            <div class="frame-body tier-phone" data-surface data-base="264" data-esc></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 04 ─────────────────────────────────────────────────────────────── -->
+  <section class="pg-section" aria-labelledby="h-04">
+    <div class="pg-section-head">
+      <p class="pg-num">04 · States and motion</p>
+      <h2 class="pg-h2" id="h-04">Rest, hover, focus, on</h2>
+      <p class="pg-cap">Focus is the app's global ring. Hover is the one proposed addition to the shared switch: the border steps to the medium token and the fill to the subtle surface, 120ms ease-out. The knob slides in 180ms ease-out, the list opens in 140ms from the input's edge, and both settle in place under Reduce Motion.</p>
+    </div>
+    <div class="states">
+      <div class="state"><span class="state-name">Rest</span><div class="frame-body"><button type="button" class="sr-toggle" role="switch" aria-checked="false" tabindex="0"><span class="sr-toggle-track"><span class="sr-toggle-knob"></span></span><span>Show escapees</span></button></div></div>
+      <div class="state"><span class="state-name">Hover</span><div class="frame-body"><button type="button" class="sr-toggle is-hover" role="switch" aria-checked="false" tabindex="0"><span class="sr-toggle-track"><span class="sr-toggle-knob"></span></span><span>Show escapees</span></button></div></div>
+      <div class="state"><span class="state-name">Focus</span><div class="frame-body"><button type="button" class="sr-toggle is-focus" role="switch" aria-checked="false" tabindex="0"><span class="sr-toggle-track"><span class="sr-toggle-knob"></span></span><span>Show escapees</span></button></div></div>
+      <div class="state"><span class="state-name">On</span><div class="frame-body"><button type="button" class="sr-toggle" role="switch" aria-checked="true" tabindex="0"><span class="sr-toggle-track"><span class="sr-toggle-knob"></span></span><span>Show escapees</span></button></div></div>
+    </div>
+    <p class="pg-fine">The four above are static exemplars; every switch in sections 01 to 03 is live and keyboard operable (Tab, then Space or Enter).</p>
+  </section>
+
+  <pre id="measure" aria-hidden="true"></pre>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* Realistic slice of a waterfowl-heavy export, in taxonomic order. `esc` marks
+     the three species eBird tags Exotic: Escapee on every checklist that carries
+     them (the reference export). `form` marks a non-countable form; `raw` holds the
+     exact-name keys the Show subspecies view lists instead of the merged name. */
+  var SPECIES = [
+    { n: 'Snow Goose', s: 'Anser caerulescens' },
+    { n: "Snow x Ross's Goose (hybrid)", s: 'Anser caerulescens x rossii', form: true },
+    { n: 'Graylag Goose', s: 'Anser anser', esc: true, raw: [{ n: 'Graylag Goose (Domestic type)', s: 'Anser anser (Domestic type)' }] },
+    { n: 'Swan Goose', s: 'Anser cygnoides', esc: true, raw: [{ n: 'Swan Goose (Domestic type)', s: 'Anser cygnoides (Domestic type)' }] },
+    { n: 'Greater White-fronted Goose', s: 'Anser albifrons' },
+    { n: 'Cackling Goose', s: 'Branta hutchinsii', raw: [{ n: 'Cackling Goose', s: 'Branta hutchinsii' }, { n: "Cackling Goose (Richardson's)", s: 'Branta hutchinsii hutchinsii' }] },
+    { n: 'Canada Goose', s: 'Branta canadensis', raw: [{ n: 'Canada Goose', s: 'Branta canadensis' }, { n: 'Canada Goose (moffitti/maxima)', s: 'Branta canadensis moffitti/maxima' }] },
+    { n: 'Cackling/Canada Goose', s: 'Branta hutchinsii/canadensis', form: true },
+    { n: 'goose sp.', s: 'Anserinae sp.', form: true },
+    { n: 'Mute Swan', s: 'Cygnus olor' },
+    { n: 'Trumpeter Swan', s: 'Cygnus buccinator' },
+    { n: 'Muscovy Duck', s: 'Cairina moschata', esc: true, raw: [{ n: 'Muscovy Duck (Domestic type)', s: 'Cairina moschata (Domestic type)' }] },
+    { n: 'Wood Duck', s: 'Aix sponsa' }
+  ];
+  var ESC_DELTA = 3, FORMS_DELTA = 6, SUB_DELTA = 14;
+
+  var ICON = {
+    search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>',
+    chevron: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>',
+    check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>'
+  };
+
+  function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+
+  function switchHtml(key, label) {
+    return '<button type="button" class="sr-toggle" role="switch" aria-checked="false" tabindex="0" data-k="' + key + '">' +
+      '<span class="sr-toggle-track"><span class="sr-toggle-knob"></span></span><span>' + esc(label) + '</span></button>';
+  }
+
+  var seq = 0;
+
+  function Surface(root) {
+    this.root = root;
+    this.id = 'sf' + (++seq);
+    this.hasEsc = root.hasAttribute('data-esc');
+    this.pinned = root.hasAttribute('data-pinned');
+    this.base = parseInt(root.getAttribute('data-base'), 10);
+    this.st = { sub: false, forms: false, esc: false, sel: null, open: root.hasAttribute('data-open'), q: '', act: -1 };
+    this.build();
+    this.render();
+  }
+
+  Surface.prototype.build = function () {
+    var h = '<div class="sr-ctl-row">' +
+      switchHtml('sub', 'Show subspecies') +
+      switchHtml('forms', 'Show all forms') +
+      (this.hasEsc ? switchHtml('esc', 'Show escapees') : '') +
+      '<span class="sr-count" aria-live="polite"></span></div>' +
+      '<div class="sr-picker"><div class="sr-picker-field">' +
+      '<span class="sr-picker-icon">' + ICON.search + '</span>' +
+      '<input type="text" class="sr-picker-input sr-input-16" role="combobox" aria-label="Select species" aria-expanded="false" aria-autocomplete="list" aria-haspopup="listbox" aria-controls="' + this.id + '-list" placeholder="Choose a species…" autocomplete="off">' +
+      '<button type="button" class="sr-picker-chevron" tabindex="-1" aria-label="Toggle species list">' + ICON.chevron + '</button>' +
+      '</div><div class="sr-combobox-list" role="listbox" id="' + this.id + '-list" aria-label="Select species" hidden></div></div>';
+    this.root.innerHTML = h;
+    this.$count = this.root.querySelector('.sr-count');
+    this.$picker = this.root.querySelector('.sr-picker');
+    this.$input = this.root.querySelector('.sr-picker-input');
+    this.$list = this.root.querySelector('.sr-combobox-list');
+    var self = this;
+
+    this.root.querySelectorAll('.sr-toggle').forEach(function (b) {
+      b.addEventListener('click', function () { self.toggle(b.getAttribute('data-k')); });
+    });
+    this.$input.addEventListener('focus', function () {
+      self.st.q = ''; self.st.act = -1; self.st.open = true; self.render(); self.$input.select();
+    });
+    this.$input.addEventListener('input', function () {
+      self.st.q = self.$input.value; self.st.act = -1; if (!self.st.open) self.st.open = true; self.render();
+    });
+    this.$input.addEventListener('keydown', function (e) {
+      var rows = self.rows();
+      if (e.key === 'ArrowDown') { e.preventDefault(); self.st.open = true; self.st.act = Math.min(rows.length - 1, self.st.act + 1); self.render(); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); self.st.act = Math.max(-1, self.st.act - 1); self.render(); }
+      else if (e.key === 'Enter') {
+        e.preventDefault();
+        var target = self.st.act >= 0 ? rows[self.st.act] : rows.filter(function (r) { return r.kind === 'species'; })[0];
+        if (target) self.choose(target);
+      }
+      else if (e.key === 'Escape') { if (self.st.open) { e.stopPropagation(); self.st.open = false; self.render(); } }
+    });
+    this.root.querySelector('.sr-picker-chevron').addEventListener('mousedown', function (e) { e.preventDefault(); });
+    this.root.querySelector('.sr-picker-chevron').addEventListener('click', function () {
+      self.st.open = !self.st.open; self.st.q = ''; self.st.act = -1; self.render();
+    });
+    this.$list.addEventListener('click', function (e) {
+      var opt = e.target.closest('.sr-opt'); if (!opt) return;
+      var idx = parseInt(opt.getAttribute('data-idx'), 10);
+      self.choose(self.rows()[idx]);
+    });
+    document.addEventListener('click', function (e) {
+      if (self.pinned || !self.st.open) return;
+      if (!self.$picker.contains(e.target)) { self.st.open = false; self.render(); }
+    });
+  };
+
+  Surface.prototype.toggle = function (k) {
+    this.st[k] = !this.st[k];
+    if (this.st.sel !== null) {
+      var still = this.rows().some(function (r) { return r.kind === 'species' && r.name === this.st.sel; }, this);
+      if (!still) this.st.sel = null;
+    }
+    this.st.act = -1;
+    this.render();
+  };
+
+  Surface.prototype.choose = function (row) {
+    this.st.sel = row.kind === 'all' ? null : row.name;
+    this.st.q = ''; this.st.open = this.pinned ? true : false; this.st.act = -1;
+    this.render();
+    if (!this.pinned) this.$input.blur();
+  };
+
+  /* The display list: the countable-form filter first, the escapee rule as a layer
+     on top of it, and the exact-name keys only under Show subspecies. */
+  Surface.prototype.rows = function () {
+    var st = this.st, hasEsc = this.hasEsc, out = [{ kind: 'all', name: 'All species' }];
+    SPECIES.forEach(function (sp) {
+      if (sp.form && !st.forms) return;
+      if (sp.esc && hasEsc && !st.esc) return;
+      var keys = st.sub && sp.raw ? sp.raw : [{ n: sp.n, s: sp.s }];
+      keys.forEach(function (k) { out.push({ kind: 'species', name: k.n, sci: k.s }); });
+    });
+    if (st.open && st.q.trim() !== '') {
+      var q = st.q.trim().toLowerCase();
+      out = out.filter(function (r) { return r.kind === 'all' || r.name.toLowerCase().indexOf(q) >= 0 || (r.sci || '').toLowerCase().indexOf(q) >= 0; });
+    }
+    return out;
+  };
+
+  Surface.prototype.count = function () {
+    var st = this.st;
+    return this.base + (this.hasEsc && st.esc ? ESC_DELTA : 0) + (st.forms ? FORMS_DELTA : 0) + (st.sub ? SUB_DELTA : 0);
+  };
+
+  Surface.prototype.render = function () {
+    var st = this.st, self = this;
+    this.root.querySelectorAll('.sr-toggle').forEach(function (b) {
+      b.setAttribute('aria-checked', st[b.getAttribute('data-k')] ? 'true' : 'false');
+    });
+    var n = this.count();
+    if (this.$count.textContent !== n + ' species') this.$count.textContent = n + ' species';
+
+    this.$picker.classList.toggle('is-open', st.open);
+    this.$input.setAttribute('aria-expanded', st.open ? 'true' : 'false');
+    /* Open, the shipped input shows the query. The pinned demo surface keeps its
+       list open after a pick, so there it shows the selection while the query is
+       empty, or the pick would be visible only as the check mark in the list. */
+    var shown = st.open ? (st.q || (this.pinned ? (st.sel || '') : '')) : (st.sel || '');
+    if (this.$input.value !== shown) this.$input.value = shown;
+    this.$input.classList.toggle('has-value', !!st.sel && (!st.open || (this.pinned && st.q === '')));
+
+    var rows = this.rows();
+    if (st.act >= 0) this.$input.setAttribute('aria-activedescendant', this.id + '-opt-' + st.act);
+    else this.$input.removeAttribute('aria-activedescendant');
+
+    if (!st.open) { this.$list.hidden = true; this.$list.innerHTML = ''; return; }
+    var wasHidden = this.$list.hidden;
+    var speciesRows = rows.filter(function (r) { return r.kind === 'species'; });
+    var h = '';
+    if (speciesRows.length === 0 && st.q.trim() !== '') {
+      h = '<div class="sr-empty">No species match this search.</div>';
+    } else {
+      rows.forEach(function (r, i) {
+        var selected = r.kind === 'all' ? st.sel === null : r.name === st.sel;
+        h += '<div class="sr-opt' + (i === st.act ? ' is-active' : '') + '" role="option" id="' + self.id + '-opt-' + i + '" data-idx="' + i + '" aria-selected="' + (selected ? 'true' : 'false') + '">' +
+          '<span class="sr-opt-check">' + (selected ? ICON.check : '') + '</span>' +
+          '<span class="sr-opt-name sr-truncate' + (r.kind === 'all' ? ' is-all' : '') + '">' + esc(r.name) + '</span>' +
+          (r.kind === 'species' && r.sci ? '<span class="sr-opt-sci sr-truncate">' + esc(r.sci) + '</span>' : '') +
+          '</div>';
+      });
+    }
+    this.$list.innerHTML = h;
+    if (wasHidden) {
+      /* Re-trigger the entrance only on open, never on a re-render of an open list. */
+      this.$list.hidden = false;
+      this.$list.style.animation = 'none';
+      void this.$list.offsetWidth;
+      this.$list.style.animation = '';
+    }
+  };
+
+  var surfaces = [];
+  document.querySelectorAll('[data-surface]').forEach(function (el) { surfaces.push(new Surface(el)); });
+
+  /* Theme: the app's data-theme attribute on <html>. */
+  var htmlEl = document.documentElement;
+  var btn = document.getElementById('themeBtn'), lbl = document.getElementById('themeLabel'), icon = document.getElementById('themeIcon');
+  var SUN = '<circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>';
+  var MOON = '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>';
+  function setTheme(dark) {
+    htmlEl.setAttribute('data-theme', dark ? 'dark' : 'light');
+    btn.setAttribute('aria-pressed', dark ? 'true' : 'false');
+    lbl.textContent = dark ? 'Light theme' : 'Dark theme';
+    icon.innerHTML = dark ? SUN : MOON;
+  }
+  setTheme(htmlEl.getAttribute('data-theme') === 'dark');
+  btn.addEventListener('click', function () { setTheme(htmlEl.getAttribute('data-theme') !== 'dark'); });
+
+  /* Text size for the two scalable frames in 03. */
+  var scaled = document.querySelectorAll('[data-scaled]');
+  document.querySelectorAll('.pg-seg button').forEach(function (b) {
+    b.addEventListener('click', function () {
+      document.querySelectorAll('.pg-seg button').forEach(function (o) { o.setAttribute('aria-pressed', o === b ? 'true' : 'false'); });
+      scaled.forEach(function (f) { f.style.setProperty('--scale', b.getAttribute('data-scale')); });
+    });
+  });
+
+  /* ?measure: overflow report for the run record (read by a headless browser). */
+  if (/measure/.test(location.search)) {
+    var out = [];
+    function report(tag) {
+      document.querySelectorAll('.frame-body[data-surface]').forEach(function (f, i) {
+        var row = f.querySelector('.sr-ctl-row');
+        var over = f.scrollWidth - f.clientWidth;
+        var rowOver = row.scrollWidth - row.clientWidth;
+        var lines = new Set(); Array.prototype.forEach.call(row.children, function (c) { var r = c.getBoundingClientRect(); lines.add(Math.round(r.top + r.height / 2)); });
+        var clipped = Array.prototype.filter.call(row.querySelectorAll('.sr-toggle'), function (b) { return b.scrollWidth > b.clientWidth + 1; }).length;
+        out.push(tag + ' frame' + (i + 1) + ' w=' + f.clientWidth + ' scale=' + getComputedStyle(f).getPropertyValue('--scale').trim() + ' frameOverflow=' + over + ' rowOverflow=' + rowOver + ' rowLines=' + lines.size + ' clippedSwitches=' + clipped + ' fontPx=' + getComputedStyle(row.querySelector('.sr-toggle')).fontSize);
+      });
+    }
+    var t0 = document.querySelector('.frame-body[data-surface] .sr-toggle');
+    out.push('theme=' + htmlEl.getAttribute('data-theme') + ' toggleBg=' + getComputedStyle(t0).backgroundColor + ' toggleColor=' + getComputedStyle(t0).color + ' themeBtnBg=' + getComputedStyle(btn).backgroundColor);
+    report('scale1');
+    scaled.forEach(function (f) { f.style.setProperty('--scale', '2'); });
+    report('scale2');
+    scaled.forEach(function (f) { f.style.setProperty('--scale', '1'); });
+    /* Scripted press sequence on the pinned surface (02), for the run record. */
+    var sf = surfaces[2];
+    function names() { return Array.prototype.map.call(sf.$list.querySelectorAll('.sr-opt-name'), function (n) { return n.textContent; }); }
+    function has(n) { return names().indexOf(n) >= 0; }
+    function sw(k) { return sf.root.querySelector('.sr-toggle[data-k="' + k + '"]'); }
+    out.push('press0 count=' + sf.$count.textContent + ' graylag=' + has('Graylag Goose') + ' muscovy=' + has('Muscovy Duck') + ' rows=' + (names().length - 1));
+    sw('esc').click();
+    out.push('press1(esc on) count=' + sf.$count.textContent + ' graylag=' + has('Graylag Goose') + ' swan=' + has('Swan Goose') + ' muscovy=' + has('Muscovy Duck') + ' rows=' + (names().length - 1) + ' aria=' + sw('esc').getAttribute('aria-checked'));
+    Array.prototype.filter.call(sf.$list.querySelectorAll('.sr-opt'), function (o) { return o.textContent.indexOf('Muscovy Duck') === 0; })[0].click();
+    out.push('press2(pick muscovy) input=' + sf.$input.value + ' sel=' + sf.st.sel + ' open=' + sf.st.open);
+    sw('esc').click();
+    out.push('press3(esc off) count=' + sf.$count.textContent + ' sel=' + sf.st.sel + ' input=' + JSON.stringify(sf.$input.value) + ' muscovy=' + has('Muscovy Duck'));
+    sw('sub').click();
+    out.push('press4(sub on, esc off) count=' + sf.$count.textContent + ' domesticVisible=' + has('Muscovy Duck (Domestic type)') + ' richardsons=' + has("Cackling Goose (Richardson's)"));
+    sw('esc').click();
+    out.push('press5(sub on, esc on) count=' + sf.$count.textContent + ' domesticVisible=' + has('Muscovy Duck (Domestic type)') + ' graylagDom=' + has('Graylag Goose (Domestic type)'));
+    sw('forms').click();
+    out.push('press6(+forms) count=' + sf.$count.textContent + ' hybrid=' + has("Snow x Ross's Goose (hybrid)") + ' spuh=' + has('goose sp.'));
+    var pre = document.getElementById('measure'); pre.textContent = out.join('\n'); pre.className = 'on';
+  }
+})();
+</script>
+</body>
+</html>

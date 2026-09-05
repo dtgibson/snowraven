@@ -3167,6 +3167,38 @@ select:focus-visible {
 .maplibregl-popup-anchor-left .maplibregl-popup-tip { border-right-color: var(--sr-surface); }
 .maplibregl-popup-anchor-right .maplibregl-popup-tip { border-left-color: var(--sr-surface); }
 
+/* ── Shared boxed switch (ui/ToggleSwitch.tsx, the default treatment) ─────────
+   The chrome that a :hover rule must be able to reach. An inline style is
+   specificity 1,0,0 and beats any class rule, so `border`, `background` and
+   `transition` moved here from the component's inline style object
+   (species-detail-escapee-toggle); the rest of the boxed geometry stays inline
+   and byte-identical, as do the track and the knob. The resting values are the
+   shipped ones, verbatim.
+
+   Hover is the one addition, app-wide (Species Detail, Multimedia, Statistics,
+   Checklists): border to the interactive-outline token and fill to the hover
+   surface, 120ms ease-out, in place. An inert switch (`disabled`, or
+   `aria-disabled` for the focusable-but-not-operable mode) keeps its resting
+   chrome, because a control showing a not-allowed cursor must not light up as
+   if it were operable. The global prefers-reduced-motion block directly below
+   collapses both transitions to ~1 microsecond, and their end state is the
+   resting state, so nothing is lost; per the standing note, no per-component
+   reduced-motion query is added.
+
+   Unlayered on purpose. Tailwind's preflight (`@layer base`) resets `border`
+   and `background-color` on every button, and unlayered author CSS beats a
+   layered rule regardless of specificity, so this rule must never move into a
+   layer. `ToggleSwitch.test.tsx` parses this block. */
+.sr-toggle {
+  border: 1.5px solid var(--sr-border);
+  background: var(--sr-surface);
+  transition: opacity 150ms ease-out, border-color 120ms ease-out, background-color 120ms ease-out;
+}
+.sr-toggle:not(:disabled):not([aria-disabled="true"]):hover {
+  border-color: var(--sr-border-medium);
+  background: var(--sr-surface-subtle);
+}
+
 /* ── Respect reduced-motion: kill the spinner animation and any transitions/animations
    for users who ask the OS to minimize motion. */
 @media (prefers-reduced-motion: reduce) {

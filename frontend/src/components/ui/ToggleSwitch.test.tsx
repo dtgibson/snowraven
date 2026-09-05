@@ -1,16 +1,34 @@
 // @vitest-environment jsdom
+/// <reference types="node" />
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup } from '@testing-library/react'
+import { readFileSync } from 'node:fs'
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { ToggleSwitch } from './ToggleSwitch'
+import { parseTopLevelRules } from '../../lib/cssTopLevelRules'
 
 afterEach(cleanup)
+
+// The boxed chrome lives in globals.css since species-detail-escapee-toggle, so
+// the hover state can win over it (an inline value is 1,0,0 and beats any class
+// rule). jsdom has no cascade, so the class half is asserted by parsing the REAL
+// stylesheet, the same posture as filterControlSizeCss / milestoneContrast.
+// A path string rather than a URL object: under the jsdom environment the
+// global `URL` is jsdom's, which node's fs does not accept as a file URL.
+const css = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '../../globals.css'), 'utf8')
+const rules = parseTopLevelRules(css)
 
 describe('ToggleSwitch', () => {
   it('default treatment keeps the boxed button chrome, byte-identical geometry', () => {
     render(<ToggleSwitch label="Use Textures" checked={false} onChange={() => {}} />)
     const btn = screen.getByRole('switch', { name: 'Use Textures' })
-    expect(btn.style.border).toBe('1.5px solid var(--sr-border)')
-    expect(btn.style.background).toBe('var(--sr-surface)')
+    // The chrome moved to the class: nothing inline may re-assert it, or the
+    // hover rule silently loses again.
+    expect(btn.className).toBe('sr-toggle')
+    expect(btn.style.border).toBe('')
+    expect(btn.style.background).toBe('')
+    expect(btn.style.transition).toBe('')
     expect(btn.style.height).toBe('30px')
     expect(btn.style.borderRadius).toBe('6px')
     expect(btn.className).not.toContain('sr-touch-target')
@@ -20,6 +38,42 @@ describe('ToggleSwitch', () => {
     const knobEl = track.firstElementChild as HTMLElement
     expect(knobEl.style.width).toBe('12px')
     expect(knobEl.style.left).toBe('2px')
+  })
+
+  it('the boxed chrome is declared once, top-level, on .sr-toggle, with the shipped values', () => {
+    // Top-level (unlayered) matters: Tailwind's preflight resets border and
+    // background-color on every button inside `@layer base`, and unlayered
+    // author CSS beats a layered rule regardless of specificity. A rule moved
+    // into a layer would pass a body-only check and lose the chrome on screen.
+    const body = rules.get('.sr-toggle')
+    expect(body, '.sr-toggle must be a top-level rule').toBeTruthy()
+    expect(body).toMatch(/border:\s*1\.5px solid var\(--sr-border\)/)
+    expect(body).toMatch(/background:\s*var\(--sr-surface\)/)
+    // The opacity transition the inline style used to carry rides along, so
+    // the inert fade is unchanged; the two hover properties are 120ms ease-out.
+    expect(body).toMatch(/transition:[^;]*opacity 150ms ease-out/)
+    expect(body).toMatch(/transition:[^;]*border-color 120ms ease-out/)
+    expect(body).toMatch(/transition:[^;]*background-color 120ms ease-out/)
+  })
+
+  it('hover steps the border and fill to the interactive tokens, and not on an inert switch', () => {
+    const hover = [...rules.keys()].find(sel => sel.startsWith('.sr-toggle') && /:hover$/.test(sel))
+    expect(hover, 'a .sr-toggle hover rule').toBeTruthy()
+    const body = rules.get(hover!)!
+    expect(body).toMatch(/border-color:\s*var\(--sr-border-medium\)/)
+    expect(body).toMatch(/background:\s*var\(--sr-surface-subtle\)/)
+    // Both inert modes keep the resting chrome: `disabled`, and the
+    // focusable-but-not-operable `aria-disabled` mode below.
+    expect(hover).toContain(':not(:disabled)')
+    expect(hover).toContain(':not([aria-disabled="true"])')
+    // No hex, no rgb: tokens only, in both themes (ui.md).
+    expect(body).not.toMatch(/#[0-9a-f]{3,8}\b|rgba?\(/i)
+  })
+
+  it('the bare treatment does not take the boxed class, so the hover chrome never reaches it', () => {
+    render(<ToggleSwitch label="Disable embedded media" labelVisible={false} bare checked={false} onChange={() => {}} />)
+    const btn = screen.getByRole('switch', { name: 'Disable embedded media' })
+    expect(btn.className).not.toContain('sr-toggle')
   })
 
   it('default treatment slides the knob to 14px when checked', () => {

@@ -2,6 +2,14 @@
 // (FR-34): Statistics totals and milestones, media documentation coverage,
 // county Completeness, Calendar species counts, and Frivolous Lists.
 //
+// Since species-detail-escapee-toggle the rule also reaches ONE surface that
+// lists species rather than headlining a count: the Species Detail selector and
+// its "N species" figure, behind an off-by-default "Show escapees" switch. That
+// layer is inline in the component (a filter over its display list, composed
+// with its countable-form filter), so it has no pure function to drive here;
+// `components/SpeciesDetailEscapees.test.tsx` covers it, including the
+// empty-set no-op and the confirmation step, through the real passive hook.
+//
 // Two properties are asserted for every surface, because together they are what
 // makes the feature safe to ship half-resolved:
 //

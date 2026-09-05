@@ -1,4 +1,6 @@
-// User-facing copy for the escapee count rule (design-spec.md — Content Notes).
+// User-facing copy for the escapee count rule (design-spec.md — Content Notes)
+// and, since species-detail-escapee-toggle, the Species Detail reveal switch
+// that reads the same rule.
 //
 // It lives in `lib/` rather than beside the component because a non-component
 // export from a `.tsx` trips `react-refresh/only-export-components` — the same
@@ -109,6 +111,28 @@ export const ESCAPEE_LEAD_ON =
  *  precisely, in the rule line. The label names only the class it governs and
  *  claims no parity beyond FR-01 (FR-29, QA-34). */
 export const ESCAPEE_TOGGLE_LABEL = 'Count escapees'
+
+/** The Species Detail toolbar switch that reveals escapee-only species in the
+ *  species selector (species-detail-escapee-toggle). Off by default, so the
+ *  tab's "N species" figure reads the same as the Statistics headline at both
+ *  tabs' defaults; one press puts the rows and the number back.
+ *
+ *  "Show", not "Count": `countabilityCopy.ts` records that Multimedia and
+ *  Species Detail move ROWS and say Show, while Statistics and the Calendar move
+ *  a NUMBER and say Count. Here the rows move and the number follows. The noun
+ *  is `ESCAPEE_TOGGLE_LABEL`'s, so the two tabs read as one rule in two verbs,
+ *  the `Count all forms` / `Show all forms` pairing already in force. No
+ *  attribution in the label, as on both neighbours: the eBird attribution is
+ *  made once, in the rule line on Statistics. Rejected: "Show eBird escapees"
+ *  (attribution the neighbours do not carry, and six characters longer at the
+ *  320px tier where every character is a line) and "Include escapees" (a count
+ *  verb in disguise, and it breaks the Show family).
+ *
+ *  It lives here rather than in `countabilityCopy.ts` because `SpeciesDetail.tsx`
+ *  is lazy-loaded (`App.tsx`), so the entry-chunk reason that keeps the
+ *  Multimedia labels there does not apply, and this module is the escapee
+ *  family's home. */
+export const SHOW_ESCAPEES_TOGGLE_LABEL = 'Show escapees'
 
 /**
  * The status sentence for each of the seven states. Pure and total.

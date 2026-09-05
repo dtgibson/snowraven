@@ -52,7 +52,7 @@ export function ToggleSwitch({
       aria-disabled={ariaDisabled || undefined}
       onClick={ariaDisabled ? undefined : onChange}
       disabled={disabled}
-      className={bare ? 'sr-touch-target' : undefined}
+      className={bare ? 'sr-touch-target' : 'sr-toggle'}
       style={bare ? {
         display: 'inline-flex', alignItems: 'center', gap: 7,
         padding: 7, borderRadius: 999,
@@ -61,12 +61,17 @@ export function ToggleSwitch({
         color: inert ? 'var(--sr-text-disabled)' : 'var(--sr-text-muted)', whiteSpace: 'nowrap',
         opacity: inert ? 0.72 : 1, transition: 'opacity 150ms ease-out',
       } : {
+        // The boxed chrome's `border`, `background` and `transition` live on the
+        // `.sr-toggle` rule in globals.css, not here, so a `:hover` rule can
+        // win: an inline value is specificity 1,0,0 and beats every class rule,
+        // which is why this variant had no pointer feedback before
+        // species-detail-escapee-toggle. Every other value stays inline and
+        // byte-identical, as do the track and the knob below.
         display: 'inline-flex', alignItems: 'center', gap: 7,
         height: 30, padding: '0 10px 0 8px', borderRadius: 6,
-        border: '1.5px solid var(--sr-border)', background: 'var(--sr-surface)',
         cursor: inert ? 'not-allowed' : 'pointer', fontFamily: 'inherit', fontSize: '0.75rem', fontWeight: 500,
         color: inert ? 'var(--sr-text-disabled)' : 'var(--sr-text-muted)', whiteSpace: 'nowrap',
-        opacity: inert ? 0.72 : 1, transition: 'opacity 150ms ease-out',
+        opacity: inert ? 0.72 : 1,
       }}
     >
       <div style={{

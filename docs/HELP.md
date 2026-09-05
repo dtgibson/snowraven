@@ -153,6 +153,9 @@ Toolbar options:
 
 - Show subspecies: off by default. Merges subspecies variants (for example, Yellow-rumped Warbler (Myrtle) and Yellow-rumped Warbler (Audubon's)) into the parent species. Toggle on to see each subspecies as a separate entry with its own stats.
 - Show all forms: off by default. Hides the forms that don't count toward a life list: a spuh (`Gull sp.`), a slash (`Greater/Lesser Scaup`), a hybrid (`Mallard x American Black Duck`), an undescribed form. Toggle on to include them in the species selector. A form that only leaves the subspecies in doubt, like `Redpoll (Common/Hoary)`, is not one of these: it counts as its parent species and is always in the selector.
+- Show escapees: off by default. Once Statistics has checked exotic status on this device, a species that eBird tags Exotic: Escapee on every checklist you recorded it on is left out of the selector and the species count, so that count matches the Species figure on Statistics. Toggle on to put those species back. This tab never asks eBird anything itself: it reads the answer Statistics saved, and until Statistics has run the check the switch changes nothing. A species stays in the selector while any checklist carrying it has not been checked, and a domestic form of an escapee (`Muscovy Duck (Domestic type)`) hides with its parent under Show subspecies. They stay on your Life List either way. Clicking an escapee's name in the Statistics list turns the switch on and opens it here, as does picking one in the Subspecies and forms control.
+
+All three switches are per-session, resetting on relaunch.
 
 Graph options control the Sightings Over Time and Media Over Time charts that appear when you have enough data:
 
@@ -183,7 +186,7 @@ To apply the escapee rule, SnowRaven has to ask eBird which of your birds are ta
 
 Under the Species figure, a line always reports what the check is doing: not checked yet, in progress with a definite count and a Stop button, complete, or partially resolved with a Check again button. A species is only ever removed once every checklist carrying it has been checked and every one came back Escapee, so the total settles downward and never wrongly drops a bird. When escapees are found, an expandable list names each one with the evidence behind it, and stays available with the checkbox on. These birds stay on your Life List either way; only the count changes.
 
-The corrected rule also flows to the other places that headline a life-list count: Multimedia documentation coverage, county Completeness on the Map Explorer, the Calendar's species counts, and the Frivolous Lists. Those places read the cached answer and never fetch anything themselves, so the Calendar keeps working with no connection at all. Each of them says so where the count appears.
+The corrected rule also flows to the other places that headline a life-list count: Multimedia documentation coverage, county Completeness on the Map Explorer, the Calendar's species counts, and the Frivolous Lists. Each of them says so where the count appears. It reaches one more place, which lists species rather than counting them: the Species Detail selector, where a Show escapees switch, off by default, leaves those species out of the selector and its species count so that count matches the Species figure here, and puts them back with one press. All of these places read the cached answer and never fetch anything themselves, so the Calendar keeps working with no connection at all.
 
 ### Life List Totals
 
