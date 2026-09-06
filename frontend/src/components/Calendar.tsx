@@ -32,6 +32,7 @@ import {
   COUNT_FORMS_TOGGLE_LABEL, COUNT_FORMS_HELPER, COUNT_FORMS_POPUP_NOTE, COUNT_FORMS_SUFFIX,
 } from '../lib/countabilityCopy'
 import { formatDate } from '../lib/formatDate'
+import { useFocusTrap } from '../lib/useFocusTrap'
 import { ChecklistLink } from './ChecklistLink'
 import { computeCountyTiers, type CountyTiers } from '../lib/countyShading'
 import {
@@ -562,31 +563,49 @@ function DayPopup({ cell, view, includeForms, showFormsNote, onClose }: {
   useEffect(() => {
     closeRef.current?.focus()
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') { onClose(); return }
-      if (e.key === 'Tab') {
-        // Trap Tab inside the dialog (aria-modal). Re-query focusables per keydown
-        // so a changing set (e.g. links appearing) is always current, per the app's
-        // overlay convention (WelcomeScreen/HelpDocs).
-        const root = dialogRef.current
-        if (!root) return
-        const focusables = Array.from(
-          root.querySelectorAll<HTMLElement>('button, a[href], [tabindex]:not([tabindex="-1"])'),
-        ).filter(el => !el.hasAttribute('disabled'))
-        if (focusables.length < 2) { e.preventDefault(); focusables[0]?.focus(); return }
-        const first = focusables[0]
-        const last = focusables[focusables.length - 1]
-        if (e.shiftKey && document.activeElement === first) {
-          e.preventDefault()
-          last.focus()
-        } else if (!e.shiftKey && document.activeElement === last) {
-          e.preventDefault()
-          first.focus()
-        }
-      }
+      if (e.key === 'Escape') onClose()
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
   }, [onClose])
+
+  // THE TAB TRAP, AND WHY IT CONTAINS ON `focusin` AT THIS CALL SITE.
+  //
+  // This dialog used to hand-roll its own trap over its own narrower copy of the
+  // focusable selector, with no `focusin` arm — so it decided containment by
+  // comparing `document.activeElement` against the ends of a `querySelectorAll`
+  // list, which is the tab-order PREDICTION `DECISIONS.md` v1.0.15 forbids
+  // outright. On WebKit's default tab mode (what the Mac, iPhone and iPad apps
+  // run) that dialog held zero tab stops while the trap's list held several, so
+  // the first Tab left it entirely. v1.0.16 marked the Close button and the
+  // checklist links, which made WebKit's real order match the predicted list and
+  // made the defect look closed: containment by agreement, not by construction.
+  // This is the construction. The prediction is gone.
+  //
+  // `containOutsideFocus` is ON here, and the condition for that is met: the
+  // dialog is `aria-modal` over a live, non-inert page in the same document, and
+  // nothing it renders opens anything above it — its only controls are Close and
+  // external checklist links, which leave the app entirely.
+  //
+  // THE ONE OVERLAY THAT CAN STILL APPEAR ABOVE IT is the Cmd-K palette, which
+  // `usePaletteHotkey` binds unconditionally at `window`, so it opens from any
+  // tab and over any overlay. While it is up, this arm treats its focus as an
+  // escape and pulls focus back here. That is NOT a shape this build introduced
+  // and it is not specific to this dialog: `lib/useMapFullscreen.ts` has shipped
+  // `containOutsideFocus: true` since v1.0.15 and the palette can open over an
+  // expanded map in exactly the same way. It is recorded here rather than fixed
+  // because the fix belongs in the hook (an arm that yields to a modal above it)
+  // and would change three call sites at once, and because the palette's own
+  // focus decisions are measured and recorded elsewhere and are not this build's
+  // to move. Do not "fix" it by turning this option off — that reopens the
+  // v1.0.16 defect this call site exists to close.
+  //
+  // F061 does not reach this call site, checked rather than inherited: the
+  // opener-restore in `closePopup` runs inside `requestAnimationFrame`, so it
+  // fires a frame AFTER the close render commits and this effect's cleanup has
+  // detached the listener. The arm can never yank focus into a dialog that is
+  // unmounting.
+  useFocusTrap(true, dialogRef, { containOutsideFocus: true })
 
   const combined = view.kind === 'combined'
   const speciesNum = includeForms ? cell.speciesCountWithForms : cell.speciesCount

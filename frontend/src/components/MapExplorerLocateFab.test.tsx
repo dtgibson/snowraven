@@ -135,12 +135,36 @@ async function ready() {
   await waitFor(() => expect(cluster()).toBeTruthy())
 }
 
+// THE PHONE TIER IS NOW ENFORCED IN CODE, not merely implied by which controls
+// CSS happens to render (improve: focusable-selector-single-source, security
+// finding 1). MapExplorer clears `sidebarOpen` whenever the viewport is outside
+// the ≤640 / iOS-fullscreen tier the Filters overlay exists in, so a stale flag
+// can no longer leave a focus trap armed on an in-flow sidebar after a rotation.
+// jsdom has no `matchMedia` at all, so `useIsPhone()` reports desktop and the
+// overlay cannot be opened here without this. The rows in this file that open
+// Filters are phone-tier rows and say so in their names.
+function stubPhoneWidth() {
+  window.matchMedia = ((query: string) => ({
+    matches: query.includes('max-width'),
+    media: query,
+    onchange: null,
+    addEventListener: () => {}, removeEventListener: () => {},
+    addListener: () => {}, removeListener: () => {},
+    dispatchEvent: () => false,
+  })) as unknown as typeof window.matchMedia
+}
+
 beforeEach(() => {
+  stubPhoneWidth()
   filesStatus.value = { ebird: true, ml: true }
   obsResult.value = { observations: OBS }
   geo.impl = async () => ({ lat: 37.9, lng: -122.24 })
 })
-afterEach(() => { cleanup(); vi.clearAllMocks() })
+afterEach(() => {
+  cleanup(); vi.clearAllMocks()
+  // matchMedia does not exist in jsdom natively; drop the stub between tests.
+  delete (window as { matchMedia?: unknown }).matchMedia
+})
 
 // ── Presence and gating (QA-01, QA-02 as amended) ────────────────────────────
 

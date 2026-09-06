@@ -3,6 +3,7 @@ import { BookOpen, X } from 'lucide-react'
 import helpText from '../../../docs/HELP.md?raw'
 import { OutboundLink } from './OutboundLink'
 import { helpInlineTokenRe, isSafeHelpLinkTarget, parseHelpLinkToken } from '../lib/helpLinks'
+import { useFocusTrap } from '../lib/useFocusTrap'
 
 // ── TOC definition ────────────────────────────────────────────────────────────
 
@@ -312,6 +313,7 @@ function renderBlock(block: Block, idx: number): React.ReactNode {
 export function HelpDocs({ onClose }: { onClose: () => void }) {
   const closeRef = useRef<HTMLButtonElement>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
+  const overlayRef = useRef<HTMLDivElement>(null)
 
   // Restore focus to whatever opened the overlay (footer Help, Settings, or the
   // Welcome screen) when it unmounts — standard dialog behavior. The lazy mount
@@ -329,28 +331,60 @@ export function HelpDocs({ onClose }: { onClose: () => void }) {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { onClose(); return }
-      if (e.key === 'Tab') {
-        const overlay = document.getElementById('sr-help-overlay')
-        if (!overlay) return
-        const focusables = Array.from(
-          overlay.querySelectorAll<HTMLElement>('button, a[href], [tabindex]:not([tabindex="-1"])')
-        ).filter(el => !el.hasAttribute('disabled'))
-        if (focusables.length < 2) return
-        const first = focusables[0]
-        const last = focusables[focusables.length - 1]
-        if (e.shiftKey && document.activeElement === first) {
-          e.preventDefault()
-          last.focus()
-        } else if (!e.shiftKey && document.activeElement === last) {
-          e.preventDefault()
-          first.focus()
-        }
-      }
+      if (e.key === 'Escape') onClose()
     }
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [onClose])
+
+  // THE TAB TRAP, AT THE HOOK'S DEFAULT — `containOutsideFocus` IS OFF. This
+  // build consolidated the overlay onto the shared hook WITHOUT changing its
+  // behaviour, which is the whole of the decision; what follows corrects the
+  // reason that was written for it, because a wrong reason invites a wrong fix.
+  //
+  // THE STATED BLOCKER WAS F061, AND IT DOES NOT REPRODUCE HERE. The reasoning
+  // was: the opener-restore above lives in the CLEANUP of an effect declared
+  // BEFORE this one, React runs a commit's destroy functions in declaration
+  // order, so at unmount that restore fires while a `focusin` listener armed
+  // from here is still attached — and the arm would pull focus into a panel
+  // about to be removed and drop the user on `<body>`. Every step of that is
+  // true except the conclusion. MEASURED on App.tsx's actual shape (a parent
+  // that conditionally renders this overlay, closed through its own Close
+  // button, with `containOutsideFocus: true`): focus lands on the opener, not on
+  // `<body>`. THE ARM NEEDS A LIVE ROOT, and by the time an effect CLEANUP runs,
+  // React has already detached `overlayRef` in the same commit's mutation phase
+  // — so `onFocusIn` returns at its `if (!root) return` guard and does nothing.
+  //
+  // THE DISTINCTION WORTH KEEPING, since it decides the next call site as well:
+  // F061 bites where the restore runs BEFORE the unmount commit — synchronously
+  // inside a close handler, with the panel still mounted and its ref still set.
+  // A restore that runs in an effect cleanup is already past that point. So
+  // "the restore is declared before the trap" is not by itself an F061 finding;
+  // "the restore runs while the root is still mounted" is.
+  //
+  // WHY IT STILL STAYS OFF. The scoped change was a consolidation, and the
+  // default is what makes it behaviour-preserving; nothing here has measured a
+  // containment LEAK to fix, and turning it on would change focus behaviour on a
+  // shipped surface with no browser-level measurement behind it. If that is ever
+  // revisited, the thing to measure is the Cmd-K palette opening OVER this
+  // overlay — `usePaletteHotkey` binds unconditionally at `window`, and an armed
+  // arm here would pull focus out of a panel that legitimately owns it, which is
+  // the shape WelcomeScreen.tsx's header records as measured.
+  //
+  // The end-wrap is unchanged from the copy this replaces, with two differences
+  // that cannot be reached here: the shared selector also matches
+  // `input, select, textarea`, and this overlay renders none — the whole render
+  // is buttons, `OutboundLink` anchors, and text blocks parsed from
+  // docs/HELP.md, which are escaped React children and cannot introduce a form
+  // control (`HelpDocsHostileContent.test.tsx` is the standing guard on that
+  // parse); and the hook pins focus on a sole focusable where the old copy let
+  // the Tab through, which needs fewer than two controls to tell apart.
+  //
+  // The root is now a ref rather than `document.getElementById('sr-help-overlay')`.
+  // Same node — the id stays for the stylesheet and for anything else that
+  // reaches for it — but the trap no longer depends on a global lookup that
+  // would silently find a second overlay if one ever carried the same id.
+  useFocusTrap(true, overlayRef)
 
   function scrollToSection(id: string) {
     const el = document.getElementById(id)
@@ -365,6 +399,7 @@ export function HelpDocs({ onClose }: { onClose: () => void }) {
 
   return (
     <div
+      ref={overlayRef}
       id="sr-help-overlay"
       role="dialog"
       aria-modal="true"

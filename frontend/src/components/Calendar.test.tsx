@@ -10,6 +10,7 @@ import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, screen, cleanup, fireEvent, waitFor, within } from '@testing-library/react'
 import type { ObservationEntry } from '../types'
 import { dayOfWeek } from '../lib/calendar'
+import { focusablesIn } from '../lib/useFocusTrap'
 
 function obs(over: Partial<ObservationEntry> & { date: string; submissionId: string; commonName: string }): ObservationEntry {
   return {
@@ -875,11 +876,20 @@ describe('Calendar — the day dialog has real tab stops on WebKit (v1.0.16)', (
   // the shipped Mac, iPhone and iPad apps until v1.0.16, and the failure was not
   // in the trap — it was in the population the trap was reasoning about.
   //
-  // The dialog hand-rolls its own trap (Calendar.tsx) with the app's focusable
-  // selector but NO focusin containment arm, so it contains by comparing
-  // document.activeElement against the first/last entry of a querySelectorAll
-  // list. That is a PREDICTION of the engine's tab order, which DECISIONS.md
-  // v1.0.15 forbids. The dialog's only focusable content is the Close button and
+  // READ THIS BLOCK ALONGSIDE THE NEXT ONE, which is new. The dialog USED TO
+  // hand-roll its own trap (Calendar.tsx) with its own copy of the app's
+  // focusable selector and NO focusin containment arm, so it contained by
+  // comparing document.activeElement against the first/last entry of a
+  // querySelectorAll list. That is a PREDICTION of the engine's tab order, which
+  // DECISIONS.md v1.0.15 forbids. The prediction is gone: the dialog now uses
+  // `useFocusTrap` with `containOutsideFocus`, and the next describe pins the
+  // property that makes the engine's order irrelevant.
+  //
+  // THIS BLOCK IS NOT REDUNDANT AFTER THAT, and it is deliberately kept: the
+  // keydown arm survives in the shared hook for the two things focusin cannot do
+  // (wrap at the ends with no visible out-and-back, and act when focus is lost
+  // to <body>), and that arm is still a prediction. What follows is what keeps
+  // the prediction TRUE here — belt as well as braces, on a published claim. The dialog's only focusable content is the Close button and
   // one ChecklistLink per checklist row, and NEITHER carried an explicit
   // tabIndex — so under WebKit's default tab mode the dialog held ZERO tab stops
   // while the trap's list held several. closeRef.current?.focus() put focus in;
@@ -906,14 +916,17 @@ describe('Calendar — the day dialog has real tab stops on WebKit (v1.0.16)', (
   // than by luck. The last test in this block asserts that, because it is exactly
   // what a future addition to this dialog would quietly break.
 
-  // The dialog's own selector, character for character (Calendar.tsx). Copied on
-  // purpose: if the component's copy drifts, this guard should keep measuring
-  // what the component actually traps, and the divergence shows up as a failure.
-  const TRAP_SELECTOR = 'button, a[href], [tabindex]:not([tabindex="-1"])'
-
-  const focusablesIn = (root: HTMLElement): HTMLElement[] =>
-    Array.from(root.querySelectorAll<HTMLElement>(TRAP_SELECTOR))
-      .filter(el => !el.hasAttribute('disabled'))
+  // The trap's list comes from the trap's own module now. This file used to keep
+  // a private copy of the selector "character for character", on the reasoning
+  // that a drifting component copy should show up here as a failure — sound while
+  // the component HAD a copy, and exactly backwards once it does not: a private
+  // copy here would be the last copy left, and it would keep this block green
+  // against a change to the real selector. Importing is what makes these rows
+  // measure what the component actually traps.
+  //
+  // The imported selector is WIDER than the copy it replaces — it also matches
+  // `input, select, textarea`. That is a no-op for this dialog and the last row
+  // in this block is what says so; it was already asserting exactly that.
 
   it('a day with checklists holds MORE THAN ONE tab stop, so the trap can wrap at all', async () => {
     render(<Calendar {...props} />)
@@ -989,5 +1002,130 @@ describe('Calendar — the day dialog has real tab stops on WebKit (v1.0.16)', (
     const close = within(dialog).getByRole('button', { name: 'Close day details' })
     await waitFor(() => expect(document.activeElement).toBe(close))
     expect(dialog.contains(document.activeElement)).toBe(true)
+  })
+})
+
+describe('Calendar — the day dialog CONTAINS on focusin (improve: focusable-selector-single-source)', () => {
+  // THE DEFECT THIS CLOSES, and it is the one this build exists for.
+  //
+  // DECISIONS.md v1.0.16 recorded this dialog as "a repaired symptom over an
+  // intact cause": v1.0.16 gave its Close button and its checklist links explicit
+  // tab stops, which made WebKit's real order match the list the hand-rolled trap
+  // was predicting. Containment held BY AGREEMENT, not by construction, and the
+  // entry says outright that a fix which makes a defect look closed is the one
+  // that gets forgotten. The dialog now uses `useFocusTrap` with
+  // `containOutsideFocus: true`, so containment no longer depends on that
+  // agreement at all.
+  //
+  // WHAT IS ASSERTED, AND WHY IT IS NOT A TAB ORDER. jsdom has no tab order
+  // (.claude/rules/ui.md), so a test that walked one would only re-assert the
+  // broken assumption the defect came from — the v1.0.15 precedent, and the same
+  // shape as lib/useMapFullscreen.test.tsx's containment block. What jsdom CAN
+  // observe is the property that makes the engine's order irrelevant: focus that
+  // lands outside the dialog is pulled back BEFORE the next key is pressed. No
+  // keydown is fired in the first row, deliberately — on the real defect the next
+  // Tab was already one hop too late, because the user can type into the covered
+  // control first.
+  //
+  // MUTATION CHECK, both directions per v1.0.15's option-gated-extraction clause,
+  // run rather than cited, counts recorded:
+  //   * GATE OFF — `useFocusTrap(true, dialogRef)` (containment dropped, the
+  //     shipped defect): exactly the 3 containment rows go red, 54 green.
+  //   * TRAP REMOVED — the `useFocusTrap` call deleted: 5 go red, the 3
+  //     containment rows plus the 2 end-wrap rows.
+  // That pair is what distinguishes "the option is off" from "there is no trap",
+  // and THE SECOND HALF DID NOT EXIST UNTIL THIS BUILD MEASURED IT. Written the
+  // first time, this comment claimed the block above would go red on a removed
+  // trap. It does not: that block asserts the dialog's tab-stop MARKING (every
+  // focusable carries tabindex="0", no <summary>, no form controls), which is
+  // true whether or not a trap is mounted. So the whole hand-rolled trap could
+  // have been deleted with 55 rows green — a mechanism nothing measured, in the
+  // file whose post-mortem is about a defect that looked closed. The two
+  // end-wrap rows below are the repair, and they belong to this build.
+  //
+  // The "not armed while closed" row is the guard-the-guard: a listener armed
+  // unconditionally would satisfy every other row here while making the rest of
+  // the tab unusable.
+
+  const outside = () => screen.getByRole('button', { name: /Mar 15, 2025: 1\. Open day details/ })
+
+  async function openDialog() {
+    render(<Calendar {...props} />)
+    await screen.findByText('March')
+    fireEvent.click(screen.getByRole('button', { name: /Mar 14, 2025: 3\. Open day details/ }))
+    return await screen.findByRole('dialog')
+  }
+
+  it('pulls focus back the instant it lands outside, with no keydown at all', async () => {
+    const dialog = await openDialog()
+    const away = outside()
+    away.focus()
+    expect(document.activeElement).not.toBe(away)
+    expect(dialog.contains(document.activeElement)).toBe(true)
+  })
+
+  it('a forward escape comes back at the FIRST focusable in the dialog', async () => {
+    const dialog = await openDialog()
+    const inside = focusablesIn(dialog)
+    fireEvent.keyDown(document, { key: 'Tab' })
+    outside().focus()
+    expect(document.activeElement).toBe(inside[0])
+  })
+
+  it('a backward escape comes back at the LAST focusable in the dialog', async () => {
+    // Direction is the one thing the keydown arm still contributes: it records
+    // which way the last Tab went, and never decides WHETHER to contain.
+    const dialog = await openDialog()
+    const inside = focusablesIn(dialog)
+    expect(inside.length).toBeGreaterThanOrEqual(2)
+    fireEvent.keyDown(document, { key: 'Tab', shiftKey: true })
+    outside().focus()
+    expect(document.activeElement).toBe(inside[inside.length - 1])
+  })
+
+  it('wraps a forward Tab from the LAST focusable back to the first', async () => {
+    // Not a reproduced tab order: nothing here claims WebKit visits these
+    // elements in this sequence. It states an activeElement and asserts what the
+    // trap's own keydown arm does from there, which is the arm's whole contract.
+    // That arm survives in the shared hook for the two things focusin cannot do.
+    const dialog = await openDialog()
+    const inside = focusablesIn(dialog)
+    expect(inside.length).toBeGreaterThanOrEqual(2)
+    inside[inside.length - 1].focus()
+    fireEvent.keyDown(document, { key: 'Tab' })
+    expect(document.activeElement).toBe(inside[0])
+  })
+
+  it('wraps a backward Tab from the FIRST focusable round to the last', async () => {
+    const dialog = await openDialog()
+    const inside = focusablesIn(dialog)
+    expect(inside.length).toBeGreaterThanOrEqual(2)
+    inside[0].focus()
+    fireEvent.keyDown(document, { key: 'Tab', shiftKey: true })
+    expect(document.activeElement).toBe(inside[inside.length - 1])
+  })
+
+  it('is NOT armed while no day dialog is open, so the grid keeps its own focus', async () => {
+    render(<Calendar {...props} />)
+    await screen.findByText('March')
+    const cell = outside()
+    cell.focus()
+    expect(document.activeElement).toBe(cell)
+  })
+
+  it('the opener-restore still lands on the day cell, so containment did not eat the close path', async () => {
+    // F061 in the form it would actually take here: `closePopup` restores focus
+    // to the activating cell inside requestAnimationFrame, one frame AFTER the
+    // close render commits and the trap's cleanup has detached the listener. If
+    // that ordering ever changes, the focusin arm would yank focus into a dialog
+    // that is unmounting and drop the user on <body>. This is the row that fails.
+    render(<Calendar {...props} />)
+    await screen.findByText('March')
+    const opener = screen.getByRole('button', { name: /Mar 14, 2025: 3\. Open day details/ })
+    fireEvent.click(opener)
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Close day details' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    await waitFor(() => expect(document.activeElement).toBe(opener))
   })
 })

@@ -117,6 +117,15 @@ async function run(engine, launcher, url) {
   await page.evaluate(() => document.getElementById('sr-probe-behind')?.remove())
 
   // ── QA-41: the overlay's tab-stop population, by REAL focusability ───────
+  // THE SELECTOR BELOW IS A DELIBERATE COPY OF `FOCUSABLE_SELECTOR`, and it is
+  // the ONE copy left outside frontend/src/lib/useFocusTrap.ts. It cannot import
+  // the real one: this arrow runs inside `page.evaluate`, i.e. serialized into
+  // the BROWSER, where there is no module graph and no bundler — the four copies
+  // that used to live in src were consolidated onto the export
+  // (improve: focusable-selector-single-source) and this one structurally could
+  // not follow. Keep it character-for-character identical to the export. If it
+  // ever drifts, this harness silently measures a different population than the
+  // app traps, and the drift will read as a passing check.
   const stops = await page.evaluate(() => {
     const panel = document.querySelector('.sr-palette-panel')
     return [...panel.querySelectorAll('button, a[href], input, select, textarea, [tabindex]:not([tabindex="-1"])')]

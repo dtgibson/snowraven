@@ -1,20 +1,31 @@
-// The app's Tab focus trap, extracted from components/ui/ModalDialog.tsx so the
-// embedded-map fullscreen overlay and the dialog share one implementation
-// (map-fullscreen-toggle D-08 / FR-18, QA-08's "exactly one module").
+// The app's Tab focus trap. Extracted from components/ui/ModalDialog.tsx so the
+// embedded-map fullscreen overlay and the dialog could share one implementation
+// (map-fullscreen-toggle D-08 / FR-18, QA-08's "exactly one module"); it is now
+// what EVERY trapping surface in the app uses, and FOCUSABLE_SELECTOR lives here
+// and nowhere else in frontend/src (.claude/rules/ui.md; the four hand-rolled
+// copies were folded in by improve: focusable-selector-single-source). The one
+// copy left in the repo is website/tools/verify/verify-palette.mjs, which runs
+// inside page.evaluate and structurally cannot import from source; it says so.
 //
-// THIS FILE IMPORTS `react` AND NOTHING ELSE, EVER. Both of its consumers sit on
-// App.tsx's STATIC import graph — ModalDialog through Settings.tsx, and
-// lib/useMapFullscreen.ts through NamedBirdRow.tsx — so a single `react-map-gl`
-// or `maplibre-gl` edge from here would put the ~1 MB maplibre vendor chunk on
-// first paint. entryChunk.test.ts is the live guard; focusTrapEntrySafe.test.ts
-// asserts the dependency-free property directly.
+// THIS FILE IMPORTS `react` AND NOTHING ELSE, EVER. Three of its consumers sit
+// on App.tsx's STATIC import graph — ModalDialog through Settings.tsx,
+// lib/useMapFullscreen.ts through NamedBirdRow.tsx, and WelcomeScreen.tsx, which
+// App.tsx imports directly — so a single `react-map-gl` or `maplibre-gl` edge
+// from here would put the ~1 MB maplibre vendor chunk on first paint. The other
+// consumers (CommandPalette, Calendar, HelpDocs, MapExplorer) are lazy, which
+// does not relax the rule: this module is already on the entry chunk, so an edge
+// added here reaches first paint whoever imports it. entryChunk.test.ts is the
+// live guard; lib/mapFullscreenEntrySafe.test.ts asserts the dependency-free
+// property directly.
 //
-// WHAT DOES NOT LIVE HERE: Escape. The two consumers need different phases and
-// different side effects. ModalDialog preventDefaults and calls onRequestClose;
-// the map overlay needs a BUBBLE-phase document listener armed only while
-// expanded, so SharePopup's CAPTURE-phase listener with stopPropagation stays
-// the innermost dismiss layer (one Escape closes the popup, a second exits
-// fullscreen). Folding them would break one of the two.
+// WHAT DOES NOT LIVE HERE: Escape. Consumers need different phases and different
+// side effects. ModalDialog preventDefaults and calls onRequestClose; the map
+// overlay needs a BUBBLE-phase document listener armed only while expanded, so
+// SharePopup's CAPTURE-phase listener with stopPropagation stays the innermost
+// dismiss layer (one Escape closes the popup, a second exits fullscreen).
+// Folding them would break one of the two. Every call site consolidated onto
+// this hook kept its own Escape handler for the same reason, and the palette's
+// Escape is consumed earlier still, at `window` capture, by usePaletteHotkey.
 //
 // WHY CONTAINMENT IS DRIVEN BY `focusin` AND NOT BY THE NEXT Tab KEYDOWN.
 // Added in the QA round that measured the leak; the shape of the fix is the
@@ -42,9 +53,15 @@
 // Those two controls DO carry `tabIndex={0}` as of v1.0.16, and so now does
 // EVERY intrinsic <button> and <a href> in the app's own sources
 // (webkit-tab-order-app-wide; lib/tabOrderCoverage.test.ts enforces it over
-// every shipped .tsx on every build, five rostered exceptions aside: three
-// roving groups, the combobox chevron, and the natively-disabled offline base
-// map).
+// every shipped .tsx on every build), apart from the controls that guard's own
+// EXCLUSIONS roster names. THAT ROSTER IS NOT RESTATED HERE. It was, and the
+// restatement went stale on a build that never touched this file: the nav rework
+// retired the collapsed-tab-bar listbox, and the sentence here kept claiming a
+// count and a shape the roster no longer had. The property survives every such
+// change and the count does not — a control is kept out only where another tab
+// stop already reaches it, or where the platform removes it via native
+// `disabled`. Read `EXCLUSIONS` in lib/tabOrderCoverage.test.ts for which ones
+// and why; ACCESSIBILITY.md publishes the same property in prose.
 // That is why the measurement above is written in the past tense.
 //
 // THIS CHANGES NOTHING HERE, in either direction, and the temptation to conclude
@@ -100,8 +117,43 @@ export interface FocusTrapOptions {
    *  is a live page in the same panel rather than a `display: none` sibling, and
    *  a click on the map canvas can leave `document.activeElement` on
    *  `document.body` in some engines. Without it, one Tab from there walks into
-   *  the page the overlay is covering. */
+   *  the page the overlay is covering.
+   *
+   *  ONE THING THIS ARM CANNOT SEE, and it decides several call sites: another
+   *  overlay mounted ABOVE this one. The arm is a document listener that asks
+   *  only "is the new focus inside MY root", so an overlay that opts in will
+   *  pull focus straight back out of a later sibling that legitimately owns it.
+   *  A call site that renders the opener of an overlay which will sit above it —
+   *  WelcomeScreen's "documentation" button is the shipped example — must
+   *  therefore leave this off; see that file's header for the measurement. */
   containOutsideFocus?: boolean
+
+  /** Narrow the trap's list beyond `focusablesIn`'s disabled-removal.
+   *
+   *  `focusablesIn` does NO visibility filtering — it is a selector query, and a
+   *  control clipped to zero height inside a collapsed accordion still matches
+   *  it. Nor can a selector see `inert`, which is an attribute on an ancestor.
+   *  A root that holds CSS-collapsed content must say so here or the trap will
+   *  park focus on something the user cannot see; MapExplorer's filters sidebar
+   *  is the one call site that needs it today.
+   *
+   *  This deliberately layers ON the shared selector rather than replacing it,
+   *  so there is still exactly one copy of what COUNTS as focusable and the
+   *  call site owns only what it can see about its own DOM.
+   *
+   *  Pass a STABLE function — a module-scope constant, never an inline arrow.
+   *  It sits in the effect's dependency array, so a fresh identity every render
+   *  would tear down and re-arm both listeners on every render. (The options
+   *  OBJECT is not a dependency: it is destructured above, so a fresh literal
+   *  holding a stable function re-arms nothing.)
+   *
+   *  It must also be TOTAL. It is called inside both handlers with no try/catch,
+   *  and a throw fails OPEN — in `onKey` it aborts before `preventDefault()`, so
+   *  the engine performs the Tab and containment is merely lost, never inverted
+   *  into stranded focus; no listener is detached and the next event runs
+   *  normally. That is the right direction for an accessibility control, and it
+   *  is why there is no try/catch here rather than an oversight. */
+  filter?: (el: HTMLElement) => boolean
 }
 
 /**
@@ -117,9 +169,19 @@ export function useFocusTrap<T extends HTMLElement>(
   options: FocusTrapOptions = {},
 ): void {
   const containOutsideFocus = options.containOutsideFocus ?? false
+  const filter = options.filter
 
   useEffect(() => {
     if (!active) return
+
+    // The trap's list: the one shared selector, then the call site's own
+    // narrowing (see FocusTrapOptions.filter). Re-queried on every event rather
+    // than cached, which is what keeps the trap correct as popups, markers and
+    // collapsed accordions come and go inside the root.
+    const listIn = (root: HTMLElement): HTMLElement[] => {
+      const all = focusablesIn(root)
+      return filter ? all.filter(filter) : all
+    }
 
     // Which end an escape should land on. Recorded on every Tab keydown, read
     // only by the focusin arm, and structurally incapable of deciding WHETHER to
@@ -135,7 +197,7 @@ export function useFocusTrap<T extends HTMLElement>(
       backwards = e.shiftKey
       const root = rootRef.current
       if (!root) return
-      const focusables = focusablesIn(root)
+      const focusables = listIn(root)
       if (focusables.length < 2) {
         e.preventDefault()
         focusables[0]?.focus()
@@ -166,7 +228,7 @@ export function useFocusTrap<T extends HTMLElement>(
       if (!root) return
       const target = e.target
       if (target instanceof Node && root.contains(target)) return
-      const focusables = focusablesIn(root)
+      const focusables = listIn(root)
       // Optional-chained rather than length-guarded: with nothing focusable
       // inside there is nowhere to put focus, and moving it to the root itself
       // would need a tabindex this hook does not own.
@@ -179,5 +241,5 @@ export function useFocusTrap<T extends HTMLElement>(
       document.removeEventListener('keydown', onKey)
       document.removeEventListener('focusin', onFocusIn)
     }
-  }, [active, rootRef, containOutsideFocus])
+  }, [active, rootRef, containOutsideFocus, filter])
 }
