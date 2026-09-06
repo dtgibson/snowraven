@@ -1,0 +1,1629 @@
+<title>SnowRaven Command Palette</title>
+<style>
+/* ==========================================================================
+   MOCKUP PRESENTATION CHROME
+   Everything prefixed .mk- is the annotation layer around the app. It is
+   deliberately a different register (serif display, wider measure) so the
+   rendered app inside the stage is never confused with the commentary around
+   it. No webfont and no external request: this file is fully self-contained,
+   so the display face is a system-available serif stack.
+   ========================================================================== */
+
+:root {
+  --mk-display: 'Iowan Old Style', 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, serif;
+  --mk-body: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Helvetica, sans-serif;
+  --mk-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace;
+  --mk-ease: cubic-bezier(0.2, 0, 0, 1);
+
+  /* Warm paper, tinted toward the brand green rather than a dead gray. */
+  --mk-paper:   #FBFAF7;
+  --mk-paper-2: #F3F2EC;
+  --mk-ink:     #1B2119;
+  --mk-ink-soft:#5A6157;
+  --mk-line:    #DFDDD3;
+  --mk-accent:  #1A5C38;
+  --mk-warn:    #8A5410;
+}
+
+html { background: var(--mk-paper); }
+body {
+  margin: 0;
+  font-family: var(--mk-body);
+  font-size: 14px;
+  color: var(--mk-ink);
+  background:
+    radial-gradient(1100px 520px at 82% -12%, rgba(26, 92, 56, 0.085), transparent 62%),
+    radial-gradient(760px 420px at 4% 6%, rgba(138, 84, 16, 0.055), transparent 58%),
+    linear-gradient(180deg, var(--mk-paper) 0%, var(--mk-paper-2) 100%);
+  background-attachment: fixed;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---- control bar --------------------------------------------------------- */
+.mk-bar {
+  position: sticky; top: 0; z-index: 40;
+  background: rgba(251, 250, 247, 0.94);
+  backdrop-filter: saturate(1.4) blur(8px);
+  border-bottom: 1px solid var(--mk-line);
+}
+.mk-bar-in {
+  max-width: 1180px; margin: 0 auto; padding: 10px 28px;
+  display: flex; flex-wrap: wrap; gap: 9px 22px; align-items: center;
+}
+.mk-grp { display: flex; align-items: center; gap: 8px; }
+.mk-grp > span {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.09em;
+  text-transform: uppercase; color: var(--mk-ink-soft);
+}
+.mk-seg {
+  display: inline-flex; background: var(--mk-paper-2);
+  border: 1px solid var(--mk-line); border-radius: 9px; padding: 2px; gap: 2px;
+}
+.mk-btn {
+  font: 600 12px/1 var(--mk-body); color: var(--mk-ink-soft);
+  background: none; border: 0; border-radius: 7px;
+  padding: 6px 10px; cursor: pointer;
+  transition: background-color 120ms ease-out, color 120ms ease-out;
+}
+.mk-btn:hover { background: rgba(26, 92, 56, 0.10); color: var(--mk-ink); }
+.mk-btn[aria-pressed="true"] { background: var(--mk-accent); color: #FFFFFF; }
+.mk-btn:focus-visible { outline: 3px solid var(--mk-accent); outline-offset: 2px; }
+.mk-range { width: 190px; accent-color: var(--mk-accent); }
+.mk-check {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-size: 12px; font-weight: 600; color: var(--mk-ink-soft); cursor: pointer;
+}
+.mk-check input { accent-color: var(--mk-accent); width: 14px; height: 14px; }
+
+/* ---- page ---------------------------------------------------------------- */
+.mk-wrap { max-width: 1180px; margin: 0 auto; padding: 0 28px 64px; }
+.mk-head { padding: 54px 0 22px; }
+.mk-eyebrow {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--mk-accent); margin: 0 0 14px;
+}
+.mk-h1 {
+  font-family: var(--mk-display); font-weight: 400;
+  font-size: clamp(34px, 5.4vw, 60px); line-height: 1.04; letter-spacing: -0.022em;
+  margin: 0 0 16px; max-width: 20ch;
+}
+.mk-h1 em { font-style: italic; color: var(--mk-accent); }
+.mk-lede {
+  font-size: 16px; line-height: 1.65; color: var(--mk-ink-soft);
+  max-width: 66ch; margin: 0;
+}
+.mk-h2 {
+  font-family: var(--mk-display); font-weight: 400; font-size: 27px;
+  letter-spacing: -0.014em; margin: 0 0 10px;
+}
+.mk-h3 {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.11em; text-transform: uppercase;
+  color: var(--mk-accent); margin: 0 0 8px;
+}
+.mk-sec { padding-top: 52px; }
+.mk-sec > p { max-width: 70ch; color: var(--mk-ink-soft); line-height: 1.68; margin: 0 0 20px; }
+
+.mk-readout {
+  display: flex; flex-wrap: wrap; gap: 6px 20px; align-items: baseline;
+  font-family: var(--mk-mono); font-size: 11.5px; color: var(--mk-ink-soft);
+  background: var(--mk-paper-2); border: 1px solid var(--mk-line);
+  border-radius: 10px; padding: 10px 14px; margin: 22px 0 16px;
+}
+.mk-readout b { color: var(--mk-ink); font-weight: 700; }
+.mk-readout .mk-out { color: var(--mk-accent); font-weight: 700; }
+
+/* ---- the device stage ---------------------------------------------------- */
+.mk-stagewrap {
+  background: var(--mk-paper-2);
+  border: 1px solid var(--mk-line); border-radius: 16px;
+  padding: 24px; display: flex; justify-content: center;
+}
+.mk-frame {
+  border: 1px solid var(--mk-line); border-radius: 12px; overflow: hidden;
+  background: #FFFFFF; box-shadow: 0 18px 40px -22px rgba(27, 33, 25, 0.5);
+  max-width: 100%;
+}
+.mk-titlebar {
+  display: flex; align-items: center; gap: 6px;
+  padding: 8px 12px; background: var(--mk-paper-2); border-bottom: 1px solid var(--mk-line);
+}
+.mk-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--mk-line); }
+.mk-titlebar span {
+  margin-left: 8px; font-size: 10.5px; font-weight: 600; letter-spacing: 0.04em;
+  color: var(--mk-ink-soft);
+}
+.mk-cap { font-size: 12.5px; line-height: 1.65; color: var(--mk-ink-soft); margin: 12px 2px 0; max-width: 78ch; }
+.mk-cap b { color: var(--mk-ink); font-weight: 700; }
+
+/* ---- specimen strip (the states, side by side) --------------------------- */
+.mk-specimens {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(310px, 1fr));
+  gap: 20px; align-items: start;
+}
+.mk-spec { min-width: 0; }
+.mk-spec-body {
+  background: var(--mk-paper-2); border: 1px solid var(--mk-line);
+  border-radius: 14px; padding: 18px;
+}
+.mk-spec p { font-size: 12.5px; line-height: 1.6; color: var(--mk-ink-soft); margin: 9px 2px 0; }
+
+/* ---- entry-point strip --------------------------------------------------- */
+.mk-entries {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px; align-items: start;
+}
+.mk-entry-body {
+  background: var(--mk-paper-2); border: 1px solid var(--mk-line);
+  border-radius: 14px; padding: 18px; display: flex; justify-content: center;
+}
+.mk-entry p { font-size: 12.5px; line-height: 1.6; color: var(--mk-ink-soft); margin: 9px 2px 0; }
+
+/* ---- notes --------------------------------------------------------------- */
+.mk-notes { display: grid; grid-template-columns: repeat(auto-fit, minmax(272px, 1fr)); gap: 14px; }
+.mk-note {
+  background: var(--mk-paper-2); border: 1px solid var(--mk-line);
+  border-left: 3px solid var(--mk-accent); border-radius: 4px 12px 12px 4px;
+  padding: 13px 15px;
+}
+.mk-note h4 { margin: 0 0 5px; font-size: 12.5px; font-weight: 700; }
+.mk-note p { margin: 0; font-size: 12.5px; color: var(--mk-ink-soft); line-height: 1.62; }
+.mk-note p + p { margin-top: 7px; }
+.mk-note--warn { border-left-color: var(--mk-warn); }
+.mk-note code, .mk-cap code, .mk-sec > p code, .mk-tbl code {
+  font-family: var(--mk-mono); font-size: 0.9em;
+  background: rgba(27, 33, 25, 0.06); padding: 1px 4px; border-radius: 3px;
+}
+
+/* ---- motion table -------------------------------------------------------- */
+.mk-tblwrap { overflow-x: auto; border: 1px solid var(--mk-line); border-radius: 12px; background: var(--mk-paper-2); }
+.mk-tbl { border-collapse: collapse; width: 100%; min-width: 720px; font-size: 12.5px; }
+.mk-tbl th, .mk-tbl td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--mk-line); vertical-align: top; }
+.mk-tbl thead th {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase;
+  color: var(--mk-accent); background: rgba(26, 92, 56, 0.06);
+}
+.mk-tbl tbody tr:last-child th, .mk-tbl tbody tr:last-child td { border-bottom: 0; }
+.mk-tbl td { color: var(--mk-ink-soft); line-height: 1.55; }
+.mk-tbl th[scope="row"] { color: var(--mk-ink); font-weight: 700; white-space: nowrap; }
+
+.mk-foot {
+  margin-top: 56px; padding-top: 22px; border-top: 1px solid var(--mk-line);
+  font-size: 12.5px; line-height: 1.7; color: var(--mk-ink-soft); max-width: 78ch;
+}
+
+/* ==========================================================================
+   THE APP STAGE
+   Everything below is SnowRaven. Tokens are copied verbatim from
+   frontend/src/globals.css; the palette introduces NO new token. Classes
+   prefixed .sr- are the shipped ones or the proposed new ones (marked).
+   ========================================================================== */
+
+/* Tailwind preflight sets this globally in the shipped app; without it every
+   min-height in the stage would read as a floor ON TOP OF the padding and the
+   rows would measure 15px taller than they ship. */
+.sr-app, .sr-app *, .sr-app *::before, .sr-app *::after { box-sizing: border-box; }
+
+.sr-app {
+  /* --- light theme, verbatim from :root ------------------------------- */
+  --sr-bg: #F9FAFB;
+  --sr-surface: #FFFFFF;
+  --sr-surface-subtle: #F4F4F5;
+  --sr-surface-faint: #FAFAFA;
+  --sr-text: #0F1117;
+  --sr-text-muted: #6B6B74;
+  --sr-text-gray: #6B7280;
+  --sr-border: #E4E4E7;
+  --sr-border-subtle: #F4F4F5;
+  --sr-border-medium: #C4C4CE;
+  --sr-border-input: #8A8A91;
+  --sr-accent: #277448;
+  --sr-accent-strong: #1A5C38;
+  --sr-accent-bg: #E8F5EE;
+  --sr-accent-bg-hover: #F0FAF4;
+  --sr-accent-border: rgba(39,116,72,0.25);
+  --sr-on-accent: #FFFFFF;
+  --sr-card-shadow: 0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+  --sr-sticky-shadow: 0 3px 6px -2px rgba(15,17,23,0.12);
+  --sr-nav-bar-shadow: 0 -3px 6px -2px rgba(15,17,23,0.12);
+  --sr-scrim: rgba(15,17,23,0.36);
+
+  /* The shipped display face. DELIBERATE, LOGGED DEVIATION from the Weft
+     doctrine's "no Inter" rule: pipeline/design-system.md wins on specifics,
+     and SnowRaven has shipped Inter / system-ui for 100+ versions. A command
+     palette is not the place to change the app's typeface. */
+  --font-sans: 'Inter', system-ui, 'Segoe UI', Helvetica, sans-serif;
+
+  font-family: var(--font-sans);
+  color: var(--sr-text);
+  background: var(--sr-bg);
+}
+
+.sr-app[data-theme="dark"] {
+  --sr-bg: #09090B;
+  --sr-surface: #18181B;
+  --sr-surface-subtle: #27272A;
+  --sr-surface-faint: #1C1C1F;
+  --sr-text: #F4F4F5;
+  --sr-text-muted: #A1A1AA;
+  --sr-text-gray: #8A8A92;
+  --sr-border: #27272A;
+  --sr-border-subtle: #1F1F23;
+  --sr-border-medium: #3F3F46;
+  --sr-border-input: #707078;
+  --sr-accent: #34D399;
+  --sr-accent-strong: #34D399;
+  --sr-accent-bg: #052E16;
+  --sr-accent-bg-hover: #064E3B;
+  --sr-accent-border: rgba(52,211,153,0.2);
+  --sr-on-accent: #052E16;
+  --sr-card-shadow: 0 1px 4px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.25);
+  --sr-sticky-shadow: 0 3px 8px -2px rgba(2,2,4,0.60);
+  --sr-nav-bar-shadow: 0 -3px 8px -2px rgba(2,2,4,0.60);
+  --sr-scrim: rgba(9,9,11,0.6);
+}
+
+.sr-stage {
+  /* MOCKUP-ONLY: the stage stands in for the browser viewport, so the shipped
+     `position: fixed` overlay is `position: absolute` here and the shipped
+     `@media (max-width: 640px)` phone rules are `@container` rules below.
+     Nothing else about the palette changes between this file and the build. */
+  position: relative;
+  overflow: hidden;
+  container-type: inline-size;
+  container-name: mkstage;
+  isolation: isolate;
+}
+
+.sr-shell { display: flex; align-items: flex-start; height: 100%; }
+
+/* ---- shipped: nav column (sidebar + rail) -------------------------------- */
+.sr-nav-col {
+  flex-shrink: 0; align-self: stretch;
+  display: flex; flex-direction: column;
+  background: var(--sr-surface);
+  border-right: 1px solid var(--sr-border);
+  width: 13.5rem; padding: 14px 10px 10px; overflow: hidden;
+}
+.sr-nav-col--rail { width: 3.75rem; padding: 14px 6px 10px; align-items: center; }
+.sr-nav-brand { display: flex; align-items: center; gap: 9px; padding: 2px 6px 0; margin-bottom: 2px; }
+.sr-nav-col--rail .sr-nav-brand { padding: 2px 0 0; justify-content: center; }
+.sr-nav-brand svg { flex-shrink: 0; }
+.sr-nav-word { font-size: 1.0625rem; font-weight: 700; letter-spacing: -0.4px; margin: 0; white-space: nowrap; }
+.sr-nav-word span { color: var(--sr-accent); }
+.sr-nav-tagline { font-size: 0.6875rem; line-height: 1.45; color: var(--sr-text-muted); margin: 5px 6px 12px; }
+.sr-nav-col--rail .sr-nav-brandgap { height: 14px; }
+.sr-nav-list { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.sr-nav-item {
+  position: relative; display: flex; align-items: center; gap: 10px;
+  width: 100%; min-height: 34px; padding: 7px 10px;
+  border: 0; border-radius: 8px; background: none;
+  color: var(--sr-text-muted); font-family: inherit;
+  font-size: 0.84375rem; font-weight: 500; text-align: left; cursor: pointer;
+  transition: background-color 120ms ease-out, color 120ms ease-out;
+}
+.sr-nav-item > svg { flex-shrink: 0; }
+.sr-nav-item span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sr-nav-item:hover { background: var(--sr-surface-subtle); color: var(--sr-text); }
+.sr-nav-item--active, .sr-nav-item--active:hover {
+  background: var(--sr-accent-bg); color: var(--sr-accent); font-weight: 600;
+}
+.sr-nav-item--active::before {
+  content: ""; position: absolute; left: 0; top: 50%;
+  width: 3px; height: 60%; border-radius: 0 2px 2px 0;
+  background: var(--sr-accent); transform: translateY(-50%);
+}
+.sr-nav-col--rail .sr-nav-item { width: 40px; height: 40px; min-height: 40px; padding: 0; justify-content: center; gap: 0; }
+.sr-nav-col--rail .sr-nav-item span { display: none; }
+.sr-nav-col--rail .sr-nav-item--active::before { left: -6px; height: 22px; }
+.sr-nav-sep { height: 1px; background: var(--sr-border); margin: 8px 4px; border: 0; flex-shrink: 0; }
+.sr-nav-col--rail .sr-nav-sep { width: 28px; margin: 8px auto; }
+.sr-nav-spacer { flex: 1; min-height: 18px; }
+
+/* ---- shipped: phone bottom bar + More sheet ------------------------------ */
+.sr-navbar {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 1200;
+  display: grid; grid-template-columns: repeat(5, minmax(0, 1fr));
+  background: var(--sr-surface); border-top: 1px solid var(--sr-border);
+  box-shadow: var(--sr-nav-bar-shadow);
+}
+.sr-navbar-cell {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  min-height: 52px; padding: 7px 3px 8px; border: 0; background: none; cursor: pointer;
+  color: var(--sr-text-muted); font-family: inherit;
+  transition: background-color 120ms ease-out, color 120ms ease-out;
+}
+.sr-navbar-cell--active { color: var(--sr-accent); }
+.sr-navbar-cell--active .sr-navbar-glyph { background: var(--sr-accent-bg); }
+.sr-navbar-glyph { display: flex; align-items: center; justify-content: center; width: 40px; height: 26px; border-radius: 13px; }
+.sr-navbar-label { font-size: 0.625rem; font-weight: 600; line-height: 1.15; text-align: center; }
+.sr-navbar-cell--active .sr-navbar-label { font-weight: 700; }
+.sr-nav-sheet-root {
+  position: absolute; inset: 0; z-index: 1260;
+  background: var(--sr-scrim); display: flex; align-items: flex-end;
+}
+.sr-nav-sheet {
+  width: 100%; max-height: 70%; background: var(--sr-surface);
+  border-top: 1px solid var(--sr-border); border-radius: 16px 16px 0 0;
+  box-shadow: var(--sr-card-shadow); padding: 8px 10px 14px; overflow: auto;
+}
+.sr-nav-sheet-handle { width: 36px; height: 4px; border-radius: 2px; background: var(--sr-border-medium); margin: 4px auto 8px; }
+.sr-nav-sheet h2 { font-size: 1rem; font-weight: 700; margin: 0 0 8px; padding: 0 6px; letter-spacing: -0.01em; }
+.sr-nav-sheet .sr-nav-item { min-height: 44px; font-size: 0.9375rem; }
+
+/* ---- shipped: the page behind the overlay -------------------------------- */
+.sr-content { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
+.sr-page { padding: 22px 26px; }
+.sr-page-head { display: flex; align-items: center; gap: 11px; margin-bottom: 18px; }
+.sr-page-tile {
+  width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0;
+  background: var(--sr-accent-bg); color: var(--sr-accent);
+  display: flex; align-items: center; justify-content: center;
+}
+.sr-page-title { font-size: 1.125rem; font-weight: 700; letter-spacing: -0.01em; margin: 0; }
+.sr-page-sub { font-size: 0.8125rem; color: var(--sr-text-muted); margin: 2px 0 0; }
+.sr-card {
+  background: var(--sr-surface); border: 1px solid var(--sr-border);
+  border-radius: 12px; box-shadow: var(--sr-card-shadow); padding: 16px 18px; margin-bottom: 14px;
+}
+.sr-card h3 { font-size: 0.84375rem; font-weight: 700; margin: 0 0 10px; }
+.sr-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 6px 0; border-bottom: 1px solid var(--sr-border-subtle); }
+.sr-row:last-child { border-bottom: 0; }
+.sr-row b { font-size: 0.84375rem; font-weight: 500; }
+.sr-row i { font-size: 0.71875rem; font-style: italic; color: var(--sr-text-muted); }
+.sr-row em { font-size: 0.75rem; font-style: normal; color: var(--sr-text-muted); font-variant-numeric: tabular-nums; }
+
+/* ==========================================================================
+   PROPOSED: the palette entry-point control (.sr-nav-search)
+   One control, three sizes -- exactly the way .sr-nav-item is one row at
+   three densities. It deliberately does NOT reuse .sr-nav-item: it is not a
+   destination, and it must read as "typing happens here".
+   ========================================================================== */
+.sr-nav-search {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%; min-height: 32px; margin: 0 0 10px;
+  padding: 0 8px 0 9px;
+  border: 1px solid var(--sr-border-input);   /* the form-control boundary token: >=3:1 non-text */
+  border-radius: 8px;
+  background: var(--sr-surface-faint);
+  color: var(--sr-text-muted); font-family: inherit;
+  font-size: 0.84375rem; font-weight: 500; text-align: left; cursor: pointer;
+  transition: background-color 120ms ease-out, border-color 120ms ease-out, color 120ms ease-out;
+}
+.sr-nav-search:hover { background: var(--sr-surface-subtle); border-color: var(--sr-text-muted); color: var(--sr-text); }
+.sr-nav-search > svg { flex-shrink: 0; }
+.sr-nav-search-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sr-nav-search-hint {
+  flex-shrink: 0; display: inline-flex; align-items: center; gap: 2px;
+  padding: 1px 5px; border-radius: 4px;
+  border: 1px solid var(--sr-border-medium); background: var(--sr-surface-subtle);
+  color: var(--sr-text-muted); font-size: 0.625rem; font-weight: 700; letter-spacing: 0.02em;
+}
+/* Rail: the icon alone, at the rail's own 40px box, named by the shipped tooltip.
+   THE BOX CHROME GOES WITH THE LABEL. Boxed chrome around a label-hidden control
+   reads as an empty box -- the same rule the shared ToggleSwitch already applies
+   when it drops to `bare`. What says "this is not a destination" here is the
+   structural hairline below it, borrowed from the one separator the nav already
+   has: Settings is appended after the saved order and is never part of it, and
+   neither is this. */
+.sr-nav-col--rail .sr-nav-search {
+  width: 40px; height: 40px; min-height: 40px;
+  padding: 0; justify-content: center; gap: 0; margin-bottom: 0;
+  border: 0; background: none; border-radius: 8px;
+}
+.sr-nav-col--rail .sr-nav-search:hover { background: var(--sr-surface-subtle); color: var(--sr-text); }
+.sr-nav-col--rail .sr-nav-search-label,
+.sr-nav-col--rail .sr-nav-search-hint { display: none; }
+/* More sheet: the same control at the sheet's 44px touch posture. */
+.sr-nav-sheet .sr-nav-search { min-height: 44px; font-size: 0.9375rem; margin-bottom: 10px; }
+
+/* The shipped rail tooltip, reused verbatim by the search icon. */
+.sr-nav-tip {
+  position: absolute; z-index: 1250;
+  padding: 5px 9px; border-radius: 7px;
+  background: var(--sr-surface); border: 1px solid var(--sr-border);
+  box-shadow: var(--sr-card-shadow);
+  color: var(--sr-text); font-size: 0.75rem; font-weight: 600; white-space: nowrap;
+  pointer-events: none; transform: translateY(-50%) scale(1); transform-origin: left center;
+}
+
+/* ==========================================================================
+   PROPOSED: the palette itself (.sr-palette-*)
+   Positioning lives here in the stylesheet, never inline: an inline `inset: 0`
+   is specificity 1,0,0 and would put the iOS safe-area inset permanently out
+   of reach. z-index 1280 -- above .sr-nav-sheet-root's 1260 and .sr-nav-tip's
+   1250 so the palette rises over both, below .sr-skip-link:focus's 1300, which
+   is harmless because the skip link is parked off-screen until focused and the
+   focus trap makes it unreachable while the palette is open.
+   ========================================================================== */
+.sr-palette-root {
+  position: absolute;            /* SHIPPED: position: fixed */
+  inset: 0; z-index: 1280;
+  background: var(--sr-scrim);
+  display: flex; align-items: flex-start; justify-content: center;
+  padding: 11% 16px 16px;        /* SHIPPED: 11vh 16px 16px */
+  animation: sr-palette-scrim-in 160ms ease-out;
+}
+/* iOS app only: a top-anchored overlay does not inherit the body's inset.
+   Gated on .sr-ios-app, never a bare env(). */
+.sr-ios-app .sr-palette-root { padding-top: calc(11% + env(safe-area-inset-top, 0px)); }
+
+.sr-palette-panel {
+  display: flex; flex-direction: column;
+  width: min(100%, 36rem);
+  max-height: min(34rem, 100%);   /* 100% = the root's content box, i.e. viewport minus its padding */
+  background: var(--sr-surface); color: var(--sr-text);
+  border: 1px solid var(--sr-border); border-radius: 14px;
+  box-shadow: var(--sr-card-shadow);
+  overflow: hidden;
+  /* The shipped listbox entrance, reused rather than re-invented: 140ms,
+     cubic-bezier(0.2, 0, 0, 1), origin top. The global prefers-reduced-motion
+     block collapses it; the animation's end state IS its resting state. */
+  transform-origin: top center;
+  animation: sr-palette-in 140ms cubic-bezier(0.2, 0, 0, 1);
+}
+@keyframes sr-palette-scrim-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes sr-palette-in {
+  from { opacity: 0; transform: scaleY(0.98); }
+  to   { opacity: 1; transform: scaleY(1); }
+}
+
+/* ---- head: the field the entry control turns into ------------------------ */
+.sr-palette-head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 12px; flex-shrink: 0;
+  border-bottom: 1px solid var(--sr-border-subtle);
+}
+.sr-palette-field { position: relative; flex: 1; min-width: 0; display: flex; }
+.sr-palette-field > svg {
+  position: absolute; left: 11px; top: 50%; transform: translateY(-50%);
+  color: var(--sr-text-muted); pointer-events: none;
+}
+.sr-palette-input {
+  width: 100%; height: 2.5rem; min-width: 0;
+  padding: 0 12px 0 34px;
+  border: 1.5px solid var(--sr-border-input); border-radius: 8px;
+  background: var(--sr-surface); color: var(--sr-text);
+  font-family: inherit; font-size: 1rem; font-weight: 500;
+  transition: border-color 120ms ease-out;
+}
+.sr-palette-input::placeholder { color: var(--sr-text-muted); font-weight: 400; }
+/* The global input:focus-visible ring hugs this border unchanged. No override:
+   the field exists precisely so the shipped focus treatment stays shipped. */
+.sr-palette-input:focus-visible {
+  outline: 2px solid var(--sr-accent); outline-offset: 0;
+  border-color: var(--sr-accent);
+  box-shadow: 0 0 0 4px rgba(39, 116, 72, 0.12);
+}
+.sr-palette-close {
+  flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;
+  width: 2.5rem; height: 2.5rem; padding: 0;
+  border: 0; border-radius: 8px; background: none;
+  color: var(--sr-text-muted); cursor: pointer;
+  transition: background-color 120ms ease-out, color 120ms ease-out;
+}
+.sr-palette-close:hover { background: var(--sr-surface-subtle); color: var(--sr-text); }
+
+/* ---- results listbox ----------------------------------------------------- */
+.sr-palette-results {
+  flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+  padding-bottom: 4px;
+}
+.sr-palette-group {
+  padding: 11px 14px 5px;
+  font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--sr-text-muted);
+}
+.sr-palette-results > .sr-palette-group:first-child { padding-top: 8px; }
+
+.sr-palette-row {
+  display: flex; align-items: center; gap: 10px;
+  min-height: 2.25rem; padding: 9px 14px;
+  cursor: pointer; color: var(--sr-text-muted);
+  transition: background-color 120ms ease-out;
+}
+.sr-palette-row:hover { background: var(--sr-surface-subtle); }
+/* The active option is the shipped SpeciesCombobox treatment, byte for byte:
+   accent-bg-hover fill plus a 2px inset accent outline, so ONE listbox
+   vocabulary serves the pickers and the palette. Deliberately NOT animated --
+   an arrow key must move the highlight in the same frame as the press. */
+.sr-palette-row--active {
+  background: var(--sr-accent-bg-hover);
+  outline: 2px solid var(--sr-accent); outline-offset: -2px;
+  transition: none;
+}
+.sr-palette-row--active .sr-palette-row-icon { color: var(--sr-accent); }
+.sr-palette-row-icon { flex-shrink: 0; display: flex; color: var(--sr-text-muted); }
+.sr-palette-row-name {
+  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 0.875rem; font-weight: 500; color: var(--sr-text);
+}
+.sr-palette-row-sci {
+  flex: 0 1 auto; max-width: 40%; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: right;
+  font-size: 0.71875rem; font-style: italic; color: var(--sr-text-muted);
+}
+
+/* ---- non-option lines: the cap note and the status region ---------------- */
+.sr-palette-note {
+  margin: 4px 14px 0; padding: 9px 0 4px;
+  border-top: 1px solid var(--sr-border-subtle);
+  font-size: 0.75rem; line-height: 1.5; color: var(--sr-text-muted);
+}
+/* The status region is ALWAYS mounted and EMPTY until it has a sentence: a
+   live region created together with its first message never announces. All
+   padding and type live on the child line, so the idle region computes to zero
+   height without any rule hiding it. */
+.sr-palette-status { }
+.sr-palette-status-line {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 10px 14px 12px;
+  font-size: 0.8125rem; line-height: 1.55; color: var(--sr-text-muted);
+}
+.sr-palette-status-line > svg { flex-shrink: 0; margin-top: 2px; }
+.sr-palette-status-line strong { font-weight: 600; color: var(--sr-text); }
+
+/* ---- footer key legend --------------------------------------------------- */
+.sr-palette-foot {
+  flex-shrink: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px;
+  padding: 8px 14px; background: var(--sr-surface-faint);
+  border-top: 1px solid var(--sr-border-subtle);
+  font-size: 0.6875rem; color: var(--sr-text-muted);
+}
+.sr-palette-legend { display: inline-flex; align-items: center; gap: 5px; }
+.sr-palette-kbd {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 1.25rem; height: 1.125rem; padding: 0 4px;
+  border: 1px solid var(--sr-border-medium); border-radius: 4px;
+  background: var(--sr-surface-subtle); color: var(--sr-text-muted);
+  font-family: inherit; font-size: 0.625rem; font-weight: 700; line-height: 1;
+}
+
+/* ---- phone: a full-height sheet, not a centred box ------------------------
+   SHIPPED: @media (max-width: 640px). A container query here only because the
+   stage stands in for the viewport. */
+@container mkstage (max-width: 640px) {
+  .sr-palette-root { padding: 0; align-items: stretch; }
+  .sr-palette-panel {
+    width: 100%; height: 100%; max-height: 100%;
+    border: 0; border-radius: 0;
+  }
+  .sr-palette-row { min-height: 2.75rem; }        /* the 44px touch posture */
+  .sr-palette-close { width: 2.75rem; height: 2.75rem; }
+  .sr-palette-head { padding: 10px 12px; }
+}
+
+/* The animation's end state is its resting state, so the global block is
+   enough; this is the explicit local statement of the same guarantee for
+   anything a future edit might add. */
+@media (prefers-reduced-motion: reduce) {
+  .sr-palette-root, .sr-palette-panel { animation: none; }
+  .sr-palette-row, .sr-nav-search, .sr-nav-item, .sr-palette-close { transition: none; }
+  .spin { animation: none; }
+}
+/* Mockup-only simulation of the same, so the reviewer can see it without
+   changing an OS setting. */
+.mk-rm .sr-palette-root, .mk-rm .sr-palette-panel { animation: none !important; }
+.mk-rm .sr-palette-row, .mk-rm .sr-nav-search, .mk-rm .sr-nav-item, .mk-rm .sr-palette-close { transition: none !important; }
+.mk-rm .spin { animation: none !important; }
+
+/* The shipped inline-loading glyph. */
+.spin { animation: sr-spin 0.7s linear infinite; }   /* the shipped duration, verbatim */
+@keyframes sr-spin { to { transform: rotate(360deg); } }
+
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border-width: 0;
+}
+</style>
+
+<div class="mk-bar">
+  <div class="mk-bar-in">
+    <div class="mk-grp">
+      <span>Width</span>
+      <input class="mk-range" id="w" type="range" min="320" max="1600" step="2" value="1440" aria-label="Window width in pixels">
+      <div class="mk-seg" role="group" aria-label="Width presets">
+        <button class="mk-btn" data-w="1440" tabindex="0">1440</button>
+        <button class="mk-btn" data-w="1024" tabindex="0">1024</button>
+        <button class="mk-btn" data-w="834" tabindex="0">834</button>
+        <button class="mk-btn" data-w="390" tabindex="0">390</button>
+        <button class="mk-btn" data-w="320" tabindex="0">320</button>
+      </div>
+    </div>
+    <div class="mk-grp">
+      <span>Theme</span>
+      <div class="mk-seg" role="group" aria-label="Theme">
+        <button class="mk-btn" data-theme="light" tabindex="0">Light</button>
+        <button class="mk-btn" data-theme="dark" tabindex="0">Dark</button>
+      </div>
+    </div>
+    <div class="mk-grp">
+      <span>Text</span>
+      <div class="mk-seg" role="group" aria-label="In-app text scale">
+        <button class="mk-btn" data-scale="16" tabindex="0">100%</button>
+        <button class="mk-btn" data-scale="24" tabindex="0">150%</button>
+        <button class="mk-btn" data-scale="32" tabindex="0">200%</button>
+      </div>
+    </div>
+    <div class="mk-grp">
+      <span>Species half</span>
+      <div class="mk-seg" role="group" aria-label="State of the species half">
+        <button class="mk-btn" data-sp="loaded" tabindex="0">Loaded</button>
+        <button class="mk-btn" data-sp="loading" tabindex="0">Parsing</button>
+        <button class="mk-btn" data-sp="nofile" tabindex="0">No backup</button>
+        <button class="mk-btn" data-sp="unloadable" tabindex="0">Will not load</button>
+      </div>
+    </div>
+    <div class="mk-grp">
+      <span>Platform</span>
+      <div class="mk-seg" role="group" aria-label="Platform, for the key hint only">
+        <button class="mk-btn" data-plat="mac" tabindex="0">macOS</button>
+        <button class="mk-btn" data-plat="win" tabindex="0">Windows</button>
+        <button class="mk-btn" data-plat="touch" tabindex="0">iPhone</button>
+      </div>
+    </div>
+    <div class="mk-grp">
+      <button class="mk-btn" id="replay" tabindex="0">Replay entrance</button>
+      <label class="mk-check"><input type="checkbox" id="rm" tabindex="0"> Reduced motion</label>
+    </div>
+  </div>
+</div>
+
+<div class="mk-wrap">
+
+  <header class="mk-head">
+    <p class="mk-eyebrow">SnowRaven &middot; command-palette &middot; design pass</p>
+    <h1 class="mk-h1">Name the thing.<br><em>Go</em> there.</h1>
+    <p class="mk-lede">
+      One overlay, opened with Cmd&#8209;K or Ctrl&#8209;K and by a visible control at every
+      navigation density, that searches two things a birder can already name: the eleven
+      destinations and every species in their own eBird backup. It is a combobox, not a menu:
+      the only tab stop inside it is the query field, and every result is an
+      <code>option</code> driven by <code>aria-activedescendant</code>. That is what makes the
+      focus trap correct by construction in WebKit's default tab mode, which is what the
+      shipped Mac, iPhone and iPad apps run.
+    </p>
+  </header>
+
+  <div class="mk-readout" id="readout"></div>
+
+  <div class="mk-stagewrap">
+    <div class="mk-frame" id="frame">
+      <div class="mk-titlebar"><i class="mk-dot"></i><i class="mk-dot"></i><i class="mk-dot"></i><span id="framelabel"></span></div>
+      <div id="stage"></div>
+    </div>
+  </div>
+  <p class="mk-cap" id="cap"></p>
+
+  <div class="mk-sec">
+    <h2 class="mk-h2">Every state, not just the happy one</h2>
+    <p>
+      The species half has four observable states and the result set has one more. None of
+      them blocks, hides or delays the destinations: those come from an array the app has
+      already built, so they render in the first commit and structurally cannot wait on a
+      parse. Each specimen below is the real panel with the real copy.
+    </p>
+    <div class="mk-specimens" id="specimens"></div>
+  </div>
+
+  <div class="mk-sec">
+    <h2 class="mk-h2">Three entry points, one control</h2>
+    <p>
+      The control is a field, not a destination row. It reads as "typing happens here" rather
+      than "a screen lives here", and it is the same object the palette's own query field turns
+      into when it opens. It takes three sizes the way <code>.sr-nav-item</code> already does,
+      and it never joins the <code>role="tablist"</code> group, which holds
+      <code>role="tab"</code> children only.
+    </p>
+    <div class="mk-entries" id="entries"></div>
+  </div>
+
+  <div class="mk-sec">
+    <h2 class="mk-h2">The keyboard model</h2>
+    <div class="mk-notes">
+      <div class="mk-note">
+        <h4>Arrows clamp, they do not wrap</h4>
+        <p>
+          ArrowDown at the last row and ArrowUp at the first leave the active option where it
+          is. The shipped species picker clamps; wrapping here would make one key answer
+          differently on two surfaces of the same app. Arrows cross the group boundary for
+          free, because destinations and species are one flat array with one active index.
+        </p>
+      </div>
+      <div class="mk-note">
+        <h4>One tab stop, plus one button</h4>
+        <p>
+          The query field and the Close control, each carrying a literal
+          <code>tabIndex={0}</code>. Result rows are <code>role="option"</code> divs with no
+          tabindex at all, so they are in neither WebKit's tab order nor the focus trap's list,
+          and the trap's prediction matches the engine exactly.
+        </p>
+      </div>
+      <div class="mk-note">
+        <h4>Enter takes the first row</h4>
+        <p>
+          With an active option, Enter opens it. With results and no active option, Enter opens
+          row one. With no results Enter does nothing and the palette stays open. This differs
+          from the species picker by one deliberate step: that control has a synthetic "All
+          species" clearing row at index 0 and must skip it, and the palette has no such row.
+        </p>
+      </div>
+      <div class="mk-note">
+        <h4>Escape does exactly one thing</h4>
+        <p>
+          While the palette is open, one Escape closes the palette and nothing else: a
+          fullscreen map stays expanded, a Map Explorer sidebar stays open, a share popup stays
+          up. Closing restores the shipped Escape layering untouched. Focus returns to the
+          control that opened it, or to a stated fallback where that control has unmounted.
+        </p>
+      </div>
+      <div class="mk-note">
+        <h4>The key hint is presentation only</h4>
+        <p>
+          Both chords are accepted on every platform whatever the hint says. Where the hint
+          resolves to nothing (iOS, or any coarse primary pointer) the control renders its name
+          and no key hint at all, and the footer legend goes with it. Nobody is shown a key they
+          have no way to press. The button still carries
+          <code>aria-keyshortcuts="Meta+K Control+K"</code>, which is true everywhere.
+        </p>
+      </div>
+      <div class="mk-note mk-note--warn">
+        <h4>One place a phone has no visible entry point</h4>
+        <p>
+          At phone density the app omits the whole navigation while a Map Explorer map is
+          expanded to fullscreen. The chord still works if a keyboard is attached; a touch user
+          leaves fullscreen first. This is stated and accepted, not solved: inventing a
+          twelfth control for one transient state would cost more than it buys.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <div class="mk-sec">
+    <h2 class="mk-h2">Motion</h2>
+    <p>
+      Nothing here is new. The entrance is the shipped species-picker listbox entrance, reused
+      so the two surfaces cannot drift; the scrim fade is the shipped overlay fade. The one
+      thing worth stating out loud is what is deliberately <em>not</em> animated.
+    </p>
+    <div class="mk-tblwrap">
+      <table class="mk-tbl">
+        <thead>
+          <tr><th scope="col">Interaction</th><th scope="col">Easing</th><th scope="col">Duration</th><th scope="col">Origin</th><th scope="col">Reduced motion</th><th scope="col">Implemented by</th></tr>
+        </thead>
+        <tbody>
+          <tr><th scope="row">Scrim appears</th><td>ease-out</td><td>160 ms</td><td>n/a (opacity)</td><td>Instant</td><td>CSS animation</td></tr>
+          <tr><th scope="row">Panel entrance</th><td><code>cubic-bezier(0.2, 0, 0, 1)</code></td><td>140 ms</td><td><code>top center</code></td><td>Instant; end state is the resting state</td><td>CSS animation</td></tr>
+          <tr><th scope="row">Row hover</th><td>ease-out</td><td>120 ms</td><td>n/a</td><td>Instant</td><td>CSS transition</td></tr>
+          <tr><th scope="row">Active option moves</th><td colspan="3">None. An arrow key must move the highlight in the same frame as the press.</td><td>Unchanged</td><td>No transition</td></tr>
+          <tr><th scope="row">Entry control hover</th><td>ease-out</td><td>120 ms</td><td>n/a</td><td>Instant</td><td>CSS transition</td></tr>
+          <tr><th scope="row">Parse-in-flight glyph</th><td>linear rotation</td><td>0.7 s loop, the shipped value</td><td>centre</td><td>Frozen; the sentence beside it carries the state</td><td>Shipped <code>.spin</code></td></tr>
+          <tr><th scope="row">Close</th><td colspan="3">None. Instant removal, matching the shipped picker: an exit animation would sit between the user and the screen they just asked for.</td><td>Unchanged</td><td>Conditional render</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="mk-sec">
+    <h2 class="mk-h2">What this costs the design system</h2>
+    <div class="mk-notes">
+      <div class="mk-note">
+        <h4>No new token</h4>
+        <p>
+          Every colour resolves from a <code>var(--sr-*)</code> already defined in both themes:
+          <code>--sr-scrim</code> for the backdrop, surface, border and shadow tokens for the
+          panel, <code>--sr-border-input</code> for the field boundary,
+          <code>--sr-accent-bg-hover</code> plus <code>--sr-accent</code> for the active option.
+          No hex, no <code>rgb()</code>.
+        </p>
+      </div>
+      <div class="mk-note">
+        <h4>One new pattern, one new control</h4>
+        <p>
+          A top-anchored modal search overlay is a shape the system does not have: the dialog
+          shell is centred and is for confirmations, and the More sheet is a bottom navigation
+          sheet. Both were borrowed from for behaviour, neither for its box.
+        </p>
+      </div>
+      <div class="mk-note">
+        <h4>The listbox vocabulary is reused, not forked</h4>
+        <p>
+          Active-option fill and inset outline, the row's flex proportions, the 40% cap on the
+          scientific name and truncation on both spans all come from the shipped species picker.
+          The one thing not carried over is <code>BirdName</code>: it composes a button and two
+          anchors, which would nest controls inside <code>role="option"</code>.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <p class="mk-foot">
+    Rendered from the shipped tokens in <code>frontend/src/globals.css</code>, the shipped
+    labels in <code>lib/tabLayout.ts</code> and the shipped glyphs in
+    <code>lib/tabIcons.tsx</code>. The species list is a Bay Area birder's, including two
+    Yellow-rumped Warbler forms, because the palette offers every distinct name the parse
+    yields rather than only what Species Detail shows at its defaults. The stage is
+    interactive: type in the field, use the arrow keys, press Enter, press Escape, or press
+    Cmd&#8209;K / Ctrl&#8209;K anywhere on this page.
+  </p>
+
+</div>
+
+<script>
+/* =====================================================================
+   DATA
+   ===================================================================== */
+  var RAVEN = 'M 150.79 440.77 L 176.47 435.39 L 197.48 429.33 L 213.04 423.88 L 245.73 409.97 L 270.63 397.28 L 296.30 381.80 L 318.09 366.18 L 336.57 350.44 L 352.33 334.58 L 367.31 316.20 L 379.08 297.53 L 385.19 285.08 L 389.91 273.41 L 395.34 253.95 L 396.99 244.61 L 398.12 232.16 L 397.64 214.27 L 393.73 194.04 L 386.46 169.91 L 384.84 159.02 L 385.60 149.68 L 388.70 139.57 L 394.35 130.77 L 399.02 125.85 L 405.25 120.87 L 417.70 113.66 L 430.15 109.05 L 445.71 105.74 L 451.93 105.05 L 464.38 105.06 L 473.72 106.67 L 484.62 111.08 L 485.38 110.77 L 485.11 101.44 L 483.21 95.21 L 479.17 87.44 L 473.72 81.39 L 464.38 74.65 L 449.60 68.35 L 437.93 65.33 L 410.69 60.66 L 402.71 53.19 L 392.02 45.17 L 381.12 38.75 L 373.34 35.08 L 354.67 28.85 L 339.10 26.17 L 322.76 25.37 L 311.09 26.27 L 297.08 28.66 L 288.52 31.10 L 273.74 37.43 L 262.07 44.46 L 253.51 51.19 L 244.65 60.19 L 234.69 73.42 L 226.06 88.21 L 215.97 110.77 L 198.93 152.79 L 199.81 153.14 L 210.71 148.11 L 230.16 141.75 L 241.83 139.37 L 254.28 138.31 L 267.51 138.63 L 281.50 141.12 L 293.19 144.94 L 303.31 150.17 L 311.57 155.91 L 321.42 166.02 L 327.70 175.36 L 332.88 187.08 L 335.35 196.37 L 336.92 208.82 L 336.90 218.94 L 334.38 236.06 L 328.50 255.51 L 319.29 274.96 L 307.20 294.01 L 289.43 316.20 L 271.40 335.03 L 248.84 355.96 L 146.83 440.71 L 147.68 441.18 Z M 361.37 83.54 L 355.44 83.04 L 349.39 79.65 L 345.70 75.76 L 340.28 67.20 L 335.99 63.61 L 331.05 60.97 L 331.32 60.45 L 343.77 60.10 L 354.67 61.50 L 367.12 66.26 L 376.07 72.64 L 374.90 74.46 L 367.89 80.74 Z M 384.80 96.77 L 381.12 97.22 L 379.95 96.77 L 389.68 89.61 L 398.24 84.87 L 409.14 81.06 L 423.14 79.17 L 436.37 79.99 L 446.49 82.49 L 458.16 88.01 L 465.16 93.23 L 467.68 95.99 L 466.72 96.57 L 440.26 94.09 L 416.92 93.78 L 399.02 94.86 Z M 27.07 486.63 L 42.63 480.11 L 57.41 472.78 L 83.87 457.96 L 111.11 441.03 L 146.90 416.35 L 188.78 384.68 L 227.05 353.61 L 252.69 330.99 L 266.74 317.42 L 278.01 305.31 L 291.95 288.19 L 298.64 278.72 L 306.04 266.40 L 311.49 255.51 L 315.26 246.17 L 317.53 239.17 L 319.92 228.27 L 321.08 218.94 L 321.06 210.38 L 320.04 201.82 L 318.42 194.81 L 315.25 187.03 L 311.19 180.03 L 307.72 175.36 L 302.53 170.13 L 295.53 164.95 L 286.97 160.39 L 276.07 156.55 L 269.07 154.98 L 260.51 153.84 L 248.84 153.69 L 231.72 155.87 L 220.82 158.88 L 212.26 162.07 L 203.81 166.02 L 195.15 171.24 L 186.59 177.15 L 176.64 185.48 L 162.41 200.26 L 153.88 211.15 L 143.79 226.74 L 136.73 239.17 L 125.74 261.73 L 109.38 300.64 L 78.90 379.23 L 79.98 379.55 L 90.87 375.49 L 106.44 367.80 L 123.56 357.64 L 148.46 339.41 L 149.24 339.06 L 149.37 339.55 L 133.67 359.67 L 120.96 373.01 L 107.66 384.68 L 87.69 397.91 L 62.88 436.82 L 44.33 463.27 L 26.62 485.84 Z';
+
+var DESTS = [
+  { id: 'weather',        label: 'Weather' },
+  { id: 'birding-stats',  label: 'Statistics' },
+  { id: 'map-explorer',   label: 'Map Explorer' },
+  { id: 'species-detail', label: 'Species Detail' },
+  { id: 'calendar',       label: 'Calendar' },
+  { id: 'life-list',      label: 'Multimedia' },
+  { id: 'breeding-codes', label: 'Breeding Codes' },
+  { id: 'checklists',     label: 'Checklists' },
+  { id: 'comparer',       label: 'List Comparer' },
+  { id: 'named-birds',    label: 'Named Birds' },
+  { id: 'settings',       label: 'Settings' }
+];
+
+/* A Bay Area birder's list. Common name, scientific name. */
+var SPECIES = [
+  ['Acorn Woodpecker','Melanerpes formicivorus'],
+  ["Allen's Hummingbird",'Selasphorus sasin'],
+  ['American Avocet','Recurvirostra americana'],
+  ['American Coot','Fulica americana'],
+  ['American Crow','Corvus brachyrhynchos'],
+  ['American Goldfinch','Spinus tristis'],
+  ['American Kestrel','Falco sparverius'],
+  ['American Robin','Turdus migratorius'],
+  ['American White Pelican','Pelecanus erythrorhynchos'],
+  ['American Wigeon','Mareca americana'],
+  ["Anna's Hummingbird",'Calypte anna'],
+  ['Ash-throated Flycatcher','Myiarchus cinerascens'],
+  ['Band-tailed Pigeon','Patagioenas fasciata'],
+  ['Barn Owl','Tyto alba'],
+  ['Barn Swallow','Hirundo rustica'],
+  ['Bay-breasted Warbler','Setophaga castanea'],
+  ['Belted Kingfisher','Megaceryle alcyon'],
+  ["Bewick's Wren",'Thryomanes bewickii'],
+  ['Black Phoebe','Sayornis nigricans'],
+  ['Black-crowned Night Heron','Nycticorax nycticorax'],
+  ['Black-necked Stilt','Himantopus mexicanus'],
+  ['Black-throated Gray Warbler','Setophaga nigrescens'],
+  ["Brandt's Cormorant",'Urile penicillatus'],
+  ["Brewer's Blackbird",'Euphagus cyanocephalus'],
+  ['Brown Creeper','Certhia americana'],
+  ['Brown Pelican','Pelecanus occidentalis'],
+  ['Bufflehead','Bucephala albeola'],
+  ["Bullock's Oriole",'Icterus bullockii'],
+  ['Bushtit','Psaltriparus minimus'],
+  ['California Gull','Larus californicus'],
+  ['California Quail','Callipepla californica'],
+  ['California Scrub-Jay','Aphelocoma californica'],
+  ['California Towhee','Melozone crissalis'],
+  ['Canada Goose','Branta canadensis'],
+  ['Caspian Tern','Hydroprogne caspia'],
+  ["Cassin's Vireo",'Vireo cassinii'],
+  ['Cedar Waxwing','Bombycilla cedrorum'],
+  ['Chestnut-backed Chickadee','Poecile rufescens'],
+  ['Cinnamon Teal','Spatula cyanoptera'],
+  ['Cliff Swallow','Petrochelidon pyrrhonota'],
+  ['Common Goldeneye','Bucephala clangula'],
+  ['Common Merganser','Mergus merganser'],
+  ['Common Raven','Corvus corax'],
+  ['Common Yellowthroat','Geothlypis trichas'],
+  ["Cooper's Hawk",'Astur cooperii'],
+  ['Dark-eyed Junco','Junco hyemalis'],
+  ['Double-crested Cormorant','Nannopterum auritum'],
+  ['Downy Woodpecker','Dryobates pubescens'],
+  ['Dunlin','Calidris alpina'],
+  ['Eared Grebe','Podiceps nigricollis'],
+  ['Elegant Tern','Thalasseus elegans'],
+  ['Eurasian Collared-Dove','Streptopelia decaocto'],
+  ['European Starling','Sturnus vulgaris'],
+  ["Forster's Tern",'Sterna forsteri'],
+  ['Fox Sparrow','Passerella iliaca'],
+  ['Gadwall','Mareca strepera'],
+  ['Golden-crowned Kinglet','Regulus satrapa'],
+  ['Golden-crowned Sparrow','Zonotrichia atricapilla'],
+  ['Great Blue Heron','Ardea herodias'],
+  ['Great Egret','Ardea alba'],
+  ['Great Horned Owl','Bubo virginianus'],
+  ['Greater Yellowlegs','Tringa melanoleuca'],
+  ['Green Heron','Butorides virescens'],
+  ['Hairy Woodpecker','Dryobates villosus'],
+  ['Hermit Thrush','Catharus guttatus'],
+  ['Hermit Warbler','Setophaga occidentalis'],
+  ['Hooded Merganser','Lophodytes cucullatus'],
+  ['House Finch','Haemorhous mexicanus'],
+  ['House Sparrow','Passer domesticus'],
+  ["Hutton's Vireo",'Vireo huttoni'],
+  ['Killdeer','Charadrius vociferus'],
+  ['Least Sandpiper','Calidris minutilla'],
+  ['Lesser Goldfinch','Spinus psaltria'],
+  ['Lesser Scaup','Aythya affinis'],
+  ['Long-billed Curlew','Numenius americanus'],
+  ['Long-billed Dowitcher','Limnodromus scolopaceus'],
+  ["MacGillivray's Warbler",'Geothlypis tolmiei'],
+  ['Mallard','Anas platyrhynchos'],
+  ['Marbled Godwit','Limosa fedoa'],
+  ['Marsh Wren','Cistothorus palustris'],
+  ['Merlin','Falco columbarius'],
+  ['Mourning Dove','Zenaida macroura'],
+  ['Nashville Warbler','Leiothlypis ruficapilla'],
+  ['Northern Flicker','Colaptes auratus'],
+  ['Northern Harrier','Circus hudsonius'],
+  ['Northern Mockingbird','Mimus polyglottos'],
+  ['Northern Pintail','Anas acuta'],
+  ['Northern Shoveler','Spatula clypeata'],
+  ["Nuttall's Woodpecker",'Dryobates nuttallii'],
+  ['Oak Titmouse','Baeolophus inornatus'],
+  ['Orange-crowned Warbler','Leiothlypis celata'],
+  ['Osprey','Pandion haliaetus'],
+  ['Pacific-slope Flycatcher','Empidonax difficilis'],
+  ['Palm Warbler','Setophaga palmarum'],
+  ['Peregrine Falcon','Falco peregrinus'],
+  ['Pied-billed Grebe','Podilymbus podiceps'],
+  ['Pygmy Nuthatch','Sitta pygmaea'],
+  ['Red-breasted Nuthatch','Sitta canadensis'],
+  ['Red-shouldered Hawk','Buteo lineatus'],
+  ['Red-tailed Hawk','Buteo jamaicensis'],
+  ['Red-winged Blackbird','Agelaius phoeniceus'],
+  ['Ring-billed Gull','Larus delawarensis'],
+  ['Ruby-crowned Kinglet','Corthylio calendula'],
+  ['Ruddy Duck','Oxyura jamaicensis'],
+  ['Rufous Hummingbird','Selasphorus rufus'],
+  ['Savannah Sparrow','Passerculus sandwichensis'],
+  ["Say's Phoebe",'Sayornis saya'],
+  ['Semipalmated Plover','Charadrius semipalmatus'],
+  ['Snowy Egret','Egretta thula'],
+  ['Snowy Plover','Charadrius nivosus'],
+  ['Song Sparrow','Melospiza melodia'],
+  ['Spotted Sandpiper','Actitis macularius'],
+  ['Spotted Towhee','Pipilo maculatus'],
+  ["Steller's Jay",'Cyanocitta stelleri'],
+  ['Surf Scoter','Melanitta perspicillata'],
+  ["Swainson's Thrush",'Catharus ustulatus'],
+  ["Townsend's Warbler",'Setophaga townsendi'],
+  ['Tree Swallow','Tachycineta bicolor'],
+  ['Turkey Vulture','Cathartes aura'],
+  ['Varied Thrush','Ixoreus naevius'],
+  ['Violet-green Swallow','Tachycineta thalassina'],
+  ['Wandering Tattler','Tringa incana'],
+  ['Warbling Vireo','Vireo gilvus'],
+  ['Western Bluebird','Sialia mexicana'],
+  ['Western Grebe','Aechmophorus occidentalis'],
+  ['Western Gull','Larus occidentalis'],
+  ['Western Meadowlark','Sturnella neglecta'],
+  ['Western Sandpiper','Calidris mauri'],
+  ['White-crowned Sparrow','Zonotrichia leucophrys'],
+  ['White-tailed Kite','Elanus leucurus'],
+  ['Willet','Tringa semipalmata'],
+  ["Wilson's Warbler",'Cardellina pusilla'],
+  ['Wrentit','Chamaea fasciata'],
+  ['Yellow Warbler','Setophaga petechia'],
+  ['Yellow-billed Magpie','Pica nuttalli'],
+  ['Yellow-rumped Warbler','Setophaga coronata'],
+  ["Yellow-rumped Warbler (Audubon's)",'Setophaga coronata auduboni'],
+  ['Yellow-rumped Warbler (Myrtle)','Setophaga coronata coronata']
+];
+
+/* Every user-facing string in one place, so it rides the repo's em-dash and
+   agreement sweeps. No em dash (U+2014) appears in any of them. */
+var COPY = {
+  controlLabel:  'Search',
+  inputLabel:    'Search destinations and species',
+  placeholder:   'Search destinations and species',
+  closeLabel:    'Close search',
+  groupDest:     'Destinations',
+  groupSpecies:  'Species',
+  loading:       'Reading your eBird backup.',
+  noBackup:      'Searching species needs your eBird backup. Upload MyEBirdData.csv in Settings → Default Files → eBird Backup.',
+  loadError:     "Couldn't load your eBird backup. Re-upload MyEBirdData.csv in Settings → Default Files → eBird Backup.",
+  noMatches:     'Nothing matches that search.',
+  cap:           'Showing the first 50 matches. Keep typing to narrow them.',
+  legendMove:    'Move',
+  legendOpen:    'Open',
+  legendClose:   'Close'
+};
+var SPECIES_CAP = 50;
+
+/* =====================================================================
+   ICONS -- the shipped TAB_ICONS table, plus lucide Search / X / Loader2.
+   Render functions taking a size and stroke, exactly as lib/tabIcons.tsx
+   ships them, because the same glyph is drawn at four nav scales.
+   ===================================================================== */
+function svg(size, sw, body, extra) {
+  return '<svg width="' + size + '" height="' + size + '" viewBox="0 0 24 24" fill="none" ' +
+    'stroke="currentColor" stroke-width="' + sw + '" stroke-linecap="round" stroke-linejoin="round" ' +
+    'aria-hidden="true"' + (extra || '') + '>' + body + '</svg>';
+}
+var GLYPH = {
+  'weather':        '<path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/>',
+  'birding-stats':  '<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>',
+  'map-explorer':   '<polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" y1="3" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="21"/>',
+  'species-detail': '<path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/>',
+  'calendar':       '<path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/><path d="M16 18h.01"/>',
+  'life-list':      '<path d="M18 22H4a2 2 0 0 1-2-2V6"/><path d="m22 13-1.296-1.296a2.41 2.41 0 0 0-3.408 0L11 18"/><circle cx="12" cy="8" r="2"/><rect width="16" height="16" x="6" y="2" rx="2"/>',
+  'breeding-codes': '<path d="m10 16 1.5 1.5"/><path d="m14 8-1.5-1.5"/><path d="M15 2c-1.798 1.998-2.518 3.995-2.807 5.993"/><path d="m16.5 10.5 1 1"/><path d="m17 6-2.891-2.891"/><path d="M2 15c3.333-3 6.667-3 10-3"/><path d="m20 9 .891.891"/><path d="M3.109 14.109 4 15"/><path d="m6.5 12.5 1 1"/><path d="m7 18 2.891 2.891"/><path d="M9 22c1.798-1.998 2.518-3.995 2.807-5.993"/>',
+  'checklists':     '<rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/>',
+  'comparer':       '<path d="M21 6H3"/><path d="M10 12H3"/><path d="M10 18H3"/><polyline points="15 12 18 15 21 12"/><path d="M18 6v9"/>',
+  'named-birds':    '<path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/>',
+  'settings':       '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
+  'search':         '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+  'close':          '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+  'spinner':        '<path d="M21 12a9 9 0 1 1-6.219-8.56"/>',
+  'alert':          '<circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/>',
+  'upload':         '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><path d="M12 3v13"/>'
+};
+function icon(id, size, sw, extra) { return svg(size, sw, GLYPH[id], extra); }
+
+/* The shipped NAV_ICON presets. The palette picks one; it invents no number. */
+var NAV_ICON = {
+  sidebar: { size: 15, sw: 2.25 },
+  rail:    { size: 18, sw: 2 },
+  sheet:   { size: 17, sw: 2.1 },
+  bar:     { size: 20, sw: 2 }
+};
+
+/* =====================================================================
+   PURE CORE -- the predicate, the sort, the cap. Exactly what
+   lib/paletteRows.ts is specified to hold, so the mockup and the build
+   answer every query identically.
+   ===================================================================== */
+function matchesSpeciesQuery(name, sci, q) {
+  return name.toLowerCase().indexOf(q) !== -1 || sci.toLowerCase().indexOf(q) !== -1;
+}
+function buildPaletteRows(query, index) {
+  var q = query.trim().toLowerCase();
+  var rows = [];
+  var dests = q
+    ? DESTS.filter(function (d) { return d.label.toLowerCase().indexOf(q) !== -1; })
+    : DESTS.slice();
+  dests.forEach(function (d) { rows.push({ kind: 'tab', id: d.id, label: d.label }); });
+  var destinationCount = dests.length;
+
+  var species = [], truncated = false;
+  if (q && index) {
+    species = index.filter(function (s) { return matchesSpeciesQuery(s[0], s[1], q); });
+    species.sort(function (a, b) {
+      var x = a[0].toLowerCase(), y = b[0].toLowerCase();
+      return x < y ? -1 : x > y ? 1 : 0;
+    });
+    if (species.length > SPECIES_CAP) { truncated = true; species = species.slice(0, SPECIES_CAP); }
+    species.forEach(function (s) { rows.push({ kind: 'species', name: s[0], sci: s[1] }); });
+  }
+  return { rows: rows, destinationCount: destinationCount, speciesTruncated: truncated };
+}
+
+/* One sentence, chosen once. `''` means the region stays mounted and empty. */
+function statusSentence(speciesState, query, rowCount) {
+  if (speciesState === 'loading')    return { text: COPY.loading,   glyph: 'spinner', species: true };
+  if (speciesState === 'nofile')     return { text: COPY.noBackup,  glyph: 'upload',  species: true };
+  if (speciesState === 'unloadable') return { text: COPY.loadError, glyph: 'alert',   species: true };
+  if (query.trim() !== '' && rowCount === 0) return { text: COPY.noMatches, glyph: null, species: false };
+  return null;
+}
+
+/* FR-45, presentation only: (a) iOS or a coarse primary pointer -> none;
+   (b) macOS -> cmd; (c) not under Tauri and an Apple userAgent token -> cmd;
+   (d) otherwise -> ctrl. Simulated here by the Platform control. */
+function chordHint(platform) {
+  if (platform === 'touch') return 'none';
+  if (platform === 'mac') return 'cmd';
+  return 'ctrl';
+}
+function hintText(hint) {
+  return hint === 'cmd' ? '⌘K' : hint === 'ctrl' ? 'Ctrl K' : '';
+}
+
+/* =====================================================================
+   MOCKUP STATE
+   ===================================================================== */
+var S = {
+  width: 1440, theme: 'light', scale: 16,
+  speciesState: 'loaded', platform: 'mac',
+  open: true, query: '', activeIdx: -1,
+  lastAction: 'Palette open. Nothing chosen yet.'
+};
+
+function esc(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+function density(w, rootPx) {
+  if (w <= 640) return 'phone';
+  if (w - 13.5 * rootPx >= 640) return 'sidebar';
+  return 'rail';
+}
+
+/* =====================================================================
+   RENDER -- the palette
+   ===================================================================== */
+function paletteMarkup(opts) {
+  var query = opts.query, speciesState = opts.speciesState, activeIdx = opts.activeIdx;
+  var hint = opts.hint, interactive = opts.interactive !== false;
+  var built = buildPaletteRows(query, speciesState === 'loaded' ? SPECIES : null);
+  var rows = built.rows;
+  var status = statusSentence(speciesState, query, rows.length);
+  var speciesCount = rows.length - built.destinationCount;
+  var showSpeciesGroup = speciesCount > 0 || !!(status && status.species);
+
+  var h = '';
+  h += '<div class="sr-palette-head">';
+  h +=   '<div class="sr-palette-field">' + icon('search', 17, 2.1);
+  if (interactive) {
+    h += '<input class="sr-palette-input sr-input-16" id="pal-input" type="text" tabindex="0"' +
+         ' role="combobox" aria-expanded="true" aria-controls="pal-listbox"' +
+         ' aria-autocomplete="list" aria-haspopup="listbox"' +
+         (activeIdx >= 0 ? ' aria-activedescendant="pal-option-' + activeIdx + '"' : '') +
+         ' aria-label="' + esc(COPY.inputLabel) + '"' +
+         ' placeholder="' + esc(COPY.placeholder) + '" value="' + esc(query) + '">';
+  } else {
+    /* Specimen only: a styled div, so the strip adds no tab stops to this page. */
+    h += '<div class="sr-palette-input" aria-hidden="true" style="display:flex;align-items:center;white-space:nowrap;overflow:hidden">' +
+         (query ? esc(query) : '<span style="color:var(--sr-text-muted);font-weight:400">' + esc(COPY.placeholder) + '</span>') +
+         '</div>';
+  }
+  h +=   '</div>';
+  h +=   '<button type="button" class="sr-palette-close"' + (interactive ? ' id="pal-close"' : '') +
+         ' tabindex="' + (interactive ? '0' : '-1') + '" aria-label="' + esc(COPY.closeLabel) + '">' +
+         icon('close', 17, 2.2) + '</button>';
+  h += '</div>';
+
+  /* The scroller is NOT the listbox. A listbox may own only options and
+     groups, so the cap line and the status region are siblings BELOW it, and
+     each visible group heading is carried by a role="group" wrapper's own
+     aria-label. That is the APG grouped-listbox shape; the flat row array and
+     its single active index are untouched, so arrows still cross the boundary. */
+  h += '<div class="sr-palette-results">';
+  h +=   '<div id="pal-listbox" role="listbox" aria-label="' + esc(COPY.inputLabel) + '">';
+
+  function optionHtml(row, i) {
+    var active = i === activeIdx;
+    var o = '<div class="sr-palette-row' + (active ? ' sr-palette-row--active' : '') + '"' +
+      ' id="pal-option-' + i + '" role="option" aria-selected="' + (active ? 'true' : 'false') + '"' +
+      ' data-idx="' + i + '">';
+    if (row.kind === 'tab') {
+      o += '<span class="sr-palette-row-icon">' + icon(row.id, NAV_ICON.sheet.size, NAV_ICON.sheet.sw) + '</span>';
+      o += '<span class="sr-palette-row-name">' + esc(row.label) + '</span>';
+    } else {
+      o += '<span class="sr-palette-row-name">' + esc(row.name) + '</span>';
+      o += '<span class="sr-palette-row-sci">' + esc(row.sci) + '</span>';
+    }
+    return o + '</div>';
+  }
+
+  if (built.destinationCount > 0) {
+    h += '<div role="group" aria-label="' + esc(COPY.groupDest) + '">';
+    h +=   '<div class="sr-palette-group" role="presentation">' + esc(COPY.groupDest) + '</div>';
+    for (var di = 0; di < built.destinationCount; di++) h += optionHtml(rows[di], di);
+    h += '</div>';
+  }
+  if (speciesCount > 0) {
+    h += '<div role="group" aria-label="' + esc(COPY.groupSpecies) + '">';
+    h +=   '<div class="sr-palette-group" role="presentation">' + esc(COPY.groupSpecies) + '</div>';
+    for (var si = built.destinationCount; si < rows.length; si++) h += optionHtml(rows[si], si);
+    h += '</div>';
+  }
+  h +=   '</div>';
+
+  if (built.speciesTruncated) {
+    h += '<p class="sr-palette-note">' + esc(COPY.cap) + '</p>';
+  }
+  /* A species-half sentence with no rows still gets its heading, so the reader
+     knows which half is speaking. */
+  if (speciesCount === 0 && showSpeciesGroup) {
+    h += '<div class="sr-palette-group">' + esc(COPY.groupSpecies) + '</div>';
+  }
+  /* Always mounted, empty until it has a sentence: a live region created
+     together with its first message never announces. */
+  h += '<div class="sr-palette-status" role="status">';
+  if (status) {
+    h += '<span class="sr-palette-status-line">' +
+         (status.glyph ? icon(status.glyph, 14, 2.1, status.glyph === 'spinner' ? ' class="spin"' : '') : '') +
+         esc(status.text) + '</span>';
+  }
+  h += '</div>';
+  h += '</div>';
+
+  if (hint !== 'none') {
+    h += '<div class="sr-palette-foot">' +
+         '<span class="sr-palette-legend"><kbd class="sr-palette-kbd">↑</kbd>' +
+         '<kbd class="sr-palette-kbd">↓</kbd> ' + esc(COPY.legendMove) + '</span>' +
+         '<span class="sr-palette-legend"><kbd class="sr-palette-kbd">↵</kbd> ' + esc(COPY.legendOpen) + '</span>' +
+         '<span class="sr-palette-legend"><kbd class="sr-palette-kbd">Esc</kbd> ' + esc(COPY.legendClose) + '</span>' +
+         '</div>';
+  }
+  return { html: h, rows: rows, destinationCount: built.destinationCount };
+}
+
+/* =====================================================================
+   RENDER -- the entry-point control, at its three sizes
+   ===================================================================== */
+function entryControl(size, hint, id) {
+  var g = size === 'rail' ? NAV_ICON.rail : size === 'sheet' ? NAV_ICON.sheet : NAV_ICON.sidebar;
+  var h = '<button type="button" class="sr-nav-search" tabindex="0"' +
+    (id ? ' id="' + id + '"' : '') +
+    ' aria-keyshortcuts="Meta+K Control+K"' +
+    (size === 'rail' ? ' aria-label="' + esc(COPY.controlLabel) + '"' : '') + '>';
+  h += icon('search', g.size, g.sw);
+  h += '<span class="sr-nav-search-label">' + esc(COPY.controlLabel) + '</span>';
+  if (hint !== 'none') {
+    h += '<span class="sr-nav-search-hint" aria-hidden="true">' + esc(hintText(hint)) + '</span>';
+  }
+  h += '</button>';
+  return h;
+}
+
+/* =====================================================================
+   RENDER -- the app behind the overlay
+   ===================================================================== */
+function navColumn(rail, hint) {
+  var g = rail ? NAV_ICON.rail : NAV_ICON.sidebar;
+  var h = '<div class="sr-nav-col' + (rail ? ' sr-nav-col--rail' : '') + '">';
+  h += '<div class="sr-nav-brand"><svg width="' + (rail ? 22 : 20) + '" height="' + (rail ? 22 : 20) +
+       '" viewBox="0 0 512 512" aria-hidden="true" focusable="false" style="color:var(--sr-accent)">' +
+       '<path fill="currentColor" d="' + RAVEN + '"/></svg>';
+  if (!rail) h += '<p class="sr-nav-word">Snow<span>Raven</span></p>';
+  h += '</div>';
+  if (rail) h += '<div class="sr-nav-brandgap"></div>';
+  else h += '<p class="sr-nav-tagline">Your eBird data, read closely.</p>';
+  h += entryControl(rail ? 'rail' : 'sidebar', hint);
+  if (rail) h += '<hr class="sr-nav-sep" aria-hidden="true">';
+  h += '<nav class="sr-nav-list" role="tablist" aria-label="Destinations">';
+  DESTS.forEach(function (d, i) {
+    if (d.id === 'settings') h += '<hr class="sr-nav-sep" aria-hidden="true">';
+    var active = d.id === 'calendar';
+    h += '<button type="button" tabindex="-1" role="tab" aria-selected="' + (active ? 'true' : 'false') +
+         '" class="sr-nav-item' + (active ? ' sr-nav-item--active' : '') + '"' +
+         (rail ? ' aria-label="' + esc(d.label) + '"' : '') + '>' +
+         icon(d.id, g.size, g.sw) + '<span>' + esc(d.label) + '</span></button>';
+  });
+  h += '</nav><div class="sr-nav-spacer"></div></div>';
+  return h;
+}
+
+function pageBehind() {
+  return '<div class="sr-content"><div class="sr-page">' +
+    '<div class="sr-page-head"><span class="sr-page-tile">' + icon('calendar', 16, 2.1) + '</span>' +
+    '<div><h2 class="sr-page-title">Calendar</h2>' +
+    '<p class="sr-page-sub">Every checklist you have filed, by day.</p></div></div>' +
+    '<div class="sr-card"><h3>Tuesday, 2 September 2026</h3>' +
+    '<div class="sr-row"><b>Anna\'s Hummingbird</b><i>Calypte anna</i><em>4</em></div>' +
+    '<div class="sr-row"><b>California Scrub-Jay</b><i>Aphelocoma californica</i><em>2</em></div>' +
+    '<div class="sr-row"><b>Chestnut-backed Chickadee</b><i>Poecile rufescens</i><em>6</em></div>' +
+    '<div class="sr-row"><b>Wilson\'s Warbler</b><i>Cardellina pusilla</i><em>1</em></div></div>' +
+    '<div class="sr-card"><h3>Monday, 1 September 2026</h3>' +
+    '<div class="sr-row"><b>Marbled Godwit</b><i>Limosa fedoa</i><em>38</em></div>' +
+    '<div class="sr-row"><b>Western Sandpiper</b><i>Calidris mauri</i><em>110</em></div></div>' +
+    '</div></div>';
+}
+
+function phoneBar() {
+  var favourites = DESTS.filter(function (d) { return d.id !== 'settings'; }).slice(0, 4);
+  var h = '<div class="sr-navbar">';
+  favourites.forEach(function (d) {
+    var active = d.id === 'calendar';
+    h += '<button type="button" tabindex="-1" class="sr-navbar-cell' + (active ? ' sr-navbar-cell--active' : '') + '">' +
+         '<span class="sr-navbar-glyph">' + icon(d.id, NAV_ICON.bar.size, NAV_ICON.bar.sw) + '</span>' +
+         '<span class="sr-navbar-label">' + esc(d.label) + '</span></button>';
+  });
+  h += '<button type="button" tabindex="-1" class="sr-navbar-cell">' +
+       '<span class="sr-navbar-glyph">' +
+       svg(NAV_ICON.bar.size, NAV_ICON.bar.sw, '<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>') +
+       '</span><span class="sr-navbar-label">More</span></button>';
+  h += '</div>';
+  return h;
+}
+
+/* =====================================================================
+   THE STAGE
+   ===================================================================== */
+var stage = document.getElementById('stage');
+var frame = document.getElementById('frame');
+var readout = document.getElementById('readout');
+var cap = document.getElementById('cap');
+var framelabel = document.getElementById('framelabel');
+var lastRows = [], lastDestCount = 0;
+
+function renderStage() {
+  var d = density(S.width, S.scale);
+  var hint = chordHint(S.platform);
+  var h = '<div class="sr-app' + (S.platform === 'touch' ? ' sr-ios-app' : '') + '" data-theme="' + S.theme +
+          '"><div class="sr-stage" style="height:' +
+          (d === 'phone' ? 720 : 620) + 'px">';
+  h += '<div class="sr-shell">';
+  if (d !== 'phone') h += navColumn(d === 'rail', hint);
+  h += pageBehind();
+  h += '</div>';
+  if (d === 'phone') h += phoneBar();
+
+  if (S.open) {
+    var p = paletteMarkup({ query: S.query, speciesState: S.speciesState, activeIdx: S.activeIdx, hint: hint });
+    lastRows = p.rows; lastDestCount = p.destinationCount;
+    h += '<div class="sr-palette-root" id="pal-root">' +
+         '<div class="sr-palette-panel" role="dialog" aria-modal="true" aria-label="' + esc(COPY.inputLabel) + '">' +
+         p.html + '</div></div>';
+  }
+  h += '</div></div>';
+  stage.innerHTML = h;
+  frame.style.width = S.width + 'px';
+  wireStage();
+  paintReadout(d, hint);
+}
+
+function paintReadout(d, hint) {
+  var rootPx = S.scale;
+  var avail = S.width - Math.round((d === 'sidebar' ? 13.5 : d === 'rail' ? 3.75 : 0) * rootPx);
+  readout.innerHTML =
+    '<span><b>width</b> <span class="mk-out">' + S.width + 'px</span></span>' +
+    '<span><b>root font</b> <span class="mk-out">' + rootPx + 'px</span></span>' +
+    '<span><b>nav density</b> <span class="mk-out">' + d + '</span></span>' +
+    '<span><b>content</b> <span class="mk-out">' + avail + 'px</span></span>' +
+    '<span><b>key hint</b> <span class="mk-out">' + (hint === 'none' ? 'suppressed' : hintText(hint)) + '</span></span>' +
+    '<span><b>rows</b> <span class="mk-out">' + lastRows.length + '</span> (' + lastDestCount + ' destinations)</span>' +
+    '<span><b>active</b> <span class="mk-out">' + (S.activeIdx < 0 ? 'none' : '#' + S.activeIdx) + '</span></span>';
+  framelabel.textContent = 'SnowRaven · ' + d + ' · ' + S.theme;
+  cap.innerHTML = '<b>' + esc(S.lastAction) + '</b> The palette is live: type in the field, ' +
+    'use ↑ and ↓ (they clamp at both ends), press Enter to open the active row, press ' +
+    'Escape or the backdrop to close. Cmd‑K and Ctrl‑K both toggle it from anywhere ' +
+    'on this page, whatever the key hint says.';
+}
+
+function setActive(i) {
+  S.activeIdx = i;
+  renderStage();
+  var el = document.getElementById('pal-option-' + i);
+  if (el && el.scrollIntoView) el.scrollIntoView({ block: 'nearest' });
+  focusInput();
+}
+function focusInput() {
+  var input = document.getElementById('pal-input');
+  if (!input) return;
+  input.focus();
+  var n = input.value.length;
+  try { input.setSelectionRange(n, n); } catch (e) { /* not all inputs support it */ }
+}
+function choose(i) {
+  var row = lastRows[i];
+  if (!row) return;
+  S.lastAction = row.kind === 'tab'
+    ? 'Opened the ' + row.label + ' destination.'
+    : 'Opened Species Detail on ' + row.name + '.';
+  S.open = false; S.query = ''; S.activeIdx = -1;
+  renderStage();
+}
+function closePalette() {
+  S.lastAction = 'Closed. Focus returns to the control that opened it.';
+  S.open = false; S.query = ''; S.activeIdx = -1;
+  renderStage();
+}
+function openPalette() {
+  S.lastAction = 'Palette open. The query field is empty on every open.';
+  S.open = true; S.query = ''; S.activeIdx = -1;
+  renderStage(); focusInput();
+}
+
+function wireStage() {
+  var input = document.getElementById('pal-input');
+  if (input) {
+    input.addEventListener('input', function () {
+      S.query = input.value; S.activeIdx = -1;   /* reset on every query change */
+      renderStage(); focusInput();
+    });
+    input.addEventListener('keydown', function (e) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setActive(Math.min(S.activeIdx + 1, lastRows.length - 1));   /* clamped */
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setActive(Math.max(S.activeIdx - 1, -1));                    /* clamped */
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (S.activeIdx >= 0) choose(S.activeIdx);
+        else if (lastRows.length > 0) choose(0);                     /* row one, never a skip */
+      }
+    });
+  }
+  var close = document.getElementById('pal-close');
+  if (close) close.addEventListener('click', closePalette);
+  var root = document.getElementById('pal-root');
+  /* mousedown, not click: a drag that starts inside the panel and ends on the
+     backdrop must not close it. */
+  if (root) root.addEventListener('mousedown', function (e) { if (e.target === root) closePalette(); });
+  Array.prototype.forEach.call(stage.querySelectorAll('.sr-palette-row'), function (el) {
+    el.addEventListener('mousedown', function (e) { e.preventDefault(); });
+    el.addEventListener('click', function () { choose(parseInt(el.getAttribute('data-idx'), 10)); });
+  });
+  var entry = stage.querySelector('.sr-nav-search');
+  if (entry) entry.addEventListener('click', openPalette);
+}
+
+document.addEventListener('keydown', function (e) {
+  if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) {
+    e.preventDefault();                       /* never hand the chord to the host browser */
+    if (S.open) closePalette(); else openPalette();
+  } else if (e.key === 'Escape' && S.open) {
+    e.preventDefault();
+    closePalette();
+  }
+});
+
+/* =====================================================================
+   THE SPECIMEN STRIP
+   ===================================================================== */
+function specimen(title, note, opts) {
+  var p = paletteMarkup({
+    query: opts.query, speciesState: opts.speciesState,
+    activeIdx: typeof opts.activeIdx === 'number' ? opts.activeIdx : -1,
+    hint: 'cmd', interactive: false
+  });
+  return '<div class="mk-spec' + (opts.scrollEnd ? ' mk-scroll-end' : '') + '"><h3 class="mk-h3">' + esc(title) + '</h3>' +
+    '<div class="mk-spec-body"><div class="sr-app" data-theme="' + S.theme + '">' +
+    '<div class="sr-palette-panel" style="max-height:' + (opts.height || 340) + 'px;animation:none">' +
+    p.html + '</div></div></div><p>' + note + '</p></div>';
+}
+function renderSpecimens() {
+  var el = document.getElementById('specimens');
+  el.innerHTML =
+    specimen('Both groups', 'Query <code>cal</code>. One destination and a run of species, in one flat ' +
+      'list with one active index, so ArrowDown crosses the group boundary for free. Two of the species ' +
+      'are here on their <em>scientific</em> name alone: <b>Anna\u2019s Hummingbird</b> (<i>Calypte anna</i>), ' +
+      '<b>Dunlin</b> (<i>Calidris alpina</i>), <b>Ruby-crowned Kinglet</b> (<i>Corthylio calendula</i>). The ' +
+      'predicate is the shipped picker\u2019s, matching common and scientific name alike.',
+      { query: 'cal', speciesState: 'loaded', activeIdx: 0, height: 380 }) +
+    specimen('Alphabetical, never ranked', 'Query <code>war</code>. No destination matches, so no ' +
+      'Destinations heading appears over nothing. <b>Warbling Vireo</b> sorts under W rather than jumping ' +
+      'the queue for its prefix match, because the app\u2019s three shipped pickers do not rank either, ' +
+      'and one surface quietly ordering results differently is how two surfaces stop feeling like one app.',
+      { query: 'war', speciesState: 'loaded', height: 380 }) +
+    specimen('The cap', 'Query <code>a</code>. Species are capped at 50 after sorting; destinations are ' +
+      'never capped. The cap line is not an option, is not focusable and is skipped by the arrow keys, ' +
+      'and it sits outside the listbox rather than inside it.',
+      { query: 'a', speciesState: 'loaded', height: 380, scrollEnd: true }) +
+    specimen('Nothing matches', 'Query <code>zzzq</code>. One line, and it reads differently from all ' +
+      'three species-half states below, so the four are never mistaken for each other.',
+      { query: 'zzzq', speciesState: 'loaded', height: 200 }) +
+    specimen('No backup saved', 'Query <code>cal</code>. Destinations still work, in full, ' +
+      'immediately. The species half says what is missing and where to put it, in the app\u2019s ' +
+      'existing setup words rather than new ones.',
+      { query: 'cal', speciesState: 'nofile', height: 280 }) +
+    specimen('Parse in flight', 'A cold start, query <code>cal</code>. Destinations render in the first ' +
+      'commit and structurally cannot wait on a parse; the species half says what it is doing. When the ' +
+      'parse lands the rows join this same open session, with no need to close and reopen.',
+      { query: 'cal', speciesState: 'loading', height: 260 }) +
+    specimen('Stored backup will not load', 'A file <em>is</em> saved and it would not read. The palette ' +
+      'renders the app\u2019s single-sourced load-failure sentence verbatim, so it can never drift into a ' +
+      'second wording, and never tells a birder to go import a file Settings plainly lists as saved.',
+      { query: 'cal', speciesState: 'unloadable', height: 300 });
+  /* The cap specimen's point is its LAST line. */
+  Array.prototype.forEach.call(el.querySelectorAll('.mk-scroll-end .sr-palette-results'), function (r) {
+    r.scrollTop = r.scrollHeight;
+  });
+}
+
+/* =====================================================================
+   THE ENTRY-POINT STRIP
+   ===================================================================== */
+function renderEntries() {
+  var el = document.getElementById('entries');
+  var hint = chordHint(S.platform);
+  var sidebar =
+    '<div class="sr-app" data-theme="' + S.theme + '" style="width:216px">' +
+    '<div class="sr-nav-col" style="border-radius:10px;border:1px solid var(--sr-border)">' +
+    '<div class="sr-nav-brand"><svg width="20" height="20" viewBox="0 0 512 512" aria-hidden="true" ' +
+    'focusable="false" style="color:var(--sr-accent)"><path fill="currentColor" d="' + RAVEN + '"/></svg>' +
+    '<p class="sr-nav-word">Snow<span>Raven</span></p></div>' +
+    '<p class="sr-nav-tagline">Your eBird data, read closely.</p>' +
+    entryControl('sidebar', hint) +
+    '<div class="sr-nav-list">' +
+    '<button type="button" tabindex="-1" class="sr-nav-item">' + icon('weather', 15, 2.25) + '<span>Weather</span></button>' +
+    '<button type="button" tabindex="-1" class="sr-nav-item sr-nav-item--active">' + icon('birding-stats', 15, 2.25) + '<span>Statistics</span></button>' +
+    '<button type="button" tabindex="-1" class="sr-nav-item">' + icon('map-explorer', 15, 2.25) + '<span>Map Explorer</span></button>' +
+    '</div></div></div>';
+
+  var rail =
+    '<div class="sr-app" data-theme="' + S.theme + '" style="position:relative;width:210px;background:transparent">' +
+    '<div class="sr-nav-col sr-nav-col--rail" style="border-radius:10px;border:1px solid var(--sr-border)">' +
+    '<div class="sr-nav-brand"><svg width="22" height="22" viewBox="0 0 512 512" aria-hidden="true" ' +
+    'focusable="false" style="color:var(--sr-accent)"><path fill="currentColor" d="' + RAVEN + '"/></svg></div>' +
+    '<div class="sr-nav-brandgap"></div>' +
+    entryControl('rail', hint) +
+    '<hr class="sr-nav-sep" aria-hidden="true">' +
+    '<div class="sr-nav-list">' +
+    '<button type="button" tabindex="-1" class="sr-nav-item" aria-label="Weather">' + icon('weather', 18, 2) + '</button>' +
+    '<button type="button" tabindex="-1" class="sr-nav-item sr-nav-item--active" aria-label="Statistics">' + icon('birding-stats', 18, 2) + '</button>' +
+    '<button type="button" tabindex="-1" class="sr-nav-item" aria-label="Map Explorer">' + icon('map-explorer', 18, 2) + '</button>' +
+    '</div></div>' +
+    '<div class="sr-nav-tip" style="left:66px;top:104px">Search</div>' +
+    '</div>';
+
+  var sheet =
+    '<div class="sr-app" data-theme="' + S.theme + '" style="width:260px">' +
+    '<div class="sr-nav-sheet" style="border-radius:16px;border:1px solid var(--sr-border);max-height:none">' +
+    '<div class="sr-nav-sheet-handle"></div>' +
+    entryControl('sheet', chordHint('touch')) +
+    '<h2>More</h2>' +
+    '<button type="button" tabindex="-1" class="sr-nav-item">' + icon('life-list', 17, 2.1) + '<span>Multimedia</span></button>' +
+    '<button type="button" tabindex="-1" class="sr-nav-item">' + icon('breeding-codes', 17, 2.1) + '<span>Breeding Codes</span></button>' +
+    '<button type="button" tabindex="-1" class="sr-nav-item">' + icon('checklists', 17, 2.1) + '<span>Checklists</span></button>' +
+    '<hr class="sr-nav-sep" aria-hidden="true">' +
+    '<button type="button" tabindex="-1" class="sr-nav-item">' + icon('settings', 17, 2.1) + '<span>Settings</span></button>' +
+    '</div></div>';
+
+  el.innerHTML =
+    '<div class="mk-entry"><h3 class="mk-h3">Sidebar</h3><div class="mk-entry-body">' + sidebar + '</div>' +
+    '<p>Between the brand block and the destination list, so it is outside the ' +
+    '<code>role="tablist"</code> group. The key hint sits inside it, which is where a user ' +
+    'discovers the chord at all.</p></div>' +
+    '<div class="mk-entry"><h3 class="mk-h3">Icon rail</h3><div class="mk-entry-body">' + rail + '</div>' +
+    '<p>The same control, but the <b>box goes with the label</b>: boxed chrome around a ' +
+    'label-hidden control reads as an empty box, which is the rule the shared toggle switch ' +
+    'already follows when it drops to <code>bare</code>. The name comes from the shipped rail ' +
+    'tooltip on hover, keyboard focus and touch-hold; the hairline says it is not a destination, ' +
+    'in the nav’s own vocabulary. No key hint: the rail shows no labels at all, and enriching ' +
+    'one tooltip would change the surface for the other ten destinations.</p></div>' +
+    '<div class="mk-entry"><h3 class="mk-h3">More sheet</h3><div class="mk-entry-body">' + sheet + '</div>' +
+    '<p>Above the sheet’s own <b>More</b> heading, because that heading names the destination ' +
+    'list and not the search. The bottom bar keeps its four favourites plus More; no fifth ' +
+    'cell. Activating the row closes the sheet and opens the palette.</p></div>';
+}
+
+/* =====================================================================
+   CONTROLS
+   ===================================================================== */
+function press(sel, attr, value) {
+  Array.prototype.forEach.call(document.querySelectorAll(sel), function (b) {
+    b.setAttribute('aria-pressed', b.getAttribute(attr) === String(value) ? 'true' : 'false');
+  });
+}
+function syncButtons() {
+  press('[data-w]', 'data-w', S.width);
+  press('[data-theme]', 'data-theme', S.theme);
+  press('[data-scale]', 'data-scale', S.scale);
+  press('[data-sp]', 'data-sp', S.speciesState);
+  press('[data-plat]', 'data-plat', S.platform);
+}
+function redrawAll() {
+  /* The in-app text scale IS the root font size -- that is how --sr-text-scale
+     works in the shipped app, and it is the only way every `rem` in the stage
+     actually moves. The .mk- chrome is written in px so it stays put. */
+  document.documentElement.style.fontSize = S.scale + 'px';
+  syncButtons(); renderStage(); renderSpecimens(); renderEntries();
+}
+
+document.getElementById('w').addEventListener('input', function (e) {
+  S.width = parseInt(e.target.value, 10); syncButtons(); renderStage();
+});
+Array.prototype.forEach.call(document.querySelectorAll('[data-w]'), function (b) {
+  b.addEventListener('click', function () {
+    S.width = parseInt(b.getAttribute('data-w'), 10);
+    document.getElementById('w').value = S.width;
+    syncButtons(); renderStage();
+  });
+});
+Array.prototype.forEach.call(document.querySelectorAll('[data-theme]'), function (b) {
+  b.addEventListener('click', function () { S.theme = b.getAttribute('data-theme'); redrawAll(); });
+});
+Array.prototype.forEach.call(document.querySelectorAll('[data-scale]'), function (b) {
+  b.addEventListener('click', function () { S.scale = parseInt(b.getAttribute('data-scale'), 10); redrawAll(); });
+});
+Array.prototype.forEach.call(document.querySelectorAll('[data-sp]'), function (b) {
+  b.addEventListener('click', function () { S.speciesState = b.getAttribute('data-sp'); redrawAll(); });
+});
+Array.prototype.forEach.call(document.querySelectorAll('[data-plat]'), function (b) {
+  b.addEventListener('click', function () { S.platform = b.getAttribute('data-plat'); redrawAll(); });
+});
+document.getElementById('replay').addEventListener('click', function () {
+  S.open = false; renderStage();
+  window.setTimeout(function () { S.open = true; renderStage(); focusInput(); }, 40);
+});
+document.getElementById('rm').addEventListener('change', function (e) {
+  document.body.classList.toggle('mk-rm', e.target.checked);
+});
+
+redrawAll();
+</script>

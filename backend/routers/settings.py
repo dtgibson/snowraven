@@ -16,7 +16,11 @@ EBIRD_FILE = DATA_DIR / "ebird-backup.csv"
 ML_FILE = DATA_DIR / "ml-export.csv"
 META_FILE = DATA_DIR / "metadata.json"
 
-MAX_BYTES = 50 * 1024 * 1024  # 50 MB
+# 50 MB. TWINNED with MAX_UPLOAD_BYTES in frontend/src/lib/uploadGuard.ts, which
+# refuses an over-cap file at the import chokepoint on every platform — desktop and
+# iOS write straight to AppLocalData and never reach this router at all. Keep the two
+# literals equal; frontend/src/lib/uploadGuard.test.ts reads this line and asserts it.
+MAX_BYTES = 50 * 1024 * 1024
 
 
 def _read_meta() -> dict:

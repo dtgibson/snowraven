@@ -171,7 +171,12 @@ describe('the upload path is a REPLACE and purges nothing', () => {
     await waitFor(() => clearButtonFor('eBird Backup'))
 
     const input = container.querySelector('input[type="file"]') as HTMLInputElement
-    const file = new File(['a,b\n1,2\n'], 'NewExport.csv', { type: 'text/csv' })
+    // A real eBird header: since ml-export-hardening the import chokepoint refuses
+    // a file whose content does not match the slot, so a placeholder CSV would be
+    // turned away here and never reach the replace path this test is about.
+    const file = new File(
+      ['Submission ID,Common Name,Date\nS1,American Robin,2024-05-01\n'],
+      'NewExport.csv', { type: 'text/csv' })
     Object.defineProperty(input, 'files', { value: [file] })
     fireEvent.change(input)
 

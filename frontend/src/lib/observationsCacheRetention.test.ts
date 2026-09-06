@@ -37,8 +37,24 @@ vi.mock('./storage', () => ({
 import {
   clearEbirdObservationsCache,
   firstLine,
+  MAX_HEADER_CHARS,
   loadEbirdObservations,
 } from './observationsCache'
+
+/** The most characters `firstLine` may read. TWO past the bound, not one: the scan
+ *  window has to reach the LF of a CRLF-terminated line of exactly
+ *  `MAX_HEADER_CHARS` characters, which sits at `MAX_HEADER_CHARS + 1`. The bound
+ *  itself is enforced on the resulting line's LENGTH, not on this window. */
+const MAX_SCAN_READS = MAX_HEADER_CHARS + 2
+
+/** `firstLine` for a probe whose first line is KNOWN to be within the bound, which
+ *  every probe in this file is. Asserted rather than `!`, so a probe that silently
+ *  grew past the bound fails here instead of throwing somewhere downstream. */
+function within(probe: string): string {
+  const line = firstLine(probe)
+  expect(line).not.toBeNull()
+  return line as string
+}
 
 const DEMO = readFileSync(
   new URL('../../../website/demo/snowraven-demo-ebird-backup.csv', import.meta.url),
@@ -159,7 +175,7 @@ describe('Breeding Codes sees exactly what it saw before', () => {
   it('deriveBreedingData on the header line equals deriveBreedingData on the whole file', () => {
     const observations = parseEbirdObservations(DEMO)
     const before = deriveBreedingData(observations, DEMO)
-    const after = deriveBreedingData(observations, firstLine(DEMO))
+    const after = deriveBreedingData(observations, within(DEMO))
 
     expect(after).toEqual(before)
     // Non-vacuity: the demo export HAS the column, so this is not two empty results.
@@ -173,7 +189,7 @@ describe('Breeding Codes sees exactly what it saw before', () => {
     const before = deriveBreedingData(observations, csv)
 
     expect(before.hasBreedingCodeColumn).toBe(false)
-    expect(deriveBreedingData(observations, firstLine(csv))).toEqual(before)
+    expect(deriveBreedingData(observations, within(csv))).toEqual(before)
   })
 })
 
@@ -202,6 +218,89 @@ describe('firstLine is the slice it replaces, without the slice', () => {
     expect(PROBES.length).toBe(14)
   })
 
+  it('the edge holds for BOTH line endings, at the bound and either side of it', () => {
+    // The row this replaces checked LF at the bound and CRLF at bound-minus-one, so
+    // it never touched the one combination that failed: a line of exactly
+    // MAX_HEADER_CHARS characters returned its header under LF and null under CRLF.
+    // A line's LENGTH is what the bound is about, so the terminator it happens to
+    // carry must not change the answer. Every cell is spelled out rather than
+    // derived, so a wrong expectation is visible rather than computed.
+    const CASES: { lineLen: number; ending: '\n' | '\r\n'; within: boolean }[] = [
+      { lineLen: MAX_HEADER_CHARS - 1, ending: '\n', within: true },
+      { lineLen: MAX_HEADER_CHARS - 1, ending: '\r\n', within: true },
+      { lineLen: MAX_HEADER_CHARS, ending: '\n', within: true },
+      { lineLen: MAX_HEADER_CHARS, ending: '\r\n', within: true },
+      { lineLen: MAX_HEADER_CHARS + 1, ending: '\n', within: false },
+      { lineLen: MAX_HEADER_CHARS + 1, ending: '\r\n', within: false },
+    ]
+
+    for (const { lineLen, ending, within: ok } of CASES) {
+      const probe = 'x'.repeat(lineLen) + ending + 'rest'
+      const label = `${lineLen} chars, ${ending === '\n' ? 'LF' : 'CRLF'}`
+      const got = firstLine(probe)
+      if (ok) {
+        // Within the bound the answer is the line itself, and still exactly what the
+        // spelling this replaced returns.
+        expect([label, got]).toEqual([label, sliceFirstLine(probe)])
+        expect([label, (got as string).length]).toEqual([label, lineLen])
+      } else {
+        expect([label, got]).toEqual([label, null])
+      }
+    }
+
+    // The terminator must not decide the answer: pair the two endings at each length.
+    for (const lineLen of [MAX_HEADER_CHARS - 1, MAX_HEADER_CHARS, MAX_HEADER_CHARS + 1]) {
+      const lf = firstLine('x'.repeat(lineLen) + '\n' + 'rest')
+      const crlf = firstLine('x'.repeat(lineLen) + '\r\n' + 'rest')
+      expect([lineLen, lf]).toEqual([lineLen, crlf])
+    }
+
+    // No line break at all: short enough to BE its own first line, or over the bound.
+    const noBreakAtBound = 'x'.repeat(MAX_HEADER_CHARS)
+    expect(firstLine(noBreakAtBound)).toBe(sliceFirstLine(noBreakAtBound))
+    expect(firstLine('x'.repeat(MAX_HEADER_CHARS + 1))).toBeNull()
+  })
+
+  it('reads at most MAX_SCAN_READS characters of the input (work done, not time taken)', () => {
+    // The reason the bound exists: the copy is O(first line), which is free on a
+    // 309-character header and was 2,006.6 ms on a 50 MB one. Counted as reads of
+    // the input, so no machine's load can move the assertion.
+    const big = 'x'.repeat(5_000_000) + '\nrest'
+    let reads = 0
+    const counted = new Proxy(
+      { length: big.length, charCodeAt: (i: number) => { reads += 1; return big.charCodeAt(i) } },
+      {
+        get(target, prop, receiver) {
+          if (typeof prop === 'string' && /^[0-9]+$/.test(prop)) { reads += 1; return big[Number(prop)] }
+          return Reflect.get(target, prop, receiver)
+        },
+      },
+    ) as unknown as string
+
+    expect(firstLine(counted)).toBeNull()
+    expect(reads).toBeLessThanOrEqual(MAX_SCAN_READS)
+
+    // Guard the guard: a real header is read, so the counter is not stuck at zero,
+    // and a within-bound input really does pay for its own characters.
+    reads = 0
+    expect(firstLine(DEMO)).not.toBeNull()
+    expect(reads).toBe(0)                       // DEMO is not the proxy
+    const header = 'a,b,c\nrest'
+    let headerReads = 0
+    const countedHeader = new Proxy(
+      { length: header.length, charCodeAt: (i: number) => { headerReads += 1; return header.charCodeAt(i) } },
+      {
+        get(target, prop, receiver) {
+          if (typeof prop === 'string' && /^[0-9]+$/.test(prop)) { headerReads += 1; return header[Number(prop)] }
+          return Reflect.get(target, prop, receiver)
+        },
+      },
+    ) as unknown as string
+    expect(firstLine(countedHeader)).toBe('a,b,c')
+    expect(headerReads).toBeGreaterThan(0)
+    expect(headerReads).toBeLessThanOrEqual(MAX_SCAN_READS)
+  })
+
   it('matches it on every string over the line-break alphabet up to length 4', () => {
     const alphabet = ['a', '\r', '\n', '﻿']
     let level = ['']
@@ -222,16 +321,28 @@ describe('firstLine is the slice it replaces, without the slice', () => {
     expect(firstLine(DEMO)).toBe(sliceFirstLine(DEMO))
   })
 
-  it('the module neither slices the file nor runs a regex over it (drift guard)', () => {
+  it('neither module slices the file nor runs a regex over it (drift guard)', () => {
     // TWO ways to retain the whole export while looking correct, both measured:
     // a `.slice()` result REFERENCES its parent, and a regex method leaves its
     // SUBJECT in the engine's last-match state. Either one silently undoes the
     // change, and neither is visible in a diff. See the note on firstLine.
-    const src = stripComments(
-      readFileSync(new URL('./observationsCache.ts', import.meta.url), 'utf8'),
-    )
-    for (const banned of [/\.slice\(/, /\.substring\(/, /\.search\(/, /\.match\(/, /\.replace\(/]) {
-      expect(src).not.toMatch(banned)
+    //
+    // TWO files since ml-export-hardening: `firstLine` moved to its own module so
+    // a second reader of a whole stored export could import it instead of writing
+    // its own, and the guard follows the function rather than staying on the file
+    // it used to live in. Both are still swept, because the cache module also
+    // receives the whole export.
+    const FILES = ['./observationsCache.ts', './firstLine.ts']
+    for (const file of FILES) {
+      const src = stripComments(readFileSync(new URL(file, import.meta.url), 'utf8'))
+      for (const banned of [/\.slice\(/, /\.substring\(/, /\.search\(/, /\.match\(/, /\.replace\(/]) {
+        expect([file, banned.source, src.match(banned)?.[0] ?? null]).toEqual([file, banned.source, null])
+      }
+    }
+    // Non-vacuity: the sweep really did read two files with content in them, so a
+    // path typo cannot turn every assertion above into a pass over an empty string.
+    for (const file of FILES) {
+      expect(readFileSync(new URL(file, import.meta.url), 'utf8').length).toBeGreaterThan(500)
     }
 
     // The guard can fail, and does not fire on the module's own prose about it.

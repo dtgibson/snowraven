@@ -29,7 +29,9 @@ import { classifyLiveError, formatLoadedTime, OFFLINE_MESSAGE_SHORT, type LiveEr
 import { OfflineMessage } from './OfflineMessage'
 import { storage } from '../lib/storage'
 import { isIOS } from '../lib/platform'
+import { useIsPhone } from '../lib/useIsPhone'
 import { mapContentClass } from '../lib/mapFullscreen'
+import { focusablesIn, useFocusTrap } from '../lib/useFocusTrap'
 import { getCurrentLocation, describeLocationError } from '../lib/location'
 import type { LocationError } from '../lib/location'
 import { geoErrorReducer, GEO_ERROR_NONE } from '../lib/geoErrorState'
@@ -87,6 +89,36 @@ import { TargetMarkers } from './map/TargetMarkers'
 import { NearbyLiferMarkers, type MarkerMode } from './map/NearbyLiferMarkers'
 import { buildNearbyLifers, isWithinWindow } from '../lib/nearbyLifers'
 import { useProvenanceLookup } from '../lib/useProvenanceLookup'
+
+// ── The filters sidebar's focus-trap options ─────────────────────────────────
+//
+// MODULE SCOPE ON PURPOSE, and the reason is the FUNCTION, not the object.
+// `useFocusTrap` destructures its options and puts `filter` — a function — in the
+// effect's dependency array; the options object itself is never a dependency. So
+// an inline arrow would be a fresh identity on every render of this very large
+// component and would tear down and re-arm the trap's two document listeners each
+// time (measured: 12 listener adds / 10 removes, against 2 / 0 for a module
+// constant). `SIDEBAR_TRAP` is hoisted alongside `SIDEBAR_VISIBLE` because it
+// holds that function, not because a fresh object literal would re-arm anything —
+// it would not, and a call site that needs a DYNAMIC option can pass a fresh
+// literal freely rather than reaching for a `useMemo` whose incomplete dep list
+// would freeze the option at its first value.
+//
+// SIDEBAR_VISIBLE is the sidebar's shipped visibility filter, unchanged and
+// layered ON the shared selector rather than replacing it: `focusablesIn` says
+// what COUNTS as focusable (one copy, lib/useFocusTrap.ts), this says which of
+// those the user can actually reach right now. `offsetParent` rejects a control
+// in a `display: none` region; `closest('[inert]')` rejects one inside a
+// CSS-collapsed disclosure, which is clipped rather than unmounted and which no
+// selector can see (see .claude/rules/ui.md's `inert` rule). jsdom implements
+// neither layout nor `offsetParent` — it is null on every element — so a test
+// that needs a non-empty list here has to supply that primitive itself. Exported
+// for exactly that: MapExplorerSidebarTrap.test.tsx measures the shipped
+// predicate rather than a copy of it, which is the whole point of this build.
+export const SIDEBAR_VISIBLE = (el: HTMLElement): boolean =>
+  el.offsetParent !== null && !el.closest('[inert]')
+
+const SIDEBAR_TRAP = { containOutsideFocus: true, filter: SIDEBAR_VISIBLE } as const
 
 interface MapExplorerProps {
   onGoToSettings: () => void
@@ -546,6 +578,59 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
   // Mobile sidebar overlay state
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
+  // THE OVERLAY TIER. `.sr-map-sidebar-overlay` is an OVERLAY — absolutely
+  // positioned, z-index 1200, backdrop over a live map — inside exactly two CSS
+  // blocks: the ≤640 phone tier and `.sr-map-ios-fullscreen`. Everywhere else it
+  // is an in-flow column beside the map. This is the ONE expression for that
+  // condition for the SIDEBAR's behaviour, and it is the same condition the CSS
+  // uses; `globals.css` gates the backdrop on that tier by hand and explains why.
+  //
+  // `useIsPhone` is the sanctioned render-safe width read (useSyncExternalStore
+  // over the `(max-width:640px)` MQL) — never window.innerWidth and never a
+  // resize handler, which `.claude/rules/ui.md` forbids.
+  // The second half is written exactly as `mapContentClass`'s argument is written
+  // at the render site, and deliberately NOT hoisted into a shared const:
+  // `lib/mapIosFullscreen.test.ts` guards that call's literal shape
+  // (`mapContentClass( isIOS() &&`) so a refactor cannot silently turn the iOS
+  // scope class on for desktop fullscreen. That guard is what keeps these two in
+  // step; single-sourcing them would need it re-pointed at the definition, which
+  // is a change to another build's guard rather than this one's business.
+  const isPhoneWidth = useIsPhone()
+  const sidebarIsOverlay = isPhoneWidth || (isIOS() && !!isFullscreen)
+
+  // `sidebarOpen` MUST NOT OUTLIVE THE TIER, and this is the line that says so.
+  // It is plain state with no width awareness, so without this it survives a
+  // phone→landscape rotation, an iPad resize or a widened desktop window — and
+  // leaves a focus trap armed, with `containOutsideFocus` on, over a region that
+  // is no longer modal, has no backdrop, and whose "Close filters" button
+  // `SIDEBAR_VISIBLE` has just filtered out of the trap's own list because the
+  // tier hid it.
+  //
+  // Closing it costs the user nothing that is on screen:
+  // `.sr-map-sidebar-hidden { display: none }` exists ONLY inside those same two
+  // blocks, so above the tier the sidebar's content stays fully visible in flow
+  // whether this flag is true or false. It also clears the stale backdrop and
+  // hidden-Close states in the same move.
+  //
+  // ADJUSTED DURING RENDER — a bare setState, never an effect. Same shape and
+  // same reasons as the `centerShareOpen` adjustment further down this file: an
+  // effect here is a cascading render (and `react-hooks/set-state-in-effect`
+  // rejects it), while a render-phase adjustment is discarded and re-run before
+  // anything commits, so no effect ever observes the stale flag. It needs no
+  // tracking state because this is a standing invariant rather than a change
+  // signal — the flag itself is the whole test — and it is self-terminating: the
+  // update falsifies its own condition, so the adjustment render runs once.
+  //
+  // DELIBERATELY ROUTED AROUND `closeSidebar`, exactly as that precedent is. The
+  // close path exists to return focus to the control the USER pressed, and nobody
+  // pressed anything here — the viewport changed. `closeSidebar` would arm the
+  // restore ref, and the restore targets `filtersButtonRef`, whose
+  // `.sr-map-filters-btn` is `display: none` above the tier: `.focus()` would
+  // no-op and drop focus to `<body>`. Leaving focus alone is correct, because it
+  // is resting on a sidebar control that is still on screen, still in flow, and
+  // has not moved.
+  if (sidebarOpen && !sidebarIsOverlay) setSidebarOpen(false)
+
   // Single close path for the mobile sidebar: Escape, the Close button, and the
   // backdrop all route through here so every close restores focus to the
   // Filters button. The FAB cluster only mounts while the sidebar is CLOSED, so
@@ -563,48 +648,69 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
     }
   }, [sidebarOpen])
 
-  // Focus trap for mobile sidebar. Focusables are re-queried on EVERY Tab press
-  // (the HelpDocs.tsx pattern): the sidebar's content is dynamic (accordion,
-  // async hotspot/target results, in-view lists that change on pan/zoom), so a
-  // snapshot taken at open goes stale and lets focus escape the overlay.
+  // Escape closes the filters overlay, and opening it puts focus on the
+  // overlay's first VISIBLE control. The Tab trap itself is the shared hook
+  // below; only these two are this call site's own.
   useEffect(() => {
     if (!sidebarOpen) return
     const sidebar = sidebarRef.current
     if (!sidebar) return
 
-    const focusables = () =>
-      Array.from(sidebar.querySelectorAll<HTMLElement>(
-        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-      )).filter(el => !el.hasAttribute('disabled') && el.offsetParent !== null && !el.closest('[inert]'))
-
-    focusables()[0]?.focus()
+    focusablesIn(sidebar).filter(SIDEBAR_VISIBLE)[0]?.focus()
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        closeSidebar()
-        return
-      }
-      if (e.key !== 'Tab') return
-      const list = focusables()
-      if (list.length === 0) return
-      const first = list[0]
-      const last = list[list.length - 1]
-      if (e.shiftKey) {
-        if (document.activeElement === first) {
-          e.preventDefault()
-          last.focus()
-        }
-      } else {
-        if (document.activeElement === last) {
-          e.preventDefault()
-          first.focus()
-        }
-      }
+      if (e.key === 'Escape') closeSidebar()
     }
-
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [sidebarOpen, closeSidebar])
+
+  // THE TAB TRAP: the shared hook, containing on `focusin`, over the shared
+  // selector NARROWED by this call site's own visibility filter. Both halves are
+  // load-bearing and neither is the other's default.
+  //
+  // WHY THE FILTER SURVIVES THE CONSOLIDATION. `focusablesIn` is a selector
+  // query with disabled-removal and no visibility filtering at all — correct for
+  // a dialog whose whole subtree is visible, wrong here. This sidebar's filter
+  // panels and in-view accordions are CSS-collapsed (`grid-template-rows: 0fr`)
+  // rather than unmounted, so their controls still match the selector. Handing
+  // the raw list to the trap would admit collapsed-accordion content and park
+  // focus on something the user cannot see — a regression, not a simplification.
+  // `SIDEBAR_VISIBLE` is the sidebar's shipped predicate, unchanged.
+  //
+  // WHY `containOutsideFocus` IS ON: only in the states where this sidebar is an
+  // absolutely positioned overlay over a live map with a backdrop, which is
+  // `.claude/rules/ui.md`'s stated condition for the opt-in. Those states are
+  // the ≤640 phone tier and `.sr-map-ios-fullscreen`, and `sidebarIsOverlay`
+  // above is the single source of that condition — the SAME expression that
+  // decides the CSS class, so the trap and the layout cannot disagree.
+  //
+  // THIS USED TO BE ARGUED FROM WHERE THE OPENER RENDERS, AND THAT ARGUMENT WAS
+  // WRONG. It ran: `sidebarOpen` can only become true where the Filters button
+  // is rendered, `.sr-map-filters-btn` is `display: none` at the base register,
+  // therefore the trap is never armed at desktop widths. Every step is true and
+  // the conclusion does not follow, because `sidebarOpen` is state that PERSISTS
+  // across a viewport change: open Filters on a phone and rotate to landscape and
+  // it is still true at ~844px, where the sidebar is in flow, the backdrop is
+  // gone, and `.sr-map-sidebar-close` is `display: none` — so `SIDEBAR_VISIBLE`
+  // filters the Close button out of the trap's own list. The keydown cycle was
+  // already armed in that state before this build; what the `focusin` arm added
+  // was the removal of the click-outside release, turning an escapable cycle into
+  // a hard capture on a non-modal region. The tier effect above is what makes the
+  // sentence true rather than aspirational: `sidebarOpen` cannot outlive the tier.
+  //
+  // The Cmd-K palette can open above this overlay too, and the arm will treat its
+  // focus as an escape — the same pre-existing shape `Calendar.tsx`'s day-dialog
+  // trap records, and the same one `lib/useMapFullscreen.ts` has shipped since
+  // v1.0.15. Not introduced here and not this build's to move.
+  //
+  // F061 does not reach this call site, checked rather than inherited: the
+  // opener-restore is the `restoreFiltersFocusRef` effect ABOVE this one, which
+  // runs post-commit on the render where `sidebarOpen` goes false. React runs a
+  // commit's destroy functions before any of its create functions, so this
+  // hook's cleanup has already detached the `focusin` listener by the time the
+  // Filters button is focused. Keep this call BELOW that effect.
+  useFocusTrap(sidebarOpen, sidebarRef, SIDEBAR_TRAP)
 
   // Escape exits map fullscreen — innermost layer first: while the mobile
   // filters overlay is open its own Escape handler (above) closes it instead,

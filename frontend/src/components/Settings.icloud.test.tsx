@@ -476,10 +476,13 @@ describe('Clear with sync on and off (FR-30, QA-28)', () => {
     renderSettings()
     await screen.findByText('MyEBirdData.csv')
     const input = document.querySelector('input[type="file"]') as HTMLInputElement
-    const file = new File(['a,b'], 'MyEBirdData.csv', { type: 'text/csv' })
+    // A real eBird header: since ml-export-hardening the import chokepoint refuses
+    // a file whose content does not match the slot (lib/uploadGuard).
+    const CSV = 'Submission ID,Common Name,Date\nS1,American Robin,2024-05-01\n'
+    const file = new File([CSV], 'MyEBirdData.csv', { type: 'text/csv' })
     fireEvent.change(input, { target: { files: [file] } })
     await waitFor(() => expect(storageMock.writeFile).toHaveBeenCalled())
-    expect(storageMock.writeFile).toHaveBeenCalledWith('ebird', 'a,b', 'MyEBirdData.csv', { deviceId: 'a'.repeat(32), label: "Dave's Mac", platform: 'mac' })
+    expect(storageMock.writeFile).toHaveBeenCalledWith('ebird', CSV, 'MyEBirdData.csv', { deviceId: 'a'.repeat(32), label: "Dave's Mac", platform: 'mac' })
     await waitFor(() => expect(actions.fileSaved).toHaveBeenCalledWith('ebird'))
   })
 })

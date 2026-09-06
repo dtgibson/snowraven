@@ -14,6 +14,7 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { Search, ChevronDown, Check } from 'lucide-react'
+import { matchesSpeciesQuery, normalizeSpeciesQuery } from '../lib/speciesMatch'
 
 export interface SpeciesComboboxOption {
   name: string
@@ -51,12 +52,19 @@ export function SpeciesCombobox({
 
   // Case-insensitive substring filter over common AND scientific name (the `?? ''`
   // fallback means a missing sci name simply never matches).
+  //
+  // THE PREDICATE ITSELF LIVES IN lib/speciesMatch.ts NOW, and this component
+  // imports it rather than owning it (command-palette FR-23). It was EXTRACTED
+  // with its behaviour preserved exactly -- same trim().toLowerCase(), same OR,
+  // same `?? ''` -- so that the palette and the three shipped pickers cannot
+  // answer the same query two ways. If this component's tests ever go red on a
+  // change to that module, the change is wrong, not the tests. The query is
+  // normalized ONCE per keystroke rather than once per row, which is why
+  // normalization and matching are two functions there.
   const filtered = useMemo<SpeciesComboboxOption[]>(() => {
-    const q = query.trim().toLowerCase()
+    const q = normalizeSpeciesQuery(query)
     if (!q) return options
-    return options.filter(o =>
-      o.name.toLowerCase().includes(q) || (o.sciName ?? '').toLowerCase().includes(q),
-    )
+    return options.filter(o => matchesSpeciesQuery(o, q))
   }, [options, query])
 
   // The rendered rows: the synthetic "all/clear" row (when allLabel is set) always

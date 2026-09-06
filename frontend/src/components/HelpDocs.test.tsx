@@ -2,6 +2,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup } from '@testing-library/react'
 import { HelpDocs } from './HelpDocs'
+import { focusablesIn } from '../lib/useFocusTrap'
 
 afterEach(cleanup)
 
@@ -126,5 +127,81 @@ describe('HelpDocs accessibility (F006/F039/F040/F060/F078)', () => {
     render(<HelpDocs onClose={onClose} />)
     fireEvent.keyDown(document, { key: 'Escape' })
     expect(onClose).toHaveBeenCalled()
+  })
+})
+
+describe('HelpDocs traps Tab through the shared hook, at its DEFAULT (improve: focusable-selector-single-source)', () => {
+  // This overlay's hand-rolled trap and its private copy of the focusable
+  // selector are gone; it uses `useFocusTrap` over the one exported selector.
+  // `containOutsideFocus` STAYS OFF — the consolidation is behaviour-preserving
+  // by design, and the row below is what stops that default being read as an
+  // omission and "fixed".
+  //
+  // WHAT THE MUTATION MEASURED, AND WHAT IT DID NOT. Arming the option turns
+  // exactly 1 row red, the containment row below, and the existing "restores focus to
+  // the opener when the overlay unmounts (F039/F040)" row STAYS GREEN. That is
+  // not a gap in this file: the restore genuinely survives, because it runs in an
+  // effect cleanup, by which point React has detached `overlayRef` and the
+  // containment arm returns at its `if (!root) return` guard. The same result
+  // was measured on App.tsx's real shape — a parent conditionally rendering the
+  // overlay, closed through its own Close button — so the F061 story written for
+  // this call site does not reproduce. HelpDocs.tsx's header carries the
+  // correction and the distinction that replaces it.
+  //
+  // MUTATION CHECK, run rather than cited, counts recorded over this file:
+  //   * ARMING IT — `useFocusTrap(true, overlayRef, { containOutsideFocus: true })`:
+  //     1 red, the containment row below. 11 green.
+  //   * TRAP REMOVED: 1 red, the end-wrap row below. 11 green.
+  // Two different rows, which is what says the trap and its option are separately
+  // measured here.
+
+  it('wraps Tab at the ends of the overlay', () => {
+    render(<HelpDocs onClose={vi.fn()} />)
+    const overlay = document.getElementById('sr-help-overlay') as HTMLElement
+    const focusables = focusablesIn(overlay)
+    expect(focusables.length).toBeGreaterThanOrEqual(2)
+    const first = focusables[0]
+    const last = focusables[focusables.length - 1]
+
+    last.focus()
+    fireEvent.keyDown(document, { key: 'Tab' })
+    expect(document.activeElement).toBe(first)
+
+    first.focus()
+    fireEvent.keyDown(document, { key: 'Tab', shiftKey: true })
+    expect(document.activeElement).toBe(last)
+  })
+
+  it('does NOT contain on focusin: focus moved out of the overlay stays out', () => {
+    // Deliberately NOT named for the opener-restore. The restore survives either
+    // way (see the block comment), so tying this row to it would credit the
+    // default with a protection it is not providing. What it pins is the plain
+    // fact the default IS: while this overlay is open, focus that moves outside
+    // it is left where it went, with no keydown involved — which is exactly the
+    // event an armed containment arm would act on.
+    const opener = document.createElement('button')
+    document.body.appendChild(opener)
+    render(<HelpDocs onClose={vi.fn()} />)
+    opener.focus()
+    expect(document.activeElement).toBe(opener)
+    opener.remove()
+  })
+
+  it('renders no control the widened shared selector picks up that the old copy missed', () => {
+    // The consolidation swapped this overlay's narrower private selector for the
+    // canonical one, which also matches `input, select, textarea`. That widening
+    // is a no-op only while the overlay renders none, and equality of the two
+    // lists FOLLOWS from that rather than needing the retired string kept here
+    // as a control — which would also have left a focusable selector outside
+    // lib/useFocusTrap.ts, the rule this build exists to satisfy.
+    //
+    // This is a standing check on the HELP.md parse as well: the overlay's body
+    // is generated from that file, so a parser change that started emitting a
+    // form control would land here (HelpDocsHostileContent.test.tsx owns the
+    // injection half of the same parse).
+    render(<HelpDocs onClose={vi.fn()} />)
+    const overlay = document.getElementById('sr-help-overlay') as HTMLElement
+    expect(overlay.querySelectorAll('input, select, textarea, details, summary')).toHaveLength(0)
+    expect(focusablesIn(overlay).length).toBeGreaterThanOrEqual(2)
   })
 })

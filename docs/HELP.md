@@ -19,6 +19,36 @@ The recommended setup sequence is:
 
 ---
 
+## Search
+
+Search takes you straight to a thing you can name: any of the destinations you have visible, or any species in your own eBird backup. Type a few letters, press Enter, and you are there.
+
+**Opening it.** Press **Cmd-K** or **Ctrl-K** from anywhere in the app. Both work on every platform, so the same habit travels between a Mac and a PC. There is also a visible **Search** control in the navigation: at the top of the sidebar on a wide window, as a magnifier at the top of the icon column on a narrower one, and as the first row of the More sheet on a phone. Pressing the key combination again closes it, as does Escape, the Close button, or clicking the dimmed area around it. Whichever way you close it, keyboard focus returns to the control you opened it from; if that control has gone away, been switched off, or ended up behind an expanded map, focus lands on the main content instead, so it is never dropped.
+
+**What it searches.** Destinations first, then species:
+
+- **Destinations.** Every tab you have visible, in your saved order, with Settings last. A tab you have hidden in Settings does not appear here. With nothing typed, that whole visible list is shown, so Search doubles as a quick way to jump between tabs.
+- **Species.** Every distinct bird name in your eBird backup, matched against the common name and the scientific name at once, so `calypte` finds Anna's Hummingbird. Subspecies and other forms are included, exactly as your export records them. Choosing one opens Species Detail on that bird, even if you have hidden that tab. Species only appear once you have typed something.
+
+Species results are listed alphabetically by common name, and the list stops after a fixed number of them. When it does, a line beneath the results says how many are being shown, so the cut is never silent; keep typing to narrow them.
+
+**Moving around.** The Up and Down arrow keys move the highlight through the whole list, crossing from destinations into species without a separate keystroke, and they stop at the ends rather than wrapping around. Enter opens the highlighted result, or the first one if you have not highlighted anything. Escape closes.
+
+**What it says about your backup.** The destination half always works, even before anything has been read from disk. The species half tells you which situation you are in, and the messages read differently on purpose:
+
+- **Reading your eBird backup.** The shared read of your export is still in progress. Species join the results in the same open search when it finishes; there is no need to close and reopen.
+- **Searching species needs your eBird backup.** No backup is saved yet. Upload `MyEBirdData.csv` in Settings, Default Files, eBird Backup.
+- **Couldn't load your eBird backup.** A backup *is* saved and it could not be read. Re-upload it in the same place. This is a different message from the one above on purpose: you are not being told to import a file the app can already see.
+- **Nothing matches that search.** Your backup loaded and nothing in it, or in the destination list, matches what you typed.
+
+Replacing or clearing your backup in Settings reaches an open search straight away, so it never offers species from a file that is gone.
+
+**How much of the screen it takes, and where the keys are shown.** On a phone, and in any browser window 640 pixels wide or narrower, Search fills the screen; wider than that it is a box in the middle of the window. The key combination is written beside the Search control wherever that control shows its name, which is the sidebar on a wide window and the More sheet's Search row on a phone; the icon column has no room for it beside a bare magnifier, so it is not shown there. Along the bottom, the arrow, Enter and Escape keys are spelled out with what each one does. Where the main way you point at the screen is touch rather than a mouse or trackpad, an iPhone or iPad included, no key is shown at all: not beside the control, and not along the bottom. Both combinations still work there if you attach a keyboard.
+
+**It works offline and needs no key.** Search makes no network request at all and stores nothing. Everything it offers is already on your device.
+
+---
+
 ## API Keys
 
 An API key is a private code that identifies your account when the app contacts an external data service. Think of it like a password the app uses on your behalf. Both keys required by SnowRaven are free.
@@ -55,6 +85,8 @@ To get your key:
 
 SnowRaven works with two data files you export from your own eBird and Macaulay Library accounts. Once uploaded in Settings, they are stored for you (in the desktop app, in the app's local data directory; in web/Pi mode, on the server) and load automatically every time you open the app.
 
+Each slot checks what you give it before saving. A file that is not a `.csv`, a file larger than 50 MB, and a file whose contents are not the export that slot is for are all turned away with a line under the row saying which of those it was, and whatever was already saved there stays exactly as it was. So dropping `MyEBirdData.csv` into the ML Export slot no longer stores it and leaves the Multimedia tab to report it later; the row tells you at once, and says which slot each file belongs in.
+
 ### eBird backup
 
 Your eBird backup is a full export of all your eBird observations: every checklist, every species, every location. It is the primary data source for most of SnowRaven's features.
@@ -77,7 +109,7 @@ In SnowRaven, upload the file in Settings under Default Files, and **leave the f
 
 The ML export is used by: Multimedia (media counts and species coverage), Species Detail (embedded recent media and media count indicators), Statistics (the Media card), and Named Birds (the media matched to each named individual). These features are not available from the eBird backup alone.
 
-If the Multimedia tab says it couldn't load your ML export, the file is saved but SnowRaven could not turn it into a species list, either because it could not read the file or because what is stored is not an ML export. Uploading `MyEBirdData.csv` into the ML Export slot does that: both files end in `.csv`, so it is accepted. Re-upload the spreadsheet in Settings under Default Files. That message is different from the "Macaulay Library Export Required" panel, which appears only when no export is saved at all.
+If the Multimedia tab says it couldn't load your ML export, the file is saved but SnowRaven could not turn it into a species list, either because it could not read the file or because what is stored is not an ML export. Re-upload the spreadsheet in Settings under Default Files. That message is different from the "Macaulay Library Export Required" panel, which appears only when no export is saved at all.
 
 ---
 
@@ -607,7 +639,7 @@ Enter and manage your eBird and OpenWeather API keys. Keys are saved securely: i
 
 ### Default Files
 
-Upload your eBird backup CSV and Macaulay Library export. Each file is stored for you: in the desktop app, in the local app data directory; in web/Pi mode, on the server. Files load automatically when you open the relevant tab. Use Upload new to replace a stored file, or Clear to remove it. Clearing the eBird backup also removes everything SnowRaven had worked out from it and saved on this device: the escapee answers and the Projects answers on the Statistics tab, the county species lists behind the map's Completeness shading, and the saved weather and tide readings for your checklists. Every tab you have open notices straight away, with no relaunch. Replacing a file is deliberately not the same thing: upload a newer export and those saved answers are kept, which is what lets a newer export ask only about the checklists that have not been answered yet. Weather and tide you looked up for a place you typed yourself are kept either way, because they did not come from your export.
+Upload your eBird backup CSV and Macaulay Library export. Each file is stored for you: in the desktop app, in the local app data directory; in web/Pi mode, on the server. Files load automatically when you open the relevant tab. Use Upload new to replace a stored file, or Clear to remove it. A file that is not a `.csv`, one larger than 50 MB, or one that is not the export for the slot you dropped it into is refused with a line under that row explaining why, and the file already saved there is left alone. Clearing the eBird backup also removes everything SnowRaven had worked out from it and saved on this device: the escapee answers and the Projects answers on the Statistics tab, the county species lists behind the map's Completeness shading, and the saved weather and tide readings for your checklists. Every tab you have open notices straight away, with no relaunch. Replacing a file is deliberately not the same thing: upload a newer export and those saved answers are kept, which is what lets a newer export ask only about the checklists that have not been answered yet. Weather and tide you looked up for a place you typed yourself are kept either way, because they did not come from your export.
 
 ### iCloud Sync (Mac, iPhone and iPad)
 

@@ -1,0 +1,18 @@
+{
+  "name": "tools",
+  "version": "1.0.0",
+  "description": "The screenshots on the site (`../assets/shots/*.webp`) are generated from the running SnowRaven app driven against **synthetic demo data — never real eBird data**. The published site must never contain anyone's personal sighting locations, which is the whole point of the demo dataset. Regenerate the shots when the UI changes.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "verify": "node verify/run.mjs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "playwright": "^1.62.1",
+    "sharp": "^0.35.3"
+  }
+}
