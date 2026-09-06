@@ -13,10 +13,28 @@ concurrency:
   group: pipeline-${{ github.ref }}
   cancel-in-progress: true
 
+# The floor, stated here rather than inherited. The org default is currently
+# `read` (measured, not assumed), so this grants nothing new today -- but the
+# frontend job now installs a third-party dependency tree and downloads and
+# executes two browser engines, and the bound on that should be visible to
+# whoever reads this file rather than living in a setting outside the repo that
+# could be flipped to "read and write" with no diff here. Nothing in either job
+# writes: checkout reads, npm and pip install from public registries with no
+# token, and the gate only runs code. If a future step needs more, add it to
+# that step rather than widening this.
+permissions:
+  contents: read
+
 jobs:
   frontend:
     name: Frontend — lint, test, build
     runs-on: ubuntu-latest
+    # A hung harness would otherwise sit on GitHub's 6-hour default, reporting
+    # neither green nor red. The runner bounds each harness at 180 s, so the
+    # gate's own worst case is about 9 minutes; 25 leaves generous room for the
+    # browser download and the rest of the job without ever firing on a healthy
+    # run. This is the outer bound, not the working one.
+    timeout-minutes: 25
     defaults:
       run:
         working-directory: frontend
@@ -32,6 +50,29 @@ jobs:
       - run: npm run typecheck
       - run: npm run test
       - run: npm run build
+
+      # The real-engine verification gate. Playwright is declared in
+      # website/tools, never in frontend: duplicating it there would drift the
+      # version and put a browser download in every frontend install.
+      #
+      # `playwright@1.62.1` has NO install script (verified: no `scripts` in its
+      # package.json, no `hasInstallScript` in the lockfile), so `npm ci` here
+      # installs the packages and downloads nothing. The browsers are the next
+      # step, and only the two the harnesses drive -- `--with-deps` because
+      # WebKit needs system libraries on the runner.
+      #
+      # `CI` is always set on a GitHub runner, so `verify` FAILS rather than
+      # skipping if Playwright cannot be resolved here. That is the point of it:
+      # a gate that skips silently reports "not run" as "verified".
+      - name: Install the verification tooling
+        working-directory: website/tools
+        run: npm ci
+      - name: Install Chromium and WebKit
+        working-directory: website/tools
+        run: npx playwright install --with-deps chromium webkit
+      - name: Real-engine verification gate
+        working-directory: website/tools
+        run: npm run verify -- ../../frontend/dist
 
   backend:
     name: Backend — lint, test

@@ -58,10 +58,18 @@
 // the wrap class rather than the absence of overflow at 320px / 200% text scale,
 // and React's reconciliation of the alert region rather than whether that region
 // is announceable. The tab surfaces' pixels are the Playwright text-ink
-// measurement recorded in build 3's PR notes; Finding E's are reproducible, along
-// with both engines' reading of the region, by running
-// `pipeline/weather-backlog-honest-load-failure/verify-backlog-alert.mjs`
-// against a production build.
+// measurement recorded in build 3's PR notes; Finding E's, and both engines'
+// reading of the region, are measured by `verify-backlog-alert.mjs` against a
+// production build. That is no longer something a reader has to go and run by
+// hand: it moved to `website/tools/verify/` (playwright-gate, 2026-09-05) and
+// is now part of the gate CI runs after `npm run build`, so a regression in
+// what this file cannot see turns the build red rather than waiting to be
+// noticed. To drive it alone, from the repo root after a build:
+//
+//   node website/tools/verify/verify-backlog-alert.mjs frontend/dist
+//
+// and `--expect-broken` after that path inverts its exit code, for re-proving
+// it still fails against a build that lacks the fix.
 
 import { describe, it, expect, vi, beforeEach, afterEach, afterAll } from 'vitest'
 import { render, screen, cleanup, waitFor, fireEvent, act } from '@testing-library/react'

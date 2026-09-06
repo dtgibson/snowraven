@@ -1,5 +1,9 @@
 // Browser verification for the command palette, in Chromium AND WebKit, against
-// the PRODUCTION build (feature: command-palette).
+// the PRODUCTION build (feature: command-palette). Promoted from
+// `pipeline/command-palette/` by the playwright-gate build; the scenario below
+// is unchanged from the artifact it was promoted from, and the two absolute
+// paths under the author's home directory that made it dead on every other
+// machine are gone (see FIXTURE below).
 //
 // WHY THIS FILE EXISTS. Three of the palette's claims are invisible to vitest,
 // and each has a repo rule saying so:
@@ -18,39 +22,28 @@
 // It serves `frontend/dist` with no backend, so `storage` rejects and the
 // species half lands on its stored-but-unloadable state. That is deliberate: it
 // is a real state, it renders the status region with a sentence, and the
-// destination half must keep working through it.
+// destination half must keep working through it. The 404 fallback is what makes
+// it a real state -- an SPA fallback would answer `/settings/keys` with
+// index.html and the app would parse HTML as JSON instead.
 //
-// Run: node pipeline/command-palette/verify-palette.mjs   (after `npm run build`)
-import { createServer } from 'node:http'
-import { readFile } from 'node:fs/promises'
-import { extname, join, normalize } from 'node:path'
-import { createRequire } from 'node:module'
+// FIXTURE. The dist is the first argument, else `SR_VERIFY_DIST`, else the
+// repo's own `frontend/dist` resolved RELATIVE TO THIS FILE. `SR_VERIFY_BASE`
+// overrides the base URL, in which case no server is started -- the static
+// server here is pure apparatus (compare `verify-backlog-alert.mjs`, whose stub
+// backend is the scenario and therefore takes no such override).
+//
+//   node verify-palette.mjs [distDir]          # after `npm run build`
+//   SR_VERIFY_BASE=http://localhost:1620 node verify-palette.mjs
 
-const require = createRequire(import.meta.url)
-const { chromium, webkit } = require('/Users/developer/devwork/snowraven/website/tools/node_modules/playwright')
+import { resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { serveDist } from './serveDist.mjs'
+import { requirePlaywright } from './playwright.mjs'
 
-const DIST = '/Users/developer/devwork/snowraven/frontend/dist'
-const TYPES = {
-  '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css',
-  '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png',
-  '.webp': 'image/webp', '.woff2': 'font/woff2', '.ico': 'image/x-icon',
-}
+const { chromium, webkit } = requirePlaywright()
 
-function serve() {
-  const server = createServer(async (req, res) => {
-    const url = decodeURIComponent((req.url ?? '/').split('?')[0])
-    const rel = normalize(url === '/' ? '/index.html' : url).replace(/^(\.\.[/\\])+/, '')
-    try {
-      const body = await readFile(join(DIST, rel))
-      res.writeHead(200, { 'content-type': TYPES[extname(rel)] ?? 'application/octet-stream' })
-      res.end(body)
-    } catch {
-      // Everything the app asks the BACKEND for 404s here, on purpose.
-      res.writeHead(404).end('not found')
-    }
-  })
-  return new Promise(resolve => server.listen(0, '127.0.0.1', () => resolve(server)))
-}
+const DIST = resolve(process.argv[2] ?? process.env.SR_VERIFY_DIST
+  ?? fileURLToPath(new URL('../../../frontend/dist/', import.meta.url)))
 
 const results = []
 const record = (engine, name, ok, detail) => {
@@ -245,13 +238,16 @@ async function run(engine, launcher, url) {
   await browser.close()
 }
 
-const server = await serve()
-const url = `http://127.0.0.1:${server.address().port}/`
+const override = process.env.SR_VERIFY_BASE
+const served = override ? null : await serveDist(DIST, { fallback: '404' })
+const url = override ? (override.endsWith('/') ? override : `${override}/`) : `${served.base}/`
+console.log(`driving ${override ? url : `${DIST} at ${url}`}\n`)
+
 try {
   await run('chromium', chromium, url)
   await run('webkit', webkit, url)
 } finally {
-  server.close()
+  await served?.close()
 }
 
 const failed = results.filter(r => !r.ok)

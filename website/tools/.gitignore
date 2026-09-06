@@ -2,5 +2,11 @@
 node_modules/
 demo-data/
 shots/
-package.json
-package-lock.json
+
+# `package.json` and `package-lock.json` were listed here until the
+# playwright-gate build (2026-09-05). They are MANIFESTS, not artifacts, and
+# grouping them with the three above meant Playwright was declared nowhere in
+# this repository: a fresh clone got the .mjs files and no way to run them, so
+# every Playwright harness -- and this directory's own screenshot pipeline --
+# failed at `createRequire` on any machine but the one they were written on.
+# They are tracked now. Do not re-add them.

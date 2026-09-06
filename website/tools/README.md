@@ -1,18 +1,29 @@
-# Website screenshot tooling
+# Website tooling
+
+This directory holds two things that share one dependency (Playwright): the
+**website screenshot pipeline**, documented below, and the **real-engine
+verification gate** in `verify/`, documented at the end.
+
+`package.json` and `package-lock.json` are **tracked**. They were gitignored
+until 2026-09-05, which meant Playwright was declared nowhere in this repository
+and everything here failed at `createRequire` on a fresh clone. Install with
+`npm ci` in this directory.
+
+## Website screenshots
 
 The screenshots on the site (`../assets/shots/*.webp`) are generated from the running
 SnowRaven app driven against **synthetic demo data — never real eBird data**. The
 published site must never contain anyone's personal sighting locations, which is the
 whole point of the demo dataset. Regenerate the shots when the UI changes.
 
-## Prerequisites
+### Prerequisites
 
 ```
-npm install playwright sharp
-npx playwright install chromium
+npm ci                                    # in website/tools
+npx playwright install chromium webkit    # webkit is for verify/, below
 ```
 
-## Steps
+### Steps
 
 1. **Generate the demo dataset** (a fictional birder at well-known public northeast-US
    hotspots; deterministic):
@@ -113,7 +124,7 @@ npx playwright install chromium
 Then review the site, update any feature copy in `../index.html`, and commit
 `website/` (the `demo-data/`, `shots/`, and `node_modules/` here are git-ignored).
 
-## App Store screenshots
+### App Store screenshots
 
 `capture-appstore.mjs` is a second consumer of the same pipeline (shared
 helpers in `capture-lib.mjs`). It captures the committed App Store screenshot
@@ -156,3 +167,60 @@ is the same generator's output: after changing `gen-demo-data.mjs`, re-run it
 and copy `demo-data/ebird-backup.csv` and `demo-data/ml-export.csv` over
 `../demo/snowraven-demo-ebird-backup.csv` and
 `../demo/snowraven-demo-ml-export.csv` in the same edit.
+
+## The real-engine verification gate (`verify/`)
+
+Three harnesses that measure claims vitest and jsdom structurally cannot see: a
+tab order, a real accessibility tree, and laid-out geometry at 320px and 200%
+in-app text scale. Both engines, every run -- WebKit is what the shipped Mac,
+iPhone and iPad apps run.
+
+```
+(cd ../../frontend && npm run build)
+npm run verify                     # this repo's frontend/dist
+npm run verify -- /some/other/dist
+```
+
+CI runs exactly this, in `pipeline.yml`'s frontend job right after
+`npm run build`, with the job bounded by `timeout-minutes`.
+
+**A `verify-*.mjs` file in this directory IS a harness.** The runner discovers
+them from disk rather than from a list, so a new one cannot be silently unrun
+while the summary keeps printing a confident `N/N green` over a denominator that
+shrank. The list in `run.mjs` sets the ORDER of the ones it names, and nothing
+else; a name in it that is not on disk fails the run. Each harness is also
+bounded at 180 s (`SR_VERIFY_TIMEOUT_MS` to override), and a timeout is a
+failure, never a skip.
+
+| file | what it measures |
+|---|---|
+| `verify-webkit-tab-premise.mjs` | whether WebKit's default tab mode skips a plain `<button>`/`<a href>` and visits one carrying `tabindex="0"` -- the platform fact the app-wide `tabIndex={0}` rule rests on |
+| `verify-palette.mjs` | the command palette's focus containment, tab stops, live region, arrow clamping and 320px/200% geometry |
+| `verify-backlog-alert.mjs` | the Weather backlog's load-failure live region, idle and populated, out of a real accessibility tree |
+| `serveDist.mjs` | shared apparatus: a loopback static server over a built `dist` |
+| `playwright.mjs` | the one place Playwright is resolved, and the availability check the runner gates on |
+
+**A skip is never silent, and with `CI` set it is not a skip.** If Playwright or
+its browsers are missing, `npm run verify` prints an unmissable banner and exits
+0 locally, and exits **1** when `CI` is set. A gate that skips quietly reports
+"not run" as "verified", which is the shape `.claude/rules/testing.md` names as
+worse than having no gate at all.
+
+**Apparatus is overridable; a scenario is not.** `SR_VERIFY_DIST` and a first
+positional argument set the dist, and `SR_VERIFY_BASE` points `verify-palette.mjs`
+at an already-running server instead of its own. `verify-backlog-alert.mjs`
+deliberately takes no base override: its stub backend (a stored eBird backup
+whose bytes will not come back) *is* what it measures, so pointing it at another
+server would silently measure a different state.
+
+`verify-backlog-alert.mjs` also has an `--expect-broken` mode that inverts its
+exit code, for re-proving it discriminates against a build that lacks the fix:
+
+```
+node verify/verify-backlog-alert.mjs /path/to/pre-fix/dist --expect-broken
+```
+
+Eleven other harnesses remain hand-run under `pipeline/`: the ten `nav-rework`
+printers (no exit codes, hardcoded to a dev server nothing in the repo starts)
+and `verify-design.mjs` (drives a per-build mockup that has no meaning once the
+build ships). Promoting them is its own build; see `ROADMAP.md`.
