@@ -1,4 +1,4 @@
-import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   BarChart2, Trophy, Clock, MapPin, ShieldCheck, Dna, Loader2, ChevronDown,
   ChevronUp, Calendar, Video, ListOrdered, Award, Sparkles, ClipboardList
@@ -41,11 +41,11 @@ import { COUNT_FORMS_TOGGLE_LABEL } from '../lib/countabilityCopy'
 import { regionName } from '../lib/regionNames'
 import { BirdName } from './BirdName'
 import {
-  filterObservations, computeChecklists, computeLifeList, computeTopSpecies, computeTotals,
-  computeAccumulation, computeTemporal, computeDurationBins, computeGeo, computeEffort, computeQuality,
-  computeBreedingStats, computeMlStats, computeFunStats, countableLifeList,
+  filterObservations, computeChecklists, computeMlStats, countableLifeList,
   formatPeriodLabel, MILESTONE_THRESHOLDS, KM_TO_MI, HA_TO_ACRE,
 } from '../lib/birdingStats'
+import { EMPTY_STATS_BUNDLE } from '../lib/statsBundle'
+import { useStatsBundle } from '../lib/useStatsBundle'
 import { buildCoverIndex, EMPTY_LOOKUP } from '../lib/exoticProvenance'
 import { useExoticProvenance } from '../lib/useExoticProvenance'
 import { ExoticProvenanceAccount } from './ExoticProvenanceAccount'
@@ -324,13 +324,15 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
   const effectiveObs = computed ? rawObs : EMPTY_OBS
   const effectiveMl = computed ? rawMlRows : EMPTY_ML
 
-  // useDeferredValue on the two recompute-triggering controls: the control state
-  // stays snappy (checkbox/button highlight) while the deferred value drives the
-  // heavy memo so React can interrupt the recompute. The chart branch + tick
-  // formatters MUST read the deferred granularity (the value the memo consumed)
-  // to avoid a one-frame data/branch mismatch.
-  const deferredIncludeSpuh = useDeferredValue(includeSpuh)
-  const deferredAccGranularity = useDeferredValue(accGranularity)
+  // The two recompute-triggering controls used to be read through
+  // `useDeferredValue`, so the control stayed snappy while a deferred copy drove
+  // the heavy memo. The worker does that job now, and does it exactly rather than
+  // by approximation: the control state renders the checkbox and the segmented
+  // buttons, while every figure is read from the BUNDLE, which carries the
+  // `includeSpuh` / `granularity` it was actually computed with. The chart branch
+  // and its tick formatters read `b.granularity` for the same reason they used to
+  // read the deferred value — a one-frame data/branch mismatch — except that the
+  // value is now the one the data came from rather than a proxy for it.
 
   // Normalized common names the user has recorded — i.e. species that HAVE a
   // Species Detail entry. Drives whether a BirdName links (vs. plain + favicons).
@@ -345,10 +347,12 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
   // documentation coverage is the consumer; it must not disagree with the
   // Species tile about what a species is, on the same tab.
   //
-  // Deliberately NOT derived from `filteredObs`: coverage applies the countable
-  // rule unconditionally, independent of the "Count all forms" toggle, exactly
-  // as it already ignores it for escapees (FR-30, FR-34). Depending only on
-  // `effectiveObs` is what keeps the toggle out of this memo.
+  // Deliberately NOT derived from the FILTERED observations: coverage applies the
+  // countable rule unconditionally, independent of the "Count all forms" toggle,
+  // exactly as it already ignores it for escapees (FR-30, FR-34). Depending only
+  // on `effectiveObs` is what keeps the toggle out of this memo — and it is also
+  // why this one stayed on this thread rather than joining the stats bundle: it
+  // is not a function of the request at all.
   const countableBackboneNames = useMemo(() => {
     const names = new Set<string>()
     for (const o of effectiveObs) {
@@ -375,8 +379,8 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
   const orderFor = (name: string) => mlTaxonOrders[name] ?? normTaxonOrder[normalizeSpeciesName(name)] ?? Infinity
 
   // ── Exotic provenance (escapee-count-toggle) ───────────────────────────────
-  // The cover index is built from the RAW observations, never `filteredObs`, so
-  // neither count-rule toggle is a memo input to it (NFR-02). Names are mapped
+  // The cover index is built from the RAW observations, never the filtered ones,
+  // so neither count-rule toggle is a memo input to it (NFR-02). Names are mapped
   // to codes ONCE, in one direction, through the batch this tab already fetches
   // for favicons and taxonomic sort; there is no code -> name -> code round trip
   // anywhere in this feature (FR-07).
@@ -414,15 +418,45 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
 
   // ── useMemos (all declared before any conditional return) ─────────────────
 
-  const filteredObs = useMemo(() => filterObservations(effectiveObs, deferredIncludeSpuh), [effectiveObs, deferredIncludeSpuh])
-
-  const checklists = useMemo(() => computeChecklists(filteredObs), [filteredObs])
+  // ── The derived statistics, off the main thread ───────────────────────────
+  //
+  // What was ~15 chained `useMemo`s over the parsed export is ONE awaited bundle.
+  // The same functions run in the same order — the chain moved to
+  // `lib/statsBundle.ts` so a worker and this thread run identical wiring, and
+  // `birdingStats.ts` itself is untouched — but `useStatsBundle` runs it in
+  // `lib/statsWorker.ts` wherever a Worker exists, and on this thread where one
+  // does not or where one fails. That is ~48 ms of paint-blocking work on the
+  // reference export (plausibly several hundred ms on a phone or a Pi), paid again
+  // on every "Count all forms" toggle, off the frame the user is looking at.
+  //
+  // ONE REPLY, ONE COMMIT: every figure below lands in a single state update, so
+  // the page never gets the partially-updated state it has never had. A toggle
+  // keeps painting the previous bundle until the next one arrives, which is the
+  // stale-then-update sequence `useDeferredValue` used to produce.
+  //
+  // `EMPTY_STATS_BUNDLE` covers the shell pass. Every `Math.max(...)`, `.length`
+  // and `.map()` in the ready return runs before `computed` flips, and feeding
+  // them the empty bundle produces exactly what the old root-input gating
+  // (`effectiveObs` = `EMPTY_OBS`) produced, so the shell renders unchanged.
+  const bundle = useStatsBundle({
+    observations: rawObs,
+    includeSpuh,
+    granularity: accGranularity,
+    excludedNames,
+    active: computed,
+  })
+  const b = bundle ?? EMPTY_STATS_BUNDLE
+  const {
+    checklists, lifeList, topSpecies, totals, temporal, durationBins, geo, effort,
+    quality, breedingStats, funStats,
+  } = b
 
   // The projects sweep's checklist set — deliberately NOT the `checklists` memo
   // above, and this is a correctness fix rather than a preference.
   //
-  // `checklists` is derived from `filteredObs`, so it carries the "Count all
-  // forms" DISPLAY toggle. Two things followed from that, both wrong. The
+  // `checklists` is derived from the FILTERED observations, so it carries the
+  // "Count all forms" DISPLAY toggle. Two things followed from that, both wrong.
+  // The
   // section's denominator moved with a taxonomy checkbox: on the reference
   // export `S290076558`'s only row is a `hawk sp.`, so the "exact number of
   // requests" FR-49 requires the never-run state to name read 3,251 with the
@@ -436,6 +470,14 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
   // shape, as `countableBackboneNames` above. A genuinely different export
   // still changes this identity and still cancels the pass, which is what
   // FR-46 actually asks for.
+  //
+  // AND IT IS THE ONE DERIVATION THAT STAYED ON THIS THREAD when the rest of the
+  // chain moved into the worker, for that same reason. A bundle field is a fresh
+  // array on every reply, so shipping this one back with the others would change
+  // its identity on every toggle and cancel a running eight-minute sweep — the
+  // very defect above, reintroduced by the transport rather than by the memo. As a
+  // memo over `effectiveObs` it is stable for the life of the export, and it costs
+  // one 5.8 ms pass per loaded file rather than one per request.
   const projectChecklists = useMemo(() => computeChecklists(effectiveObs), [effectiveObs])
 
   // The projects sweep. Mounted HERE and nowhere else, so "no other surface can
@@ -443,14 +485,6 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
   // convention. It mounts IDLE: there is no auto-start effect anywhere in the
   // controller, so opening this tab issues zero requests (FR-39, FR-40).
   const projects = useChecklistProjects({ checklists: projectChecklists, hasEbirdKey, online })
-
-  const lifeList = useMemo(() => computeLifeList(filteredObs), [filteredObs])
-
-  // Top species — most individuals counted (Σ count) and most checklists reported on
-  // (distinct submissions). One pass over observations.
-  const topSpecies = useMemo(() => computeTopSpecies(filteredObs), [filteredObs])
-
-  const totals = useMemo(() => computeTotals(checklists, lifeList), [checklists, lifeList])
 
   // The headline Species figure. `countableLifeList` composes the escapee rule
   // with the countable-name predicate `lifeList` has already been through; it
@@ -461,30 +495,11 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
     [lifeList, appliedExcluded],
   )
 
-  // Accumulation curve + milestones — must process observations in chronological
-  // order. BOTH series are produced in one memo pass and the toggle selects
-  // between them at read (NFR-02): the Calendar's precompute-both shape, not the
-  // include-spuh toggle's recompute-everything shape. With nothing excluded the
-  // second series IS the first, so an unresolved cache costs one comparison.
-  const accumulationPair = useMemo(() => {
-    const all = computeAccumulation(filteredObs, deferredAccGranularity)
-    return {
-      all,
-      countable: excludedNames.size === 0
-        ? all
-        : computeAccumulation(filteredObs, deferredAccGranularity, excludedNames),
-    }
-  }, [filteredObs, deferredAccGranularity, excludedNames])
-  const accumulation = includeEscapees ? accumulationPair.all : accumulationPair.countable
-
-  // Temporal histograms
-  const temporal = useMemo(() => computeTemporal(checklists, filteredObs), [checklists, filteredObs])
-
-  // Checklist-duration histogram (Temporal Stats)
-  const durationBins = useMemo(() => computeDurationBins(checklists), [checklists])
-
-  // Geographic stats
-  const geo = useMemo(() => computeGeo(checklists, filteredObs), [checklists, filteredObs])
+  // Accumulation curve + milestones. BOTH series come back in one bundle and the
+  // toggle selects between them at read (NFR-02): the Calendar's precompute-both
+  // shape, carried across the worker boundary unchanged, so "Count escapees" still
+  // invalidates nothing and — the stronger property now — issues no request.
+  const accumulation = includeEscapees ? b.accumulationAll : b.accumulationCountable
 
   // Fullscreen for the Geographic Stats map. The pin test is lifted to this
   // level from the IIFE that renders the map (hooks cannot live in there) and
@@ -517,20 +532,30 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
   )
 
   // ── County shading for the Geographic Stats map (FR-14, FR-15) ────────────
-  // Built from the EXACT `filteredObs` / `checklists` memos that feed
-  // `computeGeo` above, so the map and the ranked county tables beside it cannot
-  // disagree by construction rather than by discipline.
+  // Built from the checklists in the SAME bundle that fed `computeGeo`, so the map
+  // and the ranked county tables beside it cannot disagree by construction rather
+  // than by discipline.
+  //
+  // The filtered observation array is RE-DERIVED here, and only here, because this
+  // is its one remaining consumer on this thread: 21k rows are not worth cloning
+  // back from the worker for a section most sessions never open, so the bundle
+  // carries only `filteredCount`. Construction still holds, because it is derived
+  // from `b.includeSpuh` — the value the bundle beside it was computed with — and
+  // NEVER from the live control state. Reading the live value would shade the map
+  // under one count rule while the tables showed the other, for as long as a
+  // recompute was in flight, which is a disagreement the pre-worker build could
+  // not produce and this one must not either.
   //
   // Cross-surface agreement with the Map Explorer (FR-15) holds at the default
   // setting because both sides then compute `filterObservations(allObs, false)`
   // over the same parsed export: MapExplorer hardcodes includeSpuh = false and
-  // this tab's `includeSpuh` defaults false. The escapee toggle does not enter
-  // `filteredObs` at all, so it cannot make the two disagree.
+  // this tab's `includeSpuh` defaults false. The escapee toggle does not enter the
+  // filter at all, so it cannot make the two disagree.
   //
   // GATED ON THE TOGGLE, so a user who never turns Counties on never runs it.
   const countyAggregates = useMemo(
-    () => (countiesOn ? buildCountyAggregates(filteredObs, checklists) : null),
-    [countiesOn, filteredObs, checklists],
+    () => (countiesOn ? buildCountyAggregates(filterObservations(effectiveObs, b.includeSpuh), checklists) : null),
+    [countiesOn, effectiveObs, b.includeSpuh, checklists],
   )
   const countyTiers = useMemo(
     () => computeCountyTiers(
@@ -540,15 +565,6 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
     [countyAggregates, countyMetric],
   )
   const countyShadeOn = countiesOn && !!countyData && !!countyAggregates
-
-  // Effort stats
-  const effort = useMemo(() => computeEffort(checklists), [checklists])
-
-  // Data quality
-  const quality = useMemo(() => computeQuality(filteredObs, checklists), [filteredObs, checklists])
-
-  // Breeding stats
-  const breedingStats = useMemo(() => computeBreedingStats(filteredObs), [filteredObs])
 
   // ML stats (most photographed / audio / video)
   const mlStats = useMemo(() => computeMlStats(effectiveMl), [effectiveMl])
@@ -561,9 +577,6 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
     () => computeMediaStats(effectiveMl, countableBackboneNames, excludedNames),
     [effectiveMl, countableBackboneNames, excludedNames],
   )
-
-  // Fun stats
-  const funStats = useMemo(() => computeFunStats(filteredObs, checklists, effectiveObs), [filteredObs, checklists, effectiveObs])
 
   const mediaGraphResult = useMemo(
     () => buildMediaGraphData(effectiveMl, mediaInterval),
@@ -709,7 +722,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
         ))}
       </nav>
 
-      {!computed ? (
+      {!computed || !bundle ? (
         /* Computing phase: shell is painted; the heavy memos + map mount next
            frame. Markup mirrors App.tsx's TabLoading (the Suspense fallback) so
            the transition from "Loading charts…" to "Computing your statistics…"
@@ -829,7 +842,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
             </div>
             <div style={{ height: 180 }} role="img" aria-label={`Life list accumulation chart: ${fmt(speciesShown)} species recorded over time`}>
               <ResponsiveContainer width="100%" height="100%">
-                {deferredAccGranularity === 'total' ? (
+                {b.granularity === 'total' ? (
                   <AreaChart data={accumulation.liferPoints} margin={{ top: 4, right: 4, bottom: 0, left: -10 }}>
                     <defs>
                       <linearGradient id="statsAccGrad" x1="0" y1="0" x2="0" y2="1">
@@ -870,7 +883,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
                       tick={{ fontSize: '0.625rem', fill: 'var(--sr-text-muted)' }}
                       tickLine={false} axisLine={false}
                       interval="preserveStartEnd"
-                      tickFormatter={key => formatPeriodLabel(String(key), deferredAccGranularity as PeriodGranularity)}
+                      tickFormatter={key => formatPeriodLabel(String(key), b.granularity as PeriodGranularity)}
                     />
                     <YAxis tick={{ fontSize: '0.625rem', fill: 'var(--sr-text-muted)' }} tickLine={false} axisLine={false} />
                     <Tooltip
@@ -878,7 +891,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
                       wrapperStyle={{ pointerEvents: 'auto' }}
                       contentStyle={{ background: 'var(--sr-surface)', border: '1px solid var(--sr-border)', borderRadius: 8, fontSize: '0.75rem' }}
                       formatter={(v) => [typeof v === 'number' ? fmt(v) : String(v ?? ''), 'Species']}
-                      labelFormatter={key => formatPeriodLabel(String(key), deferredAccGranularity as PeriodGranularity)}
+                      labelFormatter={key => formatPeriodLabel(String(key), b.granularity as PeriodGranularity)}
                     />
                     <Area type="monotone" dataKey="species" stroke="var(--sr-accent)" fill="url(#statsAccGrad)" strokeWidth={2} dot={false} />
                   </AreaChart>
@@ -1817,7 +1830,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
                     <>
                       <div className="sr-action-row" style={{ margin: '0 0 10px' }}>
                         <p style={{ fontSize: '0.6875rem', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--sr-text-muted)', margin: 0 }}>Species notes</p>
-                        <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)' }}><span style={{ color: 'var(--sr-text)', fontWeight: 600 }}>{pct}%</span> · {fmt(quality.obsWithSpeciesComments)} of {fmt(filteredObs.length)} observations</span>
+                        <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)' }}><span style={{ color: 'var(--sr-text)', fontWeight: 600 }}>{pct}%</span> · {fmt(quality.obsWithSpeciesComments)} of {fmt(b.filteredCount)} observations</span>
                       </div>
                       {/* % shown in the header (surface text, AA both themes); neither
                           the graph-photo nor the pale chart-blue-light segment can
