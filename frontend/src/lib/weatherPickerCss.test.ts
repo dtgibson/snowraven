@@ -87,6 +87,18 @@ describe('the picker is given the whole card to lay a row out in', () => {
 })
 
 describe('the per-species row, after the rescale', () => {
+  // WHAT THIS `it()` REJECTS, stated because commit ee56497's message got it
+  // wrong and an inaccurate claim about a guard outlives the guard.
+  //
+  // That message said the block was mutation-checked with "an equivalent
+  // spelling green". It is not that tolerant: the exact `toBe` below shares an
+  // `it()` with the tolerant `toContain` beside it, so THREE genuinely
+  // equivalent rewrites also turn it red -- commutative `min()` arguments,
+  // `grid-area` split into `grid-row` plus `grid-column`, and a whitespace
+  // variant. That fails CLOSED, so nothing can ship wrong through it and the
+  // guard is left as it is; what was wrong was the sentence describing it.
+  // Anyone rewriting these declarations equivalently should expect to update
+  // the literal here, and that is the intended cost of pinning an exact value.
   it('the reference figure ALWAYS takes a line of its own, at every width', () => {
     // It was a trailing fifth column above 640px, and that did not hold: the row
     // then carried two incompressible `nowrap` `auto` tracks inside a half-card

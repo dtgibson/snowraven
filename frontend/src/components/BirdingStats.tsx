@@ -379,19 +379,46 @@ export function BirdingStats({ onGoToSettings, onGoToWeather, onOpenSpecies }: {
     return m
   }, [mlTaxonMap])
   const codeFor = (name: string) => mlTaxonMap[name] ?? normTaxon[normalizeSpeciesName(name)]
-  // Scientific name by NORMALIZED common name, the same shape as `normTaxon`.
-  // Only the Weather section's picker wants it, so it is derived here rather
-  // than carried across the worker boundary for one surface's benefit.
+  // Scientific name by NORMALIZED common name. Only the Weather section's picker
+  // wants it, so it is derived here rather than carried across the worker
+  // boundary for one surface's benefit.
+  //
+  // THIS IS THE SHAPE TO COPY FOR A TABLE KEYED ON USER FILE CONTENT, and it is
+  // said here because the first draft of it was copied from the neighbour above
+  // instead of from the rule. Both halves are load-bearing:
+  //
+  //   `Object.create(null)` so the accumulator has no inherited members to
+  //   collide with (the write-side rule), and `Object.hasOwn` at the READ so the
+  //   safety is visible at the point of use (the read-side rule) rather than
+  //   living in a construction expression a later reader can "simplify" away
+  //   with nothing failing.
+  //
+  // Measured, not assumed: the keys are `Common Name` values from the user's
+  // CSV with no shape validation anywhere on the path, so a bare `TABLE[key]`
+  // returns `Object.prototype` for a species named `__proto__` -- which React
+  // refuses to render, crashing the whole tab -- and a truthy FUNCTION for the
+  // eleven other prototype-chain names, which passes the truthiness gate below
+  // and paints an empty scientific name. Opening the picker is enough to reach
+  // it, because `speciesOptions` maps this over every name.
+  //
+  // The neighbouring `normTaxon` / `mlTaxonMap` / `normTaxonOrder` tables have
+  // the same defect and are NOT fixed here: they predate this rule, they are
+  // already reachable through fourteen shipped call sites this build did not
+  // touch, and they are tracked as their own item. Copy the shape below, not
+  // theirs.
   const sciByNorm = useMemo(() => {
-    const m: Record<string, string> = {}
+    const m: Record<string, string> = Object.create(null)
     for (const o of effectiveObs) {
       if (!o.scientificName) continue
       const norm = normalizeSpeciesName(o.commonName)
-      if (m[norm] === undefined) m[norm] = o.scientificName
+      if (!Object.hasOwn(m, norm)) m[norm] = o.scientificName
     }
     return m
   }, [effectiveObs])
-  const sciFor = (name: string) => sciByNorm[normalizeSpeciesName(name)]
+  const sciFor = (name: string): string | undefined => {
+    const key = normalizeSpeciesName(name)
+    return Object.hasOwn(sciByNorm, key) ? sciByNorm[key] : undefined
+  }
   // Taxonomic order for media species (for the Age coverage by species sort).
   const normTaxonOrder = useMemo(() => {
     const m: Record<string, number> = {}

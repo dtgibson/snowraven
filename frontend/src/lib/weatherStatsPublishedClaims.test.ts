@@ -145,6 +145,43 @@ describe('claim 3: offline, no lookup, on every surface that makes it', () => {
   }
 })
 
+describe('the published accessibility claim states the MECHANISM, not a universal', () => {
+  // Security review, informational: `ACCESSIBILITY.md` said charts expose a
+  // summary via an image role, with examples and "and the like". This section's
+  // rails are deliberately `aria-hidden` with no role -- every value is already
+  // text on its row -- so the sentence implied a universal the code does not
+  // meet. The repair states the RULE that decides membership, which is the
+  // repo's own answer to a false "every X": a shorter list of X breaks on the
+  // next sweep.
+  const accessibility = () => read('ACCESSIBILITY.md')
+
+  it('names the condition rather than implying every chart', () => {
+    const text = accessibility()
+    expect(text).toContain('A chart drawn as a GRAPHIC')
+    expect(text).toContain('A chart drawn as ROWS OF TEXT does not')
+    // The universal that was there before must not come back.
+    expect(text).not.toContain('and the like) expose a concise text summary')
+  })
+
+  it('names this section as an instance of the no-role side, not as an exception', () => {
+    // An exception list is the shape the rule warns against; naming the
+    // instance under a stated mechanism is the shape it asks for.
+    const text = accessibility()
+    expect(text).toContain("The Weather section's distribution and per-species charts")
+    expect(text).toContain('Data Quality bars')
+  })
+
+  it('the code it describes really does carry no image role', () => {
+    // The claim is only as good as the component. Read the component rather
+    // than trusting the sentence -- this is the pairing the repo's own rule
+    // asks for, a published statement held to the source it came from.
+    const src = read('frontend/src/components/WeatherStatsSection.tsx')
+    const code = src.split('\n').filter(l => !l.trim().startsWith('//') && !l.trim().startsWith('*')).join('\n')
+    expect(code).not.toContain('role="img"')
+    expect(code).toContain('aria-hidden="true"')
+  })
+})
+
 describe('the three files agree with each other, not merely each with the code', () => {
   it('all three name the two apps whose blocks are read, and spell the other one its own way', () => {
     for (const [name, get] of SURFACES) {
