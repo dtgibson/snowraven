@@ -145,6 +145,15 @@ describe('a species named after a prototype member (security finding 1)', () => 
   it('does not crash the Statistics tab, and the Weather section renders', async () => {
     // The headline outcome: on the unfixed code `sciFor('__proto__')` returns
     // `Object.prototype`, React throws on it as a child, and the tab is gone.
+    //
+    // But this test CANNOT reject that revert, and saying so is the point.
+    // `renderStats()` leaves the picker CLOSED, and the throw needs the options
+    // rendered, so against the exact pre-fix shape this case stays green. The
+    // test that actually holds the line is 'the picker lists every hostile name
+    // with NO scientific name at all' below, which opens it; the source pin
+    // holds the two protections apart, since either alone also stays green here
+    // (they are redundant by design). Per .claude/rules/security.md, a
+    // success-path fixture names the test that can reject the revert.
     const onError = vi.spyOn(console, 'error').mockImplementation(() => {})
     await renderStats()
     expect(screen.getByRole('heading', { name: 'Weather' })).toBeTruthy()
