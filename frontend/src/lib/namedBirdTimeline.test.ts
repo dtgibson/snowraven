@@ -365,9 +365,23 @@ describe('performance: the complete master mark set (NFR-04)', () => {
       return bird({ key: `bird-${seed}-${b}`, sightings })
     })
 
-  it('builds in well under the 50 ms budget, measured as a quotient on the same run', () => {
+  it('builds well under the 50 ms budget, with enough headroom to survive CI hardware', () => {
     const CEILING_MS = 50
     const RUNS = 7
+    // THE FLOOR IS HARDWARE-TOLERANT ON PURPOSE, and the earlier name for this
+    // row ("measured as a quotient on the same run") was wrong: CEILING_MS is a
+    // CONSTANT, so `CEILING_MS / best` is an absolute wall-clock assertion
+    // wearing a ratio's clothes. At a floor of 10 it asserted `best <= 5 ms`,
+    // which is ~20% above the shipped time and therefore a bet on the hardware.
+    // Measured points: ~11.6-12.8 on an idle dev Mac, 8.27 at load 69-86, and
+    // 6.92 on the shared ubuntu CI runner, which is what turned this red on the
+    // 1.0.21 release commit. The regression class it exists for is nowhere near
+    // that band -- reverting `distinctDates` to `Array.includes` takes the 40k
+    // case to 10,717 ms, a ratio of ~0.005 -- so a floor of 3 keeps ~2.3x margin
+    // over the slowest hardware seen and still rejects a quadratic by ~600x.
+    // The real weight is carried by the STRUCTURAL row and the oracle parity
+    // row, not by this wall clock; this row's job is to notice an order-of-
+    // magnitude change, and it should not be the reason a green build reads red.
     // EVERY FIXTURE IS BUILT BEFORE ANY OF THEM IS TIMED. The threshold, the run
     // count and the work being timed are all unchanged; what moves out of the
     // measured region is the ALLOCATION. Building a 20,000-sighting fixture
@@ -391,7 +405,7 @@ describe('performance: the complete master mark set (NFR-04)', () => {
     }
     // Non-vacuity: the fixture really is the size the requirement names.
     expect(marks).toBeGreaterThan(5_000)
-    expect(CEILING_MS / best).toBeGreaterThanOrEqual(10)
+    expect(CEILING_MS / best).toBeGreaterThanOrEqual(3)
   })
 })
 
