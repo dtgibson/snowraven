@@ -87,16 +87,32 @@ describe('the picker is given the whole card to lay a row out in', () => {
 })
 
 describe('the per-species row, after the rescale', () => {
-  it('has its own grid with a fifth column for the reference figure', () => {
-    // The row carries a fifth child that the distribution rows do not. On
-    // desktop it is a trailing column of its own, so every reference aligns
-    // down the group.
-    const d = decls('.sr-wx-row--sp')
-    const cols = d.get('grid-template-columns')
-    expect(cols, '.sr-wx-row--sp declares its own tracks').toBeTruthy()
-    expect((cols as string).trim().split(/\s+(?![^(]*\))/).length).toBe(5)
-    const noGlyph = decls('.sr-wx-row--sp.no-glyph').get('grid-template-columns')
-    expect((noGlyph as string).trim().split(/\s+(?![^(]*\))/).length).toBe(4)
+  it('the reference figure ALWAYS takes a line of its own, at every width', () => {
+    // It was a trailing fifth column above 640px, and that did not hold: the row
+    // then carried two incompressible `nowrap` `auto` tracks inside a half-card
+    // column, and real Chromium and real WebKit both measured it up to 126px
+    // past that column with page scroll behind it.
+    //
+    // A SECOND BREAKPOINT WOULD NOT HAVE FIXED IT. The width a row needs is the
+    // width of its own text, so the fitting boundary moves with the DATA as well
+    // as the text scale -- measured from 30.4rem of column at 100% down to
+    // 11.5rem at 200%. This asserts the property that removes the failure mode
+    // rather than a threshold that relocates it: the reference is on its own
+    // grid row, spanning the full width, at TOP LEVEL.
+    const d = decls('.sr-wx-row--sp > .sr-wx-ref')
+    expect(d.get('grid-area')).toBe('2 / 1 / 3 / -1')
+    expect(d.get('padding-left')).toBe('0')
+    expect(d.get('text-align')).toBe('right')
+  })
+
+  it('the row declares NO grid of its own, so it is the distribution row plus a line', () => {
+    // The inline content is then exactly `.sr-wx-row`'s -- glyph, label, track,
+    // count -- which is the shape already measured clean at 320px and 200%. A
+    // re-added column list is the defect coming back.
+    expect(TOP.has('.sr-wx-row--sp')).toBe(false)
+    expect(TOP.has('.sr-wx-row--sp.no-glyph')).toBe(false)
+    expect(CSS).not.toContain('.sr-wx-row--sp {')
+    expect(CSS).not.toContain('.sr-wx-row--sp.no-glyph')
   })
 
   it('the reference figure is muted and a step smaller than the count beside it', () => {
@@ -111,15 +127,13 @@ describe('the per-species row, after the rescale', () => {
     expect(ref.get('transition')).toBeUndefined()
   })
 
-  it('the reference takes a THIRD line at the phone tier, which is a measurement', () => {
-    // With all three figures on the identity line the count column takes about
-    // 187 of the 292 available pixels at 200% text, leaving the label roughly
-    // 49px, which wraps "Scattered clouds" into four-character fragments.
+  it('the phone tier moves ONLY the row index, so the two tiers cannot drift', () => {
+    // The row is already two lines there, so the reference takes the third. The
+    // base rule keeps the column span, the padding and the alignment: a tier
+    // that restated them would be a second place for them to diverge.
     const tier = phoneTier()
-    expect(tier).toContain('.sr-wx-row--sp > .sr-wx-ref')
-    // Row 3, spanning the row's full width, in both glyph and no-glyph forms.
-    expect(tier).toMatch(/\.sr-wx-row--sp > \.sr-wx-ref\s*\{[^}]*grid-area:\s*3 \/ 1 \/ 4 \/ 4/)
-    expect(tier).toMatch(/\.sr-wx-row--sp\.no-glyph > \.sr-wx-ref\s*\{[^}]*grid-area:\s*3 \/ 1 \/ 4 \/ 3/)
+    expect(tier).toMatch(/\.sr-wx-row--sp > \.sr-wx-ref\s*\{\s*grid-row:\s*3 \/ 4;\s*\}/)
+    expect(tier).not.toContain('grid-template-columns: auto minmax(0, 1fr) auto;\n  .sr-wx-row--sp')
   })
 
   it('the bar fill keeps its 3px floor, which the rescale did not retire', () => {
@@ -135,6 +149,21 @@ describe('the per-species row, after the rescale', () => {
     // scaling every track is full width again, so a leftover rule would be dead
     // CSS that a later reader has to work out the meaning of.
     expect(CSS).not.toContain('sr-wx-scale')
+  })
+})
+
+describe('the per-species pair cannot overflow its container at any width', () => {
+  it('uses the house self-collapsing idiom, not a bare minimum', () => {
+    // A bare `minmax(240px, 1fr)` is a track that cannot shrink below 240px, so
+    // a narrower container overflows. Measured, it was safe by accident: 290px
+    // of card content at a 320px viewport, 50px of headroom, first overflowing
+    // below about 270px -- under the supported floor, but a guarantee that rests
+    // on nobody opening a narrow window is weaker than one that cannot fail.
+    const cols = decls('.sr-wx-pair').get('grid-template-columns')
+    expect(cols).toBe('repeat(auto-fit, minmax(min(240px, 100%), 1fr))')
+    // The property, stated so a different-but-equivalent spelling is judged on
+    // whether it has it: the track's minimum is capped at the container.
+    expect(cols).toContain('100%')
   })
 })
 

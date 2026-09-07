@@ -58,6 +58,7 @@ const ORDER = [
   'verify-palette.mjs',
   'verify-backlog-alert.mjs',
   'verify-named-birds-header.mjs',
+  'verify-weather-species-rows.mjs',
 ]
 
 // EVERY HARNESS GETS THE DIST, including the one that ignores it. A second
