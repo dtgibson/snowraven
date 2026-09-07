@@ -101,6 +101,15 @@ export type StatsWorkerReply =
 // export of 60-character rows would carry, the measured cost is ~3.5 s and the
 // ceiling is ~69x it. Still a wide margin, and still a bounded failure, which is
 // the property being bought.
+//
+// RE-DERIVED, NOT ASSUMED, when `computeWeatherStats` joined the chain
+// (weather-stats NFR-01). That derivation reads the weather blocks in the user's
+// own checklist comments and measured 9.2 ms on the reference export, about
+// 0.43 us/row, so the anchor above moves from 5.58 to ~6.01 us/row and the
+// 1.5 ms/row allowance from ~269x to ~250x it. All three constants are
+// UNCHANGED, which is a conclusion rather than an omission: the margin is still
+// wide enough to clear the slowest device this app ships to, and the added cost
+// is bounded by the BLOCK count rather than the row count in any case.
 const STATS_BUDGET_FLOOR_MS = 30_000
 const STATS_BUDGET_MS_PER_ROW = 1.5
 const STATS_BUDGET_CEILING_MS = 240_000

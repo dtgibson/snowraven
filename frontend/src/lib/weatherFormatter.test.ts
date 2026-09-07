@@ -16,6 +16,9 @@ import {
   formatLocalTime,
   formatWeather,
   moonPhaseEmoji,
+  CONDITION_EMOJI,
+  BEAUFORT_WORDS,
+  CARDINALS,
   type HourlyResponse,
 } from './weatherFormatter'
 
@@ -435,5 +438,104 @@ describe('formatWeather — day blocks are byte-identical to the pre-moon output
   it('latitude has no effect on a day block', () => {
     const f = fixture({})
     expect(formatWeather([f], 'UTC', LAT_S)).toBe(formatWeather([f], 'UTC', LAT_N))
+  })
+})
+
+// ─── Vocabulary exported for the READER (weather-stats FR-04, FR-07, schema 1.4)
+//
+// `lib/weatherBlockParse.ts` reads these blocks back and must take its
+// vocabulary from the writer rather than restating it. Declaring the arrays next
+// to the functions is NOT the same as tying them together, and a drift here is a
+// whole condition group silently missing from a chart, so both are asserted by
+// CALLING the real functions.
+
+describe('CONDITION_EMOJI is tied to conditionEmoji(), not merely declared beside it', () => {
+  it('has exactly eleven distinct members', () => {
+    expect(CONDITION_EMOJI.length).toBe(11)
+    expect(new Set(CONDITION_EMOJI).size).toBe(11)
+  })
+
+  it('conditionEmoji() returns a member for every id in its documented ranges', () => {
+    // Every id the branches name, plus the boundaries either side of each range
+    // so a narrowed branch is caught, plus out-of-range ids for the 🌡️ fallback.
+    const ids: number[] = []
+    for (const [lo, hi] of [[200, 232], [300, 321], [500, 531], [600, 622], [700, 781]]) {
+      for (let id = lo; id <= hi; id++) ids.push(id)
+    }
+    ids.push(800, 801, 802, 803, 804)
+    ids.push(0, 199, 233, 299, 322, 499, 532, 599, 623, 699, 782, 799, 805, 900, 1000)
+    const set = new Set<string>(CONDITION_EMOJI)
+    for (const id of ids) {
+      expect(set.has(conditionEmoji(id)), `id ${id} -> ${conditionEmoji(id)}`).toBe(true)
+    }
+  })
+
+  it('every documented branch is actually reachable, so membership is not vacuous', () => {
+    // Without this, a conditionEmoji() that returned '🌡️' for everything would
+    // satisfy the assertion above.
+    const seen = new Set([
+      conditionEmoji(211), conditionEmoji(301), conditionEmoji(500), conditionEmoji(601),
+      conditionEmoji(741), conditionEmoji(800), conditionEmoji(801), conditionEmoji(802),
+      conditionEmoji(803), conditionEmoji(804), conditionEmoji(9999),
+    ])
+    expect(seen.size).toBe(11)
+    expect([...CONDITION_EMOJI].every(e => seen.has(e))).toBe(true)
+  })
+
+  it('the variation-selector-stripped lookup has exactly eleven entries', () => {
+    // Matching is VS16-insensitive (a round trip through eBird or a clipboard can
+    // add or drop U+FE0F), so the parser keys on the stripped form. All eleven
+    // base code points differ today; a collision would silently merge two
+    // conditions into one bar, and this costs one line.
+    const stripped = new Set(CONDITION_EMOJI.map(e => e.replace(/\uFE0F/g, '')))
+    expect(stripped.size).toBe(11)
+  })
+
+  it('exactly one member carries no variation selector, and it is ⛅', () => {
+    // The selector is written as an ESCAPE here and everywhere it is tested:
+    // U+FE0F is invisible, and a literal one in source is the shape an editor
+    // silently eats (the same reason charClasses.ts escapes U+2028/U+2029).
+    const bare = CONDITION_EMOJI.filter(e => !e.includes('\uFE0F'))
+    expect(bare).toEqual(['⛅'])
+  })
+})
+
+describe('BEAUFORT_WORDS is tied to windDescription(), not merely declared beside it', () => {
+  it('has the nine words in ordinal order', () => {
+    expect(BEAUFORT_WORDS).toEqual([
+      'Calm', 'Mostly calm', 'Light breeze', 'Gentle breeze', 'Moderate breeze',
+      'Fresh breeze', 'Strong breeze', 'Near gale', 'Gale',
+    ])
+  })
+
+  it('windDescription() emits only members, and reaches every one of them', () => {
+    const seen = new Set<string>()
+    for (let mph = 0; mph <= 60; mph += 0.25) seen.add(windDescription(mph))
+    seen.add(windDescription(500))
+    expect([...seen].every(w => BEAUFORT_WORDS.includes(w))).toBe(true)
+    expect(seen.size).toBe(BEAUFORT_WORDS.length)
+  })
+
+  it('the ordinal order is the ascending-speed order windDescription() walks', () => {
+    // A reordered table would still pass "every word appears"; this pins that
+    // index N is windier than index N-1, which is what windBandIndex() assumes.
+    const firstSeenAt = new Map<string, number>()
+    for (let mph = 0; mph <= 60; mph += 0.25) {
+      const w = windDescription(mph)
+      if (!firstSeenAt.has(w)) firstSeenAt.set(w, mph)
+    }
+    firstSeenAt.set('Gale', 500)
+    const byOrdinal = BEAUFORT_WORDS.map(w => firstSeenAt.get(w)!)
+    expect(byOrdinal).toEqual([...byOrdinal].sort((a, b) => a - b))
+  })
+})
+
+describe('CARDINALS is tied to cardinal()', () => {
+  it('cardinal() emits only members and reaches every one', () => {
+    const seen = new Set<string>()
+    for (let deg = 0; deg < 360; deg += 1) seen.add(cardinal(deg))
+    expect([...seen].every(c => CARDINALS.includes(c))).toBe(true)
+    expect(seen.size).toBe(CARDINALS.length)
+    expect(CARDINALS.length).toBe(8)
   })
 })

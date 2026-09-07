@@ -22,6 +22,8 @@ import {
   computeQuality, computeBreedingStats, computeFunStats,
 } from './birdingStats'
 import type { Granularity } from './birdingStats'
+import { computeWeatherStats } from './weatherStats'
+import type { WeatherStats } from './weatherStats'
 
 /**
  * The three inputs that change what the chain produces.
@@ -88,6 +90,22 @@ export interface StatsBundle {
   quality: ReturnType<typeof computeQuality>
   breedingStats: ReturnType<typeof computeBreedingStats>
   funStats: ReturnType<typeof computeFunStats>
+  /**
+   * The Weather section's whole derivation, read back out of the weather blocks
+   * in the user's own checklist comments.
+   *
+   * ALWAYS AN OBJECT, NEVER NULL, and that is load-bearing rather than
+   * stylistic. `isStatsBundle` below rejects a bundle when any table field is
+   * `undefined` OR `null`, so a null here would fail validation on every reply
+   * for every user with no weather blocks -- the tab would fall back to
+   * computing the whole chain on the thread that paints, forever, silently, on
+   * exactly the users the worker exists for, with every figure correct and
+   * nothing red. Absence is `foundCount === 0` inside the object.
+   *
+   * Bounded by the band and species counts, never by the row count, so the
+   * reply clone leg does not become a function of the export size.
+   */
+  weather: WeatherStats
 }
 
 /**
@@ -101,6 +119,7 @@ const BUNDLE_FIELDS: Record<keyof StatsBundle, true> = {
   lifeList: true, topSpecies: true, totals: true, accumulationAll: true,
   accumulationCountable: true, temporal: true, durationBins: true, geo: true,
   effort: true, quality: true, breedingStats: true, funStats: true,
+  weather: true,
 }
 
 /**
@@ -142,9 +161,22 @@ export function isStatsBundle(value: unknown): value is StatsBundle {
  * The chain, in the order the component's memo cascade ran it. Pure: same
  * observations plus same request in, same figures out, on either thread.
  *
- * Measured on the reference export (21,856 rows, 7.18 Mchar): 44-56 ms depending on
- * granularity and whether the escapee set is empty, and roughly linear in the row
- * count over a 16x size range.
+ * RE-MEASURED for the weather derivation rather than left stale, which is the
+ * point of writing the figure down at all. On the reference export (21,369 rows,
+ * 6.93 Mchar, 3,251 checklists, 353 weather blocks), median of five runs per
+ * configuration across all four granularities with the escapee set empty and
+ * non-empty: 48-65 ms. It was 44-56 ms before `computeWeatherStats` joined the
+ * chain, and the difference is that call: measured on its own in the same
+ * process, median of nine, 9.2 ms (8.4 to 10.1). Still roughly linear in the row
+ * count.
+ *
+ * That addition sits inside its 20 ms allowance with room to spare, and its cost
+ * is bounded by the BLOCK count rather than the row count -- everything after
+ * the attribution gate runs only on the 353 block-bearing comments. The three
+ * `STATS_BUDGET_*` constants in `statsOffThread.ts` are therefore UNCHANGED, and
+ * that is a re-derivation rather than an omission: their anchor was 5.58 us/row
+ * at the smallest measured input, this adds ~0.43 us/row, and the 1.5 ms/row
+ * allowance is still ~250x the new anchor against ~269x the old one.
  */
 export function computeStatsBundle(
   observations: readonly ObservationEntry[],
@@ -183,6 +215,7 @@ export function computeStatsBundle(
     quality: computeQuality(filtered, checklists),
     breedingStats: computeBreedingStats(filtered),
     funStats: computeFunStats(filtered, checklists, observations as ObservationEntry[]),
+    weather: computeWeatherStats(checklists, filtered),
   }
 }
 

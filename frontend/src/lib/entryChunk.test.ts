@@ -170,6 +170,23 @@ describe('entry-chunk exclusion (NFR-03 / QA-30)', () => {
     expect(hasIn(svc.files, 'lib/checklistFields.ts')).toBe(true)
   })
 
+  it('the weather-block reader and its section stay off the entry chunk (weather-stats)', () => {
+    // Structural rather than lucky: BirdingStats is lazy()-loaded in App.tsx, so
+    // everything reachable only through it is already off first paint. Asserted
+    // anyway, because the invariant that keeps it true is one static import
+    // away from being false, and nothing else would say so.
+    expect(has('lib/weatherBlockParse.ts')).toBe(false)
+    expect(has('lib/weatherStats.ts')).toBe(false)
+    expect(has('components/WeatherStatsSection.tsx')).toBe(false)
+    // The chain they hang off is off it too.
+    expect(has('lib/statsBundle.ts')).toBe(false)
+    // Non-vacuity: weatherFormatter IS on the entry graph (the Weather tab's own
+    // code path reaches it), so the walk would find these three if an edge
+    // existed. Without this the assertions above could pass on a broken walk.
+    expect(has('components/BirdingStats.tsx')).toBe(false)
+    expect(has('App.tsx')).toBe(true)
+  })
+
   it('the county-completeness code is only reachable through the lazy Map Explorer (NFR-02)', () => {
     expect(has('lib/countyCompleteness.ts')).toBe(false)
     expect(has('lib/countyCompletenessCache.ts')).toBe(false)
