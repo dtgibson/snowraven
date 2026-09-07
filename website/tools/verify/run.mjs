@@ -57,6 +57,7 @@ const ORDER = [
   'verify-webkit-tab-premise.mjs',
   'verify-palette.mjs',
   'verify-backlog-alert.mjs',
+  'verify-named-birds-header.mjs',
 ]
 
 // EVERY HARNESS GETS THE DIST, including the one that ignores it. A second

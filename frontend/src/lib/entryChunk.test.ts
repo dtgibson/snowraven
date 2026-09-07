@@ -447,6 +447,100 @@ describe('entry-chunk exclusion (NFR-03 / QA-30)', () => {
     expect(has('components/BirdName.tsx')).toBe(true)
   })
 
+
+  // ── The Named Birds sighting timelines (named-birds-timelines, NFR-01 / NFR-02).
+  // `NamedBirds` is a STATIC import in App.tsx while every other heavy tab is
+  // lazy, so everything this feature adds is paid for on first paint by every
+  // user on every platform. Both assertions are PAIRED, per this file's own
+  // convention: an unpaired negative passes vacuously.
+  it('no chart library is reachable from App.tsx (NFR-01 / QA-61)', () => {
+    // The externals-based maplibre check above had no recharts equivalent, and a
+    // `recharts` import inside this feature would put ~112 KB gz of chart library
+    // on first paint. Its four importers (BirdingStats, MediaStatsSections,
+    // ProjectsSection, speciesDetail/SightingsGraph) are all lazy-only today.
+    const charting = [...externals].filter(
+      s => s === 'recharts' || s.startsWith('recharts/') || s === 'd3' || s.startsWith('d3-') || s === 'chart.js',
+    )
+    expect(charting).toEqual([])
+    // Guards the guard, twice over: the static tab really IS on this graph, so a
+    // chart import added to it would be found...
+    expect(has('components/NamedBirds.tsx')).toBe(true)
+    expect(has('components/NamedBirdsTable.tsx')).toBe(true)
+    // ...and a real recharts edge exists somewhere for the matcher to find, so a
+    // broken filter cannot report a clean result for every root.
+    const stats = closureFrom(resolve(SRC, 'components/BirdingStats.tsx'))
+    expect([...stats.externals]).toContain('recharts')
+  })
+
+  it('the timeline modules reach no chart library, no map, no transport and no SegControl', () => {
+    // ROOTED AT THE MODULES THIS FEATURE ADDS, deliberately not at
+    // NamedBirdsTable: that component imports useHotspotSet, and NamedBirdRow
+    // imports NamedBirdMedia / ChecklistLink / HotspotLink, chains that
+    // legitimately reach network code this feature neither adds nor uses. A walk
+    // rooted at the table would report a transport edge that has nothing to do
+    // with these timelines.
+    const ROOTS = [
+      'lib/namedBirdTimeline.ts',
+      'lib/namedBirdTimelineCopy.ts',
+      'components/NamedBirdTickList.tsx',
+      'components/NamedBirdTimeline.tsx',
+      'components/NamedBirdMasterTimeline.tsx',
+      'components/NamedBirdRangeControl.tsx',
+    ]
+    const FORBIDDEN_FILES = [
+      'lib/transport.ts',
+      'lib/statsFormat.ts',              // the eventual convergence runs the OTHER way
+      'components/map/MapSidebarUI.tsx', // SegControl: pulls countyTextures + countyCompleteness
+      'components/ProjectsSection.tsx',  // a lazy chunk, and it imports recharts
+      'components/SnowMap.tsx',
+      'components/SightingsMap.tsx',
+    ]
+    for (const root of ROOTS) {
+      const sub = closureFrom(resolve(SRC, root))
+      const files = [...sub.files].map(f => f.replace(/\\/g, '/'))
+      for (const forbidden of FORBIDDEN_FILES) {
+        expect(files.some(f => f.endsWith(forbidden)), `${root} must not reach ${forbidden}`).toBe(false)
+      }
+      expect(files.some(f => /lib\/tauri\/.*Service\.ts$/.test(f)), `${root} must reach no Tauri service`).toBe(false)
+      expect(maplibreIn(sub.externals), `${root} must not reach maplibre`).toEqual([])
+      expect(
+        [...sub.externals].filter(s => s === 'recharts' || s.startsWith('recharts/')),
+        `${root} must not reach a chart library`,
+      ).toEqual([])
+    }
+  })
+
+  it('the two timeline lib modules are dependency-light, which is what makes them entry-safe', () => {
+    // Guards the guard above: a walker that resolved nothing would satisfy every
+    // negative. The geometry module's ONLY value import is formatDate (already on
+    // the entry graph and itself dependency-free); the copy module's is the same.
+    // NamedBird / NamedSighting arrive as `import type` and are erased at build.
+    const geom = closureFrom(resolve(SRC, 'lib/namedBirdTimeline.ts'))
+    expect([...geom.files].map(f => f.replace(/\\/g, '/')).filter(f => f.endsWith('lib/formatDate.ts'))).toHaveLength(1)
+    expect(geom.files.size).toBe(2)                 // itself and formatDate, nothing else
+    expect([...geom.externals]).toEqual([])
+
+    const copy = closureFrom(resolve(SRC, 'lib/namedBirdTimelineCopy.ts'))
+    expect(copy.files.size).toBe(2)
+    expect([...copy.externals]).toEqual([])
+
+    // And they really ARE on the entry graph, which is why all of this matters.
+    expect(has('lib/namedBirdTimeline.ts')).toBe(true)
+    expect(has('lib/namedBirdTimelineCopy.ts')).toBe(true)
+  })
+
+  it('the strip components pull nothing onto first paint beyond react and lucide', () => {
+    for (const root of [
+      'components/NamedBirdTickList.tsx',
+      'components/NamedBirdMasterTimeline.tsx',
+      'components/NamedBirdRangeControl.tsx',
+    ]) {
+      const sub = closureFrom(resolve(SRC, root))
+      // Both are already on App.tsx's entry graph, so neither adds a byte.
+      for (const ext of sub.externals) expect(['react', 'lucide-react']).toContain(ext)
+    }
+  })
+
   it('the App entry actually exists (guards against a broken closure root)', () => {
     expect(files.has(APP)).toBe(true)
     expect(files.size).toBeGreaterThan(20) // a real graph, not an empty/short-circuited one

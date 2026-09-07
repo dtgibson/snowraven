@@ -477,8 +477,11 @@ behavior). Entirely from the parse-once caches; no backend changes.
 
 Tracks individual birds the user names in eBird species comments via `[name:…]`
 tags (e.g. `[name:Winky]`, `[name:one-leg-pete]`). A new **Named Birds** tab
-lists each named individual (name, species, first/last seen with the elapsed span
-between them — e.g. "1 yr. 2 mos." — and sighting count),
+lists each named individual (name, species, first/last seen with the TRUE number
+of calendar days between the two dates the figure names, printed exact to the day
+to 60 days, then months plus the exact remaining days, then years plus the rounded
+months — e.g. "50 days", "2 mos. 29 days", "2 yrs. 6 mos.", "Same day" — and
+sighting count),
 sortable by name/species/last-seen, each expanding to its checklists (date, eBird
 checklist link, the species comment). An expanded card also ranks that
 individual's own locations by sighting count — its name-tagged checklists only,

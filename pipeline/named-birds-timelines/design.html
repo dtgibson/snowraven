@@ -1,0 +1,1454 @@
+<meta charset="utf-8">
+<title>Named Birds Timelines</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+/* ══════════════════════════════════════════════════════════════════════════
+   DOC CHROME — the annotation layer around the app frames.
+   Sized in PX on purpose, so the in-app text-size control scales the app
+   frames only (they are sized in rem, as the real app is).
+   ══════════════════════════════════════════════════════════════════════════ */
+:root{
+  --ts: 1;
+  --doc-ink:#0F1613; --doc-paper:#F6F7F5; --doc-panel:#FFFFFF;
+  --doc-line:#DFE3DE; --doc-line-soft:#ECEFEA;
+  --doc-muted:#5B6560; --doc-faint:#8A928C;
+  --doc-accent:#277448; --doc-accent-soft:#E8F5EE;
+  --doc-warn:#8A5A12; --doc-warn-soft:#FBF3E3;
+  --doc-shadow: 0 1px 3px rgba(15,22,19,.06), 0 10px 30px rgba(15,22,19,.06);
+  --doc-serif: "Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;
+  --doc-sans: ui-sans-serif,-apple-system,"Helvetica Neue",Helvetica,sans-serif;
+  --doc-mono: ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+}
+body.dark{
+  --doc-ink:#EDF1EE; --doc-paper:#0D1110; --doc-panel:#161B19;
+  --doc-line:#2A312E; --doc-line-soft:#202623;
+  --doc-muted:#A3ADA7; --doc-faint:#79837D;
+  --doc-accent:#3FBB7B; --doc-accent-soft:#0D2418;
+  --doc-warn:#E0B061; --doc-warn-soft:#241C0C;
+  --doc-shadow: 0 1px 3px rgba(4,7,6,.5), 0 10px 30px rgba(4,7,6,.4);
+}
+html{ font-size: calc(16px * var(--ts)); }
+body{
+  margin:0; background:var(--doc-paper); color:var(--doc-ink);
+  font-family:var(--doc-sans); font-size:14px; line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{ max-width:1180px; margin:0 auto; padding:0 24px 96px; }
+
+.doc-head{
+  background:
+    radial-gradient(90rem 32rem at 12% -30%, rgba(39,116,72,.16), transparent 62%),
+    linear-gradient(178deg, var(--doc-panel), var(--doc-paper) 78%);
+  border-bottom:1px solid var(--doc-line);
+}
+.doc-head .wrap{ padding-top:56px; padding-bottom:34px; }
+.eyebrow{
+  font-family:var(--doc-mono); font-size:11px; letter-spacing:.16em;
+  text-transform:uppercase; color:var(--doc-accent); margin:0 0 14px;
+}
+h1{
+  font-family:var(--doc-serif); font-weight:400; font-size:clamp(34px,5.2vw,58px);
+  line-height:1.04; letter-spacing:-.018em; margin:0 0 18px; max-width:19ch;
+}
+h1 em{ font-style:italic; color:var(--doc-accent); }
+.lede{ font-size:16px; line-height:1.65; color:var(--doc-muted); max-width:66ch; margin:0; }
+.lede strong{ color:var(--doc-ink); font-weight:600; }
+.lede + .lede{ margin-top:12px; }
+
+.doc-bar{
+  position:sticky; top:0; z-index:40;
+  background:color-mix(in srgb, var(--doc-paper) 88%, transparent);
+  backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--doc-line);
+}
+.doc-bar .wrap{
+  display:flex; flex-wrap:wrap; align-items:center; gap:8px 22px;
+  padding-top:10px; padding-bottom:10px;
+}
+.seg{ display:flex; align-items:center; gap:8px; }
+.seg > span{
+  font-family:var(--doc-mono); font-size:10px; letter-spacing:.13em;
+  text-transform:uppercase; color:var(--doc-faint);
+}
+.seg button{
+  font:inherit; font-size:12px; font-weight:600; cursor:pointer;
+  padding:5px 11px; border-radius:7px; border:1px solid var(--doc-line);
+  background:transparent; color:var(--doc-muted);
+  transition:background 140ms cubic-bezier(0.16,1,0.3,1),
+             color 140ms cubic-bezier(0.16,1,0.3,1),
+             border-color 140ms cubic-bezier(0.16,1,0.3,1);
+}
+.seg button:hover{ border-color:var(--doc-accent); color:var(--doc-ink); }
+.seg button[aria-pressed="true"]{
+  background:var(--doc-accent-soft); border-color:var(--doc-accent); color:var(--doc-accent);
+}
+.seg button:focus-visible{ outline:2px solid var(--doc-accent); outline-offset:2px; }
+
+section{ margin-top:62px; }
+.sec-head{ display:flex; align-items:baseline; gap:14px; margin-bottom:8px; }
+.sec-num{
+  font-family:var(--doc-mono); font-size:11px; color:var(--doc-accent);
+  letter-spacing:.1em; padding-top:6px;
+}
+h2.sec{
+  font-family:var(--doc-serif); font-weight:400; font-size:29px; letter-spacing:-.012em;
+  margin:0; line-height:1.2;
+}
+.sec-sub{ color:var(--doc-muted); max-width:70ch; margin:0 0 26px 40px; font-size:14.5px; }
+@media (max-width:640px){ .sec-sub{ margin-left:0; } }
+
+.stage{
+  background:var(--doc-panel); border:1px solid var(--doc-line); border-radius:16px;
+  box-shadow:var(--doc-shadow); padding:22px; overflow:hidden;
+}
+.stage + .stage{ margin-top:18px; }
+.stage-cap{
+  display:flex; align-items:center; gap:9px; margin:0 0 16px;
+  font-family:var(--doc-mono); font-size:10.5px; letter-spacing:.12em;
+  text-transform:uppercase; color:var(--doc-faint);
+}
+.stage-cap b{ color:var(--doc-accent); font-weight:600; letter-spacing:.12em; }
+.dual{ display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+@media (max-width:900px){ .dual{ grid-template-columns:1fr; } }
+.phonewrap{ display:flex; justify-content:center; }
+.phone{
+  width:320px; flex:0 0 320px; border:1px solid var(--doc-line); border-radius:12px;
+  overflow-x:auto; overflow-y:hidden;
+}
+.phone > .sr{ padding:12px; }
+
+.note{
+  border-left:3px solid var(--doc-accent); background:var(--doc-accent-soft);
+  padding:12px 16px; border-radius:0 9px 9px 0; margin:18px 0 0;
+  font-size:13.5px; line-height:1.62; color:var(--doc-ink);
+}
+.note.warn{ border-left-color:var(--doc-warn); background:var(--doc-warn-soft); }
+.note h4{
+  margin:0 0 5px; font-size:12px; letter-spacing:.06em; text-transform:uppercase;
+  font-family:var(--doc-mono); font-weight:600; color:var(--doc-accent);
+}
+.note.warn h4{ color:var(--doc-warn); }
+.note p{ margin:0 0 8px; } .note p:last-child{ margin-bottom:0; }
+.note ul{ margin:0 0 8px; padding-left:20px; } .note li{ margin-bottom:4px; }
+.note code, .k{
+  font-family:var(--doc-mono); font-size:.88em;
+  background:color-mix(in srgb, var(--doc-ink) 8%, transparent);
+  padding:1px 5px; border-radius:4px;
+}
+.elide{
+  font-family:var(--doc-mono); font-size:10px; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--doc-faint); border-top:1px dashed var(--doc-line);
+  border-bottom:1px dashed var(--doc-line); padding:7px 0; text-align:center; margin:0;
+}
+
+table.cmp{ width:100%; border-collapse:collapse; font-size:13px; }
+table.cmp th{
+  text-align:left; font-family:var(--doc-mono); font-size:10px; letter-spacing:.11em;
+  text-transform:uppercase; color:var(--doc-faint); font-weight:600;
+  padding:0 12px 9px 0; border-bottom:1px solid var(--doc-line);
+}
+table.cmp td{ padding:11px 12px 11px 0; border-bottom:1px solid var(--doc-line-soft); vertical-align:top; }
+table.cmp .was{ color:var(--doc-faint); text-decoration:line-through; font-family:var(--doc-mono); font-size:12px; }
+table.cmp .now{ color:var(--doc-accent); font-weight:600; font-family:var(--doc-mono); font-size:12px; }
+table.cmp .why{ color:var(--doc-muted); }
+table.cmp .id{ font-family:var(--doc-mono); font-size:11.5px; color:var(--doc-warn); font-weight:600; white-space:nowrap; }
+.scrollx{ overflow-x:auto; }
+
+.qa{ border-top:1px solid var(--doc-line); padding-top:20px; margin-top:20px; }
+.qa:first-of-type{ border-top:0; padding-top:0; margin-top:0; }
+.qa h3{ font-family:var(--doc-serif); font-weight:400; font-size:21px; margin:0 0 4px; letter-spacing:-.01em; }
+.qa .tag{
+  font-family:var(--doc-mono); font-size:10px; letter-spacing:.12em; text-transform:uppercase;
+  color:var(--doc-accent); display:block; margin-bottom:6px;
+}
+.qa p{ margin:0 0 10px; color:var(--doc-muted); max-width:76ch; }
+.qa p strong{ color:var(--doc-ink); }
+.qa ul{ margin:0 0 10px; padding-left:20px; color:var(--doc-muted); max-width:76ch; }
+.qa li{ margin-bottom:5px; }
+.pos{
+  display:inline-block; font-family:var(--doc-mono); font-size:11px; font-weight:600;
+  letter-spacing:.06em; padding:3px 9px; border-radius:6px;
+  background:var(--doc-accent-soft); color:var(--doc-accent); margin-bottom:9px;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   APP FRAME — SnowRaven's shipped tokens, verbatim from globals.css.
+   Scoped to .sr here only so two themes can sit on one page; in the product
+   they live on :root and [data-theme="dark"]. Everything inside is rem.
+   ══════════════════════════════════════════════════════════════════════════ */
+.sr{
+  --sr-bg:#F9FAFB; --sr-surface:#FFFFFF; --sr-surface-subtle:#F4F4F5; --sr-surface-faint:#FAFAFA;
+  --sr-text:#0F1117; --sr-text-muted:#6B6B74; --sr-text-disabled:#A1A1AA; --sr-text-gray:#6B7280;
+  --sr-border:#E4E4E7; --sr-border-subtle:#F4F4F5; --sr-border-medium:#C4C4CE;
+  --sr-accent:#277448; --sr-accent-strong:#1A5C38; --sr-accent-bg:#E8F5EE;
+  --sr-accent-border:rgba(39,116,72,0.25);
+  --sr-quote-bg:#EFF1F3; --sr-quote-border:#E0E2E6;
+  --sr-card-shadow:0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+  --font-sans:'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
+  background:var(--sr-bg); color:var(--sr-text); font-family:var(--font-sans);
+  padding:18px; border-radius:10px; line-height:1.5;
+}
+.sr.theme-dark{
+  --sr-bg:#09090B; --sr-surface:#18181B; --sr-surface-subtle:#27272A; --sr-surface-faint:#1C1C1F;
+  --sr-text:#F4F4F5; --sr-text-muted:#A1A1AA; --sr-text-disabled:#52525B; --sr-text-gray:#9CA3AF;
+  --sr-border:#27272A; --sr-border-subtle:#1F1F23; --sr-border-medium:#3F3F46;
+  --sr-accent:#34D399; --sr-accent-strong:#34D399; --sr-accent-bg:#052E16;
+  --sr-accent-border:rgba(52,211,153,0.2);
+  --sr-quote-bg:#2E2E33; --sr-quote-border:#3A3A40;
+  --sr-card-shadow:0 1px 4px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.25);
+}
+.sr *{ box-sizing:border-box; }
+.sr button{ font-family:inherit; }
+.sr :focus-visible{ outline:2px solid var(--sr-accent); outline-offset:2px; }
+
+.sr-tabhead{ display:flex; align-items:flex-start; gap:.625rem; margin-bottom:1rem; }
+.sr-tabhead-icon{
+  width:1.875rem; height:1.875rem; border-radius:.5rem; flex-shrink:0;
+  background:var(--sr-accent-bg); color:var(--sr-accent);
+  display:flex; align-items:center; justify-content:center;
+}
+.sr-tabhead h2{ font-size:1.125rem; font-weight:700; margin:0 0 .125rem; letter-spacing:-.01em; }
+.sr-tabhead p{ font-size:.8125rem; color:var(--sr-text-muted); margin:0; line-height:1.5; max-width:68ch; }
+.sr-tabhead code{ font-family:ui-monospace,monospace; font-size:.78125rem; color:var(--sr-text); }
+
+.sr-ctlblock{ display:flex; flex-direction:column; gap:.5rem; margin-bottom:.875rem; }
+.sr-ctlrow{ display:flex; align-items:center; gap:.5rem; flex-wrap:wrap; }
+.sr-ctllabel{ font-size:.75rem; color:var(--sr-text-muted); font-weight:600; }
+.sr-wrap-flex{ display:flex; flex-wrap:wrap; align-items:center; gap:.375rem; }
+.sr-pill{
+  min-height:1.875rem; padding:0 .8125rem; display:inline-flex; align-items:center; justify-content:center;
+  border:1.5px solid var(--sr-accent-border); border-radius:.5rem; background:transparent;
+  color:var(--sr-text-muted); font-size:.75rem; font-weight:500; cursor:pointer; white-space:nowrap;
+  transition:background 120ms cubic-bezier(0.16,1,0.3,1), color 120ms cubic-bezier(0.16,1,0.3,1);
+}
+.sr-pill[aria-pressed="true"]{ background:var(--sr-accent-bg); color:var(--sr-accent); font-weight:600; }
+.sr-count{ font-size:.75rem; color:var(--sr-text-disabled); margin-left:auto; white-space:nowrap; }
+
+.sr-rows{ display:flex; flex-direction:column; gap:.5rem; }
+.sr-card{
+  border:1px solid var(--sr-border); border-radius:.625rem; overflow:hidden;
+  background:var(--sr-surface); box-shadow:var(--sr-card-shadow);
+}
+.sr-cardhead{
+  display:flex; align-items:baseline; gap:.5rem; row-gap:.25rem; flex-wrap:wrap; width:100%;
+  padding:.6875rem .8125rem; border:none; background:transparent; cursor:pointer; text-align:left;
+}
+.sr-cardhead .chev{ color:var(--sr-text-muted); flex-shrink:0; display:inline-flex; align-self:center; }
+.sr-cardhead .nm{
+  font-size:.9375rem; font-weight:700; color:var(--sr-text); min-width:0;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; letter-spacing:-.01em;
+}
+.sr-cardhead .sp{ min-width:0; overflow:hidden; display:inline-flex; align-items:baseline; gap:.3125rem; }
+.sr-cardhead .sp b{ font-size:.84375rem; font-weight:500; color:var(--sr-accent); }
+.sr-cardhead .sp i{ font-size:.71875rem; color:var(--sr-text-gray); font-style:italic; }
+.sr-cardhead .right{ margin-left:auto; display:flex; align-items:baseline; flex-wrap:wrap; gap:.8125rem; flex-shrink:0; }
+.sr-cardhead .datecol{ display:flex; flex-direction:column; align-items:flex-end; gap:.0625rem; text-align:right; }
+.sr-cardhead .rangeline{ font-size:.75rem; color:var(--sr-text-gray); white-space:nowrap; }
+.sr-cardhead .durline{ font-size:.6875rem; color:var(--sr-text-muted); line-height:1.35; }
+.sr-cardhead .durline b{ font-weight:600; }
+.sr-cardhead .durline span{ font-weight:400; }
+.sr-cardhead .cnt{ font-size:.75rem; font-weight:700; color:var(--sr-accent); white-space:nowrap; }
+
+.sr-cardbody{ border-top:1px solid var(--sr-border-subtle); background:var(--sr-surface-faint); }
+.sr-microlabel{
+  display:flex; align-items:center; gap:.375rem; margin-bottom:.4375rem;
+  font-size:.6875rem; font-weight:700; letter-spacing:.04em; text-transform:uppercase;
+  color:var(--sr-text-muted);
+}
+.sr-sec{ padding:.75rem .875rem .125rem; }
+.sr-nbt-ctl{ padding-bottom:.5rem; }
+.sr-sec.last{ padding-bottom:.875rem; }
+.sr-report{ padding:.625rem .875rem .6875rem 2.25rem; border-bottom:1px solid var(--sr-border-subtle); }
+.sr-report .line{ display:flex; align-items:center; gap:0; min-width:0; margin-bottom:.25rem; flex-wrap:wrap; }
+.sr-report .d{ font-size:.75rem; font-weight:600; color:var(--sr-text); flex-shrink:0; }
+.sr-report .sep{ font-size:.75rem; color:var(--sr-text-disabled); flex-shrink:0; padding:0 .4375rem; }
+.sr-report .loc{ font-size:.75rem; color:var(--sr-text-muted); min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.sr-report .cl{ font-size:.75rem; font-weight:600; color:var(--sr-accent); flex-shrink:0; }
+.sr-quote{
+  font-size:.8125rem; color:var(--sr-text); line-height:1.55; background:var(--sr-quote-bg);
+  border:1px solid var(--sr-quote-border); border-left:3px solid var(--sr-accent-border);
+  border-radius:.4375rem; padding:.5rem .6875rem; margin-top:.3125rem; overflow-wrap:anywhere;
+}
+.sr-stub{
+  border:1px dashed var(--sr-border-medium); border-radius:.5rem; padding:.875rem;
+  font-size:.6875rem; color:var(--sr-text-muted); text-align:center;
+}
+
+/* ── .sr-nbt-* — the feature's own block ─────────────────────────────────
+   Every strip's own height is a PX value and every text-sized element sits
+   OUTSIDE it. No positive min-width anywhere.                             */
+.sr-nbt-scope{ margin:.375rem 0 0; font-size:.6875rem; line-height:1.45; color:var(--sr-text-muted); }
+
+/* The listbox: ONE focusable per strip, the whole track is the target. */
+.sr-nbt-lb{ border-radius:6px; cursor:pointer; }
+.sr-nbt-lb:focus{ outline:none; }
+.sr-nbt-lb:focus-visible{ outline:2px solid var(--sr-accent); outline-offset:2px; }
+
+.sr-nbt-track{ position:relative; height:38px; padding:0 2px; }
+.sr-nbt-rail{ position:relative; height:100%; }
+.sr-nbt-rail::before{
+  content:""; position:absolute; left:0; right:0; top:50%; height:4px; margin-top:-2px;
+  border-radius:2px; background:var(--sr-border-medium);
+}
+.sr-nbt-span{ position:absolute; top:50%; height:4px; margin-top:-2px; border-radius:2px; background:var(--sr-accent); }
+.sr-nbt-tick{
+  position:absolute; top:50%; width:3px; height:22px; margin-top:-11px; margin-left:-1.5px;
+  border-radius:1.5px; background:var(--sr-accent); pointer-events:none;
+}
+/* Active mark: two non-colour cues. It grows, and a halo in the host surface
+   punches a gap around it so it separates from overlapping neighbours. */
+.sr-nbt-tick.is-on{
+  width:5px; height:28px; margin-top:-14px; margin-left:-2.5px; border-radius:2.5px;
+  box-shadow:0 0 0 2px var(--sr-surface-faint);
+}
+.sr-nbt-ends{
+  display:grid; grid-template-columns:1fr auto; gap:.25rem .75rem;
+  font-size:.6875rem; color:var(--sr-text-muted); margin-top:.25rem;
+}
+.sr-nbt-ends span:last-child{ text-align:right; }
+.sr-nbt-oneday{ font-size:.75rem; line-height:1.6; color:var(--sr-text-muted); padding:.1875rem 0 .0625rem; }
+
+/* The readout. Always present, never unmounted, so nothing shifts when it
+   fills. Text-sized and OUTSIDE every fixed-px box. aria-hidden, because the
+   focused option already announces the same words. */
+.sr-nbt-readout{ margin:.375rem 0 0; font-size:.6875rem; line-height:1.45; }
+.sr-nbt-readout .l1{ display:block; color:var(--sr-text); font-weight:600; overflow-wrap:anywhere; }
+.sr-nbt-readout .l2{ display:block; color:var(--sr-text-muted); font-weight:400; }
+.sr-nbt-readout.is-rest .l1{ color:var(--sr-text-muted); font-weight:400; }
+
+/* Master strip */
+.sr-nbt-master{
+  margin-top:.875rem; background:var(--sr-surface); border:1px solid var(--sr-border);
+  border-radius:.625rem; box-shadow:var(--sr-card-shadow); padding:.875rem;
+}
+.sr-nbt-sentence{ font-size:.75rem; color:var(--sr-text-muted); margin:0 0 .625rem; line-height:1.5; }
+.sr-nbt-mplot{ margin-top:.625rem; padding:.25rem; }
+.sr-nbt-cap{
+  display:block; font-size:.625rem; font-weight:600; letter-spacing:.06em;
+  text-transform:uppercase; color:var(--sr-text-muted); margin-bottom:.5rem;
+}
+.sr-nbt-lane{
+  display:grid; grid-template-columns:minmax(0,34%) minmax(0,1fr); gap:.5rem .75rem;
+  align-items:center; padding:.125rem .3125rem; border-radius:.375rem;
+}
+/* The lane the arrow keys are in. Replaces zebra banding: it says WHERE YOU
+   ARE, which a stripe cannot, and it keeps the halo token single-valued. */
+.sr-nbt-lane.is-on{ background:var(--sr-surface-subtle); }
+.sr-nbt-lanelabel{ font-size:.6875rem; line-height:1.35; color:var(--sr-text); overflow-wrap:anywhere; min-width:0; }
+.sr-nbt-lanelabel i{ display:block; font-style:normal; color:var(--sr-text-muted); }
+.sr-nbt-lanetrack{ position:relative; height:24px; padding:0 2px; min-width:0; }
+.sr-nbt-lanetrack .sr-nbt-rail::before{ height:3px; margin-top:-1.5px; border-radius:1.5px; }
+.sr-nbt-lanetrack .sr-nbt-span{ height:3px; margin-top:-1.5px; border-radius:1.5px; }
+.sr-nbt-lanetrack .sr-nbt-tick{ height:12px; margin-top:-6px; }
+.sr-nbt-lanetrack .sr-nbt-tick.is-on{ height:18px; margin-top:-9px; box-shadow:0 0 0 2px var(--sr-surface-subtle); }
+.sr-nbt-mends{ margin-top:.1875rem; }
+
+/* Phone tier. In the product this is @media (max-width:640px); the class is
+   added to the 320px frame here because the page viewport is not 320px. */
+.sr--narrow .sr-nbt-lane{ grid-template-columns:minmax(0,1fr); gap:.125rem; padding:.25rem .3125rem; }
+.sr--narrow .sr-nbt-mends > :first-child{ display:none; }
+.sr--narrow .sr-nbt-lanetrack{ height:30px; }
+.sr--narrow .sr-pill{ min-height:2.75rem; font-size:max(16px,.75rem); }
+.sr--narrow .sr-count{ margin-left:0; }
+@media (max-width:640px){
+  .sr-nbt-lane{ grid-template-columns:minmax(0,1fr); gap:.125rem; padding:.25rem .3125rem; }
+  .sr-nbt-mends > :first-child{ display:none; }
+  .sr-nbt-lanetrack{ height:30px; }
+  .sr-pill{ min-height:2.75rem; font-size:max(16px,.75rem); }
+}
+
+/* Reduced motion — in the product this is the single global block in
+   globals.css; this feature adds no per-component query. */
+@media (prefers-reduced-motion: reduce){
+  *, *::before, *::after{
+    animation-duration:.001ms !important; animation-iteration-count:1 !important;
+    transition-duration:.001ms !important; scroll-behavior:auto !important;
+  }
+}
+</style>
+
+<header class="doc-head">
+  <div class="wrap">
+    <p class="eyebrow">SnowRaven 1.0.20 &middot; Stage 4 &middot; second pass &middot; interactive marks</p>
+    <h1>Named Birds, told <em>in time</em></h1>
+    <p class="lede">
+      An honest duration figure that names its own endpoints, a sightings strip inside every
+      expanded card, one lane per bird across the bottom of the tab, and one range switch that
+      governs all of it. Everything you approved is unchanged.
+    </p>
+    <p class="lede">
+      <strong>New in this pass: the marks answer.</strong> Tap, click or arrow to any sighting
+      and a line beneath the strip names it. That single change ends the strip's life as
+      decoration, so the whole accessibility story is re&#8209;derived below rather than patched.
+      Press the strips &mdash; they work.
+    </p>
+  </div>
+</header>
+
+<nav class="doc-bar" aria-label="Mockup controls">
+  <div class="wrap">
+    <div class="seg" role="group" aria-label="Theme">
+      <span>Theme</span>
+      <button type="button" data-theme-set="light" aria-pressed="true">Light</button>
+      <button type="button" data-theme-set="dark" aria-pressed="false">Dark</button>
+    </div>
+    <div class="seg" role="group" aria-label="In-app text size">
+      <span>In&#8209;app text size</span>
+      <button type="button" data-ts="1" aria-pressed="true">100%</button>
+      <button type="button" data-ts="1.5" aria-pressed="false">150%</button>
+      <button type="button" data-ts="2" aria-pressed="false">200%</button>
+    </div>
+    <div class="seg" role="group" aria-label="Range">
+      <span>Range</span>
+      <button type="button" data-range-set="last-sighting" aria-pressed="true">Last sighting</button>
+      <button type="button" data-range-set="today" aria-pressed="false">Today</button>
+    </div>
+  </div>
+</nav>
+
+<div class="wrap">
+
+  <!-- ═══════════════════════════════════════════════════════════ 01 -->
+  <section>
+    <div class="sec-head"><span class="sec-num">01</span><h2 class="sec">The tab</h2></div>
+    <p class="sec-sub">
+      Real data from the reference export: three named birds, their true dates, their real
+      species comments. Session date is 6 Sep 2026. Click along a strip, or Tab into one and use
+      the arrow keys.
+    </p>
+
+    <div class="stage">
+      <p class="stage-cap"><b>Desktop</b> &middot; Named Birds tab, Bridge&#8209;Ravens expanded</p>
+      <div class="sr" id="frame-desktop"></div>
+    </div>
+
+    <div class="note">
+      <h4>Try this, in this order</h4>
+      <ul>
+        <li>Click anywhere along the strip inside the open card. The nearest sighting is
+          selected and named below it. Drag along the strip and it follows your finger.</li>
+        <li>Press <span class="k">Today</span> in any of the three places. Every figure, both
+          strips and the caption move together, and the selected sighting stays selected,
+          because it is keyed to a date rather than to a position.</li>
+        <li>Tab into a strip and use Left and Right. On the bottom strip, Up and Down move
+          between birds and the lane you are in lights up.</li>
+        <li>Press Escape. The selection clears and the line returns to its resting sentence.</li>
+        <li>Open <b>Freeway&#8209;Turkey&#8209;Fam</b>. Its card says 8 sightings and its strip
+          has 7 marks: 12 Jun was two checklists in two places, and the readout names both.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════ 02 -->
+  <section>
+    <div class="sec-head"><span class="sec-num">02</span><h2 class="sec">What a pressable mark costs, and how it is paid</h2></div>
+    <p class="sec-sub">
+      The shipped decoration contract cannot survive an interactive mark, so it is not patched.
+      Four problems, four positions.
+    </p>
+
+    <div class="stage">
+      <div class="qa">
+        <span class="tag">Problem 1 &mdash; the strip stops being decoration</span>
+        <h3>Both strips become real listboxes. Neither is <span class="k">inert</span> any more.</h3>
+        <span class="pos">TAKEN: full a11y participation</span>
+        <p>
+          A control that responds to a pointer but is invisible to assistive technology and
+          unreachable by keyboard fails WCAG 2.1.1 outright, so <strong>there is no half
+          measure available</strong>: the moment a mark answers a tap, the strip owes a role, a
+          name, keyboard operation and focus. The <span class="k">aria-hidden</span> plus
+          <span class="k">inert</span> wrapper goes, on both strips.
+        </p>
+        <p>
+          Each strip becomes a <span class="k">role="listbox"</span> whose options are the
+          marks. <strong>Each mark's accessible name is the whole payload</strong> &mdash;
+          <span class="k">Jun 15, 2026, Pierce and Washington</span> on a card, with the bird's
+          name in front on the bottom strip &mdash; so a screen reader user never needs the
+          visible line at all. Position in the set comes from
+          <span class="k">aria-posinset</span> and <span class="k">aria-setsize</span> rather
+          than from words in the name.
+        </p>
+        <p>
+          <strong>The duplication is real and is accepted.</strong> The card's strip lists
+          dates and places that its report rows, twelve pixels below, also list &mdash; with
+          the checklist link and the species comment the strip does not carry. So the strip is
+          a strict subset: a fast overview first, the full record second, which is the reading
+          order the approved layout already produces. <strong>The report rows do not
+          change.</strong> The alternative, suppressing the strip for screen readers, is the
+          option WCAG removes.
+        </p>
+      </div>
+
+      <div class="qa">
+        <span class="tag">Problem 2 &mdash; tab stops</span>
+        <h3>Two. Not two hundred, and not two per bird.</h3>
+        <span class="pos">TAKEN: aria-activedescendant, one focusable per strip</span>
+        <p>
+          The repo has two shipped keyboard patterns for a group of controls under one tab
+          stop, and its own roster distinguishes them. <strong>Roving tabindex</strong> is the
+          main navigation's tablist and the Settings radio groups. <strong>An
+          <span class="k">aria-activedescendant</span> listbox</strong> is
+          <span class="k">SpeciesCombobox</span>, where one focusable owns a long,
+          data&#8209;scaled option list and the arrow keys move an index rather than focus.
+        </p>
+        <p>
+          <strong>I took the second, and the population size is the reason.</strong> Roving
+          tabindex puts a <span class="k">tabIndex</span> attribute and a focus handler on
+          every mark. At the performance target the PRD already names &mdash; 200 birds
+          averaging 100 sightings &mdash; that is up to 20,000 marked elements, and if they
+          were buttons they would all join
+          <span class="k">tabOrderCoverage.test.ts</span>'s counted population under one
+          blanket roster row, which is exactly the pardon that roster's docstring warns
+          against. With activedescendant the marks are
+          <span class="k">&lt;div role="option"&gt;</span> with no
+          <span class="k">tabIndex</span>, no focus handler and no click handler, so they are
+          <strong>outside that guard's population by element type</strong> &mdash; the same
+          reason the roster gives for leaving SnowMap's Trails checkbox out.
+        </p>
+        <p>
+          <strong>The whole track is the control.</strong> One focusable per strip: the card's
+          strip is one listbox, and the bottom strip is one listbox containing a
+          <span class="k">role="group"</span> per bird. So the Named Birds tab gains
+          <strong>exactly two tab stops</strong> &mdash; one for the open card's strip, one for
+          the bottom strip &mdash; and that number is constant. It does not move with the
+          number of birds or the number of sightings.
+        </p>
+        <p>
+          Keys, on both: Left and Right step sightings, Home and End jump to the ends of the
+          current bird, Up and Down move between birds on the bottom strip and choose the
+          nearest sighting in date terms, and Escape clears. Escape is consumed only while
+          something is selected, so with nothing selected it still reaches an outer layer
+          &mdash; the same rule <span class="k">SpeciesCombobox</span> already follows.
+        </p>
+      </div>
+
+      <div class="qa">
+        <span class="tag">Problem 3 &mdash; overlapping marks that are now targets</span>
+        <h3>The mark is not the target. The track is.</h3>
+        <span class="pos">TAKEN: nearest-sighting hit model</span>
+        <p>
+          Marks must still be allowed to overlap and coincide, and on this data they do:
+          Bridge&#8209;Ravens has six dates inside eight days, which on a 320px phone is six
+          marks inside six pixels. <strong>A 3px mark is not a target and never can be</strong>,
+          and every fix that makes it one &mdash; spacing, jitter, binning &mdash; is
+          explicitly forbidden and would falsify the picture.
+        </p>
+        <p>
+          So the marks keep <span class="k">pointer-events: none</span> and stay purely visual,
+          and the <em>track</em> takes the press. A press anywhere selects the nearest sighting
+          by horizontal position, which partitions the entire width: <strong>every sighting owns
+          a slice, no slice is zero, and overlap becomes irrelevant to hit testing.</strong>
+          The target is the full width of the track by its full height &mdash; 38px in a card,
+          24px per lane on the bottom strip and 30px at the phone tier, so the 24px minimum is
+          cleared in every tier.
+        </p>
+        <p>
+          <strong>The honest residual limit, stated:</strong> where several sightings sit within
+          a few pixels, a finger cannot land on each one individually. The arrow keys reach
+          every one; the readout's second line says <span class="k">4 of 9 dates</span> so the
+          neighbours are visible rather than hidden; and the card's strip sits directly above
+          the complete dated report list, which is why that ordering was chosen. If you want
+          previous and next buttons beside the readout, that is the fix, and it costs four more
+          permanent tab stops.
+        </p>
+      </div>
+
+      <div class="qa">
+        <span class="tag">Problem 4 &mdash; where the label appears</span>
+        <h3>A fixed line under the strip, never a floating tooltip.</h3>
+        <span class="pos">TAKEN: fixed readout, two lines, always present</span>
+        <p>
+          A popover anchored to a 3px mark at 320px has nowhere to go: it overflows the card,
+          it needs collision logic, and on a dense cluster it covers the marks it is describing.
+          The readout instead sits in one fixed place under the axis labels, in normal flow, and
+          wraps. <strong>It is rendered from the start and never unmounted</strong>, so nothing
+          shifts when it fills &mdash; the shipped <span class="k">SyncLine</span> rule &mdash;
+          and because it is text it lives outside every fixed&#8209;px box.
+        </p>
+        <p>
+          Line one carries the identity: date and place in a card, with the bird's name in front
+          on the bottom strip. Line two is the muted position, <span class="k">4 of 9
+          dates</span>, which also quietly explains why a card saying 8 sightings can have 7
+          marks. At rest line one is
+          <span class="k">Select a sighting to see its date and place.</span> &mdash; the only
+          thing on the surface that announces the new affordance.
+        </p>
+        <p>
+          <strong>It is never a link.</strong> The app opens external links only through the
+          shared link components, and a readout that becomes a checklist link would be a control
+          appearing and disappearing under the user's finger. The checklist is on the report row
+          below, where it already is.
+        </p>
+        <p>
+          <strong>Pointer, touch and keyboard resolve to the same outcome.</strong> A mouse
+          hover previews without committing, so a mouse user can scrub a cluster and read it
+          without a click. A press &mdash; mouse or finger &mdash; commits and moves focus to
+          the track, so the arrows carry on from there. There is no hover on iOS, which is
+          exactly why the commit is on press and not on hover. Blur clears the selection; so
+          does Escape; so does collapsing the card.
+        </p>
+      </div>
+    </div>
+
+    <div class="note warn">
+      <h4>No live region, still</h4>
+      <p>
+        The readout is <span class="k">aria-hidden</span>. The focused option already announces
+        the same words, so a live region here would double&#8209;speak every arrow press. That
+        keeps FR&#8209;37 intact and is worth stating in the component so a later reader does
+        not add one back as an oversight.
+      </p>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════ 03 -->
+  <section>
+    <div class="sec-head"><span class="sec-num">03</span><h2 class="sec">320px, and the dense cluster</h2></div>
+    <p class="sec-sub">
+      Set the text size above to 200% and check for a horizontal scrollbar. Then try to select
+      the 9th, 10th and 11th of June with a finger.
+    </p>
+    <div class="stage">
+      <p class="stage-cap"><b>320px</b> &middot; the hardest case this feature has</p>
+      <div class="phonewrap">
+        <div class="phone"><div class="sr sr--narrow" id="frame-phone"></div></div>
+      </div>
+    </div>
+    <div class="note">
+      <h4>What holds it together</h4>
+      <p>
+        The lane grid collapses from <span class="k">label | track</span> to a stacked
+        <span class="k">label over track</span>, so a 120&#8209;character name has the full
+        column and nothing needs a <span class="k">min-width</span>. Strip heights stay px
+        (38px in a card, 30px per lane here) and every text&#8209;sized element sits outside
+        them. Endpoint labels are a <span class="k">1fr auto</span> grid, so the right one stays
+        right&#8209;aligned when it wraps. The readout wraps to as many lines as it needs and
+        pushes the report rows down rather than overflowing anything.
+      </p>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════ 04 -->
+  <section>
+    <div class="sec-head"><span class="sec-num">04</span><h2 class="sec">The number, before and after</h2></div>
+    <p class="sec-sub">Unchanged from the approved pass. Every "was" is the shipped algorithm run against these exact dates.</p>
+    <div class="stage">
+      <div class="scrollx">
+        <table class="cmp">
+          <thead><tr><th>Named bird</th><th>Span</th><th>Was</th><th>Now</th><th>Why it moved</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><b>Bridge&#8209;Ravens</b><br><span class="why">21 May &ndash; 10 Jul 2026</span></td>
+              <td class="why">50 days</td><td class="was">1 mo.</td>
+              <td class="now">50 days<br>&middot; first to last sighting</td>
+              <td class="why">Under 61 days the figure is now the exact day count.</td>
+            </tr>
+            <tr>
+              <td><b>Bridge&#8209;Ravens</b><br><span class="why">to today, 6 Sep 2026</span></td>
+              <td class="why">108 days</td><td class="was">not offered</td>
+              <td class="now">3 mos. 17 days<br>&middot; first sighting to today</td>
+              <td class="why">The question the report was really asking. The remainder is kept.</td>
+            </tr>
+            <tr>
+              <td><b>Freeway&#8209;Turkey&#8209;Fam</b><br><span class="why">to today</span></td>
+              <td class="why">90 days</td><td class="was">2 mos.</td>
+              <td class="now">2 mos. 29 days</td>
+              <td class="why">The defect class exactly: <span class="k">2 mos.</span> stood for anything up to three.</td>
+            </tr>
+            <tr>
+              <td><b>Grosbeak</b><br><span class="why">16 Jul 2025 &ndash; 4 Jun 2026</span></td>
+              <td class="why">323 days</td><td class="was">10 mos.</td>
+              <td class="now">10 mos. 19 days</td>
+              <td class="why">Nineteen days were being discarded silently.</td>
+            </tr>
+            <tr>
+              <td><span class="why">Any bird seen once</span></td>
+              <td class="why">0 days</td><td class="was">1 day</td>
+              <td class="now">Same day</td>
+              <td class="why">A zero span is not one day.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════ 05 -->
+  <section>
+    <div class="sec-head"><span class="sec-num">05</span><h2 class="sec">Both themes</h2></div>
+    <p class="sec-sub">
+      Marks are <span class="k">--sr-accent</span> on a <span class="k">--sr-border-medium</span>
+      rail: 3.28:1 light and 5.38:1 dark against the rail, 5.47:1 and 8.94:1 against the panel.
+      The active mark adds a halo in the host surface token, which punches a visible gap around
+      it inside a cluster and is a second, colour&#8209;free cue beside its size.
+    </p>
+    <div class="dual">
+      <div class="stage"><p class="stage-cap"><b>Light</b></p><div class="sr" id="frame-light"></div></div>
+      <div class="stage"><p class="stage-cap"><b>Dark</b></p><div class="sr theme-dark" id="frame-dark"></div></div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════ 06 -->
+  <section>
+    <div class="sec-head"><span class="sec-num">06</span><h2 class="sec">The cases that break charts</h2></div>
+    <p class="sec-sub">Three constructed birds, because the reference export has none of these shapes. Names are the app's own documented examples.</p>
+
+    <div class="stage">
+      <p class="stage-cap"><b>A</b> &middot; every sighting on one date &mdash; a sentence, not a strip</p>
+      <div class="sr" id="frame-sameday"></div>
+      <div class="note">
+        <h4>Nothing to select, so nothing pretends to be selectable</h4>
+        <p>
+          Two sightings, one date, range on <span class="k">Last sighting</span>: the axis is
+          zero days wide, so there is no strip, no listbox, no tab stop and no readout &mdash;
+          one sentence, reusing the shipped ranked&#8209;list idiom
+          (<span class="k">Every sighting at {place}.</span> becomes
+          <span class="k">Every sighting on {date}.</span>). Flip to <span class="k">Today</span>
+          and the same bird has a real axis, so the strip appears with its mark at the left edge
+          and becomes selectable.
+        </p>
+      </div>
+    </div>
+
+    <div class="stage">
+      <p class="stage-cap"><b>B</b> &middot; one sighting &mdash; no strip in the card, but a lane below</p>
+      <div class="sr" id="frame-single"></div>
+      <div class="note">
+        <h4>Deliberately inconsistent, and worth saying so</h4>
+        <p>
+          In a card a one&#8209;mark strip is a chart of a fact already stated two lines above.
+          In the bottom strip the same lane sits in a comparison with other lanes and carries
+          real information, and it is now selectable like any other. Same rule about single
+          facts, opposite outcome, because the surrounding context differs.
+        </p>
+      </div>
+    </div>
+
+    <div class="stage">
+      <p class="stage-cap"><b>C</b> &middot; a 120&#8209;character name, the tag limit</p>
+      <div class="sr" id="frame-longname"></div>
+      <div class="note">
+        <h4>The label column is the constraint, and it is also an accessible name</h4>
+        <p>
+          <span class="k">NAME_TAG_RE</span> bounds a tag at 120 characters. That string is now
+          doing three jobs: the visible label, the lane group's accessible name, and the front
+          of every mark's accessible name in that lane. It wraps, it carries no
+          <span class="k">nowrap</span>, and on a phone it stops being a column at all. Set the
+          text size to 200% and the width to 320px and this is the row to watch.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════ 07 -->
+  <section>
+    <div class="sec-head"><span class="sec-num">07</span><h2 class="sec">What this contradicts upstream</h2></div>
+    <p class="sec-sub">
+      The PRD lists interactive marks under Out of Scope and has verification rows asserting
+      non&#8209;interactivity. This is the exact amendment list.
+    </p>
+    <div class="stage">
+      <div class="scrollx">
+        <table class="cmp">
+          <thead><tr><th>Ref</th><th>Says</th><th>What is now true</th></tr></thead>
+          <tbody>
+            <tr><td class="id">FR-33</td><td class="why">Every plot area is wrapped in an element carrying both <span class="k">aria-hidden</span> and <span class="k">inert</span>; the caption sits inside it.</td><td class="why"><b>Struck.</b> Neither strip is inert. The caption stays visible and takes <span class="k">aria-hidden</span> on its own, because the sentence above it carries the same facts.</td></tr>
+            <tr><td class="id">FR-34</td><td class="why">Marks are non-interactive: no button, no anchor, no <span class="k">tabIndex</span>, no click, hover or focus handler.</td><td class="why"><b>Struck.</b> Marks are <span class="k">role="option"</span> divs. They still carry no <span class="k">tabIndex</span>, no anchor and no per-mark handler: the track holds the one <span class="k">tabIndex={0}</span> and all handlers. The roster in <span class="k">tabOrderCoverage.test.ts</span> is still unchanged.</td></tr>
+            <tr><td class="id">FR-35</td><td class="why">The accessible equivalent of the per-bird timeline is the card's own report rows; no new text is required.</td><td class="why"><b>Reframed.</b> The strip is no longer an alternative-needing decoration; it is a second, interactive view. The rows still carry the checklist and the comment and are unchanged, so they remain the full record.</td></tr>
+            <tr><td class="id">FR-36</td><td class="why">The accessible equivalent of the master is the card list plus the endpoint sentence; no per-lane text alternative inside the inert wrapper.</td><td class="why"><b>Reframed.</b> There is no inert wrapper. Each lane is a <span class="k">role="group"</span> named by the bird, which is a per-lane accessible name arriving by role rather than by added text.</td></tr>
+            <tr><td class="id">FR-37</td><td class="why">No <span class="k">aria-live</span> anywhere.</td><td class="why"><b>Survives unchanged</b>, and now for a second reason: the focused option announces itself, so a live region would double-speak.</td></tr>
+            <tr><td class="id">FR-38</td><td class="why">A sentence outside the inert wrapper naming the bird count and the endpoints.</td><td class="why"><b>Survives</b>, in the same place and the same words. Only its justification changes.</td></tr>
+            <tr><td class="id">FR-21</td><td class="why">Marks may overlap; no collision avoidance, spacing, jitter or binning; each mark carries a small fixed pixel width.</td><td class="why"><b>Survives unchanged</b>, and is the reason the track rather than the mark is the target.</td></tr>
+            <tr><td class="id">NFR-04</td><td class="why">Building the master mark set for 200 birds x 100 sightings under 50ms.</td><td class="why"><b>Unchanged as written</b>, but flag: each mark now also carries an <span class="k">id</span> and three ARIA attributes, which is DOM weight rather than compute. Worth a second measurement at that fixture.</td></tr>
+            <tr><td class="id">QA-34</td><td class="why">Zero-span bird renders a sentence and no strip.</td><td class="why"><b>Survives</b>, and gains a clause: it also renders no listbox and no tab stop.</td></tr>
+            <tr><td class="id">QA-37</td><td class="why">The inert plot wrapper contains no text node.</td><td class="why"><b>Struck as written.</b> The replacement property is still worth asserting: the plot area contains no rendered text, and both axis labels and the readout are siblings of the track in normal flow.</td></tr>
+            <tr><td class="id">QA-47</td><td class="why">Every plot wrapper carries the literal <span class="k">aria-hidden="true"</span> and <span class="k">inert</span> attributes.</td><td class="why"><b>Struck.</b> Replace with: every plot wrapper carries <span class="k">role="listbox"</span>, an <span class="k">aria-label</span>, a literal <span class="k">tabIndex={0}</span> and an <span class="k">aria-activedescendant</span> that matches a rendered option id whenever one is selected.</td></tr>
+            <tr><td class="id">QA-48</td><td class="why">A tab-order enumeration finds no focusable element inside either plot wrapper.</td><td class="why"><b>Struck.</b> Replace with a count: the Named Birds tab gains <b>exactly two</b> tab stops, and that count is invariant across a fixture of 2 birds and a fixture of 40.</td></tr>
+            <tr><td class="id">QA-49</td><td class="why">The exclusion roster is unchanged, with no new row and no changed count.</td><td class="why"><b>Survives</b>, and is now a stronger claim worth keeping: it holds because the marks are divs rather than buttons, so a future change to a <span class="k">&lt;button&gt;</span> mark turns it red, which is the right alarm.</td></tr>
+            <tr><td class="id">QA-51</td><td class="why">No <span class="k">aria-live</span>, <span class="k">role="status"</span> or <span class="k">role="alert"</span>.</td><td class="why"><b>Survives unchanged.</b></td></tr>
+            <tr><td class="id">QA-60</td><td class="why">Touch targets: both range buttons meet the 44px minimum.</td><td class="why"><b>Extend.</b> Add the tracks: 38px in a card and 30px per lane at the phone tier, each the full width of its container.</td></tr>
+            <tr><td class="id">QA-77</td><td class="why">The card rows remain the accessible equivalent, unchanged from HEAD.</td><td class="why"><b>Survives.</b> The rows are byte-identical; only the claim about what they are equivalent TO is reworded.</td></tr>
+            <tr><td class="id">Out of Scope</td><td class="why">"Interactive marks. No press-to-open-a-checklist, no hover tooltips, no brushing, no zooming."</td><td class="why"><b>Partly struck.</b> Selection and a fixed readout are in. Press-to-open-a-checklist, floating tooltips, brushing and zooming all stay out, and the readout is deliberately never a link.</td></tr>
+            <tr><td class="id">ACCESSIBILITY.md</td><td class="why">FR-50 expected it might need no change.</td><td class="why"><b>It needs one.</b> Keyboard Navigation gains the two new listboxes beside the two roving groups it already publishes, and it must say they are activedescendant rather than roving, since the roster's own prose distinguishes the two.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════ 08 -->
+  <section>
+    <div class="sec-head"><span class="sec-num">08</span><h2 class="sec">Still deliberately absent</h2></div>
+    <div class="stage">
+      <div class="note">
+        <h4>No motion inside either strip</h4>
+        <p>
+          Selection is instant. Flipping the range re&#8209;scales the axis instantly. A
+          transition on mark positions would animate <span class="k">left</span> on up to a few
+          hundred elements on a phone, and it is a data change rather than an entrance. The only
+          motion this feature adds is the 120ms ease&#8209;out colour transition on the range
+          pills, and it rides the one global reduced&#8209;motion block.
+        </p>
+      </div>
+      <div class="note">
+        <h4>No gridlines, no tick labels, no year marks</h4>
+        <p>
+          A strip spanning seven years renders identically to one spanning six weeks. At 320px a
+          full axis is under 300px, so any subdivision is noise before it is information, and
+          text inside the plot is the one thing the reflow requirement cannot survive.
+        </p>
+      </div>
+      <div class="note">
+        <h4>No links from a mark, and no popovers</h4>
+        <p>
+          The readout is text. Opening a checklist stays where it already is, on the report row.
+          The strip describes; the rows act.
+        </p>
+      </div>
+      <div class="note warn">
+        <h4>Two things I added that no requirement asked for</h4>
+        <p>
+          <strong>The span line</strong> &mdash; the accent segment from a bird's first sighting
+          to its last, under its marks. One <span class="k">min</span> and one
+          <span class="k">max</span> over positions the lane already computes, and it is what
+          turns "which birds was I following when" into a readable answer.
+        </p>
+        <p>
+          <strong>Mouse hover preview.</strong> Genuinely useful for scrubbing a cluster, and
+          free on desktop. It has no touch equivalent by construction, which is why commit is on
+          press. Cut it and nothing else changes.
+        </p>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+(function(){
+'use strict';
+
+/* ── The arithmetic, implemented for real so every string on this page is the
+      string the product will print (FR-01 / FR-03). ─────────────────────── */
+var DAYS_PER_MONTH = 30.44, DAYS_PER_YEAR = 365;
+var MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+function parts(s){ var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s); return m ? {y:+m[1],mo:+m[2],d:+m[3]} : null; }
+function civil(y,m,d){
+  y -= (m <= 2) ? 1 : 0;
+  var era = Math.floor(y/400), yoe = y - era*400;
+  var doy = Math.floor((153*(m + (m > 2 ? -3 : 9)) + 2)/5) + d - 1;
+  var doe = yoe*365 + Math.floor(yoe/4) - Math.floor(yoe/100) + doy;
+  return era*146097 + doe - 719468;
+}
+function elapsedDays(a,b){
+  var pa = parts(a), pb = parts(b); if(!pa || !pb) return null;
+  return Math.abs(civil(pb.y,pb.mo,pb.d) - civil(pa.y,pa.mo,pa.d));
+}
+function plur(n,w){ return n === 1 ? w : w + 's'; }
+function formatElapsedSpan(n){
+  if(!isFinite(n) || n < 0) return '';
+  if(n === 0) return 'Same day';
+  if(n <= 60) return n + ' ' + (n === 1 ? 'day' : 'days');
+  if(n < 365){
+    var M = Math.floor(n/DAYS_PER_MONTH);
+    var R = n - Math.round(M*DAYS_PER_MONTH);
+    return M + ' ' + plur(M,'mo') + '.' + (R === 0 ? '' : ' ' + R + ' ' + (R === 1 ? 'day' : 'days'));
+  }
+  var Y = Math.floor(n/DAYS_PER_YEAR);
+  var Mo = Math.round((n - Y*DAYS_PER_YEAR)/DAYS_PER_MONTH);
+  if(Mo === 12){ Y += 1; Mo = 0; }
+  return Y + ' ' + plur(Y,'yr') + '.' + (Mo === 0 ? '' : ' ' + Mo + ' ' + plur(Mo,'mo') + '.');
+}
+function fmtDate(s){ var p = parts(s); return p ? MONTHS[p.mo-1] + ' ' + p.d + ', ' + p.y : ''; }
+
+/* ── The copy module. Every user-facing string this feature adds lives here,
+      including the count-bearing ones, so they ride the corpus sweep. ────── */
+var COPY = {
+  rangeGroupTab:    'Measure every span to',
+  rangeGroupCard:   'Measure every span to, repeated in the open card',
+  rangeGroupMaster: 'Measure every span to, repeated below the list',
+  rangeLabel:       'Measure to',
+  optLastSighting:  'Last sighting',
+  optToday:         'Today',
+  scopeNote:        'Applies to every named bird on this tab.',
+  perBirdHead:      'Sightings over time',
+  masterHead:       'All named birds over time',
+  endpoints: function(r){ return r === 'today' ? 'first sighting to today' : 'first to last sighting'; },
+  oneDate: function(d){ return 'Every sighting on ' + fmtDate(d) + '.'; },
+  birdCount: function(n){ return n + ' named ' + (n === 1 ? 'bird' : 'birds'); },
+  masterSentence: function(n, axis, r){
+    return COPY.birdCount(n) + ', from ' + fmtDate(axis.start) +
+      (r === 'today' ? ' to today, ' + fmtDate(axis.end) : ' to ' + fmtDate(axis.end)) + '.';
+  },
+  masterCaption: function(n, r){ return COPY.birdCount(n) + ' · ' + COPY.endpoints(r); },
+  sightings: function(n){ return n + ' ' + (n === 1 ? 'sighting' : 'sightings'); },
+
+  /* Interactive strips */
+  lbPerBird: function(name){ return 'Sightings of ' + name + ' over time'; },
+  lbMaster:  'Sightings of every named bird over time',
+  laneGroup: function(name, species){ return species ? name + ', ' + species : name; },
+  restPerBird: 'Select a sighting to see its date and place.',
+  restMaster:  'Select a sighting to see its bird, date and place.',
+  /** 1 place, 2 places, then "and N more places". Never a bare count word. */
+  places: function(list){
+    if(list.length === 0) return '';
+    if(list.length === 1) return list[0];
+    if(list.length === 2) return list[0] + ' and ' + list[1];
+    return list[0] + ' and ' + (list.length - 1) + ' more places';
+  },
+  /** Visible readout, line 1. `sep` is the middot the app uses between facts. */
+  readLine1: function(birdName, date, placeList){
+    var p = COPY.places(placeList);
+    return (birdName ? birdName + ' · ' : '') + fmtDate(date) + (p ? ' · ' + p : '');
+  },
+  /** Visible readout, line 2. Says "dates", not "sightings": a date with two
+   *  checklists is ONE mark, and this is the line that explains that. */
+  readLine2: function(i, n){ return i + ' of ' + n + ' ' + (n === 1 ? 'date' : 'dates') + ''; },
+  /** The option's accessible NAME. Commas, not middots, because it is spoken.
+   *  Position is carried by aria-posinset / aria-setsize, never by words. */
+  optionName: function(birdName, date, placeList){
+    var p = COPY.places(placeList);
+    return (birdName ? birdName + ', ' : '') + fmtDate(date) + (p ? ', ' + p : '');
+  }
+};
+
+/* ── Geometry (lib/namedBirdTimeline.ts) ─────────────────────────────────── */
+function rangeEnd(lastSeen, range, today){
+  if(range !== 'today' || !today) return lastSeen;
+  return lastSeen > today ? lastSeen : today;      // FR-15 clamp, lexical max
+}
+function axisFor(start, lastSeen, range, today){
+  var end = rangeEnd(lastSeen, range, today);
+  return { start:start, end:end, spanDays: elapsedDays(start, end) || 0 };
+}
+function pct(date, axis){
+  if(axis.spanDays === 0) return 0;
+  return Math.max(0, Math.min(100, (elapsedDays(axis.start, date) / axis.spanDays) * 100));
+}
+
+/* ── Content. Real records from data/ebird-backup.csv. `marks` is one entry
+      per DISTINCT date; 2026-06-12 for the turkeys is two checklists in two
+      places, which is exactly one mark and a two-place readout. ──────────── */
+var TODAY = '2026-09-06';
+var REAL = [
+  { key:'bridge-ravens', name:'Bridge-Ravens', common:'Common Raven', sci:'Corvus corax', tax:20461, count:9,
+    marks:[
+      { d:'2026-05-21', places:['Solano Hill - Gateview Crest'] },
+      { d:'2026-06-08', places:['Pierce and Washington'] },
+      { d:'2026-06-09', places:['Solano Hill - Gateview Crest'] },
+      { d:'2026-06-10', places:['Pierce and Washington'] },
+      { d:'2026-06-11', places:['Solano Hill - Gateview Crest'] },
+      { d:'2026-06-12', places:['Pierce and Washington'] },
+      { d:'2026-06-13', places:['Buchanan Curl'] },
+      { d:'2026-06-15', places:['Pierce and Washington'] },
+      { d:'2026-07-10', places:['Pierce and Washington'] }
+    ],
+    reports:[
+      { d:'2026-07-10', loc:'Pierce and Washington', sub:'S370415516',
+        c:'Two familiar adults and a juvenile, on top of the USDA building. [name:Bridge-Ravens]' },
+      { d:'2026-06-15', loc:'Pierce and Washington', sub:'S357864774',
+        c:'Two juvenile Common Ravens present beside their nest under the bridge. Two adults perched together not far away. [name:Bridge-Ravens]' },
+      { d:'2026-06-13', loc:'Buchanan Curl', sub:'S356909523',
+        c:'Adult sitting on nest, presumably female. [name:Bridge-Ravens]' }
+    ],
+    places:[['Pierce and Washington',5],['Solano Hill - Gateview Crest',3],['Buchanan Curl',1]] },
+
+  { key:'freeway', name:'Freeway-Turkey-Fam', common:'Wild Turkey', sci:'Meleagris gallopavo', tax:259, count:8,
+    marks:[
+      { d:'2026-06-08', places:['Buchanan Curl'] },
+      { d:'2026-06-12', places:['Buchanan Curl','Pierce and Washington'] },
+      { d:'2026-06-15', places:['Pierce and Washington'] },
+      { d:'2026-07-03', places:['Freeway Underpass'] },
+      { d:'2026-07-06', places:['Pierce and Washington'] },
+      { d:'2026-07-07', places:['Pierce and Washington'] },
+      { d:'2026-07-10', places:['Buchanan Curl'] }
+    ],
+    reports:[
+      { d:'2026-07-10', loc:'Buchanan Curl', sub:'S370197462',
+        c:'Adult female and four juveniles, seen here before. Grazing along the curl down to the bike path. [name:Freeway-Turkey-Fam]' },
+      { d:'2026-06-12', loc:'Pierce and Washington', sub:'S356373753',
+        c:'Female with seven juveniles [name:Freeway-Turkey-Fam]' }
+    ],
+    places:[['Pierce and Washington',4],['Buchanan Curl',3],['Freeway Underpass',1]] },
+
+  { key:'grosbeak', name:'Grosbeak', common:'American Crow', sci:'Corvus brachyrhynchos', tax:20390, count:5,
+    marks:[
+      { d:'2025-07-16', places:['Pierce and Washington'] },
+      { d:'2026-01-14', places:['Solano Hill - Gateview Crest'] },
+      { d:'2026-01-16', places:['Solano Hill - Gateview Crest'] },
+      { d:'2026-02-10', places:['Solano Hill - Gateview Crest'] },
+      { d:'2026-06-04', places:['Solano Hill - Gateview Crest'] }
+    ],
+    reports:[
+      { d:'2026-06-04', loc:'Solano Hill - Gateview Crest', sub:'S352419666',
+        c:'One eating a small mammal. Also saw an individual [name:Grosbeak] with a damaged or deformed bill.' }
+    ],
+    places:[['Solano Hill - Gateview Crest',4],['Pierce and Washington',1]] }
+];
+
+var LONG_NAME = 'The-Buchanan-Street-Bridge-Raven-Pair-And-Their-Two-Fledglings-Watched-From-The-Gateview-Crest-Overlook-Every-MorningsXY';  // exactly 120 chars, the NAME_TAG_RE bound
+
+var SAMEDAY = [{
+  key:'winky', name:'Winky', common:'Mallard', sci:'Anas platyrhynchos', tax:263, count:2,
+  marks:[{ d:'2026-07-04', places:['Buchanan Curl','Freeway Underpass'] }],
+  reports:[
+    { d:'2026-07-04', loc:'Buchanan Curl', sub:'S368122004', c:'Drake with a permanently closed left eye. [name:Winky]' },
+    { d:'2026-07-04', loc:'Freeway Underpass', sub:'S368140911', c:'Same drake, half a mile downstream the same afternoon. [name:Winky]' }
+  ],
+  places:[['Buchanan Curl',1],['Freeway Underpass',1]]
+}];
+
+var SINGLE = [{
+  key:'pete', name:'one-leg-pete', common:'Rock Pigeon', sci:'Columba livia', tax:2494, count:1,
+  marks:[{ d:'2026-03-02', places:['Pierce and Washington'] }],
+  reports:[{ d:'2026-03-02', loc:'Pierce and Washington', sub:'S312884401', c:'Missing the right foot entirely. [name:one-leg-pete]' }],
+  places:[['Pierce and Washington',1]]
+}, REAL[2]];
+
+var LONG = [
+  { key:'long', name:LONG_NAME, common:'Common Raven', sci:'Corvus corax', tax:20461, count:4,
+    marks:[
+      { d:'2026-05-21', places:['Solano Hill - Gateview Crest'] },
+      { d:'2026-06-11', places:['Solano Hill - Gateview Crest'] },
+      { d:'2026-06-15', places:['Pierce and Washington'] },
+      { d:'2026-07-10', places:['Pierce and Washington'] }
+    ] },
+  REAL[2]
+];
+
+[REAL, SAMEDAY, SINGLE, LONG].forEach(function(set){
+  set.forEach(function(b){
+    b.firstSeen = b.marks[0].d;
+    b.lastSeen  = b.marks[b.marks.length-1].d;
+  });
+});
+
+/* ── State ───────────────────────────────────────────────────────────────── */
+var state = {
+  range:'last-sighting',   // ONE value for the whole tab, shared by every frame
+  sort:'lastSeen',
+  open:'bridge-ravens',
+  sel:{},                  // trackId -> { lane, d }  (committed)
+  hover:null               // { trackId, lane, d }    (mouse preview, transient)
+};
+
+/* ── Icons (Lucide) ──────────────────────────────────────────────────────── */
+function svg(px, body){
+  return '<svg width="' + px + '" height="' + px + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+         'stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + body + '</svg>';
+}
+var I = {
+  tag:   function(){ return svg(15,'<path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r=".6"/>'); },
+  chevR: function(){ return svg(15,'<path d="m9 18 6-6-6-6"/>'); },
+  chevD: function(){ return svg(15,'<path d="m6 9 6 6 6-6"/>'); },
+  gantt: function(n){ return svg(n||12,'<path d="M8 6h10"/><path d="M6 12h9"/><path d="M11 18h7"/>'); },
+  pin:   function(){ return svg(12,'<path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/>'); },
+  map:   function(){ return svg(12,'<path d="m14.106 5.553 6 3A2 2 0 0 1 21 10.342V19.7a.6.6 0 0 1-.894.553l-5.212-2.606a2 2 0 0 0-1.788 0l-4.212 2.106a2 2 0 0 1-1.788 0l-6-3A2 2 0 0 1 3 14.658V5.3a.6.6 0 0 1 .894-.553l5.212 2.606a2 2 0 0 0 1.788 0l4.212-2.106z"/><path d="M9 4v13"/><path d="M15 7v13"/>'); }
+};
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function slug(s){ return String(s).replace(/[^a-z0-9]+/gi,'-').toLowerCase(); }
+
+/* ── The range control (components/NamedBirdRangeControl.tsx) ────────────── */
+function rangeControl(groupLabel){
+  function pill(v,label){
+    var on = state.range === v;
+    return '<button type="button" tabindex="0" class="sr-pill sr-touch-target" data-range-set="' + v + '" ' +
+           'aria-pressed="' + (on ? 'true' : 'false') + '">' + label + '</button>';
+  }
+  return '<div class="sr-ctlrow" role="group" aria-label="' + esc(groupLabel) + '">' +
+           '<span class="sr-ctllabel">' + COPY.rangeLabel + '</span>' +
+           '<div class="sr-wrap-flex">' + pill('last-sighting', COPY.optLastSighting) + pill('today', COPY.optToday) + '</div>' +
+         '</div>';
+}
+
+/* ── One lane's rail: the span line, then one option per distinct date.
+      Options carry NO tabIndex, NO handlers and pointer-events:none. The
+      TRACK is the target; a press picks the nearest date by position, which
+      is what makes overlapping marks irrelevant to hit testing. ─────────── */
+function railHtml(tid, bird, axis, showBirdName){
+  var ps = bird.marks.map(function(m){ return pct(m.d, axis); });
+  var out = '';
+  if(ps.length){
+    var lo = Math.min.apply(null, ps), hi = Math.max.apply(null, ps);
+    out += '<span class="sr-nbt-span" style="left:' + lo.toFixed(3) + '%;right:' + (100-hi).toFixed(3) + '%"></span>';
+  }
+  bird.marks.forEach(function(m, i){
+    out += '<div role="option" id="' + tid + '-o-' + bird.key + '-' + slug(m.d) + '"' +
+           ' class="sr-nbt-tick" data-lane="' + bird.key + '" data-d="' + m.d + '" data-p="' + ps[i].toFixed(4) + '"' +
+           ' aria-selected="false" aria-posinset="' + (i+1) + '" aria-setsize="' + bird.marks.length + '"' +
+           ' aria-label="' + esc(COPY.optionName(showBirdName ? bird.name : '', m.d, m.places)) + '"' +
+           ' style="left:' + ps[i].toFixed(3) + '%"></div>';
+  });
+  return '<div class="sr-nbt-rail">' + out + '</div>';
+}
+
+function readoutHtml(tid, rest){
+  return '<p class="sr-nbt-readout is-rest" id="' + tid + '-r" aria-hidden="true">' +
+           '<span class="l1">' + esc(rest) + '</span><span class="l2"></span></p>';
+}
+
+/* ── The per-bird strip ──────────────────────────────────────────────────── */
+function perBirdStrip(frameId, bird, axis){
+  if(axis.spanDays === 0){
+    /* No axis, so no listbox, no tab stop and no readout. One sentence. */
+    return '<p class="sr-nbt-oneday">' + esc(COPY.oneDate(axis.start)) + '</p>';
+  }
+  var tid = frameId + '-pb-' + bird.key;
+  return '<div class="sr-nbt-track sr-nbt-lb" id="' + tid + '" data-track="' + tid + '" data-scope="pb"' +
+           ' role="listbox" tabindex="0" aria-label="' + esc(COPY.lbPerBird(bird.name)) + '">' +
+           railHtml(tid, bird, axis, false) +
+         '</div>' +
+         '<div class="sr-nbt-ends"><span>' + fmtDate(axis.start) + '</span><span>' + fmtDate(axis.end) + '</span></div>' +
+         readoutHtml(tid, COPY.restPerBird);
+}
+
+/* ── Sorting (FR-28: lane order equals card order) ───────────────────────── */
+function sortBirds(birds){
+  var a = birds.slice();
+  if(state.sort === 'name')              a.sort(function(x,y){ return x.name.toLowerCase() < y.name.toLowerCase() ? -1 : 1; });
+  else if(state.sort === 'alphabetical') a.sort(function(x,y){ return x.common < y.common ? -1 : 1; });
+  else if(state.sort === 'taxonomic')    a.sort(function(x,y){ return x.tax - y.tax; });
+  else a.sort(function(x,y){ return x.lastSeen === y.lastSeen ? (x.name < y.name ? -1 : 1) : (x.lastSeen < y.lastSeen ? 1 : -1); });
+  return a;
+}
+
+/* ── Card ────────────────────────────────────────────────────────────────── */
+function card(frameId, bird, opts){
+  var axis = axisFor(bird.firstSeen, bird.lastSeen, state.range, TODAY);
+  var dur  = formatElapsedSpan(axis.spanDays);
+  var open = state.open === bird.key;
+
+  var head =
+    '<button type="button" tabindex="0" class="sr-cardhead" aria-expanded="' + (open?'true':'false') + '" data-open="' + bird.key + '">' +
+      '<span class="chev">' + (open ? I.chevD() : I.chevR()) + '</span>' +
+      '<span class="nm">' + esc(bird.name) + '</span>' +
+      (opts.showSpecies ? '<span class="sp"><b>' + esc(bird.common) + '</b><i>' + esc(bird.sci) + '</i></span>' : '') +
+      '<span class="right">' +
+        '<span class="datecol">' +
+          '<span class="rangeline">' + fmtDate(bird.firstSeen) + ' – ' + fmtDate(bird.lastSeen) + '</span>' +
+          '<span class="durline"><b>' + dur + '</b> <span>· ' + COPY.endpoints(state.range) + '</span></span>' +
+        '</span>' +
+        '<span class="cnt">' + COPY.sightings(bird.count) + '</span>' +
+      '</span>' +
+    '</button>';
+
+  if(!open) return '<div class="sr-card">' + head + '</div>';
+
+  var body = '<div class="sr-cardbody">';
+
+  /* The control block first, with no heading of its own: it has a visible
+     label already and it governs the header figure whether or not this bird
+     has a strip. Then the timeline, gated on the SIGHTING count. */
+  body += '<div class="sr-sec sr-nbt-ctl">' + rangeControl(COPY.rangeGroupCard) +
+          '<p class="sr-nbt-scope">' + COPY.scopeNote + '</p></div>';
+
+  if(bird.count >= 2){
+    body += '<div class="sr-sec">' +
+              '<div class="sr-microlabel">' + I.gantt() + COPY.perBirdHead + '</div>' +
+              perBirdStrip(frameId, bird, axis) +
+            '</div>';
+  }
+
+  (bird.reports || []).forEach(function(r){
+    body += '<div class="sr-report">' +
+              '<div class="line">' +
+                '<span class="d">' + fmtDate(r.d) + '</span><span class="sep">·</span>' +
+                '<span class="loc">' + esc(r.loc) + '</span><span class="sep">·</span>' +
+                '<span class="cl">' + r.sub + '</span>' +
+              '</div><div class="sr-quote">' + esc(r.c) + '</div>' +
+            '</div>';
+  });
+  if(bird.count > (bird.reports || []).length){
+    body += '<p class="elide">' + (bird.count - bird.reports.length) + ' further reports, unchanged &mdash; elided in this mockup</p>';
+  }
+
+  if((bird.places || []).length){
+    body += '<div class="sr-sec"><div class="sr-microlabel">' + I.pin() + 'Top locations</div>';
+    bird.places.forEach(function(p){
+      body += '<div style="display:flex;gap:.5rem;font-size:.75rem;padding:.1875rem 0;color:var(--sr-text-muted)">' +
+                '<span style="color:var(--sr-accent);font-weight:600">' + esc(p[0]) + '</span>' +
+                '<span style="margin-left:auto;color:var(--sr-text-disabled)">' + p[1] + '</span></div>';
+    });
+    body += '</div>';
+  }
+
+  body += '<div class="sr-sec last"><div class="sr-microlabel">' + I.map() + 'Where ' + esc(bird.name.slice(0,28)) + ' has been seen</div>' +
+          '<div class="sr-stub">Sightings map and Macaulay media follow here, unchanged</div></div>';
+
+  return '<div class="sr-card">' + head + body + '</div>';
+}
+
+/* ── The bottom strip. ONE listbox for the whole thing, containing one
+      role="group" per bird: one focusable, one tab stop, no matter how many
+      birds. The caption, the lane labels and the axis dates are aria-hidden,
+      because the sentence ABOVE the listbox carries the same facts. ─────── */
+function master(frameId, birds, showSpecies){
+  var starts = birds.map(function(b){ return b.firstSeen; }).sort();
+  var ends   = birds.map(function(b){ return b.lastSeen; }).sort();
+  var axis   = axisFor(starts[0], ends[ends.length-1], state.range, TODAY);
+  if(birds.length < 2 || axis.spanDays === 0) return '';
+
+  var tid = frameId + '-m';
+  var lanes = '';
+  birds.forEach(function(b){
+    lanes +=
+      '<div class="sr-nbt-lane" role="group" data-lane="' + b.key + '"' +
+        ' aria-label="' + esc(COPY.laneGroup(b.name, showSpecies ? b.common : '')) + '">' +
+        '<div class="sr-nbt-lanelabel" aria-hidden="true">' + esc(b.name) +
+          (showSpecies ? '<i>' + esc(b.common) + '</i>' : '') + '</div>' +
+        '<div class="sr-nbt-lanetrack">' + railHtml(tid, b, axis, true) + '</div>' +
+      '</div>';
+  });
+
+  return '<section class="sr-nbt-master">' +
+      '<div class="sr-microlabel">' + I.gantt(13) + COPY.masterHead + '</div>' +
+      '<p class="sr-nbt-sentence">' + esc(COPY.masterSentence(birds.length, axis, state.range)) + '</p>' +
+      rangeControl(COPY.rangeGroupMaster) +
+      '<div class="sr-nbt-mplot sr-nbt-lb" id="' + tid + '" data-track="' + tid + '" data-scope="master"' +
+        ' role="listbox" tabindex="0" aria-label="' + esc(COPY.lbMaster) + '">' +
+        '<span class="sr-nbt-cap" aria-hidden="true">' + esc(COPY.masterCaption(birds.length, state.range)) + '</span>' +
+        lanes +
+        '<div class="sr-nbt-lane sr-nbt-mends" aria-hidden="true"><div></div>' +
+          '<div class="sr-nbt-ends"><span>' + fmtDate(axis.start) + '</span><span>' + fmtDate(axis.end) + '</span></div>' +
+        '</div>' +
+      '</div>' +
+      readoutHtml(tid, COPY.restMaster) +
+    '</section>';
+}
+
+/* ── The tab ─────────────────────────────────────────────────────────────── */
+var SORTS = [['name','Name (Individual)'],['alphabetical','Alphabetical'],['taxonomic','Taxonomic'],['lastSeen','Last Seen']];
+
+function renderTab(el, frameId, birds, opts){
+  opts = opts || {};
+  var showSpecies = opts.showSpecies !== false;
+  var sorted = sortBirds(birds);
+  var html = '';
+
+  if(opts.head !== false){
+    html += '<div class="sr-tabhead"><div class="sr-tabhead-icon">' + I.tag() + '</div>' +
+            '<div><h2>Named Birds</h2><p>Individual birds you’ve named in your eBird species ' +
+            'comments with a <code>[name:…]</code> tag, tracked across every checklist.</p></div></div>';
+  }
+
+  html += '<div class="sr-ctlblock">';
+  if(opts.sortRow !== false){
+    html += '<div class="sr-ctlrow" role="group" aria-label="Sort named birds">' +
+              '<span class="sr-ctllabel">Sort</span><div class="sr-wrap-flex">';
+    SORTS.forEach(function(s){
+      html += '<button type="button" tabindex="0" class="sr-pill sr-touch-target" data-sort="' + s[0] + '" ' +
+              'aria-pressed="' + (state.sort === s[0] ? 'true' : 'false') + '">' + s[1] + '</button>';
+    });
+    html += '</div><span class="sr-count">' + COPY.birdCount(birds.length) + '</span></div>';
+  }
+  html += rangeControl(COPY.rangeGroupTab) + '</div>';
+
+  html += '<div class="sr-rows">';
+  sorted.forEach(function(b){ html += card(frameId, b, { showSpecies:showSpecies }); });
+  html += '</div>';
+
+  if(opts.master !== false) html += master(frameId, sorted, showSpecies);
+  el.innerHTML = html;
+}
+
+/* ── Frames ──────────────────────────────────────────────────────────────── */
+var FRAMES = [
+  { el:'frame-desktop',  birds:REAL },
+  { el:'frame-phone',    birds:REAL },
+  { el:'frame-light',    birds:REAL, head:false, sortRow:false },
+  { el:'frame-dark',     birds:REAL, head:false, sortRow:false },
+  { el:'frame-sameday',  birds:SAMEDAY, head:false, sortRow:false, master:false, forceOpen:'winky' },
+  { el:'frame-single',   birds:SINGLE,  head:false, sortRow:false, forceOpen:'pete' },
+  { el:'frame-longname', birds:LONG,    head:false, sortRow:false, cardsOff:true }
+];
+
+function renderAll(){
+  FRAMES.forEach(function(f){
+    var el = document.getElementById(f.el); if(!el) return;
+    var savedOpen = state.open;
+    if(f.forceOpen) state.open = f.forceOpen;
+    if(f.cardsOff){
+      el.innerHTML = rangeControl(COPY.rangeGroupMaster) + master(f.el, sortBirds(f.birds), true);
+    } else {
+      renderTab(el, f.el, f.birds, { head:f.head, sortRow:f.sortRow, master:f.master });
+    }
+    state.open = savedOpen;
+  });
+  document.querySelectorAll('.doc-bar [data-range-set]').forEach(function(b){
+    b.setAttribute('aria-pressed', b.getAttribute('data-range-set') === state.range ? 'true' : 'false');
+  });
+  // A selection is keyed to a DATE, so it survives a range flip and a re-sort.
+  document.querySelectorAll('.sr-nbt-lb').forEach(paint);
+}
+
+/* ── Selection painting. Never a re-render: focus must survive. ──────────── */
+function paint(lb){
+  var tid = lb.getAttribute('data-track');
+  var scope = lb.getAttribute('data-scope');
+  var show = (state.hover && state.hover.trackId === tid) ? state.hover : state.sel[tid];
+  var activeId = '';
+
+  lb.querySelectorAll('[role="option"]').forEach(function(o){
+    var on = !!show && o.getAttribute('data-lane') === show.lane && o.getAttribute('data-d') === show.d;
+    o.setAttribute('aria-selected', on ? 'true' : 'false');
+    o.classList.toggle('is-on', on);
+    if(on) activeId = o.id;
+  });
+  lb.querySelectorAll('.sr-nbt-lane').forEach(function(l){
+    l.classList.toggle('is-on', !!show && l.getAttribute('data-lane') === show.lane);
+  });
+
+  // aria-activedescendant follows the COMMITTED selection only: a mouse-hover
+  // preview must not move the screen reader's cursor.
+  var committed = state.sel[tid];
+  if(committed){
+    var cid = tid + '-o-' + committed.lane + '-' + slug(committed.d);
+    if(document.getElementById(cid)) lb.setAttribute('aria-activedescendant', cid); else lb.removeAttribute('aria-activedescendant');
+  } else {
+    lb.removeAttribute('aria-activedescendant');
+  }
+
+  var out = document.getElementById(tid + '-r'); if(!out) return;
+  var l1 = out.querySelector('.l1'), l2 = out.querySelector('.l2');
+  if(!show){
+    out.classList.add('is-rest');
+    l1.textContent = scope === 'master' ? COPY.restMaster : COPY.restPerBird;
+    l2.textContent = '';
+    return;
+  }
+  var bird = birdOf(lb, show.lane);
+  var idx  = bird ? bird.marks.findIndex(function(m){ return m.d === show.d; }) : -1;
+  var mk   = idx >= 0 ? bird.marks[idx] : null;
+  out.classList.remove('is-rest');
+  l1.textContent = COPY.readLine1(scope === 'master' && bird ? bird.name : '', show.d, mk ? mk.places : []);
+  l2.textContent = bird ? COPY.readLine2(idx + 1, bird.marks.length) : '';
+  void activeId;
+}
+
+/* Which bird a lane belongs to, looked up across every fixture set. */
+function birdOf(lb, laneKey){
+  var all = REAL.concat(SAMEDAY, SINGLE, LONG);
+  for(var i = 0; i < all.length; i++) if(all[i].key === laneKey) return all[i];
+  return null;
+}
+
+/* ── Hit testing: nearest sighting by horizontal position. Every sighting
+      owns a slice of the width, so overlap is irrelevant to the pointer. ── */
+function hit(lb, clientX, laneEl){
+  var lane = laneEl || lb;
+  var rail = lane.querySelector('.sr-nbt-rail'); if(!rail) return null;
+  var r = rail.getBoundingClientRect();
+  var p = r.width > 0 ? ((clientX - r.left) / r.width) * 100 : 0;
+  var best = null, bestD = Infinity;
+  lane.querySelectorAll('[role="option"]').forEach(function(o){
+    var d = Math.abs(parseFloat(o.getAttribute('data-p')) - p);
+    if(d < bestD){ bestD = d; best = o; }
+  });
+  return best ? { lane: best.getAttribute('data-lane'), d: best.getAttribute('data-d') } : null;
+}
+function laneAt(lb, target){
+  var l = target.closest ? target.closest('.sr-nbt-lane') : null;
+  return (l && l.getAttribute('data-lane')) ? l : null;
+}
+
+/* ── Keyboard. Left/Right within a bird, Up/Down between birds on the
+      bottom strip, Home/End to the ends of the current bird, Escape clears
+      and is consumed ONLY while something is selected. ──────────────────── */
+function laneKeys(lb){
+  var out = [];
+  lb.querySelectorAll('.sr-nbt-lane[data-lane]').forEach(function(l){ out.push(l.getAttribute('data-lane')); });
+  if(out.length === 0) out.push(lb.querySelector('[role="option"]') ? lb.querySelector('[role="option"]').getAttribute('data-lane') : '');
+  return out;
+}
+function optsIn(lb, laneKey){
+  return Array.prototype.slice.call(lb.querySelectorAll('[role="option"][data-lane="' + laneKey + '"]'));
+}
+
+document.addEventListener('keydown', function(e){
+  var lb = e.target.classList && e.target.classList.contains('sr-nbt-lb') ? e.target : null;
+  if(!lb) return;
+  var tid = lb.getAttribute('data-track');
+  var lanes = laneKeys(lb);
+  var cur = state.sel[tid];
+  var laneKey = cur ? cur.lane : lanes[0];
+  var list = optsIn(lb, laneKey);
+  var i = cur ? list.findIndex(function(o){ return o.getAttribute('data-d') === cur.d; }) : -1;
+
+  function commit(o){ if(!o) return; state.sel[tid] = { lane:o.getAttribute('data-lane'), d:o.getAttribute('data-d') }; state.hover = null; paint(lb); }
+
+  if(e.key === 'ArrowRight'){ e.preventDefault(); commit(list[Math.min(i + 1, list.length - 1)] || list[0]); }
+  else if(e.key === 'ArrowLeft'){ e.preventDefault(); commit(list[Math.max(i - 1, 0)] || list[0]); }
+  else if(e.key === 'Home'){ e.preventDefault(); commit(list[0]); }
+  else if(e.key === 'End'){ e.preventDefault(); commit(list[list.length - 1]); }
+  else if(e.key === 'ArrowDown' || e.key === 'ArrowUp'){
+    if(lanes.length < 2) return;
+    e.preventDefault();
+    var li = Math.max(0, lanes.indexOf(laneKey));
+    var nx = e.key === 'ArrowDown' ? Math.min(li + 1, lanes.length - 1) : Math.max(li - 1, 0);
+    var target = optsIn(lb, lanes[nx]);
+    var here = cur ? parseFloat(list[i] ? list[i].getAttribute('data-p') : '0') : 0;
+    var best = null, bd = Infinity;
+    target.forEach(function(o){ var d = Math.abs(parseFloat(o.getAttribute('data-p')) - here); if(d < bd){ bd = d; best = o; } });
+    commit(best);
+  }
+  else if(e.key === 'Escape'){
+    // Consumed only while a selection exists, so an outer Escape layer still
+    // receives the press when there is nothing to clear (SpeciesCombobox rule).
+    if(state.sel[tid]){ e.stopPropagation(); delete state.sel[tid]; state.hover = null; paint(lb); }
+  }
+}, true);
+
+document.addEventListener('pointerdown', function(e){
+  var lb = e.target.closest ? e.target.closest('.sr-nbt-lb') : null; if(!lb) return;
+  var tid = lb.getAttribute('data-track');
+  var h = hit(lb, e.clientX, laneAt(lb, e.target)); if(!h) return;
+  state.sel[tid] = h; state.hover = null;
+  paint(lb);
+  lb.focus();
+});
+document.addEventListener('pointermove', function(e){
+  var lb = e.target.closest ? e.target.closest('.sr-nbt-lb') : null;
+  if(!lb){ if(state.hover){ var prev = document.getElementById(state.hover.trackId); state.hover = null; if(prev) paint(prev); } return; }
+  if(e.pointerType !== 'mouse') return;      // there is no hover on iOS
+  var tid = lb.getAttribute('data-track');
+  var h = hit(lb, e.clientX, laneAt(lb, e.target)); if(!h) return;
+  if(e.buttons === 1){ state.sel[tid] = h; state.hover = null; }   // drag to scrub
+  else state.hover = { trackId:tid, lane:h.lane, d:h.d };
+  paint(lb);
+});
+document.addEventListener('pointerleave', function(e){
+  var lb = e.target.closest ? e.target.closest('.sr-nbt-lb') : null; if(!lb) return;
+  if(state.hover && state.hover.trackId === lb.getAttribute('data-track')){ state.hover = null; paint(lb); }
+}, true);
+document.addEventListener('focusout', function(e){
+  var lb = e.target.classList && e.target.classList.contains('sr-nbt-lb') ? e.target : null; if(!lb) return;
+  delete state.sel[lb.getAttribute('data-track')];
+  state.hover = null;
+  paint(lb);
+}, true);
+
+/* ── Chrome events ───────────────────────────────────────────────────────── */
+document.addEventListener('click', function(e){
+  var t = e.target.closest ? e.target.closest('[data-range-set],[data-sort],[data-open],[data-theme-set],[data-ts]') : null;
+  if(!t) return;
+  if(t.hasAttribute('data-range-set')){ state.range = t.getAttribute('data-range-set'); renderAll(); return; }
+  if(t.hasAttribute('data-sort'))      { state.sort  = t.getAttribute('data-sort');      renderAll(); return; }
+  if(t.hasAttribute('data-open'))      { var k = t.getAttribute('data-open'); state.open = (state.open === k ? null : k); state.sel = {}; renderAll(); return; }
+  if(t.hasAttribute('data-theme-set')){
+    var dark = t.getAttribute('data-theme-set') === 'dark';
+    document.body.classList.toggle('dark', dark);
+    ['frame-desktop','frame-phone','frame-sameday','frame-single','frame-longname'].forEach(function(id){
+      var el = document.getElementById(id); if(el) el.classList.toggle('theme-dark', dark);
+    });
+    document.querySelectorAll('[data-theme-set]').forEach(function(b){ b.setAttribute('aria-pressed', b === t ? 'true' : 'false'); });
+    return;
+  }
+  if(t.hasAttribute('data-ts')){
+    document.documentElement.style.setProperty('--ts', t.getAttribute('data-ts'));
+    document.querySelectorAll('[data-ts]').forEach(function(b){ b.setAttribute('aria-pressed', b === t ? 'true' : 'false'); });
+  }
+});
+
+renderAll();
+})();
+</script>

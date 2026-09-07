@@ -142,7 +142,13 @@ await tab('Calendar', 'calendar-light.png', { settle: 4200, clipH: 900, prep: as
   if (prev && !(await prev.isDisabled())) { await prev.click(); await p.waitForTimeout(1200); }
 } });
 // Named Birds is a short list — clip close so the shot isn't mostly empty page.
-await tab('Named Birds', 'named-birds-light.png', { settle: 4200, clipH: 620 });
+// RAISED FROM 620 at named-birds-timelines: the tab now carries the "All named
+// birds over time" strip BELOW the card list, and a 620px frame cut it off
+// entirely. 800 ends just under the footer with the whole strip, its lanes and
+// both axis dates in frame; going back below ~780 silently drops the strip
+// again, which is the same class of quiet miss as photographing the wrong nav
+// density.
+await tab('Named Birds', 'named-birds-light.png', { settle: 4200, clipH: 800 });
 
 // Species Detail — select a common species
 await tab('Species Detail', 'species-light.png', { settle: 4200, clipH: 980, prep: async (p) => {

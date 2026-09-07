@@ -13,11 +13,24 @@ import { loadMLExport } from '../lib/mlExportCache'
 import { storage } from '../lib/storage'
 import { transport } from '../lib/transport'
 import { normalizeSpeciesName, withNormalizedParents } from '../lib/speciesUtils'
+import { isoDateFromMs } from '../lib/formatDate'
 import { computeNamedBirds, type NamedBird } from '../lib/namedBirds'
 import { computeNamedBirdMedia } from '../lib/namedBirdMedia'
 import type { MLExportRow } from '../lib/parseMLExport'
 import { NamedBirdsTable } from './NamedBirdsTable'
 import { BirdName } from './BirdName'
+
+// THE ONE CLOCK READ IN THIS FEATURE, at module scope, evaluated once at import
+// — the shipped house pattern (Calendar.tsx, MapExplorer.tsx,
+// map/CountyCompletenessPopup.tsx, lib/useHotspotActivity.ts).
+// `react-hooks/purity` is build-blocking, so nothing below may call `Date.now()`
+// or `new Date()` during render; every helper this feature adds takes its
+// endpoints as arguments instead, and the session date is threaded down as a
+// plain `YYYY-MM-DD` prop. Accepted consequence, the same as the Calendar's: a
+// session left open across midnight shows the previous day's "today" until
+// reload.
+const SESSION_NOW_MS = Date.now()
+const SESSION_TODAY = isoDateFromMs(SESSION_NOW_MS)
 
 type Phase =
   | { tag: 'loading-saved' }
@@ -170,6 +183,7 @@ export function NamedBirds({ onGoToSettings, filesVersion, onOpenSpecies, embedA
           birds={birds}
           showSpecies
           singleOpen
+          today={SESSION_TODAY}
           orderFor={orderFor}
           mediaByBird={mediaByBird}
           hasML={hasML}

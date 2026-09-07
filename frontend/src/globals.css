@@ -3648,6 +3648,130 @@ select:focus-visible {
 }
 
 
+/* ── Named Birds sighting timelines (.sr-nbt-*) ──────────────────────────────
+   Layout lives here, never in a React inline style: an inline style is
+   specificity (1,0,0) and unreachable from a media query, which is exactly why
+   this vocabulary exists. Every colour is an --sr-* token declared in BOTH
+   :root and [data-theme="dark"]; there is no hardcoded hex anywhere in the
+   feature.
+
+   TWO STRUCTURAL RULES HOLD THROUGHOUT, and both are guarded:
+   Every strip's own height is a PX value and every text-sized element sits
+   OUTSIDE it — the lane labels, both axis end dates and both readout lines are
+   all siblings of a track, never descendants. A `rem` value inside a fixed-px
+   box grows when the box does not, and `.claude/rules/ui.md` records the Named
+   Birds card map as the named example of exactly that trap on exactly this
+   surface. And NOTHING here sets a positive `min-width`, so no element in this
+   feature can force page horizontal scroll at 320px.
+
+   The block sits BEFORE the established ≤640 phone tier below, so the phone
+   declarations in that tier win on source order at equal specificity.
+
+   MOTION: the range pill's background/colour transition is the only animated
+   declaration this feature adds, and it comes from the shipped pill pattern.
+   Selection is deliberately instant — a transition would lag the pointer during
+   a scrub — and marks, rails, span lines, lanes, captions and the readout carry
+   no animation and no transition at all (transitioning `left` on a few hundred
+   absolutely positioned elements is a layout-thrashing property on exactly the
+   phones and the Pi this app must stay smooth on). No per-component
+   prefers-reduced-motion query: the single global block earlier in this file
+   collapses every transition to ~1 microsecond, and there is nothing here it
+   does not already cover. */
+
+/* The tab's second control row, beneath Sort. */
+.sr-nbt-ctlrow { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+
+/* The card instance's scope note: this is the one range control that reads as
+   card-local, so it is the one that says what it governs. */
+.sr-nbt-scope { margin: 0.375rem 0 0; font-size: 0.6875rem; line-height: 1.45; color: var(--sr-text-muted); }
+
+/* The collapsed header's duration line. It LOSES the shipped nowrap so the
+   endpoint phrase after the figure can wrap; the date-range line above it keeps
+   its own nowrap and is unchanged. */
+.sr-nbt-durline { line-height: 1.35; }
+
+/* ── The listbox: ONE focusable per strip, and the whole track is the target ── */
+.sr-nbt-lb { border-radius: 6px; cursor: pointer; }
+.sr-nbt-lb:focus { outline: none; }
+.sr-nbt-lb:focus-visible { outline: 2px solid var(--sr-accent); outline-offset: 2px; }
+
+.sr-nbt-track { position: relative; height: 38px; padding: 0 2px; }
+.sr-nbt-rail { position: relative; height: 100%; }
+/* The full shared axis, a hairline guide rather than a state carrier: its ~1.66:1
+   against the panel is deliberate, and a 3:1 rule there would read as a divider. */
+.sr-nbt-rail::before {
+  content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 4px; margin-top: -2px;
+  border-radius: 2px; background: var(--sr-border-medium);
+}
+/* This bird's own extent, first sighting to last. On `Today` it stops where the
+   bird stopped and the grey rail runs on to the right edge. */
+.sr-nbt-span { position: absolute; top: 50%; height: 4px; margin-top: -2px; border-radius: 2px; background: var(--sr-accent); }
+/* One mark per distinct sighting date. `pointer-events: none` is load-bearing:
+   the TRACK is the control, and a press picks the nearest mark by position,
+   which is what lets marks overlap and coincide with no spacing, jitter or
+   binning. The 2px track inset is half a mark, so a mark at 0% and at 100% sits
+   fully inside the track rather than clipping. */
+.sr-nbt-tick {
+  position: absolute; top: 50%; width: 3px; height: 22px; margin-top: -11px; margin-left: -1.5px;
+  border-radius: 1.5px; background: var(--sr-accent); pointer-events: none;
+}
+/* The selected mark carries TWO non-colour cues: it grows, and a halo in the
+   host surface token punches a visible gap around it inside a cluster. */
+.sr-nbt-tick.is-on {
+  width: 5px; height: 28px; margin-top: -14px; margin-left: -2.5px; border-radius: 2.5px;
+  box-shadow: 0 0 0 2px var(--sr-surface-faint);
+}
+
+/* The axis end dates: a 1fr auto grid rather than flex space-between, so the
+   right label stays right-aligned when it wraps at 200% text scale. Outside the
+   plot, in normal flow, and rendered through formatDate so they honour the
+   user's date-format preference. */
+.sr-nbt-ends {
+  display: grid; grid-template-columns: 1fr auto; gap: 0.25rem 0.75rem;
+  font-size: 0.6875rem; color: var(--sr-text-muted); margin-top: 0.25rem;
+}
+.sr-nbt-ends span:last-child { text-align: right; }
+
+/* A bird whose sightings all fall on one date has no axis: one sentence, no
+   strip, no listbox, no tab stop and no readout. */
+.sr-nbt-oneday { margin: 0; font-size: 0.75rem; line-height: 1.6; color: var(--sr-text-muted); padding: 0.1875rem 0 0.0625rem; }
+
+/* The readout. Always present and never unmounted, so nothing shifts when it
+   fills. Text-sized, so it lives OUTSIDE every fixed-px box. */
+.sr-nbt-readout { margin: 0.375rem 0 0; font-size: 0.6875rem; line-height: 1.45; }
+.sr-nbt-readout .l1 { display: block; color: var(--sr-text); font-weight: 600; overflow-wrap: anywhere; }
+.sr-nbt-readout .l2 { display: block; color: var(--sr-text-muted); font-weight: 400; }
+.sr-nbt-readout.is-rest .l1 { color: var(--sr-text-muted); font-weight: 400; }
+
+/* ── The strip at the bottom of the tab ────────────────────────────────────── */
+.sr-nbt-sentence { font-size: 0.75rem; color: var(--sr-text-muted); margin: 0 0 0.625rem; line-height: 1.5; }
+.sr-nbt-mplot { margin-top: 0.625rem; padding: 0.25rem; }
+.sr-nbt-cap {
+  display: block; font-size: 0.625rem; font-weight: 600; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--sr-text-muted); margin-bottom: 0.5rem;
+}
+.sr-nbt-lane {
+  display: grid; grid-template-columns: minmax(0, 34%) minmax(0, 1fr); gap: 0.5rem 0.75rem;
+  align-items: center; padding: 0.125rem 0.3125rem; border-radius: 0.375rem;
+}
+/* The lane the arrow keys are in. This replaces zebra banding: it says WHERE YOU
+   ARE, which a stripe cannot, and it keeps the halo token single-valued. */
+.sr-nbt-lane.is-on { background: var(--sr-surface-subtle); }
+/* The lane label wraps and carries no nowrap: a name tag is bounded at 120
+   characters, and the column has to hold that plus a species name at 320px and
+   200% text scale without clipping or leaking page scroll. */
+.sr-nbt-lanelabel { font-size: 0.6875rem; line-height: 1.35; color: var(--sr-text); overflow-wrap: anywhere; min-width: 0; }
+.sr-nbt-lanelabel i { display: block; font-style: normal; color: var(--sr-text-muted); }
+.sr-nbt-lanetrack { position: relative; height: 24px; padding: 0 2px; min-width: 0; }
+.sr-nbt-lanetrack .sr-nbt-rail::before { height: 3px; margin-top: -1.5px; border-radius: 1.5px; }
+.sr-nbt-lanetrack .sr-nbt-span { height: 3px; margin-top: -1.5px; border-radius: 1.5px; }
+.sr-nbt-lanetrack .sr-nbt-tick { height: 12px; margin-top: -6px; }
+.sr-nbt-lanetrack .sr-nbt-tick.is-on {
+  width: 3px; height: 18px; margin-top: -9px; margin-left: -1.5px; border-radius: 1.5px;
+  box-shadow: 0 0 0 2px var(--sr-surface-subtle);
+}
+.sr-nbt-mends { margin-top: 0.1875rem; }
+
 @media (max-width: 640px) {
   .sr-header { padding-top: 24px !important; }
   /* The county panel's rows stack on a phone, and the action slot takes its own
@@ -4121,6 +4245,23 @@ select:focus-visible {
   .sr-map-sidebar-close {
     display: flex;
   }
+
+  /* Named Birds sighting timelines. Inside the established phone tier rather
+     than a new 640px block of their own: the offset-question tier guards resolve
+     "the phone tier" as this file's FIRST multi-line 640px block, and a block
+     ahead of it silently re-targets every offset-based assertion. */
+  /* The lane grid collapses to one column, label above its own full-width track.
+     That is what makes the 120-character name bound safe here and removes any
+     need for a min-width. */
+  .sr-nbt-lane { grid-template-columns: minmax(0, 1fr); gap: 0.125rem; padding: 0.25rem 0.3125rem; }
+  /* One column, so the axis-date row's empty label cell has nothing to align to.
+     Named explicitly rather than `> :first-child`, whose rightmost compound is
+     universal and would compete for `display` with every first child in the
+     bundle (the shipped cascade-competitor scan rejects exactly that). */
+  .sr-nbt-mendspacer { display: none; }
+  /* 24px to 30px, so a lane clears the 24px touch minimum comfortably on a
+     phone. It is a px value, and every text-sized element sits outside it. */
+  .sr-nbt-lanetrack { height: 30px; }
 }
 
 /* iOS map fullscreen (mobile-app, user-approved at the design review):

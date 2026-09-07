@@ -10,12 +10,16 @@
 
 import { useMemo, useRef, lazy, Suspense } from 'react'
 import { ChevronRight, ChevronDown, Map as MapIcon } from 'lucide-react'
-import { formatDate, formatSightingDuration } from '../lib/formatDate'
+import { formatDate, formatElapsedSpan } from '../lib/formatDate'
 import { buildSightingMarkers } from '../lib/sightingMarkers'
 import { ChecklistLink } from './ChecklistLink'
 import { HotspotLink } from './HotspotLink'
 import { NamedBirdMedia } from './NamedBirdMedia'
 import { NamedBirdLocations } from './NamedBirdLocations'
+import { NamedBirdRangeControl } from './NamedBirdRangeControl'
+import { NamedBirdTimeline } from './NamedBirdTimeline'
+import { birdAxis, buildLanes, type SpanRange } from '../lib/namedBirdTimeline'
+import { endpoints, rangeGroupCard, scopeNote } from '../lib/namedBirdTimelineCopy'
 import type { NamedBird } from '../lib/namedBirds'
 import type { NamedBirdAsset } from '../lib/namedBirdMedia'
 // react-only (it imports `react` and ./useFocusTrap and nothing else), which is
@@ -32,7 +36,7 @@ import { useMapFullscreen, MapFullscreenProvider } from '../lib/useMapFullscreen
 // opening a row stays instant. See the 0.5.42 load-optimization change.
 const SightingsMap = lazy(() => import('./SightingsMap').then(m => ({ default: m.SightingsMap })))
 
-export function NamedBirdRow({ bird, open, onToggle, showSpecies, showMap, renderSpecies, isHotspot, media = [], hasML = false, embedAllowed }: {
+export function NamedBirdRow({ bird, open, onToggle, showSpecies, showMap, renderSpecies, isHotspot, media = [], hasML = false, embedAllowed, timeline }: {
   bird: NamedBird
   open: boolean
   onToggle: () => void
@@ -47,6 +51,19 @@ export function NamedBirdRow({ bird, open, onToggle, showSpecies, showMap, rende
   hasML?: boolean
   /** Hydrated app-wide iframe eligibility gate. */
   embedAllowed: boolean
+  /**
+   * The Named Birds tab's timeline wiring: the tab-wide range value, its setter,
+   * and the tab's session date. ONE optional object, so the gate and the data the
+   * gate needs cannot separate — Species Detail omits it, and therefore renders
+   * no range control and no strip, and measures its figure firstSeen to lastSeen
+   * because there is no other value it could take.
+   */
+  timeline?: {
+    range: SpanRange
+    onRangeChange: (r: SpanRange) => void
+    /** YYYY-MM-DD, the tab's session constant. */
+    today: string
+  }
 }) {
   // Per-coordinate markers for this bird, skipping null-coord sightings (FR-22).
   // Empty → no map rendered (FR-23). Cheap, but memoized so the array identity is
@@ -64,6 +81,18 @@ export function NamedBirdRow({ bird, open, onToggle, showSpecies, showMap, rende
     baseClass: 'sr-named-map',
     active: open && showMap && cardMarkers.length > 0,
   })
+
+  // ONE axis, two consumers: the header figure IS this axis's span, so the number
+  // and the picture of the number cannot disagree. Species Detail passes no
+  // `timeline`, so its axis runs firstSeen to lastSeen — the correctness repair
+  // reaches that surface too, which is intended.
+  const axis = birdAxis(bird, timeline?.range ?? 'last-sighting', timeline?.today ?? null)
+  const duration = formatElapsedSpan(axis.spanDays)
+  // A few dozen strings per open card, so no memo: the dependency array would be
+  // a thing to get wrong and would save nothing measurable. (`cardMarkers` above
+  // is memoized for a different reason — array identity for SightingsMap and
+  // MapBoundsFitter — which does not apply to a strip of plain divs.)
+  const lane = buildLanes([bird], axis)[0]
 
   return (
     <div style={{ border: '1px solid var(--sr-border)', borderRadius: 10, overflow: 'hidden', background: 'var(--sr-surface)', boxShadow: 'var(--sr-card-shadow)' }}>
@@ -91,17 +120,56 @@ export function NamedBirdRow({ bird, open, onToggle, showSpecies, showMap, rende
             )}
           </span>
         )}
-        <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'baseline', flexWrap: 'wrap', gap: 13, flexShrink: 0 }}>
-          {/* Date range with the elapsed-span duration on a subtle second line
+        {/* THE WIDTH CAP AND THE TWO RELEASED MINIMUMS ARE LOAD-BEARING, and this
+            group clipped at 320px without them.
+
+            `flexShrink: 0` says "do not squeeze me", which is shipped intent and
+            is kept. But a group that is never narrowed has no reason to break a
+            line, so the column inside it sizes to its widest child's MAX-CONTENT
+            and simply overflows the card's `overflow: hidden` box, pushing the
+            sighting count out of sight rather than wrapping. Removing this
+            feature's `white-space: nowrap` from the duration line (FR-64) makes
+            wrapping POSSIBLE; it does not make it happen, because nothing was
+            ever asking the line to be narrower.
+
+            `maxWidth: '100%'` is what makes the cap bind. It is
+            responsive-by-construction (no breakpoint math), it was measured
+            identical in effect to dropping `flexShrink: 0`, and it is preferred
+            because it keeps the do-not-get-squeezed intent rather than
+            discarding it. This is the v0.5.82 `.sr-wrap-flex` finding applied to
+            a cluster that carries its flex inline.
+
+            One cap is not enough: a wrapping flex row is not contained until
+            EVERY nested automatic minimum on the overflow path is released
+            (v0.5.86). Both this group and the date column below are flex items,
+            and a flex item's `min-width: auto` floors it at its own min-content
+            regardless of the space available, so both take `minWidth: 0`. The
+            date-range line keeps its own `nowrap`, so the column's min-content
+            stays that line's width and the two dates never break. */}
+        <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'baseline', flexWrap: 'wrap', gap: 13, flexShrink: 0, maxWidth: '100%', minWidth: 0 }}>
+          {/* The date-range line, then the elapsed span on a subtle second line
               beneath it; the column keeps the two dates + duration together as a
-              unit when the header wraps on phones (parent already flexWraps). */}
-          <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 1 }}>
+              unit when the header wraps on phones (parent already flexWraps).
+              The two dates above are facts about SIGHTINGS and do not move when
+              the range moves: this line is byte-identical in both range states
+              and keeps its nowrap.
+
+              The duration line is the true number of calendar days between the
+              two endpoints of the active range, rendered in the bands
+              `formatElapsedSpan` documents — exact to the day below 365, then to
+              within half a month. On the tab it names which two dates it
+              measures, so a reader who never touches the range control can tell,
+              and so a press changes the phrase on every visible card at once.
+              That phrase is why this line LOSES its `white-space: nowrap`: it has
+              to be allowed to wrap. */}
+          <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 1, minWidth: 0 }}>
             <span style={{ fontSize: '0.75rem', color: 'var(--sr-text-gray)', whiteSpace: 'nowrap' }}>
               {formatDate(bird.firstSeen)} – {formatDate(bird.lastSeen)}
             </span>
-            {formatSightingDuration(bird.firstSeen, bird.lastSeen) && (
-              <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', whiteSpace: 'nowrap' }}>
-                {formatSightingDuration(bird.firstSeen, bird.lastSeen)}
+            {duration && (
+              <span className="sr-nbt-durline" style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', textAlign: 'right' }}>
+                <b style={{ fontWeight: 600 }}>{duration}</b>
+                {timeline && <span style={{ fontWeight: 400 }}> · {endpoints(timeline.range)}</span>}
               </span>
             )}
           </span>
@@ -113,6 +181,31 @@ export function NamedBirdRow({ bird, open, onToggle, showSpecies, showMap, rende
 
       {open && (
         <div style={{ borderTop: '1px solid var(--sr-border-subtle)', background: 'var(--sr-surface-faint)' }}>
+          {/* The range control comes first and carries no micro-label of its own:
+              it has a visible label already, and it governs the header figure
+              whether or not this bird has a strip. This is the one instance that
+              reads as card-local, so it is the one that carries the scope note —
+              the explanation goes where the ambiguity is. */}
+          {timeline && (
+            <div style={{ padding: '12px 14px 8px' }}>
+              <NamedBirdRangeControl
+                range={timeline.range}
+                onChange={timeline.onRangeChange}
+                groupLabel={rangeGroupCard}
+              />
+              <p className="sr-nbt-scope">{scopeNote}</p>
+            </div>
+          )}
+
+          {/* Then the strip, above the report rows: a fast overview first, the
+              full record second. A bird with a single sighting gets none, and its
+              header figure still renders. The rows below are unchanged and remain
+              the full record — they alone carry the checklist link and the
+              species comment, so the strip is a strict subset of them. */}
+          {timeline && bird.sightings.length >= 2 && lane && (
+            <NamedBirdTimeline lane={lane} axis={axis} />
+          )}
+
           {bird.sightings.map((s, i) => (
             <div
               key={`${s.submissionId}-${i}`}
