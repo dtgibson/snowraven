@@ -1,0 +1,1270 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SnowRaven — Weather section (Statistics)</title>
+<style>
+/* ═══════════════════════════════════════════════════════════════════════════
+   TOKEN LAYER — copied verbatim from frontend/src/globals.css.
+   This is the ONLY place a literal colour appears, exactly as in the app:
+   :root is light, [data-theme="dark"] is dark. Every rule below this block
+   reads a var(--sr-*). No new token is minted by this design.
+   ═══════════════════════════════════════════════════════════════════════════ */
+:root {
+  --sr-text-scale: 1;
+
+  --sr-bg: #F9FAFB;
+  --sr-surface: #FFFFFF;
+  --sr-surface-subtle: #F4F4F5;
+  --sr-surface-faint: #FAFAFA;
+
+  --sr-text: #0F1117;
+  --sr-text-muted: #6B6B74;
+  --sr-text-gray: #6B7280;
+
+  --sr-border: #E4E4E7;
+  --sr-border-subtle: #F4F4F5;
+  --sr-border-medium: #C4C4CE;
+  --sr-border-input: #8A8A91;
+
+  --sr-accent: #277448;
+  --sr-accent-strong: #1A5C38;
+  --sr-accent-bg: #E8F5EE;
+  --sr-accent-bg-hover: #F0FAF4;
+  --sr-accent-border: rgba(39,116,72,0.25);
+  --sr-on-accent: #FFFFFF;
+
+  --sr-chart-slate: #94A3B8;
+  --sr-gray-400: #8E8E96;
+
+  --sr-card-shadow: 0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+  --sr-focus-halo: rgba(39,116,72,0.12);
+  --sr-combobox-shadow: 0 8px 24px rgba(15,17,23,0.10);
+}
+[data-theme="dark"] {
+  --sr-bg: #09090B;
+  --sr-surface: #18181B;
+  --sr-surface-subtle: #27272A;
+  --sr-surface-faint: #1C1C1F;
+
+  --sr-text: #F4F4F5;
+  --sr-text-muted: #A1A1AA;
+  --sr-text-gray: #8A8A92;
+
+  --sr-border: #27272A;
+  --sr-border-subtle: #1F1F23;
+  --sr-border-medium: #3F3F46;
+  --sr-border-input: #707078;
+
+  --sr-accent: #34D399;
+  --sr-accent-strong: #34D399;
+  --sr-accent-bg: #052E16;
+  --sr-accent-bg-hover: #064E3B;
+  --sr-accent-border: rgba(52,211,153,0.2);
+  --sr-on-accent: #052E16;
+
+  --sr-chart-slate: #94A3B8;
+  --sr-gray-400: #6E6E78;
+
+  --sr-card-shadow: 0 1px 4px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.25);
+  --sr-focus-halo: rgba(52,211,153,0.14);
+  --sr-combobox-shadow: 0 8px 24px rgba(2,2,4,0.55);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   BASE — mirrors the app shell. The type stack is the shipped one
+   (Inter / system-ui, design-system.md "Type"); the mockup must render in the
+   same face as the app it is a picture of.
+   ═══════════════════════════════════════════════════════════════════════════ */
+html { font-size: calc(100% * var(--sr-text-scale)); }
+body {
+  margin: 0;
+  background: var(--sr-bg);
+  color: var(--sr-text);
+  font-family: Inter, system-ui, -apple-system, "Segoe UI", Helvetica, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+* { box-sizing: border-box; }
+p { margin: 0; }
+
+/* Global focus ring, verbatim from globals.css. */
+button:focus-visible,
+a:focus-visible,
+[role="button"]:focus-visible,
+[tabindex]:focus-visible {
+  outline: 3px solid var(--sr-accent);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 6px var(--sr-focus-halo);
+}
+input:focus-visible {
+  outline: 2px solid var(--sr-accent);
+  outline-offset: 0;
+  border-color: var(--sr-accent) !important;
+  box-shadow: 0 0 0 4px var(--sr-focus-halo);
+}
+
+/* Shipped utility classes this design reuses (globals.css). */
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+.sr-action-row {
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 8px 12px; min-width: 0;
+}
+.sr-truncate { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sr-touch-target { display: inline-flex; align-items: center; justify-content: center; }
+.sr-wrap-flex { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sr-wrap-gap, 8px); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   MOCKUP HARNESS — not part of the design. Sized in px so it does not move
+   with the Text Size control the way the app's own text does.
+   ═══════════════════════════════════════════════════════════════════════════ */
+.hz {
+  position: sticky; top: 0; z-index: 60;
+  background: var(--sr-surface); border-bottom: 1px solid var(--sr-border);
+  padding: 10px 16px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px;
+  font-size: 12px;
+}
+.hz b { font-size: 12px; font-weight: 700; letter-spacing: -0.01em; }
+.hz-grp { display: flex; align-items: center; gap: 6px; }
+.hz-grp > span { color: var(--sr-text-muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; }
+.hz-btn {
+  font: inherit; font-size: 12px; cursor: pointer; padding: 5px 9px; border-radius: 6px;
+  border: 1px solid var(--sr-border-medium); background: var(--sr-surface);
+  color: var(--sr-text-muted); transition: background 120ms ease-out, border-color 120ms ease-out, color 120ms ease-out;
+}
+.hz-btn:hover { background: var(--sr-surface-subtle); border-color: var(--sr-border-input); }
+.hz-btn[aria-pressed="true"] { background: var(--sr-accent-bg); border-color: var(--sr-accent-border); color: var(--sr-accent); font-weight: 600; }
+.hz-link { font-size: 12px; color: var(--sr-accent); text-decoration: none; }
+.hz-link:hover { text-decoration: underline; }
+
+.doc { max-width: 1360px; margin: 0 auto; padding: 24px 16px 80px; }
+.doc-intro { max-width: 62ch; font-size: 13px; line-height: 1.6; color: var(--sr-text-muted); margin: 0 0 4px; }
+.doc-intro strong { color: var(--sr-text); }
+code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.92em;
+  background: var(--sr-surface-subtle); border: 1px solid var(--sr-border);
+  border-radius: 4px; padding: 0 4px; color: var(--sr-text);
+}
+.fr-h {
+  margin: 40px 0 4px; font-size: 11px; font-weight: 700; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--sr-text-muted);
+}
+.fr-s { margin: 0 0 14px; font-size: 13px; line-height: 1.6; color: var(--sr-text-muted); max-width: 68ch; }
+.fr-s b { color: var(--sr-text); font-weight: 600; }
+.frames { display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start; }
+.frame { border: 1px dashed var(--sr-border-medium); border-radius: 14px; padding: 14px; background: var(--sr-bg); }
+.frame-cap {
+  font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--sr-text-muted); margin-bottom: 10px; display: block;
+}
+.frame--wide { flex: 1 1 620px; min-width: 0; }
+.frame--phone { flex: 0 0 auto; }
+.badge {
+  display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: 0.06em;
+  text-transform: uppercase; padding: 2px 7px; border-radius: 100px; vertical-align: middle;
+  margin-left: 8px;
+}
+.badge--rec { background: var(--sr-accent-bg); color: var(--sr-accent); border: 1px solid var(--sr-accent-border); }
+.badge--alt { background: var(--sr-surface-subtle); color: var(--sr-text-muted); border: 1px solid var(--sr-border); }
+
+/* The stage: one app viewport. container-type lets the 320px frame get the
+   phone rules while the wide frame beside it keeps the desktop ones. In the
+   BUILD these are @media (max-width: 640px), the app's own breakpoint. */
+.stage { container-type: inline-size; }
+.stage--wide { width: 100%; max-width: 900px; }
+.stage--phone { width: 320px; }
+.page { display: flex; flex-direction: column; gap: 20px; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   APP SHELL PIECES (shipped, reproduced so the new card reads in context)
+   ═══════════════════════════════════════════════════════════════════════════ */
+.sr-pagehead h2 {
+  font-size: 1.375rem; font-weight: 700; margin: 0 0 4px;
+  display: flex; align-items: center; gap: 8px;
+}
+.sr-pagehead p { font-size: 0.8125rem; color: var(--sr-text-muted); }
+.sr-jump { display: flex; flex-wrap: wrap; gap: 6px; }
+.sr-jump a {
+  font-size: 0.71875rem; font-weight: 500; color: var(--sr-text-muted); text-decoration: none;
+  padding: 4px 10px; border-radius: 100px; background: var(--sr-surface-subtle);
+  border: 1px solid var(--sr-border); white-space: nowrap;
+}
+.sr-jump a.is-new { color: var(--sr-accent); border-color: var(--sr-accent-border); background: var(--sr-accent-bg); font-weight: 600; }
+
+.sr-card {
+  background: var(--sr-surface); border: 1px solid var(--sr-border); border-radius: 12px;
+  padding: clamp(14px, 4vw, 24px); box-shadow: var(--sr-card-shadow);
+}
+.sr-cardhead {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--sr-border-subtle);
+}
+.sr-cardhead .ic { color: var(--sr-accent); display: flex; }
+.sr-cardhead h3 { font-size: 0.9375rem; font-weight: 600; margin: 0; }
+.sr-divider { height: 1px; background: var(--sr-border-subtle); margin: 16px 0; }
+.sr-sublabel {
+  font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--sr-text-muted); margin: 0 0 10px;
+}
+.sr-denom { font-size: 0.6875rem; color: var(--sr-text-muted); }
+.sr-denom b { color: var(--sr-text); font-weight: 600; }
+.sr-body { font-size: 0.8125rem; line-height: 1.55; color: var(--sr-text); }
+.sr-note { font-size: 0.6875rem; line-height: 1.45; color: var(--sr-text-muted); }
+
+/* The shipped 32px two-segment ratio bar (Data Quality). */
+.sr-ratiobar { height: 32px; border-radius: 4px; overflow: hidden; display: flex; }
+.sr-ratiobar .a { background: var(--sr-accent); }
+.sr-ratiobar .b { flex: 1; background: var(--sr-chart-slate); }
+
+/* The shipped BarRow (statsPrimitives) — used here for the Data Quality excerpt. */
+.sr-barrow { display: flex; align-items: center; gap: 8px; min-height: 22px; min-width: 0; }
+.sr-barrow .lb {
+  font-size: 0.6875rem; color: var(--sr-text-muted); text-align: right;
+  flex-shrink: 1; min-width: 0; width: 7.5rem;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.sr-barrow .tk { flex: 1; min-width: 0; height: 8px; border-radius: 4px; background: var(--sr-surface-subtle); overflow: hidden; }
+.sr-barrow .fl { height: 100%; border-radius: 4px; background: var(--sr-accent); }
+.sr-barrow .vl { font-size: 0.6875rem; color: var(--sr-text-muted); flex-shrink: 0; width: 4.25rem; text-align: right; font-variant-numeric: tabular-nums; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   NEW — the Weather section's own classes (.sr-wx-*). These are what the build
+   adds to globals.css. Every colour is a token; no fixed px width holds text.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* --- A distribution row --------------------------------------------------
+   4 columns at desktop: glyph | name | track | count.
+   At the phone tier the track drops to its own full-width line rather than
+   ellipsizing "Scattered clouds" — the shipped .sr-proj-row stacking move. */
+.sr-wx-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 8.5rem) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0 0.5rem;
+  min-height: 1.375rem;
+  min-width: 0;
+}
+.sr-wx-row.no-glyph { grid-template-columns: minmax(0, 8.5rem) minmax(0, 1fr) auto; }
+.sr-wx-rows { display: flex; flex-direction: column; gap: 0.25rem; }
+
+.sr-wx-glyph {
+  font-size: 0.875rem; line-height: 1; width: 1.25rem; flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--sr-text-muted);
+}
+.sr-wx-label {
+  font-size: 0.6875rem; color: var(--sr-text); min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* Zero rows mute the NAME as well as emptying the track, so absence is carried
+   by shape (a dashed, unfilled rail) and by weight, never by colour alone. */
+.sr-wx-row.is-zero .sr-wx-label { color: var(--sr-text-muted); }
+
+.sr-wx-track {
+  height: 8px; border-radius: 4px; background: var(--sr-surface-subtle);
+  overflow: hidden; min-width: 0;
+}
+.sr-wx-track.is-thin { height: 5px; border-radius: 3px; }
+/* A band you have never birded in: no fill at all, and a dashed rail so the
+   emptiness is a deliberate mark rather than a bar too small to see. */
+.sr-wx-track.is-empty {
+  background: transparent;
+  border: 1px dashed var(--sr-border-medium);
+  height: 8px;
+}
+.sr-wx-fill {
+  display: block; height: 100%; border-radius: 4px; background: var(--sr-accent);
+  /* A non-zero count always paints: 3px is the floor, so "2 of 298" can never
+     render as the same nothing a zero band renders. */
+  min-width: 3px;
+  width: var(--w, 0%);
+  animation: sr-wx-grow 300ms cubic-bezier(0.2, 0, 0, 1) both;
+}
+.sr-wx-fill.is-dur { background: var(--sr-chart-slate); }
+@keyframes sr-wx-grow { from { width: 0; } to { width: var(--w, 0%); } }
+
+/* The per-species row carries a FIFTH element: the same band's share of all the
+   user's outings, as a muted reference beside the bird's own share. On desktop
+   it is its own column so every reference aligns; at the phone tier it drops to
+   a third line of its own, because three figures on one line crushes the label
+   at 200% text scale. */
+.sr-wx-row--sp { grid-template-columns: auto minmax(0, 8.5rem) minmax(0, 1fr) auto auto; }
+.sr-wx-row--sp.no-glyph { grid-template-columns: minmax(0, 8.5rem) minmax(0, 1fr) auto auto; }
+.sr-wx-ref {
+  font-size: 0.625rem; color: var(--sr-text-muted); white-space: nowrap;
+  font-variant-numeric: tabular-nums; padding-left: 0.5rem;
+}
+
+.sr-wx-count {
+  font-size: 0.6875rem; color: var(--sr-text-muted); text-align: right;
+  white-space: nowrap; font-variant-numeric: tabular-nums;
+}
+.sr-wx-count b { color: var(--sr-text); font-weight: 600; }
+.sr-wx-row.is-zero .sr-wx-count b { color: var(--sr-text-muted); font-weight: 400; }
+
+@container (max-width: 640px) {
+  .sr-wx-row {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    row-gap: 0.25rem;
+    padding-bottom: 0.25rem;
+  }
+  .sr-wx-row > .sr-wx-glyph { grid-area: 1 / 1; }
+  .sr-wx-row > .sr-wx-label { grid-area: 1 / 2; white-space: normal; overflow: visible; }
+  .sr-wx-row > .sr-wx-count { grid-area: 1 / 3; }
+  .sr-wx-row > .sr-wx-track { grid-area: 2 / 1 / 3 / 4; }
+  .sr-wx-row.no-glyph { grid-template-columns: minmax(0, 1fr) auto; }
+  .sr-wx-row.no-glyph > .sr-wx-label { grid-area: 1 / 1; }
+  .sr-wx-row.no-glyph > .sr-wx-count { grid-area: 1 / 2; }
+  .sr-wx-row.no-glyph > .sr-wx-track { grid-area: 2 / 1 / 3 / 3; }
+  .sr-wx-rows { gap: 0.375rem; }
+
+  /* The species row's reference figure takes a third line rather than crowding
+     the identity line. Same columns as the base row; only the extra child moves. */
+  .sr-wx-row--sp { grid-template-columns: auto minmax(0, 1fr) auto; }
+  .sr-wx-row--sp > .sr-wx-ref { grid-area: 3 / 1 / 4 / 4; padding-left: 0; }
+  .sr-wx-row--sp.no-glyph { grid-template-columns: minmax(0, 1fr) auto; }
+  .sr-wx-row--sp.no-glyph > .sr-wx-ref { grid-area: 3 / 1 / 4 / 3; padding-left: 0; }
+}
+
+/* --- The coverage opener ------------------------------------------------- */
+.sr-wx-cov { display: flex; flex-direction: column; gap: 10px; }
+
+/* --- A band block: one band, two lanes (species, then time out) ---------- */
+.sr-wx-bands { display: flex; flex-direction: column; gap: 0.75rem; }
+.sr-wx-band { display: flex; flex-direction: column; gap: 0.3125rem; min-width: 0; }
+.sr-wx-bandhead {
+  display: flex; align-items: baseline; justify-content: space-between;
+  flex-wrap: wrap; gap: 0 0.5rem; min-width: 0;
+}
+.sr-wx-bandhead .nm {
+  font-size: 0.75rem; font-weight: 600; color: var(--sr-text);
+  display: inline-flex; align-items: center; gap: 0.375rem; min-width: 0;
+}
+.sr-wx-bandhead .n { font-size: 0.6875rem; color: var(--sr-text-muted); font-variant-numeric: tabular-nums; }
+.sr-wx-band.is-zero .sr-wx-bandhead .nm { color: var(--sr-text-muted); font-weight: 500; }
+
+.sr-wx-lane { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0 0.625rem; align-items: center; min-width: 0; }
+.sr-wx-fig { font-size: 0.6875rem; color: var(--sr-text-muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.sr-wx-fig b { color: var(--sr-text); font-weight: 600; }
+.sr-wx-fig .dn { color: var(--sr-text-muted); }
+/* The two "nothing here" sentences. They are deliberately different sentences,
+   in different registers, because they are different facts. */
+.sr-wx-thin { font-size: 0.6875rem; color: var(--sr-text-muted); font-style: italic; }
+.sr-wx-none { font-size: 0.6875rem; color: var(--sr-text-muted); }
+
+@container (max-width: 640px) {
+  .sr-wx-lane { grid-template-columns: minmax(0, 1fr); row-gap: 0.1875rem; }
+  .sr-wx-fig { white-space: normal; }
+}
+
+/* --- Segmented axis toggle (the shipped A–Z / Taxonomic register) --------- */
+.sr-wx-seg {
+  display: inline-flex; border: 1.5px solid var(--sr-accent-border); border-radius: 6px; overflow: hidden;
+}
+.sr-wx-seg button {
+  height: 26px; padding: 0 10px; border: none; background: transparent;
+  color: var(--sr-text-muted); font-size: 0.6875rem; font-weight: 500; font-family: inherit;
+  cursor: pointer; white-space: nowrap;
+  transition: background 120ms ease-out, color 120ms ease-out;
+}
+.sr-wx-seg button + button { border-left: 1.5px solid var(--sr-accent-border); }
+.sr-wx-seg button[aria-pressed="true"] { background: var(--sr-accent-bg); color: var(--sr-accent); font-weight: 600; }
+.sr-wx-seg button:not([aria-pressed="true"]):hover { background: var(--sr-surface-subtle); }
+@container (max-width: 640px) {
+  .sr-wx-seg { width: 100%; }
+  .sr-wx-seg button { flex: 1; min-height: 2.75rem; height: auto; }
+}
+
+/* --- Legend -------------------------------------------------------------- */
+.sr-wx-legend { display: flex; flex-wrap: wrap; gap: 0.25rem 0.875rem; font-size: 0.6875rem; color: var(--sr-text-muted); }
+.sr-wx-legend span { display: inline-flex; align-items: center; gap: 0.375rem; }
+.sr-wx-key { width: 14px; border-radius: 2px; flex-shrink: 0; }
+.sr-wx-key.k-sp { height: 8px; background: var(--sr-accent); }
+.sr-wx-key.k-du { height: 5px; background: var(--sr-chart-slate); }
+.sr-wx-key.k-zero { height: 8px; background: transparent; border: 1px dashed var(--sr-border-medium); }
+
+/* --- Backlog route (an in-app tab move, so a button, never an anchor) ----- */
+.sr-wx-route {
+  display: inline-block;
+  background: none; border: none; padding: 8px 0; margin: 0;
+  font-family: inherit; font-size: 0.75rem; font-weight: 600; line-height: 1.45;
+  color: var(--sr-accent); cursor: pointer; text-align: left;
+}
+.sr-wx-route:hover { text-decoration: underline; }
+/* The glyph sits INSIDE the label's text flow, so at 200% text scale on a
+   phone it follows the last word onto its line instead of stranding itself
+   beside a two-line block. */
+.sr-wx-route svg {
+  vertical-align: -0.125em; margin-left: 0.25em;
+  transition: transform 140ms cubic-bezier(0.2, 0, 0, 1);
+}
+.sr-wx-route:hover svg { transform: translateX(2px); }
+
+/* --- Species picker + its readout ---------------------------------------- */
+/* The picker owns a full-width row of its own with the readout BELOW it. It was
+   a two-column grid until the build measured the result: at that column width
+   the common name and the scientific name were both being cut. Not up for
+   revision. */
+.sr-wx-pick { display: block; margin-bottom: 0.75rem; }
+.sr-wx-lede { font-size: 0.8125rem; line-height: 1.55; color: var(--sr-text); }
+.sr-wx-lede .sp { color: var(--sr-accent); font-weight: 600; }
+.sr-wx-lede .sci { font-style: italic; font-size: 0.71875rem; color: var(--sr-text-gray); }
+.sr-wx-pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.25rem; }
+
+/* Combobox (shipped SpeciesCombobox, `panel` register: 34px box, 0.8125rem,
+   radius 6, FULL WIDTH). The `sm` register's 220px cap is what was cutting both
+   names, so this picker takes the panel size and the whole row. */
+.sr-cb { position: relative; min-width: 0; z-index: 20; }
+.sr-cb-in {
+  width: 100%; height: 2.125rem; padding: 0 2.125rem 0 1.875rem;
+  border: 1.5px solid var(--sr-border-input); border-radius: 6px;
+  font-size: 0.8125rem; font-family: inherit; color: var(--sr-text);
+  background: var(--sr-surface); transition: border-color 150ms ease-out; min-width: 0;
+}
+.sr-cb.is-open .sr-cb-in { border-color: var(--sr-accent); border-radius: 6px 6px 0 0; border-bottom-color: transparent; }
+.sr-cb-ic { position: absolute; left: 9px; top: 50%; transform: translateY(-50%); color: var(--sr-text-muted); pointer-events: none; display: flex; }
+.sr-cb-tg {
+  position: absolute; right: 7px; top: 50%; transform: translateY(-50%);
+  background: transparent; border: none; padding: 4px; cursor: pointer;
+  color: var(--sr-text-muted); display: flex; transition: transform 150ms ease-out;
+}
+.sr-cb.is-open .sr-cb-tg { transform: translateY(-50%) rotate(180deg); }
+.sr-cb-list {
+  position: absolute; top: 100%; left: 0; right: 0;
+  background: var(--sr-surface); border: 1.5px solid var(--sr-accent); border-top: none;
+  border-radius: 0 0 6px 6px; box-shadow: var(--sr-combobox-shadow);
+  max-height: 16.25rem; overflow-y: auto; z-index: 1200;
+  transform-origin: top center;
+  animation: sr-cb-in 140ms cubic-bezier(0.2, 0, 0, 1) both;
+}
+@keyframes sr-cb-in { from { opacity: 0; transform: scaleY(0.94); } to { opacity: 1; transform: scaleY(1); } }
+.sr-cb-opt { display: flex; align-items: center; gap: 10px; padding: 9px 14px; cursor: pointer; }
+.sr-cb-opt[aria-selected="true"] { background: var(--sr-accent-bg); }
+.sr-cb-opt.is-active { background: var(--sr-accent-bg-hover); outline: 2px solid var(--sr-accent); outline-offset: -2px; }
+.sr-cb-opt .ck { width: 16px; flex-shrink: 0; color: var(--sr-accent); display: flex; }
+.sr-cb-opt .nm { font-size: 0.84375rem; font-weight: 500; color: var(--sr-text); flex: 1; }
+.sr-cb-opt[aria-selected="true"] .nm { color: var(--sr-accent); }
+.sr-cb-opt.is-all .nm { font-style: italic; }
+.sr-cb-opt .sci { font-size: 0.6875rem; font-style: italic; color: var(--sr-text-muted); flex: 0 1 auto; max-width: 40%; text-align: right; }
+
+/* --- The two zero-coverage candidates ------------------------------------ */
+.sr-wx-zerocard .sr-body { max-width: 56ch; }
+.sr-wx-absent {
+  border: 1px dashed var(--sr-border-medium); border-radius: 12px;
+  padding: clamp(14px, 4vw, 24px); background: transparent;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.sr-wx-absent .t { font-size: 0.75rem; font-weight: 600; color: var(--sr-text-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Reduced motion — the app's own global block, verbatim. Every entrance in
+   this design is a nicety over content that is already fully readable.
+   ═══════════════════════════════════════════════════════════════════════════ */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+</style>
+</head>
+<body>
+
+<div class="hz">
+  <b>SnowRaven &middot; Weather section</b>
+  <div class="hz-grp">
+    <span>Theme</span>
+    <button class="hz-btn" tabindex="0" data-theme-set="light" aria-pressed="true">Light</button>
+    <button class="hz-btn" tabindex="0" data-theme-set="dark" aria-pressed="false">Dark</button>
+    <button class="hz-btn" tabindex="0" data-theme-set="system" aria-pressed="false">System</button>
+  </div>
+  <div class="hz-grp">
+    <span>Text size</span>
+    <button class="hz-btn" tabindex="0" data-scale="1" aria-pressed="true">100%</button>
+    <button class="hz-btn" tabindex="0" data-scale="1.5" aria-pressed="false">150%</button>
+    <button class="hz-btn" tabindex="0" data-scale="2" aria-pressed="false">200%</button>
+  </div>
+  <div class="hz-grp">
+    <span>Width</span>
+    <button class="hz-btn" tabindex="0" data-width="900" aria-pressed="true">900</button>
+    <button class="hz-btn" tabindex="0" data-width="640" aria-pressed="false">640</button>
+    <button class="hz-btn" tabindex="0" data-width="375" aria-pressed="false">375</button>
+  </div>
+  <button class="hz-btn" tabindex="0" id="replay">Replay bars</button>
+  <a class="hz-link" tabindex="0" href="#f1">In place</a>
+  <a class="hz-link" tabindex="0" href="#f2">At 320px</a>
+  <a class="hz-link" tabindex="0" href="#f3">Thin &amp; zero</a>
+</div>
+
+<div class="doc">
+
+  <p class="doc-intro" style="margin-top:18px">
+    <strong>A first design direction, not a final one.</strong> This is the Weather section as a new
+    <code>SectionCard</code> on the Statistics tab, sitting directly after Data Quality. Everything below is
+    live: the theme, the text size and the width controls above all really re-render it, the species picker
+    really filters, and the bars really animate. Numbers are shaped like a serious California birder's
+    export &mdash; 1,214 checklists, 308 carrying a SnowRaven or RainCrow weather block.
+  </p>
+
+  <!-- ══════════════════════════════════════════════════════════════════════
+       FRAME 1 — the section in place
+       ══════════════════════════════════════════════════════════════════════ -->
+  <h2 class="fr-h" id="f1">1 &middot; The section in place</h2>
+  <p class="fr-s">
+    The Data Quality card above it is the shipped one, included so you can see the two agree: the section's
+    coverage figure is <b>the same 308</b> as Data Quality's "Any weather" bar, because both use the
+    attribution gate. The jump-nav gains one pill.
+  </p>
+
+  <div class="frames">
+    <div class="frame frame--wide">
+      <span class="frame-cap">Desktop &mdash; the stage width follows the Width control</span>
+      <div class="stage stage--wide" id="stage-wide">
+        <div class="page">
+
+          <!-- shipped page header -->
+          <div class="sr-pagehead">
+            <h2>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--sr-accent)" aria-hidden="true"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+              Statistics
+            </h2>
+            <p>1,214 checklists &middot; eBird backup: 2 days ago</p>
+          </div>
+
+          <!-- shipped jump-nav, with the new entry -->
+          <nav class="sr-jump" aria-label="Jump to section">
+            <a tabindex="0" class="sr-touch-target" href="#f1">Effort &amp; Outings</a>
+            <a tabindex="0" class="sr-touch-target" href="#f1">Projects</a>
+            <a tabindex="0" class="sr-touch-target" href="#f1">Data Quality</a>
+            <a tabindex="0" class="sr-touch-target is-new" href="#f1">Weather</a>
+            <a tabindex="0" class="sr-touch-target" href="#f1">Highlights &amp; Records</a>
+            <a tabindex="0" class="sr-touch-target" href="#f1">Breeding Stats</a>
+          </nav>
+
+          <!-- ── SHIPPED CARD (excerpt, for context) ── -->
+          <div class="sr-card" aria-label="Data Quality, excerpt">
+            <div class="sr-cardhead">
+              <span class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg></span>
+              <h3>Data Quality</h3>
+              <span class="sr-denom" style="margin-left:auto">shipped &mdash; unchanged</span>
+            </div>
+            <div class="sr-action-row" style="margin:0 0 10px">
+              <p class="sr-sublabel" style="margin:0">Weather &amp; tide blocks</p>
+              <span class="sr-denom">of 1,214 checklists</span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:4px">
+              <div class="sr-barrow"><span class="lb">Any weather</span><div class="tk"><div class="fl" style="width:100%"></div></div><span class="vl">308 (25%)</span></div>
+              <div class="sr-barrow"><span class="lb">Raincrow weather</span><div class="tk"><div class="fl" style="width:20.1%;background:var(--sr-chart-slate)"></div></div><span class="vl">62 (5%)</span></div>
+              <div class="sr-barrow"><span class="lb">SnowRaven weather</span><div class="tk"><div class="fl" style="width:79.9%;background:var(--sr-chart-slate)"></div></div><span class="vl">246 (20%)</span></div>
+            </div>
+          </div>
+
+          <!-- ══════════ THE NEW CARD ══════════ -->
+          <div class="sr-card" id="wx-card-wide"></div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════════
+       FRAME 2 — 320px
+       ══════════════════════════════════════════════════════════════════════ -->
+  <h2 class="fr-h" id="f2">2 &middot; The same section at 320px</h2>
+  <p class="fr-s">
+    The hardest part of this layout, so it is shown rather than promised. Every row keeps its full label
+    &mdash; nothing is ellipsized to "Scatte&hellip;" &mdash; because at the phone tier the bar drops to its own
+    line beneath the name and count. That is the shipped <code>.sr-proj-row</code> stacking move.
+    <b>Try the 200% Text size button with this frame in view</b>: the names wrap, the bars keep their full
+    width, and nothing forces the page sideways.
+  </p>
+
+  <div class="frames">
+    <div class="frame frame--phone">
+      <span class="frame-cap">320px &mdash; fixed, ignores the Width control</span>
+      <div class="stage stage--phone" id="stage-phone">
+        <div class="page">
+          <div class="sr-card" id="wx-card-phone"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="frame frame--wide" style="align-self:stretch">
+      <span class="frame-cap">What the 320px rules do</span>
+      <div class="sr-body" style="line-height:1.7">
+        <p style="margin-bottom:10px"><b>Distribution rows</b> go from <code>glyph | name | bar | count</code>
+        to two lines: <code>glyph | name | count</code> over a full-width bar. The name gets
+        <code>white-space: normal</code> so it wraps instead of truncating.</p>
+        <p style="margin-bottom:10px"><b>Band blocks</b> (species and time out) drop their figure under its own
+        bar, so each bar still sits directly above the number it draws.</p>
+        <p style="margin-bottom:10px"><b>The axis toggle</b> goes full width and takes the 2.75rem touch
+        posture, matching every other phone-tier control in the app.</p>
+        <p style="margin-bottom:10px"><b>The species picker</b> takes the full column width; its
+        <code>sm</code> 220px cap is lifted only at the phone tier.</p>
+        <p><b>No positive <code>min-width</code></b> anywhere in the section, so it cannot leak horizontal
+        page scroll at 320px and 200% text.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════════
+       FRAME 3 — thin and zero
+       ══════════════════════════════════════════════════════════════════════ -->
+  <h2 class="fr-h" id="f3">3 &middot; Thin coverage, and the zero question</h2>
+  <p class="fr-s">
+    Below five readable blocks the section renders its coverage line, a route to the Weather Backlog, and
+    nothing else. At <b>exactly zero</b> the brief and the PRD disagree, so both candidates are drawn.
+  </p>
+
+  <div class="frames">
+    <div class="frame frame--wide">
+      <span class="frame-cap">Thin &mdash; 3 readable blocks (below the floor of 5)</span>
+      <div class="stage stage--wide" style="max-width:640px">
+        <div class="sr-card">
+          <div class="sr-cardhead">
+            <span class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="M20 12h2"/><path d="m19.07 4.93-1.41 1.41"/><path d="M15.947 12.65a4 4 0 0 0-5.925-4.128"/><path d="M13 22H7a5 5 0 1 1 4.9-6H13a3 3 0 0 1 0 6Z"/></svg></span>
+            <h3>Weather</h3>
+          </div>
+          <p class="sr-body" style="margin-bottom:10px">
+            You have <b>3</b> checklists with a readable weather block. That is not enough to chart yet.
+          </p>
+          <p class="sr-note" style="margin-bottom:2px">
+            Every figure here is about the checklists that carry a weather block SnowRaven or RainCrow wrote,
+            so filling in more blocks is what sharpens it.
+          </p>
+          <button class="sr-wx-route" tabindex="0" type="button"><span>Fill in the gaps on the Weather tab<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></span></button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="frames" style="margin-top:20px">
+    <div class="frame frame--wide">
+      <span class="frame-cap">Zero &mdash; candidate A: the section is absent <span class="badge badge--rec">my recommendation</span></span>
+      <div class="stage stage--wide" style="max-width:560px">
+        <div class="page">
+          <nav class="sr-jump" aria-label="Jump to section, zero coverage">
+            <a tabindex="0" class="sr-touch-target" href="#f3">Projects</a>
+            <a tabindex="0" class="sr-touch-target" href="#f3">Data Quality</a>
+            <a tabindex="0" class="sr-touch-target" href="#f3">Highlights &amp; Records</a>
+          </nav>
+          <div class="sr-wx-absent">
+            <span class="t">No Weather card, no Weather pill</span>
+            <p class="sr-note" style="line-height:1.6">
+              Nothing renders. This is the shipped behaviour one card up: Data Quality's own weather bars do
+              not draw at zero either, and the Media jump-nav entry is built the same way. The stated cost is
+              real &mdash; a user at zero gets no route to the Weather Backlog from Statistics.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="frame frame--wide">
+      <span class="frame-cap">Zero &mdash; candidate B: one plain statement <span class="badge badge--alt">the brief's promise</span></span>
+      <div class="stage stage--wide" style="max-width:560px">
+        <div class="page">
+          <nav class="sr-jump" aria-label="Jump to section, zero coverage alternative">
+            <a tabindex="0" class="sr-touch-target" href="#f3">Projects</a>
+            <a tabindex="0" class="sr-touch-target" href="#f3">Data Quality</a>
+            <a tabindex="0" class="sr-touch-target is-new" href="#f3">Weather</a>
+            <a tabindex="0" class="sr-touch-target" href="#f3">Highlights &amp; Records</a>
+          </nav>
+          <div class="sr-card sr-wx-zerocard">
+            <div class="sr-cardhead">
+              <span class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="M20 12h2"/><path d="m19.07 4.93-1.41 1.41"/><path d="M15.947 12.65a4 4 0 0 0-5.925-4.128"/><path d="M13 22H7a5 5 0 1 1 4.9-6H13a3 3 0 0 1 0 6Z"/></svg></span>
+              <h3>Weather</h3>
+            </div>
+            <p class="sr-body" style="margin-bottom:10px">
+              None of your 1,214 checklists carry a weather block that SnowRaven or RainCrow wrote, so there
+              is nothing to read back here yet. SnowRaven writes one every time you look up a checklist's
+              weather; paste it into the comment and it comes home in your next backup.
+            </p>
+            <button class="sr-wx-route" tabindex="0" type="button"><span>Start on the Weather tab<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></span></button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════════════
+   DATA — shaped like a real Northern California export. Nothing is lorem.
+   ═══════════════════════════════════════════════════════════════════════════ */
+var COVER = {
+  totalChecklists: 1214,
+  found: 308,
+  readable: 301,
+  unreadable: 7,
+  medianTempSpanF: 6
+};
+
+/* Display order is sky clarity, clear to foul, with the 🌡️ fallback pinned
+   last as the residual row. `index` is the wire contract and travels with the
+   row, so this reordering costs nothing. */
+var CONDITIONS = [
+  { index: 5,  glyph: '☀️',       label: 'Clear',            n: 96, sp: 30.4, du: 82, dn: 92 },
+  { index: 6,  glyph: '🌤️', label: 'Few clouds',       n: 58, sp: 30.9, du: 83, dn: 56 },
+  { index: 7,  glyph: '⛅',             label: 'Scattered clouds', n: 41, sp: 29.1, du: 78, dn: 39 },
+  { index: 8,  glyph: '🌥️', label: 'Broken clouds',    n: 34, sp: 28.6, du: 77, dn: 33 },
+  { index: 9,  glyph: '☁️',       label: 'Overcast',         n: 44, sp: 26.7, du: 71, dn: 42 },
+  { index: 4,  glyph: '🌫️', label: 'Fog',              n: 12, sp: 22.8, du: null, dn: 5 },
+  { index: 1,  glyph: '🌦️', label: 'Drizzle',          n: 6,  sp: null, du: null, dn: 6 },
+  { index: 2,  glyph: '🌧️', label: 'Rain',             n: 5,  sp: null, du: null, dn: 5 },
+  { index: 3,  glyph: '❄️',       label: 'Snow',             n: 0,  sp: null, du: null, dn: 0 },
+  { index: 0,  glyph: '⛈️',       label: 'Thunderstorm',     n: 0,  sp: null, du: null, dn: 0 },
+  { index: 10, glyph: '🌡️', label: 'Other',            n: 2,  sp: null, du: null, dn: 2 }
+];
+
+var TEMPS = [
+  { index: 0, label: 'Below 32°F', n: 1,   sp: null, du: null, dn: 1 },
+  { index: 1, label: '32 to 44°F', n: 18,  sp: 21.4, du: 63,   dn: 17 },
+  { index: 2, label: '45 to 54°F', n: 71,  sp: 27.8, du: 79,   dn: 68 },
+  { index: 3, label: '55 to 64°F', n: 108, sp: 31.2, du: 84,   dn: 103 },
+  { index: 4, label: '65 to 74°F', n: 63,  sp: 29.6, du: 76,   dn: 60 },
+  { index: 5, label: '75 to 84°F', n: 27,  sp: 24.9, du: 58,   dn: 25 },
+  { index: 6, label: '85°F and up', n: 6,  sp: null, du: null, dn: 6 }
+];
+
+var WINDS = [
+  { index: 0, label: 'Calm',            n: 62 },
+  { index: 1, label: 'Mostly calm',     n: 71 },
+  { index: 2, label: 'Light breeze',    n: 78 },
+  { index: 3, label: 'Gentle breeze',   n: 48 },
+  { index: 4, label: 'Moderate breeze', n: 21 },
+  { index: 5, label: 'Fresh breeze',    n: 7 },
+  { index: 6, label: 'Strong breeze',   n: 2 },
+  { index: 7, label: 'Near gale',       n: 0 },
+  { index: 8, label: 'Gale',            n: 0 }
+];
+
+var DAYNIGHT = { day: 289, night: 9, denominator: 298 };
+
+var BAND_MIN = 8;   /* WEATHER_BAND_MIN_TO_SHOW */
+
+/* Species. `profile` shapes a believable seasonal skew; the distribution is
+   then apportioned over the real band totals by largest remainder and clamped,
+   so no species can appear on more checklists than a band actually holds. */
+var SPECIES = [
+  ['Acorn Woodpecker','Melanerpes formicivorus','res',97],
+  ['American Kestrel','Falco sparverius','res',41],
+  ["Anna's Hummingbird",'Calypte anna','res',186],
+  ["Bewick's Wren",'Thryomanes bewickii','res',121],
+  ['Black Phoebe','Sayornis nigricans','res',168],
+  ['Bushtit','Psaltriparus minimus','res',132],
+  ['California Quail','Callipepla californica','res',64],
+  ['California Scrub-Jay','Aphelocoma californica','res',201],
+  ['California Towhee','Melozone crissalis','res',174],
+  ['Cedar Waxwing','Bombycilla cedrorum','win',52],
+  ['Golden-crowned Sparrow','Zonotrichia atricapilla','win',88],
+  ['Hermit Thrush','Catharus guttatus','win',47],
+  ['House Finch','Haemorhous mexicanus','res',193],
+  ['Lesser Goldfinch','Spinus psaltria','res',156],
+  ['Northern Mockingbird','Mimus polyglottos','res',83],
+  ["Nuttall's Woodpecker",'Dryobates nuttallii','res',92],
+  ['Oak Titmouse','Baeolophus inornatus','res',105],
+  ['Olive-sided Flycatcher','Contopus cooperi','sum',14],
+  ['Pacific-slope Flycatcher','Empidonax difficilis','sum',38],
+  ['Red-tailed Hawk','Buteo jamaicensis','res',118],
+  ['Ruby-crowned Kinglet','Corthylio calendula','win',78],
+  ["Say's Phoebe",'Sayornis saya','win',34],
+  ['Song Sparrow','Melospiza melodia','res',159],
+  ['Spotted Towhee','Pipilo maculatus','res',128],
+  ['Turkey Vulture','Cathartes aura','res',141],
+  ['Varied Thrush','Ixoreus naevius','win',11],
+  ['Western Bluebird','Sialia mexicana','res',76],
+  ['White-crowned Sparrow','Zonotrichia leucophrys','win',112],
+  ['Wrentit','Chamaea fasciata','res',69],
+  ['Yellow-rumped Warbler','Setophaga coronata','win',143]
+];
+
+/* Weights are in DISPLAY order for each axis. */
+var COND_W = {
+  win: [0.8, 0.9, 1.0, 1.2, 1.4, 1.3, 1.4, 1.2, 1, 1, 1.0],
+  res: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+  sum: [1.25, 1.15, 1.0, 0.8, 0.6, 0.5, 0.3, 0.2, 0, 0, 0.8]
+};
+var TEMP_W = {
+  win: [1.0, 1.7, 1.5, 0.85, 0.25, 0.05, 0],
+  res: [1, 1, 1, 1, 1, 1, 1],
+  sum: [0, 0.05, 0.2, 0.7, 1.5, 1.8, 1.5]
+};
+
+/* Apportion `total` over `totals` weighted by `w`, clamped to each total.
+   Largest remainder, so the parts sum to exactly what is claimed. */
+function apportion(total, totals, w) {
+  var i, raw = [], sum = 0;
+  for (i = 0; i < totals.length; i++) { raw[i] = totals[i] * w[i]; sum += raw[i]; }
+  if (sum <= 0) { return totals.map(function () { return 0; }); }
+  var out = [], rem = [], used = 0;
+  for (i = 0; i < totals.length; i++) {
+    var v = total * raw[i] / sum;
+    var f = Math.min(Math.floor(v), totals[i]);
+    out[i] = f; rem[i] = [v - Math.floor(v), i]; used += f;
+  }
+  rem.sort(function (a, b) { return b[0] - a[0]; });
+  var k = 0;
+  while (used < total && k < rem.length * 4) {
+    var idx = rem[k % rem.length][1];
+    if (out[idx] < totals[idx]) { out[idx]++; used++; }
+    k++;
+  }
+  return out;
+}
+
+function speciesData(name) {
+  var row = null, i;
+  for (i = 0; i < SPECIES.length; i++) { if (SPECIES[i][0] === name) { row = SPECIES[i]; break; } }
+  if (!row) return null;
+  var prof = row[2], total = row[3];
+  var condTotals = CONDITIONS.map(function (c) { return c.n; });
+  var tempTotals = TEMPS.map(function (t) { return t.n; });
+  /* The species is on `total` readable-block checklists; of those, the share
+     carrying each field mirrors the section's own coverage. */
+  var condTotal = Math.round(total * 298 / 301);
+  var tempTotal = Math.round(total * 294 / 301);
+  return {
+    name: row[0], sci: row[1], total: total,
+    condTotal: condTotal, tempTotal: tempTotal,
+    cond: apportion(condTotal, condTotals, COND_W[prof]),
+    temp: apportion(tempTotal, tempTotals, TEMP_W[prof])
+  };
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   RENDER
+   ═══════════════════════════════════════════════════════════════════════════ */
+function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+function n(v) { return v.toLocaleString('en-US'); }
+/* A share that is not zero never PRINTS as zero: it floors at "<1%". The band
+   below freezing really does hold one outing, and "0%" beside it would read as
+   the same nothing the empty bands read as. Same idea as the shipped share
+   breakdown's 0.1% floor for a non-zero row. */
+function pct(a, b) {
+  if (b <= 0 || a === 0) return '0%';
+  var p = Math.round(a / b * 100);
+  return p === 0 ? '&lt;1%' : p + '%';
+}
+
+var ICON_WX = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="M20 12h2"/><path d="m19.07 4.93-1.41 1.41"/><path d="M15.947 12.65a4 4 0 0 0-5.925-4.128"/><path d="M13 22H7a5 5 0 1 1 4.9-6H13a3 3 0 0 1 0 6Z"/></svg>';
+var ICON_SUN = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>';
+var ICON_MOON = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>';
+var ICON_ARROW = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>';
+var ICON_SEARCH = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>';
+var ICON_CHEV = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
+var ICON_CHECK = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>';
+
+/* A distribution row. `count`/`sub` are always text, so the bar is
+   reinforcement only and never the sole carrier of a value. */
+function distRow(o) {
+  var zero = o.n === 0;
+  var w = o.max > 0 ? (o.n / o.max * 100) : 0;
+  var cls = 'sr-wx-row' + (o.glyph ? '' : ' no-glyph') + (zero ? ' is-zero' : '');
+  var h = '<div class="' + cls + '">';
+  if (o.glyph) h += '<span class="sr-wx-glyph" aria-hidden="true">' + o.glyph + '</span>';
+  h += '<span class="sr-wx-label">' + esc(o.label) + '</span>';
+  /* The rail is reinforcement only: every value on the row is already text, so
+     it is aria-hidden rather than given a role of its own. */
+  h += zero
+    ? '<div class="sr-wx-track is-empty" aria-hidden="true"></div>'
+    : '<div class="sr-wx-track" aria-hidden="true"><span class="sr-wx-fill" style="--w:' + w.toFixed(2) + '%"></span></div>';
+  h += '<span class="sr-wx-count"><b>' + n(o.n) + '</b> ' + o.sub + '</span>';
+  return h + '</div>';
+}
+
+function distGroup(title, denomText, rows, note) {
+  var max = 0, i;
+  for (i = 0; i < rows.length; i++) { if (rows[i].n > max) max = rows[i].n; }
+  var sum = 0;
+  for (i = 0; i < rows.length; i++) sum += rows[i].n;
+  var h = '<div class="sr-action-row" style="margin:0 0 10px">' +
+          '<p class="sr-sublabel" style="margin:0">' + esc(title) + '</p>' +
+          '<span class="sr-denom">' + denomText + '</span></div>';
+  h += '<div class="sr-wx-rows">';
+  for (i = 0; i < rows.length; i++) {
+    h += distRow({
+      glyph: rows[i].glyph, label: rows[i].label, n: rows[i].n, max: max,
+      sub: '<span aria-hidden="true">&middot;</span> ' + pct(rows[i].n, sum)
+    });
+  }
+  h += '</div>';
+  if (note) h += '<p class="sr-note" style="margin-top:8px">' + note + '</p>';
+  return h;
+}
+
+/* A band block for the species + duration pair. Three visually distinct
+   outcomes: full (two bars), thin (a sentence), zero (a different sentence). */
+function bandBlock(r, maxSp, maxDu, unit) {
+  var zero = r.n === 0;
+  var thin = !zero && r.n < BAND_MIN;
+  var h = '<div class="sr-wx-band' + (zero ? ' is-zero' : '') + '">';
+  h += '<div class="sr-wx-bandhead"><span class="nm">' +
+       (r.glyph ? '<span aria-hidden="true">' + r.glyph + '</span>' : '') +
+       esc(r.label) + '</span>' +
+       '<span class="n">' + n(r.n) + (r.n === 1 ? ' checklist' : ' checklists') + '</span></div>';
+  if (zero) {
+    h += '<p class="sr-wx-none">No outings in this ' + unit + '.</p>';
+  } else if (thin) {
+    h += '<p class="sr-wx-thin">Too few to average.</p>';
+  } else {
+    h += '<div class="sr-wx-lane">' +
+         '<div class="sr-wx-track" aria-hidden="true"><span class="sr-wx-fill" style="--w:' + (r.sp / maxSp * 100).toFixed(2) + '%"></span></div>' +
+         '<span class="sr-wx-fig"><b>' + r.sp.toFixed(1) + '</b> species per checklist</span></div>';
+    if (r.du === null) {
+      /* The band has enough checklists to average SPECIES but not enough with a
+         recorded time. No rail is drawn: an empty rail here would read as the
+         zero-band treatment, which means something else entirely. */
+      h += '<p class="sr-wx-thin">Only ' + n(r.dn) + ' of these have a recorded time, too few to average.</p>';
+    } else {
+      h += '<div class="sr-wx-lane">' +
+           '<div class="sr-wx-track is-thin" aria-hidden="true"><span class="sr-wx-fill is-dur" style="--w:' + (r.du / maxDu * 100).toFixed(2) + '%"></span></div>' +
+           '<span class="sr-wx-fig"><b>' + n(r.du) + ' min</b> out <span class="dn">&middot; from ' + n(r.dn) + ' with a time</span></span></div>';
+    }
+  }
+  return h + '</div>';
+}
+
+/* ── The card body ────────────────────────────────────────────────────────── */
+function cardHtml(id, state) {
+  var covPct = Math.round(COVER.readable / COVER.totalChecklists * 100);
+  var h = '';
+
+  /* Head */
+  h += '<div class="sr-cardhead"><span class="ic">' + ICON_WX + '</span><h3>Weather</h3></div>';
+
+  /* 1 — Coverage, before any chart */
+  h += '<div class="sr-wx-cov">';
+  h += '<div class="sr-action-row"><p class="sr-sublabel" style="margin:0">Checklists with a weather block</p>' +
+       '<span class="sr-denom"><b>' + covPct + '%</b> &middot; ' + n(COVER.readable) + ' of ' + n(COVER.totalChecklists) + '</span></div>';
+  h += '<div class="sr-ratiobar" aria-hidden="true"><div class="a" style="width:' + (COVER.readable / COVER.totalChecklists * 100).toFixed(2) + '%"></div><div class="b"></div></div>';
+  h += '<p class="sr-body">These figures cover the <b>' + n(COVER.readable) + '</b> checklists that carry a weather block ' +
+       'SnowRaven or RainCrow wrote. That is ' + covPct + '% of your ' + n(COVER.totalChecklists) + ' checklists. ' +
+       n(COVER.unreadable) + ' more carry a block this app could not read.</p>';
+  /* The loop, kept quiet and kept NUMBERLESS. The Weather Backlog counts blocks
+     with a looser test than this card does, so a "checklists with no block"
+     figure here would sit on screen disagreeing with the backlog's own. */
+  h += '<button class="sr-wx-route" tabindex="0" type="button" style="align-self:flex-start;padding-top:0">' +
+       '<span>Fill in the gaps on the Weather tab' + ICON_ARROW + '</span></button>';
+  h += '</div>';
+
+  /* 2 — Distributions */
+  h += '<div class="sr-divider"></div>';
+  h += '<p class="sr-sublabel" style="margin-bottom:4px">Your outings by weather</p>';
+  h += '<p class="sr-note" style="margin-bottom:14px">Each axis counts the readable blocks that carried that field, ' +
+       'so the three totals differ: a checklist can have a temperature and no wind.</p>';
+
+  h += distGroup('By sky', '<b>298</b> with a sky condition', CONDITIONS,
+    'A checklist is grouped by the sky glyph in its own block, not by the weather service’s wording. ' +
+    '<b>Other</b> is the glyph SnowRaven writes when the service returns a sky code it has no category for; ' +
+    'the temperature and wind in those blocks still count everywhere else on this card.');
+
+  h += '<div style="height:18px"></div>';
+  h += distGroup('By temperature', '<b>294</b> with a temperature', TEMPS,
+    'A block records a range, because it covers every hour of the outing. Each checklist is counted <b>once</b>, ' +
+    'in the band its midpoint falls in. Half your blocks span ' + COVER.medianTempSpanF + '°F or less.');
+
+  h += '<div style="height:18px"></div>';
+  h += distGroup('By wind', '<b>289</b> with a wind reading', WINDS,
+    'Blocks record wind as a Beaufort description, so these are the app’s own bands rather than a speed.');
+
+  h += '<div style="height:18px"></div>';
+  h += '<div class="sr-action-row" style="margin:0 0 10px">' +
+       '<p class="sr-sublabel" style="margin:0">Day and night</p>' +
+       '<span class="sr-denom"><b>' + n(DAYNIGHT.denominator) + '</b> with a time of day</span></div>';
+  h += '<div class="sr-wx-rows">';
+  h += distRow({ glyph: ICON_SUN, label: 'Day', n: DAYNIGHT.day, max: DAYNIGHT.day, sub: '<span aria-hidden="true">&middot;</span> ' + pct(DAYNIGHT.day, DAYNIGHT.denominator) });
+  h += distRow({ glyph: ICON_MOON, label: 'Night', n: DAYNIGHT.night, max: DAYNIGHT.day, sub: '<span aria-hidden="true">&middot;</span> ' + pct(DAYNIGHT.night, DAYNIGHT.denominator) });
+  h += '</div>';
+  h += '<p class="sr-note" style="margin-top:8px">A block written after dark carries a moon phase beside its sky glyph, ' +
+       'which is what marks the checklist as night.</p>';
+
+  /* 3 — Species and time out */
+  h += '<div class="sr-divider"></div>';
+  var axis = state.axis;
+  var rows = axis === 'temp' ? TEMPS : CONDITIONS;
+  var unit = axis === 'temp' ? 'band' : 'condition';
+  var maxSp = 0, maxDu = 0, i;
+  for (i = 0; i < rows.length; i++) {
+    if (rows[i].sp !== null && rows[i].sp > maxSp) maxSp = rows[i].sp;
+    if (rows[i].du !== null && rows[i].du > maxDu) maxDu = rows[i].du;
+  }
+  h += '<div class="sr-action-row" style="margin:0 0 8px">' +
+       '<p class="sr-sublabel" style="margin:0">Species and time out, by weather</p>' +
+       '<div class="sr-wx-seg" role="group" aria-label="Choose the axis">' +
+       '<button tabindex="0" type="button" data-axis="temp" aria-pressed="' + (axis === 'temp') + '">Temperature</button>' +
+       '<button tabindex="0" type="button" data-axis="cond" aria-pressed="' + (axis === 'cond') + '">Sky</button>' +
+       '</div></div>';
+  h += '<p class="sr-note" style="margin-bottom:10px;line-height:1.5">Weather changes how long you stay out, ' +
+       'so a lower species count can be the weather or it can be the outing. Average time out sits beside every ' +
+       'average so you can see both.</p>';
+  h += '<div class="sr-wx-legend" style="margin-bottom:12px">' +
+       '<span><i class="sr-wx-key k-sp"></i>Species per checklist</span>' +
+       '<span><i class="sr-wx-key k-du"></i>Average time out</span>' +
+       '<span><i class="sr-wx-key k-zero"></i>No outings</span>' +
+       '<span>A band averages only once it has ' + BAND_MIN + ' checklists.</span></div>';
+  h += '<div class="sr-wx-bands">';
+  for (i = 0; i < rows.length; i++) h += bandBlock(rows[i], maxSp, maxDu, unit);
+  h += '</div>';
+
+  /* 4 — One species */
+  h += '<div class="sr-divider"></div>';
+  h += '<p class="sr-sublabel" style="margin-bottom:8px">One species, its weather</p>';
+  /* The picker owns a full-width row; the readout sits BELOW it. */
+  h += '<div class="sr-wx-pick" id="' + id + '-combohost">' + comboHtml(id, state) + '</div>';
+  var sd = state.species ? speciesData(state.species) : null;
+  if (!sd) {
+    h += '<p class="sr-wx-lede">Pick a species to see the skies and temperatures you have it on. ' +
+         '<span class="sr-note">Counts are checklists, not sightings, and they only ever cover the ' +
+         n(COVER.readable) + ' checklists with a readable block.</span></p>';
+  } else {
+    var condSum = sd.cond.reduce(function (a, b) { return a + b; }, 0);
+    var tempSum = sd.temp.reduce(function (a, b) { return a + b; }, 0);
+    h += '<p class="sr-wx-lede"><span class="sp">' + esc(sd.name) + '</span> ' +
+         '<span class="sci">' + esc(sd.sci) + '</span><br>' +
+         'is on <b>' + n(sd.total) + '</b> of your ' + n(COVER.readable) + ' weather-block checklists. ' +
+         '<span class="sr-note">Counts are checklists, not sightings.</span></p>';
+    /* The trap, named once and then shown continuously — the same move the
+       effort confound makes one block up. The bars are the bird's own record,
+       so they carry when the user was out as well as the bird; the muted
+       figure on each row is the population shape to check it against. */
+    h += '<p class="sr-note" style="margin:12px 0 10px;line-height:1.5">' +
+         'This is where ' + esc(sd.name) + ' turned up, so it reflects when you were out as well as ' +
+         'the bird. Each row carries its share of the bird’s records, then the same band’s ' +
+         'share of all your outings.</p>';
+    h += '<div class="sr-wx-pair">';
+    h += '<div>' + speciesGroup('By sky', n(condSum) + ' of its ' + n(sd.total) + ' have a sky condition', CONDITIONS, sd.cond, 298) + '</div>';
+    h += '<div>' + speciesGroup('By temperature', n(tempSum) + ' of its ' + n(sd.total) + ' have a temperature', TEMPS, sd.temp, 294) + '</div>';
+    h += '</div>';
+  }
+
+  return h;
+}
+
+/* The per-species chart. THE BAR IS THE BIRD'S OWN RECORD, scaled to the bird's
+   largest band so the biggest band always fills the track and the rest are
+   legible against each other. An earlier version made the rail the outings in
+   the band and the fill the ones carrying the bird; that put the bird's record
+   on the population's scale, and against real data anything the user had not
+   seen dozens of times came out as a sliver against a huge rail ("1 of 395").
+   Overturned by the user on live data.
+   The bar is now the same form and the same scaling rule as the distribution
+   chart at the top of the card, so the two are read in identical units.
+   Two row states, and they are deliberately not alike:
+     · no outings in the band at all -> dashed rail, "no outings", no reference
+     · the bird was never on one     -> solid rail, NO fill, "0 · 0%", which is a
+       real fact about the bird and must not look like a fact about the birder
+     · found                          -> rail with fill, "19 · 25%"
+   There is no THIN state here: WEATHER_BAND_MIN_TO_SHOW gates derived AVERAGES
+   and this chart derives nothing. A count of one is a fact, not an estimate. */
+function speciesRow(band, count, maxSpeciesCount, speciesAxisTotal, axisTotal) {
+  var noOutings = band.n === 0;
+  var w = maxSpeciesCount > 0 ? (count / maxSpeciesCount * 100) : 0;
+  var cls = 'sr-wx-row sr-wx-row--sp' + (band.glyph ? '' : ' no-glyph') + (noOutings ? ' is-zero' : '');
+  var h = '<div class="' + cls + '">';
+  if (band.glyph) h += '<span class="sr-wx-glyph" aria-hidden="true">' + band.glyph + '</span>';
+  h += '<span class="sr-wx-label">' + esc(band.label) + '</span>';
+  h += noOutings
+    ? '<div class="sr-wx-track is-empty" aria-hidden="true"></div>'
+    : '<div class="sr-wx-track" aria-hidden="true">' +
+      (count > 0 ? '<span class="sr-wx-fill" style="--w:' + w.toFixed(2) + '%"></span>' : '') +
+      '</div>';
+  h += '<span class="sr-wx-count">' +
+       (noOutings ? 'no outings' : '<b>' + n(count) + '</b> <span aria-hidden="true">&middot;</span> ' + pct(count, speciesAxisTotal)) +
+       '</span>';
+  /* The confound, per row and without a scroll: the same band's share of ALL
+     the user's outings. Named in words in the note above the pair, so this can
+     stay terse. A no-outings row gets none: "outings 0%" repeats itself. */
+  h += '<span class="sr-wx-ref">' +
+       (noOutings ? '' : 'outings ' + pct(band.n, axisTotal)) +
+       '</span>';
+  return h + '</div>';
+}
+
+function speciesGroup(title, denom, bands, counts, axisTotal) {
+  var max = 0, sum = 0, i;
+  for (i = 0; i < counts.length; i++) { if (counts[i] > max) max = counts[i]; sum += counts[i]; }
+  var h = '<div class="sr-action-row" style="margin:0 0 8px">' +
+          '<p class="sr-sublabel" style="margin:0">' + esc(title) + '</p>' +
+          '<span class="sr-denom">' + esc(denom) + '</span></div>';
+  h += '<div class="sr-wx-rows">';
+  for (i = 0; i < bands.length; i++) h += speciesRow(bands[i], counts[i], max, sum, axisTotal);
+  return h + '</div>';
+}
+
+/* ── Combobox (the shipped SpeciesCombobox, `sm`) ─────────────────────────── */
+function comboHtml(id, state) {
+  var q = (state.query || '').trim().toLowerCase();
+  var opts = SPECIES.filter(function (s) {
+    if (!q) return true;
+    return s[0].toLowerCase().indexOf(q) >= 0 || s[1].toLowerCase().indexOf(q) >= 0;
+  });
+  var h = '<div class="sr-cb' + (state.open ? ' is-open' : '') + '" data-cb="' + id + '">';
+  h += '<div style="position:relative">';
+  h += '<span class="sr-cb-ic">' + ICON_SEARCH + '</span>';
+  h += '<input class="sr-cb-in" type="text" role="combobox" aria-label="Filter by species" ' +
+       'aria-expanded="' + (state.open ? 'true' : 'false') + '" aria-autocomplete="list" ' +
+       'aria-haspopup="listbox" aria-controls="' + id + '-listbox" ' +
+       (state.open && state.active >= 0 ? 'aria-activedescendant="' + id + '-option-' + state.active + '" ' : '') +
+       'placeholder="All species" value="' + esc(state.open ? (state.query || '') : (state.species || '')) + '">';
+  h += '<button class="sr-cb-tg" type="button" tabindex="-1" aria-label="Toggle species list">' + ICON_CHEV + '</button>';
+  h += '</div>';
+  if (state.open) {
+    h += '<div class="sr-cb-list" role="listbox" id="' + id + '-listbox" aria-label="Filter by species">';
+    /* Index 0 is the always-present, never-filtered clearing row. Every option
+       id is keyed on its INDEX, never on the species name. */
+    h += optHtml(id, 0, state.active === 0, state.species === null, 'All species', '', true);
+    for (var i = 0; i < opts.length; i++) {
+      h += optHtml(id, i + 1, state.active === i + 1, state.species === opts[i][0], opts[i][0], opts[i][1], false);
+    }
+    if (opts.length === 0) h += '<div style="padding:12px 14px;font-size:0.8125rem;color:var(--sr-text-muted)">No species match this search.</div>';
+    h += '</div>';
+  }
+  return h + '</div>';
+}
+function optHtml(id, idx, active, selected, name, sci, isAll) {
+  return '<div class="sr-cb-opt' + (active ? ' is-active' : '') + (isAll ? ' is-all' : '') + '" ' +
+    'id="' + id + '-option-' + idx + '" role="option" aria-selected="' + (selected ? 'true' : 'false') + '" ' +
+    'data-name="' + esc(isAll ? '' : name) + '">' +
+    '<span class="ck">' + (selected ? ICON_CHECK : '') + '</span>' +
+    '<span class="nm sr-truncate">' + esc(name) + '</span>' +
+    (sci ? '<span class="sci sr-truncate">' + esc(sci) + '</span>' : '') + '</div>';
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   WIRING
+   ═══════════════════════════════════════════════════════════════════════════ */
+var stateWide  = { axis: 'temp', species: 'Ruby-crowned Kinglet', open: false, query: '', active: -1 };
+var statePhone = { axis: 'temp', species: 'Ruby-crowned Kinglet', open: false, query: '', active: -1 };
+
+function paint() {
+  document.getElementById('wx-card-wide').innerHTML = cardHtml('wxw', stateWide);
+  document.getElementById('wx-card-phone').innerHTML = cardHtml('wxp', statePhone);
+}
+
+function stateFor(el) {
+  return el.closest('#wx-card-phone') ? statePhone : stateWide;
+}
+function idFor(state) { return state === statePhone ? 'wxp' : 'wxw'; }
+function hostFor(state) { return document.getElementById(state === statePhone ? 'wx-card-phone' : 'wx-card-wide'); }
+/* Repaint ONLY the picker. Re-rendering the whole card on every keystroke would
+   replay every bar's entrance, which is exactly the kind of light show the
+   "calm and purposeful" register is against. */
+function paintCombo(state, caret) {
+  var id = idFor(state);
+  var host = document.getElementById(id + '-combohost');
+  if (!host) return;
+  host.innerHTML = comboHtml(id, state);
+  var inp = host.querySelector('.sr-cb-in');
+  /* Only reclaim focus while the picker is OPEN. Focusing a closed input would
+     immediately re-open it through the focusin handler. */
+  if (inp && state.open) {
+    inp.focus();
+    if (typeof caret === 'number') { try { inp.setSelectionRange(caret, caret); } catch (err) {} }
+  }
+  var act = host.querySelector('.sr-cb-opt.is-active');
+  if (act && act.scrollIntoView) act.scrollIntoView({ block: 'nearest' });
+}
+/* Rows currently in the listbox: the clearing row plus every matching species. */
+function optionCount(state) {
+  var q = (state.query || '').trim().toLowerCase();
+  if (!q) return SPECIES.length + 1;
+  var c = 0;
+  for (var i = 0; i < SPECIES.length; i++) {
+    if (SPECIES[i][0].toLowerCase().indexOf(q) >= 0 || SPECIES[i][1].toLowerCase().indexOf(q) >= 0) c++;
+  }
+  return c + 1;
+}
+
+document.addEventListener('click', function (e) {
+  var seg = e.target.closest('.sr-wx-seg button');
+  if (seg) { stateFor(seg).axis = seg.getAttribute('data-axis'); paint(); return; }
+
+  var tg = e.target.closest('.sr-cb-tg');
+  if (tg) { var s = stateFor(tg); s.open = !s.open; s.query = ''; s.active = -1; paintCombo(s); return; }
+
+  var opt = e.target.closest('.sr-cb-opt');
+  if (opt) {
+    var st = stateFor(opt);
+    var nm = opt.getAttribute('data-name');
+    st.species = nm ? nm : null;
+    st.open = false; st.query = ''; st.active = -1;
+    paint(); return;
+  }
+
+  if (!e.target.closest('.sr-cb')) {
+    if (stateWide.open)  { stateWide.open = false;  stateWide.query = '';  stateWide.active = -1;  paintCombo(stateWide); }
+    if (statePhone.open) { statePhone.open = false; statePhone.query = ''; statePhone.active = -1; paintCombo(statePhone); }
+  }
+});
+
+document.addEventListener('input', function (e) {
+  if (!e.target.classList.contains('sr-cb-in')) return;
+  var s = stateFor(e.target);
+  s.query = e.target.value; s.open = true; s.active = -1;
+  paintCombo(s, e.target.selectionStart);
+});
+
+document.addEventListener('focusin', function (e) {
+  if (!e.target.classList || !e.target.classList.contains('sr-cb-in')) return;
+  var s = stateFor(e.target);
+  if (!s.open) { s.open = true; s.query = ''; s.active = -1; paintCombo(s); }
+});
+
+document.addEventListener('keydown', function (e) {
+  if (!e.target.classList || !e.target.classList.contains('sr-cb-in')) return;
+  var s = stateFor(e.target);
+  var host = document.getElementById(idFor(s) + '-combohost');
+  var count = optionCount(s);
+  if (e.key === 'Escape') { if (s.open) e.stopPropagation(); s.open = false; s.active = -1; paintCombo(s); e.target.blur(); return; }
+  if (e.key === 'ArrowDown') { e.preventDefault(); if (!s.open) { s.open = true; s.query = ''; } s.active = Math.min(s.active + 1, count - 1); paintCombo(s); return; }
+  if (e.key === 'ArrowUp')   { e.preventDefault(); s.active = Math.max(s.active - 1, -1); paintCombo(s); return; }
+  if (e.key === 'Enter' && s.open) {
+    e.preventDefault();
+    var opts = host.querySelectorAll('.sr-cb-opt');
+    /* Enter with nothing explicitly active commits the first SPECIES match,
+       never the synthetic clearing row — the shipped picker's rule. */
+    var target = s.active >= 0 ? opts[s.active] : (s.query.trim() === '' ? opts[0] : opts[1]);
+    if (target) { var nm = target.getAttribute('data-name'); s.species = nm ? nm : null; s.open = false; s.query = ''; s.active = -1; paint(); }
+  }
+});
+
+/* Harness controls */
+function press(sel, attr, val) {
+  var list = document.querySelectorAll(sel);
+  for (var i = 0; i < list.length; i++) list[i].setAttribute('aria-pressed', String(list[i].getAttribute(attr) === val));
+}
+document.querySelectorAll('[data-theme-set]').forEach(function (b) {
+  b.addEventListener('click', function () {
+    var v = b.getAttribute('data-theme-set');
+    var eff = v === 'system'
+      ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+      : v;
+    document.documentElement.setAttribute('data-theme', eff);
+    press('[data-theme-set]', 'data-theme-set', v);
+  });
+});
+document.querySelectorAll('[data-scale]').forEach(function (b) {
+  b.addEventListener('click', function () {
+    document.documentElement.style.setProperty('--sr-text-scale', b.getAttribute('data-scale'));
+    press('[data-scale]', 'data-scale', b.getAttribute('data-scale'));
+  });
+});
+document.querySelectorAll('[data-width]').forEach(function (b) {
+  b.addEventListener('click', function () {
+    document.getElementById('stage-wide').style.maxWidth = b.getAttribute('data-width') + 'px';
+    press('[data-width]', 'data-width', b.getAttribute('data-width'));
+  });
+});
+document.getElementById('replay').addEventListener('click', paint);
+
+paint();
+</script>
+</body>
+</html>
