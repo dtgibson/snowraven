@@ -457,6 +457,69 @@ italic at 0.71875rem `--sr-text-gray`.
   resetKey, so the animation replays exactly when the data changed (reduced-motion
   renders final width instantly); bars are reinforcement only — every value is
   present as text. The Species Detail Subspecies and Forms section is the exemplar.
+- **Distribution rows (a set of named bands, each with a count and a bar):** one row
+  per band, always every band, in a fixed domain order that does not re-sort with the
+  data. Desktop is a four-column grid `auto minmax(0, 8.5rem) minmax(0, 1fr) auto` --
+  optional leading glyph, left-aligned label (a leading glyph already anchors the left
+  edge, so the label does not right-align the way the shipped `BarRow` does), rail,
+  then the count and its share. At `<=640px` the row becomes two lines: identity on
+  line one, the full-width rail on line two, placed by explicit `grid-area` rather
+  than auto-flow, and the label takes `white-space: normal` at that tier only so
+  "Scattered clouds" wraps instead of becoming "Scatte...". **No positive `min-width`
+  anywhere in the pattern**, so it cannot leak page scroll at 320px; the one
+  `min-width: 3px` sits on the bar FILL inside an `overflow: hidden` track, where it
+  cannot widen the row. Scale every fill to the largest band in that group, never to
+  the group's total -- scaling to the total makes every bar small again the moment
+  the data spreads across eleven bands, which is the failure the pattern exists to
+  avoid. Each group states its own denominator in words in its header row, because a
+  card carrying several such groups will have several legitimately different totals
+  and a bare number reads as a disagreement. The Weather section's outings-by-sky,
+  by-temperature and by-wind groups are the exemplars.
+- **A row whose trailing figure is incompressible takes its OWN row, at every width.**
+  When a row carries two `nowrap` `auto` tracks (a count and a second figure beside
+  it) inside a column narrower than the card, the width it needs depends on the width
+  of its own TEXT -- `1,234 · 100%` beside `outings 100%` is far wider than `1 · 5%` --
+  so the fitting boundary moves with the DATA as well as with the text scale and **no
+  breakpoint, in px or in rem, can express the condition**. Do not answer it with a
+  second, wider tier or with a container query; give the trailing figure a row of its
+  own at every width, leaving the inline content exactly the distribution row's own
+  four children. It stays right-aligned, so it still sits under the count and still
+  aligns down the group, and the phone tier then moves only the row index rather than
+  restating the base rule. The Weather section's per-species reference figure is the
+  exemplar.
+- **A ZERO band, a THIN band, and a thin DENOMINATOR each get their own shape and
+  their own sentence, and never share a treatment.** Three states, three renderings.
+  A band with data draws a solid track with its fill, its count and its share. A band
+  with none draws a transparent, `1px dashed` track with no fill at all, its label and
+  count muted, and says "No outings in this band." A band that has data but too few to
+  average draws no rail at all -- an empty rail is the zero treatment and means
+  something else -- and says "Too few to average." in italics, against the zero state's
+  upright, so the two are separated by a second non-colour cue. A band whose DERIVED
+  series is thin while its primary series is not keeps the primary rail and replaces
+  only the derived one with its own sentence naming the count it has. **Never drop a
+  thin band from the list** -- dropping bands makes the distribution itself lie -- and
+  never mute or hide a low count in a chart that derives nothing, since a count of one
+  is a fact rather than an estimate. Two floors carry this: a named minimum for showing
+  a derived average, and a share floor that prints `<1%` rather than `0%` for a nonzero
+  share, each a named constant with its reason in the code. The Weather section's band
+  blocks are the exemplar.
+- **Comparing a subset against a population, without printing a rate.** Two shares of
+  two different wholes sit side by side, each named in words, and nothing divides one
+  by the other. Draw the subset's own rows scaled to the SUBJECT's largest value, so
+  the biggest row fills the track and the rest are legible against it, and carry the
+  population's share of the same band as a muted trailing figure. **A shared rail --
+  the population as the track, the subset as the fill -- is the tempting alternative
+  and it fails on real data**: against a population of hundreds, anything the user has
+  not accumulated dozens of records for paints as a sliver, and a chart that carries no
+  information at the size a person reads it is not saved by being well-founded. Reach
+  for the shared rail only where the subset is reliably a substantial fraction of the
+  population. The misreading the shared rail was answering -- that a subset-only
+  distribution reads as a claim about the subject when it partly reflects the
+  population -- is then answered in words instead, twice: one sentence above the pair
+  saying so, and the per-row reference figure that makes that sentence checkable band
+  by band with no scrolling. A row with no population at all carries no reference
+  figure, since "0%" only repeats what the row already said. The Weather section's
+  per-species chart is the exemplar.
 
 ## Accessibility commitments
 Every `<button>` gets explicit `tabIndex={0}` (WKWebView Tab behavior); toggles
