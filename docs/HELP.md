@@ -140,7 +140,7 @@ Weather forecasts reach about eight days out. Within the first couple of days yo
 
 ### Weather backlog: checklists with no weather block
 
-At the very bottom of the Weather tab, a **List checklists with no weather blocks** section lets you work down your backlog instead of looking checklists up one at a time. Open it to see your most-recent checklists whose comment carries no recognized weather block (SnowRaven's or Raincrow's), newest first. The list is built entirely from your loaded eBird backup, so it builds and pages with no lookups and works offline; only the per-row weather lookup (below) needs a connection.
+At the very bottom of the Weather tab, a **List checklists with no weather blocks** section lets you work down your backlog instead of looking checklists up one at a time. Open it to see your most-recent checklists whose comment carries no recognized weather block (SnowRaven's or RainCrow's), newest first. The list is built entirely from your loaded eBird backup, so it builds and pages with no lookups and works offline; only the per-row weather lookup (below) needs a connection.
 
 Each row shows the checklist's date, location, species count, protocol, effort, and completeness, and offers three actions:
 
@@ -151,6 +151,8 @@ Each row shows the checklist's date, location, species count, protocol, effort, 
 By default the list shows only your **complete, non-incidental** checklists. A toggle, **Also show incomplete & incidental**, widens the list to include those too; a widened row is marked with a small chip so the wider list is never ambiguous. The list shows the first 100 matches, with **Show next 100** and **Show all** controls when there are more. If you have not saved an eBird backup yet, the section explains that it needs one first and offers a shortcut to import it. If a backup is saved but SnowRaven could not turn it into a list of checklists, the section says it couldn't load your backup and offers a shortcut to Settings instead, rather than asking you to import a file you already have. If every recent checklist already has weather, it says so rather than showing an empty list.
 
 Locations in this list are plain text in this version.
+
+The Weather section on the Statistics tab reads these blocks back, so every gap you fill in here sharpens it.
 
 ### SnowRaven Mini (browser extension)
 
@@ -266,7 +268,21 @@ This needs your eBird API key and a connection. Without either, the section says
 
 The consistency and completeness of your data: the ratio of numeric counts to X/presence-only records, and your comment coverage (checklist and species comments). (Record counts and rarity lists moved to Highlights & Records.)
 
-If any of your checklist comments contain a weather or tide block (the kind SnowRaven or Raincrow pastes in), a **Weather & tide blocks** breakdown also appears, showing the number and percentage of checklists that carry: **any weather** block (the total), **Raincrow weather**, **SnowRaven weather**, **SnowRaven tide**, and **weather + tide** (a SnowRaven weather block and a tide block on the same checklist). A weather block from either app counts toward "any weather"; Raincrow blocks are recognized by their raincrow.app credit and SnowRaven blocks by their SnowRaven credit. Tide blocks are SnowRaven-only. The breakdown is hidden if none of your checklists carry these blocks.
+If any of your checklist comments contain a weather or tide block (the kind SnowRaven or RainCrow pastes in), a **Weather & tide blocks** breakdown also appears, showing the number and percentage of checklists that carry: **any weather** block (the total), **RainCrow weather**, **SnowRaven weather**, **SnowRaven tide**, and **weather + tide** (a SnowRaven weather block and a tide block on the same checklist). A weather block from either app counts toward "any weather"; RainCrow blocks are recognized by their raincrow.app credit and SnowRaven blocks by their SnowRaven credit. Tide blocks are SnowRaven-only. The breakdown is hidden if none of your checklists carry these blocks.
+
+### Weather
+
+SnowRaven has been writing a weather block into checklist comments since its first release, and until now nothing read one back. This section does. It appears only if at least one of your checklists carries a weather block that SnowRaven or RainCrow wrote, and it is built entirely from your loaded eBird backup, so it makes no lookup and works offline.
+
+It opens with what it covers, before any chart: the number of checklists carrying a **readable** weather block, that number as a percentage of all your checklists, and, if there were blocks it could not read at all, how many. Every figure below is about those checklists and never about "your birding". A quiet line points at the Weather tab, where you can fill in the gaps.
+
+**Your outings by weather** distributes those checklists four ways: by the sky glyph in the block, by temperature band, by wind, and by day versus night. Each axis states its own denominator and they legitimately differ, because a block can carry a temperature and no wind. A band you have never birded in is drawn as a zero rather than dropped, since dropping it would make the distribution itself misleading. Three details are worth knowing. Grouping is by the **glyph** in your own block, not by the weather service's wording, because the glyph is a fixed set and the wording is not; the **Other** row is the glyph SnowRaven writes when the service returns a sky code it has no category for, and the temperature and wind in those blocks still count everywhere else. A block records a temperature **range**, because it covers every hour of the outing, and each checklist is counted **once**, in the band its midpoint falls in; the section reports how wide your blocks typically are so you can judge that. And wind is stored as a Beaufort description rather than a speed, so these are the app's own bands and not miles per hour.
+
+**Species and time out, by weather** shows the average number of species per checklist in each band, with the same bands' average time out beside it. That pairing is the point: weather changes how long you stay out, so a lower species count can be the weather or it can be the outing, and both are on the chart. A toggle switches the chart between temperature and sky. A band averages only once it has 8 checklists; below that it shows its count and no average, because an average of seven outings reads as a finding and is noise. The time-out figure carries its own, smaller denominator, since not every checklist records a duration.
+
+**One species, its weather** lets you pick a bird and see the skies and temperatures you have recorded it in. Each bar is the outings in that band and the filled part is the ones carrying that bird, so the two sit on one scale and no rate is ever printed. "0 of 27" and "no outings" are different facts and are drawn differently: the first means twenty-seven outings in that band and never this bird, the second means you have never birded that band at all. Counts are checklists, not sightings, so a bird listed three times on one checklist counts once.
+
+Two things this section deliberately does not do. It never predicts or recommends: it does not tell you what weather is good for birding, it draws no ranked list of birds by weather, and it performs no statistical inference of any kind. And its coverage figure counts blocks more strictly than the Weather tab's own backlog does. This section only counts a block that carries a SnowRaven or RainCrow credit, because a block with no credit is one whose wording it would be guessing at; the backlog uses a looser test that also matches an uncredited block. So the two numbers are not complements of each other, and that is deliberate. The coverage figure here matches the **any weather** bar in Data Quality directly above, which uses the same rule.
 
 ### Highlights & Records
 
