@@ -123,7 +123,7 @@ afterEach(cleanup)
 // before this file's jsdom environment is torn down (the standing rule).
 afterAll(() => new Promise((r) => setTimeout(r, 120)))
 
-const props = { onGoToSettings: () => {}, filesVersion: 0, embedAllowed: false }
+const props = { onGoToSettings: () => {}, onGoToWeather: () => {}, filesVersion: 0, embedAllowed: false }
 
 /** The "{n} species" counter beside the toggles, read off the DOM. */
 function speciesFigure(): string {

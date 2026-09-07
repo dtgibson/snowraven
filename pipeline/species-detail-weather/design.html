@@ -1,0 +1,1264 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Species Detail Weather</title>
+<style>
+/* ═══════════════════════════════════════════════════════════════════════════
+   SnowRaven design tokens, copied verbatim from frontend/src/globals.css.
+   Both themes. Nothing in this mockup uses a colour that is not a var(--sr-*).
+   ═════════════════════════════════════════════════════════════════════════ */
+:root {
+  --font-sans: 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
+
+  --sr-bg: #F9FAFB;
+  --sr-surface: #FFFFFF;
+  --sr-surface-subtle: #F4F4F5;
+  --sr-surface-faint: #FAFAFA;
+  --sr-text: #0F1117;
+  --sr-text-muted: #6B6B74;
+  --sr-text-gray: #6B7280;
+  --sr-text-disabled: #A1A1AA;
+  --sr-border: #E4E4E7;
+  --sr-border-subtle: #F4F4F5;
+  --sr-border-medium: #C4C4CE;
+  --sr-accent: #277448;
+  --sr-accent-strong: #1A5C38;
+  --sr-accent-bg: #E8F5EE;
+  --sr-accent-border: rgba(39,116,72,0.25);
+  --sr-on-accent: #FFFFFF;
+  --sr-gray-400: #8E8E96;
+  --sr-card-shadow: 0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+  --sr-chart-slate: #94A3B8;
+}
+:root[data-theme="dark"] {
+  --sr-bg: #09090B;
+  --sr-surface: #18181B;
+  --sr-surface-subtle: #27272A;
+  --sr-surface-faint: #1C1C1F;
+  --sr-text: #F4F4F5;
+  --sr-text-muted: #A1A1AA;
+  --sr-text-gray: #8A8A92;
+  --sr-text-disabled: #52525B;
+  --sr-border: #27272A;
+  --sr-border-subtle: #1F1F23;
+  --sr-border-medium: #3F3F46;
+  --sr-accent: #34D399;
+  --sr-accent-strong: #34D399;
+  --sr-accent-bg: #052E16;
+  --sr-accent-border: rgba(52,211,153,0.2);
+  --sr-on-accent: #052E16;
+  --sr-gray-400: #6E6E78;
+  --sr-card-shadow: 0 1px 4px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.25);
+  --sr-chart-slate: #94A3B8;
+}
+
+* { box-sizing: border-box; }
+html { font-size: 16px; }
+body {
+  font-family: var(--font-sans);
+  background: var(--sr-bg);
+  color: var(--sr-text);
+  margin: 0;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Review chrome ──────────────────────────────────────────────────────────
+   Everything in this block is the DESIGN REVIEW instrument, not the product.
+   It is sized in px on purpose, so the app frame's text-scale switch moves the
+   app and leaves the controls alone. It uses the same tokens so it never
+   introduces a colour the app does not own. */
+.rev {
+  position: sticky; top: 0; z-index: 20;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 22px;
+  padding: 10px 20px;
+  background: var(--sr-surface);
+  border-bottom: 1px solid var(--sr-border);
+  font-size: 12px;
+}
+.rev-brand {
+  display: flex; align-items: baseline; gap: 8px;
+  margin-right: auto;
+}
+.rev-brand b { font-size: 13px; font-weight: 700; letter-spacing: -0.01em; }
+.rev-brand span { color: var(--sr-text-muted); font-size: 11px; }
+.rev-group { display: flex; align-items: center; gap: 7px; }
+.rev-group > span {
+  font-size: 10px; font-weight: 600; letter-spacing: 0.07em;
+  text-transform: uppercase; color: var(--sr-text-muted);
+}
+.seg { display: inline-flex; border: 1.5px solid var(--sr-accent-border); border-radius: 6px; overflow: hidden; }
+.seg button {
+  font: inherit; font-size: 11px; font-weight: 500;
+  background: none; border: none; padding: 4px 9px; cursor: pointer;
+  color: var(--sr-text-muted);
+  transition: background-color 140ms cubic-bezier(0.2, 0, 0, 1), color 140ms cubic-bezier(0.2, 0, 0, 1);
+}
+.seg button + button { border-left: 1.5px solid var(--sr-accent-border); }
+.seg button[aria-pressed="true"] { background: var(--sr-accent-bg); color: var(--sr-accent); font-weight: 600; }
+.seg button:not([aria-pressed="true"]):hover { background: var(--sr-surface-subtle); color: var(--sr-text); }
+
+:where(button, a):focus-visible {
+  outline: 2px solid var(--sr-accent);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+/* ── Page ──────────────────────────────────────────────────────────────── */
+.page { max-width: 62rem; margin: 0 auto; padding: 3rem 1.25rem 6rem; }
+
+.hero { max-width: 44rem; margin-bottom: 3.25rem; }
+.eyebrow {
+  font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--sr-accent); margin: 0 0 0.75rem;
+}
+h1 {
+  font-size: 2.25rem; font-weight: 700; letter-spacing: -0.03em;
+  line-height: 1.1; margin: 0 0 1rem;
+}
+.hero p { font-size: 1rem; line-height: 1.6; color: var(--sr-text-muted); margin: 0 0 0.85rem; max-width: 40rem; }
+.hero p strong { color: var(--sr-text); font-weight: 600; }
+
+h2 {
+  font-size: 1.25rem; font-weight: 700; letter-spacing: -0.02em;
+  margin: 0 0 0.5rem;
+}
+.sec { margin-bottom: 4rem; }
+.sec > .lead { font-size: 0.9375rem; line-height: 1.6; color: var(--sr-text-muted); margin: 0 0 1.75rem; max-width: 40rem; }
+.sec-rule { height: 1px; background: var(--sr-border); margin: 0 0 1.5rem; }
+
+/* An annotation. Deliberately a different register from any product surface:
+   no card, no shadow, one accent edge. */
+.note {
+  border-left: 3px solid var(--sr-accent-border);
+  padding: 0.125rem 0 0.125rem 0.875rem;
+  margin: 0 0 1.5rem;
+  max-width: 40rem;
+}
+.note h3 {
+  font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.07em;
+  text-transform: uppercase; color: var(--sr-text-muted); margin: 0 0 0.4rem;
+}
+.note p { font-size: 0.8125rem; line-height: 1.6; color: var(--sr-text-muted); margin: 0 0 0.5rem; }
+.note p:last-child { margin-bottom: 0; }
+.note strong { color: var(--sr-text); font-weight: 600; }
+.note code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.75em; background: var(--sr-surface-subtle);
+  padding: 0.1em 0.35em; border-radius: 3px; color: var(--sr-text);
+}
+
+/* ── The simulated app frame ────────────────────────────────────────────────
+   The width switcher shrinks a container, not the viewport, so a `@media` rule
+   would never fire and the narrow tiers could not be reviewed here at all. The
+   frame is therefore a query container, and the card's own tier is a container
+   query on the group column inside it (see `.wx-col`), which is what makes
+   "320px" and "200% text" on this page behave as they do on a phone. */
+.frame-wrap { display: flex; justify-content: center; }
+.frame {
+  container-type: inline-size;
+  container-name: frame;
+  width: 100%;
+  background: var(--sr-bg);
+  border: 1px dashed var(--sr-border-medium);
+  border-radius: 14px;
+  padding: 1.25rem;
+  transition: max-width 200ms cubic-bezier(0.2, 0, 0, 1);
+}
+.frame[data-w="640"] { max-width: 40rem; }
+.frame[data-w="320"] { max-width: 20rem; padding: 0.75rem; }
+.frame[data-scale="200"] { font-size: 2rem; }
+.frame[data-scale="100"] { font-size: 1rem; }
+/* Everything inside the frame sizes in `em` off this root so the text-scale
+   switch behaves exactly like the app's own --sr-text-scale. */
+.frame .tabcol { font-size: 1em; }
+
+.tabcol { display: flex; flex-direction: column; gap: 0.75em; }
+
+/* ── SectionCard / SectionHead, from components/speciesDetail/ui.tsx ──────── */
+.card {
+  background: var(--sr-surface);
+  border: 1px solid var(--sr-border);
+  border-radius: 0.75em;
+  overflow: hidden;
+  box-shadow: var(--sr-card-shadow);
+}
+.card-head {
+  display: flex; align-items: center; gap: 0.5em;
+  padding: 0.875em 1.125em 0.75em;
+  border-bottom: 1px solid var(--sr-border-subtle);
+}
+.card-head .tile {
+  width: 1.75em; height: 1.75em; border-radius: 0.4375em; flex-shrink: 0;
+  background: var(--sr-accent-bg); color: var(--sr-accent);
+  display: flex; align-items: center; justify-content: center;
+}
+.card-head .tile svg { width: 0.875em; height: 0.875em; }
+.card-head .t { font-size: 0.8125em; font-weight: 600; color: var(--sr-text); }
+.card-body { padding: 1em 1.125em 1.125em; }
+
+/* A neighbour section, rendered head-only so the slot is legible without
+   simulating the whole tab. */
+.card.ghost { opacity: 0.62; }
+.card.ghost .omit {
+  padding: 0.6em 1.125em 0.75em;
+  font-size: 0.6875em; color: var(--sr-text-muted);
+}
+.slotmark {
+  display: flex; align-items: center; gap: 0.5em;
+  font-size: 0.6875em; font-weight: 600; letter-spacing: 0.07em;
+  text-transform: uppercase; color: var(--sr-accent);
+}
+.slotmark::before, .slotmark::after {
+  content: ""; height: 1px; flex: 1; background: var(--sr-accent-border);
+}
+
+/* ── Card interior ─────────────────────────────────────────────────────── */
+.wx-lede { font-size: 0.8125em; line-height: 1.55; color: var(--sr-text); margin: 0; }
+.wx-name { display: inline-flex; align-items: center; gap: 0.25em; vertical-align: baseline; }
+/* BirdName's own default weight and colour. Deliberately NOT the accent that
+   the Statistics lede uses -- see the decisions section. */
+.wx-name .nm { font-size: 0.84375em; font-weight: 500; color: var(--sr-text); }
+.wx-name .marks { display: inline-flex; gap: 0.1875em; margin-left: 0.125em; }
+.wx-name .marks i {
+  width: 0.875em; height: 0.875em; border-radius: 0.1875em;
+  background: var(--sr-surface-subtle); color: var(--sr-text-muted);
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.wx-name .marks svg { width: 0.625em; height: 0.625em; }
+.wx-sci { font-style: italic; font-size: 0.71875em; color: var(--sr-text-gray); }
+.wx-note { font-size: 0.6875em; line-height: 1.45; color: var(--sr-text-muted); margin: 0; }
+.wx-basis { margin: 0.5em 0 0; }
+.wx-confound { margin: 1em 0 0.875em; line-height: 1.5; }
+.wx-floor { margin: 0.625em 0 0; }
+.wx-body { font-size: 0.8125em; line-height: 1.55; color: var(--sr-text); margin: 0; }
+
+.wx-sublabel {
+  font-size: 0.6875em; font-weight: 600; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--sr-text-muted); margin: 0;
+}
+.wx-grouphead {
+  display: flex; flex-wrap: wrap; align-items: baseline;
+  gap: 0.25em 0.75em; margin: 0 0 0.5em;
+}
+.wx-denom { font-size: 0.6875em; color: var(--sr-text-muted); margin-left: auto; }
+
+/* ── The row primitive, copied from globals.css `.sr-wx-row--sp` ────────────
+   NO POSITIVE min-width ANYWHERE. The one `min-width: 3px` sits on the bar FILL
+   inside an `overflow: hidden` track, where it cannot widen the row. */
+.wx-rows { display: flex; flex-direction: column; gap: 0.25em; }
+.wx-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 8.5em) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0 0.5em;
+  min-height: 1.375em;
+}
+.wx-row.no-glyph { grid-template-columns: minmax(0, 8.5em) minmax(0, 1fr) auto; }
+/* The incompressible trailing figure takes its OWN row at every width. */
+.wx-row > .wx-ref { grid-area: 2 / 1 / 3 / -1; padding-left: 0; text-align: right; }
+.wx-glyph {
+  font-size: 0.875em; line-height: 1; width: 1.25em; flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--sr-text-muted);
+}
+.wx-label {
+  font-size: 0.6875em; color: var(--sr-text); min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.wx-row.is-zero .wx-label { color: var(--sr-text-muted); }
+.wx-track {
+  height: 0.5em; border-radius: 0.25em; background: var(--sr-surface-subtle);
+  overflow: hidden;
+}
+.wx-track.is-empty {
+  background: transparent;
+  border: 1px dashed var(--sr-border-medium);
+  height: 0.5em;
+}
+.wx-fill {
+  display: block; height: 100%; border-radius: 0.25em; background: var(--sr-accent);
+  min-width: 3px;                       /* the sanctioned exception */
+  width: var(--w, 0%);
+  animation: wx-grow 300ms cubic-bezier(0.2, 0, 0, 1) both;
+}
+@keyframes wx-grow { from { width: 0; } to { width: var(--w, 0%); } }
+.wx-count {
+  font-size: 0.6875em; color: var(--sr-text-muted); text-align: right;
+  white-space: nowrap; font-variant-numeric: tabular-nums;
+}
+.wx-count b { color: var(--sr-text); font-weight: 600; }
+.wx-row.is-zero .wx-count b { color: var(--sr-text-muted); font-weight: 400; }
+.wx-ref {
+  font-size: 0.625em; color: var(--sr-text-muted); white-space: nowrap;
+  font-variant-numeric: tabular-nums; padding-left: 0.5em;
+}
+
+/* Each group column is the query container for its own rows -- see the tier
+   block below for why the trigger cannot be the viewport. */
+.wx-col { container-type: inline-size; container-name: wxcol; }
+.wx-pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); gap: 1.25em; }
+
+/* The route to the Weather tab. An in-app tab move, so a button, never an
+   anchor. */
+.wx-route {
+  display: inline-block; align-self: flex-start;
+  background: none; border: none; padding: 0.5em 0; margin: 0.375em 0 0;
+  font-family: inherit; font-size: 0.75em; font-weight: 600; line-height: 1.45;
+  color: var(--sr-accent); cursor: pointer; text-align: left;
+}
+.wx-route:hover { text-decoration: underline; }
+.wx-route svg {
+  display: inline; vertical-align: -0.125em; margin-left: 0.25em;
+  width: 0.8125em; height: 0.8125em;
+  transition: transform 140ms cubic-bezier(0.2, 0, 0, 1);
+}
+.wx-route:hover svg { transform: translateX(2px); }
+
+/* ── The stacked row tier ───────────────────────────────────────────────────
+   PROPOSED CHANGE OF TRIGGER, not of layout. The stacked shape below is the
+   shipped one, byte for byte; what moves is WHEN it fires.
+
+   Shipped, this tier opens at `@media (max-width: 640px)`. A viewport width in
+   px cannot express the condition, because what decides whether four inline
+   tracks fit is the width of the row's own column measured against the size of
+   its own TEXT. Measured on this card at a 952px frame: the column is 398px
+   either way, but the rails run 193 to 240px at 100% text scale and
+   **0.0 to 32.6px at 200%**, where several rows paint no rail at all while
+   still taking the height of one.
+
+   `em` in a container query resolves against the container's own font size, so
+   the same 398px column reads as 24.9em at 100% and 12.4em at 200%. That is
+   exactly the quantity in question, which is why this is the one place a query
+   is not a guess in better-dressed units: the DATA-dependent half of the width
+   was already removed when the reference figure took its own row.
+
+   22em, against measured column widths of 6.9 to 16.9em in every configuration
+   that must stack and 24.9em in the one that must not. */
+@container wxcol (max-width: 22em) {
+  .wx-row {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    row-gap: 0.25em;
+    padding-bottom: 0.25em;
+  }
+  .wx-row > .wx-glyph { grid-area: 1 / 1; }
+  /* PROPOSED REPAIR, not a copy of the shipped rule. `white-space: normal` plus
+     `overflow: visible` is a wrap allowance the shipped tier does not grant, so a
+     label word wider than its `minmax(0, 1fr)` track paints straight into the
+     count cell -- measured at +65.9px on "Thunderstorm" at 320px/200%, identically
+     in Chromium and WebKit, and invisible to the card-scoped gate because it never
+     leaves the card. `anywhere` rather than `break-word`: only `anywhere` lowers
+     the item's intrinsic contribution, and nothing here reads this label's
+     min-content, so the v0.5.85 objection does not apply. */
+  .wx-row > .wx-label {
+    grid-area: 1 / 2; white-space: normal; overflow: visible;
+    overflow-wrap: anywhere;
+  }
+  .wx-row > .wx-count { grid-area: 1 / 3; }
+  .wx-row > .wx-track { grid-area: 2 / 1 / 3 / 4; }
+  .wx-row.no-glyph { grid-template-columns: minmax(0, 1fr) auto; }
+  .wx-row.no-glyph > .wx-label { grid-area: 1 / 1; }
+  .wx-row.no-glyph > .wx-count { grid-area: 1 / 2; }
+  .wx-row.no-glyph > .wx-track { grid-area: 2 / 1 / 3 / 3; }
+  .wx-row > .wx-ref { grid-row: 3 / 4; }
+  .wx-rows { gap: 0.375em; }
+  .wx-denom { margin-left: 0; }
+}
+
+/* ── Preview stepper (review chrome, not product) ───────────────────────── */
+.stepper {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px;
+  margin-bottom: 14px;
+}
+.stepper > .cap {
+  font-size: 10px; font-weight: 600; letter-spacing: 0.07em;
+  text-transform: uppercase; color: var(--sr-text-muted);
+}
+.birdseg { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.birdseg button {
+  font: inherit; font-size: 11.5px; font-weight: 500;
+  background: none; padding: 5px 11px; cursor: pointer;
+  border: 1.5px solid var(--sr-border); border-radius: 15px;
+  color: var(--sr-text-muted);
+  transition: border-color 140ms cubic-bezier(0.2, 0, 0, 1),
+              background-color 140ms cubic-bezier(0.2, 0, 0, 1),
+              color 140ms cubic-bezier(0.2, 0, 0, 1);
+}
+.birdseg button[aria-pressed="true"] {
+  background: var(--sr-accent-bg); border-color: var(--sr-accent-border);
+  color: var(--sr-accent); font-weight: 600;
+}
+.birdseg button:not([aria-pressed="true"]):hover { border-color: var(--sr-border-medium); color: var(--sr-text); }
+
+.statestrip {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px;
+  padding: 8px 0 14px;
+  font-size: 11.5px; color: var(--sr-text-muted);
+}
+.statestrip .k {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px; font-weight: 600; color: var(--sr-accent);
+  background: var(--sr-accent-bg); padding: 2px 7px; border-radius: 4px;
+}
+
+/* ── The absent state's annotated gap ──────────────────────────────────── */
+.gap {
+  border: 1px dashed var(--sr-border-medium);
+  border-radius: 0.75em;
+  padding: 0.75em 1.125em;
+  text-align: center;
+  font-size: 0.6875em; color: var(--sr-text-muted);
+}
+.gap b { display: block; color: var(--sr-text); font-weight: 600; margin-bottom: 0.25em; }
+
+/* ── Decision blocks ───────────────────────────────────────────────────── */
+.dec { border-top: 1px solid var(--sr-border); padding-top: 1.25rem; margin-bottom: 2rem; max-width: 44rem; }
+.dec .q {
+  font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.07em;
+  text-transform: uppercase; color: var(--sr-text-muted); margin: 0 0 0.4rem;
+}
+.dec h3 { font-size: 1rem; font-weight: 700; letter-spacing: -0.01em; margin: 0 0 0.625rem; }
+.dec h3 em { font-style: normal; color: var(--sr-accent); }
+.dec p { font-size: 0.875rem; line-height: 1.65; color: var(--sr-text-muted); margin: 0 0 0.75rem; }
+.dec p:last-child { margin-bottom: 0; }
+.dec strong { color: var(--sr-text); font-weight: 600; }
+.dec code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.8em; background: var(--sr-surface-subtle);
+  padding: 0.1em 0.35em; border-radius: 3px; color: var(--sr-text);
+}
+
+.checks { list-style: none; padding: 0; margin: 0; max-width: 44rem; }
+.checks li {
+  display: flex; gap: 0.625rem; align-items: flex-start;
+  font-size: 0.8125rem; line-height: 1.6; color: var(--sr-text-muted);
+  padding: 0.5rem 0; border-bottom: 1px solid var(--sr-border-subtle);
+}
+.checks li svg { width: 0.875rem; height: 0.875rem; flex-shrink: 0; margin-top: 0.25rem; color: var(--sr-accent); }
+.checks li b { color: var(--sr-text); font-weight: 600; }
+
+.copytable { width: 100%; border-collapse: collapse; font-size: 0.8125rem; margin-top: 0.5rem; }
+.copytable th {
+  text-align: left; font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--sr-text-muted);
+  padding: 0 0.75rem 0.5rem 0; border-bottom: 1px solid var(--sr-border);
+}
+.copytable td {
+  padding: 0.625rem 0.75rem 0.625rem 0; vertical-align: top;
+  border-bottom: 1px solid var(--sr-border-subtle); color: var(--sr-text-muted);
+  line-height: 1.55;
+}
+.copytable td:first-child {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.75rem; color: var(--sr-text); white-space: nowrap;
+}
+.copytable td em { font-style: normal; color: var(--sr-text); }
+.scrollx { overflow-x: auto; }
+
+@media (prefers-reduced-motion: reduce) {
+  .wx-fill { animation: none; }
+  .frame, .seg button, .birdseg button, .wx-route svg { transition-duration: 0.001s; }
+}
+</style>
+
+<div class="rev">
+  <div class="rev-brand">
+    <b>Weather on Species Detail</b>
+    <span>SnowRaven &middot; species-detail-weather &middot; Stage 4</span>
+  </div>
+  <div class="rev-group">
+    <span>Theme</span>
+    <div class="seg" role="group" aria-label="Theme">
+      <button tabindex="0" type="button" data-theme-btn="light" aria-pressed="true">Light</button>
+      <button tabindex="0" type="button" data-theme-btn="dark" aria-pressed="false">Dark</button>
+    </div>
+  </div>
+  <div class="rev-group">
+    <span>Width</span>
+    <div class="seg" role="group" aria-label="Frame width">
+      <button tabindex="0" type="button" data-w-btn="wide" aria-pressed="true">Desktop</button>
+      <button tabindex="0" type="button" data-w-btn="640" aria-pressed="false">640</button>
+      <button tabindex="0" type="button" data-w-btn="320" aria-pressed="false">320</button>
+    </div>
+  </div>
+  <div class="rev-group">
+    <span>Text</span>
+    <div class="seg" role="group" aria-label="In-app text scale">
+      <button tabindex="0" type="button" data-s-btn="100" aria-pressed="true">100%</button>
+      <button tabindex="0" type="button" data-s-btn="200" aria-pressed="false">200%</button>
+    </div>
+  </div>
+</div>
+
+<div class="page">
+
+  <div class="hero">
+    <p class="eyebrow">Stage 4 &middot; The Designer</p>
+    <h1>The weather record, on the bird&rsquo;s own page</h1>
+    <p>A <strong>Weather</strong> card on Species Detail, showing the skies and temperatures you
+      have the selected bird in, each row carrying the same band&rsquo;s share of all your outings
+      beside it. No picker. Two shares of two different wholes, and nothing divides one by the
+      other.</p>
+    <p>Every figure below is from <strong>your own export</strong> as it sits on this machine
+      today: 3,252 checklists, 353 of them carrying a readable weather block, 168 species in
+      the published table. The five birds in the stepper are real, and so are their arrays and
+      their totals.</p>
+    <p>The controls at the top of this page are review instruments, not product. Use them to
+      check both themes, 320px, and 200% in-app text scale, which is where this pattern is
+      hardest.</p>
+  </div>
+
+  <!-- ═══════════ 1. The card in its slot ═══════════ -->
+  <section class="sec">
+    <h2>1. The card, in its slot, live</h2>
+    <p class="lead">The tab&rsquo;s neighbouring sections are drawn head-only so the slot is legible
+      without simulating the whole page. Step between the four birds to see the card move
+      between its states.</p>
+    <div class="sec-rule"></div>
+
+    <div class="note">
+      <h3>OQ-05 &middot; the slot</h3>
+      <p><strong>After Comments, above Named Individuals.</strong> This is the Planner&rsquo;s default
+        and I am taking it, for three reasons rather than by deferral. It closes the run of
+        sections built from your own records of this bird; everything below it (Named
+        Individuals, Recent Media) is about a different subject. It keeps the Top Locations
+        &rarr; Sighting Locations pair intact, which a higher slot would split. And because
+        the sentence, not the chart, is the ordinary outcome, a quiet state belongs low on the
+        page where it costs a scroll rather than a glance.</p>
+    </div>
+
+    <div class="stepper">
+      <span class="cap">Preview only</span>
+      <div class="birdseg" role="group" aria-label="Preview species">
+        <button tabindex="0" type="button" data-bird="0" aria-pressed="true">House Finch</button>
+        <button tabindex="0" type="button" data-bird="1" aria-pressed="false">Steller&rsquo;s Jay</button>
+        <button tabindex="0" type="button" data-bird="2" aria-pressed="false">Western Bluebird</button>
+        <button tabindex="0" type="button" data-bird="3" aria-pressed="false">Am. White Pelican</button>
+        <button tabindex="0" type="button" data-bird="4" aria-pressed="false">Wood Duck</button>
+      </div>
+    </div>
+    <div class="statestrip">
+      <span class="k" id="state-key">full</span>
+      <span id="state-why"></span>
+    </div>
+
+    <div class="frame-wrap">
+      <div class="frame" id="frame" data-w="wide" data-scale="100">
+        <div class="tabcol">
+
+          <div class="card ghost">
+            <div class="card-head">
+              <div class="tile" data-icon="pin"></div>
+              <span class="t">Sighting Locations</span>
+            </div>
+            <div class="omit">section body omitted in this preview</div>
+          </div>
+
+          <div class="card ghost">
+            <div class="card-head">
+              <div class="tile" data-icon="msg"></div>
+              <span class="t">Comments</span>
+            </div>
+            <div class="omit">section body omitted in this preview</div>
+          </div>
+
+          <div class="slotmark">the new card</div>
+
+          <div id="wxcard"></div>
+
+          <div class="card ghost">
+            <div class="card-head">
+              <div class="tile" data-icon="tag"></div>
+              <span class="t">Named Individuals</span>
+            </div>
+            <div class="omit">section body omitted in this preview</div>
+          </div>
+
+          <div class="card ghost">
+            <div class="card-head">
+              <div class="tile" data-icon="play"></div>
+              <span class="t">Recent Media</span>
+            </div>
+            <div class="omit">section body omitted in this preview</div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <div class="note" style="margin-top: 1.75rem;">
+      <h3>What to look at</h3>
+      <p><strong>House Finch</strong> is the case where the confound is loudest: on 308 of your
+        353 blocked checklists, so its shape is almost your shape, and every reference figure
+        says so. It is also where the group denominators earn their wording &mdash; 306 of its 308
+        carry a sky condition while 308 of its 308 carry a temperature, because a block can
+        record a temperature and no sky.</p>
+      <p><strong>Steller&rsquo;s Jay</strong> is the case where the chart says something. Eleven of its
+        eighteen are overcast against 39% of your outings; three of its eighteen are in the
+        32&ndash;44&deg;F band against 2% of your outings, which is three of the six cold outings you
+        have. The muted figure is what lets you see that without anything dividing one number
+        by the other.</p>
+      <p><strong>Western Bluebird</strong> is the below-floor state doing its real work. It is on
+        five weather-block checklists, which against your 353 sounds like a coverage problem;
+        against the <strong>97 checklists you actually have the bird on</strong> it is simply a bird
+        you saw many times before you started writing blocks. Same numerator, two wholes.</p>
+      <p><strong>American White Pelican</strong> and <strong>Wood Duck</strong> are the zero case, and
+        they are the ordinary one: <strong>225 of your 282 species</strong> get a sentence rather than
+        a chart. Wood Duck is also the typical shape of a zero-block bird here &mdash; the median
+        total across those 114 species is two checklists, and 49 of them sit at exactly one.</p>
+    </div>
+  </section>
+
+  <!-- ═══════════ 2. The states the bird cannot change ═══════════ -->
+  <section class="sec">
+    <h2>2. The two states the bird cannot change</h2>
+    <p class="lead">Both are decided by the export, not by the selection, so no species in the
+      stepper can reach them. They are pinned here instead.</p>
+    <div class="sec-rule"></div>
+
+    <div class="note">
+      <h3>Export below floor &middot; fewer than 5 readable blocks</h3>
+      <p>The shipped words and the shipped destination, byte for byte, because it is the same
+        state about the same export that the Statistics section already describes. No bird
+        name, no per-band figure, nothing about this species: the statement is about the file.
+        Which means this card renders identically on every bird, which is correct.</p>
+    </div>
+
+    <div class="frame-wrap">
+      <div class="frame" data-w="wide" data-scale="100" style="max-width: 34rem;">
+        <div class="tabcol">
+          <div class="card">
+            <div class="card-head">
+              <div class="tile" data-icon="cloudsun"></div>
+              <span class="t">Weather</span>
+            </div>
+            <div class="card-body">
+              <p class="wx-body" style="margin-bottom: 0.625em;">You have 3 checklists with a readable weather block. That is not enough to chart yet.</p>
+              <p class="wx-note">Every figure here is about the checklists that carry a weather block SnowRaven or RainCrow wrote, so filling in more blocks is what sharpens it.</p>
+              <button class="wx-route" tabindex="0" type="button">Fill in the gaps on the Weather tab<span data-icon="arrow"></span></button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="note" style="margin-top: 2.5rem;">
+      <h3>Absent &middot; no attribution-bearing block anywhere in the export</h3>
+      <p>No card, no head, no placeholder, no reserved space, and no gap where one used to be.
+        Species Detail has no section index and this feature does not add one, so absence needs
+        nothing beyond the card not rendering. Below is what the reader sees: Comments, then
+        Named Individuals, with the run closing over the space.</p>
+    </div>
+
+    <div class="frame-wrap">
+      <div class="frame" data-w="wide" data-scale="100" style="max-width: 34rem;">
+        <div class="tabcol">
+          <div class="card ghost">
+            <div class="card-head">
+              <div class="tile" data-icon="msg"></div>
+              <span class="t">Comments</span>
+            </div>
+            <div class="omit">section body omitted in this preview</div>
+          </div>
+          <div class="gap">
+            <b>nothing renders here</b>
+            not a card, not a head, not a reserved height &mdash; the two sections are adjacent
+          </div>
+          <div class="card ghost">
+            <div class="card-head">
+              <div class="tile" data-icon="tag"></div>
+              <span class="t">Named Individuals</span>
+            </div>
+            <div class="omit">section body omitted in this preview</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════ 3. Decisions ═══════════ -->
+  <section class="sec">
+    <h2>3. The three questions, answered</h2>
+    <div class="sec-rule"></div>
+
+    <div class="dec">
+      <p class="q">OQ-05 &middot; the exact slot</p>
+      <h3>After Comments, above Named Individuals &mdash; <em>the Planner&rsquo;s default, taken on its merits</em></h3>
+      <p>Three reasons, each of which would be enough. It closes the run of sections built from
+        the bird&rsquo;s own records, so the two sections below it (Named Individuals, Recent Media)
+        stay a distinct group about something else. It does not split the Top Locations &rarr;
+        Sighting Locations pair, which is a list and then the map of the same fact and reads as
+        one thing. And a state that is a quiet sentence four birds in five belongs where a
+        reader arrives at it rather than where they land on it.</p>
+      <p>The higher slot &mdash; immediately after Sighting Locations &mdash; was the real alternative
+        and I rejected it: it puts the card&rsquo;s ordinary state on the path of every reader on
+        every bird, which trains the eye to skip the card entirely by the time it has something
+        to show.</p>
+    </div>
+
+    <div class="dec">
+      <p class="q">OQ-06 &middot; one axis at a time, or both</p>
+      <h3>Both groups, side by side, <em>no toggle</em></h3>
+      <p>The brief permits the axis toggle to travel, but there is nothing to travel:
+        <strong>the Statistics per-species view has no toggle.</strong> Its Sky / Temperature control
+        governs the band chart above it, not the pair. Adding one here would not be inheriting
+        a control, it would be inventing one on the surface whose whole premise is that you
+        should not have to operate anything to get the answer.</p>
+      <p>The pair fits. <code>.sr-wx-pair</code> is an <code>auto-fit</code> grid with a
+        <code>min(240px, 100%)</code> track, so it is two columns wherever there is room for two
+        and one column the instant there is not, with no breakpoint to get wrong. Try the width
+        and text-scale switches on section 1: it collapses on its own at 640 and at 320, and at
+        200% text scale on a desktop width.</p>
+      <p>The cost, stated: eighteen rows is a tall card. That is the honest length of the
+        answer, no band is dropped, and the alternative is a control that hides half of it.</p>
+    </div>
+
+    <div class="dec">
+      <p class="q">OQ-07 &middot; does the below-floor sentence name the floor</p>
+      <h3>Yes &mdash; <em>it is the only thing the card can actually promise</em></h3>
+      <p>The state routes nowhere, and rightly: the backlog is a list of your blockless
+        checklists across the whole export, and nothing on this card knows how many of them
+        carry this bird, so &ldquo;fill in the gaps&rdquo; here would read as &ldquo;and then this chart will
+        appear&rdquo;, which is a promise it cannot keep. What it can say exactly is what would
+        change the answer.</p>
+      <p>So the state carries the count and the floor, and the floor is built from
+        <code>WEATHER_SPECIES_MIN_CHECKLISTS</code> the way <code>legendFloorNote()</code> already is,
+        never a re-spelled number. Two sentences, no button, no icon, no frame.</p>
+    </div>
+
+    <div class="dec">
+      <p class="q">The addition &middot; the bird&rsquo;s own whole</p>
+      <h3>The same numerator, measured against the bird&rsquo;s own record</h3>
+      <p>The opening block now carries two sentences with <strong>one numerator and two
+        wholes</strong>: <em>is on 308 of your 353 weather-block checklists</em>, then <em>that is 308
+        of the 1,307 checklists you have it on</em>. The second is the one that answers how much of
+        this bird&rsquo;s history the card can speak to, which is the job the brief gives it.</p>
+      <p><strong>&ldquo;That is&rdquo; is doing real work and is not a stylistic tic.</strong> Without it, the
+        same figure printed twice reads as two different counts. With it, the repeated number is
+        unmistakably one number held against two wholes &mdash; which is the card&rsquo;s whole thesis,
+        stated in the lede before the chart demonstrates it. <strong>Nothing divides them.</strong>
+        There is no coverage percentage for the bird, and there will not be one.</p>
+      <p><strong>The zero case takes its own wording,</strong> for the same reason the shipped lede
+        does: <em>you have it on 26 checklists, and none of them carry a weather block</em>. &ldquo;That is
+        0 of the 26&rdquo; would put a bare zero exactly where the sentence is supposed to be an
+        account. The singular is reachable and ordinary &mdash; 49 of the 114 zero-block species on
+        your export sit at exactly one checklist &mdash; so it reads <em>you have it on 1 checklist, and
+        it does not carry a weather block</em>. Step to Wood Duck to see it.</p>
+      <p><strong>It needs no new basis clause.</strong> Both figures are export-wide, so FR-13&rsquo;s
+        single filter clause already covers both.</p>
+    </div>
+
+    <div class="dec">
+      <p class="q">The addition &middot; where the denominator comes from</p>
+      <h3>It stayed inside the current seam &mdash; <em>no payload change, no round trip</em></h3>
+      <p>I checked rather than assumed, and the answer is better than the alternative. Species
+        Detail already holds <code>phase.observations</code>, the <strong>raw unfiltered parse</strong>
+        from <code>loadEbirdObservations()</code>. A distinct-submission count over that array,
+        matched with <code>normalizeSpeciesName</code> on both sides, is export-wide by
+        construction (the county and date filters only ever touch <code>speciesObs</code>),
+        all-forms (<code>filterObservations(obs, true)</code> is a passthrough, so the raw parse
+        <em>is</em> the all-forms set), and folds forms into the parent exactly as the numerator
+        does. Same basis, no new field, nothing back to The Architect.</p>
+      <p><strong>The alternative would have failed in the one state that needs this most.</strong>
+        Adding <code>totalChecklists[]</code> to <code>WeatherStats.species</code> is technically
+        easy &mdash; the second pass in <code>computeWeatherStats</code> already visits every row and
+        the count is one <code>continue</code> away. But <code>species.names</code> holds only
+        species with at least one readable-block checklist, so a payload field structurally cannot
+        reach the <strong>114 species at zero</strong>, which is exactly where the coordinator is
+        right that the sentence earns its place. Widening the table to all 282 is worse still:
+        <code>stats.species.names</code> feeds the Statistics picker directly, so the picker would
+        start offering 114 birds whose chart is all zeros &mdash; a plain FR-27 regression.</p>
+      <p><strong>The one constraint that rides with it, for the Engineer:</strong> this must not be a
+        per-species scan. NFR-02 requires a species change to be a lookup. Build it once, in the
+        same post-paint effect and the same observations-identity memo the weather seam already
+        uses &mdash; one pass producing a name-to-count map through a transient pair set &mdash; and a
+        species change stays a map read.</p>
+    </div>
+
+    <div class="dec">
+      <p class="q">Not asked, but decided</p>
+      <h3>The below-floor state is the full state <em>with the chart not yet arrived</em></h3>
+      <p>This is the design decision that matters most, because it is the one four birds in five
+        will see. The below-floor card opens with the <strong>same block, in the same place, at the
+        same weight</strong> as the full card: the name, the count sentence, the muted note. Only
+        the chart is absent, and one quiet line says what would bring it.</p>
+      <p>Step between Steller&rsquo;s Jay and American Kestrel in section 1 and watch the first
+        paragraph: it does not move, does not change register, and does not acquire an apology.
+        A birder stepping through their list reads one continuous sentence per bird, and the
+        chart is a bonus that sometimes appears. The alternative &mdash; an empty-state box with a
+        dashed border and a centred glyph &mdash; would render a broken chart on four birds in five,
+        which is precisely what the brief said this card must never be.</p>
+    </div>
+
+    <div class="dec">
+      <p class="q">Also decided, and worth flagging</p>
+      <h3>Three smaller calls</h3>
+      <p><strong>The bird&rsquo;s name is not accent-coloured here.</strong> The Statistics lede wraps it in
+        <code>.sr-wx-lede .sp</code>, which forces the accent, because there the name is the answer to
+        &ldquo;which bird&rdquo; that the user just typed into a picker. On Species Detail the page header
+        already names the bird, and the design system&rsquo;s rule is one accent per surface. So the
+        name renders in <code>BirdName</code>&rsquo;s own default, and the accent on this card belongs to
+        the bars and, in the export-below-floor state, to the route.</p>
+      <p><strong>No <code>onOpenSpecies</code>, so the name is not a self-link.</strong> <code>BirdName</code>
+        links only when <code>hasEntry &amp;&amp; onOpenSpecies</code>; omitting the handler renders the
+        name as text plus its two link marks, which is right, because a link to the page you are
+        already on is a control that looks pressable and does nothing.</p>
+      <p><strong>The head carries the title and nothing else.</strong> Several Species Detail sections
+        put a muted figure at the end of their head row, and I am not doing that here: the count
+        lives one line below with its denominator and its explanation, and a bare number in the
+        head would be the second place the same fact lives, without the words that make it
+        readable.</p>
+    </div>
+  </section>
+
+  <!-- ═══════════ 4. Copy ═══════════ -->
+  <section class="sec">
+    <h2>4. New copy</h2>
+    <p class="lead">Six new count-bearing strings. All of them belong in
+      <code>lib/weatherStatsCopy.ts</code> and nowhere else, so they ride the generated corpus
+      sweep; everything else on the card is a shipped function reused unchanged.</p>
+    <div class="sec-rule"></div>
+    <div class="scrollx">
+      <table class="copytable">
+        <thead>
+          <tr><th>Proposed function</th><th>Renders</th><th>Why this wording</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>speciesFloorNote()</td>
+            <td><em>The skies and temperatures appear once a bird is on 10 weather-block checklists.</em></td>
+            <td>Built from <code>WEATHER_SPECIES_MIN_CHECKLISTS</code>, pluralised, never a re-spelled number. It borrows the section&rsquo;s own vocabulary from <code>pickerRestParts().lead</code> (&ldquo;the skies and temperatures&rdquo;), and it names what would change rather than what is missing.</td>
+          </tr>
+          <tr>
+            <td>speciesZeroLedeParts()</td>
+            <td><em>is on none of your 353 weather-block checklists.</em> + the shipped <em>Counts are checklists, not sightings.</em></td>
+            <td>The zero case needs its own wording because <code>speciesLedeParts</code> would print &ldquo;is on 0 of your 353&rdquo;. Same lead-plus-note shape as the shipped function, so the component renders one branch.</td>
+          </tr>
+          <tr>
+            <td>speciesOwnWhole()</td>
+            <td><em>That is 308 of the 1,307 checklists you have it on.</em></td>
+            <td>The bird&rsquo;s own whole. Same numerator as the sentence above it; &ldquo;That is&rdquo; binds the two so a repeated figure cannot read as two counts. Prints no percentage and divides nothing. &ldquo;you have it on&rdquo; is the section&rsquo;s existing vocabulary, from <code>pickerRestParts().lead</code>.</td>
+          </tr>
+          <tr>
+            <td>speciesOwnWholeZero()</td>
+            <td><em>You have it on 26 checklists, and none of them carry a weather block.</em> / at one: <em>You have it on 1 checklist, and it does not carry a weather block.</em></td>
+            <td>No numerator to bind, so it leads with the bird&rsquo;s record. Both the noun and the verb clause inflect, because 49 of the 114 zero-block species on this export sit at exactly one checklist &mdash; the singular is the common case here, not an edge.</td>
+          </tr>
+          <tr>
+            <td>filterBasisClause()</td>
+            <td><em>These cover every checklist in your export, so this tab&rsquo;s filters do not narrow them.</em></td>
+            <td>Present only while a county or date filter is active. Nobody is made to read an explanation of a filter they did not set.</td>
+          </tr>
+          <tr>
+            <td>formBasisClause()</td>
+            <td><em>Every form counts as its parent species.</em></td>
+            <td>Present only when the selection is a form whose normalized name differs from it. The lede&rsquo;s <code>BirdName</code> already shows which parent, so the clause does not name it twice.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="note" style="margin-top: 1.5rem;">
+      <h3>Where the clauses sit</h3>
+      <p>Both basis clauses join the muted run that already follows the lede sentence, after the
+        shipped &ldquo;Counts are checklists, not sightings.&rdquo; One paragraph: the lead in body text,
+        then everything that qualifies it, muted, in the order lede-note, filter, form. Each is
+        absent when it does not apply, so the common case is exactly the shipped one sentence.</p>
+    </div>
+  </section>
+
+  <!-- ═══════════ 5. Findings ═══════════ -->
+  <section class="sec">
+    <h2>5. Two approved repairs to the shared row</h2>
+    <p class="lead">Both surfaced while checking this card at 320px and at 200% in-app text
+      scale, and both are <strong>approved and ship with this build</strong>. They live in the row
+      primitive this feature shares rather than copies, so both change how the Statistics Weather
+      section renders too. The mockup above shows the approved behaviour.</p>
+    <div class="sec-rule"></div>
+
+    <div class="dec">
+      <p class="q">Repair 1 &middot; approved &middot; confirmed in the shipped v1.0.22 build</p>
+      <h3>The row label paints on top of the count</h3>
+      <p>In the stacked tier the label is given <code>white-space: normal</code> and
+        <code>overflow: visible</code> but no wrap allowance, and its track is
+        <code>minmax(0, 1fr)</code>. <code>normal</code> only breaks at spaces, so the multi-word
+        labels wrap and are always clean while the two single-word ones cannot break at all and,
+        with no clipping ancestor anywhere, paint straight through the count cell.</p>
+      <p>Reproduced against the shipped <code>dist</code>, in Chromium and WebKit, agreeing to
+        within 0.06px. Worst case <strong>&ldquo;Thunderstorm&rdquo; overshooting by 48.9px at 320px/200%</strong>,
+        where its track is 70.3px against a min-content of 135.2px. It is glyph on glyph, not
+        intrusion into padding: the count&rsquo;s ink starts exactly at its cell edge.</p>
+      <p><strong>It is not an edge case and it is not data-dependent.</strong> The failing pair is
+        &ldquo;Thunderstorm&rdquo; over <code>no outings</code>, which is the row every birder who has never
+        birded a thunderstorm sees. On your own export that is exactly the row this card renders.</p>
+      <p><strong>And it is not monotonic in width</strong>, which is the part worth carrying into
+        any fix. There are two disjoint failing bands at 200%: <strong>300 to 365px</strong> and
+        <strong>620 to 640px</strong>. The second exists because
+        <code>.sr-wx-pair</code>&rsquo;s <code>auto-fit</code> grid flips from one column to two at
+        ~620px, halving each column and collapsing the label track from 345px back to 69px while
+        the &le;640px rules are still in force. A check at 320 and 900 finds the first band and
+        misses the second; a check at 375, 414, 480 or 560 finds neither.</p>
+      <p><strong>Repair:</strong> <code>overflow-wrap: anywhere</code> on the label, in that tier
+        only. <code>break-word</code> renders identically and would not work &mdash; only
+        <code>anywhere</code> lowers the item&rsquo;s intrinsic contribution &mdash; and nothing reads
+        this label&rsquo;s min-content, so the v0.5.85 objection to <code>anywhere</code> does not
+        apply here. The desktop tier needs nothing: it clips with an ellipsis by construction.</p>
+      <p><strong>Its blast radius is wider than this card, and that is correct.</strong>
+        <em>(Measured at Stage 6 and corrected here.)</em> The rule lives in the shared
+        <code>@media (max-width: 640px)</code> tier on <code>.sr-wx-row &gt; .sr-wx-label</code>,
+        and <code>DistRow</code> renders that same element, so it reaches the Statistics
+        <strong>distribution</strong> rows too. It repairs them as well: the shipped
+        distribution rows carried label-over-count readings at supported widths, worst 21.88px
+        on &ldquo;Overcast&rdquo; at 320px / 200%, and carry none afterwards. The change is
+        confined to <strong>300 to 355px at 200% text</strong>, at the cost of a taller row
+        there. That is inside FR-27, because the design intent is stated over <em>a row&rsquo;s
+        label</em> with no per-species restriction.</p>
+    </div>
+
+    <div class="dec">
+      <p class="q">Repair 2 &middot; approved &middot; measured on this card, same mechanism</p>
+      <h3>At 200% text scale on a desktop width, the rails collapse to nothing</h3>
+      <p>The stacked tier opens at <code>@media (max-width: 640px)</code>, so at a 952px frame the
+        row keeps its four inline tracks and the <code>1fr</code> rail absorbs everything the
+        glyph, the 8.5rem label track and the nowrap count leave over. In the same 398px column:
+        rails of <strong>193 to 240px at 100%</strong>, and <strong>0.0 to 32.6px at 200%</strong>,
+        with several rows painting no rail at all while still taking the height of one.</p>
+      <p>It leaks no scroll and hides no value &mdash; every figure is text on the same line, which is
+        why WCAG 1.4.4 is not engaged &mdash; but a chart whose bars vanish for exactly the reader
+        who enlarged their text is not doing the job the bars are there for.</p>
+      <p><strong>Repair:</strong> move the tier&rsquo;s trigger, not its layout. The stacked shape is
+        already correct and already shipped; what is wrong is when it fires. What decides whether
+        four inline tracks fit is the row&rsquo;s own column measured against the size of its own
+        text, and <code>em</code> inside a container query is exactly that: the same 398px column
+        reads 24.9em at 100% and 12.4em at 200%. So the block opens at
+        <code>@container (max-width: 22em)</code> on the group column, against measured widths of
+        6.9 to 16.9em everywhere that must stack and 24.9em in the one place that must not.</p>
+      <p>This is not the v1.0.22 rule being contradicted. That rule rejects a container query
+        because &ldquo;how wide is my box&rdquo; cannot answer &ldquo;how wide is my content&rdquo; &mdash; and it was right,
+        which is why the reference figure took its own row unconditionally. That change removed
+        the data-dependent half of the width. What is left varies with the text scale alone, and
+        an <code>em</code> container query tracks the text scale exactly.</p>
+      <p><strong>Worth taking together.</strong> The container trigger is also what makes Finding
+        1&rsquo;s two disjoint bands stop mattering. Those bands exist only because the tier is keyed
+        on a viewport width while the column count underneath it changes independently at ~620px;
+        keyed on the column itself, there is nothing left to be non-monotonic in. The failure is
+        removed rather than relocated, which is the same move the reference figure made when it
+        took its own row.</p>
+    </div>
+
+    <div class="dec">
+      <p class="q">Two constraints the spec surfaced</p>
+      <h3>Scope the container, and keep the declarations single-sourced</h3>
+      <p><strong>The container belongs on the per-species groups only.</strong>
+        <code>.sr-wx-rows</code> appears in three places in
+        <code>WeatherStatsSection.tsx</code> &mdash; the distribution groups, serving all four
+        distribution axes, and the two per-species columns. Putting the container on that class
+        wholesale would re-trigger the distribution rows, which do not have <em>the rail</em>
+        defect this repair is about (they run at full card width and their rails measure
+        healthily at 200%), and would visibly change the shipped Statistics distribution rows
+        between roughly 480 and 640px, which FR-27 forbids. This mockup puts the container on the
+        group wrapper, which is equivalent here and does not generalize. Name the defect and not
+        just the rows, or the two repairs get conflated: the distribution rows <em>did</em> have
+        Repair 1&rsquo;s defect, and this scoping constraint is Repair 2&rsquo;s alone. Verified
+        at Stage 6, with the container scoped as specified the distribution rows show zero change
+        anywhere between 470 and 660px at any text scale.</p>
+      <p><strong>The stacked declarations must stay single-sourced.</strong> The distribution rows
+        keep their viewport trigger and the per-species rows gain a container trigger, so two
+        selectors now need the same declaration list. The repo has the pattern and the reason
+        already: <code>.sr-input-16</code> and <code>.sr-ctl-row :is(button, select, input)</code>
+        differ in specificity on purpose, share one declaration, and are locked identical by a
+        test that parses the real <code>globals.css</code>. Two blocks that agree today are two
+        blocks that will disagree later, on the row FR-26 exists to keep single.</p>
+    </div>
+
+    <div class="note">
+      <h3>Why the gate did not catch either</h3>
+      <p><code>verify-weather-species-rows.mjs</code> is a good harness and neither of these is in
+        its field of view. Run against the same build and the same fixture it reports
+        <strong>all checks passed, worst reading 0.01px</strong>, across 27 widths and three text
+        scales in both engines &mdash; including 320px at 200%, the exact configuration carrying
+        48.9px of painted overlap. It measures page scroll width and overflow past <em>the card&rsquo;s</em>
+        content box; a label overrunning into its sibling grid column never leaves the card, and
+        a collapsed rail overflows nothing at all. The stylesheet guards are declaration-only and
+        the component tests are jsdom, which has no layout engine. If these are taken, each wants
+        an assertion of its own: label ink against the count cell&rsquo;s edge, and a minimum rendered
+        rail width, both swept at 200%.</p>
+    </div>
+  </section>
+
+  <!-- ═══════════ 6. Constraints ═══════════ -->
+  <section class="sec">
+    <h2>6. What this design holds itself to</h2>
+    <div class="sec-rule"></div>
+    <ul class="checks">
+      <li><span data-icon="check"></span><span><b>Scaled to the bird&rsquo;s own largest band</b>, per axis, never shared between the two. The shared rail does not come back; the muted trailing figure is what carries the population.</span></li>
+      <li><span data-icon="check"></span><span><b>One numerator, two wholes, in the lede as well as the rows.</b> The opening block states the bird&rsquo;s weather-block count against your weather record and against the bird&rsquo;s own record, and nothing divides them. There is no coverage percentage for the bird.</span></li>
+      <li><span data-icon="check"></span><span><b>Nothing divides one share by the other.</b> No rate, nothing ranked, nothing predicted, no &ldquo;best conditions for&rdquo; anywhere on the card.</span></li>
+      <li><span data-icon="check"></span><span><b>The trailing figure takes its own row at every width</b> &mdash; not a fifth column above 640px. Its width depends on the width of its own text, so no breakpoint could express the condition.</span></li>
+      <li><span data-icon="check"></span><span><b>No positive <code>min-width</code> anywhere in the pattern.</b> The one <code>min-width: 3px</code> is on the bar fill, inside an <code>overflow: hidden</code> track, where it cannot widen a row.</span></li>
+      <li><span data-icon="check"></span><span><b>Three row states, three shapes.</b> Data draws a solid track with a fill; a band with no outings draws a dashed track, mutes its label, prints no numeral and carries no reference; a band the bird missed on outings you did have prints <code>0 &middot; 0%</code> on a solid track and keeps its reference. Steller&rsquo;s Jay shows all three.</span></li>
+      <li><span data-icon="check"></span><span><b>No band is dropped</b>, including the four sky conditions and two temperature bands you have never birded. Dropping bands makes the distribution itself lie.</span></li>
+      <li><span data-icon="check"></span><span><b>Every colour is a <code>var(--sr-*)</code> token</b>, declared in both themes. No hardcoded hex or RGB in the pattern.</span></li>
+      <li><span data-icon="check"></span><span><b>Every <code>button</code> and <code>a href</code> carries a literal <code>tabIndex={0}</code></b>, including the route in the export-below-floor state. The full and bird-below-floor states render no control at all.</span></li>
+      <li><span data-icon="check"></span><span><b>No em dash</b> in any string the card renders.</span></li>
+      <li><span data-icon="check"></span><span><b>Motion is the bar entrance only</b> &mdash; 300ms, <code>cubic-bezier(0.2, 0, 0, 1)</code>, replayed when the species changes and not otherwise, with a <code>prefers-reduced-motion</code> fallback that renders final widths instantly. Nothing else on the card animates, because nothing else changes.</span></li>
+      <li><span data-icon="check"></span><span><b>Identifiers key on an index</b>, never on a species name, a condition glyph or a band label.</span></li>
+    </ul>
+    <div class="note" style="margin-top: 1.75rem;">
+      <h3>Three observations for the record</h3>
+      <p><strong>A bounded residual, deliberately not answered in copy.</strong> The tab shows a big
+        stat labelled <strong>Checklists</strong> two sections above this card, and it is
+        <code>speciesObs.length</code> &mdash; a ROW count, not a distinct-submission count &mdash; so it
+        can read higher than the card&rsquo;s figure when a checklist carries both a parent and a form.
+        Measured on your export it is negligible: <strong>4 species of 282</strong> disagree at all
+        (Mallard +7, Yellow-rumped Warbler +3, Dark-eyed Junco +1, Northern Flicker +1), 12 rows
+        in 21,369, and <strong>all five birds in the stepper are exact</strong>. So I am not spending
+        copy on it. Stated honestly, though: that 0.06% is a property of <em>this</em> birder&rsquo;s
+        subspecies-reporting habit, not of the code, and someone who logs Myrtle and Audubon&rsquo;s
+        routinely would see a wider gap on the same path.</p>
+      <p><strong>A live defect next door, found while checking the above and not touched.</strong>
+        <code>SpeciesDetail.tsx</code>&rsquo;s Frequency stat divides that same ROW count by
+        <code>totalFilteredChecklists</code>, which is a Set of submission ids &mdash; numerator and
+        denominator on different bases, so Frequency is systematically overstated for those four
+        species and can in principle exceed 100%. It cannot on this export. The correctly deduped
+        count is already sitting in the component. Not this feature&rsquo;s work; worth its own issue.</p>
+      <p><code>--sr-card-shadow</code> is the one shadow token still on pure black
+        (<code>rgba(0,0,0,0.06)</code>) while the design system says shadows are tinted with the
+        app&rsquo;s own ink. This mockup reproduces the shipped value rather than quietly improving
+        it. Not this feature&rsquo;s work; worth a roadmap line.</p>
+    </div>
+  </section>
+
+</div>
+
+<script>
+/* ── Icons (inline Lucide paths; nothing is fetched) ────────────────────── */
+const ICONS = {
+  cloudsun: '<path d="M12 2v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="M20 12h2"/><path d="m19.07 4.93-1.41 1.41"/><path d="M15.947 12.65a4 4 0 0 0-5.925-4.128"/><path d="M13 22H7a5 5 0 1 1 4.9-6H13a3 3 0 0 1 0 6Z"/>',
+  pin: '<path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/>',
+  msg: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
+  tag: '<path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/>',
+  play: '<polygon points="6 3 20 12 6 21 6 3"/>',
+  arrow: '<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',
+  check: '<path d="M20 6 9 17l-5-5"/>',
+  bird: '<path d="M16 7h.01"/><path d="M3.4 18H12a8 8 0 0 0 8-8V7a4 4 0 0 0-7.28-2.3L2 20"/><path d="m20 7 2 .5-2 .5"/><path d="M10 18v3"/><path d="M14 17.75V21"/><path d="M7 18a6 6 0 0 0 3.84-10.61"/>',
+  camera: '<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/>',
+}
+function svg(name, cls) {
+  return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" '
+    + 'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"'
+    + (cls ? ' class="' + cls + '"' : '') + '>' + ICONS[name] + '</svg>'
+}
+document.querySelectorAll('[data-icon]').forEach(el => { el.innerHTML = svg(el.dataset.icon) })
+
+/* ── Real figures, from the user's own ebird-backup.csv ─────────────────────
+   Produced by running the shipped parseEbird -> filterObservations(obs, true)
+   -> computeChecklists -> computeWeatherStats chain over the export on this
+   machine. Nothing below is invented. */
+
+const READABLE = 353          // stats.readableCount
+const TOTAL_CHECKLISTS = 3252 // stats.totalChecklists (all-forms variant)
+
+// CONDITION_EMOJI order is the index contract. CONDITION_LABEL is the display
+// vocabulary from WeatherStatsSection.tsx.
+const COND_GLYPH = ['⛈️','🌦️','🌧️','❄️','🌫️','☀️','🌤️','⛅','🌥️','☁️','🌡️']
+const COND_LABEL = ['Thunderstorm','Drizzle','Rain','Snow','Fog','Clear','Few clouds','Scattered clouds','Broken clouds','Overcast','Other']
+// Sky clarity, clearest first, foulest last, with the residual pinned.
+const COND_ORDER = [5, 6, 7, 8, 9, 4, 1, 2, 3, 0, 10]
+
+const TEMP_LABEL = ['Below 32°F','32 to 44°F','45 to 54°F','55 to 64°F','65 to 74°F','75 to 84°F','85°F and up']
+
+// Export-wide band counts (the reference figures' numerators).
+const POP_COND = [0, 0, 8, 0, 1, 88, 45, 48, 23, 137, 0]   // sums to 350
+const POP_TEMP = [0, 6, 34, 204, 91, 18, 0]                // sums to 353
+const COND_DENOM = POP_COND.reduce((a, b) => a + b, 0)
+const TEMP_DENOM = POP_TEMP.reduce((a, b) => a + b, 0)
+
+const BIRDS = [
+  {
+    name: 'House Finch', sci: 'Haemorhous mexicanus', checklists: 308, total: 1307,
+    cond: [0, 0, 7, 0, 1, 79, 39, 45, 21, 114, 0],
+    temp: [0, 4, 26, 186, 78, 14, 0],
+    why: 'On 308 of your 353 blocked checklists, so its shape is almost your shape. The sky sum (306) is short of its checklist count (308), because two of its blocks recorded a temperature and no sky.',
+  },
+  {
+    name: 'Steller’s Jay', sci: 'Cyanocitta stelleri', checklists: 18, total: 83,
+    cond: [0, 0, 1, 0, 0, 1, 2, 3, 0, 11, 0],
+    temp: [0, 3, 2, 10, 3, 0, 0],
+    why: 'Just over the floor, and the case where the chart says something: 61% overcast against 39% of your outings, and three of your six coldest outings.',
+  },
+  {
+    name: 'Western Bluebird', sci: 'Sialia mexicana', checklists: 5, total: 97,
+    cond: null, temp: null,
+    why: 'The starkest gap in the below-floor band: a bird you have on 97 checklists, five of which carry a block. This is the case the second sentence exists for.',
+  },
+  {
+    name: 'American White Pelican', sci: 'Pelecanus erythrorhynchos', checklists: 0, total: 26,
+    cond: null, temp: null,
+    why: 'Zero blocks with a real total: the highest of the 114 species absent from the published table. Absent from that table is never an error.',
+  },
+  {
+    name: 'Wood Duck', sci: 'Aix sponsa', checklists: 0, total: 1,
+    cond: null, temp: null,
+    why: 'The typical zero-block bird, and the singular agreement case: median total across those 114 species is 2, and 49 of them sit at exactly 1.',
+  },
+]
+
+/* ── The shipped copy functions, reproduced ─────────────────────────────── */
+const SPECIES_FLOOR = 10
+const fmt = n => n.toLocaleString(undefined, { maximumFractionDigits: 0 })
+const s = (n, sing, plur) => (n === 1 ? sing : plur)
+const sharePct = (count, total) => {
+  if (total <= 0 || count <= 0) return '0%'
+  const p = Math.round(count / total * 100)
+  return p === 0 ? '<1%' : p + '%'
+}
+const NO_OUTINGS = 'no outings'
+const speciesLede = (on, readable) =>
+  'is on ' + fmt(on) + ' of your ' + fmt(readable) + ' weather-block ' + s(readable, 'checklist', 'checklists') + '.'
+const speciesZeroLede = readable =>
+  'is on none of your ' + fmt(readable) + ' weather-block ' + s(readable, 'checklist', 'checklists') + '.'
+const LEDE_NOTE = 'Counts are checklists, not sightings.'
+/* THE BIRD'S OWN WHOLE. The same numerator as the sentence above it, measured
+   against the checklists the bird is actually on rather than against the
+   export's weather record. "That is" binds the two explicitly, so a repeated
+   figure reads as one number against two wholes rather than as two numbers.
+   Nothing divides one by the other and no percentage is printed. */
+const speciesOwnWhole = (on, total) =>
+  'That is ' + fmt(on) + ' of the ' + fmt(total) + ' ' + s(total, 'checklist', 'checklists')
+  + ' you have it on.'
+/* The zero case has no numerator to bind, so it leads with the bird's own
+   record instead. "That is 0 of the 26" would put a bare zero exactly where the
+   sentence is meant to be an account. The singular is reachable and ordinary:
+   49 of the 114 zero-block species on this export sit at exactly one checklist. */
+const speciesOwnWholeZero = total =>
+  'You have it on ' + fmt(total) + ' ' + s(total, 'checklist', 'checklists') + ', and '
+  + s(total, 'it does not carry', 'none of them carry') + ' a weather block.'
+const speciesFloorNote = () =>
+  'The skies and temperatures appear once a bird is on ' + fmt(SPECIES_FLOOR) + ' weather-block '
+  + s(SPECIES_FLOOR, 'checklist', 'checklists') + '.'
+const speciesChartNote = name =>
+  'This is where ' + name + ' turned up, so it reflects when you were out as well as the bird. '
+  + "Each row carries its share of the bird's records, then the same band's share of all your outings."
+const groupDenominator = (sum, total, axis) =>
+  fmt(sum) + ' of its ' + fmt(total) + ' ' + s(sum, 'has', 'have')
+  + (axis === 'sky' ? ' a sky condition' : ' a temperature')
+const rowReference = (bandN, axisTotal) => (bandN === 0 ? '' : 'outings ' + sharePct(bandN, axisTotal))
+
+/* ── Rendering ─────────────────────────────────────────────────────────── */
+const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
+
+function birdName(b) {
+  return '<span class="wx-name">'
+    + '<span class="nm">' + esc(b.name) + '</span>'
+    + '<span class="marks" aria-hidden="true"><i>' + svg('bird') + '</i><i>' + svg('camera') + '</i></span>'
+    + '</span> <span class="wx-sci">' + esc(b.sci) + '</span>'
+}
+
+/* One row of the per-species chart.
+   Three outcomes, three shapes:
+     data          solid track + fill, count, its share of the bird's axis
+                   total, then the population's share of the same band
+     0 with data   solid track, NO fill, `0 . 0%`, and the reference stays
+     no outings    dashed track, muted label, no numeral, and NO reference */
+function speciesRow(glyph, label, count, maxCount, speciesAxisTotal, bandN, axisTotal) {
+  const noOutings = bandN === 0
+  const w = maxCount > 0 ? (count / maxCount) * 100 : 0
+  const track = noOutings
+    ? '<div class="wx-track is-empty" aria-hidden="true"></div>'
+    : '<div class="wx-track" aria-hidden="true">'
+      + (count > 0 ? '<span class="wx-fill" style="--w: ' + w.toFixed(2) + '%"></span>' : '')
+      + '</div>'
+  const countCell = noOutings
+    ? NO_OUTINGS
+    : '<b>' + fmt(count) + '</b> <span aria-hidden="true">&middot;</span> ' + sharePct(count, speciesAxisTotal)
+  return '<div class="wx-row' + (glyph ? '' : ' no-glyph') + (noOutings ? ' is-zero' : '') + '">'
+    + (glyph ? '<span class="wx-glyph" aria-hidden="true">' + glyph + '</span>' : '')
+    + '<span class="wx-label">' + esc(label) + '</span>'
+    + track
+    + '<span class="wx-count">' + countCell + '</span>'
+    + '<span class="wx-ref">' + rowReference(bandN, axisTotal) + '</span>'
+    + '</div>'
+}
+
+function group(title, denomText, rows) {
+  return '<div class="wx-col"><div class="wx-grouphead">'
+    + '<p class="wx-sublabel">' + esc(title) + '</p>'
+    + '<span class="wx-denom">' + esc(denomText) + '</span>'
+    + '</div><div class="wx-rows">' + rows + '</div></div>'
+}
+
+function cardShell(body) {
+  return '<div class="card"><div class="card-head">'
+    + '<div class="tile">' + svg('cloudsun') + '</div><span class="t">Weather</span>'
+    + '</div><div class="card-body">' + body + '</div></div>'
+}
+
+function renderBird(b) {
+  // ── bird below floor: the full state's opening block, and no chart ──
+  if (b.checklists < SPECIES_FLOOR) {
+    const lead = b.checklists === 0 ? speciesZeroLede(READABLE) : speciesLede(b.checklists, READABLE)
+    const own = b.checklists === 0 ? speciesOwnWholeZero(b.total) : speciesOwnWhole(b.checklists, b.total)
+    return cardShell(
+      '<p class="wx-lede">' + birdName(b) + '<br>' + esc(lead)
+      + '<br>' + esc(own)
+      + ' <span class="wx-note">' + esc(LEDE_NOTE) + '</span></p>'
+      + '<p class="wx-note wx-floor">' + esc(speciesFloorNote()) + '</p>'
+    )
+  }
+
+  // ── full ──
+  const condSum = b.cond.reduce((a, n) => a + n, 0)
+  const tempSum = b.temp.reduce((a, n) => a + n, 0)
+  const maxCond = b.cond.reduce((m, n) => Math.max(m, n), 0)
+  const maxTemp = b.temp.reduce((m, n) => Math.max(m, n), 0)
+
+  const skyRows = COND_ORDER
+    .map(i => speciesRow(COND_GLYPH[i], COND_LABEL[i], b.cond[i], maxCond, condSum, POP_COND[i], COND_DENOM))
+    .join('')
+  const tempRows = TEMP_LABEL
+    .map((label, i) => speciesRow(null, label, b.temp[i], maxTemp, tempSum, POP_TEMP[i], TEMP_DENOM))
+    .join('')
+
+  return cardShell(
+    '<p class="wx-lede">' + birdName(b) + '<br>' + esc(speciesLede(b.checklists, READABLE))
+    + '<br>' + esc(speciesOwnWhole(b.checklists, b.total))
+    + ' <span class="wx-note">' + esc(LEDE_NOTE) + '</span></p>'
+    + '<p class="wx-note wx-confound">' + esc(speciesChartNote(b.name)) + '</p>'
+    + '<div class="wx-pair">'
+    + group('By sky', groupDenominator(condSum, b.checklists, 'sky'), skyRows)
+    + group('By temperature', groupDenominator(tempSum, b.checklists, 'temp'), tempRows)
+    + '</div>'
+  )
+}
+
+const STATE_OF = b => (b.checklists < SPECIES_FLOOR ? 'bird-below-floor' : 'full')
+
+let current = 0
+function select(i) {
+  current = i
+  const b = BIRDS[i]
+  // Replacing the subtree is what replays the bar entrance -- the same thing
+  // the shipped section's `key={sp-${selected}}` does, and for the same reason.
+  document.getElementById('wxcard').innerHTML = renderBird(b)
+  document.getElementById('state-key').textContent = STATE_OF(b)
+  document.getElementById('state-why').textContent = b.why
+  document.querySelectorAll('[data-bird]').forEach(btn => {
+    btn.setAttribute('aria-pressed', String(Number(btn.dataset.bird) === i))
+  })
+}
+document.querySelectorAll('[data-bird]').forEach(btn => {
+  btn.addEventListener('click', () => select(Number(btn.dataset.bird)))
+})
+select(0)
+
+/* ── Review controls ───────────────────────────────────────────────────── */
+function wire(attr, apply) {
+  const btns = document.querySelectorAll('[' + attr + ']')
+  btns.forEach(btn => btn.addEventListener('click', () => {
+    btns.forEach(o => o.setAttribute('aria-pressed', String(o === btn)))
+    apply(btn.getAttribute(attr))
+  }))
+}
+wire('data-theme-btn', v => document.documentElement.setAttribute('data-theme', v))
+wire('data-w-btn', v => { document.getElementById('frame').dataset.w = v })
+wire('data-s-btn', v => { document.getElementById('frame').dataset.scale = v })
+</script>

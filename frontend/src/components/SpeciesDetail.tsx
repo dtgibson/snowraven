@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Loader2, ChevronDown, Search, ExternalLink, Image, Mic, Video, Eye,
   MessageSquare, Dna, MapPin, Play, Calendar, SlidersHorizontal, Share2,
@@ -68,6 +68,16 @@ import { HeatmapLayer } from './speciesDetail/HeatmapLayer'
 import { MapBoundsFitter } from './speciesDetail/MapBoundsFitter'
 import { MapCornerControls } from './map/MapCornerControls'
 import { useMapFullscreen, MapFullscreenProvider } from '../lib/useMapFullscreen'
+import { useExportWeather } from '../lib/useExportWeather'
+
+// LAZY, and that is NFR-03's structural half (species-detail-weather): a user
+// whose export carries no weather block never fetches the card's chunk at all,
+// because `useExportWeather`'s gate leaves `exportWeather` null and the branch
+// below never renders. `fallback={null}` because the card sits low in the tab
+// and has nothing to reserve space for.
+const SpeciesWeatherCard = lazy(
+  () => import('./SpeciesWeatherCard').then(m => ({ default: m.SpeciesWeatherCard })),
+)
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -86,7 +96,7 @@ const EMPTY_OBSERVATIONS: ObservationEntry[] = []
 
 // ── Main component ─────────────────────────────────────────────────────────
 
-export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, onRequestedSpeciesConsumed, embedAllowed }: { onGoToSettings: () => void; filesVersion?: number; requestedSpecies?: string; onRequestedSpeciesConsumed?: () => void; embedAllowed: boolean }) {
+export function SpeciesDetail({ onGoToSettings, onGoToWeather, filesVersion, requestedSpecies, onRequestedSpeciesConsumed, embedAllowed }: { onGoToSettings: () => void; onGoToWeather: () => void; filesVersion?: number; requestedSpecies?: string; onRequestedSpeciesConsumed?: () => void; embedAllowed: boolean }) {
   const [phase, setPhase] = useState<Phase>({ tag: 'loading-saved' })
   const [taxonOrders, setTaxonOrders] = useState<Record<string, number>>({})
   const [taxonMap, setTaxonMap] = useState<Record<string, string>>({})
@@ -382,6 +392,15 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
   }, [phase])
 
   const hasLocationFilter = countyFilter !== null || !!dateRange.from || !!dateRange.to
+
+  // The Weather card's whole-export read (species-detail-weather). Gated and
+  // scheduled inside the hook: the presence check and the aggregate both run in
+  // an effect after a real frame, so opening the tab costs nothing extra, and a
+  // species change is a map read rather than a recompute. Null until the answer
+  // exists, and null forever on an export with no weather block.
+  const exportWeather = useExportWeather(
+    phase.tag === 'ready' ? phase.observations : EMPTY_OBSERVATIONS, phase.tag === 'ready',
+  )
 
   const speciesObs = useMemo((): ObservationEntry[] => {
     if (phase.tag !== 'ready' || !selectedSpecies) return []
@@ -1637,6 +1656,23 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
               </>
             )}
           </SectionCard>
+
+          {/* Weather — after Comments, above Named Individuals: it closes the run
+              of sections built from the bird's own records, and the two below it
+              are about something else. */}
+          {exportWeather && (
+            <Suspense fallback={null}>
+              <SpeciesWeatherCard
+                stats={exportWeather.stats}
+                ownChecklists={exportWeather.ownChecklists}
+                selectedSpecies={selectedSpecies}
+                sciName={sciNameMap.get(selectedSpecies)}
+                taxonCode={taxonCodeFor(selectedSpecies)}
+                filtersActive={hasLocationFilter}
+                onGoToWeather={onGoToWeather}
+              />
+            </Suspense>
+          )}
 
           {/* Named Individuals — birds named in this species' comments via [name:…] */}
           {namedIndividuals.length > 0 && (

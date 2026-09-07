@@ -49,7 +49,9 @@
 /// <reference types="node" />
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
-import { WEATHER_BAND_MIN_TO_SHOW, WEATHER_SECTION_MIN_READABLE } from './weatherStats'
+import {
+  WEATHER_BAND_MIN_TO_SHOW, WEATHER_SECTION_MIN_READABLE, WEATHER_SPECIES_MIN_CHECKLISTS,
+} from './weatherStats'
 import { WEATHER_COPY } from './weatherStatsCopy'
 
 const read = (p: string) => readFileSync(new URL(`../../../${p}`, import.meta.url), 'utf8')
@@ -208,5 +210,201 @@ describe('the three files agree with each other, not merely each with the code',
 
   it('carries no em dash', () => {
     for (const [name, get] of SURFACES) expect(get().includes('—'), name).toBe(false)
+  })
+})
+
+// ── The Species Detail card's own published claims (species-detail-weather) ──
+//
+// A SECOND SET OF PASSAGES, extracted the same way and for the same reason: the
+// card publishes claims that can go stale silently, and this repo has learned
+// twice that a requirement resting on a named guard is a claim about that guard
+// rather than a fact. Four claims, each with a non-vacuity leg per file:
+//
+//  1. THE PER-SPECIES FLOOR IS A CONSTANT. `WEATHER_SPECIES_MIN_CHECKLISTS`
+//     lives once, in `lib/weatherStats.ts`, and `speciesFloorNote()` reads it
+//     rather than re-spelling it. HELP states the number, which puts a copy
+//     outside that arrangement, so the matcher is built FROM the constant.
+//  2. ONE NUMERATOR, TWO WHOLES, AND NOTHING DIVIDES THEM. The decision that
+//     matters most on this card, and the one a later "helpful" edit would undo
+//     by adding a coverage percentage.
+//  3. THE TWO SURFACES COME OUT OF ONE DERIVATION, and where their bases can
+//     differ HELP says so rather than leaving it to be discovered.
+//  4. NO PICKER, AND OFFLINE. Both are promises about behaviour, and both are
+//     structural in the code.
+
+/** `docs/HELP.md`'s Species Detail Weather bullet. */
+function helpSpeciesCardBullet(): string {
+  const src = read('docs/HELP.md')
+  const start = src.indexOf('\n- Weather: the skies and temperatures you have recorded this bird in')
+  expect(start, 'docs/HELP.md documents the Species Detail Weather card').toBeGreaterThan(-1)
+  const rest = src.slice(start + 1)
+  const end = rest.indexOf('\n- ', 1)
+  return end === -1 ? rest : rest.slice(0, end)
+}
+
+/** `README.md`'s bullet for the card. */
+function readmeSpeciesCardBullet(): string {
+  const line = read('README.md').split('\n')
+    .find(l => l.startsWith("- **Weather on the bird's own page**"))
+  expect(line, 'README.md has a bullet for the Species Detail Weather card').toBeTruthy()
+  return line as string
+}
+
+/** The website's paragraph for the card, tags stripped so the prose reads as prose. */
+function siteSpeciesCardParagraph(): string {
+  const src = read('website/index.html')
+  const i = src.indexOf('card on Species Detail shows the skies')
+  expect(i, 'website/index.html states the Species Detail Weather card').toBeGreaterThan(-1)
+  const open = src.lastIndexOf('<p>', i)
+  const close = src.indexOf('</p>', i)
+  return src.slice(open, close).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
+}
+
+const CARD_SURFACES: Array<[string, () => string]> = [
+  ['docs/HELP.md', helpSpeciesCardBullet],
+  ['README.md', readmeSpeciesCardBullet],
+  ['website/index.html', siteSpeciesCardParagraph],
+]
+
+describe('the published Species Detail card passages exist at all', () => {
+  for (const [name, get] of CARD_SURFACES) {
+    it(`${name} carries one`, () => {
+      // Deleting the sentence is the move an author under time pressure actually
+      // reaches for, and it is the one a naive "must contain" guard rewards.
+      const text = get()
+      expect(text.length, name).toBeGreaterThan(200)
+    })
+  }
+
+  it('and HELP\'s lives inside the Species Detail section, not merely somewhere in the file', () => {
+    // Named by its PLACE rather than by a restatement: a bullet under
+    // `## Species Detail` does not need to say "Species Detail" to be about it,
+    // and published prose that repeats what the surrounding heading already says
+    // is the restatement the docs rule asks us to reduce.
+    const src = read('docs/HELP.md')
+    const section = src.indexOf('\n## Species Detail\n')
+    const next = src.indexOf('\n## ', section + 1)
+    const bullet = src.indexOf('\n- Weather: the skies and temperatures you have recorded this bird in')
+    expect(section).toBeGreaterThan(-1)
+    expect(bullet).toBeGreaterThan(section)
+    expect(bullet).toBeLessThan(next)
+  })
+})
+
+describe('card claim 1: the per-species floor is stated as the constant', () => {
+  it('docs/HELP.md names it, and names the RIGHT one', () => {
+    const text = helpSpeciesCardBullet()
+    // Built FROM the constant, so raising it turns this red instead of leaving
+    // the documentation quietly wrong -- the same trap one level up that
+    // `speciesFloorNote()` closes in the code.
+    const re = new RegExp(`\\bfewer than ${WEATHER_SPECIES_MIN_CHECKLISTS} weather-block checklists\\b`)
+    expect(re.test(text), `HELP.md should name ${WEATHER_SPECIES_MIN_CHECKLISTS}`).toBe(true)
+    // And the EXPORT floor is the other constant, named as the other thing.
+    expect(text).toContain(`fewer than ${WEATHER_SECTION_MIN_READABLE} readable ones`)
+    expect(WEATHER_SPECIES_MIN_CHECKLISTS).not.toBe(WEATHER_SECTION_MIN_READABLE)
+    expect(WEATHER_SPECIES_MIN_CHECKLISTS).not.toBe(WEATHER_BAND_MIN_TO_SHOW)
+  })
+
+  it('all three say the below-floor state is the ordinary one, not an edge case', () => {
+    // Four species in five land there on a real export, and the design is built
+    // for that. A published sentence implying it is rare would misdescribe what
+    // most readers will actually see.
+    for (const [name, get] of CARD_SURFACES) {
+      expect(/ordinary outcome for most species/.test(get()), name).toBe(true)
+    }
+  })
+})
+
+describe('card claim 2: one numerator, two wholes, and nothing divides them', () => {
+  for (const [name, get] of CARD_SURFACES) {
+    it(`${name} states both wholes and says nothing divides them`, () => {
+      const text = get()
+      expect(text, name).toContain('two different wholes')
+      expect(/[Nn]othing divides/.test(text), name).toBe(true)
+      // And no published surface may quietly promise a rate.
+      expect(/coverage percentage for the bird|percentage of the checklists you have it on/
+        .test(text.replace('there is no coverage percentage for the bird', '')), name).toBe(false)
+    })
+  }
+})
+
+describe('card claim 3: one derivation, and the stated basis where they differ', () => {
+  it('all three say the two surfaces come out of one derivation', () => {
+    for (const [name, get] of CARD_SURFACES) {
+      expect(/same derivation/.test(get()), name).toBe(true)
+    }
+  })
+
+  it('docs/HELP.md states how the two bases relate, in the Statistics section', () => {
+    // Where the card and the section CAN differ is published rather than left to
+    // be discovered by a reader holding two numbers.
+    const text = helpWeatherSection()
+    expect(text).toContain('one derivation')
+    expect(text).toContain('Count all forms')
+    expect(text).toContain('two stated populations')
+  })
+})
+
+describe('card claim 4: no picker, offline, and no prediction', () => {
+  for (const [name, get] of CARD_SURFACES) {
+    it(`${name} says it works offline and makes no lookup`, () => {
+      const text = get().toLowerCase()
+      expect(text, name).toContain('offline')
+      expect(/no lookup|makes no network|no network request/.test(text), name).toBe(true)
+    })
+  }
+
+  it('README and the website both state there is no picker on it', () => {
+    // The decision that makes this not a duplicate of the Statistics view.
+    expect(/no picker/.test(readmeSpeciesCardBullet())).toBe(true)
+    expect(/no picker/.test(siteSpeciesCardParagraph())).toBe(true)
+  })
+
+  it('none of them predicts or ranks, and each says so positively', () => {
+    for (const [name, get] of CARD_SURFACES) {
+      const text = get().toLowerCase()
+      for (const phrase of ['best conditions', 'you should', 'expect to find', 'most associated']) {
+        expect(text.includes(phrase), `${name}: "${phrase}"`).toBe(false)
+      }
+    }
+    // Stated positively on the two surfaces that summarise the feature; HELP
+    // carries the same promise in the Statistics section it shares a derivation
+    // with, and repeating it per bullet would be the restatement the docs rule
+    // asks us to reduce rather than multiply.
+    expect(/never predicts|does not predict|no ranked/.test(readmeSpeciesCardBullet())).toBe(true)
+    expect(/never predicts|does not predict|no ranked/.test(siteSpeciesCardParagraph())).toBe(true)
+  })
+})
+
+describe('the three card passages agree with each other, not merely each with the code', () => {
+  it('all three name the surface from TAB_LABELS, never from a component name', () => {
+    for (const [name, get] of CARD_SURFACES) {
+      const text = get()
+      // `SpeciesWeatherCard` and `WeatherSpeciesRow` are file names, and this
+      // repo has published a component name as a surface name before.
+      expect(text, name).not.toContain('SpeciesWeatherCard')
+      expect(text, name).not.toContain('WeatherSpeciesRow')
+      expect(text, name).not.toContain('SpeciesDetail')
+    }
+    // The two that summarise the feature from outside the tab must NAME it, and
+    // name it as the user sees it in `TAB_LABELS`.
+    expect(readmeSpeciesCardBullet()).toContain('Species Detail')
+    expect(siteSpeciesCardParagraph()).toContain('Species Detail')
+  })
+
+  it('the two that name the apps spell the other one its own way', () => {
+    // The website paragraph leans on the section paragraph directly above it for
+    // the attribution, so it is not required to repeat both names; the two that
+    // do name them must get the spelling right.
+    for (const [name, get] of [CARD_SURFACES[0], CARD_SURFACES[1]]) {
+      const text = get()
+      expect(text, name).toContain('SnowRaven')
+      expect(text, name).toContain('RainCrow')
+      expect(text, name).not.toContain('Raincrow')
+    }
+  })
+
+  it('carries no em dash', () => {
+    for (const [name, get] of CARD_SURFACES) expect(get().includes('\u2014'), name).toBe(false)
   })
 })

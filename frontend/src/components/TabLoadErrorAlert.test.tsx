@@ -177,7 +177,7 @@ const ROSTER: Row[] = [
   { name: 'Checklists', render: v => <Checklists onGoToSettings={noop} filesVersion={v} /> },
   { name: 'Breeding Codes', render: v => <BreedingCodeList onGoToSettings={noop} filesVersion={v} /> },
   { name: 'Named Birds', render: v => <NamedBirds onGoToSettings={noop} filesVersion={v} embedAllowed={false} /> },
-  { name: 'Species Detail', render: v => <SpeciesDetail onGoToSettings={noop} filesVersion={v} embedAllowed={false} /> },
+  { name: 'Species Detail', render: v => <SpeciesDetail onGoToSettings={noop} onGoToWeather={noop} filesVersion={v} embedAllowed={false} /> },
   { name: 'Multimedia', render: v => <LifeList onGoToSettings={noop} filesVersion={v} /> },
   { name: 'Map Explorer', render: () => <MapExplorer onGoToSettings={noop} onNavigateToMediaList={noop} />, epochDriven: true },
 ]

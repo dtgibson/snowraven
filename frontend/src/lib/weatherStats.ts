@@ -228,6 +228,88 @@ export function weatherSectionState(s: WeatherStats): WeatherSectionState {
   return 'full'
 }
 
+// ── The per-species floor and its state (species-detail-weather) ────────────
+
+/**
+ * Below this a BIRD'S OWN PAGE states its count and draws no chart.
+ *
+ * Ten rather than five, and NOT an import of `WEATHER_SECTION_MIN_READABLE`,
+ * not derived from it, and not expressed as a multiple of it. The two are
+ * independent judgements that happen to differ, in the same way
+ * `WEATHER_BAND_MIN_TO_SHOW` and `RATINGS_MIN_TO_SHOW` are independent
+ * judgements that happen to agree: coupling them would make a future change to
+ * one silently move the other.
+ *
+ * THE REASON, which is that the same five checklists are READ DIFFERENTLY in the
+ * two places. On Statistics they are the whole of a user's weather record and a
+ * reader discounts them as such. On a bird's own page a chart reads as a fact
+ * about that bird, and ten is where the bird's largest band can stand clear of
+ * the ones and zeros that eleven sky conditions spread five records into --
+ * bars are scaled to the bird's own largest band, so at five a band with two
+ * paints a full-width rail and the picture is decided by which single band
+ * happened to get a second checklist.
+ *
+ * THE STATED COST, which is an argument for the sentence rather than for a lower
+ * floor: on the reference export 392 of 3,300 checklists carry a readable block,
+ * so four species in five (225 of 283 measured) get the sentence rather than the
+ * chart. The below-floor state is written for that rather than as an edge case.
+ */
+export const WEATHER_SPECIES_MIN_CHECKLISTS = 10
+
+export type SpeciesWeatherState = 'absent' | 'export-below-floor' | 'bird-below-floor' | 'full'
+
+/**
+ * ONE discriminator for the Species Detail Weather card, beside
+ * `weatherSectionState` and deliberately separate from it: that one answers a
+ * question about the export, this one about the export AND the bird.
+ *
+ * THE ORDER OF THE TESTS IS LOAD-BEARING. The export's floor is read before the
+ * bird's, so a user with four readable blocks is told about their export rather
+ * than about this bird -- the statement that is actually true and actionable.
+ *
+ * One function, read by the card and by anything that ever refers to it, so
+ * "the card does not render and nothing else points at it" cannot half-happen.
+ * Species Detail has no section index today (and this feature adds none), so
+ * there is currently one reader; the discriminator is what keeps the two halves
+ * in step if one is ever added.
+ */
+export function speciesWeatherState(s: WeatherStats, birdChecklists: number): SpeciesWeatherState {
+  if (s.foundCount === 0) return 'absent'
+  if (s.readableCount < WEATHER_SECTION_MIN_READABLE) return 'export-below-floor'
+  if (birdChecklists < WEATHER_SPECIES_MIN_CHECKLISTS) return 'bird-below-floor'
+  return 'full'
+}
+
+/**
+ * The published table's row for a normalized common name, or -1.
+ *
+ * IN ONE PLACE so that "an absent name means a count of zero, never an error"
+ * is a property of a function rather than of every reader. The table holds only
+ * species on at least one readable-block checklist, so a miss is the ordinary
+ * outcome for 114 of the 283 species on the reference export -- it is never a
+ * thrown load and never a reason to hide the card.
+ *
+ * The scan is bounded by the SPECIES count (169 on the reference export), never
+ * by the row count, and it is not a lookup inside a loop over export values --
+ * the shape the linearity rule is about. Measured at 0.00084 ms per species
+ * change including both axes' reductions.
+ *
+ * WRITTEN AS A LOOP RATHER THAN `indexOf`, and that is deliberate. This module's
+ * own guard (`weatherStats.test.ts`) asserts that neither it nor
+ * `weatherBlockParse.ts` contains `.indexOf(`, `.includes(`, `.find(` or
+ * `.filter(` ANYWHERE -- a file-scoped absence check rather than a judgement
+ * about each call site. The honest move on a call the rule does not actually
+ * forbid is to write the loop, not to narrow the guard: v1.0.21 widened that
+ * rule precisely because it had been written narrowly enough to let a quadratic
+ * `Array.includes` through, and a carve-out here would be the same shape of
+ * loosening for a saving of nothing.
+ */
+export function speciesWeatherIndex(s: WeatherStats, normalizedName: string): number {
+  const names = s.species.names
+  for (let i = 0; i < names.length; i++) if (names[i] === normalizedName) return i
+  return -1
+}
+
 // ── The aggregation ─────────────────────────────────────────────────────────
 
 /** One axis under construction. Sums are kept as running totals so the pass is

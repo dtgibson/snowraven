@@ -18,7 +18,7 @@
 // rendered anywhere.
 
 import { fmt, fmtSharePct } from './statsFormat'
-import { WEATHER_BAND_MIN_TO_SHOW } from './weatherStats'
+import { WEATHER_BAND_MIN_TO_SHOW, WEATHER_SPECIES_MIN_CHECKLISTS } from './weatherStats'
 
 const s = (n: number, singular: string, plural: string) => (n === 1 ? singular : plural)
 
@@ -268,3 +268,124 @@ export function speciesGroupDenominator(sum: number, speciesTotal: number, axis:
 /** The band the user has never birded. Deliberately carries no numeral, so it
  *  can never be mistaken for the `0 · 0%` beside it. */
 export const NO_OUTINGS = 'no outings'
+
+// ── The Species Detail card (species-detail-weather) ────────────────────────
+//
+// Six functions, and they live HERE for the reason the module header gives: a
+// count-bearing string built inline in `SpeciesWeatherCard.tsx` would be
+// invisible to the generated corpus sweep however correct it happens to be
+// today. Nothing above this line changes.
+//
+// ONE NUMERATOR, TWO WHOLES, AND NOTHING DIVIDES THEM. `speciesLedeParts` states
+// the bird's weather-block count against the user's whole weather record;
+// `speciesOwnWhole` states the SAME count against the checklists the bird is on.
+// There is no coverage percentage for the bird, on the card or anywhere, now or
+// later: two shares of two different wholes sit side by side, and a rate is
+// precisely what that pattern exists to refuse.
+
+/**
+ * The bird's own whole: `That is 308 of the 1,307 checklists you have it on.`
+ *
+ * "THAT IS" IS LOAD-BEARING AND IS NOT A STYLISTIC TIC. Without it the same
+ * figure printed twice reads as two different counts; with it the repeated
+ * number is unmistakably one number held against two wholes, which is the card's
+ * whole thesis stated before the chart demonstrates it.
+ *
+ * "you have it on" is the section's existing vocabulary, from
+ * `pickerRestParts().lead`.
+ *
+ * THE SINGULAR TAKES ITS OWN SENTENCE, and it is reachable rather than
+ * hypothetical: a bird on exactly one checklist whose block is readable lands
+ * here with `on === total === 1`. "That is 1 of the 1 checklist you have it on."
+ * is what the obvious formula produces and it is wrong three ways -- a
+ * determiner on a bare "1", a numeral against itself, and a clumsy line where
+ * the sentence is meant to be an account. The words carry the count instead, the
+ * same move `speciesOwnWholeZero` makes for the same reason. The consequence
+ * worth stating: this is the ONE case where the second sentence prints no
+ * numeral, so a guard asserting "the same numeral twice" holds for every total
+ * of two and up and is answered here in words.
+ */
+export function speciesOwnWhole(on: number, total: number): string {
+  if (total === 1) return 'That is the one checklist you have it on.'
+  return `That is ${fmt(on)} of the ${fmt(total)} ${s(total, 'checklist', 'checklists')} you have it on.`
+}
+
+/**
+ * The zero case's own whole, which leads with the bird's record because there is
+ * no numerator to bind: `You have it on 26 checklists, and none of them carry a
+ * weather block.`
+ *
+ * "That is 0 of the 26" would put a bare zero exactly where the sentence is
+ * meant to be an account.
+ *
+ * BOTH THE NOUN AND THE VERB CLAUSE INFLECT AT ONE, and the singular is the
+ * common case here rather than an edge: across the 114 zero-block species on the
+ * reference export the median total is two checklists and 49 sit at exactly one.
+ */
+export function speciesOwnWholeZero(total: number): string {
+  return `You have it on ${fmt(total)} ${s(total, 'checklist', 'checklists')}, and `
+    + `${s(total, 'it does not carry', 'none of them carry')} a weather block.`
+}
+
+/**
+ * The lede for a bird on no readable-block checklist: `is on none of your 392
+ * weather-block checklists.`
+ *
+ * A SEPARATE FUNCTION rather than `speciesLedeParts(0, readable)`, which renders
+ * "is on 0 of your 392 weather-block checklists" -- a bare zero in the sentence
+ * that is supposed to say how much of the bird's history the card can speak to.
+ * Same lead-plus-note shape as the shipped one, so the component renders one
+ * branch either way.
+ */
+export function speciesZeroLedeParts(readable: number): { lead: string; note: string } {
+  return {
+    lead: `is on none of your ${fmt(readable)} weather-block `
+      + `${s(readable, 'checklist', 'checklists')}.`,
+    note: 'Counts are checklists, not sightings.',
+  }
+}
+
+export function speciesZeroLede(readable: number): string {
+  const p = speciesZeroLedeParts(readable)
+  return `${p.lead} ${p.note}`
+}
+
+/**
+ * The bird-below-floor state's one quiet line, built from the constant the way
+ * `legendFloorNote()` is built from `WEATHER_BAND_MIN_TO_SHOW` rather than
+ * re-spelling the number.
+ *
+ * IT NAMES WHAT WOULD CHANGE, NOT WHAT IS MISSING, and it is the honest
+ * replacement for the route this state declines to offer: the card cannot know
+ * whether the Weather tab's backlog reaches this bird, so "fill in the gaps"
+ * here would read as "and then this chart will appear", which it cannot promise.
+ * The floor is the thing it CAN promise. It borrows the section's own "skies and
+ * temperatures" from `pickerRestParts().lead`.
+ */
+export function speciesFloorNote(): string {
+  return `The skies and temperatures appear once a bird is on ${fmt(WEATHER_SPECIES_MIN_CHECKLISTS)} `
+    + `weather-block ${s(WEATHER_SPECIES_MIN_CHECKLISTS, 'checklist', 'checklists')}.`
+}
+
+/**
+ * Present only while a county or date filter is active on Species Detail. The
+ * card's figures are export-wide by construction, and both figures in the
+ * opening block are, so this ONE clause covers both.
+ *
+ * Absent when it does not apply, following the shipped `unreadableClause`
+ * shape, so nobody is made to read an explanation of a filter they did not set.
+ */
+export function filterBasisClause(): string {
+  return 'These cover every checklist in your export, so this tab\'s filters do not narrow them.'
+}
+
+/**
+ * Present only when the selection's normalized name differs from it -- a form
+ * selected with Show subspecies on.
+ *
+ * IT DOES NOT NAME THE PARENT. The lede's `BirdName` one line above already
+ * shows which parent, and naming it twice is a second place for one fact.
+ */
+export function formBasisClause(): string {
+  return 'Every form counts as its parent species.'
+}

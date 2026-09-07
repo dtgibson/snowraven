@@ -21,9 +21,13 @@ import {
   pickerRestLine, pickerRestParts, speciesChartNote, speciesFigure, speciesFigureValue,
   speciesGroupDenominator, speciesLede, speciesLedeParts, speciesRowReference,
   speciesRowShare, tempFootnote, thinDurationsLine, unreadableClause,
+  filterBasisClause, formBasisClause, speciesFloorNote, speciesOwnWhole,
+  speciesOwnWholeZero, speciesZeroLede, speciesZeroLedeParts,
 } from './weatherStatsCopy'
 import type { WeatherAxis } from './weatherStatsCopy'
-import { WEATHER_BAND_MIN_TO_SHOW, WEATHER_SECTION_MIN_READABLE } from './weatherStats'
+import {
+  WEATHER_BAND_MIN_TO_SHOW, WEATHER_SECTION_MIN_READABLE, WEATHER_SPECIES_MIN_CHECKLISTS,
+} from './weatherStats'
 
 /**
  * The corpus is generated PER RENDER STATE, not over a free grid of numbers.
@@ -126,6 +130,49 @@ function corpus(): Array<{ where: string; text: string }> {
   for (const name of ["Anna's Hummingbird", 'Dark-eyed Junco', 'Ruby-crowned Kinglet']) {
     add(`speciesChartNote(${name})`, speciesChartNote(name))
   }
+
+  // ── The Species Detail card (species-detail-weather) ──────────────────────
+  //
+  // Swept at the counts the card can actually REACH, the same discipline the
+  // rest of this file follows. The bird's own whole has a total of at least one
+  // (a selectable bird is on at least one checklist) and a numerator of at least
+  // one (zero takes its own function), and `on <= total` always, because the
+  // numerator counts a subset of the same checklists.
+  //
+  // ONE is the interesting row rather than an edge: on the reference export 49
+  // of the 114 zero-block species sit at exactly one checklist, so the singular
+  // is the case a fixture-driven suite is least likely to exercise and the one
+  // many users meet first.
+  add('speciesFloorNote', speciesFloorNote())
+  add('filterBasisClause', filterBasisClause())
+  add('formBasisClause', formBasisClause())
+  const OWN_TOTALS = [1, 2, 3, 9, 10, 11, 26, 97, 1307]
+  for (const total of OWN_TOTALS) {
+    add(`speciesOwnWholeZero(${total})`, speciesOwnWholeZero(total))
+    for (const on of [...new Set([1, 2, Math.max(1, total - 1), total])].filter(n => n <= total)) {
+      add(`speciesOwnWhole(${on}, ${total})`, speciesOwnWhole(on, total))
+    }
+  }
+  for (const readable of FULL_READABLE) {
+    add(`speciesZeroLede(${readable})`, speciesZeroLede(readable))
+    // The OPENING BLOCK as the component composes it: the lede, the bird's own
+    // whole, and the muted run with every clause that can apply. Composed rather
+    // than swept apart, because the sentence-scoped agreement rules are about
+    // sentences the reader actually meets in one paragraph.
+    for (const total of OWN_TOTALS) {
+      for (const on of [1, Math.min(total, readable)]) {
+        if (on > total) continue
+        const parts = speciesLedeParts(on, readable)
+        add(`openingBlock(${on}, ${readable}, ${total})`,
+          `${parts.lead} ${speciesOwnWhole(on, total)} ${parts.note} `
+          + `${filterBasisClause()} ${formBasisClause()}`)
+      }
+      const zero = speciesZeroLedeParts(readable)
+      add(`openingBlockZero(${readable}, ${total})`,
+        `${zero.lead} ${speciesOwnWholeZero(total)} ${zero.note} `
+        + `${filterBasisClause()} ${formBasisClause()}`)
+    }
+  }
   return out
 }
 
@@ -182,6 +229,34 @@ describe('number agreement, over the whole corpus', () => {
     expect(bad).toEqual([])
   })
 
+  it('the auxiliary exemption still rejects the defect the verb rule exists for', () => {
+    // Guard the guard, in both directions. The exemption must pardon a bare
+    // infinitive after an auxiliary and NOTHING else -- an exemption that
+    // swallowed the finite case would make the whole rule pass on anything.
+    const VERBS = /\b(?:are|were|have|do|carry|cover|show|include|contain|count|record)\b/g
+    const AUX = /\b(?:does|did|to|can|will|may|must|should|would)\s+(?:not\s+)?$/
+    const flags = (sentence: string) => {
+      const one = /(?:^|\s)1 [a-z]/.exec(sentence)
+      if (!one) return false
+      const after = sentence.slice(one.index + one[0].length)
+      if (/\b(?:[02-9]|\d{2,}) [a-z]/.test(after)) return false
+      for (const m of after.matchAll(new RegExp(VERBS.source, 'g'))) {
+        if (AUX.test(after.slice(0, m.index))) continue
+        return true
+      }
+      return false
+    }
+    // The defect this rule was written for, four words between subject and verb.
+    expect(flags('Only 1 row of these carry a weather block.')).toBe(true)
+    expect(flags('The 1 checklist have a weather block.')).toBe(true)
+    // The correct singular the exemption exists for.
+    expect(flags('You have it on 1 checklist, and it does not carry a weather block.')).toBe(false)
+    // And the auxiliary itself is still caught, which is what keeps the
+    // exemption from being a hole: `do` is in the list and `\bdo\b` does not
+    // match inside "does".
+    expect(flags('You have it on 1 checklist, and it do not carry a weather block.')).toBe(true)
+  })
+
   it('that determiner rule still rejects the defect it exists for', () => {
     // Guard the guard: a lookahead that excluded too much would make the rule
     // above pass on anything.
@@ -199,7 +274,17 @@ describe('number agreement, over the whole corpus', () => {
     // Scanned only AFTER the counted one, because a verb BEFORE it has a
     // different subject entirely -- "You have 1 checklist" is correct English
     // and a whole-sentence scan calls it a defect.
-    const PLURAL_VERBS = /\b(?:are|were|have|carry|cover|show|include|contain|count|record)\b/
+    // `do` joins the list at species-detail-weather, and it is what makes the
+    // auxiliary exemption below safe rather than a loosening: `\bdo\b` does not
+    // match "does", so "1 checklist do not carry" is still caught at the
+    // auxiliary even though "carry" after it is exempt.
+    const PLURAL_VERBS = /\b(?:are|were|have|do|carry|cover|show|include|contain|count|record)\b/g
+    // A BARE INFINITIVE AFTER AN AUXILIARY IS NOT A FINITE PLURAL VERB, and the
+    // auxiliary already carries the agreement: "it does not carry a weather
+    // block" is the CORRECT singular, and `speciesOwnWholeZero(1)` renders
+    // exactly that. Without this the rule reports a defect that is not there,
+    // and the pressure would be to reword correct copy to satisfy a naive scan.
+    const AUXILIARY_BEFORE = /\b(?:does|did|to|can|will|may|must|should|would)\s+(?:not\s+)?$/
     const bad: string[] = []
     for (const { where, text } of CORPUS) {
       for (const sentence of text.split(/(?<=[.!?])\s+/)) {
@@ -209,8 +294,11 @@ describe('number agreement, over the whole corpus', () => {
         // Only while the ONE is still the subject: another count after it takes
         // over, and its own agreement is that count's business.
         if (/\b(?:[02-9]|\d{2,}) [a-z]/.test(after)) continue
-        const m = PLURAL_VERBS.exec(after)
-        if (m) bad.push(`${where}: "${sentence.trim()}" (${m[0]})`)
+        for (const m of after.matchAll(PLURAL_VERBS)) {
+          if (AUXILIARY_BEFORE.test(after.slice(0, m.index))) continue
+          bad.push(`${where}: "${sentence.trim()}" (${m[0]})`)
+          break
+        }
       }
     }
     expect(bad).toEqual([])
@@ -232,6 +320,87 @@ describe('number agreement, over the whole corpus', () => {
     expect(coverageSentence(2, 9)).toContain('the 2 checklists that carry a weather block')
     expect(coverageSentence(9, 1)).toContain('of your 1 checklist.')
     expect(coverageSentence(9, 12)).toContain('of your 12 checklists.')
+  })
+})
+
+describe('the Species Detail card\'s six new strings (species-detail-weather)', () => {
+  it('the bird\'s own whole binds the repeated numerator with "That is"', () => {
+    // Without it the same figure printed twice reads as two different counts;
+    // with it the repeated number is unmistakably one number held against two
+    // wholes, which is the card's whole thesis stated before the chart.
+    expect(speciesOwnWhole(308, 1307)).toBe('That is 308 of the 1,307 checklists you have it on.')
+    expect(speciesOwnWhole(5, 97)).toBe('That is 5 of the 97 checklists you have it on.')
+    expect(speciesOwnWhole(2, 2)).toBe('That is 2 of the 2 checklists you have it on.')
+  })
+
+  it('and takes its own sentence at one, where the obvious formula reads wrong', () => {
+    // "That is 1 of the 1 checklist you have it on." is what the formula
+    // produces and it is wrong three ways: a determiner on a bare "1", a numeral
+    // held against itself, and a clumsy line where the sentence is meant to be
+    // an account. The words carry the count instead. This is the ONE case where
+    // the second sentence prints no numeral, which is why the equality assertion
+    // in the card's own suite is stated for totals of two and up.
+    expect(speciesOwnWhole(1, 1)).toBe('That is the one checklist you have it on.')
+    expect(speciesOwnWhole(1, 1)).not.toContain(' 1 ')
+  })
+
+  it('NOTHING in it divides one whole by the other, at any pair of counts', () => {
+    // Two shares of two different wholes sit side by side; a rate is precisely
+    // what the pattern exists to refuse, and there is no coverage percentage for
+    // the bird on the card or anywhere, now or later.
+    for (const total of [1, 2, 26, 97, 1307]) {
+      for (const on of [1, Math.max(1, total - 1), total]) {
+        if (on > total) continue
+        expect(speciesOwnWhole(on, total)).not.toContain('%')
+      }
+      expect(speciesOwnWholeZero(total)).not.toContain('%')
+    }
+  })
+
+  it('the zero case leads with the bird\'s own record, and both clauses inflect at one', () => {
+    expect(speciesOwnWholeZero(26))
+      .toBe('You have it on 26 checklists, and none of them carry a weather block.')
+    expect(speciesOwnWholeZero(1))
+      .toBe('You have it on 1 checklist, and it does not carry a weather block.')
+    // Never the bare zero the shipped helpers would print.
+    expect(speciesOwnWholeZero(26)).not.toContain('That is 0')
+    expect(speciesZeroLedeParts(353).lead).toBe('is on none of your 353 weather-block checklists.')
+    expect(speciesZeroLedeParts(353).lead).not.toContain('0 of your')
+    // The zero lede keeps the shipped note, so the component renders one branch.
+    expect(speciesZeroLedeParts(353).note).toBe(speciesLedeParts(5, 353).note)
+  })
+
+  it('the floor note is built FROM the constant, so raising it moves the sentence', () => {
+    expect(speciesFloorNote()).toContain(String(WEATHER_SPECIES_MIN_CHECKLISTS))
+    // It names what would CHANGE rather than what is missing, which is the
+    // honest replacement for the route this state declines to offer.
+    expect(speciesFloorNote()).toContain('appear once a bird is on')
+    expect(speciesFloorNote()).not.toMatch(/not enough|too few|no data|unavailable/i)
+    // And it is the SPECIES floor, not the section floor or the band floor.
+    expect(WEATHER_SPECIES_MIN_CHECKLISTS).not.toBe(WEATHER_SECTION_MIN_READABLE)
+    expect(WEATHER_SPECIES_MIN_CHECKLISTS).not.toBe(WEATHER_BAND_MIN_TO_SHOW)
+  })
+
+  it('the two basis clauses say what they are about and nothing else', () => {
+    expect(filterBasisClause())
+      .toBe('These cover every checklist in your export, so this tab\'s filters do not narrow them.')
+    // The form clause does not name the parent: the lede's BirdName already
+    // shows it, and naming it twice is a second place for one fact.
+    expect(formBasisClause()).toBe('Every form counts as its parent species.')
+    expect(formBasisClause().split(' ').length).toBeLessThan(8)
+  })
+
+  it('every new string is in the corpus, so none of the sweeps is passing it by', () => {
+    // The whole reason these live in this module. A count-bearing string built
+    // inline in the component would be invisible to every rule above however
+    // correct it happens to be today.
+    for (const where of [
+      'speciesFloorNote', 'filterBasisClause', 'formBasisClause',
+      'speciesOwnWhole(1, 1)', 'speciesOwnWholeZero(1)', 'speciesZeroLede(5)',
+      'openingBlock(1, 5, 1)', 'openingBlockZero(5, 26)',
+    ]) {
+      expect(CORPUS.some(c => c.where === where), where).toBe(true)
+    }
   })
 })
 

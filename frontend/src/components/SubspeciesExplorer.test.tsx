@@ -144,7 +144,7 @@ afterEach(cleanup)
 // here green. Cheap insurance if a future edit un-stubs the graph.
 afterAll(() => new Promise((r) => setTimeout(r, 120)))
 
-const props = { onGoToSettings: () => {}, filesVersion: 0, embedAllowed: false }
+const props = { onGoToSettings: () => {}, onGoToWeather: () => {}, filesVersion: 0, embedAllowed: false }
 
 const controlButton = () => screen.getByRole('button', { name: /Subspecies and forms/ })
 const queryControlButton = () => screen.queryByRole('button', { name: /Subspecies and forms/ })

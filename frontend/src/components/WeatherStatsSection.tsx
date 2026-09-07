@@ -36,63 +36,25 @@ import { useMemo, useState } from 'react'
 import { ArrowRight, CloudSun, Moon, Sun } from 'lucide-react'
 import { BirdName } from './BirdName'
 import { SpeciesCombobox } from './SpeciesCombobox'
+import { WeatherSpeciesRow } from './WeatherSpeciesRow'
 import { Divider, SubLabel } from './statsPrimitives'
 import { fmt, fmtSharePct } from '../lib/statsFormat'
+// EXTRACTED, NOT COPIED (species-detail-weather, FR-26). The labels, the sky
+// display order and the per-species row moved out VERBATIM so the Species Detail
+// card renders from the same ones; this section's output is byte-identical.
+import { CONDITION_LABEL, inDisplayOrder } from '../lib/weatherDisplay'
 import {
   WEATHER_BAND_MIN_TO_SHOW, weatherSectionState,
 } from '../lib/weatherStats'
-import type { WeatherBandRow, WeatherDistRow, WeatherStats } from '../lib/weatherStats'
+import type { WeatherBandRow, WeatherStats } from '../lib/weatherStats'
 import {
-  NO_OUTINGS, SPECIES_FIGURE_SUFFIX, WEATHER_COPY, axisDenominatorSuffix, bandHeadCount,
+  SPECIES_FIGURE_SUFFIX, WEATHER_COPY, axisDenominatorSuffix, bandHeadCount,
   belowFloorLine, coverageCounts, coveragePct, coverageSentence, durationFigureDenominator,
   durationFigureUnit, legendFloorNote, pickerRestParts, speciesChartNote,
-  speciesFigureValue, speciesGroupDenominator, speciesLedeParts, speciesRowReference,
-  speciesRowShare, tempFootnote, thinDurationsLine, unreadableClause,
+  speciesFigureValue, speciesGroupDenominator, speciesLedeParts,
+  tempFootnote, thinDurationsLine, unreadableClause,
 } from '../lib/weatherStatsCopy'
 import type { WeatherAxis } from '../lib/weatherStatsCopy'
-
-// ── Display vocabulary ──────────────────────────────────────────────────────
-
-/**
- * A label per CONDITION_EMOJI index. `🌡️` is `conditionEmoji()`'s fallback for
- * an OpenWeather sky code outside its documented ranges, so a checklist can
- * genuinely land there: it is a real value the formatter wrote into a real
- * block, NOT a parse failure and NOT a missing field (missing is null and is
- * excluded from the axis denominator entirely). Its label is therefore "Other",
- * and "Unknown", "Unknown weather", "Unrecognised", "Error" and "Could not
- * read" are all wrong for it.
- */
-const CONDITION_LABEL = [
-  'Thunderstorm', 'Drizzle', 'Rain', 'Snow', 'Fog', 'Clear',
-  'Few clouds', 'Scattered clouds', 'Broken clouds', 'Overcast', 'Other',
-]
-
-/**
- * Display order: sky clarity, clearest first, foulest last, with `🌡️` pinned
- * last as the residual.
- *
- * That is how a birder describes a day, and it makes the chart a gradient
- * instead of an arbitrary list. The residual pin follows the shipped
- * Share-breakdown rule: the "none of the above" row sits last so it reads as a
- * different kind of row without relying on colour alone.
- *
- * THE WIRE ORDER IS DIFFERENT AND IS NOT THIS. `CONDITION_EMOJI` is pinned in
- * `conditionEmoji()`'s own branch order and `species.byCondition[i][j]`
- * addresses it, so rows are read by `row.index` and never by array position --
- * which is what makes reordering here free.
- */
-const CONDITION_DISPLAY_ORDER = [5, 6, 7, 8, 9, 4, 1, 2, 3, 0, 10]
-
-const inDisplayOrder = <T extends WeatherDistRow>(rows: T[]): T[] => {
-  const byIndex = new Map<number, T>()
-  for (const r of rows) byIndex.set(r.index, r)
-  const out: T[] = []
-  for (const i of CONDITION_DISPLAY_ORDER) {
-    const r = byIndex.get(i)
-    if (r !== undefined) out.push(r)
-  }
-  return out
-}
 
 const NOTE_STYLE = { fontSize: '0.6875rem', lineHeight: 1.45, color: 'var(--sr-text-muted)', margin: 0 } as const
 const BODY_STYLE = { fontSize: '0.8125rem', lineHeight: 1.55, color: 'var(--sr-text)', margin: 0 } as const
@@ -250,77 +212,6 @@ function BandBlock({ row, label, glyph, maxSpecies, maxDuration, unit }: {
           )}
         </>
       )}
-    </div>
-  )
-}
-
-/**
- * One row of the per-species view.
- *
- * THE BAR IS THE BIRD'S OWN RECORD, SCALED TO THE BIRD'S LARGEST BAND ON THIS
- * AXIS -- so the biggest band always fills the track and every other band is
- * legible against it. This replaced a shared-rail treatment where the rail was
- * the outings in the band and the fill the ones carrying the bird. That was
- * well-founded and it did not survive real data: against hundreds of outings,
- * anything the user has not seen dozens of times rendered as a sliver, and the
- * user's own example was "1 of 395 and a tiny bar". A chart that carries no
- * information at the size a person reads it is not saved by being technically
- * correct.
- *
- * Scaled to `max(count)` and deliberately NOT to the species' total: scaling to
- * the total makes every bar small again the moment a bird is spread across
- * eleven conditions, which is the failure this change exists to fix. Each of the
- * two groups scales to its OWN axis's maximum, never a shared one. That makes
- * this the same chart form and the same scaling rule as the distribution chart
- * at the top of the card, so the two are read in identical units.
- *
- * TWO STATES, NOT THREE. There is no thin state here and that is not an
- * oversight: `WEATHER_BAND_MIN_TO_SHOW` gates derived AVERAGES, and this chart
- * derives nothing. A count of one is a fact, not an estimate.
- *
- * The two zeros still must not look alike, and now differ in three places:
- *
- *   `0 · 0%`     a SOLID full-width track, no fill, and a reference figure --
- *                warm outings that never held this bird, a fact about the BIRD
- *   `no outings` a DASHED track, no numeral, no share and NO reference --
- *                a band never birded, a fact about the BIRDER
- *
- * The reference is omitted rather than printed as "outings 0%", which would only
- * repeat what "no outings" already said and would collapse the distinction.
- */
-function SpeciesRow({ glyph, label, count, maxCount, speciesAxisTotal, bandN, axisTotal }: {
-  glyph?: React.ReactNode
-  label: string
-  /** Checklists in this band carrying the species. */
-  count: number
-  /** The species' largest band on THIS axis -- the bar's scale. */
-  maxCount: number
-  /** The species' own axis total, which the printed share is of. */
-  speciesAxisTotal: number
-  /** All readable checklists in this band, for the reference figure. */
-  bandN: number
-  /** The axis's own sum, which the reference share is of. */
-  axisTotal: number
-}) {
-  const noOutings = bandN === 0
-  const w = maxCount > 0 ? (count / maxCount) * 100 : 0
-  return (
-    <div className={`sr-wx-row sr-wx-row--sp${glyph ? '' : ' no-glyph'}${noOutings ? ' is-zero' : ''}`}>
-      {glyph !== undefined && <span className="sr-wx-glyph" aria-hidden="true">{glyph}</span>}
-      <span className="sr-wx-label">{label}</span>
-      {noOutings
-        ? <div className="sr-wx-track is-empty" aria-hidden="true" />
-        : (
-          <div className="sr-wx-track" aria-hidden="true">
-            {count > 0 && <span className="sr-wx-fill" style={{ ['--w' as string]: `${w.toFixed(2)}%` }} />}
-          </div>
-        )}
-      <span className="sr-wx-count">
-        {noOutings
-          ? NO_OUTINGS
-          : <><b>{fmt(count)}</b> <span aria-hidden="true">·</span> {speciesRowShare(count, speciesAxisTotal)}</>}
-      </span>
-      <span className="sr-wx-ref">{speciesRowReference(bandN, axisTotal)}</span>
     </div>
   )
 }
@@ -622,7 +513,7 @@ export function WeatherStatsSection({
               </div>
               <div className="sr-wx-rows">
                 {condRows.map(r => (
-                  <SpeciesRow
+                  <WeatherSpeciesRow
                     key={r.index}
                     glyph={r.key}
                     label={CONDITION_LABEL[r.index]}
@@ -644,7 +535,7 @@ export function WeatherStatsSection({
               </div>
               <div className="sr-wx-rows">
                 {stats.byTempBand.map(r => (
-                  <SpeciesRow
+                  <WeatherSpeciesRow
                     key={r.index}
                     label={r.key}
                     count={spTemp[r.index]}

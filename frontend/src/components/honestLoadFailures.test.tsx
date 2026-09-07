@@ -279,7 +279,7 @@ const EBIRD_MESSAGE_TABS: {
   { name: 'Checklists',    files: EBIRD_ONLY, element: <Checklists {...settingsProps} filesVersion={0} />,           setupTitle: /eBird Backup Required/, stepsMarker: EBIRD_STEPS_MARKER },
   { name: 'Breeding Codes',files: EBIRD_ONLY, element: <BreedingCodeList {...settingsProps} filesVersion={0} />,     setupTitle: /eBird Backup Required/, stepsMarker: EBIRD_STEPS_MARKER },
   { name: 'Named Birds',   files: EBIRD_ONLY, element: <NamedBirds {...settingsProps} filesVersion={0} embedAllowed={false} />, setupTitle: /eBird Backup Required/, stepsMarker: EBIRD_STEPS_MARKER },
-  { name: 'Species Detail',files: EBIRD_ONLY, element: <SpeciesDetail {...settingsProps} filesVersion={0} embedAllowed={false} />, setupTitle: /eBird Backup Required/, stepsMarker: EBIRD_STEPS_MARKER },
+  { name: 'Species Detail',files: EBIRD_ONLY, element: <SpeciesDetail {...settingsProps} onGoToWeather={() => {}} filesVersion={0} embedAllowed={false} />, setupTitle: /eBird Backup Required/, stepsMarker: EBIRD_STEPS_MARKER },
   {
     name: 'Map Explorer', files: EBIRD_ONLY, setupTitle: /eBird Backup Required/, stepsMarker: EBIRD_STEPS_MARKER,
     element: (
@@ -437,7 +437,7 @@ const ML_GUARD_TABS: { name: string; element: ReactNode; ready: () => Promise<un
   },
   {
     name: 'Species Detail',
-    element: <SpeciesDetail {...settingsProps} filesVersion={0} embedAllowed={false} />,
+    element: <SpeciesDetail {...settingsProps} onGoToWeather={() => {}} filesVersion={0} embedAllowed={false} />,
     ready: () => screen.findByRole('switch', { name: /Show all forms/ }),
   },
   {

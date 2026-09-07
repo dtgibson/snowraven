@@ -187,6 +187,44 @@ describe('entry-chunk exclusion (NFR-03 / QA-30)', () => {
     expect(has('App.tsx')).toBe(true)
   })
 
+  it('the Species Detail Weather card and its seam stay off the entry chunk (species-detail-weather)', () => {
+    // Structural rather than lucky: `SpeciesDetail` is reached only through
+    // `lazy(() => import('./components/SpeciesDetail'))`, so every static import
+    // inside it is off first paint by construction, and the CARD is itself
+    // reached through a second `lazy` inside that. Asserted anyway, because "it
+    // is off today" is not the same claim as "it is guarded", and one static
+    // import in App.tsx is all it would take.
+    expect(has('lib/weatherStatsShared.ts')).toBe(false)
+    expect(has('lib/useExportWeather.ts')).toBe(false)
+    expect(has('lib/weatherDisplay.ts')).toBe(false)
+    expect(has('components/WeatherSpeciesRow.tsx')).toBe(false)
+    expect(has('components/SpeciesWeatherCard.tsx')).toBe(false)
+    // The three the shipped guard above already covers, restated here so this
+    // feature's own row fails on its own terms rather than by borrowing.
+    expect(has('lib/weatherStats.ts')).toBe(false)
+    expect(has('lib/weatherBlockParse.ts')).toBe(false)
+    expect(has('lib/statsBundle.ts')).toBe(false)
+    // Non-vacuity: SpeciesDetail itself is genuinely absent from the walk, which
+    // is what makes every negative above mean something, and App.tsx is present.
+    expect(has('components/SpeciesDetail.tsx')).toBe(false)
+    expect(has('App.tsx')).toBe(true)
+  })
+
+  it('and the Species Detail subtree really does reach them, which is what makes that negative live', () => {
+    // Without this, the assertions above would pass just as happily on a walk
+    // that resolved nothing at all -- the failure mode `.claude/rules/testing.md`
+    // calls a green line that means "not run".
+    const sd = closureFrom(resolve(SRC, 'components/SpeciesDetail.tsx'))
+    expect(hasIn(sd.files, 'lib/useExportWeather.ts')).toBe(true)
+    expect(hasIn(sd.files, 'lib/weatherStatsShared.ts')).toBe(true)
+    expect(hasIn(sd.files, 'lib/weatherStats.ts')).toBe(true)
+    // The CARD is NOT on that static graph either: it is `lazy`-imported inside
+    // Species Detail, which is NFR-03's structural half -- a user whose export
+    // carries no weather block never fetches the chart code at all.
+    expect(hasIn(sd.files, 'components/SpeciesWeatherCard.tsx')).toBe(false)
+    expect(hasIn(sd.files, 'components/WeatherSpeciesRow.tsx')).toBe(false)
+  })
+
   it('the county-completeness code is only reachable through the lazy Map Explorer (NFR-02)', () => {
     expect(has('lib/countyCompleteness.ts')).toBe(false)
     expect(has('lib/countyCompletenessCache.ts')).toBe(false)

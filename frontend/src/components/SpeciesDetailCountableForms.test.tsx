@@ -91,7 +91,7 @@ afterEach(cleanup)
 // jsdom environment fails a LATER file with every test here green.
 afterAll(() => new Promise((r) => setTimeout(r, 120)))
 
-const props = { onGoToSettings: () => {}, filesVersion: 0, embedAllowed: false }
+const props = { onGoToSettings: () => {}, onGoToWeather: () => {}, filesVersion: 0, embedAllowed: false }
 
 /** The "{n} species" counter beside the toggles, read off the DOM. */
 function speciesFigure(): string {

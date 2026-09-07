@@ -3999,6 +3999,26 @@ select:focus-visible {
    than "cannot overflow", and it costs one expression. */
 .sr-wx-pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); gap: 1.25rem; }
 
+/* Each per-species group column is the query container for its own rows
+   (species-detail-weather, FR-35).
+
+   SCOPED TO `.sr-wx-pair`'s OWN CHILDREN, and that scope is load-bearing rather
+   than tidy. `.sr-wx-rows` appears in three places: the distribution groups,
+   which serve all four whole-export axes, and the two per-species columns.
+   Putting the container on `.sr-wx-rows` wholesale would re-trigger the
+   DISTRIBUTION rows, which do not have this defect -- they run at full card
+   width and their rails measure healthily at 200% -- and would visibly change
+   the shipped Statistics distribution rows between roughly 480 and 640px. Only
+   the per-species pair uses `.sr-wx-pair`, on both surfaces, so its children are
+   exactly the columns in question and no markup changes to say so.
+   `:not(.sr-only)` follows the standing rule for `> *` selectors.
+
+   Safe on `contain: inline-size`, which `container-type` implies: the pair's
+   tracks are `minmax(min(240px, 100%), 1fr)`, both sizing functions definite, so
+   a column's width never depended on its contents and zeroing that contribution
+   changes nothing. */
+.sr-wx-pair > *:not(.sr-only) { container-type: inline-size; container-name: sr-wx-col; }
+
 @media (max-width: 640px) {
   .sr-header { padding-top: 24px !important; }
   /* The county panel's rows stack on a phone, and the action slot takes its own
@@ -4507,8 +4527,49 @@ select:focus-visible {
   }
   .sr-wx-row > .sr-wx-glyph { grid-area: 1 / 1; }
   /* `white-space: normal` at THIS tier only: the desktop ellipsis is right where
-     the label column is bounded, and on a phone the label owns a whole line. */
-  .sr-wx-row > .sr-wx-label { grid-area: 1 / 2; white-space: normal; overflow: visible; }
+     the label column is bounded, and on a phone the label owns a whole line.
+
+     `overflow-wrap: anywhere` IS REPAIR 1 (species-detail-weather, FR-34), and
+     it belongs beside the wrap allowance that made it necessary. `normal` only
+     breaks at spaces, so a multi-word label wraps cleanly while the single-word
+     ones -- Thunderstorm and Overcast -- cannot break at all and, with no
+     clipping ancestor anywhere, paint straight through the count cell. Measured
+     on the shipped v1.0.22 build in Chromium and WebKit agreeing to within
+     0.06px: "Thunderstorm" overshot by 48.9px at 320px / 200%, its track 70.3px
+     against a min-content of 135.2px, over the string `no outings` -- the row
+     every birder who has never birded a thunderstorm sees. `break-word` renders
+     identically here and does NOT fix it: only `anywhere` lowers the item's
+     intrinsic contribution, and nothing reads this label's min-content, so
+     v0.5.85's objection to `anywhere` does not apply. The desktop tier needs
+     nothing; it clips with an ellipsis by construction.
+
+     THIS RULE REACHES BOTH ROW FAMILIES, AND WRITING THAT DOWN IS THE POINT OF
+     THIS PARAGRAPH. The selector is `.sr-wx-row > .sr-wx-label` in the SHARED
+     `@media (max-width: 640px)` tier, so it governs the per-species rows this
+     feature was built for AND the distribution rows of all four whole-export
+     axes, which `DistRow` renders from the same element. That is a repair on
+     both: the shipped distribution rows carried label-over-count readings at
+     supported widths, worst 21.88px on "Overcast" at 320px / 200%, and carry
+     none after it. The effect there is confined to 300 to 355px at 200% text
+     scale, and its cost is a taller row, because the label takes a third line
+     box rather than paint over the figure.
+
+     IT IS WITHIN FR-27 rather than an exception to it: FR-34 is stated over a
+     row's label with no per-species restriction, so a `globals.css` rule that
+     satisfies it on a second set of rows is the requirement being met. Do NOT
+     narrow this selector to the per-species row to make the blast radius smaller;
+     that would reintroduce the defect on the distribution rows.
+
+     Recorded here because the omission was the root of a false claim. Nothing
+     said which rows this selector reaches, so "distribution rows are untouched
+     at every width" was written into three downstream files and was caught by
+     measurement rather than by review. The scope of a repair is the scope of its
+     SELECTOR, not of the surface its author happened to be looking at. Repair 2
+     below is the contrasting case and is genuinely narrow, by construction. */
+  .sr-wx-row > .sr-wx-label {
+    grid-area: 1 / 2; white-space: normal; overflow: visible;
+    overflow-wrap: anywhere;
+  }
   .sr-wx-row > .sr-wx-count { grid-area: 1 / 3; }
   .sr-wx-row > .sr-wx-track { grid-area: 2 / 1 / 3 / 4; }
   .sr-wx-row.no-glyph { grid-template-columns: minmax(0, 1fr) auto; }
@@ -4529,6 +4590,89 @@ select:focus-visible {
   .sr-wx-seg button { flex: 1; min-height: 2.75rem; height: auto; }
   /* `.sr-wx-pick` needs no override here any more: it is one column at every
      width, so this tier and the desktop tier now render the same shape. */
+}
+
+/* ── REPAIR 2: the per-species row's stacked tier, keyed on its own column ────
+   (species-detail-weather, FR-35)
+
+   THE STACKED SHAPE IS ALREADY CORRECT AND ALREADY SHIPPED. What changes is
+   WHEN it fires. Above the phone tier the per-species row kept its four inline
+   tracks, and the `1fr` rail absorbs whatever the glyph, the `8.5rem` label
+   track and the nowrap count leave over. Measured on the shipped v1.0.22 build
+   in a 398px column: rails of 193 to 240px at 100% text scale and 0.0 to 32.6px
+   at 200%, with several rows painting no rail at all while still taking the
+   height of one. It leaks no scroll and hides no value -- every figure is text
+   on the same line -- but a chart whose bars vanish for exactly the reader who
+   enlarged their text is not doing the job the bars are there for.
+
+   A VIEWPORT WIDTH CANNOT EXPRESS THE CONDITION, and the obvious fix at 320px is
+   not a fix: the failure is not monotonic in width. `.sr-wx-pair`'s `auto-fit`
+   grid flips from one column to two at about 620px, halving each column while
+   the 640px rules are still in force, so a check at 320 and 900 finds one
+   failing band and misses the other entirely. What actually decides whether four
+   inline tracks fit is the width of the row's OWN COLUMN measured against the
+   size of its OWN TEXT, and `em` inside a container query resolves against the
+   container's font size, which is exactly that quantity: the same 398px column
+   reads 24.9em at 100% and 12.4em at 200%.
+
+   THIS IS NOT THE v1.0.22 RULE BEING CONTRADICTED. That rule rejects a container
+   query because "how wide is my box" cannot answer "how wide is my content", and
+   it was right -- which is why the reference figure took its own row
+   unconditionally. That change removed the DATA-dependent half of the width.
+   What remains varies with the text scale alone, which an `em` query tracks
+   exactly, and keying on the column is also what dissolves the two disjoint
+   bands: there is nothing left to be non-monotonic in.
+
+   THE THRESHOLD IS `max(22em, 390px)`, written as a disjunction because that is
+   what a disjunction of two `max-width` conditions means. It is the same shape
+   as `.sr-input-16`'s `max(16px, 0.75rem)` and for the same kind of reason: the
+   `em` term tracks the text-sized chrome the row must fit around (a 1.25em
+   glyph, an 8.5em label track, 1.5em of gaps and a count that scales with the
+   text), while the px term is an ABSOLUTE floor, because FR-35's requirement --
+   no rail narrower than 120px -- is stated in px and does not scale.
+
+   BOTH TERMS ARE LOAD-BEARING AND THE px ONE WAS MEASURED, not added for
+   safety. In the inline shape the rail is whatever the column has left after
+   that chrome, and the chrome measures 254px at 100% text scale in both engines
+   (a 415px column paints a 161px rail). 22em alone is 352px at 100%, which would
+   leave 98px -- under the floor -- so the em term cannot carry the 100% case; at
+   150% and 200% the chrome scales to 381px and 508px while 22em reaches 528px
+   and 704px, so there the em term is the binding one and the px floor is inert.
+   State the guarantee as a property of the formula over the whole domain rather
+   than as three sampled scales: below the threshold the row stacks and the rail
+   spans the whole row, and above it the chrome is entirely em-sized, so `max`
+   of the two terms is above the floor at every scale, including a browser or OS
+   default font size the user has changed.
+
+   THE DECLARATIONS BELOW ARE THE ≤640 TIER'S, AND THEY ARE LOCKED IDENTICAL by
+   `lib/weatherRowTierCss.test.ts`, which parses this file. The distribution rows
+   keep their viewport trigger and the per-species rows gain a container trigger,
+   so two blocks now need one declaration list, and two blocks holding
+   declarations that agree today are two blocks that will disagree later -- on a
+   row FR-26 exists to keep single. Same posture, and the same reason, as
+   `.sr-input-16` / `.sr-ctl-row :is(button, select, input)` sharing one
+   declaration under `lib/filterControlSizeCss.test.ts`. Where both blocks apply
+   at once the declarations are identical, so which one governs is moot rather
+   than reasoned about. */
+@container sr-wx-col (max-width: 22em) or (max-width: 390px) {
+  .sr-wx-row {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    row-gap: 0.25rem;
+    padding-bottom: 0.25rem;
+  }
+  .sr-wx-row > .sr-wx-glyph { grid-area: 1 / 1; }
+  .sr-wx-row > .sr-wx-label {
+    grid-area: 1 / 2; white-space: normal; overflow: visible;
+    overflow-wrap: anywhere;
+  }
+  .sr-wx-row > .sr-wx-count { grid-area: 1 / 3; }
+  .sr-wx-row > .sr-wx-track { grid-area: 2 / 1 / 3 / 4; }
+  .sr-wx-row.no-glyph { grid-template-columns: minmax(0, 1fr) auto; }
+  .sr-wx-row.no-glyph > .sr-wx-label { grid-area: 1 / 1; }
+  .sr-wx-row.no-glyph > .sr-wx-count { grid-area: 1 / 2; }
+  .sr-wx-row.no-glyph > .sr-wx-track { grid-area: 2 / 1 / 3 / 3; }
+  .sr-wx-row--sp > .sr-wx-ref { grid-row: 3 / 4; }
+  .sr-wx-rows { gap: 0.375rem; }
 }
 
 /* iOS map fullscreen (mobile-app, user-approved at the design review):

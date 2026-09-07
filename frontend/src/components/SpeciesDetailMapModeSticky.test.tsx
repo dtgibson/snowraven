@@ -83,7 +83,7 @@ afterEach(cleanup)
 // fallback timer so it cannot fire in a later file's torn-down environment.
 afterAll(() => new Promise((r) => setTimeout(r, 120)))
 
-const props = { onGoToSettings: () => {}, filesVersion: 0, embedAllowed: false }
+const props = { onGoToSettings: () => {}, onGoToWeather: () => {}, filesVersion: 0, embedAllowed: false }
 
 /** Pick a species through the real combobox. */
 async function pick(commonName: string) {

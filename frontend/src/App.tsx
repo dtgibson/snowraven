@@ -1396,6 +1396,7 @@ export default function App() {
           <Suspense fallback={<TabLoading label="Loading species detail…" />}>
             <SpeciesDetail
               onGoToSettings={() => setActiveTab('settings')}
+              onGoToWeather={() => setActiveTab('weather')}
               filesVersion={filesVersion}
               requestedSpecies={requestedSpecies}
               onRequestedSpeciesConsumed={clearRequestedSpecies}
