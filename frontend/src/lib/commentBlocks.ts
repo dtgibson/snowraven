@@ -174,8 +174,16 @@ export function hasRaincrowWeatherBlock(rawComment: string): boolean {
 // attribution links are ~60 chars): an unbounded lazy [\s\S]*?<\/a> scans to
 // the end of the comment on every unclosed '<a', which is one of the three
 // scans that made hostile attribution-spam quadratic (security review).
+//
+// The three NAMED GROUPS carry the span's `kind` (weather-stats FR-01): which
+// alternative matched is the only evidence of what a block is, and reading it
+// off `m.groups` is cheaper and less brittle than re-inspecting `m[0]`. Adding
+// a named group changes no match semantics — which is the property that matters
+// when the pattern is pinned by a byte-golden corpus — and
+// `commentBlocksStripGolden.test.ts` is what proves that claim rather than
+// asserting it.
 const ATTRIB_END_RE =
-  /(?:weather\s+and\s+tide\s+generated\s+by|weather\s+generated\s+by)[^\S\n]*(?:<a\b[^>]{0,400}>[\s\S]{0,300}?<\/a>|[^\s<]+)?|tide\s+data\s+from\s+noaa\s+co-ops(?:[^\S\n]*·[^\S\n]*via[^\S\n]*(?:<a\b[^>]{0,400}>[\s\S]{0,300}?<\/a>|[^\s<]+))?/giu
+  /(?:(?<combined>weather\s+and\s+tide\s+generated\s+by)|(?<weather>weather\s+generated\s+by))[^\S\n]*(?:<a\b[^>]{0,400}>[\s\S]{0,300}?<\/a>|[^\s<]+)?|(?<tide>tide\s+data\s+from\s+noaa\s+co-ops)(?:[^\S\n]*·[^\S\n]*via[^\S\n]*(?:<a\b[^>]{0,400}>[\s\S]{0,300}?<\/a>|[^\s<]+))?/giu
 
 // Strong label-shaped body markers, used only to locate where a block's BODY
 // begins, so the emoji header is searched in the right window. ("wind
@@ -285,6 +293,115 @@ function blockStart(decoded: string, from: number, markerIdx: number, emojiIdxs:
   return markerIdx
 }
 
+/** What a span is, decided by which attribution alternative matched. */
+export type BlockKind = 'weather' | 'tide' | 'combined'
+
+/** Half-open [start, end) offsets into `decodeEntities(rawComment)` — NOT into
+ *  the raw comment (weather-stats FR-02). A consumer that wants the text under
+ *  a span must decode the same way first. */
+export interface BlockSpan {
+  start: number
+  end: number
+  kind: BlockKind
+}
+
+/** Which alternative of ATTRIB_END_RE matched. A named group that did not
+ *  participate is `undefined`, so this is a straight three-way read. */
+function attribKind(m: RegExpExecArray): BlockKind {
+  const g = m.groups
+  if (g?.combined !== undefined) return 'combined'
+  if (g?.weather !== undefined) return 'weather'
+  return 'tide'
+}
+
+/**
+ * THE span walk — the one implementation in this codebase, and the whole reason
+ * `findBlockSpans` is exported: `stripWeatherTideBlocks` builds its output from
+ * this, and `weatherBlockParse.ts` reads the same spans, so the reader and the
+ * remover can never disagree about where a block begins.
+ *
+ * `wx` / `tide` are the two detectors' answers, passed in rather than
+ * recomputed: both public entry points already have them, and re-deriving them
+ * here would decode the comment twice more.
+ *
+ * NOTHING IS NORMALIZED HERE. The strip's `/^[ \t]+$/gm` blanking, `\n{3,}`
+ * collapse and final `trim()` stay in the strip, because they are the strip's
+ * contract with the Checklists tab — a span finder that normalized would be a
+ * span finder whose offsets lied.
+ */
+function spansInDecoded(decoded: string, wx: boolean, tide: boolean): BlockSpan[] {
+  // The detector gate stays in FRONT of the scan. It is what keeps a blockless
+  // comment cheap and what stops ATTRIB_END_RE firing on ordinary prose.
+  if (!wx && !tide) return []
+
+  // Single up-front scans (O(n) each); the span loop below then works off the
+  // precomputed positions with binary searches instead of rescanning the tail
+  // per attribution — keeps hostile attribution-spam comments linear instead
+  // of quadratic (security review; same posture as namedBirds' NAME_TAG_RE).
+  const markerRanges = allMatchRanges(STRONG_MARKER_RE, decoded)
+  const markerStarts = markerRanges.map(r => r[0])
+  const emojiIdxs = allMatchRanges(EMOJI_RUN_RE, decoded).map(r => r[0])
+
+  const spans: BlockSpan[] = []
+  let pos = 0
+  ATTRIB_END_RE.lastIndex = 0
+  let attrib: RegExpExecArray | null
+  while ((attrib = ATTRIB_END_RE.exec(decoded)) !== null) {
+    const attribStart = attrib.index
+    const attribEnd = attrib.index + attrib[0].length
+
+    // Where this block's body begins: the first strong marker after the last
+    // kept position (only if it precedes this attribution).
+    const mk = firstAtOrAfter(markerStarts, pos)
+    const markerIdx = mk !== null && mk < attribStart ? mk : attribStart
+
+    spans.push({
+      start: blockStart(decoded, pos, markerIdx, emojiIdxs),
+      end: attribEnd,
+      kind: attribKind(attrib),
+    })
+    pos = attribEnd
+    // Not redundant next to exec's own advance: it is what makes the NEXT
+    // search start after the consumed span rather than inside it.
+    ATTRIB_END_RE.lastIndex = attribEnd
+  }
+
+  // Fallback for a block whose attribution was trimmed off (seen in real
+  // exports): the detectors fired but no attribution exists anywhere, so the
+  // span runs from the emoji header to the end of the LAST labeled value —
+  // bounded at the next line break or 2+-space gap (eBird's collapsed-newline
+  // separator), so prose following the block survives.
+  //
+  // Its `kind` is COARSER than an attribution-bearing span's, and deliberately
+  // so: there is no alternative to read, so the only evidence available is
+  // which detectors fired over the whole comment. Said here because a later
+  // reader would otherwise assume `kind` is derived uniformly.
+  if (spans.length === 0 && markerRanges.length >= 2) {
+    const firstStart = markerRanges[0][0]
+    const lastEnd = markerRanges[markerRanges.length - 1][1]
+    const tail = decoded.slice(lastEnd)
+    const value = /^[^\S\n]*[^\n]*?(?=[ \t]{2,}|\n|$)/.exec(tail)
+    spans.push({
+      start: blockStart(decoded, 0, firstStart, emojiIdxs),
+      end: lastEnd + (value ? value[0].length : 0),
+      kind: wx && tide ? 'combined' : wx ? 'weather' : 'tide',
+    })
+  }
+
+  return spans
+}
+
+/**
+ * Every block span in a comment, in document order, non-overlapping and
+ * ascending. THE ONE SPAN IMPLEMENTATION IN THIS CODEBASE (weather-stats
+ * FR-01). A second span finder is the defect this export exists to prevent.
+ */
+export function findBlockSpans(rawComment: string): BlockSpan[] {
+  if (!rawComment) return []
+  const decoded = decodeEntities(rawComment)
+  return spansInDecoded(decoded, hasWeatherBlock(rawComment), hasTideBlock(rawComment))
+}
+
 /**
  * Remove SnowRaven/raincrow WEATHER blocks and SnowRaven TIDE blocks from a
  * comment, returning the user's own text — entity-DECODED and trimmed. A
@@ -299,57 +416,21 @@ function blockStart(decoded: string, from: number, markerIdx: number, emojiIdxs:
  *
  * Single source of truth for the Checklists tab's "Show weather & tide blocks"
  * toggle (PRD FR-05/06/07): while blocks are hidden, DISPLAY and SEARCH must
- * both run on this function's output.
+ * both run on this function's output. Its output is additionally pinned
+ * byte-for-byte by `commentBlocksStripGolden.test.ts`.
  */
 export function stripWeatherTideBlocks(rawComment: string): string {
   if (!rawComment) return ''
   const decoded = decodeEntities(rawComment)
-  if (!hasWeatherBlock(rawComment) && !hasTideBlock(rawComment)) return decoded.trim()
-
-  // Single up-front scans (O(n) each); the span loop below then works off the
-  // precomputed positions with binary searches instead of rescanning the tail
-  // per attribution — keeps hostile attribution-spam comments linear instead
-  // of quadratic (security review; same posture as namedBirds' NAME_TAG_RE).
-  const markerRanges = allMatchRanges(STRONG_MARKER_RE, decoded)
-  const markerStarts = markerRanges.map(r => r[0])
-  const emojiIdxs = allMatchRanges(EMOJI_RUN_RE, decoded).map(r => r[0])
-
-  const spans: Array<[number, number]> = []
-  let pos = 0
-  ATTRIB_END_RE.lastIndex = 0
-  let attrib: RegExpExecArray | null
-  while ((attrib = ATTRIB_END_RE.exec(decoded)) !== null) {
-    const attribStart = attrib.index
-    const attribEnd = attrib.index + attrib[0].length
-
-    // Where this block's body begins: the first strong marker after the last
-    // kept position (only if it precedes this attribution).
-    const mk = firstAtOrAfter(markerStarts, pos)
-    const markerIdx = mk !== null && mk < attribStart ? mk : attribStart
-
-    spans.push([blockStart(decoded, pos, markerIdx, emojiIdxs), attribEnd])
-    pos = attribEnd
-    ATTRIB_END_RE.lastIndex = attribEnd
-  }
-
-  // Fallback for a block whose attribution was trimmed off (seen in real
-  // exports): the detectors fired but no attribution exists anywhere, so the
-  // span runs from the emoji header to the end of the LAST labeled value —
-  // bounded at the next line break or 2+-space gap (eBird's collapsed-newline
-  // separator), so prose following the block survives.
-  if (spans.length === 0 && markerRanges.length >= 2) {
-    const firstStart = markerRanges[0][0]
-    const lastEnd = markerRanges[markerRanges.length - 1][1]
-    const tail = decoded.slice(lastEnd)
-    const value = /^[^\S\n]*[^\n]*?(?=[ \t]{2,}|\n|$)/.exec(tail)
-    spans.push([blockStart(decoded, 0, firstStart, emojiIdxs), lastEnd + (value ? value[0].length : 0)])
-  }
+  const wx = hasWeatherBlock(rawComment)
+  const tide = hasTideBlock(rawComment)
+  if (!wx && !tide) return decoded.trim()
 
   let out = ''
   let kept = 0
-  for (const [s, e] of spans) {
-    out += decoded.slice(kept, s)
-    kept = e
+  for (const { start, end } of spansInDecoded(decoded, wx, tide)) {
+    out += decoded.slice(kept, start)
+    kept = end
   }
   out += decoded.slice(kept)
 
