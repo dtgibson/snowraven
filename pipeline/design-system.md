@@ -388,6 +388,49 @@ italic at 0.71875rem `--sr-text-gray`.
   throttled frozen snapshot. The completed state still offers a re-check, routed
   through the same fetch chokepoint with a force flag rather than a second write
   path. Statistics' escapee pass and Projects section are the two exemplars.
+- **Event strip over time (a data-scaled positional picture whose marks must be
+  reachable but cannot each be a target):** a `role="listbox"` track holding one
+  inert `<div role="option">` mark per datum, positioned absolutely by percentage,
+  driven by `aria-activedescendant`. **The TRACK is the control** — it holds the
+  single `tabIndex={0}` and every handler, the marks carry `pointer-events: none`,
+  and a press picks the nearest mark by horizontal position, which partitions the
+  full width so every datum owns a non-zero slice. That is what lets marks overlap
+  truthfully instead of being spaced, jittered or binned; reach for this form the
+  moment the mark count is set by the data rather than the design (six dates inside
+  eight days is six marks inside about six pixels at 320px). Classes `.sr-nbt-*`:
+  `-track` (the listbox), `-rail` (`::before` is the full shared axis, hairline, in
+  `--sr-border-medium`), `-span` (this series' own extent, `--sr-accent`), `-tick`
+  (the mark, `--sr-accent`) with `.is-on`, `-ends` (a `1fr auto` grid so the right
+  endpoint label stays right-aligned when it wraps at 200%). **The selected mark
+  carries two non-colour cues** — it grows, and a 2px halo in the host surface token
+  punches a visible gap around it inside a cluster — with the focus ring on the
+  full-width track. Selection is deliberately instant: a transition would lag the
+  pointer during a scrub, and transitioning `left` on hundreds of absolutely
+  positioned elements is the wrong property on the phones and the Pi. Two structural
+  rules hold and are guarded: **every track height is a px value and every
+  text-sized element is a SIBLING of a track, never a descendant** (a `rem` inside a
+  fixed-px box grows when the box does not — the Named Birds card map is this file's
+  named example of that trap on this very surface), and **nothing in the pattern sets
+  a positive `min-width`**, so it cannot force page scroll at 320px. Where the strip
+  repeats as labelled lanes, the lane grid is `minmax(0, 34%) minmax(0, 1fr)`
+  collapsing to one column at ≤640, and **the active lane takes `--sr-surface-subtle`
+  instead of zebra banding** — it says WHERE YOU ARE, which a stripe cannot, and it
+  keeps the halo token single-valued. Monochrome by default: the palette holds four
+  distinguishable colours plus slate, so "a colour per series" is only true up to
+  four. Named Birds' per-bird and master timelines are the exemplars. No new tokens.
+- **Fixed readout (the text that names what is selected, instead of a tooltip):** a
+  two-line block in normal flow beneath the plot, **rendered from first paint and
+  never unmounted**, so nothing shifts when it fills. Line 1 is identity in
+  `--sr-text` at 600; line 2 is position in `--sr-text-muted`; at rest line 1 states
+  the affordance and line 2 is empty. It is `aria-hidden` — NOT a live region —
+  because the focused option already speaks the same words and a `role="status"`
+  beside it double-speaks. Reach for this instead of a popover whenever the anchor
+  is small or the surface is narrow: a popover anchored to a 3px mark at 320px has
+  nowhere to go, needs collision logic, and covers the marks it describes. It
+  reuses the shipped `SyncLine` shape (rendered from the start, children replaced)
+  and is never a link. Phrase the position in the unit the marks actually represent
+  (`{i} of {n} dates`, not sightings) — that is what explains a card reading
+  "8 sightings" with 7 marks.
 - **A map popup is contained by what its container can ANCHOR, and becomes a sheet
   when it cannot.** MapLibre's side anchors place a popup EDGE at the click point,
   so a popup is anchorable only while its width stays under two thirds of the map;
