@@ -45,7 +45,7 @@
       <a class="brand" href="#top" aria-label="SnowRaven home">
         <img class="brand-mark" src="assets/logo.svg" alt="" width="28" height="28" />
         <span class="brand-name">Snow<span class="brand-accent">Raven</span></span>
-        <span class="version-pill" aria-label="Version 1.0.20">v1.0.20</span>
+        <span class="version-pill" aria-label="Version 1.0.21">v1.0.21</span>
       </a>
 
       <nav class="primary-nav" aria-label="Primary">
@@ -376,8 +376,15 @@
               Give an individual bird a name in your eBird species comment with a
               <code>[name:…]</code> tag (like <code>[name:Winky]</code>), and SnowRaven
               gathers every sighting of that individual: its species, when you first and
-              last saw it, how long you've followed it, each checklist with its location,
-              a map of everywhere that bird has been seen, and its own top locations. With
+              last saw it, how long you've followed it and which two dates that measures,
+              each checklist with its location, a map of everywhere that bird has been
+              seen, and its own top locations. A timeline in each card puts that bird's
+              sightings in time, and one strip at the bottom of the tab gives every named
+              bird a labelled lane on a shared axis, so you can see which birds you were
+              following when. Press a mark, or step through with the arrow keys, and a
+              line beneath the strip names that sighting's date and place. One switch
+              moves the far end of every span from the bird's last sighting to today, so
+              the gap since you last saw it becomes visible rather than inferred. With
               your Macaulay Library export saved, each individual also gathers its own
               photos, audio, and video as inline players, matched by the same tag. Prefer
               no inline players anywhere? Turn on <strong>Disable embedded media</strong>
@@ -385,8 +392,8 @@
             </p>
           </div>
           <figure class="feature-media shot-slot" data-shot="named-birds">
-            <img src="assets/shots/named-birds.webp" width="1600" height="620"
-                 alt="The Named Birds tab listing three named individuals with their species, date range, and sighting counts." loading="lazy" />
+            <img src="assets/shots/named-birds.webp" width="1600" height="800"
+                 alt="The Named Birds tab listing three named individuals with their species, date range, elapsed span and sighting counts, above a strip giving each one a labelled lane on a shared time axis." loading="lazy" />
           </figure>
         </article>
 
@@ -670,7 +677,7 @@
         Tides from NOAA Tides &amp; Currents. The weather lookup mirrors the format pioneered by
         <a href="https://raincrow.app" target="_blank" rel="noopener">raincrow.app</a>.
       </p>
-      <p class="footer-version">SnowRaven v1.0.20 · Free &amp; open source</p>
+      <p class="footer-version">SnowRaven v1.0.21 · Free &amp; open source</p>
     </div>
   </footer>
 </body>
