@@ -1461,7 +1461,11 @@ export default function App() {
       >
         {mountedTabs.has('birding-stats') && (
           <Suspense fallback={<TabLoading label="Loading charts…" />}>
-            <BirdingStats onGoToSettings={() => setActiveTab('settings')} onOpenSpecies={navigateToSpeciesDetail} />
+            <BirdingStats
+              onGoToSettings={() => setActiveTab('settings')}
+              onGoToWeather={() => setActiveTab('weather')}
+              onOpenSpecies={navigateToSpeciesDetail}
+            />
           </Suspense>
         )}
       </div>

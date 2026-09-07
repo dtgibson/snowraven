@@ -173,7 +173,7 @@ type Row = {
 
 const ROSTER: Row[] = [
   { name: 'Calendar', render: v => <Calendar onGoToSettings={noop} filesVersion={v} /> },
-  { name: 'Statistics', render: () => <BirdingStats onGoToSettings={noop} />, epochDriven: true },
+  { name: 'Statistics', render: () => <BirdingStats onGoToSettings={noop} onGoToWeather={() => {}} />, epochDriven: true },
   { name: 'Checklists', render: v => <Checklists onGoToSettings={noop} filesVersion={v} /> },
   { name: 'Breeding Codes', render: v => <BreedingCodeList onGoToSettings={noop} filesVersion={v} /> },
   { name: 'Named Birds', render: v => <NamedBirds onGoToSettings={noop} filesVersion={v} embedAllowed={false} /> },

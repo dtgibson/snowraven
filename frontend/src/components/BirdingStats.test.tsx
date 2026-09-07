@@ -142,7 +142,7 @@ afterAll(() => new Promise((r) => setTimeout(r, 120)))
 // without yet flushing the rAF that flips `computed`.
 async function renderAndLoad() {
   const utils = render(
-    <BirdingStats onGoToSettings={() => {}} onOpenSpecies={() => {}} />,
+    <BirdingStats onGoToSettings={() => {}} onGoToWeather={() => {}} onOpenSpecies={() => {}} />,
   )
   // Drain the load() promise chain so phase → 'ready'.
   await waitFor(() => expect(screen.getByText('Statistics')).toBeTruthy())

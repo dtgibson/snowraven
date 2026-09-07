@@ -74,7 +74,7 @@ afterEach(() => {
 
 describe('the taxonomy codes batch (form names resolve through their parent)', () => {
   it('sends the raw form name AND its normalized parent name', async () => {
-    render(<BirdingStats onGoToSettings={() => {}} onOpenSpecies={() => {}} />)
+    render(<BirdingStats onGoToSettings={() => {}} onGoToWeather={() => {}} onOpenSpecies={() => {}} />)
     const post = vi.mocked(transportModule.transport.post)
     await waitFor(() => {
       expect(post.mock.calls.some(c => c[0] === '/taxonomy/codes')).toBe(true)

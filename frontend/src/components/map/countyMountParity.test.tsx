@@ -292,7 +292,7 @@ describe('SITE 3 — Statistics, Geographic Stats map, THE REAL HOST', () => {
   afterAll(() => new Promise((r) => setTimeout(r, 120)))
 
   async function renderTab() {
-    render(<BirdingStats onGoToSettings={() => {}} onOpenSpecies={() => {}} />)
+    render(<BirdingStats onGoToSettings={() => {}} onGoToWeather={() => {}} onOpenSpecies={() => {}} />)
     await waitFor(() => expect(screen.getByText('Statistics')).toBeTruthy())
     await waitFor(() => expect(rafQueue.length).toBeGreaterThan(0))
     const flush = () => { const b = rafQueue; rafQueue = []; for (const cb of b) cb(performance.now()) }

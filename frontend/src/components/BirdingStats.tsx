@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   BarChart2, Trophy, Clock, MapPin, ShieldCheck, Dna, Loader2, ChevronDown,
-  ChevronUp, Calendar, Video, ListOrdered, Award, Sparkles, ClipboardList
+  ChevronUp, Calendar, Video, ListOrdered, Award, Sparkles, ClipboardList, CloudSun
 } from 'lucide-react'
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -67,6 +67,8 @@ import { SectionCard, StatCell, BarRow, Divider, SubLabel, RankIcon } from './st
 import { computeMediaStats } from '../lib/mediaStats'
 import { MediaStatsSections } from './MediaStatsSections'
 import { FrivolousListsSections } from './FrivolousListsSections'
+import { WeatherStatsSection } from './WeatherStatsSection'
+import { weatherSectionState } from '../lib/weatherStats'
 import { AVIAN_AMERICAN, CALIFORNIA_DREAMER, PHOEBE_PHANATIC, SCRUB_JAY_ALL_DAY, CROW_RAVEN, HERON_IS_CARIN, BEST_OF_THE_CREST } from '../lib/frivolousLists'
 import { ChecklistLink } from './ChecklistLink'
 import { OutboundLink } from './OutboundLink'
@@ -102,8 +104,10 @@ const PROTOCOL_COLORS = [
 const NAV_SECTIONS = [
   'Life List Totals', 'Top Species', 'Firsts & Milestones', 'Temporal Stats',
   'Geographic Stats', 'Effort & Outings', 'Projects', 'Data Quality',
-  'Highlights & Records', 'Breeding Stats',
 ]
+// Split so the conditional Weather entry can sit in its render position,
+// immediately after Data Quality, rather than being appended at the end.
+const NAV_SECTIONS_TAIL = ['Highlights & Records', 'Breeding Stats']
 
 /**
  * Dims a rank pin beneath an active county fill so the tier colors read on top
@@ -126,7 +130,12 @@ function DimmablePin({ dim, children }: { dim: boolean; children: React.ReactNod
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings: () => void; onOpenSpecies?: (commonName: string) => void }) {
+export function BirdingStats({ onGoToSettings, onGoToWeather, onOpenSpecies }: {
+  onGoToSettings: () => void
+  /** The Weather section's route out of the tab, mirroring `onGoToSettings`. */
+  onGoToWeather: () => void
+  onOpenSpecies?: (commonName: string) => void
+}) {
   const [phase, setPhase]           = useState<Phase>({ tag: 'loading-saved' })
   const [includeSpuh, setIncludeSpuh] = useState(false)
   // Session-only, matching its neighbour: no storage seam, resetting on relaunch.
@@ -370,6 +379,19 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
     return m
   }, [mlTaxonMap])
   const codeFor = (name: string) => mlTaxonMap[name] ?? normTaxon[normalizeSpeciesName(name)]
+  // Scientific name by NORMALIZED common name, the same shape as `normTaxon`.
+  // Only the Weather section's picker wants it, so it is derived here rather
+  // than carried across the worker boundary for one surface's benefit.
+  const sciByNorm = useMemo(() => {
+    const m: Record<string, string> = {}
+    for (const o of effectiveObs) {
+      if (!o.scientificName) continue
+      const norm = normalizeSpeciesName(o.commonName)
+      if (m[norm] === undefined) m[norm] = o.scientificName
+    }
+    return m
+  }, [effectiveObs])
+  const sciFor = (name: string) => sciByNorm[normalizeSpeciesName(name)]
   // Taxonomic order for media species (for the Age coverage by species sort).
   const normTaxonOrder = useMemo(() => {
     const m: Record<string, number> = {}
@@ -652,9 +674,13 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
   // throws RangeError at ~1e5 elements). The other spreads here are over
   // small fixed-length arrays and stay as-is.
   const maxDurationBin = durationBins.bins.reduce((m, r) => Math.max(m, r.value), 1)
-  // Jump-nav: base sections + Media (only with an ML export).
+  // Jump-nav: base sections + Weather (only with a block) + Media (only with an
+  // ML export). ONE discriminator decides the pill AND the card.
+  const weatherState = weatherSectionState(b.weather)
   const navSections = [
     ...NAV_SECTIONS,
+    ...(weatherState !== 'absent' ? ['Weather'] : []),
+    ...NAV_SECTIONS_TAIL,
     ...(rawMlRows.length > 0 ? ['Media'] : []),
     'Frivolous Lists',
   ]
@@ -1870,6 +1896,20 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
         )}
 
       </SectionCard>
+
+      {/* ── Weather ────────────────────────────────────────────────────────── */}
+      {weatherState !== 'absent' && (
+        <SectionCard title="Weather" icon={<CloudSun size={16} />}>
+          <WeatherStatsSection
+            stats={b.weather}
+            onGoToWeather={onGoToWeather}
+            codeFor={codeFor}
+            hasEntryFor={hasEntryFor}
+            sciFor={sciFor}
+            onOpenSpecies={onOpenSpecies}
+          />
+        </SectionCard>
+      )}
 
       {/* ── Highlights & Records ───────────────────────────────────────────── */}
       <SectionCard title="Highlights & Records" icon={<Award size={16} />}>

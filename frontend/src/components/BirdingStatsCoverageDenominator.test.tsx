@@ -122,7 +122,7 @@ afterEach(() => {
 afterAll(() => new Promise((r) => setTimeout(r, 120)))
 
 async function renderComputed() {
-  render(<BirdingStats onGoToSettings={() => {}} onOpenSpecies={() => {}} />)
+  render(<BirdingStats onGoToSettings={() => {}} onGoToWeather={() => {}} onOpenSpecies={() => {}} />)
   await waitFor(() => expect(screen.getByText('Statistics')).toBeTruthy())
   // Wait on the stub queue itself, not the DOM: the passive effect that queues
   // the rAF cascade can land after the commit `waitFor` resolves on, and flushing

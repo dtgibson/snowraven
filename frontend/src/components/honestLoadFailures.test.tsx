@@ -274,7 +274,7 @@ const EBIRD_MESSAGE_TABS: {
   setupTitle: RegExp
   stepsMarker: RegExp
 }[] = [
-  { name: 'Statistics',    files: EBIRD_ONLY, element: <BirdingStats {...settingsProps} />,                          setupTitle: /Statistics require your eBird backup/, stepsMarker: EBIRD_STEPS_MARKER },
+  { name: 'Statistics',    files: EBIRD_ONLY, element: <BirdingStats {...settingsProps} onGoToWeather={() => {}} />,                          setupTitle: /Statistics require your eBird backup/, stepsMarker: EBIRD_STEPS_MARKER },
   { name: 'Calendar',      files: EBIRD_ONLY, element: <Calendar {...settingsProps} filesVersion={0} />,             setupTitle: /eBird Backup Required/, stepsMarker: EBIRD_STEPS_MARKER },
   { name: 'Checklists',    files: EBIRD_ONLY, element: <Checklists {...settingsProps} filesVersion={0} />,           setupTitle: /eBird Backup Required/, stepsMarker: EBIRD_STEPS_MARKER },
   { name: 'Breeding Codes',files: EBIRD_ONLY, element: <BreedingCodeList {...settingsProps} filesVersion={0} />,     setupTitle: /eBird Backup Required/, stepsMarker: EBIRD_STEPS_MARKER },
@@ -432,7 +432,7 @@ describe('Finding B: List Comparer carries the same one string, not two of its o
 const ML_GUARD_TABS: { name: string; element: ReactNode; ready: () => Promise<unknown> }[] = [
   {
     name: 'Statistics',
-    element: <BirdingStats {...settingsProps} />,
+    element: <BirdingStats {...settingsProps} onGoToWeather={() => {}} />,
     ready: () => screen.findByRole('heading', { name: /Statistics/ }),
   },
   {
@@ -606,7 +606,7 @@ const CANCEL_GUARDED: {
 }[] = [
   {
     name: 'Statistics',
-    element: () => <BirdingStats {...settingsProps} />,
+    element: () => <BirdingStats {...settingsProps} onGoToWeather={() => {}} />,
     retrigger: 'epoch',
     ready: () => screen.findByRole('heading', { name: /Statistics/ }),
   },

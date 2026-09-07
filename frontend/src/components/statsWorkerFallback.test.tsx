@@ -163,7 +163,7 @@ afterEach(() => {
 afterAll(() => new Promise(r => setTimeout(r, 120)))
 
 async function renderComputed() {
-  render(<BirdingStats onGoToSettings={() => {}} onOpenSpecies={() => {}} />)
+  render(<BirdingStats onGoToSettings={() => {}} onGoToWeather={() => {}} onOpenSpecies={() => {}} />)
   await waitFor(() => expect(screen.getByText('Statistics')).toBeTruthy())
   // Wait on the stub queue itself, not the DOM: the passive effect that queues the
   // rAF cascade can land after the commit `waitFor` resolves on, and flushing an
@@ -232,7 +232,7 @@ describe('a worker that cannot answer leaves the tab showing its statistics', ()
         vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
         try {
           const pump = async (ms = 0) => { await act(async () => { await vi.advanceTimersByTimeAsync(ms) }) }
-          render(<BirdingStats onGoToSettings={() => {}} onOpenSpecies={() => {}} />)
+          render(<BirdingStats onGoToSettings={() => {}} onGoToWeather={() => {}} onOpenSpecies={() => {}} />)
           for (let i = 0; i < 30 && rafQueue.length === 0; i++) await pump()
           expect(rafQueue.length).toBeGreaterThan(0)     // the load really resolved
           await act(async () => { flushRaf() })

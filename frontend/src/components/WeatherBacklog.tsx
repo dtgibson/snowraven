@@ -491,6 +491,17 @@ export function WeatherBacklog({ rows, lookupWeather, onCopy, isHotspot, onGoToS
                     ? 'checklists with no weather block, including incomplete & incidental · newest first'
                     : 'complete, non-incidental checklists with no weather block · newest first'}
                 </p>
+                {/* The other half of the loop (weather-stats OQ-05). One line
+                    of copy and no new machinery: the user reaches Statistics
+                    through the app's own navigation, and naming a figure here
+                    would put a number on screen that disagrees with the one
+                    over there -- this section counts blocks with the looser
+                    label-based test and the Weather section on Statistics uses
+                    the attribution gate. The surface is named from TAB_LABELS,
+                    never from a component name. */}
+                <p style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)', margin: '6px 0 0', lineHeight: 1.45 }}>
+                  The Weather section on the Statistics tab reads these blocks back, so every gap you fill in sharpens it.
+                </p>
                 {/* Widen toggle (role=switch) */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginTop: 12, padding: '9px 11px', background: 'var(--sr-surface-faint)', border: '1px solid var(--sr-border-subtle)', borderRadius: 9 }}>
                   <button

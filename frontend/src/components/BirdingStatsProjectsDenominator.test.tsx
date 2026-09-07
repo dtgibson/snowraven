@@ -109,7 +109,7 @@ afterEach(() => {
 afterAll(() => new Promise((r) => setTimeout(r, 120)))
 
 async function renderComputed() {
-  render(<BirdingStats onGoToSettings={() => {}} onOpenSpecies={() => {}} />)
+  render(<BirdingStats onGoToSettings={() => {}} onGoToWeather={() => {}} onOpenSpecies={() => {}} />)
   await waitFor(() => expect(screen.getByText('Statistics')).toBeTruthy())
   await waitFor(() => expect(rafQueue.length).toBeGreaterThan(0))
   await act(async () => { flushRaf() })

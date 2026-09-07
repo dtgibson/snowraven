@@ -381,6 +381,7 @@ const NEVER_A_FAB_ANCESTOR: Record<string, string> = {
   'sr-field-row': 'a stacking wrapper for paired form controls; the cluster is not a form row',
   'sr-action-row-stack': 'a label-plus-action row; same, and it is sidebar/panel furniture',
   'sr-proj-row': 'a Projects-section result row on the Statistics tab, which mounts no map at all',
+  'sr-wx-seg': 'the Weather section\'s Temperature/Sky axis toggle on the Statistics tab; it holds only its own two buttons, and the tab\'s one map (Geographic Stats) is a different subtree entirely',
   'sr-proj-portalrow': 'the subordinate portal row in the same section; same reasoning',
   'sr-dlg-actions': 'the shared modal dialog action row (components/ui/ModalDialog.tsx); a dialog panel never wraps a map, so no FAB sits under it',
   'sr-map-sidebar-overlay': 'the filters sidebar, which the cluster sits outside of (and is hidden while it is open)',
