@@ -50,6 +50,20 @@ function decls(selector: string): Map<string, string> {
   return out
 }
 
+/** The established phone tier: this file's FIRST multi-line 640px block, which
+ *  is how the repo's offset-question guards resolve it. */
+function phoneTier(): string {
+  const start = CSS.indexOf('@media (max-width: 640px) {\n  .sr-header')
+  expect(start, 'globals.css has its established phone tier').toBeGreaterThan(-1)
+  let depth = 0
+  let i = CSS.indexOf('{', start)
+  for (; i < CSS.length; i++) {
+    if (CSS[i] === '{') depth++
+    else if (CSS[i] === '}' && --depth === 0) break
+  }
+  return CSS.slice(start, i)
+}
+
 describe('the picker is given the whole card to lay a row out in', () => {
   it('.sr-wx-pick is ONE column, at top level so it holds at every width', () => {
     const d = decls('.sr-wx-pick')
@@ -66,17 +80,61 @@ describe('the picker is given the whole card to lay a row out in', () => {
     // already proves top level. This states the converse the file must also
     // hold: the tier no longer needs its own copy, and a re-added override
     // would be a second place for the shape to drift.
-    const tierStart = CSS.indexOf('@media (max-width: 640px) {\n  .sr-header')
-    expect(tierStart).toBeGreaterThan(-1)
-    let depth = 0
-    let i = CSS.indexOf('{', tierStart)
-    for (; i < CSS.length; i++) {
-      if (CSS[i] === '{') depth++
-      else if (CSS[i] === '}' && --depth === 0) break
-    }
-    const tier = CSS.slice(tierStart, i)
+    const tier = phoneTier()
     expect(tier).toContain('.sr-wx-row')          // non-vacuity: this IS the tier
     expect(tier).not.toContain('.sr-wx-pick {')
+  })
+})
+
+describe('the per-species row, after the rescale', () => {
+  it('has its own grid with a fifth column for the reference figure', () => {
+    // The row carries a fifth child that the distribution rows do not. On
+    // desktop it is a trailing column of its own, so every reference aligns
+    // down the group.
+    const d = decls('.sr-wx-row--sp')
+    const cols = d.get('grid-template-columns')
+    expect(cols, '.sr-wx-row--sp declares its own tracks').toBeTruthy()
+    expect((cols as string).trim().split(/\s+(?![^(]*\))/).length).toBe(5)
+    const noGlyph = decls('.sr-wx-row--sp.no-glyph').get('grid-template-columns')
+    expect((noGlyph as string).trim().split(/\s+(?![^(]*\))/).length).toBe(4)
+  })
+
+  it('the reference figure is muted and a step smaller than the count beside it', () => {
+    const ref = decls('.sr-wx-ref')
+    expect(ref.get('color')).toBe('var(--sr-text-muted)')
+    const refSize = parseFloat(ref.get('font-size') as string)
+    const countSize = parseFloat(decls('.sr-wx-count').get('font-size') as string)
+    // It is the thing being compared AGAINST, not the figure being read.
+    expect(refSize).toBeLessThan(countSize)
+    // Never animated: it is text, and only the bar grows.
+    expect(ref.get('animation')).toBeUndefined()
+    expect(ref.get('transition')).toBeUndefined()
+  })
+
+  it('the reference takes a THIRD line at the phone tier, which is a measurement', () => {
+    // With all three figures on the identity line the count column takes about
+    // 187 of the 292 available pixels at 200% text, leaving the label roughly
+    // 49px, which wraps "Scattered clouds" into four-character fragments.
+    const tier = phoneTier()
+    expect(tier).toContain('.sr-wx-row--sp > .sr-wx-ref')
+    // Row 3, spanning the row's full width, in both glyph and no-glyph forms.
+    expect(tier).toMatch(/\.sr-wx-row--sp > \.sr-wx-ref\s*\{[^}]*grid-area:\s*3 \/ 1 \/ 4 \/ 4/)
+    expect(tier).toMatch(/\.sr-wx-row--sp\.no-glyph > \.sr-wx-ref\s*\{[^}]*grid-area:\s*3 \/ 1 \/ 4 \/ 3/)
+  })
+
+  it('the bar fill keeps its 3px floor, which the rescale did not retire', () => {
+    // A genuinely small non-zero band must not render as the same nothing a
+    // zero band renders. Scaling to the species' own maximum makes bars bigger
+    // on average and does not remove the case: a bird with 1 in one band and 40
+    // in another still paints that 1 at 2.5% of the track.
+    expect(decls('.sr-wx-fill').get('min-width')).toBe('3px')
+  })
+
+  it('.sr-wx-scale is gone, not merely unused', () => {
+    // It existed only to hold the old proportional rail. Under species-max
+    // scaling every track is full width again, so a leftover rule would be dead
+    // CSS that a later reader has to work out the meaning of.
+    expect(CSS).not.toContain('sr-wx-scale')
   })
 })
 

@@ -19,8 +19,8 @@ import {
   bandHeadCount, belowFloorLine, coverageCounts, coverageDenominator, coveragePct,
   coverageSentence, durationFigureDenominator, durationFigureUnit, legendFloorNote,
   pickerRestLine, pickerRestParts, speciesChartNote, speciesFigure, speciesFigureValue,
-  speciesLede, speciesLedeParts, speciesRowCount, tempFootnote, thinDurationsLine,
-  unreadableClause,
+  speciesGroupDenominator, speciesLede, speciesLedeParts, speciesRowReference,
+  speciesRowShare, tempFootnote, thinDurationsLine, unreadableClause,
 } from './weatherStatsCopy'
 import type { WeatherAxis } from './weatherStatsCopy'
 import { WEATHER_BAND_MIN_TO_SHOW, WEATHER_SECTION_MIN_READABLE } from './weatherStats'
@@ -87,6 +87,17 @@ function corpus(): Array<{ where: string; text: string }> {
     // A species is on at least one and at most every readable-block checklist.
     for (const onCount of [1, 2, Math.max(1, readable - 1), readable]) {
       add(`speciesLede(${onCount}, ${readable})`, speciesLede(onCount, readable))
+      // Denominator 4, over every species total the lede can have bound.
+      for (const axis of ['sky', 'temp'] as const) {
+        for (const sum of [0, 1, Math.max(1, onCount - 1), onCount]) {
+          add(`speciesGroupDenominator(${sum}, ${onCount}, ${axis})`,
+            speciesGroupDenominator(sum, onCount, axis))
+        }
+      }
+      // The row's own share, of the species' axis total.
+      for (const count of [0, 1, Math.max(1, onCount - 1), onCount]) {
+        add(`speciesRowShare(${count}, ${onCount})`, speciesRowShare(count, onCount))
+      }
     }
     // A band's count, its duration denominator and its figures.
     for (const n of FREE_COUNTS) {
@@ -94,9 +105,13 @@ function corpus(): Array<{ where: string; text: string }> {
       add(`bandHeadCount(${n})`, bandHeadCount(n))
       add(`thinDurationsLine(${n})`, thinDurationsLine(n))
       add(`durationFigureDenominator(${n})`, durationFigureDenominator(n))
-      add(`speciesRowCount(0, ${n})`, speciesRowCount(0, n))
-      add(`speciesRowCount(1, ${n})`, speciesRowCount(1, n))
-      add(`speciesRowCount(${n}, ${n})`, speciesRowCount(n, n))
+      // The per-species row: the bird's count and its share of the bird's own
+      // axis total, plus the reference share of ALL outings on that axis. Both
+      // wholes are swept, at every count the row can hold.
+      add(`speciesRowReference(${n}, ${n})`, speciesRowReference(n, n))
+      for (const axisTotal of [n, readable]) {
+        add(`speciesRowReference(${n}, ${axisTotal})`, speciesRowReference(n, axisTotal))
+      }
       for (const axis of AXES) add(`axisDenominator(${n}, ${axis})`, axisDenominator(n, axis))
     }
     for (const avg of [0, 1, 1.05, 10, 13.5, 47.25]) {
@@ -131,14 +146,23 @@ describe('the corpus is real', () => {
 
 describe('number agreement, over the whole corpus', () => {
   it('no count of one takes a plural noun', () => {
-    // `1 checklists`, `1 requests`, `1 species` is fine (invariant plural), so
-    // the rule is stated over the shape rather than a word list, with the known
-    // invariant nouns exempted.
-    const INVARIANT = new Set(['species', 'gaps', 'is'])
+    // The rule is stated over the SHAPE -- a count of one followed by a word
+    // ending in `s` -- rather than over a list of known-bad strings, which could
+    // only ever reject the defects someone already found.
+    //
+    // Two kinds of word end in `s` and are not a plural noun, and both are
+    // exempted BY NAME so the exemption is reviewable rather than a loosening:
+    // invariant plurals (`1 species` is correct English), and singular VERBS
+    // (`1 of its 1 has a sky condition` is the corrected form of a defect this
+    // very rule caught).
+    const NOT_A_PLURAL_NOUN = new Set([
+      'species', 'gaps',        // invariant plurals
+      'is', 'has', 'was', 'does', // singular verbs
+    ])
     const bad: string[] = []
     for (const { where, text } of CORPUS) {
       for (const m of text.matchAll(/\b1 ([a-z]+s)\b/g)) {
-        if (!INVARIANT.has(m[1])) bad.push(`${where}: "${m[0]}"`)
+        if (!NOT_A_PLURAL_NOUN.has(m[1])) bad.push(`${where}: "${m[0]}"`)
       }
     }
     expect(bad).toEqual([])
@@ -275,12 +299,34 @@ describe('the figures the copy is about', () => {
     expect(tempFootnote(null)).not.toContain('Half your blocks')
   })
 
-  it('a band with no outings carries no numeral at all', () => {
-    // "0 of 27" is a fact about the bird; "no outings" is a fact about the
-    // birder, and they must never render alike.
-    expect(speciesRowCount(0, 27)).toBe('0 of 27')
-    expect(speciesRowCount(0, 0)).toBe('no outings')
-    expect(speciesRowCount(0, 0)).not.toMatch(/\d/)
+  it('the two zeros are different strings, and only one carries a numeral', () => {
+    // `0 · 0%` is a fact about the BIRD (outings in that band, never this
+    // species); `no outings` is a fact about the BIRDER. They must never render
+    // alike, and the reference figure is the third place they differ.
+    expect(speciesRowShare(0, 27)).toBe('0%')
+    expect(NO_OUTINGS).toBe('no outings')
+    expect(NO_OUTINGS).not.toMatch(/\d/)
+    // The reference is present for a band with outings and ABSENT for one
+    // without: "outings 0%" would only repeat what "no outings" already said.
+    expect(speciesRowReference(27, 298)).toBe('outings 9%')
+    expect(speciesRowReference(0, 298)).toBe('')
+  })
+
+  it('a share the bird really has never rounds away to nothing', () => {
+    // The "<1%" floor is load-bearing on this chart: a band the bird was
+    // genuinely in must not read as one it was not.
+    expect(speciesRowShare(1, 400)).toBe('<1%')
+    expect(speciesRowShare(0, 400)).toBe('0%')
+    expect(speciesRowReference(1, 400)).toBe('outings <1%')
+  })
+
+  it('the species group denominator names the species by pronoun, and agrees its verb', () => {
+    // "of its 78" is deliberate: it binds to the lede one line above, so a
+    // skimmer cannot read 77 as an outing count disagreeing with the card's own
+    // coverage figure.
+    expect(speciesGroupDenominator(77, 78, 'sky')).toBe('77 of its 78 have a sky condition')
+    expect(speciesGroupDenominator(76, 78, 'temp')).toBe('76 of its 78 have a temperature')
+    expect(speciesGroupDenominator(1, 1, 'sky')).toBe('1 of its 1 has a sky condition')
   })
 
   it('the species average keeps one decimal', () => {

@@ -45,8 +45,9 @@ import type { WeatherBandRow, WeatherDistRow, WeatherStats } from '../lib/weathe
 import {
   NO_OUTINGS, SPECIES_FIGURE_SUFFIX, WEATHER_COPY, axisDenominatorSuffix, bandHeadCount,
   belowFloorLine, coverageCounts, coveragePct, coverageSentence, durationFigureDenominator,
-  durationFigureUnit, legendFloorNote, pickerRestParts, speciesChartNote, speciesFigureValue,
-  speciesLedeParts, tempFootnote, thinDurationsLine, unreadableClause,
+  durationFigureUnit, legendFloorNote, pickerRestParts, speciesChartNote,
+  speciesFigureValue, speciesGroupDenominator, speciesLedeParts, speciesRowReference,
+  speciesRowShare, tempFootnote, thinDurationsLine, unreadableClause,
 } from '../lib/weatherStatsCopy'
 import type { WeatherAxis } from '../lib/weatherStatsCopy'
 
@@ -256,46 +257,70 @@ function BandBlock({ row, label, glyph, maxSpecies, maxDuration, unit }: {
 /**
  * One row of the per-species view.
  *
- * THE RAIL IS THE OUTINGS IN THAT BAND AND THE FILL IS THE ONES CARRYING THE
- * SPECIES, so both bars sit on ONE axis -- checklists -- and the eye reads the
- * fraction directly. Scaling each bar to the species' own maximum instead would
- * mostly redraw where the user birds, which the distribution chart above already
- * says. NO RATE IS EVER PRINTED: the count and its denominator are text, and the
- * fraction exists only as bar geometry.
+ * THE BAR IS THE BIRD'S OWN RECORD, SCALED TO THE BIRD'S LARGEST BAND ON THIS
+ * AXIS -- so the biggest band always fills the track and every other band is
+ * legible against it. This replaced a shared-rail treatment where the rail was
+ * the outings in the band and the fill the ones carrying the bird. That was
+ * well-founded and it did not survive real data: against hundreds of outings,
+ * anything the user has not seen dozens of times rendered as a sliver, and the
+ * user's own example was "1 of 395 and a tiny bar". A chart that carries no
+ * information at the size a person reads it is not saved by being technically
+ * correct.
  *
- * The two zeros are again distinguished. "0 of 27" is a real and interesting
- * fact about the bird (twenty-seven warm outings, never this species); "no
- * outings" is a fact about the birder, and it takes the same dashed full-width
- * rail the distribution chart gives that band, because it means the same thing
- * there. A proportional stub would be shorter than a one-outing rail and would
- * read as "fewer" rather than "never".
+ * Scaled to `max(count)` and deliberately NOT to the species' total: scaling to
+ * the total makes every bar small again the moment a bird is spread across
+ * eleven conditions, which is the failure this change exists to fix. Each of the
+ * two groups scales to its OWN axis's maximum, never a shared one. That makes
+ * this the same chart form and the same scaling rule as the distribution chart
+ * at the top of the card, so the two are read in identical units.
+ *
+ * TWO STATES, NOT THREE. There is no thin state here and that is not an
+ * oversight: `WEATHER_BAND_MIN_TO_SHOW` gates derived AVERAGES, and this chart
+ * derives nothing. A count of one is a fact, not an estimate.
+ *
+ * The two zeros still must not look alike, and now differ in three places:
+ *
+ *   `0 · 0%`     a SOLID full-width track, no fill, and a reference figure --
+ *                warm outings that never held this bird, a fact about the BIRD
+ *   `no outings` a DASHED track, no numeral, no share and NO reference --
+ *                a band never birded, a fact about the BIRDER
+ *
+ * The reference is omitted rather than printed as "outings 0%", which would only
+ * repeat what "no outings" already said and would collapse the distinction.
  */
-function SpeciesRow({ glyph, label, bandN, count, maxBandN }: {
+function SpeciesRow({ glyph, label, count, maxCount, speciesAxisTotal, bandN, axisTotal }: {
   glyph?: React.ReactNode
   label: string
-  bandN: number
+  /** Checklists in this band carrying the species. */
   count: number
-  maxBandN: number
+  /** The species' largest band on THIS axis -- the bar's scale. */
+  maxCount: number
+  /** The species' own axis total, which the printed share is of. */
+  speciesAxisTotal: number
+  /** All readable checklists in this band, for the reference figure. */
+  bandN: number
+  /** The axis's own sum, which the reference share is of. */
+  axisTotal: number
 }) {
   const noOutings = bandN === 0
-  const railPct = maxBandN > 0 ? (bandN / maxBandN) * 100 : 0
-  const fillPct = bandN > 0 ? (count / bandN) * 100 : 0
+  const w = maxCount > 0 ? (count / maxCount) * 100 : 0
   return (
-    <div className={`sr-wx-row${glyph ? '' : ' no-glyph'}${noOutings ? ' is-zero' : ''}`}>
+    <div className={`sr-wx-row sr-wx-row--sp${glyph ? '' : ' no-glyph'}${noOutings ? ' is-zero' : ''}`}>
       {glyph !== undefined && <span className="sr-wx-glyph" aria-hidden="true">{glyph}</span>}
       <span className="sr-wx-label">{label}</span>
-      <div className="sr-wx-scale" aria-hidden="true">
-        {noOutings
-          ? <div className="sr-wx-track is-empty" />
-          : (
-            <div className="sr-wx-track" style={{ width: `${railPct.toFixed(2)}%` }}>
-              {count > 0 && <span className="sr-wx-fill" style={{ ['--w' as string]: `${fillPct.toFixed(2)}%` }} />}
-            </div>
-          )}
-      </div>
+      {noOutings
+        ? <div className="sr-wx-track is-empty" aria-hidden="true" />
+        : (
+          <div className="sr-wx-track" aria-hidden="true">
+            {count > 0 && <span className="sr-wx-fill" style={{ ['--w' as string]: `${w.toFixed(2)}%` }} />}
+          </div>
+        )}
       <span className="sr-wx-count">
-        {noOutings ? NO_OUTINGS : <><b>{fmt(count)}</b>{` of ${fmt(bandN)}`}</>}
+        {noOutings
+          ? NO_OUTINGS
+          : <><b>{fmt(count)}</b> <span aria-hidden="true">·</span> {speciesRowShare(count, speciesAxisTotal)}</>}
       </span>
+      <span className="sr-wx-ref">{speciesRowReference(bandN, axisTotal)}</span>
     </div>
   )
 }
@@ -376,8 +401,17 @@ export function WeatherStatsSection({
   // stale pick after the backup changes under a mounted tab.
   const speciesIdx = species === null ? -1 : stats.species.names.indexOf(species)
   const selected = speciesIdx >= 0 ? stats.species.names[speciesIdx] : null
-  const maxCondBand = stats.byCondition.reduce((m, r) => Math.max(m, r.checklists), 0)
-  const maxTempBand = stats.byTempBand.reduce((m, r) => Math.max(m, r.checklists), 0)
+
+  // The bar's scale and the printed share come from the SPECIES' own counts on
+  // each axis, computed per axis and never shared between them. `reduce` rather
+  // than a `Math.max` spread: the arrays are data-derived, and a spread over a
+  // data-length array is the RangeError this repo has already guarded once.
+  const spCond = speciesIdx >= 0 ? stats.species.byCondition[speciesIdx] : []
+  const spTemp = speciesIdx >= 0 ? stats.species.byTempBand[speciesIdx] : []
+  const maxCondCount = spCond.reduce((m, n) => Math.max(m, n), 0)
+  const maxTempCount = spTemp.reduce((m, n) => Math.max(m, n), 0)
+  const spCondTotal = spCond.reduce((a, b) => a + b, 0)
+  const spTempTotal = spTemp.reduce((a, b) => a + b, 0)
 
   return (
     <>
@@ -565,6 +599,12 @@ export function WeatherStatsSection({
         // chosen -- and NOT while the picker's query is being typed, because
         // that is the combobox's own internal state and never reaches here.
         <div key={`sp-${selected}`}>
+          {/* The trap, named once and then shown continuously -- the same move
+              the effort confound makes one block up. The bars are the bird's own
+              record, so they carry when the user was out as well as the bird;
+              the muted figure on each row is the population shape to check that
+              against, without scrolling back to the chart at the top of the
+              card. */}
           <p style={{ ...NOTE_STYLE, margin: '12px 0 10px', lineHeight: 1.5 }}>
             {speciesChartNote(selected)}
           </p>
@@ -572,8 +612,12 @@ export function WeatherStatsSection({
             <div>
               <div className="sr-action-row" style={{ margin: '0 0 8px' }}>
                 <SubLabelInline>{WEATHER_COPY.axisSky}</SubLabelInline>
+                {/* Denominator 4, and its "of its N" is deliberate: it names the
+                    species by the pronoun the lede one line above has bound, so
+                    a skimmer cannot read this sum as an outing count and think
+                    it disagrees with the card's own coverage figure. */}
                 <span style={DENOM_STYLE}>
-                  <b style={STRONG_STYLE}>{fmt(condDenominator)}</b>{` ${axisDenominatorSuffix('sky')}`}
+                  {speciesGroupDenominator(spCondTotal, stats.species.checklists[speciesIdx], 'sky')}
                 </span>
               </div>
               <div className="sr-wx-rows">
@@ -582,9 +626,11 @@ export function WeatherStatsSection({
                     key={r.index}
                     glyph={r.key}
                     label={CONDITION_LABEL[r.index]}
+                    count={spCond[r.index]}
+                    maxCount={maxCondCount}
+                    speciesAxisTotal={spCondTotal}
                     bandN={r.checklists}
-                    count={stats.species.byCondition[speciesIdx][r.index]}
-                    maxBandN={maxCondBand}
+                    axisTotal={condDenominator}
                   />
                 ))}
               </div>
@@ -593,7 +639,7 @@ export function WeatherStatsSection({
               <div className="sr-action-row" style={{ margin: '0 0 8px' }}>
                 <SubLabelInline>{WEATHER_COPY.axisTemp}</SubLabelInline>
                 <span style={DENOM_STYLE}>
-                  <b style={STRONG_STYLE}>{fmt(tempDenominator)}</b>{` ${axisDenominatorSuffix('temp')}`}
+                  {speciesGroupDenominator(spTempTotal, stats.species.checklists[speciesIdx], 'temp')}
                 </span>
               </div>
               <div className="sr-wx-rows">
@@ -601,9 +647,11 @@ export function WeatherStatsSection({
                   <SpeciesRow
                     key={r.index}
                     label={r.key}
+                    count={spTemp[r.index]}
+                    maxCount={maxTempCount}
+                    speciesAxisTotal={spTempTotal}
                     bandN={r.checklists}
-                    count={stats.species.byTempBand[speciesIdx][r.index]}
-                    maxBandN={maxTempBand}
+                    axisTotal={tempDenominator}
                   />
                 ))}
               </div>

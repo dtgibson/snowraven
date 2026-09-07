@@ -3798,6 +3798,10 @@ select:focus-visible {
   min-width: 0;
 }
 .sr-wx-row.no-glyph { grid-template-columns: minmax(0, 8.5rem) minmax(0, 1fr) auto; }
+/* The per-species row carries a FIFTH child: the reference figure. On desktop it
+   is its own trailing column, so every reference aligns down the group. */
+.sr-wx-row--sp { grid-template-columns: auto minmax(0, 8.5rem) minmax(0, 1fr) auto auto; }
+.sr-wx-row--sp.no-glyph { grid-template-columns: minmax(0, 8.5rem) minmax(0, 1fr) auto auto; }
 .sr-wx-rows { display: flex; flex-direction: column; gap: 0.25rem; }
 
 .sr-wx-glyph {
@@ -3846,16 +3850,22 @@ select:focus-visible {
 .sr-wx-fill.is-dur { background: var(--sr-chart-slate); }
 @keyframes sr-wx-grow { from { width: 0; } to { width: var(--w, 0%); } }
 
-/* The per-species rail cell: full width of its grid column, with the rail inside
-   it taking a percentage, so a shorter rail means fewer outings in that band. */
-.sr-wx-scale { min-width: 0; }
-
 .sr-wx-count {
   font-size: 0.6875rem; color: var(--sr-text-muted); text-align: right;
   white-space: nowrap; font-variant-numeric: tabular-nums;
 }
 .sr-wx-count b { color: var(--sr-text); font-weight: 600; }
 .sr-wx-row.is-zero .sr-wx-count b { color: var(--sr-text-muted); font-weight: 400; }
+
+/* The reference figure: the same band's share of ALL the user's outings, which
+   is what makes the confound sentence above the pair checkable per row without
+   scrolling back to the distribution chart. Muted and a step smaller than the
+   count beside it, because it is the thing being compared AGAINST rather than
+   the figure being read. It is text and never animates. */
+.sr-wx-ref {
+  font-size: 0.625rem; color: var(--sr-text-muted); white-space: nowrap;
+  font-variant-numeric: tabular-nums; padding-left: 0.5rem;
+}
 
 /* The coverage opener. */
 .sr-wx-cov { display: flex; flex-direction: column; gap: 10px; }
@@ -4465,12 +4475,20 @@ select:focus-visible {
   .sr-wx-row > .sr-wx-label { grid-area: 1 / 2; white-space: normal; overflow: visible; }
   .sr-wx-row > .sr-wx-count { grid-area: 1 / 3; }
   .sr-wx-row > .sr-wx-track { grid-area: 2 / 1 / 3 / 4; }
-  .sr-wx-row > .sr-wx-scale { grid-area: 2 / 1 / 3 / 4; }
   .sr-wx-row.no-glyph { grid-template-columns: minmax(0, 1fr) auto; }
   .sr-wx-row.no-glyph > .sr-wx-label { grid-area: 1 / 1; }
   .sr-wx-row.no-glyph > .sr-wx-count { grid-area: 1 / 2; }
   .sr-wx-row.no-glyph > .sr-wx-track { grid-area: 2 / 1 / 3 / 3; }
-  .sr-wx-row.no-glyph > .sr-wx-scale { grid-area: 2 / 1 / 3 / 3; }
+  /* The reference figure takes a THIRD line, and that is measured rather than
+     aesthetic: with all three figures on the identity line the count column
+     takes about 187 of the 292 available pixels at 200% text, leaving the label
+     roughly 49px, which wraps "Scattered clouds" into four-character fragments.
+     On its own line the reference costs one short muted line and the label keeps
+     its width. */
+  .sr-wx-row--sp { grid-template-columns: auto minmax(0, 1fr) auto; }
+  .sr-wx-row--sp > .sr-wx-ref { grid-area: 3 / 1 / 4 / 4; padding-left: 0; }
+  .sr-wx-row--sp.no-glyph { grid-template-columns: minmax(0, 1fr) auto; }
+  .sr-wx-row--sp.no-glyph > .sr-wx-ref { grid-area: 3 / 1 / 4 / 3; padding-left: 0; }
   .sr-wx-rows { gap: 0.375rem; }
   /* The figure sits under its own bar, so each bar is still directly above the
      number it draws. */

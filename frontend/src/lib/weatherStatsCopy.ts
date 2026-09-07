@@ -17,7 +17,7 @@
 // "correlation" do not appear, and no ranked list of species by weather is
 // rendered anywhere.
 
-import { fmt } from './statsFormat'
+import { fmt, fmtSharePct } from './statsFormat'
 import { WEATHER_BAND_MIN_TO_SHOW } from './weatherStats'
 
 const s = (n: number, singular: string, plural: string) => (n === 1 ? singular : plural)
@@ -218,19 +218,53 @@ export function speciesLede(onCount: number, readable: number): string {
   return `${p.lead} ${p.note}`
 }
 
-/** How to read the shared rail: the bar is the outings in that band, the filled
- *  part is the ones carrying this species. No rate is ever printed. */
+/**
+ * The confound, named once above the pair, then shown per row.
+ *
+ * The bars are the bird's OWN record, so they carry when the user was out as
+ * well as the bird. That trap is real and it is the reason the earlier
+ * shared-rail treatment existed; the reference figure on each row is what
+ * replaces it, and this sentence is what tells the reader the two numbers are
+ * different wholes. Same move as the effort confound one block up.
+ */
 export function speciesChartNote(speciesName: string): string {
-  return `Each bar is the outings in that band; the filled part is the ones ${speciesName} is on.`
+  return `This is where ${speciesName} turned up, so it reflects when you were out as well as `
+    + `the bird. Each row carries its share of the bird's records, then the same band's share `
+    + `of all your outings.`
 }
 
-/** `16 of 44`, or the honest `no outings` for a band the user has never birded.
- *  "0 of 27" is a real and interesting fact about the bird; "no outings" is a
- *  fact about the birder, and the two must never render alike. */
-export function speciesRowCount(count: number, bandN: number): string {
-  return bandN === 0 ? NO_OUTINGS : `${fmt(count)} of ${fmt(bandN)}`
+/** The share of the SPECIES' OWN axis total that this band holds -- the `25%`
+ *  in `19 · 25%`. Floored at "<1%" for a nonzero count, because a band the bird
+ *  really was in must never read as one it was not. */
+export function speciesRowShare(count: number, speciesAxisTotal: number): string {
+  return fmtSharePct(count, speciesAxisTotal)
+}
+
+/**
+ * The reference figure: the same band's share of ALL the user's outings on that
+ * axis, which is denominator 2 restated per row. Labelled in words for the same
+ * reason denominator 4 is: two shares of two different wholes sit on one line,
+ * and neither may be readable as the other.
+ *
+ * A no-outings band gets NO reference. "outings 0%" only repeats what
+ * "no outings" already said, and printing it would collapse the one distinction
+ * this chart most needs: a band the bird was never in (a fact about the bird)
+ * against a band the user has never birded (a fact about the birder).
+ */
+export function speciesRowReference(bandN: number, axisTotal: number): string {
+  return bandN === 0 ? '' : `outings ${fmtSharePct(bandN, axisTotal)}`
+}
+
+/** `77 of its 78 have a sky condition`. The "of its 78" is deliberate: it names
+ *  the species by the pronoun the lede one line above has already bound, so a
+ *  skimmer cannot read 77 as an outing count and think it disagrees with the
+ *  card's own coverage figure. */
+export function speciesGroupDenominator(sum: number, speciesTotal: number, axis: 'sky' | 'temp'): string {
+  // The verb agrees with the SUM, which is the subject: "1 of its 1 has a sky
+  // condition". Reachable -- a bird can be on one weather-block checklist.
+  return `${fmt(sum)} of its ${fmt(speciesTotal)} ${s(sum, 'has', 'have')} ${AXIS_NOUN[axis]}`
 }
 
 /** The band the user has never birded. Deliberately carries no numeral, so it
- *  can never be mistaken for the "0 of 27" beside it. */
+ *  can never be mistaken for the `0 · 0%` beside it. */
 export const NO_OUTINGS = 'no outings'

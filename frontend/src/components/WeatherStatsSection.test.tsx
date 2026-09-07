@@ -359,12 +359,69 @@ describe('one species, its weather', () => {
 
     const text = container.textContent ?? ''
     expect(text).toContain('is on 10 of your 14 weather-block checklists.')
-    expect(text).toContain('Each bar is the outings in that band; the filled part is the ones Ruby-crowned Kinglet is on.')
-    // Two groups side by side.
+    // The confound, named once above the pair -- the same move the effort
+    // confound makes one block up.
+    expect(text).toContain(
+      'This is where Ruby-crowned Kinglet turned up, so it reflects when you were out as well as the bird.',
+    )
+    expect(text).toContain("Each row carries its share of the bird's records, then the same band's share of all your outings.")
+    // Two groups side by side, BOTH axes on screen at once: that is the point of
+    // the rescale, and it is why block 4 has no axis toggle of its own.
     expect(container.querySelectorAll('.sr-wx-pair > div').length).toBe(2)
+    expect(container.querySelectorAll('.sr-wx-pair [role="group"]').length).toBe(0)
   })
 
-  it('distinguishes "0 of 27" from "no outings", which are different facts', () => {
+  it('scales each bar to the BIRD\'s largest band on its own axis', () => {
+    // The change the user asked for. Under the old shared-rail treatment the
+    // rail was the outings in the band and the fill the ones carrying the bird,
+    // so a bird on 10 of 400 outings drew a sliver. Now the bird's biggest band
+    // fills the track and the rest are legible against it.
+    const stats = statsFor([
+      ...many(10, block(60)).map(sp => ({ ...sp, species: [...(sp.species ?? []), 'Ruby-crowned Kinglet'] })),
+      ...many(2, block(80)).map(sp => ({ ...sp, species: [...(sp.species ?? []), 'Ruby-crowned Kinglet'] })),
+      ...many(40, block(50)),
+    ])
+    const { container } = draw(stats)
+    fireEvent.focus(container.querySelector('input[role="combobox"]')!)
+    fireEvent.click([...container.querySelectorAll('[role="option"]')]
+      .find(o => o.textContent?.includes('Ruby-crowned Kinglet'))!)
+    const rows = [...container.querySelector('.sr-wx-pair')!.querySelectorAll('.sr-wx-row')]
+    const width = (label: string) => {
+      const row = rows.find(r => r.textContent?.includes(label))!
+      const fill = row.querySelector('.sr-wx-fill') as HTMLElement | null
+      return fill ? fill.style.getPropertyValue('--w') : null
+    }
+    // The bird's biggest band (10) fills the track...
+    expect(width('55 to 64')).toBe('100.00%')
+    // ...and its smaller one is scaled to THAT, not to the 40-outing band that
+    // dominates the card. 2/10 = 20%, which is legible; under the old rule it
+    // would have been 2 of 12 painted on a rail 12/40 the width of the row.
+    expect(width('75 to 84')).toBe('20.00%')
+    // The band the bird was never in draws no fill at all.
+    expect(width('45 to 54')).toBeNull()
+  })
+
+  it('each axis group scales to ITSELF, never to a maximum shared with the other', () => {
+    const stats = statsFor([
+      ...many(9, block(60, 800)).map(sp => ({ ...sp, species: [...(sp.species ?? []), 'Ruby-crowned Kinglet'] })),
+      ...many(3, block(80, 500)).map(sp => ({ ...sp, species: [...(sp.species ?? []), 'Ruby-crowned Kinglet'] })),
+    ])
+    const { container } = draw(stats)
+    fireEvent.focus(container.querySelector('input[role="combobox"]')!)
+    fireEvent.click([...container.querySelectorAll('[role="option"]')]
+      .find(o => o.textContent?.includes('Ruby-crowned Kinglet'))!)
+    const groups = [...container.querySelectorAll('.sr-wx-pair > div')]
+    // Both groups hold the same counts here (9 and 3), so each must show the
+    // same two widths: a shared maximum would be indistinguishable, and a
+    // cross-axis maximum would show up as one group's bars being shorter.
+    for (const g of groups) {
+      const widths = [...g.querySelectorAll('.sr-wx-fill')]
+        .map(f => (f as HTMLElement).style.getPropertyValue('--w')).sort()
+      expect(widths).toEqual(['100.00%', '33.33%'])
+    }
+  })
+
+  it('the two zeros differ in THREE places, which is what keeps them apart', () => {
     const stats = withSpecies()
     const { container } = draw(stats)
     fireEvent.focus(container.querySelector('input[role="combobox"]')!)
@@ -373,29 +430,69 @@ describe('one species, its weather', () => {
 
     const pair = container.querySelector('.sr-wx-pair')!
     const rows = [...pair.querySelectorAll('.sr-wx-row')]
-    // The band the bird IS in.
+    // A band the bird IS in: count, then its share of the BIRD's own axis total.
     const found = rows.find(r => r.textContent?.includes('55 to 64'))!
-    expect(found.textContent).toContain('10 of 10')
-    // A band with outings the bird was never on: a real, interesting zero.
+    expect(found.querySelector('.sr-wx-count')!.textContent).toContain('10')
+    expect(found.querySelector('.sr-wx-count')!.textContent).toContain('%')
+
+    // A band with outings the bird was never on: a real fact about the BIRD.
+    // Solid track, no fill, a numeral, a share, AND a reference figure.
     const missed = rows.find(r => r.textContent?.includes('Below 32'))!
-    expect(missed.textContent).toContain('0 of 4')
+    expect(missed.querySelector('.sr-wx-count')!.textContent).toContain('0')
+    expect(missed.querySelector('.sr-wx-count')!.textContent).toContain('0%')
     expect(missed.querySelector('.sr-wx-track.is-empty')).toBeNull()
-    // A band with no outings at all: no numeral anywhere on the row's count.
+    expect(missed.querySelector('.sr-wx-fill')).toBeNull()
+    expect(missed.querySelector('.sr-wx-ref')!.textContent).toMatch(/^outings /)
+
+    // A band never birded: a fact about the BIRDER. Dashed track, no numeral, no
+    // share, and NO reference -- "outings 0%" would repeat what this already
+    // says and collapse the distinction.
     const never = rows.find(r => r.textContent?.includes('85°F and up'))!
     expect(never.querySelector('.sr-wx-count')!.textContent).toBe('no outings')
+    expect(never.querySelector('.sr-wx-count')!.textContent).not.toMatch(/\d/)
     expect(never.querySelector('.sr-wx-track.is-empty')).toBeTruthy()
+    expect(never.querySelector('.sr-wx-ref')!.textContent).toBe('')
   })
 
-  it('never prints a rate', () => {
+  it('has NO thin state: a count of one is a fact, not an estimate', () => {
+    // WEATHER_BAND_MIN_TO_SHOW gates derived AVERAGES, and this chart derives
+    // nothing. A row below that floor must render exactly like any other, not
+    // be hidden, muted or replaced by a sentence the way block 3 does it.
+    const stats = statsFor([
+      ...many(1, block(60)).map(sp => ({ ...sp, species: [...(sp.species ?? []), 'Ruby-crowned Kinglet'] })),
+      ...many(9, block(60)),
+    ])
+    const { container } = draw(stats)
+    fireEvent.focus(container.querySelector('input[role="combobox"]')!)
+    fireEvent.click([...container.querySelectorAll('[role="option"]')]
+      .find(o => o.textContent?.includes('Ruby-crowned Kinglet'))!)
+    const pair = container.querySelector('.sr-wx-pair')!
+    const row = [...pair.querySelectorAll('.sr-wx-row')].find(r => r.textContent?.includes('55 to 64'))!
+    expect(row.querySelector('.sr-wx-count')!.textContent).toContain('1')
+    // Drawn, and drawn full: it is the bird's largest band.
+    expect((row.querySelector('.sr-wx-fill') as HTMLElement).style.getPropertyValue('--w')).toBe('100.00%')
+    // None of block 3's thin vocabulary appears in this chart.
+    expect(pair.textContent).not.toContain('Too few to average')
+    expect(pair.querySelector('.sr-wx-thin')).toBeNull()
+  })
+
+  it('prints two shares of two different wholes, and never divides one by the other', () => {
     const { container } = draw(withSpecies())
     fireEvent.focus(container.querySelector('input[role="combobox"]')!)
     fireEvent.click([...container.querySelectorAll('[role="option"]')]
       .find(o => o.textContent?.includes('Ruby-crowned Kinglet'))!)
     const pair = container.querySelector('.sr-wx-pair')!
-    // The fraction exists only as bar geometry. No percent sign in any count.
-    for (const c of pair.querySelectorAll('.sr-wx-count')) {
-      expect(c.textContent).not.toContain('%')
+    // Each is NAMED: the row's own share is the bird's, and the reference says
+    // "outings" in words. Nothing on the row is a rate of one over the other.
+    for (const ref of pair.querySelectorAll('.sr-wx-ref')) {
+      const t = ref.textContent ?? ''
+      if (t) expect(t).toMatch(/^outings (?:<1%|\d+%)$/)
     }
+    // The denominator each row's own share is of is stated in the group header,
+    // naming the species by the pronoun the lede has bound.
+    expect(pair.textContent).toContain('of its ')
+    expect(pair.textContent).toMatch(/of its \d+ (?:has|have) a sky condition/)
+    expect(pair.textContent).toMatch(/of its \d+ (?:has|have) a temperature/)
   })
 
   it('sits inside .sr-wx-pickctl and NOT in the 220px-capped register', () => {
