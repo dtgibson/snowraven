@@ -3924,8 +3924,30 @@ select:focus-visible {
 }
 .sr-wx-route:hover svg { transform: translateX(2px); }
 
-/* Species picker and its readout. */
-.sr-wx-pick { display: grid; grid-template-columns: minmax(0, 20rem) minmax(0, 1fr); gap: 0.75rem 1rem; align-items: start; }
+/* Species picker and its readout.
+   ONE COLUMN AT EVERY WIDTH, and that is a measurement rather than a
+   simplification. The picker shares a row with the shipped SpeciesCombobox's
+   own layout: a listbox option is `check | common name | scientific name`, with
+   the scientific name capped at 40% of the row -- a cap that exists because
+   without it the scientific name crushed the common name to a measured 0px in
+   the Map Explorer panel, so it must not be widened from here.
+   Given that row model, the listbox needs about 438px to render a long pair in
+   full at 1x and about 747px at 200% text scale. A two-column split of this card
+   cannot supply either: measured in Chromium AND WebKit on the real component's
+   DOM, "Northern Rough-winged Swallow" / "Stelgidopteryx serripennis" (the
+   longest pair in the author's own export) had a 79.2px name box against 210.2px
+   of ink, so BOTH halves were cut at once. Widening the column instead was
+   measured and rejected -- it fixed 900px/1x, still failed 900px/200%, made
+   320px WORSE (42.9px name box), and leaked page scroll at 200% (355px of
+   content in a 320px viewport).
+   Stacked, the picker gets the whole card: 278.0px of name box at 1x and
+   535.7px at 200%, both clear of the ink, with no page scroll at any width. */
+.sr-wx-pick { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.75rem 1rem; align-items: start; }
+/* The cap keeps the control a sensible 480px at 1x rather than sprawling the
+   width of the card, and is written in REM so it stops binding at large text
+   scales -- exactly when the listbox needs the room. Responsive by
+   construction: no breakpoint, no media query, nothing to keep in step. */
+.sr-wx-pickctl { max-width: 30rem; min-width: 0; }
 .sr-wx-lede { font-size: 0.8125rem; line-height: 1.55; color: var(--sr-text); margin: 0; }
 .sr-wx-lede .sp { color: var(--sr-accent); font-weight: 600; }
 .sr-wx-lede .sci { font-style: italic; font-size: 0.71875rem; color: var(--sr-text-gray); }
@@ -4456,7 +4478,8 @@ select:focus-visible {
   .sr-wx-fig { white-space: normal; }
   .sr-wx-seg { width: 100%; }
   .sr-wx-seg button { flex: 1; min-height: 2.75rem; height: auto; }
-  .sr-wx-pick { grid-template-columns: minmax(0, 1fr); }
+  /* `.sr-wx-pick` needs no override here any more: it is one column at every
+     width, so this tier and the desktop tier now render the same shape. */
 }
 
 /* iOS map fullscreen (mobile-app, user-approved at the design review):

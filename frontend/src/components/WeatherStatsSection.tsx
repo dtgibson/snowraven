@@ -504,16 +504,36 @@ export function WeatherStatsSection({
       <Divider />
       <SubLabel>{WEATHER_COPY.pickerHeading}</SubLabel>
       <div className="sr-wx-pick">
-        <SpeciesCombobox
-          options={speciesOptions}
-          value={selected}
-          onChange={setSpecies}
-          allLabel={WEATHER_COPY.pickerAll}
-          placeholder={WEATHER_COPY.pickerAll}
-          ariaLabel={WEATHER_COPY.pickerAria}
-          size="sm"
-          className="sr-input-16"
-        />
+        {/* THE WRAPPER AND THE REGISTER ARE BOTH LOAD-BEARING, and both are
+            measurements rather than taste.
+
+            `size="sm"` caps the combobox at 220px INLINE, and the listbox is
+            positioned `left: 0; right: 0` on that wrapper, so the cap is the
+            listbox's width too. Inside a 220px listbox an option row gives the
+            common name a 79.2px box, against 210.2px of ink for the longest
+            name-and-scientific pair in a real export: both halves cut at once,
+            which is the defect. `panel` is the smallest shipped register that
+            carries no cap (it is what the Map Explorer's own picker uses); `md`
+            would work too and is a 40px control against this one's 34px.
+
+            The cap that remains is `.sr-wx-pickctl`'s, which is the section's
+            own and is in rem, so it stops binding exactly when large text needs
+            the room. The 40% scientific-name cap inside the shared component is
+            NOT touched: five other surfaces render it, and it exists because
+            without it the scientific name crushed the common name to a measured
+            0px in the Map Explorer panel at 200%. */}
+        <div className="sr-wx-pickctl">
+          <SpeciesCombobox
+            options={speciesOptions}
+            value={selected}
+            onChange={setSpecies}
+            allLabel={WEATHER_COPY.pickerAll}
+            placeholder={WEATHER_COPY.pickerAll}
+            ariaLabel={WEATHER_COPY.pickerAria}
+            size="panel"
+            className="sr-input-16"
+          />
+        </div>
         {selected === null ? (
           <p className="sr-wx-lede">
             {pickerRestParts(stats.readableCount).lead}{' '}

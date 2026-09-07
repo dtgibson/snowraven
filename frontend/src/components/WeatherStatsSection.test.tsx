@@ -398,6 +398,30 @@ describe('one species, its weather', () => {
     }
   })
 
+  it('sits inside .sr-wx-pickctl and NOT in the 220px-capped register', () => {
+    // The two halves of the readability fix, asserted where they are rendered.
+    // `size="sm"` caps the combobox at 220px with an INLINE style, and the
+    // listbox is positioned `left: 0; right: 0` on that wrapper -- so the cap is
+    // the listbox's width, and inside 220px the common name and the scientific
+    // name are cut at once. The geometry is a browser measurement (see the
+    // commit); what a render can prove is that neither half was quietly undone.
+    const { container } = draw(withSpecies())
+    const ctl = container.querySelector('.sr-wx-pickctl')
+    expect(ctl).toBeTruthy()
+    const input = container.querySelector('input[role="combobox"]') as HTMLInputElement
+    expect(ctl!.contains(input)).toBe(true)
+    // The combobox root is the element carrying the register's inline maxWidth.
+    const root = input.closest('.sr-wx-pickctl')!.firstElementChild as HTMLElement
+    expect(root.style.maxWidth, 'the sm register would pin this at 220px').toBe('')
+    // The PROPERTY, not the spelling. `panel` and `md` are both uncapped and
+    // either is a correct fix here; pinning `panel`'s own 34px box would turn
+    // this red on an equivalent implementation, which is a guard testing its
+    // author's memory rather than the defect. What must hold is only that this
+    // is not the 30px `sm` register, whose 220px cap is the defect.
+    expect(input.style.height).not.toBe('30px')
+    expect(['34px', '40px']).toContain(input.style.height)
+  })
+
   it('renders the selected name through BirdName, never as raw text in the picker rows', () => {
     const { container } = draw(withSpecies())
     fireEvent.focus(container.querySelector('input[role="combobox"]')!)
