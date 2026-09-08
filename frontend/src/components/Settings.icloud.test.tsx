@@ -514,6 +514,11 @@ describe('copy (NFR-03, QA-40)', () => {
     setICloudState({ availability: 'available', syncEnabled: true, platform: 'iphone' })
     renderSettings()
     await screen.findByRole('switch', { name: copy.ICS_HEADER })
+    // The switch is driven by the synchronous iCloud store, while the file
+    // rows load their saved-file status asynchronously. Wait for that second
+    // precondition so this assertion checks the loaded iOS state, not the
+    // intentional empty loading shell ("Import file…").
+    await screen.findByText('MyEBirdData.csv')
     expect(screen.getAllByRole('button', { name: 'Import new…' }).length).toBe(2)
   })
 })

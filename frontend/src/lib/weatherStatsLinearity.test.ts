@@ -49,23 +49,23 @@ const RUNS = 5
 /** Linear is ~2, the quadratic ancestors of these patterns measured 4.00. */
 const MAX_RATIO_PER_DOUBLING = 3.0
 
-/** Min of `RUNS` complete executions, each on its OWN input so no memo anywhere
- *  on the path can be measured instead of the work. */
-function minMs(make: (run: number) => string, run: (s: string) => void): number {
-  const inputs: string[] = []
-  for (let i = 0; i < RUNS; i++) inputs.push(make(i))
-  let best = Number.POSITIVE_INFINITY
-  for (const input of inputs) {
-    const t = performance.now()
-    run(input)
-    const ms = performance.now() - t
-    if (ms < best) best = ms
-  }
-  return best
-}
-
 function ratios(make: (n: number, run: number) => string, run: (s: string) => void): number[] {
-  const times = SIZES.map(n => minMs(r => make(n, r), run))
+  // Build every input before timing, then interleave the three sizes with a
+  // rotating start. Grouping all 10k runs before all 20k runs lets a single
+  // scheduler interruption inflate one whole numerator while its denominator
+  // gets an otherwise quiet batch; CI produced a false 4.54x reading that way.
+  // Interleaving keeps the quotient same-run without weakening its 3x ceiling.
+  const inputs = SIZES.map(n => Array.from({ length: RUNS }, (_, r) => make(n, r)))
+  const times = SIZES.map(() => Number.POSITIVE_INFINITY)
+  for (let r = 0; r < RUNS; r++) {
+    for (let offset = 0; offset < SIZES.length; offset++) {
+      const i = (r + offset) % SIZES.length
+      const t = performance.now()
+      run(inputs[i][r])
+      const ms = performance.now() - t
+      if (ms < times[i]) times[i] = ms
+    }
+  }
   const out: number[] = []
   for (let i = 1; i < times.length; i++) {
     // A floor on the denominator so a sub-millisecond baseline cannot turn
