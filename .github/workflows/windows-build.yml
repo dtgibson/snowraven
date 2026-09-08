@@ -13,6 +13,12 @@ on:
     tags: ['v*']
   workflow_dispatch:
 
+# Keep the release build read-only even if the repository default changes.
+# Checkout is the only step that reads through GITHUB_TOKEN; caches and build
+# artifacts use GitHub Actions' separate runtime services.
+permissions:
+  contents: read
+
 jobs:
   windows:
     name: Build Windows installer + updater
