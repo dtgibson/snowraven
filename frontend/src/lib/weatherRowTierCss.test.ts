@@ -131,15 +131,17 @@ describe('the stacked row tier is single-sourced across its two triggers', () =>
     // belong in the same declaration block or the first is a trap.
     //
     // `overflow-wrap:anywhere`, never `overflow-wrap:break-word`: only
-    // `anywhere` lowers the item's intrinsic contribution. The separate
-    // `word-break:break-word` declaration is the Linux painted-break fallback;
-    // both are required and the similarly named values are not interchangeable.
+    // `anywhere` lowers the item's intrinsic contribution. Linux can still
+    // paint a single glyph beyond a sub-glyph-width track at the sub-320 probe
+    // widths, so hidden+clip is the separate ink boundary; it does not replace
+    // the intrinsic-size repair.
     for (const [name, rules] of [['phone', phoneRows], ['container', containerRows]] as const) {
       const label = rules.get('.sr-wx-row > .sr-wx-label')
       expect(label, `${name}: the label rule must exist`).toBeTruthy()
       expect(label!['white-space'], name).toBe('normal')
+      expect(label!.overflow, name).toBe('hidden')
+      expect(label!['text-overflow'], name).toBe('clip')
       expect(label!['overflow-wrap'], name).toBe('anywhere')
-      expect(label!['word-break'], name).toBe('break-word')
     }
   })
 

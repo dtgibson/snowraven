@@ -4557,12 +4557,14 @@ select:focus-visible {
      lowers the item's intrinsic contribution, and nothing reads this label's
      min-content, so v0.5.85's objection to `anywhere` does not apply.
 
-     `word-break: break-word` is the separate compatibility leg. Linux browser
-     builds measured a one-pixel painted overlap even with the intrinsic floor
-     lowered by `overflow-wrap: anywhere`; the legacy word-break spelling makes
-     the emergency painted break explicit on that engine path. Keep both here
-     and in the identical container tier below. The desktop tier needs nothing;
-     it clips with an ellipsis by construction.
+     `overflow: hidden` with `text-overflow: clip` is the painted-ink safety
+     boundary. On Linux, a column narrower than one glyph at the unsupported
+     sub-320px probe widths can still let that glyph's ink overhang its box by
+     about 1.3px after `anywhere` has reduced the intrinsic floor. Clipping that
+     overhang keeps it out of the adjacent figure; at the supported 320px floor
+     and above the label has room for a glyph and continues to wrap in full.
+     Keep the boundary in the identical container tier below. The desktop tier
+     already clips with an ellipsis by construction.
 
      THIS RULE REACHES BOTH ROW FAMILIES, AND WRITING THAT DOWN IS THE POINT OF
      THIS PARAGRAPH. The selector is `.sr-wx-row > .sr-wx-label` in the SHARED
@@ -4588,8 +4590,8 @@ select:focus-visible {
      SELECTOR, not of the surface its author happened to be looking at. Repair 2
      below is the contrasting case and is genuinely narrow, by construction. */
   .sr-wx-row > .sr-wx-label {
-    grid-area: 1 / 2; white-space: normal; overflow: visible;
-    overflow-wrap: anywhere; word-break: break-word;
+    grid-area: 1 / 2; white-space: normal; overflow: hidden;
+    text-overflow: clip; overflow-wrap: anywhere;
   }
   .sr-wx-row > .sr-wx-count { grid-area: 1 / 3; }
   .sr-wx-row > .sr-wx-track { grid-area: 2 / 1 / 3 / 4; }
@@ -4683,8 +4685,8 @@ select:focus-visible {
   }
   .sr-wx-row > .sr-wx-glyph { grid-area: 1 / 1; }
   .sr-wx-row > .sr-wx-label {
-    grid-area: 1 / 2; white-space: normal; overflow: visible;
-    overflow-wrap: anywhere; word-break: break-word;
+    grid-area: 1 / 2; white-space: normal; overflow: hidden;
+    text-overflow: clip; overflow-wrap: anywhere;
   }
   .sr-wx-row > .sr-wx-count { grid-area: 1 / 3; }
   .sr-wx-row > .sr-wx-track { grid-area: 2 / 1 / 3 / 4; }

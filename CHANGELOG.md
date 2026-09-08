@@ -11,7 +11,7 @@ All notable changes to SnowRaven are documented here.
 ### Fixed
 - **Repeated upload refusals are announced reliably by assistive technology.** Each file row now keeps its alert area present before an error and replaces the message inside it on every rejected upload. Choosing the same invalid file twice therefore produces a fresh announcement both times, while the visible wording and layout stay unchanged.
 - **The accessibility promise no longer copies a count that belongs to the test enforcing it.** The published guidance now states the durable keyboard-order rule and the kinds of intentional exception without repeating the roster total. Exact counts stay in the executable roster, where every added or removed exception must be reviewed and tested.
-- **The phone header and weather labels stay inside the screen across platform font differences.** At the largest text size, Linux font metrics could push the SnowRaven wordmark past a 320-pixel screen and let a narrow weather label touch its count. The wordmark now wraps between “Snow” and “Raven” when it needs to, and the existing weather-label break gains a cross-engine fallback.
+- **The phone header and weather labels stay inside the screen across platform font differences.** At the largest text size, Linux font metrics could push the SnowRaven wordmark past a 320-pixel screen and let a narrow weather label touch its count. The wordmark now wraps between “Snow” and “Raven” when it needs to, and wrapped weather labels keep their painted ink inside their own column.
 
 ## [1.0.23] - 2026-09-07
 
