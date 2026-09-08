@@ -5,8 +5,8 @@
 //  1. mapContentClass — the seam-driven class decision (pure).
 //  2. globals.css — the .sr-map-ios-fullscreen rules must mirror the ≤640
 //     phone-tier block (parse-the-stylesheet pattern, like milestoneContrast).
-//  3. MapExplorer.tsx — the class must be wired through isIOS(), so a
-//     refactor can't silently turn it on for desktop fullscreen.
+//  3. MapExplorer.tsx — one iosFullscreen value must be defined through
+//     isIOS(), then drive both the class and sidebar overlay condition.
 //  4. The fullscreen PANEL's safe-area inset (dynamic-island-map-tabs fix) —
 //     App.tsx must apply .sr-map-fullscreen-panel instead of inline
 //     position/inset/z-index (an inline inset:0 is specificity 1,0,0, so no
@@ -143,8 +143,16 @@ describe('globals.css .sr-map-ios-fullscreen rules (mirror the ≤640 phone tier
 })
 
 describe('MapExplorer wiring', () => {
-  it('applies the class through the isIOS() seam only (desktop/web fullscreen untouched)', () => {
-    expect(mapExplorer).toMatch(/mapContentClass\(\s*isIOS\(\)\s*&&/)
+  const executable = stripCommentLines(mapExplorer)
+
+  it('defines the iOS fullscreen tier once through the isIOS() seam', () => {
+    expect(executable).toMatch(/const iosFullscreen = isIOS\(\) && !!isFullscreen/)
+    expect(executable.match(/isIOS\(\)\s*&&\s*!!isFullscreen/g)).toHaveLength(1)
+  })
+
+  it('feeds that one value to both the class and sidebar overlay condition', () => {
+    expect(executable).toMatch(/const sidebarIsOverlay = isPhoneWidth \|\| iosFullscreen/)
+    expect(executable).toMatch(/mapContentClass\(iosFullscreen\)/)
   })
 })
 

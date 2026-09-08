@@ -589,15 +589,11 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
   // `useIsPhone` is the sanctioned render-safe width read (useSyncExternalStore
   // over the `(max-width:640px)` MQL) — never window.innerWidth and never a
   // resize handler, which `.claude/rules/ui.md` forbids.
-  // The second half is written exactly as `mapContentClass`'s argument is written
-  // at the render site, and deliberately NOT hoisted into a shared const:
-  // `lib/mapIosFullscreen.test.ts` guards that call's literal shape
-  // (`mapContentClass( isIOS() &&`) so a refactor cannot silently turn the iOS
-  // scope class on for desktop fullscreen. That guard is what keeps these two in
-  // step; single-sourcing them would need it re-pointed at the definition, which
-  // is a change to another build's guard rather than this one's business.
+  // `iosFullscreen` is the single source for both the layout class and sidebar
+  // containment, so their iOS fullscreen tier cannot drift apart.
   const isPhoneWidth = useIsPhone()
-  const sidebarIsOverlay = isPhoneWidth || (isIOS() && !!isFullscreen)
+  const iosFullscreen = isIOS() && !!isFullscreen
+  const sidebarIsOverlay = isPhoneWidth || iosFullscreen
 
   // `sidebarOpen` MUST NOT OUTLIVE THE TIER, and this is the line that says so.
   // It is plain state with no width awareness, so without this it survives a
@@ -2991,7 +2987,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
           phone-tier overlay and the Filters FAB appears at ANY width — the
           user-approved mobile-app design-review rule. Desktop/web fullscreen
           keeps the sidebar visible beside the map, unchanged. */}
-      <div className={mapContentClass(isIOS() && !!isFullscreen)} style={{ display: 'flex', flex: 1, minHeight: 0 }}>
+      <div className={mapContentClass(iosFullscreen)} style={{ display: 'flex', flex: 1, minHeight: 0 }}>
         {/* Backdrop — mobile only, shown when sidebar open */}
         {sidebarOpen && (
           <div
