@@ -166,9 +166,9 @@ describe('Multimedia control row, touch-target parity', () => {
   it('puts .sr-touch-target on the Unbounded/Normal view toggle', () => {
     const at = tabTsx.indexOf("wideMode ? '↔ Normal' : '↔ Unbounded'")
     expect(at, 'the view toggle was not found in LifeList.tsx').toBeGreaterThan(-1)
-    // Bounded to the button's own opening tag: search backwards to the <button
-    // that owns this label, so a class on some other control cannot satisfy it.
-    const open = tabTsx.lastIndexOf('<button', at)
+    // Bounded to the shared Button's own opening tag: search backwards to the
+    // control that owns this label, so a class on another control cannot satisfy it.
+    const open = tabTsx.lastIndexOf('<Button', at)
     expect(open).toBeGreaterThan(-1)
     expect(tabTsx.slice(open, at)).toContain('className="sr-touch-target"')
   })
