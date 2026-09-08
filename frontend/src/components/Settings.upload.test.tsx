@@ -117,7 +117,16 @@ function upload(container: HTMLElement, index: number, name: string, content: st
   fireEvent.change(input)
 }
 
-const alerts = () => screen.queryAllByRole('alert').map(n => n.textContent)
+const alerts = () => screen.queryAllByRole('alert')
+  .map(n => n.textContent)
+  .filter((text): text is string => Boolean(text))
+
+function fileAlert(container: HTMLElement, index: number): HTMLElement {
+  const input = container.querySelectorAll('input[type="file"]')[index]
+  const region = input?.parentElement?.parentElement?.querySelector<HTMLElement>('[role="alert"]')
+  expect(region).not.toBeNull()
+  return region!
+}
 
 beforeEach(() => {
   for (const fn of Object.values(storageMock)) fn.mockReset()
@@ -134,6 +143,47 @@ beforeEach(() => {
 })
 
 afterEach(cleanup)
+
+describe('FileRow alert announcements', () => {
+  it.each(SLOTS.map(r => [r.label, r] as const))(
+    '%s mounts an empty region before inserting a refusal',
+    async (_label, row) => {
+      const { container } = renderSettings()
+      await waitFor(() => expect(container.querySelectorAll('input[type="file"]').length).toBe(2))
+
+      const region = fileAlert(container, row.index)
+      expect(region.textContent).toBe('')
+
+      upload(container, row.index, 'export.zip', row.own)
+
+      await waitFor(() => expect(region.textContent).toBe(CSV_ONLY_MESSAGE))
+      expect(fileAlert(container, row.index)).toBe(region)
+    },
+  )
+
+  it.each(SLOTS.map(r => [r.label, r] as const))(
+    '%s replaces the message child when the same refusal happens twice',
+    async (_label, row) => {
+      const { container } = renderSettings()
+      await waitFor(() => expect(container.querySelectorAll('input[type="file"]').length).toBe(2))
+      const region = fileAlert(container, row.index)
+
+      upload(container, row.index, 'export.zip', row.own)
+      await waitFor(() => expect(region.textContent).toBe(CSV_ONLY_MESSAGE))
+      const firstMessageNode = region.firstChild
+      const mutations: MutationRecord[] = []
+      const observer = new MutationObserver(records => mutations.push(...records))
+      observer.observe(region, { childList: true, subtree: true, characterData: true })
+
+      upload(container, row.index, 'export.zip', row.own)
+
+      await waitFor(() => expect(region.firstChild).not.toBe(firstMessageNode))
+      await waitFor(() => expect(mutations.length).toBeGreaterThan(0))
+      expect(region.textContent).toBe(CSV_ONLY_MESSAGE)
+      observer.disconnect()
+    },
+  )
+})
 
 describe('a refused upload shows a reason and stores nothing', () => {
   it.each(SLOTS.map(r => [r.label, r] as const))(

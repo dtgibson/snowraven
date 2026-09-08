@@ -158,8 +158,9 @@ describe('Settings — form labels and error roles (F007/F048/F010)', () => {
     fireEvent.change(screen.getByLabelText('Longitude'), { target: { value: '0' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
     await waitFor(() => {
-      const alert = screen.getByRole('alert')
-      expect(alert.textContent).toMatch(/Latitude must be a number between -90 and 90/i)
+      const alert = screen.getAllByRole('alert').find(node => node.textContent)
+      expect(alert).toBeTruthy()
+      expect(alert!.textContent).toMatch(/Latitude must be a number between -90 and 90/i)
     })
   })
 })
@@ -187,7 +188,8 @@ describe('Settings — embedded media preference', () => {
       disableEmbeddedMedia: false,
       embeddedMediaPreferenceError: "Couldn't save this setting. Your previous choice was restored.",
     })
-    expect(screen.getByRole('alert').textContent).toMatch(/previous choice was restored/i)
+    const alert = screen.getAllByRole('alert').find(node => node.textContent)
+    expect(alert?.textContent).toMatch(/previous choice was restored/i)
     expect(screen.getByRole('switch', { name: 'Disable embedded media' }).getAttribute('aria-checked')).toBe('false')
   })
 })
@@ -223,8 +225,9 @@ describe('Settings — iOS wirings (FR-12/FR-13, supportsAppRelaunch)', () => {
     renderSettings()
     fireEvent.click(screen.getAllByRole('button', { name: 'Import file…' })[0])
     await waitFor(() => expect(iosImportState.pickCsvViaDialog).toHaveBeenCalledTimes(1))
-    // Clean no-op: no error alert, button back to its idle label.
-    expect(screen.queryByRole('alert')).toBeNull()
+    // Clean no-op: the two always-mounted FileRow regions stay empty, and the
+    // button returns to its idle label.
+    expect(screen.queryAllByRole('alert').every(node => node.textContent === '')).toBe(true)
     expect(screen.getAllByRole('button', { name: 'Import file…' })).toHaveLength(2)
   })
 

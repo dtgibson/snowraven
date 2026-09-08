@@ -1,5 +1,5 @@
 import { Button } from './ui/Button'
-import { useEffect, useId, useImperativeHandle, useRef, useState } from 'react'
+import { Fragment, useEffect, useId, useImperativeHandle, useRef, useState } from 'react'
 import {
   BookOpen, ChevronDown, ChevronUp, CircleAlert, Cloud, CloudCheck, CloudDownload, CloudOff, CloudUpload,
   Copy, Eye, EyeOff, FileCheck, FileQuestion, Loader2, Lock, Navigation,
@@ -291,7 +291,7 @@ interface FileRowProps {
   sublabel: string
   info: StoredFileInfo | null
   uploading: boolean
-  error: string | null
+  error: FileRowError | null
   onUpload: (file: File) => void
   // Mechanism B (mobile-app schema §2.6): the plugin-dialog document picker
   // path, used on iOS only when IOS_IMPORT_MECHANISM === 'dialog'. The row's
@@ -309,6 +309,11 @@ interface FileRowProps {
   sync?: SlotView | null
   onDownloadNow?: () => void
   onRetry?: () => void
+}
+
+type FileRowError = {
+  message: string
+  sequence: number
 }
 
 function FileRow({
@@ -427,16 +432,17 @@ function FileRow({
         />
       </div>
 
-      {error && (
-        <div role="alert" style={{
-          margin: '0 16px 10px',
-          padding: '7px 11px',
-          background: 'var(--sr-error-bg)', borderRadius: 6,
-          fontSize: '0.75rem', color: 'var(--sr-error)',
-        }}>
-          {error}
-        </div>
-      )}
+      {/* The region stays in the accessibility tree before a refusal lands.
+          Its keyed child is replaced for every attempt, including the same
+          refusal twice, so each announcement is backed by a real DOM mutation. */}
+      <div role="alert" style={error ? {
+        margin: '0 16px 10px',
+        padding: '7px 11px',
+        background: 'var(--sr-error-bg)', borderRadius: 6,
+        fontSize: '0.75rem', color: 'var(--sr-error)',
+      } : undefined}>
+        {error ? <Fragment key={error.sequence}>{error.message}</Fragment> : null}
+      </div>
     </div>
   )
 }
@@ -1800,8 +1806,15 @@ export function Settings({
   // File state
   const [ebirdUploading, setEbirdUploading] = useState(false)
   const [mlUploading, setMlUploading] = useState(false)
-  const [ebirdError, setEbirdError] = useState<string | null>(null)
-  const [mlError, setMlError] = useState<string | null>(null)
+  const [ebirdError, setEbirdError] = useState<FileRowError | null>(null)
+  const [mlError, setMlError] = useState<FileRowError | null>(null)
+
+  const setFileError = (slot: 'ebird' | 'ml', message: string | null) => {
+    const setError = slot === 'ebird' ? setEbirdError : setMlError
+    setError(previous => message === null
+      ? null
+      : { message, sequence: (previous?.sequence ?? 0) + 1 })
+  }
 
   // Key state
   const [ebirdKeyVisible, setEbirdKeyVisible] = useState(false)
@@ -1899,7 +1912,7 @@ export function Settings({
     getContent: () => Promise<string>,
   ) => {
     const setUploading = slot === 'ebird' ? setEbirdUploading : setMlUploading
-    const setError = slot === 'ebird' ? setEbirdError : setMlError
+    const setError = (message: string | null) => setFileError(slot, message)
     // The name check runs BEFORE the read, so a huge non-CSV is never pulled into
     // memory to be refused afterwards.
     const nameRefusal = refuseByFilename(filename)
@@ -1953,7 +1966,7 @@ export function Settings({
   // picker via plugin-dialog, then the same shared tail. Cancel resolves null
   // → clean no-op with prior data intact (FR-13).
   const handleNativePick = async (slot: 'ebird' | 'ml') => {
-    const setError = slot === 'ebird' ? setEbirdError : setMlError
+    const setError = (message: string | null) => setFileError(slot, message)
     let picked: Awaited<ReturnType<typeof pickCsvViaDialog>>
     try {
       picked = await pickCsvViaDialog()
@@ -1976,7 +1989,7 @@ export function Settings({
   // Today's instant local clear, unchanged and unconfirmed (the sync-off path
   // on every platform; design-spec.md resolved open item 3).
   const handleDeleteFile = async (slot: 'ebird' | 'ml') => {
-    const setError = slot === 'ebird' ? setEbirdError : setMlError
+    const setError = (message: string | null) => setFileError(slot, message)
     setError(null)
     try {
       await storage.deleteFile(slot)
@@ -2014,7 +2027,7 @@ export function Settings({
     const req = clearReq
     setClearReq(null)
     if (!req) return
-    const setError = req.slot === 'ebird' ? setEbirdError : setMlError
+    const setError = (message: string | null) => setFileError(req.slot, message)
     setError(null)
     void icloudActions.clearWithSync(req.slot).then(failedPurges => {
       if (failedPurges.length > 0) setError(CLEAR_INCOMPLETE)
