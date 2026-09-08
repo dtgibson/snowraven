@@ -12,12 +12,13 @@
 // filtered list, a filter that removes an end, a filter that removes nothing).
 // This file owns the contract; that file owns the wiring. Neither substitutes.
 //
-// The containment arm's own behaviour is NOT re-derived here — lib/useMapFullscreen.test.tsx
-// has owned that since v1.0.15 and there is no second copy of it.
+// The original containment behavior remains owned end to end by
+// lib/useMapFullscreen.test.tsx. This file now owns the shared hook's stacked
+// trap contract, which no single caller can prove on its own.
 
 import { describe, it, expect, afterEach } from 'vitest'
-import { render, cleanup, fireEvent } from '@testing-library/react'
-import { useRef } from 'react'
+import { render, cleanup, fireEvent, screen } from '@testing-library/react'
+import { useEffect, useRef } from 'react'
 import { useFocusTrap, type FocusTrapOptions } from './useFocusTrap'
 
 afterEach(cleanup)
@@ -112,5 +113,89 @@ describe('the filter cannot break the trap when it empties the list', () => {
     document.dispatchEvent(ev)
     expect(ev.defaultPrevented).toBe(true)
     expect(document.activeElement).toBe($('b'))
+  })
+})
+
+function StackedHost({ higher }: { higher: boolean }) {
+  const lowerRef = useRef<HTMLDivElement>(null)
+  const higherRef = useRef<HTMLDivElement>(null)
+  useFocusTrap(true, lowerRef, { containOutsideFocus: true })
+  useFocusTrap(higher, higherRef)
+  return (
+    <>
+      {/* Deliberately before the lower root in DOM order, like CommandPalette
+          beside WelcomeScreen in App. Activation, not sibling order, owns the
+          overlay stack. */}
+      {higher && (
+        <div ref={higherRef} role="dialog" aria-modal="true">
+          <button id="higher-a">higher a</button>
+          <button id="higher-b">higher b</button>
+        </div>
+      )}
+      <div ref={lowerRef} role="dialog" aria-modal="true">
+        <button id="lower-a">lower a</button>
+        <button id="lower-b">lower b</button>
+      </div>
+      <button id="stack-outside">outside both</button>
+    </>
+  )
+}
+
+describe('a lower contained trap yields to a trap activated above it', () => {
+  function openHigher() {
+    const view = render(<StackedHost higher={false} />)
+    view.rerender(<StackedHost higher />)
+    return view
+  }
+
+  it('does not steal a focusin from the higher trap', () => {
+    openHigher()
+    $('higher-a').focus()
+    expect(document.activeElement).toBe($('higher-a'))
+  })
+
+  it('does not steal Tab from the higher trap through its keydown arm', () => {
+    openHigher()
+    $('higher-b').focus()
+    const ev = new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true })
+    document.dispatchEvent(ev)
+    expect(ev.defaultPrevented).toBe(true)
+    expect(document.activeElement).toBe($('higher-a'))
+  })
+
+  it('resumes containment as soon as the higher trap closes', () => {
+    const view = openHigher()
+    $('higher-a').focus()
+    view.rerender(<StackedHost higher={false} />)
+    $('stack-outside').focus()
+    expect(document.activeElement).toBe($('lower-a'))
+  })
+
+  it('registers the higher trap before its opening passive autofocus', () => {
+    function AutoFocusHigher() {
+      const rootRef = useRef<HTMLDivElement>(null)
+      const firstRef = useRef<HTMLButtonElement>(null)
+      // HelpDocs has this exact ordering: opening focus is declared before the
+      // shared hook. Registration must therefore happen in a layout effect;
+      // another passive effect would arrive one event too late.
+      useEffect(() => { firstRef.current?.focus() }, [])
+      useFocusTrap(true, rootRef)
+      return <div ref={rootRef}><button ref={firstRef}>auto-focused higher control</button></div>
+    }
+
+    function AutoStack({ higher }: { higher: boolean }) {
+      const lowerRef = useRef<HTMLDivElement>(null)
+      useFocusTrap(true, lowerRef, { containOutsideFocus: true })
+      return (
+        <>
+          <div ref={lowerRef}><button>auto lower</button></div>
+          {higher && <AutoFocusHigher />}
+        </>
+      )
+    }
+
+    const view = render(<AutoStack higher={false} />)
+    view.rerender(<AutoStack higher />)
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'auto-focused higher control' }))
   })
 })

@@ -363,14 +363,11 @@ export function HelpDocs({ onClose }: { onClose: () => void }) {
   // "the restore is declared before the trap" is not by itself an F061 finding;
   // "the restore runs while the root is still mounted" is.
   //
-  // WHY IT STILL STAYS OFF. The scoped change was a consolidation, and the
-  // default is what makes it behaviour-preserving; nothing here has measured a
-  // containment LEAK to fix, and turning it on would change focus behaviour on a
-  // shipped surface with no browser-level measurement behind it. If that is ever
-  // revisited, the thing to measure is the Cmd-K palette opening OVER this
-  // overlay — `usePaletteHotkey` binds unconditionally at `window`, and an armed
-  // arm here would pull focus out of a panel that legitimately owns it, which is
-  // the shape WelcomeScreen.tsx's header records as measured.
+  // WHY IT STILL STAYS OFF. The scoped consolidation preserved this surface's
+  // shipped behavior, and nothing here has measured a containment leak to fix.
+  // The shared hook can now yield to a later-activated Cmd-K palette, so stacked
+  // ownership is no longer a blocker; opting in would still be a separate focus
+  // behavior change that needs its own browser-level evidence.
   //
   // The end-wrap is unchanged from the copy this replaces, with two differences
   // that cannot be reached here: the shared selector also matches

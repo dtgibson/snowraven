@@ -98,7 +98,20 @@
 // with no visible out-and-back, and it is the only arm that can act when focus
 // is lost to <body>, for which engines do not reliably fire focusin at all.
 
-import { useEffect, type RefObject } from 'react'
+import { useEffect, useLayoutEffect, useRef, type RefObject } from 'react'
+
+interface ActiveTrap {
+  order: number
+  root: () => HTMLElement | null
+}
+
+// Overlays become the focus owner in activation order, which is more durable
+// than DOM order (CommandPalette renders before WelcomeScreen) or z-index
+// inspection (HelpDocs and WelcomeScreen intentionally share one). The stack is
+// module-local and holds only entries whose hooks are active; layout effects
+// register before any opening passive effect can move focus into a new overlay.
+let nextTrapOrder = 0
+const activeTraps = new Set<ActiveTrap>()
 
 /** The one copy of the focusable-candidate selector. */
 export const FOCUSABLE_SELECTOR =
@@ -123,13 +136,11 @@ export interface FocusTrapOptions {
    *  `document.body` in some engines. Without it, one Tab from there walks into
    *  the page the overlay is covering.
    *
-   *  ONE THING THIS ARM CANNOT SEE, and it decides several call sites: another
-   *  overlay mounted ABOVE this one. The arm is a document listener that asks
-   *  only "is the new focus inside MY root", so an overlay that opts in will
-   *  pull focus straight back out of a later sibling that legitimately owns it.
-   *  A call site that renders the opener of an overlay which will sit above it —
-   *  WelcomeScreen's "documentation" button is the shipped example — must
-   *  therefore leave this off; see that file's header for the measurement. */
+   *  A trap activated after this one owns focus while it remains active. Both
+   *  the focusin and keydown arms yield when focus is inside that higher trap,
+   *  then resume immediately when it unmounts. This is what lets a Cmd-K palette
+   *  or Help overlay sit above a contained surface without the lower listener
+   *  pulling focus back underneath. */
   containOutsideFocus?: boolean
 
   /** Narrow the trap's list beyond `focusablesIn`'s disabled-removal.
@@ -174,9 +185,31 @@ export function useFocusTrap<T extends HTMLElement>(
 ): void {
   const containOutsideFocus = options.containOutsideFocus ?? false
   const filter = options.filter
+  const activeTrapRef = useRef<ActiveTrap | null>(null)
+
+  useLayoutEffect(() => {
+    if (!active) return
+    const entry: ActiveTrap = { order: ++nextTrapOrder, root: () => rootRef.current }
+    activeTrapRef.current = entry
+    activeTraps.add(entry)
+    return () => {
+      activeTraps.delete(entry)
+      if (activeTrapRef.current === entry) activeTrapRef.current = null
+    }
+  }, [active, rootRef])
 
   useEffect(() => {
     if (!active) return
+
+    const isInsideHigherTrap = (target: EventTarget | null): boolean => {
+      if (!(target instanceof Node)) return false
+      const own = activeTrapRef.current
+      if (!own) return false
+      for (const candidate of activeTraps) {
+        if (candidate.order > own.order && candidate.root()?.contains(target)) return true
+      }
+      return false
+    }
 
     // The trap's list: the one shared selector, then the call site's own
     // narrowing (see FocusTrapOptions.filter). Re-queried on every event rather
@@ -201,6 +234,9 @@ export function useFocusTrap<T extends HTMLElement>(
       backwards = e.shiftKey
       const root = rootRef.current
       if (!root) return
+      // A later-activated overlay owns this Tab. Returning before listIn also
+      // keeps a lower call site's filter completely out of the higher event.
+      if (isInsideHigherTrap(document.activeElement)) return
       const focusables = listIn(root)
       if (focusables.length < 2) {
         e.preventDefault()
@@ -232,6 +268,7 @@ export function useFocusTrap<T extends HTMLElement>(
       if (!root) return
       const target = e.target
       if (target instanceof Node && root.contains(target)) return
+      if (isInsideHigherTrap(target)) return
       const focusables = listIn(root)
       // Optional-chained rather than length-guarded: with nothing focusable
       // inside there is nowhere to put focus, and moving it to the root itself

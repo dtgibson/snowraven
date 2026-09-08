@@ -27,8 +27,9 @@
 //   4. THE FAILURE PATH DOES NOT RE-PARSE ON THE MAIN THREAD — that would re-run
 //      the allocation that had just failed, on the thread that paints.
 //   5. `loadMLExport` STILL RESOLVES null AND STRUCTURALLY CANNOT REJECT (v1.0.15).
-//      Its consumers all branch on falsy; a throw would land in each tab's outer
-//      catch, which maps to setup-required, over an export that is plainly stored.
+//      Its consumers all branch on falsy; before the downstream status-error fix,
+//      a throw landed in each tab's outer catch as setup-required over an export
+//      that was plainly stored.
 //   6. A FAILED LOAD DOES NOT POISON THE SESSION: `inflight` clears, nothing is
 //      cached, and the next caller gets its own attempt.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'

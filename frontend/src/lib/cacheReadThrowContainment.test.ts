@@ -13,8 +13,8 @@
 // That is not an exotic path on web/Pi. `WebStorage.readFile` is a bare
 // `fetch` + `res.text()`: the fetch rejects when the backend is unreachable, and
 // `res.text()` rejects on a body truncated mid-download, which is an ordinary
-// Wi-Fi event over a ~6 MB CSV served off a Pi. The throw then landed in each tab
-// loader's outer catch, which sets `setup-required` — "upload a backup" over a
+// Wi-Fi event over a ~6 MB CSV served off a Pi. At the time, the throw then landed
+// in each tab loader's outer catch, which set `setup-required` — "upload a backup" over a
 // backup that is plainly stored (DECISIONS.md 2026-05-22: `error` and
 // `setup-required` are deliberately distinct, and 1.0.14's honest-load-failures
 // build removed exactly this lie everywhere else).
@@ -100,7 +100,8 @@ describe('a stored file whose READ fails resolves null rather than throwing', ()
     mocks.readFile.mockRejectedValue(new TypeError('Failed to fetch'))
 
     // `.resolves` is the whole claim: before the fix this line rejected, and the
-    // rejection reached the tab's outer catch as `setup-required`.
+    // rejection reached the tab's outer catch as `setup-required` before the
+    // status-error family closed that downstream branch too.
     await expect(cache.load()).resolves.toBeNull()
     expect(mocks.readFile).toHaveBeenCalledWith(cache.slot)
   })

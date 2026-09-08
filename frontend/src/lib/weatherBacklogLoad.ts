@@ -127,22 +127,11 @@ export async function resolveBacklogRows(
     // the file, and telling someone who has one to go import it is exactly the
     // lie being removed.
     //
-    // WHAT THIS BRANCH DOES NOT REACH, on either platform, because naming only
-    // the desktop half would leave the picture half drawn. `TauriStorage.readMeta`
-    // swallows its own failures into `{ebird: null, ml: null}`, and
-    // `WebStorage.getFilesStatus` does the identical thing for a non-ok response,
-    // so a backend answering 500 reads as "no backup stored" and lands on the
-    // guidance rather than here. Only a REJECTION reaches this catch. That
-    // residual sits one layer down, is shared with every other stored-file
-    // surface, and is recorded in ROADMAP.md rather than fixed here.
-    //
-    // THIS DIVERGES FROM THE EIGHT TAB LOADERS, deliberately and knowingly. Their
-    // outer `catch` maps a rejecting status read to `setup-required`, which is
-    // this family's own lie one layer up and is ordinary on web and Pi, where the
-    // call is a bare `fetch` at a backend that can be unreachable. The divergence
-    // is recorded in ROADMAP.md as an argument for doing the eight, not as a
-    // reason to undo this one: with no way to see the file, "you have no backup"
-    // is a claim this section has no basis for.
+    // Both storage adapters preserve this distinction: an absent Tauri metadata
+    // document still resolves as two empty slots, while an unreadable document
+    // and a non-ok web/Pi status response reject. The eight stored-file tabs and
+    // the command palette take the same branch, so one event now has one answer
+    // throughout the app.
     return BACKLOG_LOAD_FAILED
   }
 

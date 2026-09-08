@@ -33,36 +33,19 @@ export function WelcomeScreen({ onGetStarted, onOpenHelp, onDismiss }: WelcomeSc
   // for sighted keyboard users by trapping Tab inside the dialog (the app behind
   // it is not inert), so focus never lands on the obscured tab bar/footer.
   //
-  // `containOutsideFocus` STAYS OFF HERE, and the reason is this screen's own
-  // markup rather than anything about the app behind it. THIS IS THE ONE OVERLAY
-  // IN THE APP THAT RENDERS THE OPENER OF AN OVERLAY THAT WILL SIT ABOVE IT: the
-  // "documentation" button below calls `onOpenHelp`, and App.tsx mounts
-  // `<HelpDocs>` as a LATER SIBLING while this screen stays mounted (the welcome
-  // is gated on `coldStart && !welcomeDismissed`, which opening Help does not
-  // change; `.sr-help-panel` is `position: fixed; inset: 0` at the same z-index,
-  // so it paints over this one). The `focusin` arm is a document listener that
-  // asks only "is the new focus inside MY root" — so with it armed, HelpDocs'
-  // own `closeRef.current?.focus()` fires a `focusin` this trap treats as an
-  // escape and answers by pulling focus back onto THIS screen's first button.
-  // MEASURED in jsdom on exactly App.tsx's shape (a contained overlay plus a
-  // later sibling that takes focus): the sibling's control never keeps focus.
-  // The Help overlay would be unusable on first run, which is the only run this
-  // screen has. The same shape holds for the Cmd-K palette, which
-  // `usePaletteHotkey` binds unconditionally at `window` and which can therefore
-  // open over this screen too.
+  // `containOutsideFocus` is ON because the app behind this opaque takeover is
+  // live and not inert. The previous blocker is now closed in the shared hook:
+  // the Documentation button opens HelpDocs above this still-mounted screen,
+  // and Cmd-K can do the same with CommandPalette, but each later-activated trap
+  // owns its focus until it closes. This lower trap yields to either one and
+  // resumes containment as soon as the higher overlay unmounts.
   //
-  // So this consolidates onto the shared hook and the shared selector — one copy
-  // of what counts as focusable, no hand-rolled prediction — at the hook's
-  // default, which is the end-wrap this screen already shipped. Two differences
-  // to state rather than gloss, both unreachable here: the shared selector also
-  // matches `input, select, textarea`, and this screen renders none (three
-  // buttons, an inline SVG glyph and lucide paths — checked); and the hook pins
-  // focus on the sole focusable where the old copy let a Tab through, which
+  // The shared selector also matches `input, select, textarea`, and this screen
+  // renders none (three buttons, an inline SVG glyph and lucide paths — checked).
+  // The hook also pins focus on the sole focusable where the old copy let a Tab
+  // through, which
   // needs a dialog with fewer than two controls to tell apart.
-  // Opting in needs the nesting resolved first (App.tsx would have to tell this
-  // screen that something is above it, or the arm would have to yield to a
-  // higher modal); that is the named follow-up, not this build.
-  useFocusTrap(true, rootRef)
+  useFocusTrap(true, rootRef, { containOutsideFocus: true })
 
   return (
     <div

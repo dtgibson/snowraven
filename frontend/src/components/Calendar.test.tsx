@@ -795,11 +795,13 @@ describe('Calendar — error phase (QA-06)', () => {
   })
 
   it('renders the error phase (not the grid) when getFilesStatus throws', async () => {
-    // A read/parse throw falls into the catch; the tab must not show a partial grid.
+    // A failed status lookup is unknown, not an absent backup. It takes the
+    // existing error phase and must not show a partial grid or setup guidance.
     getFilesStatus.mockImplementation(async () => { throw new Error('read failed') })
     render(<Calendar {...props} />)
-    // The catch degrades to setup-required (source behavior) — still not a grid.
-    expect(await screen.findByText('eBird Backup Required')).toBeTruthy()
+    const alert = await screen.findByRole('alert')
+    expect(alert.textContent).toMatch(/Couldn't load your eBird backup/)
+    expect(screen.queryByText('eBird Backup Required')).toBeNull()
     expect(screen.queryByText('January')).toBeNull()
   })
 })

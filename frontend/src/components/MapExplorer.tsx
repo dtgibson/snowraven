@@ -589,15 +589,11 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
   // `useIsPhone` is the sanctioned render-safe width read (useSyncExternalStore
   // over the `(max-width:640px)` MQL) — never window.innerWidth and never a
   // resize handler, which `.claude/rules/ui.md` forbids.
-  // The second half is written exactly as `mapContentClass`'s argument is written
-  // at the render site, and deliberately NOT hoisted into a shared const:
-  // `lib/mapIosFullscreen.test.ts` guards that call's literal shape
-  // (`mapContentClass( isIOS() &&`) so a refactor cannot silently turn the iOS
-  // scope class on for desktop fullscreen. That guard is what keeps these two in
-  // step; single-sourcing them would need it re-pointed at the definition, which
-  // is a change to another build's guard rather than this one's business.
+  // `iosFullscreen` is the single source for both the layout class and sidebar
+  // containment, so their iOS fullscreen tier cannot drift apart.
   const isPhoneWidth = useIsPhone()
-  const sidebarIsOverlay = isPhoneWidth || (isIOS() && !!isFullscreen)
+  const iosFullscreen = isIOS() && !!isFullscreen
+  const sidebarIsOverlay = isPhoneWidth || iosFullscreen
 
   // `sidebarOpen` MUST NOT OUTLIVE THE TIER, and this is the line that says so.
   // It is plain state with no width awareness, so without this it survives a
@@ -700,10 +696,9 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
   // a hard capture on a non-modal region. The tier effect above is what makes the
   // sentence true rather than aspirational: `sidebarOpen` cannot outlive the tier.
   //
-  // The Cmd-K palette can open above this overlay too, and the arm will treat its
-  // focus as an escape — the same pre-existing shape `Calendar.tsx`'s day-dialog
-  // trap records, and the same one `lib/useMapFullscreen.ts` has shipped since
-  // v1.0.15. Not introduced here and not this build's to move.
+  // The Cmd-K palette can open above this overlay too. The shared hook now gives
+  // that later-activated trap ownership of focus, so this lower arm yields until
+  // the palette closes and then resumes its own containment.
   //
   // F061 does not reach this call site, checked rather than inherited: the
   // opener-restore is the `restoreFiltersFocusRef` effect ABOVE this one, which
@@ -787,8 +782,8 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
           // sits INSIDE loadMLExport's own try, so it resolves null on a read or a
           // parse failure and this guard has nothing left to catch. It stays because
           // the cost of being wrong is asymmetric: a rejection here rejects the whole
-          // Promise.all into the outer catch, which claims there is no eBird backup
-          // while one is plainly loaded — over a shared seam four tabs read through.
+          // Promise.all and misattributes an optional ML failure to the required
+          // eBird backup — over a shared seam four tabs read through.
           status.ml ? loadMLExport().catch(() => null) : Promise.resolve(null),
         ])
         if (cancelled) return
@@ -808,7 +803,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
         if (cancelled) return
         setPhase({ tag: 'ready', observations, mlRows, mediaMap, hasML })
       } catch {
-        if (!cancelled) setPhase({ tag: 'setup-required' })
+        if (!cancelled) setPhase({ tag: 'error', message: EBIRD_BACKUP_LOAD_ERROR })
       }
     }
     load()
@@ -2992,7 +2987,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
           phone-tier overlay and the Filters FAB appears at ANY width — the
           user-approved mobile-app design-review rule. Desktop/web fullscreen
           keeps the sidebar visible beside the map, unchanged. */}
-      <div className={mapContentClass(isIOS() && !!isFullscreen)} style={{ display: 'flex', flex: 1, minHeight: 0 }}>
+      <div className={mapContentClass(iosFullscreen)} style={{ display: 'flex', flex: 1, minHeight: 0 }}>
         {/* Backdrop — mobile only, shown when sidebar open */}
         {sidebarOpen && (
           <div

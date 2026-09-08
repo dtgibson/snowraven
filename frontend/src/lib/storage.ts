@@ -232,7 +232,10 @@ class WebStorage implements StorageAdapter {
 
   async getFilesStatus(): Promise<FilesStatus> {
     const res = await fetch('/settings/files');
-    if (!res.ok) return { ebird: null, ml: null };
+    // A non-OK response means the app could not ask which files are stored. It
+    // is not evidence that both slots are empty; callers keep that distinction
+    // so they do not send a configured user back through setup.
+    if (!res.ok) throw new Error(`File status read failed (${res.status})`);
     return res.json() as Promise<FilesStatus>;
   }
 
@@ -643,14 +646,12 @@ class TauriStorage implements StorageAdapter {
 
   // Unchained metadata read — the primitive that chained metadata links call
   // (getFilesStatus itself is chained; calling IT from inside a link would
-  // deadlock on the chain, rule 1 above).
+  // deadlock on the chain, rule 1 above). `readJson` already represents an
+  // absent document as `{}`; every rejection here means the status is unknown
+  // and must remain distinguishable from two absent files.
   private async readMeta(): Promise<FilesStatus> {
-    try {
-      const meta = await this.readJson<{ ebird?: FileMetadata | null; ml?: FileMetadata | null }>(META_PATH);
-      return { ebird: normalizeMetaEntry(meta.ebird), ml: normalizeMetaEntry(meta.ml) };
-    } catch {
-      return { ebird: null, ml: null };
-    }
+    const meta = await this.readJson<{ ebird?: FileMetadata | null; ml?: FileMetadata | null }>(META_PATH);
+    return { ebird: normalizeMetaEntry(meta.ebird), ml: normalizeMetaEntry(meta.ml) };
   }
 
   async getFilesStatus(): Promise<FilesStatus> {

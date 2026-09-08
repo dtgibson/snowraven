@@ -409,7 +409,12 @@ describe('the live region\'s announcement rate is bounded (Auditor finding 4)', 
       responses.set(`S${i}`, [{ speciesCode: `c-sp${i}`, exoticCategory: 'N' }])
     }
     render(<Harness index={buildCoverIndex(rows, codeFor)} />)
-    await waitFor(() => expect(kind()).toBe('complete'), { timeout: 6000 })
+    // `kind=complete` renders before the passive effect records its matching
+    // live-region announcement. Wait for the effect-owned value asserted below.
+    await waitFor(
+      () => expect(announcements[announcements.length - 1]?.kind).toBe('complete'),
+      { timeout: 6000 },
+    )
 
     expect(requested).toHaveLength(40)
     const progress = emissions().filter(a => a.kind === 'in-progress')

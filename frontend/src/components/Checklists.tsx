@@ -427,7 +427,7 @@ export function Checklists({ onGoToSettings, filesVersion, onOpenSpecies }: {
         // the backup's catalog numbers (FR-22). The .catch is defense in depth:
         // since v1.0.15 loadMLExport resolves null on a read OR a parse failure, and
         // the guard stays so a regression in that shared seam can never reject this
-        // Promise.all into the outer catch and claim the backup is missing.
+        // Promise.all and misattribute an optional ML failure to the eBird backup.
         const [ebird, ml] = await Promise.all([
           loadEbirdObservations(),
           loadMLExport().catch(() => null),
@@ -441,7 +441,7 @@ export function Checklists({ onGoToSettings, filesVersion, onOpenSpecies }: {
         if (cancelled) return
         setPhase({ tag: 'ready', observations: ebird.observations, mediaMap })
       } catch {
-        if (!cancelled) setPhase({ tag: 'setup-required' })
+        if (!cancelled) setPhase({ tag: 'error', message: EBIRD_BACKUP_LOAD_ERROR })
       }
     }
     autoLoad()

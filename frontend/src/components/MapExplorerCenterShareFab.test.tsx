@@ -165,10 +165,9 @@ function renderMap() {
 }
 
 async function ready() {
-  // The corner cluster exists in the loading shell. Wait for a view control,
-  // which appears only after the saved export has actually settled.
-  await waitFor(() => expect(screen.getByRole('button', { name: 'Hotspots' })).toBeTruthy())
-  expect(cluster()).toBeTruthy()
+  // The centre-view setup immediately replaces SharePin, so wait for the
+  // portaled button it consumes instead of an earlier loading-shell control.
+  await waitFor(() => expect(cluster().querySelector('.sr-share-drop-btn')).toBeTruthy())
 }
 
 /** Switch to a centre view and type a centre in, which is what mounts the pin. */

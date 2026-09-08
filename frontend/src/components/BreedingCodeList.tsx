@@ -180,7 +180,7 @@ export function BreedingCodeList({ onGoToSettings, filesVersion, onOpenSpecies }
         setPhase({ tag: 'ready', data })
         if (data.entries.length > 0) fetchTaxonCodes(data.entries)
       } catch {
-        if (!cancelled) setPhase({ tag: 'setup-required' })
+        if (!cancelled) setPhase({ tag: 'error', message: EBIRD_BACKUP_LOAD_ERROR })
       }
     }
     autoLoad()

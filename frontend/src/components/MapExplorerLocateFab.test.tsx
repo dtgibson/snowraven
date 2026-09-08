@@ -226,6 +226,9 @@ describe('cluster order', () => {
   it('is share slot, locate, fullscreen, Filters, with no CSS order (QA-14)', async () => {
     renderMap()
     await ready()
+    // SharePin is portaled into the slot after the cluster itself renders.
+    // Enumerate the children only once the exact descendant asserted below is present.
+    await waitFor(() => expect(cluster().querySelector('.sr-share-drop-btn')).toBeTruthy())
     const kids = Array.from(cluster().children) as HTMLElement[]
     // The message region is first in DOM order (it is not focusable, so tab
     // order is unaffected) and matches its visual position above the buttons.

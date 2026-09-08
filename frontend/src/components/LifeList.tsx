@@ -523,7 +523,7 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
         fetchTaxonCodes([...byName.values()])
         resolveMLCounties(rows, ebirdObs.length > 0 ? ebirdObs : undefined)
       } catch {
-        if (!cancelled) setPhase({ tag: 'setup-required' })
+        if (!cancelled) setPhase({ tag: 'error', message: ML_EXPORT_LOAD_ERROR })
       }
     }
     autoLoad()

@@ -95,7 +95,7 @@ export function NamedBirds({ onGoToSettings, filesVersion, onOpenSpecies, embedA
           if (!cancelled) setMlRows(null)
         }
       } catch {
-        if (!cancelled) setPhase({ tag: 'setup-required' })
+        if (!cancelled) setPhase({ tag: 'error', message: EBIRD_BACKUP_LOAD_ERROR })
       }
     }
     autoLoad()

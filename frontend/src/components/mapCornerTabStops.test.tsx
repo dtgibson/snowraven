@@ -182,13 +182,15 @@ async function mountExplorer(view?: 'Hotspots' | 'Media Targets' | 'Nearby Lifer
       onOpenSpecies={() => {}}
     />,
   )
-  // The corner cluster exists in the loading shell. Wait for a view control,
-  // which appears only after the saved export has actually settled.
-  await waitFor(() => expect(screen.getByRole('button', { name: 'Hotspots' })).toBeTruthy())
-  expect(cluster()).toBeTruthy()
   if (view) {
+    // Wait for the exact control this branch consumes before pressing it.
+    await waitFor(() => expect(screen.getByRole('button', { name: view })).toBeTruthy())
     fireEvent.click(screen.getByRole('button', { name: view }))
     await waitFor(() => expect(cluster()!.querySelector('.sr-map-center-share-btn')).toBeTruthy())
+  } else {
+    // SharePin is portaled after the loading shell. The My Sightings rows read
+    // that button next, so its presence is the readiness boundary.
+    await waitFor(() => expect(cluster()?.querySelector('.sr-share-drop-btn')).toBeTruthy())
   }
   return cluster()!
 }

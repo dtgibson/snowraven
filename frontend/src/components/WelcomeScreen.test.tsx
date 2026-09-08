@@ -2,13 +2,14 @@
 //
 // improve: focusable-selector-single-source — this screen's hand-rolled trap and
 // its private copy of the focusable selector are gone; it uses `useFocusTrap`
-// over the one exported selector, at the hook's DEFAULT (no `focusin`
-// containment). The last block below is what pins that default, because it is
-// the one call site whose default looks like an oversight and is not.
+// over the one exported selector. Its contained mode now yields to a higher
+// active trap, so the welcome can hold the live app behind it without stealing
+// focus from HelpDocs or CommandPalette above it.
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup } from '@testing-library/react'
+import { useRef } from 'react'
 import { WelcomeScreen } from './WelcomeScreen'
-import { focusablesIn } from '../lib/useFocusTrap'
+import { focusablesIn, useFocusTrap } from '../lib/useFocusTrap'
 
 afterEach(cleanup)
 
@@ -64,55 +65,48 @@ describe('WelcomeScreen renders no control the shared selector widens onto', () 
   })
 })
 
-describe('the welcome trap does NOT contain on focusin, and that is the decision', () => {
-  // WHY THIS BLOCK EXISTS. Every other overlay consolidated in this build could
-  // opt into `containOutsideFocus`; this one measurably cannot, and a default
-  // that looks like an omission gets "fixed" by the next reader. So the reason
-  // is asserted, not just commented.
-  //
-  // THE MEASUREMENT. App.tsx mounts <HelpDocs> as a LATER SIBLING of this screen
-  // while this screen stays mounted — the welcome is gated on
-  // `coldStart && !welcomeDismissed`, and the "documentation" button this screen
-  // renders does not change either. `useFocusTrap`'s `focusin` arm is a document
-  // listener that asks only "is the new focus inside MY root", so an armed
-  // welcome trap answers HelpDocs' own opening `.focus()` by yanking focus back
-  // onto the welcome screen. The Help overlay would be unusable on the only run
-  // this screen ever has.
-  //
-  // WHAT IS ASSERTED, and why it is not a tab order: that focus which moves to a
-  // control OUTSIDE this dialog STAYS there, with no keydown involved. jsdom has
-  // no tab order (.claude/rules/ui.md) and none is needed — `focusin` fires on a
-  // programmatic `.focus()`, which is exactly the event the arm would act on.
-  //
-  // MUTATION CHECK, both directions, run rather than cited, with the counts
-  // recorded so a later run that disagrees is visible:
-  //   * GATE ON — `useFocusTrap(true, rootRef, { containOutsideFocus: true })`:
-  //     exactly the 2 rows below go red, 4 green.
-  //   * TRAP REMOVED — the `useFocusTrap` call deleted: exactly 1 row goes red
-  //     (the end-wrap above), 5 green, and these 2 pass on the missing trap.
-  // So neither block subsumes the other, and neither is vacuous: the wrap rows
-  // need the trap present, these need it un-armed.
-  const laterSibling = () => {
-    const div = document.createElement('div')
-    div.innerHTML = '<button id="later-overlay-close">Close</button>'
-    document.body.appendChild(div)
-    return div.firstElementChild as HTMLElement
-  }
+function HigherModal() {
+  const ref = useRef<HTMLDivElement>(null)
+  useFocusTrap(true, ref)
+  return (
+    <div ref={ref} role="dialog" aria-modal="true" aria-label="Higher modal">
+      <button>Higher control</button>
+    </div>
+  )
+}
 
-  it('focus moved to a later sibling overlay stays there', () => {
-    render(<WelcomeScreen onGetStarted={vi.fn()} onOpenHelp={vi.fn()} onDismiss={vi.fn()} />)
-    const above = laterSibling()
+function Stack({ higher }: { higher: boolean }) {
+  return (
+    <>
+      <WelcomeScreen onGetStarted={vi.fn()} onOpenHelp={vi.fn()} onDismiss={vi.fn()} />
+      {higher && <HigherModal />}
+      <button>Uncovered app control</button>
+    </>
+  )
+}
+
+describe('the welcome trap contains the app and yields to a higher modal', () => {
+  it('pulls focus back from an uncovered app control', () => {
+    render(<Stack higher={false} />)
+    const welcome = screen.getByRole('dialog', { name: 'Welcome to SnowRaven' })
+    screen.getByRole('button', { name: 'Uncovered app control' }).focus()
+    expect(document.activeElement).toBe(focusablesIn(welcome)[0])
+  })
+
+  it('lets a modal opened above it keep focus', () => {
+    const view = render(<Stack higher={false} />)
+    view.rerender(<Stack higher />)
+    const above = screen.getByRole('button', { name: 'Higher control' })
     above.focus()
     expect(document.activeElement).toBe(above)
   })
 
-  it('and stays there after a Tab, which is the end-wrap arm doing nothing to it', () => {
-    // The keydown arm is still armed and still correct: focus is neither the
-    // first nor the last of the welcome's own list, so it leaves the press alone.
-    render(<WelcomeScreen onGetStarted={vi.fn()} onOpenHelp={vi.fn()} onDismiss={vi.fn()} />)
-    const above = laterSibling()
-    above.focus()
-    fireEvent.keyDown(document, { key: 'Tab' })
-    expect(document.activeElement).toBe(above)
+  it('resumes containment after the higher modal closes', () => {
+    const view = render(<Stack higher />)
+    screen.getByRole('button', { name: 'Higher control' }).focus()
+    view.rerender(<Stack higher={false} />)
+    const welcome = screen.getByRole('dialog', { name: 'Welcome to SnowRaven' })
+    screen.getByRole('button', { name: 'Uncovered app control' }).focus()
+    expect(document.activeElement).toBe(focusablesIn(welcome)[0])
   })
 })

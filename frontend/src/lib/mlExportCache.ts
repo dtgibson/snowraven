@@ -16,9 +16,10 @@ let generation = 0
  * promise cannot reject.
  *
  * The null-on-failure signal is deliberate and stays (v1.0.15): all five consumers
- * already branch on a falsy result, whereas a THROWN load lands in each tab's outer
- * catch, which maps to `setup-required` — telling the user to upload an export they
- * plainly already have. A failed load is not cached and does not survive in
+ * already branch on a falsy result, whereas a THROWN load used to land in each tab's
+ * outer catch and map to `setup-required` — telling the user to upload an export they
+ * plainly already had. The tab catches now preserve the error state too, but the
+ * producer keeps the narrower settled contract. A failed load is not cached and does not survive in
  * `inflight`, so the next mount, re-save or file arrival starts a fresh attempt
  * rather than re-joining a dead promise. */
 export async function loadMLExport(): Promise<MLExportResult | null> {

@@ -583,17 +583,9 @@ function DayPopup({ cell, view, includeForms, showFormsNote, onClose }: {
   // nothing it renders opens anything above it — its only controls are Close and
   // external checklist links, which leave the app entirely.
   //
-  // THE ONE OVERLAY THAT CAN STILL APPEAR ABOVE IT is the Cmd-K palette, which
-  // `usePaletteHotkey` binds unconditionally at `window`, so it opens from any
-  // tab and over any overlay. While it is up, this arm treats its focus as an
-  // escape and pulls focus back here. That is NOT a shape this build introduced
-  // and it is not specific to this dialog: `lib/useMapFullscreen.ts` has shipped
-  // `containOutsideFocus: true` since v1.0.15 and the palette can open over an
-  // expanded map in exactly the same way. It is recorded here rather than fixed
-  // because the fix belongs in the hook (an arm that yields to a modal above it)
-  // and would change three call sites at once, and because the palette's own
-  // focus decisions are measured and recorded elsewhere and are not this build's
-  // to move. Do not "fix" it by turning this option off — that reopens the
+  // Cmd-K can still open above this dialog, but the shared hook orders active
+  // traps by activation: this lower arm yields while the palette owns focus and
+  // resumes when it closes. Turning containment off here would still reopen the
   // v1.0.16 defect this call site exists to close.
   //
   // F061 does not reach this call site, checked rather than inherited: the
@@ -819,7 +811,7 @@ export function Calendar({ onGoToSettings, filesVersion }: {
         setView({ kind: 'year', year: defaultYear(ebird.observations)! })
         setPhase({ tag: 'ready', observations: ebird.observations })
       } catch {
-        if (!cancelled) setPhase({ tag: 'setup-required' })
+        if (!cancelled) setPhase({ tag: 'error', message: EBIRD_BACKUP_LOAD_ERROR })
       }
     }
     autoLoad()
