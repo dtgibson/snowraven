@@ -1,3 +1,4 @@
+import { Button } from './ui/Button'
 import { useEffect, useRef } from 'react'
 import { Settings as SettingsIcon, BookOpen, KeyRound, FileUp, ArrowRight } from 'lucide-react'
 import { RavenGlyph } from './RavenGlyph'
@@ -124,7 +125,7 @@ export function WelcomeScreen({ onGetStarted, onOpenHelp, onDismiss }: WelcomeSc
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
-          <button tabIndex={0}
+          <Button
             ref={startRef}
             onClick={onGetStarted}
             style={{
@@ -136,10 +137,10 @@ export function WelcomeScreen({ onGetStarted, onOpenHelp, onDismiss }: WelcomeSc
             <SettingsIcon size={16} strokeWidth={2} />
             Go to Settings
             <ArrowRight size={16} strokeWidth={2.5} />
-          </button>
+          </Button>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
-            <button tabIndex={0}
+            <Button
               onClick={onOpenHelp}
               style={{
                 display: 'inline-flex', alignItems: 'center', gap: 6, background: 'none', border: 'none',
@@ -149,8 +150,8 @@ export function WelcomeScreen({ onGetStarted, onOpenHelp, onDismiss }: WelcomeSc
             >
               <BookOpen size={14} strokeWidth={2} />
               Read the documentation
-            </button>
-            <button tabIndex={0}
+            </Button>
+            <Button
               onClick={onDismiss}
               style={{
                 background: 'none', border: 'none', padding: 4, color: 'var(--sr-text-muted)',
@@ -158,7 +159,7 @@ export function WelcomeScreen({ onGetStarted, onOpenHelp, onDismiss }: WelcomeSc
               }}
             >
               Explore the app first
-            </button>
+            </Button>
           </div>
         </div>
       </div>

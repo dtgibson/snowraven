@@ -1,3 +1,4 @@
+import { Link } from './ui/Link'
 import { Fragment } from 'react'
 import { commentSegments, linkify } from '../lib/commentText'
 
@@ -21,11 +22,11 @@ export function CommentText({ raw, decoded = false }: { raw: string; decoded?: b
         // Belt-and-suspenders: only ever emit an <a> for an http(s) href, even though
         // linkify already guarantees that — so a future change there can't widen it.
         seg.href && /^https?:\/\//i.test(seg.href) ? (
-          <a key={i} tabIndex={0} href={seg.href} target="_blank" rel="noopener noreferrer"
+          <Link key={i} href={seg.href} target="_blank" rel="noopener noreferrer"
             style={{ color: 'var(--sr-accent)', textDecoration: 'underline', wordBreak: 'break-word' }}>
             {seg.text}
             <span className="sr-only"> (opens in a new tab)</span>
-          </a>
+          </Link>
         ) : (
           <span key={i} style={{ overflowWrap: 'anywhere', wordBreak: 'break-word' }}>
             {seg.text.split(/\r\n|\r|\n/).map((line, j) => (

@@ -98,6 +98,7 @@
 // stylesheet side: nothing may give any of the three classes a hiding
 // `display` / `visibility` / `content-visibility`, at any depth.
 
+import { Button } from './Button'
 import { Fragment } from 'react'
 import type { CSSProperties } from 'react'
 import { AlertCircle } from 'lucide-react'
@@ -179,9 +180,9 @@ export function TabLoadErrorAlert({ message, onGoToSettings, variant = 'panel' }
   )
 
   const action = showing ? (
-    <button type="button" tabIndex={0} onClick={onGoToSettings} style={v.button}>
+    <Button type="button" onClick={onGoToSettings} style={v.button}>
       {v.buttonLabel}
-    </button>
+    </Button>
   ) : null
 
   return (

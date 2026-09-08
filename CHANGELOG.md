@@ -2,6 +2,16 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [1.0.24] - 2026-09-08
+
+### Changed
+- **Every app-owned button and link now goes through one shared accessibility seam.** SnowRaven already put its controls into the keyboard order explicitly so they work consistently in the WebKit engine used by the Mac, iPhone and iPad apps. That rule had been repeated at hundreds of individual controls, which made a future omission easy to introduce and hard to spot. Buttons and links now inherit the safe behavior from shared native controls while keeping the same appearance, wording, order and interaction. The few controls that deliberately use a different keyboard order remain explicit and guarded as exact exceptions.
+- **Upload-size messages now come from the limit they describe.** The visible refusal and the server response still say 50 MB, but neither keeps a separate hand-written copy of that number. If the enforced limit changes later, the message changes with it instead of drifting into a promise the app does not keep.
+
+### Fixed
+- **Repeated upload refusals are announced reliably by assistive technology.** Each file row now keeps its alert area present before an error and replaces the message inside it on every rejected upload. Choosing the same invalid file twice therefore produces a fresh announcement both times, while the visible wording and layout stay unchanged.
+- **The accessibility promise no longer copies a count that belongs to the test enforcing it.** The published guidance now states the durable keyboard-order rule and the kinds of intentional exception without repeating the roster total. Exact counts stay in the executable roster, where every added or removed exception must be reviewed and tested.
+
 ## [1.0.23] - 2026-09-07
 
 ### Added

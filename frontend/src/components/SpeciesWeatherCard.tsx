@@ -34,6 +34,7 @@
 // inline here would be invisible to that module's generated corpus sweep however
 // correct it happens to be today.
 
+import { Button } from './ui/Button'
 import { ArrowRight, CloudSun } from 'lucide-react'
 import { BirdName } from './BirdName'
 import { WeatherSpeciesRow } from './WeatherSpeciesRow'
@@ -144,12 +145,12 @@ export function SpeciesWeatherCard({
         <div style={{ padding: '14px 18px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
           <p style={LEDE_STYLE}>{belowFloorLine(stats.readableCount)}</p>
           <p style={NOTE_STYLE}>{WEATHER_COPY.belowFloorBody}</p>
-          <button className="sr-wx-route" tabIndex={0} type="button" onClick={onGoToWeather}>
+          <Button className="sr-wx-route" type="button" onClick={onGoToWeather}>
             <span>
               {WEATHER_COPY.route}
               <ArrowRight size={13} strokeWidth={2.2} aria-hidden="true" />
             </span>
-          </button>
+          </Button>
         </div>
       </SectionCard>
     )

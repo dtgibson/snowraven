@@ -1,3 +1,4 @@
+import { Button } from './ui/Button'
 import { Component, type ReactNode } from 'react'
 
 interface Props { children: ReactNode }
@@ -26,8 +27,7 @@ export class RootErrorBoundary extends Component<Props, State> {
         <span style={{ fontSize: '0.875rem', maxWidth: 420, lineHeight: 1.5 }}>
           SnowRaven hit an unexpected error and couldn't continue. Reloading usually fixes it.
         </span>
-        <button
-          tabIndex={0}
+        <Button
           onClick={() => window.location.reload()}
           style={{
             marginTop: 4, height: 40, padding: '0 20px', border: 'none', borderRadius: 8,
@@ -36,7 +36,7 @@ export class RootErrorBoundary extends Component<Props, State> {
           }}
         >
           Reload
-        </button>
+        </Button>
       </div>
     )
   }

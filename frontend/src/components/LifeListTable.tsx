@@ -1,3 +1,5 @@
+import { Button } from './ui/Button'
+import { Link } from './ui/Link'
 import { useMemo } from 'react'
 import { Camera, Mic, Video, Minus } from 'lucide-react'
 import type { LifeListEntry } from '../lib/parseLifeList'
@@ -266,9 +268,9 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
                 minWidth: 200,
               }}
             >
-              <button tabIndex={0} type="button" style={sortBtn(sort.column === 'name', 'flex-start')} onClick={() => handleHeaderClick('name')}>
+              <Button type="button" style={sortBtn(sort.column === 'name', 'flex-start')} onClick={() => handleHeaderClick('name')}>
                 Entries{sortIndicator('name')}
-              </button>
+              </Button>
             </th>
             {([
               ['Photo', 'photo', <Camera size={11} strokeWidth={2.5} />],
@@ -286,11 +288,11 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
                   textAlign: 'center',
                 }}
               >
-                <button tabIndex={0} type="button" aria-label={`Sort by ${label}`} style={sortBtn(sort.column === col, 'center')} onClick={() => handleHeaderClick(col)}>
+                <Button type="button" aria-label={`Sort by ${label}`} style={sortBtn(sort.column === col, 'center')} onClick={() => handleHeaderClick(col)}>
                   {icon}
                   {label}
                   {sortIndicator(col)}
-                </button>
+                </Button>
               </th>
             ))}
             <th
@@ -304,10 +306,10 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
                 borderLeft: '1px solid var(--sr-border)',
               }}
             >
-              <button tabIndex={0} type="button" style={{ ...sortBtn(true, 'center'), color: 'var(--sr-accent)' }} onClick={() => handleHeaderClick('total')}>
+              <Button type="button" style={{ ...sortBtn(true, 'center'), color: 'var(--sr-accent)' }} onClick={() => handleHeaderClick('total')}>
                 Total
                 {sortIndicator('total')}
-              </button>
+              </Button>
             </th>
           </tr>
         </thead>
@@ -352,8 +354,7 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
                 <td style={{ width: 80, padding: '9px 14px', verticalAlign: 'middle' }}>
                   <div style={iconCell}>
                     {photoCount > 0
-                      ? <a
-                          tabIndex={0}
+                      ? <Link
                           href={mlUrl('Photo', userId, taxonCode, sexFilter, ageFilter)}
                           target="_blank"
                           rel="noreferrer"
@@ -361,15 +362,14 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
                           style={countLinkStyle}
                           onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
                           onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
-                        >{photoCount}</a>
+                        >{photoCount}</Link>
                       : <Minus size={16} strokeWidth={2.5} role="img" aria-label="No photos" style={{ color: 'var(--sr-text-muted)' }} />}
                   </div>
                 </td>
                 <td style={{ width: 80, padding: '9px 14px', verticalAlign: 'middle' }}>
                   <div style={iconCell}>
                     {audioCount > 0
-                      ? <a
-                          tabIndex={0}
+                      ? <Link
                           href={mlUrl('Audio', userId, taxonCode, sexFilter, ageFilter)}
                           target="_blank"
                           rel="noreferrer"
@@ -377,15 +377,14 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
                           style={countLinkStyle}
                           onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
                           onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
-                        >{audioCount}</a>
+                        >{audioCount}</Link>
                       : <Minus size={16} strokeWidth={2.5} role="img" aria-label="No audio" style={{ color: 'var(--sr-text-muted)' }} />}
                   </div>
                 </td>
                 <td style={{ width: 80, padding: '9px 14px', verticalAlign: 'middle' }}>
                   <div style={iconCell}>
                     {videoCount > 0
-                      ? <a
-                          tabIndex={0}
+                      ? <Link
                           href={mlUrl('Video', userId, taxonCode, sexFilter, ageFilter)}
                           target="_blank"
                           rel="noreferrer"
@@ -393,15 +392,14 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
                           style={countLinkStyle}
                           onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
                           onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
-                        >{videoCount}</a>
+                        >{videoCount}</Link>
                       : <Minus size={16} strokeWidth={2.5} role="img" aria-label="No video" style={{ color: 'var(--sr-text-muted)' }} />}
                   </div>
                 </td>
                 <td style={{ width: 70, padding: '9px 14px', verticalAlign: 'middle', borderLeft: '1px solid var(--sr-border)' }}>
                   <div style={{ display: 'flex', justifyContent: 'center' }}>
                     {totalCount > 0
-                      ? <a
-                          tabIndex={0}
+                      ? <Link
                           href={mlUrlAll(userId, taxonCode, sexFilter, ageFilter)}
                           target="_blank"
                           rel="noreferrer"
@@ -410,7 +408,7 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
                           style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--sr-accent)', fontVariantNumeric: 'tabular-nums', textDecoration: 'none' }}
                           onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
                           onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
-                        >{totalCount}</a>
+                        >{totalCount}</Link>
                       : <Minus size={16} strokeWidth={2.5} role="img" aria-label="No media" style={{ color: 'var(--sr-text-muted)' }} />}
                   </div>
                 </td>

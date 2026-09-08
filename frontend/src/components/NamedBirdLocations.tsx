@@ -12,6 +12,7 @@
 // section: Species Detail's reuse of NamedBirdsTable already sits beneath its own
 // species-wide Top Locations, and a second, narrower list there would be noise.
 
+import { Button } from './ui/Button'
 import { useMemo, useState } from 'react'
 import { MapPin, ChevronDown } from 'lucide-react'
 import { computeNamedBirdLocations } from '../lib/namedBirds'
@@ -107,7 +108,7 @@ export function NamedBirdLocations({ sightings, isHotspot, lastInCard = false }:
       ))}
 
       {locations.length > INITIAL_ROWS && (
-        <button tabIndex={0}
+        <Button
           className="sr-touch-target"
           aria-expanded={showAll}
           onClick={() => setShowAll(prev => !prev)}
@@ -131,7 +132,7 @@ export function NamedBirdLocations({ sightings, isHotspot, lastInCard = false }:
             style={{ transform: showAll ? 'rotate(180deg)' : 'none', transition: 'transform 150ms cubic-bezier(0.16, 1, 0.3, 1)' }}
           />
           {showAll ? `Show top ${INITIAL_ROWS}` : `Show all ${locations.length} locations`}
-        </button>
+        </Button>
       )}
     </div>
   )

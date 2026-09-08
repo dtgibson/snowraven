@@ -17,6 +17,7 @@
 // for eBird species/region links, the Macaulay Library, OpenWeather, GitHub, map
 // popups, comment URLs, the atlas, etc.
 
+import { Link } from './ui/Link'
 import type { AnchorHTMLAttributes, ReactNode } from 'react'
 
 const NEW_TAB_CUE = ' (opens in a new tab)'
@@ -36,25 +37,13 @@ export function OutboundLink({ href, children, 'aria-label': ariaLabel, ...rest 
     : undefined
 
   return (
-    // tabIndex sits BEFORE {...rest} deliberately, so a caller can still override
-    // it; WebKit's default tab mode gives a plain <a href> no place in the tab
-    // order at all (measurement in lib/useFocusTrap.ts's header), so this one line
-    // is what puts every link routed through this component on the keyboard's
-    // path on the Mac, iPhone and iPad builds: 22 direct call sites across 14
-    // files, plus every HotspotLink, which renders through here.
-    //
-    // NOT every outbound link in the app, and the difference matters to anyone
-    // reading this as coverage: thirteen anchors are still written per-site
-    // (App.tsx, SpeciesLinks, LifeListTable's Macaulay Library columns,
-    // CommentText, and others). Nine of those predate this component and would be
-    // its callers under the app's own convention; routing them through it would
-    // change each one's accessible-name formula, which is published behaviour, so
-    // it is on the ROADMAP rather than done here. They each carry their own
-    // tabIndex, and lib/tabOrderCoverage.test.ts is what actually guarantees the
-    // app-wide property.
-    <a tabIndex={0} href={href} target="_blank" rel="noreferrer" {...rest} aria-label={fullAria}>
+    // Link owns the WebKit-safe tabIndex default. `rest` still reaches that seam,
+    // so OutboundLink callers retain their native override path along with every
+    // other anchor prop; this wrapper continues to own only its new-tab semantics
+    // and accessible-name cue.
+    <Link href={href} target="_blank" rel="noreferrer" {...rest} aria-label={fullAria}>
       {children}
       {!fullAria && <span className="sr-only">{NEW_TAB_CUE}</span>}
-    </a>
+    </Link>
   )
 }

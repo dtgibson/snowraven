@@ -8,6 +8,7 @@
 // never HTML strings); every color is a --sr-* token; the progress bar exposes
 // role="progressbar" + aria-value* alongside the equivalent text (NFR-04).
 
+import { Button } from '../ui/Button'
 import { AlertTriangle, Clock, KeyRound, Loader2, RefreshCw, WifiOff } from 'lucide-react'
 import { BirdName } from '../BirdName'
 import { cacheLineText, monthDay, type CountyCompletenessResult } from '../../lib/countyCompleteness'
@@ -32,9 +33,8 @@ function StatusIcon({ status }: { status: 'offline' | 'no-key' | 'error' }) {
 
 function LoadButton({ label, onClick }: { label: string; onClick: () => void }) {
   return (
-    <button
+    <Button
       type="button"
-      tabIndex={0}
       onClick={onClick}
       style={{
         display: 'inline-flex', alignItems: 'center', gap: 7,
@@ -45,7 +45,7 @@ function LoadButton({ label, onClick }: { label: string; onClick: () => void }) 
     >
       <RefreshCw size={13} strokeWidth={2.2} aria-hidden="true" />
       {label}
-    </button>
+    </Button>
   )
 }
 

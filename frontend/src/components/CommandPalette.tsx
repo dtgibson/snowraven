@@ -18,8 +18,8 @@
 //    the engine's tab order, and WebKit's default tab mode -- what the shipped
 //    Mac, iPhone and iPad apps run -- visits only explicitly-`tabindex`ed
 //    elements, native form controls and `<summary>`. This panel's only
-//    focusables are a native `<input>` (visited) and one `<button>` carrying a
-//    literal `tabIndex={0}` (visited). The `role="option"` rows carry no
+//    focusables are a native `<input>` (visited) and one native button whose
+//    shared `Button` primitive supplies `tabIndex={0}` (visited). The `role="option"` rows carry no
 //    `tabindex`, so `FOCUSABLE_SELECTOR`'s `[tabindex]:not([tabindex="-1"])`
 //    clause does not match them and they are in NEITHER list. The prediction and
 //    the engine agree.
@@ -30,9 +30,9 @@
 //    restore in a post-commit effect anyway, but the option would still buy
 //    nothing here and cost a working close path.
 //
-// THE COROLLARY IS THE REQUIREMENT: adding any focusable to this panel without a
-// literal `tabIndex={0}` silently reopens the v1.0.15 hole. QA-15's source
-// assertion is the guard and it is not optional. One further constraint follows
+// THE COROLLARY IS THE REQUIREMENT: adding any focusable to this panel outside
+// the shared control seams silently reopens the v1.0.15 hole. QA-15's source
+// assertion guards the rendered value. One further constraint follows
 // from the same measurement: THIS PANEL RENDERS NO `<details>` / `<summary>`.
 // WebKit visits `<summary>` and `FOCUSABLE_SELECTOR` does not match it, which is
 // the one gap the trap cannot close.
@@ -50,6 +50,7 @@
 //    `pipeline/design-system.md`, not a shortcut. The eBird and Birds of the
 //    World link marks are reached by opening the species.
 
+import { Button } from './ui/Button'
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { AlertCircle, Loader2, Search, Upload, X } from 'lucide-react'
 import { NAV_ICON } from '../lib/tabIcons'
@@ -312,15 +313,14 @@ export function CommandPalette({ items, onSelectTab, onOpenSpecies, onClose }: C
               spellCheck={false}
             />
           </div>
-          <button
+          <Button
             type="button"
-            tabIndex={0}
             className="sr-palette-close"
             aria-label={PALETTE_COPY.closeLabel}
             onClick={onClose}
           >
             <X size={17} strokeWidth={2.2} aria-hidden="true" />
-          </button>
+          </Button>
         </div>
 
         {/* THE SCROLLER IS NOT THE LISTBOX. A listbox may own only `option` and

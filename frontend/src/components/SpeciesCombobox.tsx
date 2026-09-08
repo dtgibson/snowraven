@@ -12,6 +12,7 @@
 // onChange. listbox/option ids are useId()-namespaced so two instances on one page
 // can't collide.
 
+import { Button } from './ui/Button'
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { Search, ChevronDown, Check } from 'lucide-react'
 import { matchesSpeciesQuery, normalizeSpeciesQuery } from '../lib/speciesMatch'
@@ -195,7 +196,7 @@ export function SpeciesCombobox({
             transition: 'border-color 0.15s', minWidth: 0,
           }}
         />
-        <button
+        <Button
           type="button"
           tabIndex={-1}
           aria-label="Toggle species list"
@@ -209,7 +210,7 @@ export function SpeciesCombobox({
           }}
         >
           <ChevronDown size={16} strokeWidth={2} aria-hidden />
-        </button>
+        </Button>
       </div>
 
       {open && (

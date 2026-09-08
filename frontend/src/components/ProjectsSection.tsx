@@ -31,6 +31,7 @@
 // NO PROJECT IDENTIFIER IS EVER A LINK OR A URL SEGMENT (FR-29). There is no
 // link component in these rows, and there is no endpoint that would resolve one.
 
+import { Button } from './ui/Button'
 import {
   AlertCircle, Check, Circle, Clock, KeyRound, Loader2, Play, RotateCw, Square, WifiOff,
 } from 'lucide-react'
@@ -281,9 +282,9 @@ export function ProjectsSection({ controller, onGoToSettings }: ProjectsSectionP
             {copy.link && (
               <>
                 {' '}
-                <button type="button" tabIndex={0} className="sr-proj-link" onClick={onGoToSettings}>
+                <Button type="button" className="sr-proj-link" onClick={onGoToSettings}>
                   {copy.link}
-                </button>
+                </Button>
               </>
             )}
           </span>
@@ -292,16 +293,15 @@ export function ProjectsSection({ controller, onGoToSettings }: ProjectsSectionP
         {copy.actions.length > 0 && (
           <div className="sr-proj-actions">
             {copy.actions.map(a => (
-              <button
+              <Button
                 key={a.id}
                 type="button"
-                tabIndex={0}
                 className={a.primary ? 'sr-proj-act sr-proj-act--primary' : 'sr-proj-act'}
                 onClick={() => onAct(a.id)}
               >
                 <ActionIcon id={a.id} />
                 <span>{a.label}</span>
-              </button>
+              </Button>
             ))}
           </div>
         )}

@@ -29,14 +29,16 @@ import { detectExportType } from './detectExportType'
  * check in `storage.ts` is what makes the backend's own answer audible on the one
  * platform that gives it.
  */
-export const MAX_UPLOAD_BYTES = 50 * 1024 * 1024
+const BYTES_PER_MEGABYTE = 1024 * 1024
+export const MAX_UPLOAD_BYTES = 50 * BYTES_PER_MEGABYTE
 
 /** Unchanged, and moved here so all three refusals for this row live together. */
 export const CSV_ONLY_MESSAGE = 'Only .csv files are accepted.'
 
 /** Refusal 1: over the cap. One sentence, because there is no repair to offer —
  *  an export is the size it is, and the user cannot shrink it. */
-export const TOO_LARGE_MESSAGE = 'That file is larger than 50 MB, so it was not saved.'
+export const TOO_LARGE_MESSAGE =
+  `That file is larger than ${MAX_UPLOAD_BYTES / BYTES_PER_MEGABYTE} MB, so it was not saved.`
 
 /**
  * Refusal 2: the right kind of file, in the wrong slot (or a CSV that is neither).

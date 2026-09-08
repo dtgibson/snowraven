@@ -14,6 +14,7 @@
 // NamedBirdRow reaches this row the same way it already reaches the map, through
 // `lazy(() => import('./SightingsMap'))`. entryChunk.test.ts is the live guard.
 
+import { Button } from '../ui/Button'
 import { useEffect, useLayoutEffect, useState } from 'react'
 import { Maximize2, Minimize2 } from 'lucide-react'
 import { useMap } from 'react-map-gl/maplibre'
@@ -110,15 +111,12 @@ export function MapCornerControls({ compact, sharePinResetKey }: {
       <div className={`sr-map-corner-row${compact ? ' sr-map-corner-row--compact' : ''}`}>
         <div className="sr-map-fab-slot" ref={setSlot} />
         {onToggle && (
-          <button
+          <Button
             type="button"
             ref={registerToggle}
-            // Explicit tabIndex, and NOT redundant: WebKit's default tab mode
-            // skips a plain <button> entirely (measurement in
-            // lib/useFocusTrap.ts's header), so without it the one control whose
-            // whole job is entering fullscreen is unreachable by keyboard on the
-            // shipped Mac and iOS apps.
-            tabIndex={0}
+            // Button's inherited tab stop is required here: WebKit's default
+            // mode skips a plain unmarked button, and this control's whole job is
+            // entering fullscreen on the shipped Mac and iOS apps.
             // Vocabulary verbatim from the Map Explorer's shipped toggle. The
             // px `size=` below is the no-CSS fallback only: `.sr-map-fab svg`
             // sizes the glyph in rem through --sr-fab-glyph, which is what keeps
@@ -131,7 +129,7 @@ export function MapCornerControls({ compact, sharePinResetKey }: {
             {expanded
               ? <Minimize2 size={17} strokeWidth={2.2} aria-hidden />
               : <Maximize2 size={17} strokeWidth={2.2} aria-hidden />}
-          </button>
+          </Button>
         )}
       </div>
       <SharePin key={sharePinResetKey} compact={compact} buttonHost={slot} />

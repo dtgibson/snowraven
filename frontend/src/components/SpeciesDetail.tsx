@@ -1,3 +1,5 @@
+import { Button } from './ui/Button'
+import { Link } from './ui/Link'
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Loader2, ChevronDown, Search, ExternalLink, Image, Mic, Video, Eye,
@@ -826,7 +828,7 @@ export function SpeciesDetail({ onGoToSettings, onGoToWeather, filesVersion, req
           </div>
 
           {hasLocationFilter && (
-            <button tabIndex={0}
+            <Button
               onClick={() => { setCountyFilter(null); setDateRange({ from: '', to: '' }) }}
               style={{
                 background: 'none', border: 'none', cursor: 'pointer',
@@ -836,7 +838,7 @@ export function SpeciesDetail({ onGoToSettings, onGoToWeather, filesVersion, req
               }}
             >
               Clear filter
-            </button>
+            </Button>
           )}
         </div>
       )}
@@ -885,7 +887,7 @@ export function SpeciesDetail({ onGoToSettings, onGoToWeather, filesVersion, req
                 fontSize: '0.75rem', color: 'var(--sr-accent)',
               }}>
                 <span className="sr-min0" style={{ fontWeight: 500 }}>{parts.join(' · ')}</span>
-                <button tabIndex={0}
+                <Button
                   onClick={() => { setCountyFilter(null); setDateRange({ from: '', to: '' }) }}
                   style={{
                     background: 'none', border: 'none', cursor: 'pointer',
@@ -894,7 +896,7 @@ export function SpeciesDetail({ onGoToSettings, onGoToWeather, filesVersion, req
                   }}
                 >
                   Clear filter
-                </button>
+                </Button>
               </div>
             )
           })()}
@@ -920,7 +922,7 @@ export function SpeciesDetail({ onGoToSettings, onGoToWeather, filesVersion, req
                   const count = mediaCounts[type]
                   const state: 'unavailable' | 'has' | 'none' = !hasML ? 'unavailable' : count > 0 ? 'has' : 'none'
                   return (
-                    <button tabIndex={0}
+                    <Button
                       key={type}
                       title={!hasML ? 'Load ML export in Settings for media data' : undefined}
                       style={{
@@ -941,7 +943,7 @@ export function SpeciesDetail({ onGoToSettings, onGoToWeather, filesVersion, req
                     >
                       <Icon size={12} strokeWidth={2.2} />
                       {type}
-                    </button>
+                    </Button>
                   )
                 })}
 
@@ -1076,8 +1078,7 @@ export function SpeciesDetail({ onGoToSettings, onGoToWeather, filesVersion, req
                           </div>
                           <span style={{ fontSize: '0.8125rem', fontWeight: 500, color: 'var(--sr-text)', flex: 1 }}>{type}s</span>
                           {count > 0 ? (
-                            <a
-                              tabIndex={0}
+                            <Link
                               href={link}
                               target="_blank"
                               rel="noreferrer"
@@ -1091,7 +1092,7 @@ export function SpeciesDetail({ onGoToSettings, onGoToWeather, filesVersion, req
                             >
                               {count}
                               <ExternalLink size={10} strokeWidth={2.5} aria-hidden="true" />
-                            </a>
+                            </Link>
                           ) : (
                             <span style={{ fontSize: '0.84375rem', fontWeight: 500, color: 'var(--sr-text-muted)' }}>0</span>
                           )}
@@ -1146,9 +1147,9 @@ export function SpeciesDetail({ onGoToSettings, onGoToWeather, filesVersion, req
                     </span>
                     <div style={{ display: 'inline-flex', gap: 2, background: 'var(--sr-surface-subtle)', borderRadius: 7, padding: 2 }}>
                       {(['weekly', 'monthly', 'yearly'] as const).map(v => (
-                        <button key={v} tabIndex={0} aria-pressed={graphInterval === v} onClick={() => setGraphInterval(v)} style={graphInterval === v ? btnActive : btnInactive}>
+                        <Button key={v} aria-pressed={graphInterval === v} onClick={() => setGraphInterval(v)} style={graphInterval === v ? btnActive : btnInactive}>
                           {v === 'weekly' ? 'Weekly' : v === 'monthly' ? 'Monthly' : 'Yearly'}
-                        </button>
+                        </Button>
                       ))}
                     </div>
                   </div>
@@ -1158,9 +1159,9 @@ export function SpeciesDetail({ onGoToSettings, onGoToWeather, filesVersion, req
                     </span>
                     <div style={{ display: 'inline-flex', gap: 2, background: 'var(--sr-surface-subtle)', borderRadius: 7, padding: 2 }}>
                       {(['per-period', 'cumulative'] as const).map(v => (
-                        <button key={v} tabIndex={0} aria-pressed={viewMode === v} onClick={() => setViewMode(v)} style={viewMode === v ? btnActive : btnInactive}>
+                        <Button key={v} aria-pressed={viewMode === v} onClick={() => setViewMode(v)} style={viewMode === v ? btnActive : btnInactive}>
                           {v === 'per-period' ? 'Per Period' : 'Cumulative'}
-                        </button>
+                        </Button>
                       ))}
                     </div>
                   </div>
@@ -1284,7 +1285,7 @@ export function SpeciesDetail({ onGoToSettings, onGoToWeather, filesVersion, req
                     </div>
                     {/* Expand / collapse */}
                     {coOccurrence.results.length > 10 && (
-                      <button tabIndex={0}
+                      <Button
                         onClick={() => setShowAllCoOccurrence(prev => !prev)}
                         style={{
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -1299,7 +1300,7 @@ export function SpeciesDetail({ onGoToSettings, onGoToWeather, filesVersion, req
                         {showAllCoOccurrence
                           ? 'Show top 10'
                           : `Show all ${coOccurrence.results.length} species`}
-                      </button>
+                      </Button>
                     )}
                   </div>
                 )
@@ -1341,7 +1342,7 @@ export function SpeciesDetail({ onGoToSettings, onGoToWeather, filesVersion, req
                   })}
 
                   {locationsSorted.length > 10 && (
-                    <button tabIndex={0}
+                    <Button
                       onClick={() => setShowAllLocations(prev => !prev)}
                       style={{
                         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
@@ -1360,7 +1361,7 @@ export function SpeciesDetail({ onGoToSettings, onGoToWeather, filesVersion, req
                         style={{ transform: showAllLocations ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}
                       />
                       {showAllLocations ? 'Show top 10' : `Show all ${locationsSorted.length} locations`}
-                    </button>
+                    </Button>
                   )}
                 </>
               )}
@@ -1388,7 +1389,7 @@ export function SpeciesDetail({ onGoToSettings, onGoToWeather, filesVersion, req
                   background: 'var(--sr-surface-subtle)', borderRadius: 6, padding: 2,
                 }}>
                   {(['pins', 'heatmap'] as const).map((mode) => (
-                    <button tabIndex={0}
+                    <Button
                       key={mode}
                       aria-pressed={mapMode === mode}
                       onClick={() => setMapMode(mode)}
@@ -1402,7 +1403,7 @@ export function SpeciesDetail({ onGoToSettings, onGoToWeather, filesVersion, req
                       }}
                     >
                       {mode === 'pins' ? 'Pins' : 'Heatmap'}
-                    </button>
+                    </Button>
                   ))}
                 </div>
                 {/* Counties: the shipped boxed ToggleSwitch, off on mount and
@@ -1571,7 +1572,7 @@ export function SpeciesDetail({ onGoToSettings, onGoToWeather, filesVersion, req
               {/* Sort toggle */}
               <div style={{ display: 'inline-flex', border: '1.5px solid var(--sr-accent-border)', borderRadius: 6, overflow: 'hidden', flexShrink: 0 }}>
                 {(['newest', 'oldest'] as const).map((dir, i) => (
-                  <button tabIndex={0}
+                  <Button
                     key={dir}
                     onClick={() => setCommentSort(dir)}
                     style={{
@@ -1584,7 +1585,7 @@ export function SpeciesDetail({ onGoToSettings, onGoToWeather, filesVersion, req
                     }}
                   >
                     {dir === 'newest' ? 'Newest' : 'Oldest'}
-                  </button>
+                  </Button>
                 ))}
               </div>
 
@@ -1632,7 +1633,7 @@ export function SpeciesDetail({ onGoToSettings, onGoToWeather, filesVersion, req
                 ))}
 
                 {allComments.length > COMMENTS_PAGE && (
-                  <button tabIndex={0}
+                  <Button
                     onClick={() => setShowAllComments(prev => !prev)}
                     style={{
                       display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
@@ -1651,7 +1652,7 @@ export function SpeciesDetail({ onGoToSettings, onGoToWeather, filesVersion, req
                       style={{ transform: showAllComments ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}
                     />
                     {showAllComments ? 'Show fewer' : `Show all ${allComments.length} comments`}
-                  </button>
+                  </Button>
                 )}
               </>
             )}

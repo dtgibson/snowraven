@@ -1,3 +1,4 @@
+import { Button } from './ui/Button'
 import { useState, useCallback, useEffect } from 'react'
 import { FileCheck } from 'lucide-react'
 import { parseEbirdCSV } from '../lib/parseEbird'
@@ -182,7 +183,7 @@ export function ListComparer({ onOpenSpecies, keyStatus, onGoToSettings }: {
       <div style={{ width: '100%', maxWidth: 880, marginBottom: 24, display: 'flex', justifyContent: 'center' }}>
         <div role="group" aria-label="Comparison mode" style={{ display: 'inline-flex', borderRadius: 8, border: '1.5px solid var(--sr-border)', overflow: 'hidden' }}>
           {([['checklists', 'Checklists'], ['lists', 'Life Lists']] as const).map(([m, label], i) => (
-            <button tabIndex={0} key={m} aria-pressed={mode === m}
+            <Button key={m} aria-pressed={mode === m}
               onClick={() => setMode(m)}
               style={{
                 height: 36, padding: '0 20px', fontSize: '0.8125rem',
@@ -193,7 +194,7 @@ export function ListComparer({ onOpenSpecies, keyStatus, onGoToSettings }: {
                 transition: 'background 0.15s, color 0.15s',
               }}>
               {label}
-            </button>
+            </Button>
           ))}
         </div>
       </div>
@@ -244,7 +245,7 @@ export function ListComparer({ onOpenSpecies, keyStatus, onGoToSettings }: {
                 overflow: 'hidden',
               }}>
                 {(['my-list', 'upload'] as const).map((mode, i) => (
-                  <button tabIndex={0}
+                  <Button
                     key={mode}
                     aria-pressed={listAMode === mode}
                     onClick={() => setListAMode(mode)}
@@ -259,7 +260,7 @@ export function ListComparer({ onOpenSpecies, keyStatus, onGoToSettings }: {
                     }}
                   >
                     {mode === 'my-list' ? 'My List' : 'Upload a file'}
-                  </button>
+                  </Button>
                 ))}
               </div>
             </div>
@@ -313,7 +314,7 @@ export function ListComparer({ onOpenSpecies, keyStatus, onGoToSettings }: {
             </p>
           )}
 
-          <button tabIndex={0}
+          <Button
             onClick={handleCompare}
             disabled={!canCompare}
             aria-disabled={!canCompare}
@@ -333,7 +334,7 @@ export function ListComparer({ onOpenSpecies, keyStatus, onGoToSettings }: {
             }}
           >
             {comparing ? 'Loading…' : 'Compare Lists'}
-          </button>
+          </Button>
         </div>
       )}
     </div>

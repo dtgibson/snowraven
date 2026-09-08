@@ -12,6 +12,7 @@
 // region code is derivable. A keyboard "Counties in view" disclosure is the
 // keyboard route to a popup (the on-map fill is a pointer-only canvas hit-test).
 
+import { Button } from '../ui/Button'
 import { useEffect, useMemo, useState } from 'react'
 import { Source, Layer, Popup, useMap } from 'react-map-gl/maplibre'
 import type { FeatureCollection } from 'geojson'
@@ -441,15 +442,14 @@ export function CountyLayer({
             {/* Same class as maplibre's own, so it inherits the existing theming
                 and the ~44px coarse-pointer target in globals.css and nothing
                 moves for a mouse user. BirdingStats.tsx is the reference. */}
-            <button
-              tabIndex={0}
+            <Button
               type="button"
               className="maplibregl-popup-close-button"
               aria-label="Close the county popup"
               onClick={() => setSel(null)}
             >
               ×
-            </button>
+            </Button>
             <div className="sr-map-popup-body sr-county-popup-body" style={{ fontSize: '0.8125rem' }}>
               {selRegion ? (
                 <OutboundLink
@@ -564,9 +564,8 @@ export function CountyLayer({
             borderRadius: 8, boxShadow: '0 1px 4px rgba(0,0,0,0.15)', overflow: 'hidden',
           }}
         >
-          <button
+          <Button
             type="button"
-            tabIndex={0}
             onClick={() => setListOpen(o => !o)}
             aria-expanded={listOpen}
             style={{
@@ -580,7 +579,7 @@ export function CountyLayer({
           >
             <span>Counties in view ({listTotal.toLocaleString()})</span>
             <span aria-hidden="true" style={{ transform: listOpen ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s' }}>›</span>
-          </button>
+          </Button>
           {listOpen && (
             <div style={{ overflowY: 'auto', padding: 6 }}>
               <ul role="list" aria-label="Counties in view" style={{ listStyle: 'none', margin: 0, padding: 0 }}>
@@ -591,9 +590,8 @@ export function CountyLayer({
                   const isSelected = sel?.geoid === row.geoid
                   return (
                     <li role="listitem" key={row.geoid}>
-                      <button
+                      <Button
                         type="button"
-                        tabIndex={0}
                         onClick={() => openCountyFromList(row)}
                         aria-pressed={isSelected}
                         className="sr-inview-row sr-touch-target"
@@ -636,7 +634,7 @@ export function CountyLayer({
                             {value.toLocaleString()}
                           </span>
                         ) : null}
-                      </button>
+                      </Button>
                     </li>
                   )
                 })}

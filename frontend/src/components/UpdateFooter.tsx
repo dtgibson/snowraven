@@ -7,6 +7,7 @@
 // the separator, the Check-For-Updates button, the always-mounted polite live
 // region (F024), the desktop Install button (F025), and the download
 // progressbar. No outcome auto-dismisses (F020: WCAG 2.2.1 Timing Adjustable).
+import { Button } from './ui/Button'
 import { Loader2, WifiOff } from 'lucide-react'
 import { isTauri } from '../lib/platform'
 import { showUpdaterFooter } from '../lib/platformGates'
@@ -50,7 +51,7 @@ export function UpdateFooter({ updateStatus, onCheck, onInstall }: UpdateFooterP
         || updateStatus.kind === 'offline'
         || updateStatus.kind === 'error') && (
         <>
-          <button tabIndex={0}
+          <Button
             onClick={onCheck}
             style={{
               background: 'none',
@@ -65,13 +66,13 @@ export function UpdateFooter({ updateStatus, onCheck, onInstall }: UpdateFooterP
             onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
           >
             Check For Updates
-          </button>
+          </Button>
           {/* Desktop "available" gets its Install button as a sibling OUTSIDE the
               live span so its mount doesn't depend on live-region timing (F025). */}
           {updateStatus.kind === 'available' && isTauri() && (
             <>
               {' · '}
-              <button tabIndex={0}
+              <Button
                 onClick={onInstall}
                 style={{
                   background: 'none', border: 'none', padding: 0, font: 'inherit',
@@ -81,7 +82,7 @@ export function UpdateFooter({ updateStatus, onCheck, onInstall }: UpdateFooterP
                 onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
               >
                 Install update and restart
-              </button>
+              </Button>
             </>
           )}
         </>

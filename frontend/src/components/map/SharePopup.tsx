@@ -9,6 +9,7 @@
 // hosts also share the chrome, the anchor/offset behaviour and the single close
 // path. Escaped JSX throughout, no dangerouslySetInnerHTML (NFR-08).
 
+import { Button } from '../ui/Button'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Popup, useMap } from 'react-map-gl/maplibre'
 import { AlertTriangle, Check, Copy, MapPin } from 'lucide-react'
@@ -199,15 +200,14 @@ export function SharePopup({ lat, lng, compact, offset, onClose }: {
     >
       {/* Styled as maplibre's own close button so it inherits the existing theming
           and the ~44px coarse-pointer target already in globals.css. */}
-      <button
-        tabIndex={0}
+      <Button
         type="button"
         className="maplibregl-popup-close-button"
         aria-label="Close and remove the pin"
         onClick={onClose}
       >
         ×
-      </button>
+      </Button>
 
       <div className="sr-share-pop-head">
         <MapPin size={11} strokeWidth={2.4} aria-hidden />
@@ -226,8 +226,7 @@ export function SharePopup({ lat, lng, compact, offset, onClose }: {
           <p className="sr-share-none">{SHARE_EMPTY_POPUP}</p>
         ) : (
           <>
-            <button
-              tabIndex={0}
+            <Button
               type="button"
               className="sr-share-copy-btn sr-touch-target"
               data-state={copied ? 'done' : undefined}
@@ -237,7 +236,7 @@ export function SharePopup({ lat, lng, compact, offset, onClose }: {
                 ? <Check size={13} strokeWidth={2.6} aria-hidden />
                 : <Copy size={13} strokeWidth={2.2} aria-hidden />}
               <span>{buttonLabel}</span>
-            </button>
+            </Button>
 
             {/* FR-30 — what the press produces is evident BEFORE it, so a
                 partial copy is never a surprise. This names every part in full,
@@ -254,7 +253,7 @@ export function SharePopup({ lat, lng, compact, offset, onClose }: {
             </p>
             <div className="sr-share-fail-bar">
               <span>Text to copy</span>
-              <button tabIndex={0} type="button" className="sr-share-link-btn" onClick={selectAll}>Select all</button>
+              <Button type="button" className="sr-share-link-btn" onClick={selectAll}>Select all</Button>
             </div>
             <pre ref={payloadRef} className="sr-share-payload">{payload}</pre>
           </div>

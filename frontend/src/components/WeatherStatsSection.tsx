@@ -32,6 +32,7 @@
 // call it. One new class is a better trade than a prop on a component Data
 // Quality, Media and Breeding Stats all render.
 
+import { Button } from './ui/Button'
 import { useMemo, useState } from 'react'
 import { ArrowRight, CloudSun, Moon, Sun } from 'lucide-react'
 import { BirdName } from './BirdName'
@@ -247,12 +248,12 @@ export function WeatherStatsSection({
   )
 
   const routeButton = (
-    <button className="sr-wx-route" tabIndex={0} type="button" onClick={onGoToWeather}>
+    <Button className="sr-wx-route" type="button" onClick={onGoToWeather}>
       <span>
         {WEATHER_COPY.route}
         <ArrowRight size={13} strokeWidth={2.2} aria-hidden="true" />
       </span>
-    </button>
+    </Button>
   )
 
   // The ONE discriminator gates both the card and its jump-nav entry in
@@ -391,12 +392,12 @@ export function WeatherStatsSection({
       <div className="sr-action-row" style={{ margin: '0 0 8px' }}>
         <SubLabelInline>{WEATHER_COPY.speciesHeading}</SubLabelInline>
         <div className="sr-wx-seg" role="group" aria-label={WEATHER_COPY.axisToggleGroup}>
-          <button tabIndex={0} type="button" aria-pressed={axis === 'temp'} onClick={() => setAxis('temp')}>
+          <Button type="button" aria-pressed={axis === 'temp'} onClick={() => setAxis('temp')}>
             {WEATHER_COPY.axisToggleTemp}
-          </button>
-          <button tabIndex={0} type="button" aria-pressed={axis === 'cond'} onClick={() => setAxis('cond')}>
+          </Button>
+          <Button type="button" aria-pressed={axis === 'cond'} onClick={() => setAxis('cond')}>
             {WEATHER_COPY.axisToggleSky}
-          </button>
+          </Button>
         </div>
       </div>
       {/* The effort confound, named ONCE, plainly, near the figures it is about

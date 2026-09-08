@@ -1,3 +1,4 @@
+import { Button } from './ui/Button'
 import { useState } from 'react'
 import { BREEDING_CODE_MAP, TIER_COLORS } from '../lib/breedingCodes'
 import type { BreedingEntry } from '../lib/parseBreedingCodes'
@@ -260,9 +261,9 @@ export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, f
                   minWidth: NAME_COL_WIDTH,
                 }}
               >
-                <button tabIndex={0} type="button" style={sortBtn(sort.column === 'name', 'flex-start')} onClick={() => handleHeaderClick('name')}>
+                <Button type="button" style={sortBtn(sort.column === 'name', 'flex-start')} onClick={() => handleHeaderClick('name')}>
                   Species{sortIndicator('name')}
-                </button>
+                </Button>
               </th>
               {codesPresent.map(code => {
                 const def = BREEDING_CODE_MAP.get(code)!
@@ -288,15 +289,14 @@ export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, f
                     {/* The visible header is the terse code; the aria-label carries
                         the full meaning so screen-reader / touch users get it
                         without the UA title tooltip (which never fires on focus). */}
-                    <button
-                      tabIndex={0}
+                    <Button
                       type="button"
                       aria-label={`Sort by ${def.label} (${code})`}
                       style={sortBtn(sort.column === code, 'center')}
                       onClick={() => handleHeaderClick(code)}
                     >
                       {code}{sortIndicator(code)}
-                    </button>
+                    </Button>
                   </th>
                 )
               })}

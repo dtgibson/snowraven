@@ -23,6 +23,11 @@ META_FILE = DATA_DIR / "metadata.json"
 MAX_BYTES = 50 * 1024 * 1024
 
 
+def _max_bytes_label() -> str:
+    """Format the limit users are told from the bytes the router enforces."""
+    return f"{MAX_BYTES / (1024 * 1024):g} MB"
+
+
 def _read_meta() -> dict:
     if not META_FILE.exists():
         return {"ebird": None, "ml": None}
@@ -45,7 +50,10 @@ async def _upload(upload: UploadFile, target: Path, slot: str) -> dict:
     # Read up to MAX_BYTES + 1 to detect oversized files without loading everything
     content = await upload.read(MAX_BYTES + 1)
     if len(content) > MAX_BYTES:
-        raise HTTPException(status_code=413, detail="File exceeds the 50 MB limit.")
+        raise HTTPException(
+            status_code=413,
+            detail=f"File exceeds the {_max_bytes_label()} limit.",
+        )
 
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     # Offload the (up to 50 MB) write off the event loop so a slow disk can't

@@ -4,6 +4,7 @@
 // copy block (one source) and the existing seams (transport, location, clipboard,
 // Nominatim). See pipeline/weather-current-predict/design-spec.md.
 
+import { Button } from './ui/Button'
 import { useState, useCallback, useRef, useEffect, lazy, Suspense } from 'react'
 import { Navigation, Search, Loader2, ClipboardCopy, Check, AlertCircle } from 'lucide-react'
 import { transport } from '../lib/transport'
@@ -355,13 +356,13 @@ export function WeatherForecastPanel() {
       </p>
 
       <div className="sr-grid-2" style={{ ['--sr-grid-gap' as string]: '10px' }}>
-        <button type="button" tabIndex={0} onClick={onCurrent} style={primaryBtn} aria-label="Get current weather and tide for my location">
+        <Button type="button" onClick={onCurrent} style={primaryBtn} aria-label="Get current weather and tide for my location">
           <Navigation size={16} strokeWidth={2.2} aria-hidden="true" /> Current
-        </button>
-        <button type="button" tabIndex={0} onClick={() => void openPredict()} style={outlineBtn} aria-label="Predict weather and tide for a place and time">
+        </Button>
+        <Button type="button" onClick={() => void openPredict()} style={outlineBtn} aria-label="Predict weather and tide for a place and time">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /><path d="M12 14v3l2 1" /></svg>
           Predict
-        </button>
+        </Button>
       </div>
 
       {phase.kind === 'locating' && (
@@ -389,9 +390,9 @@ export function WeatherForecastPanel() {
               aria-label="Search for a place"
               autoComplete="off" className="sr-input-16" style={textInput}
             />
-            <button type="button" tabIndex={0} onClick={() => void onSearch()} disabled={searching} aria-label="Search for this place" style={{ ...outlineBtn, height: 40, flexShrink: 0, padding: '0 14px' }}>
+            <Button type="button" onClick={() => void onSearch()} disabled={searching} aria-label="Search for this place" style={{ ...outlineBtn, height: 40, flexShrink: 0, padding: '0 14px' }}>
               {searching ? <Loader2 size={15} className="spin" aria-hidden="true" /> : <Search size={15} strokeWidth={2.5} aria-hidden="true" />}
-            </button>
+            </Button>
           </div>
 
           <Suspense fallback={<div style={{ height: PREDICT_MAP_HEIGHT, borderRadius: 9, border: '1px solid var(--sr-border-input)', background: 'var(--sr-surface-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8125rem', color: 'var(--sr-text-muted)' }}>Loading map…</div>}>
@@ -422,10 +423,10 @@ export function WeatherForecastPanel() {
             <div role="alert" style={{ marginTop: 12, fontSize: '0.8125rem', color: 'var(--sr-error)' }}>{searchErr}</div>
           )}
 
-          <button type="button" tabIndex={0} onClick={() => void onPredictSubmit()} style={{ ...primaryBtn, width: '100%', marginTop: 14 }}>
+          <Button type="button" onClick={() => void onPredictSubmit()} style={{ ...primaryBtn, width: '100%', marginTop: 14 }}>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 3v3M5.2 5.2l2.1 2.1M3 12h3M18 12h3M16.7 7.3l2.1-2.1" /><path d="M7 18a5 5 0 0 1 10 0" /><path d="M4 22h16" /></svg>
             Get forecast
-          </button>
+          </Button>
         </div>
       )}
 
@@ -482,10 +483,10 @@ export function WeatherForecastPanel() {
                         <AlertCircle size={15} strokeWidth={2} style={{ flexShrink: 0, marginTop: 1 }} aria-hidden="true" />
                         {tideTooFarNotice(d.tide.station.name, d.tide.distanceMi ?? 0, d.tide.status)}
                       </span>
-                      <button type="button" tabIndex={0} onClick={() => overrideTide()} disabled={overriding} aria-label="Show the nearest tide station anyway" className="sr-touch-target" style={{ flexShrink: 0, height: 30, padding: '0 12px', background: 'var(--sr-accent-bg)', color: 'var(--sr-accent)', border: '1.5px solid var(--sr-accent-border)', borderRadius: 6, fontSize: '0.75rem', fontWeight: 600, fontFamily: 'inherit', cursor: overriding ? 'default' : 'pointer', whiteSpace: 'nowrap', opacity: overriding ? 0.7 : 1, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                      <Button type="button" onClick={() => overrideTide()} disabled={overriding} aria-label="Show the nearest tide station anyway" className="sr-touch-target" style={{ flexShrink: 0, height: 30, padding: '0 12px', background: 'var(--sr-accent-bg)', color: 'var(--sr-accent)', border: '1.5px solid var(--sr-accent-border)', borderRadius: 6, fontSize: '0.75rem', fontWeight: 600, fontFamily: 'inherit', cursor: overriding ? 'default' : 'pointer', whiteSpace: 'nowrap', opacity: overriding ? 0.7 : 1, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
                         {overriding && <Loader2 size={12} className="spin" aria-hidden="true" />}
                         {tideOverrideLabel(d.tide.status)}
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 )
@@ -504,10 +505,10 @@ export function WeatherForecastPanel() {
                 <summary style={{ cursor: 'pointer', padding: '10px 0', fontSize: '0.75rem', fontWeight: 600, color: 'var(--sr-accent)' }}>Copy-ready block</summary>
                 <div className="sr-action-row" style={{ margin: '12px 0 9px' }}>
                   <span className="sr-min0" style={{ fontSize: '0.6875rem', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--sr-text-muted)' }}>Weather &amp; tide output</span>
-                  <button type="button" tabIndex={0} onClick={() => void doCopy(copyTextValue)} aria-label="Copy weather and tide to clipboard" className="sr-touch-target" style={copyBtn(copied)}>
+                  <Button type="button" onClick={() => void doCopy(copyTextValue)} aria-label="Copy weather and tide to clipboard" className="sr-touch-target" style={copyBtn(copied)}>
                     {copied ? <Check size={12} strokeWidth={2.5} aria-hidden="true" /> : <ClipboardCopy size={12} strokeWidth={2.5} aria-hidden="true" />}
                     {copied ? 'Copied!' : 'Copy'}
-                  </button>
+                  </Button>
                 </div>
                 <pre className="sr-pad-x-trim" style={{ background: 'var(--sr-surface-subtle)', border: '1px solid var(--sr-border)', borderRadius: 8, padding: '18px 20px', fontFamily: MONO, fontSize: '0.84375rem', lineHeight: 1.75, color: 'inherit', whiteSpace: 'pre', overflowX: 'auto', margin: 0 }}>{copyTextValue}</pre>
               </details>

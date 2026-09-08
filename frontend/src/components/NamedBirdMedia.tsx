@@ -14,6 +14,7 @@
 // a broken frame. The date + checklist are local, so they always show. The resilient
 // frame/fallback/shimmer primitives are shared with Species Detail (see MediaEmbed).
 
+import { Button } from './ui/Button'
 import { useEffect, useRef, useState } from 'react'
 import { Play, ChevronDown } from 'lucide-react'
 import { formatDate } from '../lib/formatDate'
@@ -143,8 +144,7 @@ export function NamedBirdMedia({
 
           {remaining > 0 && (
             <div style={{ marginTop: 12 }}>
-              <button
-                tabIndex={0}
+              <Button
                 type="button"
                 className="sr-touch-target"
                 onClick={handleShowMore}
@@ -161,7 +161,7 @@ export function NamedBirdMedia({
               >
                 <ChevronDown size={13} strokeWidth={2.4} aria-hidden />
                 {showMoreLabel}
-              </button>
+              </Button>
             </div>
           )}
         </>

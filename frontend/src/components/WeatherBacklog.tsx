@@ -20,6 +20,7 @@
 //
 // See pipeline/weather-backlog/{prd,schema,design-spec,decisions}.md.
 
+import { Button } from './ui/Button'
 import { useCallback, useMemo, useState } from 'react'
 import {
   List, ChevronDown, SquarePen, Copy, Check, Loader2,
@@ -256,8 +257,7 @@ function BacklogRowView({
         )}
         <span style={{ flex: '1 1 auto', minWidth: 6 }} aria-hidden="true" />
         {/* #3 copy weather & go */}
-        <button
-          tabIndex={0}
+        <Button
           type="button"
           onClick={runAction3}
           disabled={busy}
@@ -285,7 +285,7 @@ function BacklogRowView({
           ) : (
             <><Copy {...ICON} aria-hidden="true" />Copy weather &amp; go</>
           )}
-        </button>
+        </Button>
       </div>
 
       {/* Live-region announcement for loading/success (polite). */}
@@ -307,14 +307,14 @@ function BacklogRowView({
         <RowStatus tone="warn" icon={<KeyRound {...ICON} aria-hidden="true" />}>
           <b>Weather lookup needs an API key.</b> Add your eBird &amp; OpenWeather keys in{' '}
           {onGoToSettings ? (
-            <button tabIndex={0} type="button" onClick={onGoToSettings} style={statusLinkStyle}>Settings →</button>
+            <Button type="button" onClick={onGoToSettings} style={statusLinkStyle}>Settings →</Button>
           ) : <b>Settings</b>}{' '}to use this action. Nothing was copied.
         </RowStatus>
       )}
       {state.kind === 'error-other' && (
         <RowStatus tone="error" icon={<CircleAlert {...ICON} aria-hidden="true" />}>
           <b>Weather lookup failed.</b> Something went wrong fetching this checklist's weather. Nothing was copied and the comment page wasn't opened.{' '}
-          <button tabIndex={0} type="button" onClick={runAction3} style={statusLinkStyle}>Try again</button>
+          <Button type="button" onClick={runAction3} style={statusLinkStyle}>Try again</Button>
         </RowStatus>
       )}
       {state.kind === 'error-bad-id' && (
@@ -374,14 +374,14 @@ function StateBlock({ icon, title, body, cta, accentIcon }: {
       <div style={{ fontSize: '0.9375rem', fontWeight: 600 }}>{title}</div>
       <p style={{ fontSize: '0.8125rem', color: 'var(--sr-text-muted)', margin: '6px auto 0', maxWidth: 360, lineHeight: 1.5 }}>{body}</p>
       {cta && (
-        <button tabIndex={0} type="button" onClick={cta.onClick} style={{
+        <Button type="button" onClick={cta.onClick} style={{
           display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 14, height: 36, padding: '0 15px',
           background: 'var(--sr-accent)', color: 'var(--sr-on-accent)', border: 'none', borderRadius: 8,
           fontFamily: 'inherit', fontSize: '0.8125rem', fontWeight: 600, cursor: 'pointer',
         }}>
           <Download width={14} height={14} strokeWidth={2.2} aria-hidden="true" />
           {cta.label}
-        </button>
+        </Button>
       )}
     </div>
   )
@@ -436,8 +436,7 @@ export function WeatherBacklog({ rows, lookupWeather, onCopy, isHotspot, onGoToS
   return (
     <div style={{ width: '100%' }}>
       {/* Collapsed entry point */}
-      <button
-        tabIndex={0}
+      <Button
         type="button"
         aria-expanded={expanded}
         onClick={onToggleExpand}
@@ -459,7 +458,7 @@ export function WeatherBacklog({ rows, lookupWeather, onCopy, isHotspot, onGoToS
           width={18} height={18} strokeWidth={2.2} aria-hidden="true"
           style={{ flexShrink: 0, color: 'var(--sr-text-muted)', transition: 'transform .15s', transform: expanded ? 'rotate(180deg)' : 'none' }}
         />
-      </button>
+      </Button>
 
       {expanded && !showLoadFailure && (
         <div style={panelCardStyle}>
@@ -504,8 +503,7 @@ export function WeatherBacklog({ rows, lookupWeather, onCopy, isHotspot, onGoToS
                 </p>
                 {/* Widen toggle (role=switch) */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginTop: 12, padding: '9px 11px', background: 'var(--sr-surface-faint)', border: '1px solid var(--sr-border-subtle)', borderRadius: 9 }}>
-                  <button
-                    tabIndex={0}
+                  <Button
                     type="button"
                     role="switch"
                     aria-checked={includeWidened}
@@ -522,7 +520,7 @@ export function WeatherBacklog({ rows, lookupWeather, onCopy, isHotspot, onGoToS
                       background: 'var(--sr-switch-thumb)', boxShadow: 'var(--sr-switch-thumb-shadow)', transition: 'transform .15s',
                       transform: includeWidened ? 'translateX(14px)' : 'none',
                     }} />
-                  </button>
+                  </Button>
                   <span style={{ fontSize: '0.8125rem', fontWeight: 500, color: 'var(--sr-text)', minWidth: 0 }}>
                     Also show incomplete &amp; incidental <span style={{ color: 'var(--sr-text-muted)', fontWeight: 400 }}>(widens the list)</span>
                   </span>
@@ -554,24 +552,22 @@ export function WeatherBacklog({ rows, lookupWeather, onCopy, isHotspot, onGoToS
                   {/* Pagination — only when more than the current page match. */}
                   {page.hasMore && (
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, flexWrap: 'wrap', padding: '14px 18px', borderTop: '1px solid var(--sr-border-subtle)' }}>
-                      <button
-                        tabIndex={0}
+                      <Button
                         type="button"
                         onClick={() => setShown(s => Math.min(s + PAGE_SIZE, backlog.length))}
                         className="sr-touch-target"
                         style={{ height: 36, padding: '0 15px', borderRadius: 8, fontFamily: 'inherit', fontSize: '0.8125rem', fontWeight: 600, cursor: 'pointer', border: '1px solid var(--sr-border-medium)', background: 'var(--sr-surface)', color: 'var(--sr-text)' }}
                       >
                         Show next {PAGE_SIZE}
-                      </button>
-                      <button
-                        tabIndex={0}
+                      </Button>
+                      <Button
                         type="button"
                         onClick={() => setShown(backlog.length)}
                         className="sr-touch-target"
                         style={{ height: 36, padding: '0 15px', borderRadius: 8, fontFamily: 'inherit', fontSize: '0.8125rem', fontWeight: 600, cursor: 'pointer', border: '1px solid transparent', background: 'none', color: 'var(--sr-accent)' }}
                       >
                         Show all ({backlog.length.toLocaleString()})
-                      </button>
+                      </Button>
                       <span style={{ fontSize: '0.71875rem', color: 'var(--sr-text-muted)' }}>
                         Showing 1–{page.visible.length.toLocaleString()}
                       </span>

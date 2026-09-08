@@ -1,3 +1,4 @@
+import { Button } from './ui/Button'
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
 // LocateFixed (a ring, a centre dot, four cardinal ticks) replaces Navigation on
 // BOTH controls that centre this map — the sidebar button below and the new map
@@ -244,7 +245,7 @@ function AddressSearch({ onLocate }: { onLocate: (lat: number, lng: number) => v
           onKeyDown={e => { if (e.key === 'Enter') handleSearch() }}
           style={{ flex: 1, height: 34, padding: '0 8px', border: '1.5px solid var(--sr-border)', borderRadius: 6, fontSize: '0.75rem', fontFamily: 'inherit', color: 'var(--sr-text)', background: 'var(--sr-surface)', minWidth: 0 }}
         />
-        <button tabIndex={0}
+        <Button
           onClick={handleSearch}
           disabled={loading || !query.trim()}
           title="Search"
@@ -258,7 +259,7 @@ function AddressSearch({ onLocate }: { onLocate: (lat: number, lng: number) => v
           }}
         >
           <Search size={14} strokeWidth={2} />
-        </button>
+        </Button>
       </div>
       {error && <div role="alert" style={{ fontSize: '0.6875rem', color: 'var(--sr-error)', marginTop: 4 }}>{error}</div>}
     </div>
@@ -1650,7 +1651,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
 
   const CenterPointControl = (
     <div style={{ marginBottom: 16 }}>
-      <button tabIndex={0}
+      <Button
         onClick={handleUseMyLocation}
         disabled={isLocating}
         style={{
@@ -1670,7 +1671,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
           : <LocateFixed size={13} strokeWidth={2} style={{ color: 'var(--sr-accent)', flexShrink: 0 }} />
         }
         {isLocating ? 'Locating…' : 'Use my location'}
-      </button>
+      </Button>
       {/* Visible text only — no role="alert". The on-map .sr-map-geo-error region
           is the app's single announcer for this value (FR-15): on a desktop
           centre view this block and that region are both on screen at once, and
@@ -1717,12 +1718,11 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
       <SidebarLabel>Map Overlays</SidebarLabel>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
         <span style={{ fontSize: '0.8125rem', fontWeight: 500, color: 'var(--sr-text)' }}>California atlas blocks</span>
-        <button
+        <Button
           type="button"
           role="switch"
           aria-checked={atlasEnabled}
           aria-label="Show California atlas blocks"
-          tabIndex={0}
           onClick={handleToggleAtlas}
           style={{
             width: 44, height: 24, borderRadius: 12, border: 'none', flexShrink: 0,
@@ -1734,7 +1734,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
             position: 'absolute', top: 2, left: atlasEnabled ? 22 : 2, width: 20, height: 20,
             borderRadius: '50%', background: 'var(--sr-switch-thumb)', transition: 'left 0.15s',
           }} />
-        </button>
+        </Button>
       </div>
       <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginTop: 6, lineHeight: 1.4 }}>
         {atlasLoading
@@ -1749,14 +1749,13 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
           <div style={{ marginTop: 12 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, opacity: backupReady ? 1 : 0.55 }}>
               <span style={{ fontSize: '0.8125rem', fontWeight: 500, color: 'var(--sr-text)' }}>Shade by My Highest Breeding Code</span>
-              <button
+              <Button
                 type="button"
                 role="switch"
                 aria-checked={shadeByBreeding}
                 aria-label="Shade atlas blocks by my highest breeding code"
                 title="Only one shading shows at a time: turning this on switches off county shading."
                 disabled={!backupReady}
-                tabIndex={0}
                 onClick={() => backupReady && handleShadeBreeding()}
                 style={{
                   width: 44, height: 24, borderRadius: 12, border: 'none', flexShrink: 0,
@@ -1768,7 +1767,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                   position: 'absolute', top: 2, left: shadeByBreeding ? 22 : 2, width: 20, height: 20,
                   borderRadius: '50%', background: 'var(--sr-switch-thumb)', transition: 'left 0.15s',
                 }} />
-              </button>
+              </Button>
             </div>
             <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginTop: 6, lineHeight: 1.4 }}>
               {backupReady
@@ -1781,12 +1780,11 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                 {/* Use Textures — per-tier hatch patterns; off by default (colorblind aid) */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginTop: 12 }}>
                   <span style={{ fontSize: '0.8125rem', fontWeight: 500, color: 'var(--sr-text)' }}>Use Textures</span>
-                  <button
+                  <Button
                     type="button"
                     role="switch"
                     aria-checked={useTextures}
                     aria-label="Use textures on shaded atlas blocks"
-                    tabIndex={0}
                     onClick={() => setUseTextures(v => !v)}
                     style={{
                       width: 44, height: 24, borderRadius: 12, border: 'none', flexShrink: 0,
@@ -1798,7 +1796,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                       position: 'absolute', top: 2, left: useTextures ? 22 : 2, width: 20, height: 20,
                       borderRadius: '50%', background: 'var(--sr-switch-thumb)', transition: 'left 0.15s',
                     }} />
-                  </button>
+                  </Button>
                 </div>
                 <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginTop: 6, lineHeight: 1.4 }}>
                   Adds a distinct hatch per level so blocks are distinguishable without color.
@@ -1833,12 +1831,11 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
       <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--sr-border)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
           <span style={{ fontSize: '0.8125rem', fontWeight: 500, color: 'var(--sr-text)' }}>County lines</span>
-          <button
+          <Button
             type="button"
             role="switch"
             aria-checked={countyLinesEnabled}
             aria-label="Show US county lines"
-            tabIndex={0}
             onClick={handleToggleCounty}
             style={{
               width: 44, height: 24, borderRadius: 12, border: 'none', flexShrink: 0,
@@ -1850,7 +1847,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
               position: 'absolute', top: 2, left: countyLinesEnabled ? 22 : 2, width: 20, height: 20,
               borderRadius: '50%', background: 'var(--sr-switch-thumb)', transition: 'left 0.15s',
             }} />
-          </button>
+          </Button>
         </div>
         <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginTop: 6, lineHeight: 1.4, display: 'flex', alignItems: 'center', gap: 7 }}>
           {countyLoading && <Loader2 size={13} className="spin" aria-hidden="true" />}
@@ -1865,7 +1862,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                   metrics) — disabled without a loaded backup (FR-04) */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, opacity: backupReady ? 1 : 0.55 }}>
                 <span style={{ fontSize: '0.8125rem', fontWeight: 500, color: 'var(--sr-text)' }}>Shade counties</span>
-                <button
+                <Button
                   type="button"
                   role="switch"
                   aria-checked={shadeByCounty}
@@ -1873,7 +1870,6 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                   title="Only one shading shows at a time: turning this on switches off atlas shading."
                   aria-disabled={!backupReady}
                   disabled={!backupReady}
-                  tabIndex={0}
                   onClick={() => backupReady && handleShadeCounty()}
                   style={{
                     width: 44, height: 24, borderRadius: 12, border: 'none', flexShrink: 0,
@@ -1885,7 +1881,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                     position: 'absolute', top: 2, left: shadeByCounty ? 22 : 2, width: 20, height: 20,
                     borderRadius: '50%', background: 'var(--sr-switch-thumb)', transition: 'left 0.15s',
                   }} />
-                </button>
+                </Button>
               </div>
               <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginTop: 6, lineHeight: 1.4 }}>
                 {backupReady
@@ -1930,12 +1926,11 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                   {/* Use Textures — per-tier crosshatch density; off by default (colorblind aid) */}
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginTop: 12 }}>
                     <span style={{ fontSize: '0.8125rem', fontWeight: 500, color: 'var(--sr-text)' }}>Use Textures</span>
-                    <button
+                    <Button
                       type="button"
                       role="switch"
                       aria-checked={useCountyTextures}
                       aria-label="Use textures on shaded counties"
-                      tabIndex={0}
                       onClick={() => setUseCountyTextures(v => !v)}
                       style={{
                         width: 44, height: 24, borderRadius: 12, border: 'none', flexShrink: 0,
@@ -1947,7 +1942,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                         position: 'absolute', top: 2, left: useCountyTextures ? 22 : 2, width: 20, height: 20,
                         borderRadius: '50%', background: 'var(--sr-switch-thumb)', transition: 'left 0.15s',
                       }} />
-                    </button>
+                    </Button>
                   </div>
                   <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginTop: 6, lineHeight: 1.4 }}>
                     Adds a distinct hatch density per level so counties are distinguishable without color.
@@ -2006,7 +2001,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
       <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
         {/* Collapsible filter panel */}
         <div>
-          <button tabIndex={0}
+          <Button
             onClick={() => { setFilterOpen(o => !o); setPanelSettled(false) }}
             aria-expanded={filterOpen}
             aria-controls="sr-map-filter-panel"
@@ -2020,7 +2015,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
           >
             <span style={{ fontSize: '0.6875rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--sr-text-muted)' }}>Filters</span>
             <ChevronDown size={14} style={{ color: 'var(--sr-text-muted)', transform: filterOpen ? 'none' : 'rotate(-90deg)', transition: 'transform 0.2s', flexShrink: 0 }} />
-          </button>
+          </Button>
           {/* Animated with grid-template-rows 0fr/1fr (no hard max-height cap), so
               added filters can never overflow a clamp and become unreachable. The
               collapsed content is `inert` — clipped-to-zero controls would
@@ -2227,7 +2222,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
       }} />
       {CenterPointControl}
       {RadiusControl}
-      <button tabIndex={0}
+      <Button
         onClick={() => handleFindHotspots()}
         disabled={hotspotsLoading || hasEbirdKey === false}
         style={{
@@ -2243,7 +2238,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
         {hotspotsLoading
           ? <><Loader2 size={14} className="spin" /> Finding…</>
           : 'Find Hotspots'}
-      </button>
+      </Button>
       {hotspotsError && (
         <OfflineMessage kind={hotspotsError.kind} message={hotspotsError.message} compact style={{ marginBottom: 10 }} />
       )}
@@ -2283,7 +2278,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                   const count = hotspotPins.filter(p => p.kind === row.kind).length
                   const isHidden = hiddenKinds.has(row.kind)
                   return (
-                    <button tabIndex={0}
+                    <Button
                       key={row.label}
                       aria-pressed={!isHidden}
                       onClick={() => setHiddenKinds(prev => {
@@ -2302,7 +2297,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                         <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--sr-text)' }}>{row.label}</span>
                         <span style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)', marginLeft: 6 }}>{count}</span>
                       </div>
-                    </button>
+                    </Button>
                   )
                 })}
             </>
@@ -2349,7 +2344,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                       const count = hotspotPins.filter(p => p.kind === row.kind).length
                       const isHidden = hiddenKinds.has(row.kind)
                       return (
-                        <button tabIndex={0}
+                        <Button
                           key={row.label}
                           type="button"
                           className="sr-hotspot-kind-chip sr-touch-target"
@@ -2363,7 +2358,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                           <span aria-hidden="true">{row.glyph}</span>
                           {row.label}
                           <span style={{ color: 'var(--sr-text-muted)', fontWeight: 400 }}>{count}</span>
-                        </button>
+                        </Button>
                       )
                     })}
                 </div>
@@ -2390,9 +2385,8 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
               <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: '50%', background: 'var(--sr-map-unvisited)', flexShrink: 0 }} aria-hidden="true" />
               {/* Row opens the on-map popup + pans (keyboard path to the teardrop);
                   the trailing ↗ still links out to eBird. */}
-              <button
+              <Button
                 type="button"
-                tabIndex={0}
                 onClick={() => openHotspotFromList(pin)}
                 aria-pressed={selectedHotspotLocId === pin.locId}
                 className="sr-nearest-unvisited-name"
@@ -2405,7 +2399,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                 title="Show on map"
               >
                 <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pin.locName}</span>
-              </button>
+              </Button>
               {/* The trailing ↗ links to the eBird hotspot page. This list is, by
                   type, only unvisited hotspots — all public — so isHotspot is true;
                   the shared HotspotLink still shape-validates the id (no styled 404). */}
@@ -2499,7 +2493,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
             <div style={{ padding: '10px 12px', background: 'var(--sr-surface-subtle)', borderRadius: 8, border: '1px solid var(--sr-border)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 3 }}>
                 <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--sr-map-target)', flexShrink: 0 }} />
-                <button tabIndex={0}
+                <Button
                   onClick={onNavigateToMediaList}
                   style={{
                     fontSize: '0.875rem', fontWeight: 700, color: 'var(--sr-accent)',
@@ -2509,7 +2503,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                   }}
                 >
                   {targetSpecies.length} target species
-                </button>
+                </Button>
               </div>
               <div style={{ fontSize: '0.71875rem', color: 'var(--sr-text-muted)', marginLeft: 15 }}>from ML export · missing ≥1 media type</div>
             </div>
@@ -2551,7 +2545,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
         </div>
       )}
 
-      <button tabIndex={0}
+      <Button
         onClick={() => handleFindSightings()}
         disabled={targetsFetchDisabled}
         style={{
@@ -2568,7 +2562,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
         {targetsLoading
           ? <><Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> Finding…</>
           : 'Find Recent Sightings'}
-      </button>
+      </Button>
       {targetsError && (
         <OfflineMessage kind={targetsError.kind} message={targetsError.message} compact />
       )}
@@ -2583,7 +2577,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
               <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)' }}>{displayedTargetPins.length} species</span>
             </div>
             <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-              <button tabIndex={0}
+              <Button
                 onClick={() => setTargetTypeFilter(new Set())}
                 style={{
                   display: 'inline-flex', alignItems: 'center', padding: '3px 9px',
@@ -2595,11 +2589,11 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                 }}
               >
                 All
-              </button>
+              </Button>
               {(['Photo', 'Audio', 'Video'] as const).map(type => {
                 const isActive = targetTypeFilter.has(type)
                 return (
-                  <button tabIndex={0}
+                  <Button
                     key={type}
                     onClick={() => setTargetTypeFilter(prev => {
                       const next = new Set(prev)
@@ -2617,7 +2611,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                   >
                     <span style={{ display: 'inline-flex' }} dangerouslySetInnerHTML={{ __html: MEDIA_ICONS[type] }} />
                     {type}
-                  </button>
+                  </Button>
                 )
               })}
             </div>
@@ -2642,11 +2636,11 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
           {atlasOverlayControls}
           {displayedTargetPins.length > 0 && (
             <div>
-              <button type="button" tabIndex={0} onClick={() => toggleInview('targets')} aria-expanded={!inviewCollapsed['targets']} aria-controls="sr-inview-targets"
+              <Button type="button" onClick={() => toggleInview('targets')} aria-expanded={!inviewCollapsed['targets']} aria-controls="sr-inview-targets"
                 style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, width: '100%', padding: 0, marginBottom: inviewCollapsed['targets'] ? 0 : 6, background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }}>
                 <span style={{ fontSize: '0.6875rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--sr-text-muted)' }}>Targets in View ({targetsInView.total.toLocaleString()})</span>
                 <ChevronDown size={14} style={{ color: 'var(--sr-text-muted)', transform: inviewCollapsed['targets'] ? 'rotate(-90deg)' : 'none', transition: 'transform 0.2s', flexShrink: 0 }} />
-              </button>
+              </Button>
               <div id="sr-inview-targets" style={{ display: 'grid', gridTemplateRows: inviewCollapsed['targets'] ? '0fr' : '1fr', transition: 'grid-template-rows 0.2s ease' }}>
                 <div inert={!!inviewCollapsed['targets']} style={{ overflow: 'hidden', minHeight: 0 }}>
               <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginBottom: 8, lineHeight: 1.4 }}>
@@ -2693,8 +2687,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                               <div style={{ fontSize: '0.625rem', color: 'var(--sr-text-muted)', fontVariantNumeric: 'tabular-nums' }}>{dist.toFixed(1)} mi</div>
                             )}
                           </div>
-                          <button
-                            tabIndex={0}
+                          <Button
                             onClick={() => {
                               if (isSelected) { setSelectedTargetLocId(null); return }
                               setSelectedTargetLocId(pin.locId)
@@ -2711,7 +2704,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                             }}
                           >
                             <Crosshair size={13} strokeWidth={2.2} />
-                          </button>
+                          </Button>
                         </div>
                       </li>
                     )
@@ -2746,7 +2739,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
       }} />
       {CenterPointControl}
       {RadiusControl}
-      <button tabIndex={0}
+      <Button
         onClick={() => handleFindLifers()}
         disabled={lifersLoading || hasEbirdKey === false || phase.tag !== 'ready'}
         style={{
@@ -2762,7 +2755,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
         {lifersLoading
           ? <><Loader2 size={14} className="spin" /> Finding…</>
           : 'Find Nearby Lifers'}
-      </button>
+      </Button>
       {phase.tag !== 'ready' && (
         <div style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)', lineHeight: 1.5, marginBottom: 10 }}>
           Load your eBird backup in Settings to identify which nearby species are lifers for you.
@@ -2945,7 +2938,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                   : <Camera size={14} strokeWidth={2.5} />
 
           return (
-            <button tabIndex={0}
+            <Button
               key={mode}
               aria-pressed={viewMode === mode}
               onClick={() => {
@@ -2988,7 +2981,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
             >
               {icon}
               {label}
-            </button>
+            </Button>
           )
         })}
       </div>
@@ -3025,7 +3018,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
           {/* Mobile-only header with close button */}
           <div className="sr-map-sidebar-close">
             <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--sr-text)' }}>Map Filters</span>
-            <button tabIndex={0}
+            <Button
               onClick={closeSidebar}
               aria-label="Close filters"
               className="sr-map-icon-btn-touch"
@@ -3036,7 +3029,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
               }}
             >
               <X size={14} />
-            </button>
+            </Button>
           </div>
           {viewMode === 'sightings' && sightingsSidebar}
           {viewMode === 'hotspots' && hotspotsSidebar}
@@ -3159,9 +3152,8 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                   since a failed search's retry IS this control. */}
               {(showSearchArea || showRetained) && centerViewMode && (
                 <div ref={searchAreaRowRef} className="sr-map-search-area-row">
-                  <button
+                  <Button
                     type="button"
-                    tabIndex={0}
                     className="sr-map-search-area-btn sr-touch-target"
                     /* aria-disabled, NEVER the `disabled` attribute: disabling a
                        focused button drops focus to <body>, which is the exact
@@ -3198,7 +3190,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                   >
                     <Search size={14} strokeWidth={2.2} aria-hidden="true" />
                     {SEARCH_AREA_TEXT}
-                  </button>
+                  </Button>
                 </div>
               )}
               {/* Pin Share's drop button portals in here, so it is the FIRST item
@@ -3227,16 +3219,11 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                   own recorded reasoning, applied again). DOM order is visual
                   order is tab order, with no CSS `order` anywhere. */}
               {isCenterView && (
-                <button
+                <Button
                   type="button"
                   ref={centerShareFabRef}
-                  /* Explicit tabIndex, and NOT redundant: WebKit's default tab
-                     mode skips a plain <button> entirely (measurement in
-                     lib/useFocusTrap.ts's header), so without it this disc is
-                     unreachable by keyboard on the shipped Mac and iOS apps.
-                     Same remedy as "Search this area" above and the fullscreen
-                     toggle and Filters pill below. */
-                  tabIndex={0}
+                  /* Button's inherited tab stop keeps this disc reachable in
+                     WebKit's default mode on the shipped Mac and iOS apps. */
                   className="sr-map-fab sr-map-fab--std sr-map-center-share-btn"
                   /* aria-EXPANDED, not aria-pressed: the share button's pressed
                      state means "this map is holding a pin", a property of the
@@ -3278,7 +3265,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                   {/* The teardrop CenterPin draws: the button is a picture of
                       the pin whose popup it opens. */}
                   <MapPin size={17} strokeWidth={2.2} aria-hidden />
-                </button>
+                </Button>
               )}
               {/* Location FAB — a direct child in DOM position after the share
                   slot, NOT a second display:contents slot: nothing here has to
@@ -3295,12 +3282,9 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                   not "is there data" — on the three centre views the map and the
                   button both render with isSetupRequired true (FR-02). */}
               {mapMounted && (
-                <button
+                <Button
                   type="button"
-                  /* Explicit tabIndex, for the same WebKit reason as the disc
-                     above: a plain <button> is not a tab stop in WebKit's
-                     default tab mode. */
-                  tabIndex={0}
+                  /* The same inherited WebKit-safe tab stop as the disc above. */
                   className="sr-map-fab sr-map-fab--std sr-map-locate-btn"
                   /* aria-disabled, NOT disabled: disabling a focused button drops
                      focus to <body> in most browsers, which would break FR-06 for
@@ -3315,10 +3299,10 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                   {isLocating
                     ? <Loader2 size={17} strokeWidth={2.2} className="spin" aria-hidden />
                     : <LocateFixed size={17} strokeWidth={2.2} aria-hidden />}
-                </button>
+                </Button>
               )}
               {onToggleFullscreen && (
-                <button tabIndex={0}
+                <Button
                   className="sr-map-fab sr-map-fab--std sr-map-fullscreen-btn"
                   onClick={onToggleFullscreen}
                   aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
@@ -3331,14 +3315,14 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                   {isFullscreen
                     ? <Minimize2 size={17} strokeWidth={2.2} />
                     : <Maximize2 size={17} strokeWidth={2.2} />}
-                </button>
+                </Button>
               )}
               {/* .sr-touch-target raises the pill's fixed 36px box toward the
                   ~44px posture in the ≤640 tier only, so it reads as part of the
                   row now that all three discs are 2.75rem there. min-height beats
                   the class's own `height: 36px` in the used-value computation, so
                   the box grows instead of clipping; desktop is untouched. */}
-              <button tabIndex={0}
+              <Button
                 ref={filtersButtonRef}
                 className="sr-map-filters-btn sr-touch-target"
                 /* Reset site 3 of 3: opening Filters unmounts the "Search this
@@ -3348,7 +3332,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
               >
                 <Filter size={14} strokeWidth={2.5} />
                 Filters
-              </button>
+              </Button>
               </>
             )}
           </div>

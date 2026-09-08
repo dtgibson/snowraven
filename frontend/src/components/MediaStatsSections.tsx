@@ -5,6 +5,7 @@
 // `renderName` closure the parent supplies (so BirdName gets the right taxon code
 // + hasEntry without threading those helpers through props).
 
+import { Button } from './ui/Button'
 import { useMemo, useState } from 'react'
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import { StatCell, BarRow, SubLabel, Divider } from './statsPrimitives'
@@ -246,7 +247,7 @@ export function MediaStatsSections({ stats, renderName, taxonOrderFor, userId, e
             {youngSpecies.length > 0 && (
               <div role="group" aria-label="Sort age coverage" style={{ marginLeft: 'auto', display: 'inline-flex', border: '1.5px solid var(--sr-accent-border)', borderRadius: 6, overflow: 'hidden' }}>
                 {([['name', 'A–Z'], ['taxonomic', 'Taxonomic']] as const).map(([key, label], i) => (
-                  <button tabIndex={0}
+                  <Button
                     key={key}
                     aria-pressed={ageSort === key}
                     onClick={() => setAgeSort(key)}
@@ -260,7 +261,7 @@ export function MediaStatsSections({ stats, renderName, taxonOrderFor, userId, e
                     }}
                   >
                     {label}
-                  </button>
+                  </Button>
                 ))}
               </div>
             )}
@@ -288,7 +289,7 @@ export function MediaStatsSections({ stats, renderName, taxonOrderFor, userId, e
                 ))}
               </div>
               {sortedYoung.length > 10 && (
-                <button tabIndex={0}
+                <Button
                   onClick={() => setShowAllAges(v => !v)}
                   // vertical padding enlarges the tap target toward ~40px on its
                   // own line without shifting anything (a dense text button, so
@@ -296,7 +297,7 @@ export function MediaStatsSections({ stats, renderName, taxonOrderFor, userId, e
                   style={{ marginTop: 8, background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600, color: 'var(--sr-accent)', fontFamily: 'inherit', padding: '8px 0' }}
                 >
                   {showAllAges ? 'Show fewer' : `Show all ${fmt(sortedYoung.length)}`}
-                </button>
+                </Button>
               )}
             </>
           )}
