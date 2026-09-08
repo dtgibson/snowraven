@@ -1,5 +1,6 @@
-// feature: webkit-tab-order-app-wide — every control SnowRaven itself renders
-// asks for its place in the tab order EXPLICITLY, app-wide.
+// feature: shared-button-link-primitives — every app-owned button and href link
+// renders through the native Button/Link seams, which supply tabIndex={0} by
+// default. Four deliberately non-default call sites stay explicit and counted.
 //
 // WHY THIS FILE EXISTS. WebKit's default tab mode (Safari with macOS "Keyboard
 // navigation" off, which is the default and what WKWebView follows, so it is
@@ -11,11 +12,11 @@
 // reachable by keyboard at all, wherever in the app it sits.
 //
 // THE PROPERTY ASSERTED, and why it is a property rather than a count: every
-// intrinsic <button> and every <a href> in the app's own sources carries a
-// literal tabIndex={0}, apart from the EXCLUSIONS roster below. ACCESSIBILITY.md
-// publishes exactly that sentence. A count ("45 of 45") would depend on a scan
-// method, and three defensible methods disagreed during the v1.0.16 build; a
-// property cannot be wrong.
+// app-owned control call site uses the canonical primitive, every ordinary call
+// inherits its tab stop, and every override is in the EXCLUSIONS roster below.
+// Raw <button> and <a href> elements are permitted only in the primitive files.
+// A count ("248 of 248") would go stale with the next control; the property does
+// not. ACCESSIBILITY.md publishes the same ownership model in prose.
 //
 // WHY AN AST WALK, NOT A REGEX. Nearly every one of these JSX openings spans
 // several lines and contains `>` inside expression braces (style={{...}},
@@ -28,17 +29,18 @@
 // during v1.0.16. This satisfies .claude/rules/testing.md's comment-stripping
 // requirement structurally rather than by filter.
 //
-// WHY THIS GUARD AND components/mapCornerTabStops.test.tsx BOTH EXIST — neither
-// subsumes the other, and deleting either loses real coverage:
+// WHY THIS GUARD, the primitive render tests, and
+// components/mapCornerTabStops.test.tsx ALL EXIST — none subsumes another:
 //   * THIS file reads SOURCE. It sees every shipped .tsx file in the tree,
-//     including the ones no test has ever mounted, so a brand-new component's
-//     unmarked button fails here without anyone remembering to write a row for
-//     it. What it CANNOT see is a tabIndex a component strips at RENDER time
-//     behind its own conditional — in source that still reads tabIndex={0}.
+//     including ones no test mounts, so a raw-control bypass or unrostered
+//     override fails without anyone remembering to add a component test. It
+//     also pins the primitives' source defaults. It cannot prove ref/prop
+//     forwarding or the rendered native attributes.
+//   * components/ui/ButtonLink.test.tsx renders the two seams and proves their
+//     defaults, overrides, refs, native props, class/style, and native semantics.
 //   * THAT file reads the RENDERED DOM of the map corner controls, so it catches
-//     exactly the render-time case this one is blind to. What it cannot see is a
-//     file nobody mounted, which is most of the app.
-// Source coverage is broad and shallow; render coverage is narrow and deep.
+//     a regression in the composed map surfaces. What it cannot see is a file
+//     nobody mounted, which is most of the app.
 //
 // WHAT NEITHER CAN PROVE, and neither is evidence for: that WebKit's real tab
 // order reaches these controls. jsdom has no tab order at all
@@ -51,6 +53,7 @@
 import { describe, expect, it } from 'vitest'
 import { readdirSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
+import { dirname, join, normalize } from 'node:path/posix'
 import ts from 'typescript'
 
 const SRC = fileURLToPath(new URL('../', import.meta.url)) // frontend/src/
@@ -72,16 +75,48 @@ const shippedComponents = (): string[] => {
   return found.sort()
 }
 
-type Site = { file: string; line: number; tag: string; tabIndex: string | null }
+type ControlKind = 'button' | 'link'
+type Site = {
+  file: string
+  line: number
+  tag: string
+  kind: ControlKind
+  tabIndex: string | null
+  source: 'primitive' | 'raw'
+}
+
+const PRIMITIVES = {
+  button: { file: 'components/ui/Button.tsx', exportName: 'Button', nativeTag: 'button' },
+  link: { file: 'components/ui/Link.tsx', exportName: 'Link', nativeTag: 'a' },
+} as const satisfies Record<ControlKind, { file: string; exportName: string; nativeTag: string }>
+
+const resolvedImport = (relPath: string, specifier: string): string | null => {
+  if (!specifier.startsWith('.')) return null
+  const path = normalize(join(dirname(relPath), specifier))
+  return path.endsWith('.tsx') ? path : `${path}.tsx`
+}
+
+/** Canonical primitive imports, local aliases included. */
+const primitiveBindings = (sf: ts.SourceFile, relPath: string): Map<string, ControlKind> => {
+  const found = new Map<string, ControlKind>()
+  for (const statement of sf.statements) {
+    if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier)) continue
+    const importedFile = resolvedImport(relPath, statement.moduleSpecifier.text)
+    const bindings = statement.importClause?.namedBindings
+    if (!bindings || !ts.isNamedImports(bindings)) continue
+    for (const binding of bindings.elements) {
+      const importedName = (binding.propertyName ?? binding.name).text
+      const kind = (Object.keys(PRIMITIVES) as ControlKind[])
+        .find(candidate => PRIMITIVES[candidate].file === importedFile && PRIMITIVES[candidate].exportName === importedName)
+      if (kind) found.set(binding.name.text, kind)
+    }
+  }
+  return found
+}
 
 /**
- * Every intrinsic <button> and every <a href> in one file, with the SOURCE TEXT
- * of its own tabIndex initializer (null when the attribute is absent).
- *
- * Intrinsic only: a lowercase tag name is a real DOM element. <OutboundLink> and
- * friends are components, and the <a> they own is reached when this walk visits
- * OutboundLink.tsx itself — counting the call sites too would make one component's
- * single edit look like 39 obligations.
+ * Every canonical primitive call and every raw intrinsic control in one file,
+ * with the SOURCE TEXT of its own tabIndex initializer (null when absent).
  *
  * A tabIndex arriving through {...spread} does not count as explicit here. That
  * is deliberate and it is the stricter reading: the spread's contents are not
@@ -91,11 +126,13 @@ type Site = { file: string; line: number; tag: string; tabIndex: string | null }
 const sitesIn = (relPath: string): Site[] => {
   const text = readFileSync(`${SRC}${relPath}`, 'utf8')
   const sf = ts.createSourceFile(relPath, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
+  const bindings = primitiveBindings(sf, relPath)
   const out: Site[] = []
   const visit = (node: ts.Node): void => {
     if (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) {
       const tag = node.tagName.getText(sf)
-      if (tag === 'button' || tag === 'a') {
+      const boundKind = bindings.get(tag)
+      if (tag === 'button' || tag === 'a' || boundKind) {
         let hasHref = false
         let tabIndex: string | null = null
         for (const attr of node.attributes.properties) {
@@ -104,12 +141,20 @@ const sitesIn = (relPath: string): Site[] => {
           if (name === 'href') hasHref = true
           if (name === 'tabIndex') tabIndex = attr.initializer ? attr.initializer.getText(sf) : '(bare)'
         }
-        if (tag === 'button' || hasHref) {
+        const rawKind: ControlKind | null = tag === 'button'
+          ? 'button'
+          : tag === 'a' && (hasHref || relPath === PRIMITIVES.link.file)
+            ? 'link'
+            : null
+        const kind = boundKind ?? rawKind
+        if (kind) {
           out.push({
             file: relPath,
             line: sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1,
             tag,
+            kind,
             tabIndex,
+            source: boundKind ? 'primitive' : 'raw',
           })
         }
       }
@@ -120,10 +165,27 @@ const sitesIn = (relPath: string): Site[] => {
   return out
 }
 
-const allSites = (): Site[] => shippedComponents().flatMap(sitesIn)
+const scannedSites = (): Site[] => shippedComponents().flatMap(sitesIn)
+const allSites = (): Site[] => scannedSites().filter(site => site.source === 'primitive')
+const rawSites = (): Site[] => scannedSites().filter(site => site.source === 'raw')
+
+/** The source default owned by one primitive's `tabIndex = 0` binding. */
+const tabIndexDefaultsIn = (relPath: string): string[] => {
+  const text = readFileSync(`${SRC}${relPath}`, 'utf8')
+  const sf = ts.createSourceFile(relPath, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
+  const found: string[] = []
+  const visit = (node: ts.Node): void => {
+    if (ts.isBindingElement(node) && node.name.getText(sf) === 'tabIndex' && node.initializer) {
+      found.push(node.initializer.getText(sf))
+    }
+    ts.forEachChild(node, visit)
+  }
+  visit(sf)
+  return found
+}
 
 /**
- * The ONLY controls permitted to carry something other than tabIndex={0}.
+ * The ONLY primitive call sites permitted to override the inherited tabIndex=0.
  *
  * Blanket-marking these breaks arrow-key navigation, or re-adds a control the
  * platform deliberately removed, so this roster is the regression risk in this
@@ -172,7 +234,7 @@ const EXCLUSIONS: ReadonlyArray<{ file: string; tabIndex: string; count: number;
     file: 'components/TabNav.tsx',
     tabIndex: '{active ? 0 : -1}',
     count: 1,
-    why: 'roving group: role="tab" in the main navigation\'s VERTICAL tablist (aria-orientation="vertical"), so the tablist holds one stop and ArrowUp/ArrowDown move between destinations. The nav\'s other controls — the collapse toggle, the five bottom-bar cells, every More-sheet row — are plain tabIndex={0} buttons and are deliberately NOT here',
+    why: 'roving group: role="tab" in the main navigation\'s VERTICAL tablist (aria-orientation="vertical"), so the tablist holds one stop and ArrowUp/ArrowDown move between destinations. The nav\'s other controls — the collapse toggle, the five bottom-bar cells, every More-sheet row — are ordinary Button calls inheriting tabIndex=0 and are deliberately NOT here',
   },
   {
     file: 'components/Settings.tsx',
@@ -206,20 +268,30 @@ describe('every control the app renders itself is an explicit tab stop', () => {
     const files = shippedComponents()
     expect(files.length).toBeGreaterThan(60)
     const sites = allSites()
-    expect(sites.filter(s => s.tag === 'button').length).toBeGreaterThan(150)
-    expect(sites.filter(s => s.tag === 'a').length).toBeGreaterThan(10)
+    expect(sites.filter(s => s.kind === 'button').length).toBeGreaterThan(150)
+    expect(sites.filter(s => s.kind === 'link').length).toBeGreaterThan(10)
   })
 
-  it('no intrinsic <button> or <a href> lacks a literal tabIndex={0}, apart from the roster', () => {
-    const offenders = allSites()
-      .filter(s => s.tabIndex !== '{0}')
-      .filter(s => !isExcluded(s))
-      .map(s => `${s.file}:${s.line}  <${s.tag}>  tabIndex=${s.tabIndex ?? '(absent)'}`)
+  it('raw intrinsic controls exist only as the one native element inside each primitive', () => {
+    expect(rawSites().map(s => `${s.file}:${s.kind}:${s.tabIndex}`)).toEqual([
+      'components/ui/Button.tsx:button:{tabIndex}',
+      'components/ui/Link.tsx:link:{tabIndex}',
+    ])
+  })
 
-    // Named in the failure so a new unmarked control reads as an instruction
-    // rather than as a number that moved: add tabIndex={0}, or, if it is a
-    // control a neighbouring tab stop already reaches, add a row to EXCLUSIONS
-    // (with its site count) and describe it in ACCESSIBILITY.md.
+  it('both primitives own a literal tabIndex = 0 source default', () => {
+    expect(tabIndexDefaultsIn(PRIMITIVES.button.file)).toEqual(['0'])
+    expect(tabIndexDefaultsIn(PRIMITIVES.link.file)).toEqual(['0'])
+  })
+
+  it('ordinary primitive calls inherit the default; only rostered sites override it', () => {
+    const offenders = allSites()
+      .filter(s => s.tabIndex !== null)
+      .filter(s => !isExcluded(s))
+      .map(s => `${s.file}:${s.line}  <${s.tag}>  tabIndex=${s.tabIndex}`)
+
+    // A default-valued override is still an offender: ordinary sites inherit
+    // through the primitive, so ownership cannot drift back to call sites.
     expect(offenders).toEqual([])
   })
 
@@ -239,24 +311,24 @@ describe('every control the app renders itself is an explicit tab stop', () => {
     }
   })
 
-  it('the roster accounts for every non-{0} site exactly once, so prose and code cannot drift', () => {
+  it('the roster accounts for every explicit override exactly once, so prose and code cannot drift', () => {
     // ACCESSIBILITY.md names these exceptions individually. If a FIFTH appears,
     // or a rostered one gains a sibling, that prose has become false and this
     // fails. (It was five rows and a sixth would have broken it, until the nav
     // rework retired the collapsed dropdown's listbox.) Compared as a COUNTED multiset rather than a de-duplicated set: a
     // set collapses two sites sharing a file and an initializer into one entry,
     // which is the exact hole the row counts above exist to close.
-    const nonZero = allSites().filter(s => s.tabIndex !== '{0}')
-    expect(nonZero.every(isExcluded)).toBe(true)
+    const overrides = allSites().filter(s => s.tabIndex !== null)
+    expect(overrides.every(isExcluded)).toBe(true)
 
     const found = new Map<string, number>()
-    for (const s of nonZero) {
+    for (const s of overrides) {
       const k = countKey(s.file, s.tabIndex)
       found.set(k, (found.get(k) ?? 0) + 1)
     }
     const expected = new Map(EXCLUSIONS.map(e => [countKey(e.file, e.tabIndex), e.count]))
     expect(Object.fromEntries([...found].sort())).toEqual(Object.fromEntries([...expected].sort()))
-    expect(nonZero.length).toBe(EXCLUSIONS.reduce((n, e) => n + e.count, 0))
+    expect(overrides.length).toBe(EXCLUSIONS.reduce((n, e) => n + e.count, 0))
   })
 })
 
@@ -265,22 +337,25 @@ describe('the scan itself behaves as claimed (mutation checks)', () => {
   // failure points at the ANALYSER, not at a component. A guard whose scanner is
   // broken passes everything, which is the failure mode worth buying against.
   const analyse = (src: string): Site[] => {
-    const sf = ts.createSourceFile('probe.tsx', src, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
+    const relPath = 'components/Probe.tsx'
+    const sf = ts.createSourceFile(relPath, src, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
+    const bindings = primitiveBindings(sf, relPath)
     const out: Site[] = []
     const visit = (node: ts.Node): void => {
       if (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) {
         const tag = node.tagName.getText(sf)
-        if (tag === 'button' || tag === 'a') {
-          let hasHref = false
-          let tabIndex: string | null = null
-          for (const attr of node.attributes.properties) {
-            if (ts.isJsxSpreadAttribute(attr)) continue
-            const name = attr.name.getText(sf)
-            if (name === 'href') hasHref = true
-            if (name === 'tabIndex') tabIndex = attr.initializer ? attr.initializer.getText(sf) : '(bare)'
-          }
-          if (tag === 'button' || hasHref) out.push({ file: 'probe.tsx', line: 0, tag, tabIndex })
+        const boundKind = bindings.get(tag)
+        let hasHref = false
+        let tabIndex: string | null = null
+        for (const attr of node.attributes.properties) {
+          if (ts.isJsxSpreadAttribute(attr)) continue
+          const name = attr.name.getText(sf)
+          if (name === 'href') hasHref = true
+          if (name === 'tabIndex') tabIndex = attr.initializer ? attr.initializer.getText(sf) : '(bare)'
         }
+        const rawKind: ControlKind | null = tag === 'button' ? 'button' : tag === 'a' && hasHref ? 'link' : null
+        const kind = boundKind ?? rawKind
+        if (kind) out.push({ file: relPath, line: 0, tag, kind, tabIndex, source: boundKind ? 'primitive' : 'raw' })
       }
       ts.forEachChild(node, visit)
     }
@@ -288,20 +363,21 @@ describe('the scan itself behaves as claimed (mutation checks)', () => {
     return out
   }
 
-  it('catches an unmarked <button> — the defect this feature fixed', () => {
+  it('catches a raw <button> bypass', () => {
     const found = analyse('const A = () => <div><button type="button">Go</button></div>')
     expect(found).toHaveLength(1)
-    expect(found[0].tabIndex).toBeNull()
+    expect(found[0].source).toBe('raw')
   })
 
-  it('catches an unmarked <a href> — the other half of the defect', () => {
+  it('catches a raw <a href> bypass', () => {
     const found = analyse('const A = () => <a href="https://x.test">x</a>')
     expect(found).toHaveLength(1)
-    expect(found[0].tabIndex).toBeNull()
+    expect(found[0].source).toBe('raw')
   })
 
-  it('accepts a marked control', () => {
-    expect(analyse('const A = () => <button tabIndex={0}>Go</button>')[0].tabIndex).toBe('{0}')
+  it('recognises a canonical primitive call with an inherited default', () => {
+    const found = analyse('import { Button } from "./ui/Button"; const A = () => <Button>Go</Button>')
+    expect(found[0]).toMatchObject({ source: 'primitive', kind: 'button', tabIndex: null })
   })
 
   it('sees a tabIndex through a multi-line opening containing `>` inside braces — the case a regex cannot do', () => {
@@ -326,13 +402,13 @@ describe('the scan itself behaves as claimed (mutation checks)', () => {
     expect(analyse('const A = () => <a id="top">x</a>')).toEqual([])
   })
 
-  it('ignores COMPONENTS whose name merely looks like a tag', () => {
-    // <OutboundLink> owns its own <a>; that <a> is checked in OutboundLink.tsx.
-    expect(analyse('const A = () => <OutboundLink href="https://x.test">x</OutboundLink>')).toEqual([])
+  it('recognises aliases only when they come from the canonical primitive module', () => {
+    const found = analyse('import { Link as NativeLink } from "./ui/Link"; const A = () => <NativeLink href="https://x.test">x</NativeLink>')
+    expect(found[0]).toMatchObject({ source: 'primitive', kind: 'link', tabIndex: null })
   })
 
   it('does not accept a tabIndex arriving only through a spread', () => {
-    const found = analyse('const A = (rest) => <button {...rest}>Go</button>')
+    const found = analyse('import { Button } from "./ui/Button"; const A = (rest) => <Button {...rest}>Go</Button>')
     expect(found[0].tabIndex).toBeNull()
   })
 

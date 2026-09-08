@@ -11,6 +11,7 @@
 // out of the explicit resize a container-size change needs. MapCornerControls
 // owns that call for the embedded maps' fullscreen toggle.
 
+import { Button } from './ui/Button'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { useEffect, useId, useMemo, useState, type ReactNode } from 'react'
 import MapGL, { NavigationControl, AttributionControl, Source, Layer } from 'react-map-gl/maplibre'
@@ -167,9 +168,8 @@ export function SnowMap({ initialViewState, style, children, onLoad, switcher, s
         {loadError ? (
           <>
             <span>{"Map couldn't load. Check your connection."}</span>
-            <button
+            <Button
               type="button"
-              tabIndex={0}
               onClick={retryStyle}
               style={{
                 font: 'inherit', fontWeight: 500, padding: '6px 16px', cursor: 'pointer',
@@ -178,7 +178,7 @@ export function SnowMap({ initialViewState, style, children, onLoad, switcher, s
               }}
             >
               Retry
-            </button>
+            </Button>
           </>
         ) : (
           'Loading map…'
@@ -227,7 +227,7 @@ export function SnowMap({ initialViewState, style, children, onLoad, switcher, s
               // no durable tile cache, so they're disabled offline (FR-07).
               const rasterOffline = offline && k !== 'positron'
               return (
-                <button
+                <Button
                   key={k}
                   type="button"
                   tabIndex={rasterOffline ? -1 : 0}
@@ -245,7 +245,7 @@ export function SnowMap({ initialViewState, style, children, onLoad, switcher, s
                   style={rasterOffline ? { opacity: 0.5, cursor: 'not-allowed', color: 'var(--sr-text-disabled)' } : undefined}
                 >
                   {BASE_LABEL[k]}
-                </button>
+                </Button>
               )
             })}
           </div>

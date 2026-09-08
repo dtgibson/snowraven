@@ -1,3 +1,4 @@
+import { Button } from './ui/Button'
 import { useEffect, useId, useMemo, useState } from 'react'
 import { Loader2, MapPin, Calendar, Pin } from 'lucide-react'
 import { SetupRequired } from './SetupRequired'
@@ -312,7 +313,7 @@ export function BreedingCodeList({ onGoToSettings, filesVersion, onOpenSpecies }
             full breeding-code labels whose min-content can exceed a phone panel at
             200% text scale. The right-hand count + Table view cluster is outside it. */}
         <div className="sr-ctl-row sr-bc-filter-row" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-          <button tabIndex={0}
+          <Button
             aria-pressed={filter.size === 0 && categoryFilter.size === 0}
             style={{
               display: 'inline-flex', alignItems: 'center',
@@ -326,13 +327,13 @@ export function BreedingCodeList({ onGoToSettings, filesVersion, onOpenSpecies }
             onClick={() => { setFilter(new Set()); setCategoryFilter(new Set()) }}
           >
             All
-          </button>
+          </Button>
           {CATEGORY_META
             .filter(({ key }) => [...CATEGORY_CODES[key]].some(code => codesPresent.includes(code)))
             .map(({ key, label }) => {
               const active = categoryFilter.has(key)
               return (
-                <button tabIndex={0}
+                <Button
                   key={key}
                   aria-pressed={active}
                   style={categoryPillStyle(key, active)}
@@ -346,7 +347,7 @@ export function BreedingCodeList({ onGoToSettings, filesVersion, onOpenSpecies }
                   }}
                 >
                   {label}
-                </button>
+                </Button>
               )
             })
           }
@@ -354,7 +355,7 @@ export function BreedingCodeList({ onGoToSettings, filesVersion, onOpenSpecies }
             const def = BREEDING_CODE_MAP.get(code)!
             const active = filter.has(code)
             return (
-              <button tabIndex={0}
+              <Button
                 key={code}
                 className="sr-bc-filter-pill"
                 aria-pressed={active}
@@ -379,7 +380,7 @@ export function BreedingCodeList({ onGoToSettings, filesVersion, onOpenSpecies }
                 }} />
                 <span style={{ fontWeight: 700 }}>{code}</span>
                 <span className="sr-bc-filter-pill-label" style={{ fontWeight: 400, color: 'inherit' }}>{def.label}</span>
-              </button>
+              </Button>
             )
           })}
 
@@ -387,7 +388,7 @@ export function BreedingCodeList({ onGoToSettings, filesVersion, onOpenSpecies }
 
           {/* A–Z / Taxonomic sort toggle */}
           <div role="group" aria-label="Sort order" style={{ display: 'inline-flex', border: '1.5px solid var(--sr-accent-border)', borderRadius: 6, overflow: 'hidden', flexShrink: 0 }}>
-            <button tabIndex={0}
+            <Button
               aria-pressed={sort.nameSortMode === 'az'}
               style={{
                 height: 30, padding: '0 13px', border: 'none',
@@ -399,8 +400,8 @@ export function BreedingCodeList({ onGoToSettings, filesVersion, onOpenSpecies }
               onClick={() => setSort({ column: 'name', dir: 'asc', nameSortMode: 'az' })}
             >
               A–Z
-            </button>
-            <button tabIndex={0}
+            </Button>
+            <Button
               aria-pressed={sort.nameSortMode === 'taxonomic'}
               style={{
                 height: 30, padding: '0 13px', border: 'none',
@@ -411,7 +412,7 @@ export function BreedingCodeList({ onGoToSettings, filesVersion, onOpenSpecies }
               onClick={() => setSort({ column: 'name', dir: 'asc', nameSortMode: 'taxonomic' })}
             >
               Taxonomic
-            </button>
+            </Button>
           </div>
 
           {counties.length > 0 && (
@@ -517,7 +518,7 @@ export function BreedingCodeList({ onGoToSettings, filesVersion, onOpenSpecies }
           {/* The two presentation controls read as one group rather than as more
               filters. Same shipped ghostBtn() styling, so they are visually a pair. */}
           <div role="group" aria-label="Table view" className="sr-wrap-flex" style={{ '--sr-wrap-gap': '6px' } as React.CSSProperties}>
-            <button tabIndex={0}
+            <Button
               type="button"
               className="sr-touch-target"
               // The accessible name is the button's own text and nothing else:
@@ -537,13 +538,13 @@ export function BreedingCodeList({ onGoToSettings, filesVersion, onOpenSpecies }
                   freeze that the user reversed. The state value is `pinned` and
                   already label-agnostic, so nothing renames behind this string. */}
               Pin code labels
-            </button>
+            </Button>
             {/* .sr-touch-target on the SHIPPED toggle too: the two are now a visual
                 group, and at ≤640 a 2.75rem pill beside this button's inline 28px
                 would read as a rendering error. The class sets min-height, which
                 clamps the inline height only on the phone tier, so desktop density
                 is untouched. */}
-            <button tabIndex={0}
+            <Button
               type="button"
               className="sr-touch-target"
               style={ghostBtn(wideMode)}
@@ -551,7 +552,7 @@ export function BreedingCodeList({ onGoToSettings, filesVersion, onOpenSpecies }
               title={wideMode ? 'Collapse table into scroll box' : 'Expand table: scroll the whole page on mobile'}
             >
               {wideMode ? '↔ Normal' : '↔ Unbounded'}
-            </button>
+            </Button>
           </div>
           {/* Persistent description target. It sits in the control row, never inside
               the horizontally scrolled table (where an absolutely positioned .sr-only
@@ -567,7 +568,7 @@ export function BreedingCodeList({ onGoToSettings, filesVersion, onOpenSpecies }
           fontSize: '0.75rem', color: 'var(--sr-accent)', flexShrink: 0,
         }}>
           <span className="sr-min0" style={{ fontWeight: 500 }}>{filterStripText}</span>
-          <button tabIndex={0}
+          <Button
             onClick={() => { setCountyFilter(null); setDateRange(DATE_RANGE_CLEAR) }}
             style={{
               background: 'none', border: 'none', cursor: 'pointer', flexShrink: 0,
@@ -577,7 +578,7 @@ export function BreedingCodeList({ onGoToSettings, filesVersion, onOpenSpecies }
             }}
           >
             Clear filter
-          </button>
+          </Button>
         </div>
       )}
 

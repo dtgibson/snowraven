@@ -1,3 +1,4 @@
+import { Button } from './Button'
 interface ToggleSwitchProps {
   label: string
   checked: boolean
@@ -43,7 +44,7 @@ export function ToggleSwitch({
   const trackH = bare ? 20 : 16
   const knob = bare ? 16 : 12
   return (
-    <button tabIndex={0}
+    <Button
       role="switch"
       aria-checked={checked}
       aria-busy={busy || undefined}
@@ -89,6 +90,6 @@ export function ToggleSwitch({
         }} />
       </div>
       <span className={labelVisible ? undefined : 'sr-only'}>{label}</span>
-    </button>
+    </Button>
   )
 }

@@ -6,6 +6,7 @@
 // species comparison above are untouched by this gate. All color via var(--sr-*).
 // See design-spec §B and schema.md §4/§6.
 
+import { Button } from './ui/Button'
 import { useState, useCallback } from 'react'
 import { CloudSun, Loader2 } from 'lucide-react'
 import { transport, TransportError } from '../lib/transport'
@@ -72,14 +73,14 @@ function Nudge({ text, onGoToSettings }: { text: string; onGoToSettings: () => v
       borderRadius: 8, fontSize: '0.8125rem', color: 'var(--sr-warning)',
     }}>
       <span className="sr-min0">{text}</span>
-      <button tabIndex={0} onClick={onGoToSettings}
+      <Button onClick={onGoToSettings}
         style={{
           background: 'none', border: 'none', minHeight: 24, padding: '0 6px', margin: '0 -6px',
           fontSize: '0.75rem', fontWeight: 600,
           color: 'var(--sr-warning)', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap', flexShrink: 0,
         }}>
         Go to Settings →
-      </button>
+      </Button>
     </div>
   )
 }
@@ -118,7 +119,7 @@ export function WeatherTideSection({ idA, idB, metaA, metaB, keyStatus, onGoToSe
     <div className="sr-action-row" style={{ padding: '10px 14px', borderBottom: '1px solid var(--sr-border-subtle)' }}>
       <span className="sr-min0" style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--sr-text)' }}>Weather &amp; Tide</span>
       {!keysMissing && !loaded && (
-        <button tabIndex={0} onClick={() => { void loadConditions() }} disabled={loading}
+        <Button onClick={() => { void loadConditions() }} disabled={loading}
           style={{
             height: 38, padding: '0 16px', background: 'var(--sr-accent)', color: 'var(--sr-on-accent)',
             border: 'none', borderRadius: 8, fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'inherit',
@@ -127,7 +128,7 @@ export function WeatherTideSection({ idA, idB, metaA, metaB, keyStatus, onGoToSe
           }}>
           {loading ? <Loader2 size={15} className="spin" /> : <CloudSun size={15} strokeWidth={2.5} />}
           {loading ? 'Loading…' : 'Load weather & tide'}
-        </button>
+        </Button>
       )}
     </div>
   )

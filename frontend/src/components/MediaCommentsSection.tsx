@@ -1,3 +1,4 @@
+import { Button } from './ui/Button'
 import { useMemo, useState } from 'react'
 import { MessageSquare, Search, ChevronDown, ExternalLink, Camera, Mic, Video } from 'lucide-react'
 import { OutboundLink } from './OutboundLink'
@@ -85,7 +86,7 @@ export function MediaCommentsSection({ rows, backboneNames, taxonMap, onOpenSpec
 
         <div style={{ display: 'inline-flex', border: '1.5px solid var(--sr-accent-border)', borderRadius: 6, overflow: 'hidden', flexShrink: 0 }}>
           {(['newest', 'oldest'] as const).map((dir, i) => (
-            <button tabIndex={0}
+            <Button
               key={dir}
               onClick={() => setSort(dir)}
               style={{
@@ -97,7 +98,7 @@ export function MediaCommentsSection({ rows, backboneNames, taxonMap, onOpenSpec
               }}
             >
               {dir === 'newest' ? 'Newest' : 'Oldest'}
-            </button>
+            </Button>
           ))}
         </div>
 
@@ -166,7 +167,7 @@ export function MediaCommentsSection({ rows, backboneNames, taxonMap, onOpenSpec
           {/* Stays mounted as a toggle so activation doesn't drop keyboard
               focus to <body> and restart Tab from the page top (F036). */}
           {matches.length > MEDIA_COMMENTS_PAGE && (
-            <button tabIndex={0}
+            <Button
               onClick={() => setShowAll(v => !v)}
               aria-expanded={showAll}
               style={{
@@ -182,7 +183,7 @@ export function MediaCommentsSection({ rows, backboneNames, taxonMap, onOpenSpec
             >
               <ChevronDown size={13} strokeWidth={2.5} style={{ transform: showAll ? 'rotate(180deg)' : 'none' }} />
               {showAll ? 'Show fewer' : `Show all ${matches.length} comments`}
-            </button>
+            </Button>
           )}
         </>
       )}

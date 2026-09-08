@@ -21,6 +21,7 @@
 // Standing security check: only a shape-valid eBird submission id (SUBMISSION_ID_RE)
 // becomes a link; a junk id renders as plain text, never a styled 404 link.
 
+import { Link } from './ui/Link'
 import { ExternalLink } from 'lucide-react'
 import type { CSSProperties } from 'react'
 import { SUBMISSION_ID_RE } from './speciesDetail/ui'
@@ -61,12 +62,9 @@ export function ChecklistLink({ submissionId, label, size = 'sm', compact = fals
   }
 
   return (
-    <a
-      // WebKit's default tab mode skips a plain <a href> entirely, so without
-      // this the app's every "open checklist on eBird" link is off the keyboard's
-      // path on the Mac, iPhone and iPad builds. One edit, 24 call sites -- and
-      // it is what gives the Calendar's day-details dialog its second tab stop.
-      tabIndex={0}
+    <Link
+      // The base Link supplies the WebKit-safe tab stop. ChecklistLink keeps the
+      // existing URL validation, visual signature, and accessible-name formula.
       href={`https://ebird.org/checklist/${submissionId}`}
       target="_blank"
       rel="noreferrer"
@@ -85,6 +83,6 @@ export function ChecklistLink({ submissionId, label, size = 'sm', compact = fals
     >
       {!compact && text}
       <ExternalLink size={iconSize} strokeWidth={2.5} aria-hidden="true" />
-    </a>
+    </Link>
   )
 }

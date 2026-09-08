@@ -10,6 +10,7 @@
 // coordinate (buildSightingMarkers); this component is presentational +
 // popup-state only.
 
+import { Button } from './ui/Button'
 import { useMemo, useState } from 'react'
 import { Marker, Popup } from 'react-map-gl/maplibre'
 import { SnowMap } from './SnowMap'
@@ -129,7 +130,7 @@ export function SightingsMap({
             onClick={e => { e.originalEvent.stopPropagation(); setSelectedCoord(`${m.lat},${m.lng}`) }}>
             {/* Real <button> so Enter/Space open the popup (the native click bubbles
                 to the wrapper's listener); the wrapper is demoted via ref. F014. */}
-            <button tabIndex={0} type="button" aria-label={label}
+            <Button type="button" aria-label={label}
               style={{
                 width: 24, height: 34, padding: 0, border: 'none', background: 'none',
                 cursor: 'pointer', display: 'block',
@@ -169,15 +170,14 @@ export function SightingsMap({
           {/* Same class as maplibre's own, so it inherits the existing theming
               and the ~44px coarse-pointer target in globals.css and nothing
               moves for a mouse user. BirdingStats.tsx is the reference. */}
-          <button
-            tabIndex={0}
+          <Button
             type="button"
             className="maplibregl-popup-close-button"
             aria-label="Close the sighting locations popup"
             onClick={() => setSelectedCoord(null)}
           >
             ×
-          </button>
+          </Button>
           <div style={{ fontSize: '0.8125rem', lineHeight: 1.7, minWidth: 120 }}>
             {selected.sightings.slice(0, 6).map(({ submissionId, date }, i) => (
               <div key={`${submissionId}-${i}`}>

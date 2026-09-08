@@ -1,3 +1,4 @@
+import { Button } from './ui/Button'
 import { useEffect, useId, useImperativeHandle, useRef, useState } from 'react'
 import {
   BookOpen, ChevronDown, ChevronUp, CircleAlert, Cloud, CloudCheck, CloudDownload, CloudOff, CloudUpload,
@@ -95,7 +96,7 @@ function RadioGroup<T extends string | number>({
       {options.map(o => {
         const checked = o.key === value
         return (
-          <button
+          <Button
             key={o.key}
             role="radio"
             aria-checked={checked}
@@ -105,7 +106,7 @@ function RadioGroup<T extends string | number>({
             onClick={() => onChange(o.key)}
           >
             {o.children}
-          </button>
+          </Button>
         )
       })}
     </div>
@@ -240,7 +241,7 @@ function AppearanceRow() {
             Your preference will be saved in this browser's local storage, on this device only. Nothing is sent to the server.
           </p>
           <div style={{ display: 'flex', gap: 8 }}>
-            <button tabIndex={0}
+            <Button
               onClick={savePreference}
               style={{
                 height: 30,
@@ -257,8 +258,8 @@ function AppearanceRow() {
               }}
             >
               Save preference
-            </button>
-            <button tabIndex={0}
+            </Button>
+            <Button
               onClick={dismissConsent}
               style={{
                 height: 30,
@@ -275,7 +276,7 @@ function AppearanceRow() {
               }}
             >
               This session only
-            </button>
+            </Button>
           </div>
         </div>
       )}
@@ -377,7 +378,7 @@ function FileRow({
             </div>
           )}
 
-          <button tabIndex={0}
+          <Button
             ref={uploadRef}
             className="sr-touch-target"
             onClick={handlePickClick}
@@ -397,9 +398,9 @@ function FileRow({
             {/* iOS uses the approved "Import" wording (decisions.md 2026-07-05);
                 desktop/web keep "Upload" — same seam as the picker itself. */}
             {fileRowButtonLabel(uploading, !!info, isIOS())}
-          </button>
+          </Button>
 
-          <button tabIndex={0}
+          <Button
             className="sr-touch-target"
             onClick={e => onDelete(e.currentTarget)}
             disabled={!info}
@@ -414,7 +415,7 @@ function FileRow({
             }}
           >
             Clear
-          </button>
+          </Button>
         </div>
 
         <input
@@ -501,14 +502,14 @@ function SyncContent({ view, onDownloadNow, onRetry }: {
         </>
       )}
       {action === 'download' && (
-        <button type="button" tabIndex={0} className="sr-btn-quiet sr-btn-inline sr-touch-target" onClick={onDownloadNow}>
+        <Button type="button" className="sr-btn-quiet sr-btn-inline sr-touch-target" onClick={onDownloadNow}>
           {BUTTONS.downloadNow}
-        </button>
+        </Button>
       )}
       {action === 'retry' && (
-        <button type="button" tabIndex={0} className="sr-btn-quiet sr-btn-inline sr-touch-target" onClick={onRetry}>
+        <Button type="button" className="sr-btn-quiet sr-btn-inline sr-touch-target" onClick={onRetry}>
           {BUTTONS.retry}
-        </button>
+        </Button>
       )}
     </>
   )
@@ -562,9 +563,9 @@ function KeySyncContent({ view, onRetry }: { view: KeySlotView; onRetry?: () => 
         </>
       )}
       {action === 'retry' && (
-        <button type="button" tabIndex={0} className="sr-btn-quiet sr-btn-inline sr-touch-target" onClick={onRetry}>
+        <Button type="button" className="sr-btn-quiet sr-btn-inline sr-touch-target" onClick={onRetry}>
           {BUTTONS.retry}
-        </button>
+        </Button>
       )}
     </>
   )
@@ -768,16 +769,15 @@ function ICloudSyncSection() {
             {announce.text ? <span key={announce.seq}>{announce.text}</span> : null}
           </span>
           {ics.syncEnabled && available && (
-            <button
+            <Button
               type="button"
-              tabIndex={0}
               className="sr-btn-quiet sr-touch-target"
               disabled={userChecking}
               aria-busy={userChecking || undefined}
               onClick={() => { void handleCheckNow() }}
             >
               {userChecking ? BUTTONS.checking : BUTTONS.checkNow}
-            </button>
+            </Button>
           )}
         </div>
 
@@ -787,27 +787,25 @@ function ICloudSyncSection() {
                 the keys control stays while a removal is pending (FR-33). */}
             <div className="sr-ics-remove-actions">
               {ics.sharedExists && (
-                <button
+                <Button
                   ref={removeBtnRef}
                   type="button"
-                  tabIndex={0}
                   className="sr-btn-quiet sr-touch-target"
                   onClick={() => setRemoveOpen(true)}
                 >
                   {BUTTONS.remove}
-                </button>
+                </Button>
               )}
               {showRemoveKeys && (
-                <button
+                <Button
                   ref={removeKeysBtnRef}
                   type="button"
-                  tabIndex={0}
                   className="sr-btn-quiet sr-touch-target"
                   aria-describedby={ics.keyRemovalPending ? keyPendingId : undefined}
                   onClick={() => setRemoveKeysOpen(true)}
                 >
                   {BUTTONS.removeKeys}
-                </button>
+                </Button>
               )}
             </div>
             {ics.keyRemovalPending && (
@@ -825,8 +823,8 @@ function ICloudSyncSection() {
         initialFocus="last"
         actions={
           <>
-            <button type="button" tabIndex={0} className="sr-btn-quiet sr-touch-target" onClick={() => setEnableOpen(false)}>{BUTTONS.cancel}</button>
-            <button type="button" tabIndex={0} className="sr-btn-accent sr-touch-target" onClick={handleTurnOn}>{BUTTONS.turnOn}</button>
+            <Button type="button" className="sr-btn-quiet sr-touch-target" onClick={() => setEnableOpen(false)}>{BUTTONS.cancel}</Button>
+            <Button type="button" className="sr-btn-accent sr-touch-target" onClick={handleTurnOn}>{BUTTONS.turnOn}</Button>
           </>
         }
       >
@@ -847,8 +845,8 @@ function ICloudSyncSection() {
         initialFocus="first"
         actions={
           <>
-            <button type="button" tabIndex={0} className="sr-btn-quiet sr-touch-target" onClick={() => setRemoveOpen(false)}>{BUTTONS.cancel}</button>
-            <button type="button" tabIndex={0} className="sr-btn-quiet sr-btn-quiet--danger sr-touch-target" onClick={handleRemove}>{BUTTONS.removeConfirm}</button>
+            <Button type="button" className="sr-btn-quiet sr-touch-target" onClick={() => setRemoveOpen(false)}>{BUTTONS.cancel}</Button>
+            <Button type="button" className="sr-btn-quiet sr-btn-quiet--danger sr-touch-target" onClick={handleRemove}>{BUTTONS.removeConfirm}</Button>
           </>
         }
       >
@@ -870,8 +868,8 @@ function ICloudSyncSection() {
         initialFocus="last"
         actions={
           <>
-            <button type="button" tabIndex={0} className="sr-btn-quiet sr-touch-target" onClick={() => setEnableKeysOpen(false)}>{BUTTONS.cancel}</button>
-            <button type="button" tabIndex={0} className="sr-btn-accent sr-touch-target" onClick={handleTurnOnKeys}>{BUTTONS.turnOn}</button>
+            <Button type="button" className="sr-btn-quiet sr-touch-target" onClick={() => setEnableKeysOpen(false)}>{BUTTONS.cancel}</Button>
+            <Button type="button" className="sr-btn-accent sr-touch-target" onClick={handleTurnOnKeys}>{BUTTONS.turnOn}</Button>
           </>
         }
       >
@@ -896,8 +894,8 @@ function ICloudSyncSection() {
         initialFocus="first"
         actions={
           <>
-            <button type="button" tabIndex={0} className="sr-btn-quiet sr-touch-target" onClick={() => setRemoveKeysOpen(false)}>{BUTTONS.cancel}</button>
-            <button type="button" tabIndex={0} className="sr-btn-quiet sr-btn-quiet--danger sr-touch-target" onClick={handleRemoveKeys}>{BUTTONS.removeConfirm}</button>
+            <Button type="button" className="sr-btn-quiet sr-touch-target" onClick={() => setRemoveKeysOpen(false)}>{BUTTONS.cancel}</Button>
+            <Button type="button" className="sr-btn-quiet sr-btn-quiet--danger sr-touch-target" onClick={handleRemoveKeys}>{BUTTONS.removeConfirm}</Button>
           </>
         }
       >
@@ -984,7 +982,7 @@ function KeyRow({
                 }}>
                   {visible ? value : '••••••••••••••••'}
                 </span>
-                <button tabIndex={0}
+                <Button
                   onClick={onToggleVisible}
                   aria-label={visible ? 'Hide API key' : 'Show API key'}
                   style={{
@@ -994,7 +992,7 @@ function KeyRow({
                   }}
                 >
                   {visible ? 'Hide' : 'Show'}
-                </button>
+                </Button>
               </div>
             ) : (
               <div style={{ fontSize: '0.8125rem', color: 'var(--sr-text-muted)', marginTop: 2 }}>{sublabel}</div>
@@ -1016,7 +1014,7 @@ function KeyRow({
                 No key saved
               </div>
             )}
-            <button tabIndex={0}
+            <Button
               ref={startEditRef}
               onClick={onStartEdit}
               style={{
@@ -1027,8 +1025,8 @@ function KeyRow({
               }}
             >
               {isSet ? 'Update' : 'Add key'}
-            </button>
-            <button tabIndex={0}
+            </Button>
+            <Button
               onClick={e => onDelete(e.currentTarget)}
               disabled={!isSet}
               style={{
@@ -1041,7 +1039,7 @@ function KeyRow({
               }}
             >
               Clear
-            </button>
+            </Button>
           </div>
         )}
       </div>
@@ -1065,7 +1063,7 @@ function KeyRow({
             onBlur={e => { e.currentTarget.style.borderColor = 'var(--sr-border)' }}
             onKeyDown={e => { if (e.key === 'Enter' && input.trim()) onSave() }}
           />
-          <button tabIndex={0}
+          <Button
             onClick={onSave}
             disabled={!input.trim() || saving}
             style={{
@@ -1079,8 +1077,8 @@ function KeyRow({
             }}
           >
             {saving ? 'Saving…' : 'Save'}
-          </button>
-          <button tabIndex={0}
+          </Button>
+          <Button
             onClick={onCancelEdit}
             style={{
               height: 32, padding: '0 12px',
@@ -1090,7 +1088,7 @@ function KeyRow({
             }}
           >
             Cancel
-          </button>
+          </Button>
         </div>
       )}
 
@@ -1546,7 +1544,7 @@ function TabLayoutSection({ tabOrder, tabHidden, onReorder, onToggleVisibility, 
                 )}
 
                 {/* Move up / down — keyboard reorder alternative to drag-and-drop */}
-                <button tabIndex={0}
+                <Button
                   className="sr-touch-target"
                   ref={el => { moveBtnRefs.current[`${tab}--1`] = el }}
                   aria-label={`Move ${TAB_LABELS[tab]} tab up`}
@@ -1557,8 +1555,8 @@ function TabLayoutSection({ tabOrder, tabHidden, onReorder, onToggleVisibility, 
                   onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = idx === 0 ? 'var(--sr-border)' : 'var(--sr-text-muted)' }}
                 >
                   <ChevronUp size={15} />
-                </button>
-                <button tabIndex={0}
+                </Button>
+                <Button
                   className="sr-touch-target"
                   ref={el => { moveBtnRefs.current[`${tab}-1`] = el }}
                   aria-label={`Move ${TAB_LABELS[tab]} tab down`}
@@ -1569,10 +1567,10 @@ function TabLayoutSection({ tabOrder, tabHidden, onReorder, onToggleVisibility, 
                   onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = idx === tabOrder.length - 1 ? 'var(--sr-border)' : 'var(--sr-text-muted)' }}
                 >
                   <ChevronDown size={15} />
-                </button>
+                </Button>
 
                 {/* Eye toggle */}
-                <button tabIndex={0}
+                <Button
                   className="sr-touch-target"
                   aria-label={(hidden ? 'Show ' : 'Hide ') + TAB_LABELS[tab] + ' tab'}
                   disabled={isLastVisible}
@@ -1590,7 +1588,7 @@ function TabLayoutSection({ tabOrder, tabHidden, onReorder, onToggleVisibility, 
                   onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = hidden ? 'var(--sr-text-disabled)' : isLastVisible ? 'var(--sr-border)' : 'var(--sr-text-muted)' }}
                 >
                   {hidden ? <EyeOff size={15} /> : <Eye size={15} />}
-                </button>
+                </Button>
               </li>
             )
           })}
@@ -1614,7 +1612,7 @@ function TabLayoutSection({ tabOrder, tabHidden, onReorder, onToggleVisibility, 
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10, marginBottom: 8 }}>
-        <button tabIndex={0}
+        <Button
           onClick={handleRestore}
           disabled={isDefault}
           style={{
@@ -1628,7 +1626,7 @@ function TabLayoutSection({ tabOrder, tabHidden, onReorder, onToggleVisibility, 
           }}
         >
           {showRestored ? '✓ Restored' : 'Restore defaults'}
-        </button>
+        </Button>
       </div>
     </>
   )
@@ -1677,7 +1675,7 @@ function RebuildCachesButton() {
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-      <button tabIndex={0}
+      <Button
         onClick={handleRebuild}
         disabled={status === 'working'}
         style={{
@@ -1692,7 +1690,7 @@ function RebuildCachesButton() {
         {status === 'working'
           ? (relaunchable ? 'Restarting…' : 'Clearing…')
           : relaunchable ? 'Rebuild caches & restart' : 'Rebuild caches'}
-      </button>
+      </Button>
       {status === 'cleared' && (
         <span role="status" style={{ fontSize: '0.75rem', color: 'var(--sr-accent)', minWidth: 0 }}>
           Caches cleared. Close and reopen SnowRaven to finish.
@@ -1732,16 +1730,15 @@ function AcknowledgmentsSection() {
       <SectionHeader label="Acknowledgments" />
       <div style={{ border: '1px solid var(--sr-border)', borderRadius: 10, background: 'var(--sr-surface)', overflow: 'hidden' }}>
         <div style={{ padding: '14px 16px' }}>
-          <button
+          <Button
             type="button"
-            tabIndex={0}
             className="sr-touch-target sr-ack-toggle"
             aria-expanded={open}
             aria-controls={panelId}
             onClick={() => setOpen(v => !v)}
           >
             {open ? 'Hide acknowledgments' : 'View acknowledgments'}
-          </button>
+          </Button>
         </div>
         <div id={panelId} className={open ? 'sr-ack-reveal sr-ack-reveal--open' : 'sr-ack-reveal'}>
           <div className="sr-ack-reveal-inner" inert={!open}>
@@ -2185,7 +2182,7 @@ export function Settings({
           </div>
         </div>
         </div>
-        <button tabIndex={0}
+        <Button
           onClick={onOpenHelp}
           style={{
             height: 34, padding: '0 16px', flexShrink: 0,
@@ -2196,7 +2193,7 @@ export function Settings({
           }}
         >
           Open documentation
-        </button>
+        </Button>
       </div>
 
       <SectionHeader label="Appearance" />
@@ -2340,7 +2337,7 @@ export function Settings({
           <p style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)', marginBottom: 12, lineHeight: 1.5 }}>
             Set a home location for the Map Explorer. These coordinates load automatically every time you open the map tab.
           </p>
-          <button tabIndex={0}
+          <Button
             onClick={handleDetectMapLocation}
             disabled={mapLocating}
             style={{
@@ -2357,7 +2354,7 @@ export function Settings({
               ? <Loader2 size={13} strokeWidth={2} className="spin" style={{ color: 'var(--sr-accent)', flexShrink: 0 }} />
               : <Navigation size={13} strokeWidth={2} style={{ color: 'var(--sr-accent)', flexShrink: 0 }} />}
             {mapLocating ? 'Locating…' : 'Use my location'}
-          </button>
+          </Button>
           {mapLocError && <div role="alert" style={{ fontSize: '0.6875rem', color: 'var(--sr-error)', marginBottom: 12 }}>{mapLocError}</div>}
           {/* Self-collapsing 3->2->1: the narrow radius field sizes with its
               siblings (no half-width orphan, never balloons to a full row). */}
@@ -2403,7 +2400,7 @@ export function Settings({
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <button tabIndex={0}
+            <Button
               onClick={handleSaveMapDefaults}
               disabled={mapDefaultsStatus === 'saving'}
               style={{
@@ -2416,8 +2413,8 @@ export function Settings({
               }}
             >
               {mapDefaultsStatus === 'saving' ? 'Saving…' : 'Save'}
-            </button>
-            <button tabIndex={0}
+            </Button>
+            <Button
               onClick={handleClearMapDefaults}
               disabled={!mapDefaultsHasSaved}
               style={{
@@ -2430,7 +2427,7 @@ export function Settings({
               }}
             >
               Clear
-            </button>
+            </Button>
             {mapDefaultsStatus === 'saved' && (
               <span style={{ fontSize: '0.75rem', color: 'var(--sr-accent)', fontWeight: 500 }}>✓ Saved</span>
             )}
@@ -2492,8 +2489,8 @@ export function Settings({
         initialFocus="first"
         actions={
           <>
-            <button type="button" tabIndex={0} className="sr-btn-quiet sr-touch-target" onClick={() => setClearReq(null)}>{BUTTONS.cancel}</button>
-            <button type="button" tabIndex={0} className="sr-btn-quiet sr-btn-quiet--danger sr-touch-target" onClick={confirmClearWithSync}>{BUTTONS.clearConfirm}</button>
+            <Button type="button" className="sr-btn-quiet sr-touch-target" onClick={() => setClearReq(null)}>{BUTTONS.cancel}</Button>
+            <Button type="button" className="sr-btn-quiet sr-btn-quiet--danger sr-touch-target" onClick={confirmClearWithSync}>{BUTTONS.clearConfirm}</Button>
           </>
         }
       >
@@ -2518,8 +2515,8 @@ export function Settings({
         initialFocus="first"
         actions={
           <>
-            <button type="button" tabIndex={0} className="sr-btn-quiet sr-touch-target" onClick={() => setKeyClearReq(null)}>{BUTTONS.cancel}</button>
-            <button type="button" tabIndex={0} className="sr-btn-quiet sr-btn-quiet--danger sr-touch-target" onClick={confirmClearKeyWithSync}>{BUTTONS.clearConfirm}</button>
+            <Button type="button" className="sr-btn-quiet sr-touch-target" onClick={() => setKeyClearReq(null)}>{BUTTONS.cancel}</Button>
+            <Button type="button" className="sr-btn-quiet sr-btn-quiet--danger sr-touch-target" onClick={confirmClearKeyWithSync}>{BUTTONS.clearConfirm}</Button>
           </>
         }
       >

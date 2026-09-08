@@ -9,6 +9,7 @@
 // for the per-block info popup (works on any block — the unshaded fill is
 // transparent but still hit-tested).
 
+import { Button } from './ui/Button'
 import { useEffect, useMemo, useState } from 'react'
 import { Source, Layer, Popup, useMap } from 'react-map-gl/maplibre'
 import type { FeatureCollection, Polygon } from 'geojson'
@@ -231,15 +232,14 @@ export function AtlasLayer({ data, shade = false, breedingByBlock = null, useTex
             {/* Same class as maplibre's own, so it inherits the existing theming
                 and the ~44px coarse-pointer target in globals.css and nothing
                 moves for a mouse user. BirdingStats.tsx is the reference. */}
-            <button
-              tabIndex={0}
+            <Button
               type="button"
               className="maplibregl-popup-close-button"
               aria-label="Close the atlas block popup"
               onClick={() => setSel(null)}
             >
               ×
-            </button>
+            </Button>
             <div style={{ minWidth: 160 }}>
               {sel.code ? (
                 <OutboundLink href={`${ATLAS_BLOCK_URL}${encodeURIComponent(sel.code)}`}
@@ -292,15 +292,11 @@ export function AtlasLayer({ data, shade = false, breedingByBlock = null, useTex
             borderRadius: 8, boxShadow: '0 1px 4px rgba(0,0,0,0.15)', overflow: 'hidden',
           }}
         >
-          <button
+          <Button
             type="button"
-            /* Explicit tabIndex, and NOT redundant: WebKit's default tab mode
-               skips a plain <button> entirely (measurement in
-               lib/useFocusTrap.ts's header). This panel is the ONLY keyboard
-               route to a block's popup, and ACCESSIBILITY.md publishes it as
-               such, so without it that published claim is false on the Mac and
-               iOS apps. CountyLayer's identical panel already carries it. */
-            tabIndex={0}
+            /* Button's inherited tab stop is required because this panel is the
+               ONLY keyboard route to a block's popup. CountyLayer's identical
+               panel uses the same seam. */
             onClick={() => setListOpen(o => !o)}
             aria-expanded={listOpen}
             style={{
@@ -314,7 +310,7 @@ export function AtlasLayer({ data, shade = false, breedingByBlock = null, useTex
           >
             <span>Atlas blocks in view ({listTotal.toLocaleString()})</span>
             <span aria-hidden="true" style={{ transform: listOpen ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s' }}>›</span>
-          </button>
+          </Button>
           {listOpen && (
             <div style={{ overflowY: 'auto', padding: 6 }}>
               <ul role="list" aria-label="Atlas blocks in view" style={{ listStyle: 'none', margin: 0, padding: 0 }}>
@@ -323,12 +319,9 @@ export function AtlasLayer({ data, shade = false, breedingByBlock = null, useTex
                   const isSelected = sel?.code === row.code
                   return (
                     <li role="listitem" key={row.code}>
-                      <button
+                      <Button
                         type="button"
-                        /* Same WebKit reason as the disclosure above: without an
-                           explicit tabIndex the rows open, but no keyboard on
-                           the Mac or iOS apps can reach them. */
-                        tabIndex={0}
+                        /* Same inherited WebKit-safe tab stop as the disclosure. */
                         onClick={() => openBlockFromList(row)}
                         aria-pressed={isSelected}
                         className="sr-inview-row"
@@ -347,7 +340,7 @@ export function AtlasLayer({ data, shade = false, breedingByBlock = null, useTex
                             {breedingByBlock!.get(row.code)!.label} ({breedingByBlock!.get(row.code)!.count})
                           </span>
                         )}
-                      </button>
+                      </Button>
                     </li>
                   )
                 })}

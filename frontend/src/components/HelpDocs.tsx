@@ -1,3 +1,4 @@
+import { Button } from './ui/Button'
 import { useEffect, useRef } from 'react'
 import { BookOpen, X } from 'lucide-react'
 import helpText from '../../../docs/HELP.md?raw'
@@ -430,7 +431,7 @@ export function HelpDocs({ onClose }: { onClose: () => void }) {
             SnowRaven Documentation
           </span>
         </div>
-        <button tabIndex={0}
+        <Button
           ref={closeRef}
           className="sr-touch-target"
           onClick={onClose}
@@ -451,7 +452,7 @@ export function HelpDocs({ onClose }: { onClose: () => void }) {
           }}
         >
           <X size={16} />
-        </button>
+        </Button>
       </div>
 
       {/* Body */}
@@ -478,7 +479,7 @@ export function HelpDocs({ onClose }: { onClose: () => void }) {
               Contents
             </div>
             {TOC.map(item => (
-              <button tabIndex={0}
+              <Button
                 key={item.id}
                 onClick={() => scrollToSection(item.id)}
                 style={{
@@ -500,7 +501,7 @@ export function HelpDocs({ onClose }: { onClose: () => void }) {
                 }}
               >
                 {item.label}
-              </button>
+              </Button>
             ))}
           </nav>
 

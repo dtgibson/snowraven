@@ -8,6 +8,7 @@
 // announcement all read ONE emitted status (the throttle lives on the
 // emitter, in useHotspotActivity — the v0.5.87 rule).
 
+import { Button } from '../ui/Button'
 import { Loader2 } from 'lucide-react'
 import { OfflineMessage } from '../OfflineMessage'
 import { SidebarLabel } from './MapSidebarUI'
@@ -51,16 +52,15 @@ export function HotspotModeControl({ mode, onModeChange, window: win, onWindowCh
       <SidebarLabel>Color pins by</SidebarLabel>
       <div className="sr-hotspot-mode-grid">
         {HOTSPOT_MODE_OPTIONS.map(opt => (
-          <button
+          <Button
             key={opt.value}
             type="button"
-            tabIndex={0}
             className="sr-hotspot-mode-pill sr-touch-target"
             aria-pressed={mode === opt.value}
             onClick={() => onModeChange(opt.value)}
           >
             {opt.label}
-          </button>
+          </Button>
         ))}
       </div>
 
@@ -73,16 +73,15 @@ export function HotspotModeControl({ mode, onModeChange, window: win, onWindowCh
             <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginBottom: 6 }}>Time window</div>
             <div className="sr-hotspot-mode-grid">
               {ACTIVITY_WINDOW_OPTIONS.map(opt => (
-                <button
+                <Button
                   key={opt.value}
                   type="button"
-                  tabIndex={0}
                   className="sr-hotspot-mode-pill sr-touch-target"
                   aria-pressed={win === opt.value}
                   onClick={() => onWindowChange(opt.value)}
                 >
                   {opt.label}
-                </button>
+                </Button>
               ))}
             </div>
           </div>
@@ -100,12 +99,11 @@ export function HotspotModeControl({ mode, onModeChange, window: win, onWindowCh
         <div inert={mode === 'default'} style={{ overflow: 'hidden', minHeight: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginTop: 12 }}>
             <span style={{ fontSize: '0.8125rem', fontWeight: 500, color: 'var(--sr-text)' }}>Use Tier Rings</span>
-            <button
+            <Button
               type="button"
               role="switch"
               aria-checked={tierRings}
               aria-label="Use tier rings on hotspot color modes"
-              tabIndex={0}
               onClick={() => onTierRingsChange(!tierRings)}
               style={{
                 width: 44, height: 24, borderRadius: 12, border: 'none', flexShrink: 0,
@@ -117,7 +115,7 @@ export function HotspotModeControl({ mode, onModeChange, window: win, onWindowCh
                 position: 'absolute', top: 2, left: tierRings ? 22 : 2, width: 20, height: 20,
                 borderRadius: '50%', background: 'var(--sr-switch-thumb)', transition: 'left 0.15s',
               }} />
-            </button>
+            </Button>
           </div>
           <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginTop: 6, lineHeight: 1.4 }}>
             Adds a segmented ring per tier so pins are readable without color.
@@ -163,14 +161,13 @@ export function HotspotModeControl({ mode, onModeChange, window: win, onWindowCh
               {errLines.map(line => <div key={line} style={{ marginBottom: 4 }}>{line}</div>)}
             </div>
           )}
-          <button
+          <Button
             type="button"
-            tabIndex={0}
             className="sr-hotspot-retry sr-touch-target"
             onClick={onRetry}
           >
             <span aria-hidden="true">↻</span> Retry
-          </button>
+          </Button>
         </div>
       )}
     </div>

@@ -16,6 +16,7 @@
 // Frontend-only, offline, zero new network. Pure derivation lives in lib/calendar.ts;
 // the DOM crosshatch density in lib/calendarTextures.ts. See pipeline/calendar-tab.
 
+import { Button } from './ui/Button'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Loader2, CalendarDays, ChevronLeft, ChevronRight, LayoutGrid, Grid2x2, X
@@ -94,7 +95,7 @@ function SegControl<T extends string>({ options, value, onChange, ariaLabel }: {
       {options.map(opt => {
         const active = value === opt.value
         return (
-          <button tabIndex={0}
+          <Button
             key={opt.value}
             type="button"
             className="sr-seg-btn"
@@ -113,7 +114,7 @@ function SegControl<T extends string>({ options, value, onChange, ariaLabel }: {
           >
             {opt.icon}
             {opt.label}
-          </button>
+          </Button>
         )
       })}
     </div>
@@ -138,7 +139,7 @@ function Switch({ label, checked, onChange, small, disabled, describedBy }: {
   const trackH = small ? 18 : 20
   const knob = small ? 14 : 16
   return (
-    <button
+    <Button
       type="button"
       role="switch"
       aria-checked={checked}
@@ -149,7 +150,6 @@ function Switch({ label, checked, onChange, small, disabled, describedBy }: {
       // precisely so its REASON is readable in place, and a tabIndex of -1 would
       // put that reason out of reach of the keyboard user it is written for. The
       // onClick guard below, not the tab order, is what makes it inoperable.
-      tabIndex={0}
       onClick={() => { if (!disabled) onChange() }}
       // fontSize sits on the BUTTON, not on the label span below, so the shared
       // .sr-ctl-row phone-tier rule (globals.css) can reach it: a size declared on
@@ -176,7 +176,7 @@ function Switch({ label, checked, onChange, small, disabled, describedBy }: {
         }} />
       </span>
       <span style={{ fontWeight: 600, color: 'var(--sr-text)' }}>{label}</span>
-    </button>
+    </Button>
   )
 }
 
@@ -222,10 +222,9 @@ function DayCellButton({ desc, textures, metric, onOpen }: {
 
   if (desc.kind === 'zero') {
     return (
-      <button
+      <Button
         ref={ref}
         type="button"
-        tabIndex={0}
         onClick={() => onOpen(cell, ref.current!)}
         aria-label={`${dateLabel}: birded, 0 ${metric === 'checklists' ? 'checklists' : metric === 'total' ? 'individuals' : 'countable species'}. Open day details`}
         className="sr-touch-target sr-cal-day"
@@ -237,7 +236,7 @@ function DayCellButton({ desc, textures, metric, onOpen }: {
         onMouseLeave={e => (e.currentTarget.style.background = 'var(--sr-surface-subtle)')}
       >
         <span style={{ fontSize: '0.6875rem', fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: 'var(--sr-text-muted)', lineHeight: 1 }}>0</span>
-      </button>
+      </Button>
     )
   }
 
@@ -250,10 +249,9 @@ function DayCellButton({ desc, textures, metric, onOpen }: {
     ? { background: `rgba(var(--sr-cal-${tier}-rgb), 0.9)`, borderRadius: 3, padding: '0 3px' }
     : {}
   return (
-    <button
+    <Button
       ref={ref}
       type="button"
-      tabIndex={0}
       onClick={() => onOpen(cell, ref.current!)}
       aria-label={`${dateLabel}: ${desc.count}. Open day details`}
       className="sr-touch-target sr-cal-day"
@@ -269,7 +267,7 @@ function DayCellButton({ desc, textures, metric, onOpen }: {
       <span style={{ fontSize: '0.6875rem', fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: 'var(--sr-cal-fg)', lineHeight: 1, ...numStyle }}>
         {desc.count}
       </span>
-    </button>
+    </Button>
   )
 }
 
@@ -449,17 +447,16 @@ function MiniDayCell({ desc, textures, metric, onOpen }: {
     // dated so the day is identifiable; no "0" glyph. Accessible name matches the Compact
     // zero cell's pattern.
     return (
-      <button
+      <Button
         ref={ref}
         type="button"
-        tabIndex={0}
         onClick={() => onOpen(cell, ref.current!)}
         aria-label={`${dateLabel}: birded, 0 ${metric === 'checklists' ? 'checklists' : metric === 'total' ? 'individuals' : 'countable species'}. Open day details`}
         className="sr-cal-mininum"
         style={{ ...btnBase, background: 'var(--sr-surface-subtle)', border: '1px solid var(--sr-border-subtle)' }}
       >
         {desc.day != null && <DayCorner day={desc.day} color="var(--sr-text-muted)" />}
-      </button>
+      </Button>
     )
   }
   const tier = desc.tier!
@@ -470,17 +467,16 @@ function MiniDayCell({ desc, textures, metric, onOpen }: {
     ? { background: `rgba(var(--sr-cal-${tier}-rgb), 0.9)`, borderRadius: 2, padding: '0 1px' }
     : {}
   return (
-    <button
+    <Button
       ref={ref}
       type="button"
-      tabIndex={0}
       onClick={() => onOpen(cell, ref.current!)}
       aria-label={`${dateLabel}: ${desc.count}. Open day details`}
       className="sr-cal-mininum"
       style={{ ...btnBase, ...fill }}
     >
       {desc.day != null && <DayCorner day={desc.day} color="var(--sr-cal-fg)" pillStyle={numStyle} />}
-    </button>
+    </Button>
   )
 }
 
@@ -651,8 +647,7 @@ function DayPopup({ cell, view, includeForms, showFormsNote, onClose }: {
             {combined && <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginTop: 2 }}>Across all years</div>}
             {showFormsNote && !combined && <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginTop: 2 }}>{COUNT_FORMS_POPUP_NOTE}</div>}
           </div>
-          <button
-            tabIndex={0}
+          <Button
             ref={closeRef}
             type="button"
             onClick={onClose}
@@ -660,7 +655,7 @@ function DayPopup({ cell, view, includeForms, showFormsNote, onClose }: {
             style={{ font: 'inherit', cursor: 'pointer', width: 26, height: 26, flexShrink: 0, borderRadius: 7, border: '1px solid var(--sr-border)', background: 'var(--sr-surface)', color: 'var(--sr-text-muted)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
           >
             <X size={14} strokeWidth={2.5} aria-hidden />
-          </button>
+          </Button>
         </div>
 
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, padding: '14px 18px 4px' }}>
@@ -1037,17 +1032,16 @@ export function Calendar({ onGoToSettings, filesVersion }: {
           <div className="sr-cal-year-group">
             <span style={ctrlLabelStyle}>Year</span>
             <div className="sr-cal-year-nav">
-              <button tabIndex={0} type="button" onClick={goPrev} disabled={prevDisabled} aria-label="Previous year with data" style={navBtnStyle(prevDisabled)}>
+              <Button type="button" onClick={goPrev} disabled={prevDisabled} aria-label="Previous year with data" style={navBtnStyle(prevDisabled)}>
                 <ChevronLeft size={15} strokeWidth={2.4} aria-hidden />
-              </button>
+              </Button>
               <span style={{ minWidth: 74, textAlign: 'center', fontSize: '0.9375rem', fontWeight: 700, color: 'var(--sr-text)', fontVariantNumeric: 'tabular-nums' }}>
                 {combined ? '·' : (view.kind === 'year' ? view.year : '')}
               </span>
-              <button tabIndex={0} type="button" onClick={goNext} disabled={nextDisabled} aria-label="Next year with data" style={navBtnStyle(nextDisabled)}>
+              <Button type="button" onClick={goNext} disabled={nextDisabled} aria-label="Next year with data" style={navBtnStyle(nextDisabled)}>
                 <ChevronRight size={15} strokeWidth={2.4} aria-hidden />
-              </button>
-              <button
-                tabIndex={0}
+              </Button>
+              <Button
                 type="button"
                 onClick={toggleAllYears}
                 aria-pressed={combined}
@@ -1060,7 +1054,7 @@ export function Calendar({ onGoToSettings, filesVersion }: {
                 }}
               >
                 All years
-              </button>
+              </Button>
             </div>
           </div>
 

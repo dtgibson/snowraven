@@ -4,6 +4,7 @@
 // is shown, stacked beneath, only where there's room (showSci). Purely
 // presentational — callers supply the taxon code and the navigation handler.
 
+import { Button } from './ui/Button'
 import { memo } from 'react'
 import { SpeciesLinks } from './SpeciesLinks'
 
@@ -41,14 +42,13 @@ export const BirdName = memo(function BirdName({
     <span className={cls}>
       <span className="sr-birdname-row">
         {linkable ? (
-          <button
+          <Button
             type="button"
             className="sr-birdname-link"
-            tabIndex={0}
             onClick={() => onOpenSpecies!(commonName)}
           >
             {commonName}
-          </button>
+          </Button>
         ) : (
           <span className="sr-birdname-text">{commonName}</span>
         )}

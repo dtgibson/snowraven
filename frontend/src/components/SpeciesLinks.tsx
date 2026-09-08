@@ -21,6 +21,7 @@
 // which App.tsx already carries (`BirdName` -> `SpeciesLinks` is on its static
 // graph, and `lib/tabIcons.tsx` already pulls lucide). `entryChunk.test.ts` is the
 // live guard.
+import { Link } from './ui/Link'
 import { useState } from 'react'
 import { Globe, SquareLibrary } from 'lucide-react'
 
@@ -55,8 +56,7 @@ interface SpeciesLinkMarkProps {
 function SpeciesLinkMark({ href, destination, who, faviconSrc, Glyph }: SpeciesLinkMarkProps) {
   const [failed, setFailed] = useState(false)
   return (
-    <a
-      tabIndex={0}
+    <Link
       href={href}
       target="_blank"
       rel="noreferrer"
@@ -112,7 +112,7 @@ function SpeciesLinkMark({ href, destination, who, faviconSrc, Glyph }: SpeciesL
           />
         )}
       </span>
-    </a>
+    </Link>
   )
 }
 

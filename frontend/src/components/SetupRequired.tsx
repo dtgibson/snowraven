@@ -1,3 +1,4 @@
+import { Button } from './ui/Button'
 import { UploadCloud, Settings } from 'lucide-react'
 
 interface SetupRequiredProps {
@@ -78,7 +79,7 @@ export function SetupRequired({ title, body, steps, onGoToSettings }: SetupRequi
         ))}
       </div>
 
-      <button tabIndex={0}
+      <Button
         onClick={onGoToSettings}
         style={{
           display: 'inline-flex', alignItems: 'center', gap: 7,
@@ -91,7 +92,7 @@ export function SetupRequired({ title, body, steps, onGoToSettings }: SetupRequi
       >
         <Settings size={15} strokeWidth={2} />
         Go to Settings
-      </button>
+      </Button>
     </div>
   )
 }

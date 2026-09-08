@@ -1,3 +1,5 @@
+import { Button } from './components/ui/Button'
+import { Link } from './components/ui/Link'
 import { useState, useCallback, useRef, useEffect, useMemo, lazy, Suspense, createContext, useContext } from 'react'
 import { Search, Loader2, ClipboardCopy, Check, AlertCircle, ExternalLink } from 'lucide-react'
 import { transport, TransportError } from './lib/transport'
@@ -836,7 +838,7 @@ export default function App() {
         color: 'var(--sr-text)',
       }}
     >
-      <a tabIndex={0} href="#sr-main" className="sr-skip-link">Skip to main content</a>
+      <Link href="#sr-main" className="sr-skip-link">Skip to main content</Link>
 
       {/* THE SHELL. At sidebar/rail density this is a ROW: the nav column on the
           leading edge, the content column beside it. At phone density it is a
@@ -933,7 +935,7 @@ export default function App() {
                 fontSize: '0.8125rem', color: 'var(--sr-warning)',
               }}>
                 <span className="sr-min0">eBird API key not configured. Weather lookups require an eBird API key.</span>
-                <button tabIndex={0}
+                <Button
                   onClick={() => setActiveTab('settings')}
                   style={{
                     background: 'none', border: 'none', minHeight: 24, padding: '0 6px', margin: '0 -6px',
@@ -942,7 +944,7 @@ export default function App() {
                   }}
                 >
                   Go to Settings →
-                </button>
+                </Button>
               </div>
             )}
             {keyStatus.openweather === null && (
@@ -952,7 +954,7 @@ export default function App() {
                 fontSize: '0.8125rem', color: 'var(--sr-warning)',
               }}>
                 <span className="sr-min0">OpenWeather API key not configured. Weather lookups won't return conditions. If you don't use weather features, you can disable or move this tab in Settings.</span>
-                <button tabIndex={0}
+                <Button
                   onClick={() => setActiveTab('settings')}
                   style={{
                     background: 'none', border: 'none', minHeight: 24, padding: '0 6px', margin: '0 -6px',
@@ -961,7 +963,7 @@ export default function App() {
                   }}
                 >
                   Go to Settings →
-                </button>
+                </Button>
               </div>
             )}
           </div>
@@ -1008,7 +1010,7 @@ export default function App() {
                 minWidth: 0,
               }}
             />
-            <button tabIndex={0}
+            <Button
               onClick={handleLookup}
               disabled={isLoading}
               style={{
@@ -1034,7 +1036,7 @@ export default function App() {
                 ? <Loader2 size={15} className="spin" />
                 : <Search size={15} strokeWidth={2.5} />}
               {isLoading ? 'Looking up…' : 'Get weather'}
-            </button>
+            </Button>
           </div>
 
           <p style={{ marginTop: 8, marginBottom: 0, fontSize: '0.75rem', color: 'var(--sr-text-muted)' }}>
@@ -1058,8 +1060,7 @@ export default function App() {
               {/* Edit link on its own line above the checklist info so neither
                   truncates the other. */}
               {state.status === 'success' && (
-                <a
-                  tabIndex={0}
+                <Link
                   href={`https://ebird.org/edit/effort?subID=${state.checklistId}`}
                   target="_blank"
                   rel="noreferrer"
@@ -1079,7 +1080,7 @@ export default function App() {
                 >
                   Edit checklist comment on eBird
                   <ExternalLink size={11} strokeWidth={2.5} />
-                </a>
+                </Link>
               )}
               <div style={{ marginBottom: 14 }}>
                 <span className="sr-wrap-anywhere" style={{
@@ -1101,7 +1102,7 @@ export default function App() {
                 }}>
                   Weather output
                 </span>
-                <button tabIndex={0}
+                <Button
                   onClick={handleCopy}
                   aria-label="Copy weather output to clipboard"
                   className="sr-touch-target"
@@ -1125,7 +1126,7 @@ export default function App() {
                     ? <Check size={12} strokeWidth={2.5} />
                     : <ClipboardCopy size={12} strokeWidth={2.5} />}
                   {copied ? 'Copied!' : 'Copy'}
-                </button>
+                </Button>
               </div>
               <pre
                 id="output-pre"
@@ -1176,14 +1177,14 @@ export default function App() {
                     <AlertCircle size={15} strokeWidth={2} style={{ flexShrink: 0, marginTop: 1 }} aria-hidden="true" />
                     {tideTooFarNotice(tideState.station, tideState.distanceMi, tideState.status)}
                   </span>
-                  <button tabIndex={0}
+                  <Button
                     onClick={handleTideOverride}
                     aria-label="Show the nearest tide station anyway"
                     className="sr-touch-target"
                     style={{ flexShrink: 0, height: 30, padding: '0 12px', background: 'var(--sr-accent-bg)', color: 'var(--sr-accent)', border: '1.5px solid var(--sr-accent-border)', borderRadius: 6, fontSize: '0.75rem', fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer', whiteSpace: 'nowrap' }}
                   >
                     {tideOverrideLabel(tideState.status)}
-                  </button>
+                  </Button>
                 </div>
               )}
               {tideState.status === 'ok' && (
@@ -1195,7 +1196,7 @@ export default function App() {
                     <span style={{ fontSize: '0.6875rem', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase' as const, color: 'var(--sr-text-muted)' }}>
                       Tide output
                     </span>
-                    <button tabIndex={0}
+                    <Button
                       onClick={handleCopyTide}
                       aria-label="Copy tide output to clipboard"
                       className="sr-touch-target"
@@ -1203,7 +1204,7 @@ export default function App() {
                     >
                       {tideCopied ? <Check size={12} strokeWidth={2.5} /> : <ClipboardCopy size={12} strokeWidth={2.5} />}
                       {tideCopied ? 'Copied!' : 'Copy'}
-                    </button>
+                    </Button>
                   </div>
                   <pre style={{ background: 'var(--sr-surface-subtle)', border: '1px solid var(--sr-border)', borderRadius: 8, padding: '18px 20px', fontFamily: 'ui-monospace, "Cascadia Code", "Fira Code", Consolas, monospace', fontSize: '0.84375rem', lineHeight: 1.75, color: 'inherit', whiteSpace: 'pre', overflowX: 'auto', margin: 0 }}>
                     {tideState.formatted}
@@ -1212,14 +1213,14 @@ export default function App() {
               )}
 
               {state.status === 'success' && tideState.status === 'ok' && (
-                <button tabIndex={0}
+                <Button
                   onClick={handleCopyBoth}
                   aria-label="Copy weather and tide together to clipboard"
                   style={{ marginTop: 18, width: '100%', height: 38, background: bothCopied ? 'var(--sr-accent)' : 'var(--sr-accent-bg)', color: bothCopied ? 'var(--sr-on-accent)' : 'var(--sr-accent)', border: `1.5px solid ${bothCopied ? 'var(--sr-accent)' : 'var(--sr-accent-border)'}`, borderRadius: 8, fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
                 >
                   {bothCopied ? <Check size={14} strokeWidth={2.5} /> : <ClipboardCopy size={14} strokeWidth={2.5} />}
                   {bothCopied ? 'Copied!' : 'Copy Weather and Tide Together'}
-                </button>
+                </Button>
               )}
             </>
           )}
@@ -1245,7 +1246,7 @@ export default function App() {
         </div>
         <p style={{ width: '100%', maxWidth: 540, margin: '14px 0 0', textAlign: 'center', fontSize: '0.75rem', color: 'var(--sr-text-footer)' }}>
           Also for your browser:{' '}
-          <a tabIndex={0} href="https://github.com/dtgibson/snowraven-mini" target="_blank" rel="noreferrer" aria-label="SnowRaven Mini on GitHub (opens in a new tab)" style={{ color: 'inherit', textDecoration: 'underline' }}>SnowRaven Mini</a>
+          <Link href="https://github.com/dtgibson/snowraven-mini" target="_blank" rel="noreferrer" aria-label="SnowRaven Mini on GitHub (opens in a new tab)" style={{ color: 'inherit', textDecoration: 'underline' }}>SnowRaven Mini</Link>
           , a Chrome/Firefox extension with this same weather and tide lookup.
         </p>
       </div>
@@ -1519,7 +1520,7 @@ export default function App() {
           SnowRaven
         </OutboundLink>
         {' · Self-hosted Birding Tools · '}
-        <button tabIndex={0}
+        <Button
           onClick={() => setHelpOpen(true)}
           style={{
             background: 'none',
@@ -1534,7 +1535,7 @@ export default function App() {
           onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
         >
           Help
-        </button>
+        </Button>
         {/* Update affordance (check / install / live region / progress) —
             extracted to UpdateFooter, which renders NOTHING on iOS/iPadOS
             (FR-14, mobile-app): updates flow through TestFlight/App Store. */}

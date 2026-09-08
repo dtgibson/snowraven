@@ -1,3 +1,5 @@
+import { Button } from './ui/Button'
+import { Link } from './ui/Link'
 import { useEffect, useId, useMemo, useState } from 'react'
 import { Loader2, AlertCircle, Camera, Mic, Video, MapPin, Calendar, MessageSquare, ChevronDown, Pin } from 'lucide-react'
 import { SetupRequired } from './SetupRequired'
@@ -660,8 +662,7 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
         }}>
           <MessageSquare size={13} strokeWidth={2.2} style={{ color: 'var(--sr-accent)', flexShrink: 0 }} />
           <span>{commentCount === 1 ? '1 media comment is' : `${commentCount} media comments are`} searchable below the table.</span>
-          <a
-            tabIndex={0}
+          <Link
             href="#media-comments"
             onClick={e => {
               e.preventDefault()
@@ -688,7 +689,7 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
           >
             Jump to comments
             <ChevronDown size={13} strokeWidth={2.5} />
-          </a>
+          </Link>
         </div>
       )}
 
@@ -703,9 +704,9 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
             them. Deliberately NOT on the right-hand cluster below: the count is
             static text and the wide-mode button is a view control, not a filter. */}
         <div className="sr-ctl-row" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-          <button tabIndex={0} aria-pressed={isFilterClear} style={pillStyle(isFilterClear ? 'positive' : 'none')} onClick={() => { setFilter(MEDIA_FILTER_CLEAR); setFilterHasMedia(false); setFilterIsTarget(false); setSexFilter(null); setAgeFilter(null) }}>All</button>
-          <button tabIndex={0} aria-pressed={filterHasMedia} style={pillStyle(filterHasMedia ? 'positive' : 'none')} onClick={() => setFilterHasMedia(v => !v)}>Has media</button>
-          <button tabIndex={0}
+          <Button aria-pressed={isFilterClear} style={pillStyle(isFilterClear ? 'positive' : 'none')} onClick={() => { setFilter(MEDIA_FILTER_CLEAR); setFilterHasMedia(false); setFilterIsTarget(false); setSexFilter(null); setAgeFilter(null) }}>All</Button>
+          <Button aria-pressed={filterHasMedia} style={pillStyle(filterHasMedia ? 'positive' : 'none')} onClick={() => setFilterHasMedia(v => !v)}>Has media</Button>
+          <Button
             aria-pressed={filterIsTarget}
             style={filterIsTarget ? {
               ...pillStyle('none'),
@@ -716,31 +717,31 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
           >
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>
             Is Target
-          </button>
+          </Button>
 
           <div style={pillSep} />
 
-          <button tabIndex={0} aria-pressed={filter.photo === 'no'} style={pillStyle(filter.photo === 'no' ? 'negative' : 'none')} onClick={() => toggleDimension('photo', 'no')}>
+          <Button aria-pressed={filter.photo === 'no'} style={pillStyle(filter.photo === 'no' ? 'negative' : 'none')} onClick={() => toggleDimension('photo', 'no')}>
             <Camera size={11} strokeWidth={2.5} />No photo
-          </button>
-          <button tabIndex={0} aria-pressed={filter.audio === 'no'} style={pillStyle(filter.audio === 'no' ? 'negative' : 'none')} onClick={() => toggleDimension('audio', 'no')}>
+          </Button>
+          <Button aria-pressed={filter.audio === 'no'} style={pillStyle(filter.audio === 'no' ? 'negative' : 'none')} onClick={() => toggleDimension('audio', 'no')}>
             <Mic size={11} strokeWidth={2.5} />No audio
-          </button>
-          <button tabIndex={0} aria-pressed={filter.video === 'no'} style={pillStyle(filter.video === 'no' ? 'negative' : 'none')} onClick={() => toggleDimension('video', 'no')}>
+          </Button>
+          <Button aria-pressed={filter.video === 'no'} style={pillStyle(filter.video === 'no' ? 'negative' : 'none')} onClick={() => toggleDimension('video', 'no')}>
             <Video size={11} strokeWidth={2.5} />No video
-          </button>
+          </Button>
 
           <div style={pillSep} />
 
-          <button tabIndex={0} aria-pressed={filter.photo === 'has'} style={pillStyle(filter.photo === 'has' ? 'positive' : 'none')} onClick={() => toggleDimension('photo', 'has')}>
+          <Button aria-pressed={filter.photo === 'has'} style={pillStyle(filter.photo === 'has' ? 'positive' : 'none')} onClick={() => toggleDimension('photo', 'has')}>
             <Camera size={11} strokeWidth={2.5} />Has photo
-          </button>
-          <button tabIndex={0} aria-pressed={filter.audio === 'has'} style={pillStyle(filter.audio === 'has' ? 'positive' : 'none')} onClick={() => toggleDimension('audio', 'has')}>
+          </Button>
+          <Button aria-pressed={filter.audio === 'has'} style={pillStyle(filter.audio === 'has' ? 'positive' : 'none')} onClick={() => toggleDimension('audio', 'has')}>
             <Mic size={11} strokeWidth={2.5} />Has audio
-          </button>
-          <button tabIndex={0} aria-pressed={filter.video === 'has'} style={pillStyle(filter.video === 'has' ? 'positive' : 'none')} onClick={() => toggleDimension('video', 'has')}>
+          </Button>
+          <Button aria-pressed={filter.video === 'has'} style={pillStyle(filter.video === 'has' ? 'positive' : 'none')} onClick={() => toggleDimension('video', 'has')}>
             <Video size={11} strokeWidth={2.5} />Has video
-          </button>
+          </Button>
 
           <div style={pillSep} />
 
@@ -779,20 +780,20 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
 
           {/* A–Z / Taxonomic sort toggle */}
           <div role="group" aria-label="Sort order" style={{ display: 'inline-flex', border: '1.5px solid var(--sr-accent-border)', borderRadius: 6, overflow: 'hidden', flexShrink: 0 }}>
-            <button tabIndex={0}
+            <Button
               aria-pressed={sort.nameSortMode === 'az'}
               style={{ ...sortToggleBtn(sort.nameSortMode === 'az'), borderRight: '1.5px solid var(--sr-accent-border)' }}
               onClick={() => setSort({ column: 'name', dir: 'asc', nameSortMode: 'az' })}
             >
               A–Z
-            </button>
-            <button tabIndex={0}
+            </Button>
+            <Button
               aria-pressed={sort.nameSortMode === 'taxonomic'}
               style={sortToggleBtn(sort.nameSortMode === 'taxonomic')}
               onClick={() => setSort({ column: 'name', dir: 'asc', nameSortMode: 'taxonomic' })}
             >
               Taxonomic
-            </button>
+            </Button>
           </div>
 
           <div style={pillSep} />
@@ -914,7 +915,7 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
               unlike its parent it does not pin itself with flexShrink: 0, so it can
               narrow and wrap (v0.5.82, .sr-wrap-flex is inert on a pinned cluster). */}
           <div role="group" aria-label="Table view" className="sr-wrap-flex" style={{ '--sr-wrap-gap': '6px' } as React.CSSProperties}>
-            <button tabIndex={0}
+            <Button
               type="button"
               className="sr-touch-target"
               // The accessible name is the button's own text and nothing else:
@@ -931,13 +932,13 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
               {/* Names the axis it freezes, as "Pin code labels" does on Breeding
                   Codes: here the row that holds still is the column headings. */}
               Pin column labels
-            </button>
+            </Button>
             {/* .sr-touch-target closes the parity gap with the Breeding Codes view
                 toggle, which got it in v0.5.81: this button ships 15px tall, well
                 under the ~44px phone posture. The class sets min-height in the ≤640
                 tier only, so desktop density is untouched and only the cluster's
                 height changes (the wrapping row absorbs it). */}
-            <button tabIndex={0}
+            <Button
               type="button"
               className="sr-touch-target"
               style={ghostBtn(wideMode)}
@@ -945,7 +946,7 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
               title={wideMode ? 'Collapse table into scroll box' : 'Expand table: scroll the whole page on mobile'}
             >
               {wideMode ? '↔ Normal' : '↔ Unbounded'}
-            </button>
+            </Button>
           </div>
           {/* Persistent description target. It sits in the control row, never inside
               the horizontally scrolled table (where an absolutely positioned .sr-only
@@ -961,7 +962,7 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
           fontSize: '0.75rem', color: 'var(--sr-accent)', flexShrink: 0,
         }}>
           <span className="sr-min0" style={{ fontWeight: 500 }}>{filterStripText}</span>
-          <button tabIndex={0}
+          <Button
             onClick={() => { setCountyFilter(null); setDateRange(DATE_RANGE_CLEAR) }}
             style={{
               background: 'none', border: 'none', cursor: 'pointer', flexShrink: 0,
@@ -971,7 +972,7 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
             }}
           >
             Clear filter
-          </button>
+          </Button>
         </div>
       )}
 

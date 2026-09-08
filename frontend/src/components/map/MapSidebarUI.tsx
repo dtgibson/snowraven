@@ -1,6 +1,7 @@
 // Presentational sidebar primitives for the Map Explorer (extracted from
 // MapExplorer.tsx in a behavior-preserving split). No map/state closures.
 
+import { Button } from '../ui/Button'
 import { AlertCircle, ChevronDown } from 'lucide-react'
 import { MARKER_LIST_CAP } from '../../lib/markersInView'
 import { countyHatchSpec, type CountyTier } from '../../lib/countyTextures'
@@ -23,7 +24,7 @@ export function SegControl({ options, value, onChange, ariaLabel }: {
     <div className="sr-wrap-flex" style={{ ['--sr-wrap-gap' as string]: '2px', background: 'var(--sr-surface-subtle)', borderRadius: 6, padding: 2 }}
       role={ariaLabel ? 'group' : undefined} aria-label={ariaLabel}>
       {options.map(opt => (
-        <button tabIndex={0}
+        <Button
           key={opt.value}
           onClick={() => onChange(opt.value)}
           aria-pressed={value === opt.value}
@@ -38,7 +39,7 @@ export function SegControl({ options, value, onChange, ariaLabel }: {
           }}
         >
           {opt.label}
-        </button>
+        </Button>
       ))}
     </div>
   )
@@ -92,11 +93,11 @@ export function InViewMarkerList<T>({ heading, instructions, items, total, overC
   return (
     <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--sr-border)' }}>
       {onToggleCollapsed ? (
-        <button type="button" tabIndex={0} onClick={onToggleCollapsed} aria-expanded={!collapsed} aria-controls={panelId}
+        <Button type="button" onClick={onToggleCollapsed} aria-expanded={!collapsed} aria-controls={panelId}
           style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, width: '100%', padding: 0, marginBottom: collapsed ? 0 : 6, background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }}>
           <span style={{ fontSize: '0.6875rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--sr-text-muted)' }}>{heading} ({total.toLocaleString()})</span>
           <ChevronDown size={14} style={{ color: 'var(--sr-text-muted)', transform: collapsed ? 'rotate(-90deg)' : 'none', transition: 'transform 0.2s', flexShrink: 0 }} />
-        </button>
+        </Button>
       ) : (
         <SidebarLabel>{heading}</SidebarLabel>
       )}
@@ -118,9 +119,8 @@ export function InViewMarkerList<T>({ heading, instructions, items, total, overC
               const dot = getDotColor?.(item)
               return (
                 <li role="listitem" key={id}>
-                  <button
+                  <Button
                     type="button"
-                    tabIndex={0}
                     onClick={() => onActivate(item)}
                     aria-pressed={isSelected}
                     className="sr-inview-row"
@@ -150,7 +150,7 @@ export function InViewMarkerList<T>({ heading, instructions, items, total, overC
                       </span>
                     </span>
                     {getTrailing?.(item)}
-                  </button>
+                  </Button>
                 </li>
               )
             })}
@@ -183,7 +183,7 @@ export function KeyNotice({ onGoToSettings }: { onGoToSettings: () => void }) {
       {/* .sr-touch-target grows the hit area to ~44px ON PHONES only (≤640);
           the text-link look (no bg/border) is untouched, desktop keeps its
           compact height. */}
-      <button tabIndex={0}
+      <Button
         onClick={onGoToSettings}
         className="sr-touch-target"
         style={{
@@ -193,7 +193,7 @@ export function KeyNotice({ onGoToSettings }: { onGoToSettings: () => void }) {
         }}
       >
         Settings →
-      </button>
+      </Button>
     </div>
   )
 }

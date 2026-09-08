@@ -19,6 +19,7 @@
 // must not receive the feature; duplicating the sort would create two surfaces
 // required to agree, which is the failure this feature exists to remove.
 
+import { Button } from './ui/Button'
 import { useMemo, useState } from 'react'
 import { sortNamedBirds, type NamedBird, type NamedBirdSort } from '../lib/namedBirds'
 import { NamedBirdRow } from './NamedBirdRow'
@@ -134,7 +135,7 @@ export function NamedBirdsTable(props: NamedBirdsTableProps) {
             rounded shell that no longer encloses row 2. */}
         <div className="sr-wrap-flex" style={{ ['--sr-wrap-gap' as string]: '6px' }}>
           {sortOptions.map((o) => (
-            <button tabIndex={0}
+            <Button
               className="sr-touch-target"
               key={o.key}
               aria-pressed={sort === o.key}
@@ -149,7 +150,7 @@ export function NamedBirdsTable(props: NamedBirdsTableProps) {
               }}
             >
               {o.label}
-            </button>
+            </Button>
           ))}
         </div>
         <span style={{ fontSize: '0.75rem', color: 'var(--sr-text-disabled)', marginLeft: 'auto', whiteSpace: 'nowrap' }}>

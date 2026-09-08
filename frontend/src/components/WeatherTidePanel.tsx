@@ -6,6 +6,7 @@
 // embedded weather block, and all five tide states with the per-side override.
 // All color via var(--sr-*). See design-spec §B.
 
+import { Button } from './ui/Button'
 import { useState } from 'react'
 import { Loader2, AlertCircle, Info, ClipboardCopy, Check } from 'lucide-react'
 import type { ChecklistMeta } from '../lib/compareChecklists'
@@ -70,7 +71,7 @@ function BlockEyebrow({ label, onCopy }: { label: string; onCopy?: () => void })
         {label}
       </span>
       {onCopy && (
-        <button tabIndex={0} onClick={handle} aria-label={`Copy ${label.toLowerCase()} to clipboard`}
+        <Button onClick={handle} aria-label={`Copy ${label.toLowerCase()} to clipboard`}
           style={{
             height: 28, padding: '0 11px',
             background: copied ? 'var(--sr-accent)' : 'var(--sr-accent-bg)',
@@ -81,7 +82,7 @@ function BlockEyebrow({ label, onCopy }: { label: string; onCopy?: () => void })
           }}>
           {copied ? <Check size={12} strokeWidth={2.5} /> : <ClipboardCopy size={12} strokeWidth={2.5} />}
           {copied ? 'Copied!' : 'Copy'}
-        </button>
+        </Button>
       )}
     </div>
   )
@@ -210,7 +211,7 @@ export function WeatherTidePanel({ badge, id, meta, weather, tide, hasEmbeddedWe
                   <AlertCircle size={15} strokeWidth={2} style={{ flexShrink: 0, marginTop: 1 }} aria-hidden="true" />
                   {tideTooFarNotice(tide.station, tide.distanceMi, tide.status)}
                 </span>
-                <button tabIndex={0} onClick={onTideOverride}
+                <Button onClick={onTideOverride}
                   aria-label="Show the nearest tide station anyway"
                   style={{
                     flexShrink: 0, height: 30, padding: '0 12px', background: 'var(--sr-accent-bg)',
@@ -218,7 +219,7 @@ export function WeatherTidePanel({ badge, id, meta, weather, tide, hasEmbeddedWe
                     fontSize: '0.75rem', fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer', whiteSpace: 'nowrap',
                   }}>
                   {tideOverrideLabel(tide.status)}
-                </button>
+                </Button>
               </div>
             )}
             {tide.status === 'unavailable' && (
@@ -254,7 +255,7 @@ function CombinedCopyButton({ weatherFormatted, tideBody }: { weatherFormatted: 
     setTimeout(() => setCopied(false), 2000)
   }
   return (
-    <button tabIndex={0} onClick={handle} aria-label="Copy weather and tide together to clipboard"
+    <Button onClick={handle} aria-label="Copy weather and tide together to clipboard"
       style={{
         width: '100%', height: 34,
         background: copied ? 'var(--sr-accent)' : 'var(--sr-accent-bg)',
@@ -265,6 +266,6 @@ function CombinedCopyButton({ weatherFormatted, tideBody }: { weatherFormatted: 
       }}>
       {copied ? <Check size={14} strokeWidth={2.5} /> : <ClipboardCopy size={14} strokeWidth={2.5} />}
       {copied ? 'Copied!' : 'Copy weather & tide together'}
-    </button>
+    </Button>
   )
 }

@@ -1,3 +1,4 @@
+import { Button } from './ui/Button'
 import { useState, useCallback, useEffect } from 'react'
 import { Loader2, AlertCircle, Search, Camera, Mic, Video, MessageSquare, ChevronDown, ChevronRight } from 'lucide-react'
 import { transport, TransportError } from '../lib/transport'
@@ -107,7 +108,7 @@ function SideCell({ count, emphasized, breeding, media, hasComment, open, onTogg
         </span>
       )}
       {hasComment && onToggle && (
-        <button tabIndex={0} onClick={onToggle} aria-expanded={open}
+        <Button onClick={onToggle} aria-expanded={open}
           aria-label={open ? 'Hide comment' : 'Show comment'} title={open ? 'Hide comment' : 'Show comment'}
           style={{
             flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
@@ -119,7 +120,7 @@ function SideCell({ count, emphasized, breeding, media, hasComment, open, onTogg
             color: open ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
           }}>
           <MessageSquare size={12} strokeWidth={2.25} />
-        </button>
+        </Button>
       )}
       <BreedingBadge apiCode={breeding} />
       <MediaIcons media={media} />
@@ -295,7 +296,7 @@ export function ChecklistComparer({ onOpenSpecies, keyStatus, onGoToSettings }: 
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0, flexWrap: 'wrap' }}>
             <div style={{ display: 'flex', borderRadius: 6, overflow: 'hidden', border: '1.5px solid var(--sr-accent-border)' }}>
               {(['taxonomic', 'alpha'] as Sort[]).map((s, i) => (
-                <button tabIndex={0} key={s} onClick={() => setSort(s)}
+                <Button key={s} onClick={() => setSort(s)}
                   style={{
                     height: 34, padding: '0 12px', fontSize: '0.8125rem', fontWeight: 500, fontFamily: 'inherit',
                     cursor: 'pointer', border: 'none', borderLeft: i > 0 ? '1.5px solid var(--sr-accent-border)' : 'none',
@@ -303,17 +304,17 @@ export function ChecklistComparer({ onOpenSpecies, keyStatus, onGoToSettings }: 
                     color: sort === s ? 'var(--sr-accent)' : 'var(--sr-text-muted)', whiteSpace: 'nowrap',
                   }}>
                   {s === 'taxonomic' ? 'Taxonomic' : 'A–Z'}
-                </button>
+                </Button>
               ))}
             </div>
-            <button tabIndex={0} onClick={handleReset}
+            <Button onClick={handleReset}
               style={{
                 height: 34, padding: '0 14px', background: 'transparent', color: 'var(--sr-accent)',
                 border: '1.5px solid var(--sr-accent-border)', borderRadius: 6, fontSize: '0.8125rem',
                 fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer', whiteSpace: 'nowrap',
               }}>
               ← New comparison
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -421,7 +422,7 @@ export function ChecklistComparer({ onOpenSpecies, keyStatus, onGoToSettings }: 
         </div>
       )}
 
-      <button tabIndex={0}
+      <Button
         onClick={handleCompare}
         disabled={loading}
         style={{
@@ -432,7 +433,7 @@ export function ChecklistComparer({ onOpenSpecies, keyStatus, onGoToSettings }: 
         }}>
         {loading ? <Loader2 size={16} className="spin" /> : <Search size={16} strokeWidth={2.5} />}
         {loading ? 'Fetching checklists…' : 'Compare checklists'}
-      </button>
+      </Button>
     </div>
   )
 }
@@ -476,7 +477,7 @@ function ChecklistTag({ badge, id, meta, badges }: { badge: 'A' | 'B'; id: strin
         )}
         {noteShown && (
           <>
-            <button tabIndex={0} onClick={() => setNotesOpen(o => !o)} aria-expanded={notesOpen}
+            <Button onClick={() => setNotesOpen(o => !o)} aria-expanded={notesOpen}
               style={{
                 alignSelf: 'flex-start', display: 'inline-flex', alignItems: 'center', gap: 3,
                 border: 'none', background: 'transparent', cursor: 'pointer',
@@ -489,7 +490,7 @@ function ChecklistTag({ badge, id, meta, badges }: { badge: 'A' | 'B'; id: strin
               }}>
               {notesOpen ? <ChevronDown size={11} strokeWidth={2.5} /> : <ChevronRight size={11} strokeWidth={2.5} />}
               Notes
-            </button>
+            </Button>
             {notesOpen && (
               <div style={{
                 marginTop: 4, padding: '8px 10px', borderRadius: 6, background: 'var(--sr-bg)',

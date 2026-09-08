@@ -399,8 +399,8 @@ const FOCUS_RING_REASON =
   'reset"). It replaces the FAB drop shadow WHILE KEYBOARD-FOCUSED, which is deliberate and ' +
   'unchanged by this extraction: the three rules replaced here were (0,1,0) too, so the ring ' +
   'already won on every one of them. The visible signal is the 3px outline, which no ' +
-  'box-shadow can suppress. [tabindex] is not hypothetical here — the fullscreen FAB ships ' +
-  'tabIndex={0}, so that arm really does match.'
+  'box-shadow can suppress. [tabindex] is not hypothetical here — the fullscreen FAB renders ' +
+  'with tabindex=0 through Button\'s default, so that arm really does match.'
 const INTENDED_UNSCOPED: Record<string, string> = {
   'button:focus-visible': FOCUS_RING_REASON,
   '[role=tab]:focus-visible': FOCUS_RING_REASON,

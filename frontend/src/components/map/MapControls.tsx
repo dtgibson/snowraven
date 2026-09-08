@@ -2,6 +2,7 @@
 // in a behavior-preserving split). These rely on being rendered inside <SnowMap>
 // (useMap context) — keep their call sites unchanged.
 
+import { Button } from '../ui/Button'
 import { useEffect, useRef } from 'react'
 import { Marker, useMap } from 'react-map-gl/maplibre'
 import { padBounds } from '../../lib/atlasBlocks'
@@ -126,8 +127,7 @@ export function CenterPin({ lat, lng, onMove, onActivate, buttonRef }: {
       ref={neutralizeMarkerWrapper}
       onDragEnd={e => { suppressClickRef.current = true; onMove(e.lngLat.lat, e.lngLat.lng) }}
     >
-      <button
-        tabIndex={0}
+      <Button
         type="button"
         ref={buttonRef}
         className="sr-center-pin-btn"
@@ -146,7 +146,7 @@ export function CenterPin({ lat, lng, onMove, onActivate, buttonRef }: {
           <path d="M12 22s7-6.6 7-12A7 7 0 1 0 5 10c0 5.4 7 12 7 12z" />
           <circle cx="12" cy="10" r="2.6" fill="var(--sr-on-accent)" stroke="none" />
         </svg>
-      </button>
+      </Button>
     </Marker>
   )
 }

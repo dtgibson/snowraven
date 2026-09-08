@@ -8,6 +8,7 @@
 // the individual has usable coordinates (FR-23); on the single-open Named Birds
 // tab at most one map (one WebGL context) is ever mounted.
 
+import { Button } from './ui/Button'
 import { useMemo, useRef, lazy, Suspense } from 'react'
 import { ChevronRight, ChevronDown, Map as MapIcon } from 'lucide-react'
 import { formatDate, formatElapsedSpan } from '../lib/formatDate'
@@ -96,7 +97,7 @@ export function NamedBirdRow({ bird, open, onToggle, showSpecies, showMap, rende
 
   return (
     <div style={{ border: '1px solid var(--sr-border)', borderRadius: 10, overflow: 'hidden', background: 'var(--sr-surface)', boxShadow: 'var(--sr-card-shadow)' }}>
-      <button tabIndex={0}
+      <Button
         aria-expanded={open}
         onClick={onToggle}
         style={{
@@ -177,7 +178,7 @@ export function NamedBirdRow({ bird, open, onToggle, showSpecies, showMap, rende
             {bird.sightingCount} {bird.sightingCount === 1 ? 'sighting' : 'sightings'}
           </span>
         </span>
-      </button>
+      </Button>
 
       {open && (
         <div style={{ borderTop: '1px solid var(--sr-border-subtle)', background: 'var(--sr-surface-faint)' }}>

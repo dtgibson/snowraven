@@ -1,3 +1,5 @@
+import { Button } from './ui/Button'
+import { Link } from './ui/Link'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   BarChart2, Trophy, Clock, MapPin, ShieldCheck, Dna, Loader2, ChevronDown,
@@ -762,16 +764,15 @@ export function BirdingStats({ onGoToSettings, onGoToWeather, onOpenSpecies }: {
       {/* Section jump-nav */}
       <nav aria-label="Jump to section" style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
         {navSections.map(t => (
-          <a
+          <Link
             key={t}
-            tabIndex={0}
             className="sr-touch-target"
             href={`#${sectionSlug(t)}`}
             onClick={e => { e.preventDefault(); jumpTo(document.getElementById(sectionSlug(t))) }}
             style={{ fontSize: '0.71875rem', fontWeight: 500, color: 'var(--sr-text-muted)', textDecoration: 'none', padding: '4px 10px', borderRadius: 100, background: 'var(--sr-surface-subtle)', border: '1px solid var(--sr-border)', whiteSpace: 'nowrap' }}
           >
             {t}
-          </a>
+          </Link>
         ))}
       </nav>
 
@@ -874,9 +875,8 @@ export function BirdingStats({ onGoToSettings, onGoToWeather, onOpenSpecies }: {
               <SubLabel>Life list accumulation</SubLabel>
               <div role="group" aria-label="Accumulation granularity" style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                 {(['weekly', 'monthly', 'yearly', 'total'] as const).map(g => (
-                  <button
+                  <Button
                     key={g}
-                    tabIndex={0}
                     className="sr-touch-target"
                     onClick={() => setAccGranularity(g)}
                     aria-pressed={accGranularity === g}
@@ -889,7 +889,7 @@ export function BirdingStats({ onGoToSettings, onGoToWeather, onOpenSpecies }: {
                     }}
                   >
                     {g.charAt(0).toUpperCase() + g.slice(1)}
-                  </button>
+                  </Button>
                 ))}
               </div>
             </div>
@@ -1292,15 +1292,14 @@ export function BirdingStats({ onGoToSettings, onGoToWeather, onOpenSpecies }: {
                         checklists" and "Top locations by species" ranks. F044. */}
                     {geoPopup && (
                       <Popup longitude={geoPopup.lng} latitude={geoPopup.lat} anchor="bottom" offset={16} onClose={() => setGeoPopup(null)} closeButton={false}>
-                        <button
-                          tabIndex={0}
+                        <Button
                           type="button"
                           className="maplibregl-popup-close-button"
                           aria-label="Close the top location popup"
                           onClick={() => setGeoPopup(null)}
                         >
                           ×
-                        </button>
+                        </Button>
                         <span style={{ fontSize: '0.8125rem' }}>{geoPopup.title}</span><br /><span style={{ color: 'var(--sr-text-muted)', fontSize: '0.75rem' }}>{geoPopup.sub}</span>
                       </Popup>
                     )}
@@ -1462,7 +1461,7 @@ export function BirdingStats({ onGoToSettings, onGoToWeather, onOpenSpecies }: {
               County names link to their state/province eBird region page.
             </p>
             {geo.topCounties.length > 8 && (
-              <button tabIndex={0}
+              <Button
                 onClick={() => setShowAllCounties(v => !v)}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 4,
@@ -1475,7 +1474,7 @@ export function BirdingStats({ onGoToSettings, onGoToWeather, onOpenSpecies }: {
                 {showAllCounties
                   ? <><ChevronUp size={12} /> Show fewer</>
                   : <><ChevronDown size={12} /> Show all {geo.topCounties.length} counties</>}
-              </button>
+              </Button>
             )}
           </>
         )}
@@ -2112,9 +2111,8 @@ export function BirdingStats({ onGoToSettings, onGoToWeather, onOpenSpecies }: {
                   { key: 'probable', label: 'Probable', color: 'var(--sr-tier-2)', fg: 'var(--sr-tier-2-fg)' },
                   { key: 'possible', label: 'Possible', color: 'var(--sr-tier-1)', fg: 'var(--sr-tier-1-fg)' },
                 ] as const).map(f => (
-                  <button
+                  <Button
                     key={f.key}
-                    tabIndex={0}
                     className="sr-touch-target"
                     onClick={() => setBreedingFilter(f.key)}
                     aria-pressed={breedingFilter === f.key}
@@ -2129,7 +2127,7 @@ export function BirdingStats({ onGoToSettings, onGoToWeather, onOpenSpecies }: {
                     }}
                   >
                     {f.label}
-                  </button>
+                  </Button>
                 ))}
               </div>
             </div>
@@ -2215,9 +2213,8 @@ export function BirdingStats({ onGoToSettings, onGoToWeather, onOpenSpecies }: {
             {mediaInterval !== 'total' ? (
               <div role="group" aria-label="Media chart mode" style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                 {(['per-period', 'cumulative'] as const).map(m => (
-                  <button
+                  <Button
                     key={m}
-                    tabIndex={0}
                     className="sr-touch-target"
                     onClick={() => setMediaViewMode(m)}
                     aria-pressed={mediaViewMode === m}
@@ -2230,16 +2227,15 @@ export function BirdingStats({ onGoToSettings, onGoToWeather, onOpenSpecies }: {
                     }}
                   >
                     {m === 'per-period' ? 'Per Period' : 'Cumulative'}
-                  </button>
+                  </Button>
                 ))}
               </div>
             ) : <div />}
             {/* Interval control */}
             <div role="group" aria-label="Media chart interval" style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
               {(['weekly', 'monthly', 'yearly', 'total'] as const).map(g => (
-                <button
+                <Button
                   key={g}
-                  tabIndex={0}
                   className="sr-touch-target"
                   onClick={() => setMediaInterval(g)}
                   aria-pressed={mediaInterval === g}
@@ -2252,7 +2248,7 @@ export function BirdingStats({ onGoToSettings, onGoToWeather, onOpenSpecies }: {
                   }}
                 >
                   {g.charAt(0).toUpperCase() + g.slice(1)}
-                </button>
+                </Button>
               ))}
             </div>
           </div>

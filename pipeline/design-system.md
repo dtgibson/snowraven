@@ -531,8 +531,10 @@ italic at 0.71875rem `--sr-text-gray`.
   treatment the user rejected on their own export does not quietly return.
 
 ## Accessibility commitments
-Every `<button>` gets explicit `tabIndex={0}` (WKWebView Tab behavior); toggles
-are `role="switch"`; live counts `aria-live="polite"`; visible focus states;
+Every app-owned button and href link renders through `components/ui/Button` or
+`components/ui/Link`, whose only added behavior is the `tabIndex={0}` default
+required by WKWebView; native props, styles, refs, and button type semantics pass
+through unchanged. Toggles are `role="switch"`; live counts `aria-live="polite"`; visible focus states;
 WCAG resize via in-app Text Size; reduced-motion honored for scrolls. A full-screen
 overlay (or any pinned band) needs its own iOS safe-area inset — it does not inherit
 the body's, so design it expecting a top inset that the status bar, Dynamic Island,

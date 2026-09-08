@@ -15,6 +15,7 @@
 //          those two call sites pass a key so only this tiny component remounts
 //          and the WebGL context is left alone.
 
+import { Button } from '../ui/Button'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Marker, useMap } from 'react-map-gl/maplibre'
@@ -129,17 +130,11 @@ export function SharePin({ compact, buttonHost }: {
   const buttonLabel = hasPin ? 'Move the pin to the map center' : 'Drop a pin at the map center'
 
   const dropButton = (
-    <button
+    <Button
       type="button"
       ref={dropButtonRef}
-      // Explicit tabIndex, and NOT redundant: WebKit's default tab mode (macOS
-      // "Keyboard navigation" off, which is the default and what WKWebView
-      // follows) visits only explicitly-tabindexed elements, native form
-      // controls and <summary>, so a plain <button> is skipped entirely on the
-      // shipped Mac and iOS apps. The measurement is in lib/useFocusTrap.ts's
-      // header; the remedy is the one "Search this area" already uses
-      // (v0.5.91). This one button serves all five share-pin surfaces.
-      tabIndex={0}
+      // The shared Button default keeps this one control reachable in WebKit's
+      // default tab mode across all five share-pin surfaces.
       // The circle comes from the shared FAB base + a size modifier
       // (uniform-map-fabs); .sr-share-drop-btn is now a state hook carrying the
       // [aria-pressed] tint, and --compact a density hook. Every 1x value is
@@ -155,7 +150,7 @@ export function SharePin({ compact, buttonHost }: {
       }}
     >
       <FlagTriangleRight size={s.icon} strokeWidth={2.2} aria-hidden />
-    </button>
+    </Button>
   )
 
   return (
@@ -179,9 +174,8 @@ export function SharePin({ compact, buttonHost }: {
         >
           {/* A real <button>, the app's DOM-marker convention, whose accessible
               name leads with the coordinates exactly as rendered (WCAG 2.5.3). */}
-          <button
+          <Button
             key={plantSeq}
-            tabIndex={0}
             type="button"
             // No compact variant: the sprite's own width/height carry the
             // density, and the 44px touch target is 44px at both.
@@ -195,7 +189,7 @@ export function SharePin({ compact, buttonHost }: {
             onContextMenu={e => e.preventDefault()}
           >
             <SharePinSprite compact={compact} />
-          </button>
+          </Button>
         </Marker>
       )}
 

@@ -11,8 +11,8 @@
 // none of them was reachable by keyboard at all until this fix. The measurement
 // is written up in lib/useFocusTrap.ts's header and in DECISIONS.md (v1.0.15).
 //
-// WHAT THIS TEST PROVES: that the literal `tabindex="0"` attribute is present on
-// every corner control, on the Map Explorer cluster (both the My Sightings row
+// WHAT THIS TEST PROVES: that the shared primitive default reaches the rendered
+// DOM as `tabindex="0"` on every corner control, on the Map Explorer cluster (both the My Sightings row
 // and the centre-view row), on an embedded corner row, and on the Atlas
 // "blocks in view" panel that ACCESSIBILITY.md publishes as the keyboard
 // substitute for the pointer-only canvas markers.
@@ -31,9 +31,9 @@
 // guard subsumes the other, and deleting this one as "now redundant" would lose
 // real coverage:
 //   * THAT file reads SOURCE, so it sees every file including the ones no test
-//     has ever mounted — but a tabIndex a component strips at RENDER time behind
-//     its own conditional still reads as tabIndex={0} in source, and it is blind
-//     to that.
+//     has ever mounted. It proves each app-owned control uses the canonical
+//     primitive and pins the primitive's default, but it cannot prove a composed
+//     surface preserves the rendered attribute.
 //   * THIS file reads the RENDERED DOM, so it catches exactly that case, on the
 //     surfaces where ACCESSIBILITY.md publishes these controls as the ONLY
 //     keyboard route to something (the corner cluster, the Atlas blocks panel).
@@ -275,7 +275,7 @@ const ROSTER: Row[] = [
   },
 ]
 
-describe('every map corner control carries an explicit tabindex="0"', () => {
+describe('every map corner control renders tabindex="0"', () => {
   for (const row of ROSTER) {
     it(`${row.control} — ${row.site}`, async () => {
       const els = await row.mount()

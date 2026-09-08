@@ -15,10 +15,10 @@
 //
 // WHAT THIS FILE CANNOT PROVE, and where the evidence for it lives. jsdom has no
 // layout engine, no tab order and no accessibility tree. So:
-//   * FOCUS CONTAINMENT (QA-15) is asserted here as the SOURCE property that
+//   * FOCUS CONTAINMENT (QA-15) is asserted here as the rendered property that
 //     makes WebKit's real order predictable -- every focusable inside the panel
-//     is a native form control or carries a literal tabIndex={0} -- and as the
-//     rendered focusable set. Whether Tab actually stays inside is a browser
+//     is a native form control or renders tabindex="0" through the shared
+//     primitive default. Whether Tab actually stays inside is a browser
 //     measurement, in Chromium AND WebKit, on the production build.
 //   * The 320px / 200% geometry (QA-59) and the grouped-listbox accessibility
 //     tree (QA-37, QA-40, R-05) are browser work for the same reason. A jsdom
@@ -557,7 +557,7 @@ describe('Enter (FR-40, QA-39)', () => {
 })
 
 describe('tab stops inside the overlay (FR-42, QA-15, QA-41)', () => {
-  it('are exactly two: the query input and the close button, each explicit', async () => {
+  it('are exactly two: the query input and the close button, both reachable', async () => {
     open()
     await settled()
     type('warb')
@@ -568,8 +568,8 @@ describe('tab stops inside the overlay (FR-42, QA-15, QA-41)', () => {
     expect(focusables[0].tagName).toBe('INPUT')
     expect(focusables[1].tagName).toBe('BUTTON')
     // THE PROPERTY THAT MAKES THE KEYDOWN TRAP'S PREDICTION CORRECT: every one
-    // is a native form control or carries a literal tabindex="0", which is
-    // exactly the set WebKit's default tab mode visits.
+    // is a native form control or renders tabindex="0" through the Button
+    // default, which is exactly the set WebKit's default tab mode visits.
     for (const el of focusables) {
       const native = ['INPUT', 'SELECT', 'TEXTAREA'].includes(el.tagName)
       expect(native || el.getAttribute('tabindex') === '0').toBe(true)

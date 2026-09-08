@@ -3,6 +3,7 @@
 // inside <SnowMap> (useMap context) — keep its call site (incl.
 // key={`${targetPins.length}-${targetViewMode}`}) unchanged.
 
+import { Button } from '../ui/Button'
 import { useEffect, useMemo } from 'react'
 import { Marker, Popup, useMap } from 'react-map-gl/maplibre'
 import { neutralizeMarkerWrapper } from '../../lib/mapPins'
@@ -95,14 +96,14 @@ export function TargetMarkers({ pins, speciesCodeMap, hasEntryFor, onOpenSpecies
                 are unchanged. The media-type SVGs inside labelHtml are aria-hidden
                 and still emitted through escHtml — visibility is gated, escaping is
                 NOT. F014/F045. */}
-            <button tabIndex={0} type="button" aria-label={ariaLabel} className={dots ? 'sr-touch-target sr-map-icon-btn-touch' : 'sr-touch-target'}
+            <Button type="button" aria-label={ariaLabel} className={dots ? 'sr-touch-target sr-map-icon-btn-touch' : 'sr-touch-target'}
               style={{ display: 'inline-flex', alignItems: 'center', gap: dots ? 0 : 6, padding: dots ? 7 : 0, border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit' }}>
               <span aria-hidden="true" style={{ flex: '0 0 auto', width: 11, height: 11, borderRadius: '50%', background: bg, border: '2px solid rgba(255,255,255,0.95)', boxShadow: '0 1px 3px rgba(0,0,0,0.45)' }} />
               <span
                 style={{ display: dots ? 'none' : 'inline-block', background: bg, color: text, padding: '3px 8px', borderRadius: 10, fontSize: '0.6875rem', fontWeight: 600, whiteSpace: 'nowrap', border: '1.5px solid rgba(255,255,255,0.85)', boxShadow: '0 2px 6px rgba(0,0,0,0.35),0 0 0 1px rgba(0,0,0,0.1)' }}
                 dangerouslySetInnerHTML={{ __html: labelHtml }}
               />
-            </button>
+            </Button>
           </Marker>
         )
       })}
@@ -120,15 +121,14 @@ export function TargetMarkers({ pins, speciesCodeMap, hasEntryFor, onOpenSpecies
                   theming and the ~44px coarse-pointer target in globals.css and
                   nothing moves for a mouse user. BirdingStats.tsx is the
                   reference. */}
-              <button
-                tabIndex={0}
+              <Button
                 type="button"
                 className="maplibregl-popup-close-button"
                 aria-label="Close the media targets popup"
                 onClick={() => onSelect(null)}
               >
                 ×
-              </button>
+              </Button>
               <div className="sr-map-popup-body" style={{ minWidth: 200, maxWidth: 260 }}>
                 <div className="sr-wrap-anywhere" style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginBottom: 8 }}>📍 {selRep.locName}</div>
                 {selGroup.map((pin, j) => {

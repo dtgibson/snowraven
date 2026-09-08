@@ -50,11 +50,12 @@
 // hop too late, with focus already resting on a control the opaque panel was
 // covering, and a keystroke typed into it and read back to prove it.
 //
-// Those two controls DO carry `tabIndex={0}` as of v1.0.16, and so now does
-// EVERY intrinsic <button> and <a href> in the app's own sources
-// (webkit-tab-order-app-wide; lib/tabOrderCoverage.test.ts enforces it over
-// every shipped .tsx on every build), apart from the controls that guard's own
-// EXCLUSIONS roster names. THAT ROSTER IS NOT RESTATED HERE. It was, and the
+// Those two controls gained `tabIndex={0}` in v1.0.16. Every app-owned button
+// and href link now renders through the native Button/Link primitives, which
+// supply that value by default; lib/tabOrderCoverage.test.ts rejects raw-control
+// bypasses, a broken primitive default, and any unrostered override over every
+// shipped .tsx on every build. The few non-default calls remain in that guard's
+// EXCLUSIONS roster. THAT ROSTER IS NOT RESTATED HERE. It was, and the
 // restatement went stale on a build that never touched this file: the nav rework
 // retired the collapsed-tab-bar listbox, and the sentence here kept claiming a
 // count and a shape the roster no longer had. The property survives every such
@@ -79,8 +80,11 @@
 //      list is missing an element the engine stops on. maplibre's
 //      AttributionControl renders one, which is why the map overlay opts into
 //      `containOutsideFocus`.
-//   3. RENDER-TIME stripping. A source-level guard sees tabIndex={0}; it cannot
-//      see a component that drops the attribute behind its own conditional.
+//   3. COMPOSED RENDERING. The source guard proves that app-owned controls use
+//      the canonical primitives and that those primitives default to tabindex
+//      0; it cannot prove that every composed surface preserves the rendered
+//      attribute. The primitive render test covers the seam, and the map render
+//      test covers the composed map surfaces where this matters most.
 // A prediction that happens to be right for the elements someone remembered to
 // mark is still a prediction. Containment stays driven by `focusin`.
 // FOCUSABLE_SELECTOR is unaffected either — it already matched both by `button`.

@@ -22,7 +22,7 @@
 // tabindex, Up/Down instead of Left/Right. That is the app's ONE remaining
 // roving-focus group, and lib/tabOrderCoverage.test.ts holds its single exception
 // row. EVERYTHING ELSE the nav draws -- the collapse toggle, all five bottom-bar
-// cells, every More-sheet row -- is a plain button carrying a LITERAL
+// cells, every More-sheet row -- renders through `Button` and inherits
 // tabIndex={0}, because WebKit's default tab mode (the shipped Mac, iPhone and
 // iPad apps) skips an unmarked <button> entirely. The old collapsed dropdown's
 // role="option" listbox was the second roving group; it is gone, and the roster
@@ -38,6 +38,7 @@
 //     in lib/mapPanelChrome.ts keeps its one-level descent regardless -- see the
 //     note there.
 
+import { Button } from './ui/Button'
 import {
   Fragment,
   useCallback,
@@ -355,9 +356,8 @@ function NavColumn(props: NavColumnProps) {
           clutter it -- and the chord reaches assistive technology the correct
           way instead, through aria-keyshortcuts, which is true on every
           platform whatever the hint displays. */}
-      <button
+      <Button
         ref={searchRef}
-        tabIndex={0}
         type="button"
         className="sr-nav-search"
         aria-keyshortcuts="Meta+K Control+K"
@@ -370,7 +370,7 @@ function NavColumn(props: NavColumnProps) {
         {hint !== 'none' && (
           <span className="sr-nav-search-hint" aria-hidden="true">{chordHintText(hint)}</span>
         )}
-      </button>
+      </Button>
       {/* In the rail the control's box chrome goes with its label, so this
           hairline is what says "not a destination" -- the nav's own structural
           separator, and structurally true for the same reason Settings' is: the
@@ -403,7 +403,7 @@ function NavColumn(props: NavColumnProps) {
                 {item.id === 'settings' && i > 0 && (
                   <hr className="sr-nav-sep" aria-hidden="true" />
                 )}
-                <button
+                <Button
                   role="tab"
                   id={`tab-${item.id}`}
                   aria-selected={active}
@@ -422,7 +422,7 @@ function NavColumn(props: NavColumnProps) {
                 >
                   <Icon size={glyph.size} strokeWidth={glyph.strokeWidth} />
                   <span>{item.label}</span>
-                </button>
+                </Button>
               </Fragment>
             )
           })}
@@ -434,8 +434,7 @@ function NavColumn(props: NavColumnProps) {
       <div className="sr-nav-spacer" />
 
       {showCollapse && (
-        <button
-          tabIndex={0}
+        <Button
           type="button"
           className="sr-nav-collapse"
           aria-expanded={!collapsed}
@@ -446,7 +445,7 @@ function NavColumn(props: NavColumnProps) {
             ? <PanelLeftOpen size={16} strokeWidth={2} aria-hidden="true" />
             : <PanelLeftClose size={16} strokeWidth={2} aria-hidden="true" />}
           <span>Collapse</span>
-        </button>
+        </Button>
       )}
 
       {tip.node}
@@ -660,9 +659,8 @@ function NavBottomBar({ items, activeTab, onSelect, navBarRef, inert, onOpenPale
           const active = item.id === activeTab
           const Icon = item.icon
           return (
-            <button
+            <Button
               key={item.id}
-              tabIndex={0}
               type="button"
               // NOT a roving group. Roving buys nothing across four items, plain
               // stops are the app's default posture, and a tablist cannot legally
@@ -675,13 +673,12 @@ function NavBottomBar({ items, activeTab, onSelect, navBarRef, inert, onOpenPale
                 <Icon size={NAV_ICON.bar.size} strokeWidth={NAV_ICON.bar.strokeWidth} />
               </span>
               <span className="sr-navbar-label">{item.label}</span>
-            </button>
+            </Button>
           )
         })}
 
-        <button
+        <Button
           ref={moreRef}
-          tabIndex={0}
           type="button"
           className={'sr-navbar-cell' + (overflowActive ? ' sr-navbar-cell--active' : '')}
           aria-haspopup="dialog"
@@ -693,7 +690,7 @@ function NavBottomBar({ items, activeTab, onSelect, navBarRef, inert, onOpenPale
             <MoreHorizontal size={NAV_ICON.bar.size} strokeWidth={NAV_ICON.bar.strokeWidth} aria-hidden="true" />
           </span>
           <span className="sr-navbar-label">More</span>
-        </button>
+        </Button>
       </nav>
 
       {sheetOpen && (
@@ -786,17 +783,16 @@ interface NavMoreSheetProps {
  * and not of this hook: the keydown arm decides "is focus at the boundary?" by
  * comparing `document.activeElement` against the ends of a `querySelectorAll`
  * list, which is a PREDICTION of the engine's tab order. That prediction is
- * correct here only because every focusable in this panel carries a literal
- * `tabIndex={0}` — the destination rows and the search row above them, and
+ * correct here only because every button in this panel inherits
+ * `tabIndex={0}` from the shared primitive — the destination rows and the search row above them, and
  * nothing else is focusable inside it — so
  * WebKit's default tab mode visits exactly the list the hook built. Where that
  * stopped being true is precisely the v1.0.15 measurement in `useFocusTrap`'s
  * own header: unmarked controls made the real order end five elements early and
  * focus escaped after five Tab presses.
  *
- * SO: adding any focusable to this panel without `tabIndex={0}` silently reopens
- * that hole. Mark it, which is the app-wide rule anyway and what
- * `tabOrderCoverage.test.ts` enforces.
+ * SO: adding any focusable to this panel outside the shared control seams
+ * silently reopens that hole. `tabOrderCoverage.test.ts` rejects that bypass.
  *
  * ENABLING `containOutsideFocus` IS NOT A FREE UPGRADE, and this was measured
  * rather than reasoned: the `focusin` arm pulls focus back into the panel
@@ -807,7 +803,7 @@ interface NavMoreSheetProps {
  * way. Doing it properly would mean moving the focus restore into an effect that
  * runs after the close commits (the `restoreFiltersFocusRef` pattern in
  * `MapExplorer`), which is a change to a working close path and is not worth
- * making on a panel whose every control is already explicitly marked.
+ * making on a panel whose every control already inherits the required value.
  */
 function NavMoreSheet({ items, activeTab, onSelect, onClose, inert, onOpenSearch }: NavMoreSheetProps) {
   const panelRef = useRef<HTMLDivElement>(null)
@@ -857,12 +853,11 @@ function NavMoreSheet({ items, activeTab, onSelect, onClose, inert, onOpenSearch
         <div className="sr-nav-sheet-handle" aria-hidden="true" />
         {/* ABOVE the <h2>, because that heading names the destination list and
             not the search. The bottom bar's own anatomy is untouched: four
-            favourites plus More, no fifth cell (FR-07). This button carries a
-            literal tabIndex={0} like every other focusable in this panel, which
-            is what keeps the focus trap's keydown prediction and WebKit's real
-            tab order in agreement -- see this component's header. */}
-        <button
-          tabIndex={0}
+            favourites plus More, no fifth cell (FR-07). This button inherits
+            tabIndex={0} like every other button in this panel, which keeps the
+            focus trap's keydown prediction and WebKit's real tab order in
+            agreement -- see this component's header. */}
+        <Button
           type="button"
           className="sr-nav-search"
           aria-keyshortcuts="Meta+K Control+K"
@@ -873,7 +868,7 @@ function NavMoreSheet({ items, activeTab, onSelect, onClose, inert, onOpenSearch
           {hint !== 'none' && (
             <span className="sr-nav-search-hint" aria-hidden="true">{chordHintText(hint)}</span>
           )}
-        </button>
+        </Button>
         <h2>More</h2>
         {items.map((item, i) => {
           const active = item.id === activeTab
@@ -881,8 +876,7 @@ function NavMoreSheet({ items, activeTab, onSelect, onClose, inert, onOpenSearch
           return (
             <Fragment key={item.id}>
               {item.id === 'settings' && i > 0 && <hr className="sr-nav-sep" aria-hidden="true" />}
-              <button
-                tabIndex={0}
+              <Button
                 type="button"
                 // Plain buttons inside the trap, NOT a roving group: this is what
                 // retires the old dropdown's role="option" listbox exception.
@@ -892,7 +886,7 @@ function NavMoreSheet({ items, activeTab, onSelect, onClose, inert, onOpenSearch
               >
                 <Icon size={NAV_ICON.sheet.size} strokeWidth={NAV_ICON.sheet.strokeWidth} />
                 <span>{item.label}</span>
-              </button>
+              </Button>
             </Fragment>
           )
         })}

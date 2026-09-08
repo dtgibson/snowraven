@@ -1,3 +1,4 @@
+import { Button } from './ui/Button'
 import type { ComparisonResult, SortOrder } from '../types'
 import { SpeciesPanel } from './SpeciesPanel'
 
@@ -55,7 +56,7 @@ export function ResultsView({ listALabel, listBLabel, result, onReset, sort, onS
         <div style={{ display: 'flex', gap: 8, flexShrink: 0, alignItems: 'center', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', borderRadius: 6, overflow: 'hidden', border: '1.5px solid var(--sr-accent-border)' }}>
             {(['taxonomic', 'alpha'] as SortOrder[]).map((s, i) => (
-              <button tabIndex={0}
+              <Button
                 key={s}
                 onClick={() => onSortChange(s)}
                 style={{
@@ -73,10 +74,10 @@ export function ResultsView({ listALabel, listBLabel, result, onReset, sort, onS
                 }}
               >
                 {s === 'taxonomic' ? 'Taxonomic' : 'A–Z'}
-              </button>
+              </Button>
             ))}
           </div>
-          <button tabIndex={0}
+          <Button
             onClick={onReset}
             style={{
               display: 'flex',
@@ -96,7 +97,7 @@ export function ResultsView({ listALabel, listBLabel, result, onReset, sort, onS
             }}
           >
             ← Compare new files
-          </button>
+          </Button>
         </div>
       </div>
 

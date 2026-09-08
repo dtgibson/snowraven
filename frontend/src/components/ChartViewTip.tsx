@@ -1,3 +1,4 @@
+import { Button } from './ui/Button'
 import { useEffect, useRef, useState } from 'react'
 import { Smartphone, X } from 'lucide-react'
 import { useIsPhone } from '../lib/useIsPhone'
@@ -89,15 +90,14 @@ export function ChartViewTip({ page }: { page: ChartTipPage }) {
           <span className="sr-chart-tip-kicker">Tip</span>
           <span className="sr-chart-tip-body">{TIP_BODY}</span>
         </span>
-        <button
+        <Button
           type="button"
-          tabIndex={0}
           className="sr-chart-tip-dismiss sr-touch-target"
           aria-label="Dismiss this tip"
           onClick={dismiss}
         >
           <X size={15} strokeWidth={2.2} aria-hidden="true" />
-        </button>
+        </Button>
       </div>
     </div>
   )

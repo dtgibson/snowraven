@@ -8,6 +8,7 @@
 // and motion live in globals.css (.sr-ssx-*), where the global
 // prefers-reduced-motion block collapses them.
 
+import { Button } from '../ui/Button'
 import { forwardRef, useId, useRef, useState } from 'react'
 import { ChevronDown, ListTree } from 'lucide-react'
 import { BirdName } from '../BirdName'
@@ -47,10 +48,9 @@ export function SubspeciesExplorerControl({ entries, selectedSpecies, onPick }: 
     // scale-tracking size as the toggles above and the county select below
     // (globals.css); the panel rows' text is span-sized and unaffected.
     <div className="sr-ctl-row" style={{ marginBottom: 16, flexShrink: 0 }} onKeyDown={handleKeyDown}>
-      <button
+      <Button
         ref={toggleRef}
         type="button"
-        tabIndex={0}
         className="sr-ssx-toggle"
         aria-expanded={open}
         aria-controls={panelId}
@@ -62,7 +62,7 @@ export function SubspeciesExplorerControl({ entries, selectedSpecies, onPick }: 
         Subspecies and forms
         <span className="sr-ssx-count">{speciesCountLabel(entries.length)}</span>
         <ChevronDown size={13} strokeWidth={2.2} className="sr-ssx-caret" aria-hidden="true" />
-      </button>
+      </Button>
 
       {/* Conditionally RENDERED, not CSS-collapsed: while closed there is no
           subtree, so no `inert` is owed and nothing strays into the tab order. */}
@@ -80,9 +80,8 @@ export function SubspeciesExplorerControl({ entries, selectedSpecies, onPick }: 
             <ul className="sr-ssx-list">
               {entries.map(entry => (
                 <li key={entry.species}>
-                  <button
+                  <Button
                     type="button"
-                    tabIndex={0}
                     className="sr-ssx-row"
                     aria-current={entry.species === selectedSpecies ? 'true' : undefined}
                     onClick={() => {
@@ -109,7 +108,7 @@ export function SubspeciesExplorerControl({ entries, selectedSpecies, onPick }: 
                         </span>
                       ))}
                     </span>
-                  </button>
+                  </Button>
                 </li>
               ))}
             </ul>

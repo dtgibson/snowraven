@@ -8,11 +8,10 @@
 // which is the ambiguity this feature exists to remove.
 //
 // It reuses the shipped Named Birds pill pattern VERBATIM: self-bordered
-// `<button>`s inside `.sr-wrap-flex` with a 6px gap, each carrying
-// `.sr-touch-target`, `aria-pressed` reflecting selection and a literal
-// `tabIndex={0}` (WebKit's default tab mode skips an unmarked button entirely, so
-// the attribute is what makes these reachable in the shipped Mac, iPhone and iPad
-// apps). Self-bordered pills with a gap rather than a shared shell with divider
+// native buttons inside `.sr-wrap-flex` with a 6px gap, each carrying
+// `.sr-touch-target`, `aria-pressed` reflecting selection, and the shared
+// `Button` primitive's `tabIndex={0}` default (required by WebKit's default tab
+// mode in the shipped Mac, iPhone and iPad apps). Self-bordered pills with a gap rather than a shared shell with divider
 // borders: when the group wraps at large text scale each pill keeps its own
 // rounded border instead of leaving stray divider lines behind.
 //
@@ -22,6 +21,7 @@
 // would put the county texture and completeness band tables on first paint for
 // every user on every platform.
 
+import { Button } from './ui/Button'
 import { optLastSighting, optToday, rangeLabel } from '../lib/namedBirdTimelineCopy'
 import type { SpanRange } from '../lib/namedBirdTimeline'
 
@@ -46,7 +46,7 @@ export function NamedBirdRangeControl({ range, onChange, groupLabel }: {
       <span style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)', fontWeight: 600 }}>{rangeLabel}</span>
       <div className="sr-wrap-flex" style={{ ['--sr-wrap-gap' as string]: '6px' }}>
         {OPTIONS.map(o => (
-          <button tabIndex={0}
+          <Button
             className="sr-touch-target"
             key={o.value}
             type="button"
@@ -62,7 +62,7 @@ export function NamedBirdRangeControl({ range, onChange, groupLabel }: {
             }}
           >
             {o.label}
-          </button>
+          </Button>
         ))}
       </div>
     </div>

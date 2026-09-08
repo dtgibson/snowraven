@@ -21,6 +21,7 @@
 // assertion for any of them: measure the element against its container's
 // content box.
 
+import { Button } from './ui/Button'
 import { useId, useState } from 'react'
 import {
   AlertCircle, Check, ChevronDown, ChevronUp, Circle,
@@ -104,19 +105,19 @@ export function ExoticProvenanceAccount({
               {status.kind === 'no-key' && (
                 <>
                   {' '}
-                  <button type="button" tabIndex={0} className="sr-exotic-link" onClick={onGoToSettings}>
+                  <Button type="button" className="sr-exotic-link" onClick={onGoToSettings}>
                     Add a key in Settings
-                  </button>
+                  </Button>
                 </>
               )}
             </span>
           </div>
 
           {running && (
-            <button type="button" tabIndex={0} className="sr-exotic-act" onClick={onStop}>
+            <Button type="button" className="sr-exotic-act" onClick={onStop}>
               <Square size={11} strokeWidth={2.2} fill="currentColor" aria-hidden="true" />
               Stop
-            </button>
+            </Button>
           )}
           {/* FR-31 gives only `error` a retry. This build also gives the four
               `partial` reasons a "Check again", an APPROVED DEVIATION (design
@@ -125,16 +126,16 @@ export function ExoticProvenanceAccount({
               (cancelled) would persist for the rest of the session with no way
               to resume. Do not remove it as an oversight. */}
           {status.kind === 'partial' && (
-            <button type="button" tabIndex={0} className="sr-exotic-act" onClick={onRetry}>
+            <Button type="button" className="sr-exotic-act" onClick={onRetry}>
               <RotateCw size={12} strokeWidth={2.2} aria-hidden="true" />
               Check again
-            </button>
+            </Button>
           )}
           {status.kind === 'error' && (
-            <button type="button" tabIndex={0} className="sr-exotic-act" onClick={onRetry}>
+            <Button type="button" className="sr-exotic-act" onClick={onRetry}>
               <RotateCw size={12} strokeWidth={2.2} aria-hidden="true" />
               Try again
-            </button>
+            </Button>
           )}
         </div>
 
@@ -170,9 +171,8 @@ export function ExoticProvenanceAccount({
             exclusion. */}
         {found > 0 && (
           <>
-            <button
+            <Button
               type="button"
-              tabIndex={0}
               className="sr-exotic-disclose"
               aria-expanded={open}
               aria-controls={panelId}
@@ -180,7 +180,7 @@ export function ExoticProvenanceAccount({
             >
               {open ? <ChevronUp size={12} aria-hidden="true" /> : <ChevronDown size={12} aria-hidden="true" />}
               {discloseLabel(found, open, running)}
-            </button>
+            </Button>
             {/* Animated with grid-template-rows 0fr/1fr, so the panel is CLIPPED
                 to zero rather than unmounted. Clipped-to-zero controls stay in
                 the tab order and in the accessibility tree, which would leave

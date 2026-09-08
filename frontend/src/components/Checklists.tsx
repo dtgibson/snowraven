@@ -6,6 +6,7 @@
 // comment). Pure logic lives in lib/checklistsTab.ts; see
 // pipeline/checklists-tab/{prd,design-spec}.md.
 
+import { Button } from './ui/Button'
 import { useEffect, useMemo, useState } from 'react'
 import {
   Loader2, ClipboardList, MessageSquare, MessagesSquare, Search,
@@ -65,7 +66,7 @@ function SortSeg({ value, onChange }: { value: CommentSort; onChange: (v: Commen
   return (
     <div style={{ display: 'inline-flex', border: '1.5px solid var(--sr-accent-border)', borderRadius: 6, overflow: 'hidden', flexShrink: 0 }} role="group" aria-label="Sort order">
       {(['newest', 'oldest'] as const).map((dir, i) => (
-        <button tabIndex={0}
+        <Button
           key={dir}
           onClick={() => onChange(dir)}
           aria-pressed={value === dir}
@@ -78,7 +79,7 @@ function SortSeg({ value, onChange }: { value: CommentSort; onChange: (v: Commen
           }}
         >
           {dir === 'newest' ? 'Newest' : 'Oldest'}
-        </button>
+        </Button>
       ))}
     </div>
   )
@@ -89,7 +90,7 @@ function SortSeg({ value, onChange }: { value: CommentSort; onChange: (v: Commen
 // to <body>, restarting the next Tab from the top of the page (F036).
 function ShowAllButton({ count, noun, showAll, onToggle }: { count: number; noun: string; showAll: boolean; onToggle: () => void }) {
   return (
-    <button tabIndex={0}
+    <Button
       onClick={onToggle}
       aria-expanded={showAll}
       style={{
@@ -105,7 +106,7 @@ function ShowAllButton({ count, noun, showAll, onToggle }: { count: number; noun
     >
       <ChevronDown size={13} strokeWidth={2.5} style={{ transform: showAll ? 'rotate(180deg)' : 'none' }} />
       {showAll ? 'Show fewer' : `Show all ${count.toLocaleString()} ${noun}`}
-    </button>
+    </Button>
   )
 }
 
@@ -264,7 +265,7 @@ function TriPill({ label, state, onCycle, icon, hasLabel, noLabel }: {
         ? { border: '1.5px solid var(--sr-error-overlay)', background: 'var(--sr-error-bg)', color: 'var(--sr-error)', fontWeight: 600 }
         : { border: '1.5px solid var(--sr-border)', background: 'var(--sr-surface)', color: 'var(--sr-text-muted)', fontWeight: 500 }
   return (
-    <button tabIndex={0}
+    <Button
       onClick={onCycle}
       aria-pressed={state !== null}
       title={`${label}. Click to cycle: any / has / doesn't have`}
@@ -279,7 +280,7 @@ function TriPill({ label, state, onCycle, icon, hasLabel, noLabel }: {
       {state === 'no' && <X size={11} strokeWidth={3} aria-hidden />}
       {state === null && icon}
       {text}
-    </button>
+    </Button>
   )
 }
 
@@ -638,7 +639,7 @@ export function Checklists({ onGoToSettings, filesVersion, onOpenSpecies }: {
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
               <span style={rowLabelStyle}>Contains</span>
-              <button tabIndex={0}
+              <Button
                 onClick={() => setFilters(f => ({
                   ...f,
                   checklistComment: null, speciesComments: null, media: null, breeding: null,
@@ -654,7 +655,7 @@ export function Checklists({ onGoToSettings, filesVersion, onOpenSpecies }: {
                 }}
               >
                 All
-              </button>
+              </Button>
               <span style={{ width: 1, height: 20, background: 'var(--sr-border)', margin: '0 3px', flexShrink: 0 }} />
               <TriPill label="Checklist comment" state={filters.checklistComment} onCycle={setTri('checklistComment')} />
               <TriPill label="Species comments" state={filters.speciesComments} onCycle={setTri('speciesComments')} />
@@ -737,12 +738,12 @@ export function Checklists({ onGoToSettings, filesVersion, onOpenSpecies }: {
               fontSize: '0.75rem', color: 'var(--sr-accent-strong)',
             }}>
               <span>{filterStripText}</span>
-              <button tabIndex={0}
+              <Button
                 onClick={() => setFilters(f => ({ ...f, county: null, dateRange: { from: '', to: '' } }))}
                 style={{ border: 'none', background: 'none', color: 'var(--sr-accent)', fontSize: '0.75rem', fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer', textDecoration: 'underline', padding: 0 }}
               >
                 Clear filter
-              </button>
+              </Button>
             </div>
           )}
 
