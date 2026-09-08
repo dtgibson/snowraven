@@ -7,6 +7,7 @@ from routers import settings as settings_module
 from main import app
 
 client = TestClient(app)
+TEST_MAX_BYTES = 1024 * 1024
 
 
 @pytest.fixture(autouse=True)
@@ -52,20 +53,20 @@ def test_upload_non_csv_rejected():
 # single-sourcing a guard prevents the copies DRIFTING, and does nothing to prevent
 # one being DROPPED (.claude/rules/security.md). Deleting the `len(content) >
 # MAX_BYTES` check left the whole backend suite and the frontend parity test green;
-# these rows go red on it. MAX_BYTES is monkeypatched down so the test does not have
-# to post 50 MB, which is also what makes it read the module attribute at call time
-# rather than a value captured at import.
+# these rows go red on it. MAX_BYTES is monkeypatched down to 1 MB so the test does
+# not have to post 50 MB, which also proves the 413 detail reads the module
+# attribute at call time rather than repeating the production label.
 @pytest.mark.parametrize("slot, stored", [("ebird", "ebird-backup.csv"), ("ml", "ml-export.csv")])
 def test_upload_over_cap_rejected(tmp_path, monkeypatch, slot, stored):
-    monkeypatch.setattr(settings_module, "MAX_BYTES", 16)
+    monkeypatch.setattr(settings_module, "MAX_BYTES", TEST_MAX_BYTES)
 
     resp = client.post(
         f"/settings/files/{slot}",
-        files={"file": ("MyEBirdData.csv", b"x" * 17, "text/csv")},
+        files={"file": ("MyEBirdData.csv", b"x" * (TEST_MAX_BYTES + 1), "text/csv")},
     )
 
     assert resp.status_code == 413
-    assert resp.json()["detail"] == "File exceeds the 50 MB limit."
+    assert resp.json()["detail"] == "File exceeds the 1 MB limit."
     # Refused means NOT written: no file, and no metadata entry claiming one.
     assert not (tmp_path / stored).exists()
     assert client.get("/settings/files").json()[slot] is None
@@ -74,8 +75,8 @@ def test_upload_over_cap_rejected(tmp_path, monkeypatch, slot, stored):
 @pytest.mark.parametrize("slot, stored", [("ebird", "ebird-backup.csv"), ("ml", "ml-export.csv")])
 def test_upload_exactly_at_cap_accepted(tmp_path, monkeypatch, slot, stored):
     """The other edge, so the rows above cannot pass by refusing everything."""
-    monkeypatch.setattr(settings_module, "MAX_BYTES", 16)
-    body = b"x" * 16
+    monkeypatch.setattr(settings_module, "MAX_BYTES", TEST_MAX_BYTES)
+    body = b"x" * TEST_MAX_BYTES
 
     resp = client.post(
         f"/settings/files/{slot}",
@@ -95,10 +96,10 @@ def test_upload_over_cap_does_not_replace_a_stored_file(tmp_path, monkeypatch):
     )
     assert (tmp_path / "ebird-backup.csv").read_bytes() == good
 
-    monkeypatch.setattr(settings_module, "MAX_BYTES", 16)
+    monkeypatch.setattr(settings_module, "MAX_BYTES", TEST_MAX_BYTES)
     resp = client.post(
         "/settings/files/ebird",
-        files={"file": ("Huge.csv", b"y" * 4096, "text/csv")},
+        files={"file": ("Huge.csv", b"y" * (TEST_MAX_BYTES + 1), "text/csv")},
     )
 
     assert resp.status_code == 413
