@@ -178,7 +178,9 @@ export function useMapFullscreen({
   //
   // Unlike the Map Explorer, the surface behind this overlay is a live page in
   // the same panel rather than a `display: none` sibling, so the trap cannot
-  // lean on the page behind being unfocusable and opts into containment.
+  // lean on the page behind being unfocusable and opts into containment. A
+  // later-activated modal such as CommandPalette owns focus while it is above
+  // this one; the shared hook yields, then resumes here when that modal closes.
   useFocusTrap(expanded, containerRef, { containOutsideFocus: true })
 
   const className = mapFullscreenClass(baseClass, expanded)

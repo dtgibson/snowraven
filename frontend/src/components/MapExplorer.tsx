@@ -700,10 +700,9 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
   // a hard capture on a non-modal region. The tier effect above is what makes the
   // sentence true rather than aspirational: `sidebarOpen` cannot outlive the tier.
   //
-  // The Cmd-K palette can open above this overlay too, and the arm will treat its
-  // focus as an escape — the same pre-existing shape `Calendar.tsx`'s day-dialog
-  // trap records, and the same one `lib/useMapFullscreen.ts` has shipped since
-  // v1.0.15. Not introduced here and not this build's to move.
+  // The Cmd-K palette can open above this overlay too. The shared hook now gives
+  // that later-activated trap ownership of focus, so this lower arm yields until
+  // the palette closes and then resumes its own containment.
   //
   // F061 does not reach this call site, checked rather than inherited: the
   // opener-restore is the `restoreFiltersFocusRef` effect ABOVE this one, which
