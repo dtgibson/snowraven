@@ -475,6 +475,13 @@ italic at 0.71875rem `--sr-text-gray`.
   card carrying several such groups will have several legitimately different totals
   and a bare number reads as a disagreement. The Weather section's outings-by-sky,
   by-temperature and by-wind groups are the exemplars.
+  **ONE PRIMITIVE, TWO SURFACES.** The same row component (`WeatherSpeciesRow`),
+  the same label/condition vocabulary (`lib/weatherDisplay.ts`) and the same
+  stylesheet tier serve BOTH the Statistics Weather section and the Species Detail
+  Weather card, deliberately: one set of layout rules, so a bird's chart and the
+  tab's charts cannot drift apart. The consequence to carry: **a change to this
+  tier reaches both surfaces**, so a repair written for one is a repair to the
+  other, and "the other is untouched" is a measurement rather than a reading.
 - **A row whose trailing figure is incompressible takes its OWN row, at every width.**
   When a row carries two `nowrap` `auto` tracks (a count and a second figure beside
   it) inside a column narrower than the card, the width it needs depends on the width
@@ -519,7 +526,9 @@ italic at 0.71875rem `--sr-text-gray`.
   saying so, and the per-row reference figure that makes that sentence checkable band
   by band with no scrolling. A row with no population at all carries no reference
   figure, since "0%" only repeats what the row already said. The Weather section's
-  per-species chart is the exemplar.
+  per-species chart is the exemplar, and the Species Detail Weather card is the
+  second instance -- where the shared rail is refused by name in the spec, so the
+  treatment the user rejected on their own export does not quietly return.
 
 ## Accessibility commitments
 Every `<button>` gets explicit `tabIndex={0}` (WKWebView Tab behavior); toggles
