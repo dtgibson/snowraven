@@ -2,6 +2,16 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [1.0.25] - 2026-09-08
+
+### Fixed
+- **A failed saved-file status check no longer looks like an empty setup.** On the web and Raspberry Pi versions, if the backend could not answer which eBird backup or Macaulay Library export was stored, every data tab treated that uncertainty as proof that no file existed and sent you to the import instructions. An unreadable file record in the installed apps could do the same. Statistics, Calendar, Checklists, Breeding Codes, Named Birds, Species Detail, Multimedia and Map Explorer now show their existing load-failure message instead. A genuinely empty file slot still shows setup guidance, and a later visit tries again.
+- **A dialog opened above another dialog keeps the keyboard.** Search can open over a fullscreen map, a Calendar day, or the Map Explorer filters, and Documentation can open over the Welcome screen. The lower surface used to reclaim focus immediately or on the next Tab press. Focus now belongs to the most recently opened surface until it closes, then the lower surface resumes keeping the keyboard inside it.
+
+### Changed
+- **The Windows release build now declares its read-only repository permission.** Its GitHub token is explicitly limited to reading repository contents, matching the existing repository default and preventing a future settings change from silently widening it.
+- **The iOS fullscreen map tier has one internal source of truth.** The map layout and sidebar containment now consume the same decision, preventing them from drifting while leaving the visible fullscreen behavior unchanged.
+
 ## [1.0.24] - 2026-09-08
 
 ### Changed
