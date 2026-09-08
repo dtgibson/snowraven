@@ -48,7 +48,13 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run typecheck
-      - run: npm run test
+      # The suite contains deliberate same-run performance comparisons and
+      # jsdom scheduling probes. On GitHub's two-core shared runners, Vitest's
+      # default worker count repeatedly starved unrelated files into timeouts
+      # and late-effect assertions even though every failed file passed when
+      # rerun. Keep enough parallelism to exercise isolation without letting
+      # worker contention become the thing this gate measures.
+      - run: npm run test -- --maxWorkers=2
       - run: npm run build
 
       # The real-engine verification gate. Playwright is declared in
