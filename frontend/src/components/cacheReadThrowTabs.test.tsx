@@ -67,7 +67,7 @@ const EBIRD_STEPS_MARKER = /Download My Data/
 
 const settingsProps = { onGoToSettings: () => {} }
 
-/** One row per tab whose loader maps a THROWN load to `setup-required`. Two of the
+/** One row per tab whose loader mapped a THROWN load to `setup-required`. Two of the
  *  eight is the sample, not the roster: `honestLoadFailures.test.tsx` owns the
  *  full eight-surface roster for the falsy branch these now reach. */
 const TABS: { name: string; element: ReactNode; ready: () => Promise<unknown> }[] = [

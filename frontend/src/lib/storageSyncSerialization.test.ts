@@ -205,4 +205,13 @@ describe('readMeta drops a malformed origin (security round, Finding 4)', () => 
     const status = await storage.getFilesStatus();
     expect(status).toEqual({ ebird: null, ml: null });
   });
+
+  it('a missing metadata document is the one case that means no files are stored', async () => {
+    await expect(storage.getFilesStatus()).resolves.toEqual({ ebird: null, ml: null });
+  });
+
+  it('an unreadable metadata document rejects instead of masquerading as no files', async () => {
+    harness.files.set(META_PATH, '{not-json');
+    await expect(storage.getFilesStatus()).rejects.toThrow();
+  });
 });

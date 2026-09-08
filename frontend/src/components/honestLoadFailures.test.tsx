@@ -351,6 +351,22 @@ describe('Finding B: a stored-but-unloadable eBird backup names the file and the
   )
 })
 
+describe('a failed file-status read is never reported as an absent file', () => {
+  it.each(EBIRD_MESSAGE_TABS.map(t => [t.name, t] as const))(
+    '%s reports the tab\'s load failure and omits setup guidance',
+    async (_name, tab) => {
+      H.getFilesStatus.mockRejectedValue(new TypeError('Failed to fetch'))
+      render(tab.element)
+
+      const expected = tab.name === 'Multimedia' ? ML_EXPORT_LOAD_ERROR : EBIRD_BACKUP_LOAD_ERROR
+      expect(await screen.findByText(expected)).toBeTruthy()
+      expect(screen.queryByText(tab.setupTitle)).toBeNull()
+      expect(screen.queryByText(tab.stepsMarker)).toBeNull()
+      expect(screen.getByRole('button', { name: /Go to Settings/ })).toBeTruthy()
+    },
+  )
+})
+
 describe('Finding B: List Comparer carries the same one string, not two of its own', () => {
   /** Life-Lists mode with a List B uploaded, ready for Compare. */
   async function armComparer(container: HTMLElement) {

@@ -41,6 +41,28 @@ describe('WebStorage generic settings writes', () => {
   })
 })
 
+describe('WebStorage file status reads distinguish absence from failure', () => {
+  it('returns the backend status when the request succeeds', async () => {
+    const files = {
+      ebird: { filename: 'MyEBirdData.csv', uploadedAt: '2026-09-08T12:00:00.000Z' },
+      ml: null,
+    }
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => files,
+    })))
+
+    await expect(storage.getFilesStatus()).resolves.toEqual(files)
+  })
+
+  it.each([400, 500, 503])('rejects a %i response instead of reporting that no files are stored', async (status) => {
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, status })))
+
+    await expect(storage.getFilesStatus()).rejects.toThrow(String(status))
+  })
+})
+
 // ml-export-hardening. `deleteSetting` gained the check above in v1.0.14; its two
 // siblings on the FILE endpoints did not, and that is where it was doing the most
 // damage. The backend has capped uploads at 50 MB all along and answers 413 over

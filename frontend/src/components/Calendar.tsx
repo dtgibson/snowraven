@@ -819,7 +819,7 @@ export function Calendar({ onGoToSettings, filesVersion }: {
         setView({ kind: 'year', year: defaultYear(ebird.observations)! })
         setPhase({ tag: 'ready', observations: ebird.observations })
       } catch {
-        if (!cancelled) setPhase({ tag: 'setup-required' })
+        if (!cancelled) setPhase({ tag: 'error', message: EBIRD_BACKUP_LOAD_ERROR })
       }
     }
     autoLoad()

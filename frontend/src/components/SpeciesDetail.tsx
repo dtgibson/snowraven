@@ -243,8 +243,8 @@ export function SpeciesDetail({ onGoToSettings, onGoToWeather, filesVersion, req
           // sits INSIDE loadMLExport's own try, so it resolves null on a read or a
           // parse failure and this guard has nothing left to catch. It stays because
           // the cost of being wrong is asymmetric: a rejection here rejects the whole
-          // Promise.all into the outer catch, which claims there is no eBird backup
-          // while one is plainly loaded — over a shared seam four tabs read through.
+          // Promise.all and misattributes an optional ML failure to the required
+          // eBird backup — over a shared seam four tabs read through.
           status.ml ? loadMLExport().catch(() => null) : Promise.resolve(null),
         ])
         if (cancelled) return
@@ -267,7 +267,7 @@ export function SpeciesDetail({ onGoToSettings, onGoToWeather, filesVersion, req
         setPhase({ tag: 'ready', observations, mediaMap, mlRows, hasML, userId: mlUserId })
         fetchTaxonData(observations)
       } catch {
-        if (!cancelled) setPhase({ tag: 'setup-required' })
+        if (!cancelled) setPhase({ tag: 'error', message: EBIRD_BACKUP_LOAD_ERROR })
       }
     }
     autoLoad()
