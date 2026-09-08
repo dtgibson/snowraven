@@ -90,14 +90,18 @@ function renderSettings(overrides: Partial<React.ComponentProps<typeof Settings>
 function clearButtonFor(label: string): HTMLElement {
   const row = screen.getByText(label).closest('.sr-action-row')
   if (!row) throw new Error(`no file row for ${label}`)
-  return within(row as HTMLElement).getByRole('button', { name: 'Clear' })
+  const button = within(row as HTMLElement).getByRole('button', { name: 'Clear' }) as HTMLButtonElement
+  // Both rows render their disabled empty-state button before the async file
+  // status read settles. Make waitFor callers wait for the saved file too,
+  // rather than clicking a real but intentionally inert loading-shell control.
+  if (button.disabled) throw new Error(`${label} has not loaded yet`)
+  return button
 }
 
 beforeEach(() => {
   filesStatus.current = { ebird: { ...SAVED }, ml: { filename: 'ML.csv', uploadedAt: SAVED.uploadedAt } }
-  // Reset queued one-shot results as well as call history. A slow click can
-  // otherwise finish after its test and leave mockResolvedValueOnce queued for
-  // the next row, making the full suite order-dependent on worker scheduling.
+  // Reset queued one-shot results as well as call history so every row starts
+  // from the same storage contract regardless of suite order.
   deleteFile.mockReset().mockResolvedValue(undefined)
   writeFile.mockReset().mockResolvedValue(undefined)
   purgeDerivedOnClear.mockReset().mockResolvedValue([])
