@@ -1,6 +1,7 @@
 // feature: shared-button-link-primitives — every app-owned button and href link
 // renders through the native Button/Link seams, which supply tabIndex={0} by
-// default. Four deliberately non-default call sites stay explicit and counted.
+// default. Deliberately non-default call sites stay explicit and counted in the
+// authoritative roster below.
 //
 // WHY THIS FILE EXISTS. WebKit's default tab mode (Safari with macOS "Keyboard
 // navigation" off, which is the default and what WKWebView follows, so it is
@@ -57,6 +58,7 @@ import { dirname, join, normalize } from 'node:path/posix'
 import ts from 'typescript'
 
 const SRC = fileURLToPath(new URL('../', import.meta.url)) // frontend/src/
+const REPO = fileURLToPath(new URL('../../../', import.meta.url))
 
 /**
  * Every SHIPPED .tsx under src/, relative to src/. Walked rather than listed:
@@ -193,27 +195,24 @@ const tabIndexDefaultsIn = (relPath: string): string[] => {
  *
  * THEY ARE NOT ALL ONE KIND, and saying so matters, because the prose that
  * publishes them has to be true of EACH:
- *   - TWO are roving-tabindex GROUPS: the container holds one tab stop and the
- *     arrow keys move within it (the main navigation's vertical tablist, and the
- *     Settings choice rows). ACCESSIBILITY.md describes these under Keyboard
- *     Navigation. It was THREE until the nav rework: the horizontal tab strip's
- *     collapsed dropdown was a role="option" listbox and the second group, and
- *     the responsive nav that replaced it uses plain trapped buttons in its More
- *     sheet, so that row is retired rather than rewritten.
- *   - ONE is a redundant affordance and is NOT roving: the species selector's
- *     chevron is a fixed tabIndex={-1}, and the arrow keys never move to it.
+ *   - Roving-tabindex groups let the container hold one tab stop while arrow
+ *     keys move within it. The main navigation's vertical tablist and the
+ *     Settings choice rows use this pattern. ACCESSIBILITY.md describes the
+ *     behavior under Keyboard Navigation; it does not mirror this roster's
+ *     cardinality.
+ *   - The species selector's redundant chevron is NOT roving: it has a fixed
+ *     tabIndex={-1}, and the arrow keys never move to it.
  *     They move an aria-activedescendant index on the <input> beside it, which
  *     is itself a tab stop whose onFocus opens the same list. It is skipped
  *     because something else already does its job, not because a group owns its
  *     stop.
- *   - ONE is not a tab-order decision at all: the offline base-map button
+ *   - The offline base-map button is not a tab-order decision at all. It
  *     carries native `disabled`, so the platform removes it whatever its
  *     tabIndex says. ACCESSIBILITY.md publishes that under OFFLINE STATES,
- *     deliberately apart from the other four, because "another tab stop already
- *     reaches it" is not the reason.
- * A summary calling all five roving-tabindex widgets is false twice over, and an
- * earlier revision of this very docstring said exactly that while row five's own
- * `why` field contradicted it. Prose and roster are checked against each other.
+ *     deliberately apart from the redundant-control exceptions, because
+ *     "another tab stop already reaches it" is not the reason.
+ * Collapsing the roster into one kind of exception is false. Non-owner prose
+ * therefore states the property and points here instead of restating a total.
  *
  * BINDING. Each row declares the exact NUMBER of sites it covers, and the tests
  * assert equality rather than existence. Without the count a row is a blanket
@@ -311,13 +310,11 @@ describe('every control the app renders itself is an explicit tab stop', () => {
     }
   })
 
-  it('the roster accounts for every explicit override exactly once, so prose and code cannot drift', () => {
-    // ACCESSIBILITY.md names these exceptions individually. If a FIFTH appears,
-    // or a rostered one gains a sibling, that prose has become false and this
-    // fails. (It was five rows and a sixth would have broken it, until the nav
-    // rework retired the collapsed dropdown's listbox.) Compared as a COUNTED multiset rather than a de-duplicated set: a
-    // set collapses two sites sharing a file and an initializer into one entry,
-    // which is the exact hole the row counts above exist to close.
+  it('the roster accounts for every explicit override exactly once', () => {
+    // Compared as a COUNTED multiset rather than a de-duplicated set: a set
+    // collapses sites sharing a file and initializer into one entry, which is
+    // the exact hole the per-row counts above exist to close. ACCESSIBILITY.md
+    // publishes the property and exception shapes without mirroring this total.
     const overrides = allSites().filter(s => s.tabIndex !== null)
     expect(overrides.every(isExcluded)).toBe(true)
 
@@ -329,6 +326,28 @@ describe('every control the app renders itself is an explicit tab stop', () => {
     const expected = new Map(EXCLUSIONS.map(e => [countKey(e.file, e.tabIndex), e.count]))
     expect(Object.fromEntries([...found].sort())).toEqual(Object.fromEntries([...expected].sort()))
     expect(overrides.length).toBe(EXCLUSIONS.reduce((n, e) => n + e.count, 0))
+  })
+
+  it('keeps roster totals out of the explanatory source and published prose', () => {
+    const narratives = [
+      readFileSync(`${SRC}lib/tabOrderCoverage.test.ts`, 'utf8'),
+      readFileSync(`${SRC}lib/useFocusTrap.ts`, 'utf8'),
+      readFileSync(`${REPO}.claude/rules/ui.md`, 'utf8'),
+      readFileSync(`${REPO}ACCESSIBILITY.md`, 'utf8'),
+    ]
+    const staleTotalClaims = [
+      /\b(?:one|two|three|four|five|\d+) deliberately non-default call sites?\b/i,
+      /\b(?:one|two|three|four|five|\d+) rostered exceptions?\b/i,
+      /\b(?:one|two|three|four|five|\d+) (?:are|were) roving-tabindex groups?\b/i,
+      /\bthis app has (?:one|two|three|four|five|\d+) such groups?\b/i,
+      /\broster (?:went|goes) from (?:one|two|three|four|five|\d+) rows? to (?:one|two|three|four|five|\d+)\b/i,
+      /\bthat is the whole of the list\b/i,
+      /\b(?:one|two|three|four|five) of those (?:are|is)\b/i,
+    ]
+
+    for (const narrative of narratives) {
+      for (const claim of staleTotalClaims) expect(narrative).not.toMatch(claim)
+    }
   })
 })
 
