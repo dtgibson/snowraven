@@ -130,14 +130,16 @@ describe('the stacked row tier is single-sourced across its two triggers', () =>
     // clipping ancestor anywhere, paint straight through the count cell. The two
     // belong in the same declaration block or the first is a trap.
     //
-    // `anywhere`, never `break-word`: only `anywhere` lowers the item's
-    // intrinsic contribution. They render identically here, which is exactly why
-    // the wrong one is easy to write and impossible to see.
+    // `overflow-wrap:anywhere`, never `overflow-wrap:break-word`: only
+    // `anywhere` lowers the item's intrinsic contribution. The separate
+    // `word-break:break-word` declaration is the Linux painted-break fallback;
+    // both are required and the similarly named values are not interchangeable.
     for (const [name, rules] of [['phone', phoneRows], ['container', containerRows]] as const) {
       const label = rules.get('.sr-wx-row > .sr-wx-label')
       expect(label, `${name}: the label rule must exist`).toBeTruthy()
       expect(label!['white-space'], name).toBe('normal')
       expect(label!['overflow-wrap'], name).toBe('anywhere')
+      expect(label!['word-break'], name).toBe('break-word')
     }
   })
 

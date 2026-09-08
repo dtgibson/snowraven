@@ -873,10 +873,10 @@ export default function App() {
               single-line form (.sr-header-compact, globals.css). */}
           {isPhone && (
             <header inert={chromeInert} className={compactChrome() ? 'sr-header sr-header-compact' : 'sr-header'} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '48px 24px 0', flexShrink: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: compactChrome() ? 7 : 10, marginBottom: compactChrome() ? 0 : 6 }}>
+              <div className="sr-header-brand" style={{ gap: compactChrome() ? 7 : 10, marginBottom: compactChrome() ? 0 : 6 }}>
                 <RavenGlyph size={compactChrome() ? 20 : 30} style={{ color: 'var(--sr-accent)' }} />
-                <h1 style={{ fontSize: compactChrome() ? '1.125rem' : '1.625rem', fontWeight: 700, letterSpacing: '-0.6px', margin: 0 }}>
-                  Snow<span style={{ color: 'var(--sr-accent)' }}>Raven</span>
+                <h1 className="sr-header-title" style={{ fontSize: compactChrome() ? '1.125rem' : '1.625rem', fontWeight: 700, letterSpacing: '-0.6px', margin: 0 }}>
+                  <span>Snow</span><span style={{ color: 'var(--sr-accent)' }}>Raven</span>
                 </h1>
               </div>
               {!compactChrome() && (

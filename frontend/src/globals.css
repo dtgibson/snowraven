@@ -878,6 +878,21 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* The phone wordmark yields to the header's content box at large text sizes.
+   The glyph keeps its size while the two semantic halves of SnowRaven wrap at
+   their natural boundary, never at an arbitrary letter. This is responsive by
+   construction: when the one-line wordmark fits, its rendering is unchanged. */
+.sr-header-brand {
+  display: flex; align-items: center; justify-content: center;
+  width: 100%; max-width: 100%; min-width: 0;
+}
+.sr-header-brand > svg { flex-shrink: 0; }
+.sr-header-title {
+  display: flex; flex: 0 1 auto; flex-wrap: wrap; justify-content: center;
+  max-width: 100%; min-width: 0;
+}
+.sr-header-title > span { white-space: nowrap; }
+
 /* iOS safe areas (mobile-app NFR-07): with viewport-fit=cover the WebView
    extends under the notch/Dynamic Island and rounded corners; these insets
    keep the app's first row and side gutters clear in both orientations.
@@ -4537,11 +4552,17 @@ select:focus-visible {
      on the shipped v1.0.22 build in Chromium and WebKit agreeing to within
      0.06px: "Thunderstorm" overshot by 48.9px at 320px / 200%, its track 70.3px
      against a min-content of 135.2px, over the string `no outings` -- the row
-     every birder who has never birded a thunderstorm sees. `break-word` renders
-     identically here and does NOT fix it: only `anywhere` lowers the item's
-     intrinsic contribution, and nothing reads this label's min-content, so
-     v0.5.85's objection to `anywhere` does not apply. The desktop tier needs
-     nothing; it clips with an ellipsis by construction.
+     every birder who has never birded a thunderstorm sees. `overflow-wrap:
+     break-word` renders identically here and does NOT fix it: only `anywhere`
+     lowers the item's intrinsic contribution, and nothing reads this label's
+     min-content, so v0.5.85's objection to `anywhere` does not apply.
+
+     `word-break: break-word` is the separate compatibility leg. Linux browser
+     builds measured a one-pixel painted overlap even with the intrinsic floor
+     lowered by `overflow-wrap: anywhere`; the legacy word-break spelling makes
+     the emergency painted break explicit on that engine path. Keep both here
+     and in the identical container tier below. The desktop tier needs nothing;
+     it clips with an ellipsis by construction.
 
      THIS RULE REACHES BOTH ROW FAMILIES, AND WRITING THAT DOWN IS THE POINT OF
      THIS PARAGRAPH. The selector is `.sr-wx-row > .sr-wx-label` in the SHARED
@@ -4568,7 +4589,7 @@ select:focus-visible {
      below is the contrasting case and is genuinely narrow, by construction. */
   .sr-wx-row > .sr-wx-label {
     grid-area: 1 / 2; white-space: normal; overflow: visible;
-    overflow-wrap: anywhere;
+    overflow-wrap: anywhere; word-break: break-word;
   }
   .sr-wx-row > .sr-wx-count { grid-area: 1 / 3; }
   .sr-wx-row > .sr-wx-track { grid-area: 2 / 1 / 3 / 4; }
@@ -4663,7 +4684,7 @@ select:focus-visible {
   .sr-wx-row > .sr-wx-glyph { grid-area: 1 / 1; }
   .sr-wx-row > .sr-wx-label {
     grid-area: 1 / 2; white-space: normal; overflow: visible;
-    overflow-wrap: anywhere;
+    overflow-wrap: anywhere; word-break: break-word;
   }
   .sr-wx-row > .sr-wx-count { grid-area: 1 / 3; }
   .sr-wx-row > .sr-wx-track { grid-area: 2 / 1 / 3 / 4; }
