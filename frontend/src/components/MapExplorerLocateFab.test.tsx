@@ -132,7 +132,10 @@ const region = () => document.querySelector('.sr-map-geo-error') as HTMLElement
 
 /** Wait for the backup to resolve so the sidebar/map are past 'loading-saved'. */
 async function ready() {
-  await waitFor(() => expect(cluster()).toBeTruthy())
+  // The corner cluster exists in the loading shell. Wait for a view control,
+  // which appears only after the saved export has actually settled.
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Hotspots' })).toBeTruthy())
+  expect(cluster()).toBeTruthy()
 }
 
 // THE PHONE TIER IS NOW ENFORCED IN CODE, not merely implied by which controls

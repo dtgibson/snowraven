@@ -166,7 +166,10 @@ const getCalls = () => (transport.get as ReturnType<typeof vi.fn>).mock.calls
 const activityCalls = () => net.calls.filter(c => c.path === '/map/hotspot-activity')
 
 async function ready() {
-  await waitFor(() => expect(document.querySelector('.sr-map-fab-cluster')).toBeTruthy())
+  // The corner cluster exists in the loading shell. Wait for a view control,
+  // which appears only after the saved export has actually settled.
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Hotspots' })).toBeTruthy())
+  expect(document.querySelector('.sr-map-fab-cluster')).toBeTruthy()
 }
 
 async function goToHotspots() {

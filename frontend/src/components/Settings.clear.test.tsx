@@ -95,9 +95,12 @@ function clearButtonFor(label: string): HTMLElement {
 
 beforeEach(() => {
   filesStatus.current = { ebird: { ...SAVED }, ml: { filename: 'ML.csv', uploadedAt: SAVED.uploadedAt } }
-  deleteFile.mockClear().mockResolvedValue(undefined)
-  writeFile.mockClear().mockResolvedValue(undefined)
-  purgeDerivedOnClear.mockClear().mockResolvedValue([])
+  // Reset queued one-shot results as well as call history. A slow click can
+  // otherwise finish after its test and leave mockResolvedValueOnce queued for
+  // the next row, making the full suite order-dependent on worker scheduling.
+  deleteFile.mockReset().mockResolvedValue(undefined)
+  writeFile.mockReset().mockResolvedValue(undefined)
+  purgeDerivedOnClear.mockReset().mockResolvedValue([])
 })
 
 afterEach(cleanup)

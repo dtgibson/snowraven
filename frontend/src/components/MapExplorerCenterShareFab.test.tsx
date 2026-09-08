@@ -165,7 +165,10 @@ function renderMap() {
 }
 
 async function ready() {
-  await waitFor(() => expect(cluster()).toBeTruthy())
+  // The corner cluster exists in the loading shell. Wait for a view control,
+  // which appears only after the saved export has actually settled.
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Hotspots' })).toBeTruthy())
+  expect(cluster()).toBeTruthy()
 }
 
 /** Switch to a centre view and type a centre in, which is what mounts the pin. */
