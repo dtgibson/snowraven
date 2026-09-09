@@ -53,6 +53,7 @@ const h = vi.hoisted(() => {
     hasImage: () => false,
     addImage: () => {},
     updateImage: () => {},
+    setMissingStyleImageResolver: () => {},
     on: () => {},
     off: () => {},
     flyTo: () => {},

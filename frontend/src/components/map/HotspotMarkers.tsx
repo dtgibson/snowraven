@@ -4,7 +4,7 @@
 
 import { useEffect, useMemo, type ReactNode } from 'react'
 import { Source, Layer, Popup, useMap } from 'react-map-gl/maplibre'
-import type { ExpressionSpecification, FilterSpecification, MapMouseEvent, MapStyleImageMissingEvent, SymbolLayerSpecification } from 'maplibre-gl'
+import type { ExpressionSpecification, FilterSpecification, MapMouseEvent, SymbolLayerSpecification } from 'maplibre-gl'
 import type { FeatureCollection, Point } from 'geojson'
 import {
   HOTSPOT_KINDS, HOTSPOT_IMAGE_ID, teardropImageData, updateMapCursor,
@@ -15,9 +15,10 @@ import { hatchPixelRatio } from '../../lib/atlasTextures'
 import { formatDate } from '../../lib/formatDate'
 import { OutboundLink } from '../OutboundLink'
 import type { HotspotPin } from '../../lib/mapExplorerTypes'
+import { registerMissingStyleImageHandler } from '../../lib/mapMissingImages'
 
 /** Reverse sprite lookup: image id → hotspot kind, null for ids that aren't
- *  ours (the styleimagemissing safety net must ignore foreign ids — other
+ *  ours (the missing-image resolver must ignore foreign ids — other
  *  layers may legitimately miss images). */
 // eslint-disable-next-line react-refresh/only-export-components -- pure lookup tested directly; lives here beside the handler that wraps it
 export function hotspotKindForImage(id: string): HotspotKind | null {
@@ -184,29 +185,32 @@ export function HotspotMarkers({ pins, hiddenKinds, sel, onSelect, autoFit = tru
       }
     }
     addAll()
-    // Safety net (MapLibre's canonical mechanism): if the style ever asks for
+    // Safety net (MapLibre v6's resolver mechanism): if the style ever asks for
     // one of OUR sprites before addAll has run — a style swap, an ordering we
     // haven't met — bake and add that image on demand. Foreign ids are ignored
     // (both reverse lookups answer ONLY this component's own hardcoded ids).
-    const onMissing = (e: MapStyleImageMissingEvent) => {
-      if (cancelled) return
-      if (map.hasImage(e.id)) return
-      const kind = hotspotKindForImage(e.id)
+    const onMissing = (id: string) => {
+      if (cancelled) return false
+      const kind = hotspotKindForImage(id)
       if (kind) {
+        if (map.hasImage(id)) return true
         const dpr = hatchPixelRatio()
-        map.addImage(e.id, teardropImageData(kind, dpr), { pixelRatio: dpr })
-        return
+        map.addImage(id, teardropImageData(kind, dpr), { pixelRatio: dpr })
+        return true
       }
-      const modeKey = hotspotModeSpriteKeyForImage(e.id)
+      const modeKey = hotspotModeSpriteKeyForImage(id)
       if (modeKey) {
+        if (map.hasImage(id)) return true
         const dpr = hatchPixelRatio()
-        map.addImage(e.id, modeTeardropImageData(modeKey, dpr, tierRings), { pixelRatio: dpr })
+        map.addImage(id, modeTeardropImageData(modeKey, dpr, tierRings), { pixelRatio: dpr })
+        return true
       }
+      return false
     }
-    map.on('styleimagemissing', onMissing)
+    const unregisterMissing = registerMissingStyleImageHandler(map, onMissing)
     const obs = new MutationObserver(addAll)
     obs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
-    return () => { cancelled = true; obs.disconnect(); map.off('styleimagemissing', onMissing) }
+    return () => { cancelled = true; obs.disconnect(); unregisterMissing() }
     // tierRings IS a dep: a toggle flip re-runs addAll, which regenerates and
     // updateImage-s every mode sprite in place (same dimensions) — the theme
     // MutationObserver re-bake path, no remount.

@@ -13,6 +13,8 @@
 
 import { Button } from './ui/Button'
 import 'maplibre-gl/dist/maplibre-gl.css'
+import { setWorkerUrl } from 'maplibre-gl'
+import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
 import { useEffect, useId, useMemo, useState, type ReactNode } from 'react'
 import MapGL, { NavigationControl, AttributionControl, Source, Layer } from 'react-map-gl/maplibre'
 import type { StyleSpecification, Map as MaplibreMap } from 'maplibre-gl'
@@ -23,6 +25,10 @@ import {
   type VectorVariant, type BaseKey,
 } from '../lib/mapStyle'
 import { readPersistedStyle, persistStyle, revalidateStyleOnce } from '../lib/persistedStyle'
+
+// MapLibre v6 is ESM-only. Let Vite emit its module worker as a separate lazy
+// asset and give MapLibre the final hashed URL before any map can be created.
+setWorkerUrl(maplibreWorkerUrl)
 
 interface SnowMapProps {
   initialViewState?: { longitude: number; latitude: number; zoom: number }
@@ -192,6 +198,9 @@ export function SnowMap({ initialViewState, style, children, onLoad, switcher, s
       initialViewState={initialViewState ?? { longitude: -100, latitude: 45, zoom: 3 }}
       mapStyle={mapStyle}
       style={style}
+      // Preserve MapLibre v5's overscaling/query posture. v6 otherwise defaults
+      // this to 4, which can change rendering and queryRenderedFeatures results.
+      zoomLevelsToOverscale={undefined}
       // Default control disabled; the explicit one below sits bottom-LEFT so the
       // Map Explorer's bottom-right FAB cluster can't partially obscure the
       // attribution toggle below the 24×24 target-size minimum (F094).

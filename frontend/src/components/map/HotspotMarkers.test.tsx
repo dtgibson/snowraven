@@ -2,7 +2,7 @@
 //
 // Two concerns, one file:
 //
-// 1. The styleimagemissing safety net in HotspotMarkers must bake sprites only
+// 1. The missing-image resolver in HotspotMarkers must bake sprites only
 //    for ids it owns and ignore every other id (other layers may legitimately
 //    miss images). The map-facing handler is a thin wrapper around the reverse
 //    lookups — locking them here tests the ownership contract without mocking
@@ -218,13 +218,16 @@ describe('mode-active rendering', () => {
 
 function mockMap() {
   const handlers = new Map<string, (e: unknown) => void>()
+  let resolver: ((id: string) => void | Promise<void>) | null = null
   return {
     handlers,
+    get resolver() { return resolver },
     flyTo: vi.fn(),
     fitBounds: vi.fn(),
     hasImage: vi.fn(() => false),
     addImage: vi.fn(),
     updateImage: vi.fn(),
+    setMissingStyleImageResolver: vi.fn((next: ((id: string) => void | Promise<void>) | null) => { resolver = next }),
     getLayer: vi.fn(() => undefined),
     queryRenderedFeatures: vi.fn(() => []),
     getCanvas: vi.fn(() => ({ style: {} })),
@@ -260,18 +263,18 @@ describe('fit effect and sprites (NFR-04 / NFR-03)', () => {
     for (const key of HOTSPOT_MODE_SPRITE_KEYS) expect(added).toContain(HOTSPOT_MODE_IMAGE_ID[key])
   })
 
-  it('the styleimagemissing net answers own ids only', () => {
+  it('the missing-image resolver answers own ids only', () => {
     const map = mockMap()
     mapCtl.map = map
     render(<HotspotMarkers {...baseProps} />)
     map.addImage.mockClear()
-    const onMissing = map.handlers.get('styleimagemissing')!
-    onMissing({ id: 'some-foreign-sprite' })
+    const onMissing = map.resolver!
+    onMissing('some-foreign-sprite')
     expect(map.addImage).not.toHaveBeenCalled()
-    onMissing({ id: HOTSPOT_MODE_IMAGE_ID['quiet-unvisited'] })
+    onMissing(HOTSPOT_MODE_IMAGE_ID['quiet-unvisited'])
     expect(map.addImage).toHaveBeenCalledTimes(1)
     expect(map.addImage.mock.calls[0][0]).toBe(HOTSPOT_MODE_IMAGE_ID['quiet-unvisited'])
-    onMissing({ id: HOTSPOT_IMAGE_ID.visited })
+    onMissing(HOTSPOT_IMAGE_ID.visited)
     expect(map.addImage).toHaveBeenCalledTimes(2)
   })
 })

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 //
-// The styleimagemissing safety net in AtlasLayer must bake hatch sprites only
+// The missing-image resolver in AtlasLayer must bake hatch sprites only
 // for ids it owns and ignore every other id (other layers may legitimately
 // miss images). The map-facing handler is a thin wrapper around this reverse
 // lookup — locking the lookup here tests the ownership contract without
@@ -47,6 +47,7 @@ const stubMap = vi.hoisted(() => ({
   hasImage: () => false,
   addImage: () => {},
   updateImage: () => {},
+  setMissingStyleImageResolver: () => {},
   queryRenderedFeatures: () => [],
   flyTo: () => {},
   on: () => {},

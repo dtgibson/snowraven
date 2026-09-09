@@ -116,7 +116,7 @@ export function countyHatchPixelRatio(): number {
 }
 
 /** Reverse sprite lookup: image id → county tier, null for ids that aren't ours
- *  (the styleimagemissing safety net must ignore foreign ids — other layers may
+ *  (the missing-image resolver must ignore foreign ids — other layers may
  *  legitimately miss images). */
 export function countyHatchTierForImage(id: string): CountyTier | null {
   for (const tier of COUNTY_TIERS) {

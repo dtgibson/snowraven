@@ -14,7 +14,7 @@
 // vendor-maplibre standing check, extended to us-counties.
 /// <reference types="node" />
 import { describe, it, expect } from 'vitest'
-import { readFileSync, existsSync } from 'node:fs'
+import { readFileSync, existsSync, readdirSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -123,7 +123,7 @@ function closureFrom(root: string): { files: Set<string>; externals: Set<string>
 const hasIn = (fs: Set<string>, suffix: string) =>
   [...fs].some(f => f.replace(/\\/g, '/').endsWith(suffix))
 const maplibreIn = (ext: Set<string>) =>
-  [...ext].filter(s => s === 'maplibre-gl' || s.startsWith('react-map-gl'))
+  [...ext].filter(s => s === 'maplibre-gl' || s.startsWith('maplibre-gl/') || s.startsWith('react-map-gl'))
 
 const { files, externals } = closureFrom(APP)
 const has = (suffix: string) => hasIn(files, suffix)
@@ -291,8 +291,14 @@ describe('entry-chunk exclusion (NFR-03 / QA-30)', () => {
   })
 
   it('no statically-reachable file imports maplibre (vendor-maplibre off first paint)', () => {
-    const maplibre = [...externals].filter(s => s === 'maplibre-gl' || s.startsWith('react-map-gl'))
-    expect(maplibre).toEqual([])
+    expect(maplibreIn(externals)).toEqual([])
+  })
+
+  it('the lazy SnowMap subtree owns both MapLibre and its Vite-emitted worker (guards the guard)', () => {
+    const snowMap = closureFrom(resolve(SRC, 'components/SnowMap.tsx'))
+    expect([...snowMap.externals]).toContain('maplibre-gl')
+    expect([...snowMap.externals]).toContain('maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url')
+    expect([...snowMap.externals]).toContain('react-map-gl/maplibre')
   })
 
   it('App.tsx does not statically import the Calendar tab (it is lazy) (OQ-09)', () => {
@@ -605,10 +611,26 @@ describe('entry-chunk exclusion (NFR-03 / QA-30)', () => {
 // Secondary: when a production build is present, assert the county chunk is not
 // preloaded by the entry HTML — the literal CLAUDE.md vendor-maplibre check.
 const DIST_INDEX = resolve(SRC, '../dist/index.html')
+const DIST_ASSETS = resolve(SRC, '../dist/assets')
 describe.skipIf(!existsSync(DIST_INDEX))('dist/index.html modulepreload (post-build)', () => {
   const html = existsSync(DIST_INDEX) ? readFileSync(DIST_INDEX, 'utf8') : ''
-  it('does not modulepreload the county geometry chunk, completeness code, or maplibre', () => {
+  it('does not modulepreload the county geometry chunk, completeness code, MapLibre, or its worker', () => {
     const preloads = [...html.matchAll(/<link[^>]+rel="modulepreload"[^>]+href="([^"]+)"/g)].map(m => m[1])
-    expect(preloads.some(h => /us-counties|CountyLayer|countyCompleteness|vendor-maplibre/i.test(h))).toBe(false)
+    expect(preloads.some(h => /us-counties|CountyLayer|countyCompleteness|vendor-maplibre|maplibre-gl-worker/i.test(h))).toBe(false)
+  })
+
+  it('emits the MapLibre module worker as its own production asset', () => {
+    const assets = existsSync(DIST_ASSETS) ? readdirSync(DIST_ASSETS) : []
+    expect(assets.filter(name => /^maplibre-gl-worker-[^.]+\.js$/.test(name))).toHaveLength(1)
+  })
+
+  it('the built entry chunk does not statically import MapLibre or its worker', () => {
+    const entryHref = html.match(/<script[^>]+type="module"[^>]+src="([^"]+)"/)?.[1]
+    expect(entryHref, 'the production HTML names its module entry').toBeTruthy()
+    const entryFile = resolve(dirname(DIST_INDEX), entryHref!.replace(/^\//, ''))
+    const entry = readFileSync(entryFile, 'utf8')
+    // Vite may name lazy dependencies in its dynamic preload table. The
+    // first-paint invariant is that neither asset is a static ESM import.
+    expect(entry).not.toMatch(/(?:from|import)\s*["']\.\/(?:vendor-maplibre|maplibre-gl-worker)-/)
   })
 })

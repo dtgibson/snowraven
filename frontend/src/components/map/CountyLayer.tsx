@@ -16,7 +16,7 @@ import { Button } from '../ui/Button'
 import { useEffect, useMemo, useState } from 'react'
 import { Source, Layer, Popup, useMap } from 'react-map-gl/maplibre'
 import type { FeatureCollection } from 'geojson'
-import type { FillLayerSpecification, FilterSpecification, LineLayerSpecification, MapGeoJSONFeature, MapLayerMouseEvent, MapStyleImageMissingEvent } from 'maplibre-gl'
+import type { FillLayerSpecification, FilterSpecification, LineLayerSpecification, MapGeoJSONFeature, MapLayerMouseEvent } from 'maplibre-gl'
 import { ExternalLink } from 'lucide-react'
 import {
   countiesInBounds, countyListRows, padBounds, countyKey, deriveCountyRegionCode, stateNameFor,
@@ -38,6 +38,7 @@ import {
 } from '../../lib/countyPopupFit'
 import { MARKER_LIST_CAP } from '../../lib/markersInView'
 import { countyHatchImageData, countyHatchPixelRatio, countyHatchTierForImage, COUNTY_HATCH_IMAGE_ID, COUNTY_TIERS } from '../../lib/countyTextures'
+import { registerMissingStyleImageHandler } from '../../lib/mapMissingImages'
 
 // Tier 1..10 — the green --sr-county-N ramp (10 data-driven quantile classes so
 // well-birded counties separate instead of clumping in one coarse top class).
@@ -312,7 +313,7 @@ export function CountyLayer({
   // "loaded" style — do NOT gate this on isStyleLoaded() (false during ANY
   // tile/source churn) with a once('load') fallback: `load` fires once per map
   // LIFETIME, so a listener armed later never fires and the fill-pattern silently
-  // renders nothing (the documented post-mortem). The styleimagemissing safety net
+  // renders nothing (the documented post-mortem). The missing-image resolver
   // bakes only OUR ids on demand; foreign ids are ignored.
   useEffect(() => {
     if (!map) return
@@ -328,18 +329,20 @@ export function CountyLayer({
       }
     }
     addAll()
-    const onMissing = (e: MapStyleImageMissingEvent) => {
-      if (cancelled) return
-      const tier = countyHatchTierForImage(e.id)
-      if (tier === null || map.hasImage(e.id)) return
+    const onMissing = (id: string) => {
+      if (cancelled) return false
+      const tier = countyHatchTierForImage(id)
+      if (tier === null) return false
+      if (map.hasImage(id)) return true
       const dpr = countyHatchPixelRatio()
-      map.addImage(e.id, countyHatchImageData(tier, dpr), { pixelRatio: dpr })
+      map.addImage(id, countyHatchImageData(tier, dpr), { pixelRatio: dpr })
+      return true
     }
-    map.on('styleimagemissing', onMissing)
+    const unregisterMissing = registerMissingStyleImageHandler(map, onMissing)
     const onTheme = () => { addAll(); setThemeRev(n => n + 1) }
     const obs = new MutationObserver(onTheme)
     obs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
-    return () => { cancelled = true; obs.disconnect(); map.off('styleimagemissing', onMissing) }
+    return () => { cancelled = true; obs.disconnect(); unregisterMissing() }
   }, [map])
 
   // Opening a BIRDED county's popup in Completeness mode auto-requests its data

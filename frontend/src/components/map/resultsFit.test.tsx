@@ -41,6 +41,7 @@ const h = vi.hoisted(() => {
     hasImage: () => true,
     addImage: () => {},
     updateImage: () => {},
+    setMissingStyleImageResolver: () => {},
     fitBounds: (...a: unknown[]) => { fitCalls.push(a) },
     flyTo: (...a: unknown[]) => { flyCalls.push(a) },
     on: () => {},

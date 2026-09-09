@@ -2,6 +2,11 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [1.0.26] - 2026-09-08
+
+### Changed
+- **Map rendering now uses the secured MapLibre 6 release line.** The upgrade closes a critical cross-site-scripting vulnerability in the map engine while preserving SnowRaven's existing maps, controls, overlays, sprites, popups, and lazy-loading behavior. The test runner was also updated to close its separate development-tooling advisory.
+
 ## [1.0.25] - 2026-09-08
 
 ### Fixed

@@ -13,13 +13,14 @@ import { Button } from './ui/Button'
 import { useEffect, useMemo, useState } from 'react'
 import { Source, Layer, Popup, useMap } from 'react-map-gl/maplibre'
 import type { FeatureCollection, Polygon } from 'geojson'
-import type { FillLayerSpecification, LineLayerSpecification, MapGeoJSONFeature, MapLayerMouseEvent, MapStyleImageMissingEvent } from 'maplibre-gl'
+import type { FillLayerSpecification, LineLayerSpecification, MapGeoJSONFeature, MapLayerMouseEvent } from 'maplibre-gl'
 import { blocksInBounds, blockListRows, padBounds, type AtlasData, type Bounds, type BlockListRow } from '../lib/atlasBlocks'
 import { OutboundLink } from './OutboundLink'
 import type { BlockBreeding } from '../lib/atlasBreeding'
 import { hatchImageData, hatchPixelRatio, HATCH_IMAGE_ID, TIERS, type Tier } from '../lib/atlasTextures'
 import { updateMapCursor } from '../lib/mapPins'
 import { MARKER_LIST_CAP } from '../lib/markersInView'
+import { registerMissingStyleImageHandler } from '../lib/mapMissingImages'
 
 // Fallback tier purples (index = tier 1..4) when the --sr-tier-N tokens can't be
 // read; the live values come from the tokens so the fill tracks light/dark.
@@ -32,7 +33,7 @@ function tierColor(tier: Tier): string {
 }
 
 /** Reverse sprite lookup: image id → hatch tier, null for ids that aren't
- *  ours (the styleimagemissing safety net must ignore foreign ids — other
+ *  ours (the missing-image resolver must ignore foreign ids — other
  *  layers may legitimately miss images). */
 // eslint-disable-next-line react-refresh/only-export-components -- pure lookup tested directly; lives here beside the handler that wraps it
 export function hatchTierForImage(id: string): Tier | null {
@@ -161,21 +162,23 @@ export function AtlasLayer({ data, shade = false, breedingByBlock = null, useTex
       }
     }
     addAll()
-    // Safety net (MapLibre's canonical mechanism): if the style ever asks for
+    // Safety net (MapLibre v6's resolver mechanism): if the style ever asks for
     // one of OUR sprites before addAll has run — a style swap, an ordering we
     // haven't met — bake and add that image on demand. Foreign ids are ignored.
-    const onMissing = (e: MapStyleImageMissingEvent) => {
-      if (cancelled) return
-      const tier = hatchTierForImage(e.id)
-      if (tier === null || map.hasImage(e.id)) return
+    const onMissing = (id: string) => {
+      if (cancelled) return false
+      const tier = hatchTierForImage(id)
+      if (tier === null) return false
+      if (map.hasImage(id)) return true
       const dpr = hatchPixelRatio()
-      map.addImage(e.id, hatchImageData(tier, dpr), { pixelRatio: dpr })
+      map.addImage(id, hatchImageData(tier, dpr), { pixelRatio: dpr })
+      return true
     }
-    map.on('styleimagemissing', onMissing)
+    const unregisterMissing = registerMissingStyleImageHandler(map, onMissing)
     const onTheme = () => { addAll(); setThemeRev(n => n + 1) }
     const obs = new MutationObserver(onTheme)
     obs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
-    return () => { cancelled = true; obs.disconnect(); map.off('styleimagemissing', onMissing) }
+    return () => { cancelled = true; obs.disconnect(); unregisterMissing() }
   }, [map])
 
   // Open a block popup from the keyboard list — same setSel a pin click triggers,

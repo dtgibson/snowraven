@@ -83,6 +83,7 @@ const h = vi.hoisted(() => {
     hasImage: () => false,
     addImage: () => {},
     updateImage: () => {},
+    setMissingStyleImageResolver: () => {},
     queryRenderedFeatures: () => [],
     flyTo: () => {},
   }
