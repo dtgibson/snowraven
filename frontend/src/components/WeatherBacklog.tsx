@@ -37,7 +37,7 @@ import { classifyLiveError, type LiveErrorKind } from '../lib/offlineMessage'
 import { protocolName, formatDuration, formatDistance } from '../lib/checklistMeta'
 import { formatDate } from '../lib/formatDate'
 import { SUBMISSION_ID_RE } from './speciesDetail/ui'
-import { openExternalUrl } from '../lib/openExternal'
+import { openExternalLink, openExternalUrl } from '../lib/openExternal'
 
 // ── Props ────────────────────────────────────────────────────────────────────
 
@@ -107,25 +107,40 @@ function BacklogRowView({
   onGoToSettings?: () => void
 }) {
   const c = entry.row.checklist
+  // Capture the row identity once and derive every target from that same,
+  // validated primitive. The native click handlers below close over these URL
+  // strings, so a rerender or reorder cannot ask a delegated document listener
+  // to rediscover which row was pressed.
+  const submissionId = c.submissionId
   const [state, setState] = useState<RowState>({ kind: 'idle' })
 
-  const validId = SUBMISSION_ID_RE.test(c.submissionId)
+  const validId = SUBMISSION_ID_RE.test(submissionId)
+  const checklistUrl = validId ? `https://ebird.org/checklist/${submissionId}` : null
+  const editUrl = validId ? EDIT_URL(submissionId) : null
   const busy = state.kind === 'looking-up' || state.kind === 'copying'
 
   const dateLabel = formatDate(c.date)
+
+  const openChecklist = useCallback((event: React.MouseEvent<HTMLAnchorElement>) => {
+    if (checklistUrl) openExternalLink(event.nativeEvent, checklistUrl)
+  }, [checklistUrl])
+
+  const openEdit = useCallback((event: React.MouseEvent<HTMLAnchorElement>) => {
+    if (editUrl) openExternalLink(event.nativeEvent, editUrl)
+  }, [editUrl])
 
   const runAction3 = useCallback(async () => {
     // In-flight guard: a re-click while looking-up/copying is ignored, so there
     // is no double fetch and — critically — no double open (FR-27).
     if (state.kind === 'looking-up' || state.kind === 'copying') return
-    if (!validId) {
+    if (!editUrl) {
       setState({ kind: 'error-bad-id' })
       return
     }
     setState({ kind: 'looking-up' })
     let block: string | null
     try {
-      block = await buildBacklogCopyText(c.submissionId, lookupWeather)
+      block = await buildBacklogCopyText(submissionId, lookupWeather)
     } catch (err) {
       const kind: LiveErrorKind = classifyLiveError(err).kind
       setState(kind === 'offline' ? { kind: 'error-offline' }
@@ -147,9 +162,11 @@ function BacklogRowView({
     // Success edge — open the edit page EXACTLY ONCE, only here (FR-18c/FR-19).
     // openExternalUrl (NOT window.open) so it opens in the desktop app too — a raw
     // window.open is silently dropped in the Tauri WebView (see lib/openExternal.ts).
-    openExternalUrl(EDIT_URL(c.submissionId))
+    // `editUrl` was derived from this row's shape-valid id before the async
+    // lookup began. It cannot be replaced by a later render's row identity.
+    openExternalUrl(editUrl)
     setState({ kind: 'success' })
-  }, [state.kind, validId, c.submissionId, lookupWeather, onCopy])
+  }, [state.kind, submissionId, editUrl, lookupWeather, onCopy])
 
   // Meta line (line 2): protocol · distance · duration · county, state · completeness.
   const stateAbbr = c.stateProvince ? c.stateProvince.split('-')[1] : null
@@ -172,8 +189,9 @@ function BacklogRowView({
       {/* Line 1: date · location · species count */}
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, flexWrap: 'wrap', minWidth: 0 }}>
         <ChecklistLink
-          submissionId={c.submissionId}
+          submissionId={submissionId}
           label={dateLabel}
+          onClick={openChecklist}
           style={{ fontSize: '0.8125rem', fontWeight: 600, whiteSpace: 'nowrap', flexShrink: 0 }}
         />
         <span style={{ fontSize: '0.75rem', color: 'var(--sr-text-disabled)' }}>·</span>
@@ -231,15 +249,17 @@ function BacklogRowView({
       <div className="sr-wrap-flex" style={{ marginTop: 11, ['--sr-wrap-gap' as string]: '6px' }}>
         {/* #1 open checklist */}
         <span className="sr-touch-target" style={{ borderRadius: 8 }}>
-          <ChecklistLink submissionId={c.submissionId} label={dateLabel} compact size="md"
+          <ChecklistLink submissionId={submissionId} label={dateLabel} compact size="md"
+            onClick={openChecklist}
             title="Open checklist on eBird"
             style={{ justifyContent: 'center', width: 32, height: 32, border: '1px solid var(--sr-border-medium)', borderRadius: 8, color: 'var(--sr-text)' }}
           />
         </span>
         {/* #2 open comment/edit page */}
-        {validId ? (
+        {editUrl ? (
           <OutboundLink
-            href={EDIT_URL(c.submissionId)}
+            href={editUrl}
+            onClick={openEdit}
             aria-label="Open this checklist's comment and edit page on eBird"
             title="Open comment/edit page on eBird"
             className="sr-touch-target"

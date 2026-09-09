@@ -8,7 +8,7 @@ SnowRaven turns the eBird and Macaulay Library exports you already have into a p
 
 ## What it does
 
-- **Weather & Tide Lookup**: paste a checklist ID and get a paste-ready historical weather summary plus the tide from the nearest NOAA station. Current and forecast lookups work too, and a backlog lists your recent checklists still missing a weather block.
+- **Weather & Tide Lookup**: paste a checklist ID and get a paste-ready historical weather summary plus the tide from the nearest NOAA station. Current and forecast lookups work too, and a backlog lists your recent checklists still missing a weather block. Each backlog action keeps its own checklist target even as you widen or page the list.
 - **Species Detail**: your complete history with any species: stats, top locations, field notes, subspecies breakdowns, a sightings map with county shading that expands to fill the window, and embedded Macaulay Library media.
 - **Weather on the bird's own page**: a Weather card on Species Detail shows the skies and temperatures you have recorded the selected bird in, out of the same derivation the Statistics Weather section paints from, so the two always agree. It reads the blocks SnowRaven and RainCrow write into checklist comments, with no picker of its own. It opens with one number against two different wholes, your weather-block checklists and the checklists you have the bird on, and nothing divides them; every row does the same thing per band. A bird with too few weather-block checklists gets a plain sentence and no chart rather than a confident-looking distribution, which is the ordinary outcome for most species. It never predicts or ranks, and it is built from the backup you already loaded, so it makes no lookup and works offline.
 - **Statistics**: life-list totals and growth, milestones, temporal and geographic patterns, effort, data quality, breeding and media stats, escapee accounting per eBird's life-list rule, and which eBird projects your checklists were submitted to (checked on demand with your own key). Its Geographic Stats map shades counties with numbers that match the county tables beside it, and the Map Explorer's too while Count all forms is off (the Map Explorer always applies the countable-species rule).
@@ -43,6 +43,8 @@ Two free API keys, entered once in Settings:
 - **OpenWeather API key**, from [openweathermap.org](https://openweathermap.org), subscribed to the free **One Call by Call** plan (activating it requires a payment card on file even though the free tier is free; set a usage cap to avoid charges).
 
 Most tabs also use your own data files: your **eBird backup** (`MyEBirdData.csv`, from [ebird.org/downloadMyData](https://ebird.org/downloadMyData)) and, optionally, your **Macaulay Library export** for the media features.
+
+On web and Raspberry Pi installs, a stored export that sends no response headers or body data for 30 seconds stops with the existing load-failure state instead of leaving every dependent tab waiting. The limit is based on inactivity, so a healthy large file can take longer while it continues to stream, and a later load tries again without restarting the service.
 
 ## Installation
 

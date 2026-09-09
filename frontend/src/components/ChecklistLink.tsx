@@ -23,7 +23,7 @@
 
 import { Link } from './ui/Link'
 import { ExternalLink } from 'lucide-react'
-import type { CSSProperties } from 'react'
+import type { CSSProperties, MouseEventHandler } from 'react'
 import { SUBMISSION_ID_RE } from './speciesDetail/ui'
 
 export interface ChecklistLinkProps {
@@ -39,6 +39,8 @@ export interface ChecklistLinkProps {
   title?: string
   /** Extra style merged onto the link/fallback (e.g. fontWeight, whiteSpace). */
   style?: CSSProperties
+  /** Optional row-owned dispatch hook; ignored when the id fails validation. */
+  onClick?: MouseEventHandler<HTMLAnchorElement>
 }
 
 // The one accessible name for this function, everywhere it appears. Pass the visible
@@ -51,7 +53,7 @@ export function checklistLinkAriaLabel(submissionId: string, label?: string): st
   return `Open checklist ${submissionId} on eBird (opens in a new tab)`
 }
 
-export function ChecklistLink({ submissionId, label, size = 'sm', compact = false, title, style }: ChecklistLinkProps) {
+export function ChecklistLink({ submissionId, label, size = 'sm', compact = false, title, style, onClick }: ChecklistLinkProps) {
   const text = label ?? submissionId
   const iconSize = size === 'md' ? 11 : 10
 
@@ -70,6 +72,7 @@ export function ChecklistLink({ submissionId, label, size = 'sm', compact = fals
       rel="noreferrer"
       aria-label={checklistLinkAriaLabel(submissionId, compact ? undefined : label)}
       title={title}
+      onClick={onClick}
       style={{
         display: 'inline-flex',
         alignItems: 'center',

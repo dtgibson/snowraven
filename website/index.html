@@ -45,7 +45,7 @@
       <a class="brand" href="#top" aria-label="SnowRaven home">
         <img class="brand-mark" src="assets/logo.svg" alt="" width="28" height="28" />
         <span class="brand-name">Snow<span class="brand-accent">Raven</span></span>
-        <span class="version-pill" aria-label="Version 1.0.27">v1.0.27</span>
+        <span class="version-pill" aria-label="Version 1.0.28">v1.0.28</span>
       </a>
 
       <nav class="primary-nav" aria-label="Primary">
@@ -184,7 +184,8 @@
               station. Current shows the live weather and tide for where you are, Predict
               forecasts both for a place and time you choose, and a backlog lists your
               recent checklists that still have no weather block, so you can work down
-              the ones you missed.
+              the ones you missed. Each action keeps its own checklist target as you
+              widen or page the list.
             </p>
           </div>
           <figure class="feature-media shot-slot" data-shot="weather">
@@ -652,6 +653,9 @@
               Most analytics also use your own
               <a href="https://ebird.org/downloadMyData" target="_blank" rel="noopener">eBird backup</a>
               (a free export of your data) and an optional Macaulay Library export. They stay on your device.
+              On web and Raspberry Pi installs, a stored export that sends no data for
+              30 seconds stops with a load error and can be tried again, while a healthy
+              large file can keep streaming for longer.
               On a Mac, iPhone or iPad, an optional iCloud Sync switch in Settings (off by default)
               keeps those two files the same across your own Apple devices through your own iCloud
               account, so an export uploaded once is used everywhere. A second switch, also off by
@@ -702,7 +706,7 @@
         Tides from NOAA Tides &amp; Currents. The weather lookup mirrors the format pioneered by
         <a href="https://raincrow.app" target="_blank" rel="noopener">raincrow.app</a>.
       </p>
-      <p class="footer-version">SnowRaven v1.0.27 · Free &amp; open source</p>
+      <p class="footer-version">SnowRaven v1.0.28 · Free &amp; open source</p>
     </div>
   </footer>
 </body>

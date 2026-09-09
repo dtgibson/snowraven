@@ -111,6 +111,8 @@ The ML export is used by: Multimedia (media counts and species coverage), Specie
 
 If the Multimedia tab says it couldn't load your ML export, the file is saved but SnowRaven could not turn it into a species list, either because it could not read the file or because what is stored is not an ML export. Re-upload the spreadsheet in Settings under Default Files. That message is different from the "Macaulay Library Export Required" panel, which appears only when no export is saved at all.
 
+On web and Raspberry Pi installs, SnowRaven stops a stored-file read when the server sends no response headers or body data for 30 seconds. The affected tab shows its existing load-failure state instead of waiting for the rest of the session, and a later load starts a fresh attempt without restarting the service. This is an inactivity limit, not a total-download limit: a healthy large export can take longer than 30 seconds as long as data keeps arriving.
+
 ---
 
 ## Weather
@@ -142,7 +144,7 @@ Weather forecasts reach about eight days out. Within the first couple of days yo
 
 At the very bottom of the Weather tab, a **List checklists with no weather blocks** section lets you work down your backlog instead of looking checklists up one at a time. Open it to see your most-recent checklists whose comment carries no recognized weather block (SnowRaven's or RainCrow's), newest first. The list is built entirely from your loaded eBird backup, so it builds and pages with no lookups and works offline; only the per-row weather lookup (below) needs a connection.
 
-Each row shows the checklist's date, location, species count, protocol, effort, and completeness, and offers three actions:
+Each row shows the checklist's date, location, species count, protocol, effort, and completeness, and offers three actions. Each action keeps that row's own checklist target when the list is widened, reordered, or paged:
 
 - **Open checklist:** opens the checklist on eBird in a new tab.
 - **Open comment/edit page:** opens the checklist's comment/edit page on eBird in a new tab, ready for you to paste into.

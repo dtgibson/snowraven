@@ -2,6 +2,12 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [1.0.28] - 2026-09-09
+
+### Fixed
+- **A stalled stored export no longer leaves data tabs waiting until the web or Raspberry Pi service restarts.** Reading either an eBird backup or a Macaulay Library export now stops after 30 seconds with no response headers or body data, releases the shared pending load, and lets a later visit try again. The limit measures inactivity rather than total download time, so a healthy large export can keep streaming for longer than 30 seconds.
+- **Every Missing Weather action keeps the checklist it belongs to.** Opening a checklist, opening its comment page, and Copy weather & go now send that row's validated submission ID directly to the native opener. Their targets remain distinct after the list is reordered, widened, or paged, instead of actions sometimes collapsing onto one checklist until SnowRaven restarts.
+
 ## [1.0.27] - 2026-09-08
 
 ### Changed

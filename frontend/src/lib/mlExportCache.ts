@@ -34,8 +34,9 @@ async function loadFresh(myGen: number): Promise<MLExportResult | null> {
   let result: MLExportResult | null
   // The READ is inside this try, not above it. It used to sit outside, so a read
   // rejection escaped as a throw while the docstring promised null — and on web/Pi
-  // that is an ordinary event: `WebStorage.readFile` is a bare `fetch` + `res.text()`,
-  // so an unreachable backend rejects the fetch and a truncated body rejects the text.
+  // that is an ordinary event: `WebStorage.readFile` rejects when the backend is
+  // unreachable, the body is truncated, or the transfer stays silent past its
+  // inactivity bound.
   try {
     const text = await storage.readFile('ml')
     if (text === null) return null

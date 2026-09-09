@@ -72,6 +72,12 @@ jobs:
       - name: Install the verification tooling
         working-directory: website/tools
         run: npm ci
+      # Playwright installs its own pinned Chromium build. The hosted runner's
+      # separate Google Chrome apt source is unrelated, but `--with-deps` runs
+      # apt-get update and a transient mismatch in that source otherwise blocks
+      # every browser dependency from installing.
+      - name: Isolate Playwright from the runner Chrome repository
+        run: sudo rm -f /etc/apt/sources.list.d/google-chrome.list
       - name: Install Chromium and WebKit
         working-directory: website/tools
         run: npx playwright install --with-deps chromium webkit

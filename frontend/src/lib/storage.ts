@@ -162,6 +162,97 @@ export interface StorageAdapter {
   setReplayStore(store: ReplayStore): Promise<void>;
 }
 
+// Web/Pi reads are same-origin transfers from SnowRaven's own backend. Thirty
+// seconds with no response headers and no body bytes is therefore a failed
+// transfer, not a merely large export. This is deliberately an INACTIVITY bound:
+// each body chunk rearms it, so a healthy 50 MB response can take longer than
+// thirty seconds in total without being cut off.
+export const FILE_READ_INACTIVITY_MS = 30_000
+
+/**
+ * Read one stored export on web/Pi under a header-and-body inactivity watchdog.
+ *
+ * `fetch()` only settles when the response headers arrive, and `Response.text()`
+ * only settles when the complete body arrives. Either phase can otherwise stay
+ * pending forever. That matters beyond this call: the eBird and ML cache owners
+ * share their first pending load between every mounted consumer, so one silent
+ * socket used to leave all of those consumers waiting until SnowRaven restarted.
+ *
+ * The timeout promise is raced explicitly as well as aborting the request. Real
+ * browser fetch honors AbortSignal, but the race keeps this function's own settle
+ * contract even if a test double or WebView transport is late to observe abort.
+ */
+async function readWebFile(name: 'ebird' | 'ml'): Promise<string | null> {
+  const controller = new AbortController()
+  let watchdog: ReturnType<typeof setTimeout> | null = null
+  let timedOut = false
+  let rejectTimeout!: (reason: Error) => void
+  const timeout = new Promise<never>((_resolve, reject) => { rejectTimeout = reject })
+
+  const armWatchdog = () => {
+    if (watchdog !== null) clearTimeout(watchdog)
+    watchdog = setTimeout(() => {
+      timedOut = true
+      rejectTimeout(new Error(`File read timed out after ${FILE_READ_INACTIVITY_MS} ms of inactivity`))
+      // Reject our explicit race first. AbortSignal dispatch is synchronous and
+      // a real fetch can reject immediately; ordering this way keeps the public
+      // failure deterministic instead of sometimes exposing AbortError.
+      controller.abort()
+    }, FILE_READ_INACTIVITY_MS)
+  }
+
+  let reader: ReadableStreamDefaultReader<Uint8Array> | null = null
+  armWatchdog()
+  try {
+    const res = await Promise.race([
+      fetch(`/settings/files/${name}`, { signal: controller.signal }),
+      timeout,
+    ])
+    if (!res.ok) return null
+
+    // Headers are progress. Give the first body byte a fresh full interval.
+    armWatchdog()
+    if (!res.body) {
+      // A real HTTP response has a body stream, but keep the fallback bounded for
+      // environments that expose only Response.text().
+      return await Promise.race([res.text(), timeout])
+    }
+
+    reader = res.body.getReader()
+    const decoder = new TextDecoder()
+    const chunks: string[] = []
+    for (;;) {
+      const part = await Promise.race([reader.read(), timeout])
+      if (part.done) break
+      chunks.push(decoder.decode(part.value, { stream: true }))
+      // A zero-byte chunk does not advance the transfer. Rearming here would
+      // let a broken/custom stream keep the shared cache promise pending forever
+      // by emitting empty chunks just before each inactivity deadline.
+      if (part.value.byteLength > 0) armWatchdog()
+    }
+    chunks.push(decoder.decode())
+    return chunks.join('')
+  } finally {
+    if (watchdog !== null) clearTimeout(watchdog)
+    // A custom/non-fetch stream is not necessarily wired to AbortSignal. Cancel
+    // its reader too, without awaiting a transport-controlled promise on the
+    // timeout path we just made bounded.
+    if (timedOut && reader) {
+      const timedOutReader = reader
+      void timedOutReader.cancel()
+        .catch(() => undefined)
+        .then(() => {
+          // Some custom readers throw while releasing after cancellation. The
+          // public read has already settled, so cleanup must not create a second,
+          // unhandled rejection.
+          try { timedOutReader.releaseLock() } catch { /* best-effort cleanup */ }
+        })
+    } else {
+      reader?.releaseLock()
+    }
+  }
+}
+
 class WebStorage implements StorageAdapter {
   async getApiKey(service: KeySlot): Promise<string | null> {
     const res = await fetch('/settings/keys');
@@ -240,9 +331,7 @@ class WebStorage implements StorageAdapter {
   }
 
   async readFile(name: 'ebird' | 'ml'): Promise<string | null> {
-    const res = await fetch(`/settings/files/${name}`);
-    if (!res.ok) return null;
-    return res.text();
+    return readWebFile(name);
   }
 
   async writeFile(name: 'ebird' | 'ml', content: string, filename: string): Promise<void> {

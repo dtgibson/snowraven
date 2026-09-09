@@ -159,9 +159,9 @@ async function loadFresh(myGen: number): Promise<LoadedEbird | null> {
   let observations: ObservationEntry[]
   // The READ is inside this try, not above it. It used to sit outside, so a read
   // rejection was the one failure in here that escaped as a throw — and on web/Pi
-  // that is an ordinary event, not an exotic one: `WebStorage.readFile` is a bare
-  // `fetch` + `res.text()`, so an unreachable backend rejects the fetch and a body
-  // truncated mid-download rejects the text, over a ~6 MB CSV served off a Pi.
+  // that is an ordinary event, not an exotic one: `WebStorage.readFile` rejects
+  // when the backend is unreachable, the body is truncated, or the transfer stays
+  // silent past its inactivity bound, over a ~6 MB CSV served off a Pi.
   try {
     const read = await storage.readFile('ebird')
     if (read === null) return null
