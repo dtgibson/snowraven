@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import type { ObservationEntry } from '../types'
 import {
-  computeSightingsStats, computeMediaCounts, computeRecentMediaIds,
+  countDistinctChecklists, computeSightingsStats, computeMediaCounts, computeRecentMediaIds,
   computeBreedingPill, computeBreedingBreakdown, computeLocationsSorted, computeCoOccurrence,
 } from './speciesStats'
 
@@ -26,11 +26,27 @@ describe('computeSightingsStats', () => {
       obs({ submissionId: 'S3', commonName: 'Robin', date: '2024-06-01', count: 5 }),
     ]
     const s = computeSightingsStats(rows)!
-    expect(s.total).toBe(3)
+    expect(s.checklistCount).toBe(3)
     expect(s.totalIndividuals).toBe(7)        // 2 + 5, X excluded
     expect(s.bestCount).toBe(5)
     expect(s.firstObs.date).toBe('2024-01-01')
     expect(s.lastObs.date).toBe('2024-06-01')
+  })
+
+  it('counts distinct non-empty submission ids without changing the row-based stats', () => {
+    const rows = [
+      obs({ submissionId: 'S1', commonName: 'Yellow-rumped Warbler', date: '2024-01-01', count: 2 }),
+      obs({ submissionId: 'S1', commonName: 'Yellow-rumped Warbler (Myrtle)', date: '2024-01-01', count: 3 }),
+      obs({ submissionId: 'S2', commonName: 'Yellow-rumped Warbler', date: '2024-01-02', count: 5 }),
+      obs({ submissionId: '', commonName: 'Yellow-rumped Warbler', date: '2024-01-03', count: 7 }),
+    ]
+
+    expect(countDistinctChecklists(rows)).toBe(2)
+    expect(computeSightingsStats(rows)).toMatchObject({
+      checklistCount: 2,
+      totalIndividuals: 17,
+      bestCount: 7,
+    })
   })
 })
 
