@@ -11,7 +11,16 @@ const SUBMISSION_ID_RE = /^S\d{1,15}$/
 // Canonical eBird ordering of breeding codes (index in the master list).
 const BREEDING_CODE_CANONICAL_ORDER = new Map(BREEDING_CODES.map((d, i) => [d.code, i]))
 
-/** Total/first/last/best-count summary for one species' observations (null if none). */
+/** Distinct checklists represented by an observation slice. Empty ids are not checklists. */
+export function countDistinctChecklists(observations: readonly ObservationEntry[]): number {
+  const ids = new Set<string>()
+  for (const observation of observations) {
+    if (observation.submissionId) ids.add(observation.submissionId)
+  }
+  return ids.size
+}
+
+/** Checklist/first/last/best-count summary for one species' observations (null if none). */
 export function computeSightingsStats(speciesObs: ObservationEntry[]) {
   if (!speciesObs.length) return null
   const sorted = [...speciesObs].sort((a, b) => a.date.localeCompare(b.date))
@@ -29,7 +38,7 @@ export function computeSightingsStats(speciesObs: ObservationEntry[]) {
     }
   }
   return {
-    total: speciesObs.length,
+    checklistCount: countDistinctChecklists(speciesObs),
     totalIndividuals: hasNumericCount ? individualSum : null,
     firstObs: first,
     lastObs: last,

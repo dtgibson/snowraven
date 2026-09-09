@@ -332,57 +332,32 @@ export function HelpDocs({ onClose }: { onClose: () => void }) {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
+      if (e.key !== 'Escape') return
+      e.preventDefault()
+      // Help is mounted above Welcome, whose Escape listener runs at document
+      // bubble. Consume the press here so one Escape cannot dismiss both
+      // layers. Search still wins above Help because its listener runs earlier
+      // on the propagation path, at window capture.
+      e.stopPropagation()
+      onClose()
     }
-    document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
+    document.addEventListener('keydown', handleKeyDown, true)
+    return () => document.removeEventListener('keydown', handleKeyDown, true)
   }, [onClose])
 
-  // THE TAB TRAP, AT THE HOOK'S DEFAULT — `containOutsideFocus` IS OFF. This
-  // build consolidated the overlay onto the shared hook WITHOUT changing its
-  // behaviour, which is the whole of the decision; what follows corrects the
-  // reason that was written for it, because a wrong reason invites a wrong fix.
+  // Help is a full-window aria-modal surface over an app that remains live and
+  // non-inert, so its shared trap contains focus as well as wrapping Tab. The
+  // v1.0.20 consolidation left containment off because no leak had been
+  // measured; current production-build Chromium and WebKit checks now show
+  // programmatic focus remaining on covered controls at desktop and phone
+  // sizes. A later-activated trap still owns focus, which lets Search remain
+  // above Help and lets Help resume containment when Search unmounts.
   //
-  // THE STATED BLOCKER WAS F061, AND IT DOES NOT REPRODUCE HERE. The reasoning
-  // was: the opener-restore above lives in the CLEANUP of an effect declared
-  // BEFORE this one, React runs a commit's destroy functions in declaration
-  // order, so at unmount that restore fires while a `focusin` listener armed
-  // from here is still attached — and the arm would pull focus into a panel
-  // about to be removed and drop the user on `<body>`. Every step of that is
-  // true except the conclusion. MEASURED on App.tsx's actual shape (a parent
-  // that conditionally renders this overlay, closed through its own Close
-  // button, with `containOutsideFocus: true`): focus lands on the opener, not on
-  // `<body>`. THE ARM NEEDS A LIVE ROOT, and by the time an effect CLEANUP runs,
-  // React has already detached `overlayRef` in the same commit's mutation phase
-  // — so `onFocusIn` returns at its `if (!root) return` guard and does nothing.
-  //
-  // THE DISTINCTION WORTH KEEPING, since it decides the next call site as well:
-  // F061 bites where the restore runs BEFORE the unmount commit — synchronously
-  // inside a close handler, with the panel still mounted and its ref still set.
-  // A restore that runs in an effect cleanup is already past that point. So
-  // "the restore is declared before the trap" is not by itself an F061 finding;
-  // "the restore runs while the root is still mounted" is.
-  //
-  // WHY IT STILL STAYS OFF. The scoped consolidation preserved this surface's
-  // shipped behavior, and nothing here has measured a containment leak to fix.
-  // The shared hook can now yield to a later-activated Cmd-K palette, so stacked
-  // ownership is no longer a blocker; opting in would still be a separate focus
-  // behavior change that needs its own browser-level evidence.
-  //
-  // The end-wrap is unchanged from the copy this replaces, with two differences
-  // that cannot be reached here: the shared selector also matches
-  // `input, select, textarea`, and this overlay renders none — the whole render
-  // is buttons, `OutboundLink` anchors, and text blocks parsed from
-  // docs/HELP.md, which are escaped React children and cannot introduce a form
-  // control (`HelpDocsHostileContent.test.tsx` is the standing guard on that
-  // parse); and the hook pins focus on a sole focusable where the old copy let
-  // the Tab through, which needs fewer than two controls to tell apart.
-  //
-  // The root is now a ref rather than `document.getElementById('sr-help-overlay')`.
-  // Same node — the id stays for the stylesheet and for anything else that
-  // reaches for it — but the trap no longer depends on a global lookup that
-  // would silently find a second overlay if one ever carried the same id.
-  useFocusTrap(true, overlayRef)
+  // This does not reproduce the F061 cleanup failure: React detaches overlayRef
+  // before passive cleanup restores the opener, so the still-installed focusin
+  // arm sees no root and returns. F061 remains live only for a restore performed
+  // synchronously while the trapped root is still mounted.
+  useFocusTrap(true, overlayRef, { containOutsideFocus: true })
 
   function scrollToSection(id: string) {
     const el = document.getElementById(id)

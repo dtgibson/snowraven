@@ -24,6 +24,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, cleanup, waitFor, fireEvent, act } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import type { ObservationEntry } from '../types'
+import { installExactMatchMedia, PHONE_MEDIA_QUERY, type ExactMatchMediaStub } from '../test/matchMedia'
 
 // ── Mocks: everything below the component (maplibre, network, disk) ──────────
 vi.mock('react-map-gl/maplibre', () => ({
@@ -146,27 +147,17 @@ async function ready() {
 // jsdom has no `matchMedia` at all, so `useIsPhone()` reports desktop and the
 // overlay cannot be opened here without this. The rows in this file that open
 // Filters are phone-tier rows and say so in their names.
-function stubPhoneWidth() {
-  window.matchMedia = ((query: string) => ({
-    matches: query.includes('max-width'),
-    media: query,
-    onchange: null,
-    addEventListener: () => {}, removeEventListener: () => {},
-    addListener: () => {}, removeListener: () => {},
-    dispatchEvent: () => false,
-  })) as unknown as typeof window.matchMedia
-}
+let matchMediaStub: ExactMatchMediaStub | null = null
 
 beforeEach(() => {
-  stubPhoneWidth()
+  matchMediaStub = installExactMatchMedia({ [PHONE_MEDIA_QUERY]: true })
   filesStatus.value = { ebird: true, ml: true }
   obsResult.value = { observations: OBS }
   geo.impl = async () => ({ lat: 37.9, lng: -122.24 })
 })
 afterEach(() => {
   cleanup(); vi.clearAllMocks()
-  // matchMedia does not exist in jsdom natively; drop the stub between tests.
-  delete (window as { matchMedia?: unknown }).matchMedia
+  matchMediaStub?.restore(); matchMediaStub = null
 })
 
 // ── Presence and gating (QA-01, QA-02 as amended) ────────────────────────────

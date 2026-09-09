@@ -35,6 +35,7 @@ import { render, screen, cleanup, fireEvent, waitFor, within, act } from '@testi
 import type { ReactNode } from 'react'
 import type { ObservationEntry } from '../types'
 import { focusablesIn } from '../lib/useFocusTrap'
+import { installExactMatchMedia, PHONE_MEDIA_QUERY, type ExactMatchMediaStub } from '../test/matchMedia'
 
 // ── Mocks: everything below the sidebar (maplibre, network, disk) ────────────
 vi.mock('react-map-gl/maplibre', () => ({
@@ -117,26 +118,10 @@ import { MapExplorer, SIDEBAR_VISIBLE } from './MapExplorer'
 // make every row below vacuous. `setViewport` also NOTIFIES its listeners, which
 // is what lets the transition rows move the viewport under a mounted component
 // the way a rotation does.
-const mqlListeners = new Set<() => void>()
-let phoneWidth = true
-function stubMatchMedia() {
-  phoneWidth = true
-  mqlListeners.clear()
-  window.matchMedia = ((query: string) => ({
-    get matches() { return query.includes('max-width') ? phoneWidth : false },
-    media: query,
-    onchange: null,
-    addEventListener: (_t: string, cb: () => void) => { mqlListeners.add(cb) },
-    removeEventListener: (_t: string, cb: () => void) => { mqlListeners.delete(cb) },
-    addListener: (cb: () => void) => { mqlListeners.add(cb) },
-    removeListener: (cb: () => void) => { mqlListeners.delete(cb) },
-    dispatchEvent: () => false,
-  })) as unknown as typeof window.matchMedia
-}
+let matchMediaStub: ExactMatchMediaStub | null = null
 /** Move the viewport across the tier boundary, the way a rotation does. */
 function setViewport(phone: boolean) {
-  phoneWidth = phone
-  act(() => { for (const cb of mqlListeners) cb() })
+  act(() => { matchMediaStub!.setMatches(PHONE_MEDIA_QUERY, phone) })
 }
 
 let restoreOffsetParent: (() => void) | null = null
@@ -153,13 +138,15 @@ function stubOffsetParent() {
   }
 }
 
-beforeEach(() => { vi.clearAllMocks(); stubOffsetParent(); stubMatchMedia() })
+beforeEach(() => {
+  vi.clearAllMocks()
+  stubOffsetParent()
+  matchMediaStub = installExactMatchMedia({ [PHONE_MEDIA_QUERY]: true })
+})
 afterEach(() => {
   cleanup()
   restoreOffsetParent?.(); restoreOffsetParent = null
-  mqlListeners.clear()
-  // matchMedia does not exist in jsdom natively; drop the stub between tests.
-  delete (window as { matchMedia?: unknown }).matchMedia
+  matchMediaStub?.restore(); matchMediaStub = null
 })
 
 function renderMap() {

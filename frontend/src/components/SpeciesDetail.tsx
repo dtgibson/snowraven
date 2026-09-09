@@ -16,7 +16,7 @@ import type { MLExportRow } from '../lib/parseMLExport'
 import { buildGraphData } from '../lib/sightingsGraph'
 import { TIER_COLORS } from '../lib/breedingCodes'
 import {
-  computeSightingsStats, computeMediaCounts, computeRecentMediaIds, computeBreedingPill,
+  countDistinctChecklists, computeSightingsStats, computeMediaCounts, computeRecentMediaIds, computeBreedingPill,
   computeBreedingBreakdown, computeLocationsSorted, computeCoOccurrence,
 } from '../lib/speciesStats'
 import { SpeciesLinks } from './SpeciesLinks'
@@ -31,6 +31,7 @@ import type { ObservationEntry, MediaType } from '../types'
 import { normalizeSpeciesName, isNonCountableForm } from '../lib/speciesUtils'
 import { SHOW_FORMS_TOGGLE_LABEL } from '../lib/countabilityCopy'
 import { SHOW_ESCAPEES_TOGGLE_LABEL } from '../lib/exoticCopy'
+import { checklistFilterSummary } from '../lib/speciesDetailCopy'
 import { useProvenanceLookup } from '../lib/useProvenanceLookup'
 import { transport } from '../lib/transport'
 import { storage } from '../lib/storage'
@@ -404,30 +405,31 @@ export function SpeciesDetail({ onGoToSettings, onGoToWeather, filesVersion, req
     phase.tag === 'ready' ? phase.observations : EMPTY_OBSERVATIONS, phase.tag === 'ready',
   )
 
-  const speciesObs = useMemo((): ObservationEntry[] => {
+  const baseSpeciesObs = useMemo((): ObservationEntry[] => {
     if (phase.tag !== 'ready' || !selectedSpecies) return []
-    const base = mergeSubspecies
+    return mergeSubspecies
       ? phase.observations.filter(o => normalizeSpeciesName(o.commonName) === selectedSpecies)
       : phase.observations.filter(o => o.commonName === selectedSpecies)
-    if (!hasLocationFilter) return base
-    return base.filter(o => {
+  }, [phase, selectedSpecies, mergeSubspecies])
+
+  const speciesObs = useMemo((): ObservationEntry[] => {
+    if (!hasLocationFilter) return baseSpeciesObs
+    return baseSpeciesObs.filter(o => {
       if (countyFilter !== null && o.county !== countyFilter) return false
       if (dateRange.from && o.date < dateRange.from) return false
       if (dateRange.to && o.date > dateRange.to) return false
       return true
     })
-  }, [phase, selectedSpecies, mergeSubspecies, countyFilter, dateRange, hasLocationFilter])
+  }, [baseSpeciesObs, countyFilter, dateRange, hasLocationFilter])
 
   // Full-backup count for the selected species — the "of N" denominator in the
   // location-filter strip. It does NOT depend on the date/county filter, so
   // memoize it once per species/merge change instead of rescanning the whole
   // backup on every date-filter keystroke.
-  const baseCount = useMemo(() => {
-    if (phase.tag !== 'ready' || !selectedSpecies) return 0
-    return mergeSubspecies
-      ? phase.observations.filter(o => normalizeSpeciesName(o.commonName) === selectedSpecies).length
-      : phase.observations.filter(o => o.commonName === selectedSpecies).length
-  }, [phase, selectedSpecies, mergeSubspecies])
+  const baseChecklistCount = useMemo(
+    () => countDistinctChecklists(baseSpeciesObs),
+    [baseSpeciesObs],
+  )
 
   // Sightings stats
   const sightingsStats = useMemo(() => computeSightingsStats(speciesObs), [speciesObs])
@@ -879,7 +881,7 @@ export function SpeciesDetail({ onGoToSettings, onGoToWeather, filesVersion, req
             if (dateRange.from && dateRange.to) parts.push(`${formatDate(dateRange.from)} – ${formatDate(dateRange.to)}`)
             else if (dateRange.from) parts.push(`From ${formatDate(dateRange.from)}`)
             else if (dateRange.to) parts.push(`Through ${formatDate(dateRange.to)}`)
-            parts.push(`Showing ${speciesObs.length} of ${baseCount} checklists`)
+            parts.push(checklistFilterSummary(sightingsStats?.checklistCount ?? 0, baseChecklistCount))
             return (
               <div className="sr-action-row" style={{
                 padding: '7px 14px',
@@ -977,7 +979,7 @@ export function SpeciesDetail({ onGoToSettings, onGoToWeather, filesVersion, req
               <div style={{ padding: '16px 18px' }}>
                 {(() => {
                   const frequencyPct = totalFilteredChecklists > 0
-                    ? (sightingsStats.total / totalFilteredChecklists) * 100
+                    ? (sightingsStats.checklistCount / totalFilteredChecklists) * 100
                     : null
                   const frequencyDisplay = frequencyPct === null ? null
                     : frequencyPct < 1 ? '<1%'
@@ -987,7 +989,7 @@ export function SpeciesDetail({ onGoToSettings, onGoToWeather, filesVersion, req
                   <div>
                     <StatLabel>Checklists</StatLabel>
                     <div style={{ fontSize: '1.25rem', fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1.1, color: 'var(--sr-text)' }}>
-                      {sightingsStats.total}
+                      {sightingsStats.checklistCount}
                     </div>
                   </div>
                   <div>
