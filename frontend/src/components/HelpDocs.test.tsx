@@ -1,8 +1,19 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup } from '@testing-library/react'
+import { useCallback, useState } from 'react'
 import { HelpDocs } from './HelpDocs'
+import { WelcomeScreen } from './WelcomeScreen'
+import { CommandPalette } from './CommandPalette'
 import { focusablesIn } from '../lib/useFocusTrap'
+import { usePaletteHotkey } from '../lib/usePaletteHotkey'
+
+vi.mock('../lib/storage', () => ({
+  storage: {
+    getFilesStatus: vi.fn(async () => ({ ebird: null, ml: null })),
+    readFile: vi.fn(async () => null),
+  },
+}))
 
 afterEach(cleanup)
 
@@ -130,30 +141,20 @@ describe('HelpDocs accessibility (F006/F039/F040/F060/F078)', () => {
   })
 })
 
-describe('HelpDocs traps Tab through the shared hook, at its DEFAULT (improve: focusable-selector-single-source)', () => {
+describe('HelpDocs contains focus through the shared hook (improve: helpdocs-focus-containment-reevaluation)', () => {
   // This overlay's hand-rolled trap and its private copy of the focusable
   // selector are gone; it uses `useFocusTrap` over the one exported selector.
-  // `containOutsideFocus` STAYS OFF — the consolidation is behaviour-preserving
-  // by design, and the row below is what stops that default being read as an
-  // omission and "fixed".
+  // `containOutsideFocus` is now ON. The v1.0.20 consolidation deliberately
+  // preserved the old default because no outside-focus leak had been measured;
+  // the production-build Chromium/WebKit matrix for this change measured one in
+  // every desktop and phone run. Help is a full-window aria-modal dialog over a
+  // live, non-inert app, which is the hook option's exact condition.
   //
-  // WHAT THE MUTATION MEASURED, AND WHAT IT DID NOT. Arming the option turns
-  // exactly 1 row red, the containment row below, and the existing "restores focus to
-  // the opener when the overlay unmounts (F039/F040)" row STAYS GREEN. That is
-  // not a gap in this file: the restore genuinely survives, because it runs in an
-  // effect cleanup, by which point React has detached `overlayRef` and the
-  // containment arm returns at its `if (!root) return` guard. The same result
-  // was measured on App.tsx's real shape — a parent conditionally rendering the
-  // overlay, closed through its own Close button — so the F061 story written for
-  // this call site does not reproduce. HelpDocs.tsx's header carries the
-  // correction and the distinction that replaces it.
-  //
-  // MUTATION CHECK, run rather than cited, counts recorded over this file:
-  //   * ARMING IT — `useFocusTrap(true, overlayRef, { containOutsideFocus: true })`:
-  //     1 red, the containment row below. 11 green.
-  //   * TRAP REMOVED: 1 red, the end-wrap row below. 11 green.
-  // Two different rows, which is what says the trap and its option are separately
-  // measured here.
+  // The option and the base trap have separate discriminators: deleting only the
+  // option breaks the outside-focus row; deleting the hook breaks the end-wrap
+  // row. Opener restore survives containment because React detaches overlayRef
+  // before passive cleanup restores focus, so the still-installed arm sees no
+  // live root and returns. The App-shaped close rows below pin that F061 boundary.
 
   it('wraps Tab at the ends of the overlay', () => {
     render(<HelpDocs onClose={vi.fn()} />)
@@ -172,18 +173,15 @@ describe('HelpDocs traps Tab through the shared hook, at its DEFAULT (improve: f
     expect(document.activeElement).toBe(last)
   })
 
-  it('does NOT contain on focusin: focus moved out of the overlay stays out', () => {
-    // Deliberately NOT named for the opener-restore. The restore survives either
-    // way (see the block comment), so tying this row to it would credit the
-    // default with a protection it is not providing. What it pins is the plain
-    // fact the default IS: while this overlay is open, focus that moves outside
-    // it is left where it went, with no keydown involved — which is exactly the
-    // event an armed containment arm would act on.
+  it('pulls focus back on focusin without waiting for another Tab', () => {
+    // jsdom has no tab order. This instead pins the property that makes browser
+    // order irrelevant: focus ACTUALLY lands outside, and the shared focusin arm
+    // corrects it before another key is pressed.
     const opener = document.createElement('button')
     document.body.appendChild(opener)
     render(<HelpDocs onClose={vi.fn()} />)
     opener.focus()
-    expect(document.activeElement).toBe(opener)
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Close documentation' }))
     opener.remove()
   })
 
@@ -204,4 +202,104 @@ describe('HelpDocs traps Tab through the shared hook, at its DEFAULT (improve: f
     expect(overlay.querySelectorAll('input, select, textarea, details, summary')).toHaveLength(0)
     expect(focusablesIn(overlay).length).toBeGreaterThanOrEqual(2)
   })
+})
+
+function AppShapeHost({
+  origin,
+  onWelcomeDismiss = vi.fn(),
+}: {
+  origin: 'welcome' | 'app'
+  onWelcomeDismiss?: () => void
+}) {
+  const [welcomeOpen, setWelcomeOpen] = useState(origin === 'welcome')
+  const [helpOpen, setHelpOpen] = useState(false)
+  // App passes its memoized dismissWelcome here. Keeping that identity stable is
+  // part of the production shape: Welcome's opening-focus effect depends on it.
+  const dismissWelcome = useCallback(() => {
+    onWelcomeDismiss()
+    setWelcomeOpen(false)
+  }, [onWelcomeDismiss])
+  return (
+    <>
+      {origin === 'app' && (
+        <button type="button" onClick={() => setHelpOpen(true)}>Open documentation from app</button>
+      )}
+      {welcomeOpen && (
+        <WelcomeScreen
+          onGetStarted={() => setWelcomeOpen(false)}
+          onOpenHelp={() => setHelpOpen(true)}
+          onDismiss={dismissWelcome}
+        />
+      )}
+      {helpOpen && <HelpDocs onClose={() => setHelpOpen(false)} />}
+    </>
+  )
+}
+
+describe.each([
+  { origin: 'welcome' as const, openerName: 'Read the documentation' },
+  { origin: 'app' as const, openerName: 'Open documentation from app' },
+])('HelpDocs close routes from the $origin App shape', ({ origin, openerName }) => {
+  it.each(['Close button', 'Escape'] as const)('%s removes only Help and restores its live opener', route => {
+    const onWelcomeDismiss = vi.fn()
+    render(<AppShapeHost origin={origin} onWelcomeDismiss={onWelcomeDismiss} />)
+    const opener = screen.getByRole('button', { name: openerName })
+    opener.focus()
+    fireEvent.click(opener)
+    const close = screen.getByRole('button', { name: 'Close documentation' })
+    expect(document.activeElement).toBe(close)
+
+    if (route === 'Escape') fireEvent.keyDown(close, { key: 'Escape' })
+    else fireEvent.click(close)
+
+    expect(screen.queryByRole('dialog', { name: 'SnowRaven Documentation' })).toBeNull()
+    expect(document.activeElement).toBe(opener)
+    expect(document.activeElement).not.toBe(document.body)
+    if (origin === 'welcome') {
+      expect(screen.getByRole('dialog', { name: 'Welcome to SnowRaven' })).toBeTruthy()
+      expect(onWelcomeDismiss).not.toHaveBeenCalled()
+    } else {
+      expect(screen.getByRole('button', { name: openerName })).toBeTruthy()
+    }
+  })
+})
+
+function HelpAndSearchHost() {
+  const [helpOpen, setHelpOpen] = useState(false)
+  const [paletteOpen, setPaletteOpen] = useState(false)
+  usePaletteHotkey({
+    open: paletteOpen,
+    onOpen: () => setPaletteOpen(true),
+    onClose: () => setPaletteOpen(false),
+  })
+  return (
+    <>
+      <button type="button" onClick={() => setHelpOpen(true)}>Open documentation under Search</button>
+      <button type="button">Covered app control</button>
+      {paletteOpen && (
+        <CommandPalette items={[]} onSelectTab={vi.fn()} onOpenSpecies={vi.fn()} onClose={() => setPaletteOpen(false)} />
+      )}
+      {helpOpen && <HelpDocs onClose={() => setHelpOpen(false)} />}
+    </>
+  )
+}
+
+it('yields focus to Search above Help, then resumes containment when Search closes', () => {
+  render(<HelpAndSearchHost />)
+  const opener = screen.getByRole('button', { name: 'Open documentation under Search' })
+  opener.focus()
+  fireEvent.click(opener)
+  expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Close documentation' }))
+
+  fireEvent.keyDown(window, { key: 'k', ctrlKey: true })
+  const query = screen.getByRole('combobox', { name: 'Search destinations and species' })
+  query.focus()
+  expect(document.activeElement).toBe(query)
+
+  fireEvent.keyDown(query, { key: 'Escape' })
+  expect(screen.queryByRole('dialog', { name: 'Search destinations and species' })).toBeNull()
+  expect(screen.getByRole('dialog', { name: 'SnowRaven Documentation' })).toBeTruthy()
+
+  screen.getByRole('button', { name: 'Covered app control' }).focus()
+  expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Close documentation' }))
 })
