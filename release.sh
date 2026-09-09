@@ -275,7 +275,10 @@ npm --prefix frontend run build
 cp "$ICLOUD_PROFILE" "$ICLOUD_PROFILE_COPY"
 
 echo "==> Building Tauri app (universal binary, compiles both arches, takes a while) with the iCloud overlay..."
-npm run desktop:build -- --target "$MAC_TARGET" --config "$(pwd)/$ICLOUD_OVERLAY"
+# Tauri's DMG bundler otherwise invokes Finder/AppleScript, which is not
+# available to this background release process. The committed .DS_Store is
+# applied headlessly below, so forcing CI mode preserves the styled result.
+CI=true npm run desktop:build -- --target "$MAC_TARGET" --config "$(pwd)/$ICLOUD_OVERLAY"
 rm -f "$ICLOUD_PROFILE_COPY"
 
 if [[ ! -f "$DMG" ]]; then
@@ -344,6 +347,14 @@ if [[ -f "$DMG_LAYOUT" ]]; then
 else
   warn "DMG layout template ($DMG_LAYOUT) missing — shipping an unstyled DMG."
 fi
+
+# Styling converts the image and therefore invalidates Tauri's earlier DMG
+# container signature. Sign the exact final bytes that will be notarized and
+# published, then fail closed if the signature cannot be verified.
+echo "==> Signing final DMG..."
+codesign --force --timestamp --sign "$APPLE_SIGNING_IDENTITY" "$DMG"
+codesign --verify --verbose=2 "$DMG" \
+  || die "codesign verification failed on the final styled DMG. Aborting before notarization."
 
 # ── Notarize ─────────────────────────────────────────────────────────────────
 
