@@ -5,6 +5,10 @@ It records what has been built and key decisions made during development.
 
 ## Features Built
 
+### Reliable stored reads and checklist actions (complete -- September 2026, v1.0.28)
+
+Web and Raspberry Pi file reads now fail visibly after 30 seconds without headers or body bytes and retry cleanly, while every Missing Weather checklist, edit, and copy-and-go action carries its own validated row identity through rerenders, widening, and pagination.
+
 ### Weather out of the birder's own export (complete -- September 2026, v1.0.23)
 
 SnowRaven has been writing weather blocks into eBird checklist comments since its first release and now reads them back. A Weather section on Statistics reports what the user's birding actually looked like across sky condition, temperature, wind and time of day; a Weather card on Species Detail gives one bird the same treatment on its own page. Both are built entirely from the eBird backup already loaded, so they work offline, make no lookup, need no key and write nothing, and both come out of one derivation and one set of row layout rules, so a bird's chart and the tab's charts cannot drift apart.
