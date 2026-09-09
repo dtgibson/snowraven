@@ -53,10 +53,16 @@
 // "simplify" it away invisibly.
 
 /// <reference types="node" />
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach, afterAll } from 'vitest'
 import { render, screen, cleanup, waitFor, fireEvent } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import type { MLExportRow } from '../lib/parseMLExport'
+
+const TEST_DATA = vi.hoisted(() => ({
+  taxonomyCodesJson: '{"American Crow":"amecro"}',
+  mlRows: null as MLExportRow[] | null,
+}))
 
 /** The three shapes that behave differently on a plain object. `__proto__` is
  *  the accessor that yields an object; `constructor` and `toString` are the
@@ -83,8 +89,18 @@ function row(submissionId: string, commonName: string, scientificName: string) {
 // names spread across them so they reach `species.names` and the picker.
 const FIXTURE_OBS = [
   ...HOSTILE.flatMap((name, i) => [0, 1].map(k => row(`S${10 + i * 2 + k}`, name, `Sci ${name}`))),
+  ...[0, 1].map(k => row(`S${20 + k}`, '__proto__ (Northern)', 'Sci __proto__ (Northern)')),
   ...[0, 1, 2].map(k => row(`S${30 + k}`, 'American Crow', 'Corvus brachyrhynchos')),
 ]
+
+function mlRow(catalogId: string, commonName: string, format: MLExportRow['format']): MLExportRow {
+  return {
+    catalogId, commonName, format, scientificName: `Sci ${commonName}`,
+    date: '2024-05-24', location: 'Pond', county: 'Hennepin', latitude: 45, longitude: -93,
+    caption: '', mediaNotes: '', observationDetails: '', ageSex: '', behaviors: '', time: '',
+    year: 2024, month: 5, avgRating: null, numRatings: 0, checklistId: 'S10',
+  }
+}
 
 // SnowMap is heavy (MapLibre) and this file drives the tab all the way to ready,
 // so the Geographic Stats map really does mount after the idle callback -- and
@@ -107,11 +123,18 @@ vi.mock('react-map-gl/maplibre', () => ({
 vi.mock('../lib/observationsCache', () => ({
   loadEbirdObservations: vi.fn(async () => ({ headerLine: '', observations: FIXTURE_OBS })),
 }))
-vi.mock('../lib/mlExportCache', () => ({ loadMLExport: vi.fn(async () => null) }))
+vi.mock('../lib/mlExportCache', () => ({
+  loadMLExport: vi.fn(async () => TEST_DATA.mlRows === null
+    ? null
+    : { entries: [], mediaMap: {}, rows: TEST_DATA.mlRows }),
+}))
 vi.mock('../lib/storage', () => ({
   storage: {
     getFilesStatus: vi.fn(async () => ({
-      ebird: { filename: 'ebird.csv', uploadedAt: '2024-06-01' }, ml: null,
+      ebird: { filename: 'ebird.csv', uploadedAt: '2024-06-01' },
+      ml: TEST_DATA.mlRows === null
+        ? null
+        : { filename: 'ML__fixture_USER.csv', uploadedAt: '2024-06-01' },
     })),
     getSetting: vi.fn(async () => null),
     setSetting: vi.fn(async () => {}),
@@ -121,7 +144,9 @@ vi.mock('../lib/storage', () => ({
 }))
 vi.mock('../lib/transport', () => ({
   transport: {
-    post: vi.fn(async (path: string) => (path === '/taxonomy/codes' ? { codes: {}, orders: {} } : {})),
+    post: vi.fn(async (path: string) => (path === '/taxonomy/codes'
+      ? { codes: JSON.parse(TEST_DATA.taxonomyCodesJson), orders: {} }
+      : {})),
     get: vi.fn(async () => ({ species: [] })),
   },
 }))
@@ -129,9 +154,12 @@ vi.mock('../lib/transport', () => ({
 let BirdingStats: typeof import('./BirdingStats').BirdingStats
 
 beforeEach(async () => {
+  TEST_DATA.taxonomyCodesJson = '{"American Crow":"amecro"}'
+  TEST_DATA.mlRows = null
   ;({ BirdingStats } = await import('./BirdingStats'))
 })
 afterEach(() => { cleanup(); vi.clearAllMocks() })
+afterAll(() => new Promise((r) => setTimeout(r, 120)))
 
 /** Drive the tab to its ready state. The section's own rAF gate is why this
  *  waits on rendered content rather than on a tick. */
@@ -218,13 +246,104 @@ describe('a species named after a prototype member (security finding 1)', () => 
     expect(body).not.toContain('sciByNorm[normalizeSpeciesName(name)]')
   })
 
-  it('leaves Object.prototype untouched, which is the claim rather than the outcome', async () => {
-    // Not exploitable for pollution -- the guarded write never runs for an
-    // inherited key and the value is a string either way. Asserted so the claim
-    // fails loudly if a later change makes it false.
+  it('treats missing prototype names as absent and keeps them out of every external href', async () => {
+    TEST_DATA.mlRows = [
+      mlRow('101', '__proto__', 'Photo'),
+      mlRow('102', 'constructor', 'Audio'),
+      mlRow('103', 'toString', 'Video'),
+    ]
     await renderStats()
-    const probe = JSON.parse('{"__proto__":{"polluted":"yes"}}') as Record<string, unknown>
-    expect(probe).toBeTruthy()
+
+    for (const name of HOSTILE) {
+      expect(screen.queryByRole('link', {
+        name: `View ${name} on eBird (opens in a new tab)`,
+      })).toBeNull()
+    }
+
+    // Non-vacuity: a real own code still reaches the same BirdName path.
+    const crowLinks = screen.getAllByRole('link', {
+      name: 'View American Crow on eBird (opens in a new tab)',
+    }) as HTMLAnchorElement[]
+    expect(crowLinks.length).toBeGreaterThan(0)
+    expect(crowLinks.every(a => a.getAttribute('href') === 'https://ebird.org/species/amecro')).toBe(true)
+
+    // These are the three Media ranking links. On the unfixed code each has a
+    // truthy inherited taxonCode; __proto__ becomes [object Object] and the two
+    // function-valued names become encoded function source. A miss now omits
+    // the taxonCode parameter instead of emitting inherited data.
+    const mlLinks = Array.from(document.querySelectorAll<HTMLAnchorElement>(
+      'a[href^="https://media.ebird.org/catalog?mediaType="]',
+    ))
+    expect(mlLinks).toHaveLength(3)
+    for (const a of mlLinks) {
+      expect(new URL(a.href).searchParams.has('taxonCode')).toBe(false)
+      expect(a.href).not.toContain('%5Bobject%20Object%5D')
+      expect(a.href.toLowerCase()).not.toContain('function')
+    }
+  })
+
+  it('resolves a genuine own __proto__ code supplied by parsed JSON', async () => {
+    const parsed = JSON.parse('{"__proto__":"proto-own","American Crow":"amecro"}') as Record<string, string>
+    expect(Object.hasOwn(parsed, '__proto__')).toBe(true)
+    expect(Object.hasOwn({ __proto__: 'proto-own' }, '__proto__')).toBe(false)
+    TEST_DATA.taxonomyCodesJson = JSON.stringify(parsed)
+
+    await renderStats()
+    const links = screen.getAllByRole('link', {
+      name: 'View __proto__ on eBird (opens in a new tab)',
+    }) as HTMLAnchorElement[]
+    expect(links.length).toBeGreaterThan(0)
+    expect(links.every(a => a.getAttribute('href') === 'https://ebird.org/species/proto-own')).toBe(true)
+  })
+
+  it('retains a normalized __proto__ key in the real accumulator', async () => {
+    // This is a realistic raw-form response key: the batch sends the raw form
+    // and its parent, and a scientific-name match can resolve the raw entry.
+    // codeFor receives the normalized name from Top Species, so the raw lookup
+    // misses and only the normalized accumulator can answer.
+    const parsed = JSON.parse('{"__proto__ (Northern)":"proto-norm","American Crow":"amecro"}') as Record<string, string>
+    expect(Object.hasOwn(parsed, '__proto__ (Northern)')).toBe(true)
+    expect(Object.hasOwn(parsed, '__proto__')).toBe(false)
+    TEST_DATA.taxonomyCodesJson = JSON.stringify(parsed)
+
+    await renderStats()
+    const links = screen.getAllByRole('link', {
+      name: 'View __proto__ on eBird (opens in a new tab)',
+    }) as HTMLAnchorElement[]
+    expect(links.length).toBeGreaterThan(0)
+    expect(links.every(a => a.getAttribute('href') === 'https://ebird.org/species/proto-norm')).toBe(true)
+  })
+
+  it('keeps the taxon accumulator and all three reads visibly guarded in source', () => {
+    const src = stripComments(readFileSync(
+      resolve(process.cwd(), 'src/components/BirdingStats.tsx'), 'utf8'))
+    const from = src.indexOf('const normTaxon')
+    const to = src.indexOf('const sciByNorm')
+    expect(from, 'the normTaxon memo is findable').toBeGreaterThan(-1)
+    expect(to, 'the taxon slice has an end').toBeGreaterThan(from)
+    const taxonBody = src.slice(from, to)
+    expect(taxonBody).toContain('const m: Record<string, string> = Object.create(null)')
+    expect(taxonBody).toContain('Object.hasOwn(mlTaxonMap, name)')
+    expect(taxonBody).toContain('Object.hasOwn(normTaxon, norm)')
+    expect(taxonBody).not.toContain('mlTaxonMap[name] ??')
+    expect(taxonBody).not.toContain('normTaxon[normalizeSpeciesName(name)]')
+
+    const coverFrom = src.indexOf('const coverIndex')
+    const coverTo = src.indexOf('const provenance', coverFrom)
+    expect(coverFrom, 'the cover-index memo is findable').toBeGreaterThan(-1)
+    expect(coverTo, 'the cover-index slice has an end').toBeGreaterThan(coverFrom)
+    const coverBody = src.slice(coverFrom, coverTo)
+    expect(coverBody).toContain('Object.hasOwn(normTaxon, norm) ? normTaxon[norm] : undefined')
+    expect(coverBody).not.toContain('norm => normTaxon[norm]')
+  })
+
+  it('leaves Object.prototype untouched, which is the claim rather than the outcome', async () => {
+    // Flow a parsed own key with an object value through the actual accumulator,
+    // not merely through a stand-in object constructed inside the assertion.
+    TEST_DATA.taxonomyCodesJson = '{"__proto__":{"polluted":"yes"}}'
+    const probe = JSON.parse(TEST_DATA.taxonomyCodesJson) as Record<string, unknown>
+    expect(Object.hasOwn(probe, '__proto__')).toBe(true)
+    await renderStats()
     expect(({} as Record<string, unknown>).polluted).toBeUndefined()
     expect(Object.prototype).not.toHaveProperty('polluted')
   })

@@ -375,12 +375,20 @@ export function BirdingStats({ onGoToSettings, onGoToWeather, onOpenSpecies }: {
   const hasEntryFor = (name: string) => backboneNames.has(normalizeSpeciesName(name))
   // Normalized taxon-code lookup so the (normalized) names in Stats lists resolve
   // to a code even when the resolved map is keyed by the original (subspecies) name.
+  // Both halves are load-bearing for species names from the user's CSV: the
+  // accumulator has no prototype to collide with on write, and every read is
+  // own-only so a missing prototype-chain name stays a miss.
   const normTaxon = useMemo(() => {
-    const m: Record<string, string> = {}
+    const m: Record<string, string> = Object.create(null)
     for (const [name, code] of Object.entries(mlTaxonMap)) m[normalizeSpeciesName(name)] = code
     return m
   }, [mlTaxonMap])
-  const codeFor = (name: string) => mlTaxonMap[name] ?? normTaxon[normalizeSpeciesName(name)]
+  const codeFor = (name: string): string | undefined => {
+    const rawCode = Object.hasOwn(mlTaxonMap, name) ? mlTaxonMap[name] : undefined
+    if (rawCode !== undefined && rawCode !== null) return rawCode
+    const norm = normalizeSpeciesName(name)
+    return Object.hasOwn(normTaxon, norm) ? normTaxon[norm] : undefined
+  }
   // Scientific name by NORMALIZED common name. Only the Weather section's picker
   // wants it, so it is derived here rather than carried across the worker
   // boundary for one surface's benefit.
@@ -403,11 +411,9 @@ export function BirdingStats({ onGoToSettings, onGoToWeather, onOpenSpecies }: {
   // and paints an empty scientific name. Opening the picker is enough to reach
   // it, because `speciesOptions` maps this over every name.
   //
-  // The neighbouring `normTaxon` / `mlTaxonMap` / `normTaxonOrder` tables have
-  // the same defect and are NOT fixed here: they predate this rule, they are
-  // already reachable through fourteen shipped call sites this build did not
-  // touch, and they are tracked as their own item. Copy the shape below, not
-  // theirs.
+  // The neighbouring `normTaxon` / `mlTaxonMap` pair now follows this shape.
+  // `normTaxonOrder` remains separate tracked debt; do not copy its plain-object
+  // accumulator or bare reads into a species-name lookup.
   const sciByNorm = useMemo(() => {
     const m: Record<string, string> = Object.create(null)
     for (const o of effectiveObs) {
@@ -436,7 +442,10 @@ export function BirdingStats({ onGoToSettings, onGoToWeather, onOpenSpecies }: {
   // for favicons and taxonomic sort; there is no code -> name -> code round trip
   // anywhere in this feature (FR-07).
   const coverIndex = useMemo(
-    () => buildCoverIndex(effectiveObs, norm => normTaxon[norm]),
+    () => buildCoverIndex(
+      effectiveObs,
+      norm => Object.hasOwn(normTaxon, norm) ? normTaxon[norm] : undefined,
+    ),
     [effectiveObs, normTaxon],
   )
   // Statistics is the ONLY surface allowed to initiate a provenance request
