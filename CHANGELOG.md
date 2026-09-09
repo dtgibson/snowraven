@@ -2,6 +2,17 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [1.0.27] - 2026-09-08
+
+### Changed
+- **The website's Weather screenshot now shows the complete result.** The published frame includes both Weather and Tide output at its real dimensions. The capture now waits for both halves, rejects loading and error states, and fails the command instead of publishing a partial image; its image processor is also updated to the secured Sharp 0.35.4 release.
+- **Responsive component tests now answer only the media query they mean.** Five suites share one exact-query phone helper, so enabling SnowRaven's 640-pixel phone layout no longer silently enables tablet or reduced-motion behavior in the test environment.
+
+### Fixed
+- **Species Detail counts checklists as checklists.** A parent species and one or more forms on the same eBird checklist now count once in the Sightings card, Frequency, and the active-filter summary. Duplicate rows can no longer push Frequency above 100%, and empty submission IDs remain excluded from both sides of the calculation.
+- **Birding Stats no longer mistakes inherited object names for species codes.** Species names such as `constructor`, `toString`, or `__proto__` cannot suppress link icons or create malformed Macaulay Library links when no real taxon code exists. Genuine codes with those names still resolve correctly.
+- **Documentation keeps the keyboard while it is open.** Focus moved toward covered app controls returns to the Documentation dialog, Escape closes only the highest visible overlay, and focus returns to the control that opened it. Search still takes priority when it is open above Documentation.
+
 ## [1.0.26] - 2026-09-08
 
 ### Changed
