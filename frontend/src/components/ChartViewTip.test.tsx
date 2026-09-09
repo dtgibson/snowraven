@@ -3,6 +3,12 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, waitFor, cleanup, fireEvent, act } from '@testing-library/react'
 import { ChartViewTip, CHART_TIP_SETTING } from './ChartViewTip'
 import { storage } from '../lib/storage'
+import {
+  installExactMatchMedia,
+  PHONE_MEDIA_QUERY,
+  REDUCED_MOTION_MEDIA_QUERY,
+  type ExactMatchMediaStub,
+} from '../test/matchMedia'
 
 vi.mock('../lib/storage', () => ({
   storage: {
@@ -13,29 +19,18 @@ vi.mock('../lib/storage', () => ({
 
 const getSetting = vi.mocked(storage.getSetting)
 const setSetting = vi.mocked(storage.setSetting)
+let matchMediaStub: ExactMatchMediaStub | null = null
 
 // jsdom has no matchMedia; the component reads it twice — the phone-width
 // query (via useIsPhone) and the reduced-motion query. Stub both explicitly:
 // with no stub, useIsPhone's guard returns false and the tip never renders,
 // which is itself the desktop case but would make every phone test vacuous.
 function stubMatchMedia({ phone, reducedMotion }: { phone: boolean; reducedMotion: boolean }) {
-  const mql = (matches: boolean, media: string) =>
-    ({
-      matches,
-      media,
-      onchange: null,
-      addEventListener: () => {},
-      removeEventListener: () => {},
-      addListener: () => {},
-      removeListener: () => {},
-      dispatchEvent: () => false,
-    }) as unknown as MediaQueryList
-  window.matchMedia = (query: string) =>
-    query.includes('max-width')
-      ? mql(phone, query)
-      : query.includes('prefers-reduced-motion')
-        ? mql(reducedMotion, query)
-        : mql(false, query)
+  matchMediaStub?.restore()
+  matchMediaStub = installExactMatchMedia({
+    [PHONE_MEDIA_QUERY]: phone,
+    [REDUCED_MOTION_MEDIA_QUERY]: reducedMotion,
+  })
 }
 
 beforeEach(() => {
@@ -45,8 +40,8 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup()
-  // matchMedia does not exist in jsdom natively; drop the stub between tests.
-  delete (window as { matchMedia?: unknown }).matchMedia
+  matchMediaStub?.restore()
+  matchMediaStub = null
 })
 
 describe('ChartViewTip', () => {

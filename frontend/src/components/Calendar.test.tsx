@@ -11,6 +11,7 @@ import { render, screen, cleanup, fireEvent, waitFor, within } from '@testing-li
 import type { ObservationEntry } from '../types'
 import { dayOfWeek } from '../lib/calendar'
 import { focusablesIn } from '../lib/useFocusTrap'
+import { installExactMatchMedia, PHONE_MEDIA_QUERY } from '../test/matchMedia'
 
 function obs(over: Partial<ObservationEntry> & { date: string; submissionId: string; commonName: string }): ObservationEntry {
   return {
@@ -255,18 +256,7 @@ describe('Calendar — grids and controls (QA-13/24/25/48)', () => {
 // only proves the view toggle is width-agnostic: matching the phone query changes nothing
 // about which view mounts — the toggle governs at every width.
 function stubPhoneMatchMedia(matches: boolean) {
-  const orig = window.matchMedia
-  window.matchMedia = ((query: string) => ({
-    matches: query.includes('max-width:640px') ? matches : false,
-    media: query,
-    onchange: null,
-    addEventListener: () => {},
-    removeEventListener: () => {},
-    addListener: () => {},
-    removeListener: () => {},
-    dispatchEvent: () => false,
-  })) as unknown as typeof window.matchMedia
-  return () => { window.matchMedia = orig }
+  return installExactMatchMedia({ [PHONE_MEDIA_QUERY]: matches }).restore
 }
 
 describe('Calendar — the View toggle governs at ALL widths, including a phone (v0.5.68)', () => {

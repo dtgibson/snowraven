@@ -33,6 +33,7 @@ import type { ObservationEntry } from '../types'
 import { deriveSearchArea, hasMovedFrom, RUNGS, DERIVED_MAX_MI, type SearchRecord } from '../lib/searchArea'
 import { VIEWPORT_PAD_FRAC, type MarkerBounds } from '../lib/markersInView'
 import { SEARCH_AREA_LABEL, searchAreaSearchedLabel } from '../lib/searchOutcomeState'
+import { installExactMatchMedia, PHONE_MEDIA_QUERY, type ExactMatchMediaStub } from '../test/matchMedia'
 
 // ── Mocks: everything below the component (maplibre, network, disk) ──────────
 
@@ -271,19 +272,10 @@ const OBS_ROWS = [
 // jsdom has no `matchMedia` at all, so `useIsPhone()` reports desktop and the
 // overlay cannot be opened here without this. The rows in this file that open
 // Filters are phone-tier rows and say so in their names.
-function stubPhoneWidth() {
-  window.matchMedia = ((query: string) => ({
-    matches: query.includes('max-width'),
-    media: query,
-    onchange: null,
-    addEventListener: () => {}, removeEventListener: () => {},
-    addListener: () => {}, removeListener: () => {},
-    dispatchEvent: () => false,
-  })) as unknown as typeof window.matchMedia
-}
+let matchMediaStub: ExactMatchMediaStub | null = null
 
 beforeEach(() => {
-  stubPhoneWidth()
+  matchMediaStub = installExactMatchMedia({ [PHONE_MEDIA_QUERY]: true })
   keys.ebird = 'k'
   savedDefaults.value = null
   settingWrites.calls.length = 0
@@ -301,8 +293,7 @@ beforeEach(() => {
 })
 afterEach(() => {
   cleanup(); vi.clearAllMocks()
-  // matchMedia does not exist in jsdom natively; drop the stub between tests.
-  delete (window as { matchMedia?: unknown }).matchMedia
+  matchMediaStub?.restore(); matchMediaStub = null
 })
 
 // ── QA-01 / QA-02 / QA-05: the presence gate, each condition falsified ───────
