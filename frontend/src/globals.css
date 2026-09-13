@@ -193,6 +193,21 @@
   --sr-cal-5: #0C271A;  --sr-cal-5-rgb: 12,39,26;
   --sr-cal-fg: #FFFFFF;   /* on-cell number, on any data tier, both themes */
 
+  /* Weather/tide Planner chart (tide-weather-planner). The day ground and the
+     night band clear 3:1 against each other; the tide line clears 3:1 against
+     BOTH; the sun mark clears 3:1 against the day ground and is haloed
+     everywhere, so no marker hue is load-bearing over the night band (shape and
+     label distinguish the four marks). Dark carries its own values below: there
+     the DAY is the lit band and night is the deep ground. Ratios in
+     pipeline/tide-weather-planner/design-spec.md; guarded by
+     lib/planContrast.test.ts. */
+  --sr-plan-day: #FFFFFF;
+  --sr-plan-night: #8790A5;
+  --sr-plan-tide: #1E3A8A;
+  --sr-plan-sun: #B45309;
+  --sr-plan-halo: #FFFFFF;
+  --sr-plan-grid-rgb: 15,17,23;
+
   /* Graph line colors */
   --sr-graph-individuals: #2D8653;
   --sr-graph-photo: #3B82F6;
@@ -483,6 +498,14 @@
   --sr-cal-4: #163D29;  --sr-cal-4-rgb: 22,61,41;
   --sr-cal-5: #0C271A;  --sr-cal-5-rgb: 12,39,26;
   --sr-cal-fg: #FFFFFF;
+
+  /* Weather/tide Planner chart: daylight is the LIT band on dark. */
+  --sr-plan-day: #56607A;
+  --sr-plan-night: #05070D;
+  --sr-plan-tide: #93C5FD;
+  --sr-plan-sun: #FCD34D;
+  --sr-plan-halo: #05070D;
+  --sr-plan-grid-rgb: 244,244,245;
 
   /* Graph line colors */
   --sr-graph-individuals: #34D399;
@@ -4034,6 +4057,155 @@ select:focus-visible {
    changes nothing. */
 .sr-wx-pair > *:not(.sr-only) { container-type: inline-size; container-name: sr-wx-col; }
 
+/* ── Weather/tide Planner (tide-weather-planner) ──────────────────────────────
+   The Predict form's second action, the plan result region, its chart box and
+   its per-day list. Colours are tokens only; layout lives here as classes so
+   the phone tier below can reach it; list and header text is rem so it tracks
+   the in-app text scale, while chart text is px on purpose (a fixed-px track
+   whose every figure is repeated in the list, design D4-09). The result
+   entrance is the one motion: opacity and a 4px rise, 180ms ease-out, and the
+   global prefers-reduced-motion block collapses it. */
+.sr-plan-result { margin-top: 16px; background: var(--sr-accent-surface); border: 1px solid var(--sr-accent-border); border-radius: 10px; padding: 16px 18px; animation: sr-plan-result-in 180ms cubic-bezier(0.2, 0, 0, 1) both; transform-origin: top center; container-type: inline-size; container-name: plan; }
+/* The plan region is a CONTAINER (the .sr-wx-pair / .sr-cal-minimonth
+   precedent) so the day list can flow into two columns by the region's own
+   width, not the viewport's. `container-type` is containment as well as a
+   query anchor: the region's absolutely positioned descendants (the chart
+   box's overlays, the sr-only spans) all sit under nearer positioned
+   ancestors or are clipped to a pixel, and no z-index in the subtree looks
+   past the region, so the new containing block and stacking context change
+   nothing visible. */
+@container plan (min-width: 760px) {
+  .sr-plan-days { columns: 2; column-gap: 36px; }
+  .sr-plan-day { break-inside: avoid; }
+}
+/* The Weather card (App.tsx) lifts its inline max-width to this class so the
+   wide tier can widen it while a plan is on screen (D4-13); everything in it
+   other than the plan region keeps its 476px measure through .sr-weather-narrow,
+   which is inert until the card is widened. The global reduced-motion block
+   collapses the transition. */
+.sr-weather-card { max-width: 540px; transition: max-width 220ms cubic-bezier(0.2, 0, 0, 1); }
+@media (min-width: 641px) {
+  .sr-weather-card--plan { max-width: 1080px; }
+  .sr-weather-card--plan .sr-weather-narrow { max-width: 476px; margin-inline: auto; }
+}
+@keyframes sr-plan-result-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.sr-plan-btn-outline { height: 44px; padding: 0 18px; background: var(--sr-accent-bg); color: var(--sr-accent); border: 1.5px solid var(--sr-accent-border); border-radius: 8px; font-size: 0.875rem; font-weight: 600; font-family: inherit; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 7px; white-space: nowrap; transition: background-color 120ms ease-out, border-color 120ms ease-out; }
+.sr-plan-btn-outline:hover:not(:disabled):not([aria-disabled="true"]) { background: var(--sr-accent-bg-hover); border-color: var(--sr-accent); }
+.sr-plan-btn-outline[aria-busy="true"] { opacity: 0.7; cursor: default; }
+.sr-plan-btn-small { height: 30px; padding: 0 12px; border-radius: 6px; font-size: 0.75rem; gap: 5px; flex-shrink: 0; }
+.sr-plan-action { width: 100%; margin-top: 8px; }
+.sr-plan-caption { margin: 7px 0 0; font-size: 0.6875rem; color: var(--sr-text-muted); }
+.sr-plan-h3 { font-size: 1.0625rem; font-weight: 700; letter-spacing: -0.01em; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sr-plan-pill { display: inline-flex; align-items: center; height: 21px; padding: 0 9px; border-radius: 11px; font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.02em; white-space: nowrap; flex-shrink: 0; background: var(--sr-accent-bg); color: var(--sr-accent); border: 1px solid var(--sr-accent-border); }
+.sr-plan-head { display: flex; flex-direction: column; gap: 3px; margin-top: 6px; }
+.sr-plan-meta { font-size: 0.71875rem; color: var(--sr-text-muted); overflow-wrap: anywhere; }
+.sr-plan-mono { font-family: var(--font-mono, ui-monospace, "Cascadia Code", "Fira Code", Consolas, monospace); }
+.sr-plan-station { display: flex; align-items: flex-start; gap: 6px; font-size: 0.71875rem; color: var(--sr-text-muted); margin-top: 8px; overflow-wrap: anywhere; }
+.sr-plan-station svg { flex-shrink: 0; margin-top: 2px; color: var(--sr-plan-tide); }
+.sr-plan-notice { margin-top: 12px; }
+.sr-plan-alert { background: var(--sr-warning-bg); border: 1px solid var(--sr-warning-subtle); color: var(--sr-warning); border-radius: 8px; padding: 11px 13px; font-size: 0.8125rem; line-height: 1.5; }
+.sr-plan-alert-text { display: flex; gap: 8px; align-items: flex-start; }
+.sr-plan-alert-text svg { flex-shrink: 0; margin-top: 1px; }
+.sr-plan-unavail { margin-top: 12px; font-size: 0.8125rem; color: var(--sr-text-muted); }
+.sr-plan-status { display: flex; align-items: center; gap: 8px; margin-top: 16px; font-size: 0.8125rem; color: var(--sr-text-muted); }
+.sr-plan-error { margin-top: 16px; font-size: 0.8125rem; color: var(--sr-text-muted); }
+.sr-plan-error-box { margin-top: 16px; }
+
+/* The chart box: contained horizontal scroll (the standing rule: a wide track
+   sits under an overflow:hidden / position:relative ancestor so it can never
+   extend the page's scroll width). The scroller is the one tab stop. */
+.sr-plan-chartbox { position: relative; margin-top: 14px; border: 1px solid var(--sr-border); border-radius: 9px; background: var(--sr-surface); overflow: hidden; min-width: 0; max-width: 100%; }
+.sr-plan-scroller { overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; -webkit-overflow-scrolling: touch; cursor: grab; }
+/* A mouse drag follows the pointer one to one (D4-12): no snap type, no snap
+   markers and no scroll padding anywhere, and while the button is down the
+   scroller takes no smooth behaviour of its own. */
+.sr-plan-scroller.is-dragging { cursor: grabbing; user-select: none; scroll-behavior: auto; }
+.sr-plan-scroller:focus-visible { outline-offset: -3px; }
+.sr-plan-canvas { position: relative; }
+.sr-plan-canvas svg { display: block; }
+.sr-plan-yaxis { position: absolute; left: 0; top: 0; pointer-events: none; background: linear-gradient(90deg, var(--sr-surface) 78%, transparent); }
+/* The wide tier's day-header lane: a subtle band under a rule, one label per
+   day at its midnight, clipped to the day's own width so a long label never
+   runs under the next day's; the midnight hairline runs down through the
+   event-label lane to meet the plot's own. */
+.sr-plan-dayhdr { position: relative; background: var(--sr-surface-subtle); border-bottom: 1px solid var(--sr-border); box-sizing: border-box; }
+.sr-plan-dayhdr-day { position: absolute; top: 0; height: 100%; overflow: hidden; }
+.sr-plan-dayhdr-lbl { position: absolute; top: 4px; font-size: 11px; font-weight: 600; color: var(--sr-text); white-space: nowrap; font-family: var(--font-sans); line-height: 1.2; }
+.sr-plan-midnight-hdr { z-index: 1; }
+.sr-plan-cell-tmp { font-size: 10px; color: var(--sr-text-muted); margin-left: 3px; font-family: var(--font-sans); }
+.sr-plan-yaxis span { position: absolute; left: 6px; transform: translateY(-50%); font-size: 10px; line-height: 1; color: var(--sr-text-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sr-plan-yaxis .sr-plan-yaxis-unit { transform: none; font-size: 9px; letter-spacing: 0.06em; text-transform: uppercase; }
+.sr-plan-chartbox::after { content: ""; position: absolute; top: 0; right: 0; bottom: 0; width: 28px; pointer-events: none; background: linear-gradient(90deg, transparent, var(--sr-surface)); opacity: 0.9; transition: opacity 120ms ease-out; }
+.sr-plan-chartbox.at-end::after { opacity: 0; }
+.sr-plan-cx-lbl { font-size: 10px; fill: var(--sr-text); paint-order: stroke; stroke: var(--sr-plan-halo); stroke-width: 3px; stroke-linejoin: round; font-family: var(--font-sans); }
+.sr-plan-cx-evt, .sr-plan-cx-hl { font-weight: 600; }
+.sr-plan-axislane { position: relative; }
+.sr-plan-axisday { position: absolute; top: 0; height: 100%; }
+.sr-plan-midnight { position: absolute; left: 0; top: 0; width: 1px; height: 100%; background: var(--sr-border-medium); }
+.sr-plan-daylabel { position: absolute; bottom: 7px; font-size: 11px; font-weight: 600; color: var(--sr-text); white-space: nowrap; font-family: var(--font-sans); }
+.sr-plan-tick { position: absolute; top: 0; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; }
+.sr-plan-tickmark { width: 1px; height: 4px; background: var(--sr-border-medium); }
+.sr-plan-ticktext { font-size: 10px; color: var(--sr-text-muted); white-space: nowrap; font-family: var(--font-sans); margin-top: 1px; }
+.sr-plan-strip { position: relative; border-top: 1px solid var(--sr-border); background: var(--sr-surface); }
+.sr-plan-cell { position: absolute; top: 0; height: 100%; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 8px; font-size: 13px; line-height: 1; overflow: hidden; box-sizing: border-box; }
+.sr-plan-cell.hourly { border-right: 1px solid var(--sr-border-subtle); }
+.sr-plan-cell.daily { justify-content: flex-start; padding: 0 8px 8px; gap: 6px; background: var(--sr-surface-subtle); border-left: 1.5px dashed var(--sr-border-medium); font-size: 10.5px; color: var(--sr-text); white-space: nowrap; font-family: var(--font-sans); }
+.sr-plan-cell-em { font-size: 14px; }
+.sr-plan-cell.daily b { font-weight: 600; }
+.sr-plan-cell-hl { color: var(--sr-text-muted); }
+.sr-plan-tag { position: absolute; z-index: 1; top: 5px; font-size: 8.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--sr-text-muted); padding: 1px 4px; border-radius: 3px; background: var(--sr-surface); border: 1px solid var(--sr-border); line-height: 1.2; white-space: nowrap; font-family: var(--font-sans); }
+.sr-plan-tag.daily { color: var(--sr-warning); background: var(--sr-warning-bg); border-color: var(--sr-warning-subtle); }
+.sr-plan-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; margin-top: 8px; font-size: 0.6875rem; color: var(--sr-text-muted); }
+.sr-plan-legend-k { display: inline-flex; align-items: center; gap: 5px; }
+.sr-plan-legend svg { flex-shrink: 0; }
+.sr-plan-legend-scroll { display: inline-flex; align-items: center; gap: 5px; }
+.sr-plan-legend-scroll[hidden] { display: none; }
+/* The day buttons (both tiers) at the right end of the legend row: quiet
+   28px icon buttons, disabled at the ends and when the track fits. */
+.sr-plan-nav { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; }
+.sr-plan-navbtn { width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; border: 1.5px solid var(--sr-border); background: var(--sr-surface); color: var(--sr-text); border-radius: 6px; cursor: pointer; padding: 0; transition: border-color 120ms ease-out, background-color 120ms ease-out; }
+.sr-plan-navbtn:hover:not(:disabled) { border-color: var(--sr-border-medium); background: var(--sr-surface-subtle); }
+.sr-plan-navbtn:disabled { color: var(--sr-text-disabled); border-color: var(--sr-border-subtle); cursor: default; }
+/* The Days in view toolbar (wide tier): the section label and the house
+   segmented-control register (the Calendar / Map sidebar pattern). */
+.sr-plan-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; margin-top: 14px; }
+.sr-plan-toolbar-label { font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--sr-text-muted); }
+.sr-plan-seg { display: inline-flex; flex-wrap: wrap; gap: 2px; background: var(--sr-surface-subtle); border-radius: 6px; padding: 2px; }
+.sr-plan-seg-btn { display: inline-flex; align-items: center; gap: 5px; padding: 0.35rem 12px; border-radius: 5px; font-size: 0.71875rem; font-family: inherit; background: transparent; border: 1px solid transparent; font-weight: 400; color: var(--sr-text-muted); cursor: pointer; white-space: nowrap; transition: background-color 120ms ease-out, color 120ms ease-out, border-color 120ms ease-out; }
+.sr-plan-seg-btn:hover { color: var(--sr-text); }
+.sr-plan-seg-btn[aria-pressed="true"] { background: var(--sr-surface); border-color: var(--sr-border); font-weight: 600; color: var(--sr-text); }
+
+/* The list: the plan's readable and accessible form. It never scrolls
+   sideways: the two figure lines wrap anywhere and nothing carries a positive
+   min-width. */
+.sr-plan-days { list-style: none; margin: 16px 0 0; padding: 0; }
+.sr-plan-day { padding-top: 12px; border-top: 1px dashed var(--sr-border); margin-top: 12px; }
+.sr-plan-day:first-child { border-top: none; margin-top: 0; padding-top: 0; }
+.sr-plan-day > h4 { margin: 0; font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--sr-text-muted); }
+.sr-plan-sky { margin: 4px 0 0; font-size: 0.75rem; color: var(--sr-text-muted); overflow-wrap: anywhere; }
+.sr-plan-tides { margin: 4px 0 0; font-size: 0.75rem; color: var(--sr-text-muted); overflow-wrap: anywhere; line-height: 1.6; }
+.sr-plan-tide-pt { font-variant-numeric: tabular-nums; }
+.sr-plan-em { font-size: 0.875rem; margin-right: 2px; }
+.sr-plan-hours { margin-top: 4px; }
+.sr-plan-hours summary { cursor: pointer; font-size: 0.75rem; color: var(--sr-accent); font-weight: 600; padding: 4px 0; list-style: none; display: inline-flex; align-items: center; gap: 4px; }
+.sr-plan-hours summary::-webkit-details-marker { display: none; }
+.sr-plan-hours summary svg { transition: transform 160ms cubic-bezier(0.2, 0, 0, 1); transform-origin: center; }
+.sr-plan-hours[open] summary svg { transform: rotate(180deg); }
+.sr-plan-hours p { margin: 4px 0 2px; font-size: 0.75rem; color: var(--sr-text-muted); line-height: 1.7; overflow-wrap: anywhere; }
+.sr-plan-nowrap { white-space: nowrap; }
+.sr-plan-evs { list-style: none; margin: 0; padding: 0; }
+.sr-plan-ev { display: grid; grid-template-columns: 30px minmax(0, 1fr); column-gap: 10px; padding: 9px 0 2px; }
+.sr-plan-ev-ic { width: 30px; height: 30px; border-radius: 8px; display: flex; align-items: center; justify-content: center; background: var(--sr-surface-subtle); border: 1px solid var(--sr-border); color: var(--sr-plan-sun); margin-top: 1px; }
+.sr-plan-ev-top { display: flex; align-items: baseline; flex-wrap: wrap; gap: 2px 10px; }
+.sr-plan-ev-kind { font-size: 0.8125rem; font-weight: 600; }
+.sr-plan-ev-time { font-size: 1.0625rem; font-weight: 700; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
+.sr-plan-ev-res { margin-left: auto; font-size: 0.625rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--sr-text-muted); white-space: nowrap; }
+.sr-plan-ev-res-inline { margin-left: 6px; white-space: normal; }
+.sr-plan-ev-tide, .sr-plan-ev-wx { font-size: 0.8125rem; line-height: 1.5; margin-top: 2px; overflow-wrap: anywhere; }
+.sr-plan-mut { color: var(--sr-text-muted); }
+.sr-plan-note { margin: 6px 0 0; font-size: 0.8125rem; color: var(--sr-text-muted); font-style: italic; }
+.sr-plan-close { margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--sr-border); font-size: 0.75rem; color: var(--sr-text-muted); line-height: 1.5; }
+
 @media (max-width: 640px) {
   .sr-header { padding-top: 24px !important; }
   /* The county panel's rows stack on a phone, and the action slot takes its own
@@ -4613,6 +4785,15 @@ select:focus-visible {
   .sr-wx-seg button { flex: 1; min-height: 2.75rem; height: auto; }
   /* `.sr-wx-pick` needs no override here any more: it is one column at every
      width, so this tier and the desktop tier now render the same shape. */
+  /* Weather/tide Planner on a phone: the too-far notice stacks its button
+     full-width (the 480 tier's .sr-action-row-stack does the rest), the place
+     heading wraps, and the resolution micro-label drops under the time. The
+     chart never compresses: it scrolls inside its box at every width. */
+  .sr-plan-btn-small { min-height: 44px; height: auto; white-space: normal; }
+  .sr-plan-notice .sr-plan-alert { flex-direction: column; align-items: stretch; }
+  .sr-plan-notice .sr-plan-btn-outline { width: 100%; }
+  .sr-plan-h3 { white-space: normal; }
+  .sr-plan-ev-res { margin-left: 0; width: 100%; white-space: normal; }
 }
 
 /* ── REPAIR 2: the per-species row's stacked tier, keyed on its own column ────

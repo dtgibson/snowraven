@@ -3,6 +3,8 @@ import { invoke } from '@tauri-apps/api/core';
 import { storage } from '../storage';
 import { formatWeather, type HourlyResponse } from '../weatherFormatter';
 import { buildWeatherPayload, type OneCallResponse, type WeatherAtResponse } from '../forecastSlice';
+import { buildWeatherPlan } from '../weatherPlan';
+import type { WeatherPlan } from '../plan';
 import { getRegionInfo, type RegionInfo } from './regionInfo';
 
 const EBIRD_BASE = 'https://api.ebird.org/v2';
@@ -196,4 +198,46 @@ export async function getWeatherAt(lat: number, lng: number, dtLocal?: string): 
   const onecall = await fetchForecast(lat, lng, owmKey);
   const payload = buildWeatherPayload(onecall, targetTs, tzName, lat);
   return { ...payload, tz: tzName };
+}
+
+const NO_OWM_KEY = 'OpenWeather API key not configured. Add it in Settings.';
+
+/** The route's 422 has this twin: the panel has already refused these, so a
+ *  400 here is the shape a programmatic caller sees, never a user. */
+function assertCoordinateRange(lat: number, lng: number): void {
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+    throw Object.assign(new Error('Coordinates are out of range.'), { status: 400 });
+  }
+}
+
+// The Weather/tide Planner's weather half, twin of GET /weather/plan: exactly
+// one One Call request (the same request Predict sends), then the shipped
+// builder over `now` on this clock. Zero NOAA requests on every path. An empty
+// daily array is a provider error (FR-09 / FR-40), the same { status: 502 } a
+// failed fetch throws, so the panel shows Predict's words and never stores it.
+export async function getWeatherPlan(lat: number, lng: number): Promise<WeatherPlan> {
+  assertCoordinateRange(lat, lng);
+  const owmKey = await storage.getApiKey('openweather');
+  if (!owmKey) {
+    throw Object.assign(new Error(NO_OWM_KEY), { status: 500, detail: NO_OWM_KEY });
+  }
+
+  const tzName: string = await invoke('get_timezone', { lat, lng });
+  const nowTs = Math.floor(Date.now() / 1000);
+  const onecall = await fetchForecast(lat, lng, owmKey);
+  // A JSON-valid but semantically malformed body (an absurd dt, an hourly
+  // entry carrying only dt) throws inside the builder; that is a provider
+  // error exactly as a non-OK response is, carrying the 502 status so the
+  // panel shows Predict's words rather than reading a status-less throw as
+  // "offline" (the twin of the route's try).
+  let built;
+  try {
+    built = buildWeatherPlan(onecall, nowTs, tzName, lat, lng);
+  } catch {
+    throw Object.assign(new Error('Weather data unavailable for this location.'), { status: 502 });
+  }
+  if (!built.ok) {
+    throw Object.assign(new Error('Weather data unavailable for this location.'), { status: 502 });
+  }
+  return built.plan;
 }

@@ -194,6 +194,9 @@ export default function App() {
   // would admit "failed and ready at once".
   const [backlogRows, setBacklogRows] = useState<ResolvedBacklogRows | undefined>(undefined)
   const [backlogRequested, setBacklogRequested] = useState(false)
+  // The Weather card widens for a plan on the wide tier (tide-weather-planner
+  // D4-13): the panel reports whether a plan is on screen.
+  const [planOnScreen, setPlanOnScreen] = useState(false)
   // Click any bird name → open + select it on the Species Detail tab (single-use).
   const [requestedSpecies, setRequestedSpecies] = useState<string | undefined>(undefined)
   // Documentation overlay — lifted to App so a Help affordance is reachable from
@@ -968,9 +971,8 @@ export default function App() {
             )}
           </div>
         )}
-        <div className="sr-card" style={{
+        <div className={`sr-card sr-weather-card${planOnScreen ? ' sr-weather-card--plan' : ''}`} style={{
           width: '100%',
-          maxWidth: 540,
           background: 'var(--sr-surface)',
           border: '1px solid var(--sr-border)',
           borderRadius: 12,
@@ -978,6 +980,10 @@ export default function App() {
           boxSizing: 'border-box' as const,
           boxShadow: 'var(--sr-card-shadow)',
         }}>
+          {/* Everything before the Current / Predict panel keeps its 476px
+              measure, centered, while the card is widened for a plan
+              (.sr-weather-narrow is inert at 540px). */}
+          <div className="sr-weather-narrow">
           <label
             htmlFor="checklist-input"
             style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, marginBottom: 8 }}
@@ -1225,10 +1231,12 @@ export default function App() {
             </>
           )}
 
+          </div>
+
           {/* Current / Predict — live + forecast weather and tide, bypassing the
               checklist. Self-contained; the map (maplibre) lazy-loads only when
               the user opens Predict, so the first-paint Weather tab stays light. */}
-          <WeatherForecastPanel />
+          <WeatherForecastPanel onPlanVisible={setPlanOnScreen} />
         </div>
         {/* Weather Backlog — a third bottom section: list the user's recent
             checklists that still have no weather block, built from the loaded

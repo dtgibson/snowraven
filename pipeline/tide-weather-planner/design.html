@@ -1,0 +1,976 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SnowRaven, Weather/tide Planner (design)</title>
+<style>
+  /* ── Tokens: the app's real --sr-* values (frontend/src/globals.css), both themes,
+     plus the six new --sr-plan-* tokens this feature adds. Only the token block
+     carries literal color; everything below is var(--sr-*). ───────────────── */
+  :root {
+    --sr-text-scale: 1;
+    --sr-bg:#F9FAFB; --sr-surface:#FFFFFF; --sr-surface-subtle:#F4F4F5; --sr-surface-faint:#FAFAFA;
+    --sr-text:#0F1117; --sr-text-muted:#6B6B74; --sr-text-gray:#6B7280;
+    --sr-border:#E4E4E7; --sr-border-subtle:#F4F4F5; --sr-border-medium:#C4C4CE; --sr-border-input:#8A8A91;
+    --sr-accent:#277448; --sr-accent-strong:#1A5C38; --sr-accent-bg:#E8F5EE; --sr-accent-bg-hover:#F0FAF4;
+    --sr-accent-border:rgba(39,116,72,0.25); --sr-accent-surface:#fafffd; --sr-on-accent:#FFFFFF;
+    --sr-warning:#92400E; --sr-warning-bg:#FFFBEB; --sr-warning-subtle:#FDE68A;
+    --sr-error:#D31F1F; --sr-error-bg:#FEF2F2; --sr-error-border:#FECACA;
+    --sr-card-shadow:0 1px 4px rgba(15,17,23,0.06), 0 4px 16px rgba(15,17,23,0.04);
+    /* NEW, this feature. Day ground and night band clear 3:1 against each other;
+       the tide line clears 3:1 against BOTH; the sun marker clears 3:1 against the
+       day ground and is haloed everywhere. Ratios in design-spec.md. */
+    --sr-plan-day:#FFFFFF;      /* plot ground during daylight */
+    --sr-plan-night:#8790A5;    /* sunset-to-sunrise band, 3.20:1 vs day */
+    --sr-plan-tide:#1E3A8A;     /* tide curve + high/low marks, 10.4:1 day / 3.23:1 night */
+    --sr-plan-sun:#B45309;      /* sunrise/sunset marks + leaders, 5.02:1 day */
+    --sr-plan-halo:#FFFFFF;     /* halo behind every mark and chart label */
+    --sr-plan-grid-rgb:15,17,23;/* gridlines at alpha over both bands */
+    --font-sans:'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
+    --font-mono:ui-monospace, "Cascadia Code", "Fira Code", Consolas, monospace;
+  }
+  [data-theme="dark"] {
+    --sr-bg:#09090B; --sr-surface:#18181B; --sr-surface-subtle:#27272A; --sr-surface-faint:#1C1C1F;
+    --sr-text:#F4F4F5; --sr-text-muted:#A1A1AA; --sr-text-gray:#8A8A92;
+    --sr-border:#27272A; --sr-border-subtle:#1F1F23; --sr-border-medium:#3F3F46; --sr-border-input:#707078;
+    --sr-accent:#34D399; --sr-accent-strong:#34D399; --sr-accent-bg:#052E16; --sr-accent-bg-hover:#064E3B;
+    --sr-accent-border:rgba(52,211,153,0.2); --sr-accent-surface:#021a0f; --sr-on-accent:#052E16;
+    --sr-warning:#FDE68A; --sr-warning-bg:#1C1002; --sr-warning-subtle:#78350F;
+    --sr-error:#F87171; --sr-error-bg:#1C0505; --sr-error-border:#7F1D1D;
+    --sr-card-shadow:0 1px 4px rgba(2,2,4,0.4), 0 4px 16px rgba(2,2,4,0.25);
+    --sr-plan-day:#56607A;      /* daylight is the LIT band on dark, 3.22:1 vs night */
+    --sr-plan-night:#05070D;    /* the deep ground */
+    --sr-plan-tide:#93C5FD;     /* 3.47:1 day / 11.2:1 night */
+    --sr-plan-sun:#FCD34D;      /* 4.4:1 day */
+    --sr-plan-halo:#05070D;
+    --sr-plan-grid-rgb:244,244,245;
+  }
+
+  * { box-sizing:border-box; }
+  html { background:var(--sr-bg); font-size:calc(100% * var(--sr-text-scale, 1)); }
+  body { margin:0; font-family:var(--font-sans); font-size:1rem; line-height:1.5; color:var(--sr-text); background:var(--sr-bg); -webkit-font-smoothing:antialiased; padding-bottom:96px; }
+  button { font-family:inherit; }
+  b { font-weight:600; }
+  .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+  button:focus-visible, a:focus-visible, [tabindex]:focus-visible, summary:focus-visible, select:focus-visible, input:focus-visible { outline:3px solid var(--sr-accent); outline-offset:3px; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  .spin { animation:spin 0.7s linear infinite; }
+
+  /* ── Mockup chrome (not part of the app): fixed px so text-size checks don't move it */
+  .mock-bar { position:sticky; top:0; z-index:5; background:var(--sr-surface); border-bottom:1px solid var(--sr-border); padding:9px 16px; display:flex; flex-wrap:wrap; gap:8px 16px; align-items:center; font-size:12px; }
+  .mock-bar .mk { display:inline-flex; align-items:center; gap:6px; color:var(--sr-text-muted); font-weight:600; letter-spacing:.05em; text-transform:uppercase; font-size:10px; }
+  .mock-bar select, .mock-bar button { font:600 12px/1 var(--font-sans); height:28px; padding:0 10px; border:1px solid var(--sr-border); border-radius:6px; background:var(--sr-surface); color:var(--sr-text); cursor:pointer; transition:background .12s ease-out, border-color .12s ease-out; }
+  .mock-bar button:hover, .mock-bar select:hover { background:var(--sr-surface-subtle); border-color:var(--sr-border-medium); }
+  .mock-bar button[aria-pressed="true"] { background:var(--sr-accent-bg); color:var(--sr-accent); border-color:var(--sr-accent-border); }
+  .mock-bar .seg { display:inline-flex; gap:4px; }
+  .mock-stage { padding:26px 16px 0; }
+  .mock-cap { max-width:540px; margin:0 auto 10px; display:flex; align-items:center; gap:9px; font-size:11px; font-weight:700; letter-spacing:.09em; text-transform:uppercase; color:var(--sr-text-muted); }
+  .mock-cap::before { content:""; flex:0 0 18px; height:1px; background:var(--sr-border); }
+  .mock-cap::after { content:""; flex:1; height:1px; background:var(--sr-border); }
+  .frame { margin:0 auto; width:100%; max-width:1200px; transition:max-width .22s ease-out; }
+  .frame.tablet-768 { max-width:768px; } .frame.phone-390 { max-width:390px; } .frame.phone-320 { max-width:320px; }
+  .frame.desk-540 { max-width:540px; }
+
+  /* ── The Weather card and the shipped Predict form, token-faithful ─────────── */
+  .sr-card { background:var(--sr-surface); border:1px solid var(--sr-border); border-radius:12px; padding:32px; box-shadow:var(--sr-card-shadow); max-width:540px; margin:0 auto; transition:max-width .22s ease-out; }
+  /* Wide tier (641px and up): while a plan is on screen the Weather card grows to 1080px and
+     everything above the plan keeps its 476px measure, centered. Phone tier: untouched. */
+  .tier-wide .sr-card.is-plan { max-width:1080px; }
+  .tier-wide .sr-card.is-plan .sr-weather-narrow { max-width:476px; margin-inline:auto; }
+  .sr-plan-toolbar { display:flex; align-items:center; flex-wrap:wrap; gap:8px 12px; margin-top:14px; }
+  .sr-plan-toolbar .lbl { font-size:0.6875rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--sr-text-muted); }
+  .sr-seg { display:inline-flex; flex-wrap:wrap; gap:2px; background:var(--sr-surface-subtle); border-radius:6px; padding:2px; }
+  .sr-seg-btn { display:inline-flex; align-items:center; gap:5px; padding:0.35rem 12px; border-radius:5px; font-size:0.71875rem; background:transparent; border:1px solid transparent; font-weight:400; color:var(--sr-text-muted); cursor:pointer; white-space:nowrap; transition:background .12s ease-out, color .12s ease-out, border-color .12s ease-out; }
+  .sr-seg-btn:hover { color:var(--sr-text); }
+  .sr-seg-btn[aria-pressed="true"] { background:var(--sr-surface); border-color:var(--sr-border); font-weight:600; color:var(--sr-text); }
+  .sr-plan-nav { display:inline-flex; gap:4px; margin-left:auto; }
+  .sr-plan-navbtn { width:28px; height:28px; display:inline-flex; align-items:center; justify-content:center; border:1.5px solid var(--sr-border); background:var(--sr-surface); color:var(--sr-text); border-radius:6px; cursor:pointer; transition:border-color .12s ease-out, background .12s ease-out; }
+  .sr-plan-navbtn:hover:not(:disabled) { border-color:var(--sr-border-medium); background:var(--sr-surface-subtle); }
+  .sr-plan-navbtn:disabled { color:var(--sr-text-disabled); border-color:var(--sr-border-subtle); cursor:default; }
+  .sr-plan-legend .scroll { margin-left:0; }
+  .sr-plan-legend .scroll[hidden] { display:none; }
+  .cx-dayhead { font-size:11px; font-weight:600; fill:var(--sr-text); font-family:var(--font-sans); }
+  .sr-plan-cell .tmp { font-size:10px; color:var(--sr-text-muted); margin-left:3px; font-family:var(--font-sans); }
+  .sr-plan-cell.hourly.quiet { border-right:none; }
+  .sr-result { container-type:inline-size; container-name:plan; }
+  @container plan (min-width:760px) {
+    .sr-plan-days { columns:2; column-gap:36px; }
+    .sr-plan-day { break-inside:avoid; }
+  }
+  .sr-grid-2 { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:var(--sr-grid-gap, 14px); }
+  .sr-action-row { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px 12px; min-width:0; }
+  .sr-min0 { min-width:0; }
+  .sr-wrap-flex { display:flex; flex-wrap:wrap; align-items:center; gap:var(--sr-wrap-gap, 8px); }
+  hr.sr { border:none; border-top:1px solid var(--sr-border); margin:24px 0; }
+  .sr-h { font-size:1.0625rem; font-weight:700; letter-spacing:-0.01em; }
+  .sr-sub { margin:4px 0 14px; font-size:0.8125rem; color:var(--sr-text-muted); }
+  .btn-primary, .btn-outline { height:44px; padding:0 18px; border-radius:8px; font-size:0.875rem; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:7px; white-space:nowrap; transition:background .12s ease-out, border-color .12s ease-out, box-shadow .12s ease-out; }
+  .btn-primary { background:var(--sr-accent); color:var(--sr-on-accent); border:none; }
+  .btn-primary:hover { background:var(--sr-accent-strong); }
+  [data-theme="dark"] .btn-primary:hover { box-shadow:0 0 0 3px var(--sr-accent-border); }
+  .btn-outline { background:var(--sr-accent-bg); color:var(--sr-accent); border:1.5px solid var(--sr-accent-border); }
+  .btn-outline:hover { background:var(--sr-accent-bg-hover); border-color:var(--sr-accent); }
+  .btn-outline[aria-busy="true"] { opacity:.7; cursor:default; }
+  .btn-small { height:30px; padding:0 12px; border-radius:6px; font-size:0.75rem; gap:5px; }
+  .sr-predict { margin-top:16px; background:var(--sr-surface-faint); border:1px solid var(--sr-border); border-radius:10px; padding:16px; }
+  .fld { display:block; font-size:0.75rem; font-weight:600; color:var(--sr-text-muted); margin-bottom:6px; letter-spacing:.01em; }
+  .inp { width:100%; height:40px; padding:0 12px; border:1.5px solid var(--sr-border); border-radius:8px; font-size:0.84375rem; font-family:inherit; color:var(--sr-text); background:var(--sr-surface); min-width:0; }
+  .inp::placeholder { color:var(--sr-text-muted); }
+  .sr-map { height:200px; border-radius:9px; border:1px solid var(--sr-border-input); overflow:hidden; position:relative; background:#CFDCE3; }
+  .sr-map svg { display:block; width:100%; height:100%; }
+  .sr-map .attr { position:absolute; right:6px; bottom:4px; font-size:9px; color:#4C5A66; background:rgba(242,240,235,0.85); padding:1px 5px; border-radius:3px; }
+  .hint { margin:7px 0 0; font-size:0.6875rem; color:var(--sr-text-muted); }
+  .alert { display:flex; align-items:flex-start; gap:8px; padding:10px 13px; border-radius:8px; font-size:0.8125rem; line-height:1.5; }
+  .alert.warn { background:var(--sr-warning-bg); border:1px solid var(--sr-warning-subtle); color:var(--sr-warning); }
+  .alert.quiet { background:var(--sr-surface-subtle); border:1px solid var(--sr-border); color:var(--sr-text-muted); }
+  .alert.err { background:var(--sr-error-bg); border:1px solid var(--sr-error-border); color:var(--sr-error); }
+  .alert svg { flex-shrink:0; margin-top:1px; }
+  .status-row { display:flex; align-items:center; gap:8px; margin-top:16px; font-size:0.8125rem; color:var(--sr-text-muted); }
+  .pill { display:inline-flex; align-items:center; height:21px; padding:0 9px; border-radius:11px; font-size:0.6875rem; font-weight:700; letter-spacing:.02em; white-space:nowrap; flex-shrink:0; background:var(--sr-accent-bg); color:var(--sr-accent); border:1px solid var(--sr-accent-border); }
+  .pill.daily { background:var(--sr-warning-bg); color:var(--sr-warning); border-color:var(--sr-warning-subtle); }
+
+  /* ── Result region (shared by a single-moment result and the plan) ─────────── */
+  .sr-result { margin-top:16px; background:var(--sr-accent-surface); border:1px solid var(--sr-accent-border); border-radius:10px; padding:16px 18px; animation:sr-result-in 180ms cubic-bezier(0.2,0,0,1) both; transform-origin:top center; }
+  @keyframes sr-result-in { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:none; } }
+  .sr-result h3 { font-size:1.0625rem; font-weight:700; letter-spacing:-0.01em; margin:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .mono { font-family:var(--font-mono); }
+  .meta { font-size:0.71875rem; color:var(--sr-text-muted); }
+  .stale { display:flex; align-items:center; gap:7px; padding:8px 12px; margin:10px 0 0; border-radius:8px; background:var(--sr-surface-subtle); border:1px solid var(--sr-border); color:var(--sr-text-muted); font-size:0.75rem; line-height:1.45; }
+  .stale svg { flex-shrink:0; }
+  .sr-plan-head { display:flex; flex-direction:column; gap:3px; margin-top:6px; }
+  .sr-plan-station { display:flex; align-items:flex-start; gap:6px; font-size:0.71875rem; color:var(--sr-text-muted); margin-top:8px; }
+  .sr-plan-station svg { flex-shrink:0; margin-top:2px; color:var(--sr-plan-tide); }
+  .sr-plan-notice { margin-top:12px; }
+  .sr-plan-notice .alert { align-items:center; }
+  .sr-plan-notice .alert > span { display:flex; gap:8px; align-items:flex-start; min-width:0; }
+  .sr-plan-notice .btn-outline { flex-shrink:0; }
+  .sr-plan-unavail { margin-top:12px; font-size:0.8125rem; color:var(--sr-text-muted); }
+
+  /* ── The chart: one time axis, scrolls sideways inside its own box ─────────── */
+  .sr-plan-chartbox { position:relative; margin-top:14px; border:1px solid var(--sr-border); border-radius:9px; background:var(--sr-surface); overflow:hidden; }
+  /* No scroll snapping anywhere: a drag follows the pointer one to one and stays where it is released. */
+  .sr-plan-scroller { overflow-x:auto; overflow-y:hidden; scrollbar-width:thin; -webkit-overflow-scrolling:touch; cursor:grab; }
+  .sr-plan-scroller.is-dragging { cursor:grabbing; user-select:none; scroll-behavior:auto; }
+  .sr-plan-scroller:focus-visible { outline-offset:-3px; }
+  .sr-plan-canvas { position:relative; }
+  .sr-plan-canvas svg { display:block; }
+  .sr-plan-yaxis { position:absolute; left:0; top:0; width:40px; pointer-events:none; background:linear-gradient(90deg, var(--sr-surface) 78%, transparent); }
+  .sr-plan-yaxis span { position:absolute; left:6px; transform:translateY(-50%); font-size:10px; line-height:1; color:var(--sr-text-muted); font-variant-numeric:tabular-nums; }
+  .sr-plan-yaxis .unit { left:6px; transform:none; font-size:9px; letter-spacing:.06em; text-transform:uppercase; color:var(--sr-text-muted); }
+  .sr-plan-chartbox::after { content:""; position:absolute; top:0; right:0; bottom:0; width:28px; pointer-events:none; background:linear-gradient(90deg, transparent, var(--sr-surface)); opacity:.9; }
+  .sr-plan-chartbox.at-end::after { opacity:0; }
+  /* chart text is px on purpose: it is chart geometry, aria-hidden, and every figure is repeated in the list at rem sizes */
+  .cx-lbl { font-size:10px; fill:var(--sr-text); paint-order:stroke; stroke:var(--sr-plan-halo); stroke-width:3px; stroke-linejoin:round; font-family:var(--font-sans); }
+  .cx-lbl.evt { font-weight:600; }
+  .cx-lbl.hl { font-size:10px; font-weight:600; }
+  .cx-tick { font-size:10px; fill:var(--sr-text-muted); font-family:var(--font-sans); }
+  .cx-day { font-size:11px; font-weight:600; fill:var(--sr-text); font-family:var(--font-sans); }
+  .sr-plan-strip { position:relative; height:48px; border-top:1px solid var(--sr-border); background:var(--sr-surface); }
+  .sr-plan-cell { position:absolute; top:0; height:100%; display:flex; align-items:flex-end; justify-content:center; padding-bottom:8px; font-size:13px; line-height:1; overflow:hidden; }
+  .sr-plan-cell.hourly { border-right:1px solid var(--sr-border-subtle); }
+  .sr-plan-cell.daily { justify-content:flex-start; padding:0 8px 8px; gap:6px; background:var(--sr-surface-subtle); border-left:1.5px dashed var(--sr-border-medium); font-size:10.5px; color:var(--sr-text); white-space:nowrap; }
+  .sr-plan-cell.daily .em { font-size:14px; }
+  .sr-plan-cell.daily b { font-weight:600; }
+  .sr-plan-cell.daily .hl { color:var(--sr-text-muted); }
+  .sr-plan-tag { position:absolute; z-index:1; top:5px; font-size:8.5px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--sr-text-muted); padding:1px 4px; border-radius:3px; background:var(--sr-surface); border:1px solid var(--sr-border); line-height:1.2; white-space:nowrap; }
+  .sr-plan-tag.daily { color:var(--sr-warning); background:var(--sr-warning-bg); border-color:var(--sr-warning-subtle); }
+  .sr-plan-legend { display:flex; flex-wrap:wrap; align-items:center; gap:6px 14px; margin-top:8px; font-size:0.6875rem; color:var(--sr-text-muted); }
+  .sr-plan-legend .k { display:inline-flex; align-items:center; gap:5px; }
+  .sr-plan-legend svg { flex-shrink:0; }
+  .sr-plan-legend .scroll { margin-left:auto; display:inline-flex; align-items:center; gap:5px; }
+
+  /* ── The list: the plan's readable and accessible form ─────────────────────── */
+  .sr-plan-days { list-style:none; margin:16px 0 0; padding:0; }
+  .sr-plan-day { padding-top:12px; border-top:1px dashed var(--sr-border); margin-top:12px; }
+  .sr-plan-day:first-child { border-top:none; margin-top:0; padding-top:0; }
+  .sr-plan-day > h4 { margin:0; font-size:0.6875rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--sr-text-muted); }
+  .sr-plan-sky { margin:4px 0 0; font-size:0.75rem; color:var(--sr-text-muted); }
+  .sr-plan-sky .em { font-size:0.875rem; margin-right:2px; }
+  .sr-plan-hours { margin-top:4px; }
+  .sr-plan-hours summary { cursor:pointer; font-size:0.75rem; color:var(--sr-accent); font-weight:600; padding:4px 0; list-style:none; display:inline-flex; align-items:center; gap:4px; }
+  .sr-plan-hours summary::-webkit-details-marker { display:none; }
+  .sr-plan-hours summary svg { transition:transform .16s cubic-bezier(0.2,0,0,1); }
+  .sr-plan-hours[open] summary svg { transform:rotate(180deg); }
+  .sr-plan-hours p { margin:4px 0 2px; font-size:0.75rem; color:var(--sr-text-muted); line-height:1.7; }
+  .sr-plan-hours p span { white-space:nowrap; }
+  .sr-plan-evs { list-style:none; margin:0; padding:0; }
+  .sr-plan-ev { display:grid; grid-template-columns:30px minmax(0,1fr); column-gap:10px; padding:9px 0 2px; }
+  .sr-plan-ev-ic { width:30px; height:30px; border-radius:8px; display:flex; align-items:center; justify-content:center; background:var(--sr-surface-subtle); border:1px solid var(--sr-border); color:var(--sr-plan-sun); margin-top:1px; }
+  .sr-plan-ev-top { display:flex; align-items:baseline; flex-wrap:wrap; gap:2px 10px; }
+  .sr-plan-ev-kind { font-size:0.8125rem; font-weight:600; }
+  .sr-plan-ev-time { font-size:1.0625rem; font-weight:700; letter-spacing:-0.01em; font-variant-numeric:tabular-nums; }
+  .sr-plan-ev-res { margin-left:auto; font-size:0.625rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--sr-text-muted); white-space:nowrap; }
+  .sr-plan-ev-tide, .sr-plan-ev-wx { font-size:0.8125rem; line-height:1.5; margin-top:2px; overflow-wrap:anywhere; }
+  .sr-plan-ev-tide .mut, .sr-plan-ev-wx .mut { color:var(--sr-text-muted); }
+  .sr-plan-ev-wx .em { font-size:0.9375rem; margin-right:2px; }
+  .sr-plan-note { margin:6px 0 0; font-size:0.8125rem; color:var(--sr-text-muted); font-style:italic; }
+  .sr-plan-close { margin-top:14px; padding-top:12px; border-top:1px dashed var(--sr-border); font-size:0.75rem; color:var(--sr-text-muted); line-height:1.5; }
+
+  /* ── Single-moment (Predict) result, the shipped shape, for the alternation ── */
+  .wx-big { display:flex; flex-wrap:wrap; align-items:center; gap:14px; }
+  .wx-temp { font-size:2.1rem; font-weight:700; letter-spacing:-0.02em; line-height:1.05; }
+  .chips { display:flex; flex-wrap:wrap; gap:8px 18px; margin-top:14px; font-size:0.8125rem; }
+  .chips span span { color:var(--sr-text-muted); }
+  .tide-block { margin-top:14px; padding-top:14px; border-top:1px dashed var(--sr-border); }
+  details.copy summary { cursor:pointer; padding:10px 0; font-size:0.75rem; font-weight:600; color:var(--sr-accent); }
+
+  /* ── Phone tier (the app's ≤640 rules; here keyed on the frame so the desktop
+     preview stays desktop). Also applied on a real phone via the media query. ── */
+  .tier-phone .sr-card { padding:20px; }
+  .tier-phone .sr-grid-2 { grid-template-columns:1fr; }
+  .tier-phone .sr-result, .tier-phone .sr-predict { padding-left:12px; padding-right:12px; }
+  .tier-phone .btn-small { min-height:44px; height:auto; white-space:normal; }
+  .tier-phone .sr-plan-notice .alert { flex-direction:column; align-items:stretch; }
+  .tier-phone .sr-plan-notice .btn-outline { width:100%; }
+  .tier-phone .sr-result h3 { white-space:normal; }
+  .tier-phone .sr-plan-ev-res { margin-left:0; width:100%; white-space:normal; }
+  @media (max-width:640px) {
+    .sr-card { padding:20px; }
+    .sr-grid-2 { grid-template-columns:1fr; }
+    .sr-result, .sr-predict { padding-left:12px; padding-right:12px; }
+    .btn-small { min-height:44px; height:auto; white-space:normal; }
+    .sr-plan-notice .alert { flex-direction:column; align-items:stretch; }
+    .sr-plan-notice .btn-outline { width:100%; }
+    .sr-result h3 { white-space:normal; }
+    .sr-plan-ev-res { margin-left:0; width:100%; white-space:normal; }
+    .mock-stage { padding-left:10px; padding-right:10px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .sr-result { animation:none; }
+    .spin { animation:none; }
+    .frame, .sr-card, .btn-primary, .btn-outline, .mock-bar button, .mock-bar select, .sr-plan-hours summary svg, .sr-seg-btn, .sr-plan-navbtn { transition:none; }
+    .sr-plan-scroller { scroll-behavior:auto; }
+  }
+</style>
+</head>
+<body>
+
+<div class="mock-bar" aria-label="Mockup controls">
+  <span class="mk">Theme <span class="seg"><button type="button" data-theme-btn="light" aria-pressed="true">Light</button><button type="button" data-theme-btn="dark" aria-pressed="false">Dark</button></span></span>
+  <span class="mk">Width <span class="seg"><button type="button" data-w="desktop" aria-pressed="true">Desktop 1200</button><button type="button" data-w="tablet-768">Tablet 768</button><button type="button" data-w="phone-390">Phone 390</button><button type="button" data-w="phone-320">Phone 320</button></span></span>
+  <span class="mk">Text <span class="seg"><button type="button" data-scale="1" aria-pressed="true">100%</button><button type="button" data-scale="2">200%</button></span></span>
+  <span class="mk">State
+    <select id="stateSel" aria-label="Which state to show">
+      <option value="form">Predict form (start here)</option>
+      <option value="loading">Loading the plan</option>
+      <option value="plan" selected>Plan: Del Monte Beach, Monterey</option>
+      <option value="replay">Offline, replayed plan</option>
+      <option value="subordinate">High/low-only station: Elkhorn Slough</option>
+      <option value="toofar">Tide too far: Panoche Valley</option>
+      <option value="outside">Outside the US: Bahia de San Quintin</option>
+      <option value="unavailable">Station unavailable</option>
+      <option value="polar">Polar day: Utqiagvik, late July</option>
+      <option value="nokey">No OpenWeather key</option>
+      <option value="offline">Offline, no stored plan</option>
+      <option value="error">Provider error</option>
+      <option value="single">Single-moment result (Get forecast)</option>
+    </select>
+  </span>
+</div>
+
+<div class="mock-stage">
+  <div class="mock-cap">Weather tab · bottom of the card</div>
+  <div class="frame" id="frame">
+    <div class="sr-card">
+      <span class="sr-only" role="status" aria-live="polite" id="announce"></span>
+      <div class="sr-weather-narrow">
+      <hr class="sr" style="margin-top:0" />
+      <div class="sr-h">Now, or any time ahead</div>
+      <p class="sr-sub">Skip the checklist: get weather and tide for where you are, or for a place and time you choose.</p>
+      <div class="sr-grid-2" style="--sr-grid-gap:10px">
+        <button type="button" class="btn-primary" aria-label="Get current weather and tide for my location">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg> Current
+        </button>
+        <button type="button" class="btn-outline" id="btnPredict" aria-label="Predict weather and tide for a place and time">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="M12 14v3l2 1"/></svg> Predict
+        </button>
+      </div>
+      </div>
+      <div id="stage"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  // ────────────────────────────────────────────────────────────────────────────
+  // Fixture: Del Monte Beach, Monterey, CA. "Now" is Sat, Sep 12, 2026, 3:41 PM PDT.
+  // Sunrise/sunset from the NOAA solar algorithm for 36.603, -121.876; tide is a
+  // harmonic model shaped like Monterey (mixed semidiurnal, spring tides easing to
+  // neaps through the week). Every figure the UI shows is derived from this the
+  // same way the shipped composer derives it: heights at events from the 30-minute
+  // curve, trend from the next turning point, brackets from the turning points.
+  // ────────────────────────────────────────────────────────────────────────────
+  const MIN = 1, HOUR = 60, DAY = 1440;
+  const NOW = 15 * HOUR + 41;                    // minutes after Sat 00:00 local
+  const AXIS_START = 15 * HOUR;                  // start of the current hour
+  const DAYS = [
+    { wd: 'Sat', md: 'Sep 12', iso: '2026-09-12', sr: 6*60+48, ss: 19*60+19 },
+    { wd: 'Sun', md: 'Sep 13', iso: '2026-09-13', sr: 6*60+48, ss: 19*60+18 },
+    { wd: 'Mon', md: 'Sep 14', iso: '2026-09-14', sr: 6*60+49, ss: 19*60+16 },
+    { wd: 'Tue', md: 'Sep 15', iso: '2026-09-15', sr: 6*60+50, ss: 19*60+15 },
+    { wd: 'Wed', md: 'Sep 16', iso: '2026-09-16', sr: 6*60+51, ss: 19*60+13 },
+    { wd: 'Thu', md: 'Sep 17', iso: '2026-09-17', sr: 6*60+52, ss: 19*60+12 },
+    { wd: 'Fri', md: 'Sep 18', iso: '2026-09-18', sr: 6*60+52, ss: 19*60+10 },
+    { wd: 'Sat', md: 'Sep 19', iso: '2026-09-19', sr: 6*60+53, ss: 19*60+9 },
+  ];
+  const AXIS_END = 7 * DAY + 23 * HOUR + 59;
+  const YEAR = '2026';
+  const POLAR_DAYS = [['Sat','Jul 25'],['Sun','Jul 26'],['Mon','Jul 27'],['Tue','Jul 28'],['Wed','Jul 29'],['Thu','Jul 30'],['Fri','Jul 31'],['Sat','Aug 1']].map(([wd, md]) => ({ wd, md }));
+  let ACTIVE_DAYS = DAYS;
+
+  // ── time formatting, the app's clock style (formatDate: "Sep 13, 2026, 6:48 AM")
+  const pad2 = n => String(n).padStart(2, '0');
+  function clock(m) {
+    m = ((m % DAY) + DAY) % DAY;
+    const h = Math.floor(m / 60), mm = m % 60, ap = h < 12 ? 'AM' : 'PM';
+    return `${h % 12 === 0 ? 12 : h % 12}:${pad2(mm)} ${ap}`;
+  }
+  const dayIdx = m => Math.floor(m / DAY);
+  const dayOf = m => ACTIVE_DAYS[Math.min(ACTIVE_DAYS.length - 1, Math.max(0, dayIdx(m)))];
+  const dateShort = m => `${dayOf(m).wd}, ${dayOf(m).md}`;           // "Sun, Sep 13"
+  const dateLong = m => `${dayOf(m).wd}, ${dayOf(m).md}, ${YEAR}, ${clock(m)}`;
+  const fmtFt = v => (Math.round(v * 10) / 10).toFixed(1).replace('-', '−');
+
+  // ── tide model (minutes → feet MLLW)
+  const CONST = [ // [amplitude ft, period h, phase rad]
+    [1.40, 12.4206, 0.9], [0.36, 12.0000, 1.4], [0.30, 12.6583, 0.2],
+    [1.05, 23.9345, 2.1], [0.65, 25.8193, 1.6], [0.33, 24.0659, 2.0],
+  ];
+  function tideAt(m, shift) {
+    const t = (m + (shift || 0)) / 60;
+    let h = 2.85;
+    for (const [a, p, ph] of CONST) h += a * Math.cos(2 * Math.PI * t / p - ph);
+    return h;
+  }
+  function turningPoints(shift) {
+    const pts = [];
+    let prev = tideAt(AXIS_START - DAY - 12, shift), cur = tideAt(AXIS_START - DAY - 6, shift);
+    for (let m = AXIS_START - DAY; m <= AXIS_END + DAY; m += 6) {
+      const next = tideAt(m, shift);
+      if (cur > prev && cur >= next) pts.push({ kind: 'high', t: m - 6, v: cur });
+      if (cur < prev && cur <= next) pts.push({ kind: 'low', t: m - 6, v: cur });
+      prev = cur; cur = next;
+    }
+    return pts;
+  }
+  function interpHL(m, tps) {
+    let p = null, n = null;
+    for (const h of tps) { if (h.t <= m) p = h; if (h.t >= m) { n = h; break; } }
+    if (p && n) { if (p.t === n.t) return p.v; return p.v + (n.v - p.v) * ((m - p.t) / (n.t - p.t)); }
+    return (p || n) ? (p || n).v : null;
+  }
+
+  // ── weather (the One Call shapes Predict already reads, mapped to PlanWeather)
+  const WX = {
+    clear:  { em: '☀️', d: 'Clear sky',        c: 4 },
+    few:    { em: '🌤️', d: 'Few clouds',       c: 18 },
+    scat:   { em: '⛅', d: 'Scattered clouds', c: 40 },
+    broken: { em: '🌥️', d: 'Broken clouds',    c: 72 },
+    over:   { em: '☁️', d: 'Overcast clouds',  c: 96 },
+    fog:    { em: '🌫️', d: 'Fog',              c: 100 },
+    mist:   { em: '🌫️', d: 'Mist',             c: 100 },
+  };
+  function wx(key, tempF, wind, dir, hum, dew, extra) {
+    const w = WX[key];
+    return Object.assign({ emoji: w.em, description: w.d, tempF, windDesc: wind, windDir: dir, humidityPct: hum, dewPointF: dew, cloudsPct: w.c, highF: null, lowF: null }, extra || {});
+  }
+  // 48 hourly entries from the current hour (Sat 3 PM) to Mon 2 PM: the marine layer
+  // in overnight and burning off late morning, a clearer, warmer Sunday afternoon.
+  function hourly() {
+    const out = [];
+    for (let k = 0; k < 48; k++) {
+      const dt = AXIS_START + k * HOUR, h = (dt % DAY) / 60, d = dayIdx(dt);
+      let e;
+      if (d === 0) {
+        if (h <= 17) e = wx('clear', 67 - (h - 15), 'Moderate breeze', 'NW', 66 + (h - 15) * 3, 55);
+        else if (h <= 19) e = wx('clear', 63 - (h - 18), 'Gentle breeze', 'W', 74 + (h - 18) * 4, 55);
+        else if (h <= 22) e = wx('few', 60 - (h - 20), 'Light breeze', 'W', 82 + (h - 20) * 3, 54);
+        else e = wx('over', 57, 'Mostly calm', 'W', 90, 54);
+      } else if (d === 1) {
+        if (h <= 6) e = wx('fog', 56 - (h > 3 ? 1 : 0), 'Mostly calm', 'SW', 93, 54);
+        else if (h <= 8) e = wx('mist', 56 + (h - 7), 'Mostly calm', 'W', 92 - (h - 7) * 2, 54);
+        else if (h <= 10) e = wx('over', 58 + (h - 9) * 2, 'Light breeze', 'W', 86 - (h - 9) * 4, 54);
+        else if (h <= 11) e = wx('broken', 62, 'Light breeze', 'NW', 78, 55);
+        else if (h <= 13) e = wx('scat', 64 + (h - 12) * 2, 'Gentle breeze', 'NW', 72 - (h - 12) * 3, 55);
+        else if (h <= 18) e = wx('clear', 68 - Math.max(0, h - 16), 'Moderate breeze', 'NW', 64 + Math.max(0, h - 16) * 3, 55);
+        else if (h <= 19) e = wx('clear', 63, 'Gentle breeze', 'W', 74, 55);
+        else if (h <= 22) e = wx('few', 60 - (h - 20), 'Light breeze', 'W', 81 + (h - 20) * 3, 54);
+        else e = wx('over', 57, 'Mostly calm', 'W', 91, 54);
+      } else {
+        if (h <= 7) e = wx('over', 56, 'Mostly calm', 'SW', 92, 54);
+        else if (h <= 10) e = wx('broken', 58 + (h - 8) * 2, 'Light breeze', 'W', 85 - (h - 8) * 4, 54);
+        else e = wx('scat', 63 + (h - 11), 'Gentle breeze', 'NW', 72 - (h - 11) * 2, 55);
+      }
+      out.push({ dt, weather: e });
+    }
+    return out;
+  }
+  const DAILY = [
+    wx('clear', 66, 'Moderate breeze', 'NW', 70, 55, { highF: 67, lowF: 56 }),
+    wx('clear', 68, 'Moderate breeze', 'NW', 68, 55, { highF: 68, lowF: 55 }),
+    wx('scat', 66, 'Gentle breeze', 'NW', 71, 55, { highF: 67, lowF: 55 }),
+    wx('over', 62, 'Light breeze', 'W', 80, 54, { highF: 63, lowF: 54 }),
+    wx('clear', 70, 'Gentle breeze', 'NW', 64, 55, { highF: 71, lowF: 56 }),
+    wx('clear', 73, 'Light breeze', 'NE', 55, 54, { highF: 74, lowF: 57 }),
+    wx('few', 69, 'Gentle breeze', 'NW', 66, 55, { highF: 70, lowF: 56 }),
+    wx('broken', 65, 'Moderate breeze', 'W', 74, 55, { highF: 66, lowF: 56 }),
+  ];
+
+  // ── build the plan document the way composePlan does
+  function buildPlan(o) {
+    o = o || {};
+    ACTIVE_DAYS = o.polar ? POLAR_DAYS : DAYS;
+    const H = hourly();
+    const cool = w => o.tempDelta ? Object.assign({}, w, { tempF: w.tempF + o.tempDelta, dewPointF: w.dewPointF + o.tempDelta, highF: w.highF === null ? null : w.highF + o.tempDelta, lowF: w.lowF === null ? null : w.lowF + o.tempDelta }) : w;
+    for (const e of H) e.weather = cool(e.weather);
+    const DAILYX = DAILY.map(cool);
+    const hourlyEnd = H[H.length - 1].dt + 30;
+    const days = DAYS.map((d, i) => ({
+      i, date: `${ACTIVE_DAYS[i].wd}, ${ACTIVE_DAYS[i].md}`, startTs: i * DAY, endTs: (i + 1) * DAY - 1,
+      sunrise: o.polar ? null : i * DAY + d.sr, sunset: o.polar ? null : i * DAY + d.ss,
+    }));
+    const events = [];
+    for (const d of days) {
+      if (d.sunrise !== null && d.sunrise > NOW) events.push({ kind: 'sunrise', t: d.sunrise, day: d });
+      if (d.sunset !== null && d.sunset > NOW) events.push({ kind: 'sunset', t: d.sunset, day: d });
+    }
+    events.sort((a, b) => a.t - b.t);
+    // weather per event: Predict's nearest-hour rule inside the hourly coverage, the day after
+    for (const ev of events) {
+      const hit = ev.t < hourlyEnd ? H.find(e => ev.t >= e.dt - 30 && ev.t < e.dt + 30) : null;
+      ev.weather = hit ? hit.weather : DAILYX[ev.day.i];
+      ev.resolution = hit ? 'hourly' : 'daily';
+    }
+    // cells
+    const cells = [];
+    for (const e of H) cells.push({ resolution: 'hourly', startTs: Math.max(AXIS_START, e.dt - 30), endTs: Math.min(e.dt + 30, hourlyEnd) - 1, dt: e.dt, weather: e.weather });
+    for (const d of days) if (d.endTs > hourlyEnd) cells.push({ resolution: 'daily', startTs: Math.max(d.startTs, hourlyEnd), endTs: d.endTs, weather: DAILYX[d.i], day: d });
+    // night spans, clipped to the axis
+    const nights = [];
+    if (!o.polar) {
+      const first = days[0];
+      if (AXIS_START < first.sunrise) nights.push([AXIS_START, first.sunrise]);
+      for (let i = 0; i < days.length; i++) {
+        const s = days[i].sunset, r = i + 1 < days.length ? days[i + 1].sunrise : AXIS_END;
+        nights.push([Math.max(AXIS_START, s), Math.min(AXIS_END, r)]);
+      }
+    }
+    // tide
+    let tide;
+    const tstat = o.tide || 'ok';
+    if (tstat === 'ok') {
+      const tps = turningPoints(o.shift);
+      const curve = [];
+      for (let m = AXIS_START; m <= AXIS_END; m += 30) curve.push({ t: m, v: o.subordinate ? interpHL(m, tps) : tideAt(m, o.shift), hilo: !!o.subordinate });
+      tide = { status: 'ok', station: o.station, distanceMi: o.distanceMi, continuous: !o.subordinate, curve, turningPoints: tps, drawn: tps.filter(p => p.t >= AXIS_START && p.t <= AXIS_END) };
+      for (const ev of events) {
+        const m = ev.t;
+        let prev = null, next = null;
+        for (const p of tps) { if (p.t < m) prev = p; if (p.t >= m && !next) next = p; }
+        let a = null, b = null;
+        for (const s of curve) { if (s.t <= m) a = s; if (s.t >= m) { b = s; break; } }
+        let h, src;
+        if (a && b && !a.hilo && !b.hilo && b.t - a.t <= 30) { h = a.t === b.t ? a.v : a.v + (b.v - a.v) * ((m - a.t) / (b.t - a.t)); src = 'continuous'; }
+        else { h = interpHL(m, tps); src = 'interpolated'; }
+        ev.tide = { heightFt: h, heightSource: src, trend: next ? (next.kind === 'high' ? 'rising' : 'falling') : null, prev, next };
+      }
+    } else {
+      tide = { status: tstat, station: o.station, distanceMi: o.distanceMi };
+      for (const ev of events) ev.tide = null;
+    }
+    return { place: o.place, lat: o.lat, lng: o.lng, fetchedAt: NOW, axisStart: AXIS_START, axisEnd: AXIS_END, hourlyEnd, days, events, cells, nights, tide, replayedAt: o.replayedAt || null, polar: !!o.polar, overrideBusy: !!o.overrideBusy };
+  }
+
+  const PLACES = {
+    delmonte: { place: 'Del Monte Beach, Monterey', lat: '36.603', lng: '-121.876', station: { name: 'MONTEREY, MONTEREY BAY', id: '9413450' }, distanceMi: 0.9, shift: 204 },
+    elkhorn:  { place: 'Elkhorn Slough, Moss Landing', lat: '36.813', lng: '-121.785', station: { name: 'Elkhorn Slough, Highway 1 Bridge', id: '9413623' }, distanceMi: 0.3, subordinate: true, shift: 229 },
+    panoche:  { place: 'Panoche Valley Road', lat: '36.612', lng: '-120.834', station: { name: 'Elkhorn Slough, Highway 1 Bridge', id: '9413623' }, distanceMi: 58, tide: 'too-far', subordinate: true, shift: 229 },
+    quintin:  { place: 'Bahia de San Quintin', lat: '30.401', lng: '-115.981', station: { name: 'Imperial Beach', id: '9410120' }, distanceMi: 165, tide: 'outside-us', shift: 344 },
+    unavail:  { place: 'Del Monte Beach, Monterey', lat: '36.603', lng: '-121.876', tide: 'unavailable' },
+    polar:    { place: 'Utqiagvik, Alaska', lat: '71.290', lng: '-156.789', tide: 'unavailable', polar: true, tempDelta: -21 },
+  };
+
+  // ── SVG helpers
+  const NS = 'http://www.w3.org/2000/svg';
+  function el(tag, attrs, children) {
+    const n = document.createElementNS(NS, tag);
+    for (const k in attrs) n.setAttribute(k, attrs[k]);
+    if (children) for (const c of children) n.appendChild(typeof c === 'string' ? document.createTextNode(c) : c);
+    return n;
+  }
+  function html(tag, cls, inner) { const n = document.createElement(tag); if (cls) n.className = cls; if (inner !== undefined) n.innerHTML = inner; return n; }
+  const ICON = {
+    sunrise: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v8"/><path d="m4.93 10.93 1.41 1.41"/><path d="M2 18h2"/><path d="M20 18h2"/><path d="m19.07 10.93-1.41 1.41"/><path d="M22 22H2"/><path d="m8 6 4-4 4 4"/><path d="M16 18a4 4 0 0 0-8 0"/></svg>',
+    sunset: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 10V2"/><path d="m4.93 10.93 1.41 1.41"/><path d="M2 18h2"/><path d="M20 18h2"/><path d="m19.07 10.93-1.41 1.41"/><path d="M22 22H2"/><path d="m16 6-4 4-4-4"/><path d="M16 18a4 4 0 0 0-8 0"/></svg>',
+    loader: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="spin" aria-hidden="true"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>',
+    loader12: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="spin" aria-hidden="true"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>',
+    alert: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>',
+    wifioff: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h.01"/><path d="M8.5 16.429a5 5 0 0 1 7 0"/><path d="M5 12.859a10 10 0 0 1 5.17-2.69"/><path d="M19 12.859a10 10 0 0 0-2.007-1.523"/><path d="M2 8.82a15 15 0 0 1 4.177-2.643"/><path d="M22 8.82a15 15 0 0 0-11.288-3.764"/><path d="m2 2 20 20"/></svg>',
+    key: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z"/><circle cx="16.5" cy="7.5" r=".5" fill="currentColor"/></svg>',
+    clock: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>',
+    waves: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 6c.6.5 1.2 1 2.5 1C7 7 7 5 9.5 5c2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/><path d="M2 12c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/><path d="M2 18c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/></svg>',
+    chevron: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>',
+    search: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>',
+    forecast: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v3M5.2 5.2l2.1 2.1M3 12h3M18 12h3M16.7 7.3l2.1-2.1"/><path d="M7 18a5 5 0 0 1 10 0"/><path d="M4 22h16"/></svg>',
+    caldays: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v4M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01M16 18h.01"/></svg>',
+    arrows: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 7-5 5 5 5"/><path d="m15 7 5 5-5 5"/></svg>',
+  };
+
+  // ── the Predict form (shipped, plus the second action)
+  function renderForm() {
+    const f = html('div', 'sr-predict sr-pad-x-trim');
+    f.innerHTML = `
+      <label class="fld" for="predict-place">Place</label>
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <input id="predict-place" class="inp" type="text" value="Del Monte Beach, Monterey" placeholder="Search a place, e.g. Pillar Point Harbor" aria-label="Search for a place" autocomplete="off" />
+        <button type="button" class="btn-outline" aria-label="Search for this place" style="height:40px;flex-shrink:0;padding:0 14px">${ICON.search}</button>
+      </div>
+      <div class="sr-map" aria-label="Map: drag the pin to fine-tune the place" role="img">
+        <svg viewBox="0 0 520 200" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+          <rect width="520" height="200" fill="#CFDCE3"/>
+          <path d="M0 0H520V62C470 60 440 86 400 96 372 103 356 128 318 132 290 135 268 158 238 168 210 178 196 200 196 200H0Z" fill="#F2F0EB"/>
+          <path d="M0 0H520V62C470 60 440 86 400 96 372 103 356 128 318 132 290 135 268 158 238 168 210 178 196 200 196 200" fill="none" stroke="#B8C3C9" stroke-width="1.2"/>
+          <path d="M60 40h80M40 90h60M20 140h70M300 30h120M340 60h60" stroke="#E4E1DA" stroke-width="3" stroke-linecap="round"/>
+          <path d="M120 30l60 24 40 40 50 28" stroke="#DED9CE" stroke-width="2.4" fill="none"/>
+          <text x="410" y="150" font-size="11" fill="#4C5A66" font-family="Inter, system-ui, sans-serif" font-style="italic">Monterey Bay</text>
+          <text x="70" y="70" font-size="10" fill="#6E7A83" font-family="Inter, system-ui, sans-serif">Monterey</text>
+          <g transform="translate(298 120)"><path d="M0-22c-7 0-12 5-12 12 0 9 12 22 12 22s12-13 12-22c0-7-5-12-12-12z" fill="#277448" stroke="#FFFFFF" stroke-width="2"/><circle r="4.2" cy="-10" fill="#FFFFFF"/></g>
+        </svg>
+        <span class="attr">© OpenStreetMap © CARTO</span>
+      </div>
+      <p class="hint">Tap the map to drop a pin, drag to fine-tune, or type coordinates below.</p>
+      <div class="sr-grid-2" style="--sr-grid-gap:12px;margin-top:12px">
+        <div><label class="fld" for="predict-lat">Latitude</label><input id="predict-lat" class="inp" type="number" step="0.0001" value="36.6030" aria-label="Latitude (-90 to 90)" /></div>
+        <div><label class="fld" for="predict-lng">Longitude</label><input id="predict-lng" class="inp" type="number" step="0.0001" value="-121.8760" aria-label="Longitude (-180 to 180)" /></div>
+        <div><label class="fld" for="predict-date">Date</label><input id="predict-date" class="inp" type="date" value="2026-09-12" aria-label="Forecast date" /></div>
+        <div><label class="fld" for="predict-time">Time</label><input id="predict-time" class="inp" type="time" value="18:00" aria-label="Forecast time" /></div>
+      </div>
+      <button type="button" class="btn-primary" id="btnForecast" style="width:100%;margin-top:14px">${ICON.forecast} Get forecast</button>
+      <button type="button" class="btn-outline" id="btnPlan" style="width:100%;margin-top:8px">${ICON.caldays} Plan sunrises and sunsets</button>
+      <p class="hint">The plan runs from now to the end of the forecast, about eight days, for the place above. The date and time apply only to Get forecast.</p>`;
+    f.querySelector('#btnPlan').addEventListener('click', () => journey('plan'));
+    f.querySelector('#btnForecast').addEventListener('click', () => journey('single'));
+    return f;
+  }
+
+  function renderStatus(text) {
+    const s = html('div', 'status-row'); s.setAttribute('role', 'status'); s.innerHTML = `${ICON.loader} ${text}`; return s;
+  }
+  function renderMsg(kind, text) {
+    const a = html('div', 'alert ' + (kind === 'error' ? 'err' : kind === 'no-key' ? 'warn' : 'quiet'));
+    a.setAttribute('role', kind === 'error' ? 'alert' : 'status');
+    a.innerHTML = `${kind === 'offline' ? ICON.wifioff : kind === 'no-key' ? ICON.key : ICON.alert}<span>${text}</span>`;
+    return a;
+  }
+
+  // ── the chart
+  // Phone tier: a fixed 16px per hour, scrolls sideways. Wide tier (641px and up):
+  // the "Days in view" choice sets the pixels per hour so that span fills the box;
+  // the strip, the labels and the ticks adapt to the density; the axis stays one
+  // uniform real-time axis; the curve is the document's 30-minute samples either way.
+  const PHONE_HPX = 16, PADL = 40, MIN_HPX = 4;
+  const DAYS_OPTIONS = [['1', '1 day'], ['3', '3 days'], ['7', '7 days'], ['all', 'All 8 days']];
+  let daysInView = 'all';
+  let reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  window.matchMedia('(prefers-reduced-motion: reduce)').addEventListener('change', e => { reduced = e.matches; });
+  const isWide = () => frame.classList.contains('tier-wide');
+
+  function chartMetrics(plan, boxWidth) {
+    const hasTide = plan.tide.status === 'ok';
+    const wide = isWide();
+    let hpx = PHONE_HPX;
+    if (wide) {
+      const hours = daysInView === 'all' ? (plan.axisEnd - plan.axisStart) / 60 : Number(daysInView) * 24;
+      hpx = Math.max(MIN_HPX, (boxWidth - PADL - 2) / hours);
+    }
+    const glyphEvery = hpx >= 16 ? 1 : hpx * 3 >= 16 ? 3 : 6;
+    return {
+      boxWidth, wide, hpx, hasTide, glyphEvery,
+      tempText: hpx >= 32, fullEventLabel: hpx >= 8, ticks: hpx * 6 >= 34 ? [6, 12, 18] : [12], dayPx: hpx * 24,
+      DH: wide ? 22 : 0, PT: 28, PH: hasTide ? (wide ? 220 : 128) : (wide ? 56 : 40), AXH: wide ? 22 : 38, ST: 48,
+    };
+  }
+
+  function buildCanvas(plan, m, canvas, ya) {
+    canvas.replaceChildren(); ya.replaceChildren();
+    const x = t => PADL + (t - plan.axisStart) / 60 * m.hpx;
+    const W = Math.ceil(x(plan.axisEnd)) + 1;
+    const top = m.DH + m.PT, H = m.DH + m.PT + m.PH + m.AXH;
+    let yMin = -1, yMax = 7;
+    if (m.hasTide) {
+      const vs = plan.tide.curve.map(s => s.v);
+      yMin = Math.floor(Math.min.apply(null, vs)) - 0.6; yMax = Math.ceil(Math.max.apply(null, vs)) + 1.2;
+    }
+    const y = v => top + m.PH - (v - yMin) / (yMax - yMin) * m.PH;
+    const base = top + m.PH;
+    canvas.style.width = W + 'px';
+    const svg = el('svg', { width: W, height: H, viewBox: `0 0 ${W} ${H}` });
+
+    if (m.wide) { // day header lane along the top
+      svg.appendChild(el('rect', { x: 0, y: 0, width: W, height: m.DH, fill: 'var(--sr-surface-subtle)' }));
+      svg.appendChild(el('line', { x1: 0, x2: W, y1: m.DH - 0.5, y2: m.DH - 0.5, stroke: 'var(--sr-border)', 'stroke-width': 1 }));
+    }
+    svg.appendChild(el('rect', { x: 0, y: top, width: W, height: m.PH, fill: 'var(--sr-plan-day)' }));
+    for (const [a, b] of plan.nights) svg.appendChild(el('rect', { x: x(a), y: top, width: Math.max(0, x(b) - x(a)), height: m.PH, fill: 'var(--sr-plan-night)' }));
+    if (m.hasTide) for (let v = Math.ceil(yMin); v <= Math.floor(yMax); v += 2) svg.appendChild(el('line', { x1: 0, x2: W, y1: y(v), y2: y(v), stroke: `rgba(var(--sr-plan-grid-rgb),0.16)`, 'stroke-width': 1 }));
+    for (const d of plan.days) {
+      if (d.startTs >= plan.axisStart) svg.appendChild(el('line', { x1: x(d.startTs), x2: x(d.startTs), y1: m.wide ? 0 : top, y2: H, stroke: 'var(--sr-border-medium)', 'stroke-width': 1 }));
+      const lx = Math.max(x(d.startTs), PADL) + 5;
+      const dayW = x(Math.min(d.endTs + 1, plan.axisEnd)) - Math.max(x(d.startTs), PADL);
+      const dayText = dayW >= 84 ? d.date : dayW >= 44 ? `${d.date.slice(0, 3)} ${d.date.slice(-2).trim()}` : dayW >= 22 ? d.date.slice(0, 3) : '';
+      if (dayText) svg.appendChild(el('text', { x: lx, y: m.wide ? 15 : H - 7, class: m.wide ? 'cx-dayhead' : 'cx-day' }, [dayText]));
+      for (const hh of m.ticks) {
+        const t = d.startTs + hh * 60; if (t < plan.axisStart + 30 || t > plan.axisEnd) continue;
+        svg.appendChild(el('line', { x1: x(t), x2: x(t), y1: base, y2: base + 4, stroke: 'var(--sr-border-medium)', 'stroke-width': 1 }));
+        svg.appendChild(el('text', { x: x(t), y: base + 15, class: 'cx-tick', 'text-anchor': 'middle' }, [hh === 12 ? 'Noon' : hh === 6 ? '6 AM' : '6 PM']));
+      }
+    }
+    svg.appendChild(el('line', { x1: x(plan.fetchedAt), x2: x(plan.fetchedAt), y1: top, y2: base, stroke: 'var(--sr-text)', 'stroke-width': 1, 'stroke-dasharray': '2 3', opacity: 0.7 }));
+    svg.appendChild(el('text', { x: x(plan.fetchedAt) + 4, y: top + 11, class: 'cx-lbl' }, ['Now']));
+    svg.appendChild(el('line', { x1: 0, x2: W, y1: base, y2: base, stroke: 'var(--sr-border-medium)', 'stroke-width': 1 }));
+    if (m.hasTide) {
+      const pts = plan.tide.curve.map(s => `${x(s.t).toFixed(1)},${y(s.v).toFixed(1)}`).join(' ');
+      svg.appendChild(el('polyline', { points: pts, fill: 'none', stroke: 'var(--sr-plan-tide)', 'stroke-width': 2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }));
+      for (const p of plan.tide.drawn) {
+        const cx = x(p.t), cy = y(p.v);
+        if (p.kind === 'high') svg.appendChild(el('circle', { cx, cy, r: 4.5, fill: 'var(--sr-plan-tide)', stroke: 'var(--sr-plan-halo)', 'stroke-width': 1.5 }));
+        else svg.appendChild(el('circle', { cx, cy, r: 4.5, fill: 'var(--sr-plan-halo)', stroke: 'var(--sr-plan-tide)', 'stroke-width': 2 }));
+        svg.appendChild(el('text', { x: cx, y: p.kind === 'high' ? cy - 8 : cy + 15, class: 'cx-lbl hl', 'text-anchor': 'middle' }, [`${p.kind === 'high' ? 'H' : 'L'} ${fmtFt(p.v)}`]));
+      }
+    }
+    for (const ev of plan.events) {
+      const cx = x(ev.t), cy = m.hasTide && ev.tide && ev.tide.heightFt !== null ? y(ev.tide.heightFt) : base;
+      svg.appendChild(el('line', { x1: cx, x2: cx, y1: top - m.PT + m.DH + 2 + (m.wide ? 0 : 0), y2: cy - 7, stroke: 'var(--sr-plan-sun)', 'stroke-width': 1, 'stroke-dasharray': '2 2', opacity: 0.85 }));
+      const tri = ev.kind === 'sunrise' ? `${cx},${cy - 6.5} ${cx - 6},${cy + 4} ${cx + 6},${cy + 4}` : `${cx},${cy + 6.5} ${cx - 6},${cy - 4} ${cx + 6},${cy - 4}`;
+      svg.appendChild(el('polygon', { points: tri, fill: ev.kind === 'sunrise' ? 'var(--sr-plan-halo)' : 'var(--sr-plan-sun)', stroke: ev.kind === 'sunrise' ? 'var(--sr-plan-sun)' : 'var(--sr-plan-halo)', 'stroke-width': ev.kind === 'sunrise' ? 2 : 1.5, 'stroke-linejoin': 'round' }));
+      const label = m.fullEventLabel ? `${ev.kind === 'sunrise' ? 'Sunrise' : 'Sunset'} ${clock(ev.t)}` : clock(ev.t);
+      svg.appendChild(el('text', { x: cx, y: top - 9, class: 'cx-lbl evt', 'text-anchor': 'middle' }, [label]));
+    }
+    canvas.appendChild(svg);
+
+    // weather strip, density-aware
+    const strip = html('div', 'sr-plan-strip'); strip.style.height = m.ST + 'px';
+    let firstDaily = true;
+    // At low density the hourly cells collapse into one cell per N-hour block (aligned to the
+    // clock: 12 AM, 6 AM, ...) showing the reading at the block's first hour.
+    const hourlyCells = plan.cells.filter(c => c.resolution === 'hourly');
+    let stripCells = plan.cells;
+    if (m.glyphEvery > 1 && hourlyCells.length) {
+      const blocks = [];
+      for (const c of hourlyCells) {
+        const hod = Math.floor((c.dt % DAY) / 60);
+        const last = blocks[blocks.length - 1];
+        if (last && hod % m.glyphEvery !== 0) { last.endTs = c.endTs; continue; }
+        blocks.push({ resolution: 'hourly', startTs: c.startTs, endTs: c.endTs, dt: c.dt, weather: c.weather, block: true });
+      }
+      stripCells = blocks.concat(plan.cells.filter(c => c.resolution === 'daily'));
+    }
+    for (const c of stripCells) {
+      const cell = html('div', 'sr-plan-cell ' + c.resolution);
+      const w = x(c.endTs + 1) - x(c.startTs);
+      cell.style.left = x(c.startTs) + 'px'; cell.style.width = w + 'px';
+      if (c.resolution === 'hourly') {
+        cell.title = `${clock(c.dt)} ${c.weather.description}`;
+        cell.innerHTML = w >= 30 && m.tempText ? `<span>${c.weather.emoji}</span><span class="tmp">${c.weather.tempF}°</span>` : w >= 12 ? `<span>${c.weather.emoji}</span>` : '';
+      } else {
+        const hl = `H ${c.weather.highF}° L ${c.weather.lowF}°`;
+        cell.innerHTML = w >= 200 ? `<span class="em">${c.weather.emoji}</span><span><b>${c.weather.description}</b> <span class="hl">· ${hl}</span></span>`
+          : w >= 90 ? `<span class="em">${c.weather.emoji}</span><span class="hl">${hl}</span>`
+          : `<span class="em">${c.weather.emoji}</span>`;
+        cell.title = `${c.weather.description} · ${hl}`;
+        if (firstDaily) { const t = html('span', 'sr-plan-tag daily', w >= 120 ? 'Forecast · daily from here' : 'Daily'); t.style.left = (x(c.startTs) + 4) + 'px'; strip.appendChild(t); firstDaily = false; }
+      }
+      strip.appendChild(cell);
+    }
+    if (hourlyCells.length) {
+      const span = x(hourlyCells[hourlyCells.length - 1].endTs + 1) - x(hourlyCells[0].startTs);
+      const text = m.glyphEvery === 1 ? 'Forecast · hourly'
+        : span >= 250 ? `Forecast · hourly · a glyph every ${m.glyphEvery} hours`
+        : span >= 120 ? `Hourly · every ${m.glyphEvery} h` : 'Hourly';
+      const t = html('span', 'sr-plan-tag', text); t.style.left = '4px'; strip.appendChild(t);
+    }
+    canvas.appendChild(strip);
+
+    // sticky tide scale
+    if (m.hasTide) {
+      ya.style.top = m.DH + 'px'; ya.style.height = (m.PT + m.PH) + 'px'; ya.style.width = PADL + 'px'; ya.hidden = false;
+      for (let v = Math.ceil(yMin); v <= Math.floor(yMax); v += 2) { const s = html('span', '', `${String(v).replace('-', '−')}${v + 2 > Math.floor(yMax) ? ' ft' : ''}`); s.style.top = y(v) + 'px'; ya.appendChild(s); }
+      const u = html('span', 'unit', 'MLLW'); u.style.top = (y(0) + 6) + 'px'; ya.appendChild(u);
+    } else ya.hidden = true;
+    return { W, x };
+  }
+
+  function renderChart(plan) {
+    const hasTide = plan.tide.status === 'ok';
+    const box = html('div', 'sr-plan-chartbox');
+    const sc = html('div', 'sr-plan-scroller');
+    sc.setAttribute('role', 'img'); sc.setAttribute('tabindex', '0');
+    const w0 = dateLong(plan.axisStart), w1 = `${dateShort(plan.axisEnd)}, ${YEAR}, 11:59 PM`;
+    sc.setAttribute('aria-label', hasTide
+      ? `Chart of the predicted tide with sunrise, sunset, high and low markers and a weather strip for ${plan.place}, ${w0} to ${w1}. Details are in the list below.`
+      : `Chart of sunrise, sunset and weather for ${plan.place}, ${w0} to ${w1}; no tide is shown. Details are in the list below.`);
+    const canvas = html('div', 'sr-plan-canvas'); canvas.setAttribute('aria-hidden', 'true');
+    const ya = html('div', 'sr-plan-yaxis'); ya.setAttribute('aria-hidden', 'true');
+    sc.appendChild(canvas); box.appendChild(sc); box.appendChild(ya);
+    box._plan = plan; box._sc = sc; box._listeners = [];
+    const notify = () => box._listeners.forEach(f => f());
+    const fade = () => { box.classList.toggle('at-end', sc.scrollLeft + sc.clientWidth >= sc.scrollWidth - 2); notify(); };
+    sc.addEventListener('scroll', fade, { passive: true });
+    // layout: measure the box, size the track, rebuild; keep the instant at the left edge where it was
+    box._layout = () => {
+      const prev = box._m;
+      const tLeft = prev ? plan.axisStart + (sc.scrollLeft / prev.hpx) * 60 : plan.axisStart;
+      const m = chartMetrics(plan, box.clientWidth); box._m = m;
+      buildCanvas(plan, m, canvas, ya);
+      if (prev) sc.scrollLeft = (tLeft - plan.axisStart) / 60 * m.hpx;
+      fade();
+    };
+    // one-to-one drag with the mouse: pointer capture, no snapping, no smooth behaviour while down
+    let drag = null;
+    sc.addEventListener('pointerdown', e => {
+      if (e.pointerType !== 'mouse' || e.button !== 0) return;
+      sc.setPointerCapture(e.pointerId);
+      drag = { x: e.clientX, left: sc.scrollLeft };
+      sc.classList.add('is-dragging');
+    });
+    sc.addEventListener('pointermove', e => { if (drag) sc.scrollLeft = drag.left - (e.clientX - drag.x); });
+    const endDrag = () => { drag = null; sc.classList.remove('is-dragging'); };
+    sc.addEventListener('pointerup', endDrag); sc.addEventListener('pointercancel', endDrag); sc.addEventListener('lostpointercapture', endDrag);
+    // day jump: one day's width, smooth unless reduced motion
+    box._jump = dir => sc.scrollBy({ left: dir * 24 * box._m.hpx, behavior: reduced ? 'auto' : 'smooth' });
+    box._fits = () => sc.scrollWidth <= sc.clientWidth + 1;
+    box._atStart = () => sc.scrollLeft <= 0;
+    box._atEnd = () => sc.scrollLeft + sc.clientWidth >= sc.scrollWidth - 1;
+    new ResizeObserver(() => { if (!box._m || box._m.boxWidth !== box.clientWidth) requestAnimationFrame(() => box._layout()); }).observe(box);
+    return box;
+  }
+
+  function renderToolbar(box) {
+    const t = html('div', 'sr-plan-toolbar');
+    const lbl = html('span', 'lbl', 'Days in view');
+    const seg = html('div', 'sr-seg'); seg.setAttribute('role', 'group'); seg.setAttribute('aria-label', 'Days in view');
+    for (const [v, label] of DAYS_OPTIONS) {
+      const b = html('button', 'sr-seg-btn', label); b.type = 'button'; b.setAttribute('aria-pressed', String(daysInView === v));
+      b.addEventListener('click', () => {
+        daysInView = v;
+        seg.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+        box._layout();
+      });
+      seg.appendChild(b);
+    }
+    t.appendChild(lbl); t.appendChild(seg);
+    return t;
+  }
+
+  function renderLegend(box, hasTide) {
+    const l = html('div', 'sr-plan-legend');
+    const sw = (fill) => `<svg width="14" height="10" aria-hidden="true"><rect width="14" height="10" rx="2" fill="${fill}" stroke="var(--sr-border-medium)"/></svg>`;
+    l.innerHTML = `
+      <span class="k">${sw('var(--sr-plan-day)')} Day</span>
+      <span class="k">${sw('var(--sr-plan-night)')} Night</span>
+      <span class="k"><svg width="14" height="12" aria-hidden="true"><polygon points="7,1.5 1.5,10.5 12.5,10.5" fill="var(--sr-plan-halo)" stroke="var(--sr-plan-sun)" stroke-width="2" stroke-linejoin="round"/></svg> Sunrise</span>
+      <span class="k"><svg width="14" height="12" aria-hidden="true"><polygon points="7,10.5 1.5,1.5 12.5,1.5" fill="var(--sr-plan-sun)" stroke="var(--sr-plan-halo)" stroke-width="1.5" stroke-linejoin="round"/></svg> Sunset</span>
+      ${hasTide ? `<span class="k"><svg width="12" height="12" aria-hidden="true"><circle cx="6" cy="6" r="4.5" fill="var(--sr-plan-tide)" stroke="var(--sr-plan-halo)" stroke-width="1.5"/></svg> High</span>
+      <span class="k"><svg width="12" height="12" aria-hidden="true"><circle cx="6" cy="6" r="4.5" fill="var(--sr-plan-halo)" stroke="var(--sr-plan-tide)" stroke-width="2"/></svg> Low</span>` : ''}
+      <span class="sr-plan-nav">
+        <span class="scroll">${ICON.arrows} Scroll sideways for later days</span>
+        <button type="button" class="sr-plan-navbtn" data-dir="-1" aria-label="Earlier day"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>
+        <button type="button" class="sr-plan-navbtn" data-dir="1" aria-label="Later day"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>
+      </span>`;
+    const hint = l.querySelector('.scroll'), prev = l.querySelector('[data-dir="-1"]'), next = l.querySelector('[data-dir="1"]');
+    prev.addEventListener('click', () => box._jump(-1)); next.addEventListener('click', () => box._jump(1));
+    const sync = () => { const fits = box._fits(); hint.hidden = fits; prev.disabled = fits || box._atStart(); next.disabled = fits || box._atEnd(); };
+    box._listeners.push(sync);
+    return l;
+  }
+
+  // ── the list
+  function resLabel(r) { return r === 'daily' ? 'Forecast · daily' : 'Forecast · hourly'; }
+  function wxLine(w) {
+    const hl = w.highF !== null ? ` <span class="mut">(H ${w.highF}° · L ${w.lowF}°)</span>` : '';
+    return `<span class="em" aria-hidden="true">${w.emoji}</span>${w.description}, <b>${w.tempF}°F</b>${hl} <span class="mut">·</span> Wind <b>${w.windDesc}, ${w.windDir}</b> <span class="mut">·</span> Humidity <b>${w.humidityPct}%</b> <span class="mut">·</span> Dew pt <b>${w.dewPointF}°F</b> <span class="mut">·</span> Cloud <b>${w.cloudsPct}%</b>`;
+  }
+  function bracketText(ev) {
+    const t = ev.tide;
+    const when = p => `${clock(p.t)}${dayIdx(p.t) !== dayIdx(ev.t) ? ' ' + dayOf(p.t).wd : ''}`;
+    const side = p => `${p.kind} ${fmtFt(p.v)} ft (${when(p)})`;
+    if (t.prev && t.next) return `between ${side(t.prev)} and ${side(t.next)}`;
+    if (t.prev) return `after ${side(t.prev)}; no later high or low in the data`;
+    if (t.next) return `before ${side(t.next)}; no earlier high or low in the data`;
+    return 'no high or low in the data on either side';
+  }
+  function renderList(plan) {
+    const ol = html('ol', 'sr-plan-days'); ol.setAttribute('aria-label', 'Sunrises and sunsets ahead');
+    for (const d of plan.days) {
+      const li = html('li', 'sr-plan-day');
+      li.appendChild(html('h4', '', d.date));
+      const hcells = plan.cells.filter(c => c.resolution === 'hourly' && dayIdx(c.dt) === d.i);
+      const dcell = plan.cells.find(c => c.resolution === 'daily' && c.day === d);
+      if (hcells.length) {
+        const det = html('details', 'sr-plan-hours');
+        det.innerHTML = `<summary>Sky hour by hour, ${hcells.length} readings ${ICON.chevron}</summary><p>${hcells.map(c => `<span><span aria-hidden="true">${c.weather.emoji}</span> ${clock(c.dt).replace(':00', '')} ${c.weather.description}</span>`).join(' <span aria-hidden="true">·</span> ')}${dcell ? ` <span aria-hidden="true">·</span> <span><span aria-hidden="true">${dcell.weather.emoji}</span> from ${clock(dcell.startTs)} ${dcell.weather.description} <span class="mut">(daily)</span></span>` : ''}</p>`;
+        li.appendChild(det);
+      } else if (dcell) {
+        li.appendChild(html('p', 'sr-plan-sky', `<span class="em" aria-hidden="true">${dcell.weather.emoji}</span>${dcell.weather.description} all day, H ${dcell.weather.highF}° L ${dcell.weather.lowF}° <span class="sr-plan-ev-res" style="margin-left:6px">${resLabel('daily')}</span>`));
+      }
+      if (d.sunrise === null) li.appendChild(html('p', 'sr-plan-note', 'No sunrise this day.'));
+      if (d.sunset === null) li.appendChild(html('p', 'sr-plan-note', 'No sunset this day.'));
+      const evs = plan.events.filter(e => e.day === d);
+      if (evs.length) {
+        const ul = html('ol', 'sr-plan-evs');
+        for (const ev of evs) {
+          const it = html('li', 'sr-plan-ev');
+          const kind = ev.kind === 'sunrise' ? 'Sunrise' : 'Sunset';
+          let tide = '';
+          if (ev.tide && ev.tide.heightFt !== null) {
+            const tr = ev.tide.trend ? (ev.tide.trend === 'rising' ? 'rising' : 'falling') : 'trend unknown (no later high or low in the data)';
+            tide = `<div class="sr-plan-ev-tide">Tide <b>${fmtFt(ev.tide.heightFt)} ft</b>, ${tr} <span class="mut">· ${bracketText(ev)}</span></div>`;
+          }
+          it.innerHTML = `
+            <span class="sr-plan-ev-ic" aria-hidden="true">${ICON[ev.kind]}</span>
+            <div class="sr-min0">
+              <div class="sr-plan-ev-top"><span class="sr-plan-ev-kind">${kind}</span><span class="sr-plan-ev-time">${clock(ev.t)}</span><span class="sr-only">, ${d.date}</span><span class="sr-plan-ev-res">${resLabel(ev.resolution)}</span></div>
+              ${tide}
+              <div class="sr-plan-ev-wx">${wxLine(ev.weather)}</div>
+            </div>`;
+          ul.appendChild(it);
+        }
+        li.appendChild(ul);
+      }
+      ol.appendChild(li);
+    }
+    return ol;
+  }
+
+  // ── the plan result region
+  function renderPlan(plan, opts) {
+    opts = opts || {};
+    const r = html('div', 'sr-result sr-pad-x-trim');
+    r.setAttribute('role', 'region'); r.setAttribute('aria-label', 'Weather and tide plan');
+    const head = html('div', 'sr-action-row');
+    head.innerHTML = `<h3 class="sr-min0">${plan.place}</h3><span class="pill">Plan · ${plan.days.length} days</span>`;
+    r.appendChild(head);
+    const meta = html('div', 'sr-plan-head');
+    meta.innerHTML = `
+      <div class="meta mono">${dateLong(plan.axisStart).replace(clock(plan.axisStart), clock(plan.fetchedAt))} → ${dateShort(plan.axisEnd)}, ${YEAR}, 11:59 PM</div>
+      <div class="meta">Local time at this spot · <span class="mono">${plan.lat}, ${plan.lng}</span> · fetched ${clock(plan.fetchedAt)}</div>`;
+    r.appendChild(meta);
+    if (plan.replayedAt) { const s = html('div', 'stale'); s.setAttribute('role', 'status'); s.innerHTML = `${ICON.clock}<span>Offline: showing the last loaded result, from Sep 12, 2026, 3:41 PM.</span>`; r.appendChild(s); }
+    const t = plan.tide;
+    if (t.status === 'ok') {
+      const st = html('div', 'sr-plan-station');
+      st.innerHTML = `${ICON.waves}<span>Tide: ${t.station.name} (${t.station.id}) · ${t.distanceMi.toFixed(1)} mi · <b>Predicted</b> · relative to MLLW${t.continuous ? '' : ' · heights between highs and lows are interpolated'}</span>`;
+      r.appendChild(st);
+    } else if (t.status === 'too-far' || t.status === 'outside-us') {
+      const n = html('div', 'sr-plan-notice');
+      const words = t.status === 'too-far'
+        ? `The nearest tide station is ${t.distanceMi.toFixed(0)} miles away (${t.station.name}). Tide data may not reflect your spot.`
+        : `Tide information is only available in the US. The nearest US station is ${t.station.name}, ${t.distanceMi.toFixed(0)} miles away.`;
+      n.innerHTML = `<div class="alert warn sr-action-row"><span class="sr-min0">${ICON.alert}<span>${words}</span></span><button type="button" class="btn-outline btn-small" aria-label="Show the nearest tide station anyway" ${plan.overrideBusy ? 'aria-busy="true"' : ''}>${plan.overrideBusy ? ICON.loader12 : ''}${t.status === 'too-far' ? 'Show it anyway' : 'Show nearest US station'}</button></div>`;
+      n.querySelector('button').addEventListener('click', () => opts.onOverride && opts.onOverride());
+      r.appendChild(n);
+    } else if (t.status === 'unavailable') {
+      r.appendChild(html('div', 'sr-plan-unavail', 'Tide is unavailable for this spot.'));
+    }
+    const box = renderChart(plan);
+    if (isWide()) r.appendChild(renderToolbar(box));
+    r.appendChild(box);
+    r.appendChild(renderLegend(box, t.status === 'ok'));
+    r.appendChild(renderList(plan));
+    r.appendChild(html('div', 'sr-plan-close', 'The plan stops where the weather forecast stops. Tide predictions reach further ahead: for any later moment, use Get forecast with a date and time.'));
+    return r;
+  }
+
+  // ── the single-moment Predict result (shipped shape) for the alternation
+  function renderSingle() {
+    const r = html('div', 'sr-result sr-pad-x-trim');
+    r.setAttribute('role', 'region'); r.setAttribute('aria-label', 'Weather and tide result');
+    r.innerHTML = `
+      <div class="sr-action-row" style="margin-bottom:13px"><h3 class="sr-min0" style="font-size:0.9375rem">Del Monte Beach, Monterey</h3><span class="pill">FORECAST</span></div>
+      <div class="meta mono" style="margin-bottom:12px">Sep 12, 2026, 6:00 PM · 36.603, -121.876</div>
+      <div role="group" aria-label="Weather">
+        <div class="wx-big"><span style="font-size:2.5rem;line-height:1" aria-hidden="true">☀️</span><div class="sr-min0"><div class="wx-temp">64°F</div><div style="font-size:0.875rem;color:var(--sr-text-muted);margin-top:1px">Clear sky</div></div></div>
+        <div class="chips"><span><span>Wind</span> <b>Gentle breeze, W</b></span><span><span>Humidity</span> <b>74%</b></span><span><span>Dew pt</span> <b>55°F</b></span><span><span>Cloud</span> <b>4%</b></span><span><span>Sun</span> <b>6:48 AM – 7:19 PM</b></span></div>
+      </div>
+      <div role="group" aria-label="Tide" class="tide-block">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:7px"><span style="font-size:1.15rem" aria-hidden="true">🌊</span><span style="font-size:1.0625rem;font-weight:700;letter-spacing:-0.01em">4.6 – 4.1 ft</span><span style="font-size:0.8125rem;font-weight:600;color:var(--sr-accent)">Falling ↓</span></div>
+        <div class="sr-grid-2" style="--sr-grid-gap:6px 16px;font-size:0.8125rem"><span><span style="color:var(--sr-text-muted)">Next low</span> <b>0.6 ft</b> · 11:07 PM</span><span><span style="color:var(--sr-text-muted)">Prev high</span> 5.5 ft · 4:12 PM</span></div>
+        <div class="meta" style="margin-top:9px">MONTEREY, MONTEREY BAY (9413450) · 0.9 mi · <b>Predicted</b> · relative to MLLW</div>
+      </div>
+      <details class="copy"><summary>Copy-ready block</summary><pre class="mono" style="background:var(--sr-surface-subtle);border:1px solid var(--sr-border);border-radius:8px;padding:18px 20px;font-size:0.84375rem;line-height:1.75;margin:0;overflow-x:auto">Weather at 6:00 PM: ☀️ Clear sky, 64°F
+Wind: Gentle breeze, W · Humidity 74%
+Tide: 4.6 – 4.1 ft, falling (Monterey, predicted)</pre></details>`;
+    return r;
+  }
+
+  // ── state machine for the mockup
+  const stage = document.getElementById('stage');
+  const announce = document.getElementById('announce');
+  const sel = document.getElementById('stateSel');
+  let timer = null;
+  const card = document.querySelector('.sr-card');
+  function show(node) { stage.replaceChildren(node); card.classList.toggle('is-plan', !!node.querySelector && !!node.querySelector('.sr-plan-chartbox')); }
+  function setState(s, extra) {
+    if (timer) { clearTimeout(timer); timer = null; }
+    switch (s) {
+      case 'form': show(renderForm()); break;
+      case 'loading': show(renderStatus('Building the plan for Del Monte Beach, Monterey…')); break;
+      case 'plan': show(renderPlan(buildPlan(PLACES.delmonte))); break;
+      case 'replay': show(renderPlan(buildPlan(Object.assign({ replayedAt: 1 }, PLACES.delmonte)))); break;
+      case 'subordinate': show(renderPlan(buildPlan(PLACES.elkhorn))); break;
+      case 'toofar': show(renderPlan(buildPlan(Object.assign({}, PLACES.panoche, extra)), { onOverride: () => override('panoche') })); break;
+      case 'outside': show(renderPlan(buildPlan(Object.assign({}, PLACES.quintin, extra)), { onOverride: () => override('quintin') })); break;
+      case 'unavailable': show(renderPlan(buildPlan(PLACES.unavail))); break;
+      case 'polar': show(renderPlan(buildPlan(PLACES.polar))); break;
+      case 'nokey': show(renderMsg('no-key', 'API key not configured. Add it in Settings.')); break;
+      case 'offline': show(renderMsg('offline', "You're offline. This needs a connection. It'll work again when you reconnect.")); break;
+      case 'error': { const m = html('div', 'sr-plan-unavail'); m.style.marginTop = '16px'; m.textContent = 'Weather is unavailable right now.'; show(m); break; }
+      case 'single': show(renderSingle()); break;
+    }
+    if (sel.value !== s) sel.value = s;
+  }
+  function override(key) {
+    // the override: the plan stays, the button shows its busy state, then the tide fills in
+    setState(key === 'panoche' ? 'toofar' : 'outside', { overrideBusy: true });
+    timer = setTimeout(() => { const p = Object.assign({}, PLACES[key], { tide: 'ok' }); show(renderPlan(buildPlan(p))); }, 900);
+  }
+  function journey(kind) {
+    show(renderStatus(kind === 'plan' ? 'Building the plan for Del Monte Beach, Monterey…' : 'Looking up weather and tide…'));
+    announce.textContent = '';
+    timer = setTimeout(() => {
+      setState(kind === 'plan' ? 'plan' : 'single');
+      announce.textContent = kind === 'plan' ? 'Plan ready for Del Monte Beach, Monterey.' : 'Weather and tide ready for Del Monte Beach, Monterey.';
+    }, 900);
+  }
+  sel.addEventListener('change', () => setState(sel.value));
+  document.getElementById('btnPredict').addEventListener('click', () => setState('form'));
+
+  // mockup chrome
+  const frame = document.getElementById('frame');
+  const press = (btns, active) => btns.forEach(b => b.setAttribute('aria-pressed', b === active ? 'true' : 'false'));
+  const tb = [...document.querySelectorAll('[data-theme-btn]')];
+  tb.forEach(b => b.addEventListener('click', () => { document.documentElement.setAttribute('data-theme', b.dataset.themeBtn); press(tb, b); }));
+  const wb = [...document.querySelectorAll('[data-w]')];
+  const mq = window.matchMedia('(max-width: 640px)');
+  function applyTier() { const phone = frame.classList.contains('phone-390') || frame.classList.contains('phone-320') || mq.matches; frame.classList.toggle('tier-phone', phone); frame.classList.toggle('tier-wide', !phone); }
+  wb.forEach(b => b.addEventListener('click', () => { frame.classList.remove('phone-390', 'phone-320', 'tablet-768'); if (b.dataset.w !== 'desktop') frame.classList.add(b.dataset.w); press(wb, b); applyTier(); setState(sel.value); }));
+  mq.addEventListener('change', () => { applyTier(); setState(sel.value); });
+  const sb = [...document.querySelectorAll('[data-scale]')];
+  sb.forEach(b => b.addEventListener('click', () => { document.documentElement.style.setProperty('--sr-text-scale', b.dataset.scale); press(sb, b); }));
+  applyTier();
+  // Deep links for review: ?theme=dark&w=phone-320&text=2&state=toofar&scroll=900
+  const q = new URLSearchParams(location.search);
+  if (q.get('theme') === 'dark') tb[1].click();
+  if (q.get('w')) { const b = wb.find(x => x.dataset.w === q.get('w')); if (b) b.click(); }
+  if (q.get('text') === '2') sb[1].click();
+  if (q.get('days') && DAYS_OPTIONS.some(o => o[0] === q.get('days'))) daysInView = q.get('days');
+  setState(q.get('state') && [...sel.options].some(o => o.value === q.get('state')) ? q.get('state') : 'plan');
+  if (q.get('scroll')) { const s = stage.querySelector('.sr-plan-scroller'); if (s) s.scrollLeft = Number(q.get('scroll')); }
+  if (q.get('open')) stage.querySelectorAll('details').forEach(d => { d.open = true; });
+})();
+</script>
+</body>
+</html>

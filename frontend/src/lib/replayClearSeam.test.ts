@@ -140,3 +140,62 @@ describe('the Weather Backlog / Clear seam, end to end', () => {
     expect((await replay.get(BACKLOG_KEY))?.data).toEqual({ formatted: '48F, fog' })
   })
 })
+
+// ── The Weather/tide Planner's two replay keys (tide-weather-planner, schema
+// section 6). Coordinates, not export content, so a Clear leaves them alone by
+// the same mechanism that leaves Predict's `/weather/at` key alone; a 502 is
+// never stored, so going offline afterwards rethrows rather than replaying a
+// plan built from the failure (FR-40 / QA-37).
+describe('the planner keys on the same seam', () => {
+  const PLAN_W_KEY = replay.replayKey('/weather/plan', { lat: '36.603', lng: '-121.876' })
+  const PLAN_T_KEY = replay.replayKey('/tide/plan', { lat: '36.603', lng: '-121.876' })
+
+  it('both plan keys survive purgeChecklistReplay, beside Predict\'s coordinate key', async () => {
+    disk.replay = {
+      version: 1,
+      entries: {
+        [COORD_KEY]: { data: { formatted: '61F, clear' }, loadedAt: T, bytes: 24 },
+        [PLAN_W_KEY]: { data: { tz: 'America/Los_Angeles', days: [] }, loadedAt: T, bytes: 40 },
+        [PLAN_T_KEY]: { data: { status: 'too-far' }, loadedAt: T, bytes: 20 },
+        [BACKLOG_KEY]: { data: { formatted: '52F, rain' }, loadedAt: T, bytes: 24 },
+      },
+      order: [COORD_KEY, PLAN_W_KEY, PLAN_T_KEY, BACKLOG_KEY],
+    }
+    await replay.get(COORD_KEY)
+    expect(replay.isChecklistDerivedReplayKey(PLAN_W_KEY)).toBe(false)
+    expect(replay.isChecklistDerivedReplayKey(PLAN_T_KEY)).toBe(false)
+    expect(replay.isChecklistDerivedReplayKey(BACKLOG_KEY)).toBe(true)
+    await purgeDerivedOnClear('ebird')
+    expect(replayKeysOnDisk()).toEqual([COORD_KEY, PLAN_W_KEY, PLAN_T_KEY].sort())
+  })
+
+  it('a forced override is keyed the same as the plan read (force is stripped), and the plan action is what writes', () => {
+    expect(replay.replayKey('/tide/plan', { lat: '36.603', lng: '-121.876', force: '1' })).toBe(PLAN_T_KEY)
+    expect(PLAN_T_KEY).toBe('/tide/plan?lat=36.60300&lng=-121.87600')
+  })
+
+  it('a 502 on the plan route leaves no entry, and going offline afterwards rethrows rather than replaying it', async () => {
+    await replay.get(COORD_KEY)
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, status: 502, json: async () => ({ detail: 'Weather data unavailable for this location.' }) })))
+    await expect(transport.getReplayable('/weather/plan', { lat: '36.603', lng: '-121.876' })).rejects.toMatchObject({ status: 502 })
+    expect(await replay.get(PLAN_W_KEY)).toBeNull()
+    vi.stubGlobal('fetch', vi.fn(async () => { throw new TypeError('Failed to fetch') }))
+    await expect(transport.getReplayable('/weather/plan', { lat: '36.603', lng: '-121.876' })).rejects.toThrow('Failed to fetch')
+    expect(replayKeysOnDisk()).toEqual([COORD_KEY])
+  })
+
+  it('a successful plan half is stored, and re-shows offline under the same key', async () => {
+    vi.useFakeTimers()
+    await replay.get(COORD_KEY)
+    const half = { status: 'too-far', station: { id: '9413623', name: 'Elkhorn Slough' }, distanceMi: 58 }
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, json: async () => half })))
+    const live = await transport.getReplayable('/tide/plan', { lat: '36.603', lng: '-121.876' })
+    expect(live).toEqual({ data: half, replayedAt: null })
+    await vi.advanceTimersByTimeAsync(1_000)
+    expect(replayKeysOnDisk()).toEqual([COORD_KEY, PLAN_T_KEY].sort())
+    vi.stubGlobal('fetch', vi.fn(async () => { throw new TypeError('Failed to fetch') }))
+    const replayed = await transport.getReplayable('/tide/plan', { lat: '36.603', lng: '-121.876' })
+    expect(replayed.data).toEqual(half)
+    expect(typeof replayed.replayedAt).toBe('number')
+  })
+})

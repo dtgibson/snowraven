@@ -88,9 +88,10 @@ class TauriTransport implements TransportAdapter {
 
   async get<T>(path: string, params?: Record<string, string>): Promise<T> {
     // Route external API paths to direct Tauri service calls.
-    // NOTE: the exact '/weather/at' and '/tide/at' matches MUST come before the
-    // '/weather/' and '/tide/' prefix checks below, which would otherwise treat
-    // "at" as a checklist id (mirrors the FastAPI route-order requirement).
+    // NOTE: the exact '/weather/at', '/weather/plan', '/tide/at' and
+    // '/tide/plan' matches MUST come before the '/weather/' and '/tide/' prefix
+    // checks below, which would otherwise treat "at" or "plan" as a checklist
+    // id (mirrors the FastAPI route-order requirement).
     if (path === '/weather/at') {
       const { getWeatherAt } = await import('./tauri/weatherService');
       const lat = parseFloat(params?.lat ?? '0');
@@ -98,11 +99,33 @@ class TauriTransport implements TransportAdapter {
       return getWeatherAt(lat, lng, params?.dt) as Promise<T>;
     }
 
+    // NOT in CACHED_GET_PATHS and NOT in EBIRD_GATED_PATHS: the Weather/tide
+    // Planner rides the replay seam (getReplayable) for its plan action, and a
+    // replayed plan must be the one the user last loaded, never a 90 s
+    // coalesced copy handed to the replay seam as if it had fetched it (one
+    // caching layer per call). Not eBird-backed, so no pacing gate applies.
+    if (path === '/weather/plan') {
+      const { getWeatherPlan } = await import('./tauri/weatherService');
+      const lat = parseFloat(params?.lat ?? '0');
+      const lng = parseFloat(params?.lng ?? '0');
+      return getWeatherPlan(lat, lng) as Promise<T>;
+    }
+
     if (path === '/tide/at') {
       const { getTideAt } = await import('./tauri/tideService');
       const lat = parseFloat(params?.lat ?? '0');
       const lng = parseFloat(params?.lng ?? '0');
       return getTideAt(lat, lng, params?.dt ?? '', params?.force === '1') as Promise<T>;
+    }
+
+    // Same posture as /weather/plan above: replay-seam only, never the 90 s
+    // cache, never the eBird gate. The override reaches this with force:'1'
+    // through plain transport.get, so a forced read is never replayed.
+    if (path === '/tide/plan') {
+      const { getTidePlan } = await import('./tauri/tideService');
+      const lat = parseFloat(params?.lat ?? '0');
+      const lng = parseFloat(params?.lng ?? '0');
+      return getTidePlan(lat, lng, params?.force === '1') as Promise<T>;
     }
 
     if (path.startsWith('/weather/')) {

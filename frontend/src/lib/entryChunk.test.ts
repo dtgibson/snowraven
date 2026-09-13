@@ -602,6 +602,67 @@ describe('entry-chunk exclusion (NFR-03 / QA-30)', () => {
     }
   })
 
+  // ── The Weather/tide Planner (tide-weather-planner, NFR-03 / QA-54).
+  // WeatherForecastPanel is a STATIC import in App.tsx, so everything it
+  // reaches statically is paid for on first paint. Paired, per this file's
+  // convention: the chart and the two builders are OFF the graph, the merge and
+  // the copy are ON it, and the chart really does reach recharts.
+  it('the planner chart is off the entry graph and the panel reaches it only through import()', () => {
+    expect(has('components/PlanChart.tsx')).toBe(false)
+    expect(has('lib/weatherPlan.ts')).toBe(false)
+    expect(has('lib/tidePlan.ts')).toBe(false)
+    expect(has('lib/tzClock.ts')).toBe(false)
+    // The negative above is about a real edge: the panel spells the dynamic
+    // import in the one form this walker deliberately cannot see.
+    const panelSrc = readFileSync(resolve(SRC, 'components/WeatherForecastPanel.tsx'), 'utf8')
+    expect(panelSrc).toContain("import('./PlanChart')")
+    // And the chart is the module that carries the chart library.
+    const chart = closureFrom(resolve(SRC, 'components/PlanChart.tsx'))
+    expect([...chart.externals]).toContain('recharts')
+    // The builders ride the dynamically imported services, with their only consumer.
+    const weatherSvc = closureFrom(resolve(SRC, 'lib/tauri/weatherService.ts'))
+    expect(hasIn(weatherSvc.files, 'lib/weatherPlan.ts')).toBe(true)
+    const tideSvc = closureFrom(resolve(SRC, 'lib/tauri/tideService.ts'))
+    expect(hasIn(tideSvc.files, 'lib/tidePlan.ts')).toBe(true)
+  })
+
+  it('the planner\'s entry-safe half IS on the graph and is dependency-light', () => {
+    expect(has('components/WeatherForecastPanel.tsx')).toBe(true)
+    expect(has('components/PlanResult.tsx')).toBe(true)
+    expect(has('lib/plan.ts')).toBe(true)
+    expect(has('lib/planCopy.ts')).toBe(true)
+    expect(has('lib/planFormat.ts')).toBe(true)
+    expect(has('lib/planChartGeometry.ts')).toBe(true)
+    expect(has('lib/forecastLabels.ts')).toBe(true)
+    // The merge reaches no transport, no storage, no chart library, no map, no
+    // builder and no Tauri service: itself and nothing else.
+    const merge = closureFrom(resolve(SRC, 'lib/plan.ts'))
+    expect(merge.files.size).toBe(1)
+    expect([...merge.externals]).toEqual([])
+    // The geometry module reaches the Days in view module (its hours rule) and
+    // the merge's types (erased), nothing else; the Days in view module is
+    // dependency-free.
+    const geom = closureFrom(resolve(SRC, 'lib/planChartGeometry.ts'))
+    expect(geom.files.size).toBe(2)
+    expect(hasIn(geom.files, 'lib/planDaysInView.ts')).toBe(true)
+    expect([...geom.externals]).toEqual([])
+    const dv = closureFrom(resolve(SRC, 'lib/planDaysInView.ts'))
+    expect(dv.files.size).toBe(1)
+    expect([...dv.externals]).toEqual([])
+    expect(has('lib/planDaysInView.ts')).toBe(true)
+    // The copy module reaches only the shared labels.
+    const copy = closureFrom(resolve(SRC, 'lib/planCopy.ts'))
+    expect([...copy.files].map(f => f.replace(/\\/g, '/')).filter(f => f.endsWith('lib/forecastLabels.ts'))).toHaveLength(1)
+    expect(copy.files.size).toBe(2)
+    expect([...copy.externals]).toEqual([])
+    // The static result region pulls no chart library, no map and no transport.
+    const result = closureFrom(resolve(SRC, 'components/PlanResult.tsx'))
+    expect([...result.externals].filter(s => s === 'recharts' || s.startsWith('recharts/'))).toEqual([])
+    expect(maplibreIn(result.externals)).toEqual([])
+    expect(hasIn(result.files, 'lib/transport.ts')).toBe(false)
+    expect(hasIn(result.files, 'components/PlanChart.tsx')).toBe(false)
+  })
+
   it('the App entry actually exists (guards against a broken closure root)', () => {
     expect(files.has(APP)).toBe(true)
     expect(files.size).toBeGreaterThan(20) // a real graph, not an empty/short-circuited one
@@ -614,9 +675,15 @@ const DIST_INDEX = resolve(SRC, '../dist/index.html')
 const DIST_ASSETS = resolve(SRC, '../dist/assets')
 describe.skipIf(!existsSync(DIST_INDEX))('dist/index.html modulepreload (post-build)', () => {
   const html = existsSync(DIST_INDEX) ? readFileSync(DIST_INDEX, 'utf8') : ''
-  it('does not modulepreload the county geometry chunk, completeness code, MapLibre, or its worker', () => {
+  it('does not modulepreload the county geometry chunk, completeness code, MapLibre, its worker, or the chart library', () => {
     const preloads = [...html.matchAll(/<link[^>]+rel="modulepreload"[^>]+href="([^"]+)"/g)].map(m => m[1])
-    expect(preloads.some(h => /us-counties|CountyLayer|countyCompleteness|vendor-maplibre|maplibre-gl-worker/i.test(h))).toBe(false)
+    expect(preloads.some(h => /us-counties|CountyLayer|countyCompleteness|vendor-maplibre|maplibre-gl-worker|vendor-recharts|PlanChart/i.test(h))).toBe(false)
+  })
+
+  it('emits the planner chart as its own lazy chunk (guards the guard above)', () => {
+    const assets = existsSync(DIST_ASSETS) ? readdirSync(DIST_ASSETS) : []
+    expect(assets.filter(name => /^PlanChart-[^.]+\.js$/.test(name))).toHaveLength(1)
+    expect(assets.filter(name => /^vendor-recharts-[^.]+\.js$/.test(name))).toHaveLength(1)
   })
 
   it('emits the MapLibre module worker as its own production asset', () => {

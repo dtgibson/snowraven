@@ -6,26 +6,38 @@
 
 import { Button } from './ui/Button'
 import { useState, useCallback, useRef, useEffect, lazy, Suspense } from 'react'
-import { Navigation, Search, Loader2, ClipboardCopy, Check, AlertCircle } from 'lucide-react'
+import { Navigation, Search, Loader2, ClipboardCopy, Check, AlertCircle, CalendarDays } from 'lucide-react'
 import { transport } from '../lib/transport'
 import { classifyLiveError, OFFLINE_MESSAGE, NO_KEY_MESSAGE, type LiveErrorKind } from '../lib/offlineMessage'
 import { OfflineMessage, StalenessCue } from './OfflineMessage'
+import { PlanResult } from './PlanResult'
 import { copyText } from '../lib/clipboard'
 import { getCurrentLocation, describeLocationError, type LocationError } from '../lib/location'
 import { buildCombined } from '../lib/tideFormatter'
 import { tideTooFarNotice, tideOverrideLabel } from '../lib/tideNotice'
 import { formatDate } from '../lib/formatDate'
+import { FORECAST_DAILY_LABEL, FORECAST_DAILY_DESCRIPTION_SUFFIX } from '../lib/forecastLabels'
+import { composePlan, type Plan, type WeatherPlan, type TidePlanResponse } from '../lib/plan'
+import { PLAN_COPY } from '../lib/planCopy'
+import { storage } from '../lib/storage'
+import { PLAN_DAYS_IN_VIEW_SETTING, asPlanDaysInView, type PlanDaysInView } from '../lib/planDaysInView'
 import type { WeatherAtResponse, WeatherSummary } from '../lib/forecastSlice'
 import type { TideAtResponse, TideReadingSummary } from '../lib/tide'
 import type { GeoSearchResult } from '../lib/tauri/nominatimService'
 import type { LatLng } from './PredictMap'
 
 const PredictMap = lazy(() => import('./PredictMap').then(m => ({ default: m.PredictMap })))
+// The Weather/tide Planner's chart is the only module in the feature that
+// imports recharts; the same lazy mechanism as the map keeps the chart library
+// off the Weather tab's initial bundle (entryChunk.test.ts). The list renders
+// as soon as the plan arrives; the chart chunk resolving later never delays it.
+const PlanChart = lazy(() => import('./PlanChart').then(m => ({ default: m.PlanChart })))
 
 // Mirror of PredictMap's PREDICT_MAP_HEIGHT — kept as a local literal (not a
 // static import) so the lazy PredictMap chunk (and maplibre-gl) is NOT pulled
 // into the Weather tab's initial bundle. Keep the two values in lockstep.
 const PREDICT_MAP_HEIGHT = 'clamp(180px, 28vw, 280px)'
+
 
 const MONO = 'ui-monospace, "Cascadia Code", "Fira Code", Consolas, monospace'
 
@@ -73,7 +85,7 @@ const chip: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 
 // ── pill ──────────────────────────────────────────────────────────────────────
 function pillFor(source: 'current' | 'predict', resolution: WeatherAtResponse['resolution'] | null): { text: string; kind: 'live' | 'fc' | 'daily' } {
   if (source === 'current') return { text: 'LIVE', kind: 'live' }
-  if (resolution === 'daily') return { text: 'FORECAST · DAILY', kind: 'daily' }
+  if (resolution === 'daily') return { text: FORECAST_DAILY_LABEL, kind: 'daily' }
   if (resolution === 'out-of-range' || resolution === null) return { text: 'TIDE ONLY', kind: 'fc' }
   return { text: 'FORECAST', kind: 'fc' }
 }
@@ -103,7 +115,7 @@ function WeatherSummaryView({ s }: { s: WeatherSummary }) {
             )}
           </div>
           <div style={{ fontSize: '0.875rem', color: 'var(--sr-text-muted)', marginTop: 1 }}>
-            {s.description}{s.isDaily ? ', forecast for that day' : ''}
+            {s.description}{s.isDaily ? FORECAST_DAILY_DESCRIPTION_SUFFIX : ''}
           </div>
         </div>
       </div>
@@ -159,12 +171,29 @@ interface ResultData {
   tideReplayedAt: number | null
 }
 
+// The Weather/tide Planner's result: the two replayable halves as fetched (the
+// override recomposes from the weather half), the composed plan, and the
+// per-half replay and error provenance, in the shape ResultData already uses.
+interface PlanData {
+  place: string
+  coord: LatLng
+  weather: WeatherPlan
+  tide: TidePlanResponse | null
+  tideErrKind: LiveErrorKind | null
+  weatherReplayedAt: number | null
+  tideReplayedAt: number | null
+  plan: Plan
+}
+
 type Phase =
   | { kind: 'idle' }
   | { kind: 'predict' }
   | { kind: 'locating' }
   | { kind: 'loading' }
   | { kind: 'result'; data: ResultData }
+  | { kind: 'planLoading'; place: string }
+  | { kind: 'plan'; data: PlanData }
+  | { kind: 'planError'; errKind: LiveErrorKind; message: string }
 
 function buildCopyText(d: ResultData): string {
   const wf = d.weather && d.weather.resolution !== 'out-of-range' ? d.weather.formatted : null
@@ -175,16 +204,47 @@ function buildCopyText(d: ResultData): string {
   return ''
 }
 
-export function WeatherForecastPanel() {
+export interface WeatherForecastPanelProps {
+  /** Told whether a plan is on screen, so the Weather card can widen for it
+   *  on the wide tier (design D4-13). */
+  onPlanVisible?: (visible: boolean) => void
+}
+
+export function WeatherForecastPanel({ onPlanVisible }: WeatherForecastPanelProps = {}) {
   const [phase, setPhase] = useState<Phase>({ kind: 'idle' })
+  // The Days in view choice (wide tier): read once from the storage seam,
+  // validated, written on every change, device-local and never synced (the
+  // chartTipDismissed precedent, D4-15).
+  const [daysInView, setDaysInView] = useState<PlanDaysInView>('all')
+  useEffect(() => {
+    let cancelled = false
+    void storage.getSetting<unknown>(PLAN_DAYS_IN_VIEW_SETTING).catch(() => null).then(raw => {
+      if (!cancelled) setDaysInView(asPlanDaysInView(raw))
+    })
+    return () => { cancelled = true }
+  }, [])
+  const changeDaysInView = useCallback((v: PlanDaysInView) => {
+    setDaysInView(v)
+    void storage.setSetting(PLAN_DAYS_IN_VIEW_SETTING, v).catch(() => { /* a failed write costs the next session its choice, nothing more */ })
+  }, [])
+  const planVisible = phase.kind === 'plan'
+  useEffect(() => { onPlanVisible?.(planVisible) }, [onPlanVisible, planVisible])
   const phaseRef = useRef<Phase>(phase)
   useEffect(() => { phaseRef.current = phase }, [phase])
   const [copied, setCopied] = useState(false)
   const [overriding, setOverriding] = useState(false)
   // Persistent live region: a result that mounts already carrying its text is
   // announced inconsistently (the F068 pattern), so the announcement is pushed
-  // here, to a region that always exists, when results are ready.
-  const [announce, setAnnounce] = useState('')
+  // here, to a region that always exists, when results are ready. The message
+  // is a sequence-keyed child, because a live region whose text is set to the
+  // SAME string does not announce (the ui rule, v0.5.80): running the same
+  // lookup twice must still speak.
+  const [announce, setAnnounce] = useState<{ seq: number; text: string }>({ seq: 0, text: '' })
+  const say = useCallback((text: string) => setAnnounce(a => ({ seq: a.seq + 1, text })), [])
+  // A request token captured at dispatch: a plan response that resolves after
+  // the user has replaced the result (Predict, Current, Get forecast, or a
+  // newer plan) is dropped rather than overwriting what is on screen (FR-06).
+  const reqRef = useRef(0)
 
   // Predict input state
   const [place, setPlace] = useState('')
@@ -211,6 +271,7 @@ export function WeatherForecastPanel() {
     c: LatLng, weatherDt: string | undefined, tideDt: string | undefined,
     source: 'current' | 'predict', placeLabel: string, whenRaw: string | undefined,
   ) => {
+    reqRef.current += 1
     setPhase({ kind: 'loading' })
     const wParams: Record<string, string> = { lat: String(c.lat), lng: String(c.lng) }
     if (weatherDt) wParams.dt = weatherDt
@@ -241,10 +302,11 @@ export function WeatherForecastPanel() {
         tideErrKind: tRes.ok ? null : tRes.kind, tideReplayedAt: tRes.ok ? tRes.replayedAt : null,
       },
     })
-    setAnnounce(`Weather and tide ready for ${placeLabel}.`)
-  }, [])
+    say(`Weather and tide ready for ${placeLabel}.`)
+  }, [say])
 
   const openPredict = useCallback(async (presetError?: string) => {
+    reqRef.current += 1
     const now = new Date()
     setDateStr(toDateInput(now))
     setTimeStr(toTimeInput(now))
@@ -257,6 +319,7 @@ export function WeatherForecastPanel() {
   }, [setCoord])
 
   const onCurrent = useCallback(async () => {
+    reqRef.current += 1
     setPhase({ kind: 'locating' })
     let c: LatLng
     try { c = await getCurrentLocation() }
@@ -297,6 +360,73 @@ export function WeatherForecastPanel() {
     const dtLocal = `${dateStr} ${timeStr}`
     await runLookup(c, dtLocal, dtLocal, 'predict', place.trim() || 'Selected location', dtLocal)
   }, [dateStr, timeStr, place, runLookup])
+
+  // The Weather/tide Planner (FR-01 / FR-02): the same place validation as the
+  // single-moment action, the date and time fields never read. Both halves go
+  // through getReplayable, so a plan loaded once re-shows offline with the
+  // staleness cue (FR-43); a failure is classified in Predict's words (FR-39).
+  // Both routes refuse without an OpenWeather key before any request, so a
+  // missing key costs zero NOAA requests by construction (FR-41).
+  const runPlan = useCallback(async () => {
+    const c = coordRef.current
+    if (!c) { setSearchErr('Pick a place first: search, tap the map, or type coordinates.'); return }
+    if (!Number.isFinite(c.lat) || !Number.isFinite(c.lng) || c.lat < -90 || c.lat > 90 || c.lng < -180 || c.lng > 180) {
+      setSearchErr('Those coordinates are out of range: latitude is -90 to 90, longitude -180 to 180.'); return
+    }
+    const placeLabel = place.trim() || 'Selected location'
+    const token = ++reqRef.current
+    setPhase({ kind: 'planLoading', place: placeLabel })
+    const params = { lat: String(c.lat), lng: String(c.lng) }
+    const [w, t] = await Promise.all([
+      transport.getReplayable<WeatherPlan>('/weather/plan', params)
+        .then(({ data, replayedAt }) => ({ ok: true as const, data, replayedAt }))
+        .catch((err: unknown) => ({ ok: false as const, err })),
+      transport.getReplayable<TidePlanResponse>('/tide/plan', params)
+        .then(({ data, replayedAt }) => ({ ok: true as const, data, replayedAt }))
+        .catch((err: unknown) => ({ ok: false as const, err })),
+    ])
+    if (token !== reqRef.current) return
+    if (!w.ok) {
+      const cls = classifyLiveError(w.err, { errorMessage: PLAN_COPY.providerError })
+      setPhase({ kind: 'planError', errKind: cls.kind, message: cls.message })
+      return
+    }
+    const plan = composePlan(w.data, t.ok ? t.data : null)
+    if (!plan) {
+      setPhase({ kind: 'planError', errKind: 'error', message: PLAN_COPY.providerError })
+      return
+    }
+    setPhase({
+      kind: 'plan',
+      data: {
+        place: placeLabel, coord: c, weather: w.data,
+        tide: t.ok ? t.data : null, tideErrKind: t.ok ? null : classifyLiveError(t.err).kind,
+        weatherReplayedAt: w.replayedAt, tideReplayedAt: t.ok ? t.replayedAt : null,
+        plan,
+      },
+    })
+    say(PLAN_COPY.ready(placeLabel))
+  }, [place, say])
+
+  // The plan's override (FR-33): a fresh forced read through transport.get,
+  // never getReplayable (FR-45), filled into the SAME plan without fetching the
+  // weather again, guarded by coord identity like Predict's. On failure the
+  // plan stays and the tide slot says why.
+  const overridePlanTide = useCallback(() => {
+    const p0 = phaseRef.current
+    if (p0.kind !== 'plan') return
+    const { coord: c, weather } = p0.data
+    setOverriding(true)
+    const apply = (patch: Partial<PlanData>) =>
+      setPhase(p => (p.kind === 'plan' && p.data.coord === c ? { kind: 'plan', data: { ...p.data, ...patch } } : p))
+    transport.get<TidePlanResponse>('/tide/plan', { lat: String(c.lat), lng: String(c.lng), force: '1' })
+      .then(t => {
+        const plan = composePlan(weather, t)
+        if (plan) apply({ tide: t, tideErrKind: null, tideReplayedAt: null, plan })
+      })
+      .catch((err: unknown) => apply({ tideErrKind: classifyLiveError(err).kind }))
+      .finally(() => setOverriding(false))
+  }, [])
 
   const overrideTide = useCallback(() => {
     const p0 = phaseRef.current
@@ -347,7 +477,8 @@ export function WeatherForecastPanel() {
 
   return (
     <div>
-      <span className="sr-only" role="status" aria-live="polite">{announce}</span>
+      <div className="sr-weather-narrow">
+      <span className="sr-only" role="status" aria-live="polite">{announce.text ? <span key={announce.seq}>{announce.text}</span> : null}</span>
       <hr style={{ border: 'none', borderTop: '1px solid var(--sr-border)', margin: '24px 0' }} />
 
       <div style={{ fontSize: '1.0625rem', fontWeight: 700, letterSpacing: '-0.01em' }}>Now, or any time ahead</div>
@@ -427,6 +558,11 @@ export function WeatherForecastPanel() {
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 3v3M5.2 5.2l2.1 2.1M3 12h3M18 12h3M16.7 7.3l2.1-2.1" /><path d="M7 18a5 5 0 0 1 10 0" /><path d="M4 22h16" /></svg>
             Get forecast
           </Button>
+          <Button type="button" onClick={() => void runPlan()} className="sr-plan-btn-outline sr-plan-action">
+            <CalendarDays size={15} strokeWidth={2.2} aria-hidden="true" />
+            {PLAN_COPY.actionLabel}
+          </Button>
+          <p className="sr-plan-caption">{PLAN_COPY.caption}</p>
         </div>
       )}
 
@@ -434,6 +570,34 @@ export function WeatherForecastPanel() {
         <div role="status" style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 16, fontSize: '0.8125rem', color: 'var(--sr-text-muted)' }}>
           <Loader2 size={15} className="spin" aria-hidden="true" /> Looking up weather and tide…
         </div>
+      )}
+
+      {phase.kind === 'planLoading' && (
+        <div role="status" className="sr-plan-status">
+          <Loader2 size={15} className="spin" aria-hidden="true" /> {PLAN_COPY.loading(phase.place)}
+        </div>
+      )}
+
+      {phase.kind === 'planError' && (
+        phase.errKind === 'error'
+          ? <div className="sr-plan-error">{phase.message}</div>
+          : <div className="sr-plan-error-box"><OfflineMessage kind={phase.errKind} message={phase.message} /></div>
+      )}
+
+      </div>
+
+      {phase.kind === 'plan' && (
+        <PlanResult
+          plan={phase.data.plan}
+          place={phase.data.place}
+          replayedAt={phase.data.weatherReplayedAt ?? phase.data.tideReplayedAt}
+          tideErrKind={phase.data.tideErrKind}
+          overriding={overriding}
+          onOverride={overridePlanTide}
+          ChartComponent={PlanChart}
+          daysInView={daysInView}
+          onDaysInViewChange={changeDaysInView}
+        />
       )}
 
       {phase.kind === 'result' && (() => {

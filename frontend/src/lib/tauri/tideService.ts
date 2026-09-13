@@ -5,6 +5,7 @@
 // See pipeline/weather-tides/schema.md.
 
 import { tauriFetch } from './http'
+import { invoke } from '@tauri-apps/api/core'
 import { storage } from '../storage'
 import { fetchChecklist } from './weatherService'
 import { nearestStation, classifyTideLocation, type TideLocationStatus } from '../tideStations'
@@ -13,6 +14,8 @@ import {
   normalizeObsDt, shiftLocal, toNoaaDate, summarizeReading, type TideAtResponse,
 } from '../tide'
 import { formatTide, formatTideBody } from '../tideFormatter'
+import { buildTidePlan, planTideRange, toNoaaGmtDate } from '../tidePlan'
+import type { TidePlanResponse } from '../plan'
 
 const NOAA = 'https://api.tidesandcurrents.noaa.gov/api/prod/datagetter'
 
@@ -132,5 +135,59 @@ export async function getTideAt(lat: number, lng: number, dtLocal: string, force
     station: { id: nearest.station.id, name: nearest.station.name },
     distanceMi: nearest.distanceMi,
     reading: summarizeReading(reading),
+  }
+}
+
+const NO_OWM_KEY = 'OpenWeather API key not configured. Add it in Settings.'
+
+// The Weather/tide Planner's tide half, twin of GET /tide/plan: the predicted
+// 30-minute curve and the turning points from the start of the current hour
+// through the eighth day ahead, at the nearest station, requested in GMT so a
+// far station and a DST change land on one epoch axis.
+//
+// REFUSES WITHOUT AN OPENWEATHER KEY ON PURPOSE (schema D6). NOAA is keyless and
+// getTideAt needs no key, but a tide half without the weather spine is not a
+// plan, and FR-41 asks that no NOAA request be made when the plan cannot be
+// built for want of that key. One guard here holds for every caller with no
+// client pre-flight; do not remove it as a tidy-up.
+//
+// The span comes from `now` and the location alone (D2), never from the
+// forecast, so a forced override reproduces it without refetching the weather.
+// At most two NOAA requests; no water_level (FR-38). `getJson` swallows a
+// transport failure into null, so a NOAA outage reads as 'unavailable' rather
+// than as a thrown error, exactly as Predict's does.
+export async function getTidePlan(lat: number, lng: number, force = false): Promise<TidePlanResponse> {
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+    throw Object.assign(new Error('Coordinates are out of range.'), { status: 400 })
+  }
+  const owmKey = await storage.getApiKey('openweather')
+  if (!owmKey) {
+    throw Object.assign(new Error(NO_OWM_KEY), { status: 500, detail: NO_OWM_KEY })
+  }
+
+  const tzName: string = await invoke('get_timezone', { lat, lng })
+  const nowTs = Math.floor(Date.now() / 1000)
+
+  const nearest = nearestStation(lat, lng)
+  if (!nearest) return { status: 'unavailable' }
+  const status = classifyTideLocation(lat, lng, nearest)
+  if (status !== 'ok' && !force) {
+    return { status, station: { id: nearest.station.id, name: nearest.station.name }, distanceMi: nearest.distanceMi }
+  }
+
+  const span = planTideRange(nowTs, tzName)
+  const station = nearest.station.id
+  const [predBody, hiloBody] = await Promise.all([
+    getJson(noaaUrl({ begin_date: toNoaaGmtDate(span.axisStartTs), end_date: toNoaaGmtDate(span.tideEndTs), station, product: 'predictions', interval: '6', time_zone: 'gmt' })),
+    getJson(noaaUrl({ begin_date: toNoaaGmtDate(span.hiloStartTs), end_date: toNoaaGmtDate(span.hiloEndTs), station, product: 'predictions', interval: 'hilo', time_zone: 'gmt' })),
+  ])
+  // A JSON-valid but semantically malformed body (a predictions list holding
+  // non-objects) throws inside the builder and reads as 'unavailable', the same
+  // honest state as an unreadable body, never a status-less throw the panel
+  // would read as offline (the twin of the route's try).
+  try {
+    return buildTidePlan(predBody, hiloBody, { id: nearest.station.id, name: nearest.station.name }, nearest.distanceMi, tzName, span)
+  } catch {
+    return { status: 'unavailable' }
   }
 }

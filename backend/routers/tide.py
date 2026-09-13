@@ -1,12 +1,14 @@
 import os
+import time
 from datetime import datetime
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 
 from formatters.tide import format_tide, format_tide_body
 from formatters.weather import get_timezone
 from services.ebird import CHECKLIST_ID_RE, fetch_checklist
-from services.noaa import fetch_tides
+from services.noaa import fetch_tide_range, fetch_tides
+from services.plan_tide import build_tide_plan, plan_tide_range, to_noaa_gmt_date
 from services.tide import (
     TideReading,
     compute_tide_reading, parse_observed, parse_predictions, parse_hilo,
@@ -15,6 +17,70 @@ from services.tide import (
 from services.tide_stations import nearest_station, classify
 
 router = APIRouter()
+
+_NO_KEY_DETAIL = "API key not configured. Check your .env file."
+
+
+def _now() -> int:
+    """The fetch moment as an integer epoch second. Module-level so the plan
+    tests freeze it; the builder never reads a clock itself."""
+    return int(time.time())
+
+
+# Declared BEFORE /tide/{checklist_id} so "plan" is never captured as a
+# checklist id (the same route-order requirement as /tide/at).
+@router.get("/tide/plan")
+async def get_tide_plan(
+    lat: float = Query(..., ge=-90, le=90),
+    lng: float = Query(..., ge=-180, le=180),
+    force: bool = False,
+):
+    """The Weather/tide Planner's tide half: the 30-minute predicted curve and
+    the turning points from the start of the current hour through the eighth
+    day ahead, at the nearest NOAA station to `lat`/`lng`, requested in GMT so a
+    far station and a DST change land on one epoch axis.
+
+    REFUSES WITHOUT AN OPENWEATHER KEY ON PURPOSE (schema D6). NOAA is keyless
+    and /tide/at needs no key, but a tide half without the weather spine is not
+    a plan, and FR-41 asks that no NOAA request be made when the plan cannot be
+    built for want of that key. One guard here holds for every caller with no
+    client pre-flight; do not remove it as a tidy-up.
+
+    The span is derived from the fetch moment and the location alone, never
+    from a request parameter (FR-49), so the override reproduces it without the
+    forecast. The only caller-supplied values that reach a provider URL are the
+    two range-bounded coordinates, which select a bundled station id; the dates
+    come from this process's clock, so the destination cannot be steered. At
+    most two NOAA requests (continuous and high/low), no `water_level`. The
+    NOAA bodies are reduced to the plan document; nothing of them is reflected
+    back."""
+    if not os.getenv("OPENWEATHER_API_KEY"):
+        raise HTTPException(status_code=500, detail=_NO_KEY_DETAIL)
+
+    tz = get_timezone(lat, lng)
+    now_ts = _now()
+
+    nearest = nearest_station(lat, lng)
+    if nearest is None:
+        return {"status": "unavailable"}
+    station, distance_mi = nearest
+    status = classify(lat, lng, nearest)
+    if status != "ok" and not force:
+        return {"status": status, "station": {"id": station["id"], "name": station["name"]}, "distanceMi": distance_mi}
+
+    span = plan_tide_range(now_ts, tz)
+    pred_body, hilo_body = await fetch_tide_range(
+        station["id"],
+        to_noaa_gmt_date(span["axisStartTs"]), to_noaa_gmt_date(span["tideEndTs"]),
+        to_noaa_gmt_date(span["hiloStartTs"]), to_noaa_gmt_date(span["hiloEndTs"]),
+    )
+    # A JSON-valid but semantically malformed NOAA body (a predictions list
+    # holding non-objects) is the same honest state as an unreadable one:
+    # `unavailable`, never a plain-text 500. The desktop twin reads the same.
+    try:
+        return build_tide_plan(pred_body, hilo_body, station, distance_mi, tz, span)
+    except Exception:
+        return {"status": "unavailable"}
 
 
 def _serialize_reading(r: TideReading) -> dict:

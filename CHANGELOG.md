@@ -2,6 +2,11 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [1.0.29] - 2026-09-12
+
+### Added
+- **Weather/tide Planner.** The Weather tab's Predict form has a second action, **Plan sunrises and sunsets**, for the place you have picked. It builds a plan from now to the end of the weather forecast, about eight days: every sunrise and sunset still ahead, each with its local time, the predicted tide height and whether the tide is rising or falling at that moment, the high and low on either side, and the forecast weather in force, hour by hour for the first couple of days and then the day's summary, labeled as a daily summary exactly as Predict labels one. A chart draws the same window on one time axis in the place's own clock, with the tide curve, the night hours shaded, every sunrise, sunset, high and low marked, and a weather strip, and it scrolls sideways on every screen; the list beneath it carries every figure the chart draws, so a phone or a screen reader loses nothing. Where the nearest tide station is too far or the place is outside the US, the plan still shows sunrise, sunset and weather, says why the tide is missing, and offers the same one-tap override Predict has. A plan loaded once re-shows offline with a cue naming when it was fetched. On a wide window the chart is the focal point: a Days in view choice fits one, three, seven or all of the plan's days into it at once and the list flows into two columns beside a wider card, while on a phone the chart keeps its fixed scale; on every screen two day buttons beside the legend move the chart a day at a time and a mouse drag follows the pointer exactly, with no snapping. The plan ranks and recommends nothing: which mornings put low water at first light is yours to read. One plan costs one OpenWeather request and at most two NOAA requests; the same two providers Predict already uses, with no new key.
+
 ## [1.0.28] - 2026-09-09
 
 ### Fixed

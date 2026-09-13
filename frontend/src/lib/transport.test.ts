@@ -324,6 +324,68 @@ describe('WebTransport.post', () => {
   });
 });
 
+// The Weather/tide Planner's two exact paths (schema 4.4): matched BEFORE the
+// '/weather/' and '/tide/' prefix routes (the /at trap), and outside both the
+// short-TTL cache and the eBird gate.
+describe('TauriTransport plan routing', () => {
+  const getWeatherPlan = vi.fn();
+  const getTidePlan = vi.fn();
+  const getTide = vi.fn();
+  const getWeather = vi.fn();
+
+  beforeEach(() => {
+    vi.resetModules();
+    getWeatherPlan.mockReset().mockResolvedValue({ tz: 'America/Los_Angeles' });
+    getTidePlan.mockReset().mockResolvedValue({ status: 'ok' });
+    getTide.mockReset().mockResolvedValue({ status: 'ok' });
+    getWeather.mockReset().mockResolvedValue({ formatted: '' });
+    vi.doMock('./platform', () => ({ isTauri: () => true }));
+    vi.doMock('./tauri/weatherService', () => ({ getWeatherPlan, getWeather }));
+    vi.doMock('./tauri/tideService', () => ({ getTidePlan, getTide }));
+  });
+
+  afterEach(() => {
+    vi.doUnmock('./platform');
+    vi.doUnmock('./tauri/weatherService');
+    vi.doUnmock('./tauri/tideService');
+  });
+
+  it('/tide/plan reaches getTidePlan, never getTide("plan"), with the force flag decoded', async () => {
+    const { transport } = await import('./transport');
+    await transport.get('/tide/plan', { lat: '36.603', lng: '-121.876' });
+    await transport.get('/tide/plan', { lat: '36.603', lng: '-121.876', force: '1' });
+    expect(getTidePlan).toHaveBeenNthCalledWith(1, 36.603, -121.876, false);
+    expect(getTidePlan).toHaveBeenNthCalledWith(2, 36.603, -121.876, true);
+    expect(getTide).not.toHaveBeenCalled();
+  });
+
+  it('/weather/plan reaches getWeatherPlan, never getWeather("plan")', async () => {
+    const { transport } = await import('./transport');
+    await transport.get('/weather/plan', { lat: '36.603', lng: '-121.876' });
+    expect(getWeatherPlan).toHaveBeenCalledWith(36.603, -121.876);
+    expect(getWeather).not.toHaveBeenCalled();
+  });
+
+  it('neither plan path is in the short-TTL cache set or the eBird gate set', async () => {
+    const { CACHED_GET_PATHS, EBIRD_GATED_PATHS, transport } = await import('./transport');
+    expect(CACHED_GET_PATHS.has('/weather/plan')).toBe(false);
+    expect(CACHED_GET_PATHS.has('/tide/plan')).toBe(false);
+    expect(EBIRD_GATED_PATHS.has('/weather/plan')).toBe(false);
+    expect(EBIRD_GATED_PATHS.has('/tide/plan')).toBe(false);
+    // And behaviourally: a repeated plan GET hits the service twice.
+    await transport.get('/weather/plan', { lat: '36.603', lng: '-121.876' });
+    await transport.get('/weather/plan', { lat: '36.603', lng: '-121.876' });
+    expect(getWeatherPlan).toHaveBeenCalledTimes(2);
+  });
+
+  it('the web dev proxy forwards both prefixes (the v0.5.34 trap cannot recur silently)', async () => {
+    const { readFileSync } = await import('node:fs');
+    const cfg = readFileSync(new URL('../../vite.config.ts', import.meta.url), 'utf8');
+    expect(cfg).toContain("'/weather': 'http://localhost:1620'");
+    expect(cfg).toContain("'/tide': 'http://localhost:1620'");
+  });
+});
+
 describe('TauriTransport Nominatim routing', () => {
   const reverseGeocodeCounties = vi.fn();
 

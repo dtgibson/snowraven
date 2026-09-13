@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { haversineMiles, isInUS, nearestStation, classifyTideLocation } from './tideStations'
+import stationData from '../assets/noaa-tide-stations.json'
 
 describe('haversineMiles', () => {
   it('is ~0 for the same point', () => {
@@ -51,5 +52,23 @@ describe('classifyTideLocation', () => {
   it('too-far for an inland US point with no nearby station', () => {
     const n = nearestStation(39.74, -104.99) // Denver — far from tidal water
     expect(classifyTideLocation(39.74, -104.99, n)).toBe('too-far')
+  })
+})
+
+// The bundled station list is a BUILD-TIME asset (the v0.5.89 trust boundary):
+// its ids reach NOAA URLs unencoded on both transports, so the shape those
+// builders rely on is pinned here at CI time rather than validated at runtime.
+// Every id is seven alphanumerics: the numeric reference stations and the
+// `TEC...` subordinate ids alike.
+describe('the bundled station ids (build-time asset, pinned)', () => {
+  const stations = (stationData as { stations: Array<{ id: string }> }).stations
+  it('every id matches ^[A-Za-z0-9]{7}$, and the list is the real one', () => {
+    expect(stations.length).toBeGreaterThan(3000)
+    const bad = stations.filter(s => !/^[A-Za-z0-9]{7}$/.test(s.id)).map(s => s.id)
+    expect(bad).toEqual([])
+    // Non-vacuity: both shapes the rule covers are present.
+    expect(stations.some(s => /^[0-9]{7}$/.test(s.id))).toBe(true)
+    expect(stations.some(s => /^TEC/.test(s.id))).toBe(true)
+    expect(new Set(stations.map(s => s.id)).size).toBe(stations.length)
   })
 })

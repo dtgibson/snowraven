@@ -1,15 +1,66 @@
 import asyncio
 import os
+import time
 from datetime import datetime, timedelta
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 
 from formatters.weather import format_weather, get_timezone
 from services.ebird import CHECKLIST_ID_RE, fetch_checklist
 from services.forecast import build_weather_payload
 from services.openweather import fetch_historical, fetch_forecast
+from services.plan_weather import build_weather_plan
 
 router = APIRouter()
+
+_NO_KEY_DETAIL = "API key not configured. Check your .env file."
+_WEATHER_UNAVAILABLE_DETAIL = "Weather data unavailable for this location."
+
+
+def _now() -> int:
+    """The fetch moment as an integer epoch second. Module-level so the plan
+    tests freeze it; the builder never reads a clock itself."""
+    return int(time.time())
+
+
+# Declared BEFORE /weather/{checklist_id} so "plan" is never captured as a
+# checklist id (the same route-order requirement as /weather/at).
+@router.get("/weather/plan")
+async def get_weather_plan(
+    lat: float = Query(..., ge=-90, le=90),
+    lng: float = Query(..., ge=-180, le=180),
+):
+    """The Weather/tide Planner's weather half: the window, days, sunrise and
+    sunset events, weather-strip cells and night spans from now to the end of
+    the forecast, for the place at `lat`/`lng`. No other parameter is read: the
+    window is derived from the fetch moment and the forecast, never supplied by
+    the caller (FR-49). The only caller-supplied values that reach the provider
+    URL are the two range-bounded coordinates, riding `params=`, so no scheme,
+    host, credential or path separator is expressible and the destination
+    cannot be steered. Exactly one OpenWeather request and zero NOAA requests on
+    every path. The One Call body is reduced to the plan document; nothing of
+    it is reflected back."""
+    if not os.getenv("OPENWEATHER_API_KEY"):
+        raise HTTPException(status_code=500, detail=_NO_KEY_DETAIL)
+
+    tz = get_timezone(lat, lng)
+    now_ts = _now()
+
+    # The builder runs INSIDE the try: a JSON-valid but semantically malformed
+    # body (an absurd dt, a non-numeric temp, an hourly entry carrying only dt)
+    # is a provider error exactly as a 5xx is, mapped to the same 502 and the
+    # same words, never a plain-text 500 that would read as the app's own fault.
+    try:
+        onecall = await fetch_forecast(lat, lng)
+        built = build_weather_plan(onecall, now_ts, tz, lat, lng)
+    except Exception:
+        raise HTTPException(status_code=502, detail=_WEATHER_UNAVAILABLE_DETAIL)
+
+    if not built["ok"]:
+        # An empty daily array is a provider error (FR-09 / FR-40), shown in
+        # Predict's words and never stored for replay.
+        raise HTTPException(status_code=502, detail=_WEATHER_UNAVAILABLE_DETAIL)
+    return built["plan"]
 
 
 # NOTE: declared BEFORE /weather/{checklist_id} so FastAPI matches the static path

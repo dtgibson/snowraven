@@ -1,0 +1,544 @@
+{
+ "rows": [
+  {
+   "tz": "UTC",
+   "ts": 1772962200,
+   "localClock": "2026-03-08 09:30",
+   "utcOffsetSec": 0,
+   "startOfLocalHour": 1772960400,
+   "localMidnightTs": 1772928000,
+   "dayLengthSec": 86400
+  },
+  {
+   "tz": "UTC",
+   "ts": 1772965800,
+   "localClock": "2026-03-08 10:30",
+   "utcOffsetSec": 0,
+   "startOfLocalHour": 1772964000,
+   "localMidnightTs": 1772928000,
+   "dayLengthSec": 86400
+  },
+  {
+   "tz": "UTC",
+   "ts": 1772969400,
+   "localClock": "2026-03-08 11:30",
+   "utcOffsetSec": 0,
+   "startOfLocalHour": 1772967600,
+   "localMidnightTs": 1772928000,
+   "dayLengthSec": 86400
+  },
+  {
+   "tz": "UTC",
+   "ts": 1793521800,
+   "localClock": "2026-11-01 08:30",
+   "utcOffsetSec": 0,
+   "startOfLocalHour": 1793520000,
+   "localMidnightTs": 1793491200,
+   "dayLengthSec": 86400
+  },
+  {
+   "tz": "UTC",
+   "ts": 1793525400,
+   "localClock": "2026-11-01 09:30",
+   "utcOffsetSec": 0,
+   "startOfLocalHour": 1793523600,
+   "localMidnightTs": 1793491200,
+   "dayLengthSec": 86400
+  },
+  {
+   "tz": "UTC",
+   "ts": 1793529000,
+   "localClock": "2026-11-01 10:30",
+   "utcOffsetSec": 0,
+   "startOfLocalHour": 1793527200,
+   "localMidnightTs": 1793491200,
+   "dayLengthSec": 86400
+  },
+  {
+   "tz": "UTC",
+   "ts": 1789252860,
+   "localClock": "2026-09-12 22:41",
+   "utcOffsetSec": 0,
+   "startOfLocalHour": 1789250400,
+   "localMidnightTs": 1789171200,
+   "dayLengthSec": 86400
+  },
+  {
+   "tz": "UTC",
+   "ts": 1767225600,
+   "localClock": "2026-01-01 00:00",
+   "utcOffsetSec": 0,
+   "startOfLocalHour": 1767225600,
+   "localMidnightTs": 1767225600,
+   "dayLengthSec": 86400
+  },
+  {
+   "tz": "UTC",
+   "ts": 1782863940,
+   "localClock": "2026-06-30 23:59",
+   "utcOffsetSec": 0,
+   "startOfLocalHour": 1782860400,
+   "localMidnightTs": 1782777600,
+   "dayLengthSec": 86400
+  },
+  {
+   "tz": "UTC",
+   "ts": 1798761540,
+   "localClock": "2026-12-31 23:59",
+   "utcOffsetSec": 0,
+   "startOfLocalHour": 1798758000,
+   "localMidnightTs": 1798675200,
+   "dayLengthSec": 86400
+  },
+  {
+   "tz": "America/Los_Angeles",
+   "ts": 1772962200,
+   "localClock": "2026-03-08 01:30",
+   "utcOffsetSec": -28800,
+   "startOfLocalHour": 1772960400,
+   "localMidnightTs": 1772956800,
+   "dayLengthSec": 82800
+  },
+  {
+   "tz": "America/Los_Angeles",
+   "ts": 1772965800,
+   "localClock": "2026-03-08 03:30",
+   "utcOffsetSec": -25200,
+   "startOfLocalHour": 1772964000,
+   "localMidnightTs": 1772956800,
+   "dayLengthSec": 82800
+  },
+  {
+   "tz": "America/Los_Angeles",
+   "ts": 1772969400,
+   "localClock": "2026-03-08 04:30",
+   "utcOffsetSec": -25200,
+   "startOfLocalHour": 1772967600,
+   "localMidnightTs": 1772956800,
+   "dayLengthSec": 82800
+  },
+  {
+   "tz": "America/Los_Angeles",
+   "ts": 1793521800,
+   "localClock": "2026-11-01 01:30",
+   "utcOffsetSec": -25200,
+   "startOfLocalHour": 1793520000,
+   "localMidnightTs": 1793516400,
+   "dayLengthSec": 90000
+  },
+  {
+   "tz": "America/Los_Angeles",
+   "ts": 1793525400,
+   "localClock": "2026-11-01 01:30",
+   "utcOffsetSec": -28800,
+   "startOfLocalHour": 1793523600,
+   "localMidnightTs": 1793516400,
+   "dayLengthSec": 90000
+  },
+  {
+   "tz": "America/Los_Angeles",
+   "ts": 1793529000,
+   "localClock": "2026-11-01 02:30",
+   "utcOffsetSec": -28800,
+   "startOfLocalHour": 1793527200,
+   "localMidnightTs": 1793516400,
+   "dayLengthSec": 90000
+  },
+  {
+   "tz": "America/Los_Angeles",
+   "ts": 1789252860,
+   "localClock": "2026-09-12 15:41",
+   "utcOffsetSec": -25200,
+   "startOfLocalHour": 1789250400,
+   "localMidnightTs": 1789196400,
+   "dayLengthSec": 86400
+  },
+  {
+   "tz": "America/Los_Angeles",
+   "ts": 1767225600,
+   "localClock": "2025-12-31 16:00",
+   "utcOffsetSec": -28800,
+   "startOfLocalHour": 1767225600,
+   "localMidnightTs": 1767168000,
+   "dayLengthSec": 86400
+  },
+  {
+   "tz": "America/Los_Angeles",
+   "ts": 1782863940,
+   "localClock": "2026-06-30 16:59",
+   "utcOffsetSec": -25200,
+   "startOfLocalHour": 1782860400,
+   "localMidnightTs": 1782802800,
+   "dayLengthSec": 86400
+  },
+  {
+   "tz": "America/Los_Angeles",
+   "ts": 1798761540,
+   "localClock": "2026-12-31 15:59",
+   "utcOffsetSec": -28800,
+   "startOfLocalHour": 1798758000,
+   "localMidnightTs": 1798704000,
+   "dayLengthSec": 86400
+  },
+  {
+   "tz": "America/New_York",
+   "ts": 1772962200,
+   "localClock": "2026-03-08 05:30",
+   "utcOffsetSec": -14400,
+   "startOfLocalHour": 1772960400,
+   "localMidnightTs": 1772946000,
+   "dayLengthSec": 82800
+  },
+  {
+   "tz": "America/New_York",
+   "ts": 1772965800,
+   "localClock": "2026-03-08 06:30",
+   "utcOffsetSec": -14400,
+   "startOfLocalHour": 1772964000,
+   "localMidnightTs": 1772946000,
+   "dayLengthSec": 82800
+  },
+  {
+   "tz": "America/New_York",
+   "ts": 1772969400,
+   "localClock": "2026-03-08 07:30",
+   "utcOffsetSec": -14400,
+   "startOfLocalHour": 1772967600,
+   "localMidnightTs": 1772946000,
+   "dayLengthSec": 82800
+  },
+  {
+   "tz": "America/New_York",
+   "ts": 1793521800,
+   "localClock": "2026-11-01 03:30",
+   "utcOffsetSec": -18000,
+   "startOfLocalHour": 1793520000,
+   "localMidnightTs": 1793505600,
+   "dayLengthSec": 90000
+  },
+  {
+   "tz": "America/New_York",
+   "ts": 1793525400,
+   "localClock": "2026-11-01 04:30",
+   "utcOffsetSec": -18000,
+   "startOfLocalHour": 1793523600,
+   "localMidnightTs": 1793505600,
+   "dayLengthSec": 90000
+  },
+  {
+   "tz": "America/New_York",
+   "ts": 1793529000,
+   "localClock": "2026-11-01 05:30",
+   "utcOffsetSec": -18000,
+   "startOfLocalHour": 1793527200,
+   "localMidnightTs": 1793505600,
+   "dayLengthSec": 90000
+  },
+  {
+   "tz": "America/New_York",
+   "ts": 1789252860,
+   "localClock": "2026-09-12 18:41",
+   "utcOffsetSec": -14400,
+   "startOfLocalHour": 1789250400,
+   "localMidnightTs": 1789185600,
+   "dayLengthSec": 86400
+  },
+  {
+   "tz": "America/New_York",
+   "ts": 1767225600,
+   "localClock": "2025-12-31 19:00",
+   "utcOffsetSec": -18000,
+   "startOfLocalHour": 1767225600,
+   "localMidnightTs": 1767157200,
+   "dayLengthSec": 86400
+  },
+  {
+   "tz": "America/New_York",
+   "ts": 1782863940,
+   "localClock": "2026-06-30 19:59",
+   "utcOffsetSec": -14400,
+   "startOfLocalHour": 1782860400,
+   "localMidnightTs": 1782792000,
+   "dayLengthSec": 86400
+  },
+  {
+   "tz": "America/New_York",
+   "ts": 1798761540,
+   "localClock": "2026-12-31 18:59",
+   "utcOffsetSec": -18000,
+   "startOfLocalHour": 1798758000,
+   "localMidnightTs": 1798693200,
+   "dayLengthSec": 86400
+  },
+  {
+   "tz": "America/Anchorage",
+   "ts": 1772962200,
+   "localClock": "2026-03-08 00:30",
+   "utcOffsetSec": -32400,
+   "startOfLocalHour": 1772960400,
+   "localMidnightTs": 1772960400,
+   "dayLengthSec": 82800
+  },
+  {
+   "tz": "America/Anchorage",
+   "ts": 1772965800,
+   "localClock": "2026-03-08 01:30",
+   "utcOffsetSec": -32400,
+   "startOfLocalHour": 1772964000,
+   "localMidnightTs": 1772960400,
+   "dayLengthSec": 82800
+  },
+  {
+   "tz": "America/Anchorage",
+   "ts": 1772969400,
+   "localClock": "2026-03-08 03:30",
+   "utcOffsetSec": -28800,
+   "startOfLocalHour": 1772967600,
+   "localMidnightTs": 1772960400,
+   "dayLengthSec": 82800
+  },
+  {
+   "tz": "America/Anchorage",
+   "ts": 1793521800,
+   "localClock": "2026-11-01 00:30",
+   "utcOffsetSec": -28800,
+   "startOfLocalHour": 1793520000,
+   "localMidnightTs": 1793520000,
+   "dayLengthSec": 90000
+  },
+  {
+   "tz": "America/Anchorage",
+   "ts": 1793525400,
+   "localClock": "2026-11-01 01:30",
+   "utcOffsetSec": -28800,
+   "startOfLocalHour": 1793523600,
+   "localMidnightTs": 1793520000,
+   "dayLengthSec": 90000
+  },
+  {
+   "tz": "America/Anchorage",
+   "ts": 1793529000,
+   "localClock": "2026-11-01 01:30",
+   "utcOffsetSec": -32400,
+   "startOfLocalHour": 1793527200,
+   "localMidnightTs": 1793520000,
+   "dayLengthSec": 90000
+  },
+  {
+   "tz": "America/Anchorage",
+   "ts": 1789252860,
+   "localClock": "2026-09-12 14:41",
+   "utcOffsetSec": -28800,
+   "startOfLocalHour": 1789250400,
+   "localMidnightTs": 1789200000,
+   "dayLengthSec": 86400
+  },
+  {
+   "tz": "America/Anchorage",
+   "ts": 1767225600,
+   "localClock": "2025-12-31 15:00",
+   "utcOffsetSec": -32400,
+   "startOfLocalHour": 1767225600,
+   "localMidnightTs": 1767171600,
+   "dayLengthSec": 86400
+  },
+  {
+   "tz": "America/Anchorage",
+   "ts": 1782863940,
+   "localClock": "2026-06-30 15:59",
+   "utcOffsetSec": -28800,
+   "startOfLocalHour": 1782860400,
+   "localMidnightTs": 1782806400,
+   "dayLengthSec": 86400
+  },
+  {
+   "tz": "America/Anchorage",
+   "ts": 1798761540,
+   "localClock": "2026-12-31 14:59",
+   "utcOffsetSec": -32400,
+   "startOfLocalHour": 1798758000,
+   "localMidnightTs": 1798707600,
+   "dayLengthSec": 86400
+  },
+  {
+   "tz": "Pacific/Honolulu",
+   "ts": 1772962200,
+   "localClock": "2026-03-07 23:30",
+   "utcOffsetSec": -36000,
+   "startOfLocalHour": 1772960400,
+   "localMidnightTs": 1772877600,
+   "dayLengthSec": 86400
+  },
+  {
+   "tz": "Pacific/Honolulu",
+   "ts": 1772965800,
+   "localClock": "2026-03-08 00:30",
+   "utcOffsetSec": -36000,
+   "startOfLocalHour": 1772964000,
+   "localMidnightTs": 1772964000,
+   "dayLengthSec": 86400
+  },
+  {
+   "tz": "Pacific/Honolulu",
+   "ts": 1772969400,
+   "localClock": "2026-03-08 01:30",
+   "utcOffsetSec": -36000,
+   "startOfLocalHour": 1772967600,
+   "localMidnightTs": 1772964000,
+   "dayLengthSec": 86400
+  },
+  {
+   "tz": "Pacific/Honolulu",
+   "ts": 1793521800,
+   "localClock": "2026-10-31 22:30",
+   "utcOffsetSec": -36000,
+   "startOfLocalHour": 1793520000,
+   "localMidnightTs": 1793440800,
+   "dayLengthSec": 86400
+  },
+  {
+   "tz": "Pacific/Honolulu",
+   "ts": 1793525400,
+   "localClock": "2026-10-31 23:30",
+   "utcOffsetSec": -36000,
+   "startOfLocalHour": 1793523600,
+   "localMidnightTs": 1793440800,
+   "dayLengthSec": 86400
+  },
+  {
+   "tz": "Pacific/Honolulu",
+   "ts": 1793529000,
+   "localClock": "2026-11-01 00:30",
+   "utcOffsetSec": -36000,
+   "startOfLocalHour": 1793527200,
+   "localMidnightTs": 1793527200,
+   "dayLengthSec": 86400
+  },
+  {
+   "tz": "Pacific/Honolulu",
+   "ts": 1789252860,
+   "localClock": "2026-09-12 12:41",
+   "utcOffsetSec": -36000,
+   "startOfLocalHour": 1789250400,
+   "localMidnightTs": 1789207200,
+   "dayLengthSec": 86400
+  },
+  {
+   "tz": "Pacific/Honolulu",
+   "ts": 1767225600,
+   "localClock": "2025-12-31 14:00",
+   "utcOffsetSec": -36000,
+   "startOfLocalHour": 1767225600,
+   "localMidnightTs": 1767175200,
+   "dayLengthSec": 86400
+  },
+  {
+   "tz": "Pacific/Honolulu",
+   "ts": 1782863940,
+   "localClock": "2026-06-30 13:59",
+   "utcOffsetSec": -36000,
+   "startOfLocalHour": 1782860400,
+   "localMidnightTs": 1782813600,
+   "dayLengthSec": 86400
+  },
+  {
+   "tz": "Pacific/Honolulu",
+   "ts": 1798761540,
+   "localClock": "2026-12-31 13:59",
+   "utcOffsetSec": -36000,
+   "startOfLocalHour": 1798758000,
+   "localMidnightTs": 1798711200,
+   "dayLengthSec": 86400
+  },
+  {
+   "tz": "Asia/Kolkata",
+   "ts": 1772962200,
+   "localClock": "2026-03-08 15:00",
+   "utcOffsetSec": 19800,
+   "startOfLocalHour": 1772962200,
+   "localMidnightTs": 1772908200,
+   "dayLengthSec": 86400
+  },
+  {
+   "tz": "Asia/Kolkata",
+   "ts": 1772965800,
+   "localClock": "2026-03-08 16:00",
+   "utcOffsetSec": 19800,
+   "startOfLocalHour": 1772965800,
+   "localMidnightTs": 1772908200,
+   "dayLengthSec": 86400
+  },
+  {
+   "tz": "Asia/Kolkata",
+   "ts": 1772969400,
+   "localClock": "2026-03-08 17:00",
+   "utcOffsetSec": 19800,
+   "startOfLocalHour": 1772969400,
+   "localMidnightTs": 1772908200,
+   "dayLengthSec": 86400
+  },
+  {
+   "tz": "Asia/Kolkata",
+   "ts": 1793521800,
+   "localClock": "2026-11-01 14:00",
+   "utcOffsetSec": 19800,
+   "startOfLocalHour": 1793521800,
+   "localMidnightTs": 1793471400,
+   "dayLengthSec": 86400
+  },
+  {
+   "tz": "Asia/Kolkata",
+   "ts": 1793525400,
+   "localClock": "2026-11-01 15:00",
+   "utcOffsetSec": 19800,
+   "startOfLocalHour": 1793525400,
+   "localMidnightTs": 1793471400,
+   "dayLengthSec": 86400
+  },
+  {
+   "tz": "Asia/Kolkata",
+   "ts": 1793529000,
+   "localClock": "2026-11-01 16:00",
+   "utcOffsetSec": 19800,
+   "startOfLocalHour": 1793529000,
+   "localMidnightTs": 1793471400,
+   "dayLengthSec": 86400
+  },
+  {
+   "tz": "Asia/Kolkata",
+   "ts": 1789252860,
+   "localClock": "2026-09-13 04:11",
+   "utcOffsetSec": 19800,
+   "startOfLocalHour": 1789252200,
+   "localMidnightTs": 1789237800,
+   "dayLengthSec": 86400
+  },
+  {
+   "tz": "Asia/Kolkata",
+   "ts": 1767225600,
+   "localClock": "2026-01-01 05:30",
+   "utcOffsetSec": 19800,
+   "startOfLocalHour": 1767223800,
+   "localMidnightTs": 1767205800,
+   "dayLengthSec": 86400
+  },
+  {
+   "tz": "Asia/Kolkata",
+   "ts": 1782863940,
+   "localClock": "2026-07-01 05:29",
+   "utcOffsetSec": 19800,
+   "startOfLocalHour": 1782862200,
+   "localMidnightTs": 1782844200,
+   "dayLengthSec": 86400
+  },
+  {
+   "tz": "Asia/Kolkata",
+   "ts": 1798761540,
+   "localClock": "2027-01-01 05:29",
+   "utcOffsetSec": 19800,
+   "startOfLocalHour": 1798759800,
+   "localMidnightTs": 1798741800,
+   "dayLengthSec": 86400
+  }
+ ]
+}

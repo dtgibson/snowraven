@@ -27,6 +27,22 @@ async def _get(client: httpx.AsyncClient, params: dict):
         return None
 
 
+async def fetch_tide_range(station: str, begin: str, end: str, hilo_begin: str, hilo_end: str):
+    """The Weather/tide Planner's two range requests, in GMT: (predictions_body,
+    hilo_body). Exactly two `_get` calls, gathered concurrently; `time_zone:
+    "gmt"` overrides `_BASE`'s `lst_ldt` through the params spread (nothing in
+    `_BASE` changes, so `fetch_tides` keeps the station-local clock). No
+    `water_level` product: the plan makes no observed-level request (FR-38).
+    The dates are rendered by the caller from its own clock; `station` is a
+    bundled station id, so no caller-supplied value reaches the URL."""
+    client = get_client()
+    pred, hilo = await asyncio.gather(
+        _get(client, {"begin_date": begin, "end_date": end, "station": station, "product": "predictions", "interval": "6", "time_zone": "gmt"}),
+        _get(client, {"begin_date": hilo_begin, "end_date": hilo_end, "station": station, "product": "predictions", "interval": "hilo", "time_zone": "gmt"}),
+    )
+    return pred, hilo
+
+
 async def fetch_tides(station: str, begin: str, end: str, hilo_begin: str, hilo_end: str):
     """Return (observed_body, predictions_body, hilo_body)."""
     client = get_client()
