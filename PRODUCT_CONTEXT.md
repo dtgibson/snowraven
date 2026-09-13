@@ -5,9 +5,9 @@ It records what has been built and key decisions made during development.
 
 ## Features Built
 
-### Weather/tide Planner (complete -- September 2026, v1.0.29)
+### Weather/tide Planner (complete -- September 2026, v1.0.30)
 
-The Weather tab's Predict form has a second action, Plan sunrises and sunsets, which builds a plan for the picked place from now to the end of the eight-day forecast: every sunrise and sunset still ahead with its local time, the predicted tide height and whether the tide is rising or falling, the high and low on either side, and the weather in force (hourly for about two days, then the day's summary labeled as such), drawn as a sideways-scrolling timeline in the place's own clock whose per-day list carries every figure the chart draws, with a Days in view choice and a wider card on a desktop window, offline replay of the last plan with a fetched-at cue, the same too-far and outside-US tide notice and override Predict has, one OpenWeather and at most two NOAA requests per plan, and no ranking, scoring or recommendation anywhere.
+The Weather tab's Plan entry builds a plan for a picked place from now to the end of the eight-day forecast: every sunrise and sunset ahead with the predicted tide and the weather in force, drawn as a sideways-scrolling timeline with the sun's height beneath the tide curve, where picking any moment on it reads out that minute's local time, tide height and trend, weather, and sun height, above a day-by-day list carrying every figure the chart draws plus each day's moon phase and highest sun, with offline replay of the last plan, an honest notice when the nearest tide station is far away or outside the US, and no ranking, scoring or recommendation anywhere.
 
 ### Reliable stored reads and checklist actions (complete -- September 2026, v1.0.28)
 
