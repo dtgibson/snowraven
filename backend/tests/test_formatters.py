@@ -225,3 +225,65 @@ class TestMoonPhaseEmoji:
 
     def test_equator_uses_northern_set(self):
         assert moon_phase_emoji(1713560513, 0.0) == "🌔"
+
+    # plan-sun-moon-readout (QA-36): the Weather/tide Planner's per-day moon
+    # line is moon_phase_emoji at each day's LOCAL NOON, derived from the day's
+    # own boundaries in the shared plan fixture (startTs + 43200 plus the hour
+    # the day gained or lost). The rows are pasted from the golden oracle
+    # (frontend/src/lib/weatherFormatter.golden.py) and asserted here against
+    # THIS side's function, and in frontend/src/lib/planMoon.test.ts against
+    # the TS side's, so a change on either side goes red on its own side.
+    PLAN_FIXTURE_ROWS = [
+        ('reference', '2026-09-12', '🌑'),
+        ('reference', '2026-09-13', '🌒'),
+        ('reference', '2026-09-14', '🌒'),
+        ('reference', '2026-09-15', '🌒'),
+        ('reference', '2026-09-16', '🌒'),
+        ('reference', '2026-09-17', '🌓'),
+        ('reference', '2026-09-18', '🌓'),
+        ('reference', '2026-09-19', '🌓'),
+        ('dst-fall', '2026-10-31', '🌗'),
+        ('dst-fall', '2026-11-01', '🌗'),
+        ('dst-fall', '2026-11-02', '🌗'),
+        ('dst-fall', '2026-11-03', '🌗'),
+        ('dst-fall', '2026-11-04', '🌘'),
+        ('dst-fall', '2026-11-05', '🌘'),
+        ('dst-fall', '2026-11-06', '🌘'),
+        ('dst-fall', '2026-11-07', '🌘'),
+        ('dst-spring', '2026-03-07', '🌖'),
+        ('dst-spring', '2026-03-08', '🌖'),
+        ('dst-spring', '2026-03-09', '🌗'),
+        ('dst-spring', '2026-03-10', '🌗'),
+        ('dst-spring', '2026-03-11', '🌗'),
+        ('dst-spring', '2026-03-12', '🌗'),
+        ('dst-spring', '2026-03-13', '🌘'),
+        ('dst-spring', '2026-03-14', '🌘'),
+        ('polar', '2026-07-25', '🌔'),
+        ('polar', '2026-07-26', '🌔'),
+        ('polar', '2026-07-27', '🌕'),
+        ('polar', '2026-07-28', '🌕'),
+        ('polar', '2026-07-29', '🌕'),
+        ('polar', '2026-07-30', '🌕'),
+        ('polar', '2026-07-31', '🌖'),
+        ('polar', '2026-08-01', '🌖'),
+    ]
+
+    def test_plan_fixture_days_at_local_noon(self):
+        import json
+        from pathlib import Path
+        fixture_path = (
+            Path(__file__).resolve().parents[2]
+            / "frontend" / "src" / "lib" / "weatherTidePlan.fixture.json"
+        )
+        families = {f["name"]: f for f in json.loads(fixture_path.read_text(encoding="utf-8"))["families"]}
+        assert len(self.PLAN_FIXTURE_ROWS) == 32
+        seen = set()
+        for name, date, glyph in self.PLAN_FIXTURE_ROWS:
+            fam = families[name]
+            day = next(d for d in fam["expectedWeather"]["plan"]["days"] if d["date"] == date)
+            noon = day["startTs"] + 43200 + ((day["endTs"] - day["startTs"] + 1) - 86400)
+            assert moon_phase_emoji(noon, fam["lat"]) == glyph, (name, date)
+            seen.add((name, glyph))
+        # Non-vacuity: more than one phase per family.
+        for name in ("reference", "dst-fall", "dst-spring", "polar"):
+            assert len({g for n, g in seen if n == name}) >= 2, name

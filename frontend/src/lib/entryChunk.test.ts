@@ -611,7 +611,6 @@ describe('entry-chunk exclusion (NFR-03 / QA-30)', () => {
     expect(has('components/PlanChart.tsx')).toBe(false)
     expect(has('lib/weatherPlan.ts')).toBe(false)
     expect(has('lib/tidePlan.ts')).toBe(false)
-    expect(has('lib/tzClock.ts')).toBe(false)
     // The negative above is about a real edge: the panel spells the dynamic
     // import in the one form this walker deliberately cannot see.
     const panelSrc = readFileSync(resolve(SRC, 'components/WeatherForecastPanel.tsx'), 'utf8')
@@ -619,6 +618,10 @@ describe('entry-chunk exclusion (NFR-03 / QA-30)', () => {
     // And the chart is the module that carries the chart library.
     const chart = closureFrom(resolve(SRC, 'components/PlanChart.tsx'))
     expect([...chart.externals]).toContain('recharts')
+    // ...and the chart reaches the sun and pick modules (plan-sun-moon-readout),
+    // which are entry-safe and shared with the static host.
+    expect(hasIn(chart.files, 'lib/planSun.ts')).toBe(true)
+    expect(hasIn(chart.files, 'lib/planPick.ts')).toBe(true)
     // The builders ride the dynamically imported services, with their only consumer.
     const weatherSvc = closureFrom(resolve(SRC, 'lib/tauri/weatherService.ts'))
     expect(hasIn(weatherSvc.files, 'lib/weatherPlan.ts')).toBe(true)
@@ -655,6 +658,37 @@ describe('entry-chunk exclusion (NFR-03 / QA-30)', () => {
     expect([...copy.files].map(f => f.replace(/\\/g, '/')).filter(f => f.endsWith('lib/forecastLabels.ts'))).toHaveLength(1)
     expect(copy.files.size).toBe(2)
     expect([...copy.externals]).toEqual([])
+    // plan-sun-moon-readout (schema section 5, D6): the location's clock joins
+    // the entry graph (the readout's picked minute has no string in the
+    // document, so it is converted through the producers' own twin helper),
+    // dependency-free and reaching nothing; and the four derivation modules
+    // join beside it, each reaching no transport, no storage, no chart library
+    // and no builder.
+    expect(has('lib/tzClock.ts')).toBe(true)
+    const clock = closureFrom(resolve(SRC, 'lib/tzClock.ts'))
+    expect(clock.files.size).toBe(1)
+    expect([...clock.externals]).toEqual([])
+    // planPick.ts is the one derivation module OFF the entry graph: only the
+    // lazy chart steps a pick, so it rides the chart chunk (the schema's table
+    // listed it on the entry graph; the code needs it nowhere static, and the
+    // chart closure assertion above proves it is reached).
+    expect(has('lib/planPick.ts')).toBe(false)
+    for (const mod of ['lib/planSun.ts', 'lib/planMoon.ts', 'lib/planReadout.ts', 'lib/planPick.ts']) {
+      if (mod !== 'lib/planPick.ts') expect(has(mod), mod).toBe(true)
+      const sub = closureFrom(resolve(SRC, mod))
+      expect([...sub.externals].filter(s => s === 'recharts' || s.startsWith('recharts/')), mod).toEqual([])
+      expect(maplibreIn(sub.externals), mod).toEqual([])
+      for (const forbidden of ['lib/transport.ts', 'lib/storage.ts', 'lib/replayStore.ts', 'lib/weatherPlan.ts', 'lib/tidePlan.ts', 'components/PlanChart.tsx']) {
+        expect(hasIn(sub.files, forbidden), `${mod} reaches ${forbidden}`).toBe(false)
+      }
+    }
+    const sun = closureFrom(resolve(SRC, 'lib/planSun.ts'))
+    expect(sun.files.size).toBe(1)          // Math only: the merge's types are erased
+    expect([...sun.externals]).toEqual([])
+    const moon = closureFrom(resolve(SRC, 'lib/planMoon.ts'))
+    expect(hasIn(moon.files, 'lib/weatherFormatter.ts')).toBe(true)   // the twinned glyph, imported not copied
+    const pick = closureFrom(resolve(SRC, 'lib/planPick.ts'))
+    expect(hasIn(pick.files, 'lib/tzClock.ts')).toBe(true)
     // The static result region pulls no chart library, no map and no transport.
     const result = closureFrom(resolve(SRC, 'components/PlanResult.tsx'))
     expect([...result.externals].filter(s => s === 'recharts' || s.startsWith('recharts/'))).toEqual([])

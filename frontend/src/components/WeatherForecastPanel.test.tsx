@@ -37,6 +37,7 @@ vi.mock('../lib/location', () => ({
 }))
 
 import { WeatherForecastPanel } from './WeatherForecastPanel'
+import { PLAN_COPY } from '../lib/planCopy'
 
 const WEATHER_CURRENT = {
   resolution: 'current',
@@ -108,14 +109,14 @@ describe('WeatherForecastPanel', () => {
           : Promise.reject(new Error('unexpected ' + p)))
 
     render(<WeatherForecastPanel />)
-    fireEvent.click(screen.getByRole('button', { name: /predict weather and tide/i }))
+    fireEvent.click(screen.getByRole('button', { name: /plan weather and tide/i }))
 
     await waitFor(() => expect(screen.getByLabelText(/Latitude/)).toBeTruthy())
     fireEvent.change(screen.getByLabelText(/Latitude/), { target: { value: '37.5' } })
     fireEvent.change(screen.getByLabelText(/Longitude/), { target: { value: '-122.5' } })
     fireEvent.change(screen.getByLabelText('Forecast date'), { target: { value: '2030-01-01' } })
     fireEvent.change(screen.getByLabelText('Forecast time'), { target: { value: '06:30' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Get forecast' }))
+    fireEvent.click(screen.getByRole('button', { name: PLAN_COPY.forecastAction }))
 
     await waitFor(() => expect(screen.getByText(/beyond the ~8-day window/i)).toBeTruthy())
     expect(screen.getByText('TIDE ONLY')).toBeTruthy()

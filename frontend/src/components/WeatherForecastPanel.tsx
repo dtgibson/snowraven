@@ -1,4 +1,4 @@
-// "Current" and "Predict" — weather + tide for the user's live location and time,
+// "Current" and "Plan": weather + tide for the user's live location and time,
 // or a place and time they choose, bypassing the eBird checklist. Mounts at the
 // bottom of the Weather tab. Reuses the existing weather/tide formatters for the
 // copy block (one source) and the existing seams (transport, location, clipboard,
@@ -490,9 +490,9 @@ export function WeatherForecastPanel({ onPlanVisible }: WeatherForecastPanelProp
         <Button type="button" onClick={onCurrent} style={primaryBtn} aria-label="Get current weather and tide for my location">
           <Navigation size={16} strokeWidth={2.2} aria-hidden="true" /> Current
         </Button>
-        <Button type="button" onClick={() => void openPredict()} style={outlineBtn} aria-label="Predict weather and tide for a place and time">
+        <Button type="button" onClick={() => void openPredict()} style={outlineBtn} aria-label={PLAN_COPY.entryAria}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /><path d="M12 14v3l2 1" /></svg>
-          Predict
+          {PLAN_COPY.entryLabel}
         </Button>
       </div>
 
@@ -554,9 +554,9 @@ export function WeatherForecastPanel({ onPlanVisible }: WeatherForecastPanelProp
             <div role="alert" style={{ marginTop: 12, fontSize: '0.8125rem', color: 'var(--sr-error)' }}>{searchErr}</div>
           )}
 
-          <Button type="button" onClick={() => void onPredictSubmit()} style={{ ...primaryBtn, width: '100%', marginTop: 14 }}>
+          <Button type="button" onClick={() => void onPredictSubmit()} className="sr-plan-btn-primary sr-plan-forecast">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 3v3M5.2 5.2l2.1 2.1M3 12h3M18 12h3M16.7 7.3l2.1-2.1" /><path d="M7 18a5 5 0 0 1 10 0" /><path d="M4 22h16" /></svg>
-            Get forecast
+            {PLAN_COPY.forecastAction}
           </Button>
           <Button type="button" onClick={() => void runPlan()} className="sr-plan-btn-outline sr-plan-action">
             <CalendarDays size={15} strokeWidth={2.2} aria-hidden="true" />

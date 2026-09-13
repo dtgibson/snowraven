@@ -193,20 +193,31 @@
   --sr-cal-5: #0C271A;  --sr-cal-5-rgb: 12,39,26;
   --sr-cal-fg: #FFFFFF;   /* on-cell number, on any data tier, both themes */
 
-  /* Weather/tide Planner chart (tide-weather-planner). The day ground and the
-     night band clear 3:1 against each other; the tide line clears 3:1 against
-     BOTH; the sun mark clears 3:1 against the day ground and is haloed
-     everywhere, so no marker hue is load-bearing over the night band (shape and
-     label distinguish the four marks). Dark carries its own values below: there
-     the DAY is the lit band and night is the deep ground. Ratios in
-     pipeline/tide-weather-planner/design-spec.md; guarded by
+  /* Weather/tide Planner chart (tide-weather-planner; bands repainted and four
+     tokens added in plan-sun-moon-readout, design D4-05 / D4-06). The day band
+     is barely warmed paper and the night band a quiet cool grey a step darker:
+     the bands differ by at least 1.4:1 (the visible-boundary floor), because
+     the boundary is carried by the sunrise and sunset marks, their labels and
+     the sun line's own crossing, and the band is reinforcement. The tide line,
+     the sun line above the horizon (--sr-plan-sunline), its receded night
+     portion (--sr-plan-sunline-night) and the pick marker (--sr-plan-pick) each
+     clear 3:1 against BOTH bands; the sun mark clears 3:1 against the day ground
+     and is haloed everywhere, so no marker hue is load-bearing over the night
+     band (shape and label distinguish the marks). The -rgb triplet is the fill
+     under the daytime arc at alpha 0.14. Dark carries its own values below:
+     there the DAY is the lit band and night recedes to just under the surface.
+     Ratios in pipeline/plan-sun-moon-readout/design-spec.md; guarded by
      lib/planContrast.test.ts. */
-  --sr-plan-day: #FFFFFF;
-  --sr-plan-night: #8790A5;
+  --sr-plan-day: #FFFCF5;
+  --sr-plan-night: #CBD1DE;
   --sr-plan-tide: #1E3A8A;
   --sr-plan-sun: #B45309;
   --sr-plan-halo: #FFFFFF;
   --sr-plan-grid-rgb: 15,17,23;
+  --sr-plan-sunline: #703000;
+  --sr-plan-sunline-rgb: 112,48,0;
+  --sr-plan-sunline-night: #6B7080;
+  --sr-plan-pick: #0F3D22;
 
   /* Graph line colors */
   --sr-graph-individuals: #2D8653;
@@ -499,13 +510,20 @@
   --sr-cal-5: #0C271A;  --sr-cal-5-rgb: 12,39,26;
   --sr-cal-fg: #FFFFFF;
 
-  /* Weather/tide Planner chart: daylight is the LIT band on dark. */
-  --sr-plan-day: #56607A;
-  --sr-plan-night: #05070D;
+  /* Weather/tide Planner chart: daylight is the LIT band on dark (a warm
+     umber above the surface); the night band recedes to just under the
+     surface and the halo follows it. The sun line, its night portion and the
+     pick marker each clear 3:1 against both bands (planContrast.test.ts). */
+  --sr-plan-day: #3E3830;
+  --sr-plan-night: #121317;
   --sr-plan-tide: #93C5FD;
   --sr-plan-sun: #FCD34D;
-  --sr-plan-halo: #05070D;
+  --sr-plan-halo: #121317;
   --sr-plan-grid-rgb: 244,244,245;
+  --sr-plan-sunline: #FDBA74;
+  --sr-plan-sunline-rgb: 253,186,116;
+  --sr-plan-sunline-night: #80848F;
+  --sr-plan-pick: #34D399;
 
   /* Graph line colors */
   --sr-graph-individuals: #34D399;
@@ -4057,27 +4075,23 @@ select:focus-visible {
    changes nothing. */
 .sr-wx-pair > *:not(.sr-only) { container-type: inline-size; container-name: sr-wx-col; }
 
-/* ── Weather/tide Planner (tide-weather-planner) ──────────────────────────────
-   The Predict form's second action, the plan result region, its chart box and
-   its per-day list. Colours are tokens only; layout lives here as classes so
-   the phone tier below can reach it; list and header text is rem so it tracks
-   the in-app text scale, while chart text is px on purpose (a fixed-px track
-   whose every figure is repeated in the list, design D4-09). The result
-   entrance is the one motion: opacity and a 4px rise, 180ms ease-out, and the
-   global prefers-reduced-motion block collapses it. */
-.sr-plan-result { margin-top: 16px; background: var(--sr-accent-surface); border: 1px solid var(--sr-accent-border); border-radius: 10px; padding: 16px 18px; animation: sr-plan-result-in 180ms cubic-bezier(0.2, 0, 0, 1) both; transform-origin: top center; container-type: inline-size; container-name: plan; }
-/* The plan region is a CONTAINER (the .sr-wx-pair / .sr-cal-minimonth
-   precedent) so the day list can flow into two columns by the region's own
-   width, not the viewport's. `container-type` is containment as well as a
-   query anchor: the region's absolutely positioned descendants (the chart
-   box's overlays, the sr-only spans) all sit under nearer positioned
-   ancestors or are clipped to a pixel, and no z-index in the subtree looks
-   past the region, so the new containing block and stacking context change
-   nothing visible. */
-@container plan (min-width: 760px) {
-  .sr-plan-days { columns: 2; column-gap: 36px; }
-  .sr-plan-day { break-inside: avoid; }
-}
+/* ── Weather/tide Planner (tide-weather-planner, plan-sun-moon-readout) ────────
+   The Plan form's second action, the plan result region, its chart box, the
+   picked-moment readout, the day-by-day divider and the per-day list. Colours
+   are tokens only; layout lives here as classes so the phone tier below can
+   reach it; list, readout and header text is rem so it tracks the in-app text
+   scale, while chart text is px on purpose (a fixed-px track whose every
+   figure is repeated in the list, design D4-09). Two motions: the result
+   entrance (opacity and a 4px rise, 180ms ease-out) and the readout's
+   rest-to-picked cross-fade (140ms, below); the global prefers-reduced-motion
+   block collapses both. The pick marker is never animated. */
+.sr-plan-result { margin-top: 16px; background: var(--sr-accent-surface); border: 1px solid var(--sr-accent-border); border-radius: 10px; padding: 16px 18px; animation: sr-plan-result-in 180ms cubic-bezier(0.2, 0, 0, 1) both; transform-origin: top center; }
+/* The day list is ONE chronological column at every tier, capped at a reading
+   measure (plan-sun-moon-readout, design D4-07): the shipped 1.0.29 container
+   query that flowed it into two columns above 760px of region width put later
+   days beside earlier ones and is deliberately gone, and with it the region's
+   container-type (nothing queries it any more, and containment is not free).
+   The chart above keeps the full card width as the wide focal point. */
 /* The Weather card (App.tsx) lifts its inline max-width to this class so the
    wide tier can widen it while a plan is on screen (D4-13); everything in it
    other than the plan region keeps its 476px measure through .sr-weather-narrow,
@@ -4094,6 +4108,11 @@ select:focus-visible {
 .sr-plan-btn-outline[aria-busy="true"] { opacity: 0.7; cursor: default; }
 .sr-plan-btn-small { height: 30px; padding: 0 12px; border-radius: 6px; font-size: 0.75rem; gap: 5px; flex-shrink: 0; }
 .sr-plan-action { width: 100%; margin-top: 8px; }
+/* The single-moment action's chrome (was an inline style; lifted so the phone
+   tier below can let its longer label wrap inside a min-height 44px button). */
+.sr-plan-btn-primary { height: 44px; padding: 0 18px; background: var(--sr-accent); color: var(--sr-on-accent); border: none; border-radius: 8px; font-size: 0.875rem; font-weight: 600; font-family: inherit; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 7px; white-space: nowrap; transition: background-color 120ms ease-out; }
+.sr-plan-btn-primary:hover:not(:disabled):not([aria-disabled="true"]) { background: var(--sr-accent-strong); }
+.sr-plan-forecast { width: 100%; margin-top: 14px; }
 .sr-plan-caption { margin: 7px 0 0; font-size: 0.6875rem; color: var(--sr-text-muted); }
 .sr-plan-h3 { font-size: 1.0625rem; font-weight: 700; letter-spacing: -0.01em; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sr-plan-pill { display: inline-flex; align-items: center; height: 21px; padding: 0 9px; border-radius: 11px; font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.02em; white-space: nowrap; flex-shrink: 0; background: var(--sr-accent-bg); color: var(--sr-accent); border: 1px solid var(--sr-accent-border); }
@@ -4121,8 +4140,23 @@ select:focus-visible {
    scroller takes no smooth behaviour of its own. */
 .sr-plan-scroller.is-dragging { cursor: grabbing; user-select: none; scroll-behavior: auto; }
 .sr-plan-scroller:focus-visible { outline-offset: -3px; }
+/* The ring is inset, and it shows on plain :focus (not only :focus-visible)
+   once a pick exists (design D4-01): a pointer pick focuses the slider, and
+   the ring is how a sighted user learns the arrow keys now step the pick. With
+   no pick a drag leaves no ring, exactly as 1.0.29. Scoped to this control. */
+.sr-plan-scroller.has-pick:focus { outline: 3px solid var(--sr-accent); outline-offset: -3px; }
 .sr-plan-canvas { position: relative; }
 .sr-plan-canvas svg { display: block; }
+/* The pick marker (plan-sun-moon-readout, FR-14): an HTML overlay inside the
+   canvas (its containing block is .sr-plan-canvas, position: relative above),
+   so it scrolls with the track and a pick re-renders no chart: a 2px solid
+   line the plot's full height with a 1px halo on each side and a 12x7 pill
+   handle on the plot's top edge. Solid and handled against the Now hairline's
+   dashed 1px; a line against every circle and triangle. Placed, never moved
+   with a transition. Decorative: the slider's value text carries the pick. */
+.sr-plan-pickmark { position: absolute; width: 2px; margin-left: -1px; background: var(--sr-plan-pick); box-shadow: 0 0 0 1px var(--sr-plan-halo); pointer-events: none; }
+.sr-plan-pickmark::before { content: ""; position: absolute; left: 50%; top: -1px; width: 12px; height: 7px; margin-left: -6px; border-radius: 3.5px; background: var(--sr-plan-pick); box-shadow: 0 0 0 1.5px var(--sr-plan-halo); }
+.sr-plan-pickmark[hidden] { display: none; }
 .sr-plan-yaxis { position: absolute; left: 0; top: 0; pointer-events: none; background: linear-gradient(90deg, var(--sr-surface) 78%, transparent); }
 /* The wide tier's day-header lane: a subtle band under a rule, one label per
    day at its midnight, clipped to the day's own width so a long label never
@@ -4158,8 +4192,14 @@ select:focus-visible {
 .sr-plan-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; margin-top: 8px; font-size: 0.6875rem; color: var(--sr-text-muted); }
 .sr-plan-legend-k { display: inline-flex; align-items: center; gap: 5px; }
 .sr-plan-legend svg { flex-shrink: 0; }
+/* The scroll hint keeps its place in the legend while the track fits (or
+   before the lazy chart has reported at all): `visibility` rather than
+   `display: none`, so the legend's height is a property of width and text
+   scale from first paint and the readout, the divider and the day list never
+   move when the chart chunk lands (plan-sun-moon-readout QA-32; the same rule
+   the readout's stacked layers follow). */
 .sr-plan-legend-scroll { display: inline-flex; align-items: center; gap: 5px; }
-.sr-plan-legend-scroll[hidden] { display: none; }
+.sr-plan-legend-scroll.is-off { visibility: hidden; }
 /* The day buttons (both tiers) at the right end of the legend row: quiet
    28px icon buttons, disabled at the ends and when the track fits. */
 .sr-plan-nav { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; }
@@ -4175,13 +4215,69 @@ select:focus-visible {
 .sr-plan-seg-btn:hover { color: var(--sr-text); }
 .sr-plan-seg-btn[aria-pressed="true"] { background: var(--sr-surface); border-color: var(--sr-border); font-weight: 600; color: var(--sr-text); }
 
-/* The list: the plan's readable and accessible form. It never scrolls
-   sideways: the two figure lines wrap anywhere and nothing carries a positive
-   min-width. */
-.sr-plan-days { list-style: none; margin: 16px 0 0; padding: 0; }
+/* The picked-moment readout (plan-sun-moon-readout, FR-17, schema 6.2 / D13):
+   one fixed block between the legend and the list, aria-hidden (the slider's
+   own value text announces the same words), rem sizes. Three layers share one
+   grid cell: a SIZER that is always hidden and renders the longest strings the
+   document can produce, the REST text and the PICKED figures; the cell is as
+   tall as the tallest layer at the current width and text scale, so a pick, a
+   clear, a no-tide or a no-weather pick changes no height and reflows nothing.
+   The height is a CSS property, never a measurement. The estimate line stands
+   under the layers in BOTH states (it is true at rest too). The rest-to-picked
+   swap is a 140ms ease-out opacity cross-fade with visibility switching at its
+   end; pick-to-pick replaces the figures instantly; the global
+   prefers-reduced-motion block collapses the fade. */
+.sr-plan-readout { margin-top: 12px; padding-top: 11px; border-top: 1px solid var(--sr-border); min-width: 0; }
+.sr-plan-ro-layers { display: grid; min-width: 0; }
+.sr-plan-ro-layer { grid-area: 1 / 1; min-width: 0; }
+.sr-plan-ro-sizer { visibility: hidden; }
+.sr-plan-ro-rest, .sr-plan-ro-pick { transition: opacity 140ms cubic-bezier(0.2, 0, 0, 1), visibility 0s linear 140ms; }
+.sr-plan-ro-rest.is-off, .sr-plan-ro-pick.is-off { opacity: 0; visibility: hidden; }
+.sr-plan-ro-rest.is-on, .sr-plan-ro-pick.is-on { opacity: 1; visibility: visible; transition-delay: 0s, 0s; }
+.sr-plan-ro-row { display: grid; grid-template-columns: 14px minmax(0, 1fr); column-gap: 9px; align-items: start; }
+.sr-plan-ro-glyph { width: 14px; height: 18px; margin-top: 0.2em; color: var(--sr-plan-pick); }
+.sr-plan-ro-rest .sr-plan-ro-glyph { color: var(--sr-border-medium); }
+.sr-plan-ro-when { display: flex; align-items: baseline; flex-wrap: wrap; gap: 2px 8px; }
+.sr-plan-ro-day { font-size: 0.8125rem; font-weight: 600; }
+.sr-plan-ro-time { font-size: 1.0625rem; font-weight: 700; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
+.sr-plan-ro-figs { margin-top: 2px; font-size: 0.8125rem; line-height: 1.5; overflow-wrap: anywhere; }
+.sr-plan-ro-figs .sr-plan-em { font-size: 0.9375rem; }
+.sr-plan-ro-wx { margin-top: 1px; font-size: 0.75rem; line-height: 1.55; color: var(--sr-text-muted); overflow-wrap: anywhere; }
+.sr-plan-ro-wx b { color: var(--sr-text); }
+/* The readout's resolution micro-label is an ATOMIC inline (inline-block), so a
+   line breaker measures its whole box, trailing letter-spacing included: as a
+   plain nowrap inline WebKit fitted it by an advance width that excluded that
+   spacing and then let it overhang the readout by 2.7 to 3.8px at two widths
+   (verify-plan-readout.mjs measured it), while Chromium wrapped it. */
+.sr-plan-ro-wx .sr-plan-ev-res { display: inline-block; margin-left: 6px; }
+.sr-plan-ro-est { margin-top: 4px; padding-left: 23px; font-size: 0.71875rem; line-height: 1.5; color: var(--sr-text-muted); overflow-wrap: anywhere; }
+.sr-plan-ro-l1 { font-size: 0.8125rem; line-height: 1.5; color: var(--sr-text-muted); overflow-wrap: anywhere; }
+.sr-plan-ro-keys { margin-top: 3px; font-size: 0.71875rem; line-height: 1.5; color: var(--sr-text-muted); overflow-wrap: anywhere; }
+/* The divider between the timeline and the week (design D4-09): a labelled
+   rule in the section-label register, 22px of air above it, a 13px calendar
+   glyph and the words, then a 1px --sr-border-medium rule to the region's right
+   edge (a step stronger than the dashed --sr-border rules between days). The
+   readout above is a fixed-height block, so it never moves on a pick. A static
+   div, not a heading and never a live region; its text names the list. The
+   rule's 24px floor is its flex BASIS rather than a min-width: the planner's
+   stylesheet guard admits no positive min-width (nothing may ever widen the
+   region), and the row is far wider than the floor at every reachable width. */
+.sr-plan-week { display: flex; align-items: center; gap: 8px; margin-top: 22px; font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--sr-text-muted); }
+.sr-plan-week svg { flex-shrink: 0; }
+.sr-plan-week-label { white-space: nowrap; }
+.sr-plan-week::after { content: ""; flex: 1 1 24px; height: 1px; background: var(--sr-border-medium); }
+/* The list: the plan's readable and accessible form, one chronological column
+   capped at a reading measure (D4-07). It never scrolls sideways: the figure
+   lines wrap anywhere and nothing carries a positive min-width. */
+.sr-plan-days { list-style: none; margin: 12px 0 0; padding: 0; max-width: 44rem; }
 .sr-plan-day { padding-top: 12px; border-top: 1px dashed var(--sr-border); margin-top: 12px; }
 .sr-plan-day:first-child { border-top: none; margin-top: 0; padding-top: 0; }
 .sr-plan-day > h4 { margin: 0; font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--sr-text-muted); }
+.sr-plan-day > h4 .sr-plan-from { font-weight: 600; letter-spacing: 0.06em; }
+/* The day-facts line: the moon phase and the sun's highest point of the day. */
+.sr-plan-dayfacts { margin: 4px 0 0; font-size: 0.75rem; color: var(--sr-text-muted); line-height: 1.5; overflow-wrap: anywhere; }
+.sr-plan-dayfacts .sr-plan-em { margin-right: 3px; }
+.sr-plan-dayfacts b { color: var(--sr-text); font-weight: 600; }
 .sr-plan-sky { margin: 4px 0 0; font-size: 0.75rem; color: var(--sr-text-muted); overflow-wrap: anywhere; }
 .sr-plan-tides { margin: 4px 0 0; font-size: 0.75rem; color: var(--sr-text-muted); overflow-wrap: anywhere; line-height: 1.6; }
 .sr-plan-tide-pt { font-variant-numeric: tabular-nums; }
@@ -4790,10 +4886,15 @@ select:focus-visible {
      heading wraps, and the resolution micro-label drops under the time. The
      chart never compresses: it scrolls inside its box at every width. */
   .sr-plan-btn-small { min-height: 44px; height: auto; white-space: normal; }
+  /* Both form actions wrap on a phone: the renamed primary clips inside a
+     nowrap 44px button at 320px and 200% text scale (design, "The entry"). */
+  .sr-plan-forecast, .sr-plan-action { white-space: normal; height: auto; min-height: 44px; padding-top: 8px; padding-bottom: 8px; line-height: 1.3; text-align: center; }
   .sr-plan-notice .sr-plan-alert { flex-direction: column; align-items: stretch; }
   .sr-plan-notice .sr-plan-btn-outline { width: 100%; }
   .sr-plan-h3 { white-space: normal; }
   .sr-plan-ev-res { margin-left: 0; width: 100%; white-space: normal; }
+  /* The readout's resolution micro-label drops to its own line under the weather row. */
+  .sr-plan-ro-wx .sr-plan-ev-res { display: block; margin-left: 0; margin-top: 2px; }
 }
 
 /* ── REPAIR 2: the per-species row's stacked tier, keyed on its own column ────

@@ -7,10 +7,11 @@ import fixture from './weatherTidePlan.fixture.json'
 import { composePlan, type Plan, type TidePlanResponse, type WeatherPlan } from './plan'
 import { planDaysInViewOptions, planHoursInView, type PlanDaysInView } from './planDaysInView'
 import {
-  PLAN_HOUR_PX, PLAN_MIN_HOUR_PX, PLAN_GUTTER_PX, PLAN_BOX_CHROME_PX,
-  planChartHeight, planLanes, planHourPx, planHourPxFor, planGeometry,
+  PLAN_HOUR_PX, PLAN_MIN_HOUR_PX, PLAN_GUTTER_PX, PLAN_BOX_CHROME_PX, PLAN_SUN_ZERO_FRAC, PLAN_SUN_TOP_DEG,
+  planChartHeight, planLanes, planHourPx, planHourPxFor, planGeometry, planSunDomain,
   planGlyphEvery, planShowsTemperature, planFullEventLabel, planTickHours, planDayLabel,
   planDailyCellMode, planHourlyCellMode, planHourlyTagMode, planDailyTagMode, planStripCells,
+  pickMarkerBox, revealScrollLeft,
 } from './planChartGeometry'
 
 const REF = (fixture as { families: Array<{ name: string; expectedWeather: { plan: WeatherPlan }; expectedTide: TidePlanResponse }> }).families.find(f => f.name === 'reference')!
@@ -18,13 +19,15 @@ const plan: Plan = composePlan(REF.expectedWeather.plan, REF.expectedTide)!
 const HOURS_ALL = (plan.window.endTs + 1 - plan.window.axisStartTs) / 3600
 
 describe('tiers and lanes', () => {
-  it('the phone tier is the approved 242 / 154 and the wide tier 340 / 176', () => {
+  it('the phone tier is the approved 242 / 186 and the wide tier 340 / 240 (the without-tide plot holds the sun track since 1.0.30)', () => {
     expect(planChartHeight(true, false)).toBe(242)
-    expect(planChartHeight(false, false)).toBe(154)
+    expect(planChartHeight(false, false)).toBe(186)
     expect(planChartHeight(true, true)).toBe(340)
-    expect(planChartHeight(false, true)).toBe(176)
+    expect(planChartHeight(false, true)).toBe(240)
     expect(planLanes(true, false)).toEqual({ dayHeader: 0, labels: 28, plot: 128, axis: 38, strip: 48 })
+    expect(planLanes(false, false)).toEqual({ dayHeader: 0, labels: 28, plot: 72, axis: 38, strip: 48 })
     expect(planLanes(true, true)).toEqual({ dayHeader: 22, labels: 28, plot: 220, axis: 22, strip: 48 })
+    expect(planLanes(false, true)).toEqual({ dayHeader: 22, labels: 28, plot: 120, axis: 22, strip: 48 })
   })
 
   it('the phone tier ignores the box and the choice: always 16 px per hour', () => {
@@ -149,5 +152,57 @@ describe('block cells at low density', () => {
       const lastDoc = [...plan.cells].reverse().find(c => c.resolution === 'hourly')!
       expect(hourly[hourly.length - 1].endTs).toBe(lastDoc.endTs)
     }
+  })
+})
+
+describe('the sun scale (plan-sun-moon-readout, schema 6.1)', () => {
+  it('zero sits at 0.6 of the plot from the top, 90 at the top edge, -60 at the bottom, on one uniform scale in both tiers', () => {
+    expect(PLAN_SUN_ZERO_FRAC).toBe(0.6)
+    expect(PLAN_SUN_TOP_DEG).toBe(90)
+    expect(planSunDomain()).toEqual([-60, 90])
+    for (const [hasTide, wide] of [[true, false], [false, false], [true, true], [false, true]] as const) {
+      const g = planGeometry(plan, hasTide, planHourPxFor(plan, wide, 'all', 1000), wide)
+      const top = g.lanes.labels, plot = g.lanes.plot
+      expect(g.ySun(90)).toBeCloseTo(top, 9)
+      expect(g.ySun(0)).toBeCloseTo(top + 0.6 * plot, 9)
+      expect(g.ySun(-60)).toBeCloseTo(top + plot, 9)
+      // Monotone, and one degree is plot / 150 px.
+      expect(g.ySun(10) - g.ySun(20)).toBeCloseTo(plot / 15, 9)
+      expect(g.ySun(-10)).toBeGreaterThan(g.ySun(0))
+    }
+  })
+})
+
+describe('the pick\'s geometry (schema 6.1, FR-14, FR-15, FR-22)', () => {
+  const g = planGeometry(plan, true)
+
+  it('tAt inverts x on the grid and clamps: the gutter reads the axis start, beyond the end reads the last second', () => {
+    for (const t of [g.axisStart, g.axisStart + 3600, g.axisStart + 86400 + 900, g.axisEnd - 1]) {
+      expect(g.tAt(g.x(t))).toBeCloseTo(t, 6)
+    }
+    expect(g.tAt(0)).toBe(g.axisStart)
+    expect(g.tAt(PLAN_GUTTER_PX - 1)).toBe(g.axisStart)
+    expect(g.tAt(PLAN_GUTTER_PX)).toBe(g.axisStart)
+    expect(g.tAt(g.width + 500)).toBe(g.axisEnd - 1)
+  })
+
+  it('pickMarkerBox is at x(t), from the plot\'s top, the plot\'s full height, in both tiers', () => {
+    const t = g.axisStart + 5 * 3600
+    expect(pickMarkerBox(g, t)).toEqual({ left: g.x(t), top: g.lanes.labels, height: g.lanes.plot })
+    const wg = planGeometry(plan, false, planHourPxFor(plan, true, '3', 1000), true)
+    expect(pickMarkerBox(wg, t)).toEqual({ left: wg.x(t), top: wg.lanes.dayHeader + wg.lanes.labels, height: 120 })
+  })
+
+  it('revealScrollLeft moves by the minimum, keeps the gutter clear on the left, and does nothing when the marker is visible', () => {
+    // Visible: inside [scrollLeft + 40, scrollLeft + clientWidth - 1].
+    expect(revealScrollLeft(300, 100, 500)).toBe(100)
+    expect(revealScrollLeft(140, 100, 500)).toBe(100)
+    expect(revealScrollLeft(599, 100, 500)).toBe(100)
+    // Left of the clear span: the marker lands at scrollLeft + 40.
+    expect(revealScrollLeft(120, 100, 500)).toBe(80)
+    expect(revealScrollLeft(10, 100, 500)).toBe(0)
+    // Right of the span: the marker lands at the right edge.
+    expect(revealScrollLeft(600, 100, 500)).toBe(101)
+    expect(revealScrollLeft(2000, 100, 500)).toBe(1501)
   })
 })

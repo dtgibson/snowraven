@@ -1,10 +1,14 @@
 // Stylesheet guard for the Weather/tide Planner's layout declarations (FR-29,
-// QA-28): the chart box is a CONTAINED horizontal scroller (the standing rule:
-// a wide track sits under an overflow:hidden / position:relative ancestor with
-// min-width 0 and max-width 100%, so it can never extend the page's scroll
-// width), the two figure lines wrap anywhere, the list carries no positive
-// min-width, no rule hides the loading status, and the phone-tier rules live
-// INSIDE the established first multi-line 640px block rather than in a new one.
+// QA-28; plan-sun-moon-readout QA-17, QA-45, QA-48): the chart box is a
+// CONTAINED horizontal scroller (the standing rule: a wide track sits under an
+// overflow:hidden / position:relative ancestor with min-width 0 and max-width
+// 100%, so it can never extend the page's scroll width), the figure lines and
+// the readout wrap anywhere, no planner rule carries a positive min-width, the
+// day list is one column, the readout is a stacked-layer grid with a 140ms
+// cross-fade collapsed by the global reduced-motion block, the pick marker is
+// a never-animated overlay, no rule hides the loading status, and the
+// phone-tier rules live INSIDE the established first multi-line 640px block
+// rather than in a new one.
 //
 // Selectors are compared exactly by rightmost compound, never with
 // String.includes. What this cannot prove: that the page actually never
@@ -70,15 +74,17 @@ describe('the wide tier (D4-13, D4-17)', () => {
     expect(rules.has('.sr-weather-narrow')).toBe(false)
   })
 
-  it('the region is a named container and the day list flows into two columns above 760px', () => {
+  it('the day list is ONE chronological column at every tier, capped at 44rem, and the shipped two-column container query is gone (plan-sun-moon-readout D4-07)', () => {
     const region = body('.sr-plan-result')
-    expect(decl(region, 'container-type')).toBe('inline-size')
-    expect(decl(region, 'container-name')).toBe('plan')
-    const q = css.indexOf('@container plan (min-width: 760px) {')
-    expect(q).toBeGreaterThan(-1)
-    const block = css.slice(q, css.indexOf('\n}\n', q))
-    expect(block).toContain('.sr-plan-days { columns: 2; column-gap: 36px; }')
-    expect(block).toContain('.sr-plan-day { break-inside: avoid; }')
+    expect(decl(region, 'container-type')).toBeNull()
+    expect(decl(region, 'container-name')).toBeNull()
+    expect(css.indexOf('@container plan')).toBe(-1)
+    expect(css).not.toContain('.sr-plan-days { columns')
+    expect(css).not.toContain('break-inside')
+    const days = body('.sr-plan-days')
+    expect(decl(days, 'max-width')).toBe('44rem')
+    expect(decl(days, 'margin')).toBe('12px 0 0')
+    expect(decl(days, 'columns')).toBeNull()
   })
 
   it('App.tsx puts the card class and the narrow wrapper where the spec says, with no inline max-width left', () => {
@@ -113,8 +119,111 @@ describe('the list never scrolls sideways', () => {
     }
   })
 
-  it('the event grid track that holds the text can shrink to zero', () => {
+  it('the event grid track that holds the text can shrink to zero, and so does the readout\'s', () => {
     expect(decl(body('.sr-plan-ev'), 'grid-template-columns')).toBe('30px minmax(0, 1fr)')
+    expect(decl(body('.sr-plan-ro-row'), 'grid-template-columns')).toBe('14px minmax(0, 1fr)')
+  })
+
+  it('the readout\'s text lines and the day-facts line wrap anywhere', () => {
+    for (const sel of ['.sr-plan-ro-figs', '.sr-plan-ro-wx', '.sr-plan-ro-est', '.sr-plan-ro-l1', '.sr-plan-ro-keys', '.sr-plan-dayfacts']) {
+      expect(decl(body(sel), 'overflow-wrap'), sel).toBe('anywhere')
+    }
+  })
+})
+
+// ── plan-sun-moon-readout: the readout block, the pick marker and the divider
+describe('the picked-moment readout is a fixed block of stacked layers (schema 6.2, D13)', () => {
+  it('three layers share one grid cell; the sizer is always hidden; the inactive layer is hidden at the end of a 140ms opacity cross-fade', () => {
+    expect(decl(body('.sr-plan-ro-layers'), 'display')).toBe('grid')
+    expect(decl(body('.sr-plan-ro-layer'), 'grid-area')).toBe('1 / 1')
+    expect(decl(body('.sr-plan-ro-sizer'), 'visibility')).toBe('hidden')
+    for (const layer of ['.sr-plan-ro-rest', '.sr-plan-ro-pick']) {
+      expect(decl(body(layer), 'transition'), layer).toBe('opacity 140ms cubic-bezier(0.2, 0, 0, 1), visibility 0s linear 140ms')
+      const off = body(`${layer}.is-off`)
+      expect(decl(off, 'opacity')).toBe('0')
+      expect(decl(off, 'visibility')).toBe('hidden')
+      const on = body(`${layer}.is-on`)
+      expect(decl(on, 'opacity')).toBe('1')
+      expect(decl(on, 'visibility')).toBe('visible')
+      expect(decl(on, 'transition-delay')).toBe('0s, 0s')
+    }
+    // The block itself: the rule above the layers, rem sizes, no positive min-width.
+    const ro = body('.sr-plan-readout')
+    expect(decl(ro, 'border-top')).toBe('1px solid var(--sr-border)')
+    expect(decl(ro, 'padding-top')).toBe('11px')
+    expect(decl(ro, 'margin-top')).toBe('12px')
+    expect(decl(body('.sr-plan-ro-est'), 'padding-left')).toBe('23px')
+    expect(decl(body('.sr-plan-ro-time'), 'font-size')).toBe('1.0625rem')
+    expect(decl(body('.sr-plan-ro-figs'), 'font-size')).toBe('0.8125rem')
+  })
+
+  it('the fade has no per-component reduced-motion block: the global one collapses it', () => {
+    // No planner-scoped prefers-reduced-motion query anywhere; the file's one
+    // global block (`*, *::before, *::after { transition-duration: 0.001ms }`) does it.
+    const re = /@media \(prefers-reduced-motion: reduce\)\s*\{[^}]*\.sr-plan-/g
+    expect(css.match(re)).toBeNull()
+    expect(css).toContain('transition-duration: 0.001ms !important')
+  })
+
+  it('the pick marker is an absolutely positioned overlay under the canvas\'s own positioning, never animated, never hit-tested', () => {
+    expect(decl(body('.sr-plan-canvas'), 'position')).toBe('relative')
+    const mark = body('.sr-plan-pickmark')
+    expect(decl(mark, 'position')).toBe('absolute')
+    expect(decl(mark, 'width')).toBe('2px')
+    expect(decl(mark, 'background')).toBe('var(--sr-plan-pick)')
+    expect(decl(mark, 'pointer-events')).toBe('none')
+    expect(decl(mark, 'transition')).toBeNull()
+    expect(decl(mark, 'animation')).toBeNull()
+    const handle = body('.sr-plan-pickmark::before')
+    expect(decl(handle, 'width')).toBe('12px')
+    expect(decl(handle, 'height')).toBe('7px')
+    expect(decl(handle, 'border-radius')).toBe('3.5px')
+  })
+
+  it('the scroller shows the inset ring on plain :focus only while a pick exists (D4-01)', () => {
+    expect(decl(body('.sr-plan-scroller:focus-visible'), 'outline-offset')).toBe('-3px')
+    const pick = body('.sr-plan-scroller.has-pick:focus')
+    expect(decl(pick, 'outline')).toBe('3px solid var(--sr-accent)')
+    expect(decl(pick, 'outline-offset')).toBe('-3px')
+    expect(rules.has('.sr-plan-scroller:focus')).toBe(false)
+  })
+
+  it('QA-32: the legend\'s scroll hint is reserved with visibility, never display, so the legend\'s height is fixed from first paint', () => {
+    const hint = body('.sr-plan-legend-scroll')
+    expect(decl(hint, 'display')).toBe('inline-flex')
+    expect(decl(body('.sr-plan-legend-scroll.is-off'), 'visibility')).toBe('hidden')
+    expect(decl(body('.sr-plan-legend-scroll.is-off'), 'display')).toBeNull()
+    expect(rules.has('.sr-plan-legend-scroll[hidden]')).toBe(false)
+    // An all-depth scan: no rule anywhere display-hides the hint.
+    const re = /([^{}]*\.sr-plan-legend-scroll[^{}]*)\{([^{}]*)\}/g
+    let m: RegExpExecArray | null
+    let seen = 0
+    while ((m = re.exec(css)) !== null) { seen += 1; expect(m[2], m[1]).not.toMatch(/display\s*:\s*none/) }
+    expect(seen).toBeGreaterThanOrEqual(2)
+  })
+
+  it('the divider is a labelled rule in the section-label register with a hairline to the right edge (D4-09)', () => {
+    const week = body('.sr-plan-week')
+    expect(decl(week, 'display')).toBe('flex')
+    expect(decl(week, 'margin-top')).toBe('22px')
+    expect(decl(week, 'text-transform')).toBe('uppercase')
+    expect(decl(week, 'font-size')).toBe('0.6875rem')
+    const rule = body('.sr-plan-week::after')
+    expect(decl(rule, 'height')).toBe('1px')
+    expect(decl(rule, 'background')).toBe('var(--sr-border-medium)')
+    expect(decl(rule, 'flex')).toBe('1 1 24px')
+    expect(decl(body('.sr-plan-week-label'), 'white-space')).toBe('nowrap')
+  })
+
+  it('the single-moment action\'s chrome lives in a class, and both form actions wrap on the phone tier', () => {
+    const primary = body('.sr-plan-btn-primary')
+    expect(decl(primary, 'height')).toBe('44px')
+    expect(decl(primary, 'background')).toBe('var(--sr-accent)')
+    expect(decl(primary, 'white-space')).toBe('nowrap')
+    const first = css.indexOf('@media (max-width: 640px) {\n')
+    const block = css.slice(first, css.indexOf('\n}\n', first))
+    expect(block).toContain('.sr-plan-forecast, .sr-plan-action { white-space: normal; height: auto; min-height: 44px; padding-top: 8px; padding-bottom: 8px; line-height: 1.3; text-align: center; }')
+    expect(block).toContain('.sr-plan-ro-wx .sr-plan-ev-res { display: block; margin-left: 0; margin-top: 2px; }')
   })
 })
 

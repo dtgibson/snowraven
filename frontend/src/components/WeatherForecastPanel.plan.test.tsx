@@ -8,7 +8,7 @@
 // Predict's single-moment result byte-unchanged. The transport is the only
 // double beside the map and the (deferred) chart chunk; the halves are the
 // parity fixture's, composed by the real merge.
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach, afterAll } from 'vitest'
 import { render, screen, fireEvent, waitFor, cleanup, within, act } from '@testing-library/react'
 
 vi.mock('./PredictMap', () => ({ PredictMap: () => <div data-testid="predict-map" /> }))
@@ -21,9 +21,11 @@ const chartGate = vi.hoisted(() => {
   const promise = new Promise<void>(r => { release = r })
   return { promise, release }
 })
-vi.mock('./PlanChart', async () => {
+vi.mock('./PlanChart', async (importOriginal) => {
   await chartGate.promise
-  return { PlanChart: () => <div data-testid="plan-chart" /> }
+  // The REAL chart once released (plan-sun-moon-readout QA-16 drives picks
+  // and steps on it), so the request spy watches the whole plan surface.
+  return await importOriginal<typeof import('./PlanChart')>()
 })
 // The storage seam: the Days in view setting is read on mount and written on
 // change (D4-15); an in-memory document stands in for the disk.
@@ -72,7 +74,7 @@ const noKeyError = () => Object.assign(new Error('API key not configured. Add it
 
 async function openPredictAt(lat: string, lng: string) {
   render(<WeatherForecastPanel />)
-  fireEvent.click(screen.getByRole('button', { name: /predict weather and tide/i }))
+  fireEvent.click(screen.getByRole('button', { name: /plan weather and tide/i }))
   await screen.findByLabelText(/Latitude/)
   if (lat) fireEvent.change(screen.getByLabelText(/Latitude/), { target: { value: lat } })
   if (lng) fireEvent.change(screen.getByLabelText(/Longitude/), { target: { value: lng } })
@@ -93,16 +95,28 @@ beforeEach(() => {
   }))
 })
 afterEach(() => { cleanup(); vi.unstubAllGlobals() })
+// The real chart mounts recharts once the gate is released (the house rule for
+// chart-mounting jsdom files).
+afterAll(() => new Promise((r) => setTimeout(r, 120)))
+
+// jsdom has no PointerEvent constructor in every version; the pick machine
+// reads pointerType and pointerId off it.
+class PointerEventShim extends MouseEvent {
+  pointerType: string; pointerId: number
+  constructor(type: string, init: MouseEventInit & { pointerType?: string; pointerId?: number } = {}) {
+    super(type, init); this.pointerType = init.pointerType ?? 'mouse'; this.pointerId = init.pointerId ?? 1
+  }
+}
 
 describe('the action and its validation (QA-01, QA-02)', () => {
-  it('sits beneath Get forecast with its caption, through the Button primitive', async () => {
+  it('sits beneath Get specific forecast with its caption, through the Button primitive', async () => {
     await openPredictAt('', '')
     const btn = planButton()
     expect(btn.tagName).toBe('BUTTON')
     expect(btn.getAttribute('tabindex')).toBe('0')
     expect(btn.getAttribute('type')).toBe('button')
     expect(screen.getByText(PLAN_COPY.caption)).toBeTruthy()
-    const forecast = screen.getByRole('button', { name: 'Get forecast' })
+    const forecast = screen.getByRole('button', { name: PLAN_COPY.forecastAction })
     expect(forecast.compareDocumentPosition(btn) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
@@ -136,10 +150,13 @@ describe('loading, ready, the region (QA-03, QA-04, QA-54)', () => {
     const status = await screen.findByText('Building the plan for Selected location…')
     expect(status.closest('[role="status"]')).toBeTruthy()
     const region = await screen.findByRole('region', { name: PLAN_COPY.regionName })
-    // The figures are on screen while the chart chunk is still unresolved.
+    // The figures are on screen while the chart chunk is still unresolved, and
+    // so is the readout at rest (plan-sun-moon-readout FR-17).
     expect(within(region).getByRole('list', { name: PLAN_COPY.listName })).toBeTruthy()
-    expect(within(region).queryByTestId('plan-chart')).toBeNull()
+    expect(within(region).queryByRole('slider')).toBeNull()
     expect(within(region).getByText(PLAN_COPY.closingNote)).toBeTruthy()
+    expect(region.querySelector('.sr-plan-readout')).toBeTruthy()
+    expect(region.querySelector('.sr-plan-ro-rest.is-on')).toBeTruthy()
     // The form is gone, as for Get forecast; only one result is on screen.
     expect(screen.queryByLabelText(/Latitude/)).toBeNull()
     expect(screen.queryByRole('region', { name: 'Weather and tide result' })).toBeNull()
@@ -148,7 +165,7 @@ describe('loading, ready, the region (QA-03, QA-04, QA-54)', () => {
     expect(announced.closest('[role="status"]')!.getAttribute('aria-live')).toBe('polite')
     // Release the chunk: the chart arrives inside the region, and nothing else moves.
     await act(async () => { chartGate.release() })
-    await within(region).findByTestId('plan-chart')
+    await within(region).findByRole('slider')
   })
 
   it('a typed place names the plan and the announcement', async () => {
@@ -195,7 +212,7 @@ describe('the weather half blocks the plan, in Predict\'s words (QA-36, QA-37)',
     fireEvent.click(planButton())
     expect(await screen.findByText(PLAN_COPY.providerError)).toBeTruthy()
     expect(screen.queryByRole('region', { name: PLAN_COPY.regionName })).toBeNull()
-    expect(screen.queryByRole('img')).toBeNull()
+    expect(screen.queryByRole('slider')).toBeNull()
   })
 
   it('a tide half that fails while the weather succeeds still renders the plan, with the words in the tide slot', async () => {
@@ -233,7 +250,7 @@ describe('replacement and the stale-response guard (QA-06)', () => {
     fireEvent.click(planButton())
     await screen.findByText('Building the plan for Selected location…')
     // The user goes back to the form before the plan lands.
-    fireEvent.click(screen.getByRole('button', { name: /predict weather and tide/i }))
+    fireEvent.click(screen.getByRole('button', { name: /plan weather and tide/i }))
     await screen.findByLabelText(/Latitude/)
     await act(async () => { resolveWeather({ data: WEATHER_HALF, replayedAt: null }) })
     // The form stays; no plan region ever mounts.
@@ -241,7 +258,7 @@ describe('replacement and the stale-response guard (QA-06)', () => {
     expect(screen.queryByRole('region', { name: PLAN_COPY.regionName })).toBeNull()
   })
 
-  it('Get forecast after a plan replaces it with the single-moment result, whose words are unchanged (QA-48)', async () => {
+  it('Get specific forecast after a plan replaces it with the single-moment result, whose words are unchanged (QA-48)', async () => {
     const WEATHER_DAILY = {
       resolution: 'daily', formatted: 'x', tz: 'America/Los_Angeles',
       summary: { emoji: '⛅', moon: '', description: 'Scattered clouds', isDaily: true, tempF: 61, highF: 66, lowF: 52, windDesc: 'Gentle breeze', windDir: 'W', cloudsPct: 40, humidityPct: 72, dewPointF: 52, sunrise: '6:48am', sunset: '7:19pm', isNight: false },
@@ -250,11 +267,11 @@ describe('replacement and the stale-response guard (QA-06)', () => {
     await openPredictAt('36.603', '-121.876')
     fireEvent.click(planButton())
     await screen.findByRole('region', { name: PLAN_COPY.regionName })
-    fireEvent.click(screen.getByRole('button', { name: /predict weather and tide/i }))
+    fireEvent.click(screen.getByRole('button', { name: /plan weather and tide/i }))
     await screen.findByLabelText(/Latitude/)
     fireEvent.change(screen.getByLabelText('Forecast date'), { target: { value: '2026-09-15' } })
     fireEvent.change(screen.getByLabelText('Forecast time'), { target: { value: '06:30' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Get forecast' }))
+    fireEvent.click(screen.getByRole('button', { name: PLAN_COPY.forecastAction }))
     const single = await screen.findByRole('region', { name: 'Weather and tide result' })
     expect(screen.queryByRole('region', { name: PLAN_COPY.regionName })).toBeNull()
     // The extracted labels render Predict's exact bytes.
@@ -334,7 +351,7 @@ describe('the Days in view setting and the widened card (D4-13, D4-15)', () => {
     getReplayableMock.mockImplementation(live({ '/weather/plan': WEATHER_HALF, '/tide/plan': TIDE_HALF }))
     const { container } = render(<WeatherForecastPanel onPlanVisible={onPlanVisible} />)
     expect(onPlanVisible).toHaveBeenLastCalledWith(false)
-    fireEvent.click(screen.getByRole('button', { name: /predict weather and tide/i }))
+    fireEvent.click(screen.getByRole('button', { name: /plan weather and tide/i }))
     await screen.findByLabelText(/Latitude/)
     fireEvent.change(screen.getByLabelText(/Latitude/), { target: { value: '36.603' } })
     fireEvent.change(screen.getByLabelText(/Longitude/), { target: { value: '-121.876' } })
@@ -346,9 +363,79 @@ describe('the Days in view setting and the widened card (D4-13, D4-15)', () => {
     const narrow = container.querySelector('.sr-weather-narrow')!
     expect(narrow.contains(region)).toBe(false)
     expect(narrow.querySelector('[role="status"]')).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: /predict weather and tide/i }))
+    fireEvent.click(screen.getByRole('button', { name: /plan weather and tide/i }))
     await screen.findByLabelText(/Latitude/)
     await waitFor(() => expect(onPlanVisible).toHaveBeenLastCalledWith(false))
     expect(narrow.contains(screen.getByLabelText(/Latitude/))).toBe(true)
+  })
+})
+
+// ── plan-sun-moon-readout: the request budget of an interaction, and the 1.0.29
+//    document replayed with every layer (FR-16, FR-42, FR-43; QA-16, QA-39).
+describe('zero requests per interaction, and a 1.0.29 plan replays whole (QA-16, QA-39)', () => {
+  it('after the plan renders, 50 pointer picks, 50 keyboard steps, three Days in view changes and one Escape make zero transport calls and zero storage reads', async () => {
+    vi.stubGlobal('PointerEvent', PointerEventShim)
+    if (!HTMLElement.prototype.setPointerCapture) HTMLElement.prototype.setPointerCapture = () => {}
+    if (!HTMLElement.prototype.releasePointerCapture) HTMLElement.prototype.releasePointerCapture = () => {}
+    getReplayableMock.mockImplementation(live({ '/weather/plan': WEATHER_HALF, '/tide/plan': TIDE_HALF }))
+    await openPredictAt('36.603', '-121.876')
+    fireEvent.click(planButton())
+    const region = await screen.findByRole('region', { name: PLAN_COPY.regionName })
+    await act(async () => { chartGate.release() })
+    const slider = await within(region).findByRole('slider')
+    // Arm the spies AFTER the plan is on screen.
+    getMock.mockClear(); getReplayableMock.mockClear()
+    vi.mocked(storage.getSetting).mockClear(); vi.mocked(storage.setSetting).mockClear()
+    for (let i = 0; i < 50; i += 1) {
+      const x = 60 + (i * 37) % 900
+      fireEvent.pointerDown(slider, { pointerType: 'mouse', button: 0, clientX: x, clientY: 10, pointerId: 1 })
+      fireEvent.pointerUp(slider, { pointerType: 'mouse', clientX: x, clientY: 10, pointerId: 1 })
+    }
+    const keys = ['ArrowRight', 'ArrowLeft', 'PageUp', 'PageDown', 'Home', 'End']
+    for (let i = 0; i < 50; i += 1) fireEvent.keyDown(slider, { key: keys[i % keys.length], shiftKey: i % 7 === 0 })
+    const group = within(region).getByRole('group', { name: PLAN_COPY.daysInView })
+    for (const label of ['3 days', '7 days', 'All 8 days']) fireEvent.click(within(group).getByRole('button', { name: label }))
+    fireEvent.keyDown(within(region).getByRole('slider'), { key: 'Escape' })
+    expect(getMock).not.toHaveBeenCalled()
+    expect(getReplayableMock).not.toHaveBeenCalled()
+    expect(storage.getSetting).not.toHaveBeenCalled()
+    // The Days in view choice is persisted on change (1.0.29 D4-15): three
+    // WRITES, which is the shipped contract, and no read.
+    expect(storage.setSetting).toHaveBeenCalledTimes(3)
+    expect(vi.mocked(storage.setSetting).mock.calls.every(c => c[0] === 'planDaysInView')).toBe(true)
+    // And a pick really happened along the way: the marker was drawn, then cleared.
+    expect(region.querySelector('.sr-plan-pickmark')).toBeNull()
+    expect(region.querySelector('.sr-plan-ro-rest.is-on')).toBeTruthy()
+  })
+
+  it('a pair stored by 1.0.29 replays offline with the readout, the track and the moon phase, from the document alone (QA-39)', async () => {
+    vi.stubGlobal('PointerEvent', PointerEventShim)
+    if (!HTMLElement.prototype.setPointerCapture) HTMLElement.prototype.setPointerCapture = () => {}
+    // The parity fixture's halves ARE 1.0.29 documents: the stored shapes did
+    // not change. Replayed (loadedAt set), with the network answering nothing.
+    const loadedAt = new Date(2026, 8, 12, 15, 41).getTime()
+    getReplayableMock.mockImplementation((path: string) =>
+      path === '/weather/plan' ? Promise.resolve({ data: WEATHER_HALF, replayedAt: loadedAt })
+        : path === '/tide/plan' ? Promise.resolve({ data: TIDE_HALF, replayedAt: loadedAt })
+          : Promise.reject(new Error('unexpected ' + path)))
+    await openPredictAt('36.603', '-121.876')
+    fireEvent.click(planButton())
+    const region = await screen.findByRole('region', { name: PLAN_COPY.regionName })
+    expect(within(region).getByText(/showing the last loaded result/)).toBeTruthy()
+    await act(async () => { chartGate.release() })
+    const slider = await within(region).findByRole('slider')
+    // The moon and sun-peak line on every day, from the stored days alone.
+    expect(region.querySelectorAll('.sr-plan-dayfacts')).toHaveLength(8)
+    for (const f of region.querySelectorAll('.sr-plan-dayfacts')) expect(f.textContent).toMatch(/moon|crescent|quarter|gibbous/i)
+    // The track, from the stored latitude, longitude and days.
+    expect(region.querySelector('.sr-plan-suntrack')).toBeTruthy()
+    // A pick, from the stored curve, bracket points and cells: no request.
+    getMock.mockClear(); getReplayableMock.mockClear()
+    fireEvent.pointerDown(slider, { pointerType: 'mouse', button: 0, clientX: 200, clientY: 10, pointerId: 2 })
+    fireEvent.pointerUp(slider, { pointerType: 'mouse', clientX: 200, clientY: 10, pointerId: 2 })
+    expect(slider.getAttribute('aria-valuetext')).toMatch(/Tide −?\d+\.\d ft, (rising|falling)\. .+°F/)
+    expect(region.querySelector('.sr-plan-ro-pick.is-on')!.textContent).toContain('horizon')
+    expect(getMock).not.toHaveBeenCalled()
+    expect(getReplayableMock).not.toHaveBeenCalled()
   })
 })

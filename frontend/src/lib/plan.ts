@@ -121,7 +121,19 @@ export interface EventTide {
 export type PlanEvent = SpineEvent & { tide: EventTide | null }
 
 export type PlanTide =
-  | { status: 'ok'; source: 'predicted'; station: { id: string; name: string }; distanceMi: number; continuous: boolean; curve: TideSample[]; turningPoints: TurningPoint[] }
+  | {
+      status: 'ok'; source: 'predicted'; station: { id: string; name: string }; distanceMi: number; continuous: boolean
+      /** Trimmed to [window.axisStartTs, window.endTs]: what the chart draws. */
+      curve: TideSample[]
+      /** Trimmed to the same: the markers and the listed turning points. */
+      turningPoints: TurningPoint[]
+      /** The half's turning points UNTRIMMED (0..PLAN_HILO_MAX, ascending): what
+       *  every event was bracketed with, and what the readout's tide at a picked
+       *  instant brackets with (plan-sun-moon-readout, schema A / FR-08), so a
+       *  pick at an event's minute is the same function over the same inputs.
+       *  In-memory only; never stored. */
+      bracketPoints: TurningPoint[]
+    }
   | { status: 'too-far' | 'outside-us'; station: { id: string; name: string }; distanceMi: number }
   | { status: 'unavailable' }
   | null
@@ -350,6 +362,7 @@ export function composePlan(weather: unknown, tide: unknown): Plan | null {
         continuous: tide.continuous === true,
         curve,
         turningPoints: allTps.filter(p => p.t >= window.axisStartTs && p.t <= window.endTs),
+        bracketPoints: allTps,
       }
       // Both halves come from one transport and one resolver, so a zone mismatch
       // is a bug, not a state: assert in development, and let the weather's win.

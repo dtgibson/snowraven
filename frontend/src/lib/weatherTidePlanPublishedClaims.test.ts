@@ -19,26 +19,47 @@
 // deleted from HELP alone RED; the four sentences re-worded in README alone
 // (one file diverging from the other two) RED; the ranking sentence removed
 // from the website RED; and the NOAA clause reverted in PRIVACY_POLICY RED.
+//
+// plan-sun-moon-readout (1.0.30, FR-05, FR-06, FR-45, FR-46, FR-48; QA-05,
+// QA-06, QA-41, QA-43): the HELP anchor follows the renamed heading; the
+// rename is a claim per file (the passage names the entry Plan and never
+// Predict, non-vacuously); three new claims (the readout from the plan rather
+// than a fresh lookup, the sun's height with sunrise and sunset where the plan
+// lists them, the moon phase from the checklist blocks' own computation) join
+// the existing no-ranking claim; and ACCESSIBILITY.md's one new sentence has
+// its own row. Mutation-verified again in three directions and restored
+// byte-identical: the moon sentence deleted from README alone RED; the sun
+// sentence re-worded in the website alone (one file diverging) RED; "Predict"
+// re-inserted as the entry's name in HELP alone RED; the ACCESSIBILITY
+// sentence deleted RED.
 /// <reference types="node" />
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { PLAN_COPY } from './planCopy'
+import { MOON_PHASE_NAMES } from './planMoon'
 
 const read = (p: string) => readFileSync(new URL(`../../../${p}`, import.meta.url), 'utf8')
 
 const NAME = 'Weather/tide Planner'
 
-/** docs/HELP.md's `### Current and Predict` subsection, heading to the next `###`. */
-function helpPassage(): string {
+const HELP_HEADING = '### Current and Plan'
+
+/** docs/HELP.md's `### Current and Plan` subsection (renamed from Current and
+ *  Predict in 1.0.30), heading to the next `###`. */
+function helpSection(): string {
   const src = read('docs/HELP.md')
-  const start = src.indexOf('\n### Current and Predict\n')
-  expect(start, 'docs/HELP.md has a `### Current and Predict` subsection').toBeGreaterThan(-1)
+  const start = src.indexOf(`\n${HELP_HEADING}\n`)
+  expect(start, `docs/HELP.md has a \`${HELP_HEADING}\` subsection`).toBeGreaterThan(-1)
+  expect(src.includes('### Current and Predict'), 'the old heading is gone').toBe(false)
   const rest = src.slice(start + 1)
   const end = rest.indexOf('\n### ', 1)
-  const section = end === -1 ? rest : rest.slice(0, end)
-  // The planner's own paragraph within it, anchored on the literal name.
-  const p = section.split('\n').find(l => l.includes(NAME))
-  expect(p, `docs/HELP.md names the ${NAME} inside Current and Predict`).toBeTruthy()
+  return end === -1 ? rest : rest.slice(0, end)
+}
+
+/** The planner's own paragraph within that subsection, anchored on the literal name. */
+function helpPassage(): string {
+  const p = helpSection().split('\n').find(l => l.includes(NAME))
+  expect(p, `docs/HELP.md names the ${NAME} inside Current and Plan`).toBeTruthy()
   return p as string
 }
 
@@ -100,8 +121,8 @@ describe('claim 2: every sunrise and sunset in the window is listed with its tid
       expect(sentences(get()).some(s => re.test(s)), name).toBe(true)
     })
   }
-  it('the code lists sunrises and sunsets, and the list is named so', () => {
-    expect(PLAN_COPY.listName).toBe('Sunrises and sunsets ahead')
+  it('the code lists sunrises and sunsets under the day-by-day divider that names the list', () => {
+    expect(PLAN_COPY.listName).toBe('Day by day')
     expect(PLAN_COPY.sunrise).toBe('Sunrise')
     expect(PLAN_COPY.sunset).toBe('Sunset')
   })
@@ -165,27 +186,118 @@ describe('claim 5: the Days in view choice and the day buttons (design D4-12 / D
   })
 })
 
+// ── plan-sun-moon-readout: the rename and the three additions (FR-05, FR-06, FR-45, FR-46)
+
+describe('the rename: the entry is Plan, never Predict (FR-05, FR-06, QA-05, QA-06)', () => {
+  for (const [name, get] of SURFACES) {
+    it(`${name} names the entry Plan in the planner passage and never names it Predict`, () => {
+      const text = get()
+      expect(text, name).toContain('a second action in Plan')
+      expect(/\bPredict\b/.test(text), `${name}: Predict`).toBe(false)
+      expect(text, name).not.toContain('Get forecast')
+    })
+  }
+  it('docs/HELP.md, the one surface that names the single-moment action, names it Get specific forecast', () => {
+    expect(helpPassage()).toContain('Get specific forecast')
+    expect(helpPassage().match(/Get specific forecast/g)!.length).toBeGreaterThanOrEqual(3)
+  })
+  it('docs/HELP.md: the subsection heading, the Plan bullet naming both actions, and the Map Explorer sentence all say Plan', () => {
+    const section = helpSection()
+    expect(section).toContain(`- **${PLAN_COPY.entryLabel}** lets you choose a place`)
+    expect(section).toContain(`**${PLAN_COPY.forecastAction}**`)
+    expect(section).toContain(`**${PLAN_COPY.actionLabel}**`)
+    expect(/\bPredict\b/.test(section)).toBe(false)
+    const src = read('docs/HELP.md')
+    expect(src).toContain("The small location-picker map in the Weather tab's Plan form has no row at all.")
+    expect(src).not.toContain("Weather tab's Predict mode")
+    // No published sentence in the three files names the entry or the form Predict;
+    // the word Predicted as the tide label stays legal.
+    for (const file of ['docs/HELP.md', 'README.md', 'website/index.html']) {
+      const body = read(file)
+      expect(/\bPredict\b/.test(body), file).toBe(false)
+      expect(body.includes('Get forecast'), file).toBe(false)
+    }
+    expect(src).toContain('**Predicted**')
+  })
+  it('the code carries the same three labels', () => {
+    expect(PLAN_COPY.entryLabel).toBe('Plan')
+    expect(PLAN_COPY.forecastAction).toBe('Get specific forecast')
+    expect(PLAN_COPY.actionLabel).toBe('See all upcoming weather and tide data')
+    expect(PLAN_COPY.caption).toContain(PLAN_COPY.forecastAction)
+    expect(PLAN_COPY.closingNote).toContain(PLAN_COPY.forecastAction)
+  })
+})
+
+describe('claim 6: a tap or the arrow keys read the estimated tide, weather and sun at any moment, from the plan rather than a fresh lookup (FR-45)', () => {
+  const claim = 'A tap on the timeline, or the arrow keys with it focused, reads the estimated tide, weather and sun height at any moment, from the plan already loaded rather than a fresh lookup.'
+  for (const [name, get] of SURFACES) {
+    it(`${name} states it`, () => {
+      expect(sentences(get()), name).toContain(claim)
+    })
+  }
+  it('the code states both facts in the readout\'s own words', () => {
+    expect(PLAN_COPY.restLine).toContain('use the arrow keys, to read the tide, weather and sun height at any moment')
+    expect(PLAN_COPY.estimateLine).toBe('Estimated from the plan, not a fresh lookup. For an exact moment, use Get specific forecast.')
+  })
+})
+
+describe('claim 7: the sun\'s height is drawn with sunrise and sunset where the plan lists them (FR-45)', () => {
+  const claim = "The sun's height is drawn across the whole window, with sunrise and sunset exactly where the plan lists them."
+  for (const [name, get] of SURFACES) {
+    it(`${name} states it`, () => {
+      expect(sentences(get()), name).toContain(claim)
+    })
+  }
+  it('the code names the track in the legend and anchors it to the listed events', () => {
+    expect(PLAN_COPY.legendSun).toBe('Sun height')
+    // The anchoring is the module's contract, with comments stripped so a
+    // commented-out rule cannot satisfy it.
+    const src = read('frontend/src/lib/planSun.ts')
+    const code = src.split('\n').filter(l => !l.trim().startsWith('//') && !l.trim().startsWith('*') && !l.trim().startsWith('/*')).join('\n')
+    expect(code).toContain('if (i > 0 && A[i - 1].t === t) return 0')
+  })
+})
+
+describe('claim 8: each day states its moon phase from the checklist blocks\' own computation (FR-45)', () => {
+  const claim = 'Each day states its moon phase, from the same computation the checklist weather blocks use.'
+  for (const [name, get] of SURFACES) {
+    it(`${name} states it`, () => {
+      expect(sentences(get()), name).toContain(claim)
+    })
+  }
+  it('the code imports the checklist blocks\' moon function rather than copying it', () => {
+    const src = read('frontend/src/lib/planMoon.ts')
+    const code = src.split('\n').filter(l => !l.trim().startsWith('//') && !l.trim().startsWith('*') && !l.trim().startsWith('/*')).join('\n')
+    expect(code).toContain("import { MOON_NORTH, MOON_SOUTH, moonPhaseEmoji } from './weatherFormatter'")
+    expect(code).not.toContain('LUNAR_MONTH')
+    expect(MOON_PHASE_NAMES).toHaveLength(8)
+  })
+})
+
 describe('the three files agree with each other, not merely each with the code', () => {
-  it('all four claim sentences are identical across the three surfaces', () => {
+  it('all seven claim sentences are identical across the three surfaces', () => {
     const claims = [
       'The plan stops where the weather forecast stops.',
       'It ranks and recommends nothing.',
       'A plan loaded once re-shows offline with a cue naming when it was fetched.',
       "On a wide window a Days in view choice above the chart fits one, three, seven or all of the plan's days into the chart at once, and two day buttons beside the legend move the chart a day at a time.",
+      'A tap on the timeline, or the arrow keys with it focused, reads the estimated tide, weather and sun height at any moment, from the plan already loaded rather than a fresh lookup.',
+      "The sun's height is drawn across the whole window, with sunrise and sunset exactly where the plan lists them.",
+      'Each day states its moon phase, from the same computation the checklist weather blocks use.',
     ]
     for (const [name, get] of SURFACES) {
       const ss = sentences(get())
       for (const c of claims) expect(ss, `${name}: ${c}`).toContain(c)
-      const first = ss.find(s => s.startsWith('The Weather/tide Planner, a second action in Predict, lists every sunrise and sunset'))
-      expect(first, name).toBe('The Weather/tide Planner, a second action in Predict, lists every sunrise and sunset from now to the end of the weather forecast, each with the predicted tide and the forecast weather at that moment, on one chart and in one list that carries every figure the chart draws.')
+      const first = ss.find(s => s.startsWith('The Weather/tide Planner, a second action in Plan, lists every sunrise and sunset'))
+      expect(first, name).toBe('The Weather/tide Planner, a second action in Plan, lists every sunrise and sunset from now to the end of the weather forecast, each with the predicted tide and the forecast weather at that moment, on one chart and in one list that carries every figure the chart draws.')
     }
   })
 
   it('names the surface as the user sees it, never from a component or file name', () => {
     for (const [name, get] of SURFACES) {
       const text = get()
-      expect(text, name).toContain('Predict')
-      for (const internal of ['PlanChart', 'PlanResult', 'WeatherForecastPanel', 'PredictMap', 'weatherPlan', 'tidePlan', 'composePlan']) {
+      expect(text, name).toContain('Plan')
+      for (const internal of ['PlanChart', 'PlanResult', 'WeatherForecastPanel', 'PredictMap', 'weatherPlan', 'tidePlan', 'composePlan', 'planSun', 'planMoon', 'planReadout', 'planPick']) {
         expect(text, `${name}: ${internal}`).not.toContain(internal)
       }
     }
@@ -193,6 +305,27 @@ describe('the three files agree with each other, not merely each with the code',
 
   it('carries no em dash', () => {
     for (const [name, get] of SURFACES) expect(get().includes('—'), name).toBe(false)
+  })
+})
+
+describe('the accessibility statement carries the plan timeline\'s one sentence (plan-sun-moon-readout OQ-07, FR-48, QA-43)', () => {
+  const sentence = "The Weather tab's plan timeline is a single keyboard-operable control: the arrow keys move a picked moment along it and that moment's estimated tide, weather and sun height are announced, while the per-day list beneath carries every figure the chart draws."
+  it('states it under the screen-reader paragraph, once, with no em dash', () => {
+    const src = read('ACCESSIBILITY.md')
+    const i = src.indexOf(sentence)
+    expect(i).toBeGreaterThan(-1)
+    expect(src.indexOf(sentence, i + 1)).toBe(-1)
+    expect(i).toBeGreaterThan(src.indexOf('## Screen Reader Support'))
+    expect(i).toBeLessThan(src.indexOf('## A Visible Focus Indicator'))
+    expect(src.includes('—')).toBe(false)
+  })
+  it('the code is what the sentence says: one slider, its value text the figures, the list carrying every figure', () => {
+    const chart = read('frontend/src/components/PlanChart.tsx')
+    const code = chart.split('\n').filter(l => !l.trim().startsWith('//') && !l.trim().startsWith('*') && !l.trim().startsWith('/*')).join('\n')
+    expect(code).toContain('role="slider"')
+    expect(code).toContain('aria-valuetext={valueText}')
+    expect(code).not.toContain('aria-live')
+    expect(code).not.toContain('role="status"')
   })
 })
 

@@ -1,42 +1,65 @@
 // The Weather/tide Planner's chart (design-spec.md, "The chart", "Moving along
-// the axis"): one uniform real-elapsed-time track, scrolling sideways inside
-// its own box, with the tide curve, a night band per span, sunrise/sunset and
-// high/low markers, the "Now" hairline, the axis lane and the weather strip.
-// Two tiers share this one component and one document: the phone tier at
-// PLAN_HOUR_PX with the approved lanes, the wide tier (641px and up) with a
-// day-header lane, a taller plot, and pixels per hour chosen so the "Days in
-// view" span fills the box, measured from the box with a ResizeObserver.
+// the axis"; plan-sun-moon-readout, "The plan timeline with the sun track"):
+// one uniform real-elapsed-time track, scrolling sideways inside its own box,
+// with the tide curve, a night band per span, the sun-altitude track beneath
+// everything, sunrise/sunset and high/low markers, the "Now" hairline, the
+// pick marker, the axis lane and the weather strip. Two tiers share this one
+// component and one document: the phone tier at PLAN_HOUR_PX with the approved
+// lanes, the wide tier (641px and up) with a day-header lane, a taller plot,
+// and pixels per hour chosen so the "Days in view" span fills the box,
+// measured from the box with a ResizeObserver.
 //
-// The plot is Recharts; the day-header lane, the axis lane, the strip and the
-// sticky tide scale are HTML siblings positioned by the SAME x(t) the chart's
-// numeric axis uses (lib/planChartGeometry.ts). The density rules that follow
-// from the pixels per hour are pure functions there; this file only applies
-// them. The curve is always the document's 30-minute samples.
+// The plot is Recharts; the day-header lane, the axis lane, the strip, the
+// sticky tide scale and the pick marker are HTML siblings positioned by the
+// SAME x(t) the chart's numeric axis uses (lib/planChartGeometry.ts). The
+// density rules that follow from the pixels per hour are pure functions there;
+// this file only applies them. The curve is always the document's 30-minute
+// samples; the sun track is always the model's samples (lib/planSun.ts, one
+// per 15 minutes plus the anchors), never resampled with density.
 //
 // THE ONLY MODULE IN THIS FEATURE THAT IMPORTS RECHARTS, reached only through
 // `lazy(() => import('./PlanChart'))` in WeatherForecastPanel so the chart
 // library stays off the entry chunk (entryChunk.test.ts). It draws from `Plan`
-// only: every instant is an integer epoch second placed by arithmetic, every
-// local string was computed by the composer, and nothing here converts a
-// timezone or computes a sunrise (schema section 13, item 1).
+// and the host's sun model only: every instant is an integer epoch second
+// placed by arithmetic, every local string was computed by the composer, and
+// nothing here converts a timezone or computes a sunrise.
 //
-// Moving along the axis (D4-12): a mouse drag follows the pointer one to one
-// under pointer capture, with no threshold, no easing, no snapping and no
-// post-release motion; touch, wheel and arrow keys stay native; the day
-// buttons in the result's legend row scroll by one day's width through the
-// imperative handle below.
+// Z-ORDER (QA-30). Recharts 3 draws by z-index layers, not child order, so the
+// order is stated: the bands go to the -100 layer and the gridlines and
+// midnight lines to the -50 layer (the two negative layers Recharts always
+// renders), the sun track is a bare SVG child, which Recharts renders BETWEEN
+// the negative layers and layer 100, and the Now hairline, the tide curve and
+// every marker stay at their defaults of 400 and 600. So the track sits above
+// the bands and gridlines and beneath everything else, and no sunrise, sunset,
+// high or low mark or label is obscured. A `ZIndexLayer` at a value Recharts
+// has no default layer for was measured registering late and emptying the
+// reference items' portals when the layer set changed, which is why the track
+// is a bare child rather than a layer of its own.
 //
-// Accessibility: the SCROLL CONTAINER is the one tab stop, carrying role="img",
-// the accessible name and tabIndex 0, so arrow keys scroll it; everything
+// Moving along the axis (D4-12, byte-unchanged in behaviour): a mouse drag
+// follows the pointer one to one under pointer capture, with no threshold, no
+// easing, no snapping and no post-release motion; touch, wheel and the day
+// buttons stay the routes to scroll without picking. A press and release that
+// moved under PLAN_TAP_PX in total is a PICK of the instant under the PRESS
+// point (schema 6.5); a drag neither picks nor clears. The arrow keys no
+// longer scroll the box natively: they step the pick, and the box follows by
+// the minimum that shows the marker, issued from the key handler and never
+// from an effect, so no pointer path ever scrolls (schema 6.6, FR-22).
+//
+// Accessibility: the SCROLL CONTAINER is the one tab stop, a horizontal
+// `slider` whose minimum and maximum are the window's ends, whose value is the
+// picked instant (Now at rest) and whose value text is the readout's figures;
+// the estimate statement is its description, read once on focus. Everything
 // inside is aria-hidden and inert (the house rule for decorative recharts,
-// whose root svg would otherwise stay focusable). The list beside it carries
-// every figure as text.
+// whose root svg would otherwise stay focusable). No live region anywhere.
+// Blur does NOT clear the pick (schema D11). The list beside it carries every
+// figure as text.
 //
 // Chart text is px on purpose (D4-09): the chart is a fixed-px track and every
 // figure it labels is repeated in the list at rem sizes, which follow the
 // in-app text scale.
 
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from 'react'
+import { forwardRef, memo, useCallback, useEffect, useId, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { ComposedChart, Line, ReferenceArea, ReferenceDot, ReferenceLine, XAxis, YAxis } from 'recharts'
 import type { Plan, PlanDay } from '../lib/plan'
 import { PLAN_COPY } from '../lib/planCopy'
@@ -47,8 +70,11 @@ import {
   PLAN_GUTTER_PX, PLAN_LABEL_LANE_PX,
   planGeometry, planHourPxFor, planGlyphEvery, planFullEventLabel, planTickHours, planDayLabel,
   planDailyCellMode, planHourlyCellMode, planHourlyTagMode, planDailyTagMode, planStripCells,
+  pickMarkerBox, revealScrollLeft,
   type PlanGeometry,
 } from '../lib/planChartGeometry'
+import { sunTrack, sunTrackRuns, type SunModel, type SunRun, type SunSample } from '../lib/planSun'
+import { isTap, pickBounds, stepPick, toPickInstant, type PickKey } from '../lib/planPick'
 
 export interface PlanNavState {
   /** The whole track fits the box: nothing to scroll. */
@@ -72,7 +98,23 @@ export interface PlanChartProps {
   daysInView?: PlanDaysInView
   /** Reported on scroll and after every layout, for the day buttons. */
   onNav?: (state: PlanNavState) => void
+  /** The committed pick, a whole minute in epoch seconds, or null at rest.
+   *  Owned by the host (PlanResult), so it survives the override and resets
+   *  with the plan's identity. */
+  pick?: number | null
+  /** The host's setter: a new instant, or null when Escape clears. */
+  onPick?: (t: number | null) => void
+  /** The plan's sun model, memoised by the host; null draws no track. */
+  sunModel?: SunModel | null
+  /** The slider's value text: the readout's figures on a pick, the rest line
+   *  at rest (lib/planReadout.ts builds both from PLAN_COPY). */
+  valueText?: string
 }
+
+// ── z-index layers (QA-30) ───────────────────────────────────────────────────
+
+const Z_BANDS = -100
+const Z_GRID = -50
 
 // ── marker shapes (drawn by ReferenceDot at the chart's own cx/cy) ───────────
 
@@ -110,6 +152,31 @@ function SunShape({ cx = 0, cy = 0, kind, label }: ShapeProps & { kind: 'sunrise
 
 function NowLabel({ viewBox }: { viewBox?: { x?: number } }) {
   return <text x={(viewBox?.x ?? 0) + 4} y={PLAN_LABEL_LANE_PX + 11} className="sr-plan-cx-lbl">{PLAN_COPY.nowLabel}</text>
+}
+
+// ── the sun track, split at the horizon (design, "Style, split at the horizon") ──
+
+function SunTrack({ samples, g }: { samples: ReadonlyArray<SunSample>; g: PlanGeometry }) {
+  const runs = sunTrackRuns(samples)
+  const pts = (r: SunRun) => r.pts.map(p => `${g.x(p.t).toFixed(1)},${g.ySun(p.deg).toFixed(1)}`).join(' ')
+  const zero = g.ySun(0).toFixed(1)
+  const nights = runs.filter(r => r.kind === 'night')
+  const days = runs.filter(r => r.kind === 'day')
+  return (
+    <g className="sr-plan-suntrack">
+      {nights.map((r, i) => (
+        <polyline key={`n${i}`} className="sr-plan-sun-night" points={pts(r)} fill="none" stroke="var(--sr-plan-sunline-night)" strokeWidth={1} strokeLinejoin="round" strokeLinecap="round" />
+      ))}
+      {days.map((r, i) => {
+        const first = r.pts[0], last = r.pts[r.pts.length - 1]
+        const d = `M${g.x(first.t).toFixed(1)},${zero} ${r.pts.map(p => `L${g.x(p.t).toFixed(1)},${g.ySun(p.deg).toFixed(1)}`).join(' ')} L${g.x(last.t).toFixed(1)},${zero} Z`
+        return <path key={`f${i}`} className="sr-plan-sun-fill" d={d} fill="rgba(var(--sr-plan-sunline-rgb),0.14)" stroke="none" />
+      })}
+      {days.map((r, i) => (
+        <polyline key={`d${i}`} className="sr-plan-sun-day" points={pts(r)} fill="none" stroke="var(--sr-plan-sunline)" strokeWidth={1.5} strokeLinejoin="round" strokeLinecap="round" />
+      ))}
+    </g>
+  )
 }
 
 // ── day labels, shared by the wide header lane and the phone axis lane ───────
@@ -186,7 +253,7 @@ function AxisLane({ plan, g, wide }: { plan: Plan; g: PlanGeometry; wide: boolea
 
 // ── the weather strip, density-aware ────────────────────────────────────────
 
-function Strip({ plan, g, wide }: { plan: Plan; g: PlanGeometry; wide: boolean }) {
+const Strip = memo(function Strip({ plan, g, wide }: { plan: Plan; g: PlanGeometry; wide: boolean }) {
   // The density modes are the wide tier's; the phone tier renders every cell
   // as the approved design does, byte for byte.
   const glyphEvery = wide ? planGlyphEvery(g.hpx) : 1
@@ -236,18 +303,101 @@ function Strip({ plan, g, wide }: { plan: Plan; g: PlanGeometry; wide: boolean }
       )}
     </div>
   )
-}
+})
+
+// ── the Recharts plot, memoised on (plan, g, sunSamples) so a pick re-renders
+//    none of it (schema 6.4, D12) ───────────────────────────────────────────
+
+const PlotBody = memo(function PlotBody({ plan, g, sunSamples, fullLabel }: { plan: Plan; g: PlanGeometry; sunSamples: ReadonlyArray<SunSample>; fullLabel: boolean }) {
+  const tide = plan.tide?.status === 'ok' ? plan.tide : null
+  const curve = tide ? tide.curve.map(s => ({ t: s.t, v: s.v })) : []
+  const base = g.yMin
+  const gridlines: number[] = []
+  if (tide) for (let v = Math.ceil(g.yMin); v <= Math.floor(g.yMax); v += 2) gridlines.push(v)
+  const domainStart = g.axisStart - PLAN_GUTTER_PX * g.secPerPx
+  return (
+    <ComposedChart
+      width={g.width}
+      height={g.chartH}
+      data={curve}
+      margin={{ top: g.lanes.labels, right: 0, bottom: 0, left: 0 }}
+      accessibilityLayer={false}
+    >
+      <XAxis type="number" dataKey="t" domain={[domainStart, g.axisEnd]} hide allowDataOverflow />
+      <YAxis type="number" domain={[g.yMin, g.yMax]} hide allowDataOverflow />
+      <ReferenceArea x1={domainStart} x2={g.axisEnd} fill="var(--sr-plan-day)" fillOpacity={1} stroke="none" ifOverflow="visible" zIndex={Z_BANDS} />
+      {plan.nightSpans.map((n, i) => (
+        <ReferenceArea key={i} x1={n.startTs} x2={n.endTs} fill="var(--sr-plan-night)" fillOpacity={1} stroke="none" ifOverflow="visible" zIndex={Z_BANDS} />
+      ))}
+      {gridlines.map(v => (
+        <ReferenceLine key={v} y={v} stroke="rgba(var(--sr-plan-grid-rgb),0.16)" strokeWidth={1} ifOverflow="visible" zIndex={Z_GRID} />
+      ))}
+      {plan.days.map((d, i) => d.startTs >= g.axisStart && (
+        <ReferenceLine key={`m${i}`} x={d.startTs} stroke="var(--sr-border-medium)" strokeWidth={1} ifOverflow="visible" zIndex={Z_GRID} />
+      ))}
+      {sunSamples.length > 1 && <SunTrack samples={sunSamples} g={g} />}
+      <ReferenceLine x={plan.fetchedAt} stroke="var(--sr-text)" strokeWidth={1} strokeDasharray="2 3" strokeOpacity={0.7} ifOverflow="visible" label={<NowLabel />} />
+      <ReferenceLine y={base} stroke="var(--sr-border-medium)" strokeWidth={1} ifOverflow="visible" />
+      {tide && (
+        <Line type="linear" dataKey="v" stroke="var(--sr-plan-tide)" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" dot={false} activeDot={false} isAnimationActive={false} />
+      )}
+      {tide && tide.turningPoints.map((p, i) => (
+        <ReferenceDot key={`tp${i}`} x={p.t} y={p.v} r={0} ifOverflow="visible" shape={(s: ShapeProps) => <HighLowShape cx={s.cx} cy={s.cy} kind={p.kind} label={`${p.kind === 'high' ? 'H' : 'L'} ${ftSigned(p.v)}`} />} />
+      ))}
+      {plan.events.map((e, i) => (
+        <ReferenceDot
+          key={`ev${i}`}
+          x={e.t}
+          y={tide && e.tide && e.tide.heightFt !== null ? e.tide.heightFt : base}
+          r={0}
+          ifOverflow="visible"
+          shape={(s: ShapeProps) => (
+            <SunShape cx={s.cx} cy={s.cy} kind={e.kind} label={fullLabel ? `${e.kind === 'sunrise' ? PLAN_COPY.sunrise : PLAN_COPY.sunset} ${clockOf(e.local)}` : clockOf(e.local)} />
+          )}
+        />
+      ))}
+    </ComposedChart>
+  )
+})
 
 // ── the chart ────────────────────────────────────────────────────────────────
 
 const reducedMotion = (): boolean =>
   typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
+interface Press {
+  id: number
+  type: string
+  x0: number
+  y0: number
+  /** The largest distance the pointer has moved from the press point. */
+  moved: number
+  /** scrollLeft at the press, for the one-to-one drag. */
+  left: number
+  /** The instant under the press point, computed before any scroll. */
+  tAtPress: number
+}
+
+const noop = () => {}
+
+/** The FR-20 key map; null for a key this control leaves alone (Enter, Space,
+ *  Up and Down are unbound; Escape is handled by the caller). */
+function pickKeyFor(key: string, shift: boolean): PickKey | null {
+  switch (key) {
+    case 'ArrowRight': return shift ? 'hour-right' : 'quarter-right'
+    case 'ArrowLeft': return shift ? 'hour-left' : 'quarter-left'
+    case 'PageUp': return 'day-right'
+    case 'PageDown': return 'day-left'
+    case 'Home': return 'home'
+    case 'End': return 'end'
+    default: return null
+  }
+}
+
 export const PlanChart = forwardRef<PlanChartHandle, PlanChartProps>(function PlanChart(
-  { plan, place, wide = false, daysInView = 'all', onNav }, ref,
+  { plan, place, wide = false, daysInView = 'all', onNav, pick = null, onPick = noop, sunModel = null, valueText = PLAN_COPY.restLine }, ref,
 ) {
   const hasTide = plan.tide?.status === 'ok'
-  const tide = hasTide && plan.tide?.status === 'ok' ? plan.tide : null
 
   // The box is measured, never assumed: the wide tier's pixels per hour follow
   // its width, so the element is held as STATE through a callback ref that also
@@ -270,17 +420,19 @@ export const PlanChart = forwardRef<PlanChartHandle, PlanChartProps>(function Pl
   }, [wide, boxEl])
 
   const hpx = planHourPxFor(plan, wide, daysInView, boxWidth)
-  const g = planGeometry(plan, hasTide, hpx, wide)
-  const curve = tide ? tide.curve.map(s => ({ t: s.t, v: s.v })) : []
-  const base = g.yMin
+  const g = useMemo(() => planGeometry(plan, hasTide, hpx, wide), [plan, hasTide, hpx, wide])
+  // Once per plan (per model), never per pick or per density (FR-33).
+  const sunSamples = useMemo(() => (sunModel ? sunTrack(sunModel) : []), [sunModel])
+  const bounds = useMemo(() => pickBounds(plan), [plan])
   const start = formatDate(plan.window.startLocal, { withWeekday: true, withTime: true })
   const end = formatDate(plan.window.endLocal, { withWeekday: true, withTime: true })
   const name = hasTide ? PLAN_COPY.chartNameWithTide(place, start, end) : PLAN_COPY.chartNameNoTide(place, start, end)
   const fullLabel = planFullEventLabel(hpx)
+  const estimateId = useId()
 
   const scrollerRef = useRef<HTMLDivElement | null>(null)
   const [atEnd, setAtEnd] = useState(false)
-  const drag = useRef<{ x: number; left: number; id: number } | null>(null)
+  const press = useRef<Press | null>(null)
   const onNavRef = useRef(onNav)
   useEffect(() => { onNavRef.current = onNav }, [onNav])
   const prevHpx = useRef<number | null>(null)
@@ -325,92 +477,110 @@ export const PlanChart = forwardRef<PlanChartHandle, PlanChartProps>(function Pl
     },
   }), [hpx])
 
-  // One-to-one mouse drag under pointer capture (D4-12): no threshold, no
-  // easing, no snapping, nothing after release.
-  const endDrag = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!drag.current) return
-    drag.current = null
+  // ── the pointer machine (schema 6.5) ─────────────────────────────────────
+  const endPress = (e: React.PointerEvent<HTMLDivElement>, commit: boolean) => {
+    const p = press.current
+    if (!p || e.pointerId !== p.id) return
+    press.current = null
     e.currentTarget.classList.remove('is-dragging')
+    if (commit && isTap(p.moved)) {
+      onPick(toPickInstant(p.tAtPress, bounds))
+      e.currentTarget.focus({ preventScroll: true })
+    }
   }
 
-  const gridlines: number[] = []
-  if (tide) for (let v = Math.ceil(g.yMin); v <= Math.floor(g.yMax); v += 2) gridlines.push(v)
-  const domainStart = g.axisStart - PLAN_GUTTER_PX * g.secPerPx
+  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    // A mouse picks and drags with its primary button only; touch and pen
+    // scroll natively and tap to pick.
+    if (e.pointerType === 'mouse' && e.button !== 0) return
+    const el = e.currentTarget
+    const rect = el.getBoundingClientRect()
+    press.current = {
+      id: e.pointerId, type: e.pointerType, x0: e.clientX, y0: e.clientY, moved: 0, left: el.scrollLeft,
+      tAtPress: g.tAt(e.clientX - rect.left + el.scrollLeft),
+    }
+    if (e.pointerType === 'mouse') {
+      if (typeof el.setPointerCapture === 'function') el.setPointerCapture(e.pointerId)
+      el.classList.add('is-dragging')
+    }
+  }
+
+  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const p = press.current
+    if (!p || e.pointerId !== p.id) return
+    p.moved = Math.max(p.moved, Math.hypot(e.clientX - p.x0, e.clientY - p.y0))
+    // One-to-one mouse drag under pointer capture (D4-12): no threshold, no
+    // easing, no snapping, nothing after release.
+    if (p.type === 'mouse') e.currentTarget.scrollLeft = p.left - (e.clientX - p.x0)
+  }
+
+  // ── the keys (schema 6.6, D9): the step, then the reveal scroll, from the
+  //    handler and never from an effect ───────────────────────────────────────
+  const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === 'Escape') {
+      // Consumed ONLY while a pick exists, so with nothing picked the press
+      // still reaches an outer Escape layer.
+      if (pick !== null) {
+        e.preventDefault()
+        e.stopPropagation()
+        onPick(null)
+      }
+      return
+    }
+    const key = pickKeyFor(e.key, e.shiftKey)
+    if (!key) return
+    e.preventDefault()
+    const next = stepPick(pick, key, plan)
+    onPick(next)
+    const el = e.currentTarget
+    const target = revealScrollLeft(g.x(next), el.scrollLeft, el.clientWidth)
+    if (target !== el.scrollLeft) {
+      if (typeof el.scrollTo === 'function') el.scrollTo({ left: target, behavior: reducedMotion() ? 'auto' : 'smooth' })
+      else el.scrollLeft = target
+    }
+  }
+
+  const marker = pick === null ? null : pickMarkerBox(g, pick)
 
   return (
     <div ref={boxRef} className={`sr-plan-chartbox${atEnd ? ' at-end' : ''}${wide ? ' sr-plan-chartbox-wide' : ''}`} style={{ height: g.lanes.dayHeader + g.chartH + g.lanes.axis + g.lanes.strip }}>
       <div
         ref={scrollerRef}
-        className="sr-plan-scroller"
-        role="img"
+        className={`sr-plan-scroller${pick !== null ? ' has-pick' : ''}`}
+        role="slider"
+        aria-orientation="horizontal"
         aria-label={name}
+        aria-valuemin={bounds.min}
+        aria-valuemax={bounds.max}
+        aria-valuenow={pick ?? plan.fetchedAt}
+        aria-valuetext={valueText}
+        aria-describedby={estimateId}
         tabIndex={0}
-        onPointerDown={e => {
-          if (e.pointerType !== 'mouse' || e.button !== 0) return
-          const el = e.currentTarget
-          if (typeof el.setPointerCapture === 'function') el.setPointerCapture(e.pointerId)
-          drag.current = { x: e.clientX, left: el.scrollLeft, id: e.pointerId }
-          el.classList.add('is-dragging')
-        }}
-        onPointerMove={e => {
-          if (!drag.current) return
-          e.currentTarget.scrollLeft = drag.current.left - (e.clientX - drag.current.x)
-        }}
-        onPointerUp={endDrag}
-        onPointerCancel={endDrag}
-        onLostPointerCapture={endDrag}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={e => endPress(e, true)}
+        onPointerCancel={e => endPress(e, false)}
+        onLostPointerCapture={e => endPress(e, false)}
+        onKeyDown={onKeyDown}
       >
         <div className="sr-plan-canvas" aria-hidden="true" inert style={{ width: g.width }}>
           {wide && <DayHeaderLane plan={plan} g={g} />}
-          <ComposedChart
-            width={g.width}
-            height={g.chartH}
-            data={curve}
-            margin={{ top: g.lanes.labels, right: 0, bottom: 0, left: 0 }}
-            accessibilityLayer={false}
-          >
-            <XAxis type="number" dataKey="t" domain={[domainStart, g.axisEnd]} hide allowDataOverflow />
-            <YAxis type="number" domain={[g.yMin, g.yMax]} hide allowDataOverflow />
-            <ReferenceArea x1={domainStart} x2={g.axisEnd} fill="var(--sr-plan-day)" fillOpacity={1} stroke="none" ifOverflow="visible" />
-            {plan.nightSpans.map((n, i) => (
-              <ReferenceArea key={i} x1={n.startTs} x2={n.endTs} fill="var(--sr-plan-night)" fillOpacity={1} stroke="none" ifOverflow="visible" />
-            ))}
-            {gridlines.map(v => (
-              <ReferenceLine key={v} y={v} stroke="rgba(var(--sr-plan-grid-rgb),0.16)" strokeWidth={1} ifOverflow="visible" />
-            ))}
-            {plan.days.map((d, i) => d.startTs >= g.axisStart && (
-              <ReferenceLine key={`m${i}`} x={d.startTs} stroke="var(--sr-border-medium)" strokeWidth={1} ifOverflow="visible" />
-            ))}
-            <ReferenceLine x={plan.fetchedAt} stroke="var(--sr-text)" strokeWidth={1} strokeDasharray="2 3" strokeOpacity={0.7} ifOverflow="visible" label={<NowLabel />} />
-            <ReferenceLine y={base} stroke="var(--sr-border-medium)" strokeWidth={1} ifOverflow="visible" />
-            {tide && (
-              <Line type="linear" dataKey="v" stroke="var(--sr-plan-tide)" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" dot={false} activeDot={false} isAnimationActive={false} />
-            )}
-            {tide && tide.turningPoints.map((p, i) => (
-              <ReferenceDot key={`tp${i}`} x={p.t} y={p.v} r={0} ifOverflow="visible" shape={(s: ShapeProps) => <HighLowShape cx={s.cx} cy={s.cy} kind={p.kind} label={`${p.kind === 'high' ? 'H' : 'L'} ${ftSigned(p.v)}`} />} />
-            ))}
-            {plan.events.map((e, i) => (
-              <ReferenceDot
-                key={`ev${i}`}
-                x={e.t}
-                y={tide && e.tide && e.tide.heightFt !== null ? e.tide.heightFt : base}
-                r={0}
-                ifOverflow="visible"
-                shape={(s: ShapeProps) => (
-                  <SunShape cx={s.cx} cy={s.cy} kind={e.kind} label={fullLabel ? `${e.kind === 'sunrise' ? PLAN_COPY.sunrise : PLAN_COPY.sunset} ${clockOf(e.local)}` : clockOf(e.local)} />
-                )}
-              />
-            ))}
-          </ComposedChart>
+          <PlotBody plan={plan} g={g} sunSamples={sunSamples} fullLabel={fullLabel} />
           <AxisLane plan={plan} g={g} wide={wide} />
           <Strip plan={plan} g={g} wide={wide} />
+          {marker && <div className="sr-plan-pickmark" style={{ left: marker.left, top: marker.top, height: marker.height }} />}
         </div>
       </div>
-      {tide && (
+      <span id={estimateId} className="sr-only">{PLAN_COPY.estimateLine}</span>
+      {hasTide && (
         <div className="sr-plan-yaxis" aria-hidden="true" style={wide ? { top: g.lanes.dayHeader, height: g.chartH, width: PLAN_GUTTER_PX } : { height: g.chartH, width: PLAN_GUTTER_PX }}>
-          {gridlines.map(v => (
-            <span key={v} style={{ top: g.y(v) }}>{String(v).replace('-', '−')}{v + 2 > Math.floor(g.yMax) ? ' ft' : ''}</span>
-          ))}
+          {(() => {
+            const ticks: number[] = []
+            for (let v = Math.ceil(g.yMin); v <= Math.floor(g.yMax); v += 2) ticks.push(v)
+            return ticks.map(v => (
+              <span key={v} style={{ top: g.y(v) }}>{String(v).replace('-', '−')}{v + 2 > Math.floor(g.yMax) ? ' ft' : ''}</span>
+            ))
+          })()}
           <span className="sr-plan-yaxis-unit" style={{ top: g.y(0) + 6 }}>MLLW</span>
         </div>
       )}

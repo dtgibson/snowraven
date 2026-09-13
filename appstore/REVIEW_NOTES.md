@@ -56,8 +56,8 @@ STEP 2: THE FULL EXPERIENCE, NO KEY NEEDED
    open its popup.
 8. Breeding Codes, Multimedia, Named Birds, Checklists: each reads only the
    imported files.
-9. Weather tab, Predict mode: choose a coastal spot and a time to see a NOAA
-   tide prediction. Tides need no key at all.
+9. Weather tab, Plan: choose a coastal spot and a time, then Get specific
+   forecast, to see a NOAA tide prediction. Tides need no key at all.
 
 ABOUT THE OPTIONAL KEYED LOOKUPS
 

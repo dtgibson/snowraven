@@ -293,3 +293,21 @@ if __name__ == "__main__":
     print("=== moon_phase_emoji: fixture dt values ===")
     for label, ts in [("DT_NIGHT", DT_NIGHT), ("DT_DAY (mixed-block start)", DT_DAY)]:
         print(f"  {label} = {ts} → N {moon_phase_emoji(ts, LAT_N)}  S {moon_phase_emoji(ts, LAT_S)}")
+
+    # plan-sun-moon-readout (schema step 4, QA-36): the Weather/tide Planner's
+    # per-day moon line is moon_phase_emoji at each day's LOCAL NOON, derived
+    # from the day's own boundaries in the shared plan fixture
+    # (frontend/src/lib/weatherTidePlan.fixture.json): startTs + 43200 plus the
+    # hour the day gained or lost. The rows below are pasted into
+    # frontend/src/lib/planMoon.test.ts and backend/tests/test_formatters.py.
+    import json
+    from pathlib import Path
+    fixture_path = Path(__file__).resolve().parent / "weatherTidePlan.fixture.json"
+    families = {f["name"]: f for f in json.loads(fixture_path.read_text(encoding="utf-8"))["families"]}
+    print()
+    print("=== moon_phase_emoji: plan fixture days at local noon (family, date, lat) ===")
+    for name in ["reference", "dst-fall", "dst-spring", "polar"]:
+        fam = families[name]
+        for day in fam["expectedWeather"]["plan"]["days"]:
+            noon = day["startTs"] + 43200 + ((day["endTs"] - day["startTs"] + 1) - 86400)
+            print(f"  ('{name}', '{day['date']}', {moon_phase_emoji(noon, fam['lat'])!r}),")

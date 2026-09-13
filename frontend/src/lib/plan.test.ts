@@ -2,9 +2,13 @@
 // a subordinate station, null with no turning points; prev/next/trend with the
 // same-minute and one-sided cases; tide null for every event when the status
 // is not ok; the drawn arrays trimmed to the window; events past the tide
-// range; and a malformed half that must not throw.
+// range; and a malformed half that must not throw. Since plan-sun-moon-readout
+// (schema A / D1): the ok tide publishes its UNTRIMMED turning points as
+// `bracketPoints`, and the event rule over them is an identity with every
+// event's own reading, asserted over every fixture family at the end.
 import { describe, it, expect } from 'vitest'
-import { composePlan, interpAtEpoch, tideAtEvent, type TideSample, type TurningPoint, type WeatherPlan } from './plan'
+import fixture from './weatherTidePlan.fixture.json'
+import { composePlan, interpAtEpoch, tideAtEvent, type Plan, type TidePlanResponse, type TideSample, type TurningPoint, type WeatherPlan } from './plan'
 
 const H = 3600
 const T0 = 1789252800 // 2026-09-12 22:00 UTC
@@ -105,8 +109,10 @@ describe('composePlan', () => {
     if (plan.tide?.status === 'ok') {
       expect(plan.tide.curve.every(c => c.t >= T0 && c.t <= T0 + 48 * H)).toBe(true)
       expect(plan.tide.curve.length).toBe(97)
-      // Turning points past the window are not drawn, but still bracket.
+      // Turning points past the window are not drawn, but still bracket, and
+      // the composer PUBLISHES the untrimmed set it bracketed with.
       expect(plan.tide.turningPoints.map(p => p.t)).toEqual([T0 + 4 * H])
+      expect(plan.tide.bracketPoints.map(p => p.t)).toEqual(tps.map(p => p.t))
     }
     expect(plan.events[1].tide?.next).toMatchObject({ kind: 'low', t: T0 + 60 * H })
   })
@@ -184,5 +190,41 @@ describe('composePlan type-checks the printed fields of a replayed half', () => 
     const plan = corrupt(w => { ev(w, 1).local = 3 })
     expect(plan.events).toHaveLength(1)
     expect(plan.events[0].kind).toBe('sunset')
+  })
+})
+
+// ── plan-sun-moon-readout, schema A / step 1: the readout brackets like an
+// event because it IS the event rule over the event inputs.
+describe('bracketPoints: the untrimmed turning points the events were bracketed with (FR-08)', () => {
+  interface Family { name: string; expectedWeather: { ok: true; plan: WeatherPlan } | { ok: false }; expectedTide: TidePlanResponse }
+  const families = (fixture as { families: Family[] }).families.filter(f => f.expectedWeather.ok)
+  const planOf = (f: Family): Plan => composePlan((f.expectedWeather as { ok: true; plan: WeatherPlan }).plan, f.expectedTide)!
+
+  it('for every event of every family, tideAtEvent over the curve and the bracket points deep-equals the event\'s own tide', () => {
+    let events = 0
+    for (const f of families) {
+      const plan = planOf(f)
+      if (plan.tide?.status !== 'ok') continue
+      expect(plan.tide.bracketPoints.length).toBeGreaterThanOrEqual(plan.tide.turningPoints.length)
+      for (let i = 1; i < plan.tide.bracketPoints.length; i += 1) expect(plan.tide.bracketPoints[i].t).toBeGreaterThanOrEqual(plan.tide.bracketPoints[i - 1].t)
+      for (const e of plan.events) {
+        expect(tideAtEvent(e.t, plan.tide.curve, plan.tide.bracketPoints), `${f.name} ${e.local}`).toEqual(e.tide)
+        events += 1
+      }
+    }
+    expect(events).toBeGreaterThan(100)
+  })
+
+  it('non-vacuity: at the axis start of the subordinate family the trimmed points give a different bracket and height', () => {
+    const plan = planOf(families.find(f => f.name === 'subordinate')!)
+    const tide = plan.tide!
+    if (tide.status !== 'ok') throw new Error('subordinate has tide')
+    const t = plan.window.axisStartTs
+    const untrimmed = tideAtEvent(t, tide.curve, tide.bracketPoints)
+    const trimmed = tideAtEvent(t, tide.curve, tide.turningPoints)
+    expect(untrimmed.prev).not.toBeNull()
+    expect(trimmed.prev).toBeNull()
+    expect(untrimmed.heightFt).not.toBe(trimmed.heightFt)
+    expect(tide.bracketPoints.length).toBeGreaterThan(tide.turningPoints.length)
   })
 })

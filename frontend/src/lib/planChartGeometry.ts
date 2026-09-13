@@ -15,6 +15,14 @@
 // chart box, measured from the box itself, with a day-header lane along the top
 // and a taller plot. The curve is always the document's 30-minute samples; only
 // what would collide changes with density.
+//
+// Since plan-sun-moon-readout (schema 6.1): the sun track sits INSIDE the plot
+// on its own scale (`ySun`, zero at PLAN_SUN_ZERO_FRAC of the plot from the
+// top, domain planSunDomain()), the without-tide plot grew to hold it, and the
+// pick's geometry lives here too: `tAt` (the inverse of `x`), `pickMarkerBox`
+// (the HTML overlay's box, the plot's full height) and `revealScrollLeft` (the
+// minimum scroll that shows a keyboard-stepped marker). The track has NO
+// density rule of its own: it is always the model's samples (FR-33).
 
 import type { Plan, PlanCell } from './plan'
 import type { PlanDaysInView } from './planDaysInView'
@@ -34,13 +42,29 @@ export const PLAN_BOX_CHROME_PX = 2
  *  keeps only the hour ticks in a shorter axis lane. */
 export const PLAN_LABEL_LANE_PX = 28
 export const PLAN_PLOT_PX = 128
-export const PLAN_PLOT_NO_TIDE_PX = 40
+/** The without-tide plot holds the sun track (design-spec "Numbers the
+ *  Engineer needs"): 72 on phones, 120 on the wide tier (were 40 / 56). */
+export const PLAN_PLOT_NO_TIDE_PX = 72
 export const PLAN_AXIS_LANE_PX = 38
 export const PLAN_STRIP_PX = 48
 export const PLAN_WIDE_DAY_HEADER_PX = 22
 export const PLAN_WIDE_PLOT_PX = 220
-export const PLAN_WIDE_PLOT_NO_TIDE_PX = 56
+export const PLAN_WIDE_PLOT_NO_TIDE_PX = 120
 export const PLAN_WIDE_AXIS_LANE_PX = 22
+
+/** The sun track's zero line, as a fraction of the plot's height measured
+ *  from the TOP: daylight takes the upper 60%, night the lower 40%. */
+export const PLAN_SUN_ZERO_FRAC = 0.6
+/** The altitude drawn at the plot's top edge. */
+export const PLAN_SUN_TOP_DEG = 90
+
+/** The sun scale's domain on one uniform scale: [-60, 90] at the shipped
+ *  fraction, so one degree is plot / 150 px. The hidden Recharts YAxis for the
+ *  track takes exactly this. */
+export function planSunDomain(): [number, number] {
+  // With the zero fraction measured from the TOP: min = -top * (1 - f) / f.
+  return [-PLAN_SUN_TOP_DEG * (1 - PLAN_SUN_ZERO_FRAC) / PLAN_SUN_ZERO_FRAC, PLAN_SUN_TOP_DEG]
+}
 
 export interface PlanLanes {
   /** The day-header lane (wide only; 0 on phones). */
@@ -58,8 +82,8 @@ export function planLanes(withTide: boolean, wide: boolean): PlanLanes {
 }
 
 /** The chart box's total height for a tier, so the Suspense fallback can
- *  reserve exactly it and the list never shifts: 242 / 154 on phones, 340 /
- *  176 on the wide tier. */
+ *  reserve exactly it and the list never shifts: 242 / 186 on phones, 340 /
+ *  240 on the wide tier (with / without tide). */
 export function planChartHeight(withTide: boolean, wide = false): number {
   const l = planLanes(withTide, wide)
   return l.dayHeader + l.labels + l.plot + l.axis + l.strip
@@ -96,6 +120,13 @@ export interface PlanGeometry {
   yMax: number
   x: (t: number) => number
   y: (v: number) => number
+  /** The sun scale: `ySun(PLAN_SUN_TOP_DEG)` is the plot's top edge,
+   *  `ySun(0)` the zero line at PLAN_SUN_ZERO_FRAC, `ySun(domain min)` its
+   *  bottom edge; the same arithmetic the hidden sun YAxis performs. */
+  ySun: (deg: number) => number
+  /** The inverse of `x`: the instant under a canvas x pixel, clamped to
+   *  [axisStart, axisEnd - 1], so a press in the gutter reads the axis start. */
+  tAt: (px: number) => number
 }
 
 /** The mapping from the document's instants and heights to pixels. Pure
@@ -117,7 +148,31 @@ export function planGeometry(plan: Plan, hasTide: boolean, hpx = PLAN_HOUR_PX, w
   }
   const x = (t: number) => PLAN_GUTTER_PX + (t - axisStart) / secPerPx
   const y = (v: number) => lanes.labels + lanes.plot - (v - yMin) / (yMax - yMin) * lanes.plot
-  return { axisStart, axisEnd, hpx, secPerPx, plotW, width: PLAN_GUTTER_PX + plotW, lanes, chartH: lanes.labels + lanes.plot, yMin, yMax, x, y }
+  const [sunMin, sunMax] = planSunDomain()
+  const ySun = (d: number) => lanes.labels + lanes.plot * (PLAN_SUN_ZERO_FRAC - d / (sunMax - sunMin))
+  const tAt = (px: number) => Math.min(axisEnd - 1, Math.max(axisStart, axisStart + (px - PLAN_GUTTER_PX) * secPerPx))
+  return { axisStart, axisEnd, hpx, secPerPx, plotW, width: PLAN_GUTTER_PX + plotW, lanes, chartH: lanes.labels + lanes.plot, yMin, yMax, x, y, ySun, tAt }
+}
+
+// ── the pick's geometry (plan-sun-moon-readout, schema 6.1) ─────────────────
+
+export interface PickMarkerBox { left: number; top: number; height: number }
+
+/** The pick marker overlay's box inside the canvas: at `x(t)`, from the top of
+ *  the plot (below the day-header and label lanes) for the plot's full height
+ *  (FR-14). An HTML sibling positioned by the same `x`, never a chart line. */
+export function pickMarkerBox(g: PlanGeometry, t: number): PickMarkerBox {
+  return { left: g.x(t), top: g.lanes.dayHeader + g.lanes.labels, height: g.lanes.plot }
+}
+
+/** The minimum new scrollLeft that puts a marker at canvas x `markerX` inside
+ *  the visible span with the gutter kept clear on the left,
+ *  [scrollLeft + PLAN_GUTTER_PX, scrollLeft + clientWidth - 1], or the current
+ *  value when it already is (FR-22). Never below 0. */
+export function revealScrollLeft(markerX: number, scrollLeft: number, clientWidth: number): number {
+  if (markerX < scrollLeft + PLAN_GUTTER_PX) return Math.max(0, markerX - PLAN_GUTTER_PX)
+  if (markerX > scrollLeft + clientWidth - 1) return Math.max(0, markerX - clientWidth + 1)
+  return scrollLeft
 }
 
 // ── density rules (D4-16), each a pure function of the pixels per hour ─────────

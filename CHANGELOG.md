@@ -2,6 +2,17 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [1.0.30] - 2026-09-12
+
+### Added
+- **The plan reads any moment you pick.** Tap or click anywhere on the Weather/tide Planner's timeline, or focus it and use the arrow keys, and a fixed readout beneath the legend shows that moment's local time, the predicted tide height and whether it is rising or falling, the weather in force with its hourly or daily label, and how high the sun sits. The figures are estimated from the plan already on the device, never a fresh lookup: the tide is read off the drawn curve (or the high/low curve for a station that only reports highs and lows), the weather is the reading whose span contains the moment, and a pick costs no request and works on a replayed plan, including one loaded before this version. The Left and Right arrow keys step 15 minutes, with Shift an hour; Page Up and Page Down move a day; Home and End go to the ends; Escape clears. The timeline is a single slider for assistive technology, announcing the picked moment's figures through its own value rather than a live region, and a solid marker shows the pick on the chart.
+- **The sun's height across the window.** A warm line beneath the tide curve draws how high the sun sits at every moment, filled beneath while the sun is up and receding to a thin line below the horizon, crossing zero exactly where the plan lists sunrise and sunset. Each day's entry in the list also states the sun's highest point and its time, and on the first day, once noon has passed, the height at the moment the plan was fetched.
+- **Each day's moon phase.** Every day in the list states its moon phase as the same glyph the checklist weather blocks write, mirrored for the southern hemisphere the same way, with the phase name beside it for a screen reader.
+
+### Changed
+- **Predict is now Plan.** The Weather tab's second entry reads Plan, and the two actions inside it read Get specific forecast (one exact moment) and See all upcoming weather and tide data (the whole forecast window). Nothing about the lookups changed; the help, the README and the website say Plan where the app does.
+- **The plan's day list is one chronological column on every screen.** The wide window's two-column flow put later days beside earlier ones; the list now runs earliest first down one column beneath the chart, under a labelled Day by day divider, and the chart's day and night bands are repainted so the plot reads as daylight and night rather than one blue-grey field. The without-tide chart grows slightly to hold the sun line.
+
 ## [1.0.29] - 2026-09-12
 
 ### Added

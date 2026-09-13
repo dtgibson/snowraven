@@ -3,8 +3,10 @@
 // the shipped builders over the parity fixture's families, composed by the
 // shipped merge, so every figure asserted here is one the app would show. The
 // list is the accessible form (QA-04, QA-05, QA-10 to QA-16, QA-19 to QA-27,
-// QA-35, QA-46); the chart is one tab stop with an image role and an inert,
-// hidden interior (QA-27, QA-53).
+// QA-35, QA-46); the chart is one tab stop, a slider since 1.0.30, with an
+// inert, hidden interior (QA-27, QA-53). The plan-sun-moon-readout rows at
+// the end cover the readout block, the day-by-day divider, the moon and
+// sun-peak lines and the pick's ownership by this region.
 import { describe, it, expect, afterEach, afterAll, beforeEach, vi } from 'vitest'
 import { render, screen, cleanup, within, fireEvent } from '@testing-library/react'
 import fixture from '../lib/weatherTidePlan.fixture.json'
@@ -12,6 +14,9 @@ import { composePlan, type Plan, type TidePlanResponse, type WeatherPlan } from 
 import { tideTooFarNotice, tideOverrideLabel } from '../lib/tideNotice'
 import { PLAN_COPY } from '../lib/planCopy'
 import { clockOf, ftSigned } from '../lib/planFormat'
+import { MOON_PHASE_NAMES } from '../lib/planMoon'
+import { buildSunModel, sunPeakByDay } from '../lib/planSun'
+import { localClock } from '../lib/tzClock'
 import { PlanResult } from './PlanResult'
 import { PlanChart } from './PlanChart'
 
@@ -191,8 +196,8 @@ describe('the honest states', () => {
     expect(document.querySelectorAll('.sr-plan-station')).toHaveLength(0)
     expect(screen.queryByText('High')).toBeNull()
     expect(screen.queryByText('Low')).toBeNull()
-    const img = screen.getByRole('img')
-    expect(img.getAttribute('aria-label')).toMatch(/^Chart of sunrise, sunset and weather for Del Monte Beach, Monterey, .*; no tide is shown\. Details are in the list below\.$/)
+    const img = screen.getByRole('slider')
+    expect(img.getAttribute('aria-label')).toMatch(/^Plan timeline for Del Monte Beach, Monterey, .*; no tide is shown\. The arrow keys read the weather and sun height at any moment\. Details are in the list below\.$/)
     // The chart still draws its shading, its markers and its strip.
     expect(img.querySelectorAll('.recharts-reference-area').length).toBeGreaterThan(1)
     expect(img.querySelectorAll('.sr-plan-cell').length).toBe(plan.cells.length)
@@ -232,11 +237,12 @@ describe('the honest states', () => {
 })
 
 describe('the chart (QA-21 to QA-25, QA-27, QA-53, QA-54)', () => {
-  it('is one tab stop with an image role and a name pointing to the list; its interior is hidden and inert', () => {
+  it('is one tab stop with a slider role and a name pointing to the list; its interior is hidden and inert', () => {
     const plan = planOf('reference')
     show(plan, {}, true)
-    const img = screen.getByRole('img')
+    const img = screen.getByRole('slider')
     expect(img.getAttribute('tabindex')).toBe('0')
+    expect(img.getAttribute('aria-orientation')).toBe('horizontal')
     expect(img.getAttribute('aria-label')).toBe(PLAN_COPY.chartNameWithTide('Del Monte Beach, Monterey', 'Sat, Sep 12, 2026, 3:41 PM', 'Sat, Sep 19, 2026, 11:59 PM'))
     const canvas = img.querySelector('.sr-plan-canvas')!
     expect(canvas.getAttribute('aria-hidden')).toBe('true')
@@ -254,7 +260,7 @@ describe('the chart (QA-21 to QA-25, QA-27, QA-53, QA-54)', () => {
   it('draws the curve, one band per night span, every marker, the strip with its two tags, and no snap points', () => {
     const plan = planOf('reference')
     show(plan, {}, true)
-    const img = screen.getByRole('img')
+    const img = screen.getByRole('slider')
     expect(img.querySelectorAll('.recharts-line')).toHaveLength(1)
     // The day ground plus one area per night span.
     expect(img.querySelectorAll('.recharts-reference-area')).toHaveLength(1 + plan.nightSpans.length)
@@ -288,7 +294,7 @@ describe('the chart (QA-21 to QA-25, QA-27, QA-53, QA-54)', () => {
     show(plan, {}, true)
     const long = plan.days.find(d => d.endTs - d.startTs + 1 === 90000)!
     const next = plan.days[plan.days.indexOf(long) + 1]
-    const img = screen.getByRole('img')
+    const img = screen.getByRole('slider')
     const axisDays = [...img.querySelectorAll('.sr-plan-axisday')] as HTMLElement[]
     const left = (d: { startTs: number }) => parseFloat(axisDays[plan.days.findIndex(x => x.startTs === d.startTs)].style.left)
     expect(left(next) - left(long)).toBe(25 * 16)
@@ -341,7 +347,7 @@ describe('every drawn turning point is in the list, and no listed one is undrawn
   it('"drawn" is the chart\'s own markers: circles on the rendered chart equal the listed points', () => {
     const plan = planOf('reference')
     show(plan, {}, true)
-    const circles = screen.getByRole('img').querySelectorAll('circle').length
+    const circles = screen.getByRole('slider').querySelectorAll('circle').length
     expect(document.querySelectorAll('.sr-plan-tides .sr-plan-tide-pt')).toHaveLength(circles)
     expect(circles).toBeGreaterThan(10)
   })
@@ -424,8 +430,11 @@ describe('a corrupted replayed half never throws in the real components', () => 
     // The honest state is on screen: the region, the list and the chart.
     expect(screen.getByRole('region', { name: PLAN_COPY.regionName })).toBeTruthy()
     expect(screen.getByRole('list', { name: PLAN_COPY.listName })).toBeTruthy()
-    expect(screen.getByRole('img')).toBeTruthy()
+    expect(screen.getByRole('slider')).toBeTruthy()
     expect(document.querySelectorAll('li.sr-plan-ev')).toHaveLength(plan!.events.length)
+    // And the 1.0.30 layers degrade per part rather than blanking (NFR-07).
+    expect(document.querySelectorAll('.sr-plan-dayfacts')).toHaveLength(plan!.days.length)
+    expect(document.querySelector('.sr-plan-readout')).toBeTruthy()
   })
 })
 
@@ -468,13 +477,44 @@ describe('the day buttons and the Days in view control', () => {
       .toEqual(['1 day:false', '3 days:false', '7 days:true', 'All 8 days:false'])
   })
 
-  it('the day buttons are disabled and the hint hidden while the track fits (jsdom lays nothing out, so it always fits here)', () => {
+  it('the day buttons are disabled and the hint reserved (visibility, never display) while the track fits (jsdom lays nothing out, so it always fits here)', () => {
     tier(true)
     show(planOf('reference'), {}, true)
     expect((screen.getByRole('button', { name: PLAN_COPY.earlierDay }) as HTMLButtonElement).disabled).toBe(true)
     expect((screen.getByRole('button', { name: PLAN_COPY.laterDay }) as HTMLButtonElement).disabled).toBe(true)
     const hint = screen.getByText(PLAN_COPY.scrollHint).closest('.sr-plan-legend-scroll')!
-    expect(hint.hasAttribute('hidden')).toBe(true)
+    expect(hint.classList.contains('is-off')).toBe(true)
+    expect(hint.hasAttribute('hidden')).toBe(false)
+  })
+
+  it('QA-32: the legend has the same elements, in the same order, none display-hidden, before the chart chunk lands and after the chart reports that the track does not fit', () => {
+    tier(true)
+    const plan = planOf('reference')
+    // Before the chunk lands: the Suspense slot holds the fallback, the chart
+    // has reported nothing, and the legend already carries every element,
+    // the Sun height entry and the scroll hint included.
+    const { rerender } = show(plan)
+    const shape = () => [...document.querySelectorAll('.sr-plan-legend > *, .sr-plan-nav > *')].map(el => `${el.tagName}.${el.className.replace(/ is-off/, '')}${el.hasAttribute('hidden') ? '[hidden]' : ''}`)
+    const before = shape()
+    expect(before.some(s => s.includes('sr-plan-legend-sun'))).toBe(true)
+    expect(before.some(s => s.includes('sr-plan-legend-scroll'))).toBe(true)
+    expect(before.some(s => s.includes('[hidden]'))).toBe(false)
+    expect(document.querySelector('.sr-plan-legend-scroll')!.classList.contains('is-off')).toBe(true)
+    // The chunk lands: the real chart mounts, and then reports that the track
+    // does not fit (jsdom's zero metrics say it fits, so the box is given the
+    // phone tier's real numbers and a scroll is dispatched, which is how the
+    // chart reports on every scroll).
+    rerender(<PlanResult plan={plan} place="Del Monte Beach, Monterey" replayedAt={null} tideErrKind={null} overriding={false} onOverride={noop} ChartComponent={PlanChart} daysInView="all" onDaysInViewChange={noop} />)
+    const el = screen.getByRole('slider')
+    Object.defineProperty(el, 'scrollWidth', { configurable: true, get: () => 2872 })
+    Object.defineProperty(el, 'clientWidth', { configurable: true, get: () => 350 })
+    fireEvent.scroll(el)
+    const hint = document.querySelector('.sr-plan-legend-scroll')!
+    expect(hint.classList.contains('is-off')).toBe(false)
+    expect(hint.hasAttribute('hidden')).toBe(false)
+    expect(shape()).toEqual(before)
+    // And the hint is never display-hidden by the stylesheet, only visibility-hidden.
+    expect((screen.getByRole('button', { name: PLAN_COPY.laterDay }) as HTMLButtonElement).disabled).toBe(false)
   })
 
   it('wide tier: the chart takes the day-header lane, the taller plot and the shorter axis lane', () => {
@@ -488,5 +528,288 @@ describe('the day buttons and the Days in view control', () => {
     expect(document.querySelectorAll('.sr-plan-daylabel')).toHaveLength(0)
     expect((document.querySelector('.sr-plan-axislane') as HTMLElement).style.height).toBe('22px')
     expect((document.querySelector('.sr-plan-yaxis') as HTMLElement).style.top).toBe('22px')
+  })
+})
+
+// ── plan-sun-moon-readout: the readout block, the pick's ownership, the divider
+//    and the day-facts line (FR-07, FR-13, FR-14, FR-17, FR-18, FR-23, FR-34,
+//    FR-35, D4-08, D4-09; QA-07, QA-11, QA-13, QA-14, QA-17, QA-18, QA-34,
+//    QA-35, QA-49). jsdom lays nothing out, so the height claim of QA-17 is
+//    the stacked-layer STRUCTURE here (three siblings in one grid cell, the
+//    sizer carrying the longest strings) and the browser sweep in
+//    website/tools/verify/verify-plan-readout.mjs; the list-untouched claim is
+//    DOM byte-equality, which jsdom can settle.
+class PointerEventShim extends MouseEvent {
+  pointerType: string; pointerId: number
+  constructor(type: string, init: MouseEventInit & { pointerType?: string; pointerId?: number } = {}) {
+    super(type, init); this.pointerType = init.pointerType ?? 'mouse'; this.pointerId = init.pointerId ?? 1
+  }
+}
+const pickAt = (el: HTMLElement, clientX: number) => {
+  fireEvent.pointerDown(el, { pointerType: 'mouse', button: 0, clientX, clientY: 10, pointerId: 5 })
+  fireEvent.pointerUp(el, { pointerType: 'mouse', clientX, clientY: 10, pointerId: 5 })
+}
+const readout = () => document.querySelector('.sr-plan-readout') as HTMLElement
+const layers = () => [...readout().querySelectorAll(':scope > .sr-plan-ro-layers > .sr-plan-ro-layer')] as HTMLElement[]
+
+describe('the picked-moment readout', () => {
+  beforeEach(() => {
+    tier(true)
+    vi.stubGlobal('PointerEvent', PointerEventShim)
+    if (!HTMLElement.prototype.setPointerCapture) HTMLElement.prototype.setPointerCapture = () => {}
+    if (!HTMLElement.prototype.releasePointerCapture) HTMLElement.prototype.releasePointerCapture = () => {}
+  })
+
+  it('renders at rest with the list before the chart chunk resolves: three stacked layers in one cell, the rest text on, the sizer hidden, the estimate line standing, all hidden from assistive technology', () => {
+    show(planOf('reference'))                                  // NoChart: the chunk never lands
+    const ro = readout()
+    expect(ro.getAttribute('aria-hidden')).toBe('true')
+    const ls = layers()
+    expect(ls).toHaveLength(3)
+    expect(ls[0].classList.contains('sr-plan-ro-sizer')).toBe(true)
+    expect(ls[1].classList.contains('sr-plan-ro-rest')).toBe(true)
+    expect(ls[1].classList.contains('is-on')).toBe(true)
+    expect(ls[2].classList.contains('sr-plan-ro-pick')).toBe(true)
+    expect(ls[2].classList.contains('is-off')).toBe(true)
+    expect(ls[1].textContent).toContain(PLAN_COPY.restLine)
+    expect(ls[1].textContent).toContain(PLAN_COPY.keysLine)
+    expect(ro.querySelector('.sr-plan-ro-est')!.textContent).toBe(PLAN_COPY.estimateLine)
+    // The readout precedes the divider and the list, and follows the legend.
+    const legend = document.querySelector('.sr-plan-legend')!
+    const week = document.querySelector('.sr-plan-week')!
+    expect(legend.compareDocumentPosition(ro) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(ro.compareDocumentPosition(week) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    // No live region anywhere in the region (FR-23).
+    const region = screen.getByRole('region', { name: PLAN_COPY.regionName })
+    expect(region.querySelectorAll('[aria-live], [role="status"], [role="alert"]')).toHaveLength(0)
+  })
+
+  it('the sizer carries the longest strings THIS document can produce (schema 6.2, D13)', () => {
+    const plan = planOf('reference')
+    show(plan)
+    const sizer = layers()[0].textContent!
+    const longestDay = plan.days.map(d => d.date).reduce((a, d) => (d.length >= a.length ? d : a), '')
+    expect(longestDay).toBeTruthy()
+    expect(sizer).toContain('12:00 PM')
+    expect(sizer).toContain('Tide −0.0 ft')
+    expect(sizer).toContain('100°F')
+    expect(sizer).toContain('(H 100° · L 100°)')                 // the reference family holds daily cells
+    expect(sizer).toContain(PLAN_COPY.sunBelow(90))
+    expect(sizer).toContain('Humidity 100%')
+    expect(sizer).toContain(PLAN_COPY.hourlyLabel)
+    // The reference family's untrimmed points reach past the window, so it is
+    // never sized for the trend-unknown phrase.
+    expect(sizer).not.toContain(PLAN_COPY.tideTrendUnknown)
+    expect(sizer).toContain(`, ${PLAN_COPY.tideFalling}`)
+  })
+
+  it('a pointer pick fills the picked layer with the four figures, focuses the slider, sets its value and value text, draws the marker, and changes nothing in the list (QA-07, QA-14, QA-18, QA-24)', () => {
+    const plan = planOf('reference')
+    show(plan, {}, true)
+    const list = screen.getByRole('list', { name: PLAN_COPY.listName })
+    const before = list.innerHTML
+    const slider = screen.getByRole('slider')
+    expect(slider.getAttribute('aria-valuenow')).toBe(String(plan.fetchedAt))
+    expect(slider.getAttribute('aria-valuetext')).toBe(PLAN_COPY.restLine)
+    expect(document.querySelector('.sr-plan-pickmark')).toBeNull()
+    pickAt(slider, 200)                                           // 160 px past the gutter: ten hours after the axis start
+    const t = plan.window.axisStartTs + 160 * 225
+    expect(document.activeElement).toBe(slider)
+    expect(slider.classList.contains('has-pick')).toBe(true)
+    expect(slider.getAttribute('aria-valuenow')).toBe(String(t))
+    const local = localClock(t, plan.tz)
+    expect(slider.getAttribute('aria-valuetext')).toMatch(/^Sun, Sep 13, 2026, 1:00 AM\. Tide −?\d+\.\d ft, (rising|falling)\. .+°F, wind .+, forecast hourly\. Sun \d+° below the horizon\.$/)
+    expect(local).toBe('2026-09-13 01:00')
+    const ls = layers()
+    expect(ls[1].classList.contains('is-off')).toBe(true)
+    expect(ls[2].classList.contains('is-on')).toBe(true)
+    const picked = ls[2].textContent!
+    expect(picked).toContain('Sun, Sep 13, 2026')
+    expect(picked).toContain('1:00 AM')
+    expect(picked).toMatch(/Tide −?\d+\.\d ft, (rising|falling)/)
+    expect(picked).toMatch(/below the horizon/)
+    expect(picked).toContain('Wind ')
+    expect(picked).toContain(PLAN_COPY.hourlyLabel)
+    expect(readout().querySelector('.sr-plan-ro-est')!.textContent).toBe(PLAN_COPY.estimateLine)
+    const mark = document.querySelector('.sr-plan-pickmark') as HTMLElement
+    expect(mark).toBeTruthy()
+    expect(mark.style.left).toBe('200px')
+    expect(mark.style.top).toBe('28px')
+    expect(mark.style.height).toBe('128px')
+    // The list is byte-identical (FR-18): no row highlighted, no text changed.
+    expect(list.innerHTML).toBe(before)
+    expect(document.querySelector('.sr-plan-week')!.textContent).toBe(PLAN_COPY.listName)
+  })
+
+  it('Escape clears: the rest layer returns, the marker goes, the value returns to Now; the picked layer keeps its last figures to fade (D4-03)', () => {
+    const plan = planOf('reference')
+    show(plan, {}, true)
+    const slider = screen.getByRole('slider')
+    pickAt(slider, 200)
+    fireEvent.keyDown(slider, { key: 'Escape' })
+    expect(document.querySelector('.sr-plan-pickmark')).toBeNull()
+    expect(slider.classList.contains('has-pick')).toBe(false)
+    expect(slider.getAttribute('aria-valuenow')).toBe(String(plan.fetchedAt))
+    expect(slider.getAttribute('aria-valuetext')).toBe(PLAN_COPY.restLine)
+    const ls = layers()
+    expect(ls[1].classList.contains('is-on')).toBe(true)
+    expect(ls[2].classList.contains('is-off')).toBe(true)
+    expect(ls[2].textContent).toContain('1:00 AM')
+  })
+
+  it('a no-tide plan: the pick shows the no-tide phrase with the time, weather and sun; the slider name says no tide (QA-11)', () => {
+    const plan = planOf('reference', { status: 'too-far', station: { id: '1', name: 'X' }, distanceMi: 58 })
+    show(plan, {}, true)
+    const slider = screen.getByRole('slider')
+    expect(slider.getAttribute('aria-label')).toContain('no tide is shown')
+    pickAt(slider, 200)
+    const picked = layers()[2].textContent!
+    expect(picked).toContain(PLAN_COPY.noTide)
+    expect(picked).not.toMatch(/Tide −?\d/)
+    expect(picked).toContain('1:00 AM')
+    expect(picked).toContain('°F')
+    expect(picked).toMatch(/below the horizon/)
+    expect(slider.getAttribute('aria-valuetext')).toContain(PLAN_COPY.noTide)
+    // The marker's box follows the without-tide plot: 72 px on the phone tier.
+    expect((document.querySelector('.sr-plan-pickmark') as HTMLElement).style.height).toBe('72px')
+  })
+
+  it('the pick survives the override (the same fetch instant, place and zone) and resets with a new plan (FR-14, schema 6.4)', () => {
+    const far = planOf('reference', { status: 'too-far', station: { id: '1', name: 'X' }, distanceMi: 58 })
+    const { rerender } = show(far, {}, true)
+    const slider = screen.getByRole('slider')
+    pickAt(slider, 200)
+    expect(layers()[2].textContent).toContain(PLAN_COPY.noTide)
+    // The override fills the tide into the SAME plan: identity unchanged.
+    const filled = planOf('reference')
+    rerender(<PlanResult plan={filled} place="Del Monte Beach, Monterey" replayedAt={null} tideErrKind={null} overriding={false} onOverride={noop} ChartComponent={PlanChart} daysInView="all" onDaysInViewChange={noop} />)
+    expect(screen.getByRole('slider').classList.contains('has-pick')).toBe(true)
+    expect(layers()[2].classList.contains('is-on')).toBe(true)
+    expect(layers()[2].textContent).toMatch(/Tide −?\d+\.\d ft/)
+    expect(layers()[2].textContent).not.toContain(PLAN_COPY.noTide)
+    // A fresh plan (a different fetch instant) clears it.
+    const fresh = planOf('now-in-hour')
+    rerender(<PlanResult plan={fresh} place="Del Monte Beach, Monterey" replayedAt={null} tideErrKind={null} overriding={false} onOverride={noop} ChartComponent={PlanChart} daysInView="all" onDaysInViewChange={noop} />)
+    expect(screen.getByRole('slider').classList.contains('has-pick')).toBe(false)
+    expect(document.querySelector('.sr-plan-pickmark')).toBeNull()
+    expect(layers()[1].classList.contains('is-on')).toBe(true)
+  })
+
+  it('a Days in view change and a tier change keep the pick (it is state of the region, not of the chart)', () => {
+    tier(false)
+    const plan = planOf('reference')
+    const { rerender } = show(plan, { daysInView: '3' }, true)
+    pickAt(screen.getByRole('slider'), 200)
+    expect(screen.getByRole('slider').classList.contains('has-pick')).toBe(true)
+    rerender(<PlanResult plan={plan} place="Del Monte Beach, Monterey" replayedAt={null} tideErrKind={null} overriding={false} onOverride={noop} ChartComponent={PlanChart} daysInView="1" onDaysInViewChange={noop} />)
+    expect(screen.getByRole('slider').classList.contains('has-pick')).toBe(true)
+    expect(document.querySelector('.sr-plan-pickmark')).toBeTruthy()
+  })
+})
+
+describe('the divider and the day-facts line', () => {
+  beforeEach(() => tier(true))
+
+  it('the list is named by the divider through aria-labelledby; the divider is a static div with a useId-based id, not a heading and not a live region (D4-09)', () => {
+    show(planOf('reference'))
+    const list = screen.getByRole('list', { name: PLAN_COPY.listName })
+    const id = list.getAttribute('aria-labelledby')!
+    expect(id).toBeTruthy()
+    const label = document.getElementById(id)!
+    expect(label.textContent).toBe(PLAN_COPY.listName)
+    expect(label.closest('.sr-plan-week')!.tagName).toBe('DIV')
+    expect(label.closest('.sr-plan-week')!.querySelector('svg')!.getAttribute('aria-hidden')).toBe('true')
+    expect(list.hasAttribute('aria-label')).toBe(false)
+    expect(document.querySelectorAll('h1, h2, h3, h4, h5, h6')).toHaveLength(1 + 8)   // the place, and one h4 per day
+    // Keyed on nothing from the document.
+    expect(id).not.toContain('2026')
+    expect(id).not.toContain(' ')
+  })
+
+  it('every day carries one moon glyph from the eight and one of the eight names; the glyph is presentational and the name is text (QA-35)', () => {
+    const plan = planOf('reference')
+    show(plan)
+    const facts = [...document.querySelectorAll('.sr-plan-dayfacts')]
+    expect(facts).toHaveLength(plan.days.length)
+    for (const f of facts) {
+      const glyph = f.querySelector('.sr-plan-em')!
+      expect(glyph.getAttribute('aria-hidden')).toBe('true')
+      expect(MOON.test(glyph.textContent!)).toBe(true)
+      const name = f.querySelector('b')!.textContent!
+      expect(MOON_PHASE_NAMES).toContain(name)
+    }
+    // Identical treatment per day: the same shape on every line (FR-44).
+    const shapes = new Set(facts.map(f => [...f.children].map(c => c.tagName).join(',')))
+    expect(shapes.size).toBe(1)
+  })
+
+  it('every day carries the sun-peak clause from the anchored curve; the first day says from when and, with noon behind Now, "past its highest" (FR-34, D4-08)', () => {
+    const plan = planOf('reference')
+    show(plan)
+    const model = buildSunModel(plan)!
+    const peaks = sunPeakByDay(model)
+    const facts = [...document.querySelectorAll('.sr-plan-dayfacts')].map(f => f.textContent!)
+    // Day 0: fetched at 3:41 PM, solar noon at 1:03 PM is behind Now.
+    expect(facts[0]).toMatch(/Sun past its highest today, \d+° above the horizon at 3:41 PM$/)
+    expect(document.querySelectorAll('h4')[0].textContent).toBe(`Sat, Sep 12, 2026 ${PLAN_COPY.fromSuffix('3:41 PM')}`)
+    expect(document.querySelectorAll('h4')[1].textContent).toBe('Sun, Sep 13, 2026')
+    for (let i = 1; i < plan.days.length; i += 1) {
+      const p = peaks[i]!
+      const time = clockOf(localClock(p.t, plan.tz))
+      expect(facts[i]).toContain(PLAN_COPY.sunPeak(time, Math.round(p.deg)))
+      expect(Math.round(p.deg)).toBeGreaterThan(50)
+    }
+    // Order within a day: heading, day facts, then the tides line.
+    const day1 = document.querySelectorAll('li.sr-plan-day')[1]
+    const kids = [...day1.children].map(c => c.className || c.tagName)
+    expect(kids.slice(0, 3)).toEqual(['H4', 'sr-plan-dayfacts', 'sr-plan-tides'])
+  })
+
+  it('a plan fetched before noon names the peak ahead rather than the past clause', () => {
+    const plan = planOf('now-in-hour')                        // fetched 6:30 AM
+    show(plan)
+    const facts = [...document.querySelectorAll('.sr-plan-dayfacts')].map(f => f.textContent!)
+    expect(facts[0]).toMatch(/Sun highest at 1:0\d PM, \d+° above the horizon$/)
+    expect(facts[0]).not.toContain('past its highest')
+    expect(document.querySelectorAll('h4')[0].textContent).toContain(PLAN_COPY.fromSuffix('6:30 AM'))
+  })
+
+  it('the legend carries the Sun height entry after Low, and after Sunset without tide (FR-30)', () => {
+    show(planOf('reference'))
+    let keys = [...document.querySelectorAll('.sr-plan-legend-k')].map(k => k.textContent!.trim())
+    expect(keys).toEqual(['Day', 'Night', 'Sunrise', 'Sunset', 'High', 'Low', PLAN_COPY.legendSun])
+    const swatch = document.querySelector('.sr-plan-legend-sun svg')!
+    expect(swatch.getAttribute('aria-hidden')).toBe('true')
+    expect(swatch.innerHTML).toContain('var(--sr-plan-sunline)')
+    expect(swatch.innerHTML).toContain('var(--sr-plan-sunline-night)')
+    cleanup()
+    show(planOf('reference', { status: 'unavailable' }))
+    keys = [...document.querySelectorAll('.sr-plan-legend-k')].map(k => k.textContent!.trim())
+    expect(keys).toEqual(['Day', 'Night', 'Sunrise', 'Sunset', PLAN_COPY.legendSun])
+  })
+
+  it('a plan whose coordinates are out of range draws no track, prints no sun clause and no sun figure, and keeps the moon (NFR-07, schema D14)', () => {
+    const plan = { ...planOf('reference'), lat: 95 }
+    show(plan, {}, true)
+    expect(document.querySelector('.sr-plan-suntrack')).toBeNull()
+    const facts = [...document.querySelectorAll('.sr-plan-dayfacts')]
+    expect(facts).toHaveLength(plan.days.length)
+    for (const f of facts) {
+      expect(f.textContent).not.toContain('Sun ')
+      expect(f.querySelector('b')).toBeTruthy()
+    }
+    pickAt(screen.getByRole('slider'), 200)
+    expect(layers()[2].textContent).not.toContain('horizon')
+    expect(screen.getByRole('slider').getAttribute('aria-valuetext')).not.toContain('horizon')
+  })
+
+  it('the polar family: sunrise-only days carry the moon and a peak, the No sunrise and No sunset notes are unchanged, and the plan renders', () => {
+    const plan = planOf('polar')
+    show(plan, {}, true)
+    expect(document.querySelectorAll('.sr-plan-dayfacts')).toHaveLength(8)
+    expect(screen.getAllByText(PLAN_COPY.noSunset).length).toBe(plan.days.filter(d => d.sunset === null).length)
+    expect(screen.getAllByText(PLAN_COPY.noSunrise).length).toBe(plan.days.filter(d => d.sunrise === null).length)
+    expect(document.querySelector('.sr-plan-suntrack')).toBeTruthy()
+    for (const f of document.querySelectorAll('.sr-plan-dayfacts')) expect(f.textContent).toMatch(/Sun (highest at|past its highest)/)
   })
 })
