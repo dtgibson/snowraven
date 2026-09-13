@@ -59,6 +59,7 @@ const ORDER = [
   'verify-backlog-alert.mjs',
   'verify-named-birds-header.mjs',
   'verify-weather-species-rows.mjs',
+  'verify-plan-readout.mjs',
 ]
 
 // EVERY HARNESS GETS THE DIST, including the one that ignores it. A second
@@ -84,15 +85,33 @@ function discoverHarnesses() {
 }
 
 // A hung harness is neither green nor red, which is the one outcome a gate may
-// never have. 180 s is ~29x the slowest harness measured locally (6.2 s), so it
-// cannot fire on contention, and three of them still finish inside the job's
-// own `timeout-minutes`. Override for a slow machine with SR_VERIFY_TIMEOUT_MS;
-// a non-positive or non-finite value falls back to the default rather than
-// disabling the bound.
+// never have. The 180 s default is ~29x the slowest harness this bound was
+// calibrated against (6.2 s), so it cannot fire on contention, and several of
+// them still finish inside the job's own `timeout-minutes`. Override for a slow
+// machine with SR_VERIFY_TIMEOUT_MS; a non-positive or non-finite value falls
+// back rather than disabling the bound.
+//
+// A LEGITIMATELY HEAVY HARNESS DECLARES ITS OWN BUDGET, because the default is
+// calibrated against whichever harness set it and nothing keeps the two in step
+// as the gate grows. `verify-plan-readout.mjs` sweeps 55 widths at three text
+// scales across two tide scenarios in both engines, plus 20 cold loads for the
+// chunk-landing leg: 113 s measured on the dev Mac, which is only 1.6x inside
+// the default, and a shared CI runner is slower than that. It was killed at
+// exactly 180 s on the 1.0.30 tag commit with roughly half its work done, which
+// is the failure this table exists to stop -- a gate that reports a slow
+// harness as a hung one teaches its readers to ignore it. Headroom is what a
+// hang bound needs, so it gets 5.3x its measured time and the default stays
+// tight for everything else. Add a row rather than raising the default: being
+// slow is a fact about one harness, not about the gate. A name here that is not
+// on disk is caught by ORDER's own staleness check, which every budgeted
+// harness is also listed in.
 const DEFAULT_TIMEOUT_MS = 180_000
+const BUDGET_MS = {
+  'verify-plan-readout.mjs': 600_000,
+}
 const rawTimeout = Number(process.env.SR_VERIFY_TIMEOUT_MS)
-const TIMEOUT_MS = Number.isFinite(rawTimeout) && rawTimeout > 0 ? rawTimeout : DEFAULT_TIMEOUT_MS
-const TIMEOUT_S = Math.round(TIMEOUT_MS / 1000)
+const OVERRIDE_MS = Number.isFinite(rawTimeout) && rawTimeout > 0 ? rawTimeout : null
+const budgetFor = name => OVERRIDE_MS ?? BUDGET_MS[name] ?? DEFAULT_TIMEOUT_MS
 
 const dist = resolve(process.argv[2] ?? process.env.SR_VERIFY_DIST ?? REPO_DIST)
 const inCI = Boolean(process.env.CI)
@@ -190,6 +209,8 @@ for (const sig of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
 
 function runHarness(name) {
   const args = [resolve(HERE, name), dist]
+  const timeoutMs = budgetFor(name)
+  const timeoutS = Math.round(timeoutMs / 1000)
   return new Promise(done => {
     const child = spawn(process.execPath, args, { stdio: 'inherit', detached: true })
     live = child
@@ -197,12 +218,12 @@ function runHarness(name) {
     let hardKill
     const timer = setTimeout(() => {
       timedOut = true
-      console.log(`\n  ${name}: no result after ${TIMEOUT_S}s. Killing it -- a hung`)
+      console.log(`\n  ${name}: no result after ${timeoutS}s. Killing it -- a hung`)
       console.log('  harness is a FAILURE, never a skip, for the same reason a')
       console.log('  missing dependency is one under CI.')
       killTree(child, 'SIGTERM')
       hardKill = setTimeout(() => killTree(child, 'SIGKILL'), 5000)
-    }, TIMEOUT_MS)
+    }, timeoutMs)
     const finish = (code, reason) => {
       clearTimeout(timer)
       clearTimeout(hardKill)
@@ -211,7 +232,7 @@ function runHarness(name) {
     }
     child.on('error', err => finish(1, err.message))
     child.on('close', code => (timedOut
-      ? finish(1, `timed out after ${TIMEOUT_S}s`)
+      ? finish(1, `timed out after ${timeoutS}s`)
       : finish(code ?? 1)))
   })
 }

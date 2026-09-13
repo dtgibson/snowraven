@@ -31,11 +31,15 @@
 // chart has reported whether the track fits: nothing may move. Widths 320,
 // 360, 390, 414 and 430 at 100% and 200%, both engines.
 //
-// GUARD THE GUARD. After the clean sweep, the sizer layer is neutered in the
-// page (`display: none`, which removes it from the grid) and the readout is
-// measured again: rest and picked must now DIFFER, or the instrument is not
-// reading the property it claims to. `--expect-broken` runs only that leg and
-// exits 0 when the neutered readout goes red.
+// GUARD THE GUARD. After the clean sweep, the stacked-layer sizing is broken in
+// the page (the sizer removed from the grid, and the picked layer padded by
+// more than any natural difference) and the readout is measured again: rest and
+// picked must now DIFFER, or the instrument is not reading the property it
+// claims to. The forced padding is load-bearing rather than belt-and-braces:
+// removing the sizer alone leaves a difference that is a font-metric accident,
+// and this app bundles no fonts (see `neutered` for the measurements).
+// `--expect-broken` runs only that leg and exits 0 when the broken readout
+// goes red.
 //
 //   node website/tools/verify/verify-plan-readout.mjs [distDir] [--expect-broken]
 
@@ -240,14 +244,32 @@ async function sweep(page, label, tide) {
   console.log(`      worst movement: ${worst.d.toFixed(2)}px at ${worst.at || 'n/a'}; worst ink overflow: ${inkWorst.over.toFixed(2)}px at ${inkWorst.at || 'n/a'}`)
 }
 
-/** The guard-the-guard leg: neuter the sizer and expect the height to move. */
+/** The guard-the-guard leg: break the stacked-layer sizing and expect the
+ *  reading to move.
+ *
+ *  WHY THE MUTATION FORCES ITS OWN DIFFERENCE. Removing the sizer alone leaves
+ *  rest-versus-picked differing only by how the two layers' text happens to
+ *  wrap, and this app bundles no fonts -- every family is a system stack -- so
+ *  that difference is a font-metric accident rather than a property of the
+ *  build. Measured on this dist at five configurations under three stacks: the
+ *  shipped stack moves at 390/1x, 430/2x and 360/1.5x but NOT at 320/1x or
+ *  320/2x; a serif-only stack moves at 390/1x and 320/2x but not at the other
+ *  three; a monospace-only stack moves at NO configuration at all. That is how
+ *  this leg failed on CI's Linux runner while passing here, and no choice of
+ *  configuration repairs it, because on some stack the two layers coincide.
+ *  So the mutation also pads the picked layer by more than any natural
+ *  difference measured (64px against a worst natural 32.94px): a reading that
+ *  cannot see THAT is not reading height across states at all. */
 async function neutered(page, label) {
   await page.setViewportSize({ width: 390, height: 1400 })
   await settle(page)
-  await page.addStyleTag({ content: '.sr-plan-ro-sizer { display: none !important; }' })
+  await page.addStyleTag({ content: `
+    .sr-plan-ro-sizer { display: none !important; }
+    .sr-plan-ro-pick.is-on { padding-bottom: 64px !important; }
+  ` })
   const s = await states(page, 1)
   const moved = Math.abs(s.hourly.height - s.rest.height) > 0.5 || Math.abs(s.daily.weekTop - s.rest.weekTop) > 0.5
-  check(`${label}: with the sizer neutered the readout MOVES on a pick (the instrument discriminates)`, moved,
+  check(`${label}: with the stacked-layer sizing broken the readout MOVES on a pick (the instrument discriminates)`, moved,
     `rest ${s.rest.height.toFixed(2)} hourly ${s.hourly.height.toFixed(2)} week ${s.rest.weekTop.toFixed(2)} -> ${s.daily.weekTop.toFixed(2)}`)
 }
 
