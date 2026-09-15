@@ -51,8 +51,46 @@ targets:
           - UIInterfaceOrientationPortraitUpsideDown
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
-        CFBundleShortVersionString: 0.5.63
-        CFBundleVersion: "0.5.63"
+        # iOS 27 SDK: an app with no UIApplicationSceneManifest traps at launch
+        # (___UIApplicationEvaluateRuntimeIssueForNoSceneLifecycleAdoption).
+        # tao 0.35.3 (what Tauri 2.11.2 pins) does NOT implement
+        # application:configurationForConnectingSceneSession:options:, so the
+        # configuration has to be STATIC and has to name tao's delegate class
+        # exactly -- `TaoSceneDelegate`, the #[name = ...] on the define_class!
+        # in tao's platform_impl/ios/scene.rs. Tauri's own docs show an EMPTY
+        # UISceneConfigurations dict; that form traps too (tauri-apps/tauri
+        # #15719), so do not "simplify" this back to one.
+        #
+        # UIApplicationSupportsMultipleScenes must be TRUE, and this was settled
+        # by LAUNCHING on an iOS 27.0 simulator (iPhone 18 Pro), not by reading
+        # code. With it FALSE the app does not crash -- which is the trap. tao's
+        # multiple_scenes_enabled() reads exactly this key, so a false value
+        # sends tao down its non-scene startup path while UIKit runs the app in
+        # scene mode; the process stays alive, WebKit loads and finishes the
+        # page, and the window is never attached to a scene, so the screen is
+        # BLANK. Measured twice: black screen with false, the full Welcome
+        # screen with true, same build command and same device. A liveness or
+        # "did it crash" check passes the false build, so verify a scene-manifest
+        # change with a SCREENSHOT, never with a process check.
+        #
+        # The side effect is that iPadOS now advertises the app as
+        # multi-window-capable. That is an accepted platform consequence, not a
+        # designed capability -- the layout already holds to 320px, so a
+        # half-width window needs no new work.
+        #
+        # NO CFBundleShortVersionString / CFBundleVersion here ON PURPOSE.
+        # `tauri ios build` stamps both into snowraven_iOS/Info.plist from
+        # tauri.conf.json + --build-number on every build, so a value here is a
+        # second source of truth that only ever goes stale -- it sat at 0.5.63
+        # while the shipped app was 1.0.30, and a regeneration would have
+        # silently reverted the iOS version by five minor releases. Pinned by
+        # `iosSceneManifest.test.ts`.
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: true
+          UISceneConfigurations:
+            UIWindowSceneSessionRoleApplication:
+              - UISceneConfigurationName: Default Configuration
+                UISceneDelegateClassName: TaoSceneDelegate
     entitlements:
       path: snowraven_iOS/snowraven_iOS.entitlements
     scheme:

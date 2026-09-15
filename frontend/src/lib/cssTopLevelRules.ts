@@ -987,6 +987,24 @@ export function findSafeAreaDeclarations(
   })
 }
 
+/**
+ * EVERY AST-confirmed safe-area declaration in a stylesheet, on any surface, at
+ * any depth.
+ *
+ * `findSafeAreaDeclarations` above answers "what does THIS surface declare"; a
+ * guard asserting a property of the stylesheet AS A WHOLE -- no rule reads the
+ * opposite side's inset, no rule assumes the two horizontal insets are equal --
+ * cannot name its surfaces in advance, because the defect it exists to catch
+ * arrives on a surface nobody has written yet. Naming them would make it a
+ * roster wearing a totality claim's clothes (`.claude/rules/testing.md`,
+ * v1.0.16), so the subjects are DERIVED from the stylesheet instead.
+ */
+export function findAllSafeAreaDeclarations(src: string): CssSafeAreaDeclarationOccurrence[] {
+  return parseRuleRecords(src).flatMap(record =>
+    record.declarations.map(declaration => ({ ...record.occurrence, ...declaration })),
+  )
+}
+
 /** Every qualified rule, at any block-at-rule or native-nesting depth. */
 export function parseRulesAtAnyDepth(src: string): CssRuleOccurrence[] {
   return parseRuleRecords(src).map(record => record.occurrence)

@@ -16,5 +16,49 @@
        TestFlight upload. -->
   <key>ITSAppUsesNonExemptEncryption</key>
   <false/>
+  <!-- UIScene adoption, required by the iOS 27 SDK (apple-platform-readiness).
+       Without it the app INSTALLS AND THEN FAILS TO LAUNCH:
+       "_UIApplicationEvaluateRuntimeIssueForNoSceneLifecycleAdoption ...
+       UIScene life cycle is required for apps built with this SDK", measured on
+       an iOS 27.0 simulator against exactly this file set minus this block.
+
+       It is declared in THREE places and they must stay identical, which
+       `frontend/src/lib/iosSceneManifest.test.ts` asserts: gen/apple/project.yml
+       (the xcodegen input), gen/apple/snowraven_iOS/Info.plist (what the build
+       reads), and here. This copy is the one that matters most and the reason
+       this file is not merely a duplicate: it is the only one of the three
+       OUTSIDE gen/, so it is the only one that survives a re-run of
+       `tauri ios init`, which DECISIONS.md v0.5.68 records re-stamping Tauri's
+       placeholders over gen/apple. Tauri merges this file over the generated
+       plist on every `tauri ios build`, so the manifest heals itself there.
+
+       UIApplicationSupportsMultipleScenes must be TRUE. tao 0.35.3's
+       multiple_scenes_enabled() reads exactly this key, and a FALSE value does
+       not crash -- it sends tao down its non-scene startup path while UIKit runs
+       the app in scene mode, so the process lives, WebKit finishes the page, and
+       the window attaches to no scene and the screen stays BLANK. Verify a
+       change here with a screenshot, never a process check. The accepted side
+       effect is that iPadOS now advertises the app as multi-window-capable.
+
+       The delegate class name must match tao's registered class exactly. Do NOT
+       replace this with the empty UISceneConfigurations dict in Tauri's docs:
+       that form traps under the iOS 27 SDK too (tauri-apps/tauri #15719). -->
+  <key>UIApplicationSceneManifest</key>
+  <dict>
+    <key>UIApplicationSupportsMultipleScenes</key>
+    <true/>
+    <key>UISceneConfigurations</key>
+    <dict>
+      <key>UIWindowSceneSessionRoleApplication</key>
+      <array>
+        <dict>
+          <key>UISceneConfigurationName</key>
+          <string>Default Configuration</string>
+          <key>UISceneDelegateClassName</key>
+          <string>TaoSceneDelegate</string>
+        </dict>
+      </array>
+    </dict>
+  </dict>
 </dict>
 </plist>
