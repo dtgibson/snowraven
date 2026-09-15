@@ -39,7 +39,15 @@ async function loadSideWeather(id: string, set: (s: SideWeatherState) => void): 
     const data = await transport.get<WeatherResponse>(`/weather/${encodeURIComponent(id)}`)
     set({ status: 'success', formatted: data.formatted })
   } catch (err) {
-    const detail = err instanceof TransportError ? (err.detail ?? err.message) : undefined
+    // A DESKTOP service throws a plain Error carrying status/detail, never a
+    // TransportError, so the non-TransportError arm is what puts its sentence on
+    // screen; without it the copy fell through to the generic fallback on
+    // Mac/iPhone/iPad while web/Pi showed the real reason. Same expression as
+    // MapExplorer / useHotspotActivity / useCountyCompleteness.
+    const e = err as { detail?: string }
+    const detail = err instanceof TransportError
+      ? (err.detail ?? err.message)
+      : (e.detail ?? (err instanceof Error ? err.message : undefined))
     const { kind, message } = classifyLiveError(err, { errorDetail: detail })
     set({ status: 'error', message, errorKind: kind })
   }

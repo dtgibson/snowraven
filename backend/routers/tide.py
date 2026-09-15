@@ -121,11 +121,23 @@ async def _resolve_tide_at(lat: float, lng: float, start: str, end: str, force: 
     except Exception:
         raise HTTPException(status_code=502, detail="Tide data unavailable for this location.")
 
-    reading = compute_tide_reading(
-        start, end,
-        parse_observed(obs_body), parse_predictions(pred_body), parse_hilo(hilo_body),
-        station, distance_mi,
-    )
+    # The PARSERS are inside the try alongside the builder, not just the builder:
+    # they sit in the same argument expression and raise on their own, and four
+    # of the measured NOAA shapes (a list holding non-objects, a `predictions`
+    # that is a string) never reach compute_tide_reading at all -- so a try
+    # around the builder alone would close only part of this. `unavailable` is
+    # the honest state an unreadable body already gets, exactly as /tide/plan
+    # returns above. This also closes the ZeroDivisionError half of F1 in
+    # pipeline/tide-timezone-parse/security-report.md, where two sentinel epochs
+    # give interp_level a zero divisor.
+    try:
+        reading = compute_tide_reading(
+            start, end,
+            parse_observed(obs_body), parse_predictions(pred_body), parse_hilo(hilo_body),
+            station, distance_mi,
+        )
+    except Exception:
+        return {"status": "unavailable"}
     if reading is None:
         return {"status": "unavailable"}
 
@@ -193,8 +205,17 @@ async def get_tide(checklist_id: str, force: bool = False):
     if status != "ok" and not force:
         return {**base, "status": status, "station": {"id": station["id"], "name": station["name"]}, "distanceMi": distance_mi}
 
-    start = normalize_obs_dt(checklist["obs_dt"])
-    end = shift_local(start, checklist["duration_hrs"] or 1)
+    # The tide twin of the unreadable-date containment in routers/weather.py: the
+    # same two unvalidated eBird fields reach normalize_obs_dt (which raises on a
+    # non-string) and shift_local (which raises on an impossible calendar value).
+    # The honest state here is this route's OWN soft state rather than a 502 --
+    # the same asymmetry the provider-body paths carry, because each route keeps
+    # the honest state it already has.
+    try:
+        start = normalize_obs_dt(checklist["obs_dt"])
+        end = shift_local(start, checklist["duration_hrs"] or 1)
+    except Exception:
+        return {**base, "status": "unavailable"}
 
     try:
         obs_body, pred_body, hilo_body = await fetch_tides(
@@ -204,11 +225,16 @@ async def get_tide(checklist_id: str, force: bool = False):
     except Exception:
         raise HTTPException(status_code=502, detail="Tide data unavailable for this checklist's time and location.")
 
-    reading = compute_tide_reading(
-        start, end,
-        parse_observed(obs_body), parse_predictions(pred_body), parse_hilo(hilo_body),
-        station, distance_mi,
-    )
+    # Parsers inside the try alongside the builder, for the same reason as
+    # _resolve_tide_at above.
+    try:
+        reading = compute_tide_reading(
+            start, end,
+            parse_observed(obs_body), parse_predictions(pred_body), parse_hilo(hilo_body),
+            station, distance_mi,
+        )
+    except Exception:
+        return {**base, "status": "unavailable"}
     if reading is None:
         return {**base, "status": "unavailable"}
 

@@ -71,6 +71,8 @@ test('missing-key and unavailable states are terminal failures', () => {
     'OpenWeather API key not configured.',
     'Weather data unavailable for this checklist.',
     'Tide data unavailable right now.',
+    // A checklist whose own eBird date cannot be read (at-route-try-containment).
+    "This checklist's date could not be read.",
   ]) {
     assert.equal(weatherCaptureState(text).status, 'error', text);
     assert.throws(() => requireWeatherCaptureReady(text), /reached an error state/);

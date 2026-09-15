@@ -15,6 +15,12 @@ router = APIRouter()
 
 _NO_KEY_DETAIL = "API key not configured. Check your .env file."
 _WEATHER_UNAVAILABLE_DETAIL = "Weather data unavailable for this location."
+_CHECKLIST_WEATHER_DETAIL = "Weather data unavailable for this checklist's time and location."
+# eBird is a DIFFERENT upstream from the weather provider, so an unreadable
+# checklist date gets its own words: the weather detail would name a provider
+# that is never called on that path, and "Please try again" would promise a
+# retry that cannot succeed (the value is deterministic).
+_CHECKLIST_DATE_DETAIL = "This checklist's date could not be read."
 
 
 def _now() -> int:
@@ -88,12 +94,19 @@ async def get_weather_at(lat: float, lng: float, dt: str | None = None):
             raise HTTPException(status_code=400, detail="That doesn't look like a valid date and time.")
         target_ts = int(parsed.timestamp())
 
+    # The builder runs INSIDE the try, the shape /weather/plan already carries
+    # (v1.0.29, .claude/rules/security.md): a JSON-valid but semantically
+    # malformed body is a provider error exactly as a 5xx is, mapped to the same
+    # 502 and the same words, never a plain-text 500 reading as the app's fault.
+    # This route slices ONE tier, so WHICH shapes reach the builder depends on
+    # the tier `dt` selects -- the table in test_at_route_containment.py is per
+    # tier, and a shape mutating another tier answers 200 untouched.
     try:
         onecall = await fetch_forecast(lat, lng)
+        payload = build_weather_payload(onecall, target_ts, tz, lat)
     except Exception:
-        raise HTTPException(status_code=502, detail="Weather data unavailable for this location.")
+        raise HTTPException(status_code=502, detail=_WEATHER_UNAVAILABLE_DETAIL)
 
-    payload = build_weather_payload(onecall, target_ts, tz, lat)
     return {**payload, "tz": str(tz)}
 
 
@@ -124,27 +137,39 @@ async def get_weather(checklist_id: str):
         )
 
     tz = get_timezone(checklist["lat"], checklist["lng"])
-    raw_dt = checklist["obs_dt"]
-    try:
-        obs_dt = datetime.strptime(raw_dt, "%Y-%m-%d %H:%M").replace(tzinfo=tz)
-    except ValueError:
-        obs_dt = datetime.strptime(raw_dt, "%Y-%m-%d").replace(tzinfo=tz)
 
-    start_ts = int(obs_dt.timestamp())
-    end_ts = int((obs_dt + timedelta(hours=checklist["duration_hrs"])).timestamp())
+    # services.ebird.fetch_checklist does NOT validate these two fields --
+    # `obs_dt` is a bare `data["obsDt"]` index and `duration_hrs` is guarded only
+    # against a falsy value -- so an unreadable eBird date raised out of this
+    # expression as a bare 500. The second strptime, the .timestamp() calls and
+    # the timedelta are all inside: each raises on its own shape (a non-string
+    # date, an impossible calendar value, a non-numeric duration).
+    try:
+        raw_dt = checklist["obs_dt"]
+        try:
+            obs_dt = datetime.strptime(raw_dt, "%Y-%m-%d %H:%M").replace(tzinfo=tz)
+        except ValueError:
+            obs_dt = datetime.strptime(raw_dt, "%Y-%m-%d").replace(tzinfo=tz)
+        start_ts = int(obs_dt.timestamp())
+        end_ts = int((obs_dt + timedelta(hours=checklist["duration_hrs"])).timestamp())
+    except Exception:
+        raise HTTPException(status_code=502, detail=_CHECKLIST_DATE_DETAIL)
+
     timestamps = [start_ts] if end_ts == start_ts else [start_ts, end_ts]
 
+    # format_weather is the builder that consumes the provider bodies here, so it
+    # sits inside the same try as the fetch. Measured before the repair: ALL
+    # twelve malformed timemachine shapes probed (an empty `data` array, a `data`
+    # list of non-objects, a non-numeric temp, an absurd sunrise, a body that is
+    # not an object at all) raised out of it as a bare 500.
     try:
         hourly_responses = await asyncio.gather(
             *[fetch_historical(checklist["lat"], checklist["lng"], ts) for ts in timestamps]
         )
+        formatted = format_weather(list(hourly_responses), tz, checklist["lat"])
     except Exception:
-        raise HTTPException(
-            status_code=502,
-            detail="Weather data unavailable for this checklist's time and location.",
-        )
+        raise HTTPException(status_code=502, detail=_CHECKLIST_WEATHER_DETAIL)
 
-    formatted = format_weather(list(hourly_responses), tz, checklist["lat"])
     return {
         "formatted": formatted,
         "checklist_id": checklist_id,

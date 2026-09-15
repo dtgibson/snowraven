@@ -5,7 +5,22 @@
 const WEATHER_RESULT = /(?:^|\n)\s*(?:Sunrise|Sunset):/im;
 const TIDE_RESULT = /(?:^|\n)\s*(?:Tide|Station):/im;
 const LOADING = /(?:Looking up|Loading tide)(?:…|\.\.\.)/i;
-const TERMINAL_ERROR = /(?:API key (?:is )?not configured|Weather lookup needs an API key|Weather data unavailable|Tide data unavailable|You're offline|Can't reach the SnowRaven server|Something went wrong|doesn't look like a valid eBird checklist ID)/i;
+// Fail-closed BY CONSTRUCTION, and the mechanism is worth knowing before you
+// edit this list: an error sentence that is NOT matched here cannot be read as a
+// healthy frame, because neither WEATHER_RESULT (Sunrise:/Sunset:) nor
+// TIDE_RESULT (Tide:/Station:) can match error copy. An unlisted state therefore
+// classifies as `incomplete`, burns the readiness timeout and fails the capture.
+// The cost of a gap is a misleading failure REASON, never a published screenshot
+// of an error.
+//
+// So this list is PARTIAL BY DESIGN. It names the states the capture is expected
+// to hit, so that those fail with an accurate reason; it is NOT every terminal
+// sentence the Weather panel can render, and it should not be read as one. Known
+// unlisted examples measured at this surface: the checklist-fetch failure and
+// not-found sentences, the coordinate-resolution failure, the tauriFetch
+// timeout, and /weather/at's bad-date 400. Add an alternative when you want that
+// state's reason named in the failure output.
+const TERMINAL_ERROR = /(?:API key (?:is )?not configured|Weather lookup needs an API key|Weather data unavailable|Tide data unavailable|This checklist's date could not be read|You're offline|Can't reach the SnowRaven server|Something went wrong|doesn't look like a valid eBird checklist ID)/i;
 
 /**
  * Classify the text currently rendered in the Weather panel.
