@@ -196,10 +196,43 @@ export function planTickHours(hpx: number): number[] {
 }
 
 /** The day label by the day's visible width: the full label at 84 px and up,
- *  weekday and day number at 44, the weekday at 22, else nothing. */
+ *  weekday and day number at 44, the weekday at 22, else nothing.
+ *
+ *  BOTH TIERS take this ladder (plan-daylabel-overlap). The phone tier used to
+ *  short-circuit to the full label whatever the column's width, which is what
+ *  printed an 80.66 px overlap over the second day when a plan was fetched
+ *  after about 5:57 PM local and the first day was narrower than its own label.
+ *
+ *  `dayW` IS THE COLUMN, NOT THE WIDTH THE LABEL GETS. The label sits
+ *  PLAN_DAY_LABEL_INSET_PX inside the column and is bounded to
+ *  `dayW - inset`, so a form admitted at its threshold can be slightly wider
+ *  than its room and gets plain-clipped. That gap is deliberate and was
+ *  measured before being kept: see `dayLabelFor` in PlanChart.tsx for the
+ *  numbers and for why closing it (feeding this function `dayW - inset`)
+ *  regresses two of the three bands it touches.
+ *
+ *  THE THRESHOLDS ARE A WORST-CASE PROXY AND TWO OF THEM UNDER-STATE THEIR
+ *  FORM, which is worth knowing before trusting them as "it fits". Measured in
+ *  the shipped 11px/600 stack, identical in Chromium and WebKit: the weekday
+ *  abbreviations run 14.28 (`Fri`) to 24.08 (`Wed`) against a threshold of 22;
+ *  the short form runs 22.78 to 41.69 (`Wed 30`) against 44, the one threshold
+ *  that does bound its form; the full label runs 81.06 to 105.89
+ *  (`Wed, May 28, 2026`) against 84. The numbers are recorded here because
+ *  they are font- and date-format-dependent and must be RE-MEASURED, never
+ *  trusted from this comment, if the thresholds are ever retuned. */
 export function planDayLabel(full: string, short: string, weekday: string, dayW: number): string {
   return dayW >= 84 ? full : dayW >= 44 ? short : dayW >= 22 ? weekday : ''
 }
+
+/** The day label's inset from the left edge of the column it belongs to, on
+ *  both tiers. Exported rather than spelled `+ 5` at each of the two call
+ *  sites because the label's POSITION, its BOUND and the width the ladder is
+ *  asked about are one decision: a label placed at `inset` and capped at
+ *  `dayW - inset` ends exactly on its column's right edge, which is the next
+ *  day's left edge. Drifting the position and the bound apart reopens the
+ *  overlap; drifting the bound and the LADDER apart chops the label instead,
+ *  which is why `dayLabelFor` derives a single `availW` and uses it for both. */
+export const PLAN_DAY_LABEL_INSET_PX = 5
 
 /** A daily strip cell's content by its width: description and high/low at
  *  200 px and up, high/low at 90, else the emoji alone. */

@@ -59,6 +59,7 @@ const ORDER = [
   'verify-backlog-alert.mjs',
   'verify-named-birds-header.mjs',
   'verify-weather-species-rows.mjs',
+  'verify-plan-daylabels.mjs',
   'verify-plan-readout.mjs',
 ]
 
@@ -108,6 +109,21 @@ function discoverHarnesses() {
 const DEFAULT_TIMEOUT_MS = 180_000
 const BUDGET_MS = {
   'verify-plan-readout.mjs': 600_000,
+  // Sweeps 14 first-day widths x 6 phone widths x 2 text scales, a 27-step
+  // band sweep across the ladder's thresholds at 2 widths, the wide tier, and
+  // four mutation legs -- in both engines. It reloads the app once per
+  // first-day width (the plan document itself changes, so the reading cannot
+  // be taken by resizing alone), which is what makes it heavy rather than the
+  // readings: 51 cold loads per engine.
+  //
+  // MEASURED 130 s on the dev Mac, so this is 4.6x rather than a bound sized
+  // just above the observation -- which is the shape that bit `verify-plan-
+  // readout.mjs`, killed at exactly 180 s on the 1.0.30 tag commit when its
+  // 113 s was only 1.6x inside the default. That harness now carries 5.3x, and
+  // a shared CI runner is materially slower than this machine, so a sibling of
+  // comparable weight takes the same 600 s rather than a tighter number
+  // justified by a single quiet-machine reading.
+  'verify-plan-daylabels.mjs': 600_000,
 }
 const rawTimeout = Number(process.env.SR_VERIFY_TIMEOUT_MS)
 const OVERRIDE_MS = Number.isFinite(rawTimeout) && rawTimeout > 0 ? rawTimeout : null

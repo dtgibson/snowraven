@@ -4176,7 +4176,32 @@ select:focus-visible {
 .sr-plan-axislane { position: relative; }
 .sr-plan-axisday { position: absolute; top: 0; height: 100%; }
 .sr-plan-midnight { position: absolute; left: 0; top: 0; width: 1px; height: 100%; background: var(--sr-border-medium); }
-.sr-plan-daylabel { position: absolute; bottom: 7px; font-size: 11px; font-weight: 600; color: var(--sr-text); white-space: nowrap; font-family: var(--font-sans); }
+/* The phone tier's day label (this lane carries one only when !wide, so
+   nothing here reaches the wide tier's axis lane). It is bounded by an inline
+   `max-width` of the width available to it -- computed per day from the
+   document's day boundaries, so it holds at any date format and any system
+   font. A top-level rule, not a phone-tier one: the element itself is
+   phone-only, so a 640px block would state the tier twice and say nothing new.
+
+   NO `text-overflow: ellipsis`, deliberately, and this is the one declaration
+   here worth arguing about. An ellipsis reads well on a long date that loses
+   its year, and reads as a fault on a three-character weekday: the glyph
+   itself costs most of the budget, so `Wed` in 17px renders `W..` and
+   Chromium clips the ellipsis into two dots. The wide tier has always plain
+   clipped (`.sr-plan-dayhdr-day { overflow: hidden }`, no text-overflow) and
+   renders that same case `We`, which is legible. Matching it keeps ONE
+   truncation behaviour across both tiers instead of two, which is the whole
+   point of putting both tiers on one density ladder.
+
+   `bottom` plus `padding-bottom` is 7px, exactly the shipped `bottom: 7px`
+   with no padding, so the CONTENT box -- and therefore every glyph -- sits
+   where it always has, by arithmetic rather than by a re-tuned line-height.
+   The padding is what the clip needs: `overflow: hidden` clips at the PADDING
+   box, so 3px above and below buys a descender room that a line box at
+   `line-height: normal` does not promise, without moving the text a pixel.
+   Horizontal padding stays 0, so `max-width` bounds the same edge under either
+   `box-sizing`. */
+.sr-plan-daylabel { position: absolute; bottom: 4px; padding: 3px 0; font-size: 11px; font-weight: 600; color: var(--sr-text); white-space: nowrap; overflow: hidden; font-family: var(--font-sans); }
 .sr-plan-tick { position: absolute; top: 0; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; }
 .sr-plan-tickmark { width: 1px; height: 4px; background: var(--sr-border-medium); }
 .sr-plan-ticktext { font-size: 10px; color: var(--sr-text-muted); white-space: nowrap; font-family: var(--font-sans); margin-top: 1px; }
