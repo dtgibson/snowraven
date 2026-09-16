@@ -831,6 +831,19 @@ export function Calendar({ onGoToSettings, filesVersion }: {
     return [...set].sort((a, b) => a.localeCompare(b))
   }, [observations])
 
+  // The picker's `options` prop, memoized on the one list it is derived from.
+  // Built inline at the call site this was a FRESH ARRAY on every Calendar
+  // render, and `SpeciesCombobox` compares `options` with `Object.is` inside its
+  // `filtered` and `rows` memos -- so the miss was certain rather than likely,
+  // and the whole list rebuilt on every metric press, year step and day-popup
+  // open, whether or not the picker was even open.
+  //
+  // The dependency is the species list itself, so a genuine change to it still
+  // rebuilds these options: memoizing on too little is how a wasteful rebuild
+  // becomes a STALE list, which is the worse defect and the one
+  // `speciesComboboxOptionsIdentity.test.tsx` guards in both directions.
+  const speciesComboOptions = useMemo(() => speciesOptions.map(name => ({ name })), [speciesOptions])
+
   // A concrete species is selected only when the value is non-empty AND still a
   // valid option (guards a stale selection after the backup changes).
   const speciesFilterActive = selectedSpecies !== '' && speciesOptions.includes(selectedSpecies)
@@ -1005,7 +1018,7 @@ export function Calendar({ onGoToSettings, filesVersion }: {
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
             <span style={ctrlLabelStyle}>Species</span>
             <SpeciesCombobox
-              options={speciesOptions.map(name => ({ name }))}
+              options={speciesComboOptions}
               value={selectedSpecies}
               onChange={n => { setSelectedSpecies(n ?? ''); setPopup(null) }}
               allLabel="All species"

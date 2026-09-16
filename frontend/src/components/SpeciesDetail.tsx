@@ -333,6 +333,30 @@ export function SpeciesDetail({ onGoToSettings, onGoToWeather, filesVersion, req
     return countable.filter(name => !escapeeNames.has(normalizeSpeciesName(name)))
   }, [sortedSpeciesList, showSpuh, countableKeys, showEscapees, escapeeNames])
 
+  // The picker's `options` prop, memoized on the two values it is derived from.
+  // Built inline at the call site this was a fresh array on every Species Detail
+  // render, which `SpeciesCombobox` compares with `Object.is` -- so its `filtered`
+  // and `rows` memos missed every time. This tab re-renders constantly for reasons
+  // that have nothing to do with the species list: the comment filter and the
+  // heatmap intensity slider both re-render on every keystroke and every drag tick.
+  //
+  // `sciNameMap` is named here as a CORRECTNESS statement, not because a
+  // measurement distinguishes it: dropping it turns no row of
+  // `speciesComboboxOptionsIdentity.test.tsx` red, and that is a fact about this
+  // component rather than a gap in the guard. `sciNameMap` and
+  // `sortedSpeciesList` are returned by the SAME memo (keyed on `phase`,
+  // `taxonOrders` and `mergeSubspecies`), and `displaySpeciesList` derives from
+  // the latter, so nothing can rebuild the map without also rebuilding the list
+  // the first dependency already tracks. It stays named because the day that
+  // coupling is broken -- a map rebuilt on its own -- this memo has to follow it,
+  // and a dependency list is the wrong place to bank on an invariant that is
+  // enforced somewhere else. See the Calendar's note above on why the staleness
+  // direction is the one that matters.
+  const speciesComboOptions = useMemo(
+    () => displaySpeciesList.map(n => ({ name: n, sciName: sciNameMap.get(n) })),
+    [displaySpeciesList, sciNameMap],
+  )
+
   // Select a key of `sortedSpeciesList` that a toolbar switch may be hiding.
   // A target that is in the export but absent from the selector is REVEALED
   // rather than dropped: whichever switch hides it is turned on first, then it
@@ -739,7 +763,7 @@ export function SpeciesDetail({ onGoToSettings, onGoToWeather, filesVersion, req
       {/* Species selector — the shared searchable combobox (reference impl for it). */}
       <div style={{ marginBottom: 16, flexShrink: 0 }}>
         <SpeciesCombobox
-          options={displaySpeciesList.map(n => ({ name: n, sciName: sciNameMap.get(n) }))}
+          options={speciesComboOptions}
           value={selectedSpecies}
           onChange={selectSpecies}
           placeholder="Choose a species…"

@@ -447,9 +447,11 @@ describe('entry-chunk exclusion (NFR-03 / QA-30)', () => {
     expect(has('lib/speciesMatch.ts')).toBe(false)
     expect(has('lib/paletteRows.ts')).toBe(false)
     expect(has('lib/paletteSpeciesLoad.ts')).toBe(false)
-    // SpeciesCombobox really is off it: its only three importers (Calendar,
-    // Species Detail, Map Explorer) are all lazy, and the palette must not
-    // become a fourth, static one.
+    // SpeciesCombobox really is off it: its four importers (Calendar, Species
+    // Detail, Map Explorer, and WeatherStatsSection under Statistics) are all
+    // lazy, and the palette must not become a fifth, static one. The count read
+    // "three" until the species-picker-options-memo sweep recounted it; the
+    // assertion below was correct throughout -- only this comment was stale.
     expect(has('components/SpeciesCombobox.tsx')).toBe(false)
   })
 
