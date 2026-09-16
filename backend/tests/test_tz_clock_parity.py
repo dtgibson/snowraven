@@ -60,20 +60,30 @@ def test_every_row_agrees_with_the_ts_twin(row):
 
 
 def test_gmt_epoch_parses_gmt_strings_and_drops_everything_else():
+    # NONE, NOT 0, since v1.0.32's successor. The caller's test was `if t > 0`,
+    # which is not the predicate it meant: `1970-01-01 00:00` is a placeable
+    # instant whose epoch IS the sentinel and a pre-1970 instant is placeable
+    # and negative, so the Planner silently dropped both. The predicate is
+    # "placeable", not "positive" -- and the two rows below are what say so.
     assert gmt_epoch("2026-09-12 22:41") == 1789252860
     assert gmt_epoch("2026-09-12T22:41") == 1789252860
-    # A prefix match, like the TS twin's `epochMin`: seconds and a trailing
-    # newline ride along, a leading newline or an embedded one does not.
+    # A prefix match, like the TS twin: seconds and a trailing newline ride
+    # along, a leading newline or an embedded one does not.
     assert gmt_epoch("2026-09-12 22:41:30") == 1789252860
     assert gmt_epoch("2026-09-12 22:41\n") == 1789252860
-    assert gmt_epoch("\n2026-09-12 22:41") == 0
-    assert gmt_epoch("2026-09\n-12 22:41") == 0
-    assert gmt_epoch("") == 0
-    assert gmt_epoch("not a date") == 0
+    assert gmt_epoch("\n2026-09-12 22:41") is None
+    assert gmt_epoch("2026-09\n-12 22:41") is None
+    assert gmt_epoch("") is None
+    assert gmt_epoch("not a date") is None
     # Explicit ASCII digits: a Unicode digit is not a match here, as in JS.
-    assert gmt_epoch("٢٠٢٦-09-12 22:41") == 0
-    # An impossible calendar value yields 0 rather than a throw.
-    assert gmt_epoch("2026-13-40 25:61") == 0
+    assert gmt_epoch("٢٠٢٦-09-12 22:41") is None
+    # An impossible calendar value yields None rather than a throw -- and, since
+    # this delegates to the shared `place_instant`, the TS twin now refuses the
+    # same set instead of letting `Date.UTC` roll it into a real instant.
+    assert gmt_epoch("2026-13-40 25:61") is None
+    # The two the old `> 0` predicate dropped, and the reason it was wrong.
+    assert gmt_epoch("1970-01-01 00:00") == 0
+    assert gmt_epoch("1900-01-01 00:00") == -2208988800
 
 
 def test_gmt_epoch_is_linear_on_a_hostile_near_miss():
@@ -86,7 +96,7 @@ def test_gmt_epoch_is_linear_on_a_hostile_near_miss():
         for _ in range(5):
             t0 = time.perf_counter()
             for _ in range(50):
-                assert gmt_epoch(s) == 0
+                assert gmt_epoch(s) is None
             best = min(best, time.perf_counter() - t0)
         return best
 

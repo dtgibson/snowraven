@@ -1,0 +1,82 @@
+{
+  "note": "HAND-AUTHORED GROUND TRUTH. Unlike tideEpoch.fixture.json this file is NOT generated from a shipped twin, and that is the point: the defect it pins is one where the two shipped twins AGREED, byte for byte, on a water level neither had any basis for. A generated expected column would have recorded the wrong answer twice. Every claim here is structural -- an unplaceable `t` must render exactly as the same series with that entry REMOVED -- so each runtime derives its own expectation from its own builder and the fixture carries only the roster, the scenarios and the agreed placement verdict. Driven by frontend/src/lib/tideUnreadableParity.test.ts and backend/tests/test_tide_unreadable_parity.py.",
+  "station": { "id": "9410230", "name": "La Jolla", "lat": 32.8669, "lng": -117.2571, "state": "CA", "obs": true },
+  "distanceMi": 1.2,
+  "window": { "start": "2026-05-01 12:00", "end": "2026-05-01 13:00" },
+  "control": {
+    "hilo": [
+      { "t": "2026-05-01 10:09", "v": "3.600", "type": "H" },
+      { "t": "2026-05-01 15:07", "v": "1.486", "type": "L" }
+    ],
+    "observed": [
+      { "t": "2026-05-01 12:15", "v": "2.900", "q": "v" },
+      { "t": "2026-05-01 12:45", "v": "2.600", "q": "v" }
+    ],
+    "pool": [
+      { "t": "2026-05-01 06:00", "v": "1.100", "q": "v" },
+      { "t": "2026-05-01 09:00", "v": "2.200", "q": "v" }
+    ],
+    "why": "The brief's sharpest row, reproduced: a subordinate station serving only high/low, a one-hour window between a 10:09 high and a 15:07 low. The control reading is `Water level: 2.4 - 2.8 ft`; with the previous high's `t` unreadable the shipped builders rendered `Water level: 1.5 - 1.5 ft` and `Previous high: 3.6 ft at ` on BOTH runtimes."
+  },
+  "shapes": [
+    { "id": "conforming", "op": "set", "t": "2026-05-01 10:09", "placeable": true, "why": "the control: the string NOAA actually ships" },
+    { "id": "iso-t-separator", "op": "set", "t": "2026-05-01T10:09", "placeable": true, "why": "the `[ T]` class admits it, deliberately" },
+    { "id": "seconds", "op": "set", "t": "2026-05-01 10:09:30", "placeable": true, "why": "both sides match a PREFIX, by contract" },
+    { "id": "trailing-newline", "op": "set", "t": "2026-05-01 10:09\n", "placeable": true, "why": "rides along on the same prefix match" },
+    { "id": "far-future", "op": "set", "t": "2027-01-01 15:07", "placeable": true, "why": "NOT A DEFECT: a well-formed instant outside the window is placeable, and interpolating against it is the answer the data supports" },
+    { "id": "far-past", "op": "set", "t": "1900-01-01 00:00", "placeable": true, "why": "NOT A DEFECT, and the reason the placement test may not be spelled `> 0`: a pre-1970 instant is placeable and negative" },
+    { "id": "the-epoch-itself", "op": "set", "t": "1970-01-01 00:00", "placeable": true, "why": "the collision: a placeable instant whose epoch IS the old sentinel, and the reason the test may not be spelled `=== 0` either" },
+    { "id": "year-1", "op": "set", "t": "0001-01-01 00:00", "placeable": true, "why": "CONVERGED: Python read year 1 and Date.UTC's legacy two-digit-year mapping read 1901. Both now read year 1" },
+
+    { "id": "key-absent", "op": "delete", "placeable": false, "why": "no `t` at all; the parsers substituted `\"\"` and `\"None\"` respectively" },
+    { "id": "null", "op": "set", "t": null, "placeable": false, "why": "`str(None)` is `\"None\"` and `String(null)` is `\"\"`, and `\"None\"` sorts AFTER every real timestamp where `\"\"` sorts before -- the one measured divergence that never reached the sentinel" },
+    { "id": "boolean", "op": "set", "t": true, "placeable": false, "why": "`\"True\"` against `\"true\"`" },
+    { "id": "empty-list", "op": "set", "t": [], "placeable": false, "why": "`\"[]\"` against `\"\"`" },
+    { "id": "empty-object", "op": "set", "t": {}, "placeable": false, "why": "`\"{}\"` against `\"[object Object]\"`" },
+    { "id": "number", "op": "set", "t": 1777000000, "placeable": false, "why": "the one non-string shape the two coercions agreed on" },
+    { "id": "empty-string", "op": "set", "t": "", "placeable": false, "why": "renders `Previous high: 3.6 ft at ` into a public checklist comment" },
+    { "id": "whitespace", "op": "set", "t": "   ", "placeable": false, "why": "present but blank" },
+    { "id": "junk", "op": "set", "t": "not a date", "placeable": false, "why": "renders as itself, after the word \"at\"" },
+    { "id": "wrong-separator", "op": "set", "t": "2026/05/01 10:09", "placeable": false, "why": "unplaceable, yet the unanchored `_clock` search still read `10:09` off it" },
+    { "id": "date-only", "op": "set", "t": "2026-05-01", "placeable": false, "why": "no clock" },
+    { "id": "time-only", "op": "set", "t": "10:09", "placeable": false, "why": "no date" },
+    { "id": "feb-30", "op": "set", "t": "2026-02-30 10:09", "placeable": false, "why": "CONVERGED: Python refused it and Date.UTC rolled it to March 2" },
+    { "id": "month-13-minute-61", "op": "set", "t": "2026-13-40 25:61", "placeable": false, "why": "CONVERGED: Python refused it and Date.UTC rolled it into 2027; `_clock` rendered it `1:61pm`" },
+    { "id": "day-zero", "op": "set", "t": "2026-05-00 12:00", "placeable": false, "why": "day 0 rolls back a month under Date.UTC and raises under datetime" },
+    { "id": "year-zero", "op": "set", "t": "0000-01-01 00:00", "placeable": false, "why": "a proleptic year JavaScript can represent and `datetime` cannot; the reason this predicate carries a MIN_YEAR, as parseWallClock does" },
+    { "id": "arabic-indic-digits", "op": "set", "t": "٢٠٢٦-٠٥-٠١ ١٠:٠٩", "placeable": false, "why": "explicit ASCII `[0-9]` on BOTH sides refuses them; the old `_clock` used `\\d`, which Python reads as every Unicode decimal digit" },
+    { "id": "mixed-ascii-arabic", "op": "set", "t": "2026-05-01 ١٠:٠٩", "placeable": false, "why": "the same divergence with only the clock in non-ASCII digits" },
+    { "id": "leading-newline", "op": "set", "t": "\n2026-05-01 10:09", "placeable": false, "why": "both patterns are anchored at the start" },
+    { "id": "embedded-newline", "op": "set", "t": "2026-05\n-01 10:09", "placeable": false, "why": "an embedded newline breaks the fixed-width run" }
+  ],
+  "scenarios": [
+    { "id": "prev-high", "series": "hilo", "index": 0, "why": "the sharpest row: the bracket BEFORE the window, whose level the interpolation leans on" },
+    { "id": "next-low", "series": "hilo", "index": 1, "why": "the bracket after it" },
+    { "id": "observed-point", "series": "observed", "index": 0, "why": "the one series where `_in_window`'s string compare already excluded the point by accident" },
+    { "id": "nearest-pool-one", "series": "pool", "index": 0, "why": "the nearest-point fallback with one candidate still placeable" },
+    { "id": "nearest-pool-all", "series": "pool", "index": "all", "why": "every candidate unplaceable: they all tied at distance-to-1970 and the EARLIEST was presented as the nearest" }
+  ],
+  "divisorPairs": [
+    { "id": "empty-and-junk", "a": "", "b": "zzz junk", "verdict": "unavailable", "why": "two sentinel epochs: ZeroDivisionError on web/Pi against `Water level: -Infinity ft` on desktop" },
+    { "id": "empty-and-not-a-date", "a": "", "b": "not a date", "verdict": "unavailable", "why": "the same pair, second spelling" },
+    { "id": "two-spellings-of-one-instant", "a": "2026-05-01 10:09", "b": "2026-05-01T10:09", "verdict": "ok", "why": "THE ROW THAT PROVES MISSING-VS-ZERO IS NOT THE WHOLE AXIS: two WELL-FORMED strings naming one instant. Dropping unplaceable points does nothing for it; the equality guard has to sit on the placed epoch" },
+    { "id": "two-impossible-calendars", "a": "2026-02-30 09:00", "b": "2026-13-40 25:61", "verdict": "unavailable", "why": "the worst of the four: no error and no infinity, just an ordinary-looking `3.2 - 3.2 ft` computed between two dates that do not exist" }
+  ],
+  "plan": {
+    "nowTs": 1777957200,
+    "tz": "America/Los_Angeles",
+    "distanceMi": 1.2,
+    "hilo": [
+      { "t": "2026-05-06 00:00", "v": "5.200", "type": "H" },
+      { "t": "2026-05-06 06:30", "v": "0.800", "type": "L" }
+    ],
+    "index": 0,
+    "shapes": ["2026-04-36 12:00", "2026-05-05 25:00", "2026-05-06 12:90", "2026-05-00 12:00", "2026-02-30 12:00"],
+    "why": "The Planner is the third twin pair on this axis and its span filter was HIDING the divergence: the impossible-calendar shapes that roll to an instant OUTSIDE the fetched span were dropped on the TS side for that reason and agreed by accident. Every shape here rolls INTO the span, where desktop drew a labelled turning point and a descending curve from a date that does not exist while web/Pi drew a flat line -- and the plan document is persisted to replay.json, so the invented turning point re-rendered offline.",
+    "placeableNotPositive": [
+      { "t": "1970-01-01 00:00", "why": "the epoch itself: placeable, and its epoch second is exactly the value `t > 0` rejects" },
+      { "t": "1969-07-20 20:17", "why": "placeable and NEGATIVE, the other half `t > 0` rejects" }
+    ],
+    "placeableNotPositiveWhy": "THE ROWS THAT SEPARATE `placeable` FROM `positive`. Every shape above is refused by BOTH predicates, so a roster of impossible calendars alone cannot tell them apart -- a mutation reverting the Planner to `t > 0` left this file green until these two rows existed. They are driven through the CONTINUOUS body rather than the high/low one, because the span filter would exclude a 1970 turning point for a second, unrelated reason and hide the difference again: with `t > 0` the only point is dropped, both lists are empty and the plan is `unavailable`; with a placement test it is kept and the plan is `ok`."
+  }
+}

@@ -6,6 +6,8 @@ paths:
   - "frontend/src/lib/weatherFormatter*"
   - "frontend/src/lib/tideFormatter*"
   - "frontend/src/lib/tide.ts"
+  - "frontend/src/lib/tideInstant*.ts"
+  - "frontend/src/lib/tidePlan.ts"
   - "frontend/src/lib/checklistsTab*.ts"
   - "frontend/src/lib/forecastSlice*.ts"
   - "frontend/src/lib/tauri/tideService.ts"
@@ -17,6 +19,20 @@ paths:
 ---
 
 <!--
+`lib/tidePlan.ts` and `lib/tideInstant*.ts` were added by the build after
+v1.0.32, and the first of the two is a gap the v1.0.32 sweep left: that build
+added `lib/tide.ts` because it computes the reading the formatter renders, while
+`lib/tidePlan.ts` -- the twin of `backend/services/plan_tide.py`, whose document
+is persisted to `replay.json` and re-rendered offline -- still matched no path,
+so a change to it loaded neither this file's byte-golden parity rules nor its
+marker vocabulary. `lib/tideInstant.ts` joins as the shared placement predicate
+both halves of the tide subsystem now read a NOAA `t` through. The Python twins
+(`backend/services/plan_tide.py`, `backend/services/tz_clock.py`,
+`backend/services/tide_instant.py`) are covered by the `backend/services/**`
+glob in `.claude/rules/security.md` but NOT by this file, whose backend entries
+are named individually; that asymmetry is pre-existing and is left as it is
+rather than widened in a bug-fix build.
+
 The four entries added in v1.0.32 (`lib/tide.ts`, the two `lib/tauri` services,
 `backend/services/tide.py`) follow the line this list already drew and had
 applied on one side only. It gated `tideFormatter*` -- the module that RENDERS

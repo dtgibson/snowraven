@@ -8,12 +8,14 @@
 // stays off the entry chunk. Pure: `nowTs` is a parameter and nothing here
 // reads a clock. Both NOAA bodies pass through the shipped linear parsers
 // unchanged; the only new step is the GMT clock string to epoch conversion at
-// the parse boundary, through the shipped `epochMin` (schema section 9). The
-// caps are applied BEFORE any per-sample work, so a body larger than the
-// request could produce bounds the work rather than the work being bounded by
-// trust in the provider.
+// the parse boundary, through the one shared `placeInstant` in
+// `lib/tideInstant.ts` — where the scan declared in schema section 9 now lives,
+// with its linearity argument. The caps are applied BEFORE any per-sample work,
+// so a body larger than the request could produce bounds the work rather than
+// the work being bounded by trust in the provider.
 
-import { epochMin, parseHiLo, parsePredictions } from './tide'
+import { parseHiLo, parsePredictions } from './tide'
+import { placeEpochSec } from './tideInstant'
 import { addDays, localClock, localDate, localMidnightTs, startOfLocalHour } from './tzClock'
 import { interpAtEpoch } from './plan'
 import type { TidePlanOk, TidePlanResponse, TideSample, TurningPoint } from './plan'
@@ -61,10 +63,25 @@ export function toNoaaGmtDate(ts: number): string {
   return `${d.getUTCFullYear()}${p(d.getUTCMonth() + 1)}${p(d.getUTCDate())} ${p(d.getUTCHours())}:${p(d.getUTCMinutes())}`
 }
 
-/** A GMT clock string from a range body as an integer epoch second; 0 for a
- *  non-match (the caller drops it). `epochMin` is UTC calendar math already. */
-function gmtEpoch(t: string): number {
-  return epochMin(t) * 60
+/** A GMT clock string from a range body as an integer epoch second; null for a
+ *  string that names no instant (the caller drops it). Twin of `gmt_epoch`.
+ *
+ *  NULL RATHER THAN 0, because the caller's test was `t > 0` and that is not the
+ *  predicate it meant: `1970-01-01 00:00` is a placeable instant whose epoch IS
+ *  the sentinel, and a pre-1970 instant is placeable and negative, so the
+ *  shipped Planner silently dropped both. The predicate is "placeable", not
+ *  "positive".
+ *
+ *  Delegating to `placeEpochSec` is also what closes this pair's OWN
+ *  divergence, which the span filter had been hiding: the shipped `epochMin`
+ *  let `Date.UTC` roll an impossible calendar value over, so a `t` that rolled
+ *  INTO the fetched span drew a labelled turning point and a descending curve
+ *  here where the Python twin drew a flat line, from the same body — and the
+ *  plan document is persisted to replay.json, so the invented turning point
+ *  re-rendered offline. The shapes that rolled OUTSIDE the span were dropped
+ *  for that reason and agreed by accident. */
+function gmtEpoch(t: string): number | null {
+  return placeEpochSec(t)
 }
 
 /**
@@ -80,7 +97,7 @@ export function buildTidePlan(
   const continuous: Array<{ t: number; v: number }> = []
   for (const p of parsePredictions(predBody)) {
     const t = gmtEpoch(p.t)
-    if (t > 0) continuous.push({ t, v: p.v })
+    if (t !== null) continuous.push({ t, v: p.v })
   }
   continuous.sort((a, b) => a.t - b.t)
   if (continuous.length > PLAN_CONTINUOUS_MAX) continuous.length = PLAN_CONTINUOUS_MAX
@@ -88,7 +105,7 @@ export function buildTidePlan(
   const turningPoints: TurningPoint[] = []
   for (const h of parseHiLo(hiloBody)) {
     const t = gmtEpoch(h.t)
-    if (t > 0 && t >= span.hiloStartTs && t <= span.hiloEndTs) {
+    if (t !== null && t >= span.hiloStartTs && t <= span.hiloEndTs) {
       turningPoints.push({ kind: h.type === 'H' ? 'high' : 'low', t, v: h.v, local: localClock(t, tz) })
     }
   }

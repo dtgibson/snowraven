@@ -18,9 +18,13 @@ runtime's guard is removed and the TS rows fail when that one's is -- neither
 covers the other.
 
 Scope fence, restated because the neighbouring build is one function away: this
-file is about the CALLER's `dt`. NOAA's own `t` in the response body -- the
-`0.0` sentinel in `_epoch_min` and `interp_level`'s divisor -- is the next
-build's subject and nothing here touches it.
+file is about the CALLER's `dt`. NOAA's own `t` in the response body was the
+next build's subject and nothing here touches it. **That build has since landed
+(`pipeline/tide-unreadable-timestamp/`)**: an unplaceable `t` now drops its
+point through the shared `services/tide_instant.py` predicate rather than being
+anchored at the epoch, so the `_epoch_min` sentinel this paragraph used to name
+no longer exists. The fence itself still holds -- caller's `dt` here, provider's
+`t` there.
 """
 
 import copy
@@ -482,9 +486,11 @@ def test_shift_local_uses_an_explicit_ascii_class_too():
     the backend silently SUCCEEDED (shifting the clock) where the desktop twin
     fell through unchanged.
 
-    `_clock` at services/tide.py:144 still carries `\\d` and is deliberately left
-    open: its input is NOAA's response `t`, which is the NEXT build's subject
-    and outside this one's fence. Named here so the sweep is on the record."""
+    `_clock` carried `\\d` and was deliberately left open by THIS build, its input
+    being NOAA's response `t` and so outside this fence. **That is now closed by
+    `pipeline/tide-unreadable-timestamp/`**, which formats the clock from placed
+    components instead of re-scanning the provider's string. Kept here rather
+    than deleted so the handover reads as completed rather than forgotten."""
     from services import tide as tide_service
     src = Path(tide_service.__file__).read_text(encoding="utf-8")
     shift_body = _code_only(src[src.index("def shift_local"):src.index("def to_noaa_date")])

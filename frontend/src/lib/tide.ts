@@ -4,6 +4,7 @@
 // See pipeline/weather-tides/schema.md.
 
 import type { TideStation } from './tideStations'
+import { clockText, placeEpochMin, placeInstant } from './tideInstant'
 
 // NOAA times come back as local clock strings 'YYYY-MM-DD HH:MM' (time_zone=lst_ldt);
 // they sort chronologically as strings, which is all the bracketing logic needs.
@@ -89,8 +90,9 @@ export function parseObserved(body: unknown): ObservedPoint[] {
   if (!Array.isArray(data)) return []
   const out: ObservedPoint[] = []
   for (const d of data) {
+    const t = (d as { t?: unknown }).t
     const v = parseFloat((d as { v?: string }).v ?? '')
-    if (Number.isFinite(v)) out.push({ t: String((d as { t?: string }).t ?? ''), v, q: String((d as { q?: string }).q ?? '') })
+    if (typeof t === 'string' && Number.isFinite(v)) out.push({ t, v, q: String((d as { q?: string }).q ?? '') })
   }
   return out
 }
@@ -101,8 +103,9 @@ export function parsePredictions(body: unknown): PredPoint[] {
   if (!Array.isArray(preds)) return []
   const out: PredPoint[] = []
   for (const p of preds) {
+    const t = (p as { t?: unknown }).t
     const v = parseFloat((p as { v?: string }).v ?? '')
-    if (Number.isFinite(v)) out.push({ t: String((p as { t?: string }).t ?? ''), v })
+    if (typeof t === 'string' && Number.isFinite(v)) out.push({ t, v })
   }
   return out
 }
@@ -113,10 +116,11 @@ export function parseHiLo(body: unknown): HiLo[] {
   if (!Array.isArray(preds)) return []
   const out: HiLo[] = []
   for (const p of preds) {
+    const t = (p as { t?: unknown }).t
     const v = parseFloat((p as { v?: string }).v ?? '')
     const type = (p as { type?: string }).type
-    if (Number.isFinite(v) && (type === 'H' || type === 'L')) {
-      out.push({ t: String((p as { t?: string }).t ?? ''), v, type })
+    if (typeof t === 'string' && Number.isFinite(v) && (type === 'H' || type === 'L')) {
+      out.push({ t, v, type })
     }
   }
   return out
@@ -126,18 +130,28 @@ function inWindow(t: string, start: string, end: string): boolean {
   return t >= start && t <= end
 }
 
-/** Accurate epoch-minutes from a 'YYYY-MM-DD HH:MM' string (calendar-correct)
- *  — for interpolation fractions and nearest-point selection. */
-export function epochMin(t: string): number {
-  const m = t.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/)
-  if (!m) return 0
-  const [, y, mo, d, h, mi] = m.map(Number) as unknown as number[]
-  return Date.UTC(y, mo - 1, d, h, mi) / 60000
-}
-
-/** Linear-interpolate the predicted level at time `t` between the bracketing
- *  high/low events (a good approximation of the tide curve). Returns null if the
- *  series doesn't bracket the time on at least one side. */
+/**
+ * Linear-interpolate the predicted level at time `t` between the bracketing
+ * high/low events (a good approximation of the tide curve). Returns null if the
+ * series doesn't bracket the time on at least one side.
+ *
+ * THE DIVISOR IS A BRACKETING PROBLEM, NOT A SENTINEL PROBLEM, and that is
+ * measured rather than argued. This function brackets on the STRING (the series
+ * sorts chronologically as text, which is all the bracketing needs) and divides
+ * on the EPOCH, so the old `prev.t === next.t` guard did not guarantee a
+ * non-zero divisor: two WELL-FORMED strings naming one instant —
+ * `2026-05-01 10:09` and `2026-05-01T10:09`, both admitted by the shared `[ T]`
+ * class — produced `Water level: -Infinity ft` here and raised
+ * `ZeroDivisionError` on the Python twin, from the same body. Filtering
+ * unplaceable points out upstream does nothing about them. So the equality
+ * guard sits on the PLACED epoch, exactly as `interpAtEpoch` already does.
+ *
+ * Degrading to `prev.v` is the same answer the string-equality guard always
+ * gave for a zero span, extended to the two other ways a fraction can fail to
+ * exist. Both are reachable: `computeTideReading` filters the series so `prev`
+ * and `next` are always placeable, but `t` is the WINDOW string, which
+ * `getTide` derives from eBird's unvalidated `obsDt`.
+ */
 export function interpLevel(t: string, sortedHilo: HiLo[]): number | null {
   if (sortedHilo.length === 0) return null
   let prev: HiLo | null = null
@@ -147,8 +161,11 @@ export function interpLevel(t: string, sortedHilo: HiLo[]): number | null {
     if (h.t >= t) { next = h; break }
   }
   if (prev && next) {
-    if (prev.t === next.t) return prev.v
-    const f = (epochMin(t) - epochMin(prev.t)) / (epochMin(next.t) - epochMin(prev.t))
+    const at = placeEpochMin(t)
+    const atPrev = placeEpochMin(prev.t)
+    const atNext = placeEpochMin(next.t)
+    if (at === null || atPrev === null || atNext === null || atNext === atPrev) return prev.v
+    const f = (at - atPrev) / (atNext - atPrev)
     return prev.v + (next.v - prev.v) * f
   }
   return (prev ?? next)?.v ?? null
@@ -168,7 +185,17 @@ export function computeTideReading(
   station: TideStation,
   distanceMi: number,
 ): TideReading | null {
-  const sortedHilo = [...hilo].sort((a, b) => (a.t < b.t ? -1 : a.t > b.t ? 1 : 0))
+  // A `t` that cannot be placed on the epoch axis means that point is MISSING,
+  // so it is dropped BEFORE any level is derived from it — exactly as the
+  // sibling Planner (`lib/tidePlan.ts`) already does, which is the strongest
+  // available argument that "missing" is the right answer here too. It is never
+  // anchored at 1970, never contributes an interpolation weight, never ties for
+  // nearest, and never renders a clock. THIS FILTER IS THIS SIDE'S PLACEMENT
+  // GUARD: removing it turns `an unplaceable point is dropped` in
+  // tideUnreadableParity.test.ts red here while the backend suite stays green
+  // (v1.0.20).
+  const sortedHilo = hilo.filter(h => placeInstant(h.t) !== null)
+    .sort((a, b) => (a.t < b.t ? -1 : a.t > b.t ? 1 : 0))
 
   // Level samples over the window, in priority order:
   //  1. observed gauge points (Observed)
@@ -191,12 +218,24 @@ export function computeTideReading(
     const e = interpLevel(end, sortedHilo)
     if (s === null && e === null) {
       // No window samples and no curve to interpolate: nearest single point.
+      // Nearest to WHAT: both the candidates and the window's own start have to
+      // be placeable for "nearest" to mean anything. Under the sentinel every
+      // unplaceable candidate tied at distance-to-1970 and the reduce handed
+      // back the EARLIEST pooled point, presented as the reading for now.
+      // `unavailable` is the honest state both routes already have, and the
+      // strict `<` still keeps the first on a tie, which is what the Python
+      // twin's `min` does.
       const all = observed.length > 0
         ? observed.map(p => ({ t: p.t, v: p.v, src: 'observed' as const }))
         : predicted.map(p => ({ t: p.t, v: p.v, src: 'predicted' as const }))
-      if (all.length === 0) return null
-      const nearest = all.reduce((best, p) =>
-        Math.abs(epochMin(p.t) - epochMin(start)) < Math.abs(epochMin(best.t) - epochMin(start)) ? p : best)
+      const startAt = placeEpochMin(start)
+      const rankable = startAt === null ? [] : all.flatMap(p => {
+        const at = placeEpochMin(p.t)
+        return at === null ? [] : [{ ...p, at }]
+      })
+      if (rankable.length === 0) return null
+      const nearest = rankable.reduce((best, p) =>
+        Math.abs(p.at - (startAt as number)) < Math.abs(best.at - (startAt as number)) ? p : best)
       sorted = [{ t: nearest.t, v: nearest.v }]; source = nearest.src
       startV = endV = nearest.v
     } else {
@@ -235,16 +274,26 @@ export function computeTideReading(
   }
 }
 
-/** 'YYYY-MM-DD HH:MM' (24h) -> '7:42am' (matches the weather block's time style). */
+/**
+ * 'YYYY-MM-DD HH:MM' (24h) -> '7:42am' (matches the weather block's time style).
+ * Twin of `_clock`.
+ *
+ * Formats from the PLACED components; it no longer re-scans the string. The old
+ * UNANCHORED `t.match(/[ T](\d{2}):(\d{2})/)` read `3:07pm` off
+ * `2026/05/01 15:07` and rendered `2026-13-40 25:61` as `1:61pm` — sixty-one
+ * minutes past one, into a public checklist comment — and its `\d` was the
+ * character-class half of the same twinned guard.
+ *
+ * The passthrough is this total function's boundary, not a second guard:
+ * `computeTideReading` labels only points that survived its placement filter,
+ * so an unplaceable string cannot reach the copy block through it. The deletion
+ * coverage for that filter is `an unplaceable point is dropped` in
+ * tideUnreadableParity.test.ts, and `no dangling clock reaches the copy block`
+ * is what fails if the property is ever re-opened here.
+ */
 export function clockTime(t: string): string {
-  const m = t.match(/[ T](\d{2}):(\d{2})/)
-  if (!m) return t
-  let h = Number(m[1])
-  const mi = m[2]
-  const ap = h >= 12 ? 'pm' : 'am'
-  h = h % 12
-  if (h === 0) h = 12
-  return `${h}:${mi}${ap}`
+  const at = placeInstant(t)
+  return at === null ? t : clockText(at)
 }
 
 /** Round to 1 decimal for display (NOAA values come with 3 decimals). */

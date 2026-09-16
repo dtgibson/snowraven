@@ -180,6 +180,18 @@ export async function getTideAt(lat: number, lng: number, dtLocal?: string, forc
   ])
 
   // Parsers inside the try alongside the builder, for the same reason as getTide.
+  //
+  // WHAT THIS `catch` DOES NOT COVER, stated because the Python twin's comment
+  // claimed it did. The route's identically-placed `try` was documented as
+  // closing the ZeroDivisionError half of F1 in
+  // pipeline/tide-timezone-parse/security-report.md; TypeScript does not throw
+  // on division by zero, so this half caught nothing and the same NOAA body
+  // answered `{ status: 'unavailable' }` there against `Water level: -Infinity
+  // ft` here. Adding a matching `try` was never the fix in either direction --
+  // `interpLevel` now guards the divisor on the PLACED epoch, at the source, so
+  // both runtimes answer the same thing. This catch covers what it always
+  // covered: a parser raising on a body shape (a list holding non-objects, a
+  // `predictions` that is a string).
   let reading
   try {
     reading = computeTideReading(

@@ -592,6 +592,18 @@ describe('entry-chunk exclusion (NFR-03 / QA-30)', () => {
     expect(has('lib/namedBirdTimelineCopy.ts')).toBe(true)
   })
 
+  it('the shared tide-instant predicate is dependency-free, which is what keeps it entry-safe', () => {
+    // pipeline/tide-unreadable-timestamp/: `tideInstant.ts` is the twin of
+    // backend/services/tide_instant.py and is reached from `tide.ts` and
+    // `tidePlan.ts`, both of which sit on paths that touch first paint. Its
+    // zero-import property was TRUE when it shipped and pinned NOWHERE, which
+    // is the shape this file exists to close -- an unguarded property is one
+    // refactor away from being false with nothing going red.
+    const inst = closureFrom(resolve(SRC, 'lib/tideInstant.ts'))
+    expect(inst.files.size).toBe(1)                 // itself, nothing else
+    expect([...inst.externals]).toEqual([])
+  })
+
   it('the strip components pull nothing onto first paint beyond react and lucide', () => {
     for (const root of [
       'components/NamedBirdTickList.tsx',

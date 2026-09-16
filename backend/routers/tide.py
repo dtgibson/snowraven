@@ -131,9 +131,20 @@ async def _resolve_tide_at(lat: float, lng: float, start: str, end: str, force: 
     # that is a string) never reach compute_tide_reading at all -- so a try
     # around the builder alone would close only part of this. `unavailable` is
     # the honest state an unreadable body already gets, exactly as /tide/plan
-    # returns above. This also closes the ZeroDivisionError half of F1 in
-    # pipeline/tide-timezone-parse/security-report.md, where two sentinel epochs
-    # give interp_level a zero divisor.
+    # returns above.
+    #
+    # THIS `try` USED TO CLAIM IT CLOSED THE ZeroDivisionError HALF OF F1 IN
+    # pipeline/tide-timezone-parse/security-report.md, "where two sentinel
+    # epochs give interp_level a zero divisor". That was true here and true on
+    # ONE RUNTIME ONLY: TypeScript does not throw on division by zero, so the
+    # desktop twin's identically-placed `catch` in tideService.ts caught
+    # nothing, and the same body answered `{"status": "unavailable"}` here
+    # against `Water level: -Infinity ft` there -- and, on one of the four
+    # measured divisor pairs, an ordinary-looking `3.2 - 3.2 ft` computed
+    # between two dates that do not exist. A containment `try` was never the
+    # fix; `interp_level` now guards the divisor on the PLACED epoch, which
+    # closes F1 on both runtimes at the source. This `try` stays for the parser
+    # shapes above, which is what it was always doing the work for.
     try:
         reading = compute_tide_reading(
             start, end,

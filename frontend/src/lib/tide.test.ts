@@ -2,8 +2,11 @@ import { describe, it, expect } from 'vitest'
 import {
   parseObserved, parsePredictions, parseHiLo, computeTideReading,
   isNoaaError, clockTime, ft, normalizeObsDt, shiftLocal, toNoaaDate,
-  interpLevel, epochMin,
+  interpLevel,
 } from './tide'
+// `epochMin` moved to lib/tideInstant.ts as `placeEpochMin` when its `0`
+// no-match sentinel was removed; the assertion below is unchanged.
+import { placeEpochMin } from './tideInstant'
 import type { TideStation } from './tideStations'
 
 const STN: TideStation = { id: '9414290', name: 'San Francisco', lat: 37.8, lng: -122.5, state: 'CA', obs: true }
@@ -80,7 +83,7 @@ describe('computeTideReading', () => {
   })
 })
 
-describe('interpLevel / epochMin', () => {
+describe('interpLevel / placeEpochMin', () => {
   const hilo = [
     { t: '2025-09-15 01:21', v: 0.0, type: 'L' as const },
     { t: '2025-09-15 08:51', v: 4.6, type: 'H' as const },
@@ -96,8 +99,8 @@ describe('interpLevel / epochMin', () => {
   it('returns null for an empty series', () => {
     expect(interpLevel('2025-09-15 05:00', [])).toBeNull()
   })
-  it('epochMin is calendar-correct across a month boundary', () => {
-    expect(epochMin('2025-02-01 00:00') - epochMin('2025-01-31 00:00')).toBe(1440)
+  it('placeEpochMin is calendar-correct across a month boundary', () => {
+    expect(placeEpochMin('2025-02-01 00:00')! - placeEpochMin('2025-01-31 00:00')!).toBe(1440)
   })
 })
 

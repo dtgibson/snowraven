@@ -7,22 +7,27 @@ Every `ts` is an integer epoch SECOND and every arithmetic result is an
 integer; the wall-clock string is display-only and is never compared, sorted
 or bracketed by. Pure: no clock is read here, `ts` is always an argument.
 
-`gmt_epoch` is the one NEW scan over provider text this feature adds (schema
-section 9): one anchored, fixed-width regex over a NOAA `t` string requested in
-`time_zone=gmt`, parsed with an explicit UTC tzinfo. It is deliberately not the
-shipped `_epoch_min` in services/tide.py, whose naive `datetime.timestamp()`
-reads the PROCESS zone and is right for the single-moment routes that compare
-station-local strings; the plan's bodies are GMT and land on the epoch axis.
+`gmt_epoch` places a NOAA `t` string requested in `time_zone=gmt` on the epoch
+axis. It is now a thin unit conversion over the shared `place_instant` in
+services/tide_instant.py rather than a second regex of its own.
+
+THAT CONSOLIDATION CORRECTS A CLAIM THIS DOCSTRING CARRIED. It used to say
+`gmt_epoch` was "deliberately not the shipped `_epoch_min` in services/tide.py,
+whose naive `datetime.timestamp()` reads the PROCESS zone" -- true when written
+and false since v1.0.32, which gave `_epoch_min` the explicit `tzinfo=utc` for
+exactly that reason. From that point the two were the same UTC calendar
+arithmetic behind two byte-identical patterns, differing only in their unit
+(seconds here, minutes there) and in what they returned for a string they could
+not read. Keeping them apart bought nothing and cost a divergence: `_epoch_min`
+was fixed to refuse impossible calendar values where its TS twin rolled them
+over, and the Planner pair inherited that same split. One predicate, two unit
+conversions.
 """
 
-import re
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
-# Explicit ASCII classes, never `\d`: Python's `\d` matches every Unicode decimal
-# digit and `int()` would happily parse one, while the TS twin's `\d` is ASCII-only
-# (the v0.5.54 character-class rule for twinned guards).
-_GMT_RE = re.compile(r"^([0-9]{4})-([0-9]{2})-([0-9]{2})[ T]([0-9]{2}):([0-9]{2})")
+from services.tide_instant import place_epoch_sec
 
 
 def utc_offset_sec(ts: int, tz: ZoneInfo) -> int:
@@ -63,17 +68,16 @@ def local_midnight_ts(date: str, tz: ZoneInfo) -> int:
     return int(datetime(y, m, d, tzinfo=tz).timestamp())
 
 
-def gmt_epoch(t: str) -> int:
+def gmt_epoch(t: str) -> int | None:
     """A NOAA 'YYYY-MM-DD HH:MM' string requested in `time_zone=gmt`, as an
-    integer epoch second; 0 for a string that does not match (the caller drops
-    it). Linear: one anchored regex with fixed-width quantifiers, no
-    alternation, no lazy quantifier, so a hostile body's longer strings match
-    or fail within the first 16 characters."""
-    m = _GMT_RE.match(t)
-    if not m:
-        return 0
-    y, mo, d, h, mi = (int(x) for x in m.groups())
-    try:
-        return int(datetime(y, mo, d, h, mi, tzinfo=timezone.utc).timestamp())
-    except ValueError:
-        return 0
+    integer epoch second; None for a string that names no instant (the caller
+    drops it).
+
+    NONE RATHER THAN 0, because the caller's test was `if t > 0` and that is not
+    the predicate it meant. `1970-01-01 00:00` is a placeable instant whose
+    epoch IS the sentinel, and a pre-1970 instant is placeable and negative, so
+    the shipped Planner silently dropped both. The predicate is "placeable", not
+    "positive". Linearity, the character-class rule and the calendar round trip
+    all live at `place_instant`, which this delegates to.
+    """
+    return place_epoch_sec(t)
