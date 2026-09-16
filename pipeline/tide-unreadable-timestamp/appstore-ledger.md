@@ -35,3 +35,35 @@ archive, per the skill.
 **1.0.32 owes its own version record and submission**, and per the v1.0.31
 post-mortem the uploaded build is installed on a real device and opened BEFORE
 anything is submitted.
+
+---
+
+## Outcome — 1.0.32 SUBMITTED (2026-09-16)
+
+The device install was done by the user, who confirmed the iOS build works.
+That was the blocking precondition from the v1.0.31 launch-crash post-mortem
+and it is the only step of this ship that could not be automated.
+
+Submitted through the ASC API with the metadata key `QJA25M7XHM`, using the
+flow the v1.0.4 correction records (`appStoreVersionSubmissions` no longer
+allows CREATE):
+
+| Step | Result |
+|---|---|
+| Version record created | `34a97cc3-c028-4894-907b-72cd7a988bab`, `releaseType: AFTER_APPROVAL` |
+| Build attached | `1.0.32.1` (`f94ec2ed-...`), `VALID` |
+| Release notes written | 1,022 chars, en-US |
+| Age-rating declaration | Already complete on the new editable `appInfo` (`965e84da-...`) and matching every answer in `appstore/LISTING.md`. `socialMediaAgeRestricted` was `false` -- the field the 1.0.30 ship found unanswerable while the record was `READY_FOR_SALE` had already been recorded at `bb383d1` and carried forward. `developerAgeRatingInfoUrl` and `kidsAgeBand` null, expected on a non-Kids app. **No PATCH was needed.** |
+| Review notes | Inherited, and verified against `appstore/REVIEW_NOTES.md` rather than assumed: 3,977 characters on both sides, whitespace-normalised match exact |
+| Screenshots | 12 carried over (6 iPad Pro 12.9, 6 iPhone 6.7), all `COMPLETE`. **No recapture owed:** the photographed surfaces are Map Explorer, Statistics, Weather/tide, Calendar, Species Detail and Breeding Codes. Settings is not photographed, so the reorder is invisible to the listing; the sort-control change was attribute-only with byte-identical built CSS; and the weather and tide repairs change only the malformed-input paths, which synthetic demo data with valid timestamps never enters. |
+| `POST /v1/reviewSubmissions` | `e18ac88d-8406-4b17-9325-68f09fc76d61` |
+| `POST /v1/reviewSubmissionItems` | added |
+| `PATCH submitted: true` | **`WAITING_FOR_REVIEW`**, submitted 2026-09-16T18:05:56Z |
+
+Version record state confirmed by re-query: `1.0.32` / `WAITING_FOR_REVIEW` /
+`AFTER_APPROVAL` / build `1.0.32.1 VALID`.
+
+**So 1.0.32 has a version record of its own and needs no sentence in
+CLAUDE.md's rollup/deferral/skip list.** It shipped to every platform:
+macOS, Windows, web, TestFlight, and the App Store.
+
