@@ -297,6 +297,20 @@ describes at v1.0.25: an async test that asserts on an **effect-owned
 announcement** before the effect has flushed. Under a contended runner the
 commit has not landed when the assertion reads the node.
 
+**This file is ALREADY a recorded flake identity, and what I hit is a NEW one.**
+`.claude/rules/testing.md` documents the full-suite scheduling profile at
+v1.0.16 as "at least four distinct identities", and names
+`MapExplorerLocateFab.test.tsx > **cluster order**" (`kids[1]` undefined under
+load) as the fourth. What failed here is a different test in the same file --
+`> the failure message > replaces the message node across two identical
+failures (QA-19)`, `expected '' to be '...'`. That rule's own instruction is to
+"sample until the *set* of affected tests stops growing, then describe it", and
+to re-run the file in isolation plus the full suite clean before attributing a
+failure to the change in hand. Both were done: 19/19 green in isolation, and
+green on the tag commit's full run. **So this is a fifth identity for that
+documented profile, and the set is still growing** -- which is the fact the
+rule asks to be recorded.
+
 **That rule also names the wrong fix**: "Do not replace the missing readiness
 condition with a sleep, timeout increase, or weaker assertion." This one needs
 to await the exact downstream observable its assertion consumes — not a longer
