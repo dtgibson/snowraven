@@ -10,6 +10,7 @@ from services.ebird import CHECKLIST_ID_RE, fetch_checklist
 from services.forecast import build_weather_payload
 from services.openweather import fetch_historical, fetch_forecast
 from services.plan_weather import build_weather_plan
+from services.wall_clock import BAD_DT_DETAIL, is_blank_wall_clock, parse_wall_clock
 
 router = APIRouter()
 
@@ -81,18 +82,24 @@ async def get_weather_at(lat: float, lng: float, dt: str | None = None):
 
     tz = get_timezone(lat, lng)
 
+    # This refusal is the REFERENCE the tide sibling converged on, and it is now
+    # spelled through the shared predicate rather than inline, so the two routes
+    # cannot answer differently for the same string and the sentence has one
+    # definition. Behaviour is unchanged on every one of the 32 shapes in
+    # frontend/src/lib/wallClock.fixture.json: `parse_wall_clock` accepts exactly
+    # what the two strptime formats accepted.
+    #
+    # `margin_hours` is 0 HERE and 25 on /tide/at. This route reads one instant
+    # and needs no room around it, so `9999-12-31 23:59` keeps answering the
+    # truthful `out-of-range` ("no weather reaches that far") rather than
+    # becoming a bad-request error -- the Predict date input carries a `min` and
+    # no `max`, so that is a reachable answer.
     target_ts = None
-    if dt:
-        parsed = None
-        for fmt in ("%Y-%m-%d %H:%M", "%Y-%m-%d"):
-            try:
-                parsed = datetime.strptime(dt, fmt).replace(tzinfo=tz)
-                break
-            except ValueError:
-                continue
+    if not is_blank_wall_clock(dt):
+        parsed = parse_wall_clock(dt)
         if parsed is None:
-            raise HTTPException(status_code=400, detail="That doesn't look like a valid date and time.")
-        target_ts = int(parsed.timestamp())
+            raise HTTPException(status_code=400, detail=BAD_DT_DETAIL)
+        target_ts = int(parsed.replace(tzinfo=tz).timestamp())
 
     # The builder runs INSIDE the try, the shape /weather/plan already carries
     # (v1.0.29, .claude/rules/security.md): a JSON-valid but semantically

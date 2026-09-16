@@ -5,12 +5,29 @@ paths:
   - "frontend/src/lib/weatherStats*.ts"
   - "frontend/src/lib/weatherFormatter*"
   - "frontend/src/lib/tideFormatter*"
+  - "frontend/src/lib/tide.ts"
   - "frontend/src/lib/checklistsTab*.ts"
   - "frontend/src/lib/forecastSlice*.ts"
+  - "frontend/src/lib/tauri/tideService.ts"
+  - "frontend/src/lib/tauri/weatherService.ts"
   - "backend/formatters/**"
   - "backend/routers/weather.py"
   - "backend/routers/tide.py"
+  - "backend/services/tide.py"
 ---
+
+<!--
+The four entries added in v1.0.32 (`lib/tide.ts`, the two `lib/tauri` services,
+`backend/services/tide.py`) follow the line this list already drew and had
+applied on one side only. It gated `tideFormatter*` -- the module that RENDERS
+the pasted block -- while `tide.ts`, which computes the reading the formatter
+renders, and the two desktop services, which are the only producers of that
+block on the majority platform, matched no path at all. So a change to what
+lands in a user's public eBird checklist could be made with none of the marker
+vocabulary or byte-golden parity rules loaded. The backend twin
+(`backend/services/tide.py`) joins for the same reason `backend/routers/tide.py`
+already had.
+-->
 
 # SnowRaven weather/tide comment-block conventions
 

@@ -217,8 +217,20 @@ def normalize_obs_dt(obs_dt: str) -> str:
 
 
 def shift_local(local: str, hours: float) -> str:
+    # Explicit ASCII `[0-9]`, never `\d`, for the same reason as `_LST_RE` above
+    # and now stated at both sites: Python's `\d` matches every Unicode decimal
+    # digit and `int()` parses it, while the TS twin `shiftLocal`'s is
+    # ASCII-only -- so `٢٠٢٤-٠٥-٠١ 12:00` SHIFTED here (to `2024-05-01 13:00`)
+    # and fell through the twin's `if (!m) return local` passthrough. Closing
+    # F2 of pipeline/tide-timezone-parse/security-report.md for this half:
+    # `/tide/at` can no longer reach it at all now that its `dt` is validated at
+    # the route, but `/tide/{checklist_id}` still feeds eBird's `obs_dt` here
+    # unvalidated, and on that path the two transports now agree.
+    #
+    # `_clock` at line 144 still carries `\d` and is deliberately left open: its
+    # input is NOAA's RESPONSE `t`, which is the next build's subject.
     n = normalize_obs_dt(local)
-    m = re.match(r"^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})", n)
+    m = re.match(r"^([0-9]{4})-([0-9]{2})-([0-9]{2}) ([0-9]{2}):([0-9]{2})", n)
     if not m:
         return local
     y, mo, d, h, mi = (int(x) for x in m.groups())

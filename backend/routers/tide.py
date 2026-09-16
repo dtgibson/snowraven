@@ -15,6 +15,10 @@ from services.tide import (
     normalize_obs_dt, shift_local, to_noaa_date,
 )
 from services.tide_stations import nearest_station, classify
+from services.wall_clock import (
+    BAD_DT_DETAIL, TIDE_WINDOW_MARGIN_HOURS,
+    is_blank_wall_clock, parse_wall_clock, wall_clock_text,
+)
 
 router = APIRouter()
 
@@ -157,12 +161,42 @@ async def get_tide_at(lat: float, lng: float, dt: str | None = None, force: bool
     """Live (Current) or predicted (Predict) tide for an arbitrary location and
     moment. `dt` is the location's local wall-clock; omit it for "now". A 1-hour
     window around the moment gives the trend and bracketing high/low. NOAA is
-    keyless — no API key needed."""
-    # No dt → "now" in the LOCATION's timezone (not the caller's), so Current is
-    # correct regardless of the device/browser timezone.
-    start = normalize_obs_dt(dt) if dt else normalize_obs_dt(
-        datetime.now(get_timezone(lat, lng)).strftime("%Y-%m-%d %H:%M")
-    )
+    keyless — no API key needed.
+
+    A `dt` that is present but is not a readable wall clock is REFUSED with the
+    same 400 and the same sentence /weather/at has carried since 0.5.34. Until
+    this build there was nothing between the query parameter and
+    `normalize_obs_dt`: eight of the 32 measured shapes raised out of
+    `shift_local` as a plain-text 500 (month 13, day 45, hour 99, minute 99,
+    April 31, Feb 30, all zeroes, the calendar's last minute), one blamed NOAA
+    in NOAA's own words for a value that never reached NOAA, and several more
+    answered 200 with a confident water level for a moment nobody asked about.
+    The desktop twin never raised at all -- `Date` rolls where Python raises --
+    so the two transports produced two different wrong answers."""
+    # THE GUARD IS THIS HANDLER'S FIRST ACT, and it sits OUTSIDE _resolve_tide_at.
+    # Both halves of that sentence are load-bearing:
+    #   * OUTSIDE, because a 400 raised inside that function's broad
+    #     `except Exception` comes back to the caller as
+    #     `200 {"status": "unavailable"}` -- a deliberate error becoming a
+    #     SUCCESS status (at-route-try-containment decision 13 measured it).
+    #   * FIRST, because no NOAA request may be made for a moment we are about
+    #     to refuse -- the CHECKLIST_ID_RE posture (DECISIONS.md:800-810). It
+    #     also precedes `get_timezone`, which is where an out-of-range
+    #     coordinate still raises (decision 11, open).
+    #
+    # The margin is 25 hours, the widest shift below: `end` is start + 1h and the
+    # high/low window runs to `shift_local(end, 24)`. It is what turns the
+    # calendar's extreme minutes from an OverflowError 500 into a stated refusal.
+    if is_blank_wall_clock(dt):
+        # No dt → "now" in the LOCATION's timezone (not the caller's), so Current
+        # is correct regardless of the device/browser timezone. The desktop twin
+        # had no such fallback until this build and sent NOAA a single space.
+        start = wall_clock_text(datetime.now(get_timezone(lat, lng)))
+    else:
+        moment = parse_wall_clock(dt, TIDE_WINDOW_MARGIN_HOURS)
+        if moment is None:
+            raise HTTPException(status_code=400, detail=BAD_DT_DETAIL)
+        start = wall_clock_text(moment)
     end = shift_local(start, 1)
     return await _resolve_tide_at(lat, lng, start, end, force)
 

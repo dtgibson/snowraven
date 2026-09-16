@@ -115,7 +115,14 @@ class TauriTransport implements TransportAdapter {
       const { getTideAt } = await import('./tauri/tideService');
       const lat = parseFloat(params?.lat ?? '0');
       const lng = parseFloat(params?.lng ?? '0');
-      return getTideAt(lat, lng, params?.dt ?? '', params?.force === '1') as Promise<T>;
+      // `params?.dt` straight through, exactly as the weather branch above does
+      // it. This line read `params?.dt ?? ''` from 0.5.34 until v1.0.32, and an
+      // absent `dt` is how the Current view asks for "now": the empty string
+      // then became a single SPACE as NOAA's begin_date, so desktop and iOS
+      // Current tide resolved `{ status: 'unavailable' }` on every lookup while
+      // web/Pi worked. `getTideAt` owns the "now in the LOCATION's timezone"
+      // fallback, which is what the backend route has always done.
+      return getTideAt(lat, lng, params?.dt, params?.force === '1') as Promise<T>;
     }
 
     // Same posture as /weather/plan above: replay-seam only, never the 90 s

@@ -16,10 +16,36 @@ paths:
   - "frontend/src/lib/charClasses.ts"
   - "frontend/src/lib/weatherFormatter*.ts"
   - "frontend/src/lib/forecastSlice*.ts"
+  - "frontend/src/lib/tide*.ts"
+  - "frontend/src/lib/wallClock*.ts"
+  - "frontend/src/lib/transport.ts"
+  - "frontend/src/lib/tauri/**"
   - "frontend/src/lib/icloud/**"
   - "src-tauri/src/icloud.rs"
+  - "src-tauri/src/lib.rs"
   - "PRIVACY_POLICY.md"
 ---
+
+<!--
+The four `tide*` / `wallClock*` / `transport` / `tauri` entries were added in
+v1.0.32 and the reason is worth stating, because it is a property of this file
+rather than of the build that added them. **This file's twinned-guard rules are
+claims about a PAIR** -- explicit `[0-9]` and never `\d` (v0.5.54), anchor
+parity and `re.fullmatch` (v0.5.87), "a twinned builder pair agrees on what a
+MALFORMED figure is" (v1.0.29) -- and until v1.0.32 only the PYTHON half of each
+pair auto-loaded them. `backend/routers/tide.py` loaded this file; its desktop
+twin `lib/tauri/tideService.ts`, where `Date` silently rolls an impossible
+calendar value into a real instant exactly where Python raises, loaded neither
+this file nor `weather-tide.md`. That is the same path-gating shape CLAUDE.md
+records as having shipped a stale version pill for five commits.
+
+`frontend/src/lib/tauri/**` is the twin of `backend/services/**` and
+`backend/routers/**`, so gating it is the same line already drawn on the Python
+side rather than a new one. It also closes a gap this file had opened against
+itself: `lib/tauri/taxonomyService.ts` is CITED in the lookup-table rule below as
+the reference for the `Object.create(null)` write side, and was matched by no
+path here.
+-->
 
 # SnowRaven security standing checks
 

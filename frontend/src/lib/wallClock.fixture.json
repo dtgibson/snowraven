@@ -1,0 +1,236 @@
+{
+  "_comment": [
+    "The `dt` request-parameter roster for GET /weather/at and GET /tide/at, and",
+    "the twinned predicate underneath them (frontend/src/lib/wallClock.ts <->",
+    "backend/services/wall_clock.py). Driven from BOTH runtimes, the way",
+    "tideEpoch.fixture.json pins _epoch_min against epochMin.",
+    "",
+    "HAND-WRITTEN, not generated. A generated verdict column records whatever the",
+    "code does and can only ever pin AGREEMENT; what this class needed was a",
+    "DIRECTION argued from the contract (weather-at-malformed-parity convention",
+    "flag). Every verdict below was decided from pipeline/tide-at-bad-request/",
+    "bug-brief.md's spec and then measured, not read off the implementation.",
+    "",
+    "`roster` is the brief's 32-shape population, in its order. Do not add rows to",
+    "it: every count recorded in decisions.md is a measurement over exactly these",
+    "32, and growing it would silently restate all of them over a different",
+    "population. Rows chosen to SEPARATE the two implementations live in",
+    "`separators` below, beside the roster rather than in it.",
+    "",
+    "verdict vocabulary:",
+    "  blank   - absent or empty: resolve 'now' in the LOCATION's timezone",
+    "  ok      - a readable moment; `canonical` is the wall clock it normalizes to",
+    "  refused - HTTP 400 / { status: 400 } carrying `badDtMessage`",
+    "",
+    "`padX` means: append that many 'x' characters to `dt`. It keeps a 5 KB row in",
+    "the roster without a 5 KB line in the file."
+  ],
+  "badDtMessage": "That doesn't look like a valid date and time.",
+  "tideWindowMarginHours": 25,
+  "roster": [
+    { "name": "conforming date+time", "dt": "2024-05-01 12:00", "tide": "ok", "weather": "ok", "canonical": "2024-05-01 12:00" },
+    { "name": "conforming date only", "dt": "2024-05-01", "tide": "ok", "weather": "ok", "canonical": "2024-05-01 00:00" },
+    { "name": "absent", "dt": null, "tide": "blank", "weather": "blank" },
+    { "name": "empty string", "dt": "", "tide": "blank", "weather": "blank" },
+    { "name": "whitespace only", "dt": " ", "tide": "refused", "weather": "refused" },
+    { "name": "non-numeric word", "dt": "garbage", "tide": "refused", "weather": "refused" },
+    { "name": "wrong separator", "dt": "2024/05/01", "tide": "refused", "weather": "refused" },
+    { "name": "ISO with T", "dt": "2024-05-01T12:00:00Z", "tide": "refused", "weather": "refused" },
+    { "name": "month 13", "dt": "2024-13-01 12:00", "tide": "refused", "weather": "refused" },
+    { "name": "day 45", "dt": "2024-05-45 12:00", "tide": "refused", "weather": "refused" },
+    { "name": "hour 99", "dt": "2024-05-01 99:00", "tide": "refused", "weather": "refused" },
+    { "name": "minute 99", "dt": "2024-05-01 12:99", "tide": "refused", "weather": "refused" },
+    { "name": "day 31 of a 30-day month", "dt": "2024-04-31 12:00", "tide": "refused", "weather": "refused" },
+    { "name": "Feb 30", "dt": "2024-02-30 12:00", "tide": "refused", "weather": "refused" },
+    { "name": "all zeroes", "dt": "0000-00-00 00:00", "tide": "refused", "weather": "refused" },
+    { "name": "year 0001 min edge", "dt": "0001-01-01 00:00", "tide": "refused", "weather": "ok", "canonical": "0001-01-01 00:00" },
+    { "name": "year 9999 max edge", "dt": "9999-12-31 23:59", "tide": "refused", "weather": "ok", "canonical": "9999-12-31 23:59" },
+    { "name": "year 99999", "dt": "99999-01-01 12:00", "tide": "refused", "weather": "refused" },
+    { "name": "negative year", "dt": "-0001-01-01 12:00", "tide": "refused", "weather": "refused" },
+    { "name": "epoch seconds", "dt": "1714564800", "tide": "refused", "weather": "refused" },
+    { "name": "epoch milliseconds", "dt": "1714564800000", "tide": "refused", "weather": "refused" },
+    { "name": "NaN literal", "dt": "NaN", "tide": "refused", "weather": "refused" },
+    { "name": "null literal", "dt": "null", "tide": "refused", "weather": "refused" },
+    { "name": "non-numeric fields", "dt": "abcd-ef-gh ij:kl", "tide": "refused", "weather": "refused" },
+    { "name": "unicode digits (Arabic-Indic)", "dt": "٢٠٢٤-٠٥-٠١ 12:00", "tide": "refused", "weather": "refused" },
+    { "name": "very long string (5 KB)", "dt": "2024-05-01 12:00", "padX": 5000, "tide": "refused", "weather": "refused" },
+    { "name": "trailing junk after a valid prefix", "dt": "2024-05-01 12:00junk", "tide": "refused", "weather": "refused" },
+    { "name": "leading whitespace + valid", "dt": "  2024-05-01 12:00", "tide": "refused", "weather": "refused" },
+    { "name": "valid date, empty time half", "dt": "2024-05-01 ", "tide": "refused", "weather": "refused" },
+    { "name": "time only", "dt": "12:00", "tide": "refused", "weather": "refused" },
+    { "name": "NUL byte appended", "dt": "2024-05-01 12:00\u0000", "tide": "refused", "weather": "refused" },
+    { "name": "newline appended", "dt": "2024-05-01 12:00\n", "tide": "refused", "weather": "refused" }
+  ],
+  "separators": [
+    {
+      "name": "year 0000, otherwise conforming",
+      "dt": "0000-01-01 00:00",
+      "margin0": "refused",
+      "margin25": "refused",
+      "mechanism": "Year 0 is a real proleptic year to JavaScript (setUTCFullYear(0) round-trips) and is out of range for Python datetime. Separated by the explicit year-1 floor, NOT by the round trip."
+    },
+    {
+      "name": "trailing newline on a conforming clock",
+      "dt": "2024-05-01 12:00\n",
+      "margin0": "refused",
+      "margin25": "refused",
+      "mechanism": "Python's `$` matches BEFORE a trailing newline and JavaScript's does not (v0.5.87). Separated by re.fullmatch on the Python side."
+    },
+    {
+      "name": "Arabic-Indic digits in the date half",
+      "dt": "٢٠٢٤-٠٥-٠١ 12:00",
+      "margin0": "refused",
+      "margin25": "refused",
+      "mechanism": "Python's `\\d` matches every Unicode decimal digit and int() parses it; JavaScript's is ASCII-only (v0.5.54). Separated by the explicit [0-9] class."
+    },
+    {
+      "name": "hour 24",
+      "dt": "2024-05-01 24:00",
+      "margin0": "refused",
+      "margin25": "refused",
+      "mechanism": "Python datetime(...,24,...) raises; JavaScript setUTCHours(24) rolls silently into the next day. Separated by the component round trip."
+    },
+    {
+      "name": "the calendar's first moment",
+      "dt": "0001-01-01 00:00",
+      "margin0": "ok",
+      "margin25": "refused",
+      "mechanism": "The margin's LOWER edge. Python raises OverflowError on the subtraction; the TS twin compares against the same floor."
+    },
+    {
+      "name": "25 hours before the calendar's last minute",
+      "dt": "9999-12-30 23:00",
+      "margin0": "ok",
+      "margin25": "refused",
+      "mechanism": "The margin's UPPER edge: +25h lands on 10000-01-01 00:00, one minute past what either runtime can represent."
+    },
+    {
+      "name": "one minute inside the margin's upper edge",
+      "dt": "9999-12-30 22:59",
+      "margin0": "ok",
+      "margin25": "ok",
+      "canonical": "9999-12-30 22:59",
+      "mechanism": "NON-VACUITY for the row above: +25h lands exactly on 9999-12-31 23:59, the last representable minute, and is accepted. Without this row the upper-edge row would pass against a predicate that refused the whole of year 9999."
+    }
+  ],
+  "_zoneNamesComment": [
+    "THE ROSTER IS BLIND TO THIS AXIS BY CONSTRUCTION: every one of its 32 rows",
+    "supplies a valid timezone, because the roster varies `dt` and nothing else.",
+    "So it could not see that the desktop 'now' fallback this build ADDED threw a",
+    "status-less RangeError on an empty zone name -- reproducing, four lines from",
+    "the refusal that carries `status: 400` precisely so isOfflineError reads",
+    "false, the exact 'you're offline on an online device' falsehood the build",
+    "exists to remove. Found by the security review as F1 (Medium).",
+    "",
+    "`tzf_rs::DefaultFinder::get_tz_name` returns the EMPTY STRING for a point no",
+    "polygon covers -- its own source calls that a limitation of the simplified",
+    "data, not a bug -- and the Python twin has always had `or \"UTC\"`. Tide is a",
+    "coastal and on-water feature, so the coordinates most likely to be uncovered",
+    "are disproportionately the ones this feature is used at.",
+    "",
+    "`resolvesTo` is the zone each runtime must actually format in. Both rows",
+    "that fall back are measured-necessary and close DIFFERENT cases; see",
+    "decisions.md section 13."
+  ],
+  "fallbackZone": "UTC",
+  "zoneNames": [
+    {
+      "name": "empty — tzf-rs's documented return for an uncovered point",
+      "tz": "",
+      "resolvesTo": "UTC",
+      "closedBy": "the native seam, matching the Python twin's `or \"UTC\"`"
+    },
+    {
+      "name": "a zone name this runtime's tz database does not know",
+      "tz": "Ocean/Nowhere",
+      "resolvesTo": "UTC",
+      "closedBy": "the per-runtime zone guard; the seam default structurally cannot reach this one"
+    },
+    {
+      "name": "UTC (control)",
+      "tz": "UTC",
+      "resolvesTo": "UTC",
+      "closedBy": "nothing — this row must pass unchanged"
+    },
+    {
+      "name": "a real zone (control)",
+      "tz": "America/Los_Angeles",
+      "resolvesTo": "America/Los_Angeles",
+      "closedBy": "nothing — this row must pass unchanged"
+    }
+  ],
+  "_seamFailureComment": [
+    "A SEAM HAS TWO FAILURE MODES AND `zoneNames` above covers ONE of them.",
+    "Those rows all mock the native command as RESOLVING and vary what it",
+    "returns; no test in the repo drove a REJECTING invoke. Measured, both",
+    "services: a rejection gives a status-less throw with isOfflineError true --",
+    "the F1 signature exactly, on the axis the zoneNames fixture holds constant.",
+    "QA round 2 found it; the blind spot had moved one step out rather than",
+    "closed.",
+    "",
+    "THE TWO MODES GET DIFFERENT ANSWERS, AND THAT IS THE POINT OF THIS BLOCK.",
+    "An unusable RETURN means the lookup succeeded and told us this point has no",
+    "usable zone, so UTC is the honest best effort and matches the backend. A",
+    "REJECTION means the lookup never happened, and the point probably does have",
+    "a zone -- substituting UTC there would invent a moment up to ten hours off",
+    "for a US coastal point, which is the one thing this whole build exists to",
+    "prevent. So a rejection REFUSES, with a status so it never reads as offline.",
+    "",
+    "It is also the parity-preserving answer, measured: the reachable trigger is",
+    "a NaN or out-of-range coordinate (open deferral 4), and `GET /tide/at?lat=nan`",
+    "answers 500 on the backend because `get_timezone` sits outside every try. A",
+    "UTC fallback here would make desktop SUCCEED where web/Pi fails -- a new",
+    "divergence, in the direction of a confidently wrong answer."
+  ],
+  "seamRefusalStatus": 500,
+  "seamFailures": [
+    { "name": "rejects with an Error (an IPC or command failure)", "mode": "rejectError", "expect": "refused" },
+    { "name": "rejects with a bare string (the Tauri error idiom)", "mode": "rejectString", "expect": "refused" },
+    { "name": "resolves undefined", "mode": "resolveUndefined", "expect": "fallback" },
+    { "name": "resolves null", "mode": "resolveNull", "expect": "fallback" },
+    { "name": "resolves a non-string", "mode": "resolveNumber", "expect": "fallback" },
+    { "name": "resolves a real zone (control)", "mode": "resolveOk", "expect": "ok" }
+  ],
+  "_tighteningsComment": [
+    "Shapes the new predicate REFUSES that /weather/at's replaced guard -- two",
+    "strptime formats, shipped since 0.5.34 and called 'the reference' by this",
+    "build's brief -- ACCEPTED. A differential sweep of 80,504 generated strings",
+    "found 67 of them and zero in the other direction; these three are one per",
+    "category, and the roster could not see any of them (its Arabic-Indic row",
+    "puts the non-ASCII digits in the MONTH, where strptime's %m is a literal",
+    "ASCII alternation and refuses, while %Y is `\\d\\d\\d\\d` and does not).",
+    "",
+    "Every one of the 67 resolved to the CORRECT moment on the backend, so this",
+    "is a leniency being closed rather than a wrong answer being fixed -- but",
+    "every one of them ALSO threw status-less on the desktop twin and was read",
+    "as 'you're offline'. They were divergent rows; the build converges them on",
+    "refusal. `pythonAccepted` is asserted against the real replaced expression",
+    "so the tightening stays a measurement rather than a story."
+  ],
+  "tighteningsOverTheReplacedWeatherGuard": [
+    {
+      "name": "non-ASCII decimal digits in the YEAR alone",
+      "dt": "٢٠٢٤-05-01 12:00",
+      "pythonAccepted": "2024-05-01 12:00",
+      "category": "non-ASCII decimal digit",
+      "sweepCount": 27,
+      "mechanism": "strptime's %Y is `\\d\\d\\d\\d`, which is Unicode in Python, and int() parses the result. %m and %d are literal ASCII alternations, which is why the roster's all-Arabic-Indic row refused and this one did not. The TS twin's Number() returns NaN for these, so desktop threw."
+    },
+    {
+      "name": "a non-breaking space as the date/time separator",
+      "dt": "2024-05-01 12:00",
+      "pythonAccepted": "2024-05-01 12:00",
+      "category": "non-space whitespace as the date/time separator",
+      "sweepCount": 34,
+      "mechanism": "A literal space in a strptime FORMAT matches any run of whitespace, NBSP and the C0 separators included. The TS twin splits on a literal ' ', so timePart was undefined and it threw."
+    },
+    {
+      "name": "a one-digit minute",
+      "dt": "2024-05-01 12:0",
+      "pythonAccepted": "2024-05-01 12:00",
+      "category": "one-digit hour or minute",
+      "sweepCount": 3,
+      "mechanism": "strptime's %M is `[0-5]\\d|\\d`, so it accepts one digit. No shipped caller can emit it: the Predict time input and nowInZone both zero-pad."
+    }
+  ]
+}

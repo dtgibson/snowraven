@@ -235,9 +235,36 @@ def format_range(values: list[float], unit: str = "") -> str:
     return f"{lo} - {hi}{unit}"
 
 
+# The zone every date derivation falls back to when a coordinate has no usable
+# one. Twin of FALLBACK_ZONE in frontend/src/lib/wallClock.ts and of the native
+# seam's own default in src-tauri/src/lib.rs.
+FALLBACK_ZONE = "UTC"
+
+
 def get_timezone(lat: float, lng: float) -> ZoneInfo:
-    tz_name = _tf.timezone_at(lat=lat, lng=lng) or "UTC"
-    return ZoneInfo(tz_name)
+    """A usable tzinfo for a coordinate. TOTAL: it never raises, whatever the
+    finder returns.
+
+    The `or FALLBACK_ZONE` half is long-standing and covers an uncovered point,
+    where `timezone_at` returns None. The `try` is new in v1.0.32 and covers a
+    different case: a zone name the FINDER knows and this runtime's tz DATABASE
+    does not. `timezonefinder` ships its own tzdb-derived polygon data and
+    `zoneinfo` reads the system tzdb, so a zone added to one and absent from the
+    other (America/Ciudad_Juarez, tzdata 2022g, is the standing example) raised
+    `ZoneInfoNotFoundError` here -- and `get_timezone` sits OUTSIDE every route's
+    try, so that was a plain-text 500.
+
+    Both halves exist on the desktop twin too, and deliberately so: the seam
+    default in `src-tauri/src/lib.rs` answers the empty name, `zoneOrUtc` in
+    `lib/wallClock.ts` answers the unknown one. Closing only one side here would
+    have opened a fresh divergence of exactly the class this build exists to
+    close -- which is the mistake this build already made once, on the `dt`
+    guard's own "now" fallback (security review F1)."""
+    tz_name = _tf.timezone_at(lat=lat, lng=lng) or FALLBACK_ZONE
+    try:
+        return ZoneInfo(tz_name)
+    except Exception:
+        return ZoneInfo(FALLBACK_ZONE)
 
 
 def format_local_time(unix_ts: int, tz: ZoneInfo) -> str:

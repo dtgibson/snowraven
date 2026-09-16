@@ -5,7 +5,6 @@
 // See pipeline/weather-tides/schema.md.
 
 import { tauriFetch } from './http'
-import { invoke } from '@tauri-apps/api/core'
 import { storage } from '../storage'
 import { fetchChecklist } from './weatherService'
 import { nearestStation, classifyTideLocation, type TideLocationStatus } from '../tideStations'
@@ -13,6 +12,11 @@ import {
   parseObserved, parsePredictions, parseHiLo, computeTideReading,
   normalizeObsDt, shiftLocal, toNoaaDate, summarizeReading, type TideAtResponse,
 } from '../tide'
+import {
+  BAD_DT_MESSAGE, TIDE_WINDOW_MARGIN_HOURS,
+  isBlankWallClock, parseWallClock, wallClockText, nowInZone,
+} from '../wallClock'
+import { locationZone } from './locationZone'
 import { formatTide, formatTideBody } from '../tideFormatter'
 import { buildTidePlan, planTideRange, toNoaaGmtDate } from '../tidePlan'
 import type { TidePlanResponse } from '../plan'
@@ -117,10 +121,45 @@ export async function getTide(checklistId: string, force = false): Promise<TideR
 }
 
 // Live (Current) or predicted (Predict) tide for an arbitrary location and moment,
-// bypassing the eBird checklist. `dtLocal` is the local wall-clock; a 1-hour
-// window around it gives the trend + bracketing high/low. Twin of GET /tide/at.
-export async function getTideAt(lat: number, lng: number, dtLocal: string, force = false): Promise<TideAtResponse> {
-  const start = normalizeObsDt(dtLocal)
+// bypassing the eBird checklist. `dtLocal` is the LOCATION's local wall-clock;
+// omit it for "now". A 1-hour window around it gives the trend + bracketing
+// high/low. Twin of GET /tide/at.
+//
+// TWO THINGS CHANGED HERE AND THEY ARE ONE CHANGE. Refusing an unreadable
+// `dtLocal` without adding the "now" fallback would have converted a silent
+// wrong window into a hard refusal of the shipped Current view: transport.ts
+// passed `params?.dt ?? ''` where the weather branch passes `undefined`, and
+// this function had no fallback at all, so `toNoaaDate(normalizeObsDt(''))` sent
+// NOAA a single SPACE as begin_date. The live API answers
+// `Wrong Date: The requested begin/end date or range are not valid.`, which
+// parses to no points, so Current has been `{ status: 'unavailable' }` on
+// desktop and iOS since 0.5.34 while working correctly on web/Pi.
+export async function getTideAt(lat: number, lng: number, dtLocal?: string, force = false): Promise<TideAtResponse> {
+  // THE GUARD IS THIS SERVICE'S FIRST ACT: a refused moment reaches neither the
+  // native timezone command nor NOAA, the twin of the route putting its refusal
+  // before `_resolve_tide_at` and before `get_timezone`.
+  //
+  // It matters more on this runtime than on the other one. Python RAISES on an
+  // impossible calendar value; `Date` ROLLS, silently, into a real instant --
+  // `?dt=2024-05-01 99:00` asked NOAA for 2026-05-05 04:00 and rendered a
+  // four-day water-level range as a one-hour reading, in the block a user
+  // pastes into a public eBird checklist. There was nothing to catch, because
+  // nothing threw.
+  let start: string
+  if (isBlankWallClock(dtLocal)) {
+    // "Now" in the LOCATION's timezone, not the device's -- the twin of the
+    // route's `datetime.now(get_timezone(lat, lng))`. `getTidePlan` below
+    // already uses this same seam for the same reason.
+    const tzName = await locationZone(lat, lng)
+    start = nowInZone(tzName)
+  } else {
+    const moment = parseWallClock(dtLocal as string, TIDE_WINDOW_MARGIN_HOURS)
+    // The `assertCoordinateRange` shape (weatherService.ts): a plain Error
+    // carrying `status: 400`, so `isOfflineError` reads FALSE and the panel
+    // never claims the device is offline over a value the user typed.
+    if (!moment) throw Object.assign(new Error(BAD_DT_MESSAGE), { status: 400 })
+    start = wallClockText(moment)
+  }
   const end = shiftLocal(start, 1)
 
   const nearest = nearestStation(lat, lng)
@@ -190,7 +229,7 @@ export async function getTidePlan(lat: number, lng: number, force = false): Prom
     throw Object.assign(new Error(NO_OWM_KEY), { status: 500, detail: NO_OWM_KEY })
   }
 
-  const tzName: string = await invoke('get_timezone', { lat, lng })
+  const tzName = await locationZone(lat, lng)
   const nowTs = Math.floor(Date.now() / 1000)
 
   const nearest = nearestStation(lat, lng)

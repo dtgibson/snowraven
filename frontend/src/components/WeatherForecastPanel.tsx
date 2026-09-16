@@ -16,6 +16,7 @@ import { getCurrentLocation, describeLocationError, type LocationError } from '.
 import { buildCombined } from '../lib/tideFormatter'
 import { tideTooFarNotice, tideOverrideLabel } from '../lib/tideNotice'
 import { formatDate } from '../lib/formatDate'
+import { nowInZone } from '../lib/wallClock'
 import { FORECAST_DAILY_LABEL, FORECAST_DAILY_DESCRIPTION_SUFFIX } from '../lib/forecastLabels'
 import { composePlan, type Plan, type WeatherPlan, type TidePlanResponse } from '../lib/plan'
 import { PLAN_COPY } from '../lib/planCopy'
@@ -46,16 +47,12 @@ const toDateInput = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${
 const toTimeInput = (d: Date) => `${pad(d.getHours())}:${pad(d.getMinutes())}`
 
 // "Now" as a 'YYYY-MM-DD HH:MM' wall-clock string IN the given timezone — so a
-// Current lookup shows (and queries) the location's local time, not the device's.
-function nowInTz(tzName: string): string {
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: tzName, year: 'numeric', month: '2-digit', day: '2-digit',
-    hour: '2-digit', minute: '2-digit', hour12: false,
-  }).formatToParts(new Date())
-  const g = (t: string) => parts.find(p => p.type === t)?.value ?? '00'
-  const hh = g('hour') === '24' ? '00' : g('hour')
-  return `${g('year')}-${g('month')}-${g('day')} ${hh}:${g('minute')}`
-}
+// Current lookup shows (and queries) the location's local time, not the device's
+// — is `nowInZone` in lib/wallClock.ts. It lived here as a byte-identical local
+// copy until v1.0.32, when `getTideAt` needed the same function on the REQUEST
+// path (it had no "now" fallback and was sending NOAA a blank date). Two copies
+// of it, one of them now load-bearing for what gets requested rather than for
+// what gets labelled, is the drift this repo single-sources against.
 
 // ── styles (token-faithful to the existing Weather card) ──────────────────────
 const primaryBtn: React.CSSProperties = {
@@ -291,7 +288,7 @@ export function WeatherForecastPanel({ onPlanVisible }: WeatherForecastPanelProp
     // For Current (no whenRaw passed) the label is "now" in the LOCATION's tz the
     // weather response carries; falls back to the device clock if tz is missing.
     const tz = wRes.ok ? wRes.r.tz : undefined
-    const whenRawFinal = whenRaw ?? (tz ? nowInTz(tz) : `${toDateInput(new Date())} ${toTimeInput(new Date())}`)
+    const whenRawFinal = whenRaw ?? (tz ? nowInZone(tz) : `${toDateInput(new Date())} ${toTimeInput(new Date())}`)
     setPhase({
       kind: 'result',
       data: {
