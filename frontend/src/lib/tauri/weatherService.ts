@@ -185,10 +185,25 @@ export async function getWeather(checklistId: string): Promise<WeatherResult> {
   );
 
   // formatWeather is the builder that consumes the provider bodies, so it is
-  // caught here for the same reason as getWeatherAt's. Measured: eight of the
-  // twelve malformed timemachine shapes probed threw status-less out of it (the
-  // other four are the known non-numeric-figure divergence from the Python
-  // twin). fetchHistorical stays outside, again so a real offline stays offline.
+  // caught here for the same reason as getWeatherAt's. At v1.0.31 eight of the
+  // twelve malformed timemachine shapes probed threw status-less out of it and
+  // the other four were a known divergence from the Python twin, which refused
+  // them; weather-at-malformed-parity closed that -- `formatWeather` now refuses
+  // every malformed hour its twin does (50 shapes, both runtimes, one shared
+  // fixture), so this catch covers the whole class rather than two thirds of it.
+  // fetchHistorical stays outside, again so a real offline stays offline.
+  //
+  // THAT IS TRUE OF THE REFUSAL AND NOT OF THE WORDS, which is worth stating
+  // because this build makes the difference show up far more often. The two
+  // transports have always disagreed on this route's sentence -- web/Pi says
+  // "Weather data unavailable for this checklist's time and location."
+  // (`_CHECKLIST_WEATHER_DETAIL` in backend/routers/weather.py) and this side
+  // says "Weather data unavailable for this checklist." -- and the input set
+  // that reaches the sentence at all just went from 13 of 50 measured malformed
+  // hour shapes to all 50. Pre-existing, not introduced here, no published prose
+  // quotes either string, and both are honest; the divergence is out of this
+  // build's scope and is named in its completion note rather than fixed
+  // silently alongside a refusal change.
   let formatted: string;
   try {
     formatted = formatWeather(hourlyResponses, tzName, checklist.lat);

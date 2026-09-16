@@ -99,8 +99,21 @@ async def get_weather_at(lat: float, lng: float, dt: str | None = None):
     # malformed body is a provider error exactly as a 5xx is, mapped to the same
     # 502 and the same words, never a plain-text 500 reading as the app's fault.
     # This route slices ONE tier, so WHICH shapes reach the builder depends on
-    # the tier `dt` selects -- the table in test_at_route_containment.py is per
-    # tier, and a shape mutating another tier answers 200 untouched.
+    # the tier `dt` selects, and the table in test_at_route_containment.py is
+    # per tier for that reason. It is NOT tier-ISOLATED, though, and this
+    # comment asserted that it was until weather-at-malformed-parity measured
+    # otherwise: `_hour_from_point` reads sunrise/sunset from the DAILY tier
+    # whenever the selected current/hourly point omits them, which One Call
+    # does at polar latitudes, so a daily-only mutation can decide a
+    # current-tier answer. Measured on one body, three ways:
+    #
+    #   conforming                                        -> 200, Sunrise=6:48am
+    #   daily[*].sunrise='x', current has its own          -> 200, Sunrise=6:48am
+    #   daily[*].sunrise='x', current omits its own        -> 502
+    #
+    # So the honest statement is that a cross-tier mutation USUALLY answers 200
+    # untouched, and does so here because the containment fixture's `current`
+    # carries its own sun times -- a property of that fixture, not of the route.
     try:
         onecall = await fetch_forecast(lat, lng)
         payload = build_weather_payload(onecall, target_ts, tz, lat)
