@@ -16,6 +16,7 @@ paths:
   - "frontend/src/lib/charClasses.ts"
   - "frontend/src/lib/weatherFormatter*.ts"
   - "frontend/src/lib/forecastSlice*.ts"
+  - "frontend/src/lib/weatherPlan*.ts"
   - "frontend/src/lib/tide*.ts"
   - "frontend/src/lib/wallClock*.ts"
   - "frontend/src/lib/transport.ts"
@@ -27,9 +28,9 @@ paths:
 ---
 
 <!--
-The four `tide*` / `wallClock*` / `transport` / `tauri` entries were added in
-v1.0.32 and the reason is worth stating, because it is a property of this file
-rather than of the build that added them. **This file's twinned-guard rules are
+The `tide*` / `wallClock*` / `transport` / `tauri` / `src-tauri/src/lib.rs`
+entries were added in v1.0.32 and the reason is worth stating, because it is a
+property of this file rather than of the build that added them. **This file's twinned-guard rules are
 claims about a PAIR** -- explicit `[0-9]` and never `\d` (v0.5.54), anchor
 parity and `re.fullmatch` (v0.5.87), "a twinned builder pair agrees on what a
 MALFORMED figure is" (v1.0.29) -- and until v1.0.32 only the PYTHON half of each
@@ -45,6 +46,17 @@ side rather than a new one. It also closes a gap this file had opened against
 itself: `lib/tauri/taxonomyService.ts` is CITED in the lookup-table rule below as
 the reference for the `Object.create(null)` write side, and was matched by no
 path here.
+
+`frontend/src/lib/weatherPlan*.ts` was added at the v1.0.32 CLOSEOUT rather than
+by the build that owed it, and the miss is the reason it is named here. That
+build's own security review recommended FOUR globs; three shipped and this one
+was dropped, in the same change that DELETED the v1.0.29 guards this file's
+malformed-figure rule used to point at -- so `weatherPlan.ts` remained cited in
+that rule's body (below) while matching no path here, and a future session
+reinstating a guard there would have got no rule. It is the same shape as the
+`taxonomyService.ts` gap above and an instance of the seventeen cited-but-
+unglobbed files recorded in ROADMAP.md: this list is a claim the repo can check
+mechanically and does not.
 -->
 
 # SnowRaven security standing checks

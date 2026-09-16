@@ -139,8 +139,9 @@ def assert_hour_reading(hour) -> None:
     then agree on the (wrong) night reading it produces. Agreement is the
     property this guard delivers; range plausibility is unmeasured, is out of
     this build's scope rather than half-done in it, and is handed to the
-    Chronicler as a ROADMAP.md candidate at closeout (nothing in ROADMAP.md
-    names it yet).
+    Chronicler as a ROADMAP.md candidate at closeout. Recorded at the v1.0.32
+    closeout as item 2 of "Three weather-reading limits measured in v1.0.32 and
+    deliberately not changed" in ROADMAP.md.
     """
     assert_hour_figures(hour)
     assert_hour_condition(hour)

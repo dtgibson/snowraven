@@ -182,8 +182,9 @@ export function assertHourCondition(hour: unknown): void {
  * runtimes then agree on the (wrong) night reading it produces. Agreement is
  * the property this guard delivers; range plausibility is a separate question
  * nobody has measured, is out of this build's scope rather than half-done in
- * it, and is handed to the Chronicler as a ROADMAP.md candidate at closeout
- * (nothing in ROADMAP.md names it yet).
+ * it, and is handed to the Chronicler as a ROADMAP.md candidate at closeout.
+ * Recorded at the v1.0.32 closeout as item 2 of "Three weather-reading limits
+ * measured in v1.0.32 and deliberately not changed" in ROADMAP.md.
  */
 export function assertHourReading(hour: unknown): void {
   assertHourFigures(hour);

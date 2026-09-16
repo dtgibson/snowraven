@@ -182,8 +182,10 @@ def _hour_from_daily(daily: dict, temp: dict) -> dict:
     reports Sunrise and Sunset both equal to the reading's own timestamp, on
     either tier and on both runtimes. That is out of this build's scope rather
     than half-changed in it, and is handed to the Chronicler as a ROADMAP.md
-    candidate at closeout (nothing in ROADMAP.md names it yet); decision 5
-    carries the measurement and the reversal condition.
+    candidate at closeout; decision 5 carries the measurement and the reversal
+    condition. Recorded at the v1.0.32 closeout as item 1 of "Three
+    weather-reading limits measured in v1.0.32 and deliberately not changed" in
+    ROADMAP.md.
     """
     return {
         "dt": daily.get("dt"),
