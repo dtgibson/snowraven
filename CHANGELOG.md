@@ -2,6 +2,18 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [1.0.32] - 2026-09-16
+
+### Changed
+- Settings now opens on API Keys, with Default Files (and iCloud Sync) directly below it, so the two sections you need first are the first ones you see.
+- Sort controls on List Comparer, Multimedia and Species Detail now announce which option is selected to screen readers, matching the one on Checklists that already did.
+
+### Fixed
+- Current tide on the Mac, iPhone and iPad apps had been showing as unavailable instead of fetching the tide for where you are. It works again.
+- Weather lookups now refuse a malformed forecast from the provider instead of showing a made-up reading. A missing temperature could appear as `0°F` with a fabricated "Clear sky" on the web and Raspberry Pi versions, or as `NaN°F` on Mac, iPhone and iPad, and either could reach the copy-ready block you paste into an eBird checklist. Both now say the weather is unavailable, identically. Also fixes a forecast at high latitudes failing on the web and Pi versions, and a single bad hour in the provider's response costing the whole lookup.
+- A date and time that cannot be read is now refused politely by both the tide and weather lookups, instead of reporting an error, showing a reading for a different moment, or saying you are offline while you are online.
+- A tide timestamp SnowRaven cannot read now drops that high or low from the reading, instead of being treated as 1970, which had produced a plausible but wrong water level and a "Previous high ... at" line with no time after it in the copy-ready block. The Mac, iPhone, iPad and web readings agree on which timestamps are unreadable, and the Weather/tide Planner no longer draws a turning point for a moment that does not exist.
+
 ## [1.0.31] - 2026-09-15
 
 ### Changed
