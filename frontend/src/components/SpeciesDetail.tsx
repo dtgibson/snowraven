@@ -1596,11 +1596,12 @@ export function SpeciesDetail({ onGoToSettings, onGoToWeather, filesVersion, req
               </div>
 
               {/* Sort toggle */}
-              <div style={{ display: 'inline-flex', border: '1.5px solid var(--sr-accent-border)', borderRadius: 6, overflow: 'hidden', flexShrink: 0 }}>
+              <div style={{ display: 'inline-flex', border: '1.5px solid var(--sr-accent-border)', borderRadius: 6, overflow: 'hidden', flexShrink: 0 }} role="group" aria-label="Sort order">
                 {(['newest', 'oldest'] as const).map((dir, i) => (
                   <Button
                     key={dir}
                     onClick={() => setCommentSort(dir)}
+                    aria-pressed={commentSort === dir}
                     style={{
                       height: 32, padding: '0 12px',
                       border: 'none',

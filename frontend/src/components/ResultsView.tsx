@@ -54,11 +54,12 @@ export function ResultsView({ listALabel, listBLabel, result, onReset, sort, onS
           <strong style={{ fontWeight: 600, color: 'var(--sr-text)' }}>{nameB}</strong>
         </p>
         <div style={{ display: 'flex', gap: 8, flexShrink: 0, alignItems: 'center', flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', borderRadius: 6, overflow: 'hidden', border: '1.5px solid var(--sr-accent-border)' }}>
+          <div style={{ display: 'flex', borderRadius: 6, overflow: 'hidden', border: '1.5px solid var(--sr-accent-border)' }} role="group" aria-label="Sort order">
             {(['taxonomic', 'alpha'] as SortOrder[]).map((s, i) => (
               <Button
                 key={s}
                 onClick={() => onSortChange(s)}
+                aria-pressed={sort === s}
                 style={{
                   height: 34,
                   padding: '0 12px',
