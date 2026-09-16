@@ -2170,69 +2170,15 @@ export function Settings({
     <>
     <div style={{ width: '100%', maxWidth: 680, margin: '0 auto' }}>
 
-      <SectionHeader label="Help &amp; Documentation" />
-
-      <div className="sr-action-row sr-action-row-stack" style={{
-        border: '1px solid var(--sr-border)', borderRadius: 10,
-        background: 'var(--sr-surface)', overflow: 'hidden',
-        marginBottom: 24, padding: 16,
-      }}>
-        <div className="sr-min0" style={{ display: 'flex', alignItems: 'center', gap: 16, flex: 1 }}>
-        <div style={{
-          width: 40, height: 40, borderRadius: 10, flexShrink: 0,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          background: 'var(--sr-accent-bg)', border: '1px solid var(--sr-accent-border)',
-          color: 'var(--sr-accent)',
-        }}>
-          <BookOpen size={18} strokeWidth={1.75} />
-        </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: '0.84375rem', fontWeight: 600, color: 'var(--sr-text)', marginBottom: 2 }}>
-            SnowRaven Documentation
-          </div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)', lineHeight: 1.5 }}>
-            Setup guides, feature walkthroughs, and API key instructions. Available offline.
-          </div>
-        </div>
-        </div>
-        <Button
-          onClick={onOpenHelp}
-          style={{
-            height: 34, padding: '0 16px', flexShrink: 0,
-            background: 'var(--sr-accent)', color: 'var(--sr-on-accent)',
-            border: 'none', borderRadius: 7,
-            fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'inherit',
-            cursor: 'pointer', whiteSpace: 'nowrap',
-          }}
-        >
-          Open documentation
-        </Button>
-      </div>
-
-      <SectionHeader label="Appearance" />
-
-      <div style={{ border: '1px solid var(--sr-border)', borderRadius: 10, background: 'var(--sr-surface)', overflow: 'hidden', marginBottom: 24 }}>
-        <AppearanceRow />
-        <TextSizeRow value={textScale} onChange={onTextScaleChange} />
-        <DateFormatRow onDateFormatChange={onDateFormatChange} />
-        <EmbeddedMediaRow
-          value={disableEmbeddedMedia}
-          saving={embeddedMediaPreferenceSaving}
-          error={embeddedMediaPreferenceError}
-          onChange={onDisableEmbeddedMediaChange}
-        />
-      </div>
-
-      {/* Its own section, not under Appearance: what a copy action produces is
-          not an appearance setting, and "Sharing" is an accurate header with room
-          to grow. A single-row section is already precedented by
-          "Help & Documentation". */}
-      <SectionHeader label="Sharing" />
-
-      <div style={{ border: '1px solid var(--sr-border)', borderRadius: 10, background: 'var(--sr-surface)', overflow: 'hidden', marginBottom: 24 }}>
-        <ShareCopyRow />
-      </div>
-
+      {/* Section order (settings-section-order): the two sections the tab
+          exists for lead it: API Keys, then Default Files, with iCloud Sync
+          travelling directly below Default Files. Everything below that pair
+          keeps its previous relative sequence: Help & Documentation,
+          Appearance, Sharing, Default Location, Tab Layout, Troubleshooting
+          (desktop only), Acknowledgments. Spacing is order-neutral by
+          construction: every block is self-contained (card plus any trailing
+          explanatory paragraph) and ends in a 24px bottom margin, and the
+          panel has no first-child styling, so no seam gains or loses space. */}
       <SectionHeader label="API Keys" />
 
       <div style={{ border: '1px solid var(--sr-border)', borderRadius: 10, background: 'var(--sr-surface)', overflow: 'hidden', marginBottom: 8 }}>
@@ -2335,8 +2281,74 @@ export function Settings({
       </p>
 
       {/* iCloud Sync: directly below Default Files, macOS and iOS only (gated
-          markup, never hidden markup). No section below it moves. */}
+          markup, never hidden markup). It travels with Default Files, because
+          docs/HELP.md publishes "an iCloud Sync section sits directly below
+          Default Files" and Settings.icloud.test.tsx asserts the full chain
+          Default Files < iCloud Sync < Default Location. */}
       {syncGate && <ICloudSyncSection />}
+
+      <SectionHeader label="Help &amp; Documentation" />
+
+      <div className="sr-action-row sr-action-row-stack" style={{
+        border: '1px solid var(--sr-border)', borderRadius: 10,
+        background: 'var(--sr-surface)', overflow: 'hidden',
+        marginBottom: 24, padding: 16,
+      }}>
+        <div className="sr-min0" style={{ display: 'flex', alignItems: 'center', gap: 16, flex: 1 }}>
+        <div style={{
+          width: 40, height: 40, borderRadius: 10, flexShrink: 0,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: 'var(--sr-accent-bg)', border: '1px solid var(--sr-accent-border)',
+          color: 'var(--sr-accent)',
+        }}>
+          <BookOpen size={18} strokeWidth={1.75} />
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: '0.84375rem', fontWeight: 600, color: 'var(--sr-text)', marginBottom: 2 }}>
+            SnowRaven Documentation
+          </div>
+          <div style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)', lineHeight: 1.5 }}>
+            Setup guides, feature walkthroughs, and API key instructions. Available offline.
+          </div>
+        </div>
+        </div>
+        <Button
+          onClick={onOpenHelp}
+          style={{
+            height: 34, padding: '0 16px', flexShrink: 0,
+            background: 'var(--sr-accent)', color: 'var(--sr-on-accent)',
+            border: 'none', borderRadius: 7,
+            fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'inherit',
+            cursor: 'pointer', whiteSpace: 'nowrap',
+          }}
+        >
+          Open documentation
+        </Button>
+      </div>
+
+      <SectionHeader label="Appearance" />
+
+      <div style={{ border: '1px solid var(--sr-border)', borderRadius: 10, background: 'var(--sr-surface)', overflow: 'hidden', marginBottom: 24 }}>
+        <AppearanceRow />
+        <TextSizeRow value={textScale} onChange={onTextScaleChange} />
+        <DateFormatRow onDateFormatChange={onDateFormatChange} />
+        <EmbeddedMediaRow
+          value={disableEmbeddedMedia}
+          saving={embeddedMediaPreferenceSaving}
+          error={embeddedMediaPreferenceError}
+          onChange={onDisableEmbeddedMediaChange}
+        />
+      </div>
+
+      {/* Its own section, not under Appearance: what a copy action produces is
+          not an appearance setting, and "Sharing" is an accurate header with room
+          to grow. A single-row section is already precedented by
+          "Help & Documentation". */}
+      <SectionHeader label="Sharing" />
+
+      <div style={{ border: '1px solid var(--sr-border)', borderRadius: 10, background: 'var(--sr-surface)', overflow: 'hidden', marginBottom: 24 }}>
+        <ShareCopyRow />
+      </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
         <span style={{ fontSize: '0.6875rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--sr-text-muted)', whiteSpace: 'nowrap' }}>

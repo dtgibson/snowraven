@@ -640,30 +640,6 @@ Three panels appear: species in both lists, species only in List A, and species 
 
 The Settings tab is where you configure everything SnowRaven needs to function.
 
-### Appearance
-
-Set your color scheme: System (follows your operating system preference), Light, or Dark. Selecting Light or Dark shows a prompt to save your preference. Selecting System removes any saved preference.
-
-**Text size.** Scale the app's text from 100% up to 200% (100% / 125% / 150% / 200%). This is in addition to your browser or device's own text-size setting, which SnowRaven already follows, handy in the desktop app, which has no separate browser zoom. Your choice is remembered across sessions. At the largest sizes, wide tables and the maps may scroll sideways, which is expected.
-
-**Date format.** Choose how dates appear throughout the app: month-first (Jun 8, 2026), day-first (8 Jun 2026), or ISO (2026-06-08). The default is month-first. Your choice applies everywhere dates are shown and is remembered across sessions.
-
-**Disable embedded media.** This option is off by default, so Species Detail and Named Birds normally show inline Macaulay Library players. Turn it on to prevent those players from loading anywhere in SnowRaven. Their space will say “Embedded media is disabled in Settings.” Dates, checklist links, media counts, comments, analytics, and direct links to each item on the Macaulay Library remain available. The choice takes effect immediately and is remembered across sessions.
-
-### Sharing
-
-**Copying a location.** Chooses what lands on the clipboard when you copy a location from a map pin (see "Copying a location from a map" under Map Explorer). Three independent switches, one per line of the copied block:
-
-- **Coordinates**: the coordinate pair.
-- **Google Maps link**: a link that opens the spot in Google Maps.
-- **Apple Maps link**: a link that opens the spot in Apple Maps.
-
-Any combination works, and each line keeps its place in the same order whichever ones you turn on, so a block never has a gap in it. Coordinates are decimal degrees to five places, latitude first, which is about a metre of precision and matches what eBird shows. An example of the exact text you will get is shown below the switches, along with a sentence naming the lines it contains.
-
-If you turn all three off, nothing is left to copy: the example says so, and the map popup shows the coordinates on screen with a note pointing back here instead of a copy button. The pin still marks the spot, and you can select that coordinate text by hand.
-
-Your choice is remembered across sessions and takes effect immediately, including for a share popup you already have open. If you had chosen "Copy coordinates only" in an earlier version, you will find Coordinates on and both map links off, which is the same thing said three ways.
-
 ### API Keys
 
 Enter and manage your eBird and OpenWeather API keys. Keys are saved securely: in the desktop app, they are stored in the app's local data directory; in web/Pi mode, they are saved to the server's .env file. Changes take effect immediately without a restart. Saved keys are masked by default; use Show or Hide to reveal or re-mask them. Use Update to replace a key, or Clear to remove it.
@@ -693,6 +669,30 @@ On the Mac, iPhone and iPad apps, an iCloud Sync section sits directly below Def
 **One device, more than one Apple ID.** Sync follows whichever iCloud account the device is signed in to: if you sign out and into a different Apple ID on the same device with sync on, the next check syncs with that account's copies.
 
 **If the switch cannot be turned on**, a note beneath it says why: sign in to iCloud in System Settings (or Settings on iPhone and iPad), allow SnowRaven under iCloud Drive in the system settings, or, for a build that was not signed for iCloud (a development build, for instance), that this build cannot use iCloud.
+
+### Appearance
+
+Set your color scheme: System (follows your operating system preference), Light, or Dark. Selecting Light or Dark shows a prompt to save your preference. Selecting System removes any saved preference.
+
+**Text size.** Scale the app's text from 100% up to 200% (100% / 125% / 150% / 200%). This is in addition to your browser or device's own text-size setting, which SnowRaven already follows, handy in the desktop app, which has no separate browser zoom. Your choice is remembered across sessions. At the largest sizes, wide tables and the maps may scroll sideways, which is expected.
+
+**Date format.** Choose how dates appear throughout the app: month-first (Jun 8, 2026), day-first (8 Jun 2026), or ISO (2026-06-08). The default is month-first. Your choice applies everywhere dates are shown and is remembered across sessions.
+
+**Disable embedded media.** This option is off by default, so Species Detail and Named Birds normally show inline Macaulay Library players. Turn it on to prevent those players from loading anywhere in SnowRaven. Their space will say “Embedded media is disabled in Settings.” Dates, checklist links, media counts, comments, analytics, and direct links to each item on the Macaulay Library remain available. The choice takes effect immediately and is remembered across sessions.
+
+### Sharing
+
+**Copying a location.** Chooses what lands on the clipboard when you copy a location from a map pin (see "Copying a location from a map" under Map Explorer). Three independent switches, one per line of the copied block:
+
+- **Coordinates**: the coordinate pair.
+- **Google Maps link**: a link that opens the spot in Google Maps.
+- **Apple Maps link**: a link that opens the spot in Apple Maps.
+
+Any combination works, and each line keeps its place in the same order whichever ones you turn on, so a block never has a gap in it. Coordinates are decimal degrees to five places, latitude first, which is about a metre of precision and matches what eBird shows. An example of the exact text you will get is shown below the switches, along with a sentence naming the lines it contains.
+
+If you turn all three off, nothing is left to copy: the example says so, and the map popup shows the coordinates on screen with a note pointing back here instead of a copy button. The pin still marks the spot, and you can select that coordinate text by hand.
+
+Your choice is remembered across sessions and takes effect immediately, including for a share popup you already have open. If you had chosen "Copy coordinates only" in an earlier version, you will find Coordinates on and both map links off, which is the same thing said three ways.
 
 ### Default Location
 
