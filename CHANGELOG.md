@@ -2,6 +2,18 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [1.0.31] - 2026-09-15
+
+### Changed
+- Species pickers on Calendar, Species Detail and Statistics no longer rebuild their whole list every time something unrelated on the page changes.
+
+### Fixed
+- Tide water levels no longer depend on the time zone of the server the app talks to. On a server whose own clock crossed a daylight saving change between two tide times, a checklist's tide could report the wrong water level range (for example 1.0 to 5.0 ft instead of 1.5 to 4.5 ft). The web and Raspberry Pi backend now reads NOAA times exactly as the desktop app already did.
+- When a weather or tide service sends back a response SnowRaven cannot read, you now get a clear "weather data unavailable" note instead of a raw server error, and the app no longer tells you that you are offline when you aren't.
+- In the Weather/tide Planner on a phone, a plan fetched in the evening printed its first two day labels on top of each other. Each day label now shortens, or steps aside, to stay inside its own day column, matching the wide layout's long-standing behaviour.
+
+Pipeline record: `frontend/src/lib/planPhoneRender.golden.html` was regenerated for `plan-daylabel-overlap` (each `.sr-plan-axisday` gains an inline `width` and each `.sr-plan-daylabel` an inline `max-width`; no label text changed). A real-engine guard, `website/tools/verify/verify-plan-daylabels.mjs`, joins the verification gate with a 600s budget in `run.mjs`.
+
 ## [1.0.30] - 2026-09-12
 
 ### Added
