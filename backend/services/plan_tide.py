@@ -6,10 +6,12 @@ byte-identical documents.
 
 Pure: `now_ts` is a parameter and nothing here reads a clock. Both NOAA bodies
 pass through the shipped linear parsers unchanged; the only new step is the
-GMT clock string to epoch conversion at the parse boundary (`gmt_epoch`, the
-scan declared in schema section 9). The caps are applied BEFORE any per-sample
-work, so a body larger than the request could produce bounds the work rather
-than the work being bounded by trust in the provider.
+GMT clock string to epoch conversion at the parse boundary (`gmt_epoch`, which
+since v1.0.32's successor is a unit conversion over the one shared
+`place_instant` in services/tide_instant.py -- where the scan declared in schema
+section 9 now lives, with its linearity argument). The caps are applied BEFORE
+any per-sample work, so a body larger than the request could produce bounds the
+work rather than the work being bounded by trust in the provider.
 """
 
 from datetime import datetime, timezone
@@ -82,8 +84,12 @@ def build_tide_plan(pred_body, hilo_body, station: dict, distance_mi: float, tz:
     response."""
     continuous = []
     for p in parse_predictions(pred_body):
+        # PLACEABLE, not POSITIVE. `if t > 0` also dropped a pre-1970 instant
+        # and the epoch itself; harmless for a span that always starts at "now",
+        # wrong as a general placement test, and the single-moment builders now
+        # share the predicate that says so.
         t = gmt_epoch(p["t"])
-        if t > 0:
+        if t is not None:
             continuous.append({"t": t, "v": p["v"]})
     continuous.sort(key=lambda p: p["t"])
     del continuous[PLAN_CONTINUOUS_MAX:]
@@ -91,7 +97,7 @@ def build_tide_plan(pred_body, hilo_body, station: dict, distance_mi: float, tz:
     turning_points = []
     for h in parse_hilo(hilo_body):
         t = gmt_epoch(h["t"])
-        if t > 0 and span["hiloStartTs"] <= t <= span["hiloEndTs"]:
+        if t is not None and span["hiloStartTs"] <= t <= span["hiloEndTs"]:
             turning_points.append({
                 "kind": "high" if h["type"] == "H" else "low",
                 "t": t,

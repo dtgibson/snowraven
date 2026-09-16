@@ -48,9 +48,104 @@ fn delete_api_key(service: &str) -> Result<(), String> {
     }
 }
 
+/// The zone every date derivation falls back to. Twin of `FALLBACK_ZONE` in
+/// `backend/formatters/weather.py` and `frontend/src/lib/wallClock.ts`.
+const FALLBACK_ZONE: &str = "UTC";
+
+/// Pure so the mapping is testable without loading the polygon data — the
+/// command below is the only thing that needs the finder.
+fn zone_or_fallback(name: &str) -> String {
+    if name.is_empty() {
+        FALLBACK_ZONE.to_string()
+    } else {
+        name.to_string()
+    }
+}
+
+/// The IANA zone name for a coordinate, or `UTC` when no polygon covers it.
+///
+/// `DefaultFinder::get_tz_name` returns the EMPTY STRING for an uncovered
+/// point — tzf-rs's own source calls that a limitation of the simplified
+/// polygon data rather than a bug, and it returns `""` only after its internal
+/// neighbourhood sweep has also failed. The JS side hands this straight to
+/// `Intl.DateTimeFormat({ timeZone })`, which throws a status-less `RangeError`
+/// on `""`; `isOfflineError` reads a throw with no `status` as connection-level,
+/// so the panel told the user they were offline on an online device whose
+/// request had never left the machine.
+///
+/// The fallback is HERE because this command is the twin of
+/// `backend/formatters/weather.py`'s `get_timezone`, which has always read
+/// `_tf.timezone_at(...) or "UTC"`. That default IS the seam's contract, and its
+/// absence on this side was a twin divergence rather than a missing guard.
+/// Tide is a coastal and on-water feature, so the coordinates most likely to be
+/// uncovered are disproportionately the ones it is used at.
+///
+/// THE TWO ZONE GUARDS ARE NOT SYMMETRIC, AND AN EARLIER VERSION OF THIS
+/// COMMENT SAID THEY WERE. Measured in both directions (QA round 2, and
+/// re-derived as mutations M11 and M13):
+///
+/// * `zoneOrUtc` in `frontend/src/lib/wallClock.ts` is LOAD-BEARING. Neutering
+///   it turns 14 frontend rows red. A zone name this finder knows and the
+///   webview's ICU does not is non-empty, reaches `Intl` unchanged, and throws
+///   status-less; `is_empty()` structurally cannot see it.
+/// * THIS guard is SUBSUMED on every reachable path. `zoneOrUtc("")` already
+///   returns `UTC`, and `locationZone` is this command's only consumer, so
+///   reverting this function turns NOTHING red on either runtime.
+///
+/// It is kept on PARITY grounds, which is the first paragraph above and is a
+/// legitimate reason: the command's contract should match its Python twin's
+/// long-standing `or "UTC"`, and a future non-`locationZone` caller should get
+/// a sane answer. It is not kept because it closes a case nothing else closes.
+///
+/// One structural fact makes the distinction worth writing down rather than
+/// leaving as a wording nit: **the frontend suite mocks `invoke`, so it cannot
+/// exercise this guard at all.** The empty-string row in the `zoneNames`
+/// fixture drives `zoneOrUtc`, never this function. This guard's only coverage
+/// is the four unit tests below. A reader who believed the symmetry could delete
+/// `zoneOrUtc` thinking the seam covered `""`, and would be deleting the half
+/// that is actually doing the work.
 #[tauri::command]
 fn get_timezone(lat: f64, lng: f64) -> String {
-    tz_finder().get_tz_name(lng, lat).to_string()
+    zone_or_fallback(tz_finder().get_tz_name(lng, lat))
+}
+
+#[cfg(test)]
+mod timezone_tests {
+    use super::{zone_or_fallback, FALLBACK_ZONE};
+
+    #[test]
+    fn an_empty_name_becomes_the_fallback_zone() {
+        // The case tzf-rs documents itself as returning for an uncovered point.
+        assert_eq!(zone_or_fallback(""), FALLBACK_ZONE);
+    }
+
+    #[test]
+    fn a_real_zone_passes_through_unchanged() {
+        // Non-vacuity: a mapping that answered UTC for every coordinate on earth
+        // would satisfy the row above on its own.
+        assert_eq!(zone_or_fallback("America/Los_Angeles"), "America/Los_Angeles");
+        assert_eq!(zone_or_fallback("Pacific/Kiritimati"), "Pacific/Kiritimati");
+    }
+
+    #[test]
+    fn the_fallback_matches_the_twins() {
+        // One literal, three languages. The Python twin reads
+        // `_tf.timezone_at(...) or FALLBACK_ZONE`; the TS twin's `zoneOrUtc`
+        // returns `FALLBACK_ZONE`. A drift here is a twin divergence, which is
+        // the class this whole build exists to close.
+        assert_eq!(FALLBACK_ZONE, "UTC");
+    }
+
+    #[test]
+    fn a_name_this_seam_cannot_check_still_passes_through() {
+        // STATED LIMIT, so the next reader does not assume this closes the whole
+        // class: a well-formed name the webview's ICU does not know is NOT empty,
+        // so it passes through here and throws in `Intl`. That case is closed on
+        // the JS side by `zoneOrUtc` in frontend/src/lib/wallClock.ts, which is
+        // the load-bearing half of the pair -- see the doc comment on
+        // `get_timezone` for the measurement in both directions.
+        assert_eq!(zone_or_fallback("Ocean/Nowhere"), "Ocean/Nowhere");
+    }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

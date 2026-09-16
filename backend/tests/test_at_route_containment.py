@@ -10,10 +10,21 @@ written; none is inferred from the plan suites. Two things make that necessary
 rather than ceremonial:
 
   * /weather/at is TIER-SENSITIVE. It slices ONE forecast tier, so a shape that
-    mutates another tier answers 200 untouched -- six of the seven shapes
-    test_weather_plan.py carries answer 200 here at the default Current tier.
-    The tier-insensitivity control below is what makes the table's rows mean
-    what they say rather than pass for an unrelated reason.
+    mutates another tier usually answers 200 untouched -- six of the seven
+    shapes test_weather_plan.py carries answer 200 here at the default Current
+    tier. The tier-insensitivity control below is what makes the table's rows
+    mean what they say rather than pass for an unrelated reason.
+
+    It is NOT tier-ISOLATED, and this header asserted that it was until
+    weather-at-malformed-parity measured otherwise: since that build
+    `_hour_from_point` reads sunrise/sunset from the DAILY tier whenever the
+    selected current/hourly point omits them (One Call does exactly that at
+    polar latitudes), so a daily-only mutation CAN decide a current-tier
+    answer. Measured on one body: `daily[*].sunrise = 'x'` answers 200
+    untouched while `current` carries its own sun times, and 502 once it does
+    not. Every row below still holds, and it holds because MOCK_ONECALL's
+    `current` carries them -- a property of this fixture rather than of the
+    route, which is exactly why the sentence needed correcting.
   * The tide half's honest state is {"status": "unavailable"}, NOT a 502 --
     the same state an unreadable body already gets, exactly as /tide/plan does.
 

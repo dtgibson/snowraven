@@ -159,8 +159,17 @@ def test_the_checklist_route_still_answers_a_real_looking_id():
 # Auditor's Low, closed): each shape below raises inside the builder, and the
 # route maps it to the same 502 and the same words as a 5xx, with the key
 # nowhere in the body. Shapes measured raising on this transport before the
-# test was written; `current` carrying only dt is tolerated by the slicer and is
-# deliberately not in the list.
+# test was written; `current` carrying only dt is NEVER REACHED on the plan
+# path and is deliberately not in the list.
+#
+# That clause read "tolerated by the slicer" until weather-at-malformed-parity,
+# and the conclusion is unchanged while the reason is not: the plan builders
+# read the `hourly` and `daily` tiers only and hand the slicer a response
+# carrying no `current` block at all (`_hourly_reading`, `_daily_reading`), so
+# that shape cannot reach `assert_hour_reading` from here. It is emphatically
+# not tolerated in general -- `/weather/at`'s Current tier answers 502 for it,
+# which test_at_route_containment.py's ("current", "current dt-only") row
+# asserts.
 import pytest  # noqa: E402
 
 

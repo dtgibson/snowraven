@@ -16,6 +16,7 @@ Predict's for the same fixture and moment by construction (FR-18, QA-17).
 
 from zoneinfo import ZoneInfo
 
+from formatters.weather import is_finite_figure
 from services.forecast import build_weather_payload
 from services.tz_clock import (
     add_days, local_clock, local_date, local_midnight_ts, start_of_local_hour,
@@ -32,8 +33,10 @@ PLAN_NIGHT_SPANS_MAX = 17
 _HALF_HOUR = 1800
 
 
-def _finite(v) -> bool:
-    return isinstance(v, (int, float)) and not isinstance(v, bool) and v == v and abs(v) != float("inf")
+# Aliased, not re-declared: `is_finite_figure` is the one predicate on this
+# runtime for "is this provider figure usable" (it was a byte-identical copy of
+# this function), and a second copy here is a place for the two to drift apart.
+_finite = is_finite_figure
 
 
 def _present_ts(v):

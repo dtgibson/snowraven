@@ -5,10 +5,27 @@ Reference oracle for weatherFormatter.ts golden tests.
 Run from the repo root (no venv required):
     python3 frontend/src/lib/weatherFormatter.golden.py
 
-These functions are an exact copy of the relevant parts of
-backend/formatters/weather.py (excluding get_timezone, which is not
-needed here since we pass ZoneInfo objects directly). If the Python
-formatter changes, update both this script and the TypeScript tests.
+These functions mirror the OUTPUT-PRODUCING parts of
+backend/formatters/weather.py byte for byte: the Beaufort, cardinal and
+condition-emoji tables, the moon-phase port, format_range,
+format_local_time, the night test, and format_weather's block layout.
+
+WHAT THEY DELIBERATELY DO NOT MIRROR, narrowed here in
+weather-at-malformed-parity because "an exact copy of the relevant parts"
+had stopped being a fair description of the file: that module's REFUSAL
+layer -- is_finite_figure, HOUR_FIGURES, assert_hour_figures,
+assert_hour_condition, assert_hour_reading, and the per-response checks
+at the top of format_weather. This oracle drives CONFORMING bodies only,
+so a refusal-only change cannot move a golden row, and porting the guards
+would make the oracle depend on the very behaviour the goldens exist to
+hold fixed. get_timezone is likewise out, since ZoneInfo objects are
+passed in directly.
+
+So: if the formatter's OUTPUT changes, update both this script and the
+TypeScript tests. If only its REFUSALS change, this script is correctly
+untouched -- the cross-runtime guard for that half is
+frontend/src/lib/weatherAtMalformedParity.test.ts and its Python twin
+backend/tests/test_weather_at_malformed_parity.py.
 """
 
 import math

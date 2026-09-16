@@ -3,7 +3,9 @@ frontend/src/lib/tide.ts). Pure; no I/O."""
 
 import re
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
+
+from services.tide_instant import clock_text, place_epoch_min, place_instant
 
 
 @dataclass
@@ -42,9 +44,10 @@ def parse_observed(body) -> list[dict]:
         return []
     out = []
     for d in body.get("data") or []:
+        t = d.get("t")
         v = _num(d.get("v"))
-        if v is not None:
-            out.append({"t": str(d.get("t", "")), "v": v, "q": str(d.get("q", ""))})
+        if isinstance(t, str) and v is not None:
+            out.append({"t": t, "v": v, "q": str(d.get("q", ""))})
     return out
 
 
@@ -53,9 +56,10 @@ def parse_predictions(body) -> list[dict]:
         return []
     out = []
     for p in body.get("predictions") or []:
+        t = p.get("t")
         v = _num(p.get("v"))
-        if v is not None:
-            out.append({"t": str(p.get("t", "")), "v": v})
+        if isinstance(t, str) and v is not None:
+            out.append({"t": t, "v": v})
     return out
 
 
@@ -64,10 +68,11 @@ def parse_hilo(body) -> list[dict]:
         return []
     out = []
     for p in body.get("predictions") or []:
+        t = p.get("t")
         v = _num(p.get("v"))
         ty = p.get("type")
-        if v is not None and ty in ("H", "L"):
-            out.append({"t": str(p.get("t", "")), "v": v, "type": ty})
+        if isinstance(t, str) and v is not None and ty in ("H", "L"):
+            out.append({"t": t, "v": v, "type": ty})
     return out
 
 
@@ -75,54 +80,28 @@ def _in_window(t: str, start: str, end: str) -> bool:
     return start <= t <= end
 
 
-# Explicit ASCII classes, never `\d`: Python's `\d` matches every Unicode decimal
-# digit and `int()` parses one happily, while the TS twin's `\d` is ASCII-only
-# (the v0.5.54 character-class rule for twinned guards). Anchored and fixed-width
-# with no alternation, so a hostile provider string matches or fails inside the
-# first 16 characters.
-_LST_RE = re.compile(r"^([0-9]{4})-([0-9]{2})-([0-9]{2})[ T]([0-9]{2}):([0-9]{2})")
-
-
-def _epoch_min(t: str) -> float:
-    """Epoch-minutes for a NOAA `lst_ldt` wall-clock string, read on a fixed UTC
-    axis; 0.0 for a string that does not match and for an impossible calendar
-    value. Twin of `epochMin` in frontend/src/lib/tide.ts.
-
-    NOT calendar-correct, which this docstring claimed until 2026-09-15. The
-    string is the STATION's local clock and is read here as though it were UTC,
-    so a wall-clock 01:00 -> 03:00 span at a station crossing its own DST
-    transition measures 120 minutes where 180 actually elapsed. That is the
-    contract rather than an oversight: both consumers (`interp_level`'s
-    interpolation fraction, the nearest-point `min` below) take only
-    DIFFERENCES between two of these values, and reading every string on one
-    fixed axis is what makes a difference equal the CALENDAR difference of the
-    two wall clocks on every machine. Re-parsing in the station's real zone
-    would give true elapsed time and is a separate, deliberately deferred
-    decision -- pipeline/tide-timezone-parse/decisions.md and ROADMAP.md carry
-    the evidence, the reversal condition and the exact change.
-
-    `tzinfo=timezone.utc` is load-bearing. A naive `datetime(...).timestamp()`
-    resolves in the SERVER PROCESS's zone, so the same string read differently
-    on two machines: the span above measured 180 minutes on a US/Pacific server
-    against 120 on a UTC one, and the checklist tide then rendered
-    `Water level: 1.0 - 5.0 ft` where the correct figure is `1.5 - 4.5 ft`. It
-    also removes an uncaught raise -- the naive call raises `year 0 is out of
-    range` near the calendar's start, out of a `compute_tide_reading` that sits
-    outside the routes' `try`.
-    """
-    m = _LST_RE.match(t)
-    if not m:
-        return 0.0
-    y, mo, d, h, mi = (int(x) for x in m.groups())
-    try:
-        return datetime(y, mo, d, h, mi, tzinfo=timezone.utc).timestamp() / 60.0
-    except ValueError:
-        return 0.0
-
-
 def interp_level(t: str, sorted_hilo: list[dict]):
     """Linear-interpolate the predicted level at `t` between bracketing H/L
-    events. None if the series doesn't bracket on at least one side."""
+    events. None if the series doesn't bracket on at least one side.
+
+    THE DIVISOR IS A BRACKETING PROBLEM, NOT A SENTINEL PROBLEM, and that is
+    measured rather than argued. This function brackets on the STRING (the
+    series sorts chronologically as text, which is all the bracketing needs) and
+    divides on the EPOCH, so the old `prev["t"] == nxt["t"]` guard did not
+    guarantee a non-zero divisor: two WELL-FORMED strings naming one instant --
+    `2026-05-01 10:09` and `2026-05-01T10:09`, both admitted by the shared
+    `[ T]` class -- raised `ZeroDivisionError` here and produced
+    `Water level: -Infinity ft` on the desktop twin, which has nothing to throw.
+    Filtering unplaceable points out upstream does nothing about them. So the
+    equality guard sits on the PLACED epoch, exactly as `interp_at_epoch` /
+    `interpAtEpoch` already do.
+
+    Degrading to `prev["v"]` is the same answer the string-equality guard always
+    gave for a zero span, extended to the two other ways a fraction can fail to
+    exist. Both are reachable: `compute_tide_reading` filters the series so
+    `prev` and `nxt` are always placeable, but `t` is the WINDOW string, which
+    `/tide/{checklist_id}` derives from eBird's unvalidated `obs_dt`.
+    """
     if not sorted_hilo:
         return None
     prev = nxt = None
@@ -133,25 +112,49 @@ def interp_level(t: str, sorted_hilo: list[dict]):
             nxt = h
             break
     if prev and nxt:
-        if prev["t"] == nxt["t"]:
+        at = place_epoch_min(t)
+        at_prev = place_epoch_min(prev["t"])
+        at_nxt = place_epoch_min(nxt["t"])
+        if at is None or at_prev is None or at_nxt is None or at_nxt == at_prev:
             return prev["v"]
-        f = (_epoch_min(t) - _epoch_min(prev["t"])) / (_epoch_min(nxt["t"]) - _epoch_min(prev["t"]))
+        f = (at - at_prev) / (at_nxt - at_prev)
         return prev["v"] + (nxt["v"] - prev["v"]) * f
     return (prev or nxt)["v"]
 
 
 def _clock(t: str) -> str:
-    m = re.search(r"[ T](\d{2}):(\d{2})", t)
-    if not m:
-        return t
-    h = int(m.group(1))
-    ap = "pm" if h >= 12 else "am"
-    h = h % 12 or 12
-    return f"{h}:{m.group(2)}{ap}"
+    """A NOAA `t` as the block's clock. Twin of `clockTime`.
+
+    Formats from the PLACED components; it no longer re-scans the string. The
+    old unanchored `re.search(r"[ T](\\d{2}):(\\d{2})")` read `3:07pm` off
+    `2026/05/01 15:07`, rendered `2026-13-40 25:61` as `1:61pm` -- sixty-one
+    minutes past one, into a public checklist comment -- and its `\\d` matched
+    Unicode decimal digits where the TS twin's did not, the open half of F2 from
+    pipeline/tide-timezone-parse that build 4 handed on by name.
+
+    The passthrough is this total function's boundary, not a second guard:
+    `compute_tide_reading` labels only points that survived its placement
+    filter, so an unplaceable string cannot reach the copy block through it. The
+    deletion coverage for that filter is
+    `test_tide_unreadable_parity.py::test_an_unplaceable_point_is_dropped`, and
+    `test_no_dangling_clock_reaches_the_copy_block` is what fails if the
+    property is ever re-opened here.
+    """
+    at = place_instant(t)
+    return t if at is None else clock_text(at)
 
 
 def compute_tide_reading(start, end, observed, predicted, hilo, station, distance_mi):
-    sh = sorted(hilo, key=lambda p: p["t"])
+    # A `t` that cannot be placed on the epoch axis means that point is MISSING,
+    # so it is dropped BEFORE any level is derived from it -- exactly as the
+    # sibling Planner (`services/plan_tide.py`) already does, which is the
+    # strongest available argument that "missing" is the right answer here too.
+    # It is never anchored at 1970, never contributes an interpolation weight,
+    # never ties for nearest, and never renders a clock. THIS FILTER IS THIS
+    # SIDE'S PLACEMENT GUARD: removing it turns
+    # test_tide_unreadable_parity.py::test_an_unplaceable_point_is_dropped red
+    # here while the frontend suite stays green (v1.0.20).
+    sh = sorted((h for h in hilo if place_instant(h["t"]) is not None), key=lambda p: p["t"])
 
     # Level samples over the window, in priority order: observed gauge points,
     # continuous predictions (reference stations), else interpolated from the
@@ -172,9 +175,19 @@ def compute_tide_reading(start, end, observed, predicted, hilo, station, distanc
         if s is None and e is None:
             pool = ([dict(p, src="observed") for p in observed] if observed
                     else [dict(p, src="predicted") for p in predicted])
-            if not pool:
+            # Nearest to WHAT: both the candidates and the window's own start
+            # have to be placeable for "nearest" to mean anything. Under the
+            # sentinel every unplaceable candidate tied at distance-to-1970 and
+            # `min` handed back the EARLIEST pooled point, presented as the
+            # reading for now. `unavailable` is the honest state both routes
+            # already have, and `min` still keeps the first on a tie, which is
+            # what the TS twin's strict `<` reduce does.
+            start_at = place_epoch_min(start)
+            rankable = [(p, at) for p in pool
+                        if (at := place_epoch_min(p["t"])) is not None]
+            if start_at is None or not rankable:
                 return None
-            nearest = min(pool, key=lambda p: abs(_epoch_min(p["t"]) - _epoch_min(start)))
+            nearest = min(rankable, key=lambda pair: abs(pair[1] - start_at))[0]
             pts, source = [nearest], nearest["src"]
             start_v = end_v = nearest["v"]
         else:
@@ -217,8 +230,23 @@ def normalize_obs_dt(obs_dt: str) -> str:
 
 
 def shift_local(local: str, hours: float) -> str:
+    # Explicit ASCII `[0-9]`, never `\d`, for the same reason as `_LST_RE` above
+    # and now stated at both sites: Python's `\d` matches every Unicode decimal
+    # digit and `int()` parses it, while the TS twin `shiftLocal`'s is
+    # ASCII-only -- so `٢٠٢٤-٠٥-٠١ 12:00` SHIFTED here (to `2024-05-01 13:00`)
+    # and fell through the twin's `if (!m) return local` passthrough. Closing
+    # F2 of pipeline/tide-timezone-parse/security-report.md for this half:
+    # `/tide/at` can no longer reach it at all now that its `dt` is validated at
+    # the route, but `/tide/{checklist_id}` still feeds eBird's `obs_dt` here
+    # unvalidated, and on that path the two transports now agree.
+    #
+    # `_clock` carried the last `\d` in this module's twinned guards and was
+    # deliberately left open here, its input being NOAA's RESPONSE `t`. That
+    # build has landed: `_clock` formats from the components `place_instant`
+    # already validated and scans nothing at all, so both halves of F2 are
+    # closed and this is now the only regex left in the module.
     n = normalize_obs_dt(local)
-    m = re.match(r"^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})", n)
+    m = re.match(r"^([0-9]{4})-([0-9]{2})-([0-9]{2}) ([0-9]{2}):([0-9]{2})", n)
     if not m:
         return local
     y, mo, d, h, mi = (int(x) for x in m.groups())

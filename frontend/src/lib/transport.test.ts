@@ -332,6 +332,8 @@ describe('TauriTransport plan routing', () => {
   const getTidePlan = vi.fn();
   const getTide = vi.fn();
   const getWeather = vi.fn();
+  const getTideAt = vi.fn();
+  const getWeatherAt = vi.fn();
 
   beforeEach(() => {
     vi.resetModules();
@@ -339,9 +341,11 @@ describe('TauriTransport plan routing', () => {
     getTidePlan.mockReset().mockResolvedValue({ status: 'ok' });
     getTide.mockReset().mockResolvedValue({ status: 'ok' });
     getWeather.mockReset().mockResolvedValue({ formatted: '' });
+    getTideAt.mockReset().mockResolvedValue({ status: 'ok' });
+    getWeatherAt.mockReset().mockResolvedValue({ resolution: 'current' });
     vi.doMock('./platform', () => ({ isTauri: () => true }));
-    vi.doMock('./tauri/weatherService', () => ({ getWeatherPlan, getWeather }));
-    vi.doMock('./tauri/tideService', () => ({ getTidePlan, getTide }));
+    vi.doMock('./tauri/weatherService', () => ({ getWeatherPlan, getWeather, getWeatherAt }));
+    vi.doMock('./tauri/tideService', () => ({ getTidePlan, getTide, getTideAt }));
   });
 
   afterEach(() => {
@@ -376,6 +380,44 @@ describe('TauriTransport plan routing', () => {
     await transport.get('/weather/plan', { lat: '36.603', lng: '-121.876' });
     await transport.get('/weather/plan', { lat: '36.603', lng: '-121.876' });
     expect(getWeatherPlan).toHaveBeenCalledTimes(2);
+  });
+
+  // THE CURRENT-TIDE PATH, WHICH NOTHING PINNED UNTIL v1.0.32 AND WHICH WAS
+  // BROKEN ON DESKTOP AND iOS FOR THE WHOLE OF THAT TIME. This branch read
+  // `params?.dt ?? ''` while the weather branch two blocks up passes
+  // `params?.dt` through as undefined, and Current asks for "now" by OMITTING
+  // `dt` (`WeatherForecastPanel`'s runLookup sets the key only `if (tideDt)`).
+  // The empty string then became a single SPACE as NOAA's begin_date and every
+  // Current lookup resolved `{ status: 'unavailable' }`.
+  //
+  // It is pinned HERE rather than in tideAtBadRequest.test.ts because that file
+  // drives `getTideAt` directly: reverting this one line left all 116 of its
+  // rows green, which is a finding about the tests rather than a clean bill
+  // (.claude/rules/testing.md -- a mutation you expected to go red and which
+  // does not). The service half owns the "now" fallback; this row owns the fact
+  // that the service is ever ASKED for it.
+  it('/tide/at forwards an absent dt as undefined, never the empty string', async () => {
+    const { transport } = await import('./transport');
+    await transport.get('/tide/at', { lat: '36.603', lng: '-121.876' });
+    expect(getTideAt).toHaveBeenCalledWith(36.603, -121.876, undefined, false);
+
+    // A present dt still rides through untouched, and the force flag decodes
+    // the same way /tide/plan's does.
+    await transport.get('/tide/at', { lat: '36.603', lng: '-121.876', dt: '2024-05-01 12:00', force: '1' });
+    expect(getTideAt).toHaveBeenNthCalledWith(2, 36.603, -121.876, '2024-05-01 12:00', true);
+  });
+
+  it('/tide/at and /weather/at hand an absent dt to their services the SAME way', async () => {
+    // The two branches sat in one file, four lines apart, disagreeing. Asserted
+    // as a relationship rather than twice as a literal, so the next reader sees
+    // that the sameness is the point.
+    const { transport } = await import('./transport');
+    await transport.get('/tide/at', { lat: '1', lng: '2' });
+    await transport.get('/weather/at', { lat: '1', lng: '2' });
+    const tideDt = getTideAt.mock.calls[0][2];
+    const weatherDt = getWeatherAt.mock.calls[0][2];
+    expect(tideDt).toBe(weatherDt);
+    expect(tideDt).toBeUndefined();
   });
 
   it('the web dev proxy forwards both prefixes (the v0.5.34 trap cannot recur silently)', async () => {

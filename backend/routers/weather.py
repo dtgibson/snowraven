@@ -10,6 +10,7 @@ from services.ebird import CHECKLIST_ID_RE, fetch_checklist
 from services.forecast import build_weather_payload
 from services.openweather import fetch_historical, fetch_forecast
 from services.plan_weather import build_weather_plan
+from services.wall_clock import BAD_DT_DETAIL, is_blank_wall_clock, parse_wall_clock
 
 router = APIRouter()
 
@@ -81,26 +82,45 @@ async def get_weather_at(lat: float, lng: float, dt: str | None = None):
 
     tz = get_timezone(lat, lng)
 
+    # This refusal is the REFERENCE the tide sibling converged on, and it is now
+    # spelled through the shared predicate rather than inline, so the two routes
+    # cannot answer differently for the same string and the sentence has one
+    # definition. Behaviour is unchanged on every one of the 32 shapes in
+    # frontend/src/lib/wallClock.fixture.json: `parse_wall_clock` accepts exactly
+    # what the two strptime formats accepted.
+    #
+    # `margin_hours` is 0 HERE and 25 on /tide/at. This route reads one instant
+    # and needs no room around it, so `9999-12-31 23:59` keeps answering the
+    # truthful `out-of-range` ("no weather reaches that far") rather than
+    # becoming a bad-request error -- the Predict date input carries a `min` and
+    # no `max`, so that is a reachable answer.
     target_ts = None
-    if dt:
-        parsed = None
-        for fmt in ("%Y-%m-%d %H:%M", "%Y-%m-%d"):
-            try:
-                parsed = datetime.strptime(dt, fmt).replace(tzinfo=tz)
-                break
-            except ValueError:
-                continue
+    if not is_blank_wall_clock(dt):
+        parsed = parse_wall_clock(dt)
         if parsed is None:
-            raise HTTPException(status_code=400, detail="That doesn't look like a valid date and time.")
-        target_ts = int(parsed.timestamp())
+            raise HTTPException(status_code=400, detail=BAD_DT_DETAIL)
+        target_ts = int(parsed.replace(tzinfo=tz).timestamp())
 
     # The builder runs INSIDE the try, the shape /weather/plan already carries
     # (v1.0.29, .claude/rules/security.md): a JSON-valid but semantically
     # malformed body is a provider error exactly as a 5xx is, mapped to the same
     # 502 and the same words, never a plain-text 500 reading as the app's fault.
     # This route slices ONE tier, so WHICH shapes reach the builder depends on
-    # the tier `dt` selects -- the table in test_at_route_containment.py is per
-    # tier, and a shape mutating another tier answers 200 untouched.
+    # the tier `dt` selects, and the table in test_at_route_containment.py is
+    # per tier for that reason. It is NOT tier-ISOLATED, though, and this
+    # comment asserted that it was until weather-at-malformed-parity measured
+    # otherwise: `_hour_from_point` reads sunrise/sunset from the DAILY tier
+    # whenever the selected current/hourly point omits them, which One Call
+    # does at polar latitudes, so a daily-only mutation can decide a
+    # current-tier answer. Measured on one body, three ways:
+    #
+    #   conforming                                        -> 200, Sunrise=6:48am
+    #   daily[*].sunrise='x', current has its own          -> 200, Sunrise=6:48am
+    #   daily[*].sunrise='x', current omits its own        -> 502
+    #
+    # So the honest statement is that a cross-tier mutation USUALLY answers 200
+    # untouched, and does so here because the containment fixture's `current`
+    # carries its own sun times -- a property of that fixture, not of the route.
     try:
         onecall = await fetch_forecast(lat, lng)
         payload = build_weather_payload(onecall, target_ts, tz, lat)

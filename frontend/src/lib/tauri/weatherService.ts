@@ -1,11 +1,14 @@
 import { tauriFetch } from './http';
-import { invoke } from '@tauri-apps/api/core';
 import { storage } from '../storage';
 import { formatWeather, type HourlyResponse } from '../weatherFormatter';
 import { buildWeatherPayload, type OneCallResponse, type WeatherAtResponse } from '../forecastSlice';
 import { buildWeatherPlan } from '../weatherPlan';
 import type { WeatherPlan } from '../plan';
 import { getRegionInfo, type RegionInfo } from './regionInfo';
+import {
+  BAD_DT_MESSAGE, isBlankWallClock, parseWallClock, wallClockUtcMs, type WallClock,
+} from '../wallClock';
+import { locationZone } from './locationZone';
 
 const EBIRD_BASE = 'https://api.ebird.org/v2';
 const OWM_BASE = 'https://api.openweathermap.org/data/3.0';
@@ -100,14 +103,46 @@ async function fetchHistorical(lat: number, lng: number, dt: number, owmKey: str
 
 // Parse "YYYY-MM-DD HH:MM" or "YYYY-MM-DD" as local time in the given timezone,
 // return Unix timestamp in milliseconds. Uses iterative convergence to handle DST.
+//
+// LENIENT ON PURPOSE, and reachable from ONE caller: `getWeather`, whose input
+// is eBird's unvalidated `obsDt`. It keeps `Date.UTC`'s rollover, which is a
+// PINNED divergence from the Python twin (`obs_dt` '2024-13-40 25:61' and
+// '0000-00-00 00:00' date the checklist here and answer 502 there --
+// atRouteServices.test.ts asserts both sides). `/weather/at`'s own `dt` is a
+// different string with a different contract and goes through the validated
+// entry point below instead.
 function parseLocalDateTimeInZone(dtStr: string, tzName: string): number {
   const normalized = dtStr.length === 10 ? `${dtStr} 00:00` : dtStr;
   const [datePart, timePart] = normalized.split(' ');
   const [year, month, day] = datePart.split('-').map(Number);
   const [hour, minute] = timePart.split(':').map(Number);
+  return convergeLocal(Date.UTC(year, month - 1, day, hour, minute), year, month, day, hour, minute, tzName);
+}
 
+// The `/weather/at` entry point: the components a shared `parseWallClock` has
+// already validated, so the guess is built with `wallClockUtcMs` rather than
+// `Date.UTC`. That is not cosmetic -- `Date.UTC` maps years 0-99 onto
+// 1900-1999, so `dt=0001-01-01 00:00` resolved to 1901 here and to year 1 on
+// the backend. Both then answered `out-of-range`, which is exactly the shape
+// weather-at-malformed-parity flagged as invisible to parity checking: an
+// AGREEING wrong answer. The coercion gets its own argument rather than resting
+// on the verdicts matching.
+function wallClockMsInZone(wc: WallClock, tzName: string): number {
+  return convergeLocal(wallClockUtcMs(wc), wc.year, wc.month, wc.day, wc.hour, wc.minute, tzName);
+}
+
+function convergeLocal(
+  guessMs: number, year: number, month: number, day: number, hour: number, minute: number, tzName: string,
+): number {
+  // `tzName` carries NO guard of its own, deliberately. Both entry points above
+  // are reached only from `getWeather` and `getWeatherAt`, whose zone comes from
+  // `locationZone` -- the one chokepoint where the native seam's answer is made
+  // usable. A second check here would be a guard whose necessity has not been
+  // measured, which this repo's own rule forbids leaving in place. If a third
+  // caller ever hands this a zone from somewhere else, it owes the resolution at
+  // ITS seam, not a check here.
   // Start with a UTC guess and iterate until local time matches
-  let utcMs = Date.UTC(year, month - 1, day, hour, minute);
+  let utcMs = guessMs;
   for (let i = 0; i < 3; i++) {
     const fmt = new Intl.DateTimeFormat('en-CA', {
       timeZone: tzName,
@@ -156,7 +191,7 @@ export async function getWeather(checklistId: string): Promise<WeatherResult> {
   }
 
   const checklist = await fetchChecklist(checklistId, ebirdKey);
-  const tzName: string = await invoke('get_timezone', { lat: checklist.lat, lng: checklist.lng });
+  const tzName = await locationZone(checklist.lat, checklist.lng);
 
   // fetchChecklist casts eBird's `obsDt` straight through with no validation, so
   // an unreadable date threw a status-less RangeError/TypeError out of the
@@ -185,10 +220,25 @@ export async function getWeather(checklistId: string): Promise<WeatherResult> {
   );
 
   // formatWeather is the builder that consumes the provider bodies, so it is
-  // caught here for the same reason as getWeatherAt's. Measured: eight of the
-  // twelve malformed timemachine shapes probed threw status-less out of it (the
-  // other four are the known non-numeric-figure divergence from the Python
-  // twin). fetchHistorical stays outside, again so a real offline stays offline.
+  // caught here for the same reason as getWeatherAt's. At v1.0.31 eight of the
+  // twelve malformed timemachine shapes probed threw status-less out of it and
+  // the other four were a known divergence from the Python twin, which refused
+  // them; weather-at-malformed-parity closed that -- `formatWeather` now refuses
+  // every malformed hour its twin does (50 shapes, both runtimes, one shared
+  // fixture), so this catch covers the whole class rather than two thirds of it.
+  // fetchHistorical stays outside, again so a real offline stays offline.
+  //
+  // THAT IS TRUE OF THE REFUSAL AND NOT OF THE WORDS, which is worth stating
+  // because this build makes the difference show up far more often. The two
+  // transports have always disagreed on this route's sentence -- web/Pi says
+  // "Weather data unavailable for this checklist's time and location."
+  // (`_CHECKLIST_WEATHER_DETAIL` in backend/routers/weather.py) and this side
+  // says "Weather data unavailable for this checklist." -- and the input set
+  // that reaches the sentence at all just went from 13 of 50 measured malformed
+  // hour shapes to all 50. Pre-existing, not introduced here, no published prose
+  // quotes either string, and both are honest; the divergence is out of this
+  // build's scope and is named in its completion note rather than fixed
+  // silently alongside a refusal change.
   let formatted: string;
   try {
     formatted = formatWeather(hourlyResponses, tzName, checklist.lat);
@@ -225,8 +275,29 @@ export async function getWeatherAt(lat: number, lng: number, dtLocal?: string): 
     );
   }
 
-  const tzName: string = await invoke('get_timezone', { lat, lng });
-  const targetTs = dtLocal ? Math.floor(parseLocalDateTimeInZone(dtLocal, tzName) / 1000) : undefined;
+  // THE THIRD SITE OF ONE FIX. `/weather/at`'s BACKEND half has refused an
+  // unreadable `dt` with this sentence since 0.5.34; this half had no guard at
+  // all, and `parseLocalDateTimeInZone` sat OUTSIDE the try, throwing a
+  // status-less TypeError/RangeError that `isOfflineError` reads as TRUE. So
+  // the panel said "you're offline" on an online device whose request had never
+  // left the machine -- precisely the false statement at-route-try-containment
+  // existed to remove, still live on the request-PARAMETER side of both `/at`
+  // routes. Measured over the 32-shape roster: 16 shapes threw status-less and
+  // 10 silently accepted a rolled-over moment.
+  //
+  // It moves with the two tide sites rather than after them because otherwise
+  // one bad `dt` shows "bad date" for the tide half and "you're offline" for
+  // the weather half, from the same value, on the same screen.
+  //
+  // The guard precedes the timezone seam and the provider, as on the route.
+  let target: WallClock | null = null;
+  if (!isBlankWallClock(dtLocal)) {
+    target = parseWallClock(dtLocal as string);
+    if (!target) throw Object.assign(new Error(BAD_DT_MESSAGE), { status: 400 });
+  }
+
+  const tzName = await locationZone(lat, lng);
+  const targetTs = target ? Math.floor(wallClockMsInZone(target, tzName) / 1000) : undefined;
 
   const onecall = await fetchForecast(lat, lng, owmKey);
   // The builder runs inside the catch, the twin of the route's try: a JSON-valid
@@ -271,7 +342,7 @@ export async function getWeatherPlan(lat: number, lng: number): Promise<WeatherP
     throw Object.assign(new Error(NO_OWM_KEY), { status: 500, detail: NO_OWM_KEY });
   }
 
-  const tzName: string = await invoke('get_timezone', { lat, lng });
+  const tzName = await locationZone(lat, lng);
   const nowTs = Math.floor(Date.now() / 1000);
   const onecall = await fetchForecast(lat, lng, owmKey);
   // A JSON-valid but semantically malformed body (an absurd dt, an hourly

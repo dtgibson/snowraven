@@ -15,6 +15,7 @@
 // Predict's for the same fixture and moment by construction (FR-18, QA-17).
 
 import { buildWeatherPayload, type OneCallResponse, type WeatherSummary } from './forecastSlice'
+import { isFiniteFigure } from './weatherFormatter'
 import { addDays, localClock, localDate, localMidnightTs, startOfLocalHour } from './tzClock'
 import type { NightSpan, PlanCell, PlanDay, PlanWeather, SpineEvent, WeatherPlan } from './plan'
 
@@ -33,7 +34,10 @@ type Daily = NonNullable<OneCallResponse['daily']>[number]
 type Hourly = NonNullable<OneCallResponse['hourly']>[number]
 
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null
-const finite = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v)
+// Aliased, not re-declared: `isFiniteFigure` is the one predicate on this
+// runtime for "is this provider figure usable", and a second byte-identical
+// copy here is a place for the two to drift apart later.
+const finite = isFiniteFigure
 
 /** A sunrise or sunset is PRESENT iff it is a finite number greater than zero:
  *  One Call reports polar days with 0, and a malformed body may omit the key.
@@ -43,23 +47,54 @@ function presentTs(v: unknown): number | null {
 }
 
 /**
- * A reading with a non-numeric figure is a malformed provider body, and the
- * Python twin raises on it (`round('warm')`, `None <= 0`); this side would
- * otherwise carry NaN into the document and print "NaN°F". Throwing here makes
- * the two transports agree: the service maps the throw to the provider-error
- * state (502), never a plan with a hole in it.
+ * THE MALFORMED-FIGURE GUARDS THAT USED TO LIVE HERE ARE GONE, DELIBERATELY,
+ * AND THIS FILE NO LONGER REFUSES ANYTHING ON ITS OWN (weather-at-malformed-parity).
+ *
+ * v1.0.29 added `assertNumericEntry`, a finite sweep in `toPlanWeather` and a
+ * daily-`temp` check in `dailyReading`, because `buildWeatherPayload` carried a
+ * non-numeric figure through as NaN where the Python twin raised. That delegate
+ * now refuses it itself, on both runtimes, so the guards were re-argued rather
+ * than kept silently (standing rule: never leave a guard whose necessity has
+ * not been measured).
+ *
+ * MEASURED, not reasoned. Over the 203-shape shared matrix in
+ * `weatherAtMalformed.fixture.json`, driving `buildWeatherPlan` with the guards
+ * present and then removed produced **byte-identical output on every row**:
+ * same verdict, same document, 0 of 203 differing, and matching
+ * `build_weather_plan` on every row in both configurations.
+ *
+ * They were NOT redundant before this build, which is worth stating so this
+ * reads as a consequence rather than as a claim they never earned their keep:
+ * the plan pair diverged on 58 of these same 203 rows at v1.0.31, and what
+ * closed it was the repair to the delegate, not anything here.
+ *
+ * And structurally, which is why the measurement is not merely lucky: every
+ * `PlanWeather` in the document comes from `toPlanWeather`, which is reachable
+ * only from `weatherAt`, which always calls `buildWeatherPayload`. That is the
+ * load-bearing sentence, and it is sufficient on its own -- whatever slice the
+ * delegate selects, it validates.
+ *
+ * `weatherAt` HAS THREE CALL SITES, not two, and the third is what shadows
+ * three of the deleted branches. The two single-entry callers
+ * (`hourlyReading`, `dailyReading`) hand the delegate a response containing
+ * exactly the entry they are validating (`{hourly:[h]}` at `h.dt`,
+ * `{daily:[d]}` at `d.dt`, both already past this file's finite-`dt` boundary
+ * filter), so there the slice the delegate validates IS that entry. The third,
+ * in the sunrise/sunset event loop below, passes the FULL response at an
+ * arbitrary event instant and lets the delegate pick the tier -- which is why
+ * `toPlanWeather`'s figure sweep, its daily sweep and `dailyReading`'s bounds
+ * check never fired at all when the deleted guards were reinstated and
+ * instrumented: the delegate had already refused, earlier, at that call. Three
+ * unfired branches are the shadowing, not a hole; the field-by-field reading in
+ * decision 2 covers them independently of the matrix.
+ *
+ * REVERSAL CONDITION: if a `PlanWeather` ever gets built from anything other
+ * than a `buildWeatherPayload` summary, this file owes its own refusal again.
+ * `weatherAtMalformedParity.test.ts` asserts the plan REFUSES the malformed
+ * rows, so weakening the delegate turns that suite red here rather than only
+ * on Predict.
  */
-function assertNumericEntry(e: Record<string, unknown>, temp: unknown): void {
-  const nums = [temp, e.humidity, e.dew_point, e.wind_speed, e.wind_deg, e.clouds]
-  for (const n of nums) if (!finite(n)) throw new TypeError('malformed provider entry: a figure is not a number')
-  if (!Array.isArray(e.weather)) throw new TypeError('malformed provider entry: weather is not a list')
-}
-
 function toPlanWeather(s: WeatherSummary): PlanWeather {
-  for (const n of [s.tempF, s.cloudsPct, s.humidityPct, s.dewPointF]) {
-    if (!finite(n)) throw new TypeError('malformed provider entry: a figure is not a number')
-  }
-  if ((s.isDaily && (!finite(s.highF) || !finite(s.lowF)))) throw new TypeError('malformed provider entry: a daily figure is not a number')
   return {
     resolution: s.isDaily ? 'daily' : 'hourly',
     emoji: s.emoji,
@@ -86,16 +121,13 @@ function weatherAt(onecall: OneCallResponse, t: number, tz: string, lat: number)
  *  over a response that carries no `current`, so the nearest hourly entry is
  *  the entry itself (schema section 3.3, cells). */
 function hourlyReading(h: Hourly, daily: Daily[], tz: string, lat: number): PlanWeather | null {
-  assertNumericEntry(h as unknown as Record<string, unknown>, h.temp)
   return weatherAt({ hourly: [h], daily }, h.dt, tz, lat)
 }
 
-/** The DAILY entry's own reading, never an hourly neighbour's. */
+/** The DAILY entry's own reading, never an hourly neighbour's. The daily `temp`
+ *  object and its `min`/`max` bounds are refused by the delegate (see the note
+ *  on `toPlanWeather`), which is also where the Python twin's refusal lives. */
 function dailyReading(d: Daily, tz: string, lat: number): PlanWeather | null {
-  const temp = isObj(d.temp) ? d.temp : null
-  if (!temp) throw new TypeError('malformed provider entry: daily temp is not an object')
-  assertNumericEntry(d as unknown as Record<string, unknown>, temp.day)
-  if (!finite(temp.min) || !finite(temp.max)) throw new TypeError('malformed provider entry: a daily figure is not a number')
   return weatherAt({ daily: [d] }, d.dt, tz, lat)
 }
 

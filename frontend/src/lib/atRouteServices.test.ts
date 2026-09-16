@@ -7,11 +7,18 @@
 // getWeatherAt or getTideAt at all.
 //
 // Every row was MEASURED throwing on THIS transport before the repair was
-// written. That matters because the two languages do not agree on what a
-// malformed figure is: the Python twin raises on a non-numeric temp where
-// forecastSlice.ts carries it as NaN, so only the rows that actually throw here
-// can assert a 502 -- and the rows that do NOT throw are pinned below as
-// deliberate, out-of-scope divergences rather than left unstated.
+// written.
+//
+// THE TWINS HAVE SINCE CONVERGED (weather-at-malformed-parity). When this file
+// was written the two languages did not agree on what a malformed figure is --
+// the Python twin raised on a non-numeric temp where forecastSlice.ts carried it
+// as NaN -- so three rows below could only be pinned as deliberate, out-of-scope
+// divergences, written to go RED the day someone taught the builder to refuse.
+// They did exactly that, and they are now rewritten as ordinary 502 rows; the
+// comment above them records what they used to assert. The matrix that replaced
+// them is weatherAtMalformedParity.test.ts (203 shapes, both runtimes, one
+// shared fixture); this file remains the SERVICE-level half -- that a refusal
+// arrives as `{ status: 502 }` and reads as NOT offline.
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 const seams = vi.hoisted(() => ({
@@ -63,21 +70,51 @@ describe('getWeatherAt: a malformed provider body is a provider error, never "of
     expect(JSON.stringify(r.ok === false ? r.e : null)).not.toContain('owm-key')
   })
 
-  // PINNED DIVERGENCE, deliberately out of scope. forecastSlice.ts never learned
-  // to refuse a non-numeric figure the way the plan builders did at v1.0.29, so
-  // these resolve here while the Python twin raises. Route/service containment
-  // cannot reach them: a body that does not throw is not caught. Teaching the
-  // builder to refuse is a behaviour change to a shipped builder and is its own
-  // build; if one of these ever starts throwing, this row goes red and sends the
-  // reader here rather than letting the twins silently converge unnoticed.
+  // THE THREE FORMERLY-PINNED ROWS. Until weather-at-malformed-parity these
+  // asserted the OPPOSITE -- "still RESOLVES here while the Python twin answers
+  // 502 (known divergence)" -- because `forecastSlice.ts` never learned to
+  // refuse a non-numeric figure the way the plan builders did at v1.0.29, and
+  // route/service containment could not reach them: a body that does not throw
+  // is not caught. They were written to go red the day the builder was taught
+  // to refuse, which is what turned this file red and sent the next reader to
+  // pipeline/weather-at-malformed-parity/. They are rewritten, not deleted.
+  //
+  // What each used to produce on this transport, measured:
+  //   non-numeric temp   -> resolved, `tempF: NaN`, copy block "Temperature: NaN - NaN°F"
+  //   null wind_speed    -> resolved, `windDesc: "Calm"` -- a confident wrong WORD
+  //   string clouds      -> resolved, `cloudsPct: NaN`, "Cloud NaN%"
   it.each([
     ['non-numeric current temp', (oc: Record<string, unknown>) => { (oc.current as Record<string, unknown>).temp = 'warm' }],
     ['null current wind_speed', (oc: Record<string, unknown>) => { (oc.current as Record<string, unknown>).wind_speed = null }],
     ['string current clouds', (oc: Record<string, unknown>) => { (oc.current as Record<string, unknown>).clouds = 'lots' }],
-  ])('%s still RESOLVES here while the Python twin answers 502 (known divergence)', async (_n, mut) => {
+  ])('%s now rejects with status 502 too, converged with the Python twin', async (_n, mut) => {
     const oc = clone(REF.onecall as Record<string, unknown>); mut(oc)
     seams.fetch.mockResolvedValue(okJson(oc))
-    await expect(getWeatherAt(LAT, LNG)).resolves.toMatchObject({ resolution: 'current' })
+    const r = await settle(getWeatherAt(LAT, LNG))
+    expect(r.ok).toBe(false)
+    expect(r.ok === false && r.e).toMatchObject({ status: 502, message: W_AT })
+    expect(isOfflineError(r.ok === false ? r.e : null)).toBe(false)
+    expect(JSON.stringify(r.ok === false ? r.e : null)).not.toContain('owm-key')
+  })
+
+  // The `daily` tier, where the divergence INVERTED: these two answered HTTP 200
+  // on web/Pi with `tempF: 0`, `H 0° · L 0°` and a fabricated "Clear sky", while
+  // this transport refused them. A service row for each direction, so neither
+  // half of the convergence can regress unnoticed.
+  it.each([
+    ['daily temp absent', (oc: Record<string, unknown>) => { for (const d of oc.daily as Array<Record<string, unknown>>) delete d.temp }],
+    ['daily weather absent', (oc: Record<string, unknown>) => { for (const d of oc.daily as Array<Record<string, unknown>>) delete d.weather }],
+    ['daily humidity absent', (oc: Record<string, unknown>) => { for (const d of oc.daily as Array<Record<string, unknown>>) delete d.humidity }],
+  ])('%s rejects with status 502 on the daily tier', async (_n, mut) => {
+    const oc = clone(REF.onecall as Record<string, unknown>); mut(oc)
+    seams.fetch.mockResolvedValue(okJson(oc))
+    // The fixture's own nowTs is mid-afternoon on its first day; five days out
+    // is the daily tier.
+    const r = await settle(getWeatherAt(LAT, LNG, '2026-09-17 12:00'))
+    expect(r.ok).toBe(false)
+    expect(r.ok === false && r.e).toMatchObject({ status: 502, message: W_AT })
+    expect(isOfflineError(r.ok === false ? r.e : null)).toBe(false)
+    expect(JSON.stringify(r.ok === false ? r.e : null)).not.toContain('Clear sky')
   })
 
   it('a well-formed body is unchanged', async () => {
@@ -144,6 +181,17 @@ describe('getWeather: a malformed historical body is a provider error, never "of
     ['hour carrying only dt', { data: [{ dt: 1714563000 }] }],
     ['body is a string', 'nope'],
     ['body is a list', [1, 2, 3]],
+    // ADDED by weather-at-malformed-parity, which scoped this second
+    // single-moment lookup in: it shares `formatWeather` with /weather/at, and
+    // over 50 malformed hour shapes that formatter refused 13 where its Python
+    // twin refused 41. These six are among the 37 that used to come back as
+    // PASTEABLE TEXT -- the block a user copies into a public eBird checklist.
+    ['non-numeric temp', { data: [histHour({ temp: 'warm' })] }],        // "Temperature: NaN - NaN°F"
+    ['null temp', { data: [histHour({ temp: null })] }],                 // "Temperature: 0°F"
+    ['null wind_speed', { data: [histHour({ wind_speed: null })] }],     // "Wind: Calm"
+    ['string wind_speed', { data: [histHour({ wind_speed: 'warm' })] }], // "Wind: Gale"
+    ['weather a list of empty objects', { data: [histHour({ weather: [{}] })] }], // 🌡️ + an empty condition line
+    ['null sunrise', { data: [histHour({ sunrise: null })] }],
   ])('%s rejects with status 502 and reads as NOT offline', async (_n, hist) => {
     seams.fetch.mockImplementation(routeFetch('2024-05-01 06:30', hist))
     const r = await settle(getWeather('S123456'))
