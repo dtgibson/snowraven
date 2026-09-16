@@ -423,10 +423,16 @@ export function BirdingStats({ onGoToSettings, onGoToWeather, onOpenSpecies }: {
     }
     return m
   }, [effectiveObs])
-  const sciFor = (name: string): string | undefined => {
+  // MEMOIZED, and it is not a micro-optimization: this function is a memo INPUT
+  // one level down. As a plain body function it took a fresh identity on every
+  // Statistics render, and `WeatherStatsSection`'s own `speciesOptions` memo
+  // lists it in its deps -- so that memo missed on all 22 pieces of this tab's
+  // state before the combobox ever saw the array, and the picker's `filtered`
+  // and `rows` then missed in turn. `sciByNorm` is the only value it reads.
+  const sciFor = useCallback((name: string): string | undefined => {
     const key = normalizeSpeciesName(name)
     return Object.hasOwn(sciByNorm, key) ? sciByNorm[key] : undefined
-  }
+  }, [sciByNorm])
   // Taxonomic order for media species (for the Age coverage by species sort).
   const normTaxonOrder = useMemo(() => {
     const m: Record<string, number> = {}

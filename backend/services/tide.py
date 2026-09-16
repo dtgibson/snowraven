@@ -3,7 +3,7 @@ frontend/src/lib/tide.ts). Pure; no I/O."""
 
 import re
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 
 @dataclass
@@ -75,13 +75,49 @@ def _in_window(t: str, start: str, end: str) -> bool:
     return start <= t <= end
 
 
+# Explicit ASCII classes, never `\d`: Python's `\d` matches every Unicode decimal
+# digit and `int()` parses one happily, while the TS twin's `\d` is ASCII-only
+# (the v0.5.54 character-class rule for twinned guards). Anchored and fixed-width
+# with no alternation, so a hostile provider string matches or fails inside the
+# first 16 characters.
+_LST_RE = re.compile(r"^([0-9]{4})-([0-9]{2})-([0-9]{2})[ T]([0-9]{2}):([0-9]{2})")
+
+
 def _epoch_min(t: str) -> float:
-    """Calendar-correct epoch-minutes from 'YYYY-MM-DD HH:MM'."""
-    m = re.match(r"^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})", t)
+    """Epoch-minutes for a NOAA `lst_ldt` wall-clock string, read on a fixed UTC
+    axis; 0.0 for a string that does not match and for an impossible calendar
+    value. Twin of `epochMin` in frontend/src/lib/tide.ts.
+
+    NOT calendar-correct, which this docstring claimed until 2026-09-15. The
+    string is the STATION's local clock and is read here as though it were UTC,
+    so a wall-clock 01:00 -> 03:00 span at a station crossing its own DST
+    transition measures 120 minutes where 180 actually elapsed. That is the
+    contract rather than an oversight: both consumers (`interp_level`'s
+    interpolation fraction, the nearest-point `min` below) take only
+    DIFFERENCES between two of these values, and reading every string on one
+    fixed axis is what makes a difference equal the CALENDAR difference of the
+    two wall clocks on every machine. Re-parsing in the station's real zone
+    would give true elapsed time and is a separate, deliberately deferred
+    decision -- pipeline/tide-timezone-parse/decisions.md and ROADMAP.md carry
+    the evidence, the reversal condition and the exact change.
+
+    `tzinfo=timezone.utc` is load-bearing. A naive `datetime(...).timestamp()`
+    resolves in the SERVER PROCESS's zone, so the same string read differently
+    on two machines: the span above measured 180 minutes on a US/Pacific server
+    against 120 on a UTC one, and the checklist tide then rendered
+    `Water level: 1.0 - 5.0 ft` where the correct figure is `1.5 - 4.5 ft`. It
+    also removes an uncaught raise -- the naive call raises `year 0 is out of
+    range` near the calendar's start, out of a `compute_tide_reading` that sits
+    outside the routes' `try`.
+    """
+    m = _LST_RE.match(t)
     if not m:
         return 0.0
     y, mo, d, h, mi = (int(x) for x in m.groups())
-    return datetime(y, mo, d, h, mi).timestamp() / 60.0
+    try:
+        return datetime(y, mo, d, h, mi, tzinfo=timezone.utc).timestamp() / 60.0
+    except ValueError:
+        return 0.0
 
 
 def interp_level(t: str, sorted_hilo: list[dict]):

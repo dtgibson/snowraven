@@ -1,0 +1,1234 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SnowRaven — Control Style Registers</title>
+<style>
+/* ═══════════════════════════════════════════════════════════════════════════
+   SnowRaven design tokens — copied VERBATIM from frontend/src/globals.css so
+   every specimen renders in the app's real colours, both themes. Nothing here
+   is invented; this design pass mints no token.
+   ═════════════════════════════════════════════════════════════════════════ */
+:root {
+  --sr-bg:#F9FAFB; --sr-surface:#FFFFFF; --sr-surface-subtle:#F4F4F5; --sr-surface-faint:#FAFAFA;
+  --sr-text:#0F1117; --sr-text-muted:#6B6B74; --sr-text-disabled:#A1A1AA; --sr-text-gray:#6B7280;
+  --sr-border:#E4E4E7; --sr-border-subtle:#F4F4F5; --sr-border-medium:#C4C4CE; --sr-border-input:#8A8A91;
+  --sr-accent:#277448; --sr-accent-strong:#1A5C38; --sr-accent-bg:#E8F5EE;
+  --sr-accent-border:rgba(39,116,72,0.25); --sr-accent-border-strong:rgba(39,116,72,0.7);
+  --sr-on-accent:#FFFFFF;
+  --sr-error:#D31F1F; --sr-error-bg:#FEF2F2; --sr-error-overlay:rgba(239,68,68,0.3);
+  --sr-is-target-bg:#FFF7ED; --sr-is-target-text:#C2410C; --sr-is-target-border:rgba(194,65,12,0.35);
+  --sr-tier-1-rgb:192,132,252; --sr-tier-2-rgb:147,51,234; --sr-tier-4-rgb:59,7,100;
+  --sr-tier-1-fg:#7C3AED; --sr-tier-2-fg:#8429D8; --sr-tier-4-fg:#3B0764;
+  --sr-card-shadow:0 1px 3px rgba(15,17,23,0.06), 0 1px 2px rgba(15,17,23,0.04);
+}
+[data-theme="dark"], .theme-dark {
+  --sr-bg:#09090B; --sr-surface:#18181B; --sr-surface-subtle:#27272A; --sr-surface-faint:#1C1C1F;
+  --sr-text:#F4F4F5; --sr-text-muted:#A1A1AA; --sr-text-disabled:#52525B; --sr-text-gray:#8A8A92;
+  --sr-border:#27272A; --sr-border-subtle:#1F1F23; --sr-border-medium:#3F3F46; --sr-border-input:#707078;
+  --sr-accent:#34D399; --sr-accent-strong:#34D399; --sr-accent-bg:#052E16;
+  --sr-accent-border:rgba(52,211,153,0.2); --sr-accent-border-strong:rgba(52,211,153,0.5);
+  --sr-on-accent:#052E16;
+  --sr-error:#F87171; --sr-error-bg:#1C0505; --sr-error-overlay:rgba(248,113,113,0.2);
+  --sr-is-target-bg:#1C0F00; --sr-is-target-text:#FB923C; --sr-is-target-border:rgba(251,146,60,0.3);
+  --sr-tier-1-rgb:192,132,252; --sr-tier-2-rgb:168,85,247; --sr-tier-4-rgb:107,33,168;
+  --sr-tier-1-fg:#C084FC; --sr-tier-2-fg:#BD80FA; --sr-tier-4-fg:#C795F5;
+  --sr-card-shadow:0 1px 3px rgba(0,0,0,0.5), 0 1px 2px rgba(0,0,0,0.4);
+}
+.theme-light {
+  --sr-bg:#F9FAFB; --sr-surface:#FFFFFF; --sr-surface-subtle:#F4F4F5; --sr-surface-faint:#FAFAFA;
+  --sr-text:#0F1117; --sr-text-muted:#6B6B74; --sr-text-disabled:#A1A1AA; --sr-text-gray:#6B7280;
+  --sr-border:#E4E4E7; --sr-border-subtle:#F4F4F5; --sr-border-medium:#C4C4CE; --sr-border-input:#8A8A91;
+  --sr-accent:#277448; --sr-accent-strong:#1A5C38; --sr-accent-bg:#E8F5EE;
+  --sr-accent-border:rgba(39,116,72,0.25); --sr-accent-border-strong:rgba(39,116,72,0.7);
+  --sr-on-accent:#FFFFFF;
+  --sr-error:#D31F1F; --sr-error-bg:#FEF2F2; --sr-error-overlay:rgba(239,68,68,0.3);
+  --sr-is-target-bg:#FFF7ED; --sr-is-target-text:#C2410C; --sr-is-target-border:rgba(194,65,12,0.35);
+  --sr-tier-1-rgb:192,132,252; --sr-tier-2-rgb:147,51,234; --sr-tier-4-rgb:59,7,100;
+  --sr-tier-1-fg:#7C3AED; --sr-tier-2-fg:#8429D8; --sr-tier-4-fg:#3B0764;
+  --sr-card-shadow:0 1px 3px rgba(15,17,23,0.06), 0 1px 2px rgba(15,17,23,0.04);
+}
+
+/* ── Document furniture ──────────────────────────────────────────────────────
+   The page's OWN chrome is deliberately not the app: a serif display face and
+   a tinted, layered ground, so nothing here reads as a shipped SnowRaven
+   surface. Every SPECIMEN sits on the app's real tokens. */
+* { box-sizing: border-box; }
+html { color-scheme: light dark; }
+body {
+  margin: 0;
+  padding: env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px);
+  background:
+    radial-gradient(1100px 620px at 10% -8%, color-mix(in srgb, var(--sr-accent) 9%, transparent), transparent 62%),
+    radial-gradient(780px 500px at 97% 3%, color-mix(in srgb, var(--sr-accent) 5%, transparent), transparent 58%),
+    linear-gradient(176deg, var(--sr-bg) 0%, color-mix(in srgb, var(--sr-bg) 80%, var(--sr-surface)) 100%);
+  background-attachment: fixed;
+  color: var(--sr-text);
+  /* The DOCUMENT is set in a serif — deliberately not the app's face, so nothing
+     in this page's own chrome can be mistaken for a shipped SnowRaven surface.
+     The app's face is scoped to the specimens alone, on .app-card below. */
+  font-family: ui-serif, Georgia, "Iowan Old Style", "Palatino Linotype", serif;
+  font-size: 15px; line-height: 1.62; -webkit-font-smoothing: antialiased;
+}
+img { max-width: 100%; }
+[hidden] { display: none !important; }
+.wrap { max-width: 1180px; margin: 0 auto; padding: 0 20px 96px; }
+
+/* Display face: a serif, deliberately distinct from the app's Inter. System
+   stack only — this file stays self-contained, so no webfont is loaded. */
+.display {
+  font-family: ui-serif, Georgia, "Iowan Old Style", "Palatino Linotype", serif;
+  font-weight: 600; letter-spacing: -0.018em; line-height: 1.12; margin: 0;
+}
+
+.masthead { padding: 70px 0 30px; }
+.eyebrow {
+  display:inline-flex; align-items:center; gap:8px;
+  font-size:0.6875rem; font-weight:700; letter-spacing:0.1em; text-transform:uppercase;
+  color:var(--sr-accent); padding:5px 12px; border-radius:15px;
+  background:var(--sr-accent-bg); border:1px solid var(--sr-accent-border);
+}
+h1.display { font-size: clamp(2.3rem, 5.6vw, 3.7rem); margin:20px 0 0; max-width:19ch; }
+.standfirst { margin:18px 0 0; max-width:64ch; font-size:1.0625rem; line-height:1.62; color:var(--sr-text-muted); }
+.standfirst strong { color:var(--sr-text); font-weight:600; }
+
+.verdict {
+  margin:38px 0 0; padding:24px 30px; border-left:3px solid var(--sr-accent);
+  background:linear-gradient(90deg, color-mix(in srgb, var(--sr-accent) 7%, transparent), transparent 72%);
+  border-radius:0 12px 12px 0;
+}
+.verdict-label { font-size:0.6875rem; font-weight:700; letter-spacing:0.09em; text-transform:uppercase; color:var(--sr-text-muted); margin:0 0 8px; }
+.verdict p { margin:0; font-size:1.1rem; line-height:1.55; max-width:60ch; }
+.verdict p + p { margin-top:12px; }
+.num { font-family:ui-serif, Georgia, serif; font-weight:700; color:var(--sr-accent); font-size:1.22em; }
+
+section { margin-top:74px; }
+.sec-head { display:flex; align-items:baseline; gap:14px; flex-wrap:wrap; margin-bottom:6px; }
+.sec-num { font-family:ui-serif, Georgia, serif; font-size:0.8125rem; font-weight:700; color:var(--sr-accent); letter-spacing:0.06em; }
+h2.display { font-size:clamp(1.55rem, 3.1vw, 2.05rem); }
+.sec-sub { margin:10px 0 28px; color:var(--sr-text-muted); max-width:74ch; font-size:0.9375rem; }
+code, .inline-code {
+  font-family:ui-monospace, SFMono-Regular, Menlo, monospace; font-size:0.875em;
+  padding:1px 5px; border-radius:4px; background:var(--sr-surface-subtle); color:var(--sr-text);
+}
+
+/* A mount, not a card: it depicts the app's PAGE GROUND, with the real card
+   nested inside it. Deliberately carries no shadow — the specimen's own border
+   is the only elevation, so this never reads as a card inside a card. */
+.panel { background:var(--sr-bg); border:1px solid var(--sr-border); border-radius:14px; padding:22px; }
+.panel-tag { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin:0 0 16px; }
+.panel-tag h3 { margin:0; font-size:0.8125rem; font-weight:700; letter-spacing:0.05em; text-transform:uppercase; color:var(--sr-text-muted); }
+.chip { font-size:0.625rem; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:var(--sr-text-muted); border:1px solid var(--sr-border); padding:3px 8px; border-radius:10px; background:var(--sr-surface); }
+.chip--rec { color:var(--sr-accent); border-color:var(--sr-accent-border); background:var(--sr-accent-bg); }
+.pair { display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+@media (max-width:860px){ .pair { grid-template-columns:1fr; } }
+
+/* SPECIMEN FACE — declared ONCE, for every specimen container.
+   The app ships Inter/system-ui and has for 61 versions, so a specimen must
+   render in it or it misreports the thing being reviewed. Scoped to the
+   specimen containers rather than <body>, so ONLY specimens carry it and the
+   document's own chrome stays in its serif. Every control inside uses
+   font-family: inherit and picks it up from here. This is the single
+   deliberate deviation from the design doctrine's display-face rule, and it
+   lives in one place so it cannot drift across containers. */
+.app-card, .scale-card {
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI Variable", sans-serif;
+}
+.app-card {
+  background:var(--sr-surface); border:1px solid var(--sr-border); border-radius:12px; padding:16px;
+  font-size:14px; line-height:1.55;
+}
+.app-card + .app-card { margin-top:14px; }
+.row-label { font-size:0.6875rem; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; color:var(--sr-text-muted); margin:0 0 10px; }
+.ctl-row { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   REGISTER A — .sr-pill : the standalone toggle / filter pill (~28 sites)
+   ═════════════════════════════════════════════════════════════════════════ */
+.sr-pill {
+  display:inline-flex; align-items:center; justify-content:center; gap:5px;
+  min-height:30px; padding:0 12px;
+  border-radius:15px;                 /* ← the open choice, section 03 */
+  border:1.5px solid var(--sr-border);
+  background:var(--sr-surface); color:var(--sr-text-muted);
+  font-family:inherit; font-size:0.75rem; font-weight:500;
+  white-space:nowrap; cursor:pointer;
+  /* v1.0.18: border, background AND transition move together. */
+  transition: background-color 120ms ease-out, border-color 120ms ease-out, color 120ms ease-out;
+}
+.sr-pill:not(:disabled):not([aria-disabled="true"]):hover {
+  border-color:var(--sr-border-medium); background:var(--sr-surface-subtle); color:var(--sr-text);
+}
+/* Source order: the pressed rule follows :hover so the selected state wins at
+   equal specificity — the .sr-map-fab / .sr-hotspot-mode-pill convention. */
+.sr-pill[aria-pressed="true"] {
+  border-color:var(--sr-accent-border); background:var(--sr-accent-bg); color:var(--sr-accent); font-weight:600;
+}
+.sr-pill[data-state="negative"] {
+  border-color:var(--sr-error-overlay); background:var(--sr-error-bg); color:var(--sr-error); font-weight:600;
+}
+.sr-pill[data-state="target"] {
+  border-color:var(--sr-is-target-border); background:var(--sr-is-target-bg); color:var(--sr-is-target-text); font-weight:600;
+}
+.sr-pill:disabled, .sr-pill[aria-disabled="true"] {
+  border-color:var(--sr-border); background:var(--sr-surface-subtle); color:var(--sr-text-disabled); cursor:not-allowed;
+}
+.sr-pill:focus-visible { outline:3px solid var(--sr-accent); outline-offset:3px; box-shadow:0 0 0 6px color-mix(in srgb, var(--sr-accent) 12%, transparent); }
+/* Per-tier variant — Breeding Codes keeps its purple tier tints. */
+.sr-pill[data-tier="4"][aria-pressed="true"]{ background:rgba(var(--sr-tier-4-rgb),0.15); border-color:rgba(var(--sr-tier-4-rgb),0.5); color:var(--sr-tier-4-fg); }
+.sr-pill[data-tier="2"][aria-pressed="true"]{ background:rgba(var(--sr-tier-2-rgb),0.15); border-color:rgba(var(--sr-tier-2-rgb),0.5); color:var(--sr-tier-2-fg); }
+.sr-pill[data-tier="1"][aria-pressed="true"]{ background:rgba(var(--sr-tier-1-rgb),0.15); border-color:rgba(var(--sr-tier-1-rgb),0.5); color:var(--sr-tier-1-fg); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   REGISTER B — .sr-seg / .sr-seg-btn : the segmented group (~15 sites)
+   These sites declare border:'none' today and take their edge from a wrapping
+   shell. They are a different shape and need their own register.
+   ═════════════════════════════════════════════════════════════════════════ */
+.sr-seg {
+  display:inline-flex; align-items:stretch;
+  border:1.5px solid var(--sr-accent-border); border-radius:15px;
+  overflow:hidden; background:var(--sr-surface);
+}
+.sr-seg-btn {
+  display:inline-flex; align-items:center; justify-content:center; gap:5px;
+  min-height:30px; padding:0 12px;
+  border:none; background:transparent; color:var(--sr-text-muted);
+  font-family:inherit; font-size:0.75rem; font-weight:500;
+  white-space:nowrap; cursor:pointer;
+  transition: background-color 120ms ease-out, color 120ms ease-out;
+}
+.sr-seg-btn + .sr-seg-btn { border-left:1.5px solid var(--sr-accent-border); }
+.sr-seg-btn:not(:disabled):hover { background:var(--sr-surface-subtle); color:var(--sr-text); }
+.sr-seg-btn[aria-pressed="true"] { background:var(--sr-accent-bg); color:var(--sr-accent); font-weight:600; }
+.sr-seg-btn:focus-visible { outline:3px solid var(--sr-accent); outline-offset:-3px; }
+
+/* Radius A/B demonstration */
+.r6 .sr-pill, .r6 .sr-seg { border-radius:6px; }
+.r15 .sr-pill, .r15 .sr-seg { border-radius:15px; }
+/* Rest-border option B */
+.opt-b .sr-pill { border-color:var(--sr-border-input); }
+.opt-b .sr-pill[aria-pressed="true"] { border-color:var(--sr-accent-border); }
+.opt-b .sr-pill[data-state="negative"] { border-color:var(--sr-error-overlay); }
+
+/* ── BEFORE specimens: shipped inline styles, reproduced exactly ──────────── */
+.bp { display:inline-flex; align-items:center; font-family:inherit; cursor:pointer; white-space:nowrap; }
+/* LifeList.tsx pillStyle() — Multimedia. h30 / pad 12 / radius 6 / .75rem / w500 */
+.b-pillstyle { gap:5px; height:30px; padding:0 12px; border-radius:6px; font-size:0.75rem; font-weight:500;
+  border:1.5px solid var(--sr-border); background:var(--sr-surface); color:var(--sr-text-muted); }
+.b-pillstyle[aria-pressed="true"]{ border-color:var(--sr-accent-border); background:var(--sr-accent-bg); color:var(--sr-accent); }
+.b-pillstyle[data-state="negative"]{ border-color:var(--sr-error-overlay); background:var(--sr-error-bg); color:var(--sr-error); }
+.b-pillstyle[data-state="target"]{ border-color:var(--sr-is-target-border); background:var(--sr-is-target-bg); color:var(--sr-is-target-text); font-weight:600; }
+/* Checklists.tsx TriPill — h30 / pad 11 / radius 15 / .75rem / w500→600 */
+.b-tripill { gap:5px; height:30px; padding:0 11px; border-radius:15px; font-size:0.75rem; font-weight:500;
+  border:1.5px solid var(--sr-border); background:var(--sr-surface); color:var(--sr-text-muted); }
+.b-tripill[aria-pressed="true"]{ border-color:var(--sr-accent-border); background:var(--sr-accent-bg); color:var(--sr-accent); font-weight:600; }
+.b-tripill[data-state="negative"]{ border-color:var(--sr-error-overlay); background:var(--sr-error-bg); color:var(--sr-error); font-weight:600; }
+/* BirdingStats — h24 / pad 8 / radius 6 / .6875rem */
+.b-stats { height:24px; padding:0 8px; border-radius:6px; font-size:0.6875rem; font-weight:500;
+  border:1.5px solid var(--sr-border); background:none; color:var(--sr-text-muted); }
+.b-stats[aria-pressed="true"]{ border-color:var(--sr-accent-border); background:var(--sr-accent-bg); color:var(--sr-accent); }
+/* ghostBtn() — h28 / pad 10 / radius 6 / .6875rem */
+.b-ghost { gap:5px; height:28px; padding:0 10px; border-radius:6px; font-size:0.6875rem; font-weight:500;
+  border:1.5px solid var(--sr-border); background:none; color:var(--sr-text-muted); }
+.b-ghost[aria-pressed="true"]{ border-color:var(--sr-accent-border); background:var(--sr-accent-bg); color:var(--sr-accent); }
+/* ListComparer 186 — h36 / pad 20 / .8125rem, segment in a shell */
+.b-seg-shell { display:inline-flex; border:1.5px solid var(--sr-border); border-radius:6px; overflow:hidden; background:var(--sr-surface); }
+.b-lc { height:36px; padding:0 20px; font-size:0.8125rem; font-weight:500; border:none; background:var(--sr-surface); color:var(--sr-text-muted); }
+.b-lc + .b-lc { border-left:1.5px solid var(--sr-border); }
+.b-lc[aria-pressed="true"]{ background:var(--sr-accent-bg); color:var(--sr-accent); font-weight:600; }
+/* MapExplorer 2936 view bar — pad 7/14 / radius 20 / .8125rem */
+.b-mapview { gap:6px; padding:7px 14px; border-radius:20px; font-size:0.8125rem; font-weight:400;
+  background:var(--sr-surface-subtle); border:1.5px solid transparent; color:var(--sr-text-muted); }
+.b-mapview[aria-pressed="true"]{ background:var(--sr-accent-bg); border-color:var(--sr-accent-border); color:var(--sr-accent); font-weight:600; }
+
+/* ── Tables ── */
+.matrix { width:100%; border-collapse:collapse; font-size:0.8125rem; }
+.matrix th { text-align:left; font-size:0.625rem; font-weight:700; letter-spacing:0.07em; text-transform:uppercase; color:var(--sr-text-muted); padding:0 12px 10px 0; border-bottom:1px solid var(--sr-border); }
+.matrix td { padding:12px 12px 12px 0; border-bottom:1px solid var(--sr-border-subtle); vertical-align:middle; }
+.matrix tr:last-child td { border-bottom:0; }
+.tok { font-family:ui-monospace, SFMono-Regular, Menlo, monospace; font-size:0.6875rem; color:var(--sr-text-muted); white-space:nowrap; }
+.ratio { font-variant-numeric:tabular-nums; font-weight:600; color:var(--sr-text); }
+.pass { color:var(--sr-accent); font-weight:700; font-size:0.6875rem; letter-spacing:0.04em; }
+.scroll-x { overflow-x:auto; }
+.delta-up { color:var(--sr-accent); font-weight:600; }
+.delta-dn { color:var(--sr-is-target-text); font-weight:600; }
+
+/* ── Collapse figures ── */
+.figs { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:24px; }
+@media (max-width:720px){ .figs { grid-template-columns:1fr; } }
+.fig { padding:20px 22px; border-radius:12px; background:var(--sr-surface); border:1px solid var(--sr-border); box-shadow:var(--sr-card-shadow); }
+.fig-from { font-size:0.75rem; color:var(--sr-text-muted); }
+.fig-to { font-family:ui-serif, Georgia, serif; font-size:2.2rem; font-weight:700; color:var(--sr-accent); line-height:1; margin:9px 0 6px; }
+.fig-what { font-size:0.75rem; font-weight:600; color:var(--sr-text); }
+.spread { display:flex; gap:4px; flex-wrap:wrap; margin-top:12px; }
+.spread span { font-size:0.625rem; font-family:ui-monospace,Menlo,monospace; padding:2px 6px; border-radius:4px; background:var(--sr-surface-subtle); color:var(--sr-text-muted); }
+.spread span.win { background:var(--sr-accent-bg); color:var(--sr-accent); font-weight:700; }
+
+/* ── Phone ── */
+.phones { display:flex; gap:24px; flex-wrap:wrap; align-items:flex-start; }
+.phone-cap { font-size:0.6875rem; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; color:var(--sr-text-muted); margin:0 0 10px; }
+.phone { width:320px; max-width:100%; border:1px solid var(--sr-border-medium); border-radius:18px; background:var(--sr-bg); padding:14px; overflow:hidden; box-shadow:var(--sr-card-shadow); }
+/* The ≤640 posture a register brings: 44px box, wrapping labels, 16px floor. */
+.after-phone .sr-pill { min-height:2.75rem; height:auto; white-space:normal; font-size:max(16px,0.75rem); }
+.after-phone .sr-seg-btn { min-height:2.75rem; height:auto; white-space:normal; font-size:max(16px,0.75rem); }
+
+/* ── Text-scale demonstration (section 10) ───────────────────────────────────
+   Specimen sizes are set INLINE in rendered px, not rem: each panel depicts a
+   different root font size, which a rem-based specimen could not show on one
+   page. The px values are the computed results of max(16px, 0.75rem) and of
+   each label register at that scale. */
+.scale-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; }
+@media (max-width:900px){ .scale-grid { grid-template-columns:1fr; } }
+.scale-card {
+  background:var(--sr-surface); border:1px solid var(--sr-border);
+  border-radius:12px; padding:16px;
+  /* No font-family here: it comes from the single shared specimen-face rule
+     above, so the two specimen containers cannot drift apart. */
+}
+.scale-head { font-size:0.625rem; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:var(--sr-text-muted); margin:0 0 4px; }
+.scale-sub { font-size:0.6875rem; line-height:1.5; color:var(--sr-text-muted); margin:0 0 14px; }
+.scale-sub strong { color:var(--sr-text); font-weight:700; }
+.demo-row { display:flex; align-items:center; gap:10px; flex-wrap:wrap; min-width:0; }
+.demo-label { font-weight:700; text-transform:uppercase; letter-spacing:0.07em; color:var(--sr-text-muted); white-space:nowrap; }
+.demo-ctl {
+  display:inline-flex; align-items:center; justify-content:center;
+  min-height:30px; padding:0 12px; border-radius:15px;
+  border:1.5px solid var(--sr-border); background:var(--sr-surface);
+  color:var(--sr-text-muted); font-weight:500; white-space:nowrap;
+}
+.demo-ctl[aria-pressed="true"]{ border-color:var(--sr-accent-border); background:var(--sr-accent-bg); color:var(--sr-accent); font-weight:600; }
+/* Marks the element carrying the defect, so the broken half is unambiguous. */
+.bad { outline:2px dashed var(--sr-is-target-border); outline-offset:3px; }
+
+.note { margin-top:18px; padding:16px 18px; border-radius:10px; background:var(--sr-surface-faint); border:1px solid var(--sr-border); font-size:0.875rem; color:var(--sr-text-muted); max-width:82ch; }
+.note strong { color:var(--sr-text); font-weight:600; }
+.note--warn { border-left:3px solid var(--sr-is-target-text); }
+.note + .note { margin-top:12px; }
+
+.toolbar { position:sticky; top:env(safe-area-inset-top,0px); z-index:20; display:flex; justify-content:flex-end; gap:8px; padding:12px 0; margin-bottom:-12px; background:linear-gradient(180deg, var(--sr-bg) 62%, transparent); }
+.tbtn { display:inline-flex; align-items:center; min-height:34px; padding:0 13px; border-radius:17px; border:1.5px solid var(--sr-border); background:var(--sr-surface); color:var(--sr-text-muted); font-family:-apple-system, BlinkMacSystemFont, "Segoe UI Variable", sans-serif; font-size:0.75rem; font-weight:600; cursor:pointer; transition:background-color 120ms ease-out, border-color 120ms ease-out, color 120ms ease-out; }
+.tbtn:hover { border-color:var(--sr-border-medium); background:var(--sr-surface-subtle); color:var(--sr-text); }
+.tbtn[aria-pressed="true"] { border-color:var(--sr-accent-border); background:var(--sr-accent-bg); color:var(--sr-accent); }
+.tbtn:focus-visible { outline:3px solid var(--sr-accent); outline-offset:3px; }
+
+footer { margin-top:82px; padding-top:26px; border-top:1px solid var(--sr-border); color:var(--sr-text-muted); font-size:0.8125rem; max-width:78ch; }
+
+/* ── ANNOTATION CHROME — the fix for a real presentation failure ─────────────
+   Everything the DOCUMENT says ABOUT a specimen is set in the serif, in
+   sentence case. This is not cosmetic. The app's own section-label register is
+   0.6875rem / 700 / uppercase / 0.07em / muted — and this page's captions were
+   previously set in that same register and placed directly above specimens, so
+   a caption was indistinguishable from the thing under review. A reader seeing
+   a 10px uppercase muted caption above a 32px control specimen reasonably
+   concluded the design left headings tiny beside grown controls. Annotation
+   must never be mistakable for a specimen. */
+.row-label, .scale-head, .panel-tag h3, .chip {
+  font-family: ui-serif, Georgia, "Iowan Old Style", serif !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+  font-weight: 600 !important;
+}
+.scale-sub, .phone-cap {
+  font-family: ui-serif, Georgia, "Iowan Old Style", serif !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+}
+.row-label { font-size: 0.8125rem !important; font-style: italic; }
+.scale-head { font-size: 0.9375rem !important; }
+.panel-tag h3 { font-size: 0.9375rem !important; }
+/* A specimen sits in its own inset well, so the boundary between "the app" and
+   "this page talking about the app" is visible rather than inferred. */
+.app-card, .scale-card { box-shadow: inset 0 0 0 1px var(--sr-border-subtle); }
+
+/* Reduced motion: the app's own global block, reproduced. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration:0.001ms !important; animation-iteration-count:1 !important;
+    transition-duration:0.001ms !important; scroll-behavior:auto !important;
+  }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="toolbar">
+    <button class="tbtn" type="button" id="t-light" aria-pressed="true">Light</button>
+    <button class="tbtn" type="button" id="t-dark" aria-pressed="false">Dark</button>
+  </div>
+
+  <header class="masthead">
+    <span class="eyebrow">Improve · Design pass</span>
+    <h1 class="display">One register for the filter pill. Actually, two.</h1>
+    <p class="standfirst">
+      Forty-odd controls across fifteen files draw the same idea in
+      <strong>seven heights, six radii and four type sizes</strong>. This pass picks one of
+      each. Reading the actual styles turned up something the count alone hid:
+      <strong>these are two different shapes, not one</strong> — and they need two registers.
+    </p>
+
+    <div class="verdict">
+      <p class="verdict-label">The proposal</p>
+      <p>
+        Both registers collapse to <span class="num">30px</span> tall and
+        <span class="num">0.75rem</span> text. Standalone pills draw their own edge;
+        segmented groups keep taking theirs from the shell around them.
+      </p>
+      <p>
+        The one genuinely open question is <strong>radius</strong> — and the design system
+        and the codebase disagree. That is section 03, and it is your call.
+      </p>
+    </div>
+  </header>
+
+  <!-- ══ 01 ══════════════════════════════════════════════════════════════ -->
+  <section>
+    <div class="sec-head"><span class="sec-num">01</span><h2 class="display">What the measurement found</h2></div>
+    <p class="sec-sub">
+      Every in-scope site read directly from source. The highlighted value in each row is the
+      family's own modal value — the one the most sites already use.
+    </p>
+
+    <div class="figs">
+      <div class="fig">
+        <div class="fig-from">7 declared heights</div>
+        <div class="fig-to">30px</div>
+        <div class="fig-what">min-height · 21 sites already</div>
+        <div class="spread"><span>24</span><span>26</span><span>28</span><span class="win">30</span><span>32</span><span>34</span><span>36</span></div>
+      </div>
+      <div class="fig">
+        <div class="fig-from">6 declared radii</div>
+        <div class="fig-to">?</div>
+        <div class="fig-what">the open choice — section 03</div>
+        <div class="spread"><span>4</span><span>5</span><span class="win">6</span><span>8</span><span>15</span><span>20</span></div>
+      </div>
+      <div class="fig">
+        <div class="fig-from">4 font sizes</div>
+        <div class="fig-to">0.75rem</div>
+        <div class="fig-what">font-size · 25 sites already</div>
+        <div class="spread"><span>0.6875</span><span>0.71875</span><span class="win">0.75</span><span>0.8125</span></div>
+      </div>
+    </div>
+
+    <div class="note">
+      <strong>Why 30px and 0.75rem are easy.</strong> Both are the family's modal value
+      <em>and</em> the value <code>design-system.md</code> already specifies, <em>and</em> the
+      value the one shipped class-based pill (<code>.sr-hotspot-mode-pill</code>) already uses.
+      Three independent sources agree, so neither is really a judgement call.
+      <code>0.75rem</code> is also the <code>rem</code> term of the phone-tier
+      <code>max(16px, 0.75rem)</code> guard, so the register and that guard agree by
+      construction rather than by coincidence.
+    </div>
+  </section>
+
+  <!-- ══ 02 ══════════════════════════════════════════════════════════════ -->
+  <section>
+    <div class="sec-head"><span class="sec-num">02</span><h2 class="display">Two shapes, not one</h2></div>
+    <p class="sec-sub">
+      Fifteen of the sites declare <code>border: 'none'</code> and get their edge from a
+      wrapping <code>overflow: hidden</code> shell — they are hand-rolled <em>segmented</em>
+      controls. The rest draw their own chrome and stand alone. One register cannot serve both:
+      a segment has no radius and no outer border of its own.
+    </p>
+
+    <div class="pair">
+      <div class="panel theme-light">
+        <div class="panel-tag"><h3>Register A — <code>.sr-pill</code></h3><span class="chip">~28 sites</span></div>
+        <div class="app-card">
+          <p class="row-label">Stands alone · draws its own edge · wraps freely</p>
+          <div class="ctl-row">
+            <button class="sr-pill" type="button" aria-pressed="true">All</button>
+            <button class="sr-pill" type="button" aria-pressed="false">Has media</button>
+            <button class="sr-pill" type="button" data-state="negative" aria-pressed="true">No audio</button>
+          </div>
+        </div>
+      </div>
+      <div class="panel theme-light">
+        <div class="panel-tag"><h3>Register B — <code>.sr-seg-btn</code></h3><span class="chip">~15 sites</span></div>
+        <div class="app-card">
+          <p class="row-label">Lives in a shell · shares dividers · one unit</p>
+          <div class="ctl-row">
+            <div class="sr-seg">
+              <button class="sr-seg-btn" type="button" aria-pressed="true">A–Z</button>
+              <button class="sr-seg-btn" type="button" aria-pressed="false">Taxonomic</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="note">
+      <strong>They share height and type size, and differ in edge.</strong> That is what keeps
+      the family coherent while letting each shape be itself. The two registers are deliberately
+      not merged and deliberately not allowed to drift apart on the two values that make them
+      read as one family.
+    </div>
+    <div class="note note--warn">
+      <strong>Scope note for the Orchestrator.</strong> Register B's sites are close cousins of
+      the existing <code>SegControl</code> component, which <code>design-system.md</code> already
+      specifies and which the change brief puts explicitly <em>out</em> of scope. I have designed
+      B as a <em>CSS register only</em> — matching what those sites already do visually — and have
+      <strong>not</strong> converted them into <code>SegControl</code>, which would be a component
+      and ARIA change rather than a styling one. If you would rather these 15 sites become real
+      <code>SegControl</code>s, that is a different build.
+    </div>
+  </section>
+
+  <!-- ══ 03 ══════════════════════════════════════════════════════════════ -->
+  <section>
+    <div class="sec-head"><span class="sec-num">03</span><h2 class="display">The decision: radius</h2></div>
+    <p class="sec-sub">
+      This is the one value where <strong>the design system and the code disagree</strong>, and it
+      is the most visible thing in the whole pass. <code>design-system.md</code> specifies
+      <strong>15px</strong> for filter pills. The codebase overwhelmingly uses <strong>6px</strong>
+      — 21 sites to 3. Same rows, both answers, both themes.
+    </p>
+
+    <div class="pair">
+      <div class="panel theme-light r6">
+        <div class="panel-tag"><h3>6px — what the code mostly does</h3><span class="chip">21 sites</span></div>
+        <div class="app-card">
+          <p class="row-label">Multimedia filters</p>
+          <div class="ctl-row">
+            <button class="sr-pill" type="button" aria-pressed="true">All</button>
+            <button class="sr-pill" type="button" aria-pressed="false">Has media</button>
+            <button class="sr-pill" type="button" data-state="target" aria-pressed="true">Is Target</button>
+            <button class="sr-pill" type="button" data-state="negative" aria-pressed="true">No audio</button>
+          </div>
+          <p class="row-label" style="margin-top:16px">Sort</p>
+          <div class="ctl-row"><div class="sr-seg">
+            <button class="sr-seg-btn" type="button" aria-pressed="true">A–Z</button>
+            <button class="sr-seg-btn" type="button" aria-pressed="false">Taxonomic</button>
+          </div></div>
+        </div>
+      </div>
+      <div class="panel theme-light r15">
+        <div class="panel-tag"><h3>15px — what the design system says</h3><span class="chip chip--rec">Recommended</span></div>
+        <div class="app-card">
+          <p class="row-label">Multimedia filters</p>
+          <div class="ctl-row">
+            <button class="sr-pill" type="button" aria-pressed="true">All</button>
+            <button class="sr-pill" type="button" aria-pressed="false">Has media</button>
+            <button class="sr-pill" type="button" data-state="target" aria-pressed="true">Is Target</button>
+            <button class="sr-pill" type="button" data-state="negative" aria-pressed="true">No audio</button>
+          </div>
+          <p class="row-label" style="margin-top:16px">Sort</p>
+          <div class="ctl-row"><div class="sr-seg">
+            <button class="sr-seg-btn" type="button" aria-pressed="true">A–Z</button>
+            <button class="sr-seg-btn" type="button" aria-pressed="false">Taxonomic</button>
+          </div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="pair" style="margin-top:18px">
+      <div class="panel theme-dark r6">
+        <div class="panel-tag"><h3>6px</h3><span class="chip">Dark</span></div>
+        <div class="app-card">
+          <div class="ctl-row">
+            <button class="sr-pill" type="button" aria-pressed="false">Comments</button>
+            <button class="sr-pill" type="button" aria-pressed="true">Has media</button>
+            <button class="sr-pill" type="button" data-state="negative" aria-pressed="true">No weather</button>
+          </div>
+        </div>
+      </div>
+      <div class="panel theme-dark r15">
+        <div class="panel-tag"><h3>15px</h3><span class="chip">Dark</span></div>
+        <div class="app-card">
+          <div class="ctl-row">
+            <button class="sr-pill" type="button" aria-pressed="false">Comments</button>
+            <button class="sr-pill" type="button" aria-pressed="true">Has media</button>
+            <button class="sr-pill" type="button" data-state="negative" aria-pressed="true">No weather</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="note">
+      <strong>Why the spec recommends 15px despite being outvoted 21 to 3.</strong>
+      <code>design-system.md</code> specifies it; the one class-based pill in
+      <code>globals.css</code> implements it; and the three <em>newest</em> pill sites
+      (Checklists' tri-state filters, its clear-filter pill, and the Calendar's year toggle) all
+      adopted it — so 15px is the direction of travel and the 6px sites are the legacy.
+      It also draws a real distinction: <strong>buttons are radius 6, pills are radius 15</strong>,
+      which is exactly how the design system separates an action from a filter. At 30px tall,
+      15px is a true pill; 6px is a rounded rectangle wearing the name.
+    </div>
+    <div class="note note--warn">
+      <strong>The honest cost:</strong> 15px is the <em>larger</em> visible change. Twenty-one
+      controls change shape noticeably; three stay put. If you would rather this pass be as
+      near-invisible as possible, 6px is the defensible choice and the spec flips with one value
+      — but it means overruling <code>design-system.md</code>, which should then be amended in the
+      same change rather than left saying something the code does not do.
+    </div>
+  </section>
+
+  <!-- ══ 04 ══════════════════════════════════════════════════════════════ -->
+  <section>
+    <div class="sec-head"><span class="sec-num">04</span><h2 class="display">States and contrast</h2></div>
+    <p class="sec-sub">
+      Four states plus two tinted variants the family already carries. Every colour resolves
+      through a <code>var(--sr-*)</code> token that exists in both themes — this pass mints none.
+    </p>
+
+    <div class="pair">
+      <div class="panel theme-light">
+        <div class="panel-tag"><h3>All states</h3><span class="chip">Light</span></div>
+        <div class="app-card">
+          <div class="ctl-row">
+            <button class="sr-pill" type="button" aria-pressed="false">Rest</button>
+            <button class="sr-pill" type="button" aria-pressed="true">Active</button>
+            <button class="sr-pill" type="button" data-state="negative" aria-pressed="true">Negative</button>
+            <button class="sr-pill" type="button" data-state="target" aria-pressed="true">Is Target</button>
+            <button class="sr-pill" type="button" disabled>Disabled</button>
+          </div>
+          <p class="row-label" style="margin-top:16px">Breeding tiers keep their purple tints</p>
+          <div class="ctl-row">
+            <button class="sr-pill" type="button" data-tier="4" aria-pressed="true">Confirmed</button>
+            <button class="sr-pill" type="button" data-tier="2" aria-pressed="true">Probable</button>
+            <button class="sr-pill" type="button" data-tier="1" aria-pressed="true">Possible</button>
+          </div>
+        </div>
+      </div>
+      <div class="panel theme-dark">
+        <div class="panel-tag"><h3>All states</h3><span class="chip">Dark</span></div>
+        <div class="app-card">
+          <div class="ctl-row">
+            <button class="sr-pill" type="button" aria-pressed="false">Rest</button>
+            <button class="sr-pill" type="button" aria-pressed="true">Active</button>
+            <button class="sr-pill" type="button" data-state="negative" aria-pressed="true">Negative</button>
+            <button class="sr-pill" type="button" data-state="target" aria-pressed="true">Is Target</button>
+            <button class="sr-pill" type="button" disabled>Disabled</button>
+          </div>
+          <p class="row-label" style="margin-top:16px">Breeding tiers keep their purple tints</p>
+          <div class="ctl-row">
+            <button class="sr-pill" type="button" data-tier="4" aria-pressed="true">Confirmed</button>
+            <button class="sr-pill" type="button" data-tier="2" aria-pressed="true">Probable</button>
+            <button class="sr-pill" type="button" data-tier="1" aria-pressed="true">Possible</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-top:18px">
+      <div class="panel-tag"><h3>Measured contrast — both themes</h3></div>
+      <div class="scroll-x">
+        <table class="matrix">
+          <thead><tr><th>State</th><th>Border</th><th>Background</th><th>Text</th><th>Light</th><th>Dark</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="tok">Rest</td><td class="tok">--sr-border</td><td class="tok">--sr-surface</td><td class="tok">--sr-text-muted</td>
+              <td><span class="ratio">5.28</span> <span class="pass">AA</span></td><td><span class="ratio">6.91</span> <span class="pass">AA</span></td>
+            </tr>
+            <tr>
+              <td class="tok">Hover</td><td class="tok">--sr-border-medium</td><td class="tok">--sr-surface-subtle</td><td class="tok">--sr-text-muted</td>
+              <td><span class="ratio">4.80</span> <span class="pass">AA</span></td><td><span class="ratio">5.81</span> <span class="pass">AA</span></td>
+            </tr>
+            <tr>
+              <td class="tok">Active</td><td class="tok">--sr-accent-border</td><td class="tok">--sr-accent-bg</td><td class="tok">--sr-accent</td>
+              <td><span class="ratio">5.09</span> <span class="pass">AA</span></td><td><span class="ratio">7.75</span> <span class="pass">AA</span></td>
+            </tr>
+            <tr>
+              <td class="tok">Negative</td><td class="tok">--sr-error-overlay</td><td class="tok">--sr-error-bg</td><td class="tok">--sr-error</td>
+              <td><span class="ratio">4.82</span> <span class="pass">AA</span></td><td><span class="ratio">7.07</span> <span class="pass">AA</span></td>
+            </tr>
+            <tr>
+              <td class="tok">Disabled</td><td class="tok">--sr-border</td><td class="tok">--sr-surface-subtle</td><td class="tok">--sr-text-disabled</td>
+              <td colspan="2" style="color:var(--sr-text-muted);font-size:0.75rem">Disabled controls are WCAG-exempt</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="note">
+        Hover at <strong>4.80:1</strong> is the tightest pair in the family and still clears AA.
+        The register adds no new colour pairing — every one of these already ships.
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ 05 ══════════════════════════════════════════════════════════════ -->
+  <section>
+    <div class="sec-head"><span class="sec-num">05</span><h2 class="display">Before and after, on real rows</h2></div>
+    <p class="sec-sub">
+      Shipped inline styles reproduced exactly, against the same row on the register. These are
+      the app's own control labels. Shown at 15px radius.
+    </p>
+
+    <div class="pair">
+      <div class="panel theme-light">
+        <div class="panel-tag"><h3>Multimedia — media filters</h3><span class="chip">Today</span></div>
+        <div class="app-card">
+          <p class="row-label">pillStyle() · h30 · radius 6 · weight 500 always</p>
+          <div class="ctl-row">
+            <button class="bp b-pillstyle" type="button" aria-pressed="true">All</button>
+            <button class="bp b-pillstyle" type="button" aria-pressed="false">Has media</button>
+            <button class="bp b-pillstyle" type="button" data-state="target" aria-pressed="true">Is Target</button>
+            <button class="bp b-pillstyle" type="button" aria-pressed="true">Has photo</button>
+            <button class="bp b-pillstyle" type="button" data-state="negative" aria-pressed="true">No audio</button>
+          </div>
+        </div>
+      </div>
+      <div class="panel theme-light r15">
+        <div class="panel-tag"><h3>Multimedia — media filters</h3><span class="chip chip--rec">On the register</span></div>
+        <div class="app-card">
+          <p class="row-label">.sr-pill · h30 · radius 15 · weight 600 when pressed</p>
+          <div class="ctl-row">
+            <button class="sr-pill" type="button" aria-pressed="true">All</button>
+            <button class="sr-pill" type="button" aria-pressed="false">Has media</button>
+            <button class="sr-pill" type="button" data-state="target" aria-pressed="true">Is Target</button>
+            <button class="sr-pill" type="button" aria-pressed="true">Has photo</button>
+            <button class="sr-pill" type="button" data-state="negative" aria-pressed="true">No audio</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="pair" style="margin-top:18px">
+      <div class="panel theme-light">
+        <div class="panel-tag"><h3>Statistics — chart controls</h3><span class="chip">Today · 24px</span></div>
+        <div class="app-card">
+          <p class="row-label">h24 · 0.6875rem — the densest in the family</p>
+          <div class="ctl-row">
+            <button class="bp b-stats" type="button" aria-pressed="true">Weekly</button>
+            <button class="bp b-stats" type="button" aria-pressed="false">Monthly</button>
+            <button class="bp b-stats" type="button" aria-pressed="false">Yearly</button>
+            <button class="bp b-stats" type="button" aria-pressed="false">Total</button>
+          </div>
+        </div>
+      </div>
+      <div class="panel theme-light r15">
+        <div class="panel-tag"><h3>Statistics — chart controls</h3><span class="chip chip--rec">30px · +6px</span></div>
+        <div class="app-card">
+          <p class="row-label">The single largest density change in the pass</p>
+          <div class="ctl-row">
+            <button class="sr-pill" type="button" aria-pressed="true">Weekly</button>
+            <button class="sr-pill" type="button" aria-pressed="false">Monthly</button>
+            <button class="sr-pill" type="button" aria-pressed="false">Yearly</button>
+            <button class="sr-pill" type="button" aria-pressed="false">Total</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="pair" style="margin-top:18px">
+      <div class="panel theme-dark">
+        <div class="panel-tag"><h3>List Comparer — mode switch</h3><span class="chip">Today · 36px</span></div>
+        <div class="app-card">
+          <p class="row-label">h36 · pad 20 · 0.8125rem — the largest in the family</p>
+          <div class="ctl-row"><div class="b-seg-shell">
+            <button class="bp b-lc" type="button" aria-pressed="true">Checklists</button>
+            <button class="bp b-lc" type="button" aria-pressed="false">Life Lists</button>
+          </div></div>
+        </div>
+      </div>
+      <div class="panel theme-dark r15">
+        <div class="panel-tag"><h3>List Comparer — mode switch</h3><span class="chip chip--rec">30px · −6px</span></div>
+        <div class="app-card">
+          <p class="row-label">Shrinks — the only direction anything gets smaller</p>
+          <div class="ctl-row"><div class="sr-seg">
+            <button class="sr-seg-btn" type="button" aria-pressed="true">Checklists</button>
+            <button class="sr-seg-btn" type="button" aria-pressed="false">Life Lists</button>
+          </div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="note">
+      <strong>The shape of the change:</strong> Checklists and the Calendar barely move — they
+      already sit on the documented register. Multimedia and Breeding Codes change most, because
+      their inline styles are the oldest. Statistics grows by 6px; List Comparer and the Map
+      Explorer's view bar shrink. The register is meeting the newest code rather than overriding it.
+    </div>
+  </section>
+
+  <!-- ══ 06 ══════════════════════════════════════════════════════════════ -->
+  <section>
+    <div class="sec-head"><span class="sec-num">06</span><h2 class="display">Motion: 38 controls gain a transition</h2></div>
+    <p class="sec-sub">
+      Only <strong>6 of the 44</strong> sites declare a transition today. The other 38 snap
+      instantly between states. Adopting a register gives all of them one 120ms ease-out fade —
+      a small change you will feel on every filter press.
+    </p>
+
+    <div class="pair">
+      <div class="panel theme-light">
+        <div class="panel-tag"><h3>Today — instant</h3><span class="chip">38 of 44 sites</span></div>
+        <div class="app-card">
+          <p class="row-label">Hover these — nothing eases</p>
+          <div class="ctl-row">
+            <button class="bp b-pillstyle" type="button" aria-pressed="false" style="transition:none">Has media</button>
+            <button class="bp b-pillstyle" type="button" aria-pressed="false" style="transition:none">Is Target</button>
+          </div>
+        </div>
+      </div>
+      <div class="panel theme-light r15">
+        <div class="panel-tag"><h3>On the register — 120ms ease-out</h3><span class="chip chip--rec">All 44</span></div>
+        <div class="app-card">
+          <p class="row-label">Hover these — background, border and colour ease together</p>
+          <div class="ctl-row">
+            <button class="sr-pill" type="button" aria-pressed="false">Has media</button>
+            <button class="sr-pill" type="button" aria-pressed="false">Is Target</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="note">
+      <strong>No transform, no scale, no entrance.</strong> These are utility controls that toggle
+      a filter; a state change is a colour change, and animating anything more would be motion
+      decorating a static screen. <code>prefers-reduced-motion</code> is handled by the app's
+      single global block, which collapses the transition to ~1µs — the end state is the resting
+      state, so nothing is lost and no per-component query is added.
+    </div>
+    <div class="note note--warn">
+      <strong>Six sites carry an inline transition that must be removed, not left behind.</strong>
+      An inline <code>transition</code> is specificity 1,0,0 and silently beats the class rule —
+      the v1.0.18 rule the change brief names as governing. Three of the six declare
+      <code>transition: 'all 0.15s'</code>, which is the worst case: it would animate layout
+      properties too. The whole inline chrome comes off at every site, not two thirds of it.
+    </div>
+  </section>
+
+  <!-- ══ 07 ══════════════════════════════════════════════════════════════ -->
+  <section>
+    <div class="sec-head"><span class="sec-num">07</span><h2 class="display">Phone width — what people will notice</h2></div>
+    <p class="sec-sub">
+      Adopting a register brings the <code>≤640</code> touch posture with it: a 44px minimum box,
+      labels allowed to wrap, text at <code>max(16px, 0.75rem)</code>. Shown at 320px, true size.
+    </p>
+
+    <div class="phones">
+      <div>
+        <p class="phone-cap">Today — 320px</p>
+        <div class="phone theme-light">
+          <div class="app-card">
+            <p class="row-label">Multimedia filters</p>
+            <div class="ctl-row">
+              <button class="bp b-pillstyle" type="button" aria-pressed="true">All</button>
+              <button class="bp b-pillstyle" type="button" aria-pressed="false">Has media</button>
+              <button class="bp b-pillstyle" type="button" data-state="target" aria-pressed="true">Is Target</button>
+              <button class="bp b-pillstyle" type="button" data-state="negative" aria-pressed="true">No audio</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <p class="phone-cap">On the register — 320px</p>
+        <div class="phone theme-light r15">
+          <div class="app-card after-phone">
+            <p class="row-label">Multimedia filters</p>
+            <div class="ctl-row">
+              <button class="sr-pill" type="button" aria-pressed="true">All</button>
+              <button class="sr-pill" type="button" aria-pressed="false">Has media</button>
+              <button class="sr-pill" type="button" data-state="target" aria-pressed="true">Is Target</button>
+              <button class="sr-pill" type="button" data-state="negative" aria-pressed="true">No audio</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="note">
+      <strong>What a user will actually notice on a phone:</strong> filter pills get taller and
+      their text gets bigger, so a row that fitted on one line may now take two, and a filter
+      block will be a little taller than it was. This is an accessibility gain — it is the same
+      44px touch posture the rest of the app already adopted, and it is why the pills stop being
+      fiddly to hit — but it is a real change to how these rows look on every phone. It is the
+      single most noticeable thing in this pass. <strong>Nothing moves on desktop.</strong>
+    </div>
+    <div class="note">
+      Four Statistics sites already carry <code>.sr-touch-target</code>, so they already have the
+      44px box on a phone and only their text size changes. Every other site in the family gets
+      both.
+    </div>
+  </section>
+
+  <!-- ══ 08 ══════════════════════════════════════════════════════════════ -->
+  <section>
+    <div class="sec-head"><span class="sec-num">08</span><h2 class="display">Secondary choice: the rest border</h2></div>
+    <p class="sec-sub">
+      The family's rest border is <code>--sr-border</code>, which measures <strong>1.27:1</strong>
+      against the surface. The app already mints a 3:1 control-boundary token —
+      <code>--sr-border-input</code> at <strong>3.43:1</strong> — and uses it for form controls.
+    </p>
+
+    <div class="pair">
+      <div class="panel theme-light r15">
+        <div class="panel-tag"><h3>A — <code>--sr-border</code></h3><span class="chip chip--rec">Proposed</span></div>
+        <div class="app-card"><div class="ctl-row">
+          <button class="sr-pill" type="button" aria-pressed="false">Has media</button>
+          <button class="sr-pill" type="button" aria-pressed="false">Is Target</button>
+          <button class="sr-pill" type="button" aria-pressed="true">Has photo</button>
+        </div></div>
+      </div>
+      <div class="panel theme-light r15 opt-b">
+        <div class="panel-tag"><h3>B — <code>--sr-border-input</code></h3><span class="chip">3:1 boundary</span></div>
+        <div class="app-card"><div class="ctl-row">
+          <button class="sr-pill" type="button" aria-pressed="false">Has media</button>
+          <button class="sr-pill" type="button" aria-pressed="false">Is Target</button>
+          <button class="sr-pill" type="button" aria-pressed="true">Has photo</button>
+        </div></div>
+      </div>
+    </div>
+
+    <div class="note">
+      <strong>The spec proposes A</strong>: the pill is identified by its label and its state by
+      <code>aria-pressed</code> plus an AA-passing text colour and a weight change, so no contrast
+      requirement rests on the edge. That is the same reasoning <code>design-system.md</code>
+      records for the sticky band's hairline, and it is what every other button in the app already
+      does — picking B here would make 40 pills heavier than the buttons beside them.
+      <strong>B is the stricter reading</strong> of WCAG 1.4.11. Worth a decision rather than an
+      inherited default.
+    </div>
+  </section>
+
+  <!-- ══ 09 ══════════════════════════════════════════════════════════════ -->
+  <section>
+    <div class="sec-head"><span class="sec-num">09</span><h2 class="display">Found while measuring — not designed in</h2></div>
+    <p class="sec-sub">
+      Two things turned up that are real but sit outside what the change brief authorises. Both
+      are surfaced rather than quietly fixed.
+    </p>
+
+    <div class="panel">
+      <div class="scroll-x">
+        <table class="matrix">
+          <thead><tr><th>Finding</th><th>Detail</th><th>Why it is not in this build</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>11 sites have no <code>aria-pressed</code></strong></td>
+              <td>Four sort-segment groups carry selected state as style only — invisible to a
+                  screen reader. The near-identical Checklists sort control <em>does</em> carry it.</td>
+              <td>Adding it is an ARIA and behaviour change. The brief holds behaviour, keyboard
+                  path and tab stops fixed. Worth its own small build.</td>
+            </tr>
+            <tr>
+              <td><strong><code>sortBtn</code> is not a pill</strong></td>
+              <td>It is a chromeless in-<code>&lt;th&gt;</code> sort button: <code>border: none</code>,
+                  <code>padding: 0</code>, no height, no radius. Its two copies differ only by
+                  <code>gap: 4</code>, which exists because one table's headers carry an icon.</td>
+              <td>Still in scope as a de-duplication, but it takes no pill geometry. Resolving to
+                  <code>gap: 4</code> adds 4px between code and sort caret on the Breeding Codes
+                  matrix headers — a real if tiny visible change.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="note">
+      <code>ghostBtn</code>'s two copies are <strong>byte-identical</strong> — no drift to resolve,
+      it simply becomes the pill register at 30px (up from 28px) and 0.75rem (up from 0.6875rem).
+    </div>
+  </section>
+
+  <!-- ══ 10 ══════════════════════════════════════════════════════════════ -->
+  <section>
+    <div class="sec-head"><span class="sec-num">10</span><h2 class="display">The clamp: a floor that is really a replacement</h2></div>
+    <p class="sec-sub">
+      The phone rule is <code>max(16px, 0.75rem) !important</code>. The 16px is an iOS
+      focus-zoom guard and is correct. The <code>0.75rem</code> is hardcoded — so the rule
+      overrides a control's declared size in <strong>both</strong> directions, and any control
+      larger than <code>0.75rem</code> is cut down. At 100% nothing is wrong. The entire defect
+      lands on users who enlarged their text.
+    </p>
+
+    <div class="scale-grid">
+      <div class="scale-card theme-light">
+        <p class="scale-head">100% — identical</p>
+        <p class="scale-sub">Every control floors up to 16px. The repair changes nothing here.</p>
+        <div class="demo-row"><span class="demo-ctl" style="font-size:16px;border-radius:8px">Search species…</span></div>
+        <p class="scale-sub" style="margin:12px 0 4px">On the repair — the same 16px</p>
+        <div class="demo-row"><span class="demo-ctl" style="font-size:16px;border-radius:8px">Search species…</span></div>
+      </div>
+
+      <div class="scale-card theme-light">
+        <p class="scale-head">200% — today</p>
+        <p class="scale-sub">Command palette declares <code>1rem</code> = 32px. It renders at
+          <strong>24px</strong>.</p>
+        <div class="demo-row"><span class="demo-ctl bad" style="font-size:24px;border-radius:8px">Search species…</span></div>
+        <p class="scale-sub" style="margin:12px 0 4px">Weather forecast field, declared 27px</p>
+        <div class="demo-row"><span class="demo-ctl bad" style="font-size:24px;border-radius:8px">47.6061</span></div>
+      </div>
+
+      <div class="scale-card theme-light">
+        <p class="scale-head">200% — repaired</p>
+        <p class="scale-sub">Each control keeps its own declared size.</p>
+        <div class="demo-row"><span class="demo-ctl" style="font-size:32px;border-radius:8px">Search species…</span></div>
+        <p class="scale-sub" style="margin:12px 0 4px">Weather forecast field, declared 27px</p>
+        <div class="demo-row"><span class="demo-ctl" style="font-size:27px;border-radius:8px">47.6061</span></div>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-top:18px">
+      <div class="panel-tag"><h3>Every control the clamp touches, at 200%</h3></div>
+      <div class="scroll-x">
+        <table class="matrix">
+          <thead><tr><th>Control</th><th>Register</th><th>Should be</th><th>Today</th><th>Change</th></tr></thead>
+          <tbody>
+            <tr><td>Command palette search</td><td class="tok">1rem</td><td class="ratio">32px</td><td class="ratio">24px</td><td class="delta-up">+8px</td></tr>
+            <tr><td>App checklist input</td><td class="tok">0.875rem</td><td class="ratio">28px</td><td class="ratio">24px</td><td class="delta-up">+4px</td></tr>
+            <tr><td>Species Detail combobox</td><td class="tok">0.875rem</td><td class="ratio">28px</td><td class="ratio">24px</td><td class="delta-up">+4px</td></tr>
+            <tr><td>Weather forecast inputs ×5</td><td class="tok">0.84375rem</td><td class="ratio">27px</td><td class="ratio">24px</td><td class="delta-up">+3px</td></tr>
+            <tr><td>Map Explorer selects / combobox</td><td class="tok">0.8125rem</td><td class="ratio">26px</td><td class="ratio">24px</td><td class="delta-up">+2px</td></tr>
+            <tr><td>Checklists search</td><td class="tok">0.8125rem</td><td class="ratio">26px</td><td class="ratio">24px</td><td class="delta-up">+2px</td></tr>
+            <tr><td>Calendar segmented control</td><td class="tok">0.71875rem</td><td class="ratio">23px</td><td class="ratio">24px</td><td class="delta-dn">−1px</td></tr>
+            <tr><td>Every other control</td><td class="tok">0.75rem</td><td class="ratio">24px</td><td class="ratio">24px</td><td>no change</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="note">
+        <strong>One control gets smaller, and that is correct.</strong> Calendar's segmented
+        control declares <code>0.71875rem</code> and is currently pushed <em>above</em> its own
+        size; the repair returns it to 23px. Everything else on this list is currently being cut
+        down — for exactly the users who asked for larger text, which is the inversion the
+        existing guard was written to prevent, surviving in a form it does not check.
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ 11 ══════════════════════════════════════════════════════════════ -->
+  <section>
+    <div class="sec-head"><span class="sec-num">11</span><h2 class="display">Labels left behind by the control floor</h2></div>
+    <p class="sec-sub">
+      On phones, control text is floored at <code>max(16px, 0.75rem)</code> — an iOS
+      focus-zoom guard. Labels were deliberately excluded, because a <code>&lt;span&gt;</code>
+      cannot trigger focus zoom and the exclusion looked free. It was not: the label keeps its
+      unfloored <code>rem</code> while its control jumps to a px floor, so the intended
+      <strong>1px optical offset becomes a size gap</strong>. Real specimens at each scale, all
+      sizes in rendered px.
+    </p>
+
+    <div class="scale-grid">
+      <div class="scale-card theme-light">
+        <p class="scale-head">75% — lowered browser default</p>
+        <p class="scale-sub">Worst case. Label at <strong>51.6%</strong> of the control.</p>
+        <div class="demo-row"><span class="demo-label bad" style="font-size:8.25px">SHOW</span>
+          <span class="demo-ctl" style="font-size:16px" aria-pressed="true">All species</span></div>
+        <p class="scale-sub" style="margin:14px 0 4px">On the register</p>
+        <div class="demo-row"><span class="demo-label" style="font-size:14.67px">SHOW</span>
+          <span class="demo-ctl" style="font-size:16px" aria-pressed="true">All species</span></div>
+      </div>
+
+      <div class="scale-card theme-light">
+        <p class="scale-head">100% — the reported case</p>
+        <p class="scale-sub">Label at <strong>68.8%</strong> of the control.</p>
+        <div class="demo-row"><span class="demo-label bad" style="font-size:11px">SHOW</span>
+          <span class="demo-ctl" style="font-size:16px" aria-pressed="true">All species</span></div>
+        <p class="scale-sub" style="margin:14px 0 4px">On the register</p>
+        <div class="demo-row"><span class="demo-label" style="font-size:14.67px">SHOW</span>
+          <span class="demo-ctl" style="font-size:16px" aria-pressed="true">All species</span></div>
+      </div>
+
+      <div class="scale-card theme-light">
+        <p class="scale-head">200% — already correct</p>
+        <p class="scale-sub">Label at <strong>91.7%</strong>. Both terms track rem.</p>
+        <div class="demo-row"><span class="demo-label" style="font-size:22px">SHOW</span>
+          <span class="demo-ctl" style="font-size:24px" aria-pressed="true">All species</span></div>
+        <p class="scale-sub" style="margin:14px 0 4px">On the register — identical</p>
+        <div class="demo-row"><span class="demo-label" style="font-size:22px">SHOW</span>
+          <span class="demo-ctl" style="font-size:24px" aria-pressed="true">All species</span></div>
+      </div>
+    </div>
+
+    <div class="note">
+      <strong>The fix changes nothing at 200%</strong>, which is the point. Above roughly 133%
+      the <code>rem</code> term overtakes the floor and the two registers already agree. The
+      repair is entirely in the band from a lowered browser default up to ~133% — and it is
+      <em>worst below 100%</em>, a case the original report did not reach.
+    </div>
+
+    <div class="panel" style="margin-top:18px">
+      <div class="panel-tag"><h3>One relationship, not four constants</h3></div>
+      <p class="sec-sub" style="margin-bottom:16px">
+        Eight distinct pairings, at four label sizes and six control sizes. Each label's floor is
+        the control floor scaled by <strong>that label's ratio to its OWN control's register</strong>
+        — not to a fixed <code>0.75rem</code>, which is what makes rows 7 and 8 come out right.
+      </p>
+      <div class="scroll-x">
+        <table class="matrix">
+          <thead><tr><th>Pairing</th><th>Label</th><th>Its control</th><th>Ratio</th><th>Label floor</th><th>n</th></tr></thead>
+          <tbody>
+            <tr><td>Calendar control strip</td><td class="tok">0.6875</td><td class="tok">0.71875</td><td class="tok">11 / 11.5</td><td><span class="ratio">15.30px</span></td><td><span class="ratio">4</span></td></tr>
+            <tr><td>Checklists row labels</td><td class="tok">0.71875</td><td class="tok">0.75</td><td class="tok">11.5 / 12</td><td><span class="ratio">15.33px</span></td><td><span class="ratio">4</span></td></tr>
+            <tr><td>Hotspot mode control</td><td class="tok">0.6875</td><td class="tok">0.75</td><td class="tok">11 / 12</td><td><span class="ratio">14.67px</span></td><td><span class="ratio">2</span></td></tr>
+            <tr><td>Map sidebar — over selects</td><td class="tok">0.6875</td><td class="tok">0.8125</td><td class="tok">11 / 13</td><td><span class="ratio">13.54px</span></td><td><span class="ratio">3</span></td></tr>
+            <tr><td>Map sidebar — over dates</td><td class="tok">0.6875</td><td class="tok">0.75</td><td class="tok">11 / 12</td><td><span class="ratio">14.67px</span></td><td><span class="ratio">2</span></td></tr>
+            <tr><td>Weather forecast fields</td><td class="tok">0.75</td><td class="tok">0.84375</td><td class="tok">12 / 13.5</td><td><span class="ratio">14.22px</span></td><td><span class="ratio">5</span></td></tr>
+            <tr><td>Named Birds range</td><td class="tok">0.75</td><td class="tok">0.75</td><td class="tok">1</td><td><span class="ratio">16.00px</span></td><td><span class="ratio">1</span></td></tr>
+            <tr><td>App checklist input</td><td class="tok">0.875</td><td class="tok">0.875</td><td class="tok">1</td><td><span class="ratio">16.00px</span></td><td><span class="ratio">1</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="note">
+        <strong>The invariant this buys:</strong> a label always crosses from floor-governed to
+        scale-governed at <em>exactly the same text scale as the control it sits beside</em>.
+        Both of a label's terms carry the same ratio, so it cancels and the crossover depends
+        only on its control's register. There is never a band where one is pinned to a floor
+        while its neighbour tracks <code>rem</code> — which is precisely the mechanism that
+        produced this defect. The crossover is <em>per pairing</em>, ranging from 1.14× to 1.39×;
+        an earlier draft of this design claimed a single global 1.333× and was wrong, because it
+        measured every ratio against <code>0.75rem</code> instead of against each control's own
+        register. Independently chosen constants would not have this property at all, and nothing
+        would detect its loss.
+      </div>
+    </div>
+
+    <div class="pair" style="margin-top:18px">
+      <div class="panel theme-light">
+        <div class="panel-tag"><h3>Checklists — needs a layout companion</h3><span class="chip">320px · 100%</span></div>
+        <div class="app-card">
+          <div class="demo-row" style="flex-wrap:nowrap">
+            <span class="demo-label bad" style="font-size:15.33px;text-transform:none;letter-spacing:0;font-weight:600;width:72px;flex-shrink:0;overflow:hidden">Where &amp; when</span>
+            <span class="demo-ctl" style="font-size:16px">Last 30 days</span>
+          </div>
+          <p class="scale-sub" style="margin-top:10px">
+            <code>rowLabelStyle</code> declares <code>width: 72</code> with
+            <code>flexShrink: 0</code>. At 15.33px "Where &amp; when" no longer fits the box.
+          </p>
+        </div>
+      </div>
+      <div class="panel theme-light">
+        <div class="panel-tag"><h3>With the companion rule</h3><span class="chip chip--rec">width auto</span></div>
+        <div class="app-card">
+          <div class="demo-row" style="flex-wrap:nowrap">
+            <span class="demo-label" style="font-size:15.33px;text-transform:none;letter-spacing:0;font-weight:600;min-width:72px">Where &amp; when</span>
+            <span class="demo-ctl" style="font-size:16px">Last 30 days</span>
+          </div>
+          <p class="scale-sub" style="margin-top:10px">
+            <code>width: auto</code> + <code>min-width: 72px</code> at the phone tier, scoped to
+            the feature's own subtree. Already marginal today at 200%, where 23px sits in the
+            same 72px box.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="note note--warn">
+      <strong>Measured scope: all 22 label elements across 8 files</strong> — 11 inside a
+      <code>.sr-ctl-row</code> (Calendar, Checklists, Hotspot mode, Named Birds range) and 11
+      paired with a standalone <code>.sr-input-16</code> control (Map Explorer ×5, Weather
+      forecast ×5, App ×1). A split was proposed and <strong>rejected</strong>: leaving 11 labels
+      wrong because their foundation is wrong preserves the defect rather than fixing it.
+      The register as a whole is 51+ sites, but <strong>the defect is the pairing, not the
+      register</strong> — a label with no floored control beside it is not broken, and flooring
+      the register globally would enlarge labels across ~24 files where nothing is wrong.
+    </div>
+  </section>
+
+  <!-- ══ 12 ══════════════════════════════════════════════════════════════ -->
+  <section>
+    <div class="sec-head"><span class="sec-num">12</span><h2 class="display">One number, not eight</h2></div>
+    <p class="sec-sub">
+      An earlier version of this design preserved each pairing's <em>inherited</em> label-to-control
+      ratio — eight different values across four label sizes and six control sizes. Those ratios are
+      drift: nobody chose 0.8462. This build collapses seven pill heights to one and six radii to
+      one; the labels deserve the same treatment. Here is what each option actually renders.
+    </p>
+
+    <div class="scale-grid">
+      <div class="scale-card theme-light">
+        <p class="scale-head">A — preserve each inherited ratio</p>
+        <p class="scale-sub">Map Explorer sidebar at 200%. The same
+          <code>SidebarLabel</code> register renders at <strong>two different sizes</strong> in one
+          panel — 22px over a select, 22px over a date field, but 13.54px vs 14.67px at 100%.</p>
+        <div class="demo-row"><span class="demo-label bad" style="font-size:22px">COUNTY</span></div>
+        <div class="demo-row" style="margin-top:6px"><span class="demo-ctl" style="font-size:26px;border-radius:8px">Skagit</span></div>
+      </div>
+      <div class="scale-card theme-light">
+        <p class="scale-head">B — one factor everywhere</p>
+        <p class="scale-sub">Constant 91.7% for every pair. But it shrinks
+          <em>sentence-case</em> labels by 8.3% too, applying an uppercase correction to text that
+          does not need one.</p>
+        <div class="demo-row"><span class="demo-label" style="font-size:23.83px">COUNTY</span></div>
+        <div class="demo-row" style="margin-top:6px"><span class="demo-ctl" style="font-size:26px;border-radius:8px">Skagit</span></div>
+      </div>
+      <div class="scale-card theme-light">
+        <p class="scale-head">C — one number, two uses</p>
+        <p class="scale-sub"><strong>Recommended.</strong> Uppercase labels take the optical
+          compensation; sentence-case labels match their control exactly. One declared value,
+          each use with a reason.</p>
+        <div class="demo-row"><span class="demo-label" style="font-size:23.83px">COUNTY</span></div>
+        <div class="demo-row" style="margin-top:6px"><span class="demo-ctl" style="font-size:26px;border-radius:8px">Skagit</span></div>
+      </div>
+    </div>
+
+    <div class="note">
+      <strong>Why not simply one ratio for everything?</strong> Because the optical compensation has
+      a reason, and the reason is specific to uppercase: capitals fill the cap height and read larger
+      at the same metric size, which is exactly why the 1px desktop offset exists. A sentence-case
+      field label has no such effect, so shrinking it is a loss with no gain. Option C is therefore
+      <em>one</em> number — <code>--sr-label-optical: calc(11 / 12)</code>, declared once — which
+      uppercase labels opt into and sentence-case labels simply do not. Eight drifted ratios become
+      one value plus a default.
+    </div>
+
+    <div class="panel" style="margin-top:18px">
+      <div class="panel-tag"><h3>The trade-off, stated honestly</h3></div>
+      <div class="scroll-x">
+        <table class="matrix">
+          <thead><tr><th>Question</th><th>A — inherited ratios</th><th>C — recommended</th></tr></thead>
+          <tbody>
+            <tr><td>Does each pair scale together?</td><td>yes</td><td>yes</td></tr>
+            <tr><td>Is the ratio the same everywhere?</td><td class="delta-dn">no — 84.6% to 100%</td><td class="delta-up">yes — 91.7% / 100%, by case</td></tr>
+            <tr><td>Same register, one size at 100%?</td><td class="delta-dn">no — 3 sizes</td><td class="delta-up">yes</td></tr>
+            <tr><td>Same register, one size at 200%?</td><td class="delta-up">yes</td><td class="delta-dn">no — tracks its control</td></tr>
+            <tr><td>Any label larger than its control?</td><td>no</td><td>no</td></tr>
+            <tr><td>Numbers to maintain</td><td class="delta-dn">8</td><td class="delta-up">1</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="note">
+        <strong>You can have a constant ratio or a constant label size — not both.</strong> The
+        control registers themselves vary six ways, and those are <em>designed</em>, not drift:
+        <code>design-system.md</code> names the species picker's three size registers, and the
+        command palette's <code>1rem</code> is a deliberate hero input. So a label either keeps its
+        own size and lets the ratio vary (A), or tracks its control and lets its size vary (C).
+        The request was that headings and controls grow and shrink <em>together</em> — that is a
+        statement about the pair, so the ratio is the thing that should be constant.
+      </div>
+    </div>
+
+    <div class="note note--warn">
+      <strong>Open question this raises — the unpaired labels.</strong> Under C a section label
+      beside a control renders 14.67px on a phone, while the <em>same register</em> on a surface with
+      no floored control stays at 11px. That is roughly <strong>46 label sites across ~24 files</strong>
+      left at the old size. A build that unifies every control and then splits a label register into
+      two sizes is not finished. The recommendation is to give the section-label register a phone
+      floor everywhere — at the cost of visibly enlarging small labels across those files, and it
+      would be the app's first non-control phone-tier font floor. Flagged for a decision rather than
+      taken unilaterally.
+    </div>
+  </section>
+
+  <footer>
+    SnowRaven — Improve lane, Stage 2 design pass · <code>control-style-registers</code>.
+    Specimens render on the app's real <code>globals.css</code> tokens in both themes; no token is
+    minted and no dependency is introduced. The <code>Button</code> / <code>Link</code> primitives
+    are untouched and gain no visual ownership. Site counts read directly from source at HEAD;
+    the change brief's “40” and this page's “44” cover the same 15 files and differ only in how
+    a <code>.map()</code> over several buttons is counted.
+  </footer>
+
+</div>
+
+<script>
+(function () {
+  var root = document.documentElement;
+  var lightBtn = document.getElementById('t-light');
+  var darkBtn = document.getElementById('t-dark');
+  function set(theme) {
+    root.setAttribute('data-theme', theme);
+    lightBtn.setAttribute('aria-pressed', String(theme === 'light'));
+    darkBtn.setAttribute('aria-pressed', String(theme === 'dark'));
+  }
+  lightBtn.addEventListener('click', function () { set('light'); });
+  darkBtn.addEventListener('click', function () { set('dark'); });
+  try {
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) set('dark');
+  } catch (e) { /* no-op: the light default already applies */ }
+})();
+</script>
+</body>
+</html>

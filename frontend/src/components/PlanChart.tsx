@@ -67,7 +67,7 @@ import { clockOf, ftSigned, weekdayOf } from '../lib/planFormat'
 import { formatDate } from '../lib/formatDate'
 import type { PlanDaysInView } from '../lib/planDaysInView'
 import {
-  PLAN_GUTTER_PX, PLAN_LABEL_LANE_PX,
+  PLAN_GUTTER_PX, PLAN_LABEL_LANE_PX, PLAN_DAY_LABEL_INSET_PX,
   planGeometry, planHourPxFor, planGlyphEvery, planFullEventLabel, planTickHours, planDayLabel,
   planDailyCellMode, planHourlyCellMode, planHourlyTagMode, planDailyTagMode, planStripCells,
   pickMarkerBox, revealScrollLeft,
@@ -181,13 +181,49 @@ function SunTrack({ samples, g }: { samples: ReadonlyArray<SunSample>; g: PlanGe
 
 // ── day labels, shared by the wide header lane and the phone axis lane ───────
 
-function dayLabelFor(d: PlanDay, g: PlanGeometry, wide: boolean): string {
+/**
+ * One day's label and the width it has to live in, for BOTH tiers.
+ *
+ * `dayW` is the day's VISIBLE span: from where its label starts (the gutter
+ * clamps the first day, whose midnight is off the left of the axis) to its own
+ * right edge (the axis end clamps the last day). It is arithmetic on the
+ * document's own day boundaries, so the 25-hour DST day measures 25 hours wide
+ * and nothing here converts a timezone.
+ *
+ * Until plan-daylabel-overlap the phone tier returned the full label whatever
+ * the column's width was, because at 16 px/h a whole day is 384 px and the
+ * case that bites is a PARTIAL day -- a plan fetched late in the day, whose
+ * first column is an hour or two wide and whose full date then printed
+ * straight over the second day's. Both tiers now take the same density ladder.
+ *
+ * THE LADDER IS ASKED ABOUT THE COLUMN; THE LABEL IS BOUNDED TO THE COLUMN
+ * MINUS THE INSET. Those are deliberately different numbers, and the
+ * difference was measured rather than assumed, because making them agree is
+ * the obvious move and it is wrong here.
+ *
+ * The ladder is a single threshold per form, but every form spans a RANGE of
+ * widths: measured in the shipped 11px/600 stack, the weekday abbreviations
+ * run 14.28 (`Fri`) to 24.08 (`Wed`), the short form 22.78 to 41.69, the full
+ * label 81.06 to 105.89. So no threshold can be right for every date. Feeding
+ * the ladder `dayW - inset` demotes a form whenever the column is within the
+ * inset of a threshold, and at those columns the shorter form is usually NOT
+ * needed: at a 44px column `Sat 12` needs 33.64px and has 39px, and dropping
+ * it to `Sat` loses the day number for nothing. Measured across the three
+ * affected bands, that change corrected the full band and regressed the other
+ * two.
+ *
+ * So the ladder keeps the column, and a form a little wider than the room it
+ * was admitted to is plain-clipped -- `Wed` to `We` -- which is exactly what
+ * the wide tier has always done. `availW` is returned only as the BOUND, which
+ * is what keeps the label out of its neighbour's column.
+ */
+function dayLabelFor(d: PlanDay, g: PlanGeometry): { text: string; availW: number } {
   const full = formatDate(d.date, { withWeekday: true })
-  if (!wide) return full
   const left = Math.max(g.x(d.startTs), PLAN_GUTTER_PX)
   const dayW = g.x(Math.min(d.endTs + 1, g.axisEnd)) - left
+  const availW = Math.max(0, dayW - PLAN_DAY_LABEL_INSET_PX)
   const weekday = weekdayOf(d.date)
-  return planDayLabel(full, `${weekday} ${Number(d.date.slice(8, 10))}`, weekday, dayW)
+  return { text: planDayLabel(full, `${weekday} ${Number(d.date.slice(8, 10))}`, weekday, dayW), availW }
 }
 
 /** The day-header lane (wide tier): a subtle band with each day's label at
@@ -197,9 +233,9 @@ function DayHeaderLane({ plan, g }: { plan: Plan; g: PlanGeometry }) {
     <div className="sr-plan-dayhdr" style={{ width: g.width, height: g.lanes.dayHeader }}>
       {plan.days.map((d, i) => {
         const left = Math.max(g.x(d.startTs), 0)
-        const labelLeft = Math.max(g.x(d.startTs), PLAN_GUTTER_PX) + 5
+        const labelLeft = Math.max(g.x(d.startTs), PLAN_GUTTER_PX) + PLAN_DAY_LABEL_INSET_PX
         const right = g.x(Math.min(d.endTs + 1, g.axisEnd))
-        const text = dayLabelFor(d, g, true)
+        const { text } = dayLabelFor(d, g)
         return (
           <div key={i} className="sr-plan-dayhdr-day" style={{ left, width: Math.max(0, right - left) }}>
             {d.startTs >= g.axisStart && <span className="sr-plan-midnight sr-plan-midnight-hdr" style={{ height: g.lanes.dayHeader + g.lanes.labels }} />}
@@ -226,12 +262,37 @@ function AxisLane({ plan, g, wide }: { plan: Plan; g: PlanGeometry; wide: boolea
         // document's own day boundaries, never a timezone conversion.
         const shift = (d.endTs - d.startTs + 1) - 86400
         const left = Math.max(g.x(d.startTs), 0)
+        const right = g.x(Math.min(d.endTs + 1, g.axisEnd))
+        const { text, availW } = dayLabelFor(d, g)
         return (
-          <div key={i} className="sr-plan-axisday" style={{ left }}>
+          // The day gets an explicit WIDTH here, as the wide tier's header lane
+          // has always given its own: without one the div shrink-to-fits to 0
+          // (every child is absolutely positioned), so there is nothing for a
+          // label to be measured against. The wide tier renders no label in
+          // this lane, so the width is inert there -- no clip, no background,
+          // no border, children still placed by the same x(t).
+          <div key={i} className="sr-plan-axisday" style={{ left, width: Math.max(0, right - left) }}>
             {d.startTs >= g.axisStart && <span className="sr-plan-midnight" />}
-            {!wide && (
-              <span className="sr-plan-daylabel" style={{ left: Math.max(g.x(d.startTs), PLAN_GUTTER_PX) - left + 5 }}>
-                {dayLabelFor(d, g, false)}
+            {!wide && text && (
+              // Placed at the inset and bounded to `availW` -- the SAME width
+              // the ladder was asked about -- so the label's right edge lands
+              // exactly on the day's own right edge, which is the next day's
+              // left edge. The bound is DERIVED from the document's day
+              // boundaries, never from a measured label width: the date's
+              // width moves with the user's date-format preference and with
+              // the system font stack, and a threshold pinned to one machine's
+              // reading would be wrong on every other. The ladder picks the
+              // longest form that fits `availW`; this stops a form from
+              // leaving its column in the band where even that form is wider
+              // than the threshold it was admitted at.
+              <span
+                className="sr-plan-daylabel"
+                style={{
+                  left: Math.max(g.x(d.startTs), PLAN_GUTTER_PX) - left + PLAN_DAY_LABEL_INSET_PX,
+                  maxWidth: availW,
+                }}
+              >
+                {text}
               </span>
             )}
             {ticks.map(hh => {

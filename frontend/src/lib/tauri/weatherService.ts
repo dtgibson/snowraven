@@ -10,6 +10,12 @@ import { getRegionInfo, type RegionInfo } from './regionInfo';
 const EBIRD_BASE = 'https://api.ebird.org/v2';
 const OWM_BASE = 'https://api.openweathermap.org/data/3.0';
 
+// eBird is a DIFFERENT upstream from the weather provider, so a checklist whose
+// own date cannot be read gets its own words rather than the weather provider's
+// (which is never called on that path). Twin of _CHECKLIST_DATE_DETAIL in
+// backend/routers/weather.py -- the two transports say the same sentence.
+const CHECKLIST_DATE_UNREADABLE = "This checklist's date could not be read.";
+
 export interface ChecklistData {
   obs_dt: string;
   loc_name: string;
@@ -152,10 +158,25 @@ export async function getWeather(checklistId: string): Promise<WeatherResult> {
   const checklist = await fetchChecklist(checklistId, ebirdKey);
   const tzName: string = await invoke('get_timezone', { lat: checklist.lat, lng: checklist.lng });
 
-  const obsDtMs = parseLocalDateTimeInZone(checklist.obs_dt, tzName);
-  const startTs = Math.floor(obsDtMs / 1000);
-  const durationMs = (checklist.duration_hrs || 1) * 3600 * 1000;
-  const endTs = Math.floor((obsDtMs + durationMs) / 1000);
+  // fetchChecklist casts eBird's `obsDt` straight through with no validation, so
+  // an unreadable date threw a status-less RangeError/TypeError out of the
+  // Intl formatter here and read as "offline" while online. NOTE the deliberate
+  // twin divergence this does NOT close: JavaScript's Date rolls an impossible
+  // calendar value over into a real instant ('2024-13-40 25:61') where the
+  // Python twin refuses it and answers 502, so those shapes still DATE the
+  // checklist here. Same mechanism as the rows pinned in tideEpoch.fixture.json;
+  // atRouteServices.test.ts pins both sides so neither can drift unnoticed.
+  let startTs: number, endTs: number;
+  try {
+    const obsDtMs = parseLocalDateTimeInZone(checklist.obs_dt, tzName);
+    startTs = Math.floor(obsDtMs / 1000);
+    const durationMs = (checklist.duration_hrs || 1) * 3600 * 1000;
+    endTs = Math.floor((obsDtMs + durationMs) / 1000);
+  } catch {
+    throw Object.assign(new Error(CHECKLIST_DATE_UNREADABLE), {
+      status: 502, detail: CHECKLIST_DATE_UNREADABLE,
+    });
+  }
 
   const timestamps = startTs === endTs ? [startTs] : [startTs, endTs];
 
@@ -163,8 +184,20 @@ export async function getWeather(checklistId: string): Promise<WeatherResult> {
     timestamps.map(ts => fetchHistorical(checklist.lat, checklist.lng, ts, owmKey))
   );
 
+  // formatWeather is the builder that consumes the provider bodies, so it is
+  // caught here for the same reason as getWeatherAt's. Measured: eight of the
+  // twelve malformed timemachine shapes probed threw status-less out of it (the
+  // other four are the known non-numeric-figure divergence from the Python
+  // twin). fetchHistorical stays outside, again so a real offline stays offline.
+  let formatted: string;
+  try {
+    formatted = formatWeather(hourlyResponses, tzName, checklist.lat);
+  } catch {
+    throw Object.assign(new Error('Weather data unavailable for this checklist.'), { status: 502 });
+  }
+
   return {
-    formatted: formatWeather(hourlyResponses, tzName, checklist.lat),
+    formatted,
     checklist_id: checklistId,
     loc_name: checklist.loc_name,
     obs_dt: checklist.obs_dt,
@@ -196,7 +229,23 @@ export async function getWeatherAt(lat: number, lng: number, dtLocal?: string): 
   const targetTs = dtLocal ? Math.floor(parseLocalDateTimeInZone(dtLocal, tzName) / 1000) : undefined;
 
   const onecall = await fetchForecast(lat, lng, owmKey);
-  const payload = buildWeatherPayload(onecall, targetTs, tzName, lat);
+  // The builder runs inside the catch, the twin of the route's try: a JSON-valid
+  // but semantically malformed body (an absurd sunrise, a `current` carrying
+  // only dt, an empty `weather` array) threw a status-less RangeError/TypeError
+  // that isOfflineError read as connection-level, so the panel said "you're
+  // offline" while the device was online and the request had plainly reached the
+  // provider. Carrying the 502 makes it read as the provider error it is.
+  //
+  // fetchForecast stays OUTSIDE this on purpose: it already throws its own 502
+  // for a non-OK response, and a genuine connection-level rejection must keep
+  // reading as offline. Widening the catch over the fetch would relabel a real
+  // offline device as a provider fault -- the same false statement in reverse.
+  let payload;
+  try {
+    payload = buildWeatherPayload(onecall, targetTs, tzName, lat);
+  } catch {
+    throw Object.assign(new Error('Weather data unavailable for this location.'), { status: 502 });
+  }
   return { ...payload, tz: tzName };
 }
 

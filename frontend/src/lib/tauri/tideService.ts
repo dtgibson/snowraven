@@ -69,8 +69,17 @@ export async function getTide(checklistId: string, force = false): Promise<TideR
     return { ...base, status, station: { id: nearest.station.id, name: nearest.station.name }, distanceMi: nearest.distanceMi }
   }
 
-  const start = normalizeObsDt(checklist.obs_dt)
-  const end = shiftLocal(start, checklist.duration_hrs || 1)
+  // The tide twin of the unreadable-date containment in weatherService.getWeather:
+  // fetchChecklist casts eBird's `obsDt` through unvalidated, and normalizeObsDt
+  // throws on a non-string. The honest state here is this service's OWN soft
+  // state rather than a 502, matching the route.
+  let start: string, end: string
+  try {
+    start = normalizeObsDt(checklist.obs_dt)
+    end = shiftLocal(start, checklist.duration_hrs || 1)
+  } catch {
+    return { ...base, status: 'unavailable' }
+  }
   const begin = toNoaaDate(start), finish = toNoaaDate(end)
   const station = nearest.station.id
 
@@ -80,11 +89,21 @@ export async function getTide(checklistId: string, force = false): Promise<TideR
     getJson(noaaUrl({ begin_date: toNoaaDate(shiftLocal(start, -24)), end_date: toNoaaDate(shiftLocal(end, 24)), station, product: 'predictions', interval: 'hilo' })),
   ])
 
-  const reading = computeTideReading(
-    start, end,
-    parseObserved(obsBody), parsePredictions(predBody), parseHiLo(hiloBody),
-    nearest.station, nearest.distanceMi,
-  )
+  // The PARSERS are inside the try alongside the builder, not just the builder:
+  // they sit in the same argument expression and throw on their own (a NOAA list
+  // holding non-objects never reaches computeTideReading at all), so a try around
+  // the builder alone would close only part of this. `unavailable` is the honest
+  // state an unreadable body already gets -- the twin of the route's try.
+  let reading
+  try {
+    reading = computeTideReading(
+      start, end,
+      parseObserved(obsBody), parsePredictions(predBody), parseHiLo(hiloBody),
+      nearest.station, nearest.distanceMi,
+    )
+  } catch {
+    return { ...base, status: 'unavailable' }
+  }
   if (!reading) return { ...base, status: 'unavailable' }
 
   return {
@@ -121,11 +140,17 @@ export async function getTideAt(lat: number, lng: number, dtLocal: string, force
     getJson(noaaUrl({ begin_date: toNoaaDate(shiftLocal(start, -24)), end_date: toNoaaDate(shiftLocal(end, 24)), station, product: 'predictions', interval: 'hilo' })),
   ])
 
-  const reading = computeTideReading(
-    start, end,
-    parseObserved(obsBody), parsePredictions(predBody), parseHiLo(hiloBody),
-    nearest.station, nearest.distanceMi,
-  )
+  // Parsers inside the try alongside the builder, for the same reason as getTide.
+  let reading
+  try {
+    reading = computeTideReading(
+      start, end,
+      parseObserved(obsBody), parsePredictions(predBody), parseHiLo(hiloBody),
+      nearest.station, nearest.distanceMi,
+    )
+  } catch {
+    return { status: 'unavailable' }
+  }
   if (!reading) return { status: 'unavailable' }
 
   return {

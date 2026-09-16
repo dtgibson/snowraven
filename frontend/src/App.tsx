@@ -621,7 +621,17 @@ export default function App() {
       setState({ status: 'success', formatted: data.formatted, checklistId: data.checklist_id, locName: data.loc_name, obsDt: data.obs_dt, replayedAt })
       return data.formatted
     } catch (err) {
-      const detail = err instanceof TransportError ? (err.detail ?? err.message) : undefined
+      // A DESKTOP service throws a plain Error carrying status/detail, never a
+      // TransportError, so the non-TransportError arm is what puts its sentence
+      // on screen. Without it the copy fell through to "Something went wrong.
+      // Please try again." on Mac/iPhone/iPad while web/Pi showed the real
+      // reason -- a vaguer cousin of the false "you're offline" this build
+      // exists to remove, on the majority platform. Same expression as
+      // MapExplorer / useHotspotActivity / useCountyCompleteness.
+      const e = err as { detail?: string }
+      const detail = err instanceof TransportError
+        ? (err.detail ?? err.message)
+        : (e.detail ?? (err instanceof Error ? err.message : undefined))
       const { kind, message } = classifyLiveError(err, { errorDetail: detail })
       setState({ status: 'error', message, errorKind: kind })
       return null
