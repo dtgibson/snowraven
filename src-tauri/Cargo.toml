@@ -110,3 +110,8 @@ codegen-units = 1
 lto = true
 opt-level = "s"
 strip = true
+
+[patch.crates-io]
+# tao 0.35.3 + tauri-apps/tao#1245 (iOS UISceneConfiguration use-after-free).
+# See src-tauri/vendor/tao/VENDORED.md. Remove when Tauri admits tao >= 0.36.
+tao = { path = "vendor/tao" }
