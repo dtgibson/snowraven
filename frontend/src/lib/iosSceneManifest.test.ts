@@ -4,16 +4,28 @@
 //
 // WHY THIS GUARD EXISTS. Under the iOS 27 SDK an app with no
 // `UIApplicationSceneManifest` trips
-// `___UIApplicationEvaluateRuntimeIssueForNoSceneLifecycleAdoption`. tao 0.35.3
-// (what Tauri 2.11.2 pins) does not implement
-// `application:configurationForConnectingSceneSession:options:` -- that landed
-// in tao 0.37, which is unreachable from any stable Tauri -- so the
-// configuration must be STATIC and must name tao's own delegate class exactly.
-// The class is `TaoSceneDelegate`: the `#[name = ...]` on the `define_class!`
-// in tao's `platform_impl/ios/scene.rs`. Nothing in the release recipe would
-// catch a regression here: `altool --validate-app` checks icons and
-// entitlements, not scene adoption, so TestFlight accepts the build and the
-// user gets an app that does not work.
+// `___UIApplicationEvaluateRuntimeIssueForNoSceneLifecycleAdoption`. The
+// configuration must be STATIC and must name tao's own delegate class exactly,
+// because the iOS 27 validator reads the static manifest and ignores tao's
+// runtime registration. The class is `TaoSceneDelegate`: the `#[name = ...]` on
+// the `define_class!` in tao's `platform_impl/ios/scene.rs`. Nothing in the
+// release recipe would catch a regression here: `altool --validate-app` checks
+// icons and entitlements, not scene adoption, so TestFlight accepts the build
+// and the user gets an app that does not work.
+//
+// CORRECTED v1.0.31. This header used to state that tao 0.35.3 "does not
+// implement `application:configurationForConnectingSceneSession:options:` --
+// that landed in tao 0.37". Both halves were wrong. tao 0.35.3 implements that
+// callback and registers it at `view.rs:752` whenever `multiple_scenes_enabled()`
+// reads true, which is precisely what the manifest below makes true; what landed
+// later was the FIX, tauri-apps/tao#1245, first released in tao 0.36.0. Until
+// then the implementation returned a pointer to a `Retained` dropped at function
+// exit, so UIKit received a freed `UISceneConfiguration` and RELEASE builds
+// crashed on launch (tauri-apps/tao#1244) -- which is what shipped in 1.0.31 and
+// why `src-tauri/vendor/tao` exists. The guard's conclusion is UNCHANGED and this
+// file is deliberately not weakened: the manifest was the trigger of that crash,
+// not its cause, and a newer tao retires the vendored patch rather than this
+// manifest.
 //
 // THE FAILURE IS SILENT, WHICH IS WHY THE VALUES ARE PINNED RATHER THAN
 // DOCUMENTED. Measured on an iOS 27.0 simulator: with

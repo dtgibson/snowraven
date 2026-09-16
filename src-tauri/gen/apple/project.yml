@@ -53,13 +53,23 @@ targets:
           - UIInterfaceOrientationLandscapeRight
         # iOS 27 SDK: an app with no UIApplicationSceneManifest traps at launch
         # (___UIApplicationEvaluateRuntimeIssueForNoSceneLifecycleAdoption).
-        # tao 0.35.3 (what Tauri 2.11.2 pins) does NOT implement
-        # application:configurationForConnectingSceneSession:options:, so the
-        # configuration has to be STATIC and has to name tao's delegate class
-        # exactly -- `TaoSceneDelegate`, the #[name = ...] on the define_class!
-        # in tao's platform_impl/ios/scene.rs. Tauri's own docs show an EMPTY
-        # UISceneConfigurations dict; that form traps too (tauri-apps/tauri
-        # #15719), so do not "simplify" this back to one.
+        # The configuration has to be STATIC and has to name tao's delegate
+        # class exactly -- `TaoSceneDelegate`, the #[name = ...] on the
+        # define_class! in tao's platform_impl/ios/scene.rs -- because the
+        # iOS 27 validator reads the STATIC manifest and ignores tao's runtime
+        # registration. Tauri's own docs show an EMPTY UISceneConfigurations
+        # dict; that form traps too (tauri-apps/tauri #15719), so do not
+        # "simplify" this back to one.
+        #
+        # CORRECTED v1.0.31: this comment used to say tao 0.35.3 "does NOT
+        # implement application:configurationForConnectingSceneSession:options:".
+        # It DOES -- and registers it at view.rs:752 whenever
+        # multiple_scenes_enabled() reads true, which is what the key below
+        # makes true. Its implementation returned a pointer to a Retained
+        # dropped at function exit, so UIKit received a freed
+        # UISceneConfiguration and the app crashed on launch in RELEASE builds
+        # (tauri-apps/tao#1244). That is why src-tauri/vendor/tao exists. The
+        # manifest was the trigger, not the fault, and is still correct.
         #
         # UIApplicationSupportsMultipleScenes must be TRUE, and this was settled
         # by LAUNCHING on an iOS 27.0 simulator (iPhone 18 Pro), not by reading

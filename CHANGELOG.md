@@ -8,6 +8,7 @@ All notable changes to SnowRaven are documented here.
 - Species pickers on Calendar, Species Detail and Statistics no longer rebuild their whole list every time something unrelated on the page changes.
 
 ### Fixed
+- On iPhone and iPad, the first 1.0.31 build closed the moment it was opened, every time. The app launches normally again. Only iOS was affected: the Mac, Windows and web versions of 1.0.31 were never at risk, and the crashing build was replaced before it could reach the App Store.
 - Tide water levels no longer depend on the time zone of the server the app talks to. On a server whose own clock crossed a daylight saving change between two tide times, a checklist's tide could report the wrong water level range (for example 1.0 to 5.0 ft instead of 1.5 to 4.5 ft). The web and Raspberry Pi backend now reads NOAA times exactly as the desktop app already did.
 - When a weather or tide service sends back a response SnowRaven cannot read, you now get a clear "weather data unavailable" note instead of a raw server error, and the app no longer tells you that you are offline when you aren't.
 - In the Weather/tide Planner on a phone, a plan fetched in the evening printed its first two day labels on top of each other. Each day label now shortens, or steps aside, to stay inside its own day column, matching the wide layout's long-standing behaviour.

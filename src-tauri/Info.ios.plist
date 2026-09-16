@@ -42,7 +42,18 @@
 
        The delegate class name must match tao's registered class exactly. Do NOT
        replace this with the empty UISceneConfigurations dict in Tauri's docs:
-       that form traps under the iOS 27 SDK too (tauri-apps/tauri #15719). -->
+       that form traps under the iOS 27 SDK too (tauri-apps/tauri #15719),
+       because the iOS 27 validator reads the STATIC manifest and ignores tao's
+       runtime registration.
+
+       CORRECTED v1.0.31: tao 0.35.3 DOES implement
+       application:configurationForConnectingSceneSession:options: (registered
+       at view.rs:752 whenever multiple_scenes_enabled() reads true, which the
+       key above makes true), contrary to what this file and its two siblings
+       used to say. Its implementation handed UIKit a freed UISceneConfiguration
+       and crashed RELEASE builds on launch (tauri-apps/tao#1244), which is why
+       src-tauri/vendor/tao carries the one-line tao#1245 patch. This manifest
+       was the trigger of that crash, not its cause, and is still correct. -->
   <key>UIApplicationSceneManifest</key>
   <dict>
     <key>UIApplicationSupportsMultipleScenes</key>
