@@ -360,5 +360,14 @@ describe('the one new scan over export text is linear by construction', () => {
     // reading cannot carry the other.
     expect(t20 / Math.max(t10, 0.05)).toBeLessThan(3)
     expect(t40 / Math.max(t20, 0.05)).toBeLessThan(3)
-  })
+    // The explicit budget below is a WALL-CLOCK allowance for this test, not a
+    // loosening of the ratio bounds above -- those are what the test is for and
+    // they are untouched. Building and scanning 70,000 rows five times over
+    // takes ~4.7 s on an idle dev machine, which is ~6% under vitest's 5 s
+    // default, and the Pipeline job shares a runner with a concurrent backend
+    // job, so 1.0.32 turned `main` red here on a run whose ratios were fine.
+    // Same family as `.claude/rules/testing.md`'s note that a 3x floor measured
+    // 2.79 with a parallel build on the machine: a timing test's WALL CLOCK is
+    // a fact about the machine, its RATIO is the fact about the code.
+  }, 30_000)
 })

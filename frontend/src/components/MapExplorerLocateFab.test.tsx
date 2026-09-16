@@ -461,7 +461,23 @@ describe('the failure message', () => {
     obs.observe(region(), { childList: true, subtree: true, characterData: true })
 
     fireEvent.click(locateBtn()!)
-    await waitFor(() => expect(region().firstElementChild).not.toBe(first))
+    // Wait for the exact observable the three assertions below consume, not for
+    // a weaker proxy. `firstElementChild !== first` ALONE is satisfied by the
+    // intermediate EMPTY state: handleUseMyLocation's leading setGeoError('')
+    // commits before the await resolves (the same fact this block's header
+    // documents), so between the two presses `firstElementChild` is briefly
+    // `null` -- which is not `first`, so waitFor resolved on the CLEAR and the
+    // textContent assertion then read `''`. Green on a quiet machine, red on a
+    // loaded CI runner where the cleared render and the re-populated one land in
+    // different frames; it turned `main` red at 1.0.32. Per CLAUDE.md (v1.0.25)
+    // the repair is the missing readiness condition, never a sleep, a longer
+    // timeout, or a weaker assertion.
+    await waitFor(() => {
+      const now = region().firstElementChild
+      expect(now).toBeTruthy()                     // re-populated, not the clear
+      expect(now).not.toBe(first)                  // and a genuinely new node
+      expect(region().textContent).toBe(TIMEOUT)   // carrying the message
+    })
     obs.disconnect()
 
     // The node was replaced, which is what an assistive technology observes...
