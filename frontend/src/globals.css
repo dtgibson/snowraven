@@ -10,7 +10,7 @@
   /* The iOS focus-zoom threshold. ABSOLUTE px on purpose: the zoom trigger is an
      absolute value and does not scale with --sr-text-scale, so this is the one
      place a px font-size is correct. Every phone-tier control floor in the app
-     derives from this one number (control-style-registers, vX.Y.Z). */
+     derives from this one number (control-style-registers, v1.0.33). */
   --sr-ctl-floor: 16px;
 
   /* Uppercase optical compensation for a label sized in relation to the control
@@ -18,7 +18,7 @@
      same metric size; this is the ONLY reason a label is ever set smaller than its
      control, and it is why the desktop register carries a 1px offset. A
      sentence-case label needs no compensation and takes the default of 1 by simply
-     declaring no ratio (control-style-registers, vX.Y.Z). */
+     declaring no ratio (control-style-registers, v1.0.33). */
   --sr-label-optical: calc(11 / 12);
 
   /* Structural */
@@ -3270,7 +3270,7 @@ select:focus-visible {
 }
 
 /* ── The control registers: `.sr-pill` and `.sr-segbar` / `.sr-segbar-btn` ────
-   (control-style-registers, vX.Y.Z)
+   (control-style-registers, v1.0.33)
 
    One family, two shapes, drawn here once instead of in 44 inline style objects
    across 15 components. They share height, type size, weight shift, states and
@@ -3469,7 +3469,7 @@ select:focus-visible {
 .sr-segbar-btn:focus-visible { outline-offset: -3px; }
 
 /* ── The in-<th> sort button (`.sr-th-sort`) ─────────────────────────────────
-   (control-style-registers, vX.Y.Z)
+   (control-style-registers, v1.0.33)
 
    NOT a pill, and it deliberately takes no pill geometry: it is a chromeless
    button that fills its header cell and inherits the cell's own type, so the
@@ -3505,7 +3505,7 @@ select:focus-visible {
 /* Multimedia's Total column, which is always the accent regardless of sort. */
 .sr-th-sort--accent { color: var(--sr-accent); }
 
-/* ── The Checklists filter rows' leading label (control-style-registers, vX.Y.Z)
+/* ── The Checklists filter rows' leading label (control-style-registers, v1.0.33)
    The 72px box that was an inline `width` on Checklists' `rowLabelStyle`. It is
    here, not there, because it must CHANGE by breakpoint and an inline width is
    specificity 1,0,0 and unreachable from a media query. The base value is the
@@ -4726,7 +4726,7 @@ select:focus-visible {
            while the form controls stayed pinned at 16px, making the FORM CONTROLS
            the small ones for exactly the user who enlarged their text. Hardcoding
            `0.75rem` as the rem term was the SECOND, and it survived from v0.5.81
-           until control-style-registers (vX.Y.Z): above the crossover the rule
+           until control-style-registers (v1.0.33): above the crossover the rule
            returned 0.75rem scaled, so every control with a larger register was
            overridden in BOTH directions and the command palette's 1rem search
            rendered at 24px instead of 32px at 200% text scale. Nothing went red,
@@ -4746,7 +4746,7 @@ select:focus-visible {
   .sr-input-16,
   .sr-ctl-row :is(button, select, input) { font-size: max(var(--sr-ctl-floor), var(--sr-ctl-rem, 0.75rem)) !important; }
 
-  /* LABELS beside a floored control (control-style-registers, vX.Y.Z).
+  /* LABELS beside a floored control (control-style-registers, v1.0.33).
 
      THIS IS NOT AN iOS GUARD, and must not be described as one at its
      declaration or it will be "cleaned up" as redundant: a <span> or a <label>
@@ -4821,7 +4821,7 @@ select:focus-visible {
      keeps the shipped fixed-height geometry byte-for-byte.
 
      `white-space: normal` is the third release and it belongs HERE rather than on
-     the register (control-style-registers, vX.Y.Z). The .sr-pill register declares
+     the register (control-style-registers, v1.0.33). The .sr-pill register declares
      `white-space: nowrap`, which is the family's universal shipped value and is
      right for a short filter label: a two-word chip should not go ragged. But
      `overflow-wrap: break-word` below CANNOT ACT while wrapping is forbidden at
