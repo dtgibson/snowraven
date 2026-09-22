@@ -222,11 +222,11 @@ h1 .accent { color: var(--accent); }
 /* ---------- Features ---------- */
 .features { padding: clamp(56px, 7vw, 100px) 0; }
 .feature-row {
-  display: grid; grid-template-columns: 1fr 1.25fr; gap: clamp(28px, 5vw, 64px);
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(28px, 5vw, 64px);
   align-items: center; padding: clamp(28px, 4vw, 52px) 0;
 }
 .feature-row + .feature-row { border-top: 1px solid var(--border); }
-.feature-row.reverse .feature-text { order: 2; }
+.feature-row.reverse .feature-text { order: 2; justify-self: end; }
 .feature-row.reverse .feature-media { order: 1; }
 .feature-text { max-width: 460px; }
 .feature-icon {
@@ -240,23 +240,25 @@ h1 .accent { color: var(--accent); }
 .feature-text p { color: var(--text-muted); }
 .feature-tag { margin-top: 12px; font-size: .85rem; font-weight: 600; color: var(--accent-strong); }
 .feature-media {
-  margin: 0; border-radius: var(--radius); overflow: hidden;
+  margin: 0; border-radius: var(--radius); overflow: hidden; aspect-ratio: 16 / 9;
   border: 1px solid var(--border); background: var(--surface); box-shadow: var(--card-shadow);
 }
-.feature-media img { width: 100%; height: auto; }
-.feature-media[data-shot="weather"] { max-width: 420px; margin-inline: auto; }
+/* cover + left top absorbs the sub-1% rounding of a 16:9 asset; it never crops
+   content. An asset whose aspect differs from 16:9 by more than 1% is reshaped
+   at capture (website/tools/capture.mjs), never cropped here. */
+.feature-media img { width: 100%; height: 100%; object-fit: cover; object-position: left top; }
 .shot-swap .for-dark { display: none; }
 [data-theme="dark"] .shot-swap .for-light { display: none; }
 [data-theme="dark"] .shot-swap .for-dark { display: block; }
 
 /* List Comparer mock */
-.feature-mock { padding: 18px; display: flex; align-items: center; }
+.feature-mock { padding: 18px; display: flex; align-items: center; overflow: visible; }
 .cmp { width: 100%; font-size: .9rem; }
 .cmp-head, .cmp-row { display: grid; grid-template-columns: 1fr 52px 52px; gap: 6px; align-items: center; }
 .cmp-head { color: var(--text-muted); font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; font-weight: 600; padding: 0 10px 8px; }
 .cmp-head span:not(.cmp-name) { text-align: center; }
-.cmp-row { padding: 9px 10px; border-radius: 8px; }
-.cmp-row + .cmp-row { margin-top: 4px; }
+.cmp-row { padding: 7px 10px; border-radius: 8px; }
+.cmp-row + .cmp-row { margin-top: 2px; }
 .cmp-row:nth-child(even) { background: var(--surface-subtle); }
 .cmp-name { font-weight: 500; color: var(--text); }
 .cmp-a, .cmp-b { text-align: center; font-variant-numeric: tabular-nums; color: var(--text-muted); font-weight: 600; }
@@ -335,13 +337,15 @@ h1 .accent { color: var(--accent); }
 @media (max-width: 920px) {
   .hero-grid, .privacy-grid, .platforms-grid, .install-grid, .feature-row, .feature-row.reverse { grid-template-columns: 1fr; }
   .feature-row.reverse .feature-text, .feature-row.reverse .feature-media { order: initial; }
+  .feature-row.reverse .feature-text { justify-self: initial; }
+  .feature-row { max-width: 640px; margin-inline: auto; }
   .feature-text { max-width: none; }
   .hero-media { margin-top: 12px; }
   .float-a { left: 0; } .float-b { right: 0; }
   .privacy-lead { max-width: none; }
   .requirements { position: static; }
   .phone-frame { max-width: 230px; }
-  .feature-media[data-shot="weather"] { max-width: 360px; }
+  .feature-mock { aspect-ratio: auto; }
 }
 @media (max-width: 720px) {
   .primary-nav, .ghost-link { display: none; }
@@ -357,6 +361,11 @@ h1 .accent { color: var(--accent); }
 }
 @media (max-width: 440px) {
   .version-pill { display: none; }
+  .feature-mock { padding: 14px; }
+  .cmp, .ck { font-size: .8rem; }
+  .cmp-row, .ck-row { padding: 6px 8px; }
+  .cmp-head { padding: 0 8px 6px; }
+  .ck-search { padding: 6px 9px; font-size: .78rem; }
 }
 
 /* ---------- Motion ---------- */

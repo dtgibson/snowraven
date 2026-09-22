@@ -128,8 +128,13 @@ async function tab(name, file, { theme = 'light', vp = DESKTOP_VP, settle = 4000
 
 await tab('Statistics', 'stats-light.png', { clipH: 900, routes: statsRoutes });
 await tab('Statistics', 'stats-dark.png', { theme: 'dark', clipH: 900, routes: statsRoutes });
-await tab('Map Explorer', 'map-light.png', { settle: 6000, clipH: 860 });
-await tab('Map Explorer', 'map-dark.png', { theme: 'dark', settle: 6000, clipH: 860 });
+// RAISED FROM 860 at website-screenshot-sizing: the website renders every
+// feature figure in a 16:9 box, and an asset that is not 16:9 would be cropped
+// by object-fit. 860 of a 1600 viewport is 1.86:1, so a 4% crop would have
+// taken the layer switcher at the bottom edge. 900 is 16:9 exactly and the
+// frame gains 40px of map, losing nothing.
+await tab('Map Explorer', 'map-light.png', { settle: 6000, clipH: 900 });
+await tab('Map Explorer', 'map-dark.png', { theme: 'dark', settle: 6000, clipH: 900 });
 await tab('Breeding Codes', 'breeding-light.png', { settle: 4200, clipH: 900 });
 await tab('Multimedia', 'media-light.png', { settle: 4200, clipH: 900 });
 // Calendar and Named Birds both shipped after the previous capture (v0.5.23) and
@@ -143,14 +148,19 @@ await tab('Calendar', 'calendar-light.png', { settle: 4200, clipH: 900, prep: as
   const prev = await p.$('button[aria-label="Previous year with data"]');
   if (prev && !(await prev.isDisabled())) { await prev.click(); await p.waitForTimeout(1200); }
 } });
-// Named Birds is a short list — clip close so the shot isn't mostly empty page.
-// RAISED FROM 620 at named-birds-timelines: the tab now carries the "All named
-// birds over time" strip BELOW the card list, and a 620px frame cut it off
-// entirely. 800 ends just under the footer with the whole strip, its lanes and
-// both axis dates in frame; going back below ~780 silently drops the strip
-// again, which is the same class of quiet miss as photographing the wrong nav
-// density.
-await tab('Named Birds', 'named-birds-light.png', { settle: 4200, clipH: 800 });
+// Named Birds is a short list. RAISED FROM 620 at named-birds-timelines: the
+// tab carries the "All named birds over time" strip BELOW the card list, and a
+// 620px frame cut it off entirely; going back below ~780 silently drops the
+// strip again, which is the same class of quiet miss as photographing the wrong
+// nav density.
+//
+// RAISED AGAIN, 800 to 900, at website-screenshot-sizing: the website renders
+// this shot in a 16:9 box, and 800 of a 1600 viewport is 2:1, so an 11% crop
+// would have taken the "5 sightings" counts and the strip's end label at the
+// right edge. The box is 16:9 and the asset is now 16:9 to match. The extra
+// 100px of empty app page under the strip card is DELIBERATE: it is what makes
+// the frame 16:9, and it is page tone, not lost content.
+await tab('Named Birds', 'named-birds-light.png', { settle: 4200, clipH: 900 });
 
 // Species Detail — select a common species
 await tab('Species Detail', 'species-light.png', { settle: 4200, clipH: 980, prep: async (p) => {
@@ -220,11 +230,66 @@ const weatherFailure = await runRequiredCapture('weather-light.png', async () =>
     // Re-check after the attribution edit and final settle. A new loading or
     // error state cannot reuse the earlier successful readiness observation.
     requireWeatherCaptureReady(await p.locator('#panel-weather').innerText());
-    const panel = await p.$('#panel-weather') || await p.$('main');
-    const box = await panel.boundingBox();
-    if (!box) throw new Error('Weather panel had no capture bounds');
-    await p.screenshot({ path: `${OUT}weather-light.png`, clip: { x: Math.max(0, box.x), y: Math.max(0, box.y), width: box.width, height: Math.min(box.height, 1280) } });
-    log('OK weather-light.png');
+    // FRAME: 16:9 around the weather OUTPUT (website-screenshot-sizing).
+    //
+    // Until now this shot was the whole panel, which is a portrait 0.534 aspect
+    // because the tab is a narrow card. The website renders every feature
+    // figure in one 16:9 box, and at that box's height a 0.534 image is 150px
+    // wide, a postage stamp of the one screenshot whose whole point is
+    // readable text. So the frame is the payload instead: the identity line
+    // plus the Weather Output block.
+    //
+    // Horizontal: the #panel-weather box, exactly as before. The card's own
+    // gutters are LOAD-BEARING: the content span is ~291 CSS px, 16:9 of the
+    // ~540px panel is ~304px and fits, 16:9 of the ~421px card is ~237px and
+    // does not. Do not clip to the card.
+    //
+    // Vertical: bottom = the output block's bottom border + 6 CSS px, top =
+    // bottom - (panel width x 9/16). Everything is located by DOM (the block
+    // after the "Weather output" eyebrow, the monospace identity line carrying
+    // the checklist id, the eBird edit link), never by pixel offsets.
+    //
+    // Three assertions FAIL THE CAPTURE rather than publishing a bad frame:
+    // the identity line is fully inside with at least 2px above it, the "Edit
+    // checklist comment on eBird" link is fully above, and the block's bottom
+    // border is inside. On the 1.0.30 asset this frame cleared the identity
+    // line by 7px and the link by 11px, so there is roughly 5px of growth
+    // headroom. If an assertion fails, take the frame back to design rather
+    // than loosening it.
+    const frame = await p.evaluate((checklistId) => {
+      const panel = document.querySelector('#panel-weather') || document.querySelector('main');
+      if (!panel) throw new Error('weather frame: no #panel-weather');
+      const eyebrow = Array.from(panel.querySelectorAll('span'))
+        .find((el) => el.textContent.trim() === 'Weather output');
+      if (!eyebrow) throw new Error('weather frame: no "Weather output" eyebrow');
+      const block = eyebrow.closest('div').nextElementSibling;
+      if (!block || block.tagName !== 'PRE') throw new Error('weather frame: the block after "Weather output" is not a <pre>');
+      const identity = Array.from(panel.querySelectorAll('span'))
+        .find((el) => el.children.length === 0 && el.textContent.includes(checklistId) && /monospace/.test(getComputedStyle(el).fontFamily));
+      if (!identity) throw new Error('weather frame: no monospace identity line carrying the checklist id');
+      const link = panel.querySelector('a[aria-label^="Edit checklist comment on eBird"]');
+      if (!link) throw new Error('weather frame: no eBird edit link');
+
+      const p0 = panel.getBoundingClientRect();
+      const b = block.getBoundingClientRect();
+      const i = identity.getBoundingClientRect();
+      const l = link.getBoundingClientRect();
+      const height = p0.width * 9 / 16;
+      const bottom = b.bottom + 6;
+      const top = bottom - height;
+
+      const fail = [];
+      if (!(i.top - top >= 2)) fail.push(`identity line has ${(i.top - top).toFixed(1)}px above it, needs >= 2`);
+      if (!(i.bottom <= bottom)) fail.push('identity line is below the frame');
+      if (!(l.bottom <= top)) fail.push(`edit link is ${(l.bottom - top).toFixed(1)}px inside the frame, must be above it`);
+      if (!(b.bottom <= bottom && b.top < bottom)) fail.push('output block bottom border is not inside the frame');
+      if (!(top >= 0 && bottom <= window.innerHeight)) fail.push('frame falls outside the viewport');
+      if (fail.length) throw new Error('weather frame: ' + fail.join('; '));
+
+      return { x: p0.x, y: top, width: p0.width, height };
+    }, CHECKLIST);
+    await p.screenshot({ path: `${OUT}weather-light.png`, clip: frame });
+    log('OK weather-light.png', `${frame.width.toFixed(1)}x${frame.height.toFixed(1)} CSS px`);
   } finally {
     await ctx.close();
   }
