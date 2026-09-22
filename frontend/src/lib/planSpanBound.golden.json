@@ -1,0 +1,98 @@
+{
+  "reference": {
+    "len": 44340,
+    "sha256": "146436fc23f14d03e9d72149643bd8614a0f81e6632a8e6442f0b8695eed86c3",
+    "yMin": -0.6,
+    "yMax": 6.2,
+    "samples": 723,
+    "peaks": 8
+  },
+  "subordinate": {
+    "len": 48401,
+    "sha256": "76ca45fb92a7327f00f317ae32ea8b0fd1c677e4e195dcb99824b565568586a5",
+    "yMin": -0.6,
+    "yMax": 6.2,
+    "samples": 723,
+    "peaks": 8
+  },
+  "dst-fall": {
+    "len": 44460,
+    "sha256": "3a06ee9145a19cf70442e520cbb62317ecf03eed466befab8856b49d96e71faf",
+    "yMin": -1.6,
+    "yMax": 7.2,
+    "samples": 725,
+    "peaks": 8
+  },
+  "dst-spring": {
+    "len": 44139,
+    "sha256": "4bf62fe54e05afb70950c1758ff48ef94121fd621c7e1fe9401ad2831a5225e5",
+    "yMin": -0.6,
+    "yMax": 6.2,
+    "samples": 717,
+    "peaks": 8
+  },
+  "far-station": {
+    "len": 43976,
+    "sha256": "2179ee90e6dd3b4753fc1a3fa0f962fc1a7ef339a22ad6e32d09b12e02dcf598",
+    "yMin": -0.6,
+    "yMax": 6.2,
+    "samples": 711,
+    "peaks": 8
+  },
+  "gap": {
+    "len": 44366,
+    "sha256": "7a80c2ebd611713b9ce76e03d64d22ff53b4a0f1d2090c126b1c57001c7aa505",
+    "yMin": -0.6,
+    "yMax": 6.2,
+    "samples": 723,
+    "peaks": 8
+  },
+  "no-hourly": {
+    "len": 31013,
+    "sha256": "d07d8d8ad142cfc43f279591f59c74762a92db6e089d57a4ca92095415b419a8",
+    "yMin": -0.6,
+    "yMax": 6.2,
+    "samples": 723,
+    "peaks": 8
+  },
+  "five-daily": {
+    "len": 33213,
+    "sha256": "a918c09bd31e132c34a2e00f175026997156fbba85d144d0c62a708a8693509b",
+    "yMin": -0.6,
+    "yMax": 6.2,
+    "samples": 429,
+    "peaks": 5
+  },
+  "polar": {
+    "len": 44250,
+    "sha256": "d539cd660f9a8f0615d3180fae4c796f552e19d8072b1b44fd3b073e7b83aef5",
+    "yMin": -1.6,
+    "yMax": 7.2,
+    "samples": 722,
+    "peaks": 8
+  },
+  "now-in-hour": {
+    "len": 45662,
+    "sha256": "57ff7fe03c27e12cc14038477b5ed876fd355016ab116f2a657cce25646b5744",
+    "yMin": -0.6,
+    "yMax": 6.2,
+    "samples": 760,
+    "peaks": 8
+  },
+  "same-minute-high": {
+    "len": 44464,
+    "sha256": "c5cfa2c4541a623eaf0e574a2aa7bd667d61cd6cb07e0423e27ed68d15de5a07",
+    "yMin": -0.6,
+    "yMax": 6.2,
+    "samples": 723,
+    "peaks": 8
+  },
+  "maximal": {
+    "len": 44337,
+    "sha256": "7f972f65a70de437f61f52c73532dc20dc0e450bbe66f3d1139c2d6cd502978b",
+    "yMin": -0.6,
+    "yMax": 6.2,
+    "samples": 723,
+    "peaks": 8
+  }
+}

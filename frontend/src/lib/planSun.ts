@@ -22,10 +22,48 @@
 // (schema D4): whatever convention the provider used for its sunrise, the
 // track crosses zero there.
 //
-// Every scan here is declared in the schema's section 8 with its bound: per
-// plan, at most 16 days x 2 bisections x 20 evaluations to build the model,
-// and at most hours x 4 + anchors samples (<= 1,568 at PLAN_DAYS_MAX) for the
-// track, computed once per plan and never per pick or per density.
+// Every scan here is declared in the schema's section 8 with its bound, and
+// SINCE plan-sun-sampling-bound those bounds are the ones the code HAS rather
+// than the ones the design intended. Nothing in this file clamps anything; the
+// ceiling is a property of the document `composePlan` emits, which is where the
+// three constants live (lib/plan.ts: PLAN_DAY_MAX_S = 26 * 3600,
+// PLAN_COMPOSE_DAYS_MAX = 16, PLAN_SPAN_MAX_S = the product = 1,497,600 s).
+//
+// THE OLD "<= 1,568 at PLAN_DAYS_MAX" CLAIM WAS WRONG, and wrong in a way worth
+// naming: `PLAN_DAYS_MAX` caps the day COUNT at the producer, never the window
+// SPAN, and the merge re-applied neither, so the track's sample count was
+// unbounded for any document the replay store could hold and for a live body
+// whose 16 daily entries carry `dt` far apart. Per plan, the bounds now are:
+//
+//   buildSunModel   <= PLAN_COMPOSE_DAYS_MAX days x 2 bisections x MAX_BISECT
+//                      evaluations = 16 x 2 x 20 = 640
+//   sunTrack        <= PLAN_SPAN_MAX_S / QUARTER + 1 + 2 * PLAN_COMPOSE_DAYS_MAX
+//                    = 1,497,600 / 900 + 1 + 32 = 1,697 samples
+//   sunPeakByDay    <= PLAN_COMPOSE_DAYS_MAX x (PLAN_DAY_MAX_S / QUARTER + 1
+//                      + 2 + 1) = 16 x 108 = 1,728 evaluations
+//   sunAltitudeAt   one binary search over <= 32 anchors, ONE `sideAt` scan of
+//                    <= PLAN_COMPOSE_DAYS_MAX days (a linear walk, not a search
+//                    -- the old table omitted it), and one closed-form
+//                    evaluation
+//
+// THE TWO SAMPLE CEILINGS HOLD ONLY BECAUSE THE MERGE ALSO BOUNDS THE LOOP
+// ANCHOR'S MAGNITUDE (lib/plan.ts, PLAN_TS_ABS_MAX = 8.64e12 s, the
+// ECMAScript Date range in this document's unit). A span clamp says nothing
+// about where the span sits, and from |t| >= 2^63 one ulp of a double exceeds
+// the 900 s quarter step, so `t += QUARTER` rounds back to `t` and neither
+// loop below terminates at all. `composePlan` refuses a window, and drops a
+// day, whose own instants are not inside that range.
+//
+// A SECOND, DIFFERENT NON-TERMINATION LIVED AT `solarNoonTs` AND IS NOW CLOSED
+// TOO (decisions.md, Stage 4 ride-along): its whole-day normalization used to
+// be a loop stepping 86,400 s, so it ran |eot| / 1440 times, and `eot` is
+// unbounded above |t| about 2.1e12 s -- measured 9.19e18 iterations at an
+// instant the merge admits. It is now one arithmetic step
+// (`wholeDayNormalize`), equal to the loop wherever the loop terminated and
+// O(1) where it did not. No iteration count in this file now depends on a
+// magnitude the merge does not bound.
+//
+// The track is computed once per plan and never per pick or per density.
 
 import type { Plan } from './plan'
 
@@ -76,19 +114,49 @@ export function sunAltitudeDeg(lat: number, lng: number, ts: number): number {
 }
 
 /**
+ * Move `noon` by WHOLE DAYS until it lies within 12 hours of `aroundTs`, in one
+ * step. EQUAL TO THE LOOP IT REPLACES for every finite input on which that loop
+ * terminated: the loop subtracted or added exactly one day at a time until the
+ * offset fell inside [-43200, 43200], which is the offset's representative
+ * modulo a day, and the rounded quotient reaches that same representative
+ * directly. The rounding is half-TOWARD-ZERO rather than `Math.round`'s half-up
+ * because the loop's conditions are strict (`> 43200`), so an offset of exactly
+ * +43200 stays where it is; plain `Math.round` would push it to -43200, a
+ * different instant by a whole day, and that tie is reachable (a location at
+ * lng 0 with a zero equation of time, from a UTC midnight).
+ *
+ * Exported so `planSpanBound.test.ts` can assert that equality against a capped
+ * copy of the old loop over a generated corpus, rather than against a
+ * hand-typed expectation.
+ */
+export function wholeDayNormalize(noon: number, aroundTs: number): number {
+  const off = noon - aroundTs
+  const days = Math.sign(off) * Math.ceil(Math.abs(off) / 86400 - 0.5)
+  return days === 0 ? noon : noon - 86400 * days
+}
+
+/**
  * The instant of local solar noon nearest `aroundTs`: 720 - 4 * lng - eot
  * minutes after the nearest UTC midnight, moved by whole days until it lies
  * within 12 hours of `aroundTs`. `lat` is part of the signature the schema
  * fixes; solar noon itself does not depend on it.
+ *
+ * THE RESIDUAL NAMED HERE AT STAGE 4 IS CLOSED, not deferred. The whole-day
+ * move used to be two `while` loops stepping 86,400 s, so it ran |eot| / 1440
+ * times, and `eot` is not bounded: `eps0` carries a `jc^3` term, so past
+ * |aroundTs| about 2.1e12 s `tan(eps / 2)` runs through a pole and `eot`
+ * explodes -- measured 9.19e18 iterations at `aroundTs = 4979577600000`, an
+ * instant well inside the +/- 8.64e12 s the merge admits, which is a hang
+ * rather than a slow call. `wholeDayNormalize` above does it in one arithmetic
+ * step for every finite input, so the iteration count leaves the residual list
+ * and this function's cost is now O(1) at every magnitude.
  */
 export function solarNoonTs(lat: number, lng: number, aroundTs: number): number {
   void lat
   const { eot } = solarParts(aroundTs)
   const utcMidnight = aroundTs - ((((aroundTs % 86400) + 86400) % 86400))
-  let noon = utcMidnight + (720 - 4 * lng - eot) * 60
-  while (noon - aroundTs > 43200) noon -= 86400
-  while (aroundTs - noon > 43200) noon += 86400
-  return Math.round(noon)
+  const noon = utcMidnight + (720 - 4 * lng - eot) * 60
+  return Math.round(wholeDayNormalize(noon, aroundTs))
 }
 
 export interface SunAnchor {
@@ -241,6 +309,12 @@ function unwarp(model: SunModel, tc: number): number {
  * value is <= 0 before the listed sunrise, 0 at it, > 0 strictly between, 0 at
  * the listed sunset and <= 0 after: the sign changes at the listed minutes and
  * nowhere else.
+ *
+ * Cost per call: a binary search over the anchors (<= 32), ONE `sideAt` walk of
+ * `model.days` (<= PLAN_COMPOSE_DAYS_MAX, a LINEAR scan and not a search -- it
+ * is named here because the schema's table omitted it, and because it is what
+ * makes this function times a caller's day loop quadratic in the day count when
+ * nothing caps that count), and one closed-form evaluation.
  */
 export function sunAltitudeAt(model: SunModel, t: number): number {
   const A = model.anchors
@@ -262,9 +336,15 @@ const QUARTER = 900
  * [axisStartTs, endTs] plus one at every anchor's t, ascending and
  * de-duplicated. Every real zone offset is a multiple of 900 s, so the marks
  * coincide with UTC quarter marks (planPick.ts states and tests the same
- * fact). Count <= hours x 4 + anchors (QA-33); computed once per plan and
- * never resampled with density (FR-33). The quarter marks are the pick's
- * quarter marks, so a keyboard step lands on a drawn sample.
+ * fact). Computed once per plan and never resampled with density (FR-33). The
+ * quarter marks are the pick's quarter marks, so a keyboard step lands on a
+ * drawn sample.
+ *
+ * Count <= PLAN_SPAN_MAX_S / QUARTER + 1 + 2 * PLAN_COMPOSE_DAYS_MAX = 1,697
+ * (QA-33, corrected in plan-sun-sampling-bound: the figure used to read 1,568
+ * and rested on a day-COUNT cap that bounds no span). The ceiling is the
+ * merge's, not this function's: `composePlan` clamps `window.endTs` to
+ * `axisStartTs + PLAN_SPAN_MAX_S`, so there is no `Math.min` here to find.
  */
 export function sunTrack(model: SunModel): SunSample[] {
   const out: SunSample[] = []
@@ -293,12 +373,24 @@ export interface SunPeak { dayIndex: number; t: number; deg: number }
 
 /**
  * Per day, the sun's highest anchored altitude and its instant: the maximum
- * over that day's quarter-mark samples, its anchors and the warped solar noon
+ * over that day's quarter-mark samples, its own anchors and the warped solar noon
  * (so the peak is the computed maximum, not a sample short of it). The WHOLE
  * day is sampled, including the part of the first day already behind the
  * axis start, because the list must know whether today's peak has passed
  * (design D4-08). Null for a day the model cannot sample (a malformed day
- * whose end precedes its start).
+ * whose end precedes its start; `composePlan` now drops such a day, so through
+ * the merge this branch is unreachable, and it stays for a model built by hand).
+ *
+ * This loop is driven by each day's OWN span, which the window clamp alone
+ * would not reach, and it repeats per day, so it is bounded on two axes at
+ * once: <= PLAN_COMPOSE_DAYS_MAX x (PLAN_DAY_MAX_S / QUARTER + 1 + 2 + 1)
+ * = 16 x 108 = 1,728 evaluations of `sunAltitudeAt`, each of which walks
+ * `model.days` once (see that function's note). Both ceilings are the merge's.
+ *
+ * The anchor step is a SCAN of ALL anchors per day filtered by `dayIndex`, not
+ * a pass over that day's own: <= 32 iterations per day and <= 512 per plan, of
+ * which at most 2 per day reach `sunAltitudeAt`. The 1,728 above is an
+ * EVALUATION ceiling and counts those 2; the iteration count is the 512.
  */
 export function sunPeakByDay(model: SunModel): Array<SunPeak | null> {
   return model.days.map((d, dayIndex) => {

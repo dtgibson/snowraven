@@ -16,6 +16,13 @@
 // and a taller plot. The curve is always the document's 30-minute samples; only
 // what would collide changes with density.
 //
+// Since plan-sun-sampling-bound: the tide y-domain is clamped to
+// PLAN_Y_ABS_MAX_FT. That clamp is the second of the merge's two magnitude
+// chokepoints (the first is `composePlan`), and it exists so PlanChart.tsx is
+// not edited at all: both of its `for (v = ceil(yMin); v <= floor(yMax); v += 2)`
+// loops read this domain, so bounding the domain bounds them, and a third loop
+// over the same range added later is bounded for free.
+//
 // Since plan-sun-moon-readout (schema 6.1): the sun track sits INSIDE the plot
 // on its own scale (`ySun`, zero at PLAN_SUN_ZERO_FRAC of the plot from the
 // top, domain planSunDomain()), the without-tide plot grew to hold it, and the
@@ -51,6 +58,30 @@ export const PLAN_WIDE_DAY_HEADER_PX = 22
 export const PLAN_WIDE_PLOT_PX = 220
 export const PLAN_WIDE_PLOT_NO_TIDE_PX = 120
 export const PLAN_WIDE_AXIS_LANE_PX = 22
+
+/** The tide scale's magnitude ceiling, feet, per side. The largest tidal range
+ *  on Earth (the Bay of Fundy) is about 53 ft, so 100 ft is roughly 2x margin
+ *  per side; it yields at most 101 gridlines and 101 y ticks at the shipped
+ *  step of 2.
+ *
+ *  It is needed because the curve's `v` is `parseFloat` plus a finiteness check
+ *  with no magnitude bound (lib/tide.ts), on the LIVE path as well as a
+ *  replayed one, so any finite number can reach the extremes below and the
+ *  chart's two gridline loops step by 2 over whatever domain this function
+ *  returns (measured: 100,000,001 iterations at v = 1e8, each of which the
+ *  shipped code turns into a React element).
+ *
+ *  It is applied to the PADDED domain, so the effective no-change boundary is
+ *  98 ft up and 99 ft down, not 100: `yMax` moves only when `Math.ceil(hi) +
+ *  1.2 > 100`, i.e. when the curve peaks above 98 ft, and `yMin` only when
+ *  `Math.floor(lo) - 0.6 < -100`, i.e. when it bottoms below -99 ft. The
+ *  constant reads as the boundary and is not one; the margin over the 53 ft
+ *  record holds either way (1.85x and 1.87x).
+ *
+ *  It clamps the DOMAIN and never the `v` VALUES: rewriting a stored data value
+ *  would distort the drawn curve, whereas an out-of-domain curve simply
+ *  overflows, which both axes already permit (`allowDataOverflow`). */
+export const PLAN_Y_ABS_MAX_FT = 100
 
 /** The sun track's zero line, as a fraction of the plot's height measured
  *  from the TOP: daylight takes the upper 60%, night the lower 40%. */
@@ -141,8 +172,13 @@ export function planGeometry(plan: Plan, hasTide: boolean, hpx = PLAN_HOUR_PX, w
   if (hasTide && plan.tide?.status === 'ok' && plan.tide.curve.length > 0) {
     let lo = Infinity, hi = -Infinity
     for (const s of plan.tide.curve) { if (s.v < lo) lo = s.v; if (s.v > hi) hi = s.v }
-    yMin = Math.floor(lo) - 0.6
-    yMax = Math.ceil(hi) + 1.2
+    yMin = Math.max(-PLAN_Y_ABS_MAX_FT, Math.floor(lo) - 0.6)
+    yMax = Math.min(PLAN_Y_ABS_MAX_FT, Math.ceil(hi) + 1.2)
+    // A curve lying WHOLLY beyond the ceiling on one side would collapse the
+    // domain to a point, and `y` divides by `yMax - yMin`. Such a curve falls
+    // back to the default scale and overflows it, which is what every other
+    // out-of-domain curve already does.
+    if (!(yMax > yMin)) { yMin = -1; yMax = 7 }
   } else if (!hasTide) {
     yMin = 0; yMax = 1
   }
