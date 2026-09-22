@@ -229,6 +229,12 @@ pub fn run() {
             #[cfg(any(target_os = "macos", target_os = "ios"))]
             icloud::icloud_remove_keys,
         ])
+        // SINGLE-WEBVIEW INVARIANT. `Builder::run` supplies Tauri's own no-op
+        // run callback, which drops `RunEvent::SceneRequested`, so a second
+        // iPadOS scene never constructs a second webview. A custom run callback
+        // here, or any second window on any platform, dissolves the JS-side
+        // protections in `storage.ts`, `replayStore.ts` and `clearDerived.ts`.
+        // Reversal condition: CLAUDE.md, Desktop storage (Tauri), v1.0.9.
         .run(tauri::generate_context!())
         .expect("error while running tauri application")
 }

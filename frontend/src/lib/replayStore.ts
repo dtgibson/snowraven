@@ -66,6 +66,12 @@ let _loading: Promise<ReplayStore> | null = null;
 // the fresh mirror perfectly valid and persists a `/weather/S…` answer fetched
 // for the export the user just cleared. A generation answers the question
 // identity cannot: "did a Clear happen since this work began?"
+// SINGLE-WEBVIEW INVARIANT. This counter and the ordered writer below are both
+// module-scoped JS state, so each protects one JS context only -- sufficient
+// while the app runs exactly one webview, kept true at the `Builder::run` call
+// in `src-tauri/src/lib.rs`. Same assumption: `storage.ts` (`docChains`),
+// `clearDerived.ts`, `exoticProvenanceCache.ts`. Reversal condition: CLAUDE.md,
+// Desktop storage (Tauri), the v1.0.9 entry.
 let _purgeGeneration = 0;
 
 /**
@@ -264,6 +270,8 @@ const WRITE_DEBOUNCE_MS = 250;
 // `TauriStorage.chain`, and the same two rules: a link never awaits another
 // chained write, and a failed link rejects only its own caller (the stored tail
 // swallows, so one failed flush cannot poison the chain).
+// Like the purge generation above, this orders work inside ONE JS context: see
+// the SINGLE-WEBVIEW INVARIANT note there for what keeps that sufficient.
 let _writeChain: Promise<void> = Promise.resolve();
 
 function writeThrough(snapshot: ReplayStore): Promise<void> {

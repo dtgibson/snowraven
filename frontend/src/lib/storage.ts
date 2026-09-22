@@ -571,6 +571,12 @@ class TauriStorage implements StorageAdapter {
   //      swallows the rejection, so one failed write never poisons the chain.
   // Not a cache (cacheInventory.test.ts): keys are the three internal path
   // constants, values are tail promises — nothing is retained or evicted.
+  // SINGLE-WEBVIEW INVARIANT. This chain lives in one JS context (a field on
+  // the module's single storage instance), so it orders writers within that
+  // context only -- sufficient while the app runs exactly one webview, kept
+  // true at the `Builder::run` call in `src-tauri/src/lib.rs`. Same assumption:
+  // `replayStore.ts`, `clearDerived.ts`, `exoticProvenanceCache.ts`. Reversal
+  // condition: CLAUDE.md, Desktop storage (Tauri), the v1.0.9 entry.
   private docChains: Record<string, Promise<void>> = {};
 
   private chain<T>(path: string, op: () => Promise<T>): Promise<T> {

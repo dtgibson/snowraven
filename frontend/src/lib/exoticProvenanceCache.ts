@@ -223,6 +223,9 @@ let _loading: Promise<ProvenanceStore> | null = null
 // user just cleared. A generation captured before the first await answers the
 // real question — "did a Clear happen since this work began?" — which identity
 // alone cannot.
+// SINGLE-WEBVIEW INVARIANT: this counter is module-scoped JS state, so it holds
+// within one JS context only -- see the note at `replayStore.ts`'s own purge
+// generation, and CLAUDE.md, Desktop storage (Tauri), the v1.0.9 entry.
 let _purgeGeneration = 0
 
 // Snapshot memo: rebuilt only when the mirror actually changes, so a render pass
