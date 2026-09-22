@@ -4,6 +4,10 @@ This file is auto-loaded by Claude Code at the start of every session.
 It holds pipeline conventions, tool rules, and project-specific
 decisions that all builders must follow.
 
+## Published copy needs the user's approval first
+
+- **NO CHANGE TO `website/`, `README.md` OR THE APP STORE LISTING COPY (`appstore/LISTING.md` and what is written into App Store Connect) IS MADE WITHOUT THE USER READING THE NEW LANGUAGE AND APPROVING IT FIRST. Corrections and one-word fixes included. This applies to every agent working in this repository (user direction, 2026-09-21, reaffirmed 2026-09-22 when the App Store copy was aligned to the same register).** Show the exact before and after, as a page the user can open (a tailnet URL for the website, the README rendered, the App Store text in full), wait for an explicit yes, and only then write it. A feature build may PROPOSE at most one sentence for its tab's section and never appends, rewrites or re-sequences on its own; a version-stamp step moves only the version pill and footer. The register, the mechanics and the reasons are in `.claude/rules/docs-and-website.md`; this bullet exists so the rule is read at the start of every session rather than only when those files are touched. The same rule is restated in `AGENTS.md` for agents that do not read this file.
+
 ## Versioning
 
 - Version is tracked in `frontend/package.json` (semver, patch increments for small features/fixes, minor for larger features)
