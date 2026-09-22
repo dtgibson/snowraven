@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>SnowRaven features section: proposed structure</title>
+
+  <!-- The real, shipped stylesheet. Linked rather than copied so this mockup cannot
+       drift from the page it is proposing a change to. -->
+  <link rel="stylesheet" href="../../website/styles.css" />
+
+  <style>
+    /* ===================================================================
+       NO ADDITION to website/styles.css. The first draft proposed a
+       .feature-row.solo modifier for a figure-less Settings row; with Settings
+       dropped it has no user and is withdrawn. The stylesheet delta is now a
+       pure deletion (the dead .named* block).
+       =================================================================== */
+
+    /* ===================================================================
+       Mockup chrome only. Never shipped, not part of the design.
+       =================================================================== */
+    .mock-chrome { padding: 28px 0 0; }
+    .mock-card {
+      background: var(--surface); border: 1px solid var(--border-strong);
+      border-radius: var(--radius); padding: 20px 22px; box-shadow: var(--card-shadow);
+    }
+    .mock-card h1 { font-size: 1.3rem; margin-bottom: 8px; }
+    .mock-card p { color: var(--text-muted); font-size: .92rem; margin-top: 8px; }
+    .mock-head { display: flex; flex-wrap: wrap; gap: 12px; align-items: baseline; justify-content: space-between; }
+    .mock-table { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: .84rem; }
+    .mock-table th, .mock-table td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--border); }
+    .mock-table th { color: var(--text-faint); font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; }
+    .mock-table td:first-child { color: var(--text-faint); font-variant-numeric: tabular-nums; width: 3ch; }
+    .mock-table .rev { color: var(--accent-strong); font-weight: 600; }
+    .mock-table .none { color: var(--text-faint); }
+    .mock-scroll { overflow-x: auto; }
+    .stand-in { font-style: italic; }
+  </style>
+</head>
+<body>
+  <!-- ─────────── review chrome, not part of the design ─────────── -->
+  <div class="mock-chrome">
+    <div class="container">
+      <div class="mock-card">
+        <div class="mock-head">
+          <h1>Features section: proposed structure</h1>
+          <button class="btn btn-secondary btn-small" id="theme-toggle" type="button">Switch theme</button>
+        </div>
+        <p>
+          <strong>Revised: ten sections, the ten tabs, in the app's own
+          <code>DEFAULT_TAB_ORDER</code>.</strong> Search and Settings are dropped as more
+          functional than a unique birding feature, and <code>Offline support</code> is
+          retired. All three articles go with their figures. Every remaining section has a
+          figure and none is orphaned; nothing in <code>website/assets/</code> becomes
+          unused, because both retired figures were hand-built HTML rather than files.
+          The alternation is now a clean parity: odd rows media right, even rows
+          <code>reverse</code>, nine hairlines across ten rows.
+        </p>
+        <p>
+          <strong>Every paragraph below is a stand-in, set in italics.</strong> The words
+          are not the deliverable here; each one names what that section will describe, at
+          roughly the length the real paragraph will run, so the row heights and the
+          alternation read truthfully. The screenshots, the three mocks, the icons, the
+          dividers and the alternation are real.
+        </p>
+        <p>
+          <strong>One piece of markup here must not be copied.</strong> Every stand-in is
+          <code>&lt;p class="stand-in"&gt;</code> so it can be set in italics. In the real
+          file every body paragraph in a feature row opens as a bare
+          <code>&lt;p&gt;</code>, with no attributes: three published-claims guards locate
+          their passage with <code>lastIndexOf('&lt;p&gt;', i)</code>, and a classed
+          paragraph makes that search skip back to an earlier one and silently widen what
+          it extracts. The only classed paragraph in the shipped section is
+          <code>.feature-tag</code>, last in its row.
+        </p>
+        <div class="mock-scroll">
+          <table class="mock-table">
+            <thead>
+              <tr><th>#</th><th>Section</th><th>Layout</th><th>Figure</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>1</td><td>Weather</td><td class="none">media right</td><td>weather.webp</td></tr>
+              <tr><td>2</td><td>Statistics</td><td class="rev">reverse</td><td>statistics-dark.webp</td></tr>
+              <tr><td>3</td><td>Map Explorer</td><td class="none">media right</td><td>map.webp + map-dark.webp</td></tr>
+              <tr><td>4</td><td>Species Detail</td><td class="rev">reverse</td><td>species.webp</td></tr>
+              <tr><td>5</td><td>Calendar</td><td class="none">media right</td><td>calendar.webp</td></tr>
+              <tr><td>6</td><td>Multimedia</td><td class="rev">reverse</td><td>multimedia.webp</td></tr>
+              <tr><td>7</td><td>Breeding Codes</td><td class="none">media right</td><td>breeding.webp</td></tr>
+              <tr><td>8</td><td>Checklists</td><td class="rev">reverse</td><td>mock, comment search</td></tr>
+              <tr><td>9</td><td>List Comparer</td><td class="none">media right</td><td>mock, two lists</td></tr>
+              <tr><td>10</td><td>Named Birds</td><td class="rev">reverse</td><td>named-birds.webp</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <main>
+    <!-- ───────────────────────── Features ───────────────────────── -->
+    <section class="features" id="features">
+      <div class="container">
+        <header class="section-head">
+          <p class="eyebrow"><span class="dot"></span>What's inside</p>
+          <h2 class="stand-in">A heading that states a property, not a count</h2>
+          <p class="section-sub stand-in">One line on where everything is read from, replacing the shipped sub. No count, and nothing that names the Planner: the Planner passage is located by the first occurrence of its name in the file.</p>
+        </header>
+
+        <!-- 1. Weather: media right -->
+        <article class="feature-row">
+          <div class="feature-text">
+            <span class="feature-icon">
+              <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M16 13a4 4 0 0 0-3.9-5 5 5 0 0 0-9 2.3A3.5 3.5 0 0 0 4 17h11"/><path d="M8 19v2M12 20v2M16 19v2"/></svg>
+            </span>
+            <h3>Weather</h3>
+            <p class="stand-in">
+              Paragraph one, the tab's own actions: the checklist lookup and the summary it
+              hands back, Current for where you are now, Plan for a place and time you
+              choose, and the backlog of checklists that still have no weather block.
+              Free to rewrite from scratch.
+            </p>
+            <p class="stand-in">
+              Paragraph two, the Weather/tide Planner. This is the one paragraph on the page
+              whose sentences are decided before the copy pass starts: five of them are
+              byte-pinned by a guard, so the split exists to put all of them here and leave
+              paragraph one free. It runs longer than this stand-in.
+            </p>
+          </div>
+          <figure class="feature-media shot-slot" data-shot="weather">
+            <img src="../../website/assets/shots/weather.webp" width="1080" height="2021"
+                 alt="The Weather tab showing a formatted weather summary and a tide block for a checklist at Jamaica Bay." loading="lazy" />
+          </figure>
+        </article>
+
+        <!-- 2. Statistics: reverse -->
+        <article class="feature-row reverse">
+          <div class="feature-text">
+            <span class="feature-icon">
+              <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><rect x="7" y="11" width="3" height="7"/><rect x="12" y="7" width="3" height="11"/><rect x="17" y="13" width="3" height="5"/></svg>
+            </span>
+            <h3>Statistics</h3>
+            <p class="stand-in">
+              Paragraph one, the dashboard itself: what it is built from, what it counts,
+              and the two count rules in the tab header that follow eBird's own rules for
+              what counts.
+            </p>
+            <p class="stand-in">
+              Paragraph two, the two sections that reach past the tab: the Geographic Stats
+              map with its county shading, and Projects, the answer the app has to go and
+              fetch.
+            </p>
+            <p class="stand-in">
+              Paragraph three, the Weather section that reads your own weather blocks back.
+              Guard-anchored on its opening phrase, with a 200-character floor, so it keeps
+              its anchor and its length. The Species Detail card paragraph that sits here
+              today moves to row 4.
+            </p>
+            <p class="feature-tag">Light or dark, your choice. Dark mode shown.</p>
+          </div>
+          <figure class="feature-media shot-slot" data-shot="statistics-dark">
+            <img src="../../website/assets/shots/statistics-dark.webp" width="1600" height="900"
+                 alt="The Statistics tab in dark mode, showing life-list totals and a growth chart." loading="lazy" />
+          </figure>
+        </article>
+
+        <!-- 3. Map Explorer: media right -->
+        <article class="feature-row">
+          <div class="feature-text">
+            <span class="feature-icon">
+              <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m9 4 6 2 6-2v14l-6 2-6-2-6 2V6z"/><path d="M9 4v14M15 6v14"/></svg>
+            </span>
+            <h3>Map Explorer</h3>
+            <p class="stand-in">
+              Paragraph one, the map: your sightings, the filters and overlays over them,
+              the hotspot and county colourings, and how a search is something you ask for
+              rather than something that happens.
+            </p>
+            <p class="stand-in">
+              Paragraph two, maps that fill the window. Stays in this section deliberately:
+              it is a property of any map in the app, and this is where a reader meets maps.
+            </p>
+            <p class="stand-in">
+              Paragraph three, planting a pin to share a spot. Same reason, framed as any
+              birding map rather than as a Map Explorer feature.
+            </p>
+          </div>
+          <figure class="feature-media shot-slot shot-swap" data-shot="map">
+            <img class="for-light" src="../../website/assets/shots/map.webp" width="1600" height="860"
+                 alt="The Map Explorer tab showing sighting clusters around New York and New Jersey on a street basemap." loading="lazy" />
+            <img class="for-dark" src="../../website/assets/shots/map-dark.webp" width="1500" height="806" alt="" loading="lazy" />
+          </figure>
+        </article>
+
+        <!-- 4. Species Detail: reverse -->
+        <article class="feature-row reverse">
+          <div class="feature-text">
+            <span class="feature-icon">
+              <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5a2 2 0 0 1 2-2h6v16H5a2 2 0 0 0-2 2z"/><path d="M21 5a2 2 0 0 0-2-2h-6v16h6a2 2 0 0 1 2 2z"/></svg>
+            </span>
+            <h3>Species Detail</h3>
+            <p class="stand-in">
+              Paragraph one, your whole history with one bird in one view, and the three
+              sections inside it: subspecies and forms, the county shading, and the recent
+              media it plays inline.
+            </p>
+            <p class="stand-in">
+              Paragraph two, the relocated Weather card paragraph. It describes a card on
+              this tab and now sits in this tab's section. Guard-anchored on its own
+              phrase, with a 200-character floor; its attribution no longer comes from the
+              paragraph above it, which is a guard comment to re-argue.
+            </p>
+          </div>
+          <figure class="feature-media shot-slot" data-shot="species">
+            <img src="../../website/assets/shots/species.webp" width="1600" height="900"
+                 alt="The Species Detail tab for Northern Cardinal, showing sightings, media counts, and breeding category." loading="lazy" />
+          </figure>
+        </article>
+
+        <!-- 5. Calendar: media right -->
+        <article class="feature-row">
+          <div class="feature-text">
+            <span class="feature-icon">
+              <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18M8 2v4M16 2v4"/></svg>
+            </span>
+            <h3>Calendar</h3>
+            <p class="stand-in">
+              A year of your birding as month grids, what each day carries, and the ways to
+              page, filter, fold the years together and open a day. One paragraph, and the
+              per-feature reassurance at the end of it goes.
+            </p>
+          </div>
+          <figure class="feature-media shot-slot" data-shot="calendar">
+            <img src="../../website/assets/shots/calendar.webp" width="1600" height="900"
+                 alt="The Calendar tab showing a year as twelve month grids, each day shaded by how many species were seen." loading="lazy" />
+          </figure>
+        </article>
+
+        <!-- 6. Multimedia: reverse -->
+        <article class="feature-row reverse">
+          <div class="feature-text">
+            <span class="feature-icon">
+              <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="m21 16-4.5-4.5L7 21"/></svg>
+            </span>
+            <h3>Multimedia</h3>
+            <p class="stand-in">
+              Your life list as a media checklist: what you have photographed, recorded and
+              filmed, what you still have not, and the filters that narrow it.
+            </p>
+          </div>
+          <figure class="feature-media shot-slot" data-shot="multimedia">
+            <img src="../../website/assets/shots/multimedia.webp" width="1600" height="900"
+                 alt="The Multimedia tab, a life-list table with photo, audio, video, and total media counts per species." loading="lazy" />
+          </figure>
+        </article>
+
+        <!-- 7. Breeding Codes: media right -->
+        <article class="feature-row">
+          <div class="feature-text">
+            <span class="feature-icon">
+              <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4c0 6 16 10 16 16M20 4C20 10 4 14 4 20"/><path d="M7 5h10M7 19h10M9 9h6M9 15h6"/></svg>
+            </span>
+            <h3>Breeding Codes</h3>
+            <p class="stand-in">
+              Where your breeding evidence stands, as a matrix across every eBird code,
+              with the filters and the legend that make it readable.
+            </p>
+          </div>
+          <figure class="feature-media shot-slot" data-shot="breeding">
+            <img src="../../website/assets/shots/breeding.webp" width="1600" height="900"
+                 alt="The Breeding Codes tab showing a species-by-code matrix with tier-colored count badges." loading="lazy" />
+          </figure>
+        </article>
+
+        <!-- 8. Checklists: reverse -->
+        <article class="feature-row reverse">
+          <div class="feature-text">
+            <span class="feature-icon">
+              <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M7 9h4M7 13h7M7 17h5"/><path d="M16 2v4M8 2v4"/></svg>
+            </span>
+            <h3>Checklists</h3>
+            <p class="stand-in">
+              Your checklists as whole outings: searching every comment you have written,
+              and the filters that combine has and does-not-have across a whole list.
+            </p>
+          </div>
+          <figure class="feature-media feature-mock" aria-hidden="true">
+            <div class="ck">
+              <div class="ck-search">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+                heron
+              </div>
+              <div class="ck-row"><span class="ck-date">May 24</span><span class="ck-text">Green Heron hunting from the low snag at the west pond again.</span></div>
+              <div class="ck-row alt"><span class="ck-date">Apr 2</span><span class="ck-text">Night-heron roost back up to 11 birds at dusk.</span></div>
+              <div class="ck-row"><span class="ck-date">Mar 9</span><span class="ck-text">First Great Blue Heron nest material flight of the spring.</span></div>
+              <div class="ck-count">3 of 87 comments</div>
+            </div>
+          </figure>
+        </article>
+
+        <!-- 9. List Comparer: media right -->
+        <article class="feature-row">
+          <div class="feature-text">
+            <span class="feature-icon">
+              <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="18" cy="18" r="3"/><path d="M6 9v6a3 3 0 0 0 3 3h3M18 15V9a3 3 0 0 0-3-3h-3"/><path d="m9 15-3 3 3 3M15 9l3-3-3-3" opacity=".55"/></svg>
+            </span>
+            <h3>List Comparer</h3>
+            <p class="stand-in">
+              Two lists, or two checklists, side by side: what they share, what only one of
+              them has, and how much detail comes along for the ride.
+            </p>
+          </div>
+          <figure class="feature-media feature-mock" aria-hidden="true">
+            <div class="cmp">
+              <div class="cmp-head"><span>My list</span><span>Other list</span></div>
+              <div class="cmp-row"><span class="cmp-name">Northern Cardinal</span><span class="cmp-a win">12</span><span class="cmp-b">8</span></div>
+              <div class="cmp-row"><span class="cmp-name">Song Sparrow</span><span class="cmp-a">5</span><span class="cmp-b win">9</span></div>
+              <div class="cmp-row"><span class="cmp-name">Osprey</span><span class="cmp-a win">3</span><span class="cmp-b">1</span></div>
+              <div class="cmp-row only"><span class="cmp-name">Scarlet Tanager</span><span class="cmp-a win">2</span><span class="cmp-b">&ndash;</span></div>
+              <div class="cmp-row only"><span class="cmp-name">Bobolink</span><span class="cmp-a">&ndash;</span><span class="cmp-b win">4</span></div>
+            </div>
+          </figure>
+        </article>
+
+        <!-- 10. Named Birds: reverse -->
+        <article class="feature-row reverse">
+          <div class="feature-text">
+            <span class="feature-icon">
+              <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41 13.42 20.6a2 2 0 0 1-2.83 0L3 13V3h10l7.59 7.59a2 2 0 0 1 0 2.82z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg>
+            </span>
+            <h3>Named Birds</h3>
+            <p class="stand-in">
+              Naming an individual bird in your own comment, and everything the app then
+              gathers about it: the dates, the places, the timelines, the media. Heading
+              pinned byte-exact by a guard, and already the right name.
+            </p>
+          </div>
+          <figure class="feature-media shot-slot" data-shot="named-birds">
+            <img src="../../website/assets/shots/named-birds.webp" width="1600" height="800"
+                 alt="The Named Birds tab listing three named individuals with their species, date range, elapsed span and sighting counts, above a strip giving each one a labelled lane on a shared time axis." loading="lazy" />
+          </figure>
+        </article>
+
+      </div>
+    </section>
+  </main>
+
+  <script>
+    /* Mockup chrome only: the shipped page's theme behaviour, trimmed to the toggle,
+       so a reviewer can check the dark tokens and the row 3 image swap. The scroll
+       reveal is deliberately NOT included: every row should render at rest here. */
+    (function () {
+      var root = document.documentElement;
+      var btn = document.getElementById('theme-toggle');
+      if (!btn) return;
+      btn.addEventListener('click', function () {
+        root.setAttribute('data-theme', root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+      });
+    })();
+  </script>
+</body>
+</html>

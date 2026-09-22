@@ -263,14 +263,6 @@ h1 .accent { color: var(--accent); }
 .cmp .win { color: var(--accent-strong); background: var(--accent-bg); border-radius: 6px; }
 .cmp-row.only .cmp-name { color: var(--text-muted); font-style: italic; }
 
-/* Named Birds mock */
-.named { width: 100%; font-size: .9rem; display: flex; flex-direction: column; gap: 4px; }
-.named-row { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: center; padding: 9px 10px; border-radius: 8px; }
-.named-row:nth-child(even) { background: var(--surface-subtle); }
-.named-tag { font-weight: 600; color: var(--accent-strong); background: var(--accent-bg); border-radius: 6px; padding: 2px 7px; font-size: .8rem; }
-.named-sp { color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.named-seen { text-align: right; font-variant-numeric: tabular-nums; color: var(--text-muted); font-weight: 600; }
-
 /* Checklists comment-search mock */
 .ck { width: 100%; font-size: .9rem; display: flex; flex-direction: column; gap: 4px; }
 .ck-search { display: flex; align-items: center; gap: 8px; border: 1.5px solid var(--border); border-radius: 8px; padding: 7px 11px; color: var(--text-muted); font-size: .85rem; margin-bottom: 6px; background: var(--surface); }

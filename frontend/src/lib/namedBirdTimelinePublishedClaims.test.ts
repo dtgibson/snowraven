@@ -35,6 +35,19 @@
 // EVERY ROW ASSERTS THE PASSAGE EXISTS BEFORE CHECKING WHAT IT SAYS. Deleting
 // the sentence is the move an author under time pressure actually reaches for,
 // and it is the one a naive "must contain" guard rewards.
+//
+// website-readme-copy-pass: TWO TIERS, STATED. `docs/HELP.md` and
+// `ACCESSIBILITY.md` keep every byte-exact row below. `README.md` and
+// `website/index.html` are decision surfaces written for a reader deciding
+// whether the app fits them, so they carry the feature's CLAIM (a timeline per
+// named bird, and one strip putting every named bird on a shared axis) and no
+// longer its mechanism or operation: which two dates the span figure measures,
+// the switch that moves a span's far end to today, which keys step through the
+// marks, which line names a sighting. Those rows therefore read HELP and
+// ACCESSIBILITY only, recorded here as the decision surfaces leaving that
+// roster, not as a loosening. Every surface keeps its existence leg and the
+// timeline claim. README's passage is its `### Named Birds` section, heading to
+// heading, rather than a single bullet line.
 /// <reference types="node" />
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
@@ -72,11 +85,14 @@ function helpSection(): string {
   return end === -1 ? rest : rest.slice(0, end)
 }
 
-/** `README.md`'s Named Birds bullet. */
-function readmeBullet(): string {
-  const line = read('README.md').split('\n').find(l => l.startsWith('- **Named Birds**'))
-  expect(line, 'README.md has a Named Birds feature bullet').toBeTruthy()
-  return line as string
+/** `README.md`'s `### Named Birds` section, heading to the next heading. */
+function readmeSection(): string {
+  const src = read('README.md')
+  const start = src.indexOf('\n### Named Birds\n')
+  expect(start, 'README.md has a `### Named Birds` section').toBeGreaterThan(-1)
+  const rest = src.slice(start + 1)
+  const end = rest.search(/\n#{2,3} /)
+  return end === -1 ? rest : rest.slice(0, end)
 }
 
 /** The website's Named Birds feature row, tags stripped so the prose reads as prose. */
@@ -138,9 +154,11 @@ describe('the three restatements carry the same formulation (QA-66 / QA-67)', ()
   // exactly like a wording difference until they are diffed.
   const passages = (): Array<[string, string]> => [
     ['docs/HELP.md', helpSection()],
-    ['README.md', readmeBullet()],
+    ['README.md', readmeSection()],
     ['website/index.html', sitePassage()],
   ]
+  /** The two decision surfaces, the pair most likely to drift from each other. */
+  const decisionPassages = (): Array<[string, string]> => passages().slice(1)
 
   it('each file has a Named Birds passage at all (non-vacuity, per file)', () => {
     for (const [file, text] of passages()) {
@@ -154,27 +172,52 @@ describe('the three restatements carry the same formulation (QA-66 / QA-67)', ()
     }
   })
 
-  it('each says the figure names which two dates it measures', () => {
-    for (const [file, text] of passages()) {
-      expect(text.toLowerCase(), `${file} must state the figure's endpoints`)
-        .toMatch(/which two dates|first to last sighting|first sighting to/)
-    }
+  it('docs/HELP.md says the figure names which two dates it measures', () => {
+    // website-readme-copy-pass: HELP only. The decision surfaces no longer
+    // describe the span figure at all (how a figure is measured is mechanism).
+    expect(helpSection().toLowerCase(), 'docs/HELP.md must state the figure\'s endpoints')
+      .toMatch(/which two dates|first to last sighting|first sighting to/)
   })
 
-  it('each says the marks are selectable and the arrow keys step through them', () => {
-    for (const [file, text] of passages()) {
-      expect(text.toLowerCase(), `${file} must say the marks can be read`).toMatch(/arrow keys/)
-      expect(text.toLowerCase(), `${file} must say a line names the sighting`)
-        .toMatch(/names? (that|its|the) sighting|line beneath|line underneath|read any one of them/)
-    }
+  it('docs/HELP.md says the marks are selectable and the arrow keys step through them', () => {
+    // website-readme-copy-pass: HELP only. README and the website describe what
+    // the timelines show, not how a mark is operated; the keyboard map is
+    // published in HELP here and in ACCESSIBILITY.md above, and both keep it.
+    const text = helpSection().toLowerCase()
+    expect(text, 'docs/HELP.md must say the marks can be read').toMatch(/arrow keys/)
+    expect(text, 'docs/HELP.md must say a line names the sighting')
+      .toMatch(/names? (that|its|the) sighting|line beneath|line underneath|read any one of them/)
   })
 
-  it('README and the website share one formulation for the switch', () => {
+  it('docs/HELP.md carries the Measure to switch and its two settings', () => {
+    // website-readme-copy-pass: HELP only. The switch that moves every span's
+    // far end from the last sighting to today is a control, and the decision
+    // surfaces describe no controls. Through 1.0.32 README and the website were
+    // held to one formulation of it ("last sighting to today"); both leave that
+    // roster by user decision, and the row is not loosened but retargeted to
+    // the one surface that still publishes the control.
+    const help = helpSection()
+    expect(help).toContain('**Measure to.**')
+    expect(help).toContain('**Last sighting**')
+    expect(help).toContain('**Today**')
+    // Both endpoints, in the copy module's own words (endpoints('today') is
+    // 'first sighting to today'; endpoints('last-sighting') is 'first to last sighting').
+    expect(help).toContain(endpoints('today'))
+    expect(help).toContain(endpoints('last-sighting'))
+    expect(help).toContain('the gap since you last saw a bird')
+  })
+
+  it('README and the website share one formulation for the shared strip', () => {
     // The two short restatements are the pair most likely to drift, and the
     // v1.0.20 sweep failure was exactly this shape: the right words existed in
-    // the same diff, in a different file.
-    expect(readmeBullet()).toContain("last sighting to today")
-    expect(sitePassage()).toContain("last sighting to today")
+    // the same diff, in a different file. Compared against EACH OTHER on the
+    // one claim both still make beyond the timeline itself. The strip's purpose
+    // ("which birds you were following when") is HELP's; a closer that explains
+    // the obvious purpose of a feature is not a claim the decision surfaces make.
+    for (const [file, text] of decisionPassages()) {
+      expect(text.toLowerCase(), `${file} names the shared strip`).toMatch(/one strip puts them all on a shared time axis/)
+    }
+    expect(helpSection().toLowerCase()).toContain('which birds you were following when')
   })
 
   it('docs/HELP.md uses the settled house phrasing for a session-only setting', () => {
@@ -186,10 +229,10 @@ describe('the three restatements carry the same formulation (QA-66 / QA-67)', ()
     // guard with the screen instead of leaving a third copy behind it.
     expect(helpSection()).toContain(perBirdHead)
     expect(helpSection().toLowerCase()).toContain(masterHead.toLowerCase())
-    for (const [file, text] of passages()) {
-      expect(text.toLowerCase(), `${file} must use the shipped endpoint wording`)
-        .toContain(endpoints('today').split(' to ')[1])
-    }
+    // website-readme-copy-pass: the endpoint wording is HELP's only, with the
+    // switch it belongs to (above).
+    expect(helpSection().toLowerCase(), 'docs/HELP.md must use the shipped endpoint wording')
+      .toContain(endpoints('today').split(' to ')[1])
   })
 
   it('no prose names this surface from a component or a file name', () => {

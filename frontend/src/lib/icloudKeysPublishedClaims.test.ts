@@ -15,9 +15,19 @@
 // - both policy pages carry the key storage, protection and removal
 //   statements, and the HELP sentence "Your API keys, settings and caches
 //   are never synced." is gone (FR-48, FR-49, QA-37);
-// - README, the website and the App Store record name the switch, and the
-//   LISTING's "never written to it" claim no longer covers API keys (FR-50,
-//   FR-51, QA-38);
+// - README and the website state the sync posture in one formulation (keys
+//   stay on the device unless you turn on iCloud syncing, and what you sync
+//   goes to your own iCloud account and nowhere else), and the App Store
+//   record names the switch; the LISTING's "never written to it" claim no
+//   longer covers API keys (FR-50, FR-51, QA-38). website-readme-copy-pass
+//   narrowed the README and website rows from naming the `Sync API keys`
+//   switch to stating that posture: the user's direction is that a reader
+//   needs to know everything is private by default and stays in their own
+//   control, and does not need to know about individual switches on a settings
+//   page. The two surfaces are held to the same formulation of the posture;
+//   `docs/HELP.md`, both policy pages and the LISTING keep the switch by name,
+//   and the FR-48 sweep above still refuses any keys-stay-local sentence that
+//   lacks the opt-in qualifier.
 // - no em dash in any of them, nor in the feature's copy module (QA-45).
 /// <reference types="node" />
 import { describe, it, expect } from 'vitest'
@@ -159,10 +169,37 @@ describe('FR-49 / QA-37: the in-app help', () => {
 })
 
 describe('FR-50 / FR-51 / QA-38: README, the website and the App Store record', () => {
-  it('README and the website name the second switch', () => {
-    expect(read('README.md')).toMatch(/\*\*Sync API keys\*\* switch/)
-    expect(strip(read('website/index.html'))).toMatch(/A second switch, also off by\s+default, can share your two API keys/)
-    expect(strip(read('website/index.html'))).not.toContain('nothing else is synced')
+  /** The sync-posture sentence each decision surface owes: it names the keys
+   *  AND iCloud AND the opt-in, in ONE sentence. */
+  const postureSentence = (src: string) =>
+    sentences(src).find(s => /API keys?/i.test(s) && /iCloud/.test(s) && /unless you turn on|opt-in/i.test(s))
+
+  it('README and the website state the sync posture, in one formulation, and never claim nothing else is synced', () => {
+    // website-readme-copy-pass: narrowed from naming the second switch to the
+    // posture the user asked for. Compared against EACH OTHER, not only each
+    // against the policy: the two short restatements are the pair most likely
+    // to drift, and the shape of the v1.0.20 sweep failure was exactly one of
+    // them having the right words and the other not.
+    const pair: Array<[string, string]> = [
+      ['README.md', read('README.md')],
+      ['website/index.html', strip(read('website/index.html'))],
+    ]
+    for (const [name, src] of pair) {
+      const s = postureSentence(src)
+      expect(s, `${name} has a sentence that names API keys, iCloud and the opt-in`).toBeTruthy()
+      // Private by default: the keys stay put unless the user acts.
+      expect(s, `${name}: keys stay on the device by default`).toMatch(STAYS_LOCAL)
+      // In the user's own control: the destination is their own account, nowhere else.
+      expect(s, `${name}: into the user's own account`).toMatch(/your own iCloud account and nowhere else/)
+      expect(src, name).not.toContain('nothing else is synced')
+    }
+  })
+
+  it('GUARD THE GUARD: the aside sentence the website retired is not what this row wants', () => {
+    // The 1.0.32 aside named the switch but split the posture across three
+    // sentences; none of them carries keys, iCloud and the opt-in together.
+    const aside = 'On a Mac, iPhone or iPad, an optional iCloud Sync switch in Settings (off by default) keeps those two files the same across your own Apple devices through your own iCloud account, so an export uploaded once is used everywhere. A second switch, also off by default, can share your two API keys the same way, so a key entered once is used on every device that turns it on. Settings and caches are never synced.'
+    expect(postureSentence(aside)).toBeUndefined()
   })
 
   it('the LISTING corrects its bullet, records why Data Not Collected still holds, and no longer says keys stay on the device unqualified', () => {

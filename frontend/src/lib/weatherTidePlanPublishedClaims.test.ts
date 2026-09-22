@@ -3,16 +3,16 @@
 // weatherStatsPublishedClaims.test.ts shape: three extractors scoped to each
 // file's own planner passage (anchored on the literal name), an existence
 // assertion before every claim, the claims held to the CODE rather than to
-// each other, the three files compared against each other on the claim
-// sentences, and the em-dash check. The privacy policy's one new clause gets
-// its own row, because a sentence added to PRIVACY_POLICY.md owes a guard in
-// the same change.
+// each other, the files compared against each other on the claim sentences,
+// and the em-dash check. The privacy policy's one new clause gets its own row,
+// because a sentence added to PRIVACY_POLICY.md owes a guard in the same
+// change.
 //
 // WHY PASSAGES RATHER THAN WHOLE FILES: HELP.md's Weather tab section
-// legitimately describes Predict's single-moment result in the same
-// subsection, README's Weather bullet legitimately describes the checklist
-// lookup, and the website's Weather article carries both. A whole-document
-// guard would either fail on those or be loosened until it asserted nothing.
+// legitimately describes Plan's single-moment result in the same subsection,
+// README's Weather section legitimately describes the checklist lookup, and
+// the website's Weather article carries both. A whole-document guard would
+// either fail on those or be loosened until it asserted nothing.
 //
 // MUTATION-VERIFIED in four directions before its first green was trusted,
 // each restored byte-identical: the "stops where the forecast stops" sentence
@@ -32,6 +32,24 @@
 // sentence re-worded in the website alone (one file diverging) RED; "Predict"
 // re-inserted as the entry's name in HELP alone RED; the ACCESSIBILITY
 // sentence deleted RED.
+//
+// website-readme-copy-pass: TWO TIERS, STATED. `docs/HELP.md` keeps every one
+// of the eight byte-exact sentences. `README.md` and `website/index.html` are
+// decision surfaces written for a reader deciding whether the app fits them,
+// so they carry the Planner's one CLAIM at claim level (it lays out the
+// sunrises and sunsets ahead, each with its tide and forecast weather) and
+// nothing about its operation, its bounds, its chart or its promises. The rows
+// the two surfaces leave are named where it happens: "the plan stops where the
+// weather forecast stops" (the user's own example of stating the obvious), "it
+// ranks and recommends nothing" (reassurance, by the same direction), the
+// offline re-show (offline is unmentioned on both surfaces by decision;
+// `palettePublishedClaims` holds them to that), the moon phase, the Days in
+// view control, the tap-or-arrow-keys readout, the drawn sun height and the
+// entry's name Plan (all operation or in-app labels, all in HELP). Every
+// surface keeps its existence leg and its 200-character floor. README's
+// passage is its `### Weather` section, heading to heading; the website's is
+// the paragraph holding the FIRST occurrence of the name in the file, which is
+// the Weather article's one paragraph.
 /// <reference types="node" />
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
@@ -63,14 +81,17 @@ function helpPassage(): string {
   return p as string
 }
 
-/** README.md's Weather bullet. */
+/** README.md's `### Weather` section, heading to the next heading. */
 function readmePassage(): string {
-  const line = read('README.md').split('\n').find(l => l.startsWith('- **Weather & Tide Lookup**'))
-  expect(line, 'README.md has a Weather & Tide Lookup bullet').toBeTruthy()
-  return line as string
+  const src = read('README.md')
+  const start = src.indexOf('\n### Weather\n')
+  expect(start, 'README.md has a `### Weather` section').toBeGreaterThan(-1)
+  const rest = src.slice(start + 1)
+  const end = rest.search(/\n#{2,3} /)
+  return end === -1 ? rest : rest.slice(0, end)
 }
 
-/** The website's Weather & Tide Lookup paragraph, tags stripped. */
+/** The website's Planner paragraph, tags stripped. */
 function sitePassage(): string {
   const src = read('website/index.html')
   const i = src.indexOf(NAME)
@@ -85,6 +106,8 @@ const SURFACES: Array<[string, () => string]> = [
   ['README.md', readmePassage],
   ['website/index.html', sitePassage],
 ]
+/** The two decision surfaces, held to each other at claim level. */
+const DECISION_SURFACES = SURFACES.slice(1)
 
 /** The sentences of a passage, so a claim is matched as a statement rather than
  *  as a co-occurrence of words. */
@@ -98,6 +121,16 @@ describe('the published Weather/tide Planner passages exist at all', () => {
       expect(text, name).toContain(NAME)
     })
   }
+
+  it('the website locates it by the FIRST occurrence of the name, so nothing earlier in the file may use it', () => {
+    // The extractor above is a file-wide indexOf. A hero, a meta description or
+    // the features heading naming the Planner would silently relocate the
+    // extraction to a paragraph that makes none of these claims.
+    const src = read('website/index.html')
+    const first = src.indexOf(NAME)
+    expect(src.indexOf(NAME, first + 1), 'the name occurs once in website/index.html').toBe(-1)
+    expect(first).toBeGreaterThan(src.indexOf('<h3>Weather</h3>'))
+  })
 })
 
 describe('claim 1: the window ends where the forecast ends, in the closing note\'s own words', () => {
@@ -107,18 +140,29 @@ describe('claim 1: the window ends where the forecast ends, in the closing note\
   it('the code states it', () => {
     expect(stops).toBe('The plan stops where the weather forecast stops.')
   })
-  for (const [name, get] of SURFACES) {
-    it(`${name} states it in the same words`, () => {
-      expect(sentences(get()), name).toContain(stops)
-    })
-  }
+  it('docs/HELP.md states it in the same words', () => {
+    // website-readme-copy-pass: HELP only. The two decision surfaces leave this
+    // roster because they no longer make the claim, by user decision ("of
+    // course it does"); HELP keeps the sentence byte for byte.
+    expect(sentences(helpPassage())).toContain(stops)
+  })
 })
 
 describe('claim 2: every sunrise and sunset in the window is listed with its tide and weather', () => {
-  const re = /lists every sunrise and sunset from now to the end of the weather forecast, each with the predicted tide and the forecast weather at that moment/
-  for (const [name, get] of SURFACES) {
-    it(`${name} states it`, () => {
-      expect(sentences(get()).some(s => re.test(s)), name).toBe(true)
+  const exact = /lists every sunrise and sunset from now to the end of the weather forecast, each with the predicted tide and the forecast weather at that moment/
+  it('docs/HELP.md states it in the same words', () => {
+    expect(sentences(helpPassage()).some(s => exact.test(s))).toBe(true)
+  })
+  for (const [name, get] of DECISION_SURFACES) {
+    it(`${name} states the claim: the sunrises and sunsets ahead, each with its tide and forecast weather`, () => {
+      // Claim-level, one sentence: the three things laid out together are what
+      // the Planner IS; a passage that drops the tide or the weather from that
+      // sentence describes a different feature.
+      const s = sentences(get()).find(x => x.includes(NAME))
+      expect(s, `${name}: the sentence naming the Planner`).toBeTruthy()
+      expect(s, name).toMatch(/sunrises? and sunsets?/)
+      expect(s, name).toMatch(/\btide\b/)
+      expect(s, name).toMatch(/forecast weather/)
     })
   }
   it('the code lists sunrises and sunsets under the day-by-day divider that names the list', () => {
@@ -129,11 +173,16 @@ describe('claim 2: every sunrise and sunset in the window is listed with its tid
 })
 
 describe('claim 3: the plan ranks and recommends nothing', () => {
+  it('docs/HELP.md says so in the closing note\'s words', () => {
+    // website-readme-copy-pass: the positive statement is HELP's only. On the
+    // decision surfaces "it ranks and recommends nothing" is reassurance about
+    // what the app does NOT do, which the user's register excludes; they leave
+    // this roster's positive leg and keep its negative one below.
+    expect(sentences(helpPassage())).toContain('It ranks and recommends nothing.')
+  })
   for (const [name, get] of SURFACES) {
-    it(`${name} says so positively, and never says the opposite`, () => {
-      const text = get()
-      expect(sentences(text), name).toContain('It ranks and recommends nothing.')
-      const low = text.toLowerCase()
+    it(`${name} never says the opposite`, () => {
+      const low = get().toLowerCase()
       for (const phrase of ['best morning', 'best conditions', 'you should', 'recommended window', 'good birding']) {
         expect(low.includes(phrase), `${name}: "${phrase}"`).toBe(false)
       }
@@ -151,11 +200,12 @@ describe('claim 3: the plan ranks and recommends nothing', () => {
 
 describe('claim 4: a plan loaded once re-shows offline with a cue', () => {
   const claim = 'A plan loaded once re-shows offline with a cue naming when it was fetched.'
-  for (const [name, get] of SURFACES) {
-    it(`${name} states it`, () => {
-      expect(sentences(get()), name).toContain(claim)
-    })
-  }
+  it('docs/HELP.md states it', () => {
+    // website-readme-copy-pass: HELP only. Offline is unmentioned on the two
+    // decision surfaces by user decision, so they leave this roster; the
+    // sentence and the behaviour are unchanged.
+    expect(sentences(helpPassage())).toContain(claim)
+  })
   it('the panel really fetches both halves through the replay seam', () => {
     // Read the component rather than trusting the sentence, with comments
     // stripped so a commented-out call cannot satisfy it.
@@ -170,11 +220,11 @@ describe('claim 4: a plan loaded once re-shows offline with a cue', () => {
 
 describe('claim 5: the Days in view choice and the day buttons (design D4-12 / D4-14)', () => {
   const claim = "On a wide window a Days in view choice above the chart fits one, three, seven or all of the plan's days into the chart at once, and two day buttons beside the legend move the chart a day at a time."
-  for (const [name, get] of SURFACES) {
-    it(`${name} states it in the same words`, () => {
-      expect(sentences(get()), name).toContain(claim)
-    })
-  }
+  it('docs/HELP.md states it in the same words', () => {
+    // website-readme-copy-pass: HELP only. A control's layout is operation, and
+    // the decision surfaces no longer describe operation.
+    expect(sentences(helpPassage())).toContain(claim)
+  })
   it('the code names the control and the buttons as the prose does', () => {
     expect(PLAN_COPY.daysInView).toBe('Days in view')
     expect(PLAN_COPY.daysOption('1', 8)).toBe('1 day')
@@ -189,10 +239,16 @@ describe('claim 5: the Days in view choice and the day buttons (design D4-12 / D
 // ── plan-sun-moon-readout: the rename and the three additions (FR-05, FR-06, FR-45, FR-46)
 
 describe('the rename: the entry is Plan, never Predict (FR-05, FR-06, QA-05, QA-06)', () => {
+  it('docs/HELP.md names the entry Plan in the planner passage', () => {
+    // website-readme-copy-pass: HELP only for the positive half. The decision
+    // surfaces no longer name the entry at all (a control name is operating
+    // detail), so what they owe is the negative half below: the retired name
+    // never comes back through them.
+    expect(helpPassage()).toContain('a second action in Plan')
+  })
   for (const [name, get] of SURFACES) {
-    it(`${name} names the entry Plan in the planner passage and never names it Predict`, () => {
+    it(`${name} never names the entry Predict`, () => {
       const text = get()
-      expect(text, name).toContain('a second action in Plan')
       expect(/\bPredict\b/.test(text), `${name}: Predict`).toBe(false)
       expect(text, name).not.toContain('Get forecast')
     })
@@ -230,11 +286,11 @@ describe('the rename: the entry is Plan, never Predict (FR-05, FR-06, QA-05, QA-
 
 describe('claim 6: a tap or the arrow keys read the estimated tide, weather and sun at any moment, from the plan rather than a fresh lookup (FR-45)', () => {
   const claim = 'A tap on the timeline, or the arrow keys with it focused, reads the estimated tide, weather and sun height at any moment, from the plan already loaded rather than a fresh lookup.'
-  for (const [name, get] of SURFACES) {
-    it(`${name} states it`, () => {
-      expect(sentences(get()), name).toContain(claim)
-    })
-  }
+  it('docs/HELP.md states it', () => {
+    // website-readme-copy-pass: HELP only. How a moment is read off the chart is
+    // operation; the decision surfaces describe what the Planner lists.
+    expect(sentences(helpPassage())).toContain(claim)
+  })
   it('the code states both facts in the readout\'s own words', () => {
     expect(PLAN_COPY.restLine).toContain('use the arrow keys, to read the tide, weather and sun height at any moment')
     expect(PLAN_COPY.estimateLine).toBe('Estimated from the plan, not a fresh lookup. For an exact moment, use Get specific forecast.')
@@ -243,11 +299,10 @@ describe('claim 6: a tap or the arrow keys read the estimated tide, weather and 
 
 describe('claim 7: the sun\'s height is drawn with sunrise and sunset where the plan lists them (FR-45)', () => {
   const claim = "The sun's height is drawn across the whole window, with sunrise and sunset exactly where the plan lists them."
-  for (const [name, get] of SURFACES) {
-    it(`${name} states it`, () => {
-      expect(sentences(get()), name).toContain(claim)
-    })
-  }
+  it('docs/HELP.md states it', () => {
+    // website-readme-copy-pass: HELP only, for the same reason as claim 6.
+    expect(sentences(helpPassage())).toContain(claim)
+  })
   it('the code names the track in the legend and anchors it to the listed events', () => {
     expect(PLAN_COPY.legendSun).toBe('Sun height')
     // The anchoring is the module's contract, with comments stripped so a
@@ -260,11 +315,12 @@ describe('claim 7: the sun\'s height is drawn with sunrise and sunset where the 
 
 describe('claim 8: each day states its moon phase from the checklist blocks\' own computation (FR-45)', () => {
   const claim = 'Each day states its moon phase, from the same computation the checklist weather blocks use.'
-  for (const [name, get] of SURFACES) {
-    it(`${name} states it`, () => {
-      expect(sentences(get()), name).toContain(claim)
-    })
-  }
+  it('docs/HELP.md states it in the same words', () => {
+    // website-readme-copy-pass: HELP only. The moon phase is one figure among
+    // the plan's; the decision surfaces describe what the Planner is for, not
+    // each figure it lists.
+    expect(sentences(helpPassage())).toContain(claim)
+  })
   it('the code imports the checklist blocks\' moon function rather than copying it', () => {
     const src = read('frontend/src/lib/planMoon.ts')
     const code = src.split('\n').filter(l => !l.trim().startsWith('//') && !l.trim().startsWith('*') && !l.trim().startsWith('/*')).join('\n')
@@ -274,8 +330,11 @@ describe('claim 8: each day states its moon phase from the checklist blocks\' ow
   })
 })
 
-describe('the three files agree with each other, not merely each with the code', () => {
-  it('all seven claim sentences are identical across the three surfaces', () => {
+describe('the files agree with each other, not merely each with the code', () => {
+  it('docs/HELP.md carries all seven byte-exact claim sentences and the opening sentence', () => {
+    // The byte-exact tier, unweakened: the eight sentences that were pinned
+    // across three files through 1.0.32 are still pinned, on the one surface
+    // whose job is the full account.
     const claims = [
       'The plan stops where the weather forecast stops.',
       'It ranks and recommends nothing.',
@@ -285,18 +344,30 @@ describe('the three files agree with each other, not merely each with the code',
       "The sun's height is drawn across the whole window, with sunrise and sunset exactly where the plan lists them.",
       'Each day states its moon phase, from the same computation the checklist weather blocks use.',
     ]
-    for (const [name, get] of SURFACES) {
-      const ss = sentences(get())
-      for (const c of claims) expect(ss, `${name}: ${c}`).toContain(c)
-      const first = ss.find(s => s.startsWith('The Weather/tide Planner, a second action in Plan, lists every sunrise and sunset'))
-      expect(first, name).toBe('The Weather/tide Planner, a second action in Plan, lists every sunrise and sunset from now to the end of the weather forecast, each with the predicted tide and the forecast weather at that moment, on one chart and in one list that carries every figure the chart draws.')
+    const ss = sentences(helpPassage())
+    for (const c of claims) expect(ss, `docs/HELP.md: ${c}`).toContain(c)
+    const first = ss.find(s => s.startsWith('The Weather/tide Planner, a second action in Plan, lists every sunrise and sunset'))
+    expect(first).toBe('The Weather/tide Planner, a second action in Plan, lists every sunrise and sunset from now to the end of the weather forecast, each with the predicted tide and the forecast weather at that moment, on one chart and in one list that carries every figure the chart draws.')
+  })
+
+  it('README and the website make the same claim, at claim level', () => {
+    // The two decision surfaces, compared against EACH OTHER: the same
+    // matchers over both, so one carrying a claim the other dropped goes red
+    // as a sweep failure rather than passing as a wording difference.
+    const CLAIMS: Array<[string, RegExp]> = [
+      ['names the Planner', /The Weather\/tide Planner lays out/],
+      ['the sunrises and sunsets ahead, each with its tide and forecast weather', /sunrises? and sunsets?[^.]*\btide\b[^.]*forecast weather/],
+    ]
+    for (const [name, get] of DECISION_SURFACES) {
+      const text = get()
+      for (const [what, re] of CLAIMS) expect(re.test(text), `${name}: ${what}`).toBe(true)
     }
   })
 
   it('names the surface as the user sees it, never from a component or file name', () => {
+    expect(helpPassage()).toContain('Plan')
     for (const [name, get] of SURFACES) {
       const text = get()
-      expect(text, name).toContain('Plan')
       for (const internal of ['PlanChart', 'PlanResult', 'WeatherForecastPanel', 'PredictMap', 'weatherPlan', 'tidePlan', 'composePlan', 'planSun', 'planMoon', 'planReadout', 'planPick']) {
         expect(text, `${name}: ${internal}`).not.toContain(internal)
       }
@@ -341,7 +412,7 @@ describe('the privacy policy covers the plan\'s NOAA request (FR-57 / QA-52)', (
     expect(line).toContain('the current or predicted tide for a location and time you choose')
   })
 
-  it('the OpenWeather sentence is unchanged: the plan sends the request Predict already sends', () => {
+  it('the OpenWeather sentence is unchanged: the plan sends the request the single-moment action already sends', () => {
     const line = policy().split('\n').find(l => l.startsWith('- **OpenWeather**'))
     expect(line).toBe('- **OpenWeather**: to fetch weather, either the historical weather for a checklist, or the current and forecast weather for a location and time you choose. Uses your own OpenWeather API key. See [OpenWeather\'s privacy policy](https://openweather.co.uk/privacy-policy).')
   })

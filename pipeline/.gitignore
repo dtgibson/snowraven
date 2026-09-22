@@ -9,3 +9,12 @@ handoff.md
 .qa-attempts
 .continuation-owed
 .gate-opened
+# Weft: the same per-run files at any depth (a nested run copy is still per-run)
+**/handoff.md
+**/how-to-see.md
+**/qa-report.md
+**/security-report.md
+**/deployment-record.md
+# Set-aside drafts and staged copies: reference only, the live files are the record
+*/superseded-*/
+*/proposed/

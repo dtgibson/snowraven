@@ -21,6 +21,15 @@
 // These assertions are deliberately about the CLAIM (a conditioning phrase in
 // the same sentence), not about an exact wording, so an editorial rewrite that
 // keeps the claim true stays green.
+//
+// website-readme-copy-pass: THE PARITY CLAIM IS NOW MADE BY `docs/HELP.md` ONLY,
+// and the two decision surfaces leave its non-vacuity roster by user decision
+// rather than by a loosening. `README.md` and `website/index.html` are written
+// for a reader deciding whether the app fits them; "the county numbers match the
+// tables beside them" is a claim whose negation would be a bug, not a feature a
+// reader weighs, so neither surface makes it any more. The rows below still
+// read both: IF a parity sentence ever returns to either, it must carry the
+// condition and the reason exactly as HELP's does. HELP keeps its non-vacuity.
 /// <reference types="node" />
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
@@ -62,6 +71,13 @@ const CONDITIONED = /Count all forms is off/
 /** Phrasings that assert the claim holds in every setting. */
 const UNCONDITIONAL = /\b(whatever|regardless of|no matter|however you set|either way|whether or not)\b/i
 
+/** Any sentence that claims the county NUMBERS agree, however it is worded. A
+ *  bare /match/ is too broad: README once described "a matching map pin button"
+ *  on the Map Explorer, which is not a claim about numbers. */
+const parityClaims = (src: string): string[] =>
+  sentencesWith(src, "Map Explorer's")
+    .filter(s => /match the county tables|numbers that match|match the Map Explorer's/.test(s))
+
 describe('the Map Explorer parity claim states the setting it holds under (QA-75)', () => {
   // ALL THREE restatements, including the one that had quietly dropped the
   // clause. A guard that reads two of three surfaces cannot see the surface the
@@ -72,30 +88,35 @@ describe('the Map Explorer parity claim states the setting it holds under (QA-75
     ['website/index.html', site],
   ] as const
 
-  it.each(SURFACES)('%s conditions it on Count all forms being OFF', (name, src) => {
-    // Any sentence that claims the county NUMBERS agree, however it is
-    // worded. A bare /match/ is too broad: README describes "a matching map
-    // pin button" on the Map Explorer, which is not a claim about numbers.
-    const claims = sentencesWith(src, "Map Explorer's")
-      .filter(s => /match the county tables|numbers that match|match the Map Explorer's/.test(s))
-    expect(claims.length, `${name}: no parity sentence found`).toBeGreaterThan(0)
+  it('docs/HELP.md makes the claim, and conditions it on Count all forms being OFF', () => {
+    // Non-vacuity lives here: HELP is the one surface that still publishes the
+    // parity sentence, and a pass because it was deleted would be a silent loss.
+    const claims = parityClaims(help)
+    expect(claims.length, 'docs/HELP.md: no parity sentence found').toBeGreaterThan(0)
     for (const s of claims) {
+      expect(s, `docs/HELP.md: ${s}`).toMatch(CONDITIONED)
+      expect(s, `docs/HELP.md: ${s}`).not.toMatch(UNCONDITIONAL)
+    }
+  })
+
+  it.each(SURFACES)('%s: any parity sentence it carries is conditioned on Count all forms being OFF', (name, src) => {
+    // website-readme-copy-pass: README and the website make no parity claim by
+    // decision, so this row asserts the CONDITION on whatever they do say and
+    // owes them no non-vacuity. Should the sentence come back to either, it
+    // comes back conditioned or this goes red.
+    for (const s of parityClaims(src)) {
       expect(s, `${name}: ${s}`).toMatch(CONDITIONED)
       expect(s, `${name}: ${s}`).not.toMatch(UNCONDITIONAL)
     }
   })
 
-  it('all three surfaces say the same thing, not merely three true things', () => {
+  it('docs/HELP.md names the scope AND the reason, so a reader learns the whole fact', () => {
     // The finding's actual complaint after the first repair: nothing was false
-    // any more, but the three still did not agree. Each must carry the scope
-    // AND the reason, so a reader of any one of them learns the same fact.
-    for (const [name, src] of SURFACES) {
-      const claims = sentencesWith(src, "Map Explorer's")
-        .filter(s => /match the county tables|numbers that match|match the Map Explorer's/.test(s))
-      const joined = claims.join(' ')
-      expect(joined, `${name} names the scope`).toMatch(/Count all forms is off/)
-      expect(joined, `${name} gives the reason`).toMatch(/countable-species rule/)
-    }
+    // any more, but the restatements still did not agree. The one surface that
+    // still carries the claim must carry both halves of it.
+    const joined = parityClaims(help).join(' ')
+    expect(joined, 'docs/HELP.md names the scope').toMatch(/Count all forms is off/)
+    expect(joined, 'docs/HELP.md gives the reason').toMatch(/countable-species rule/)
   })
 
   it('GUARD THE GUARD: the co-occurrence phrasing the old assertion allowed fails', () => {
@@ -105,6 +126,9 @@ describe('the Map Explorer parity claim states the setting it holds under (QA-75
     expect(bad).toMatch(/Count all forms/)          // the old assertion is satisfied
     expect(bad).not.toMatch(CONDITIONED)            // this one is not
     expect(bad).toMatch(UNCONDITIONAL)
+    // And the detector sees it, so the conditional rows above are not vacuous
+    // by construction.
+    expect(parityClaims(`Intro. ${bad} Outro.`)).toHaveLength(1)
   })
 
   it('no document claims the Map Explorer agrees whatever the setting', () => {

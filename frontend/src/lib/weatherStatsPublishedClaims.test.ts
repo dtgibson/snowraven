@@ -25,7 +25,7 @@
 //  3. THE SECTION IS OFFLINE AND MAKES NO LOOKUP. That is true because
 //     `weatherStats.ts` and `weatherBlockParse.ts` import neither the transport
 //     nor the storage seam -- asserted structurally in `weatherStats.test.ts` --
-//     and all three published files say so.
+//     and `docs/HELP.md` says so.
 //
 // WHY THE PASSAGES ARE EXTRACTED RATHER THAN THE WHOLE FILE. HELP.md's Data
 // Quality section legitimately talks about weather blocks with the OTHER
@@ -46,6 +46,27 @@
 // name both apps, and HELP.md QUOTED the forbidden phrase while explaining that
 // the section does not use it, which reads as the claim rather than as its
 // denial.
+//
+// website-readme-copy-pass: TWO TIERS, STATED ONCE HERE AND APPLIED BELOW.
+// `docs/HELP.md` keeps every byte-exact row it had. `README.md` and
+// `website/index.html` are decision surfaces, written for a reader deciding
+// whether the app fits them, so they carry the feature's two CLAIMS (a Weather
+// section reads back the blocks SnowRaven and RainCrow write into checklist
+// comments; a Weather card on Species Detail shows one bird's skies and
+// temperatures from the same blocks) and nothing of its mechanism or its
+// promises. Each row that the two surfaces leave says so where it happens: the
+// offline claim (offline is unmentioned on both surfaces by user decision;
+// HELP keeps `## Using SnowRaven offline`, asserted by
+// `icloudKeysPublishedClaims`, and `palettePublishedClaims` holds the two
+// surfaces to never mentioning it), "never predicts or ranks" (reassurance
+// about what the app does not do, excluded by the same direction), the
+// two-wholes, same-derivation and below-floor mechanics (HELP's bullet carries
+// all three), and "no picker", which MOVES into HELP's bullet and gains a HELP
+// row here. Every surface keeps its existence leg and its 200-character floor;
+// no floor was lowered. README's passages are its `### Statistics` and
+// `### Species Detail` sections, heading to heading, not single bullet lines;
+// the website's are the Statistics and Species Detail articles' one paragraph
+// each, located by the sentence that makes the claim.
 /// <reference types="node" />
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
@@ -55,6 +76,16 @@ import {
 import { WEATHER_COPY } from './weatherStatsCopy'
 
 const read = (p: string) => readFileSync(new URL(`../../../${p}`, import.meta.url), 'utf8')
+
+/** `README.md`'s `### <heading>` section, heading to the next `##` or `###`. */
+function readmeSection(heading: string): string {
+  const src = read('README.md')
+  const start = src.indexOf(`\n### ${heading}\n`)
+  expect(start, `README.md has a \`### ${heading}\` section`).toBeGreaterThan(-1)
+  const rest = src.slice(start + 1)
+  const end = rest.search(/\n#{2,3} /)
+  return end === -1 ? rest : rest.slice(0, end)
+}
 
 /** `docs/HELP.md`'s `### Weather` subsection under Statistics, heading to the
  *  next `###`. Not the `## Weather` TAB section, which is a different surface
@@ -68,18 +99,17 @@ function helpWeatherSection(): string {
   return end === -1 ? rest : rest.slice(0, end)
 }
 
-/** `README.md`'s Weather bullet. */
-function readmeWeatherBullet(): string {
-  const line = read('README.md').split('\n').find(l => l.startsWith('- **Weather, read back**'))
-  expect(line, 'README.md has a Weather feature bullet').toBeTruthy()
-  return line as string
+/** `README.md`'s Statistics section, which is where its Weather passage lives. */
+function readmeWeatherPassage(): string {
+  return readmeSection('Statistics')
 }
 
 /** The website's Weather paragraph inside the Statistics feature row, tags
  *  stripped so the prose reads as prose. */
 function siteWeatherParagraph(): string {
   const src = read('website/index.html')
-  const i = src.indexOf('<strong>Weather</strong> section reads back')
+  // Lowercase by user direction: "weather" here is prose, not the tab's name.
+  const i = src.indexOf('A weather section reads back')
   expect(i, 'website/index.html states the Weather section in its Statistics row').toBeGreaterThan(-1)
   const open = src.lastIndexOf('<p>', i)
   const close = src.indexOf('</p>', i)
@@ -88,7 +118,7 @@ function siteWeatherParagraph(): string {
 
 const SURFACES: Array<[string, () => string]> = [
   ['docs/HELP.md', helpWeatherSection],
-  ['README.md', readmeWeatherBullet],
+  ['README.md', readmeWeatherPassage],
   ['website/index.html', siteWeatherParagraph],
 ]
 
@@ -137,14 +167,17 @@ describe('claim 2: the two denominators differ deliberately, and HELP.md says so
   })
 })
 
-describe('claim 3: offline, no lookup, on every surface that makes it', () => {
-  for (const [name, get] of SURFACES) {
-    it(`${name} says it works offline and makes no lookup`, () => {
-      const text = get().toLowerCase()
-      expect(text, name).toContain('offline')
-      expect(/no lookup|makes no network|no network request/.test(text), name).toBe(true)
-    })
-  }
+describe('claim 3: offline, no lookup, on the surface that makes it', () => {
+  // website-readme-copy-pass: HELP only. README and the website leave this
+  // roster because they no longer make the claim at all (offline is unmentioned
+  // on both, by user decision), not because the claim was weakened. The
+  // structural half is unchanged: `weatherStats.test.ts` asserts the module
+  // imports neither seam.
+  it('docs/HELP.md says it works offline and makes no lookup', () => {
+    const text = helpWeatherSection().toLowerCase()
+    expect(text).toContain('offline')
+    expect(/no lookup|makes no network|no network request/.test(text)).toBe(true)
+  })
 })
 
 describe('the published accessibility claim states the MECHANISM, not a universal', () => {
@@ -196,16 +229,31 @@ describe('the three files agree with each other, not merely each with the code',
     }
   })
 
+  it('all three say the section reads the blocks BACK, out of checklist comments', () => {
+    // The claim that makes this a feature: the blocks the two apps write into
+    // comments are read again. Held on every surface at claim level, so the
+    // passage cannot shrink to a bare mention of the apps.
+    for (const [name, get] of SURFACES) {
+      const text = get().toLowerCase()
+      // "reads back", "read one back", "reads them back", "read back from": the
+      // verb and "back" within a few words, however the sentence is built.
+      expect(/\breads? (?:[a-z-]+ ){0,3}back\b/.test(text), `${name}: reads the blocks back`).toBe(true)
+      expect(text, `${name}: out of checklist comments`).toContain('checklist comment')
+    }
+  })
+
   it('none of them predicts, recommends or ranks, which is the section\'s own promise', () => {
     for (const [name, get] of SURFACES) {
       const text = get().toLowerCase()
       for (const phrase of ['best conditions', 'you should', 'expect to find', 'most associated']) {
         expect(text.includes(phrase), `${name}: "${phrase}"`).toBe(false)
       }
-      // And each says so positively, so the promise is published rather than
-      // merely not broken.
-      expect(/never predicts|no ranked|does not predict/.test(text), name).toBe(true)
     }
+    // HELP says so positively, so the promise is published rather than merely
+    // not broken. website-readme-copy-pass: the decision surfaces leave this
+    // positive leg; "never predicts or ranks" is a statement about what the app
+    // does NOT do, which their register excludes. They keep the negative leg.
+    expect(/never predicts|no ranked|does not predict/.test(helpWeatherSection().toLowerCase())).toBe(true)
   })
 
   it('carries no em dash', () => {
@@ -231,6 +279,15 @@ describe('the three files agree with each other, not merely each with the code',
 //     differ HELP says so rather than leaving it to be discovered.
 //  4. NO PICKER, AND OFFLINE. Both are promises about behaviour, and both are
 //     structural in the code.
+//
+// website-readme-copy-pass: claims 2, 3 and the offline half of 4 are
+// mechanism, and the two decision surfaces no longer describe the card's
+// mechanism. They keep the card's CLAIM: a Weather card on Species Detail shows
+// what the selected bird has turned up in, read back from both apps' blocks,
+// for a bird on enough weather-block checklists. "No picker" moves INTO HELP's
+// bullet (a sentence the copy pass drafts for it) and the HELP row below is what
+// keeps that fact guarded; it is red against a HELP.md that predates the
+// addition, by design, and lands with it.
 
 /** `docs/HELP.md`'s Species Detail Weather bullet. */
 function helpSpeciesCardBullet(): string {
@@ -242,18 +299,18 @@ function helpSpeciesCardBullet(): string {
   return end === -1 ? rest : rest.slice(0, end)
 }
 
-/** `README.md`'s bullet for the card. */
-function readmeSpeciesCardBullet(): string {
-  const line = read('README.md').split('\n')
-    .find(l => l.startsWith("- **Weather on the bird's own page**"))
-  expect(line, 'README.md has a bullet for the Species Detail Weather card').toBeTruthy()
-  return line as string
+/** `README.md`'s Species Detail section, which is where its card passage lives. */
+function readmeSpeciesCardPassage(): string {
+  return readmeSection('Species Detail')
 }
 
-/** The website's paragraph for the card, tags stripped so the prose reads as prose. */
+/** The website's paragraph for the card, tags stripped so the prose reads as prose.
+ *  The anchor is short and sits on one source line; the paragraph is
+ *  whitespace-normalised after extraction, so the longer claim is matched below
+ *  over the normalised text rather than over the raw source. */
 function siteSpeciesCardParagraph(): string {
   const src = read('website/index.html')
-  const i = src.indexOf('card on Species Detail shows the skies')
+  const i = src.indexOf('card shows the skies')
   expect(i, 'website/index.html states the Species Detail Weather card').toBeGreaterThan(-1)
   const open = src.lastIndexOf('<p>', i)
   const close = src.indexOf('</p>', i)
@@ -262,7 +319,7 @@ function siteSpeciesCardParagraph(): string {
 
 const CARD_SURFACES: Array<[string, () => string]> = [
   ['docs/HELP.md', helpSpeciesCardBullet],
-  ['README.md', readmeSpeciesCardBullet],
+  ['README.md', readmeSpeciesCardPassage],
   ['website/index.html', siteSpeciesCardParagraph],
 ]
 
@@ -289,6 +346,17 @@ describe('the published Species Detail card passages exist at all', () => {
     expect(bullet).toBeGreaterThan(section)
     expect(bullet).toBeLessThan(next)
   })
+
+  it('and the website\'s lives inside the Species Detail row, not the Statistics row', () => {
+    // website-readme-copy-pass moved the paragraph to the tab it describes. A
+    // paragraph lives in the section for the surface it describes; this is the
+    // guard that stops the append-log shape (a Species Detail card described
+    // under the Statistics heading) coming back.
+    const src = read('website/index.html')
+    const card = src.indexOf('card shows the skies')
+    const heading = src.lastIndexOf('<h3>', card)
+    expect(src.slice(heading, src.indexOf('</h3>', heading))).toBe('<h3>Species Detail')
+  })
 })
 
 describe('card claim 1: the per-species floor is stated as the constant', () => {
@@ -305,23 +373,33 @@ describe('card claim 1: the per-species floor is stated as the constant', () => 
     expect(WEATHER_SPECIES_MIN_CHECKLISTS).not.toBe(WEATHER_BAND_MIN_TO_SHOW)
   })
 
-  it('all three say the below-floor state is the ordinary one, not an edge case', () => {
+  it('docs/HELP.md says the below-floor state is the ordinary one, not an edge case', () => {
     // Four species in five land there on a real export, and the design is built
     // for that. A published sentence implying it is rare would misdescribe what
-    // most readers will actually see.
-    for (const [name, get] of CARD_SURFACES) {
-      expect(/ordinary outcome for most species/.test(get()), name).toBe(true)
+    // most readers will actually see. website-readme-copy-pass: HELP only; the
+    // decision surfaces describe no floor and no below-floor state at all (a
+    // threshold is operating detail), so they imply nothing about its frequency.
+    expect(/ordinary outcome for most species/.test(helpSpeciesCardBullet())).toBe(true)
+    for (const [name, get] of CARD_SURFACES.slice(1)) {
+      expect(/too few|fewer than|below the floor|rare/.test(get()), `${name}: says nothing about the floor either way`).toBe(false)
     }
   })
 })
 
 describe('card claim 2: one numerator, two wholes, and nothing divides them', () => {
+  it('docs/HELP.md states both wholes and says nothing divides them', () => {
+    // website-readme-copy-pass: HELP only for the positive half; the mechanism
+    // left the decision surfaces.
+    const text = helpSpeciesCardBullet()
+    expect(text).toContain('two different wholes')
+    expect(/[Nn]othing divides/.test(text)).toBe(true)
+  })
+
   for (const [name, get] of CARD_SURFACES) {
-    it(`${name} states both wholes and says nothing divides them`, () => {
+    it(`${name} never quietly promises a rate`, () => {
+      // The negative half stays on every surface: a "helpful" coverage
+      // percentage is the edit this claim exists to refuse, wherever it lands.
       const text = get()
-      expect(text, name).toContain('two different wholes')
-      expect(/[Nn]othing divides/.test(text), name).toBe(true)
-      // And no published surface may quietly promise a rate.
       expect(/coverage percentage for the bird|percentage of the checklists you have it on/
         .test(text.replace('there is no coverage percentage for the bird', '')), name).toBe(false)
     })
@@ -329,10 +407,11 @@ describe('card claim 2: one numerator, two wholes, and nothing divides them', ()
 })
 
 describe('card claim 3: one derivation, and the stated basis where they differ', () => {
-  it('all three say the two surfaces come out of one derivation', () => {
-    for (const [name, get] of CARD_SURFACES) {
-      expect(/same derivation/.test(get()), name).toBe(true)
-    }
+  it('docs/HELP.md says the two surfaces come out of one derivation', () => {
+    // website-readme-copy-pass: HELP only. "So the two always agree" is a
+    // property whose negation would be a bug, which is not what a reader
+    // deciding on the app is weighing; HELP keeps it, in both places.
+    expect(/same derivation/.test(helpSpeciesCardBullet())).toBe(true)
   })
 
   it('docs/HELP.md states how the two bases relate, in the Statistics section', () => {
@@ -346,33 +425,41 @@ describe('card claim 3: one derivation, and the stated basis where they differ',
 })
 
 describe('card claim 4: no picker, offline, and no prediction', () => {
-  for (const [name, get] of CARD_SURFACES) {
-    it(`${name} says it works offline and makes no lookup`, () => {
-      const text = get().toLowerCase()
-      expect(text, name).toContain('offline')
-      expect(/no lookup|makes no network|no network request/.test(text), name).toBe(true)
-    })
-  }
-
-  it('README and the website both state there is no picker on it', () => {
-    // The decision that makes this not a duplicate of the Statistics view.
-    expect(/no picker/.test(readmeSpeciesCardBullet())).toBe(true)
-    expect(/no picker/.test(siteSpeciesCardParagraph())).toBe(true)
+  it('docs/HELP.md says it works offline and makes no lookup', () => {
+    // website-readme-copy-pass: HELP only, for the same reason as claim 3 above.
+    const text = helpSpeciesCardBullet().toLowerCase()
+    expect(text).toContain('offline')
+    expect(/no lookup|makes no network|no network request/.test(text)).toBe(true)
   })
 
-  it('none of them predicts or ranks, and each says so positively', () => {
+  it('docs/HELP.md states there is no picker on it, and why', () => {
+    // The decision that makes this not a duplicate of the Statistics view. It
+    // used to be asserted on README and the website; website-readme-copy-pass
+    // moves the fact into HELP's bullet, so this row reads HELP and is RED
+    // against a HELP.md that predates that sentence, by design. The code side:
+    // `SpeciesWeatherCard.tsx` declares no species state and renders no
+    // selector, which is checked below rather than trusted.
+    const text = helpSpeciesCardBullet()
+    expect(/no picker/.test(text)).toBe(true)
+    expect(/already looking at a bird/.test(text)).toBe(true)
+    const src = read('frontend/src/components/SpeciesWeatherCard.tsx')
+    const code = src.split('\n').filter(l => !l.trim().startsWith('//') && !l.trim().startsWith('*') && !l.trim().startsWith('/*')).join('\n')
+    expect(code).not.toContain('SpeciesCombobox')
+    expect(code).not.toContain('<select')
+  })
+
+  it('none of them predicts or ranks, and HELP says so positively', () => {
     for (const [name, get] of CARD_SURFACES) {
       const text = get().toLowerCase()
       for (const phrase of ['best conditions', 'you should', 'expect to find', 'most associated']) {
         expect(text.includes(phrase), `${name}: "${phrase}"`).toBe(false)
       }
     }
-    // Stated positively on the two surfaces that summarise the feature; HELP
-    // carries the same promise in the Statistics section it shares a derivation
-    // with, and repeating it per bullet would be the restatement the docs rule
-    // asks us to reduce rather than multiply.
-    expect(/never predicts|does not predict|no ranked/.test(readmeSpeciesCardBullet())).toBe(true)
-    expect(/never predicts|does not predict|no ranked/.test(siteSpeciesCardParagraph())).toBe(true)
+    // Stated positively in HELP's Statistics section, which the card shares a
+    // derivation with. website-readme-copy-pass: the decision surfaces no
+    // longer state it anywhere (reassurance about what the app does not do);
+    // they keep the negative leg above.
+    expect(/never predicts|does not predict|no ranked/.test(helpWeatherSection().toLowerCase())).toBe(true)
   })
 })
 
@@ -386,17 +473,20 @@ describe('the three card passages agree with each other, not merely each with th
       expect(text, name).not.toContain('WeatherSpeciesRow')
       expect(text, name).not.toContain('SpeciesDetail')
     }
-    // The two that summarise the feature from outside the tab must NAME it, and
-    // name it as the user sees it in `TAB_LABELS`.
-    expect(readmeSpeciesCardBullet()).toContain('Species Detail')
-    expect(siteSpeciesCardParagraph()).toContain('Species Detail')
+    // website-readme-copy-pass: the two decision surfaces no longer summarise
+    // the card from outside the tab; each describes it INSIDE its own Species
+    // Detail section (README, heading to heading) or article (the website, the
+    // place row above), so the surface is named by its place, as HELP's is.
+    expect(read('README.md')).toContain('\n### Species Detail\n')
   })
 
-  it('the two that name the apps spell the other one its own way', () => {
-    // The website paragraph leans on the section paragraph directly above it for
-    // the attribution, so it is not required to repeat both names; the two that
-    // do name them must get the spelling right.
-    for (const [name, get] of [CARD_SURFACES[0], CARD_SURFACES[1]]) {
+  it('all three name the apps whose blocks the card reads, and spell the other one its own way', () => {
+    // website-readme-copy-pass brought the website into this row. The old
+    // exemption ("the website paragraph leans on the section paragraph directly
+    // above it for the attribution") stopped holding the moment the paragraph
+    // moved out of the Statistics row into the Species Detail row: nothing is
+    // directly above it now, so the attribution is stated where the claim is.
+    for (const [name, get] of CARD_SURFACES) {
       const text = get()
       expect(text, name).toContain('SnowRaven')
       expect(text, name).toContain('RainCrow')
@@ -404,7 +494,18 @@ describe('the three card passages agree with each other, not merely each with th
     }
   })
 
+  it('the two decision surfaces make the same card claim', () => {
+    // Compared against each other: the card shows this bird's skies and
+    // temperatures, drawn from the same two apps' blocks the Statistics passage
+    // named. One surface having it right does not make the other right.
+    for (const [name, get] of CARD_SURFACES.slice(1)) {
+      const text = get()
+      expect(text, name).toMatch(/card shows the skies and temperatures you have found this bird in/)
+      expect(text, name).toMatch(/SnowRaven and RainCrow weather blocks/)
+    }
+  })
+
   it('carries no em dash', () => {
-    for (const [name, get] of CARD_SURFACES) expect(get().includes('\u2014'), name).toBe(false)
+    for (const [name, get] of CARD_SURFACES) expect(get().includes('—'), name).toBe(false)
   })
 })

@@ -2,62 +2,79 @@
 
 Self-hosted birding tools and data explorer for your eBird workflow: a native Mac, Windows, iPhone or iPad app, or self-hosted on a Raspberry Pi (or any computer on your network).
 
-SnowRaven turns the eBird and Macaulay Library exports you already have into a personal birding dashboard: weather and tides for your checklists, per-species history, life-list analytics, media-coverage tracking, breeding-code history, a calendar of your birding, and an interactive map. Everything runs on your own device, from your own data.
+SnowRaven reads your eBird and Macaulay Library exports and gives you weather and tides for your checklists, your history with every species, life-list statistics and an interactive map, on your own device.
 
-**See it in action:** the [SnowRaven website](https://snowraven.dtgibson.com/) walks through every feature with screenshots. Full per-feature documentation lives in [docs/HELP.md](docs/HELP.md) and in-app from the Help link on every tab.
+**See it in action:** the [SnowRaven website](https://snowraven.dtgibson.com/) shows each tab with screenshots. [docs/HELP.md](docs/HELP.md), also the in-app Help on every tab, covers each tab in detail.
+
+The weather lookup also exists as a browser extension, [SnowRaven Mini](https://github.com/dtgibson/snowraven-mini), separate from the app.
 
 ## What it does
 
-- **Weather & Tide Lookup**: paste a checklist ID and get a paste-ready historical weather summary plus the tide from the nearest NOAA station. Current and Plan look up the live or forecast weather and tide for where you are or for a place and time you choose, and a backlog lists your recent checklists still missing a weather block. Each backlog action keeps its own checklist target even as you widen or page the list. The Weather/tide Planner, a second action in Plan, lists every sunrise and sunset from now to the end of the weather forecast, each with the predicted tide and the forecast weather at that moment, on one chart and in one list that carries every figure the chart draws. A tap on the timeline, or the arrow keys with it focused, reads the estimated tide, weather and sun height at any moment, from the plan already loaded rather than a fresh lookup. The sun's height is drawn across the whole window, with sunrise and sunset exactly where the plan lists them. Each day states its moon phase, from the same computation the checklist weather blocks use. The plan stops where the weather forecast stops. It ranks and recommends nothing. A plan loaded once re-shows offline with a cue naming when it was fetched. On a wide window a Days in view choice above the chart fits one, three, seven or all of the plan's days into the chart at once, and two day buttons beside the legend move the chart a day at a time.
-- **Species Detail**: your complete history with any species: stats, top locations, field notes, subspecies breakdowns, a sightings map with county shading that expands to fill the window, and embedded Macaulay Library media.
-- **Weather on the bird's own page**: a Weather card on Species Detail shows the skies and temperatures you have recorded the selected bird in, out of the same derivation the Statistics Weather section paints from, so the two always agree. It reads the blocks SnowRaven and RainCrow write into checklist comments, with no picker of its own. It opens with one number against two different wholes, your weather-block checklists and the checklists you have the bird on, and nothing divides them; every row does the same thing per band. A bird with too few weather-block checklists gets a plain sentence and no chart rather than a confident-looking distribution, which is the ordinary outcome for most species. It never predicts or ranks, and it is built from the backup you already loaded, so it makes no lookup and works offline.
-- **Statistics**: life-list totals and growth, milestones, temporal and geographic patterns, effort, data quality, breeding and media stats, escapee accounting per eBird's life-list rule, and which eBird projects your checklists were submitted to (checked on demand with your own key). Its Geographic Stats map shades counties with numbers that match the county tables beside it, and the Map Explorer's too while Count all forms is off (the Map Explorer always applies the countable-species rule).
-- **Weather, read back**: SnowRaven has written a weather block into checklist comments since its first release, and a Weather section on Statistics now reads them, RainCrow's too. It shows how your outings distribute across sky, temperature, wind and day versus night, the average species per checklist in each band with the same bands' average time out beside it, and, for any bird you pick, the skies and temperatures you have it on. It states what fraction of your checklists it covers before it draws anything, declines to average a band with too few checklists, and never predicts or ranks. Built from the backup you already loaded, so it makes no lookup and works offline.
-- **Calendar**: your birding year as twelve month grids, each day shaded by how busy it was. Entirely offline.
-- **Map Explorer**: your sightings with heatmap and filters, nearby hotspots, nearby lifers, media targets, a breeding-atlas overlay, county lines and coverage shading, and a share-a-spot pin that copies coordinates and map links as plain text.
-- **Multimedia**: photo, audio, and video coverage for every species on your life list, with sex and age filters, to see what you still need to capture.
-- **Breeding Codes**: every species you've recorded breeding evidence for, as a color-coded code-by-species matrix.
-- **Named Birds**: track individual birds you've named in species comments with a `[name:…]` tag: each one's history, how long you've followed it and which two dates that measures, a timeline of its sightings you can press or step through with the arrow keys to read any one of them, one strip putting every named bird on a shared time axis, its own map, and its own media. One switch moves the far end of every span from the bird's last sighting to today, so the gap since you last saw it becomes visible rather than inferred.
-- **Maps that get out of the box**: the Sighting Locations map, the Geographic Stats map and a Named Birds card map each carry a fullscreen button in the bottom-right corner, the one the Map Explorer has always had. They expand to fill the window and collapse back, keeping the same view, the same open popup and the same dropped share pin; Escape closes them and returns the focus to the button.
-- **Checklists**: search everything you've ever written in a comment, and filter your checklists by comments, media, breeding codes, protocol, county, and dates.
-- **List Comparer**: compare two life lists, or two individual checklists side by side.
-- **Search anything by name**: press Cmd-K or Ctrl-K anywhere in the app, or use the Search control in the navigation, and type. It reaches every destination you have visible and every species in your own eBird backup, matching the common name and the scientific name at once, so a few letters and Enter open Species Detail on the bird you named. Arrow keys move, Enter opens, Escape closes and hands focus back to the control you opened it from, or to the main content when that control has gone away. It makes no network request and stores nothing, so it works offline and with no API key; when no backup is saved, or a saved one will not load, it says which of the two it is and keeps taking you to destinations regardless.
-- **Navigation that fits the window**: one navigation over every destination at three widths, chosen from the space actually available rather than from a device check. A wide window gets a vertical sidebar down the leading edge, which hands the page back the height the old horizontal strip cost it. A narrower one gets the same list as a column of icons, each keeping its name for hover, for keyboard focus and for screen readers, with the current one still marked. A phone gets a bar across the bottom holding your first four destinations plus a More sheet for the rest. Your saved order and hidden tabs are honored in all three.
-- **Settings**: keys, files, appearance (light/dark, text size to 200%, date format), sharing preferences, tab layout, and (on Mac, iPhone and iPad) iCloud Sync, plus an Acknowledgments section.
-- **Offline**: every analytical tab and map keeps working without a connection once it has loaded online at least once; genuinely live lookups (weather and tide, place search, nearby-bird overlays, app updates) need the network and say so plainly.
-- **Desktop window**: on Mac and Windows the app reopens at the size, position and maximized state you left it in, and is brought back onto a visible screen if the display it was saved on is gone. Per-machine, never synced.
+### Weather
 
-**iCloud Sync (Mac, iPhone and iPad):** an opt-in switch in Settings, off by default, keeps your eBird backup and Macaulay Library export the same on every Apple device signed in to your own iCloud account, so a fresh export uploaded once is used everywhere. Only the two files and their upload details are synced by that switch, into your own account. A second off-by-default **Sync API keys** switch in the same section can share your eBird and OpenWeather keys the same way, with its own plain-language note first, so a key entered once on any device is used by every device that also turns it on. Settings and caches stay on each device, and the developer never sees any of it.
+Paste a checklist ID and get a weather and tide summary ready to drop into the checklist comment, or look up the conditions where you are now, or the forecast for any place and time ahead. The Weather/tide Planner lays out the coming sunrises and sunsets, each with its tide and forecast weather.
 
-A companion browser extension, [SnowRaven Mini](https://github.com/dtgibson/snowraven-mini), runs the same weather and tide lookup right on the eBird checklist page. It's separate from SnowRaven and not required by it.
+### Statistics
+
+A dashboard built from your eBird backup: life-list totals and growth, milestones, and when and where you bird. A weather section reads back the weather blocks SnowRaven and RainCrow write into checklist comments: the conditions on the outings you wrote a block for.
+
+### Map Explorer
+
+Your sightings on an interactive map, with nearby eBird hotspots and where species new to you were reported recently. Counties shade by your counts or by how complete your county list is, with a California Breeding Bird Atlas overlay.
+
+### Species Detail
+
+Your whole history with one bird: sightings, field notes, breeding codes and a map of every observation. A weather card shows the skies and temperatures you have found this bird in, drawn from the same SnowRaven and RainCrow weather blocks.
+
+### Calendar
+
+A year of your birding as twelve month grids, each day shaded by how many species you saw. Fold the years together, or narrow it to a single species.
+
+### Multimedia
+
+Your life list as a media checklist: which species you have photographed, recorded and filmed, and which you still need. Narrow it by sex and age.
+
+### Breeding Codes
+
+Every species you have recorded breeding evidence for, as a matrix against eBird's breeding codes, colored by evidence tier.
+
+### Checklists
+
+Your checklists as whole outings: search every comment you have written, and filter by what an outing has.
+
+### List Comparer
+
+Two life lists side by side, or any two public checklists: what they share and what only one has.
+
+### Named Birds
+
+Tag an individual bird by name in a species comment and SnowRaven gathers everything you have on it: sightings, places, a timeline, its own media. With several named birds, one strip puts them all on a shared time axis.
 
 ## Privacy
 
-Local-first, and it collects nothing: no accounts, no analytics, no telemetry, no developer-operated server. Your exports and settings stay on your device, and so do your API keys unless you turn on the optional iCloud key sync on a Mac, iPhone or iPad, which copies them only into your own iCloud account. Network requests go directly from your device to the services the app draws from, with your own keys where keys are needed. Details: [Privacy Policy](PRIVACY_POLICY.md) · [Accessibility statement](ACCESSIBILITY.md).
+Private by default, and in your control: no account, no analytics, no telemetry, no server we run. Your eBird backup, Macaulay Library export and API keys are stored only on your device unless you turn on iCloud syncing between your devices, and anything you sync goes to your own iCloud account and nowhere else. Details: [Privacy Policy](PRIVACY_POLICY.md) · [Accessibility statement](ACCESSIBILITY.md).
 
-## Requirements
+## What you'll need
 
 Two free API keys, entered once in Settings:
 
 - **eBird API key**, from [ebird.org/api/keygen](https://ebird.org/api/keygen).
-- **OpenWeather API key**, from [openweathermap.org](https://openweathermap.org), subscribed to the free **One Call by Call** plan (activating it requires a payment card on file even though the free tier is free; set a usage cap to avoid charges).
+- **OpenWeather API key**, from [openweathermap.org](https://openweathermap.org), subscribed to the free **One Call by Call** plan (activating it needs a payment card on file; set a usage cap to avoid charges).
 
-Most tabs also use your own data files: your **eBird backup** (`MyEBirdData.csv`, from [ebird.org/downloadMyData](https://ebird.org/downloadMyData)) and, optionally, your **Macaulay Library export** for the media features.
-
-On web and Raspberry Pi installs, a stored export that sends no response headers or body data for 30 seconds stops with the existing load-failure state instead of leaving every dependent tab waiting. The limit is based on inactivity, so a healthy large file can take longer while it continues to stream, and a later load tries again without restarting the service.
+Most tabs also read your **eBird backup** (`MyEBirdData.csv`, from [ebird.org/downloadMyData](https://ebird.org/downloadMyData)) and, for the media features, an optional **Macaulay Library export**.
 
 ## Installation
 
 - **Mac**: download `SnowRaven_x.x.x_universal.dmg` from the [latest release](https://github.com/dtgibson/snowraven/releases/latest) (one universal build for Apple Silicon and Intel), drag SnowRaven to Applications, and right-click the app and choose **Open** on first launch.
-- **iPhone / iPad**: get SnowRaven from the [App Store](https://apps.apple.com/app/id6787719977). Free, no account, iOS 16 or later. Updates arrive through the App Store like any other app.
-- **Windows**: download `SnowRaven_x.x.x_x64-setup.exe` from the [latest release](https://github.com/dtgibson/snowraven/releases/latest) and run it. The app isn't code-signed yet, so SmartScreen may warn "unknown publisher": click **More info → Run anyway**. (In-app updates are cryptographically verified regardless.)
+- **iPhone / iPad**: get SnowRaven from the [App Store](https://apps.apple.com/app/id6787719977). Free, iOS 16 or later. Updates arrive through the App Store like any other app.
+- **Windows**: download `SnowRaven_x.x.x_x64-setup.exe` from the [latest release](https://github.com/dtgibson/snowraven/releases/latest) and run it. The app isn't code-signed yet, so SmartScreen may warn "unknown publisher": click **More info**, then **Run anyway**. In-app updates are cryptographically verified regardless.
 - **Raspberry Pi / Linux**: one command on your Pi (or any Debian/Ubuntu machine) handles packages, the build, API keys, and an optional auto-start service:
 
   ```bash
   curl -fsSL https://raw.githubusercontent.com/dtgibson/snowraven/main/install.sh | bash
   ```
 
-**Updating**: desktop apps update in place from **Check For Updates** in the footer; iPhone and iPad update through the [App Store](https://apps.apple.com/app/id6787719977); self-hosted installs run `./update.sh`. (The `npm` security summary that update prints comes from build-only tooling that never ships; a production-scoped `npm audit --omit=dev` reports zero.)
+**Updating**: desktop apps update in place from **Check For Updates** in the footer; iPhone and iPad update through the [App Store](https://apps.apple.com/app/id6787719977); self-hosted installs run `./update.sh`.
 
 ## Build from source
 
@@ -67,4 +84,4 @@ Clone the repo, then `cd frontend && npm install && npm run dev` (with `cd backe
 
 Weather: [OpenWeather](https://openweathermap.org/) · Checklist & media data: [eBird](https://ebird.org/) / [Macaulay Library](https://www.macaulaylibrary.org/).
 
-The Weather lookup mirrors the output format of [raincrow.app](https://raincrow.app/), the original idea and inspiration. SnowRaven exists to self-host your *own* checklist lookups, please don't circumvent that free service's rate limits. If you find this useful, consider [buying raincrow.app's creator a coffee](https://ko-fi.com/parkerdavisaz).
+The weather lookup mirrors the output format of [raincrow.app](https://raincrow.app/), the original idea and inspiration. SnowRaven exists to self-host your *own* checklist lookups, please don't circumvent that free service's rate limits. If you find this useful, consider [buying raincrow.app's creator a coffee](https://ko-fi.com/parkerdavisaz).

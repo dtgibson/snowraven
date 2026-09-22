@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SnowRaven: Self-hosted birding tools and data explorer</title>
-  <meta name="description" content="SnowRaven turns your own eBird and Macaulay Library exports into a personal, local-first birding dashboard: weather and tides for your checklists, per-species history, life-list analytics, an interactive map, and more. Free and open, for macOS, Windows, iPhone, iPad, and Raspberry Pi." />
+  <meta name="description" content="SnowRaven reads your eBird and Macaulay Library exports: weather and tides for your checklists, your history with every species, life-list statistics and an interactive map, on your own device. Free and open, for macOS, Windows, iPhone, iPad, and Raspberry Pi." />
   <meta name="color-scheme" content="light dark" />
   <link rel="icon" type="image/svg+xml" href="favicon.svg" />
   <link rel="canonical" href="https://snowraven.dtgibson.com/" />
@@ -12,7 +12,7 @@
   <!-- Open Graph / social -->
   <meta property="og:type" content="website" />
   <meta property="og:title" content="SnowRaven: Self-hosted birding tools and data explorer" />
-  <meta property="og:description" content="A local-first birding dashboard built from your own eBird and Macaulay Library data. Weather and tides, per-species history, life-list analytics, and an interactive map. Free and open." />
+  <meta property="og:description" content="Birding tools built on your eBird and Macaulay Library exports: weather and tides for your checklists, your history with every species, life-list statistics and an interactive map, on your own device. Free and open." />
   <meta property="og:url" content="https://snowraven.dtgibson.com/" />
   <meta property="og:image" content="https://snowraven.dtgibson.com/assets/shots/statistics.webp" />
   <meta property="og:image:width" content="1600" />
@@ -86,11 +86,9 @@
           <p class="eyebrow"><span class="dot"></span>Local-first · Free &amp; open source</p>
           <h1>Birding analytics and tools for your <span class="accent">eBird workflow</span></h1>
           <p class="lede">
-            SnowRaven takes your eBird and Macaulay Library records and lets you explore
-            them in new ways. Weather and tides for your checklists, deep per-species
-            history, life-list analytics, media coverage, breeding records, and an
-            interactive map. It uses your own exported data, on your own device, so you
-            stay in control.
+            SnowRaven reads your eBird and Macaulay Library exports and gives you weather
+            and tides for your checklists, your history with every species, life-list
+            statistics and an interactive map. It runs on your own device.
           </p>
           <div class="cta-row">
             <a class="btn btn-primary" href="https://github.com/dtgibson/snowraven/releases/latest" target="_blank" rel="noopener">
@@ -99,7 +97,7 @@
             </a>
             <a class="btn btn-secondary" href="https://github.com/dtgibson/snowraven" target="_blank" rel="noopener">View on GitHub</a>
           </div>
-          <p class="hero-meta">macOS · Windows · iPhone · iPad · Raspberry Pi &nbsp;·&nbsp; No account, no telemetry</p>
+          <p class="hero-meta">macOS · Windows · iPhone · iPad · Raspberry Pi</p>
         </div>
 
         <div class="hero-media">
@@ -125,16 +123,10 @@
           <p class="eyebrow on-dark"><span class="dot"></span>Privacy by design</p>
           <h2>Your data stays on your device</h2>
           <p>
-            SnowRaven has no account, no analytics, no telemetry, and no server we operate.
-            Your eBird backup, Macaulay Library export, settings, and API keys never leave
-            your computer, unless you turn on the optional iCloud Sync on a Mac, iPhone or iPad,
-            which copies the two files, and your API keys only with its separate Sync API keys
-            switch, into your own iCloud account and nowhere else. When you ask for data, it talks directly to the services it
-            draws from: eBird and OpenWeather with your own keys, plus keyless sources
-            (OpenStreetMap, map tiles, NOAA tides, and the Cornell Lab sites that bird-link
-            icons and, while enabled, embedded Macaulay media load from). There is no SnowRaven server in the middle.
-            An off-by-default <strong>Disable embedded media</strong> setting prevents those
-            players and requests; direct media links still work when you choose to open them.
+            SnowRaven has no account, no analytics, no telemetry, and no server we run.
+            Your eBird backup, Macaulay Library export and API keys are stored only on your device
+            unless you turn on iCloud syncing between your devices, and anything you sync
+            goes to your own iCloud account and nowhere else.
           </p>
           <p style="margin-top: 14px;">
             <a href="privacy.html"><strong>Read the full privacy policy</strong></a>
@@ -143,49 +135,51 @@
         <ul class="privacy-points">
           <li>
             <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 5v6c0 5 3.4 8.4 8 10 4.6-1.6 8-5 8-10V5l-8-3z"/></svg>
-            <div><strong>No accounts</strong><span>Nothing to sign up for. Just open it and go.</span></div>
+            <div><strong>No accounts</strong></div>
           </li>
           <li>
             <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/><path d="m4 20 16-16"/></svg>
-            <div><strong>No tracking</strong><span>Zero analytics or telemetry, on every platform.</span></div>
+            <div><strong>No tracking</strong></div>
           </li>
           <li>
             <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
-            <div><strong>Keys &amp; data stay local</strong><span>Your files and API keys live on your machine; syncing either through iCloud is your own opt-in, into your own account.</span></div>
+            <div><strong>Keys &amp; data stay local</strong></div>
           </li>
           <li>
             <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12a7 7 0 0 1 14 0"/><rect x="3" y="12" width="18" height="8" rx="2"/><path d="M12 16v1"/></svg>
-            <div><strong>No developer server</strong><span>We run nothing. There is no SnowRaven cloud.</span></div>
+            <div><strong>No developer server</strong></div>
           </li>
         </ul>
       </div>
     </section>
 
     <!-- ───────────────────────── Features ───────────────────────── -->
+    <!-- One article per tab, named from TAB_LABELS and sequenced in DEFAULT_TAB_ORDER
+         (frontend/src/lib/tabLayout.ts) at the time of writing. The order is editorial:
+         if DEFAULT_TAB_ORDER changes, re-sequencing this section is a follow-up, not a
+         correctness bug. Odd rows are media-right, even rows carry `reverse`. Every body
+         paragraph opens as a bare <p>: three published-claims guards locate their passage
+         with lastIndexOf('<p>'), and a classed paragraph would widen what they extract. -->
     <section class="features" id="features">
       <div class="container">
         <header class="section-head">
           <p class="eyebrow"><span class="dot"></span>What's inside</p>
-          <h2>Ten tools, one quiet workspace. And they work offline</h2>
-          <p class="section-sub">Everything reads from the eBird and Macaulay Library exports you already have. No data entry, no busywork. Once your data has loaded, the tools keep working without a connection.</p>
+          <h2>What each tab does</h2>
+          <p class="section-sub">Built on your eBird and Macaulay Library exports.</p>
         </header>
 
-        <!-- 1. Weather & Tide -->
+        <!-- 1. Weather: media right -->
         <article class="feature-row">
           <div class="feature-text">
             <span class="feature-icon">
               <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M16 13a4 4 0 0 0-3.9-5 5 5 0 0 0-9 2.3A3.5 3.5 0 0 0 4 17h11"/><path d="M8 19v2M12 20v2M16 19v2"/></svg>
             </span>
-            <h3>Weather &amp; Tide Lookup</h3>
+            <h3>Weather</h3>
             <p>
-              Paste an eBird checklist ID and get a clean, ready-to-paste weather summary:
-              temperature, wind, humidity, dew point, sunrise and sunset, and the moon
-              phase on night checklists, plus the historical tide from the nearest NOAA
-              station. Current shows the live weather and tide for where you are, Plan
-              forecasts both for a place and time you choose, and a backlog lists your
-              recent checklists that still have no weather block, so you can work down
-              the ones you missed. Each action keeps its own checklist target as you
-              widen or page the list. The Weather/tide Planner, a second action in Plan, lists every sunrise and sunset from now to the end of the weather forecast, each with the predicted tide and the forecast weather at that moment, on one chart and in one list that carries every figure the chart draws. A tap on the timeline, or the arrow keys with it focused, reads the estimated tide, weather and sun height at any moment, from the plan already loaded rather than a fresh lookup. The sun's height is drawn across the whole window, with sunrise and sunset exactly where the plan lists them. Each day states its moon phase, from the same computation the checklist weather blocks use. The plan stops where the weather forecast stops. It ranks and recommends nothing. A plan loaded once re-shows offline with a cue naming when it was fetched. On a wide window a Days in view choice above the chart fits one, three, seven or all of the plan's days into the chart at once, and two day buttons beside the legend move the chart a day at a time.
+              Paste an eBird checklist ID and get a weather and tide summary ready to drop
+              into the checklist comment, or look up the conditions where you are now, or the
+              forecast for any place and time ahead. The Weather/tide Planner lays out the
+              coming sunrises and sunsets, each with its tide and forecast weather.
             </p>
           </div>
           <figure class="feature-media shot-slot" data-shot="weather">
@@ -194,84 +188,20 @@
           </figure>
         </article>
 
-        <!-- 2. Species Detail -->
+        <!-- 2. Statistics: reverse (dark mode shot) -->
         <article class="feature-row reverse">
-          <div class="feature-text">
-            <span class="feature-icon">
-              <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5a2 2 0 0 1 2-2h6v16H5a2 2 0 0 0-2 2z"/><path d="M21 5a2 2 0 0 0-2-2h-6v16h6a2 2 0 0 1 2 2z"/></svg>
-            </span>
-            <h3>Species Detail</h3>
-            <p>
-              Your complete history with any species: sighting stats, breeding codes, field
-              notes, top locations, sightings-over-time graphs, and a map of every
-              observation, all in one view. A <strong>Subspecies Explorer</strong> breaks
-              your reports down by subspecies and form, a <strong>Counties</strong> switch
-              shades every US county where you have recorded the bird (offline, from your
-              own file, no API key), and a <strong>Recent Media</strong> section plays your
-              latest photo, audio, and video of it inline from the Macaulay Library,
-              showing plain links instead when an embed can't load.
-            </p>
-          </div>
-          <figure class="feature-media shot-slot" data-shot="species">
-            <img src="assets/shots/species.webp" width="1600" height="900"
-                 alt="The Species Detail tab for Northern Cardinal, showing sightings, media counts, and breeding category." loading="lazy" />
-          </figure>
-        </article>
-
-        <!-- 3. Statistics (dark mode shot) -->
-        <article class="feature-row">
           <div class="feature-text">
             <span class="feature-icon">
               <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><rect x="7" y="11" width="3" height="7"/><rect x="12" y="7" width="3" height="11"/><rect x="17" y="13" width="3" height="5"/></svg>
             </span>
             <h3>Statistics</h3>
             <p>
-              A full analytics dashboard built from your own data: life-list totals and
-              growth, firsts and milestones, temporal and geographic patterns, effort,
-              data quality, breeding stats, deep media statistics, and a few playful
-              Frivolous Lists. Two off-by-default count rules in the tab header follow
-              eBird's own rules for what counts: Count all forms decides whether forms
-              that leave the species in doubt (a spuh, a slash, a hybrid) are counted,
-              and Count escapees follows eBird's life-list rule for exotics (Naturalized
-              and Provisional count, Escapee does not), naming every bird it leaves out.
-              Both are per-session, resetting on relaunch.
+              A dashboard built from your eBird backup: life-list totals and growth,
+              milestones, and when and where you bird. A weather section reads back the
+              weather blocks SnowRaven and RainCrow write into checklist comments: the
+              conditions on the outings you wrote a block for.
             </p>
-            <p>
-              The Geographic Stats map carries the same <strong>Counties</strong> overlay,
-              shaded by species or by checklists, with numbers that match the county tables
-              beside it, and the Map Explorer's too while Count all forms is off (the Map
-              Explorer always applies the countable-species rule). A <strong>Projects</strong>
-              section reports which eBird projects your checklists were submitted to:
-              nothing is sent until you press Check projects, the section states the exact
-              cost first, it can be stopped and resumed, and every tally shows how many
-              checklists it was drawn from.
-            </p>
-            <p>
-              A <strong>Weather</strong> section reads back the weather blocks SnowRaven
-              and RainCrow have been writing into your checklist comments since the first
-              release. It shows how your outings distribute across sky, temperature, wind
-              and day versus night, the average species per checklist in each band with
-              the same bands' average time out beside it, and, for any bird you pick, the
-              skies and temperatures you have it on. It states what fraction of your
-              checklists it covers before it draws anything, keeps a band you have never
-              birded visible as a zero, declines to average a band with too few
-              checklists, and never predicts or ranks. It is built from the backup you
-              already loaded, so it makes no lookup and works offline.
-            </p>
-            <p>
-              The bird's own page carries the other half of it. A
-              <strong>Weather</strong> card on Species Detail shows the skies and
-              temperatures you have recorded the selected bird in, out of the same
-              derivation the Statistics section paints from, so the two always agree.
-              There is no picker on it: you are already looking at a bird. It opens with
-              one number against two different wholes, your weather-block checklists and
-              the checklists you have that bird on, and nothing divides them. A bird with
-              too few weather-block checklists gets a plain sentence and no chart rather
-              than a confident-looking distribution, which is the ordinary outcome for
-              most species. It never predicts or ranks, and like the section it reads only
-              the backup you already loaded, so it makes no lookup and works offline.
-            </p>
-            <p class="feature-tag">Light or dark, your choice. Dark mode shown.</p>
+            <p class="feature-tag">Dark mode shown.</p>
           </div>
           <figure class="feature-media shot-slot" data-shot="statistics-dark">
             <img src="assets/shots/statistics-dark.webp" width="1600" height="900"
@@ -279,67 +209,17 @@
           </figure>
         </article>
 
-        <!-- 3b. Calendar (text-forward, mock) -->
-        <article class="feature-row reverse">
-          <div class="feature-text">
-            <span class="feature-icon">
-              <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18M8 2v4M16 2v4"/></svg>
-            </span>
-            <h3>Calendar</h3>
-            <p>
-              A year of your birding as twelve month grids, each day carrying the species,
-              checklists, or total count you recorded and shaded by how busy it was, so
-              the shape of your year reads at a glance. Filter to a single species, page
-              across every year or fold them all into one combined grid, switch to a
-              whole-year overview of thumbnails, turn on a colorblind-friendly texture
-              mode, and click any day for its checklists. Entirely offline, from your
-              already-loaded backup.
-            </p>
-          </div>
-          <figure class="feature-media shot-slot" data-shot="calendar">
-            <img src="assets/shots/calendar.webp" width="1600" height="900"
-                 alt="The Calendar tab showing a year as twelve month grids, each day shaded by how many species were seen." loading="lazy" />
-          </figure>
-        </article>
-
-        <!-- 4. Map Explorer -->
-        <article class="feature-row reverse">
+        <!-- 3. Map Explorer: media right -->
+        <article class="feature-row">
           <div class="feature-text">
             <span class="feature-icon">
               <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m9 4 6 2 6-2v14l-6 2-6-2-6 2V6z"/><path d="M9 4v14M15 6v14"/></svg>
             </span>
             <h3>Map Explorer</h3>
             <p>
-              An interactive map of your sightings, with a heatmap and filters for
-              species, date range, county, breeding code, and media, plus nearby eBird
-              hotspots, a Nearby Lifers view mapping where species you haven't recorded
-              were reported recently, Media Targets, and a California Breeding Bird Atlas
-              overlay. Hotspot pins can be colored by whether you've visited them, or,
-              opt-in, by your own species or checklist counts there or by the community's
-              recent activity, with an optional tier-ring mode so the reading never
-              depends on color alone. County lines can shade each county by your own
-              species or checklist counts, offline from your backup, or by how complete
-              your county list is against everything ever reported to eBird there (that
-              one metric needs a connection and your own key), with a colorblind-friendly
-              texture mode. Search a place name, use your location, drop a pin, or press
-              Search this area after moving the map; nothing is sent until you press.
-              Street, satellite, and topo basemaps, plus a hiking-trails layer.
-            </p>
-            <p>
-              Three more maps also <strong>fill the window</strong> on request: a
-              fullscreen button in the bottom-right corner expands the Sighting Locations
-              map, the Geographic Stats map and a Named Birds card map to the whole window
-              and puts them back, keeping the same view, the same open popup and the same
-              dropped pin. Escape closes it and hands the keyboard focus back.
-            </p>
-            <p>
-              Any birding map also <strong>shares a spot</strong>: right-click (long-press
-              on touch) to plant a share pin at the exact point you pressed, drag it to
-              fine-tune, and copy the coordinates plus Google Maps and Apple Maps links,
-              ready to paste into a message. Settings chooses which of the three lines you
-              send, a corner button drives the whole flow from the keyboard, and it is all
-              assembled locally as plain text, so it works offline and no coordinate
-              leaves your device.
+              Your sightings on an interactive map, with nearby eBird hotspots and where
+              species new to you were reported recently. Counties shade by your counts or by
+              how complete your county list is, with a California Breeding Bird Atlas overlay.
             </p>
           </div>
           <figure class="feature-media shot-slot shot-swap" data-shot="map">
@@ -349,19 +229,54 @@
           </figure>
         </article>
 
-        <!-- 5. Multimedia -->
+        <!-- 4. Species Detail: reverse -->
+        <article class="feature-row reverse">
+          <div class="feature-text">
+            <span class="feature-icon">
+              <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5a2 2 0 0 1 2-2h6v16H5a2 2 0 0 0-2 2z"/><path d="M21 5a2 2 0 0 0-2-2h-6v16h6a2 2 0 0 1 2 2z"/></svg>
+            </span>
+            <h3>Species Detail</h3>
+            <p>
+              Your whole history with one bird: sightings, field notes, breeding codes and a
+              map of every observation. A weather card shows the skies and temperatures you
+              have found this bird in, drawn from the same SnowRaven and RainCrow weather
+              blocks.
+            </p>
+          </div>
+          <figure class="feature-media shot-slot" data-shot="species">
+            <img src="assets/shots/species.webp" width="1600" height="900"
+                 alt="The Species Detail tab for Northern Cardinal, showing sightings, media counts, and breeding category." loading="lazy" />
+          </figure>
+        </article>
+
+        <!-- 5. Calendar: media right -->
         <article class="feature-row">
+          <div class="feature-text">
+            <span class="feature-icon">
+              <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18M8 2v4M16 2v4"/></svg>
+            </span>
+            <h3>Calendar</h3>
+            <p>
+              A year of your birding as twelve month grids, each day shaded by how many species
+              you saw. Fold the years together, or narrow it to a single species.
+            </p>
+          </div>
+          <figure class="feature-media shot-slot" data-shot="calendar">
+            <img src="assets/shots/calendar.webp" width="1600" height="900"
+                 alt="The Calendar tab showing a year as twelve month grids, each day shaded by how many species were seen." loading="lazy" />
+          </figure>
+        </article>
+
+        <!-- 6. Multimedia: reverse -->
+        <article class="feature-row reverse">
           <div class="feature-text">
             <span class="feature-icon">
               <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="m21 16-4.5-4.5L7 21"/></svg>
             </span>
             <h3>Multimedia</h3>
             <p>
-              Your life list as a media checklist: photo, audio, and video coverage for
-              every species, so you can see at a glance what you still need to capture.
-              Filter by sex and age (pull up just your juveniles, or the males of a
-              dimorphic species), with counts and links straight to the matching media in
-              your Macaulay Library.
+              Your life list as a media checklist: which species you have photographed, recorded
+              and filmed, and which you still need. Narrow it by sex and age.
             </p>
           </div>
           <figure class="feature-media shot-slot" data-shot="multimedia">
@@ -370,19 +285,16 @@
           </figure>
         </article>
 
-        <!-- 6. Breeding Codes -->
-        <article class="feature-row reverse">
+        <!-- 7. Breeding Codes: media right -->
+        <article class="feature-row">
           <div class="feature-text">
             <span class="feature-icon">
               <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4c0 6 16 10 16 16M20 4C20 10 4 14 4 20"/><path d="M7 5h10M7 19h10M9 9h6M9 15h6"/></svg>
             </span>
             <h3>Breeding Codes</h3>
             <p>
-              Every species you've recorded a breeding code for, laid out as a color-coded
-              matrix across all eBird codes, with tier and per-code filters to see exactly
-              where your breeding evidence stands. A legend below the table spells out
-              what each code means, and on a phone the columns tighten to dot-width, with
-              the species-name column staying fixed on the left in the normal view.
+              Every species you have recorded breeding evidence for, as a matrix against
+              eBird's breeding codes, colored by evidence tier.
             </p>
           </div>
           <figure class="feature-media shot-slot" data-shot="breeding">
@@ -391,39 +303,7 @@
           </figure>
         </article>
 
-        <!-- 7. Named Birds (text-forward, mock) -->
-        <article class="feature-row">
-          <div class="feature-text">
-            <span class="feature-icon">
-              <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41 13.42 20.6a2 2 0 0 1-2.83 0L3 13V3h10l7.59 7.59a2 2 0 0 1 0 2.82z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg>
-            </span>
-            <h3>Named Birds</h3>
-            <p>
-              Give an individual bird a name in your eBird species comment with a
-              <code>[name:…]</code> tag (like <code>[name:Winky]</code>), and SnowRaven
-              gathers every sighting of that individual: its species, when you first and
-              last saw it, how long you've followed it and which two dates that measures,
-              each checklist with its location, a map of everywhere that bird has been
-              seen, and its own top locations. A timeline in each card puts that bird's
-              sightings in time, and one strip at the bottom of the tab gives every named
-              bird a labelled lane on a shared axis, so you can see which birds you were
-              following when. Press a mark, or step through with the arrow keys, and a
-              line beneath the strip names that sighting's date and place. One switch
-              moves the far end of every span from the bird's last sighting to today, so
-              the gap since you last saw it becomes visible rather than inferred. With
-              your Macaulay Library export saved, each individual also gathers its own
-              photos, audio, and video as inline players, matched by the same tag. Prefer
-              no inline players anywhere? Turn on <strong>Disable embedded media</strong>
-              in Settings; direct Macaulay Library links stay available.
-            </p>
-          </div>
-          <figure class="feature-media shot-slot" data-shot="named-birds">
-            <img src="assets/shots/named-birds.webp" width="1600" height="800"
-                 alt="The Named Birds tab listing three named individuals with their species, date range, elapsed span and sighting counts, above a strip giving each one a labelled lane on a shared time axis." loading="lazy" />
-          </figure>
-        </article>
-
-        <!-- 8. Checklists (text-forward, mock) -->
+        <!-- 8. Checklists: reverse (comment-search mock) -->
         <article class="feature-row reverse">
           <div class="feature-text">
             <span class="feature-icon">
@@ -431,11 +311,8 @@
             </span>
             <h3>Checklists</h3>
             <p>
-              Your checklists as whole outings. Search every checklist comment and every
-              species comment you've ever written, and browse a filterable list of all
-              your checklists: combine has and doesn't-have filters for comments, media,
-              breeding codes, completeness, protocol, county, and dates. Pasted weather
-              and tide blocks stay hidden (and out of search) until you ask for them.
+              Your checklists as whole outings: search every comment you have written, and
+              filter by what an outing has.
             </p>
           </div>
           <figure class="feature-media feature-mock" aria-hidden="true">
@@ -452,7 +329,7 @@
           </figure>
         </article>
 
-        <!-- 9. List Comparer (text-forward, no screenshot) -->
+        <!-- 9. List Comparer: media right (two-list mock) -->
         <article class="feature-row">
           <div class="feature-text">
             <span class="feature-icon">
@@ -460,11 +337,8 @@
             </span>
             <h3>List Comparer</h3>
             <p>
-              Compare two life lists to see shared and unique species, or compare two
-              individual checklists side by side: counts with the higher total emphasized,
-              breeding codes, photo, audio, and video indicators, effort details,
-              checklist and species comments, and side-by-side weather and tide for
-              each checklist.
+              Two life lists side by side, or any two public checklists: what they share and
+              what only one has.
             </p>
           </div>
           <figure class="feature-media feature-mock" aria-hidden="true">
@@ -479,78 +353,22 @@
           </figure>
         </article>
 
-        <!-- 10. Search (text-forward, mock) -->
-        <article class="feature-row">
-          <div class="feature-text">
-            <span class="feature-icon">
-              <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-            </span>
-            <h3>Search anything by name</h3>
-            <p>
-              Press Cmd-K or Ctrl-K anywhere in the app, type a few letters, and press
-              Enter. Search reaches every tab you have visible and every species in your
-              own eBird backup, matching the common name and the scientific name at once,
-              so <em>calypte</em> finds Anna's Hummingbird, and a few letters plus Enter
-              open Species Detail on the bird you were thinking of. Arrow keys move
-              through the results, Enter opens, Escape closes and hands focus back to the
-              control you opened it from, or to the main content when that control has
-              gone away.
-              There is a Search control in the navigation too, at every window width, so
-              it is there on a phone as well.
-            </p>
-            <p>
-              It makes no network request and saves nothing, so it works offline and
-              without an API key. If you have not saved a backup yet, or a saved one will
-              not load, it says which of the two it is and keeps taking you to tabs
-              regardless.
-            </p>
-          </div>
-          <figure class="feature-media feature-mock" aria-hidden="true">
-            <div class="named">
-              <div class="ck-search">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-                cal
-              </div>
-              <div class="named-row"><span class="named-tag">Go</span><span class="named-sp">Calendar</span><span class="named-seen">tab</span></div>
-              <div class="named-row"><span class="named-tag">Bird</span><span class="named-sp">Anna&#39;s Hummingbird</span><span class="named-seen">Calypte anna</span></div>
-              <div class="named-row"><span class="named-tag">Bird</span><span class="named-sp">California Quail</span><span class="named-seen">Callipepla californica</span></div>
-              <div class="named-row"><span class="named-tag">Bird</span><span class="named-sp">California Scrub-Jay</span><span class="named-seen">Aphelocoma californica</span></div>
-              <div class="ck-count">Arrow keys move &middot; Enter opens &middot; Esc closes</div>
-            </div>
-          </figure>
-        </article>
-
-        <!-- 11. Offline support (text-forward, mock) -->
+        <!-- 10. Named Birds: reverse -->
         <article class="feature-row reverse">
           <div class="feature-text">
             <span class="feature-icon">
-              <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M5 18a4 4 0 0 1-.5-7.97A6 6 0 0 1 16 9a4.5 4.5 0 0 1 1.5 8.72"/><path d="M8 16v4M12 18v3M16 16v4"/></svg>
+              <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41 13.42 20.6a2 2 0 0 1-2.83 0L3 13V3h10l7.59 7.59a2 2 0 0 1 0 2.82z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg>
             </span>
-            <h3>Offline support</h3>
+            <h3>Named Birds</h3>
             <p>
-              Out in the field with no signal, SnowRaven keeps working from the data
-              already on your device. The maps and every analytical tab open offline once
-              they've loaded online once, and a checklist's weather and tide you looked up
-              earlier re-show, marked as the last loaded result.
-            </p>
-            <p>
-              Live lookups (current weather and tide, place search, the Checklist Comparer,
-              nearby-bird overlays, and app updates) still need a connection, and only the
-              vector street basemap works offline.
+              Tag an individual bird by name in a species comment and SnowRaven gathers
+              everything you have on it: sightings, places, a timeline, its own media. With
+              several named birds, one strip puts them all on a shared time axis.
             </p>
           </div>
-          <figure class="feature-media feature-mock" aria-hidden="true">
-            <div class="named">
-              <div class="ck-search">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h.01M8.5 16.43a5 5 0 0 1 7 0M5 12.86a10 10 0 0 1 5.17-2.69M19 12.86a10 10 0 0 0-2.01-1.52M2 8.82a15 15 0 0 1 4.18-2.64M22 8.82a15 15 0 0 0-11.29-3.76M2 2l20 20"/></svg>
-                No connection
-              </div>
-              <div class="named-row"><span class="named-tag">Open</span><span class="named-sp">Map Explorer</span><span class="named-seen">your sightings</span></div>
-              <div class="named-row"><span class="named-tag">Open</span><span class="named-sp">Species Detail</span><span class="named-seen">your data</span></div>
-              <div class="named-row"><span class="named-tag">Open</span><span class="named-sp">Statistics</span><span class="named-seen">your data</span></div>
-              <div class="named-row"><span class="named-tag">Saved</span><span class="named-sp">Weather &amp; tide</span><span class="named-seen">last loaded</span></div>
-              <div class="ck-count">Working from data already on your device</div>
-            </div>
+          <figure class="feature-media shot-slot" data-shot="named-birds">
+            <img src="assets/shots/named-birds.webp" width="1600" height="800"
+                 alt="The Named Birds tab listing three named individuals with their species, date range, elapsed span and sighting counts, above a strip giving each one a labelled lane on a shared time axis." loading="lazy" />
           </figure>
         </article>
       </div>
@@ -563,11 +381,10 @@
           <p class="eyebrow"><span class="dot"></span>Runs where you do</p>
           <h2>One app, everywhere you bird</h2>
           <p>
-            Install the native desktop app on a Mac or Windows PC, get it from the <a href="https://apps.apple.com/app/id6787719977" target="_blank" rel="noopener">App Store</a>
-            on an iPhone or iPad, or self-host it on a Raspberry Pi (or any computer on your
-            network) and open it from any browser. One universal Mac build runs on both Apple
-            Silicon and Intel, and the whole interface is responsive, so the self-hosted
-            version works in a phone or tablet browser too.
+            A native app on a Mac or Windows PC, on the <a href="https://apps.apple.com/app/id6787719977" target="_blank" rel="noopener">App Store</a>
+            for iPhone and iPad, or self-hosted on a Raspberry Pi (or any computer on your
+            network) and opened from any browser. One universal Mac build covers Apple Silicon
+            and Intel, and the self-hosted version works in a phone or tablet browser too.
           </p>
           <ul class="platform-list">
             <li>
@@ -611,7 +428,7 @@
             </article>
             <article class="install-card">
               <h3><span class="step-os">iPhone / iPad</span></h3>
-              <p>Get SnowRaven from the <a href="https://apps.apple.com/app/id6787719977" target="_blank" rel="noopener">App Store</a>. It is free, needs no account, and runs on iOS 16 or later. Updates arrive through the App Store like any other app.</p>
+              <p>Get SnowRaven from the <a href="https://apps.apple.com/app/id6787719977" target="_blank" rel="noopener">App Store</a>. It is free and runs on iOS 16 or later. Updates arrive through the App Store like any other app.</p>
               <a class="btn btn-small" href="https://apps.apple.com/app/id6787719977" target="_blank" rel="noopener">Download for iPhone and iPad</a>
             </article>
             <article class="install-card">
@@ -641,28 +458,20 @@
               <li>
                 <strong>eBird API key</strong>, free from
                 <a href="https://ebird.org/api/keygen" target="_blank" rel="noopener">ebird.org/api/keygen</a>.
-                Powers weather lookups, hotspot and nearby-sighting data, and taxonomy and region lookups.
               </li>
               <li>
                 <strong>OpenWeather API key</strong>, free from
                 <a href="https://openweathermap.org" target="_blank" rel="noopener">openweathermap.org</a>,
-                subscribed to the One Call by Call plan.
+                subscribed to the free One Call by Call plan (activating it needs a payment card on file; set a usage cap to avoid charges).
               </li>
             </ul>
             <p class="req-note">
-              Most analytics also use your own
+              Most tabs also read your
               <a href="https://ebird.org/downloadMyData" target="_blank" rel="noopener">eBird backup</a>
-              (a free export of your data) and an optional Macaulay Library export. They stay on your device.
-              On web and Raspberry Pi installs, a stored export that sends no data for
-              30 seconds stops with a load error and can be tried again, while a healthy
-              large file can keep streaming for longer.
-              On a Mac, iPhone or iPad, an optional iCloud Sync switch in Settings (off by default)
-              keeps those two files the same across your own Apple devices through your own iCloud
-              account, so an export uploaded once is used everywhere. A second switch, also off by
-              default, can share your two API keys the same way, so a key entered once is used on
-              every device that turns it on. Settings and caches are never synced.
+              (a free export of your data) and, for the media features, an optional Macaulay
+              Library export.
             </p>
-            <p class="req-note">Already installed? Desktop apps update from <strong>Check For Updates</strong> in the footer; self-hosted installs run <code>./update.sh</code>.</p>
+            <p class="req-note">Updating: desktop apps update from <strong>Check For Updates</strong> in the footer; self-hosted installs run <code>./update.sh</code>.</p>
           </aside>
         </div>
       </div>
@@ -672,7 +481,7 @@
     <section class="closing band">
       <div class="container closing-inner">
         <h2>A personal project, shared freely</h2>
-        <p>SnowRaven began as a tool for one birder's own data, and it's shared here, open source and free, in case other birders find it useful. It works alongside eBird and the Macaulay Library, building on the exports they let you download. There's nothing to sign up for, and nothing to buy.</p>
+        <p>SnowRaven is free and open source, built by one birder for their own data.</p>
         <div class="cta-row center">
           <a class="btn btn-primary" href="https://github.com/dtgibson/snowraven/releases/latest" target="_blank" rel="noopener">Download SnowRaven</a>
           <a class="btn btn-secondary on-dark" href="https://github.com/dtgibson/snowraven" target="_blank" rel="noopener">View the source on GitHub</a>
