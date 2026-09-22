@@ -72,11 +72,18 @@ const copyBtn = (active: boolean): React.CSSProperties => ({
   fontSize: '0.75rem', fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer',
   display: 'inline-flex', alignItems: 'center', gap: 5,
 })
-const fieldLabel: React.CSSProperties = { display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--sr-text-muted)', marginBottom: 6, letterSpacing: '0.01em' }
+// Sentence case, so no --sr-label-ratio: these five labels track the 0.84375rem
+// inputs beneath them one for one through the phone-tier .sr-ctl-label rule,
+// instead of staying at 12px while the input jumps to the 16px iOS floor.
+const fieldLabel: React.CSSProperties = { display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--sr-text-muted)', marginBottom: 6, letterSpacing: '0.01em', ['--sr-ctl-rem' as string]: '0.84375rem' } as React.CSSProperties
 const textInput: React.CSSProperties = {
   width: '100%', height: 40, padding: '0 12px', border: '1.5px solid var(--sr-border)', borderRadius: 8,
   fontSize: '0.84375rem', fontFamily: 'inherit', color: 'var(--sr-text)', background: 'var(--sr-surface)', minWidth: 0,
-}
+  // These five inputs' OWN register, read by the phone-tier .sr-input-16 floor
+  // so they are raised to the iOS threshold and never cut down to 0.75rem
+  // (27px, not 24px, at 200% text scale).
+  ['--sr-ctl-rem' as string]: '0.84375rem',
+} as React.CSSProperties
 const chip: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.8125rem', color: 'var(--sr-text)' }
 
 // ── pill ──────────────────────────────────────────────────────────────────────
@@ -508,7 +515,7 @@ export function WeatherForecastPanel({ onPlanVisible }: WeatherForecastPanelProp
             </div>
           )}
 
-          <label htmlFor="predict-place" style={fieldLabel}>Place</label>
+          <label htmlFor="predict-place" className="sr-ctl-label" style={fieldLabel}>Place</label>
           <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
             <input
               id="predict-place" type="text" value={place}
@@ -530,19 +537,19 @@ export function WeatherForecastPanel({ onPlanVisible }: WeatherForecastPanelProp
 
           <div className="sr-grid-2" style={{ ['--sr-grid-gap' as string]: '12px', marginTop: 12 }}>
             <div>
-              <label htmlFor="predict-lat" style={fieldLabel}>Latitude</label>
+              <label htmlFor="predict-lat" className="sr-ctl-label" style={fieldLabel}>Latitude</label>
               <input id="predict-lat" type="number" step="0.0001" min={-90} max={90} value={latStr} onChange={e => applyLat(e.target.value)} aria-label="Latitude (-90 to 90)" className="sr-input-16" style={textInput} />
             </div>
             <div>
-              <label htmlFor="predict-lng" style={fieldLabel}>Longitude</label>
+              <label htmlFor="predict-lng" className="sr-ctl-label" style={fieldLabel}>Longitude</label>
               <input id="predict-lng" type="number" step="0.0001" min={-180} max={180} value={lngStr} onChange={e => applyLng(e.target.value)} aria-label="Longitude (-180 to 180)" className="sr-input-16" style={textInput} />
             </div>
             <div>
-              <label htmlFor="predict-date" style={fieldLabel}>Date</label>
+              <label htmlFor="predict-date" className="sr-ctl-label" style={fieldLabel}>Date</label>
               <input id="predict-date" type="date" value={dateStr} min={toDateInput(new Date())} onChange={e => setDateStr(e.target.value)} aria-label="Forecast date" className="sr-input-16" style={textInput} />
             </div>
             <div>
-              <label htmlFor="predict-time" style={fieldLabel}>Time</label>
+              <label htmlFor="predict-time" className="sr-ctl-label" style={fieldLabel}>Time</label>
               <input id="predict-time" type="time" value={timeStr} onChange={e => setTimeStr(e.target.value)} aria-label="Forecast time" className="sr-input-16" style={textInput} />
             </div>
           </div>

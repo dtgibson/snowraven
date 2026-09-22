@@ -136,18 +136,10 @@ export function NamedBirdsTable(props: NamedBirdsTableProps) {
         <div className="sr-wrap-flex" style={{ ['--sr-wrap-gap' as string]: '6px' }}>
           {sortOptions.map((o) => (
             <Button
-              className="sr-touch-target"
+              className="sr-pill sr-touch-target"
               key={o.key}
               aria-pressed={sort === o.key}
               onClick={() => setSort(o.key)}
-              style={{
-                height: 30, padding: '0 13px',
-                border: '1.5px solid var(--sr-accent-border)', borderRadius: 8,
-                background: sort === o.key ? 'var(--sr-accent-bg)' : 'transparent',
-                color: sort === o.key ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
-                fontSize: '0.75rem', fontWeight: sort === o.key ? 600 : 500,
-                fontFamily: 'inherit', cursor: 'pointer', whiteSpace: 'nowrap',
-              }}
             >
               {o.label}
             </Button>

@@ -2047,7 +2047,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                   className prop onto the <input> itself (the iOS no-zoom guard
                   is inert anywhere else). */}
               <div style={{ marginBottom: 12 }}>
-                <SidebarLabel>Species</SidebarLabel>
+                <SidebarLabel ctlRem="0.8125rem">Species</SidebarLabel>
                 <SpeciesCombobox
                   options={speciesOptions}
                   value={speciesFilter || null}
@@ -2061,7 +2061,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
               </div>
               {/* Date range */}
               <div style={{ marginBottom: 12 }}>
-                <SidebarLabel>Date Range</SidebarLabel>
+                <SidebarLabel ctlRem="0.75rem">Date Range</SidebarLabel>
                 <div className="sr-field-row">
                   <input className="sr-input-16" type="date" aria-label="From date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
                     style={{ flex: 1, height: 34, padding: '0 8px', border: '1.5px solid var(--sr-border)', borderRadius: 6, fontSize: '0.75rem', fontFamily: 'inherit', color: 'var(--sr-text)', background: 'var(--sr-surface)', minWidth: 0, boxSizing: 'border-box' }} />
@@ -2072,7 +2072,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
               {/* County */}
               {allCounties.length > 0 && (
                 <div style={{ marginBottom: 12 }}>
-                  <SidebarLabel>County</SidebarLabel>
+                  <SidebarLabel ctlRem="0.8125rem">County</SidebarLabel>
                   <select className="sr-input-16" aria-label="County" value={countyFilter} onChange={e => setCountyFilter(e.target.value)} style={SELECT_STYLE}>
                     <option value="">All counties</option>
                     {allCounties.map(c => <option key={c} value={c}>{c}</option>)}
@@ -2096,7 +2096,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
               {/* Media (only when ML export stored) */}
               {phase.tag === 'ready' && phase.hasML && (
                 <div>
-                  <SidebarLabel>Media</SidebarLabel>
+                  <SidebarLabel ctlRem="0.8125rem">Media</SidebarLabel>
                   <select className="sr-input-16" aria-label="Media" value={mediaFilter} onChange={e => setMediaFilter(e.target.value as MediaFilter)} style={SELECT_STYLE}>
                     <option value="any">Any</option>
                     <option value="photo">Has Photo</option>
@@ -2509,7 +2509,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
       {/* Manual species select — when no ML export */}
       {targetsNoML && (
         <div style={{ marginBottom: 16 }}>
-          <SidebarLabel>Target Species</SidebarLabel>
+          <SidebarLabel ctlRem="0.75rem">Target Species</SidebarLabel>
           <div style={{ fontSize: '0.71875rem', color: 'var(--sr-text-muted)', marginBottom: 8, lineHeight: 1.45 }}>
             Upload an ML export in Settings to auto-derive targets, or select species manually.
           </div>

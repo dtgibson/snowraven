@@ -49,7 +49,7 @@ export function HotspotModeControl({ mode, onModeChange, window: win, onWindowCh
 
   return (
     <div className="sr-ctl-row" style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--sr-border)' }}>
-      <SidebarLabel>Color pins by</SidebarLabel>
+      <SidebarLabel ctlRem="0.75rem">Color pins by</SidebarLabel>
       <div className="sr-hotspot-mode-grid">
         {HOTSPOT_MODE_OPTIONS.map(opt => (
           <Button
@@ -70,7 +70,9 @@ export function HotspotModeControl({ mode, onModeChange, window: win, onWindowCh
       <div className={`sr-hotspot-reveal${mode === 'activity' ? ' sr-hotspot-reveal--open' : ''}`}>
         <div inert={mode !== 'activity'} style={{ overflow: 'hidden', minHeight: 0 }}>
           <div style={{ marginTop: 10 }}>
-            <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginBottom: 6 }}>Time window</div>
+            {/* Sentence case, so no --sr-label-ratio: it tracks the 0.75rem
+                pills beneath it one for one through the phone-tier rule. */}
+            <div className="sr-ctl-label" style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginBottom: 6, ['--sr-ctl-rem' as string]: '0.75rem' } as React.CSSProperties}>Time window</div>
             <div className="sr-hotspot-mode-grid">
               {ACTIVITY_WINDOW_OPTIONS.map(opt => (
                 <Button

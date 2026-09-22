@@ -122,6 +122,7 @@ code, .inline-code {
 .chip { font-size:0.625rem; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:var(--sr-text-muted); border:1px solid var(--sr-border); padding:3px 8px; border-radius:10px; background:var(--sr-surface); }
 .chip--rec { color:var(--sr-accent); border-color:var(--sr-accent-border); background:var(--sr-accent-bg); }
 .pair { display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+.pair > * { min-width:0; } /* release the grid item automatic minimum so a 320px viewport does not page-scroll */
 @media (max-width:860px){ .pair { grid-template-columns:1fr; } }
 
 /* SPECIMEN FACE — declared ONCE, for every specimen container.
@@ -181,16 +182,19 @@ code, .inline-code {
 .sr-pill[data-tier="1"][aria-pressed="true"]{ background:rgba(var(--sr-tier-1-rgb),0.15); border-color:rgba(var(--sr-tier-1-rgb),0.5); color:var(--sr-tier-1-fg); }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   REGISTER B — .sr-seg / .sr-seg-btn : the segmented group (~15 sites)
+   REGISTER B — .sr-segbar / .sr-segbar-btn : the segmented group (~15 sites)
    These sites declare border:'none' today and take their edge from a wrapping
    shell. They are a different shape and need their own register.
+   Renamed 2026-09-22 from .sr-seg / .sr-seg-btn: those are SegControl's own
+   shipped class names (Calendar.tsx, globals.css:4718) and SegControl is out
+   of scope. Every value below is unchanged; only the name.
    ═════════════════════════════════════════════════════════════════════════ */
-.sr-seg {
+.sr-segbar {
   display:inline-flex; align-items:stretch;
   border:1.5px solid var(--sr-accent-border); border-radius:15px;
   overflow:hidden; background:var(--sr-surface);
 }
-.sr-seg-btn {
+.sr-segbar-btn {
   display:inline-flex; align-items:center; justify-content:center; gap:5px;
   min-height:30px; padding:0 12px;
   border:none; background:transparent; color:var(--sr-text-muted);
@@ -198,14 +202,14 @@ code, .inline-code {
   white-space:nowrap; cursor:pointer;
   transition: background-color 120ms ease-out, color 120ms ease-out;
 }
-.sr-seg-btn + .sr-seg-btn { border-left:1.5px solid var(--sr-accent-border); }
-.sr-seg-btn:not(:disabled):hover { background:var(--sr-surface-subtle); color:var(--sr-text); }
-.sr-seg-btn[aria-pressed="true"] { background:var(--sr-accent-bg); color:var(--sr-accent); font-weight:600; }
-.sr-seg-btn:focus-visible { outline:3px solid var(--sr-accent); outline-offset:-3px; }
+.sr-segbar-btn + .sr-segbar-btn { border-left:1.5px solid var(--sr-accent-border); }
+.sr-segbar-btn:not(:disabled):hover { background:var(--sr-surface-subtle); color:var(--sr-text); }
+.sr-segbar-btn[aria-pressed="true"] { background:var(--sr-accent-bg); color:var(--sr-accent); font-weight:600; }
+.sr-segbar-btn:focus-visible { outline:3px solid var(--sr-accent); outline-offset:-3px; }
 
 /* Radius A/B demonstration */
-.r6 .sr-pill, .r6 .sr-seg { border-radius:6px; }
-.r15 .sr-pill, .r15 .sr-seg { border-radius:15px; }
+.r6 .sr-pill, .r6 .sr-segbar { border-radius:6px; }
+.r15 .sr-pill, .r15 .sr-segbar { border-radius:15px; }
 /* Rest-border option B */
 .opt-b .sr-pill { border-color:var(--sr-border-input); }
 .opt-b .sr-pill[aria-pressed="true"] { border-color:var(--sr-accent-border); }
@@ -268,10 +272,10 @@ code, .inline-code {
 /* ── Phone ── */
 .phones { display:flex; gap:24px; flex-wrap:wrap; align-items:flex-start; }
 .phone-cap { font-size:0.6875rem; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; color:var(--sr-text-muted); margin:0 0 10px; }
-.phone { width:320px; max-width:100%; border:1px solid var(--sr-border-medium); border-radius:18px; background:var(--sr-bg); padding:14px; overflow:hidden; box-shadow:var(--sr-card-shadow); }
+.phone { width:100%; max-width:320px; border:1px solid var(--sr-border-medium); border-radius:18px; background:var(--sr-bg); padding:14px; overflow:hidden; box-shadow:var(--sr-card-shadow); }
 /* The ≤640 posture a register brings: 44px box, wrapping labels, 16px floor. */
 .after-phone .sr-pill { min-height:2.75rem; height:auto; white-space:normal; font-size:max(16px,0.75rem); }
-.after-phone .sr-seg-btn { min-height:2.75rem; height:auto; white-space:normal; font-size:max(16px,0.75rem); }
+.after-phone .sr-segbar-btn { min-height:2.75rem; height:auto; white-space:normal; font-size:max(16px,0.75rem); }
 
 /* ── Text-scale demonstration (section 10) ───────────────────────────────────
    Specimen sizes are set INLINE in rendered px, not rem: each panel depicts a
@@ -445,13 +449,13 @@ footer { margin-top:82px; padding-top:26px; border-top:1px solid var(--sr-border
         </div>
       </div>
       <div class="panel theme-light">
-        <div class="panel-tag"><h3>Register B — <code>.sr-seg-btn</code></h3><span class="chip">~15 sites</span></div>
+        <div class="panel-tag"><h3>Register B — <code>.sr-segbar-btn</code></h3><span class="chip">~15 sites</span></div>
         <div class="app-card">
           <p class="row-label">Lives in a shell · shares dividers · one unit</p>
           <div class="ctl-row">
-            <div class="sr-seg">
-              <button class="sr-seg-btn" type="button" aria-pressed="true">A–Z</button>
-              <button class="sr-seg-btn" type="button" aria-pressed="false">Taxonomic</button>
+            <div class="sr-segbar">
+              <button class="sr-segbar-btn" type="button" aria-pressed="true">A–Z</button>
+              <button class="sr-segbar-btn" type="button" aria-pressed="false">Taxonomic</button>
             </div>
           </div>
         </div>
@@ -497,9 +501,9 @@ footer { margin-top:82px; padding-top:26px; border-top:1px solid var(--sr-border
             <button class="sr-pill" type="button" data-state="negative" aria-pressed="true">No audio</button>
           </div>
           <p class="row-label" style="margin-top:16px">Sort</p>
-          <div class="ctl-row"><div class="sr-seg">
-            <button class="sr-seg-btn" type="button" aria-pressed="true">A–Z</button>
-            <button class="sr-seg-btn" type="button" aria-pressed="false">Taxonomic</button>
+          <div class="ctl-row"><div class="sr-segbar">
+            <button class="sr-segbar-btn" type="button" aria-pressed="true">A–Z</button>
+            <button class="sr-segbar-btn" type="button" aria-pressed="false">Taxonomic</button>
           </div></div>
         </div>
       </div>
@@ -514,9 +518,9 @@ footer { margin-top:82px; padding-top:26px; border-top:1px solid var(--sr-border
             <button class="sr-pill" type="button" data-state="negative" aria-pressed="true">No audio</button>
           </div>
           <p class="row-label" style="margin-top:16px">Sort</p>
-          <div class="ctl-row"><div class="sr-seg">
-            <button class="sr-seg-btn" type="button" aria-pressed="true">A–Z</button>
-            <button class="sr-seg-btn" type="button" aria-pressed="false">Taxonomic</button>
+          <div class="ctl-row"><div class="sr-segbar">
+            <button class="sr-segbar-btn" type="button" aria-pressed="true">A–Z</button>
+            <button class="sr-segbar-btn" type="button" aria-pressed="false">Taxonomic</button>
           </div></div>
         </div>
       </div>
@@ -726,9 +730,9 @@ footer { margin-top:82px; padding-top:26px; border-top:1px solid var(--sr-border
         <div class="panel-tag"><h3>List Comparer — mode switch</h3><span class="chip chip--rec">30px · −6px</span></div>
         <div class="app-card">
           <p class="row-label">Shrinks — the only direction anything gets smaller</p>
-          <div class="ctl-row"><div class="sr-seg">
-            <button class="sr-seg-btn" type="button" aria-pressed="true">Checklists</button>
-            <button class="sr-seg-btn" type="button" aria-pressed="false">Life Lists</button>
+          <div class="ctl-row"><div class="sr-segbar">
+            <button class="sr-segbar-btn" type="button" aria-pressed="true">Checklists</button>
+            <button class="sr-segbar-btn" type="button" aria-pressed="false">Life Lists</button>
           </div></div>
         </div>
       </div>
@@ -744,16 +748,16 @@ footer { margin-top:82px; padding-top:26px; border-top:1px solid var(--sr-border
 
   <!-- ══ 06 ══════════════════════════════════════════════════════════════ -->
   <section>
-    <div class="sec-head"><span class="sec-num">06</span><h2 class="display">Motion: 38 controls gain a transition</h2></div>
+    <div class="sec-head"><span class="sec-num">06</span><h2 class="display">Motion: the family gains a transition</h2></div>
     <p class="sec-sub">
-      Only <strong>6 of the 44</strong> sites declare a transition today. The other 38 snap
-      instantly between states. Adopting a register gives all of them one 120ms ease-out fade —
-      a small change you will feel on every filter press.
+      Only <strong>five declaration sites</strong> carry a transition today; every other site in
+      the family snaps instantly between states. Adopting a register gives all of them one 120ms
+      ease-out fade — a small change you will feel on every filter press.
     </p>
 
     <div class="pair">
       <div class="panel theme-light">
-        <div class="panel-tag"><h3>Today — instant</h3><span class="chip">38 of 44 sites</span></div>
+        <div class="panel-tag"><h3>Today — instant</h3><span class="chip">All but five</span></div>
         <div class="app-card">
           <p class="row-label">Hover these — nothing eases</p>
           <div class="ctl-row">
@@ -897,11 +901,17 @@ footer { margin-top:82px; padding-top:26px; border-top:1px solid var(--sr-border
           <thead><tr><th>Finding</th><th>Detail</th><th>Why it is not in this build</th></tr></thead>
           <tbody>
             <tr>
-              <td><strong>11 sites have no <code>aria-pressed</code></strong></td>
-              <td>Four sort-segment groups carry selected state as style only — invisible to a
-                  screen reader. The near-identical Checklists sort control <em>does</em> carry it.</td>
-              <td>Adding it is an ARIA and behaviour change. The brief holds behaviour, keyboard
-                  path and tab stops fixed. Worth its own small build.</td>
+              <td><strong>7 sites have no <code>aria-pressed</code></strong>
+                  <br><span style="color:var(--sr-text-muted);font-weight:400;font-size:0.85em">(11 at design time)</span></td>
+              <td>At design time four sort-segment groups carried selected state as style only —
+                  invisible to a screen reader. <strong>That follow-up shipped at v1.0.32</strong>
+                  (<code>sort-controls-selected-state</code>): each now carries
+                  <code>role="group"</code>, <code>aria-label="Sort order"</code> and a literal
+                  <code>aria-pressed</code> per option, so the register's
+                  <code>[aria-pressed="true"]</code> rule is what shows their selected state.</td>
+              <td>The remaining seven are still an ARIA and behaviour change and stay outside this
+                  build. The four repaired groups keep their attributes untouched;
+                  <code>sortControlsSelectedState.test.tsx</code> must stay green.</td>
             </tr>
             <tr>
               <td><strong><code>sortBtn</code> is not a pill</strong></td>

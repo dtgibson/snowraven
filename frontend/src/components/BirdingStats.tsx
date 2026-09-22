@@ -892,16 +892,9 @@ export function BirdingStats({ onGoToSettings, onGoToWeather, onOpenSpecies }: {
                 {(['weekly', 'monthly', 'yearly', 'total'] as const).map(g => (
                   <Button
                     key={g}
-                    className="sr-touch-target"
+                    className="sr-pill sr-touch-target"
                     onClick={() => setAccGranularity(g)}
                     aria-pressed={accGranularity === g}
-                    style={{
-                      height: 24, padding: '0 8px', borderRadius: 6, fontSize: '0.6875rem', fontWeight: 500,
-                      fontFamily: 'inherit', cursor: 'pointer',
-                      border: accGranularity === g ? '1.5px solid var(--sr-accent-border)' : '1.5px solid var(--sr-border)',
-                      background: accGranularity === g ? 'var(--sr-accent-bg)' : 'none',
-                      color: accGranularity === g ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
-                    }}
                   >
                     {g.charAt(0).toUpperCase() + g.slice(1)}
                   </Button>
@@ -2119,27 +2112,22 @@ export function BirdingStats({ onGoToSettings, onGoToWeather, onOpenSpecies }: {
               <SubLabel>Breeding activity by month</SubLabel>
               <div role="group" aria-label="Filter breeding activity by tier" style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                 {([
-                  // `color` styles the border (non-text); `fg` is the AA-passing
-                  // text token (F003) used for the active pill label.
+                  // The per-tier tint is the shared register's `data-tier`
+                  // variant, so no colour is declared here: these pills and the
+                  // Breeding Codes tab's filter pills now render one treatment
+                  // instead of two that had drifted apart. Every active label
+                  // still takes an AA-passing `-fg` token, never a raw tier fill.
                   { key: 'all', label: 'All' },
-                  { key: 'confirmed', label: 'Confirmed', color: 'var(--sr-tier-4)', fg: 'var(--sr-tier-4-fg)' },
-                  { key: 'probable', label: 'Probable', color: 'var(--sr-tier-2)', fg: 'var(--sr-tier-2-fg)' },
-                  { key: 'possible', label: 'Possible', color: 'var(--sr-tier-1)', fg: 'var(--sr-tier-1-fg)' },
+                  { key: 'confirmed', label: 'Confirmed', tier: 4 },
+                  { key: 'probable', label: 'Probable', tier: 2 },
+                  { key: 'possible', label: 'Possible', tier: 1 },
                 ] as const).map(f => (
                   <Button
                     key={f.key}
-                    className="sr-touch-target"
+                    className="sr-pill sr-touch-target"
                     onClick={() => setBreedingFilter(f.key)}
                     aria-pressed={breedingFilter === f.key}
-                    style={{
-                      height: 24, padding: '0 8px', borderRadius: 6, fontSize: '0.6875rem', fontWeight: 500,
-                      fontFamily: 'inherit', cursor: 'pointer',
-                      border: breedingFilter === f.key
-                        ? `1.5px solid ${'color' in f ? f.color : 'var(--sr-accent-border)'}`
-                        : '1.5px solid var(--sr-border)',
-                      background: breedingFilter === f.key ? ('color' in f ? `rgba(var(--sr-tier-${'confirmed' === f.key ? 4 : 'probable' === f.key ? 2 : 1}-rgb), 0.1)` : 'var(--sr-accent-bg)') : 'none',
-                      color: breedingFilter === f.key ? ('fg' in f ? f.fg : 'var(--sr-accent)') : 'var(--sr-text-muted)',
-                    }}
+                    data-tier={'tier' in f ? f.tier : undefined}
                   >
                     {f.label}
                   </Button>
@@ -2230,16 +2218,9 @@ export function BirdingStats({ onGoToSettings, onGoToWeather, onOpenSpecies }: {
                 {(['per-period', 'cumulative'] as const).map(m => (
                   <Button
                     key={m}
-                    className="sr-touch-target"
+                    className="sr-pill sr-touch-target"
                     onClick={() => setMediaViewMode(m)}
                     aria-pressed={mediaViewMode === m}
-                    style={{
-                      height: 24, padding: '0 8px', borderRadius: 6, fontSize: '0.6875rem', fontWeight: 500,
-                      fontFamily: 'inherit', cursor: 'pointer',
-                      border: mediaViewMode === m ? '1.5px solid var(--sr-accent-border)' : '1.5px solid var(--sr-border)',
-                      background: mediaViewMode === m ? 'var(--sr-accent-bg)' : 'none',
-                      color: mediaViewMode === m ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
-                    }}
                   >
                     {m === 'per-period' ? 'Per Period' : 'Cumulative'}
                   </Button>
@@ -2251,16 +2232,9 @@ export function BirdingStats({ onGoToSettings, onGoToWeather, onOpenSpecies }: {
               {(['weekly', 'monthly', 'yearly', 'total'] as const).map(g => (
                 <Button
                   key={g}
-                  className="sr-touch-target"
+                  className="sr-pill sr-touch-target"
                   onClick={() => setMediaInterval(g)}
                   aria-pressed={mediaInterval === g}
-                  style={{
-                    height: 24, padding: '0 8px', borderRadius: 6, fontSize: '0.6875rem', fontWeight: 500,
-                    fontFamily: 'inherit', cursor: 'pointer',
-                    border: mediaInterval === g ? '1.5px solid var(--sr-accent-border)' : '1.5px solid var(--sr-border)',
-                    background: mediaInterval === g ? 'var(--sr-accent-bg)' : 'none',
-                    color: mediaInterval === g ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
-                  }}
                 >
                   {g.charAt(0).toUpperCase() + g.slice(1)}
                 </Button>

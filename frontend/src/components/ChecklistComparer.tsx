@@ -294,15 +294,9 @@ export function ChecklistComparer({ onOpenSpecies, keyStatus, onGoToSettings }: 
             <ChecklistTag badge="B" id={idB} meta={result.metaB} badges={badgesB} />
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0, flexWrap: 'wrap' }}>
-            <div style={{ display: 'flex', borderRadius: 6, overflow: 'hidden', border: '1.5px solid var(--sr-accent-border)' }} role="group" aria-label="Sort order">
-              {(['taxonomic', 'alpha'] as Sort[]).map((s, i) => (
-                <Button key={s} onClick={() => setSort(s)} aria-pressed={sort === s}
-                  style={{
-                    height: 34, padding: '0 12px', fontSize: '0.8125rem', fontWeight: 500, fontFamily: 'inherit',
-                    cursor: 'pointer', border: 'none', borderLeft: i > 0 ? '1.5px solid var(--sr-accent-border)' : 'none',
-                    background: sort === s ? 'var(--sr-accent-bg)' : 'transparent',
-                    color: sort === s ? 'var(--sr-accent)' : 'var(--sr-text-muted)', whiteSpace: 'nowrap',
-                  }}>
+            <div className="sr-segbar" role="group" aria-label="Sort order">
+              {(['taxonomic', 'alpha'] as Sort[]).map(s => (
+                <Button key={s} className="sr-segbar-btn" onClick={() => setSort(s)} aria-pressed={sort === s}>
                   {s === 'taxonomic' ? 'Taxonomic' : 'A–Z'}
                 </Button>
               ))}

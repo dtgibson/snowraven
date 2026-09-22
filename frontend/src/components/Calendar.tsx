@@ -105,6 +105,10 @@ function SegControl<T extends string>({ options, value, onChange, ariaLabel }: {
             style={{
               display: 'inline-flex', alignItems: 'center', gap: 5,
               padding: '0.35rem 12px', borderRadius: 5, fontSize: '0.71875rem',
+              // This register's OWN size, read by the phone-tier .sr-ctl-row
+              // floor wherever a SegControl sits in a filter block, so it is
+              // raised to the iOS threshold and never cut down to 0.75rem.
+              ['--sr-ctl-rem' as string]: '0.71875rem',
               background: active ? 'var(--sr-surface)' : 'transparent',
               border: `1px solid ${active ? 'var(--sr-border)' : 'transparent'}`,
               fontWeight: active ? 600 : 400,
@@ -161,6 +165,10 @@ function Switch({ label, checked, onChange, small, disabled, describedBy }: {
         background: 'none', border: 'none', padding: 0, margin: 0,
         cursor: disabled ? 'default' : 'pointer', fontFamily: 'inherit',
         fontSize: small ? '0.71875rem' : '0.75rem',
+        // The same value as --sr-ctl-rem, so the phone-tier .sr-ctl-row floor
+        // raises this switch to the iOS threshold and never cuts it down to the
+        // rule's 0.75rem default. One expression, so the two cannot drift.
+        ['--sr-ctl-rem' as string]: small ? '0.71875rem' : '0.75rem',
         pointerEvents: disabled ? 'none' : 'auto',
       }}
     >
@@ -1006,7 +1014,7 @@ export function Calendar({ onGoToSettings, filesVersion }: {
       <div className="sr-ctl-row" role="region" aria-label="Calendar controls" style={{ display: 'flex', flexDirection: 'column', background: 'var(--sr-surface-faint)', border: '1px solid var(--sr-border-subtle)', borderRadius: 10, marginBottom: 18 }}>
         <div className="sr-wrap-flex" style={{ ['--sr-wrap-gap' as string]: '16px 14px', padding: '12px 16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={ctrlLabelStyle}>Show</span>
+            <span className="sr-ctl-label" style={ctrlLabelStyle}>Show</span>
             <SegControl
               ariaLabel="Day metric"
               value={metric}
@@ -1016,7 +1024,7 @@ export function Calendar({ onGoToSettings, filesVersion }: {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-            <span style={ctrlLabelStyle}>Species</span>
+            <span className="sr-ctl-label" style={ctrlLabelStyle}>Species</span>
             <SpeciesCombobox
               options={speciesComboOptions}
               value={selectedSpecies}
@@ -1035,7 +1043,7 @@ export function Calendar({ onGoToSettings, filesVersion }: {
               byte-identical to the inline ones they replace; the phone-tier wrap
               lives in globals.css beside them. */}
           <div className="sr-cal-year-group">
-            <span style={ctrlLabelStyle}>Year</span>
+            <span className="sr-ctl-label" style={ctrlLabelStyle}>Year</span>
             <div className="sr-cal-year-nav">
               <Button type="button" onClick={goPrev} disabled={prevDisabled} aria-label="Previous year with data" style={navBtnStyle(prevDisabled)}>
                 <ChevronLeft size={15} strokeWidth={2.4} aria-hidden />
@@ -1052,6 +1060,9 @@ export function Calendar({ onGoToSettings, filesVersion }: {
                 aria-pressed={combined}
                 style={{
                   font: 'inherit', fontSize: '0.71875rem', fontWeight: 600, cursor: 'pointer', marginLeft: 6,
+                  // This control's OWN register, read by the phone-tier
+                  // .sr-ctl-row floor; it shares the strip's 0.71875rem.
+                  ['--sr-ctl-rem' as string]: '0.71875rem',
                   height: 30, padding: '0 12px', borderRadius: 15,
                   border: `1.5px solid ${combined ? 'var(--sr-accent-border-strong)' : 'var(--sr-border)'}`,
                   background: combined ? 'var(--sr-accent-bg)' : 'var(--sr-surface)',
@@ -1066,7 +1077,7 @@ export function Calendar({ onGoToSettings, filesVersion }: {
           <div style={{ flex: '1 1 auto', minWidth: 0 }} />
 
           <div className="sr-cal-view-toggle" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={ctrlLabelStyle}>View</span>
+            <span className="sr-ctl-label" style={ctrlLabelStyle}>View</span>
             <SegControl
               ariaLabel="Calendar view"
               value={viewMode}
@@ -1145,9 +1156,17 @@ export function Calendar({ onGoToSettings, filesVersion }: {
   )
 }
 
+// The four strip labels sit beside floored controls, so they carry the
+// .sr-ctl-label opt-in and are sized in RELATION to those controls rather than
+// left behind at 11px while the control jumps to the 16px iOS floor.
+// --sr-ctl-rem is the strip's own control register; --sr-label-ratio is the
+// uppercase optical factor, because capitals fill the cap height and read
+// larger at equal metric size. Desktop is untouched: the rule is phone-tier.
 const ctrlLabelStyle: React.CSSProperties = {
   fontSize: '0.6875rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--sr-text-muted)',
-}
+  ['--sr-ctl-rem' as string]: '0.71875rem',
+  ['--sr-label-ratio' as string]: 'var(--sr-label-optical)',
+} as React.CSSProperties
 
 function navBtnStyle(disabled: boolean): React.CSSProperties {
   return {

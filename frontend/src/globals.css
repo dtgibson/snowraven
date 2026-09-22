@@ -7,6 +7,20 @@
      and the user's system/browser default both feed text sizing (all text is in rem). */
   --sr-text-scale: 1;
 
+  /* The iOS focus-zoom threshold. ABSOLUTE px on purpose: the zoom trigger is an
+     absolute value and does not scale with --sr-text-scale, so this is the one
+     place a px font-size is correct. Every phone-tier control floor in the app
+     derives from this one number (control-style-registers, vX.Y.Z). */
+  --sr-ctl-floor: 16px;
+
+  /* Uppercase optical compensation for a label sized in relation to the control
+     beside it. Capitals fill the cap height and read larger than lowercase at the
+     same metric size; this is the ONLY reason a label is ever set smaller than its
+     control, and it is why the desktop register carries a 1px offset. A
+     sentence-case label needs no compensation and takes the default of 1 by simply
+     declaring no ratio (control-style-registers, vX.Y.Z). */
+  --sr-label-optical: calc(11 / 12);
+
   /* Structural */
   --sr-bg: #F9FAFB;
   --sr-surface: #FFFFFF;
@@ -3255,6 +3269,262 @@ select:focus-visible {
   background: var(--sr-surface-subtle);
 }
 
+/* ── The control registers: `.sr-pill` and `.sr-segbar` / `.sr-segbar-btn` ────
+   (control-style-registers, vX.Y.Z)
+
+   One family, two shapes, drawn here once instead of in 44 inline style objects
+   across 15 components. They share height, type size, weight shift, states and
+   motion, and differ only at the EDGE: a `.sr-pill` carries its own border and
+   a full 15px radius; a `.sr-segbar-btn` carries none and takes its edge from
+   the `.sr-segbar` shell that clips it.
+
+   Radius 15 on a 30px control is an AFFORDANCE choice, not a citation: the
+   app's action buttons are radius 6 at 32px, so at radius 6 a filter and a
+   button are the same shape two pixels apart and shape carries no information.
+   A fully round pill is unmistakably a different KIND of control from the thing
+   that performs an action. (`design-system.md` also specifies 15; that is
+   corroboration, deliberately not the reason.)
+
+   `min-height`, never `height`. A fixed height is what forced the Breeding
+   Codes filter pill to override it with `height: auto !important` in the phone
+   tier; a minimum lets a wrapped label grow the control on every surface, and
+   that override becomes redundant rather than load-bearing.
+
+   The resting border stays `--sr-border` (1.27:1 light / 1.19:1 dark against
+   the surface) by decision: the control is identified by its LABEL and its
+   state by `aria-pressed` plus an AA-passing text colour and a weight change,
+   so no contrast requirement rests on the edge. The stricter reading of WCAG
+   1.4.11 (`--sr-border-input`, 3.43:1) was considered and declined because it
+   would make these pills visibly heavier than the buttons beside them for a
+   guarantee the label already carries. Do not re-derive this.
+
+   Two cascade rules that are easy to get wrong, both copied from shipped rules:
+     - hover is gated `:not(:disabled):not([aria-disabled="true"])`, so an inert
+       control never lights up as operable (`.sr-toggle`'s rule, above);
+     - every selected-state rule is declared AFTER the `:hover` rule so it wins
+       at equal specificity (the `.sr-map-fab` / `.sr-hotspot-mode-pill` source
+       -order convention).
+
+   Motion is one 120ms ease-out colour fade on both registers, matching the
+   shipped `.sr-hotspot-mode-pill` and `.sr-toggle` values rather than inventing
+   a timing. No transform, no scale: these are utility controls that toggle a
+   filter, and a state change is a colour change. The global
+   prefers-reduced-motion block below collapses it to ~1 microsecond and the end
+   state IS the resting state, so nothing is lost; per the standing note, no
+   per-component reduced-motion query is added.
+
+   v1.0.18 applies at every call site that adopts these: a class taking over
+   inline chrome takes `border`, `background` AND `transition` together, because
+   a left-behind inline transition is specificity 1,0,0 and silently beats the
+   class rule.
+
+   Unlayered on purpose, for the same reason `.sr-toggle` is: Tailwind's
+   preflight (`@layer base`) resets `border` and `background-color` on every
+   button, and unlayered author CSS beats a layered rule regardless of
+   specificity. Never move these into a layer.
+
+   NOT `.sr-seg` / `.sr-seg-btn`: those are `SegControl`'s own shipped class
+   names (`Calendar.tsx`, and the phone-tier rule further down), and SegControl
+   is a different register that this pass leaves alone. Do not write a rule that
+   matches both. `lib/controlRegisters.test.ts` parses this block. */
+.sr-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 30px;
+  padding: 0 12px;
+  border-radius: 15px;
+  border: 1.5px solid var(--sr-border);
+  background: var(--sr-surface);
+  color: var(--sr-text-muted);
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 120ms ease-out, border-color 120ms ease-out, color 120ms ease-out;
+}
+.sr-pill:not(:disabled):not([aria-disabled="true"]):hover {
+  border-color: var(--sr-border-medium);
+  background: var(--sr-surface-subtle);
+  color: var(--sr-text);
+}
+/* Source order: every selected-state rule below follows :hover on purpose.
+
+   TWO carriers, one declaration. `aria-pressed="true"` is the carrier wherever
+   the control already exposes its state to assistive technology, which is most
+   of them. `data-state="positive"` is the carrier for a control that does NOT
+   expose `aria-pressed` today: adding the attribute would be an ARIA and
+   behaviour change, which this pass holds fixed, and leaving the accent colours
+   inline would put chrome back on the element the class just took it off.
+   Presentational only, exactly like the negative and target legs below. They
+   share one declaration so the two can never drift apart. */
+.sr-pill[aria-pressed="true"],
+.sr-pill[data-state="positive"] {
+  border-color: var(--sr-accent-border);
+  background: var(--sr-accent-bg);
+  color: var(--sr-accent);
+  font-weight: 600;
+}
+/* The tri-state "no" leg of a cycling filter pill, and the Multimedia tab's
+   paired No photo / No audio / No video pills. */
+.sr-pill[data-state="negative"] {
+  border-color: var(--sr-error-overlay);
+  background: var(--sr-error-bg);
+  color: var(--sr-error);
+  font-weight: 600;
+}
+/* The Is Target pill, which is neither positive nor negative but a third
+   category with its own shipped token trio. */
+.sr-pill[data-state="target"] {
+  border-color: var(--sr-is-target-border);
+  background: var(--sr-is-target-bg);
+  color: var(--sr-is-target-text);
+  font-weight: 600;
+}
+/* Breeding Codes keeps its per-tier tints. The alphas are the SHIPPED ones and
+   are deliberately not flattened to one pair: tier 1 is the pale tint and needs
+   0.15/0.5 to read at all, the darker tiers carry 0.08/0.3, and every text
+   token here is the AA-verified `-fg` rather than the raw tier fill. The
+   register introduces no new colour pairing, which is only true while these
+   stay as shipped. */
+.sr-pill[data-tier="1"][aria-pressed="true"] {
+  background: rgba(var(--sr-tier-1-rgb), 0.15);
+  border-color: rgba(var(--sr-tier-1-rgb), 0.5);
+  color: var(--sr-tier-1-fg);
+}
+.sr-pill[data-tier="2"][aria-pressed="true"] {
+  background: rgba(var(--sr-tier-2-rgb), 0.08);
+  border-color: rgba(var(--sr-tier-2-rgb), 0.3);
+  color: var(--sr-tier-2-fg);
+}
+.sr-pill[data-tier="3"][aria-pressed="true"] {
+  background: rgba(var(--sr-tier-3-rgb), 0.08);
+  border-color: rgba(var(--sr-tier-3-rgb), 0.3);
+  color: var(--sr-tier-3-fg);
+}
+.sr-pill[data-tier="4"][aria-pressed="true"] {
+  background: rgba(var(--sr-tier-4-rgb), 0.08);
+  border-color: rgba(var(--sr-tier-4-rgb), 0.3);
+  color: var(--sr-tier-4-fg);
+}
+/* The one cross-case, shipped and verified: the Breeding Codes CATEGORY pill
+   for "Possible" sits on the tier-1 tint but takes tier-2's foreground, which
+   is the token measured against that tint. Keyed on an explicit attribute so it
+   reads as the deliberate exception it is rather than as tier-1 drift. */
+.sr-pill[data-tier="1"][data-tier-fg="2"][aria-pressed="true"] { color: var(--sr-tier-2-fg); }
+.sr-pill:disabled,
+.sr-pill[aria-disabled="true"] {
+  border-color: var(--sr-border);
+  background: var(--sr-surface-subtle);
+  color: var(--sr-text-disabled);
+  cursor: not-allowed;
+}
+
+/* The segmented shell. It owns the outer border and the radius; its options
+   have neither. `align-items: stretch` is what makes every option the same
+   height as the tallest, so a two-line option cannot leave a sibling short. */
+.sr-segbar {
+  display: inline-flex;
+  align-items: stretch;
+  border: 1.5px solid var(--sr-accent-border);
+  border-radius: 15px;
+  overflow: hidden;
+  background: var(--sr-surface);
+}
+.sr-segbar-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 30px;
+  padding: 0 12px;
+  border: none;
+  background: transparent;
+  color: var(--sr-text-muted);
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 120ms ease-out, color 120ms ease-out;
+}
+/* The divider sits on the LEADING edge of each sibling, so a one-option group
+   never draws a stray rule and the shell's own border is never doubled. */
+.sr-segbar-btn + .sr-segbar-btn { border-left: 1.5px solid var(--sr-accent-border); }
+.sr-segbar-btn:not(:disabled):not([aria-disabled="true"]):hover {
+  background: var(--sr-surface-subtle);
+  color: var(--sr-text);
+}
+.sr-segbar-btn[aria-pressed="true"] {
+  background: var(--sr-accent-bg);
+  color: var(--sr-accent);
+  font-weight: 600;
+}
+/* Inset, so the global 3px focus ring stays inside the shell's own clip
+   instead of being cut off by `overflow: hidden`. This is the ONE register
+   -local focus declaration; `.sr-pill` deliberately has none and rides the
+   global `button:focus-visible` ring unchanged. */
+.sr-segbar-btn:focus-visible { outline-offset: -3px; }
+
+/* ── The in-<th> sort button (`.sr-th-sort`) ─────────────────────────────────
+   (control-style-registers, vX.Y.Z)
+
+   NOT a pill, and it deliberately takes no pill geometry: it is a chromeless
+   button that fills its header cell and inherits the cell's own type, so the
+   <th> keeps `role="columnheader"` + `aria-sort` while the control inside it is
+   a real <button> a screen reader announces as activatable. It is here purely
+   as a de-duplication: `BreedingCodeTable.tsx` and `LifeListTable.tsx` each
+   carried a private copy, and the two had already drifted by one declaration,
+   which is the failure a shared register exists to prevent.
+
+   The drift resolved to `gap: 4px`, which is correct where a header renders an
+   icon beside its label (Multimedia) and harmless where it does not. Accepted,
+   visible consequence: 4px now sits between the code and its sort caret on the
+   Breeding Codes matrix headers. */
+.sr-th-sort {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 100%;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  color: var(--sr-text-muted);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+.sr-th-sort--start { justify-content: flex-start; }
+/* The column this table is sorted by. A data attribute, not an ARIA one: the
+   <th> above already carries aria-sort and the button must not repeat it. */
+.sr-th-sort[data-active="true"] { color: var(--sr-text); }
+/* Multimedia's Total column, which is always the accent regardless of sort. */
+.sr-th-sort--accent { color: var(--sr-accent); }
+
+/* ── The Checklists filter rows' leading label (control-style-registers, vX.Y.Z)
+   The 72px box that was an inline `width` on Checklists' `rowLabelStyle`. It is
+   here, not there, because it must CHANGE by breakpoint and an inline width is
+   specificity 1,0,0 and unreachable from a media query. The base value is the
+   shipped one verbatim, so desktop is byte-identical.
+
+   Deliberately its OWN class rather than a `.sr-ctl-row`-selected rule: the
+   phone-tier variant adds a `min-width`, and `breedingCodeFilterRowCss.test.ts`
+   forbids `min-width` on rules selected through shared `.sr-ctl-row` precisely
+   so one surface's measured repair cannot silently reach the other four. */
+.sr-chk-row-label { width: 72px; flex-shrink: 0; }
+/* The Effort row when a media export is loaded: the label follows the separator
+   rather than opening its own column, so it shrink-wraps at every width. The
+   doubled class out-ranks the phone-tier rule below without an !important.
+   `min-width` is NOT declared here: the inline value this replaced declared none
+   either, so desktop stays byte-identical down to the declaration, and the only
+   rule that needs releasing is the phone tier's own 72px minimum, released
+   beside it. */
+.sr-chk-row-label.sr-chk-row-label--auto { width: auto; }
+
 /* ── Respect reduced-motion: kill the spinner animation and any transitions/animations
    for users who ask the OS to minimize motion. */
 @media (prefers-reduced-motion: reduce) {
@@ -4438,18 +4708,29 @@ select:focus-visible {
      the pills/sort-toggles/switches beside them must resolve to the SAME formula
      or they mismatch in one direction or the other:
 
-       max(16px, 0.75rem)
-         · 16px is the iOS focus-zoom threshold, an ABSOLUTE px value, so a px
-           font-size is correct here (the sanctioned exception) — anything below
-           it re-opens the focus zoom this guard exists to prevent.
-         · 0.75rem is the app's control text size, and rem tracks the root
+       max(var(--sr-ctl-floor), var(--sr-ctl-rem, 0.75rem))
+         · --sr-ctl-floor is 16px, the iOS focus-zoom threshold, declared once on
+           :root. An ABSOLUTE px value, so a px font-size is correct here (the
+           sanctioned exception) — anything below it re-opens the focus zoom this
+           guard exists to prevent.
+         · --sr-ctl-rem is THE CONTROL'S OWN register, and rem tracks the root
            calc(100% * var(--sr-text-scale)), so it grows with in-app text scale.
-         · max() of the two: both sides land on 16px up to ~133% scale and on
-           0.75rem above it. They are never different from each other, at any
-           scale. The old flat `16px` here was the inversion bug — at 200% the
-           neighbours reached 24px while the form controls stayed pinned at 16px,
-           making the FORM CONTROLS the small ones for exactly the user who
-           enlarged their text.
+           The 0.75rem fallback is the app's modal control size and covers the
+           majority; a control whose declared size is anything else sets the
+           property beside its inline fontSize, and a filter block whose controls
+           share one size sets it on the block so the controls and the label
+           inherit it.
+         · max() of the two: this is a genuine FLOOR. It raises a small control to
+           the iOS threshold and NEVER lowers a large one. The old flat `16px`
+           here was the first inversion bug — at 200% the neighbours reached 24px
+           while the form controls stayed pinned at 16px, making the FORM CONTROLS
+           the small ones for exactly the user who enlarged their text. Hardcoding
+           `0.75rem` as the rem term was the SECOND, and it survived from v0.5.81
+           until control-style-registers (vX.Y.Z): above the crossover the rule
+           returned 0.75rem scaled, so every control with a larger register was
+           overridden in BOTH directions and the command palette's 1rem search
+           rendered at 24px instead of 32px at 200% text scale. Nothing went red,
+           because the guard checked the floor term and not the rem term.
 
      !important on both because the thing each must beat is an inline fontSize
      (React inline styles are specificity 1,0,0 and otherwise win — .sr-input-16
@@ -4460,10 +4741,69 @@ select:focus-visible {
      toggle only with an eBird backbone) and the row is one wrapping flex container,
      so there is no stable per-element subset to enumerate. It sizes interactive
      DESCENDANTS only — never the container itself (which would cascade an
-     unrequested size onto every unstyled span inside it) and never the uppercase
-     section labels, which are spans and stay deliberately smaller. */
+     unrequested size onto every unstyled span inside it) and never a label, which
+     is not a form control and opts in explicitly through .sr-ctl-label below. */
   .sr-input-16,
-  .sr-ctl-row :is(button, select, input) { font-size: max(16px, 0.75rem) !important; }
+  .sr-ctl-row :is(button, select, input) { font-size: max(var(--sr-ctl-floor), var(--sr-ctl-rem, 0.75rem)) !important; }
+
+  /* LABELS beside a floored control (control-style-registers, vX.Y.Z).
+
+     THIS IS NOT AN iOS GUARD, and must not be described as one at its
+     declaration or it will be "cleaned up" as redundant: a <span> or a <label>
+     cannot trigger focus zoom. It exists ONLY to preserve the type relationship
+     that the control floor would otherwise break. Excluding labels looked free
+     for exactly that reason, and what it missed is that the floor moves the
+     CONTROL, so leaving the label out does not leave the pair alone — the
+     intended 1px optical offset became a size gap, worst BELOW 100% at a browser
+     default the user has lowered (51.6% of its control at 0.75x, 68.8% at 1x,
+     against an intended ~91.7%).
+
+     --sr-label-ratio takes ONE of TWO values, and only one is ever declared:
+       var(--sr-label-optical)  an UPPERCASE label — capitals fill the cap height
+                                and read larger at equal metric size
+       (unset -> 1)             a sentence-case label, which needs no optical
+                                compensation and matches its control
+
+     BOTH terms carry the factor, so it cancels out of the crossover: a label
+     crosses from floor-governed to scale-governed at exactly the text scale its
+     control does, and there is never a band where one is pinned to a floor while
+     its neighbour tracks rem, which is the mechanism that produced the defect.
+     That crossover is per pairing, not global — it depends on the control's own
+     register, and ranges from 1.143x (the 0.875rem controls) to 1.391x
+     (Calendar's 0.71875rem strip).
+
+     An explicit OPT-IN CLASS on the label element, exactly as .sr-input-16 is on
+     a control. Never reach labels through an element selector such as
+     `.sr-ctl-row :is(span, label)`: `.sr-bc-filter-pill-label` is a span inside a
+     pill inside a .sr-ctl-row, and an element rule would size it and shrink the
+     pill's own text. Four text nodes are already correctly floored BY
+     INHERITANCE from a <button> ancestor and must stay that way. And a label
+     with no floored control beside it takes neither this class nor a ratio: the
+     defect is the PAIRING, not the register, so flooring a label register
+     globally would enlarge labels on surfaces where nothing is wrong.
+
+     Standalone, not `.sr-ctl-row .sr-ctl-label`: filterControlSizeCss.test.ts
+     collects every rule whose leading compound is .sr-ctl-row into the CONTROL
+     set, and a descendant form would be swept in there and redden four
+     assertions about a declaration it does not share. */
+  .sr-ctl-label {
+    font-size: max(calc(var(--sr-ctl-floor)        * var(--sr-label-ratio, 1)),
+                   calc(var(--sr-ctl-rem, 0.75rem) * var(--sr-label-ratio, 1))) !important;
+  }
+
+  /* The companion layout change the rule above requires (v0.5.82: a phone-tier
+     size guard that makes a row stop FITTING needs a companion layout rule, in
+     the same tier, scoped to the feature's own subtree). Raising these labels
+     from 11.5px to 15.33px means "Where & when" and "Media type" no longer fit
+     the 72px box; it was already marginal at 200% text scale, where 23px text
+     sat in that same box. The guard is the requirement and the layout is what
+     yields, so the width relaxes and the 72px survives as a minimum, keeping
+     the rows' left edges aligned wherever the label is short enough. */
+  .sr-chk-row-label { width: auto; min-width: 72px; }
+  /* ...except the Effort label when a media export is loaded, which follows a
+     separator rather than opening a column and must shrink-wrap. Only the
+     minimum is released, and only in the tier that declares one. */
+  .sr-chk-row-label.sr-chk-row-label--auto { min-width: 0; }
 
   /* Breeding Codes' full-label filter pills only. At 320px / 200% the longest
      buttons otherwise give this wrapping flex row a 327.11px min-content width
@@ -4478,13 +4818,32 @@ select:focus-visible {
      and date controls, and all four other .sr-ctl-row surfaces. It does not touch
      the table or either Normal/Unbounded view class. The phone rule alone releases
      the pill's inline 30px height so a full label can earn a second line; desktop
-     keeps the shipped fixed-height geometry byte-for-byte. */
+     keeps the shipped fixed-height geometry byte-for-byte.
+
+     `white-space: normal` is the third release and it belongs HERE rather than on
+     the register (control-style-registers, vX.Y.Z). The .sr-pill register declares
+     `white-space: nowrap`, which is the family's universal shipped value and is
+     right for a short filter label: a two-word chip should not go ragged. But
+     `overflow-wrap: break-word` below CANNOT ACT while wrapping is forbidden at
+     all, so on this one surface -- the only row in the app carrying full breeding
+     -code labels, which is the property v0.5.86 measured and scoped these hooks
+     around -- nowrap re-opens exactly the overflow those hooks exist to close:
+     measured at 320px/200%, the three longest pills rendered 38px on one line and
+     took the row to 334px inside a 272px parent, leaking 38px of page horizontal
+     scroll in both engines. With the release they are 74px on two lines and the
+     row is 272px, which is the pre-register geometry exactly. `white-space` is an
+     inherited property, so the declaration on the pill reaches its label span and
+     the label needs none of its own. It is deliberately NOT on the register's
+     phone tier: that would let every pill on every tab wrap mid-row at <=640, a
+     broad change nobody measured, and v0.5.86's own rule is that other filter
+     surfaces and wider layouts are outside the measured repair. */
   .sr-bc-filter-row { min-width: 0; max-width: 100%; }
   .sr-bc-filter-row > .sr-bc-filter-pill {
     height: auto !important;
     min-height: 30px;
     min-width: 0;
     max-width: 100%;
+    white-space: normal;
   }
   .sr-bc-filter-row > .sr-bc-filter-pill > .sr-bc-filter-pill-label { min-width: 0; overflow-wrap: break-word; }
 
@@ -5733,6 +6092,11 @@ select:focus-visible {
   border: 1.5px solid var(--sr-border-input); border-radius: 8px;
   background: var(--sr-surface); color: var(--sr-text);
   font-family: inherit; font-size: 1rem; font-weight: 500;
+  /* This input's OWN register, read by the phone-tier .sr-input-16 floor so it
+     is raised to the iOS threshold and never cut down to 0.75rem. Without it
+     the hero search rendered 24px at 200% text scale against its declared
+     32px, which is the defect the floor repair exists to end. */
+  --sr-ctl-rem: 1rem;
   transition: border-color 120ms ease-out;
 }
 .sr-palette-input::placeholder { color: var(--sr-text-muted); font-weight: 400; }

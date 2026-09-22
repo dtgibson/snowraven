@@ -120,9 +120,17 @@ describe('Subspecies Explorer entry-control overflow containment (QA-27)', () =>
     // The control button itself…
     expect(source).toMatch(/className="sr-ssx-toggle"/)
     // …inside the shared control-row hook whose phone rule creates the 24px
-    // text pressure the wrap absorbs (max(16px, 0.75rem) at 200% scale). If
-    // the wrapper class goes, the fix's premise changes and this must be
-    // re-measured, not silently kept green.
+    // text pressure the wrap absorbs. That rule is
+    // `max(var(--sr-ctl-floor), var(--sr-ctl-rem, 0.75rem))` since
+    // control-style-registers, where the rem term became each control's OWN
+    // register rather than a hardcoded 0.75rem. The 24px figure is UNCHANGED
+    // here, because `.sr-ssx-toggle` declares 0.75rem and so resolves through
+    // the rule's default: 0.75rem at 200% scale is 24px, as before. The
+    // derivation is restated rather than left citing a formula that no longer
+    // exists, since a control that later declares its own larger
+    // `--sr-ctl-rem` would move this premise. If the wrapper class goes, or
+    // the toggle's register changes, the fix's premise changes and this must
+    // be re-measured, not silently kept green.
     expect(source).toMatch(/className="sr-ctl-row"/)
     // The count stays rendered — dropping content is not the fix that shipped.
     expect(source).toMatch(/className="sr-ssx-count"/)

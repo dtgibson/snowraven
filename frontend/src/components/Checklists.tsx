@@ -64,19 +64,13 @@ function DateLink({ submissionId, date }: { submissionId: string; date: string }
 
 function SortSeg({ value, onChange }: { value: CommentSort; onChange: (v: CommentSort) => void }) {
   return (
-    <div style={{ display: 'inline-flex', border: '1.5px solid var(--sr-accent-border)', borderRadius: 6, overflow: 'hidden', flexShrink: 0 }} role="group" aria-label="Sort order">
-      {(['newest', 'oldest'] as const).map((dir, i) => (
+    <div className="sr-segbar" style={{ flexShrink: 0 }} role="group" aria-label="Sort order">
+      {(['newest', 'oldest'] as const).map(dir => (
         <Button
           key={dir}
+          className="sr-segbar-btn"
           onClick={() => onChange(dir)}
           aria-pressed={value === dir}
-          style={{
-            height: 32, padding: '0 12px', border: 'none',
-            borderLeft: i > 0 ? '1.5px solid var(--sr-accent-border)' : 'none',
-            background: value === dir ? 'var(--sr-accent-bg)' : 'transparent',
-            color: value === dir ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
-            fontSize: '0.75rem', fontWeight: value === dir ? 600 : 500, fontFamily: 'inherit', cursor: 'pointer',
-          }}
         >
           {dir === 'newest' ? 'Newest' : 'Oldest'}
         </Button>
@@ -196,6 +190,10 @@ function CommentSearchBox<T extends ChecklistCommentEntry>({
               border: '1.5px solid var(--sr-border)', borderRadius: 6,
               fontSize: '0.8125rem', fontFamily: 'inherit', color: 'var(--sr-text)',
               background: 'var(--sr-surface)',
+              // This control's OWN register, read by the phone-tier
+              // .sr-input-16 floor so it is raised to the iOS threshold and
+              // never cut down to 0.75rem (26px, not 24px, at 200%).
+              ['--sr-ctl-rem' as string]: '0.8125rem',
             }}
             onFocus={e => (e.currentTarget.style.borderColor = 'var(--sr-accent)')}
             onBlur={e => (e.currentTarget.style.borderColor = 'var(--sr-border)')}
@@ -258,23 +256,16 @@ function TriPill({ label, state, onCycle, icon, hasLabel, noLabel }: {
     : state === 'no'
       ? (noLabel ?? `No ${label.toLowerCase()}`)
       : label
-  const colors: React.CSSProperties =
-    state === 'has'
-      ? { border: '1.5px solid var(--sr-accent-border)', background: 'var(--sr-accent-bg)', color: 'var(--sr-accent)', fontWeight: 600 }
-      : state === 'no'
-        ? { border: '1.5px solid var(--sr-error-overlay)', background: 'var(--sr-error-bg)', color: 'var(--sr-error)', fontWeight: 600 }
-        : { border: '1.5px solid var(--sr-border)', background: 'var(--sr-surface)', color: 'var(--sr-text-muted)', fontWeight: 500 }
   return (
     <Button
+      className="sr-pill"
       onClick={onCycle}
       aria-pressed={state !== null}
+      // aria-pressed cannot distinguish the two ON legs of a tri-state, so the
+      // "no" leg names itself for the register's negative tokens; "has" is the
+      // ordinary pressed state and needs no attribute.
+      data-state={state === 'no' ? 'negative' : undefined}
       title={`${label}. Click to cycle: any / has / doesn't have`}
-      style={{
-        display: 'inline-flex', alignItems: 'center', gap: 5,
-        height: 30, padding: '0 11px', borderRadius: 15,
-        fontSize: '0.75rem', fontFamily: 'inherit', cursor: 'pointer', whiteSpace: 'nowrap',
-        ...colors,
-      }}
     >
       {state === 'has' && <Check size={11} strokeWidth={3} aria-hidden />}
       {state === 'no' && <X size={11} strokeWidth={3} aria-hidden />}
@@ -297,9 +288,16 @@ const selectStyle: React.CSSProperties = {
   maxWidth: '100%',
 }
 
+// Sentence case, so no optical compensation and no --sr-label-ratio: the label
+// simply tracks the 0.75rem controls beside it through the phone-tier
+// .sr-ctl-label rule. The 72px box moved to .sr-chk-row-label (globals.css),
+// because raising this text to 15.33px on a phone means "Where & when" and
+// "Media type" no longer fit a fixed width, and a layout rule that must change
+// by breakpoint cannot live in an inline style. Desktop values are unchanged.
 const rowLabelStyle: React.CSSProperties = {
-  fontSize: '0.71875rem', fontWeight: 600, color: 'var(--sr-text-muted)', width: 72, flexShrink: 0,
-}
+  fontSize: '0.71875rem', fontWeight: 600, color: 'var(--sr-text-muted)',
+  ['--sr-ctl-rem' as string]: '0.75rem',
+} as React.CSSProperties
 
 // ── A checklist row in section 3 ─────────────────────────────────────────────
 
@@ -638,21 +636,15 @@ export function Checklists({ onGoToSettings, filesVersion, onOpenSpecies }: {
             background: 'var(--sr-surface-faint)',
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-              <span style={rowLabelStyle}>Contains</span>
+              <span className="sr-ctl-label sr-chk-row-label" style={rowLabelStyle}>Contains</span>
               <Button
                 onClick={() => setFilters(f => ({
                   ...f,
                   checklistComment: null, speciesComments: null, media: null, breeding: null,
                   weatherBlock: null, tideBlock: null, complete: null, photo: null, audio: null, video: null,
                 }))}
+                className="sr-pill"
                 aria-pressed={pillsClear}
-                style={{
-                  display: 'inline-flex', alignItems: 'center', height: 30, padding: '0 12px', borderRadius: 15,
-                  fontSize: '0.75rem', fontFamily: 'inherit', cursor: 'pointer', whiteSpace: 'nowrap',
-                  ...(pillsClear
-                    ? { border: '1.5px solid var(--sr-accent-border)', background: 'var(--sr-accent-bg)', color: 'var(--sr-accent)', fontWeight: 600 }
-                    : { border: '1.5px solid var(--sr-border)', background: 'var(--sr-surface)', color: 'var(--sr-text-muted)', fontWeight: 500 }),
-                }}
               >
                 All
               </Button>
@@ -668,14 +660,14 @@ export function Checklists({ onGoToSettings, filesVersion, onOpenSpecies }: {
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
               {mlLoaded && (
                 <>
-                  <span style={rowLabelStyle}>Media type</span>
+                  <span className="sr-ctl-label sr-chk-row-label" style={rowLabelStyle}>Media type</span>
                   <TriPill label="Photo" state={filters.photo} onCycle={setTri('photo')} icon={<Camera size={11} strokeWidth={2.2} aria-hidden />} />
                   <TriPill label="Audio" state={filters.audio} onCycle={setTri('audio')} icon={<Mic size={11} strokeWidth={2.2} aria-hidden />} />
                   <TriPill label="Video" state={filters.video} onCycle={setTri('video')} icon={<Video size={11} strokeWidth={2.2} aria-hidden />} />
                   <span style={{ width: 1, height: 20, background: 'var(--sr-border)', margin: '0 3px', flexShrink: 0 }} />
                 </>
               )}
-              <span style={{ ...rowLabelStyle, width: mlLoaded ? 'auto' : 72 }}>Effort</span>
+              <span className={`sr-ctl-label sr-chk-row-label${mlLoaded ? ' sr-chk-row-label--auto' : ''}`} style={rowLabelStyle}>Effort</span>
               <TriPill label="Complete" state={filters.complete} onCycle={setTri('complete')} hasLabel="Complete" noLabel="Incomplete" />
               {protocols.length > 0 && (
                 <select
@@ -692,7 +684,7 @@ export function Checklists({ onGoToSettings, filesVersion, onOpenSpecies }: {
             </div>
 
             <div className="sr-field-row" style={{ gap: 6 }}>
-              <span style={rowLabelStyle}>Where &amp; when</span>
+              <span className="sr-ctl-label sr-chk-row-label" style={rowLabelStyle}>Where &amp; when</span>
               {counties.length > 0 && (
                 <select
                   aria-label="County"

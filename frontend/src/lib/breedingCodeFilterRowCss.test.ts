@@ -100,10 +100,93 @@ describe('Breeding Codes filter row overflow containment', () => {
 
   it('puts all three hooks on the intended component and keeps every label visible', () => {
     expect(source).toMatch(/className="sr-ctl-row sr-bc-filter-row"/)
-    expect(source).toMatch(/className="sr-bc-filter-pill"/)
+    expect(source).toMatch(/className="sr-pill sr-bc-filter-pill"/)
     expect(source).toMatch(/className="sr-bc-filter-pill-label"/)
-    expect(source).toMatch(/height:\s*30/)
-    expect(source).not.toMatch(/minHeight:\s*30/)
     expect(source).not.toMatch(/sr-bc-filter-pill[^\n]*(?:overflow:\s*['"]hidden|textOverflow|whiteSpace:\s*['"]nowrap)/)
+  })
+
+  it('leaves the filter pill ABLE TO WRAP, which is what makes break-word do anything', () => {
+    // The regression this row exists to reject, measured rather than reasoned
+    // about: the shared `.sr-pill` register declares `white-space: nowrap`, which
+    // is the family's universal shipped value and right for a short filter chip.
+    // On THIS row it forbids line breaking outright, and `overflow-wrap:
+    // break-word` below cannot act while wrapping is forbidden at all -- so the
+    // three longest breeding-code labels rendered 38px on one line, took the row
+    // to 334px inside a 272px parent at 320px/200%, and leaked 38px of page
+    // horizontal scroll in both engines. Every other declaration in this block
+    // was still correct and none of them could help.
+    //
+    // Asserted as a CASCADE RESULT, not as the presence of one declaration.
+    // Every rule that can match this pill is collected in source order and the
+    // LAST `white-space` among them is the one that governs; the assertion is
+    // that it is not `nowrap`. That is what makes this row survive the repairs
+    // that would otherwise slip past it: the override being deleted, the
+    // override being written at a specificity the register beats, the register
+    // gaining a `nowrap` later in the file, or the hook being renamed out from
+    // under it. A presence check on `white-space: normal` would pass through
+    // three of those four.
+    //
+    // It also says why the release is HERE and not on the register's own phone
+    // tier: releasing it there would let every pill on every tab wrap mid-row at
+    // <=640, which nobody measured, and v0.5.86's rule is that other filter
+    // surfaces are outside this repair. So the assertion below is deliberately
+    // paired -- the register keeps `nowrap`, and this surface overrides it.
+    const registerWhiteSpace = declarations(
+      rules.filter(r => r.selectors.includes('.sr-pill') && r.ancestors.length === 0)[0].body,
+    ).get('white-space')
+    expect(registerWhiteSpace, 'the register keeps the family default').toBe('nowrap')
+
+    // Every rule whose subject can be this element, in source order. The pill
+    // carries `sr-pill` and `sr-bc-filter-pill` and sits in a `.sr-bc-filter-row`
+    // inside a `.sr-ctl-row`, so a rule qualifies when every class it names is
+    // one this element or its ancestors carry.
+    const carried = ['sr-pill', 'sr-bc-filter-pill', 'sr-bc-filter-row', 'sr-ctl-row']
+    const governing = rules.filter(r => r.selectors.some(sel => {
+      const named = [...sel.matchAll(/\.([-\w]+)/g)].map(m => m[1])
+      return named.length > 0
+        && named.every(c => carried.includes(c))
+        && named.includes('sr-bc-filter-pill') === sel.includes('sr-bc-filter-pill')
+        && /sr-pill|sr-bc-filter-pill/.test(sel)
+    }))
+    const declared = governing
+      .map(r => ({ value: declarations(r.body).get('white-space'), phone: r.ancestors.includes(phone) }))
+      .filter(d => d.value !== undefined)
+    expect(declared.length, 'never vacuous: some rule must set white-space').toBeGreaterThan(1)
+    // In the phone tier, the last word wins and it must not be `nowrap`.
+    expect(declared[declared.length - 1].value).toBe('normal')
+    expect(declared[declared.length - 1].phone, 'the release is phone-tier only').toBe(true)
+
+    // And the release must out-rank the register rather than merely follow it,
+    // so it still governs if the register ever moves later in the file.
+    const release = governing.find(r => declarations(r.body).get('white-space') === 'normal')!
+    for (const sel of release.selectors) {
+      expect([...sel.matchAll(/\.([-\w]+)/g)].length,
+        'the release must be more specific than the single-class register').toBeGreaterThan(1)
+    }
+  })
+
+  it('takes its height from the shared register as a MINIMUM, not a fixed value', () => {
+    // This asserted an inline `height: 30` in the component and the absence of an
+    // inline `minHeight: 30`, which pinned the fixed height that the phone-tier
+    // `height: auto !important` above had to release. The pill now takes its
+    // height from the shared control register, so the same intent is pinned where
+    // the declaration lives: desktop keeps a 30px pill, and the phone tier lets a
+    // full label earn a second line. The old assertion could also have passed by
+    // accident on any unrelated `height: 30` left in the file, which is worse
+    // than going red.
+    //
+    // Two halves, and both are load-bearing. The component must carry the
+    // register class, and the register must supply a MINIMUM: a register that
+    // moved back to a fixed `height` would restore the very defect the phone-tier
+    // override was written for, and would make that override load-bearing again.
+    expect(source).toMatch(/className="sr-pill sr-bc-filter-pill"/)
+    expect(source).not.toMatch(/height:\s*30/)
+
+    const hits = rules.filter(r => r.selectors.includes('.sr-pill'))
+    expect(hits, 'the .sr-pill register must be declared exactly once').toHaveLength(1)
+    expect(hits[0].ancestors, 'the register applies at every width, not one tier').toEqual([])
+    const pill = declarations(hits[0].body)
+    expect(pill.get('min-height')).toBe('30px')
+    expect(pill.has('height')).toBe(false)
   })
 })

@@ -202,25 +202,6 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
     userSelect: 'none',
   }
 
-  // Sortable headers are real <button>s inside the <th> so screen readers
-  // announce them as activatable controls (the <th> keeps role columnheader +
-  // aria-sort). The button inherits the th's text styling and fills the cell.
-  const sortBtn = (active: boolean, justify: 'flex-start' | 'center'): React.CSSProperties => ({
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: justify,
-    gap: 4,
-    width: '100%',
-    font: 'inherit',
-    letterSpacing: 'inherit',
-    textTransform: 'inherit',
-    color: active ? 'var(--sr-text)' : 'var(--sr-text-muted)',
-    background: 'none',
-    border: 'none',
-    padding: 0,
-    cursor: 'pointer',
-  })
-
   const countLinkStyle: React.CSSProperties = {
     fontSize: '0.8125rem',
     fontWeight: 600,
@@ -268,7 +249,7 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
                 minWidth: 200,
               }}
             >
-              <Button type="button" style={sortBtn(sort.column === 'name', 'flex-start')} onClick={() => handleHeaderClick('name')}>
+              <Button type="button" className="sr-th-sort sr-th-sort--start" data-active={sort.column === 'name'} onClick={() => handleHeaderClick('name')}>
                 Entries{sortIndicator('name')}
               </Button>
             </th>
@@ -288,7 +269,7 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
                   textAlign: 'center',
                 }}
               >
-                <Button type="button" aria-label={`Sort by ${label}`} style={sortBtn(sort.column === col, 'center')} onClick={() => handleHeaderClick(col)}>
+                <Button type="button" aria-label={`Sort by ${label}`} className="sr-th-sort" data-active={sort.column === col} onClick={() => handleHeaderClick(col)}>
                   {icon}
                   {label}
                   {sortIndicator(col)}
@@ -306,7 +287,7 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
                 borderLeft: '1px solid var(--sr-border)',
               }}
             >
-              <Button type="button" style={{ ...sortBtn(true, 'center'), color: 'var(--sr-accent)' }} onClick={() => handleHeaderClick('total')}>
+              <Button type="button" className="sr-th-sort sr-th-sort--accent" onClick={() => handleHeaderClick('total')}>
                 Total
                 {sortIndicator('total')}
               </Button>

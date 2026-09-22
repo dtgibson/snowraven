@@ -994,9 +994,16 @@ export default function App() {
               measure, centered, while the card is widened for a plan
               (.sr-weather-narrow is inert at 540px). */}
           <div className="sr-weather-narrow">
+          {/* :is(button, select, input) does not match <label>, so this one is
+              unfloored despite being the most label-like thing on the surface.
+              Sentence case, so no --sr-label-ratio: it tracks the 0.875rem input
+              beneath it one for one. Today at 200% it renders 28px over a
+              clamped 24px control, LARGER than its own control; the pair ends up
+              at 28/28 once both halves of this build land. */}
           <label
             htmlFor="checklist-input"
-            style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, marginBottom: 8 }}
+            className="sr-ctl-label"
+            style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, marginBottom: 8, ['--sr-ctl-rem' as string]: '0.875rem' } as React.CSSProperties}
           >
             eBird checklist ID or URL
           </label>
@@ -1020,6 +1027,10 @@ export default function App() {
                 border: `1.5px solid ${hasError ? 'var(--sr-error)' : 'var(--sr-border)'}`,
                 borderRadius: 8,
                 fontSize: '0.875rem',
+                // This control's OWN register, read by the phone-tier
+                // .sr-input-16 floor so it is raised to the iOS threshold and
+                // never cut down to 0.75rem (28px, not 24px, at 200%).
+                ['--sr-ctl-rem' as string]: '0.875rem',
                 fontFamily: 'inherit',
                 color: 'inherit',
                 background: 'var(--sr-surface)',

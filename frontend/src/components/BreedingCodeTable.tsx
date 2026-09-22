@@ -146,24 +146,6 @@ export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, f
     background: 'var(--sr-bg)',
   }
 
-  // Sortable headers are real <button>s inside the <th> so screen readers
-  // announce them as activatable controls (the <th> keeps role columnheader +
-  // aria-sort). The button inherits the th's text styling and fills the cell.
-  const sortBtn = (active: boolean, justify: 'flex-start' | 'center'): React.CSSProperties => ({
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: justify,
-    width: '100%',
-    font: 'inherit',
-    letterSpacing: 'inherit',
-    textTransform: 'inherit',
-    color: active ? 'var(--sr-text)' : 'var(--sr-text-muted)',
-    background: 'none',
-    border: 'none',
-    padding: 0,
-    cursor: 'pointer',
-  })
-
   return (
     <div
       // .sr-bc-card is applied ONLY in wideMode — it owns the card's width so the
@@ -261,7 +243,7 @@ export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, f
                   minWidth: NAME_COL_WIDTH,
                 }}
               >
-                <Button type="button" style={sortBtn(sort.column === 'name', 'flex-start')} onClick={() => handleHeaderClick('name')}>
+                <Button type="button" className="sr-th-sort sr-th-sort--start" data-active={sort.column === 'name'} onClick={() => handleHeaderClick('name')}>
                   Species{sortIndicator('name')}
                 </Button>
               </th>
@@ -292,7 +274,8 @@ export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, f
                     <Button
                       type="button"
                       aria-label={`Sort by ${def.label} (${code})`}
-                      style={sortBtn(sort.column === code, 'center')}
+                      className="sr-th-sort"
+                      data-active={sort.column === code}
                       onClick={() => handleHeaderClick(code)}
                     >
                       {code}{sortIndicator(code)}
