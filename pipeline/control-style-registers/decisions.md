@@ -757,3 +757,66 @@ would move this premise and the comment now says so.
 
 **Red-first this retry: 12 mutations, 12 red, 0 vacuous.** Running total across
 Stage 3 and this retry: **48 mutations, 48 red.**
+
+---
+
+## Stage 6 — The Deployer (2026-09-22)
+
+One deploy for the whole four-build Spool bundle at **1.0.33**. Full record in this
+folder's `deployment-record.md` (gitignored per `pipeline/.gitignore`); the decisions
+that outlive the run are here.
+
+**D-S6.1 — Tagged the bundle tip, not the version-stamp commit.** `v1.0.33` points at
+`75a5ff6` (the bundle merge) rather than `ac3d16f` (the stamp), so the tag covers the
+gitignore commit that followed it. The Windows selection guard was then satisfied
+exactly: the selected successful `windows-build.yml` run `35732853938` has `headSha`
+`75a5ff6`, equal to `git rev-parse v1.0.33^{commit}`. No tag was re-pushed, so no stale
+run was in play.
+
+**D-S6.2 — The manual iOS export options plist was rebuilt, not reused.** The runbook
+says to reuse the last ship's plist; it was gone from disk (it had lived under `/tmp`).
+It was therefore rebuilt from the runbook's own key list, which since v1.0.23 includes
+`iCloudContainerEnvironment` Production — the one key the list used to omit and the
+reason a freshly-built plist would have failed at any earlier ship. The rebuilt plist
+exported first time, and `DistributionSummary.plist` confirms all four iCloud
+entitlement keys. **Worth keeping:** the plist is not a durable artifact, so "reuse it
+if it exists" will keep resolving to "rebuild it" until it lives somewhere that
+survives. A copy now sits beside this run's scratch output only; putting a canonical
+copy under `~/.tauri/` alongside the two provisioning profiles would make the reuse
+path real (ROADMAP candidate).
+
+**D-S6.3 — The 1.0.32 App Store leg is closed, and `ROADMAP.md` says otherwise.** The
+pre-submission reconciliation queried ASC live and found version record
+`34a97cc3-c028-4894-907b-72cd7a988bab` for **1.0.32**, `appStoreState` **READY_FOR_SALE**,
+carrying build 1.0.32.1. `ROADMAP.md:11` still states that leg is "deliberately
+OUTSTANDING… no version record was created and nothing was submitted." The repo record
+went stale when the submission happened after the 1.0.32 ship closed. **The correction
+is owed to the Chronicler**, and this is the same decay mechanism CLAUDE.md records for
+the version pill and the App Store list: a written disposition is true when written and
+nothing re-reads it. It is also the rule working as designed — the live query, not the
+repo, is what a ship is required to read.
+
+**D-S6.4 — 1.0.33 is therefore a plain new version record, not a rollup.** With 1.0.32
+released there is nothing to carry forward, so the rollup option that would otherwise be
+on the table at this gate does not arise, and no new line is owed to CLAUDE.md's
+rollup/deferral list. The gap analysis over every version from 1.0.13 found **no
+unaccounted gap**: the three genuine skips (1.0.15, 1.0.16, 1.0.18), the four rollups
+(1.0.20, 1.0.22, 1.0.26, 1.0.29) and the one deferral (1.0.25) are all already recorded
+in writing.
+
+**D-S6.5 — Nothing was created or submitted in App Store Connect, and that is the
+stage's deliberate stopping point.** The v1.0.31 standing precondition (install the exact
+uploaded build on a real device and open it, before submitting anything) is unmet and
+cannot be met from this machine. Build 1.0.33.1 is VALID on TestFlight, delivery
+`b5b71100-c8af-4f91-add9-629520807fa1`. The vendored tao patch is compiled in, which is a
+reason to expect a clean launch and not evidence of one — the distinction the 1.0.31
+post-mortem exists to enforce. **If the App Store leg is held rather than submitted, that
+is written down by version and reason in the same ship**, because a version ending with a
+VALID build, no record and no sentence is indistinguishable from a skip.
+
+**Desktop and web are live and stay live.** macOS and Windows published at
+`https://github.com/dtgibson/snowraven/releases/tag/v1.0.33`, DMG verified from an
+independent fresh download on all three Gatekeeper checks, `latest.json` carrying
+`darwin-aarch64`, `darwin-x86_64` and `windows-x86_64` all at 1.0.33; the website live
+with the pill, its `aria-label` and the footer each confirmed individually rather than
+through the whole-file substring guard. A stall on the App Store leg rolls back neither.
