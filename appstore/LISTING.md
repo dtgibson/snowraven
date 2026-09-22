@@ -39,46 +39,44 @@ Alternates considered and available if this one does not sit right:
 "Explore your own birding data" (29 / 30), "Your birding records, explored"
 (30 / 30). Neither the name nor the subtitle mentions eBird or Macaulay.
 
-## Promotional text (164 / 170)
+## Promotional text (137 / 170)
 
 ```
-Free and open source, with no account, no ads, and no tracking. Import the exports you already have and see years of your own birding from new angles, even offline.
+Free and open source. Read your eBird and Macaulay Library exports and see years of your own birding from new angles, on your own device.
 ```
 
-Editable without review, so it can carry release-notes color later. It
-deliberately names no third-party service: the strict reading of the voice
-rule keeps eBird and Macaulay to the description and keywords only.
+Editable without review. Since 1.0.33 the promotional text and the description
+follow the website and README register (one or two sentences per tab, in tab
+order, no operating detail, no reassurance, no offline claim), so a copy change
+to those surfaces is a copy change here in the same release.
 
-## Description (2,706 / 4,000)
+## Description (3,233 / 4,000)
 
 ```
-SnowRaven is a birding data explorer for the records you already keep. Import your own eBird backup and Macaulay Library export, and years of checklists become maps, statistics, and histories you can wander through in the field or at home.
-
-Everything runs on your device. There is no account to create, no server in the middle, and nothing is collected about you.
+SnowRaven is a birding data explorer for the records you already keep. It reads your eBird and Macaulay Library exports and gives you weather and tides for your checklists, your history with every species, life-list statistics and an interactive map, on your own device.
 
 WHAT'S INSIDE
 
-• Weather & Tide: paste an eBird checklist ID and get a clean, ready-to-paste weather summary, with the historical tide from the nearest NOAA station. Current conditions and forecasts work too.
-• Statistics: life list totals and growth, firsts and milestones, temporal and geographic patterns, media documentation coverage, and a few playful lists.
-• Map Explorer: your sightings on an interactive map, with an optional heatmap, nearby hotspots, county shading, and a breeding atlas overlay.
-• Species Detail: your complete history with any species, including graphs, top locations, field notes, and your own recent photos, audio, and video.
-• Calendar: a year of your birding as twelve month grids, each day shaded by how busy it was.
-• Multimedia: your life list as a media checklist, showing photo, audio, and video coverage for every species.
-• Breeding Codes: every species you have recorded breeding evidence for, laid out as a color-coded matrix.
-• Named Birds: tag an individual bird in a species comment and SnowRaven follows it across your checklists.
-• Checklists and List Comparer: search every comment you have written, and compare lists or checklists side by side.
-
-Once your data has loaded, the maps and every analytical tab keep working offline.
+• Weather: paste an eBird checklist ID and get a weather and tide summary ready to drop into the checklist comment, or look up the conditions where you are now, or the forecast for any place and time ahead. The Weather/tide Planner lays out the coming sunrises and sunsets, each with its tide and forecast weather.
+• Statistics: a dashboard built from your eBird backup: life-list totals and growth, milestones, and when and where you bird. A weather section reads back the weather blocks SnowRaven and RainCrow write into checklist comments.
+• Map Explorer: your sightings on an interactive map, with nearby eBird hotspots and where species new to you were reported recently. Counties shade by your counts or by how complete your county list is, with a California Breeding Bird Atlas overlay.
+• Species Detail: your whole history with one bird: sightings, field notes, breeding codes and a map of every observation, with a weather card showing the skies and temperatures you have found this bird in.
+• Calendar: a year of your birding as twelve month grids, each day shaded by how many species you saw. Fold the years together, or narrow it to a single species.
+• Multimedia: your life list as a media checklist: which species you have photographed, recorded and filmed, and which you still need.
+• Breeding Codes: every species you have recorded breeding evidence for, as a matrix against eBird's breeding codes, colored by evidence tier.
+• Checklists: your checklists as whole outings: search every comment you have written, and filter by what an outing has.
+• List Comparer: two life lists side by side, or any two public checklists: what they share and what only one has.
+• Named Birds: tag an individual bird by name in a species comment and SnowRaven gathers everything you have on it: sightings, places, a timeline, its own media.
 
 PRIVACY
 
-SnowRaven collects nothing: no analytics, no telemetry, no crash reporting, no ads, and no accounts. Your files and settings stay on your device, and so do your API keys unless you turn on the optional iCloud key sync, which copies them only into your own iCloud account. When you ask for live data, the app talks directly to the service that has it, using your own free API keys where one is needed. The full privacy policy is at snowraven.dtgibson.com/privacy.html.
+Private by default, and in your control: no account, no analytics, no telemetry, no server we run. Your eBird backup, Macaulay Library export and API keys are stored only on your device unless you turn on iCloud syncing between your devices, and anything you sync goes to your own iCloud account and nowhere else. When you ask for live data, the app talks directly to the service that has it, using your own free API keys where one is needed. The full privacy policy is at snowraven.dtgibson.com/privacy.html.
 
 WHAT YOU'LL NEED
 
-Most tools read the free data export you can download from your eBird account, plus an optional Macaulay Library export. Live lookups use two free API keys, entered once in Settings: an eBird key, and an OpenWeather key for weather. Tides, maps, and every offline analysis work without any key.
+Two free API keys, entered once in Settings: an eBird key, and an OpenWeather key for weather. Most tabs also read your eBird backup and, for the media features, an optional Macaulay Library export. Tides and maps work without any key.
 
-SnowRaven is an independent, free, open source project. It works alongside eBird and the Macaulay Library, building on the exports they let you download, so you can look at your own observations from new angles. It is not affiliated with, or endorsed by, the Cornell Lab of Ornithology. Also available free for Mac and Windows, and as a self-hosted web app, at snowraven.dtgibson.com.
+SnowRaven is an independent, free, open source project. It works alongside eBird and the Macaulay Library, building on the exports they let you download. It is not affiliated with, or endorsed by, the Cornell Lab of Ornithology. Also available free for Mac and Windows, and self-hosted on a Raspberry Pi, at snowraven.dtgibson.com.
 ```
 
 Every eBird and Macaulay Library mention above is a compatibility statement
