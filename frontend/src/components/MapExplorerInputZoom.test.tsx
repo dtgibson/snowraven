@@ -112,10 +112,35 @@ function renderMap() {
  * placeholder), then asserts BOTH that the element is the form control itself
  * and that the class is on that element. A wrapper placement fails the second
  * check; a class on a <div> fails the first.
+ *
+ * `register` is the SECOND half, added with the phone-tier clamp repair
+ * (control-style-registers). The rule the class triggers reads
+ * `max(var(--sr-ctl-floor), var(--sr-ctl-rem, 0.75rem))`, so a control whose own
+ * size is larger than the 0.75rem default must declare `--sr-ctl-rem` beside its
+ * inline `fontSize` or the rule silently CUTS IT DOWN at large text scale, which
+ * is the defect that repair exists to end. Passing it asserts the two
+ * declarations of that one number agree on this exact element. Omitting it
+ * asserts the control relies on the default, and that it declares no
+ * conflicting inline size: `undefined` is a claim here, not a skip.
  */
-function expectGuarded(el: HTMLElement, tag: 'input' | 'select') {
+function expectGuarded(el: HTMLElement, tag: 'input' | 'select', register?: string) {
   expect(el.tagName.toLowerCase()).toBe(tag)
   expect(el.classList.contains('sr-input-16')).toBe(true)
+  // React writes a custom property into the style attribute; jsdom exposes it
+  // through getPropertyValue, not through the typed CSSStyleDeclaration.
+  const declared = el.style.getPropertyValue('--sr-ctl-rem').trim()
+  const name = el.getAttribute('aria-label') ?? el.getAttribute('placeholder') ?? el.tagName
+  if (register === undefined) {
+    // No register of its own: it must not be carrying a larger inline size that
+    // the rule's 0.75rem default would then cut down.
+    const inline = el.style.fontSize.trim()
+    expect(inline === '' || inline === '0.75rem',
+      `${name}: inline ${inline} needs a matching --sr-ctl-rem`).toBe(true)
+  } else {
+    expect(declared, `${name}: --sr-ctl-rem must be declared`).toBe(register)
+    expect(el.style.fontSize.trim(),
+      `${name}: --sr-ctl-rem and fontSize must agree`).toBe(register)
+  }
 }
 
 beforeEach(() => { filesStatus.value = { ebird: true, ml: true }; mlRows.value = [{ format: 'Photo' }] })
@@ -128,13 +153,20 @@ describe('map-explorer-input-zoom — .sr-input-16 lands on the control element'
     // the shared SpeciesCombobox (improve: searchable-species-pickers), so the
     // guarded element is its <input>, not a <select>.
     const species = await screen.findByLabelText('Species')
-    expectGuarded(species, 'input')
+    // The four controls whose register is 0.8125rem, not the rule's 0.75rem
+    // default: without the declaration the clamp repair silently misses them and
+    // they render 24px instead of 26px at 200% text scale. The combobox is
+    // MapExplorer.tsx:2059 (size="panel", derived inside SpeciesCombobox); the
+    // two selects are :2076 and :2100, both through SELECT_STYLE in
+    // lib/mapExplorerFormat.ts.
+    expectGuarded(species, 'input', '0.8125rem')
+    // The two date inputs ARE 0.75rem and correctly rely on the default.
     expectGuarded(screen.getByLabelText('From date'), 'input')
     expectGuarded(screen.getByLabelText('To date'), 'input')
     // County mounts only when the observations resolve a county (fixture has one).
-    expectGuarded(screen.getByLabelText('County'), 'select')
+    expectGuarded(screen.getByLabelText('County'), 'select', '0.8125rem')
     // Media mounts only with an ML export (mlRows non-empty above).
-    expectGuarded(screen.getByLabelText('Media'), 'select')
+    expectGuarded(screen.getByLabelText('Media'), 'select', '0.8125rem')
   })
 
   it('guards the shared place-name search and the Lat/Lng pair in all three center views', async () => {

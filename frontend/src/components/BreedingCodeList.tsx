@@ -25,56 +25,17 @@ type Phase =
   | { tag: 'error'; message: string }
   | { tag: 'ready'; data: BreedingData }
 
-function codePillStyle(tier: 1 | 2 | 3 | 4, active: boolean): React.CSSProperties {
-  const base: React.CSSProperties = {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: 6,
-    height: 30,
-    padding: '0 12px',
-    borderRadius: 6,
-    fontSize: '0.75rem',
-    fontWeight: 500,
-    fontFamily: 'inherit',
-    cursor: 'pointer',
-    border: '1.5px solid transparent',
-    background: 'none',
-  }
-  if (!active) return { ...base, borderColor: 'var(--sr-border)', background: 'var(--sr-surface)', color: 'var(--sr-text-muted)' }
-  const bgAlpha = tier === 1 ? 0.15 : 0.08
-  const borderAlpha = tier === 1 ? 0.5 : 0.3
-  return {
-    ...base,
-    background: `rgba(var(--sr-tier-${tier}-rgb),${bgAlpha})`,
-    borderColor: `rgba(var(--sr-tier-${tier}-rgb),${borderAlpha})`,
-    // -fg (not the raw -N fill) so the label text meets AA on the tint in both themes.
-    color: `var(--sr-tier-${tier}-fg)`,
-  }
-}
-
-function categoryPillStyle(cat: BreedingCategory, active: boolean): React.CSSProperties {
-  const base: React.CSSProperties = {
-    display: 'inline-flex', alignItems: 'center',
-    height: 30, padding: '0 12px', borderRadius: 6,
-    fontSize: '0.75rem', fontWeight: 500, fontFamily: 'inherit',
-    cursor: 'pointer', border: '1.5px solid transparent', background: 'none',
-  }
-  if (!active) return { ...base, borderColor: 'var(--sr-border)', background: 'var(--sr-surface)', color: 'var(--sr-text-muted)' }
-  // Text uses the -fg tokens (not the raw -N fills) so each label meets AA on
-  // its tint in both themes; tier-2-fg is verified on the tier-1 tint too (the
-  // 'possible' pill's cross-case).
-  const styles: Record<BreedingCategory, React.CSSProperties> = {
-    confirmed: { background: 'rgba(var(--sr-tier-4-rgb),0.08)', borderColor: 'rgba(var(--sr-tier-4-rgb),0.3)', color: 'var(--sr-tier-4-fg)' },
-    probable:  { background: 'rgba(var(--sr-tier-2-rgb),0.08)', borderColor: 'rgba(var(--sr-tier-2-rgb),0.3)', color: 'var(--sr-tier-2-fg)' },
-    possible:  { background: 'rgba(var(--sr-tier-1-rgb),0.15)', borderColor: 'rgba(var(--sr-tier-1-rgb),0.5)', color: 'var(--sr-tier-2-fg)' },
-  }
-  return { ...base, ...styles[cat] }
-}
-
-const CATEGORY_META: { key: BreedingCategory; label: string }[] = [
-  { key: 'confirmed', label: 'Confirmed' },
-  { key: 'probable',  label: 'Probable' },
-  { key: 'possible',  label: 'Possible' },
+// Both the code pills and the three category pills render on the shared
+// `.sr-pill` register; the per-tier tint is the register's `data-tier` variant,
+// so no colour is declared here. The category pills carry the tier their label
+// names, and "Possible" additionally carries `data-tier-fg="2"`, which is the
+// shipped cross-case: it sits on the tier-1 tint and takes tier-2's foreground,
+// the token measured against that tint. Every text colour in the register is an
+// AA-verified `-fg` token, never a raw tier fill.
+const CATEGORY_META: { key: BreedingCategory; label: string; tier: 1 | 2 | 4; fgTier?: 2 }[] = [
+  { key: 'confirmed', label: 'Confirmed', tier: 4 },
+  { key: 'probable',  label: 'Probable',  tier: 2 },
+  { key: 'possible',  label: 'Possible',  tier: 1, fgTier: 2 },
 ]
 
 // Shown while the code labels are pinned. Names the shipped view control by its
@@ -86,22 +47,6 @@ const CATEGORY_META: { key: BreedingCategory; label: string }[] = [
 // reversed by the user after a device preview; this sentence must not drift back
 // toward describing it.
 const PIN_NOTE = 'Code labels stay at the top while you scroll. Pinning uses the Unbounded view, so the matrix scrolls with the page.'
-
-function ghostBtn(active = false): React.CSSProperties {
-  return {
-    height: 28,
-    padding: '0 10px',
-    borderRadius: 6,
-    fontSize: '0.6875rem',
-    fontWeight: 500,
-    fontFamily: 'inherit',
-    cursor: 'pointer',
-    border: active ? '1.5px solid var(--sr-accent-border)' : '1.5px solid var(--sr-border)',
-    background: active ? 'var(--sr-accent-bg)' : 'none',
-    color: active ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
-    whiteSpace: 'nowrap' as const,
-  }
-}
 
 export function BreedingCodeList({ onGoToSettings, filesVersion, onOpenSpecies }: { onGoToSettings: () => void; filesVersion?: number; onOpenSpecies?: (commonName: string) => void }) {
   const [phase, setPhase] = useState<Phase>({ tag: 'loading-saved' })
@@ -314,29 +259,23 @@ export function BreedingCodeList({ onGoToSettings, filesVersion, onOpenSpecies }
             200% text scale. The right-hand count + Table view cluster is outside it. */}
         <div className="sr-ctl-row sr-bc-filter-row" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
           <Button
+            className="sr-pill"
             aria-pressed={filter.size === 0 && categoryFilter.size === 0}
-            style={{
-              display: 'inline-flex', alignItems: 'center',
-              height: 30, padding: '0 12px', borderRadius: 6,
-              fontSize: '0.75rem', fontWeight: 500, fontFamily: 'inherit',
-              cursor: 'pointer',
-              border: filter.size === 0 && categoryFilter.size === 0 ? '1.5px solid var(--sr-accent-border)' : '1.5px solid var(--sr-border)',
-              background: filter.size === 0 && categoryFilter.size === 0 ? 'var(--sr-accent-bg)' : 'var(--sr-surface)',
-              color: filter.size === 0 && categoryFilter.size === 0 ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
-            }}
             onClick={() => { setFilter(new Set()); setCategoryFilter(new Set()) }}
           >
             All
           </Button>
           {CATEGORY_META
             .filter(({ key }) => [...CATEGORY_CODES[key]].some(code => codesPresent.includes(code)))
-            .map(({ key, label }) => {
+            .map(({ key, label, tier, fgTier }) => {
               const active = categoryFilter.has(key)
               return (
                 <Button
                   key={key}
+                  className="sr-pill"
                   aria-pressed={active}
-                  style={categoryPillStyle(key, active)}
+                  data-tier={tier}
+                  data-tier-fg={fgTier}
                   onClick={() => {
                     setCategoryFilter(prev => {
                       const next = new Set(prev)
@@ -357,9 +296,9 @@ export function BreedingCodeList({ onGoToSettings, filesVersion, onOpenSpecies }
             return (
               <Button
                 key={code}
-                className="sr-bc-filter-pill"
+                className="sr-pill sr-bc-filter-pill"
                 aria-pressed={active}
-                style={codePillStyle(def.tier, active)}
+                data-tier={def.tier}
                 onClick={() => {
                   setFilter(prev => {
                     const next = new Set(prev)
@@ -387,28 +326,17 @@ export function BreedingCodeList({ onGoToSettings, filesVersion, onOpenSpecies }
           <div style={{ width: 1, height: 20, background: 'var(--sr-border)', flexShrink: 0, alignSelf: 'center' }} />
 
           {/* A–Z / Taxonomic sort toggle */}
-          <div role="group" aria-label="Sort order" style={{ display: 'inline-flex', border: '1.5px solid var(--sr-accent-border)', borderRadius: 6, overflow: 'hidden', flexShrink: 0 }}>
+          <div className="sr-segbar" role="group" aria-label="Sort order" style={{ flexShrink: 0 }}>
             <Button
+              className="sr-segbar-btn"
               aria-pressed={sort.nameSortMode === 'az'}
-              style={{
-                height: 30, padding: '0 13px', border: 'none',
-                borderRight: '1.5px solid var(--sr-accent-border)',
-                background: sort.nameSortMode === 'az' ? 'var(--sr-accent-bg)' : 'transparent',
-                color: sort.nameSortMode === 'az' ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
-                fontSize: '0.75rem', fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer', whiteSpace: 'nowrap' as const,
-              }}
               onClick={() => setSort({ column: 'name', dir: 'asc', nameSortMode: 'az' })}
             >
               A–Z
             </Button>
             <Button
+              className="sr-segbar-btn"
               aria-pressed={sort.nameSortMode === 'taxonomic'}
-              style={{
-                height: 30, padding: '0 13px', border: 'none',
-                background: sort.nameSortMode === 'taxonomic' ? 'var(--sr-accent-bg)' : 'transparent',
-                color: sort.nameSortMode === 'taxonomic' ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
-                fontSize: '0.75rem', fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer', whiteSpace: 'nowrap' as const,
-              }}
               onClick={() => setSort({ column: 'name', dir: 'asc', nameSortMode: 'taxonomic' })}
             >
               Taxonomic
@@ -516,11 +444,11 @@ export function BreedingCodeList({ onGoToSettings, filesVersion, onOpenSpecies }
         <div className="sr-wrap-flex" style={{ '--sr-wrap-gap': '8px', flexShrink: 0, maxWidth: '100%' } as React.CSSProperties}>
           <span aria-live="polite" style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)' }}>{countLabel}</span>
           {/* The two presentation controls read as one group rather than as more
-              filters. Same shipped ghostBtn() styling, so they are visually a pair. */}
+              filters. Both take the shared .sr-pill, so they are visually a pair. */}
           <div role="group" aria-label="Table view" className="sr-wrap-flex" style={{ '--sr-wrap-gap': '6px' } as React.CSSProperties}>
             <Button
               type="button"
-              className="sr-touch-target"
+              className="sr-pill sr-touch-target"
               // The accessible name is the button's own text and nothing else:
               // there is deliberately NO aria-label, so the visible label and the
               // accessible name cannot drift apart. The consequence of pressing it
@@ -528,7 +456,6 @@ export function BreedingCodeList({ onGoToSettings, filesVersion, onOpenSpecies }
               // WCAG 2.5.3 Label in Name trivially satisfied.
               aria-pressed={pinned}
               aria-describedby={pinDescId}
-              style={{ ...ghostBtn(pinned), gap: 5 }}
               onClick={togglePin}
             >
               <Pin size={12} strokeWidth={2.2} aria-hidden style={{ flexShrink: 0 }} />
@@ -546,8 +473,11 @@ export function BreedingCodeList({ onGoToSettings, filesVersion, onOpenSpecies }
                 is untouched. */}
             <Button
               type="button"
-              className="sr-touch-target"
-              style={ghostBtn(wideMode)}
+              className="sr-pill sr-touch-target"
+              // No aria-pressed: this button does not expose one today and adding
+              // it is an ARIA change the pass holds fixed, so the accent state
+              // rides data-state, the register's non-ARIA carrier.
+              data-state={wideMode ? 'positive' : undefined}
               onClick={toggleView}
               title={wideMode ? 'Collapse table into scroll box' : 'Expand table: scroll the whole page on mobile'}
             >

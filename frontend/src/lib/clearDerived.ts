@@ -38,6 +38,14 @@
 // and carries no static imports of its own: it is entry-safe, callers import it
 // plainly, and no store rides first paint because of it.
 
+// -- SINGLE-WEBVIEW INVARIANT ------------------------------------------------
+// This teardown reaches each store through `import()` and clears the JS context
+// it runs in, no other -- sufficient while the app runs exactly one webview,
+// kept true at the `Builder::run` call in `src-tauri/src/lib.rs`. The purge
+// generations it moves live in `replayStore.ts` and `exoticProvenanceCache.ts`;
+// `storage.ts` makes the same assumption. Reversal condition: CLAUDE.md,
+// Desktop storage (Tauri), the v1.0.9 entry.
+
 /** The two stored data files a Clear can act on. */
 export type FileSlot = 'ebird' | 'ml'
 

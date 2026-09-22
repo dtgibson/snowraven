@@ -12,6 +12,54 @@
 **Mockup:** `design.html` beside this file — every register and every change
 rendered in both themes, on the app's real tokens.
 
+> **Re-validated 2026-09-22 (Stage 2 of the re-run, a scoped pass, not a
+> redesign).** The 2026-09-15 design was committed in `51a2c71` and never built;
+> the Evaluator re-measured every load-bearing figure at HEAD
+> (`change-brief-revalidation.md`, `decisions.md`) and found the design intact
+> with three rows to correct. This document was edited **in place**; the visual
+> decisions (two registers, radius 15px, `min-height` 30px, 0.75rem type, the
+> `--sr-border` resting border, the 120ms ease-out state fade, the `--sr-ctl-rem`
+> clamp repair, the four derived label floors, one declared `--sr-label-optical`
+> factor) are **not re-litigated** and are unchanged. What changed:
+>
+> 1. **§1.10 is superseded.** `sort-controls-selected-state` shipped at v1.0.32
+>    (`4b7ddfc`) and put `aria-pressed` + `role="group"` on the four sort-segment
+>    groups; the count is now 7 of 44, §1.5's `[aria-pressed="true"]` cascade
+>    engages on those four, and §1.10 now carries a per-site table saying what the
+>    Engineer does at each and which guard must stay green.
+> 2. **§1.8's inline-transition list** cited six sites; there are five, now cited
+>    by grep-able content rather than line number.
+> 3. **§2.4's `WeatherForecastPanel.tsx` line numbers** shifted by three
+>    (`45e98bf`) and are refreshed; every `globals.css` line number is exact
+>    (zero commits to that file since the design).
+> 4. **§2.8 now carries the replacement wording** for `.claude/rules/ui.md:41`,
+>    `:42` and `:73` and `pipeline/design-system.md:156`, plus the `paths`
+>    extension `ui.md` owes and a design-system entry for Register B. The
+>    original §2.8 aimed its `ui.md` passage at a label-exclusion clause that
+>    file does not contain; `:42` is the passage actually false at HEAD. The
+>    `PRODUCT_CONTEXT.md:1730` closeout row in `change-brief.md` is discharged
+>    and is **not** an obligation of this build.
+> 5. **Register B is renamed `.sr-segbar` / `.sr-segbar-btn`.** The names the
+>    design chose, `.sr-seg` / `.sr-seg-btn`, are shipped class names on the
+>    Calendar's `SegControl` (`Calendar.tsx`, with a phone-tier rule at
+>    `globals.css:4718`), which §1.3 puts out of scope. Found at this pass; the
+>    register's every value is unchanged, only its name. The mockup is renamed to
+>    match.
+> 6. **§2.6 gains a Part 1 correction:** `breedingCodeFilterRowCss.test.ts`
+>    pins an inline `height: 30` in `BreedingCodeList.tsx`'s source, which the
+>    pill register removes, so that assertion goes red and is amended. The
+>    2026-09-15 text said the file was unaffected; that was true of Part 3 only.
+>
+> The mockup changed in four places only: the Register B class rename, the
+> section 06 count text ("6 of 44" was five declaration sites), the section 09
+> finding row, which now records the v1.0.32 follow-up, and two lines of the
+> document's own chrome (`.phone` sized `width: 100%; max-width: 320px` and
+> `.pair > * { min-width: 0 }`) so the page no longer scrolls sideways at a
+> 320px viewport; no specimen value changed. Re-verified in Chromium and WebKit
+> at 1280px, 390px and 320px in both themes with zero console errors and no
+> page horizontal scroll; `weft-design-lint` reports the one logged deviation
+> (§4.1).
+
 ---
 
 ## 0. What this build does, in one page
@@ -64,8 +112,8 @@ Read directly from source at HEAD:
 | height | 7 declared: 24, 26, 28, 30, 32, 34, 36 (6 sites padding-driven) | **30px** | 21 of 38 |
 | border-radius | 6 declared: 4, 5, 6, 8, 15, 20 (12 take the shell's) | **15px** | see 1.4 |
 | font-size | 4 declared: 0.6875, 0.71875, 0.75, 0.8125rem | **0.75rem** | 25 of 44 |
-| transition | **38 of 44 declare none at all** | 120ms ease-out | — |
-| `aria-pressed` | **absent on 11 of 44** | unchanged (see 1.9) | — |
+| transition | **five declaration sites carry an inline one; every other site declares none** | 120ms ease-out | — |
+| `aria-pressed` | **absent on 7 of 44** (11 at design time; four shipped at v1.0.32, see 1.10) | unchanged (see 1.10) | — |
 
 The change brief says "40 sites"; this sweep counted 44. **Same 15 files** — the
 difference is only whether a `.map()` rendering several buttons from one style
@@ -100,18 +148,32 @@ what forced the Breeding Codes pills to override it with
 grow the control everywhere, and that existing override becomes redundant rather
 than load-bearing.
 
-### Register B — `.sr-seg` / `.sr-seg-btn` (segmented group, ~15 sites)
+### Register B — `.sr-segbar` / `.sr-segbar-btn` (segmented group, ~15 sites)
 
 Same `min-height: 30px`, `padding: 0 12px`, `font-size: 0.75rem`, and the same
 `500` → `600` weight shift. Differences: `border: none`, no radius (the shell
 clips), `background: transparent` at rest, and a
 `1.5px solid var(--sr-accent-border)` divider on the leading edge of each
-sibling. The shell owns the outer border and the radius.
+sibling. The shell (`.sr-segbar`) owns the outer border and the radius.
 
 **Register B is a CSS register only.** Its sites are close cousins of the
 existing `SegControl` component, which the change brief puts out of scope.
 Converting them would be a component and ARIA change, not a styling one. Do not
 convert them.
+
+**Renamed 2026-09-22: `.sr-segbar` / `.sr-segbar-btn`, not `.sr-seg` /
+`.sr-seg-btn`.** The names the 2026-09-15 design chose are **already shipped
+class names on `SegControl` itself**: `Calendar.tsx` renders its group as
+`className="sr-wrap-flex sr-seg"` and each option as `className="sr-seg-btn"`,
+and `globals.css:4718` carries a phone-tier rule for them
+(`.sr-seg > .sr-seg-btn { flex: 1 1 auto; justify-content: center; }`, v1.0.4).
+A register declared under those names would land on the Calendar's control,
+which is out of scope, and would land **partially**: `SegControl`'s inline
+`padding`, `fontSize`, `border` and `background` would beat the class while its
+`[aria-pressed="true"]` and `:hover` rules would not, which is the v1.0.18
+half-moved-chrome trap by another route. The register's every value is
+unchanged; only its name. `sr-segbar` appears nowhere in `frontend/src` at HEAD.
+Do not reuse `.sr-seg`, and do not write a rule that matches both.
 
 ## 1.4 DECISION — radius 15px
 
@@ -161,6 +223,22 @@ take the tinted treatment so two labelled pills read as two weights.
   the selected state wins at equal specificity. This is the source-order
   convention `.sr-map-fab` and `.sr-hotspot-mode-pill` already follow.
 
+**That cascade now engages on the four segmented sort controls (re-validated
+2026-09-22).** At design time `SpeciesDetail.tsx`, `MediaCommentsSection.tsx`,
+`ChecklistComparer.tsx` and `ResultsView.tsx` carried their selected option as
+an inline `background` / `color` ternary and no `aria-pressed`, so an
+attribute-driven register could not have shown their state. v1.0.32
+(`sort-controls-selected-state`, `4b7ddfc`) put a literal `aria-pressed` on
+every option and `role="group" aria-label="Sort order"` on every shell. The
+`.sr-segbar-btn[aria-pressed="true"]` rule is therefore the **only** carrier of
+their selected state once the inline ternaries move to the class: the Engineer
+removes the `background` and `color` ternaries from those options along with
+the rest of the inline chrome, and does **not** keep a parallel `style` prop
+for the pressed state. Two of the four (`MediaCommentsSection`, `SpeciesDetail`
+comment sort) bolded nothing when pressed; on the register they take the
+family's 600 weight, which is the convergence §1.3 already states and is
+visible. See 1.10 for the per-site rows and the guard.
+
 ### Contrast — measured, both themes
 
 | Pair | Light | Dark |
@@ -192,8 +270,8 @@ Do not re-derive this.
 **No register-local focus rule for `.sr-pill`.** The global
 `button:focus-visible` ring (3px `--sr-accent`, 3px offset, 6px halo) already
 covers every pill; forking a shipped accessibility surface buys nothing.
-`.sr-seg-btn` uses `outline-offset: -3px` so the ring stays inside the shell's
-clip.
+`.sr-segbar-btn` uses `outline-offset: -3px` so the ring stays inside the
+shell's clip.
 
 ## 1.8 Motion
 
@@ -211,14 +289,41 @@ One transition, shared by both registers, matching the shipped
 No entrance animation, no transform, no scale. These are utility controls that
 toggle a filter; a state change is a colour change.
 
-**Expect this to be felt:** 38 of 44 sites have *no* transition today and snap
-instantly. All gain this fade. That is deliberate, not a side effect.
+**Expect this to be felt:** every site in the family that declares no
+transition today snaps instantly, and that is all but five of them. All gain
+this fade. That is deliberate, not a side effect.
 
-**Six sites carry an inline `transition` that must be removed**, not left
-behind — an inline transition is specificity 1,0,0 and silently beats the class:
-`ListComparer.tsx:186` and `:248` (`background 0.15s, color 0.15s`);
-`SpeciesDetail.tsx:1152`, `:1164`, `:1394` (**`all 0.15s`** — the worst case, it
-would animate layout properties too); `Settings.tsx:192`.
+**Five declaration sites carry an inline `transition` that must be removed**,
+not left behind — an inline transition is specificity 1,0,0 and silently beats
+the class. (Corrected 2026-09-22: the 2026-09-15 text said six, and cited three
+`all 0.15s` lines in `SpeciesDetail.tsx`; the file carries exactly two, at HEAD
+and at the design commit, so this was an authoring slip, not drift.) **Sweep
+them by `grep -n transition` over the 15 files, never by line number.** Each is
+cited by content the grep lands on:
+
+| File | Find by | Inline value to remove |
+| --- | --- | --- |
+| `ListComparer.tsx` | the option `<Button>` inside the `aria-label="Comparison mode"` group (`height: 36, padding: '0 20px'`) | `background 0.15s, color 0.15s` |
+| `ListComparer.tsx` | the option `<Button>` under `(['my-list', 'upload'] as const).map` (`listAMode`) | `background 0.15s, color 0.15s` |
+| `SpeciesDetail.tsx` | `const btnBase: React.CSSProperties` under `{/* Graph Options */}` (serves the Graph interval and Graph view mode groups) | **`all 0.15s`** |
+| `SpeciesDetail.tsx` | the option `<Button>` inside the `aria-label="Map display mode"` group (`fontSize: '0.6875rem'`) | **`all 0.15s`** |
+| `Settings.tsx` | `function toggleBtnStyle(key: ThemePreference)` | `background 0.12s, color 0.12s, border-color 0.12s` |
+
+`all 0.15s` is the worst case: it would animate layout properties too.
+
+**What the same grep finds that is NOT pill chrome, and is left alone:**
+`SpeciesDetail.tsx`'s other two `transition`s are `transform 0.15s` chevron
+rotations (`rotate(180deg)` on the show-all-locations and show-all-comments
+disclosure buttons); `ListComparer.tsx` has an `opacity 0.15s` on the Compare
+action; `Settings.tsx` has a `background 0.1s`, a `color 0.15s, border-color
+0.15s` and a comment about a cross-fade. None is in the 44. **Two more
+`Settings.tsx` style helpers carry `toggleBtnStyle`'s exact `0.12s` value and
+its 34px accent-toggle shape** (`flex: 1, height: 34` and a `minHeight: 48`
+sibling, both `fontSize: '0.8125rem'`); they predate the design and were not in
+its 44. If the Engineer's sweep brings them onto the register they lose their
+inline transition by the same rule; if not, they stay. Decide by §1.2's
+signature census, and state which in the run record rather than leaving the
+grep to imply it.
 
 ## 1.9 The two duplicated helpers
 
@@ -237,17 +342,48 @@ indicator; `BreedingCodeTable`'s render a bare code + indicator).
 it does not. **Accepted visible consequence:** it adds 4px between the code and
 its sort caret on the Breeding Codes matrix headers.
 
-## 1.10 Found while measuring — NOT designed in
+## 1.10 Found while measuring — superseded by a shipped follow-up (re-validated 2026-09-22)
 
-**11 of 44 sites carry no `aria-pressed`.** Four sort-segment groups —
-`SpeciesDetail.tsx:1577`, `MediaCommentsSection.tsx:89`,
-`ChecklistComparer.tsx:299`, `ResultsView.tsx:59` — carry selected state as
-style only, which is invisible to a screen reader, while the near-identical
-`Checklists.tsx:69` control *does* carry it.
+**At design time, 11 of 44 sites carried no `aria-pressed`**, four of them
+sort-segment groups carrying selected state as style only, invisible to a
+screen reader, while the near-identical `Checklists.tsx` `SortSeg` control did
+carry it. This section said do not add it here (an ARIA and behaviour change,
+which the brief holds fixed) and recommended a small follow-up build.
 
-**Do not add it in this build.** It is an ARIA and behaviour change, and the
-change brief holds behaviour, keyboard path and tab stops fixed. Recommend a
-small follow-up build. Recorded here so it is not lost.
+**That follow-up shipped at v1.0.32** (`sort-controls-selected-state`,
+`4b7ddfc`), between the design and this build. Each of the four shells now
+carries `role="group" aria-label="Sort order"` and each option a literal
+`aria-pressed`; no style byte changed. **The count is now 7 of 44**, and §1.5's
+attribute cascade engages on these four. The Engineer treats them as ordinary
+Register B sites, with one extra obligation each:
+
+| Surface | File; find by | Shell → `.sr-segbar` | Options → `.sr-segbar-btn` | Keep |
+| --- | --- | --- | --- | --- |
+| Species Detail, comment sort | `SpeciesDetail.tsx`; the `{/* Sort toggle */}` shell with `aria-label="Sort order"` over `(['newest', 'oldest'] as const).map` | drop inline `border`, `borderRadius`, `overflow`; keep `display`/`flexShrink` only if the layout still needs them | drop `height`, `padding`, `border`, `borderLeft`, the `background`/`color` ternaries, `fontSize`, `fontWeight`, `fontFamily`, `cursor` | `role`, `aria-label`, `aria-pressed={commentSort === dir}` |
+| Multimedia, comment sort | `MediaCommentsSection.tsx`; the shell with `aria-label="Sort order"` over `(['newest', 'oldest'] as const).map` | same | same | `role`, `aria-label`, `aria-pressed={sort === dir}` |
+| List Comparer, checklist mode | `ChecklistComparer.tsx`; the shell with `aria-label="Sort order"` over `(['taxonomic', 'alpha'] as Sort[]).map` | same | same, plus `whiteSpace: 'nowrap'` (the register carries `white-space: nowrap`) | `role`, `aria-label`, `aria-pressed={sort === s}` |
+| List Comparer, list mode | `ResultsView.tsx`; the shell with `aria-label="Sort order"` over `(['taxonomic', 'alpha'] as SortOrder[]).map` | same | same | `role`, `aria-label`, `aria-pressed={sort === s}` |
+
+**The guard that must stay green:**
+`frontend/src/components/sortControlsSelectedState.test.tsx` (one roster row
+per control; asserts a literal `"true"` / `"false"` on every option, exactly one
+`"true"` per group, movement on click, and the group's name through
+`getByRole`). It reads **no style**, so moving the inline chrome to the class
+cannot redden it; **stripping `role`, `aria-label` or `aria-pressed` off a shell
+or option can, and must not happen.** Do not weaken that file, and do not add
+rows to it for the two `SortSeg` call sites (its header records that omission
+as a decision, not a gap).
+
+**Two things not re-raised at closeout.** (1) The remaining 7 sites without
+`aria-pressed` are outside this build exactly as before; §1.10's old
+recommendation is discharged, not repeated. (2) v1.0.32's decision 1 declined
+to extract a shared `SortSeg` and named as its reversal condition "any change
+that makes the five variants converge on one shape". **This register converges
+them, in CSS.** That is an answer to the reversal condition, not a trigger for
+extraction: the drift a shared component was meant to prevent is now prevented
+by one stylesheet rule, and §1.3 holds Register B to a CSS register with no
+component or ARIA change. Say so in the run record so the v1.0.32 entry's
+condition is answered in writing rather than left looking unmet.
 
 ---
 
@@ -528,7 +664,7 @@ alongside the existing inline `fontSize` (React accepts a custom property in a
 | `CommandPalette.tsx:295` `.sr-palette-input` (CSS, `globals.css:5735`) | `1rem` |
 | `App.tsx:1015` checklist input | `0.875rem` |
 | `SpeciesDetail.tsx:748` `SpeciesCombobox` size `md` | `0.875rem` |
-| `WeatherForecastPanel.tsx:522,537,541,545,549` | `0.84375rem` |
+| `WeatherForecastPanel.tsx:519,534,538,542,546` (the five `className="sr-input-16" style={textInput}` inputs; shifted by three at `45e98bf`, so find them by class, not line) | `0.84375rem` |
 | `WeatherStatsSection.tsx:460` combobox `panel` | `0.8125rem` |
 | `MapExplorer.tsx:2059` combobox `panel` | `0.8125rem` |
 | `MapExplorer.tsx:2076,2100` selects (`SELECT_STYLE`, `lib/mapExplorerFormat.ts:26`) | `0.8125rem` |
@@ -611,9 +747,24 @@ Asserts the combobox is an `<input>` with `sr-input-16` and inline
 
 ### Others
 
-- `lib/breedingCodeFilterRowCss.test.ts` — unaffected (BreedingCodeList has no
-  label inside its ctl-row). It forbids `.sr-ctl-row`-selected rules from
-  carrying `min-width`/`max-width`/`overflow-wrap`/`word-break`/`white-space` —
+- `lib/breedingCodeFilterRowCss.test.ts` — **unaffected by Part 3** (BreedingCodeList
+  has no label inside its ctl-row), **but Part 1 reddens one of its assertions
+  (found 2026-09-22; the 2026-09-15 text said "unaffected" and was true of the
+  label work only).** Its third `it` asserts the `BreedingCodeList.tsx` source
+  matches `/height:\s*30/` and does not match `/minHeight:\s*30/`, pinning the
+  filter pill's inline fixed height so the phone-tier `height: auto !important`
+  has something to release. The pill register removes that inline `height: 30`
+  (the register carries `min-height: 30px`), so the assertion goes red once the
+  last inline `height: 30` leaves the file, and if any unrelated `height: 30`
+  survived it would pass by accident, which is worse. **Amend it to assert the
+  intent, not the declaration:** the filter pill carries the `sr-pill` register
+  class, and the `.sr-pill` rule in the real `globals.css` supplies
+  `min-height: 30px` rather than `height`. Keep the `height: auto !important`
+  declaration and its assertion (the first `it`) as they are: the override is
+  now redundant with `min-height` rather than load-bearing (§4.2), it is pinned,
+  and removing it is not this build's errand. The file also forbids
+  `.sr-ctl-row`-selected rules from carrying
+  `min-width`/`max-width`/`overflow-wrap`/`word-break`/`white-space` —
   **`font-size` is not in that list**, so the label rule is clear. But note the
   Checklists companion fix (2.5) adds a `min-width`, so **scope it to the
   Checklists subtree, not to `.sr-ctl-row`**, or that guard goes red.
@@ -646,56 +797,81 @@ span), `.sr-ssx-count` (`globals.css:5169`, intentional), and
 as `.sr-input-16` is an explicit opt-in on a control. Membership is declared,
 never inferred.
 
-## 2.8 Replacement wording for the two rule files
+## 2.8 Replacement wording for the rule files (re-validated 2026-09-22)
 
-This build **reverses a documented decision**, so both files must be amended in
-the same change. A rule file left describing the old behaviour is worse than no
-rule. The file edits belong to the Engineer and the Chronicler; the wording is
-specified here.
+This build **reverses a documented decision**, so the rule files must be
+amended in the same change. A rule file left describing the old behaviour is
+worse than no rule. The file edits belong to the Engineer and the Chronicler;
+the wording is specified here and is applied **verbatim**.
 
-> **Stamp the shipped version.** Both passages below say *"this change"* where a
+> **Stamp the shipped version.** Every passage below writes `vX.Y.Z` where a
 > version citation belongs. This bundle takes **one** version bump at the very
 > end and that number is not knowable at design time, so it is deliberately not
 > guessed here — substitute the real shipped version when the rule files are
-> edited.
+> edited. A wrong version citation in a rule file outlives the build.
 
-### `.claude/rules/ui.md` — replacing the `.sr-ctl-row` label-exclusion clause
+**Where the wording goes, corrected.** The 2026-09-15 version of this section
+aimed its `ui.md` passage at a label-exclusion clause; `ui.md` has no such
+clause. Only `pipeline/design-system.md:156` carries "spans and stay outside it
+by design". `ui.md` owes **three** passages: `:41` (the `.sr-ctl-row`
+parenthetical inside the 0.5.55 bullet), `:42` (**the one actually false at
+HEAD**: it quotes `max(16px, 0.75rem)` verbatim and states the v0.5.82
+vertical-fit corollary as a guarantee that holds only for a formula carrying
+each control's own rem, which is Defect 1 written down as a promise), and `:73`
+(the v0.5.86 Breeding Codes bullet, whose `height: auto !important` the register
+makes redundant). Line numbers are exact at HEAD; find each by its bold lead
+sentence, not the number. **House register for these files:** one bullet, a
+bold lead sentence carrying the version, then the body; no em dash (U+2014)
+anywhere in the new text; state the property, never a count.
 
-> `.sr-ctl-row` is a CONTAINER hook, not an element one: it sizes interactive
-> DESCENDANTS, never the container itself (which would cascade an unrequested
-> size onto every unstyled span inside it). **It does not reach labels, and as
-> of this change that is no longer the same thing as labels being excluded.**
-> The exclusion was right when written: the 16px floor is an iOS focus-zoom
-> guard, a `<span>` cannot trigger focus zoom, and flooring labels looked like
-> cost with no benefit. What it missed is that the floor moves the CONTROL, so
-> excluding the label does not leave the pair alone — it breaks the type
-> relationship between them. Measured: a `0.6875rem` label beside a floored
-> control renders at **68.8%** of it at 100% text scale and **51.6%** at a
-> lowered browser default, against an intended ~91.7%, converging only above
-> ~1.33×. A label that sits beside a floored control therefore takes
-> **`.sr-ctl-label`** with a `--sr-label-ratio` (its register ÷ its control's
-> register), which floors BOTH terms by the same factor and so holds the offset
-> at every scale. **A label with no floored control beside it takes neither and
-> is not broken** — the defect is the pairing, not the register. The floor
-> itself is `max(var(--sr-ctl-floor), var(--sr-ctl-rem, 0.75rem))`: a genuine
-> floor that raises a small control to the iOS threshold and never lowers a
-> large one, which the previous hardcoded `max(16px, 0.75rem)` did — it cut the
-> command palette's `1rem` input from 32px to 24px at 200% text scale, for
-> exactly the users who had asked for larger text.
+**Not owed, and do not action it:** `change-brief.md`'s last Decisions row says
+`PRODUCT_CONTEXT.md:1730` still carries the superseded v1.0.19 decline text.
+It did at `51a2c71`; the v1.0.32 context update rewrote that entry ("DECLINED
+TWICE, THEN BUILT (v1.0.24) … kept only to record the reversal") and it is now
+correct. An Engineer acting on that row would damage a record that is right.
 
-### `pipeline/design-system.md` — replacing the Filters-pattern clause
+### `.claude/rules/ui.md` frontmatter — extend `paths`
 
-> **On a phone every interactive control in a filter block reads at ONE size** —
-> put `.sr-ctl-row` on the block and its buttons, selects and inputs share the
-> iOS-safe scale-tracking size. **Its labels are sized in relation to it, not
-> left behind** (this change): a label beside a floored control carries
-> `.sr-ctl-label` and a `--sr-label-ratio` of its own register to its control's,
-> so the deliberate 1px optical offset survives the floor instead of becoming a
-> 45% size gap at 100% and worse below it. The uppercase section labels stay
-> deliberately smaller **in proportion**, which is what the earlier "stay
-> outside it by design" wording was trying to protect and did not. A trailing
-> count-and-view cluster is still outside it, because it is not a filter. A
-> label on a surface with no floored control is unchanged.
+Add these two entries. Both files are edited by this build and fall outside
+every existing glob; CLAUDE.md's v1.0.32 obligation is that a rule gated off
+the file it governs is indistinguishable from an absent rule.
+
+```yaml
+  - "frontend/src/App.tsx"
+  - "frontend/src/lib/mapExplorerFormat.ts"
+```
+
+### `.claude/rules/ui.md:41` — replace the `.sr-ctl-row` parenthetical
+
+Inside the 0.5.55 bullet, replace the parenthetical that begins
+`` `.sr-ctl-row` (v0.5.81 — put it on a **filter block** `` and ends
+`` never the container) `` with:
+
+> `.sr-ctl-row` (v0.5.81; put it on a **filter block**, and every interactive descendant inside it gets one phone-tier text size; it sizes descendants, never the container. A label that sits beside a floored control, inside a `.sr-ctl-row` or beside a standalone `.sr-input-16`, takes `.sr-ctl-label` as an explicit opt-in so it keeps its proportion to that control at every text scale; see the formula bullet below, as amended at vX.Y.Z)
+
+### `.claude/rules/ui.md:42` — replace the whole v0.5.81 formula bullet
+
+Replace the bullet that begins `**A phone-tier size that must clear an absolute px floor AND stay consistent with a scale-tracking neighbour is written`, through the end of its v0.5.82 corollary, with:
+
+> - **A phone-tier size that must clear an absolute px floor AND stay consistent with a scale-tracking neighbour is written `max(<px floor>, <the control's OWN rem>)`, ONCE, as a single declaration covering both sides (v0.5.81; corrected at vX.Y.Z, where the rem term became the control's own).** The old flat `.sr-input-16` value satisfied the 16px iOS floor and nothing else: at 1x it left pills at 12px beside 16px selects in the same wrapping filter row, and at 200% in-app text scale it INVERTED (pills 24px, controls still pinned at 16px), so the controls became the small ones for exactly the user who enlarged their text. The declaration is `font-size: max(var(--sr-ctl-floor), var(--sr-ctl-rem, 0.75rem)) !important` in the <=640 tier, shared verbatim by `.sr-input-16` and `.sr-ctl-row :is(button, select, input)`. `--sr-ctl-floor` is `16px`, declared once on `:root`, because the iOS focus-zoom threshold is an absolute px value and does not scale. `--sr-ctl-rem` is the control's OWN register: every control the rule reaches whose declared size is not `0.75rem` declares it beside its inline `fontSize`, and a filter block whose controls share one size declares it on the block so the controls and the label inherit it. State the guarantee as a property of the FORMULA across the whole input domain, never as sampled values: the result is never below `--sr-ctl-floor` for any rem, including a browser or OS default font size the user has lowered, and it is never below the control's declared size at any scale, because the second term IS that size. **The second half is what the rule shipped without, from v0.5.81 until vX.Y.Z.** The rem term was the literal `0.75rem` rather than the control's own, which made the rule a REPLACEMENT rather than a floor: above the crossover it returned `0.75rem` scaled, so every control with a larger register was overridden in both directions, and the command palette's `1rem` search rendered below its own declared size at 200% text scale, for exactly the users who had asked for larger text. Nothing went red, because the guard checked the floor term and not the rem term. The two selectors deliberately differ in specificity ((0,1,0) vs (0,1,1), both `!important`), which is exactly why they must share one declaration and a test must lock the values identical: then which one governs a guarded control is moot rather than reasoned about. Guard: `frontend/src/lib/filterControlSizeCss.test.ts` (parses the real `globals.css`, same posture as `milestoneContrast` / `countyContrast` / `calendarContrast`); since vX.Y.Z it resolves `--sr-ctl-floor` from `:root` before asserting the floor is `16px`, and asserts that every control carrying `sr-input-16` with an inline `fontSize` declares a matching `--sr-ctl-rem`, so the two declarations of one fact cannot drift. **Corollary for VERTICAL fit (v0.5.82; restated at vX.Y.Z so that it is true):** the formula never TIGHTENS a box whose inline size is its own `--sr-ctl-rem`. It raises only while that rem is below the floor, where it pins to exactly the floor; above that it returns the rem, the inline value the box was already built for, so a fixed-height control guarded this way cannot start clipping vertically at any scale, which is why adding the guard to the Map Explorer's fixed 34px boxes needed no accommodation. As first written, that corollary described a formula carrying each control's own rem while the shipped rule carried `0.75rem`, which for a larger control returns a SMALLER value above the crossover, not the inline one. It holds only once `--sr-ctl-rem` is declared; a control that omits the declaration is back on the replacement, which is what the source-scan assertion exists to catch. **Labels beside a floored control are sized in relation to it, never left behind (vX.Y.Z).** A `<span>` or `<label>` cannot trigger focus zoom, so the floor was written to exclude them, and that looked free. What it missed is that the floor moves the CONTROL, so excluding the label does not leave the pair alone: it breaks the type relationship between them, worst at a lowered browser default and converging only above the crossover. A label that sits beside a floored control therefore takes `.sr-ctl-label`, an explicit opt-in class on the label element exactly as `.sr-input-16` is on a control, sized `max(calc(var(--sr-ctl-floor) * var(--sr-label-ratio, 1)), calc(var(--sr-ctl-rem, 0.75rem) * var(--sr-label-ratio, 1))) !important` in the same tier. Both terms carry the same factor, so a label crosses from floor-governed to scale-governed at exactly the text scale its control does, and there is never a band where one is pinned while its neighbour tracks rem, which is the mechanism that produced the defect. `--sr-label-ratio` takes one of two values: `var(--sr-label-optical)` (`calc(11 / 12)`, declared once on `:root`) for an UPPERCASE label, because capitals fill the cap height and read larger at equal metric size, and unset (1) for a sentence-case label. A label with no floored control beside it takes neither class nor ratio and is not broken: the defect is the pairing, not the register, so flooring a label register globally would enlarge labels on surfaces where nothing is wrong. Never reach labels through an element selector such as `.sr-ctl-row :is(span, label)`; `.sr-bc-filter-pill-label` is a span inside a pill and would be shrunk by it. The label floor is NOT an iOS guard and must not be described as one at its declaration, or it will be cleaned up as redundant.
+
+### `.claude/rules/ui.md:73` — replace the v0.5.86 Breeding Codes bullet
+
+Replace the bullet that begins `**A wrapping flex row is not contained until EVERY nested automatic minimum on the overflow path is released (v0.5.86).**` with:
+
+> - **A wrapping flex row is not contained until EVERY nested automatic minimum on the overflow path is released (v0.5.86).** At 320px/200%, the Breeding Codes filter row wrapped yet measured 327.11px inside a 272px parent because both its pill and the pill's label retained `min-width: auto`. The repair uses feature-specific hooks, `.sr-bc-filter-row`, `.sr-bc-filter-pill` and `.sr-bc-filter-pill-label`, with `min-width: 0` on both nested flex items, `overflow-wrap: break-word` for the emergency slash-run, and a phone-only `height: auto !important` beside a 30px minimum, which at the time released the pill's inline fixed `height: 30` so a full label could earn a second line. **Since vX.Y.Z that override releases nothing:** the pill takes its height from the `.sr-pill` register, which declares `min-height: 30px` and no `height`, and carries no inline height of its own, so a wrapped label grows the pill on every surface without a per-feature override. The declaration is retained because `breedingCodeFilterRowCss.test.ts` pins it and it costs nothing; it would become load-bearing again only if the pill register ever moved back to a fixed `height`, which is the reason the register uses `min-height`. That guard's source assertion changed with it: it asserted an inline `height: 30` and no `minHeight: 30` in `BreedingCodeList.tsx`, and since vX.Y.Z asserts that the filter pill carries the `sr-pill` register class and that the register supplies `min-height`, which is the same intent (desktop keeps a 30px pill; the phone tier lets a full label take a second line) pinned to where the declaration now lives. Do not put these layout declarations on shared `.sr-ctl-row`; other filter surfaces and wider layouts are outside the measured repair.
+
+### `pipeline/design-system.md:156` — replace the Filters-pattern clause
+
+Replace, inside the **Filters** bullet, the passage that begins `**On a phone every interactive control in a filter block reads at ONE size**` and ends `which is not a filter.` with:
+
+> **On a phone every interactive control in a filter block reads at ONE size**: put `.sr-ctl-row` on the block and its buttons, selects and inputs share the iOS-safe scale-tracking size, a genuine floor since vX.Y.Z (`max(var(--sr-ctl-floor), var(--sr-ctl-rem, 0.75rem))`, which raises a small control to the iOS threshold and never lowers a large one). **Its labels are sized in relation to it, not left behind (vX.Y.Z):** a label beside a floored control carries `.sr-ctl-label` and a `--sr-label-ratio` of its own register to its control's, so the deliberate 1px optical offset survives the floor instead of becoming a size gap at 100% and a wider one below it. The uppercase section labels stay deliberately smaller **in proportion**, which is what the earlier "stay outside it by design" wording was trying to protect and did not. A trailing count-and-view cluster is still outside it, because it is not a filter. A label on a surface with no floored control is unchanged.
+
+### `pipeline/design-system.md` — add an entry for Register B (§4.3)
+
+Add this bullet directly after the **Segmented control (the `SegControl` register)** bullet (`design-system.md:534` at HEAD):
+
+> - **Segmented toggle (the `.sr-segbar` register, vX.Y.Z):** a hand-rolled two- or three-option toggle (sort order, comparison mode, list source, map view, chart interval) drawn as one shell. `.sr-segbar` is an `inline-flex` shell with a 1.5px `--sr-accent-border`, radius 15, `overflow: hidden` and a `--sr-surface` fill; each `.sr-segbar-btn` option is 30px min-height, `0 12px` padding, 0.75rem, weight 500, `border: none`, transparent at rest, with a 1.5px `--sr-accent-border` divider on its leading edge, muted text lifting to `--sr-text` on hover (gated off when disabled), `--sr-accent-bg` fill + `--sr-accent` text + weight 600 when `aria-pressed="true"` (declared after `:hover` so the selected state wins), the global focus ring inset by 3px so it stays inside the clip, and the filter pill's 120ms ease-out colour fade with reduced motion from the global block. It shares height, type size, states and motion with the filter pill and differs only at the edge, so the two read as one family. `role="group"` with an `aria-label` naming the choice, each option `aria-pressed`, one tab stop per option. It is a CSS register, not a component, and it is NOT `SegControl` (the `--sr-surface-subtle` pill with radius-5 options, above), whose `.sr-seg` / `.sr-seg-btn` class names it deliberately does not reuse.
 
 ---
 
@@ -750,9 +926,11 @@ at 100%.
 2. **`min-height` replaces `height`** on the pill register — a strict
    relaxation, and it makes the Breeding Codes `height: auto !important`
    override redundant.
-3. **A second register (`.sr-seg-btn`) is introduced.** `design-system.md`
-   describes filter pills and `SegControl` but has no entry for a hand-rolled
-   segmented group. Add one at closeout.
+3. **A second register (`.sr-segbar` / `.sr-segbar-btn`) is introduced.**
+   `design-system.md` describes filter pills and `SegControl` but has no entry
+   for a hand-rolled segmented group. The entry is drafted in §2.8 and is
+   applied at closeout. (Renamed 2026-09-22 from `.sr-seg-btn`, which is
+   `SegControl`'s own class; see §1.3.)
 4. **`padding: 0 12px` and `gap: 5px`** are not stated in the design system;
    both are the family's own modal values rather than fresh choices.
 5. **The label floor is not an iOS guard** and must not be described as one. A

@@ -181,18 +181,9 @@ export function ListComparer({ onOpenSpecies, keyStatus, onGoToSettings }: {
       alignItems: 'center',
     }}>
       <div style={{ width: '100%', maxWidth: 880, marginBottom: 24, display: 'flex', justifyContent: 'center' }}>
-        <div role="group" aria-label="Comparison mode" style={{ display: 'inline-flex', borderRadius: 8, border: '1.5px solid var(--sr-border)', overflow: 'hidden' }}>
-          {([['checklists', 'Checklists'], ['lists', 'Life Lists']] as const).map(([m, label], i) => (
-            <Button key={m} aria-pressed={mode === m}
-              onClick={() => setMode(m)}
-              style={{
-                height: 36, padding: '0 20px', fontSize: '0.8125rem',
-                fontWeight: mode === m ? 600 : 500, fontFamily: 'inherit', cursor: 'pointer',
-                border: 'none', borderLeft: i > 0 ? '1.5px solid var(--sr-border)' : 'none',
-                background: mode === m ? 'var(--sr-accent-bg)' : 'var(--sr-surface)',
-                color: mode === m ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
-                transition: 'background 0.15s, color 0.15s',
-              }}>
+        <div className="sr-segbar" role="group" aria-label="Comparison mode">
+          {([['checklists', 'Checklists'], ['lists', 'Life Lists']] as const).map(([m, label]) => (
+            <Button key={m} className="sr-segbar-btn" aria-pressed={mode === m} onClick={() => setMode(m)}>
               {label}
             </Button>
           ))}
@@ -238,26 +229,13 @@ export function ListComparer({ onOpenSpecies, keyStatus, onGoToSettings }: {
               }}>
                 List A
               </div>
-              <div role="group" aria-label="List A source" style={{
-                display: 'inline-flex',
-                borderRadius: 7,
-                border: '1.5px solid var(--sr-border)',
-                overflow: 'hidden',
-              }}>
-                {(['my-list', 'upload'] as const).map((mode, i) => (
+              <div className="sr-segbar" role="group" aria-label="List A source">
+                {(['my-list', 'upload'] as const).map(mode => (
                   <Button
                     key={mode}
+                    className="sr-segbar-btn"
                     aria-pressed={listAMode === mode}
                     onClick={() => setListAMode(mode)}
-                    style={{
-                      height: 32, padding: '0 14px',
-                      fontSize: '0.8125rem', fontWeight: 500, fontFamily: 'inherit',
-                      cursor: 'pointer', border: 'none',
-                      borderLeft: i > 0 ? '1.5px solid var(--sr-border)' : 'none',
-                      background: listAMode === mode ? 'var(--sr-accent-bg)' : 'var(--sr-surface)',
-                      color: listAMode === mode ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
-                      transition: 'background 0.15s, color 0.15s',
-                    }}
                   >
                     {mode === 'my-list' ? 'My List' : 'Upload a file'}
                   </Button>

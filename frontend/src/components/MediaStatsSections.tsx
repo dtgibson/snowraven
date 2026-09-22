@@ -245,20 +245,13 @@ export function MediaStatsSections({ stats, renderName, taxonOrderFor, userId, e
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
             <SubLabel>Age coverage by species</SubLabel>
             {youngSpecies.length > 0 && (
-              <div role="group" aria-label="Sort age coverage" style={{ marginLeft: 'auto', display: 'inline-flex', border: '1.5px solid var(--sr-accent-border)', borderRadius: 6, overflow: 'hidden' }}>
-                {([['name', 'A–Z'], ['taxonomic', 'Taxonomic']] as const).map(([key, label], i) => (
+              <div className="sr-segbar" role="group" aria-label="Sort age coverage" style={{ marginLeft: 'auto' }}>
+                {([['name', 'A–Z'], ['taxonomic', 'Taxonomic']] as const).map(([key, label]) => (
                   <Button
                     key={key}
+                    className="sr-segbar-btn"
                     aria-pressed={ageSort === key}
                     onClick={() => setAgeSort(key)}
-                    style={{
-                      height: 26, padding: '0 10px', border: 'none',
-                      borderLeft: i > 0 ? '1.5px solid var(--sr-accent-border)' : 'none',
-                      background: ageSort === key ? 'var(--sr-accent-bg)' : 'transparent',
-                      color: ageSort === key ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
-                      fontSize: '0.6875rem', fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer',
-                      whiteSpace: 'nowrap',
-                    }}
                   >
                     {label}
                   </Button>

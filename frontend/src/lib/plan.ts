@@ -20,6 +20,32 @@
 // or entry yields `tide: null` / an absent moment / a dropped entry rather than
 // a throw. The guard is verified by rendering the real components over
 // corrupted shapes (PlanResult.test.tsx), not by reading it.
+//
+// plan-sun-sampling-bound extends that guard from field SHAPES to numeric
+// MAGNITUDES, because a shape check admits any finite number and several of
+// those numbers drive loops downstream: `window.endTs` sets the sun track's
+// sample count and the chart's pixel width, each day's own span sets
+// `sunPeakByDay`'s per-day marks, and `days.length` multiplies both (`sideAt`
+// rescans the day list per evaluation, so the pair is quadratic). The clamps
+// live HERE rather than in the four consumers so the bound is a property of the
+// DOCUMENT this function emits: a fifth consumer added later inherits it
+// without knowing it exists. MAGNITUDE also in the other sense: an
+// instant that ANCHORS one of those loops is bounded by PLAN_TS_ABS_MAX,
+// because a span clamp says nothing about where the span sits and a loop
+// stepping by 900 s cannot advance at all past 2^63. That bound closes the
+// STEP; one residual remains further down the call graph and is named at
+// `solarNoonTs` in planSun.ts. They are the merge's counterpart to the producer
+// caps in weatherPlan.ts, which a replayed half never passed through.
+//
+// A document that trips a clamp is truncated SILENTLY, with no notice and no
+// badge (decisions D4): every input that can trip one is a provider fault or a
+// hand-edited replay file, never a user choice, so there is nothing for the
+// reader to do about it, and a notice would need user-facing copy. REVERSAL
+// CONDITION, repeated at the clamp itself: if a real provider ever ships a
+// window genuinely wider than PLAN_SPAN_MAX_S, the clamp stops refusing
+// nonsense and becomes a silent truncation of real data, at which point it owes
+// a visible line naming what is shown. The detector is the clamp firing at all
+// on a live (non-replayed) document.
 
 export type EpochS = number
 export type LocalClock = string
@@ -154,6 +180,60 @@ export interface Plan {
 
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null
 const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v)
+
+// ── the magnitude bounds the merge enforces (plan-sun-sampling-bound, D3) ────
+
+/** The longest span one day of the document may claim, seconds. 26 h, and the
+ *  value came from a MEASUREMENT rather than from reasoning: a real fall-back
+ *  day measures 89,999 s (25 h) in the `dst-fall` fixture family, so a 24 h
+ *  clamp would refuse a conforming day. */
+export const PLAN_DAY_MAX_S = 26 * 3600
+
+/** The most days the merge admits. Deliberately a SECOND declaration of
+ *  weatherPlan.ts's `PLAN_DAYS_MAX` rather than an import of it: this module is
+ *  pinned by entryChunk.test.ts to a closure of exactly itself, and
+ *  weatherPlan.ts is on that pin's forbidden-reach list. The two are held equal
+ *  by `planSpanBound.test.ts`, which imports both, the same way
+ *  `weatherTidePlanBound.test.ts` pins PLAN_MAX_CODE_UNITS to REPLAY_MAX_BYTES. */
+export const PLAN_COMPOSE_DAYS_MAX = 16
+
+/** The widest window the merge admits, seconds: 1,497,600 (17.33 d). Derived
+ *  from the two above rather than chosen, so a change to either moves it and
+ *  the guard's equality row holds. Bounds `sunTrack` at
+ *  `PLAN_SPAN_MAX_S / 900 + 1 + 2 * PLAN_COMPOSE_DAYS_MAX` = 1,697 samples, and
+ *  the chart's `plotW` for free. */
+export const PLAN_SPAN_MAX_S = PLAN_COMPOSE_DAYS_MAX * PLAN_DAY_MAX_S
+
+/** The largest absolute epoch value the merge admits for an instant that
+ *  ANCHORS a quarter-mark loop: 8.64e12 SECONDS.
+ *
+ *  MECHANISM. One ulp of a double exceeds the 900 s quarter step from 2^63
+ *  (about 9.223e18) upward, so `t += QUARTER` rounds back to `t` and
+ *  `sunTrack` and `sunPeakByDay` cannot advance at all -- a permanent hang in a
+ *  render body, not a long run. The three clamps above bound a SPAN and say
+ *  nothing about where that span SITS: at an `axisStartTs` of 1e30 the span
+ *  clamp works perfectly (the composed span is 0, because `axisStartTs +
+ *  PLAN_SPAN_MAX_S` rounds back to `axisStartTs`) and the loop still never
+ *  terminates, because one iteration at a non-advancing `t` is enough.
+ *
+ *  PROVENANCE, and the unit is the whole point. Every instant in this document
+ *  is an epoch SECOND (`EpochS`) and reaches a `Date` as `t * 1000`, so the
+ *  ECMAScript Date range of +/- 8.64e15 MILLISECONDS (+/- 100,000,000 days from
+ *  the epoch, ES 21.4.1.1) is +/- 8.64e12 here. That is a named boundary rather
+ *  than a chosen number -- an instant outside it is one no part of this app can
+ *  render -- and it is still about 4,800x any timestamp a device clock or
+ *  `localMidnightTs` can produce. The constant stands on that provenance alone.
+ *  The old whole-day normalization loop in `solarNoonTs` was a second hang
+ *  mechanism that no bound with a defensible provenance could close: it measured 7.78e20 iterations
+ *  at 8.64e15 and 9.19e18 at 4.98e12, INSIDE this range, so it was replaced by
+ *  a closed form in the same build (pipeline/plan-sun-sampling-bound/decisions.md
+ *  R1 and R2) rather than argued away by this constant. */
+export const PLAN_TS_ABS_MAX = 8.64e12
+
+/** An instant the merge will let anchor a loop: finite, and inside the range
+ *  above. NaN falls on the refusing side by construction, as `isNum` already
+ *  put it. */
+const isTs = (v: unknown): v is number => isNum(v) && Math.abs(v) < PLAN_TS_ABS_MAX
 
 /**
  * The predicted level at instant `t` on the high/low curve: the epoch-domain
@@ -293,7 +373,26 @@ function asDays(v: unknown): PlanDay[] {
   if (!Array.isArray(v)) return []
   const out: PlanDay[] = []
   for (const d of v) {
-    if (!isObj(d) || !isStr(d.date) || !isNum(d.startTs) || !isNum(d.endTs)) continue
+    // The count cap breaks the scan rather than filtering it, so a document
+    // carrying twenty thousand days costs sixteen admissions, not twenty
+    // thousand. `sideAt` rescans this array per altitude evaluation, so its
+    // length multiplies every per-day loop downstream.
+    if (out.length >= PLAN_COMPOSE_DAYS_MAX) break
+    // `isTs`, not `isNum`: a day whose own instants sit beyond PLAN_TS_ABS_MAX
+    // is dropped like any other unusable day. The span predicate below cannot
+    // stand in for this one -- a day with `startTs === endTs` has a span of 0,
+    // which that predicate admits, and `sunPeakByDay`'s quarter-mark loop on
+    // such a day never terminates.
+    if (!isObj(d) || !isStr(d.date) || !isTs(d.startTs) || !isTs(d.endTs)) continue
+    // MAGNITUDE, not only shape: a day whose own span is negative or longer
+    // than PLAN_DAY_MAX_S is malformed and reads as absent, the same rule the
+    // line below applies to a malformed sunrise or sunset. `sunPeakByDay`
+    // walks `startTs..endTs` at quarter marks, so this span is that loop's
+    // ceiling. Written as `span >= 0 && span <= PLAN_DAY_MAX_S` rather than a
+    // negated pair so a NaN span (which `isNum` has already excluded) could
+    // only ever fall on the refusing side.
+    const span = d.endTs - d.startTs
+    if (!(span >= 0 && span <= PLAN_DAY_MAX_S)) continue
     // A malformed sunrise or sunset reads as absent, the day's own honest state.
     out.push({ date: d.date, startTs: d.startTs, endTs: d.endTs, sunrise: asMoment(d.sunrise), sunset: asMoment(d.sunset) })
   }
@@ -328,12 +427,37 @@ function asNightSpans(v: unknown): NightSpan[] {
 export function composePlan(weather: unknown, tide: unknown): Plan | null {
   if (!isObj(weather) || !isObj(weather.window)) return null
   const w = weather.window
-  if (!isNum(w.startTs) || !isNum(w.endTs) || !isNum(w.axisStartTs)) return null
+  // `isTs`, not `isNum`, on the ANCHOR: a window anchored beyond
+  // PLAN_TS_ABS_MAX is unusable and returns the same null an absent window
+  // already returns, because `sunTrack` walks quarter marks from it and the
+  // span clamp below cannot stand in for a magnitude test (see
+  // PLAN_TS_ABS_MAX). `endTs` deliberately keeps the weaker `isNum`: the clamp
+  // below pins it to `axisStartTs + PLAN_SPAN_MAX_S` whenever it is larger, so
+  // a bounded anchor already bounds the composed end whatever the document
+  // said, and testing it here would REFUSE the absurd-`endTs` documents this
+  // merge is built to truncate instead.
+  if (!isTs(w.startTs) || !isNum(w.endTs) || !isTs(w.axisStartTs)) return null
+  // The window's span is the sun track's sample count, `sunAltitudeAt`'s call
+  // count and the chart's canvas width in pixels; `endTs` is `isNum`-checked
+  // only, and the live producer derives it from the provider's own `dt` with no
+  // span cap (a body whose 16 daily entries carry `dt` a year apart yields a
+  // 5,475-day window through the shipped builder on both transports). Clamping
+  // never RAISES it, so a short window stays short and a window ending before
+  // the axis starts is left exactly as it was for the consumers that already
+  // read it that way. Truncation here is silent: see the reversal condition in
+  // this file's header.
+  const endTs = Math.min(w.endTs, w.axisStartTs + PLAN_SPAN_MAX_S)
+  // The end LABEL was computed by the producer for the unclamped instant, so a
+  // clamped window no longer has one. It reads as absent rather than as a
+  // string the document cannot substantiate: `''` is already a reachable value
+  // for this field (the line below), so both consumers already survive it, and
+  // no new copy is introduced (D4, silent truncation).
+  const endLocal = endTs === w.endTs && typeof w.endLocal === 'string' ? w.endLocal : ''
   const window: PlanWindow = {
     startTs: w.startTs,
     startLocal: typeof w.startLocal === 'string' ? w.startLocal : '',
-    endTs: w.endTs,
-    endLocal: typeof w.endLocal === 'string' ? w.endLocal : '',
+    endTs,
+    endLocal,
     axisStartTs: w.axisStartTs,
     axisStartLocal: typeof w.axisStartLocal === 'string' ? w.axisStartLocal : '',
   }

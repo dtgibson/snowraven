@@ -45,12 +45,32 @@ export function SegControl({ options, value, onChange, ariaLabel }: {
   )
 }
 
-export function SidebarLabel({ children }: { children: React.ReactNode }) {
+/**
+ * A sidebar section label.
+ *
+ * `ctlRem` is the EXPLICIT OPT-IN that pairs this label with a floored control:
+ * pass the register of the control directly beneath it (e.g. `'0.8125rem'`) and
+ * the label takes the phone-tier `.sr-ctl-label` size, holding its proportion to
+ * that control at every text scale instead of staying at 11px while the control
+ * jumps to the 16px iOS floor. It is uppercase, so it also carries the optical
+ * factor. Omit it wherever the label heads something that is NOT floored: such a
+ * label is not broken, it renders exactly as designed, and sizing it anyway
+ * would enlarge labels on surfaces where nothing is wrong. Desktop is untouched
+ * either way, since the rule is phone-tier only.
+ */
+export function SidebarLabel({ children, ctlRem }: { children: React.ReactNode; ctlRem?: string }) {
   return (
-    <div style={{
-      fontSize: '0.6875rem', fontWeight: 700, textTransform: 'uppercase',
-      letterSpacing: '0.07em', color: 'var(--sr-text-muted)', marginBottom: 6,
-    }}>
+    <div
+      className={ctlRem ? 'sr-ctl-label' : undefined}
+      style={{
+        fontSize: '0.6875rem', fontWeight: 700, textTransform: 'uppercase',
+        letterSpacing: '0.07em', color: 'var(--sr-text-muted)', marginBottom: 6,
+        ...(ctlRem ? {
+          ['--sr-ctl-rem' as string]: ctlRem,
+          ['--sr-label-ratio' as string]: 'var(--sr-label-optical)',
+        } : {}),
+      } as React.CSSProperties}
+    >
       {children}
     </div>
   )

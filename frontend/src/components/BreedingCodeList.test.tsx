@@ -121,7 +121,13 @@ describe('full-label filter pills', () => {
     expect(label).toBeTruthy()
     expect(label.textContent).toBe('Recently Fledged Young')
     expect(label.getAttribute('aria-hidden')).toBe(null)
-    expect(pill.style.height).toBe('30px')
+    // The 30px is the shared control register's `min-height` now, not an inline
+    // fixed height, so it is asserted where it lives (breedingCodeFilterRowCss)
+    // and what this mount checks is that the pill is ON that register. jsdom
+    // applies no stylesheet, so reading a computed height here would assert
+    // nothing either way.
+    expect(pill.classList.contains('sr-pill')).toBe(true)
+    expect(pill.style.height).toBe('')
     expect(pill.style.minHeight).toBe('')
 
     // The special layout hook belongs only to the code pills. Category pills,

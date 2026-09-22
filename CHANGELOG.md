@@ -2,6 +2,15 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [1.0.33] - 2026-09-22
+
+### Changed
+- Filter and toggle pills across every tab now share one shape, and on a phone at large text sizes controls and their labels grow together instead of being cut down.
+- Website: every feature screenshot now renders at the same size beside its paragraph, and the Weather, Named Birds and Map Explorer shots were recaptured to fit.
+
+### Fixed
+- Planner: the sun track, the per-day sun peaks and the tide chart's gridlines are now bounded by the plan document itself, so a malformed or absurd forecast cannot make the Weather tab hang while it draws. No change to any plan a real forecast produces.
+
 ## [1.0.32] - 2026-09-16
 
 ### Changed

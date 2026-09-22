@@ -170,6 +170,11 @@ describe('Multimedia control row, touch-target parity', () => {
     // control that owns this label, so a class on another control cannot satisfy it.
     const open = tabTsx.lastIndexOf('<Button', at)
     expect(open).toBeGreaterThan(-1)
-    expect(tabTsx.slice(open, at)).toContain('className="sr-touch-target"')
+    // Read out of the className VALUE rather than matched as a whole attribute:
+    // the button now also carries the shared control register, and an exact
+    // attribute match would have gone red for a class being ADDED beside the one
+    // this test is about. The token set is what the claim is.
+    const classes = /className="([^"]*)"/.exec(tabTsx.slice(open, at))?.[1] ?? ''
+    expect(classes.split(/\s+/)).toContain('sr-touch-target')
   })
 })

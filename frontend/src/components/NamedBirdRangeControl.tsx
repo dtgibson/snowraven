@@ -43,23 +43,17 @@ export function NamedBirdRangeControl({ range, onChange, groupLabel }: {
     // pills off a sub-16px font on a phone without minting a third copy of that
     // declaration. It sizes descendants, never the container.
     <div className="sr-nbt-ctlrow sr-ctl-row" role="group" aria-label={groupLabel}>
-      <span style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)', fontWeight: 600 }}>{rangeLabel}</span>
+      {/* Sentence case, so no --sr-label-ratio: it tracks the 0.75rem pills
+          beside it one for one through the phone-tier .sr-ctl-label rule. */}
+      <span className="sr-ctl-label" style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)', fontWeight: 600, ['--sr-ctl-rem' as string]: '0.75rem' } as React.CSSProperties}>{rangeLabel}</span>
       <div className="sr-wrap-flex" style={{ ['--sr-wrap-gap' as string]: '6px' }}>
         {OPTIONS.map(o => (
           <Button
-            className="sr-touch-target"
+            className="sr-pill sr-touch-target"
             key={o.value}
             type="button"
             aria-pressed={range === o.value}
             onClick={() => onChange(o.value)}
-            style={{
-              height: 30, padding: '0 13px',
-              border: '1.5px solid var(--sr-accent-border)', borderRadius: 8,
-              background: range === o.value ? 'var(--sr-accent-bg)' : 'transparent',
-              color: range === o.value ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
-              fontSize: '0.75rem', fontWeight: range === o.value ? 600 : 500,
-              fontFamily: 'inherit', cursor: 'pointer', whiteSpace: 'nowrap',
-            }}
           >
             {o.label}
           </Button>

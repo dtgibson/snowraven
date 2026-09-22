@@ -191,7 +191,13 @@ export function SpeciesCombobox({
             border: `1.5px solid ${open ? 'var(--sr-accent)' : 'var(--sr-border-input)'}`,
             borderRadius: open ? `${radius}px ${radius}px 0 0` : radius,
             borderBottomColor: open ? 'transparent' : undefined,
-            fontSize, fontWeight: !isNone && !open ? 500 : 400,
+            fontSize,
+            // The same value as --sr-ctl-rem, so the phone-tier .sr-input-16
+            // floor raises this input to the iOS threshold and never cuts it
+            // down to the rule's 0.75rem default. Derived from `fontSize` in
+            // one place rather than restated, so the two cannot drift.
+            ['--sr-ctl-rem' as string]: fontSize,
+            fontWeight: !isNone && !open ? 500 : 400,
             fontFamily: 'inherit', color: 'var(--sr-text)', background: 'var(--sr-surface)',
             transition: 'border-color 0.15s', minWidth: 0,
           }}

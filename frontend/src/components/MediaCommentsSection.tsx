@@ -84,19 +84,13 @@ export function MediaCommentsSection({ rows, backboneNames, taxonMap, onOpenSpec
           />
         </div>
 
-        <div style={{ display: 'inline-flex', border: '1.5px solid var(--sr-accent-border)', borderRadius: 6, overflow: 'hidden', flexShrink: 0 }} role="group" aria-label="Sort order">
-          {(['newest', 'oldest'] as const).map((dir, i) => (
+        <div className="sr-segbar" style={{ flexShrink: 0 }} role="group" aria-label="Sort order">
+          {(['newest', 'oldest'] as const).map(dir => (
             <Button
               key={dir}
+              className="sr-segbar-btn"
               onClick={() => setSort(dir)}
               aria-pressed={sort === dir}
-              style={{
-                height: 32, padding: '0 12px', border: 'none',
-                borderLeft: i > 0 ? '1.5px solid var(--sr-accent-border)' : 'none',
-                background: sort === dir ? 'var(--sr-accent-bg)' : 'transparent',
-                color: sort === dir ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
-                fontSize: '0.75rem', fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer',
-              }}
             >
               {dir === 'newest' ? 'Newest' : 'Oldest'}
             </Button>

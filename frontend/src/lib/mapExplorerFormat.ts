@@ -24,6 +24,10 @@ export const SELECT_STYLE: React.CSSProperties = {
   // No inline outline:'none' — the global :focus-visible ring must render (F105).
   border: '1.5px solid var(--sr-border-input)', borderRadius: 6,
   fontSize: '0.8125rem', fontFamily: 'inherit', color: 'var(--sr-text)',
+  // This register's OWN size, read by the phone-tier .sr-input-16 floor so both
+  // selects are raised to the iOS threshold and never cut down to 0.75rem
+  // (26px, not 24px, at 200% text scale).
+  ['--sr-ctl-rem' as string]: '0.8125rem',
   background: `var(--sr-surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2371717A' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") no-repeat right 8px center`,
   appearance: 'none', WebkitAppearance: 'none',
   cursor: 'pointer', boxSizing: 'border-box',

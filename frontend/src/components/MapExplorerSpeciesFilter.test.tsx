@@ -165,6 +165,15 @@ describe('the My Sightings Species filter is the shared type-to-find picker', ()
     expect(input.style.borderRadius).toBe('6px')
     expect(input.placeholder).toBe('All species')
 
+    // The phone-tier clamp reads this control's OWN register, so the class above
+    // raises it to the iOS floor and never cuts it down to the rule's 0.75rem
+    // default (26px, not 24px, at 200% text scale). Asserted as EQUAL TO the
+    // fontSize on the line above rather than as a literal: they are two
+    // declarations of one number, and a test that restated the literal would
+    // stay green through exactly the drift it exists to catch.
+    expect(input.style.getPropertyValue('--sr-ctl-rem').trim()).toBe(input.style.fontSize.trim())
+    expect(input.style.getPropertyValue('--sr-ctl-rem').trim()).toBe('0.8125rem')
+
     // Unfiltered baseline: both locations, both observations.
     expect(statValue('Locations')).toBe('2')
     expect(statValue('Obs')).toBe('2')

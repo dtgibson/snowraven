@@ -1154,7 +1154,7 @@ export function SpeciesDetail({ onGoToSettings, onGoToWeather, filesVersion, req
           {hasGraphData && (() => {
             const btnBase: React.CSSProperties = {
               padding: '5px 13px', border: 'none', borderRadius: 5, fontSize: '0.75rem',
-              fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer', transition: 'all 0.15s',
+              fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer',
             }
             const btnActive: React.CSSProperties = {
               ...btnBase, background: 'var(--sr-surface)', color: 'var(--sr-text)',
@@ -1422,7 +1422,7 @@ export function SpeciesDetail({ onGoToSettings, onGoToWeather, filesVersion, req
                       className="sr-touch-target"
                       style={{
                         padding: '4px 10px', border: 'none', borderRadius: 4, fontSize: '0.6875rem',
-                        fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer', transition: 'all 0.15s',
+                        fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer',
                         background: mapMode === mode ? 'var(--sr-surface)' : 'transparent',
                         color: mapMode === mode ? 'var(--sr-text)' : 'var(--sr-text-muted)',
                         boxShadow: mapMode === mode ? '0 1px 2px rgba(0,0,0,0.08)' : 'none',
@@ -1596,20 +1596,13 @@ export function SpeciesDetail({ onGoToSettings, onGoToWeather, filesVersion, req
               </div>
 
               {/* Sort toggle */}
-              <div style={{ display: 'inline-flex', border: '1.5px solid var(--sr-accent-border)', borderRadius: 6, overflow: 'hidden', flexShrink: 0 }} role="group" aria-label="Sort order">
-                {(['newest', 'oldest'] as const).map((dir, i) => (
+              <div className="sr-segbar" style={{ flexShrink: 0 }} role="group" aria-label="Sort order">
+                {(['newest', 'oldest'] as const).map(dir => (
                   <Button
                     key={dir}
+                    className="sr-segbar-btn"
                     onClick={() => setCommentSort(dir)}
                     aria-pressed={commentSort === dir}
-                    style={{
-                      height: 32, padding: '0 12px',
-                      border: 'none',
-                      borderLeft: i > 0 ? '1.5px solid var(--sr-accent-border)' : 'none',
-                      background: commentSort === dir ? 'var(--sr-accent-bg)' : 'transparent',
-                      color: commentSort === dir ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
-                      fontSize: '0.75rem', fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer',
-                    }}
                   >
                     {dir === 'newest' ? 'Newest' : 'Oldest'}
                   </Button>

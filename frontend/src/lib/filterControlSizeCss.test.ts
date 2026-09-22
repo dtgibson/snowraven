@@ -14,7 +14,7 @@
 // v0.5.61.
 /// <reference types="node" />
 import { describe, it, expect } from 'vitest'
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 
 // Vitest stubs `.css` imports (`?raw` included), so read the file directly. Node
 // types are pulled in for this one file by the reference above, matching how
@@ -210,6 +210,66 @@ function fontSize(r: Rule): string {
   return /font-size\s*:\s*([^;]+);/.exec(r.body)![1].replace(/\s+/g, ' ').trim()
 }
 
+/** Every .tsx under src, tests excluded — the source scan's corpus. */
+function listSourceFiles(dir: URL): URL[] {
+  const out: URL[] = []
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (entry.name === 'node_modules') continue
+    const child = new URL(entry.name + (entry.isDirectory() ? '/' : ''), dir)
+    if (entry.isDirectory()) out.push(...listSourceFiles(child))
+    else if (entry.name.endsWith('.tsx') && !entry.name.includes('.test.')) out.push(child)
+  }
+  return out
+}
+
+/** Top-level comma-separated arguments of the outermost `max(...)` of a value. */
+function maxTerms(value: string): string[] {
+  const inner = /^max\((.*)\)\s*(?:!important)?$/s.exec(value.replace(/\s*!important\s*$/, ''))
+  if (!inner) throw new Error(`not a max(): ${value}`)
+  return splitList(inner[1])
+}
+
+function firstMaxTerm(value: string): string {
+  return maxTerms(value)[0]
+}
+
+/** The fallback of a `var(--name, fallback)` reference. */
+function fallbackOf(ref: string): string {
+  const m = /^var\(\s*--[-\w]+\s*,(.*)\)$/s.exec(ref)
+  if (!m) throw new Error(`no fallback in: ${ref}`)
+  return m[1].trim()
+}
+
+/**
+ * A custom property's value as declared on `:root`.
+ *
+ * EVERY `:root` block is searched, not the first one found: this stylesheet
+ * carries more than one (the component library ships its own token block), and
+ * taking the first would read a block that declares none of these and report a
+ * correctly declared property as missing. Exactly one declaration is required,
+ * so two blocks racing to define the same token is a failure rather than a
+ * silent last-one-wins.
+ */
+function rootValue(name: string): string {
+  const pattern = new RegExp(`(?:^|;)\\s*${name}\\s*:\\s*([^;]+)`)
+  const hits = rules()
+    // The selector is read from its LAST statement: this file's rule scanner
+    // takes everything since the previous closing brace as the prelude, so the
+    // stylesheet's very first block carries the `@import` line ahead of it. A
+    // plain equality there reports the app's own token block as absent, which is
+    // the opposite of what this helper is for.
+    .filter(r => splitList(r.selector.split(';').pop()!.trim()).includes(':root'))
+    .map(r => pattern.exec(r.body))
+    .filter((m): m is RegExpExecArray => m !== null)
+  expect(hits, `${name} must be declared exactly once on :root`).toHaveLength(1)
+  return hits[0][1].replace(/\s+/g, ' ').trim()
+}
+
+/** Substitute every `var(--x)` that :root declares, so a term can be checked. */
+function resolveRootVars(value: string): string {
+  return value.replace(/var\(\s*(--[-\w]+)\s*\)/g, (_, name: string) => rootValue(name))
+}
+
 describe('phone-tier filter-control size: one formula for both sides', () => {
   it('sizes the guarded controls AND the .sr-ctl-row neighbours', () => {
     // Rejects a stylesheet that only sizes one side — including the shipped
@@ -243,7 +303,38 @@ describe('phone-tier filter-control size: one formula for both sides', () => {
     // reintroduces the exact iOS focus zoom .sr-input-16 was added for in
     // v0.5.55/v0.5.61. A `max()` whose first term is 16px can never compute below
     // it; `min()` or a bare rem can.
-    for (const r of sizingRules()) expect(fontSize(r)).toMatch(/^max\(\s*16px\s*,/)
+    //
+    // The first term is now named rather than written, so the one number every
+    // phone-tier floor in the app derives from is declared once. The INTENT is
+    // unchanged and is what this still proves: the hard floor must be provably
+    // 16px, so the variable is RESOLVED from its declaration before the term is
+    // checked, and a declaration that went missing or moved off the root fails
+    // here rather than silently reading as a zero-width term.
+    expect(rootValue('--sr-ctl-floor'), 'the floor must be an absolute px value').toBe('16px')
+    for (const r of sizingRules()) {
+      expect(firstMaxTerm(fontSize(r))).toBe('var(--sr-ctl-floor)')
+      expect(resolveRootVars(firstMaxTerm(fontSize(r)))).toBe('16px')
+    }
+  })
+
+  it('takes its rem term from the CONTROL rather than one hardcoded register', () => {
+    // The second defect, and the one that shipped from v0.5.81 until this pass:
+    // the rem term was the literal `0.75rem`, which made the rule a REPLACEMENT
+    // and not a floor. Above the crossover it returned 0.75rem scaled, so every
+    // control with a larger register was overridden in BOTH directions and the
+    // command palette's 1rem search rendered 24px against its declared 32px at
+    // 200% text scale, for exactly the users who had asked for larger text.
+    // Nothing went red, because the guard above checked the floor term and this
+    // one did not exist.
+    //
+    // Rejects a return to any literal rem: the term must be the control's own
+    // property. The fallback is pinned separately, because it is what every
+    // control that declares nothing relies on.
+    for (const r of sizingRules()) {
+      const second = maxTerms(fontSize(r))[1]
+      expect(second).toMatch(/^var\(--sr-ctl-rem\s*,/)
+      expect(fallbackOf(second), 'the default register covers the majority').toBe('0.75rem')
+    }
   })
 
   it('tracks --sr-text-scale above the floor rather than pinning flat', () => {
@@ -416,6 +507,167 @@ describe('the Map Explorer Date Range pair adapts to the guard (fix: map-explore
     const onCombobox = comboboxTags.filter(m => m[0].includes('className="sr-input-16"'))
     expect(comboboxTags.length).toBe(1)
     expect(onCombobox.length).toBe(1)
+  })
+})
+
+describe('labels beside a floored control, sized in relation to it', () => {
+  // Part three of the same repair, and it needs its own assertions because the
+  // collector above deliberately cannot see this rule. `.sr-ctl-label` is a
+  // STANDALONE class rather than `.sr-ctl-row .sr-ctl-label`, because a leading
+  // `.sr-ctl-row` compound would sweep it into the CONTROL set and redden four
+  // assertions about a declaration it does not share. Standalone means invisible
+  // to that collector, which means unguarded unless it is guarded here.
+
+  function labelRule(): Rule {
+    const hits = rules().filter(r => splitList(r.selector).includes('.sr-ctl-label'))
+    expect(hits, '.sr-ctl-label must be declared exactly once').toHaveLength(1)
+    return hits[0]
+  }
+
+  it('exists, is phone-tier only, and out-ranks the inline size it must beat', () => {
+    // The label registers are inline style objects, specificity 1,0,0, exactly
+    // like the controls'. Without !important this rule is inert and its failure
+    // is invisible: the labels keep rendering, at the old size.
+    const r = labelRule()
+    const [open, close] = phoneTierRange()
+    expect(r.offset, 'desktop is not broken and must stay byte-identical').toBeGreaterThan(open)
+    expect(r.offset).toBeLessThan(close)
+    expect(fontSize(r)).toMatch(/!important$/)
+  })
+
+  it('states the DERIVATION, both terms carrying the same factor', () => {
+    // Rejects a label rule written as its own literals (`max(14.67px, 0.6875rem)`
+    // and friends). Independently chosen constants happen to agree at the scales
+    // someone sampled and drift everywhere else, and nothing detects the loss.
+    // Rejects, too, the half-repair that carries the factor on ONE term: that
+    // reopens a band where the label is pinned to a floor while its control
+    // tracks rem, which is the exact mechanism that produced this defect.
+    const terms = maxTerms(fontSize(labelRule()))
+    expect(terms).toHaveLength(2)
+    for (const term of terms) {
+      expect(term).toMatch(/^calc\(/)
+      expect(term).toMatch(/var\(--sr-label-ratio\s*,/)
+    }
+    // The two terms are the CONTROL rule's two terms, each scaled by the factor,
+    // so the pair can never be given a floor or a register of its own.
+    const control = maxTerms(fontSize(sizingRules()[0]))
+    for (let i = 0; i < 2; i++) {
+      expect(terms[i].replace(/\s+/g, '')).toContain(control[i].replace(/\s+/g, ''))
+    }
+    expect(rootValue('--sr-label-optical'), 'the uppercase factor is declared once')
+      .toMatch(/^calc\(\s*11\s*\/\s*12\s*\)$/)
+  })
+
+  it('COMPUTES the invariant rather than restating it, over the whole scale domain', () => {
+    // THE INVARIANT: a label crosses from floor-governed to scale-governed at
+    // exactly the text scale its control does. There is never a band where one is
+    // pinned while its neighbour tracks rem.
+    //
+    // Evaluated from the parsed stylesheet, not from numbers typed here: the two
+    // formulas are read out of globals.css and run against every shipped pairing
+    // across a scale sweep, so a change to either formula moves these results.
+    // The scales deliberately run BELOW 1, where the shipped gap was worst and
+    // where sampling the four in-app text sizes would have seen nothing: rem also
+    // tracks a browser or OS default the user has lowered.
+    const floorPx = parseFloat(rootValue('--sr-ctl-floor'))
+    const optical = 11 / 12
+    const ctlFormula = maxTerms(fontSize(sizingRules()[0]))
+    const labelFormula = maxTerms(fontSize(labelRule()))
+
+    /** Evaluate one parsed term for a given control register and label factor. */
+    function evaluate(term: string, remPx: number, ratio: number): number {
+      const body = term.replace(/^calc\(/, '').replace(/\)$/, '')
+      const factor = /var\(--sr-label-ratio/.test(body) ? ratio : 1
+      const base = /--sr-ctl-floor/.test(body) ? floorPx : remPx
+      return base * factor
+    }
+    const size = (formula: string[], remPx: number, ratio: number) =>
+      Math.max(evaluate(formula[0], remPx, ratio), evaluate(formula[1], remPx, ratio))
+    /** True once the SECOND (scale-tracking) term is the one max() returns. */
+    const scaleGoverned = (formula: string[], remPx: number, ratio: number) =>
+      evaluate(formula[1], remPx, ratio) >= evaluate(formula[0], remPx, ratio)
+
+    // The eight shipped pairings: the control's own register, and whether the
+    // label is uppercase (which is the only reason a factor is ever applied).
+    const pairings: { name: string; ctlRem: number; upper: boolean }[] = [
+      { name: 'Calendar strip', ctlRem: 0.71875, upper: true },
+      { name: 'Checklists rows', ctlRem: 0.75, upper: false },
+      { name: 'Hotspot mode', ctlRem: 0.75, upper: true },
+      { name: 'Hotspot time window', ctlRem: 0.75, upper: false },
+      { name: 'Map Explorer selects', ctlRem: 0.8125, upper: true },
+      { name: 'Map Explorer dates', ctlRem: 0.75, upper: true },
+      { name: 'Weather forecast fields', ctlRem: 0.84375, upper: false },
+      { name: 'Named bird range', ctlRem: 0.75, upper: false },
+      { name: 'Checklist lookup field', ctlRem: 0.875, upper: false },
+    ]
+    const scales: number[] = []
+    for (let x = 0.5; x <= 3.0001; x += 0.01) scales.push(Math.round(x * 100) / 100)
+
+    for (const p of pairings) {
+      const ratio = p.upper ? optical : 1
+      const ratios = new Set<string>()
+      let ctlCrossover: number | null = null
+      let labelCrossover: number | null = null
+      for (const scale of scales) {
+        const remPx = p.ctlRem * 16 * scale
+        const ctl = size(ctlFormula, remPx, 1)
+        const label = size(labelFormula, remPx, ratio)
+        ratios.add((label / ctl).toFixed(6))
+        // Crossover: the first scale at which each formula's rem term is the
+        // one max() returns. Read off the PARSED formulas, so a rule that lost
+        // the factor on one term moves one of these and not the other.
+        if (ctlCrossover === null && scaleGoverned(ctlFormula, remPx, 1)) ctlCrossover = scale
+        if (labelCrossover === null && scaleGoverned(labelFormula, remPx, ratio)) labelCrossover = scale
+        expect(label, `${p.name}: a label must never exceed its control`).toBeLessThanOrEqual(ctl + 1e-9)
+      }
+      expect([...ratios], `${p.name}: the label/control ratio must be constant at every scale`).toHaveLength(1)
+      expect(labelCrossover, `${p.name}: the pair must cross together`).toBe(ctlCrossover)
+      expect([...ratios][0]).toBe(ratio.toFixed(6))
+    }
+  })
+
+  it('never reaches a label through an ELEMENT selector', () => {
+    // Rejects `.sr-ctl-row :is(span, label)`, which is the shape that looks
+    // tidier and is wrong: the Breeding Codes filter pill's own label is a span
+    // inside a pill inside a control row, so an element rule would size it and
+    // SHRINK the pill's text. Four text nodes app-wide are correctly floored by
+    // inheritance from a button ancestor and must stay that way. Membership is
+    // declared on the element, never inferred from its tag.
+    for (const selector of splitList(labelRule().selector)) {
+      expect(elementsNamed(rightmost(selector)), `${selector} must name no element type`).toEqual([])
+    }
+  })
+})
+
+describe('the two declarations of one fact cannot drift', () => {
+  it('gives every guarded control with a non-default inline size its own --sr-ctl-rem', () => {
+    // The drift risk the repair creates: a control's inline fontSize and its
+    // --sr-ctl-rem are two statements of the same number. A control that declares
+    // the first and not the second is silently back on the REPLACEMENT, rendering
+    // below its own declared size at large text scale with nothing going red —
+    // which is precisely how the original defect survived for 51 versions.
+    //
+    // A control whose register IS the rule's own fallback needs no declaration,
+    // and that reliance is only sound while the fallback says so, which is
+    // asserted above and re-read here rather than assumed.
+    const fallback = fallbackOf(maxTerms(fontSize(sizingRules()[0]))[1])
+    const root = new URL('..', import.meta.url)
+    const files = listSourceFiles(root)
+    const offenders: string[] = []
+    for (const file of files) {
+      const src = readFileSync(file, 'utf8')
+      // Each opening tag that carries the guard class, bounded to that one tag.
+      for (const m of src.matchAll(/<[A-Za-z][^<]*?className="[^"]*\bsr-input-16\b[^"]*"[\s\S]*?\/>/g)) {
+        const tag = m[0]
+        const declared = /fontSize:\s*'([^']+)'/.exec(tag)?.[1]
+        if (!declared || declared === fallback) continue
+        const property = /'--sr-ctl-rem'[^:]*\]:\s*'([^']+)'/.exec(tag)?.[1]
+        if (property !== declared) {
+          offenders.push(`${file.pathname.split('/src/')[1]}: fontSize ${declared}, --sr-ctl-rem ${property ?? 'absent'}`)
+        }
+      }
+    }
+    expect(offenders).toEqual([])
   })
 })
 

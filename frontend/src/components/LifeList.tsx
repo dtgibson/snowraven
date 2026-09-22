@@ -98,46 +98,11 @@ function parseMLUserId(filename: string): string | null {
   return match ? match[1] : null
 }
 
-function pillStyle(active: 'none' | 'positive' | 'negative'): React.CSSProperties {
-  const base: React.CSSProperties = {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: 5,
-    height: 30,
-    padding: '0 12px',
-    borderRadius: 6,
-    fontSize: '0.75rem',
-    fontWeight: 500,
-    fontFamily: 'inherit',
-    cursor: 'pointer',
-    whiteSpace: 'nowrap' as const,
-  }
-  if (active === 'positive') return { ...base, border: '1.5px solid var(--sr-accent-border)', background: 'var(--sr-accent-bg)', color: 'var(--sr-accent)' }
-  if (active === 'negative') return { ...base, border: '1.5px solid var(--sr-error-overlay)', background: 'var(--sr-error-bg)', color: 'var(--sr-error)' }
-  return { ...base, border: '1.5px solid var(--sr-border)', background: 'var(--sr-surface)', color: 'var(--sr-text-muted)' }
-}
-
 // Shown while the column headings are pinned. The Breeding Codes note's twin, in
 // the same two-sentence shape: what holds still, then the view coupling, naming
 // the shipped view control by its shipped label ("Unbounded") so the sentence and
 // the button agree. No em dashes (standing copy rule).
 const PIN_NOTE = 'Column headings stay at the top while you scroll. Pinning uses the Unbounded view, so the table scrolls with the page.'
-
-function ghostBtn(active = false): React.CSSProperties {
-  return {
-    height: 28,
-    padding: '0 10px',
-    borderRadius: 6,
-    fontSize: '0.6875rem',
-    fontWeight: 500,
-    fontFamily: 'inherit',
-    cursor: 'pointer',
-    border: active ? '1.5px solid var(--sr-accent-border)' : '1.5px solid var(--sr-border)',
-    background: active ? 'var(--sr-accent-bg)' : 'none',
-    color: active ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
-    whiteSpace: 'nowrap' as const,
-  }
-}
 
 // Sex/Age facet dropdowns — styled to match the County <select> on this tab
 // (design-system categorical-filter pattern); accent when a facet is active.
@@ -621,21 +586,6 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
     width: 1, height: 20, background: 'var(--sr-border)', flexShrink: 0, alignSelf: 'center',
   }
 
-  function sortToggleBtn(active: boolean): React.CSSProperties {
-    return {
-      height: 30,
-      padding: '0 13px',
-      border: 'none',
-      background: active ? 'var(--sr-accent-bg)' : 'transparent',
-      color: active ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
-      fontSize: '0.75rem',
-      fontWeight: 500,
-      fontFamily: 'inherit',
-      cursor: 'pointer',
-      whiteSpace: 'nowrap' as const,
-    }
-  }
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
       {mlUserId === null && rawRows.length > 0 && (
@@ -704,15 +654,15 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
             them. Deliberately NOT on the right-hand cluster below: the count is
             static text and the wide-mode button is a view control, not a filter. */}
         <div className="sr-ctl-row" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-          <Button aria-pressed={isFilterClear} style={pillStyle(isFilterClear ? 'positive' : 'none')} onClick={() => { setFilter(MEDIA_FILTER_CLEAR); setFilterHasMedia(false); setFilterIsTarget(false); setSexFilter(null); setAgeFilter(null) }}>All</Button>
-          <Button aria-pressed={filterHasMedia} style={pillStyle(filterHasMedia ? 'positive' : 'none')} onClick={() => setFilterHasMedia(v => !v)}>Has media</Button>
+          <Button className="sr-pill" aria-pressed={isFilterClear} onClick={() => { setFilter(MEDIA_FILTER_CLEAR); setFilterHasMedia(false); setFilterIsTarget(false); setSexFilter(null); setAgeFilter(null) }}>All</Button>
+          <Button className="sr-pill" aria-pressed={filterHasMedia} onClick={() => setFilterHasMedia(v => !v)}>Has media</Button>
           <Button
+            className="sr-pill"
             aria-pressed={filterIsTarget}
-            style={filterIsTarget ? {
-              ...pillStyle('none'),
-              background: 'var(--sr-is-target-bg)', color: 'var(--sr-is-target-text)',
-              border: '1.5px solid var(--sr-is-target-border)', fontWeight: 600,
-            } : pillStyle('none')}
+            // Is Target is neither the accent positive nor the error negative
+            // leg, so data-state selects the register's third token trio. It is
+            // absent while the pill is off, so the rest state is the register's.
+            data-state={filterIsTarget ? 'target' : undefined}
             onClick={() => setFilterIsTarget(v => !v)}
           >
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>
@@ -721,25 +671,25 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
 
           <div style={pillSep} />
 
-          <Button aria-pressed={filter.photo === 'no'} style={pillStyle(filter.photo === 'no' ? 'negative' : 'none')} onClick={() => toggleDimension('photo', 'no')}>
+          <Button className="sr-pill" aria-pressed={filter.photo === 'no'} data-state={filter.photo === 'no' ? 'negative' : undefined} onClick={() => toggleDimension('photo', 'no')}>
             <Camera size={11} strokeWidth={2.5} />No photo
           </Button>
-          <Button aria-pressed={filter.audio === 'no'} style={pillStyle(filter.audio === 'no' ? 'negative' : 'none')} onClick={() => toggleDimension('audio', 'no')}>
+          <Button className="sr-pill" aria-pressed={filter.audio === 'no'} data-state={filter.audio === 'no' ? 'negative' : undefined} onClick={() => toggleDimension('audio', 'no')}>
             <Mic size={11} strokeWidth={2.5} />No audio
           </Button>
-          <Button aria-pressed={filter.video === 'no'} style={pillStyle(filter.video === 'no' ? 'negative' : 'none')} onClick={() => toggleDimension('video', 'no')}>
+          <Button className="sr-pill" aria-pressed={filter.video === 'no'} data-state={filter.video === 'no' ? 'negative' : undefined} onClick={() => toggleDimension('video', 'no')}>
             <Video size={11} strokeWidth={2.5} />No video
           </Button>
 
           <div style={pillSep} />
 
-          <Button aria-pressed={filter.photo === 'has'} style={pillStyle(filter.photo === 'has' ? 'positive' : 'none')} onClick={() => toggleDimension('photo', 'has')}>
+          <Button className="sr-pill" aria-pressed={filter.photo === 'has'} onClick={() => toggleDimension('photo', 'has')}>
             <Camera size={11} strokeWidth={2.5} />Has photo
           </Button>
-          <Button aria-pressed={filter.audio === 'has'} style={pillStyle(filter.audio === 'has' ? 'positive' : 'none')} onClick={() => toggleDimension('audio', 'has')}>
+          <Button className="sr-pill" aria-pressed={filter.audio === 'has'} onClick={() => toggleDimension('audio', 'has')}>
             <Mic size={11} strokeWidth={2.5} />Has audio
           </Button>
-          <Button aria-pressed={filter.video === 'has'} style={pillStyle(filter.video === 'has' ? 'positive' : 'none')} onClick={() => toggleDimension('video', 'has')}>
+          <Button className="sr-pill" aria-pressed={filter.video === 'has'} onClick={() => toggleDimension('video', 'has')}>
             <Video size={11} strokeWidth={2.5} />Has video
           </Button>
 
@@ -779,17 +729,17 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
           <div style={pillSep} />
 
           {/* A–Z / Taxonomic sort toggle */}
-          <div role="group" aria-label="Sort order" style={{ display: 'inline-flex', border: '1.5px solid var(--sr-accent-border)', borderRadius: 6, overflow: 'hidden', flexShrink: 0 }}>
+          <div className="sr-segbar" role="group" aria-label="Sort order" style={{ flexShrink: 0 }}>
             <Button
+              className="sr-segbar-btn"
               aria-pressed={sort.nameSortMode === 'az'}
-              style={{ ...sortToggleBtn(sort.nameSortMode === 'az'), borderRight: '1.5px solid var(--sr-accent-border)' }}
               onClick={() => setSort({ column: 'name', dir: 'asc', nameSortMode: 'az' })}
             >
               A–Z
             </Button>
             <Button
+              className="sr-segbar-btn"
               aria-pressed={sort.nameSortMode === 'taxonomic'}
-              style={sortToggleBtn(sort.nameSortMode === 'taxonomic')}
               onClick={() => setSort({ column: 'name', dir: 'asc', nameSortMode: 'taxonomic' })}
             >
               Taxonomic
@@ -910,14 +860,14 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
         <div className="sr-wrap-flex" style={{ '--sr-wrap-gap': '8px', flexShrink: 0, maxWidth: '100%' } as React.CSSProperties}>
           <span aria-live="polite" style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)' }}>{countLabel}</span>
           {/* The two presentation controls read as one group rather than as more
-              filters, exactly as on Breeding Codes. Same shipped ghostBtn() styling,
+              filters, exactly as on Breeding Codes. Both take the shared .sr-pill
               so they are visually a pair. The group needs no width cap of its own:
               unlike its parent it does not pin itself with flexShrink: 0, so it can
               narrow and wrap (v0.5.82, .sr-wrap-flex is inert on a pinned cluster). */}
           <div role="group" aria-label="Table view" className="sr-wrap-flex" style={{ '--sr-wrap-gap': '6px' } as React.CSSProperties}>
             <Button
               type="button"
-              className="sr-touch-target"
+              className="sr-pill sr-touch-target"
               // The accessible name is the button's own text and nothing else:
               // deliberately NO aria-label, so the visible label and the accessible
               // name cannot drift apart. The consequence of pressing it rides on
@@ -925,7 +875,6 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
               // Label in Name trivially satisfied. Same formula as Breeding Codes'.
               aria-pressed={pinned}
               aria-describedby={pinDescId}
-              style={{ ...ghostBtn(pinned), gap: 5 }}
               onClick={togglePin}
             >
               <Pin size={12} strokeWidth={2.2} aria-hidden style={{ flexShrink: 0 }} />
@@ -940,8 +889,11 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
                 height changes (the wrapping row absorbs it). */}
             <Button
               type="button"
-              className="sr-touch-target"
-              style={ghostBtn(wideMode)}
+              className="sr-pill sr-touch-target"
+              // No aria-pressed: this button does not expose one today and
+              // adding it is an ARIA change the pass holds fixed, so the accent
+              // state rides data-state, the register's non-ARIA carrier.
+              data-state={wideMode ? 'positive' : undefined}
               onClick={toggleView}
               title={wideMode ? 'Collapse table into scroll box' : 'Expand table: scroll the whole page on mobile'}
             >
