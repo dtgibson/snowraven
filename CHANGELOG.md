@@ -5,8 +5,8 @@ All notable changes to SnowRaven are documented here.
 ## [1.0.35] - 2026-09-23
 
 ### Fixed
-- On Checklists, choosing a county or a protocol and then going back to "All counties" or "All protocols" now returns the picker to its normal light outline, instead of leaving it outlined in the text colour until the page was reloaded.
-- The species picker on Calendar, Species Detail, Statistics and Map Explorer now draws its bottom edge in the same light colour as its other three sides while the list is closed, instead of a line in the text colour.
+- On Checklists, choosing a county or a protocol and then going back to "All counties" or "All protocols" now returns the picker to its normal light outline, instead of leaving it outlined in the text color until the page was reloaded.
+- The species picker on Calendar, Species Detail, Statistics and Map Explorer now draws its bottom edge in the same light color as its other three sides while the list is closed, instead of a line in the text color.
 
 ## [1.0.34] - 2026-09-22
 
