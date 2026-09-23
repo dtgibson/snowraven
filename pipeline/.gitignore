@@ -9,6 +9,7 @@ handoff.md
 .qa-attempts
 .continuation-owed
 .gate-opened
+.build-start-ref
 # Weft: the same per-run files at any depth (a nested run copy is still per-run)
 **/handoff.md
 **/how-to-see.md
