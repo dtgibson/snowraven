@@ -222,7 +222,7 @@ async function sweep(page, label, tide) {
       const spread = a => Math.max(...a) - Math.min(...a)
       const dH = spread(heights), dW = spread(weekTops), dD = spread(daysTops)
       const d = Math.max(dH, dW, dD)
-      if (d > worst.d) worst = Object.assign(worst, { d, at: `${label} ${width}px @${scale}x` })
+      if (d > worst.d) Object.assign(worst, { d, at: `${label} ${width}px @${scale}x` })
       const ink = Math.max(...rows.map(r => r.inkOver))
       if (ink > inkWorst.over) inkWorst = { over: ink, at: `${label} ${width}px @${scale}x (${rows.find(r => r.inkOver === ink).inkWho})` }
       const pageOk = rows.every(r => r.scrollWidth <= r.innerWidth)
