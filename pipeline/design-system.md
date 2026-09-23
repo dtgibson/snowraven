@@ -146,22 +146,34 @@ italic at 0.71875rem `--sr-text-gray`.
   "Show all N" expander — the Species Detail / MediaCommentsSection pattern.
 - **Filters:** pills 30px/15px-radius (`aria-pressed`), accent positive state,
   tokenized negative tint, `Set` multi-select or tri-state; county/protocol via
-  native `<select>`; paired native date inputs; accent filter-strip banner with
-  "Clear filter". Cycling tri-state pill (one pill, off→has→no) is the approved
-  evolution when categories are many (checklists-tab decisions.md). **On a phone
-  every interactive control in a filter block reads at ONE size**: put
-  `.sr-ctl-row` on the block and its buttons, selects and inputs share the
-  iOS-safe scale-tracking size, a genuine floor since v1.0.33
+  native `<select>`; accent filter-strip banner with "Clear filter". Cycling
+  tri-state pill (one pill, off→has→no) is the approved evolution when
+  categories are many (checklists-tab decisions.md). **A date range is the
+  shared `components/ui/DateRangeFields.tsx`**, never a hand-drawn pair: two
+  native `<input type="date">` named `From date` / `To date`, a decorative
+  `aria-hidden` arrow, and a `register` prop choosing the surface's desktop
+  drawing. **On a phone the county picker and the date range are one "where and
+  when" block (`.sr-whenwhere`) on a line of their own:** the county select full
+  width on top, then the range as a joined From / To pair (one shared edge, the
+  set or focused half lifted to win it) whose visible From / To words sit inside
+  the fields, because iOS paints an empty date input blank. Every control in the
+  block has a 30px minimum and radius 6 (the Map sidebar keeps its 34px panel
+  register); a set county or date tints its own row in the accent tokens (a
+  date field and its word take `--sr-accent-bg`, `--sr-accent-border-strong`
+  and `--sr-accent`); the arrow and the pill-row
+  separators (`.sr-pill-sep`) are hidden. The controls stay native, so the
+  phone's own pickers open. **On a phone every interactive control in a filter
+  block reads at ONE size**: put `.sr-ctl-row` on the block and its buttons,
+  selects and inputs share the iOS-safe scale-tracking size, a genuine floor
   (`max(var(--sr-ctl-floor), var(--sr-ctl-rem, 0.75rem))`, which raises a small
   control to the iOS threshold and never lowers a large one). **Its labels are
-  sized in relation to it, not left behind (v1.0.33):** a label beside a floored
-  control carries `.sr-ctl-label` and a `--sr-label-ratio` of its own register
-  to its control's, so the deliberate 1px optical offset survives the floor
-  instead of becoming a size gap at 100% and a wider one below it. The uppercase
-  section labels stay deliberately smaller **in proportion**, which is what the
-  earlier "stay outside it by design" wording was trying to protect and did not.
-  A trailing count-and-view cluster is still outside it, because it is not a
-  filter. A label on a surface with no floored control is unchanged.
+  sized in relation to it:** a label beside a floored control carries
+  `.sr-ctl-label` and a `--sr-label-ratio` of its own register to its
+  control's, so the deliberate 1px optical offset survives the floor instead of
+  becoming a size gap at 100% and a wider one below it. The uppercase section
+  labels stay deliberately smaller **in proportion**. A trailing
+  count-and-view cluster is still outside it, because it is not a filter. A
+  label on a surface with no floored control is unchanged.
 - **Species pickers:** any species selection over a long list goes through the
   shared `SpeciesCombobox` type-to-find picker, never a scroll-only native
   `<select>`: search icon, text input (`role="combobox"` with full ARIA listbox
