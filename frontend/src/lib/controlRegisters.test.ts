@@ -399,11 +399,16 @@ describe('the clamp repair and the label floor reached their call sites', () => 
     }
   })
 
-  it('opts each of the 22 paired labels in, and no unpaired one', () => {
+  it('opts each of the 24 paired labels in, and no unpaired one', () => {
     // The boundary the spec draws, and the reason it is a boundary: a label with
     // no floored control beside it is not broken, it renders exactly as designed,
     // so flooring its register globally would enlarge labels across two dozen
     // files where nothing is wrong. Membership is declared, never inferred.
+    //
+    // 22 -> 24 at county-date-filter-mobile, deliberately: the shared date pair
+    // (components/ui/DateRangeFields.tsx) draws a visible "From" and "To" word
+    // beside each floored date input on phones, written once there and rendered
+    // on all five surfaces that use it. No per-surface count moved.
     const counts = new Map<string, number>()
     for (const file of sources) {
       // Counted as a class TOKEN anywhere in the file's code, not through one
@@ -421,6 +426,7 @@ describe('the clamp repair and the label floor reached their call sites', () => 
       'components/WeatherForecastPanel.tsx': 5,
       'components/map/HotspotModeControl.tsx': 1,       // Time window; Color pins by opts in via SidebarLabel
       'components/map/MapSidebarUI.tsx': 1,             // SidebarLabel's own opt-in, used 5 + 1 times
+      'components/ui/DateRangeFields.tsx': 2,           // the From and To words inside the date pair
     })
     // The opt-in prop, counted where it is PASSED rather than where it is read.
     const mapExplorer = sources.find(f => f.name === 'components/MapExplorer.tsx')!

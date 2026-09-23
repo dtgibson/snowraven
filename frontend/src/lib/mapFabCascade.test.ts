@@ -163,10 +163,39 @@ function simpleParts(compound: string): string[] {
   return parts
 }
 
+/**
+ * The compounds of one complex selector, split on combinators at depth 0 only.
+ *
+ * Depth-aware for the same reason rightmostCompound is. This used to be a
+ * single split on a lookahead, `(?![^([]*[)\]])`, which is blind to a `[` inside
+ * a functional pseudo: `:where(.a .b[x=y] > .c)` was torn at the inner space into
+ * `:where(.a` and `.b[x=y]>.c)`, so a ZERO-specificity selector scored (0,2,0)
+ * and read as a competitor that outranks the FAB rules. Caught when the
+ * county-date-filter-mobile date-range register put its desktop set-state rule
+ * under `:where()`; no selector without that shape scores differently.
+ */
+function compoundsOf(sel: string): string[] {
+  const out: string[] = []
+  let depth = 0
+  let cur = ''
+  for (const ch of sel) {
+    if (ch === '(' || ch === '[') depth++
+    else if (ch === ')' || ch === ']') depth--
+    if (depth === 0 && (/\s/.test(ch) || ch === '>' || ch === '+' || ch === '~')) {
+      if (cur) out.push(cur)
+      cur = ''
+      continue
+    }
+    cur += ch
+  }
+  if (cur) out.push(cur)
+  return out
+}
+
 /** (a,b,c). Functional pseudos take the MAX of their arguments; :where() takes 0. */
 function specificity(sel: string): [number, number, number] {
   let a = 0, b = 0, c = 0
-  const compounds = sel.split(/(?![^([]*[)\]])[\s>+~]+/).filter(Boolean)
+  const compounds = compoundsOf(sel)
   for (const compound of compounds) {
     for (const p of simpleParts(compound)) {
       if (p.startsWith('#')) a++
@@ -379,6 +408,7 @@ function scan(sheets: Array<[string, string]>) {
 const NEVER_A_FAB_ANCESTOR: Record<string, string> = {
   'sr-map-layers-seg': 'the basemap switcher segment, top-right of the map; holds only its own three buttons',
   'sr-field-row': 'a stacking wrapper for paired form controls; the cluster is not a form row',
+  'sr-whenwhere': 'the county + date-range filter block (county-date-filter-mobile) inside a tab\'s filter row or card; it holds a county select, the date pair and a count or Clear filter, and never wraps a map',
   'sr-action-row-stack': 'a label-plus-action row; same, and it is sidebar/panel furniture',
   'sr-proj-row': 'a Projects-section result row on the Statistics tab, which mounts no map at all',
   'sr-wx-seg': 'the Weather section\'s Temperature/Sky axis toggle on the Statistics tab; it holds only its own two buttons, and the tab\'s one map (Geographic Stats) is a different subtree entirely',

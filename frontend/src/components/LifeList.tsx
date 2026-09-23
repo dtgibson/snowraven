@@ -1,11 +1,12 @@
 import { Button } from './ui/Button'
 import { Link } from './ui/Link'
 import { useEffect, useId, useMemo, useState } from 'react'
-import { Loader2, AlertCircle, Camera, Mic, Video, MapPin, Calendar, MessageSquare, ChevronDown, Pin } from 'lucide-react'
+import { Loader2, AlertCircle, Camera, Mic, Video, MapPin, MessageSquare, ChevronDown, Pin } from 'lucide-react'
 import { SetupRequired } from './SetupRequired'
 import { TabLoadErrorAlert } from './ui/TabLoadErrorAlert'
 import { ML_EXPORT_STEPS, EBIRD_BACKUP_LOAD_ERROR, ML_EXPORT_LOAD_ERROR } from './setupCopy'
 import { ToggleSwitch } from './ui/ToggleSwitch'
+import { DateRangeFields } from './ui/DateRangeFields'
 import { formatDate as formatDateLabel } from '../lib/formatDate'
 import type { LifeListEntry } from '../lib/parseLifeList'
 import { aggregateMLRows } from '../lib/parseMLExport'
@@ -582,10 +583,6 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
     })
   }
 
-  const pillSep: React.CSSProperties = {
-    width: 1, height: 20, background: 'var(--sr-border)', flexShrink: 0, alignSelf: 'center',
-  }
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
       {mlUserId === null && rawRows.length > 0 && (
@@ -669,7 +666,7 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
             Is Target
           </Button>
 
-          <div style={pillSep} />
+          <div className="sr-pill-sep" />
 
           <Button className="sr-pill" aria-pressed={filter.photo === 'no'} data-state={filter.photo === 'no' ? 'negative' : undefined} onClick={() => toggleDimension('photo', 'no')}>
             <Camera size={11} strokeWidth={2.5} />No photo
@@ -681,7 +678,7 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
             <Video size={11} strokeWidth={2.5} />No video
           </Button>
 
-          <div style={pillSep} />
+          <div className="sr-pill-sep" />
 
           <Button className="sr-pill" aria-pressed={filter.photo === 'has'} onClick={() => toggleDimension('photo', 'has')}>
             <Camera size={11} strokeWidth={2.5} />Has photo
@@ -693,7 +690,7 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
             <Video size={11} strokeWidth={2.5} />Has video
           </Button>
 
-          <div style={pillSep} />
+          <div className="sr-pill-sep" />
 
           {/* Sex / Age media facets — native selects matching the County control */}
           <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
@@ -726,7 +723,7 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
             <span style={facetChevStyle(ageFilter !== null)}>▾</span>
           </div>
 
-          <div style={pillSep} />
+          <div className="sr-pill-sep" />
 
           {/* A–Z / Taxonomic sort toggle */}
           <div className="sr-segbar" role="group" aria-label="Sort order" style={{ flexShrink: 0 }}>
@@ -746,7 +743,7 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
             </Button>
           </div>
 
-          <div style={pillSep} />
+          <div className="sr-pill-sep" />
 
           <ToggleSwitch
             label="Show subspecies"
@@ -766,84 +763,55 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
             />
           )}
 
-          <div style={pillSep} />
+          <div className="sr-pill-sep" />
 
-          {/* County dropdown */}
-          {countyResolution === 'resolving' ? (
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 26, padding: '0 10px', borderRadius: 5, border: '1.5px dashed var(--sr-border)', background: 'var(--sr-surface-subtle)', color: 'var(--sr-text-muted)', fontSize: '0.75rem' }}>
-              <Loader2 size={11} strokeWidth={2} className="spin" />
-              Resolving counties…
-            </div>
-          ) : (
-            <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
-              <MapPin size={12} strokeWidth={2} style={{
-                position: 'absolute', left: 7, color: countyFilter ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
-                pointerEvents: 'none', flexShrink: 0,
-              }} />
-              <select
-                className="sr-input-16"
-                aria-label="County"
-                value={countyFilter ?? ''}
-                onChange={e => setCountyFilter(e.target.value || null)}
-                style={{
-                  minHeight: '1.75rem', paddingLeft: 24, paddingRight: 22, borderRadius: 5,
-                  border: countyFilter
-                    ? '1.5px solid var(--sr-accent-border-strong)'
-                    : '1.5px solid var(--sr-border)',
-                  background: countyFilter ? 'var(--sr-accent-bg)' : 'var(--sr-surface)',
-                  color: countyFilter ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
-                  fontSize: '0.75rem', fontWeight: 500, fontFamily: 'inherit',
-                  cursor: 'pointer', appearance: 'none', WebkitAppearance: 'none',
-                }}
-              >
-                <option value="">All Counties</option>
-                {availableCounties.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
-              <span style={{ position: 'absolute', right: 6, pointerEvents: 'none', color: countyFilter ? 'var(--sr-accent)' : 'var(--sr-text-muted)', fontSize: '0.5625rem' }}>▾</span>
-            </div>
-          )}
+          {/* Where & when: the county picker and the date range, one block
+              (county-date-filter-mobile). On desktop .sr-whenwhere and its
+              county wrapper are layout-transparent or byte-identical lifts of the
+              inline styles they replace, so the two controls sit in the pill row
+              exactly as before. On a phone the block takes a full-width row of
+              its own: county on top, then the joined From / To pair. */}
+          <div className="sr-whenwhere">
+            {countyResolution === 'resolving' ? (
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 26, padding: '0 10px', borderRadius: 5, border: '1.5px dashed var(--sr-border)', background: 'var(--sr-surface-subtle)', color: 'var(--sr-text-muted)', fontSize: '0.75rem' }}>
+                <Loader2 size={11} strokeWidth={2} className="spin" />
+                Resolving counties…
+              </div>
+            ) : (
+              <div className="sr-whenwhere-county">
+                <MapPin size={12} strokeWidth={2} style={{
+                  position: 'absolute', left: 7, color: countyFilter ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
+                  pointerEvents: 'none', flexShrink: 0,
+                }} />
+                <select
+                  className="sr-input-16"
+                  aria-label="County"
+                  value={countyFilter ?? ''}
+                  onChange={e => setCountyFilter(e.target.value || null)}
+                  style={{
+                    minHeight: '1.75rem', paddingLeft: 24, paddingRight: 22, borderRadius: 5,
+                    border: countyFilter
+                      ? '1.5px solid var(--sr-accent-border-strong)'
+                      : '1.5px solid var(--sr-border)',
+                    background: countyFilter ? 'var(--sr-accent-bg)' : 'var(--sr-surface)',
+                    color: countyFilter ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
+                    fontSize: '0.75rem', fontWeight: 500, fontFamily: 'inherit',
+                    cursor: 'pointer', appearance: 'none', WebkitAppearance: 'none',
+                  }}
+                >
+                  <option value="">All Counties</option>
+                  {availableCounties.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+                <span style={{ position: 'absolute', right: 6, pointerEvents: 'none', color: countyFilter ? 'var(--sr-accent)' : 'var(--sr-text-muted)', fontSize: '0.5625rem' }}>▾</span>
+              </div>
+            )}
 
-          {/* Date range — .sr-field-row stacks From/To full-width ≤480 where
-              native date inputs can't shrink below their intrinsic min-width. */}
-          <div className="sr-field-row" style={{ gap: 4 }}>
-            <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', minWidth: 0 }}>
-              <Calendar size={11} strokeWidth={2} style={{
-                position: 'absolute', left: 7, color: dateRange.from ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
-                pointerEvents: 'none',
-              }} />
-              <input
-                type="date"
-                className="sr-input-16"
-                aria-label="From date"
-                value={dateRange.from}
-                onChange={e => setDateRange(prev => ({ ...prev, from: e.target.value }))}
-                style={{
-                  // width:100% lets the From input fill its icon wrapper, so when
-                  // .sr-field-row stacks the wrapper full-width ≤480 the From field
-                  // matches the (direct-child) To field instead of staying intrinsic.
-                  width: '100%',
-                  minHeight: '1.75rem', paddingLeft: 24, paddingRight: 6, borderRadius: 5,
-                  border: dateRange.from ? '1.5px solid var(--sr-accent-border-strong)' : '1.5px solid var(--sr-border)',
-                  background: dateRange.from ? 'var(--sr-accent-bg)' : 'var(--sr-surface)',
-                  color: dateRange.from ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
-                  fontSize: '0.75rem', fontFamily: 'inherit',
-                }}
-              />
-            </div>
-            <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)' }}>→</span>
-            <input
-              type="date"
-              className="sr-input-16"
-              aria-label="To date"
-              value={dateRange.to}
-              onChange={e => setDateRange(prev => ({ ...prev, to: e.target.value }))}
-              style={{
-                minHeight: '1.75rem', paddingLeft: 8, paddingRight: 6, borderRadius: 5,
-                border: dateRange.to ? '1.5px solid var(--sr-accent-border-strong)' : '1.5px solid var(--sr-border)',
-                background: dateRange.to ? 'var(--sr-accent-bg)' : 'var(--sr-surface)',
-                color: dateRange.to ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
-                fontSize: '0.75rem', fontFamily: 'inherit',
-              }}
+            <DateRangeFields
+              register="multimedia"
+              from={dateRange.from}
+              to={dateRange.to}
+              onFrom={from => setDateRange(prev => ({ ...prev, from }))}
+              onTo={to => setDateRange(prev => ({ ...prev, to }))}
             />
           </div>
         </div>

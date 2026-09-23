@@ -169,6 +169,30 @@ describe('map-explorer-input-zoom — .sr-input-16 lands on the control element'
     expectGuarded(screen.getByLabelText('Media'), 'select', '0.8125rem')
   })
 
+  it('names each Date Range field with a visible From / To word that points at it', async () => {
+    // county-date-filter-mobile: iOS paints an EMPTY date input with no text, and
+    // the sidebar's two boxes had nothing visible to tell them apart. The shared
+    // pair draws a real <label for> inside each field (shown on phones only).
+    // Pinned here on the rendered sidebar: the word exists, it is exactly
+    // "From" / "To", and its `for` resolves to the very input found by the
+    // accessible name, so the visible mark and the named control cannot come
+    // apart. The accessible names themselves are unchanged (label in name: the
+    // word is contained in "From date" / "To date").
+    renderMap()
+    await screen.findByLabelText('Species')
+    for (const [word, name] of [['From', 'From date'], ['To', 'To date']] as const) {
+      const input = screen.getByLabelText(name)
+      expect(input.id, `${name}: the input needs an id for its word to point at`).not.toBe('')
+      const labels = [...document.querySelectorAll('label.sr-daterange-word')]
+        .filter(l => l.getAttribute('for') === input.id)
+      expect(labels, `${name}: exactly one visible word points at this input`).toHaveLength(1)
+      expect(labels[0].textContent).toBe(word)
+      // The word must not become the name: aria-label stays authoritative, so
+      // every existing query by "From date" / "To date" keeps resolving.
+      expect(input.getAttribute('aria-label')).toBe(name)
+    }
+  })
+
   it('guards the shared place-name search and the Lat/Lng pair in all three center views', async () => {
     renderMap()
     await screen.findByLabelText('Species')

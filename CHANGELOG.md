@@ -2,11 +2,18 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [1.0.34] - 2026-09-22
+
+### Fixed
+- On a phone, and in any window 640 pixels wide or narrower, the county and date filters on Multimedia, Breeding Codes, Species Detail and Checklists now read as one block: the county picker across the full width, then a joined From and To pair whose fields say "From" and "To", so an empty date field is no longer a blank box on iPhone. The Map Explorer's Date Range filter gets the same joined, labelled pair. The narrow stack of a blank box, a lone arrow and a second blank box is gone, and the thin divider lines between groups of filter pills, which ended up dangling at the ends of wrapped rows, are hidden on a phone. Anything wider looks exactly as before, and what the filters do is unchanged.
+- Screen readers no longer read out the arrow between the two dates on Multimedia, Breeding Codes, Species Detail and Checklists.
+
 ## [1.0.33] - 2026-09-22
 
 ### Changed
 - Filter and toggle pills across every tab now share one shape, and on a phone at large text sizes controls and their labels grow together instead of being cut down.
 - Website: every feature screenshot now renders at the same size beside its paragraph, and the Weather, Named Birds and Map Explorer shots were recaptured to fit.
+- Help: the Species Detail Weather card's entry now says the card has no picker of its own, because it describes the bird the page already has selected, and the navigation entry says which layout you get is decided by the space available to the app, never by the kind of device it is running on.
 
 ### Fixed
 - Planner: the sun track, the per-day sun peaks and the tide chart's gridlines are now bounded by the plan document itself, so a malformed or absurd forecast cannot make the Weather tab hang while it draws. No change to any plan a real forecast produces.

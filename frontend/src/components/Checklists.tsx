@@ -32,6 +32,7 @@ import {
 } from '../lib/checklistsTab'
 import { SectionCard } from './speciesDetail/ui'
 import { ToggleSwitch } from './ui/ToggleSwitch'
+import { DateRangeFields } from './ui/DateRangeFields'
 import { CommentText } from './CommentText'
 import { BirdName } from './BirdName'
 import { ChecklistLink } from './ChecklistLink'
@@ -648,7 +649,7 @@ export function Checklists({ onGoToSettings, filesVersion, onOpenSpecies }: {
               >
                 All
               </Button>
-              <span style={{ width: 1, height: 20, background: 'var(--sr-border)', margin: '0 3px', flexShrink: 0 }} />
+              <span className="sr-pill-sep sr-pill-sep--spaced" />
               <TriPill label="Checklist comment" state={filters.checklistComment} onCycle={setTri('checklistComment')} />
               <TriPill label="Species comments" state={filters.speciesComments} onCycle={setTri('speciesComments')} />
               <TriPill label="Media" state={filters.media} onCycle={setTri('media')} />
@@ -664,7 +665,7 @@ export function Checklists({ onGoToSettings, filesVersion, onOpenSpecies }: {
                   <TriPill label="Photo" state={filters.photo} onCycle={setTri('photo')} icon={<Camera size={11} strokeWidth={2.2} aria-hidden />} />
                   <TriPill label="Audio" state={filters.audio} onCycle={setTri('audio')} icon={<Mic size={11} strokeWidth={2.2} aria-hidden />} />
                   <TriPill label="Video" state={filters.video} onCycle={setTri('video')} icon={<Video size={11} strokeWidth={2.2} aria-hidden />} />
-                  <span style={{ width: 1, height: 20, background: 'var(--sr-border)', margin: '0 3px', flexShrink: 0 }} />
+                  <span className="sr-pill-sep sr-pill-sep--spaced" />
                 </>
               )}
               <span className={`sr-ctl-label sr-chk-row-label${mlLoaded ? ' sr-chk-row-label--auto' : ''}`} style={rowLabelStyle}>Effort</span>
@@ -685,38 +686,42 @@ export function Checklists({ onGoToSettings, filesVersion, onOpenSpecies }: {
 
             <div className="sr-field-row" style={{ gap: 6 }}>
               <span className="sr-ctl-label sr-chk-row-label" style={rowLabelStyle}>Where &amp; when</span>
-              {counties.length > 0 && (
-                <select
-                  aria-label="County"
-                  className="sr-input-16"
-                  value={filters.county ?? ''}
-                  onChange={e => setFilters(f => ({ ...f, county: e.target.value || null }))}
-                  style={{ ...selectStyle, ...(filters.county ? { borderColor: 'var(--sr-accent-border)', color: 'var(--sr-accent)', fontWeight: 600 } : {}) }}
-                >
-                  <option value="">All counties</option>
-                  {counties.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-              )}
-              <input
-                type="date"
-                aria-label="From date"
-                className="sr-input-16"
-                value={filters.dateRange.from}
-                onChange={e => setFilters(f => ({ ...f, dateRange: { ...f.dateRange, from: e.target.value } }))}
-                style={selectStyle}
-              />
-              <span style={{ fontSize: '0.75rem', color: 'var(--sr-text-disabled)' }}>→</span>
-              <input
-                type="date"
-                aria-label="To date"
-                className="sr-input-16"
-                value={filters.dateRange.to}
-                onChange={e => setFilters(f => ({ ...f, dateRange: { ...f.dateRange, to: e.target.value } }))}
-                style={selectStyle}
-              />
-              <span aria-hidden="true" style={{ marginLeft: 'auto', fontSize: '0.75rem', color: 'var(--sr-text-muted)', fontWeight: 500, whiteSpace: 'nowrap' }}>
-                {listCountText}
-              </span>
+              {/* The county, the date range and the count as one block
+                  (county-date-filter-mobile). Layout-transparent on desktop, so
+                  every control is still a flex item of this row exactly as
+                  before. On a phone: county on top, the joined From / To pair,
+                  then the count right-aligned on its own line. The live region
+                  stays a direct child of the row, outside the block. */}
+              <div className="sr-whenwhere">
+                {counties.length > 0 && (
+                  <div className="sr-whenwhere-county sr-whenwhere-county--bare" data-set={filters.county ? 'true' : undefined}>
+                    <select
+                      aria-label="County"
+                      className="sr-input-16"
+                      value={filters.county ?? ''}
+                      onChange={e => setFilters(f => ({ ...f, county: e.target.value || null }))}
+                      style={{ ...selectStyle, ...(filters.county ? { borderColor: 'var(--sr-accent-border)', color: 'var(--sr-accent)', fontWeight: 600 } : {}) }}
+                    >
+                      <option value="">All counties</option>
+                      {counties.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                    {/* Phone tier only: the block removes the native control there
+                        (WebKit ignores the 30px minimum on a native select), so the
+                        caret is drawn, as on the other three surfaces. */}
+                    <span className="sr-whenwhere-caret" aria-hidden="true">▾</span>
+                  </div>
+                )}
+                <DateRangeFields
+                  register="checklists"
+                  from={filters.dateRange.from}
+                  to={filters.dateRange.to}
+                  onFrom={from => setFilters(f => ({ ...f, dateRange: { ...f.dateRange, from } }))}
+                  onTo={to => setFilters(f => ({ ...f, dateRange: { ...f.dateRange, to } }))}
+                />
+                <span className="sr-whenwhere-tail sr-whenwhere-count" aria-hidden="true" style={{ marginLeft: 'auto', fontSize: '0.75rem', color: 'var(--sr-text-muted)', fontWeight: 500, whiteSpace: 'nowrap' }}>
+                  {listCountText}
+                </span>
+              </div>
               <span className="sr-only" aria-live="polite">{liveListCount}</span>
             </div>
           </div>

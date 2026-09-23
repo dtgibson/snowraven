@@ -493,13 +493,27 @@ describe('the Map Explorer Date Range pair adapts to the guard (fix: map-explore
     // `[^>]*` cannot cross a `>`, so this only matches a class inside the SAME
     // opening tag as the control -- a class on a wrapper is not counted.
     const onControls = [...src.matchAll(/<(?:input|select)\b[^>]*className="sr-input-16"/g)]
-    // Eight native controls; the ninth (Species) is the shared SpeciesCombobox
-    // (improve: searchable-species-pickers), whose className prop rides onto its
-    // <input> element. The tag-level match keeps THIS guard rejecting a dropped
-    // prop; MapExplorerInputZoom.test.tsx asserts the RENDERED placement (the
-    // class on the input element itself), which a prop the component ignored
-    // would fail.
-    expect(onControls.length).toBe(8)
+    // Six native controls here. The two Date Range fields are the shared date
+    // pair (county-date-filter-mobile), counted below where the class now lives;
+    // the ninth (Species) is the shared SpeciesCombobox (improve:
+    // searchable-species-pickers), whose className prop rides onto its <input>
+    // element. The tag-level match keeps THIS guard rejecting a dropped prop;
+    // MapExplorerInputZoom.test.tsx asserts the RENDERED placement (the class on
+    // the input element itself), which a prop the component ignored would fail.
+    expect(onControls.length).toBe(6)
+    // The Date Range pair: mounted exactly once here, at the panel register, and
+    // BOTH of the shared component's inputs carry the class on the input tag
+    // itself. Deleting either class, or the pair falling back to a wrapper
+    // placement, goes red here before the rendered check does.
+    const pairTags = [...src.matchAll(/<DateRangeFields\b[\s\S]*?\/>/g)]
+    expect(pairTags.length).toBe(1)
+    expect(pairTags[0][0]).toMatch(/register="map-sidebar"/)
+    const pair = readFileSync(new URL('../components/ui/DateRangeFields.tsx', import.meta.url), 'utf8')
+    const pairInputs = [...pair.matchAll(/<input\b[^>]*className="[^"]*"/g)]
+    expect(pairInputs.length, 'the shared pair renders exactly two inputs').toBe(2)
+    for (const m of pairInputs) {
+      expect(m[0].match(/className="([^"]*)"/)![1].split(/\s+/)).toContain('sr-input-16')
+    }
     // `[^>]*` cannot be used here: the tag's arrow-function props contain `>`.
     // Match the whole self-closing tag lazily instead; it is bounded to this one
     // element by its own `/>`.
@@ -507,6 +521,53 @@ describe('the Map Explorer Date Range pair adapts to the guard (fix: map-explore
     const onCombobox = comboboxTags.filter(m => m[0].includes('className="sr-input-16"'))
     expect(comboboxTags.length).toBe(1)
     expect(onCombobox.length).toBe(1)
+  })
+})
+
+describe('the where-and-when block adapts without a width floor (county-date-filter-mobile)', () => {
+  /** Every class token a selector names, `:where()` / `:not()` arguments included. */
+  const classTokens = (selector: string) => [...selector.matchAll(/\.([-\w]+)/g)].map(m => m[1])
+  const isBlockClass = (cls: string) =>
+    cls === 'sr-whenwhere' || cls.startsWith('sr-whenwhere-') ||
+    cls === 'sr-daterange' || cls.startsWith('sr-daterange-')
+
+  it('never gives the block, the pair or a field a positive min-width', () => {
+    // Rejects the width floor that reads as a fix and is the defect's cousin: a
+    // `min-width` on the block or a field makes the stack stop FITTING a 320px
+    // content box at 200% text, and the page scrolls sideways. The pair stacks
+    // precisely so that nothing here needs a minimum; the only minimum the tier
+    // declares is `0`, which RELEASES the automatic one (v0.5.86).
+    const blockRules = rules().filter(r => splitList(r.selector).some(sel => classTokens(sel).some(isBlockClass)))
+    expect(blockRules.length, 'never vacuous: the block\'s rules must be found').toBeGreaterThan(10)
+    const offenders: string[] = []
+    for (const r of blockRules) {
+      for (const m of r.body.matchAll(/(?:^|[;{\s])min-width\s*:\s*([^;]+)/g)) {
+        const value = m[1].replace(/!important/, '').trim()
+        if (!/^(?:0|0px|auto)$/.test(value)) offenders.push(`${r.selector} { min-width: ${value} }`)
+      }
+    }
+    expect(offenders).toEqual([])
+  })
+
+  it('leaves the GLOBAL .sr-field-row stacking at <=480, where it was', () => {
+    // The block exists so the pill-row pair no longer rides .sr-field-row, NOT
+    // so the shared class can be redefined: it has six consumers, including the
+    // Weather tab's checklist field. Rejects moving the unscoped stacking rule
+    // to another tier, or deleting it, while fixing this surface.
+    const at = masked.indexOf('@media (max-width: 480px) {\n')
+    expect(at, 'the <=480 tier must exist').toBeGreaterThan(-1)
+    const open = masked.indexOf('{', at)
+    let depth = 0
+    let close = -1
+    for (let i = open; i < masked.length; i++) {
+      if (masked[i] === '{') depth++
+      else if (masked[i] === '}' && --depth === 0) { close = i; break }
+    }
+    const unscoped = rules().filter(r =>
+      /flex-direction\s*:\s*column/.test(r.body) && splitList(r.selector).includes('.sr-field-row'))
+    expect(unscoped.length, 'exactly one unscoped .sr-field-row stacking rule').toBe(1)
+    expect(unscoped[0].offset).toBeGreaterThan(open)
+    expect(unscoped[0].offset).toBeLessThan(close)
   })
 })
 

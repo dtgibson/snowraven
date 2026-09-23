@@ -1,6 +1,6 @@
 import { Button } from './ui/Button'
 import { useEffect, useId, useMemo, useState } from 'react'
-import { Loader2, MapPin, Calendar, Pin } from 'lucide-react'
+import { Loader2, MapPin, Pin } from 'lucide-react'
 import { SetupRequired } from './SetupRequired'
 import { TabLoadErrorAlert } from './ui/TabLoadErrorAlert'
 import { EBIRD_BACKUP_STEPS, EBIRD_BACKUP_LOAD_ERROR } from './setupCopy'
@@ -11,6 +11,7 @@ import { loadEbirdObservations } from '../lib/observationsCache'
 import { BREEDING_CODE_MAP, TIER_COLORS, CATEGORY_CODES } from '../lib/breedingCodes'
 import type { BreedingCategory } from '../lib/breedingCodes'
 import { BreedingCodeTable } from './BreedingCodeTable'
+import { DateRangeFields } from './ui/DateRangeFields'
 import type { BreedingSortState, DateRangeState } from '../types'
 import { DATE_RANGE_CLEAR } from '../types'
 import { transport } from '../lib/transport'
@@ -323,7 +324,7 @@ export function BreedingCodeList({ onGoToSettings, filesVersion, onOpenSpecies }
             )
           })}
 
-          <div style={{ width: 1, height: 20, background: 'var(--sr-border)', flexShrink: 0, alignSelf: 'center' }} />
+          <div className="sr-pill-sep" />
 
           {/* A–Z / Taxonomic sort toggle */}
           <div className="sr-segbar" role="group" aria-label="Sort order" style={{ flexShrink: 0 }}>
@@ -345,86 +346,55 @@ export function BreedingCodeList({ onGoToSettings, filesVersion, onOpenSpecies }
 
           {counties.length > 0 && (
             <>
-              <div style={{ width: 1, height: 20, background: 'var(--sr-border)', flexShrink: 0, alignSelf: 'center' }} />
+              <div className="sr-pill-sep" />
 
-              {/* County dropdown */}
-              <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
-                <MapPin size={12} strokeWidth={2} style={{
-                  position: 'absolute', left: 7, color: countyFilter ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
-                  pointerEvents: 'none', flexShrink: 0,
-                }} />
-                <select
-                  aria-label="County"
-                  value={countyFilter ?? ''}
-                  onChange={e => setCountyFilter(e.target.value || null)}
-                  className="sr-input-16"
-                  style={{
-                    height: 26, paddingLeft: 24, paddingRight: 22, borderRadius: 5,
-                    border: countyFilter
-                      ? '1.5px solid var(--sr-accent-border-strong)'
-                      : '1.5px solid var(--sr-border)',
-                    background: countyFilter ? 'var(--sr-accent-bg)' : 'var(--sr-surface)',
-                    color: countyFilter ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
-                    fontSize: '0.75rem', fontWeight: 500, fontFamily: 'inherit',
-                    cursor: 'pointer', appearance: 'none', WebkitAppearance: 'none',
-                    // Cap so a long county name (user data) at large text scale can't
-                    // push the select past the viewport and leak page horizontal scroll
-                    // — the selected option ellipsizes instead (min-width:0 lets the
-                    // flex item shrink below its longest-option min-content width).
-                    maxWidth: '100%', minWidth: 0, textOverflow: 'ellipsis',
-                  }}
-                >
-                  <option value="">All Counties</option>
-                  {counties.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-                <span style={{
-                  position: 'absolute', right: 6, pointerEvents: 'none',
-                  color: countyFilter ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
-                  fontSize: '0.5625rem',
-                }}>▾</span>
-              </div>
-
-              {/* Date range — .sr-field-row stacks From/To full-width ≤480 where
-                  native date inputs can't shrink below their intrinsic min-width. */}
-              <div className="sr-field-row" style={{ gap: 4 }}>
-                <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
-                  <Calendar size={11} strokeWidth={2} style={{
-                    position: 'absolute', left: 7, color: dateRange.from ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
-                    pointerEvents: 'none',
+              {/* Where & when (county-date-filter-mobile). Layout-transparent on
+                  desktop; on a phone a full-width row of its own under the sort
+                  toggle. It carries none of the .sr-bc-filter-* containment hooks,
+                  which stay on the code pills alone. */}
+              <div className="sr-whenwhere">
+                <div className="sr-whenwhere-county">
+                  <MapPin size={12} strokeWidth={2} style={{
+                    position: 'absolute', left: 7, color: countyFilter ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
+                    pointerEvents: 'none', flexShrink: 0,
                   }} />
-                  <input
-                    type="date"
-                    aria-label="From date"
-                    value={dateRange.from}
-                    onChange={e => setDateRange(prev => ({ ...prev, from: e.target.value }))}
+                  <select
+                    aria-label="County"
+                    value={countyFilter ?? ''}
+                    onChange={e => setCountyFilter(e.target.value || null)}
                     className="sr-input-16"
                     style={{
-                      height: 26, paddingLeft: 24, paddingRight: 6, borderRadius: 5,
-                      border: dateRange.from
+                      height: 26, paddingLeft: 24, paddingRight: 22, borderRadius: 5,
+                      border: countyFilter
                         ? '1.5px solid var(--sr-accent-border-strong)'
                         : '1.5px solid var(--sr-border)',
-                      background: dateRange.from ? 'var(--sr-accent-bg)' : 'var(--sr-surface)',
-                      color: dateRange.from ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
-                      fontSize: '0.75rem', fontFamily: 'inherit',
+                      background: countyFilter ? 'var(--sr-accent-bg)' : 'var(--sr-surface)',
+                      color: countyFilter ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
+                      fontSize: '0.75rem', fontWeight: 500, fontFamily: 'inherit',
+                      cursor: 'pointer', appearance: 'none', WebkitAppearance: 'none',
+                      // Cap so a long county name (user data) at large text scale can't
+                      // push the select past the viewport and leak page horizontal scroll
+                      // — the selected option ellipsizes instead (min-width:0 lets the
+                      // flex item shrink below its longest-option min-content width).
+                      maxWidth: '100%', minWidth: 0, textOverflow: 'ellipsis',
                     }}
-                  />
+                  >
+                    <option value="">All Counties</option>
+                    {counties.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                  <span style={{
+                    position: 'absolute', right: 6, pointerEvents: 'none',
+                    color: countyFilter ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
+                    fontSize: '0.5625rem',
+                  }}>▾</span>
                 </div>
-                <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)' }}>→</span>
-                <input
-                  type="date"
-                  aria-label="To date"
-                  value={dateRange.to}
-                  onChange={e => setDateRange(prev => ({ ...prev, to: e.target.value }))}
-                  className="sr-input-16"
-                  style={{
-                    height: 26, paddingLeft: 8, paddingRight: 6, borderRadius: 5,
-                    border: dateRange.to
-                      ? '1.5px solid var(--sr-accent-border-strong)'
-                      : '1.5px solid var(--sr-border)',
-                    background: dateRange.to ? 'var(--sr-accent-bg)' : 'var(--sr-surface)',
-                    color: dateRange.to ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
-                    fontSize: '0.75rem', fontFamily: 'inherit',
-                  }}
+
+                <DateRangeFields
+                  register="breeding-codes"
+                  from={dateRange.from}
+                  to={dateRange.to}
+                  onFrom={from => setDateRange(prev => ({ ...prev, from }))}
+                  onTo={to => setDateRange(prev => ({ ...prev, to }))}
                 />
               </div>
             </>

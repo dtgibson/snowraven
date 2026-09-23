@@ -84,20 +84,35 @@ describe('a visually-hidden live region is excluded from the phone-tier stacking
   // is `.sr-map-sidebar-overlay .sr-field-row > *`, which an anchored pattern
   // silently skipped — and skipping it is precisely how the defect would return
   // by the other route.
+  //
+  // The fourth row family is `.sr-whenwhere` (county-date-filter-mobile): the
+  // county + date block that takes a full row of its own on a phone and sizes
+  // every child to it. It is the block that sits beside Checklists' live region,
+  // so its exclusion is asserted here rather than assumed.
   const universalChildWidthRules = () =>
     rules().filter(r =>
-      /\.sr-(field-row|action-row-stack)\s*>\s*\*/.test(r.selector) &&
+      /\.sr-(field-row|action-row-stack|whenwhere)\s*>\s*\*/.test(r.selector) &&
       decl(r.body, 'width'))
 
   it('every universal-child width rule on these rows excludes .sr-only', () => {
     const found = universalChildWidthRules()
     // Guard the guard: if the rules are renamed away, this test must fail rather
     // than pass vacuously on an empty set.
-    expect(found.length).toBeGreaterThanOrEqual(3)
+    expect(found.length).toBeGreaterThanOrEqual(4)
     for (const r of found) {
       expect(r.selector, `${r.selector} must not reach a .sr-only live region`)
         .toContain(':not(.sr-only)')
     }
+  })
+
+  it('the where-and-when block has its own excluded universal-child rule, in the phone tier', () => {
+    // Per family, not only in aggregate: the count above would stay satisfied if
+    // this rule were deleted while another family grew a copy, and the block
+    // would then be relying on its tail rule alone to size its children.
+    const block = withSelector('.sr-whenwhere > *:not(.sr-only)')
+    expect(block).toHaveLength(1)
+    expect(decl(block[0].body, 'width')).toBe(true)
+    expect(inRange(block[0], tierRange(640))).toBe(true)
   })
 
   it('.sr-only itself still declares the 1px clipped box it is exempted to keep', () => {

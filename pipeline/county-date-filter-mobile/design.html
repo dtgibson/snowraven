@@ -1,0 +1,516 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Where and when, on a phone</title>
+<style>
+/* ────────────────────────────────────────────────────────────────────────
+   PAGE CHROME (the review page itself, not the app). Theme-aware.
+   ──────────────────────────────────────────────────────────────────────── */
+:root {
+  color-scheme: light;
+  --pg-bg: #F3F1EC;
+  --pg-ink: #1C1B18;
+  --pg-muted: #6B675E;
+  --pg-line: #DDD8CE;
+  --pg-card: #FBFAF7;
+  --pg-accent: #277448;
+  --pg-accent-bg: #E8F5EE;
+  --pg-shadow: 0 1px 2px rgba(28,27,24,0.06), 0 10px 30px rgba(28,27,24,0.08);
+  --display: 'Iowan Old Style', 'Palatino Linotype', 'Book Antiqua', Palatino, Georgia, serif;
+  --ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --pg-bg: #141311; --pg-ink: #ECE8DF; --pg-muted: #A39E92; --pg-line: #2A2823;
+    --pg-card: #1C1B18; --pg-accent: #4FCB8E; --pg-accent-bg: #0F2A1B;
+    --pg-shadow: 0 1px 2px rgba(0,0,0,0.4), 0 10px 30px rgba(0,0,0,0.35);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --pg-bg: #141311; --pg-ink: #ECE8DF; --pg-muted: #A39E92; --pg-line: #2A2823;
+  --pg-card: #1C1B18; --pg-accent: #4FCB8E; --pg-accent-bg: #0F2A1B;
+  --pg-shadow: 0 1px 2px rgba(0,0,0,0.4), 0 10px 30px rgba(0,0,0,0.35);
+}
+* { box-sizing: border-box; }
+html { background: var(--pg-bg); }
+body {
+  margin: 0; padding: 0 0 6rem;
+  background:
+    radial-gradient(1200px 500px at 10% -10%, rgba(39,116,72,0.10), transparent 60%),
+    var(--pg-bg);
+  color: var(--pg-ink);
+  font: 400 15px/1.55 var(--ui);
+  -webkit-font-smoothing: antialiased;
+}
+.wrap { max-width: 1180px; margin: 0 auto; padding-inline: 20px; }
+header.hero { padding: 3.25rem 0 1.25rem; }
+.eyebrow { font: 600 0.75rem/1 var(--ui); letter-spacing: 0.12em; text-transform: uppercase; color: var(--pg-accent); margin: 0 0 0.9rem; }
+h1 { font: 500 clamp(2rem, 4.2vw, 2.9rem)/1.08 var(--display); letter-spacing: -0.015em; margin: 0 0 0.75rem; max-width: 18ch; }
+.lede { font-size: 1.05rem; color: var(--pg-muted); max-width: 62ch; margin: 0; }
+h2 { font: 500 1.6rem/1.15 var(--display); letter-spacing: -0.01em; margin: 0 0 0.25rem; }
+h3 { font: 600 0.8rem/1 var(--ui); letter-spacing: 0.08em; text-transform: uppercase; color: var(--pg-muted); margin: 2rem 0 0.75rem; }
+.sub { color: var(--pg-muted); margin: 0 0 1.25rem; max-width: 70ch; }
+section { padding: 2rem 0 0.5rem; border-top: 1px solid var(--pg-line); margin-top: 2rem; }
+section:first-of-type { border-top: 0; margin-top: 0; }
+
+/* Control bar */
+.bar {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5;
+  display: flex; flex-wrap: wrap; gap: 0.75rem 1.5rem; align-items: center;
+  padding: 0.7rem 0.9rem; margin: 1.25rem 0 0;
+  background: color-mix(in srgb, var(--pg-card) 88%, transparent);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--pg-line); border-radius: 12px; box-shadow: var(--pg-shadow);
+}
+.bar .grp { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.bar .grp > span { font-size: 0.8rem; color: var(--pg-muted); }
+.seg { display: inline-flex; background: var(--pg-line); border-radius: 8px; padding: 2px; gap: 2px; }
+.seg button {
+  appearance: none; border: 0; background: transparent; color: var(--pg-muted);
+  font: 600 0.8rem/1 var(--ui); padding: 0.45rem 0.75rem; border-radius: 6px; cursor: pointer;
+  transition: background-color 120ms ease-out, color 120ms ease-out;
+}
+.seg button[aria-pressed="true"] { background: var(--pg-card); color: var(--pg-ink); box-shadow: 0 1px 2px rgba(28,27,24,0.12); }
+.seg button:focus-visible { outline: 3px solid var(--pg-accent); outline-offset: 2px; }
+.rec { font-size: 0.7rem; color: var(--pg-accent); background: var(--pg-accent-bg); padding: 0.15rem 0.45rem; border-radius: 999px; font-weight: 600; margin-left: 0.25rem; }
+
+/* Frame rows */
+.frames { display: flex; gap: 1.25rem; align-items: flex-start; overflow-x: auto; padding: 0.25rem 0 1rem; scroll-snap-type: x proximity; }
+.frames > * { scroll-snap-align: start; }
+figure.phone { margin: 0; flex: 0 0 auto; width: var(--w); }
+figure.phone figcaption { display: flex; align-items: baseline; gap: 0.5rem; margin: 0 0 0.5rem 2px; font: 600 0.8rem/1.2 var(--ui); }
+figure.phone figcaption .tag { font-weight: 600; padding: 0.15rem 0.5rem; border-radius: 999px; font-size: 0.68rem; letter-spacing: 0.04em; text-transform: uppercase; }
+figure.phone figcaption .tag.today { background: var(--pg-line); color: var(--pg-muted); }
+figure.phone figcaption .tag.prop { background: var(--pg-accent-bg); color: var(--pg-accent); }
+figure.phone figcaption .meta { color: var(--pg-muted); font-weight: 400; }
+.screen {
+  position: relative; width: var(--w); border-radius: 22px; overflow: hidden;
+  border: 1px solid var(--pg-line); box-shadow: var(--pg-shadow);
+  background: var(--sr-bg); color: var(--sr-text);
+}
+.screen::after { content: ""; position: absolute; inset: auto 0 0 0; height: 36px; background: linear-gradient(to bottom, transparent, var(--sr-bg)); pointer-events: none; }
+.screen .crop { max-height: var(--h, 640px); overflow: hidden; }
+.note { font-size: 0.8rem; color: var(--pg-muted); margin: 0.35rem 0 0 2px; max-width: 52ch; }
+
+/* Changes list */
+.changes { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; margin-top: 1rem; }
+.change { background: var(--pg-card); border: 1px solid var(--pg-line); border-radius: 12px; padding: 1rem 1.1rem; }
+.change b { display: block; font: 500 1.05rem/1.3 var(--display); margin-bottom: 0.3rem; }
+.change p { margin: 0; color: var(--pg-muted); font-size: 0.9rem; }
+
+/* ────────────────────────────────────────────────────────────────────────
+   APP TOKENS inside a frame - copied from globals.css (:root / dark).
+   ──────────────────────────────────────────────────────────────────────── */
+.t-light {
+  --sr-bg: #F9FAFB; --sr-surface: #FFFFFF; --sr-surface-subtle: #F4F4F5; --sr-surface-faint: #FAFAFA;
+  --sr-text: #0F1117; --sr-text-muted: #6B6B74; --sr-text-disabled: #A1A1AA; --sr-text-gray: #6B7280;
+  --sr-border: #E4E4E7; --sr-border-subtle: #F4F4F5; --sr-border-medium: #C4C4CE;
+  --sr-accent: #277448; --sr-accent-strong: #1A5C38; --sr-accent-bg: #E8F5EE;
+  --sr-accent-border: rgba(39,116,72,0.25); --sr-accent-border-strong: rgba(39,116,72,0.7);
+  --sr-on-accent: #FFFFFF; --sr-gray-400: #8E8E96;
+  --sr-card-shadow: 0 1px 4px rgba(15,17,23,0.06), 0 4px 16px rgba(15,17,23,0.04);
+  --sr-map: #EEF0EC;
+}
+.t-dark {
+  --sr-bg: #09090B; --sr-surface: #18181B; --sr-surface-subtle: #27272A; --sr-surface-faint: #1C1C1F;
+  --sr-text: #F4F4F5; --sr-text-muted: #A1A1AA; --sr-text-disabled: #52525B; --sr-text-gray: #8A8A92;
+  --sr-border: #27272A; --sr-border-subtle: #1F1F23; --sr-border-medium: #3F3F46;
+  --sr-accent: #34D399; --sr-accent-strong: #34D399; --sr-accent-bg: #052E16;
+  --sr-accent-border: rgba(52,211,153,0.2); --sr-accent-border-strong: rgba(52,211,153,0.5);
+  --sr-on-accent: #052E16; --sr-gray-400: #6E6E78;
+  --sr-card-shadow: 0 1px 4px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.25);
+  --sr-map: #1B1D1A;
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+   APP CHROME inside a frame. Every size is written against --rem (the app's
+   root font size, 16px at 100% text scale and 32px at 200%), so the 200%
+   frame is the same rules at a different root - exactly as in the app.
+   Controls use the app's phone-tier floor: max(16px, 0.75 * rem).
+   ──────────────────────────────────────────────────────────────────────── */
+.app {
+  --ctl: max(16px, calc(0.75 * var(--rem)));
+  --app-font: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  font-family: var(--app-font);
+  font-size: calc(0.84375 * var(--rem)); line-height: 1.5;
+  padding: 10px 20px 18px;
+}
+.app button { font-family: inherit; cursor: default; }
+.app svg { width: 1em; height: 1em; flex-shrink: 0; stroke: currentColor; fill: none; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+
+/* Comment banner (Multimedia) */
+.a-banner { background: var(--sr-surface-subtle); border: 1px solid var(--sr-border-subtle); border-radius: 10px; padding: 10px 12px 8px; margin-bottom: 12px; }
+.a-banner .ic { color: var(--sr-accent); font-size: calc(0.9 * var(--rem)); display: block; margin-bottom: 4px; }
+.a-banner .jump { display: flex; justify-content: flex-end; align-items: center; gap: 4px; color: var(--sr-accent); font-weight: 600; font-size: calc(0.8125 * var(--rem)); margin-top: 8px; }
+
+/* Wrapping filter row, as the app draws it */
+.a-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.a-row + .a-row { margin-top: 6px; }
+.a-pill {
+  display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+  min-height: 30px; padding: 0 12px; border-radius: 15px;
+  border: 1.5px solid var(--sr-border); background: var(--sr-surface); color: var(--sr-text-muted);
+  font-size: var(--ctl); font-weight: 500; white-space: nowrap;
+  transition: background-color 120ms ease-out, border-color 120ms ease-out, color 120ms ease-out;
+}
+.a-pill svg { font-size: 0.75em; }
+.a-pill.on { border-color: var(--sr-accent-border); background: var(--sr-accent-bg); color: var(--sr-accent); font-weight: 600; }
+.a-sep { width: 1px; height: 20px; background: var(--sr-border); flex-shrink: 0; align-self: center; }
+.a-seg { display: inline-flex; align-items: stretch; border: 1.5px solid var(--sr-accent-border); border-radius: 15px; overflow: hidden; background: var(--sr-surface); flex-shrink: 0; }
+.a-seg-btn { display: inline-flex; align-items: center; min-height: 30px; padding: 0 12px; border: 0; background: transparent; color: var(--sr-text-muted); font-size: var(--ctl); font-weight: 500; white-space: nowrap; }
+.a-seg-btn + .a-seg-btn { border-left: 1.5px solid var(--sr-accent-border); }
+.a-seg-btn.on { background: var(--sr-accent-bg); color: var(--sr-accent); font-weight: 600; }
+.a-toggle { display: inline-flex; align-items: center; gap: 8px; min-height: 30px; padding: 0 10px 0 8px; border: 1.5px solid var(--sr-border); border-radius: 6px; background: var(--sr-surface); color: var(--sr-text); font-size: var(--ctl); white-space: nowrap; }
+.a-toggle .trk { width: 30px; height: 16px; border-radius: 8px; background: var(--sr-gray-400); position: relative; flex-shrink: 0; }
+.a-toggle .trk::after { content: ""; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: #fff; }
+.a-sel {
+  position: relative; display: inline-flex; align-items: center; min-height: calc(1.75 * var(--rem));
+  padding: 0 22px 0 24px; border-radius: 5px; border: 1.5px solid var(--sr-border); background: var(--sr-surface);
+  color: var(--sr-text-muted); font-size: var(--ctl); font-weight: 500; white-space: nowrap; max-width: 100%;
+}
+.a-sel .ic { position: absolute; left: 7px; font-size: 0.75em; display: inline-flex; }
+.a-sel .car { position: absolute; right: 6px; font-size: 0.5625em; }
+.a-sel .v2, .a-sel .v2b { display: none; }
+.a-sel.plain { color: var(--sr-text); border-radius: 6px; padding-left: 8px; min-height: 28px; }
+.a-sel.plain .car, .a-sel.plain .ic, .a-sel.mp .ic { display: none; }
+.a-sel.sd { min-height: calc(1.625 * var(--rem)); }
+.a-sel.bc { height: 26px; min-height: 0; }
+.a-sel.mp { min-height: 34px; border-radius: 6px; padding-left: 8px; color: var(--sr-text); width: 100%; }
+
+/* Filled-state switch (page control): county picks Contra Costa, dates fill */
+.st-filled .a-sel.county { border-color: var(--sr-accent-border-strong); background: var(--sr-accent-bg); color: var(--sr-accent); }
+.st-filled .a-sel.county.plain { border-color: var(--sr-accent-border); font-weight: 600; }
+.st-filled .today .a-sel.county.mp { border-color: var(--sr-border); background: var(--sr-surface); color: var(--sr-text); }
+.st-filled .a-sel.county .v1 { display: none; }
+.st-filled .a-sel.county .v2 { display: inline; }
+.st-filled .a-sel.county .v2b { display: inline; }
+.st-filled .a-sel.county .v2 + .v2b { display: none; }
+.only-filled { display: none !important; }
+.st-filled .only-filled { display: inline-flex !important; }
+.st-filled .only-empty { display: none !important; }
+
+/* ── TODAY: the date tower, drawn exactly as iOS lays it out ── */
+.a-frow { display: flex; flex-direction: column; gap: 4px; align-items: stretch; width: 135px; }
+.a-frow > * { width: 100%; }
+.a-old {
+  position: relative; display: inline-flex; align-items: center; min-height: calc(1.75 * var(--rem));
+  padding: 0 6px 0 24px; border-radius: 5px; border: 1.5px solid var(--sr-border); background: var(--sr-surface);
+  color: var(--sr-text-muted); font-size: var(--ctl); white-space: nowrap;
+}
+.a-old .ic { position: absolute; left: 7px; font-size: 0.6875em; display: inline-flex; }
+.a-old.to { padding-left: 8px; width: 151px; }       /* iOS paints this one 151px in a 135px box */
+.a-old.sd { min-height: calc(1.625 * var(--rem)); }
+.a-old.bc { height: 26px; min-height: 0; }
+.a-old.cl { min-height: 28px; border-radius: 6px; padding-left: 8px; color: var(--sr-text); width: 100%; }
+.a-old.mp { min-height: 34px; border-radius: 6px; padding-left: 8px; color: var(--sr-text); width: 100%; }
+.a-old .val { display: none; }
+.a-arrow { font-size: calc(0.6875 * var(--rem)); color: var(--sr-text-muted); line-height: 1.6; }
+.a-arrow.cl { font-size: calc(0.75 * var(--rem)); color: var(--sr-text-disabled); }
+.st-filled .a-old { border-color: var(--sr-accent-border-strong); background: var(--sr-accent-bg); color: var(--sr-accent); }
+.st-filled .a-old.cl, .st-filled .a-old.mp { border-color: var(--sr-border); background: var(--sr-surface); color: var(--sr-text); }
+.st-filled .a-old .val { display: inline; }
+
+/* ── PROPOSED: the Where & when block ─────────────────────────────────────
+   One block, its own row in the pill row (flex-basis 100%), three stacked
+   full-width rows: county, From, To. Every control shares the pill's 30px
+   min-height and the block's radius 6, and the same phone text floor. ── */
+.ww { display: flex; flex-wrap: wrap; gap: 6px; flex: 0 0 100%; min-width: 0; margin-top: 2px; }
+.ww .a-sel { width: 100%; min-height: 30px; height: auto; border-radius: 6px; padding-left: 28px; }
+.ww .a-sel .ic { left: 9px; }
+.ww .a-sel .car { right: 9px; }
+.ww-range { display: flex; flex-direction: column; width: 100%; }
+.dfield {
+  position: relative; display: flex; align-items: center; width: 100%; min-height: 30px;
+  padding: 2px 8px 2px 3.75em; border-radius: 6px; border: 1.5px solid var(--sr-border);
+  background: var(--sr-surface); color: var(--sr-text-muted); font-size: var(--ctl); text-align: left;
+  transition: background-color 120ms ease-out, border-color 120ms ease-out, color 120ms ease-out;
+}
+.dfield .lab { position: absolute; left: 10px; font-weight: 600; color: var(--sr-text-muted); transition: color 120ms ease-out; }
+.dfield .val { display: none; color: var(--sr-accent); }
+.dfield.mp { min-height: 34px; }
+/* focus: the app's border-hugging input ring */
+.dfield:focus { outline: 2px solid var(--sr-accent); outline-offset: 0; z-index: 1; }
+.dfield:focus-visible { outline: 2px solid var(--sr-accent); outline-offset: 0; }
+.app .a-sel:focus, .app .a-pill:focus, .app .a-seg-btn:focus, .app .a-toggle:focus { outline: 2px solid var(--sr-accent); outline-offset: 0; }
+/* joined pair (default): shared edge, outer radius only; the filled/focused half wins the join */
+.ww-range .dfield:first-child { border-radius: 6px 6px 0 0; }
+.ww-range .dfield + .dfield { border-radius: 0 0 6px 6px; margin-top: -1.5px; }
+.st-filled .ww .dfield { border-color: var(--sr-accent-border-strong); background: var(--sr-accent-bg); color: var(--sr-accent); z-index: 1; }
+.st-filled .ww .dfield .lab { color: var(--sr-accent); }
+.st-filled .ww .dfield .val { display: inline; }
+/* separate pair (page control) */
+.pair-sep .ww-range { gap: 6px; }
+.pair-sep .ww-range .dfield { border-radius: 6px; margin-top: 0; }
+/* Checklists variant: plain text colour like its neighbours, count row */
+.ww.cl .a-sel { padding-left: 10px; color: var(--sr-text); }
+.ww.cl .a-sel .ic { display: none; }
+.ww .a-sel.mp { padding-left: 10px; }
+.ww .count { width: 100%; text-align: right; font-size: calc(0.75 * var(--rem)); color: var(--sr-text-muted); font-weight: 500; margin-top: 2px; }
+/* Species Detail: Clear filter under the block */
+.a-clear { background: none; border: 0; padding: 0 2px; min-height: 24px; color: var(--sr-accent); font-size: var(--ctl); text-decoration: underline; }
+.ww .a-clear { width: auto; }
+/* Proposed frames hide the pill-row separators on phones (a whole-row change) */
+.proposed .a-sep { display: none; }
+
+/* Table / list bits under the rows */
+.a-meta { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 14px; font-size: calc(0.75 * var(--rem)); color: var(--sr-text-muted); }
+.a-meta .a-pill { color: var(--sr-text-muted); }
+.a-card { margin-top: 12px; border: 1px solid var(--sr-border); border-radius: 12px; background: var(--sr-surface); box-shadow: var(--sr-card-shadow); overflow: hidden; }
+.a-th { display: flex; justify-content: space-between; padding: 10px 14px; font-size: calc(0.6875 * var(--rem)); font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--sr-text-muted); background: var(--sr-surface-faint); border-bottom: 1px solid var(--sr-border); }
+.a-th b { color: var(--sr-accent); font-weight: 700; }
+.a-tr { display: flex; justify-content: space-between; align-items: center; padding: 8px 14px; border-bottom: 1px solid var(--sr-border-subtle); }
+.a-tr .nm { font-size: calc(0.84375 * var(--rem)); color: var(--sr-text); font-weight: 500; }
+.a-tr .nm .e { color: var(--sr-accent); font-weight: 700; margin-left: 6px; }
+.a-tr .sci { font-style: italic; font-size: calc(0.71875 * var(--rem)); color: var(--sr-text-gray); }
+.a-tr .n { color: var(--sr-accent); font-weight: 600; font-size: calc(0.84375 * var(--rem)); width: 3em; text-align: center; }
+.a-tr .n.dash { color: var(--sr-text-disabled); }
+
+/* Checklists card rows */
+.a-clcard { border: 1px solid var(--sr-border); border-radius: 12px; background: var(--sr-surface); box-shadow: var(--sr-card-shadow); padding: 14px 18px; }
+.a-clcard .a-row + .a-row { margin-top: 10px; }
+.a-rlab { font-size: var(--ctl); font-weight: 600; color: var(--sr-text-muted); min-width: 72px; }
+.a-clcard .a-sel.plain { color: var(--sr-text); }
+.a-strip { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px 18px; background: var(--sr-accent-bg); border-bottom: 1px solid var(--sr-border-subtle); font-size: calc(0.75 * var(--rem)); color: var(--sr-accent-strong); margin: 12px -20px 0; }
+.a-strip .a-clear { margin-left: auto; }
+/* the stacked "today" Where & when row: label, county, From, arrow, To, count as six full-width lines */
+.a-stack { display: flex; flex-direction: column; align-items: stretch; gap: 6px; margin-top: 10px; }
+.a-stack > * { width: 100%; }
+.a-stack .a-rlab { min-width: 0; }
+.a-stack .cnt { text-align: right; font-size: calc(0.75 * var(--rem)); color: var(--sr-text-muted); font-weight: 500; }
+
+/* Species Detail header */
+.a-sdh { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+.a-sdh .lbl { font-size: calc(0.6875 * var(--rem)); font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--sr-text-muted); }
+.a-combo { display: flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 12px; border: 1.5px solid var(--sr-border); border-radius: 8px; background: var(--sr-surface); color: var(--sr-text); font-size: calc(0.9375 * var(--rem)); font-weight: 600; }
+.a-combo .sci { font-weight: 400; font-style: italic; color: var(--sr-text-gray); font-size: 0.8em; }
+.a-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 14px; }
+.a-stat { border: 1px solid var(--sr-border); border-radius: 10px; padding: 8px 10px; background: var(--sr-surface); }
+.a-stat .k { font-size: calc(0.625 * var(--rem)); font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--sr-text-muted); }
+.a-stat .v { font-size: calc(1.125 * var(--rem)); font-weight: 700; color: var(--sr-text); letter-spacing: -0.01em; }
+
+/* Map Explorer sidebar */
+.a-mapbg { background: var(--sr-map); padding: 14px 12px 20px; min-height: 100%; }
+.a-side { width: 282px; background: var(--sr-surface); border: 1px solid var(--sr-border); border-radius: 10px; box-shadow: var(--sr-card-shadow); padding: 10px 16px 14px; }
+.a-side .lbl { font-size: max(calc(16px * 11 / 12), calc(0.75 * var(--rem) * 11 / 12)); font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--sr-text-muted); margin: 10px 0 6px; }
+.a-side .lbl:first-child { margin-top: 0; }
+.a-side .a-frow { width: 100%; gap: 8px; }
+.a-side .a-combo { min-height: 34px; font-size: var(--ctl); font-weight: 400; color: var(--sr-text-muted); border-radius: 6px; }
+.a-segc { display: inline-flex; background: var(--sr-surface-subtle); border-radius: 6px; padding: 2px; gap: 2px; }
+.a-segc span { padding: 0.35rem 10px; border-radius: 5px; font-size: var(--ctl); color: var(--sr-text-muted); border: 1px solid transparent; }
+.a-segc span.on { background: var(--sr-surface); border-color: var(--sr-border); color: var(--sr-text); font-weight: 600; }
+.a-side .ww { margin-top: 0; }
+
+/* Reduced motion: every transition off */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation: none !important; }
+}
+@media (max-width: 480px) {
+  .wrap { padding-inline: 16px; }
+  .frames { margin-inline: -16px; padding-inline: 16px; }
+}
+</style>
+</head>
+<body class="">
+<div class="wrap">
+  <header class="hero">
+    <p class="eyebrow">SnowRaven · Approved design · county-date-filter-mobile</p>
+    <h1>Where and when, on a phone</h1>
+    <p class="lede">On phones the county picker and the date range leave the pill cloud and become one aligned block: county on top, then a joined From row and To row that say what they are even when empty. Approved 2026-09-22 with the joined pair, the Map Explorer sidebar tinting when set, and the Checklists separators hidden too. Desktop and iPad do not change.</p>
+    <div class="bar" role="group" aria-label="Mockup controls">
+      <div class="grp"><span>Fields</span>
+        <div class="seg" role="group" aria-label="Filter state">
+          <button type="button" data-set="state" data-val="empty" aria-pressed="true">Empty (what most users see)</button>
+          <button type="button" data-set="state" data-val="filled" aria-pressed="false">Filled: Contra Costa, Mar 1 to Jun 30 2025</button>
+        </div>
+      </div>
+      <div class="grp"><span>Date pair</span>
+        <div class="seg" role="group" aria-label="Date pair style">
+          <button type="button" data-set="pair" data-val="joined" aria-pressed="true">Joined <span class="rec">approved</span></button>
+          <button type="button" data-set="pair" data-val="sep" aria-pressed="false">Two fields (for reference only)</button>
+        </div>
+      </div>
+      <div class="grp"><span>Tip: click or tab into a proposed field to see its focus ring.</span></div>
+    </div>
+  </header>
+
+  <section id="mm">
+    <h2>Multimedia</h2>
+    <p class="sub">The reported screen. Today the county sits beside a narrow tower of two blank boxes and an arrow, and five separators hang off line ends. Approved: the block takes its own row under the pills, and the separators are hidden on phones.</p>
+    <div class="frames" id="f-mm"></div>
+    <h3>Same design at 320px, at 200% in-app text size, and in the dark theme</h3>
+    <div class="frames" id="f-mm2"></div>
+  </section>
+
+  <section id="bc">
+    <h2>Breeding Codes</h2>
+    <p class="sub">Today the county lands on the sort line and the date tower wraps alone beneath it. Proposed: identical block, own row.</p>
+    <div class="frames" id="f-bc"></div>
+  </section>
+
+  <section id="sd">
+    <h2>Species Detail</h2>
+    <p class="sub">This is the surface photographed for the App Store. Proposed: the block, with Clear filter on its own line beneath it when a filter is on.</p>
+    <div class="frames" id="f-sd"></div>
+  </section>
+
+  <section id="cl">
+    <h2>Checklists</h2>
+    <p class="sub">Today the "Where &amp; when" row stacks into six lines with the arrow on a line of its own. Approved: the label, the block, and the count. The two thin separators in the rows above are hidden on phones as well, the same whole-row change as Multimedia.</p>
+    <div class="frames" id="f-cl"></div>
+  </section>
+
+  <section id="mp">
+    <h2>Map Explorer sidebar</h2>
+    <p class="sub">The layout here was already fine. Approved: each field says From or To inside it, the two are joined into one pair, and they tint green when set, like the other four tabs. The county picker here stays as it is.</p>
+    <div class="frames" id="f-mp"></div>
+  </section>
+
+  <section id="what">
+    <h2>What changes, in plain words</h2>
+    <div class="changes">
+      <div class="change"><b>One block, its own row</b><p>On phones the county picker and the date range drop out of the pill cloud onto a row of their own: county, then From, then To, all full width and all the same height as the pills beside them.</p></div>
+      <div class="change"><b>Empty fields say what they are</b><p>The word From or To sits inside each date field. It turns green with the field once a date is chosen. The lone arrow goes; the words do its job.</p></div>
+      <div class="change"><b>No dangling lines</b><p>The thin separators between pill groups are hidden on phones, on Multimedia's whole row and on Checklists' two rows. On one line they help; in a wrapped cloud they land at line ends and look broken.</p></div>
+      <div class="change"><b>What stays the same</b><p>The pickers are still the phone's own county and date pickers. Filtering, results, desktop and iPad are untouched.</p></div>
+    </div>
+  </section>
+</div>
+
+<script>
+(function () {
+  const I = {
+    pin: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>',
+    cal: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>',
+    cam: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>',
+    mic: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v3"/></svg>',
+    vid: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m22 8-6 4 6 4V8Z"/><rect x="2" y="6" width="14" height="12" rx="2"/></svg>',
+    tgt: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>',
+    msg: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>',
+    chev: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>',
+    pushpin: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 17v5M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"/></svg>',
+    horiz: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m18 8 4 4-4 4M6 8l-4 4 4 4M2 12h20"/></svg>',
+    up: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 7-7 7 7M12 19V5"/></svg>',
+    search: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>',
+  };
+  const pill = (t, on, ic) => `<button type="button" class="a-pill${on ? ' on' : ''}">${ic || ''}${t}</button>`;
+  const sep = '<span class="a-sep" aria-hidden="true"></span>';
+  const toggle = t => `<button type="button" class="a-toggle" role="switch" aria-checked="false"><span class="trk"></span>${t}</button>`;
+  const seg = (a, b) => `<div class="a-seg" role="group" aria-label="Sort order"><button type="button" class="a-seg-btn on">${a}</button><button type="button" class="a-seg-btn">${b}</button></div>`;
+
+  // County select, drawn. cls: register modifier (sd, bc, plain, mp)
+  const county = (cls, capsAll) => `<button type="button" class="a-sel county ${cls || ''}" aria-label="County"><span class="ic">${I.pin}</span><span class="v1">${capsAll ? 'All Counties' : 'All counties'}</span><span class="v2">Contra Costa</span><span class="car">&#9662;</span></button>`;
+
+  // TODAY's date tower (the .sr-field-row stacked inside a shrink-to-fit item)
+  const towerOld = (cls) => `<div class="a-frow">
+      <span class="a-old ${cls || ''}" aria-label="From date"><span class="ic">${I.cal}</span><span class="val">Mar 1, 2025</span></span>
+      <span class="a-arrow" aria-hidden="true">&rarr;</span>
+      <span class="a-old to ${cls || ''}" aria-label="To date"><span class="val">Jun 30, 2025</span></span>
+    </div>`;
+
+  // PROPOSED block
+  const rangeNew = (cls) => `<div class="ww-range" role="group" aria-label="Date range">
+      <button type="button" class="dfield ${cls || ''}" aria-label="From date"><span class="lab">From</span><span class="val">Mar 1, 2025</span></button>
+      <button type="button" class="dfield ${cls || ''}" aria-label="To date"><span class="lab">To</span><span class="val">Jun 30, 2025</span></button>
+    </div>`;
+  const wwNew = (opts) => `<div class="ww ${opts.cls || ''}">${opts.noCounty ? '' : county(opts.countyCls, opts.capsAll)}${rangeNew(opts.fieldCls)}${opts.tail || ''}</div>`;
+
+  // ── Surfaces ─────────────────────────────────────────────────────────
+  const mmPills = `${pill('All', true)}${pill('Has media')}${pill('Is Target', false, I.tgt)}${sep}
+    ${pill('No photo', false, I.cam)}${pill('No audio', false, I.mic)}${pill('No video', false, I.vid)}${sep}
+    ${pill('Has photo', false, I.cam)}${pill('Has audio', false, I.mic)}${pill('Has video', false, I.vid)}${sep}
+    <button type="button" class="a-sel" aria-label="Sex" style="padding-left:12px">Any sex<span class="car">&#9662;</span></button>
+    <button type="button" class="a-sel" aria-label="Age" style="padding-left:12px">Any age<span class="car">&#9662;</span></button>${sep}
+    ${seg('A&ndash;Z', 'Taxonomic')}${sep}
+    ${toggle('Show subspecies')}${toggle('Show all forms')}${toggle('Show non-bird')}${sep}`;
+  const mmTail = `<div class="a-meta"><span class="only-empty">271 species</span><span class="only-filled">64 species</span>${pill('Pin column labels', false, I.pushpin)}${pill('Unbounded', false, I.horiz)}</div>
+    <div class="a-card">
+      <div class="a-th"><span>Entries <b>${I.up}</b></span><span>${I.cam} Photo</span></div>
+      <div class="a-tr"><div><div class="nm">Acorn Woodpecker<span class="e">e</span></div><div class="sci">Melanerpes formicivorus</div></div><div class="n">7</div></div>
+      <div class="a-tr"><div><div class="nm">Allen's Hummingbird<span class="e">e</span></div><div class="sci">Selasphorus sasin</div></div><div class="n">26</div></div>
+      <div class="a-tr"><div><div class="nm">American Avocet<span class="e">e</span></div><div class="sci">Recurvirostra americana</div></div><div class="n dash">&mdash;</div></div>
+    </div>`;
+  const mmBanner = `<div class="a-banner"><span class="ic">${I.msg}</span>368 media comments are searchable below the table.<div class="jump">Jump to comments ${I.chev}</div></div>`;
+  const mmToday = `${mmBanner}<div class="a-row">${mmPills}${county('', true)}${towerOld('')}</div>${mmTail}`;
+  const mmProp = `${mmBanner}<div class="a-row">${mmPills}${wwNew({ capsAll: true })}</div>${mmTail}`;
+
+  const bcPills = `${pill('NY Nest with young')}${pill('FL Recently fledged')}${pill('ON Occupied nest')}${pill('CN Carrying nesting material')}${pill('S Singing bird')}${seg('A&ndash;Z', 'Taxonomic')}${sep}`;
+  const bcTail = `<div class="a-meta"><span class="only-empty">112 species with codes</span><span class="only-filled">38 species with codes</span>${pill('Unbounded', false, I.horiz)}</div>
+    <div class="a-card"><div class="a-th"><span>Species <b>${I.up}</b></span><span>NB &nbsp; CN &nbsp; NY &nbsp; FL</span></div>
+      <div class="a-tr"><div><div class="nm">Bushtit</div><div class="sci">Psaltriparus minimus</div></div><div class="n">4</div></div>
+      <div class="a-tr"><div><div class="nm">Oak Titmouse</div><div class="sci">Baeolophus inornatus</div></div><div class="n">2</div></div></div>`;
+  const bcToday = `<div class="a-row">${bcPills}${county('bc', true)}${towerOld('bc')}</div>${bcTail}`;
+  const bcProp = `<div class="a-row">${bcPills}${wwNew({ capsAll: true })}</div>${bcTail}`;
+
+  const sdHead = `<div class="a-sdh"><span class="lbl">Species</span><div class="a-combo">${I.search}Acorn Woodpecker <span class="sci">Melanerpes formicivorus</span></div></div>`;
+  const sdTail = `<div class="a-stats"><div class="a-stat"><div class="k">Checklists</div><div class="v"><span class="only-empty">143</span><span class="only-filled">19</span></div></div><div class="a-stat"><div class="k">First seen</div><div class="v"><span class="only-empty">2016</span><span class="only-filled">Mar 2</span></div></div><div class="a-stat"><div class="k">Last seen</div><div class="v"><span class="only-empty">Sep 14</span><span class="only-filled">Jun 28</span></div></div></div>`;
+  const clearBtn = `<button type="button" class="a-clear only-filled">Clear filter</button>`;
+  const sdToday = `${sdHead}<div class="a-row">${county('sd', true)}${towerOld('sd')}${clearBtn}</div>${sdTail}`;
+  const sdProp = `${sdHead}<div class="a-row">${wwNew({ capsAll: true, tail: clearBtn })}</div>${sdTail}`;
+
+  const clRows = `<div class="a-row">${pill('All', true)}${sep}${pill('Checklist comment')}${pill('Species comments')}${pill('Media')}${pill('Breeding codes')}${pill('Weather block')}${pill('Tide block')}</div>
+    <div class="a-row"><span class="a-rlab">Media type</span>${pill('Photo', false, I.cam)}${pill('Audio', false, I.mic)}${pill('Video', false, I.vid)}${sep}<span class="a-rlab" style="min-width:0">Effort</span>${pill('Complete')}<button type="button" class="a-sel plain" aria-label="Protocol">All protocols</button></div>`;
+  const clCount = `<span class="only-empty">368 checklists</span><span class="only-filled">41 checklists</span>`;
+  const clToday = `<div class="a-clcard">${clRows}<div class="a-stack"><span class="a-rlab">Where &amp; when</span>${county('plain', false)}<span class="a-old cl" aria-label="From date"><span class="val" style="color:var(--sr-text)">Mar 1, 2025</span></span><span class="a-arrow cl" aria-hidden="true">&rarr;</span><span class="a-old cl" aria-label="To date"><span class="val" style="color:var(--sr-text)">Jun 30, 2025</span></span><span class="cnt">${clCount}</span></div></div>
+    <div class="a-strip only-filled">Showing Contra Costa, Mar 1 to Jun 30, 2025 ${clearBtn}</div>`;
+  const clProp = `<div class="a-clcard">${clRows}<div class="a-row" style="margin-top:10px"><span class="a-rlab" style="width:100%">Where &amp; when</span>${wwNew({ cls: 'cl', countyCls: 'plain', capsAll: false, tail: `<span class="count">${clCount}</span>` })}</div></div>
+    <div class="a-strip only-filled">Showing Contra Costa, Mar 1 to Jun 30, 2025 ${clearBtn}</div>`;
+
+  const mpSide = (inner) => `<div class="a-mapbg"><div class="a-side">
+      <div class="lbl">Species</div><div class="a-combo">${I.search}All species</div>
+      <div class="lbl">Date Range</div>${inner}
+      <div class="lbl">County</div>${county('mp', false)}
+      <div class="lbl">Breeding Code</div><div class="a-segc"><span class="on">All</span><span>Possible</span><span>Probable</span><span>Confirmed</span></div>
+    </div></div>`;
+  const mpToday = mpSide(`<div class="a-frow"><span class="a-old mp" aria-label="From date"><span class="val">Mar 1, 2025</span></span><span class="a-old mp" aria-label="To date"><span class="val">Jun 30, 2025</span></span></div>`);
+  const mpProp = mpSide(`<div class="ww">${rangeNew('mp')}</div>`);
+
+  // ── Frame builder ───────────────────────────────────────────────────
+  function frame({ kind, w, rem, theme, title, meta, html, h, pad }) {
+    const tag = kind === 'today' ? '<span class="tag today">Today</span>' : '<span class="tag prop">Proposed</span>';
+    return `<figure class="phone ${theme || 't-light'}" style="--w:${w}px; --rem:${rem || 16}px; --h:${h || 640}px">
+      <figcaption>${tag}<span>${title}</span><span class="meta">${meta || ''}</span></figcaption>
+      <div class="screen ${kind === 'today' ? 'today' : 'proposed'}"><div class="crop"><div class="app" ${pad ? `style="padding:${pad}"` : ''}>${html}</div></div></div>
+    </figure>`;
+  }
+  const put = (id, s) => { document.getElementById(id).innerHTML = s; };
+
+  put('f-mm', frame({ kind: 'today', w: 390, title: 'Multimedia', meta: '390px · 100% text', html: mmToday, h: 700 })
+            + frame({ kind: 'prop', w: 390, title: 'Multimedia', meta: '390px · 100% text', html: mmProp, h: 700 }));
+  put('f-mm2', frame({ kind: 'prop', w: 320, title: 'Multimedia', meta: '320px', html: mmProp, h: 760 })
+             + frame({ kind: 'prop', w: 390, rem: 32, title: 'Multimedia', meta: '390px · 200% text', html: mmProp, h: 900 })
+             + frame({ kind: 'prop', w: 390, theme: 't-dark', title: 'Multimedia', meta: '390px · dark theme', html: mmProp, h: 700 }));
+  put('f-bc', frame({ kind: 'today', w: 390, title: 'Breeding Codes', meta: '390px', html: bcToday, h: 520 })
+            + frame({ kind: 'prop', w: 390, title: 'Breeding Codes', meta: '390px', html: bcProp, h: 520 }));
+  put('f-sd', frame({ kind: 'today', w: 390, title: 'Species Detail', meta: '390px', html: sdToday, h: 420 })
+            + frame({ kind: 'prop', w: 390, title: 'Species Detail', meta: '390px', html: sdProp, h: 420 })
+            + frame({ kind: 'prop', w: 320, title: 'Species Detail', meta: '320px', html: sdProp, h: 420 }));
+  put('f-cl', frame({ kind: 'today', w: 390, title: 'Checklists', meta: '390px', html: clToday, h: 560 })
+            + frame({ kind: 'prop', w: 390, title: 'Checklists', meta: '390px', html: clProp, h: 560 })
+            + frame({ kind: 'prop', w: 390, rem: 32, title: 'Checklists', meta: '390px · 200% text', html: clProp, h: 900 }));
+  put('f-mp', frame({ kind: 'today', w: 330, title: 'Map Explorer', meta: 'sidebar, 282px panel', html: mpToday, h: 420, pad: '0' })
+            + frame({ kind: 'prop', w: 330, title: 'Map Explorer', meta: 'sidebar, 282px panel', html: mpProp, h: 420, pad: '0' })
+            + frame({ kind: 'prop', w: 330, theme: 't-dark', title: 'Map Explorer', meta: 'dark theme', html: mpProp, h: 420, pad: '0' }));
+
+  // ── Page controls ───────────────────────────────────────────────────
+  const state = { state: 'empty', pair: 'joined' };
+  // Linkable presets: #filled, #sep, #filled-sep
+  const hash = (location.hash || '').slice(1).split('-');
+  if (hash.includes('filled')) state.state = 'filled';
+  if (hash.includes('sep')) state.pair = 'sep';
+  function apply() {
+    document.body.classList.toggle('st-filled', state.state === 'filled');
+    document.body.classList.toggle('pair-sep', state.pair === 'sep');
+    document.querySelectorAll('.bar button[data-set]').forEach(b => {
+      b.setAttribute('aria-pressed', String(state[b.dataset.set] === b.dataset.val));
+    });
+  }
+  document.querySelectorAll('.bar button[data-set]').forEach(b => b.addEventListener('click', () => { state[b.dataset.set] = b.dataset.val; apply(); }));
+  apply();
+})();
+</script>
+</body>
+</html>

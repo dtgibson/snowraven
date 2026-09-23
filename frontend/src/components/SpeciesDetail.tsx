@@ -3,13 +3,14 @@ import { Link } from './ui/Link'
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Loader2, ChevronDown, Search, ExternalLink, Image, Mic, Video, Eye,
-  MessageSquare, Dna, MapPin, Play, Calendar, SlidersHorizontal, Share2,
+  MessageSquare, Dna, MapPin, Play, SlidersHorizontal, Share2,
   Tag
 } from 'lucide-react'
 import { SetupRequired } from './SetupRequired'
 import { TabLoadErrorAlert } from './ui/TabLoadErrorAlert'
 import { EBIRD_BACKUP_STEPS, EBIRD_BACKUP_LOAD_ERROR } from './setupCopy'
 import { ToggleSwitch } from './ui/ToggleSwitch'
+import { DateRangeFields } from './ui/DateRangeFields'
 import { loadEbirdObservations } from '../lib/observationsCache'
 import { loadMLExport } from '../lib/mlExportCache'
 import type { MLExportRow } from '../lib/parseMLExport'
@@ -788,84 +789,60 @@ export function SpeciesDetail({ onGoToSettings, onGoToWeather, filesVersion, req
           phone-tier size as the .sr-input-16 county select and date inputs. */}
       {counties.length > 0 && (
         <div className="sr-ctl-row" style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, flexWrap: 'wrap', flexShrink: 0 }}>
-          {/* County dropdown */}
-          <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
-            <MapPin size={12} strokeWidth={2} style={{
-              position: 'absolute', left: 7, color: countyFilter ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
-              pointerEvents: 'none', flexShrink: 0,
-            }} />
-            <select
-              aria-label="County"
-              value={countyFilter ?? ''}
-              onChange={e => setCountyFilter(e.target.value || null)}
-              className="sr-input-16"
-              style={{
-                minHeight: '1.625rem', paddingLeft: 24, paddingRight: 22, borderRadius: 5,
-                border: countyFilter ? '1.5px solid var(--sr-accent-border-strong)' : '1.5px solid var(--sr-border)',
-                background: countyFilter ? 'var(--sr-accent-bg)' : 'var(--sr-surface)',
-                color: countyFilter ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
-                fontSize: '0.75rem', fontWeight: 500, fontFamily: 'inherit',
-                cursor: 'pointer', appearance: 'none', WebkitAppearance: 'none',
-              }}
-            >
-              <option value="">All Counties</option>
-              {counties.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
-            <span style={{ position: 'absolute', right: 6, pointerEvents: 'none', color: countyFilter ? 'var(--sr-accent)' : 'var(--sr-text-muted)', fontSize: '0.5625rem' }}>▾</span>
-          </div>
-
-          {/* Date range */}
-          <div className="sr-field-row" style={{ gap: 4 }}>
-            <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
-              <Calendar size={11} strokeWidth={2} style={{
-                position: 'absolute', left: 7, color: dateRange.from ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
-                pointerEvents: 'none',
+          {/* Where & when (county-date-filter-mobile). Layout-transparent on
+              desktop, so the county, the date range and Clear filter sit in this
+              row exactly as before. On a phone the block takes the row's full
+              width: county on top, the joined From / To pair, then Clear filter
+              on a line of its own beneath them. */}
+          <div className="sr-whenwhere">
+            <div className="sr-whenwhere-county">
+              <MapPin size={12} strokeWidth={2} style={{
+                position: 'absolute', left: 7, color: countyFilter ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
+                pointerEvents: 'none', flexShrink: 0,
               }} />
-              <input
-                type="date"
-                aria-label="From date"
-                value={dateRange.from}
-                onChange={e => setDateRange(prev => ({ ...prev, from: e.target.value }))}
+              <select
+                aria-label="County"
+                value={countyFilter ?? ''}
+                onChange={e => setCountyFilter(e.target.value || null)}
                 className="sr-input-16"
                 style={{
-                  minHeight: '1.625rem', paddingLeft: 24, paddingRight: 6, borderRadius: 5, width: '100%',
-                  border: dateRange.from ? '1.5px solid var(--sr-accent-border-strong)' : '1.5px solid var(--sr-border)',
-                  background: dateRange.from ? 'var(--sr-accent-bg)' : 'var(--sr-surface)',
-                  color: dateRange.from ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
-                  fontSize: '0.75rem', fontFamily: 'inherit',
+                  minHeight: '1.625rem', paddingLeft: 24, paddingRight: 22, borderRadius: 5,
+                  border: countyFilter ? '1.5px solid var(--sr-accent-border-strong)' : '1.5px solid var(--sr-border)',
+                  background: countyFilter ? 'var(--sr-accent-bg)' : 'var(--sr-surface)',
+                  color: countyFilter ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
+                  fontSize: '0.75rem', fontWeight: 500, fontFamily: 'inherit',
+                  cursor: 'pointer', appearance: 'none', WebkitAppearance: 'none',
                 }}
-              />
+              >
+                <option value="">All Counties</option>
+                {counties.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+              <span style={{ position: 'absolute', right: 6, pointerEvents: 'none', color: countyFilter ? 'var(--sr-accent)' : 'var(--sr-text-muted)', fontSize: '0.5625rem' }}>▾</span>
             </div>
-            <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)' }}>→</span>
-            <input
-              type="date"
-              aria-label="To date"
-              value={dateRange.to}
-              onChange={e => setDateRange(prev => ({ ...prev, to: e.target.value }))}
-              className="sr-input-16"
-              style={{
-                minHeight: '1.625rem', paddingLeft: 8, paddingRight: 6, borderRadius: 5,
-                border: dateRange.to ? '1.5px solid var(--sr-accent-border-strong)' : '1.5px solid var(--sr-border)',
-                background: dateRange.to ? 'var(--sr-accent-bg)' : 'var(--sr-surface)',
-                color: dateRange.to ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
-                fontSize: '0.75rem', fontFamily: 'inherit',
-              }}
-            />
-          </div>
 
-          {hasLocationFilter && (
-            <Button
-              onClick={() => { setCountyFilter(null); setDateRange({ from: '', to: '' }) }}
-              style={{
-                background: 'none', border: 'none', cursor: 'pointer',
-                fontSize: '0.75rem', color: 'var(--sr-accent)', fontFamily: 'inherit',
-                padding: '0 2px', minHeight: 24, display: 'inline-flex', alignItems: 'center',
-                textDecoration: 'underline',
-              }}
-            >
-              Clear filter
-            </Button>
-          )}
+            <DateRangeFields
+              register="species-detail"
+              from={dateRange.from}
+              to={dateRange.to}
+              onFrom={from => setDateRange(prev => ({ ...prev, from }))}
+              onTo={to => setDateRange(prev => ({ ...prev, to }))}
+            />
+
+            {hasLocationFilter && (
+              <Button
+                className="sr-whenwhere-tail"
+                onClick={() => { setCountyFilter(null); setDateRange({ from: '', to: '' }) }}
+                style={{
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  fontSize: '0.75rem', color: 'var(--sr-accent)', fontFamily: 'inherit',
+                  padding: '0 2px', minHeight: 24, display: 'inline-flex', alignItems: 'center',
+                  textDecoration: 'underline',
+                }}
+              >
+                Clear filter
+              </Button>
+            )}
+          </div>
         </div>
       )}
 

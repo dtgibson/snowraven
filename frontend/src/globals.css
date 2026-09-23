@@ -3525,6 +3525,124 @@ select:focus-visible {
    beside it. */
 .sr-chk-row-label.sr-chk-row-label--auto { width: auto; }
 
+/* ── Pill-row separators (county-date-filter-mobile) ──────────────────────────
+   The 1 x 20 rule between groups of pills, lifted verbatim off the inline
+   objects that drew it (Multimedia's `pillSep`, the two on Breeding Codes, the
+   two on Checklists) so the <=640 tier can hide it: a fixed-size flex item in a
+   wrapping row lands at the end of a line whenever the row wraps, where it
+   separates nothing. Desktop is byte-identical. Checklists' copies carried a
+   3px side margin, kept as a modifier rather than inline. */
+.sr-pill-sep { width: 1px; height: 20px; background: var(--sr-border); flex-shrink: 0; align-self: center; }
+.sr-pill-sep--spaced { margin: 0 3px; }
+
+/* ── Where & when: the county picker and the date range ───────────────────────
+   (county-date-filter-mobile; the shared pair is components/ui/DateRangeFields.tsx)
+
+   ONE register on a phone, FIVE on desktop. The same county + "from, to" pair
+   was drawn by hand on five surfaces and had drifted into five desktop
+   drawings; desktop and iPad must render each exactly as before, while the
+   <=640 tier gives all five one aligned block (the phone rules live in the
+   established tier further down).
+
+   Every desktop rule below is wrapped in `:where()`, which has ZERO
+   specificity. That is deliberate and load-bearing: these are the registers'
+   defaults, and the phone tier overrides them with ordinary class selectors and
+   no `!important`, whatever the specificity of the desktop selector it is
+   overriding. Among themselves they are all (0,0,0), so SOURCE ORDER decides:
+   every surface-specific and set-state rule follows the base it refines. The
+   one thing a zero-specificity rule is exposed to is any other unlayered rule
+   that can reach the same element, and there is exactly one: the global
+   `input:focus-visible` ring, which also beat the inline styles these replace
+   (its border colour is `!important`). Tailwind's preflight is layered and
+   loses to both.
+
+   The values are the inline styles they replace, verbatim, per surface: the
+   three pill-row pairs (Multimedia, Species Detail, Breeding Codes) differ only
+   in height and in whether the From field stretches, which is also why a
+   register is chosen per call site rather than inferred. */
+
+/* The block and its county wrapper: layout-transparent on desktop, so every
+   control stays a flex item of its row exactly as before. The county wrapper is
+   the icon wrapper the three pill-row surfaces already drew inline; Checklists'
+   select had no wrapper, so its wrapper stays transparent. */
+:where(.sr-whenwhere) { display: contents; }
+:where(.sr-whenwhere-county) { position: relative; display: inline-flex; align-items: center; }
+:where(.sr-whenwhere-county--bare) { display: contents; }
+/* Checklists' drawn caret exists for the phone tier only, where the county
+   select's native control is removed (below); desktop keeps the native one. */
+:where(.sr-whenwhere-caret) { display: none; }
+
+/* The pair. The pill-row group was a `.sr-field-row` with an inline 4px gap; it
+   stops using that class because the class's <=480 stacking is what built the
+   reported tower, and restates its base declarations here instead. Checklists'
+   inputs were direct children of their row, so that group is transparent. The
+   Map sidebar's group keeps `.sr-field-row` itself (see the component). */
+:where(.sr-daterange--inline) { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+:where(.sr-daterange--checklists) { display: contents; }
+
+/* Fields are transparent except the pill-row From field, which was a real
+   wrapper holding the Calendar glyph. Multimedia's alone carried min-width: 0. */
+:where(.sr-daterange-field) { display: contents; }
+:where(.sr-daterange--inline > .sr-daterange-field:first-child) { position: relative; display: inline-flex; align-items: center; }
+:where(.sr-daterange--multimedia > .sr-daterange-field:first-child) { min-width: 0; }
+
+/* The visible From / To word is phone-tier only; desktop keeps the glyph and
+   the arrow. */
+:where(.sr-daterange-word) { display: none; }
+:where(.sr-daterange--inline > .sr-daterange-arrow) { font-size: 0.6875rem; color: var(--sr-text-muted); }
+:where(.sr-daterange--checklists > .sr-daterange-arrow) { font-size: 0.75rem; color: var(--sr-text-disabled); }
+
+/* The inputs, pill-row trio: shared chrome, then each surface's own height. */
+:where(.sr-daterange--inline .sr-daterange-input) {
+  padding-left: 8px;
+  padding-right: 6px;
+  border-radius: 5px;
+  border: 1.5px solid var(--sr-border);
+  background: var(--sr-surface);
+  color: var(--sr-text-muted);
+  font-size: 0.75rem;
+  font-family: inherit;
+}
+:where(.sr-daterange--inline > .sr-daterange-field:first-child > .sr-daterange-input) { padding-left: 24px; }
+:where(.sr-daterange--multimedia .sr-daterange-input) { min-height: 1.75rem; }
+:where(.sr-daterange--multimedia > .sr-daterange-field:first-child > .sr-daterange-input) { width: 100%; }
+:where(.sr-daterange--species-detail .sr-daterange-input) { min-height: 1.625rem; }
+:where(.sr-daterange--species-detail > .sr-daterange-field:first-child > .sr-daterange-input) { width: 100%; }
+:where(.sr-daterange--breeding-codes .sr-daterange-input) { height: 26px; }
+/* Set: the accent tint these three already drew inline. Checklists and the Map
+   sidebar never tinted on desktop and still do not. */
+:where(.sr-daterange--inline .sr-daterange-field[data-set="true"] > .sr-daterange-input) {
+  border-color: var(--sr-accent-border-strong);
+  background: var(--sr-accent-bg);
+  color: var(--sr-accent);
+}
+/* Checklists: the row's shared `selectStyle`, verbatim. */
+:where(.sr-daterange--checklists .sr-daterange-input) {
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 6px;
+  border: 1.5px solid var(--sr-border);
+  background: var(--sr-surface);
+  color: var(--sr-text);
+  font-size: 0.75rem;
+  font-family: inherit;
+  max-width: 100%;
+}
+/* Map Explorer sidebar: the panel's 34px register, two fields sharing the row. */
+:where(.sr-daterange--map-sidebar .sr-daterange-input) {
+  flex: 1;
+  height: 34px;
+  padding: 0 8px;
+  border: 1.5px solid var(--sr-border);
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-family: inherit;
+  color: var(--sr-text);
+  background: var(--sr-surface);
+  min-width: 0;
+  box-sizing: border-box;
+}
+
 /* ── Respect reduced-motion: kill the spinner animation and any transitions/animations
    for users who ask the OS to minimize motion. */
 @media (prefers-reduced-motion: reduce) {
@@ -4877,6 +4995,167 @@ select:focus-visible {
      declarations, so a divergence between them would be the bug returning by
      the other route. */
   .sr-map-sidebar-overlay .sr-field-row > *:not(.sr-only) { width: 100%; }
+
+  /* ── Where & when on a phone (county-date-filter-mobile) ─────────────────────
+     THE DEFECT this replaces, measured on the iOS simulator and in both desktop
+     engines: the pill-row date group was a `.sr-field-row`, whose <=480 rule
+     stacks its children at `width: 100%`. That rule was written for a row that
+     is full width on its own, and here the group was a SHRINK-TO-FIT item inside
+     the wrapping pill row, so "100%" meant the group's own narrow width: a
+     130-176px tower of blank box, lone arrow, blank box, with the county centred
+     against it. So the block below never uses `.sr-field-row` (it has six
+     consumers and is not redefined); it takes a full row of its own instead.
+
+     Layout: the block is the last row of whatever row it sits in (flex-basis
+     100%), holding the county picker, then the date pair, then an optional tail
+     (Species Detail's Clear filter, Checklists' count), each a full-width line.
+     `:not(.sr-only)` on the universal-child width rule is load-bearing, not
+     tidying: an absolutely positioned visually-hidden live region reached by
+     `width: 100%` resolves it against its containing block and leaks page
+     horizontal scroll (v1.0.4). No rule here sets a positive `min-width`.
+
+     The pair stacks at EVERY phone width, never side by side: an iOS date input
+     paints about 151px at 16px text whatever its box, so two plus a visible word
+     cannot fit a 320px or a 402px content box, and a side-by-side layout would be
+     one layout on big phones and another at 320px and 200% text. The two fields
+     are JOINED: one shared 1.5px edge, outer radius only, and a set or focused
+     field wins that edge by z-index, contained by the pair's own stacking context
+     so it can never paint over a pinned table band scrolling past.
+
+     THE FIELD, NOT THE INPUT, IS THE VISIBLE CONTROL ON A PHONE, and the word
+     "From" / "To" is an in-flow item beside a borderless input that fills the
+     rest. Measured, not preferred: the design first placed the word absolutely
+     inside a fixed 3.75em input padding, and at 320px / 200% text the value was
+     CLIPPED on the two narrowest boxes (Checklists' card leaves the field 234px,
+     the Map sidebar 249px), in both engines on Checklists and in Chromium on the
+     Map. The width a word-plus-value line needs depends on the engine (Chromium
+     reserves about 200px at 24px text for "mm/dd/yyyy" and its picker, WebKit
+     about 140px) and on the locale's date format, which is exactly the
+     incompressible pair no slot width or breakpoint can express (ui.md, v1.0.22).
+     So the field WRAPS: the value sits beside the word wherever it fits and drops
+     beneath it where it does not, decided by the layout engine from the real
+     content. The word takes a fixed 2.6em so both fields of a pair wrap under
+     the same condition and never disagree. Every shipped WebKit configuration
+     from 320px to 402px keeps one line except Checklists at 320px / 200%;
+     Chromium wraps at 320px / 200% and in the Map sidebar at 390px / 200%.
+
+     The pair is a BLOCK, not a flex column, and that is load-bearing too: as a
+     column flex item deep inside the wrapping pill row, WebKit measured each
+     field's height at an intrinsic width where word and value sat on two lines
+     and kept it, so the single line stretched to 55px at 100% text (Chromium did
+     the same once the field was size-contained). A block lays each field out at
+     its real width. No containment is needed in this shape: the input's own
+     min-content no longer carries a fixed word slot, and the page measured clean
+     without it in both engines.
+
+     The word is a real `<label for>`: a tap on it focuses the input. The focus
+     ring the global input rule would draw around the borderless input is moved to
+     the field, as the same outline and border colour, so the ring is on the box
+     the user sees; `:focus-within` rather than `:has()`, so the ring can never be
+     lost where `:has()` is unsupported while the input's own is suppressed.
+
+     Heights: every field takes the pill register's 30px as a MINIMUM (the Map
+     sidebar keeps its 34px panel register), so 200% text grows the rows rather
+     than clipping them. The county select still carries inline geometry, which is
+     why its rule alone needs `!important`; the date inputs' desktop values sit
+     under `:where()` and yield without it.
+
+     Motion: the pill's own 120ms ease-out colour fade when a field is set or
+     cleared; the global prefers-reduced-motion block collapses it. */
+  .sr-whenwhere { display: flex; flex-wrap: wrap; gap: 6px; flex: 0 0 100%; min-width: 0; margin-top: 2px; }
+  .sr-whenwhere > *:not(.sr-only) { width: 100%; }
+  .sr-whenwhere-county { position: relative; display: flex; align-items: center; }
+  /* `appearance: none` is what makes the 30px minimum REAL in WebKit: desktop
+     WebKit and iOS ignore `min-height` on a natively drawn select, so Checklists'
+     county (the one select in the block with no `appearance: none` of its own)
+     rendered 23px on desktop WebKit and 29px on iOS while Chromium and the other
+     three surfaces measured 30px. It sits on the SHARED rule so any select that
+     joins the block is covered; the other three already declare it inline, so
+     they do not change. Removing the native control removes its caret, so every
+     county wrapper draws one, in the 22px gutter the three already reserve. */
+  .sr-whenwhere-county > select {
+    width: 100% !important;
+    height: auto !important;
+    min-height: 30px !important;
+    border-radius: 6px !important;
+    padding-right: 22px !important;
+    -webkit-appearance: none;
+    appearance: none;
+    transition: background-color 120ms ease-out, border-color 120ms ease-out, color 120ms ease-out;
+  }
+  /* Checklists' caret, the same glyph, size, inset and tint as the other three
+     surfaces' inline carets. */
+  .sr-whenwhere-caret {
+    display: block;
+    position: absolute;
+    right: 6px;
+    pointer-events: none;
+    font-size: 0.5625rem;
+    color: var(--sr-text-muted);
+    transition: color 120ms ease-out;
+  }
+  .sr-whenwhere-county[data-set="true"] > .sr-whenwhere-caret { color: var(--sr-accent); }
+  .sr-whenwhere > .sr-whenwhere-tail { flex: 0 0 100%; width: auto; }
+  .sr-whenwhere > .sr-whenwhere-count { text-align: right; }
+
+  .sr-daterange { display: block; width: 100%; isolation: isolate; }
+  .sr-daterange-arrow { display: none; }
+  .sr-daterange-glyph { display: none; }
+  .sr-daterange-field {
+    position: relative;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    min-height: 30px;
+    padding: 2px 8px 2px 10px;
+    border: 1.5px solid var(--sr-border);
+    border-radius: 6px;
+    background: var(--sr-surface);
+    transition: background-color 120ms ease-out, border-color 120ms ease-out, color 120ms ease-out;
+  }
+  .sr-daterange--map-sidebar .sr-daterange-field { min-height: 34px; }
+  .sr-daterange-field:first-child { border-radius: 6px 6px 0 0; }
+  .sr-daterange-field ~ .sr-daterange-field { margin-top: -1.5px; border-radius: 0 0 6px 6px; }
+  .sr-daterange-field[data-set="true"],
+  .sr-daterange-field:focus-within { z-index: 1; }
+  .sr-daterange-field[data-set="true"] {
+    border-color: var(--sr-accent-border-strong);
+    background: var(--sr-accent-bg);
+  }
+  .sr-daterange-field:focus-within { border-color: var(--sr-accent); outline: 2px solid var(--sr-accent); outline-offset: 0; }
+  .sr-daterange-word {
+    display: block;
+    flex: 0 0 2.6em;
+    margin-inline-end: 0.4em;
+    font-weight: 600;
+    color: var(--sr-text-muted);
+    transition: color 120ms ease-out;
+  }
+  .sr-daterange-field[data-set="true"] > .sr-daterange-word { color: var(--sr-accent); }
+  .sr-daterange-field > .sr-daterange-input {
+    flex: 1 1 auto;
+    align-self: stretch;
+    width: auto;
+    min-width: 0;
+    height: auto;
+    min-height: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    /* The field's own background, never `transparent`: WebKit draws an EMPTY
+       date input's parts as a grey placeholder only over an opaque background,
+       and over a transparent one paints today's date in full text colour, which
+       reads as a filter that is set (measured in desktop WebKit). */
+    background: inherit;
+    text-align: left;
+    transition: color 120ms ease-out;
+  }
+  .sr-daterange-field[data-set="true"] > .sr-daterange-input { color: var(--sr-accent); }
+  .sr-daterange-field > .sr-daterange-input:focus-visible { outline: none; box-shadow: none; }
+  /* iOS draws a date input's value in this inner box and CENTRES it by default;
+     the block reads left-aligned beside (or under) the word. */
+  .sr-daterange-field > .sr-daterange-input::-webkit-date-and-time-value { text-align: left; }
+  .sr-pill-sep { display: none; }
 
   /* Breeding Codes matrix on a phone: narrow each code column from 44px to ~30px
      (the 28px count dot + ~1px breathing room each side), roughly halving the

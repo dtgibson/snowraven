@@ -16,6 +16,7 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'r
 import { AlertCircle, Binoculars, Camera, ChevronDown, Crosshair, Filter, Info, Loader2, LocateFixed, Maximize2, Minimize2, MapPin, Search, X } from 'lucide-react'
 import { SetupRequired } from './SetupRequired'
 import { TabLoadErrorAlert } from './ui/TabLoadErrorAlert'
+import { DateRangeFields } from './ui/DateRangeFields'
 import { EBIRD_BACKUP_STEPS, EBIRD_BACKUP_LOAD_ERROR } from './setupCopy'
 import { loadEbirdObservations } from '../lib/observationsCache'
 import { loadMLExport } from '../lib/mlExportCache'
@@ -2062,12 +2063,17 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
               {/* Date range */}
               <div style={{ marginBottom: 12 }}>
                 <SidebarLabel ctlRem="0.75rem">Date Range</SidebarLabel>
-                <div className="sr-field-row">
-                  <input className="sr-input-16" type="date" aria-label="From date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
-                    style={{ flex: 1, height: 34, padding: '0 8px', border: '1.5px solid var(--sr-border)', borderRadius: 6, fontSize: '0.75rem', fontFamily: 'inherit', color: 'var(--sr-text)', background: 'var(--sr-surface)', minWidth: 0, boxSizing: 'border-box' }} />
-                  <input className="sr-input-16" type="date" aria-label="To date" value={dateTo} onChange={e => setDateTo(e.target.value)}
-                    style={{ flex: 1, height: 34, padding: '0 8px', border: '1.5px solid var(--sr-border)', borderRadius: 6, fontSize: '0.75rem', fontFamily: 'inherit', color: 'var(--sr-text)', background: 'var(--sr-surface)', minWidth: 0, boxSizing: 'border-box' }} />
-                </div>
+                {/* The shared pair at this panel's 34px register: side by side on
+                    desktop as before; on a phone the joined From / To pair, with
+                    the words inside and the accent tint when set
+                    (county-date-filter-mobile). */}
+                <DateRangeFields
+                  register="map-sidebar"
+                  from={dateFrom}
+                  to={dateTo}
+                  onFrom={setDateFrom}
+                  onTo={setDateTo}
+                />
               </div>
               {/* County */}
               {allCounties.length > 0 && (
