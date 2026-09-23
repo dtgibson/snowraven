@@ -282,7 +282,13 @@ function cycle(s: TriState): TriState {
 
 const selectStyle: React.CSSProperties = {
   height: 28, padding: '0 8px', borderRadius: 6,
-  border: '1.5px solid var(--sr-border)', background: 'var(--sr-surface)',
+  // Longhands, never the `border` shorthand. A set county or protocol overrides
+  // borderColor; clearing it removes that key, and React then clears the colour
+  // without re-applying an unchanged `border`, which left the outline in the
+  // text colour after "All counties" (checklists-county-outline). With
+  // borderColor always present, a clear just writes the resting value back.
+  borderWidth: '1.5px', borderStyle: 'solid', borderColor: 'var(--sr-border)',
+  background: 'var(--sr-surface)',
   color: 'var(--sr-text)', fontSize: '0.75rem', fontFamily: 'inherit',
   // Long county/protocol names (or wide native date controls) must not push the
   // filter row past the card and scroll the page on a phone (F074).

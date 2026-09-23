@@ -212,4 +212,46 @@ describe('Checklists tab', () => {
     // generic media tri-state still present
     expect(screen.getByRole('button', { name: 'Media' })).toBeTruthy()
   })
+
+  // checklists-county-outline. Choosing a county (or protocol) and then "All
+  // counties" left the outline in the text colour until reload: the set state
+  // spread a borderColor over a `border` shorthand, and on clear React removed
+  // the colour without re-applying the unchanged shorthand.
+  //
+  // WHY A STRUCTURAL EQUALITY and not a read of the border colour: jsdom does
+  // not expand a var() border shorthand into its longhands, so
+  // `style.borderColor` is blind here in both the broken and the fixed build.
+  // The expectation is the same select's own first paint, never a hand-typed
+  // style string, so this row cannot drift from the component it guards. It
+  // also asserts the set state really drew something else, or a select that
+  // ignored the filter would pass as "unchanged".
+  it('clearing the county or protocol filter redraws the select exactly as it first painted (checklists-county-outline)', async () => {
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      render(<Checklists {...props} />)
+      await screen.findByText('All Checklists')
+      for (const [name, value] of [['County', 'Stanislaus'], ['Protocol', 'P22']] as const) {
+        const select = screen.getByRole('combobox', { name }) as HTMLSelectElement
+        const firstPaint = select.getAttribute('style')
+        expect(firstPaint, `${name}: first paint carries an inline style`).toBeTruthy()
+
+        fireEvent.change(select, { target: { value } })
+        expect(select.value, `${name}: the filter took`).toBe(value)
+        expect(select.getAttribute('style'), `${name}: the set state draws differently`).not.toBe(firstPaint)
+
+        fireEvent.change(select, { target: { value: '' } })
+        expect(select.value, `${name}: back to the "All" option`).toBe('')
+        expect(select.getAttribute('style'), `${name}: cleared draws exactly as first painted`).toBe(firstPaint)
+      }
+      // React 19 names this exact defect in dev ("Removing a style property
+      // during rerender (borderColor) when a conflicting property is set
+      // (border)"); a set-then-clear must not provoke it for either select.
+      const collisions = errors.mock.calls
+        .filter(c => String(c[0]).includes('when a conflicting property is set'))
+        .map(c => c.slice(1).map(String).join(' ')) // e.g. "Removing borderColor border"
+      expect(collisions, 'React reported a shorthand / longhand collision').toEqual([])
+    } finally {
+      errors.mockRestore()
+    }
+  })
 })

@@ -188,9 +188,14 @@ export function SpeciesCombobox({
           aria-activedescendant={open && activeIdx >= 0 ? optionId(activeIdx) : undefined}
           style={{
             width: '100%', height, padding: `0 34px 0 ${padLeft}px`,
-            border: `1.5px solid ${open ? 'var(--sr-accent)' : 'var(--sr-border-input)'}`,
+            // One colour key, never `border` plus a bottom-colour override: an
+            // override that is `undefined` when closed makes React clear the
+            // bottom colour that `border` had just set, which drew the closed
+            // picker's bottom edge in the text colour (checklists-county-outline).
+            // Open: accent top and sides, transparent bottom (top, sides, bottom).
+            borderWidth: '1.5px', borderStyle: 'solid',
+            borderColor: open ? 'var(--sr-accent) var(--sr-accent) transparent' : 'var(--sr-border-input)',
             borderRadius: open ? `${radius}px ${radius}px 0 0` : radius,
-            borderBottomColor: open ? 'transparent' : undefined,
             fontSize,
             // The same value as --sr-ctl-rem, so the phone-tier .sr-input-16
             // floor raises this input to the iOS threshold and never cuts it
