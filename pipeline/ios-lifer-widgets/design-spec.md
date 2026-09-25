@@ -51,16 +51,26 @@ The header stays in every state. The body is one sentence at 13pt medium weight 
 - The widget's description under the sheet (the `configurationDisplayName` / `description` pair) is in *Content Notes*.
 - The mockup draws the picker checkmark in the app accent; on device iOS draws it in the system tint. Not a spec claim.
 
-### Tap-through (Map Explorer, phone tier)
+### Tap-through (Map Explorer)
 
-The landing is the shipped Map Explorer, unchanged visually: the view pill for the kind pressed, the widget's Time Range applied in the Filters sheet, radius 25 mi, a search run from the current location, the searched area shown by dimming what was not covered, and the tapped bird's chip on the map. For Media Targets the in-app **Filter by Type** chips are set from the widget's Media value: Photo, Audio or Video selects that one chip; **Any** lands with the chips on **All** (the in-app chip keeps its name). Every setting is an exact match between the widget's list and the view's list for the same inputs.
+Two landings, one surface. Both land on the shipped Map Explorer: the view pill for the kind pressed, the widget's Time Range applied in the Filters sheet, radius 25 mi, a search run from the current location, the searched area shown by dimming what was not covered. For Media Targets the in-app **Filter by Type** chips are set from the widget's Media value: Photo, Audio or Video selects that one chip; **Any** lands with the chips on **All** (the in-app chip keeps its name). Every setting is an exact match between the widget's list and the view's list for the same inputs.
+
+**Bird tap** (a row on medium and large; the one-bird card on small): after the search, the map shows **only the tapped species**: its chip(s) alone, the sighting the widget listed **selected with its details popup open** (the view's existing maplibre popup: location line, recency dot and name, date, checklist link, close button), and the map centered on that sighting. Everything else the search found stays loaded but hidden, so "Show all" is instant.
+
+- **The way back:** one pill, `Only Baird's Sandpiper · Show all`, in the map's bottom-right FAB cluster as a full-width action row (the shipped `.sr-map-search-area-row` mechanism), in the **accent-tinted** register of `.sr-map-search-area-btn` (`--sr-accent` on `--sr-accent-bg` inside `--sr-accent-border-strong`, radius 20, 0.8125rem/600, the cluster's shadow), never an accent-filled slab (a solid accent fill on this canvas means sighting pin). The whole pill is the action; pressing it clears the species filter, keeps the search, closes the popup and re-fits to all results. The name truncates with an ellipsis before "Show all" does. Accessible name: `Showing only Baird's Sandpiper. Show all nearby lifers` (or `... media targets`).
+- **Where it sits:** on a phone, above the round buttons and the Filters pill, right-aligned, inheriting the cluster's safe-area inset. On a desktop window, the same row in the same bottom-right corner of the map beside the open sidebar; the sidebar's count line reads `1 spot · 1 lifer` and the in-view list shows the one spot. If **Search this area** appears (the user pans), it takes the row above this one: the cluster grows upward, and the row whose position must stay stable goes below the neighbor that appears.
+- **Sidebar and Filters:** unchanged. The species filter is session state set by the link and cleared by the pill, a view switch, a new search, or the popup's close button (closing the details does not clear the filter; only the pill does, so a user who closes the popup to see the map still has the way back).
+
+**Widget tap outside a bird** (header, empty space, a state sentence): today's landing, the view with all nearby birds and no popup; the widget's window and media setting still apply.
+
+**The edge:** the app searches on landing, and the tapped species may not be in the new results (the report aged out of the window, the phone moved, eBird changed). Then the map shows **all nearby birds** with no filter and the top-center statement line (the search-outcome slot, `.sr-map-search-status-msg`, `pointer-events: none`) reads `Baird's Sandpiper was not found within 25 miles. Showing all lifers.` (or `Showing all media targets.`). Never an empty map, never a filter with nothing in it, no pill. If the species is in the results but the listed location is not, the nearest location for that species is selected instead and no statement is shown.
 
 ## Component Usage
 
 - **WidgetKit / SwiftUI:** `WidgetBundle` with two `AppIntentConfiguration` widgets (`NearbyLifers`, `MediaTargets`); `containerBackground(for: .widget)` with a themed color; `VStack` header/body/footer; rows as `HStack` over `VStack`; `Link` per row on medium and large, `widgetURL` on small; `Text` in system text styles only (`.subheadline` weight `.semibold` for names and title, `.caption` / `.caption2` for secondary lines, `.title3` / `.title2` bold on the small card); `.lineLimit(1)` with `.truncationMode(.tail)` on names and second lines, `.lineLimit(2)` on the small name; `.widgetAccentable()` on the raven and every distance figure; `.redacted(reason: .placeholder)` for S12.
 - **Glyphs:** SF Symbols `camera.fill`, `mic.fill`, `video.fill`, rendered `.font(.caption2)` scale, secondary color, `.accessibilityHidden(true)` (the row's label carries the meaning).
 - **App Intents:** `TimeRangeConfigurationIntent` (both kinds) and a `MediaTargetsConfigurationIntent` adding the `Media` parameter; enums carry `caseDisplayRepresentations` with titles and, for Media, subtitles.
-- **In-app landing:** no new component. Existing `MapExplorer` view pills, `SegControl` Time Range, `Filter by Type` chips, FAB cluster and Filters sheet.
+- **In-app landing:** no new component. Existing `MapExplorer` view pills, `SegControl` Time Range, `Filter by Type` chips, FAB cluster and Filters sheet. The bird-tap landing adds one `Button` in the cluster's action row (the `.sr-map-search-area-btn` register, `.sr-touch-target`) and reuses the view's selected-marker popup and the search-outcome statement line.
 
 ## Design Tokens Applied
 
@@ -83,7 +93,10 @@ Contrast: primary and secondary text clear WCAG AA on both containers (secondary
 
 ## Interaction Notes
 
-- **Tap:** the whole small tile, or any row on medium and large, opens `snowraven://map/lifers?window=<w>` or `snowraven://map/targets?window=<w>&media=<photo|audio|video|any>` (the media value's exact grammar is the Architect's; the design requires only that the landing sets the Filter by Type chips as described above). No other interactive control exists in the widget.
+- **Tap targets:** on medium and large every row is its own `Link` (a bird tap); the header, footer and any empty space or state sentence carry the widget's `widgetURL` (a view tap). On small, iOS allows a single tap target, so a tap anywhere on a listing card, header included, is the bird tap; a small widget showing a state sentence carries the view tap.
+- **What the link carries:** the view (`lifers` / `targets`), the window, the media setting for targets, and, for a bird tap only, the species and the sighting the widget listed: the eBird `speciesCode` (the app already filters lifer and target records by it and matches it with `SPECIES_CODE_RE`) and the `locId` of the listed location (`L` plus digits). The name is never carried; the app renders it from its own results. Without the two identifiers the link is a view tap. The exact grammar and its allowlist are the Architect's; the design requires only that a bird tap can single out one species and center one listed location, and that the link stays short and allowlisted.
+- **Bird tap application order:** view, window, media, radius 25, search from the current location; then, from the results, filter to the species; select the listed location (or the nearest location of that species if the listed one is absent); pan to it and open its popup; show the pill. If the species is absent, show all results and the statement line.
+- No other interactive control exists in the widget.
 - **Configuration:** Edit Widget only. A change of Time range or Media re-lists from the cached fetch with no new eBird request (FR-12).
 - **Refresh:** WidgetKit timeline at the planned cadence; rows re-render with the content transition in *Motion Spec*.
 - **Glyph rules (Media Targets, Media set to Any only):** one glyph per missing type after the name, fixed order camera, microphone, video; never under a single type, where the header names the type. On medium and large the glyph group is fixed-width and never dropped; the name truncates first. On small the glyphs sit at the end of the distance line, right-aligned, and wrap under it when Dynamic Type leaves no room; the distance and recency never break mid-figure.
@@ -94,7 +107,7 @@ Contrast: primary and secondary text clear WCAG AA on both containers (secondary
 
 - Widget refresh (rows change): `.contentTransition(.opacity)` on the rows and `.numericText()` on the distance figures, system default timing (about 200 ms, ease-out); reduced motion: instant. Lib: SwiftUI.
 - Everything else in the widget: no motion (NFR-05). No entrance animation, no pulsing, nothing on the placeholder.
-- In-app landing: the existing Map Explorer transitions, unchanged (view switch instant; the Filters sheet's existing motion; map fit as today).
+- In-app landing: the existing Map Explorer transitions, unchanged (view switch instant; the Filters sheet's existing motion; map fit as today). The `Only ... · Show all` pill arrives with the shipped action-row entrance (`sr-search-area-arrive`, 190 ms, `cubic-bezier(0.16, 1, 0.3, 1)`, transform-origin bottom center) and leaves instantly; the statement line uses the shipped `sr-map-geo-in`; the popup opens as the app's popups already do. All collapse under the global reduced-motion rule. Lib: CSS.
 - Mockup-only chrome (not shipped): appearance switch cross-fade 160 ms ease-out, refresh rows 200 ms ease-out translate 3px, both collapsed under `prefers-reduced-motion`.
 
 ## Content Notes
@@ -110,6 +123,11 @@ Voice: short, specific, the Map Explorer overlay register. American spelling. No
 - Media Targets description: `Recent eBird reports of species you have recorded but still need a photo, audio or video of, within 25 miles of where you are, nearest first. Tap to open them in Map Explorer.`
 
 **Footer parts:** `Updated 9:41 AM`; `From your default location`; `Offline`; `eBird busy`. Joined with ` · `.
+
+**In-app landing copy (bird tap)**
+- Pill: `Only {name} · Show all` (accessible name `Showing only {name}. Show all nearby lifers` / `... media targets`).
+- Statement line, the edge: `{name} was not found within 25 miles. Showing all lifers.` / `... Showing all media targets.`
+- Sidebar count under the filter: the existing `{n} spot(s) · {n} lifer(s)` line, unchanged.
 
 **State copy (final)**
 

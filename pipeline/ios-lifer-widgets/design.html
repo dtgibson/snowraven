@@ -70,8 +70,10 @@
   --a-target-bg: #FFF7ED; --a-target-text: #C2410C; --a-target-border: rgba(194,65,12,0.35);
 }
 [data-appearance="dark"] .ios,
-[data-appearance="tinted"] .ios { --a-target-bg: #1C0F00; --a-target-text: #FB923C; --a-target-border: rgba(251,146,60,0.3); }
-[data-appearance="dark"] .ios {
+[data-appearance="tinted"] .ios,
+.ios .force-dark { --a-target-bg: #1C0F00; --a-target-text: #FB923C; --a-target-border: rgba(251,146,60,0.3); }
+[data-appearance="dark"] .ios,
+.ios .force-dark {
   --w-bg: #1C1C1E;
   --w-text: #F4F4F5;
   --w-muted: #A1A1AA;
@@ -218,6 +220,7 @@ section.sec:last-of-type { border-bottom: 0; }
   transition: background-color var(--dur) ease-out;
 }
 .phone.scaled { transform: scale(0.7); transform-origin: top left; }
+.phone.force-dark { --wall: radial-gradient(100% 55% at 28% 0%, #1F4152 0%, rgba(31,65,82,0) 60%), linear-gradient(180deg, #0B131B 0%, #111F2A 55%, #182A38 100%); }
 .phone-box { width: 275px; height: 596px; margin: 12px; }
 .island { position: absolute; top: 11px; left: 50%; width: 126px; height: 37px; margin-left: -63px; border-radius: 20px; background: #0A0A0C; }
 .statusbar { position: absolute; top: 18px; left: 0; right: 0; display: flex; justify-content: space-between; padding: 0 34px 0 38px; font-size: 16px; font-weight: 600; color: var(--status); }
@@ -361,6 +364,26 @@ section.sec:last-of-type { border-bottom: 0; }
 .chip.sel span { outline: 2px solid #FFFFFF; outline-offset: 1px; }
 .me { position: absolute; width: 16px; height: 16px; border-radius: 50%; background: var(--sr-accent); border: 3px solid #FFFFFF; box-shadow: 0 0 0 1px rgba(15,17,23,0.25), 0 2px 6px rgba(15,17,23,0.35); transform: translate(-50%, -50%); }
 .fabs { position: absolute; right: 12px; bottom: 12px; display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
+/* The "only this bird" action: the cluster's full-width action row in the shipped
+   accent-TINTED register (.sr-map-search-area-btn), never an accent-filled slab. */
+.a-only { display: inline-flex; align-items: center; gap: 7px; max-width: 100%; padding: 7px 15px; border-radius: 20px; background: var(--a-accent-bg); color: var(--a-accent); border: 1px solid var(--a-accent-border-strong, rgba(39,116,72,0.7)); box-shadow: 0 2px 8px rgba(15,17,23,0.18); font-size: 13px; font-weight: 600; line-height: 1.25; white-space: nowrap; }
+.a-only .t { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.a-only .sep { opacity: 0.6; }
+.ios { --a-accent-border-strong: rgba(39,116,72,0.7); }
+[data-appearance="dark"] .ios, [data-appearance="tinted"] .ios, .ios .force-dark { --a-accent-border-strong: rgba(52,211,153,0.5); }
+/* The top-center statement slot (.sr-map-search-status-msg): a statement, never a control */
+.a-status { position: absolute; top: 12px; left: 12px; right: 12px; display: flex; justify-content: center; pointer-events: none; }
+.a-status span { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 20px; background: var(--a-surface); border: 1px solid var(--a-border); color: var(--a-text); font-size: 12px; font-weight: 500; line-height: 1.3; text-align: center; white-space: normal; box-shadow: 0 2px 8px rgba(15,17,23,0.18); }
+/* The app's own map popup, opened on the selected chip */
+.a-pop { position: absolute; width: 214px; transform: translate(-50%, calc(-100% - 16px)); background: var(--a-surface); color: var(--a-text); border-radius: 8px; box-shadow: 0 3px 14px rgba(15,17,23,0.28); padding: 10px 12px 10px; font-size: 11px; }
+.a-pop::after { content: ""; position: absolute; left: 50%; bottom: -7px; margin-left: -7px; border: 7px solid transparent; border-top-color: var(--a-surface); border-bottom: 0; }
+.a-pop .x { position: absolute; top: 4px; right: 8px; font-size: 16px; line-height: 1; color: var(--a-muted); }
+.a-pop .loc { color: var(--a-muted); margin-bottom: 8px; padding-right: 16px; overflow-wrap: anywhere; }
+.a-pop .nm { display: flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; margin-bottom: 3px; }
+.a-pop .nm i { width: 9px; height: 9px; border-radius: 50%; background: var(--sr-map-target-fresh); flex: none; }
+.a-pop .dt { margin-left: 15px; font-size: 10px; color: var(--a-muted); margin-bottom: 4px; }
+.a-pop .lk { margin-left: 15px; color: var(--a-accent); font-weight: 600; display: inline-flex; align-items: center; gap: 4px; }
+.a-pop .lk .icon { width: 11px; height: 11px; }
 .fab-row { display: flex; gap: 10px; }
 .fab { width: 44px; height: 44px; border-radius: 50%; background: var(--a-surface); color: var(--a-text); border: 1px solid var(--a-border); display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(15,17,23,0.18); }
 .fab .icon { width: 17px; height: 17px; }
@@ -458,6 +481,7 @@ section.sec:last-of-type { border-bottom: 0; }
   <symbol id="sf-camera" viewBox="0 0 24 24"><path d="M9.2 3.5a1.5 1.5 0 0 0-1.25.67L6.8 6H4.5A2.5 2.5 0 0 0 2 8.5v9A2.5 2.5 0 0 0 4.5 20h15a2.5 2.5 0 0 0 2.5-2.5v-9A2.5 2.5 0 0 0 19.5 6h-2.3l-1.15-1.83A1.5 1.5 0 0 0 14.8 3.5zM12 9.25a3.75 3.75 0 1 1 0 7.5 3.75 3.75 0 0 1 0-7.5z"/></symbol>
   <symbol id="sf-video" viewBox="0 0 24 24"><path d="M3.5 6A2.5 2.5 0 0 0 1 8.5v7A2.5 2.5 0 0 0 3.5 18h10a2.5 2.5 0 0 0 2.5-2.5v-7A2.5 2.5 0 0 0 13.5 6zM17.5 10.2v3.6l4.05 2.7a.9.9 0 0 0 1.45-.72V8.22a.9.9 0 0 0-1.45-.72z"/></symbol>
   <symbol id="sf-mic" viewBox="0 0 24 24"><path d="M12 2.25A3.25 3.25 0 0 0 8.75 5.5v6.5a3.25 3.25 0 0 0 6.5 0V5.5A3.25 3.25 0 0 0 12 2.25z"/><path d="M6 11.25a.9.9 0 0 1 .9.9V12a5.1 5.1 0 0 0 10.2 0v.15a.9.9 0 1 1 1.8 0V12a6.9 6.9 0 0 1-6 6.84v2.16a.9.9 0 1 1-1.8 0v-2.16A6.9 6.9 0 0 1 5.1 12v.15a.9.9 0 0 1 .9-.9z"/></symbol>
+  <symbol id="i-ext" viewBox="0 0 24 24"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></symbol>
   <symbol id="i-weather" viewBox="0 0 24 24"><path d="M12 2v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="M20 12h2"/><path d="m19.07 4.93-1.41 1.41"/><path d="M15.947 12.65a4 4 0 0 0-5.925-4.128"/><path d="M13 22H7a5 5 0 1 1 4.9-6H13a3 3 0 0 1 0 6Z"/></symbol>
 </svg>
 
@@ -569,29 +593,50 @@ section.sec:last-of-type { border-bottom: 0; }
   <div class="sec-head">
     <div>
       <p class="sec-kicker">Tap-through</p>
-      <h2>Tap the bird, land on the map</h2>
-      <p class="sec-lede">One tap opens SnowRaven on Map Explorer with Nearby Lifers selected, the widget's window applied, a 25 mile search already run from the phone's location, and the tapped bird's chip on the map. The app screen here is the shipped Map Explorer at phone width, not a new surface.</p>
+      <h2>Tap the bird, land on that bird</h2>
+      <p class="sec-lede">Tapping a bird opens Map Explorer on the matching view with the widget's window (and media setting) applied and a 25 mile search run from the phone, then shows only that species, centered on the sighting the widget listed with its details open. One pill in the map's bottom-right cluster brings every nearby bird back. Tapping the widget anywhere else (the header, empty space, a state message) lands on the view with all nearby birds, as before.</p>
     </div>
-    <p class="sec-aside">On medium and large every row is its own link; on small the whole tile is. A Media Targets widget lands the same way, an exact match in every setting: Photo, Audio or Video with that type chip selected, Any with the in-app chips on All.</p>
+    <p class="sec-aside">The "Only ... · Show all" pill is the cluster's existing action row, in the accent-tinted register the Search this area button already wears. On a phone it sits above the round buttons; on a desktop window it sits in the same corner of the map, beside the sidebar, and the sidebar's count reads "1 spot · 1 lifer".</p>
   </div>
+  <p class="cap">A bird tap</p>
   <div class="ios flow four">
     <div class="step">
-      <p class="cap"><span class="step-n">1</span>Tap a row on the home screen</p>
+      <p class="cap"><span class="step-n">1</span>Tap Baird's Sandpiper on the home screen</p>
       <div class="phone-box"><div class="phone scaled" id="flow-1"></div></div>
     </div>
     <div class="step">
-      <p class="cap"><span class="step-n">2</span>Map Explorer, Nearby Lifers, searched from here</p>
+      <p class="cap"><span class="step-n">2</span>Only that bird, centered, details open</p>
       <div class="phone-box"><div class="phone scaled" id="flow-2"></div></div>
     </div>
-    <div class="step">
-      <p class="cap"><span class="step-n">3</span>Filters shows the window the widget carried</p>
-      <div class="phone-box"><div class="phone scaled" id="flow-3"></div></div>
+    <div class="step force-dark">
+      <p class="cap"><span class="step-n">3</span>The same landing in the dark theme</p>
+      <div class="phone-box"><div class="phone scaled force-dark" id="flow-3"></div></div>
     </div>
     <div class="step">
-      <p class="cap"><span class="step-n">4</span>From a Video widget: Media Targets, Video chip on</p>
+      <p class="cap"><span class="step-n">4</span>The edge: the bird is no longer in the results</p>
       <div class="phone-box"><div class="phone scaled" id="flow-4"></div></div>
     </div>
   </div>
+  <p class="cap" style="margin-top:22px">A widget tap outside a bird, and the settings carried</p>
+  <div class="ios flow four">
+    <div class="step">
+      <p class="cap"><span class="step-n">5</span>Tap the header or empty space</p>
+      <div class="phone-box"><div class="phone scaled" id="flow-5"></div></div>
+    </div>
+    <div class="step">
+      <p class="cap"><span class="step-n">6</span>All nearby lifers, searched from here</p>
+      <div class="phone-box"><div class="phone scaled" id="flow-6"></div></div>
+    </div>
+    <div class="step">
+      <p class="cap"><span class="step-n">7</span>Filters shows the window the widget carried</p>
+      <div class="phone-box"><div class="phone scaled" id="flow-7"></div></div>
+    </div>
+    <div class="step">
+      <p class="cap"><span class="step-n">8</span>From a Video widget: Media Targets, Video chip on</p>
+      <div class="phone-box"><div class="phone scaled" id="flow-8"></div></div>
+    </div>
+  </div>
+  <p class="note" style="margin-top:14px">The edge in frame 4: the app searches when it lands, and the tapped bird may not be in the new results (the report aged out of the window, or the phone moved). Then every nearby bird is shown and the map's statement line says why, in the register the search-outcome line already uses. Never an empty map. The details popup, the selected chip, the pill register and the statement line are the shipped Map Explorer's own.</p>
 </section>
 
 <!-- ───────── 6. VoiceOver ───────── -->
@@ -838,17 +883,30 @@ section.sec:last-of-type { border-bottom: 0; }
   function appHeader() {
     return '<div class="a-header">' + RAVEN + '<h1><span>Snow</span><span>Raven</span></h1></div>';
   }
-  function mapPhone() {
+  // o.only: land on one bird (name, loc, date): only its chip, selected, popup open, map centered on it,
+  //         the "Only <bird> · Show all" action row in the cluster.
+  // o.note: the top-center statement (the edge: the bird is no longer in the results).
+  function mapPhone(o) {
+    o = o || {};
     var chips = [
-      [62, 42, "Ruff", true], [20, 56, "Baird's Sandpiper"], [46, 80, "Pectoral Sandpiper"], [40, 18, "Tropical Kingbird"],
+      [62, 42, "Ruff"], [20, 56, "Baird's Sandpiper"], [46, 80, "Pectoral Sandpiper"], [40, 18, "Tropical Kingbird"],
       [10, 30, "Blackpoll Warbler"], [8, 68, "Prothonotary Warbler"], [14, 92, "Sabine's Gull"], [48, 6, "Buff-breasted Sandpiper"]
     ];
+    var body;
+    if (o.only) {
+      body = '<div class="chip sel" style="left:42%;top:56%"><i></i><span>' + esc(o.only.name) + '</span></div>' +
+        '<div class="a-pop" style="left:44%;top:56%"><span class="x" aria-hidden="true">×</span><div class="loc">📍 ' + esc(o.only.loc) + '</div><div class="nm"><i></i>' + esc(o.only.name) + '</div><div class="dt">' + o.only.date + '</div><div class="lk">View checklist ' + icon("i-ext") + '</div></div>' +
+        '<div class="me" style="left:72%;top:66%"></div>';
+    } else {
+      body = chips.map(function (c) { return '<div class="chip" style="left:' + c[0] + '%;top:' + c[1] + '%"><i></i><span>' + esc(c[2]) + '</span></div>'; }).join("") +
+        '<div class="me" style="left:56%;top:50%"></div>';
+    }
+    var onlyRow = o.only ? '<span class="a-only" role="button" aria-label="Showing only ' + esc(o.only.name) + '. Show all nearby lifers"><span class="t">Only ' + esc(o.only.name) + '</span><span class="sep">·</span><span>Show all</span></span>' : '';
+    var note = o.note ? '<div class="a-status" role="status"><span>' + esc(o.note) + '</span></div>' : '';
     return statusbar() + '<div class="island"></div>' +
       '<div class="appscreen">' + appHeader() + modes("lifers") +
-        '<div class="a-map">' + basemap() +
-          chips.map(function (c) { return '<div class="chip' + (c[3] ? ' sel' : '') + '" style="left:' + c[0] + '%;top:' + c[1] + '%"><i></i><span>' + esc(c[2]) + '</span></div>'; }).join("") +
-          '<div class="me" style="left:56%;top:50%"></div>' +
-          '<div class="fabs"><div class="fab-row"><span class="fab">' + icon("i-flag") + '</span><span class="fab">' + icon("i-locate") + '</span><span class="fab">' + icon("i-max") + '</span></div><span class="fab-filters">' + icon("i-filter") + 'Filters</span></div>' +
+        '<div class="a-map">' + basemap() + body + note +
+          '<div class="fabs">' + onlyRow + '<div class="fab-row"><span class="fab">' + icon("i-flag") + '</span><span class="fab">' + icon("i-locate") + '</span><span class="fab">' + icon("i-max") + '</span></div><span class="fab-filters">' + icon("i-filter") + 'Filters</span></div>' +
         '</div>' + nav() +
       '</div><div class="homebar"></div>';
   }
@@ -944,10 +1002,15 @@ section.sec:last-of-type { border-bottom: 0; }
   document.getElementById("edit-phone").innerHTML = editPhone("sheet");
   document.getElementById("picker-phone").innerHTML = editPhone("time");
   document.getElementById("media-phone").innerHTML = editPhone("media");
-  document.getElementById("flow-1").innerHTML = homePhone({ tap: [150, 134] });
-  document.getElementById("flow-2").innerHTML = mapPhone();
-  document.getElementById("flow-3").innerHTML = filtersPhone("lifers");
-  document.getElementById("flow-4").innerHTML = filtersPhone("targets");
+  var BIRD = { name: "Baird's Sandpiper", loc: "Hayward Regional Shoreline", date: "Sep 23, 2026" };
+  document.getElementById("flow-1").innerHTML = homePhone({ tap: [150, 180] });
+  document.getElementById("flow-2").innerHTML = mapPhone({ only: BIRD });
+  document.getElementById("flow-3").innerHTML = mapPhone({ only: BIRD });
+  document.getElementById("flow-4").innerHTML = mapPhone({ note: "Baird's Sandpiper was not found within 25 miles. Showing all lifers." });
+  document.getElementById("flow-5").innerHTML = homePhone({ tap: [96, 108] });
+  document.getElementById("flow-6").innerHTML = mapPhone();
+  document.getElementById("flow-7").innerHTML = filtersPhone("lifers");
+  document.getElementById("flow-8").innerHTML = filtersPhone("targets");
   document.getElementById("vo-sample").textContent = voLabel("lifers", "week", LIFERS.slice(0, 3), ["Updated 9:41 AM"], "");
   document.getElementById("vo-sample-2").textContent = voLabel("targets", "week", TARGETS_STRESS.slice(0, 3), ["Updated 9:41 AM"], "", "all");
 

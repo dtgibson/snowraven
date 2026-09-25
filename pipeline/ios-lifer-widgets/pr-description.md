@@ -12,12 +12,22 @@ Adds two iPhone and iPad home-screen widgets, **Nearby Lifers** and **Media Targ
 - **Widget extension (Swift).** `gen/apple/snowraven_widgets/`: `Logic/` is pure Foundation (hand-over and cache validators, the eBird reducer, the name, date, distance and `toFixed` twins, the row builder, the state machine, copy, presentation and VoiceOver labels, and a `RefreshEngine` actor over injected seams). `Widget/` holds App Intents, providers, the App Group store, a URLSession client (one host, no redirects, 2 MB body cap), CoreLocation with a 10 s bound, and SwiftUI views. `snowraven_widgetsTests/` runs its XCTests over the same parity fixture the TypeScript twin generates, plus a dense-body memory and cap suite (`DenseBodyTests`).
 - **Project.** Two new targets in `project.yml`, regenerated with xcodegen. Both entitlement files carry the App Group. The URL scheme and the widened location usage string are identical across the three iOS plist sources.
 
+### Stage 8: a bird tap shows only that bird (1.0.36 build 2)
+
+The device pass on TestFlight 1.0.36 (1) found that a row tap opened the right view with every nearby bird on it. Now a bird tap (a row on medium and large, the one-bird card on small) carries `&sp=<speciesCode>&loc=<locId>` after the unchanged view link. Map Explorer runs the same search, then shows only that species with the listed sighting selected, its popup open, and the map centered on it. A pill in the FAB cluster, "Only {name} · Show all", brings everything back with no new request. A header tap is the view link, as before.
+
+- **Grammar** (`lib/links/deepLink.ts`): fifteen exact view links plus one anchored, bounded suffix pattern (`BIRD_SUFFIX_RE`, built from the two id patterns). `LINK_MAX_LENGTH` is 96 (the longest link is 88). A malformed suffix DEGRADES to the view link; an inexact view part is still rejected whole. The species-code class is the app's own `SPECIES_CODE_RE` (`/^[a-z0-9-]{2,16}$/`), now defined once in `lib/speciesCode.ts` and imported by `SpeciesLinks` and the parser. The Swift builder spells the same text, and the parity guard compares them.
+- **Swift** (`DeepLink.swift`, `WidgetPresentation`): `rowLinks` gives one bird link per shown row; `widgetLink` is the bird link on small and the view link on medium, large and every state. An id outside its pattern yields the view link, never an out-of-pattern link.
+- **Map Explorer** (`lib/links/linkFocus.ts` + `MapExplorer.tsx`): `linkFocus` is session state bound to the `searchId` of the search its link started (a `searchSeq` ref and a per-view `resultSeq`). The focus is a pure derivation over the displayed arrays. It is cleared by Show all, a view switch, a window change, a media chip change, and any new search. If the species is not in the results, everything shows, with the statement line "{name} was not found within 25 miles. Showing all lifers." The name comes from the app's own name-to-code map; with no name the line reads "The bird you tapped".
+- **Pill CSS**: the name ellipsizes before "Show all", which never truncates. `min-width: 0` is needed on the row as well as the button and the name. Without it, a long name at 320px / 200% text hung off the left edge of the viewport, with page scrollWidth still reading 320.
+
 ### How to test
 
 1. `cd frontend && npx vitest run src/lib/widgets src/lib/links src/components/MapExplorerWidgetLink.test.tsx src/lib/iosWidgetManifest.test.ts src/lib/widgetPaths.parity.test.ts src/lib/widgetsPublishedClaims.test.ts`
 2. `cd src-tauri && cargo test --lib widgets`
-3. Swift, on this machine (CI cannot compile Swift): `cd src-tauri/gen/apple && export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer && PATH=/tmp/xcshim:$PATH xcodebuild test -project snowraven.xcodeproj -scheme snowraven_widgetsTests -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.5' -test-timeouts-enabled YES`
-4. Simulator: see `how-to-see.md`. On a device (required before submission), add one widget of each kind, wait for rows, and tap each through, once with the app running and once after force-quitting it.
+3. Bird links: `cd frontend && npx vitest run src/lib/links src/components/MapExplorerWidgetLink.test.tsx` (the fixture's `links` families, the round trip and degradation-identity corpora, and the focus and clear table).
+4. Swift, on this machine (CI cannot compile Swift): `cd src-tauri/gen/apple && export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer && PATH=/tmp/xcshim:$PATH xcodebuild test -project snowraven.xcodeproj -scheme snowraven_widgetsTests -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.5' -test-timeouts-enabled YES`
+5. Simulator: see `how-to-see.md`. On a device (required before submission), add one widget of each kind, wait for rows, and tap each through, once with the app running and once after force-quitting it.
 
 ### Notes for reviewer
 
