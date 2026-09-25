@@ -66,6 +66,35 @@ define_class!(
     ) {
       unsafe {
         app_state::connect_scene(scene, connection_options);
+        // SnowRaven (ios-lifer-widgets): UIKit delivers a LAUNCHING URL in the
+        // connection options and does NOT call scene:openURLContexts: for it,
+        // so upstream drops a cold-start widget tap here. Forward it as the
+        // same Event::Opened the warm path emits. See VENDORED.md.
+        //
+        // `URLContexts` is read through an Option-typed msg_send!, NOT the
+        // generated `UISceneConnectionOptions::URLContexts()` binding: that
+        // binding declares a non-optional return, UIKit returns nil when a
+        // scene connects with no URL (an ordinary launch), and objc2 panics on
+        // the nil, which the release profile turns into an abort on every
+        // launch (measured on an iOS 27.0 simulator, ios-lifer-widgets build).
+        let contexts: Option<Retained<NSSet<UIOpenURLContext>>> =
+          objc2::msg_send![connection_options, URLContexts];
+        let urls: Vec<url::Url> = contexts
+          .map(|set| {
+            set
+              .iter()
+              .filter_map(|ctx| {
+                ctx
+                  .URL()
+                  .absoluteString()
+                  .and_then(|s| s.to_string().parse().ok())
+              })
+              .collect()
+          })
+          .unwrap_or_default();
+        if !urls.is_empty() {
+          app_state::handle_nonuser_event(EventWrapper::StaticEvent(Event::Opened { urls }));
+        }
       }
     }
 

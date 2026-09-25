@@ -7,6 +7,14 @@ fileGroups: [../../src]
 configs:
   debug: debug
   release: release
+# The signing team, at PROJECT level so every target inherits it (the app, the
+# widget extension, its tests). It already sat in the committed pbxproj, put
+# there by `tauri ios init`; it is spelled here since ios-lifer-widgets so that
+# regenerating the project with `xcodegen generate` (which the extension target
+# requires) does not silently drop it.
+settings:
+  base:
+    DEVELOPMENT_TEAM: 8QKC3L2FKP
 settingGroups:
   app:
     base:
@@ -95,14 +103,26 @@ targets:
         # while the shipped app was 1.0.30, and a regeneration would have
         # silently reverted the iOS version by five minor releases. Pinned by
         # `iosSceneManifest.test.ts`.
+        # The widget tap-through scheme and the location usage string
+        # (ios-lifer-widgets FR-20, FR-34). Identical to src-tauri/Info.ios.plist
+        # and snowraven_iOS/Info.plist; iosWidgetManifest.test.ts pins all three.
+        CFBundleURLTypes:
+          - CFBundleTypeRole: Viewer
+            CFBundleURLName: com.dtgibson.snowraven
+            CFBundleURLSchemes: [snowraven]
+        NSLocationWhenInUseUsageDescription: SnowRaven uses your location to center the map on your current position, and to measure distances in its home-screen widgets.
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: true
           UISceneConfigurations:
             UIWindowSceneSessionRoleApplication:
               - UISceneConfigurationName: Default Configuration
                 UISceneDelegateClassName: TaoSceneDelegate
-    entitlements:
-      path: snowraven_iOS/snowraven_iOS.entitlements
+    # The entitlements file is named by CODE_SIGN_ENTITLEMENTS below, NOT by
+    # xcodegen's `entitlements:` key: that key makes xcodegen REWRITE the file
+    # from its `properties`, and with none it writes an empty dict over it,
+    # silently dropping iCloud Sync and the widgets' App Group (found at
+    # ios-lifer-widgets, the first regeneration since icloud-sync). Pinned by
+    # iosWidgetManifest.test.ts.
     scheme:
       environmentVariables:
         RUST_BACKTRACE: full
@@ -116,6 +136,10 @@ targets:
         LIBRARY_SEARCH_PATHS[arch=arm64]: $(inherited) $(PROJECT_DIR)/Externals/arm64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME) $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)
         ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES: true
         EXCLUDED_ARCHS[sdk=iphoneos*]: x86_64
+        CODE_SIGN_ENTITLEMENTS: snowraven_iOS/snowraven_iOS.entitlements
+        # Sources/snowraven/WidgetReload.swift (the one Swift file in the app
+        # target: the Rust-to-WidgetKit reload shim, ios-lifer-widgets).
+        SWIFT_VERSION: "5.0"
       groups: [app]
     dependencies:
       - framework: libapp.a
@@ -127,6 +151,13 @@ targets:
       - sdk: Security.framework
       - sdk: UIKit.framework
       - sdk: WebKit.framework
+      # ios-lifer-widgets: the reload shim, and the extension embedded under
+      # PlugIns/. The extension targets iOS 17; the app stays on 16, and on 16
+      # the system simply does not load it.
+      - sdk: WidgetKit.framework
+      - target: snowraven_widgets
+        embed: true
+        codeSign: true
     preBuildScripts:
       - script: npm run -- tauri ios xcode-script -v --platform ${PLATFORM_DISPLAY_NAME:?} --sdk-root ${SDKROOT:?} --framework-search-paths "${FRAMEWORK_SEARCH_PATHS:?}" --header-search-paths "${HEADER_SEARCH_PATHS:?}" --gcc-preprocessor-definitions "${GCC_PREPROCESSOR_DEFINITIONS:-}" --configuration ${CONFIGURATION:?} ${FORCE_COLOR} ${ARCHS:?}
         name: Build Rust Code
@@ -134,3 +165,95 @@ targets:
         outputFiles:
           - $(SRCROOT)/Externals/x86_64/${CONFIGURATION}/libapp.a
           - $(SRCROOT)/Externals/arm64/${CONFIGURATION}/libapp.a
+
+  # ── ios-lifer-widgets: the home-screen widget extension ──────────────────
+  # Two kinds (Nearby Lifers, Media Targets) in the three home-screen families.
+  # iOS 17.0 on purpose while the app stays on 16.0: an app extension may target
+  # a newer OS than its app, and below 17 the system does not load it (the app
+  # is unaffected). Deliberately NOT `groups: [app]`, which would give it the
+  # app's product name and bundle id. The Info.plist is hand-maintained
+  # (INFOPLIST_FILE, not `info:`), because a generated one would need the two
+  # version keys spelled here, and this file declares no version keys at all
+  # (iosSceneManifest.test.ts). The version comes from the app instead: the
+  # "Stamp version from the app" phase copies CFBundleShortVersionString and
+  # CFBundleVersion from snowraven_iOS/Info.plist, which `tauri ios build`
+  # stamps, into the built extension plist, so App Store validation's
+  # extension-equals-app rule holds with one source. Pinned by
+  # iosWidgetManifest.test.ts.
+  snowraven_widgets:
+    type: app-extension
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: snowraven_widgets/Sources
+      - path: snowraven_widgets/Assets.xcassets
+    settings:
+      base:
+        # PRODUCT_NAME stays the target name, so the embedded product reference
+        # and the built bundle agree (snowraven_widgets.appex); the name a user
+        # sees is CFBundleDisplayName "SnowRaven Widgets" in the Info.plist.
+        PRODUCT_BUNDLE_IDENTIFIER: com.dtgibson.snowraven.widgets
+        INFOPLIST_FILE: snowraven_widgets/Info.plist
+        GENERATE_INFOPLIST_FILE: false
+        CODE_SIGN_ENTITLEMENTS: snowraven_widgets/snowraven_widgets.entitlements
+        SWIFT_VERSION: "5.0"
+        TARGETED_DEVICE_FAMILY: "1,2"
+        ARCHS: [arm64]
+        EXCLUDED_ARCHS[sdk=iphoneos*]: x86_64
+        ENABLE_BITCODE: false
+        SKIP_INSTALL: true
+        ENABLE_USER_SCRIPT_SANDBOXING: false
+        LD_RUNPATH_SEARCH_PATHS: $(inherited) @executable_path/Frameworks @executable_path/../../Frameworks
+    dependencies:
+      - sdk: WidgetKit.framework
+      - sdk: SwiftUI.framework
+      - sdk: CoreLocation.framework
+      - sdk: AppIntents.framework
+    postBuildScripts:
+      - name: Stamp version from the app
+        basedOnDependencyAnalysis: false
+        inputFiles:
+          - $(SRCROOT)/snowraven_iOS/Info.plist
+          - $(TARGET_BUILD_DIR)/$(INFOPLIST_PATH)
+        script: |
+          set -eu
+          SRC="${SRCROOT}/snowraven_iOS/Info.plist"
+          DST="${TARGET_BUILD_DIR}/${INFOPLIST_PATH}"
+          V=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$SRC")
+          B=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$SRC")
+          # Xcode drops a key whose build setting expanded to nothing, so the
+          # keys may be absent here: delete-if-present, then add.
+          for K in CFBundleShortVersionString CFBundleVersion; do
+            /usr/libexec/PlistBuddy -c "Delete :$K" "$DST" 2>/dev/null || true
+          done
+          /usr/libexec/PlistBuddy -c "Add :CFBundleShortVersionString string $V" -c "Add :CFBundleVersion string $B" "$DST"
+
+  # The extension's pure Logic/ sources and their XCTest suite, with no host
+  # app, reading the parity fixture the TypeScript twin generates (a resource
+  # REFERENCE to the tracked file, not a copy). ubuntu-latest CI cannot compile
+  # Swift, so this runs on the release machine (snowraven-release skill):
+  #   xcodebuild test -project snowraven.xcodeproj -scheme snowraven_widgetsTests
+  #     -destination 'platform=iOS Simulator,name=<an iOS 17+ simulator>'
+  snowraven_widgetsTests:
+    type: bundle.unit-test
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: snowraven_widgets/Sources/Logic
+      - path: snowraven_widgetsTests
+      - path: ../../../frontend/src/lib/widgets/widgetRows.fixture.json
+        buildPhase: resources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.dtgibson.snowraven.widgetsTests
+        GENERATE_INFOPLIST_FILE: true
+        SWIFT_VERSION: "5.0"
+        ARCHS: [arm64]
+
+schemes:
+  snowraven_widgetsTests:
+    build:
+      targets:
+        snowraven_widgetsTests: [test]
+    test:
+      targets: [snowraven_widgetsTests]

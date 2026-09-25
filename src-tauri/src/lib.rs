@@ -6,6 +6,12 @@ mod location_windows;
 // frontend/src/lib/icloud/. Never compiled into Windows/Linux binaries.
 #[cfg(any(target_os = "macos", target_os = "ios"))]
 mod icloud;
+// iOS home-screen widgets (ios-lifer-widgets): the App Group hand-over writer
+// and the widget deep-link hook. iOS only; also compiled for the host's
+// `cargo test` so its pure validator runs on every test pass. Never in the
+// Mac, Windows or Linux binaries.
+#[cfg(any(target_os = "ios", test))]
+mod widgets;
 // Post-restore on-screen clamp for the remembered window geometry (macOS +
 // Windows). Same platform set as the tauri-plugin-window-state dependency,
 // spelled with tauri's `desktop` cfg here because Cargo has no such cfg.
@@ -196,6 +202,12 @@ pub fn run() {
         .plugin(tauri_plugin_geolocation::init())
         .plugin(tauri_plugin_dialog::init());
 
+    // iOS-only: the widget deep-link hook (src/widgets.rs). A plugin
+    // `on_event` on RunEvent::Opened, NOT a custom run callback, so the
+    // single-webview keeper below is untouched.
+    #[cfg(target_os = "ios")]
+    let builder = builder.plugin(widgets::plugin());
+
     builder
         .invoke_handler(tauri::generate_handler![
             get_api_key,
@@ -228,6 +240,12 @@ pub fn run() {
             icloud::icloud_write_keys,
             #[cfg(any(target_os = "macos", target_os = "ios"))]
             icloud::icloud_remove_keys,
+            #[cfg(target_os = "ios")]
+            widgets::widgets_write_handover,
+            #[cfg(target_os = "ios")]
+            widgets::widgets_remove_handover,
+            #[cfg(target_os = "ios")]
+            widgets::widgets_take_pending_link,
         ])
         // SINGLE-WEBVIEW INVARIANT. `Builder::run` supplies Tauri's own no-op
         // run callback, which drops `RunEvent::SceneRequested`, so a second

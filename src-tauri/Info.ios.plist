@@ -6,12 +6,34 @@
        (Tauri reads Info.ios.plist next to tauri.conf.json). Keep this the
        COMPLETE set of iOS additions (mobile-app schema §2.8): the ONLY usage
        description is location (when-in-use; no camera/mic/photos/contacts/
-       tracking), no ATS exceptions (every provider is HTTPS), and deliberately
+       tracking; it also covers the home-screen widgets, which ride the same
+       When In Use grant), no ATS exceptions (every provider is HTTPS), and deliberately
        NO UIFileSharingEnabled / LSSupportsOpeningDocumentsInPlace — the app
        sandbox holds data/api-keys.json in plaintext, so the Files app must not
        expose it; CSV import is picker-only by design. -->
   <key>NSLocationWhenInUseUsageDescription</key>
-  <string>SnowRaven uses your location to center the map on your current position.</string>
+  <string>SnowRaven uses your location to center the map on your current position, and to measure distances in its home-screen widgets.</string>
+  <!-- The widget tap-through scheme (ios-lifer-widgets FR-34). The home-screen
+       widgets open snowraven://map/lifers?window=... and
+       snowraven://map/targets?window=...&media=...; the app accepts exactly
+       those fifteen strings and ignores anything else whole
+       (frontend/src/lib/links/deepLink.ts). Declared identically in
+       gen/apple/snowraven_iOS/Info.plist and gen/apple/project.yml, pinned by
+       frontend/src/lib/iosWidgetManifest.test.ts. iOS only: the macOS bundle
+       registers no scheme. -->
+  <key>CFBundleURLTypes</key>
+  <array>
+    <dict>
+      <key>CFBundleTypeRole</key>
+      <string>Viewer</string>
+      <key>CFBundleURLName</key>
+      <string>com.dtgibson.snowraven</string>
+      <key>CFBundleURLSchemes</key>
+      <array>
+        <string>snowraven</string>
+      </array>
+    </dict>
+  </array>
   <!-- Standard HTTPS only — skips the export-compliance question on every
        TestFlight upload. -->
   <key>ITSAppUsesNonExemptEncryption</key>

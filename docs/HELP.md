@@ -55,7 +55,7 @@ An API key is a private code that identifies your account when the app contacts 
 
 ### eBird API key
 
-The eBird API key lets SnowRaven fetch checklist metadata for weather lookups and retrieve recent bird sightings near your location for the Map Explorer's Nearby Lifers feature. The key is free and is tied to your standard eBird account.
+The eBird API key lets SnowRaven fetch checklist metadata for weather lookups and retrieve recent bird sightings near your location for the Map Explorer's Nearby Lifers feature and, on iPhone and iPad, the home-screen widgets. The key is free and is tied to your standard eBird account.
 
 To get your key:
 
@@ -501,6 +501,26 @@ Data comes from eBird's recent observations API for your location and radius. Th
 
 Shows recent sightings of species you are missing at least one media type for, within a search radius. Pins are color-coded by recency: bright green for the past 7 days, lighter for 8 to 15 days, and lightest for 16 to 30 days. Every pin carries a small **locator dot** at its exact coordinate, and a **Marker Style** toggle switches between **Labels** (the full name-and-media chips) and **Dots** (just the locator dots) for a clean overview of where the targets are; the pins stay clickable either way. A **Time Range** filter narrows the window to the last day, last week, or last 30 days. A **Targets in view** list in the sidebar mirrors the target pins currently on screen: each row shows the species, location, the most recent date, and (when you have a search center set) the distance, sorted nearest first. The list updates as you pan or zoom, so it always reflects what's visible; on very dense views it shows the closest first with a note to zoom in to narrow it. Selecting a row (via its keyboard-operable "show on map" button) opens that location's details popup on the map and pans to it. This is the keyboard path to the target chips, which are otherwise mouse-only.
 
+### Widgets
+
+On iPhone and iPad, SnowRaven has two home-screen widgets, **Nearby Lifers** and **Media Targets**, named after the Map Explorer views they come from. Each lists the nearest recent eBird reports of birds you still need, measured from where you are. Nearby Lifers lists species that are not in your eBird backup. Media Targets lists species you have recorded but still lack a photo, audio or video of in your Macaulay Library export. Widgets need iOS 17 or later (iPadOS 17 or later on iPad); on an older version the app works as before and simply offers no widgets.
+
+**Adding a widget.** Touch and hold an empty area of the Home Screen, tap **Edit**, then **Add Widget**, and search for SnowRaven. Each widget comes in three sizes: small shows the nearest bird, medium the nearest three, and large the nearest eight. You can place either widget more than once, each with its own settings.
+
+**Settings.** Touch and hold a placed widget and choose **Edit Widget**. **Time range** is Day, Week or 30 days, the same windows as Map Explorer's Time Range filter, and a new widget starts on Week. A Media Targets widget also has **Media**: Photo, Audio, Video, or Any, which is where a new one starts. With Photo, Audio or Video it lists species missing that type and names the type beside the time range. With Any it lists species missing at least one type and marks each bird with a camera, a microphone or a video camera for each type still missing. Changing a setting re-lists the birds from the latest results without asking eBird again. The search radius is always 25 miles.
+
+**What a row shows.** The species name, how far away the report was in miles, how recently it was reported (Today, Yesterday, or a number of days ago), and the place. Birds are listed nearest first, and a species reported at several places appears once, at the nearest. The small size leaves out the place. At larger text sizes a widget shows fewer birds rather than cutting one off.
+
+**Where it measures from.** When the widget refreshes it uses your current location, through the permission you gave SnowRaven for Use my location. It never asks for permission itself and never asks for Always access. If location is off or unavailable and you have saved a Default Location in Settings, the widget measures from that instead and says "From your default location". With neither, it asks you to open SnowRaven and allow location, or set a Default Location.
+
+**Keeping it current.** A widget refreshes about every 30 minutes, as often as iOS allows, and shows when its list was fetched ("Updated 9:41 AM"); the small size shows that time when the latest refresh failed. Refreshes share one set of results for 15 minutes, so several widgets make at most one eBird request in that time. If a refresh cannot reach eBird, the widget keeps its last list and marks it "Offline" or "eBird busy" with its update time. After a day with no successful refresh it says it could not reach eBird rather than showing an old list. Loading or clearing a data file, saving or clearing your eBird key, or saving or clearing your Default Location in SnowRaven updates placed widgets straight away.
+
+**When a widget shows a sentence instead of a list.** It names the one thing in the way: open SnowRaven once to set up widgets; add your eBird API key; load your eBird backup; for Media Targets, load your Macaulay Library export, or you already have media (or the chosen type) for every species in your backup; open SnowRaven to allow location, or set a Default Location; eBird did not accept your key; or no birds were reported within 25 miles in the chosen time range.
+
+**Tapping a widget** opens SnowRaven on Map Explorer, on the matching view, with the widget's time range, its Media choice as the Filter by Type chip (Any opens on All), a 25 mile radius for the session, and a search from your current location. Your saved Radius and Default Location stay as they were.
+
+**Stopping it.** When a placed widget refreshes, it sends your current coordinates to eBird with your own key, the same nearby-sightings request Nearby Lifers makes in the app, and nothing to the developer. To stop that, remove the widget from your Home Screen, or turn off location for SnowRaven in Settings → Privacy & Security → Location Services; the widget then measures from your Default Location if you have saved one.
+
 ---
 
 ## Multimedia
@@ -642,7 +662,7 @@ The Settings tab is where you configure everything SnowRaven needs to function.
 
 ### API Keys
 
-Enter and manage your eBird and OpenWeather API keys. Keys are saved securely: in the desktop app, they are stored in the app's local data directory; in web/Pi mode, they are saved to the server's .env file. Changes take effect immediately without a restart. Saved keys are masked by default; use Show or Hide to reveal or re-mask them. Use Update to replace a key, or Clear to remove it.
+Enter and manage your eBird and OpenWeather API keys. Keys are saved securely: in the desktop app, they are stored in the app's local data directory; in web/Pi mode, they are saved to the server's .env file. Changes take effect immediately without a restart. On iPhone and iPad, the home-screen widgets use the same eBird key, and saving, replacing or clearing it updates them straight away (see Widgets under Map Explorer). Saved keys are masked by default; use Show or Hide to reveal or re-mask them. Use Update to replace a key, or Clear to remove it.
 
 **Keeping keys the same across your Apple devices.** On the Mac, iPhone and iPad apps, a **Sync API keys** switch in the iCloud Sync section (below) can share both keys across your own Apple devices through your own iCloud account. With it on, each key row also shows where its current key came from ("From this device" or the other device's name) and when it was last changed, and one state as plain text: **Up to date**; **Syncing**; **Waiting to upload** (a key saved or cleared while offline, which goes up when the connection returns); **iCloud unavailable** (signed out or iCloud Drive off, so this device keeps using the key it has); **Sync off**; or **Could not sync** (with the reason and a **Retry** button). A key that arrives from another device is masked exactly like one you typed, and the Weather tab and the Map Explorer use it straight away. After a check has replaced a key, the row says so ("Replaced by the key from ...") until your next action on that row; after a check has cleared one, it says "Cleared from ...". With the switch on, Clear asks you to confirm first, because it removes the key from this device, from iCloud, and from every other device sharing keys at its next check. With the switch off, Clear is the same instant local action as everywhere else.
 
@@ -696,7 +716,7 @@ Your choice is remembered across sessions and takes effect immediately, includin
 
 ### Default Location
 
-Set a home location used by the Map Explorer. Click **Use my location** to fill in your coordinates automatically (the same detection the Map Explorer offers), or enter latitude and longitude by hand. Set a search radius in miles, then click Save. The radius defaults to 5 miles. The Map Explorer uses these coordinates as its starting center and zoom level, including the starting point for the Nearby Lifers section.
+Set a home location used by the Map Explorer. Click **Use my location** to fill in your coordinates automatically (the same detection the Map Explorer offers), or enter latitude and longitude by hand. Set a search radius in miles, then click Save. The radius defaults to 5 miles. The Map Explorer uses these coordinates as its starting center and zoom level, including the starting point for the Nearby Lifers section. On iPhone and iPad, the home-screen widgets measure from them when your current location is unavailable.
 
 ### Tab Layout
 

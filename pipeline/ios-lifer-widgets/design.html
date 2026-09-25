@@ -1,0 +1,980 @@
+<!doctype html>
+<html lang="en" data-appearance="light" data-ax="off">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lifer Widgets</title>
+<meta name="description" content="First design direction for the SnowRaven iOS home-screen widgets: Nearby Lifers and Media Targets in every family, appearance and state, plus the Edit Widget sheet and the tap-through into Map Explorer.">
+<style>
+/* ── Board tokens (the SnowRaven design system, light theme; values from globals.css) ── */
+:root {
+  --sr-bg: #F9FAFB;
+  --sr-surface: #FFFFFF;
+  --sr-surface-subtle: #F4F4F5;
+  --sr-surface-faint: #FAFAFA;
+  --sr-text: #0F1117;
+  --sr-text-muted: #6B6B74;
+  --sr-border: #E4E4E7;
+  --sr-border-subtle: #F4F4F5;
+  --sr-border-medium: #C4C4CE;
+  --sr-accent: #277448;
+  --sr-accent-strong: #1A5C38;
+  --sr-accent-bg: #E8F5EE;
+  --sr-accent-border: rgba(39,116,72,0.25);
+  --sr-accent-border-strong: rgba(39,116,72,0.7);
+  --sr-on-accent: #FFFFFF;
+  --sr-warning: #92400E;
+  --sr-warning-bg: #FFFBEB;
+  --sr-warning-subtle: #FDE68A;
+  --sr-card-shadow: 0 1px 4px rgba(15,17,23,0.06), 0 4px 16px rgba(15,17,23,0.04);
+  --sr-ink-rgb: 15,17,23;
+
+  /* Map-anchored tokens (identical in both app themes, the basemap is always light) */
+  --sr-map-target-fresh: #2D8653;
+  --sr-map-target-fresh-text: #FFFFFF;
+  --sr-share-pin: #B4341F;
+  --sr-search-area-rgb: 180,52,31;
+
+  --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+  --font-body: -apple-system, "SF Pro Text", "Helvetica Neue", "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  --ease-out: cubic-bezier(0.2, 0, 0, 1);
+  --dur: 160ms;
+}
+
+/* ── The iOS surfaces: one variable set per appearance mode ── */
+.ios {
+  --w-bg: #FFFFFF;
+  --w-text: #0F1117;
+  --w-muted: #6B6B74;
+  --w-sep: #ECECEF;
+  --w-accent: #277448;
+  --w-ph: #E4E4E7;
+  --w-shadow: 0 8px 22px rgba(15,17,23,0.12);
+  --w-blur: none;
+  --hs-label: #FFFFFF;
+  --hs-shadow: 0 1px 3px rgba(15,17,23,0.45);
+  --icon-glass: rgba(255,255,255,0.22);
+  --icon-ink: #FFFFFF;
+  --dock: rgba(255,255,255,0.28);
+  --wall:
+    radial-gradient(120% 70% at 18% 0%, #FFE2C4 0%, rgba(255,226,196,0) 55%),
+    radial-gradient(90% 60% at 92% 18%, #D5EAF7 0%, rgba(213,234,247,0) 60%),
+    linear-gradient(180deg, #F2E6DB 0%, #B8CEDC 58%, #5F7F97 100%);
+  --status: #0F1117;
+  /* The app's own tokens (light) for the in-app frames */
+  --a-bg: #F9FAFB; --a-surface: #FFFFFF; --a-subtle: #F4F4F5; --a-text: #0F1117; --a-muted: #6B6B74;
+  --a-border: #E4E4E7; --a-border-med: #C4C4CE; --a-accent: #277448; --a-accent-bg: #E8F5EE; --a-on-accent: #FFFFFF;
+  --a-accent-border: rgba(39,116,72,0.25);
+  --a-target-bg: #FFF7ED; --a-target-text: #C2410C; --a-target-border: rgba(194,65,12,0.35);
+}
+[data-appearance="dark"] .ios,
+[data-appearance="tinted"] .ios { --a-target-bg: #1C0F00; --a-target-text: #FB923C; --a-target-border: rgba(251,146,60,0.3); }
+[data-appearance="dark"] .ios {
+  --w-bg: #1C1C1E;
+  --w-text: #F4F4F5;
+  --w-muted: #A1A1AA;
+  --w-sep: #2C2C2E;
+  --w-accent: #34D399;
+  --w-ph: #3A3A3C;
+  --w-shadow: 0 8px 22px rgba(4,6,10,0.45);
+  --icon-glass: rgba(255,255,255,0.14);
+  --dock: rgba(255,255,255,0.14);
+  --wall:
+    radial-gradient(100% 55% at 28% 0%, #1F4152 0%, rgba(31,65,82,0) 60%),
+    radial-gradient(60% 40% at 85% 90%, #24313F 0%, rgba(36,49,63,0) 60%),
+    linear-gradient(180deg, #0B131B 0%, #111F2A 55%, #182A38 100%);
+  --status: #FFFFFF;
+  --a-bg: #09090B; --a-surface: #18181B; --a-subtle: #27272A; --a-text: #F4F4F5; --a-muted: #A1A1AA;
+  --a-border: #27272A; --a-border-med: #3F3F46; --a-accent: #34D399; --a-accent-bg: #052E16; --a-on-accent: #052E16;
+  --a-accent-border: rgba(52,211,153,0.2);
+}
+[data-appearance="tinted"] .ios {
+  --tint: #C9BBFF;
+  --w-bg: rgba(26,22,40,0.66);
+  --w-text: #FFFFFF;
+  --w-muted: rgba(255,255,255,0.66);
+  --w-sep: rgba(255,255,255,0.14);
+  --w-accent: var(--tint);
+  --w-ph: rgba(255,255,255,0.18);
+  --w-shadow: 0 8px 22px rgba(8,6,18,0.5);
+  --w-blur: blur(22px) saturate(140%);
+  --icon-glass: rgba(201,187,255,0.16);
+  --icon-ink: var(--tint);
+  --dock: rgba(201,187,255,0.12);
+  --wall:
+    radial-gradient(110% 60% at 20% 0%, rgba(201,187,255,0.28) 0%, rgba(201,187,255,0) 60%),
+    radial-gradient(70% 50% at 90% 100%, rgba(201,187,255,0.18) 0%, rgba(201,187,255,0) 60%),
+    linear-gradient(180deg, #221D36 0%, #171327 60%, #100D1C 100%);
+  --status: #FFFFFF;
+  --a-bg: #09090B; --a-surface: #18181B; --a-subtle: #27272A; --a-text: #F4F4F5; --a-muted: #A1A1AA;
+  --a-border: #27272A; --a-border-med: #3F3F46; --a-accent: #34D399; --a-accent-bg: #052E16; --a-on-accent: #052E16;
+  --a-accent-border: rgba(52,211,153,0.2);
+}
+
+/* ── Board ── */
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--sr-text);
+  background:
+    radial-gradient(70% 40% at 0% 0%, rgba(39,116,72,0.07) 0%, rgba(39,116,72,0) 60%),
+    radial-gradient(50% 30% at 100% 10%, rgba(39,116,72,0.05) 0%, rgba(39,116,72,0) 60%),
+    var(--sr-bg);
+}
+svg.icon { width: 1em; height: 1em; stroke: currentColor; fill: none; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+svg.raven { fill: currentColor; flex: none; }
+
+.board-top {
+  position: sticky; top: 0; z-index: 50;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px;
+  padding: 12px 24px;
+  background: rgba(255,255,255,0.86);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--sr-border);
+  box-shadow: 0 3px 6px -2px rgba(15,17,23,0.08);
+}
+.board-brand { display: flex; align-items: center; gap: 9px; margin-right: 6px; }
+.board-brand .raven { width: 22px; height: 22px; color: var(--sr-accent); }
+.board-brand h1 { font-family: var(--font-display); font-weight: 600; font-size: 20px; letter-spacing: -0.01em; margin: 0; line-height: 1; }
+.board-brand small { display: block; font-family: var(--font-body); font-size: 11px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: var(--sr-text-muted); margin-top: 3px; }
+.board-nav { display: flex; flex-wrap: wrap; gap: 2px; }
+.board-nav a { font-size: 12.5px; font-weight: 600; color: var(--sr-text-muted); text-decoration: none; padding: 6px 9px; border-radius: 6px; transition: background-color var(--dur) ease-out, color var(--dur) ease-out; }
+.board-nav a:hover { background: var(--sr-surface-subtle); color: var(--sr-text); }
+.board-controls { margin-left: auto; display: flex; flex-wrap: wrap; align-items: center; gap: 14px; }
+.ctl-label { font-size: 11px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--sr-text-muted); }
+
+/* SegControl register from the design system */
+.seg { display: inline-flex; gap: 2px; padding: 2px; border-radius: 6px; background: var(--sr-surface-subtle); }
+.seg button {
+  display: inline-flex; align-items: center; gap: 6px;
+  font: inherit; font-size: 11.5px; font-weight: 500; color: var(--sr-text-muted);
+  padding: 0.35rem 12px; border-radius: 5px; border: 1px solid transparent; background: transparent; cursor: pointer;
+  transition: background-color 120ms ease-out, color 120ms ease-out, border-color 120ms ease-out;
+}
+.seg button:hover { color: var(--sr-text); }
+.seg button[aria-pressed="true"] { background: var(--sr-surface); border-color: var(--sr-border); color: var(--sr-text); font-weight: 600; }
+.seg button:focus-visible, .toggle:focus-visible, .btn:focus-visible, .board-nav a:focus-visible { outline: 2px solid var(--sr-accent); outline-offset: 2px; }
+
+/* Bare toggle switch register */
+.toggle-row { display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 600; color: var(--sr-text); cursor: pointer; }
+.toggle { position: relative; width: 36px; height: 20px; border-radius: 10px; border: 0; padding: 0; background: #8E8E96; cursor: pointer; transition: background-color 140ms ease-out; }
+.toggle::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #FFFFFF; box-shadow: 0 1px 2px rgba(15,17,23,0.25); transition: transform 140ms var(--ease-out); }
+.toggle[aria-checked="true"] { background: var(--sr-accent); }
+.toggle[aria-checked="true"]::after { transform: translateX(16px); }
+
+main { max-width: 1220px; margin: 0 auto; padding: 8px 24px 80px; }
+section.sec { padding: 44px 0 20px; border-bottom: 1px solid var(--sr-border); }
+section.sec:last-of-type { border-bottom: 0; }
+.sec-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 24px; align-items: end; margin-bottom: 22px; }
+.sec-kicker { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--sr-accent); margin: 0 0 6px; }
+.sec-head h2 { font-family: var(--font-display); font-weight: 600; font-size: 30px; line-height: 1.1; letter-spacing: -0.015em; margin: 0; }
+.sec-lede { font-size: 14.5px; color: var(--sr-text-muted); margin: 8px 0 0; max-width: 62ch; }
+.sec-aside { font-size: 12.5px; color: var(--sr-text-muted); max-width: 34ch; line-height: 1.45; }
+.note { font-size: 12.5px; color: var(--sr-text-muted); line-height: 1.5; max-width: 70ch; }
+.note b { color: var(--sr-text); font-weight: 600; }
+.cap { font-size: 11px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--sr-text-muted); margin: 0 0 10px; }
+.cap span { font-weight: 500; text-transform: none; letter-spacing: 0; margin-left: 6px; }
+.btn { display: inline-flex; align-items: center; gap: 7px; font: inherit; font-size: 12.5px; font-weight: 600; color: var(--sr-text); background: var(--sr-surface); border: 1.5px solid var(--sr-border); border-radius: 6px; padding: 6px 12px; cursor: pointer; transition: background-color 120ms ease-out, border-color 120ms ease-out; }
+.btn:hover { background: var(--sr-surface-subtle); border-color: var(--sr-border-medium); }
+.btn .icon { width: 13px; height: 13px; }
+
+/* ── Layouts per section ── */
+.home-grid { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 32px; align-items: start; }
+.families { display: grid; grid-template-columns: 170px 364px 364px; gap: 22px 26px; align-items: start; }
+.families .cell { display: flex; flex-direction: column; gap: 10px; }
+.families .cell .cap { margin: 0; }
+.states { display: grid; grid-template-columns: repeat(auto-fill, 364px); gap: 26px 26px; }
+.states .cell { display: flex; flex-direction: column; gap: 10px; }
+.states .cell .cap { margin: 0; display: flex; align-items: baseline; gap: 8px; }
+.states .cell .cap em { font-style: normal; font-weight: 700; color: var(--sr-text); }
+.states .cell .why { font-size: 12px; color: var(--sr-text-muted); line-height: 1.4; margin: 0; }
+.flow { display: grid; grid-template-columns: repeat(3, auto); gap: 18px; align-items: start; overflow-x: auto; padding-bottom: 8px; }
+.flow.four { grid-template-columns: repeat(4, auto); gap: 14px; }
+.flow.four .phone.scaled { transform: scale(0.66); }
+.flow.four .phone-box { width: 259px; height: 562px; margin: 10px 6px; }
+.flow .step { display: flex; flex-direction: column; gap: 10px; }
+.flow .step-n { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; background: var(--sr-accent-bg); color: var(--sr-accent); font-size: 12px; font-weight: 700; margin-right: 8px; }
+.flow .cap { display: flex; align-items: center; margin: 0; }
+.pair { display: grid; grid-template-columns: auto auto; gap: 26px; align-items: start; }
+@media (max-width: 1100px) {
+  .families { grid-template-columns: 1fr; }
+  .home-grid { grid-template-columns: 1fr; }
+  .pair { grid-template-columns: 1fr; }
+}
+
+/* ── Device frames ── */
+.ios { font-family: var(--font-body); }
+.phone {
+  position: relative; width: 393px; height: 852px; border-radius: 54px; overflow: hidden;
+  background: var(--wall);
+  box-shadow: 0 0 0 10px #1B1B1F, 0 0 0 12px #3A3A40, 0 30px 60px -20px rgba(15,17,23,0.45);
+  transition: background-color var(--dur) ease-out;
+}
+.phone.scaled { transform: scale(0.7); transform-origin: top left; }
+.phone-box { width: 275px; height: 596px; margin: 12px; }
+.island { position: absolute; top: 11px; left: 50%; width: 126px; height: 37px; margin-left: -63px; border-radius: 20px; background: #0A0A0C; }
+.statusbar { position: absolute; top: 18px; left: 0; right: 0; display: flex; justify-content: space-between; padding: 0 34px 0 38px; font-size: 16px; font-weight: 600; color: var(--status); }
+.statusbar .rt { display: flex; gap: 6px; align-items: center; }
+.statusbar .cell4 { display: inline-flex; gap: 1.5px; align-items: flex-end; height: 11px; }
+.statusbar .cell4 i { display: block; width: 3px; background: currentColor; border-radius: 1px; }
+.statusbar .batt { width: 26px; height: 12px; border: 1.5px solid currentColor; border-radius: 4px; position: relative; opacity: 0.9; }
+.statusbar .batt::after { content: ""; position: absolute; inset: 2px; right: 4px; background: currentColor; border-radius: 1.5px; }
+.hs { position: absolute; left: 14.5px; right: 14.5px; top: 94px; }
+.hs-row { display: grid; grid-template-columns: repeat(4, 91px); position: absolute; left: 0; }
+.app { display: flex; flex-direction: column; align-items: center; gap: 5px; width: 91px; }
+.app .tile { width: 60px; height: 60px; border-radius: 14px; display: flex; align-items: center; justify-content: center; color: #FFFFFF; box-shadow: 0 2px 6px rgba(15,17,23,0.2); }
+.app .tile .icon { width: 28px; height: 28px; stroke-width: 1.9; }
+.app .tile .raven { width: 36px; height: 36px; }
+.app .lbl { font-size: 11px; font-weight: 500; color: var(--hs-label); text-shadow: var(--hs-shadow); white-space: nowrap; letter-spacing: -0.01em; }
+[data-appearance="tinted"] .app .tile { background: var(--icon-glass) !important; color: var(--icon-ink) !important; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.10); }
+.pagedots { position: absolute; left: 0; right: 0; top: 728px; display: flex; justify-content: center; gap: 8px; }
+.pagedots i { width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,0.45); }
+.pagedots i.on { background: rgba(255,255,255,0.95); }
+.dock { position: absolute; left: 14.5px; right: 14.5px; top: 752px; height: 92px; border-radius: 32px; background: var(--dock); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); display: flex; align-items: center; justify-content: space-evenly; }
+.dock .app { gap: 0; }
+.dock .app .lbl { display: none; }
+
+.ipad {
+  position: relative; width: 1180px; height: 820px; border-radius: 26px; overflow: hidden;
+  background: var(--wall);
+  box-shadow: 0 0 0 12px #1B1B1F, 0 0 0 14px #3A3A40, 0 30px 60px -20px rgba(15,17,23,0.45);
+  transform: scale(0.58); transform-origin: top left;
+}
+.ipad-box { width: 700px; height: 492px; margin: 14px 14px 0 14px; }
+.ipad .statusbar { top: 12px; font-size: 14px; padding: 0 28px; }
+.ipad .grid { position: absolute; left: 60px; top: 64px; display: grid; grid-template-columns: 364px 364px 91px 91px 91px; grid-auto-rows: 98px; column-gap: 26px; }
+.ipad .dock { left: 260px; right: 260px; top: 716px; height: 88px; }
+
+/* ── The widget itself (SwiftUI/WidgetKit rendering, faithfully) ── */
+.w {
+  --ws: 1;
+  position: relative;
+  display: flex; flex-direction: column;
+  border-radius: 22px;
+  background: var(--w-bg);
+  color: var(--w-text);
+  box-shadow: var(--w-shadow);
+  backdrop-filter: var(--w-blur); -webkit-backdrop-filter: var(--w-blur);
+  padding: 12px 15px 10px;
+  font-family: var(--font-body);
+  overflow: hidden;
+  transition: background-color var(--dur) ease-out, color var(--dur) ease-out;
+}
+.w--small { width: 170px; height: 170px; }
+.w--medium { width: 364px; height: 170px; }
+.w--large { width: 364px; height: 382px; }
+.w-h { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; margin-bottom: calc(3px * var(--ws)); }
+.w-h .raven { width: calc(13px * var(--ws)); height: calc(13px * var(--ws)); color: var(--w-accent); }
+.w-title { font-size: calc(13px * var(--ws)); font-weight: 600; letter-spacing: -0.1px; line-height: 1.2; }
+.w-win { margin-left: auto; font-size: calc(11px * var(--ws)); font-weight: 600; color: var(--w-muted); line-height: 1.2; }
+.w--small .w-title { font-size: calc(12px * var(--ws)); }
+.w-rows { display: flex; flex-direction: column; min-height: 0; }
+.w-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 10px; align-items: baseline; padding: calc(3px * var(--ws)) 0; border-top: 1px solid var(--w-sep); }
+.w--large .w-row { padding: calc(5px * var(--ws)) 0; }
+.w-row:first-child { border-top: 0; }
+.w-name { display: flex; align-items: center; gap: calc(5px * var(--ws)); min-width: 0; font-size: calc(13.5px * var(--ws)); font-weight: 600; line-height: 1.15; letter-spacing: -0.1px; }
+.w-name-t { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Missing-media glyphs (Media Targets under Any): camera.fill / mic.fill / video.fill, muted, never the accent.
+   Medium and large: after the name, flex:none, so the NAME truncates and a glyph is never dropped.
+   Small: on the distance line, because the name there may take two lines; the line wraps so the glyphs drop under
+   the distance at large text sizes instead of squeezing it. */
+.m { display: inline-flex; align-items: center; gap: calc(3px * var(--ws)); color: var(--w-muted); flex: none; }
+.m svg { width: calc(11px * var(--ws)); height: calc(11px * var(--ws)); fill: currentColor; stroke: none; }
+.w-one-line .m { margin-left: auto; gap: calc(4px * var(--ws)); }
+.w-one-line .m svg { width: calc(13px * var(--ws)); height: calc(13px * var(--ws)); }
+.w-dist { font-size: calc(13.5px * var(--ws)); font-weight: 600; color: var(--w-accent); font-variant-numeric: tabular-nums; line-height: 1.15; }
+.w-sub { grid-column: 1 / -1; font-size: calc(10.5px * var(--ws)); color: var(--w-muted); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+.w-f { margin-top: auto; padding-top: calc(3px * var(--ws)); display: flex; align-items: center; gap: 5px; font-size: calc(10.5px * var(--ws)); color: var(--w-muted); line-height: 1.2; white-space: nowrap; overflow: hidden; }
+.w-f .icon { width: calc(10.5px * var(--ws)); height: calc(10.5px * var(--ws)); stroke-width: 2.4; }
+.w-f .sep { opacity: 0.55; }
+.w-one { margin-top: auto; display: flex; flex-direction: column; gap: 4px; }
+.w-one-name { font-size: calc(18px * var(--ws)); font-weight: 700; letter-spacing: -0.3px; line-height: 1.12; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.w-one-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; min-width: 0; }
+.w-one-dist { font-size: calc(22px * var(--ws)); font-weight: 700; color: var(--w-accent); font-variant-numeric: tabular-nums; letter-spacing: -0.4px; line-height: 1.05; white-space: nowrap; }
+.w-one-rec { font-size: calc(11px * var(--ws)); color: var(--w-muted); font-weight: 500; white-space: nowrap; }
+.w-msg { margin: auto 0; font-size: calc(13px * var(--ws)); font-weight: 500; line-height: 1.32; color: var(--w-text); padding-right: 4px; }
+.w--small .w-msg { font-size: calc(12px * var(--ws)); }
+.w-msg + .w-f { margin-top: 0; }
+.w-msg b { font-weight: 600; }
+/* Placeholder (gallery, S12): WidgetKit's redacted rendering */
+.w-ph .w-name-t, .w-ph .w-sub, .w-ph .w-dist, .w-ph .w-one-name, .w-ph .w-one-dist, .w-ph .w-one-rec, .w-ph .w-f { color: transparent !important; position: relative; }
+.w-ph .w-name-t::before, .w-ph .w-sub::before, .w-ph .w-dist::before, .w-ph .w-one-name::before, .w-ph .w-one-dist::before, .w-ph .w-one-rec::before, .w-ph .w-f::before { content: ""; position: absolute; left: 0; top: 15%; height: 70%; width: 100%; border-radius: 6px; background: var(--w-ph); }
+.w-ph .w-sub::before { width: 62%; }
+.w-ph .w-name-t { flex: 1; }
+.w-ph .w-f::before { width: 34%; }
+
+/* Larger text (Dynamic Type) demonstration: text scales, rows drop whole */
+[data-ax="on"] .w { --ws: 1.3; }
+[data-ax="on"] .w--small { --ws: 1.2; }   /* the one-bird card has the least headroom: two-line name, distance line, glyphs */
+[data-ax="on"] .w--medium .w-row:nth-child(n+3) { display: none; }
+[data-ax="on"] .w--large .w-row:nth-child(n+6) { display: none; }
+
+/* Refresh content transition (the one motion WidgetKit gives us) */
+.w-rows.refreshed .w-row { animation: rowIn 200ms var(--ease-out) both; }
+@keyframes rowIn { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+
+/* Tap indicator for the flow */
+.tap { position: absolute; width: 34px; height: 34px; border-radius: 50%; border: 2.5px solid rgba(255,255,255,0.95); background: rgba(39,116,72,0.35); box-shadow: 0 0 0 4px rgba(39,116,72,0.22), 0 2px 8px rgba(15,17,23,0.35); pointer-events: none; }
+.tap::after { content: ""; position: absolute; inset: 9px; border-radius: 50%; background: #FFFFFF; }
+
+/* ── Edit Widget sheet ── */
+.edit-scrim { position: absolute; inset: 0; background: rgba(8,8,14,0.62); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+.edit-top { position: absolute; top: 62px; left: 0; right: 0; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; color: #FFFFFF; font-size: 17px; }
+.edit-top b { font-weight: 600; }
+.edit-top .done { font-weight: 600; color: #FFFFFF; }
+.edit-preview { position: absolute; left: 14.5px; top: 118px; }
+.edit-list { position: absolute; left: 20px; right: 20px; top: 326px; border-radius: 12px; overflow: hidden; background: var(--w-bg); color: var(--w-text); box-shadow: var(--w-shadow); }
+.edit-row { display: flex; align-items: center; gap: 12px; min-height: 46px; padding: 0 16px; font-size: 16px; border-top: 1px solid var(--w-sep); }
+.edit-row:first-child { border-top: 0; }
+.edit-row .v { margin-left: auto; color: var(--w-muted); display: inline-flex; align-items: center; gap: 6px; }
+.edit-row .v .icon { width: 14px; height: 14px; color: var(--w-muted); }
+.edit-row .check { margin-left: auto; width: 18px; height: 18px; color: var(--w-accent); stroke-width: 2.8; flex: none; }
+.edit-row .tx { display: flex; flex-direction: column; padding: 8px 0; line-height: 1.25; }
+.edit-row .tx small { font-size: 12.5px; color: var(--w-muted); }
+.edit-foot { position: absolute; left: 20px; right: 20px; top: 476px; font-size: 12.5px; color: rgba(255,255,255,0.72); line-height: 1.4; }
+.picker-top { position: absolute; top: 62px; left: 0; right: 0; display: flex; align-items: center; padding: 0 16px; color: #FFFFFF; font-size: 17px; gap: 4px; }
+.picker-top .icon { width: 20px; height: 20px; }
+.picker-list { top: 112px; }
+
+/* ── The app (Map Explorer, phone tier), faithful to the shipped app ── */
+.appscreen { position: absolute; inset: 0; background: var(--a-bg); color: var(--a-text); display: flex; flex-direction: column; font-family: var(--font-body); }
+.a-header { display: flex; align-items: center; justify-content: center; gap: 7px; padding: 56px 24px 8px; }
+.a-header .raven { width: 20px; height: 20px; color: var(--a-accent); }
+.a-header h1 { margin: 0; font-size: 18px; font-weight: 700; letter-spacing: -0.6px; }
+.a-header h1 span:last-child { color: var(--a-accent); }
+.a-modes { display: flex; flex-wrap: wrap; gap: 8px; padding: 10px 16px; border-bottom: 1px solid var(--a-border); background: var(--a-surface); }
+.pill { display: inline-flex; align-items: center; gap: 5px; min-height: 30px; padding: 0 12px; border-radius: 15px; border: 1.5px solid var(--a-border); background: var(--a-surface); color: var(--a-muted); font-size: 12px; font-weight: 500; white-space: nowrap; }
+.pill .icon { width: 14px; height: 14px; stroke-width: 2.5; }
+.pill[aria-pressed="true"] { background: var(--a-accent-bg); border-color: var(--a-accent-border); color: var(--a-accent); font-weight: 600; }
+.a-map { position: relative; flex: 1; min-height: 0; overflow: hidden; background: #ECEAE4; }
+.a-map svg.base { position: absolute; inset: 0; width: 100%; height: 100%; }
+.chip { position: absolute; display: inline-flex; align-items: center; gap: 6px; transform: translate(-6px, -50%); }
+.chip i { width: 11px; height: 11px; border-radius: 50%; background: var(--sr-map-target-fresh); border: 2px solid rgba(255,255,255,0.95); box-shadow: 0 1px 3px rgba(15,17,23,0.45); flex: none; }
+.chip span { background: var(--sr-map-target-fresh); color: var(--sr-map-target-fresh-text); padding: 3px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; white-space: nowrap; border: 1.5px solid rgba(255,255,255,0.85); box-shadow: 0 2px 6px rgba(15,17,23,0.35), 0 0 0 1px rgba(15,17,23,0.1); }
+.chip.sel span { outline: 2px solid #FFFFFF; outline-offset: 1px; }
+.me { position: absolute; width: 16px; height: 16px; border-radius: 50%; background: var(--sr-accent); border: 3px solid #FFFFFF; box-shadow: 0 0 0 1px rgba(15,17,23,0.25), 0 2px 6px rgba(15,17,23,0.35); transform: translate(-50%, -50%); }
+.fabs { position: absolute; right: 12px; bottom: 12px; display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
+.fab-row { display: flex; gap: 10px; }
+.fab { width: 44px; height: 44px; border-radius: 50%; background: var(--a-surface); color: var(--a-text); border: 1px solid var(--a-border); display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(15,17,23,0.18); }
+.fab .icon { width: 17px; height: 17px; }
+.fab-filters { display: inline-flex; align-items: center; gap: 6px; height: 44px; padding: 0 16px; border-radius: 24px; background: var(--a-accent); color: var(--a-on-accent); font-size: 13px; font-weight: 600; box-shadow: 0 4px 12px rgba(45,134,83,0.4); }
+.fab-filters .icon { width: 14px; height: 14px; stroke-width: 2.5; }
+.a-nav { display: grid; grid-template-columns: repeat(5, 1fr); background: var(--a-surface); border-top: 1px solid var(--a-border); box-shadow: 0 -3px 6px -2px rgba(15,17,23,0.12); padding-bottom: 22px; }
+.a-nav .cell { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; min-height: 52px; padding: 7px 3px 8px; color: var(--a-muted); }
+.a-nav .glyph { display: flex; align-items: center; justify-content: center; width: 40px; height: 26px; border-radius: 13px; }
+.a-nav .glyph .icon { width: 18px; height: 18px; }
+.a-nav .lbl { font-size: 10px; font-weight: 600; line-height: 1.15; text-align: center; }
+.a-nav .cell.on { color: var(--a-accent); }
+.a-nav .cell.on .glyph { background: var(--a-accent-bg); }
+.a-nav .cell.on .lbl { font-weight: 700; }
+.homebar { position: absolute; bottom: 8px; left: 50%; width: 134px; height: 5px; margin-left: -67px; border-radius: 3px; background: var(--a-text); opacity: 0.85; }
+
+/* The Filters sheet (the sidebar at phone width) */
+.a-sheet { position: absolute; inset: 0; background: var(--a-surface); color: var(--a-text); display: flex; flex-direction: column; }
+.a-sheet-head { display: flex; align-items: center; justify-content: space-between; padding: 58px 16px 10px; border-bottom: 1px solid var(--a-border); }
+.a-sheet-head .t { font-size: 11px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--a-muted); }
+.a-sheet-head .x { width: 30px; height: 30px; border-radius: 6px; border: 1.5px solid var(--a-border); display: inline-flex; align-items: center; justify-content: center; color: var(--a-muted); }
+.a-sheet-head .x .icon { width: 14px; height: 14px; }
+.a-panel { padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+.sb-label { font-size: 11px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--a-muted); margin: 0 0 6px; }
+.a-input { display: flex; gap: 8px; }
+.a-input div { flex: 1; height: 34px; border: 1.5px solid #8A8A91; border-radius: 6px; padding: 0 10px; display: flex; align-items: center; font-size: 13px; font-variant-numeric: tabular-nums; color: var(--a-text); background: var(--a-surface); }
+.a-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 34px; border-radius: 6px; font-size: 13px; font-weight: 600; border: 1.5px solid var(--a-border); background: var(--a-surface); color: var(--a-text); }
+.a-btn .icon { width: 14px; height: 14px; }
+.a-btn.accent { background: var(--a-accent); color: var(--a-on-accent); border-color: transparent; }
+.a-seg { display: inline-flex; gap: 2px; padding: 2px; border-radius: 6px; background: var(--a-subtle); }
+.a-seg span { font-size: 11.5px; font-weight: 500; color: var(--a-muted); padding: 0.35rem 12px; border-radius: 5px; border: 1px solid transparent; }
+.a-seg span.on { background: var(--a-surface); border-color: var(--a-border); color: var(--a-text); font-weight: 600; }
+/* The in-app "Filter by Type" chips: All plus Photo / Audio / Video, amber when active (the Is Target tokens) */
+.a-types { display: flex; flex-wrap: wrap; gap: 6px; }
+.a-type { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 20px; font-size: 11.5px; font-weight: 500; background: var(--a-subtle); border: 1.5px solid var(--a-border); color: var(--a-muted); }
+.a-type .icon { width: 10px; height: 10px; stroke-width: 2.5; }
+.a-type.on { background: var(--a-target-bg); border-color: var(--a-target-border); color: var(--a-target-text); }
+.a-rule { border-top: 1px solid var(--a-border); margin: 4px 0; }
+.a-count { font-size: 11px; color: var(--a-muted); }
+.a-list-h { display: flex; align-items: center; justify-content: space-between; font-size: 12px; font-weight: 600; }
+.a-list-h .icon { width: 14px; height: 14px; color: var(--a-muted); }
+.a-list-i { font-size: 11px; color: var(--a-muted); margin: -4px 0 2px; }
+.a-li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px; align-items: start; padding: 7px 0; border-top: 1px solid var(--a-border); }
+.a-li i { width: 10px; height: 10px; border-radius: 50%; background: var(--sr-map-target-fresh); margin-top: 4px; border: 1.5px solid #FFFFFF; box-shadow: 0 0 0 1px rgba(15,17,23,0.15); }
+.a-li .p { font-size: 12.5px; font-weight: 600; line-height: 1.2; }
+.a-li .s { font-size: 11px; color: var(--a-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ── VoiceOver label sample ── */
+.vo { font-family: var(--font-mono); font-size: 12.5px; line-height: 1.55; background: var(--sr-surface); border: 1px solid var(--sr-border); border-radius: 10px; padding: 14px 16px; max-width: 74ch; color: var(--sr-text); white-space: pre-wrap; box-shadow: var(--sr-card-shadow); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation: none !important; }
+}
+</style>
+</head>
+<body>
+
+<svg hidden aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+  <symbol id="raven" viewBox="0 0 512 512"><path fill-rule="evenodd" clip-rule="evenodd" d="M 150.79 440.77 L 176.47 435.39 L 197.48 429.33 L 213.04 423.88 L 245.73 409.97 L 270.63 397.28 L 296.30 381.80 L 318.09 366.18 L 336.57 350.44 L 352.33 334.58 L 367.31 316.20 L 379.08 297.53 L 385.19 285.08 L 389.91 273.41 L 395.34 253.95 L 396.99 244.61 L 398.12 232.16 L 397.64 214.27 L 393.73 194.04 L 386.46 169.91 L 384.84 159.02 L 385.60 149.68 L 388.70 139.57 L 394.35 130.77 L 399.02 125.85 L 405.25 120.87 L 417.70 113.66 L 430.15 109.05 L 445.71 105.74 L 451.93 105.05 L 464.38 105.06 L 473.72 106.67 L 484.62 111.08 L 485.38 110.77 L 485.11 101.44 L 483.21 95.21 L 479.17 87.44 L 473.72 81.39 L 464.38 74.65 L 449.60 68.35 L 437.93 65.33 L 410.69 60.66 L 402.71 53.19 L 392.02 45.17 L 381.12 38.75 L 373.34 35.08 L 354.67 28.85 L 339.10 26.17 L 322.76 25.37 L 311.09 26.27 L 297.08 28.66 L 288.52 31.10 L 273.74 37.43 L 262.07 44.46 L 253.51 51.19 L 244.65 60.19 L 234.69 73.42 L 226.06 88.21 L 215.97 110.77 L 198.93 152.79 L 199.81 153.14 L 210.71 148.11 L 230.16 141.75 L 241.83 139.37 L 254.28 138.31 L 267.51 138.63 L 281.50 141.12 L 293.19 144.94 L 303.31 150.17 L 311.57 155.91 L 321.42 166.02 L 327.70 175.36 L 332.88 187.08 L 335.35 196.37 L 336.92 208.82 L 336.90 218.94 L 334.38 236.06 L 328.50 255.51 L 319.29 274.96 L 307.20 294.01 L 289.43 316.20 L 271.40 335.03 L 248.84 355.96 L 146.83 440.71 L 147.68 441.18 Z M 361.37 83.54 L 355.44 83.04 L 349.39 79.65 L 345.70 75.76 L 340.28 67.20 L 335.99 63.61 L 331.05 60.97 L 331.32 60.45 L 343.77 60.10 L 354.67 61.50 L 367.12 66.26 L 376.07 72.64 L 374.90 74.46 L 367.89 80.74 Z M 384.80 96.77 L 381.12 97.22 L 379.95 96.77 L 389.68 89.61 L 398.24 84.87 L 409.14 81.06 L 423.14 79.17 L 436.37 79.99 L 446.49 82.49 L 458.16 88.01 L 465.16 93.23 L 467.68 95.99 L 466.72 96.57 L 440.26 94.09 L 416.92 93.78 L 399.02 94.86 Z M 27.07 486.63 L 42.63 480.11 L 57.41 472.78 L 83.87 457.96 L 111.11 441.03 L 146.90 416.35 L 188.78 384.68 L 227.05 353.61 L 252.69 330.99 L 266.74 317.42 L 278.01 305.31 L 291.95 288.19 L 298.64 278.72 L 306.04 266.40 L 311.49 255.51 L 315.26 246.17 L 317.53 239.17 L 319.92 228.27 L 321.08 218.94 L 321.06 210.38 L 320.04 201.82 L 318.42 194.81 L 315.25 187.03 L 311.19 180.03 L 307.72 175.36 L 302.53 170.13 L 295.53 164.95 L 286.97 160.39 L 276.07 156.55 L 269.07 154.98 L 260.51 153.84 L 248.84 153.69 L 231.72 155.87 L 220.82 158.88 L 212.26 162.07 L 203.81 166.02 L 195.15 171.24 L 186.59 177.15 L 176.64 185.48 L 162.41 200.26 L 153.88 211.15 L 143.79 226.74 L 136.73 239.17 L 125.74 261.73 L 109.38 300.64 L 78.90 379.23 L 79.98 379.55 L 90.87 375.49 L 106.44 367.80 L 123.56 357.64 L 148.46 339.41 L 149.24 339.06 L 149.37 339.55 L 133.67 359.67 L 120.96 373.01 L 107.66 384.68 L 87.69 397.91 L 62.88 436.82 L 44.33 463.27 L 26.62 485.84 Z"/></symbol>
+  <symbol id="i-binoculars" viewBox="0 0 24 24"><path d="M10 10h4"/><path d="M19 7V4a1 1 0 0 0-1-1h-2a1 1 0 0 0-1 1v3"/><path d="M20 21a2 2 0 0 0 2-2v-3.851c0-1.39-2-2.962-2-4.829V8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v11a2 2 0 0 0 2 2z"/><path d="M22 16H2"/><path d="M4 21a2 2 0 0 1-2-2v-3.851c0-1.39 2-2.962 2-4.829V8a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v11a2 2 0 0 1-2 2z"/><path d="M9 7V4a1 1 0 0 0-1-1H6a1 1 0 0 0-1 1v3"/></symbol>
+  <symbol id="i-camera" viewBox="0 0 24 24"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></symbol>
+  <symbol id="i-mappin" viewBox="0 0 24 24"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></symbol>
+  <symbol id="i-hotspots" viewBox="0 0 24 24"><circle cx="8" cy="12" r="4"/><circle cx="16" cy="12" r="4"/></symbol>
+  <symbol id="i-filter" viewBox="0 0 24 24"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></symbol>
+  <symbol id="i-locate" viewBox="0 0 24 24"><line x1="2" x2="5" y1="12" y2="12"/><line x1="19" x2="22" y1="12" y2="12"/><line x1="12" x2="12" y1="2" y2="5"/><line x1="12" x2="12" y1="19" y2="22"/><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-max" viewBox="0 0 24 24"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" x2="14" y1="3" y2="10"/><line x1="3" x2="10" y1="21" y2="14"/></symbol>
+  <symbol id="i-flag" viewBox="0 0 24 24"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" x2="4" y1="22" y2="15"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></symbol>
+  <symbol id="i-chev-l" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
+  <symbol id="i-chev-r" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+  <symbol id="i-chev-d" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></symbol>
+  <symbol id="i-drop" viewBox="0 0 24 24"><path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"/></symbol>
+  <symbol id="i-cloudoff" viewBox="0 0 24 24"><path d="m2 2 20 20"/><path d="M5.782 5.782A7 7 0 0 0 9 19h8.5a4.5 4.5 0 0 0 1.307-.193"/><path d="M21.532 16.5A4.5 4.5 0 0 0 17.5 10h-1.79A7.008 7.008 0 0 0 10 5.07"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></symbol>
+  <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></symbol>
+  <symbol id="i-bar" viewBox="0 0 24 24"><line x1="18" x2="18" y1="20" y2="10"/><line x1="12" x2="12" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="14"/></symbol>
+  <symbol id="i-map" viewBox="0 0 24 24"><path d="M14.106 5.553a2 2 0 0 0 1.788 0l3.659-1.83A1 1 0 0 1 21 4.619v12.764a1 1 0 0 1-.553.894l-4.553 2.277a2 2 0 0 1-1.788 0l-4.212-2.106a2 2 0 0 0-1.788 0l-3.659 1.83A1 1 0 0 1 3 19.381V6.618a1 1 0 0 1 .553-.894l4.553-2.277a2 2 0 0 1 1.788 0z"/><path d="M15 5.764v15"/><path d="M9 3.236v15"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></symbol>
+  <symbol id="i-more" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></symbol>
+  <symbol id="i-msg" viewBox="0 0 24 24"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></symbol>
+  <symbol id="i-compass" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></symbol>
+  <symbol id="i-photos" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></symbol>
+  <symbol id="i-mail" viewBox="0 0 24 24"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></symbol>
+  <symbol id="i-note" viewBox="0 0 24 24"><path d="M15.5 3H5a2 2 0 0 0-2 2v14c0 1.1.9 2 2 2h14a2 2 0 0 0 2-2V8.5L15.5 3Z"/><path d="M15 3v6h6"/></symbol>
+  <symbol id="i-cal" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></symbol>
+  <symbol id="i-music" viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></symbol>
+  <symbol id="i-phone" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></symbol>
+  <symbol id="i-mic" viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></symbol>
+  <symbol id="i-video" viewBox="0 0 24 24"><path d="m22 8-6 4 6 4V8z"/><rect width="14" height="12" x="2" y="6" rx="2" ry="2"/></symbol>
+  <!-- SF Symbols the widget draws: camera.fill and mic.fill (filled, so they read at 11pt) -->
+  <symbol id="sf-camera" viewBox="0 0 24 24"><path d="M9.2 3.5a1.5 1.5 0 0 0-1.25.67L6.8 6H4.5A2.5 2.5 0 0 0 2 8.5v9A2.5 2.5 0 0 0 4.5 20h15a2.5 2.5 0 0 0 2.5-2.5v-9A2.5 2.5 0 0 0 19.5 6h-2.3l-1.15-1.83A1.5 1.5 0 0 0 14.8 3.5zM12 9.25a3.75 3.75 0 1 1 0 7.5 3.75 3.75 0 0 1 0-7.5z"/></symbol>
+  <symbol id="sf-video" viewBox="0 0 24 24"><path d="M3.5 6A2.5 2.5 0 0 0 1 8.5v7A2.5 2.5 0 0 0 3.5 18h10a2.5 2.5 0 0 0 2.5-2.5v-7A2.5 2.5 0 0 0 13.5 6zM17.5 10.2v3.6l4.05 2.7a.9.9 0 0 0 1.45-.72V8.22a.9.9 0 0 0-1.45-.72z"/></symbol>
+  <symbol id="sf-mic" viewBox="0 0 24 24"><path d="M12 2.25A3.25 3.25 0 0 0 8.75 5.5v6.5a3.25 3.25 0 0 0 6.5 0V5.5A3.25 3.25 0 0 0 12 2.25z"/><path d="M6 11.25a.9.9 0 0 1 .9.9V12a5.1 5.1 0 0 0 10.2 0v.15a.9.9 0 1 1 1.8 0V12a6.9 6.9 0 0 1-6 6.84v2.16a.9.9 0 1 1-1.8 0v-2.16A6.9 6.9 0 0 1 5.1 12v.15a.9.9 0 0 1 .9-.9z"/></symbol>
+  <symbol id="i-weather" viewBox="0 0 24 24"><path d="M12 2v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="M20 12h2"/><path d="m19.07 4.93-1.41 1.41"/><path d="M15.947 12.65a4 4 0 0 0-5.925-4.128"/><path d="M13 22H7a5 5 0 1 1 4.9-6H13a3 3 0 0 1 0 6Z"/></symbol>
+</svg>
+
+<header class="board-top">
+  <div class="board-brand">
+    <svg class="raven" aria-hidden="true"><use href="#raven"/></svg>
+    <div><h1>Lifer Widgets</h1><small>SnowRaven for iPhone and iPad</small></div>
+  </div>
+  <nav class="board-nav" aria-label="Sections">
+    <a href="#home">Home screen</a>
+    <a href="#families">Every size</a>
+    <a href="#states">States</a>
+    <a href="#edit">Edit Widget</a>
+    <a href="#tap">Tap-through</a>
+    <a href="#voiceover">VoiceOver</a>
+  </nav>
+  <div class="board-controls">
+    <span class="ctl-label">Appearance</span>
+    <div class="seg" role="group" aria-label="Appearance mode" id="appearance">
+      <button type="button" data-mode="light" aria-pressed="true"><svg class="icon" aria-hidden="true"><use href="#i-sun"/></svg>Light</button>
+      <button type="button" data-mode="dark" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="#i-moon"/></svg>Dark</button>
+      <button type="button" data-mode="tinted" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="#i-drop"/></svg>Tinted</button>
+    </div>
+    <label class="toggle-row" for="ax"><button type="button" class="toggle" role="switch" aria-checked="false" id="ax"></button>Larger text</label>
+  </div>
+</header>
+
+<main>
+
+<!-- ───────── 1. Home screen ───────── -->
+<section class="sec" id="home">
+  <div class="sec-head">
+    <div>
+      <p class="sec-kicker">First design direction</p>
+      <h2>The nearest bird you need, on the home screen</h2>
+      <p class="sec-lede">A Nearby Lifers widget set to the week, and a Media Targets widget set to today, beside the apps a birder already keeps. Switch Appearance above to see light, dark and the tinted home screen; turn on Larger text to see rows drop rather than clip.</p>
+    </div>
+    <p class="sec-aside">Bay Area, a late September morning. Every name is a real species a birder there could chase; every distance is measured from the phone.</p>
+  </div>
+  <div class="home-grid">
+    <div class="ios">
+      <div class="phone" id="home-phone"></div>
+    </div>
+    <div class="ios">
+      <p class="cap">iPad <span>a large Nearby Lifers over 30 days and a medium Media Targets for the week, same extension</span></p>
+      <div class="ipad-box"><div class="ipad" id="home-ipad"></div></div>
+      <p class="note" style="margin-top:8px">What holds the two widgets together with the app: the raven mark in the header, the exact view names from Map Explorer, and one accent color spent on one thing, the distance. Everything else is ink and gray, so the list reads as a list and the number reads as the answer.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ───────── 2. Families ───────── -->
+<section class="sec" id="families">
+  <div class="sec-head">
+    <div>
+      <p class="sec-kicker">Every size</p>
+      <h2>One bird, three birds, eight birds</h2>
+      <p class="sec-lede">Small is a single-bird card: the name big, the distance bigger. Medium and large are the same row repeated, nearest first, with the update time in the footer. The window sits in the header as a word, never a control, because a widget cannot hold one. On Media Targets set to Any, a small camera, microphone or video glyph beside the name says what the bird still needs.</p>
+    </div>
+    <div class="sec-aside">
+      <button type="button" class="btn" id="refresh"><svg class="icon" aria-hidden="true"><use href="#i-refresh"/></svg>Simulate a refresh</button>
+      <div style="margin-top:8px">A new report lands nearer than the rest; rows settle in 200 ms, the only motion WidgetKit allows.</div>
+    </div>
+  </div>
+  <div class="ios families" id="families-grid"></div>
+</section>
+
+<!-- ───────── 3. States ───────── -->
+<section class="sec" id="states">
+  <div class="sec-head">
+    <div>
+      <p class="sec-kicker">States</p>
+      <h2>One sentence, and the title never leaves</h2>
+      <p class="sec-lede">Each state says which one thing is missing, in the register of the Map Explorer overlays. A stale list is still a list, marked by words in the footer, never by color. Nothing is ever blank.</p>
+    </div>
+    <p class="sec-aside">The state set and its precedence come from the plan; this is the copy as it would ship. Medium shown for all; the last tile shows how small carries a stale mark.</p>
+  </div>
+  <div class="ios states" id="states-grid"></div>
+</section>
+
+<!-- ───────── 4. Edit Widget ───────── -->
+<section class="sec" id="edit">
+  <div class="sec-head">
+    <div>
+      <p class="sec-kicker">Configuration</p>
+      <h2>Time range, and for Media Targets, Media</h2>
+      <p class="sec-lede">Long-press, Edit Widget. The sheet is iOS's own; we supply the parameters and their values. Day, Week and 30 days are the same three words as the in-app Time Range control. Media Targets adds Media: Photo, Audio, Video or Any, with Any the default. Nearby Lifers has Time range only.</p>
+    </div>
+    <p class="sec-aside">Any means missing any of the three, which is exactly what Map Explorer's Media Targets lists under its All chip.</p>
+  </div>
+  <div class="ios flow">
+    <div class="step">
+      <p class="cap">Edit Widget <span>Week and Any are the defaults for a newly placed widget</span></p>
+      <div class="phone-box"><div class="phone scaled" id="edit-phone"></div></div>
+    </div>
+    <div class="step">
+      <p class="cap">Time range <span>a change re-lists from the cache, no new eBird request</span></p>
+      <div class="phone-box"><div class="phone scaled" id="picker-phone"></div></div>
+    </div>
+    <div class="step">
+      <p class="cap">Media <span>four values, each with a second line saying what it means</span></p>
+      <div class="phone-box"><div class="phone scaled" id="media-phone"></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────── 5. Tap-through ───────── -->
+<section class="sec" id="tap">
+  <div class="sec-head">
+    <div>
+      <p class="sec-kicker">Tap-through</p>
+      <h2>Tap the bird, land on the map</h2>
+      <p class="sec-lede">One tap opens SnowRaven on Map Explorer with Nearby Lifers selected, the widget's window applied, a 25 mile search already run from the phone's location, and the tapped bird's chip on the map. The app screen here is the shipped Map Explorer at phone width, not a new surface.</p>
+    </div>
+    <p class="sec-aside">On medium and large every row is its own link; on small the whole tile is. A Media Targets widget lands the same way, an exact match in every setting: Photo, Audio or Video with that type chip selected, Any with the in-app chips on All.</p>
+  </div>
+  <div class="ios flow four">
+    <div class="step">
+      <p class="cap"><span class="step-n">1</span>Tap a row on the home screen</p>
+      <div class="phone-box"><div class="phone scaled" id="flow-1"></div></div>
+    </div>
+    <div class="step">
+      <p class="cap"><span class="step-n">2</span>Map Explorer, Nearby Lifers, searched from here</p>
+      <div class="phone-box"><div class="phone scaled" id="flow-2"></div></div>
+    </div>
+    <div class="step">
+      <p class="cap"><span class="step-n">3</span>Filters shows the window the widget carried</p>
+      <div class="phone-box"><div class="phone scaled" id="flow-3"></div></div>
+    </div>
+    <div class="step">
+      <p class="cap"><span class="step-n">4</span>From a Video widget: Media Targets, Video chip on</p>
+      <div class="phone-box"><div class="phone scaled" id="flow-4"></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────── 6. VoiceOver ───────── -->
+<section class="sec" id="voiceover">
+  <div class="sec-head">
+    <div>
+      <p class="sec-kicker">VoiceOver</p>
+      <h2>Read in full, with the unit spoken</h2>
+      <p class="sec-lede">The widget is one element to VoiceOver: title and window, then each row as one sentence with the location name (even on small, where it is not drawn), then the update time and any caption. "mi" on screen is "miles" in speech.</p>
+    </div>
+  </div>
+  <div class="vo" id="vo-sample"></div>
+  <p class="cap" style="margin-top:16px">Media Targets under Any <span>the glyphs are spoken as what the bird needs</span></p>
+  <div class="vo" id="vo-sample-2"></div>
+  <p class="note" style="margin-top:14px">Text uses the system text styles, so it follows Dynamic Type. At larger sizes the medium widget shows two rows and the large five, each row whole; a long name truncates on screen while its spoken label stays complete.</p>
+</section>
+
+</main>
+
+<script>
+(function () {
+  'use strict';
+
+  // ── Realistic content: a Bay Area birder, late September ──
+  var LIFERS = [
+    { n: "Ruff", d: "3.2", r: "Today", l: "Coyote Hills Regional Park" },
+    { n: "Baird's Sandpiper", d: "5.8", r: "Yesterday", l: "Hayward Regional Shoreline" },
+    { n: "Pectoral Sandpiper", d: "9.1", r: "Yesterday", l: "Don Edwards NWR, Alviso" },
+    { n: "Tropical Kingbird", d: "11.4", r: "2 days ago", l: "Alameda Point" },
+    { n: "Blackpoll Warbler", d: "14.0", r: "3 days ago", l: "Golden Gate Park, Middle Lake" },
+    { n: "Prothonotary Warbler", d: "15.6", r: "4 days ago", l: "Lake Merced" },
+    { n: "Sabine's Gull", d: "21.3", r: "5 days ago", l: "Pillar Point Harbor" },
+    { n: "Buff-breasted Sandpiper", d: "24.7", r: "6 days ago", l: "Bolinas Lagoon" }
+  ];
+  var LIFERS_REFRESHED = [
+    { n: "Red-necked Stint", d: "1.1", r: "Today", l: "Alviso Marina County Park" }
+  ].concat(LIFERS.slice(0, 7));
+  // m = what the Macaulay export lacks for the species: any of photo, audio, video (always in that order)
+  var TARGETS = [
+    { n: "Wrentit", d: "0.9", r: "Today", l: "Sunol Regional Wilderness", m: ["audio"] },
+    { n: "Nuttall's Woodpecker", d: "2.4", r: "Today", l: "Alum Rock Park", m: ["photo"] },
+    { n: "Hutton's Vireo", d: "4.6", r: "Yesterday", l: "Joseph D. Grant County Park", m: ["photo", "audio"] },
+    { n: "California Thrasher", d: "6.3", r: "Yesterday", l: "Ed R. Levin County Park", m: ["audio", "video"] },
+    { n: "Oak Titmouse", d: "7.7", r: "2 days ago", l: "Coyote Creek Trail", m: ["video"] },
+    { n: "Black-throated Gray Warbler", d: "12.5", r: "3 days ago", l: "Calero County Park", m: ["photo", "audio", "video"] },
+    { n: "Bell's Sparrow", d: "18.2", r: "5 days ago", l: "Henry W. Coe State Park", m: ["photo", "audio", "video"] },
+    { n: "Yellow-billed Magpie", d: "19.9", r: "6 days ago", l: "Mount Hamilton Road", m: ["photo", "video"] }
+  ];
+  // The stress case: the longest plausible name with all three glyphs, nearest first
+  var TARGETS_STRESS = [TARGETS[5], TARGETS[6], TARGETS[7]].map(function (r) { return { n: r.n, d: r.d, r: r.r, l: r.l, m: r.m }; });
+  TARGETS_STRESS[0] = { n: "Black-throated Gray Warbler", d: "1.4", r: "Today", l: "Sanborn County Park", m: ["photo", "audio", "video"] };
+  var TITLE = { lifers: "Nearby Lifers", targets: "Media Targets" };
+  var WIN = { day: "Day", week: "Week", all: "30 days" };
+  var MEDIA = { photo: "Photo", audio: "Audio", video: "Video", all: "Any" };
+  var SF = { photo: "sf-camera", audio: "sf-mic", video: "sf-video" };
+  function needs(m) {
+    if (m.length === 1) return "needs " + m[0];
+    if (m.length === 2) return "needs " + m[0] + " and " + m[1];
+    return "needs " + m[0] + ", " + m[1] + " and " + m[2];
+  }
+  function glyphs(m) {
+    return '<span class="m">' + m.map(function (t) { return '<svg aria-hidden="true"><use href="#' + SF[t] + '"/></svg>'; }).join("") + '</span>';
+  }
+  var WIN_PHRASE = { day: "today", week: "this week", all: "in the last 30 days" };
+  var CAP = { small: 1, medium: 3, large: 8 };
+
+  function esc(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
+  function icon(id, cls) { return '<svg class="icon' + (cls ? " " + cls : "") + '" aria-hidden="true"><use href="#' + id + '"/></svg>'; }
+  var RAVEN = '<svg class="raven" aria-hidden="true"><use href="#raven"/></svg>';
+
+  // Composes the VoiceOver label the way the extension will (NFR-05).
+  function voLabel(kind, win, rows, footerParts, msg, media) {
+    var s = TITLE[kind] + ", " + WIN[win] + (kind === "targets" && media && media !== "all" ? ", " + MEDIA[media] : "") + ".";
+    if (msg) { s += " " + msg; }
+    rows.forEach(function (r) {
+      var need = (kind === "targets" && media === "all" && r.m) ? ", " + needs(r.m) : "";
+      s += " " + r.n + need + ", " + r.d + " miles, " + r.r + ", " + r.l + ".";
+    });
+    if (footerParts.length) { s += " " + footerParts.join(". ") + "."; }
+    return s;
+  }
+
+  // Renders one widget. o: { rows, state (sentence), stale: 'offline'|'busy', caption: bool, placeholder: bool, updated,
+  //                          media: 'all'|'photo'|'audio'|'video' (Media Targets only; default all) }
+  function widget(kind, fam, win, o) {
+    o = o || {};
+    var media = kind === "targets" ? (o.media || "all") : null;
+    var data = o.rows || (kind === "lifers" ? LIFERS : TARGETS);
+    if (win === "day") { data = data.filter(function (r) { return r.r === "Today"; }); }
+    if (media && media !== "all") { data = data.filter(function (r) { return !r.m || r.m.indexOf(media) !== -1; }); }
+    var rows = o.state ? [] : data.slice(0, CAP[fam]);
+    var showGlyph = media === "all";
+    var winText = WIN[win] + (media && media !== "all" ? " · " + MEDIA[media] : "");
+    var footer = [];
+    if (!o.state) {
+      if (o.caption) footer.push("From your default location");
+      if (o.stale === "offline") footer.push("Offline");
+      if (o.stale === "busy") footer.push("eBird busy");
+      if (fam !== "small" || o.stale) footer.push("Updated " + (o.updated || "9:41 AM"));
+    }
+    var html = '<div class="w-h">' + RAVEN + '<span class="w-title">' + TITLE[kind] + '</span><span class="w-win">' + winText + '</span></div>';
+    if (o.state) {
+      html += '<p class="w-msg">' + o.state + '</p>';
+    } else if (fam === "small") {
+      var r0 = rows[0];
+      var g0 = (showGlyph && r0.m) ? glyphs(r0.m) : "";
+      html += '<div class="w-one"><div class="w-one-name">' + esc(r0.n) + '</div><div class="w-one-line"><span class="w-one-dist">' + r0.d + ' mi</span><span class="w-one-rec">' + r0.r + '</span>' + g0 + '</div></div>';
+    } else {
+      html += '<div class="w-rows">' + rows.map(function (r) {
+        var g = (showGlyph && r.m) ? glyphs(r.m) : "";
+        return '<div class="w-row"><span class="w-name"><span class="w-name-t">' + esc(r.n) + '</span>' + g + '</span><span class="w-dist">' + r.d + ' mi</span><span class="w-sub">' + r.r + ' · ' + esc(r.l) + '</span></div>';
+      }).join("") + '</div>';
+    }
+    if (footer.length) {
+      html += '<div class="w-f">' + (o.stale === "offline" ? icon("i-cloudoff") : "") + footer.map(function (p) { return '<span>' + p + '</span>'; }).join('<span class="sep">·</span>') + '</div>';
+    }
+    var label = o.placeholder ? TITLE[kind] + ", " + WIN[win] + ". Placeholder." : voLabel(kind, win, rows, footer, o.state ? o.state.replace(/<[^>]+>/g, "") : "", media);
+    return '<div class="w w--' + fam + (o.placeholder ? ' w-ph' : '') + '" role="group" aria-label="' + esc(label) + '">' + html + '</div>';
+  }
+
+  // ── Home-screen chrome ──
+  function statusbar() {
+    return '<div class="statusbar" aria-hidden="true"><span>9:41</span><span class="rt"><span class="cell4"><i style="height:4px"></i><i style="height:6px"></i><i style="height:8px"></i><i style="height:11px"></i></span><span class="batt"></span></span></div>';
+  }
+  var APPS = {
+    messages: ["Messages", "linear-gradient(160deg,#5AD86A,#2BB047)", "i-msg"],
+    safari:   ["Safari", "linear-gradient(160deg,#4FB4FF,#1C7BE0)", "i-compass"],
+    maps:     ["Maps", "linear-gradient(160deg,#F4F0E6,#CFE6C3)", "i-mappin", "#2E7D4F"],
+    photos:   ["Photos", "linear-gradient(160deg,#FFF3D6,#F7C4D9)", "i-photos", "#B0421F"],
+    weather:  ["Weather", "linear-gradient(160deg,#5DB1FF,#2265C7)", "i-weather"],
+    camera:   ["Camera", "linear-gradient(160deg,#4A4A52,#26262C)", "i-camera"],
+    mail:     ["Mail", "linear-gradient(160deg,#5FB7FF,#2E7BDD)", "i-mail"],
+    notes:    ["Notes", "linear-gradient(160deg,#FFF6C8,#F5D96B)", "i-note", "#6B5A10"],
+    calendar: ["Calendar", "linear-gradient(160deg,#FFFFFF,#F1F1F3)", "i-cal", "#D0281E"],
+    clock:    ["Clock", "linear-gradient(160deg,#2A2A31,#141418)", "i-clock"],
+    music:    ["Music", "linear-gradient(160deg,#FF6C8C,#E0304F)", "i-music"],
+    settings: ["Settings", "linear-gradient(160deg,#9A9AA3,#5E5E68)", "i-gear"],
+    phone:    ["Phone", "linear-gradient(160deg,#5AD86A,#2BB047)", "i-phone"],
+    snowraven:["SnowRaven", "linear-gradient(160deg,#2F8B57,#1A5C38)", "raven"]
+  };
+  function app(id) {
+    var a = APPS[id];
+    var inner = a[2] === "raven" ? RAVEN : icon(a[2]);
+    return '<div class="app"><div class="tile" style="background:' + a[1] + (a[3] ? ';color:' + a[3] : '') + '">' + inner + '</div><span class="lbl">' + a[0] + '</span></div>';
+  }
+  function homePhone(opts) {
+    opts = opts || {};
+    return statusbar() + '<div class="island"></div>' +
+      '<div class="hs">' +
+        '<div style="position:absolute;left:0;top:0">' + widget("lifers", "medium", "week") + '</div>' +
+        '<div style="position:absolute;left:0;top:196px">' + widget("targets", "small", "day") + '</div>' +
+        '<div class="hs-row" style="top:196px;left:182px;grid-template-columns:91px 91px">' + app("messages") + app("safari") + '</div>' +
+        '<div class="hs-row" style="top:294px;left:182px;grid-template-columns:91px 91px">' + app("maps") + app("photos") + '</div>' +
+        '<div class="hs-row" style="top:392px">' + app("weather") + app("camera") + app("mail") + app("notes") + '</div>' +
+        '<div class="hs-row" style="top:490px">' + app("calendar") + app("clock") + app("music") + app("settings") + '</div>' +
+      '</div>' +
+      '<div class="pagedots" aria-hidden="true"><i class="on"></i><i></i><i></i></div>' +
+      '<div class="dock">' + app("phone") + app("snowraven") + app("messages") + app("safari") + '</div>' +
+      (opts.tap ? '<div class="tap" style="left:' + opts.tap[0] + 'px;top:' + opts.tap[1] + 'px"></div>' : '');
+  }
+  function homeIpad() {
+    return statusbar() +
+      '<div class="grid">' +
+        '<div style="grid-row:1 / span 4">' + widget("lifers", "large", "all") + '</div>' +
+        '<div style="grid-row:1 / span 2">' + widget("targets", "medium", "week") + '</div>' +
+        app("messages") + app("safari") + app("maps") +
+        app("photos") + app("weather") + app("camera") +
+        '<div style="grid-row:3 / span 2;grid-column:2">' + widget("lifers", "medium", "day") + '</div>' +
+        app("mail") + app("notes") + app("calendar") +
+        app("clock") + app("music") + app("settings") +
+      '</div>' +
+      '<div class="dock">' + app("phone") + app("snowraven") + app("messages") + app("safari") + app("mail") + app("notes") + '</div>';
+  }
+
+  // ── Edit Widget sheet (Media Targets: two parameters; Nearby Lifers has only the first) ──
+  function editPhone(picker) {
+    var preview = widget("targets", "medium", "week");
+    var head = statusbar() + '<div class="island"></div><div class="edit-scrim"></div>';
+    if (picker === "time") {
+      return head + '<div class="picker-top">' + icon("i-chev-l") + '<b>Time range</b></div>' +
+        '<div class="edit-list picker-list">' +
+          '<div class="edit-row"><span>Day</span></div>' +
+          '<div class="edit-row"><span>Week</span>' + icon("i-check", "check") + '</div>' +
+          '<div class="edit-row"><span>30 days</span></div>' +
+        '</div>';
+    }
+    if (picker === "media") {
+      return head + '<div class="picker-top">' + icon("i-chev-l") + '<b>Media</b></div>' +
+        '<div class="edit-list picker-list">' +
+          '<div class="edit-row"><span class="tx">Photo<small>Species you have no photo of</small></span></div>' +
+          '<div class="edit-row"><span class="tx">Audio<small>Species you have no audio of</small></span></div>' +
+          '<div class="edit-row"><span class="tx">Video<small>Species you have no video of</small></span></div>' +
+          '<div class="edit-row"><span class="tx">Any<small>Missing a photo, audio, or video</small></span>' + icon("i-check", "check") + '</div>' +
+        '</div>';
+    }
+    return head +
+      '<div class="edit-top"><b>Media Targets</b><span class="done">Done</span></div>' +
+      '<div class="edit-preview">' + preview + '</div>' +
+      '<div class="edit-list">' +
+        '<div class="edit-row"><span>Time range</span><span class="v">Week ' + icon("i-chev-r") + '</span></div>' +
+        '<div class="edit-row"><span>Media</span><span class="v">Any ' + icon("i-chev-r") + '</span></div>' +
+      '</div>' +
+      '<p class="edit-foot" style="top:522px">Recent eBird reports of species you have recorded but still need a photo, audio or video of, within 25 miles of where you are, nearest first. Tap to open them in Map Explorer.</p>';
+  }
+
+  // ── Map Explorer (phone tier) ──
+  function basemap() {
+    return '<svg class="base" viewBox="0 0 393 560" preserveAspectRatio="xMidYMid slice" aria-hidden="true">' +
+      '<rect width="393" height="560" fill="#EEECE6"/>' +
+      '<path d="M250 0 C 235 60, 285 120, 260 190 C 240 250, 300 300, 330 380 C 350 440, 300 520, 330 560 L 393 560 L 393 0 Z" fill="#CBD9E2"/>' +
+      '<path d="M0 470 C 60 455, 120 480, 160 460 C 210 435, 240 470, 260 520 L 260 560 L 0 560 Z" fill="#CBD9E2"/>' +
+      '<ellipse cx="110" cy="120" rx="70" ry="42" fill="#DDE7D3"/>' +
+      '<ellipse cx="70" cy="330" rx="56" ry="70" fill="#DDE7D3"/>' +
+      '<ellipse cx="200" cy="400" rx="40" ry="26" fill="#DDE7D3"/>' +
+      '<g stroke="#FFFFFF" stroke-width="3" fill="none" stroke-linecap="round">' +
+        '<path d="M-10 220 C 80 200, 140 240, 250 215"/>' +
+        '<path d="M150 -10 C 160 120, 130 300, 175 560"/>' +
+        '<path d="M-10 380 C 60 372, 120 400, 235 360"/>' +
+        '<path d="M40 -10 C 50 100, 30 240, 60 470"/>' +
+      '</g>' +
+      '<g stroke="#E3DFD6" stroke-width="1.5" fill="none">' +
+        '<path d="M-10 90 L 260 70"/><path d="M-10 150 L 230 160"/><path d="M-10 290 L 240 280"/><path d="M100 -10 L 90 470"/><path d="M210 -10 L 215 350"/>' +
+      '</g>' +
+      // Searched area: dim what was NOT covered; the edge is the audited red-orange
+      '<path fill-rule="evenodd" d="M0 0H393V560H0Z M-20 280 a 216 216 0 1 0 432 0 a 216 216 0 1 0 -432 0 Z" fill="rgba(15,17,23,0.22)"/>' +
+      '<circle cx="196" cy="280" r="216" fill="none" stroke="rgba(180,52,31,0.85)" stroke-width="1.5"/>' +
+    '</svg>';
+  }
+  function modes(active) {
+    var list = [["sightings", "My Sightings", "i-mappin"], ["hotspots", "Hotspots", "i-hotspots"], ["lifers", "Nearby Lifers", "i-binoculars"], ["targets", "Media Targets", "i-camera"]];
+    return '<div class="a-modes" role="group" aria-label="Map view mode">' + list.map(function (m) {
+      return '<span class="pill" aria-pressed="' + (m[0] === active) + '">' + icon(m[2]) + m[1] + '</span>';
+    }).join("") + '</div>';
+  }
+  function nav() {
+    return '<div class="a-nav">' +
+      '<div class="cell"><span class="glyph">' + icon("i-cloud") + '</span><span class="lbl">Weather</span></div>' +
+      '<div class="cell"><span class="glyph">' + icon("i-bar") + '</span><span class="lbl">Statistics</span></div>' +
+      '<div class="cell on"><span class="glyph">' + icon("i-map") + '</span><span class="lbl">Map Explorer</span></div>' +
+      '<div class="cell"><span class="glyph">' + icon("i-book") + '</span><span class="lbl">Species Detail</span></div>' +
+      '<div class="cell"><span class="glyph">' + icon("i-more") + '</span><span class="lbl">More</span></div>' +
+    '</div>';
+  }
+  function appHeader() {
+    return '<div class="a-header">' + RAVEN + '<h1><span>Snow</span><span>Raven</span></h1></div>';
+  }
+  function mapPhone() {
+    var chips = [
+      [62, 42, "Ruff", true], [20, 56, "Baird's Sandpiper"], [46, 80, "Pectoral Sandpiper"], [40, 18, "Tropical Kingbird"],
+      [10, 30, "Blackpoll Warbler"], [8, 68, "Prothonotary Warbler"], [14, 92, "Sabine's Gull"], [48, 6, "Buff-breasted Sandpiper"]
+    ];
+    return statusbar() + '<div class="island"></div>' +
+      '<div class="appscreen">' + appHeader() + modes("lifers") +
+        '<div class="a-map">' + basemap() +
+          chips.map(function (c) { return '<div class="chip' + (c[3] ? ' sel' : '') + '" style="left:' + c[0] + '%;top:' + c[1] + '%"><i></i><span>' + esc(c[2]) + '</span></div>'; }).join("") +
+          '<div class="me" style="left:56%;top:50%"></div>' +
+          '<div class="fabs"><div class="fab-row"><span class="fab">' + icon("i-flag") + '</span><span class="fab">' + icon("i-locate") + '</span><span class="fab">' + icon("i-max") + '</span></div><span class="fab-filters">' + icon("i-filter") + 'Filters</span></div>' +
+        '</div>' + nav() +
+      '</div><div class="homebar"></div>';
+  }
+  function filtersPhone(kind) {
+    var head = statusbar() + '<div class="island"></div>' +
+      '<div class="appscreen"><div class="a-sheet">' +
+        '<div class="a-sheet-head"><span class="t">Filters</span><span class="x">' + icon("i-x") + '</span></div>' +
+        '<div class="a-panel">' +
+          '<div><p class="sb-label">Center</p><div class="a-input"><div>37.5485</div><div>-121.9886</div></div></div>' +
+          '<span class="a-btn">' + icon("i-locate") + 'Use my location</span>' +
+          '<div><p class="sb-label">Radius</p><div class="a-seg"><span>5 mi</span><span>10 mi</span><span class="on">25 mi</span></div></div>';
+    var tail = '</div></div></div><div class="homebar"></div>';
+    if (kind === "targets") {
+      var t = TARGETS.filter(function (r) { return r.m.indexOf("video") !== -1; }).slice(0, 4);
+      return head +
+        '<span class="a-btn accent">Find Media Targets</span>' +
+        '<div class="a-rule"></div>' +
+        '<div><p class="sb-label">Filter by Type</p><div class="a-types"><span class="a-type">All</span><span class="a-type">' + icon("i-camera") + 'Photo</span><span class="a-type">' + icon("i-mic") + 'Audio</span><span class="a-type on">' + icon("i-video") + 'Video</span></div></div>' +
+        '<div><p class="sb-label">Time Range</p><div class="a-seg"><span>Day</span><span class="on">Week</span><span>30 days</span></div></div>' +
+        '<div><p class="sb-label">Marker Style</p><div class="a-seg"><span class="on">Labels</span><span>Dots</span></div></div>' +
+        '<div class="a-list-h"><span style="font-size:11px;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:var(--a-muted)">Targets in View (4)</span>' + icon("i-chev-d") + '</div>' +
+        '<p class="a-list-i">Select a target to open its details on the map. Updates as you pan or zoom.</p>' +
+        '<div>' + t.map(function (r) { return '<div class="a-li"><i></i><div><div class="p">' + esc(r.n) + '</div><div class="s">' + esc(r.l) + ' · ' + r.d + ' mi</div></div></div>'; }).join("") + '</div>' +
+        tail;
+    }
+    var items = LIFERS.slice(0, 5);
+    return head +
+      '<span class="a-btn accent">Find Nearby Lifers</span>' +
+      '<div class="a-rule"></div>' +
+      '<div><p class="sb-label">Time Range</p><div class="a-seg"><span>Day</span><span class="on">Week</span><span>30 days</span></div></div>' +
+      '<div><p class="sb-label">Marker Style</p><div class="a-seg"><span class="on">Labels</span><span>Dots</span></div></div>' +
+      '<div class="a-count">8 spots · 8 lifers</div>' +
+      '<div class="a-list-h"><span>Nearby lifers in view</span>' + icon("i-chev-d") + '</div>' +
+      '<p class="a-list-i">Select a spot to open its details on the map. Updates as you pan or zoom.</p>' +
+      '<div>' + items.map(function (r) { return '<div class="a-li"><i></i><div><div class="p">' + esc(r.l) + '</div><div class="s">1 lifer · ' + esc(r.n) + '</div></div></div>'; }).join("") + '</div>' +
+      tail;
+  }
+
+  // ── Families grid ──
+  function familiesGrid() {
+    var fams = ["small", "medium", "large"];
+    var out = "";
+    [["lifers", "week", ""], ["targets", "week", ", Media set to Any"]].forEach(function (k) {
+      fams.forEach(function (f) {
+        var id = (k[0] === "lifers" && f === "medium") ? ' id="w-refresh"' : '';
+        out += '<div class="cell"><p class="cap">' + TITLE[k[0]] + ' <span>system' + f.charAt(0).toUpperCase() + f.slice(1) + ' · ' + CAP[f] + (CAP[f] === 1 ? ' row' : ' rows') + k[2] + '</span></p><div' + id + '>' + widget(k[0], f, k[1]) + '</div></div>';
+      });
+    });
+    out += '<div class="cell"><p class="cap">Media Targets <span>Media set to Video</span></p>' + widget("targets", "small", "week", { media: "video" }) + '</div>';
+    out += '<div class="cell"><p class="cap">The hard case <span>a long name with all three glyphs, under Any</span></p>' + widget("targets", "medium", "week", { rows: TARGETS_STRESS }) + '</div>';
+    out += '<div class="cell"><p class="cap">The rules <span>glyphs, and when a name gives way</span></p><p class="note">Under Any each row carries one glyph per missing type, in a fixed order: camera, microphone, video. They are the same camera, microphone and video the in-app type chips use, drawn as SF Symbols (camera.fill, mic.fill, video.fill) in the muted gray, never the green. On medium and large they follow the name and the <b>name truncates before a glyph is ever dropped</b>, so "Black-throated Gray Warbler" with all three still reads as a warbler that needs everything. On small, where the name may take two lines, the glyphs sit at the end of the distance line instead, and at larger text sizes they drop under it rather than squeeze the distance. When one type is chosen the header says which ("Week · Video"), every row is that type, and there is no glyph.</p></div>';
+    out += '<div class="cell"><p class="cap">The hard case, small <span>Any</span></p>' + widget("targets", "small", "week", { rows: TARGETS_STRESS }) + '</div>';
+    out += '<div class="cell"><p class="cap">Media Targets <span>Media set to Photo</span></p>' + widget("targets", "medium", "week", { media: "photo" }) + '</div>';
+    out += '<div class="cell"><p class="cap">The hard case, large <span>Any, first three rows</span></p>' + widget("targets", "large", "week", { rows: TARGETS_STRESS }) + '</div>';
+    return out;
+  }
+
+  // ── States board ──
+  function statesGrid() {
+    var S = [
+      ["S1", "Not set up yet", "No hand-over document exists, or it fails validation.", widget("lifers", "medium", "week", { state: "Open SnowRaven once to set up widgets." })],
+      ["S2", "No eBird key", "Hand-over present, key missing or cleared.", widget("lifers", "medium", "week", { state: "Add your eBird API key in SnowRaven's Settings." })],
+      ["S3", "No eBird backup", "Key present, backup missing or cleared.", widget("lifers", "medium", "week", { state: "Load your eBird backup in SnowRaven's Settings." })],
+      ["S4", "No Macaulay export", "Media Targets only: backup present, export missing.", widget("targets", "medium", "week", { state: "Load your Macaulay Library export in SnowRaven's Settings." })],
+      ["S5", "Nothing left to target", "Media Targets only, Media set to Any: no species lacks a photo, audio or video. The in-app sentence, verbatim.", widget("targets", "medium", "week", { state: "You already have media for every species in your backup." })],
+      ["S5", "Nothing left to target, Audio", "The same state under Audio: every recorded species has audio.", widget("targets", "medium", "week", { media: "audio", state: "You already have audio of every species in your backup." })],
+      ["S6", "No location, no default", "Location denied or not obtained, and no Default Location saved. No eBird request is made.", widget("lifers", "medium", "week", { state: "Open SnowRaven to allow location, or set a Default Location in Settings." })],
+      ["S7", "Default Location used", "Location unavailable; the list is measured from the saved Default Location and says so.", widget("lifers", "medium", "week", { caption: true, rows: [
+        { n: "Ruff", d: "6.8", r: "Today", l: "Coyote Hills Regional Park" },
+        { n: "Tropical Kingbird", d: "7.2", r: "2 days ago", l: "Alameda Point" },
+        { n: "Baird's Sandpiper", d: "9.5", r: "Yesterday", l: "Hayward Regional Shoreline" }
+      ] })],
+      ["S8", "Could not reach eBird", "Fetch failed and the last good list is older than 24 hours, so it is not shown as a list.", widget("lifers", "medium", "week", { state: "Could not reach eBird. Last updated yesterday, 4:12 PM." })],
+      ["S9", "Offline, last good list", "Fetch failed within 24 hours of a good one: the list stays, marked in words with its fetch time.", widget("lifers", "medium", "week", { stale: "offline", updated: "7:05 AM" })],
+      ["S9", "eBird busy, last good list", "A 429: same shape, the reason names eBird rather than the network.", widget("targets", "medium", "week", { stale: "busy", updated: "8:20 AM" })],
+      ["S10", "Nothing in the window", "Fetch succeeded with zero rows; the sentence names the window and the radius.", widget("lifers", "medium", "week", { state: "No lifers reported within 25 miles this week." })],
+      ["S10", "Nothing today", "The Media Targets form of the same state, on a Day widget with Media set to Any.", widget("targets", "medium", "day", { state: "No media targets reported within 25 miles today." })],
+      ["S10", "Nothing needing a photo", "Under Photo the sentence names the type as well as the window.", widget("targets", "medium", "week", { media: "photo", state: "No species needing a photo reported within 25 miles this week." })],
+      ["S11", "Key not accepted", "eBird answered 401 or 403. Never a stale list here.", widget("lifers", "medium", "week", { state: "eBird did not accept your key. Check it in SnowRaven's Settings." })],
+      ["S12", "Gallery placeholder", "What the widget gallery shows before placement: redacted sample rows, no request, no location read.", widget("lifers", "medium", "week", { placeholder: true })],
+      ["S9", "Stale, on small", "Small shows the fetch time only when the latest refresh failed; a fresh small stays uncluttered.", widget("lifers", "small", "week", { stale: "offline", updated: "7:05 AM" })]
+    ];
+    return S.map(function (s) {
+      return '<div class="cell"><p class="cap"><em>' + s[0] + '</em>' + s[1] + '</p>' + s[3] + '<p class="why">' + s[2] + '</p></div>';
+    }).join("");
+  }
+
+  // ── Mount ──
+  document.getElementById("home-phone").innerHTML = homePhone();
+  document.getElementById("home-ipad").innerHTML = homeIpad();
+  document.getElementById("families-grid").innerHTML = familiesGrid();
+  document.getElementById("states-grid").innerHTML = statesGrid();
+  document.getElementById("edit-phone").innerHTML = editPhone("sheet");
+  document.getElementById("picker-phone").innerHTML = editPhone("time");
+  document.getElementById("media-phone").innerHTML = editPhone("media");
+  document.getElementById("flow-1").innerHTML = homePhone({ tap: [150, 134] });
+  document.getElementById("flow-2").innerHTML = mapPhone();
+  document.getElementById("flow-3").innerHTML = filtersPhone("lifers");
+  document.getElementById("flow-4").innerHTML = filtersPhone("targets");
+  document.getElementById("vo-sample").textContent = voLabel("lifers", "week", LIFERS.slice(0, 3), ["Updated 9:41 AM"], "");
+  document.getElementById("vo-sample-2").textContent = voLabel("targets", "week", TARGETS_STRESS.slice(0, 3), ["Updated 9:41 AM"], "", "all");
+
+  // ── Board controls ──
+  var root = document.documentElement;
+  var seg = document.getElementById("appearance");
+  seg.addEventListener("click", function (e) {
+    var b = e.target.closest("button[data-mode]");
+    if (!b) return;
+    root.setAttribute("data-appearance", b.getAttribute("data-mode"));
+    Array.prototype.forEach.call(seg.querySelectorAll("button"), function (x) { x.setAttribute("aria-pressed", String(x === b)); });
+  });
+  var ax = document.getElementById("ax");
+  ax.addEventListener("click", function () {
+    var on = ax.getAttribute("aria-checked") !== "true";
+    ax.setAttribute("aria-checked", String(on));
+    root.setAttribute("data-ax", on ? "on" : "off");
+  });
+  var refreshed = false;
+  document.getElementById("refresh").addEventListener("click", function () {
+    refreshed = !refreshed;
+    var host = document.getElementById("w-refresh");
+    host.innerHTML = widget("lifers", "medium", "week", { rows: refreshed ? LIFERS_REFRESHED : LIFERS, updated: refreshed ? "10:11 AM" : "9:41 AM" });
+    var rows = host.querySelector(".w-rows");
+    if (rows) { rows.classList.add("refreshed"); }
+  });
+})();
+</script>
+</body>
+</html>

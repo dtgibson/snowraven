@@ -90,6 +90,8 @@ import { HotspotMarkers } from './map/HotspotMarkers'
 import { TargetMarkers } from './map/TargetMarkers'
 import { NearbyLiferMarkers, type MarkerMode } from './map/NearbyLiferMarkers'
 import { buildNearbyLifers, isWithinWindow } from '../lib/nearbyLifers'
+import { WIDGET_RADIUS_MI, type LinkMedia } from '../lib/links/deepLink'
+import type { PendingLink } from '../lib/links/linkRequest'
 import { useProvenanceLookup } from '../lib/useProvenanceLookup'
 
 // ── The filters sidebar's focus-trap options ─────────────────────────────────
@@ -132,6 +134,11 @@ interface MapExplorerProps {
   onToggleFullscreen?: () => void
   /** Navigate to + select a species on the Species Detail tab. */
   onOpenSpecies?: (commonName: string) => void
+  /** A home-screen widget tap (ios-lifer-widgets FR-36): the view, window and
+   *  media to apply, then a search from the current location. */
+  linkRequest?: PendingLink
+  /** Called once a link request has been applied (or can go no further). */
+  onLinkRequestApplied?: (id: number) => void
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -153,6 +160,14 @@ const WINDOW_DAYS: Record<TimeWindow, number> = { day: 1, week: 7, all: 30 }
 // Session-stable "now" for the recency windows — computed once at module load,
 // not during render (calling Date.now() inside a memo trips react-hooks/purity).
 const SESSION_NOW_MS = Date.now()
+
+// The widget's media value -> the in-app Filter by Type chips (FR-52). Each
+// single type is its one chip; the widget's Any lands on the chip row the app
+// labels All (no chip selected). Exact in every setting: the in-app chips AND
+// over `missingTypes`, and one chip is one type.
+const LINK_MEDIA_CHIPS: Record<LinkMedia, ('Photo' | 'Audio' | 'Video')[]> = {
+  photo: ['Photo'], audio: ['Audio'], video: ['Video'], any: [],
+}
 
 /** Stable empty reference for the passive provenance read before data loads. */
 const EMPTY_OBSERVATIONS: ObservationEntry[] = []
@@ -269,7 +284,7 @@ function AddressSearch({ onLocate }: { onLocate: (lat: number, lng: number) => v
 
 // ── Main component ─────────────────────────────────────────────────────────────
 
-export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion, isFullscreen, onToggleFullscreen, onOpenSpecies }: MapExplorerProps) {
+export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion, isFullscreen, onToggleFullscreen, onOpenSpecies, linkRequest, onLinkRequestApplied }: MapExplorerProps) {
   const [phase, setPhase] = useState<MapPhase>({ tag: 'loading-saved' })
   const [viewMode, setViewMode] = useState<ViewMode>('sightings')
   const [displayMode, setDisplayMode] = useState<DisplayMode>('pins')
@@ -1568,6 +1583,72 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
       setIsLocating(false)
     }
   }, [lat, lng, viewMode, handleFindHotspots, handleFindSightings, handleFindLifers, setPanTarget, setDetectedLocation])
+
+  // ── Widget tap-through (ios-lifer-widgets FR-36 to FR-38) ───────────────────
+  // A link request is a parsed, allowlisted value (lib/links/deepLink.ts), so
+  // nothing here came from the URL except enum values from a fixed table.
+  //
+  // Step 1, once per link id and whatever the phase: the view, its Time Range,
+  // the media chips and the session radius. They are applied even when the
+  // search cannot run, so the view is left as the link described it (FR-38).
+  // The radius is SESSION state, the same setter the sidebar's Radius control
+  // uses; the saved `map-defaults.dist` is not written.
+  //
+  // Step 2 waits for the files and the key status (FR-37: on a cold start the
+  // link lands before the backup has loaded), then marks the link applied and
+  // either stops at the view's own setup message or key notice (FR-38), or
+  // runs "Use my location" and that view's search UNCONDITIONALLY, unlike
+  // `handleUseMyLocation`, which searches only when no center was set (FR-36).
+  // The chips are set again AFTER `handleFindSightings` is called, because its
+  // first statement clears them; React batches the two and the link's wins.
+  //
+  // Every state change is deferred to a microtask (the SpeciesDetail
+  // requested-species pattern), so nothing is set synchronously in the effect.
+  const viewedLinkRef = useRef<number | null>(null)
+  const appliedLinkRef = useRef<number | null>(null)
+  useEffect(() => {
+    const link = linkRequest
+    if (!link || appliedLinkRef.current === link.id) return
+    const chips = link.view === 'targets' ? LINK_MEDIA_CHIPS[link.media] : null
+    if (viewedLinkRef.current !== link.id) {
+      viewedLinkRef.current = link.id
+      queueMicrotask(() => {
+        setViewMode(link.view)
+        setGeoError('')
+        setRetainSearchBtn(false)
+        if (link.view === 'lifers') setLiferWindow(link.window)
+        else setTargetViewMode(link.window)
+        setRadius(WIDGET_RADIUS_MI)
+        if (chips) setTargetTypeFilter(new Set(chips))
+      })
+    }
+    if (phase.tag === 'loading-saved' || hasEbirdKey === null) return
+    appliedLinkRef.current = link.id
+    queueMicrotask(() => onLinkRequestApplied?.(link.id))
+    if (phase.tag !== 'ready' || hasEbirdKey === false) return
+    const findLifers = handleFindLifers
+    const findSightings = handleFindSightings
+    queueMicrotask(async () => {
+      setIsLocating(true)
+      try {
+        const loc = await getCurrentLocation()
+        setLat(loc.lat.toFixed(5))
+        setLng(loc.lng.toFixed(5))
+        setDetectedLocation({ lat: loc.lat, lng: loc.lng })
+        setPanTarget({ lat: loc.lat, lng: loc.lng })
+        if (link.view === 'lifers') {
+          void findLifers(loc.lat, loc.lng, WIDGET_RADIUS_MI)
+        } else {
+          void findSightings(loc.lat, loc.lng, WIDGET_RADIUS_MI)
+          setTargetTypeFilter(new Set(chips))
+        }
+      } catch (err) {
+        setGeoError(describeLocationError(err as LocationError))
+      } finally {
+        setIsLocating(false)
+      }
+    })
+  }, [linkRequest, phase.tag, hasEbirdKey, handleFindLifers, handleFindSightings, onLinkRequestApplied, setPanTarget])
 
   // Set the shared search center from a dropped/dragged map pin (right-click or
   // long-press), then re-run the active view's search — the "drop a pin to see

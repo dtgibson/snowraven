@@ -6,6 +6,7 @@ import {
   type HotspotActivityPayload,
 } from '../hotspotActivity';
 import { throwEbirdHttpError } from './ebirdErrors';
+import { reduceRecentObs, type RecentObs } from '../recentObsReduce';
 
 const EBIRD_BASE = 'https://api.ebird.org/v2';
 
@@ -102,17 +103,7 @@ export async function getHotspotActivity(locId: string): Promise<HotspotActivity
   return { locId, species: reduceActivityRecords(raw) };
 }
 
-export interface RecentObs {
-  speciesCode: string;
-  comName: string;
-  locId: string;
-  locName: string;
-  lat: number;
-  lng: number;
-  recentDate: string;
-  checklistCount: number;
-  subId: string;
-}
+export type { RecentObs } from '../recentObsReduce';
 
 /** The bare eBird data/obs/geo/recent radius fetch — codes-INDEPENDENT (eBird
  *  returns every species in the radius). Mirrors backend _fetch_recent_obs_raw. */
@@ -147,42 +138,9 @@ export async function getRecentObs(
   // (Media Targets) and a no-codes (Nearby Lifers) call at the SAME center share
   // one eBird fetch. lat/lng rounded to 5 decimals (≈1 m) to coalesce
   // trivially-different centers, matching networkCacheKey.
-  const codeSet = new Set(codes.split(',').map(c => c.trim()).filter(Boolean));
   const rawKey = `map/recent-obs-raw?lat=${lat.toFixed(5)}&lng=${lng.toFixed(5)}&dist=${dist}`;
   const observations = await cachedGet(rawKey, () => fetchRecentObsRaw(lat, lng, dist));
-
-  const groups = new Map<string, RecentObs>();
-  for (const obs of observations) {
-    const code = (obs['speciesCode'] as string) ?? '';
-    if (codeSet.size > 0 && !codeSet.has(code)) continue;
-    // Skip records missing numeric coordinates (the lifers path maps by coord;
-    // a coordinate-less obs would otherwise plot at 0,0).
-    const recLat = obs['lat'];
-    const recLng = obs['lng'];
-    if (typeof recLat !== 'number' || typeof recLng !== 'number'
-        || Number.isNaN(recLat) || Number.isNaN(recLng)) continue;
-    const locId = (obs['locId'] as string) ?? '';
-    const groupKey = `${code}|${locId}`;
-    if (!groups.has(groupKey)) {
-      groups.set(groupKey, {
-        speciesCode: code,
-        comName: (obs['comName'] as string) ?? '',
-        locId,
-        locName: (obs['locName'] as string) ?? '',
-        lat: recLat,
-        lng: recLng,
-        recentDate: (obs['obsDt'] as string) ?? '',
-        checklistCount: 0,
-        subId: (obs['subId'] as string) ?? '',
-      });
-    }
-    const entry = groups.get(groupKey)!;
-    entry.checklistCount += 1;
-    const currentDate = (obs['obsDt'] as string) ?? '';
-    if (currentDate > entry.recentDate) {
-      entry.recentDate = currentDate;
-      entry.subId = (obs['subId'] as string) ?? '';
-    }
-  }
-  return [...groups.values()];
+  // The reducer is shared with the iOS widget's TypeScript twin
+  // (lib/recentObsReduce.ts): one function, so the two cannot drift.
+  return reduceRecentObs(observations, codes);
 }

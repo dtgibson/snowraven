@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  The SnowRaven Widgets extension's entitlements (ios-lifer-widgets): the one
+  App Group it shares with the app, and nothing else. No iCloud, and no
+  location entitlement (iOS location needs none; the extension rides the app's
+  When In Use grant). Pinned to the app's entitlements and the code constants
+  by frontend/src/lib/iosWidgetManifest.test.ts and widgetPaths.parity.test.ts.
+-->
+<plist version="1.0">
+<dict>
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>group.com.dtgibson.snowraven</string>
+	</array>
+</dict>
+</plist>

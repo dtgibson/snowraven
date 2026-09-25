@@ -33,6 +33,18 @@ paths:
   - "src-tauri/src/icloud.rs"
   - "src-tauri/src/lib.rs"
   - "PRIVACY_POLICY.md"
+  - "frontend/src/lib/widgets/**"
+  - "frontend/src/lib/links/**"
+  - "frontend/src/lib/mapDefaultsChanged.ts"
+  - "frontend/src/lib/recentObsReduce.ts"
+  - "src-tauri/src/widgets.rs"
+  - "src-tauri/gen/apple/snowraven_widgets/**"
+  - "src-tauri/gen/apple/Sources/snowraven/WidgetReload.swift"
+  - "src-tauri/vendor/tao/src/platform_impl/ios/scene.rs"
+  - "src-tauri/gen/apple/**/*.entitlements"
+  - "src-tauri/Info.ios.plist"
+  - "src-tauri/gen/apple/snowraven_iOS/Info.plist"
+  - "src-tauri/gen/apple/project.yml"
 ---
 
 <!--
@@ -65,6 +77,16 @@ reinstating a guard there would have got no rule. It is the same shape as the
 `taxonomyService.ts` gap above and an instance of the seventeen cited-but-
 unglobbed files recorded in ROADMAP.md: this list is a claim the repo can check
 mechanically and does not.
+
+The `widgets` / `links` / `widgets.rs` / `snowraven_widgets` / tao `scene.rs` /
+entitlement / plist / `project.yml` entries were added by ios-lifer-widgets in
+the change that created or twinned those files: the widget deep-link parser
+(an allowlist over URLs any app can open), the App Group hand-over writer and
+its Swift reader (a secret crossing a process boundary), the eBird body decode
+in a third runtime, the URL builder, the entitlements and the scheme
+registration are all governed by this file's bodies. `recentObsReduce.ts` is
+the reducer extracted from `lib/tauri/mapService.ts` so the transport and the
+widget twin share one function; it stays gated as its old home was.
 -->
 
 # SnowRaven security standing checks

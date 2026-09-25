@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- The SnowRaven Widgets extension (ios-lifer-widgets). Hand-maintained and
+	     referenced by INFOPLIST_FILE in project.yml; xcodegen does not generate it.
+
+	     The two version keys are BUILD SETTINGS here. App Store validation
+	     requires the extension's version to EQUAL the app's, and the "Stamp
+	     version from the app" build phase in project.yml copies both values
+	     from snowraven_iOS/Info.plist (which `tauri ios build` stamps) into the
+	     BUILT extension plist, so whatever this file says, the shipped value is
+	     the app's. `tauri ios build --build-number N` also writes CFBundleVersion
+	     into this file (measured); that is harmless and may be committed with
+	     the ship's stamp, and frontend/src/lib/iosWidgetManifest.test.ts accepts
+	     either the build-setting form or a value EQUAL to the app plist's, and
+	     nothing else.
+
+	     No usage-description keys: the extension rides the app's When In Use
+	     grant (NSWidgetUsesLocation) and never prompts on its own. -->
+	<key>CFBundleDevelopmentRegion</key>
+	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>CFBundleDisplayName</key>
+	<string>SnowRaven Widgets</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>$(PRODUCT_NAME)</string>
+	<key>CFBundlePackageType</key>
+	<string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
+	<key>CFBundleShortVersionString</key>
+	<string>$(MARKETING_VERSION)</string>
+	<key>CFBundleVersion</key>
+	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>NSExtension</key>
+	<dict>
+		<key>NSExtensionPointIdentifier</key>
+		<string>com.apple.widgetkit-extension</string>
+	</dict>
+	<key>NSWidgetUsesLocation</key>
+	<true/>
+</dict>
+</plist>

@@ -212,4 +212,22 @@ describe('capacity-plus-one cache inventory', () => {
       'NOMINATIM_COUNTY_CACHE_MAX_ENTRIES = 4_096',
     )
   })
+
+  it('the iOS widget hand-over is deliberately NOT a clear-registry row (ios-lifer-widgets schema 1.6)', () => {
+    // The registry is for durable stores KEYED ON a user file's content, each
+    // ending in a storage.deleteSetting this file pairs to an exported purge.
+    // The hand-over is keyed on presence (one fixed document in the App Group,
+    // outside AppLocalData) and is REGENERATED on clear, never deleted: the
+    // clear paths notify the file and key epochs after their teardown, and the
+    // controller rewrites the document with hasEbirdBackup false, hasMlExport
+    // false or ebirdKey null. A deleted document would read as "open SnowRaven
+    // once" on a device whose app is open and set up minus one file. Its guard
+    // is widgetHandover.triggers.test.ts, not this registry.
+    const registry = code('./clearDerived.ts')
+    expect(registry).not.toMatch(/handover|widget/i)
+    const controller = code('./widgets/widgetHandoverController.ts')
+    expect(controller).toContain('subscribeFilesChanged(trigger)')
+    expect(controller).toContain('subscribeKeysChanged(trigger)')
+    expect(controller).not.toMatch(/deleteSetting|purge/)
+  })
 })

@@ -15,7 +15,7 @@ A birder who logs observations on eBird (and often uploads media to the Macaulay
 It works *alongside* eBird and the Macaulay Library, never replacing them, and never sends your data anywhere. Owning the app and your API keys means no rate limits, no dependency on a third-party service staying alive, full control of the output, and a hard privacy guarantee: nothing is collected, no server is operated, your data stays with you. It's a personal project shared as a free public good, with gratitude to the free services it builds on.
 
 ## What Success Looks Like
-A birder installs SnowRaven, points it at their eBird backup and Macaulay export, and immediately explores their birding life in ways eBird doesn't offer — while still being able to paste a checklist ID and get a ready-to-paste weather + tide block, the original workflow that started it all. Everything runs locally and offline-capable, with network calls going directly from the user's device to the providers (eBird, OpenWeather, OpenStreetMap/Nominatim, NOAA, the keyless map-tile hosts, and the Cornell Lab sites serving embedded Macaulay media and bird-link icons), authenticated with the user's own keys where keys are needed, on demand.
+A birder installs SnowRaven, points it at their eBird backup and Macaulay export, and immediately explores their birding life in ways eBird doesn't offer — while still being able to paste a checklist ID and get a ready-to-paste weather + tide block, the original workflow that started it all. Everything runs locally and offline-capable, with network calls going directly from the user's device to the providers (eBird, OpenWeather, OpenStreetMap/Nominatim, NOAA, the keyless map-tile hosts, and the Cornell Lab sites serving embedded Macaulay media and bird-link icons), authenticated with the user's own keys where keys are needed, on demand, plus, on iPhone and iPad, the scheduled refresh of a home-screen widget the user has placed (one eBird nearby-sightings request, with the user's key, about every 30 minutes at most).
 
 ## What It Does (current feature set)
 - **Weather & Tide Lookup** — formatted historical weather plus the nearest-station tide for a checklist, ready to paste into the comment.
@@ -32,7 +32,7 @@ A birder installs SnowRaven, points it at their eBird backup and Macaulay export
 - Works alongside eBird and the Macaulay Library; never replaces or competes with them.
 - No accounts, no authentication — your own API keys, entered once.
 - Distributed as a standalone Mac/Windows desktop app, on the iPhone and iPad App Store, and as a self-hosted Pi/Linux install.
-- Network calls only device-to-provider (eBird, OpenWeather, OpenStreetMap/Nominatim, NOAA, map-tile hosts, Cornell Lab media/icons), with the user's keys where needed, on demand — the full list is disclosed in PRIVACY_POLICY.md.
+- Network calls only device-to-provider (eBird, OpenWeather, OpenStreetMap/Nominatim, NOAA, map-tile hosts, Cornell Lab media/icons), with the user's keys where needed, on demand or, for a home-screen widget the user placed on iPhone or iPad, on the widget's refresh schedule; the full list is disclosed in PRIVACY_POLICY.md.
 
 ## Out of Scope
 - User accounts or authentication

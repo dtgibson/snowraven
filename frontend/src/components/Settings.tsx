@@ -41,6 +41,7 @@ import { clearMLExportCache } from '../lib/mlExportCache'
 import { clearNetworkCache } from '../lib/networkCache'
 import { invalidateHotspotSet } from '../lib/hotspotSet'
 import { purgeDerivedOnClear } from '../lib/clearDerived'
+import { notifyMapDefaultsChanged } from '../lib/mapDefaultsChanged'
 import {
   buildSharePayload, selectedParts, shareModeLine, sharePartName,
   SHARE_PARTS, SHARE_EMPTY_SETTINGS,
@@ -2134,6 +2135,9 @@ export function Settings({
     setMapDefaultsStatus('saving')
     try {
       await storage.setSetting('map-defaults', { lat, lng, dist })
+      // The Default Location has an off-tab reader (the iOS widget hand-over),
+      // so a write announces itself through its own epoch (CLAUDE.md).
+      notifyMapDefaultsChanged()
       setMapDefaultsHasSaved(true)
       if (savedChipTimerRef.current) clearTimeout(savedChipTimerRef.current)
       setMapDefaultsStatus('saved')
@@ -2146,6 +2150,7 @@ export function Settings({
 
   const handleClearMapDefaults = async () => {
     await storage.deleteSetting('map-defaults').catch(() => {})
+    notifyMapDefaultsChanged()
     setMapLat(''); setMapLng(''); setMapDist('5')
     setMapDefaultsHasSaved(false)
     setMapDefaultsStatus('idle')

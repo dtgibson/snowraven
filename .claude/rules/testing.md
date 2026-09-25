@@ -9,6 +9,11 @@ paths:
   - "backend/tests/**"
   - "website/tools/verify/**"
   - ".github/workflows/pipeline.yml"
+  - "src-tauri/gen/apple/snowraven_widgetsTests/**"
+  - "frontend/src/lib/widgets/*.fixture.json"
+  - "frontend/src/lib/widgets/widgetRows.fixtureInputs.ts"
+  - "frontend/src/lib/widgets/widgetRows.fixtureBuild.ts"
+  - "frontend/src/test/**"
 ---
 
 # SnowRaven testing and verification methodology

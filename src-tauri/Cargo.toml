@@ -112,6 +112,8 @@ opt-level = "s"
 strip = true
 
 [patch.crates-io]
-# tao 0.35.3 + tauri-apps/tao#1245 (iOS UISceneConfiguration use-after-free).
-# See src-tauri/vendor/tao/VENDORED.md. Remove when Tauri admits tao >= 0.36.
+# tao 0.35.3 + tauri-apps/tao#1245 (iOS UISceneConfiguration use-after-free)
+# + the cold-start widget URL forward (ios-lifer-widgets). See
+# src-tauri/vendor/tao/VENDORED.md for BOTH changes and the removal condition:
+# admitting tao >= 0.36 alone is no longer enough to remove this.
 tao = { path = "vendor/tao" }

@@ -30,6 +30,8 @@ SnowRaven uses semantic structure and ARIA attributes so assistive technology ca
 
 The Weather tab's plan timeline is a single keyboard-operable control: the arrow keys move a picked moment along it and that moment's estimated tide, weather and sun height are announced, while the per-day list beneath carries every figure the chart draws.
 
+On iPhone and iPad (iOS and iPadOS 17 or later), each Nearby Lifers or Media Targets home-screen widget reads to VoiceOver as one element: the widget's name and time range, and its media type when it lists a single type; then each bird it shows as one sentence with the species name, which of a photo, audio or video it still needs where the widget marks that with icons, the distance with "miles" spoken in full, how recently it was reported, and the place, which is read even on the small size, where it is not drawn; then any note about where it measured from, a failed refresh, and the update time. A widget showing a message instead of a list reads its name, time range and that sentence. Nothing in a widget animates beyond the system's own brief transition when its list changes, and its text follows the Dynamic Type size, showing fewer birds at larger sizes rather than cutting one off.
+
 ---
 
 ## A Visible Focus Indicator

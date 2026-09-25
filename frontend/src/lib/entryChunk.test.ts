@@ -711,6 +711,52 @@ describe('entry-chunk exclusion (NFR-03 / QA-30)', () => {
     expect(hasIn(result.files, 'components/PlanChart.tsx')).toBe(false)
   })
 
+  // ── iOS widgets (ios-lifer-widgets NFR-08 / QA-39 / QA-54). The entry graph
+  // may carry the platform gate and builder, the link grammar and its store,
+  // and the Default Location epoch; the two controllers, the native wrapper
+  // and the list twin are reached only through import(). Positive legs first,
+  // so the negatives cannot pass vacuously on a rename.
+  it('the widget gate, the link store, and the Default Location epoch ARE on the entry graph', () => {
+    expect(has('lib/widgets/widgetHandover.ts')).toBe(true)
+    expect(has('lib/links/linkRequest.ts')).toBe(true)
+    // The link grammar is reached by the lazy controller and the lazy Map
+    // Explorer only (the store takes its TYPE, which is erased); it is
+    // dependency-free, so it would be entry-safe if it ever were reached.
+    const grammar = closureFrom(resolve(SRC, 'lib/links/deepLink.ts'))
+    expect(grammar.files.size).toBe(1)
+    expect([...grammar.externals]).toEqual([])
+    expect(has('lib/links/deepLink.ts')).toBe(false)
+    expect(has('lib/mapDefaultsChanged.ts')).toBe(true)
+    // widgetHandover.ts imports speciesUtils; that is only free because the
+    // module was already on the entry graph through the static tabs.
+    expect(has('lib/speciesUtils.ts')).toBe(true)
+  })
+
+  it('the widget controllers, the native wrapper and the list twin are OFF the entry graph', () => {
+    expect(has('lib/widgets/widgetHandoverController.ts')).toBe(false)
+    expect(has('lib/widgets/widgetNative.ts')).toBe(false)
+    expect(has('lib/links/linkController.ts')).toBe(false)
+    expect(has('lib/widgets/widgetRows.ts')).toBe(false)
+    expect([...externals]).not.toContain('@tauri-apps/api/event')
+    expect([...externals]).not.toContain('@tauri-apps/api/app')
+    // And the negatives are about real edges: App reaches both controllers
+    // through import(), and the native wrapper's own closure carries the APIs.
+    const appSrc = readFileSync(APP, 'utf8')
+    expect(appSrc).toContain("import('./lib/widgets/widgetHandoverController')")
+    expect(appSrc).toContain("import('./lib/links/linkController')")
+    const native = closureFrom(resolve(SRC, 'lib/widgets/widgetNative.ts'))
+    expect([...native.externals]).toContain('@tauri-apps/api/event')
+    expect([...native.externals]).toContain('@tauri-apps/api/app')
+  })
+
+  it('neither new entry-safe module reaches the Map Explorer', () => {
+    for (const m of ['lib/widgets/widgetHandover.ts', 'lib/links/deepLink.ts', 'lib/links/linkRequest.ts']) {
+      const c = closureFrom(resolve(SRC, m))
+      expect(hasIn(c.files, 'components/MapExplorer.tsx'), m).toBe(false)
+      expect(maplibreIn(c.externals), m).toEqual([])
+    }
+  })
+
   it('the App entry actually exists (guards against a broken closure root)', () => {
     expect(files.has(APP)).toBe(true)
     expect(files.size).toBeGreaterThan(20) // a real graph, not an empty/short-circuited one

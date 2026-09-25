@@ -1,6 +1,6 @@
 import { Button } from './components/ui/Button'
 import { Link } from './components/ui/Link'
-import { useState, useCallback, useRef, useEffect, useMemo, lazy, Suspense, createContext, useContext } from 'react'
+import { useState, useCallback, useRef, useEffect, useMemo, useSyncExternalStore, lazy, Suspense, createContext, useContext } from 'react'
 import { Search, Loader2, ClipboardCopy, Check, AlertCircle, ExternalLink } from 'lucide-react'
 import { transport, TransportError } from './lib/transport'
 import { classifyLiveError, OFFLINE_MESSAGE, NO_KEY_MESSAGE, type LiveErrorKind } from './lib/offlineMessage'
@@ -13,6 +13,8 @@ import { notifyFilesChanged } from './lib/filesChanged'
 import { useFilesEpoch } from './lib/useFilesEpoch'
 import { notifyKeysChanged } from './lib/keysChanged'
 import { useKeysEpoch } from './lib/useKeysEpoch'
+import { widgetsSupported } from './lib/widgets/widgetHandover'
+import { clearPendingLink, getPendingLink, subscribePendingLink } from './lib/links/linkRequest'
 import { compactChrome } from './lib/platformGates'
 import { copyText } from './lib/clipboard'
 import { extractChecklistId, isValidChecklistId } from './lib/checklistId'
@@ -169,6 +171,19 @@ export default function App() {
   const lastLookupId = useRef('')
   // Mobile-only: Map Explorer occupies the full viewport when true.
   const [mapFullscreen, setMapFullscreen] = useState(false)
+  // A widget tap (ios-lifer-widgets FR-36/FR-37): a parsed, allowlisted link
+  // from lib/links/linkRequest.ts. Each new link id switches to the Map
+  // Explorer once, whether or not the saved layout shows it (OQ-03; the layout
+  // is not written). ADJUSTED DURING RENDER rather than in an effect, the same
+  // shape MapExplorer.tsx uses for its tier adjustments: it is keyed on the id,
+  // so it is self-terminating, and the Map Explorer then applies the link and
+  // clears it through `onLinkRequestApplied`.
+  const pendingLink = useSyncExternalStore(subscribePendingLink, getPendingLink, getPendingLink)
+  const [linkTabId, setLinkTabId] = useState<number | null>(null)
+  if (pendingLink !== null && pendingLink.id !== linkTabId) {
+    setLinkTabId(pendingLink.id)
+    setActiveTab('map-explorer')
+  }
   const [updateStatus, setUpdateStatus] = useState<UpdateStatus>({ kind: 'idle' })
   const [keyStatus, setKeyStatus] = useState<KeyStatus | null>(null)
   // The data-file epoch (lib/filesChanged.ts): bumped by a Settings upload or
@@ -360,6 +375,10 @@ export default function App() {
       // If the saved layout hides the tab we defaulted to, move to the first visible one.
       setActiveTab(current => {
         if (current === 'settings') return current
+        // A widget tap asked for the Map Explorer explicitly (OQ-03): a saved
+        // layout that hides it does not move the user off it while that
+        // request is still being applied.
+        if (current === 'map-explorer' && getPendingLink() !== null) return current
         return restored.hidden.has(current as ConfigurableTab)
           ? (visibleTabs(restored)[0] ?? 'settings')
           : current
@@ -512,6 +531,20 @@ export default function App() {
     if (!showICloudSync()) return
     const t = setTimeout(() => {
       void import('./lib/icloud/icloudSync').then(m => m.bootICloudSync()).catch(() => {})
+    }, 0)
+    return () => clearTimeout(t)
+  }, [])
+
+  // iOS home-screen widgets (ios-lifer-widgets): the hand-over writer and the
+  // widget-link receiver. iPhone and iPad only, booted after first paint
+  // through `import()` exactly as the iCloud controller is, so neither rides
+  // the entry chunk (entryChunk.test.ts) and neither is ever fetched on the
+  // Mac, Windows, web or Pi.
+  useEffect(() => {
+    if (!widgetsSupported()) return
+    const t = setTimeout(() => {
+      void import('./lib/widgets/widgetHandoverController').then(m => m.startWidgetHandover()).catch(() => {})
+      void import('./lib/links/linkController').then(m => m.bootLinkController()).catch(() => {})
     }, 0)
     return () => clearTimeout(t)
   }, [])
@@ -1472,6 +1505,8 @@ export default function App() {
               isFullscreen={mapFullscreen}
               onToggleFullscreen={() => setMapFullscreen(v => !v)}
               onOpenSpecies={(name) => { setMapFullscreen(false); navigateToSpeciesDetail(name) }}
+              linkRequest={pendingLink ?? undefined}
+              onLinkRequestApplied={clearPendingLink}
             />
           </Suspense>
         )}

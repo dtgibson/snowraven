@@ -1549,12 +1549,16 @@ describe('surface area (QA-30, QA-07)', () => {
    * setting from several gestures at once, and the behavioural tests for the
    * other two views would not see it.
    *
-   * So the writers are enumerated, and both are the user's own setting arriving:
-   * the saved `map-defaults` on mount, and the sidebar's Radius SegControl. Any
-   * third is a regression, whatever it looks like. This is the structural pin on
-   * the user's decision to keep their Radius setting to themselves.
+   * So the writers are enumerated, and each is an explicit request arriving:
+   * the saved `map-defaults` on mount, the sidebar's Radius SegControl, and
+   * (ios-lifer-widgets FR-36) a home-screen widget tap, which applies the
+   * widget's own fixed radius as the SESSION radius because the widget's list
+   * was fetched at that radius and the tap asks to see the same list. Any
+   * fourth is a regression, whatever it looks like. This is the structural pin
+   * on the user's decision to keep their Radius setting to themselves: no
+   * gesture on the map moves it.
    */
-  it('has exactly two setRadius writers, and applyCenter is not one of them', () => {
+  it('has exactly three setRadius writers, and applyCenter is not one of them', () => {
     const raw = readFileSync(resolve(process.cwd(), 'src/components/MapExplorer.tsx'), 'utf8')
     const code = raw.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/[^\n]*/g, '$1')
     // Guard the guard: the stripper must not have eaten the file, and it must
@@ -1564,9 +1568,10 @@ describe('surface area (QA-30, QA-07)', () => {
     expect(code).toContain('const [radius, setRadius]')
 
     const writes = code.match(/setRadius\(/g) ?? []
-    expect(writes).toHaveLength(2)
+    expect(writes).toHaveLength(3)
     expect(code).toContain('setRadius(data.dist)')          // saved map-defaults
     expect(code).toContain('setRadius(Number(v))')          // the sidebar SegControl
+    expect(code).toContain('setRadius(WIDGET_RADIUS_MI)')   // a widget tap (session only)
 
     // ...and applyCenter writes no radius at all. Sliced from its declaration to
     // its dependency array, so this reads the real body rather than the file.

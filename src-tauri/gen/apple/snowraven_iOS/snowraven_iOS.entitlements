@@ -1,11 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <!--
-  iOS entitlements (wired by project.yml `entitlements.path`). The three iCloud
-  keys for iCloud Sync (icloud-sync); Xcode injects the application-identifier
-  and team-identifier keys itself on iOS, so they are not listed here. The App
-  Store profile must be regenerated after the App ID gains the iCloud
-  capability (see the snowraven-release skill).
+  iOS entitlements (wired by CODE_SIGN_ENTITLEMENTS in project.yml; since
+  ios-lifer-widgets NOT by xcodegen's `entitlements:` key, because xcodegen
+  REWRITES a file named there from its `properties`, and with none it wrote an
+  empty dict over this one, dropping iCloud Sync's keys). The three iCloud keys
+  for iCloud Sync (icloud-sync), and the App Group the home-screen widgets share
+  with the app (ios-lifer-widgets: the hand-over document lives in its
+  container). Xcode injects the application-identifier and team-identifier keys
+  itself on iOS, so they are not listed here. The App Store profile must be
+  regenerated after the App ID gains a capability (see the snowraven-release
+  skill). Pinned, with the widget extension's entitlements and the code
+  constants, by frontend/src/lib/iosWidgetManifest.test.ts.
 -->
 <plist version="1.0">
 <dict>
@@ -20,6 +26,10 @@
 	<key>com.apple.developer.icloud-services</key>
 	<array>
 		<string>CloudDocuments</string>
+	</array>
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>group.com.dtgibson.snowraven</string>
 	</array>
 </dict>
 </plist>
