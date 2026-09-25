@@ -248,7 +248,9 @@ describe('each check goes red on a one-character mutation of its source (QA-49)'
     ['usage string', () => ymlUsageString(yml.replace('home-screen widgets.', 'home-screen widgets!')) === dict(overlay)[USAGE_KEY]],
     ['extension point', () => extensionPlistProblems(extPlist.replace('com.apple.widgetkit-extension', 'com.apple.widgetkit-extensiom'))],
     ['widget location flag', () => extensionPlistProblems(extPlist.replace(/<key>NSWidgetUsesLocation<\/key>\s*<true\/>/, '<key>NSWidgetUsesLocation</key><false/>'))],
-    ['literal version that leads the app', () => extensionPlistProblems(extPlist.replace('$(MARKETING_VERSION)', '1.0.36'))],
+    // Pins its own app version, like the row below: against the LIVE app plist a
+    // fixed literal stops leading the moment a ship stamps that version (1.0.36).
+    ['literal version that leads the app', () => extensionPlistProblems(extPlist.replace('$(MARKETING_VERSION)', '1.0.36'), generated.replace(/(<key>CFBundleShortVersionString<\/key>\s*<string>)[^<]*/, '$11.0.35'))],
     ['stamped build number that differs from the app', () => extensionPlistProblems(extPlist.replace('$(CURRENT_PROJECT_VERSION)', '1.0.35.2'), generated.replace(/(<key>CFBundleVersion<\/key>\s*<string>)[^<]*/, '$11.0.35.1'))],
     ['extension target 17.0', () => projectProblems(yml.replace('deploymentTarget: "17.0"', 'deploymentTarget: "16.0"'))],
     ['app target 16.0', () => projectProblems(yml.replace('iOS: 16.0', 'iOS: 17.0'))],
