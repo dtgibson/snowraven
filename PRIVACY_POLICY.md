@@ -1,6 +1,6 @@
 # SnowRaven Privacy Policy
 
-**Effective date:** September 1, 2026
+**Effective date:** September 24, 2026
 
 ## Overview
 

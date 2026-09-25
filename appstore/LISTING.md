@@ -216,6 +216,18 @@ definition of "collect" and none changing the answer:
   privacy policy describes the key path on its own terms (what is stored, how
   it is protected, how to remove it) and never claims more protection than
   iCloud provides.
+- **Home-screen widgets (v1.0.36):** two optional iPhone and iPad widgets,
+  Nearby Lifers and Media Targets, that the user places on their own Home
+  Screen. Each refresh, about every 30 minutes and as often as iOS allows,
+  sends the device's coordinates (or, with location off, the saved Default
+  Location) to eBird with the user's own key. This is the same nearby-sightings
+  request the app's Nearby Lifers view makes, under the app's When In Use
+  permission; the widget never prompts and never asks for Always access. The
+  request runs on a schedule rather than on a tap, but placing the widget is
+  the user's act and removing it stops it. The widgets keep a small document
+  and their latest results in an App Group container on the device that only
+  the app and its extension can read, never synced. Device-to-provider, and
+  nothing reaches the developer, so "Data Not Collected" holds.
 
 Nuance to hold onto if App Review pushes back on the label because
 location/coordinates reach OpenWeather or NOAA: the app is a client for

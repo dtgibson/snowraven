@@ -66,9 +66,8 @@ forecasts) use the user's own free eBird or OpenWeather key, entered once in
 Settings. We supply no review key: those keys are personal, and the app's
 no-key states are first-class designed behavior, not errors. Opening a keyed
 feature without a key shows a clear message naming the free key it needs and
-where it goes. SnowRaven treats missing keys, offline, and provider failures
-as designed states with honest messages; everything above shows the app's
-full value without any credential.
+where it goes. Everything above shows the app's full value without any
+credential.
 
 ABOUT THE MACAULAY LIBRARY EMBEDS
 
@@ -82,13 +81,14 @@ Note: the demo ML export uses synthetic catalog numbers, so demo embeds
 resolve to that placeholder state by design; with a real user's export they
 play the user's own media.
 
-ABOUT ACCOUNTS AND KEYS
+ABOUT THE HOME-SCREEN WIDGETS
 
-There is no account and no login to demo: that is the design, not a gap. The
-app is a client for services the user already uses; live lookups use the
-user's own free API keys, entered once in Settings and stored only on the
-device. Nothing is transmitted to the developer, and there is no developer
-infrastructure capable of receiving anything.
+On iOS and iPadOS 17 or later, optional Nearby Lifers and Media Targets
+widgets list the nearest recent eBird reports of birds the user still
+needs, and a tap opens Map Explorer. They use location only under the
+app's When In Use permission, never prompt on their own, and send
+coordinates only to eBird, with the user's own key. With no key, as in
+review, a placed widget names the key it needs and makes no request.
 
 ---
 
