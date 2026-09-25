@@ -30,7 +30,7 @@ Two-line row on a hairline separator (`--w-sep`) between rows, none above the fi
 - Line 2: `Today · Coyote Hills Regional Park` (10.5pt, secondary color): recency, middle dot, location name. Truncates with an ellipsis at the trailing end.
 - Row padding 3pt top and bottom on medium, 5pt on large; the name and the distance share a baseline.
 
-Every row is its own `Link` to the widget's deep link (FR-34; medium and large). Rows are not individually distinguishable as links visually; the whole widget reads as one tappable surface, which is the WidgetKit norm.
+Every row is its own `Link` to its bird link (FR-34; medium and large; see *Tap-through*). Rows are not individually distinguishable as links visually; the whole widget reads as one tappable surface, which is the WidgetKit norm.
 
 ### One-bird card (small)
 
@@ -42,7 +42,7 @@ Nothing to build; recorded so the Engineer can check the look: a medium Nearby L
 
 ### States (S1 to S12)
 
-The header stays in every state. The body is one sentence at 13pt medium weight (12pt on small), primary color, left-aligned, vertically centered in the remaining space. No icon, no color. The final copy is in *Content Notes*. The S7 caption and the S9 marks live in the footer and compose with a list. The S12 placeholder renders the row layout with WidgetKit's `redacted(reason: .placeholder)` over sample rows.
+The header stays in every state, the S12 placeholder included (it is marked unredacted, so only the body and footer turn to bars). The body is one sentence at 13pt medium weight (12pt on small), primary color, left-aligned, vertically centered in the remaining space. No icon, no color. The final copy is in *Content Notes*. The S7 caption and the S9 marks live in the footer and compose with a list. The S12 placeholder renders the row layout with WidgetKit's `redacted(reason: .placeholder)` over sample rows.
 
 ### Edit Widget sheet (iOS's own surface; we supply the parameters)
 
@@ -100,7 +100,7 @@ Contrast: primary and secondary text clear WCAG AA on both containers (secondary
 - No other interactive control exists in the widget.
 - **Configuration:** Edit Widget only. A change of Time range or Media re-lists from the cached fetch with no new eBird request (FR-12).
 - **Refresh:** WidgetKit timeline at the planned cadence; rows re-render with the content transition in *Motion Spec*.
-- **Glyph rules (Media Targets, Media set to Any only):** one glyph per missing type after the name, fixed order camera, microphone, video; never under a single type, where the header names the type. On medium and large the glyph group is fixed-width and never dropped; the name truncates first. On small the glyphs sit at the end of the distance line, right-aligned, and wrap under it when Dynamic Type leaves no room; the distance and recency never break mid-figure.
+- **Glyph rules (Media Targets, Media set to Any only):** one glyph per missing type after the name, fixed order camera, microphone, video; never under a single type, where the header names the type. On medium and large the glyph group is fixed-width and never dropped; the name truncates first. On small the glyphs sit at the end of the distance line, right-aligned, and the distance and recency never break mid-figure. As built, measured at the Tester: a 158pt tile cannot always hold the distance, the recency and the glyphs on one line, so the card tries four forms in order (all on one line; glyphs on the distance line with the recency under it; distance and recency on one line with the glyphs right-aligned under it; each on its own line), and the glyph rule wins over "recency beside" whenever the glyphs need the room.
 - **Dynamic Type:** system text styles throughout. Rows drop whole at larger sizes (FR-03). The small family scales less than medium and large at the largest sizes: use one text style step smaller on the small card than the row styles would give (the mockup shows 1.2x against 1.3x), because a two-line name, the distance line and a glyph line must fit a 170pt tile. A long name on small clamps at two lines with an ellipsis.
 - **Accessibility label (VoiceOver), composed per widget:** title and window (and the media type when not Any), then each row as one sentence: name, then under Any `needs photo` / `needs audio` / `needs video` or the combination in the fixed order (`needs photo and video`, `needs photo, audio and video`), then distance with the unit spoken in full (`3.2 miles`), recency, location name; then the footer parts (`From your default location`, `Offline`, `eBird busy`, `Updated 9:41 AM`) as sentences. A state widget reads title, window and the sentence. The label is complete even where the tile truncates or omits the location. Example: `Media Targets, Week. Black-throated Gray Warbler, needs photo, audio and video, 1.4 miles, Today, Sanborn County Park. Bell's Sparrow, needs photo, audio and video, 18.2 miles, 5 days ago, Henry W. Coe State Park. Updated 9:41 AM.`
 

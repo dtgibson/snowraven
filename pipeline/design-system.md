@@ -13,7 +13,8 @@ means "actionable or active," and almost nothing else is colored. Informative,
 never promotional.
 
 ## Tokens (intent layer — values in globals.css, both themes)
-- **Accent:** `--sr-accent` #2D8653 (Irish clover green; dark theme #34D399),
+- **Accent:** `--sr-accent` #277448 (the brand's Irish clover green #2D8653,
+  darkened to hold 4.5:1 as text on every light surface; dark theme #34D399),
   with `--sr-accent-strong/bg/border`, `--sr-on-accent`. Used for links, active
   states, primary actions, key counts — one accent per surface, not everywhere.
 - **Surfaces:** `--sr-bg` page, `--sr-surface` cards, `--sr-surface-subtle`
@@ -303,6 +304,42 @@ italic at 0.71875rem `--sr-text-gray`.
   one-finger pan, because the page it was sharing gestures with is no longer
   behind it. Controls that sit BESIDE a map rather than on it stay on the page:
   they are set before expanding, not duplicated into the overlay.
+- **Landing chip (an arrival from outside the app says so at once):** when a
+  link from outside the app (a home-screen widget tap) lands on the map, the
+  map's top-center loading chip (`.sr-map-loading-chip`, the statement slot:
+  `pointer-events: none`, spinner plus muted text) shows a line naming what
+  is being looked for, from the moment the link arrives, warm or cold, until
+  the result, the focused bird, a fallback statement or a failure message is
+  on the map. It covers every phase in between (the data load, the location
+  fix, the fetch), because a landing that takes seconds with nothing on screen
+  reads as a tap that did nothing. Copy is `Finding {name} near you…` when the
+  app already holds the name, otherwise a fixed line (`Finding the bird you
+  tapped…`, `Finding nearby lifers…`); a name is only ever the app's own, never
+  text the link carried. The visible chip is `aria-hidden` and one ALWAYS-
+  mounted polite live region announces the line once per link; the spinner is
+  static under reduced motion. The landing chip sizes to its content
+  (`.sr-map-landing-chip`, `width: max-content`, still capped at the map less
+  24px), because the centered chip's shrink-to-fit width is capped at half the
+  map and a named line would wrap on a phone. A view switch ends it, and a
+  landing only ever ends its own, never a newer link's.
+- **Map focus pill ("Only {name} · Show all"):** when the map is narrowed to
+  one species by something the user did outside it (a widget bird tap), the
+  search still runs in full and everything else it found stays loaded but
+  hidden; the sighting is selected with its popup open and centered, and the
+  way back is ONE labeled pill in the FAB cluster's full-width action row, in
+  the accent-TINTED register of `.sr-map-search-area-btn` (`.sr-map-focus-btn`
+  on `.sr-map-focus-row`), never an accent-filled slab. The whole pill is the
+  action; pressing it clears the filter, keeps the search, closes the popup
+  and re-fits to every result, with no new request. The name truncates with an
+  ellipsis before "Show all" does. Its accessible name states the whole state
+  (`Showing only {name}. Show all nearby lifers`). It sits BELOW Search this
+  area, so that row can appear above it without moving it. Closing the popup
+  does not clear the filter (the pill does, and so does changing the view, the
+  search, the Time Range or a type chip), so the way back never disappears
+  with the details. When the species
+  is not in the fresh results, show everything with a statement line in the
+  top-center slot instead (`{name} was not found within 25 miles. Showing all
+  lifers.`): never an empty map and never a filter with nothing in it.
 - **Inline media (ML embeds):** Macaulay Library `.../asset/<id>/embed` iframe in
   a `.sr-media-grid` (3-up → 1 col ≤640), `.sr-media-iframe` footprint. Height is a
   modifier class per surface, and each surface keeps its own classes so the two can
@@ -554,6 +591,53 @@ italic at 0.71875rem `--sr-text-gray`.
 - **Segmented toggle (the `.sr-segbar` register, v1.0.33):** a hand-rolled two- or three-option toggle (sort order, comparison mode, list source, map view, chart interval) drawn as one shell. `.sr-segbar` is an `inline-flex` shell with a 1.5px `--sr-accent-border`, radius 15, `overflow: hidden` and a `--sr-surface` fill; each `.sr-segbar-btn` option is 30px min-height, `0 12px` padding, 0.75rem, weight 500, `border: none`, transparent at rest, with a 1.5px `--sr-accent-border` divider on its leading edge, muted text lifting to `--sr-text` on hover (gated off when disabled), `--sr-accent-bg` fill + `--sr-accent` text + weight 600 when `aria-pressed="true"` (declared after `:hover` so the selected state wins), the global focus ring inset by 3px so it stays inside the clip, and the filter pill's 120ms ease-out colour fade with reduced motion from the global block. It shares height, type size, states and motion with the filter pill and differs only at the edge, so the two read as one family. `role="group"` with an `aria-label` naming the choice, each option `aria-pressed`, one tab stop per option. It is a CSS register, not a component, and it is NOT `SegControl` (the `--sr-surface-subtle` pill with radius-5 options, above), whose `.sr-seg` / `.sr-seg-btn` class names it deliberately does not reuse.
 - **Scrolling timeline chart, with the list as the primary form.** A time series that will not fit a phone scrolls sideways inside its own box (1px `--sr-border`, radius 9, `--sr-surface`, `overflow: hidden`, a 28px right-edge fade to `--sr-surface` that disappears at the end of the scroll, a sticky left gutter for the y labels); the page never scrolls sideways and the list never does. The SCROLL CONTAINER is the one tab stop, carrying `tabIndex={0}` and the accessible name; it is a horizontal `slider` whose value is a picked moment (Now at rest) and whose value text is that moment's figures, so the arrow keys step the pick rather than scroll the box; everything inside is `aria-hidden` and `inert` (with `accessibilityLayer={false}` on a Recharts chart), which still hit-tests wheel, touch and drag to the scroller. A press and release that moved under 5 CSS px is a pick of the instant under the press point; the pick is an HTML overlay marker inside the canvas, never a chart-library line, and a fixed-height readout beneath the legend (three stacked layers sharing one grid cell, the inactive one hidden, a 140ms cross-fade between rest and picked, instant from pick to pick) carries the figures at rem sizes, hidden from assistive technology because the slider's value text says the same words. A mouse drag follows the pointer one to one under pointer capture with no snapping and no post-release motion; alignment to a unit is two quiet 28px icon buttons in the legend row (Earlier / Later), disabled at the ends and whenever the track fits, with the scroll hint hidden then too. Two tiers share one component and one document: the phone tier at a fixed pixels-per-hour, the wide tier (641px and up, via `useIsPhone`) adding a day-header lane, a taller plot and a Days in view control whose choice sets pixels-per-hour so the chosen span fills the box; density rules (which labels drop, which cells collapse) are pure functions of pixels-per-hour in a `lib/` module, and the curve, the bands, the marks, the Now line and the gutter never change with density. Chart text is px on a fixed-px track and deliberately does not follow the in-app text scale; **every figure the chart draws is repeated in a list at rem sizes, which does**, grouped by day under a section-label heading, each item carrying its date sr-only so a screen reader hears the day with the event, and a guard asserts set equality between what is drawn and what is listed. The list is what a screen reader receives and what a phone user reads; the chart is decorative-plus. The list is one chronological column at every tier, capped at a 44rem reading measure beneath the chart and named by a labelled divider rule in the section-label register; it is never set in CSS columns, which would put a later day beside an earlier one. Each day's entry states its moon phase (the checklist weather blocks' own glyph, aria-hidden, beside the phase name) and the sun's highest point of the day in the tides line's register. Resolution is marked on every item by a muted uppercase micro-label ("FORECAST · HOURLY" / "FORECAST · DAILY") rather than the amber pill, so a dozen daily items do not read as a dozen warnings; the amber register is kept for the strip's single "daily from here" tag. The Weather tab's Planner is the instance.
 - **A card widens only while a wide result is on screen.** A card that hosts both a narrow form and a wide result keeps its narrow measure by default and takes a modifier class (`.sr-weather-card--plan`: 1080px at 641px and up, with a 220ms `max-width` transition the global reduced-motion block collapses) only while the wide result is mounted, reported by the child through a callback; everything in the card other than the wide result is wrapped once in a narrow wrapper (`.sr-weather-narrow`: 476px, centered) that is inert until the card is widened, so with no wide result on screen nothing moves and the phone tier is untouched. Chosen over a separate wide card below the form (the result belongs in the same region) and over widening the card always (a 1080px form is wrong). The width lives in a class, never an inline style, per the ui rule.
+
+- **Home-screen widget (native SwiftUI in a WidgetKit extension, iPhone and iPad):**
+  the raven mark, the view's exact in-app name and the chosen setting as a
+  word (`Week`, `Week · Photo`) in a header row that stays in EVERY state,
+  the placeholder included (it is marked unredacted, so only the body and
+  footer turn to bars; a placeholder is a state); a nearest-first list with
+  the distance as the single accented figure; and a muted footer
+  (`Updated 9:41 AM`, preceded by `From your default location`, `Offline` or
+  `eBird busy`, joined by middle dots). Rows per family are fixed (small one,
+  medium three, large eight) and a row that does not fit at the rendered text
+  size is dropped WHOLE, never clipped. An empty or error state is one plain
+  sentence in the Map Explorer overlay register, with no icon and no color;
+  a stale list stays a list and is marked in words in the footer, never by
+  color. System text styles only (SF with Dynamic Type), which is the named
+  exception to the app's type rule: the widget inherits the roles, not the
+  face; the small card takes one text-style step smaller than rows would.
+  `containerBackground(for: .widget)` with the system's default content
+  margins, never hand-set insets. `widgetAccentable` goes on the raven and
+  every distance figure, so the tinted and clear home-screen modes carry the
+  user's tint and nothing depends on an opaque container. Tap targets: on
+  medium and large each row is its own `Link` (a bird tap) and the rest of
+  the tile carries the view link; a small widget has one tap target, so a
+  listing card is the bird tap and a state sentence is the view tap. Motion
+  is `.contentTransition(.opacity)` on rows and `.numericText()` on figures at
+  refresh, instant under Reduce Motion, and nothing else. The VoiceOver label
+  is composed per widget, complete where the tile truncates: title and
+  setting, then each row as one sentence with the unit spoken in full
+  (`3.2 miles`), then the footer parts.
+- **Widget colors are Color Sets mapped from the app tokens, light / dark,**
+  in the extension's asset catalog: `WidgetBackground` #FFFFFF / #1C1C1E
+  (`--sr-surface`; dark takes the system widget surface, which reads the same
+  as the app's #18181B on a tile), `WidgetText` #0F1117 / #F4F4F5
+  (`--sr-text`), `WidgetMuted` #6B6B74 / #A1A1AA (`--sr-text-muted`: secondary
+  text, glyphs, footer), `WidgetAccent` #277448 / #34D399 (`--sr-accent`: the
+  distance figure and the raven), `WidgetSeparator` #ECECEF / #2C2C2E (a
+  hairline one step off the border tokens). A token change in `globals.css`
+  that one of these mirrors updates the Color Set in the same change. No
+  meaning rides on color alone: the window, the media type and staleness are
+  words, and the media glyphs are shapes.
+- **Missing-media glyphs (native surfaces):** SF Symbols `camera.fill`,
+  `mic.fill`, `video.fill`, one per missing type, ALWAYS in that fixed order
+  (photo, audio, video), in the muted color at caption scale, hidden from
+  VoiceOver because the row's label carries the meaning (`needs photo`,
+  `needs photo and video`, `needs photo, audio and video`). They appear only
+  when the chosen setting spans the types (Any), never under a single type,
+  where the header already names it. After the name on a row, as a
+  fixed-width group that is never dropped (the name truncates first).
 
 ## Accessibility commitments
 Every app-owned button and href link renders through `components/ui/Button` or

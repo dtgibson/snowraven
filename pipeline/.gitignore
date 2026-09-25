@@ -20,3 +20,6 @@ handoff.md
 */superseded-*/
 */proposed/
 .closeout-owed
+# ios-lifer-widgets working files: simulator and QA renders, and the copy-review page (its approved text landed at 7d11d6b). Reference only, kept on disk.
+ios-lifer-widgets/screens/
+ios-lifer-widgets/copy-review.html

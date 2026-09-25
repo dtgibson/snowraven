@@ -5,6 +5,10 @@ It records what has been built and key decisions made during development.
 
 ## Features Built
 
+### Home-screen widgets for nearby lifers and media targets on iPhone and iPad (complete -- September 2026, v1.0.36)
+
+On iPhone and iPad, two home-screen widgets, **Nearby Lifers** and **Media Targets** (set to Photo, Audio, Video or Any), list the nearest recent eBird reports within 25 miles of birds you still need over a chosen Day, Week or 30 days, and a tap opens the matching Map Explorer view already searching from where you are, with a tapped bird shown alone and centered on its sighting beside a **Show all** pill; the widgets need iOS 17, while the app itself still runs on iOS 16.
+
 ### One control family across every tab, and a phone text-size rule that only ever raises (complete -- September 2026, v1.0.33)
 
 The filter and toggle controls across every tab are one family. Forty-four bespoke drawings in fifteen files, in seven heights, six corner radii and four text sizes, are replaced by two shared styles: a standalone pill, and a segmented toggle drawn as one shell with its options inside it. The two share height, type size, states and motion and differ only at the edge, so a sort control on Species Detail and a filter pill on Breeding Codes now read as the same kind of thing. Twenty-one controls change shape noticeably, which is the accepted visible cost of the pass. No copy, behaviour, keyboard path, tab stop or screen-reader attribute changes anywhere.
