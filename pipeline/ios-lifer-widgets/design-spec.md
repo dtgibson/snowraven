@@ -95,6 +95,7 @@ Contrast: primary and secondary text clear WCAG AA on both containers (secondary
 
 - **Tap targets:** on medium and large every row is its own `Link` (a bird tap); the header, footer and any empty space or state sentence carry the widget's `widgetURL` (a view tap). On small, iOS allows a single tap target, so a tap anywhere on a listing card, header included, is the bird tap; a small widget showing a state sentence carries the view tap.
 - **What the link carries:** the view (`lifers` / `targets`), the window, the media setting for targets, and, for a bird tap only, the species and the sighting the widget listed: the eBird `speciesCode` (the app already filters lifer and target records by it and matches it with `SPECIES_CODE_RE`) and the `locId` of the listed location (`L` plus digits). The name is never carried; the app renders it from its own results. Without the two identifiers the link is a view tap. The exact grammar and its allowlist are the Architect's; the design requires only that a bird tap can single out one species and center one listed location, and that the link stays short and allowlisted.
+- **Landing indicator (device pass on 1.0.36 build 2):** from the moment a widget link arrives, warm or cold, until its results, the focused bird, the species-absent line or a failure message are on the map, the in-app search chip (`.sr-map-loading-chip`, top center of the map) shows the landing line, through the data load, the location fix (bounded at 10 s) and the fetch. Announced once through a polite live region; the spinner is static under reduced motion. A view switch ends it.
 - **Bird tap application order:** view, window, media, radius 25, search from the current location; then, from the results, filter to the species; select the listed location (or the nearest location of that species if the listed one is absent); pan to it and open its popup; show the pill. If the species is absent, show all results and the statement line.
 - No other interactive control exists in the widget.
 - **Configuration:** Edit Widget only. A change of Time range or Media re-lists from the cached fetch with no new eBird request (FR-12).
@@ -128,6 +129,7 @@ Voice: short, specific, the Map Explorer overlay register. American spelling. No
 - Pill: `Only {name} · Show all` (accessible name `Showing only {name}. Show all nearby lifers` / `... media targets`).
 - Statement line, the edge: `{name} was not found within 25 miles. Showing all lifers.` / `... Showing all media targets.`
 - Sidebar count under the filter: the existing `{n} spot(s) · {n} lifer(s)` line, unchanged.
+- Landing line (the search chip, while the link lands): bird tap `Finding {name} near you…` when the app already holds the name, else `Finding the bird you tapped…`; view tap `Finding nearby lifers…` / `Finding nearby media targets…`.
 
 **State copy (final)**
 
