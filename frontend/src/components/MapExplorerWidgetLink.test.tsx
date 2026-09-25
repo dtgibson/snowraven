@@ -139,6 +139,14 @@ vi.mock('../lib/mlExportCache', () => ({
   })),
 }))
 
+// The landing's location bound, adjustable per row (a getter, so each read of
+// the imported binding sees the current value).
+const bound = vi.hoisted(() => ({ ms: 10_000 }))
+vi.mock('../lib/links/linkFocus', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../lib/links/linkFocus')>()
+  return { ...actual, get LANDING_LOCATION_BOUND_MS() { return bound.ms } }
+})
+
 import { describeLocationError } from '../lib/location'
 import { MapExplorer } from './MapExplorer'
 
@@ -171,6 +179,7 @@ beforeEach(() => {
   records.fail = false
   markers.lifers = null
   markers.targets = null
+  bound.ms = 10_000
   geo.impl = async () => HERE
   vi.clearAllMocks()
 })
@@ -464,6 +473,190 @@ describe('a bird tap focuses the tapped species (Stage 8)', () => {
     expect(pill()).toBeNull()
     expect(markers.lifers!.sel).toBeNull()
     expect(lifersShown()).toEqual(['L-ruff:ruff', 'L200:baisan+ruff', 'L300:ruff'])
+  })
+})
+
+// The widget-link LANDING (device pass on 1.0.36 build 2): from the moment a
+// link arrives until its results or an honest failure are on the map, the
+// search chip says what is happening, across the data load, the location fix
+// and the fetch, announced once. Every wait below is on the exact observable
+// the next assertion reads (testing.md v1.0.25).
+describe('the widget-link landing shows from the first moment and never sticks', () => {
+  const chip = () => document.querySelector('.sr-map-landing-chip')
+  const announcer = () => screen.getByTestId('link-landing-announcer')
+  const RUFF_ELSEWHERE = () => [
+    pin('ruff', 'Ruff', 'L200', 37.95), pin('ruff', 'Ruff', 'L300', 37.80),
+  ]
+
+  it('shows the moment a link arrives, before the stored data or the location has answered', async () => {
+    obs.gate = new Promise(() => {})
+    renderMap({ view: 'lifers', window: 'week', id: 1, bird: { speciesCode: 'ruff', locId: 'L300' } })
+    await waitFor(() => expect(chip()?.textContent).toBe('Finding the bird you tapped…'))
+    await waitFor(() => expect(announcer().textContent).toBe('Finding the bird you tapped…'))
+    expect(chip()!.getAttribute('aria-hidden')).toBe('true')
+    const { getCurrentLocation } = await import('../lib/location')
+    expect(getCurrentLocation).not.toHaveBeenCalled()
+    expect(recentObsCalls()).toHaveLength(0)
+  })
+
+  it('stays through the data load, the location fix and the fetch, announced exactly once, then ends on the results', async () => {
+    let releaseData!: () => void
+    obs.gate = new Promise(r => { releaseData = r })
+    let fix!: (v: { lat: number; lng: number }) => void
+    geo.impl = () => new Promise(r => { fix = r })
+    let releaseFetch!: () => void
+    records.gate = new Promise(r => { releaseFetch = r })
+    renderMap({ view: 'lifers', window: 'week', id: 1 })
+    await waitFor(() => expect(announcer().textContent).toBe('Finding nearby lifers…'))
+    const said: string[] = []
+    const watch = new MutationObserver(() => { said.push(announcer().textContent ?? '') })
+    watch.observe(announcer(), { childList: true, characterData: true, subtree: true })
+    // Phase 1, the data load.
+    expect(chip()?.textContent).toBe('Finding nearby lifers…')
+    releaseData()
+    // Phase 2, the location fix.
+    const { getCurrentLocation } = await import('../lib/location')
+    await waitFor(() => expect(getCurrentLocation).toHaveBeenCalled())
+    expect(chip()?.textContent).toBe('Finding nearby lifers…')
+    fix(HERE)
+    // Phase 3, the fetch.
+    await waitFor(() => expect(recentObsCalls()).toHaveLength(1))
+    expect(chip()?.textContent).toBe('Finding nearby lifers…')
+    // The in-app chip never replaces it mid-landing, so nothing re-announces.
+    expect(document.querySelector('.sr-map-loading-chip[role="status"]')).toBeNull()
+    releaseFetch()
+    await waitFor(() => expect(chip()).toBeNull())
+    await waitFor(() => expect(announcer().textContent).toBe(''))
+    watch.disconnect()
+    expect(said.filter(t => t !== '')).toEqual([])
+    expect(markers.lifers?.pins.length).toBe(1)
+  })
+
+  it('ends when the focused bird is on the map', async () => {
+    records.extra = RUFF_ELSEWHERE()
+    renderMap({ view: 'lifers', window: 'week', id: 1, bird: { speciesCode: 'ruff', locId: 'L300' } })
+    await waitFor(() => expect(screen.queryByRole('button', { name: /^Showing only Ruff/ })).toBeTruthy())
+    await waitFor(() => expect(chip()).toBeNull())
+    expect(markers.lifers!.sel).toBe('L300')
+  })
+
+  it('ends in the failure message when the fetch fails', async () => {
+    records.fail = true
+    renderMap({ view: 'lifers', window: 'week', id: 1, bird: { speciesCode: 'ruff', locId: 'L300' } })
+    await waitFor(() => expect(document.querySelector('.sr-map-search-status-msg--error')).toBeTruthy())
+    await waitFor(() => expect(chip()).toBeNull())
+  })
+
+  it('ends in the location message when the fix fails', async () => {
+    geo.impl = async () => { throw { code: 'permission-denied', platform: 'tauri' } }
+    renderMap({ view: 'lifers', window: 'week', id: 1, bird: { speciesCode: 'ruff', locId: 'L300' } })
+    const msg = describeLocationError({ code: 'permission-denied', platform: 'tauri' })
+    await waitFor(() => expect(document.querySelector('.sr-map-geo-error')?.textContent).toContain(msg))
+    await waitFor(() => expect(chip()).toBeNull())
+  })
+
+  it('ends in the timeout message when the fix never comes (the bound the iOS plugin does not keep)', async () => {
+    bound.ms = 60
+    geo.impl = () => new Promise(() => {})
+    renderMap({ view: 'lifers', window: 'week', id: 1 })
+    const msg = describeLocationError({ code: 'timeout' })
+    await waitFor(() => expect(document.querySelector('.sr-map-geo-error')?.textContent).toContain(msg))
+    await waitFor(() => expect(chip()).toBeNull())
+    expect(recentObsCalls()).toHaveLength(0)
+  })
+
+  it('ends in the species-absent line', async () => {
+    renderMap({ view: 'lifers', window: 'week', id: 1, bird: { speciesCode: 'stejay', locId: 'L-stejay' } })
+    await waitFor(() => expect(screen.getByText("Steller's Jay was not found within 25 miles. Showing all lifers.")).toBeTruthy())
+    await waitFor(() => expect(chip()).toBeNull())
+  })
+
+  it('ends at the view\'s own notice when the search cannot run (no key)', async () => {
+    world.key = null
+    const { onApplied } = renderMap({ view: 'lifers', window: 'week', id: 1 })
+    await waitFor(() => expect(onApplied).toHaveBeenCalledWith(1))
+    await waitFor(() => expect(chip()).toBeNull())
+  })
+
+  it('a newer link owns the chip: the first link finishing does not end it, only its own search does', async () => {
+    let releaseFirst!: () => void
+    records.gate = new Promise(r => { releaseFirst = r })
+    const { rerender } = renderMap({ view: 'lifers', window: 'week', id: 1 })
+    await waitFor(() => expect(recentObsCalls()).toHaveLength(1))
+    expect(chip()?.textContent).toBe('Finding nearby lifers\u2026')
+    // The second link's fetch waits on its own gate.
+    let releaseSecond!: () => void
+    records.gate = new Promise(r => { releaseSecond = r })
+    rerender(
+      <MapExplorer onGoToSettings={() => {}} onNavigateToMediaList={() => {}} keysVersion={0}
+        linkRequest={{ view: 'targets', window: 'week', media: 'any', id: 2 }} onLinkRequestApplied={vi.fn()} />,
+    )
+    await waitFor(() => expect(recentObsCalls()).toHaveLength(2))
+    expect(chip()?.textContent).toBe('Finding nearby media targets\u2026')
+    // The FIRST search finishes (its count reaches the outcome line)...
+    releaseFirst()
+    await waitFor(() => expect(document.querySelector('.sr-map-search-status-msg')?.textContent).toMatch(/nearby lifers/))
+    await new Promise(r => setTimeout(r, 20))
+    // ...and the second link's chip is still up.
+    expect(chip()?.textContent).toBe('Finding nearby media targets\u2026')
+    releaseSecond()
+    await waitFor(() => expect(chip()).toBeNull())
+  })
+
+  it('a view switch during a landing ends the chip, though the link\'s fetch is still pending', async () => {
+    records.gate = new Promise(() => {})
+    renderMap({ view: 'lifers', window: 'week', id: 1 })
+    await waitFor(() => expect(recentObsCalls()).toHaveLength(1))
+    expect(chip()?.textContent).toBe('Finding nearby lifers\u2026')
+    screen.getByRole('button', { name: 'Hotspots' }).click()
+    await waitFor(() => expect(pressed('Hotspots')).toBe(true))
+    await waitFor(() => expect(chip()).toBeNull())
+  })
+
+  it('ends at the view\'s own notice when there is no eBird backup', async () => {
+    world.files = { ebird: false, ml: false }
+    const { onApplied } = renderMap({ view: 'lifers', window: 'week', id: 1 })
+    await waitFor(() => expect(onApplied).toHaveBeenCalledWith(1))
+    await waitFor(() => expect(chip()).toBeNull())
+    expect(recentObsCalls()).toHaveLength(0)
+  })
+
+  it('names the bird once the app holds its name, without announcing a second time', async () => {
+    let releaseData!: () => void
+    obs.gate = new Promise(r => { releaseData = r })
+    records.gate = new Promise(() => {})
+    renderMap({ view: 'targets', window: 'week', media: 'any', id: 1, bird: { speciesCode: 'wrenti', locId: 'L-wrenti' } })
+    // Announced once, before the app knows the name.
+    await waitFor(() => expect(announcer().textContent).toBe('Finding the bird you tapped\u2026'))
+    const said: string[] = []
+    const watch = new MutationObserver(() => { said.push(announcer().textContent ?? '') })
+    watch.observe(announcer(), { childList: true, characterData: true, subtree: true })
+    // The taxonomy lookup that runs once the data is in names it on screen.
+    releaseData()
+    await waitFor(() => expect(chip()?.textContent).toBe('Finding Wrentit near you\u2026'))
+    watch.disconnect()
+    expect(said).toEqual([])
+    expect(announcer().textContent).toBe('Finding the bird you tapped\u2026')
+  })
+
+  it('a view tap on Media Targets says so', async () => {
+    records.gate = new Promise(() => {})
+    renderMap({ view: 'targets', window: 'week', media: 'any', id: 1 })
+    await waitFor(() => expect(chip()?.textContent).toBe('Finding nearby media targets…'))
+  })
+
+  it('an ordinary in-app search is unchanged: the same chip and live region, no landing, nothing announced', async () => {
+    records.gate = new Promise(() => {})
+    renderMap(undefined)
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Nearby Lifers' })).toBeTruthy())
+    screen.getByRole('button', { name: 'Nearby Lifers' }).click()
+    await waitFor(() => expect(pressed('Nearby Lifers')).toBe(true))
+    // "Use my location" with no center set searches the view (handleUseMyLocation).
+    screen.getAllByRole('button', { name: /Use my location/ })[0]!.click()
+    await waitFor(() => expect(recentObsCalls()).toHaveLength(1))
+    await waitFor(() => expect(document.querySelector('.sr-map-loading-chip[role="status"]')?.textContent).toBe('Finding nearby lifers…'))
+    expect(chip()).toBeNull()
+    expect(announcer().textContent).toBe('')
   })
 })
 

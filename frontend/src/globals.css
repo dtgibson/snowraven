@@ -1918,6 +1918,15 @@ h1, h2, h3, h4, h5, h6 {
   white-space: nowrap;
 }
 
+/* The widget-link LANDING line (ios-lifer-widgets) can name a bird ("Finding
+   Buff-breasted Sandpiper near you…"), longer than any in-app search line. The
+   chip centres itself with left: 50%, which caps its shrink-to-fit width at HALF
+   the map (measured: 195px of a 390px map, so even the generic line wrapped),
+   so the landing chip sizes to its content instead, still capped by its inline
+   max-width (the map less 24px) and wrapping only past that. The in-app search
+   chip keeps the shipped sizing. */
+.sr-map-landing-chip { width: max-content; }
+
 /* Floating map controls cluster — lays the fullscreen toggle and the Filters
    button side by side so they never overlap regardless of label width. The
    cluster shows on all widths (so the fullscreen toggle is available on desktop

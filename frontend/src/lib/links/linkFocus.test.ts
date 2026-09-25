@@ -1,9 +1,10 @@
 // The bird-tap focus derivations (ios-lifer-widgets Stage 8; schema.md 4.5).
 // Pure functions over a search's results; MapExplorerWidgetLink.test.tsx drives
 // them through the real Map Explorer.
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import {
-  focusAbsentStatement, focusLifers, focusPillLabel, focusPillText, focusTargets, nameForCode, type LinkFocus,
+  boundedLocation, focusAbsentStatement, focusLifers, focusPillLabel, focusPillText, focusTargets,
+  LANDING_LOCATION_BOUND_MS, landingText, nameForCode, type LinkFocus,
 } from './linkFocus'
 import type { DisplayTargetPin, NearbyLiferLocation } from '../mapExplorerTypes'
 
@@ -110,5 +111,53 @@ describe('the copy (design-spec.md "In-app landing copy (bird tap)")', () => {
       focusAbsentStatement('X', 'lifers'), focusAbsentStatement(null, 'targets'),
     ]
     for (const s of all) expect(s).not.toContain('—')
+  })
+})
+
+describe('the landing line (device pass on 1.0.36 build 2)', () => {
+  it('names the bird when the app holds the name, else says the bird you tapped; a view tap names the view', () => {
+    expect(landingText('lifers', "Baird's Sandpiper", true)).toBe("Finding Baird's Sandpiper near you\u2026")
+    expect(landingText('lifers', null, true)).toBe('Finding the bird you tapped\u2026')
+    expect(landingText('targets', null, true)).toBe('Finding the bird you tapped\u2026')
+    expect(landingText('lifers', null, false)).toBe('Finding nearby lifers\u2026')
+    expect(landingText('targets', 'ignored', false)).toBe('Finding nearby media targets\u2026')
+  })
+
+  it('a real ellipsis, never three dots, and no em dash', () => {
+    for (const t of [landingText('lifers', 'X', true), landingText('lifers', null, true), landingText('targets', null, false)]) {
+      expect(t.endsWith('\u2026')).toBe(true)
+      expect(t).not.toContain('...')
+      expect(t).not.toContain('\u2014')
+    }
+  })
+})
+
+describe('boundedLocation: the landing never waits on a fix forever', () => {
+  it('the bound is the 10 s the web and desktop paths already keep', () => {
+    expect(LANDING_LOCATION_BOUND_MS).toBe(10_000)
+  })
+
+  it('a fix inside the bound passes through; a failure passes through', async () => {
+    await expect(boundedLocation(Promise.resolve({ lat: 1, lng: 2 }), 50)).resolves.toEqual({ lat: 1, lng: 2 })
+    await expect(boundedLocation(Promise.reject({ code: 'permission-denied' }), 50)).rejects.toEqual({ code: 'permission-denied' })
+  })
+
+  it('a fix that never comes rejects with the timeout code at the bound, and a late fix changes nothing', async () => {
+    vi.useFakeTimers()
+    try {
+      let late!: (v: { lat: number; lng: number }) => void
+      const settled: unknown[] = []
+      const p = boundedLocation(new Promise<{ lat: number; lng: number }>(r => { late = r }), LANDING_LOCATION_BOUND_MS)
+      p.then(v => settled.push(['ok', v]), e => settled.push(['err', e]))
+      await vi.advanceTimersByTimeAsync(LANDING_LOCATION_BOUND_MS - 1)
+      expect(settled).toEqual([])
+      await vi.advanceTimersByTimeAsync(1)
+      expect(settled).toEqual([['err', { code: 'timeout' }]])
+      late({ lat: 1, lng: 2 })
+      await vi.advanceTimersByTimeAsync(10)
+      expect(settled).toEqual([['err', { code: 'timeout' }]])
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })

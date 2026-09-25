@@ -93,8 +93,10 @@ import { buildNearbyLifers, isWithinWindow } from '../lib/nearbyLifers'
 import { WIDGET_RADIUS_MI, type LinkMedia } from '../lib/links/deepLink'
 import type { PendingLink } from '../lib/links/linkRequest'
 import {
-  focusAbsentStatement, focusLifers, focusPillLabel, focusPillText, focusTargets, nameForCode, type LinkFocus,
+  boundedLocation, focusAbsentStatement, focusLifers, focusPillLabel, focusPillText, focusTargets,
+  LANDING_LOCATION_BOUND_MS, landingText, nameForCode, type LinkFocus,
 } from '../lib/links/linkFocus'
+import type { BirdRef } from '../lib/links/deepLink'
 import { useProvenanceLookup } from '../lib/useProvenanceLookup'
 
 // ── The filters sidebar's focus-trap options ─────────────────────────────────
@@ -466,6 +468,14 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
   const [linkFocus, setLinkFocus]           = useState<LinkFocus | null>(null)
   const searchSeq                           = useRef(0)
   const [resultSeq, setResultSeq]           = useState<{ lifers: number; targets: number }>({ lifers: 0, targets: 0 })
+
+  // The widget-link LANDING (ios-lifer-widgets, device pass on 1.0.36 build 2):
+  // from the moment a link arrives until its results, or an honest failure,
+  // are on the map, the in-app search chip shows what is happening, across all
+  // three waits (the stored data loading, the location fix, the eBird fetch),
+  // not only the fetch. Ended by the link's own flow on every path (below), and
+  // by a view switch, the user taking over. Session state only.
+  const [linkLanding, setLinkLanding]       = useState<{ id: number; view: 'lifers' | 'targets'; bird?: BirdRef } | null>(null)
 
   // Marker style per panel (session-only): 'labels' shows the name chip, 'dots'
   // collapses each marker to just its locator dot. Independent for Lifers/Targets.
@@ -1653,6 +1663,10 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
       queueMicrotask(() => {
         setViewMode(link.view)
         setLinkFocus(null)
+        // The landing starts now, whatever is still loading; any previous
+        // outcome leaves the top-centre slot the chip shares with it.
+        setLinkLanding({ id: link.id, view: link.view, bird: link.bird })
+        setSearchOutcome('')
         setGeoError('')
         setRetainSearchBtn(false)
         if (link.view === 'lifers') setLiferWindow(link.window)
@@ -1664,23 +1678,31 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
     if (phase.tag === 'loading-saved' || hasEbirdKey === null) return
     appliedLinkRef.current = link.id
     queueMicrotask(() => onLinkRequestApplied?.(link.id))
-    if (phase.tag !== 'ready' || hasEbirdKey === false) return
+    // Ends this link's landing, and never a newer link's.
+    const endLanding = () => setLinkLanding(prev => (prev && prev.id === link.id ? null : prev))
+    if (phase.tag !== 'ready' || hasEbirdKey === false) {
+      // The view's own setup message or key notice takes over.
+      queueMicrotask(endLanding)
+      return
+    }
     const findLifers = handleFindLifers
     const findSightings = handleFindSightings
     queueMicrotask(async () => {
       setIsLocating(true)
       try {
-        const loc = await getCurrentLocation()
+        // Bounded here, because the iOS location plugin ignores its own
+        // timeout option (lib/location.ts): without this a fix that never
+        // comes would leave the landing up forever. Past the bound the landing
+        // ends in the existing timeout message and a late fix is ignored.
+        const loc = await boundedLocation(getCurrentLocation(), LANDING_LOCATION_BOUND_MS)
         setLat(loc.lat.toFixed(5))
         setLng(loc.lng.toFixed(5))
         setDetectedLocation({ lat: loc.lat, lng: loc.lng })
         setPanTarget({ lat: loc.lat, lng: loc.lng })
-        if (link.view === 'lifers') {
-          void findLifers(loc.lat, loc.lng, WIDGET_RADIUS_MI)
-        } else {
-          void findSightings(loc.lat, loc.lng, WIDGET_RADIUS_MI)
-          setTargetTypeFilter(new Set(chips))
-        }
+        const search = link.view === 'lifers'
+          ? findLifers(loc.lat, loc.lng, WIDGET_RADIUS_MI)
+          : findSightings(loc.lat, loc.lng, WIDGET_RADIUS_MI)
+        if (link.view === 'targets') setTargetTypeFilter(new Set(chips))
         // A bird tap (Stage 8): focus the species for exactly the search just
         // started. The handler's own synchronous prefix cleared the old focus
         // and took the next search number, and this runs after it in the same
@@ -1688,13 +1710,41 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
         if (link.bird) {
           setLinkFocus({ speciesCode: link.bird.speciesCode, locId: link.bird.locId, searchId: searchSeq.current })
         }
+        setIsLocating(false)
+        // The handlers settle on success and failure alike (their own
+        // try/catch), so the landing ends when the results, the focused bird,
+        // the species-absent line or the failure message are on the map.
+        await search
       } catch (err) {
         setGeoError(describeLocationError(err as LocationError))
       } finally {
         setIsLocating(false)
+        endLanding()
       }
     })
   }, [linkRequest, phase.tag, hasEbirdKey, handleFindLifers, handleFindSightings, onLinkRequestApplied, setPanTarget])
+
+  // The landing's one announcement, EFFECT-OWNED: set once per link, in a
+  // polite live region that is always mounted, and emptied when the landing
+  // ends. The chip itself is aria-hidden while it shows the landing, so the
+  // phases it covers are never re-announced.
+  const landingName = linkLanding?.bird ? nameForCode(linkLanding.bird.speciesCode, speciesCodeMap) : null
+  const landingLine = linkLanding ? landingText(linkLanding.view, landingName, linkLanding.bird !== undefined) : ''
+  const [landingAnnouncement, setLandingAnnouncement] = useState('')
+  const announcedLandingRef = useRef<number | null>(null)
+  useEffect(() => {
+    if (!linkLanding) {
+      if (announcedLandingRef.current !== null) {
+        announcedLandingRef.current = null
+        queueMicrotask(() => setLandingAnnouncement(''))
+      }
+      return
+    }
+    if (announcedLandingRef.current === linkLanding.id) return
+    announcedLandingRef.current = linkLanding.id
+    const line = landingLine
+    queueMicrotask(() => setLandingAnnouncement(line))
+  }, [linkLanding, landingLine])
 
   // The bird-tap landing, once per focused search (ios-lifer-widgets Stage 8).
   // When the focused search's results arrive: select the listed sighting (its
@@ -3122,7 +3172,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
               onClick={() => {
                 setViewMode(mode)
                 // A view switch clears a bird-tap focus (ios-lifer-widgets Stage 8).
-                if (mode !== viewMode) setLinkFocus(null)
+                if (mode !== viewMode) { setLinkFocus(null); setLinkLanding(null) }
                 // FR-17 — the failure does not survive a view change. At the one
                 // setViewMode call site rather than a useEffect mirror on
                 // viewMode: that would be a setState-in-effect and an extra
@@ -3225,7 +3275,16 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
           {/* Loading chip over the canvas while a search is in flight — the
               sidebar button already shows "Finding…", but on mobile (sidebar
               closed) the map itself gave no signal. */}
-          {((viewMode === 'hotspots' && hotspotsLoading) || (viewMode === 'targets' && targetsLoading) || (viewMode === 'lifers' && lifersLoading)) && (
+          {linkLanding ? (
+            /* A widget-link landing (see `linkLanding`): the same chip, shown
+               from the moment the link arrives, through the data load, the
+               location fix and the fetch. aria-hidden because the landing is
+               announced ONCE by the region below; this node is visual only. */
+            <div className="sr-map-loading-chip sr-map-landing-chip" aria-hidden="true" style={{ maxWidth: 'calc(100% - 24px)', whiteSpace: 'normal', textAlign: 'center' }}>
+              <Loader2 size={13} className="spin" aria-hidden="true" style={{ flexShrink: 0 }} />
+              {landingLine}
+            </div>
+          ) : ((viewMode === 'hotspots' && hotspotsLoading) || (viewMode === 'targets' && targetsLoading) || (viewMode === 'lifers' && lifersLoading)) && (
             /* Bound + allow wrap (overriding the class's nowrap) so the centered
                chip stays compact on a narrow phone and doesn't reach across to
                touch the top-right layers switcher. */
@@ -3234,6 +3293,10 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
               {viewMode === 'hotspots' ? 'Finding hotspots…' : viewMode === 'targets' ? 'Finding sightings…' : 'Finding nearby lifers…'}
             </div>
           )}
+          {/* The landing's polite announcer: ALWAYS mounted (a live region
+              inserted with its text often fails to announce), visually hidden,
+              and filled once per link by the effect above. */}
+          <div className="sr-only" role="status" aria-live="polite" data-testid="link-landing-announcer">{landingAnnouncement}</div>
           {/* The search-outcome live region (FR-25) — the top-centre statement
               slot's second occupant, sharing the anchor with the loading chip
               above and mutually exclusive with it in time (each handler clears

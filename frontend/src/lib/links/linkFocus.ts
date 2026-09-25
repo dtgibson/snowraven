@@ -18,6 +18,7 @@
 
 import { distanceMiles, recencyTier } from '../mapExplorerFormat'
 import type { DisplayTargetPin, NearbyLiferLocation } from '../mapExplorerTypes'
+import type { LocationError } from '../location'
 import { WIDGET_RADIUS_MI } from './deepLink'
 
 export interface LinkFocus { speciesCode: string; locId: string; searchId: number }
@@ -111,4 +112,29 @@ export function focusPillLabel(name: string, view: FocusView): string {
  *  name the app can vouch for, the sentence says "The bird you tapped". */
 export function focusAbsentStatement(name: string | null, view: FocusView): string {
   return `${name ?? 'The bird you tapped'} was not found within ${WIDGET_RADIUS_MI} miles. Showing all ${ALL[view]}.`
+}
+
+/** The loading line a widget-link landing shows from the moment the link
+ *  arrives until results (or an honest failure) are on the map. A bird tap
+ *  names the bird only when the app already holds its name; otherwise it
+ *  says "the bird you tapped". A real ellipsis, as the in-app search chip uses. */
+export function landingText(view: FocusView, birdName: string | null, isBirdTap: boolean): string {
+  if (isBirdTap) return birdName ? `Finding ${birdName} near you…` : 'Finding the bird you tapped…'
+  return `Finding nearby ${ALL[view]}…`
+}
+
+/** The landing's bound on the location fix. The iOS location plugin ignores its
+ *  own timeout option (lib/location.ts), so a fix that never comes would leave
+ *  a widget-link landing up forever; the web and desktop paths already give up
+ *  at 10 s, and this is the same figure. */
+export const LANDING_LOCATION_BOUND_MS = 10_000
+
+/** `fix`, or the location seam's own timeout error past `ms`. A late fix after
+ *  the bound is ignored: the returned promise has already settled. */
+export function boundedLocation<T>(fix: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timeout: LocationError = { code: 'timeout' }
+    const timer = setTimeout(() => reject(timeout), ms)
+    fix.then(v => { clearTimeout(timer); resolve(v) }, e => { clearTimeout(timer); reject(e) })
+  })
 }
