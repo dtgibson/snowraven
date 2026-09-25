@@ -489,6 +489,30 @@ describe('.sr-map-geo-error', () => {
   })
 })
 
+// The bird-tap focus pill (ios-lifer-widgets Stage 8): the name ellipsizes
+// before "Show all", and the pill never leaves the cluster. The geometric proof
+// is a real render (pipeline/ios-lifer-widgets/screens/bird-tap/r4-*: a long
+// name at 320px / 200% text, Chromium and WebKit); these rows pin the three
+// declarations it rests on. Without the ROW's min-width the render measured a
+// 506px row in a 288px cluster, hanging off the left edge of the viewport.
+describe('the bird-tap focus pill', () => {
+  it('the row, the button and the name may all shrink below their content', () => {
+    expect(decl(TOP.get('.sr-map-focus-row')!, 'min-width')).toBe('0')
+    expect(decl(TOP.get('.sr-map-focus-btn')!, 'min-width')).toBe('0')
+    expect(decl(TOP.get('.sr-map-focus-name')!, 'min-width')).toBe('0')
+  })
+
+  it('the name truncates with an ellipsis and "Show all" never does', () => {
+    const name = TOP.get('.sr-map-focus-name')!
+    expect(decl(name, 'overflow')).toBe('hidden')
+    expect(decl(name, 'text-overflow')).toBe('ellipsis')
+    expect(decl(name, 'white-space')).toBe('nowrap')
+    const action = TOP.get('.sr-map-focus-action')!
+    expect(decl(action, 'flex')).toBe('none')
+    expect(decl(action, 'white-space')).toBe('nowrap')
+  })
+})
+
 describe('the rules around the cluster that stay put', () => {
   it('leaves .sr-map-loading-chip alone', () => {
     // map-location-buttons' FR-04 also pinned .sr-share-drop-btn and

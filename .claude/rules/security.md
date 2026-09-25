@@ -35,6 +35,7 @@ paths:
   - "PRIVACY_POLICY.md"
   - "frontend/src/lib/widgets/**"
   - "frontend/src/lib/links/**"
+  - "frontend/src/lib/speciesCode.ts"
   - "frontend/src/lib/mapDefaultsChanged.ts"
   - "frontend/src/lib/recentObsReduce.ts"
   - "src-tauri/src/widgets.rs"

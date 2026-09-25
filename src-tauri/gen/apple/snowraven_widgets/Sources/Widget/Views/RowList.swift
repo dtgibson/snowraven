@@ -13,7 +13,10 @@ struct RowList: View {
     let rows: [WidgetRow]
     let showGlyphs: Bool
     let large: Bool
-    let link: String
+    /// One bird link per row (`WidgetPresentation.rowLinks`): a row tap opens
+    /// that bird; WidgetKit resolves each `Link` region over the root
+    /// `widgetURL`, which stays the view link for the header.
+    let links: [String]
 
     var body: some View {
         WholeRows {
@@ -22,7 +25,7 @@ struct RowList: View {
                     if index > 0 {
                         Rectangle().fill(Palette.separator).frame(height: 0.5)
                     }
-                    Link(destination: URL(string: link)!) {
+                    Link(destination: URL(string: links[index])!) {
                         RowView(row: row, showGlyphs: showGlyphs)
                             .padding(.vertical, large ? 3 : 1)
                     }

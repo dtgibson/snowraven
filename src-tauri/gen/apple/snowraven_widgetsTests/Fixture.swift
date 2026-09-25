@@ -30,7 +30,16 @@ struct Fixture: Decodable {
         enum CodingKeys: String, CodingKey { case input = "in", out, validHandoverName }
     }
     struct NeedsRow: Decodable { let missing: [MediaNeed]; let phrase: String }
-    struct LinkRow: Decodable { let url: String; let view: String; let window: String; let media: String? }
+    struct LinkBird: Decodable, Equatable { let speciesCode: String; let locId: String }
+    struct LinkParsed: Decodable { let view: String; let window: String; let media: String?; let bird: LinkBird? }
+    struct LinkRow: Decodable { let raw: String; let expected: LinkParsed? }
+    struct Links: Decodable {
+        let views: [LinkRow]
+        let birds: [LinkRow]
+        let degraded: [LinkRow]
+        let rejected: [LinkRow]
+        let refusedPairs: [LinkBird]
+    }
 
     let tz: String
     let nowIso: String
@@ -49,7 +58,7 @@ struct Fixture: Decodable {
     let retryAfterRows: [RetryRow]
     let foldRows: [FoldRow]
     let needsRows: [NeedsRow]
-    let links: [LinkRow]
+    let links: Links
 
     static let url: URL = {
         final class Anchor {}

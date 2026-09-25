@@ -154,3 +154,73 @@ export const FOLD_INPUTS = [
   "RÜPPELL'S GRIFFON", 'Mallard (Domestic type) (x)', 'A (b (c))', 'Mallard (', '(Domestic type)',
   '', 'Brant ', '﻿Brant', 'Brant\u0085', 'gull sp.', 'Western x Glaucous-winged Gull (hybrid)',
 ]
+
+// ── The deep-link families (Stage 8 re-entry: a bird tap carries which bird) ──
+// The RAW strings are authored here and grouped by the outcome they are meant
+// to have; the fixture's `expected` values are produced by the shipped parser,
+// and `deepLink.test.ts` checks every row against the family it was authored in,
+// so a generated expectation can never quietly restate a wrong parser.
+
+/** A real-shaped bird, carried on every one of the fifteen view links. */
+export const LINK_BIRD = { speciesCode: 'norcar', locId: 'L123456' }
+
+/** The bounds of both id patterns (`lib/speciesCode.ts`, `LOC_ID_RE`). */
+export const LINK_BIRD_BOUNDS = [
+  { speciesCode: 'ab', locId: 'L1' },                              // shortest code, shortest id
+  { speciesCode: 'abcdefghijklmno1', locId: 'L123456789012345' },  // 16-character code, 15-digit id
+  { speciesCode: 'x-00001', locId: 'L7' },                         // a hyphen, as SpeciesLinks admits
+]
+
+/** Suffixes whose view part is exact but whose bird is malformed: each one
+ *  DEGRADES to the view link (the bird is dropped, the view still opens). */
+export const LINK_DEGRADED_SUFFIXES = [
+  '&sp=NORCAR&loc=L1',                     // uppercase code
+  '&sp=n&loc=L1',                          // 1-character code
+  `&sp=${'a'.repeat(17)}&loc=L1`,          // 17-character code
+  '&sp=&loc=L1',                           // empty code
+  '&sp=nor car&loc=L1',                    // a space in the code
+  '&sp=norcar&loc=1',                      // location id without the L
+  '&sp=norcar&loc=l1',                     // lowercase l
+  '&sp=norcar&loc=L',                      // L with no digits
+  `&sp=norcar&loc=L${'1'.repeat(16)}`,     // 16-digit location id
+  '&sp=norcar&loc=L١',                // a non-ASCII digit
+  '&sp=norcar',                            // species without a location
+  '&sp=norcar&loc=L1&x=1',                 // a trailing parameter
+  '&sp=norcar&loc=L1#f',                   // a fragment
+  '&sp=norcar&loc=L1\n',                   // a trailing newline
+  '&sp=nor%63ar&loc=L1',                   // percent-encoded
+  '&sp=norcar&loc=L1&sp=other&loc=L2',     // the suffix repeated
+]
+
+/** The view links the degraded suffixes are appended to (one of each kind). */
+export const LINK_DEGRADE_BASES = [
+  { view: 'lifers', window: 'week' },
+  { view: 'targets', window: 'all', media: 'video' },
+] as const
+
+/** Strings rejected WHOLE: their view part is not one of the fifteen. */
+export const LINK_REJECTED = [
+  'snowraven://map/lifers?window=week&loc=L1&sp=norcar',               // reversed: the head then ends in &loc=L1
+  'snowraven://map/lifers/?window=day&sp=norcar&loc=L1',               // trailing slash
+  'SNOWRAVEN://map/lifers?window=day&sp=norcar&loc=L1',                // case
+  'snowraven://map/lifers?window=day&x=1&sp=norcar&loc=L1',            // a parameter before the bird
+  'snowraven://map/lifers?window=day&media=photo&sp=norcar&loc=L1',    // media on the lifers path
+  'snowraven://map/targets?window=day&sp=norcar&loc=L1',               // targets without media
+  'snowraven://map/targets?media=photo&window=day&sp=norcar&loc=L1',   // reordered
+  '&sp=norcar&loc=L1',                                                 // a bird with no view
+  // 97 characters behind an exact view part: the length gate refuses it first.
+  'snowraven://map/targets?window=week&media=photo&sp=norcar&loc=L1' + 'x'.repeat(33),
+]
+
+/** Id pairs the builders REFUSE: TypeScript throws, Swift returns the view link. */
+export const LINK_REFUSED_PAIRS = [
+  { speciesCode: 'NORCAR', locId: 'L1' },
+  { speciesCode: 'n', locId: 'L1' },
+  { speciesCode: 'a'.repeat(17), locId: 'L1' },
+  { speciesCode: 'nor&car', locId: 'L1' },
+  { speciesCode: 'norcar', locId: '1' },
+  { speciesCode: 'norcar', locId: 'L' },
+  { speciesCode: 'norcar', locId: `L${'1'.repeat(16)}` },
+  { speciesCode: 'norcar', locId: 'L1&x=1' },
+  { speciesCode: '', locId: '' },
+]

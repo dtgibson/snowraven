@@ -2285,6 +2285,25 @@ h1, h2, h3, h4, h5, h6 {
   border-color: var(--sr-border);
 }
 
+/* THE BIRD-TAP FOCUS PILL (ios-lifer-widgets Stage 8): "Only {name} · Show all",
+   the same action row and the same accent-tinted register as Search this area
+   (both classes are on it), so it inherits the entrance, the safe-area inset and
+   the phone-tier touch posture. What it adds is the one rule the design gives
+   it: the NAME truncates with an ellipsis before "Show all" ever does, at every
+   width and text size, so both halves stay nowrap here, including under the
+   phone tier's `white-space: normal` on the shared button class. min-width: 0
+   on the ROW as well as the button and the name, and all three are needed:
+   a nowrap name keeps its full width as the button's MIN-CONTENT however it is
+   clipped, and the row, a flex item of the cluster with `min-width: auto`,
+   would size to that min-content and hang off the LEFT edge of a 320px phone
+   at 200% text (measured: a 506px row in a 288px cluster, the name cut off at
+   the viewport edge rather than ellipsized, with page scrollWidth still 320,
+   because a left overflow never extends it). */
+.sr-map-focus-row { min-width: 0; }
+.sr-map-focus-btn { min-width: 0; gap: 0.35em; }
+.sr-map-focus-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sr-map-focus-action { flex: none; white-space: nowrap; }
+
 /* The end state IS the resting state, so the app's global
    prefers-reduced-motion block collapsing this to ~1us loses nothing, and no
    per-component reduced-motion query may be added (the standing note at the Pin

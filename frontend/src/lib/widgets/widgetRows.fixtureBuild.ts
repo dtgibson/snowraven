@@ -6,7 +6,7 @@
 
 import retryFixture from '../hotspotActivity.fixture.json'
 import { parseRetryAfterSeconds } from '../rateLimit'
-import { buildWidgetLink, WIDGET_LINKS } from '../links/deepLink'
+import { buildWidgetLink, parseWidgetLink, WIDGET_LINKS, type ViewLink, type WidgetLink } from '../links/deepLink'
 import {
   buildHandover, isValidHandoverName, HANDOVER_MAX_BYTES, MAX_KEY_LEN, MAX_NAME_UNITS, MAX_SET_ENTRIES,
 } from './widgetHandover'
@@ -19,6 +19,7 @@ import {
 import {
   APP_VERSION, BODY, DATE_SEEDS, DISTANCE_PAIRS, DST_NOW_ISO, DST_OBS, FOLD_INPUTS, FORMAT_MILES, ML_ROWS,
   NOW_ISO, OBSERVATIONS, RECENCY_DAYS, REFERENCE, TZ,
+  LINK_BIRD, LINK_BIRD_BOUNDS, LINK_DEGRADE_BASES, LINK_DEGRADED_SUFFIXES, LINK_REFUSED_PAIRS, LINK_REJECTED,
 } from './widgetRows.fixtureInputs'
 
 export const FIXTURE_KEY = 'fixtureKey123'
@@ -93,6 +94,25 @@ export function buildWidgetFixture() {
     retryAfterRows: retryFixture.rateLimit.retryAfterRows.map(r => ({ header: r.header, seconds: parseRetryAfterSeconds(r.header) })),
     foldRows: FOLD_INPUTS.map(s => ({ in: s, out: foldName(s), validHandoverName: isValidHandoverName(foldName(s)) })),
     needsRows: subsets.map(missing => ({ missing, phrase: needsPhrase(missing) })),
-    links: WIDGET_LINKS.map(l => ({ url: buildWidgetLink(l), ...l })),
+    links: linkFamilies(),
+  }
+}
+
+/** The deep-link table (schema.md 7.2): each row is `{ raw, expected }`, the
+ *  expectation produced by the SHIPPED parser; the Swift builder must produce
+ *  every `views` and `birds` raw exactly, and the view link for every refused
+ *  pair. The family a row sits in is its authored intent. */
+function linkFamilies() {
+  const row = (raw: string) => ({ raw, expected: parseWidgetLink(raw) })
+  const birds: WidgetLink[] = [
+    ...WIDGET_LINKS.map(v => ({ ...v, bird: LINK_BIRD })),
+    ...LINK_BIRD_BOUNDS.map(bird => ({ ...WIDGET_LINKS[4]!, bird })),
+  ]
+  return {
+    views: WIDGET_LINKS.map(v => row(buildWidgetLink(v))),
+    birds: birds.map(l => row(buildWidgetLink(l))),
+    degraded: LINK_DEGRADE_BASES.flatMap(v => LINK_DEGRADED_SUFFIXES.map(s => row(buildWidgetLink(v as ViewLink) + s))),
+    rejected: LINK_REJECTED.map(row),
+    refusedPairs: LINK_REFUSED_PAIRS,
   }
 }

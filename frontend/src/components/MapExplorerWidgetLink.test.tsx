@@ -39,8 +39,18 @@ vi.mock('./AtlasLayer', () => ({ AtlasLayer: () => null }))
 vi.mock('./map/CountyLayer', () => ({ CountyLayer: () => null }))
 vi.mock('./map/SightingMarkers', () => ({ SightingMarkers: () => null }))
 vi.mock('./map/HotspotMarkers', () => ({ HotspotMarkers: () => null }))
-vi.mock('./map/TargetMarkers', () => ({ TargetMarkers: () => null }))
-vi.mock('./map/NearbyLiferMarkers', () => ({ NearbyLiferMarkers: () => null }))
+// The two marker layers render nothing here but RECORD what they were handed,
+// which is what the bird-tap rows read: the pins shown and the selected one.
+const markers = vi.hoisted(() => ({
+  lifers: null as null | { pins: { locId: string; count: number; lifers: { speciesCode: string }[] }[]; sel: string | null },
+  targets: null as null | { pins: { locId: string; speciesCode: string }[]; sel: string | null },
+}))
+vi.mock('./map/TargetMarkers', () => ({
+  TargetMarkers: (p: { pins: never[]; sel: string | null }) => { markers.targets = { pins: p.pins, sel: p.sel }; return null },
+}))
+vi.mock('./map/NearbyLiferMarkers', () => ({
+  NearbyLiferMarkers: (p: { pins: never[]; sel: string | null }) => { markers.lifers = { pins: p.pins, sel: p.sel }; return null },
+}))
 vi.mock('./map/BasemapDesaturation', () => ({ BasemapDesaturation: () => null }))
 vi.mock('./map/SharePopup', () => ({ SharePopup: () => null }))
 vi.mock('./map/MapControls', () => ({
@@ -61,10 +71,13 @@ const today = (() => {
   const p = (n: number) => String(n).padStart(2, '0')
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} 07:00`
 })()
-const pin = (speciesCode: string, comName: string) => ({
-  speciesCode, comName, locId: `L-${speciesCode}`, locName: 'Tilden Park', lat: 37.9, lng: -122.24,
+const pin = (speciesCode: string, comName: string, locId = `L-${speciesCode}`, lat = 37.9) => ({
+  speciesCode, comName, locId, locName: 'Tilden Park', lat, lng: -122.24,
   recentDate: today, checklistCount: 1, subId: 'S1',
 })
+// Extra records for the bird-tap rows (none by default), and a gate a row can
+// hold a search on, so two searches can resolve out of order.
+const records = vi.hoisted(() => ({ extra: [] as unknown[], gate: null as null | Promise<void>, fail: false }))
 
 vi.mock('../lib/transport', () => ({
   transport: {
@@ -72,7 +85,10 @@ vi.mock('../lib/transport', () => ({
     // Nearby Lifers sends none and gets every species in the radius.
     get: vi.fn(async (path: string, params?: { codes?: string }) => {
       if (path !== '/map/recent-obs') return []
-      const all = [pin('stejay', "Steller's Jay"), pin('wrenti', 'Wrentit'), pin('ruff', 'Ruff')]
+      const gate = records.gate
+      if (gate) await gate
+      if (records.fail) throw new Error('offline')
+      const all = [pin('stejay', "Steller's Jay"), pin('wrenti', 'Wrentit'), pin('ruff', 'Ruff'), ...(records.extra as ReturnType<typeof pin>[])]
       const codes = params?.codes ? new Set(params.codes.split(',')) : null
       return codes ? all.filter(p => codes.has(p.speciesCode)) : all
     }),
@@ -150,6 +166,11 @@ beforeEach(() => {
   world.files = { ebird: true, ml: true }
   world.key = 'k'
   obs.gate = null
+  records.extra = []
+  records.gate = null
+  records.fail = false
+  markers.lifers = null
+  markers.targets = null
   geo.impl = async () => HERE
   vi.clearAllMocks()
 })
@@ -252,6 +273,197 @@ describe('cold start and degraded outcomes (FR-37, FR-38)', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'Hotspots' })).toBeTruthy())
     await new Promise(r => setTimeout(r, 20))
     expect(recentObsCalls()).toHaveLength(0)
+  })
+})
+
+// Stage 8 re-entry: a bird tap shows only that species, centered on the listed
+// sighting with its popup open, and a pill to show all again (design-spec.md
+// "Tap-through"; schema.md 4.5). Ruff is a lifer at three places; Baird's
+// Sandpiper shares one of them.
+describe('a bird tap focuses the tapped species (Stage 8)', () => {
+  const RUFF_ELSEWHERE = () => [
+    pin('ruff', 'Ruff', 'L200', 37.95), pin('baisan', "Baird's Sandpiper", 'L200', 37.95), pin('ruff', 'Ruff', 'L300', 37.80),
+  ]
+  const lifersShown = () => markers.lifers!.pins.map(p => `${p.locId}:${p.lifers.map(l => l.speciesCode).sort().join('+')}`).sort()
+  const pill = () => screen.queryByRole('button', { name: /^Showing only / })
+
+  it('lifers: only the species, each spot narrowed to it, the LISTED sighting selected, and the pill', async () => {
+    records.extra = RUFF_ELSEWHERE()
+    renderMap({ view: 'lifers', window: 'week', id: 1, bird: { speciesCode: 'ruff', locId: 'L300' } })
+    await waitFor(() => expect(markers.lifers?.sel).toBe('L300'))
+    expect(lifersShown()).toEqual(['L-ruff:ruff', 'L200:ruff', 'L300:ruff'])
+    expect(markers.lifers!.pins.every(p => p.count === 1)).toBe(true)
+    expect(pill()!.textContent).toBe('Only Ruff· Show all')
+    expect(pill()!.getAttribute('aria-label')).toBe('Showing only Ruff. Show all nearby lifers')
+    expect(screen.getByText(/3 spots · 3 lifers/)).toBeTruthy()
+    expect(recentObsCalls()).toHaveLength(1)
+  })
+
+  it('the listed location is gone: the NEAREST sighting of the species to the search center is selected instead', async () => {
+    records.extra = RUFF_ELSEWHERE()
+    renderMap({ view: 'lifers', window: 'week', id: 1, bird: { speciesCode: 'ruff', locId: 'L999' } })
+    await waitFor(() => expect(markers.lifers?.sel).toBe('L-ruff'))
+    expect(pill()).toBeTruthy()
+    expect(screen.queryByText(/was not found within/)).toBeNull()
+  })
+
+  it('Show all: every result comes back with no new request, the popup closes and the pill goes', async () => {
+    records.extra = RUFF_ELSEWHERE()
+    renderMap({ view: 'lifers', window: 'week', id: 1, bird: { speciesCode: 'ruff', locId: 'L300' } })
+    await waitFor(() => expect(pill()).toBeTruthy())
+    pill()!.click()
+    await waitFor(() => expect(pill()).toBeNull())
+    expect(lifersShown()).toEqual(['L-ruff:ruff', 'L200:baisan+ruff', 'L300:ruff'])
+    expect(markers.lifers!.sel).toBeNull()
+    expect(recentObsCalls()).toHaveLength(1)
+  })
+
+  it('targets: only the species, the listed pin selected, the link\'s own chip write does NOT clear the focus', async () => {
+    renderMap({ view: 'targets', window: 'week', media: 'photo', id: 1, bird: { speciesCode: 'wrenti', locId: 'L-wrenti' } })
+    await waitFor(() => expect(markers.targets?.sel).toBe('L-wrenti'))
+    expect(markers.targets!.pins.map(p => p.speciesCode)).toEqual(['wrenti'])
+    expect(pill()!.getAttribute('aria-label')).toBe('Showing only Wrentit. Show all nearby media targets')
+  })
+
+  it('the species is not in the results: all results, no pill, and the statement line (named where the app knows the name)', async () => {
+    // Steller's Jay is recorded, so it is no lifer; the lifer search's own
+    // records still name it.
+    renderMap({ view: 'lifers', window: 'week', id: 1, bird: { speciesCode: 'stejay', locId: 'L-stejay' } })
+    await waitFor(() => expect(screen.getByText("Steller's Jay was not found within 25 miles. Showing all lifers.")).toBeTruthy())
+    expect(pill()).toBeNull()
+    expect(lifersShown()).toEqual(['L-ruff:ruff'])
+    expect(markers.lifers!.sel).toBeNull()
+  })
+
+  it('a code nothing in the app names: the generic statement, never the code', async () => {
+    renderMap({ view: 'lifers', window: 'week', id: 1, bird: { speciesCode: 'nosuch1', locId: 'L1' } })
+    await waitFor(() => expect(screen.getByText('The bird you tapped was not found within 25 miles. Showing all lifers.')).toBeTruthy())
+    expect(document.body.textContent).not.toContain('nosuch1')
+  })
+
+  it('a view link (the header) never focuses anything', async () => {
+    records.extra = RUFF_ELSEWHERE()
+    renderMap({ view: 'lifers', window: 'week', id: 1 })
+    await waitFor(() => expect(markers.lifers?.pins.length).toBe(3))
+    await new Promise(r => setTimeout(r, 20))
+    expect(pill()).toBeNull()
+    expect(markers.lifers!.sel).toBeNull()
+  })
+
+  // Every clear, one row each; each starts from a focused view and asserts the
+  // focus is gone (all three lifer spots back, including Baird's at L200).
+  const CLEARS: [string, () => Promise<void> | void][] = [
+    ['Show all', () => pill()!.click()],
+    ['a view switch', async () => {
+      screen.getByRole('button', { name: 'Media Targets' }).click()
+      await waitFor(() => expect(pressed('Media Targets')).toBe(true))
+      screen.getByRole('button', { name: 'Nearby Lifers' }).click()
+    }],
+    ['a window change', () => screen.getAllByRole('button', { name: '30 days' })[0]!.click()],
+    ['a new search from the sidebar', () => screen.getByRole('button', { name: 'Find Nearby Lifers' }).click()],
+  ]
+  it.each(CLEARS)('%s clears the focus', async (_name, act) => {
+    records.extra = RUFF_ELSEWHERE()
+    renderMap({ view: 'lifers', window: 'week', id: 1, bird: { speciesCode: 'ruff', locId: 'L300' } })
+    await waitFor(() => expect(pill()).toBeTruthy())
+    await act()
+    await waitFor(() => expect(pill()).toBeNull())
+    await waitFor(() => expect(lifersShown()).toEqual(['L-ruff:ruff', 'L200:baisan+ruff', 'L300:ruff']))
+  })
+
+  // The two clears the searchId binding does NOT already cover, each with the
+  // one case only it protects (measured: with either clear deleted, every
+  // other row stays green).
+  it('a new search that FAILS still clears the focus (the old results stay, unfocused)', async () => {
+    records.extra = RUFF_ELSEWHERE()
+    renderMap({ view: 'lifers', window: 'week', id: 1, bird: { speciesCode: 'ruff', locId: 'L300' } })
+    await waitFor(() => expect(pill()).toBeTruthy())
+    records.fail = true
+    screen.getByRole('button', { name: 'Find Nearby Lifers' }).click()
+    await waitFor(() => expect(recentObsCalls()).toHaveLength(2))
+    await waitFor(() => expect(pill()).toBeNull())
+    expect(lifersShown()).toEqual(['L-ruff:ruff', 'L200:baisan+ruff', 'L300:ruff'])
+  })
+
+  it('a view switch while the focused search is still loading clears it, so it never lands after the user left', async () => {
+    records.extra = RUFF_ELSEWHERE()
+    let release!: () => void
+    records.gate = new Promise(r => { release = r })
+    renderMap({ view: 'lifers', window: 'week', id: 1, bird: { speciesCode: 'ruff', locId: 'L300' } })
+    await waitFor(() => expect(recentObsCalls()).toHaveLength(1))
+    screen.getByRole('button', { name: 'Hotspots' }).click()
+    await waitFor(() => expect(pressed('Hotspots')).toBe(true))
+    screen.getByRole('button', { name: 'Nearby Lifers' }).click()
+    await waitFor(() => expect(pressed('Nearby Lifers')).toBe(true))
+    release()
+    await waitFor(() => expect(markers.lifers?.pins.length).toBe(3))
+    await new Promise(r => setTimeout(r, 30))
+    expect(pill()).toBeNull()
+    expect(markers.lifers!.sel).toBeNull()
+  })
+
+  // Media Targets: the same clears on the other view (Tester re-verification).
+  // Wrentit is a target at two places; Steller's Jay at one.
+  const targetsShown = () => markers.targets!.pins.map(p => `${p.locId}:${p.speciesCode}`).sort()
+  const ALL_TARGETS = ['L-stejay:stejay', 'L-wrenti:wrenti', 'L400:wrenti']
+  async function focusedTargets() {
+    records.extra = [pin('wrenti', 'Wrentit', 'L400', 37.95)]
+    renderMap({ view: 'targets', window: 'week', media: 'any', id: 1, bird: { speciesCode: 'wrenti', locId: 'L400' } })
+    await waitFor(() => expect(markers.targets?.sel).toBe('L400'))
+    expect(targetsShown()).toEqual(['L-wrenti:wrenti', 'L400:wrenti'])
+    expect(pill()).toBeTruthy()
+  }
+
+  it('a targets time-range change clears the focus', async () => {
+    await focusedTargets()
+    screen.getAllByRole('button', { name: '30 days' })[0]!.click()
+    await waitFor(() => expect(pill()).toBeNull())
+    expect(targetsShown()).toEqual(ALL_TARGETS)
+  })
+
+  it('a new targets search that succeeds clears the focus', async () => {
+    await focusedTargets()
+    screen.getByRole('button', { name: 'Find Recent Sightings' }).click()
+    await waitFor(() => expect(recentObsCalls()).toHaveLength(2))
+    await waitFor(() => expect(pill()).toBeNull())
+    expect(targetsShown()).toEqual(ALL_TARGETS)
+  })
+
+  it('a new targets search that FAILS still clears the focus (the old results stay, unfocused)', async () => {
+    await focusedTargets()
+    records.fail = true
+    screen.getByRole('button', { name: 'Find Recent Sightings' }).click()
+    await waitFor(() => expect(recentObsCalls()).toHaveLength(2))
+    await waitFor(() => expect(pill()).toBeNull())
+    expect(targetsShown()).toEqual(ALL_TARGETS)
+  })
+
+  it('a media chip change clears a targets focus', async () => {
+    renderMap({ view: 'targets', window: 'week', media: 'any', id: 1, bird: { speciesCode: 'wrenti', locId: 'L-wrenti' } })
+    await waitFor(() => expect(pill()).toBeTruthy())
+    screen.getAllByRole('button', { name: /^Video/ })[0]!.click()
+    await waitFor(() => expect(pill()).toBeNull())
+  })
+
+  it('a second link starts clean, and a STALE search that resolves after it can never be focused', async () => {
+    records.extra = RUFF_ELSEWHERE()
+    let release!: () => void
+    records.gate = new Promise(r => { release = r })
+    const { rerender } = renderMap({ view: 'lifers', window: 'week', id: 1, bird: { speciesCode: 'ruff', locId: 'L300' } })
+    await waitFor(() => expect(recentObsCalls()).toHaveLength(1))
+    // The second (view-only) link's search is not held.
+    records.gate = null
+    rerender(
+      <MapExplorer onGoToSettings={() => {}} onNavigateToMediaList={() => {}} keysVersion={0}
+        linkRequest={{ view: 'lifers', window: 'week', id: 2 }} onLinkRequestApplied={vi.fn()} />,
+    )
+    await waitFor(() => expect(recentObsCalls()).toHaveLength(2))
+    await waitFor(() => expect(markers.lifers?.pins.length).toBe(3))
+    release()
+    await new Promise(r => setTimeout(r, 30))
+    expect(pill()).toBeNull()
+    expect(markers.lifers!.sel).toBeNull()
+    expect(lifersShown()).toEqual(['L-ruff:ruff', 'L200:baisan+ruff', 'L300:ruff'])
   })
 })
 

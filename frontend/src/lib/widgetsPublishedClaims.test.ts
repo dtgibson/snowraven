@@ -71,6 +71,11 @@ describe('docs/HELP.md: the Widgets section under Map Explorer', () => {
   })
 
   it('names how to stop it, and never claims Always access', () => {
+    // Stage 8: a bird tap, pinned to the copy and the builder that make it true.
+    expect(help).toMatch(/Tapping a bird \(a row, or the small widget's card\) then shows only that species/)
+    expect(help).toMatch(/press \*\*Show all\*\*/)
+    expect(repo('frontend/src/lib/links/linkFocus.ts')).toContain("action: 'Show all'")
+    expect(swift('Logic/DeepLink.swift')).toContain('"\\(view)&sp=\\(speciesCode)&loc=\\(locId)"')
     expect(help).toMatch(/remove the widget from your Home Screen/)
     expect(help).toMatch(/never asks for Always access/)
     expect(swift('Widget/WidgetLocation.swift')).not.toMatch(/request(WhenInUse|Always)Authorization/)

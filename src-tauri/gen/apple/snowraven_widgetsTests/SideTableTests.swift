@@ -69,18 +69,19 @@ final class SideTableTests: XCTestCase {
     }
 
     func testTheFifteenLinksAreTheAppsAllowlist() {
-        XCTAssertEqual(f.links.count, 15)
+        XCTAssertEqual(f.links.views.count, 15)
         var built = Set<String>()
         for k in WidgetKind.allCases {
             for w in WidgetWindow.allCases {
                 for m in WidgetMedia.allCases { built.insert(DeepLink.string(kind: k, window: w, media: m)) }
             }
         }
-        XCTAssertEqual(built, Set(f.links.map(\.url)))
-        for l in f.links {
-            let s = DeepLink.string(kind: WidgetKind(rawValue: l.view)!, window: WidgetWindow(rawValue: l.window)!,
-                                    media: l.media.flatMap(WidgetMedia.init(rawValue:)) ?? .any)
-            XCTAssertEqual(s, l.url)
+        XCTAssertEqual(built, Set(f.links.views.map(\.raw)))
+        for l in f.links.views {
+            let e = l.expected!
+            let s = DeepLink.string(kind: WidgetKind(rawValue: e.view)!, window: WidgetWindow(rawValue: e.window)!,
+                                    media: e.media.flatMap(WidgetMedia.init(rawValue:)) ?? .any)
+            XCTAssertEqual(s, l.raw)
             XCTAssertLessThanOrEqual(s.utf16.count, DeepLink.maxLength)
             XCTAssertNotNil(URL(string: s))
         }

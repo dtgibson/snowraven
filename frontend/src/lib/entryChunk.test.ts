@@ -720,12 +720,18 @@ describe('entry-chunk exclusion (NFR-03 / QA-30)', () => {
     expect(has('lib/widgets/widgetHandover.ts')).toBe(true)
     expect(has('lib/links/linkRequest.ts')).toBe(true)
     // The link grammar is reached by the lazy controller and the lazy Map
-    // Explorer only (the store takes its TYPE, which is erased); it is
-    // dependency-free, so it would be entry-safe if it ever were reached.
+    // Explorer only (the store takes its TYPE, which is erased). Its closure is
+    // itself plus the one-line species-code pattern it shares with SpeciesLinks
+    // (Stage 8), with no external import, so it would be entry-safe if it ever
+    // were reached. The pattern module IS on the entry graph, through
+    // SpeciesLinks, and costs nothing there.
     const grammar = closureFrom(resolve(SRC, 'lib/links/deepLink.ts'))
-    expect(grammar.files.size).toBe(1)
+    expect(grammar.files.size).toBe(2)
+    expect(hasIn(grammar.files, 'lib/speciesCode.ts')).toBe(true)
     expect([...grammar.externals]).toEqual([])
     expect(has('lib/links/deepLink.ts')).toBe(false)
+    expect(has('lib/speciesCode.ts')).toBe(true)
+    expect(closureFrom(resolve(SRC, 'lib/speciesCode.ts')).files.size).toBe(1)
     expect(has('lib/mapDefaultsChanged.ts')).toBe(true)
     // widgetHandover.ts imports speciesUtils; that is only free because the
     // module was already on the entry graph through the static tabs.

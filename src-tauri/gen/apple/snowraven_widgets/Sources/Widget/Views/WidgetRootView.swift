@@ -2,8 +2,10 @@
 // header (raven, title, window), body (one-bird card, rows, or one sentence),
 // footer (caption, stale mark, update time). The whole widget is one
 // VoiceOver element whose label is composed in Logic (WidgetPresentation), so
-// it is complete even where the tile truncates or omits the location. Taps
-// anywhere open the matching Map Explorer view (FR-34).
+// it is complete even where the tile truncates or omits the location. A tap on
+// a bird (a row on medium and large, the one-bird card on small) opens that
+// bird in the matching Map Explorer view; any other tap opens the view
+// (FR-34, Stage 8).
 //
 // THE PLACEHOLDER IS A STATE (S12), so the header survives it (FR-04, "The
 // header stays in every state"): only the body and the footer are redacted,
@@ -31,7 +33,7 @@ struct WidgetRootView: View {
         WidgetContent(presentation: p, size: size, stale: entry.model.stale, redacted: entry.redacted)
             .padding(WidgetContent.insets(from: margins))
             .containerBackground(for: .widget) { Palette.background }
-            .widgetURL(URL(string: p.link))
+            .widgetURL(URL(string: p.widgetLink))
     }
 }
 
@@ -66,7 +68,7 @@ struct WidgetContent: View {
             } else if size == .small, let row = p.rows.first {
                 OneBirdCard(row: row, showGlyphs: p.showsGlyphs)
             } else {
-                RowList(rows: p.rows, showGlyphs: p.showsGlyphs, large: size == .large, link: p.link)
+                RowList(rows: p.rows, showGlyphs: p.showsGlyphs, large: size == .large, links: p.rowLinks)
             }
             if !p.footer.isEmpty {
                 FooterView(parts: p.footer, offline: stale == .offline)

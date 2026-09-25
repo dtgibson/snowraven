@@ -10,6 +10,7 @@
 		07137659BE0E4CE1069A0BE2 /* WidgetState.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD77DBB8733920D7BA0D1C19 /* WidgetState.swift */; };
 		07CCE8518172AD8660C8969C /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 59131E31DEF8878AD2E59625 /* Metal.framework */; };
 		0B1F22A3457B25A322D7D749 /* CoreLocation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 98935D2A32DD5B18D1792E6F /* CoreLocation.framework */; };
+		0FE11C469F246B72E41FC8B4 /* DeepLinkTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE700A7187A2D1E08E868DB6 /* DeepLinkTests.swift */; };
 		15F659F160CD4F59217D87EB /* EBirdRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BC6EAFD12436422E5E8B3F7 /* EBirdRequest.swift */; };
 		1603082FA858167C669878B9 /* AppGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1178BF9ADE6A9C4390F6BD28 /* AppGroup.swift */; };
 		171B8FC03F302ACF32A7AA0E /* WidgetCacheTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFB6AFAE3C7415368EF1062E /* WidgetCacheTests.swift */; };
@@ -160,6 +161,7 @@
 		A5F50EE833429C6FC35E72C4 /* WidgetRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetRootView.swift; sourceTree = "<group>"; };
 		A7F64A3A9ECD7F61C9C94169 /* Security.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Security.framework; path = System/Library/Frameworks/Security.framework; sourceTree = SDKROOT; };
 		AD26161EF9AC27F8DFA76428 /* Handover.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Handover.swift; sourceTree = "<group>"; };
+		AE700A7187A2D1E08E868DB6 /* DeepLinkTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepLinkTests.swift; sourceTree = "<group>"; };
 		B074F0B18011098549A2C957 /* window_geometry.rs */ = {isa = PBXFileReference; path = window_geometry.rs; sourceTree = "<group>"; };
 		B47B3F6E206B3F6AAA4F9B0B /* DenseBodyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DenseBodyTests.swift; sourceTree = "<group>"; };
 		B5E10571A148D3EBE34ED1D7 /* main.rs */ = {isa = PBXFileReference; path = main.rs; sourceTree = "<group>"; };
@@ -269,6 +271,7 @@
 			isa = PBXGroup;
 			children = (
 				693BCCA79ED3CCACDA5BE0D9 /* AccessibilityLabelTests.swift */,
+				AE700A7187A2D1E08E868DB6 /* DeepLinkTests.swift */,
 				B47B3F6E206B3F6AAA4F9B0B /* DenseBodyTests.swift */,
 				0B966EE95787A80FA4D7A270 /* EngineFakes.swift */,
 				6312F4D6AA6911573D984160 /* Fixture.swift */,
@@ -612,6 +615,7 @@
 				DFCC58D005E658B416F037ED /* AccessibilityLabelTests.swift in Sources */,
 				1603082FA858167C669878B9 /* AppGroup.swift in Sources */,
 				4CF490DAAC5DD971B8BE93D6 /* DeepLink.swift in Sources */,
+				0FE11C469F246B72E41FC8B4 /* DeepLinkTests.swift in Sources */,
 				848373EA1A4A987010323642 /* DenseBodyTests.swift in Sources */,
 				DA8B41DD30DBCAABF2A5DDBB /* Distance.swift in Sources */,
 				CC79F62C1979DF17C91965D9 /* EBirdRequest.swift in Sources */,

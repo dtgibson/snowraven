@@ -17,25 +17,22 @@
 // nudge is added -- re-requesting a failed image would be a new outbound-request
 // policy, which this change deliberately does not make.
 //
-// Entry-chunk safety: this file imports `react` and `lucide-react` only, both of
+// Entry-chunk safety: this file imports `react` and `lucide-react`, both of
 // which App.tsx already carries (`BirdName` -> `SpeciesLinks` is on its static
-// graph, and `lib/tabIcons.tsx` already pulls lucide). `entryChunk.test.ts` is the
-// live guard.
+// graph, and `lib/tabIcons.tsx` already pulls lucide), plus the dependency-free
+// `lib/speciesCode.ts`. `entryChunk.test.ts` is the live guard.
 import { Link } from './ui/Link'
 import { useState } from 'react'
 import { Globe, SquareLibrary } from 'lucide-react'
-
-/**
- * The shape of an eBird species code as this app resolves one (`/taxonomy/codes`,
- * or the bundled taxonomy snapshot offline): short, lowercase, alphanumeric.
- *
- * A code that misses renders NOTHING -- exactly what the component already does
- * when it is handed no code at all -- rather than shipping a styled 404 link
- * built from a junk value, which is the house answer everywhere a raw id becomes
- * an href (`ChecklistLink`, `HotspotLink`, `CommentText`). Anchored, bounded and
- * quantifier-free by construction, so it is linear on any input.
- */
-const SPECIES_CODE_RE = /^[a-z0-9-]{2,16}$/
+// The shape of an eBird species code as this app resolves one (`/taxonomy/codes`,
+// or the bundled taxonomy snapshot offline). It lives in `lib/speciesCode.ts`
+// because the widget deep link accepts a bird by the same definition. A code
+// that misses renders NOTHING -- exactly what the component already does when it
+// is handed no code at all -- rather than shipping a styled 404 link built from a
+// junk value, which is the house answer everywhere a raw id becomes an href
+// (`ChecklistLink`, `HotspotLink`, `CommentText`). Anchored and bounded, so it is
+// linear on any input.
+import { SPECIES_CODE_RE } from '../lib/speciesCode'
 
 interface SpeciesLinkMarkProps {
   href: string

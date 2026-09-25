@@ -2588,93 +2588,658 @@
    "phrase": "needs photo, audio and video"
   }
  ],
- "links": [
-  {
-   "url": "snowraven://map/lifers?window=day",
-   "view": "lifers",
-   "window": "day"
-  },
-  {
-   "url": "snowraven://map/lifers?window=week",
-   "view": "lifers",
-   "window": "week"
-  },
-  {
-   "url": "snowraven://map/lifers?window=all",
-   "view": "lifers",
-   "window": "all"
-  },
-  {
-   "url": "snowraven://map/targets?window=day&media=photo",
-   "view": "targets",
-   "window": "day",
-   "media": "photo"
-  },
-  {
-   "url": "snowraven://map/targets?window=day&media=audio",
-   "view": "targets",
-   "window": "day",
-   "media": "audio"
-  },
-  {
-   "url": "snowraven://map/targets?window=day&media=video",
-   "view": "targets",
-   "window": "day",
-   "media": "video"
-  },
-  {
-   "url": "snowraven://map/targets?window=day&media=any",
-   "view": "targets",
-   "window": "day",
-   "media": "any"
-  },
-  {
-   "url": "snowraven://map/targets?window=week&media=photo",
-   "view": "targets",
-   "window": "week",
-   "media": "photo"
-  },
-  {
-   "url": "snowraven://map/targets?window=week&media=audio",
-   "view": "targets",
-   "window": "week",
-   "media": "audio"
-  },
-  {
-   "url": "snowraven://map/targets?window=week&media=video",
-   "view": "targets",
-   "window": "week",
-   "media": "video"
-  },
-  {
-   "url": "snowraven://map/targets?window=week&media=any",
-   "view": "targets",
-   "window": "week",
-   "media": "any"
-  },
-  {
-   "url": "snowraven://map/targets?window=all&media=photo",
-   "view": "targets",
-   "window": "all",
-   "media": "photo"
-  },
-  {
-   "url": "snowraven://map/targets?window=all&media=audio",
-   "view": "targets",
-   "window": "all",
-   "media": "audio"
-  },
-  {
-   "url": "snowraven://map/targets?window=all&media=video",
-   "view": "targets",
-   "window": "all",
-   "media": "video"
-  },
-  {
-   "url": "snowraven://map/targets?window=all&media=any",
-   "view": "targets",
-   "window": "all",
-   "media": "any"
-  }
- ]
+ "links": {
+  "views": [
+   {
+    "raw": "snowraven://map/lifers?window=day",
+    "expected": {
+     "view": "lifers",
+     "window": "day"
+    }
+   },
+   {
+    "raw": "snowraven://map/lifers?window=week",
+    "expected": {
+     "view": "lifers",
+     "window": "week"
+    }
+   },
+   {
+    "raw": "snowraven://map/lifers?window=all",
+    "expected": {
+     "view": "lifers",
+     "window": "all"
+    }
+   },
+   {
+    "raw": "snowraven://map/targets?window=day&media=photo",
+    "expected": {
+     "view": "targets",
+     "window": "day",
+     "media": "photo"
+    }
+   },
+   {
+    "raw": "snowraven://map/targets?window=day&media=audio",
+    "expected": {
+     "view": "targets",
+     "window": "day",
+     "media": "audio"
+    }
+   },
+   {
+    "raw": "snowraven://map/targets?window=day&media=video",
+    "expected": {
+     "view": "targets",
+     "window": "day",
+     "media": "video"
+    }
+   },
+   {
+    "raw": "snowraven://map/targets?window=day&media=any",
+    "expected": {
+     "view": "targets",
+     "window": "day",
+     "media": "any"
+    }
+   },
+   {
+    "raw": "snowraven://map/targets?window=week&media=photo",
+    "expected": {
+     "view": "targets",
+     "window": "week",
+     "media": "photo"
+    }
+   },
+   {
+    "raw": "snowraven://map/targets?window=week&media=audio",
+    "expected": {
+     "view": "targets",
+     "window": "week",
+     "media": "audio"
+    }
+   },
+   {
+    "raw": "snowraven://map/targets?window=week&media=video",
+    "expected": {
+     "view": "targets",
+     "window": "week",
+     "media": "video"
+    }
+   },
+   {
+    "raw": "snowraven://map/targets?window=week&media=any",
+    "expected": {
+     "view": "targets",
+     "window": "week",
+     "media": "any"
+    }
+   },
+   {
+    "raw": "snowraven://map/targets?window=all&media=photo",
+    "expected": {
+     "view": "targets",
+     "window": "all",
+     "media": "photo"
+    }
+   },
+   {
+    "raw": "snowraven://map/targets?window=all&media=audio",
+    "expected": {
+     "view": "targets",
+     "window": "all",
+     "media": "audio"
+    }
+   },
+   {
+    "raw": "snowraven://map/targets?window=all&media=video",
+    "expected": {
+     "view": "targets",
+     "window": "all",
+     "media": "video"
+    }
+   },
+   {
+    "raw": "snowraven://map/targets?window=all&media=any",
+    "expected": {
+     "view": "targets",
+     "window": "all",
+     "media": "any"
+    }
+   }
+  ],
+  "birds": [
+   {
+    "raw": "snowraven://map/lifers?window=day&sp=norcar&loc=L123456",
+    "expected": {
+     "view": "lifers",
+     "window": "day",
+     "bird": {
+      "speciesCode": "norcar",
+      "locId": "L123456"
+     }
+    }
+   },
+   {
+    "raw": "snowraven://map/lifers?window=week&sp=norcar&loc=L123456",
+    "expected": {
+     "view": "lifers",
+     "window": "week",
+     "bird": {
+      "speciesCode": "norcar",
+      "locId": "L123456"
+     }
+    }
+   },
+   {
+    "raw": "snowraven://map/lifers?window=all&sp=norcar&loc=L123456",
+    "expected": {
+     "view": "lifers",
+     "window": "all",
+     "bird": {
+      "speciesCode": "norcar",
+      "locId": "L123456"
+     }
+    }
+   },
+   {
+    "raw": "snowraven://map/targets?window=day&media=photo&sp=norcar&loc=L123456",
+    "expected": {
+     "view": "targets",
+     "window": "day",
+     "media": "photo",
+     "bird": {
+      "speciesCode": "norcar",
+      "locId": "L123456"
+     }
+    }
+   },
+   {
+    "raw": "snowraven://map/targets?window=day&media=audio&sp=norcar&loc=L123456",
+    "expected": {
+     "view": "targets",
+     "window": "day",
+     "media": "audio",
+     "bird": {
+      "speciesCode": "norcar",
+      "locId": "L123456"
+     }
+    }
+   },
+   {
+    "raw": "snowraven://map/targets?window=day&media=video&sp=norcar&loc=L123456",
+    "expected": {
+     "view": "targets",
+     "window": "day",
+     "media": "video",
+     "bird": {
+      "speciesCode": "norcar",
+      "locId": "L123456"
+     }
+    }
+   },
+   {
+    "raw": "snowraven://map/targets?window=day&media=any&sp=norcar&loc=L123456",
+    "expected": {
+     "view": "targets",
+     "window": "day",
+     "media": "any",
+     "bird": {
+      "speciesCode": "norcar",
+      "locId": "L123456"
+     }
+    }
+   },
+   {
+    "raw": "snowraven://map/targets?window=week&media=photo&sp=norcar&loc=L123456",
+    "expected": {
+     "view": "targets",
+     "window": "week",
+     "media": "photo",
+     "bird": {
+      "speciesCode": "norcar",
+      "locId": "L123456"
+     }
+    }
+   },
+   {
+    "raw": "snowraven://map/targets?window=week&media=audio&sp=norcar&loc=L123456",
+    "expected": {
+     "view": "targets",
+     "window": "week",
+     "media": "audio",
+     "bird": {
+      "speciesCode": "norcar",
+      "locId": "L123456"
+     }
+    }
+   },
+   {
+    "raw": "snowraven://map/targets?window=week&media=video&sp=norcar&loc=L123456",
+    "expected": {
+     "view": "targets",
+     "window": "week",
+     "media": "video",
+     "bird": {
+      "speciesCode": "norcar",
+      "locId": "L123456"
+     }
+    }
+   },
+   {
+    "raw": "snowraven://map/targets?window=week&media=any&sp=norcar&loc=L123456",
+    "expected": {
+     "view": "targets",
+     "window": "week",
+     "media": "any",
+     "bird": {
+      "speciesCode": "norcar",
+      "locId": "L123456"
+     }
+    }
+   },
+   {
+    "raw": "snowraven://map/targets?window=all&media=photo&sp=norcar&loc=L123456",
+    "expected": {
+     "view": "targets",
+     "window": "all",
+     "media": "photo",
+     "bird": {
+      "speciesCode": "norcar",
+      "locId": "L123456"
+     }
+    }
+   },
+   {
+    "raw": "snowraven://map/targets?window=all&media=audio&sp=norcar&loc=L123456",
+    "expected": {
+     "view": "targets",
+     "window": "all",
+     "media": "audio",
+     "bird": {
+      "speciesCode": "norcar",
+      "locId": "L123456"
+     }
+    }
+   },
+   {
+    "raw": "snowraven://map/targets?window=all&media=video&sp=norcar&loc=L123456",
+    "expected": {
+     "view": "targets",
+     "window": "all",
+     "media": "video",
+     "bird": {
+      "speciesCode": "norcar",
+      "locId": "L123456"
+     }
+    }
+   },
+   {
+    "raw": "snowraven://map/targets?window=all&media=any&sp=norcar&loc=L123456",
+    "expected": {
+     "view": "targets",
+     "window": "all",
+     "media": "any",
+     "bird": {
+      "speciesCode": "norcar",
+      "locId": "L123456"
+     }
+    }
+   },
+   {
+    "raw": "snowraven://map/targets?window=day&media=audio&sp=ab&loc=L1",
+    "expected": {
+     "view": "targets",
+     "window": "day",
+     "media": "audio",
+     "bird": {
+      "speciesCode": "ab",
+      "locId": "L1"
+     }
+    }
+   },
+   {
+    "raw": "snowraven://map/targets?window=day&media=audio&sp=abcdefghijklmno1&loc=L123456789012345",
+    "expected": {
+     "view": "targets",
+     "window": "day",
+     "media": "audio",
+     "bird": {
+      "speciesCode": "abcdefghijklmno1",
+      "locId": "L123456789012345"
+     }
+    }
+   },
+   {
+    "raw": "snowraven://map/targets?window=day&media=audio&sp=x-00001&loc=L7",
+    "expected": {
+     "view": "targets",
+     "window": "day",
+     "media": "audio",
+     "bird": {
+      "speciesCode": "x-00001",
+      "locId": "L7"
+     }
+    }
+   }
+  ],
+  "degraded": [
+   {
+    "raw": "snowraven://map/lifers?window=week&sp=NORCAR&loc=L1",
+    "expected": {
+     "view": "lifers",
+     "window": "week"
+    }
+   },
+   {
+    "raw": "snowraven://map/lifers?window=week&sp=n&loc=L1",
+    "expected": {
+     "view": "lifers",
+     "window": "week"
+    }
+   },
+   {
+    "raw": "snowraven://map/lifers?window=week&sp=aaaaaaaaaaaaaaaaa&loc=L1",
+    "expected": {
+     "view": "lifers",
+     "window": "week"
+    }
+   },
+   {
+    "raw": "snowraven://map/lifers?window=week&sp=&loc=L1",
+    "expected": {
+     "view": "lifers",
+     "window": "week"
+    }
+   },
+   {
+    "raw": "snowraven://map/lifers?window=week&sp=nor car&loc=L1",
+    "expected": {
+     "view": "lifers",
+     "window": "week"
+    }
+   },
+   {
+    "raw": "snowraven://map/lifers?window=week&sp=norcar&loc=1",
+    "expected": {
+     "view": "lifers",
+     "window": "week"
+    }
+   },
+   {
+    "raw": "snowraven://map/lifers?window=week&sp=norcar&loc=l1",
+    "expected": {
+     "view": "lifers",
+     "window": "week"
+    }
+   },
+   {
+    "raw": "snowraven://map/lifers?window=week&sp=norcar&loc=L",
+    "expected": {
+     "view": "lifers",
+     "window": "week"
+    }
+   },
+   {
+    "raw": "snowraven://map/lifers?window=week&sp=norcar&loc=L1111111111111111",
+    "expected": {
+     "view": "lifers",
+     "window": "week"
+    }
+   },
+   {
+    "raw": "snowraven://map/lifers?window=week&sp=norcar&loc=L١",
+    "expected": {
+     "view": "lifers",
+     "window": "week"
+    }
+   },
+   {
+    "raw": "snowraven://map/lifers?window=week&sp=norcar",
+    "expected": {
+     "view": "lifers",
+     "window": "week"
+    }
+   },
+   {
+    "raw": "snowraven://map/lifers?window=week&sp=norcar&loc=L1&x=1",
+    "expected": {
+     "view": "lifers",
+     "window": "week"
+    }
+   },
+   {
+    "raw": "snowraven://map/lifers?window=week&sp=norcar&loc=L1#f",
+    "expected": {
+     "view": "lifers",
+     "window": "week"
+    }
+   },
+   {
+    "raw": "snowraven://map/lifers?window=week&sp=norcar&loc=L1\n",
+    "expected": {
+     "view": "lifers",
+     "window": "week"
+    }
+   },
+   {
+    "raw": "snowraven://map/lifers?window=week&sp=nor%63ar&loc=L1",
+    "expected": {
+     "view": "lifers",
+     "window": "week"
+    }
+   },
+   {
+    "raw": "snowraven://map/lifers?window=week&sp=norcar&loc=L1&sp=other&loc=L2",
+    "expected": {
+     "view": "lifers",
+     "window": "week"
+    }
+   },
+   {
+    "raw": "snowraven://map/targets?window=all&media=video&sp=NORCAR&loc=L1",
+    "expected": {
+     "view": "targets",
+     "window": "all",
+     "media": "video"
+    }
+   },
+   {
+    "raw": "snowraven://map/targets?window=all&media=video&sp=n&loc=L1",
+    "expected": {
+     "view": "targets",
+     "window": "all",
+     "media": "video"
+    }
+   },
+   {
+    "raw": "snowraven://map/targets?window=all&media=video&sp=aaaaaaaaaaaaaaaaa&loc=L1",
+    "expected": {
+     "view": "targets",
+     "window": "all",
+     "media": "video"
+    }
+   },
+   {
+    "raw": "snowraven://map/targets?window=all&media=video&sp=&loc=L1",
+    "expected": {
+     "view": "targets",
+     "window": "all",
+     "media": "video"
+    }
+   },
+   {
+    "raw": "snowraven://map/targets?window=all&media=video&sp=nor car&loc=L1",
+    "expected": {
+     "view": "targets",
+     "window": "all",
+     "media": "video"
+    }
+   },
+   {
+    "raw": "snowraven://map/targets?window=all&media=video&sp=norcar&loc=1",
+    "expected": {
+     "view": "targets",
+     "window": "all",
+     "media": "video"
+    }
+   },
+   {
+    "raw": "snowraven://map/targets?window=all&media=video&sp=norcar&loc=l1",
+    "expected": {
+     "view": "targets",
+     "window": "all",
+     "media": "video"
+    }
+   },
+   {
+    "raw": "snowraven://map/targets?window=all&media=video&sp=norcar&loc=L",
+    "expected": {
+     "view": "targets",
+     "window": "all",
+     "media": "video"
+    }
+   },
+   {
+    "raw": "snowraven://map/targets?window=all&media=video&sp=norcar&loc=L1111111111111111",
+    "expected": {
+     "view": "targets",
+     "window": "all",
+     "media": "video"
+    }
+   },
+   {
+    "raw": "snowraven://map/targets?window=all&media=video&sp=norcar&loc=L١",
+    "expected": {
+     "view": "targets",
+     "window": "all",
+     "media": "video"
+    }
+   },
+   {
+    "raw": "snowraven://map/targets?window=all&media=video&sp=norcar",
+    "expected": {
+     "view": "targets",
+     "window": "all",
+     "media": "video"
+    }
+   },
+   {
+    "raw": "snowraven://map/targets?window=all&media=video&sp=norcar&loc=L1&x=1",
+    "expected": {
+     "view": "targets",
+     "window": "all",
+     "media": "video"
+    }
+   },
+   {
+    "raw": "snowraven://map/targets?window=all&media=video&sp=norcar&loc=L1#f",
+    "expected": {
+     "view": "targets",
+     "window": "all",
+     "media": "video"
+    }
+   },
+   {
+    "raw": "snowraven://map/targets?window=all&media=video&sp=norcar&loc=L1\n",
+    "expected": {
+     "view": "targets",
+     "window": "all",
+     "media": "video"
+    }
+   },
+   {
+    "raw": "snowraven://map/targets?window=all&media=video&sp=nor%63ar&loc=L1",
+    "expected": {
+     "view": "targets",
+     "window": "all",
+     "media": "video"
+    }
+   },
+   {
+    "raw": "snowraven://map/targets?window=all&media=video&sp=norcar&loc=L1&sp=other&loc=L2",
+    "expected": {
+     "view": "targets",
+     "window": "all",
+     "media": "video"
+    }
+   }
+  ],
+  "rejected": [
+   {
+    "raw": "snowraven://map/lifers?window=week&loc=L1&sp=norcar",
+    "expected": null
+   },
+   {
+    "raw": "snowraven://map/lifers/?window=day&sp=norcar&loc=L1",
+    "expected": null
+   },
+   {
+    "raw": "SNOWRAVEN://map/lifers?window=day&sp=norcar&loc=L1",
+    "expected": null
+   },
+   {
+    "raw": "snowraven://map/lifers?window=day&x=1&sp=norcar&loc=L1",
+    "expected": null
+   },
+   {
+    "raw": "snowraven://map/lifers?window=day&media=photo&sp=norcar&loc=L1",
+    "expected": null
+   },
+   {
+    "raw": "snowraven://map/targets?window=day&sp=norcar&loc=L1",
+    "expected": null
+   },
+   {
+    "raw": "snowraven://map/targets?media=photo&window=day&sp=norcar&loc=L1",
+    "expected": null
+   },
+   {
+    "raw": "&sp=norcar&loc=L1",
+    "expected": null
+   },
+   {
+    "raw": "snowraven://map/targets?window=week&media=photo&sp=norcar&loc=L1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "expected": null
+   }
+  ],
+  "refusedPairs": [
+   {
+    "speciesCode": "NORCAR",
+    "locId": "L1"
+   },
+   {
+    "speciesCode": "n",
+    "locId": "L1"
+   },
+   {
+    "speciesCode": "aaaaaaaaaaaaaaaaa",
+    "locId": "L1"
+   },
+   {
+    "speciesCode": "nor&car",
+    "locId": "L1"
+   },
+   {
+    "speciesCode": "norcar",
+    "locId": "1"
+   },
+   {
+    "speciesCode": "norcar",
+    "locId": "L"
+   },
+   {
+    "speciesCode": "norcar",
+    "locId": "L1111111111111111"
+   },
+   {
+    "speciesCode": "norcar",
+    "locId": "L1&x=1"
+   },
+   {
+    "speciesCode": "",
+    "locId": ""
+   }
+  ]
+ }
 }

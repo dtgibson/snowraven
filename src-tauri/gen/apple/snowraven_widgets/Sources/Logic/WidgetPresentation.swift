@@ -35,7 +35,16 @@ struct WidgetPresentation: Equatable {
     /// label while the widget is WidgetKit's placeholder (S12), whose sample
     /// rows are redacted on screen and must not be read as real reports.
     let headerLabel: String
+    /// The VIEW link: a tap outside a bird (the header, a state sentence).
     let link: String
+    /// One BIRD link per shown row, in row order (Stage 8): each row's own
+    /// species and listed location, or the view link when an id is outside its
+    /// pattern. Medium and large wrap each row in a `Link` to its entry.
+    let rowLinks: [String]
+    /// What the root `widgetURL` opens. Small allows no `Link` regions, so its
+    /// one-bird card IS the bird link when a row is shown; every other case,
+    /// and medium and large (whose rows carry their own links), is the view.
+    let widgetLink: String
 
     /// "today, 7:05 AM", "yesterday, 4:12 PM", or "Sep 20, 4:12 PM".
     static func relativeTime(_ d: Date, now: Date, tz: TimeZone, locale: Locale) -> String {
@@ -84,10 +93,15 @@ struct WidgetPresentation: Equatable {
         if let msg = message { label += " \(msg)" }
         for r in rows { label += " \(r.label)" }
         if !footer.isEmpty { label += " \(footer.joined(separator: ". "))." }
+        let viewLink = DeepLink.string(kind: m.kind, window: m.window, media: m.media)
+        let rowLinks = rows.map {
+            DeepLink.string(kind: m.kind, window: m.window, media: m.media, speciesCode: $0.speciesCode, locId: $0.locId)
+        }
         return WidgetPresentation(
             title: title, windowText: windowText, rows: rows, message: message, footer: footer,
             showsGlyphs: m.kind == .targets && m.media == .any, accessibilityLabel: label,
             headerLabel: headerLabel,
-            link: DeepLink.string(kind: m.kind, window: m.window, media: m.media))
+            link: viewLink, rowLinks: rowLinks,
+            widgetLink: family == .small ? (rowLinks.first ?? viewLink) : viewLink)
     }
 }

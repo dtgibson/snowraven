@@ -17,7 +17,8 @@ import { readFileSync, readdirSync } from 'node:fs'
 import {
   APP_GROUP_ID, HANDOVER_FILE, HANDOVER_MAX_BYTES, MAX_KEY_LEN, MAX_NAME_UNITS, MAX_SET_ENTRIES, WIDGETS_DIR,
 } from './widgets/widgetHandover'
-import { LINK_MAX_LENGTH, LINK_SCHEME } from './links/deepLink'
+import { LINK_MAX_LENGTH, LINK_SCHEME, LOC_ID_RE } from './links/deepLink'
+import { SPECIES_CODE_RE } from './speciesCode'
 import { RECORD_MAX_STRING, WIDGET_BACK_DAYS, WIDGET_DIST_KM } from './widgets/widgetRows'
 
 const repo = (p: string) => readFileSync(new URL(`../../../${p}`, import.meta.url), 'utf8')
@@ -111,6 +112,18 @@ describe('the deep link: one scheme, one length bound, one event', () => {
   it('the TypeScript and Swift length bound agree; native parks at most its own larger bound', () => {
     expect(deepLinkSwift).toContain(`static let maxLength = ${LINK_MAX_LENGTH}`)
     expect(Number(rustConst('LINK_MAX_BYTES'))).toBeGreaterThanOrEqual(LINK_MAX_LENGTH)
+  })
+
+  // Stage 8: the bird ids. The two engines cannot share a regex object, so the
+  // pattern TEXT is compared; the TypeScript side is the app's one definition
+  // (lib/speciesCode.ts, which SpeciesLinks also gates on).
+  it('the species-code and location-id patterns are one text on both sides, and the app\'s own', () => {
+    expect(SPECIES_CODE_RE.source).toBe('^[a-z0-9-]{2,16}$')
+    expect(deepLinkSwift).toContain(`static let speciesCodePattern = "${SPECIES_CODE_RE.source}"`)
+    expect(deepLinkSwift).toContain(`static let locIdPattern = "${LOC_ID_RE.source}"`)
+    const speciesLinks = readFileSync(new URL('../components/SpeciesLinks.tsx', import.meta.url), 'utf8')
+    expect(speciesLinks).toContain("import { SPECIES_CODE_RE } from '../lib/speciesCode'")
+    expect(speciesLinks).not.toMatch(/const SPECIES_CODE_RE\s*=/)
   })
 
   it('the event and the three commands exist on both sides and are registered for iOS only', () => {

@@ -92,6 +92,9 @@ import { NearbyLiferMarkers, type MarkerMode } from './map/NearbyLiferMarkers'
 import { buildNearbyLifers, isWithinWindow } from '../lib/nearbyLifers'
 import { WIDGET_RADIUS_MI, type LinkMedia } from '../lib/links/deepLink'
 import type { PendingLink } from '../lib/links/linkRequest'
+import {
+  focusAbsentStatement, focusLifers, focusPillLabel, focusPillText, focusTargets, nameForCode, type LinkFocus,
+} from '../lib/links/linkFocus'
 import { useProvenanceLookup } from '../lib/useProvenanceLookup'
 
 // ── The filters sidebar's focus-trap options ─────────────────────────────────
@@ -451,6 +454,18 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
   const [lifersError, setLifersError]       = useState<OverlayError | null>(null)
   const [liferWindow, setLiferWindow]       = useState<TimeWindow>('all')
   const [selectedLiferLocId, setSelectedLiferLocId] = useState<string | null>(null)
+
+  // The bird-tap focus (ios-lifer-widgets Stage 8; lib/links/linkFocus.ts).
+  // SESSION state only: never written to storage, map-defaults, searchRecords
+  // or any replay document, and gone on relaunch. `searchSeq` numbers every
+  // lifers or targets search on entry; `resultSeq` records which search the
+  // results on screen came from, so a focus is applied only to the results of
+  // the search its link started. Cleared by Show all, a view change, a window
+  // or media chip change, and any new search (the first statement of both
+  // search handlers).
+  const [linkFocus, setLinkFocus]           = useState<LinkFocus | null>(null)
+  const searchSeq                           = useRef(0)
+  const [resultSeq, setResultSeq]           = useState<{ lifers: number; targets: number }>({ lifers: 0, targets: 0 })
 
   // Marker style per panel (session-only): 'labels' shows the name chip, 'dots'
   // collapses each marker to just its locator dot. Independent for Lifers/Targets.
@@ -983,7 +998,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
     return allSpecies.filter(s => s.toLowerCase().includes(q))
   }, [allSpecies, targetSearch])
 
-  const displayedTargetPins = useMemo((): DisplayTargetPin[] => {
+  const filteredTargetPins = useMemo((): DisplayTargetPin[] => {
     if (!targetPins) return []
     const ALL_TYPES: ('Photo' | 'Audio' | 'Video')[] = ['Photo', 'Audio', 'Video']
     const withMissing = targetPins.map(pin => ({
@@ -1004,6 +1019,14 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
     }
     return filtered
   }, [targetPins, targetViewMode, mediaTypes, targetTypeFilter])
+
+  // Pass 3, the bird-tap focus: only the tapped species, while its link's
+  // search is the one on screen. Every reader below reads the displayed array.
+  const targetFocus = useMemo(
+    () => focusTargets(filteredTargetPins, linkFocus, resultSeq.targets, searchRecords.targets ?? null),
+    [filteredTargetPins, linkFocus, resultSeq.targets, searchRecords.targets],
+  )
+  const displayedTargetPins = targetFocus.pins
 
   // Targets in view — the keyboard path to the on-map target chips (click-only
   // DOM markers). Scoped to the current viewport via markersInView and recomputed
@@ -1032,7 +1055,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
   // Nearby lifers, narrowed by the Time Range window (client-side, no refetch).
   // A location is kept if it has at least one lifer within the window; the count
   // badge and tier reflect only the in-window lifers.
-  const displayedLiferLocations = useMemo((): NearbyLiferLocation[] => {
+  const windowedLiferLocations = useMemo((): NearbyLiferLocation[] => {
     if (!liferPins) return []
     if (liferWindow === 'all') return liferPins
     const days = WINDOW_DAYS[liferWindow]
@@ -1045,6 +1068,13 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
     }
     return out
   }, [liferPins, liferWindow])
+
+  // The bird-tap focus over the windowed locations (see targetFocus above).
+  const liferFocus = useMemo(
+    () => focusLifers(windowedLiferLocations, linkFocus, resultSeq.lifers, searchRecords.lifers ?? null),
+    [windowedLiferLocations, linkFocus, resultSeq.lifers, searchRecords.lifers],
+  )
+  const displayedLiferLocations = liferFocus.pins
 
   // Nearby lifers in view — keyboard path to the location pins, scoped to the
   // viewport and recomputed on pan/zoom (already sorted nearest-first by
@@ -1471,6 +1501,9 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
   }, [lat, lng, radius, visitedLocIds, obsLocationsByLocId])
 
   const handleFindSightings = useCallback(async (overrideLat?: number, overrideLng?: number, overrideRadius?: number, fromViewport?: boolean) => {
+    // Any new search starts clean: no bird focus, and a new search number.
+    setLinkFocus(null)
+    const seq = ++searchSeq.current
     setTargetTypeFilter(new Set())
     const latNum = overrideLat ?? parseFloat(lat)
     const lngNum = overrideLng ?? parseFloat(lng)
@@ -1506,6 +1539,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
         lat: String(latNum), lng: String(lngNum), dist: String(distKm), codes,
       })
       setTargetPins(pins)
+      setResultSeq(prev => ({ ...prev, targets: seq }))
       setSearchRecords(prev => ({ ...prev, targets: { lat: latNum, lng: lngNum, radiusMi } }))
       setFramedByViewport(prev => ({ ...prev, targets: fromViewport === true }))
       // What the SEARCH returned, deliberately not a post-filter count. The
@@ -1524,6 +1558,9 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
   }, [lat, lng, radius, phase, targetSpecies, speciesCodeMap, manualTargets])
 
   const handleFindLifers = useCallback(async (overrideLat?: number, overrideLng?: number, overrideRadius?: number, fromViewport?: boolean) => {
+    // Any new search starts clean: no bird focus, and a new search number.
+    setLinkFocus(null)
+    const seq = ++searchSeq.current
     const latNum = overrideLat ?? parseFloat(lat)
     const lngNum = overrideLng ?? parseFloat(lng)
     if (isNaN(latNum) || isNaN(lngNum)) { setLifersError(validationError('Enter a valid latitude and longitude.')); return }
@@ -1539,6 +1576,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
       })
       const locations = buildNearbyLifers(records, recordedNames, latNum, lngNum)
       setLiferPins(locations)
+      setResultSeq(prev => ({ ...prev, lifers: seq }))
       // recent-obs records already carry eBird speciesCode, so favicons need no
       // extra taxonomy call — merge name → code from the records.
       if (records.length > 0) {
@@ -1614,6 +1652,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
       viewedLinkRef.current = link.id
       queueMicrotask(() => {
         setViewMode(link.view)
+        setLinkFocus(null)
         setGeoError('')
         setRetainSearchBtn(false)
         if (link.view === 'lifers') setLiferWindow(link.window)
@@ -1642,6 +1681,13 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
           void findSightings(loc.lat, loc.lng, WIDGET_RADIUS_MI)
           setTargetTypeFilter(new Set(chips))
         }
+        // A bird tap (Stage 8): focus the species for exactly the search just
+        // started. The handler's own synchronous prefix cleared the old focus
+        // and took the next search number, and this runs after it in the same
+        // batch, so this focus wins and a later search cannot inherit it.
+        if (link.bird) {
+          setLinkFocus({ speciesCode: link.bird.speciesCode, locId: link.bird.locId, searchId: searchSeq.current })
+        }
       } catch (err) {
         setGeoError(describeLocationError(err as LocationError))
       } finally {
@@ -1649,6 +1695,56 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
       }
     })
   }, [linkRequest, phase.tag, hasEbirdKey, handleFindLifers, handleFindSightings, onLinkRequestApplied, setPanTarget])
+
+  // The bird-tap landing, once per focused search (ios-lifer-widgets Stage 8).
+  // When the focused search's results arrive: select the listed sighting (its
+  // popup opens) and center the map on it, AFTER the markers' own fit (a
+  // parent's effect runs after its children's, and the pan is a further commit
+  // on top); or, when the species is not in the results, clear the focus so the
+  // view shows everything and say so in the statement line. Deferred to a
+  // microtask like the link effect above, so nothing is set synchronously here.
+  const settledFocusRef = useRef<number | null>(null)
+  useEffect(() => {
+    if (!linkFocus || settledFocusRef.current === linkFocus.searchId) return
+    const isLifers = linkFocus.searchId === resultSeq.lifers
+    const result = isLifers ? liferFocus : linkFocus.searchId === resultSeq.targets ? targetFocus : null
+    if (!result || result.kind === 'none') return
+    settledFocusRef.current = linkFocus.searchId
+    if (result.kind === 'focused') {
+      const t = result.target
+      queueMicrotask(() => {
+        if (isLifers) setSelectedLiferLocId(t.locId)
+        else setSelectedTargetLocId(t.locId)
+        setPanTarget({ lat: t.lat, lng: t.lng })
+      })
+    } else {
+      const name = nameForCode(linkFocus.speciesCode, speciesCodeMap)
+      queueMicrotask(() => {
+        setLinkFocus(null)
+        setSearchOutcome(focusAbsentStatement(name, isLifers ? 'lifers' : 'targets'))
+      })
+    }
+  }, [linkFocus, resultSeq, liferFocus, targetFocus, speciesCodeMap, setPanTarget])
+
+  // "Only {name} · Show all": clears the species filter and closes the popup,
+  // keeping the search; the markers re-fit to every result on their own (their
+  // key follows the displayed count). No request.
+  const activeFocus = viewMode === 'lifers' ? liferFocus : viewMode === 'targets' ? targetFocus : null
+  const showAllFromFocus = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
+    const hadFocus = document.activeElement === e.currentTarget
+    const cluster = e.currentTarget.closest('.sr-map-fab-cluster')
+    setLinkFocus(null)
+    setSelectedLiferLocId(null)
+    setSelectedTargetLocId(null)
+    // The pill leaves with its job done; keep a keyboard user in the cluster
+    // rather than on <body>.
+    if (hadFocus && cluster) {
+      window.setTimeout(() => {
+        const next = cluster.querySelector<HTMLElement>('button:not([aria-disabled="true"])')
+        next?.focus()
+      }, 0)
+    }
+  }, [])
 
   // Set the shared search center from a dropped/dragged map pin (right-click or
   // long-press), then re-run the active view's search — the "drop a pin to see
@@ -2660,7 +2756,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
             </div>
             <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
               <Button
-                onClick={() => setTargetTypeFilter(new Set())}
+                onClick={() => { setTargetTypeFilter(new Set()); setLinkFocus(null) }}
                 style={{
                   display: 'inline-flex', alignItems: 'center', padding: '3px 9px',
                   borderRadius: 20, fontSize: '0.71875rem', fontWeight: 500,
@@ -2677,11 +2773,11 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                 return (
                   <Button
                     key={type}
-                    onClick={() => setTargetTypeFilter(prev => {
+                    onClick={() => { setLinkFocus(null); setTargetTypeFilter(prev => {
                       const next = new Set(prev)
                       if (next.has(type)) next.delete(type); else next.add(type)
                       return next
-                    })}
+                    }) }}
                     style={{
                       display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 9px',
                       borderRadius: 20, fontSize: '0.71875rem', fontWeight: 500,
@@ -2703,7 +2799,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
             <SegControl
               options={TIME_WINDOW_OPTS}
               value={targetViewMode}
-              onChange={v => { setTargetViewMode(v as TimeWindow); setSelectedTargetLocId(null) }}
+              onChange={v => { setTargetViewMode(v as TimeWindow); setSelectedTargetLocId(null); setLinkFocus(null) }}
             />
           </div>
           <div style={{ marginBottom: 12 }}>
@@ -2854,7 +2950,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
             <SegControl
               options={TIME_WINDOW_OPTS}
               value={liferWindow}
-              onChange={v => { setLiferWindow(v as TimeWindow); setSelectedLiferLocId(null) }}
+              onChange={v => { setLiferWindow(v as TimeWindow); setSelectedLiferLocId(null); setLinkFocus(null) }}
             />
           </div>
           <div style={{ marginBottom: 12 }}>
@@ -3025,6 +3121,8 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
               aria-pressed={viewMode === mode}
               onClick={() => {
                 setViewMode(mode)
+                // A view switch clears a bird-tap focus (ios-lifer-widgets Stage 8).
+                if (mode !== viewMode) setLinkFocus(null)
                 // FR-17 — the failure does not survive a view change. At the one
                 // setViewMode call site rather than a useEffect mirror on
                 // viewMode: that would be a setState-in-effect and an extra
@@ -3272,6 +3370,25 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                   >
                     <Search size={14} strokeWidth={2.2} aria-hidden="true" />
                     {SEARCH_AREA_TEXT}
+                  </Button>
+                </div>
+              )}
+              {/* The bird-tap focus pill (ios-lifer-widgets Stage 8): "Only
+                  {name} · Show all", the cluster's action row in the Search
+                  this area register. It sits BELOW that row, so when Search
+                  this area appears the cluster grows upward and this row does
+                  not move. The name is the matched eBird record's, never the
+                  link's. The whole pill is the action. */}
+              {activeFocus?.kind === 'focused' && (viewMode === 'lifers' || viewMode === 'targets') && (
+                <div className="sr-map-search-area-row sr-map-focus-row">
+                  <Button
+                    type="button"
+                    className="sr-map-search-area-btn sr-map-focus-btn sr-touch-target"
+                    aria-label={focusPillLabel(activeFocus.name, viewMode)}
+                    onClick={showAllFromFocus}
+                  >
+                    <span className="sr-map-focus-name">{focusPillText(activeFocus.name).only}</span>
+                    <span className="sr-map-focus-action">{'\u00b7 '}{focusPillText(activeFocus.name).action}</span>
                   </Button>
                 </div>
               )}
