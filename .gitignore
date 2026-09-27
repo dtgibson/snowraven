@@ -14,7 +14,7 @@ __pycache__/
 *.pyo
 .pytest_cache/
 backend/venv/
-backend/.venv/
+backend/.venv
 
 # Claude Code local settings (machine-specific)
 .claude/settings.local.json
