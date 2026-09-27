@@ -573,3 +573,48 @@ tailnet pages (the website and the rendered README, before and after). The user
 chose to leave both pages as they are. The feature is described in
 `docs/HELP.md` only. `calendarOverlaysPublishedClaims.test.ts` therefore gains
 no README or website passage.
+
+## Stage 8, The Deployer (2026-09-27)
+
+### D8-01. The iOS archive needs a `swift` shim under Swift 6.4 (Orchestrator-approved deploy workaround)
+
+**What happened.** The first `tauri ios build` for 1.0.38 build 1 failed inside the
+Rust compile, in Tauri's own build script (swift-rs 1.0.7), with
+`ld: building for 'macOS'` and macOS-SDK header errors. swift-rs compiles
+Tauri's Swift package (and each iOS plugin's) with `swift build` plus iOS
+`-Xswiftc -target` / `-Xcc --target` flags. Swift 6.4 (Xcode 27, the only
+toolchain on the release Mac) makes the new `swiftbuild` engine the default,
+and that engine ignores those flags and links for macOS. Only iOS is affected:
+the desktop builds do not compile these Swift packages.
+
+**Why no earlier ship met it.** Most likely because the main checkout's
+`src-tauri/target` held those build-script outputs from before the toolchain
+reached 6.4. This build ships from a worktree whose target was cold.
+
+**The workaround.** A third wrapper beside the two the runbook already uses:
+`/tmp/xcshim/swift` adds `--build-system native` to `swift build` only and
+passes every other `swift` invocation through unchanged. That restores the
+engine every prior iOS build used. Approved by the Orchestrator within the
+user's all-platforms production sign-off. The exact wrapper, the
+verification and the removal condition are in the release skill's iOS
+section, so every later ship recreates it with the other shims.
+
+**Verified on the built output, not assumed.**
+- A hand run of swift-rs's exact command with the native engine produced
+  `libTauri.a` at `platform 2`, `minos 16.0`.
+- In the real build, all five swift-rs libraries (Tauri, clipboard-manager,
+  dialog, geolocation, opener) report `platform 2`.
+- `vtool -show-build` on the archived app's executable reports `platform IOS`,
+  `minos 16.0`, `sdk 27.0`, and on the widget extension `platform IOS`,
+  `minos 17.0`.
+- The archive is stamped 1.0.38 / 1.0.38.1.
+- `DistributionSummary.plist` lists both bundle ids with their expected
+  entitlements, profiles and the Apple Distribution certificate.
+
+**Residual risk.** `--build-system native` is deprecated in SwiftPM, so this is
+a bridge. The runtime backstop is the user's own TestFlight install of the
+exact uploaded build, before any App Store record is created.
+
+**Removal condition.** When swift-rs, or the Tauri release that pins it, builds
+a correct iOS package under Swift 6.4's default build system, drop the shim,
+and repeat the `platform 2` / `platform IOS` checks from a cold target.
