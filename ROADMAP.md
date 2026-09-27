@@ -8,9 +8,9 @@ more about your users and your product. Update it freely.
 
 ## Shipped
 
-162 versions shipped. Last shipped: **SnowRaven 1.0.36 -- two home-screen widgets on iPhone and iPad, Nearby Lifers and Media Targets, list the nearest recent eBird reports of birds you still need, and a tap lands on the matching Map Explorer view, a tapped bird shown alone** (`12f39ad`; tag `v1.0.36`; iOS stamps `ebc5bd3`, `44f8e48`, `384c01e`). macOS, Windows, `latest.json` and the website verified. Three VALID TestFlight builds of the one version: the first two were superseded by device passes that changed the design (the bird tap, then the loading line), and **1.0.36.3** (`6fae2b46`) was opened on the user's iPhone before submission. **App Store: SUBMITTED on its own record** `773cd204-7720-4ebf-9012-92be1c429855`, review submission `21af3c59-06bc-4ddd-98d8-4b83ee81a496` (`WAITING_FOR_REVIEW`); named in CLAUDE.md's list (DECISIONS.md v1.0.36).
+163 version deliveries. Last shipped: **SnowRaven 1.0.37.1 to TestFlight only** -- a small white raven on `#2D8653` fills startup time and leaves as soon as the first screen is ready. Source commit `3f2f64c` is on `origin/main`; the build is `VALID` and `IN_BETA_TESTING`. Ten TestFlight-scope QA rows passed and seven broader rows remain Partial and deferred. No desktop or Windows release, tag, or App Store submission is included.
 
-Previously: **SnowRaven 1.0.35 -- on Checklists, going back to "All counties" or "All protocols" returns the picker to its resting outline, and the closed species picker's bottom edge now matches its other three sides** (`5d5c8ac`; tag `v1.0.35`). macOS, Windows and the website verified; its App Store record `cfa11d7b` is now `READY_FOR_SALE` on build 1.0.35.1.
+Previously: **SnowRaven 1.0.36** -- Nearby Lifers and Media Targets home-screen widgets open matching Map Explorer views; the full-platform release and App Store submission are recorded in DECISIONS.md.
 
 ---
 
