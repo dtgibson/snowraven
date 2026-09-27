@@ -618,3 +618,62 @@ exact uploaded build, before any App Store record is created.
 **Removal condition.** When swift-rs, or the Tauri release that pins it, builds
 a correct iOS package under Swift 6.4's default build system, drop the shim,
 and repeat the `platform 2` / `platform IOS` checks from a cold target.
+
+### D8-02. App Store: device check reported, What's New approved, iPad Calendar shot recaptured, submitted
+
+**Device check.** The user installed TestFlight build 1.0.38.1 (delivery
+`b35f45eb-030e-4267-8789-bf2b9fc65154`) on their own iPhone. They reported
+"the phone build works". Per the device boundary, that is the user's reported
+result, recorded as given; no agent touched a device.
+
+**What's New.** The user approved the drafted text unchanged. It was set on
+the record and read back byte-equal (388 characters):
+
+> SnowRaven 1.0.38 adds overlays to the Calendar.
+>
+> Two switches under Overlays mark the days you brought home photos,
+> recordings or videos, and the breeding codes you recorded, each led by a
+> circle for Confirmed, Probable or Possible. Both stay off until you turn
+> them on.
+>
+> The app now also opens on a small white raven on SnowRaven green, which
+> clears as soon as the first screen is ready.
+
+**Record.** `63dc73df-a7a6-4726-9ad4-76decc1fb676`, created on build 1.0.38.1,
+`AFTER_APPROVAL`, no phased release.
+- Promotional text: the new record came without it, as every new record
+  does, so it was set from `appstore/LISTING.md` and read back equal.
+- Unchanged and verified equal: the inherited description, keywords and URLs
+  (to LISTING.md), the review notes (to `appstore/REVIEW_NOTES.md`,
+  byte-equal), and the review contact (to 1.0.36's).
+- Age rating: the new editable app-info record (`83687f7b`) equals the
+  released one field for field.
+
+**Screenshots.** The planned "no change" was checked against the images and
+did not hold. The iPad 13 Calendar shot photographs the whole Calendar
+controls panel, and 1.0.38 always shows a new Overlays row there. By the
+user's standing rule never to submit a store screenshot a release behind, it
+was recaptured before submission:
+- From the synthetic demo data (guard OK, 368 synthetic checklists), with a
+  scratch copy of `capture-appstore.mjs` limited to that one shot, at the same
+  2064x2752 RGB with no alpha.
+- It shows the Overlays row with Media and Breeding off and is otherwise the
+  same 2025 Large view.
+- The taller panel makes the page scroll, so the rig's own framing now sits
+  the Calendar heading near the top edge. Nothing is clipped.
+- The whole iPad set was deleted and re-uploaded in order, 01 to 06. The read
+  back matches the committed files by name, order, size and MD5, all
+  `COMPLETE`. The other five were byte-identical to the store's images
+  before.
+- The iPhone set was untouched: its Calendar shot shows only the grid and
+  legend, which are unchanged with overlays off.
+
+The website's `calendar.webp` has the same property. A recapture was made to
+the scratchpad only, pending the user's approval under the website rule.
+
+**Submission.** Review submission `451305aa-56c8-49e0-9b19-9924ccbbed8b`,
+`WAITING_FOR_REVIEW`; the record reads `WAITING_FOR_REVIEW`.
+
+**Reconciliation.** Every TestFlight train since 1.0.13 without a version
+record is named in CLAUDE.md's list: the three skips, the five rollups, the
+1.0.25 deferral, and now 1.0.37, TestFlight-only by the user's direction.
