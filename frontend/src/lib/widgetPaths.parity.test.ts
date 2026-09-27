@@ -126,7 +126,7 @@ describe('the deep link: one scheme, one length bound, one event', () => {
     expect(speciesLinks).not.toMatch(/const SPECIES_CODE_RE\s*=/)
   })
 
-  it('the event and the three commands exist on both sides and are registered for iOS only', () => {
+  it('the event, commands, widget plugin, and launch backdrop are registered for iOS only', () => {
     expect(rustConst('LINK_EVENT')).toBe('snowraven-link')
     expect(native).toContain("export const LINK_EVENT = 'snowraven-link'")
     for (const c of ['widgets_write_handover', 'widgets_remove_handover', 'widgets_take_pending_link']) {
@@ -135,7 +135,8 @@ describe('the deep link: one scheme, one length bound, one event', () => {
       expect(libRs).toContain(`#[cfg(target_os = "ios")]\n            widgets::${c},`)
     }
     expect(libRs).toContain('#[cfg(any(target_os = "ios", test))]\nmod widgets;')
-    expect(libRs).toContain('#[cfg(target_os = "ios")]\n    let builder = builder.plugin(widgets::plugin());')
+    expect(libRs).toContain('#[cfg(target_os = "ios")]\nmod launch_backdrop;')
+    expect(libRs).toMatch(/#\[cfg\(target_os = "ios"\)\]\s*let builder = builder\s*\.plugin\(widgets::plugin\(\)\)\s*\.setup\(\|app\| \{\s*launch_backdrop::install\(app\);\s*Ok\(\(\)\)\s*\}\);/)
     // The single-webview keeper is untouched: still Builder::run with Tauri's own callback.
     expect(libRs).toContain('.run(tauri::generate_context!())')
     expect(rustCode).not.toContain('SceneRequested')

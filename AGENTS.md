@@ -5,6 +5,21 @@ This file is read by coding agents that do not load `CLAUDE.md` automatically.
 and applies to every agent; read it in full before changing anything. The
 detailed rules live in `.claude/rules/*.md` and carry the same force.
 
+## Device boundary
+
+Work on the developer Mac and its local simulators only. Never discover, query,
+pair, install on, or otherwise access any physical, production, or personal
+device, including Hydra and Telesto. Do not access other machines for testing.
+Do not infer which devices the user has. If a test requires a physical device,
+ask the user to perform it and give exact steps; record the result they report.
+Uploading a build to TestFlight does not authorize a device install or an App
+Store submission. This is the user's direction of 2026-09-26 and overrides
+older device-testing instructions elsewhere in the repository.
+
+Automated tests are the usual verification path. Do not expand routine QA into
+manual platform or device checks on your own. If an approved criterion remains
+unverified and the user defers it, record it as partial and leave it deferred.
+
 One rule is restated here because it must never be missed:
 
 ## Published copy needs the user's approval first

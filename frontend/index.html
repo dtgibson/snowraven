@@ -1,33 +1,52 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="sr-launching">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>SnowRaven</title>
     <style>
-      /* Static boot screen shown inside #root before React mounts (the app's CSS
-         bundle isn't loaded yet, so colors are inlined; theme comes from the
-         anti-flash data-theme below). React replaces #root on mount. */
-      .sr-boot { position: fixed; inset: 0; display: flex; flex-direction: column;
-        align-items: center; justify-content: center; gap: 16px; background: #F9FAFB;
-        color: #71717A; font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
-      .sr-boot-mark { font-size: 1.25rem; font-weight: 600; letter-spacing: -0.4px; color: #0F1117; }
-      .sr-boot-spin { width: 24px; height: 24px; border-radius: 50%;
-        border: 2.5px solid #E4E4E7; border-top-color: #2D8653;
-        animation: sr-boot-rot 0.7s linear infinite; }
-      [data-theme="dark"] .sr-boot { background: #09090B; color: #A1A1AA; }
-      [data-theme="dark"] .sr-boot-mark { color: #F4F4F5; }
-      [data-theme="dark"] .sr-boot-spin { border-color: #27272A; border-top-color: #34D399; }
-      @keyframes sr-boot-rot { to { transform: rotate(360deg); } }
-      @media (prefers-reduced-motion: reduce) { .sr-boot-spin { animation-duration: 2s; } }
+      /* First paint precedes the CSS bundle. Keep this saved brand field
+         in step with LaunchScreen.storyboard and the native window. */
+      html.sr-launching, html.sr-launching body { background: #2D8653; }
+      body { margin: 0; }
+      .sr-launch { position: fixed; inset: 0; z-index: 9999; overflow: hidden;
+        background: #2D8653; color: #FFFFFF;
+        font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+      .sr-launch-mark { position: absolute; width: 88px; height: 88px;
+        left: 50%; top: 50%; transform: translate(-50%, -50%); }
+      .sr-launch-mark img { display: block; width: 100%; height: 100%;
+        filter: brightness(0) invert(1); }
+      .sr-launch-copy { position: absolute; top: calc(50% + 56px);
+        bottom: max(12px, env(safe-area-inset-bottom)); left: 24px; right: 24px;
+        display: flex; flex-direction: column; align-items: center; gap: 12px;
+        overflow-y: auto; text-align: center; }
+      .sr-launch-status { max-width: 20rem; margin: 0; color: #FFFFFF;
+        font-size: calc(16px * var(--sr-text-scale, 1)); font-weight: 600;
+        line-height: 1.35; letter-spacing: .005em; }
+      .sr-launch[data-state="first"] .sr-launch-status { position: absolute;
+        width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden;
+        clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+      .sr-launch-reload { min-height: 44px; padding: 10px 20px;
+        border: 1px solid #FFFFFF; border-radius: 8px; background: #FFFFFF;
+        color: #1A5C38; font: inherit; font-size: calc(16px * var(--sr-text-scale, 1));
+        font-weight: 600; line-height: 1.25; cursor: pointer;
+        transition: background-color 120ms ease-out, color 120ms ease-out; }
+      .sr-launch-reload:hover { background: #2D8653; color: #FFFFFF; }
+      .sr-launch-reload:focus-visible { outline: 3px solid #FFFFFF; outline-offset: 4px; }
+      .sr-launch [hidden] { display: none !important; }
+      @media (prefers-reduced-motion: reduce) { .sr-launch-reload { transition: none; } }
     </style>
   </head>
   <body>
-    <div id="root">
-      <div class="sr-boot" role="status" aria-label="Loading SnowRaven">
-        <span class="sr-boot-mark">SnowRaven</span>
-        <span class="sr-boot-spin"></span>
+    <div id="root" inert></div>
+    <div class="sr-launch" id="sr-launch" data-state="first" aria-label="SnowRaven opening">
+      <div class="sr-launch-mark" aria-hidden="true">
+        <img src="/src/assets/snowraven-bird-glyph.svg" alt="" width="88" height="88" />
+      </div>
+      <div class="sr-launch-copy">
+        <p class="sr-launch-status" id="sr-launch-status" role="status">Opening SnowRaven…</p>
+        <button class="sr-launch-reload" id="sr-launch-reload" type="button" hidden>Reload</button>
       </div>
     </div>
     <script>
@@ -48,6 +67,70 @@
           var ts = localStorage.getItem('sr-text-scale');
           if (ts) document.documentElement.style.setProperty('--sr-text-scale', ts);
         } catch (e) {}
+
+        var splash = document.getElementById('sr-launch');
+        var root = document.getElementById('root');
+        var status = document.getElementById('sr-launch-status');
+        var reload = document.getElementById('sr-launch-reload');
+        var firstFrame = 0;
+        var slowTimer = 0;
+        var longTimer = 0;
+        var released = false;
+        function alignLaunchBounds() {
+          // On a cold iPad load, WebKit briefly reports a viewport shortened
+          // by both safe areas, even though its native window is full height.
+          // Size this frame to that window until the viewport catches up.
+          // This runs before platform.ts can load. The bundled iOS webview
+          // uses the tauri: origin and a touch viewport; browser chrome must
+          // not enlarge the splash in ordinary Safari or desktop windows.
+          if (window.location.protocol === 'tauri:' && navigator.maxTouchPoints > 0 &&
+              window.outerHeight > window.innerHeight) {
+            splash.style.height = window.outerHeight + 'px';
+          } else {
+            splash.style.removeProperty('height');
+          }
+        }
+        alignLaunchBounds();
+        window.addEventListener('resize', alignLaunchBounds);
+        function clearClocks() {
+          if (firstFrame) cancelAnimationFrame(firstFrame);
+          clearTimeout(slowTimer);
+          clearTimeout(longTimer);
+        }
+        function release() {
+          if (released) return;
+          released = true;
+          clearClocks();
+          window.removeEventListener('resize', alignLaunchBounds);
+          root.removeAttribute('inert');
+          splash.remove();
+          document.documentElement.classList.remove('sr-launching');
+        }
+        function fail() {
+          if (released) return;
+          clearClocks();
+          splash.dataset.state = 'error';
+          status.textContent = 'SnowRaven couldn’t open';
+          reload.hidden = false;
+        }
+        window.srLaunch = { release: release, fail: fail };
+        reload.addEventListener('click', function () { window.location.reload(); });
+        window.addEventListener('error', function (event) {
+          if (event.target === window ||
+              (event.target instanceof HTMLScriptElement && event.target.type === 'module')) fail();
+        }, true);
+        firstFrame = requestAnimationFrame(function () {
+          firstFrame = 0;
+          slowTimer = setTimeout(function () {
+            if (!released && splash.dataset.state === 'first') splash.dataset.state = 'slow';
+          }, 2000);
+          longTimer = setTimeout(function () {
+            if (released) return;
+            splash.dataset.state = 'long';
+            status.textContent = 'SnowRaven is taking longer than expected';
+            reload.hidden = false;
+          }, 15000);
+        });
       })();
     </script>
     <script type="module" src="/src/main.tsx"></script>

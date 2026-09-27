@@ -5,6 +5,19 @@ description: "SnowRaven release runbook - use for EVERY ship and any release-adj
 
 # SnowRaven release runbook
 
+## Device boundary (user direction, 2026-09-26)
+
+Agents work on the developer Mac and its local simulators only. Never
+discover, query, pair, install on, or otherwise access any physical,
+production, or personal device, including Hydra and Telesto; do not access
+other machines for testing. Do not assume which devices the user has. The
+historical exact-uploaded-build launch check before App Store submission is
+performed by the user after an explicit request with exact steps, and the
+result is recorded as the user reports it. It is not a prerequisite to a
+TestFlight upload. The current splash release is authorized for TestFlight
+only, with no App Store submission. This direction overrides conflicting
+device instructions below.
+
 Moved verbatim from CLAUDE.md's release sections (2026-08-26, /doctor context cleanup) so the mechanics load at ship time instead of riding every session. The always-resident rules stay in CLAUDE.md's `## Versioning` section: bump BOTH version files, changelog on every bump, the dev-only exemption, run `release.sh` (never `gh release create`), the updater relaunch contract, the all-platforms rhythm, the cross-platform Rust deps rule, and the opaque iOS icon rule. Everything below is the how.
 
 ### macOS desktop (`release.sh`)

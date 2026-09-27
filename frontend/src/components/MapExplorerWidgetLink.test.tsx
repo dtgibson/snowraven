@@ -678,12 +678,29 @@ describe('App wiring, read from source (comments stripped)', () => {
     expect(app).toContain("if (current === 'map-explorer' && getPendingLink() !== null) return current")
   })
 
-  it('both controllers boot on iOS only, through import(), after first paint', () => {
-    const at = app.indexOf('if (!widgetsSupported()) return')
-    expect(at).toBeGreaterThan(-1)
-    const block = app.slice(at, at + 500)
-    expect(block).toContain("import('./lib/widgets/widgetHandoverController')")
-    expect(block).toContain("import('./lib/links/linkController')")
-    expect(block).toContain('setTimeout(')
+  it('the cold link check runs before launch release; widget handover stays deferred and iOS-only', () => {
+    // Match whole mount effects rather than a character window: the two
+    // controllers now have deliberately different launch timing.
+    const widgetEffects = [...app.matchAll(/^ {2}useEffect\(\(\) => \{([\s\S]*?)^ {2}\}, \[\]\)/gm)]
+      .map(match => match[1]!)
+      .filter(effect => effect.includes('if (!widgetsSupported()) return'))
+    expect(widgetEffects).toHaveLength(2)
+
+    const linkEffect = widgetEffects.find(effect => effect.includes("import('./lib/links/linkController')"))
+    expect(linkEffect).toBeDefined()
+    expect(linkEffect).toContain("void import('./lib/links/linkController')")
+    expect(linkEffect).toMatch(/\.then\(m => m\.bootLinkController\(\)\)/)
+    expect(linkEffect).toMatch(/\.finally\(\(\) => \{ if \(!cancelled\) setInitialLinkSettled\(true\) \}\)/)
+    expect(linkEffect).not.toContain('setTimeout(')
+
+    const writerEffect = widgetEffects.find(effect => effect.includes("import('./lib/widgets/widgetHandoverController')"))
+    expect(writerEffect).toBeDefined()
+    expect(writerEffect).toContain('const t = setTimeout(() => {')
+    expect(writerEffect).toContain("void import('./lib/widgets/widgetHandoverController').then(m => m.startWidgetHandover())")
+    expect(writerEffect).not.toContain("import('./lib/links/linkController')")
+
+    const releaseGate = 'if (coldStart !== null && layoutSettled && initialLinkSettled) releaseLaunch()'
+    expect(app).toContain(releaseGate)
+    expect(app.indexOf("void import('./lib/links/linkController')")).toBeLessThan(app.indexOf(releaseGate))
   })
 })

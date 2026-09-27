@@ -1,5 +1,6 @@
 import { Button } from './ui/Button'
 import { Component, type ReactNode } from 'react'
+import { releaseLaunch } from '../lib/launch'
 
 interface Props { children: ReactNode }
 interface State { error: Error | null }
@@ -8,6 +9,11 @@ interface State { error: Error | null }
 // message instead of a blank white screen. Reload re-runs the app from scratch.
 export class RootErrorBoundary extends Component<Props, State> {
   state: State = { error: null }
+
+  componentDidCatch(): void {
+    // The fallback has committed. Expose its Reload action before the next paint.
+    releaseLaunch()
+  }
 
   static getDerivedStateFromError(error: Error): State {
     return { error }

@@ -2,6 +2,11 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [1.0.37] - 2026-09-26
+
+### Added
+- A small white raven on SnowRaven green appears while the app opens, then clears as soon as the first screen is ready.
+
 ## [1.0.36] - 2026-09-24
 
 ### Added

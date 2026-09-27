@@ -12,6 +12,8 @@ mod icloud;
 // Mac, Windows or Linux binaries.
 #[cfg(any(target_os = "ios", test))]
 mod widgets;
+#[cfg(target_os = "ios")]
+mod launch_backdrop;
 // Post-restore on-screen clamp for the remembered window geometry (macOS +
 // Windows). Same platform set as the tauri-plugin-window-state dependency,
 // spelled with tauri's `desktop` cfg here because Cargo has no such cfg.
@@ -206,7 +208,10 @@ pub fn run() {
     // `on_event` on RunEvent::Opened, NOT a custom run callback, so the
     // single-webview keeper below is untouched.
     #[cfg(target_os = "ios")]
-    let builder = builder.plugin(widgets::plugin());
+    let builder = builder.plugin(widgets::plugin()).setup(|app| {
+        launch_backdrop::install(app);
+        Ok(())
+    });
 
     builder
         .invoke_handler(tauri::generate_handler![

@@ -19,6 +19,23 @@ paths:
 
 # SnowRaven testing and verification methodology
 
+## Device boundary
+
+Verification by agents stays on the developer Mac and its local simulators.
+Never discover, query, pair, install on, or otherwise access a physical device
+or another machine. Do not assume which devices the user has. When a criterion
+truly needs a physical-device check, ask the user to perform it and report the
+result. A simulator recording can satisfy a criterion that specifies a
+simulator-compatible visual check; it does not establish that an uploaded
+release build launches on hardware. This user direction of 2026-09-26
+overrides older device-testing language below.
+
+Automated tests are SnowRaven's usual verification path. Keep manual checks
+scoped to a concrete requirement and do not expand them into a broad platform
+or hardware sweep without user direction. When the user defers a manual check,
+record the corresponding acceptance criterion as Partial and stop pursuing it
+for that build. This does not turn missing evidence into a Pass.
+
 Moved verbatim from CLAUDE.md (2026-08-26 context restructure). This file auto-loads when a session works on files matching the `paths` above; for related work that starts elsewhere, read it in full before changing anything it governs. Its rules carry the same force as CLAUDE.md.
 
 - **`frontend/src/test-setup.ts` installs baseline `requestAnimationFrame`/`cancelAnimationFrame` shims for every test file** (wired via vitest `test.setupFiles` in `vite.config.ts`). Reason: recharts bundles `@reduxjs/toolkit`, whose autoBatch fallback timer (100 ms, calls bare `cancelAnimationFrame`) can outlive a jsdom test file and fire in a later DOM-less node-env file in the same worker — the source of the old ~11% full-suite flake. Never remove the shims or convert them to per-test `vi.stubGlobal` stubs (per-test stubs can't cover timers that fire after their file's environment is torn down). The shims are `typeof === 'undefined'`-guarded, so jsdom files keep their natives and a file's own stubs still win.
