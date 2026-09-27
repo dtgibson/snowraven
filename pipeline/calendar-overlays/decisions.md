@@ -670,6 +670,9 @@ was recaptured before submission:
 
 The website's `calendar.webp` has the same property. A recapture was made to
 the scratchpad only, pending the user's approval under the website rule.
+The user approved it after a before-and-after review over the tailnet, and it
+replaced `website/assets/shots/calendar.webp` with nothing else under
+`website/` changed.
 
 **Submission.** Review submission `451305aa-56c8-49e0-9b19-9924ccbbed8b`,
 `WAITING_FOR_REVIEW`; the record reads `WAITING_FOR_REVIEW`.
