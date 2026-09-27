@@ -12,14 +12,19 @@
 // views). The toggle governs at ALL widths (phones included), so both distinct views
 // are reachable on mobile. A low-emphasis "Count all forms" toggle optionally
 // admits the forms eBird does not count into the Species / Total count metrics.
+// Two optional overlays (Media, Breeding; calendar-overlays) turn each birded day
+// into a tile of fact rows while on; with both off every cell, the legend and the
+// popup render exactly as before (calendarOverlaysOff.test.tsx pins that).
 //
 // Frontend-only, offline, zero new network. Pure derivation lives in lib/calendar.ts;
-// the DOM crosshatch density in lib/calendarTextures.ts. See pipeline/calendar-tab.
+// the DOM crosshatch density in lib/calendarTextures.ts; the overlay rows, marks and
+// accessible-name facts in lib/calendarOverlays.ts. See pipeline/calendar-tab and
+// pipeline/calendar-overlays.
 
 import { Button } from './ui/Button'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
-  Loader2, CalendarDays, ChevronLeft, ChevronRight, LayoutGrid, Grid2x2, X
+  Loader2, CalendarDays, ChevronLeft, ChevronRight, LayoutGrid, Grid2x2, X, Camera, Mic, Video,
 } from 'lucide-react'
 import type { ObservationEntry } from '../types'
 import { SetupRequired } from './SetupRequired'
@@ -37,13 +42,25 @@ import { useFocusTrap } from '../lib/useFocusTrap'
 import { ChecklistLink } from './ChecklistLink'
 import { computeCountyTiers, type CountyTiers } from '../lib/countyShading'
 import {
-  buildDayCells, dataYears, defaultYear, adjacentDataYear, metricCount,
+  buildDayCells, dataYears, defaultYear, adjacentDataYear, metricCount, metricNoun,
   nonZeroMetricCounts, daysInMonth, dayOfWeek,
-  type CalendarMetric, type CalendarView, type DayCell, type DayCellMap,
+  type CalendarMetric, type CalendarView, type DayCell, type DayCellMap, type DayCodeFact,
 } from '../lib/calendar'
 import { calHatchCss, calMiniHatchCss, type CalTier } from '../lib/calendarTextures'
 import { normalizeSpeciesName } from '../lib/speciesUtils'
 import { SpeciesCombobox } from './SpeciesCombobox'
+import { loadMLExport } from '../lib/mlExportCache'
+import { mediaFormatCounts } from '../lib/observationMedia'
+import { breedingCategoryForTier, BREEDING_CATEGORY_LABELS, BREEDING_CATEGORY_SHORT, BREEDING_CODE_MAP } from '../lib/breedingCodes'
+import { useCalendarOverlays } from '../lib/useCalendarOverlays'
+import {
+  OVERLAY_MARK_SPECS, tileRows, dayNameSuffix, codeText, mediaFormatParts, legendMediaKeys,
+  LEGEND_BREEDING_KEYS, OVERLAYS_GROUP_LABEL, MEDIA_SWITCH_LABEL, BREEDING_SWITCH_LABEL,
+  CODES_GROUP_LABEL, CODES_OPTIONS, CODES_GATED_REASON, LEGEND_MEDIA_CAPTION_LOADED,
+  LEGEND_MEDIA_CAPTION_NO_EXPORT, LEGEND_BREEDING_CAPTION, mediaChecklistsLead, breedingEvidenceLead,
+  chipSpeciesTail, plainMediaPhrase, TILE_PADDING_INLINE_REM, categoryCountDigits,
+  type CalendarOverlays, type OverlayMarkKey, type TileRow, type TileRows,
+} from '../lib/calendarOverlays'
 
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 const WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'] // Sunday-first single letters
@@ -73,13 +90,30 @@ type Phase =
 /** Stable empty reference for the passive provenance read before data loads. */
 const EMPTY_OBSERVATIONS: ObservationEntry[] = []
 
+/** How long the fact blocks and the legend block carry their enter class after
+ *  an overlay is turned on: the 160ms motion plus a frame of margin. After it the
+ *  class is gone, so a block created later (a year step) does not animate. */
+const OVERLAY_ENTER_MS = 220
+
+/** The codes control's reason, wired through aria-describedby while it is gated.
+ *  A literal id, never one built from data (ui.md). Rendered once on this tab. */
+const CODES_REASON_ID = 'sr-cal-codes-why'
+
 // ── Small presentational pieces ──────────────────────────────────────────────
 
-function SegControl<T extends string>({ options, value, onChange, ariaLabel }: {
-  options: { value: T; label: string; icon?: React.ReactNode; title?: string }[]
+function SegControl<T extends string>({ options, value, onChange, ariaLabel, disabled, describedBy }: {
+  options: readonly { value: T; label: string; icon?: React.ReactNode; title?: string }[]
   value: T
   onChange: (v: T) => void
   ariaLabel: string
+  /** Gated rather than hidden (calendar-overlays FR-36, the ui.md aria-disabled
+   *  rule): each option carries aria-disabled and the reason's IDREF, ignores
+   *  activation by click and by keyboard (Enter and Space reach onClick), and
+   *  STAYS a tab stop so its reason is readable in place. Unlike Switch, no
+   *  pointer-events: none, so a pointer user still gets the cursor and the
+   *  focus ring; the onClick guard is what makes it inert. */
+  disabled?: boolean
+  describedBy?: string
 }) {
   // .sr-seg makes the segments FILL their line once the group wraps (v1.0.4).
   // The pill paints --sr-surface-subtle behind the whole group, so a wrapped
@@ -99,8 +133,10 @@ function SegControl<T extends string>({ options, value, onChange, ariaLabel }: {
             key={opt.value}
             type="button"
             className="sr-seg-btn"
-            onClick={() => onChange(opt.value)}
+            onClick={() => { if (!disabled) onChange(opt.value) }}
             aria-pressed={active}
+            aria-disabled={disabled || undefined}
+            aria-describedby={disabled ? describedBy : undefined}
             title={opt.title}
             style={{
               display: 'inline-flex', alignItems: 'center', gap: 5,
@@ -113,7 +149,7 @@ function SegControl<T extends string>({ options, value, onChange, ariaLabel }: {
               border: `1px solid ${active ? 'var(--sr-border)' : 'transparent'}`,
               fontWeight: active ? 600 : 400,
               color: active ? 'var(--sr-text)' : 'var(--sr-text-muted)',
-              cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap',
+              cursor: disabled ? 'default' : 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap',
             }}
           >
             {opt.icon}
@@ -188,6 +224,124 @@ function Switch({ label, checked, onChange, small, disabled, describedBy }: {
   )
 }
 
+// ── Overlay marks (calendar-overlays) ────────────────────────────────────────
+
+// The one lookup from a spec's glyph NAME to the Multimedia tab's lucide glyphs
+// (already on the entry chunk through LifeList, so this adds no module to any
+// chunk). lib/calendarOverlays.ts names glyphs and never imports them.
+const LUCIDE_GLYPHS = { camera: Camera, mic: Mic, video: Video } as const
+
+/** Draws one OVERLAY_MARK_SPECS entry in currentColor, always decorative. The
+ *  cells, the legend and the popup all draw marks through this, from the one
+ *  table, so the three cannot drift (FR-30). Sized by the caller's class. */
+function MarkGlyph({ mark, className, lucideStroke = 2.6 }: { mark: OverlayMarkKey; className?: string; lucideStroke?: number }) {
+  const g = OVERLAY_MARK_SPECS[mark].glyph
+  if (g.kind === 'lucide') {
+    const Icon = LUCIDE_GLYPHS[g.icon]
+    return <Icon aria-hidden="true" focusable="false" className={className} strokeWidth={lucideStroke} />
+  }
+  return (
+    <svg viewBox={g.viewBox} aria-hidden="true" focusable="false" className={className}>
+      {g.paths.map((p, i) => (
+        <path
+          key={i}
+          d={p.d}
+          fill={p.filled ? 'currentColor' : 'none'}
+          stroke={p.filled ? 'none' : 'currentColor'}
+          strokeWidth={p.filled ? undefined : g.strokeWidth}
+        />
+      ))}
+    </svg>
+  )
+}
+
+function FactRow({ row, condensed }: { row: TileRow; condensed: boolean }) {
+  if (row.kind === 'more') return <span className="sr-fact sr-fact--more">+{row.count}</span>
+  if (row.kind === 'category') {
+    // "By category" (D4-11): the category's circle, its short name on a rich
+    // row (set lighter than a code, .sr-fact--cat), and its species count.
+    return row.label === null || condensed
+      ? <span className="sr-fact sr-fact--cat"><MarkGlyph mark={row.key} /><span>{row.count}</span></span>
+      : <span className="sr-fact sr-fact--cat"><MarkGlyph mark={row.key} /><b>{row.label}</b><span className="sr-fact-n">{row.count}</span></span>
+  }
+  if (row.kind === 'media') {
+    return condensed
+      ? <span className="sr-fact"><MarkGlyph mark={row.key} /><span>{row.count}</span></span>
+      : <span className="sr-fact"><MarkGlyph mark={row.key} /><span /><span className="sr-fact-n">{row.count}</span></span>
+  }
+  return (
+    <span className="sr-fact">
+      <MarkGlyph mark={row.key} />
+      <b>{row.code}</b>
+      {row.count !== null && <span className="sr-fact-n">{row.count}</span>}
+    </span>
+  )
+}
+
+/** The tile's two fact blocks (FR-17, FR-38): BOTH are rendered, both
+ *  aria-hidden (the day's accessible name carries the facts, FR-23), and the
+ *  stylesheet shows one by the cell's own width (the `2.4em` container query in
+ *  globals.css, and for a "By category" tile the wider query its count's digits
+ *  pick), so a resize never re-renders. Drawn in the cell's number
+ *  colour; with textures on, a data cell's blocks wear the same tier backing
+ *  the count's pill does. Nothing at all when the day has no fact on. */
+function FactBlocks({ rows, color, backing, enter }: {
+  rows: TileRows
+  color: string
+  backing: string | null
+  enter: boolean
+}) {
+  if (rows.rich.length === 0 && rows.condensed.length === 0) return null
+  // A "By category" tile turns compact at a width set by its widest count's
+  // digits (the three --cat queries in globals.css, decisions.md E5-12).
+  const digits = categoryCountDigits(rows.rich)
+  const fit = digits === 0 ? '' : ` sr-cal-facts--cat${digits >= 2 ? ' sr-cal-facts--cat-2d' : ''}${digits >= 3 ? ' sr-cal-facts--cat-3d' : ''}`
+  const cls = `sr-cal-facts${backing ? ' is-backed' : ''}${enter ? ' sr-cal-facts--enter' : ''}${fit}`
+  const style: React.CSSProperties = { color, background: backing ?? undefined }
+  return (
+    <>
+      <span aria-hidden="true" className={`${cls} sr-cal-facts--rich`} style={style}>
+        {rows.rich.map((r, i) => <FactRow key={i} row={r} condensed={false} />)}
+      </span>
+      <span aria-hidden="true" className={`${cls} sr-cal-facts--condensed`} style={style}>
+        {rows.condensed.map((r, i) => <FactRow key={i} row={r} condensed />)}
+      </span>
+    </>
+  )
+}
+
+/** Everything a day cell needs from the overlays, threaded as one prop. */
+interface OverlayView {
+  overlays: CalendarOverlays
+  /** The ML export's catalogId -> format map, only while Media is on and the
+   *  export loaded; otherwise null (plain counts). */
+  mediaMap: Record<string, string> | null
+  /** True only on the render(s) following the flip that turned an overlay on,
+   *  so the fact blocks animate in exactly then (Motion Spec). */
+  enter: boolean
+}
+
+function anyOverlayOn(o: CalendarOverlays): boolean {
+  return o.media || o.breeding
+}
+
+/** A birded day's accessible name, one builder for Compact and Large so the two
+ *  views cannot drift (FR-28, FR-29). Zero days keep their shipped wording: a
+ *  zero day under the Species metric is only reachable with forms off, so
+ *  metricNoun(metric, false) is byte-identical to the old literal. */
+function dayAriaLabel(
+  desc: DayCellDescriptor,
+  cell: DayCell,
+  metric: CalendarMetric,
+  withForms: boolean,
+  ov: OverlayView,
+): string {
+  const dateLabel = cellDateLabel(cell.bucketKey)
+  const suffix = dayNameSuffix(cell, ov.overlays, ov.mediaMap)
+  if (desc.kind === 'zero') return `${dateLabel}: birded, 0 ${metricNoun(metric, false)}${suffix}. Open day details`
+  return `${dateLabel}: ${desc.count} ${metricNoun(metric, withForms)}${suffix}. Open day details`
+}
+
 // ── Day cell (big month view) ────────────────────────────────────────────────
 
 interface DayCellDescriptor {
@@ -198,35 +352,60 @@ interface DayCellDescriptor {
   cell?: DayCell
 }
 
-function DayCellButton({ desc, textures, metric, onOpen }: {
+// The rich tile's inner spacing (design-spec, Compact view: the tile). The
+// inline term is the shared constant the fact blocks give back in globals.css,
+// so the two stay one number (calendarOverlaysCss.test.ts compares them).
+const TILE_PADDING = `0.25rem ${TILE_PADDING_INLINE_REM}rem 0.2rem`
+const TILE_GAP = '0.1875rem'
+
+function DayCellButton({ desc, textures, metric, withForms, ov, onOpen }: {
   desc: DayCellDescriptor
   textures: boolean
   metric: CalendarMetric
+  /** effectiveForms: the flag the count was read with, for the metric noun. */
+  withForms: boolean
+  ov: OverlayView
   onOpen: (cell: DayCell, el: HTMLButtonElement) => void
 }) {
   // Hook must run unconditionally (before any early return) — React rules of hooks.
   const ref = useRef<HTMLButtonElement>(null)
+  const rich = anyOverlayOn(ov.overlays)
+  // One key set in both states, VALUES varied (ui.md, "vary the values, never
+  // the keys"): with both overlays off every key and value is the shipped one,
+  // in the shipped order, so the markup is byte-identical to the pre-feature
+  // cell (FR-19) and stays so after an on-then-off round trip, because React
+  // only rewrites values in place. The two keys a tile adds (flexDirection,
+  // gap) are undefined while off, which React never writes. With an overlay on
+  // the cell drops its square aspect for a top-aligned column; its min-height
+  // and container-type come from .sr-cal-cell under .sr-cal-grid--rich, a class
+  // the phone tier can reach.
+  const tile = rich && (desc.kind === 'zero' || desc.kind === 'data')
   const base: React.CSSProperties = {
-    aspectRatio: '1 / 1', borderRadius: 5, border: 0, padding: 0, margin: 0,
-    display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative',
+    aspectRatio: rich ? 'auto' : '1 / 1', borderRadius: 5, border: 0, padding: tile ? TILE_PADDING : 0, margin: 0,
+    display: 'flex', alignItems: 'center', justifyContent: tile ? 'flex-start' : 'center', position: 'relative',
     font: 'inherit', minWidth: 0,
+    flexDirection: tile ? 'column' : undefined, gap: tile ? TILE_GAP : undefined,
   }
+  const cellClass = rich ? 'sr-cal-cell' : undefined
 
   if (desc.kind === 'pad') {
-    return <div aria-hidden style={{ ...base, background: 'transparent', pointerEvents: 'none' }} />
+    return <div aria-hidden className={cellClass} style={{ ...base, background: 'transparent', pointerEvents: 'none' }} />
   }
   if (desc.kind === 'nodata') {
     // A day with no checklist: a faint outlined cell. The big month grids are count-only
     // at EVERY width (the day-of-month date lives on the Large-view thumbnails, which are
     // reachable on the phone via the View toggle). A day is identified by its grid
-    // position and, on a data/zero day, its aria-label.
+    // position and, on a data/zero day, its aria-label. No fact rows here, ever (FR-18).
     return (
-      <div aria-hidden style={{ ...base, background: 'transparent', border: '1px solid var(--sr-border-subtle)', pointerEvents: 'none' }} />
+      <div aria-hidden className={cellClass} style={{ ...base, background: 'transparent', border: '1px solid var(--sr-border-subtle)', pointerEvents: 'none' }} />
     )
   }
 
   const cell = desc.cell!
-  const dateLabel = cellDateLabel(cell.bucketKey)
+  const label = dayAriaLabel(desc, cell, metric, withForms, ov)
+  // Both lists are empty with both overlays off, so FactBlocks renders nothing.
+  const rows = tileRows(cell, ov.overlays, ov.mediaMap)
+  const dayClass = rich ? 'sr-touch-target sr-cal-day sr-cal-cell' : 'sr-touch-target sr-cal-day'
 
   if (desc.kind === 'zero') {
     return (
@@ -234,8 +413,8 @@ function DayCellButton({ desc, textures, metric, onOpen }: {
         ref={ref}
         type="button"
         onClick={() => onOpen(cell, ref.current!)}
-        aria-label={`${dateLabel}: birded, 0 ${metric === 'checklists' ? 'checklists' : metric === 'total' ? 'individuals' : 'countable species'}. Open day details`}
-        className="sr-touch-target sr-cal-day"
+        aria-label={label}
+        className={dayClass}
         style={{
           ...base, background: 'var(--sr-surface-subtle)', border: '1px solid var(--sr-border-subtle)',
           cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
@@ -244,6 +423,7 @@ function DayCellButton({ desc, textures, metric, onOpen }: {
         onMouseLeave={e => (e.currentTarget.style.background = 'var(--sr-surface-subtle)')}
       >
         <span style={{ fontSize: '0.6875rem', fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: 'var(--sr-text-muted)', lineHeight: 1 }}>0</span>
+        <FactBlocks rows={rows} color="var(--sr-text-muted)" backing={null} enter={ov.enter} />
       </Button>
     )
   }
@@ -261,8 +441,8 @@ function DayCellButton({ desc, textures, metric, onOpen }: {
       ref={ref}
       type="button"
       onClick={() => onOpen(cell, ref.current!)}
-      aria-label={`${dateLabel}: ${desc.count}. Open day details`}
-      className="sr-touch-target sr-cal-day"
+      aria-label={label}
+      className={dayClass}
       style={{
         ...base, ...fill, cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
       }}
@@ -271,10 +451,18 @@ function DayCellButton({ desc, textures, metric, onOpen }: {
     >
       {/* The big month cells are count-only at every width: the centered --sr-cal-fg count
           reads over the shade (and in textures mode over the tier-color pill numStyle backs).
-          The day-of-month date lives on the Large-view thumbnails, reachable via the toggle. */}
+          The day-of-month date lives on the Large-view thumbnails, reachable via the toggle.
+          With an overlay on, the count stays FIRST in its own register and the fact rows sit
+          beneath it (FR-20); over the hatch they wear the count pill's backing (FR-21). */}
       <span style={{ fontSize: '0.6875rem', fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: 'var(--sr-cal-fg)', lineHeight: 1, ...numStyle }}>
         {desc.count}
       </span>
+      <FactBlocks
+        rows={rows}
+        color="var(--sr-cal-fg)"
+        backing={textures ? `rgba(var(--sr-cal-${tier}-rgb), 0.9)` : null}
+        enter={ov.enter}
+      />
     </Button>
   )
 }
@@ -354,11 +542,13 @@ function buildMonthCells(
 
 // ── Big month grid ───────────────────────────────────────────────────────────
 
-function MonthGrid({ month, descriptors, textures, metric, onOpen }: {
+function MonthGrid({ month, descriptors, textures, metric, withForms, ov, onOpen }: {
   month: number
   descriptors: DayCellDescriptor[]
   textures: boolean
   metric: CalendarMetric
+  withForms: boolean
+  ov: OverlayView
   onOpen: (cell: DayCell, el: HTMLButtonElement) => void
 }) {
   return (
@@ -376,9 +566,11 @@ function MonthGrid({ month, descriptors, textures, metric, onOpen }: {
           <div key={i} style={{ fontSize: '0.5625rem', fontWeight: 700, color: 'var(--sr-text-gray)', textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.03em' }}>{w}</div>
         ))}
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 3 }}>
+      {/* sr-cal-grid--rich only while an overlay is on: it is what lets every cell
+          in a week stretch to the tallest tile. Off: no class at all (FR-19). */}
+      <div className={anyOverlayOn(ov.overlays) ? 'sr-cal-grid--rich' : undefined} style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 3 }}>
         {descriptors.map((d, i) => (
-          <DayCellButton key={i} desc={d} textures={textures} metric={metric} onOpen={onOpen} />
+          <DayCellButton key={i} desc={d} textures={textures} metric={metric} withForms={withForms} ov={ov} onOpen={onOpen} />
         ))}
       </div>
     </div>
@@ -387,11 +579,13 @@ function MonthGrid({ month, descriptors, textures, metric, onOpen }: {
 
 // ── Mini month (Year Overview) ───────────────────────────────────────────────
 
-function MiniMonth({ month, descriptors, textures, metric, onOpen }: {
+function MiniMonth({ month, descriptors, textures, metric, withForms, ov, onOpen }: {
   month: number
   descriptors: DayCellDescriptor[]
   textures: boolean
   metric: CalendarMetric
+  withForms: boolean
+  ov: OverlayView
   onOpen: (cell: DayCell, el: HTMLButtonElement) => void
 }) {
   // A thumbnail card whose MONTH level is static/non-interactive (v0.5.63): the month
@@ -411,16 +605,18 @@ function MiniMonth({ month, descriptors, textures, metric, onOpen }: {
         {MONTH_NAMES[month - 1]}
       </div>
       <div className="sr-cal-minigrid" style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 2 }}>
-        {descriptors.map((d, i) => <MiniDayCell key={i} desc={d} textures={textures} metric={metric} onOpen={onOpen} />)}
+        {descriptors.map((d, i) => <MiniDayCell key={i} desc={d} textures={textures} metric={metric} withForms={withForms} ov={ov} onOpen={onOpen} />)}
       </div>
     </div>
   )
 }
 
-function MiniDayCell({ desc, textures, metric, onOpen }: {
+function MiniDayCell({ desc, textures, metric, withForms, ov, onOpen }: {
   desc: DayCellDescriptor
   textures: boolean
   metric: CalendarMetric
+  withForms: boolean
+  ov: OverlayView
   onOpen: (cell: DayCell, el: HTMLButtonElement) => void
 }) {
   // A shaded thumbnail cell carrying a small day-of-month number (restored in v0.5.63).
@@ -447,7 +643,7 @@ function MiniDayCell({ desc, textures, metric, onOpen }: {
   }
 
   const cell = desc.cell!
-  const dateLabel = cellDateLabel(cell.bucketKey)
+  const label = dayAriaLabel(desc, cell, metric, withForms, ov)
   const btnBase: React.CSSProperties = { ...base, border: 0, padding: 0, margin: 0, font: 'inherit', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }
 
   if (desc.kind === 'zero') {
@@ -459,11 +655,12 @@ function MiniDayCell({ desc, textures, metric, onOpen }: {
         ref={ref}
         type="button"
         onClick={() => onOpen(cell, ref.current!)}
-        aria-label={`${dateLabel}: birded, 0 ${metric === 'checklists' ? 'checklists' : metric === 'total' ? 'individuals' : 'countable species'}. Open day details`}
+        aria-label={label}
         className="sr-cal-mininum"
         style={{ ...btnBase, background: 'var(--sr-surface-subtle)', border: '1px solid var(--sr-border-subtle)' }}
       >
         {desc.day != null && <DayCorner day={desc.day} color="var(--sr-text-muted)" />}
+        <CornerMarks cell={cell} ov={ov} color="var(--sr-text-muted)" backing={null} />
       </Button>
     )
   }
@@ -479,12 +676,46 @@ function MiniDayCell({ desc, textures, metric, onOpen }: {
       ref={ref}
       type="button"
       onClick={() => onOpen(cell, ref.current!)}
-      aria-label={`${dateLabel}: ${desc.count}. Open day details`}
+      aria-label={label}
       className="sr-cal-mininum"
       style={{ ...btnBase, ...fill }}
     >
       {desc.day != null && <DayCorner day={desc.day} color="var(--sr-cal-fg)" pillStyle={numStyle} />}
+      <CornerMarks cell={cell} ov={ov} color="var(--sr-cal-fg)" backing={textures ? `rgba(var(--sr-cal-${tier}-rgb), 0.9)` : null} />
     </Button>
+  )
+}
+
+/** Large view's quiet presence marks (FR-22): a media frame bottom-left, the
+ *  strongest category's circle bottom-right. Never specific codes or counts, and
+ *  the codes control does not reach them. Hidden with the day-of-month number
+ *  below the shipped 152px container floor (one more selector under the same
+ *  query in globals.css, never a second threshold); the day's accessible name
+ *  and the popup carry the facts at every size. No motion. */
+function CornerMarks({ cell, ov, color, backing }: {
+  cell: DayCell
+  ov: OverlayView
+  color: string
+  backing: string | null
+}) {
+  const media = ov.overlays.media && cell.mediaPresent
+  const breeding = ov.overlays.breeding && cell.breeding !== null
+  if (!media && !breeding) return null
+  const cls = backing ? ' is-backed' : ''
+  const style: React.CSSProperties = { color, background: backing ?? undefined }
+  return (
+    <>
+      {media && (
+        <span aria-hidden="true" className={`sr-cal-mark sr-cal-mark--left${cls}`} style={style}>
+          <MarkGlyph mark="media" />
+        </span>
+      )}
+      {breeding && (
+        <span aria-hidden="true" className={`sr-cal-mark sr-cal-mark--right${cls}`} style={style}>
+          <MarkGlyph mark={breedingCategoryForTier(cell.breeding!.tier)} />
+        </span>
+      )}
+    </>
   )
 }
 
@@ -501,11 +732,14 @@ function legendUnit(view: CalendarView, metric: CalendarMetric): string {
   return combined ? 'Species ever recorded' : 'Species / day'
 }
 
-function CalendarLegend({ view, metric, textures, tiers }: {
+function CalendarLegend({ view, metric, textures, tiers, overlays, mediaMap, enterKind }: {
   view: CalendarView
   metric: CalendarMetric
   textures: boolean
   tiers: CountyTiers
+  overlays: CalendarOverlays
+  mediaMap: Record<string, string> | null
+  enterKind: 'media' | 'breeding' | null
 }) {
   const legend = tiers.legend
   const min = legend.length ? legend[0].min : null
@@ -549,17 +783,71 @@ function CalendarLegend({ view, metric, textures, tiers }: {
           birded · 0 countable
         </span>
       </div>
+      {overlays.media && (
+        <LegendOverlayBlock
+          title={MEDIA_SWITCH_LABEL}
+          keys={legendMediaKeys(mediaMap !== null)}
+          caption={mediaMap !== null ? LEGEND_MEDIA_CAPTION_LOADED : LEGEND_MEDIA_CAPTION_NO_EXPORT}
+          enter={enterKind === 'media'}
+        />
+      )}
+      {overlays.breeding && (
+        <LegendOverlayBlock
+          title={BREEDING_SWITCH_LABEL}
+          keys={LEGEND_BREEDING_KEYS}
+          shortLabels={overlays.codes === 'category' ? BREEDING_CATEGORY_SHORT : null}
+          caption={LEGEND_BREEDING_CAPTION[overlays.codes]}
+          enter={enterKind === 'breeding'}
+        />
+      )}
+    </div>
+  )
+}
+
+/** One legend key block per active overlay (FR-30): a micro-label, one row of
+ *  entries read from OVERLAY_MARK_SPECS (the table the cells draw from, so the
+ *  key and the grid cannot drift), and a caption stating what the number beside
+ *  each glyph counts. Each swatch is a miniature tier-3 data cell so the key
+ *  shows the glyph as it sits on the grid. Rendered only while its overlay is
+ *  on, so with both off the legend is exactly the shipped one (FR-19). */
+function LegendOverlayBlock({ title, keys, shortLabels = null, caption, enter }: {
+  title: string
+  keys: readonly OverlayMarkKey[]
+  /** Under "By category", the short form each tile prints, keyed here to its
+   *  word ("Conf · Confirmed", D4-11). */
+  shortLabels?: Readonly<Partial<Record<OverlayMarkKey, string>>> | null
+  caption: string
+  enter: boolean
+}) {
+  return (
+    <div className={`sr-cal-legend-ov${enter ? ' sr-cal-legend-ov--enter' : ''}`}>
+      <span className="sr-cal-legend-unit">{title}</span>
+      <div className="sr-cal-legend-ov-rows">
+        {keys.map(k => (
+          <span key={k} className="sr-cal-legend-row">
+            <span className="sr-cal-legend-mark" aria-hidden="true"><MarkGlyph mark={k} /></span>
+            {shortLabels?.[k]
+              ? <><b>{shortLabels[k]}</b>{`\u00b7 ${OVERLAY_MARK_SPECS[k].label}`}</>
+              : OVERLAY_MARK_SPECS[k].label}
+          </span>
+        ))}
+      </div>
+      <span className="sr-cal-legend-cap">{caption}</span>
     </div>
   )
 }
 
 // ── Day popup ────────────────────────────────────────────────────────────────
 
-function DayPopup({ cell, view, includeForms, showFormsNote, onClose }: {
+function DayPopup({ cell, view, includeForms, showFormsNote, overlays, mediaMap, onClose }: {
   cell: DayCell
   view: CalendarView
   includeForms: boolean
   showFormsNote: boolean
+  /** Read live on every render, never snapshotted at open (FR-27): a flip, or
+   *  the ML export landing, while the popup is open shows at once. */
+  overlays: CalendarOverlays
+  mediaMap: Record<string, string> | null
   onClose: () => void
 }) {
   const closeRef = useRef<HTMLButtonElement>(null)
@@ -646,6 +934,7 @@ function DayPopup({ cell, view, includeForms, showFormsNote, onClose }: {
             <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--sr-text)', letterSpacing: '-0.01em' }}>{dateLabel}</div>
             {combined && <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginTop: 2 }}>Across all years</div>}
             {showFormsNote && !combined && <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginTop: 2 }}>{COUNT_FORMS_POPUP_NOTE}</div>}
+            <PopupDayFacts cell={cell} overlays={overlays} mediaMap={mediaMap} />
           </div>
           <Button
             ref={closeRef}
@@ -686,6 +975,10 @@ function DayPopup({ cell, view, includeForms, showFormsNote, onClose }: {
               location={r.location}
               speciesCount={includeForms ? r.speciesCountWithForms : r.speciesCount}
               combined={combined}
+              catalogIds={r.catalogIds}
+              codes={r.codes}
+              overlays={overlays}
+              mediaMap={mediaMap}
             />
           ))}
         </div>
@@ -701,13 +994,17 @@ function formatChecklistTime(time: string): string {
   return time.replace(/^0(\d:)/, '$1')
 }
 
-function PopupChecklistRow({ submissionId, date, time, location, speciesCount, combined }: {
+function PopupChecklistRow({ submissionId, date, time, location, speciesCount, combined, catalogIds, codes, overlays, mediaMap }: {
   submissionId: string
   date: string
   time: string | null
   location: string
   speciesCount: number
   combined: boolean
+  catalogIds: string[]
+  codes: DayCodeFact[]
+  overlays: CalendarOverlays
+  mediaMap: Record<string, string> | null
 }) {
   // The row's primary line is the ChecklistLink affordance (junk id → plain text via
   // SUBMISSION_ID_RE inside ChecklistLink), and ChecklistLink emits its OWN shared
@@ -754,24 +1051,127 @@ function PopupChecklistRow({ submissionId, date, time, location, speciesCount, c
           )}
           <span style={{ flexShrink: 0, whiteSpace: 'nowrap' }}>{prefix ? ` · ${speciesPart}` : speciesPart}</span>
         </div>
+        <PopupRowFacts catalogIds={catalogIds} codes={codes} overlays={overlays} mediaMap={mediaMap} />
       </div>
       {combined && <span style={{ fontSize: '0.5625rem', fontWeight: 700, color: 'var(--sr-text-muted)', background: 'var(--sr-surface-subtle)', border: '1px solid var(--sr-border)', borderRadius: 4, padding: '1px 5px', flexShrink: 0 }}>{year}</span>}
     </div>
   )
 }
 
+// The popup's overlay lines (FR-24 to FR-26). The popup always lists EVERY code,
+// whatever the codes control says (D4-10), and every format; ids the ML export
+// does not name are counted in the totals and left out of the format phrases
+// (FR-25). Rendered only while an overlay is on and the day or checklist has
+// that fact, so with both overlays off the popup is the shipped one (FR-19).
+// Nothing here is focusable: the dialog's tab stops stay Close plus the links.
+
+/** "4 photos", "1 audio" with the Multimedia tab's glyphs, or the plain "5 media"
+ *  when no format resolves (no export, still loading, or none matching). */
+function MediaPhrases({ ids, total, mediaMap }: { ids: readonly string[]; total: number; mediaMap: Record<string, string> | null }) {
+  const parts = mediaFormatParts(mediaFormatCounts(ids, mediaMap), false)
+  if (parts.length === 0) {
+    return <span className="sr-popup-fmt"><MarkGlyph mark="media" className="sr-popup-mk" />{plainMediaPhrase(total)}</span>
+  }
+  return (
+    <>
+      {parts.map(p => (
+        <span key={p.key} className="sr-popup-fmt"><MarkGlyph mark={p.key} lucideStroke={2.5} />{p.text}</span>
+      ))}
+    </>
+  )
+}
+
+function PopupDayFacts({ cell, overlays, mediaMap }: {
+  cell: DayCell
+  overlays: CalendarOverlays
+  mediaMap: Record<string, string> | null
+}) {
+  const media = overlays.media && cell.mediaIdCount > 0
+  const breeding = overlays.breeding && cell.codes.length > 0
+  if (!media && !breeding) return null
+  return (
+    <div className="sr-popup-facts">
+      {media && (
+        <span className="sr-popup-fact">
+          <span className="sr-popup-fmt"><MarkGlyph mark="media" className="sr-popup-mk" />{mediaChecklistsLead(cell.mediaChecklistCount)}</span>
+          <MediaPhrases ids={cell.mediaIds} total={cell.mediaIdCount} mediaMap={mediaMap} />
+        </span>
+      )}
+      {breeding && (
+        <span className="sr-popup-fact">
+          <span className="sr-popup-fmt">{breedingEvidenceLead(cell.codes[0].def)}</span>
+          {cell.codes.map((f, i) => (
+            <span key={i} className="sr-popup-fmt">
+              <MarkGlyph mark={breedingCategoryForTier(f.def.tier)} className="sr-popup-mk" />
+              <b>{codeText(f.def)}</b>{' '}{f.speciesCount}
+            </span>
+          ))}
+        </span>
+      )}
+    </div>
+  )
+}
+
+// The Breeding Codes tab's tier register for a category: Confirmed takes tier 4,
+// Probable tier 2, Possible the tier-1 tint with tier 2's foreground (the
+// shipped, AA-verified cross-case; globals.css .sr-bcode).
+const BCODE_TIER: Record<'confirmed' | 'probable' | 'possible', '4' | '2' | '1'> = {
+  confirmed: '4', probable: '2', possible: '1',
+}
+
+function PopupRowFacts({ catalogIds, codes, overlays, mediaMap }: {
+  catalogIds: string[]
+  codes: DayCodeFact[]
+  overlays: CalendarOverlays
+  mediaMap: Record<string, string> | null
+}) {
+  const media = overlays.media && catalogIds.length > 0
+  const breeding = overlays.breeding && codes.length > 0
+  if (!media && !breeding) return null
+  const resolved = media ? mediaFormatParts(mediaFormatCounts(catalogIds, mediaMap), false) : []
+  return (
+    <div className="sr-popup-ov">
+      {media && (
+        <span className="sr-popup-media">
+          <span className="sr-popup-fmt"><MarkGlyph mark="media" className="sr-popup-mk" /><b>{plainMediaPhrase(catalogIds.length)}</b></span>
+          {resolved.map(p => (
+            <span key={p.key} className="sr-popup-fmt"><MarkGlyph mark={p.key} lucideStroke={2.5} />{p.text}</span>
+          ))}
+        </span>
+      )}
+      {breeding && codes.map((f, i) => {
+        const cat = breedingCategoryForTier(f.def.tier)
+        const tail = chipSpeciesTail(f.speciesCount)
+        // An unknown code's label IS its raw token: escaped as React children,
+        // visually cut past 8 characters by .sr-bcode-raw, category Possible.
+        const known = BREEDING_CODE_MAP.has(f.def.code)
+        return (
+          <span key={i} className="sr-bcode" data-tier={BCODE_TIER[cat]}>
+            <b>{codeText(f.def)}</b>
+            <span className={known ? undefined : 'sr-bcode-raw'}>{f.def.label}</span>
+            <span className="sr-bcode-cat">{BREEDING_CATEGORY_LABELS[cat]}</span>
+            {tail && <span className="sr-bcode-sp">{tail}</span>}
+          </span>
+        )
+      })}
+    </div>
+  )
+}
+
 // ── Year Overview ────────────────────────────────────────────────────────────
 
-function YearOverview({ monthDescriptors, textures, metric, onOpen }: {
+function YearOverview({ monthDescriptors, textures, metric, withForms, ov, onOpen }: {
   monthDescriptors: DayCellDescriptor[][]
   textures: boolean
   metric: CalendarMetric
+  withForms: boolean
+  ov: OverlayView
   onOpen: (cell: DayCell, el: HTMLButtonElement) => void
 }) {
   return (
     <div className="sr-cal-year">
       {monthDescriptors.map((descriptors, i) => (
-        <MiniMonth key={i + 1} month={i + 1} descriptors={descriptors} textures={textures} metric={metric} onOpen={onOpen} />
+        <MiniMonth key={i + 1} month={i + 1} descriptors={descriptors} textures={textures} metric={metric} withForms={withForms} ov={ov} onOpen={onOpen} />
       ))}
     </div>
   )
@@ -798,7 +1198,53 @@ export function Calendar({ onGoToSettings, filesVersion }: {
   const [selectedSpecies, setSelectedSpecies] = useState('')
   const [popup, setPopup] = useState<DayCell | null>(null)
 
+  // The overlays preference (calendar-overlays): two switches and the codes
+  // choice, hydrated from and persisted through the storage seam. Read at
+  // RENDER only and never a dep of the cells memo, so a flip or a codes change
+  // never rebuilds the day derivation (FR-08).
+  const { overlays, toggle: toggleOverlay, setCodes } = useCalendarOverlays()
+  // The ML export's catalogId -> format map. Read only while Media is on
+  // (FR-31); a missing or unreadable export is null, which is "no formats",
+  // never an error state (FR-32). Off drops the map (the toggle handler below),
+  // so the next flip on shows plain counts until a fresh read lands.
+  const [mediaMap, setMediaMap] = useState<Record<string, string> | null>(null)
+  // Which overlay was just turned ON, for the one-shot enter motion of its fact
+  // blocks and legend block. Cleared once the motion has run, so a later
+  // re-render (a metric press, a year step) never animates (Motion Spec).
+  const [enterKind, setEnterKind] = useState<'media' | 'breeding' | null>(null)
+
   const openerRef = useRef<HTMLButtonElement | null>(null)
+
+  useEffect(() => {
+    // Default path: Media off reads nothing and asks nothing (QA-35). The files
+    // epoch is a dep so a newly saved or removed export is re-read while Media
+    // is on (FR-33); every path that changes the ML file clears its memo before
+    // bumping the epoch, so this re-read sees the new file.
+    if (!overlays.media) return
+    let cancelled = false
+    // loadMLExport never rejects (its contract); the catch is the same belt the
+    // Checklists tab wears. `cancelled` stops a late answer repopulating a map
+    // the user has since turned off.
+    void loadMLExport().catch(() => null).then(r => {
+      if (!cancelled) setMediaMap(r?.mediaMap ?? null)
+    })
+    return () => { cancelled = true }
+  }, [overlays.media, filesVersion])
+
+  useEffect(() => {
+    if (enterKind === null) return
+    const t = setTimeout(() => setEnterKind(null), OVERLAY_ENTER_MS)
+    return () => clearTimeout(t)
+  }, [enterKind])
+
+  const onToggleOverlay = (layer: 'media' | 'breeding') => {
+    const turningOn = !overlays[layer]
+    toggleOverlay(layer)
+    setEnterKind(turningOn ? layer : null)
+    if (layer === 'media' && !turningOn) setMediaMap(null)
+  }
+  // Only while Media is on does the map reach anything that renders.
+  const shownMediaMap = overlays.media ? mediaMap : null
 
   useEffect(() => {
     let cancelled = false
@@ -992,6 +1438,10 @@ export function Calendar({ onGoToSettings, filesVersion }: {
   // (a normalized name has no forms to admit), and always for the Checklists metric.
   const formsDisabled = metric === 'checklists' || speciesFilterActive
 
+  // What every day cell reads from the overlays, built per render (cheap: three
+  // fields) and never memoized on anything the cells memo depends on.
+  const overlayView: OverlayView = { overlays, mediaMap: shownMediaMap, enter: enterKind !== null }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column' }}>
       {/* House header */}
@@ -1092,31 +1542,66 @@ export function Calendar({ onGoToSettings, filesVersion }: {
           <Switch label="Use Textures" checked={textures} onChange={() => setTextures(v => !v)} />
         </div>
 
-        {/* Settling row: the Count all forms toggle — Species-only, dimmed + inert under Checklists */}
+        {/* Settling row, two clusters (calendar-overlays D4-05). Layout lifted to
+            .sr-cal-settle so the phone tier can put the Overlays group on its own
+            line; the row's fill and hairline stay inline (tokens only). */}
         <div
-          className="sr-wrap-flex"
-          aria-disabled={formsDisabled || undefined}
+          className="sr-cal-settle"
           style={{
-            ['--sr-wrap-gap' as string]: '10px',
             padding: '9px 16px', borderTop: '1px solid var(--sr-border-subtle)',
             background: 'var(--sr-surface-subtle)', borderRadius: '0 0 10px 10px',
-            opacity: formsDisabled ? 0.45 : 1,
-            pointerEvents: formsDisabled ? 'none' : 'auto',
           }}
         >
-          {/* The helper note beside the switch IS the switch's reason, so it is
-              associated rather than repeated (.claude/rules/ui.md: "when a
-              neighbouring note already states it, associate that note"). */}
-          <Switch small label={COUNT_FORMS_TOGGLE_LABEL} checked={includeForms} onChange={() => setIncludeForms(v => !v)} disabled={formsDisabled} describedBy={COUNT_FORMS_HELPER_ID} />
-          <p id={COUNT_FORMS_HELPER_ID} style={{ margin: 0, fontSize: '0.6875rem', lineHeight: 1.35, color: 'var(--sr-text-muted)' }}>
-            {COUNT_FORMS_HELPER}
-          </p>
-          {/* FR-33: the Species metric reflects the escapee rule once Statistics
-              has resolved it, so the rule is stated here rather than left to be
-              discovered. Plain text, no link and no fetch. */}
-          {escapeeNames.size > 0 && (
-            <p className="sr-count-rule-note" style={{ margin: 0 }}>{COUNT_RULE_SENTENCE}</p>
-          )}
+          {/* The Count all forms cluster: Species-only, dimmed + inert under
+              Checklists and under a species filter, exactly as before. The dim
+              is on THIS cluster only, so it never reaches the Overlays group
+              beside it (FR-07). */}
+          <div
+            className="sr-wrap-flex sr-cal-forms"
+            aria-disabled={formsDisabled || undefined}
+            style={{
+              ['--sr-wrap-gap' as string]: '10px',
+              opacity: formsDisabled ? 0.45 : 1,
+              pointerEvents: formsDisabled ? 'none' : 'auto',
+            }}
+          >
+            {/* The helper note beside the switch IS the switch's reason, so it is
+                associated rather than repeated (.claude/rules/ui.md: "when a
+                neighbouring note already states it, associate that note"). */}
+            <Switch small label={COUNT_FORMS_TOGGLE_LABEL} checked={includeForms} onChange={() => setIncludeForms(v => !v)} disabled={formsDisabled} describedBy={COUNT_FORMS_HELPER_ID} />
+            <p id={COUNT_FORMS_HELPER_ID} style={{ margin: 0, fontSize: '0.6875rem', lineHeight: 1.35, color: 'var(--sr-text-muted)' }}>
+              {COUNT_FORMS_HELPER}
+            </p>
+            {/* FR-33: the Species metric reflects the escapee rule once Statistics
+                has resolved it, so the rule is stated here rather than left to be
+                discovered. Plain text, no link and no fetch. */}
+            {escapeeNames.size > 0 && (
+              <p className="sr-count-rule-note" style={{ margin: 0 }}>{COUNT_RULE_SENTENCE}</p>
+            )}
+          </div>
+
+          {/* The Overlays group (FR-01): two switches and the codes control,
+              never dimmed by the forms cluster's state (FR-07). Display toggles
+              end their row, as Use Textures ends the row above. */}
+          <div className="sr-cal-overlays" role="group" aria-label={OVERLAYS_GROUP_LABEL}>
+            <span className="sr-ctl-label" style={ctrlLabelStyle}>{OVERLAYS_GROUP_LABEL}</span>
+            <Switch small label={MEDIA_SWITCH_LABEL} checked={overlays.media} onChange={() => onToggleOverlay('media')} />
+            <Switch small label={BREEDING_SWITCH_LABEL} checked={overlays.breeding} onChange={() => onToggleOverlay('breeding')} />
+            {/* A sub-option of Breeding: gated, never hidden, while Breeding is
+                off (FR-36). Its stored value persists regardless and applies the
+                moment Breeding turns on. */}
+            <div className="sr-cal-codes" aria-disabled={overlays.breeding ? undefined : true}>
+              <SegControl
+                ariaLabel={CODES_GROUP_LABEL}
+                value={overlays.codes}
+                onChange={setCodes}
+                options={CODES_OPTIONS}
+                disabled={!overlays.breeding}
+                describedBy={CODES_REASON_ID}
+              />
+              <span id={CODES_REASON_ID} className="sr-only">{CODES_GATED_REASON}</span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1126,14 +1611,16 @@ export function Calendar({ onGoToSettings, filesVersion }: {
           <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--sr-text)', letterSpacing: '-0.01em' }}>{viewYearLabel}</div>
           <div style={{ fontSize: '0.71875rem', color: 'var(--sr-text-muted)', marginTop: 1 }}>{viewSub}</div>
         </div>
-        <CalendarLegend view={view} metric={metric} textures={textures} tiers={tiers} />
+        <CalendarLegend view={view} metric={metric} textures={textures} tiers={tiers} overlays={overlays} mediaMap={shownMediaMap} enterKind={enterKind} />
       </div>
 
       {/* Grid: 'months' → the big MonthGrid cards ("Compact" label, count-only); 'overview'
           → the YearOverview thumbnails ("Large" label, dated + shaded). The toggle governs
           at all widths, so both are reachable on a phone. */}
       {viewMode === 'months' ? (
-        <div className="sr-cal-months">
+        // With an overlay on the cards reflow wider (sr-cal-months--rich, a 340px
+        // minimum) so a desktop week has room for its fact rows. Off: unchanged.
+        <div className={anyOverlayOn(overlays) ? 'sr-cal-months sr-cal-months--rich' : 'sr-cal-months'}>
           {monthDescriptors.map((descriptors, i) => (
             <MonthGrid
               key={i + 1}
@@ -1141,16 +1628,26 @@ export function Calendar({ onGoToSettings, filesVersion }: {
               descriptors={descriptors}
               textures={textures}
               metric={metric}
+              withForms={effectiveForms}
+              ov={overlayView}
               onOpen={openPopup}
             />
           ))}
         </div>
       ) : (
-        <YearOverview monthDescriptors={monthDescriptors} textures={textures} metric={metric} onOpen={openPopup} />
+        <YearOverview monthDescriptors={monthDescriptors} textures={textures} metric={metric} withForms={effectiveForms} ov={overlayView} onOpen={openPopup} />
       )}
 
       {popup && (
-        <DayPopup cell={popup} view={view} includeForms={effectiveForms} showFormsNote={includeForms && !speciesFilterActive} onClose={closePopup} />
+        <DayPopup
+          cell={popup}
+          view={view}
+          includeForms={effectiveForms}
+          showFormsNote={includeForms && !speciesFilterActive}
+          overlays={overlays}
+          mediaMap={shownMediaMap}
+          onClose={closePopup}
+        />
       )}
     </div>
   )

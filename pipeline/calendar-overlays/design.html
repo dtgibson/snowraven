@@ -1,0 +1,1162 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Calendar Overlays</title>
+<meta name="description" content="Design direction, round 2, for the SnowRaven Calendar tab's Media and Breeding overlays: per-format media counts and specific breeding codes on each day, the switches, the legend and the day popup, in the real tab's context.">
+<style>
+/* ── SnowRaven tokens, copied verbatim from frontend/src/globals.css ─────── */
+:root {
+  --sr-text-scale: 1;
+  --sr-ctl-floor: 16px;
+  --sr-label-optical: calc(11 / 12);
+  --font-sans: 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
+
+  --sr-bg: #F9FAFB;
+  --sr-surface: #FFFFFF;
+  --sr-surface-subtle: #F4F4F5;
+  --sr-surface-faint: #FAFAFA;
+  --sr-text: #0F1117;
+  --sr-text-muted: #6B6B74;
+  --sr-text-disabled: #A1A1AA;
+  --sr-text-gray: #6B7280;
+  --sr-border: #E4E4E7;
+  --sr-border-subtle: #F4F4F5;
+  --sr-border-medium: #C4C4CE;
+  --sr-border-input: #8A8A91;
+  --sr-accent: #277448;
+  --sr-accent-strong: #1A5C38;
+  --sr-accent-bg: #E8F5EE;
+  --sr-accent-bg-hover: #F0FAF4;
+  --sr-accent-border: rgba(39,116,72,0.25);
+  --sr-accent-border-strong: rgba(39,116,72,0.7);
+  --sr-accent-surface: #fafffd;
+  --sr-on-accent: #FFFFFF;
+  --sr-gray-400: #8E8E96;
+  --sr-card-shadow: 0 1px 4px rgba(15,17,23,0.06), 0 4px 16px rgba(15,17,23,0.04);
+  --sr-switch-thumb: #FFFFFF;
+  --sr-switch-thumb-shadow: 0 1px 2px rgba(15,17,23,0.25);
+  --sr-scrim: rgba(15,17,23,0.36);
+
+  --sr-tier-4: #3B0764;  --sr-tier-3: #6B21A8;  --sr-tier-2: #9333EA;  --sr-tier-1: #C084FC;
+  --sr-tier-1-text: #3B0764; --sr-tier-2-text: #FFFFFF; --sr-tier-3-text: #FFFFFF; --sr-tier-4-text: #FFFFFF;
+  --sr-tier-1-fg: #7C3AED; --sr-tier-2-fg: #8429D8; --sr-tier-3-fg: #6B21A8; --sr-tier-4-fg: #3B0764;
+  --sr-tier-4-rgb: 59,7,100; --sr-tier-3-rgb: 107,33,168; --sr-tier-2-rgb: 147,51,234; --sr-tier-1-rgb: 192,132,252;
+
+  --sr-cal-1: #357E56;  --sr-cal-1-rgb: 53,126,86;
+  --sr-cal-2: #2A6847;  --sr-cal-2-rgb: 42,104,71;
+  --sr-cal-3: #205238;  --sr-cal-3-rgb: 32,82,56;
+  --sr-cal-4: #163D29;  --sr-cal-4-rgb: 22,61,41;
+  --sr-cal-5: #0C271A;  --sr-cal-5-rgb: 12,39,26;
+  --sr-cal-fg: #FFFFFF;
+}
+[data-theme="dark"] {
+  --sr-bg: #09090B;
+  --sr-surface: #18181B;
+  --sr-surface-subtle: #27272A;
+  --sr-surface-faint: #1C1C1F;
+  --sr-text: #F4F4F5;
+  --sr-text-muted: #A1A1AA;
+  --sr-text-disabled: #52525B;
+  --sr-text-gray: #8A8A92;
+  --sr-border: #27272A;
+  --sr-border-subtle: #1F1F23;
+  --sr-border-medium: #3F3F46;
+  --sr-border-input: #707078;
+  --sr-accent: #34D399;
+  --sr-accent-strong: #34D399;
+  --sr-accent-bg: #052E16;
+  --sr-accent-bg-hover: #064E3B;
+  --sr-accent-border: rgba(52,211,153,0.2);
+  --sr-accent-border-strong: rgba(52,211,153,0.5);
+  --sr-accent-surface: #021a0f;
+  --sr-on-accent: #052E16;
+  --sr-gray-400: #6E6E78;
+  --sr-card-shadow: 0 1px 4px rgba(9,9,11,0.4), 0 4px 16px rgba(9,9,11,0.25);
+  --sr-switch-thumb: #FFFFFF;
+  --sr-switch-thumb-shadow: 0 1px 2px rgba(15,17,23,0.25);
+  --sr-scrim: rgba(9,9,11,0.6);
+
+  --sr-tier-4: #6B21A8;  --sr-tier-3: #7C3AED;  --sr-tier-2: #A855F7;  --sr-tier-1: #C084FC;
+  --sr-tier-1-text: #1A0030; --sr-tier-2-text: #1A0030; --sr-tier-3-text: #FFFFFF; --sr-tier-4-text: #FFFFFF;
+  --sr-tier-1-fg: #C084FC; --sr-tier-2-fg: #BD80FA; --sr-tier-3-fg: #A78BFA; --sr-tier-4-fg: #C795F5;
+  --sr-tier-4-rgb: 107,33,168; --sr-tier-3-rgb: 124,58,237; --sr-tier-2-rgb: 168,85,247; --sr-tier-1-rgb: 192,132,252;
+
+  --sr-cal-1: #357E56;  --sr-cal-1-rgb: 53,126,86;
+  --sr-cal-2: #2A6847;  --sr-cal-2-rgb: 42,104,71;
+  --sr-cal-3: #205238;  --sr-cal-3-rgb: 32,82,56;
+  --sr-cal-4: #163D29;  --sr-cal-4-rgb: 22,61,41;
+  --sr-cal-5: #0C271A;  --sr-cal-5-rgb: 12,39,26;
+  --sr-cal-fg: #FFFFFF;
+}
+
+/* ── Page ─────────────────────────────────────────────────────────────────── */
+html { font-size: calc(16px * var(--sr-text-scale)); }
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  margin: 0; min-height: 100vh;
+  background: var(--sr-bg);
+  background-image: radial-gradient(120% 320px at 50% -40px, var(--sr-accent-bg) 0%, transparent 70%);
+  background-repeat: no-repeat;
+  color: var(--sr-text); font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+button, input { font-family: inherit; }
+button { color: inherit; }
+button:focus-visible, [role="switch"]:focus-visible, [role="button"]:focus-visible, [tabindex]:focus-visible {
+  outline: 3px solid var(--sr-accent); outline-offset: 3px;
+  box-shadow: 0 0 0 6px rgba(45, 134, 83, 0.12);
+}
+input:focus-visible { outline: 2px solid var(--sr-accent); outline-offset: 1px; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+
+/* ── Mockup chrome (px-sized so it never follows the in-app text scale) ──── */
+.mk-bar {
+  position: sticky; top: 0; z-index: 50;
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  padding: 10px 24px; font-size: 12px;
+  background: color-mix(in srgb, var(--sr-surface) 88%, transparent);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--sr-border);
+}
+.mk-bar h1 { font-size: 13px; font-weight: 700; letter-spacing: -0.01em; margin: 0; }
+.mk-bar h1 span { color: var(--sr-text-muted); font-weight: 500; margin-left: 8px; }
+.mk-ctl { display: inline-flex; align-items: center; gap: 6px; }
+.mk-ctl:first-of-type { margin-left: auto; }
+.mk-ctl > span { font-size: 10.5px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--sr-text-muted); }
+.mk-seg { display: inline-flex; gap: 2px; padding: 2px; border-radius: 6px; background: var(--sr-surface-subtle); }
+.mk-seg button {
+  border: 1px solid transparent; background: transparent; color: var(--sr-text-muted);
+  font-size: 11.5px; padding: 4px 10px; border-radius: 5px; cursor: pointer; font-weight: 400;
+  transition: color 120ms ease-out, background-color 120ms ease-out;
+}
+.mk-seg button:hover { color: var(--sr-text); }
+.mk-seg button[aria-pressed="true"] { background: var(--sr-surface); border-color: var(--sr-border); color: var(--sr-text); font-weight: 600; }
+.mk-page { max-width: 1280px; margin: 0 auto; padding: 28px 24px 80px; }
+.mk-spec { margin: 0 0 44px; }
+.mk-spec-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin: 0 0 12px; }
+.mk-spec-head h2 { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; margin: 0; }
+.mk-spec-head .mk-k { font-size: 10.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--sr-accent); }
+.mk-note { font-size: 12.5px; line-height: 1.55; color: var(--sr-text-muted); max-width: 76ch; margin: 0 0 14px; }
+.mk-note b { color: var(--sr-text); font-weight: 600; }
+.mk-frame { background: var(--sr-bg); border: 1px solid var(--sr-border); border-radius: 14px; padding: 24px; box-shadow: var(--sr-card-shadow); }
+.mk-frame--phone { width: 320px; padding: 16px 12px; border-radius: 22px; border-width: 6px; border-color: var(--sr-border-medium); }
+.mk-row { display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start; }
+.mk-col { display: flex; flex-direction: column; gap: 8px; }
+.mk-cap { font-size: 11px; color: var(--sr-text-muted); letter-spacing: 0.02em; }
+
+/* ── The app (faithful to Calendar.tsx and its globals.css rules) ──────────── */
+.sr-app { display: flex; flex-direction: column; }
+.sr-tab-head { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 14px; }
+.sr-tab-icon { width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0; background: var(--sr-accent-bg); color: var(--sr-accent); display: flex; align-items: center; justify-content: center; }
+.sr-tab-head h2 { font-size: 1.125rem; font-weight: 700; margin: 0 0 2px; letter-spacing: -0.01em; }
+.sr-tab-head p { font-size: 0.8125rem; color: var(--sr-text-muted); margin: 0; line-height: 1.5; }
+
+.sr-wrap-flex { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sr-wrap-gap, 8px); }
+.sr-cal-ctl { display: flex; flex-direction: column; background: var(--sr-surface-faint); border: 1px solid var(--sr-border-subtle); border-radius: 10px; margin-bottom: 18px; }
+.sr-cal-ctl-top { --sr-wrap-gap: 16px 14px; padding: 12px 16px; }
+.sr-ctl-group { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.sr-ctl-spacer { flex: 1 1 auto; min-width: 0; }
+.sr-ctl-label {
+  font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--sr-text-muted);
+  --sr-ctl-rem: 0.71875rem; --sr-label-ratio: var(--sr-label-optical);
+}
+.sr-seg { --sr-wrap-gap: 2px; background: var(--sr-surface-subtle); border-radius: 6px; padding: 2px; }
+.sr-seg-btn {
+  display: inline-flex; align-items: center; gap: 5px; padding: 0.35rem 12px; border-radius: 5px;
+  font-size: 0.71875rem; --sr-ctl-rem: 0.71875rem; background: transparent; border: 1px solid transparent;
+  font-weight: 400; color: var(--sr-text-muted); cursor: pointer; white-space: nowrap;
+  transition: color 120ms ease-out;
+}
+.sr-seg-btn:hover { color: var(--sr-text); }
+.sr-seg-btn[aria-pressed="true"] { background: var(--sr-surface); border-color: var(--sr-border); font-weight: 600; color: var(--sr-text); }
+.sr-combo { position: relative; display: inline-flex; align-items: center; min-width: 0; }
+.sr-combo svg { position: absolute; left: 9px; color: var(--sr-text-muted); pointer-events: none; }
+.sr-combo input {
+  height: 30px; width: 220px; max-width: 100%; padding: 0 10px 0 28px; border-radius: 6px; font-size: 0.75rem; --sr-ctl-rem: 0.75rem;
+  border: 1px solid var(--sr-border-input); background: var(--sr-surface); color: var(--sr-text);
+}
+.sr-combo input::placeholder { color: var(--sr-text-muted); }
+.sr-combo-list {
+  position: absolute; top: calc(100% + 4px); left: 0; z-index: 30; min-width: 100%; max-height: 14rem; overflow: auto;
+  background: var(--sr-surface); border: 1px solid var(--sr-border); border-radius: 8px; box-shadow: var(--sr-card-shadow); padding: 4px; margin: 0; list-style: none;
+  transform-origin: top center; animation: sr-list-in 140ms cubic-bezier(0.2, 0, 0, 1) both;
+}
+@keyframes sr-list-in { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: none; } }
+.sr-combo-list [role="option"] { padding: 6px 10px; border-radius: 5px; font-size: 0.75rem; cursor: pointer; white-space: nowrap; }
+.sr-combo-list [role="option"]:hover, .sr-combo-list [role="option"][aria-selected="true"] { background: var(--sr-surface-subtle); }
+.sr-combo-list [role="option"].is-all { font-style: italic; color: var(--sr-text-muted); }
+.sr-cal-year-group { display: flex; align-items: center; gap: 8px; }
+.sr-cal-year-nav { display: inline-flex; align-items: center; gap: 2px; }
+.sr-nav-btn { cursor: pointer; width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--sr-border); background: var(--sr-surface); color: var(--sr-text); display: inline-flex; align-items: center; justify-content: center; }
+.sr-nav-btn:disabled { cursor: default; opacity: 0.4; }
+.sr-year-num { min-width: 74px; text-align: center; font-size: 0.9375rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.sr-allyears {
+  font-size: 0.71875rem; --sr-ctl-rem: 0.71875rem; font-weight: 600; cursor: pointer; margin-left: 6px; height: 30px; padding: 0 12px; border-radius: 15px;
+  border: 1.5px solid var(--sr-border); background: var(--sr-surface); color: var(--sr-text-muted);
+  transition: color 120ms ease-out, background-color 120ms ease-out, border-color 120ms ease-out;
+}
+.sr-allyears[aria-pressed="true"] { border-color: var(--sr-accent-border-strong); background: var(--sr-accent-bg); color: var(--sr-accent); }
+
+/* The local Switch (Calendar.tsx): chromeless, label inside the button. */
+.sr-switch { display: inline-flex; align-items: center; gap: 8px; background: none; border: 0; padding: 0; margin: 0; cursor: pointer; font-size: 0.75rem; --sr-ctl-rem: 0.75rem; }
+.sr-switch--small { font-size: 0.71875rem; --sr-ctl-rem: 0.71875rem; }
+.sr-switch-track { width: 34px; height: 20px; border-radius: 999px; flex-shrink: 0; position: relative; background: var(--sr-gray-400); transition: background-color 120ms ease-out; }
+.sr-switch--small .sr-switch-track { width: 30px; height: 18px; }
+.sr-switch[aria-checked="true"] .sr-switch-track { background: var(--sr-accent); }
+.sr-switch-knob { position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--sr-switch-thumb); box-shadow: var(--sr-switch-thumb-shadow); transition: left 120ms ease-out; }
+.sr-switch--small .sr-switch-knob { width: 14px; height: 14px; }
+.sr-switch[aria-checked="true"] .sr-switch-knob { left: 16px; }
+.sr-switch--small[aria-checked="true"] .sr-switch-knob { left: 14px; }
+.sr-switch-label { font-weight: 600; color: var(--sr-text); }
+.sr-switch[aria-disabled="true"] { cursor: default; pointer-events: none; }
+
+/* Settling row: two clusters. The forms cluster keeps today's dim/inert
+   treatment; the Overlays group beside it is never dimmed. */
+.sr-cal-settle { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 18px; padding: 9px 16px; border-top: 1px solid var(--sr-border-subtle); background: var(--sr-surface-subtle); border-radius: 0 0 10px 10px; }
+.sr-cal-forms { --sr-wrap-gap: 10px; flex: 1 1 320px; min-width: 0; transition: opacity 150ms ease-out; }
+.sr-cal-forms[aria-disabled="true"] { opacity: 0.45; pointer-events: none; }
+.sr-cal-forms p { margin: 0; font-size: 0.6875rem; line-height: 1.35; color: var(--sr-text-muted); }
+.sr-cal-overlays { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; margin-left: auto; padding-left: 18px; border-left: 1px solid var(--sr-border); }
+/* The codes SegControl: a sub-option of Breeding. Off: the same dim the forms
+   cluster wears (opacity 0.45), aria-disabled on the options, activation
+   ignored, still a tab stop so its reason is readable in place. */
+.sr-cal-codes { display: inline-flex; align-items: center; transition: opacity 150ms ease-out; }
+.sr-cal-codes[aria-disabled="true"] { opacity: 0.45; }
+.sr-cal-codes[aria-disabled="true"] .sr-seg-btn { cursor: default; }
+.sr-cal-codes[aria-disabled="true"] .sr-seg-btn:hover { color: var(--sr-text-muted); }
+.sr-cal-codes[aria-disabled="true"] .sr-seg-btn[aria-pressed="true"]:hover { color: var(--sr-text); }
+
+/* View label + legend */
+.sr-cal-sub { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 14px; }
+.sr-cal-sub h3 { font-size: 1rem; font-weight: 700; letter-spacing: -0.01em; margin: 0; }
+.sr-cal-sub .sr-viewsub { font-size: 0.71875rem; color: var(--sr-text-muted); margin-top: 1px; }
+.legend { display: flex; align-items: flex-end; gap: 16px; flex-wrap: wrap; }
+.legend-unit { font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--sr-text-muted); padding-bottom: 2px; }
+.legend-ramp { display: flex; flex-direction: column; gap: 4px; }
+.legend-ramp-sw { display: flex; align-items: center; border: 1px solid var(--sr-border-medium); border-radius: 4px; overflow: hidden; box-shadow: 0 0 0 1px var(--sr-surface); }
+.legend-ramp-sw span { display: block; width: 34px; height: 13px; }
+.legend-ramp-sw span + span { border-left: 1px solid var(--sr-border-subtle); }
+.legend-ramp-lbl { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.legend-ramp-lbl span { font-size: 0.625rem; color: var(--sr-text-muted); font-variant-numeric: tabular-nums; line-height: 1; }
+.legend-ramp-lbl .mid { font-size: 0.5625rem; color: var(--sr-text-gray); letter-spacing: 0.04em; }
+.legend-col { display: flex; flex-direction: column; gap: 4px; padding-bottom: 1px; }
+.legend-row { display: inline-flex; align-items: center; gap: 6px; font-size: 0.625rem; color: var(--sr-text-muted); }
+.legend-box { width: 13px; height: 13px; border-radius: 3px; border: 1px solid var(--sr-border); background: transparent; flex-shrink: 0; }
+.legend-zero { width: 14px; height: 14px; border-radius: 3px; border: 1px solid var(--sr-border); background: var(--sr-surface-subtle); color: var(--sr-text-muted); font-size: 0.5rem; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+/* NEW: one key block per active overlay: a micro-label, one row of glyph
+   entries, and one caption saying what the number beside each glyph counts.
+   Each swatch is a miniature data cell so the key shows the glyph as it sits
+   on the grid. Drawn from the same spec table as the cells. */
+.legend-ov { display: flex; flex-direction: column; gap: 3px; padding-bottom: 1px; }
+.legend-ov-rows { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
+.legend-cap { font-size: 0.5625rem; color: var(--sr-text-gray); letter-spacing: 0.02em; line-height: 1.25; max-width: 34ch; }
+.legend-mark { width: 14px; height: 14px; border-radius: 3px; background: var(--sr-cal-3); color: var(--sr-cal-fg); display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 0 0 1px var(--sr-surface); }
+.legend-mark svg { width: 8px; height: 8px; display: block; }
+.legend-ov--enter { animation: sr-fade-in 160ms ease-out both; }
+@keyframes sr-fade-in { from { opacity: 0; } to { opacity: 1; } }
+
+/* Month grids */
+.sr-cal-months { display: grid; gap: 18px; grid-template-columns: repeat(auto-fill, minmax(min(230px, 100%), 1fr)); }
+/* NEW: while an overlay is on the cards reflow wider (340px min instead of
+   230px), so a desktop week has room for the fact rows. Off: byte-identical. */
+.sr-cal-months--rich { grid-template-columns: repeat(auto-fill, minmax(min(340px, 100%), 1fr)); }
+.sr-cal-month { background: var(--sr-surface); border: 1px solid var(--sr-border); border-radius: 12px; box-shadow: var(--sr-card-shadow); padding: 12px 12px 14px; min-width: 0; }
+.sr-cal-month h4 { font-size: 0.8125rem; font-weight: 700; margin: 0 2px 8px; letter-spacing: -0.01em; }
+.sr-cal-wd { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; margin-bottom: 4px; }
+.sr-cal-wd span { font-size: 0.5625rem; font-weight: 700; color: var(--sr-text-gray); text-align: center; text-transform: uppercase; letter-spacing: 0.03em; }
+.sr-cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+.sr-cal-cell { aspect-ratio: 1 / 1; border-radius: 5px; border: 0; padding: 0; margin: 0; display: flex; align-items: center; justify-content: center; position: relative; min-width: 0; }
+.sr-cal-cell--pad { background: transparent; pointer-events: none; }
+.sr-cal-cell--nodata { background: transparent; border: 1px solid var(--sr-border-subtle); pointer-events: none; }
+.sr-cal-day { cursor: pointer; -webkit-tap-highlight-color: transparent; font: inherit; transition: filter 120ms ease-out, background-color 120ms ease-out; }
+.sr-cal-day--zero { background: var(--sr-surface-subtle); border: 1px solid var(--sr-border-subtle); color: var(--sr-text-muted); }
+.sr-cal-day--zero:hover { background: var(--sr-border-subtle); }
+.sr-cal-day--data { color: var(--sr-cal-fg); }
+.sr-cal-day--data:not(.is-hatched):hover { filter: brightness(1.12); }
+.sr-cal-count { font-size: 0.6875rem; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1; }
+.sr-cal-count--pill { border-radius: 3px; padding: 0 3px; }
+
+/* NEW: the rich tile. With an overlay on, every cell in the grid drops its
+   square aspect and becomes a top-aligned tile: the count first, exactly where
+   it is today, then a column of fact rows. Rows share the week's height (grid
+   stretch), so a week with no facts stays a row of squares. Each cell is its
+   own size container, and the fact block has two forms it picks by its OWN
+   width: rich (one row per format and per code, with counts) above 2.4em,
+   condensed below it (a phone, or 200% text). Ink is currentColor, the cell's
+   own number colour, so the AA guard on the number covers the rows. */
+.sr-cal-grid--rich { align-items: stretch; }
+.sr-cal-grid--rich .sr-cal-cell { aspect-ratio: auto; min-height: 2.125rem; container-type: inline-size; }
+.sr-cal-grid--rich .sr-cal-day { flex-direction: column; justify-content: flex-start; padding: 0.25rem 0.125rem 0.2rem; gap: 0.1875rem; }
+.sr-cal-facts { display: flex; flex-direction: column; align-items: center; gap: 0.125rem; width: 100%; font-size: 0.5625rem; line-height: 1; font-weight: 600; font-variant-numeric: tabular-nums; color: inherit; border-radius: 3px; }
+.sr-cal-facts.is-backed { padding: 0.125rem 0.125rem; }
+.sr-cal-facts--condensed { display: none; }
+@container (max-width: 2.4em) {
+  .sr-cal-facts--rich { display: none; }
+  .sr-cal-facts--condensed { display: flex; }
+}
+.sr-fact { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; column-gap: 0.125rem; width: 100%; max-width: 3.6rem; white-space: nowrap; }
+.sr-fact svg { width: 0.5625rem; height: 0.5625rem; display: block; }
+.sr-fact b { font-weight: 700; letter-spacing: 0.02em; text-align: left; }
+.sr-fact .n { text-align: right; }
+.sr-fact--more { justify-content: center; grid-template-columns: auto; opacity: 0.85; }
+/* A category row is not a code row: same columns, the name at 600 with no
+   tracking, so "Conf 3" reads as a word beside a count and "NY 1" as a code. */
+.sr-fact--cat b { font-weight: 600; letter-spacing: 0; }
+.legend-row b { font-weight: 600; color: var(--sr-text); }
+.sr-cal-facts--condensed .sr-fact { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.0625rem 0.125rem; max-width: none; }
+.sr-cal-facts--enter { animation: sr-mark-in 160ms cubic-bezier(0.2, 0, 0, 1) both; transform-origin: top center; }
+@keyframes sr-mark-in { from { opacity: 0; transform: scaleY(0.6); } to { opacity: 1; transform: none; } }
+
+/* Large view (Year Overview): the overview keeps the round-1 corner marks as
+   its condensed form: a media square bottom-left, a category circle
+   bottom-right, hidden with the date under the 152px floor. */
+.sr-cal-year { display: grid; gap: 16px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.sr-cal-minimonth { container-type: inline-size; background: var(--sr-surface); border: 1px solid var(--sr-border); border-radius: 12px; box-shadow: var(--sr-card-shadow); padding: 12px 14px 14px; transition: box-shadow 120ms ease-out; }
+.sr-cal-minimonth:hover { box-shadow: 0 2px 10px rgba(15,17,23,0.08); }
+.sr-cal-minimonth h4 { font-size: 0.8125rem; font-weight: 700; letter-spacing: -0.01em; margin: 0 0 8px; }
+.sr-cal-minigrid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.sr-cal-mini { aspect-ratio: 1 / 1; border-radius: 2px; min-width: 0; overflow: hidden; position: relative; border: 0; padding: 0; margin: 0; }
+.sr-cal-mini--pad { background: transparent; }
+.sr-cal-mini--nodata { background: transparent; border: 1px solid var(--sr-border-subtle); }
+.sr-cal-mini--zero { background: var(--sr-surface-subtle); border: 1px solid var(--sr-border-subtle); cursor: pointer; color: var(--sr-text-muted); }
+.sr-cal-mini--data { cursor: pointer; color: var(--sr-cal-fg); }
+.sr-cal-daynum { position: absolute; top: 2px; left: 3px; line-height: 1; font-weight: 600; font-variant-numeric: tabular-nums; pointer-events: none; font-size: 0.5625rem; }
+.sr-cal-daynum--pill { border-radius: 2px; padding: 0 1px; }
+.sr-cal-mark { --mark: clamp(4px, 1.75cqw, 6px); position: absolute; bottom: 1px; width: var(--mark); height: var(--mark); line-height: 0; pointer-events: none; color: inherit; border-radius: 2px; display: none; }
+.sr-cal-mark--left { left: 1px; } .sr-cal-mark--right { right: 1px; }
+.sr-cal-mark svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.sr-cal-mark.is-backed { padding: 1px; box-sizing: content-box; }
+.sr-cal-mininum .sr-cal-daynum { display: none; }
+@container (min-width: 152px) {
+  .sr-cal-mininum .sr-cal-daynum { display: inline; }
+  .sr-cal-mininum .sr-cal-mark { display: block; }
+}
+
+/* Day popup (as shipped, plus the new lines) */
+.sr-popup-root { position: fixed; inset: 0; z-index: 1200; background: var(--sr-scrim); display: flex; align-items: center; justify-content: center; padding: 16px; }
+.sr-popup { width: 100%; max-width: 400px; background: var(--sr-surface); color: var(--sr-text); border: 1px solid var(--sr-border); border-radius: 14px; box-shadow: var(--sr-card-shadow); overflow: hidden; }
+.sr-popup-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; padding: 16px 18px 12px; border-bottom: 1px solid var(--sr-border-subtle); }
+.sr-popup-head h5 { font-size: 1rem; font-weight: 700; letter-spacing: -0.01em; margin: 0; }
+.sr-popup-sub { font-size: 0.6875rem; color: var(--sr-text-muted); margin-top: 2px; }
+.sr-popup-facts { display: flex; flex-direction: column; gap: 3px; font-size: 0.6875rem; color: var(--sr-text-muted); margin-top: 4px; }
+.sr-popup-fact { display: flex; flex-wrap: wrap; align-items: center; gap: 3px 8px; }
+.sr-popup-fact .fmt { display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; }
+.sr-popup-fact svg { width: 11px; height: 11px; flex-shrink: 0; }
+.sr-popup-fact .mk { width: 8px; height: 8px; }
+.sr-popup-close { cursor: pointer; width: 26px; height: 26px; flex-shrink: 0; border-radius: 7px; border: 1px solid var(--sr-border); background: var(--sr-surface); color: var(--sr-text-muted); display: inline-flex; align-items: center; justify-content: center; }
+.sr-popup-stats { display: flex; flex-wrap: wrap; gap: 10px; padding: 14px 18px 4px; }
+.sr-popup-stat { flex: 1 1 90px; min-width: 90px; background: var(--sr-surface-subtle); border-radius: 9px; padding: 10px 12px; }
+.sr-popup-stat b { display: block; font-size: 1.375rem; font-weight: 700; color: var(--sr-accent); line-height: 1; font-variant-numeric: tabular-nums; }
+.sr-popup-stat span { display: block; font-size: 0.6875rem; color: var(--sr-text-muted); margin-top: 4px; }
+.sr-popup-sec { font-size: 0.625rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--sr-text-muted); padding: 14px 18px 6px; }
+.sr-popup-body { padding: 0 10px 14px; display: flex; flex-direction: column; gap: 2px; max-height: min(60dvh, 26rem); overflow: auto; overscroll-behavior: contain; }
+.sr-popup-row { display: flex; align-items: center; gap: 9px; padding: 8px 8px; border-radius: 8px; transition: background-color 120ms ease-out; }
+.sr-popup-row:hover { background: var(--sr-surface-subtle); }
+.sr-popup-row-main { min-width: 0; flex: 1; }
+.sr-popup-link { font-weight: 600; font-size: 0.8125rem; color: var(--sr-accent); text-decoration: none; display: inline-flex; align-items: center; gap: 4px; }
+.sr-popup-link:hover { text-decoration: underline; }
+.sr-popup-meta { display: flex; align-items: baseline; font-size: 0.6875rem; color: var(--sr-text-muted); margin-top: 2px; min-width: 0; }
+.sr-popup-meta .pre { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.sr-popup-meta .tail { flex-shrink: 0; white-space: nowrap; }
+.sr-year-chip { font-size: 0.5625rem; font-weight: 700; color: var(--sr-text-muted); background: var(--sr-surface-subtle); border: 1px solid var(--sr-border); border-radius: 4px; padding: 1px 5px; flex-shrink: 0; }
+.sr-popup-ov { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin-top: 5px; font-size: 0.6875rem; color: var(--sr-text-muted); }
+.sr-popup-media { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 3px 6px; }
+.sr-popup-media b { font-weight: 600; color: var(--sr-text); }
+.sr-popup-media .fmt { display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; }
+.sr-popup-media svg { width: 11px; height: 11px; }
+.sr-popup-media .mk { width: 8px; height: 8px; margin-right: 1px; }
+.sr-bcode { display: inline-flex; align-items: baseline; flex-wrap: wrap; gap: 0 5px; border-radius: 5px; padding: 1px 7px 2px; font-size: 0.625rem; line-height: 1.5; border: 1px solid transparent; }
+.sr-bcode b { font-weight: 700; letter-spacing: 0.02em; }
+.sr-bcode .cat { font-weight: 600; }
+.sr-bcode .cat::before { content: '·'; margin-right: 5px; font-weight: 400; }
+.sr-bcode .sp { opacity: 0.85; }
+.sr-bcode[data-tier="4"] { background: rgba(var(--sr-tier-4-rgb), 0.08); border-color: rgba(var(--sr-tier-4-rgb), 0.3); color: var(--sr-tier-4-fg); }
+.sr-bcode[data-tier="2"] { background: rgba(var(--sr-tier-2-rgb), 0.08); border-color: rgba(var(--sr-tier-2-rgb), 0.3); color: var(--sr-tier-2-fg); }
+.sr-bcode[data-tier="1"] { background: rgba(var(--sr-tier-1-rgb), 0.15); border-color: rgba(var(--sr-tier-1-rgb), 0.5); color: var(--sr-tier-2-fg); }
+
+/* Key specimen */
+.mk-key { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr)); gap: 14px; }
+.mk-key-item { display: flex; gap: 14px; align-items: flex-start; background: var(--sr-surface); border: 1px solid var(--sr-border); border-radius: 12px; padding: 14px; box-shadow: var(--sr-card-shadow); }
+.mk-key-cell { flex-shrink: 0; }
+.mk-key-cell .sr-cal-grid { gap: 0; }
+.mk-key-text b { display: block; font-size: 0.8125rem; font-weight: 700; }
+.mk-key-text span { display: block; font-size: 0.71875rem; color: var(--sr-text-muted); line-height: 1.45; margin-top: 2px; }
+
+/* Tier strip specimen */
+.mk-tiers { display: grid; grid-template-columns: auto repeat(6, 64px); gap: 8px 6px; align-items: stretch; }
+.mk-tiers .lbl { font-size: 0.6875rem; color: var(--sr-text-muted); padding-right: 6px; white-space: nowrap; align-self: center; }
+.mk-tiers .hd { font-size: 0.5625rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--sr-text-gray); text-align: center; }
+
+/* ── Phone tier (globals.css <=640 rules, keyed on a class here) ──────────── */
+.tier-phone .sr-touch-target { min-height: 2.75rem; }
+.tier-phone .sr-cal-day { max-width: 100%; }
+.tier-phone .sr-ctl-row :is(button, select, input) { font-size: max(var(--sr-ctl-floor), var(--sr-ctl-rem, 0.75rem)) !important; }
+.tier-phone .sr-ctl-label { font-size: max(calc(var(--sr-ctl-floor) * var(--sr-label-ratio, 1)), calc(var(--sr-ctl-rem, 0.75rem) * var(--sr-label-ratio, 1))) !important; }
+.tier-phone .sr-seg > .sr-seg-btn { flex: 1 1 auto; justify-content: center; }
+.tier-phone .sr-cal-year-group, .tier-phone .sr-cal-year-nav { flex-wrap: wrap; row-gap: 6px; min-width: 0; }
+.tier-phone .sr-cal-months { grid-template-columns: 1fr; }
+.tier-phone .sr-cal-year { grid-template-columns: 1fr; }
+.tier-phone .sr-combo { flex: 1 1 0; min-width: 0; } .tier-phone .sr-combo input { width: 100%; min-width: 0; }
+.tier-phone .sr-ctl-species { flex: 1 1 100%; }
+.tier-phone .sr-cal-overlays { margin-left: 0; padding-left: 0; border-left: 0; flex: 1 1 100%; padding-top: 8px; border-top: 1px solid var(--sr-border); }
+.tier-phone .sr-cal-codes { flex: 1 1 100%; } .tier-phone .sr-cal-codes .sr-seg { flex: 1 1 auto; }
+@media (max-width: 1024px) { .sr-cal-year { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+}
+</style>
+</head>
+<body>
+
+<header class="mk-bar">
+  <h1>Calendar Overlays <span>design direction · round 2</span></h1>
+  <div class="mk-ctl"><span>Theme</span>
+    <div class="mk-seg" role="group" aria-label="Theme">
+      <button type="button" data-mk="theme" data-v="light" aria-pressed="true">Light</button>
+      <button type="button" data-mk="theme" data-v="dark" aria-pressed="false">Dark</button>
+    </div>
+  </div>
+  <div class="mk-ctl"><span>Text size</span>
+    <div class="mk-seg" role="group" aria-label="In-app text size">
+      <button type="button" data-mk="scale" data-v="1" aria-pressed="true">100%</button>
+      <button type="button" data-mk="scale" data-v="1.5" aria-pressed="false">150%</button>
+      <button type="button" data-mk="scale" data-v="2" aria-pressed="false">200%</button>
+    </div>
+  </div>
+  <div class="mk-ctl"><span>ML export</span>
+    <div class="mk-seg" role="group" aria-label="Macaulay Library export">
+      <button type="button" data-mk="ml" data-v="1" aria-pressed="true">Loaded</button>
+      <button type="button" data-mk="ml" data-v="0" aria-pressed="false">Not loaded</button>
+    </div>
+  </div>
+</header>
+
+<main class="mk-page">
+
+  <section class="mk-spec">
+    <div class="mk-spec-head"><span class="mk-k">Specimen 1</span><h2>The Calendar tab with the rich overlays on</h2></div>
+    <p class="mk-note">Same tab, same controls, same shading and popup. With an overlay on, the month cards reflow a little wider and every birded day becomes a tile: the count on top, then one row per fact. <b>Media</b> rows are the Multimedia tab's camera, microphone and video glyphs, each with that day's count of Macaulay Library items in that format (with the ML export not loaded, one generic media glyph with the total; try the bar). <b>Breeding</b> rows are the actual eBird codes recorded that day, strongest first, each led by its category circle (solid Confirmed, half Probable, open Possible) and followed by the number of species carrying that code; past three codes the tile says "+N" and the popup has the rest. The <b>Every code / By category</b> control beside the Breeding switch chooses between that and one row per category: the circle, the category name (Conf, Prob, Poss) and the number of species with evidence at that category, no codes at all. Press <b>By category</b> and look at June 21: "FY 1 / CF 1 / NB 1 / +2" becomes "Conf 3 / Poss 2". It dims when Breeding is off and is remembered with the switches. Look at <b>May 17</b>, <b>June 21</b> and <b>July 4</b> first, then flip both switches off: today's calendar, byte for byte. <b>Use Textures</b>, <b>All years</b> and the species filter (<b>Oak Titmouse</b>) all work.</p>
+    <div class="mk-frame"><div class="sr-app" id="cal-main"></div></div>
+  </section>
+
+  <section class="mk-spec">
+    <div class="mk-spec-head"><span class="mk-k">Specimen 2</span><h2>One tile, up close: the two forms it takes</h2></div>
+    <p class="mk-note">Each tile picks its form by its own width, not the window's. Above about 38px it is the <b>rich</b> form: glyph, code and count in three aligned columns. Below that (a phone cell at 100%, or any cell at 200% text) it is the <b>condensed</b> form: one media glyph with the total, the strongest code with its circle, and "+N" for the rest; on the narrowest cells the glyph and its number simply stack. Both forms are in the tile at once and the stylesheet shows one, so a resize never re-renders.</p>
+    <div class="mk-key" id="mk-key"></div>
+  </section>
+
+  <section class="mk-spec">
+    <div class="mk-spec-head"><span class="mk-k">Specimen 3</span><h2>Over every shade, solid and textured</h2></div>
+    <p class="mk-note">Each row is one combination of facts across the five tiers and the zero cell. The rows are drawn in the cell's own number color, so the AA guard that already holds the number on every tier holds them too. With <b>Use Textures</b> on, the fact block takes the same tier-color backing the count already wears over the hatch. Switch the theme in the bar to see dark.</p>
+    <div class="mk-row">
+      <div class="mk-col"><span class="mk-cap">Solid fills</span><div class="mk-frame" style="padding:16px"><div class="mk-tiers" id="mk-tiers-solid"></div></div></div>
+      <div class="mk-col"><span class="mk-cap">Use Textures on (the hatch as it renders today)</span><div class="mk-frame" style="padding:16px"><div class="mk-tiers" id="mk-tiers-hatch"></div></div></div>
+    </div>
+  </section>
+
+  <section class="mk-spec">
+    <div class="mk-spec-head"><span class="mk-k">Specimen 4</span><h2>The day popup with both overlays on</h2></div>
+    <p class="mk-note">Saturday, May 17, 2025 at Point Reyes. The header carries the day's facts in full: per-format media totals and every code with its category. Each checklist row lists its own media by format and every code it recorded as a chip in the Breeding Codes tab's tier colors: code, label, category, and how many species carried it on that checklist. A checklist with neither shows nothing extra. With both overlays off the popup is today's, byte for byte.</p>
+    <div class="mk-row">
+      <div class="mk-col"><span class="mk-cap">Both overlays on</span><div id="mk-popup-both"></div></div>
+      <div class="mk-col"><span class="mk-cap">Both overlays off (today's popup)</span><div id="mk-popup-off"></div></div>
+    </div>
+  </section>
+
+  <section class="mk-spec">
+    <div class="mk-spec-head"><span class="mk-k">Specimen 5</span><h2>Large view: the overview keeps a condensed form</h2></div>
+    <p class="mk-note">The Large thumbnails are the whole-year glance, so they keep round 1's quiet marks: a media square in the bottom-left corner, a category circle (solid, half, open) in the bottom-right, sized with the card and hidden with the day number under the 152px floor. The counts and codes live in Compact view and the popup.</p>
+    <div class="mk-row" id="mk-large"></div>
+  </section>
+
+  <section class="mk-spec">
+    <div class="mk-spec-head"><span class="mk-k">Specimen 6</span><h2>Phone, 320px wide</h2></div>
+    <p class="mk-note">The phone tier as shipped: cells cap to their 32px track and keep the 44px touch height. At 100% the cells are just narrow enough to take the condensed form; at 200% (use the bar) each glyph and its number stack and the tiles grow taller, while nothing widens past the viewport.</p>
+    <div class="mk-frame mk-frame--phone"><div class="sr-app tier-phone" id="cal-phone"></div></div>
+  </section>
+
+</main>
+
+<script>
+(() => {
+'use strict';
+
+/* ── Vocabulary (from lib/breedingCodes.ts, lib/calendar.ts) ─────────────── */
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const MONTHS_ABBR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const WEEKDAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const WEEKDAYS = ['S','M','T','W','T','F','S'];
+const CODES = {
+  NY:['Nest with Young',4], NE:['Nest with Eggs',4], FS:['Carrying Fecal Sac',4], FY:['Feeding Young',4], CF:['Carrying Food',4],
+  FL:['Recently Fledged Young',4], ON:['Occupied Nest',4], UN:['Used Nest',4], DD:['Distraction Display',4],
+  NB:['Nest Building',3], CN:['Carrying Nesting Material',3],
+  PE:['Physiological Evidence',2], B:['Wren/Woodpecker Nest Bldg',2], A:['Agitated Behavior',2], N:['Visiting Probable Nest',2],
+  C:['Courtship/Display/Copul.',2], T:['Territorial Defense',2], P:['Pair in Suitable Habitat',2], M:['Multiple (7+) Singing',2], S7:['Singing Bird 7+ Days',2],
+  S:['Singing Bird',1], H:['In Appropriate Habitat',1], F:['Flyover',1],
+};
+const RANK = Object.keys(CODES);
+const rankOf = code => { const r = RANK.indexOf(code); return r < 0 ? Infinity : r; };
+const defOf = code => CODES[code] ? { code, label: CODES[code][0], tier: CODES[code][1] } : { code, label: code, tier: 1 };
+function stronger(a, b) { if (!a) return b; if (!b) return a; return rankOf(a.code) <= rankOf(b.code) ? a : b; }
+const catOf = def => def.tier >= 3 ? 'confirmed' : def.tier === 2 ? 'probable' : 'possible';
+const CAT_LABEL = { confirmed: 'Confirmed', probable: 'Probable', possible: 'Possible' };
+const CAT_TIER = { confirmed: 4, probable: 2, possible: 1 };
+/* The rich tile's short category names (BREEDING_CATEGORY_SHORT): the full
+   word does not fit a desktop tile beside a glyph and a count ("Confirmed"
+   alone is about 42px at 0.5625rem against about 44px of content), so the row
+   carries a title-case short form and the legend keys it to the word. */
+const CAT_SHORT = { confirmed: 'Conf', probable: 'Prob', possible: 'Poss' };
+const CATS = ['confirmed', 'probable', 'possible'];
+
+/* ── The one mark-spec table (lib/calendarOverlays.ts OVERLAY_MARK_SPECS).
+   Seven keys now: three formats + the generic media glyph, three categories.
+   The cells, the legend and the popup all draw from here. Glyphs are the
+   Multimedia tab's lucide Camera / Mic / Video; media-unknown is a frame. */
+const MARKS = {
+  photo:     { label: 'photos', token: 'var(--sr-cal-fg)', svg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>' },
+  audio:     { label: 'audio',  token: 'var(--sr-cal-fg)', svg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>' },
+  video:     { label: 'videos', token: 'var(--sr-cal-fg)', svg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.87a.5.5 0 0 0-.752-.432L16 10.5"/><rect x="2" y="6" width="14" height="12" rx="2"/></svg>' },
+  media:     { label: 'media',  token: 'var(--sr-cal-fg)', svg: '<svg viewBox="0 0 12 12" aria-hidden="true"><rect x="1" y="1" width="10" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><rect x="4" y="4" width="4" height="4" rx="0.8" fill="currentColor"/></svg>' },
+  confirmed: { label: 'Confirmed', token: 'var(--sr-cal-fg)', svg: '<svg viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="5.2" fill="currentColor"/></svg>' },
+  probable:  { label: 'Probable',  token: 'var(--sr-cal-fg)', svg: '<svg viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="4" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M6 0.8 A5.2 5.2 0 0 1 6 11.2 Z" fill="currentColor"/></svg>' },
+  possible:  { label: 'Possible',  token: 'var(--sr-cal-fg)', svg: '<svg viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="4" fill="none" stroke="currentColor" stroke-width="2.4"/></svg>' },
+};
+const glyph = key => MARKS[key].svg;
+/* Large-view corner mark (round 1's condensed form). */
+function cornerMarkHTML(key, corner, backed, tier) {
+  return `<span class="sr-cal-mark sr-cal-mark--${corner}${backed ? ' is-backed' : ''}" aria-hidden="true"${backed ? ` style="background:rgba(var(--sr-cal-${tier}-rgb),0.9)"` : ''}>${glyph(key)}</span>`;
+}
+const ICON = {
+  cal:    '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/><path d="M16 18h.01"/></svg>',
+  left:   '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>',
+  right:  '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>',
+  grid:   '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>',
+  grid2:  '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 12h18"/><path d="M12 3v18"/></svg>',
+  search: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>',
+  x:      '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>',
+  ext:    '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>',
+};
+
+/* ── Textures: lib/calendarTextures.ts, rendered AS SHIPPED ──────────────── */
+const CAL_HATCH = { 1: [9, 1.0], 2: [7, 1.1], 3: [5.5, 1.3], 4: [4, 1.5], 5: [3, 1.8] };
+const CAL_MINI_HATCH = { 1: [5, 1.0], 2: [4, 1.0], 3: [3.2, 1.0], 4: [2.6, 1.1], 5: [2, 1.2] };
+function hatchCss(tier) {
+  const [gap, w] = CAL_HATCH[tier], s = `rgba(var(--sr-cal-${tier}-rgb), 0.85)`;
+  return `background:repeating-linear-gradient(45deg, ${s} 0 ${w}px, transparent ${w}px ${gap}px), repeating-linear-gradient(135deg, ${s} 0 ${w}px, transparent ${w}px ${gap}px)`;
+}
+function miniHatchCss(tier) {
+  const [gap, w] = CAL_MINI_HATCH[tier], s = `rgba(var(--sr-cal-${tier}-rgb), 0.9)`;
+  return `background:repeating-linear-gradient(45deg, ${s} 0 ${w}px, transparent ${w}px ${gap}px)`;
+}
+
+/* ── Realistic data: three years of a Bay Area birder's eBird backup ──────── */
+function rng(seed) { let a = seed >>> 0; return () => { a += 0x6D2B79F5; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+const pick = (r, arr) => arr[Math.floor(r() * arr.length)];
+const LOCS = ['Point Reyes NS--Bear Valley','Point Reyes NS--Abbotts Lagoon','Point Reyes NS--Outer Point','Bodega Bay--Doran Beach','Bodega Head','Coyote Hills Regional Park','Lake Merritt','Arrowhead Marsh','Tilden Regional Park','Mt. Tamalpais SP','Palo Alto Baylands','Half Moon Bay--Pillar Point Harbor','Yolo Bypass WA','Sacramento NWR','Alviso--Don Edwards NWR','Ed R. Levin CP','Big Sur--Andrew Molera SP','Rodeo Lagoon','Hayward Regional Shoreline','Las Gallinas Wildlife Ponds'];
+const SPECIES = ['Acorn Woodpecker',"Anna's Hummingbird","Bewick's Wren",'Black Oystercatcher','Black Phoebe','Bushtit','California Scrub-Jay','Common Yellowthroat','Golden-crowned Sparrow','Hooded Oriole','Marsh Wren',"Nuttall's Woodpecker",'Oak Titmouse',"Ridgway's Rail",'Spotted Towhee','Tree Swallow','Tricolored Blackbird','Varied Thrush','Western Bluebird','Wrentit'];
+const NESTERS = ['Oak Titmouse','Bushtit',"Anna's Hummingbird",'Western Bluebird','Acorn Woodpecker','Black Phoebe','Tree Swallow',"Nuttall's Woodpecker",'Hooded Oriole'];
+const TERRITORIAL = ['California Scrub-Jay','Spotted Towhee',"Bewick's Wren",'Marsh Wren','Common Yellowthroat','Wrentit','Tricolored Blackbird'];
+const SINGERS = ['Wrentit',"Bewick's Wren",'Spotted Towhee','Golden-crowned Sparrow','Common Yellowthroat','Marsh Wren','Varied Thrush'];
+function speciesFor(code, present, r) {
+  const tier = defOf(code).tier;
+  const pool = (tier >= 3 ? NESTERS : tier === 2 ? TERRITORIAL : SINGERS).filter(s => present.includes(s));
+  return pool.length ? pick(r, pool) : pick(r, present);
+}
+const pad2 = n => String(n).padStart(2, '0');
+const fmtTime = (h, m) => `${pad2(h > 12 ? h - 12 : h)}:${pad2(m)} ${h >= 12 ? 'PM' : 'AM'}`;
+const daysInMonth = (y, m) => new Date(y, m, 0).getDate();
+let SUB = 210400000;
+function checklist(date, time, location, spp, ind, present, media, codes, extra) {
+  const counts = {}; const r = rng(SUB);
+  for (const s of present) counts[s] = 1 + Math.floor(r() * r() * 14);
+  return Object.assign({ submissionId: 'S' + (SUB++), date, time, location, speciesCount: spp, speciesCountWithForms: spp, individuals: ind, individualsWithForms: ind, present, counts, media, codes }, extra || {});
+}
+function genYear(year) {
+  const days = new Map();
+  for (let m = 1; m <= 12; m++) for (let d = 1; d <= daysInMonth(year, m); d++) {
+    const r = rng(year * 10000 + m * 100 + d);
+    const key = `${year}-${pad2(m)}-${pad2(d)}`;
+    const dow = new Date(year, m - 1, d).getDay(); const weekend = dow === 0 || dow === 6;
+    const season = [0.35, 0.42, 0.55, 0.62, 0.66, 0.55, 0.45, 0.45, 0.62, 0.58, 0.46, 0.5][m - 1];
+    if (r() > (weekend ? 0.9 : 0.34) * season * 1.45) continue;
+    const n = weekend ? (r() < 0.45 ? 2 : (r() < 0.25 ? 3 : 1)) : 1;
+    const lists = [];
+    for (let i = 0; i < n; i++) {
+      const hour = i === 0 ? 6 + Math.floor(r() * 3) : 10 + i * 3 + Math.floor(r() * 2);
+      const time = fmtTime(hour, [0, 5, 10, 15, 20, 30, 40, 45, 50][Math.floor(r() * 9)]);
+      const spp = 8 + Math.floor(r() * r() * 58);
+      const ind = spp * (3 + Math.floor(r() * 9));
+      const present = SPECIES.filter(() => r() < 0.3);
+      const media = []; const pm = 0.28 + ((m >= 4 && m <= 6) || m === 9 || m === 10 ? 0.14 : 0);
+      if (r() < pm && present.length) { const k = 1 + Math.floor(r() * r() * 6); for (let j = 0; j < k; j++) media.push({ id: String(150000000 + Math.floor(r() * 499999999)), format: pick(r, ['Photo', 'Photo', 'Photo', 'Audio', 'Video']), species: pick(r, present) }); }
+      const codes = []; const pc = [0.02, 0.05, 0.14, 0.36, 0.46, 0.42, 0.3, 0.12, 0.03, 0.02, 0.01, 0.01][m - 1];
+      if (r() < pc && present.length) { const k = 1 + (r() < 0.45 ? 1 : 0) + (r() < 0.2 ? 1 : 0); for (let j = 0; j < k; j++) { const t = r(); const code = t < 0.45 ? pick(r, ['S', 'H', 'S', 'F']) : t < 0.8 ? pick(r, ['A', 'T', 'P', 'S7', 'M', 'C', 'N']) : pick(r, ['NY', 'NE', 'FY', 'CF', 'FL', 'ON', 'NB', 'CN']); codes.push({ code, species: speciesFor(code, present, r) }); } }
+      lists.push(checklist(key, time, pick(r, LOCS), spp, ind, present, media, codes));
+    }
+    days.set(key, lists);
+  }
+  return days;
+}
+const YEARS = [2023, 2024, 2025];
+const DATA = new Map(YEARS.map(y => [y, genYear(y)]));
+const M = (id, format, species) => ({ id, format, species });
+const story = {
+  '2025-01-03': [checklist('2025-01-03', '08:10 AM', 'Lake Merritt', 34, 412, ['Golden-crowned Sparrow', 'Black Phoebe', "Anna's Hummingbird"], [M('621004311', 'Photo', 'Golden-crowned Sparrow'), M('621004312', 'Photo', 'Black Phoebe')], [])],
+  '2025-02-22': [checklist('2025-02-22', '07:45 AM', 'Half Moon Bay--Pillar Point Harbor', 0, 0, ['Black Oystercatcher'], [M('623118872', 'Photo', 'Black Oystercatcher')], [], { speciesCountWithForms: 1, individualsWithForms: 12 })],
+  '2025-03-29': [checklist('2025-03-29', '07:05 AM', 'Coyote Hills Regional Park', 47, 388, ['Wrentit', 'Marsh Wren', 'Tricolored Blackbird', "Nuttall's Woodpecker"], [M('624550190', 'Photo', 'Tricolored Blackbird'), M('624550191', 'Photo', 'Tricolored Blackbird'), M('624550204', 'Audio', 'Wrentit')], [{ code: 'S', species: 'Wrentit' }, { code: 'S', species: 'Marsh Wren' }])],
+  '2025-04-12': [checklist('2025-04-12', '06:50 AM', 'Mt. Tamalpais SP', 38, 201, ['Wrentit', 'Spotted Towhee', 'Varied Thrush'], [], [{ code: 'H', species: 'Spotted Towhee' }])],
+  '2025-04-26': [checklist('2025-04-26', '06:30 AM', 'Yolo Bypass WA', 61, 1140, ['Marsh Wren', 'Common Yellowthroat', 'Tree Swallow', 'Tricolored Blackbird'], [M('626230011', 'Photo', 'Tricolored Blackbird'), M('626230012', 'Photo', 'Tree Swallow'), M('626230013', 'Photo', 'Marsh Wren'), M('626230020', 'Audio', 'Marsh Wren'), M('626230021', 'Video', 'Tricolored Blackbird')], [{ code: 'T', species: 'Marsh Wren' }, { code: 'S', species: 'Common Yellowthroat' }, { code: 'S', species: 'Tricolored Blackbird' }])],
+  '2025-05-17': [
+    checklist('2025-05-17', '06:42 AM', 'Point Reyes NS--Bear Valley', 54, 297, ['Oak Titmouse', 'Wrentit', "Anna's Hummingbird", 'Spotted Towhee', 'Acorn Woodpecker'], [M('627910442', 'Photo', 'Oak Titmouse'), M('627910443', 'Photo', 'Oak Titmouse'), M('627910451', 'Photo', 'Acorn Woodpecker'), M('627910460', 'Audio', 'Wrentit')], [{ code: 'NY', species: 'Oak Titmouse' }, { code: 'S', species: 'Wrentit' }, { code: 'S', species: 'Spotted Towhee' }]),
+    checklist('2025-05-17', '10:15 AM', 'Point Reyes NS--Abbotts Lagoon', 31, 186, ['Black Oystercatcher', 'Tree Swallow', 'Common Yellowthroat'], [M('627915508', 'Photo', 'Black Oystercatcher')], []),
+    checklist('2025-05-17', '03:05 PM', 'Bodega Bay--Doran Beach', 22, 129, ['California Scrub-Jay', 'Black Phoebe'], [], [{ code: 'A', species: 'California Scrub-Jay' }]),
+  ],
+  '2025-06-08': [
+    checklist('2025-06-08', '07:20 AM', 'Tilden Regional Park', 44, 260, ['California Scrub-Jay', 'Oak Titmouse', 'Hooded Oriole', 'Bushtit'], [M('629004871', 'Photo', 'Hooded Oriole'), M('629004880', 'Video', 'Hooded Oriole')], [{ code: 'A', species: 'California Scrub-Jay' }]),
+    checklist('2025-06-08', '11:40 AM', 'Arrowhead Marsh', 29, 344, ['Marsh Wren', "Ridgway's Rail", 'Common Yellowthroat'], [], [{ code: 'P', species: 'Common Yellowthroat' }]),
+  ],
+  '2025-06-21': [checklist('2025-06-21', '06:15 AM', 'Ed R. Levin CP', 49, 312, ['Western Bluebird', 'Acorn Woodpecker', 'Oak Titmouse', 'Bushtit', 'Wrentit'], [M('629880120', 'Photo', 'Western Bluebird'), M('629880121', 'Photo', 'Western Bluebird'), M('629880130', 'Audio', 'Wrentit')], [{ code: 'FY', species: 'Western Bluebird' }, { code: 'NB', species: 'Bushtit' }, { code: 'CF', species: 'Acorn Woodpecker' }, { code: 'S', species: 'Oak Titmouse' }, { code: 'H', species: 'Wrentit' }])],
+  '2025-07-04': [
+    checklist('2025-07-04', '06:05 AM', 'Palo Alto Baylands', 52, 1210, ['Marsh Wren', 'Common Yellowthroat', "Ridgway's Rail", 'Black Phoebe', 'Tree Swallow'], [M('631202300', 'Photo', "Ridgway's Rail"), M('631202301', 'Audio', "Ridgway's Rail")], [{ code: 'FL', species: 'Black Phoebe' }, { code: 'FL', species: 'Marsh Wren' }]),
+    checklist('2025-07-04', '09:30 AM', 'Alviso--Don Edwards NWR', 41, 980, ['Tree Swallow', 'Black Phoebe', 'Marsh Wren'], [M('631204410', 'Photo', 'Tree Swallow')], [{ code: 'ON', species: 'Tree Swallow' }]),
+    checklist('2025-07-04', '01:10 PM', 'Coyote Hills Regional Park', 33, 402, ['Tricolored Blackbird', 'Marsh Wren'], [M('631206622', 'Photo', 'Tricolored Blackbird')], []),
+  ],
+  '2025-08-16': [checklist('2025-08-16', '07:00 AM', 'Bodega Bay--Doran Beach', 36, 640, ['Black Oystercatcher', 'Golden-crowned Sparrow'], [M('633400101', 'Photo', 'Black Oystercatcher'), M('633400102', 'Photo', 'Black Oystercatcher'), M('633400103', 'Photo', 'Black Oystercatcher'), M('633400110', 'Audio', 'Black Oystercatcher')], [])],
+  '2025-09-20': [checklist('2025-09-20', '06:35 AM', 'Point Reyes NS--Outer Point', 71, 1580, ['Golden-crowned Sparrow', 'Varied Thrush', 'Wrentit', "Nuttall's Woodpecker", 'Spotted Towhee'], [M('635110001', 'Photo', 'Varied Thrush'), M('635110002', 'Photo', 'Varied Thrush'), M('635110003', 'Photo', "Nuttall's Woodpecker"), M('635110004', 'Photo', 'Golden-crowned Sparrow'), M('635110010', 'Audio', 'Varied Thrush'), M('635110011', 'Audio', 'Wrentit')], [])],
+  '2025-11-22': [checklist('2025-11-22', '07:30 AM', 'Sacramento NWR', 66, 4820, ['Golden-crowned Sparrow', 'Black Phoebe', 'Marsh Wren'], [], [])],
+  '2025-12-20': [
+    checklist('2025-12-20', '06:30 AM', 'Lake Merritt', 48, 1120, ['Golden-crowned Sparrow', 'Black Phoebe', "Anna's Hummingbird"], [M('639900301', 'Photo', "Anna's Hummingbird")], []),
+    checklist('2025-12-20', '09:50 AM', 'Arrowhead Marsh', 39, 860, ['Marsh Wren', "Ridgway's Rail"], [], []),
+    checklist('2025-12-20', '12:30 PM', 'Hayward Regional Shoreline', 44, 1330, ['Black Phoebe', 'Golden-crowned Sparrow'], [], []),
+    checklist('2025-12-20', '03:00 PM', 'Coyote Hills Regional Park', 35, 510, ['Tricolored Blackbird', 'Wrentit'], [], []),
+  ],
+};
+for (const [k, v] of Object.entries(story)) DATA.get(2025).set(k, v);
+
+/* ── Derivation (lib/calendar.ts buildDayCells, with the overlay fields) ───
+   Per day: mediaItems (distinct catalog ids, with their format when the ML
+   export is loaded), codes (every distinct code, strongest first, each with
+   the set of species carrying it). Per checklist: the same two. */
+function distinctEstimate(arr) { if (!arr.length) return 0; const s = [...arr].sort((a, b) => b - a); return s[0] + Math.round(s.slice(1).reduce((a, b) => a + b, 0) * 0.35); }
+function addCode(map, code, species) { let e = map.get(code); if (!e) { e = { def: defOf(code), species: new Set() }; map.set(code, e); } e.species.add(species); }
+const sortedCodes = map => [...map.values()].sort((a, b) => rankOf(a.def.code) - rankOf(b.def.code));
+function buildDayCells(view, filter) {
+  const cells = new Map();
+  const ys = view.kind === 'combined' ? YEARS : [view.year];
+  for (const y of ys) for (const [date, lists] of DATA.get(y)) {
+    const bk = view.kind === 'combined' ? date.slice(5) : date;
+    for (const cl of lists) {
+      if (filter && !cl.counts[filter]) continue;
+      let c = cells.get(bk);
+      if (!c) { c = { bucketKey: bk, spp: [], sppF: [], checklistCount: 0, totalCount: 0, totalCountWithForms: 0, mediaItems: new Map(), mediaChecklistCount: 0, codeMap: new Map(), checklists: [] }; cells.set(bk, c); }
+      const media = filter ? cl.media.filter(m => m.species === filter) : cl.media;
+      const codes = filter ? cl.codes.filter(k => k.species === filter) : cl.codes;
+      const rowMedia = new Map(); for (const m of media) { rowMedia.set(m.id, m); c.mediaItems.set(m.id, m); }
+      const rowCodes = new Map(); for (const k of codes) { addCode(rowCodes, k.code, k.species); addCode(c.codeMap, k.code, k.species); }
+      c.checklistCount++;
+      if (filter) { c.spp.push(1); c.sppF.push(1); c.totalCount += cl.counts[filter]; c.totalCountWithForms += cl.counts[filter]; }
+      else { c.spp.push(cl.speciesCount); c.sppF.push(cl.speciesCountWithForms); c.totalCount += cl.individuals; c.totalCountWithForms += cl.individualsWithForms; }
+      if (rowMedia.size) c.mediaChecklistCount++;
+      c.checklists.push({ submissionId: cl.submissionId, date, time: cl.time, location: cl.location, speciesCount: filter ? 1 : cl.speciesCount, speciesCountWithForms: filter ? 1 : cl.speciesCountWithForms, catalogIds: [...rowMedia.keys()], media: [...rowMedia.values()], codes: sortedCodes(rowCodes) });
+    }
+  }
+  for (const c of cells.values()) {
+    c.speciesCount = distinctEstimate(c.spp); c.speciesCountWithForms = distinctEstimate(c.sppF);
+    c.mediaPresent = c.mediaItems.size > 0; c.mediaIdCount = c.mediaItems.size;
+    c.codes = sortedCodes(c.codeMap); c.breeding = c.codes.length ? c.codes[0].def : null;
+  }
+  return cells;
+}
+const metricCount = (c, metric, forms) => metric === 'checklists' ? c.checklistCount : metric === 'total' ? (forms ? c.totalCountWithForms : c.totalCount) : (forms ? c.speciesCountWithForms : c.speciesCount);
+const metricNoun = (metric, forms) => metric === 'checklists' ? 'checklists' : metric === 'total' ? 'individuals' : (forms ? 'species' : 'countable species');
+function computeTiers(values) {
+  const s = [...values].sort((a, b) => a - b);
+  if (!s.length) return { tierFor: () => 1, legend: [] };
+  const uniq = [...new Set(s)];
+  const n = Math.min(5, uniq.length);
+  const breaks = []; for (let i = 1; i < n; i++) breaks.push(uniq[Math.floor(uniq.length * i / n)]);
+  const tierFor = v => { let t = 1; for (const b of breaks) if (v >= b) t++; return Math.min(t, 5); };
+  const legend = []; for (let t = 1; t <= n; t++) { const vs = s.filter(v => tierFor(v) === t); if (vs.length) legend.push({ tier: t, min: vs[0], max: vs[vs.length - 1] }); }
+  return { tierFor, legend };
+}
+/* Format counts of a set of media items: the render-time join against the
+   ML export (mediaFormatCounts). Not loaded: everything is 'media'. */
+function formatCounts(items, mlLoaded) {
+  const n = { photo: 0, audio: 0, video: 0, media: 0 };
+  for (const m of items) { const f = mlLoaded ? m.format : null; if (f === 'Photo') n.photo++; else if (f === 'Audio') n.audio++; else if (f === 'Video') n.video++; else n.media++; }
+  return n;
+}
+const FORMAT_KEYS = ['photo', 'audio', 'video', 'media'];
+const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+const fmtPhrase = (key, n) => key === 'photo' ? plural(n, 'photo', 'photos') : key === 'audio' ? `${n} audio` : key === 'video' ? plural(n, 'video', 'videos') : `${n} media`;
+
+/* The rows a tile shows. Rich: one per format, then one per code (capped at
+   three, then "+N"), or one per category when the variant asks for it.
+   Condensed: one media total, the strongest code, "+N". */
+function tileFacts(cell, st) {
+  const out = { media: [], codes: [], more: 0, cMedia: null, cCode: null, cMore: 0 };
+  if (st.overlays.media && cell.mediaIdCount) {
+    const n = formatCounts(cell.mediaItems.values(), MK.mlLoaded);
+    for (const k of FORMAT_KEYS) if (n[k]) out.media.push({ key: k, n: n[k] });
+    out.cMedia = { key: 'media', n: cell.mediaIdCount };
+  }
+  if (st.overlays.breeding && cell.codes.length) {
+    let rows;
+    if (st.overlays.codes === 'category') {
+      rows = [];
+      for (const cat of CATS) {
+        const inCat = cell.codes.filter(c => catOf(c.def) === cat);
+        if (!inCat.length) continue;
+        const sp = new Set(); for (const c of inCat) for (const s of c.species) sp.add(s);
+        rows.push({ cat, label: CAT_SHORT[cat], n: sp.size, isCat: true });
+      }
+      /* Condensed, by category: every category present as its circle and
+         count, no text (at most three rows, each about 16px wide). */
+      out.cCats = rows.map(r => ({ cat: r.cat, n: r.n }));
+    } else {
+      rows = cell.codes.map(c => ({ cat: catOf(c.def), label: c.def.code, n: c.species.size, isCat: false }));
+      out.cCode = { cat: catOf(cell.codes[0].def), code: cell.codes[0].def.code };
+      out.cMore = cell.codes.length - 1;
+    }
+    if (rows.length > 3) { out.more = rows.length - 3; rows = rows.slice(0, 3); }
+    out.codes = rows;
+  }
+  return out;
+}
+function factsHTML(f, backed, tier, enter) {
+  if (!f.media.length && !f.codes.length) return '';
+  const style = backed ? ` style="background:rgba(var(--sr-cal-${tier}-rgb),0.9)"` : '';
+  const cls = `sr-cal-facts${backed ? ' is-backed' : ''}${enter ? ' sr-cal-facts--enter' : ''}`;
+  const rich = f.media.map(m => `<span class="sr-fact">${glyph(m.key)}<span></span><span class="n">${m.n}</span></span>`).join('')
+    + f.codes.map(c => `<span class="sr-fact${c.isCat ? ' sr-fact--cat' : ''}">${glyph(c.cat)}<b>${esc(c.label)}</b><span class="n">${c.n}</span></span>`).join('')
+    + (f.more ? `<span class="sr-fact sr-fact--more">+${f.more}</span>` : '');
+  const cond = (f.cMedia ? `<span class="sr-fact">${glyph('media')}<span>${f.cMedia.n}</span></span>` : '')
+    + (f.cCats ? f.cCats.map(c => `<span class="sr-fact sr-fact--cat">${glyph(c.cat)}<span>${c.n}</span></span>`).join('') : '')
+    + (f.cCode ? `<span class="sr-fact">${glyph(f.cCode.cat)}<b>${esc(f.cCode.code)}</b></span>` : '')
+    + (f.cMore ? `<span class="sr-fact sr-fact--more">+${f.cMore}</span>` : '');
+  return `<span class="${cls} sr-cal-facts--rich" aria-hidden="true"${style}>${rich}</span><span class="${cls} sr-cal-facts--condensed" aria-hidden="true"${style}>${cond}</span>`;
+}
+/* Accessible-name suffix: the same facts in words (dayNameSuffix). */
+function dayNameSuffix(cell, st) {
+  let s = '';
+  if (st.overlays.media && cell.mediaIdCount) {
+    const n = formatCounts(cell.mediaItems.values(), MK.mlLoaded);
+    s += ', media: ' + FORMAT_KEYS.filter(k => n[k]).map(k => fmtPhrase(k, n[k])).join(', ');
+  }
+  if (st.overlays.breeding && cell.codes.length) {
+    s += ', breeding: ' + cell.codes.map(c => `${c.def.code} ${c.species.size} (${CAT_LABEL[catOf(c.def)]})`).join(', ');
+  }
+  return s;
+}
+function cellDateLabel(bk) { if (bk.length === 10) return `${MONTHS_ABBR[+bk.slice(5, 7) - 1]} ${+bk.slice(8, 10)}, ${bk.slice(0, 4)}`; return `${MONTHS_ABBR[+bk.slice(0, 2) - 1]} ${+bk.slice(3, 5)}`; }
+function longDate(bk) { const d = new Date(+bk.slice(0, 4), +bk.slice(5, 7) - 1, +bk.slice(8, 10)); return `${WEEKDAY_NAMES[d.getDay()]}, ${cellDateLabel(bk)}`; }
+const fmtChecklistTime = t => t.replace(/^0(\d:)/, '$1');
+const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+/* ── Rendering ────────────────────────────────────────────────────────────── */
+const MK = { mlLoaded: true };
+
+function switchHTML({ id, label, checked, small, disabled, act, describedBy }) {
+  return `<button type="button" id="${id}" role="switch" aria-checked="${checked}"${disabled ? ' aria-disabled="true"' : ''}${describedBy ? ` aria-describedby="${describedBy}"` : ''} class="sr-switch${small ? ' sr-switch--small' : ''}" data-act="${act}"><span class="sr-switch-track"><span class="sr-switch-knob"></span></span><span class="sr-switch-label">${label}</span></button>`;
+}
+function segHTML({ label, options, value, act, id, disabled, describedBy }) {
+  const dis = disabled ? ' aria-disabled="true"' : '';
+  const desc = describedBy ? ` aria-describedby="${describedBy}"` : '';
+  return `<div class="sr-wrap-flex sr-seg" role="group" aria-label="${label}">${options.map(o => `<button type="button" class="sr-seg-btn" id="${id}-${o.value}" aria-pressed="${o.value === value}"${dis}${desc} data-act="${act}" data-v="${o.value}"${o.title ? ` title="${esc(o.title)}"` : ''}>${o.icon || ''}${o.label}</button>`).join('')}</div>`;
+}
+const anyOn = st => st.overlays.media || st.overlays.breeding;
+
+function cellHTML(desc, st, animate) {
+  if (desc.kind === 'pad') return '<div aria-hidden="true" class="sr-cal-cell sr-cal-cell--pad"></div>';
+  if (desc.kind === 'nodata') return '<div aria-hidden="true" class="sr-cal-cell sr-cal-cell--nodata"></div>';
+  const cell = desc.cell, tex = st.textures;
+  const dateLabel = cellDateLabel(cell.bucketKey);
+  const noun = metricNoun(st.metric, st.effectiveForms);
+  const suffix = dayNameSuffix(cell, st);
+  const facts = anyOn(st) ? factsHTML(tileFacts(cell, st), tex && desc.kind === 'data', desc.tier, animate) : '';
+  if (desc.kind === 'zero') {
+    return `<button type="button" class="sr-cal-cell sr-cal-day sr-cal-day--zero sr-touch-target" data-open="${cell.bucketKey}" aria-label="${esc(dateLabel)}: birded, 0 ${noun}${esc(suffix)}. Open day details"><span class="sr-cal-count">0</span>${facts}</button>`;
+  }
+  const fill = tex ? hatchCss(desc.tier) : `background:var(--sr-cal-${desc.tier})`;
+  const num = tex ? ` class="sr-cal-count sr-cal-count--pill" style="background:rgba(var(--sr-cal-${desc.tier}-rgb),0.9)"` : ' class="sr-cal-count"';
+  return `<button type="button" class="sr-cal-cell sr-cal-day sr-cal-day--data sr-touch-target${tex ? ' is-hatched' : ''}" style="${fill}" data-open="${cell.bucketKey}" aria-label="${esc(dateLabel)}: ${desc.count} ${noun}${esc(suffix)}. Open day details"><span${num}>${desc.count}</span>${facts}</button>`;
+}
+function miniCellHTML(desc, st) {
+  if (desc.kind === 'pad') return '<div aria-hidden="true" class="sr-cal-mini sr-cal-mini--pad"></div>';
+  if (desc.kind === 'nodata') return `<div aria-hidden="true" class="sr-cal-mini sr-cal-mini--nodata sr-cal-mininum"><span class="sr-cal-daynum" style="color:var(--sr-text-muted)">${desc.day}</span></div>`;
+  const cell = desc.cell, ov = st.overlays, tex = st.textures;
+  const dateLabel = cellDateLabel(cell.bucketKey);
+  const noun = metricNoun(st.metric, st.effectiveForms);
+  const suffix = dayNameSuffix(cell, st);
+  let marks = '';
+  if (ov.media && cell.mediaPresent) marks += cornerMarkHTML('media', 'left', tex && desc.kind === 'data', desc.tier);
+  if (ov.breeding && cell.breeding) marks += cornerMarkHTML(catOf(cell.breeding), 'right', tex && desc.kind === 'data', desc.tier);
+  if (desc.kind === 'zero') {
+    return `<button type="button" class="sr-cal-mini sr-cal-mini--zero sr-cal-mininum" data-open="${cell.bucketKey}" aria-label="${esc(dateLabel)}: birded, 0 ${noun}${esc(suffix)}. Open day details"><span class="sr-cal-daynum">${desc.day}</span>${marks}</button>`;
+  }
+  const fill = tex ? miniHatchCss(desc.tier) : `background:var(--sr-cal-${desc.tier})`;
+  const num = tex ? ` class="sr-cal-daynum sr-cal-daynum--pill" style="background:rgba(var(--sr-cal-${desc.tier}-rgb),0.9)"` : ' class="sr-cal-daynum"';
+  return `<button type="button" class="sr-cal-mini sr-cal-mini--data sr-cal-mininum" style="${fill}" data-open="${cell.bucketKey}" aria-label="${esc(dateLabel)}: ${desc.count} ${noun}${esc(suffix)}. Open day details"><span${num}>${desc.day}</span>${marks}</button>`;
+}
+function monthDescriptors(month, st, cells, tiers) {
+  const combined = st.view.kind === 'combined';
+  const leadYear = combined ? 2026 : st.view.year;
+  const out = [];
+  const lead = new Date(leadYear, month - 1, 1).getDay();
+  for (let i = 0; i < lead; i++) out.push({ kind: 'pad' });
+  const dim = combined && month === 2 ? 29 : daysInMonth(leadYear, month);
+  for (let day = 1; day <= dim; day++) {
+    const key = combined ? `${pad2(month)}-${pad2(day)}` : `${st.view.year}-${pad2(month)}-${pad2(day)}`;
+    const cell = cells.get(key);
+    if (!cell) { out.push({ kind: 'nodata', day }); continue; }
+    const count = metricCount(cell, st.metric, st.effectiveForms);
+    if (count === 0) { out.push({ kind: 'zero', day, cell }); continue; }
+    out.push({ kind: 'data', day, count, cell, tier: Math.min(tiers.tierFor(count), 5) });
+  }
+  return out;
+}
+function monthHTML(month, descs, st, animate) {
+  return `<div class="sr-cal-month"><h4>${MONTHS[month - 1]}</h4><div class="sr-cal-wd" aria-hidden="true">${WEEKDAYS.map(w => `<span>${w}</span>`).join('')}</div><div class="sr-cal-grid${anyOn(st) ? ' sr-cal-grid--rich' : ''}">${descs.map(d => cellHTML(d, st, animate)).join('')}</div></div>`;
+}
+function miniMonthHTML(month, descs, st) {
+  return `<div class="sr-cal-minimonth"><h4>${MONTHS[month - 1]}</h4><div class="sr-cal-minigrid">${descs.map(d => miniCellHTML(d, st)).join('')}</div></div>`;
+}
+function legendUnit(view, metric) {
+  const combined = view.kind === 'combined';
+  if (metric === 'checklists') return combined ? 'Checklists across all years' : 'Checklists / day';
+  if (metric === 'total') return combined ? 'Individuals across all years' : 'Individuals / day';
+  return combined ? 'Species ever recorded' : 'Species / day';
+}
+function legendHTML(st, tiers, animateKind) {
+  const lg = tiers.legend;
+  let ramp = '';
+  if (lg.length) {
+    ramp = `<div class="legend-ramp"><div class="legend-ramp-sw">${lg.map(l => `<span title="${l.min === l.max ? l.min : l.min + '–' + l.max}" style="${st.textures ? hatchCss(l.tier) : 'background:var(--sr-cal-' + l.tier + ')'}"></span>`).join('')}</div><div class="legend-ramp-lbl"><span>${lg[0].min}</span><span class="mid">fewer → more</span><span>${lg[lg.length - 1].max}</span></div></div>`;
+  }
+  const row = (sw, text) => `<span class="legend-row">${sw}${text}</span>`;
+  const markSw = key => `<span class="legend-mark" aria-hidden="true">${glyph(key)}</span>`;
+  let overlays = '';
+  if (st.overlays.media) {
+    const keys = MK.mlLoaded ? ['photo', 'audio', 'video', 'media'] : ['media'];
+    const cap = MK.mlLoaded ? 'count: Macaulay Library items that day · plain frame: format not in the ML export' : 'count: Macaulay Library items that day · load the ML export for formats';
+    overlays += `<div class="legend-ov${animateKind === 'media' ? ' legend-ov--enter' : ''}"><span class="legend-unit">Media</span><div class="legend-ov-rows">${keys.map(k => row(markSw(k), MARKS[k].label)).join('')}</div><span class="legend-cap">${cap}</span></div>`;
+  }
+  if (st.overlays.breeding) {
+    const cap = st.overlays.codes === 'category' ? 'one row per category that day · count: species with evidence at that category' : 'every code recorded that day · count: species carrying it';
+    const byCat = st.overlays.codes === 'category';
+    overlays += `<div class="legend-ov${animateKind === 'breeding' ? ' legend-ov--enter' : ''}"><span class="legend-unit">Breeding</span><div class="legend-ov-rows">${CATS.map(k => row(markSw(k), byCat ? `<b>${CAT_SHORT[k]}</b>&nbsp;· ${MARKS[k].label}` : MARKS[k].label)).join('')}</div><span class="legend-cap">${cap}</span></div>`;
+  }
+  return `<div class="legend" aria-label="Shade legend"><span class="legend-unit">${legendUnit(st.view, st.metric)}</span>${ramp}<div class="legend-col">${row('<span class="legend-box" aria-hidden="true"></span>', 'no birding')}${row('<span class="legend-zero" aria-hidden="true">0</span>', 'birded · 0 countable')}</div>${overlays}</div>`;
+}
+
+const COUNT_FORMS_HELPER = "Forms that don't count toward a life list, like a spuh or a hybrid. Off by default.";
+const COUNT_FORMS_POPUP_NOTE = 'All forms included in the species and individual counts';
+
+function controlsHTML(st, inst) {
+  const id = inst.id;
+  const combined = st.view.kind === 'combined';
+  const yr = st.view.kind === 'year' ? st.view.year : 0;
+  const prevDisabled = combined || !YEARS.includes(yr - 1);
+  const nextDisabled = combined || !YEARS.includes(yr + 1);
+  const formsDisabled = st.metric === 'checklists' || !!st.filter;
+  return `
+<div class="sr-ctl-row sr-cal-ctl" role="region" aria-label="Calendar controls">
+  <div class="sr-wrap-flex sr-cal-ctl-top">
+    <div class="sr-ctl-group"><span class="sr-ctl-label">Show</span>${segHTML({ id: id + '-metric', label: 'Day metric', act: 'metric', value: st.metric, options: [{ value: 'species', label: 'Species' }, { value: 'checklists', label: 'Checklists' }, { value: 'total', label: 'Total count' }] })}</div>
+    <div class="sr-ctl-group sr-ctl-species"><span class="sr-ctl-label">Species</span>
+      <div class="sr-combo">${ICON.search}<input id="${id}-species" type="text" class="sr-input-16" role="combobox" aria-expanded="false" aria-autocomplete="list" aria-label="Filter the calendar to one species" placeholder="Filter to one species…" value="${esc(st.filter || '')}" autocomplete="off"></div>
+    </div>
+    <div class="sr-cal-year-group"><span class="sr-ctl-label">Year</span>
+      <div class="sr-cal-year-nav">
+        <button type="button" class="sr-nav-btn" id="${id}-prev" data-act="prev" aria-label="Previous year with data"${prevDisabled ? ' disabled' : ''}>${ICON.left}</button>
+        <span class="sr-year-num">${combined ? '·' : yr}</span>
+        <button type="button" class="sr-nav-btn" id="${id}-next" data-act="next" aria-label="Next year with data"${nextDisabled ? ' disabled' : ''}>${ICON.right}</button>
+        <button type="button" class="sr-allyears" id="${id}-all" data-act="allyears" aria-pressed="${combined}">All years</button>
+      </div>
+    </div>
+    <div class="sr-ctl-spacer"></div>
+    <div class="sr-ctl-group sr-cal-view-toggle"><span class="sr-ctl-label">View</span>${segHTML({ id: id + '-view', label: 'Calendar view', act: 'view', value: st.viewMode, options: [{ value: 'months', label: 'Compact', icon: ICON.grid, title: 'The twelve big month grids, with a count on every birded day' }, { value: 'overview', label: 'Large', icon: ICON.grid2, title: 'All twelve months as shaded, dated thumbnails: the whole year at a glance' }] })}</div>
+    ${switchHTML({ id: id + '-tex', label: 'Use Textures', checked: st.textures, act: 'textures' })}
+  </div>
+  <div class="sr-cal-settle">
+    <div class="sr-wrap-flex sr-cal-forms"${formsDisabled ? ' aria-disabled="true"' : ''}>
+      ${switchHTML({ id: id + '-forms', label: 'Count all forms', checked: st.includeForms, small: true, disabled: formsDisabled, act: 'forms', describedBy: id + '-forms-helper' })}
+      <p id="${id}-forms-helper">${COUNT_FORMS_HELPER}</p>
+    </div>
+    <div class="sr-cal-overlays" role="group" aria-label="Overlays">
+      <span class="sr-ctl-label">Overlays</span>
+      ${switchHTML({ id: id + '-ov-media', label: 'Media', checked: st.overlays.media, small: true, act: 'ov-media' })}
+      ${switchHTML({ id: id + '-ov-breeding', label: 'Breeding', checked: st.overlays.breeding, small: true, act: 'ov-breeding' })}
+      <!-- The codes control: a SegControl in the Calendar's own register, a
+           sub-option of the Breeding switch. Breeding off: the Count-all-forms
+           treatment (dimmed, aria-disabled, still a tab stop, reason in
+           aria-describedby), never hidden. -->
+      <div class="sr-cal-codes"${st.overlays.breeding ? '' : ' aria-disabled="true"'}>
+        ${segHTML({ id: id + '-codes', label: 'Breeding rows', act: 'codes', value: st.overlays.codes, disabled: !st.overlays.breeding, describedBy: id + '-codes-why', options: [{ value: 'every', label: 'Every code' }, { value: 'category', label: 'By category' }] })}
+        <span id="${id}-codes-why" class="sr-only">Turn on Breeding to choose how codes show.</span>
+      </div>
+    </div>
+  </div>
+</div>`;
+}
+
+function popupHTML(cell, st, opts) {
+  const ov = st.overlays;
+  const combined = st.view.kind === 'combined';
+  const forms = st.effectiveForms;
+  const speciesNum = forms ? cell.speciesCountWithForms : cell.speciesCount;
+  const totalNum = forms ? cell.totalCountWithForms : cell.totalCount;
+  const spanYears = combined ? new Set(cell.checklists.map(c => c.date.slice(0, 4))).size : null;
+  const dateLabel = combined ? cellDateLabel(cell.bucketKey) : longDate(cell.bucketKey);
+  const rows = [...cell.checklists].sort((a, b) => b.date.localeCompare(a.date));
+  const speciesLabel = forms ? (combined ? 'species (incl. forms) ever recorded' : 'species (incl. forms)') : (combined ? 'species ever recorded' : 'species');
+  const checklistLabel = combined ? (spanYears ? `checklists across ${spanYears} ${spanYears === 1 ? 'year' : 'years'}` : 'checklists') : 'checklists';
+  const totalLabel = forms ? (combined ? 'individuals (incl. forms), all years' : 'individuals (incl. forms)') : (combined ? 'individuals, all years' : 'individuals');
+  const showFormsNote = st.includeForms && !st.filter;
+
+  let facts = '';
+  if (ov.media && cell.mediaIdCount) {
+    const n = formatCounts(cell.mediaItems.values(), MK.mlLoaded);
+    facts += `<span class="sr-popup-fact"><span class="fmt">${glyph('media').replace('<svg ', '<svg class="mk" ')}media on ${plural(cell.mediaChecklistCount, 'checklist', 'checklists')}:</span>${FORMAT_KEYS.filter(k => n[k]).map(k => `<span class="fmt">${glyph(k)}${fmtPhrase(k, n[k])}</span>`).join('')}</span>`;
+  }
+  if (ov.breeding && cell.codes.length) {
+    facts += `<span class="sr-popup-fact"><span class="fmt">breeding evidence: ${CAT_LABEL[catOf(cell.codes[0].def)]}</span>${cell.codes.map(c => `<span class="fmt">${glyph(catOf(c.def)).replace('<svg ', '<svg class="mk" ')}<b>${esc(c.def.code)}</b>&nbsp;${c.species.size}</span>`).join('')}</span>`;
+  }
+
+  const rowHTML = r => {
+    const prettyTime = r.time ? fmtChecklistTime(r.time) : null;
+    const loc = r.location.trim();
+    const prefix = prettyTime && loc ? `${prettyTime} · ${loc}` : (prettyTime ?? loc);
+    const sc = forms ? r.speciesCountWithForms : r.speciesCount;
+    let ovLine = '';
+    if (ov.media && r.catalogIds.length) {
+      const n = formatCounts(r.media, MK.mlLoaded);
+      const parts = FORMAT_KEYS.filter(k => n[k]);
+      const showTotal = !(parts.length === 1 && parts[0] === 'media');
+      ovLine += `<span class="sr-popup-media">${showTotal ? `<span class="fmt"><span class="mk" aria-hidden="true">${glyph('media')}</span><b>${r.catalogIds.length} media</b></span>` : ''}${parts.map(k => `<span class="fmt">${glyph(k)}${showTotal && k === 'media' ? `${n[k]} other` : (k === 'media' ? `<b>${fmtPhrase(k, n[k])}</b>` : fmtPhrase(k, n[k]))}</span>`).join('')}</span>`;
+    }
+    if (ov.breeding && r.codes.length) {
+      ovLine += r.codes.map(c => { const cat = catOf(c.def); return `<span class="sr-bcode" data-tier="${CAT_TIER[cat]}"><b>${esc(c.def.code)}</b><span>${esc(c.def.label)}</span><span class="cat">${CAT_LABEL[cat]}</span>${c.species.size > 1 ? `<span class="sp">· ${c.species.size} species</span>` : ''}</span>`; }).join('');
+    }
+    return `<div class="sr-popup-row"><div class="sr-popup-row-main">
+      <div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><a class="sr-popup-link" href="https://ebird.org/checklist/${r.submissionId}" target="_blank" rel="noreferrer" aria-label="${esc(cellDateLabel(r.date))} — open checklist on eBird (opens in a new tab)">${cellDateLabel(r.date)}${ICON.ext}</a></div>
+      <div class="sr-popup-meta">${prefix ? `<span class="pre">${esc(prefix)}</span>` : ''}<span class="tail">${prefix ? ' · ' : ''}${sc.toLocaleString()} species</span></div>
+      ${ovLine ? `<div class="sr-popup-ov">${ovLine}</div>` : ''}
+    </div>${combined ? `<span class="sr-year-chip">${r.date.slice(0, 4)}</span>` : ''}</div>`;
+  };
+
+  return `<div class="sr-popup" role="${opts && opts.inline ? 'group' : 'dialog'}"${opts && opts.inline ? '' : ' aria-modal="true"'} aria-label="Day details for ${esc(dateLabel)}">
+  <div class="sr-popup-head"><div>
+    <h5>${dateLabel}</h5>
+    ${combined ? '<div class="sr-popup-sub">Across all years</div>' : ''}
+    ${showFormsNote && !combined ? `<div class="sr-popup-sub">${COUNT_FORMS_POPUP_NOTE}</div>` : ''}
+    ${facts ? `<div class="sr-popup-facts">${facts}</div>` : ''}
+  </div><button type="button" class="sr-popup-close" data-act="close" aria-label="Close day details">${ICON.x}</button></div>
+  <div class="sr-popup-stats">
+    <div class="sr-popup-stat"><b>${speciesNum}</b><span>${speciesLabel}</span></div>
+    <div class="sr-popup-stat"><b>${cell.checklistCount}</b><span>${checklistLabel}</span></div>
+    <div class="sr-popup-stat"><b>${totalNum.toLocaleString()}</b><span>${totalLabel}</span></div>
+  </div>
+  <div class="sr-popup-sec">Checklists</div>
+  <div class="sr-popup-body">${rows.map(rowHTML).join('')}</div>
+</div>`;
+}
+
+/* ── Instances ────────────────────────────────────────────────────────────── */
+const instances = [];
+function makeInstance(root, id, opts) {
+  const inst = {
+    root, id, months: opts.months || null, showHeader: opts.showHeader !== false,
+    st: { view: { kind: 'year', year: 2025 }, metric: 'species', textures: false, viewMode: 'months', includeForms: false, filter: '', overlays: { media: true, breeding: true, codes: 'every' }, effectiveForms: false },
+    popupKey: null, opener: null, animateKind: null,
+  };
+  instances.push(inst);
+  render(inst);
+  bind(inst);
+  return inst;
+}
+function derive(inst) {
+  const st = inst.st;
+  st.effectiveForms = st.filter ? true : st.includeForms;
+  const cells = buildDayCells(st.view, st.filter || undefined);
+  const counts = []; for (const c of cells.values()) { const n = metricCount(c, st.metric, st.effectiveForms); if (n > 0) counts.push(n); }
+  return { cells, tiers: computeTiers(counts) };
+}
+function render(inst) {
+  const st = inst.st;
+  const { cells, tiers } = derive(inst);
+  inst.cells = cells;
+  const combined = st.view.kind === 'combined';
+  const viewYearLabel = combined ? 'All years · 2023–2025' : String(st.view.year);
+  const metricPhrase = st.metric === 'checklists' ? (combined ? 'Checklists across all years on each calendar day' : 'Checklists submitted each day') : st.metric === 'total' ? (combined ? 'Individuals recorded on each calendar day' : 'Individuals recorded each day') : (combined ? 'Species ever recorded on each calendar day' : 'Species seen each day');
+  const formsSuffix = (st.metric !== 'checklists') && !st.filter && st.includeForms ? ', all forms included' : '';
+  const speciesSuffix = st.filter ? ` · ${st.filter} only` : '';
+  const daysBirded = cells.size;
+  const viewSub = `${metricPhrase}${formsSuffix}${speciesSuffix} · ${daysBirded.toLocaleString()} ${daysBirded === 1 ? 'day' : 'days'} birded`;
+  const months = inst.months || [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+  const descs = months.map(m => [m, monthDescriptors(m, st, cells, tiers)]);
+  const animate = !!inst.animateKind;
+  const grid = st.viewMode === 'months'
+    ? `<div class="sr-cal-months${anyOn(st) ? ' sr-cal-months--rich' : ''}">${descs.map(([m, d]) => monthHTML(m, d, st, animate)).join('')}</div>`
+    : `<div class="sr-cal-year">${descs.map(([m, d]) => miniMonthHTML(m, d, st)).join('')}</div>`;
+  inst.root.innerHTML = `
+${inst.showHeader ? `<div class="sr-tab-head"><div class="sr-tab-icon">${ICON.cal}</div><div><h2>Calendar</h2><p>A year of your birding as twelve month grids, each day shaded by how much you saw, with a click into the checklists behind it.</p></div></div>` : ''}
+${controlsHTML(st, inst)}
+<div class="sr-cal-sub"><div><h3>${viewYearLabel}</h3><div class="sr-viewsub">${esc(viewSub)}</div></div>${legendHTML(st, tiers, inst.animateKind)}</div>
+${grid}`;
+  inst.animateKind = null;
+  if (inst.popupKey) renderPopup(inst);
+}
+function renderPopup(inst) {
+  const cell = inst.cells.get(inst.popupKey);
+  if (!cell) { closePopup(inst, false); return; }
+  let host = inst.popupHost;
+  if (!host) {
+    host = document.createElement('div'); host.className = 'sr-popup-root'; host.setAttribute('role', 'presentation');
+    host.addEventListener('mousedown', e => { if (e.target === host) closePopup(inst, true); });
+    host.addEventListener('click', e => { if (e.target.closest('[data-act="close"]')) closePopup(inst, true); });
+    document.body.appendChild(host); inst.popupHost = host;
+    inst.onKey = e => { if (e.key === 'Escape') closePopup(inst, true); };
+    document.addEventListener('keydown', inst.onKey);
+  }
+  const focused = document.activeElement && host.contains(document.activeElement);
+  host.innerHTML = popupHTML(cell, inst.st);
+  if (!focused) host.querySelector('.sr-popup-close').focus();
+}
+function closePopup(inst, restore) {
+  if (inst.popupHost) { inst.popupHost.remove(); inst.popupHost = null; document.removeEventListener('keydown', inst.onKey); }
+  inst.popupKey = null;
+  if (restore && inst.opener) requestAnimationFrame(() => { const el = document.querySelector(`#${inst.id} [data-open="${inst.opener}"]`); if (el) el.focus(); });
+}
+function rerender(inst, focusId) {
+  render(inst);
+  if (focusId) { const el = document.getElementById(focusId); if (el) el.focus({ preventScroll: true }); }
+}
+function bind(inst) {
+  const st = inst.st;
+  inst.root.addEventListener('click', e => {
+    const open = e.target.closest('[data-open]');
+    if (open) { inst.popupKey = open.dataset.open; inst.opener = open.dataset.open; renderPopup(inst); return; }
+    const b = e.target.closest('[data-act]'); if (!b) return;
+    const act = b.dataset.act; const id = b.id;
+    switch (act) {
+      case 'metric': st.metric = b.dataset.v; break;
+      case 'view': st.viewMode = b.dataset.v; break;
+      case 'textures': st.textures = !st.textures; break;
+      case 'forms': if (b.getAttribute('aria-disabled') === 'true') return; st.includeForms = !st.includeForms; break;
+      case 'ov-media': st.overlays.media = !st.overlays.media; inst.animateKind = st.overlays.media ? 'media' : null; break;
+      case 'ov-breeding': st.overlays.breeding = !st.overlays.breeding; inst.animateKind = st.overlays.breeding ? 'breeding' : null; break;
+      case 'codes': if (b.getAttribute('aria-disabled') === 'true') return; st.overlays.codes = b.dataset.v; break;
+      case 'prev': if (st.view.kind === 'year') st.view = { kind: 'year', year: st.view.year - 1 }; break;
+      case 'next': if (st.view.kind === 'year') st.view = { kind: 'year', year: st.view.year + 1 }; break;
+      case 'allyears': st.view = st.view.kind === 'combined' ? { kind: 'year', year: 2025 } : { kind: 'combined' }; break;
+      default: return;
+    }
+    rerender(inst, id);
+  });
+  inst.root.addEventListener('focusin', e => { if (e.target.id === `${inst.id}-species`) openList(inst, e.target); });
+  inst.root.addEventListener('input', e => { if (e.target.id === `${inst.id}-species`) openList(inst, e.target); });
+  inst.root.addEventListener('keydown', e => {
+    if (e.target.id !== `${inst.id}-species`) return;
+    const list = inst.root.querySelector('.sr-combo-list');
+    if (e.key === 'Escape' && list) { e.stopPropagation(); closeList(inst); }
+    if (e.key === 'Enter') { e.preventDefault(); const q = e.target.value.trim().toLowerCase(); const hit = SPECIES.find(s => s.toLowerCase().includes(q)); setFilter(inst, q ? (hit || st.filter) : ''); }
+  });
+  inst.root.addEventListener('mousedown', e => { const o = e.target.closest('.sr-combo-list [role="option"]'); if (o) { e.preventDefault(); setFilter(inst, o.dataset.v || ''); } });
+  document.addEventListener('focusin', e => { if (!inst.root.contains(e.target)) closeList(inst); });
+}
+function openList(inst, input) {
+  const q = input.value.trim().toLowerCase();
+  const rows = SPECIES.filter(s => !q || s.toLowerCase().includes(q));
+  let list = inst.root.querySelector('.sr-combo-list');
+  if (!list) { list = document.createElement('ul'); list.className = 'sr-combo-list'; list.setAttribute('role', 'listbox'); list.setAttribute('aria-label', 'Species'); input.parentElement.appendChild(list); input.setAttribute('aria-expanded', 'true'); }
+  list.innerHTML = `<li role="option" class="is-all" data-v="" aria-selected="${!inst.st.filter}">All species</li>` + rows.map(s => `<li role="option" data-v="${esc(s)}" aria-selected="${inst.st.filter === s}">${esc(s)}</li>`).join('');
+}
+function closeList(inst) { const list = inst.root.querySelector('.sr-combo-list'); if (list) { list.remove(); const input = inst.root.querySelector(`#${inst.id}-species`); if (input) input.setAttribute('aria-expanded', 'false'); } }
+function setFilter(inst, name) {
+  inst.st.filter = name; closePopup(inst, false); closeList(inst);
+  rerender(inst, `${inst.id}-species`);
+  const input = inst.root.querySelector(`#${inst.id}-species`); if (input) input.blur();
+}
+
+/* ── Specimens ────────────────────────────────────────────────────────────── */
+const SPEC_ST = { view: { kind: 'year', year: 2025 }, metric: 'species', textures: false, includeForms: false, filter: '', effectiveForms: false, overlays: { media: true, breeding: true, codes: 'every' } };
+function fakeCell(opts) {
+  const mediaItems = new Map(); (opts.media || []).forEach((f, i) => mediaItems.set(String(700000000 + i), { id: String(700000000 + i), format: f }));
+  const codeMap = new Map(); (opts.codes || []).forEach(([code, n]) => { for (let i = 0; i < n; i++) addCode(codeMap, code, 'sp' + code + i); });
+  const codes = sortedCodes(codeMap);
+  return { bucketKey: '2025-05-17', mediaItems, mediaIdCount: mediaItems.size, mediaPresent: mediaItems.size > 0, mediaChecklistCount: mediaItems.size ? 1 : 0, codeMap, codes, breeding: codes.length ? codes[0].def : null };
+}
+function oneCell(width, tier, opts, textures, zero, codes) {
+  const desc = { kind: zero ? 'zero' : 'data', count: opts.count || 54, tier, cell: fakeCell(opts) };
+  const st = { ...SPEC_ST, textures, overlays: { ...SPEC_ST.overlays, codes: codes || 'every' } };
+  return `<div class="sr-cal-grid sr-cal-grid--rich" style="grid-template-columns:${width}px">${cellHTML(desc, st, false)}</div>`;
+}
+function keySpecimen() {
+  const full = { count: 54, media: ['Photo', 'Photo', 'Photo', 'Audio', 'Video'], codes: [['NY', 1], ['A', 2], ['S', 3], ['H', 1]] };
+  const items = [
+    { w: 96, opts: full, title: 'Rich, ML export loaded', text: 'The count, then a row per format with its count (3 photos, 1 audio, 1 video), then a row per breeding code, strongest first: the category circle, the code, and the number of species carrying it. Four codes here, so the tile shows three and "+1".' },
+    { w: 96, opts: full, ml: false, title: 'Rich, no ML export', text: 'The backup knows how many Macaulay Library items the day has but not their formats, so the media rows collapse to one frame glyph with the total. Everything else is unchanged.' },
+    { w: 34, opts: full, title: 'Condensed (a 34px cell)', text: 'Below about 38px the tile switches by container query: one media glyph with the total, the strongest code with its circle, "+N" for the rest. At 200% text the glyph and its number stack on two lines (see Specimen 6).' },
+    { w: 96, opts: full, codes: 'category', title: 'By category, rich', text: 'The same day with the codes control on By category: one row per category present, its circle, the category name (Conf, Prob, Poss; the legend spells them out), and the number of species with evidence at that category. No codes appear on the tile; the popup still lists them all.' },
+    { w: 34, opts: full, codes: 'category', title: 'By category, condensed', text: 'On a narrow cell each category present is its circle and count, no text: solid 1, half 2, open 4. The circle carries the category, so nothing rests on color.' },
+    { w: 96, opts: { count: 0, media: ['Photo'], codes: [] }, zero: true, title: 'A zero day with media', text: 'A day whose only rows are non-countable forms under the Species metric still gets its facts, in the zero cell\'s muted ink.' },
+  ];
+  document.getElementById('mk-key').innerHTML = items.map(it => {
+    const saved = MK.mlLoaded; if (it.ml === false) MK.mlLoaded = false;
+    const html = `<div class="mk-key-item"><div class="mk-key-cell" aria-hidden="true">${oneCell(it.w, 3, it.opts, false, it.zero, it.codes)}</div><div class="mk-key-text"><b>${it.title}</b><span>${it.text}</span></div></div>`;
+    MK.mlLoaded = saved; return html;
+  }).join('');
+}
+function tierSpecimen(id, textures) {
+  const rows = [
+    ['photos + audio, NY + S', { media: ['Photo', 'Photo', 'Photo', 'Audio'], codes: [['NY', 1], ['S', 2]] }],
+    ['video only, A', { media: ['Video'], codes: [['A', 1]] }],
+    ['media only', { media: ['Photo', 'Audio', 'Video'], codes: [] }],
+    ['codes only, four of them', { media: [], codes: [['FL', 2], ['NB', 1], ['T', 1], ['H', 1]] }],
+  ];
+  let html = `<span></span>${[1, 2, 3, 4, 5].map(t => `<span class="hd">tier ${t}</span>`).join('')}<span class="hd">zero</span>`;
+  for (const [lbl, opts] of rows) {
+    html += `<span class="lbl">${lbl}</span>`;
+    for (let t = 1; t <= 5; t++) html += oneCell(64, t, { count: [12, 24, 36, 51, 78][t - 1], ...opts }, textures, false);
+    html += oneCell(64, 1, { count: 0, ...opts }, textures, true);
+  }
+  document.getElementById(id).innerHTML = html;
+}
+function popupSpecimen() {
+  const cells = buildDayCells(SPEC_ST.view);
+  const cell = cells.get('2025-05-17');
+  document.getElementById('mk-popup-both').innerHTML = popupHTML(cell, SPEC_ST, { inline: true });
+  document.getElementById('mk-popup-off').innerHTML = popupHTML(cell, { ...SPEC_ST, overlays: { media: false, breeding: false } }, { inline: true });
+}
+function largeSpecimen() {
+  const cells = buildDayCells(SPEC_ST.view); const counts = []; for (const c of cells.values()) { const n = metricCount(c, 'species', false); if (n > 0) counts.push(n); }
+  const tiers = computeTiers(counts);
+  const d = monthDescriptors(5, SPEC_ST, cells, tiers);
+  const card = (w, cap) => `<div class="mk-col"><span class="mk-cap">${cap}</span><div style="width:${w}px;max-width:100%">${miniMonthHTML(5, d, SPEC_ST)}</div></div>`;
+  document.getElementById('mk-large').innerHTML = card(300, 'A 300px card: three-up on a desktop') + card(200, 'A 200px card: just above the floor') + card(160, 'A 160px card: below the floor, marks and dates hidden');
+  document.getElementById('mk-large').addEventListener('click', e => { const b = e.target.closest('[data-open]'); if (b) { main.popupKey = b.dataset.open; main.opener = null; renderPopup(main); } });
+}
+function refreshSpecimens() { keySpecimen(); tierSpecimen('mk-tiers-solid', false); tierSpecimen('mk-tiers-hatch', true); popupSpecimen(); }
+
+/* ── Mockup chrome ────────────────────────────────────────────────────────── */
+document.querySelector('.mk-bar').addEventListener('click', e => {
+  const b = e.target.closest('button[data-mk]'); if (!b) return;
+  for (const s of b.parentElement.querySelectorAll('button')) s.setAttribute('aria-pressed', String(s === b));
+  const v = b.dataset.v;
+  if (b.dataset.mk === 'theme') document.documentElement.setAttribute('data-theme', v);
+  if (b.dataset.mk === 'scale') document.documentElement.style.setProperty('--sr-text-scale', v);
+  if (b.dataset.mk === 'ml') { MK.mlLoaded = v === '1'; refreshSpecimens(); for (const i of instances) render(i); }
+});
+
+const main = makeInstance(document.getElementById('cal-main'), 'cal-main', {});
+makeInstance(document.getElementById('cal-phone'), 'cal-phone', { months: [5, 6], showHeader: false });
+refreshSpecimens();
+largeSpecimen();
+})();
+</script>
+</body>
+</html>

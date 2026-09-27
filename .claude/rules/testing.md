@@ -14,6 +14,7 @@ paths:
   - "frontend/src/lib/widgets/widgetRows.fixtureInputs.ts"
   - "frontend/src/lib/widgets/widgetRows.fixtureBuild.ts"
   - "frontend/src/test/**"
+  - "frontend/src/components/calendarOverlaysOff.fixture.json"
   - "src-tauri/gen/apple/snowraven_widgets/Sources/Logic/Distance.swift"
 ---
 

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { observationMediaFormats, matchesMediaFilter } from './observationMedia'
+import { observationMediaFormats, matchesMediaFilter, mediaFormatCounts, asMediaFormat } from './observationMedia'
 
 // catalogId → format, as produced by parseMLExport's mediaMap.
 const mediaMap: Record<string, string> = {
@@ -54,5 +54,31 @@ describe('matchesMediaFilter', () => {
     const withoutVideo = observationMediaFormats(['100', '200'], mediaMap)
     expect(matchesMediaFilter(withVideo, 'video')).toBe(true)
     expect(matchesMediaFilter(withoutVideo, 'video')).toBe(false)
+  })
+})
+
+// calendar-overlays (FR-25, QA-28): the counting twin of observationMediaFormats.
+describe('mediaFormatCounts', () => {
+  it('counts distinct ids by format, with the unknown bucket for ids the export does not name (QA-28)', () => {
+    const map = { '1': 'Photo', '2': 'Photo', '3': 'Audio' }
+    expect(mediaFormatCounts(['1', '2', '3', '9'], map)).toEqual({ total: 4, photo: 2, audio: 1, video: 0, unknown: 1 })
+  })
+  it('with no export loaded reports the plain total and no unknown bucket (O(1) path)', () => {
+    expect(mediaFormatCounts(['1', '2', '3'], null)).toEqual({ total: 3, photo: 0, audio: 0, video: 0, unknown: 0 })
+  })
+  it('an id named under an unrecognised format is counted as unknown, not dropped', () => {
+    expect(mediaFormatCounts(['100', '5'], { '100': 'Photo', '5': 'Panorama' })).toEqual({ total: 2, photo: 1, audio: 0, video: 0, unknown: 1 })
+  })
+  it('total === photo + audio + video + unknown whenever a map is loaded', () => {
+    const ids = ['100', '200', '300', '400', '999', '5']
+    const c = mediaFormatCounts(ids, { ...mediaMap, '5': 'Sketch' })
+    expect(c.photo + c.audio + c.video + c.unknown).toBe(c.total)
+    expect(c.total).toBe(ids.length)
+  })
+  it('shares its acceptance rule with observationMediaFormats', () => {
+    expect(asMediaFormat('Photo')).toBe('Photo')
+    expect(asMediaFormat('photo')).toBeNull()
+    expect(asMediaFormat(undefined)).toBeNull()
+    expect(asMediaFormat(1)).toBeNull()
   })
 })

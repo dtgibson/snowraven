@@ -60,24 +60,49 @@ export function apiBreedingToDisplay(apiCode: string): string {
 }
 
 /**
+ * Resolve a DISPLAY code (the eBird backup's Breeding Code column, which is
+ * already in display form) to its def. Never passed through the API
+ * translation: the backup's `FY` is Feeding Young, never Carrying Food. An
+ * unknown code falls back to a tier-1 def whose label is the raw code, exactly
+ * as `resolveApiBreedingCode` treats an unknown code after translation.
+ */
+export function resolveDisplayBreedingCode(display: string): BreedingCodeDef {
+  return BREEDING_CODE_MAP.get(display) ?? { code: display, label: display, tier: 1 }
+}
+
+/**
  * Resolve a raw eBird API breeding code to a display def. Translates the internal
  * code to the display code, then looks up its label + tier. Unknown codes fall back
  * to a tier-1 def showing the raw code, so nothing is ever mislabeled or dropped.
  */
 export function resolveApiBreedingCode(apiCode: string): BreedingCodeDef {
-  const display = apiBreedingToDisplay(apiCode)
-  return BREEDING_CODE_MAP.get(display) ?? { code: display, label: display, tier: 1 }
+  return resolveDisplayBreedingCode(apiBreedingToDisplay(apiCode))
+}
+
+/**
+ * Strongest-first order by the table's rank. Unknown codes rank below every
+ * known code (Infinity) and compare EQUAL to each other, so a stable sort keeps
+ * them in first-seen order. Negative when `a` is stronger. Written as explicit
+ * comparisons, never `ra - rb`: `Infinity - Infinity` is NaN, which would make
+ * the sort's result engine-defined for two unknown codes.
+ */
+export function compareBreedingDefs(a: BreedingCodeDef, b: BreedingCodeDef): number {
+  const ra = BREEDING_RANK.get(a.code) ?? Infinity
+  const rb = BREEDING_RANK.get(b.code) ?? Infinity
+  return ra === rb ? 0 : ra < rb ? -1 : 1
+}
+
+/** The stronger of two resolved defs; a tie keeps `a`. Defined on the
+ *  comparator so the fold and the Calendar's sort cannot disagree. */
+export function strongerBreedingDef(a: BreedingCodeDef | null, b: BreedingCodeDef | null): BreedingCodeDef | null {
+  if (!a) return b
+  if (!b) return a
+  return compareBreedingDefs(a, b) <= 0 ? a : b
 }
 
 /** Compare two API breeding codes; returns the stronger one's display def, or null. */
 export function strongerBreeding(a: string | null, b: string | null): BreedingCodeDef | null {
-  const da = a ? resolveApiBreedingCode(a) : null
-  const db = b ? resolveApiBreedingCode(b) : null
-  if (!da) return db
-  if (!db) return da
-  const ra = BREEDING_RANK.get(da.code) ?? Infinity
-  const rb = BREEDING_RANK.get(db.code) ?? Infinity
-  return ra <= rb ? da : db
+  return strongerBreedingDef(a ? resolveApiBreedingCode(a) : null, b ? resolveApiBreedingCode(b) : null)
 }
 
 export const TIER_COLORS: Record<1 | 2 | 3 | 4, string> = {
@@ -93,4 +118,28 @@ export const CATEGORY_CODES: Record<BreedingCategory, Set<string>> = {
   confirmed: new Set(BREEDING_CODES.filter(d => d.tier >= 3).map(d => d.code)),
   probable:  new Set(BREEDING_CODES.filter(d => d.tier === 2).map(d => d.code)),
   possible:  new Set(BREEDING_CODES.filter(d => d.tier === 1).map(d => d.code)),
+}
+
+/** The category a tier belongs to: tiers 3-4 Confirmed, 2 Probable, 1 Possible.
+ *  The one lifted copy of the ternary BreedingCodeTable and BreedingCodeList
+ *  carry inline (those call sites are out of scope and stay as they are). */
+export function breedingCategoryForTier(tier: 1 | 2 | 3 | 4): BreedingCategory {
+  return tier >= 3 ? 'confirmed' : tier === 2 ? 'probable' : 'possible'
+}
+
+/** Strongest first: the order the Calendar's By-category tile rows and its
+ *  legend use. */
+export const BREEDING_CATEGORY_ORDER: readonly BreedingCategory[] = ['confirmed', 'probable', 'possible']
+
+/** The category words the Calendar's popup and accessible names read. A data
+ *  contract (tests assert the literals), never derived from a raw code. */
+export const BREEDING_CATEGORY_LABELS: Record<BreedingCategory, string> = {
+  confirmed: 'Confirmed', probable: 'Probable', possible: 'Possible',
+}
+
+/** The title-case short forms a Calendar tile prints under "By category"
+ *  (calendar-overlays D4-11): the full word does not fit beside a glyph and a
+ *  count at the tile's 0.5625rem. The legend keys each to its word. */
+export const BREEDING_CATEGORY_SHORT: Record<BreedingCategory, string> = {
+  confirmed: 'Conf', probable: 'Prob', possible: 'Poss',
 }

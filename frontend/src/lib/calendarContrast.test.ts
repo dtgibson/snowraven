@@ -12,6 +12,7 @@
 /// <reference types="node" />
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
+import { OVERLAY_MARK_SPECS } from './calendarOverlays'
 
 const css = readFileSync(new URL('../globals.css', import.meta.url), 'utf8')
 
@@ -90,6 +91,44 @@ describe('--sr-cal day-shade ramp (NFR-05)', () => {
     for (const t of TIERS) {
       expect(rootBlock).toMatch(new RegExp(`--sr-cal-${t}-rgb:\\s*\\d+,\\d+,\\d+`))
       expect(darkBlock).toMatch(new RegExp(`--sr-cal-${t}-rgb:\\s*\\d+,\\d+,\\d+`))
+    }
+  })
+})
+
+// calendar-overlays (NFR-02, NFR-03, QA-24). The tile's fact rows and the Large
+// view's corner marks are drawn in the ink each OVERLAY_MARK_SPECS entry names.
+// The guard reads the TABLE, never a copy of it: whatever token a spec names is
+// parsed out of both theme blocks (a token missing from either fails), and it
+// must clear the TEXT floor (4.5:1) on every tier, since the rows carry codes
+// and counts as text at 0.5625rem, not only shapes. The zero-day ink is the
+// number's own --sr-text-muted on --sr-surface-subtle, covered above.
+describe('overlay mark ink on every tier (calendar-overlays, QA-24)', () => {
+  const specs = Object.values(OVERLAY_MARK_SPECS)
+  const tokenName = (ref: string): string => {
+    const m = ref.match(/^var\(--([a-z0-9-]+)\)$/)
+    if (!m) throw new Error(`mark token ${ref} is not a var() reference`)
+    return m[1]
+  }
+
+  it('reads every one of the seven specs (non-vacuous)', () => {
+    expect(specs).toHaveLength(7)
+  })
+
+  it('every mark token clears 4.5:1 on --sr-cal-1..5 in BOTH themes', () => {
+    for (const spec of specs) {
+      const name = tokenName(spec.token)
+      for (const b of [rootBlock, darkBlock]) {
+        const ink = hexOf(b, name)
+        for (const t of TIERS) {
+          expect(contrast(ink, hexOf(b, `sr-cal-${t}`)), `${spec.key} ink on tier ${t}`).toBeGreaterThanOrEqual(4.5)
+        }
+      }
+    }
+  })
+
+  it('the legend swatch (the glyph on a tier-3 square) clears 4.5:1 in both themes', () => {
+    for (const b of [rootBlock, darkBlock]) {
+      expect(contrast(hexOf(b, 'sr-cal-fg'), hexOf(b, 'sr-cal-3'))).toBeGreaterThanOrEqual(4.5)
     }
   })
 })

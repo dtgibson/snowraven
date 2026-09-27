@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest'
 import {
   BREEDING_CODES, CATEGORY_CODES,
   apiBreedingToDisplay, resolveApiBreedingCode, strongerBreeding,
+  resolveDisplayBreedingCode, compareBreedingDefs, strongerBreedingDef,
+  breedingCategoryForTier, BREEDING_CATEGORY_ORDER, BREEDING_CATEGORY_LABELS,
 } from './breedingCodes'
 
 describe('CATEGORY_CODES', () => {
@@ -117,5 +119,73 @@ describe('strongerBreeding', () => {
     expect(strongerBreeding(null, 'S1')?.code).toBe('S')
     expect(strongerBreeding('NY', null)?.code).toBe('NY')
     expect(strongerBreeding(null, null)).toBeNull()
+  })
+})
+
+// calendar-overlays: the display-code resolver and the rank comparator the
+// Calendar's per-day code list sorts on. The resolveApiBreedingCode and
+// strongerBreeding rows above are unedited: they now run through these
+// functions, so their staying green is the proof the refactor is identical.
+describe('resolveDisplayBreedingCode (calendar-overlays, FR-12)', () => {
+  it('looks a backup display code up directly, never through the API translation (QA-11)', () => {
+    // The backup's FY is Feeding Young. Through the API table it would become
+    // Carrying Food, which is exactly the mislabel FR-12 forbids.
+    expect(resolveDisplayBreedingCode('FY')).toMatchObject({ code: 'FY', label: 'Feeding Young', tier: 4 })
+    expect(resolveDisplayBreedingCode('NY').tier).toBe(4)
+    expect(resolveDisplayBreedingCode('NB').tier).toBe(3)
+    expect(resolveDisplayBreedingCode('A').tier).toBe(2)
+    expect(resolveDisplayBreedingCode('S').tier).toBe(1)
+  })
+  it('an unknown code is tier 1 with its raw text as code and label (QA-12)', () => {
+    expect(resolveDisplayBreedingCode('ZZ')).toEqual({ code: 'ZZ', label: 'ZZ', tier: 1 })
+    // Case is not folded: a lowercase spelling is its own, unknown code.
+    expect(resolveDisplayBreedingCode('ny')).toEqual({ code: 'ny', label: 'ny', tier: 1 })
+  })
+})
+
+describe('compareBreedingDefs / strongerBreedingDef (calendar-overlays, FR-13)', () => {
+  const d = resolveDisplayBreedingCode
+  it('orders known codes by the table rank, strongest first', () => {
+    expect(compareBreedingDefs(d('NY'), d('S'))).toBeLessThan(0)
+    expect(compareBreedingDefs(d('S'), d('A'))).toBeGreaterThan(0)
+    expect(compareBreedingDefs(d('A'), d('A'))).toBe(0)
+  })
+  it('ranks every known code above every unknown one, even a tier-1 known code', () => {
+    expect(compareBreedingDefs(d('F'), d('ZZ'))).toBeLessThan(0)
+    expect(compareBreedingDefs(d('ZZ'), d('F'))).toBeGreaterThan(0)
+  })
+  it('two unknown codes compare EQUAL, never NaN, so a stable sort keeps first-seen order', () => {
+    const c = compareBreedingDefs(d('ZZ'), d('QQ'))
+    expect(c).toBe(0)
+    expect(Number.isNaN(c)).toBe(false)
+    const sorted = [d('ZZ'), d('QQ'), d('S'), d('XY')].sort(compareBreedingDefs).map(x => x.code)
+    expect(sorted).toEqual(['S', 'ZZ', 'QQ', 'XY'])
+  })
+  it('strongerBreedingDef keeps `a` on a tie and handles nulls', () => {
+    const zz = d('ZZ'), qq = d('QQ')
+    expect(strongerBreedingDef(zz, qq)).toBe(zz)
+    expect(strongerBreedingDef(qq, zz)).toBe(qq)
+    expect(strongerBreedingDef(d('S'), d('NY'))?.code).toBe('NY')
+    expect(strongerBreedingDef(null, zz)).toBe(zz)
+    expect(strongerBreedingDef(zz, null)).toBe(zz)
+    expect(strongerBreedingDef(null, null)).toBeNull()
+  })
+})
+
+describe('breeding categories (calendar-overlays)', () => {
+  it('breedingCategoryForTier maps all four tiers', () => {
+    expect(breedingCategoryForTier(4)).toBe('confirmed')
+    expect(breedingCategoryForTier(3)).toBe('confirmed')
+    expect(breedingCategoryForTier(2)).toBe('probable')
+    expect(breedingCategoryForTier(1)).toBe('possible')
+  })
+  it('agrees with CATEGORY_CODES for every code in the table', () => {
+    for (const def of BREEDING_CODES) {
+      expect(CATEGORY_CODES[breedingCategoryForTier(def.tier)].has(def.code)).toBe(true)
+    }
+  })
+  it('orders strongest first and names each category', () => {
+    expect(BREEDING_CATEGORY_ORDER).toEqual(['confirmed', 'probable', 'possible'])
+    expect(BREEDING_CATEGORY_LABELS).toEqual({ confirmed: 'Confirmed', probable: 'Probable', possible: 'Possible' })
   })
 })

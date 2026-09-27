@@ -1231,7 +1231,220 @@ h1, h2, h3, h4, h5, h6 {
 .sr-cal-mininum .sr-cal-daynum { display: none; }
 @container (min-width: 152px) {
   .sr-cal-mininum .sr-cal-daynum { display: inline; }
+  /* Calendar overlays: the Large-view corner marks share the date's floor, one
+     more selector under the SAME query, never a second threshold (FR-22). */
+  .sr-cal-mininum .sr-cal-mark { display: block; }
 }
+
+/* ── Calendar overlays (pipeline/calendar-overlays) ─────────────────────────
+   Every rule here applies only while an overlay is ON: the classes are rendered
+   only then, so with both overlays off the Calendar's markup and look are the
+   shipped ones (FR-19; calendarOverlaysOff.test.tsx pins the markup).
+
+   The settling row, lifted from inline so the phone tier can wrap it: the
+   Count all forms cluster keeps its dim/inert treatment (inline opacity and
+   pointer-events, as shipped) and the Overlays group sits after it, never
+   dimmed, with a hairline on its left. */
+.sr-cal-settle { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 18px; }
+.sr-cal-forms { flex: 1 1 320px; min-width: 0; transition: opacity 150ms ease-out; }
+.sr-cal-overlays {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; min-width: 0;
+  margin-left: auto; padding-left: 18px; border-left: 1px solid var(--sr-border);
+}
+/* The codes control, a sub-option of Breeding: gated (dimmed, aria-disabled,
+   still a tab stop) while Breeding is off, never hidden (FR-36). No
+   pointer-events: none, unlike the forms cluster, so a pointer user keeps the
+   cursor and the focus ring; the component's onClick guard is what makes it
+   inert. The global reduced-motion block collapses the fade. */
+.sr-cal-codes { display: inline-flex; align-items: center; min-width: 0; transition: opacity 150ms ease-out; }
+.sr-cal-codes[aria-disabled="true"] { opacity: 0.45; }
+
+/* The month cards reflow wider while an overlay is on (340px minimum instead of
+   230px), so a desktop week has room for its fact rows. */
+.sr-cal-months--rich { grid-template-columns: repeat(auto-fill, minmax(min(340px, 100%), 1fr)); }
+
+/* The tile. Every cell in a rich grid drops its square aspect (an inline VALUE
+   the component varies, so the off state keeps its shipped key order) and
+   takes this floor; the grid's default stretch makes every cell in a week the
+   height of the tallest, so a week with no facts stays a row of near-squares.
+   Each cell is a size container so its fact block can pick its form by the
+   cell's OWN width (below). The floor is a class, never inline, so the phone
+   tier can restore the 44px touch posture over it. */
+.sr-cal-grid--rich > .sr-cal-cell { min-height: 2.125rem; container-type: inline-size; }
+
+/* The two fact blocks, drawn in the cell's number colour (the component sets
+   it, a token), so the AA guard that already holds the number on every tier
+   holds the rows too (calendarContrast.test.ts). Rich above 2.4em of cell
+   width, condensed at or below it: a phone cell, or any cell at 200% text (a
+   "By category" tile a little sooner, see below). Both are always in the DOM
+   and aria-hidden; nothing measures or re-renders. */
+.sr-cal-facts {
+  display: flex; flex-direction: column; align-items: center; gap: 0.125rem;
+  font-size: 0.5625rem; line-height: 1; font-weight: 600; font-variant-numeric: tabular-nums;
+  border-radius: 3px;
+  /* A block spans the cell's whole border box and never paints past it (QA F2).
+     The tile's inline padding (TILE_PADDING_INLINE_REM, 0.125rem a side) is
+     given back, because at 320px / 200% a real two-letter code and a 3-digit
+     total fit only with it; and ink is clipped at the cell edge, so a bounded
+     unknown code of wide glyphs cannot widen the tile or the page. `clip`, not
+     `hidden`: it creates no scroll container, so the tile's column flex never
+     gains licence to shrink a block below its content (which would hide a
+     short tile instead of growing it, the F1 shape). The width is a cell
+     measurement for the block, never for the container query, which reads the
+     cell's own content box. */
+  width: calc(100% + 0.25rem); margin-inline: -0.125rem; overflow-x: clip;
+}
+.sr-cal-facts.is-backed { padding: 0.125rem; }
+/* The rich rows keep the tile's inset (their counts are right-aligned and would
+   otherwise meet the neighbouring cell): the returned width is padding, and
+   `overflow: clip` clips at the padding box, so the rows sit where the design
+   puts them while the clip line stays the cell edge. The condensed rows are
+   centred and take the whole width, textures mode included. */
+.sr-cal-facts--rich { padding-inline: 0.125rem; }
+.sr-cal-facts--condensed.is-backed { padding-inline: 0; }
+.sr-cal-facts--condensed { display: none; }
+@container (max-width: 2.4em) {
+  .sr-cal-facts--rich { display: none; }
+  .sr-cal-facts--condensed { display: flex; }
+}
+/* A "By category" row's short label (Conf / Prob / Poss) is wider than any
+   code, so its tile turns compact sooner, at a width set by its widest count's
+   digits, which the component states as a class (categoryCountDigits). Measured
+   in Chromium and WebKit (decisions.md E5-12): glyph, label and count need at
+   most 2.557em of the cell's font with a 1-digit count, 2.938em with 2 digits,
+   and one more digit is 0.381em (3.319em). Each threshold sits just above its
+   need; below it the tile shows the compact circle-and-count rows. */
+@container (max-width: 2.6em) {
+  .sr-cal-facts--rich.sr-cal-facts--cat { display: none; }
+  .sr-cal-facts--condensed.sr-cal-facts--cat { display: flex; }
+}
+@container (max-width: 3em) {
+  .sr-cal-facts--rich.sr-cal-facts--cat-2d { display: none; }
+  .sr-cal-facts--condensed.sr-cal-facts--cat-2d { display: flex; }
+}
+@container (max-width: 3.4em) {
+  .sr-cal-facts--rich.sr-cal-facts--cat-3d { display: none; }
+  .sr-cal-facts--condensed.sr-cal-facts--cat-3d { display: flex; }
+}
+.sr-fact {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; column-gap: 0.125rem;
+  width: 100%; max-width: 3.6rem; white-space: nowrap;
+}
+.sr-fact svg { width: 0.5625rem; height: 0.5625rem; display: block; }
+/* No ellipsis box on the code (QA F2, measured): WebKit sizes a shrink-to-fit
+   box by an advance that EXCLUDES its trailing letter-spacing, so an ellipsis
+   there fires on text that fits and a real "NY" rendered as "N..". The bound
+   that fits a tile is in lib/calendarOverlays.ts (tileCodeText: an unknown code
+   of three or more characters shows its first and an ellipsis in the TEXT),
+   and the block's clip at the cell edge is the backstop. */
+.sr-fact b { font-weight: 700; letter-spacing: 0.02em; text-align: left; }
+/* A "By category" row names the category (Conf / Prob / Poss, D4-11), set
+   lighter than a code and untracked, so the two row kinds differ in weight as
+   well as in words. */
+.sr-fact--cat b { font-weight: 600; letter-spacing: 0; }
+.sr-fact-n { text-align: right; }
+.sr-fact--more { justify-content: center; grid-template-columns: auto; opacity: 0.85; }
+/* Condensed rows: glyph and text side by side, or the glyph stacked over its
+   text on a cell too narrow for the pair (FR-38), and the tile grows taller.
+   WHICH of the two is decided by the cell's own width in a container query,
+   NEVER by flex-wrap line breaking. Measured (QA F1): WebKit sizes a grid row
+   from a stale line count after the text size changes under an already laid
+   out grid (Settings -> Text size, with this tab mounted), so a row that would
+   now wrap was sized as one line and fell up to 35px below its tile; a fresh
+   load at the same size was correct, and a forced relayout or a 1px resize did
+   not repair it. A query-driven layout is re-evaluated in that same pass,
+   which is why the rich/condensed flip was never affected. The width a pair
+   needs depends on its text (ui.md, the incompressible-pair rule), so the
+   threshold is set from measured text: a known code needs at most 1.61em of the
+   cell's font, a 2-digit total 1.45em, a 3-digit total 1.83em, and a 320px
+   phone cell at 100% offers 1.79em, where the approved design shows the pair
+   inline. 1.7em keeps that case inline and stacks everything narrower. */
+.sr-cal-facts--condensed .sr-fact {
+  display: flex; flex-wrap: nowrap; justify-content: center; align-items: center; gap: 0 0.125rem; max-width: none;
+}
+/* Stacked, the pair is BLOCK layout, not a column flex: measured in WebKit, a
+   column flex kept its items' shrink-to-fit widths from an earlier, narrower
+   cell after a resize (a glyph drawn 5.5px wide, a code box stuck at 25px), and
+   block children simply take the row's width. */
+@container (max-width: 1.7em) {
+  .sr-cal-facts--condensed .sr-fact { display: block; text-align: center; }
+  .sr-cal-facts--condensed .sr-fact > svg { margin: 0 auto 0.0625rem; }
+  .sr-cal-facts--condensed .sr-fact > b,
+  .sr-cal-facts--condensed .sr-fact > span { display: block; text-align: center; }
+}
+/* Enter motion, only on the flip that turned an overlay on: grows down from the
+   count. Off is instant; the global reduced-motion block makes this instant. */
+.sr-cal-facts--enter { animation: sr-cal-facts-in 160ms cubic-bezier(0.2, 0, 0, 1) both; transform-origin: top center; }
+@keyframes sr-cal-facts-in {
+  from { opacity: 0; transform: scaleY(0.6); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* Large view: quiet corner presence marks, sized with the card (the thumbnail
+   card is the size container), hidden with the day number below the 152px
+   floor (the rule above, inside that query). No motion. */
+.sr-cal-mark {
+  --sr-cal-mark: clamp(4px, 1.75cqw, 6px);
+  position: absolute; bottom: 1px; width: var(--sr-cal-mark); height: var(--sr-cal-mark);
+  line-height: 0; pointer-events: none; border-radius: 2px; display: none;
+}
+.sr-cal-mark--left { left: 1px; }
+.sr-cal-mark--right { right: 1px; }
+.sr-cal-mark svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.sr-cal-mark.is-backed { padding: 1px; box-sizing: content-box; }
+
+/* Legend key blocks, one per active overlay (FR-30). */
+.sr-cal-legend-ov { display: flex; flex-direction: column; gap: 3px; padding-bottom: 1px; min-width: 0; }
+.sr-cal-legend-unit {
+  font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--sr-text-muted); padding-bottom: 2px;
+}
+.sr-cal-legend-ov-rows { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
+.sr-cal-legend-row { display: inline-flex; align-items: center; gap: 6px; font-size: 0.625rem; color: var(--sr-text-muted); }
+/* Under "By category" the entry keys the tile's short form to its word. */
+.sr-cal-legend-row b { font-weight: 600; color: var(--sr-text); }
+.sr-cal-legend-mark {
+  width: 14px; height: 14px; border-radius: 3px; background: var(--sr-cal-3); color: var(--sr-cal-fg);
+  display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+  box-shadow: 0 0 0 1px var(--sr-surface);
+}
+.sr-cal-legend-mark svg { width: 8px; height: 8px; display: block; }
+.sr-cal-legend-cap { font-size: 0.5625rem; color: var(--sr-text-gray); letter-spacing: 0.02em; line-height: 1.25; max-width: 34ch; }
+.sr-cal-legend-ov--enter { animation: sr-cal-legend-in 160ms ease-out both; }
+@keyframes sr-cal-legend-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* Day popup lines (FR-24 to FR-26): the header's day summary and each
+   checklist row's media and breeding line. Glyph sizes follow the Multimedia
+   tab's 11px pills; the frame and circle marks sit at 8px. */
+.sr-popup-facts { display: flex; flex-direction: column; gap: 3px; font-size: 0.6875rem; color: var(--sr-text-muted); margin-top: 4px; }
+.sr-popup-fact { display: flex; flex-wrap: wrap; align-items: center; gap: 3px 8px; }
+.sr-popup-fmt { display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; }
+.sr-popup-fact .sr-popup-fmt b { font-weight: 700; color: var(--sr-text); }
+.sr-popup-fmt svg { width: 11px; height: 11px; flex-shrink: 0; }
+.sr-popup-fmt svg.sr-popup-mk { width: 8px; height: 8px; }
+.sr-popup-ov { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin-top: 5px; font-size: 0.6875rem; color: var(--sr-text-muted); }
+.sr-popup-media { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 3px 6px; }
+.sr-popup-media b { font-weight: 600; color: var(--sr-text); }
+/* The breeding chip in the Breeding Codes tab's tier register: the SAME token
+   pairs as .sr-pill[data-tier] (AA-verified), Possible on the tier-1 tint with
+   tier 2's foreground (the shipped cross-case). No new colour pairing. */
+.sr-bcode {
+  display: inline-flex; align-items: baseline; flex-wrap: wrap; gap: 0 5px; min-width: 0;
+  border-radius: 5px; padding: 1px 7px 2px; font-size: 0.625rem; line-height: 1.5; border: 1px solid transparent;
+}
+.sr-bcode b { font-weight: 700; letter-spacing: 0.02em; }
+.sr-bcode-cat { font-weight: 600; }
+.sr-bcode-cat::before { content: '·'; margin-right: 5px; font-weight: 400; }
+.sr-bcode-sp { opacity: 0.85; }
+/* An unknown code's raw label is cut visually past 8 characters; the full text
+   stays in the DOM (escaped React children). */
+.sr-bcode-raw { display: inline-block; max-width: 8ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }
+.sr-bcode[data-tier="4"] { background: rgba(var(--sr-tier-4-rgb), 0.08); border-color: rgba(var(--sr-tier-4-rgb), 0.3); color: var(--sr-tier-4-fg); }
+.sr-bcode[data-tier="2"] { background: rgba(var(--sr-tier-2-rgb), 0.08); border-color: rgba(var(--sr-tier-2-rgb), 0.3); color: var(--sr-tier-2-fg); }
+.sr-bcode[data-tier="1"] { background: rgba(var(--sr-tier-1-rgb), 0.15); border-color: rgba(var(--sr-tier-1-rgb), 0.5); color: var(--sr-tier-2-fg); }
 
 /* Fixed N-up grids that collapse on smaller screens (see the media blocks). */
 .sr-grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sr-grid-gap, 14px); }
@@ -5373,6 +5586,21 @@ select:focus-visible {
      nested horizontal scrollport is introduced into a page that already
      scrolls. Height is untouched, so the tap area only loses width. */
   .sr-cal-day { max-width: 100%; }
+
+  /* Calendar overlays on a phone. The rich tile's 2.125rem floor is (0,2,0)
+     and would otherwise out-rank .sr-touch-target's 44px posture, so a birded
+     day keeps its touch height here; pad and no-data cells take the tile
+     floor and stretch with their week. */
+  .sr-cal-grid--rich > .sr-touch-target { min-height: 2.75rem; }
+  /* The Overlays group takes its own line under the forms cluster, the
+     hairline turning into a top rule, and the codes control its own line inside
+     it with its two options sharing the width (the .sr-seg rule below). */
+  .sr-cal-overlays {
+    flex: 1 1 100%; margin-left: 0; padding-left: 0; border-left: 0;
+    padding-top: 8px; border-top: 1px solid var(--sr-border);
+  }
+  .sr-cal-codes { flex: 1 1 100%; }
+  .sr-cal-codes > .sr-seg { flex: 1 1 auto; }
 
   /* A wrapped segmented control fills its lines instead of leaving dead pill
      background beside the widest option (v1.0.4). Only the CHILDREN grow, so
