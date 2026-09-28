@@ -1,6 +1,6 @@
 // The widget link controller (ios-lifer-widgets, schema.md section 4.4).
-// Dynamic-imported by App.tsx after first paint on iPhone and iPad only, so
-// neither it nor the native wrapper it reaches is on the entry chunk.
+// Dynamic-imported by App.tsx during first-destination selection on iPhone
+// and iPad only, so neither it nor the native wrapper rides the entry chunk.
 //
 // Delivery has two paths and they interleave, so the NATIVE PARKED SLOT is
 // the single source of truth: the Rust hook parks the last `snowraven://` URL
@@ -36,15 +36,17 @@ export async function startLinkController(deps: LinkDeps): Promise<() => void> {
   return unlisten
 }
 
-let _started = false
+let _bootPromise: Promise<void> | null = null
 
 /** Boot with the real native wrapper (App.tsx, iOS only). Idempotent. */
 export async function bootLinkController(): Promise<void> {
-  if (_started) return
-  _started = true
-  const native = await import('../widgets/widgetNative')
-  await startLinkController({
-    takePendingLink: () => native.takePendingLink(),
-    onLinkParked: cb => native.onLinkParked(cb),
-  })
+  if (!_bootPromise) {
+    _bootPromise = import('../widgets/widgetNative').then(native =>
+      startLinkController({
+        takePendingLink: () => native.takePendingLink(),
+        onLinkParked: cb => native.onLinkParked(cb),
+      }).then(() => {}),
+    )
+  }
+  await _bootPromise
 }

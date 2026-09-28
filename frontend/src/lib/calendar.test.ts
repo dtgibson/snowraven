@@ -3,9 +3,10 @@ import type { ObservationEntry } from '../types'
 import {
   buildDayCells, dataYears, defaultYear, adjacentDataYear, metricCount,
   nonZeroMetricCounts, individualsOf, daysInMonth, dayOfWeek, isValidDateString, isValidCalendarDay,
-  dateParts, type CalendarView,
+  dateParts, metricNoun, type CalendarView, type DayCell,
 } from './calendar'
 import { computeCountyTiers } from './countyShading'
+import { parseEbirdObservations } from './parseEbirdObservations'
 
 // A minimal ObservationEntry factory — only the fields buildDayCells reads.
 function obs(partial: Partial<ObservationEntry> & { date: string; submissionId: string; commonName: string }): ObservationEntry {
@@ -20,9 +21,9 @@ function obs(partial: Partial<ObservationEntry> & { date: string; submissionId: 
     longitude: null,
     county: partial.county ?? null,
     count: 'count' in partial ? (partial.count ?? null) : 1,
-    breedingCode: null,
+    breedingCode: partial.breedingCode ?? null,
     speciesComments: '',
-    catalogIds: [],
+    catalogIds: partial.catalogIds ?? [],
     // time is optional on ObservationEntry: undefined unless a test supplies it. The
     // 'time' in partial guard preserves an explicit null (a timeless export row).
     ...('time' in partial ? { time: partial.time } : {}),
@@ -178,7 +179,7 @@ describe('buildDayCells — year view (QA-08/09/10/11)', () => {
       obs({ date: '2024-03-14', submissionId: 'S1', commonName: 'American Robin', time: '07:30 AM', location: 'West Pond' }),
     ], view)
     expect(cells.get('2024-03-14')!.checklists).toEqual([
-      { submissionId: 'S1', date: '2024-03-14', time: '07:30 AM', location: 'West Pond', speciesCount: 1, speciesCountWithForms: 1 },
+      { submissionId: 'S1', date: '2024-03-14', time: '07:30 AM', location: 'West Pond', speciesCount: 1, speciesCountWithForms: 1, catalogIds: [], codes: [], breeding: null },
     ])
   })
 
@@ -192,7 +193,7 @@ describe('buildDayCells — year view (QA-08/09/10/11)', () => {
     ], view)
     const c = cells.get('2024-03-14')!
     expect(c.checklists).toEqual([
-      { submissionId: 'S1', date: '2024-03-14', time: '06:15 AM', location: 'Bear Valley', speciesCount: 2, speciesCountWithForms: 2 },
+      { submissionId: 'S1', date: '2024-03-14', time: '06:15 AM', location: 'Bear Valley', speciesCount: 2, speciesCountWithForms: 2, catalogIds: [], codes: [], breeding: null },
     ])
   })
 
@@ -652,5 +653,241 @@ describe('perf: buildDayCells on ~20k rows < 50ms (QA-41)', () => {
       samples.push(performance.now() - t0)
     }
     expect(Math.min(...samples)).toBeLessThan(50)
+  })
+})
+
+// ── calendar-overlays: the overlay facts buildDayCells derives in its one pass ──
+// (schema.md section 2; FR-09..FR-16; QA-09..QA-18). Every row here builds its
+// input through the same obs() factory the rest of this file uses, which now
+// honours breedingCode and catalogIds from its partial.
+
+const codesOf = (c: Pick<DayCell, 'codes'>) => c.codes.map(f => `${f.def.code}:${f.speciesCount}`)
+
+describe('overlay facts: media presence and distinct ids (FR-09/FR-10/FR-11, QA-09)', () => {
+  const view: CalendarView = { kind: 'year', year: 2025 }
+
+  it('derives the day\'s distinct ids, the media checklist count, and each checklist\'s own ids', () => {
+    const cells = buildDayCells([
+      obs({ date: '2025-05-17', submissionId: 'S1', commonName: 'Oak Titmouse', catalogIds: ['1', '2'] }),
+      obs({ date: '2025-05-17', submissionId: 'S2', commonName: 'Wrentit', catalogIds: ['2'] }),
+      obs({ date: '2025-05-17', submissionId: 'S3', commonName: 'Bushtit' }),
+    ], view)
+    const c = cells.get('2025-05-17')!
+    expect(c.mediaPresent).toBe(true)
+    expect(c.mediaIds).toEqual(['1', '2'])
+    expect(c.mediaIdCount).toBe(2)
+    expect(c.mediaChecklistCount).toBe(2)
+    const byId = Object.fromEntries(c.checklists.map(r => [r.submissionId, r.catalogIds]))
+    expect(byId).toEqual({ S1: ['1', '2'], S2: ['2'], S3: [] })
+  })
+
+  it('a day whose rows all carry no ids derives no media at either level', () => {
+    const c = buildDayCells([
+      obs({ date: '2025-05-18', submissionId: 'S1', commonName: 'Oak Titmouse' }),
+      obs({ date: '2025-05-18', submissionId: 'S2', commonName: 'Wrentit' }),
+    ], view).get('2025-05-18')!
+    expect(c.mediaPresent).toBe(false)
+    expect(c.mediaIds).toEqual([])
+    expect(c.mediaIdCount).toBe(0)
+    expect(c.mediaChecklistCount).toBe(0)
+    expect(c.checklists.every(r => r.catalogIds.length === 0)).toBe(true)
+  })
+
+  it('de-duplicates within one row ("ML123, 123") and across rows, first-seen order', () => {
+    const c = buildDayCells([
+      obs({ date: '2025-05-17', submissionId: 'S1', commonName: 'Oak Titmouse', catalogIds: ['123', '123'] }),
+      obs({ date: '2025-05-17', submissionId: 'S1', commonName: 'Wrentit', catalogIds: ['9', '123'] }),
+    ], view).get('2025-05-17')!
+    expect(c.mediaIds).toEqual(['123', '9'])
+    expect(c.checklists[0].catalogIds).toEqual(['123', '9'])
+  })
+
+  it('the backup\'s ML Catalog Numbers cell, parsed end to end: blank and malformed cells carry no media (QA-10)', () => {
+    const header = 'Submission ID,Common Name,Scientific Name,Taxonomic Order,Count,State/Province,County,Location ID,Location,Latitude,Longitude,Date,Time,Protocol,Duration (Min),All Obs Reported,Distance Traveled (km),Area Covered (ha),Number of Observers,Breeding Code,Observation Details,Checklist Comments,ML Catalog Numbers'
+    const row = (sid: string, name: string, ml: string) =>
+      `${sid},${name},Sci name,1,1,US-CA,Marin,L1,West Pond,38,-122,2025-05-17,07:00 AM,Traveling,60,1,1,,1,,,,"${ml}"`
+    const text = [header,
+      row('S1', 'Oak Titmouse', ''), row('S2', 'Wrentit', '  '), row('S3', 'Bushtit', 'ML'),
+      row('S4', 'Spotted Towhee', 'abc, ML12x'),
+    ].join('\n')
+    const noMedia = buildDayCells(parseEbirdObservations(text), view).get('2025-05-17')!
+    expect(noMedia.checklistCount).toBe(4)
+    expect(noMedia.mediaPresent).toBe(false)
+    expect(noMedia.mediaIds).toEqual([])
+    const withMedia = buildDayCells(parseEbirdObservations([header, row('S5', 'Oak Titmouse', 'ML123, 456')].join('\n')), view).get('2025-05-17')!
+    expect(withMedia.mediaIds).toEqual(['123', '456'])
+    expect(withMedia.mediaIdCount).toBe(2)
+  })
+
+  it('a row with no submissionId contributes day-level facts and no checklist', () => {
+    const c = buildDayCells([
+      obs({ date: '2025-05-17', submissionId: '', commonName: 'Oak Titmouse', catalogIds: ['7'], breedingCode: 'NY' }),
+    ], view).get('2025-05-17')!
+    expect(c.checklists).toEqual([])
+    expect(c.mediaIds).toEqual(['7'])
+    expect(c.mediaChecklistCount).toBe(0)
+    expect(codesOf(c)).toEqual(['NY:1'])
+  })
+})
+
+describe('overlay facts: breeding codes (FR-09/FR-12/FR-13, QA-11..QA-13)', () => {
+  const view: CalendarView = { kind: 'year', year: 2025 }
+  const day = (rows: { name: string; code: string | null; sid?: string }[]) =>
+    buildDayCells(rows.map(r => obs({ date: '2025-06-21', submissionId: r.sid ?? 'S1', commonName: r.name, breedingCode: r.code })), view).get('2025-06-21')!
+
+  it('classifies backup display codes directly: NY/NB Confirmed, A Probable, S Possible, FY is Feeding Young (QA-11)', () => {
+    const c = day([
+      { name: 'Oak Titmouse', code: 'NY' }, { name: 'Bushtit', code: 'NB' },
+      { name: 'Wrentit', code: 'A' }, { name: 'Spotted Towhee', code: 'S' },
+      { name: 'Western Bluebird', code: 'FY' },
+    ])
+    const fy = c.codes.find(f => f.def.code === 'FY')!
+    expect(fy.def.label).toBe('Feeding Young')
+    expect(fy.def.tier).toBe(4)
+    expect(c.breeding?.code).toBe('NY')
+    expect(c.codeCategoryCounts).toEqual({ confirmed: 3, probable: 1, possible: 1 })
+  })
+
+  it('an unknown code is tier 1 with its raw text as the label (QA-12)', () => {
+    const c = day([{ name: 'Oak Titmouse', code: 'ZZ' }])
+    expect(c.codes).toEqual([{ def: { code: 'ZZ', label: 'ZZ', tier: 1 }, speciesCount: 1 }])
+    expect(c.codeCategoryCounts.possible).toBe(1)
+  })
+
+  it('orders strongest first with unknowns last: S, ZZ, A -> A, S, ZZ; S, ZZ -> S, ZZ (QA-13)', () => {
+    expect(codesOf(day([{ name: 'a', code: 'S' }, { name: 'b', code: 'ZZ' }, { name: 'c', code: 'A' }]))).toEqual(['A:1', 'S:1', 'ZZ:1'])
+    const two = day([{ name: 'a', code: 'ZZ' }, { name: 'b', code: 'S' }])
+    expect(codesOf(two)).toEqual(['S:1', 'ZZ:1'])
+    expect(two.breeding?.code).toBe('S')
+  })
+
+  it('two unknown codes keep first-seen order and the first is the day\'s strongest', () => {
+    const c = day([{ name: 'a', code: 'QQ' }, { name: 'b', code: 'ZZ' }])
+    expect(codesOf(c)).toEqual(['QQ:1', 'ZZ:1'])
+    expect(c.breeding?.code).toBe('QQ')
+  })
+
+  it('counts a species once per code across rows, and a spuh counts as a species carrying it', () => {
+    const c = day([
+      { name: 'Oak Titmouse', code: 'S', sid: 'S1' }, { name: 'Oak Titmouse', code: 'S', sid: 'S2' },
+      { name: 'Wrentit', code: 'S', sid: 'S2' }, { name: 'gull sp.', code: 'S', sid: 'S2' },
+    ])
+    expect(codesOf(c)).toEqual(['S:3'])
+  })
+
+  it('a species carrying NY and FY counts once under Confirmed (a union, never a sum)', () => {
+    const c = day([{ name: 'Oak Titmouse', code: 'NY' }, { name: 'Oak Titmouse', code: 'FY' }])
+    expect(codesOf(c)).toEqual(['NY:1', 'FY:1'])
+    expect(c.codeCategoryCounts).toEqual({ confirmed: 1, probable: 0, possible: 0 })
+  })
+
+  it('carries each checklist\'s own codes, strongest first, with its own species counts', () => {
+    const c = day([
+      { name: 'Oak Titmouse', code: 'S', sid: 'S1' }, { name: 'Wrentit', code: 'NY', sid: 'S1' },
+      { name: 'Bushtit', code: 'S', sid: 'S2' }, { name: 'Wrentit', code: 'S', sid: 'S2' },
+    ])
+    const rows = Object.fromEntries(c.checklists.map(r => [r.submissionId, { codes: codesOf(r), strongest: r.breeding?.code ?? null }]))
+    expect(rows).toEqual({ S1: { codes: ['NY:1', 'S:1'], strongest: 'NY' }, S2: { codes: ['S:2'], strongest: 'S' } })
+    expect(codesOf(c)).toEqual(['NY:1', 'S:3'])
+  })
+
+  it('a code of __proto__ is just an unknown code (a Map lookup, not a prototype walk)', () => {
+    const c = day([{ name: 'Oak Titmouse', code: '__proto__' }, { name: 'Wrentit', code: 'constructor' }])
+    expect(codesOf(c)).toEqual(['__proto__:1', 'constructor:1'])
+    expect(c.codes.every(f => f.def.tier === 1)).toBe(true)
+  })
+
+  it('a day with no code carries empty codes, zero category counts and no strongest code', () => {
+    const c = day([{ name: 'Oak Titmouse', code: null }])
+    expect(c.codes).toEqual([])
+    expect(c.breeding).toBeNull()
+    expect(c.codeCategoryCounts).toEqual({ confirmed: 0, probable: 0, possible: 0 })
+  })
+})
+
+describe('overlay facts follow the species filter and ignore countability and escapees (FR-14, QA-14/QA-15)', () => {
+  const view: CalendarView = { kind: 'year', year: 2025 }
+
+  it('a spuh\'s media and a hybrid\'s code still derive (countability ignored) (QA-14)', () => {
+    const c = buildDayCells([
+      obs({ date: '2025-05-17', submissionId: 'S1', commonName: 'gull sp.', catalogIds: ['1'] }),
+      obs({ date: '2025-05-17', submissionId: 'S1', commonName: 'Mallard x American Black Duck (hybrid)', breedingCode: 'FL' }),
+    ], view).get('2025-05-17')!
+    expect(c.speciesCount).toBe(0)
+    expect(c.mediaIds).toEqual(['1'])
+    expect(codesOf(c)).toEqual(['FL:1'])
+  })
+
+  it('an escapee-excluded species as the sole carrier still derives both facts (QA-14)', () => {
+    const c = buildDayCells([
+      obs({ date: '2025-05-17', submissionId: 'S1', commonName: 'Swan Goose', catalogIds: ['5'], breedingCode: 'NY' }),
+    ], view, undefined, new Set(['Swan Goose'])).get('2025-05-17')!
+    expect(c.speciesCount).toBe(0)
+    expect(c.mediaPresent).toBe(true)
+    expect(c.breeding?.code).toBe('NY')
+  })
+
+  it('under a filter, another species\' media and codes do not mark the day; every per-code count is 1 (QA-15)', () => {
+    const rows = [
+      obs({ date: '2025-05-17', submissionId: 'S1', commonName: 'Wrentit', catalogIds: ['1'], breedingCode: 'NY' }),
+      obs({ date: '2025-05-17', submissionId: 'S1', commonName: 'Oak Titmouse' }),
+      obs({ date: '2025-05-18', submissionId: 'S2', commonName: 'Oak Titmouse', catalogIds: ['2'] }),
+      obs({ date: '2025-05-19', submissionId: 'S3', commonName: 'Oak Titmouse', breedingCode: 'S' }),
+      obs({ date: '2025-05-19', submissionId: 'S3', commonName: 'Oak Titmouse (Interior)', breedingCode: 'S' }),
+      obs({ date: '2025-05-19', submissionId: 'S3', commonName: 'Wrentit', breedingCode: 'S' }),
+    ]
+    const cells = buildDayCells(rows, view, 'Oak Titmouse')
+    const may17 = cells.get('2025-05-17')!
+    expect(may17.mediaPresent).toBe(false)
+    expect(may17.codes).toEqual([])
+    expect(cells.get('2025-05-18')!.mediaIds).toEqual(['2'])
+    expect(cells.get('2025-05-18')!.codes).toEqual([])
+    expect(codesOf(cells.get('2025-05-19')!)).toEqual(['S:1'])
+  })
+})
+
+describe('overlay facts in All years (FR-15, QA-16/QA-17) and on zero-count days (FR-16)', () => {
+  it('unions ids and per-code species sets across years; the strongest is the strongest across years (QA-16)', () => {
+    const rows = [
+      obs({ date: '2019-06-21', submissionId: 'S1', commonName: 'Oak Titmouse', catalogIds: ['1'], breedingCode: 'S' }),
+      obs({ date: '2023-06-21', submissionId: 'S2', commonName: 'Wrentit', breedingCode: 'NY' }),
+      obs({ date: '2023-06-21', submissionId: 'S2', commonName: 'Bushtit', breedingCode: 'S', catalogIds: ['2'] }),
+    ]
+    const c = buildDayCells(rows, { kind: 'combined' }).get('06-21')!
+    expect(c.mediaIds).toEqual(['1', '2'])
+    expect(c.mediaChecklistCount).toBe(2)
+    expect(c.breeding?.code).toBe('NY')
+    expect(codesOf(c)).toEqual(['NY:1', 'S:2'])
+    expect(c.checklists.map(r => r.date).sort()).toEqual(['2019-06-21', '2023-06-21'])
+  })
+
+  it('combined view under a filter marks the date only from that species\' rows across years (QA-17)', () => {
+    const rows = [
+      obs({ date: '2019-06-21', submissionId: 'S1', commonName: 'Wrentit', catalogIds: ['1'] }),
+      obs({ date: '2023-06-21', submissionId: 'S2', commonName: 'Oak Titmouse', breedingCode: 'A' }),
+      obs({ date: '2023-06-21', submissionId: 'S2', commonName: 'Wrentit', breedingCode: 'NY', catalogIds: ['3'] }),
+    ]
+    const c = buildDayCells(rows, { kind: 'combined' }, 'Oak Titmouse').get('06-21')!
+    expect(c.mediaPresent).toBe(false)
+    expect(codesOf(c)).toEqual(['A:1'])
+  })
+
+  it('a zero-count day (only a spuh under the default Species metric) still carries its media (QA-18)', () => {
+    const c = buildDayCells([
+      obs({ date: '2025-02-22', submissionId: 'S1', commonName: 'Gull sp.', catalogIds: ['42'] }),
+    ], { kind: 'year', year: 2025 }).get('2025-02-22')!
+    expect(metricCount(c, 'species', false)).toBe(0)
+    expect(c.mediaIds).toEqual(['42'])
+  })
+})
+
+describe('metricNoun (FR-28)', () => {
+  it('names the number in the zero-day name\'s own words', () => {
+    expect(metricNoun('checklists', false)).toBe('checklists')
+    expect(metricNoun('checklists', true)).toBe('checklists')
+    expect(metricNoun('total', false)).toBe('individuals')
+    expect(metricNoun('total', true)).toBe('individuals')
+    expect(metricNoun('species', false)).toBe('countable species')
+    expect(metricNoun('species', true)).toBe('species')
   })
 })

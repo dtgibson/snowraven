@@ -8,6 +8,10 @@
 
 import type { ObservationEntry } from '../types'
 import { normalizeSpeciesName, isNonCountableForm } from './speciesUtils'
+import {
+  resolveDisplayBreedingCode, compareBreedingDefs, breedingCategoryForTier,
+  type BreedingCodeDef, type BreedingCategory,
+} from './breedingCodes'
 
 /** Shared no-exclusion default (see buildDayCells). */
 const EMPTY_EXCLUDED: ReadonlySet<string> = new Set<string>()
@@ -67,7 +71,67 @@ export interface DayCell {
    *  the popup's ChecklistLink rows (year-labeled in combined mode) plus a secondary
    *  "time · location · N species" line. Newest-first ordering is applied at render from
    *  these dates. Pure DISPLAY fields: they never enter any day-level count. */
-  checklists: { submissionId: string; date: string; time: string | null; location: string; speciesCount: number; speciesCountWithForms: number }[]
+  checklists: DayChecklist[]
+
+  // ── Overlay facts (calendar-overlays). Computed in the same single pass as
+  // every field above, whatever the overlay switches say, so flipping a switch
+  // never rebuilds cells (FR-08). They follow the species filter (only rows
+  // that pass it reach the accumulators) and IGNORE both the countable-form
+  // rule and the escapee exclusion (FR-14): a photo of "gull sp." is still
+  // media and a coded hybrid row is still breeding evidence.
+
+  /** Any row in this bucket carried at least one catalog id. Equivalent to
+   *  mediaIds.length > 0; its own boolean because it is what the cell and the
+   *  accessible name read, and a boolean cannot be misread as a count. */
+  mediaPresent: boolean
+  /** DISTINCT catalog ids across every row in this bucket, first-seen order,
+   *  string REFERENCES into the parsed rows. Combined view: the union across
+   *  years (ids are globally unique). Joined against the ML export at render. */
+  mediaIds: string[]
+  /** mediaIds.length: what the condensed tile and the no-export suffix print. */
+  mediaIdCount: number
+  /** Checklists (distinct submissionIds) in this bucket with at least one
+   *  catalog id. Combined view: across years, the same mechanism as
+   *  checklistCount. */
+  mediaChecklistCount: number
+  /** Every DISTINCT display code recorded in this bucket, strongest first by
+   *  the table's rank, unknown codes last, first-seen order among equals.
+   *  Empty when no row carried a code. Combined view: per-code species sets
+   *  are unions across years. */
+  codes: DayCodeFact[]
+  /** Distinct species at each CATEGORY: the union of the species sets of every
+   *  code in that category, so a species carrying NY and FY counts once under
+   *  Confirmed. What the "By category" tile rows print; the popup never
+   *  reads it. */
+  codeCategoryCounts: Readonly<Record<BreedingCategory, number>>
+  /** codes[0]?.def ?? null: the STRONGEST code in this bucket, derived from the
+   *  sort so it cannot disagree with codes. */
+  breeding: BreedingCodeDef | null
+}
+
+/** One breeding code recorded in a bucket (or a checklist), with how many
+ *  distinct species carried it there. `def` is the resolved DISPLAY code. */
+export interface DayCodeFact {
+  def: BreedingCodeDef
+  /** Distinct normalized species names that carried this code. Under a species
+   *  filter it is 1 for every entry. */
+  speciesCount: number
+}
+
+/** One checklist's row in a DayCell (see DayCell.checklists). */
+export interface DayChecklist {
+  submissionId: string
+  date: string
+  time: string | null
+  location: string
+  speciesCount: number
+  speciesCountWithForms: number
+  /** This ONE checklist's DISTINCT catalog ids, first-seen order (overlays). */
+  catalogIds: string[]
+  /** This checklist's codes, same shape and order rule as DayCell.codes. */
+  codes: DayCodeFact[]
+  /** codes[0]?.def ?? null, as at day level. */
+  breeding: BreedingCodeDef | null
 }
 
 /** All populated day buckets for a view, built in ONE pass. Key = bucketKey. */
@@ -171,6 +235,11 @@ export function buildDayCells(
     location: string
     countable: Set<string>
     withForms: Set<string>
+    // Overlays: this checklist's distinct catalog ids and its codes -> species
+    // carrying each. Allocated on first use: most checklists carry neither, and
+    // an empty Set and Map per checklist was the bulk of the pass's added cost.
+    catalogIds: Set<string> | null
+    codes: CodeAcc | null
   }
   interface Work {
     bucketKey: string
@@ -179,6 +248,8 @@ export function buildDayCells(
     checklists: Map<string, ChecklistInfo> // submissionId -> its display fields
     total: number // Σ individuals, countable rows only
     totalWithForms: number // Σ individuals, all rows (incl. spuh/slash/hybrid)
+    mediaIds: Set<string> | null // overlays: distinct catalog ids (lazy, as above)
+    codes: CodeAcc | null // overlays: display code -> { def, species carrying it } (lazy)
   }
   const work = new Map<string, Work>()
 
@@ -195,7 +266,7 @@ export function buildDayCells(
     const bucketKey = view.kind === 'year' ? date : date.slice(5) // MM-DD for combined
     let w = work.get(bucketKey)
     if (!w) {
-      w = { bucketKey, countable: new Set(), withForms: new Set(), checklists: new Map(), total: 0, totalWithForms: 0 }
+      w = { bucketKey, countable: new Set(), withForms: new Set(), checklists: new Map(), total: 0, totalWithForms: 0, mediaIds: null, codes: null }
       work.set(bucketKey, w)
     }
     const n = individualsOf(o.count) // "X"/blank/null → 0 (Statistics-consistent)
@@ -211,6 +282,20 @@ export function buildDayCells(
       w.countable.add(norm)
       w.total += n
     }
+    // Overlay facts (FR-09..FR-16). Deliberately AFTER the species-filter
+    // `continue` (so they narrow to the filtered species) and OUTSIDE
+    // `if (countable)` (so non-countable forms and escapees still contribute).
+    // A Set is the whole de-duplication: the parser guarantees each id is
+    // ^\d+$ but not that a row's ids are distinct ("ML123, 123" yields two
+    // "123"s). No regex, split or search over the ids or the code: iteration and
+    // hash lookups only (security.md linearity; schema.md 7.1 declares these).
+    const ids = o.catalogIds
+    if (ids.length > 0) {
+      const set = w.mediaIds ?? (w.mediaIds = new Set())
+      for (const id of ids) set.add(id)
+    }
+    const code = o.breedingCode
+    if (code !== null) addCode(w.codes ?? (w.codes = new Map()), code, norm)
     // A checklist (submissionId) lands on THIS row's valid date. Globally-unique
     // eBird submission ids mean a per-bucket Set spanning years has a size that
     // legitimately equals the sum, so one mechanism serves both views. We capture
@@ -223,16 +308,36 @@ export function buildDayCells(
     if (o.submissionId) {
       let ci = w.checklists.get(o.submissionId)
       if (!ci) {
-        ci = { date, time: o.time ?? null, location: o.location, countable: new Set(), withForms: new Set() }
+        ci = { date, time: o.time ?? null, location: o.location, countable: new Set(), withForms: new Set(), catalogIds: null, codes: null }
         w.checklists.set(o.submissionId, ci)
       }
       ci.withForms.add(norm)
       if (countable) ci.countable.add(norm)
+      if (ids.length > 0) {
+        const set = ci.catalogIds ?? (ci.catalogIds = new Set())
+        for (const id of ids) set.add(id)
+      }
+      if (code !== null) addCode(ci.codes ?? (ci.codes = new Map()), code, norm)
     }
   }
 
   const out: DayCellMap = new Map()
   for (const [key, w] of work) {
+    // mediaChecklistCount is counted inside the checklist walk that already
+    // exists, never by a second pass over the rows or the checklists.
+    let mediaChecklistCount = 0
+    const checklists = [...w.checklists.entries()].map(([submissionId, info]): DayChecklist => {
+      if (info.catalogIds !== null) mediaChecklistCount++
+      const codes = sortCodes(info.codes)
+      return {
+        submissionId, date: info.date, time: info.time, location: info.location,
+        speciesCount: info.countable.size, speciesCountWithForms: info.withForms.size,
+        catalogIds: info.catalogIds ? [...info.catalogIds] : [],
+        codes: finishCodes(codes),
+        breeding: codes.length ? codes[0].def : null,
+      }
+    })
+    const sorted = sortCodes(w.codes)
     out.set(key, {
       bucketKey: key,
       speciesCount: w.countable.size,
@@ -240,13 +345,80 @@ export function buildDayCells(
       checklistCount: w.checklists.size,
       totalCount: w.total,
       totalCountWithForms: w.totalWithForms,
-      checklists: [...w.checklists.entries()].map(([submissionId, info]) => ({
-        submissionId, date: info.date, time: info.time, location: info.location,
-        speciesCount: info.countable.size, speciesCountWithForms: info.withForms.size,
-      })),
+      checklists,
+      mediaPresent: w.mediaIds !== null,
+      mediaIds: w.mediaIds ? [...w.mediaIds] : [],
+      mediaIdCount: w.mediaIds ? w.mediaIds.size : 0,
+      mediaChecklistCount,
+      codes: finishCodes(sorted),
+      codeCategoryCounts: categoryCounts(sorted),
+      // The strongest code is the first of the sort rather than a separate
+      // fold: the comparator keeps `a` on a tie and the sort is stable, so this
+      // is exactly what strongerBreedingDef would have produced (FR-13).
+      breeding: sorted.length ? sorted[0].def : null,
     })
   }
   return out
+}
+
+/** Per-bucket (or per-checklist) breeding accumulator: display code ->
+ *  its resolved def and the normalized species names that carried it. A Map
+ *  keyed by the raw token is a hash lookup, not a prototype walk, so a code of
+ *  `__proto__` is just a code. Insertion order is first-seen order. */
+type CodeAcc = Map<string, CodeEntry>
+interface CodeEntry { def: BreedingCodeDef; species: Set<string> }
+
+function addCode(acc: CodeAcc, code: string, norm: string): void {
+  let e = acc.get(code)
+  if (!e) {
+    e = { def: resolveDisplayBreedingCode(code), species: new Set() }
+    acc.set(code, e)
+  }
+  e.species.add(norm)
+}
+
+/** Strongest first. `[...acc.values()]` is first-seen order and
+ *  Array.prototype.sort is stable (ES2019), so equal ranks (two unknown codes)
+ *  keep first-seen order; the comparator compares ranks only, never strings,
+ *  so no cost scales with a token's length. O(k log k) for k distinct codes. */
+function sortCodes(acc: CodeAcc | null): CodeEntry[] {
+  if (acc === null) return []
+  return [...acc.values()].sort((a, b) => compareBreedingDefs(a.def, b.def))
+}
+
+function finishCodes(sorted: CodeEntry[]): DayCodeFact[] {
+  return sorted.map(e => ({ def: e.def, speciesCount: e.species.size }))
+}
+
+const NO_CATEGORY_COUNTS: Readonly<Record<BreedingCategory, number>> = Object.freeze({ confirmed: 0, probable: 0, possible: 0 })
+
+/** Distinct species at each category: one temporary Set per category present,
+ *  each code's species folded in once, sizes kept, Sets discarded. A SUM of the
+ *  per-code counts would count a species carrying two codes of one category
+ *  twice (schema.md decision 13). */
+function categoryCounts(sorted: CodeEntry[]): Readonly<Record<BreedingCategory, number>> {
+  if (sorted.length === 0) return NO_CATEGORY_COUNTS
+  const sets: Partial<Record<BreedingCategory, Set<string>>> = {}
+  for (const e of sorted) {
+    const cat = breedingCategoryForTier(e.def.tier)
+    let set = sets[cat]
+    if (!set) { set = new Set(); sets[cat] = set }
+    for (const sp of e.species) set.add(sp)
+  }
+  return {
+    confirmed: sets.confirmed?.size ?? 0,
+    probable: sets.probable?.size ?? 0,
+    possible: sets.possible?.size ?? 0,
+  }
+}
+
+/** The noun a day's number belongs to (FR-28), in the words the zero-day
+ *  accessible name already used. `withForms` is the flag metricCount was called
+ *  with (the tab's effectiveForms). */
+export function metricNoun(metric: CalendarMetric, withForms: boolean): 'checklists' | 'individuals' | 'species' | 'countable species' {
+  if (metric === 'checklists') return 'checklists'
+  if (metric === 'total') return 'individuals'
+  return withForms ? 'species' : 'countable species'
 }
 
 /** Distinct years with >=1 VALID dated observation, ascending. The navigable set

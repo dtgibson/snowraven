@@ -2,6 +2,19 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [1.0.38] - 2026-09-26
+
+### Added
+- **Calendar overlays for media and breeding evidence.** Two switches under **Overlays** on the Calendar tab, both off by default and remembered on this device. **Media** marks each day your checklists carry Macaulay Library photos, recordings or videos, with how many you have from that day, split by format when your ML export is loaded in Settings. **Breeding** lists the eBird breeding codes you recorded that day, strongest first, each led by a circle that shows Confirmed, Probable or Possible without relying on color and followed by how many species carried it; **Every code** or **By category** chooses whether a day shows each code or one row per category. Under a species filter the overlays narrow to that bird, in All years a date is marked if any year had media or breeding evidence on it, and the day popup lists each checklist's media and codes. With both switches off the Calendar looks exactly as before.
+
+### Changed
+- A screen reader now hears what each Calendar day's number counts, for example "12 countable species" or "3 checklists", instead of a bare number.
+
+## [1.0.37] - 2026-09-26
+
+### Added
+- A small white raven on SnowRaven green appears while the app opens, then clears as soon as the first screen is ready.
+
 ## [1.0.36] - 2026-09-24
 
 ### Added

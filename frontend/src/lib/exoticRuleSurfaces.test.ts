@@ -50,6 +50,12 @@ function o(commonName: string, submissionId: string, over: Partial<ObservationEn
     county: 'Alameda',
     stateProvince: 'US-CA',
     time: '07:00 AM',
+    // Required on ObservationEntry and always set by the parser; the cast hid
+    // their absence until the Calendar's pass started reading them
+    // (calendar-overlays), so the fixture now carries the parser's empty forms.
+    breedingCode: null,
+    speciesComments: '',
+    catalogIds: [],
     ...over,
   } as ObservationEntry
 }

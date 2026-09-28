@@ -9,7 +9,7 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, screen, cleanup, fireEvent, waitFor, within } from '@testing-library/react'
 import type { ObservationEntry } from '../types'
-import { dayOfWeek } from '../lib/calendar'
+import { dayOfWeek, buildDayCells } from '../lib/calendar'
 import { focusablesIn } from '../lib/useFocusTrap'
 import { installExactMatchMedia, PHONE_MEDIA_QUERY } from '../test/matchMedia'
 
@@ -25,9 +25,9 @@ function obs(over: Partial<ObservationEntry> & { date: string; submissionId: str
     longitude: null,
     county: over.county ?? null,
     count: 1,
-    breedingCode: null,
+    breedingCode: over.breedingCode ?? null,
     speciesComments: '',
-    catalogIds: [],
+    catalogIds: over.catalogIds ?? [],
     // time is optional; supply it only when a test sets it (an explicit null is a
     // timeless export row and must be preserved).
     ...('time' in over ? { time: over.time } : {}),
@@ -56,24 +56,36 @@ function buildDataset(): ObservationEntry[] {
 }
 
 let filesStatus: { ebird: unknown; ml: unknown } = { ebird: { filename: 'x.csv', uploadedAt: '' }, ml: null }
-const { setSetting, getFilesStatus, loadEbird } = vi.hoisted(() => ({
-  setSetting: vi.fn(async () => {}),
+const { setSetting, getSetting, getFilesStatus, loadEbird, loadMLExport } = vi.hoisted(() => ({
+  setSetting: vi.fn<(key: string, value: unknown) => Promise<void>>(async () => {}),
+  // Hoisted so the overlays rows can hydrate a stored preference (calendar-overlays).
+  getSetting: vi.fn<(key: string) => Promise<unknown>>(async () => null),
   // getFilesStatus and loadEbird are hoisted so tests can spy on their call
   // counts (QA-04/41: no re-read on toggle) and force failures (QA-06: error phase).
   getFilesStatus: vi.fn(),
   loadEbird: vi.fn(),
+  // The ML export, read only while the Media overlay is on (QA-35 to QA-38).
+  loadMLExport: vi.fn<() => Promise<{ mediaMap: Record<string, string> } | null>>(async () => null),
 }))
 
 vi.mock('../lib/storage', () => ({
   storage: {
     getFilesStatus,
     setSetting,
-    getSetting: vi.fn(async () => null),
+    getSetting,
   },
 }))
 vi.mock('../lib/observationsCache', () => ({
   loadEbirdObservations: loadEbird,
 }))
+vi.mock('../lib/mlExportCache', () => ({ loadMLExport }))
+// A pass-through spy on the day derivation, so the overlays rows can prove a
+// switch flip or a codes change never rebuilds cells (FR-08, QA-08). Every other
+// export is the real module.
+vi.mock('../lib/calendar', async (importOriginal) => {
+  const real = await importOriginal<typeof import('../lib/calendar')>()
+  return { ...real, buildDayCells: vi.fn(real.buildDayCells) }
+})
 
 import { Calendar } from './Calendar'
 
@@ -82,7 +94,13 @@ const props = { onGoToSettings: () => {}, filesVersion: 0 }
 beforeEach(() => {
   filesStatus = { ebird: { filename: 'x.csv', uploadedAt: '' }, ml: null }
   observations = buildDataset()
-  setSetting.mockClear()
+  setSetting.mockReset()
+  setSetting.mockImplementation(async () => {})
+  getSetting.mockReset()
+  getSetting.mockImplementation(async () => null)
+  loadMLExport.mockReset()
+  loadMLExport.mockImplementation(async () => null)
+  vi.mocked(buildDayCells).mockClear()
   // Default happy-path implementations; individual tests override as needed.
   getFilesStatus.mockReset()
   getFilesStatus.mockImplementation(async () => filesStatus)
@@ -144,7 +162,7 @@ describe('Calendar — grids and controls (QA-13/24/25/48)', () => {
     // sub-line names individuals
     expect(screen.getByText(/Individuals recorded each day/)).toBeTruthy()
     // the 2025-03-14 rich day (3 species × count 1 = 3 individuals) still reads 3
-    expect(screen.getByRole('button', { name: /Mar 14, 2025: 3\. Open day details/ })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Mar 14, 2025: 3 individuals\. Open day details/ })).toBeTruthy()
   })
 
   it('Total count honors the include-forms toggle (it is NOT disabled for this metric) (change 1)', async () => {
@@ -210,7 +228,7 @@ describe('Calendar — grids and controls (QA-13/24/25/48)', () => {
     // lives in the March thumbnail; scope the query to that card so we hit the overview
     // cell, not any Compact cell (Compact isn't mounted in Large mode, but scoping is
     // explicit). It sits inside a .sr-cal-minimonth (proving it's the overview trigger).
-    const dayBtn = screen.getByRole('button', { name: /Mar 14, 2025: 3\. Open day details/ })
+    const dayBtn = screen.getByRole('button', { name: /Mar 14, 2025: 3 countable species\. Open day details/ })
     expect(dayBtn.closest('.sr-cal-minimonth')).toBeTruthy()
 
     fireEvent.click(dayBtn)
@@ -271,7 +289,7 @@ describe('Calendar — the View toggle governs at ALL widths, including a phone 
       await screen.findByText('January')
       // Default is Compact: the big grids, count-bearing cells, no thumbnails.
       expect(document.querySelectorAll('.sr-cal-minimonth')).toHaveLength(0)
-      expect(screen.getByRole('button', { name: /Mar 14, 2025: 3\. Open day details/ })).toBeTruthy()
+      expect(screen.getByRole('button', { name: /Mar 14, 2025: 3 countable species\. Open day details/ })).toBeTruthy()
       // Switch to Large — the mini-months DO mount at phone width now.
       fireEvent.click(screen.getByRole('button', { name: 'Large' }))
       await waitFor(() => expect(document.querySelectorAll('.sr-cal-minimonth')).toHaveLength(12))
@@ -307,7 +325,7 @@ describe('Calendar — Compact is count-only (no date) and Large is dated (no co
     await screen.findByText('March')
     // The 2025-03-14 rich data cell: count 3 (centered visible text + aria-label). There is
     // NO .sr-cal-daynum date corner in the big grid anymore.
-    const cell = screen.getByRole('button', { name: /Mar 14, 2025: 3\. Open day details/ })
+    const cell = screen.getByRole('button', { name: /Mar 14, 2025: 3 countable species\. Open day details/ })
     expect(cell.querySelector('.sr-cal-daynum')).toBeNull()
     // The visible count "3" is still centered in the cell.
     expect(cell.textContent).toContain('3')
@@ -330,7 +348,7 @@ describe('Calendar — Compact is count-only (no date) and Large is dated (no co
       render(<Calendar {...props} />)
       await screen.findByText('March')
       expect(document.querySelectorAll('.sr-cal-minimonth')).toHaveLength(0) // Compact by default
-      const cell = screen.getByRole('button', { name: /Mar 14, 2025: 3\. Open day details/ })
+      const cell = screen.getByRole('button', { name: /Mar 14, 2025: 3 countable species\. Open day details/ })
       expect(cell.querySelector('.sr-cal-daynum')).toBeNull()
     } finally {
       restore()
@@ -359,7 +377,7 @@ describe('Calendar — Compact is count-only (no date) and Large is dated (no co
     render(<Calendar {...props} />)
     await screen.findByText('March')
     // From Compact: tap the Mar-14 count cell → the day popup opens.
-    fireEvent.click(screen.getByRole('button', { name: /Mar 14, 2025: 3\. Open day details/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Mar 14, 2025: 3 countable species\. Open day details/ }))
     let dialog = await screen.findByRole('dialog', { name: /Day details for \w{3}, Mar 14, 2025/ })
     expect(within(dialog).getByText('species')).toBeTruthy()
     fireEvent.keyDown(document, { key: 'Escape' })
@@ -368,7 +386,7 @@ describe('Calendar — Compact is count-only (no date) and Large is dated (no co
     // Switch to Large and tap the same day's mini-cell → the SAME popup opens.
     fireEvent.click(screen.getByRole('button', { name: 'Large' }))
     await waitFor(() => expect(document.querySelectorAll('.sr-cal-minimonth')).toHaveLength(12))
-    const dayBtn = screen.getByRole('button', { name: /Mar 14, 2025: 3\. Open day details/ })
+    const dayBtn = screen.getByRole('button', { name: /Mar 14, 2025: 3 countable species\. Open day details/ })
     expect(dayBtn.closest('.sr-cal-minimonth')).toBeTruthy() // it's the overview trigger
     fireEvent.click(dayBtn)
     dialog = await screen.findByRole('dialog', { name: /Day details for \w{3}, Mar 14, 2025/ })
@@ -382,7 +400,7 @@ describe('Calendar — Compact is count-only (no date) and Large is dated (no co
     await screen.findByText('March')
     fireEvent.click(screen.getByRole('button', { name: 'All years' }))
     // Mar 14 combined data cell — union count 3, and no date corner (Compact is dateless).
-    const cell = await screen.findByRole('button', { name: /Mar 14: 3\. Open day details/ })
+    const cell = await screen.findByRole('button', { name: /Mar 14: 3 countable species\. Open day details/ })
     expect(cell.querySelector('.sr-cal-daynum')).toBeNull()
     expect(cell.textContent).toContain('3')
   })
@@ -601,7 +619,7 @@ describe('Calendar — day popup (QA-33/34/37)', () => {
     render(<Calendar {...props} />)
     await screen.findByText('March')
     // the 2025-03-14 rich data cell (3 species, 2 checklists)
-    const cell = screen.getByRole('button', { name: /Mar 14, 2025: 3\. Open day details/ })
+    const cell = screen.getByRole('button', { name: /Mar 14, 2025: 3 countable species\. Open day details/ })
     fireEvent.click(cell)
     const dialog = await screen.findByRole('dialog')
     // all three stat tiles shown regardless of the active metric (change 1)
@@ -620,7 +638,7 @@ describe('Calendar — day popup (QA-33/34/37)', () => {
   it('each popup checklist row shows the start time (leading zero trimmed), location, and species count', async () => {
     render(<Calendar {...props} />)
     await screen.findByText('March')
-    const cell = screen.getByRole('button', { name: /Mar 14, 2025: 3\. Open day details/ })
+    const cell = screen.getByRole('button', { name: /Mar 14, 2025: 3 countable species\. Open day details/ })
     fireEvent.click(cell)
     const dialog = await screen.findByRole('dialog')
     // S100 carried "07:30 AM" @ "Point Reyes NS--Bear Valley" (Robin + Song Sparrow) —
@@ -633,7 +651,7 @@ describe('Calendar — day popup (QA-33/34/37)', () => {
   it('a checklist with no start time (time null) shows the location alone — then the species count — no stray separator', async () => {
     render(<Calendar {...props} />)
     await screen.findByText('March')
-    const cell = screen.getByRole('button', { name: /Mar 14, 2025: 3\. Open day details/ })
+    const cell = screen.getByRole('button', { name: /Mar 14, 2025: 3 countable species\. Open day details/ })
     fireEvent.click(cell)
     const dialog = await screen.findByRole('dialog')
     // S101 (Blue Jay) is timeless — its prefix span shows JUST the location, with no
@@ -657,7 +675,7 @@ describe('Calendar — day popup (QA-33/34/37)', () => {
     render(<Calendar {...props} />)
     await screen.findByText('March')
     // Species metric, forms OFF (default): the day cell reads 1 (Robin only).
-    const cell = screen.getByRole('button', { name: /Mar 14, 2025: 1\. Open day details/ })
+    const cell = screen.getByRole('button', { name: /Mar 14, 2025: 1 countable species\. Open day details/ })
     fireEvent.click(cell)
     let dialog = await screen.findByRole('dialog')
     // OFF → the checklist's countable count (1).
@@ -668,7 +686,7 @@ describe('Calendar — day popup (QA-33/34/37)', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
     fireEvent.click(screen.getByRole('switch', { name: /Count all forms/ }))
     // With forms ON the day cell now reads 2 (Robin + gull sp.).
-    fireEvent.click(screen.getByRole('button', { name: /Mar 14, 2025: 2\. Open day details/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Mar 14, 2025: 2 species\. Open day details/ }))
     dialog = await screen.findByRole('dialog')
     // ON → the checklist's with-forms count (2).
     expect(within(dialog).getByText('· 2 species')).toBeTruthy()
@@ -696,7 +714,7 @@ describe('Calendar — All years combined popup labels union vs sum (QA-35)', ()
     // legend switches to combined unit
     expect(await screen.findByText('Species ever recorded')).toBeTruthy()
     // open a combined data cell (Mar 14 across years)
-    const cell = screen.getByRole('button', { name: /Mar 14: 3\. Open day details/ })
+    const cell = screen.getByRole('button', { name: /Mar 14: 3 countable species\. Open day details/ })
     fireEvent.click(cell)
     const dialog = await screen.findByRole('dialog')
     expect(within(dialog).getByText('species ever recorded')).toBeTruthy()
@@ -800,7 +818,7 @@ describe('Calendar — popup focus restore & single-open (QA-37 / QA-38)', () =>
   it('restores focus to the activating day cell after Escape closes the popup', async () => {
     render(<Calendar {...props} />)
     await screen.findByText('March')
-    const cell = screen.getByRole('button', { name: /Mar 14, 2025: 3\. Open day details/ })
+    const cell = screen.getByRole('button', { name: /Mar 14, 2025: 3 countable species\. Open day details/ })
     fireEvent.click(cell)
     await screen.findByRole('dialog')
 
@@ -813,7 +831,7 @@ describe('Calendar — popup focus restore & single-open (QA-37 / QA-38)', () =>
   it('restores focus to the activating day cell after the Close control closes the popup', async () => {
     render(<Calendar {...props} />)
     await screen.findByText('March')
-    const cell = screen.getByRole('button', { name: /Mar 14, 2025: 3\. Open day details/ })
+    const cell = screen.getByRole('button', { name: /Mar 14, 2025: 3 countable species\. Open day details/ })
     fireEvent.click(cell)
     const dialog = await screen.findByRole('dialog')
 
@@ -825,7 +843,7 @@ describe('Calendar — popup focus restore & single-open (QA-37 / QA-38)', () =>
   it('closes via a backdrop mousedown (the third close affordance) (QA-37)', async () => {
     render(<Calendar {...props} />)
     await screen.findByText('March')
-    const cell = screen.getByRole('button', { name: /Mar 14, 2025: 3\. Open day details/ })
+    const cell = screen.getByRole('button', { name: /Mar 14, 2025: 3 countable species\. Open day details/ })
     fireEvent.click(cell)
     const dialog = await screen.findByRole('dialog')
     // The backdrop is the role="presentation" ancestor; a mousedown ON it (target ===
@@ -840,7 +858,7 @@ describe('Calendar — popup focus restore & single-open (QA-37 / QA-38)', () =>
   it('opening a second day popup replaces the first — only one dialog open at a time (QA-38)', async () => {
     render(<Calendar {...props} />)
     await screen.findByText('March')
-    const first = screen.getByRole('button', { name: /Mar 14, 2025: 3\. Open day details/ })
+    const first = screen.getByRole('button', { name: /Mar 14, 2025: 3 countable species\. Open day details/ })
     fireEvent.click(first)
     // The dialog's accessible name uniquely identifies the day via the weekday-
     // prefixed date ("… Day details for Fri, Mar 14, 2025"), which the checklist-row
@@ -850,7 +868,7 @@ describe('Calendar — popup focus restore & single-open (QA-37 / QA-38)', () =>
 
     // Activate a DIFFERENT day cell while the first popup is open. The single `popup`
     // state means the second replaces the first; the app never stacks two dialogs.
-    const second = screen.getByRole('button', { name: /Mar 15, 2025: 1\. Open day details/ })
+    const second = screen.getByRole('button', { name: /Mar 15, 2025: 1 countable species\. Open day details/ })
     fireEvent.click(second)
 
     await waitFor(() => {
@@ -923,7 +941,7 @@ describe('Calendar — the day dialog has real tab stops on WebKit (v1.0.16)', (
   it('a day with checklists holds MORE THAN ONE tab stop, so the trap can wrap at all', async () => {
     render(<Calendar {...props} />)
     await screen.findByText('March')
-    fireEvent.click(screen.getByRole('button', { name: /Mar 14, 2025: 3\. Open day details/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Mar 14, 2025: 3 countable species\. Open day details/ }))
     const dialog = await screen.findByRole('dialog')
 
     const focusables = focusablesIn(dialog)
@@ -935,7 +953,7 @@ describe('Calendar — the day dialog has real tab stops on WebKit (v1.0.16)', (
   it('EVERY focusable in the dialog is an explicit tab stop — the trap list and WebKit\'s order coincide', async () => {
     render(<Calendar {...props} />)
     await screen.findByText('March')
-    fireEvent.click(screen.getByRole('button', { name: /Mar 14, 2025: 3\. Open day details/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Mar 14, 2025: 3 countable species\. Open day details/ }))
     const dialog = await screen.findByRole('dialog')
 
     const unmarked = focusablesIn(dialog)
@@ -948,7 +966,7 @@ describe('Calendar — the day dialog has real tab stops on WebKit (v1.0.16)', (
   it('the Close button and the checklist links are the two kinds, and both are marked', async () => {
     render(<Calendar {...props} />)
     await screen.findByText('March')
-    fireEvent.click(screen.getByRole('button', { name: /Mar 14, 2025: 3\. Open day details/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Mar 14, 2025: 3 countable species\. Open day details/ }))
     const dialog = await screen.findByRole('dialog')
 
     // Named individually so a future change that drops one reads as a missing
@@ -970,7 +988,7 @@ describe('Calendar — the day dialog has real tab stops on WebKit (v1.0.16)', (
     // fails the moment that stops being true.
     render(<Calendar {...props} />)
     await screen.findByText('March')
-    fireEvent.click(screen.getByRole('button', { name: /Mar 14, 2025: 3\. Open day details/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Mar 14, 2025: 3 countable species\. Open day details/ }))
     const dialog = await screen.findByRole('dialog')
 
     expect(dialog.querySelectorAll('summary')).toHaveLength(0)
@@ -988,7 +1006,7 @@ describe('Calendar — the day dialog has real tab stops on WebKit (v1.0.16)', (
   it('focus starts on the Close button, which is inside the dialog', async () => {
     render(<Calendar {...props} />)
     await screen.findByText('March')
-    fireEvent.click(screen.getByRole('button', { name: /Mar 14, 2025: 3\. Open day details/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Mar 14, 2025: 3 countable species\. Open day details/ }))
     const dialog = await screen.findByRole('dialog')
 
     const close = within(dialog).getByRole('button', { name: 'Close day details' })
@@ -1039,12 +1057,12 @@ describe('Calendar — the day dialog CONTAINS on focusin (improve: focusable-se
   // unconditionally would satisfy every other row here while making the rest of
   // the tab unusable.
 
-  const outside = () => screen.getByRole('button', { name: /Mar 15, 2025: 1\. Open day details/ })
+  const outside = () => screen.getByRole('button', { name: /Mar 15, 2025: 1 countable species\. Open day details/ })
 
   async function openDialog() {
     render(<Calendar {...props} />)
     await screen.findByText('March')
-    fireEvent.click(screen.getByRole('button', { name: /Mar 14, 2025: 3\. Open day details/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Mar 14, 2025: 3 countable species\. Open day details/ }))
     return await screen.findByRole('dialog')
   }
 
@@ -1113,11 +1131,489 @@ describe('Calendar — the day dialog CONTAINS on focusin (improve: focusable-se
     // that is unmounting and drop the user on <body>. This is the row that fails.
     render(<Calendar {...props} />)
     await screen.findByText('March')
-    const opener = screen.getByRole('button', { name: /Mar 14, 2025: 3\. Open day details/ })
+    const opener = screen.getByRole('button', { name: /Mar 14, 2025: 3 countable species\. Open day details/ })
     fireEvent.click(opener)
     const dialog = await screen.findByRole('dialog')
     fireEvent.click(within(dialog).getByRole('button', { name: 'Close day details' }))
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
     await waitFor(() => expect(document.activeElement).toBe(opener))
+  })
+})
+
+// ── calendar-overlays ────────────────────────────────────────────────────────
+// The Media and Breeding overlays, the codes control, and what they add to the
+// tile, the Large view, the legend, the popup and the accessible names (PRD
+// FR-01 to FR-38). The byte-identical-OFF property is its own file
+// (calendarOverlaysOff.test.tsx); the pure rows and suffixes are unit-tested in
+// lib/calendarOverlays.test.ts. These rows assert the component composes them.
+
+// May 17, 2025: three checklists. S500 carries three photos' ids and NB + S,
+// S501 an audio id and S on two species, S502 nothing. Feb 22 is a zero day
+// under the default Species metric (only a spuh) that carries media.
+function overlayDataset(): ObservationEntry[] {
+  return [
+    obs({ date: '2025-05-17', submissionId: 'S500', commonName: 'Oak Titmouse', time: '06:42 AM', location: 'Bear Valley', catalogIds: ['1', '2'], breedingCode: 'NB' }),
+    obs({ date: '2025-05-17', submissionId: 'S500', commonName: 'Wrentit', time: '06:42 AM', location: 'Bear Valley', catalogIds: ['3'], breedingCode: 'S' }),
+    obs({ date: '2025-05-17', submissionId: 'S501', commonName: 'Spotted Towhee', time: '10:15 AM', location: 'Abbotts Lagoon', catalogIds: ['4'], breedingCode: 'S' }),
+    obs({ date: '2025-05-17', submissionId: 'S501', commonName: 'Song Sparrow', time: '10:15 AM', location: 'Abbotts Lagoon', breedingCode: 'S' }),
+    obs({ date: '2025-05-17', submissionId: 'S502', commonName: 'Bushtit', time: '03:05 PM', location: 'Doran Beach' }),
+    obs({ date: '2025-05-18', submissionId: 'S503', commonName: 'American Crow' }),
+    obs({ date: '2025-02-22', submissionId: 'S504', commonName: 'Gull sp.', catalogIds: ['9'] }),
+    obs({ date: '2024-05-17', submissionId: 'S600', commonName: 'Oak Titmouse', catalogIds: ['50'], breedingCode: 'NY' }),
+  ]
+}
+const ML_MAP = { '1': 'Photo', '2': 'Photo', '3': 'Photo', '4': 'Audio' }
+const MAY17 = /^May 17, 2025: 5 countable species/
+const factRows = (el: Element, which: 'rich' | 'condensed') =>
+  Array.from(el.querySelectorAll(`.sr-cal-facts--${which} > .sr-fact`)).map(e => e.textContent)
+
+function deferred<T>() {
+  let resolve!: (v: T) => void
+  const promise = new Promise<T>(res => { resolve = res })
+  return { promise, resolve }
+}
+
+async function mountOverlays(stored?: unknown) {
+  observations = overlayDataset()
+  if (stored !== undefined) getSetting.mockImplementation(async () => stored)
+  const utils = render(<Calendar {...props} />)
+  await screen.findByText('January')
+  return utils
+}
+const mediaSwitch = () => screen.getByRole('switch', { name: 'Media' })
+const breedingSwitch = () => screen.getByRole('switch', { name: 'Breeding' })
+const codesGroup = () => screen.getByRole('group', { name: 'Breeding rows' })
+
+describe('Calendar overlays: the controls (FR-01, FR-02, FR-07, QA-01, QA-02, QA-07, QA-42)', () => {
+  it('an Overlays group holds two switches, both off, and a "Breeding rows" choice with Every code pressed (QA-01, QA-02)', async () => {
+    await mountOverlays()
+    const group = screen.getByRole('group', { name: 'Overlays' })
+    expect(within(group).getByText('Overlays')).toBeTruthy()
+    expect(mediaSwitch().getAttribute('aria-checked')).toBe('false')
+    expect(breedingSwitch().getAttribute('aria-checked')).toBe('false')
+    expect(group.contains(mediaSwitch()) && group.contains(breedingSwitch()) && group.contains(codesGroup())).toBe(true)
+    expect(within(codesGroup()).getByRole('button', { name: 'Every code' }).getAttribute('aria-pressed')).toBe('true')
+    expect(within(codesGroup()).getByRole('button', { name: 'By category' }).getAttribute('aria-pressed')).toBe('false')
+    // Nothing on the grid or in the legend while both are off.
+    expect(document.querySelectorAll('.sr-cal-facts, .sr-cal-mark, .sr-cal-legend-ov')).toHaveLength(0)
+    expect(loadMLExport).not.toHaveBeenCalled()
+  })
+
+  it('every overlay control is a real tab stop, after the species filter in reading order (QA-42)', async () => {
+    await mountOverlays()
+    const order = [
+      screen.getByRole('combobox', { name: /Filter the calendar to one species/ }),
+      mediaSwitch(), breedingSwitch(),
+      within(codesGroup()).getByRole('button', { name: 'Every code' }),
+      within(codesGroup()).getByRole('button', { name: 'By category' }),
+    ]
+    for (let i = 1; i < order.length; i++) {
+      expect(order[i - 1].compareDocumentPosition(order[i]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    }
+    for (const el of order.slice(1)) expect(el.getAttribute('tabindex')).toBe('0')
+  })
+
+  it('the Count all forms dim never reaches the overlays: operable under Checklists, a species filter and in Large view (FR-07, QA-07)', async () => {
+    await mountOverlays()
+    fireEvent.click(screen.getByRole('button', { name: 'Checklists' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Large' }))
+    fireEvent.click(screen.getByRole('switch', { name: 'Use Textures' }))
+    const forms = screen.getByRole('switch', { name: /Count all forms/ })
+    expect(forms.getAttribute('aria-disabled')).toBe('true')
+    for (const sw of [mediaSwitch(), breedingSwitch()]) {
+      expect(sw.getAttribute('aria-disabled')).toBeNull()
+      expect(sw.closest('[aria-disabled="true"]')).toBeNull()
+      for (let el: HTMLElement | null = sw; el; el = el.parentElement) {
+        expect(el.style.pointerEvents).not.toBe('none')
+        expect(el.style.opacity === '' || el.style.opacity === '1').toBe(true)
+      }
+    }
+    // The forms cluster is its own container, beside the overlays, not around them.
+    expect(forms.closest('.sr-cal-forms')!.contains(mediaSwitch())).toBe(false)
+    fireEvent.click(mediaSwitch())
+    fireEvent.click(breedingSwitch())
+    expect(mediaSwitch().getAttribute('aria-checked')).toBe('true')
+    expect(breedingSwitch().getAttribute('aria-checked')).toBe('true')
+    // With Breeding on, the codes control is undimmed and operable here too.
+    expect(codesGroup().closest('[aria-disabled="true"]')).toBeNull()
+    fireEvent.click(within(codesGroup()).getByRole('button', { name: 'By category' }))
+    expect(within(codesGroup()).getByRole('button', { name: 'By category' }).getAttribute('aria-pressed')).toBe('true')
+  })
+})
+
+describe('Calendar overlays: the codes control is gated, not hidden, while Breeding is off (FR-36, QA-47)', () => {
+  it('Breeding off: dimmed wrapper, aria-disabled options that stay tab stops, the reason wired, activation ignored and nothing written', async () => {
+    await mountOverlays()
+    const wrapper = codesGroup().closest('.sr-cal-codes') as HTMLElement
+    expect(wrapper.getAttribute('aria-disabled')).toBe('true')
+    expect(wrapper.style.pointerEvents).not.toBe('none')
+    for (const name of ['Every code', 'By category']) {
+      const opt = within(codesGroup()).getByRole('button', { name })
+      expect(opt.getAttribute('aria-disabled')).toBe('true')
+      expect(opt.getAttribute('tabindex')).toBe('0')
+      expect(opt.style.pointerEvents).not.toBe('none')
+      const reason = document.getElementById(opt.getAttribute('aria-describedby')!)
+      expect(reason?.textContent).toBe('Turn on Breeding to choose how codes show.')
+    }
+    // Enter and Space on a native button dispatch click, so the click guard is
+    // the keyboard guard as well.
+    fireEvent.click(within(codesGroup()).getByRole('button', { name: 'By category' }))
+    expect(within(codesGroup()).getByRole('button', { name: 'Every code' }).getAttribute('aria-pressed')).toBe('true')
+    await waitFor(() => expect(getSetting).toHaveBeenCalled())
+    expect(setSetting).not.toHaveBeenCalled()
+  })
+
+  it('Breeding on: the gate lifts, and pressing By category writes all three fields once', async () => {
+    await mountOverlays()
+    fireEvent.click(breedingSwitch())
+    const wrapper = codesGroup().closest('.sr-cal-codes') as HTMLElement
+    expect(wrapper.getAttribute('aria-disabled')).toBeNull()
+    const byCat = within(codesGroup()).getByRole('button', { name: 'By category' })
+    expect(byCat.getAttribute('aria-disabled')).toBeNull()
+    expect(byCat.getAttribute('aria-describedby')).toBeNull()
+    // The Breeding flip's own write lands on the hook's write chain first.
+    await waitFor(() => expect(setSetting).toHaveBeenCalledTimes(1))
+    setSetting.mockClear()
+    fireEvent.click(byCat)
+    await waitFor(() => expect(setSetting).toHaveBeenCalledTimes(1))
+    expect(setSetting).toHaveBeenCalledWith('calendarOverlays', { media: false, breeding: true, codes: 'category' })
+    expect(byCat.getAttribute('aria-pressed')).toBe('true')
+  })
+
+  it('a stored By category with Breeding off hydrates pressed under the gate and applies the moment Breeding turns on', async () => {
+    await mountOverlays({ media: false, breeding: false, codes: 'category' })
+    await waitFor(() => expect(within(codesGroup()).getByRole('button', { name: 'By category' }).getAttribute('aria-pressed')).toBe('true'))
+    expect((codesGroup().closest('.sr-cal-codes') as HTMLElement).getAttribute('aria-disabled')).toBe('true')
+    expect(setSetting).not.toHaveBeenCalled()
+    fireEvent.click(breedingSwitch())
+    expect(screen.getByText('one row per category that day · count: species with evidence at that category')).toBeTruthy()
+    const may17 = screen.getByRole('button', { name: MAY17 })
+    // By category names the CATEGORIES (D4-11): Conf 1 (NB), Poss 3 (S on
+    // three species); no code on the tile, and no row for absent Probable.
+    expect(factRows(may17, 'rich')).toEqual(['Conf1', 'Poss3'])
+    const rich = may17.querySelector('.sr-cal-facts--rich')!
+    expect(rich.querySelectorAll('.sr-fact--cat')).toHaveLength(2)
+    expect(rich.textContent).not.toMatch(/NB|S\b/)
+    expect(rich.textContent).not.toContain('Prob')
+    // Condensed: each category as its circle and count, no text, no +N.
+    expect(factRows(may17, 'condensed')).toEqual(['1', '3'])
+    expect(may17.querySelectorAll('.sr-cal-facts--condensed .sr-fact--cat b')).toHaveLength(0)
+    // Both blocks carry the fit class for 1-digit counts (E5-12), so the tile
+    // turns compact at the width its short labels need; Every code does not.
+    for (const blk of may17.querySelectorAll('.sr-cal-facts')) {
+      expect([...blk.classList].filter(c => c.startsWith('sr-cal-facts--cat'))).toEqual(['sr-cal-facts--cat'])
+    }
+    fireEvent.click(within(codesGroup()).getByRole('button', { name: 'Every code' }))
+    expect(screen.getByRole('button', { name: MAY17 }).querySelectorAll('[class*="sr-cal-facts--cat"]')).toHaveLength(0)
+    // The name still reads every code with its category, whatever the mode.
+    expect(may17.getAttribute('aria-label')).toContain('breeding: NB 1 (Confirmed), S 3 (Possible)')
+  })
+})
+
+describe('Calendar overlays: persistence through the seam (FR-03 to FR-06, QA-03, QA-06)', () => {
+  it('flipping Media writes one value under one key with all three fields; hydration writes nothing (QA-03)', async () => {
+    await mountOverlays()
+    await waitFor(() => expect(getSetting).toHaveBeenCalledWith('calendarOverlays'))
+    expect(setSetting).not.toHaveBeenCalled()
+    fireEvent.click(mediaSwitch())
+    await waitFor(() => expect(setSetting).toHaveBeenCalledTimes(1))
+    expect(setSetting).toHaveBeenCalledWith('calendarOverlays', { media: true, breeding: false, codes: 'every' })
+  })
+
+  it('a stored preference renders on at mount with no write (QA-03)', async () => {
+    await mountOverlays({ media: true, breeding: true, codes: 'every' })
+    await waitFor(() => expect(mediaSwitch().getAttribute('aria-checked')).toBe('true'))
+    expect(breedingSwitch().getAttribute('aria-checked')).toBe('true')
+    expect(setSetting).not.toHaveBeenCalled()
+  })
+
+  it('a failed write keeps the overlay on, shows nothing, throws nothing, and the next change writes again (FR-06, QA-06)', async () => {
+    setSetting.mockImplementation(async () => { throw new Error('disk full') })
+    await mountOverlays()
+    fireEvent.click(breedingSwitch())
+    await waitFor(() => expect(setSetting).toHaveBeenCalledTimes(1))
+    expect(breedingSwitch().getAttribute('aria-checked')).toBe('true')
+    expect(factRows(screen.getByRole('button', { name: MAY17 }), 'rich')).toEqual(['NB1', 'S3'])
+    expect(screen.queryAllByRole('alert').filter(a => a.textContent?.trim())).toHaveLength(0)
+    fireEvent.click(mediaSwitch())
+    await waitFor(() => expect(setSetting).toHaveBeenCalledTimes(2))
+  })
+})
+
+describe('Calendar overlays: the tile, names and Large marks (FR-17 to FR-29, QA-18, QA-19, QA-21, QA-25, QA-26, QA-32, QA-33)', () => {
+  it('Media on with the export: per-format rows; the name reads the formats; facts are aria-hidden (QA-19, QA-26, QA-33)', async () => {
+    loadMLExport.mockImplementation(async () => ({ mediaMap: ML_MAP }))
+    await mountOverlays()
+    fireEvent.click(mediaSwitch())
+    const cell = await screen.findByRole('button', { name: 'May 17, 2025: 5 countable species, media: 3 photos, 1 audio. Open day details' })
+    expect(factRows(cell, 'rich')).toEqual(['3', '1'])
+    expect(cell.querySelector('.sr-cal-facts--rich .lucide-camera')).toBeTruthy()
+    expect(cell.querySelector('.sr-cal-facts--rich .lucide-mic')).toBeTruthy()
+    expect(factRows(cell, 'condensed')).toEqual(['4'])
+    for (const block of cell.querySelectorAll('.sr-cal-facts')) expect(block.getAttribute('aria-hidden')).toBe('true')
+    // The count stays first, in its own register.
+    expect((cell.firstElementChild as HTMLElement).textContent).toBe('5')
+    expect(cell.className).toContain('sr-cal-cell')
+    expect(cell.style.flexDirection).toBe('column')
+    expect(cell.style.aspectRatio).toBe('auto')
+    expect(document.querySelector('.sr-cal-months')!.className).toBe('sr-cal-months sr-cal-months--rich')
+  })
+
+  it('Media on without the export: one frame row with the total, and the plain count in the name (QA-19, QA-33)', async () => {
+    await mountOverlays()
+    fireEvent.click(mediaSwitch())
+    const cell = await screen.findByRole('button', { name: 'May 17, 2025: 5 countable species, media: 4. Open day details' })
+    expect(factRows(cell, 'rich')).toEqual(['4'])
+    expect(cell.querySelector('.sr-cal-facts--rich .lucide-camera')).toBeNull()
+  })
+
+  it('both on: the name carries every code with its category; rows are strongest first; "By category" leaves the name alone (QA-33, QA-48)', async () => {
+    loadMLExport.mockImplementation(async () => ({ mediaMap: ML_MAP }))
+    await mountOverlays()
+    fireEvent.click(mediaSwitch())
+    fireEvent.click(breedingSwitch())
+    const name = 'May 17, 2025: 5 countable species, media: 3 photos, 1 audio, breeding: NB 1 (Confirmed), S 3 (Possible). Open day details'
+    const cell = await screen.findByRole('button', { name })
+    expect(factRows(cell, 'rich')).toEqual(['3', '1', 'NB1', 'S3'])
+    expect(factRows(cell, 'condensed')).toEqual(['4', 'NB', '+1'])
+    fireEvent.click(within(codesGroup()).getByRole('button', { name: 'By category' }))
+    expect(screen.getByRole('button', { name })).toBe(cell)
+  })
+
+  it('a zero day with media is marked like a data day (FR-16, QA-18)', async () => {
+    await mountOverlays()
+    fireEvent.click(mediaSwitch())
+    const zero = await screen.findByRole('button', { name: 'Feb 22, 2025: birded, 0 countable species, media: 1. Open day details' })
+    expect(factRows(zero, 'rich')).toEqual(['1'])
+    expect((zero.querySelector('.sr-cal-facts') as HTMLElement).style.color).toBe('var(--sr-text-muted)')
+  })
+
+  it('unmarked days append nothing, and no-data and pad cells never carry a fact block (QA-21, QA-32)', async () => {
+    await mountOverlays()
+    fireEvent.click(mediaSwitch())
+    fireEvent.click(breedingSwitch())
+    const plain = screen.getByRole('button', { name: 'May 18, 2025: 1 countable species. Open day details' })
+    expect(plain.querySelector('.sr-cal-facts')).toBeNull()
+    for (const div of document.querySelectorAll('.sr-cal-grid--rich > div')) {
+      expect(div.querySelector('.sr-cal-facts, .sr-cal-mark')).toBeNull()
+    }
+    expect(document.querySelectorAll('.sr-cal-grid--rich')).toHaveLength(12)
+  })
+
+  it('names the metric: checklists and individuals (FR-28, QA-32)', async () => {
+    await mountOverlays()
+    fireEvent.click(screen.getByRole('button', { name: 'Checklists' }))
+    expect(screen.getByRole('button', { name: 'May 17, 2025: 3 checklists. Open day details' })).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Total count' }))
+    expect(screen.getByRole('button', { name: 'May 17, 2025: 5 individuals. Open day details' })).toBeTruthy()
+  })
+
+  it('textures on: a data tile\'s fact blocks wear the count pill\'s tier backing (FR-21)', async () => {
+    await mountOverlays()
+    fireEvent.click(screen.getByRole('switch', { name: 'Use Textures' }))
+    fireEvent.click(breedingSwitch())
+    const cell = screen.getByRole('button', { name: MAY17 })
+    const block = cell.querySelector('.sr-cal-facts--rich') as HTMLElement
+    expect(block.className).toContain('is-backed')
+    expect(block.style.background).toMatch(/^rgba\(var\(--sr-cal-\d-rgb\), 0\.9\)$/)
+  })
+
+  it('Large view: quiet corner marks only, never codes or counts, and the codes control does not reach them (FR-22, QA-25)', async () => {
+    await mountOverlays()
+    fireEvent.click(screen.getByRole('button', { name: 'Large' }))
+    fireEvent.click(mediaSwitch())
+    fireEvent.click(breedingSwitch())
+    const mini = screen.getByRole('button', { name: /^May 17, 2025: 5 countable species, media: 4, breeding: NB 1 \(Confirmed\), S 3 \(Possible\)\. Open day details$/ })
+    expect(mini.closest('.sr-cal-minimonth')).toBeTruthy()
+    const left = mini.querySelector('.sr-cal-mark--left')!
+    const right = mini.querySelector('.sr-cal-mark--right')!
+    expect(left.getAttribute('aria-hidden')).toBe('true')
+    expect(right.getAttribute('aria-hidden')).toBe('true')
+    expect(mini.querySelector('.sr-cal-facts')).toBeNull()
+    expect(mini.textContent).toBe('17')
+    const before = mini.innerHTML
+    fireEvent.click(within(codesGroup()).getByRole('button', { name: 'By category' }))
+    expect(mini.innerHTML).toBe(before)
+  })
+})
+
+describe('Calendar overlays: legend (FR-30, QA-34)', () => {
+  const block = (title: string) => Array.from(document.querySelectorAll('.sr-cal-legend-ov'))
+    .find(b => b.querySelector('.sr-cal-legend-unit')?.textContent === title) as HTMLElement | undefined
+  const entries = (b: HTMLElement) => Array.from(b.querySelectorAll('.sr-cal-legend-row')).map(e => e.textContent)
+
+  it('Media with the export: photos, audio, videos, media and its caption; without it: media alone', async () => {
+    loadMLExport.mockImplementation(async () => ({ mediaMap: ML_MAP }))
+    await mountOverlays()
+    fireEvent.click(mediaSwitch())
+    await waitFor(() => expect(entries(block('Media')!)).toEqual(['photos', 'audio', 'videos', 'media']))
+    expect(block('Media')!.textContent).toContain('count: Macaulay Library items that day · plain frame: format not in the ML export')
+    cleanup()
+    loadMLExport.mockImplementation(async () => null)
+    await mountOverlays()
+    fireEvent.click(mediaSwitch())
+    await waitFor(() => expect(loadMLExport).toHaveBeenCalled())
+    expect(entries(block('Media')!)).toEqual(['media'])
+    expect(block('Media')!.textContent).toContain('load the ML export for formats')
+  })
+
+  it('Breeding: Confirmed, Probable, Possible, with the caption following the codes control', async () => {
+    await mountOverlays()
+    fireEvent.click(breedingSwitch())
+    expect(entries(block('Breeding')!)).toEqual(['Confirmed', 'Probable', 'Possible'])
+    expect(block('Breeding')!.textContent).toContain('every code recorded that day · count: species carrying it')
+    fireEvent.click(within(codesGroup()).getByRole('button', { name: 'By category' }))
+    // Under By category each entry keys the tile's short form to its word (D4-11).
+    expect(entries(block('Breeding')!)).toEqual(['Conf\u00b7 Confirmed', 'Prob\u00b7 Probable', 'Poss\u00b7 Possible'])
+    expect([...block('Breeding')!.querySelectorAll('.sr-cal-legend-row b')].map(b => b.textContent)).toEqual(['Conf', 'Prob', 'Poss'])
+    expect(block('Breeding')!.textContent).toContain('one row per category that day · count: species with evidence at that category')
+    fireEvent.click(within(codesGroup()).getByRole('button', { name: 'Every code' }))
+    expect(entries(block('Breeding')!)).toEqual(['Confirmed', 'Probable', 'Possible'])
+    fireEvent.click(breedingSwitch())
+    expect(document.querySelectorAll('.sr-cal-legend-ov')).toHaveLength(0)
+  })
+})
+
+describe('Calendar overlays: the day popup (FR-24 to FR-27, QA-27, QA-30, QA-31)', () => {
+  async function openMay17() {
+    fireEvent.click(screen.getByRole('button', { name: MAY17 }))
+    return await screen.findByRole('dialog')
+  }
+
+  it('Media on with the export: the header totals by format, each media row its count then its formats, the other row nothing (QA-27)', async () => {
+    loadMLExport.mockImplementation(async () => ({ mediaMap: ML_MAP }))
+    await mountOverlays()
+    fireEvent.click(mediaSwitch())
+    await waitFor(() => expect(loadMLExport).toHaveBeenCalled())
+    const dialog = await openMay17()
+    await waitFor(() => expect(within(dialog).getByText('3 photos', { selector: '.sr-popup-facts *' })).toBeTruthy())
+    const head = dialog.querySelector('.sr-popup-facts')!
+    expect(head.textContent).toBe('media on 2 checklists:3 photos1 audio')
+    const rows = Array.from(dialog.querySelectorAll('.sr-popup-ov')).map(r => r.textContent)
+    expect(rows).toEqual(['3 media3 photos', '1 media1 audio'])
+  })
+
+  it('without the export the header and rows show plain counts', async () => {
+    await mountOverlays()
+    fireEvent.click(mediaSwitch())
+    const dialog = await openMay17()
+    expect(dialog.querySelector('.sr-popup-facts')!.textContent).toBe('media on 2 checklists:4 media')
+    expect(Array.from(dialog.querySelectorAll('.sr-popup-ov')).map(r => r.textContent)).toEqual(['3 media', '1 media'])
+  })
+
+  it('Breeding on: every code in the header, one tier-tinted chip per code per row, "N species" only above one; the codes control never reaches it (QA-30)', async () => {
+    await mountOverlays()
+    fireEvent.click(breedingSwitch())
+    const dialog = await openMay17()
+    const head = dialog.querySelector('.sr-popup-facts')!
+    expect(head.textContent).toBe('breeding evidence: ConfirmedNB 1S 3')
+    const chips = Array.from(dialog.querySelectorAll('.sr-bcode'))
+    expect(chips.map(c => [c.getAttribute('data-tier'), c.textContent])).toEqual([
+      ['4', 'NBNest BuildingConfirmed'],
+      ['1', 'SSinging BirdPossible'],
+      ['1', 'SSinging BirdPossible· 2 species'],
+    ])
+    const before = dialog.innerHTML
+    fireEvent.keyDown(document, { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    fireEvent.click(within(codesGroup()).getByRole('button', { name: 'By category' }))
+    expect((await openMay17()).innerHTML).toBe(before)
+  })
+
+  it('reads the overlays live: flipping Media while the popup is open adds and removes its lines (FR-27, QA-31)', async () => {
+    await mountOverlays()
+    const dialog = await openMay17()
+    expect(dialog.querySelector('.sr-popup-facts, .sr-popup-ov')).toBeNull()
+    fireEvent.click(mediaSwitch())
+    await waitFor(() => expect(dialog.querySelector('.sr-popup-facts')).toBeTruthy())
+    fireEvent.click(mediaSwitch())
+    expect(dialog.querySelector('.sr-popup-facts, .sr-popup-ov')).toBeNull()
+  })
+})
+
+describe('Calendar overlays: the ML export is read only while Media is on (FR-31 to FR-33, QA-35 to QA-38)', () => {
+  it('never read with Media off, through metric changes and a popup; once on the flip on; once when hydrating to on (QA-35)', async () => {
+    await mountOverlays()
+    fireEvent.click(screen.getByRole('button', { name: 'Checklists' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Species' }))
+    fireEvent.click(breedingSwitch())
+    fireEvent.click(screen.getByRole('button', { name: MAY17 }))
+    await screen.findByRole('dialog')
+    fireEvent.keyDown(document, { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(loadMLExport).not.toHaveBeenCalled()
+    fireEvent.click(mediaSwitch())
+    await waitFor(() => expect(loadMLExport).toHaveBeenCalledTimes(1))
+    cleanup()
+    loadMLExport.mockClear()
+    await mountOverlays({ media: true, breeding: false, codes: 'every' })
+    await waitFor(() => expect(loadMLExport).toHaveBeenCalledTimes(1))
+  })
+
+  it('a missing or non-matching export is plain counts and no error anywhere (QA-36)', async () => {
+    loadMLExport.mockImplementation(async () => ({ mediaMap: { '777': 'Photo' } }))
+    await mountOverlays()
+    fireEvent.click(mediaSwitch())
+    await waitFor(() => expect(loadMLExport).toHaveBeenCalled())
+    const cell = screen.getByRole('button', { name: 'May 17, 2025: 5 countable species, media: 4. Open day details' })
+    expect(factRows(cell, 'rich')).toEqual(['4'])
+    expect(screen.queryAllByRole('alert').filter(a => a.textContent?.trim())).toHaveLength(0)
+    expect(screen.getByText('January')).toBeTruthy()
+  })
+
+  it('while the export loads the popup and tiles show plain counts, and gain the breakdown when it lands (QA-37)', async () => {
+    const load = deferred<{ mediaMap: Record<string, string> } | null>()
+    loadMLExport.mockImplementation(() => load.promise)
+    await mountOverlays()
+    fireEvent.click(mediaSwitch())
+    const dialog = await (async () => { fireEvent.click(screen.getByRole('button', { name: MAY17 })); return screen.findByRole('dialog') })()
+    expect(dialog.querySelector('.sr-popup-facts')!.textContent).toBe('media on 2 checklists:4 media')
+    load.resolve({ mediaMap: ML_MAP })
+    await waitFor(() => expect(dialog.querySelector('.sr-popup-facts')!.textContent).toBe('media on 2 checklists:3 photos1 audio'))
+    expect(factRows(screen.getByRole('button', { name: /^May 17, 2025: 5 countable species, media: 3 photos, 1 audio/ }), 'rich')).toEqual(['3', '1'])
+  })
+
+  it('a files-epoch bump re-reads the export with Media on, and does not with it off (FR-33, QA-38)', async () => {
+    observations = overlayDataset()
+    const { rerender } = render(<Calendar {...props} filesVersion={0} />)
+    await screen.findByText('January')
+    rerender(<Calendar {...props} filesVersion={1} />)
+    await screen.findByText('January')
+    expect(loadMLExport).not.toHaveBeenCalled()
+    fireEvent.click(mediaSwitch())
+    await waitFor(() => expect(loadMLExport).toHaveBeenCalledTimes(1))
+    rerender(<Calendar {...props} filesVersion={2} />)
+    await waitFor(() => expect(loadMLExport).toHaveBeenCalledTimes(2))
+  })
+})
+
+describe('Calendar overlays: a flip never rebuilds the derivation, and the motion runs once (FR-08, QA-08, Motion Spec)', () => {
+  // An open popup surviving a flip is the QA-31 row above ("reads the overlays
+  // live"), which flips Media with the dialog open; this row covers the rest.
+  it('flipping both switches and the codes choice leaves the buildDayCells call count, the metric and the year alone', async () => {
+    await mountOverlays()
+    await waitFor(() => expect(getSetting).toHaveBeenCalled())
+    const calls = vi.mocked(buildDayCells).mock.calls.length
+    expect(calls).toBeGreaterThan(0)
+    fireEvent.click(mediaSwitch())
+    fireEvent.click(breedingSwitch())
+    fireEvent.click(within(codesGroup()).getByRole('button', { name: 'By category' }))
+    fireEvent.click(within(codesGroup()).getByRole('button', { name: 'Every code' }))
+    fireEvent.click(mediaSwitch())
+    expect(vi.mocked(buildDayCells).mock.calls.length).toBe(calls)
+    expect(screen.getByRole('button', { name: 'Species' }).getAttribute('aria-pressed')).toBe('true')
+    expect(screen.getAllByText('2025').length).toBeGreaterThan(0)
+  })
+
+  it('the fact blocks and legend block carry their enter class only just after the flip that turned an overlay on', async () => {
+    await mountOverlays()
+    fireEvent.click(breedingSwitch())
+    expect(document.querySelectorAll('.sr-cal-facts--enter').length).toBeGreaterThan(0)
+    expect(document.querySelectorAll('.sr-cal-legend-ov--enter')).toHaveLength(1)
+    await waitFor(() => expect(document.querySelectorAll('.sr-cal-facts--enter, .sr-cal-legend-ov--enter')).toHaveLength(0))
+    // A later re-render that changes no overlay state animates nothing.
+    fireEvent.click(screen.getByRole('button', { name: 'Previous year with data' }))
+    expect(document.querySelectorAll('.sr-cal-facts').length).toBeGreaterThan(0)
+    expect(document.querySelectorAll('.sr-cal-facts--enter')).toHaveLength(0)
   })
 })

@@ -399,7 +399,7 @@ describe('the clamp repair and the label floor reached their call sites', () => 
     }
   })
 
-  it('opts each of the 29 paired labels in, and no unpaired one', () => {
+  it('opts each of the 30 paired labels in, and no unpaired one', () => {
     // The boundary the spec draws, and the reason it is a boundary: a label with
     // no floored control beside it is not broken, it renders exactly as designed,
     // so flooring its register globally would enlarge labels across two dozen
@@ -410,7 +410,11 @@ describe('the clamp repair and the label floor reached their call sites', () => 
     // beside each floored date input on phones, written once there and rendered
     // on all five surfaces that use it. No per-surface count moved.
     //
-    // 24 -> 29 at targets-tab: the Targets controls card is a `.sr-ctl-row`
+    // 24 -> 25 at calendar-overlays, deliberately: the Calendar's new uppercase
+    // OVERLAYS label sits in the strip's .sr-ctl-row beside the Media and
+    // Breeding switches and the codes control, all of them floored on phones.
+    //
+    // 25 -> 30 at targets-tab: the Targets controls card is a `.sr-ctl-row`
     // filter block, and its five uppercase row labels (County, Show, Sort, Last
     // report, Distance) each sit beside a floored control.
     const counts = new Map<string, number>()
@@ -424,7 +428,7 @@ describe('the clamp repair and the label floor reached their call sites', () => 
     }
     expect(Object.fromEntries([...counts].sort())).toEqual({
       'App.tsx': 1,                                     // the checklist field's own <label>
-      'components/Calendar.tsx': 4,                     // the uppercase strip labels
+      'components/Calendar.tsx': 5,                     // the uppercase strip labels, OVERLAYS included
       'components/Checklists.tsx': 4,                   // the three filter rows plus Effort
       'components/NamedBirdRangeControl.tsx': 1,
       'components/WeatherForecastPanel.tsx': 5,

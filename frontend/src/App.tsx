@@ -1,6 +1,6 @@
 import { Button } from './components/ui/Button'
 import { Link } from './components/ui/Link'
-import { useState, useCallback, useRef, useEffect, useMemo, useSyncExternalStore, lazy, Suspense, createContext, useContext } from 'react'
+import { useState, useCallback, useRef, useEffect, useLayoutEffect, useMemo, useSyncExternalStore, lazy, Suspense, createContext, useContext } from 'react'
 import { Search, Loader2, ClipboardCopy, Check, AlertCircle, ExternalLink } from 'lucide-react'
 import { transport, TransportError } from './lib/transport'
 import { classifyLiveError, OFFLINE_MESSAGE, NO_KEY_MESSAGE, type LiveErrorKind } from './lib/offlineMessage'
@@ -50,6 +50,7 @@ import { useEmbeddedMediaPreference } from './lib/useEmbeddedMediaPreference'
 import { useMapPanelChrome } from './lib/mapPanelChrome'
 import { usePaletteHotkey } from './lib/usePaletteHotkey'
 import { restoreOpenerFocus, type PaletteOpener } from './lib/paletteFocus'
+import { releaseLaunch } from './lib/launch'
 
 // Lazy chunks. The map (maplibre-gl ~270 KB gz), stats (recharts ~112 KB gz), Species
 // Detail, and Help are kept out of the entry bundle so first paint is light. Named
@@ -233,6 +234,11 @@ export default function App() {
   // First-run welcome: null = undetermined, true = cold start (no keys, no files,
   // not previously dismissed). welcomeDismissed hides it for the rest of the session.
   const [coldStart, setColdStart] = useState<boolean | null>(null)
+  // The static launch frame covers only the existing first-destination choices.
+  // Web layout is synchronous; native layout and a cold widget URL can resolve
+  // alongside first-run detection without waiting for any tab's own data.
+  const [layoutSettled, setLayoutSettled] = useState(() => !isTauri())
+  const [initialLinkSettled, setInitialLinkSettled] = useState(() => !widgetsSupported())
   const [welcomeDismissed, setWelcomeDismissed] = useState(false)
   // In-app Text Size (rem multiplier on the root). Initial value is read sync from
   // localStorage (web flash-free); desktop hydrates the durable value after mount.
@@ -387,9 +393,30 @@ export default function App() {
           ? (visibleTabs(restored)[0] ?? 'settings')
           : current
       })
+    }).catch(() => {
+      // Keep the current default layout when the saved setting cannot be read.
+    }).finally(() => {
+      if (!cancelled) setLayoutSettled(true)
     })
     return () => { cancelled = true }
   }, [])
+
+  // A cold iOS widget URL must be taken before the first shell is exposed.
+  // Start this alongside the layout and welcome reads, not behind the old
+  // after-paint timer. The hand-over writer remains deferred below.
+  useEffect(() => {
+    if (!widgetsSupported()) return
+    let cancelled = false
+    void import('./lib/links/linkController')
+      .then(m => m.bootLinkController())
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setInitialLinkSettled(true) })
+    return () => { cancelled = true }
+  }, [])
+
+  useLayoutEffect(() => {
+    if (coldStart !== null && layoutSettled && initialLinkSettled) releaseLaunch()
+  }, [coldStart, layoutSettled, initialLinkSettled])
 
   const handleReorder = useCallback((newOrder: ConfigurableTab[]) => {
     setTabLayout(prev => {
@@ -539,16 +566,13 @@ export default function App() {
     return () => clearTimeout(t)
   }, [])
 
-  // iOS home-screen widgets (ios-lifer-widgets): the hand-over writer and the
-  // widget-link receiver. iPhone and iPad only, booted after first paint
-  // through `import()` exactly as the iCloud controller is, so neither rides
-  // the entry chunk (entryChunk.test.ts) and neither is ever fetched on the
-  // Mac, Windows, web or Pi.
+  // iOS widget hand-over writer remains off the launch path. The parked-link
+  // check above runs alongside destination selection; this CSV-reading writer
+  // still starts after first paint and cannot hold the splash.
   useEffect(() => {
     if (!widgetsSupported()) return
     const t = setTimeout(() => {
       void import('./lib/widgets/widgetHandoverController').then(m => m.startWidgetHandover()).catch(() => {})
-      void import('./lib/links/linkController').then(m => m.bootLinkController()).catch(() => {})
     }, 0)
     return () => clearTimeout(t)
   }, [])
