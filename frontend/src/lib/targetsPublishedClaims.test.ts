@@ -16,7 +16,7 @@
 // WHAT THIS CANNOT SEE: whether a sentence is well written, and any claim made
 // in words that name no constant. Those stay with review.
 import { describe, it, expect } from 'vitest'
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import * as copy from './targets/targetsCopy'
 import { MEDIA_TYPES, buildTargetsRecord } from './targets/targetsRecord'
@@ -26,6 +26,8 @@ import { SORT_ORDER } from './targets/targetsSort'
 import { SWEEP_DAYS } from './targets/targetsDates'
 import { parseBarChartFilename } from './uploadGuard'
 import { SLOTS } from './icloud/icloudRecord'
+import { registeredTeardowns } from './clearDerived'
+import { DEFAULT_TAB_ORDER, TAB_LABELS } from './tabLayout'
 import type { ObservationEntry } from '../types'
 import type { MLExportRow } from './parseMLExport'
 
@@ -159,10 +161,208 @@ describe('what the help says is true of the shipped logic', () => {
   })
 })
 
-// PRIVACY_POLICY.md is edited only after the user reads and approves the text
-// (FR-61; pipeline/targets-tab/copy-proposals.md). Its rows land with it.
-describe('PRIVACY_POLICY.md (FR-61)', () => {
-  it.todo('names the per-day county query and the device-only, unsynced bar-chart file (lands with the approved text)')
+// ---- PRIVACY_POLICY.md and its published mirror (FR-61) --------------------
+//
+// The approved text (pipeline/targets-tab/copy-proposals.md, section 1, with the
+// optional third edit) landed at the 1.0.39 ship. Its three claims are held here
+// in the house published-claims shape (.claude/rules/docs-and-website.md):
+// each file's OWN passage is extracted (the eBird bullet with its sub-bullets,
+// and the clearing-the-backup bullet), each row asserts the claim EXISTS before
+// checking it is right, the one number is built from the constant, the claims
+// are held to the code that makes them true, and the two published files are
+// compared against EACH OTHER, because website/privacy.html is a copy of the
+// policy ("same set, same order, same text") and is the one a visitor reads.
+
+const POLICY = readFileSync(fileURLToPath(new URL('../../../PRIVACY_POLICY.md', import.meta.url)), 'utf8')
+const PRIVACY_PAGE = readFileSync(fileURLToPath(new URL('../../../website/privacy.html', import.meta.url)), 'utf8')
+
+const plain = (s: string) => s.replace(/\s+/g, ' ').trim()
+
+/** Markdown: from the line that opens the bullet up to the next top-level bullet or blank line. */
+function mdBullet(doc: string, opener: string): string {
+  const lines = doc.split('\n')
+  const i = lines.findIndex(l => l.startsWith(opener))
+  if (i === -1) return ''
+  const out = [lines[i]]
+  for (const l of lines.slice(i + 1)) {
+    if (l.trim() === '' || l.startsWith('- ')) break
+    out.push(l)
+  }
+  // Links read as their text, bold as its words, list markers as nothing:
+  // what a reader of the rendered policy sees.
+  return plain(out.join('\n')
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replace(/\*\*/g, '')
+    .replace(/^\s*- /gm, ''))
+}
+
+/** HTML: the `<li>` whose text opens with `opener`, nested lists included, tags stripped. */
+function htmlBullet(doc: string, opener: string): string {
+  const start = doc.indexOf(`<li>${opener}`)
+  if (start === -1) return ''
+  // Walk <li> depth so a nested list inside the item stays inside it.
+  const re = /<\/?li\b[^>]*>/g
+  re.lastIndex = start
+  let depth = 0
+  let end = -1
+  for (let m = re.exec(doc); m; m = re.exec(doc)) {
+    depth += m[0].startsWith('</') ? -1 : 1
+    if (depth === 0) { end = m.index; break }
+  }
+  if (end === -1) return ''
+  return plain(doc.slice(start, end).replace(/<[^>]+>/g, ' ').replace(/\s+([.,;:)])/g, '$1'))
+}
+
+const EBIRD_MD = mdBullet(POLICY, '- **eBird**:')
+const CLEAR_MD = mdBullet(POLICY, '- You can delete your stored files')
+const EBIRD_HTML = htmlBullet(PRIVACY_PAGE, '<strong>eBird</strong>:')
+const CLEAR_HTML = htmlBullet(PRIVACY_PAGE, 'You can delete your stored files')
+
+/** The run of a passage from `needle` to the end of its sentence (a full stop
+ *  followed by a space or the end: "ebird.org" is not a sentence end). */
+function clauseWith(passage: string, needle: string): string {
+  const at = passage.indexOf(needle)
+  if (at === -1) return ''
+  const m = /\.(?: |$)/.exec(passage.slice(at))
+  return passage.slice(at, m ? at + m.index + 1 : undefined)
+}
+
+const SRC_ROOT = new URL('../', import.meta.url)
+function sourceFiles(dir: URL): { name: string; text: string }[] {
+  const out: { name: string; text: string }[] = []
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const child = new URL(entry.name + (entry.isDirectory() ? '/' : ''), dir)
+    if (entry.isDirectory()) out.push(...sourceFiles(child))
+    else if (entry.isFile() && /\.tsx?$/.test(entry.name) && !entry.name.includes('.test.')) {
+      // Comments stripped (testing.md v1.0.14): several of these files explain
+      // the route in prose, and a mention is not a request.
+      const text = readFileSync(child, 'utf8')
+        .replace(/\/\*[\s\S]*?\*\//g, ' ')
+        .replace(/(^|[^:])\/\/[^\n]*/g, '$1')
+      out.push({ name: child.pathname.slice(SRC_ROOT.pathname.length), text })
+    }
+  }
+  return out
+}
+
+describe.each([
+  ['PRIVACY_POLICY.md', EBIRD_MD, CLEAR_MD],
+  ['website/privacy.html', EBIRD_HTML, CLEAR_HTML],
+])('%s: the Targets tab claims (FR-61)', (_file, ebird, clearing) => {
+  it('the passages are found and are the ones being read (non-vacuity)', () => {
+    expect(ebird.startsWith('eBird:'), 'the eBird bullet').toBe(true)
+    expect(ebird.length).toBeGreaterThan(1000)
+    expect(clearing.startsWith('You can delete your stored files'), 'the clearing bullet').toBe(true)
+  })
+
+  it('names the per-day county query, over the window the sweep actually covers', () => {
+    const clause = clauseWith(ebird, 'a per-day list of the species reported in a county')
+    expect(clause, 'the per-day query is named').not.toBe('')
+    expect(clause).toContain(`over the last ${SWEEP_DAYS} days`)
+    expect(clause).toContain('when you open the Targets tab')
+    expect(clause).toContain('asks again only about days whose answer was not yet final')
+  })
+
+  it('says the county species list is read by the Targets tab as well as the map', () => {
+    expect(ebird).toContain("used by the map's county Completeness shading and by the Targets tab")
+  })
+
+  it('says the bar-chart file stays on the device and is not synced', () => {
+    const clause = clauseWith(ebird, 'An eBird bar-chart file you add on the Targets tab')
+    expect(clause, 'the bar-chart sub-bullet is present').not.toBe('')
+    expect(clause).toContain('is stored only on your device')
+    expect(clause).toContain('is not part of iCloud Sync')
+  })
+
+  it('lists the day-by-day reports among what clearing the eBird backup removes', () => {
+    expect(clearing).toContain("the day-by-day eBird reports behind the Targets tab's live counts")
+  })
+})
+
+describe('the privacy claims are true of the shipped code', () => {
+  const sources = sourceFiles(SRC_ROOT)
+
+  it('"when you open the Targets tab": the per-day request is issued only by the sweep, which only the Targets tab mounts', () => {
+    // Every call site that REQUESTS the route, through any transport method.
+    const requesters = sources
+      .filter(f => /transport\.\w+(?:<[^>]*>)?\(\s*'\/map\/county-day-obs'/.test(f.text))
+      .map(f => f.name)
+    expect(requesters).toEqual(['lib/targets/useCountyDaySweep.ts'])
+    // Every VALUE import of the hook (a type-only import mounts nothing).
+    const mounters = sources
+      .filter(f => /import\s*\{[^}]*\buseCountyDaySweep\b[^}]*\}\s*from/.test(f.text))
+      .map(f => f.name)
+    expect(mounters).toEqual(['components/targets/Targets.tsx'])
+  })
+
+  it('"not part of iCloud Sync": the synced slots are the two data files and nothing else', () => {
+    expect([...SLOTS]).toEqual(['ebird', 'ml'])
+  })
+
+  it('"clearing your eBird backup also removes ... the day-by-day eBird reports": the day cache is registered with the clear', () => {
+    expect(registeredTeardowns('ebird')).toContain('county-day-obs.json')
+  })
+})
+
+// ---- README.md: the approved one-section summary (wording B) ----------------
+//
+// The README carries one short section per tab in DEFAULT_TAB_ORDER, named from
+// TAB_LABELS (.claude/rules/docs-and-website.md, the register rule). The Targets
+// section's two sentences make three checkable claims: where it sits, which
+// three kinds of target it names, and which rankings it offers.
+
+const README = readFileSync(fileURLToPath(new URL('../../../README.md', import.meta.url)), 'utf8')
+
+function readmeSection(label: string): string {
+  const start = README.indexOf(`\n### ${label}\n`)
+  if (start === -1) return ''
+  const rest = README.slice(start + label.length + 6)
+  const next = rest.search(/\n##/)
+  return plain(next === -1 ? rest : rest.slice(0, next))
+}
+
+describe('README.md: the Targets section', () => {
+  const label = TAB_LABELS.targets
+  const section = readmeSection(label)
+
+  it('exists, under the tab label, between the tabs DEFAULT_TAB_ORDER puts either side of it', () => {
+    expect(section.length, 'the section is present').toBeGreaterThan(100)
+    const at = DEFAULT_TAB_ORDER.indexOf('targets')
+    const before = TAB_LABELS[DEFAULT_TAB_ORDER[at - 1]]
+    const after = TAB_LABELS[DEFAULT_TAB_ORDER[at + 1]]
+    const headings = README.split('\n').filter(l => l.startsWith('### ')).map(l => l.slice(4))
+    const i = headings.indexOf(label)
+    expect(headings.slice(i - 1, i + 2)).toEqual([before, label, after])
+  })
+
+  it('names the three kinds of target, one media verb per media type', () => {
+    expect(section).toContain('the lifers there')
+    // photograph / record / film: one verb for each of Photo, Audio, Video.
+    expect([...MEDIA_TYPES]).toEqual(['Photo', 'Audio', 'Video'])
+    expect(section).toContain('yet to photograph, record or film')
+    expect(section).toContain('never given a breeding code')
+  })
+
+  it('offers the rankings the sort control offers', () => {
+    expect(section).toContain("Rank them by eBird's frequencies or by what has been reported lately")
+    for (const key of ['freq-month', 'freq-year', 'live-days'] as const) expect(SORT_ORDER).toContain(key)
+  })
+
+  it('keeps the register: two sentences, no offline mention, no em dash', () => {
+    expect(section.split(/\.(?: |$)/).filter(Boolean)).toHaveLength(2)
+    expect(section.toLowerCase()).not.toContain('offline')
+    expect(section).not.toContain('—')
+  })
+})
+
+describe('the policy and its published page say the same thing', () => {
+  it('the eBird bullet, sub-bullets included, reads identically in both', () => {
+    expect(EBIRD_HTML).toBe(EBIRD_MD)
+  })
+
+  it('the clearing bullet reads identically in both', () => {
+    expect(CLEAR_HTML).toBe(CLEAR_MD)
+  })
 })
 
 describe('house copy rules over the passage', () => {

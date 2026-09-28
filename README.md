@@ -30,6 +30,10 @@ Your whole history with one bird: sightings, field notes, breeding codes and a m
 
 A year of your birding as twelve month grids, each day shaded by how many species you saw. Fold the years together, or narrow it to a single species.
 
+### Targets
+
+A county's targets over your own record: the lifers there, the birds you have yet to photograph, record or film, and the ones you have never given a breeding code. Rank them by eBird's frequencies or by what has been reported lately.
+
 ### Multimedia
 
 Your life list as a media checklist: which species you have photographed, recorded and filmed, and which you still need. Narrow it by sex and age.
