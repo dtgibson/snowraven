@@ -1,0 +1,1276 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SnowRaven Targets</title>
+<meta name="description" content="Design direction for the Targets tab: a county's species as a target list, with eBird's historical probability and eBird's live reports kept unmistakably apart." />
+<style>
+  /* ── SnowRaven tokens (values from frontend/src/globals.css, both themes) ── */
+  :root {
+    --sr-text-scale: 1;
+    --sr-bg: #F9FAFB;
+    --sr-surface: #FFFFFF;
+    --sr-surface-subtle: #F4F4F5;
+    --sr-surface-faint: #FAFAFA;
+    --sr-text: #0F1117;
+    --sr-text-muted: #6B6B74;
+    --sr-text-disabled: #A1A1AA;
+    --sr-text-gray: #6B7280;
+    --sr-border: #E4E4E7;
+    --sr-border-subtle: #F4F4F5;
+    --sr-border-medium: #C4C4CE;
+    --sr-border-input: #8A8A91;
+    --sr-accent: #277448;
+    --sr-accent-strong: #1A5C38;
+    --sr-accent-bg: #E8F5EE;
+    --sr-accent-border: rgba(39,116,72,0.25);
+    --sr-accent-border-strong: rgba(39,116,72,0.7);
+    --sr-on-accent: #FFFFFF;
+    --sr-error: #D31F1F;
+    --sr-error-bg: #FEF2F2;
+    --sr-error-border: #FECACA;
+    --sr-warning: #92400E;
+    --sr-warning-bg: #FFFBEB;
+    --sr-warning-subtle: #FDE68A;
+    --sr-is-target-bg: #FFF7ED;
+    --sr-is-target-text: #C2410C;
+    --sr-is-target-border: rgba(194,65,12,0.35);
+    --sr-gray-400: #8E8E96;
+    --sr-switch-thumb: #FFFFFF;
+    --sr-switch-thumb-shadow: 0 1px 2px rgba(15,17,23,0.25);
+    --sr-card-shadow: 0 1px 4px rgba(15,17,23,0.06), 0 4px 16px rgba(15,17,23,0.04);
+    --sr-sticky-shadow: 0 3px 6px -2px rgba(15,17,23,0.12);
+    --sr-scrim: rgba(15,17,23,0.36);
+    --font-sans: 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
+    --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+    color-scheme: light;
+  }
+  :root[data-theme="dark"] {
+    --sr-bg: #09090B;
+    --sr-surface: #18181B;
+    --sr-surface-subtle: #27272A;
+    --sr-surface-faint: #1C1C1F;
+    --sr-text: #F4F4F5;
+    --sr-text-muted: #A1A1AA;
+    --sr-text-disabled: #52525B;
+    --sr-text-gray: #8A8A92;
+    --sr-border: #27272A;
+    --sr-border-subtle: #1F1F23;
+    --sr-border-medium: #3F3F46;
+    --sr-border-input: #707078;
+    --sr-accent: #34D399;
+    --sr-accent-strong: #34D399;
+    --sr-accent-bg: #052E16;
+    --sr-accent-border: rgba(52,211,153,0.2);
+    --sr-accent-border-strong: rgba(52,211,153,0.5);
+    --sr-on-accent: #052E16;
+    --sr-error: #F87171;
+    --sr-error-bg: #1C0505;
+    --sr-error-border: #7F1D1D;
+    --sr-warning: #FDE68A;
+    --sr-warning-bg: #1C1002;
+    --sr-warning-subtle: #78350F;
+    --sr-is-target-bg: #1C0F00;
+    --sr-is-target-text: #FB923C;
+    --sr-is-target-border: rgba(251,146,60,0.3);
+    --sr-gray-400: #6E6E78;
+    --sr-switch-thumb: #FFFFFF;
+    --sr-switch-thumb-shadow: 0 1px 2px rgba(15,17,23,0.25);
+    --sr-card-shadow: 0 1px 4px rgba(2,2,4,0.4), 0 4px 16px rgba(2,2,4,0.25);
+    --sr-sticky-shadow: 0 3px 8px -2px rgba(2,2,4,0.60);
+    --sr-scrim: rgba(9,9,11,0.6);
+    color-scheme: dark;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  html { font-size: calc(16px * var(--sr-text-scale)); }
+  body {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-size: 0.84375rem;
+    line-height: 1.5;
+    color: var(--sr-text);
+    background: var(--sr-bg);
+    -webkit-font-smoothing: antialiased;
+  }
+  button, input, select { font-family: inherit; }
+  :focus-visible { outline: 3px solid var(--sr-accent-border-strong); outline-offset: 2px; }
+  .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+  svg { display: inline-block; vertical-align: middle; }
+  .ic { width: 1em; height: 1em; stroke: currentColor; fill: none; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+
+  /* ── Mockup-only state bar (not part of the design) ─────────────────────── */
+  .mock-bar {
+    position: sticky; top: 0; z-index: 50;
+    font-size: 12px; line-height: 1.3;
+    background: var(--sr-text); color: var(--sr-bg);
+    padding: 8px 16px;
+    display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: center;
+  }
+  :root[data-theme="dark"] .mock-bar { background: #27272A; color: #F4F4F5; }
+  .mock-bar .g { display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+  .mock-bar .g > span:first-child { opacity: 0.6; text-transform: uppercase; letter-spacing: 0.06em; font-size: 10px; margin-right: 2px; }
+  .mock-bar button {
+    font-size: 12px; padding: 3px 9px; border-radius: 12px; cursor: pointer;
+    border: 1px solid rgba(255,255,255,0.25); background: transparent; color: inherit;
+  }
+  .mock-bar button[aria-pressed="true"] { background: var(--sr-bg); color: var(--sr-text); border-color: transparent; font-weight: 600; }
+  :root[data-theme="dark"] .mock-bar button[aria-pressed="true"] { background: #F4F4F5; color: #0F1117; }
+  .mock-bar .note { opacity: 0.7; margin-left: auto; }
+
+  /* ── App shell ─────────────────────────────────────────────────────────── */
+  .stage { padding: 24px 16px 48px; display: flex; justify-content: center; }
+  .app {
+    width: 100%; max-width: 1180px;
+    min-height: 780px;
+    display: flex;
+    background: var(--sr-bg);
+    border: 1px solid var(--sr-border);
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: var(--sr-card-shadow);
+    container-type: inline-size;
+    container-name: app;
+  }
+  .stage.is-phone .app { max-width: 360px; min-height: 740px; }
+
+  /* Sidebar navigation (the wide density). */
+  .nav {
+    flex-shrink: 0;
+    width: 13.5rem;
+    display: flex; flex-direction: column;
+    background: var(--sr-surface);
+    border-right: 1px solid var(--sr-border);
+    padding: 14px 10px 10px;
+  }
+  .nav-brand { display: flex; align-items: center; gap: 9px; padding: 2px 6px 0; margin-bottom: 16px; }
+  .nav-brand svg { width: 26px; height: 26px; color: var(--sr-accent); flex-shrink: 0; }
+  .nav-brand b { font-size: 0.9375rem; font-weight: 700; letter-spacing: -0.01em; }
+  .nav-item {
+    position: relative;
+    display: flex; align-items: center; gap: 10px;
+    width: 100%; min-height: 34px;
+    padding: 7px 10px;
+    border: 0; border-radius: 8px;
+    background: none;
+    color: var(--sr-text-muted);
+    font-size: 0.84375rem; font-weight: 500; text-align: left;
+    cursor: pointer;
+    transition: background-color 120ms ease-out, color 120ms ease-out;
+  }
+  .nav-item .ic { width: 17px; height: 17px; stroke-width: 2; }
+  .nav-item:hover { background: var(--sr-surface-subtle); color: var(--sr-text); }
+  .nav-item[aria-selected="true"], .nav-item[aria-selected="true"]:hover {
+    background: var(--sr-accent-bg); color: var(--sr-accent); font-weight: 600;
+  }
+  .nav-item[aria-selected="true"]::before {
+    content: ""; position: absolute; left: 0; top: 50%;
+    width: 3px; height: 60%; border-radius: 0 2px 2px 0;
+    background: var(--sr-accent);
+    transform: translateY(-50%);
+    transform-origin: center;
+    animation: nav-bar-in 140ms cubic-bezier(0.2, 0, 0, 1) both;
+  }
+  @keyframes nav-bar-in { from { transform: translateY(-50%) scaleY(0.35); opacity: 0; } to { transform: translateY(-50%) scaleY(1); opacity: 1; } }
+  .nav-hair { height: 1px; background: var(--sr-border); margin: 8px 10px; }
+  .nav-spacer { flex: 1; }
+
+  main { flex: 1; min-width: 0; padding: 22px 24px 40px; }
+  .phone-head { display: none; }
+  .phone-bar { display: none; }
+
+  /* House header */
+  .head { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 16px; }
+  .head-tile { width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0; background: var(--sr-accent-bg); color: var(--sr-accent); display: flex; align-items: center; justify-content: center; }
+  .head-tile .ic { width: 16px; height: 16px; }
+  .head h2 { font-size: 1.125rem; font-weight: 700; margin: 0 0 2px; letter-spacing: -0.01em; }
+  .head p { font-size: 0.8125rem; color: var(--sr-text-muted); margin: 0; line-height: 1.5; max-width: 62ch; }
+
+  /* Section labels + quiet section */
+  .seclabel { font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--sr-text-muted); }
+  .ctl-label { font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--sr-text-muted); white-space: nowrap; }
+
+  /* ── Controls strip ────────────────────────────────────────────────────── */
+  .strip {
+    background: var(--sr-surface);
+    border: 1px solid var(--sr-border);
+    border-radius: 12px;
+    box-shadow: var(--sr-card-shadow);
+    overflow: visible;
+    margin-bottom: 14px;
+  }
+  .strip-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 12px 16px; }
+  .strip-row + .strip-row { border-top: 1px solid var(--sr-border-subtle); }
+  .strip-row--faint { background: var(--sr-surface-faint); border-radius: 0 0 12px 12px; }
+  .ctl-group { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; max-width: 100%; }
+  .ctl-group.grow { flex: 1 1 260px; min-width: 0; }
+  /* The sort select must never size to its longest option (its source label is
+     long by design, FR-36): it flexes inside its group and truncates natively. */
+  .ctl-group--sort { display: flex; flex: 1 1 16rem; flex-wrap: nowrap; }
+  .ctl-group--sort .sel { flex: 1 1 auto; min-width: 0; width: 100%; max-width: 30rem; overflow: hidden; text-overflow: ellipsis; }
+
+  /* County combobox (SpeciesCombobox `panel` register: 34px, 0.8125rem, radius 6) */
+  .combo { position: relative; flex: 1 1 260px; max-width: 360px; min-width: 0; }
+  .combo-field {
+    display: flex; align-items: center; gap: 8px;
+    height: 34px; padding: 0 10px 0 10px;
+    border: 1.5px solid var(--sr-border-input); border-radius: 6px;
+    background: var(--sr-surface); color: var(--sr-text);
+    font-size: 0.8125rem;
+  }
+  .combo-field:focus-within { border-color: var(--sr-accent-border-strong); }
+  .combo-field .ic { width: 14px; height: 14px; color: var(--sr-text-muted); }
+  .combo-field input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: inherit; font-size: inherit; font-weight: 600; padding: 0; }
+  .combo-field input::placeholder { color: var(--sr-text-muted); font-weight: 500; }
+  .combo-count { font-size: 0.71875rem; color: var(--sr-text-muted); white-space: nowrap; }
+  .combo-chevron { border: 0; background: none; padding: 0; margin: 0 -4px 0 0; width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; color: var(--sr-text-muted); cursor: pointer; border-radius: 4px; }
+  .combo-list {
+    position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 20;
+    margin: 0; padding: 4px; list-style: none;
+    background: var(--sr-surface); border: 1px solid var(--sr-border); border-radius: 8px;
+    box-shadow: var(--sr-card-shadow);
+    max-height: 17rem; overflow: auto;
+    transform-origin: top center;
+    animation: list-in 140ms cubic-bezier(0.2, 0, 0, 1) both;
+  }
+  .combo-list[hidden] { display: none; }
+  @keyframes list-in { from { opacity: 0; transform: scaleY(0.92) translateY(-2px); } to { opacity: 1; transform: none; } }
+  .combo-opt { display: flex; align-items: baseline; gap: 8px; padding: 7px 9px; border-radius: 6px; font-size: 0.8125rem; cursor: pointer; }
+  .combo-opt .n { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .combo-opt .c { font-size: 0.71875rem; color: var(--sr-text-muted); white-space: nowrap; }
+  .combo-opt[aria-selected="true"], .combo-opt.is-active { background: var(--sr-surface-subtle); }
+  .combo-opt[aria-selected="true"] .n { font-weight: 600; color: var(--sr-accent); }
+  .combo-opt[aria-disabled="true"] { cursor: not-allowed; color: var(--sr-text-muted); }
+  .combo-opt[aria-disabled="true"] .why { display: block; font-size: 0.6875rem; color: var(--sr-text-muted); white-space: normal; }
+
+  /* Pills / segbar / quiet buttons (house registers) */
+  .sr-pill {
+    display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+    min-height: 30px; padding: 0 12px; border-radius: 15px;
+    border: 1.5px solid var(--sr-border); background: var(--sr-surface); color: var(--sr-text-muted);
+    font-size: 0.75rem; font-weight: 500; white-space: nowrap; cursor: pointer;
+    transition: background-color 120ms ease-out, border-color 120ms ease-out, color 120ms ease-out;
+  }
+  .sr-pill .ic { width: 12px; height: 12px; }
+  .sr-pill:not(:disabled):not([aria-disabled="true"]):hover { border-color: var(--sr-border-medium); background: var(--sr-surface-subtle); color: var(--sr-text); }
+  .sr-pill[aria-pressed="true"] { border-color: var(--sr-accent-border); background: var(--sr-accent-bg); color: var(--sr-accent); font-weight: 600; }
+  .sr-pill:disabled, .sr-pill[aria-disabled="true"] { border-color: var(--sr-border); background: var(--sr-surface-subtle); color: var(--sr-text-disabled); cursor: not-allowed; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; min-height: 26px;
+    border-radius: 20px; font-size: 0.71875rem; font-weight: 500; cursor: pointer;
+    background: var(--sr-surface-subtle); border: 1.5px solid var(--sr-border); color: var(--sr-text-muted);
+    transition: background-color 120ms ease-out, border-color 120ms ease-out, color 120ms ease-out;
+  }
+  .chip .ic { width: 11px; height: 11px; }
+  .chip[aria-pressed="true"] { background: var(--sr-is-target-bg); border-color: var(--sr-is-target-border); color: var(--sr-is-target-text); font-weight: 600; }
+  .sub-ctl { display: inline-flex; align-items: center; gap: 6px; padding-left: 6px; margin-left: -4px; border-left: 1px solid var(--sr-border); }
+  .sub-ctl.is-hidden { display: none; }
+
+  .sr-segbar { display: inline-flex; align-items: stretch; border: 1.5px solid var(--sr-accent-border); border-radius: 15px; overflow: hidden; background: var(--sr-surface); }
+  .sr-segbar-btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+    min-height: 30px; padding: 0 12px; border: none; background: transparent; color: var(--sr-text-muted);
+    font-size: 0.75rem; font-weight: 500; white-space: nowrap; cursor: pointer;
+    transition: background-color 120ms ease-out, color 120ms ease-out;
+  }
+  .sr-segbar-btn + .sr-segbar-btn { border-left: 1.5px solid var(--sr-accent-border); }
+  .sr-segbar-btn:not(:disabled):not([aria-disabled="true"]):hover { background: var(--sr-surface-subtle); color: var(--sr-text); }
+  .sr-segbar-btn[aria-pressed="true"] { background: var(--sr-accent-bg); color: var(--sr-accent); font-weight: 600; }
+  .sr-segbar-btn:focus-visible { outline-offset: -3px; }
+  .sr-segbar[aria-disabled="true"] { border-color: var(--sr-border); }
+  .sr-segbar[aria-disabled="true"] .sr-segbar-btn { color: var(--sr-text-disabled); cursor: not-allowed; border-left-color: var(--sr-border); }
+  .sr-segbar[aria-disabled="true"] .sr-segbar-btn[aria-pressed="true"] { background: var(--sr-surface-subtle); color: var(--sr-text-disabled); }
+  .sr-segbar--seg { border-color: var(--sr-border); border-radius: 6px; }
+  .sr-segbar--seg .sr-segbar-btn { min-height: 26px; padding: 0 10px; font-size: 0.71875rem; }
+  .sr-segbar--seg .sr-segbar-btn + .sr-segbar-btn { border-left-color: var(--sr-border); }
+
+  /* Distance slider: a native range with six discrete stops. Track and thumb take
+     the switch's tokens (white knob, its shadow) and the accent for the filled
+     span, so it reads as the ToggleSwitch's sibling rather than a new control. */
+  .range-wrap { display: inline-flex; flex-direction: column; gap: 0; width: 16rem; max-width: 100%; min-width: 0; }
+  .range-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .range-val { font-size: 0.75rem; font-weight: 600; color: var(--sr-text); white-space: nowrap; }
+  .range-val.is-off { color: var(--sr-text-disabled); }
+  .range { -webkit-appearance: none; appearance: none; width: 100%; height: 30px; margin: 0; background: transparent; cursor: pointer; --fill: 0%; }
+  .range:focus-visible { outline: 3px solid var(--sr-accent-border-strong); outline-offset: 2px; border-radius: 4px; }
+  .range::-webkit-slider-runnable-track { height: 4px; border-radius: 2px; background: linear-gradient(to right, var(--sr-accent) var(--fill), var(--sr-border) var(--fill)); }
+  .range::-moz-range-track { height: 4px; border-radius: 2px; background: linear-gradient(to right, var(--sr-accent) var(--fill), var(--sr-border) var(--fill)); }
+  .range::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 18px; height: 18px; margin-top: -7px; border-radius: 50%; background: var(--sr-switch-thumb); border: 1.5px solid var(--sr-accent); box-shadow: var(--sr-switch-thumb-shadow); transition: border-color 120ms ease-out; }
+  .range::-moz-range-thumb { width: 15px; height: 15px; border-radius: 50%; background: var(--sr-switch-thumb); border: 1.5px solid var(--sr-accent); box-shadow: var(--sr-switch-thumb-shadow); }
+  .range:disabled { cursor: not-allowed; }
+  .range:disabled::-webkit-slider-runnable-track { background: var(--sr-border); }
+  .range:disabled::-moz-range-track { background: var(--sr-border); }
+  .range:disabled::-webkit-slider-thumb { border-color: var(--sr-gray-400); background: var(--sr-surface-subtle); box-shadow: none; }
+  .range:disabled::-moz-range-thumb { border-color: var(--sr-gray-400); background: var(--sr-surface-subtle); box-shadow: none; }
+  /* Stop labels sit under the thumb centres: the thumb is 18px, so centre i is at
+     9px + (100% - 18px) * i/5. Each label is positioned there and centred. */
+  .range-stops { position: relative; height: 1.1em; margin-top: -2px; font-size: 0.625rem; line-height: 1.1; color: var(--sr-text-muted); font-variant-numeric: tabular-nums; }
+  .range-stops span { position: absolute; top: 0; transform: translateX(-50%); white-space: nowrap; }
+  .range-stops span.on { color: var(--sr-accent); font-weight: 700; }
+  #ctl-status { flex-basis: 100%; position: relative; }
+
+  /* The measuring-point chooser: the anchor's name in the status line is the
+     trigger; a small dialog scales in from it (origin-aware, 140ms ease-out). */
+  .anchor-btn { display: inline; font: inherit; font-weight: 600; color: var(--sr-text); background: none; border: 0; padding: 0 2px; margin: 0 -2px; border-radius: 4px; cursor: pointer; border-bottom: 1px dashed var(--sr-border-medium); }
+  .anchor-btn:hover { color: var(--sr-accent); border-bottom-color: var(--sr-accent-border-strong); }
+  .anchor-btn .ic { width: 11px; height: 11px; vertical-align: -1px; margin-left: 2px; color: var(--sr-text-muted); }
+  .anchor-btn.is-cta { color: var(--sr-accent); border-bottom: 0; }
+  .apop {
+    position: absolute; left: 0; top: calc(100% + 6px); z-index: 30;
+    width: 22rem; max-width: 100%;
+    background: var(--sr-surface); border: 1px solid var(--sr-border); border-radius: 10px;
+    box-shadow: var(--sr-card-shadow); padding: 6px;
+    transform-origin: top left;
+    animation: list-in 140ms cubic-bezier(0.2, 0, 0, 1) both;
+    color: var(--sr-text); font-size: 0.8125rem;
+  }
+  .apop[hidden] { display: none; }
+  .apop-head { font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--sr-text-muted); padding: 6px 9px 4px; }
+  .apop-sec { font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--sr-text-muted); padding: 10px 9px 4px; border-top: 1px solid var(--sr-border-subtle); margin-top: 4px; }
+  .apop-item { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 34px; padding: 6px 9px; border: 0; border-radius: 6px; background: none; color: var(--sr-text); font: inherit; text-align: left; cursor: pointer; transition: background-color 120ms ease-out; }
+  .apop-item .ic { width: 14px; height: 14px; margin: 0; color: var(--sr-text-muted); }
+  .apop-search button .ic { margin: 0; }
+  .anchor-btn .ic { margin-right: 0; }
+  .apop-item .t { flex: 1; min-width: 0; font-weight: 500; }
+  .apop-item .apop-sub { display: block; font-size: 0.71875rem; color: var(--sr-text-muted); font-weight: 400; }
+  .apop-item .d { font-size: 0.71875rem; color: var(--sr-text-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .apop-item:hover:not(:disabled) { background: var(--sr-surface-subtle); }
+  .apop-item[aria-current="true"] { background: var(--sr-accent-bg); color: var(--sr-accent); }
+  .apop-item[aria-current="true"] .ic, .apop-item[aria-current="true"] .d, .apop-item[aria-current="true"] .apop-sub { color: var(--sr-accent); }
+  .apop-item:disabled { color: var(--sr-text-disabled); cursor: not-allowed; }
+  .apop-item:disabled .ic, .apop-item:disabled .apop-sub { color: var(--sr-text-disabled); }
+  .apop-search { display: flex; gap: 6px; padding: 2px 9px 4px; }
+  .apop-search input { flex: 1; min-width: 0; height: 34px; padding: 0 8px; border: 1.5px solid var(--sr-border-input); border-radius: 6px; background: var(--sr-surface); color: var(--sr-text); font: inherit; font-size: 0.75rem; }
+  .apop-search input:focus { outline: 0; border-color: var(--sr-accent-border-strong); }
+  .apop-search button { width: 34px; height: 34px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; border: 1.5px solid var(--sr-border); border-radius: 6px; background: var(--sr-accent); color: var(--sr-on-accent); cursor: pointer; }
+  .apop-search button:disabled { background: var(--sr-surface-subtle); color: var(--sr-text-muted); cursor: not-allowed; }
+  .apop-search button .ic { width: 14px; height: 14px; }
+  .apop-hint { font-size: 0.6875rem; color: var(--sr-text-muted); padding: 0 9px 6px; line-height: 1.4; }
+  .apop-err { font-size: 0.6875rem; color: var(--sr-error); padding: 0 9px 6px; }
+  .apop-list { max-height: 11.5rem; overflow: auto; }
+  .range-wrap.is-off .range-stops { color: var(--sr-text-disabled); }
+  .range-wrap.is-off .range-stops span.on { color: var(--sr-text-disabled); }
+
+  .sr-btn-quiet {
+    height: 32px; padding: 0 12px; border: 1.5px solid var(--sr-border); background: var(--sr-surface); color: var(--sr-text);
+    border-radius: 6px; font-size: 0.75rem; font-weight: 500; cursor: pointer; white-space: nowrap;
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    transition: border-color 120ms ease-out, background 120ms ease-out, color 120ms ease-out;
+  }
+  .sr-btn-quiet .ic { width: 13px; height: 13px; }
+  .sr-btn-quiet:hover { border-color: var(--sr-border-medium); background: var(--sr-surface-subtle); }
+  .sr-btn-quiet--danger { border-color: var(--sr-error-border); color: var(--sr-error); }
+  .sr-btn-quiet--danger:hover { background: var(--sr-error-bg); }
+  .sr-btn-quiet[disabled] { background: var(--sr-surface-subtle); color: var(--sr-text-disabled); cursor: not-allowed; }
+  .sr-btn-accent {
+    height: 32px; padding: 0 14px; background: var(--sr-accent); color: var(--sr-on-accent); border: none; border-radius: 6px;
+    font-size: 0.75rem; font-weight: 600; cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    transition: background 120ms ease-out, box-shadow 120ms ease-out;
+  }
+  .sr-btn-accent .ic { width: 13px; height: 13px; }
+  .sr-btn-accent:hover { background: var(--sr-accent-strong); }
+  :root[data-theme="dark"] .sr-btn-accent:hover { box-shadow: 0 0 0 3px var(--sr-accent-border); }
+  .link { color: var(--sr-accent); text-decoration: none; font-weight: 600; display: inline; text-align: left; background: none; border: 0; padding: 0; cursor: pointer; font-size: inherit; }
+  .link:hover, .link:focus-visible { text-decoration: underline; }
+  .link .ic { width: 12px; height: 12px; vertical-align: -1px; margin: 0 2px 0 3px; }
+
+  .sel {
+    height: 30px; padding: 0 28px 0 10px; border-radius: 6px;
+    border: 1.5px solid var(--sr-border-input); background: var(--sr-surface); color: var(--sr-text);
+    font-size: 0.75rem; font-weight: 600; max-width: 100%;
+    appearance: none; -webkit-appearance: none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%236B6B74' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><path d='m6 9 6 6 6-6'/></svg>");
+    background-repeat: no-repeat; background-position: right 8px center;
+  }
+  :root[data-theme="dark"] .sel { background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23A1A1AA' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><path d='m6 9 6 6 6-6'/></svg>"); }
+  .sel option:disabled { color: var(--sr-text-disabled); }
+
+  /* Summary line and status */
+  .summary { font-size: 0.8125rem; color: var(--sr-text); font-weight: 600; margin-left: auto; white-space: nowrap; }
+  .summary small { font-weight: 500; color: var(--sr-text-muted); font-size: 0.75rem; }
+  .status { display: block; font-size: 0.75rem; color: var(--sr-text-muted); line-height: 1.45; min-width: 0; }
+  .status .ic { width: 13px; height: 13px; vertical-align: -2px; margin-right: 5px; }
+  .status b { font-weight: 600; color: var(--sr-text-muted); }
+  .status .err { color: var(--sr-error); font-weight: 600; }
+  .status .warn { color: var(--sr-warning); font-weight: 600; }
+
+  /* ── The two kinds ─────────────────────────────────────────────────────── */
+  .kind { display: inline-flex; align-items: center; gap: 6px; font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--sr-text); }
+  .kind .ic { width: 13px; height: 13px; stroke-width: 2.4; }
+  .kind-sub { display: block; font-size: 0.71875rem; font-weight: 500; text-transform: none; letter-spacing: 0; color: var(--sr-text-muted); margin-top: 2px; }
+  .kind-sub b { font-weight: 600; color: var(--sr-text-muted); }
+
+  /* Quiet section: the eBird bar-chart file */
+  .file-sec { margin-bottom: 14px; }
+  .file-sec .seclabel { display: block; margin: 0 2px 6px; }
+  .file-card {
+    background: var(--sr-surface); border: 1px solid var(--sr-border); border-radius: 10px;
+    padding: 12px 16px;
+    display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px;
+  }
+  .file-main { flex: 1 1 320px; min-width: 0; display: flex; gap: 10px; align-items: flex-start; }
+  .file-main > .ic { width: 16px; height: 16px; color: var(--sr-text-muted); margin-top: 2px; }
+  .file-line { font-size: 0.8125rem; line-height: 1.5; min-width: 0; overflow-wrap: anywhere; }
+  .file-line .t { font-weight: 600; }
+  .file-line .m { color: var(--sr-text-muted); font-size: 0.75rem; }
+  .file-line .m .link { font-size: 0.75rem; }
+  .file-actions { display: inline-flex; gap: 8px; flex-wrap: wrap; }
+  .disc { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 180ms cubic-bezier(0.2, 0, 0, 1); flex-basis: 100%; }
+  .disc.is-open { grid-template-rows: 1fr; }
+  .disc > div { overflow: hidden; min-height: 0; }
+  .disc-body { padding: 8px 0 2px 26px; font-size: 0.75rem; color: var(--sr-text-muted); }
+  .disc-body ul { margin: 4px 0 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 4px 12px; }
+  .disc-body li i { color: var(--sr-text-gray); }
+
+  /* ── The list ──────────────────────────────────────────────────────────── */
+  .list-card { background: var(--sr-surface); border: 1px solid var(--sr-border); border-radius: 12px; box-shadow: var(--sr-card-shadow); overflow: hidden; }
+  .sweep { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; padding: 10px 16px; border-bottom: 1px solid var(--sr-border-subtle); background: var(--sr-surface-faint); }
+  .sweep .status { flex: 1 1 260px; }
+  .bar { flex: 0 1 220px; height: 4px; border-radius: 2px; background: var(--sr-border); overflow: hidden; }
+  .bar > i { display: block; height: 100%; background: var(--sr-text-muted); border-radius: 2px; transition: width 220ms cubic-bezier(0.2, 0, 0, 1); }
+  .sweep.is-hidden { display: none; }
+  .scroll-x { overflow-x: auto; position: relative; min-width: 0; }
+
+  table.tg { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 0.8125rem; }
+  .tg th, .tg td { text-align: left; vertical-align: top; padding: 10px 12px; }
+  .tg thead th { position: sticky; top: 0; z-index: 2; background: var(--sr-surface); font-weight: 600; color: var(--sr-text-muted); font-size: 0.71875rem; line-height: 1.35; }
+  .tg thead tr.groups th { padding: 12px 12px 6px; border-bottom: 0; }
+  .tg thead tr.cols th { padding-top: 0; padding-bottom: 8px; border-bottom: 1px solid var(--sr-border); box-shadow: var(--sr-sticky-shadow); white-space: nowrap; }
+  .tg thead th.k-prob, .tg tbody td.k-prob { border-left: 1px solid var(--sr-border); }
+  .tg thead th.k-live-first, .tg tbody td.k-live-first { border-left: 1px solid var(--sr-border); }
+  .tg thead tr.groups th.k-prob, .tg thead tr.groups th.k-live-first { border-left-color: var(--sr-border); }
+  .tg tbody td { border-bottom: 1px solid var(--sr-border-subtle); }
+  .tg tbody tr:last-child td { border-bottom: 0; }
+  .tg tbody tr:hover td { background: var(--sr-surface-faint); }
+  .th-sort { display: inline-flex; align-items: center; gap: 4px; font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; letter-spacing: inherit; text-transform: inherit; }
+  .th-sort[data-active="true"] { color: var(--sr-text); }
+  .th-sort .ic { width: 11px; height: 11px; }
+  .th-sort[data-active="true"] .ic { color: var(--sr-accent); }
+  th .unit { color: var(--sr-text-muted); font-weight: 500; }
+  .th-note { display: block; font-weight: 500; font-size: 0.6875rem; color: var(--sr-text-muted); white-space: normal; margin-top: 2px; }
+  .th-species-sub { display: flex; gap: 10px; margin-top: 3px; font-weight: 500; }
+
+  td.name { min-width: 14rem; }
+  td.days, th.k-live-first { min-width: 15rem; }
+  td.merged { min-width: 0; }
+  .bn { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+  .bn-row { display: flex; align-items: center; gap: 6px; min-width: 0; }
+  .bn-link { font: inherit; font-weight: 500; color: var(--sr-text); background: none; border: 0; padding: 0; cursor: pointer; text-align: left; }
+  .bn-link:hover, .bn-link:focus-visible { color: var(--sr-accent); text-decoration: underline; }
+  .bn-text { font-weight: 500; color: var(--sr-text); }
+  .bn-sci { font-style: italic; color: var(--sr-text-gray); font-size: 0.71875rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .marks { display: inline-flex; gap: 3px; align-items: center; }
+  .marks .mk { width: 12px; height: 12px; display: inline-flex; align-items: center; justify-content: center; color: var(--sr-text); opacity: 0.75; }
+  .marks .mk svg { width: 10px; height: 10px; stroke-width: 2.4; }
+  .badges { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 4px; height: 18px; padding: 0 6px; border-radius: 4px;
+    border: 1px solid var(--sr-border); background: var(--sr-surface-subtle); color: var(--sr-text-muted);
+    font-size: 0.625rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; white-space: nowrap;
+  }
+  .badge .ic { width: 10px; height: 10px; stroke-width: 2.4; }
+  .badge--lifer { color: var(--sr-text); border-color: var(--sr-border-medium); background: var(--sr-surface); }
+  .badge .miss { display: inline-flex; gap: 3px; margin-left: 2px; padding-left: 5px; border-left: 1px solid var(--sr-border-medium); }
+
+  /* Probability cells: a percent, always with its sign, and a share bar. */
+  .pct { font-variant-numeric: tabular-nums; font-weight: 600; color: var(--sr-text); white-space: nowrap; }
+  .pct .sign { color: var(--sr-text-muted); font-weight: 500; margin-left: 1px; }
+  .share { display: block; width: 3.75rem; max-width: 100%; height: 3px; border-radius: 2px; background: var(--sr-border); margin-top: 5px; overflow: hidden; }
+  .share > i { display: block; height: 100%; background: var(--sr-text-muted); border-radius: 2px; min-width: 2px; }
+  .na { color: var(--sr-text-muted); font-style: italic; font-size: 0.75rem; }
+  /* Mockup-only annotation on the acceptance row (not an app element). */
+  .anchor { display: block; font-size: 0.625rem; font-style: italic; color: var(--sr-text-muted); margin-top: 2px; }
+
+  /* Live cells: a count with its window, and thirty day ticks. */
+  .live { font-variant-numeric: tabular-nums; color: var(--sr-text); }
+  .live .lead { color: var(--sr-text-muted); }
+  .live b { font-weight: 700; }
+  .ticks { display: flex; gap: 1px; margin-top: 6px; height: 9px; width: max-content; }
+  .ticks i { display: block; width: 3px; height: 9px; border-radius: 1px; background: var(--sr-border); transition: background-color 160ms ease-out, opacity 160ms ease-out; }
+  .ticks i.on { background: var(--sr-text-muted); }
+  .ticks i.unk { background: transparent; border: 1px dashed var(--sr-border-medium); height: 9px; }
+  .ticks i.today { border-radius: 1px 1px 3px 3px; }
+  .last { color: var(--sr-text); }
+  .last .place { display: block; color: var(--sr-text-muted); font-size: 0.75rem; overflow-wrap: anywhere; }
+  .dist { font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
+  .dist .u { color: var(--sr-text-muted); font-weight: 500; }
+  .cell-k { display: none; }
+  .kind-tag { display: none; }
+
+  .empty { padding: 28px 16px; text-align: center; color: var(--sr-text-muted); font-size: 0.8125rem; }
+  .empty b { color: var(--sr-text); font-weight: 600; }
+  .empty.is-hidden { display: none; }
+
+  /* Live-region status for the summary; visually the summary itself. */
+  .sr-live { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
+
+  /* ── Phone tier (the app's 640px boundary; here on the frame's own width) ── */
+  @container app (max-width: 640px) {
+    .nav { display: none; }
+    main { padding: 0 16px 84px; }
+    .phone-head { display: flex; align-items: center; gap: 8px; padding: 14px 0 12px; }
+    .phone-head svg { width: 20px; height: 20px; color: var(--sr-accent); }
+    .phone-head b { font-size: 0.9375rem; font-weight: 700; letter-spacing: -0.01em; }
+    .phone-bar {
+      display: flex; position: sticky; bottom: 0; margin: 0 -16px; padding: 6px 8px 10px;
+      background: var(--sr-surface); border-top: 1px solid var(--sr-border);
+    }
+    .phone-bar button { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; border: 0; background: none; color: var(--sr-text-muted); font-size: 0.625rem; font-weight: 600; padding: 4px 0; border-radius: 8px; }
+    .phone-bar button .ic { width: 18px; height: 18px; stroke-width: 2; }
+    .phone-bar button[aria-selected="true"] { color: var(--sr-accent); }
+    .head p { font-size: 0.78125rem; }
+    .combo { max-width: none; flex-basis: 100%; }
+    .strip-row { padding: 10px 12px; gap: 8px 10px; }
+    .summary { margin-left: 0; white-space: normal; flex-basis: 100%; }
+    .ctl-group.grow { flex-basis: 100%; }
+    .sr-pill, .sr-segbar-btn, .chip, .sel, .sr-btn-quiet, .sr-btn-accent { font-size: max(16px, 0.75rem); }
+    .sr-pill, .chip { min-height: 34px; }
+    .sr-segbar-btn { min-height: 34px; }
+    .sel { height: 34px; }
+    .file-card { padding: 12px; }
+
+    /* The table becomes a stacked list; roles are explicit so semantics survive. */
+    .tg, .tg tbody, .tg tr, .tg td { display: block; }
+    .tg thead { display: none; }
+    .tg tbody tr { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 6px 12px; padding: 12px 14px; border-bottom: 1px solid var(--sr-border-subtle); }
+    .tg tbody tr:last-child { border-bottom: 0; }
+    .tg tbody td { padding: 0; border: 0 !important; }
+    .tg tbody tr:hover td { background: transparent; }
+    td.name { grid-column: 1 / -1; min-width: 0; }
+    td.days { min-width: 0; }
+    /* Probability on a phone: one line per figure, label left, percent and bar right. */
+    td.month, td.year { grid-column: 1 / -1; display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; }
+    td.month .cell-k, td.year .cell-k { flex: 1 1 auto; margin: 0; }
+    td.month .share, td.year .share { width: 3.75rem; margin-top: 0; flex-shrink: 0; }
+    td.month .anchor, td.year .anchor { flex-basis: 100%; margin-top: 0; }
+    td.month .kind-tag { flex-basis: 100%; }
+    .combo-count { display: none; }
+    .sr-segbar { flex-wrap: wrap; max-width: 100%; }
+    .sr-segbar-btn { flex: 1 1 auto; }
+    .ctl-group--dist { flex-basis: 100%; }
+    .apop { width: 100%; }
+    .range-wrap { width: 100%; }
+    .range-stops { font-size: 0.6875rem; }
+    td.k-prob.merged { grid-column: 1 / -1; }
+    td.days { grid-column: 1 / -1; }
+    td.last { grid-column: 1; }
+    td.distc { grid-column: 2; }
+    td.k-live-first.merged { grid-column: 1 / -1; }
+    .kind-tag { display: flex; align-items: center; flex-wrap: wrap; gap: 2px 5px; font-size: 0.625rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--sr-text); margin: 6px 0 5px; }
+    .th-species-sub { display: none; }
+    .kind-tag .ic { width: 11px; height: 11px; stroke-width: 2.4; }
+    .kind-tag .kind-src { font-weight: 500; text-transform: none; letter-spacing: 0; color: var(--sr-text-muted); }
+    .cell-k { display: block; font-size: 0.6875rem; color: var(--sr-text-muted); font-weight: 500; margin-bottom: 1px; }
+    .bn-sci { white-space: normal; }
+    .share { width: 100%; }
+    .th-note { display: none; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Mockup state bar: switches the states the design must cover. Not part of the app. -->
+<div class="mock-bar" role="region" aria-label="Mockup states">
+  <span class="g"><span>County</span>
+    <button data-set="county" data-v="US-CA-001" aria-pressed="true">Alameda, CA (file)</button>
+    <button data-set="county" data-v="US-CA-013" aria-pressed="false">Contra Costa, CA (no file)</button>
+  </span>
+  <span class="g"><span>Live</span>
+    <button data-set="sweep" data-v="complete" aria-pressed="true">Complete</button>
+    <button data-set="sweep" data-v="sweeping" aria-pressed="false">Sweep running</button>
+    <button data-set="sweep" data-v="cooldown" aria-pressed="false">Slowed by eBird</button>
+    <button data-set="sweep" data-v="nokey" aria-pressed="false">No eBird key</button>
+    <button data-set="sweep" data-v="offline" aria-pressed="false">Offline</button>
+  </span>
+  <span class="g"><span>Settings</span>
+    <button data-set="anchor" data-v="default" aria-pressed="true">Default Location saved</button>
+    <button data-set="anchor" data-v="none" aria-pressed="false">No Default Location</button>
+  </span>
+  <span class="g"><span>Theme</span>
+    <button data-set="theme" data-v="light" aria-pressed="true">Light</button>
+    <button data-set="theme" data-v="dark" aria-pressed="false">Dark</button>
+  </span>
+  <span class="g"><span>Frame</span>
+    <button data-set="frame" data-v="desktop" aria-pressed="true">Desktop</button>
+    <button data-set="frame" data-v="phone" aria-pressed="false">Phone 360</button>
+  </span>
+  <span class="g"><span>Text</span>
+    <button data-set="scale" data-v="1" aria-pressed="true">100%</button>
+    <button data-set="scale" data-v="2" aria-pressed="false">200%</button>
+  </span>
+  <span class="note">Everything inside the frame is live: county picker, toggles, sorts, window, distance, the "Distances from" chooser (try searching Livermore), Add / Replace / Remove.</span>
+</div>
+
+<div class="stage" id="stage">
+<div class="app">
+
+  <nav class="nav" aria-label="Main navigation">
+    <div class="nav-brand">
+      <svg viewBox="0 0 512 512" aria-hidden="true" focusable="false"><path fill="currentColor" fill-rule="evenodd" d="M 150.79 440.77 L 176.47 435.39 L 197.48 429.33 L 213.04 423.88 L 245.73 409.97 L 270.63 397.28 L 296.30 381.80 L 318.09 366.18 L 336.57 350.44 L 352.33 334.58 L 367.31 316.20 L 379.08 297.53 L 385.19 285.08 L 389.91 273.41 L 395.34 253.95 L 396.99 244.61 L 398.12 232.16 L 397.64 214.27 L 393.73 194.04 L 386.46 169.91 L 384.84 159.02 L 385.60 149.68 L 388.70 139.57 L 394.35 130.77 L 399.02 125.85 L 405.25 120.87 L 417.70 113.66 L 430.15 109.05 L 445.71 105.74 L 451.93 105.05 L 464.38 105.06 L 473.72 106.67 L 484.62 111.08 L 485.38 110.77 L 485.11 101.44 L 483.21 95.21 L 479.17 87.44 L 473.72 81.39 L 464.38 74.65 L 449.60 68.35 L 437.93 65.33 L 410.69 60.66 L 402.71 53.19 L 392.02 45.17 L 381.12 38.75 L 373.34 35.08 L 354.67 28.85 L 339.10 26.17 L 322.76 25.37 L 311.09 26.27 L 297.08 28.66 L 288.52 31.10 L 273.74 37.43 L 262.07 44.46 L 253.51 51.19 L 244.65 60.19 L 234.69 73.42 L 226.06 88.21 L 215.97 110.77 L 198.93 152.79 L 199.81 153.14 L 210.71 148.11 L 230.16 141.75 L 241.83 139.37 L 254.28 138.31 L 267.51 138.63 L 281.50 141.12 L 293.19 144.94 L 303.31 150.17 L 311.57 155.91 L 321.42 166.02 L 327.70 175.36 L 332.88 187.08 L 335.35 196.37 L 336.92 208.82 L 336.90 218.94 L 334.38 236.06 L 328.50 255.51 L 319.29 274.96 L 307.20 294.01 L 289.43 316.20 L 271.40 335.03 L 248.84 355.96 L 146.83 440.71 L 147.68 441.18 Z M 361.37 83.54 L 355.44 83.04 L 349.39 79.65 L 345.70 75.76 L 340.28 67.20 L 335.99 63.61 L 331.05 60.97 L 331.32 60.45 L 343.77 60.10 L 354.67 61.50 L 367.12 66.26 L 376.07 72.64 L 374.90 74.46 L 367.89 80.74 Z M 384.80 96.77 L 381.12 97.22 L 379.95 96.77 L 389.68 89.61 L 398.24 84.87 L 409.14 81.06 L 423.14 79.17 L 436.37 79.99 L 446.49 82.49 L 458.16 88.01 L 465.16 93.23 L 467.68 95.99 L 466.72 96.57 L 440.26 94.09 L 416.92 93.78 L 399.02 94.86 Z M 27.07 486.63 L 42.63 480.11 L 57.41 472.78 L 83.87 457.96 L 111.11 441.03 L 146.90 416.35 L 188.78 384.68 L 227.05 353.61 L 252.69 330.99 L 266.74 317.42 L 278.01 305.31 L 291.95 288.19 L 298.64 278.72 L 306.04 266.40 L 311.49 255.51 L 315.26 246.17 L 317.53 239.17 L 319.92 228.27 L 321.08 218.94 L 321.06 210.38 L 320.04 201.82 L 318.42 194.81 L 315.25 187.03 L 311.19 180.03 L 307.72 175.36 L 302.53 170.13 L 295.53 164.95 L 286.97 160.39 L 276.07 156.55 L 269.07 154.98 L 260.51 153.84 L 248.84 153.69 L 231.72 155.87 L 220.82 158.88 L 212.26 162.07 L 203.81 166.02 L 195.15 171.24 L 186.59 177.15 L 176.64 185.48 L 162.41 200.26 L 153.88 211.15 L 143.79 226.74 L 136.73 239.17 L 125.74 261.73 L 109.38 300.64 L 78.90 379.23 L 79.98 379.55 L 90.87 375.49 L 106.44 367.80 L 123.56 357.64 L 148.46 340.72 L 25.9 486.3 Z"/></svg>
+      <b>SnowRaven</b>
+    </div>
+    <div role="tablist" aria-orientation="vertical" aria-label="Tabs" id="navlist"></div>
+    <div class="nav-spacer"></div>
+    <div class="nav-hair"></div>
+    <button class="nav-item" role="tab" aria-selected="false" tabindex="0"><svg class="ic" viewBox="0 0 24 24"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg><span>Settings</span></button>
+  </nav>
+
+  <main>
+    <div class="phone-head">
+      <svg viewBox="0 0 512 512" aria-hidden="true" focusable="false"><use href="#raven"/></svg>
+      <b>SnowRaven</b>
+    </div>
+
+    <div class="head">
+      <div class="head-tile"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></div>
+      <div>
+        <h2>Targets</h2>
+        <p>One county's species as your target list: lifers, media you still lack, and species you have never recorded breeding. Ranked by eBird's historical probability from the county's bar chart, or by what eBird is reporting right now.</p>
+      </div>
+    </div>
+
+    <!-- Controls -->
+    <section class="strip" aria-label="Targets controls">
+      <div class="strip-row">
+        <span class="ctl-label">County</span>
+        <div class="combo" id="combo">
+          <div class="combo-field">
+            <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            <input id="tg-county" type="text" role="combobox" aria-label="County" aria-expanded="false" aria-controls="tg-county-list" aria-autocomplete="list" autocomplete="off" spellcheck="false" placeholder="Type a county or state" />
+            <span class="combo-count" id="tg-county-count" aria-hidden="true"></span>
+            <button class="combo-chevron" type="button" tabindex="0" aria-label="Show counties" id="tg-county-chev"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+          </div>
+          <ul class="combo-list" id="tg-county-list" role="listbox" aria-label="Counties in your backup" hidden></ul>
+        </div>
+        <div class="status" id="pool-status" role="status"></div>
+      </div>
+
+      <div class="strip-row" id="type-row">
+        <span class="ctl-label">Show</span>
+        <div role="group" aria-label="Target types" class="ctl-group">
+          <button class="sr-pill" type="button" tabindex="0" data-toggle="lifer" aria-pressed="true"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/></svg>Lifer</button>
+          <button class="sr-pill" type="button" tabindex="0" data-toggle="media" aria-pressed="true" id="pill-media"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>Media</button>
+          <span class="sub-ctl" id="media-sub" role="group" aria-label="Missing media types (a species must lack every selected type)">
+            <button class="chip" type="button" tabindex="0" data-chip="Photo" aria-pressed="false"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>Photo</button>
+            <button class="chip" type="button" tabindex="0" data-chip="Audio" aria-pressed="false"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>Audio</button>
+            <button class="chip" type="button" tabindex="0" data-chip="Video" aria-pressed="false"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="m22 8-6 4 6 4V8Z"/><rect width="14" height="12" x="2" y="6" rx="2" ry="2"/></svg>Video</button>
+          </span>
+          <button class="sr-pill" type="button" tabindex="0" data-toggle="breeding" aria-pressed="true"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22c6.23-.05 7.87-5.57 7.5-10-.36-4.34-3.95-9.96-7.5-10-3.55.04-7.14 5.66-7.5 10-.37 4.43 1.27 9.95 7.5 10z"/></svg>Breeding</button>
+          <span class="sub-ctl" id="breeding-sub">
+            <span class="sr-segbar sr-segbar--seg" role="group" aria-label="Breeding threshold">
+              <button class="sr-segbar-btn" type="button" tabindex="0" data-thr="any" aria-pressed="true">Any code</button>
+              <button class="sr-segbar-btn" type="button" tabindex="0" data-thr="confirmed" aria-pressed="false">Confirmed</button>
+            </span>
+          </span>
+        </div>
+        <div class="summary" id="summary"></div>
+        <div class="sr-live" role="status" id="summary-live"></div>
+      </div>
+
+      <div class="strip-row strip-row--faint">
+        <div class="ctl-group ctl-group--sort">
+          <label class="ctl-label" for="tg-sort">Sort</label>
+          <select class="sel" id="tg-sort" aria-label="Sort targets"></select>
+        </div>
+        <div class="ctl-group">
+          <span class="ctl-label" id="win-label">Last report</span>
+          <span class="sr-segbar" role="group" aria-labelledby="win-label" id="win-seg">
+            <button class="sr-segbar-btn" type="button" tabindex="0" data-win="any" aria-pressed="true">Any time</button>
+            <button class="sr-segbar-btn" type="button" tabindex="0" data-win="1" aria-pressed="false">Day</button>
+            <button class="sr-segbar-btn" type="button" tabindex="0" data-win="7" aria-pressed="false">Week</button>
+            <button class="sr-segbar-btn" type="button" tabindex="0" data-win="30" aria-pressed="false">30 days</button>
+          </span>
+        </div>
+        <div class="ctl-group ctl-group--dist">
+          <label class="ctl-label" for="tg-dist">Distance</label>
+          <div class="range-wrap" id="dist-wrap">
+            <input class="range" type="range" id="tg-dist" min="0" max="5" step="1" value="0" aria-label="Distance from your location to the last report" aria-valuemin="0" aria-valuemax="5" aria-valuenow="0" aria-valuetext="Any distance" aria-describedby="ctl-status" />
+            <div class="range-stops" aria-hidden="true" id="dist-stops"></div>
+          </div>
+          <span class="range-val" id="dist-val" aria-hidden="true">Any distance</span>
+        </div>
+        <div class="status" id="ctl-status"></div>
+      </div>
+    </section>
+
+    <!-- The eBird bar-chart file (quiet section) -->
+    <section class="file-sec" aria-labelledby="file-label">
+      <span class="seclabel" id="file-label">eBird bar chart</span>
+      <div class="file-card" id="file-card"></div>
+    </section>
+
+    <!-- The list -->
+    <section class="list-card" aria-label="Target list">
+      <div class="sweep" id="sweep"></div>
+      <div class="scroll-x">
+        <table class="tg" id="tg" role="table">
+          <thead id="tg-head"></thead>
+          <tbody id="tg-body"></tbody>
+        </table>
+      </div>
+      <div class="empty is-hidden" id="empty"></div>
+    </section>
+
+    <div class="phone-bar" role="tablist" aria-label="Tabs" id="phonebar"></div>
+  </main>
+</div>
+</div>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs><path id="raven" fill="currentColor" fill-rule="evenodd" d="M 150.79 440.77 L 176.47 435.39 L 197.48 429.33 L 213.04 423.88 L 245.73 409.97 L 270.63 397.28 L 296.30 381.80 L 318.09 366.18 L 336.57 350.44 L 352.33 334.58 L 367.31 316.20 L 379.08 297.53 L 385.19 285.08 L 389.91 273.41 L 395.34 253.95 L 396.99 244.61 L 398.12 232.16 L 397.64 214.27 L 393.73 194.04 L 386.46 169.91 L 384.84 159.02 L 385.60 149.68 L 388.70 139.57 L 394.35 130.77 L 399.02 125.85 L 405.25 120.87 L 417.70 113.66 L 430.15 109.05 L 445.71 105.74 L 451.93 105.05 L 464.38 105.06 L 473.72 106.67 L 484.62 111.08 L 485.38 110.77 L 485.11 101.44 L 483.21 95.21 L 479.17 87.44 L 473.72 81.39 L 464.38 74.65 L 449.60 68.35 L 437.93 65.33 L 410.69 60.66 L 402.71 53.19 L 392.02 45.17 L 381.12 38.75 L 373.34 35.08 L 354.67 28.85 L 339.10 26.17 L 322.76 25.37 L 311.09 26.27 L 297.08 28.66 L 288.52 31.10 L 273.74 37.43 L 262.07 44.46 L 253.51 51.19 L 244.65 60.19 L 234.69 73.42 L 226.06 88.21 L 215.97 110.77 L 198.93 152.79 L 199.81 153.14 L 210.71 148.11 L 230.16 141.75 L 241.83 139.37 L 254.28 138.31 L 267.51 138.63 L 281.50 141.12 L 293.19 144.94 L 303.31 150.17 L 311.57 155.91 L 321.42 166.02 L 327.70 175.36 L 332.88 187.08 L 335.35 196.37 L 336.92 208.82 L 336.90 218.94 L 334.38 236.06 L 328.50 255.51 L 319.29 274.96 L 307.20 294.01 L 289.43 316.20 L 271.40 335.03 L 248.84 355.96 L 146.83 440.71 L 147.68 441.18 Z M 361.37 83.54 L 355.44 83.04 L 349.39 79.65 L 345.70 75.76 L 340.28 67.20 L 335.99 63.61 L 331.05 60.97 L 331.32 60.45 L 343.77 60.10 L 354.67 61.50 L 367.12 66.26 L 376.07 72.64 L 374.90 74.46 L 367.89 80.74 Z M 384.80 96.77 L 381.12 97.22 L 379.95 96.77 L 389.68 89.61 L 398.24 84.87 L 409.14 81.06 L 423.14 79.17 L 436.37 79.99 L 446.49 82.49 L 458.16 88.01 L 465.16 93.23 L 467.68 95.99 L 466.72 96.57 L 440.26 94.09 L 416.92 93.78 L 399.02 94.86 Z M 27.07 486.63 L 42.63 480.11 L 57.41 472.78 L 83.87 457.96 L 111.11 441.03 L 146.90 416.35 L 188.78 384.68 L 227.05 353.61 L 252.69 330.99 L 266.74 317.42 L 278.01 305.31 L 291.95 288.19 L 298.64 278.72 L 306.04 266.40 L 311.49 255.51 L 315.26 246.17 L 317.53 239.17 L 319.92 228.27 L 321.08 218.94 L 321.06 210.38 L 320.04 201.82 L 318.42 194.81 L 315.25 187.03 L 311.19 180.03 L 307.72 175.36 L 302.53 170.13 L 295.53 164.95 L 286.97 160.39 L 276.07 156.55 L 269.07 154.98 L 260.51 153.84 L 248.84 153.69 L 231.72 155.87 L 220.82 158.88 L 212.26 162.07 L 203.81 166.02 L 195.15 171.24 L 186.59 177.15 L 176.64 185.48 L 162.41 200.26 L 153.88 211.15 L 143.79 226.74 L 136.73 239.17 L 125.74 261.73 L 109.38 300.64 L 78.90 379.23 L 79.98 379.55 L 90.87 375.49 L 106.44 367.80 L 123.56 357.64 L 148.46 340.72 L 25.9 486.3 Z"/></defs>
+</svg>
+
+<script>
+(function () {
+  'use strict';
+
+  // ── Icons (lucide paths, inline) ────────────────────────────────────────
+  const I = {
+    percent: '<line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/>',
+    radio: '<path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9"/><path d="M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.5"/><circle cx="12" cy="12" r="2"/><path d="M16.2 7.8c2.3 2.3 2.3 6.1 0 8.5"/><path d="M19.1 4.9C23 8.8 23 15.1 19.1 19"/>',
+    camera: '<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/>',
+    mic: '<path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/>',
+    video: '<path d="m22 8-6 4 6 4V8Z"/><rect width="14" height="12" x="2" y="6" rx="2" ry="2"/>',
+    egg: '<path d="M12 22c6.23-.05 7.87-5.57 7.5-10-.36-4.34-3.95-9.96-7.5-10-3.55.04-7.14 5.66-7.5 10-.37 4.43 1.27 9.95 7.5 10z"/>',
+    sparkles: '<path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/>',
+    ext: '<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>',
+    file: '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/>',
+    locate: '<line x1="2" x2="5" y1="12" y2="12"/><line x1="19" x2="22" y1="12" y2="12"/><line x1="12" x2="12" y1="2" y2="5"/><line x1="12" x2="12" y1="19" y2="22"/><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="3"/>',
+    pin: '<path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/>',
+    down: '<path d="m6 9 6 6 6-6"/>', up: '<path d="m18 15-6-6-6 6"/>', updown: '<path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/>',
+    chev: '<path d="m9 18 6-6-6-6"/>',
+    search: '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+    circle: '<circle cx="12" cy="12" r="9"/>', square: '<rect x="3.5" y="3.5" width="17" height="17" rx="2"/>',
+    key: '<circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3L22 7l-3-3"/>',
+    wifioff: '<path d="M12 20h.01"/><path d="M8.5 16.429a5 5 0 0 1 7 0"/><path d="M5 12.859a10 10 0 0 1 5.17-2.69"/><path d="M19 12.859a10 10 0 0 0-2.007-1.523"/><path d="M2 8.82a15 15 0 0 1 4.177-2.643"/><path d="M22 8.82a15 15 0 0 0-11.288-3.764"/><path d="m2 2 20 20"/>',
+    clock: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+    check: '<path d="M20 6 9 17l-5-5"/>',
+    loader: '<path d="M21 12a9 9 0 1 1-6.219-8.56"/>',
+    cloud: '<path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/>',
+    bar: '<line x1="18" x2="18" y1="20" y2="10"/><line x1="12" x2="12" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="14"/>',
+    map: '<polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" y1="3" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="21"/>',
+    book: '<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>',
+    cal: '<path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/><path d="M16 18h.01"/>',
+    target: '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>',
+    image: '<rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>',
+    list: '<path d="m3 17 2 2 4-4"/><path d="m3 7 2 2 4-4"/><path d="M13 6h8"/><path d="M13 12h8"/><path d="M13 18h8"/>',
+    compare: '<circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 0 1 2 2v7"/><path d="M11 18H8a2 2 0 0 1-2-2V9"/>',
+    tag: '<path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/>',
+    more: '<circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>',
+  };
+  const ic = (k, cls) => `<svg class="ic ${cls || ''}" viewBox="0 0 24 24" aria-hidden="true" focusable="false">${I[k]}</svg>`;
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+  // ── Navigation roster (TAB_LABELS order, Targets after Calendar) ─────────
+  const TABS = [
+    ['Weather', 'cloud'], ['Statistics', 'bar'], ['Map Explorer', 'map'], ['Species Detail', 'book'],
+    ['Calendar', 'cal'], ['Targets', 'target'], ['Multimedia', 'image'], ['Breeding Codes', 'egg'],
+    ['Checklists', 'list'], ['List Comparer', 'compare'], ['Named Birds', 'tag'],
+  ];
+  document.getElementById('navlist').innerHTML = TABS.map(([l, k]) =>
+    `<button class="nav-item" role="tab" tabindex="0" aria-selected="${l === 'Targets'}">${ic(k)}<span>${l}</span></button>`).join('');
+  document.getElementById('phonebar').innerHTML =
+    [['Weather', 'cloud'], ['Statistics', 'bar'], ['Map', 'map'], ['Targets', 'target']].map(([l, k]) =>
+      `<button role="tab" tabindex="0" aria-selected="${l === 'Targets'}">${ic(k)}${l}</button>`).join('') +
+    `<button role="tab" tabindex="0" aria-selected="false">${ic('more')}More</button>`;
+
+  // ── Fixture: today is Sat, Sep 26, 2026; Default Location is Oakland ─────
+  const TODAY = new Date(2026, 8, 26);
+  const MONTH = 'September';
+  const fmtDay = idx => { const d = new Date(TODAY); d.setDate(d.getDate() - idx); return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); };
+  const fmtNum = n => n.toLocaleString('en-US');
+
+  // Row shape: [name, sci, lifer, missingMedia, breedingCodes, thisMonthPct, yearPct, daysReported, lastIdx, place, distanceMi, taxOrder]
+  const ALAMEDA = [
+    ['Pectoral Sandpiper', 'Calidris melanotos', true, null, null, 1.62, 0.29, 7, 1, 'Hayward Regional Shoreline', 14.2, 120],
+    ["Baird's Sandpiper", 'Calidris bairdii', true, null, null, 0.71, 0.14, 3, 6, "Frank's Dump, Hayward", 15.1, 118],
+    ['Red-necked Phalarope', 'Phalaropus lobatus', true, null, null, 4.38, 1.05, 19, 0, 'Eden Landing Ecological Reserve', 17.5, 140],
+    ["Vaux's Swift", 'Chaetura vauxi', true, null, null, 2.96, 0.68, 11, 2, 'Lake Merritt', 1.2, 210],
+    ["Lincoln's Sparrow", 'Melospiza lincolnii', true, null, null, 2.14, 3.29, 12, 2, 'Arrowhead Marsh', 5.6, 410],
+    ['Lark Sparrow', 'Chondestes grammacus', true, null, null, 0.58, 0.44, 4, 9, 'Sunol Regional Wilderness', 25.3, 402],
+    ['Yellow-headed Blackbird', 'Xanthocephalus xanthocephalus', true, null, null, 0.33, 0.17, 1, 13, 'Coyote Hills Regional Park', 21.6, 430],
+    ['Solitary Sandpiper', 'Tringa solitaria', true, null, null, 0.41, 0.09, 0, null, null, null, 132],
+    ["Hammond's Flycatcher", 'Empidonax hammondii', true, null, null, 0.47, 0.21, 2, 17, 'Tilden Regional Park', 6.9, 300],
+    ['Black Tern', 'Chlidonias niger', true, null, null, 0.12, 0.04, 1, 22, 'Alameda Point', 4.1, 160],
+    ['Clay-colored Sparrow', 'Spizella pallida', true, null, null, 0.19, 0.06, 1, 4, 'Coyote Hills Regional Park', 21.6, 400],
+    ['Semipalmated Sandpiper', 'Calidris pusilla', true, null, null, 0.62, 0.15, 2, 11, 'Hayward Regional Shoreline', 14.2, 116],
+    ['Northern Waterthrush', 'Parkesia noveboracensis', true, null, null, 0.24, 0.07, 1, 5, 'Lake Merritt', 1.2, 380],
+    ['Short-billed Gull', 'Larus brachyrhynchus', true, null, null, null, null, 2, 3, 'Emeryville Crescent', 3.8, 170],
+    ['Sora', 'Porzana carolina', false, ['Audio', 'Video'], ['S'], 1.94, 2.41, 9, 1, 'Arrowhead Marsh', 5.6, 100],
+    ["Ridgway's Rail", 'Rallus obsoletus', false, ['Video'], ['NY'], 2.07, 2.63, 21, 0, 'Arrowhead Marsh', 5.6, 98],
+    ['Burrowing Owl', 'Athene cunicularia', false, ['Audio', 'Video'], ['ON'], 1.36, 1.52, 16, 0, 'Martin Luther King Jr. Regional Shoreline', 5.9, 220],
+    ["Wilson's Snipe", 'Gallinago delicata', false, ['Photo', 'Audio', 'Video'], [], 0.88, 2.12, 5, 3, 'Coyote Hills Regional Park', 21.6, 136],
+    ['Common Yellowthroat', 'Geothlypis trichas', false, ['Video'], ['S', 'CF'], 8.31, 7.94, 28, 0, 'Arrowhead Marsh', 5.6, 378],
+    ['Pacific-slope Flycatcher', 'Empidonax difficilis', false, ['Photo', 'Video'], ['S'], 3.24, 4.06, 13, 1, 'Tilden Regional Park', 6.9, 302],
+    ["Nuttall's Woodpecker", 'Dryobates nuttallii', false, ['Audio', 'Video'], [], 14.22, 13.81, 30, 0, 'Lake Chabot Regional Park', 11.7, 250],
+    ['Marsh Wren', 'Cistothorus palustris', false, [], ['S'], 6.12, 6.55, 27, 0, 'Arrowhead Marsh', 5.6, 330],
+    ['Wrentit', 'Chamaea fasciata', false, ['Video'], [], 9.83, 10.41, 30, 0, 'Garin Regional Park', 15.8, 340],
+    ["Bewick's Wren", 'Thryomanes bewickii', false, [], [], 21.34, 20.62, 30, 0, 'Lake Merritt', 1.2, 328],
+    ['Oak Titmouse', 'Baeolophus inornatus', false, [], [], 16.08, 15.91, 30, 0, 'Tilden Regional Park', 6.9, 320],
+    ['California Thrasher', 'Toxostoma redivivum', false, [], [], 3.91, 4.18, 22, 0, 'Sunol Regional Wilderness', 25.3, 350],
+    ['Bushtit', 'Psaltriparus minimus', false, [], [], 27.96, 26.83, 30, 0, 'Lake Merritt', 1.2, 322],
+    ["Hutton's Vireo", 'Vireo huttoni', false, ['Audio'], [], 4.55, 4.87, 24, 0, 'Redwood Regional Park', 7.3, 310],
+  ];
+  const CONTRA_COSTA = [
+    ["Lincoln's Sparrow", 'Melospiza lincolnii', true, null, null, 1.88, 2.74, 6, 3, 'Heather Farm Park', 16.4, 410],
+    ["Vaux's Swift", 'Chaetura vauxi', true, null, null, 2.41, 0.52, 4, 5, 'Point Isabel Regional Shoreline', 8.9, 210],
+    ['Pectoral Sandpiper', 'Calidris melanotos', true, null, null, 0.93, 0.18, 2, 8, 'Meeker Slough', 9.4, 120],
+    ["Lewis's Woodpecker", 'Melanerpes lewis', true, null, null, 0.66, 0.31, 3, 1, 'Mount Diablo State Park', 26.1, 246],
+    ["Baird's Sandpiper", 'Calidris bairdii', true, null, null, 0.38, 0.08, 0, null, null, null, 118],
+    ['Sora', 'Porzana carolina', false, ['Audio', 'Video'], ['S'], 1.12, 1.63, 4, 2, 'Point Pinole Regional Shoreline', 11.8, 100],
+    ['Burrowing Owl', 'Athene cunicularia', false, ['Audio', 'Video'], ['ON'], 1.71, 1.84, 3, 4, 'Byron', 40.2, 220],
+    ['Wrentit', 'Chamaea fasciata', false, ['Video'], [], 12.06, 12.9, 30, 0, 'Briones Regional Park', 12.6, 340],
+    ['Oak Titmouse', 'Baeolophus inornatus', false, [], [], 19.44, 18.72, 30, 0, 'Mount Diablo State Park', 26.1, 320],
+    ['California Thrasher', 'Toxostoma redivivum', false, [], [], 5.27, 5.6, 12, 1, 'Black Diamond Mines Regional Preserve', 27.9, 350],
+    ['Yellow-billed Magpie', 'Pica nuttalli', false, ['Photo', 'Audio', 'Video'], [], 3.05, 3.42, 9, 2, 'Round Valley Regional Preserve', 33.5, 316],
+  ];
+
+  const COUNTIES = [
+    { code: 'US-CA-001', label: 'Alameda, CA', checklists: 1183, pool: ALAMEDA, poolSize: 412, file: { filename: 'ebird_US-CA-001__1900_2026_1_12_barchart.txt', y1: 1900, y2: 2026, months: 'Jan-Dec', matched: 389, forms: 41, unmatched: ['Short-billed Gull', 'American Herring Gull', 'Bell\'s Sparrow'] } },
+    { code: 'US-CA-013', label: 'Contra Costa, CA', checklists: 214, pool: CONTRA_COSTA, poolSize: 338, file: null,
+      addable: { filename: 'ebird_US-CA-013__2005_2026_1_12_barchart.txt', y1: 2005, y2: 2026, months: 'Jan-Dec', matched: 321, forms: 29, unmatched: ['Short-billed Gull'] } },
+    { code: 'US-CA-085', label: 'Santa Clara, CA', checklists: 97, pool: null, poolSize: 0 },
+    { code: 'US-CA-041', label: 'Marin, CA', checklists: 61, pool: null, poolSize: 0 },
+    { code: 'US-CA-081', label: 'San Mateo, CA', checklists: 44, pool: null, poolSize: 0 },
+    { code: 'US-CA-053', label: 'Monterey, CA', checklists: 23, pool: null, poolSize: 0 },
+    { code: null, label: 'Doña Ana, NM', checklists: 6, pool: null, unavailable: 'SnowRaven cannot map this county to an eBird region' },
+  ];
+
+  // Thirty-day report masks, deterministic per species, with the last report pinned.
+  function mask(seed, count, lastIdx) {
+    const m = new Array(30).fill(false);
+    if (count <= 0 || lastIdx === null) return m;
+    m[lastIdx] = true; let n = 1, s = seed;
+    let i = lastIdx + 1;
+    while (n < count && i < 30) { s = (s * 1103515245 + 12345) & 0x7fffffff; if ((s >> 8) % 100 < 55 || 30 - i <= count - n) { m[i] = true; n++; } i++; }
+    return m;
+  }
+  const hash = s => { let h = 7; for (const c of s) h = (h * 31 + c.charCodeAt(0)) & 0xffff; return h + 1; };
+
+  // ── State ───────────────────────────────────────────────────────────────
+  const S = {
+    county: 'US-CA-001', sweep: 'complete', theme: 'light', frame: 'desktop', scale: 1,
+    toggles: { lifer: true, media: true, breeding: true }, chips: new Set(), thr: 'any',
+    sort: null /* null = default rule */, win: 'any', comboOpen: false, comboQuery: '', comboActive: -1,
+    fileFor: { 'US-CA-001': true, 'US-CA-013': false }, showUnmatched: false,
+    anchor: 'default' /* 'default' | 'mine' | 'none' */, dist: 0 /* index into DIST_STOPS */,
+  };
+  const DIST_STOPS = [null, 1, 5, 10, 25, 50];                 // null = Any distance
+  const distLabel = i => DIST_STOPS[i] === null ? 'Any distance' : `Within ${DIST_STOPS[i]} ${DIST_STOPS[i] === 1 ? 'mile' : 'miles'}`;
+  // The measuring point. `S.anchor` (mock bar) says whether a Default Location is
+  // saved in Settings; `S.measure` is the in-tab choice, session-only:
+  // null = the Default Location (when saved), else 'mine', or a place / search.
+  S.measure = null; S.apopOpen = false; S.apopErr = '';
+  const PLACES = {
+    'Lake Merritt': [37.8044, -122.2590], 'Arrowhead Marsh': [37.7387, -122.2000], 'Alameda Point': [37.7826, -122.3020],
+    'Emeryville Crescent': [37.8330, -122.2960], 'Tilden Regional Park': [37.8970, -122.2450], 'Hayward Regional Shoreline': [37.6355, -122.1408],
+    'Coyote Hills Regional Park': [37.5530, -122.0910], 'Garin Regional Park': [37.6425, -122.0250], 'Sunol Regional Wilderness': [37.5150, -121.8290],
+    'Lake Chabot Regional Park': [37.7180, -122.1050], 'Martin Luther King Jr. Regional Shoreline': [37.7460, -122.2040],
+    'Eden Landing Ecological Reserve': [37.6110, -122.1300], "Frank's Dump, Hayward": [37.6250, -122.1500], 'Redwood Regional Park': [37.8130, -122.1650],
+    'Heather Farm Park': [37.9270, -122.0330], 'Point Isabel Regional Shoreline': [37.8990, -122.3220], 'Meeker Slough': [37.9110, -122.3370],
+    'Mount Diablo State Park': [37.8816, -121.9140], 'Point Pinole Regional Shoreline': [38.0080, -122.3590], 'Byron': [37.8670, -121.6380],
+    'Briones Regional Park': [37.9290, -122.1370], 'Black Diamond Mines Regional Preserve': [37.9660, -121.8620], 'Round Valley Regional Preserve': [37.8590, -121.7580],
+  };
+  const DEFAULT_LOC = { name: 'your Default Location', label: 'Default Location', sub: 'Oakland', lat: 37.8044, lng: -122.2711 };
+  const MY_LOC = { name: 'your location', label: 'My location', lat: 37.8715, lng: -122.2730 };
+  // The place search stands in for the app's Nominatim forward search (one request per press).
+  const SEARCHABLE = { livermore: ['Livermore', 37.6819, -121.7681], pleasanton: ['Pleasanton', 37.6624, -121.8747], fremont: ['Fremont', 37.5485, -121.9886], berkeley: ['Berkeley', 37.8715, -122.2730], dublin: ['Dublin', 37.7022, -121.9358], 'walnut creek': ['Walnut Creek', 37.9101, -122.0652], 'san leandro': ['San Leandro', 37.7249, -122.1561], hayward: ['Hayward', 37.6688, -122.0808], 'mines road': ['Mines Road', 37.5300, -121.6900] };
+  function anchorPoint() {
+    if (S.measure === 'mine') return MY_LOC;
+    if (S.measure && typeof S.measure === 'object') return S.measure;
+    return S.anchor === 'none' ? null : DEFAULT_LOC;
+  }
+  const hasAnchor = () => anchorPoint() !== null;
+  const anchorName = () => { const a = anchorPoint(); return a ? a.name : 'your location'; };
+  const anchorLabel = () => { const a = anchorPoint(); return a ? (a.label || a.name) : ''; };
+  function milesBetween(a, b) {
+    const R = 3958.8, toR = d => d * Math.PI / 180;
+    const dLat = toR(b[0] - a[0]), dLng = toR(b[1] - a[1]);
+    const h = Math.sin(dLat / 2) ** 2 + Math.cos(toR(a[0])) * Math.cos(toR(b[0])) * Math.sin(dLng / 2) ** 2;
+    return 2 * R * Math.asin(Math.sqrt(h));
+  }
+  const distTo = place => { const a = anchorPoint(); const p = PLACES[place]; return a && p ? milesBetween([a.lat, a.lng], p) : null; };
+  const county = () => COUNTIES.find(c => c.code === S.county);
+  const fileOf = c => (S.fileFor[c.code] ? (c.file || c.addable) : null);
+  const CHECKED = () => S.sweep === 'sweeping' ? 9 : (S.sweep === 'cooldown' ? 14 : (S.sweep === 'nokey' ? 0 : 30));
+  const hasLive = () => S.sweep !== 'nokey';
+
+  const SORTS = [
+    ['freq-month', 'eBird frequency, this month (%)'], ['freq-year', 'eBird frequency, year-round (%)'],
+    ['live-days', 'Live: days reported, last 30'], ['distance', 'Distance to last report'],
+    ['alpha', 'Alphabetical'], ['taxonomic', 'Taxonomic'],
+  ];
+  function sortAvailability(c) {
+    const f = fileOf(c); const a = {};
+    a['freq-month'] = f ? null : `needs ${c.label}'s bar-chart file`;
+    a['freq-year'] = f ? null : `needs ${c.label}'s bar-chart file`;
+    a['live-days'] = hasLive() ? null : 'needs an eBird API key';
+    a['distance'] = !hasLive() ? 'needs an eBird API key' : (hasAnchor() ? null : 'choose where to measure from');
+    a['alpha'] = null; a['taxonomic'] = null; return a;
+  }
+  function effectiveSort(c) {
+    const av = sortAvailability(c);
+    if (S.sort && av[S.sort] === null) return S.sort;
+    return fileOf(c) ? 'freq-month' : (hasLive() ? 'live-days' : 'taxonomic');
+  }
+
+  // ── Derivations ─────────────────────────────────────────────────────────
+  function rows(c) {
+    const K = CHECKED(); const file = fileOf(c);
+    return c.pool.map((r, i) => {
+      const [name, sci, lifer, missing, codes, mo, yr, days, lastIdx, place, dist, tax] = r;
+      const m = mask(hash(name), days, lastIdx);
+      let cnt = 0, last = null;
+      for (let d = 0; d < K; d++) if (m[d]) { cnt++; if (last === null) last = d; }
+      const media = !lifer && missing.length > 0 && (S.chips.size === 0 || [...S.chips].every(t => missing.includes(t)));
+      const breeding = !lifer && (S.thr === 'any' ? codes.length === 0 : !codes.some(k => ['NY', 'ON', 'FL', 'FY', 'CF', 'FS', 'CN', 'NB', 'NE', 'UN', 'DD', 'PE'].includes(k)));
+      return { i, name, sci, lifer, missing: lifer ? null : missing, codes, mo: file ? mo : null, yr: file ? yr : null,
+        inFile: mo !== null, cnt, last, place: last === null ? null : place, dist: last === null || !hasAnchor() ? null : distTo(place), tax, mask: m, media, breeding, K };
+    });
+  }
+  function visible(list) {
+    return list.filter(r => (S.toggles.lifer && r.lifer) || (S.toggles.media && r.media) || (S.toggles.breeding && r.breeding))
+      .filter(r => {
+        if (S.win === 'any' || !hasLive()) return true;
+        const W = Number(S.win);
+        if (r.last !== null) return r.last < W;
+        return r.K < W; // not every day in the window is checked yet: never hidden
+      })
+      .filter(r => {
+        // FR-54a: hidden only when the last report is known and farther than the
+        // stop, or when every day in the window is checked and none reported it.
+        if (!distActive()) return true;
+        const D = DIST_STOPS[S.dist];
+        if (r.last !== null) return r.dist === null ? true : r.dist <= D;
+        const W = S.win === 'any' ? 30 : Number(S.win);
+        return r.K < W;
+      });
+  }
+  const distActive = () => hasLive() && hasAnchor() && DIST_STOPS[S.dist] !== null;
+  const nullLast = (a, b, key, desc) => {
+    const x = a[key], y = b[key];
+    if (x === null && y === null) return 0; if (x === null) return 1; if (y === null) return -1;
+    return desc ? y - x : x - y;
+  };
+  function sorted(list, sort) {
+    const cmp = {
+      'freq-month': (a, b) => nullLast(a, b, 'mo', true), 'freq-year': (a, b) => nullLast(a, b, 'yr', true),
+      'live-days': (a, b) => b.cnt - a.cnt, 'distance': (a, b) => nullLast(a, b, 'dist', false),
+      'alpha': (a, b) => a.name.localeCompare(b.name), 'taxonomic': () => 0,
+    }[sort];
+    return list.slice().sort((a, b) => cmp(a, b) || (a.tax - b.tax));
+  }
+
+  // ── Render ──────────────────────────────────────────────────────────────
+  const $ = id => document.getElementById(id);
+
+  function renderCombo(c) {
+    const inp = $('tg-county');
+    if (!S.comboOpen) { inp.value = c.label; $('tg-county-count').textContent = `${fmtNum(c.checklists)} checklists`; }
+    inp.setAttribute('aria-expanded', String(S.comboOpen));
+    const q = S.comboQuery.trim().toLowerCase();
+    const opts = COUNTIES.filter(o => !q || o.label.toLowerCase().includes(q));
+    const list = $('tg-county-list');
+    list.hidden = !S.comboOpen;
+    list.innerHTML = opts.map((o, i) => `<li id="tg-county-opt-${i}" class="combo-opt ${i === S.comboActive ? 'is-active' : ''}" role="option" data-i="${i}" data-code="${o.code || ''}"
+        aria-selected="${o.code === S.county}" ${o.unavailable ? 'aria-disabled="true"' : ''}>
+        <span class="n">${esc(o.label)}${o.unavailable ? `<span class="why">${esc(o.unavailable)}</span>` : ''}</span>
+        <span class="c">${fmtNum(o.checklists)} checklists</span></li>`).join('');
+    inp.setAttribute('aria-activedescendant', S.comboOpen && S.comboActive >= 0 ? `tg-county-opt-${S.comboActive}` : '');
+    list._opts = opts;
+  }
+
+  function renderPoolStatus(c) {
+    const el = $('pool-status');
+    if (!c.pool) { el.innerHTML = `${ic('loader')} Loading ${esc(c.label)}'s species list from eBird`; return; }
+    el.innerHTML = `${ic('check')} ${fmtNum(c.poolSize)} species all time in ${esc(c.label)}, from eBird`;
+  }
+
+  function renderControls(c, list) {
+    document.querySelectorAll('[data-toggle]').forEach(b => b.setAttribute('aria-pressed', String(S.toggles[b.dataset.toggle])));
+    $('media-sub').classList.toggle('is-hidden', !S.toggles.media);
+    $('breeding-sub').classList.toggle('is-hidden', !S.toggles.breeding);
+    document.querySelectorAll('[data-chip]').forEach(b => b.setAttribute('aria-pressed', String(S.chips.has(b.dataset.chip))));
+    document.querySelectorAll('[data-thr]').forEach(b => b.setAttribute('aria-pressed', String(S.thr === b.dataset.thr)));
+
+    const av = sortAvailability(c); const eff = effectiveSort(c);
+    const f = fileOf(c);
+    $('tg-sort').innerHTML = SORTS.map(([k, l]) => {
+      const src = k === 'freq-month' ? ` (eBird, ${c.label}, ${f ? f.y1 + '-' + f.y2 : ''}, ${MONTH})` : k === 'freq-year' ? ` (eBird, ${c.label}, ${f ? f.y1 + '-' + f.y2 : ''}, year-round)` : '';
+      const dis = av[k] !== null;
+      return `<option value="${k}" ${dis ? 'disabled' : ''} ${k === eff ? 'selected' : ''}>${esc(l)}${dis ? ', ' + esc(av[k]) : (f && src ? esc(src) : '')}</option>`;
+    }).join('');
+
+    const winSeg = $('win-seg');
+    const liveOn = hasLive();
+    winSeg.setAttribute('aria-disabled', String(!liveOn));
+    document.querySelectorAll('[data-win]').forEach(b => { b.setAttribute('aria-pressed', String(S.win === b.dataset.win)); b.setAttribute('aria-disabled', String(!liveOn)); });
+
+    // Distance slider: enabled only with live data and an anchor; the one reason
+    // line below is what its aria-describedby points at.
+    const distOn = liveOn && hasAnchor();
+    if (!distOn) S.dist = 0;   // off means Any distance: a disabled slider never shows a narrowing it is not applying
+    const range = $('tg-dist'); range.value = String(S.dist); range.disabled = !distOn;
+    range.setAttribute('aria-valuenow', String(S.dist)); range.setAttribute('aria-valuetext', distLabel(S.dist));
+    range.style.setProperty('--fill', `${S.dist / 5 * 100}%`);
+    $('dist-wrap').classList.toggle('is-off', !distOn);
+    $('dist-val').textContent = distLabel(S.dist); $('dist-val').classList.toggle('is-off', !distOn);
+    $('dist-stops').innerHTML = DIST_STOPS.map((d, i) => `<span class="${i === S.dist ? 'on' : ''}" style="left: calc(9px + (100% - 18px) * ${i / 5})">${d === null ? 'Any' : (i === 5 ? '50 mi' : d)}</span>`).join('');
+
+    range.setAttribute('aria-label', `Distance from ${hasAnchor() ? anchorName() : 'the measuring point'} to the last report`);
+
+    const cs = $('ctl-status');
+    const a = anchorPoint();
+    const trigger = (text, cta) => `<button class="anchor-btn ${cta ? 'is-cta' : ''}" type="button" tabindex="0" id="anchor-btn" aria-haspopup="dialog" aria-expanded="${S.apopOpen}" aria-controls="anchor-pop" aria-label="${cta ? 'Choose where distances are measured from' : `Distances are measured from ${esc(anchorName())}. Change`}">${text}${ic('down')}</button>`;
+    let line;
+    if (!liveOn) line = `${ic('key')} Last report and distance <b>need live eBird data</b>. Add an eBird API key in Settings.`;
+    else if (!a) line = `${ic('pin')} <b>No location set.</b> ${trigger('Choose where to measure from', true)} (a place, your location, or a Default Location set in Settings).`;
+    else if (S.measure === 'mine') line = `${ic('locate')} Distances from ${trigger('your location')}, found just now.`;
+    else if (S.measure && S.measure.kind === 'search') line = `${ic('search')} Distances from ${trigger(esc(a.name))}, a place you searched.`;
+    else if (S.measure && S.measure.kind === 'place') line = `${ic('pin')} Distances from ${trigger(esc(a.name))}, a place in this list.`;
+    else line = `${ic('pin')} Distances from your ${trigger('Default Location')} (Oakland).`;
+    cs.innerHTML = line + renderAnchorPop(list);
+
+    const vis = visible(list);
+    const nL = vis.filter(r => r.lifer).length, nM = vis.filter(r => r.media && S.toggles.media).length, nB = vis.filter(r => r.breeding && S.toggles.breeding).length;
+    const parts = [];
+    if (S.toggles.lifer) parts.push(`${nL} ${nL === 1 ? 'lifer' : 'lifers'}`);
+    if (S.toggles.media) parts.push(`${nM} media`);
+    if (S.toggles.breeding) parts.push(`${nB} breeding`);
+    const text = `${vis.length} ${vis.length === 1 ? 'target' : 'targets'}${parts.length ? ': ' + parts.join(', ') : ''}`;
+    $('summary').innerHTML = `${vis.length} ${vis.length === 1 ? 'target' : 'targets'} <small>${parts.length ? parts.join(' · ') : ''}</small>`;
+    const live = $('summary-live'); if (live.textContent !== text) live.innerHTML = `<span>${esc(text)}</span>`;
+    return vis;
+  }
+
+  // The chooser dialog: My location, the Default Location, a searched place (the
+  // app's Nominatim forward search, one request per press), and the places the
+  // live data already holds (every last report in this list, no request at all).
+  function renderAnchorPop(list) {
+    if (!S.apopOpen || !hasLive()) return '';
+    const cur = S.measure === 'mine' ? 'mine' : (S.measure && S.measure.kind === 'place' ? S.measure.name : (S.measure ? 'search' : (S.anchor === 'none' ? '' : 'default')));
+    const places = [...new Set(list.filter(r => r.place).map(r => r.place))].sort((x, y) => x.localeCompare(y));
+    const saved = S.anchor !== 'none';
+    return `<div class="apop" id="anchor-pop" role="dialog" aria-label="Measure distances from">
+      <div class="apop-head">Measure distances from</div>
+      <button class="apop-item" type="button" tabindex="0" data-measure="mine" aria-current="${cur === 'mine'}">${ic('locate')}<span class="t">My location<span class="apop-sub">Finds where you are now</span></span></button>
+      <button class="apop-item" type="button" tabindex="0" data-measure="default" aria-current="${cur === 'default'}" ${saved ? '' : 'disabled'}>${ic('pin')}<span class="t">Default Location<span class="apop-sub">${saved ? 'Oakland, set in Settings' : 'Not set in Settings'}</span></span></button>
+      <div class="apop-sec">A place</div>
+      <form class="apop-search" id="apop-form"><input type="text" id="apop-q" aria-label="Search by place name" placeholder="Search by place name" autocomplete="off" value="${esc(S.apopQ || '')}" /><button type="submit" tabindex="0" aria-label="Search" id="apop-go" ${(S.apopQ || '').trim() ? '' : 'disabled'}>${ic('search')}</button></form>
+      ${S.apopErr ? `<div class="apop-err" role="alert">${esc(S.apopErr)}</div>` : `<div class="apop-hint">A town, park or address, looked up on OpenStreetMap when you press Search.</div>`}
+      <div class="apop-sec">Places in this list</div>
+      <div class="apop-list">${places.map(p => { const d = distTo(p); return `<button class="apop-item" type="button" tabindex="0" data-place="${esc(p)}" aria-current="${cur === p}">${ic('pin')}<span class="t">${esc(p)}</span>${d !== null ? `<span class="d">${d.toFixed(1)} mi</span>` : ''}</button>`; }).join('')}</div>
+    </div>`;
+  }
+
+  function renderFile(c) {
+    const el = $('file-card'); const f = fileOf(c);
+    if (!c.pool && !f) { el.innerHTML = `<div class="file-main">${ic('file')}<div class="file-line"><span class="t">No bar-chart file for ${esc(c.label)}</span><div class="m">Add ${esc(c.label)}'s eBird bar-chart file to sort by eBird frequency. <button class="link" type="button" tabindex="0">Open ${esc(c.label)}'s bar chart on ebird.org ${ic('ext')}<span class="sr-only"> (opens in a new tab)</span></button></div></div></div>
+        <div class="file-actions"><button class="sr-btn-accent" type="button" tabindex="0" data-act="add">${ic('file')}Add file</button></div>`; return; }
+    if (!f) {
+      el.innerHTML = `<div class="file-main">${ic('file')}<div class="file-line">
+          <span class="t">Add ${esc(c.label)}'s eBird bar-chart file to sort by eBird frequency</span>
+          <div class="m">On ebird.org, open the county's bar chart while signed in and choose <b>Download Histogram Data</b>. The file stays on this device and is not synced.
+            <button class="link" type="button" tabindex="0">Open ${esc(c.label)}'s bar chart on ebird.org ${ic('ext')}<span class="sr-only"> (opens in a new tab)</span></button></div>
+        </div></div>
+        <div class="file-actions"><button class="sr-btn-accent" type="button" tabindex="0" data-act="add">${ic('file')}Add file</button></div>`;
+      return;
+    }
+    const pool = c.pool ? `${fmtNum(f.matched)} species matched, ${f.forms} forms skipped, ${f.unmatched.length} unmatched` : 'Species list not loaded yet';
+    el.innerHTML = `<div class="file-main">${ic('file')}<div class="file-line">
+        <span class="t">eBird bar chart, ${esc(c.label)}, ${f.y1}-${f.y2}, ${f.months}</span>
+        <div class="m">${pool}${c.pool && f.unmatched.length ? ` · <button class="link" type="button" tabindex="0" aria-expanded="${S.showUnmatched}" aria-controls="unmatched" data-act="unmatched">${S.showUnmatched ? 'Hide' : 'Show'} unmatched</button>` : ''} · <span title="${esc(f.filename)}">${esc(f.filename)}</span></div>
+      </div></div>
+      <div class="file-actions">
+        <button class="sr-btn-quiet" type="button" tabindex="0" data-act="replace">Replace</button>
+        <button class="sr-btn-quiet sr-btn-quiet--danger" type="button" tabindex="0" data-act="remove">Remove</button>
+      </div>
+      <div class="disc ${S.showUnmatched ? 'is-open' : ''}" id="unmatched"><div ${S.showUnmatched ? '' : 'inert'}><div class="disc-body">
+        Species-shaped rows in the file that matched nothing in ${esc(c.label)}'s eBird species list, usually a name eBird has since changed:
+        <ul>${f.unmatched.map(n => `<li>${esc(n)}</li>`).join('')}</ul>
+      </div></div></div>`;
+  }
+
+  function renderSweep(c) {
+    const el = $('sweep'); const K = CHECKED();
+    el.classList.remove('is-hidden');
+    if (!c.pool) { el.classList.add('is-hidden'); return; }
+    const kind = `<span class="kind">${ic('radio')}Live</span>`;
+    if (S.sweep === 'nokey') { el.innerHTML = `${kind}<div class="status">${ic('key')} <b>Needs an eBird API key.</b> Add one in Settings to see how many of the last 30 days each species was reported in ${esc(c.label)}.</div>`; return; }
+    if (S.sweep === 'offline') { el.innerHTML = `${kind}<div class="status">${ic('wifioff')} <b>Offline;</b> live counts from ${fmtDay(1)}, 2026. Nothing has been asked of eBird this visit.</div>`; return; }
+    if (S.sweep === 'sweeping') { el.innerHTML = `${kind}<div class="status" role="status">${ic('loader')} Checking eBird: <b>${K} of 30 days</b>. Rows fill in as each day lands.</div><div class="bar" aria-hidden="true"><i style="width:${Math.round(K / 30 * 100)}%"></i></div>`; return; }
+    if (S.sweep === 'cooldown') { el.innerHTML = `${kind}<div class="status" role="status">${ic('clock')} <span class="warn">eBird asked us to slow down;</span> resuming in 4 s. <b>${K} of 30 days</b> checked.</div><div class="bar" aria-hidden="true"><i style="width:${Math.round(K / 30 * 100)}%"></i></div>`; return; }
+    el.innerHTML = `${kind}<div class="status">${ic('check')} Checked today at 7:41 AM, 30 of 30 days. Tomorrow asks eBird about two days: the new one and today again.</div>`;
+  }
+
+  function sortBtn(key, label, eff, extra) {
+    const active = key === eff; const av = sortAvailability(county())[key];
+    // The column keeps a short note; the full FR-51 sentence lives once in the status line.
+    if (av !== null) { const note = key === 'distance' && !hasAnchor() ? 'No location set' : av; return `<span>${label}</span><span class="th-note">${esc(note.charAt(0).toUpperCase() + note.slice(1))}</span>`; }
+    return `<button class="th-sort" type="button" tabindex="0" data-sort="${key}" data-active="${active}" aria-label="Sort by ${esc(extra || label.replace(/<[^>]+>/g, ''))}">${label}${ic(active ? 'down' : 'updown')}</button>`;
+  }
+
+  function renderHead(c, eff) {
+    const f = fileOf(c); const live = hasLive();
+    const probSrc = f ? `eBird bar chart, ${esc(c.label)}, ${f.y1}-${f.y2}` : `No bar-chart file for ${esc(c.label)}`;
+    const liveSrc = live ? (S.sweep === 'offline' ? `eBird API, cached ${fmtDay(1)}` : `eBird API, last 30 days`) : 'eBird API, needs a key';
+    const probCols = f
+      ? `<th scope="col" role="columnheader" class="k-prob" aria-sort="${eff === 'freq-month' ? 'descending' : 'none'}">${sortBtn('freq-month', `This month <span class="unit">(%)</span>`, eff, `eBird frequency, this month (%), eBird, ${c.label}, ${f.y1}-${f.y2}, ${MONTH}`)}</th>
+         <th scope="col" role="columnheader" aria-sort="${eff === 'freq-year' ? 'descending' : 'none'}">${sortBtn('freq-year', `Year-round <span class="unit">(%)</span>`, eff, `eBird frequency, year-round (%), eBird, ${c.label}, ${f.y1}-${f.y2}, year-round`)}</th>`
+      : `<th scope="col" role="columnheader" class="k-prob"><span>eBird frequency <span class="unit">(%)</span></span><span class="th-note">Sort unavailable without a file</span></th>`;
+    const liveCols = live
+      ? `<th scope="col" role="columnheader" class="k-live-first" aria-sort="${eff === 'live-days' ? 'descending' : 'none'}">${sortBtn('live-days', `Reported, last 30 days`, eff, 'Live: days reported, last 30')}</th>
+         <th scope="col" role="columnheader">Last report</th>
+         <th scope="col" role="columnheader" aria-sort="${eff === 'distance' ? 'ascending' : 'none'}">${sortBtn('distance', `Distance`, eff, 'Distance to last report')}</th>`
+      : `<th scope="col" role="columnheader" class="k-live-first"><span>Reported, last 30 days</span></th>`;
+    $('tg-head').innerHTML = `
+      <tr class="groups" role="row">
+        <th scope="col" role="columnheader" rowspan="2" style="vertical-align:bottom" aria-sort="${eff === 'alpha' || eff === 'taxonomic' ? 'ascending' : 'none'}"><span>Species</span><span class="th-species-sub">${sortBtn('alpha', 'A to Z', eff, 'Alphabetical')}${sortBtn('taxonomic', 'Taxonomic', eff)}</span></th>
+        <th scope="colgroup" role="columnheader" colspan="${f ? 2 : 1}" class="k-prob"><span class="kind">${ic('percent')}Probability</span><span class="kind-sub">${probSrc}</span></th>
+        <th scope="colgroup" role="columnheader" colspan="${live ? 3 : 1}" class="k-live-first"><span class="kind">${ic('radio')}Live</span><span class="kind-sub">${liveSrc}</span></th>
+      </tr>
+      <tr class="cols" role="row">${probCols}${liveCols}</tr>`;
+  }
+
+  function pctCell(v, inFile, cls, label, max, anchor, tag) {
+    if (!inFile) return `<td role="cell" class="${cls}">${tag || ''}<span class="cell-k">${label}</span><span class="na">No eBird figure</span></td>`;
+    const w = max > 0 ? Math.max(3, Math.round(v / max * 100)) : 0;
+    return `<td role="cell" class="${cls}">${tag || ''}<span class="cell-k">${label}</span><span class="pct">${v.toFixed(2)}<span class="sign">%</span></span><span class="share" aria-hidden="true"><i style="width:${w}%"></i></span>${anchor ? '<span class="anchor">matches your eBird Targets page</span>' : ''}</td>`;
+  }
+
+  function renderBody(c, vis, eff) {
+    const f = fileOf(c); const live = hasLive(); const K = CHECKED();
+    const maxMo = Math.max(0, ...vis.map(r => r.mo || 0)), maxYr = Math.max(0, ...vis.map(r => r.yr || 0));
+    const probTag = `<span class="kind-tag">${ic('percent')}Probability <span class="kind-src">${f ? `eBird bar chart, ${f.y1}-${f.y2}` : 'no bar-chart file'}</span></span>`;
+    const liveTag = `<span class="kind-tag">${ic('radio')}Live <span class="kind-src">${live ? 'eBird API, last 30 days' : 'needs an eBird API key'}</span></span>`;
+    $('tg-body').innerHTML = vis.map((r, idx) => {
+      const badges = [];
+      if (r.lifer) badges.push(`<span class="badge badge--lifer">${ic('sparkles')}Lifer</span>`);
+      if (r.media && S.toggles.media) badges.push(`<span class="badge">${ic('camera')}Media<span class="sr-only">, needs ${r.missing.join(', ').toLowerCase()}</span><span class="miss" aria-hidden="true">${r.missing.map(t => ic(t === 'Photo' ? 'camera' : t === 'Audio' ? 'mic' : 'video')).join('')}</span></span>`);
+      if (r.breeding && S.toggles.breeding) badges.push(`<span class="badge">${ic('egg')}Breeding${S.thr === 'confirmed' && r.codes.length ? `<span class="sr-only">, has ${r.codes.join(' ')} but nothing confirmed</span>` : ''}</span>`);
+      const nameEl = r.lifer
+        ? `<span class="bn-text">${esc(r.name)}</span>`
+        : `<button class="bn-link" type="button" tabindex="0" aria-label="${esc(r.name)}, open in Species Detail">${esc(r.name)}</button>`;
+      const marks = `<span class="marks"><span class="mk" title="eBird">${ic('circle')}</span><span class="mk" title="Macaulay Library">${ic('square')}</span></span>`;
+      const name = `<td role="cell" class="name"><div class="bn"><div class="bn-row">${nameEl}${marks}</div><span class="bn-sci">${esc(r.sci)}</span></div><div class="badges">${badges.join('')}</div></td>`;
+
+      let prob;
+      if (f) prob = pctCell(r.mo, r.inFile, 'k-prob month', `This month, ${MONTH}`, maxMo, false, probTag) + pctCell(r.yr, r.inFile, 'year', 'Year-round', maxYr, r.name === "Lincoln's Sparrow" && c.code === 'US-CA-001');
+      else prob = `<td role="cell" class="k-prob merged">${probTag}<span class="cell-k">eBird frequency</span><span class="na">No file for ${esc(c.label)}</span></td>`;
+
+      let liveCells;
+      if (!live) liveCells = `<td role="cell" class="k-live-first merged">${liveTag}<span class="cell-k">Reported, last 30 days</span><span class="na">Needs an eBird API key</span></td>`;
+      else {
+        const partial = K < 30;
+        let sentence;
+        if (partial) sentence = `<span class="lead">Reported </span><b>${r.cnt}</b> of ${K} days checked so far`;
+        else if (r.cnt === 0) sentence = `<span class="lead">Not reported in the last 30 days</span>`;
+        else sentence = `<span class="lead">Reported </span><b>${r.cnt}</b> of the last 30 days`;
+        const ticks = `<span class="ticks" aria-hidden="true">${r.mask.map((on, d) => `<i class="${d >= K ? 'unk' : (on ? 'on' : '')}${d === 0 ? ' today' : ''}"></i>`).reverse().join('')}</span>`;
+        const days = `<td role="cell" class="k-live-first days">${liveTag}<span class="cell-k">Reported, last 30 days</span><span class="live">${sentence}</span>${ticks}</td>`;
+        const last = r.last === null
+          ? `<td role="cell" class="last"><span class="cell-k">Last report</span><span class="na">${partial && r.cnt === 0 ? 'None in the days checked' : 'No report in the last 30 days'}</span></td>`
+          : `<td role="cell" class="last"><span class="cell-k">Last report</span><span>${r.last === 0 ? 'Today' : r.last === 1 ? 'Yesterday' : fmtDay(r.last)}</span><span class="place">${esc(r.place)}</span></td>`;
+        const dist = r.dist === null
+          ? `<td role="cell" class="distc"><span class="cell-k">Distance</span><span class="na">${hasAnchor() ? 'No distance' : 'No location set'}</span></td>`
+          : `<td role="cell" class="distc"><span class="cell-k">Distance</span><span class="dist">${r.dist.toFixed(1)} <span class="u">mi</span></span></td>`;
+        liveCells = days + last + dist;
+      }
+      return `<tr role="row" id="tg-row-${idx}">${name}${prob}${liveCells}</tr>`;
+    }).join('');
+
+    const empty = $('empty'); const anyOn = S.toggles.lifer || S.toggles.media || S.toggles.breeding;
+    if (!c.pool) { empty.classList.remove('is-hidden'); empty.innerHTML = `Loading ${esc(c.label)}'s species list from eBird. The county picker and toggles keep working while it loads.`; $('tg').style.display = 'none'; return; }
+    $('tg').style.display = '';
+    if (!anyOn) { empty.classList.remove('is-hidden'); empty.innerHTML = `Turn on at least one target type`; $('tg').style.display = 'none'; return; }
+    if (vis.length === 0) {
+      empty.classList.remove('is-hidden'); $('tg').style.display = 'none';
+      const types = ['lifer', 'media', 'breeding'].filter(t => S.toggles[t]).join(', ');
+      const winPhrase = S.win === '1' ? 'in the last day' : S.win === '7' ? 'in the last week' : S.win === '30' ? 'in the last 30 days' : '';
+      const distPhrase = distActive() ? `within ${DIST_STOPS[S.dist]} ${DIST_STOPS[S.dist] === 1 ? 'mile' : 'miles'} of ${anchorName()}` : '';
+      const reset = [S.win !== 'any' ? '<b>Any time</b>' : '', distActive() ? '<b>Any distance</b>' : ''].filter(Boolean).join(' and ');
+      empty.innerHTML = (winPhrase || distPhrase)
+        ? `No ${types} target in ${esc(c.label)} was reported by eBird ${[winPhrase, distPhrase].filter(Boolean).join(' ')}. ${reset} shows them all.`
+        : `No ${types} targets for you in ${esc(c.label)}, across its ${fmtNum(c.poolSize)} species.`;
+      return;
+    }
+    empty.classList.add('is-hidden');
+  }
+
+  function render() {
+    document.documentElement.setAttribute('data-theme', S.theme);
+    document.documentElement.style.setProperty('--sr-text-scale', String(S.scale));
+    $('stage').classList.toggle('is-phone', S.frame === 'phone');
+    document.querySelectorAll('.mock-bar button').forEach(b => {
+      const cur = String(S[b.dataset.set]); b.setAttribute('aria-pressed', String(cur === b.dataset.v));
+    });
+    const c = county();
+    renderCombo(c); renderPoolStatus(c); renderFile(c); renderSweep(c);
+    if (!c.pool) { $('summary').innerHTML = ''; $('tg-head').innerHTML = ''; renderControls(c, []); renderBody(c, [], null); return; }
+    const list = rows(c); const vis = renderControls(c, list); const eff = effectiveSort(c);
+    renderHead(c, eff); renderBody(c, sorted(vis, eff), eff);
+  }
+
+  // ── Events ──────────────────────────────────────────────────────────────
+  document.querySelector('.mock-bar').addEventListener('click', e => {
+    const b = e.target.closest('button[data-set]'); if (!b) return;
+    S[b.dataset.set] = b.dataset.set === 'scale' ? Number(b.dataset.v) : b.dataset.v; render();
+  });
+  document.addEventListener('click', e => {
+    if (S.apopOpen && !e.target.closest('#anchor-pop') && !e.target.closest('#anchor-btn')) { S.apopOpen = false; S.apopErr = ''; render(); }
+    const t = e.target.closest('[data-toggle],[data-chip],[data-thr],[data-win],[data-sort],[data-act],#anchor-btn,[data-measure],[data-place]');
+    if (!t) return;
+    if (t.id === 'anchor-btn') { S.apopOpen = !S.apopOpen; S.apopErr = ''; render(); if (S.apopOpen) { const first = document.querySelector('#anchor-pop .apop-item:not(:disabled)'); if (first) first.focus(); } return; }
+    if (t.dataset.measure) { S.measure = t.dataset.measure === 'mine' ? 'mine' : null; S.apopOpen = false; render(); $('anchor-btn').focus(); return; }
+    if (t.dataset.place) { const p = t.dataset.place; S.measure = { kind: 'place', name: p, lat: PLACES[p][0], lng: PLACES[p][1] }; S.apopOpen = false; render(); $('anchor-btn').focus(); return; }
+    if (t.dataset.toggle) { S.toggles[t.dataset.toggle] = !S.toggles[t.dataset.toggle]; }
+    else if (t.dataset.chip) { S.chips.has(t.dataset.chip) ? S.chips.delete(t.dataset.chip) : S.chips.add(t.dataset.chip); }
+    else if (t.dataset.thr) { S.thr = t.dataset.thr; }
+    else if (t.dataset.win) { if (!hasLive()) return; S.win = t.dataset.win; }
+    else if (t.dataset.sort) { S.sort = t.dataset.sort; }
+    else if (t.dataset.act === 'add' || t.dataset.act === 'replace') { S.fileFor[S.county] = true; S.showUnmatched = false; }
+    else if (t.dataset.act === 'remove') { S.fileFor[S.county] = false; S.showUnmatched = false; }
+    else if (t.dataset.act === 'unmatched') { S.showUnmatched = !S.showUnmatched; }
+    render();
+  });
+  // Place search: submit-only (never as-you-type), like Map Explorer's search box.
+  document.addEventListener('input', e => { if (e.target.id === 'apop-q') { S.apopQ = e.target.value; $('apop-go').disabled = !e.target.value.trim(); } });
+  document.addEventListener('submit', e => {
+    if (e.target.id !== 'apop-form') return;
+    e.preventDefault();
+    const q = $('apop-q').value.trim().toLowerCase(); const hit = SEARCHABLE[q];
+    if (!hit) { S.apopErr = 'No location found. Try a different search term.'; render(); $('apop-q').focus(); return; }
+    S.measure = { kind: 'search', name: hit[0], lat: hit[1], lng: hit[2] }; S.apopOpen = false; S.apopErr = ''; S.apopQ = ''; render(); $('anchor-btn').focus();
+  });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && S.apopOpen) { S.apopOpen = false; S.apopErr = ''; render(); const b = $('anchor-btn'); if (b) b.focus(); } });
+  $('tg-sort').addEventListener('change', e => { S.sort = e.target.value; render(); });
+  $('tg-dist').addEventListener('input', e => { S.dist = Number(e.target.value); render(); });
+
+  // County combobox: type to find, arrows, Enter, Escape; index-keyed option ids.
+  const inp = $('tg-county'); const list = $('tg-county-list');
+  const openCombo = () => { S.comboOpen = true; S.comboQuery = ''; S.comboActive = COUNTIES.findIndex(o => o.code === S.county); inp.value = ''; renderCombo(county()); };
+  const closeCombo = () => { S.comboOpen = false; S.comboQuery = ''; S.comboActive = -1; renderCombo(county()); };
+  const pick = o => { if (!o || o.unavailable) return; S.county = o.code; S.sort = null; S.win = 'any'; S.showUnmatched = false; closeCombo(); render(); };
+  inp.addEventListener('focus', () => { if (!S.comboOpen) openCombo(); });
+  $('tg-county-chev').addEventListener('click', () => { S.comboOpen ? closeCombo() : (openCombo(), inp.focus()); });
+  inp.addEventListener('input', () => { S.comboOpen = true; S.comboQuery = inp.value; S.comboActive = 0; renderCombo(county()); });
+  inp.addEventListener('keydown', e => {
+    const opts = list._opts || [];
+    if (e.key === 'ArrowDown') { e.preventDefault(); if (!S.comboOpen) openCombo(); S.comboActive = Math.min(opts.length - 1, S.comboActive + 1); renderCombo(county()); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); S.comboActive = Math.max(0, S.comboActive - 1); renderCombo(county()); }
+    else if (e.key === 'Enter') { e.preventDefault(); pick(opts[S.comboActive] || opts.find(o => !o.unavailable)); }
+    else if (e.key === 'Escape') { if (S.comboOpen) { e.stopPropagation(); closeCombo(); } }
+  });
+  inp.addEventListener('blur', () => setTimeout(() => { if (!list.contains(document.activeElement)) closeCombo(); }, 120));
+  list.addEventListener('mousedown', e => { const li = e.target.closest('li[role="option"]'); if (!li) return; e.preventDefault(); pick(COUNTIES.find(o => (o.code || '') === li.dataset.code && o.label === li.querySelector('.n').firstChild.textContent)); });
+
+  render();
+})();
+</script>
+</body>
+</html>
