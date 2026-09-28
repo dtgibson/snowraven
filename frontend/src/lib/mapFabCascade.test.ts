@@ -413,6 +413,7 @@ const NEVER_A_FAB_ANCESTOR: Record<string, string> = {
   'sr-proj-row': 'a Projects-section result row on the Statistics tab, which mounts no map at all',
   'sr-wx-seg': 'the Weather section\'s Temperature/Sky axis toggle on the Statistics tab; it holds only its own two buttons, and the tab\'s one map (Geographic Stats) is a different subtree entirely',
   'sr-proj-portalrow': 'the subordinate portal row in the same section; same reasoning',
+  'sr-tg-table': 'the Targets tab\'s target list table (its sort-header icons); the Targets tab mounts no map at all',
   'sr-dlg-actions': 'the shared modal dialog action row (components/ui/ModalDialog.tsx); a dialog panel never wraps a map, so no FAB sits under it',
   'sr-map-sidebar-overlay': 'the filters sidebar, which the cluster sits outside of (and is hidden while it is open)',
   'maplibregl-ctrl-group': "maplibre's own control stack, injected inside the canvas container",
@@ -505,11 +506,14 @@ describe('cascade-competitor scan: source stylesheets', () => {
     // A resolution nobody needs is a resolution that has stopped describing the
     // stylesheet — it would sit there excusing a rule that no longer exists while
     // reading as though it still had teeth.
-    const seenAncestors = new Set(results.disc.outranking.flatMap(c => c.ancestorClasses))
+    // `resolveAll` excuses competitors in BOTH scans, so a reason is "used" when
+    // either scan needs it (`sr-tg-table` competes for the glyph only).
+    const outranking = [...results.disc.outranking, ...results.glyph.outranking]
+    const seenAncestors = new Set(outranking.flatMap(c => c.ancestorClasses))
     for (const cls of Object.keys(NEVER_A_FAB_ANCESTOR)) {
       expect(seenAncestors.has(cls), `${cls} is excused but no longer competes`).toBe(true)
     }
-    const seenSelectors = new Set(results.disc.outranking.map(c => c.selector))
+    const seenSelectors = new Set(outranking.map(c => c.selector))
     for (const sel of Object.keys(INTENDED_UNSCOPED)) {
       expect(seenSelectors.has(sel), `${sel} is excused but no longer competes`).toBe(true)
     }

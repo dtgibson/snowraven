@@ -1,4 +1,6 @@
 import { isTauri } from './platform';
+import { REGION_CODE_RE } from './regionCode';
+import { BARCHART_FILENAME_MAX } from './uploadGuard';
 
 // Which device uploaded a data file (icloud-sync FR-11/FR-13). `deviceId` is
 // a random per-install id (32 lowercase hex), never a hardware or account
@@ -86,6 +88,76 @@ export interface ReplayStore {
   order: string[];
 }
 
+// ── eBird bar-chart files (targets-tab, schema.md section 1) ─────────────────
+// A county's bar-chart file is its OWN family, never a third slot beside
+// `ebird` / `ml`: `TauriStorage.readMeta` rewrites `metadata.json` as exactly
+// `{ ebird, ml }` on every link, so an entry stored there would be erased by
+// the next backup upload, clear or iCloud arrival; and widening the slot union
+// would reach every iCloud `SLOTS` loop, the opposite of "never synced". So the
+// files live in their own directory under their own manifest, on their own
+// chain key, behind their own four methods. Nothing derived is stored (FR-39):
+// year range, month range and frequencies are re-derived from the file on
+// load, so deleting the file is its whole teardown.
+
+export interface BarChartFileMeta {
+  filename: string;
+  /** ISO-8601 UTC, as the two data-file slots record it. */
+  uploadedAt: string;
+}
+
+export interface BarChartFilesStatus {
+  version: 1;
+  /** Keyed by eBird county region code ("US-CA-001"), validated on read. */
+  counties: Record<string, BarChartFileMeta>;
+}
+
+// Bounds on a manifest entry. The manifest is a persisted document the app
+// writes, but it is read back as untrusted at the file-type level (the v1.0.11
+// read-side chokepoint rule): a filename is shown in the status line and a
+// time is only ever displayed, so the bounds exist to keep a hand-edited or
+// corrupted document from carrying an unbounded string into render. The
+// filename bound is the registry's (`BARCHART_FILENAME_MAX` in uploadGuard.ts),
+// imported rather than restated, because both writers must refuse exactly the
+// names this reader drops.
+const BARCHART_UPLOADED_AT_MAX = 40;
+
+/**
+ * Normalize a persisted bar-chart manifest. Keeps an entry only when its key is
+ * a county region code and both fields are bounded strings; a non-object or a
+ * `version` other than 1 reads as the EMPTY manifest. Never throws: a document
+ * that PARSED is normalized, and a read or parse that FAILED never reaches here
+ * (the caller propagates it as UNKNOWN, FR-40).
+ *
+ * The key regex is also what keeps prototype-chain names out: `__proto__` and
+ * `constructor` cannot match `^US-[A-Z]{2}-[0-9]{3}$`, and every read of the
+ * raw record goes through `Object.hasOwn` rather than a bare index.
+ */
+export function normalizeBarChartManifest(raw: unknown): BarChartFilesStatus {
+  const out: BarChartFilesStatus = { version: 1, counties: Object.create(null) as Record<string, BarChartFileMeta> };
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
+  const doc = raw as { version?: unknown; counties?: unknown };
+  if (doc.version !== 1) return out;
+  const counties = doc.counties;
+  if (!counties || typeof counties !== 'object' || Array.isArray(counties)) return out;
+  const rec = counties as Record<string, unknown>;
+  for (const key of Object.keys(rec)) {
+    if (!REGION_CODE_RE.test(key) || !Object.hasOwn(rec, key)) continue;
+    const entry = rec[key];
+    if (!entry || typeof entry !== 'object') continue;
+    const { filename, uploadedAt } = entry as { filename?: unknown; uploadedAt?: unknown };
+    if (typeof filename !== 'string' || filename.length > BARCHART_FILENAME_MAX) continue;
+    if (typeof uploadedAt !== 'string' || uploadedAt.length > BARCHART_UPLOADED_AT_MAX) continue;
+    out.counties[key] = { filename, uploadedAt };
+  }
+  return out;
+}
+
+/** A region code about to become a path segment or a URL segment. Refused
+ *  BEFORE it reaches the filesystem or the network, on both transports. */
+function assertRegionCode(regionCode: string): void {
+  if (!REGION_CODE_RE.test(regionCode)) throw new Error('Invalid county region code.');
+}
+
 export interface StorageAdapter {
   getApiKey(service: KeySlot): Promise<string | null>;
   // `origin` (icloud-api-key-sync FR-12): on Tauri builds every save stamps a
@@ -160,6 +232,32 @@ export interface StorageAdapter {
   // ── Offline support — replay store (FR-32/33/34) ──
   getReplayStore(): Promise<ReplayStore | null>;
   setReplayStore(store: ReplayStore): Promise<void>;
+
+  // ── eBird bar-chart files (targets-tab, schema.md section 1.3) ──
+  // A REJECTION of getBarChartFiles is UNKNOWN ("Couldn't check for a
+  // bar-chart file", FR-40); a resolved `{ counties: {} }` is EMPTY. The two
+  // are never collapsed, the v1.0.25 rule for every stored-file status read.
+  getBarChartFiles(): Promise<BarChartFilesStatus>;
+  // null = absent or unreadable, the readFile contract.
+  readBarChartFile(regionCode: string): Promise<string | null>;
+  // Add and Replace are the same call: the file and its manifest entry are
+  // overwritten together.
+  writeBarChartFile(regionCode: string, content: string, filename: string): Promise<void>;
+  // Idempotent: an absent file is already the state asked for.
+  deleteBarChartFile(regionCode: string): Promise<void>;
+
+  // ── The Targets tab's day cache (targets-tab, schema.md section 3.2) ──
+  // Its OWN document, the replay store's shape: `data/county-day-obs.json` on
+  // Tauri, the generic `/settings/county-day-obs-v2` key on web/Pi. The seam
+  // owns the path and the key; `countyDayObsCache.ts` owns the shape, the
+  // validation and the ordered writer. For a derived cache an unreadable
+  // document IS an empty one, so the read answers null on absence and on any
+  // failure. The delete is NOT swallowed: it is the Clear path's teardown, and
+  // `clearDerived.ts` reports a store it could not remove.
+  getCountyDayObsStore(): Promise<unknown | null>;
+  setCountyDayObsStore(doc: object): Promise<void>;
+  // Idempotent: an absent document is already the state asked for.
+  deleteCountyDayObsStore(): Promise<void>;
 }
 
 // Web/Pi reads are same-origin transfers from SnowRaven's own backend. Thirty
@@ -182,7 +280,7 @@ export const FILE_READ_INACTIVITY_MS = 30_000
  * browser fetch honors AbortSignal, but the race keeps this function's own settle
  * contract even if a test double or WebView transport is late to observe abort.
  */
-async function readWebFile(name: 'ebird' | 'ml'): Promise<string | null> {
+async function readWebFile(url: string): Promise<string | null> {
   const controller = new AbortController()
   let watchdog: ReturnType<typeof setTimeout> | null = null
   let timedOut = false
@@ -205,7 +303,7 @@ async function readWebFile(name: 'ebird' | 'ml'): Promise<string | null> {
   armWatchdog()
   try {
     const res = await Promise.race([
-      fetch(`/settings/files/${name}`, { signal: controller.signal }),
+      fetch(url, { signal: controller.signal }),
       timeout,
     ])
     if (!res.ok) return null
@@ -331,7 +429,7 @@ class WebStorage implements StorageAdapter {
   }
 
   async readFile(name: 'ebird' | 'ml'): Promise<string | null> {
-    return readWebFile(name);
+    return readWebFile(`/settings/files/${name}`);
   }
 
   async writeFile(name: 'ebird' | 'ml', content: string, filename: string): Promise<void> {
@@ -393,6 +491,58 @@ class WebStorage implements StorageAdapter {
   async setReplayStore(store: ReplayStore): Promise<void> {
     await this.setSetting('replay-store-v1', store);
   }
+
+  // The Targets day cache: its own file on the backend already
+  // (`data/settings/county-day-obs-v2.json`, one file per key), so no new route.
+  // A non-OK read is null through getSetting; a non-OK save or delete throws,
+  // the deleteSetting failure shape the clear path relies on.
+  async getCountyDayObsStore(): Promise<unknown | null> {
+    return this.getSetting<unknown>('county-day-obs-v2');
+  }
+
+  async setCountyDayObsStore(doc: object): Promise<void> {
+    await this.setSetting('county-day-obs-v2', doc);
+  }
+
+  async deleteCountyDayObsStore(): Promise<void> {
+    await this.deleteSetting('county-day-obs-v2');
+  }
+
+  // ── eBird bar-chart files: backend/routers/barcharts.py ──
+  // Same failure shapes as the slot methods above. The region code is checked
+  // here as well as by the route's `pattern=`: it is a URL segment, and a code
+  // that fails the shape never leaves the page.
+  async getBarChartFiles(): Promise<BarChartFilesStatus> {
+    const res = await fetch('/settings/barcharts');
+    // UNKNOWN, not EMPTY: a non-OK answer says nothing about which files exist.
+    if (!res.ok) throw new Error(`Bar-chart status read failed (${res.status})`);
+    return normalizeBarChartManifest(await res.json());
+  }
+
+  async readBarChartFile(regionCode: string): Promise<string | null> {
+    if (!REGION_CODE_RE.test(regionCode)) return null;
+    // The same header-and-body inactivity watchdog as the two data files, so a
+    // silent socket cannot park the Targets tab's file read forever.
+    return readWebFile(`/settings/barcharts/${encodeURIComponent(regionCode)}`);
+  }
+
+  async writeBarChartFile(regionCode: string, content: string, filename: string): Promise<void> {
+    assertRegionCode(regionCode);
+    const form = new FormData();
+    form.append('file', new Blob([content], { type: 'text/plain' }), filename);
+    const res = await fetch(`/settings/barcharts/${encodeURIComponent(regionCode)}`, { method: 'POST', body: form });
+    // A resolved fetch is not a saved file (the writeFile reasoning above): the
+    // route answers 413 over the cap and 400 on a name it does not accept.
+    if (!res.ok) throw new Error(`File save failed (${res.status})`);
+  }
+
+  async deleteBarChartFile(regionCode: string): Promise<void> {
+    assertRegionCode(regionCode);
+    const res = await fetch(`/settings/barcharts/${encodeURIComponent(regionCode)}`, { method: 'DELETE' });
+    // The route answers 200 whether or not a file was stored, so every non-OK
+    // answer here is a real failure and is raised.
+    if (!res.ok) throw new Error(`File delete failed (${res.status})`);
+  }
 }
 
 // All persistent Tauri data lives in AppLocalData/data/:
@@ -401,6 +551,9 @@ class WebStorage implements StorageAdapter {
 //   metadata.json   — uploaded file metadata
 //   ebird-backup.csv
 //   ml-export.csv
+//   barcharts.json  — the eBird bar-chart file manifest (targets-tab)
+//   barcharts/<regionCode>.txt — one eBird bar-chart file per county
+//   county-day-obs.json — the Targets tab's per-(county, day) eBird cache
 //
 // tauri-plugin-fs + AppLocalData is the single mechanism for all of it.
 // localStorage is NOT used — it is ephemeral in Tauri's WKWebView (cleared on every relaunch).
@@ -414,9 +567,24 @@ const FILE_PATHS: Record<'ebird' | 'ml', string> = {
   ml: `${DATA_DIR}/ml-export.csv`,
 };
 
+// eBird bar-chart files (targets-tab, schema.md section 1.2): one text file
+// per county, named by its validated region code, plus the manifest that lists
+// them. Exported for the iCloud exclusion guard (icloudPaths.parity.test.ts),
+// which asserts neither is ever one of the synced paths.
+export const BARCHARTS_META_PATH = `${DATA_DIR}/barcharts.json`;
+export const BARCHARTS_DIR = `${DATA_DIR}/barcharts`;
+const barChartFilePath = (regionCode: string) => `${BARCHARTS_DIR}/${regionCode}.txt`;
+
 // Offline-support own-file locations (never settings.json — FR-42).
 const STYLE_DIR = `${DATA_DIR}/map-style`;
 const REPLAY_PATH = `${DATA_DIR}/replay.json`;
+
+// The Targets tab's day cache (targets-tab, schema.md section 3.2): its OWN
+// file, as replay.json is, so a 10 MB document is never rewritten by a
+// preference save. A non-dotted name under data/, deliberately INSIDE the
+// webview's `$APPLOCALDATA/**` fs grant (security.md's leading-dot rule is for
+// native-side documents). Exported for the iCloud exclusion guard.
+export const COUNTY_DAY_OBS_PATH = `${DATA_DIR}/county-day-obs.json`;
 const styleFilePath = (variant: string) => `${STYLE_DIR}/${variant}.json`;
 
 // metadata.json is a persisted runtime document, so its optional `origin` is
@@ -569,13 +737,15 @@ class TauriStorage implements StorageAdapter {
   //      inside a link, use only the readJson/writeJson/readMeta primitives;
   //   2. a failed link rejects its own caller only — the stored tail
   //      swallows the rejection, so one failed write never poisons the chain.
-  // Not a cache (cacheInventory.test.ts): keys are the three internal path
-  // constants, values are tail promises — nothing is retained or evicted.
+  // Not a cache (cacheInventory.test.ts): keys are the four internal path
+  // constants (the three documents above plus BARCHARTS_META_PATH), values are
+  // tail promises — nothing is retained or evicted.
   // SINGLE-WEBVIEW INVARIANT. This chain lives in one JS context (a field on
   // the module's single storage instance), so it orders writers within that
   // context only -- sufficient while the app runs exactly one webview, kept
   // true at the `Builder::run` call in `src-tauri/src/lib.rs`. Same assumption:
-  // `replayStore.ts`, `clearDerived.ts`, `exoticProvenanceCache.ts`. Reversal
+  // `replayStore.ts`, `clearDerived.ts`, `exoticProvenanceCache.ts`,
+  // `countyDayObsCache.ts`. Reversal
   // condition: CLAUDE.md, Desktop storage (Tauri), the v1.0.9 entry.
   private docChains: Record<string, Promise<void>> = {};
 
@@ -902,6 +1072,110 @@ class TauriStorage implements StorageAdapter {
     const { mkdir, writeTextFile, BaseDirectory } = await this.fs();
     await mkdir(DATA_DIR, { baseDir: BaseDirectory.AppLocalData, recursive: true });
     await writeTextFile(REPLAY_PATH, JSON.stringify(store), { baseDir: BaseDirectory.AppLocalData });
+  }
+
+  // ── The Targets day cache: OWN file data/county-day-obs.json ──
+  // Unchained on purpose, as the replay store is: a single writing module whose
+  // writes are whole-document snapshots, ordered by that module's own
+  // `writeThrough` (countyDayObsCache.ts, schema.md section 3.6). No link here
+  // touches settings.json or any docChains key.
+  async getCountyDayObsStore(): Promise<unknown | null> {
+    const { readTextFile, exists, BaseDirectory } = await this.fs();
+    try {
+      if (!await exists(COUNTY_DAY_OBS_PATH, { baseDir: BaseDirectory.AppLocalData })) return null;
+      return JSON.parse(await readTextFile(COUNTY_DAY_OBS_PATH, { baseDir: BaseDirectory.AppLocalData })) as unknown;
+    } catch {
+      return null;
+    }
+  }
+
+  async setCountyDayObsStore(doc: object): Promise<void> {
+    const { mkdir, writeTextFile, BaseDirectory } = await this.fs();
+    await mkdir(DATA_DIR, { baseDir: BaseDirectory.AppLocalData, recursive: true });
+    await writeTextFile(COUNTY_DAY_OBS_PATH, JSON.stringify(doc), { baseDir: BaseDirectory.AppLocalData });
+  }
+
+  async deleteCountyDayObsStore(): Promise<void> {
+    const { remove, exists, BaseDirectory } = await this.fs();
+    if (await exists(COUNTY_DAY_OBS_PATH, { baseDir: BaseDirectory.AppLocalData })) {
+      await remove(COUNTY_DAY_OBS_PATH, { baseDir: BaseDirectory.AppLocalData });
+    }
+  }
+
+  // ── eBird bar-chart files (targets-tab, schema.md section 1.3) ──
+  // `data/barcharts.json` is a SHARED document (several counties' entries in
+  // one manifest), so every read-modify-write on it is one link on its own
+  // chain, exactly as metadata.json's are: two concurrent adds for different
+  // counties would otherwise each rewrite the manifest from a stale base and
+  // drop the other's entry. Rule 1 holds (no chained call inside a link: only
+  // the unchained readJson / writeJson primitives), and rule 2 holds (a failed
+  // link rejects its own caller only).
+
+  // Unchained manifest read for use INSIDE a write link. A corrupt manifest is
+  // healed by the write rather than wedging every later add and remove: the
+  // read side (getBarChartFiles) still reports a corrupt document as UNKNOWN,
+  // and the write that follows replaces it with a well-formed one. Stated
+  // residual: another county's entry in a corrupt document is lost from the
+  // manifest (its file stays on disk and is overwritten by its next add).
+  private async readBarChartManifestForWrite(): Promise<BarChartFilesStatus> {
+    try {
+      return normalizeBarChartManifest(await this.readJson<Record<string, unknown>>(BARCHARTS_META_PATH));
+    } catch {
+      return normalizeBarChartManifest(null);
+    }
+  }
+
+  async getBarChartFiles(): Promise<BarChartFilesStatus> {
+    // readJson answers `{}` for an absent document, which normalizes to the
+    // EMPTY manifest; an fs or JSON.parse failure PROPAGATES, which is UNKNOWN.
+    return this.chain(BARCHARTS_META_PATH, async () =>
+      normalizeBarChartManifest(await this.readJson<Record<string, unknown>>(BARCHARTS_META_PATH)));
+  }
+
+  // Unchained, like readFile, with `await this.fs()` outside the try for the
+  // same reason (a permanent fs-import failure is not "no file").
+  async readBarChartFile(regionCode: string): Promise<string | null> {
+    const { readTextFile, exists, BaseDirectory } = await this.fs();
+    if (!REGION_CODE_RE.test(regionCode)) return null;
+    const path = barChartFilePath(regionCode);
+    try {
+      if (!await exists(path, { baseDir: BaseDirectory.AppLocalData })) return null;
+      return await readTextFile(path, { baseDir: BaseDirectory.AppLocalData });
+    } catch {
+      return null;
+    }
+  }
+
+  async writeBarChartFile(regionCode: string, content: string, filename: string): Promise<void> {
+    assertRegionCode(regionCode);
+    // The write chokepoint refuses what the manifest reader would drop, before
+    // anything is written: a longer name would store a file under an entry that
+    // reads back as absent (security review L2). The web/Pi route answers 400.
+    if (filename.length > BARCHART_FILENAME_MAX) throw new Error('Bar-chart filename is too long.');
+    return this.chain(BARCHARTS_META_PATH, async () => {
+      const { mkdir, writeTextFile, BaseDirectory } = await this.fs();
+      await mkdir(BARCHARTS_DIR, { baseDir: BaseDirectory.AppLocalData, recursive: true });
+      await writeTextFile(barChartFilePath(regionCode), content, { baseDir: BaseDirectory.AppLocalData });
+      const manifest = await this.readBarChartManifestForWrite();
+      manifest.counties[regionCode] = { filename, uploadedAt: new Date().toISOString() };
+      await this.writeJson(BARCHARTS_META_PATH, manifest as unknown as Record<string, unknown>);
+    });
+  }
+
+  async deleteBarChartFile(regionCode: string): Promise<void> {
+    assertRegionCode(regionCode);
+    return this.chain(BARCHARTS_META_PATH, async () => {
+      const { remove, exists, BaseDirectory } = await this.fs();
+      const path = barChartFilePath(regionCode);
+      try {
+        if (await exists(path, { baseDir: BaseDirectory.AppLocalData })) {
+          await remove(path, { baseDir: BaseDirectory.AppLocalData });
+        }
+      } catch { /* best-effort, as removeCsv: the manifest entry still goes */ }
+      const manifest = await this.readBarChartManifestForWrite();
+      delete manifest.counties[regionCode];
+      await this.writeJson(BARCHARTS_META_PATH, manifest as unknown as Record<string, unknown>);
+    });
   }
 }
 

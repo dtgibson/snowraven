@@ -42,7 +42,7 @@ _KEY_RE = re.compile(r"^[A-Za-z0-9._-]{1,128}$")
 
 # Defense-in-depth: never let the free-form store answer for a key that has a
 # dedicated typed handler (route order already protects these when correct).
-_RESERVED_KEYS = {"keys", "files", "map-defaults"}
+_RESERVED_KEYS = {"keys", "files", "map-defaults", "barcharts"}
 
 # Server-side payload backstop (the client caps replay/style well below this).
 _MAX_BYTES = 16 * 1024 * 1024  # ~16 MB

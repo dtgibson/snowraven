@@ -493,14 +493,23 @@ describe('the Map Explorer Date Range pair adapts to the guard (fix: map-explore
     // `[^>]*` cannot cross a `>`, so this only matches a class inside the SAME
     // opening tag as the control -- a class on a wrapper is not counted.
     const onControls = [...src.matchAll(/<(?:input|select)\b[^>]*className="sr-input-16"/g)]
-    // Six native controls here. The two Date Range fields are the shared date
+    // The place-name search is the shared components/AddressSearch.tsx (lifted
+    // out so the Targets tab's measuring-point chooser runs the same one,
+    // targets-tab design-spec 2a). Map Explorer mounts it on each of its three
+    // views, and BOTH of its registers carry the class on the input tag itself.
+    expect([...src.matchAll(/<AddressSearch\b/g)].length).toBe(3)
+    const search = readFileSync(new URL('../components/AddressSearch.tsx', import.meta.url), 'utf8')
+    const searchInputs = [...search.matchAll(/<input\b[^>]*className="([^"]*)"/g)]
+    expect(searchInputs.length, 'the shared search renders one input per register').toBe(2)
+    for (const m of searchInputs) expect(m[1].split(/\s+/)).toContain('sr-input-16')
+    // Five native controls here. The two Date Range fields are the shared date
     // pair (county-date-filter-mobile), counted below where the class now lives;
     // the ninth (Species) is the shared SpeciesCombobox (improve:
     // searchable-species-pickers), whose className prop rides onto its <input>
     // element. The tag-level match keeps THIS guard rejecting a dropped prop;
     // MapExplorerInputZoom.test.tsx asserts the RENDERED placement (the class on
     // the input element itself), which a prop the component ignored would fail.
-    expect(onControls.length).toBe(6)
+    expect(onControls.length).toBe(5)
     // The Date Range pair: mounted exactly once here, at the panel register, and
     // BOTH of the shared component's inputs carry the class on the input tag
     // itself. Deleting either class, or the pair falling back to a wrapper

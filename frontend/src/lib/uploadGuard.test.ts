@@ -25,7 +25,7 @@
 //      and code symmetry is not evidence symmetry.
 //   5. THE COPY IS COPY: no em dash, and it names what the slot takes rather than
 //      what the offered file appeared to be.
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { readFileSync } from 'node:fs'
 import {
   MAX_UPLOAD_BYTES,
@@ -35,7 +35,16 @@ import {
   exceedsUtf8ByteLimit,
   refuseByFilename,
   refuseByContent,
+  refuseBarChartByContent,
+  parseBarChartFilename,
+  barChartRegionMismatchMessage,
+  BARCHART_EXTENSION_MESSAGE,
+  BARCHART_LAYOUT_MESSAGE,
+  BARCHART_UNREADABLE_CODE_MESSAGE,
+  BARCHART_FILENAME_MAX,
+  BARCHART_NAME_TOO_LONG_MESSAGE,
 } from './uploadGuard'
+import { parseBarChart, type BarChartParseOutcome } from './barChart/parseBarChart'
 import { detectExportType } from './detectExportType'
 import { MAX_HEADER_CHARS } from './firstLine'
 
@@ -234,5 +243,129 @@ describe('the refusal copy', () => {
     expect(TOO_LARGE_MESSAGE).toContain('it was not saved')
     expect(wrongExportMessage('ml')).toContain('it was not saved')
     expect(wrongExportMessage('ebird')).toContain('it was not saved')
+  })
+})
+
+// ── The bar-chart kind (targets-tab, schema.md section 2.3) ──────────────────
+// The same registry, extended rather than forked: the Targets import gets every
+// refusal the CSV imports get or visibly none. Each branch of section 2.3 has its
+// own row, in the ORDER the function applies them, and the csv default keeps the
+// two rows above green unchanged.
+
+const BARCHART_SAMPLE = readFileSync(new URL('./barChart/barchart-sample.fixture.txt', import.meta.url), 'utf8')
+const ALAMEDA_NAME = 'ebird_US-CA-001__1900_2026_1_12_barchart.txt'
+const ALAMEDA_CTX = { filename: ALAMEDA_NAME, regionCode: 'US-CA-001', countyLabel: 'Alameda, CA' }
+
+describe('refuseByFilename, bar-chart kind', () => {
+  it('accepts .txt and .tsv in any case', () => {
+    for (const n of ['x.txt', 'X.TXT', 'x.tsv', ALAMEDA_NAME, 'ebird_US-CA-001__1900_2026_1_12_barchart (1).txt']) {
+      expect(refuseByFilename(n, 'barchart'), n).toBeNull()
+    }
+  })
+
+  it('refuses everything else with its own message, before any read', () => {
+    for (const n of ['MyEBirdData.csv', 'x.zip', 'x.txt.gz', 'txt', 'x.tx']) {
+      expect(refuseByFilename(n, 'barchart'), n).toBe(BARCHART_EXTENSION_MESSAGE)
+    }
+    expect(BARCHART_EXTENSION_MESSAGE).toBe('Only .txt or .tsv bar-chart files are accepted.')
+  })
+
+  it('the default kind is still the csv rule, and the two kinds do not bleed', () => {
+    expect(refuseByFilename('x.txt')).toBe(CSV_ONLY_MESSAGE)
+    expect(refuseByFilename('x.csv', 'csv')).toBeNull()
+    expect(refuseByFilename('x.csv', 'barchart')).toBe(BARCHART_EXTENSION_MESSAGE)
+  })
+
+  it(`a name the manifest cannot hold is refused before any read: at ${BARCHART_FILENAME_MAX} UTF-16 code units accepted, one over refused (security review L2)`, () => {
+    const named = (units: number) => `${'n'.repeat(units - '.txt'.length)}.txt`
+    expect(named(BARCHART_FILENAME_MAX)).toHaveLength(BARCHART_FILENAME_MAX)
+    expect(refuseByFilename(named(BARCHART_FILENAME_MAX), 'barchart')).toBeNull()
+    expect(refuseByFilename(named(BARCHART_FILENAME_MAX + 1), 'barchart')).toBe(BARCHART_NAME_TOO_LONG_MESSAGE)
+    // Counted in the unit the manifest reader counts (`.length`): an astral
+    // character is two, so 126 birds and `.txt` is one over at 130 characters.
+    const astral = `${'\u{1F426}'.repeat(126)}.txt`
+    expect(astral.length).toBe(BARCHART_FILENAME_MAX + 1)
+    expect(refuseByFilename(astral, 'barchart')).toBe(BARCHART_NAME_TOO_LONG_MESSAGE)
+    // The extension rule still speaks first, and the csv kind has no such rule.
+    expect(refuseByFilename(`${'n'.repeat(BARCHART_FILENAME_MAX)}.zip`, 'barchart')).toBe(BARCHART_EXTENSION_MESSAGE)
+    expect(refuseByFilename(`${'n'.repeat(BARCHART_FILENAME_MAX)}.csv`)).toBeNull()
+  })
+
+  it('the bound is the web/Pi route\'s too: equals _FILENAME_MAX in backend/routers/barcharts.py', () => {
+    // Two declarations compared to each other, never a restated literal
+    // (testing.md v1.0.33, rule 5). The route's own enforcement is pinned by
+    // test_barcharts_router.py, so deleting either side's check goes red there.
+    const py = readFileSync(new URL('../../../backend/routers/barcharts.py', import.meta.url), 'utf8')
+    const m = py.match(/^_FILENAME_MAX\s*=\s*(\d+)\s*$/m)
+    expect(m, 'the Python constant is there to be read').not.toBeNull()
+    expect(Number(m![1])).toBe(BARCHART_FILENAME_MAX)
+  })
+})
+
+describe('refuseBarChartByContent, branch by branch, in order', () => {
+  const parse = vi.fn((t: string): BarChartParseOutcome => parseBarChart(t))
+  beforeEach(() => { parse.mockClear() })
+
+  it('5. a real bar-chart file for the selected county is accepted', () => {
+    expect(refuseBarChartByContent(BARCHART_SAMPLE, ALAMEDA_CTX, parse)).toBeNull()
+    expect(refuseBarChartByContent(BARCHART_SAMPLE, { ...ALAMEDA_CTX, filename: 'barchart.txt' }, parse)).toBeNull()
+  })
+
+  it('1. over the cap is TOO_LARGE, checked first, without parsing', () => {
+    const over = BARCHART_SAMPLE + 'x'.repeat(MAX_UPLOAD_BYTES)
+    expect(refuseBarChartByContent(over, { ...ALAMEDA_CTX, filename: 'ebird_CA-ON__x.txt' }, parse)).toBe(TOO_LARGE_MESSAGE)
+    expect(parse).not.toHaveBeenCalled()
+  })
+
+  it('2. an unreadable eBird-shaped name refuses before the mismatch and the parse', () => {
+    expect(refuseBarChartByContent(BARCHART_SAMPLE, { ...ALAMEDA_CTX, filename: 'ebird_CA-ON__1900_2026_1_12_barchart.txt' }, parse))
+      .toBe(BARCHART_UNREADABLE_CODE_MESSAGE)
+    expect(parse).not.toHaveBeenCalled()
+  })
+
+  it('3. another county\'s code refuses naming both, before the parse (QA-31)', () => {
+    const ctx = { filename: ALAMEDA_NAME, regionCode: 'US-CA-013', countyLabel: 'Contra Costa, CA' }
+    expect(refuseBarChartByContent(BARCHART_SAMPLE, ctx, parse))
+      .toBe('This file is for US-CA-001, not Contra Costa, CA. Open Contra Costa, CA and add it there, or download Contra Costa, CA\'s file.')
+    expect(barChartRegionMismatchMessage('US-CA-001', 'Contra Costa, CA')).toContain('US-CA-001')
+    expect(parse).not.toHaveBeenCalled()
+  })
+
+  it('4. a file that is not the layout refuses with FR-28\'s words', () => {
+    expect(refuseBarChartByContent(DEMO_EBIRD, { ...ALAMEDA_CTX, filename: 'MyEBirdData.txt' }, parse)).toBe(BARCHART_LAYOUT_MESSAGE)
+    expect(refuseBarChartByContent('', ALAMEDA_CTX, parse)).toBe(BARCHART_LAYOUT_MESSAGE)
+    expect(parse).toHaveBeenCalledTimes(2)
+    expect(BARCHART_LAYOUT_MESSAGE).toBe("This is not an eBird bar-chart file. Download it from the county's bar chart page on ebird.org (Download Histogram Data).")
+  })
+
+  it('the refusal never echoes the filename (QA-70)', () => {
+    const hostile = 'ebird_<script>__1900_2026_1_12_barchart.txt'
+    expect(parseBarChartFilename(hostile).malformedCode).toBe(true)
+    expect(refuseBarChartByContent(BARCHART_SAMPLE, { ...ALAMEDA_CTX, filename: hostile }, parse)).not.toContain('<script>')
+  })
+})
+
+describe('the bar-chart copy', () => {
+  it('carries no em dash', () => {
+    for (const s of [BARCHART_EXTENSION_MESSAGE, BARCHART_LAYOUT_MESSAGE, BARCHART_UNREADABLE_CODE_MESSAGE, BARCHART_NAME_TOO_LONG_MESSAGE, barChartRegionMismatchMessage('US-CA-001', 'Alameda, CA')]) {
+      expect(s).not.toContain('\u2014')
+    }
+  })
+})
+
+describe('the registry stays entry-safe', () => {
+  it('uploadGuard.ts has no VALUE import of lib/barChart (comments stripped)', () => {
+    // Settings.tsx puts this module on App.tsx's static graph, and the parser
+    // must stay off the entry chunk: the parse arrives as a parameter and its
+    // type through `import type`, which is erased at build. Comments are
+    // stripped first, both forms, so an explanation that NAMES the directory
+    // cannot fail a correct file and a commented-out import cannot pass one.
+    const src = readFileSync(new URL('./uploadGuard.ts', import.meta.url), 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/^\s*\/\/.*$/gm, '')
+    const imports = [...src.matchAll(/^import\s+(type\s+)?[^;]*?from\s+'([^']+)'/gm)]
+    const barChart = imports.filter(m => m[2].includes('barChart/'))
+    expect(barChart.length, 'the type import is there to be checked').toBeGreaterThan(0)
+    for (const m of barChart) expect(m[1], `${m[2]} must be a type-only import`).toBe('type ')
   })
 })

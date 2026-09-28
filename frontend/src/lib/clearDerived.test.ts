@@ -6,8 +6,9 @@
 // `exotic-provenance-v1` (the user's own checklist ids, species codes and
 // escapee common names), `checklist-projects-v1` (submission ids as keys),
 // `county-completeness-v1` (public payloads under a KEY SET that says which
-// counties the user has birded), and the `/weather/S…` / `/tide/S…` entries in
-// `replay.json`.
+// counties the user has birded), the `/weather/S…` / `/tide/S…` entries in
+// `replay.json`, and (targets-tab) `county-day-obs.json`, the Targets sweep's
+// per-day answers keyed on counties the user has birded.
 //
 // The negative half matters as much as the positive: a REPLACE must purge
 // nothing (PRIVACY_POLICY.md publishes that a newer export asks only about
@@ -19,14 +20,17 @@ import type { ReplayStore } from './storage'
 
 // ── fake storage seam ────────────────────────────────────────────────────────
 // Settings documents live in one record (as they do in settings.json); the
-// replay document is its own file (as data/replay.json is).
+// replay document and the Targets day cache are each their own file (as
+// data/replay.json and data/county-day-obs.json are).
 const disk = vi.hoisted(() => ({
   settings: {} as Record<string, unknown>,
   replay: null as ReplayStore | null,
+  dayObs: null as unknown,
   // Paths whose next write rejects, for the best-effort teardown assertion.
   failNextDelete: new Set<string>(),
-  // When set, every getSetting parks on it — the seam-level hold that lets a
-  // test put a one-per-session disk read in flight ACROSS a purge.
+  // When set, every getSetting (and the day cache's own read) parks on it — the
+  // seam-level hold that lets a test put a one-per-session disk read in flight
+  // ACROSS a purge.
   holdSettingRead: null as Promise<void> | null,
   // ONE-SHOT: the next setReplayStore parks on it and clears it, so a test can
   // hold ONE write in flight while later writes proceed. It has to be one-shot,
@@ -59,6 +63,17 @@ vi.mock('./storage', () => ({
       disk.replay = JSON.parse(JSON.stringify(store)) as ReplayStore
       disk.replayWrites.push(Object.keys(disk.replay.entries).sort())
     },
+    async getCountyDayObsStore(): Promise<unknown | null> {
+      if (disk.holdSettingRead) await disk.holdSettingRead
+      return disk.dayObs === null ? null : JSON.parse(JSON.stringify(disk.dayObs)) as unknown
+    },
+    async setCountyDayObsStore(doc: object): Promise<void> {
+      disk.dayObs = JSON.parse(JSON.stringify(doc)) as unknown
+    },
+    async deleteCountyDayObsStore(): Promise<void> {
+      if (disk.failNextDelete.delete('county-day-obs.json')) throw new Error('EIO (injected): county-day-obs.json')
+      disk.dayObs = null
+    },
   },
 }))
 
@@ -66,6 +81,7 @@ import { purgeDerivedOnClear, registeredTeardowns } from './clearDerived'
 import * as provenance from './exoticProvenanceCache'
 import * as projects from './checklistProjectsCache'
 import * as county from './countyCompletenessCache'
+import * as dayObs from './countyDayObsCache'
 import * as replay from './replayStore'
 
 const T = Date.parse('2026-09-01T12:00:00.000Z')
@@ -97,6 +113,21 @@ const COUNTY_DOC = {
   order: ['US-CA-085'],
 }
 
+// targets-tab: one swept county day. The payload is eBird's public data; the
+// KEY is a county the user birded, which is why the store is registered.
+const DAY_OBS_DOC = {
+  version: 2,
+  entries: {
+    'US-CA-001|2026-08-31': {
+      fetchedAt: T,
+      complete: true,
+      bytes: 0,
+      species: [{ speciesCode: 'mallar3', obsDt: '2026-08-31 08:00', locId: 'L1', locName: 'Pond', lat: 37.7, lng: -122.2 }],
+    },
+  },
+  order: ['US-CA-001|2026-08-31'],
+}
+
 const CHECKLIST_REPLAY_KEYS = ['/weather/S1000001?', '/tide/S1000001?']
 const COORD_REPLAY_KEYS = ['/weather/at?lat=37.00000&lng=-122.00000', '/tide/at?lat=37.00000&lng=-122.00000']
 // A checklist-derived key NOT in the seeded document: what an in-flight lookup
@@ -110,7 +141,7 @@ function replayDoc(): ReplayStore {
   return { version: 1, entries, order: [...keys] }
 }
 
-/** Seed all four documents, plus one setting nothing may touch. */
+/** Seed all five documents, plus one setting nothing may touch. */
 function seedDisk(): void {
   disk.settings = {
     [provenance.PROVENANCE_STORE_KEY]: JSON.parse(JSON.stringify(PROVENANCE_DOC)) as unknown,
@@ -119,6 +150,7 @@ function seedDisk(): void {
     'map-defaults': { lat: 37, lng: -122, dist: 5 },
   }
   disk.replay = replayDoc()
+  disk.dayObs = JSON.parse(JSON.stringify(DAY_OBS_DOC)) as unknown
 }
 
 /** Hydrate every mirror from disk, the state a real session is in at Clear. */
@@ -126,6 +158,7 @@ async function hydrateAll(): Promise<void> {
   await provenance.loadSnapshot()
   await projects.loadSnapshot()
   await county.loadAll()
+  await dayObs.loadAll()
   await replay.get(CHECKLIST_REPLAY_KEYS[0])
 }
 
@@ -135,6 +168,7 @@ beforeEach(() => {
   provenance._resetProvenanceCacheForTests()
   projects._resetProjectsCacheForTests()
   county._resetCountyCompletenessCacheForTests()
+  dayObs._resetCountyDayObsCacheForTests()
   replay._resetReplayStoreForTests()
   disk.failNextDelete.clear()
   disk.holdSettingRead = null
@@ -159,6 +193,7 @@ describe('the registry (clear-means-clear)', () => {
     expect([...registeredTeardowns('ebird')].sort()).toEqual([
       'checklist-projects-v1',
       'county-completeness-v1',
+      'county-day-obs.json',
       'exotic-provenance-v1',
       'replay.json (checklist-keyed entries)',
     ])
@@ -176,6 +211,7 @@ describe('a Clear of the eBird backup purges every derived store', () => {
     expect(disk.settings[provenance.PROVENANCE_STORE_KEY]).toBeUndefined()
     expect(disk.settings[projects.PROJECTS_STORE_KEY]).toBeUndefined()
     expect(disk.settings[county.COMPLETENESS_STORE_KEY]).toBeUndefined()
+    expect(disk.dayObs).toBeNull()
     expect(replayKeysOnDisk()).toEqual([...COORD_REPLAY_KEYS].sort())
     // A purge is not a settings wipe: everything else in the document stands.
     expect(disk.settings['map-defaults']).toEqual({ lat: 37, lng: -122, dist: 5 })
@@ -222,6 +258,7 @@ describe('a Clear of the eBird backup purges every derived store', () => {
     expect(provenance.getSnapshot().excludedNames).toEqual([])
     expect(projects.getSnapshot().size).toBe(0)
     expect(await county.loadAll()).toEqual(new Map())
+    expect(await dayObs.loadAll()).toEqual(new Map())
     for (const key of CHECKLIST_REPLAY_KEYS) expect(await replay.get(key)).toBeNull()
   })
 
@@ -234,6 +271,7 @@ describe('a Clear of the eBird backup purges every derived store', () => {
     expect(disk.settings[provenance.PROVENANCE_STORE_KEY]).toBeUndefined()
     expect(disk.settings[projects.PROJECTS_STORE_KEY]).toBeUndefined()
     expect(disk.settings[county.COMPLETENESS_STORE_KEY]).toBeUndefined()
+    expect(disk.dayObs).toBeNull()
     expect(replayKeysOnDisk()).toEqual([...COORD_REPLAY_KEYS].sort())
   })
 
@@ -245,11 +283,13 @@ describe('a Clear of the eBird backup purges every derived store', () => {
     provenance._resetProvenanceCacheForTests()
     projects._resetProjectsCacheForTests()
     county._resetCountyCompletenessCacheForTests()
+    dayObs._resetCountyDayObsCacheForTests()
     replay._resetReplayStoreForTests()
 
     expect((await provenance.loadSnapshot()).checklists.size).toBe(0)
     expect((await projects.loadSnapshot()).size).toBe(0)
     expect(await county.loadAll()).toEqual(new Map())
+    expect(await dayObs.loadAll()).toEqual(new Map())
     expect(await replay.get(CHECKLIST_REPLAY_KEYS[0])).toBeNull()
     expect(await replay.get(COORD_REPLAY_KEYS[0])).not.toBeNull()
   })
@@ -271,6 +311,17 @@ describe('a Clear of the eBird backup purges every derived store', () => {
     expect(disk.settings[projects.PROJECTS_STORE_KEY]).toBeDefined()
     expect(projects.getSnapshot().size).toBe(0)
   })
+
+  it('an own-document store that fails its delete is reported by its registry id (targets-tab)', async () => {
+    // The day cache's purge is a DELETE on its own file, riding the store's own
+    // write chain and awaited uncaught, so a failure reaches the registry.
+    await hydrateAll()
+    disk.failNextDelete.add('county-day-obs.json')
+    await expect(purgeDerivedOnClear('ebird')).resolves.toEqual(['county-day-obs.json'])
+    expect(disk.dayObs).toEqual(DAY_OBS_DOC)
+    expect(await dayObs.loadAll()).toEqual(new Map())
+    expect(disk.settings[projects.PROJECTS_STORE_KEY]).toBeUndefined()
+  })
 })
 
 describe('a Clear of the ML export purges nothing', () => {
@@ -281,6 +332,7 @@ describe('a Clear of the ML export purges nothing', () => {
     expect(disk.settings[provenance.PROVENANCE_STORE_KEY]).toEqual(PROVENANCE_DOC)
     expect(disk.settings[projects.PROJECTS_STORE_KEY]).toEqual(PROJECTS_DOC)
     expect(disk.settings[county.COMPLETENESS_STORE_KEY]).toEqual(COUNTY_DOC)
+    expect(disk.dayObs).toEqual(DAY_OBS_DOC)
     expect(replayKeysOnDisk()).toEqual([...CHECKLIST_REPLAY_KEYS, ...COORD_REPLAY_KEYS].sort())
   })
 })
@@ -444,6 +496,20 @@ describe('a purge supersedes work already in flight', () => {
       expect(county._getCountyCompletenessCacheWorkStatsForTests().puts).toBe(0)
     }],
 
+    ['county day', () => {
+      // targets-tab: the Targets sweep's per-day answer, keyed on a county the
+      // user birded. The generation is captured INSIDE the store's own fetch
+      // chokepoint, before the loader.
+      const gate = deferred<{ regionCode: string; date: string; species: never[] }>()
+      const settled = dayObs.dedupedFetch('US-CA-001', '2026-08-30', () => gate.promise)
+      return { land: () => gate.resolve({ regionCode: 'US-CA-001', date: '2026-08-30', species: [] }), settled }
+    }, async (result) => {
+      expect((result as dayObs.DayObsFetchResult).fromNetwork).toBe(true)
+      expect(disk.dayObs).toBeNull()
+      expect(await dayObs.loadAll()).toEqual(new Map())
+      expect(dayObs._getCountyDayObsCacheWorkStatsForTests().puts).toBe(0)
+    }],
+
     ['replay', () => {
       // transport.getReplayable's exact shape: capture the generation, await
       // the live GET, then put. The Weather Backlog fires a run of these for
@@ -508,13 +574,15 @@ describe('a purge supersedes work already in flight', () => {
 
   // Typed explicitly: an inline tuple whose members are arrow functions returning
   // module values makes TS give up on inferring the case type (TS7024).
-  const LOAD_RACES: ReadonlyArray<[label: string, load: () => Promise<unknown>, key: string]> = [
-    ['provenance', () => provenance.loadSnapshot(), provenance.PROVENANCE_STORE_KEY],
-    ['projects', () => projects.loadSnapshot(), projects.PROJECTS_STORE_KEY],
-    ['county completeness', () => county.loadAll(), county.COMPLETENESS_STORE_KEY],
+  const LOAD_RACES: ReadonlyArray<[label: string, load: () => Promise<unknown>, onDisk: () => unknown]> = [
+    ['provenance', () => provenance.loadSnapshot(), () => disk.settings[provenance.PROVENANCE_STORE_KEY]],
+    ['projects', () => projects.loadSnapshot(), () => disk.settings[projects.PROJECTS_STORE_KEY]],
+    ['county completeness', () => county.loadAll(), () => disk.settings[county.COMPLETENESS_STORE_KEY]],
+    // Its own document since 2026-09-27: absent reads null there, not undefined.
+    ['county day', () => dayObs.loadAll(), () => disk.dayObs ?? undefined],
   ]
 
-  it.each(LOAD_RACES)('a %s disk read in flight cannot restore the pre-purge document', async (_label, load, key) => {
+  it.each(LOAD_RACES)('a %s disk read in flight cannot restore the pre-purge document', async (_label, load, onDisk) => {
     // The one-disk-read-per-session load is parked when Clear happens. Without
     // the load-path guard it resolves afterwards, adopts the PRE-purge document
     // it read, and the next write puts every purged id straight back.
@@ -529,10 +597,11 @@ describe('a purge supersedes work already in flight', () => {
     disk.holdSettingRead = null
     await loading
 
-    expect(disk.settings[key]).toBeUndefined()
+    expect(onDisk()).toBeUndefined()
     expect(provenance.getSnapshot().checklists.size).toBe(0)
     expect(projects.getSnapshot().size).toBe(0)
     expect(await county.loadAll()).toEqual(new Map())
+    expect(await dayObs.loadAll()).toEqual(new Map())
   })
 })
 

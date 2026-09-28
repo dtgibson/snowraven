@@ -97,6 +97,8 @@ vi.mock('../lib/storage', () => ({
     getApiKey: H.getApiKey,
     getSetting: H.getSetting,
     setSetting: H.setSetting,
+    getBarChartFiles: async () => ({ version: 1, counties: {} }),
+    readBarChartFile: async () => null,
   },
 }))
 vi.mock('../lib/observationsCache', () => ({ loadEbirdObservations: H.loadEbird }))
@@ -143,6 +145,10 @@ vi.mock('./map/MapControls', () => ({
   CenterPinDropper: () => null, CenterPin: () => null,
 }))
 vi.mock('../lib/useHotspotSet', () => ({ useHotspotSet: () => ({ set: new Set<string>(), isHotspot: () => false }) }))
+// The Targets tab loads the county geometry once ready; irrelevant to these rows.
+vi.mock('../lib/countyGeometry', () => ({
+  loadCountyGeometry: async () => ({ type: 'FeatureCollection', features: [] }),
+}))
 vi.mock('../lib/useCountyCompleteness', () => ({
   useCountyCompleteness: () => ({
     summaryFor: () => null, resultFor: () => null,
@@ -164,6 +170,7 @@ import { LifeList } from './LifeList'
 import { ListComparer } from './ListComparer'
 import { WeatherBacklog } from './WeatherBacklog'
 import { CommandPalette } from './CommandPalette'
+import { Targets } from './targets/Targets'
 import { PALETTE_COPY } from '../lib/paletteCopy'
 import type { PaletteNavItem } from '../lib/paletteRows'
 import {
@@ -293,6 +300,7 @@ const EBIRD_MESSAGE_TABS: {
       />
     ),
   },
+  { name: 'Targets',       files: EBIRD_ONLY, element: <Targets {...settingsProps} filesVersion={0} />,              setupTitle: /eBird Backup Required/, stepsMarker: EBIRD_STEPS_MARKER },
   // Multimedia gates on the ML export, so it needs BOTH files stored before a
   // failed eBird load can reach its error phase.
   { name: 'Multimedia',    files: BOTH_FILES, element: <LifeList {...settingsProps} filesVersion={0} />, setupTitle: /Macaulay Library Export Required/, stepsMarker: ML_STEPS_MARKER },

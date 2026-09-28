@@ -13,6 +13,7 @@
 
 import type { Polygon, MultiPolygon } from 'geojson'
 import { isWsChar } from './charClasses'
+import { REGION_CODE_RE } from './regionCode'
 
 /** Map viewport as [minLng, minLat, maxLng, maxLat] (MapLibre LngLatBounds order). */
 export type Bounds = [number, number, number, number]
@@ -207,7 +208,9 @@ export function countyKeyFromState(stateProvince: string | null | undefined, cou
 
 // ── eBird region-code derivation (FR-17, NFR-08) ──────────────────────────────
 
-const COUNTY_REGION_RE = /^US-[A-Z]{2}-\d{3}$/
+// Single-sourced in lib/regionCode.ts since targets-tab; this derivation keeps
+// its own tests.
+const COUNTY_REGION_RE = REGION_CODE_RE
 
 /**
  * GEOID "06097" + STUSPS "CA" → "US-CA-097", shape-validated; null when the geoid

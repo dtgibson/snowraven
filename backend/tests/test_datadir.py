@@ -10,6 +10,7 @@ through the one module, so a future router that re-derives its own path fails he
 from pathlib import Path
 
 import datadir
+from routers import barcharts as barcharts_module
 from routers import mapdefaults as mapdefaults_module
 from routers import settings as settings_module
 from routers import settingskv as settingskv_module
@@ -55,6 +56,7 @@ def test_every_data_consumer_shares_one_data_dir():
         settingskv_module,
         mapdefaults_module,
         taxonomy_module,
+        barcharts_module,  # targets-tab: the eBird bar-chart files
     ):
         assert module.DATA_DIR == datadir.DATA_DIR, (
             f"{module.__name__} does not use the shared DATA_DIR"
@@ -69,3 +71,5 @@ def test_derived_paths_sit_under_the_shared_data_dir():
     assert settingskv_module.SETTINGS_DIR.parent == datadir.DATA_DIR
     assert mapdefaults_module.MAP_DEFAULTS_FILE.parent == datadir.DATA_DIR
     assert taxonomy_module._DISK.parent == datadir.DATA_DIR
+    assert barcharts_module.BARCHARTS_DIR.parent == datadir.DATA_DIR
+    assert barcharts_module.BARCHARTS_META.parent == datadir.DATA_DIR

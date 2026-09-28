@@ -42,9 +42,9 @@
 // This teardown reaches each store through `import()` and clears the JS context
 // it runs in, no other -- sufficient while the app runs exactly one webview,
 // kept true at the `Builder::run` call in `src-tauri/src/lib.rs`. The purge
-// generations it moves live in `replayStore.ts` and `exoticProvenanceCache.ts`;
-// `storage.ts` makes the same assumption. Reversal condition: CLAUDE.md,
-// Desktop storage (Tauri), the v1.0.9 entry.
+// generations it moves live in `replayStore.ts`, `exoticProvenanceCache.ts` and
+// `countyDayObsCache.ts`; `storage.ts` makes the same assumption. Reversal
+// condition: CLAUDE.md, Desktop storage (Tauri), the v1.0.9 entry.
 
 /** The two stored data files a Clear can act on. */
 export type FileSlot = 'ebird' | 'ml'
@@ -85,6 +85,19 @@ const TEARDOWNS: ReadonlyArray<{
     slot: 'ebird',
     store: 'county-completeness-v1',
     purge: async () => (await import('./countyCompletenessCache')).purgeCountyCompletenessStore(),
+  },
+  {
+    // targets-tab. eBird's public per-day answers, but keyed on counties the
+    // user has birded (the Targets tab offers only counties in the backup), so
+    // the key set is the user's own. Registered on its keys, as the completeness
+    // store above is. Accepted cost: those days re-fetch once after a Clear and
+    // a re-upload.
+    // Named after its Tauri file, the `replay.json` row's convention for a
+    // store with its own document (it moved out of the settings document on
+    // 2026-09-27; its purge now deletes that file).
+    slot: 'ebird',
+    store: 'county-day-obs.json',
+    purge: async () => (await import('./countyDayObsCache')).purgeCountyDayObsStore(),
   },
   {
     slot: 'ebird',

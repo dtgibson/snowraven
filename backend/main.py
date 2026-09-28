@@ -8,6 +8,7 @@ from fastapi.staticfiles import StaticFiles
 
 from http_client import close_client
 from routers.apikeys import router as apikeys_router
+from routers.barcharts import router as barcharts_router
 from routers.checklists import router as checklists_router
 from routers.map import router as map_router
 from routers.mapdefaults import router as mapdefaults_router
@@ -53,6 +54,10 @@ app.include_router(version_router)
 app.include_router(nominatim_router)
 app.include_router(taxonomy_router)
 app.include_router(settings_router)
+# targets-tab: the eBird bar-chart file routes (/settings/barcharts[...]). Before
+# the generic store below, so `GET /settings/barcharts` is this router's, never
+# a {key} match ("barcharts" is also a reserved key there, defense in depth).
+app.include_router(barcharts_router)
 # Generic /settings/{key} store — MUST be the FINAL include_router. A {key}
 # match registered before the specific /settings/keys|files|map-defaults routes
 # (first-match-wins, registration order) would silently shadow them. Kept ahead

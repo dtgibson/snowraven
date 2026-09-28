@@ -1,6 +1,6 @@
 // The app's main navigation (feature: nav-rework).
 //
-// ONE responsive nav over the eleven destinations at three densities, replacing
+// ONE responsive nav over every destination at three densities, replacing
 // the horizontal strip that swapped itself for a single all-or-nothing dropdown
 // the moment it would overflow (~1,457px with today's labels, which is above most
 // real window widths -- so the dropdown was the common case rather than the
@@ -481,8 +481,10 @@ function isFocusVisible(el: Element): boolean {
  * there was. It claimed "the tab's own page header, which already ships and
  * answers it on touch where there is no hover at all" — inherited from the design
  * spec, which opened on that premise and used it to justify an icon-only rail.
- * Measured at rail density: ZERO of the eleven destinations name themselves in a
- * page heading and five render no heading at all. The claim reached `docs/HELP.md`
+ * Measured at rail density when the nav shipped, over the eleven destinations it
+ * had then: ZERO named themselves in a page heading and five rendered no heading
+ * at all (Targets, added later, does carry an `<h2>`; the touch hold below is
+ * still what names a destination in the rail). The claim reached `docs/HELP.md`
  * and `README.md` before it was caught, and `design-refinement.md` now records the
  * struck layer.
  *

@@ -4743,6 +4743,335 @@ select:focus-visible {
 .sr-plan-note { margin: 6px 0 0; font-size: 0.8125rem; color: var(--sr-text-muted); font-style: italic; }
 .sr-plan-close { margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--sr-border); font-size: 0.75rem; color: var(--sr-text-muted); line-height: 1.5; }
 
+/* ── The Targets tab (targets-tab) ─────────────────────────────────────────────
+   The design (pipeline/targets-tab/design-spec.md, design.html) in the house
+   registers: `.sr-pill` for the three type toggles, `.sr-segbar` for the Last
+   report window and (compact) the breeding threshold, `.sr-btn-quiet` /
+   `.sr-btn-accent` for the file actions, `.sr-th-sort` for the header sorts.
+   Everything below is the tab's own layout and its two KINDS of figure, which
+   are told apart by words, shape and a hairline, never by colour: both are
+   monochrome (`--sr-text`, `--sr-text-muted`, `--sr-border`), and the accent
+   goes only on active controls, the species link and the one primary action.
+   Colour is tokens only, both themes. Motion is five colour or width fades
+   (120-220ms) plus the listbox's 140ms scale-in, and the global
+   prefers-reduced-motion block collapses every one of them; no
+   per-component query is added. Phone-tier rules live inside the established
+   <=640 tier further down (ui.md v1.0.10). */
+.sr-tg-head { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 16px; }
+.sr-tg-head-tile { width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0; background: var(--sr-accent-bg); color: var(--sr-accent); display: flex; align-items: center; justify-content: center; }
+.sr-tg-head h2 { font-size: 1.125rem; font-weight: 700; margin: 0 0 2px; letter-spacing: -0.01em; color: var(--sr-text); }
+.sr-tg-head p { font-size: 0.8125rem; color: var(--sr-text-muted); margin: 0; line-height: 1.5; max-width: 62ch; }
+
+.sr-tg-label { font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--sr-text-muted); white-space: nowrap; --sr-label-ratio: var(--sr-label-optical); }
+.sr-tg-seclabel { display: block; margin: 0 2px 6px; font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--sr-text-muted); }
+
+/* The controls card. */
+.sr-tg-strip { background: var(--sr-surface); border: 1px solid var(--sr-border); border-radius: 12px; box-shadow: var(--sr-card-shadow); margin-bottom: 14px; min-width: 0; }
+.sr-tg-strip-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 12px 16px; min-width: 0; }
+.sr-tg-strip-row + .sr-tg-strip-row { border-top: 1px solid var(--sr-border-subtle); }
+.sr-tg-strip-row--faint { background: var(--sr-surface-faint); border-radius: 0 0 12px 12px; }
+.sr-tg-group { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; max-width: 100%; }
+/* The sort select must never size to its longest option (its source label is
+   long by design, FR-36): it flexes inside its group and truncates natively.
+   `overflow: hidden` is on the SELECT, and it is load-bearing in WebKit only:
+   Chromium's UA sheet already clips a select (`overflow: clip`), WebKit's does
+   not, so an `appearance: none` select there counts its full selected label as
+   scrollable overflow, clipped on screen but still widening the PAGE (measured
+   693px of page scroll at 360 to 640px with a probability sort selected, 962px
+   at 320px / 200%). It sits on the select, not the wrap, because an element's
+   own overflow never clips its own outline or shadow: on the wrap it would cut
+   the input focus ring, which draws outside the select's border box. Pinned by
+   `targetsSortSelectCss.test.ts`, which resolves the cascade at this element. */
+.sr-tg-group--sort { display: flex; flex: 1 1 16rem; flex-wrap: nowrap; }
+.sr-tg-sel-wrap { position: relative; display: flex; flex: 1 1 auto; min-width: 0; max-width: 30rem; }
+.sr-tg-sel {
+  flex: 1 1 auto; min-width: 0; width: 100%; height: 30px; padding: 0 28px 0 10px; border-radius: 6px;
+  border: 1.5px solid var(--sr-border-input); background: var(--sr-surface); color: var(--sr-text);
+  font-family: inherit; font-size: 0.75rem; font-weight: 600; text-overflow: ellipsis; cursor: pointer;
+  overflow: hidden; -webkit-appearance: none; appearance: none;
+}
+.sr-tg-sel option:disabled { color: var(--sr-text-disabled); }
+.sr-tg-sel-caret { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--sr-text-muted); display: flex; }
+
+/* The county picker: SpeciesCombobox's `panel` register (34px, 0.8125rem, radius 6). */
+.sr-tg-combo { position: relative; flex: 1 1 260px; max-width: 360px; min-width: 0; z-index: 20; }
+.sr-tg-combo-field {
+  display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 6px 0 10px;
+  border: 1.5px solid var(--sr-border-input); border-radius: 6px; background: var(--sr-surface); color: var(--sr-text);
+  transition: border-color 120ms ease-out;
+}
+.sr-tg-combo-field:focus-within { border-color: var(--sr-accent-border-strong); }
+.sr-tg-combo-field > svg { flex-shrink: 0; color: var(--sr-text-muted); }
+.sr-tg-combo-input { flex: 1 1 auto; min-width: 0; border: 0; outline: 0; background: transparent; color: inherit; font-family: inherit; font-size: 0.8125rem; --sr-ctl-rem: 0.8125rem; font-weight: 600; padding: 0; }
+.sr-tg-combo-input::placeholder { color: var(--sr-text-muted); font-weight: 500; }
+.sr-tg-combo-count { font-size: 0.71875rem; color: var(--sr-text-muted); white-space: nowrap; }
+.sr-tg-combo-chevron { flex-shrink: 0; width: 26px; height: 26px; display: inline-flex; align-items: center; justify-content: center; border: 0; background: none; padding: 0; color: var(--sr-text-muted); border-radius: 4px; cursor: pointer; }
+.sr-tg-combo-list {
+  position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 1200; margin: 0; padding: 4px;
+  background: var(--sr-surface); border: 1px solid var(--sr-border); border-radius: 8px; box-shadow: var(--sr-card-shadow);
+  max-height: 17rem; overflow: auto; transform-origin: top center;
+  animation: sr-tg-list-in 140ms cubic-bezier(0.2, 0, 0, 1) both;
+}
+@keyframes sr-tg-list-in { from { opacity: 0; transform: scaleY(0.92); } to { opacity: 1; transform: none; } }
+.sr-tg-combo-opt { display: flex; align-items: baseline; gap: 8px; padding: 7px 9px; border-radius: 6px; font-size: 0.8125rem; color: var(--sr-text); cursor: pointer; }
+.sr-tg-combo-opt-name { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+.sr-tg-combo-opt-count { flex: 0 1 auto; max-width: 45%; font-size: 0.71875rem; color: var(--sr-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sr-tg-combo-opt[aria-selected="true"] .sr-tg-combo-opt-name { font-weight: 600; color: var(--sr-accent); }
+.sr-tg-combo-opt.is-active { background: var(--sr-surface-subtle); outline: 2px solid var(--sr-accent); outline-offset: -2px; }
+.sr-tg-combo-opt[aria-disabled="true"] { cursor: not-allowed; color: var(--sr-text-muted); }
+.sr-tg-combo-opt-why { display: block; font-size: 0.6875rem; color: var(--sr-text-muted); }
+.sr-tg-combo-empty { padding: 10px 12px; font-size: 0.8125rem; color: var(--sr-text-muted); }
+
+/* Status lines: one leading 13px glyph, muted. */
+.sr-tg-status { display: block; flex: 1 1 14rem; min-width: 0; font-size: 0.75rem; color: var(--sr-text-muted); line-height: 1.45; overflow-wrap: anywhere; }
+/* Tailwind preflight sets `svg { display: block }`, which puts a glyph on a line
+   of its own inside a block of text; `inline-block` restores the mockup's inline
+   glyph (design.html: `svg { display: inline-block }`). A glyph whose parent is a
+   flex or grid container is blockified anyway and needs nothing. */
+.sr-tg-status > svg { display: inline-block; vertical-align: -2px; margin-right: 5px; }
+.sr-tg-status b { font-weight: 600; color: var(--sr-text-muted); }
+.sr-tg-warn { color: var(--sr-warning); font-weight: 600; }
+.sr-tg-err { color: var(--sr-error); font-weight: 600; }
+/* An accent link-button (Retry, Show unmatched, the ebird.org link): inline,
+   no chrome, underline on hover and focus. */
+.sr-tg-link {
+  display: inline; padding: 0; border: 0; background: none; font: inherit; font-weight: 600;
+  color: var(--sr-accent); text-align: left; cursor: pointer; text-decoration: none;
+}
+.sr-tg-link:hover, .sr-tg-link:focus-visible { text-decoration: underline; }
+.sr-tg-link > svg { display: inline-block; vertical-align: -1px; margin: 0 2px 0 3px; }
+
+/* Where distances are measured from (FR-51a, design-spec 2a). The status line's
+   anchor name is the trigger: the line's own type at 600 weight, a dashed
+   underline, a chevron; with nothing set it is the accent call to action. The
+   chooser hangs from the line's left edge, 22rem and never wider than the row
+   (the full row on a phone), with the listbox's 140ms scale-in from its top
+   LEFT; the global reduced-motion block makes it instant. The row is the
+   positioned ancestor, so the dialog overlays the list card below rather than
+   pushing it down. */
+.sr-tg-anchor { position: relative; flex-basis: 100%; min-width: 0; }
+.sr-tg-anchor > .sr-tg-status { display: block; }
+.sr-tg-anchor-btn {
+  display: inline; padding: 0 2px; margin: 0 -2px; border: 0; border-bottom: 1px dashed var(--sr-border-medium);
+  border-radius: 4px; background: none; font: inherit; font-weight: 600; color: var(--sr-text); text-align: left;
+  cursor: pointer; transition: color 120ms ease-out, border-color 120ms ease-out;
+}
+.sr-tg-anchor-btn:hover { color: var(--sr-accent); border-bottom-color: var(--sr-accent-border-strong); }
+/* The chooser's glyphs carry their own classes rather than being selected as
+   `> svg`: a bare `svg` rightmost compound competes with the map FAB glyph rule
+   (mapFabCascade.test.ts). `inline-block` beats preflight's `svg { display:
+   block }` because these rules are unlayered. */
+.sr-tg-anchor-chev { display: inline-block; width: 11px; height: 11px; vertical-align: -1px; margin-left: 2px; color: var(--sr-text-muted); }
+.sr-tg-anchor-btn.is-cta { color: var(--sr-accent); border-bottom: 0; }
+.sr-tg-apop {
+  position: absolute; left: 0; top: calc(100% + 6px); z-index: 30; box-sizing: border-box;
+  width: 22rem; max-width: 100%; padding: 6px;
+  background: var(--sr-surface); border: 1px solid var(--sr-border); border-radius: 10px; box-shadow: var(--sr-card-shadow);
+  color: var(--sr-text); font-size: 0.8125rem; line-height: 1.35; transform-origin: top left;
+  animation: sr-tg-list-in 140ms cubic-bezier(0.2, 0, 0, 1) both;
+}
+.sr-tg-apop-head, .sr-tg-apop-sec { font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--sr-text-muted); }
+.sr-tg-apop-head { padding: 6px 9px 4px; }
+.sr-tg-apop-sec { padding: 10px 9px 4px; margin-top: 4px; border-top: 1px solid var(--sr-border-subtle); }
+.sr-tg-apop-item {
+  display: flex; align-items: center; gap: 8px; width: 100%; min-height: 34px; padding: 6px 9px; box-sizing: border-box;
+  border: 0; border-radius: 6px; background: none; color: var(--sr-text); font: inherit; text-align: left; cursor: pointer;
+  transition: background-color 120ms ease-out;
+}
+.sr-tg-apop-ic { flex-shrink: 0; color: var(--sr-text-muted); }
+.sr-tg-apop-t { flex: 1 1 auto; min-width: 0; font-weight: 500; overflow-wrap: anywhere; }
+.sr-tg-apop-sub { display: block; font-size: 0.71875rem; font-weight: 400; color: var(--sr-text-muted); }
+.sr-tg-apop-d { flex-shrink: 0; font-size: 0.71875rem; color: var(--sr-text-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sr-tg-apop-item:hover:not(:disabled):not([aria-disabled="true"]) { background: var(--sr-surface-subtle); }
+.sr-tg-apop-item[aria-current="true"] { background: var(--sr-accent-bg); color: var(--sr-accent); }
+.sr-tg-apop-item[aria-current="true"] .sr-tg-apop-ic,
+.sr-tg-apop-item[aria-current="true"] .sr-tg-apop-sub,
+.sr-tg-apop-item[aria-current="true"] .sr-tg-apop-d { color: var(--sr-accent); }
+.sr-tg-apop-item:disabled, .sr-tg-apop-item[aria-disabled="true"] { cursor: not-allowed; }
+.sr-tg-apop-item:disabled { color: var(--sr-text-disabled); }
+.sr-tg-apop-item:disabled .sr-tg-apop-ic, .sr-tg-apop-item:disabled .sr-tg-apop-sub { color: var(--sr-text-disabled); }
+.sr-tg-apop-search { display: flex; gap: 6px; padding: 2px 9px 4px; }
+.sr-tg-apop-field {
+  flex: 1 1 auto; min-width: 0; height: 34px; padding: 0 8px; box-sizing: border-box;
+  border: 1.5px solid var(--sr-border-input); border-radius: 6px; background: var(--sr-surface); color: var(--sr-text);
+  font-family: inherit; font-size: 0.75rem;
+}
+.sr-tg-apop-field::placeholder { color: var(--sr-text-muted); }
+.sr-tg-apop-field:focus { border-color: var(--sr-accent-border-strong); }
+/* Classed, never `.sr-tg-apop-search > button`: a bare element as the rightmost
+   compound competes with every button in the bundle, map FABs included
+   (mapFabCascade.test.ts). */
+.sr-tg-apop-go {
+  width: 34px; height: 34px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; padding: 0;
+  border: 1.5px solid var(--sr-border); border-radius: 6px; background: var(--sr-accent); color: var(--sr-on-accent); cursor: pointer;
+}
+.sr-tg-apop-go:disabled, .sr-tg-apop-go[aria-disabled="true"] { background: var(--sr-surface-subtle); color: var(--sr-text-muted); cursor: not-allowed; }
+.sr-tg-apop-hint { font-size: 0.6875rem; color: var(--sr-text-muted); padding: 0 9px 6px; line-height: 1.4; }
+.sr-tg-apop-err:not(:empty) { font-size: 0.6875rem; color: var(--sr-error); padding: 0 9px 6px; line-height: 1.4; overflow-wrap: anywhere; }
+.sr-tg-apop-list { max-height: 11.5rem; overflow-y: auto; overscroll-behavior: contain; }
+.sr-tg-apop-empty { padding: 4px 9px 8px; font-size: 0.75rem; font-style: italic; color: var(--sr-text-muted); }
+
+/* The Media chips (Map Explorer's media-chip register) and the sub-control rule. */
+.sr-tg-sub { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 6px; padding-left: 8px; border-left: 1px solid var(--sr-border); }
+.sr-tg-chip {
+  display: inline-flex; align-items: center; gap: 4px; min-height: 26px; padding: 3px 9px; border-radius: 20px;
+  font-family: inherit; font-size: 0.71875rem; --sr-ctl-rem: 0.71875rem; font-weight: 500; cursor: pointer;
+  border: 1.5px solid var(--sr-border); background: var(--sr-surface-subtle); color: var(--sr-text-muted);
+  transition: background-color 120ms ease-out, border-color 120ms ease-out, color 120ms ease-out;
+}
+.sr-tg-chip[aria-pressed="true"] { background: var(--sr-is-target-bg); border-color: var(--sr-is-target-border); color: var(--sr-is-target-text); font-weight: 600; }
+/* The breeding threshold's compact segbar: 26px, radius 6, a --sr-border shell. */
+.sr-segbar.sr-segbar--compact { border-color: var(--sr-border); border-radius: 6px; }
+.sr-segbar--compact .sr-segbar-btn { min-height: 26px; padding: 0 10px; font-size: 0.71875rem; --sr-ctl-rem: 0.71875rem; }
+.sr-segbar--compact .sr-segbar-btn + .sr-segbar-btn { border-left-color: var(--sr-border); }
+/* The window segbar while there is no live data: inert and reading as such. */
+.sr-segbar[aria-disabled="true"] { border-color: var(--sr-border); }
+.sr-segbar[aria-disabled="true"] .sr-segbar-btn { color: var(--sr-text-disabled); cursor: not-allowed; border-left-color: var(--sr-border); }
+.sr-segbar[aria-disabled="true"] .sr-segbar-btn[aria-pressed="true"] { background: var(--sr-surface-subtle); color: var(--sr-text-disabled); }
+
+/* The summary: a count, then the per-type breakdown. */
+.sr-tg-summary { margin-left: auto; font-size: 0.8125rem; font-weight: 600; color: var(--sr-text); white-space: nowrap; }
+.sr-tg-summary small { font-size: 0.75rem; font-weight: 500; color: var(--sr-text-muted); margin-left: 6px; }
+
+/* The distance slider (FR-54a), the app's first: a native range with six
+   discrete stops, drawn from the ToggleSwitch's tokens (white knob, its shadow,
+   the accent for the filled span and the ring) so it reads as that switch's
+   sibling. `--sr-tg-fill` is the filled share of the track, set per value. */
+.sr-tg-range-wrap { display: inline-flex; flex-direction: column; width: 16rem; max-width: 100%; min-width: 0; }
+.sr-tg-range { -webkit-appearance: none; appearance: none; width: 100%; height: 30px; margin: 0; background: transparent; cursor: pointer; }
+.sr-tg-range::-webkit-slider-runnable-track { height: 4px; border-radius: 2px; background: linear-gradient(to right, var(--sr-accent) var(--sr-tg-fill, 0%), var(--sr-border) var(--sr-tg-fill, 0%)); }
+.sr-tg-range::-moz-range-track { height: 4px; border-radius: 2px; background: linear-gradient(to right, var(--sr-accent) var(--sr-tg-fill, 0%), var(--sr-border) var(--sr-tg-fill, 0%)); }
+.sr-tg-range::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 18px; height: 18px; margin-top: -7px; border-radius: 50%; background: var(--sr-switch-thumb); border: 1.5px solid var(--sr-accent); box-shadow: var(--sr-switch-thumb-shadow); transition: border-color 120ms ease-out; }
+.sr-tg-range::-moz-range-thumb { width: 15px; height: 15px; border-radius: 50%; background: var(--sr-switch-thumb); border: 1.5px solid var(--sr-accent); box-shadow: var(--sr-switch-thumb-shadow); }
+.sr-tg-range:disabled { cursor: not-allowed; }
+.sr-tg-range:disabled::-webkit-slider-runnable-track { background: var(--sr-border); }
+.sr-tg-range:disabled::-moz-range-track { background: var(--sr-border); }
+.sr-tg-range:disabled::-webkit-slider-thumb { border-color: var(--sr-gray-400); background: var(--sr-surface-subtle); box-shadow: none; }
+.sr-tg-range:disabled::-moz-range-thumb { border-color: var(--sr-gray-400); background: var(--sr-surface-subtle); box-shadow: none; }
+/* Stop labels under the thumb centres: the thumb is 18px, so centre i of 5 is
+   at 9px + (100% - 18px) * i / 5 (`--sr-tg-stop` is i / 5, set per label).
+   THE TWO END LABELS ARE PINNED TO THE TRACK'S ENDS instead, "Any" left-aligned
+   to its start and "50 mi" right-aligned to its end: centred under the end
+   thumb, each hung half its own width past the track (measured 20.1px on the
+   right and 11.2px on the left at 200% text, and 8.1px past the controls card's
+   border on a phone, in Chromium and WebKit; targets-tab QA re-entry). The row
+   is the containing block, and it is the track's width, so `0` IS the track end.
+   Nothing positional is inline in the markup, so these rules decide it. */
+.sr-tg-range-stops { position: relative; height: 1.1em; margin-top: -2px; font-size: 0.625rem; line-height: 1.1; color: var(--sr-text-muted); font-variant-numeric: tabular-nums; container: sr-tg-stops / inline-size; }
+.sr-tg-range-stop { position: absolute; top: 0; left: calc(9px + (100% - 18px) * var(--sr-tg-stop, 0)); transform: translateX(-50%); white-space: nowrap; }
+.sr-tg-range-stop--start { left: 0; transform: none; }
+.sr-tg-range-stop--end { left: auto; right: 0; transform: none; }
+.sr-tg-range-stop.is-on { color: var(--sr-accent); font-weight: 700; }
+.sr-tg-range-wrap.is-off .sr-tg-range-stops, .sr-tg-range-wrap.is-off .sr-tg-range-stop.is-on { color: var(--sr-text-disabled); font-weight: 500; }
+/* Pinned, "50 mi" moves in toward "25", and where the track is narrow and the
+   text large the two collide (measured 16.9px of overlap at 320px / 200%). So
+   the last label's UNIT drops out while it does not fit, the house pattern for
+   a label in a sized box (the nav bar's labels): the value phrase beside the
+   slider still says "Within 50 miles". This asks how wide the BOX is, against
+   fixed text: "50 mi" fits beside "25" while 9px + (W - 18px) / 5, the space
+   from the 25 stop to the track end, holds half of a bold "25" (0.68em), a bold
+   "50 mi" (2.88em, the widest measured at any scale) and a 0.5em gap, i.e.
+   W >= 5 * 4.06em - 27px. The -27px (the thumb's half-width geometry) is left
+   out on purpose: pure `em` keeps calc() out of the container condition
+   (.claude/rules/ui.md, v1.0.23) and only ever errs toward dropping the unit,
+   never toward a collision. `em` here is the stops row's own font size, which
+   tracks --sr-text-scale. Re-measure the ink in Chromium AND WebKit at 320 /
+   360 / 390 / 1280px against every text scale before changing the value.
+   The container is the stops row alone, and both halves of its containment
+   are moot there: its width is the wrap's (a stretched column item), and its
+   children are all absolutely positioned, so they never sized it; it was
+   already their containing block (`position: relative`), and nothing in it
+   sets a z-index for the new stacking context to reorder. */
+@container sr-tg-stops (max-width: 20.3em) {
+  .sr-tg-range-unit { display: none; }
+}
+.sr-tg-range-val { font-size: 0.75rem; font-weight: 600; color: var(--sr-text); white-space: nowrap; }
+.sr-tg-range-val.is-off { color: var(--sr-text-disabled); }
+
+/* The quiet EBIRD BAR CHART section. */
+.sr-tg-file-sec { margin-bottom: 14px; min-width: 0; }
+.sr-tg-file-card { background: var(--sr-surface); border: 1px solid var(--sr-border); border-radius: 10px; padding: 12px 16px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; min-width: 0; }
+.sr-tg-file-main { flex: 1 1 320px; min-width: 0; display: flex; gap: 10px; align-items: flex-start; }
+.sr-tg-file-main > svg { flex-shrink: 0; color: var(--sr-text-muted); margin-top: 2px; }
+.sr-tg-file-line { min-width: 0; font-size: 0.8125rem; line-height: 1.5; color: var(--sr-text); overflow-wrap: anywhere; }
+.sr-tg-file-title { display: block; font-weight: 600; }
+.sr-tg-file-detail { display: block; font-size: 0.75rem; color: var(--sr-text-muted); }
+.sr-tg-file-detail b { font-weight: 600; color: var(--sr-text-muted); }
+.sr-tg-file-actions { display: inline-flex; flex-wrap: wrap; gap: 8px; }
+.sr-tg-file-actions svg { margin-right: 6px; }
+.sr-tg-alert:not(:empty) { flex-basis: 100%; padding: 7px 11px; border-radius: 6px; background: var(--sr-error-bg); color: var(--sr-error); font-size: 0.75rem; overflow-wrap: anywhere; }
+/* The unmatched-names disclosure: a grid-collapse, `inert` while closed. */
+.sr-tg-disc { flex-basis: 100%; display: grid; grid-template-rows: 0fr; transition: grid-template-rows 180ms cubic-bezier(0.2, 0, 0, 1); }
+.sr-tg-disc.is-open { grid-template-rows: 1fr; }
+.sr-tg-disc > div { overflow: hidden; min-height: 0; }
+.sr-tg-disc-body { padding: 8px 0 2px 26px; font-size: 0.75rem; color: var(--sr-text-muted); }
+.sr-tg-disc-body ul { margin: 4px 0 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.sr-tg-disc-body li { color: var(--sr-text); overflow-wrap: anywhere; }
+.sr-tg-disc-body li i { color: var(--sr-text-gray); }
+
+/* The list card and its sweep band. */
+.sr-tg-list-card { background: var(--sr-surface); border: 1px solid var(--sr-border); border-radius: 12px; box-shadow: var(--sr-card-shadow); overflow: hidden; min-width: 0; }
+.sr-tg-sweep { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; padding: 10px 16px; border-bottom: 1px solid var(--sr-border-subtle); background: var(--sr-surface-faint); }
+.sr-tg-sweep .sr-tg-status { flex: 1 1 260px; }
+.sr-tg-bar { flex: 0 1 220px; height: 4px; border-radius: 2px; background: var(--sr-border); overflow: hidden; }
+.sr-tg-bar > i { display: block; height: 100%; background: var(--sr-text-muted); border-radius: 2px; transition: width 220ms cubic-bezier(0.2, 0, 0, 1); }
+.sr-tg-kind { display: inline-flex; align-items: center; gap: 6px; font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--sr-text); }
+.sr-tg-kind-sub { display: block; font-size: 0.71875rem; font-weight: 500; text-transform: none; letter-spacing: 0; color: var(--sr-text-muted); margin-top: 2px; }
+
+/* The table. `border-collapse: separate` and a sticky on each <th>, never on
+   <thead> or <tr> (WKWebView honours sticky on cells only). Roles are explicit
+   in the markup so they survive the phone tier's display change. */
+.sr-tg-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 0.8125rem; color: var(--sr-text); }
+.sr-tg-table th, .sr-tg-table td { text-align: left; vertical-align: top; padding: 10px 12px; }
+.sr-tg-table thead th { position: sticky; top: 0; z-index: 2; background: var(--sr-surface); font-weight: 600; color: var(--sr-text-muted); font-size: 0.71875rem; line-height: 1.35; }
+.sr-tg-table thead tr.sr-tg-groups th { padding: 12px 12px 6px; }
+.sr-tg-table thead tr.sr-tg-cols th { padding-top: 0; padding-bottom: 8px; border-bottom: 1px solid var(--sr-border); box-shadow: var(--sr-sticky-shadow); white-space: nowrap; }
+.sr-tg-table .sr-tg-k-prob, .sr-tg-table .sr-tg-k-live { border-left: 1px solid var(--sr-border); }
+.sr-tg-table tbody td { border-bottom: 1px solid var(--sr-border-subtle); }
+.sr-tg-table tbody tr:last-child td { border-bottom: 0; }
+.sr-tg-table tbody tr:hover td { background: var(--sr-surface-faint); }
+.sr-tg-table .sr-th-sort { width: auto; justify-content: flex-start; }
+.sr-tg-table .sr-th-sort[data-active="true"] > svg { color: var(--sr-accent); }
+.sr-tg-th-note { display: block; font-weight: 500; font-size: 0.6875rem; color: var(--sr-text-muted); white-space: normal; margin-top: 2px; }
+.sr-tg-th-sub { display: flex; gap: 10px; margin-top: 3px; font-weight: 500; }
+.sr-tg-unit { color: var(--sr-text-muted); font-weight: 500; }
+.sr-tg-name { min-width: 14rem; }
+.sr-tg-days { min-width: 15rem; }
+.sr-tg-sci { display: block; font-style: italic; color: var(--sr-text-gray); font-size: 0.71875rem; }
+.sr-tg-badges { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
+.sr-tg-badge {
+  display: inline-flex; align-items: center; gap: 4px; height: 18px; padding: 0 6px; border-radius: 4px;
+  border: 1px solid var(--sr-border); background: var(--sr-surface-subtle); color: var(--sr-text-muted);
+  font-size: 0.625rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; white-space: nowrap;
+}
+.sr-tg-badge--lifer { color: var(--sr-text); border-color: var(--sr-border-medium); background: var(--sr-surface); }
+.sr-tg-badge-miss { display: inline-flex; gap: 3px; margin-left: 2px; padding-left: 5px; border-left: 1px solid var(--sr-border-medium); }
+/* Probability: a percent with its sign, over a continuous share bar. */
+.sr-tg-pct { font-variant-numeric: tabular-nums; font-weight: 600; color: var(--sr-text); white-space: nowrap; }
+.sr-tg-sign { color: var(--sr-text-muted); font-weight: 500; margin-left: 1px; }
+.sr-tg-share { display: block; width: 3.75rem; max-width: 100%; height: 3px; border-radius: 2px; background: var(--sr-border); margin-top: 5px; overflow: hidden; }
+.sr-tg-share > i { display: block; height: 100%; min-width: 2px; background: var(--sr-text-muted); border-radius: 2px; }
+.sr-tg-na { color: var(--sr-text-muted); font-style: italic; font-size: 0.75rem; }
+/* Live: a count with its window, over thirty discrete day ticks. */
+.sr-tg-live { font-variant-numeric: tabular-nums; color: var(--sr-text); }
+.sr-tg-live-lead { color: var(--sr-text-muted); }
+.sr-tg-live b { font-weight: 700; }
+.sr-tg-ticks { display: flex; gap: 1px; margin-top: 6px; height: 9px; width: max-content; }
+.sr-tg-ticks > i { display: block; width: 3px; height: 9px; border-radius: 1px; background: var(--sr-border); transition: background-color 160ms ease-out, opacity 160ms ease-out; }
+.sr-tg-ticks > i.is-on { background: var(--sr-text-muted); }
+.sr-tg-ticks > i.is-unk { background: transparent; border: 1px dashed var(--sr-border-medium); }
+.sr-tg-place { display: block; color: var(--sr-text-muted); font-size: 0.75rem; overflow-wrap: anywhere; }
+.sr-tg-dist { font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
+.sr-tg-dist-unit { color: var(--sr-text-muted); font-weight: 500; }
+/* The per-cell column label and the per-row kind tag exist for the phone tier;
+   on desktop the header supplies both, so the label stays in the accessible
+   name (sr-only) and the tag is not drawn. */
+.sr-tg-cell-k { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+.sr-tg-kind-tag { display: none; }
+.sr-tg-empty { padding: 28px 16px; text-align: center; color: var(--sr-text-muted); font-size: 0.8125rem; }
+.sr-tg-empty b { color: var(--sr-text); font-weight: 600; }
+.sr-tg-retry { display: flex; justify-content: center; margin-top: 12px; }
+
 @media (max-width: 640px) {
   .sr-header { padding-top: 24px !important; }
   /* The county panel's rows stack on a phone, and the action slot takes its own
@@ -5586,6 +5915,46 @@ select:focus-visible {
   .sr-plan-ev-res { margin-left: 0; width: 100%; white-space: normal; }
   /* The readout's resolution micro-label drops to its own line under the weather row. */
   .sr-plan-ro-wx .sr-plan-ev-res { display: block; margin-left: 0; margin-top: 2px; }
+
+  /* ── The Targets tab on a phone (targets-tab) ─────────────────────────────
+     The county field, the summary and the distance control each take a full
+     row; the sort select flexes and truncates rather than sizing to its longest
+     option; the Last report segbar wraps to two lines at 320px / 200% inside its
+     clipped shell (both measured allowances from the design). The table stays a
+     table with explicit roles: `thead` is hidden and each row becomes a
+     two-column grid carrying its own column labels and the two KIND tags. */
+  .sr-tg-strip-row { padding: 10px 12px; gap: 8px 10px; }
+  .sr-tg-combo { max-width: none; flex-basis: 100%; }
+  .sr-tg-combo-count { display: none; }
+  .sr-tg-summary { margin-left: 0; white-space: normal; flex-basis: 100%; }
+  .sr-tg-summary small { display: inline-block; margin-left: 6px; }
+  .sr-tg-group--dist { flex-basis: 100%; }
+  .sr-tg-apop { width: 100%; }
+  .sr-tg-range-wrap { width: 100%; }
+  .sr-tg-range-stops { font-size: 0.6875rem; }
+  .sr-tg-strip .sr-segbar { flex-wrap: wrap; max-width: 100%; }
+  .sr-tg-strip .sr-segbar-btn { flex: 1 1 auto; }
+  .sr-tg-strip .sr-pill, .sr-tg-chip, .sr-tg-strip .sr-segbar-btn { min-height: 34px; }
+  .sr-tg-sel { height: 34px; }
+  .sr-tg-file-card { padding: 12px; }
+
+  .sr-tg-table, .sr-tg-table tbody, .sr-tg-table tr, .sr-tg-table td { display: block; }
+  .sr-tg-table thead { display: none; }
+  .sr-tg-table tbody tr { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 6px 12px; padding: 12px 14px; border-bottom: 1px solid var(--sr-border-subtle); }
+  .sr-tg-table tbody tr:last-child { border-bottom: 0; }
+  .sr-tg-table tbody td { padding: 0; border: 0; min-width: 0; }
+  .sr-tg-table tbody tr:hover td { background: transparent; }
+  .sr-tg-table .sr-tg-name { grid-column: 1 / -1; min-width: 0; }
+  .sr-tg-table .sr-tg-month, .sr-tg-table .sr-tg-year { grid-column: 1 / -1; display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; }
+  .sr-tg-table .sr-tg-month .sr-tg-cell-k, .sr-tg-table .sr-tg-year .sr-tg-cell-k { flex: 1 1 auto; margin: 0; }
+  .sr-tg-table .sr-tg-month .sr-tg-share, .sr-tg-table .sr-tg-year .sr-tg-share { width: 3.75rem; margin-top: 0; flex-shrink: 0; }
+  .sr-tg-table .sr-tg-month .sr-tg-kind-tag { flex-basis: 100%; }
+  .sr-tg-table .sr-tg-merged, .sr-tg-table .sr-tg-days { grid-column: 1 / -1; min-width: 0; }
+  .sr-tg-table .sr-tg-last { grid-column: 1; }
+  .sr-tg-table .sr-tg-distc { grid-column: 2; }
+  .sr-tg-cell-k { position: static; width: auto; height: auto; margin: 0 0 1px; overflow: visible; clip: auto; white-space: normal; display: block; font-size: 0.6875rem; color: var(--sr-text-muted); font-weight: 500; }
+  .sr-tg-kind-tag { display: flex; align-items: center; flex-wrap: wrap; gap: 2px 5px; margin: 6px 0 5px; font-size: 0.625rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--sr-text); }
+  .sr-tg-kind-src { font-weight: 500; text-transform: none; letter-spacing: 0; color: var(--sr-text-muted); }
 }
 
 /* ── REPAIR 2: the per-species row's stacked tier, keyed on its own column ────
@@ -5974,7 +6343,7 @@ select:focus-visible {
 /* ── Main navigation ───────────────────────────────────────────────────────────
    (improve: nav-rework)
 
-   ONE responsive nav over the eleven destinations at three densities, replacing
+   ONE responsive nav over every destination at three densities, replacing
    the horizontal strip that swapped itself for a single all-or-nothing dropdown:
    a 13.5rem sidebar on wide windows, a 3.75rem icon rail when width is tight, and
    a bottom bar of four favourites plus a More sheet at phone widths. Which one

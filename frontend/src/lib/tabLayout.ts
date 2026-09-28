@@ -9,6 +9,7 @@ export type ConfigurableTab =
   | 'named-birds'
   | 'checklists'
   | 'comparer'
+  | 'targets'
 
 export const DEFAULT_TAB_ORDER: ConfigurableTab[] = [
   'weather',
@@ -16,6 +17,7 @@ export const DEFAULT_TAB_ORDER: ConfigurableTab[] = [
   'map-explorer',
   'species-detail',
   'calendar',
+  'targets',
   'life-list',
   'breeding-codes',
   'checklists',
@@ -24,20 +26,24 @@ export const DEFAULT_TAB_ORDER: ConfigurableTab[] = [
 ]
 
 /**
- * The default order as it shipped through 1.0.18 (Calendar third, Map Explorer
- * fifth). It exists for ONE equality in parseLayout: a saved order that is this
- * list element-for-element was never reordered by the user (Restore defaults,
- * or a hide/show with no drag, writes the default back verbatim), so it carries
- * no order preference and reads as the current default. The tab layout is
- * device-local and never synced, so without this step the 1.0.19 swap would
- * reach fresh installs only. Not a default for anything; do not read it as one.
+ * The default order as it shipped from 1.0.19 until Targets arrived (Map
+ * Explorer third, Calendar fifth, no Targets). It exists for ONE equality in
+ * parseLayout: a saved order that is this list element-for-element was never
+ * reordered by the user (Restore defaults, or a hide/show with no drag, writes
+ * the default back verbatim), so it carries no order preference and reads as
+ * the current default, which puts Targets after Calendar rather than last. The
+ * tab layout is device-local and never synced, so without this step the new
+ * default would reach fresh installs only. Exactly ONE generation migrates
+ * (CLAUDE.md, v1.0.19): the 1.0.18 order this constant used to hold is retired,
+ * because chaining generations turns the one equality back into a heuristic.
+ * Not a default for anything; do not read it as one.
  */
 export const PREVIOUS_DEFAULT_TAB_ORDER: readonly ConfigurableTab[] = [
   'weather',
   'birding-stats',
-  'calendar',
-  'species-detail',
   'map-explorer',
+  'species-detail',
+  'calendar',
   'life-list',
   'breeding-codes',
   'checklists',
@@ -56,6 +62,7 @@ export const TAB_LABELS: Record<ConfigurableTab, string> = {
   'named-birds':    'Named Birds',
   'checklists':     'Checklists',
   'comparer':       'List Comparer',
+  'targets':        'Targets',
 }
 
 export type Tab = ConfigurableTab | 'settings'
@@ -92,11 +99,30 @@ function sameOrder(a: readonly ConfigurableTab[], b: readonly ConfigurableTab[])
 }
 
 /**
+ * The missing-tab step: `order` followed by every known tab it lacks, in
+ * default order. Factored out so parseLayout can apply it to the SAVED order
+ * and to PREVIOUS_DEFAULT_TAB_ORDER alike. That second use is load-bearing: a
+ * saved previous default has one id fewer than the current roster, so after the
+ * append it carries the new tab LAST, and it could never equal the bare
+ * constant; comparing against the constant appended the same way is what lets
+ * the one-generation migration fire at all (targets-tab, schema.md 6.1).
+ */
+function appendMissing(order: readonly ConfigurableTab[]): ConfigurableTab[] {
+  const out = [...order]
+  const seen = new Set(out)
+  for (const tab of DEFAULT_TAB_ORDER) {
+    if (!seen.has(tab)) out.push(tab)
+  }
+  return out
+}
+
+/**
  * Validate and normalize an untrusted stored value into a TabLayoutState.
  * Unknown tab IDs are dropped; tabs missing from the stored order are
  * appended (so tabs added in a later release still appear); and an order
  * that, after those two steps, is the previous default element-for-element
- * reads as the current default (see PREVIOUS_DEFAULT_TAB_ORDER). Any other
+ * (the constant given the same missing-tab append) reads as the current
+ * default (see PREVIOUS_DEFAULT_TAB_ORDER). Any other
  * order is returned as saved. The hidden set is never touched by that step,
  * and nothing here writes back: a migrated layout is persisted only when
  * the user next reorders, hides, shows or restores. Returns the default
@@ -110,16 +136,11 @@ export function parseLayout(parsed: unknown): TabLayoutState {
   const rawOrder = obj['order']
   if (!Array.isArray(rawOrder)) return defaultState()
 
-  const knownOrder = rawOrder.filter((id): id is ConfigurableTab =>
+  const knownOrder = appendMissing(rawOrder.filter((id): id is ConfigurableTab =>
     typeof id === 'string' && KNOWN_TABS.has(id)
-  )
+  ))
 
-  const seen = new Set(knownOrder)
-  for (const tab of DEFAULT_TAB_ORDER) {
-    if (!seen.has(tab)) knownOrder.push(tab)
-  }
-
-  const order = sameOrder(knownOrder, PREVIOUS_DEFAULT_TAB_ORDER)
+  const order = sameOrder(knownOrder, appendMissing(PREVIOUS_DEFAULT_TAB_ORDER))
     ? [...DEFAULT_TAB_ORDER]
     : knownOrder
 

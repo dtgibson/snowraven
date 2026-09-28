@@ -207,6 +207,17 @@ class TauriTransport implements TransportAdapter {
       return getCountySpecies(params?.regionCode ?? '') as Promise<T>;
     }
 
+    // targets-tab. NOT in CACHED_GET_PATHS: lib/countyDayObsCache.ts is the one
+    // caching layer for a county day (a past day is final once fetched, today is
+    // re-asked at most once per visit), so a 90 s layer would only shadow it.
+    // IN EBIRD_GATED_PATHS (below): this chokepoint is the sweep's one
+    // enforcement point, which is why its parameters are query strings rather
+    // than path segments (both sets match with an exact Set.has on the path).
+    if (path === '/map/county-day-obs') {
+      const { getCountyDayObs } = await import('./tauri/mapService');
+      return getCountyDayObs(params?.regionCode ?? '', params?.date ?? '') as Promise<T>;
+    }
+
     // NOT in CACHED_GET_PATHS: the 6-hour persistent hotspotActivityCache owns
     // caching for this path — a second 90 s layer would just shadow it (one
     // caching layer per call, the /map/county-species precedent).
@@ -275,8 +286,12 @@ export const CACHED_GET_PATHS = new Set(['/map/hotspots', '/map/recent-obs', '/m
 // /map/hotspot-activity is deliberately absent: the activity controller
 // (useHotspotActivity) enforces the same contract for it over the same
 // shared state, and one request gets exactly one enforcement point.
+// /map/county-day-obs (targets-tab) is gated HERE, so the Targets sweep does not
+// wrap its calls in gatedEbirdCall itself: it layers only its pass-scale pacing
+// on top, over the same shared state (the projects-sweep precedent).
 export const EBIRD_GATED_PATHS = new Set([
   '/map/hotspots', '/map/recent-obs', '/map/hotspot-region', '/map/county-species',
+  '/map/county-day-obs',
 ]);
 
 class CachedTransport implements TransportAdapter {

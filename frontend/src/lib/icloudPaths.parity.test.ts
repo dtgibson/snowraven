@@ -249,3 +249,64 @@ describe('icloud.rs <-> keyRecord.ts (icloud-api-key-sync)', () => {
     expect(parts.join('')).toBe(m![1])
   })
 })
+
+describe('the eBird bar-chart files are provably never synced (targets-tab, schema.md 1.5)', () => {
+  // PRIVACY_POLICY.md is to say an added bar-chart file stays on the device and
+  // is not part of iCloud Sync. That is true only while the sync controller's
+  // slot set is exactly the two data files and nothing on either side of the
+  // bridge knows the bar-chart family exists. Each leg is checked here rather
+  // than inferred from the controller never having been touched.
+  it('the controller iterates exactly the two data-file slots', async () => {
+    const { SLOTS } = await import('./icloud/icloudRecord')
+    expect([...SLOTS]).toEqual(['ebird', 'ml'])
+  })
+
+  it('no iCloud module and no native iCloud code mentions the bar-chart family', async () => {
+    const { readdirSync } = await import('node:fs')
+    const dir = new URL('./icloud/', import.meta.url)
+    const files = readdirSync(dir).filter(f => /\.tsx?$/.test(f) && !/\.test\.tsx?$/.test(f))
+    // Non-vacuity: the directory really holds the controller and the record module.
+    expect(files).toContain('icloudSync.ts')
+    expect(files).toContain('icloudRecord.ts')
+    for (const f of files) {
+      expect(readFileSync(new URL(f, dir), 'utf8'), f).not.toMatch(/barchart/i)
+    }
+    expect(rust).not.toMatch(/barchart/i)
+  })
+
+  it('the bar-chart paths are not among the synced file names', async () => {
+    const { ICLOUD_CSV_FILES } = await import('./icloud/icloudNative')
+    const { BARCHARTS_DIR, BARCHARTS_META_PATH } = await import('./storage')
+    const synced = Object.values(ICLOUD_CSV_FILES)
+    expect(synced).toHaveLength(2)
+    for (const name of synced) {
+      expect(BARCHARTS_DIR.endsWith(name)).toBe(false)
+      expect(BARCHARTS_META_PATH.endsWith(name)).toBe(false)
+      expect(name).not.toMatch(/barchart/i)
+    }
+  })
+
+  it('the Targets day cache document is never synced either (targets-tab, schema.md 3.2)', async () => {
+    // Its own file since 2026-09-27, so the same three legs as the bar-chart
+    // family: not a synced name, unknown to every iCloud module and to the
+    // native side, and the controller's slot set is still the two data files.
+    const { ICLOUD_CSV_FILES } = await import('./icloud/icloudNative')
+    const { COUNTY_DAY_OBS_PATH } = await import('./storage')
+    const synced = Object.values(ICLOUD_CSV_FILES)
+    expect(synced).toHaveLength(2)
+    expect(synced).not.toContain(COUNTY_DAY_OBS_PATH)
+    for (const name of synced) expect(COUNTY_DAY_OBS_PATH.endsWith(name)).toBe(false)
+    const { readdirSync } = await import('node:fs')
+    const dir = new URL('./icloud/', import.meta.url)
+    const files = readdirSync(dir).filter(f => /\.tsx?$/.test(f) && !/\.test\.tsx?$/.test(f))
+    expect(files).toContain('icloudSync.ts')
+    for (const f of files) {
+      expect(readFileSync(new URL(f, dir), 'utf8'), f).not.toMatch(/county-day-obs/i)
+    }
+    expect(rust).not.toMatch(/county-day-obs/i)
+    const { SLOTS } = await import('./icloud/icloudRecord')
+    expect([...SLOTS]).toEqual(['ebird', 'ml'])
+    // Non-vacuity: the path the legs above test is the real one.
+    expect(COUNTY_DAY_OBS_PATH).toBe('data/county-day-obs.json')
+  })
+})

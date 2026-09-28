@@ -117,6 +117,14 @@ type Props = {
    * markup exactly; a tab's variant never changes at runtime.
    */
   variant?: TabLoadErrorVariant
+  /**
+   * Optional: a Retry action rendered beside "Go to Settings", as a SIBLING of
+   * the region (so it is never read as part of the failure sentence) and only
+   * while a message is showing. Added for the Targets tab (targets-tab FR-09,
+   * "the load-error state with a retry"). Absent, the rendered markup is
+   * exactly what it was before the prop existed.
+   */
+  onRetry?: () => void
 }
 
 type VariantStyles = {
@@ -151,7 +159,7 @@ const VARIANTS: Record<TabLoadErrorVariant, VariantStyles> = {
   },
 }
 
-export function TabLoadErrorAlert({ message, onGoToSettings, variant = 'panel' }: Props) {
+export function TabLoadErrorAlert({ message, onGoToSettings, variant = 'panel', onRetry }: Props) {
   const v = VARIANTS[variant]
   const showing = message !== null
 
@@ -180,9 +188,16 @@ export function TabLoadErrorAlert({ message, onGoToSettings, variant = 'panel' }
   )
 
   const action = showing ? (
-    <Button type="button" onClick={onGoToSettings} style={v.button}>
-      {v.buttonLabel}
-    </Button>
+    <>
+      <Button type="button" onClick={onGoToSettings} style={v.button}>
+        {v.buttonLabel}
+      </Button>
+      {onRetry ? (
+        <Button type="button" onClick={onRetry} style={v.button}>
+          Retry
+        </Button>
+      ) : null}
+    </>
   ) : null
 
   return (

@@ -2,8 +2,10 @@
 // entry in CLAUDE.md; v1.0.30 security review, Low).
 //
 // `docChains`, `replayStore`'s ordered writer and purge generation, the second
-// purge generation in `exoticProvenanceCache.ts`, and the teardown that moves
-// them are all JavaScript state, so each protects ONE JS context. What makes
+// purge generation in `exoticProvenanceCache.ts`, the Targets day cache's
+// ordered writer and third purge generation (`countyDayObsCache.ts`), and the
+// teardown that moves them are all JavaScript state, so each protects ONE JS
+// context. What makes
 // that sufficient lives in another language, another file and another layer:
 // `src-tauri/src/lib.rs` calls `Builder::run`, whose own no-op run callback
 // drops `RunEvent::SceneRequested`, so a second iPadOS scene never constructs a
@@ -30,15 +32,16 @@ const abs = (relative: string): string => fileURLToPath(new URL(relative, import
 const raw = (relative: string): string => readFileSync(abs(relative), 'utf8')
 
 /**
- * Every site that must carry the note: the four pieces of module-scoped state
- * the invariant protects, plus the keeper that makes it true. Named in advance
- * on purpose - this is a claim about specific declarations, not a sweep.
+ * Every site that must carry the note: each piece of module-scoped state the
+ * invariant protects, plus the keeper that makes it true. Named in advance on
+ * purpose - this is a claim about specific declarations, not a sweep.
  */
 const SITES: ReadonlyArray<{ readonly label: string; readonly file: string }> = [
   { label: 'storage.ts (docChains / chain)', file: './storage.ts' },
   { label: 'replayStore.ts (purge generation + ordered writer)', file: './replayStore.ts' },
   { label: 'clearDerived.ts (the clear-path entry point)', file: './clearDerived.ts' },
   { label: 'exoticProvenanceCache.ts (second purge generation)', file: './exoticProvenanceCache.ts' },
+  { label: 'countyDayObsCache.ts (purge generation + ordered writer)', file: './countyDayObsCache.ts' },
   { label: 'src-tauri/src/lib.rs (the keeper)', file: '../../../src-tauri/src/lib.rs' },
 ]
 
@@ -115,7 +118,7 @@ describe('single-webview invariant is stated at each definition site', () => {
   // ── Guard the guard ────────────────────────────────────────────────────────
 
   it('the site list is non-empty and every file exists and is non-trivial', () => {
-    expect(SITES.length).toBeGreaterThanOrEqual(5)
+    expect(SITES.length).toBeGreaterThanOrEqual(6)
     for (const site of SITES) {
       expect(existsSync(abs(site.file)), `${site.label}: file missing at ${site.file}`).toBe(true)
       expect(raw(site.file).length, `${site.label}: file is empty`).toBeGreaterThan(500)

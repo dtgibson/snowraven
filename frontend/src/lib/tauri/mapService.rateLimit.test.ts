@@ -21,7 +21,7 @@ vi.mock('../storage', () => ({
   storage: { getApiKey: vi.fn(async () => 'test-key') },
 }))
 
-import { getHotspots, getHotspotRegion, getCountySpecies, getRecentObs } from './mapService'
+import { getHotspots, getHotspotRegion, getCountySpecies, getRecentObs, getCountyDayObs } from './mapService'
 
 // Duck-typed headers (the parity file's reasoning): Headers would normalize
 // the very values the parser must judge raw.
@@ -49,6 +49,8 @@ const CASES: Array<[string, () => Promise<unknown>]> = [
   ['getHotspotRegion', () => getHotspotRegion('US-CA')],
   ['getCountySpecies', () => getCountySpecies('US-CA-085')],
   ['getRecentObs', () => getRecentObs(38.5, -121.5, 25, '')],
+  // targets-tab: the per-day county lookup reaches the same shared mapper.
+  ['getCountyDayObs', () => getCountyDayObs('US-CA-001', '2026-09-01')],
 ]
 
 describe.each(CASES)('%s', (_name, call) => {

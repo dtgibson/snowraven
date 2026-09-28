@@ -160,6 +160,27 @@ describe('the eBird pacing gate at the transport chokepoint (v0.5.93)', () => {
     expect(vi.mocked(fetch)).toHaveBeenCalledTimes(1);
   });
 
+  it('the Targets per-day county lookup is governed too: it waits out an open cooldown (targets-tab)', async () => {
+    // The sweep relies on THIS chokepoint for spacing, the cooldown and the
+    // bounded retries (it does not wrap gatedEbirdCall itself), so the wiring is
+    // pinned per path rather than inferred from the set membership.
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true, json: () => Promise.resolve({ regionCode: 'US-CA-001', date: '2026-09-01', species: [] }),
+    }));
+    const { transport } = await import('./transport');
+    noteEbirdRateLimit(Object.assign(new Error('x'), { status: 429, retryAfterSec: 4 }), Date.now(), 0);
+    let resolved = false;
+    const call = transport.get('/map/county-day-obs', { regionCode: 'US-CA-001', date: '2026-09-01' })
+      .then(r => { resolved = true; return r; });
+    await vi.advanceTimersByTimeAsync(3900);
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled();
+    expect(resolved).toBe(false);
+    await vi.advanceTimersByTimeAsync(200);
+    await call;
+    expect(resolved).toBe(true);
+    expect(vi.mocked(fetch)).toHaveBeenCalledWith('/map/county-day-obs?regionCode=US-CA-001&date=2026-09-01');
+  });
+
   it('a short-TTL cache hit never consults the gate (resolves inside an open cooldown)', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
       ok: true, json: () => Promise.resolve([{ locId: 'L1' }]),

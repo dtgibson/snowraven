@@ -121,7 +121,10 @@ function sortedDistinct(names: Iterable<string>): string[] {
   return [...new Set(names)].sort(byCodeUnit)
 }
 
-function readDefaultLocation(raw: unknown): { lat: number; lng: number } | null {
+/** The `map-defaults` shape guard, exported so the Targets tab's distance
+ *  anchor reads the Default Location through this one rule rather than a copy
+ *  of it (targets-tab, schema.md 5.7). */
+export function readDefaultLocation(raw: unknown): { lat: number; lng: number } | null {
   if (raw === null || typeof raw !== 'object') return null
   const { lat, lng } = raw as { lat?: unknown; lng?: unknown }
   if (typeof lat !== 'number' || typeof lng !== 'number') return null

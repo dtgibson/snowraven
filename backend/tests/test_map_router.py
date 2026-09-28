@@ -472,6 +472,8 @@ def _route_cases():
         ("/map/hotspot-region", {"regionCode": "US-CA"}),
         ("/map/county-species", {"regionCode": "US-CA-085"}),
         ("/map/recent-obs", {"lat": 44.9, "lng": -93.0, "dist": 25}),
+        # targets-tab: the Targets live sweep's per-day county lookup.
+        ("/map/county-day-obs", {"regionCode": "US-CA-001", "date": "2026-09-01"}),
     ]
 
 

@@ -15,6 +15,7 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'r
 // appear beside this cluster. Not an oversight.
 import { AlertCircle, Binoculars, Camera, ChevronDown, Crosshair, Filter, Info, Loader2, LocateFixed, Maximize2, Minimize2, MapPin, Search, X } from 'lucide-react'
 import { SetupRequired } from './SetupRequired'
+import { AddressSearch } from './AddressSearch'
 import { TabLoadErrorAlert } from './ui/TabLoadErrorAlert'
 import { DateRangeFields } from './ui/DateRangeFields'
 import { EBIRD_BACKUP_STEPS, EBIRD_BACKUP_LOAD_ERROR } from './setupCopy'
@@ -226,66 +227,8 @@ function validationError(message: string): OverlayError {
 }
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
-
-function AddressSearch({ onLocate }: { onLocate: (lat: number, lng: number) => void }) {
-  const [query, setQuery] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-
-  async function handleSearch() {
-    const q = query.trim()
-    if (!q) return
-    setLoading(true); setError('')
-    try {
-      const data = await transport.get<{ lat: string; lon: string }[]>('/nominatim/search', { q })
-      if (data.length === 0) { setError('No location found. Try a different search term.'); return }
-      onLocate(parseFloat(data[0].lat), parseFloat(data[0].lon))
-      setQuery('')
-    } catch (err) {
-      // Offline geocode must read "you're offline", NOT a "no matches"/"failed"
-      // message that conflates the two distinct states (FR-38).
-      setError(classifyLiveError(err, { errorMessage: 'Location search failed. Try again or enter coordinates manually.' }).message)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  return (
-    <div style={{ marginBottom: 8 }}>
-      <div style={{ display: 'flex', gap: 6 }}>
-        {/* .sr-input-16 sits on the <input> ITSELF (not the flex wrapper) so it
-            out-ranks the inline fontSize below — the phone-tier iOS focus-zoom
-            guard is inert anywhere else. Same on all nine sidebar controls. */}
-        <input
-          className="sr-input-16"
-          type="text"
-          placeholder="Search by place name"
-          aria-label="Search by place name"
-          value={query}
-          onChange={e => setQuery(e.target.value)}
-          onKeyDown={e => { if (e.key === 'Enter') handleSearch() }}
-          style={{ flex: 1, height: 34, padding: '0 8px', border: '1.5px solid var(--sr-border)', borderRadius: 6, fontSize: '0.75rem', fontFamily: 'inherit', color: 'var(--sr-text)', background: 'var(--sr-surface)', minWidth: 0 }}
-        />
-        <Button
-          onClick={handleSearch}
-          disabled={loading || !query.trim()}
-          title="Search"
-          aria-label="Search"
-          style={{
-            width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center',
-            background: loading || !query.trim() ? 'var(--sr-surface-subtle)' : 'var(--sr-accent)',
-            color: loading || !query.trim() ? 'var(--sr-text-muted)' : 'var(--sr-on-accent)',
-            border: '1.5px solid var(--sr-border)', borderRadius: 6,
-            cursor: loading || !query.trim() ? 'not-allowed' : 'pointer', flexShrink: 0,
-          }}
-        >
-          <Search size={14} strokeWidth={2} />
-        </Button>
-      </div>
-      {error && <div role="alert" style={{ fontSize: '0.6875rem', color: 'var(--sr-error)', marginTop: 4 }}>{error}</div>}
-    </div>
-  )
-}
+// The place-name search is the shared `components/AddressSearch.tsx` (lifted out
+// of this file so the Targets tab's measuring-point chooser runs the same one).
 
 // ── Main component ─────────────────────────────────────────────────────────────
 

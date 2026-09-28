@@ -1,7 +1,7 @@
 // The ONE authoritative glyph per destination (feature: nav-rework).
 //
-// WHY IT MOVED OUT OF App.tsx. The nav now draws the same eleven glyphs at three
-// nav scales -- 15px/2.25 in the sidebar, 17px/2.1 in the More sheet, 18px/2 in
+// WHY IT MOVED OUT OF App.tsx. The nav now draws the same glyph per destination
+// (every configurable tab plus Settings) at three nav scales -- 15px/2.25 in the sidebar, 17px/2.1 in the More sheet, 18px/2 in
 // the icon rail, 20px/2 in the phone bottom bar -- so a table of pre-rendered
 // React nodes baked at 14px could not serve it. The entries are RENDER FUNCTIONS
 // taking the size and stroke, which is what keeps "one table" true across the
@@ -24,7 +24,7 @@
 // Entry-chunk safety: this file imports `react` types and `lucide-react` only,
 // both of which App.tsx already carries. entryChunk.test.ts is the live guard.
 
-import { BookOpen, BarChart2, Images, Dna, Tag, ClipboardList, CalendarDays } from 'lucide-react'
+import { BookOpen, BarChart2, Images, Dna, Tag, ClipboardList, CalendarDays, Target } from 'lucide-react'
 import type { Tab } from './tabLayout'
 
 export interface TabIconProps {
@@ -83,6 +83,11 @@ export const TAB_ICONS: Record<Tab, TabIcon> = {
   ),
   'calendar': ({ size, strokeWidth }) => (
     <CalendarDays size={size} strokeWidth={strokeWidth} aria-hidden="true" />
+  ),
+  // Targets. lucide `Target` (concentric rings): used nowhere else in the app,
+  // and distinct in the rail from the Map Explorer's LocateFixed reticle.
+  'targets': ({ size, strokeWidth }) => (
+    <Target size={size} strokeWidth={strokeWidth} aria-hidden="true" />
   ),
   'comparer': ({ size, strokeWidth }) => (
     <svg {...svgProps(size, strokeWidth)}>

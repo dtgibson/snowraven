@@ -20,7 +20,7 @@
 // identity, and that is the whole point. Mutation-checked: reverting a tab to an
 // in-branch region turns its roster rows red.
 //
-// ONE ROSTER, EIGHT TABS. The eight rows below are the coverage. They are not
+// ONE ROSTER, NINE TABS (Targets joined at targets-tab). The rows below are the coverage. They are not
 // eight hand-written copies, because the failure mode is per-tab (each has its
 // own phase switch and its own load effect) while the guarantee is identical, so
 // a dropped tab has to be visible as a missing row rather than as an absent file.
@@ -67,6 +67,11 @@ vi.mock('react-map-gl/maplibre', () => ({
   Layer: () => null,
 }))
 vi.mock('./AtlasLayer', () => ({ AtlasLayer: () => null }))
+// The Targets tab loads the 3.85 MB county geometry once it is ready; the
+// shape of the map data has nothing to do with the load-failure region.
+vi.mock('../lib/countyGeometry', () => ({
+  loadCountyGeometry: async () => ({ type: 'FeatureCollection', features: [] }),
+}))
 vi.mock('./map/CountyLayer', () => ({ CountyLayer: () => null }))
 vi.mock('./map/SightingMarkers', () => ({ SightingMarkers: () => null }))
 vi.mock('./map/HotspotMarkers', () => ({ HotspotMarkers: () => null }))
@@ -133,6 +138,8 @@ vi.mock('../lib/storage', () => ({
     // these tests are about. It lost that column silently before, when a bad
     // parse was pre-empted by the eBird failure and never ran.
     readFile: vi.fn(async () => 'ML Catalog Number,Format,Common Name\n1,Photo,American Robin\n'),
+    getBarChartFiles: vi.fn(async () => ({ version: 1, counties: {} })),
+    readBarChartFile: vi.fn(async () => null),
   },
 }))
 
@@ -144,6 +151,7 @@ import { NamedBirds } from './NamedBirds'
 import { SpeciesDetail } from './SpeciesDetail'
 import { LifeList } from './LifeList'
 import { MapExplorer } from './MapExplorer'
+import { Targets } from './targets/Targets'
 import { notifyFilesChanged } from '../lib/filesChanged'
 import { loadEbirdObservations } from '../lib/observationsCache'
 
@@ -180,6 +188,7 @@ const ROSTER: Row[] = [
   { name: 'Species Detail', render: v => <SpeciesDetail onGoToSettings={noop} onGoToWeather={noop} filesVersion={v} embedAllowed={false} /> },
   { name: 'Multimedia', render: v => <LifeList onGoToSettings={noop} filesVersion={v} /> },
   { name: 'Map Explorer', render: () => <MapExplorer onGoToSettings={noop} onNavigateToMediaList={noop} />, epochDriven: true },
+  { name: 'Targets', render: v => <Targets onGoToSettings={noop} filesVersion={v} /> },
 ]
 
 /** The live region, addressed the way the app renders it and no other way. */
@@ -210,9 +219,9 @@ afterEach(() => {
 })
 
 describe('the roster covers every tab that can fail to load', () => {
-  it('has all eight, and no duplicates', () => {
-    expect(ROSTER).toHaveLength(8)
-    expect(new Set(ROSTER.map(r => r.name)).size).toBe(8)
+  it('has all nine, and no duplicates', () => {
+    expect(ROSTER).toHaveLength(9)
+    expect(new Set(ROSTER.map(r => r.name)).size).toBe(9)
   })
 })
 

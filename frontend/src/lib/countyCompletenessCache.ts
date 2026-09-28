@@ -18,6 +18,7 @@
 
 import { storage } from './storage'
 import { isOfflineError } from './offlineDetect'
+import { REGION_CODE_RE } from './regionCode'
 import type { CountyEbirdData } from './countyCompleteness'
 
 /** OQ-04: 30 days. */
@@ -64,7 +65,9 @@ const EMPTY_STORE = (): CountyCompletenessStore => ({ version: 1, entries: {}, o
 // "not cached" (that county simply refetches), never a render-time crash on a
 // null/missing field downstream (statusFor's entry.data dereference).
 
-const REGION_KEY_RE = /^US-[A-Z]{2}-\d{3}$/
+// Single-sourced in lib/regionCode.ts since targets-tab (the same literal, with
+// the explicit [0-9] class); this consumer keeps its own load-path tests.
+const REGION_KEY_RE = REGION_CODE_RE
 
 function isValidEntry(e: unknown): e is CountyCompletenessCacheEntry {
   if (typeof e !== 'object' || e === null) return false

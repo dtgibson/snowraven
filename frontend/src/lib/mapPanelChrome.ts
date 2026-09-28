@@ -57,7 +57,7 @@
 //     item — exactly the resolution corner where engines differ, and this app
 //     ships on WebKit for macOS and iOS as well as Chromium.
 //
-//   * The page is the scrollport for all ten tabs. Both pinned-label bands
+//   * The page is the scrollport for every tab. Both pinned-label bands
 //     (Breeding Codes, Multimedia) are `position: sticky` cells that anchor to
 //     the PAGE precisely because nothing between them and the viewport sets
 //     overflow, and their `scroll-margin-top` focus guards are written for that

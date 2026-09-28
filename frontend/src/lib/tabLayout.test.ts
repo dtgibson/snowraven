@@ -27,30 +27,34 @@ describe('DEFAULT_TAB_ORDER', () => {
   it('matches the intended first-run navigation order', () => {
     // Map Explorer third and Calendar fifth since 1.0.19, so the phone bar's
     // default first four (Weather, Statistics, Map Explorer, Species Detail)
-    // put the map above the fold and Calendar under More.
+    // put the map above the fold; Targets sits right after Calendar (QA-02).
     expect(DEFAULT_TAB_ORDER).toEqual([
       'weather',
       'birding-stats',
       'map-explorer',
       'species-detail',
       'calendar',
+      'targets',
       'life-list',
       'breeding-codes',
       'checklists',
       'comparer',
       'named-birds',
     ])
+    expect(DEFAULT_TAB_ORDER.indexOf('targets')).toBe(5)
+    expect(DEFAULT_TAB_ORDER.indexOf('targets')).toBe(DEFAULT_TAB_ORDER.indexOf('calendar') + 1)
   })
 
-  it('keeps the 1.0.18 default as a literal, since the migration below is one equality against it', () => {
+  it('keeps the 1.0.19 default as a literal, since the migration below is one equality against it', () => {
     // Spelled out rather than derived: if this constant drifts, every device
-    // still on the old default silently stops following the new one.
+    // still on the old default silently stops following the new one. Exactly
+    // one generation: the 1.0.18 order this constant used to hold is retired.
     expect(PREVIOUS_DEFAULT_TAB_ORDER).toEqual([
       'weather',
       'birding-stats',
-      'calendar',
-      'species-detail',
       'map-explorer',
+      'species-detail',
+      'calendar',
       'life-list',
       'breeding-codes',
       'checklists',
@@ -58,96 +62,118 @@ describe('DEFAULT_TAB_ORDER', () => {
       'named-birds',
     ])
     expect(PREVIOUS_DEFAULT_TAB_ORDER).not.toEqual(DEFAULT_TAB_ORDER)
+    expect(PREVIOUS_DEFAULT_TAB_ORDER).not.toContain('targets')
   })
 })
 
 // The saved documents below are literals on purpose. A test that imports the
 // constant it is checking proves delivery, never content; these prove that the
-// bytes a 1.0.18 device actually has on disk are what the normalizer recognises.
-const OLD_DEFAULT_1_0_18 = [
+// bytes a device on each default actually has on disk are what the normalizer
+// recognises.
+const DEFAULT_1_0_18 = [
   'weather', 'birding-stats', 'calendar', 'species-detail', 'map-explorer',
   'life-list', 'breeding-codes', 'checklists', 'comparer', 'named-birds',
 ]
-const NEW_DEFAULT_1_0_19 = [
+const PREVIOUS_DEFAULT_1_0_19 = [
   'weather', 'birding-stats', 'map-explorer', 'species-detail', 'calendar',
   'life-list', 'breeding-codes', 'checklists', 'comparer', 'named-birds',
 ]
+const NEW_DEFAULT_WITH_TARGETS = [
+  'weather', 'birding-stats', 'map-explorer', 'species-detail', 'calendar',
+  'targets', 'life-list', 'breeding-codes', 'checklists', 'comparer', 'named-birds',
+]
 
-describe('parseLayout — a saved order equal to the 1.0.18 default reads as the current default', () => {
-  it('maps the old default to the new default with an empty hidden set', () => {
-    const state = parseLayout({ order: OLD_DEFAULT_1_0_18, hidden: [] })
-    expect(state.order).toEqual(NEW_DEFAULT_1_0_19)
+describe('parseLayout — a saved order equal to the 1.0.19 default reads as the current default (QA-03)', () => {
+  it('maps the previous default to the new default, Targets after Calendar, with an empty hidden set', () => {
+    const state = parseLayout({ order: PREVIOUS_DEFAULT_1_0_19, hidden: [] })
+    expect(state.order).toEqual(NEW_DEFAULT_WITH_TARGETS)
     expect(state.hidden.size).toBe(0)
   })
 
   it('keeps the hidden set through the migration (hide/show without a drag writes the default order back)', () => {
-    const state = parseLayout({ order: OLD_DEFAULT_1_0_18, hidden: ['comparer', 'life-list'] })
-    expect(state.order).toEqual(NEW_DEFAULT_1_0_19)
+    const state = parseLayout({ order: PREVIOUS_DEFAULT_1_0_19, hidden: ['comparer', 'life-list'] })
+    expect(state.order).toEqual(NEW_DEFAULT_WITH_TARGETS)
     expect([...state.hidden].sort()).toEqual(['comparer', 'life-list'])
     // and the visible list is the new default minus exactly those two
-    expect(visibleTabs(state)).toEqual(NEW_DEFAULT_1_0_19.filter(t => t !== 'comparer' && t !== 'life-list'))
+    expect(visibleTabs(state)).toEqual(NEW_DEFAULT_WITH_TARGETS.filter(t => t !== 'comparer' && t !== 'life-list'))
   })
 
   it('returns the new default unchanged (round-trip)', () => {
-    const state = parseLayout({ order: NEW_DEFAULT_1_0_19, hidden: ['weather'] })
-    expect(state.order).toEqual(NEW_DEFAULT_1_0_19)
+    const state = parseLayout({ order: NEW_DEFAULT_WITH_TARGETS, hidden: ['weather'] })
+    expect(state.order).toEqual(NEW_DEFAULT_WITH_TARGETS)
     expect(state.hidden.has('weather')).toBe(true)
   })
 
-  it('leaves a custom order verbatim, including one that differs from the old default by a single swap elsewhere', () => {
-    // Breeding Codes and Checklists swapped; Calendar and Map Explorer still in
-    // their 1.0.18 slots. This is a user's order and must not move.
+  it('leaves a custom order verbatim with Targets appended LAST, including a single swap elsewhere', () => {
+    // Breeding Codes and Checklists swapped; everything else in its 1.0.19
+    // slot. This is a user's order: it must not move, and the new tab arrives
+    // by the existing missing-tab step at the end, not after Calendar.
     const oneSwap = [
-      'weather', 'birding-stats', 'calendar', 'species-detail', 'map-explorer',
+      'weather', 'birding-stats', 'map-explorer', 'species-detail', 'calendar',
       'life-list', 'checklists', 'breeding-codes', 'comparer', 'named-birds',
     ]
-    expect(parseLayout({ order: oneSwap, hidden: [] }).order).toEqual(oneSwap)
+    expect(parseLayout({ order: oneSwap, hidden: [] }).order).toEqual([...oneSwap, 'targets'])
 
-    // A thoroughly custom order is likewise untouched.
+    // A thoroughly custom order is likewise untouched, Targets last.
     const custom = [
       'named-birds', 'comparer', 'checklists', 'breeding-codes', 'life-list',
       'map-explorer', 'species-detail', 'calendar', 'birding-stats', 'weather',
     ]
-    expect(parseLayout({ order: custom, hidden: ['calendar'] }).order).toEqual(custom)
+    const state = parseLayout({ order: custom, hidden: ['calendar'] })
+    expect(state.order).toEqual([...custom, 'targets'])
+    expect([...state.hidden]).toEqual(['calendar'])
   })
 
   it('compares AFTER the unknown-id drop, so a stray id does not mask an otherwise-default order', () => {
-    const withStray = [...OLD_DEFAULT_1_0_18.slice(0, 3), 'unknown-future-tab', ...OLD_DEFAULT_1_0_18.slice(3)]
+    const withStray = [...PREVIOUS_DEFAULT_1_0_19.slice(0, 3), 'unknown-future-tab', ...PREVIOUS_DEFAULT_1_0_19.slice(3)]
     const state = parseLayout({ order: withStray, hidden: [] })
-    expect(state.order).toEqual(NEW_DEFAULT_1_0_19)
+    expect(state.order).toEqual(NEW_DEFAULT_WITH_TARGETS)
   })
 
-  it('compares AFTER the missing-tab append, so an old default missing only its tail still migrates', () => {
-    // The append restores the tail in default order, which for a trailing gap
-    // reproduces the old default exactly. Pinned because it is how the two
-    // existing steps compose with the new one, not because such a document
-    // is expected in the wild.
-    const missingTail = OLD_DEFAULT_1_0_18.slice(0, 8) // through 'checklists'
+  it('compares against the constant given the SAME missing-tab append, or the migration could never fire', () => {
+    // The saved 1.0.19 default has ten ids; after the append it has eleven,
+    // with Targets last. Compared against the bare ten-id constant it would
+    // never be equal and every device on the old default would silently keep
+    // Targets last. This row goes red if the comparison loses its append.
+    const appended = [...PREVIOUS_DEFAULT_1_0_19, 'targets']
+    expect(parseLayout({ order: appended, hidden: [] }).order).toEqual(NEW_DEFAULT_WITH_TARGETS)
+  })
+
+  it('does NOT migrate a previous default that is missing its tail: that shape is two generations old', () => {
+    // Through 1.0.36 this shape migrated, because the append restored the tail
+    // in default order and reproduced the old default exactly. With Targets in
+    // the roster the append now inserts Targets BEFORE the restored tail, so
+    // the result is no longer the previous default plus Targets. It is kept as
+    // saved plus the append, which is the standing rule for a custom order.
+    const missingTail = PREVIOUS_DEFAULT_1_0_19.slice(0, 8) // through 'checklists'
     const state = parseLayout({ order: missingTail, hidden: [] })
-    expect(state.order).toEqual(NEW_DEFAULT_1_0_19)
+    expect(state.order).toEqual([...missingTail, 'targets', 'comparer', 'named-birds'])
+    expect(state.order).not.toEqual(NEW_DEFAULT_WITH_TARGETS)
   })
 
-  it('does NOT migrate a pre-Calendar (0.5.42) default: the append puts Calendar last, which is not the old default', () => {
-    // A layout saved before Calendar existed has it appended at the END by the
-    // existing step, never in the 1.0.18 slot, so the equality does not fire
-    // and the order stays as saved plus Calendar. Older defaults are out of
-    // scope by the change brief; this pins what actually happens to them.
+  it('does NOT migrate the 1.0.18 default: exactly one generation migrates', () => {
+    const state = parseLayout({ order: DEFAULT_1_0_18, hidden: ['comparer'] })
+    expect(state.order).toEqual([...DEFAULT_1_0_18, 'targets'])
+    expect(state.hidden.has('comparer')).toBe(true)
+  })
+
+  it('does NOT migrate a pre-Calendar (0.5.42) default: the append puts Calendar and Targets last', () => {
     const preCalendar = [
       'weather', 'birding-stats', 'species-detail', 'map-explorer',
       'life-list', 'breeding-codes', 'checklists', 'comparer', 'named-birds',
     ]
     const state = parseLayout({ order: preCalendar, hidden: [] })
-    expect(state.order).toEqual([...preCalendar, 'calendar'])
-    expect(state.order).not.toEqual(NEW_DEFAULT_1_0_19)
+    expect(state.order).toEqual([...preCalendar, 'calendar', 'targets'])
+    expect(state.order).not.toEqual(NEW_DEFAULT_WITH_TARGETS)
   })
 })
 
-describe('loadTabLayout — the 1.0.18 default on disk', () => {
+describe('loadTabLayout — the 1.0.19 default on disk', () => {
   it('reads as the new default and writes nothing back', () => {
-    const stored = JSON.stringify({ order: OLD_DEFAULT_1_0_18, hidden: ['comparer'] })
+    const stored = JSON.stringify({ order: PREVIOUS_DEFAULT_1_0_19, hidden: ['comparer'] })
     localStorageMock.setItem('sr-tab-layout', stored)
     const state = loadTabLayout()
-    expect(state.order).toEqual(NEW_DEFAULT_1_0_19)
+    expect(state.order).toEqual(NEW_DEFAULT_WITH_TARGETS)
     expect(state.hidden.has('comparer')).toBe(true)
     // Hydration never persists: the document on disk is byte-for-byte what was there.
     expect(localStorageMock.getItem('sr-tab-layout')).toBe(stored)
@@ -306,7 +332,7 @@ describe('parseLayout (used by both the localStorage and storage-seam paths)', (
 describe('serializeLayout', () => {
   it('converts the hidden Set to an array and round-trips through parseLayout', () => {
     const original: TabLayoutState = {
-      order: ['birding-stats', 'weather', 'calendar', 'species-detail', 'map-explorer', 'life-list', 'breeding-codes', 'named-birds', 'checklists', 'comparer'],
+      order: ['birding-stats', 'weather', 'calendar', 'targets', 'species-detail', 'map-explorer', 'life-list', 'breeding-codes', 'named-birds', 'checklists', 'comparer'],
       hidden: new Set(['comparer', 'life-list']),
     }
     const serialized = serializeLayout(original)

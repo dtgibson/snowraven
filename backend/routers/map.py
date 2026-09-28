@@ -8,6 +8,7 @@ from fastapi import APIRouter, HTTPException, Query
 
 from http_client import get_client
 from routers.taxonomy import collapse_to_species_list
+from services.county_day_obs import is_valid_day_obs_date, reduce_county_day_obs
 from services.ebird_errors import (
     parse_retry_after_seconds,
     raise_ebird_http_error,
@@ -120,6 +121,59 @@ async def get_county_species(
         # an honest, retryable server error instead of a Y that counted nothing.
         raise HTTPException(status_code=502, detail="Could not load the eBird taxonomy. Try again.")
     return {"regionCode": regionCode, "speciesCount": len(species), "species": species}
+
+
+@router.get("/map/county-day-obs")
+async def get_county_day_obs(
+    regionCode: str = Query(..., pattern=r"^US-[A-Z]{2}-[0-9]{3}$"),
+    date: str = Query(..., pattern=r"^[0-9]{4}-[0-9]{2}-[0-9]{2}$"),
+):
+    """Every species reported in one US county on one calendar day (targets-tab,
+    schema.md section 4): eBird data/obs/{regionCode}/historic/{y}/{m}/{d} with
+    eBird's defaults (rank=mrec, detail=simple, includeProvisional=false; parity
+    with /map/recent-obs), reduced to one record per species, the most recent
+    report of it that day. The Targets tab's live sweep asks for the 30 days
+    ending today, once each, and the frontend's durable per-day store is the one
+    caching layer for this route (deliberately NOT in CACHED_GET_PATHS, and no
+    in-process cache here). Desktop twin: mapService.getCountyDayObs, shared
+    malformed fixture frontend/src/lib/countyDayObs.fixture.json.
+
+    SSRF: the destination cannot be steered. Exactly three values are
+    interpolated: ``regionCode``, constrained by the pattern above to a class
+    that cannot express a scheme, host, credential, '?', '@', '.', '%' or path
+    separator (and ``quote(..., safe='')`` besides), and the year, month and day,
+    which are INTEGERS parsed from a date the code has already validated as a
+    real calendar day and re-formatted by the code, never the input string. No
+    other parameter is forwarded. The shared client does not follow redirects,
+    and the upstream body is reduced, never reflected.
+
+    The ``pattern=`` constraints are pydantic's, on the Rust engine, which
+    rejects a trailing newline itself: the documented carve-out, do NOT "fix"
+    them toward fullmatch. The real-day check is the hand-called twin
+    ``is_valid_day_obs_date`` (fullmatch + date.fromisoformat), and it runs BEFORE
+    the key check so an impossible date is a 422 whether or not a key is set."""
+    if not is_valid_day_obs_date(date):
+        raise HTTPException(status_code=422, detail="Invalid date.")
+    key = _api_key()
+    y, m, d = (int(part) for part in date.split("-"))
+    client = get_client()
+    try:
+        resp = await client.get(
+            f"{_EBIRD_BASE}/data/obs/{quote(regionCode, safe='')}/historic/{y}/{m}/{d}",
+            headers={"X-eBirdApiToken": key},
+            timeout=15.0,
+        )
+        resp.raise_for_status()
+        # The reducer is INSIDE the try (security.md v1.0.29): a JSON-valid but
+        # malformed body is the route's 502, never a plain-text 500.
+        return reduce_county_day_obs(resp.json(), regionCode, date)
+    except httpx.HTTPStatusError as exc:
+        _raise_ebird_http_error(exc)
+    except httpx.RequestError:
+        raise HTTPException(status_code=502, detail="Could not reach the eBird API.")
+    except ValueError:
+        # resp.json() on a body that is not JSON.
+        raise HTTPException(status_code=502, detail="Unexpected eBird response.")
 
 
 @router.get("/map/hotspot-activity")

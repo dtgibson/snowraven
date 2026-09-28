@@ -26,13 +26,15 @@ const icon = ({ size }: { size: number }) => <svg data-size={size} aria-hidden="
 
 // Mirrors DEFAULT_TAB_ORDER (lib/tabLayout.ts) plus Settings, so "the first four
 // of the saved visible order" below describes the shipped default and not only
-// the mechanism. Map Explorer third and Calendar fifth since 1.0.19.
-const ELEVEN: NavItem[] = [
+// the mechanism. Map Explorer third and Calendar fifth since 1.0.19; Targets
+// right after Calendar.
+const TWELVE: NavItem[] = [
   { id: 'weather', label: 'Weather', icon },
   { id: 'birding-stats', label: 'Statistics', icon },
   { id: 'map-explorer', label: 'Map Explorer', icon },
   { id: 'species-detail', label: 'Species Detail', icon },
   { id: 'calendar', label: 'Calendar', icon },
+  { id: 'targets', label: 'Targets', icon },
   { id: 'life-list', label: 'Multimedia', icon },
   { id: 'breeding-codes', label: 'Breeding Codes', icon },
   { id: 'checklists', label: 'Checklists', icon },
@@ -66,7 +68,7 @@ function Harness({ width = 1512, ...props }: HarnessProps) {
   return (
     <div ref={setShell} data-testid="shell">
       <TabNav
-        items={ELEVEN}
+        items={TWELVE}
         activeTab="weather"
         onSelect={() => {}}
         isPhone={false}
@@ -116,7 +118,7 @@ describe('density 1 — the sidebar', () => {
     expect(tablist.getAttribute('aria-orientation')).toBe('vertical')
     // Every destination keeps its tab-{id} / panel-{id} wiring, so App's panels
     // still resolve their aria-labelledby.
-    for (const item of ELEVEN) {
+    for (const item of TWELVE) {
       const tab = document.getElementById(`tab-${item.id}`)!
       expect(tab.getAttribute('role')).toBe('tab')
       expect(tab.getAttribute('aria-controls')).toBe(`panel-${item.id}`)
@@ -125,7 +127,7 @@ describe('density 1 — the sidebar', () => {
 
   it('holds ONE tab stop and moves the rest to -1 (the roving group)', () => {
     renderNav({ activeTab: 'calendar' })
-    const stops = ELEVEN.map(i => document.getElementById(`tab-${i.id}`)!.getAttribute('tabindex'))
+    const stops = TWELVE.map(i => document.getElementById(`tab-${i.id}`)!.getAttribute('tabindex'))
     expect(stops.filter(t => t === '0')).toHaveLength(1)
     expect(document.getElementById('tab-calendar')!.getAttribute('tabindex')).toBe('0')
   })
@@ -156,7 +158,7 @@ describe('density 1 — the sidebar', () => {
     // hairline is aria-hidden instead, so the tablist's children are all tabs.
     renderNav()
     const tablist = screen.getByRole('tablist')
-    expect(within(tablist).getAllByRole('tab')).toHaveLength(ELEVEN.length)
+    expect(within(tablist).getAllByRole('tab')).toHaveLength(TWELVE.length)
     const sep = tablist.querySelector('hr.sr-nav-sep')!
     expect(sep.getAttribute('aria-hidden')).toBe('true')
     // ...and it sits immediately before Settings, which is the only structural
@@ -184,7 +186,7 @@ describe('density 2 — the icon rail', () => {
 
   it('names every destination, because the label is not on screen', () => {
     renderNav(RAIL)
-    for (const item of ELEVEN) {
+    for (const item of TWELVE) {
       expect(document.getElementById(`tab-${item.id}`)!.getAttribute('aria-label')).toBe(item.label)
     }
   })
@@ -309,7 +311,7 @@ describe('density 3 — the phone bottom bar', () => {
   })
 
   it('follows the user\'s saved order, since that is what chooses the favourites', () => {
-    const reordered = [ELEVEN[6], ELEVEN[0], ...ELEVEN.slice(1, 6), ...ELEVEN.slice(7)]
+    const reordered = [TWELVE[7], TWELVE[0], ...TWELVE.slice(1, 7), ...TWELVE.slice(8)]
     phone({ items: reordered })
     expect(document.querySelector('.sr-navbar-cell')!.textContent).toBe('Breeding Codes')
   })
@@ -346,7 +348,7 @@ describe('density 3 — the phone bottom bar', () => {
   })
 
   it('adapts its cell count when the user has hidden nearly everything', () => {
-    phone({ items: [ELEVEN[0], ELEVEN[10]] })
+    phone({ items: [TWELVE[0], TWELVE[11]] })
     const bar = document.querySelector('.sr-navbar') as HTMLElement
     expect(bar.style.getPropertyValue('--sr-navbar-cells')).toBe('2')
   })
@@ -383,7 +385,7 @@ describe('the More sheet', () => {
     openSheet()
     const rows = document.querySelectorAll('.sr-nav-sheet .sr-nav-item')
     expect([...rows].map(r => r.textContent)).toEqual([
-      'Calendar', 'Multimedia', 'Breeding Codes', 'Checklists',
+      'Calendar', 'Targets', 'Multimedia', 'Breeding Codes', 'Checklists',
       'List Comparer', 'Named Birds', 'Settings',
     ])
   })

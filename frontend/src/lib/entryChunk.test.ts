@@ -763,6 +763,84 @@ describe('entry-chunk exclusion (NFR-03 / QA-30)', () => {
     }
   })
 
+  // ── The Targets tab (targets-tab NFR-02, QA-04). Lazy like every heavy tab:
+  // its parser, its day cache, its reducer and its county picker ride their own
+  // chunk, and the 3.85 MB county geometry is reached only through import().
+  // Paired per this file's convention: the negatives below, then the positive
+  // legs proving the Targets subtree really does reach what they exclude.
+  const TARGETS_OFF_ENTRY = [
+    'components/targets/Targets.tsx',
+    'components/targets/TargetsList.tsx',
+    'components/targets/TargetsControls.tsx',
+    'components/targets/TargetsCountyPicker.tsx',
+    'components/targets/TargetsBarChartFile.tsx',
+    'lib/targets/targetsCounties.ts',
+    'lib/targets/targetsRecord.ts',
+    'lib/targets/targetsClassify.ts',
+    'lib/targets/targetsLive.ts',
+    'lib/targets/useCountyDaySweep.ts',
+    'lib/barChart/parseBarChart.ts',
+    'lib/barChart/barChartFrequency.ts',
+    'lib/barChart/barChartJoin.ts',
+    'lib/barChart/barChartImport.ts',
+    'lib/barChart/barChartFilename.ts',
+    'lib/countyDayObsCache.ts',
+    'lib/countyDayObsReduce.ts',
+    // FR-51a: the measuring-point chooser, its places and the shared place search.
+    'components/targets/TargetsAnchorChooser.tsx',
+    'lib/targets/targetsAnchor.ts',
+    'components/AddressSearch.tsx',
+    'lib/placeSearch.ts',
+  ]
+
+  it.each(TARGETS_OFF_ENTRY)('%s is off the App static closure (targets-tab)', file => {
+    expect(has(file)).toBe(false)
+  })
+
+  it('the Targets subtree reaches its parser, day cache and pure modules, and no map or chart library', () => {
+    const sub = closureFrom(resolve(SRC, 'components/targets/Targets.tsx'))
+    for (const file of TARGETS_OFF_ENTRY) {
+      expect(hasIn(sub.files, file), `Targets must reach ${file}`).toBe(true)
+    }
+    expect(sub.files.size).toBeGreaterThan(20)
+    expect(maplibreIn(sub.externals)).toEqual([])
+    expect([...sub.externals].filter(s => s === 'recharts' || s.startsWith('recharts/'))).toEqual([])
+    // The geometry is two dynamic hops away, never static.
+    expect(hasIn(sub.files, 'lib/countyGeometry.ts')).toBe(false)
+    expect(hasIn(sub.files, 'assets/us-counties.json')).toBe(false)
+    const readySrc = readFileSync(resolve(SRC, 'components/targets/Targets.tsx'), 'utf8')
+    expect(readySrc).toContain("import('../../lib/countyGeometry')")
+    // The place search was LIFTED out of Map Explorer rather than imported from
+    // it, so the chooser brings no map with it (design-spec 2a).
+    expect(hasIn(sub.files, 'components/MapExplorer.tsx')).toBe(false)
+    const mapClosure = closureFrom(resolve(SRC, 'components/MapExplorer.tsx'))
+    expect(hasIn(mapClosure.files, 'components/AddressSearch.tsx')).toBe(true)
+  })
+
+  it('App reaches the Targets tab only through import(), and warms it at idle', () => {
+    const appSrc = readFileSync(APP, 'utf8')
+    expect(appSrc).toContain("import('./components/targets/Targets')")
+    expect(appSrc).toContain('void importTargets()')
+  })
+
+  it('the refusal registry stays on the entry graph without dragging the bar-chart parser onto it', () => {
+    // uploadGuard.ts is on App's graph through Settings.tsx, and it now owns the
+    // bar-chart filename rules too. It takes the parser's outcome TYPE only
+    // (erased at build) and the parse itself as an argument, which is what
+    // keeps lib/barChart/** asserted absent above.
+    expect(has('lib/uploadGuard.ts')).toBe(true)
+    const guard = closureFrom(resolve(SRC, 'lib/uploadGuard.ts'))
+    expect([...guard.files].some(f => f.replace(/\\/g, '/').includes('/lib/barChart/'))).toBe(false)
+  })
+
+  it('the bar-chart files epoch and the region-code pattern are dependency-free', () => {
+    for (const m of ['lib/barChartFilesChanged.ts', 'lib/regionCode.ts']) {
+      const c = closureFrom(resolve(SRC, m))
+      expect(c.files.size, m).toBe(1)
+      expect([...c.externals], m).toEqual([])
+    }
+  })
+
   it('the App entry actually exists (guards against a broken closure root)', () => {
     expect(files.has(APP)).toBe(true)
     expect(files.size).toBeGreaterThan(20) // a real graph, not an empty/short-circuited one

@@ -64,6 +64,9 @@ const importHelpDocs = () => import('./components/HelpDocs')
 const importListComparer = () => import('./components/ListComparer')
 const importChecklists = () => import('./components/Checklists')
 const importCalendar = () => import('./components/Calendar')
+// The Targets tab (targets-tab): lazy like the tabs above, so its parser, its
+// day cache and its county picker ride their own chunk (entryChunk.test.ts).
+const importTargets = () => import('./components/targets/Targets')
 // The per-row Named Birds map chunk (maplibre). The component is lazy-rendered
 // inside NamedBirdRow; this is just the idle prefetch (same module → same chunk),
 // so opening a row stays instant for returning users.
@@ -79,6 +82,7 @@ const HelpDocs = lazy(() => importHelpDocs().then(m => ({ default: m.HelpDocs })
 const ListComparer = lazy(() => importListComparer().then(m => ({ default: m.ListComparer })))
 const Checklists = lazy(() => importChecklists().then(m => ({ default: m.Checklists })))
 const Calendar = lazy(() => importCalendar().then(m => ({ default: m.Calendar })))
+const Targets = lazy(() => importTargets().then(m => ({ default: m.Targets })))
 const CommandPalette = lazy(() => importCommandPalette().then(m => ({ default: m.CommandPalette })))
 import {
   type ConfigurableTab,
@@ -123,7 +127,7 @@ type TideState =
 // synchronous breeding-code parse, /taxonomy/codes POSTs, files-status reads) — until
 // the tab is first opened, instead of running it all on first paint.
 const DEFERRED_TABS: Tab[] = [
-  'map-explorer', 'species-detail', 'birding-stats', 'calendar',
+  'map-explorer', 'species-detail', 'birding-stats', 'calendar', 'targets',
   'comparer', 'life-list', 'breeding-codes', 'named-birds', 'checklists', 'settings',
 ]
 
@@ -568,6 +572,7 @@ export default function App() {
       void importListComparer().catch(() => {})
       void importChecklists().catch(() => {})
       void importCalendar().catch(() => {})
+      void importTargets().catch(() => {})
       // The per-row Named Birds map (maplibre) — warmed so opening a row is instant.
       void importSightingsMap().catch(() => {})
     }
@@ -1438,6 +1443,31 @@ export default function App() {
         {mountedTabs.has('calendar') && (
           <Suspense fallback={<TabLoading label="Loading calendar…" />}>
             <Calendar onGoToSettings={() => setActiveTab('settings')} filesVersion={filesVersion} onOpenSpecies={navigateToSpeciesDetail} />
+          </Suspense>
+        )}
+      </div>
+
+      {/* Targets tab content */}
+      <div
+        role="tabpanel"
+        id="panel-targets"
+        aria-labelledby="tab-targets"
+        aria-label="Targets"
+        className="sr-panel"
+        style={{
+          display: activeTab === 'targets' ? 'flex' : 'none',
+          flexDirection: 'column',
+          padding: '40px 24px 24px',
+        }}
+      >
+        {mountedTabs.has('targets') && (
+          <Suspense fallback={<TabLoading label="Loading targets…" />}>
+            <Targets
+              onGoToSettings={() => setActiveTab('settings')}
+              filesVersion={filesVersion}
+              keysVersion={keysVersion}
+              onOpenSpecies={navigateToSpeciesDetail}
+            />
           </Suspense>
         )}
       </div>

@@ -46,13 +46,24 @@ describe('transport path sets exclude the checklist path (FR-28)', () => {
   // evidence rather than an absence of evidence.
   it('both sets are the real populated sets, so the absences above mean something', () => {
     expect(CACHED_GET_PATHS.size).toBeGreaterThanOrEqual(3)
-    expect(EBIRD_GATED_PATHS.size).toBeGreaterThanOrEqual(4)
+    expect(EBIRD_GATED_PATHS.size).toBeGreaterThanOrEqual(5)
     for (const p of ['/map/hotspots', '/map/recent-obs', '/map/hotspot-region']) {
       expect(CACHED_GET_PATHS.has(p)).toBe(true)
     }
-    for (const p of ['/map/hotspots', '/map/recent-obs', '/map/hotspot-region', '/map/county-species']) {
+    for (const p of ['/map/hotspots', '/map/recent-obs', '/map/hotspot-region', '/map/county-species', '/map/county-day-obs']) {
       expect(EBIRD_GATED_PATHS.has(p)).toBe(true)
     }
+  })
+
+  it('/map/county-day-obs is gated and stays out of the short-TTL cache (targets-tab)', () => {
+    // Gated: the transport chokepoint is the Targets sweep's one enforcement
+    // point, and the sweep deliberately does not wrap gatedEbirdCall itself.
+    // Uncached: lib/countyDayObsCache.ts owns this path's caching.
+    expect(EBIRD_GATED_PATHS.has('/map/county-day-obs')).toBe(true)
+    expect(CACHED_GET_PATHS.has('/map/county-day-obs')).toBe(false)
+    // In the form the defect would return in: its parameters are query strings,
+    // so no member may be a path-segment form of it.
+    expect([...EBIRD_GATED_PATHS].filter(p => p.startsWith('/map/county-day-obs'))).toEqual(['/map/county-day-obs'])
   })
 
   it('/map/hotspot-activity stays out of the gated set (one enforcement point)', () => {

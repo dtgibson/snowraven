@@ -68,6 +68,11 @@ describe('capacity-plus-one cache inventory', () => {
     expect(storage).not.toContain('MAX_BYTES')
     expect(storage).toContain("return this.getSetting<ReplayStore>('replay-store-v1')")
     expect(storage).toContain("await this.setSetting('replay-store-v1', store)")
+    // targets-tab (2026-09-27): the Targets day cache is the second store with
+    // its own document, and the seam stays an adapter for it too: the budget,
+    // the eviction and the writer live in countyDayObsCache.ts.
+    expect(storage).toContain("return this.getSetting<unknown>('county-day-obs-v2')")
+    expect(storage).toContain("await this.setSetting('county-day-obs-v2', doc)")
   })
 
   it('SnowMap ships only positron while the typed style domain is exactly two variants', () => {
@@ -126,6 +131,7 @@ describe('capacity-plus-one cache inventory', () => {
       ['./exoticProvenanceCache.ts', 'purgeProvenanceStore'],
       ['./checklistProjectsCache.ts', 'purgeProjectsStore'],
       ['./countyCompletenessCache.ts', 'purgeCountyCompletenessStore'],
+      ['./countyDayObsCache.ts', 'purgeCountyDayObsStore'],
       ['./replayStore.ts', 'purgeChecklistReplay'],
     ]
     for (const [module, purge] of stores) {
@@ -144,6 +150,36 @@ describe('capacity-plus-one cache inventory', () => {
     for (const [module] of stores.slice(0, 3)) {
       expect(code(module)).toMatch(/storage\.deleteSetting\(/)
     }
+    // The two own-document stores (targets-tab schema 3.5 / 3.6) are NOT on
+    // docChains, so each owes its own ordered writer instead, and each purge
+    // rides it.
+    for (const [module] of stores.slice(3)) {
+      expect(code(module)).toContain('function writeThrough(')
+      expect(code(module)).toContain('_writeChain')
+    }
+    // Re-scoped so it cannot be satisfied for the wrong reason: the day cache's
+    // one `storage.deleteSetting(` removes the preview build's LEGACY key once
+    // per session and is not its purge. Its purge deletes its own document, on
+    // its own chain.
+    const dayObs = code('./countyDayObsCache.ts')
+    const deletes = dayObs.match(/storage\.deleteSetting\([^)]*\)/g) ?? []
+    expect(deletes).toEqual(['storage.deleteSetting(LEGACY_DAY_OBS_SETTING_KEY)'])
+    const purge = dayObs.slice(dayObs.indexOf('export async function purgeCountyDayObsStore('))
+    expect(purge).toContain('await writeThrough(() => storage.deleteCountyDayObsStore())')
+    expect(purge.slice(0, purge.indexOf('\n}'))).not.toContain('deleteSetting')
+  })
+
+  it('the eBird bar-chart files are deliberately NOT a clear-registry row (targets-tab schema 1.6)', () => {
+    // The registry is for DERIVED documents keyed on the content of a user
+    // file. A county's bar-chart file is a user file the user chose to import,
+    // not a derivation of the backup: deleting the backup should no more delete
+    // it than deleting the ML export deletes the backup. Its own Remove control
+    // (and the file's delete) is its whole teardown, and nothing derived from it
+    // is persisted (FR-39). A row here would be a store that does not exist.
+    const registry = code('./clearDerived.ts')
+    expect(registry).not.toMatch(/barchart/i)
+    // Non-vacuity: the registry this reads is the real, populated one.
+    expect(registry).toContain("store: 'county-day-obs.json'")
   })
 
   it('replayStore.put has ONE call site, and it hands over the pre-request generation', () => {
@@ -201,12 +237,15 @@ describe('capacity-plus-one cache inventory', () => {
     expect(controller).toContain('purgeDerived: (slot) => cd.purgeDerivedOnClear(slot)')
   })
 
-  it('the two durable cache caps and Nominatim admission caps stay explicit', () => {
+  it('the three durable cache caps and Nominatim admission caps stay explicit', () => {
     expect(source('./countyCompletenessCache.ts')).toMatch(
       /COMPLETENESS_MAX_ENTRIES = 250[\s\S]*COMPLETENESS_MAX_BYTES = 4_000_000/,
     )
     expect(source('./replayStore.ts')).toMatch(
       /REPLAY_MAX_ENTRIES = 300[\s\S]*REPLAY_MAX_BYTES = 3_000_000/,
+    )
+    expect(source('./countyDayObsCache.ts')).toMatch(
+      /DAY_OBS_MAX_ENTRIES = 3_000[\s\S]*DAY_OBS_MAX_BYTES = 10_000_000/,
     )
     expect(source('./tauri/nominatimService.ts')).toContain(
       'NOMINATIM_COUNTY_CACHE_MAX_ENTRIES = 4_096',

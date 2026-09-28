@@ -256,13 +256,14 @@ let _writeTimer: ReturnType<typeof setTimeout> | null = null;
 const WRITE_DEBOUNCE_MS = 250;
 
 // ── One ordered writer for data/replay.json ──────────────────────────────────
-// `replay.json` is the app's one durable document NOT on the storage seam's
-// `docChains` (it is its own file with a single writing module, so it has no
-// read-modify-write to clobber). That makes the seam's ordering guarantee ours
-// to provide: two `setReplayStore` calls in flight at once complete in whatever
-// order the filesystem hands back, and the purge's document is the SMALLER one,
-// so it is the likelier to land first and be overwritten by a flush that was
-// already on its way out. Cancelling the timer and identity-checking the flush
+// `replay.json` is one of two durable documents NOT on the storage seam's
+// `docChains` (the other is the Targets day cache's `county-day-obs.json`,
+// `countyDayObsCache.ts`, which copies this writer): it is its own file with a
+// single writing module, so it has no read-modify-write to clobber. That makes
+// the seam's ordering guarantee ours to provide: two `setReplayStore` calls in
+// flight at once complete in whatever order the filesystem hands back, and the
+// purge's document is the SMALLER one, so it is the likelier to land first and
+// be overwritten by a flush that was already on its way out. Cancelling the timer and identity-checking the flush
 // closure both fire too early to help — by then the write has begun.
 //
 // So every write goes through here, in call order: the next `setReplayStore` is

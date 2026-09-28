@@ -7,6 +7,11 @@ import {
 } from '../hotspotActivity';
 import { throwEbirdHttpError } from './ebirdErrors';
 import { reduceRecentObs, type RecentObs } from '../recentObsReduce';
+import { REGION_CODE_RE } from '../regionCode';
+import {
+  DAY_OBS_MAX_BODY_CHARS, isValidDayObsDate, reduceCountyDayObs, unexpectedEbirdResponse,
+  type DayObsPayload,
+} from '../countyDayObsReduce';
 
 const EBIRD_BASE = 'https://api.ebird.org/v2';
 
@@ -43,8 +48,9 @@ export async function getHotspotRegion(regionCode: string): Promise<string[]> {
 }
 
 // County subnational2 codes only ("US-CA-085") — stricter than hotspot-region,
-// matching deriveCountyRegionCode's COUNTY_REGION_RE (NFR-09 shape guard).
-const COUNTY_REGION_RE = /^US-[A-Z]{2}-\d{3}$/;
+// matching deriveCountyRegionCode (NFR-09 shape guard). Single-sourced in
+// lib/regionCode.ts since targets-tab; this consumer keeps its own 422 test.
+const COUNTY_REGION_RE = REGION_CODE_RE;
 
 export interface CountySpeciesPayload {
   regionCode: string;
@@ -74,6 +80,54 @@ export async function getCountySpecies(regionCode: string): Promise<CountySpecie
   const { collapseToSpeciesList } = await import('./taxonomyService');
   const species = await collapseToSpeciesList(codes);
   return { regionCode, speciesCount: species.length, species };
+}
+
+/** Every species reported in one US county on one calendar day (targets-tab,
+ *  schema.md section 4): eBird data/obs/{regionCode}/historic/{y}/{m}/{d} with
+ *  eBird's defaults, reduced to one record per species, the most recent that
+ *  day. Mirrors backend GET /map/county-day-obs (dual-transport parity — keep
+ *  both in lockstep; the shared fixture countyDayObs.fixture.json pins the
+ *  reducer and both parameter validators on both transports).
+ *
+ *  The destination cannot be steered: the region code passes REGION_CODE_RE
+ *  (no scheme, host, credential, separator, dot or percent is expressible) and
+ *  is `encodeURIComponent`-wrapped besides, and the year, month and day are
+ *  INTEGERS the code formats from a date already validated as a real calendar
+ *  day (days-in-month arithmetic, never a `Date` rollover). Nothing else is
+ *  forwarded. The body is capped BEFORE `JSON.parse` and reduced, never
+ *  reflected; every failure after the fetch is the 502 shape, so a malformed
+ *  body is never read as "you're offline" (security.md v1.0.29). Governed by
+ *  the transport's shared eBird gate (EBIRD_GATED_PATHS) and cached only by
+ *  the durable per-day store (lib/countyDayObsCache.ts). */
+export async function getCountyDayObs(regionCode: string, date: string): Promise<DayObsPayload> {
+  if (!REGION_CODE_RE.test(regionCode)) {
+    throw Object.assign(
+      new Error('Invalid county region code.'),
+      { status: 422, detail: 'Invalid county region code.' }
+    );
+  }
+  if (!isValidDayObsDate(date)) {
+    throw Object.assign(new Error('Invalid date.'), { status: 422, detail: 'Invalid date.' });
+  }
+  const headers = await ebirdHeaders();
+  const y = Number(date.slice(0, 4));
+  const m = Number(date.slice(5, 7));
+  const d = Number(date.slice(8, 10));
+  const url = `${EBIRD_BASE}/data/obs/${encodeURIComponent(regionCode)}/historic/${y}/${m}/${d}`;
+  const res = await tauriFetch(url, { headers });
+  if (!res.ok) throwEbirdHttpError(res);
+  // A body READ that fails is a connection failure and propagates as one (the
+  // sibling services' `res.json()` posture); only a body that ARRIVED and is
+  // too long or not JSON is the provider's 502.
+  const text = await res.text();
+  if (text.length > DAY_OBS_MAX_BODY_CHARS) throw unexpectedEbirdResponse();
+  let body: unknown;
+  try {
+    body = JSON.parse(text) as unknown;
+  } catch {
+    throw unexpectedEbirdResponse();
+  }
+  return reduceCountyDayObs(body, regionCode, date);
 }
 
 /** Recent community activity for ONE public hotspot: eBird
