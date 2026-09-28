@@ -71,7 +71,7 @@ export interface ActivityCounts {
   /** Distinct species in eBird's back=30 window, as returned. */
   count30: number
   /** Subset whose most recent obsDt is within 7 days of `nowMs` (inclusive,
-   *  day-granular — the shared isWithinWindow semantics). */
+   *  calendar-day granular — the shared isWithinWindow semantics). */
   count7: number
 }
 

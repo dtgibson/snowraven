@@ -12,7 +12,9 @@
 //      code produces from the same body -- the shared reducer, the app's
 //      `isWithinWindow`, `buildNearbyLifers`, and Map Explorer's Media Targets
 //      chip filter re-derived from MapExplorer.tsx -- with every difference
-//      DECLARED and asserted to be exactly what the declaration says.
+//      DECLARED and asserted to be exactly what the declaration says. (The
+//      day-count difference on the day after spring-forward is no longer one:
+//      the app rounds since targets-tab, and its row asserts agreement.)
 //   3. STRUCTURE (CLAUDE.md, "an agreeing wrong number"): a body with a
 //      malformed record builds the same rows as the body without it; Any is the
 //      union of the three single types and its glyphs are that membership; a
@@ -259,17 +261,26 @@ describe('structure: each derived from the builder itself (CLAUDE.md, agreeing w
   })
 })
 
-describe('the declared day-count difference (schema.md section 6.2)', () => {
-  it('on the day after spring-forward the twin counts calendar days and the app is one short', () => {
+describe('the day-count agreement on the day after spring-forward (targets-tab FR-55)', () => {
+  // This row DECLARED a difference until targets-tab: the app's isWithinWindow
+  // floored the span between local midnights and read an 8-day-old report as 7
+  // on the day after a spring-forward transition, so a Week list admitted it
+  // while the widget twin (calendar days) did not. The app now rounds, and the
+  // row asserts AGREEMENT against the unchanged fixture, which the widget twin
+  // generated and the Swift `testCalendarDaysOnTheDayAfterSpringForward` reads.
+  it('the app and the twin count the same calendar days, and admit the same rows to Week', () => {
     const dstNow = Date.parse(DST_NOW_ISO)
     const today = localCivilDate(dstNow, TZ)
     const rows = fixture.dstFamily.rows as { obsDt: string; days: number; inWeek: boolean }[]
     expect(rows.map(r => r.days)).toEqual([1, 7, 8])
-    for (const r of rows) expect(daysBetween(parseObsDateStrict(r.obsDt)!, today)).toBe(r.days)
-    // The app, in the same zone, on the same day: 8 days reads as 7 and is
-    // admitted by a Week list. Asserted so the difference is a measured,
-    // declared one; a future fix to isWithinWindow turns this red on purpose.
-    expect(isWithinWindow('2026-03-01 08:00', 7, dstNow)).toBe(true)
-    expect(rows[2]!.inWeek).toBe(false)
+    for (const r of rows) {
+      expect(daysBetween(parseObsDateStrict(r.obsDt)!, today)).toBe(r.days)
+      // The app, in the same zone, on the same day, per row. The 8-day row is
+      // the one the old floor admitted.
+      expect(isWithinWindow(r.obsDt, 7, dstNow), r.obsDt).toBe(r.inWeek)
+    }
+    // Non-vacuity: the fixture really does straddle the boundary, so the loop
+    // above cannot pass by every row being on the same side of it.
+    expect(rows.map(r => r.inWeek)).toEqual([true, true, false])
   })
 })

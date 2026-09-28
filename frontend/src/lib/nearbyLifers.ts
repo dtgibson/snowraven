@@ -108,9 +108,20 @@ const MS_PER_DAY = 86400000
  *
  * Windows used by the UI: 1 (last day), 7 (last week), 30 (last 30 days).
  *
- * Day-granular: both the report date and "now" are floored to local midnight so a
+ * Day-granular: both the report date and "now" are taken to local midnight so a
  * report from exactly `windowDays` ago counts (inclusive), and a same-day report
  * (0 days) always counts. A malformed/empty date is excluded.
+ *
+ * The day count is the ROUNDED number of 24-hour spans between the two local
+ * midnights, which is the calendar-day count on every day of the year (targets-tab,
+ * FR-55). Between two local midnights the gap is `N x 24h` plus or minus one hour
+ * across a DST transition, so rounding recovers N wherever the offset changes by
+ * less than twelve hours, which is every real zone. It used to FLOOR, which lost a
+ * day whenever the span included the 23-hour spring-forward day: on the day after
+ * the transition an 8-day-old report read as 7 (admitted by Week) and a 2-day-old
+ * one as 1 (admitted by Day). The iOS widgets' twins count calendar days with
+ * integer civil-day arithmetic, so this now agrees with them on that day too
+ * (`widgets/widgetRows.parity.test.ts`, the day-count agreement).
  */
 export function isWithinWindow(recentDate: string, windowDays: number, nowMs: number): boolean {
   const dateStr = (recentDate ?? '').split(' ')[0]
@@ -121,6 +132,6 @@ export function isWithinWindow(recentDate: string, windowDays: number, nowMs: nu
   obs.setHours(0, 0, 0, 0)
   const now = new Date(nowMs)
   now.setHours(0, 0, 0, 0)
-  const days = Math.floor((now.getTime() - obs.getTime()) / MS_PER_DAY)
+  const days = Math.round((now.getTime() - obs.getTime()) / MS_PER_DAY)
   return days >= 0 && days <= windowDays
 }

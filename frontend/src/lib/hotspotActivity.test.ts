@@ -47,7 +47,7 @@ describe('computeActivityCounts', () => {
     expect(computeActivityCounts(species, NOW)).toEqual({ count30: 3, count7: 2 })
   })
 
-  it('the 7-day boundary is the shared isWithinWindow semantics (inclusive, day-floored)', () => {
+  it('the 7-day boundary is the shared isWithinWindow semantics (inclusive, calendar days)', () => {
     // Exactly 7 days ago counts (inclusive); 8 days ago does not — and the
     // assertion is made THROUGH the shared predicate too, so a drift in either
     // direction (this module or nearbyLifers) breaks the parity.

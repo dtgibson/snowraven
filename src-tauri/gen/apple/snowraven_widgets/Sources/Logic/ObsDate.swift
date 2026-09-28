@@ -8,10 +8,10 @@
 //   get wrong.
 // * Day counts are CALENDAR days: days-from-civil arithmetic on the report's
 //   date and the device's local date, exact on every day of the year including
-//   the DST transitions. This deliberately differs from the app's
-//   `isWithinWindow`, whose floor over local midnights is one day short on the
-//   day after a spring-forward transition; that difference is declared in the
-//   schema and asserted by the parity suite.
+//   the DST transitions. The app's `isWithinWindow` agrees since targets-tab
+//   (it rounds the span between local midnights rather than flooring it, which
+//   was one day short on the day after a spring-forward transition); the
+//   parity suite asserts the agreement row by row.
 
 import Foundation
 

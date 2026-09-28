@@ -27,12 +27,12 @@
 // DECLARED DIFFERENCES FROM THE APP (testing.md's symmetric-difference rule;
 // each is asserted in widgetRows.parity.test.ts rather than left to reading):
 //   * Day counts are CALENDAR days (days-from-civil arithmetic on the report's
-//     date and the device's local date), not `isWithinWindow`'s
-//     `floor((nowMidnight - obsMidnight) / 24h)`, which is one day short on
-//     the day after a spring-forward transition. Copying the floor would make
-//     both runtimes wrong on the same day and the parity fixture blind to it
-//     (CLAUDE.md, "an agreeing wrong number"). The app's off-by-one is a
-//     separate Map Explorer fix, proposed for ROADMAP.
+//     date and the device's local date). The app's `isWithinWindow` used to
+//     floor `(nowMidnight - obsMidnight) / 24h`, one day short on the day after
+//     a spring-forward transition; it ROUNDS since targets-tab (FR-55), so the
+//     two now agree on that day, and `widgetRows.parity.test.ts` asserts the
+//     agreement row by row. Copying the old floor here would have made both
+//     runtimes wrong on the same day (CLAUDE.md, "an agreeing wrong number").
 //   * A report whose date the strict parse refuses (`2026-02-30`, anything
 //     `Number()` would coerce that the anchored class does not) is dropped.
 //     The app keeps it under 30 days (no predicate runs there) and may admit a

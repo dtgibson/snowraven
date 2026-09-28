@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { buildNearbyLifers, isWithinWindow } from './nearbyLifers'
 import type { TargetPin } from './mapExplorerTypes'
 
@@ -211,5 +211,43 @@ describe('isWithinWindow — boundaries (inclusive edges)', () => {
     expect(isWithinWindow('', 30, now)).toBe(false)
     expect(isWithinWindow('not-a-date', 30, now)).toBe(false)
     expect(isWithinWindow('2026-06', 30, now)).toBe(false)
+  })
+})
+
+describe('isWithinWindow counts CALENDAR days across a DST transition (targets-tab FR-55, QA-57)', () => {
+  // Pinned to a zone that observes DST, because the predicate reads the
+  // process's local midnight. 2026-03-08 is the US spring-forward day, so the
+  // span from any earlier midnight to 2026-03-09's midnight is one hour short
+  // of a whole number of days. The old floor lost that day; rounding does not.
+  let savedTz: string | undefined
+  beforeAll(() => { savedTz = process.env.TZ; process.env.TZ = 'America/Los_Angeles' })
+  afterAll(() => { if (savedTz === undefined) delete process.env.TZ; else process.env.TZ = savedTz })
+
+  // The same instant widgetRows.fixtureInputs.ts uses: noon UTC on the day
+  // after spring-forward, which is 05:00 local on 2026-03-09.
+  const DST_NOW = Date.parse('2026-03-09T12:00:00Z')
+
+  it('the zone really is pinned (guards the guard: a UTC run would pass vacuously)', () => {
+    expect(new Date(DST_NOW).getTimezoneOffset()).toBe(420)   // PDT, UTC-7
+    expect(new Date(Date.parse('2026-03-07T12:00:00Z')).getTimezoneOffset()).toBe(480)   // PST before the change
+  })
+
+  it('Week: 7 calendar days back stays in, 8 is out (the floor admitted 8)', () => {
+    expect(isWithinWindow('2026-03-02 08:00', 7, DST_NOW)).toBe(true)
+    expect(isWithinWindow('2026-03-01 08:00', 7, DST_NOW)).toBe(false)
+  })
+
+  it('Day: 1 calendar day back stays in, 2 is out (the floor read 47 hours as 1)', () => {
+    expect(isWithinWindow('2026-03-08 08:00', 1, DST_NOW)).toBe(true)
+    expect(isWithinWindow('2026-03-07 08:00', 1, DST_NOW)).toBe(false)
+  })
+
+  it('fall-back is symmetric: a 25-hour day does not add a day either', () => {
+    // 2026-11-01 is the US fall-back day; the span to 2026-11-02 is 25 hours.
+    const FALL_NOW = Date.parse('2026-11-02T20:00:00Z')
+    expect(isWithinWindow('2026-11-01 08:00', 1, FALL_NOW)).toBe(true)
+    expect(isWithinWindow('2026-10-31 08:00', 1, FALL_NOW)).toBe(false)
+    expect(isWithinWindow('2026-10-26 08:00', 7, FALL_NOW)).toBe(true)
+    expect(isWithinWindow('2026-10-25 08:00', 7, FALL_NOW)).toBe(false)
   })
 })
