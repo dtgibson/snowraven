@@ -373,6 +373,55 @@ Click any day to open a popup showing **all three** of that day's numbers (speci
 
 ---
 
+## Targets
+
+The Targets tab turns one US county into a target list over your own record: the species there that would be **lifers**, the species you have recorded but still have **no photo, audio or video** of, and the species you have recorded but have **never given a breeding code**. It loads from your stored eBird backup; the eBird API key adds live counts, and a county's eBird bar-chart file adds eBird's own frequencies.
+
+### Choosing a county
+
+The **County** picker lists every US county in your eBird backup, with how many of your checklists fall in each, most checklists first. Type part of a county or state name to narrow it, then click or press Enter. The tab opens on the county with the most checklists, and remembers the county you last chose on this device. A county SnowRaven cannot match to an eBird region stays in the list, marked as unavailable, so nothing you have birded is silently left out.
+
+The county's species list is its all-time eBird list, the same one the Map Explorer's county Completeness uses, and a county you have loaded before shows straight away, offline and without a key. A county you have not loaded before needs your eBird API key and a connection the first time.
+
+### The three kinds of target
+
+- **Lifer**: a species on the county's list that is nowhere in your record.
+- **Media**: a species you have recorded that your Macaulay Library export has no photo, audio or video of. The badge shows which ones you lack. The **Photo**, **Audio** and **Video** chips narrow the list to species missing every chip you select. Media needs your ML export in Settings.
+- **Breeding**: a species you have recorded with no breeding code on any observation (F and H count as codes, as on the Breeding Codes tab). **Confirmed** instead lists species with no confirmed code, so a species with only a possible or probable code still shows.
+
+A lifer is never a Media or Breeding target, and a species you have recorded can be both. Each type has its own toggle; turn one off and only the rows that type alone was showing disappear. Targets are counted by species, so a subspecies or form you recorded counts for its species: a photo of "Dark-eyed Junco (Oregon)" counts as a photo of Dark-eyed Junco here. Click a recorded species' name to open it in Species Detail.
+
+### Probability and live: two different numbers
+
+Every row can carry two kinds of figure, and the tab keeps them apart in words, not only in color or position.
+
+- **Probability** is eBird's own frequency: the percent of checklists in the county that reported the species, from the county's **eBird bar-chart file**. It shows **this month** (the current calendar month) and **year-round** (across the whole year), always with a "%" and always naming the file's county and year range, for example "eBird, Alameda, CA, 1900-2026, year-round". Year-round appears only when the file covers all twelve months.
+- **Live** is what the eBird API reports now: on how many of the last 30 days the species was reported in the county, when it was last reported, where, and how far that is from the point distances are measured from. It is always a count with its window, "Reported 12 of the last 30 days", and never a percent.
+
+### Adding a county's eBird bar-chart file
+
+eBird's bar chart data is only available to a signed-in eBird user, so SnowRaven cannot fetch it for you:
+
+1. In the **eBird bar chart** section, use the link that opens the county's bar chart on ebird.org, or find the county's bar chart page on ebird.org yourself.
+2. Sign in to eBird if asked, then choose **Download Histogram Data**. The file is named like `ebird_US-CA-001__1900_2026_1_12_barchart.txt`.
+3. Back in SnowRaven, choose **Add file** and pick the file.
+
+The file is checked before it is saved: a file that is not an eBird bar chart, one over the size limit, or one whose name says it belongs to a different county is refused with the reason, and the county's existing file stays as it was. **Replace** swaps in a newer download and **Remove** takes the file away. The status line shows the range the file covers and how many of its rows matched the county's species list, skipped a form (a spuh, slash or hybrid), or matched nothing (usually a name eBird has since changed); **Show unmatched** lists those. The file stays on this device and is not part of iCloud Sync, so add it on each device where you want eBird's frequencies.
+
+### Live counts
+
+With your eBird API key, the tab asks eBird for the species reported in the county on each of the last 30 days and fills the rows in as each day arrives, newest day first. Answers are kept on this device, and an answer asked for after its day has ended is final. A return visit asks only about days without a final answer: today, any day with no answer kept on this device, and a day that was still in progress when it was last asked, so a visit the next day usually asks about just two. If eBird asks SnowRaven to slow down, the tab waits and says so; a day that still cannot be checked is marked and can be retried. Offline, the tab shows the days it already has.
+
+### Sorting and filtering
+
+- **Sort** by eBird frequency this month, eBird frequency year-round, days reported in the last 30, distance to the last report, alphabetically, or in eBird's taxonomic order. The tab opens on this month's frequency when the county has a bar-chart file, and on the live count otherwise. A sort that cannot work yet is listed with the reason.
+- **Last report** narrows the list to species reported in the last day, week, or 30 days. **Any time** shows everything.
+- **Distance** narrows the list to species last reported within 1, 5, 10, 25 or 50 miles. Distances are measured from your Default Location until you choose another point: press its name in the line below the slider and pick **My location**, your **Default Location**, a place you type in (looked up on OpenStreetMap only when you press **Search**, never as you type), or one of the **Places in this list**, which come from the live counts and need no connection.
+
+A species is only hidden by **Last report** or **Distance** once the days that could show it have actually been checked, so nothing drops out of the list just because the live counts are still arriving. Both need live data. The type toggles, chips, sort, window, distance and the point distances are measured from last for the session and are not saved, so a relaunch measures from your Default Location again; only the county is remembered.
+
+---
+
 ## Map Explorer
 
 The Map Explorer tab provides four views of your birding locations and nearby activity. An eBird API key is required for Hotspots, Nearby Lifers, and Media Targets.
@@ -753,6 +802,7 @@ SnowRaven keeps working without a connection. Every analytical tab and every map
 
 - **Full street detail on the map** comes from the network. An offline map still shows your data and the base map's place labels, and an area you have already panned over recently often redraws from the app's own cache, but street-level detail for somewhere new waits for a connection. Only the **Map** (vector) base works offline; Satellite, Topo, and Trails are disabled while you're offline.
 - **Live weather and tide lookups** are online-only, but a reading you've loaded before re-shows offline (above).
+- **Targets live counts** need a connection and your eBird API key. The days already checked stay on the device and still show offline, a county's species list you have loaded before shows offline, and a county's eBird bar-chart figures never need a connection.
 - **County Completeness lookups** need a connection and your eBird API key. Counties you fetched in the last 30 days still shade from the on-device cache, and the popup's local pieces (your countable count and Recently added list) work fully offline; only new county lookups wait for a connection.
 - **These features are online-only with no offline fallback**, and they show a clear "you're offline" message: place and address search, the Checklist Comparer, live nearby-bird overlays, and downloading an app update.
 - **iCloud Sync waits for a connection.** With sync on and no network, each Mac, iPhone or iPad keeps working from its own copy of the files, the Settings rows show the last check time, and a file you upload offline is used at once and reads "Waiting to upload" until the connection returns. The same holds for Sync API keys: each device keeps working with the keys it has, and a key you save or clear offline takes effect at once and reads "Waiting to upload" until the connection returns.

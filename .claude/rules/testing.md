@@ -15,6 +15,9 @@ paths:
   - "frontend/src/lib/widgets/widgetRows.fixtureBuild.ts"
   - "frontend/src/test/**"
   - "src-tauri/gen/apple/snowraven_widgets/Sources/Logic/Distance.swift"
+  - "frontend/src/lib/barChart/*.fixture.json"
+  - "frontend/src/lib/barChart/*.fixture.txt"
+  - "frontend/src/lib/countyDayObs.fixture.json"
 ---
 
 # SnowRaven testing and verification methodology

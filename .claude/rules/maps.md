@@ -2,6 +2,8 @@
 paths:
   - "frontend/src/components/map/**"
   - "frontend/src/components/MapExplorer*.tsx"
+  - "frontend/src/components/AddressSearch*.tsx"
+  - "frontend/src/lib/placeSearch*.ts"
   - "frontend/src/components/SnowMap.tsx"
   - "frontend/src/components/SightingsMap*.tsx"
   - "frontend/src/components/AtlasLayer*.tsx"

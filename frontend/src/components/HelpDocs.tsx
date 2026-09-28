@@ -34,6 +34,7 @@ const TOC: { id: string; label: string; sub: boolean }[] = [
   // to go looking for by name rather than by scrolling.
   { id: 'projects',             label: 'Projects',               sub: true  },
   { id: 'calendar',             label: 'Calendar',               sub: false },
+  { id: 'targets',              label: 'Targets',                sub: false },
   { id: 'map-explorer',         label: 'Map Explorer',           sub: false },
   { id: 'multimedia',           label: 'Multimedia',             sub: false },
   { id: 'breeding-codes',       label: 'Breeding Codes',         sub: false },
