@@ -1754,6 +1754,12 @@ Native "Use my location" on Windows, completing parity with macOS and Pi/web.
 - `.github/workflows/windows-build.yml`, `release.sh` (multi-platform assembler)
 - `frontend/src/lib/platform.ts` (`isWindows`), `frontend/src/lib/location.ts`, `frontend/src/components/MapExplorer.tsx`
 
+## Considered and Deferred
+
+### Direct access to personal Macaulay Library media
+
+The idea remains saved for later. The strategy pass found no verified permission for SnowRaven to fetch a contributor's media directly from Cornell's CDN, and the user declined sending the drafted permission request. No direct-media setting or copy was built. The brief and unsent request remain in `pipeline/ml-direct-media/`; revisit the idea only with explicit Cornell guidance and a way to verify ownership, or with a new user-approved scope.
+
 ## Considered and Rejected
 
 ### Shared Button/Link primitives — DECLINED TWICE, THEN BUILT (v1.0.24)
