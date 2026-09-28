@@ -5,6 +5,10 @@ It records what has been built and key decisions made during development.
 
 ## Features Built
 
+### Targets
+
+A **Targets** tab turns one US county the user has birded into a list of its lifers, the recorded species still missing a photo, audio or video, and those with no breeding code (or no confirmed one), each with two kinds of figure kept visibly apart: eBird's percent-of-checklists frequency for this month and year-round, read from the county's bar-chart file that the user downloads from ebird.org and adds on that device, and how many of the last 30 days eBird reported it there, with the last report's date, place and distance from a point chosen for the session, narrowed by a Day / Week / 30 days window and a distance slider.
+
 ### Launch splash (iPhone and iPad)
 
 A new iPhone or iPad session shows a small white raven on SnowRaven green until the first usable screen is ready, with no fixed wait.
@@ -69,7 +73,7 @@ The sixth build in the bundle, shared control primitives, was declined at scopin
 
 ### Five-build Spool bundle: the map moves up the tab order, the link marks survive a failed icon, and the map popups close from the keyboard (complete -- September 2026, v1.0.19)
 
-Out of the box the tabs now run Weather, Statistics, Map Explorer, Species Detail, Calendar, Multimedia, Breeding Codes, Checklists, List Comparer and Named Birds, with Settings last, so on a phone the bottom bar's first four include the map and the Calendar moves to the top of the More list. A tab order the user has arranged is kept exactly as saved; an order still identical to the previous default follows the new one on the next launch, with its hidden tabs still hidden. Weather is still first, so the app opens where it did.
+Out of the box the tabs now run Weather, Statistics, Map Explorer, Species Detail, Calendar, Targets, Multimedia, Breeding Codes, Checklists, List Comparer and Named Birds, with Settings last, so on a phone the bottom bar's first four include the map and the Calendar moves to the top of the More list. A tab order the user has arranged is kept as saved, with any new tab added at its end; an order still identical to the previous default follows the new one on the next launch, with its hidden tabs still hidden. Weather is still first, so the app opens where it did.
 
 The two marks beside every bird name stay visible when their icons cannot load. Each mark is the destination site's own icon, fetched from that site, and a mark whose icon could not be fetched -- offline, behind a content blocker, or against a slow or refused answer -- used to vanish and leave an invisible but still clickable target beside the name, which offline meant every mark on every screen. A bundled stand-in symbol now draws in the same slot instead, a globe for eBird and a shelf of books for Birds of the World, at the same size and in the same ink as the text beside it. Nothing moves, both marks still name where they go, and an icon that arrives late takes its place back. Each mark answers for itself, so one site's icon beside the other's stand-in is an ordinary sight rather than a defect.
 
@@ -414,7 +418,7 @@ Two buttons at the bottom of the Weather tab that look *forward* instead of back
 A new Map Explorer section that maps *where* species the user has never recorded were reported recently near a chosen point — not just which ones. The old flat **Nearby Lifers** list (the "Other Statistics → Nemesis Birds" block on the Statistics tab) was removed and rebuilt here as a fourth map view alongside My Sightings, Hotspots, and Media Targets. Each spot is a labeled pin — the species name, or "{n} species" where several lifers were reported at one place — colored by how recently it was seen, with an always-on locator dot at its exact coordinate and a per-panel **Marker style: Labels | Dots** toggle (shared with Media Targets) that collapses the chips to bare dots for a clean where-are-they overview; clicking a pin (or a row in the panel list) shows the lifers at that spot with their dates and eBird checklist links. It opens on the saved default location and offers the same controls as the other sections (use my location, place-name search, radius) plus a new **Time Range** filter (last day / last week / last 30 days). Lifer names render plain + favicons — no Species Detail link, since they are not in the user's recorded data.
 
 - **Built entirely on data the app already uses — no new providers, no privacy change.** The recent-observations endpoint is reused via `/map/recent-obs` with its species-code filter made optional, so a single call returns recent obs across all species near the point; the client filters that set against the user's life list to keep only true lifers (the personal backbone from the loaded backup), then groups them by location for the labeled pins. The now-dead `/stats/nemesis` route was removed.
-- **The Time Range filter is shared with Media Targets.** The same last day / last week / last 30 days control was added to the existing Media Targets section so the two panels behave the same way.
+- **The Time Range filter is shared with Media Targets.** The same last day / last week / last 30 days control was added to the existing Media Targets section so the two panels behave the same way. Both count calendar days, so the ranges stay exact across a daylight-saving change, as does the 7-day count behind the Recent activity hotspot coloring.
 - **Key files:** `frontend/src/components/map/NearbyLiferMarkers.tsx` (the labeled pins + popup), `frontend/src/lib/nearbyLifers.ts` (the life-list filter + per-location grouping), `frontend/src/components/MapExplorer.tsx` (the new view mode, sidebar list, and shared Time Range control), `backend/routers/map.py` (codes-optional `/map/recent-obs`; `/stats/nemesis` retired).
 
 ### Multimedia sex & age filters (complete — June 2026, v0.5.33)
@@ -1265,9 +1269,9 @@ An interactive map tab with three view modes for exploring birding locations: si
 
 **Address geocoding (both Hotspots and Media Targets):**
 - `AddressSearch` sub-component renders a text input + search icon button above the lat/lng fields
-- Calls `GET /nominatim/search?q={q}` on Enter or button click
+- Calls `GET /nominatim/search?q={q}` on Enter or button click, one request per press (a press while a search is still running sends nothing)
 - On success: populates lat/lng state and immediately triggers the mode's data fetch (override params bypass stale state)
-- On no results: "No location found. Try a different search term." inline
+- On no results, or an answer with no usable in-range coordinates: "No location found. Try a different search term." inline
 - On network error: "Location search failed. Try again or enter coordinates manually." inline
 
 **Recency tiers (Media Targets):**
