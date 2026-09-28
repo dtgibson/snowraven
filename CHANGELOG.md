@@ -2,6 +2,17 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [1.0.39] - 2026-09-27
+
+### Added
+- **A Targets tab.** Choose a US county and Targets lists the birds there you still need: lifers, birds you have recorded but have yet to photograph, record or film in your Macaulay Library export, and birds you have never given a breeding code (or never a confirmed one), each kind with its own switch. Two kinds of figure sit side by side and are labeled apart. **Probability** is eBird's own frequency, for this month and year-round, read from the county's bar-chart file, which you download from ebird.org and add on the tab; the file stays on your device and is not part of iCloud Sync. **Live** is how many of the last 30 days eBird reported the bird in the county, with the date, place and distance of the last report, fetched with your own eBird key and kept on your device, so a return visit asks eBird again only about days whose answer was not yet final. Sort by this month's or year-round frequency, by the live count, by distance, alphabetically or in taxonomic order, and narrow the list to birds reported in the last day, week or 30 days, or within 1, 5, 10, 25 or 50 miles. Distances are measured from your Default Location until you choose another point for the session: your location, a place you search for by name, or a place the county's reports already name. The tab sits after Calendar; a tab order you have customized keeps its order and gains Targets at the end. Help and the privacy policy describe what the tab asks eBird and what it keeps.
+
+### Changed
+- Map Explorer's place-name search now checks OpenStreetMap's answer before using it, so an answer without usable coordinates reads "No location found" instead of ending in an error, and pressing Search or Enter again while a search is still running no longer sends a second request.
+
+### Fixed
+- On the day after clocks spring forward, the Day and Week time ranges on Map Explorer's Nearby Lifers and Media Targets views, and the 7-day count behind the Recent activity hotspot coloring, counted one day too few, so a report 8 days old could appear under Week and one 2 days old under Day. They now count calendar days on every day of the year, and agree with the home-screen widgets.
+
 ## [1.0.38] - 2026-09-26
 
 ### Added
