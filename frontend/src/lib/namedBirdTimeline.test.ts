@@ -498,7 +498,19 @@ describe('distinctDates is LINEAR in the places on one date (security review, Me
     expect(large / small,
       `oracle ${ORACLE_ANCHOR}=${small.toFixed(2)}ms ${ORACLE_ANCHOR * STEP}=${large.toFixed(2)}ms`,
     ).toBeGreaterThan(RATIO_BOUND)
-  })
+    // The explicit budget below is a WALL-CLOCK allowance for this row, not a
+    // loosening of the ratio it asserts. The oracle is quadratic on purpose, so
+    // this is the slowest row in the file by design, and a `testTimeout` cannot
+    // interrupt its synchronous loop anyway (testing.md v1.0.33): the
+    // `toBeGreaterThan` above is what decides the row, and the budget only
+    // keeps a slow but correct run from being called a failure. Measured: 2.01
+    // to 2.06 s on an idle dev Mac (six runs), 2.77 to 3.65 s beside a looping
+    // full-suite run (six runs), and 3.69 s and 5.18 s on the shared ubuntu CI
+    // runner. The 5.18 s run crossed vitest's 5 s default and turned `main`
+    // red on the timeout, not on the ratio (run 36376776547). 30 s is about
+    // six times the slowest reading, the same budget the weatherStatsShared
+    // linearity row states for the same reason.
+  }, 30_000)
 
   it('PARITY: the fast form returns exactly what the form it replaced returned', () => {
     // Faster is worth nothing if it answers differently. Swept over the shapes
