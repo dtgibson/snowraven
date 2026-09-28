@@ -304,6 +304,98 @@ describe('the privacy claims are true of the shipped code', () => {
   })
 })
 
+// ---- The second approved round (2026-09-27, "yes to all four"): D, E, F, G --
+//
+// D: the uploaded-files bullet lists the bar-chart files. G: the same bullet's
+// iCloud clause names its two data files. E: the Your Location paragraph lists
+// the Targets tab's "My location" and says what the coordinates are used for
+// there. F: the effective date moved with the policy. Same house shape as the
+// rows above: each file's own passage, the claim exists, held to the code, and
+// the two published files compared against each other.
+
+/** HTML: the `<p>` whose text opens with `opener`, tags stripped. */
+function htmlPara(doc: string, opener: string): string {
+  const start = doc.indexOf(`<p>${opener}`)
+  if (start === -1) return ''
+  const end = doc.indexOf('</p>', start)
+  if (end === -1) return ''
+  return plain(doc.slice(start, end).replace(/<[^>]+>/g, ' ').replace(/\s+([.,;:)])/g, '$1'))
+}
+
+const FILES_MD = mdBullet(POLICY, '- Your API keys, app settings, and the files you upload')
+const FILES_HTML = htmlBullet(PRIVACY_PAGE, 'Your API keys, app settings, and the files you upload')
+const LOCATION_MD = mdBullet(POLICY, 'When you use a location control')
+const LOCATION_HTML = htmlPara(PRIVACY_PAGE, 'When you use a location control')
+const EFFECTIVE_MD = /^\*\*Effective date:\*\* (.+)$/m.exec(POLICY)?.[1]?.trim() ?? ''
+const EFFECTIVE_HTML = /<p class="pp-date"><strong>Effective date:<\/strong>\s*([^<]+)<\/p>/.exec(PRIVACY_PAGE)?.[1]?.trim() ?? ''
+
+describe.each([
+  ['PRIVACY_POLICY.md', FILES_MD, LOCATION_MD],
+  ['website/privacy.html', FILES_HTML, LOCATION_HTML],
+])('%s: the uploaded files and the location controls (D, E, G)', (_file, files, location) => {
+  it('the passages are found and are the ones being read (non-vacuity)', () => {
+    expect(files.startsWith('Your API keys, app settings, and the files you upload')).toBe(true)
+    expect(location.startsWith('When you use a location control')).toBe(true)
+    expect(files.length).toBeGreaterThan(300)
+    expect(location.length).toBeGreaterThan(300)
+  })
+
+  it('D: the files you upload include the bar-chart files you add on the Targets tab', () => {
+    expect(files).toContain('the files you upload (your eBird backup and Macaulay Library export, and any eBird bar-chart files you add on the Targets tab)')
+  })
+
+  it('G: the iCloud clause names the two data files it copies, and only those', () => {
+    expect(files).toContain('which copies the two data files (your eBird backup and Macaulay Library export)')
+  })
+
+  it('E: the Targets tab\'s location control is listed by its on-screen name, with what the coordinates are used for', () => {
+    expect(location).toContain(`"${copy.CHOOSER_MY_LOCATION}" when choosing where the Targets tab measures distances from`)
+    expect(location).toContain("they set the map's center, measure distances on the Targets tab, and can be saved as your default location locally")
+    // The next sentence's "only sent outward if..." is still there to be true.
+    expect(location).toContain('They are only sent outward if you then run a search')
+  })
+})
+
+describe('D, E and G are true of the shipped code', () => {
+  const sources = sourceFiles(SRC_ROOT)
+
+  it('G: "the two data files (your eBird backup and Macaulay Library export)" are exactly the synced slots', () => {
+    expect([...SLOTS]).toEqual(['ebird', 'ml'])
+  })
+
+  it('E: the Targets distance anchor reads the location on the device and sends nothing', () => {
+    const anchor = sources.find(f => f.name === 'lib/targets/useDistanceAnchor.ts')
+    expect(anchor, 'the anchor hook is where the published claim says it is').toBeDefined()
+    // It asks the shared location seam, and it has no network or storage-write path.
+    expect(anchor!.text).toMatch(/\bgetCurrentLocation\(/)
+    expect(anchor!.text).not.toMatch(/\btransport\b|\bfetch\(|\bsetSetting\(|\bsetApiKey\(/)
+  })
+
+  it('D: "bar-chart files you add on the Targets tab": the add and remove paths are imported only by the Targets tab', () => {
+    // Every VALUE import of the two write paths (a type-only import writes nothing).
+    const importers = (name: string) => sources
+      .filter(f => new RegExp(`import\\s*\\{[^}]*\\b${name}\\b[^}]*\\}\\s*from`).test(f.text))
+      .map(f => f.name)
+    expect(importers('importBarChartFile')).toEqual(['components/targets/TargetsBarChartFile.tsx'])
+    expect(importers('removeBarChartFile')).toEqual(['components/targets/TargetsBarChartFile.tsx'])
+  })
+})
+
+describe('the policy and its published page agree on D, E, F and G', () => {
+  it('the uploaded-files bullet reads identically in both', () => {
+    expect(FILES_HTML).toBe(FILES_MD)
+  })
+
+  it('the location-controls paragraph reads identically in both', () => {
+    expect(LOCATION_HTML).toBe(LOCATION_MD)
+  })
+
+  it('F: both carry the same effective date, in the policy\'s own format', () => {
+    expect(EFFECTIVE_MD).toMatch(/^[A-Z][a-z]+ \d{1,2}, \d{4}$/)
+    expect(EFFECTIVE_HTML).toBe(EFFECTIVE_MD)
+  })
+})
+
 // ---- README.md: the approved one-section summary (wording B) ----------------
 //
 // The README carries one short section per tab in DEFAULT_TAB_ORDER, named from
