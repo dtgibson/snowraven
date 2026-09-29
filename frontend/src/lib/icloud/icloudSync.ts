@@ -11,7 +11,8 @@
 // - ONE check at a time with ONE queued follow-up (FR-20): triggers are boot,
 //   enable, foreground/focus, the native change and identity events
 //   (debounced), a five-minute poll while visible, Check now, Download now,
-//   Retry, and a local file save;
+//   Retry, a local file save, and a bounded re-read while a county reads
+//   "Waiting to upload" (UPLOAD_RECHECK_MS);
 // - applying each slot's decision through the storage seam's chained links,
 //   running exactly the cache invalidations Settings runs today, and
 //   notifying the file epoch so every tab re-enters its loading phase;
@@ -88,6 +89,16 @@ export const DOWNLOAD_POLL_MS = 1_000
     the csv and its metadata disagreeing, so pushes and pulls keep only the
     native per-command timeout. */
 export const CHECK_DEADLINE_MS = 10_000
+/** Device pass on 1.0.40.1 (icloud-bar-chart-sync decisions.md entry 17).
+    While a check leaves a county reading "Waiting to upload" (the daemon has
+    not sent it yet), a follow-up check re-reads the flag this often, at most
+    UPLOAD_RECHECK_MAX times in a row (two minutes), after which the
+    five-minute visible poll governs as before. Nothing else reliably
+    re-reads it: the native watch sees record files only, never the county
+    file whose flag also gates the row, and the check the push's own record
+    write triggers runs before the daemon has sent anything. */
+export const UPLOAD_RECHECK_MS = 15_000
+export const UPLOAD_RECHECK_MAX = 8
 
 type KnownShared = Record<Slot, { filename: string } | null>
 
@@ -164,6 +175,7 @@ export interface ControllerDeps {
   log: (message: string) => void
   /** timers, overridable for tests */
   pollIntervalMs?: number
+  uploadRecheckMs?: number
   eventDebounceMs?: number
   checkDownloadWaitMs?: number
   downloadNowWaitMs?: number
@@ -250,6 +262,7 @@ export function mintDeviceId(): string {
 
 export function createICloudController(deps: ControllerDeps): ICloudController {
   const pollMs = deps.pollIntervalMs ?? POLL_INTERVAL_MS
+  const uploadRecheckMs = deps.uploadRecheckMs ?? UPLOAD_RECHECK_MS
   const debounceMs = deps.eventDebounceMs ?? EVENT_DEBOUNCE_MS
   const checkWaitMs = deps.checkDownloadWaitMs ?? CHECK_DOWNLOAD_WAIT_MS
   const downloadWaitMs = deps.downloadNowWaitMs ?? DOWNLOAD_NOW_WAIT_MS
@@ -272,6 +285,10 @@ export function createICloudController(deps: ControllerDeps): ICloudController {
   let removalInFlight: Promise<boolean> | null = null
   let pollTimer: ReturnType<typeof setInterval> | null = null
   let debounceTimer: ReturnType<typeof setTimeout> | null = null
+  // The "Waiting to upload" re-read (UPLOAD_RECHECK_MS): one timer, and the
+  // follow-ups fired since a check last left no county waiting.
+  let uploadRecheckTimer: ReturnType<typeof setTimeout> | null = null
+  let uploadRechecks = 0
 
   // ── preference ─────────────────────────────────────────────────────────
 
@@ -1229,14 +1246,52 @@ export function createICloudController(deps: ControllerDeps): ICloudController {
       queued = true
       return inFlight
     }
-    inFlight = runCheck().finally(() => {
-      inFlight = null
-      if (queued) {
-        queued = false
-        void requestCheck('queued follow-up')
-      }
-    })
+    // Any check re-reads the flag, so a pending re-read is dropped here and
+    // re-armed from this check's outcome.
+    clearUploadRecheck()
+    inFlight = runCheck()
+      .then((outcome) => {
+        armUploadRecheck(outcome)
+        return outcome
+      })
+      .finally(() => {
+        inFlight = null
+        if (queued) {
+          queued = false
+          void requestCheck('queued follow-up')
+        }
+      })
     return inFlight
+  }
+
+  function clearUploadRecheck(): void {
+    if (uploadRecheckTimer) {
+      clearTimeout(uploadRecheckTimer)
+      uploadRecheckTimer = null
+    }
+  }
+
+  /**
+   * After every check: while a county reads "Waiting to upload" on a check
+   * that reached iCloud, re-read the flag in UPLOAD_RECHECK_MS, at most
+   * UPLOAD_RECHECK_MAX times in a row. A failed check arms nothing (offline,
+   * the rows keep their state and the usual triggers resume), a queued check
+   * is about to re-read anyway, and a hidden window waits for the foreground
+   * trigger, as the poll does. Only a check that leaves no county waiting
+   * resets the count, so a file iCloud never takes cannot keep this running.
+   */
+  function armUploadRecheck(outcome: CheckOutcome): void {
+    clearUploadRecheck()
+    const waiting = Object.values(getICloudState().barCharts).some((v) => v.state === 'waiting-to-upload')
+    if (!waiting) uploadRechecks = 0
+    if (disposed || !pref.enabled || !outcome.ok || !waiting || queued || uploadRechecks >= UPLOAD_RECHECK_MAX) return
+    uploadRecheckTimer = setTimeout(() => {
+      uploadRecheckTimer = null
+      const view = deps.view
+      if (view && view.document.visibilityState === 'hidden') return
+      uploadRechecks += 1
+      void requestCheck('upload status')
+    }, uploadRecheckMs)
   }
 
   // ── triggers ───────────────────────────────────────────────────────────
@@ -1313,6 +1368,7 @@ export function createICloudController(deps: ControllerDeps): ICloudController {
       clearTimeout(debounceTimer)
       debounceTimer = null
     }
+    clearUploadRecheck()
     void deps.native.watch(false).catch(() => {})
   }
 
@@ -1508,6 +1564,8 @@ export function createICloudController(deps: ControllerDeps): ICloudController {
 
   function barChartSaved(regionCode: string): void {
     if (!pref.enabled || !isRegionCode(regionCode)) return
+    // A new upload starts a fresh re-read budget (UPLOAD_RECHECK_MAX).
+    uploadRechecks = 0
     setBarChartView(regionCode, { state: 'uploading', fromThisDevice: true })
   }
 

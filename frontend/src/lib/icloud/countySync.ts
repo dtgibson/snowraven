@@ -258,9 +258,16 @@ async function pushCounty(ctx: CountyPassContext, code: string, meta: BarChartFi
     setBarChartView(code, { ...base, state: result.uploaded === false ? 'waiting-to-upload' : 'up-to-date' })
     return filename
   } catch (raw) {
-    const err = toICloudError(raw)
-    if (err.code === 'timeout' || err.code === 'unavailable') setBarChartView(code, { ...base, state: 'waiting-to-upload' })
-    else errorView(code, err, base)
+    // Every refusal reads "Could not sync" with its reason and Retry, and the
+    // next check pushes again (device pass on 1.0.40.1, decisions.md entry
+    // 17). "Waiting to upload" means the file is in the local container for
+    // the daemon to send, which a refused write is not: the push writes only
+    // locally, so offline it SUCCEEDS with `uploaded: false`, and a native
+    // `unavailable` or `timeout` here is a write that did not land (or did
+    // not land in time), which the old mapping showed as waiting on every
+    // check, forever. The listing answered this check, so a timeout here is
+    // the NFR-04 "answered once, then out of budget" case, not FR-05's offline.
+    errorView(code, toICloudError(raw), base)
     return null
   }
 }
@@ -299,7 +306,11 @@ export async function runCountyPass(
       if (!meta) continue
       const ours = !meta.origin || meta.origin.deviceId === ctx.deviceId
       const known = ctx.pref.knownSharedCounties ? Object.hasOwn(ctx.pref.knownSharedCounties, code) : false
-      if (ours && !known) setBarChartView(code, { state: 'waiting-to-upload', ...originView(meta, ctx.deviceId) })
+      // Only an unreachable iCloud makes an unpushed county "waiting" (schema
+      // section 5, step 2); any other refusal is "Could not sync" with Retry,
+      // since it would otherwise repeat silently on every check while the
+      // check itself reported success (device pass on 1.0.40.1).
+      if (timeout && ours && !known) setBarChartView(code, { state: 'waiting-to-upload', ...originView(meta, ctx.deviceId) })
       else errorView(code, timeout ? new ICloudNativeError('timeout') : err, originView(meta, ctx.deviceId))
     }
     return { transferred: false, failed: timeout }

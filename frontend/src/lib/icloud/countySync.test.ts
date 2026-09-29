@@ -7,13 +7,14 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { readFileSync } from 'node:fs'
-import { createICloudController, type ControllerDeps, ICLOUD_SYNC_SETTING } from './icloudSync'
+import { createICloudController, type ControllerDeps, type ICloudController, ICLOUD_SYNC_SETTING, UPLOAD_RECHECK_MAX } from './icloudSync'
 import { getICloudState, installICloudActions, resetICloudState } from './icloudState'
 import { serializeRecord, validateCountyRecord, type SharedRecord } from './icloudRecord'
 import type { BarChartFileMeta, BarChartFilesStatus, FileOrigin, FilesStatus } from '../storage'
 import type { ICloudNativeLayer, NativeListedItem, SyncItemRef } from './icloudNativeTypes'
 import { ICloudNativeError } from './icloudNativeTypes'
 import { CLEAR_BATCH } from './countySync'
+import { REASONS } from './icloudCopy'
 
 const ME = 'a'.repeat(32)
 const PEER = 'f'.repeat(32)
@@ -43,6 +44,8 @@ interface CountyItem {
   recordPresent: boolean
   recordDownloaded: boolean
   file: { present: boolean; downloaded: boolean }
+  /** NSURLUbiquitousItemIsUploadedKey for the file and its record, as the listing reports it */
+  uploaded: boolean
 }
 
 // ── fake native: the two slots empty, a per-county container, no day-obs ──
@@ -54,18 +57,19 @@ function makeNative() {
   const knobs = { landOnStartDownload: false, pushUploaded: true }
   let holdCleared: { release: () => void } | null = null
   const hooks = { holdNextCleared: false }
-  const put = (county: string, r: SharedRecord | null, fileDownloaded = true) => {
+  const put = (county: string, r: SharedRecord | null, fileDownloaded = true, uploaded = true) => {
     if (!r) { counties.delete(county); return }
     counties.set(county, {
       record: serializeRecord(r), recordPresent: true, recordDownloaded: true,
       file: r.state === 'file' ? { present: true, downloaded: fileDownloaded } : { present: false, downloaded: false },
+      uploaded,
     })
   }
   const listed = (): NativeListedItem[] => [...counties.entries()].map(([id, c]) => ({
     id,
     present: c.recordPresent,
     record: c.recordPresent && c.recordDownloaded ? c.record : null,
-    file: { present: c.file.present, downloaded: c.file.downloaded, downloading: false, byteLength: c.file.present ? 1234 : null, uploaded: true },
+    file: { present: c.file.present, downloaded: c.file.downloaded, downloading: false, byteLength: c.file.present ? 1234 : null, uploaded: c.file.present && c.uploaded },
   }))
   const empty = { present: false, downloaded: false, downloading: false, byteLength: null, uploaded: false, uploading: false }
   const native: ICloudNativeLayer = {
@@ -94,7 +98,7 @@ function makeNative() {
       rec('pushItem', item, filename, uploadedAt, origin, unless)
       if (item.kind === 'day-obs') throw new ICloudNativeError('local-missing')
       if (fail.pushItem) throw fail.pushItem
-      put(item.county, { ...countyFile(item.county, uploadedAt, origin.deviceId, filename), origin: { ...origin } })
+      put(item.county, { ...countyFile(item.county, uploadedAt, origin.deviceId, filename), origin: { ...origin } }, true, knobs.pushUploaded)
       return { sha256: SHA, byteLength: 1234, uploaded: knobs.pushUploaded, skipped: false }
     },
     async pushItemsCleared(codes, clearedAt, origin) {
@@ -219,6 +223,7 @@ function makeDeps(native: ICloudNativeLayer, storage: ControllerDeps['storage'])
     view: null,
     log: () => {},
     pollIntervalMs: 60_000_000,
+    uploadRecheckMs: 60_000_000,
     eventDebounceMs: 1,
     checkDownloadWaitMs: 5,
     downloadNowWaitMs: 5,
@@ -231,11 +236,19 @@ function makeDeps(native: ICloudNativeLayer, storage: ControllerDeps['storage'])
   }
 }
 
-const settle = () => new Promise(r => setTimeout(r, 10))
+// Under fake timers (the re-read rows) the same pause advances the fake clock,
+// which also drains every pending promise first.
+const settle = () => vi.isFakeTimers() ? vi.advanceTimersByTimeAsync(10) : new Promise(r => setTimeout(r, 10))
 
-async function bootOn(n: ReturnType<typeof makeNative>, st: ReturnType<typeof makeStorage>) {
+// Every controller bootOn made is disposed after its test, so a timer a
+// mutated controller leaves running cannot turn a later row red.
+const live: ICloudController[] = []
+
+async function bootOn(n: ReturnType<typeof makeNative>, st: ReturnType<typeof makeStorage>, over: Partial<ControllerDeps> = {}) {
   const made = makeDeps(n.native, st.storage)
+  Object.assign(made.deps, over)
   const c = createICloudController(made.deps)
+  live.push(c)
   await c.boot()
   await c.enable()
   await settle()
@@ -246,7 +259,11 @@ beforeEach(() => {
   resetICloudState()
   clock = START
 })
-afterEach(() => installICloudActions(null))
+afterEach(() => {
+  for (const c of live.splice(0)) c.dispose()
+  vi.useRealTimers()
+  installICloudActions(null)
+})
 
 describe('push and adoption (FR-04, QA-03)', () => {
   it('a county file with no shared record is pushed with this device as origin and the manifest time; the entry is stamped', async () => {
@@ -622,5 +639,260 @@ describe('the bar-chart epoch and the triggers (FR-06, schema.md 5.7)', () => {
     expect(getICloudState().checkFailed).toBe(true)
     expect(getICloudState().lastCheckAt).toBe(at)
     expect(getICloudState().barCharts[CA]).toMatchObject({ state: 'error' })
+  })
+})
+
+// The device pass on TestFlight 1.0.40.1 (decisions.md entry 17): "when I
+// attempt to upload a bar chart from another device, it appears to be stuck on
+// the 'waiting to upload' step". Driven as the device that did NOT make the
+// first upload: a peer's file arrived here, the peer removed it, and the user
+// then added the county's file on this device.
+describe('device pass on 1.0.40.1: a county never hangs on "Waiting to upload"', () => {
+  const barchartPushes = (n: ReturnType<typeof makeNative>) => n.cmds('pushItem').filter(x => (x.args[0] as SyncItemRef).kind === 'barchart')
+  const until = async (cond: () => boolean, ms = 500) => {
+    for (let waited = 0; !cond() && waited < ms; waited += 5) await new Promise(r => setTimeout(r, 5))
+  }
+  // The re-read rows drive fake timers by hand, one interval per step and a
+  // bounded number of steps, so a missing bound fails an assertion rather than
+  // the test timeout. Date stays real (the harness clock is `clock`), and
+  // RECHECK sits well under CHECK_DEADLINE_MS, so a check held in flight across
+  // a re-read's due time never times out its listing.
+  const RECHECK = 1_000
+  const fakeTimers = () => vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] })
+  const step = async (intervals: number) => {
+    for (let i = 0; i < intervals; i++) await vi.advanceTimersByTimeAsync(RECHECK)
+  }
+
+  /** Peer upload, pulled here; peer removal, applied here; then a user add here. */
+  async function secondDeviceAdds(over: Partial<ControllerDeps> = {}) {
+    const n = makeNative()
+    n.put(CA, countyFile(CA, T_OLD))
+    const st = makeStorage()
+    const booted = await bootOn(n, st, over)
+    expect(st.manifest.counties[CA]?.origin?.deviceId).toBe(PEER) // the first sync arrived
+    clock += 60_000
+    n.put(CA, countyCleared(CA, iso(clock)))
+    clock += 60_000
+    await booted.c.checkNow()
+    expect(st.manifest.counties[CA]).toBeUndefined() // the removal arrived
+    clock += 60_000
+    n.knobs.pushUploaded = false // the daemon has not sent it when the push returns
+    st.add(CA)
+    booted.c.barChartSaved(CA)
+    const checksBeforeAdd = booted.c.checksRun
+    booted.userBump()
+    await settle()
+    return { n, st, checksBeforeAdd, ...booted }
+  }
+
+  it('the row settles to "Up to date" once iCloud holds the file, with no native event and no Check now', async () => {
+    const { n, c } = await secondDeviceAdds({ uploadRecheckMs: 20 })
+    // Pushed; the daemon has not uploaded it yet.
+    expect(barchartPushes(n)).toHaveLength(1)
+    expect(getICloudState().barCharts[CA]).toMatchObject({ state: 'waiting-to-upload', fromThisDevice: true })
+    // The daemon finishes. On a device the only native event is the record
+    // query, which never sees the county FILE finish, and the poll is minutes
+    // away: nothing else re-reads the flag.
+    n.counties.get(CA)!.uploaded = true
+    const runs = c.checksRun
+    await until(() => getICloudState().barCharts[CA]?.state === 'up-to-date')
+    expect(getICloudState().barCharts[CA]).toMatchObject({ state: 'up-to-date', fromThisDevice: true })
+    expect(c.checksRun).toBeGreaterThan(runs)
+    // Re-reading the status never uploads the file again.
+    expect(barchartPushes(n)).toHaveLength(1)
+  })
+
+  it('the re-read is bounded: while iCloud never takes the file it stops after UPLOAD_RECHECK_MAX checks', async () => {
+    fakeTimers()
+    const { n, c, checksBeforeAdd } = await secondDeviceAdds({ uploadRecheckMs: RECHECK })
+    expect(getICloudState().barCharts[CA]?.state).toBe('waiting-to-upload')
+    // The add's own check, then the follow-ups, counted over a bounded run of
+    // intervals well past the cap.
+    const followUps = () => c.checksRun - checksBeforeAdd - 1
+    await step(UPLOAD_RECHECK_MAX + 4)
+    expect(followUps()).toBe(UPLOAD_RECHECK_MAX)
+    expect(vi.getTimerCount()).toBe(1) // the five-minute poll alone: no re-read is left
+    expect(getICloudState().barCharts[CA]?.state).toBe('waiting-to-upload')
+    expect(barchartPushes(n)).toHaveLength(1)
+  })
+
+  // Each row pins one guard in icloudSync.ts and fails when ONLY that guard is
+  // removed. Once sync is off or the controller is disposed, requestCheck
+  // refuses a stray re-read anyway (security-report I7), so those rows assert
+  // on the timer itself and that fallback cannot hide a guard's removal.
+  describe('the re-read timer stops, and no further check runs', () => {
+    /** One county on this device, pushed but not yet uploaded: a re-read is scheduled. */
+    async function waiting(over: Partial<ControllerDeps> = {}) {
+      fakeTimers()
+      const n = makeNative()
+      n.knobs.pushUploaded = false
+      const st = makeStorage({ [CA]: { filename: 'x.txt', uploadedAt: T_OLD, origin: MINE } })
+      const booted = await bootOn(n, st, { uploadRecheckMs: RECHECK, ...over })
+      expect(getICloudState().barCharts[CA]?.state).toBe('waiting-to-upload')
+      expect(vi.getTimerCount()).toBe(2) // the visible poll and one re-read
+      return { n, st, ...booted }
+    }
+
+    /** Holds the next county listing until released: a check parked in flight. */
+    function holdListing(n: ReturnType<typeof makeNative>) {
+      const list = n.native.listItems
+      let release!: () => void
+      const gate = new Promise<void>((r) => { release = () => r() })
+      let held = false
+      n.native.listItems = async (kind) => {
+        if (kind === 'barchart' && !held) {
+          held = true
+          await gate
+        }
+        return list(kind)
+      }
+      return { release: () => release(), held: () => held }
+    }
+
+    it.each([
+      ['sync is turned off', 'while the re-read is scheduled'],
+      ['sync is turned off', 'while a check is in flight'],
+      ['the controller is disposed', 'while the re-read is scheduled'],
+      ['the controller is disposed', 'while a check is in flight'],
+    ] as const)('%s %s', async (stop, when) => {
+      const { n, c } = await waiting()
+      const halt = async () => {
+        if (stop === 'sync is turned off') await c.disable()
+        else c.dispose()
+      }
+      if (when === 'while the re-read is scheduled') {
+        // stopWatching clears the scheduled re-read.
+        await halt()
+      } else {
+        // The check dropped the re-read as it started; the one it would arm as
+        // it lands is refused, because sync is now off or the controller gone.
+        const listing = holdListing(n)
+        const check = c.checkNow()
+        await settle()
+        expect(listing.held()).toBe(true)
+        await halt()
+        listing.release()
+        await check
+        await settle()
+      }
+      // No timer of the controller's is left, the re-read included, and no
+      // check runs however far the clock moves on.
+      expect(vi.getTimerCount()).toBe(0)
+      const runs = c.checksRun
+      await step(UPLOAD_RECHECK_MAX + 2)
+      expect(c.checksRun).toBe(runs)
+    })
+
+    it('the app is in the background when the re-read comes due', async () => {
+      let visibility: DocumentVisibilityState = 'visible'
+      const noop = () => undefined
+      const view = {
+        document: { get visibilityState() { return visibility }, addEventListener: noop, removeEventListener: noop },
+        addEventListener: noop,
+        removeEventListener: noop,
+      } as unknown as ControllerDeps['view']
+      const { c } = await waiting({ view })
+      const runs = c.checksRun
+      visibility = 'hidden'
+      await step(UPLOAD_RECHECK_MAX + 2)
+      // The re-read came due, ran no check and armed no other: the poll alone is
+      // left, and it skips while hidden too. The foreground trigger re-reads.
+      expect(c.checksRun).toBe(runs)
+      expect(vi.getTimerCount()).toBe(1)
+    })
+
+    it('the waiting county is Removed on the Targets tab while its re-read is scheduled', async () => {
+      const { n, st, c, userBump } = await waiting()
+      const runs = c.checksRun
+      // The Remove: the local delete and its epoch bump, which starts a check,
+      // then the county's cleared marker. The check is held in flight past the
+      // moment the re-read was due. It dropped the re-read when it started, so
+      // nothing queues behind it, and it leaves no county waiting, so it arms none.
+      const listing = holdListing(n)
+      st.remove(CA)
+      userBump()
+      const cleared = c.barChartsCleared([CA], iso(clock + 1000))
+      await settle()
+      expect(listing.held()).toBe(true)
+      await step(2)
+      listing.release()
+      await cleared
+      await settle()
+      expect(c.checksRun).toBe(runs + 1)
+      expect(vi.getTimerCount()).toBe(1) // the poll alone
+      await step(UPLOAD_RECHECK_MAX + 2)
+      expect(c.checksRun).toBe(runs + 1)
+      expect(st.manifest.counties[CA]).toBeUndefined()
+      expect(n.shared(CA)).toMatchObject({ state: 'cleared' })
+      expect(n.cmds('pullItem')).toHaveLength(0)
+    })
+
+    it('repeated checks, a check in flight when the re-read comes due, and a second waiting county share one timer and one budget', async () => {
+      const { n, st, c, userBump } = await waiting()
+      // Each check drops the pending re-read and arms one from its own outcome.
+      for (let i = 0; i < 3; i++) {
+        await c.checkNow()
+        expect(vi.getTimerCount()).toBe(2)
+      }
+      await Promise.all([c.checkNow(), c.checkNow(), c.checkNow()])
+      await settle()
+      expect(vi.getTimerCount()).toBe(2)
+      // A check held in flight past the re-read's due time: nothing queues behind it.
+      const listing = holdListing(n)
+      let runs = c.checksRun
+      const check = c.checkNow()
+      await settle()
+      expect(listing.held()).toBe(true)
+      await step(2)
+      listing.release()
+      await check
+      await settle()
+      expect(c.checksRun).toBe(runs + 1)
+      expect(vi.getTimerCount()).toBe(2)
+      // Two re-reads for CA alone, then the user adds NY, which waits too: the
+      // add starts a fresh budget, and the two counties share it.
+      runs = c.checksRun
+      await step(2)
+      expect(c.checksRun).toBe(runs + 2)
+      st.add(NY)
+      c.barChartSaved(NY)
+      userBump()
+      await settle()
+      expect(getICloudState().barCharts[CA]?.state).toBe('waiting-to-upload')
+      expect(getICloudState().barCharts[NY]?.state).toBe('waiting-to-upload')
+      expect(vi.getTimerCount()).toBe(2)
+      runs = c.checksRun
+      await step(2 * UPLOAD_RECHECK_MAX + 2)
+      expect(c.checksRun - runs).toBe(UPLOAD_RECHECK_MAX)
+      expect(vi.getTimerCount()).toBe(1)
+    })
+  })
+
+  it.each(['unavailable', 'timeout'] as const)('a push the native write refuses (%s) reads "Could not sync" with its reason and Retry, and the next check retries it', async (code) => {
+    const n = makeNative()
+    n.fail.pushItem = new ICloudNativeError(code)
+    const st = makeStorage({ [CA]: { filename: 'x.txt', uploadedAt: T_OLD, origin: MINE } })
+    const { c } = await bootOn(n, st)
+    expect(getICloudState().barCharts[CA]).toMatchObject({ state: 'error', reason: REASONS[code], fromThisDevice: true })
+    // The local file stays applied, and the next check pushes it again.
+    expect(st.manifest.counties[CA]).toBeDefined()
+    delete n.fail.pushItem
+    await c.retryBarChart(CA)
+    expect(n.shared(CA)).toMatchObject({ state: 'file', uploadedAt: T_OLD })
+    expect(getICloudState().barCharts[CA]).toMatchObject({ state: 'up-to-date' })
+  })
+
+  it.each([
+    ['unknown', 'error'],
+    ['timeout', 'waiting-to-upload'],
+    ['unavailable', 'waiting-to-upload'],
+  ] as const)('a listing that fails with %s leaves an unpushed county reading %s', async (code, state) => {
+    const n = makeNative()
+    const st = makeStorage()
+    const { c } = await bootOn(n, st)
+    st.add(CA)
+    n.fail.listItems = new ICloudNativeError(code)
+    await c.checkNow()
+    expect(getICloudState().barCharts[CA]?.state).toBe(state)
   })
 })
