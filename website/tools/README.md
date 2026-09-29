@@ -103,9 +103,10 @@ npx playwright install chromium webkit    # webkit is for verify/, below
    an honest state, and not what the site should show. The stub is installed
    only on the three Statistics contexts, because registering any Playwright
    route on a context, whatever its pattern, cancels every cross-origin `<img>`
-   load in it, which is exactly what the eBird and Birds of the World glyphs
-   beside species names are; installed on every context it photographed empty
-   glyph slots on Species Detail, Breeding Codes, Multimedia and Named Birds.
+   load in it. The eBird and Birds of the World marks beside species names are
+   not such loads: both scripts serve them from the copies committed in
+   `marks/` (see `marks/PROVENANCE.md`), never request them, and fail any frame
+   that would show a fallback glyph where a mark belongs.
 
    If `backend/.env` carries no usable OpenWeather key, add `WEATHER_REPLAY=1`
    to serve the weather shot from the app's stored replay result instead of a

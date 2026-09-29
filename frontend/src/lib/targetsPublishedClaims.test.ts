@@ -291,15 +291,27 @@ describe.each([
     expect(ebird).toContain("used by the map's county Completeness shading and by the Targets tab")
   })
 
-  it('says the bar-chart file stays on the device and is not synced', () => {
+  // icloud-bar-chart-sync (item 36): the retired "is stored only on your
+  // device ... and is not part of iCloud Sync" clause was made false by the
+  // sync, so the sub-bullet now says what the file is read for, then where it
+  // is kept. Two sentences, so the second is found by its own opener.
+  it('says the bar-chart file is read only for its county, and is copied to your own iCloud account with sync on (item 36)', () => {
     const clause = clauseWith(ebird, 'An eBird bar-chart file you add on the Targets tab')
     expect(clause, 'the bar-chart sub-bullet is present').not.toBe('')
-    expect(clause).toContain('is stored only on your device')
-    expect(clause).toContain('is not part of iCloud Sync')
+    expect(clause).toContain("is read only to show eBird's frequencies for its county.")
+    const kept = clauseWith(ebird, 'It is stored on your device, and on a Mac, iPhone or iPad with iCloud Sync on')
+    expect(kept, 'the where-it-is-kept sentence is present').not.toBe('')
+    expect(kept).toContain('it is copied to your own iCloud account along with your other synced files')
+    expect(ebird).not.toContain('is not part of iCloud Sync')
+    expect(ebird).not.toContain('is stored only on your device, is read only')
   })
 
-  it('lists the day-by-day reports among what clearing the eBird backup removes', () => {
-    expect(clearing).toContain("the day-by-day eBird reports behind the Targets tab's live counts")
+  it('lists the day-by-day reports among what clearing the eBird backup removes, and every device\'s copy with sync on (item 35)', () => {
+    expect(clearing).toContain("the day-by-day eBird reports behind the Targets tab's live counts (and, with iCloud Sync on, every device's copy of them in iCloud)")
+  })
+
+  it('names the Targets tab as the other place a single county\'s file is removed (item 35, D3)', () => {
+    expect(clearing).toContain("at any time from the Settings tab (a single county's bar-chart file, also from the Targets tab), or by removing the app's data directory")
   })
 })
 
@@ -319,8 +331,28 @@ describe('the privacy claims are true of the shipped code', () => {
     expect(mounters).toEqual(['components/targets/Targets.tsx'])
   })
 
-  it('"not part of iCloud Sync": the synced slots are the two data files and nothing else', () => {
+  it('"copied to your own iCloud account ... with iCloud Sync on": each county\'s file is a synced KIND beside the two slots, on Apple builds only', () => {
+    // The two slots are unchanged; the bar-chart files sync as their own kind,
+    // one item per county under `barcharts/`, and the day lists as `day-obs/`.
     expect([...SLOTS]).toEqual(['ebird', 'ml'])
+    const native = sources.find(f => f.name === 'lib/icloud/icloudNative.ts')!.text
+    expect(native).toMatch(/barchart:\s*'barcharts'/)
+    expect(native).toMatch(/'day-obs':\s*'day-obs'/)
+    // The controller runs the county pass and the day pass inside its check.
+    const ctrl = sources.find(f => f.name === 'lib/icloud/icloudSync.ts')!.text
+    expect(ctrl).toContain('runCountyPass(')
+    expect(ctrl).toContain('runDayObsPass(')
+    // "on a Mac, iPhone or iPad": the only gate the Settings and Targets surfaces use.
+    const gates = sources.find(f => f.name === 'lib/platformGates.ts')!.text
+    expect(gates).toMatch(/export function showICloudSync\(\): boolean \{\s*return isTauri\(\) && \(isIOS\(\) \|\| isMacOS\(\)\);/)
+    expect(sources.find(f => f.name === 'components/targets/TargetsBarChartFile.tsx')!.text).toContain('showICloudSync()')
+  })
+
+  it('"every device\'s copy of them in iCloud": clearing the eBird backup with sync on removes every day-list snapshot', () => {
+    const ctrl = sources.find(f => f.name === 'lib/icloud/icloudSync.ts')!.text
+    const clear = ctrl.slice(ctrl.indexOf('async function clearWithSync('))
+    // A nested function: it ends at the first two-space-indented closing brace.
+    expect(clear.slice(0, clear.indexOf('\n  }\n'))).toContain("removeItems('day-obs')")
   })
 
   it('"clearing your eBird backup also removes ... the day-by-day eBird reports": the day cache is registered with the clear', () => {
@@ -368,8 +400,9 @@ describe.each([
     expect(files).toContain('the files you upload (your eBird backup and Macaulay Library export, and any eBird bar-chart files you add on the Targets tab)')
   })
 
-  it('G: the iCloud clause names the two data files it copies, and only those', () => {
-    expect(files).toContain('which copies the two data files (your eBird backup and Macaulay Library export)')
+  it('G: the iCloud clause names the data files it copies, the bar-chart files included (item 34)', () => {
+    expect(files).toContain('which copies your data files (your eBird backup, your Macaulay Library export and any eBird bar-chart files you have added), and your API keys only if')
+    expect(files).not.toContain('the two data files')
   })
 
   it('E: the Targets tab\'s location control is listed by its on-screen name, with what the coordinates are used for', () => {
@@ -383,8 +416,10 @@ describe.each([
 describe('D, E and G are true of the shipped code', () => {
   const sources = sourceFiles(SRC_ROOT)
 
-  it('G: "the two data files (your eBird backup and Macaulay Library export)" are exactly the synced slots', () => {
+  it('G: "your data files (... any eBird bar-chart files you have added)" are exactly the two slots and the bar-chart kind', () => {
     expect([...SLOTS]).toEqual(['ebird', 'ml'])
+    const types = sources.find(f => f.name === 'lib/icloud/icloudNativeTypes.ts')!.text
+    expect(types).toMatch(/export type ItemKind = 'barchart' \| 'day-obs'/)
   })
 
   it('E: the Targets distance anchor reads the location on the device and sends nothing', () => {
@@ -422,8 +457,20 @@ describe('the policy and its published page agree on D, E, F and G', () => {
     expect(LOCATION_HTML).toBe(LOCATION_MD)
   })
 
-  it('F: both carry the same effective date, in the policy\'s own format', () => {
-    expect(EFFECTIVE_MD).toMatch(/^[A-Z][a-z]+ \d{1,2}, \d{4}$/)
+  // icloud-bar-chart-sync (item 40): the held patch carried a marked ship-date
+  // placeholder and this row accepted it. The date was filled when the user
+  // approved the copy (2026-09-29), so the allowance is gone: the row requires
+  // a real calendar date, in the policy's own "Month D, YYYY" format, and the
+  // same date in both files.
+  it('F: both carry the same effective date, a real date in the policy\'s own format', () => {
+    const m = /^([A-Z][a-z]+) (\d{1,2}), (\d{4})$/.exec(EFFECTIVE_MD)
+    expect(m, EFFECTIVE_MD).not.toBeNull()
+    const [, month, day, year] = m!
+    const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+    const mi = MONTHS.indexOf(month)
+    expect(mi, `${month} is a month name`).toBeGreaterThan(-1)
+    // A day the month does not have rolls over, so the round trip catches it.
+    expect(new Date(Date.UTC(Number(year), mi, Number(day))).getUTCDate(), `${EFFECTIVE_MD} is a calendar date`).toBe(Number(day))
     expect(EFFECTIVE_HTML).toBe(EFFECTIVE_MD)
   })
 })
