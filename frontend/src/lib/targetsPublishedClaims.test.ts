@@ -22,7 +22,7 @@ import { fileURLToPath } from 'node:url'
 import * as copy from './targets/targetsCopy'
 import { MEDIA_TYPES, buildTargetsRecord } from './targets/targetsRecord'
 import { classifyPool } from './targets/targetsClassify'
-import { isBreedingTarget, isMediaTarget } from './targets/targetsFilter'
+import { DEFAULT_TOGGLES, isBreedingTarget, isMediaTarget } from './targets/targetsFilter'
 import { SORT_ORDER } from './targets/targetsSort'
 import { SWEEP_DAYS } from './targets/targetsDates'
 import { parseBarChartFilename } from './uploadGuard'
@@ -171,6 +171,17 @@ describe('what the help says is true of the shipped logic', () => {
     expect(lifer.lifer).toBe(true)
     expect(isBreedingTarget(lifer, 'any')).toBe(false)
     expect(isMediaTarget(lifer, new Set())).toBe(false)
+  })
+
+  it('"The tab opens showing lifers only": the sentence names the default the tab opens in (targets-lifers-default)', () => {
+    // The control names come from the pills' own labels; the state from DEFAULT_TOGGLES.
+    expect(TARGETS).toContain(`The tab opens showing lifers only, with ${bold(copy.TYPE_MEDIA)} and ${bold(copy.TYPE_BREEDING)} off until you turn them on.`)
+    expect(DEFAULT_TOGGLES.lifer).toBe(true)
+    expect(DEFAULT_TOGGLES.media).toBe(false)
+    expect(DEFAULT_TOGGLES.breeding).toBe(false)
+    // "lifers only" is the whole view: no chip and no threshold narrows it.
+    expect(DEFAULT_TOGGLES.chips.size).toBe(0)
+    expect(DEFAULT_TOGGLES.threshold).toBe('any')
   })
 })
 

@@ -85,6 +85,7 @@ import { COMPLETENESS_STORE_KEY } from '../../lib/countyCompletenessCache'
 import { _resetCountyCompletenessCacheForTests } from '../../lib/countyCompletenessCache'
 import { _resetCountyDayObsCacheForTests } from '../../lib/countyDayObsCache'
 import { EBIRD_BACKUP_LOAD_ERROR } from '../setupCopy'
+import { CHIPS_GROUP_LABEL, THRESHOLD_GROUP_LABEL } from '../../lib/targets/targetsCopy'
 
 function obs(commonName: string, over: Partial<ObservationEntry> = {}): ObservationEntry {
   return {
@@ -142,6 +143,8 @@ async function ready() {
   await screen.findByRole('combobox', { name: 'County' })
 }
 const openSpy = vi.fn()
+/** The tab opens on Lifer only (targets-lifers-default); rows about recorded species press Breeding first. */
+const breedingOn = () => fireEvent.click(screen.getByRole('button', { name: 'Breeding' }))
 
 describe('the load gate (QA-09)', () => {
   it('no backup stored: the setup guidance, and no picker', async () => {
@@ -210,6 +213,33 @@ describe('before any network call (QA-11, QA-12, FR-52)', () => {
 })
 
 describe('toggles and the summary (QA-25, QA-27)', () => {
+  it('first open: Lifer only, Media and Breeding off with no chips or threshold; pressing each brings them back (targets-lifers-default)', async () => {
+    seedPool()
+    // The ML export loaded, so Media is off by the default and not by FR-20.
+    H.files = { ...H.files, ml: { filename: 'ml.csv', uploadedAt: '2026-09-01' } }
+    H.ml = { rows: [] }
+    await ready()
+    const table = await screen.findByRole('table')
+    const pressed = (name: string) => screen.getByRole('button', { name }).getAttribute('aria-pressed')
+    expect(pressed('Lifer')).toBe('true')
+    expect(pressed('Media')).toBe('false')
+    expect(screen.getByRole('button', { name: 'Media' }).getAttribute('aria-disabled')).toBeNull()
+    expect(pressed('Breeding')).toBe('false')
+    expect(screen.queryByRole('group', { name: CHIPS_GROUP_LABEL })).toBeNull()
+    expect(screen.queryByRole('group', { name: THRESHOLD_GROUP_LABEL })).toBeNull()
+    // Only the lifer: the recorded species wait for their toggles.
+    expect(within(table).getAllByRole('row')).toHaveLength(3)   // two header rows + the lifer
+    expect(within(table).getByText(HOSTILE_SPECIES)).toBeTruthy()
+    expect(within(table).queryByRole('button', { name: 'Song Sparrow' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Media' }))
+    expect(pressed('Media')).toBe('true')
+    expect(screen.getByRole('group', { name: CHIPS_GROUP_LABEL })).toBeTruthy()
+    expect(within(screen.getByRole('table')).getByRole('button', { name: 'Song Sparrow' })).toBeTruthy()
+    breedingOn()
+    expect(pressed('Breeding')).toBe('true')
+    expect(screen.getByRole('group', { name: THRESHOLD_GROUP_LABEL })).toBeTruthy()
+  })
+
   it('the announced summary matches the visible rows after each toggle', async () => {
     seedPool()
     await ready()
@@ -218,6 +248,9 @@ describe('toggles and the summary (QA-25, QA-27)', () => {
     const rows = () => within(screen.getByRole('table')).getAllByRole('row').length - 2   // two header rows
     await waitFor(() => expect(status()).toMatch(/^\d+ targets?: /))
     expect(status()).toMatch(new RegExp(`^${rows()} target`))
+    breedingOn()
+    await waitFor(() => expect(status()).toMatch(new RegExp(`^${rows()} target`)))
+    expect(rows()).toBeGreaterThan(1)
     fireEvent.click(screen.getByRole('button', { name: 'Lifer' }))
     await waitFor(() => expect(status()).toMatch(new RegExp(`^${rows()} target`)))
     expect(screen.getByRole('button', { name: 'Lifer' }).getAttribute('aria-pressed')).toBe('false')
@@ -227,8 +260,9 @@ describe('toggles and the summary (QA-25, QA-27)', () => {
     seedPool()
     await ready()
     await screen.findByRole('table')
+    // Media is unavailable (no ML export) and Breeding starts off, so Lifer is the last one on.
+    expect(screen.getByRole('button', { name: 'Breeding' }).getAttribute('aria-pressed')).toBe('false')
     fireEvent.click(screen.getByRole('button', { name: 'Lifer' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Breeding' }))
     expect(await screen.findByText('Turn on at least one target type')).toBeTruthy()
     expect(screen.queryByRole('table')).toBeNull()
   })
@@ -306,7 +340,9 @@ describe('rows (QA-58, QA-59, QA-60)', () => {
     seedPool()
     openSpy.mockReset()
     await ready()
-    const table = await screen.findByRole('table')
+    await screen.findByRole('table')
+    breedingOn()
+    const table = screen.getByRole('table')
     fireEvent.click(within(table).getByRole('button', { name: 'Song Sparrow' }))
     expect(openSpy).toHaveBeenCalledWith('Song Sparrow')
     expect(within(table).queryByRole('button', { name: HOSTILE_SPECIES })).toBeNull()
@@ -449,9 +485,10 @@ describe('the measuring-point chooser (FR-51a, QA-53a)', () => {
     H.settings.set('map-defaults', OAKLAND)
     liveTransport()
     await liveReady()
-    // Coyote Hills is the robin's place: the robin is not a target under the
-    // default toggles (it has a breeding code), so the section is built from
-    // the whole county's live data, not only the rows on screen.
+    breedingOn()
+    // Coyote Hills is the robin's place: the robin is not a target even with
+    // Breeding on (it has a breeding code), so the section is built from the
+    // whole county's live data, not only the rows on screen.
     expect(within(screen.getByRole('table')).queryByText('American Robin')).toBeNull()
     const sparrowBefore = distanceCell('Song Sparrow')
     fireEvent.click(trigger(/Default Location\. Change$/))
@@ -554,6 +591,7 @@ describe('the measuring-point chooser (FR-51a, QA-53a)', () => {
     H.settings.set('map-defaults', OAKLAND)
     liveTransport()
     await liveReady()
+    breedingOn()
     fireEvent.click(trigger(/Default Location\. Change$/))
     const mine = within(screen.getByRole('dialog')).getByRole('button', { name: /^My location/ })
     fireEvent.click(mine)

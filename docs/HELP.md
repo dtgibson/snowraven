@@ -404,7 +404,7 @@ The county's species list is its all-time eBird list, the same one the Map Explo
 - **Media**: a species you have recorded that your Macaulay Library export has no photo, audio or video of. The badge shows which ones you lack. The **Photo**, **Audio** and **Video** chips narrow the list to species missing every chip you select. Media needs your ML export in Settings.
 - **Breeding**: a species you have recorded with no breeding code on any observation (F and H count as codes, as on the Breeding Codes tab). **Confirmed** instead lists species with no confirmed code, so a species with only a possible or probable code still shows.
 
-A lifer is never a Media or Breeding target, and a species you have recorded can be both. Each type has its own toggle; turn one off and only the rows that type alone was showing disappear. Targets are counted by species, so a subspecies or form you recorded counts for its species: a photo of "Dark-eyed Junco (Oregon)" counts as a photo of Dark-eyed Junco here. Click a recorded species' name to open it in Species Detail.
+A lifer is never a Media or Breeding target, and a species you have recorded can be both. Each type has its own toggle; turn one off and only the rows that type alone was showing disappear. The tab opens showing lifers only, with **Media** and **Breeding** off until you turn them on. Targets are counted by species, so a subspecies or form you recorded counts for its species: a photo of "Dark-eyed Junco (Oregon)" counts as a photo of Dark-eyed Junco here. Click a recorded species' name to open it in Species Detail.
 
 ### Probability and live: two different numbers
 
