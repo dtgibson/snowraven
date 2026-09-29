@@ -398,8 +398,17 @@ else
   WIN_DIR="/tmp/snowraven-windows"
   rm -rf "$WIN_DIR" && mkdir -p "$WIN_DIR"
 
+  # Pin the run to the tag's commit when the tag exists locally. Unpinned,
+  # `--status success --limit 1` does not reliably return the newest run: at the
+  # 1.0.40 ship it returned month-old runs on some calls (one held 0.5.91), and only
+  # the version-filename guard below stopped a stale installer. The pin also
+  # closes the re-pushed-tag case that guard cannot see (0.5.34 post-mortem).
+  WIN_COMMIT_ARGS=()
+  if git rev-parse -q --verify "$TAG^{commit}" >/dev/null 2>&1; then
+    WIN_COMMIT_ARGS=( --commit "$(git rev-parse "$TAG^{commit}")" )
+  fi
   WIN_RUN_ID=$(gh run list --repo "$REPO" --workflow windows-build.yml \
-    --status success --limit 1 --json databaseId --jq '.[0].databaseId // empty')
+    --status success ${WIN_COMMIT_ARGS[@]+"${WIN_COMMIT_ARGS[@]}"} --limit 1 --json databaseId --jq '.[0].databaseId // empty')
   if [[ -z "$WIN_RUN_ID" ]]; then
     echo "Error: no successful 'Windows Build' run found."
     echo "Push the $TAG tag and wait for the Windows Build workflow to finish,"
