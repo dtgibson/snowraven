@@ -96,7 +96,12 @@ export const CHECK_DEADLINE_MS = 10_000
     five-minute visible poll governs as before. Nothing else reliably
     re-reads it: the native watch sees record files only, never the county
     file whose flag also gates the row, and the check the push's own record
-    write triggers runs before the daemon has sent anything. */
+    write triggers runs before the daemon has sent anything. Since the device
+    pass on 1.0.40.2 (entry 18) the same re-read, with the same timer and the
+    same count, also follows a check that left something it asked iCloud for
+    still on its way (a county or day-obs record it could not read in time, a
+    county file or peer snapshot whose download did not land), for the same
+    reason: nothing else re-reads a county file that finishes downloading. */
 export const UPLOAD_RECHECK_MS = 15_000
 export const UPLOAD_RECHECK_MAX = 8
 
@@ -289,6 +294,8 @@ export function createICloudController(deps: ControllerDeps): ICloudController {
   // follow-ups fired since a check last left no county waiting.
   let uploadRecheckTimer: ReturnType<typeof setTimeout> | null = null
   let uploadRechecks = 0
+  // Whether the last check left something it asked iCloud for on its way.
+  let checkPending = false
 
   // ── preference ─────────────────────────────────────────────────────────
 
@@ -1094,6 +1101,7 @@ export function createICloudController(deps: ControllerDeps): ICloudController {
 
   async function runCheck(): Promise<CheckOutcome> {
     checksRun += 1
+    checkPending = false
     setICloudState({ checking: true })
     const failed: CheckOutcome = { ok: false, transferred: false, at: pref.lastCheckAt }
     // NFR-04: one 10 s budget for the reads of this check. Wall-clock from
@@ -1195,6 +1203,7 @@ export function createICloudController(deps: ControllerDeps): ICloudController {
       // undecided file slot does, and keeps lastCheckAt.
       const counties = await runCountyPass(countyCtx(), remaining)
       if (counties.transferred) transferred = true
+      if (counties.pending) checkPending = true
       if (counties.failed) {
         await savePref()
         publishShared()
@@ -1203,6 +1212,7 @@ export function createICloudController(deps: ControllerDeps): ICloudController {
       }
       const dayObs = await runDayObsPass(dayObsCtx(), remaining)
       if (dayObs.transferred) transferred = true
+      if (dayObs.pending) checkPending = true
       if (dayObs.failed) {
         await savePref()
         publishShared()
@@ -1272,17 +1282,19 @@ export function createICloudController(deps: ControllerDeps): ICloudController {
   }
 
   /**
-   * After every check: while a county reads "Waiting to upload" on a check
-   * that reached iCloud, re-read the flag in UPLOAD_RECHECK_MS, at most
+   * After every check: while a county reads "Waiting to upload", or the check
+   * left something it asked iCloud for still on its way (`checkPending`), on
+   * a check that reached iCloud, re-read in UPLOAD_RECHECK_MS, at most
    * UPLOAD_RECHECK_MAX times in a row. A failed check arms nothing (offline,
    * the rows keep their state and the usual triggers resume), a queued check
    * is about to re-read anyway, and a hidden window waits for the foreground
-   * trigger, as the poll does. Only a check that leaves no county waiting
-   * resets the count, so a file iCloud never takes cannot keep this running.
+   * trigger, as the poll does. Only a check that leaves nothing waiting
+   * resets the count, so a file iCloud never takes or never sends cannot keep
+   * this running.
    */
   function armUploadRecheck(outcome: CheckOutcome): void {
     clearUploadRecheck()
-    const waiting = Object.values(getICloudState().barCharts).some((v) => v.state === 'waiting-to-upload')
+    const waiting = checkPending || Object.values(getICloudState().barCharts).some((v) => v.state === 'waiting-to-upload')
     if (!waiting) uploadRechecks = 0
     if (disposed || !pref.enabled || !outcome.ok || !waiting || queued || uploadRechecks >= UPLOAD_RECHECK_MAX) return
     uploadRecheckTimer = setTimeout(() => {

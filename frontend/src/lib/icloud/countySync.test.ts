@@ -54,7 +54,9 @@ function makeNative() {
   const calls: Array<{ cmd: string; args: unknown[] }> = []
   const rec = (cmd: string, ...args: unknown[]) => { calls.push({ cmd, args }) }
   const fail: Partial<Record<string, ICloudNativeError>> = {}
-  const knobs = { landOnStartDownload: false, pushUploaded: true }
+  // landRecordAfterListing: a record a listing reported unread has come down
+  // by the next listing (the download that listing asked for landed).
+  const knobs = { landOnStartDownload: false, pushUploaded: true, landRecordAfterListing: false }
   let holdCleared: { release: () => void } | null = null
   const hooks = { holdNextCleared: false }
   const put = (county: string, r: SharedRecord | null, fileDownloaded = true, uploaded = true) => {
@@ -92,7 +94,11 @@ function makeNative() {
     async listItems(kind) {
       rec('listItems', kind)
       if (fail.listItems) throw fail.listItems
-      return { items: kind === 'barchart' ? listed() : [], truncated: false }
+      const items = kind === 'barchart' ? listed() : []
+      if (kind === 'barchart' && knobs.landRecordAfterListing) {
+        for (const c of counties.values()) if (c.recordPresent) c.recordDownloaded = true
+      }
+      return { items, truncated: false }
     },
     async pushItem(item: SyncItemRef, filename, uploadedAt, origin, unless) {
       rec('pushItem', item, filename, uploadedAt, origin, unless)
@@ -894,5 +900,89 @@ describe('device pass on 1.0.40.1: a county never hangs on "Waiting to upload"',
     n.fail.listItems = new ICloudNativeError(code)
     await c.checkNow()
     expect(getICloudState().barCharts[CA]?.state).toBe(state)
+  })
+})
+
+describe('device pass on 1.0.40.2: a change another device made is read here with no native event', () => {
+  // The receiving device's half (decisions.md entry 18). The native listing
+  // now reads a record that is not Current through the coordinated read, in
+  // the same check (icloud.rs); what it cannot bring down inside its budget is
+  // reported unread, and a county file whose download does not land in the
+  // wait reads "In iCloud, not downloaded here". Nothing re-read either one
+  // until a native event, the five-minute poll or a trip away from the app:
+  // the watch sees records only and never a county file landing. These rows
+  // run with no native event and no Check now.
+  const RECHECK = 1_000
+  const fakeTimers = () => vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] })
+  const step = async (intervals: number) => {
+    for (let i = 0; i < intervals; i++) await vi.advanceTimersByTimeAsync(RECHECK)
+  }
+
+  it('the other device removes a county THIS device added; the marker, not read at the first check, is applied by the follow-up re-read', async () => {
+    fakeTimers()
+    const n = makeNative()
+    n.put(CA, countyFile(CA, T_OLD, ME)) // added and pushed here, as the phone did
+    const st = makeStorage({ [CA]: { filename: 'x.txt', uploadedAt: T_OLD, origin: MINE } })
+    const { c } = await bootOn(n, st, { uploadRecheckMs: RECHECK })
+    expect(getICloudState().barCharts[CA]?.state).toBe('up-to-date')
+    // The other device's cleared marker replaces the record, and the first
+    // check after it (the app coming to the front) cannot read it yet.
+    clock += 60_000
+    n.put(CA, countyCleared(CA, iso(clock)))
+    n.counties.get(CA)!.recordDownloaded = false
+    n.knobs.landRecordAfterListing = true
+    const runs = c.checksRun
+    await c.requestCheck('foreground')
+    expect(st.manifest.counties[CA]).toBeDefined()
+    expect(getICloudState().barCharts[CA]?.state).toBe('downloading')
+    await step(1)
+    expect(c.checksRun).toBe(runs + 2)
+    expect(st.manifest.counties[CA]).toBeUndefined()
+    expect(getICloudState().barCharts[CA]).toBeUndefined()
+    // Nothing is left on its way, so no re-read stays armed: the poll alone.
+    expect(vi.getTimerCount()).toBe(1)
+    // Reading a peer's marker never writes anything back.
+    expect(n.cmds('pushItem').filter(x => (x.args[0] as SyncItemRef).kind === 'barchart')).toHaveLength(0)
+    expect(n.cmds('pushItemsCleared')).toHaveLength(0)
+  })
+
+  it('a county the other device added arrives undownloaded, record and file, and comes down by the re-reads', async () => {
+    fakeTimers()
+    const n = makeNative()
+    const st = makeStorage()
+    const { c } = await bootOn(n, st, { uploadRecheckMs: RECHECK })
+    n.put(NY, countyFile(NY, T_NEW), false)
+    n.counties.get(NY)!.recordDownloaded = false
+    n.knobs.landRecordAfterListing = true
+    await c.requestCheck('native event')
+    expect(st.manifest.counties[NY]).toBeUndefined()
+    // The re-read reads the record and starts the file's download, which does
+    // not land inside the check's wait (a few 1 ms polls past the due time).
+    await step(1)
+    await vi.advanceTimersByTimeAsync(50)
+    expect(getICloudState().barCharts[NY]?.state).toBe('in-icloud-not-downloaded')
+    expect(n.cmds('startDownloadItem').length).toBeGreaterThan(0)
+    // The file finishes downloading; the next re-read pulls it.
+    n.counties.get(NY)!.file.downloaded = true
+    await step(1)
+    expect(st.manifest.counties[NY]).toMatchObject({ uploadedAt: T_NEW, origin: { deviceId: PEER } })
+    expect(getICloudState().barCharts[NY]).toMatchObject({ state: 'up-to-date' })
+    expect(vi.getTimerCount()).toBe(1)
+  })
+
+  it('the re-read is bounded: a record that never comes down stops after UPLOAD_RECHECK_MAX checks, and is never treated as absent', async () => {
+    fakeTimers()
+    const n = makeNative()
+    const st = makeStorage({ [CA]: { filename: 'mine.txt', uploadedAt: T_OLD, origin: MINE } })
+    n.put(CA, countyFile(CA, T_NEW))
+    n.counties.get(CA)!.recordDownloaded = false
+    const { c } = await bootOn(n, st, { uploadRecheckMs: RECHECK })
+    const runs = c.checksRun
+    await step(UPLOAD_RECHECK_MAX + 4)
+    expect(c.checksRun - runs).toBe(UPLOAD_RECHECK_MAX)
+    expect(vi.getTimerCount()).toBe(1)
+    // Unread all along: the local file stays and nothing is pushed over it.
+    expect(st.manifest.counties[CA].filename).toBe('mine.txt')
+    expect(n.cmds('pushItem').filter(x => (x.args[0] as SyncItemRef).kind === 'barchart')).toHaveLength(0)
   })
 })

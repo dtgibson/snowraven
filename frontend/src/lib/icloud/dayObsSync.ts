@@ -96,14 +96,18 @@ export function publishSharedDayObs(pref: { dayObs?: DayObsPref }): void {
  * The day-obs pass. Resolves with whether the check must report failure
  * (iCloud stopped answering inside it). `transferred` is true when a peer's
  * snapshot changed this device's store or this device's snapshot went up.
+ * `pending` is true when a peer's record could not be read yet or its
+ * snapshot's download was started, so the controller re-reads shortly, as it
+ * does for the county pass (device pass on 1.0.40.2, decisions.md entry 18).
  */
 export async function runDayObsPass(
   ctx: DayObsPassContext,
   remaining: () => number,
-): Promise<{ transferred: boolean; failed: boolean }> {
+): Promise<{ transferred: boolean; failed: boolean; pending: boolean }> {
   const state = ctx.pref.dayObs ?? emptyDayObsPref()
   ctx.pref.dayObs = state
   let transferred = false
+  let pending = false
   // The purge generation, captured BEFORE the listing, the backup check and
   // every download (the fetch-chokepoint rule, CLAUDE.md v1.0.14; security
   // L1). A Clear that lands anywhere in this pass moves it, so no peer text
@@ -119,7 +123,7 @@ export async function runDayObsPass(
     items = listed.items.filter(it => DEVICE_ID_RE.test(it.id))
   } catch (raw) {
     const err = toICloudError(raw)
-    return { transferred: false, failed: err.code === 'timeout' || err.code === 'unavailable' }
+    return { transferred: false, failed: err.code === 'timeout' || err.code === 'unavailable', pending: false }
   }
   const nowMs = ctx.now()
   state.anyShared = items.some(it => it.present)
@@ -130,7 +134,8 @@ export async function runDayObsPass(
     for (const it of items) {
       if (it.id === ctx.deviceId) continue
       seen.add(it.id)
-      if (!it.present || it.record === null) continue // absent, or a record not read yet
+      if (!it.present) continue
+      if (it.record === null) { pending = true; continue } // a record not read yet
       const v = validateDayObsRecord(it.record, it.id, nowMs)
       if (!v.ok || v.record.state !== 'file') {
         ctx.log(`icloud: day-obs record rejected (${v.ok ? 'state' : v.reason}); treating it as absent`)
@@ -142,6 +147,7 @@ export async function runDayObsPass(
       if (!it.file.downloaded) {
         // Merged on a later check once it lands; there is no view to spend a wait on (FR-28).
         try { await ctx.native.startDownloadItem(snapshotItem(it.id)) } catch { /* next check */ }
+        pending = true
         continue
       }
       let text: string
@@ -151,7 +157,7 @@ export async function runDayObsPass(
         text = r.text
       } catch (raw) {
         const err = toICloudError(raw)
-        if (err.code === 'timeout' || err.code === 'unavailable') return { transferred, failed: true }
+        if (err.code === 'timeout' || err.code === 'unavailable') return { transferred, failed: true, pending }
         continue // a mismatch or a vanished file: the peer is left for the next check
       }
       const merged = await ctx.mergeSnapshot(text, gen)
@@ -173,7 +179,7 @@ export async function runDayObsPass(
     // `state`), so nothing is pushed or removed here; a snapshot the Clear
     // could not remove goes at the next check, which finds no local document.
     publishSharedDayObs(ctx.pref)
-    return { transferred, failed: false }
+    return { transferred, failed: false, pending }
   }
   const own = items.find(it => it.id === ctx.deviceId)
   let ownSha: string | null = null
@@ -201,15 +207,15 @@ export async function runDayObsPass(
           state.anyShared = items.some(it => it.present && it.id !== ctx.deviceId)
         } catch (rawRemove) {
           const e2 = toICloudError(rawRemove)
-          if (e2.code === 'timeout' || e2.code === 'unavailable') return { transferred, failed: true }
+          if (e2.code === 'timeout' || e2.code === 'unavailable') return { transferred, failed: true, pending }
         }
       }
     } else if (err.code === 'timeout' || err.code === 'unavailable') {
-      return { transferred, failed: true }
+      return { transferred, failed: true, pending }
     } else {
       ctx.log(`icloud: day-obs snapshot not pushed (${err.code})`)
     }
   }
   publishSharedDayObs(ctx.pref)
-  return { transferred, failed: false }
+  return { transferred, failed: false, pending }
 }

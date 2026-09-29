@@ -21,7 +21,8 @@ const B = 'b'.repeat(32)
 const NOW = Date.parse('2026-09-01T16:00:00.000Z')
 const sha = (text: string) => createHash('sha256').update(text).digest('hex')
 
-interface Snap { text: string; recordText: string; downloaded: boolean }
+/** `recordUnread`: the listing could not bring this snapshot's record down this check. */
+interface Snap { text: string; recordText: string; downloaded: boolean; recordUnread?: boolean }
 
 /** A device's local day store, as a map of key -> { complete, fetchedAt }. */
 type Store = Map<string, { complete: boolean; fetchedAt: number }>
@@ -55,7 +56,7 @@ function makeContainer() {
   function nativeFor(device: string, local: () => string | null): ICloudNativeLayer {
     const rec = (cmd: string, ...args: unknown[]) => calls.push({ device, cmd, args })
     const listed = (): NativeListedItem[] => [...snaps.entries()].map(([id, s]) => ({
-      id, present: true, record: s.recordText,
+      id, present: true, record: s.recordUnread ? null : s.recordText,
       file: { present: true, downloaded: s.downloaded, downloading: false, byteLength: s.text.length, uploaded: true },
     }))
     const unsupported = async (): Promise<never> => { throw new ICloudNativeError('unknown') }
@@ -183,12 +184,30 @@ describe('the pull half: merge every OTHER device\'s snapshot (FR-24, FR-26)', (
     await b.pass()
     c.snaps.get(B)!.downloaded = false
     const a = device(A, c)
-    await a.pass()
+    // Pending, so the controller re-reads shortly (decisions.md entry 18).
+    expect((await a.pass()).pending).toBe(true)
     expect(c.calls.filter(x => x.device === A && x.cmd === 'startDownloadItem')).toHaveLength(1)
     expect(a.store.size).toBe(0)
     c.snaps.get(B)!.downloaded = true
-    await a.pass()
+    expect((await a.pass()).pending).toBe(false)
     expect(a.store.size).toBe(1)
+  })
+
+  it('a peer record the listing could not read yet is pending, never merged or forgotten, and is merged once it reads', async () => {
+    const c = makeContainer()
+    const b = device(B, c, { store: new Map([['US-CA-001|2026-08-30', { complete: true, fetchedAt: 5 }]]) })
+    await b.pass()
+    c.snaps.get(B)!.recordUnread = true
+    const a = device(A, c)
+    const first = await a.pass()
+    expect(first).toMatchObject({ failed: false, pending: true })
+    expect(a.store.size).toBe(0)
+    expect(c.calls.filter(x => x.device === A && x.cmd === 'pullItem')).toHaveLength(0)
+    c.snaps.get(B)!.recordUnread = false
+    expect((await a.pass()).pending).toBe(false)
+    expect(a.store.size).toBe(1)
+    // Nothing on its way once merged: a further pass stays quiet.
+    expect((await a.pass()).pending).toBe(false)
   })
 })
 
@@ -237,7 +256,7 @@ describe('the push half: this device\'s own snapshot (FR-25, schema.md 8.2)', ()
     const a = device(A, c, { store: new Map([['US-CA-001|2026-08-30', { complete: true, fetchedAt: 5 }]]) })
     c.fail.listItems = new ICloudNativeError('timeout')
     const r = await a.pass()
-    expect(r).toEqual({ transferred: false, failed: true })
+    expect(r).toEqual({ transferred: false, failed: true, pending: false })
     expect(c.calls.filter(x => x.cmd === 'pushItem')).toHaveLength(0)
   })
 })

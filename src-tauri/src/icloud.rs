@@ -62,8 +62,9 @@ use std::collections::BTreeSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::ptr::NonNull;
-use std::sync::{mpsc, Mutex, OnceLock};
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{mpsc, Arc, Mutex, OnceLock};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use block2::{RcBlock, StackBlock};
 use objc2::runtime::{AnyObject, ProtocolObject};
@@ -568,8 +569,9 @@ pub struct ListedItem {
     pub id: String,
     /// A record exists at the item's record name (downloaded or not).
     pub present: bool,
-    /// The record text; None while the record is an undownloaded placeholder
-    /// (its download has been started) or absent.
+    /// The record text; None when absent, or when a record that was not
+    /// `Current` could not be brought down and read inside the listing's
+    /// budget (its download has been requested; a later check reads it).
     pub record: Option<String>,
     pub file: ListedFile,
 }
@@ -1868,14 +1870,134 @@ fn item_id_from_any_name(name: &str, kind: ItemKind) -> Option<String> {
 
 /// One listing of a kind, at most `max` items (the command passes
 /// `MAX_LISTED_ITEMS`; a test passes a small bound). Work: one name check per
-/// directory entry, each O(1), and one bounded record read per valid item. An
-/// undownloaded record has its download started and is reported with
+/// directory entry, each O(1), and one bounded record read per valid item.
+///
+/// A record that is not `Current` here (a placeholder, or a local copy another
+/// device has since replaced) has its download requested and is then READ THE
+/// WAY THE TWO-FILE SYNC READS ITS RECORDS, through a coordinated read, which
+/// brings the newer version down before the read proceeds (device pass on
+/// 1.0.40.2, decisions.md entry 18). Until then the listing only requested
+/// the download and skipped the record, and nothing in the county path ever
+/// read a record that was not `Current`: since iOS 18.4 a replaced local copy
+/// can stay in the `Downloaded` (out-of-date) state indefinitely (FB17662379),
+/// so the device that wrote a county's record never read the marker another
+/// device wrote over it. Those reads share `LISTING_READ_BUDGET`; a record not
+/// read in time, or still not `Current` after its read, is reported with
 /// `present: true, record: None`, so the frontend skips that item this check
 /// rather than treating it as absent (it must never push over a peer's newer
-/// file it has not read). A record the read path cannot read is reported the
-/// same way; a non-regular, oversized or non-UTF-8 record reads as the empty
-/// text the validator treats as absent, exactly as a slot record does.
+/// file it has not read). A non-regular, oversized or non-UTF-8 record reads
+/// as the empty text the validator treats as absent, exactly as a slot record
+/// does.
 fn list_items_bounded(docs: &Path, kind: ItemKind, max: usize) -> ListResult {
+    list_items_with(docs, kind, max, &Foundation, fetch_gate())
+}
+
+/// How long one listing waits for the records it had to fetch (below). Units:
+/// wall-clock time inside ONE listing command. It sits inside the 8 s
+/// `COMMAND_TIMEOUT` and the frontend's 10 s check budget.
+const LISTING_READ_BUDGET: Duration = Duration::from_secs(2);
+
+/// How long ALL listings together may wait for fetched records inside one
+/// `READ_WAIT_WINDOW` (security report, 1.0.40.3, I8). A check lists more than
+/// twice: the county listing, the day-obs listing, and the county download
+/// wait (`awaitCountiesDownloaded`), which re-lists up to five times, while
+/// Download now re-lists up to ninety. Without this, each of those listings
+/// could wait its own `LISTING_READ_BUDGET` (about 14 s for one check, about
+/// 269 s for one Download now). Two listings' worth, the figure the per-listing
+/// budget was sized on. Units: wall-clock time per window, process-wide.
+const CHECK_READ_BUDGET: Duration = Duration::from_secs(4);
+
+/// The window `CHECK_READ_BUDGET` is spent over: the frontend's 10 s check
+/// budget (`CHECK_DEADLINE_MS` in icloudSync.ts), so one check's listings
+/// share one allowance. The re-read comes 15 s after a check, in a new window.
+const READ_WAIT_WINDOW: Duration = Duration::from_secs(10);
+
+/// The process-wide limits on waiting for fetched records (I8): at most ONE
+/// helper thread reading at a time (a listing that finds one still running
+/// does not start another and reports its records unread, which the tri-state
+/// already handles), and a total wait per `READ_WAIT_WINDOW`.
+struct FetchGate {
+    in_flight: Arc<AtomicBool>,
+    /// The current window's start and what listings have waited in it.
+    spent: Mutex<(Option<Instant>, Duration)>,
+    per_listing: Duration,
+    per_window: Duration,
+    window: Duration,
+}
+
+impl FetchGate {
+    fn new(per_listing: Duration, per_window: Duration, window: Duration) -> FetchGate {
+        FetchGate { in_flight: Arc::new(AtomicBool::new(false)), spent: Mutex::new((None, Duration::ZERO)), per_listing, per_window, window }
+    }
+    /// What one listing may wait now: its own budget, capped by what is left
+    /// of the window's (a new window starts when the last one has run out).
+    fn allowance(&self) -> Duration {
+        let mut g = match self.spent.lock() {
+            Ok(g) => g,
+            Err(poisoned) => poisoned.into_inner(),
+        };
+        let now = Instant::now();
+        let current = matches!(g.0, Some(start) if now.duration_since(start) < self.window);
+        if !current {
+            *g = (Some(now), Duration::ZERO);
+        }
+        self.per_listing.min(self.per_window.saturating_sub(g.1))
+    }
+    fn charge(&self, waited: Duration) {
+        let mut g = match self.spent.lock() {
+            Ok(g) => g,
+            Err(poisoned) => poisoned.into_inner(),
+        };
+        g.1 += waited;
+    }
+}
+
+/// Clears the in-flight flag when the helper that set it is done, or when a
+/// helper that could not be spawned is dropped with its closure.
+struct InFlight(Arc<AtomicBool>);
+
+impl Drop for InFlight {
+    fn drop(&mut self) {
+        self.0.store(false, Ordering::Release);
+    }
+}
+
+fn fetch_gate() -> &'static FetchGate {
+    static GATE: OnceLock<FetchGate> = OnceLock::new();
+    GATE.get_or_init(|| FetchGate::new(LISTING_READ_BUDGET, CHECK_READ_BUDGET, READ_WAIT_WINDOW))
+}
+
+/// The three container operations a listing performs on a RECORD, behind a
+/// trait so the listing's read rule is unit-tested without an iCloud account
+/// (this Mac is not signed in). `Foundation` is the only production value.
+trait RecordIo: Clone + Send + 'static {
+    /// The record's ubiquity flags (`downloaded` means Foundation reports it
+    /// `Current`: a local copy that is the newest version this device knows).
+    fn flags(&self, path: &Path) -> UbiquityFlags;
+    /// Ask iCloud to bring the item down (a placeholder) or up to date (an
+    /// out-of-date local copy).
+    fn start_download(&self, path: &Path);
+    /// The two-file read: the raw text through a COORDINATED read, which
+    /// downloads a missing or out-of-date record before handing it over.
+    fn read(&self, dir: &Path, name: &str) -> Result<Option<String>, String>;
+}
+
+#[derive(Clone, Copy)]
+struct Foundation;
+
+impl RecordIo for Foundation {
+    fn flags(&self, path: &Path) -> UbiquityFlags {
+        ubiquity_flags(path)
+    }
+    fn start_download(&self, path: &Path) {
+        let _ = NSFileManager::defaultManager().startDownloadingUbiquitousItemAtURL_error(&file_url(path));
+    }
+    fn read(&self, dir: &Path, name: &str) -> Result<Option<String>, String> {
+        read_record_text(dir, name)
+    }
+}
+
+fn list_items_with<I: RecordIo>(docs: &Path, kind: ItemKind, max: usize, io: &I, gate: &FetchGate) -> ListResult {
     let empty = ListResult { items: Vec::new(), truncated: false };
     let sub = match real_subdir(docs, kind) {
         Some(s) => s,
@@ -1907,6 +2029,9 @@ fn list_items_bounded(docs: &Path, kind: ItemKind, max: usize) -> ListResult {
         ids.insert(id);
     }
     let mut items = Vec::with_capacity(ids.len());
+    // Records present but not `Current`: every download is requested here, in
+    // one pass, so they come down together; the reads follow below.
+    let mut fetch: Vec<(usize, String, PathBuf)> = Vec::new();
     for id in ids {
         let item = match kind.item_from_id(&id) {
             Some(i) => i,
@@ -1918,18 +2043,91 @@ fn list_items_bounded(docs: &Path, kind: ItemKind, max: usize) -> ListResult {
         let mut record = None;
         let mut record_up = false;
         if present {
-            let flags = ubiquity_flags(&record_path);
+            let flags = io.flags(&record_path);
             record_up = flags.uploaded;
             if flags.downloaded {
-                record = read_record_text(&sub, &record_name).ok().flatten();
+                record = io.read(&sub, &record_name).ok().flatten();
             } else {
-                let _ = NSFileManager::defaultManager().startDownloadingUbiquitousItemAtURL_error(&file_url(&record_path));
+                io.start_download(&record_path);
+                fetch.push((items.len(), record_name, record_path));
             }
         }
         let file = item_file_status(&sub, &item, record_up);
         items.push(ListedItem { id, present, record, file });
     }
+    read_fetched_records(&sub, &mut items, fetch, io, gate);
     ListResult { items, truncated }
+}
+
+/// Read the records a listing had to fetch, through the coordinated read,
+/// on ONE helper thread in id order. A coordinated read of a record that has
+/// not come down waits for it and cannot be cancelled (offline it waits until
+/// the download fails), so the listing stops waiting at its allowance and the
+/// helper's later answers are dropped, as `with_timeout` does for a whole
+/// command. The `FetchGate` bounds both halves (I8): no second helper while
+/// one is still reading (at most one lingering thread, and a listing that
+/// finds one waits for nothing), and the wait comes out of the window's
+/// allowance, so the listings of one check share `CHECK_READ_BUDGET`. A record
+/// left unread either way is `present: true, record: None`, the tri-state. A
+/// text is used only when the record reports `Current` AFTER its read has
+/// returned (Apple: never read the status inside the coordinated read), so a
+/// device still never decides from a copy it knows is out of date.
+fn read_fetched_records<I: RecordIo>(
+    sub: &Path,
+    items: &mut [ListedItem],
+    fetch: Vec<(usize, String, PathBuf)>,
+    io: &I,
+    gate: &FetchGate,
+) {
+    if fetch.is_empty() {
+        return;
+    }
+    let allowance = gate.allowance();
+    if allowance.is_zero() {
+        return; // this window's waiting is spent: a later check reads them
+    }
+    if gate.in_flight.compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire).is_err() {
+        return; // a helper is still reading: never a second one
+    }
+    let flag = InFlight(gate.in_flight.clone());
+    let (tx, rx) = mpsc::channel::<(usize, Option<String>)>();
+    let io = io.clone();
+    let dir = sub.to_path_buf();
+    // Builder, not thread::spawn: a thread the OS refuses is "not read", never
+    // a panic (which `panic = "abort"` would make an abort). The closure owns
+    // `flag`, so the flag clears when the helper ends or when a closure that
+    // never ran is dropped.
+    let spawned = std::thread::Builder::new().spawn(move || {
+        let _flag = flag;
+        for (i, name, path) in fetch {
+            let text = io.read(&dir, &name).ok().flatten();
+            let text = if io.flags(&path).downloaded { text } else { None };
+            if tx.send((i, text)).is_err() {
+                return;
+            }
+        }
+    });
+    if spawned.is_err() {
+        return;
+    }
+    let mut take = |(i, text): (usize, Option<String>)| {
+        if let Some(it) = items.get_mut(i) {
+            it.record = text;
+        }
+    };
+    let started = Instant::now();
+    let deadline = started + allowance;
+    loop {
+        match rx.recv_timeout(deadline.saturating_duration_since(Instant::now())) {
+            Ok(answer) => take(answer),
+            Err(_) => break,
+        }
+    }
+    gate.charge(started.elapsed().min(allowance));
+    // An answer that landed on the deadline itself is still used.
+    while let Ok(answer) = rx.try_recv() {
+        take(answer);
+    }
 }
 
 /// Push one item's local file and then its record (the record is the commit
@@ -2893,6 +3091,259 @@ mod tests {
         // The placeholder name of an undownloaded record names the same id.
         assert_eq!(record_id_from_name(".US-CA-001.record.json.icloud", ItemKind::Barchart).as_deref(), Some("US-CA-001"));
         assert_eq!(record_id_from_name(".US-CA-001.record.json", ItemKind::Barchart), None);
+        let _ = fs::remove_dir_all(&docs);
+    }
+
+    // ── device pass on 1.0.40.2 (decisions.md entry 18): the receiving device ──
+    //
+    // A fake of the three record operations, so the listing's READ RULE runs
+    // against the states iOS gives a record another device wrote, with no
+    // iCloud account: `Stale` is a local copy that is no longer the newest
+    // version (Foundation's `Downloaded` status, which iOS 18.4 and later
+    // leaves in place indefinitely, FB17662379), `NotDownloaded` a placeholder.
+    // A download request changes nothing on its own; a coordinated read of a
+    // record the fake can refresh first brings the newer version down (Apple:
+    // a coordinated read downloads the file before the accessor runs), which
+    // is the read the two-file sync does on every check.
+
+    #[derive(Clone, Copy, PartialEq, Debug)]
+    enum FakeStatus {
+        Current,
+        Stale,
+        NotDownloaded,
+    }
+
+    struct FakeRecord {
+        status: FakeStatus,
+        /// The newer version iCloud holds, written over the local copy by a
+        /// coordinated read when `refreshes` is set.
+        newer: Option<String>,
+        refreshes: bool,
+    }
+
+    #[derive(Clone)]
+    struct FakeIo {
+        records: std::sync::Arc<Mutex<std::collections::HashMap<PathBuf, FakeRecord>>>,
+        downloads: std::sync::Arc<Mutex<Vec<PathBuf>>>,
+        reads: std::sync::Arc<Mutex<Vec<PathBuf>>>,
+        read_delay: Duration,
+    }
+
+    impl FakeIo {
+        fn new(read_delay: Duration) -> FakeIo {
+            FakeIo {
+                records: Default::default(),
+                downloads: Default::default(),
+                reads: Default::default(),
+                read_delay,
+            }
+        }
+        fn set(&self, path: PathBuf, status: FakeStatus, newer: Option<&str>, refreshes: bool) {
+            self.records.lock().unwrap().insert(path, FakeRecord { status, newer: newer.map(str::to_string), refreshes });
+        }
+    }
+
+    impl RecordIo for FakeIo {
+        fn flags(&self, path: &Path) -> UbiquityFlags {
+            match self.records.lock().unwrap().get(path) {
+                Some(r) => UbiquityFlags { downloaded: r.status == FakeStatus::Current, downloading: false, uploaded: true, uploading: false },
+                None => ubiquity_flags(path),
+            }
+        }
+        fn start_download(&self, path: &Path) {
+            self.downloads.lock().unwrap().push(path.to_path_buf());
+        }
+        fn read(&self, dir: &Path, name: &str) -> Result<Option<String>, String> {
+            let path = dir.join(name);
+            self.reads.lock().unwrap().push(path.clone());
+            std::thread::sleep(self.read_delay);
+            if let Some(r) = self.records.lock().unwrap().get_mut(&path) {
+                if r.refreshes {
+                    if let Some(text) = r.newer.take() {
+                        // Not unwrapped: a read the listing gave up on may land
+                        // after the test has removed its directory.
+                        let _ = fs::write(&path, text);
+                        let _ = fs::remove_file(placeholder_path(dir, name));
+                    }
+                    r.status = FakeStatus::Current;
+                }
+            }
+            // The real read posture (a regular file, bounded, UTF-8) on what is
+            // on disk now; a placeholder that was never brought down reads None.
+            read_record_text(dir, name)
+        }
+    }
+
+    /// A gate of its own per test (tests run in parallel), with the given
+    /// per-listing wait and a window allowance that never runs out.
+    fn test_gate(per_listing: Duration) -> FetchGate {
+        FetchGate::new(per_listing, Duration::from_secs(3600), Duration::from_secs(3600))
+    }
+
+    /// The phone's case: the county was added HERE (this device wrote its
+    /// file record), and the other device's cleared marker has since replaced
+    /// it in iCloud, so the record here is a local copy that is out of date.
+    /// The listing must read the marker in this check, as the two-file sync
+    /// reads its record, instead of skipping the county on every check.
+    #[test]
+    fn a_record_another_device_replaced_is_read_in_the_same_listing() {
+        let docs = tmp_dir("items-stale");
+        let sub = docs.join("barcharts");
+        fs::create_dir_all(&sub).unwrap();
+        let path = sub.join("US-CA-001.record.json");
+        fs::write(&path, COUNTY_RECORD_GOLDEN).unwrap();
+        let io = FakeIo::new(Duration::ZERO);
+        io.set(path.clone(), FakeStatus::Stale, Some(COUNTY_CLEARED_GOLDEN), true);
+        let listed = list_items_with(&docs, ItemKind::Barchart, MAX_LISTED_ITEMS, &io, &test_gate(LISTING_READ_BUDGET));
+        assert_eq!(listed.items.len(), 1);
+        assert!(listed.items[0].present);
+        assert_eq!(listed.items[0].record.as_deref(), Some(COUNTY_CLEARED_GOLDEN));
+        // The download was asked for too, before the read.
+        assert_eq!(*io.downloads.lock().unwrap(), vec![path.clone()]);
+        let _ = fs::remove_dir_all(&docs);
+    }
+
+    /// A record another device wrote that this device holds only as a
+    /// placeholder is brought down and read in the same listing too.
+    #[test]
+    fn an_undownloaded_record_is_brought_down_and_read_in_the_same_listing() {
+        let docs = tmp_dir("items-placeholder");
+        let sub = docs.join("barcharts");
+        fs::create_dir_all(&sub).unwrap();
+        fs::write(sub.join(".US-CA-001.record.json.icloud"), b"bplist-stub").unwrap();
+        let io = FakeIo::new(Duration::ZERO);
+        io.set(sub.join("US-CA-001.record.json"), FakeStatus::NotDownloaded, Some(COUNTY_RECORD_GOLDEN), true);
+        let listed = list_items_with(&docs, ItemKind::Barchart, MAX_LISTED_ITEMS, &io, &test_gate(LISTING_READ_BUDGET));
+        assert_eq!(listed.items.len(), 1);
+        assert_eq!(listed.items[0].record.as_deref(), Some(COUNTY_RECORD_GOLDEN));
+        let _ = fs::remove_dir_all(&docs);
+    }
+
+    /// The tri-state is kept: a read that leaves the record still out of date
+    /// is NOT used (the device would otherwise decide from a copy it knows is
+    /// old, and could push over a newer file it has not read), and a record
+    /// that is Current is read once, exactly as before.
+    #[test]
+    fn a_read_that_leaves_the_record_out_of_date_is_not_used() {
+        let docs = tmp_dir("items-still-stale");
+        let sub = docs.join("barcharts");
+        fs::create_dir_all(&sub).unwrap();
+        let stale = sub.join("US-CA-001.record.json");
+        fs::write(&stale, COUNTY_RECORD_GOLDEN).unwrap();
+        let current = sub.join("US-NY-005.record.json");
+        fs::write(&current, COUNTY_CLEARED_GOLDEN).unwrap();
+        let io = FakeIo::new(Duration::ZERO);
+        io.set(stale.clone(), FakeStatus::Stale, Some(COUNTY_CLEARED_GOLDEN), false);
+        io.set(current.clone(), FakeStatus::Current, None, false);
+        let listed = list_items_with(&docs, ItemKind::Barchart, MAX_LISTED_ITEMS, &io, &test_gate(LISTING_READ_BUDGET));
+        let by_id = |id: &str| listed.items.iter().find(|i| i.id == id).unwrap();
+        assert!(by_id("US-CA-001").present);
+        assert!(by_id("US-CA-001").record.is_none());
+        assert_eq!(by_id("US-NY-005").record.as_deref(), Some(COUNTY_CLEARED_GOLDEN));
+        assert_eq!(io.reads.lock().unwrap().iter().filter(|p| **p == current).count(), 1);
+        assert!(io.downloads.lock().unwrap().iter().all(|p| *p != current));
+        let _ = fs::remove_dir_all(&docs);
+    }
+
+    /// The bound: reads that do not finish inside the budget leave their
+    /// records unread (the next check has them), and the listing itself
+    /// returns at the budget rather than waiting on them, so an offline device
+    /// holding a placeholder never spends the command's whole timeout here.
+    #[test]
+    fn reads_that_outlast_the_budget_are_left_unread_and_the_listing_returns() {
+        let docs = tmp_dir("items-budget");
+        let sub = docs.join("barcharts");
+        fs::create_dir_all(&sub).unwrap();
+        let io = FakeIo::new(Duration::from_millis(400));
+        for code in ["US-CA-001", "US-NY-005", "US-TX-201"] {
+            let path = sub.join(format!("{}.record.json", code));
+            fs::write(&path, COUNTY_RECORD_GOLDEN.replace("US-CA-001", code)).unwrap();
+            io.set(path, FakeStatus::Stale, Some(&COUNTY_CLEARED_GOLDEN.replace("US-CA-001", code)), true);
+        }
+        let started = std::time::Instant::now();
+        let listed = list_items_with(&docs, ItemKind::Barchart, MAX_LISTED_ITEMS, &io, &test_gate(Duration::from_millis(100)));
+        let took = started.elapsed();
+        assert_eq!(listed.items.len(), 3);
+        assert!(listed.items.iter().all(|i| i.present && i.record.is_none()), "{:?}", listed.items.iter().map(|i| &i.record).collect::<Vec<_>>());
+        // Every download was asked for up front, whatever the budget.
+        assert_eq!(io.downloads.lock().unwrap().len(), 3);
+        assert!(took < Duration::from_millis(350), "the listing waited {:?}", took);
+        let _ = fs::remove_dir_all(&docs);
+    }
+
+    /// I8, the guard: a listing that starts while an earlier listing's read is
+    /// still in flight (offline, a coordinated read waits until iCloud gives
+    /// up) starts no second helper and does not wait; its record reads as not
+    /// read yet. The first read, once it returns, is not wasted.
+    #[test]
+    fn a_listing_while_a_read_is_in_flight_starts_no_second_wait() {
+        let docs = tmp_dir("items-inflight");
+        let sub = docs.join("barcharts");
+        fs::create_dir_all(&sub).unwrap();
+        let path = sub.join("US-CA-001.record.json");
+        fs::write(&path, COUNTY_RECORD_GOLDEN).unwrap();
+        let io = FakeIo::new(Duration::from_millis(600));
+        io.set(path.clone(), FakeStatus::Stale, Some(COUNTY_CLEARED_GOLDEN), true);
+        let gate = std::sync::Arc::new(test_gate(Duration::from_millis(300)));
+        let (io_a, gate_a, docs_a) = (io.clone(), gate.clone(), docs.clone());
+        let first = std::thread::spawn(move || list_items_with(&docs_a, ItemKind::Barchart, MAX_LISTED_ITEMS, &io_a, &gate_a));
+        std::thread::sleep(Duration::from_millis(50));
+        // Concurrent with the first listing, whose read is under way.
+        let started = std::time::Instant::now();
+        let second = list_items_with(&docs, ItemKind::Barchart, MAX_LISTED_ITEMS, &io, &gate);
+        let took = started.elapsed();
+        assert!(second.items[0].present && second.items[0].record.is_none());
+        assert_eq!(io.reads.lock().unwrap().len(), 1, "a second helper was started");
+        assert!(took < Duration::from_millis(150), "the second listing waited {:?}", took);
+        let first = first.join().unwrap();
+        assert!(first.items[0].record.is_none()); // it gave up at its 300 ms
+        // Again, after the first listing gave up but while its read still runs.
+        let third = list_items_with(&docs, ItemKind::Barchart, MAX_LISTED_ITEMS, &io, &gate);
+        assert!(third.items[0].record.is_none());
+        assert_eq!(io.reads.lock().unwrap().len(), 1, "a second helper was started");
+        // Once that read returns, the flag is clear and the record it brought
+        // down is read as Current, with no fetch.
+        std::thread::sleep(Duration::from_millis(500));
+        let fourth = list_items_with(&docs, ItemKind::Barchart, MAX_LISTED_ITEMS, &io, &gate);
+        assert_eq!(fourth.items[0].record.as_deref(), Some(COUNTY_CLEARED_GOLDEN));
+        assert!(!gate.in_flight.load(Ordering::Acquire));
+        let _ = fs::remove_dir_all(&docs);
+    }
+
+    /// I8, the per-check bound: the listings one check makes (the county
+    /// download wait re-lists a poll apart) share ONE allowance per window, so
+    /// a record whose reads always outlast a listing's wait (but return before
+    /// the next listing) cannot make every listing wait its full budget.
+    #[test]
+    fn waiting_for_fetched_records_is_bounded_across_the_listings_of_one_check() {
+        let docs = tmp_dir("items-window");
+        let sub = docs.join("barcharts");
+        fs::create_dir_all(&sub).unwrap();
+        let path = sub.join("US-CA-001.record.json");
+        fs::write(&path, COUNTY_RECORD_GOLDEN).unwrap();
+        // Out of date every time: the read never brings it current.
+        let io = FakeIo::new(Duration::from_millis(200));
+        io.set(path, FakeStatus::Stale, None, false);
+        // 150 ms per listing, 300 ms per window: two listings' worth.
+        let gate = FetchGate::new(Duration::from_millis(150), Duration::from_millis(300), Duration::from_secs(3600));
+        let mut inside = Duration::ZERO;
+        for _ in 0..5 {
+            let started = std::time::Instant::now();
+            let listed = list_items_with(&docs, ItemKind::Barchart, MAX_LISTED_ITEMS, &io, &gate);
+            inside += started.elapsed();
+            assert!(listed.items[0].present && listed.items[0].record.is_none());
+            // The poll between the wait's listings, long enough for each read to return.
+            std::thread::sleep(Duration::from_millis(150));
+        }
+        // Unbounded: five reads and 750 ms of waiting. Bounded: two and 300 ms.
+        assert!(io.reads.lock().unwrap().len() <= 2, "{} reads", io.reads.lock().unwrap().len());
+        assert!(inside < Duration::from_millis(550), "the listings waited {:?}", inside);
+        // A new window restores the allowance.
+        let fresh = FetchGate::new(Duration::from_millis(150), Duration::from_millis(300), Duration::from_millis(1));
+        std::thread::sleep(Duration::from_millis(250));
+        let before = io.reads.lock().unwrap().len();
+        let _ = list_items_with(&docs, ItemKind::Barchart, MAX_LISTED_ITEMS, &io, &fresh);
+        assert_eq!(io.reads.lock().unwrap().len(), before + 1);
         let _ = fs::remove_dir_all(&docs);
     }
 

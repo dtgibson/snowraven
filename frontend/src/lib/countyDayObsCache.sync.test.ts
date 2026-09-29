@@ -354,7 +354,7 @@ describe('a Clear that lands while the pass downloads a peer snapshot (security 
     await loadAll() // a live session: the store was loaded before the check
     const r = await runDayObsPass(ctx, () => 10_000)
     expect(calls).toEqual(['listItems', 'pullItem'])
-    expect(r).toEqual({ transferred: false, failed: false })
+    expect(r).toEqual({ transferred: false, failed: false, pending: false })
     expect((await loadAll()).size).toBe(0)
     expect(stats().puts).toBe(0)
     expect(disk.doc).toBeUndefined()

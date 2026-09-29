@@ -275,14 +275,19 @@ async function pushCounty(ctx: CountyPassContext, code: string, meta: BarChartFi
 /**
  * The county pass. `remaining` is the check's own deadline (the reads that
  * decide it share the check's budget; transfers are never raced). Resolves
- * with whether anything transferred and whether the check must report failure
- * (the listing could not reach iCloud: the file pass's own rule).
+ * with whether anything transferred, whether the check must report failure
+ * (the listing could not reach iCloud: the file pass's own rule), and whether
+ * something this check asked iCloud for has not arrived yet (`pending`: a
+ * record the listing could not read, or a county file whose download did not
+ * land in the wait), which the controller re-reads shortly (device pass on
+ * 1.0.40.2, decisions.md entry 18) instead of leaving it to the five-minute
+ * poll: the native watch sees records only, never a county file landing.
  */
 export async function runCountyPass(
   ctx: CountyPassContext,
   remaining: () => number,
-): Promise<{ transferred: boolean; failed: boolean }> {
-  const none = { transferred: false, failed: false }
+): Promise<{ transferred: boolean; failed: boolean; pending: boolean }> {
+  const none = { transferred: false, failed: false, pending: false }
 
   // 1. The manifest. UNKNOWN is never EMPTY: a rejected read skips the pass.
   let manifest: BarChartFilesStatus
@@ -313,7 +318,7 @@ export async function runCountyPass(
       if (timeout && ours && !known) setBarChartView(code, { state: 'waiting-to-upload', ...originView(meta, ctx.deviceId) })
       else errorView(code, timeout ? new ICloudNativeError('timeout') : err, originView(meta, ctx.deviceId))
     }
-    return { transferred: false, failed: timeout }
+    return { transferred: false, failed: timeout, pending: false }
   }
   if (listed.truncated) ctx.log('icloud: county listing reached its bound; the rest are ignored this check')
 
@@ -337,21 +342,23 @@ export async function runCountyPass(
     const it = shared.get(code)
     return it !== undefined && it.present && it.record === null
   }
+  // A record the listing could not read this check (its download was asked for).
+  let pending = [...shared.keys()].some(undownloadedRecord)
 
   let transferred = false
 
   // 3. Remembered clears (FR-11): finished unless a newer shared file has
   //    appeared since (the newer file wins and the memo is dropped), or the
   //    marker already landed (the same clear, or a newer one).
-  const pending = ctx.pref.pendingCountyClears ?? {}
+  const clears = ctx.pref.pendingCountyClears ?? {}
   const byTime = new Map<string, string[]>()
-  for (const code of Object.keys(pending)) {
+  for (const code of Object.keys(clears)) {
     if (undownloadedRecord(code)) continue // not read yet: keep the memo for a later check
-    const clearedAt = pending[code]
+    const clearedAt = clears[code]
     const memoAt = Date.parse(clearedAt)
     const rec = recordFor(code)
-    if (rec && recordTimeMs(rec) > memoAt) { delete pending[code]; continue } // newer event wins
-    if (rec?.state === 'cleared' && recordTimeMs(rec) === memoAt) { delete pending[code]; continue } // already there
+    if (rec && recordTimeMs(rec) > memoAt) { delete clears[code]; continue } // newer event wins
+    if (rec?.state === 'cleared' && recordTimeMs(rec) === memoAt) { delete clears[code]; continue } // already there
     const group = byTime.get(clearedAt)
     if (group) group.push(code)
     else byTime.set(clearedAt, [code])
@@ -360,16 +367,16 @@ export async function runCountyPass(
     const { failed, unreachable } = await pushCleared(ctx.native, codes, clearedAt, ctx.thisDevice())
     for (const code of codes) {
       if (failed.has(code)) continue
-      delete pending[code]
+      delete clears[code]
       records.set(code, { version: 1, slot: 'barchart', county: code, state: 'cleared', clearedAt, origin: ctx.thisDevice() })
       transferred = true
     }
     if (unreachable) {
-      ctx.pref.pendingCountyClears = pending
-      return { transferred, failed: true }
+      ctx.pref.pendingCountyClears = clears
+      return { transferred, failed: true, pending }
     }
   }
-  ctx.pref.pendingCountyClears = Object.keys(pending).length > 0 ? pending : undefined
+  ctx.pref.pendingCountyClears = Object.keys(clears).length > 0 ? clears : undefined
 
   // 4. Decide and apply, one county at a time, in a deterministic order.
   const union = new Set<string>(Object.keys(manifest.counties))
@@ -461,6 +468,7 @@ export async function runCountyPass(
       } else {
         // FR-08: keep the local file (or none), say a newer file exists, offer Download now.
         setBarChartView(code, { state: 'in-icloud-not-downloaded', ...recordView(d.record, ctx.deviceId), uploadedAt: d.record.uploadedAt })
+        pending = true
       }
     }
   }
@@ -483,7 +491,7 @@ export async function runCountyPass(
   const views = getICloudState().barCharts
   for (const code of Object.keys(views)) if (!union.has(code)) setBarChartView(code, null)
   publishSharedCounties(ctx.pref)
-  return { transferred, failed: false }
+  return { transferred, failed: false, pending }
 }
 
 /** Every county with a local file reads "iCloud unavailable" (availability is not 'available'). */
