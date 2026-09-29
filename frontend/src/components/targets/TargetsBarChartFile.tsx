@@ -26,7 +26,7 @@
 // "In iCloud, not downloaded here" with Download now (FR-16). Off Apple, and
 // with sync off, the section is exactly what it was.
 
-import { Fragment, useId, useRef, useState } from 'react'
+import { Fragment, useEffect, useId, useRef, useState } from 'react'
 import { ExternalLink, FileText, RefreshCw } from 'lucide-react'
 import { Button } from '../ui/Button'
 import { ModalDialog } from '../ui/ModalDialog'
@@ -65,6 +65,9 @@ export function TargetsBarChartFile({ regionCode, county, state, join, onRetry }
   const [showUnmatched, setShowUnmatched] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const discId = `${uid}-unmatched`
+  const sectionRef = useRef<HTMLElement>(null)
+  // The county a CONFIRMED remove is waiting to see go absent, or null.
+  const focusAddFor = useRef<string | null>(null)
 
   // The platform gate (gated markup, never hidden markup) and the county's view.
   const gate = showICloudSync()
@@ -115,9 +118,29 @@ export function TargetsBarChartFile({ regionCode, county, state, join, onRetry }
 
   const onConfirmRemove = async () => {
     setConfirmOpen(false)
+    focusAddFor.current = regionCode
     const clearedAt = new Date().toISOString()
     if (await onRemove()) void icloudActions.barChartsCleared([regionCode], clearedAt)
+    else focusAddFor.current = null
   }
+
+  // After a confirmed remove, focus goes to Add file once the card's absent
+  // state has COMMITTED (design-spec section 1). ModalDialog picks its target
+  // when its close transition ends, which can fall between the removal and the
+  // parent's manifest re-read: it then focuses Remove (still mounted), or
+  // mid-removal the disabled fallback, and when the card goes absent that
+  // control unmounts and focus drops to <body> (build 1 QA, Known Limitations
+  // 1; fixed in build 5). It moves focus only when it was lost or is still in
+  // this section, so it never takes focus from somewhere the user went.
+  useEffect(() => {
+    const pending = focusAddFor.current
+    if (pending === null) return
+    if (pending !== regionCode || state.status === 'unknown') { focusAddFor.current = null; return }
+    if (state.status !== 'absent' || busy) return
+    focusAddFor.current = null
+    const active = document.activeElement
+    if (active === null || active === document.body || sectionRef.current?.contains(active)) pickRef.current?.focus()
+  }, [regionCode, state.status, busy])
 
   const url = barChartPageUrl(regionCode)
   const pageLink = url ? (
@@ -254,7 +277,7 @@ export function TargetsBarChartFile({ regionCode, county, state, join, onRetry }
   ) : null
 
   return (
-    <section className="sr-tg-file-sec" aria-labelledby={`${uid}-label`}>
+    <section ref={sectionRef} className="sr-tg-file-sec" aria-labelledby={`${uid}-label`}>
       <span className="sr-tg-seclabel" id={`${uid}-label`}>{FILE_SECTION_LABEL}</span>
       <div className="sr-tg-file-card">
         <div className="sr-tg-file-main">

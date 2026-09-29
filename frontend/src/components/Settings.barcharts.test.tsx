@@ -166,7 +166,14 @@ describe('it always confirms, and says what goes and from where (FR-20, D2, QA-1
     renderSettings()
     await screen.findByText(copy.barChartsSavedText(3, 'this device'))
     fireEvent.click(button())
-    await screen.findByRole('dialog')
+    const dialog = await screen.findByRole('dialog')
+    // Wait for FOCUS inside the dialog, not for its node (testing.md v1.0.25).
+    // ModalDialog arms its Escape listener in the same effect pass that moves
+    // focus in, and that pass runs after the node is in the DOM: on a loaded
+    // machine React yields between the two, and an Escape sent on the node
+    // alone was lost (1 of 10 loaded full-suite runs; every time with the
+    // scheduler forced to yield, while Cancel closed it every time).
+    await waitFor(() => expect(dialog.contains(document.activeElement)).toBe(true))
     fireEvent.keyDown(document, { key: 'Escape' })
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
     expect(H.clearAll).not.toHaveBeenCalled()

@@ -277,7 +277,11 @@ describe('the enable note for keys (FR-04, QA-04) and turning off (FR-32)', () =
     renderSettings()
     const sw = await screen.findByRole('switch', { name: copy.KEY_SWITCH_LABEL })
     fireEvent.click(sw)
-    await screen.findByRole('dialog', { name: copy.ENABLE_KEYS_TITLE })
+    const note = await screen.findByRole('dialog', { name: copy.ENABLE_KEYS_TITLE })
+    // Focus inside, not the node: ModalDialog arms Escape in the effect pass
+    // that moves focus in, which a loaded machine can run after the node
+    // appears (testing.md v1.0.25; the same race as Settings.barcharts' row).
+    await waitFor(() => expect(note.contains(document.activeElement)).toBe(true))
     fireEvent.keyDown(document, { key: 'Escape' })
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
     expect(document.activeElement).toBe(sw)

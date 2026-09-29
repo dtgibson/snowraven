@@ -157,6 +157,78 @@ describe('with sync on, Remove confirms first (FR-10, QA-13)', () => {
     expect(barChartsCleared).not.toHaveBeenCalled()
   })
 
+  // FOCUS AFTER A CONFIRMED REMOVE lands on Add file (design-spec section 1,
+  // "focus returns to the Add file button"), in every order the three things
+  // that follow the confirm can land in: the local removal settling, the card
+  // re-rendering to absent (the parent's manifest re-read), and the dialog's
+  // close transition ending, which is when ModalDialog picks where focus goes.
+  // Build 1's QA recorded the second row as a Known Limitation: the dialog
+  // found Remove still mounted and enabled, focused it, and focus fell to
+  // <body> when the card then went absent; it is the row that fails without
+  // the fix. The third is the same defect one step earlier (mid-removal,
+  // Remove and its fallback are both disabled) and passes here without the
+  // fix only because jsdom leaves focus on the Replace button while it is
+  // disabled, where a browser drops it, and React reuses that element as Add
+  // file; it is kept so the fix is held to that order too.
+  const ORDERS = [
+    { order: 'removal, then absent, then the dialog closes (the usual order)', closeFirst: false, holdRemoval: false },
+    { order: 'removal, then the dialog closes, then absent', closeFirst: true, holdRemoval: false },
+    { order: 'the dialog closes mid-removal, then removal, then absent', closeFirst: true, holdRemoval: true },
+  ]
+  it.each(ORDERS)('focus lands on Add file when $order', async ({ closeFirst, holdRemoval }) => {
+    appleSyncOn()
+    let settle: () => void = () => {}
+    if (holdRemoval) H.removeBarChartFile.mockImplementation(() => new Promise<void>(r => { settle = r }))
+    const view = mount(unreadable)
+    const remove = screen.getByRole('button', { name: REMOVE_FILE })
+    remove.focus()
+    fireEvent.click(remove)
+    const dialog = await screen.findByRole('dialog')
+    await waitFor(() => expect(dialog.contains(document.activeElement)).toBe(true))
+    fireEvent.click(within(dialog).getByRole('button', { name: BUTTONS.removeAllSynced }))
+    await waitFor(() => expect(H.removeBarChartFile).toHaveBeenCalledTimes(1))
+    const toAbsent = () => view.rerender(<TargetsBarChartFile regionCode={R} county={COUNTY} state={absent} join={null} onRetry={vi.fn()} />)
+    if (closeFirst) {
+      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+      // The window: the dialog is gone and the card still shows the file.
+      expect(screen.getByRole('button', { name: REMOVE_FILE })).toBeTruthy()
+      if (holdRemoval) {
+        await act(async () => { settle() })
+        await waitFor(() => expect((screen.getByRole('button', { name: REMOVE_FILE }) as HTMLButtonElement).disabled).toBe(false))
+      }
+      toAbsent()
+    } else {
+      await waitFor(() => expect(barChartsCleared).toHaveBeenCalledTimes(1))
+      expect(screen.getByRole('dialog')).toBeTruthy()
+      toAbsent()
+      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    }
+    const add = screen.getByRole('button', { name: ADD_FILE })
+    await waitFor(() => expect(document.activeElement).toBe(add))
+  })
+
+  it('the late move never takes focus from somewhere the user went before the card went absent', async () => {
+    appleSyncOn()
+    const elsewhere = document.createElement('button')
+    elsewhere.textContent = 'elsewhere'
+    document.body.appendChild(elsewhere)
+    try {
+      const view = mount(unreadable)
+      fireEvent.click(screen.getByRole('button', { name: REMOVE_FILE }))
+      const dialog = await screen.findByRole('dialog')
+      await waitFor(() => expect(dialog.contains(document.activeElement)).toBe(true))
+      fireEvent.click(within(dialog).getByRole('button', { name: BUTTONS.removeAllSynced }))
+      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+      elsewhere.focus()
+      view.rerender(<TargetsBarChartFile regionCode={R} county={COUNTY} state={absent} join={null} onRetry={vi.fn()} />)
+      await screen.findByRole('button', { name: ADD_FILE })
+      await act(async () => {})
+      expect(document.activeElement).toBe(elsewhere)
+    } finally {
+      elsewhere.remove()
+    }
+  })
+
   it('an add with sync on records this device as the origin (FR-07)', async () => {
     appleSyncOn()
     mount(absent)

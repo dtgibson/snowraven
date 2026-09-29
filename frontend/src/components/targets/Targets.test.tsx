@@ -198,6 +198,12 @@ describe('before any network call (QA-11, QA-12, FR-52)', () => {
     expect(before).not.toBeNull()
     expect(before!.textContent).toBe('')
     expect(before!.closest('.sr-tg-sweep')!.classList.contains('sr-only')).toBe(true)
+    // Wait for the REQUEST, not the picker (testing.md v1.0.25): useTargetsPool
+    // sends `/map/county-species` only after its `await loadAll()`, so the
+    // picker can be on screen while `releasePool` is still the no-op it starts
+    // as, and releasing then leaves the tab loading forever. A 5 ms delay on
+    // the completeness read reproduced that every time before this wait.
+    await waitFor(() => expect(H.tGet).toHaveBeenCalledWith('/map/county-species', { regionCode: POOL.regionCode }))
     releasePool(POOL)
     await screen.findByRole('table')
     const after = document.querySelector('.sr-tg-sweep [role="status"]')
