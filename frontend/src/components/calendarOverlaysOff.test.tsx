@@ -114,10 +114,13 @@ async function mount() {
   if (ROUND_TRIP) {
     // Both overlays on, the codes choice moved, then both off again: the user
     // who tried the feature and turned it off must get today's Calendar back,
-    // byte for byte, not merely something that looks the same.
+    // byte for byte, not merely something that looks the same. Every code is
+    // the press that moves it, since By category is the default
+    // (calendar-breeding-category-default).
     fireEvent.click(screen.getByRole('switch', { name: 'Media' }))
     fireEvent.click(screen.getByRole('switch', { name: 'Breeding' }))
-    fireEvent.click(screen.getByRole('button', { name: 'By category' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Every code' }))
+    expect(screen.getByRole('button', { name: 'Every code' }).getAttribute('aria-pressed')).toBe('true')
     await waitFor(() => expect(document.querySelectorAll('.sr-cal-facts').length).toBeGreaterThan(0))
     fireEvent.click(screen.getByRole('switch', { name: 'Media' }))
     fireEvent.click(screen.getByRole('switch', { name: 'Breeding' }))

@@ -14,6 +14,7 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import {
   OVERLAYS_GROUP_LABEL, MEDIA_SWITCH_LABEL, BREEDING_SWITCH_LABEL, CODES_OPTIONS, TILE_CODE_ROW_CAP,
+  DEFAULT_CALENDAR_OVERLAYS,
 } from './calendarOverlays'
 import { BREEDING_CATEGORY_LABELS } from './breedingCodes'
 
@@ -59,6 +60,19 @@ describe('docs/HELP.md describes the Calendar overlays as shipped (QA-39)', () =
     expect(overlays).toMatch(/\*\*off by default\*\*/)
     expect(overlays).toMatch(/\*\*remembered across launches\*\*/)
     expect(overlays).not.toMatch(/per-session|resetting on relaunch/)
+  })
+
+  // calendar-breeding-category-default: the default the passage names is the
+  // one the code starts from, read through the option table, and no other
+  // option is called the default.
+  it('names the codes default by its label, read from DEFAULT_CALENDAR_OVERLAYS, and only that one', () => {
+    const def = CODES_OPTIONS.find(o => o.value === DEFAULT_CALENDAR_OVERLAYS.codes)
+    expect(def, 'the default codes mode is one of the options').toBeDefined()
+    expect(overlays).toContain(`**${def!.label}** (the default)`)
+    expect(overlays.match(/\(the default\)/g)).toHaveLength(1)
+    for (const o of CODES_OPTIONS) {
+      if (o !== def) expect(overlays).not.toContain(`**${o.label}** (the default)`)
+    }
   })
 
   it('publishes the row cap as a property (+N), never as a number', () => {

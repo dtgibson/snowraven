@@ -37,19 +37,58 @@ export interface CalendarOverlays {
 }
 
 /** Frozen because it is also what every failed or invalid read resolves to: a
- *  shared default a caller could mutate is how one flip becomes every default. */
+ *  shared default a caller could mutate is how one flip becomes every default.
+ *  `codes` has been 'category' since calendar-breeding-category-default; it was
+ *  'every' in 1.0.38 and 1.0.39 (PREVIOUS_DEFAULT_CODES_MODE below). */
 export const DEFAULT_CALENDAR_OVERLAYS: Readonly<CalendarOverlays> = Object.freeze({
-  media: false, breeding: false, codes: 'every',
+  media: false, breeding: false, codes: 'category',
 })
+
+/** The `codes` default that DEFAULT_CALENDAR_OVERLAYS replaced, kept by name so
+ *  the read-time migration is one equality, never a heuristic (CLAUDE.md, the
+ *  shipped-default migration rule). Exactly one generation migrates: no older
+ *  default ever shipped, since `codes` arrived with the overlays themselves. */
+export const PREVIOUS_DEFAULT_CODES_MODE: CodesMode = 'every'
+
+/** The version marker every write from this build on carries, under the stored
+ *  document's `v` field. Documents from 1.0.38 and 1.0.39 have no marker, and
+ *  that absence is what lets a saved `codes: 'every'` read as the old default
+ *  written through rather than a choice. With it, a deliberate Every code is
+ *  told apart and survives relaunch. Its literal lives only here. */
+export const CALENDAR_OVERLAYS_VERSION = 2
+
+/** The document written under CALENDAR_OVERLAYS_SETTING_KEY: the three fields
+ *  and the marker. In memory the preference is a CalendarOverlays without it. */
+export interface StoredCalendarOverlays extends CalendarOverlays {
+  v: typeof CALENDAR_OVERLAYS_VERSION
+}
+
+/** The one builder for the stored document: all three fields, copied field by
+ *  field so nothing else rides along, plus the marker. */
+export function storedCalendarOverlays(o: CalendarOverlays): StoredCalendarOverlays {
+  return { media: o.media, breeding: o.breeding, codes: o.codes, v: CALENDAR_OVERLAYS_VERSION }
+}
 
 /**
  * Validate a stored value, field by field (FR-04). Not a plain object (null,
  * an array, a primitive): the default. Each boolean is honoured only when it is
  * strictly `true` or `false`; `codes` only when it is strictly `'every'` or
- * `'category'` (no case folding, no trimming); unknown fields are ignored and
- * never copied forward, so a two-field pre-amendment document reads as
- * `codes: 'every'`. Returns the frozen default when all three fields equal it,
- * so a hydrate that changes nothing can be skipped by reference.
+ * `'category'` (no case folding, no trimming), else the default; unknown fields
+ * are ignored and never copied forward, so a two-field pre-amendment document
+ * reads `codes` as the default. Returns the frozen default when all three
+ * fields equal it, so a hydrate that changes nothing can be skipped by
+ * reference.
+ *
+ * The read-time migration (calendar-breeding-category-default), per field and
+ * AFTER the validation above: a valid `codes` equal to
+ * PREVIOUS_DEFAULT_CODES_MODE with no marker (an own `v` strictly equal to
+ * CALENDAR_OVERLAYS_VERSION; anything else, inherited included, is no marker)
+ * came from 1.0.38 or 1.0.39, where it is almost always the old default
+ * written through by a Media or Breeding flip, so it reads as carrying no
+ * preference and becomes the new default. A marked `'every'` is a choice and
+ * is kept, as is `'category'` with or without a marker. `media` and `breeding`
+ * read exactly as before. This is a pure read: nothing is written back, and a
+ * migrated value is saved, with the marker, only on the user's next change.
  */
 export function normalizeCalendarOverlays(raw: unknown): CalendarOverlays {
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return DEFAULT_CALENDAR_OVERLAYS
@@ -59,8 +98,13 @@ export function normalizeCalendarOverlays(raw: unknown): CalendarOverlays {
   const own = (k: string): unknown => (Object.hasOwn(src, k) ? src[k] : undefined)
   const media = own('media') === true
   const breeding = own('breeding') === true
-  const codes: CodesMode = own('codes') === 'category' ? 'category' : 'every'
-  if (!media && !breeding && codes === 'every') return DEFAULT_CALENDAR_OVERLAYS
+  const stored = own('codes')
+  const valid: CodesMode | null = stored === 'every' || stored === 'category' ? stored : null
+  const marked = own('v') === CALENDAR_OVERLAYS_VERSION
+  const codes: CodesMode = valid === null || (valid === PREVIOUS_DEFAULT_CODES_MODE && !marked)
+    ? DEFAULT_CALENDAR_OVERLAYS.codes
+    : valid
+  if (!media && !breeding && codes === DEFAULT_CALENDAR_OVERLAYS.codes) return DEFAULT_CALENDAR_OVERLAYS
   return { media, breeding, codes }
 }
 

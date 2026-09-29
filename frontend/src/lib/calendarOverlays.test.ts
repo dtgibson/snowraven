@@ -7,6 +7,7 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import {
   normalizeCalendarOverlays, DEFAULT_CALENDAR_OVERLAYS, CALENDAR_OVERLAYS_SETTING_KEY,
+  PREVIOUS_DEFAULT_CODES_MODE, CALENDAR_OVERLAYS_VERSION, storedCalendarOverlays,
   OVERLAY_MARK_SPECS, codeText, tileCodeText, TILE_CODE_MAX_CODE_POINTS, tileRows, mediaFormatPhrases, dayNameSuffix,
   TILE_CODE_ROW_CAP, legendMediaKeys, LEGEND_BREEDING_KEYS, categoryCountDigits,
   type CalendarOverlays, type TileRow,
@@ -42,10 +43,13 @@ const show = (rows: TileRow[]) => rows.map(r =>
         : `${r.key}:${r.code}:${r.count ?? '-'}`)
 
 describe('normalizeCalendarOverlays (FR-04, QA-04)', () => {
-  it('the key and the frozen default', () => {
+  it('the key and the frozen default, By category since calendar-breeding-category-default', () => {
     expect(CALENDAR_OVERLAYS_SETTING_KEY).toBe('calendarOverlays')
-    expect(DEFAULT_CALENDAR_OVERLAYS).toEqual({ media: false, breeding: false, codes: 'every' })
+    expect(DEFAULT_CALENDAR_OVERLAYS).toEqual({ media: false, breeding: false, codes: 'category' })
     expect(Object.isFrozen(DEFAULT_CALENDAR_OVERLAYS)).toBe(true)
+    // The default 1.0.38 and 1.0.39 shipped, and the one the migration reads.
+    expect(PREVIOUS_DEFAULT_CODES_MODE).toBe('every')
+    expect(PREVIOUS_DEFAULT_CODES_MODE).not.toBe(DEFAULT_CALENDAR_OVERLAYS.codes)
   })
 
   it('a value that is not a plain object reads as the default', () => {
@@ -55,29 +59,30 @@ describe('normalizeCalendarOverlays (FR-04, QA-04)', () => {
   })
 
   it('each boolean is honoured only when strictly a boolean', () => {
-    expect(normalizeCalendarOverlays({ media: 'true' })).toEqual({ media: false, breeding: false, codes: 'every' })
-    expect(normalizeCalendarOverlays({ media: 1, breeding: true })).toEqual({ media: false, breeding: true, codes: 'every' })
-    expect(normalizeCalendarOverlays({ media: true, breeding: null })).toEqual({ media: true, breeding: false, codes: 'every' })
+    expect(normalizeCalendarOverlays({ media: 'true' })).toEqual({ media: false, breeding: false, codes: 'category' })
+    expect(normalizeCalendarOverlays({ media: 1, breeding: true })).toEqual({ media: false, breeding: true, codes: 'category' })
+    expect(normalizeCalendarOverlays({ media: true, breeding: null })).toEqual({ media: true, breeding: false, codes: 'category' })
   })
 
-  it('codes is honoured only when strictly "every" or "category"', () => {
+  it('codes is honoured only when strictly "every" (with the marker) or "category"; anything else is the default', () => {
+    const v = CALENDAR_OVERLAYS_VERSION
     expect(normalizeCalendarOverlays({ breeding: true, codes: 'category' })).toEqual({ media: false, breeding: true, codes: 'category' })
-    expect(normalizeCalendarOverlays({ breeding: true, codes: 'both' }).codes).toBe('every')
-    expect(normalizeCalendarOverlays({ codes: 'Category' }).codes).toBe('every')
-    expect(normalizeCalendarOverlays({ codes: ' category' }).codes).toBe('every')
-    expect(normalizeCalendarOverlays({ codes: 1 }).codes).toBe('every')
-    expect(normalizeCalendarOverlays({ codes: null }).codes).toBe('every')
-    expect(normalizeCalendarOverlays({ media: 1, breeding: true, codes: 'CATEGORY' })).toEqual({ media: false, breeding: true, codes: 'every' })
+    expect(normalizeCalendarOverlays({ breeding: true, codes: 'every', v })).toEqual({ media: false, breeding: true, codes: 'every' })
+    expect(normalizeCalendarOverlays({ breeding: true, codes: 'both' }).codes).toBe('category')
+    for (const codes of ['Every', ' every', 'every ', 'EVERY', 'Category', ' category', 'CATEGORY', 1, null, true, ['every'], { every: true }]) {
+      expect(normalizeCalendarOverlays({ breeding: true, codes, v }).codes, JSON.stringify(codes)).toBe('category')
+    }
+    expect(normalizeCalendarOverlays({ media: 1, breeding: true, codes: 'CATEGORY', v })).toEqual({ media: false, breeding: true, codes: 'category' })
   })
 
   it('a stored codes: category with Breeding off is kept (the gate is in the component, not the value)', () => {
     expect(normalizeCalendarOverlays({ media: false, breeding: false, codes: 'category' })).toEqual({ media: false, breeding: false, codes: 'category' })
   })
 
-  it('a pre-amendment two-field document reads codes as "every"; unknown keys are dropped', () => {
-    expect(normalizeCalendarOverlays({ media: true, breeding: false })).toEqual({ media: true, breeding: false, codes: 'every' })
-    const out = normalizeCalendarOverlays({ media: true, extra: 'x', __proto__: { breeding: true } })
-    expect(out).toEqual({ media: true, breeding: false, codes: 'every' })
+  it('a pre-amendment two-field document reads codes as the default; unknown keys are dropped', () => {
+    expect(normalizeCalendarOverlays({ media: true, breeding: false })).toEqual({ media: true, breeding: false, codes: 'category' })
+    const out = normalizeCalendarOverlays({ media: true, extra: 'x', v: CALENDAR_OVERLAYS_VERSION, __proto__: { breeding: true } })
+    expect(out).toEqual({ media: true, breeding: false, codes: 'category' })
     expect(Object.keys(out).sort()).toEqual(['breeding', 'codes', 'media'])
   })
 
@@ -88,21 +93,144 @@ describe('normalizeCalendarOverlays (FR-04, QA-04)', () => {
   // storage, which a copy through a setter (Object.assign) would turn into a
   // prototype carrying media and breeding.
   it('an own "__proto__" key from JSON.parse reads as the default (the shape storage can deliver)', () => {
-    const polluted = JSON.parse('{"__proto__":{"media":true,"breeding":true,"codes":"category"}}')
+    const polluted = JSON.parse('{"__proto__":{"media":true,"breeding":true,"codes":"every","v":2}}')
     expect(Object.hasOwn(polluted, '__proto__')).toBe(true)
     expect(normalizeCalendarOverlays(polluted)).toBe(DEFAULT_CALENDAR_OVERLAYS)
   })
 
   it('prototype-chain member names as values read as the default', () => {
-    expect(normalizeCalendarOverlays({ media: 'constructor', breeding: '__proto__', codes: 'toString' })).toBe(DEFAULT_CALENDAR_OVERLAYS)
+    expect(normalizeCalendarOverlays({ media: 'constructor', breeding: '__proto__', codes: 'toString', v: 'valueOf' })).toBe(DEFAULT_CALENDAR_OVERLAYS)
   })
 
   it('returns the frozen default only when all three fields equal it', () => {
-    expect(normalizeCalendarOverlays({ media: false, breeding: false, codes: 'every' })).toBe(DEFAULT_CALENDAR_OVERLAYS)
+    expect(normalizeCalendarOverlays({ media: false, breeding: false, codes: 'category' })).toBe(DEFAULT_CALENDAR_OVERLAYS)
     expect(normalizeCalendarOverlays({})).toBe(DEFAULT_CALENDAR_OVERLAYS)
     const on = normalizeCalendarOverlays({ media: true })
     expect(on).not.toBe(DEFAULT_CALENDAR_OVERLAYS)
     expect(Object.isFrozen(on)).toBe(false)
+    const every = normalizeCalendarOverlays({ media: false, breeding: false, codes: 'every', v: CALENDAR_OVERLAYS_VERSION })
+    expect(every).not.toBe(DEFAULT_CALENDAR_OVERLAYS)
+    expect(every).toEqual({ media: false, breeding: false, codes: 'every' })
+  })
+})
+
+// calendar-breeding-category-default: the read-time migration of a 1.0.38 or
+// 1.0.39 document (CLAUDE.md, the shipped-default migration rule; the change
+// brief's per-field reads). The hydration rows in useCalendarOverlays.test.tsx
+// assert the same shapes write nothing back.
+describe('the codes default migration and the version marker', () => {
+  const v = CALENDAR_OVERLAYS_VERSION
+
+  it('the builder writes all three fields and the marker, and nothing else', () => {
+    const src = { media: true, breeding: false, codes: 'every', extra: 1 } as unknown as CalendarOverlays
+    const doc = storedCalendarOverlays(src)
+    expect(doc).toEqual({ media: true, breeding: false, codes: 'every', v })
+    expect(Object.keys(doc).sort()).toEqual(['breeding', 'codes', 'media', 'v'])
+    expect(Object.hasOwn(doc, 'v')).toBe(true)
+  })
+
+  it('every value the builder writes reads back as itself: a written Every code is a choice (round trip)', () => {
+    for (const media of [false, true]) for (const breeding of [false, true]) for (const codes of ['every', 'category'] as const) {
+      const o: CalendarOverlays = { media, breeding, codes }
+      expect(normalizeCalendarOverlays(JSON.parse(JSON.stringify(storedCalendarOverlays(o))))).toEqual(o)
+    }
+  })
+
+  it.each<[string, unknown, CalendarOverlays]>([
+    ['no marker, Every code, Breeding on', { media: false, breeding: true, codes: 'every' }, { media: false, breeding: true, codes: 'category' }],
+    ['no marker, Every code, both on', { media: true, breeding: true, codes: 'every' }, { media: true, breeding: true, codes: 'category' }],
+    ['no marker, Every code, Media on', { media: true, breeding: false, codes: 'every' }, { media: true, breeding: false, codes: 'category' }],
+    ['no marker, By category', { media: true, breeding: true, codes: 'category' }, { media: true, breeding: true, codes: 'category' }],
+    ['marker, By category', { media: false, breeding: true, codes: 'category', v }, { media: false, breeding: true, codes: 'category' }],
+    ['marker, Every code', { media: false, breeding: true, codes: 'every', v }, { media: false, breeding: true, codes: 'every' }],
+    ['a stringly marker', { breeding: true, codes: 'every', v: String(v) }, { media: false, breeding: true, codes: 'category' }],
+    ['a later marker', { breeding: true, codes: 'every', v: v + 1 }, { media: false, breeding: true, codes: 'category' }],
+    ['an earlier marker', { breeding: true, codes: 'every', v: v - 1 }, { media: false, breeding: true, codes: 'category' }],
+    ['a marker in an array', { breeding: true, codes: 'every', v: [v] }, { media: false, breeding: true, codes: 'category' }],
+    ['a boolean marker', { breeding: true, codes: 'every', v: true }, { media: false, breeding: true, codes: 'category' }],
+    ['a null marker', { breeding: true, codes: 'every', v: null }, { media: false, breeding: true, codes: 'category' }],
+    ['an inherited marker', Object.assign(Object.create({ v }), { breeding: true, codes: 'every' }), { media: false, breeding: true, codes: 'category' }],
+    ['an inherited Every code beside a marker', Object.assign(Object.create({ codes: 'every' }), { breeding: true, v }), { media: false, breeding: true, codes: 'category' }],
+  ])('%s', (_label, raw, expected) => {
+    expect(normalizeCalendarOverlays(raw)).toEqual(expected)
+  })
+
+  it('an unmarked copy of the whole previous default reads as the frozen default, by reference', () => {
+    expect(normalizeCalendarOverlays({ media: false, breeding: false, codes: PREVIOUS_DEFAULT_CODES_MODE })).toBe(DEFAULT_CALENDAR_OVERLAYS)
+    expect(normalizeCalendarOverlays(JSON.parse('{"media":false,"breeding":false,"codes":"every"}'))).toBe(DEFAULT_CALENDAR_OVERLAYS)
+  })
+
+  it('the migration reads the value and never touches it', () => {
+    const raw = { media: false, breeding: true, codes: 'every' }
+    const before = JSON.stringify(raw)
+    normalizeCalendarOverlays(raw)
+    expect(JSON.stringify(raw)).toBe(before)
+  })
+
+  // testing.md, the replaced-predicate rule: the symmetric difference of the
+  // old and new `codes` reads, in BOTH directions, measured over a generated
+  // corpus rather than a hand-picked roster. The old read is kept here verbatim
+  // from 1.0.39 (`own('codes') === 'category' ? 'category' : 'every'`). Each
+  // axis is absent, an own value, or an inherited value, so ownership is swept
+  // as well as the value. Measured on this corpus: of 57,753 shapes, 55,809
+  // moved every-to-category (the default change and the migration together),
+  // 0 moved category-to-every, 1,863 agree on category (exactly the own
+  // 'category' shapes) and 81 agree on Every code (exactly the own 'every' with
+  // an own marker). The counts are asserted from the axis sizes, not restated,
+  // so a row added to an axis cannot leave them stale.
+  it('old and new codes reads differ only every-to-category, and only where the new rules say (both directions, generated corpus)', () => {
+    type Axis = { kind: 'absent' } | { kind: 'own' | 'inherited'; value: unknown }
+    const axis = (values: unknown[]): Axis[] => [
+      { kind: 'absent' },
+      ...values.map(value => ({ kind: 'own' as const, value })),
+      ...values.map(value => ({ kind: 'inherited' as const, value })),
+    ]
+    const codesAxis = axis(['every', 'category', 'Every', ' every', 'category ', 'CATEGORY', '', 1, null, true, ['every'], { codes: 'every' }, 'constructor', '__proto__', 'toString'])
+    const vAxis = axis([v, String(v), v - 1, v + 1, v + 0.5, null, true, [v], {}, Number.NaN, 'valueOf'])
+    const boolAxis = axis([true, false, 'true', 1])
+    const legacyCodes = (raw: Record<string, unknown>): 'every' | 'category' =>
+      (Object.hasOwn(raw, 'codes') ? raw.codes : undefined) === 'category' ? 'category' : 'every'
+    const build = (fields: [string, Axis][]): Record<string, unknown> => {
+      const proto: Record<string, unknown> = {}
+      const ownFields: Record<string, unknown> = {}
+      for (const [k, a] of fields) {
+        if (a.kind === 'own') ownFields[k] = a.value
+        else if (a.kind === 'inherited') proto[k] = a.value
+      }
+      return Object.assign(Object.create(proto), ownFields)
+    }
+
+    const tally = { total: 0, everyToCategory: 0, categoryToEvery: 0, agreeCategory: 0, agreeEvery: 0 }
+    for (const c of codesAxis) for (const m of vAxis) for (const md of boolAxis) for (const b of boolAxis) {
+      const raw = build([['codes', c], ['v', m], ['media', md], ['breeding', b]])
+      const before = legacyCodes(raw)
+      const after = normalizeCalendarOverlays(raw).codes
+      tally.total++
+      const ownCodes = c.kind === 'own' ? c.value : undefined
+      const ownMarker = m.kind === 'own' && m.value === v
+      if (before === 'category' && after === 'every') tally.categoryToEvery++
+      else if (before === 'every' && after === 'category') {
+        tally.everyToCategory++
+        // Only where the new rules say: not a marked, own Every code.
+        expect(ownCodes === 'every' && ownMarker).toBe(false)
+      } else if (after === 'category') {
+        tally.agreeCategory++
+        expect(ownCodes).toBe('category')
+      } else {
+        tally.agreeEvery++
+        expect(ownCodes === 'every' && ownMarker).toBe(true)
+      }
+    }
+    // One own 'category' in the codes axis; one own marker in the marker axis.
+    const flags = boolAxis.length ** 2
+    const total = codesAxis.length * vAxis.length * flags
+    const agreeCategory = vAxis.length * flags
+    const agreeEvery = flags
+    expect(tally).toEqual({
+      total, categoryToEvery: 0, agreeCategory, agreeEvery, everyToCategory: total - agreeCategory - agreeEvery,
+    })
+    // The direction that must stay empty is empty, and the other is not.
+    expect(tally.everyToCategory).toBeGreaterThan(0)
   })
 })
 
