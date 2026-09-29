@@ -4,7 +4,7 @@
   "description": "The screenshots on the site (`../assets/shots/*.webp`) are generated from the running SnowRaven app driven against **synthetic demo data — never real eBird data**. The published site must never contain anyone's personal sighting locations, which is the whole point of the demo dataset. Regenerate the shots when the UI changes.",
   "main": "index.js",
   "scripts": {
-    "test": "node --test weather-capture.test.mjs",
+    "test": "node --test weather-capture.test.mjs capture-marks.test.mjs",
     "verify": "node verify/run.mjs"
   },
   "keywords": [],
