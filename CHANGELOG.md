@@ -2,6 +2,20 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [1.0.40] - 2026-09-29
+
+### Added
+- **iCloud Sync now carries your eBird bar-chart files.** On a Mac, iPhone or iPad with iCloud Sync on, a county's bar-chart file you add on the Targets tab reaches your other synced devices, with no second download from ebird.org. Each county's file syncs on its own, and the most recently added copy wins, the same way the eBird backup and Macaulay Library export do. The Targets tab's eBird bar chart section shows the same sync state the Default Files rows do, with Download now or Retry for the county you have selected, and with sync on, Remove asks you to confirm because the file leaves your other devices too. The day-by-day eBird answers behind the Targets tab's live counts are shared through the same iCloud container, one copy per device, so a county's days checked on one device are not asked of eBird again on another. Nothing reaches the developer. Help and the privacy policy describe what is copied to your iCloud account.
+- **A Bar-chart files section in Settings,** on every platform, says how many counties have a bar-chart file saved on this device and offers Remove all bar-chart files. It always asks you to confirm first and says how many counties' files go; with iCloud Sync on, the copies in iCloud go too. Your eBird backup, Macaulay Library export and API keys are not touched.
+
+### Changed
+- The Targets tab now opens showing lifers only. Media and Breeding start off and come back with their existing switches.
+- With the Calendar's Breeding overlay on, days now start in By category, one row per breeding category, instead of Every code. A saved Every code from 1.0.38 or 1.0.39 moves to the new default once; choose Every code again and it is remembered.
+
+### Internal
+- The screenshot tools now photograph the real eBird and Birds of the World marks beside species names, from copies kept in the repository, instead of the app's fallback icons, and refuse to save a frame that shows a fallback.
+- The test suite's speed checks now measure the test process's own processor time rather than the wall clock, so they no longer fail on a busy machine with nothing wrong. No limit was loosened.
+
 ## [1.0.39] - 2026-09-27
 
 ### Added
