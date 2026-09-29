@@ -21,9 +21,13 @@
 //      has its own doubling row, because the raw name-cell bound shields it
 //      from every file-level shape; that row times batched samples after an
 //      untimed warm-up, because one call at its small leg is too short to be
-//      a measurement (CI read it at 3.3 twice with nothing wrong).
+//      a measurement (CI read it at 3.3 twice with nothing wrong). Every row
+//      reads its quotient in CPU time (`src/test/cpuTiming.ts`), not wall
+//      time: beside two looping full suites the wall clock failed these rows
+//      in 17 of 20 runs of this file with nothing wrong.
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
+import { bestPerCallCpuMs } from '../../test/cpuTiming'
 import {
   parseBarChart, splitNameCell, _parseBarChartWithIterationCapForTests,
   MAX_PREAMBLE_LINES, MAX_LINE_CHARS, PERIODS, MAX_NUMERIC_TOKEN, MAX_NAME_CELL, MAX_RAW_NAME_CELL,
@@ -329,71 +333,68 @@ describe('linear in the input over the hostile shapes (schema.md 9.2 and 10)', (
   }
 
   /**
-   * The minimum of `runs` timed samples of `run` on each input, returned PER
-   * CALL. A sample is `batch` back-to-back calls: 1 for every row but the
-   * entity decoder's (see `sampleMs` below). The two inputs are timed
-   * INTERLEAVED, small then large in every round, so a burst of load from
-   * elsewhere on the machine lands on both legs of the quotient rather than on
-   * whichever one happened to be running (measured: timed back to back at
-   * min-of-3, a full-suite run beside another session's browser probes read
-   * 5.88 on the `<em` shape, while isolated runs read 1.6 to 2.0 at every
-   * doubling from 2 MB to 16 MB).
-   */
-  function timedPair(
-    small: string, large: string, run: (text: string) => unknown, batch: number, runs = 7,
-  ): [number, number] {
-    let bestSmall = Infinity
-    let bestLarge = Infinity
-    for (let r = 0; r < runs; r++) {
-      let t0 = performance.now()
-      for (let k = 0; k < batch; k++) run(small)
-      bestSmall = Math.min(bestSmall, performance.now() - t0)
-      t0 = performance.now()
-      for (let k = 0; k < batch; k++) run(large)
-      bestLarge = Math.min(bestLarge, performance.now() - t0)
-    }
-    return [bestSmall / batch, bestLarge / batch]
-  }
-
-  /**
    * The doubling legs, SMALLEST FIRST, each asserted before the next is built.
    * A quadratic reads ~4x at the first leg, where its whole run costs a second
    * or two, rather than grinding through the large leg toward CI's job timeout
    * (the M1 shapes, reverted, took 16 s and more at the large leg). The large
-   * leg stays because it is where one call of a linear parse is itself well
-   * above timer noise. `floor` is the smallest per-call small-side time the
-   * quotient is divided by: under it, both sides are noise, and the next leg
-   * decides.
+   * leg stays because a quadratic with a small constant can hide under the
+   * linear work at the first leg and show at the second: a line walk that
+   * rescans the file's prefix for every line passes the 512/513 names shape's
+   * first leg and reads 4.02 at its second. `floor` is the smallest per-call
+   * small-side time the quotient is divided by: under it, both sides are
+   * noise, and the next leg decides.
    *
-   * `sampleMs` (the entity decoder's row only) runs the large input once
-   * UNTIMED, then sizes the batch from the best of three untimed small calls so
-   * that one sample of a linear decode lasts at least `sampleMs`. That row's
-   * small leg is one call of about 2 ms with no walk before it, and CI read it
-   * as 2.00 ms -> 6.61 ms (3.31, run 36373007076) and 1.96 ms -> 6.53 ms (3.32,
-   * run 36376776547) with the decoder unchanged. Two matching readings are a
-   * systematic excess, not noise: it sits in the large leg in all seven rounds,
-   * fresh Node processes on the dev Mac reproduce it (3.23 to 3.69, ten of
-   * ten), and the untimed large call removes what batching alone leaves (a
-   * batch without that call still read 2.18 to 2.41 in twelve). With both,
-   * twelve fresh processes read 1.65 to 1.79 at 64,000 -> 128,000 and 1.68 to
-   * 2.03 at 512,000 -> 1,024,000, and 1.73 to 1.76 and 1.98 to 2.03 with V8's
-   * collector held to one thread. The batch is sized from the SMALL call, so a
-   * quadratic, whose one small call is already past `sampleMs`, gets a batch
-   * of 1 and costs what it did before: the decoder with its bounded lookahead
-   * reverted reads about 4.0 at the first leg and is red in under two seconds.
-   * 64 only bounds a timer that reads 0.
+   * Each leg is timed by `bestPerCallCpuMs` (src/test/cpuTiming.ts, which says
+   * why and what it measured): this process's CPU time, the two inputs
+   * INTERLEAVED with the starting one alternating, best of seven samples each,
+   * compared PER CALL. The wall clock this replaced counted the time another
+   * process held the core, which inflates the longer leg more, so the rows
+   * failed on a loaded machine with nothing wrong: beside two looping full
+   * suites (load up to 146) this file failed in 17 of 20 runs, on six of these
+   * eight rows, at up to 5.51 against 3.2. Interleaving was already here for
+   * the same reason: timed back to back at min-of-3, a full-suite run beside
+   * another session's browser probes read 5.88 on the `<em` shape, while
+   * isolated runs read 1.6 to 2.0 at every doubling from 2 MB to 16 MB.
    *
-   * The file-level rows do not take it. Their walk already runs each input once
-   * before timing, CI has not failed them, and batching measurably HURTS the
-   * shape whose parse keeps the most: the 512/513 names shape, batched this
-   * way, read 2.64 to 3.03 at its first leg with the collector on one thread
-   * (six fresh processes) against 2.33 to 2.57 timed call by call, and up to
-   * 3.78 at its large leg beside a looping full-suite run against 2.50 call by
-   * call (twenty runs each).
+   * `sampleMs` (the entity decoder's row only) batches each sample to at least
+   * that much CPU time, sized per leg from a warm call after an untimed one.
+   * That row's small leg is one call of about 1.4 ms with no walk before it,
+   * and CI read it by the wall clock as 2.00 ms -> 6.61 ms (3.31, run
+   * 36373007076) and 1.96 ms -> 6.53 ms (3.32, run 36376776547) with the
+   * decoder unchanged; the untimed call and the batch are what removed that
+   * (11e16b8). A quadratic's one call is already past `sampleMs`, so it gets a
+   * batch of 1 and costs what it did before: the decoder with its bounded
+   * lookahead reverted is red at the first leg in about two seconds.
+   *
+   * The file-level rows time one call per sample. Their walk already runs each
+   * input once before timing, one call is milliseconds long, and batching
+   * measurably HURTS the shape whose parse keeps the most: the 512/513 names
+   * shape, batched, read 2.64 to 3.03 at its first leg by the wall clock (six
+   * fresh processes) against 2.33 to 2.57 call by call (11e16b8), and in CPU
+   * time 2.00 to 2.19 batched against 1.99 to 2.01 call by call (three trials
+   * each, load about 120).
+   *
+   * THE ONE KNOWN RESIDUAL is that shape's LARGE leg, left on purpose. The
+   * parser's `tidy()` builds each kept name by `+=`, so the parse holds every
+   * 512-character name as a long chain of string pieces until it returns (a
+   * 14 MB file of 20,000 such names keeps 350 MB alive, 41 MB once the names
+   * are read), and the collector's share of the 4 MB parse is larger than its
+   * share of the 2 MB one, by an amount that depends on the heap's state when
+   * each call starts. So this one reading spreads under every clock: 2.18 to
+   * 2.82 across three plain full-suite runs where no other leg in this file
+   * read above 2.20, and over 3.2 in one plain full-suite run (3.37), in 1 of
+   * 10 full-suite runs beside a second looping suite (3.21), and in 1 of 20
+   * runs of this file beside two (3.39). The wall clock spreads it at least as
+   * far (up to 3.72 beside one looping suite, on the same samples where CPU
+   * time read at most 2.90). More rounds did not help, a held heap ballast and
+   * an untimed call before each sample made it worse, and a forced collection
+   * before each sample made it steady at 4.0 to 4.6. The limit and the inputs
+   * stay. What would retire it is building the name in one piece in `tidy()`
+   * (parseBarChart.ts), which is application code and a separate change.
    */
   function assertLinear(
     make: (n: number) => string, legs: readonly [number, number][], run: (text: string) => unknown, floor: number,
-    { walk, sampleMs }: { walk?: (text: string) => void; sampleMs?: number } = {},
+    { walk, sampleMs = 0 }: { walk?: (text: string) => void; sampleMs?: number } = {},
   ): void {
     for (const [s, l] of legs) {
       const small = make(s)
@@ -403,22 +404,11 @@ describe('linear in the input over the hostile shapes (schema.md 9.2 and 10)', (
       expect(large.length / small.length, `${s} -> ${l}`).toBeGreaterThan(1.6)
       walk?.(small)
       walk?.(large)
-      let batch = 1
-      if (sampleMs !== undefined) {
-        run(large)
-        let one = Infinity
-        for (let c = 0; c < 3; c++) {
-          const t0 = performance.now()
-          run(small)
-          one = Math.min(one, performance.now() - t0)
-        }
-        batch = Math.max(1, Math.min(64, Math.ceil(sampleMs / one)))
-      }
-      const [small0, tLarge] = timedPair(small, large, run, batch)
+      const { perCall: [small0, tLarge], batch } = bestPerCallCpuMs([() => run(small), () => run(large)], { minSampleMs: sampleMs })
       // Same-run quotient: the machine cancels. Linear is ~2; quadratic is ~4.
       expect(
         tLarge / Math.max(small0, floor),
-        `${s} -> ${l} (x${batch}): ${small0.toFixed(2)} ms -> ${tLarge.toFixed(2)} ms per call`,
+        `${s} -> ${l} (x${batch.join('/')}): ${small0.toFixed(2)} ms -> ${tLarge.toFixed(2)} ms CPU per call`,
       ).toBeLessThan(3.2)
     }
   }
@@ -497,8 +487,8 @@ describe('linear in the input over the hostile shapes (schema.md 9.2 and 10)', (
     // without this row the decoder's six-character window could be reverted
     // with the suite green. Not a hang guard: the decoder's cursor advances on
     // every branch; this guards growth. One call at the small leg is about
-    // 2 ms, so this row warms up and times batched samples of at least 20 ms
-    // (assertLinear's `sampleMs`, which says why and what it measured).
+    // 1.4 ms, so this row warms up and times batched samples of at least 20 ms
+    // of CPU time (assertLinear's `sampleMs`, which says why).
     assertLinear(n => '&'.repeat(n), [[64_000, 128_000], [512_000, 1_024_000]], splitNameCell, 0.5, { sampleMs: 20 })
   }, 60_000)
 

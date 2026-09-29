@@ -12,6 +12,7 @@ import type { ObservationEntry } from '../types'
 import { dayOfWeek, buildDayCells } from '../lib/calendar'
 import { focusablesIn } from '../lib/useFocusTrap'
 import { installExactMatchMedia, PHONE_MEDIA_QUERY } from '../test/matchMedia'
+import { CALENDAR_OVERLAYS_VERSION } from '../lib/calendarOverlays'
 
 function obs(over: Partial<ObservationEntry> & { date: string; submissionId: string; commonName: string }): ObservationEntry {
   return {
@@ -1183,20 +1184,39 @@ async function mountOverlays(stored?: unknown) {
 const mediaSwitch = () => screen.getByRole('switch', { name: 'Media' })
 const breedingSwitch = () => screen.getByRole('switch', { name: 'Breeding' })
 const codesGroup = () => screen.getByRole('group', { name: 'Breeding rows' })
+const codesOption = (name: 'Every code' | 'By category') => within(codesGroup()).getByRole('button', { name })
+
+// A saved, deliberate Every code: the marked document this build writes. The
+// default is By category (calendar-breeding-category-default), so a row about
+// the every-code rendering names that mode through this stored value, and
+// waits for it to hydrate before it touches a control (a change made first
+// wins over the stored value, FR-05).
+const SAVED_EVERY_CODE = { media: false, breeding: false, codes: 'every', v: CALENDAR_OVERLAYS_VERSION }
+async function mountEveryCode() {
+  const utils = await mountOverlays(SAVED_EVERY_CODE)
+  await waitFor(() => expect(codesOption('Every code').getAttribute('aria-pressed')).toBe('true'))
+  return utils
+}
 
 describe('Calendar overlays: the controls (FR-01, FR-02, FR-07, QA-01, QA-02, QA-07, QA-42)', () => {
-  it('an Overlays group holds two switches, both off, and a "Breeding rows" choice with Every code pressed (QA-01, QA-02)', async () => {
+  it('an Overlays group holds two switches, both off, and a "Breeding rows" choice with By category pressed (QA-01, QA-02)', async () => {
     await mountOverlays()
     const group = screen.getByRole('group', { name: 'Overlays' })
     expect(within(group).getByText('Overlays')).toBeTruthy()
     expect(mediaSwitch().getAttribute('aria-checked')).toBe('false')
     expect(breedingSwitch().getAttribute('aria-checked')).toBe('false')
     expect(group.contains(mediaSwitch()) && group.contains(breedingSwitch()) && group.contains(codesGroup())).toBe(true)
-    expect(within(codesGroup()).getByRole('button', { name: 'Every code' }).getAttribute('aria-pressed')).toBe('true')
-    expect(within(codesGroup()).getByRole('button', { name: 'By category' }).getAttribute('aria-pressed')).toBe('false')
+    expect(codesOption('By category').getAttribute('aria-pressed')).toBe('true')
+    expect(codesOption('Every code').getAttribute('aria-pressed')).toBe('false')
     // Nothing on the grid or in the legend while both are off.
     expect(document.querySelectorAll('.sr-cal-facts, .sr-cal-mark, .sr-cal-legend-ov')).toHaveLength(0)
     expect(loadMLExport).not.toHaveBeenCalled()
+    // The default's visible effect: Breeding on draws By category rows and the
+    // By category caption (calendar-breeding-category-default).
+    await waitFor(() => expect(getSetting).toHaveBeenCalledWith('calendarOverlays'))
+    fireEvent.click(breedingSwitch())
+    expect(factRows(screen.getByRole('button', { name: MAY17 }), 'rich')).toEqual(['Conf1', 'Poss3'])
+    expect(screen.getByText('one row per category that day · count: species with evidence at that category')).toBeTruthy()
   })
 
   it('every overlay control is a real tab stop, after the species filter in reading order (QA-42)', async () => {
@@ -1236,8 +1256,8 @@ describe('Calendar overlays: the controls (FR-01, FR-02, FR-07, QA-01, QA-02, QA
     expect(breedingSwitch().getAttribute('aria-checked')).toBe('true')
     // With Breeding on, the codes control is undimmed and operable here too.
     expect(codesGroup().closest('[aria-disabled="true"]')).toBeNull()
-    fireEvent.click(within(codesGroup()).getByRole('button', { name: 'By category' }))
-    expect(within(codesGroup()).getByRole('button', { name: 'By category' }).getAttribute('aria-pressed')).toBe('true')
+    fireEvent.click(codesOption('Every code'))
+    expect(codesOption('Every code').getAttribute('aria-pressed')).toBe('true')
   })
 })
 
@@ -1257,30 +1277,32 @@ describe('Calendar overlays: the codes control is gated, not hidden, while Breed
     }
     // Enter and Space on a native button dispatch click, so the click guard is
     // the keyboard guard as well.
-    fireEvent.click(within(codesGroup()).getByRole('button', { name: 'By category' }))
-    expect(within(codesGroup()).getByRole('button', { name: 'Every code' }).getAttribute('aria-pressed')).toBe('true')
+    // Pressing the option that is NOT pressed (By category is the default), so
+    // an ignored activation is observable.
+    fireEvent.click(codesOption('Every code'))
+    expect(codesOption('By category').getAttribute('aria-pressed')).toBe('true')
     await waitFor(() => expect(getSetting).toHaveBeenCalled())
     expect(setSetting).not.toHaveBeenCalled()
   })
 
-  it('Breeding on: the gate lifts, and pressing By category writes all three fields once', async () => {
+  it('Breeding on: the gate lifts, and pressing Every code writes all three fields and the marker once', async () => {
     await mountOverlays()
     fireEvent.click(breedingSwitch())
     const wrapper = codesGroup().closest('.sr-cal-codes') as HTMLElement
     expect(wrapper.getAttribute('aria-disabled')).toBeNull()
-    const byCat = within(codesGroup()).getByRole('button', { name: 'By category' })
-    expect(byCat.getAttribute('aria-disabled')).toBeNull()
-    expect(byCat.getAttribute('aria-describedby')).toBeNull()
+    const every = codesOption('Every code')
+    expect(every.getAttribute('aria-disabled')).toBeNull()
+    expect(every.getAttribute('aria-describedby')).toBeNull()
     // The Breeding flip's own write lands on the hook's write chain first.
     await waitFor(() => expect(setSetting).toHaveBeenCalledTimes(1))
     setSetting.mockClear()
-    fireEvent.click(byCat)
+    fireEvent.click(every)
     await waitFor(() => expect(setSetting).toHaveBeenCalledTimes(1))
-    expect(setSetting).toHaveBeenCalledWith('calendarOverlays', { media: false, breeding: true, codes: 'category' })
-    expect(byCat.getAttribute('aria-pressed')).toBe('true')
+    expect(setSetting).toHaveBeenCalledWith('calendarOverlays', { media: false, breeding: true, codes: 'every', v: CALENDAR_OVERLAYS_VERSION })
+    expect(every.getAttribute('aria-pressed')).toBe('true')
   })
 
-  it('a stored By category with Breeding off hydrates pressed under the gate and applies the moment Breeding turns on', async () => {
+  it('a stored By category (also the default) with Breeding off sits pressed under the gate and applies the moment Breeding turns on', async () => {
     await mountOverlays({ media: false, breeding: false, codes: 'category' })
     await waitFor(() => expect(within(codesGroup()).getByRole('button', { name: 'By category' }).getAttribute('aria-pressed')).toBe('true'))
     expect((codesGroup().closest('.sr-cal-codes') as HTMLElement).getAttribute('aria-disabled')).toBe('true')
@@ -1317,19 +1339,25 @@ describe('Calendar overlays: persistence through the seam (FR-03 to FR-06, QA-03
     expect(setSetting).not.toHaveBeenCalled()
     fireEvent.click(mediaSwitch())
     await waitFor(() => expect(setSetting).toHaveBeenCalledTimes(1))
-    expect(setSetting).toHaveBeenCalledWith('calendarOverlays', { media: true, breeding: false, codes: 'every' })
+    expect(setSetting).toHaveBeenCalledWith('calendarOverlays', { media: true, breeding: false, codes: 'category', v: CALENDAR_OVERLAYS_VERSION })
   })
 
-  it('a stored preference renders on at mount with no write (QA-03)', async () => {
+  // The stored value is a 1.0.38 / 1.0.39 document (no marker), so its Every
+  // code is the old default written through and reads as By category, while
+  // both switches are kept, with nothing written back
+  // (calendar-breeding-category-default).
+  it('a stored preference renders on at mount with no write; a 1.0.38 Every code reads as By category (QA-03)', async () => {
     await mountOverlays({ media: true, breeding: true, codes: 'every' })
     await waitFor(() => expect(mediaSwitch().getAttribute('aria-checked')).toBe('true'))
     expect(breedingSwitch().getAttribute('aria-checked')).toBe('true')
+    expect(codesOption('By category').getAttribute('aria-pressed')).toBe('true')
+    expect(factRows(screen.getByRole('button', { name: MAY17 }), 'rich')).toEqual(['4', 'Conf1', 'Poss3'])
     expect(setSetting).not.toHaveBeenCalled()
   })
 
   it('a failed write keeps the overlay on, shows nothing, throws nothing, and the next change writes again (FR-06, QA-06)', async () => {
     setSetting.mockImplementation(async () => { throw new Error('disk full') })
-    await mountOverlays()
+    await mountEveryCode()
     fireEvent.click(breedingSwitch())
     await waitFor(() => expect(setSetting).toHaveBeenCalledTimes(1))
     expect(breedingSwitch().getAttribute('aria-checked')).toBe('true')
@@ -1369,7 +1397,7 @@ describe('Calendar overlays: the tile, names and Large marks (FR-17 to FR-29, QA
 
   it('both on: the name carries every code with its category; rows are strongest first; "By category" leaves the name alone (QA-33, QA-48)', async () => {
     loadMLExport.mockImplementation(async () => ({ mediaMap: ML_MAP }))
-    await mountOverlays()
+    await mountEveryCode()
     fireEvent.click(mediaSwitch())
     fireEvent.click(breedingSwitch())
     const name = 'May 17, 2025: 5 countable species, media: 3 photos, 1 audio, breeding: NB 1 (Confirmed), S 3 (Possible). Open day details'
@@ -1432,7 +1460,8 @@ describe('Calendar overlays: the tile, names and Large marks (FR-17 to FR-29, QA
     expect(mini.querySelector('.sr-cal-facts')).toBeNull()
     expect(mini.textContent).toBe('17')
     const before = mini.innerHTML
-    fireEvent.click(within(codesGroup()).getByRole('button', { name: 'By category' }))
+    fireEvent.click(codesOption('Every code'))
+    expect(codesOption('Every code').getAttribute('aria-pressed')).toBe('true')
     expect(mini.innerHTML).toBe(before)
   })
 })
@@ -1458,7 +1487,7 @@ describe('Calendar overlays: legend (FR-30, QA-34)', () => {
   })
 
   it('Breeding: Confirmed, Probable, Possible, with the caption following the codes control', async () => {
-    await mountOverlays()
+    await mountEveryCode()
     fireEvent.click(breedingSwitch())
     expect(entries(block('Breeding')!)).toEqual(['Confirmed', 'Probable', 'Possible'])
     expect(block('Breeding')!.textContent).toContain('every code recorded that day · count: species carrying it')
@@ -1516,7 +1545,8 @@ describe('Calendar overlays: the day popup (FR-24 to FR-27, QA-27, QA-30, QA-31)
     const before = dialog.innerHTML
     fireEvent.keyDown(document, { key: 'Escape' })
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
-    fireEvent.click(within(codesGroup()).getByRole('button', { name: 'By category' }))
+    fireEvent.click(codesOption('Every code'))
+    expect(codesOption('Every code').getAttribute('aria-pressed')).toBe('true')
     expect((await openMay17()).innerHTML).toBe(before)
   })
 
@@ -1597,8 +1627,9 @@ describe('Calendar overlays: a flip never rebuilds the derivation, and the motio
     expect(calls).toBeGreaterThan(0)
     fireEvent.click(mediaSwitch())
     fireEvent.click(breedingSwitch())
-    fireEvent.click(within(codesGroup()).getByRole('button', { name: 'By category' }))
-    fireEvent.click(within(codesGroup()).getByRole('button', { name: 'Every code' }))
+    // Both presses move the choice: By category is the default.
+    fireEvent.click(codesOption('Every code'))
+    fireEvent.click(codesOption('By category'))
     fireEvent.click(mediaSwitch())
     expect(vi.mocked(buildDayCells).mock.calls.length).toBe(calls)
     expect(screen.getByRole('button', { name: 'Species' }).getAttribute('aria-pressed')).toBe('true')

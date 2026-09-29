@@ -14,10 +14,16 @@ routes with the same failure shapes:
                                            over the shared cap is 413
   DELETE /settings/barcharts/{regionCode}  idempotent: 200 whether or not a file
                                            was stored
+  DELETE /settings/barcharts               every county's file (icloud-bar-chart-
+                                           sync, the Settings clear-all): 200 with
+                                           ``{"removed": [...], "failed": [...]}``,
+                                           the manifest rewritten to exactly the
+                                           files still present
 
-A bar-chart file is its OWN family, never a third slot in ``metadata.json``: the
-two data-file slots are synced by iCloud on desktop and this kind is never
-synced, so it keeps its own directory and manifest (schema.md 1.1). No content
+A bar-chart file is its OWN family, never a third slot in ``metadata.json``, so
+it keeps its own directory and manifest (schema.md 1.1). iCloud Sync, which on
+macOS and iOS carries this family as per-county items, never exists on web/Pi,
+so nothing here knows about it. No content
 validation happens here, exactly as ``settings._upload`` does none: the content
 rule is the client registry's (``lib/uploadGuard.ts``), and this router's job is
 the cap and the extension.
@@ -41,6 +47,7 @@ BEFORE the generic ``/settings/{key}`` store in ``main.py``, so
 
 import json
 import os
+import re
 import threading
 from datetime import datetime, timezone
 
@@ -58,6 +65,10 @@ BARCHARTS_DIR = DATA_DIR / "barcharts"
 BARCHARTS_META = DATA_DIR / "barcharts.json"
 
 _REGION_PATTERN = r"^US-[A-Z]{2}-[0-9]{3}$"
+# The same shape for a manifest KEY read back from disk, where no route
+# ``pattern=`` has run. ``fullmatch``, never ``match`` (a trailing newline),
+# and explicit ``[0-9]``, never ``\d`` (security.md v0.5.54, v0.5.87).
+_REGION_RE = re.compile(_REGION_PATTERN)
 _ALLOWED_SUFFIXES = (".txt", ".tsv")
 _EXTENSION_MESSAGE = "Only .txt or .tsv bar-chart files are accepted."
 
@@ -144,6 +155,36 @@ def _remove(region_code: str) -> None:
         _write_manifest(meta)
 
 
+def _remove_all() -> dict:
+    """Every county's file and entry, under the lock. A key that is not a
+    county code is dropped from the manifest and nothing on disk is touched
+    for it (a path is only ever built from a validated code). A file whose
+    unlink raised and which still exists is a SURVIVOR: it stays in the
+    manifest and is reported, so the manifest describes exactly the files
+    that remain (FR-22)."""
+    removed: list = []
+    failed: list = []
+    with _META_LOCK:
+        meta = _read_manifest_for_write()
+        survivors: dict = {}
+        for code, entry in meta["counties"].items():
+            if not isinstance(code, str) or not _REGION_RE.fullmatch(code):
+                continue
+            path = _file_path(code)
+            try:
+                if path.exists():
+                    path.unlink()
+                removed.append(code)
+            except OSError:
+                if path.exists():
+                    failed.append(code)
+                    survivors[code] = entry
+                else:
+                    removed.append(code)
+        _write_manifest({"version": 1, "counties": survivors})
+    return {"removed": removed, "failed": failed}
+
+
 @router.get("/settings/barcharts")
 def get_barcharts() -> dict:
     try:
@@ -189,3 +230,10 @@ async def upload_barchart(
 def delete_barchart(regionCode: str = Path(..., pattern=_REGION_PATTERN)) -> dict:
     _remove(regionCode)
     return {"ok": True}
+
+
+@router.delete("/settings/barcharts")
+def delete_all_barcharts() -> dict:
+    # A DELETE needs a CORS preflight, so this route does not widen the
+    # cross-site simple-request finding recorded for the POST routes (ROADMAP).
+    return _remove_all()

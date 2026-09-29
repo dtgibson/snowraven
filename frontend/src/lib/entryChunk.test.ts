@@ -833,6 +833,72 @@ describe('entry-chunk exclusion (NFR-03 / QA-30)', () => {
     expect([...guard.files].some(f => f.replace(/\\/g, '/').includes('/lib/barChart/'))).toBe(false)
   })
 
+  // ── iCloud bar-chart sync (icloud-bar-chart-sync NFR-05, QA-33): the county
+  // and day-by-day passes ride the controller, which stays behind App's
+  // `import()`; the day cache and the bar-chart import stay behind the Targets
+  // tab and Settings' own `import()`; the one shared sync line that Settings
+  // and the Targets card both draw IS on the graph (through Settings) and is
+  // dependency-light. Every negative is paired with the positive that proves
+  // the edge exists where it should.
+  const BAR_CHART_SYNC_OFF_ENTRY = [
+    'lib/icloud/countySync.ts',
+    'lib/icloud/dayObsSync.ts',
+    'lib/icloud/icloudSync.ts',
+    'lib/icloud/icloudNative.ts',
+    'lib/countyDayObsCache.ts',
+    'lib/barChart/barChartImport.ts',
+  ]
+
+  it.each(BAR_CHART_SYNC_OFF_ENTRY)('%s is off the App static closure (icloud-bar-chart-sync)', file => {
+    expect(has(file)).toBe(false)
+  })
+
+  it('the controller really does reach both passes statically, and the day cache only through import()', () => {
+    const ctrl = closureFrom(resolve(SRC, 'lib/icloud/icloudSync.ts'))
+    expect(hasIn(ctrl.files, 'lib/icloud/countySync.ts')).toBe(true)
+    expect(hasIn(ctrl.files, 'lib/icloud/dayObsSync.ts')).toBe(true)
+    // The day cache reaches the controller as a DYNAMIC edge (this walker does
+    // not follow one), so it is not in the controller's static closure either.
+    expect(hasIn(ctrl.files, 'lib/countyDayObsCache.ts')).toBe(false)
+    const ctrlSrc = readFileSync(resolve(SRC, 'lib/icloud/icloudSync.ts'), 'utf8')
+    expect(ctrlSrc).toContain("import('../countyDayObsCache')")
+    expect(ctrlSrc).toContain("import('../barChartFilesChanged')")
+    // Neither pass pulls a Tauri module or the storage singleton onto whoever
+    // imports it: both take their native layer and storage as arguments.
+    for (const m of ['lib/icloud/countySync.ts', 'lib/icloud/dayObsSync.ts']) {
+      const c = closureFrom(resolve(SRC, m))
+      expect([...c.externals].filter(s => s.startsWith('@tauri-apps/')), m).toEqual([])
+      expect(hasIn(c.files, 'lib/storage.ts'), m).toBe(false)
+      expect(hasIn(c.files, 'lib/countyDayObsCache.ts'), m).toBe(false)
+    }
+  })
+
+  it('Settings reaches the bar-chart removal only through import(), and the shared sync line statically', () => {
+    const settingsSrc = readFileSync(resolve(SRC, 'components/Settings.tsx'), 'utf8')
+    expect(settingsSrc).toContain("import('../lib/barChart/barChartImport')")
+    expect(has('components/Settings.tsx')).toBe(true)
+    expect(has('components/ui/SyncLine.tsx')).toBe(true)
+    const line = closureFrom(resolve(SRC, 'components/ui/SyncLine.tsx'))
+    // Package-shaped specifiers only: this walker scans source text, and the
+    // Targets copy module (reached through icloudCopy's `counted`) holds string
+    // literals that its lazy matcher mistakes for specifiers.
+    const PKG = /^(@[a-z0-9-]+\/)?[a-z0-9.-]+(\/[a-z0-9./-]+)?$/
+    expect([...line.externals].filter(s => PKG.test(s)).sort()).toEqual(['lucide-react', 'react'])
+    // icloudCopy now borrows the Targets count helper; that module is
+    // dependency-free, so it brings nothing else onto the entry graph.
+    expect(has('lib/targets/targetsCopy.ts')).toBe(true)
+    expect(closureFrom(resolve(SRC, 'lib/targets/targetsCopy.ts')).files.size).toBe(1)
+    for (const f of line.files) {
+      const rel = f.replace(/\\/g, '/')
+      expect(rel.includes('/lib/barChart/') || rel.endsWith('/lib/storage.ts') || rel.endsWith('/lib/icloud/icloudSync.ts'), rel).toBe(false)
+    }
+    // And the Targets card, which also draws it, reaches the import statically
+    // (it is inside the lazy tab already).
+    const card = closureFrom(resolve(SRC, 'components/targets/TargetsBarChartFile.tsx'))
+    expect(hasIn(card.files, 'components/ui/SyncLine.tsx')).toBe(true)
+    expect(hasIn(card.files, 'lib/barChart/barChartImport.ts')).toBe(true)
+  })
+
   it('the bar-chart files epoch and the region-code pattern are dependency-free', () => {
     for (const m of ['lib/barChartFilesChanged.ts', 'lib/regionCode.ts']) {
       const c = closureFrom(resolve(SRC, m))

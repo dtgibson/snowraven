@@ -125,6 +125,14 @@ function makeNative(status: NativeStatus['state'] = 'available') {
       return { removed }
     },
     async watch(enabled) { rec('watch', enabled) },
+    // icloud-bar-chart-sync: no county file and no day-obs snapshot here.
+    async listItems(kind) { rec('listItems', kind); return { items: [], truncated: false } },
+    async pushItem(item) { rec('pushItem', item); throw new ICloudNativeError('local-missing') },
+    async pushItemsCleared(counties) { rec('pushItemsCleared', counties); return { failed: [] } },
+    async pullItem(item) { rec('pullItem', item); return {} },
+    async startDownloadItem(item) { rec('startDownloadItem', item) },
+    async removeItem(item) { rec('removeItem', item); return { removed: 0 } },
+    async removeItems(kind) { rec('removeItems', kind); return { removed: 0 } },
     async onChanged(cb) { changed = cb; return () => { changed = null } },
     async onIdentityChanged() { return () => {} },
   }
@@ -206,6 +214,10 @@ function makeStorage(meta: FilesStatus = { ebird: null, ml: null }, keys: Partia
       entries[slot] = { ...c, changedAt: stamp.changedAt, origin: stamp.origin }
       return true
     },
+    async getBarChartFiles() { return { version: 1 as const, counties: {} } },
+    async applySyncedBarChartFile() { return false },
+    async applySyncedBarChartClear() { return false },
+    async stampBarChartOrigin() { return false },
   }
   return {
     storage, settings, files, keys: entries, hooks,
@@ -236,6 +248,11 @@ function makeDeps(native: ICloudNativeLayer, storage: ControllerDeps['storage'])
     invalidateKey,
     notifyKeysChanged,
     subscribeKeysChanged: (cb) => { keySubscribers.add(cb); return () => { keySubscribers.delete(cb) } },
+    notifyBarChartFilesChanged: () => {},
+    subscribeBarChartFilesChanged: () => () => {},
+    mergeDayObsSnapshot: async () => ({ admitted: 0, changed: false }),
+    dayObsPurgeGeneration: () => 0,
+    awaitDayObsWrites: async () => {},
     now: () => clock,
     mintDeviceId: () => ME,
     view: null,
@@ -1031,7 +1048,10 @@ describe('the record is untrusted (FR-20, QA-15) and a key value never leaves it
     expect(writes).toContain(S_NEW)
     // And the container held exactly one key record beside the file records (QA-09), never a settings or cache document.
     const argsText = JSON.stringify(n.calls)
-    for (const excluded of ['api-keys', 'settings.json', 'map-style', 'replay', 'county', 'hotspot', 'projects', 'taxonomy', 'icloud-sync']) {
+    // Re-scoped by icloud-bar-chart-sync: a county code and the day cache's own
+    // document name are two new synced kinds, so 'county' is no longer an
+    // excluded word; the completeness store (never synced) is named instead.
+    for (const excluded of ['api-keys', 'settings.json', 'map-style', 'replay', 'hotspot', 'projects', 'taxonomy', 'icloud-sync', 'county-completeness']) {
       expect(argsText).not.toContain(excluded)
     }
   })

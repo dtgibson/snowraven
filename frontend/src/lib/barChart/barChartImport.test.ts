@@ -11,14 +11,17 @@ import { readFileSync } from 'node:fs'
 const H = vi.hoisted(() => ({
   writeBarChartFile: vi.fn(),
   deleteBarChartFile: vi.fn(),
+  deleteAllBarChartFiles: vi.fn(),
   notify: vi.fn(),
+  barChartSaved: vi.fn(),
 }))
 vi.mock('../storage', () => ({
-  storage: { writeBarChartFile: H.writeBarChartFile, deleteBarChartFile: H.deleteBarChartFile },
+  storage: { writeBarChartFile: H.writeBarChartFile, deleteBarChartFile: H.deleteBarChartFile, deleteAllBarChartFiles: H.deleteAllBarChartFiles },
 }))
 vi.mock('../barChartFilesChanged', () => ({ notifyBarChartFilesChanged: H.notify }))
+vi.mock('../icloud/icloudState', () => ({ icloudActions: { barChartSaved: H.barChartSaved } }))
 
-import { importBarChartFile, removeBarChartFile, BARCHART_SAVE_FAILED_MESSAGE, BARCHART_READ_FAILED_MESSAGE } from './barChartImport'
+import { importBarChartFile, removeBarChartFile, clearAllBarChartFiles, BARCHART_SAVE_FAILED_MESSAGE, BARCHART_READ_FAILED_MESSAGE } from './barChartImport'
 import {
   BARCHART_EXTENSION_MESSAGE, BARCHART_LAYOUT_MESSAGE, BARCHART_UNREADABLE_CODE_MESSAGE,
   TOO_LARGE_MESSAGE, MAX_UPLOAD_BYTES, barChartRegionMismatchMessage,
@@ -32,7 +35,9 @@ const NAME = 'ebird_US-CA-001__1900_2026_1_12_barchart.txt'
 beforeEach(() => {
   H.writeBarChartFile.mockReset().mockResolvedValue(undefined)
   H.deleteBarChartFile.mockReset().mockResolvedValue(undefined)
+  H.deleteAllBarChartFiles.mockReset()
   H.notify.mockReset()
+  H.barChartSaved.mockReset()
 })
 
 function expectNoSideEffects() {
@@ -118,6 +123,49 @@ describe('remove (FR-37)', () => {
   it('a failed delete rethrows and bumps nothing', async () => {
     H.deleteBarChartFile.mockRejectedValue(new Error('File delete failed (500)'))
     await expect(removeBarChartFile(ALAMEDA)).rejects.toThrow('File delete failed')
+    expect(H.notify).not.toHaveBeenCalled()
+  })
+})
+
+describe('icloud-bar-chart-sync: the origin, the line, and the bulk removal (FR-07, FR-21, FR-22)', () => {
+  const ORIGIN = { deviceId: 'a'.repeat(32), label: "Dave's Mac", platform: 'mac' as const }
+
+  it('an add with an origin passes it to the seam, sets the line BEFORE the bump, and bumps once', async () => {
+    expect(await importBarChartFile(ALAMEDA, LABEL, NAME, async () => SAMPLE, ORIGIN)).toEqual({ ok: true })
+    expect(H.writeBarChartFile).toHaveBeenCalledWith(ALAMEDA, SAMPLE, NAME, ORIGIN)
+    expect(H.barChartSaved).toHaveBeenCalledWith(ALAMEDA)
+    expect(H.notify).toHaveBeenCalledTimes(1)
+    expect(H.barChartSaved.mock.invocationCallOrder[0]).toBeLessThan(H.notify.mock.invocationCallOrder[0])
+    expect(H.barChartSaved.mock.invocationCallOrder[0]).toBeGreaterThan(H.writeBarChartFile.mock.invocationCallOrder[0])
+  })
+
+  it('an add without an origin (sync off, every non-Apple platform) sets no line and keeps the three-argument write', async () => {
+    await importBarChartFile(ALAMEDA, LABEL, NAME, async () => SAMPLE)
+    expect(H.writeBarChartFile.mock.calls[0]).toHaveLength(3)
+    expect(H.barChartSaved).not.toHaveBeenCalled()
+  })
+
+  it('a refusal or a failed write with an origin sets no line', async () => {
+    await importBarChartFile(ALAMEDA, LABEL, 'notes.csv', async () => SAMPLE, ORIGIN)
+    H.writeBarChartFile.mockRejectedValue(new Error('File save failed (413)'))
+    await importBarChartFile(ALAMEDA, LABEL, NAME, async () => SAMPLE, ORIGIN)
+    expect(H.barChartSaved).not.toHaveBeenCalled()
+    expect(H.notify).not.toHaveBeenCalled()
+  })
+
+  it('clearAllBarChartFiles: one seam call, one bump when anything went, and the result passes through', async () => {
+    H.deleteAllBarChartFiles.mockResolvedValue({ removed: ['US-CA-001', 'US-NY-005'], failed: ['US-CA-013'] })
+    expect(await clearAllBarChartFiles()).toEqual({ removed: ['US-CA-001', 'US-NY-005'], failed: ['US-CA-013'] })
+    expect(H.deleteAllBarChartFiles).toHaveBeenCalledTimes(1)
+    expect(H.notify).toHaveBeenCalledTimes(1)
+  })
+
+  it('clearAllBarChartFiles: nothing removed bumps nothing; a rejected seam rethrows and bumps nothing', async () => {
+    H.deleteAllBarChartFiles.mockResolvedValue({ removed: [], failed: ['US-CA-013'] })
+    await clearAllBarChartFiles()
+    expect(H.notify).not.toHaveBeenCalled()
+    H.deleteAllBarChartFiles.mockRejectedValue(new Error('File delete failed (500)'))
+    await expect(clearAllBarChartFiles()).rejects.toThrow('File delete failed')
     expect(H.notify).not.toHaveBeenCalled()
   })
 })

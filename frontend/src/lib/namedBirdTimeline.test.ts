@@ -12,6 +12,7 @@ import {
 } from './namedBirdTimeline'
 import { optionName } from './namedBirdTimelineCopy'
 import type { NamedBird, NamedSighting } from './namedBirds'
+import { bestPerCallCpuMs } from '../test/cpuTiming'
 
 const sighting = (date: string, location = 'Pierce and Washington', submissionId = `S${date}`): NamedSighting => ({
   date, submissionId, comment: '', location, locationId: 'L1', latitude: null, longitude: null,
@@ -427,10 +428,10 @@ describe('distinctDates is LINEAR in the places on one date (security review, Me
   const STEP = 4
   const RATIO_BOUND = 8
   // The shipped form is measured at its real operating range. The oracle is
-  // measured at a quarter of it, on the SAME generator with the SAME step:
+  // measured at two-fifths of it, on the SAME generator with the SAME step:
   // proving a quadratic is quadratic costs 22 s at 10k/40k, and a deliberately
   // slow probe sitting in the same file as a timing-RATIO assertion is
-  // contention this suite creates for itself. A quarter of the anchor answers
+  // contention this suite creates for itself. Two-fifths of the anchor answers
   // the same question in under a second.
   const ANCHOR = 10_000
   const ORACLE_ANCHOR = 4_000
@@ -465,26 +466,47 @@ describe('distinctDates is LINEAR in the places on one date (security review, Me
     // halves meet the same contention, so the assertion means the same thing on
     // a laptop and on a loaded runner. Linear predicts ~4x for a 4x input;
     // quadratic predicts ~16x. The bound sits between them with 2x margin on
-    // each side, and each timed run uses a DISTINCT input so no memo is measured.
-    const time = (n: number, salt: number) => {
-      const input = productionOrder(onOneDate(n, salt))
-      const t0 = performance.now()
-      const out = distinctDates(input)
-      const elapsed = performance.now() - t0
-      expect(out[0].places).toHaveLength(n)   // the work really happened
-      return elapsed
-    }
-    const small = Math.min(time(ANCHOR, 1), time(ANCHOR, 2), time(ANCHOR, 3))
-    const large = Math.min(time(ANCHOR * STEP, 4), time(ANCHOR * STEP, 5), time(ANCHOR * STEP, 6))
+    // each side, and each timed call gets a DISTINCT input so no memo is
+    // measured: every input is built before anything is timed (so no
+    // allocation lands in a sample) and is used exactly once.
+    //
+    // Read in CPU time, interleaved, best of seven per leg
+    // (src/test/cpuTiming.ts). The wall clock this replaced read 14.75 and
+    // 14.86 against 8 in 2 of 20 runs of this file beside two looping full
+    // suites, and 9.05 to 19.13 in 5 of 13 full-suite runs beside one, with the
+    // Set form unchanged: its small leg is one call of about 1.4 ms, which a
+    // loaded machine's scheduler inflates far less often than the large one.
+    const ROUNDS = 7
+    const smalls = Array.from({ length: ROUNDS + 1 }, (_, r) => productionOrder(onOneDate(ANCHOR, 1 + r)))
+    const larges = Array.from({ length: ROUNDS + 1 }, (_, r) => productionOrder(onOneDate(ANCHOR * STEP, 101 + r)))
+    let s = 0
+    let l = 0
+    let complete = true   // the work really happened, on every call
+    const { perCall: [small, large], calls } = bestPerCallCpuMs([
+      () => { complete = distinctDates(smalls[s++])[0].places.length === ANCHOR && complete },
+      () => { complete = distinctDates(larges[l++])[0].places.length === ANCHOR * STEP && complete },
+    ], { rounds: ROUNDS, minSampleMs: 0 })
+    expect(complete).toBe(true)
+    expect(calls).toEqual([ROUNDS + 1, ROUNDS + 1])   // one distinct input per call
     expect(large / small,
-      `${ANCHOR}=${small.toFixed(2)}ms ${ANCHOR * STEP}=${large.toFixed(2)}ms`,
+      `${ANCHOR}=${small.toFixed(2)}ms ${ANCHOR * STEP}=${large.toFixed(2)}ms CPU`,
     ).toBeLessThan(RATIO_BOUND)
-  })
+    // An explicit budget, as the NON-VACUITY row below states for the same
+    // reason: a testTimeout cannot interrupt this synchronous work (testing.md
+    // v1.0.33), the ratio decides the row, and the budget only keeps a slow but
+    // correct run on a loaded machine from being called a failure. The row
+    // takes about 0.13 s on an idle dev Mac, building the inputs included.
+  }, 30_000)
 
-  it('NON-VACUITY: the same probe REJECTS the quadratic form it replaced', () => {
-    // Without this the timing row is a number nobody has seen fail, and a probe
+  it('NON-VACUITY: the same step and bound REJECT the quadratic form it replaced', () => {
+    // Without this the timing row is a number nobody has seen fail, and a bound
     // that cannot reject the defect certifies any implementation. Run the oracle
-    // through the identical sizes and confirm it breaches the same bound.
+    // on the same generator at the same STEP, at two-fifths of the anchor, by the
+    // wall clock with min of two, and confirm it breaches the same RATIO_BOUND.
+    // That shows the bound separates the two forms. It is not the TIMING row's
+    // own probe: that row reads CPU time through bestPerCallCpuMs, and it was
+    // seen rejecting the defect by mutation instead (the `includes` dedup
+    // restored read 99.5 against 8, steady-speed-check-tests).
     const timeOracle = (n: number, salt: number) => {
       const entries = onOneDate(n, salt).map(s => ({ id: s.submissionId, place: s.location }))
       const t0 = performance.now()

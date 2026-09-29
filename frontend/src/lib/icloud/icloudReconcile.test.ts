@@ -151,3 +151,44 @@ describe('reconcileSlot: the FR-37 guarantee', () => {
     expect(decide({ local: { uploadedAt: T0, originId: ME } }).rule).toMatch(/FR-14/)
   })
 })
+
+// ── icloud-bar-chart-sync QA-01 (FR-01, FR-03): the SAME table decides a county ──
+describe('reconcileSlot decides a county exactly as it decides a data file', () => {
+  const asCounty = (r: SharedRecord): SharedRecord => ({ ...r, slot: 'barchart', county: 'US-CA-001' })
+  const T = (ms: number) => new Date(T0 + ms).toISOString()
+  const locals = [null, { uploadedAt: T0, originId: null }, { uploadedAt: T0, originId: ME }, { uploadedAt: T0, originId: PEER }, { uploadedAt: T0 + 5, originId: ME }]
+  const shareds: Array<SharedRecord | null> = [
+    null, fileRec(T(0)), fileRec(T(-5)), fileRec(T(5)), fileRec(T(0), ME), fileRec(T(0), LOWER),
+    clearedRec(T(0)), clearedRec(T(-5)), clearedRec(T(5)),
+  ]
+
+  it('every row: a county-shaped record yields the action the slot-shaped one does', () => {
+    let rows = 0
+    for (const local of locals) {
+      for (const shared of shareds) {
+        for (const file of [downloaded, { downloaded: false, downloading: false }]) {
+          const slot = reconcileSlot({ local, shared, file, deviceId: ME })
+          const county = reconcileSlot({ local, shared: shared ? asCounty(shared) : null, file, deviceId: ME })
+          expect(county).toEqual(slot)
+          rows += 1
+        }
+      }
+    }
+    // Non-vacuity: the grid reaches every action the table has.
+    const actions = new Set<string>()
+    for (const local of locals) for (const shared of shareds) {
+      actions.add(reconcileSlot({ local, shared: shared ? asCounty(shared) : null, file: downloaded, deviceId: ME }).action)
+      actions.add(reconcileSlot({ local, shared: shared ? asCounty(shared) : null, file: { downloaded: false, downloading: false }, deviceId: ME }).action)
+    }
+    expect([...actions].sort()).toEqual(['delete-local', 'download', 'none', 'pull', 'push'])
+    expect(rows).toBe(locals.length * shareds.length * 2)
+  })
+
+  it('two counties in different configurations each get their own action, independently', () => {
+    const a = reconcileSlot({ local: { uploadedAt: T0, originId: ME }, shared: null, file: downloaded, deviceId: ME })
+    const b = reconcileSlot({ local: null, shared: asCounty(fileRec(T(5))), file: downloaded, deviceId: ME })
+    expect([a.action, b.action]).toEqual(['push', 'pull'])
+    // Deciding one never reads the other's inputs: the same inputs decide the same way in either order.
+    expect(reconcileSlot({ local: null, shared: asCounty(fileRec(T(5))), file: downloaded, deviceId: ME })).toEqual(b)
+  })
+})

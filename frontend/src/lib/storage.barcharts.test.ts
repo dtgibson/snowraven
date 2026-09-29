@@ -236,3 +236,154 @@ describe('serialization on the manifest chain (QA-73)', () => {
     expect(Object.keys(manifest().counties)).toEqual(['US-CA-001'])
   })
 })
+
+// ── icloud-bar-chart-sync (schema.md 6.1, 6.2; FR-07, FR-21, FR-22; QA-06, QA-19) ──
+
+const ORIGIN = { deviceId: 'f'.repeat(32), label: 'iPhone', platform: 'iphone' as const }
+const MINE = { deviceId: 'a'.repeat(32), label: "Dave's Mac", platform: 'mac' as const }
+const T1 = '2026-09-20T12:05:00.000Z'
+const T2 = '2026-09-21T08:00:00.000Z'
+const entryOf = (code: string) => (JSON.parse(harness.files.get(BARCHARTS_META_PATH) ?? '{"counties":{}}') as { counties: Record<string, unknown> }).counties[code]
+
+describe('the manifest\'s two new optional fields (FR-07, QA-06)', () => {
+  it('a pre-feature entry reads intact with no origin (a file from this device)', () => {
+    const out = normalizeBarChartManifest({ version: 1, counties: { 'US-CA-001': { filename: 'a.txt', uploadedAt: T1 } } })
+    expect(out.counties['US-CA-001']).toEqual({ filename: 'a.txt', uploadedAt: T1 })
+  })
+
+  it('a well-formed origin and replaced time are kept', () => {
+    const out = normalizeBarChartManifest({ version: 1, counties: { 'US-CA-001': { filename: 'a.txt', uploadedAt: T1, origin: ORIGIN, replacedBySyncAt: T2 } } })
+    expect(out.counties['US-CA-001']).toEqual({ filename: 'a.txt', uploadedAt: T1, origin: ORIGIN, replacedBySyncAt: T2 })
+  })
+
+  it.each([
+    ['a short device id', { ...ORIGIN, deviceId: 'f'.repeat(31) }],
+    ['an uppercase device id', { ...ORIGIN, deviceId: 'F'.repeat(32) }],
+    ['a path-shaped device id', { ...ORIGIN, deviceId: '../../../../../../../../etc/x' }],
+    ['an unknown platform', { ...ORIGIN, platform: 'windows' }],
+    ['a label that is not a string', { ...ORIGIN, label: 7 }],
+    ['a label over the record bound', { ...ORIGIN, label: 'x'.repeat(65) }],
+    ['not an object', 'iPhone'],
+  ])('a malformed origin (%s) is dropped and the county KEPT', (_label, origin) => {
+    const out = normalizeBarChartManifest({ version: 1, counties: { 'US-CA-001': { filename: 'a.txt', uploadedAt: T1, origin, replacedBySyncAt: 5 } } })
+    expect(out.counties['US-CA-001']).toEqual({ filename: 'a.txt', uploadedAt: T1 })
+  })
+})
+
+describe('the sync links on the manifest chain (schema.md 6.2)', () => {
+  it('writeBarChartFile records the origin when given, never replacedBySyncAt', async () => {
+    await storage.writeBarChartFile('US-CA-001', 'x', 'a.txt', MINE)
+    expect(entryOf('US-CA-001')).toMatchObject({ filename: 'a.txt', origin: MINE })
+    expect(entryOf('US-CA-001')).not.toHaveProperty('replacedBySyncAt')
+  })
+
+  it('applySyncedBarChartFile writes the entry after the pull, and a moved entry means the user won: false, nothing touched', async () => {
+    const pull = vi.fn(async () => { harness.files.set('data/barcharts/US-CA-001.txt', 'pulled') })
+    await expect(storage.applySyncedBarChartFile('US-CA-001', { filename: 'e.txt', uploadedAt: T1, origin: ORIGIN }, null, pull)).resolves.toBe(true)
+    expect(entryOf('US-CA-001')).toEqual({ filename: 'e.txt', uploadedAt: T1, origin: ORIGIN })
+    // A user add landed since the decision (expect no longer matches).
+    await storage.writeBarChartFile('US-CA-001', 'mine', 'mine.txt')
+    const before = harness.files.get(BARCHARTS_META_PATH)
+    const pull2 = vi.fn(async () => {})
+    await expect(storage.applySyncedBarChartFile('US-CA-001', { filename: 'e2.txt', uploadedAt: T2, origin: ORIGIN }, T1, pull2)).resolves.toBe(false)
+    expect(pull2).not.toHaveBeenCalled()
+    expect(harness.files.get(BARCHARTS_META_PATH)).toBe(before)
+  })
+
+  it('a rejecting pull leaves the manifest byte-identical and rejects only its own caller', async () => {
+    await storage.writeBarChartFile('US-CA-013', 'x', 'other.txt')
+    const before = harness.files.get(BARCHARTS_META_PATH)
+    await expect(storage.applySyncedBarChartFile('US-CA-001', { filename: 'e.txt', uploadedAt: T1 }, null, async () => { throw new Error('mismatch') })).rejects.toThrow(/mismatch/)
+    expect(harness.files.get(BARCHARTS_META_PATH)).toBe(before)
+    // The chain is not poisoned.
+    await storage.writeBarChartFile('US-CA-041', 'x', 'next.txt')
+    expect(entryOf('US-CA-041')).toBeDefined()
+  })
+
+  it('an entry the manifest reader would drop is refused BEFORE anything is written (the write chokepoint validates)', async () => {
+    const pull = vi.fn(async () => {})
+    await expect(storage.applySyncedBarChartFile('US-CA-001', { filename: 'e.txt', uploadedAt: 'x'.repeat(41) }, null, pull)).rejects.toThrow(/out of bounds/)
+    expect(pull).not.toHaveBeenCalled()
+    await expect(storage.applySyncedBarChartFile('US-CA-001\n', { filename: 'e.txt', uploadedAt: T1 }, null, pull)).rejects.toThrow()
+    expect(harness.touched).not.toContain('data/barcharts/US-CA-001\n.txt')
+  })
+
+  it('applySyncedBarChartClear removes the file and the entry under the same guard', async () => {
+    await storage.writeBarChartFile('US-CA-001', 'x', 'a.txt')
+    const at = (entryOf('US-CA-001') as { uploadedAt: string }).uploadedAt
+    await expect(storage.applySyncedBarChartClear('US-CA-001', 'wrong')).resolves.toBe(false)
+    expect(harness.files.has('data/barcharts/US-CA-001.txt')).toBe(true)
+    await expect(storage.applySyncedBarChartClear('US-CA-001', at)).resolves.toBe(true)
+    expect(harness.files.has('data/barcharts/US-CA-001.txt')).toBe(false)
+    expect(entryOf('US-CA-001')).toBeUndefined()
+  })
+
+  it('stampBarChartOrigin sets a missing origin and rewrites the time when told, only while the entry is unchanged', async () => {
+    await storage.writeBarChartFile('US-CA-001', 'x', 'a.txt')
+    const at = (entryOf('US-CA-001') as { uploadedAt: string }).uploadedAt
+    await expect(storage.stampBarChartOrigin('US-CA-001', MINE, T1, 'moved')).resolves.toBe(false)
+    await expect(storage.stampBarChartOrigin('US-CA-001', MINE, T1, at)).resolves.toBe(true)
+    expect(entryOf('US-CA-001')).toMatchObject({ uploadedAt: T1, origin: MINE })
+    // An origin already present is never replaced; nothing to record answers false.
+    await expect(storage.stampBarChartOrigin('US-CA-001', ORIGIN, T1, T1)).resolves.toBe(false)
+    expect(entryOf('US-CA-001')).toMatchObject({ origin: MINE })
+  })
+})
+
+describe('deleteAllBarChartFiles: the manifest describes exactly what is left (FR-21, FR-22, QA-19)', () => {
+  it('removes every file and empties the manifest', async () => {
+    await storage.writeBarChartFile('US-CA-001', 'x', 'a.txt')
+    await storage.writeBarChartFile('US-CA-013', 'y', 'b.txt')
+    const r = await storage.deleteAllBarChartFiles()
+    expect(r).toEqual({ removed: ['US-CA-001', 'US-CA-013'], failed: [] })
+    expect(harness.files.has('data/barcharts/US-CA-001.txt')).toBe(false)
+    expect(harness.files.has('data/barcharts/US-CA-013.txt')).toBe(false)
+    expect(manifest().counties).toEqual({})
+  })
+
+  it('a file whose removal fails and which is still there is a SURVIVOR: kept listed, reported, and nothing else is left inconsistent', async () => {
+    await storage.writeBarChartFile('US-CA-001', 'x', 'a.txt')
+    await storage.writeBarChartFile('US-CA-013', 'y', 'b.txt')
+    const realRemove = pluginFs.remove
+    const spy = vi.spyOn(pluginFs, 'remove').mockImplementation(async (path, opts) => {
+      if (String(path) === 'data/barcharts/US-CA-013.txt') throw new Error('EBUSY')
+      return realRemove(path, opts)
+    })
+    try {
+      const r = await storage.deleteAllBarChartFiles()
+      expect(r).toEqual({ removed: ['US-CA-001'], failed: ['US-CA-013'] })
+    } finally {
+      spy.mockRestore()
+    }
+    expect(Object.keys(manifest().counties)).toEqual(['US-CA-013'])
+    expect(harness.files.has('data/barcharts/US-CA-013.txt')).toBe(true)
+    expect(harness.files.has('data/barcharts/US-CA-001.txt')).toBe(false)
+  })
+
+  it('on an empty store it removes nothing and never rejects', async () => {
+    await expect(storage.deleteAllBarChartFiles()).resolves.toEqual({ removed: [], failed: [] })
+  })
+
+  it('rides the manifest chain: an add queued behind it survives, never erased by a stale base', async () => {
+    await storage.writeBarChartFile('US-CA-001', 'x', 'a.txt')
+    harness.manual = true
+    const clearing = storage.deleteAllBarChartFiles()
+    const adding = storage.writeBarChartFile('US-CA-013', 'y', 'b.txt')
+    await drainReadsFirst()
+    await Promise.all([clearing, adding])
+    expect(Object.keys(manifest().counties)).toEqual(['US-CA-013'])
+  })
+})
+
+describe('a synced arrival interleaved with a user add for another county (schema.md 11.1)', () => {
+  it('both entries persist', async () => {
+    harness.manual = true
+    const pulled = storage.applySyncedBarChartFile('US-CA-001', { filename: 'e.txt', uploadedAt: T1, origin: ORIGIN }, null, async () => {
+      harness.files.set('data/barcharts/US-CA-001.txt', 'pulled')
+    })
+    const added = storage.writeBarChartFile('US-CA-013', 'y', 'b.txt')
+    await drainReadsFirst()
+    await Promise.all([pulled, added])
+    expect(Object.keys(manifest().counties).sort()).toEqual(['US-CA-001', 'US-CA-013'])
+  })
+})

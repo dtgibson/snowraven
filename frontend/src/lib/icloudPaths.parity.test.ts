@@ -250,63 +250,124 @@ describe('icloud.rs <-> keyRecord.ts (icloud-api-key-sync)', () => {
   })
 })
 
-describe('the eBird bar-chart files are provably never synced (targets-tab, schema.md 1.5)', () => {
-  // PRIVACY_POLICY.md is to say an added bar-chart file stays on the device and
-  // is not part of iCloud Sync. That is true only while the sync controller's
-  // slot set is exactly the two data files and nothing on either side of the
-  // bridge knows the bar-chart family exists. Each leg is checked here rather
-  // than inferred from the controller never having been touched.
-  it('the controller iterates exactly the two data-file slots', async () => {
+describe('the bar-chart files and the day cache sync as ITEMS, never as slots (icloud-bar-chart-sync, FR-37, QA-31)', () => {
+  // Inverted from the targets-tab block that proved the family was NEVER
+  // synced: the same legs, now pinned as a parity contract. The family is
+  // still not a slot (so no `SLOTS` loop and no shipped slot command can reach
+  // it), and every name, bound and command the two sides share is one value.
+  const rustConstU64 = (name: string) => {
+    const m = new RegExp(`const ${name}: (?:u64|usize) = ([0-9_]+);`).exec(rust)
+    if (!m) throw new Error(`icloud.rs: const ${name} not found`)
+    return Number(m[1].replace(/_/g, ''))
+  }
+
+  it('the family is still not a slot: SLOTS is exactly the two data files and the Rust Slot enum is unchanged', async () => {
     const { SLOTS } = await import('./icloud/icloudRecord')
     expect([...SLOTS]).toEqual(['ebird', 'ml'])
+    expect(rust).toContain('pub enum Slot {\n    Ebird,\n    Ml,\n}')
+    // A county or day-obs record at a slot's fixed name is refused there.
+    expect(record).toContain("if (typeof raw.slot !== 'string' || !SLOTS.includes(raw.slot as Slot)) return { ok: false, reason: 'slot' }")
   })
 
-  it('no iCloud module and no native iCloud code mentions the bar-chart family', async () => {
-    const { readdirSync } = await import('node:fs')
-    const dir = new URL('./icloud/', import.meta.url)
-    const files = readdirSync(dir).filter(f => /\.tsx?$/.test(f) && !/\.test\.tsx?$/.test(f))
-    // Non-vacuity: the directory really holds the controller and the record module.
-    expect(files).toContain('icloudSync.ts')
-    expect(files).toContain('icloudRecord.ts')
-    for (const f of files) {
-      expect(readFileSync(new URL(f, dir), 'utf8'), f).not.toMatch(/barchart/i)
+  it('the seven item commands exist on both sides and are registered under the Apple cfg', () => {
+    const commands = [
+      'icloud_list_items', 'icloud_push_item', 'icloud_push_items_cleared', 'icloud_pull_item',
+      'icloud_start_download_item', 'icloud_remove_item', 'icloud_remove_items',
+    ]
+    for (const c of commands) {
+      expect(rust).toContain(`pub async fn ${c}(`)
+      expect(native).toContain(`'${c}'`)
+      expect(libRs).toContain(`#[cfg(any(target_os = "macos", target_os = "ios"))]\n            icloud::${c},`)
     }
-    expect(rust).not.toMatch(/barchart/i)
+    for (const w of ['listItems', 'pushItem', 'pushItemsCleared', 'pullItem', 'startDownloadItem', 'removeItem', 'removeItems']) {
+      expect(types).toContain(`${w}(`)
+      expect(native).toContain(`${w}:`)
+    }
+    // Remove all widens to both kinds and still never names the key record (FR-13, FR-35).
+    const removeAll = rust.slice(rust.indexOf('pub async fn icloud_remove_all('), rust.indexOf('// ── icloud-api-key-sync: the key record commands'))
+    expect(removeAll).toContain('remove_items_in(&docs, ItemKind::Barchart)?')
+    expect(removeAll).toContain('remove_items_in(&docs, ItemKind::DayObs)?')
+    expect(removeAll).not.toContain('KEYS_RECORD_NAME')
   })
 
-  it('the bar-chart paths are not among the synced file names', async () => {
-    const { ICLOUD_CSV_FILES } = await import('./icloud/icloudNative')
-    const { BARCHARTS_DIR, BARCHARTS_META_PATH } = await import('./storage')
-    const synced = Object.values(ICLOUD_CSV_FILES)
-    expect(synced).toHaveLength(2)
-    for (const name of synced) {
-      expect(BARCHARTS_DIR.endsWith(name)).toBe(false)
-      expect(BARCHARTS_META_PATH.endsWith(name)).toBe(false)
-      expect(name).not.toMatch(/barchart/i)
+  it('the subdirectories, the local names and the two bounds are one value on both sides', async () => {
+    const { ITEM_SUBDIRS } = await import('./icloud/icloudNative')
+    const { BARCHARTS_DIR, COUNTY_DAY_OBS_PATH } = await import('./storage')
+    const { MAX_LISTED_ITEMS } = await import('./icloud/icloudNativeTypes')
+    const { DAY_OBS_SHARED_MAX_BYTES } = await import('./icloud/icloudRecord')
+    expect(rustConst('BARCHARTS_SUBDIR')).toBe(ITEM_SUBDIRS.barchart)
+    expect(rustConst('DAY_OBS_SUBDIR')).toBe(ITEM_SUBDIRS['day-obs'])
+    expect(`${rustConst('LOCAL_DATA_DIR')}/${rustConst('LOCAL_BARCHARTS_DIR')}`).toBe(BARCHARTS_DIR)
+    expect(`${rustConst('LOCAL_DATA_DIR')}/${rustConst('LOCAL_DAY_OBS_FILE')}`).toBe(COUNTY_DAY_OBS_PATH)
+    expect(rustConstU64('MAX_LISTED_ITEMS')).toBe(MAX_LISTED_ITEMS)
+    expect(rustConstU64('DAY_OBS_SHARED_MAX_BYTES')).toBe(DAY_OBS_SHARED_MAX_BYTES)
+    // The subdirectories cannot collide with a fixed item name.
+    for (const sub of Object.values(ITEM_SUBDIRS)) {
+      for (const fixed of ['ebird-backup.csv', 'ml-export.csv', 'ebird.record.json', 'ml.record.json', 'keys.record.json']) {
+        expect(sub).not.toBe(fixed)
+      }
     }
   })
 
-  it('the Targets day cache document is never synced either (targets-tab, schema.md 3.2)', async () => {
-    // Its own file since 2026-09-27, so the same three legs as the bar-chart
-    // family: not a synced name, unknown to every iCloud module and to the
-    // native side, and the controller's slot set is still the two data files.
-    const { ICLOUD_CSV_FILES } = await import('./icloud/icloudNative')
-    const { COUNTY_DAY_OBS_PATH } = await import('./storage')
-    const synced = Object.values(ICLOUD_CSV_FILES)
-    expect(synced).toHaveLength(2)
-    expect(synced).not.toContain(COUNTY_DAY_OBS_PATH)
-    for (const name of synced) expect(COUNTY_DAY_OBS_PATH.endsWith(name)).toBe(false)
-    const { readdirSync } = await import('node:fs')
-    const dir = new URL('./icloud/', import.meta.url)
-    const files = readdirSync(dir).filter(f => /\.tsx?$/.test(f) && !/\.test\.tsx?$/.test(f))
-    expect(files).toContain('icloudSync.ts')
-    for (const f of files) {
-      expect(readFileSync(new URL(f, dir), 'utf8'), f).not.toMatch(/county-day-obs/i)
+  it('the record discriminators are the same text on both sides', () => {
+    expect(rust).toContain('SyncItem::County(c) => ("barchart", Some(c.as_str())),')
+    expect(rust).toContain('SyncItem::DayObs(_) => ("day-obs", None),')
+    expect(record).toContain("if (raw.slot !== 'barchart') return { ok: false, reason: 'slot' }")
+    expect(record).toContain("if (raw.slot !== 'day-obs') return { ok: false, reason: 'slot' }")
+    // `county` rides after `slot` and is skipped for a slot record.
+    expect(rust).toContain('#[serde(skip_serializing_if = "Option::is_none")]\n    county: Option<&\'a str>,\n    state: &\'a str,')
+  })
+
+  it('the three item goldens are byte-equal in both languages, and each validates', async () => {
+    const rec = await import('./icloud/icloudRecord')
+    const golden = (name: string) => {
+      const m = new RegExp(`const ${name}: &str = r#"(.*)"#;`).exec(rust)
+      if (!m) throw new Error(`icloud.rs: ${name} not found`)
+      return m[1]
     }
-    expect(rust).not.toMatch(/county-day-obs/i)
-    const { SLOTS } = await import('./icloud/icloudRecord')
-    expect([...SLOTS]).toEqual(['ebird', 'ml'])
-    // Non-vacuity: the path the legs above test is the real one.
-    expect(COUNTY_DAY_OBS_PATH).toBe('data/county-day-obs.json')
+    expect(golden('COUNTY_RECORD_GOLDEN')).toBe(rec.COUNTY_RECORD_GOLDEN)
+    expect(golden('COUNTY_CLEARED_GOLDEN')).toBe(rec.COUNTY_CLEARED_GOLDEN)
+    expect(golden('DAY_OBS_RECORD_GOLDEN')).toBe(rec.DAY_OBS_RECORD_GOLDEN)
+    const NOW = Date.parse('2026-09-22T00:00:00.000Z')
+    const county = rec.validateCountyRecord(rec.COUNTY_RECORD_GOLDEN, 'US-CA-001', NOW)
+    expect(county.ok).toBe(true)
+    if (county.ok) expect(rec.serializeRecord(county.record)).toBe(rec.COUNTY_RECORD_GOLDEN)
+    const cleared = rec.validateCountyRecord(rec.COUNTY_CLEARED_GOLDEN, 'US-CA-001', NOW)
+    expect(cleared.ok).toBe(true)
+    if (cleared.ok) expect(rec.serializeRecord(cleared.record)).toBe(rec.COUNTY_CLEARED_GOLDEN)
+    const day = rec.validateDayObsRecord(rec.DAY_OBS_RECORD_GOLDEN, 'f'.repeat(32), NOW)
+    expect(day.ok).toBe(true)
+    if (day.ok) expect(rec.serializeRecord(day.record)).toBe(rec.DAY_OBS_RECORD_GOLDEN)
+    // And the shipped slot record still carries no county key on either side.
+    expect(golden('SLOT_RECORD_GOLDEN')).not.toContain('county')
+  })
+
+  it('FR-30 (QA-26): the sync-path bound for a county file is no smaller than the add-time cap', async () => {
+    const { MAX_BYTES } = await import('./icloud/icloudRecord')
+    const { MAX_UPLOAD_BYTES } = await import('./uploadGuard')
+    expect(MAX_BYTES).toBeGreaterThanOrEqual(MAX_UPLOAD_BYTES)
+    // The Rust side uses the same MAX_BYTES for a county item.
+    expect(rust).toContain('SyncItem::County(_) => MAX_BYTES,')
+  })
+
+  it('the shared region-code fixture is read on both sides and neither table can grow alone', async () => {
+    const fixture = JSON.parse(readFileSync(new URL('./regionCode.fixture.json', import.meta.url), 'utf8')) as Array<{ input: string; ok: boolean }>
+    expect(rust).toContain('include_str!("../../frontend/src/lib/regionCode.fixture.json")')
+    const count = /assert_eq!\(rows\.len\(\), (\d+)\);/.exec(rust)
+    expect(count).not.toBeNull()
+    expect(fixture).toHaveLength(Number(count![1]))
+    // The rows a twinned guard must carry (security.md v0.5.54, v0.5.87).
+    const inputs = fixture.map(r => r.input)
+    expect(inputs).toContain('US-CA-001\n')
+    expect(inputs).toContain('\nUS-CA-001')
+    expect(inputs.some(i => i.length === 9 && i.includes('\n'))).toBe(true)
+    expect(inputs.some(i => /[٠-٩]/.test(i))).toBe(true)
+    // The Rust predicate is a byte check with ASCII-only predicates, never a
+    // regex: `u8::is_ascii_digit` / `is_ascii_uppercase` are the byte ranges
+    // 0-9 and A-Z and nothing else, so no Unicode digit can pass.
+    expect(rust).toContain('&& b[8].is_ascii_digit();')
+    expect(rust).toContain('&& b[3].is_ascii_uppercase()')
+    expect(rust).not.toMatch(/fn parse\(s: &str\) -> Result<County, \(\)> \{[^}]*Regex/)
+    expect(rust).toContain('if b.len() != 9 {')
   })
 })

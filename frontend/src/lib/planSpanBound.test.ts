@@ -32,6 +32,7 @@ import { buildSunModel, solarNoonTs, sunPeakByDay, sunTrack, wholeDayNormalize, 
 import { planGeometry, PLAN_Y_ABS_MAX_FT, type PlanGeometry } from './planChartGeometry'
 import { addDays, localMidnightTs, startOfLocalHour } from './tzClock'
 import type { OneCallResponse } from './forecastSlice'
+import { bestPerCallCpuMs } from '../test/cpuTiming'
 
 const DAY = 86400
 const QUARTER = 900
@@ -710,14 +711,17 @@ const BUDGET_MS = 300
 const TIMEOUT_MS = 20_000
 const REPS = 5
 
+/** The whole clamped chain, once. */
+function chain(doc: unknown): void {
+  const plan = composePlan(doc, null)!
+  const model = buildSunModel(plan)!
+  sunTrack(model)
+  sunPeakByDay(model)
+}
+
 function chainMs(doc: unknown, reps = REPS): number {
   const t0 = performance.now()
-  for (let i = 0; i < reps; i += 1) {
-    const plan = composePlan(doc, null)!
-    const model = buildSunModel(plan)!
-    sunTrack(model)
-    sunPeakByDay(model)
-  }
+  for (let i = 0; i < reps; i += 1) chain(doc)
   return (performance.now() - t0) / reps
 }
 
@@ -735,7 +739,20 @@ describe('growth: the chain is flat past the clamps, not doubling with the docum
     // Flat, not 2x: `asDays` breaks at PLAN_COMPOSE_DAYS_MAX admitted days, so
     // doubling the array costs nothing downstream, and the window clamp holds
     // the sample count at the same ceiling for both.
-    expect(tB, `A ${tA.toFixed(2)} ms, B ${tB.toFixed(2)} ms`).toBeLessThan(tA * 2.5 + 1)
+    //
+    // WHAT THIS BOUND REJECTS. It admits a chain that exactly doubles, so it is
+    // not "the clamps are there". It rejects the day cap removed: `sideAt`
+    // rescans the admitted days on every altitude evaluation and
+    // `sunPeakByDay` rescans every anchor for every day, so without the break
+    // the chain grows with the SQUARE of the day count, about 4x from A to B.
+    //
+    // The quotient is read in CPU time, the two documents interleaved, best of
+    // seven batched samples each (src/test/cpuTiming.ts). The single
+    // wall-clock sample per document it replaced read B at 7.56 to 11.91 ms
+    // against A at 1.05 to 3.61 ms in 4 of 20 runs of this file beside two
+    // looping full suites, with the clamps in place.
+    const { perCall: [cA, cB], batch } = bestPerCallCpuMs([() => chain(a), () => chain(b)])
+    expect(cB, `A ${cA.toFixed(2)} ms, B ${cB.toFixed(2)} ms CPU per call (x${batch.join('/')})`).toBeLessThan(cA * 2.5 + 1)
     // Absolute, argued above.
     expect(tA).toBeLessThan(BUDGET_MS)
     expect(tB).toBeLessThan(BUDGET_MS)

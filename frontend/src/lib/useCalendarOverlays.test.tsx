@@ -14,7 +14,10 @@ const { getSetting, setSetting } = vi.hoisted(() => ({
 vi.mock('./storage', () => ({ storage: { getSetting, setSetting } }))
 
 import { useCalendarOverlays } from './useCalendarOverlays'
-import { CALENDAR_OVERLAYS_SETTING_KEY, DEFAULT_CALENDAR_OVERLAYS } from './calendarOverlays'
+import { CALENDAR_OVERLAYS_SETTING_KEY, CALENDAR_OVERLAYS_VERSION, DEFAULT_CALENDAR_OVERLAYS } from './calendarOverlays'
+
+// The version marker every write carries (calendar-breeding-category-default).
+const v = CALENDAR_OVERLAYS_VERSION
 
 function deferred<T>() {
   let resolve!: (v: T) => void
@@ -44,7 +47,7 @@ describe('useCalendarOverlays', () => {
     await settle()
     expect(getSetting).toHaveBeenCalledTimes(1)
     expect(getSetting).toHaveBeenCalledWith(CALENDAR_OVERLAYS_SETTING_KEY)
-    expect(result.current.overlays).toEqual({ media: false, breeding: false, codes: 'every' })
+    expect(result.current.overlays).toEqual({ media: false, breeding: false, codes: 'category' })
     expect(setSetting).not.toHaveBeenCalled()
   })
 
@@ -55,37 +58,59 @@ describe('useCalendarOverlays', () => {
     expect(setSetting).not.toHaveBeenCalled()
   })
 
-  it('a change writes ONE value under ONE key carrying all three fields; re-mount reads it back (QA-03)', async () => {
+  it('a change writes ONE value under ONE key carrying all three fields and the marker; re-mount reads it back (QA-03)', async () => {
     const { result, unmount } = renderHook(() => useCalendarOverlays())
     await settle()
     act(() => result.current.toggle('media'))
     await settle()
-    expect(result.current.overlays).toEqual({ media: true, breeding: false, codes: 'every' })
+    expect(result.current.overlays).toEqual({ media: true, breeding: false, codes: 'category' })
     expect(setSetting).toHaveBeenCalledTimes(1)
-    expect(setSetting).toHaveBeenCalledWith(CALENDAR_OVERLAYS_SETTING_KEY, { media: true, breeding: false, codes: 'every' })
+    expect(setSetting).toHaveBeenCalledWith(CALENDAR_OVERLAYS_SETTING_KEY, { media: true, breeding: false, codes: 'category', v })
     unmount()
 
     const stored = setSetting.mock.calls[0][1]
     getSetting.mockResolvedValue(stored)
     setSetting.mockClear()
     const again = renderHook(() => useCalendarOverlays())
-    await waitFor(() => expect(again.result.current.overlays).toEqual({ media: true, breeding: false, codes: 'every' }))
+    await waitFor(() => expect(again.result.current.overlays).toEqual({ media: true, breeding: false, codes: 'category' }))
     expect(setSetting).not.toHaveBeenCalled()
   })
 
-  it('setCodes writes all three fields and is a no-op on the value already chosen', async () => {
+  it('setCodes writes all three fields and the marker, and is a no-op on the value already chosen', async () => {
     const { result } = renderHook(() => useCalendarOverlays())
     await settle()
-    act(() => result.current.setCodes('every'))
+    act(() => result.current.setCodes('category'))
     await settle()
     expect(setSetting).not.toHaveBeenCalled()
-    act(() => result.current.setCodes('category'))
+    act(() => result.current.setCodes('every'))
     await settle()
     expect(setSetting).toHaveBeenCalledTimes(1)
-    expect(setSetting).toHaveBeenLastCalledWith(CALENDAR_OVERLAYS_SETTING_KEY, { media: false, breeding: false, codes: 'category' })
-    act(() => result.current.setCodes('category'))
+    expect(setSetting).toHaveBeenLastCalledWith(CALENDAR_OVERLAYS_SETTING_KEY, { media: false, breeding: false, codes: 'every', v })
+    act(() => result.current.setCodes('every'))
     await settle()
     expect(setSetting).toHaveBeenCalledTimes(1)
+  })
+
+  // The non-vacuity row for the marker (calendar-breeding-category-default):
+  // without it, a written Every code is indistinguishable from the 1.0.38 and
+  // 1.0.39 default written through, and every relaunch would migrate it away.
+  it('a deliberate Every code survives a remount: pressed, written with the marker, read back as Every code with no write', async () => {
+    getSetting.mockResolvedValue({ media: false, breeding: true, codes: 'category', v })
+    const { result, unmount } = renderHook(() => useCalendarOverlays())
+    await waitFor(() => expect(result.current.overlays.breeding).toBe(true))
+    act(() => result.current.setCodes('every'))
+    await settle()
+    expect(setSetting).toHaveBeenCalledTimes(1)
+    const stored = setSetting.mock.calls[0][1]
+    unmount()
+
+    getSetting.mockResolvedValue(JSON.parse(JSON.stringify(stored)))
+    setSetting.mockClear()
+    const again = renderHook(() => useCalendarOverlays())
+    await waitFor(() => expect(again.result.current.overlays).toEqual({ media: false, breeding: true, codes: 'every' }))
+    await settle()
+    expect(again.result.current.overlays.codes).toBe('every')
+    expect(setSetting).not.toHaveBeenCalled()
   })
 
   it('two changes in one tick compose rather than clobber, and write in order', async () => {
@@ -94,14 +119,14 @@ describe('useCalendarOverlays', () => {
     act(() => {
       result.current.toggle('media')
       result.current.toggle('breeding')
-      result.current.setCodes('category')
+      result.current.setCodes('every')
     })
     await settle()
-    expect(result.current.overlays).toEqual({ media: true, breeding: true, codes: 'category' })
+    expect(result.current.overlays).toEqual({ media: true, breeding: true, codes: 'every' })
     expect(setSetting.mock.calls.map(c => c[1])).toEqual([
-      { media: true, breeding: false, codes: 'every' },
-      { media: true, breeding: true, codes: 'every' },
-      { media: true, breeding: true, codes: 'category' },
+      { media: true, breeding: false, codes: 'category', v },
+      { media: true, breeding: true, codes: 'category', v },
+      { media: true, breeding: true, codes: 'every', v },
     ])
   })
 
@@ -116,7 +141,7 @@ describe('useCalendarOverlays', () => {
     await act(async () => { first.resolve(); await Promise.resolve() })
     await settle()
     expect(setSetting).toHaveBeenCalledTimes(2)
-    expect(setSetting.mock.calls[1][1]).toEqual({ media: true, breeding: true, codes: 'every' })
+    expect(setSetting.mock.calls[1][1]).toEqual({ media: true, breeding: true, codes: 'category', v })
   })
 
   it('a change made before hydration resolves wins over the stored value (FR-05, QA-05)', async () => {
@@ -140,7 +165,7 @@ describe('useCalendarOverlays', () => {
     act(() => result.current.toggle('media'))
     await settle()
     expect(setSetting).toHaveBeenCalledTimes(2)
-    expect(result.current.overlays).toEqual({ media: true, breeding: true, codes: 'every' })
+    expect(result.current.overlays).toEqual({ media: true, breeding: true, codes: 'category' })
   })
 
   it('a rejecting read hydrates as the default with nothing thrown (FR-04, QA-04)', async () => {
@@ -152,15 +177,27 @@ describe('useCalendarOverlays', () => {
   })
 
   it.each([
-    ['null', null, { media: false, breeding: false, codes: 'every' }],
-    ['a string', 'yes', { media: false, breeding: false, codes: 'every' }],
-    ['a number', 42, { media: false, breeding: false, codes: 'every' }],
-    ['an array', [], { media: false, breeding: false, codes: 'every' }],
-    ['a stringly boolean', { media: 'true' }, { media: false, breeding: false, codes: 'every' }],
-    ['a numeric boolean beside a real one', { media: 1, breeding: true }, { media: false, breeding: true, codes: 'every' }],
-    ['an unrecognised codes value', { breeding: true, codes: 'both' }, { media: false, breeding: true, codes: 'every' }],
-    ['a non-string codes value', { codes: 1 }, { media: false, breeding: false, codes: 'every' }],
+    ['null', null, { media: false, breeding: false, codes: 'category' }],
+    ['a string', 'yes', { media: false, breeding: false, codes: 'category' }],
+    ['a number', 42, { media: false, breeding: false, codes: 'category' }],
+    ['an array', [], { media: false, breeding: false, codes: 'category' }],
+    ['a stringly boolean', { media: 'true' }, { media: false, breeding: false, codes: 'category' }],
+    ['a numeric boolean beside a real one', { media: 1, breeding: true }, { media: false, breeding: true, codes: 'category' }],
+    ['an unrecognised codes value', { breeding: true, codes: 'both' }, { media: false, breeding: true, codes: 'category' }],
+    ['a non-string codes value', { codes: 1 }, { media: false, breeding: false, codes: 'category' }],
     ['a valid category choice', { breeding: true, codes: 'category' }, { media: false, breeding: true, codes: 'category' }],
+    // The read-time migration (calendar-breeding-category-default): a 1.0.38 or
+    // 1.0.39 document has no marker, so its Every code reads as the old default
+    // written through; the other fields are kept, and nothing is written back.
+    ['a 1.0.38 Every code with Breeding on', { media: false, breeding: true, codes: 'every' }, { media: false, breeding: true, codes: 'category' }],
+    ['a 1.0.38 Every code with both on', { media: true, breeding: true, codes: 'every' }, { media: true, breeding: true, codes: 'category' }],
+    ['a 1.0.38 copy of the whole old default', { media: false, breeding: false, codes: 'every' }, { media: false, breeding: false, codes: 'category' }],
+    ['a 1.0.38 By category', { media: true, breeding: true, codes: 'category' }, { media: true, breeding: true, codes: 'category' }],
+    ['a marked By category', { media: false, breeding: true, codes: 'category', v }, { media: false, breeding: true, codes: 'category' }],
+    ['a marked Every code', { media: false, breeding: true, codes: 'every', v }, { media: false, breeding: true, codes: 'every' }],
+    ['a stringly marker', { breeding: true, codes: 'every', v: String(v) }, { media: false, breeding: true, codes: 'category' }],
+    ['a later marker', { breeding: true, codes: 'every', v: v + 1 }, { media: false, breeding: true, codes: 'category' }],
+    ['an inherited marker', Object.assign(Object.create({ v }), { breeding: true, codes: 'every' }), { media: false, breeding: true, codes: 'category' }],
   ])('hydrating %s gives the per-field result (QA-04)', async (_label, raw, expected) => {
     getSetting.mockResolvedValue(raw)
     const { result } = renderHook(() => useCalendarOverlays())

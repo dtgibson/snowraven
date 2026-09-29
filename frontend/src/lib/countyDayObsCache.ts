@@ -60,6 +60,22 @@
 // record, 10 M is about ten busy counties' 30-day windows. The entry cap (3,000)
 // is only a backstop on near-empty envelopes, sized so the budget binds first.
 //
+// SYNCED AS ONE SNAPSHOT PER DEVICE, MERGED ON READ (icloud-bar-chart-sync,
+// schema.md section 8). With iCloud Sync on, the controller pushes this
+// device's own document whole to `day-obs/<deviceId>.json` in the container,
+// and merges every OTHER device's snapshot into this store through
+// `mergeSharedSnapshot`. The no-`docChains` argument above still holds and the
+// reason is structural: this module remains the document's only WRITING
+// module (the merge writes through the same mirror, the same `scheduleWrite`
+// and the same `_writeChain`), and the peer's text arrives over IPC from the
+// container, so no read of the local FILE feeds a write. The one reader of the
+// file outside this module is the native push (`icloud_push_item` in
+// src-tauri/src/icloud.rs, read-only), which runs after `awaitDayObsWrites`
+// has drained the writer. A peer snapshot is untrusted at the entry level
+// exactly as a loaded document is: every entry passes `validEntry` before it
+// is admitted, each distinct key is validated at most once, and at most
+// `DAY_OBS_MAX_ENTRIES` keys are admitted.
+//
 // IMPORT DISCIPLINE: the storage seam, the offline classifier, the record
 // validator, the date helpers and the region-code shape. Never `transport`: the
 // network fetcher is an injected loader. Registered in `clearDerived.ts`,
@@ -147,6 +163,7 @@ function copyRecord(r: DayRecord): DayRecord {
  * (fresh objects, `bytes` recomputed) or null to drop it.
  */
 function validEntry(e: unknown, date: string): DayObsEntry | null {
+  if (_workStats) _workStats.validations += 1
   if (typeof e !== 'object' || e === null || Array.isArray(e)) return null
   const c = e as { fetchedAt?: unknown; complete?: unknown; bytes?: unknown; species?: unknown }
   if (typeof c.fetchedAt !== 'number' || !Number.isFinite(c.fetchedAt)) return null
@@ -175,38 +192,63 @@ function dateOf(key: string): string {
   return key.slice(key.indexOf('|') + 1)
 }
 
-/**
- * The next victim, or null when nothing but `keep` remains: the minimum, over
- * every entry except `keep`, of (1) outside the sweep's window before inside
- * it, (2) the county visited longest ago, by `max(fetchedAt)` over its entries,
- * (3) the smallest date, (4) the key. O(n) per call, with the county recency
- * recomputed each time, because evicting an entry can lower its county's.
- */
-function pickVictim(store: DayObsStore, keep: string | null, horizon: string): string | null {
-  const lastVisited = new Map<string, number>()
-  for (const k of store.order) {
-    const r = regionOf(k)
-    const at = store.entries[k].fetchedAt
-    const prev = lastVisited.get(r)
-    if (prev === undefined || at > prev) lastVisited.set(r, at)
+/** A county's victim candidate in one phase, as a heap node. `ver` is the
+ *  county's phase version when the node was pushed; a stale node is skipped. */
+interface VictimNode { visited: number; date: string; key: string; region: string; ver: number }
+
+function nodeBefore(a: VictimNode, b: VictimNode): boolean {
+  return a.visited !== b.visited ? a.visited < b.visited
+    : a.date !== b.date ? a.date < b.date
+    : a.key < b.key
+}
+
+/** A binary min-heap over `nodeBefore`, just big enough for one eviction pass. */
+class VictimHeap {
+  private a: VictimNode[] = []
+  push(n: VictimNode): void {
+    const a = this.a
+    a.push(n)
+    let i = a.length - 1
+    while (i > 0) {
+      const p = (i - 1) >> 1
+      if (!nodeBefore(a[i], a[p])) break
+      const t = a[i]; a[i] = a[p]; a[p] = t
+      i = p
+    }
   }
-  let best: string | null = null
-  let bestOut = false
-  let bestVisited = 0
-  let bestDate = ''
-  for (const k of store.order) {
-    if (k === keep) continue
-    const date = dateOf(k)
-    const out = date < horizon
-    const visited = lastVisited.get(regionOf(k))!
-    const better = best === null
-      || (out !== bestOut ? out
-        : visited !== bestVisited ? visited < bestVisited
-        : date !== bestDate ? date < bestDate
-        : k < best)
-    if (better) { best = k; bestOut = out; bestVisited = visited; bestDate = date }
+  peek(): VictimNode | undefined { return this.a[0] }
+  pop(): void {
+    const a = this.a
+    const last = a.pop()
+    if (a.length === 0 || last === undefined) return
+    a[0] = last
+    let i = 0
+    for (;;) {
+      const l = 2 * i + 1
+      const r = l + 1
+      let m = i
+      if (l < a.length && nodeBefore(a[l], a[m])) m = l
+      if (r < a.length && nodeBefore(a[r], a[m])) m = r
+      if (m === i) break
+      const t = a[i]; a[i] = a[m]; a[m] = t
+      i = m
+    }
   }
-  return best
+}
+
+/** Per county, everything one eviction pass needs, built once. */
+interface CountyPlan {
+  /** max(fetchedAt) over the county's live entries, `keep` included. */
+  visited: number
+  /** The county's keys by fetchedAt descending, to recompute `visited` after a removal. */
+  byFetched: string[]
+  /** First index of `byFetched` not yet evicted: it only moves forward, so the
+   *  recomputation is amortized O(1) per victim. */
+  fetchedHead: number
+  /** Out-of-window and in-window candidates (never `keep`), by (date, key). */
+  cands: [string[], string[]]
+  heads: [number, number]
+  vers: [number, number]
 }
 
 /**
@@ -214,20 +256,91 @@ function pickVictim(store: DayObsStore, keep: string | null, horizon: string): s
  * newest answer always survives: the one-sole-oversized rule). With no `keep`
  * (the load path) eviction still stops at one entry. `nowMs` fixes the sweep
  * window's oldest date, `lastNDates(nowMs)[SWEEP_DAYS - 1]`.
+ *
+ * The victim is the minimum, over every entry except `keep`, of: (1) outside
+ * the sweep's window before inside it, (2) the county visited longest ago, by
+ * `max(fetchedAt)` over its entries, (3) the smallest date, (4) the key.
+ *
+ * O(n log n) per pass, built ONCE (D9; ROADMAP v1.0.39, Targets security
+ * Informational (3), where the previous loop rebuilt the county recency map
+ * and rescanned every entry for EACH victim, O(n) per victim, 772 ms on a
+ * crafted 2,996-entry document). Only the victim's county can change during a
+ * pass (its next candidate, and its recency when the victim was its newest
+ * entry), so one heap per phase holds each county's current candidate, and a
+ * county's node is re-pushed only when it changes; a stale node is skipped by
+ * version. The victim ORDER is exactly the previous algorithm's:
+ * `countyDayObsCache.test.ts` holds the two to each other over a generated
+ * corpus, with the previous implementation kept there as the oracle.
  */
 function evict(store: DayObsStore, keep: string | null, nowMs: number): void {
+  const overBudget = (live: number) => live > 1 && (live > DAY_OBS_MAX_ENTRIES || _totalBytes > DAY_OBS_MAX_BYTES)
+  let live = store.order.length
+  if (!overBudget(live)) return
   const horizon = lastNDates(nowMs, SWEEP_DAYS)[SWEEP_DAYS - 1]
-  while (
-    store.order.length > 1 &&
-    (store.order.length > DAY_OBS_MAX_ENTRIES || _totalBytes > DAY_OBS_MAX_BYTES)
-  ) {
-    const victim = pickVictim(store, keep, horizon)
-    if (victim === null) break
-    if (_workStats) _workStats.evictions += 1
-    _totalBytes -= store.entries[victim].bytes
-    delete store.entries[victim]
-    store.order.splice(store.order.indexOf(victim), 1)
+
+  const plans = new Map<string, CountyPlan>()
+  for (const k of store.order) {
+    const r = regionOf(k)
+    const at = store.entries[k].fetchedAt
+    let p = plans.get(r)
+    if (!p) {
+      p = { visited: at, byFetched: [], fetchedHead: 0, cands: [[], []], heads: [0, 0], vers: [0, 0] }
+      plans.set(r, p)
+    }
+    if (at > p.visited) p.visited = at
+    p.byFetched.push(k)
+    if (k !== keep) p.cands[dateOf(k) < horizon ? 0 : 1].push(k)
   }
+  const byDateKey = (x: string, y: string) => {
+    const dx = dateOf(x)
+    const dy = dateOf(y)
+    return dx !== dy ? (dx < dy ? -1 : 1) : (x < y ? -1 : x > y ? 1 : 0)
+  }
+  const heaps: [VictimHeap, VictimHeap] = [new VictimHeap(), new VictimHeap()]
+  const pushHead = (region: string, p: CountyPlan, phase: 0 | 1) => {
+    p.vers[phase] += 1
+    const key = p.cands[phase][p.heads[phase]]
+    if (key !== undefined) heaps[phase].push({ visited: p.visited, date: dateOf(key), key, region, ver: p.vers[phase] })
+  }
+  for (const [region, p] of plans) {
+    p.byFetched.sort((x, y) => store.entries[y].fetchedAt - store.entries[x].fetchedAt)
+    p.cands[0].sort(byDateKey)
+    p.cands[1].sort(byDateKey)
+    pushHead(region, p, 0)
+    pushHead(region, p, 1)
+  }
+
+  const removed = new Set<string>()
+  while (overBudget(live)) {
+    let victim: VictimNode | undefined
+    let phase: 0 | 1 = 0
+    for (const ph of [0, 1] as const) {
+      const h = heaps[ph]
+      for (let n = h.peek(); n !== undefined; n = h.peek()) {
+        if (n.ver === plans.get(n.region)!.vers[ph]) { victim = n; phase = ph; break }
+        h.pop()
+      }
+      if (victim) { h.pop(); break }
+    }
+    if (!victim) break
+    const key = victim.key
+    const p = plans.get(victim.region)!
+    if (_workStats) _workStats.evictions += 1
+    _totalBytes -= store.entries[key].bytes
+    delete store.entries[key]
+    removed.add(key)
+    live -= 1
+    p.heads[phase] += 1
+    // The county's recency moves only when its newest entry went.
+    while (p.fetchedHead < p.byFetched.length && removed.has(p.byFetched[p.fetchedHead])) p.fetchedHead += 1
+    const nextVisited = p.fetchedHead < p.byFetched.length ? store.entries[p.byFetched[p.fetchedHead]].fetchedAt : p.visited
+    if (nextVisited !== p.visited) {
+      p.visited = nextVisited
+      pushHead(victim.region, p, phase === 0 ? 1 : 0)
+    }
+    pushHead(victim.region, p, phase)
+  }
+  if (removed.size > 0) store.order = store.order.filter(k => !removed.has(k))
 }
 
 /**
@@ -251,12 +364,15 @@ function sanitizeStore(loaded: unknown, nowMs: number): DayObsStore {
   if (doc.version !== STORE_VERSION) return store
   if (typeof doc.entries !== 'object' || doc.entries === null || !Array.isArray(doc.order)) return store
   const raw = doc.entries as Record<string, unknown>
+  // Recorded at FIRST sight, whatever the verdict (security M1): a key repeated
+  // in `order` is judged once, so a rejected entry is never re-validated.
+  const seen = new Set<string>()
   for (const key of doc.order) {
     if (store.order.length >= DAY_OBS_MAX_ENTRIES) break
-    if (typeof key !== 'string' || !KEY_RE.test(key)) continue
+    if (typeof key !== 'string' || !KEY_RE.test(key) || seen.has(key)) continue
+    seen.add(key)
     const date = dateOf(key)
     if (!isValidDayObsDate(date)) continue
-    if (Object.hasOwn(store.entries, key)) continue          // duplicate order key
     if (!Object.hasOwn(raw, key)) continue
     const entry = validEntry(raw[key], date)
     if (!entry) continue
@@ -281,10 +397,12 @@ export interface CountyDayObsCacheWorkStats {
   evictions: number
   writeSchedules: number
   writeFlushes: number
+  /** `validEntry` calls: the load and merge scans' per-entry work (security M1). */
+  validations: number
 }
 
 const EMPTY_WORK_STATS = (): CountyDayObsCacheWorkStats => ({
-  loads: 0, loaderCalls: 0, puts: 0, evictions: 0, writeSchedules: 0, writeFlushes: 0,
+  loads: 0, loaderCalls: 0, puts: 0, evictions: 0, writeSchedules: 0, writeFlushes: 0, validations: 0,
 })
 
 // Installed only by the test reset seam: the production path carries no
@@ -484,23 +602,143 @@ function writeThrough(op: () => Promise<void>): Promise<void> {
 let _writeTimer: ReturnType<typeof setTimeout> | null = null
 export const WRITE_DEBOUNCE_MS = 1_000
 
+/** The mirror the pending debounced flush will write, so the drain below can
+ *  run it early. Null when no flush is pending. */
+let _pendingFlush: DayObsStore | null = null
+
+function flushStore(store: DayObsStore): void {
+  // Superseded by a purge: this holds the PRE-purge document.
+  if (store !== _store) return
+  const snapshot: DayObsStore = {
+    version: STORE_VERSION,
+    // Null-prototype target: Object.assign uses [[Set]].
+    entries: Object.assign(Object.create(null) as Record<string, DayObsEntry>, store.entries),
+    order: [...store.order],
+  }
+  if (_workStats) _workStats.writeFlushes += 1
+  void writeThrough(() => storage.setCountyDayObsStore(snapshot))
+    .catch(() => { /* best-effort: the mirror stays the live source */ })
+}
+
 function scheduleWrite(store: DayObsStore): void {
   if (_workStats) _workStats.writeSchedules += 1
   if (_writeTimer) clearTimeout(_writeTimer)
+  _pendingFlush = store
   _writeTimer = setTimeout(() => {
     _writeTimer = null
-    // Superseded by a purge: this closure holds the PRE-purge document.
-    if (store !== _store) return
-    const snapshot: DayObsStore = {
-      version: STORE_VERSION,
-      // Null-prototype target: Object.assign uses [[Set]].
-      entries: Object.assign(Object.create(null) as Record<string, DayObsEntry>, store.entries),
-      order: [...store.order],
-    }
-    if (_workStats) _workStats.writeFlushes += 1
-    void writeThrough(() => storage.setCountyDayObsStore(snapshot))
-      .catch(() => { /* best-effort: the mirror stays the live source */ })
+    _pendingFlush = null
+    flushStore(store)
   }, WRITE_DEBOUNCE_MS)
+}
+
+/**
+ * Drain the writer (icloud-bar-chart-sync, schema.md section 8.3): a pending
+ * debounced flush runs NOW rather than up to a second later, and the promise
+ * resolves when every write already on the chain has settled, so the native
+ * snapshot push that follows reads the mirror's latest state from disk. Never
+ * rejects (the chain's stored tail swallows failures). Stated residual: a
+ * flush that starts after this resolves and before the native read finishes is
+ * not covered; a peer that reads a half-written snapshot fails `JSON.parse`
+ * and treats it as absent, and the next flush and check replace it.
+ */
+export async function awaitDayObsWrites(): Promise<void> {
+  if (_writeTimer && _pendingFlush) {
+    clearTimeout(_writeTimer)
+    _writeTimer = null
+    const store = _pendingFlush
+    _pendingFlush = null
+    flushStore(store)
+  }
+  await _writeChain
+}
+
+/** Replace or add one entry WITHOUT evicting and without moving a replaced key
+ *  in `order` (which is enumeration only): the merge's write path, which runs
+ *  one eviction pass after every entry is in. */
+function insertEntry(store: DayObsStore, key: string, entry: DayObsEntry): void {
+  if (_workStats) _workStats.puts += 1
+  if (Object.hasOwn(store.entries, key)) {
+    _totalBytes -= store.entries[key].bytes
+  } else {
+    store.order.push(key)
+  }
+  store.entries[key] = entry
+  _totalBytes += entry.bytes
+}
+
+/**
+ * Merge ANOTHER device's snapshot into this store (icloud-bar-chart-sync
+ * FR-24 to FR-26, schema.md section 8.3). Union by `(county, date)` key; for a
+ * key both hold, the entry marked complete wins over one that is not, and
+ * otherwise the later `fetchedAt` wins; a tie keeps the local entry, which is
+ * what makes the merge idempotent. The KEPT KEY SET is order-independent by
+ * construction (a union). Every peer entry passes `validEntry` (the load
+ * path's own per-entry validator) before it is admitted, a bad one is dropped
+ * and the rest kept, and at most `DAY_OBS_MAX_ENTRIES` keys are admitted; an
+ * unparseable document, one of another version, or one with no entries object
+ * is treated as absent and changes nothing. Then ONE eviction pass applies this
+ * device's own entry cap and payload budget, unchanged, and one flush is
+ * scheduled when anything was taken.
+ *
+ * `gen` is the purge generation the CALLER captured before it fetched `text`
+ * (`dayObsPurgeGeneration()`), REQUIRED because the fetch chokepoint is
+ * outside this module (the `transport.getReplayable` / `replayStore` shape):
+ * a generation read here, after the download has landed, cannot see a Clear
+ * that happened during it (security L1). A Clear at any point after the
+ * caller's capture admits nothing into the fresh store.
+ *
+ * Main-thread cost: one `JSON.parse` of text already bounded by
+ * `DAY_OBS_SHARED_MAX_BYTES`; validation linear in the snapshot, because
+ * `seen` records a key at FIRST sight, before its verdict, so each distinct
+ * key's entry is walked at most once (at most `DAY_OBS_MAX_SPECIES` records)
+ * however often `order` repeats it (security M1: recorded only once admitted,
+ * a repeated rejected key was quadratic, measured 2.8 s at 565 KB); and one
+ * O(n log n) eviction pass.
+ */
+export async function mergeSharedSnapshot(text: string, gen: number): Promise<{ admitted: number; changed: boolean }> {
+  const none = { admitted: 0, changed: false }
+  if (gen !== _purgeGeneration) return none
+  const store = await ensureLoaded()
+  if (gen !== _purgeGeneration || store !== _store) return none
+  let doc: unknown
+  try {
+    doc = JSON.parse(text)
+  } catch {
+    return none
+  }
+  if (typeof doc !== 'object' || doc === null || Array.isArray(doc)) return none
+  const d = doc as { version?: unknown; entries?: unknown; order?: unknown }
+  if (d.version !== STORE_VERSION) return none
+  if (typeof d.entries !== 'object' || d.entries === null || Array.isArray(d.entries)) return none
+  const raw = d.entries as Record<string, unknown>
+  const keys: readonly unknown[] = Array.isArray(d.order) ? d.order : Object.keys(raw)
+  const seen = new Set<string>()
+  let admitted = 0
+  let taken = 0
+  for (const key of keys) {
+    if (admitted >= DAY_OBS_MAX_ENTRIES) break
+    if (typeof key !== 'string' || !KEY_RE.test(key) || seen.has(key)) continue
+    // Recorded at FIRST sight, before the verdict (security M1): recorded only
+    // once admitted, a key repeated in `order` whose entry fails re-paid the
+    // whole validation per repetition, quadratic in the snapshot.
+    seen.add(key)
+    const date = dateOf(key)
+    if (!isValidDayObsDate(date) || !Object.hasOwn(raw, key)) continue
+    const peer = validEntry(raw[key], date)
+    if (!peer) continue
+    admitted += 1
+    const local = Object.hasOwn(store.entries, key) ? store.entries[key] : undefined
+    const take = local === undefined
+      || (peer.complete && !local.complete)
+      || (peer.complete === local.complete && peer.fetchedAt > local.fetchedAt)
+    if (!take) continue
+    insertEntry(store, key, peer)
+    taken += 1
+  }
+  if (taken === 0) return { admitted, changed: false }
+  evict(store, null, Date.now())
+  scheduleWrite(store)
+  return { admitted, changed: true }
 }
 
 // ── Clear-path teardown (clear-means-clear) ──────────────────────────────────
@@ -527,11 +765,18 @@ function scheduleWrite(store: DayObsStore): void {
  */
 export async function purgeCountyDayObsStore(): Promise<void> {
   if (_writeTimer) { clearTimeout(_writeTimer); _writeTimer = null }
+  _pendingFlush = null
   _inflight.clear()
   _purgeGeneration += 1
   _store = EMPTY_STORE()
   _totalBytes = 0
   await writeThrough(() => storage.deleteCountyDayObsStore())
+}
+
+/** The purge generation, for a caller whose fetch chokepoint is outside this
+ *  module: read BEFORE the request, handed back to `mergeSharedSnapshot`. */
+export function dayObsPurgeGeneration(): number {
+  return _purgeGeneration
 }
 
 /** Test seam: deterministic work performed since the last reset. */
@@ -544,6 +789,7 @@ export function _getCountyDayObsCacheWorkStatsForTests(): Readonly<CountyDayObsC
  *  latch and both budgets, so each test starts from disk-empty. */
 export function _resetCountyDayObsCacheForTests(): void {
   if (_writeTimer) { clearTimeout(_writeTimer); _writeTimer = null }
+  _pendingFlush = null
   _store = null
   _loading = null
   _totalBytes = 0

@@ -93,16 +93,28 @@ export interface ReplayStore {
 // `ebird` / `ml`: `TauriStorage.readMeta` rewrites `metadata.json` as exactly
 // `{ ebird, ml }` on every link, so an entry stored there would be erased by
 // the next backup upload, clear or iCloud arrival; and widening the slot union
-// would reach every iCloud `SLOTS` loop, the opposite of "never synced". So the
-// files live in their own directory under their own manifest, on their own
-// chain key, behind their own four methods. Nothing derived is stored (FR-39):
-// year range, month range and frequencies are re-derived from the file on
-// load, so deleting the file is its whole teardown.
+// would reach every iCloud `SLOTS` loop. So the files live in their own
+// directory under their own manifest, on their own chain key, behind their own
+// methods. Nothing derived is stored (FR-39): year range, month range and
+// frequencies are re-derived from the file on load, so deleting the file is
+// its whole teardown.
+//
+// icloud-bar-chart-sync: on macOS and iOS the family is synced as a set of
+// per-county items (not a third slot: see lib/icloud/countySync.ts), so an
+// entry also carries the device the current file came from and, after a
+// check replaced it with another device's, when that happened. Both fields are
+// optional and backward compatible: an entry written before 1.0.40 has
+// neither and reads as a file from this device.
 
 export interface BarChartFileMeta {
   filename: string;
   /** ISO-8601 UTC, as the two data-file slots record it. */
   uploadedAt: string;
+  /** Which device uploaded the current file (icloud-bar-chart-sync FR-07). */
+  origin?: FileOrigin;
+  /** Set only by a synced pull that REPLACED a local file (FR-17); a user
+   *  add, replace or remove writes the entry whole and so clears it. */
+  replacedBySyncAt?: string;
 }
 
 export interface BarChartFilesStatus {
@@ -120,6 +132,10 @@ export interface BarChartFilesStatus {
 // imported rather than restated, because both writers must refuse exactly the
 // names this reader drops.
 const BARCHART_UPLOADED_AT_MAX = 40;
+// A device label is displayed on the Targets tab's sync line, so it is bounded
+// on read like the filename (the record validator's own label bound, UTF-16
+// code units).
+const BARCHART_ORIGIN_LABEL_MAX = 64;
 
 /**
  * Normalize a persisted bar-chart manifest. Keeps an entry only when its key is
@@ -144,12 +160,34 @@ export function normalizeBarChartManifest(raw: unknown): BarChartFilesStatus {
     if (!REGION_CODE_RE.test(key) || !Object.hasOwn(rec, key)) continue;
     const entry = rec[key];
     if (!entry || typeof entry !== 'object') continue;
-    const { filename, uploadedAt } = entry as { filename?: unknown; uploadedAt?: unknown };
+    const { filename, uploadedAt, origin, replacedBySyncAt } = entry as {
+      filename?: unknown; uploadedAt?: unknown; origin?: unknown; replacedBySyncAt?: unknown;
+    };
     if (typeof filename !== 'string' || filename.length > BARCHART_FILENAME_MAX) continue;
     if (typeof uploadedAt !== 'string' || uploadedAt.length > BARCHART_UPLOADED_AT_MAX) continue;
-    out.counties[key] = { filename, uploadedAt };
+    const kept: BarChartFileMeta = { filename, uploadedAt };
+    // icloud-bar-chart-sync (FR-07): the two optional fields are DROPPED when
+    // malformed and the entry is kept, never thrown on. The origin passes the
+    // same guard `metadata.json`'s does (a 32-hex id, a known platform), plus a
+    // label bound, because its id can name a staging file natively.
+    const o = normalizeKeyOrigin(origin);
+    if (o && o.label.length <= BARCHART_ORIGIN_LABEL_MAX) kept.origin = o;
+    if (typeof replacedBySyncAt === 'string' && replacedBySyncAt.length <= BARCHART_UPLOADED_AT_MAX) {
+      kept.replacedBySyncAt = replacedBySyncAt;
+    }
+    out.counties[key] = kept;
   }
   return out;
+}
+
+/** The entry a sync link is about to write, run through the manifest's own
+ *  reader first (the write-chokepoint rule, v1.0.5): an entry the reader would
+ *  drop is refused before any file is written, so a synced arrival can never
+ *  leave a file on disk under an entry that reads back as absent. */
+function assertReadableBarChartEntry(regionCode: string, entry: BarChartFileMeta): BarChartFileMeta {
+  const probe = normalizeBarChartManifest({ version: 1, counties: { [regionCode]: entry } });
+  if (!Object.hasOwn(probe.counties, regionCode)) throw new Error('Bar-chart entry is out of bounds.');
+  return probe.counties[regionCode];
 }
 
 /** A region code about to become a path segment or a URL segment. Refused
@@ -241,10 +279,34 @@ export interface StorageAdapter {
   // null = absent or unreadable, the readFile contract.
   readBarChartFile(regionCode: string): Promise<string | null>;
   // Add and Replace are the same call: the file and its manifest entry are
-  // overwritten together.
-  writeBarChartFile(regionCode: string, content: string, filename: string): Promise<void>;
+  // overwritten together. `origin` (icloud-bar-chart-sync): written into the
+  // entry when given (an add with sync on passes this device), never
+  // `replacedBySyncAt`; web/Pi ignores it.
+  writeBarChartFile(regionCode: string, content: string, filename: string, origin?: FileOrigin): Promise<void>;
   // Idempotent: an absent file is already the state asked for.
   deleteBarChartFile(regionCode: string): Promise<void>;
+  // Every saved bar-chart file on this device, in one link (the Settings
+  // clear-all, icloud-bar-chart-sync FR-21/FR-22). Never rejects on a
+  // per-file failure: the manifest is rewritten to describe exactly the files
+  // still present, and both lists come back.
+  deleteAllBarChartFiles(): Promise<{ removed: string[]; failed: string[] }>;
+
+  // ── iCloud Sync of the bar-chart files (icloud-bar-chart-sync; desktop + iOS) ──
+  // The file-slot links' shape on the bar-chart chain: each takes the county
+  // entry's `uploadedAt` the decision was made against and returns false,
+  // touching nothing, when the entry has changed since (a user add or remove
+  // landed; the user wins and the next check pushes it). Web/Pi rejects them.
+  applySyncedBarChartFile(
+    regionCode: string,
+    entry: BarChartFileMeta,
+    expectLocalUploadedAt: string | null,
+    materialize: () => Promise<void>,
+  ): Promise<boolean>;
+  applySyncedBarChartClear(regionCode: string, expectLocalUploadedAt: string): Promise<boolean>;
+  // After a push: record the origin when the entry has none, and rewrite
+  // `uploadedAt` when the push had to carry a different time (FR-04), so the
+  // local entry equals the shared record and the next check is `none`.
+  stampBarChartOrigin(regionCode: string, origin: FileOrigin, uploadedAt: string, expectUploadedAt: string): Promise<boolean>;
 
   // ── The Targets tab's day cache (targets-tab, schema.md section 3.2) ──
   // Its OWN document, the replay store's shape: `data/county-day-obs.json` on
@@ -543,6 +605,32 @@ class WebStorage implements StorageAdapter {
     // answer here is a real failure and is raised.
     if (!res.ok) throw new Error(`File delete failed (${res.status})`);
   }
+
+  // The bulk route (icloud-bar-chart-sync): `DELETE /settings/barcharts`
+  // answers the codes it removed and the ones it could not. A non-OK answer is
+  // a real failure and is raised; the answer is read through the region-code
+  // shape, so a code that is not a county never reaches the caller's copy.
+  async deleteAllBarChartFiles(): Promise<{ removed: string[]; failed: string[] }> {
+    const res = await fetch('/settings/barcharts', { method: 'DELETE' });
+    if (!res.ok) throw new Error(`File delete failed (${res.status})`);
+    const body = await res.json() as { removed?: unknown; failed?: unknown };
+    const codes = (v: unknown): string[] => (Array.isArray(v) ? v.filter((c): c is string => typeof c === 'string' && REGION_CODE_RE.test(c)) : []);
+    return { removed: codes(body.removed), failed: codes(body.failed) };
+  }
+
+  // iCloud Sync never runs on web/Pi (the platform gate is false there), so
+  // these are unreachable; they reject rather than silently no-op.
+  applySyncedBarChartFile(): Promise<boolean> {
+    return Promise.reject(new Error('not supported'));
+  }
+
+  applySyncedBarChartClear(): Promise<boolean> {
+    return Promise.reject(new Error('not supported'));
+  }
+
+  stampBarChartOrigin(): Promise<boolean> {
+    return Promise.reject(new Error('not supported'));
+  }
 }
 
 // All persistent Tauri data lives in AppLocalData/data/:
@@ -569,8 +657,8 @@ const FILE_PATHS: Record<'ebird' | 'ml', string> = {
 
 // eBird bar-chart files (targets-tab, schema.md section 1.2): one text file
 // per county, named by its validated region code, plus the manifest that lists
-// them. Exported for the iCloud exclusion guard (icloudPaths.parity.test.ts),
-// which asserts neither is ever one of the synced paths.
+// them. Exported for the iCloud parity guard (icloudPaths.parity.test.ts),
+// which pins the local directory to the one the native item commands use.
 export const BARCHARTS_META_PATH = `${DATA_DIR}/barcharts.json`;
 export const BARCHARTS_DIR = `${DATA_DIR}/barcharts`;
 const barChartFilePath = (regionCode: string) => `${BARCHARTS_DIR}/${regionCode}.txt`;
@@ -583,7 +671,8 @@ const REPLAY_PATH = `${DATA_DIR}/replay.json`;
 // file, as replay.json is, so a 10 MB document is never rewritten by a
 // preference save. A non-dotted name under data/, deliberately INSIDE the
 // webview's `$APPLOCALDATA/**` fs grant (security.md's leading-dot rule is for
-// native-side documents). Exported for the iCloud exclusion guard.
+// native-side documents). Exported for the iCloud parity guard, which pins it
+// to the file the native day-obs push reads (icloud-bar-chart-sync).
 export const COUNTY_DAY_OBS_PATH = `${DATA_DIR}/county-day-obs.json`;
 const styleFilePath = (variant: string) => `${STYLE_DIR}/${variant}.json`;
 
@@ -1146,7 +1235,7 @@ class TauriStorage implements StorageAdapter {
     }
   }
 
-  async writeBarChartFile(regionCode: string, content: string, filename: string): Promise<void> {
+  async writeBarChartFile(regionCode: string, content: string, filename: string, origin?: FileOrigin): Promise<void> {
     assertRegionCode(regionCode);
     // The write chokepoint refuses what the manifest reader would drop, before
     // anything is written: a longer name would store a file under an entry that
@@ -1157,7 +1246,11 @@ class TauriStorage implements StorageAdapter {
       await mkdir(BARCHARTS_DIR, { baseDir: BaseDirectory.AppLocalData, recursive: true });
       await writeTextFile(barChartFilePath(regionCode), content, { baseDir: BaseDirectory.AppLocalData });
       const manifest = await this.readBarChartManifestForWrite();
-      manifest.counties[regionCode] = { filename, uploadedAt: new Date().toISOString() };
+      // A user action writes a fresh entry: `origin` when sync supplied one,
+      // and never `replacedBySyncAt` (this is what clears FR-17's line).
+      manifest.counties[regionCode] = origin
+        ? { filename, uploadedAt: new Date().toISOString(), origin }
+        : { filename, uploadedAt: new Date().toISOString() };
       await this.writeJson(BARCHARTS_META_PATH, manifest as unknown as Record<string, unknown>);
     });
   }
@@ -1175,6 +1268,107 @@ class TauriStorage implements StorageAdapter {
       const manifest = await this.readBarChartManifestForWrite();
       delete manifest.counties[regionCode];
       await this.writeJson(BARCHARTS_META_PATH, manifest as unknown as Record<string, unknown>);
+    });
+  }
+
+  // Unchained county-file removal for use INSIDE a link (rule 1). Resolves
+  // true when the file is gone afterwards (removed now, or absent already) and
+  // false when it could not be removed and is still there.
+  private async removeBarChartFileUnchained(regionCode: string): Promise<boolean> {
+    const { remove, exists, BaseDirectory } = await this.fs();
+    const path = barChartFilePath(regionCode);
+    try {
+      if (await exists(path, { baseDir: BaseDirectory.AppLocalData })) {
+        await remove(path, { baseDir: BaseDirectory.AppLocalData });
+      }
+      return true;
+    } catch {
+      try {
+        return !await exists(path, { baseDir: BaseDirectory.AppLocalData });
+      } catch {
+        return false; // cannot prove it is gone: it stays listed
+      }
+    }
+  }
+
+  // One link over the whole family (icloud-bar-chart-sync FR-21, FR-22): every
+  // county's file is removed, and the manifest is rewritten to EXACTLY the
+  // counties whose file could not be removed and is still present, so no
+  // county is listed with its file gone and none is present unlisted after the
+  // link settles. A per-file failure never rejects the link.
+  async deleteAllBarChartFiles(): Promise<{ removed: string[]; failed: string[] }> {
+    return this.chain(BARCHARTS_META_PATH, async () => {
+      const manifest = await this.readBarChartManifestForWrite();
+      const removed: string[] = [];
+      const failed: string[] = [];
+      const survivors = normalizeBarChartManifest(null);
+      for (const code of Object.keys(manifest.counties)) {
+        if (await this.removeBarChartFileUnchained(code)) {
+          removed.push(code);
+        } else {
+          failed.push(code);
+          survivors.counties[code] = manifest.counties[code];
+        }
+      }
+      await this.writeJson(BARCHARTS_META_PATH, survivors as unknown as Record<string, unknown>);
+      return { removed, failed };
+    });
+  }
+
+  // ── iCloud Sync links for the bar-chart files (icloud-bar-chart-sync) ──
+  // `applySyncedFile` / `applySyncedClear` / `stampFileOrigin` line for line on
+  // the BARCHARTS_META_PATH chain. `materialize` is the native pull (the file's
+  // bytes never cross IPC), not a chained op, so rule 1 holds; a failed link
+  // rejects only its caller (rule 2). The heal-to-empty read inside a write is
+  // inherited (see readBarChartManifestForWrite).
+
+  async applySyncedBarChartFile(
+    regionCode: string,
+    entry: BarChartFileMeta,
+    expectLocalUploadedAt: string | null,
+    materialize: () => Promise<void>,
+  ): Promise<boolean> {
+    assertRegionCode(regionCode);
+    const kept = assertReadableBarChartEntry(regionCode, entry);
+    return this.chain(BARCHARTS_META_PATH, async () => {
+      const before = await this.readBarChartManifestForWrite();
+      const cur = Object.hasOwn(before.counties, regionCode) ? before.counties[regionCode] : undefined;
+      if ((cur?.uploadedAt ?? null) !== expectLocalUploadedAt) return false;
+      await materialize();
+      const manifest = await this.readBarChartManifestForWrite();
+      manifest.counties[regionCode] = kept;
+      await this.writeJson(BARCHARTS_META_PATH, manifest as unknown as Record<string, unknown>);
+      return true;
+    });
+  }
+
+  async applySyncedBarChartClear(regionCode: string, expectLocalUploadedAt: string): Promise<boolean> {
+    assertRegionCode(regionCode);
+    return this.chain(BARCHARTS_META_PATH, async () => {
+      const before = await this.readBarChartManifestForWrite();
+      const cur = Object.hasOwn(before.counties, regionCode) ? before.counties[regionCode] : undefined;
+      if ((cur?.uploadedAt ?? null) !== expectLocalUploadedAt) return false;
+      // Best-effort, as deleteBarChartFile: the entry goes either way.
+      await this.removeBarChartFileUnchained(regionCode);
+      const manifest = await this.readBarChartManifestForWrite();
+      delete manifest.counties[regionCode];
+      await this.writeJson(BARCHARTS_META_PATH, manifest as unknown as Record<string, unknown>);
+      return true;
+    });
+  }
+
+  async stampBarChartOrigin(regionCode: string, origin: FileOrigin, uploadedAt: string, expectUploadedAt: string): Promise<boolean> {
+    assertRegionCode(regionCode);
+    return this.chain(BARCHARTS_META_PATH, async () => {
+      const manifest = await this.readBarChartManifestForWrite();
+      const cur = Object.hasOwn(manifest.counties, regionCode) ? manifest.counties[regionCode] : undefined;
+      if (!cur || cur.uploadedAt !== expectUploadedAt) return false;
+      const next: BarChartFileMeta = { ...cur, uploadedAt };
+      if (!cur.origin) next.origin = origin;
+      if (next.uploadedAt === cur.uploadedAt && cur.origin) return false; // nothing to record
+      manifest.counties[regionCode] = assertReadableBarChartEntry(regionCode, next);
+      await this.writeJson(BARCHARTS_META_PATH, manifest as unknown as Record<string, unknown>);
+      return true;
     });
   }
 }

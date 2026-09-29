@@ -1,0 +1,547 @@
+diff --git a/appstore/LISTING.md b/appstore/LISTING.md
+--- a/appstore/LISTING.md
++++ b/appstore/LISTING.md
+@@ -70,7 +70,7 @@
+ 
+ PRIVACY
+ 
+-Private by default, and in your control: no account, no analytics, no telemetry, no server we run. Your eBird backup, Macaulay Library export and API keys are stored only on your device unless you turn on iCloud syncing between your devices, and anything you sync goes to your own iCloud account and nowhere else. When you ask for live data, the app talks directly to the service that has it, using your own free API keys where one is needed. The full privacy policy is at snowraven.dtgibson.com/privacy.html.
++Private by default, and in your control: no account, no analytics, no telemetry, no server we run. Your eBird backup, Macaulay Library export, eBird bar-chart files and API keys are stored only on your device unless you turn on iCloud syncing between your devices, and anything you sync goes to your own iCloud account and nowhere else. When you ask for live data, the app talks directly to the service that has it, using your own free API keys where one is needed. The full privacy policy is at snowraven.dtgibson.com/privacy.html.
+ 
+ WHAT YOU'LL NEED
+ 
+@@ -189,17 +189,22 @@
+   nothing about the user beyond what any request carries (IP address), goes
+   device-to-Cornell in the apps, and is disabled entirely by the Disable
+   embedded media setting.
+-- **iCloud Sync (v1.0.11):** an opt-in, off-by-default toggle on Mac, iPhone
+-  and iPad that copies the user's two data files (and a small record naming
+-  each file, its upload time, and a random per-device id with the device's
+-  name) into an iCloud container tied to the user's own Apple ID, so the
+-  user's other devices can pick them up. It is device-to-Apple, under the
++- **iCloud Sync (v1.0.11; bar-chart files and the Targets day lists from
++  v1.0.40):** an opt-in, off-by-default toggle on Mac, iPhone and iPad that
++  copies the user's data files (the eBird backup, the Macaulay Library export
++  and any eBird bar-chart files added on the Targets tab, each with a small
++  record naming the file, its upload time, and a random per-device id with the
++  device's name) into an iCloud container tied to the user's own Apple ID, so
++  the user's other devices can pick them up. It is device-to-Apple, under the
+   user's account, initiated by the user, and the developer has no server and
+   no access to the container: nothing reaches the developer, so "Data Not
+   Collected" holds. It is sync between the user's own devices, distinct from
+   the iOS device backup, and the privacy policy describes it on its own terms
+   (what is stored, whose account, that the developer never sees it, how to
+-  remove it). Settings and caches are never written to it.
++  remove it). Settings are never written to it. The one cache that is: the
++  Targets tab's per-day lists of species eBird reported in a county, one copy
++  per device, so the user's other devices do not repeat those eBird requests;
++  they hold no user sightings.
+ - **iCloud API key sync (v1.0.12):** a second opt-in, off-by-default switch
+   inside the same iCloud Sync section, available only while file sync is on,
+   that writes the user's two API keys (each with its change time and the
+diff --git a/frontend/src/lib/privacyPageParity.test.ts b/frontend/src/lib/privacyPageParity.test.ts
+--- a/frontend/src/lib/privacyPageParity.test.ts
++++ b/frontend/src/lib/privacyPageParity.test.ts
+@@ -92,7 +92,7 @@
+     const md = section(policy, /^## iCloud Sync$/m, /^## /m)
+     const html = section(page, /<h2 id="icloud-sync">/, /<h2 /)
+     for (const text of [md, html]) {
+-      expect(text).toMatch(/eBird backup and your Macaulay Library export/) // what is stored
++      expect(text).toMatch(/your eBird backup, your Macaulay Library export and each county's eBird bar-chart file/) // what is stored
+       expect(text).toMatch(/your own iCloud account/) // whose account
+       expect(text).toMatch(/developer has no way to see/) // developer never sees it
+       expect(text).toMatch(/Remove synced files from iCloud/) // how to remove
+diff --git a/frontend/src/lib/targetsPublishedClaims.test.ts b/frontend/src/lib/targetsPublishedClaims.test.ts
+--- a/frontend/src/lib/targetsPublishedClaims.test.ts
++++ b/frontend/src/lib/targetsPublishedClaims.test.ts
+@@ -280,16 +280,28 @@
+     expect(ebird).toContain("used by the map's county Completeness shading and by the Targets tab")
+   })
+ 
+-  it('says the bar-chart file stays on the device and is not synced', () => {
++  // icloud-bar-chart-sync (item 36): the retired "is stored only on your
++  // device ... and is not part of iCloud Sync" clause was made false by the
++  // sync, so the sub-bullet now says what the file is read for, then where it
++  // is kept. Two sentences, so the second is found by its own opener.
++  it('says the bar-chart file is read only for its county, and is copied to your own iCloud account with sync on (item 36)', () => {
+     const clause = clauseWith(ebird, 'An eBird bar-chart file you add on the Targets tab')
+     expect(clause, 'the bar-chart sub-bullet is present').not.toBe('')
+-    expect(clause).toContain('is stored only on your device')
+-    expect(clause).toContain('is not part of iCloud Sync')
++    expect(clause).toContain("is read only to show eBird's frequencies for its county.")
++    const kept = clauseWith(ebird, 'It is stored on your device, and on a Mac, iPhone or iPad with iCloud Sync on')
++    expect(kept, 'the where-it-is-kept sentence is present').not.toBe('')
++    expect(kept).toContain('it is copied to your own iCloud account along with your other synced files')
++    expect(ebird).not.toContain('is not part of iCloud Sync')
++    expect(ebird).not.toContain('is stored only on your device, is read only')
+   })
+ 
+-  it('lists the day-by-day reports among what clearing the eBird backup removes', () => {
+-    expect(clearing).toContain("the day-by-day eBird reports behind the Targets tab's live counts")
++  it('lists the day-by-day reports among what clearing the eBird backup removes, and every device\'s copy with sync on (item 35)', () => {
++    expect(clearing).toContain("the day-by-day eBird reports behind the Targets tab's live counts (and, with iCloud Sync on, every device's copy of them in iCloud)")
+   })
++
++  it('names the Targets tab as the other place a single county\'s file is removed (item 35, D3)', () => {
++    expect(clearing).toContain("at any time from the Settings tab (a single county's bar-chart file, also from the Targets tab), or by removing the app's data directory")
++  })
+ })
+ 
+ describe('the privacy claims are true of the shipped code', () => {
+@@ -308,10 +320,30 @@
+     expect(mounters).toEqual(['components/targets/Targets.tsx'])
+   })
+ 
+-  it('"not part of iCloud Sync": the synced slots are the two data files and nothing else', () => {
++  it('"copied to your own iCloud account ... with iCloud Sync on": each county\'s file is a synced KIND beside the two slots, on Apple builds only', () => {
++    // The two slots are unchanged; the bar-chart files sync as their own kind,
++    // one item per county under `barcharts/`, and the day lists as `day-obs/`.
+     expect([...SLOTS]).toEqual(['ebird', 'ml'])
++    const native = sources.find(f => f.name === 'lib/icloud/icloudNative.ts')!.text
++    expect(native).toMatch(/barchart:\s*'barcharts'/)
++    expect(native).toMatch(/'day-obs':\s*'day-obs'/)
++    // The controller runs the county pass and the day pass inside its check.
++    const ctrl = sources.find(f => f.name === 'lib/icloud/icloudSync.ts')!.text
++    expect(ctrl).toContain('runCountyPass(')
++    expect(ctrl).toContain('runDayObsPass(')
++    // "on a Mac, iPhone or iPad": the only gate the Settings and Targets surfaces use.
++    const gates = sources.find(f => f.name === 'lib/platformGates.ts')!.text
++    expect(gates).toMatch(/export function showICloudSync\(\): boolean \{\s*return isTauri\(\) && \(isIOS\(\) \|\| isMacOS\(\)\);/)
++    expect(sources.find(f => f.name === 'components/targets/TargetsBarChartFile.tsx')!.text).toContain('showICloudSync()')
+   })
+ 
++  it('"every device\'s copy of them in iCloud": clearing the eBird backup with sync on removes every day-list snapshot', () => {
++    const ctrl = sources.find(f => f.name === 'lib/icloud/icloudSync.ts')!.text
++    const clear = ctrl.slice(ctrl.indexOf('async function clearWithSync('))
++    // A nested function: it ends at the first two-space-indented closing brace.
++    expect(clear.slice(0, clear.indexOf('\n  }\n'))).toContain("removeItems('day-obs')")
++  })
++
+   it('"clearing your eBird backup also removes ... the day-by-day eBird reports": the day cache is registered with the clear', () => {
+     expect(registeredTeardowns('ebird')).toContain('county-day-obs.json')
+   })
+@@ -357,8 +389,9 @@
+     expect(files).toContain('the files you upload (your eBird backup and Macaulay Library export, and any eBird bar-chart files you add on the Targets tab)')
+   })
+ 
+-  it('G: the iCloud clause names the two data files it copies, and only those', () => {
+-    expect(files).toContain('which copies the two data files (your eBird backup and Macaulay Library export)')
++  it('G: the iCloud clause names the data files it copies, the bar-chart files included (item 34)', () => {
++    expect(files).toContain('which copies your data files (your eBird backup, your Macaulay Library export and any eBird bar-chart files you have added), and your API keys only if')
++    expect(files).not.toContain('the two data files')
+   })
+ 
+   it('E: the Targets tab\'s location control is listed by its on-screen name, with what the coordinates are used for', () => {
+@@ -372,8 +405,10 @@
+ describe('D, E and G are true of the shipped code', () => {
+   const sources = sourceFiles(SRC_ROOT)
+ 
+-  it('G: "the two data files (your eBird backup and Macaulay Library export)" are exactly the synced slots', () => {
++  it('G: "your data files (... any eBird bar-chart files you have added)" are exactly the two slots and the bar-chart kind', () => {
+     expect([...SLOTS]).toEqual(['ebird', 'ml'])
++    const types = sources.find(f => f.name === 'lib/icloud/icloudNativeTypes.ts')!.text
++    expect(types).toMatch(/export type ItemKind = 'barchart' \| 'day-obs'/)
+   })
+ 
+   it('E: the Targets distance anchor reads the location on the device and sends nothing', () => {
+@@ -411,8 +446,14 @@
+     expect(LOCATION_HTML).toBe(LOCATION_MD)
+   })
+ 
+-  it('F: both carry the same effective date, in the policy\'s own format', () => {
+-    expect(EFFECTIVE_MD).toMatch(/^[A-Z][a-z]+ \d{1,2}, \d{4}$/)
++  // icloud-bar-chart-sync (item 40): this patch is HELD until the ship, and the
++  // effective date is the ship date, so the patch carries ONE marked
++  // placeholder the ship fills in both files. This row accepts exactly that
++  // placeholder or a real date, and still requires the two files to agree.
++  // FILL THE DATE AT SHIP and delete SHIP_DATE_PLACEHOLDER from this row.
++  const SHIP_DATE_PLACEHOLDER = '[SHIP-DATE: set to the ship date, "Month D, YYYY", identical in PRIVACY_POLICY.md and website/privacy.html]'
++  it('F: both carry the same effective date, in the policy\'s own format (or the one held-patch placeholder)', () => {
++    expect(EFFECTIVE_MD === SHIP_DATE_PLACEHOLDER || /^[A-Z][a-z]+ \d{1,2}, \d{4}$/.test(EFFECTIVE_MD), EFFECTIVE_MD).toBe(true)
+     expect(EFFECTIVE_HTML).toBe(EFFECTIVE_MD)
+   })
+ })
+diff --git a/PRIVACY_POLICY.md b/PRIVACY_POLICY.md
+--- a/PRIVACY_POLICY.md
++++ b/PRIVACY_POLICY.md
+@@ -1,6 +1,6 @@
+ # SnowRaven Privacy Policy
+ 
+-**Effective date:** September 27, 2026
++**Effective date:** [SHIP-DATE: set to the ship date, "Month D, YYYY", identical in PRIVACY_POLICY.md and website/privacy.html]
+ 
+ ## Overview
+ 
+@@ -10,10 +10,10 @@
+ 
+ SnowRaven keeps your data on your own device by choice and design. You keep it, and you control it.
+ 
+-- Your API keys, app settings, and the files you upload (your eBird backup and Macaulay Library export, and any eBird bar-chart files you add on the Targets tab) are stored only on your device (in the desktop app's local data directory, or in the iOS app's on-device sandbox on iPhone and iPad, together with the small copy its home-screen widgets read, described in the iOS App section below), or on your own machine when you self-host the web/Pi version, unless you turn on the optional iCloud Sync on a Mac, iPhone or iPad, which copies the two data files (your eBird backup and Macaulay Library export), and your API keys only if you also turn on its separate Sync API keys switch, into your own iCloud account and nowhere else (see the iCloud Sync section below). They are never uploaded to the developer or to any service the developer runs.
++- Your API keys, app settings, and the files you upload (your eBird backup and Macaulay Library export, and any eBird bar-chart files you add on the Targets tab) are stored only on your device (in the desktop app's local data directory, or in the iOS app's on-device sandbox on iPhone and iPad, together with the small copy its home-screen widgets read, described in the iOS App section below), or on your own machine when you self-host the web/Pi version, unless you turn on the optional iCloud Sync on a Mac, iPhone or iPad, which copies your data files (your eBird backup, your Macaulay Library export and any eBird bar-chart files you have added), and your API keys only if you also turn on its separate Sync API keys switch, into your own iCloud account and nowhere else (see the iCloud Sync section below). They are never uploaded to the developer or to any service the developer runs.
+ - All processing of your eBird and media files happens locally, on your own device.
+ - There is no SnowRaven account, no login, and no SnowRaven-operated server sitting between you and your data.
+-- You can delete your stored files and keys at any time from the Settings tab, or by removing the app's data directory. Clearing your eBird backup also removes what was worked out from it and saved on your device: the escapee and Projects answers for your checklists, the county species lists behind the map's Completeness shading, the day-by-day eBird reports behind the Targets tab's live counts, the saved weather and tide readings for your checklists, and, on iPhone and iPad, the list of your species that the home-screen widgets compare against. Replacing a file with a newer export keeps those saved answers, which is what lets a newer export ask only about the checklists that have not been answered yet.
++- You can delete your stored files and keys at any time from the Settings tab (a single county's bar-chart file, also from the Targets tab), or by removing the app's data directory. Clearing your eBird backup also removes what was worked out from it and saved on your device: the escapee and Projects answers for your checklists, the county species lists behind the map's Completeness shading, the day-by-day eBird reports behind the Targets tab's live counts (and, with iCloud Sync on, every device's copy of them in iCloud), the saved weather and tide readings for your checklists, and, on iPhone and iPad, the list of your species that the home-screen widgets compare against. Replacing a file with a newer export keeps those saved answers, which is what lets a newer export ask only about the checklists that have not been answered yet.
+ 
+ ## No Data Collection
+ 
+@@ -29,7 +29,7 @@
+ SnowRaven's job is to fetch birding and weather information for you, so the app does make requests to a few outside services, using your own API keys, and only to get the data you ask for, which includes the nearby sightings a home-screen widget you placed shows. These requests go directly from your device (or your own self-hosted server) to the provider. There is no SnowRaven server in the middle, and nothing is logged or retained by the developer.
+ 
+ - **eBird**: to look up checklist details, hotspots, recent nearby sightings (including, on iPhone and iPad, the same kind of nearby-sightings request made by a Nearby Lifers or Media Targets home-screen widget each time it refreshes, described under Your Location, and, when you turn on the map's Recent activity hotspot coloring, the recent community sightings at each public hotspot in your current search, one request per hotspot, bounded and cached on your device for six hours), region info (including the species list ever reported for a county region, used by the map's county Completeness shading and by the Targets tab), a per-day list of the species reported in a county over the last 30 days, when you open the Targets tab (the answers are kept on your device, so a return visit asks again only about days whose answer was not yet final: the current day, an earlier day that was still in progress when it was last asked, and any day with no answer kept on your device), and species taxonomy. Uses your own eBird API key. See [eBird's terms](https://www.birds.cornell.edu/home/ebird-api-terms-of-use/).
+-  - An eBird bar-chart file you add on the Targets tab, which you download yourself from ebird.org, is stored only on your device, is read only to show eBird's frequencies for its county, and is not part of iCloud Sync.
++  - An eBird bar-chart file you add on the Targets tab, which you download yourself from ebird.org, is read only to show eBird's frequencies for its county. It is stored on your device, and on a Mac, iPhone or iPad with iCloud Sync on it is copied to your own iCloud account along with your other synced files (see the iCloud Sync section below).
+   - The Statistics tab also asks eBird about a set of your own checklists, in order to find out which of your birds eBird tags as exotic escapees. It sends only your own checklist IDs, and only a small covering subset of them (73 on a 21,000-observation export, worked out on your device before anything is sent), not your whole history. The answer is stored on your device for 30 days, so returning to the tab does not repeat the requests. If you have no eBird key or no connection, nothing is sent and the tab says so. What is new here is that a figure summarizing your own history now depends on a lookup: the Statistics tab's displayed numbers were previously worked out on your device. The tab itself has always made requests, which is a different thing, and worth stating plainly on this page: it matches your species names against the bird taxonomy, and it asks eBird which locations in the regions you have birded are public hotspots. The name matching happens against a copy of the taxonomy the app already holds, so your species list is not sent to eBird. Other parts of the app already show numbers that come from eBird, such as a county's completeness percentage on the map and a hotspot's species count. The Statistics tab's Projects section makes one further request per checklist, to find out which eBird projects your checklists were submitted to. It sends only your own checklist IDs, and only after you press one of that section's own controls: it is never started automatically, on tab open, or on relaunch. The answers are stored on your device, so stopping, quitting, or loading a newer export asks only about checklists that have not been answered yet, and an answer already given is not re-checked for a year unless you press Check again, which re-asks about all of them. With no eBird key or no connection, nothing is sent and the section says so.
+ - **OpenWeather**: to fetch weather, either the historical weather for a checklist, or the current and forecast weather for a location and time you choose. Uses your own OpenWeather API key. See [OpenWeather's privacy policy](https://openweather.co.uk/privacy-policy).
+ - **Nominatim (OpenStreetMap)**: to turn a place name you type into map coordinates, and to look up the county for a set of coordinates. See the [OSM privacy policy](https://wiki.osmfoundation.org/wiki/Privacy_Policy).
+@@ -62,12 +62,12 @@
+ 
+ ## iCloud Sync
+ 
+-On the Mac, iPhone and iPad apps, SnowRaven can keep your two data files the same across your own devices through iCloud. This is off until you turn it on in Settings, and it is a different thing from the iOS device backup described above: it is sync between your own devices, under your own account.
++On the Mac, iPhone and iPad apps, SnowRaven can keep your data files (your eBird backup, your Macaulay Library export and any eBird bar-chart files you have added on the Targets tab) the same across your own devices through iCloud. This is off until you turn it on in Settings, and it is a different thing from the iOS device backup described above: it is sync between your own devices, under your own account.
+ 
+-- **What is stored in iCloud.** With iCloud Sync on, SnowRaven writes your eBird backup and your Macaulay Library export into an iCloud container that belongs to your Apple ID, together with a small record for each file: its name, when it was uploaded, its size and a checksum of its contents, and which device it came from (the device's name, its kind, and a random identifier the app makes up on that device, which is not a hardware or account identifier). Your API keys are written only while the separate **Sync API keys** switch, described next, is also on. Your app settings, map preferences and cached lookups stay on each device and are never synced.
++- **What is stored in iCloud.** With iCloud Sync on, SnowRaven writes your eBird backup, your Macaulay Library export and each county's eBird bar-chart file into an iCloud container that belongs to your Apple ID, together with a small record for each file: its name, when it was uploaded, its size and a checksum of its contents, and which device it came from (the device's name, its kind, and a random identifier the app makes up on that device, which is not a hardware or account identifier). Your API keys are written only while the separate **Sync API keys** switch, described next, is also on. Your app settings, map preferences and cached lookups stay on each device and are never synced, with one exception: the day-by-day lists of species that eBird reported in a county, which the Targets tab fetches with your key, are written into the same container as one copy per device, each holding the day lists that device has, whether it fetched them from eBird or took them from your other devices' copies (the county, the day, when the list was asked for and whether the day was over by then, the list's size, and each species eBird listed with the time and place of that report as eBird gives them), along with the same small record each file has, so your other devices do not repeat those requests. They hold nothing from your own files.
+ - **Sync API keys.** A second switch in the same section, off by default and available only while iCloud Sync is on, keeps your eBird and OpenWeather API keys the same across your own devices. With it on, SnowRaven writes one small record into the same private container holding, for each of the two keys, the key exactly as you entered it, when it was last changed, and which device changed it (the device's name, its kind, and the same random identifier). It goes only to your own iCloud account, and only your devices that also turn the switch on receive it. Apple encrypts the record in transit and at rest; it is end-to-end encrypted only if Advanced Data Protection is turned on for your iCloud account, and without it Apple's standard iCloud protection applies, the same as for your synced files. The developer has no way to see it. Turning the switch off leaves the keys on each device in place and removes the copy from iCloud, and **Remove synced keys from iCloud** deletes the copy at any time without touching any device.
+ - **Whose account.** The copies live only in your own iCloud account, on Apple's servers, and move only between devices signed in to that account. There is no SnowRaven server in the path, and the developer has no way to see, receive, or access what you sync. The container is private to the app and does not appear in iCloud Drive's file listing. Apple's handling of iCloud data is described in [Apple's privacy policy](https://www.apple.com/legal/privacy/).
+-- **Turning it off and removing the copies.** Switch iCloud Sync off at any time in Settings; the files on each device stay in place and keep working, and Sync API keys goes off with it. **Remove synced files from iCloud** in the same section deletes the file copies in your iCloud account without touching any device, and **Remove synced keys from iCloud** does the same for the key copy. Deleting the app or its data on one device does not by itself remove the copies in iCloud, so use those controls first if you want iCloud empty.
++- **Turning it off and removing the copies.** Switch iCloud Sync off at any time in Settings; the files on each device stay in place and keep working, and Sync API keys goes off with it. **Remove synced files from iCloud** in the same section deletes the file copies in your iCloud account, the bar-chart files and the day-by-day lists included, without touching any device, and **Remove synced keys from iCloud** does the same for the key copy. Deleting the app or its data on one device does not by itself remove the copies in iCloud, so use those controls first if you want iCloud empty.
+ 
+ ## Embedded Bird Media and Link Icons
+ 
+diff --git a/README.md b/README.md
+--- a/README.md
++++ b/README.md
+@@ -56,7 +56,7 @@
+ 
+ ## Privacy
+ 
+-Private by default, and in your control: no account, no analytics, no telemetry, no server we run. Your eBird backup, Macaulay Library export and API keys are stored only on your device unless you turn on iCloud syncing between your devices, and anything you sync goes to your own iCloud account and nowhere else. Details: [Privacy Policy](PRIVACY_POLICY.md) · [Accessibility statement](ACCESSIBILITY.md).
++Private by default, and in your control: no account, no analytics, no telemetry, no server we run. Your eBird backup, Macaulay Library export, eBird bar-chart files and API keys are stored only on your device unless you turn on iCloud syncing between your devices, and anything you sync goes to your own iCloud account and nowhere else. Details: [Privacy Policy](PRIVACY_POLICY.md) · [Accessibility statement](ACCESSIBILITY.md).
+ 
+ ## What you'll need
+ 
+diff --git a/website/index.html b/website/index.html
+--- a/website/index.html
++++ b/website/index.html
+@@ -124,7 +124,7 @@
+           <h2>Your data stays on your device</h2>
+           <p>
+             SnowRaven has no account, no analytics, no telemetry, and no server we run.
+-            Your eBird backup, Macaulay Library export and API keys are stored only on your device
++            Your eBird backup, Macaulay Library export, eBird bar-chart files and API keys are stored only on your device
+             unless you turn on iCloud syncing between your devices, and anything you sync
+             goes to your own iCloud account and nowhere else.
+           </p>
+diff --git a/website/privacy.html b/website/privacy.html
+--- a/website/privacy.html
++++ b/website/privacy.html
+@@ -81,7 +81,7 @@
+     <div class="pp-hero">
+       <p class="eyebrow"><span class="dot"></span>Privacy</p>
+       <h1>SnowRaven Privacy Policy</h1>
+-      <p class="pp-date"><strong>Effective date:</strong> September 27, 2026</p>
++      <p class="pp-date"><strong>Effective date:</strong> [SHIP-DATE: set to the ship date, "Month D, YYYY", identical in PRIVACY_POLICY.md and website/privacy.html]</p>
+     </div>
+ 
+     <!-- Lead band: the store label's claim, and what backs it, before the
+@@ -118,10 +118,10 @@
+       <h2 id="your-data-stays-on-your-device">Your Data Stays on Your Device</h2>
+       <p>SnowRaven keeps your data on your own device by choice and design. You keep it, and you control it.</p>
+       <ul>
+-        <li>Your API keys, app settings, and the files you upload (your eBird backup and Macaulay Library export, and any eBird bar-chart files you add on the Targets tab) are stored only on your device (in the desktop app's local data directory, or in the iOS app's on-device sandbox on iPhone and iPad, together with the small copy its home-screen widgets read, described in the iOS App section below), or on your own machine when you self-host the web/Pi version, unless you turn on the optional iCloud Sync on a Mac, iPhone or iPad, which copies the two data files (your eBird backup and Macaulay Library export), and your API keys only if you also turn on its separate Sync API keys switch, into your own iCloud account and nowhere else (see the iCloud Sync section below). They are never uploaded to the developer or to any service the developer runs.</li>
++        <li>Your API keys, app settings, and the files you upload (your eBird backup and Macaulay Library export, and any eBird bar-chart files you add on the Targets tab) are stored only on your device (in the desktop app's local data directory, or in the iOS app's on-device sandbox on iPhone and iPad, together with the small copy its home-screen widgets read, described in the iOS App section below), or on your own machine when you self-host the web/Pi version, unless you turn on the optional iCloud Sync on a Mac, iPhone or iPad, which copies your data files (your eBird backup, your Macaulay Library export and any eBird bar-chart files you have added), and your API keys only if you also turn on its separate Sync API keys switch, into your own iCloud account and nowhere else (see the iCloud Sync section below). They are never uploaded to the developer or to any service the developer runs.</li>
+         <li>All processing of your eBird and media files happens locally, on your own device.</li>
+         <li>There is no SnowRaven account, no login, and no SnowRaven-operated server sitting between you and your data.</li>
+-        <li>You can delete your stored files and keys at any time from the Settings tab, or by removing the app's data directory. Clearing your eBird backup also removes what was worked out from it and saved on your device: the escapee and Projects answers for your checklists, the county species lists behind the map's Completeness shading, the day-by-day eBird reports behind the Targets tab's live counts, the saved weather and tide readings for your checklists, and, on iPhone and iPad, the list of your species that the home-screen widgets compare against. Replacing a file with a newer export keeps those saved answers, which is what lets a newer export ask only about the checklists that have not been answered yet.</li>
++        <li>You can delete your stored files and keys at any time from the Settings tab (a single county's bar-chart file, also from the Targets tab), or by removing the app's data directory. Clearing your eBird backup also removes what was worked out from it and saved on your device: the escapee and Projects answers for your checklists, the county species lists behind the map's Completeness shading, the day-by-day eBird reports behind the Targets tab's live counts (and, with iCloud Sync on, every device's copy of them in iCloud), the saved weather and tide readings for your checklists, and, on iPhone and iPad, the list of your species that the home-screen widgets compare against. Replacing a file with a newer export keeps those saved answers, which is what lets a newer export ask only about the checklists that have not been answered yet.</li>
+       </ul>
+ 
+       <h2 id="no-data-collection">No Data Collection</h2>
+@@ -138,7 +138,7 @@
+       <ul>
+         <li><strong>eBird</strong>: to look up checklist details, hotspots, recent nearby sightings (including, on iPhone and iPad, the same kind of nearby-sightings request made by a Nearby Lifers or Media Targets home-screen widget each time it refreshes, described under Your Location, and, when you turn on the map's Recent activity hotspot coloring, the recent community sightings at each public hotspot in your current search, one request per hotspot, bounded and cached on your device for six hours), region info (including the species list ever reported for a county region, used by the map's county Completeness shading and by the Targets tab), a per-day list of the species reported in a county over the last 30 days, when you open the Targets tab (the answers are kept on your device, so a return visit asks again only about days whose answer was not yet final: the current day, an earlier day that was still in progress when it was last asked, and any day with no answer kept on your device), and species taxonomy. Uses your own eBird API key. See <a href="https://www.birds.cornell.edu/home/ebird-api-terms-of-use/" target="_blank" rel="noopener">eBird's terms</a>.
+           <ul>
+-            <li>An eBird bar-chart file you add on the Targets tab, which you download yourself from ebird.org, is stored only on your device, is read only to show eBird's frequencies for its county, and is not part of iCloud Sync.</li>
++            <li>An eBird bar-chart file you add on the Targets tab, which you download yourself from ebird.org, is read only to show eBird's frequencies for its county. It is stored on your device, and on a Mac, iPhone or iPad with iCloud Sync on it is copied to your own iCloud account along with your other synced files (see the iCloud Sync section below).</li>
+             <li>The Statistics tab also asks eBird about a set of your own checklists, in order to find out which of your birds eBird tags as exotic escapees. It sends only your own checklist IDs, and only a small covering subset of them (73 on a 21,000-observation export, worked out on your device before anything is sent), not your whole history. The answer is stored on your device for 30 days, so returning to the tab does not repeat the requests. If you have no eBird key or no connection, nothing is sent and the tab says so. What is new here is that a figure summarizing your own history now depends on a lookup: the Statistics tab's displayed numbers were previously worked out on your device. The tab itself has always made requests, which is a different thing, and worth stating plainly on this page: it matches your species names against the bird taxonomy, and it asks eBird which locations in the regions you have birded are public hotspots. The name matching happens against a copy of the taxonomy the app already holds, so your species list is not sent to eBird. Other parts of the app already show numbers that come from eBird, such as a county's completeness percentage on the map and a hotspot's species count. The Statistics tab's Projects section makes one further request per checklist, to find out which eBird projects your checklists were submitted to. It sends only your own checklist IDs, and only after you press one of that section's own controls: it is never started automatically, on tab open, or on relaunch. The answers are stored on your device, so stopping, quitting, or loading a newer export asks only about checklists that have not been answered yet, and an answer already given is not re-checked for a year unless you press Check again, which re-asks about all of them. With no eBird key or no connection, nothing is sent and the section says so.</li>
+           </ul>
+         </li>
+@@ -167,12 +167,12 @@
+       <p>For its home-screen widgets, the app also keeps a small document in a container on the same device that only SnowRaven and its widgets can read: your eBird key, the species names in your eBird backup, which of them you lack a photo, audio or video of in your Macaulay Library export, and your Default Location's coordinates. It holds none of your sightings, checklist details or media. The app rewrites the document when your key, either file or your Default Location changes. If a rewrite cannot finish after you remove or replace your key or remove a file, the app empties the document instead of leaving what you removed in it, and keeps trying until it can. In the rare case that SnowRaven closes before it has done that and cannot rebuild the document the next time it opens, the earlier document stays until the app can rebuild it. Beside the document, the widgets keep what their latest refresh fetched: the nearby eBird reports it found, the area it searched, rounded to about a kilometer, and a short fingerprint of your eBird key (not the key itself), which tells them when the key has changed. The next successful refresh replaces them. Like the rest of the app's data, both are included in device backups under the iOS defaults and removed when you delete the app, and neither is ever synced through iCloud Sync.</p>
+ 
+       <h2 id="icloud-sync">iCloud Sync</h2>
+-      <p>On the Mac, iPhone and iPad apps, SnowRaven can keep your two data files the same across your own devices through iCloud. This is off until you turn it on in Settings, and it is a different thing from the iOS device backup described above: it is sync between your own devices, under your own account.</p>
++      <p>On the Mac, iPhone and iPad apps, SnowRaven can keep your data files (your eBird backup, your Macaulay Library export and any eBird bar-chart files you have added on the Targets tab) the same across your own devices through iCloud. This is off until you turn it on in Settings, and it is a different thing from the iOS device backup described above: it is sync between your own devices, under your own account.</p>
+       <ul>
+-        <li><strong>What is stored in iCloud.</strong> With iCloud Sync on, SnowRaven writes your eBird backup and your Macaulay Library export into an iCloud container that belongs to your Apple ID, together with a small record for each file: its name, when it was uploaded, its size and a checksum of its contents, and which device it came from (the device's name, its kind, and a random identifier the app makes up on that device, which is not a hardware or account identifier). Your API keys are written only while the separate <strong>Sync API keys</strong> switch, described next, is also on. Your app settings, map preferences and cached lookups stay on each device and are never synced.</li>
++        <li><strong>What is stored in iCloud.</strong> With iCloud Sync on, SnowRaven writes your eBird backup, your Macaulay Library export and each county's eBird bar-chart file into an iCloud container that belongs to your Apple ID, together with a small record for each file: its name, when it was uploaded, its size and a checksum of its contents, and which device it came from (the device's name, its kind, and a random identifier the app makes up on that device, which is not a hardware or account identifier). Your API keys are written only while the separate <strong>Sync API keys</strong> switch, described next, is also on. Your app settings, map preferences and cached lookups stay on each device and are never synced, with one exception: the day-by-day lists of species that eBird reported in a county, which the Targets tab fetches with your key, are written into the same container as one copy per device, each holding the day lists that device has, whether it fetched them from eBird or took them from your other devices' copies (the county, the day, when the list was asked for and whether the day was over by then, the list's size, and each species eBird listed with the time and place of that report as eBird gives them), along with the same small record each file has, so your other devices do not repeat those requests. They hold nothing from your own files.</li>
+         <li><strong>Sync API keys.</strong> A second switch in the same section, off by default and available only while iCloud Sync is on, keeps your eBird and OpenWeather API keys the same across your own devices. With it on, SnowRaven writes one small record into the same private container holding, for each of the two keys, the key exactly as you entered it, when it was last changed, and which device changed it (the device's name, its kind, and the same random identifier). It goes only to your own iCloud account, and only your devices that also turn the switch on receive it. Apple encrypts the record in transit and at rest; it is end-to-end encrypted only if Advanced Data Protection is turned on for your iCloud account, and without it Apple's standard iCloud protection applies, the same as for your synced files. The developer has no way to see it. Turning the switch off leaves the keys on each device in place and removes the copy from iCloud, and <strong>Remove synced keys from iCloud</strong> deletes the copy at any time without touching any device.</li>
+         <li><strong>Whose account.</strong> The copies live only in your own iCloud account, on Apple's servers, and move only between devices signed in to that account. There is no SnowRaven server in the path, and the developer has no way to see, receive, or access what you sync. The container is private to the app and does not appear in iCloud Drive's file listing. Apple's handling of iCloud data is described in <a href="https://www.apple.com/legal/privacy/" target="_blank" rel="noopener">Apple's privacy policy</a>.</li>
+-        <li><strong>Turning it off and removing the copies.</strong> Switch iCloud Sync off at any time in Settings; the files on each device stay in place and keep working, and Sync API keys goes off with it. <strong>Remove synced files from iCloud</strong> in the same section deletes the file copies in your iCloud account without touching any device, and <strong>Remove synced keys from iCloud</strong> does the same for the key copy. Deleting the app or its data on one device does not by itself remove the copies in iCloud, so use those controls first if you want iCloud empty.</li>
++        <li><strong>Turning it off and removing the copies.</strong> Switch iCloud Sync off at any time in Settings; the files on each device stay in place and keep working, and Sync API keys goes off with it. <strong>Remove synced files from iCloud</strong> in the same section deletes the file copies in your iCloud account, the bar-chart files and the day-by-day lists included, without touching any device, and <strong>Remove synced keys from iCloud</strong> does the same for the key copy. Deleting the app or its data on one device does not by itself remove the copies in iCloud, so use those controls first if you want iCloud empty.</li>
+       </ul>
+ 
+       <h2 id="embedded-bird-media-and-link-icons">Embedded Bird Media and Link Icons</h2>
+diff --git a/frontend/src/lib/icloudBarChartPublishedClaims.test.ts b/frontend/src/lib/icloudBarChartPublishedClaims.test.ts
+new file mode 100644
+--- /dev/null
++++ b/frontend/src/lib/icloudBarChartPublishedClaims.test.ts
+@@ -0,0 +1,256 @@
++// The published statements icloud-bar-chart-sync changed (copy items 37 to 39
++// and 41 to 44), held to the code (.claude/rules/docs-and-website.md, the house
++// published-claims shape; testing.md v1.0.21: a claim that rests on a guard
++// needs a guard that actually reads the published file).
++//
++// Items 34 to 36 and 40 are held in targetsPublishedClaims.test.ts beside the
++// rows they replaced; this file carries the rest:
++//   37  the iCloud Sync opening paragraph names the data files it keeps the same
++//   38  "What is stored in iCloud" names the bar-chart files and states the one
++//       cache that is written, as what is in it and whose it is
++//   39  "Remove synced files from iCloud" reaches the bar-chart files and the
++//       day lists
++//   41  README, 42 the website, 43 the App Store listing: one sentence, the same
++//       in all three, naming the bar-chart files among what stays local unless
++//       synced
++//   44  the App Store review notes' iCloud Sync bullet
++//
++// House shape: each file's OWN passage is extracted, each row asserts the claim
++// EXISTS before checking it, the claims are held to the code that makes them
++// true, and the files that state one thing are compared against EACH OTHER.
++//
++// WHAT THIS CANNOT SEE: whether a sentence reads well, and any claim made in
++// words that name no code. Those stay with review.
++/// <reference types="node" />
++import { describe, it, expect } from 'vitest'
++import { readFileSync } from 'node:fs'
++import { fileURLToPath } from 'node:url'
++import { SLOTS } from './icloud/icloudRecord'
++import { ITEM_SUBDIRS } from './icloud/icloudNative'
++
++const read = (rel: string) => readFileSync(fileURLToPath(new URL(`../../../${rel}`, import.meta.url)), 'utf8')
++const POLICY = read('PRIVACY_POLICY.md')
++const PAGE = read('website/privacy.html')
++const README = read('README.md')
++const INDEX = read('website/index.html')
++const LISTING = read('appstore/LISTING.md')
++const RUST = read('src-tauri/src/icloud.rs')
++const src = (rel: string) => read(`frontend/src/${rel}`)
++/** Source with comments stripped (testing.md v1.0.14): a mention is not a call. */
++const code = (rel: string) => src(rel).replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/[^\n]*/g, '$1')
++
++const plain = (s: string) => s.replace(/\s+/g, ' ').trim()
++/** What a reader of the rendered page sees: tags gone, bold as its words, links as their text. */
++const htmlText = (s: string) => plain(s.replace(/<[^>]+>/g, ' ').replace(/&amp;/g, '&')).replace(/\s+([.,;:)])/g, '$1')
++const mdText = (s: string) => plain(s.replace(/\[([^\]]*)\]\([^)]*\)/g, '$1').replace(/\*\*/g, '').replace(/^\s*- /gm, ''))
++
++/** The iCloud Sync section of each policy file, as rendered text. */
++function mdSection(): string {
++  const m = /^## iCloud Sync\n/m.exec(POLICY)
++  if (!m) return ''
++  const rest = POLICY.slice(m.index + m[0].length)
++  const b = rest.search(/^## /m)
++  return mdText(b > 0 ? rest.slice(0, b) : rest)
++}
++function htmlSection(): string {
++  const m = /<h2 id="icloud-sync">[^<]*<\/h2>/.exec(PAGE)
++  if (!m) return ''
++  const rest = PAGE.slice(m.index + m[0].length)
++  const b = rest.search(/<h2 /)
++  return htmlText(b > 0 ? rest.slice(0, b) : rest)
++}
++
++/** The sentence containing `needle` (a full stop followed by a space or the end ends one). */
++function sentenceWith(text: string, needle: string): string {
++  const at = text.indexOf(needle)
++  if (at === -1) return ''
++  const before = text.slice(0, at)
++  const starts = [...before.matchAll(/\.\s/g)]
++  const start = starts.length ? starts[starts.length - 1].index! + 2 : 0
++  const m = /\.(?:\s|$)/.exec(text.slice(at))
++  return text.slice(start, m ? at + m.index + 1 : undefined).trim()
++}
++
++const MD = mdSection()
++const HTML = htmlSection()
++
++describe.each([
++  ['PRIVACY_POLICY.md', MD],
++  ['website/privacy.html', HTML],
++])('%s: the iCloud Sync section (items 37 to 39)', (_file, section) => {
++  it('the section is found and is the one being read (non-vacuity)', () => {
++    expect(section.startsWith('On the Mac, iPhone and iPad apps, SnowRaven can keep'), section.slice(0, 60)).toBe(true)
++    expect(section.length).toBeGreaterThan(2000)
++    expect(section).toContain('Whose account.')
++  })
++
++  it('37: the opening paragraph names the data files it keeps the same, the bar-chart files included', () => {
++    expect(section).toContain('SnowRaven can keep your data files (your eBird backup, your Macaulay Library export and any eBird bar-chart files you have added on the Targets tab) the same across your own devices through iCloud.')
++    expect(section).not.toContain('your two data files')
++  })
++
++  it('38: what is written names each county\'s bar-chart file', () => {
++    expect(section).toContain("SnowRaven writes your eBird backup, your Macaulay Library export and each county's eBird bar-chart file into an iCloud container that belongs to your Apple ID")
++  })
++
++  it('38: "never synced" survives, with the one exception stated as what is in it and whose it is', () => {
++    const s = sentenceWith(section, 'Your app settings, map preferences and cached lookups stay on each device')
++    expect(s, 'the never-synced sentence is present').not.toBe('')
++    expect(s).toContain('are never synced, with one exception: the day-by-day lists of species that eBird reported in a county, which the Targets tab fetches with your key, are written into the same container as one copy per device')
++    expect(s).toContain("each holding the day lists that device has, whether it fetched them from eBird or took them from your other devices' copies (the county, the day, when the list was asked for and whether the day was over by then, the list's size, and each species eBird listed with the time and place of that report as eBird gives them), along with the same small record each file has")
++    expect(s).toContain('so your other devices do not repeat those requests.')
++    expect(section).toContain('They hold nothing from your own files.')
++  })
++
++  it('39: Remove synced files from iCloud reaches the bar-chart files and the day lists', () => {
++    expect(section).toContain('Remove synced files from iCloud in the same section deletes the file copies in your iCloud account, the bar-chart files and the day-by-day lists included, without touching any device')
++  })
++})
++
++describe('the two policy files state items 37 to 39 identically', () => {
++  it('the iCloud Sync section reads the same in both (as rendered text)', () => {
++    for (const needle of [
++      'SnowRaven can keep your data files',
++      'SnowRaven writes your eBird backup',
++      'Your app settings, map preferences and cached lookups',
++      'Remove synced files from iCloud in the same section',
++    ]) {
++      expect(sentenceWith(HTML, needle), needle).toBe(sentenceWith(MD, needle))
++      expect(sentenceWith(MD, needle), needle).not.toBe('')
++    }
++  })
++})
++
++describe('items 37 to 39 are true of the shipped code', () => {
++  it('"your data files (... any eBird bar-chart files ...)": the two slots, plus one item per county under barcharts/', () => {
++    expect([...SLOTS]).toEqual(['ebird', 'ml'])
++    expect(ITEM_SUBDIRS.barchart).toBe('barcharts')
++    expect(RUST).toContain('const BARCHARTS_SUBDIR: &str = "barcharts";')
++    expect(RUST).toContain('ItemKind::Barchart => BARCHARTS_SUBDIR')
++    expect(RUST).toContain('SyncItem::County(c) => format!("{}.txt", c.as_str())')
++  })
++
++  it('"one copy per device, each holding the day lists that device has, whether it fetched them from eBird or took them from your other devices\' copies": a merged peer entry joins this device\'s own document, which goes up after the merge (security L3)', () => {
++    // The merge puts a taken peer entry into this device's own live store,
++    // carrying no mark of where it came from (the entry's fields are pinned in
++    // the next row), and schedules the same flush a fetched day does.
++    const cache = code('lib/countyDayObsCache.ts')
++    const merge = cache.slice(cache.indexOf('export async function mergeSharedSnapshot('))
++    const mergeBody = merge.slice(0, merge.indexOf('\n}\n'))
++    expect(mergeBody).toContain('const store = await ensureLoaded()')
++    expect(mergeBody).toContain('insertEntry(store, key, peer)')
++    expect(mergeBody).toContain('scheduleWrite(store)')
++    // That flush writes the WHOLE mirror, peers' entries with this device's own, to the one local document.
++    const flush = cache.slice(cache.indexOf('function flushStore('))
++    const flushBody = flush.slice(0, flush.indexOf('\n}\n'))
++    expect(flushBody).toContain('Object.assign(Object.create(null) as Record<string, DayObsEntry>, store.entries)')
++    expect(flushBody).toContain('storage.setCountyDayObsStore(snapshot)')
++    // Merge, then drain the writer, then push this device's own copy under its own id, in that order.
++    const pass = code('lib/icloud/dayObsSync.ts')
++    const run = pass.slice(pass.indexOf('export async function runDayObsPass('))
++    const merged = run.indexOf('await ctx.mergeSnapshot(text, gen)')
++    const drained = run.indexOf('await ctx.awaitWrites()')
++    const pushed = run.indexOf('ctx.native.pushItem(snapshotItem(ctx.deviceId), DAY_OBS_FILENAME')
++    expect(merged, 'the pull half merges').toBeGreaterThan(-1)
++    expect(drained, 'the writer drains after the merge').toBeGreaterThan(merged)
++    expect(pushed, 'the push follows the drain').toBeGreaterThan(drained)
++    // The pushed copy is that same local document, read natively, one per device.
++    expect(pass).toContain("export const DAY_OBS_FILENAME = 'county-day-obs.json'")
++    expect(RUST).toContain('const LOCAL_DAY_OBS_FILE: &str = "county-day-obs.json";')
++    expect(RUST).toContain('SyncItem::DayObs(_) => data_dir.join(LOCAL_DAY_OBS_FILE)')
++    expect(RUST).toContain('SyncItem::DayObs(d) => format!("{}.json", d.as_str())')
++    expect(ITEM_SUBDIRS['day-obs']).toBe('day-obs')
++  })
++
++  it('"the county, the day, when the list was asked for and whether the day was over by then, the list\'s size, and each species eBird listed with the time and place": the snapshot entry carries exactly those fields', () => {
++    const reduce = src('lib/countyDayObsReduce.ts')
++    const decl = reduce.slice(reduce.indexOf('export interface DayRecord {'))
++    const fields = [...decl.slice(0, decl.indexOf('\n}')).matchAll(/^\s+(\w+):/gm)].map(m => m[1])
++    expect(fields).toEqual(['speciesCode', 'obsDt', 'locId', 'locName', 'lat', 'lng'])
++    // Per day: when the list was asked for, whether the day was over by then, the list's size, the species (security L2).
++    const cache = src('lib/countyDayObsCache.ts')
++    const entry = cache.slice(cache.indexOf('export interface DayObsEntry {'))
++    expect([...entry.slice(0, entry.indexOf('\n}')).matchAll(/^\s+(\w+):/gm)].map(m => m[1])).toEqual(['fetchedAt', 'complete', 'bytes', 'species'])
++    // Keyed by county and day.
++    expect(cache).toMatch(/export function dayObsKey\(regionCode: string, date: string\): string/)
++  })
++
++  it('"which the Targets tab fetches with your key ... nothing from your own files": the store is filled from eBird and from peers only', () => {
++    const cache = code('lib/countyDayObsCache.ts')
++    // The one network entry is an injected loader; the only other way in is the merge.
++    expect(cache).not.toMatch(/\btransport\b|\bfetch\(/)
++    expect(cache).toContain('export async function mergeSharedSnapshot(')
++    // Nothing that reads the user's own export feeds it.
++    expect(cache).not.toMatch(/observationsCache|parseCSV|ebird-backup/)
++  })
++
++  it('"deletes ... the bar-chart files and the day-by-day lists included": the native Remove clears both kinds', () => {
++    const all = RUST.slice(RUST.indexOf('pub async fn icloud_remove_all('))
++    const body = all.slice(0, all.indexOf('\n}\n'))
++    expect(body).toContain('remove_items_in(&docs, ItemKind::Barchart)?')
++    expect(body).toContain('remove_items_in(&docs, ItemKind::DayObs)?')
++  })
++})
++
++// ---- Items 41 to 43: one sentence, the same in all three ---------------------
++
++const POSTURE = 'Your eBird backup, Macaulay Library export, eBird bar-chart files and API keys are stored only on your device unless you turn on iCloud syncing between your devices, and anything you sync goes to your own iCloud account and nowhere else.'
++
++describe.each([
++  ['README.md', plain(README)],
++  ['website/index.html', htmlText(INDEX)],
++  ['appstore/LISTING.md', plain(LISTING)],
++])('%s: the privacy sentence (items 41 to 43)', (_file, text) => {
++  it('carries the one corrected sentence, and not the one it replaced', () => {
++    expect(sentenceWith(text, 'Your eBird backup, Macaulay Library export')).toBe(POSTURE)
++    expect(text).not.toContain('Your eBird backup, Macaulay Library export and API keys are stored only on your device')
++  })
++})
++
++describe('items 41 to 43 agree with each other and with the code', () => {
++  it('the three files state the sentence identically', () => {
++    const got = [plain(README), htmlText(INDEX), plain(LISTING)].map(t => sentenceWith(t, 'Your eBird backup, Macaulay Library export'))
++    expect(new Set(got).size).toBe(1)
++    expect(got[0]).toBe(POSTURE)
++  })
++
++  it('"eBird bar-chart files ... unless you turn on iCloud syncing": the bar-chart files sync only through the iCloud controller', () => {
++    // The only non-local writer of a bar-chart file is the county pass.
++    expect(src('lib/icloud/countySync.ts')).toContain('pushItem(')
++    expect(src('lib/icloud/icloudNative.ts')).toContain("callItem<NativeItemPushResult>('icloud_push_item'")
++  })
++})
++
++// ---- Item 44: the App Store review notes -------------------------------------
++
++describe('appstore/LISTING.md: the iCloud Sync review-notes bullet (item 44)', () => {
++  const at = LISTING.indexOf('- **iCloud Sync (v1.0.11')
++  const bullet = plain(LISTING.slice(at, LISTING.indexOf('\n- **', at + 1)))
++
++  it('the bullet is found and is the one being read (non-vacuity)', () => {
++    expect(at).toBeGreaterThan(-1)
++    expect(bullet.length).toBeGreaterThan(600)
++    expect(bullet).toMatch(/"Data Not Collected" holds/)
++  })
++
++  it('dates the bar-chart and day-list sync, names the data files, and states the one cache', () => {
++    expect(bullet).toContain('**iCloud Sync (v1.0.11; bar-chart files and the Targets day lists from v1.0.40):**')
++    expect(bullet).toContain("copies the user's data files (the eBird backup, the Macaulay Library export and any eBird bar-chart files added on the Targets tab, each with a small record naming the file, its upload time, and a random per-device id with the device's name)")
++    expect(bullet).toContain('Settings are never written to it. The one cache that is: the Targets tab\'s per-day lists of species eBird reported in a county, one copy per device, so the user\'s other devices do not repeat those eBird requests; they hold no user sightings.')
++    expect(bullet).not.toContain('Settings and caches are never written to it.')
++    expect(bullet).not.toContain("the user's two data files")
++  })
++
++  it('agrees with the policy about the one cache', () => {
++    expect(MD).toContain('one copy per device')
++    expect(bullet).toContain('one copy per device')
++    expect(MD).toContain('They hold nothing from your own files.')
++    expect(bullet).toContain('they hold no user sightings')
++  })
++})
++
++describe('house copy rules over the changed passages', () => {
++  it('no em dash in any of them', () => {
++    for (const t of [MD, HTML, plain(README), htmlText(INDEX), plain(LISTING)]) expect(t).not.toContain('\u2014')
++  })
++})

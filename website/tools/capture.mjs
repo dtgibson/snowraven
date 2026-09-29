@@ -6,10 +6,16 @@
 //   CHECKLIST a real PUBLIC coastal eBird checklist id for the live weather+tide
 //             shot (so a tide shows). Override via env if the default has aged out.
 //
+// The eBird and Birds of the World marks beside species names are served from
+// the copies committed in ./marks/ (provenance in ./marks/PROVENANCE.md). The
+// capture never requests either icon, refuses to start if a copy is missing,
+// and fails the run if any frame would show a fallback glyph where a mark
+// belongs (loadSiteMarks and assertMarksInFrame in capture-lib.mjs).
+//
 // Output: ./shots/*.png  (then run process-img.mjs to make the WebP assets).
 import { chromium } from 'playwright';
 import { mkdirSync } from 'node:fs';
-import { GL, makePage, selectTab, buildProvenanceStub, installProvenanceRoutes, assertBackendServesDemoData } from './capture-lib.mjs';
+import { GL, makePage, selectTab, buildProvenanceStub, installProvenanceRoutes, assertBackendServesDemoData, loadSiteMarks, assertMarksInFrame, MarksInFrameError } from './capture-lib.mjs';
 import { applyCaptureExitCode, requireWeatherCaptureReady, runRequiredCapture, waitForWeatherCaptureReady } from './weather-capture.mjs';
 
 const BASE = process.env.BASE || 'http://localhost:1620';
@@ -32,6 +38,9 @@ mkdirSync(OUT, { recursive: true });
 // capture-lib.mjs.
 // (uses the default console.log — `log` is declared further down.)
 await assertBackendServesDemoData(BASE);
+// Refuse before the browser starts if either committed mark copy is missing
+// or is not an image. makePage reads the same cached copies.
+loadSiteMarks();
 
 // Desktop capture width. STILL LOAD-BEARING, for a different reason than before.
 //
@@ -96,17 +105,14 @@ const requiredFailures = [];
 // glyph in the same slot, so a cancelled load no longer photographs as a hole.
 //
 // The rule: a route is scoped to the contexts whose frame DEPENDS on it, never
-// registered on a context "just in case". Accepted, stated cost: the
-// Statistics contexts keep the stub, so both favicons in their frame are still
-// cancelled, and the one mark pair in the shot (the "First species ever" card)
-// now photographs as the FALLBACK glyphs, a Globe and a SquareLibrary in app
-// ink, rather than as the two site icons an online user sees. Recapturing the
-// Statistics frames is DEFERRED, and the honest fix is capture-side rather
-// than app-side: the route stub is what cancels the cross-origin image loads,
-// so a recapture on a keyed rig would simply photograph the fallback glyphs
-// again. The only other route in this file is the per-shot
-// WEATHER_REPLAY abort on the weather context, whose frame has no glyph; that
-// one is intentional and stays.
+// registered on a context "just in case". It no longer costs the Statistics
+// frames their marks (screenshot-tool-ebird-icon): makePage serves both marks
+// from committed copies through an init script, which is not a route, so they are
+// never cross-origin loads for the stub to cancel, and the "First species
+// ever" card photographs the two site icons an online user sees. The rule
+// still stands for any other cross-origin <img> a frame may hold. The only
+// other route in this file is the per-shot WEATHER_REPLAY abort on the weather
+// context, whose frame has no mark; that one is intentional and stays.
 const provenanceStub = await buildProvenanceStub(BASE, new URL('./demo-data/ebird-backup.csv', import.meta.url));
 const statsRoutes = (ctx) => installProvenanceRoutes(ctx, provenanceStub);
 
@@ -120,9 +126,17 @@ async function tab(name, file, { theme = 'light', vp = DESKTOP_VP, settle = 4000
     await p.waitForLoadState('networkidle').catch(() => {});
     await p.waitForTimeout(settle);
     if (prep) await prep(p);
-    await p.screenshot({ path: `${OUT}${file}`, clip: clipH ? { x: 0, y: 0, width: vp.width, height: clipH } : undefined });
+    const clip = clipH ? { x: 0, y: 0, width: vp.width, height: clipH } : undefined;
+    await assertMarksInFrame(p, clip);
+    await p.screenshot({ path: `${OUT}${file}`, clip });
     log('OK', file);
-  } catch (e) { log('FAIL', file, e.message.split('\n')[0]); }
+  } catch (e) {
+    const reason = e.message.split('\n')[0];
+    log('FAIL', file, reason);
+    // A wrong mark fails the RUN, not only the shot, so the run cannot report
+    // success with the previous run's PNG for this frame still in shots/.
+    if (e instanceof MarksInFrameError) requiredFailures.push(`${file}: ${reason}`);
+  }
   await ctx.close();
 }
 
@@ -189,9 +203,15 @@ await (async () => {
     // viewport, so a clip 20px short of the bottom cut it in half: the icons
     // survived and every label fell outside the frame. Nothing failed, and the
     // shot looked plausible. Any clip on a phone capture has to include the bar.
-    await p.screenshot({ path: `${OUT}stats-mobile.png`, clip: { x: 0, y: 0, width: 402, height: 880 } });
+    const clip = { x: 0, y: 0, width: 402, height: 880 };
+    await assertMarksInFrame(p, clip);
+    await p.screenshot({ path: `${OUT}stats-mobile.png`, clip });
     log('OK stats-mobile.png');
-  } catch (e) { log('FAIL stats-mobile.png', e.message.split('\n')[0]); }
+  } catch (e) {
+    const reason = e.message.split('\n')[0];
+    log('FAIL stats-mobile.png', reason);
+    if (e instanceof MarksInFrameError) requiredFailures.push(`stats-mobile.png: ${reason}`);
+  }
   await ctx.close();
 })();
 
@@ -288,6 +308,8 @@ const weatherFailure = await runRequiredCapture('weather-light.png', async () =>
 
       return { x: p0.x, y: top, width: p0.width, height };
     }, CHECKLIST);
+    // No species mark sits in this frame today; the check keeps it that way.
+    await assertMarksInFrame(p, frame);
     await p.screenshot({ path: `${OUT}weather-light.png`, clip: frame });
     log('OK weather-light.png', `${frame.width.toFixed(1)}x${frame.height.toFixed(1)} CSS px`);
   } finally {

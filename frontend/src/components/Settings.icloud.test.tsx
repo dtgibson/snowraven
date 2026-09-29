@@ -12,6 +12,8 @@ import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, screen, fireEvent, cleanup, waitFor, within } from '@testing-library/react'
 
 const storageMock = vi.hoisted(() => ({
+  // icloud-bar-chart-sync: the Bar-chart files section reads the manifest on mount.
+  getBarChartFiles: vi.fn().mockResolvedValue({ version: 1, counties: {} }),
   getFilesStatus: vi.fn(),
   getApiKey: vi.fn().mockResolvedValue(null),
   getSetting: vi.fn().mockResolvedValue(null),
@@ -63,6 +65,10 @@ function fakeActions(): ICloudActions {
     removeFromICloud: vi.fn(async () => {}),
     clearWithSync: vi.fn<(slot: Slot) => Promise<readonly string[]>>(async () => []),
     fileSaved: vi.fn<(slot: Slot) => void>(() => {}),
+    downloadBarChartNow: vi.fn<(code: string) => Promise<void>>(async () => {}),
+    retryBarChart: vi.fn<(code: string) => Promise<void>>(async () => {}),
+    barChartSaved: vi.fn<(code: string) => void>(() => {}),
+    barChartsCleared: vi.fn<(codes: readonly string[], clearedAt: string) => Promise<void>>(async () => {}),
     // icloud-api-key-sync (the key tests live in Settings.icloudKeys.test.tsx)
     enableKeys: vi.fn(async () => {}),
     disableKeys: vi.fn(async () => {}),
@@ -232,7 +238,11 @@ describe('enable note (FR-08, QA-08) and turning off (FR-32)', () => {
     renderSettings()
     const sw = await screen.findByRole('switch', { name: copy.ICS_HEADER })
     fireEvent.click(sw)
-    await screen.findByRole('dialog', { name: copy.ENABLE_TITLE })
+    const note = await screen.findByRole('dialog', { name: copy.ENABLE_TITLE })
+    // Focus inside, not the node: ModalDialog arms Escape in the effect pass
+    // that moves focus in, which a loaded machine can run after the node
+    // appears (testing.md v1.0.25; the same race as Settings.barcharts' row).
+    await waitFor(() => expect(note.contains(document.activeElement)).toBe(true))
     fireEvent.keyDown(document, { key: 'Escape' })
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
     expect(document.activeElement).toBe(sw)

@@ -18,8 +18,11 @@
 //!   a later sign-in is picked up.
 //! - Errors are short stable strings the frontend maps to copy
 //!   (`icloudNative.ts`); no Apple error text reaches the UI.
-//! - Change detection: an NSMetadataQuery over the two tiny record files
-//!   (`*.record.json`), started on the main thread when sync is enabled and
+//! - Change detection: an NSMetadataQuery over every tiny record file
+//!   (`*.record.json`, the two slot records, the key record, and since
+//!   icloud-bar-chart-sync the county and day-obs records in their
+//!   subdirectories; the query is a documents SCOPE, not a directory
+//!   listing), started on the main thread when sync is enabled and
 //!   stopped on disable, emitting the Tauri event `icloud-changed`; a second
 //!   observer on NSUbiquityIdentityDidChangeNotification emits
 //!   `icloud-identity-changed`. The frontend also re-checks on foreground,
@@ -55,6 +58,7 @@
 //! sanitized, as for file records.
 
 use std::cell::RefCell;
+use std::collections::BTreeSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::ptr::NonNull;
@@ -310,6 +314,11 @@ struct KeyRecordFile {
 struct RecordFile<'a> {
     version: u8,
     slot: &'a str,
+    /// icloud-bar-chart-sync: the county a `barchart` record binds itself to.
+    /// Skipped when None, so a slot record serializes byte-identically to the
+    /// shipped golden (the parity test pins both).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    county: Option<&'a str>,
     state: &'a str,
     #[serde(skip_serializing_if = "Option::is_none")]
     filename: Option<&'a str>,
@@ -322,6 +331,277 @@ struct RecordFile<'a> {
     byte_length: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     sha256: Option<&'a str>,
+}
+
+// ── icloud-bar-chart-sync: county files and day-obs snapshots ──────────────
+//
+// Two more synced kinds beside the two slots, each in its own subdirectory of
+// `Documents/` (schema.md section 3): one `.txt` and one `.record.json` per
+// county under `barcharts/`, and one `.json` snapshot and one `.record.json`
+// per device under `day-obs/`. Every name derives ONLY from a value that
+// passed a byte-level predicate here (`County::parse`, `DeviceId::parse`),
+// never from a filename the user chose, and the only types the item commands
+// accept are the validated newtypes, whose field is private. The slot
+// commands above are untouched; the item commands reuse the same helpers
+// (`atomic_container_write`, `coordinated_delete`, `read_record_text`,
+// `regular_file_len`, `ubiquity_flags`, `sha256_hex`), so the read posture of
+// security.md (a regular file, its real size bounded before any read, the
+// claimed length and digest verified) holds for every item exactly as for a
+// csv.
+
+/// Subdirectory of `Documents/` holding the county files and their records.
+/// Parity-pinned to `ITEM_SUBDIRS` in `icloudNative.ts`.
+const BARCHARTS_SUBDIR: &str = "barcharts";
+/// Subdirectory of `Documents/` holding one day-obs snapshot per device.
+const DAY_OBS_SUBDIR: &str = "day-obs";
+/// The day cache's local document under `data/`; parity-pinned to
+/// `COUNTY_DAY_OBS_PATH` in `storage.ts`.
+const LOCAL_DAY_OBS_FILE: &str = "county-day-obs.json";
+/// The local bar-chart directory under `data/`; parity-pinned to
+/// `BARCHARTS_DIR` in `storage.ts`.
+const LOCAL_BARCHARTS_DIR: &str = "barcharts";
+
+/// A hostile-container bound on ONE listing, never a user quota (FR-09): the
+/// real US county set is about 3,244 codes while the syntactic space the
+/// predicate admits is 26 x 26 x 1,000 = 676,000, so a planted container could
+/// hold more records than one 8 s command can read. Items past it are ignored
+/// this listing and reported as `truncated`. Units: items per kind per listing.
+/// Parity-pinned to `MAX_LISTED_ITEMS` in `icloudNativeTypes.ts`.
+const MAX_LISTED_ITEMS: usize = 4096;
+
+/// The per-file bound for a day-obs snapshot, in bytes (decimal), on disk and
+/// in the record. Derived, not borrowed: a producer inside the local budget
+/// writes at most about 13.8 M UTF-16 code units of JSON (10,000,000 of
+/// payload, one sole oversized newest entry of up to 5,000 records, and the
+/// envelope), which is at most about 41.5 MB of UTF-8; 64 MB sits above that
+/// and below `MAX_BYTES`. Parity-pinned to `DAY_OBS_SHARED_MAX_BYTES` in
+/// `icloudRecord.ts`, and each side has its own enforcement test.
+const DAY_OBS_SHARED_MAX_BYTES: u64 = 64_000_000;
+
+/// A US county region code: exactly `US-`, two ASCII capitals, `-`, three
+/// ASCII digits, and nothing after. The Rust twin of `REGION_CODE_RE`
+/// (`/^US-[A-Z]{2}-[0-9]{3}$/` in `frontend/src/lib/regionCode.ts`), written
+/// as a byte check rather than a regex so the anchors and the ASCII classes
+/// are explicit: a trailing newline, a lowercase state, a Unicode digit, an
+/// embedded newline and a 10-byte string are all refused. The field is
+/// private, so no unvalidated string can become a container path.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct County(String);
+
+impl County {
+    pub fn parse(s: &str) -> Result<County, ()> {
+        let b = s.as_bytes();
+        if b.len() != 9 {
+            return Err(());
+        }
+        let ok = b[0] == b'U'
+            && b[1] == b'S'
+            && b[2] == b'-'
+            && b[3].is_ascii_uppercase()
+            && b[4].is_ascii_uppercase()
+            && b[5] == b'-'
+            && b[6].is_ascii_digit()
+            && b[7].is_ascii_digit()
+            && b[8].is_ascii_digit();
+        if ok {
+            Ok(County(s.to_string()))
+        } else {
+            Err(())
+        }
+    }
+    fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+/// A device id that passed `valid_device_id` (32 lowercase hex). It names a
+/// day-obs snapshot and a staging file, so it is validated at the boundary.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct DeviceId(String);
+
+impl DeviceId {
+    pub fn parse(s: &str) -> Result<DeviceId, ()> {
+        if valid_device_id(s) {
+            Ok(DeviceId(s.to_string()))
+        } else {
+            Err(())
+        }
+    }
+    fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+/// One synced item that is not a slot. Built only through `TryFrom<ItemArg>`
+/// (or from a name that passed the same predicate in a listing).
+#[derive(Debug, Clone)]
+enum SyncItem {
+    County(County),
+    DayObs(DeviceId),
+}
+
+impl SyncItem {
+    fn kind(&self) -> ItemKind {
+        match self {
+            SyncItem::County(_) => ItemKind::Barchart,
+            SyncItem::DayObs(_) => ItemKind::DayObs,
+        }
+    }
+    /// The item's file name inside its subdirectory.
+    fn file_name(&self) -> String {
+        match self {
+            SyncItem::County(c) => format!("{}.txt", c.as_str()),
+            SyncItem::DayObs(d) => format!("{}.json", d.as_str()),
+        }
+    }
+    /// The item's record name inside its subdirectory.
+    fn record_name(&self) -> String {
+        match self {
+            SyncItem::County(c) => format!("{}.record.json", c.as_str()),
+            SyncItem::DayObs(d) => format!("{}.record.json", d.as_str()),
+        }
+    }
+    /// The path of the item's file relative to `Documents/`.
+    fn container_file(&self) -> String {
+        format!("{}/{}", self.kind().subdir(), self.file_name())
+    }
+    /// The path of the item's record relative to `Documents/`.
+    fn container_record(&self) -> String {
+        format!("{}/{}", self.kind().subdir(), self.record_name())
+    }
+    /// The local file the item mirrors under `app_local_data_dir()/data/`.
+    fn local_path(&self, data_dir: &Path) -> PathBuf {
+        match self {
+            SyncItem::County(c) => data_dir.join(LOCAL_BARCHARTS_DIR).join(format!("{}.txt", c.as_str())),
+            SyncItem::DayObs(_) => data_dir.join(LOCAL_DAY_OBS_FILE),
+        }
+    }
+    /// The per-file bound: the csv bound for a county file, the derived bound
+    /// for a day-obs snapshot.
+    fn max_bytes(&self) -> u64 {
+        match self {
+            SyncItem::County(_) => MAX_BYTES,
+            SyncItem::DayObs(_) => DAY_OBS_SHARED_MAX_BYTES,
+        }
+    }
+    /// The record's `slot` discriminator and its `county` binding.
+    fn record_fields(&self) -> (&'static str, Option<&str>) {
+        match self {
+            SyncItem::County(c) => ("barchart", Some(c.as_str())),
+            SyncItem::DayObs(_) => ("day-obs", None),
+        }
+    }
+}
+
+/// The two item kinds, as the listing and the bulk removal take them.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum ItemKind {
+    Barchart,
+    DayObs,
+}
+
+impl ItemKind {
+    fn subdir(self) -> &'static str {
+        match self {
+            ItemKind::Barchart => BARCHARTS_SUBDIR,
+            ItemKind::DayObs => DAY_OBS_SUBDIR,
+        }
+    }
+    /// An item of this kind from a candidate id, or None when the id fails the
+    /// kind's predicate (checked before any path is built).
+    fn item_from_id(self, id: &str) -> Option<SyncItem> {
+        match self {
+            ItemKind::Barchart => County::parse(id).ok().map(SyncItem::County),
+            ItemKind::DayObs => DeviceId::parse(id).ok().map(SyncItem::DayObs),
+        }
+    }
+}
+
+/// The IPC shape of an item: `{ kind: "barchart", county }` or
+/// `{ kind: "day-obs", deviceId }`. Converted by `TryFrom` BEFORE any
+/// filesystem or container call; a value that fails its predicate is the
+/// closed union's `unknown`.
+#[derive(Debug, Deserialize)]
+#[serde(tag = "kind", rename_all = "kebab-case")]
+pub enum ItemArg {
+    Barchart { county: String },
+    #[serde(rename_all = "camelCase")]
+    DayObs { device_id: String },
+}
+
+impl TryFrom<ItemArg> for SyncItem {
+    type Error = String;
+    fn try_from(arg: ItemArg) -> Result<SyncItem, String> {
+        match arg {
+            ItemArg::Barchart { county } => County::parse(&county).map(SyncItem::County).map_err(|_| "unknown".to_string()),
+            ItemArg::DayObs { device_id } => DeviceId::parse(&device_id).map(SyncItem::DayObs).map_err(|_| "unknown".to_string()),
+        }
+    }
+}
+
+/// `icloud_pull_item` mode: write the verified bytes over the local file
+/// (`file`, county files), or hand them back as text for the day cache's
+/// merge (`text`, day-obs snapshots; no local file is touched).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum PullMode {
+    File,
+    Text,
+}
+
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ListedFile {
+    pub present: bool,
+    pub downloaded: bool,
+    pub downloading: bool,
+    pub byte_length: Option<u64>,
+    /// Both the file and its record report iCloud holds them (the csv rule).
+    pub uploaded: bool,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ListedItem {
+    /// The validated county code or device id the item's names derive from.
+    pub id: String,
+    /// A record exists at the item's record name (downloaded or not).
+    pub present: bool,
+    /// The record text; None while the record is an undownloaded placeholder
+    /// (its download has been started) or absent.
+    pub record: Option<String>,
+    pub file: ListedFile,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ListResult {
+    pub items: Vec<ListedItem>,
+    pub truncated: bool,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ItemPushResult {
+    pub sha256: String,
+    pub byte_length: u64,
+    pub uploaded: bool,
+    /// The digest equalled `unless_sha256`, so nothing was written.
+    pub skipped: bool,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ClearedResult {
+    pub failed: Vec<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PullItemResult {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub text: Option<String>,
 }
 
 // ── Timeout plumbing ────────────────────────────────────────────────────────
@@ -866,6 +1146,17 @@ fn replace_item(tmp: &Path, dst: &Path) -> Result<(), String> {
 /// coordinated-rename it onto `target` (atomic on the same volume). The temp
 /// name carries the device id so two devices staging the same slot never
 /// share a temp file.
+///
+/// icloud-bar-chart-sync: a target inside a kind's subdirectory
+/// (`barcharts/US-CA-001.txt`) stages FLAT in the one `.tmp/` directory, its
+/// `/` replaced by `-` (`<deviceId>-barcharts-US-CA-001.txt`), so
+/// `clear_staging` and Remove keep working over one directory; the target's
+/// subdirectory is created on first write. A slot name has no `/`, so its
+/// staging name and its target are byte-identical to before.
+fn staging_name(target_name: &str) -> String {
+    target_name.replace('/', "-")
+}
+
 fn atomic_container_write(docs: &Path, target_name: &str, device_id: &str, bytes: &[u8]) -> Result<(), String> {
     if !valid_device_id(device_id) {
         return Err("unknown".to_string());
@@ -876,9 +1167,17 @@ fn atomic_container_write(docs: &Path, target_name: &str, device_id: &str, bytes
     // in the staging dir, inside the container; clear this device's stale
     // entries before staging a new one.
     clear_staging(&tmp_dir, Some(device_id));
-    let tmp = tmp_dir.join(format!("{}-{}", device_id, target_name));
+    let tmp = tmp_dir.join(format!("{}-{}", device_id, staging_name(target_name)));
     fs::write(&tmp, bytes).map_err(|_| "unavailable".to_string())?;
     let target = docs.join(target_name);
+    if target_name.contains('/') {
+        if let Some(parent) = target.parent() {
+            if fs::create_dir_all(parent).is_err() {
+                let _ = fs::remove_file(&tmp);
+                return Err("unavailable".to_string());
+            }
+        }
+    }
     let url = file_url(&target);
     let result = coordinated_write(&url, NSFileCoordinatorWritingOptions::ForReplacing, |dst| replace_item(&tmp, dst));
     if result.is_err() {
@@ -1142,6 +1441,7 @@ pub async fn icloud_push(
         let record = RecordFile {
             version: 1,
             slot: slot.key(),
+            county: None,
             state: "file",
             filename: Some(&filename),
             uploaded_at: Some(&uploaded_at),
@@ -1176,6 +1476,7 @@ pub async fn icloud_push_cleared(slot: Slot, cleared_at: String, origin: Origin)
         let record = RecordFile {
             version: 1,
             slot: slot.key(),
+            county: None,
             state: "cleared",
             filename: None,
             uploaded_at: None,
@@ -1275,6 +1576,11 @@ pub async fn icloud_remove_all() -> Result<RemoveResult, String> {
                 removed += 1;
             }
         }
+        // icloud-bar-chart-sync (FR-13, FR-27): every county file and record,
+        // then every device's day-obs snapshot and record. Still never the key
+        // record (FR-35 of icloud-api-key-sync).
+        removed += remove_items_in(&docs, ItemKind::Barchart)?;
+        removed += remove_items_in(&docs, ItemKind::DayObs)?;
         // Security round, Finding 5: a crash between a staging write and its
         // rename leaves a complete copy under .tmp/; Remove clears every
         // entry there too, so "the copies in your iCloud account" is exact.
@@ -1383,8 +1689,10 @@ fn start_watch_on_main(app: AppHandle) {
     let scope: &AnyObject = unsafe { objc2_foundation::NSMetadataQueryUbiquitousDocumentsScope };
     let scopes: Retained<NSArray<AnyObject>> = NSArray::from_slice(&[scope]);
     unsafe { query.setSearchScopes(&scopes) };
-    // Only the two tiny record files: a peer's csv landing is not interesting
-    // until its record does, and the record is the commit point.
+    // Only the tiny record files (every `*.record.json` in the documents
+    // scope, subdirectories included): a peer's csv, county file or snapshot
+    // landing is not interesting until its record does, and the record is the
+    // commit point.
     let key: &AnyObject = unsafe { objc2_foundation::NSMetadataItemFSNameKey };
     let args: Retained<NSArray<AnyObject>> = NSArray::from_slice(&[key]);
     let predicate = unsafe { NSPredicate::predicateWithFormat_argumentArray(ns_string!("%K LIKE '*.record.json'"), Some(&args)) };
@@ -1445,6 +1753,541 @@ pub async fn icloud_watch(app: AppHandle, enabled: bool) -> Result<(), String> {
         }
     })
     .map_err(|e| e.to_string())
+}
+
+// ── icloud-bar-chart-sync: the item commands ────────────────────────────────
+//
+// Seven commands over the two item kinds (schema.md section 9.3). Each command
+// converts its IPC argument to a validated `SyncItem` (or `ItemKind`) FIRST,
+// then runs a `*_at` core that takes the container's `Documents/` directory as
+// a parameter, so the read posture is unit-tested against a temporary
+// directory with no iCloud account (this Mac is not signed in; the real
+// container is exercised by the user after TestFlight). Every error is a
+// member of the closed frontend union.
+
+fn local_data_dir(app: &AppHandle) -> Result<PathBuf, String> {
+    use tauri::Manager;
+    let base = app.path().app_local_data_dir().map_err(|_| "unavailable".to_string())?;
+    Ok(base.join(LOCAL_DATA_DIR))
+}
+
+/// An origin as an item record may carry it: the device id and platform
+/// REFUSED when outside the validator's set, the label sanitized (the slot
+/// writer's rule, plus the platform check the validator also applies).
+fn item_origin(origin: Origin) -> Result<Origin, String> {
+    if !valid_device_id(&origin.device_id) {
+        return Err("unknown".to_string());
+    }
+    let platform = origin.platform;
+    if platform != "mac" && platform != "iphone" && platform != "ipad" {
+        return Err("unknown".to_string());
+    }
+    Ok(Origin {
+        device_id: origin.device_id,
+        label: sanitize_label(&origin.label, platform_fallback(&platform)),
+        platform,
+    })
+}
+
+/// The kind's subdirectory, only when it is a REAL directory (never followed
+/// through a symlink planted at its name). Read paths use this; a planted
+/// link or file there reads as "nothing in iCloud".
+fn real_subdir(docs: &Path, kind: ItemKind) -> Option<PathBuf> {
+    let sub = docs.join(kind.subdir());
+    if fs::symlink_metadata(&sub).map(|m| m.file_type().is_dir()).unwrap_or(false) {
+        Some(sub)
+    } else {
+        None
+    }
+}
+
+/// The kind's subdirectory for a WRITE: a symlink or a file planted at its
+/// name is removed as such (never followed, so no write can land outside the
+/// container), then the directory is created.
+fn ensure_subdir(docs: &Path, kind: ItemKind) -> Result<PathBuf, String> {
+    let sub = docs.join(kind.subdir());
+    if let Ok(meta) = fs::symlink_metadata(&sub) {
+        if !meta.file_type().is_dir() {
+            fs::remove_file(&sub).map_err(|_| "unavailable".to_string())?;
+        }
+    }
+    fs::create_dir_all(&sub).map_err(|_| "unavailable".to_string())?;
+    Ok(sub)
+}
+
+/// Whether the item's record reports iCloud holds it (absent reads false).
+fn record_uploaded(sub: &Path, item: &SyncItem) -> bool {
+    let name = item.record_name();
+    item_present(sub, &name) && ubiquity_flags(&sub.join(&name)).uploaded
+}
+
+/// The item's companion file as the listing reports it: flags only, the file
+/// itself is never read here.
+fn item_file_status(sub: &Path, item: &SyncItem, record_up: bool) -> ListedFile {
+    let name = item.file_name();
+    if !item_present(sub, &name) {
+        return ListedFile { present: false, downloaded: false, downloading: false, byte_length: None, uploaded: false };
+    }
+    let path = sub.join(&name);
+    let f = ubiquity_flags(&path);
+    ListedFile {
+        present: true,
+        downloaded: f.downloaded,
+        downloading: f.downloading,
+        byte_length: regular_file_len(&path).ok(),
+        uploaded: f.uploaded && record_up,
+    }
+}
+
+/// The id a directory entry names as a RECORD of this kind: `<id>.record.json`
+/// or its undownloaded placeholder `.<id>.record.json.icloud`, where `<id>`
+/// passes the kind's predicate. Anything else is None and is never read.
+fn record_id_from_name(name: &str, kind: ItemKind) -> Option<String> {
+    let base = match name.strip_prefix('.').and_then(|r| r.strip_suffix(".icloud")) {
+        Some(inner) => inner,
+        None => name,
+    };
+    let id = base.strip_suffix(".record.json")?;
+    kind.item_from_id(id).map(|_| id.to_string())
+}
+
+/// The id a directory entry names as ANY item of this kind (a record, the
+/// companion file, or either one's placeholder). Used by the bulk removal.
+fn item_id_from_any_name(name: &str, kind: ItemKind) -> Option<String> {
+    let base = match name.strip_prefix('.').and_then(|r| r.strip_suffix(".icloud")) {
+        Some(inner) => inner,
+        None => name,
+    };
+    let file_ext = match kind {
+        ItemKind::Barchart => ".txt",
+        ItemKind::DayObs => ".json",
+    };
+    let id = base.strip_suffix(".record.json").or_else(|| base.strip_suffix(file_ext))?;
+    kind.item_from_id(id).map(|_| id.to_string())
+}
+
+/// One listing of a kind, at most `max` items (the command passes
+/// `MAX_LISTED_ITEMS`; a test passes a small bound). Work: one name check per
+/// directory entry, each O(1), and one bounded record read per valid item. An
+/// undownloaded record has its download started and is reported with
+/// `present: true, record: None`, so the frontend skips that item this check
+/// rather than treating it as absent (it must never push over a peer's newer
+/// file it has not read). A record the read path cannot read is reported the
+/// same way; a non-regular, oversized or non-UTF-8 record reads as the empty
+/// text the validator treats as absent, exactly as a slot record does.
+fn list_items_bounded(docs: &Path, kind: ItemKind, max: usize) -> ListResult {
+    let empty = ListResult { items: Vec::new(), truncated: false };
+    let sub = match real_subdir(docs, kind) {
+        Some(s) => s,
+        None => return empty,
+    };
+    let entries = match fs::read_dir(&sub) {
+        Ok(e) => e,
+        Err(_) => return empty,
+    };
+    let mut ids: BTreeSet<String> = BTreeSet::new();
+    let mut truncated = false;
+    for entry in entries.flatten() {
+        let raw = entry.file_name();
+        let name = match raw.to_str() {
+            Some(n) => n,
+            None => continue,
+        };
+        let id = match record_id_from_name(name, kind) {
+            Some(id) => id,
+            None => continue,
+        };
+        if ids.contains(&id) {
+            continue;
+        }
+        if ids.len() >= max {
+            truncated = true;
+            continue;
+        }
+        ids.insert(id);
+    }
+    let mut items = Vec::with_capacity(ids.len());
+    for id in ids {
+        let item = match kind.item_from_id(&id) {
+            Some(i) => i,
+            None => continue,
+        };
+        let record_name = item.record_name();
+        let record_path = sub.join(&record_name);
+        let present = item_present(&sub, &record_name);
+        let mut record = None;
+        let mut record_up = false;
+        if present {
+            let flags = ubiquity_flags(&record_path);
+            record_up = flags.uploaded;
+            if flags.downloaded {
+                record = read_record_text(&sub, &record_name).ok().flatten();
+            } else {
+                let _ = NSFileManager::defaultManager().startDownloadingUbiquitousItemAtURL_error(&file_url(&record_path));
+            }
+        }
+        let file = item_file_status(&sub, &item, record_up);
+        items.push(ListedItem { id, present, record, file });
+    }
+    ListResult { items, truncated }
+}
+
+/// Push one item's local file and then its record (the record is the commit
+/// point a peer reads). `unless_sha256` equal to the digest of the local
+/// bytes writes nothing (the day-obs snapshot's "unchanged since my last
+/// push" case). The local file is bounded by its on-disk length BEFORE it is
+/// loaded and must be a regular file.
+fn push_item_at(
+    docs: &Path,
+    local: &Path,
+    item: &SyncItem,
+    filename: &str,
+    uploaded_at: &str,
+    origin: &Origin,
+    unless_sha256: Option<&str>,
+) -> Result<ItemPushResult, String> {
+    let max = item.max_bytes();
+    let len = regular_file_len(local).map_err(|_| "local-missing".to_string())?;
+    if len > max {
+        return Err("too-large".to_string());
+    }
+    let bytes = fs::read(local).map_err(|_| "local-missing".to_string())?;
+    if bytes.len() as u64 > max {
+        return Err("too-large".to_string());
+    }
+    let sha256 = sha256_hex(&bytes);
+    let byte_length = bytes.len() as u64;
+    if unless_sha256 == Some(sha256.as_str()) {
+        let uploaded = match real_subdir(docs, item.kind()) {
+            Some(sub) => item_file_status(&sub, item, record_uploaded(&sub, item)).uploaded,
+            None => false,
+        };
+        return Ok(ItemPushResult { sha256, byte_length, uploaded, skipped: true });
+    }
+    fs::create_dir_all(docs).map_err(|_| "unavailable".to_string())?;
+    let sub = ensure_subdir(docs, item.kind())?;
+    atomic_container_write(docs, &item.container_file(), &origin.device_id, &bytes)?;
+    let (slot, county) = item.record_fields();
+    let record = RecordFile {
+        version: 1,
+        slot,
+        county,
+        state: "file",
+        filename: Some(filename),
+        uploaded_at: Some(uploaded_at),
+        cleared_at: None,
+        origin,
+        byte_length: Some(byte_length),
+        sha256: Some(&sha256),
+    };
+    let json = serde_json::to_vec(&record).map_err(|_| "unknown".to_string())?;
+    atomic_container_write(docs, &item.container_record(), &origin.device_id, &json)?;
+    let uploaded = item_file_status(&sub, item, record_uploaded(&sub, item)).uploaded;
+    Ok(ItemPushResult { sha256, byte_length, uploaded, skipped: false })
+}
+
+/// Write the cleared marker for each county: the county file's coordinated
+/// delete (absent ignored), then the cleared record written atomically. A
+/// string that fails `County::parse` is reported failed and nothing happens
+/// for it; a per-county failure is collected, never raised.
+fn push_items_cleared_at(docs: &Path, counties: Vec<String>, cleared_at: &str, origin: &Origin) -> Result<ClearedResult, String> {
+    let mut failed = Vec::new();
+    let mut valid = Vec::new();
+    for raw in counties {
+        match County::parse(&raw) {
+            Ok(c) => valid.push(c),
+            Err(()) => failed.push(raw),
+        }
+    }
+    if valid.is_empty() {
+        return Ok(ClearedResult { failed });
+    }
+    fs::create_dir_all(docs).map_err(|_| "unavailable".to_string())?;
+    let sub = ensure_subdir(docs, ItemKind::Barchart)?;
+    for county in valid {
+        let item = SyncItem::County(county);
+        let one = || -> Result<(), String> {
+            coordinated_delete(&sub, &item.file_name())?;
+            let (slot, c) = item.record_fields();
+            let record = RecordFile {
+                version: 1,
+                slot,
+                county: c,
+                state: "cleared",
+                filename: None,
+                uploaded_at: None,
+                cleared_at: Some(cleared_at),
+                origin,
+                byte_length: None,
+                sha256: None,
+            };
+            let json = serde_json::to_vec(&record).map_err(|_| "unknown".to_string())?;
+            atomic_container_write(docs, &item.container_record(), &origin.device_id, &json)
+        };
+        if one().is_err() {
+            if let SyncItem::County(c) = &item {
+                failed.push(c.as_str().to_string());
+            }
+        }
+    }
+    Ok(ClearedResult { failed })
+}
+
+/// Pull one item: the length and digest the frontend validated from the
+/// record are verified on the bytes actually read (the on-disk length checked
+/// BEFORE the read, against the item's bound and the claim), then `File`
+/// writes them over the local file through a temp-then-rename and `Text`
+/// returns them as UTF-8 (non-UTF-8 is `mismatch`). `Text` is accepted only
+/// for a day-obs snapshot and `File` only for a county file.
+fn pull_item_at(
+    docs: &Path,
+    local: &Path,
+    item: &SyncItem,
+    expected_sha256: &str,
+    expected_byte_length: u64,
+    mode: PullMode,
+) -> Result<PullItemResult, String> {
+    match (item, mode) {
+        (SyncItem::County(_), PullMode::File) | (SyncItem::DayObs(_), PullMode::Text) => {}
+        _ => return Err("unknown".to_string()),
+    }
+    let max = item.max_bytes();
+    if expected_byte_length > max {
+        return Err("too-large".to_string());
+    }
+    let sub = real_subdir(docs, item.kind()).ok_or_else(|| "absent".to_string())?;
+    let name = item.file_name();
+    if !item_present(&sub, &name) {
+        return Err("absent".to_string());
+    }
+    let path = sub.join(&name);
+    if !ubiquity_flags(&path).downloaded {
+        return Err("not-downloaded".to_string());
+    }
+    let bytes = coordinated_read(&file_url(&path), |p| {
+        let len = regular_file_len(p)?;
+        if len > max {
+            return Err("too-large".to_string());
+        }
+        if len != expected_byte_length {
+            return Err("mismatch".to_string());
+        }
+        fs::read(p).map_err(|_| "unavailable".to_string())
+    })?;
+    if bytes.len() as u64 != expected_byte_length || sha256_hex(&bytes) != expected_sha256 {
+        return Err("mismatch".to_string());
+    }
+    match mode {
+        PullMode::Text => {
+            let text = String::from_utf8(bytes).map_err(|_| "mismatch".to_string())?;
+            Ok(PullItemResult { text: Some(text) })
+        }
+        PullMode::File => {
+            if let Some(parent) = local.parent() {
+                fs::create_dir_all(parent).map_err(|_| "unavailable".to_string())?;
+            }
+            let file_name = local.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+            let tmp = local.with_file_name(format!("{}.tmp", file_name));
+            fs::write(&tmp, &bytes).map_err(|_| "unavailable".to_string())?;
+            fs::rename(&tmp, local).map_err(|_| {
+                let _ = fs::remove_file(&tmp);
+                "unavailable".to_string()
+            })?;
+            Ok(PullItemResult { text: None })
+        }
+    }
+}
+
+/// Remove one item: its record first (so a peer never reads a record whose
+/// file is already gone), then its file, then its staging entries from any
+/// device. Absent items are not an error.
+fn remove_item_at(docs: &Path, item: &SyncItem) -> Result<u32, String> {
+    let mut removed = 0u32;
+    if let Some(sub) = real_subdir(docs, item.kind()) {
+        if coordinated_delete(&sub, &item.record_name())? {
+            removed += 1;
+        }
+        if coordinated_delete(&sub, &item.file_name())? {
+            removed += 1;
+        }
+    }
+    let tmp = docs.join(".tmp");
+    removed += clear_staging_for(&tmp, &staging_name(&item.container_file()));
+    removed += clear_staging_for(&tmp, &staging_name(&item.container_record()));
+    Ok(removed)
+}
+
+/// Staging entries of one kind, from any device: `<32 hex>-<subdir>-...`.
+/// Regular files and symlinks are removed as such; nothing is followed.
+fn clear_staging_kind(tmp_dir: &Path, kind: ItemKind) -> u32 {
+    let mut removed = 0u32;
+    let entries = match fs::read_dir(tmp_dir) {
+        Ok(e) => e,
+        Err(_) => return 0,
+    };
+    let marker = format!("{}-", kind.subdir());
+    for entry in entries.flatten() {
+        let raw = entry.file_name();
+        let name = match raw.to_str() {
+            Some(n) => n,
+            None => continue,
+        };
+        let b = name.as_bytes();
+        if b.len() <= 33 || b[32] != b'-' || !name.is_char_boundary(32) || !valid_device_id(&name[..32]) {
+            continue;
+        }
+        if !name[33..].starts_with(&marker) {
+            continue;
+        }
+        let path = entry.path();
+        let is_dir = fs::symlink_metadata(&path).map(|m| m.file_type().is_dir()).unwrap_or(false);
+        let ok = if is_dir { fs::remove_dir_all(&path).is_ok() } else { fs::remove_file(&path).is_ok() };
+        if ok {
+            removed += 1;
+        }
+    }
+    removed
+}
+
+/// Every valid-named item of a kind (records, companion files, and their
+/// placeholders), plus that kind's staging entries from any device. Unknown
+/// names are left alone, stated: a name this app would never write is not a
+/// copy it made. A link or file planted at the subdirectory's own name is
+/// removed as such, never followed.
+fn remove_items_in(docs: &Path, kind: ItemKind) -> Result<u32, String> {
+    let mut removed = 0u32;
+    let sub = docs.join(kind.subdir());
+    match fs::symlink_metadata(&sub) {
+        Err(_) => {}
+        Ok(meta) if !meta.file_type().is_dir() => {
+            fs::remove_file(&sub).map_err(|_| "unavailable".to_string())?;
+            removed += 1;
+        }
+        Ok(_) => {
+            let mut ids: BTreeSet<String> = BTreeSet::new();
+            if let Ok(entries) = fs::read_dir(&sub) {
+                for entry in entries.flatten() {
+                    let raw = entry.file_name();
+                    if let Some(name) = raw.to_str() {
+                        if let Some(id) = item_id_from_any_name(name, kind) {
+                            ids.insert(id);
+                        }
+                    }
+                }
+            }
+            for id in ids {
+                if let Some(item) = kind.item_from_id(&id) {
+                    if coordinated_delete(&sub, &item.record_name())? {
+                        removed += 1;
+                    }
+                    if coordinated_delete(&sub, &item.file_name())? {
+                        removed += 1;
+                    }
+                }
+            }
+        }
+    }
+    removed += clear_staging_kind(&docs.join(".tmp"), kind);
+    Ok(removed)
+}
+
+#[tauri::command]
+pub async fn icloud_list_items(kind: ItemKind) -> Result<ListResult, String> {
+    blocking(move || {
+        let docs = container_documents().ok_or_else(|| "unavailable".to_string())?;
+        Ok(list_items_bounded(&docs, kind, MAX_LISTED_ITEMS))
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn icloud_push_item(
+    app: AppHandle,
+    item: ItemArg,
+    filename: String,
+    uploaded_at: String,
+    origin: Origin,
+    unless_sha256: Option<String>,
+) -> Result<ItemPushResult, String> {
+    let item = SyncItem::try_from(item)?;
+    let origin = item_origin(origin)?;
+    // A day-obs record binds itself to its name by its origin: this device
+    // may write only its own snapshot.
+    if let SyncItem::DayObs(d) = &item {
+        if d.as_str() != origin.device_id {
+            return Err("unknown".to_string());
+        }
+    }
+    let local = item.local_path(&local_data_dir(&app)?);
+    let filename = sanitize_filename(&filename);
+    blocking(move || {
+        let docs = container_documents().ok_or_else(|| "unavailable".to_string())?;
+        push_item_at(&docs, &local, &item, &filename, &uploaded_at, &origin, unless_sha256.as_deref())
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn icloud_push_items_cleared(counties: Vec<String>, cleared_at: String, origin: Origin) -> Result<ClearedResult, String> {
+    let origin = item_origin(origin)?;
+    blocking(move || {
+        let docs = container_documents().ok_or_else(|| "unavailable".to_string())?;
+        push_items_cleared_at(&docs, counties, &cleared_at, &origin)
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn icloud_pull_item(
+    app: AppHandle,
+    item: ItemArg,
+    expected_sha256: String,
+    expected_byte_length: u64,
+    mode: PullMode,
+) -> Result<PullItemResult, String> {
+    let item = SyncItem::try_from(item)?;
+    let local = item.local_path(&local_data_dir(&app)?);
+    blocking(move || {
+        let docs = container_documents().ok_or_else(|| "unavailable".to_string())?;
+        pull_item_at(&docs, &local, &item, &expected_sha256, expected_byte_length, mode)
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn icloud_start_download_item(item: ItemArg) -> Result<(), String> {
+    let item = SyncItem::try_from(item)?;
+    blocking(move || {
+        let docs = container_documents().ok_or_else(|| "unavailable".to_string())?;
+        let sub = real_subdir(&docs, item.kind()).ok_or_else(|| "absent".to_string())?;
+        let name = item.file_name();
+        if !item_present(&sub, &name) {
+            return Err("absent".to_string());
+        }
+        NSFileManager::defaultManager()
+            .startDownloadingUbiquitousItemAtURL_error(&file_url(&sub.join(&name)))
+            .map_err(|_| "unavailable".to_string())
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn icloud_remove_item(item: ItemArg) -> Result<RemoveResult, String> {
+    let item = SyncItem::try_from(item)?;
+    blocking(move || {
+        let docs = container_documents().ok_or_else(|| "unavailable".to_string())?;
+        Ok(RemoveResult { removed: remove_item_at(&docs, &item)? })
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn icloud_remove_items(kind: ItemKind) -> Result<RemoveResult, String> {
+    blocking(move || {
+        let docs = container_documents().ok_or_else(|| "unavailable".to_string())?;
+        Ok(RemoveResult { removed: remove_items_in(&docs, kind)? })
+    })
+    .await
 }
 
 #[cfg(test)]
@@ -1752,5 +2595,359 @@ mod tests {
         fs::remove_file(&p).unwrap();
         assert!(record_text_at(&p).unwrap().is_none());
         let _ = fs::remove_dir_all(&dir);
+    }
+
+    // ── icloud-bar-chart-sync (schema.md sections 3, 4, 9, 10; QA-02, QA-25, QA-27, QA-31) ──
+
+    /// Pinned byte-equal to `COUNTY_RECORD_GOLDEN`, `COUNTY_CLEARED_GOLDEN`
+    /// and `DAY_OBS_RECORD_GOLDEN` in icloudRecord.ts by the parity test.
+    const COUNTY_RECORD_GOLDEN: &str = r#"{"version":1,"slot":"barchart","county":"US-CA-001","state":"file","filename":"ebird_US-CA-001__1900_2026_1_12_barchart.txt","uploadedAt":"2026-09-20T12:05:00.000Z","origin":{"deviceId":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","label":"Dave's MacBook Pro","platform":"mac"},"byteLength":48213,"sha256":"3f79bb7b435b05321651daefd374cdc681dc06faa65e374e38337b88ca046dea"}"#;
+    const COUNTY_CLEARED_GOLDEN: &str = r#"{"version":1,"slot":"barchart","county":"US-CA-001","state":"cleared","clearedAt":"2026-09-21T08:00:00.000Z","origin":{"deviceId":"ffffffffffffffffffffffffffffffff","label":"iPhone","platform":"iphone"}}"#;
+    const DAY_OBS_RECORD_GOLDEN: &str = r#"{"version":1,"slot":"day-obs","state":"file","filename":"county-day-obs.json","uploadedAt":"2026-09-21T08:00:00.000Z","origin":{"deviceId":"ffffffffffffffffffffffffffffffff","label":"iPhone","platform":"iphone"},"byteLength":10485760,"sha256":"3f79bb7b435b05321651daefd374cdc681dc06faa65e374e38337b88ca046dea"}"#;
+    /// A slot record still serializes with no `county` key at all.
+    const SLOT_RECORD_GOLDEN: &str = r#"{"version":1,"slot":"ebird","state":"file","filename":"MyEBirdData.csv","uploadedAt":"2026-08-24T22:12:00.000Z","origin":{"deviceId":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","label":"Dave's MacBook Pro","platform":"mac"},"byteLength":1000,"sha256":"3f79bb7b435b05321651daefd374cdc681dc06faa65e374e38337b88ca046dea"}"#;
+    const GOLDEN_SHA: &str = "3f79bb7b435b05321651daefd374cdc681dc06faa65e374e38337b88ca046dea";
+
+    fn mac_origin() -> Origin {
+        Origin { device_id: "a".repeat(32), label: "Dave's MacBook Pro".to_string(), platform: "mac".to_string() }
+    }
+    fn phone_origin() -> Origin {
+        Origin { device_id: "f".repeat(32), label: "iPhone".to_string(), platform: "iphone".to_string() }
+    }
+    fn county(code: &str) -> SyncItem {
+        SyncItem::County(County::parse(code).unwrap())
+    }
+    fn tmp_dir(tag: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("sr-icloud-{}-{}", tag, std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    #[derive(Deserialize)]
+    struct RegionRow {
+        input: String,
+        ok: bool,
+    }
+
+    /// THE RUST HALF OF THE TWINNED REGION-CODE PREDICATE (FR-29, QA-31).
+    /// Deleting `County::parse`'s checks turns this test red and nothing on the
+    /// TypeScript side; `icloudNative.regionCode.test.ts` is the other half.
+    #[test]
+    fn county_parse_refuses_fixture_rows() {
+        let rows: Vec<RegionRow> = serde_json::from_str(include_str!("../../frontend/src/lib/regionCode.fixture.json")).unwrap();
+        // The same count the TypeScript parity test asserts, so neither side can grow alone.
+        assert_eq!(rows.len(), 24);
+        assert!(rows.iter().any(|r| r.ok) && rows.iter().any(|r| !r.ok));
+        for r in &rows {
+            assert_eq!(County::parse(&r.input).is_ok(), r.ok, "{:?}", r.input);
+        }
+        // And the IPC conversion refuses before any path is built.
+        let bad = SyncItem::try_from(ItemArg::Barchart { county: "US-CA-001\n".to_string() });
+        assert_eq!(bad.err().as_deref(), Some("unknown"));
+        let bad_dev = SyncItem::try_from(ItemArg::DayObs { device_id: "../../x".to_string() });
+        assert_eq!(bad_dev.err().as_deref(), Some("unknown"));
+    }
+
+    #[test]
+    fn item_names_derive_from_the_validated_code_only() {
+        let c = county("US-CA-001");
+        assert_eq!(c.container_file(), "barcharts/US-CA-001.txt");
+        assert_eq!(c.container_record(), "barcharts/US-CA-001.record.json");
+        assert_eq!(c.local_path(Path::new("/d")), PathBuf::from("/d/barcharts/US-CA-001.txt"));
+        let d = SyncItem::DayObs(DeviceId::parse(&"f".repeat(32)).unwrap());
+        assert_eq!(d.container_file(), format!("day-obs/{}.json", "f".repeat(32)));
+        assert_eq!(d.container_record(), format!("day-obs/{}.record.json", "f".repeat(32)));
+        assert_eq!(d.local_path(Path::new("/d")), PathBuf::from("/d/county-day-obs.json"));
+        // Staging is flat in the one .tmp/ directory, and a slot name is unchanged.
+        assert_eq!(staging_name("barcharts/US-CA-001.txt"), "barcharts-US-CA-001.txt");
+        assert_eq!(staging_name("ebird-backup.csv"), "ebird-backup.csv");
+        // No item name can spell a slot name, a slot record or the key record.
+        for n in [c.container_file(), c.container_record(), d.container_file(), d.container_record()] {
+            for fixed in ["ebird-backup.csv", "ml-export.csv", "ebird.record.json", "ml.record.json", KEYS_RECORD_NAME] {
+                assert_ne!(n, fixed);
+            }
+        }
+        // The IPC shape deserializes as the frontend sends it.
+        let arg: ItemArg = serde_json::from_str(r#"{"kind":"day-obs","deviceId":"ffffffffffffffffffffffffffffffff"}"#).unwrap();
+        assert!(matches!(SyncItem::try_from(arg), Ok(SyncItem::DayObs(_))));
+        let arg: ItemArg = serde_json::from_str(r#"{"kind":"barchart","county":"US-CA-001"}"#).unwrap();
+        assert!(matches!(SyncItem::try_from(arg), Ok(SyncItem::County(_))));
+    }
+
+    #[test]
+    fn item_record_goldens_match_the_frontend_literals() {
+        let o = mac_origin();
+        let ca = county("US-CA-001");
+        let (slot, c) = ca.record_fields();
+        let file = RecordFile {
+            version: 1, slot, county: c, state: "file",
+            filename: Some("ebird_US-CA-001__1900_2026_1_12_barchart.txt"),
+            uploaded_at: Some("2026-09-20T12:05:00.000Z"), cleared_at: None, origin: &o,
+            byte_length: Some(48213), sha256: Some(GOLDEN_SHA),
+        };
+        assert_eq!(serde_json::to_string(&file).unwrap(), COUNTY_RECORD_GOLDEN);
+        let p = phone_origin();
+        let cleared = RecordFile {
+            version: 1, slot, county: c, state: "cleared", filename: None, uploaded_at: None,
+            cleared_at: Some("2026-09-21T08:00:00.000Z"), origin: &p, byte_length: None, sha256: None,
+        };
+        assert_eq!(serde_json::to_string(&cleared).unwrap(), COUNTY_CLEARED_GOLDEN);
+        let d = SyncItem::DayObs(DeviceId::parse(&"f".repeat(32)).unwrap());
+        let (dslot, dc) = d.record_fields();
+        assert!(dc.is_none());
+        let snap = RecordFile {
+            version: 1, slot: dslot, county: dc, state: "file", filename: Some("county-day-obs.json"),
+            uploaded_at: Some("2026-09-21T08:00:00.000Z"), cleared_at: None, origin: &p,
+            byte_length: Some(10_485_760), sha256: Some(GOLDEN_SHA),
+        };
+        assert_eq!(serde_json::to_string(&snap).unwrap(), DAY_OBS_RECORD_GOLDEN);
+        let slot_rec = RecordFile {
+            version: 1, slot: Slot::Ebird.key(), county: None, state: "file", filename: Some("MyEBirdData.csv"),
+            uploaded_at: Some("2026-08-24T22:12:00.000Z"), cleared_at: None, origin: &o,
+            byte_length: Some(1000), sha256: Some(GOLDEN_SHA),
+        };
+        assert_eq!(serde_json::to_string(&slot_rec).unwrap(), SLOT_RECORD_GOLDEN);
+    }
+
+    #[test]
+    fn the_day_obs_bound_sits_between_its_producer_and_the_csv_bound() {
+        // 41.5 MB is the adversarial producer maximum (schema.md 10.1).
+        const _: () = assert!(DAY_OBS_SHARED_MAX_BYTES > 41_500_000);
+        const _: () = assert!(DAY_OBS_SHARED_MAX_BYTES < MAX_BYTES);
+        assert_eq!(county("US-CA-001").max_bytes(), MAX_BYTES);
+        assert_eq!(SyncItem::DayObs(DeviceId::parse(&"a".repeat(32)).unwrap()).max_bytes(), DAY_OBS_SHARED_MAX_BYTES);
+    }
+
+    #[test]
+    fn a_push_then_a_pull_round_trips_and_verifies_length_and_digest() {
+        let docs = tmp_dir("items-rt");
+        let local_dir = docs.join("local");
+        fs::create_dir_all(local_dir.join("barcharts")).unwrap();
+        let item = county("US-CA-001");
+        let local = item.local_path(&local_dir);
+        fs::write(&local, b"Sample Size:\t1.0\n").unwrap();
+        let o = mac_origin();
+        let r = push_item_at(&docs, &local, &item, "ebird.txt", "2026-09-20T12:05:00.000Z", &o, None).unwrap();
+        assert!(!r.skipped);
+        assert_eq!(r.byte_length, 17);
+        assert!(docs.join("barcharts/US-CA-001.txt").is_file());
+        let rec = record_text_at(&docs.join("barcharts/US-CA-001.record.json")).unwrap().unwrap();
+        assert!(rec.contains(r#""slot":"barchart","county":"US-CA-001","state":"file""#));
+        assert!(rec.contains(&r.sha256));
+        // No staging entry is left behind.
+        assert_eq!(fs::read_dir(docs.join(".tmp")).unwrap().count(), 0);
+        // The same bytes again, told the digest: nothing is written.
+        let again = push_item_at(&docs, &local, &item, "ebird.txt", "2026-09-20T12:06:00.000Z", &o, Some(&r.sha256)).unwrap();
+        assert!(again.skipped);
+        assert!(!record_text_at(&docs.join("barcharts/US-CA-001.record.json")).unwrap().unwrap().contains("12:06"));
+        // Pull onto a second device's data dir.
+        let other = docs.join("other");
+        let dst = item.local_path(&other);
+        pull_item_at(&docs, &dst, &item, &r.sha256, r.byte_length, PullMode::File).unwrap();
+        assert_eq!(fs::read(&dst).unwrap(), b"Sample Size:\t1.0\n");
+        // A wrong length, a wrong digest and an over-bound claim are refused and touch nothing.
+        fs::write(&dst, b"keep").unwrap();
+        assert_eq!(pull_item_at(&docs, &dst, &item, &r.sha256, 16, PullMode::File).err().as_deref(), Some("mismatch"));
+        assert_eq!(pull_item_at(&docs, &dst, &item, &"0".repeat(64), 17, PullMode::File).err().as_deref(), Some("mismatch"));
+        assert_eq!(pull_item_at(&docs, &dst, &item, &r.sha256, MAX_BYTES + 1, PullMode::File).err().as_deref(), Some("too-large"));
+        assert_eq!(fs::read(&dst).unwrap(), b"keep");
+        // The modes pair with the kinds: a county file is never handed back as text.
+        assert_eq!(pull_item_at(&docs, &dst, &item, &r.sha256, 17, PullMode::Text).err().as_deref(), Some("unknown"));
+        // An absent county is absent.
+        assert_eq!(pull_item_at(&docs, &dst, &county("US-NY-001"), &r.sha256, 17, PullMode::File).err().as_deref(), Some("absent"));
+        let _ = fs::remove_dir_all(&docs);
+    }
+
+    #[test]
+    fn a_day_obs_snapshot_pulls_as_text_and_non_utf8_is_a_mismatch() {
+        let docs = tmp_dir("items-text");
+        let local = docs.join("local/county-day-obs.json");
+        fs::create_dir_all(local.parent().unwrap()).unwrap();
+        fs::write(&local, br#"{"version":2,"entries":{},"order":[]}"#).unwrap();
+        let o = phone_origin();
+        let item = SyncItem::DayObs(DeviceId::parse(&o.device_id).unwrap());
+        let r = push_item_at(&docs, &local, &item, "county-day-obs.json", "2026-09-21T08:00:00.000Z", &o, None).unwrap();
+        let got = pull_item_at(&docs, Path::new("/nonexistent/never-written"), &item, &r.sha256, r.byte_length, PullMode::Text).unwrap();
+        assert_eq!(got.text.as_deref(), Some(r#"{"version":2,"entries":{},"order":[]}"#));
+        assert_eq!(pull_item_at(&docs, Path::new("/x"), &item, &r.sha256, r.byte_length, PullMode::File).err().as_deref(), Some("unknown"));
+        // Bytes that verify but are not UTF-8 never reach the merge.
+        let bad = [0xff_u8, 0xfe, b'{', b'}'];
+        fs::write(docs.join(format!("day-obs/{}.json", o.device_id)), bad).unwrap();
+        let sha = sha256_hex(&bad);
+        assert_eq!(pull_item_at(&docs, Path::new("/x"), &item, &sha, 4, PullMode::Text).err().as_deref(), Some("mismatch"));
+        let _ = fs::remove_dir_all(&docs);
+    }
+
+    #[test]
+    fn a_local_file_is_bounded_before_it_is_read() {
+        let docs = tmp_dir("items-local");
+        let o = phone_origin();
+        let item = SyncItem::DayObs(DeviceId::parse(&o.device_id).unwrap());
+        let local = docs.join("county-day-obs.json");
+        // Missing, then a directory, then a symlink at the local name: all local-missing.
+        assert_eq!(push_item_at(&docs, &local, &item, "f", "t", &o, None).err().as_deref(), Some("local-missing"));
+        fs::create_dir_all(&local).unwrap();
+        assert_eq!(push_item_at(&docs, &local, &item, "f", "t", &o, None).err().as_deref(), Some("local-missing"));
+        fs::remove_dir_all(&local).unwrap();
+        let real = docs.join("real.json");
+        fs::write(&real, b"{}").unwrap();
+        std::os::unix::fs::symlink(&real, &local).unwrap();
+        assert_eq!(push_item_at(&docs, &local, &item, "f", "t", &o, None).err().as_deref(), Some("local-missing"));
+        fs::remove_file(&local).unwrap();
+        // One byte over the kind's bound is refused from its length alone (a
+        // sparse file: nothing is read into memory).
+        let f = fs::File::create(&local).unwrap();
+        f.set_len(DAY_OBS_SHARED_MAX_BYTES + 1).unwrap();
+        assert_eq!(push_item_at(&docs, &local, &item, "f", "t", &o, None).err().as_deref(), Some("too-large"));
+        assert!(!docs.join("day-obs").exists());
+        let _ = fs::remove_dir_all(&docs);
+    }
+
+    #[test]
+    fn container_shapes_at_an_item_name_are_refused_or_read_as_absent() {
+        let docs = tmp_dir("items-planted");
+        let sub = docs.join("barcharts");
+        fs::create_dir_all(&sub).unwrap();
+        let item = county("US-CA-001");
+        let dst = docs.join("local/barcharts/US-CA-001.txt");
+        // A directory at the county file's name: never read.
+        fs::create_dir_all(sub.join("US-CA-001.txt")).unwrap();
+        assert!(pull_item_at(&docs, &dst, &item, GOLDEN_SHA, 3, PullMode::File).is_err());
+        fs::remove_dir_all(sub.join("US-CA-001.txt")).unwrap();
+        // A symlink at the county file's name: not an item this app wrote, never followed.
+        let outside = docs.join("outside.txt");
+        fs::write(&outside, b"abc").unwrap();
+        std::os::unix::fs::symlink(&outside, sub.join("US-CA-001.txt")).unwrap();
+        assert_eq!(pull_item_at(&docs, &dst, &item, &sha256_hex(b"abc"), 3, PullMode::File).err().as_deref(), Some("absent"));
+        assert!(!dst.exists());
+        // A symlink planted at the SUBDIRECTORY's own name: reads see nothing,
+        // and a write removes it as a link and never writes through it.
+        fs::remove_dir_all(&sub).unwrap();
+        let elsewhere = docs.join("elsewhere");
+        fs::create_dir_all(&elsewhere).unwrap();
+        std::os::unix::fs::symlink(&elsewhere, &sub).unwrap();
+        assert!(list_items_bounded(&docs, ItemKind::Barchart, MAX_LISTED_ITEMS).items.is_empty());
+        let local = docs.join("local/barcharts/US-CA-001.txt");
+        fs::create_dir_all(local.parent().unwrap()).unwrap();
+        fs::write(&local, b"abc").unwrap();
+        push_item_at(&docs, &local, &item, "e.txt", "2026-09-20T12:05:00.000Z", &mac_origin(), None).unwrap();
+        assert!(fs::symlink_metadata(&sub).unwrap().file_type().is_dir());
+        assert_eq!(fs::read_dir(&elsewhere).unwrap().count(), 0);
+        let _ = fs::remove_dir_all(&docs);
+    }
+
+    #[test]
+    fn a_listing_reads_only_valid_record_names_and_is_bounded() {
+        let docs = tmp_dir("items-list");
+        let sub = docs.join("barcharts");
+        fs::create_dir_all(&sub).unwrap();
+        fs::write(sub.join("US-CA-001.record.json"), COUNTY_RECORD_GOLDEN).unwrap();
+        fs::write(sub.join("US-CA-001.txt"), b"abc").unwrap();
+        fs::write(sub.join("US-NY-005.record.json"), COUNTY_CLEARED_GOLDEN).unwrap();
+        // Names that are not a county record: ignored, never read. (A
+        // lowercase spelling of a code already present would OPEN that file on
+        // a case-insensitive volume, the macOS default, so this one names a
+        // county with no other entry.)
+        fs::write(sub.join("us-tx-999.record.json"), b"x").unwrap();
+        fs::write(sub.join("US-CA-001\n.record.json"), b"x").unwrap();
+        fs::write(sub.join("US-CA-0012.record.json"), b"x").unwrap();
+        fs::write(sub.join("notes.txt"), b"x").unwrap();
+        // A directory at a record name reads as the empty text (absent to the validator).
+        fs::create_dir_all(sub.join("US-TX-201.record.json")).unwrap();
+        // A record past the 16 KB bound is not loaded, and non-UTF-8 reads empty.
+        fs::write(sub.join("US-WA-033.record.json"), vec![b' '; (MAX_RECORD_BYTES + 1) as usize]).unwrap();
+        fs::write(sub.join("US-OR-051.record.json"), [0xff_u8, 0xfe]).unwrap();
+        let listed = list_items_bounded(&docs, ItemKind::Barchart, MAX_LISTED_ITEMS);
+        assert!(!listed.truncated);
+        let ids: Vec<&str> = listed.items.iter().map(|i| i.id.as_str()).collect();
+        assert_eq!(ids, vec!["US-CA-001", "US-NY-005", "US-OR-051", "US-TX-201", "US-WA-033"]);
+        let ca = &listed.items[0];
+        assert!(ca.present);
+        assert_eq!(ca.record.as_deref(), Some(COUNTY_RECORD_GOLDEN));
+        assert!(ca.file.present && ca.file.downloaded);
+        assert_eq!(ca.file.byte_length, Some(3));
+        let ny = &listed.items[1];
+        assert_eq!(ny.record.as_deref(), Some(COUNTY_CLEARED_GOLDEN));
+        assert!(!ny.file.present);
+        // Non-UTF-8 and oversized records read as the empty text; a directory
+        // at the record name is not a record at all (absent, so the next push
+        // replaces it), exactly as for a slot record.
+        let by_id = |id: &str| listed.items.iter().find(|i| i.id == id).unwrap();
+        assert_eq!(by_id("US-OR-051").record.as_deref(), Some(""));
+        assert_eq!(by_id("US-WA-033").record.as_deref(), Some(""));
+        assert!(!by_id("US-TX-201").present);
+        assert!(by_id("US-TX-201").record.is_none());
+        // The bound: one item past it is reported as truncated, not read.
+        let bounded = list_items_bounded(&docs, ItemKind::Barchart, 4);
+        assert_eq!(bounded.items.len(), 4);
+        assert!(bounded.truncated);
+        // A day-obs listing does not see county names, and the reverse.
+        assert!(list_items_bounded(&docs, ItemKind::DayObs, MAX_LISTED_ITEMS).items.is_empty());
+        fs::create_dir_all(docs.join("day-obs")).unwrap();
+        fs::write(docs.join(format!("day-obs/{}.record.json", "f".repeat(32))), DAY_OBS_RECORD_GOLDEN).unwrap();
+        fs::write(docs.join("day-obs/US-CA-001.record.json"), b"x").unwrap();
+        let days = list_items_bounded(&docs, ItemKind::DayObs, MAX_LISTED_ITEMS);
+        assert_eq!(days.items.len(), 1);
+        assert_eq!(days.items[0].id, "f".repeat(32));
+        // The placeholder name of an undownloaded record names the same id.
+        assert_eq!(record_id_from_name(".US-CA-001.record.json.icloud", ItemKind::Barchart).as_deref(), Some("US-CA-001"));
+        assert_eq!(record_id_from_name(".US-CA-001.record.json", ItemKind::Barchart), None);
+        let _ = fs::remove_dir_all(&docs);
+    }
+
+    #[test]
+    fn cleared_markers_replace_the_file_and_refuse_a_bad_code() {
+        let docs = tmp_dir("items-cleared");
+        let local = docs.join("local/barcharts/US-CA-001.txt");
+        fs::create_dir_all(local.parent().unwrap()).unwrap();
+        fs::write(&local, b"abc").unwrap();
+        let item = county("US-CA-001");
+        push_item_at(&docs, &local, &item, "e.txt", "2026-09-20T12:05:00.000Z", &mac_origin(), None).unwrap();
+        let r = push_items_cleared_at(&docs, vec!["US-CA-001".to_string(), "US-CA-001\n".to_string()], "2026-09-21T08:00:00.000Z", &phone_origin()).unwrap();
+        assert_eq!(r.failed, vec!["US-CA-001\n".to_string()]);
+        assert!(!docs.join("barcharts/US-CA-001.txt").exists());
+        assert_eq!(record_text_at(&docs.join("barcharts/US-CA-001.record.json")).unwrap().as_deref(), Some(COUNTY_CLEARED_GOLDEN));
+        let _ = fs::remove_dir_all(&docs);
+    }
+
+    #[test]
+    fn a_bulk_removal_takes_every_valid_item_and_its_staging_and_nothing_else() {
+        let docs = tmp_dir("items-remove");
+        let sub = docs.join("barcharts");
+        fs::create_dir_all(&sub).unwrap();
+        for n in ["US-CA-001.txt", "US-CA-001.record.json", "US-NY-005.record.json"] {
+            fs::write(sub.join(n), b"x").unwrap();
+        }
+        // An undownloaded item's placeholder names the same id (the logical
+        // delete of a REAL placeholder is Foundation's, not testable here).
+        assert_eq!(item_id_from_any_name(".US-TX-201.txt.icloud", ItemKind::Barchart).as_deref(), Some("US-TX-201"));
+        assert_eq!(item_id_from_any_name(".US-TX-201.record.json.icloud", ItemKind::Barchart).as_deref(), Some("US-TX-201"));
+        assert_eq!(item_id_from_any_name("US-TX-201.json", ItemKind::Barchart), None);
+        fs::write(sub.join("notes.txt"), b"keep").unwrap();
+        let tmp = docs.join(".tmp");
+        fs::create_dir_all(&tmp).unwrap();
+        let me = "a".repeat(32);
+        fs::write(tmp.join(format!("{}-barcharts-US-CA-001.txt", me)), b"s").unwrap();
+        fs::write(tmp.join(format!("{}-day-obs-{}.json", me, me)), b"s").unwrap();
+        fs::write(tmp.join(format!("{}-ebird-backup.csv", me)), b"s").unwrap();
+        // Slots and the key record beside the subdirectory are never touched.
+        fs::write(docs.join("ebird.record.json"), b"r").unwrap();
+        fs::write(docs.join(KEYS_RECORD_NAME), b"k").unwrap();
+        let removed = remove_items_in(&docs, ItemKind::Barchart).unwrap();
+        assert_eq!(removed, 4);
+        assert!(sub.join("notes.txt").exists());
+        assert!(!sub.join("US-CA-001.txt").exists() && !sub.join("US-NY-005.record.json").exists());
+        assert!(tmp.join(format!("{}-day-obs-{}.json", me, me)).exists());
+        assert!(tmp.join(format!("{}-ebird-backup.csv", me)).exists());
+        assert!(docs.join("ebird.record.json").exists() && docs.join(KEYS_RECORD_NAME).exists());
+        assert_eq!(remove_items_in(&docs, ItemKind::DayObs).unwrap(), 1);
+        // One item's removal: its record and file, and its own staging only.
+        fs::write(sub.join("US-CA-003.txt"), b"x").unwrap();
+        fs::write(sub.join("US-CA-003.record.json"), b"x").unwrap();
+        fs::write(tmp.join(format!("{}-barcharts-US-CA-003.record.json", "f".repeat(32))), b"s").unwrap();
+        assert_eq!(remove_item_at(&docs, &county("US-CA-003")).unwrap(), 3);
+        assert!(sub.join("notes.txt").exists());
+        let _ = fs::remove_dir_all(&docs);
     }
 }

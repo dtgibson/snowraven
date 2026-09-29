@@ -92,7 +92,7 @@ describe('website/privacy.html ↔ PRIVACY_POLICY.md parity', () => {
     const md = section(policy, /^## iCloud Sync$/m, /^## /m)
     const html = section(page, /<h2 id="icloud-sync">/, /<h2 /)
     for (const text of [md, html]) {
-      expect(text).toMatch(/eBird backup and your Macaulay Library export/) // what is stored
+      expect(text).toMatch(/your eBird backup, your Macaulay Library export and each county's eBird bar-chart file/) // what is stored
       expect(text).toMatch(/your own iCloud account/) // whose account
       expect(text).toMatch(/developer has no way to see/) // developer never sees it
       expect(text).toMatch(/Remove synced files from iCloud/) // how to remove

@@ -1,8 +1,8 @@
 import { Button } from './ui/Button'
 import { Fragment, useEffect, useId, useImperativeHandle, useRef, useState } from 'react'
 import {
-  BookOpen, ChevronDown, ChevronUp, CircleAlert, Cloud, CloudCheck, CloudDownload, CloudOff, CloudUpload,
-  Copy, Eye, EyeOff, FileCheck, FileQuestion, Loader2, Lock, Navigation,
+  BookOpen, ChevronDown, ChevronUp, CircleAlert, Cloud, CloudCheck, CloudOff, CloudUpload,
+  Copy, Eye, EyeOff, FileCheck, FileQuestion, Loader2, Lock, Navigation, RefreshCw,
 } from 'lucide-react'
 import type { StoredFileInfo, StoredFilesStatus } from '../types'
 import { applyTheme, readStoredPreference, persistThemePreference, clearThemePreference, hydrateStoredTheme } from '../lib/theme'
@@ -10,27 +10,32 @@ import type { ThemePreference } from '../lib/theme'
 import type { TextScale } from '../lib/textScale'
 import { type ConfigurableTab, TAB_LABELS, DEFAULT_TAB_ORDER } from '../lib/tabLayout'
 import { storage } from '../lib/storage'
-import { formatDate, setDateFormatPref, asDateFormatPref } from '../lib/formatDate'
+import { formatDate, formatUploadDate, setDateFormatPref, asDateFormatPref } from '../lib/formatDate'
 import type { DateFormatPref } from '../lib/formatDate'
 import { isTauri, isIOS } from '../lib/platform'
 import { supportsAppRelaunch, showICloudSync } from '../lib/platformGates'
 import { useFilesEpoch } from '../lib/useFilesEpoch'
 import { useKeysEpoch } from '../lib/useKeysEpoch'
+import { useBarChartFilesEpoch } from '../lib/useBarChartFilesEpoch'
 import { useICloudState, icloudActions } from '../lib/icloud/icloudState'
 import type { KeySlotView, SlotView } from '../lib/icloud/icloudState'
 import type { Slot } from '../lib/icloud/icloudRecord'
 import type { KeySlot } from '../lib/icloud/keyRecord'
 import type { FileOrigin } from '../lib/storage'
 import {
-  ICS_HEADER, ICS_DESCRIPTION, AVAILABILITY_NOTES, STATE_LABELS, PLATFORM_WORD, hereWord,
-  fromText, fromWithTimeText, replacedText, statusText, CHECK_FAILED_SUFFIX, announcerText, BUTTONS,
+  ICS_HEADER, ICS_DESCRIPTION, AVAILABILITY_NOTES, PLATFORM_WORD, hereWord,
+  statusText, CHECK_FAILED_SUFFIX, announcerText, BUTTONS,
   ENABLE_TITLE, enableNoteItems, REMOVE_TITLE, REMOVE_INTRO, removeOutro, clearTitle, clearBody,
   KEY_SWITCH_LABEL, KEY_SWITCH_DESCRIPTION, KEY_SWITCH_REASON_FILE_SYNC_OFF, KEY_STATE_LABELS,
   fromChangedText, keyReplacedText, keyClearedText, CLEAR_PENDING_TEXT, KEY_REMOVAL_PENDING_TEXT,
   ENABLE_KEYS_TITLE, enableKeysNoteItems, ENABLE_KEYS_FINE, keyClearTitle, keyClearBody,
   REMOVE_KEYS_TITLE, removeKeysBody, REMOVE_KEYS_OUTRO,
+  removeCountiesLine, REMOVE_DAY_OBS_LINE, BAR_CHART_FILES_HEADER, BAR_CHART_FILES_DESCRIPTION,
+  REMOVE_ALL_BAR_CHARTS, barChartsSavedText, barChartsNoneText, barChartsUnknownText,
+  REMOVE_ALL_BAR_CHARTS_TITLE, REMOVE_ALL_CONFIRM, removeAllBarChartsBody, removeAllPartialText, removeAllDoneText,
 } from '../lib/icloud/icloudCopy'
 import { ModalDialog } from './ui/ModalDialog'
+import { SyncContent, SyncLine } from './ui/SyncLine'
 import { fileRowButtonLabel } from '../lib/fileRowCopy'
 import { IOS_IMPORT_MECHANISM, pickCsvViaDialog } from '../lib/iosImport'
 import { refuseByFilename, refuseByContent } from '../lib/uploadGuard'
@@ -112,20 +117,6 @@ function RadioGroup<T extends string | number>({
       })}
     </div>
   )
-}
-
-// uploadedAt is a true UTC instant (Date.toISOString); render it in the user's
-// LOCAL time. We build a local Date and hand it to the canonical formatter — the
-// one place a TZ conversion is intended (unlike eBird Y-M-D display dates, which
-// must never shift). The date honors the user's date-format preference; the local
-// time is appended with " at ".
-function formatUploadDate(iso: string): string {
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return iso
-  const datePart = formatDate(d)
-  if (!datePart) return iso
-  const timePart = d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', hour12: true })
-  return `${datePart} at ${timePart}`
 }
 
 // ---- Appearance row ----
@@ -450,78 +441,6 @@ function FileRow({
 
 // ---- iCloud Sync: the per-row sync line (icloud-sync FR-23 to FR-29) ----
 
-function prefersReducedMotion(): boolean {
-  return typeof window !== 'undefined'
-    && typeof window.matchMedia === 'function'
-    && window.matchMedia('(prefers-reduced-motion: reduce)').matches
-}
-
-// One row's sync content: [glyph] state label · provenance [action]. The label
-// is text (never colour alone); the glyph is reinforcement; the middot lives
-// INSIDE the provenance span so a wrapped line never ends on a dangling dot.
-// Label and filename strings from a shared record render only as children.
-function SyncContent({ view, onDownloadNow, onRetry }: {
-  view: SlotView
-  onDownloadNow?: () => void
-  onRetry?: () => void
-}) {
-  const label = STATE_LABELS[view.state]
-  let Icon = CloudCheck
-  let error = false
-  let more: string | null = null
-  let action: 'download' | 'retry' | null = null
-  const withTime = () => view.uploadedAt
-    ? fromWithTimeText(view.fromThisDevice, view.origin, formatUploadDate(view.uploadedAt))
-    : fromText(view.fromThisDevice, view.origin)
-  switch (view.state) {
-    case 'up-to-date':
-      Icon = CloudCheck
-      // FR-25: the "Replaced by" line TAKES THE PLACE of the provenance while set.
-      more = view.replacedAt
-        ? replacedText(view.origin, formatUploadDate(view.replacedAt))
-        : fromText(view.fromThisDevice, view.origin)
-      break
-    case 'uploading':
-      Icon = CloudUpload; more = fromText(view.fromThisDevice, view.origin); break
-    case 'downloading':
-      Icon = CloudDownload; more = withTime(); break
-    case 'in-icloud-not-downloaded':
-      Icon = CloudDownload; more = withTime(); action = 'download'; break
-    case 'waiting-to-upload':
-      Icon = CloudUpload; more = fromText(view.fromThisDevice, view.origin); break
-    case 'unavailable':
-      Icon = CloudOff; more = fromText(view.fromThisDevice, view.origin); break
-    case 'off':
-      Icon = CloudOff; break
-    case 'error':
-      Icon = CircleAlert; error = true; more = view.reason ?? null; action = 'retry'; break
-  }
-  return (
-    <>
-      <span className={'sr-sync-state' + (error ? ' sr-sync-state--error' : '')}>
-        <Icon size={13} strokeWidth={2.2} aria-hidden />
-        {label}
-      </span>
-      {more && (
-        <>
-          <span className="sr-only">. </span>
-          <span className="sr-sync-more"><span className="sr-sync-sep" aria-hidden>·</span> {more}</span>
-        </>
-      )}
-      {action === 'download' && (
-        <Button type="button" className="sr-btn-quiet sr-btn-inline sr-touch-target" onClick={onDownloadNow}>
-          {BUTTONS.downloadNow}
-        </Button>
-      )}
-      {action === 'retry' && (
-        <Button type="button" className="sr-btn-quiet sr-btn-inline sr-touch-target" onClick={onRetry}>
-          {BUTTONS.retry}
-        </Button>
-      )}
-    </>
-  )
-}
-
 // One KEY row's sync content (icloud-api-key-sync FR-38 to FR-42): the same
 // shape as SyncContent, over the five key states plus Sync off. The FR-41
 // "Replaced by" line and the FR-42 "Cleared from" line take the place of the
@@ -575,47 +494,6 @@ function KeySyncContent({ view, onRetry }: { view: KeySlotView; onRetry?: () => 
         </Button>
       )}
     </>
-  )
-}
-
-// The stable status region. ALWAYS rendered while the platform gate is true
-// (empty when the row has no view); its children are replaced on change and
-// the element itself never unmounts and is never display:none (the house
-// live-region posture), so a state change is announced once. A view-to-view
-// change cross-fades (120ms out, swap, 160ms in via the class transition);
-// the first fill and the clear to empty are instant, and reduced motion swaps
-// instantly. The fade class is toggled on the element through the ref rather
-// than through state so the effect stays free of synchronous setState.
-// Generic over the view (a file row's SlotView or a key row's KeySlotView):
-// the caller supplies the content renderer, and the region itself is shared,
-// not forked (icloud-api-key-sync design-spec.md, Component Usage).
-function SyncLine<V extends object>({ view, render }: {
-  view: V | null
-  render: (view: V) => React.ReactNode
-}) {
-  const lineRef = useRef<HTMLDivElement>(null)
-  const key = view ? JSON.stringify(view) : ''
-  const [shown, setShown] = useState<{ key: string; view: V | null }>({ key, view })
-
-  useEffect(() => {
-    if (key === shown.key) return
-    const el = lineRef.current
-    const instant = !shown.view || !view || prefersReducedMotion()
-    if (!instant) el?.classList.add('sr-sync-line--fading')
-    const t = setTimeout(() => {
-      setShown({ key, view })
-      el?.classList.remove('sr-sync-line--fading')
-    }, instant ? 0 : 120)
-    return () => {
-      clearTimeout(t)
-      el?.classList.remove('sr-sync-line--fading')
-    }
-  }, [key, view, shown.key, shown.view])
-
-  return (
-    <div ref={lineRef} role="status" className="sr-sync-line">
-      {shown.view ? render(shown.view) : null}
-    </div>
   )
 }
 
@@ -860,6 +738,10 @@ function ICloudSyncSection() {
         <p className="sr-dlg-text">{REMOVE_INTRO}</p>
         <ul className="sr-dlg-files">
           {ics.sharedFilenames.map((name, i) => <li key={`${i}-${name}`}>{name}</li>)}
+          {/* icloud-bar-chart-sync (FR-13, FR-27): the county files as one
+              counted line, then the day answers when iCloud holds any. */}
+          {ics.sharedCountyCodes.length > 0 && <li key="counties">{removeCountiesLine(ics.sharedCountyCodes.length)}</li>}
+          {ics.sharedDayObsExists && <li key="day-obs">{REMOVE_DAY_OBS_LINE}</li>}
         </ul>
         <p className="sr-dlg-text">{removeOutro(here)}</p>
       </ModalDialog>
@@ -1712,6 +1594,155 @@ function RebuildCachesButton() {
   )
 }
 
+// ---- Bar-chart files section (icloud-bar-chart-sync FR-19 to FR-23) ----
+//
+// On EVERY platform, after Tab Layout and before the Tauri-only
+// Troubleshooting block, so it sits at the same position relative to the
+// tab's last sections everywhere (design-spec section 3). The Troubleshooting
+// card shape: a description, one quiet bordered button with the count (or the
+// reason it cannot act) beside it as its description, and two ALWAYS-mounted
+// live regions (the partial-failure alert and the success status), each
+// collapsing through `:empty` margin only, never hidden.
+//
+// The count is the manifest's, read on mount and re-read on the bar-chart
+// epoch; a rejected read is UNKNOWN, never EMPTY (v1.0.25), and shows the
+// reason with Retry. With zero counties or an unknown count the button stays
+// focusable with `aria-disabled` and ignores activation by click and by
+// keyboard (NFR-03). It ALWAYS confirms, sync on or off (D2), and the body
+// names iCloud and the other devices only while iCloud Sync is on and
+// available (schema.md 6.5), which is false by construction off Apple.
+//
+// The removal is `clearAllBarChartFiles`, reached through `import()` because
+// this file is on the entry graph and the bar-chart modules are not
+// (entryChunk.test.ts); with sync on, the removed codes then go to
+// `icloudActions.barChartsCleared`, which writes their cleared markers.
+function BarChartFilesSection() {
+  const ics = useICloudState()
+  const here = hereWord(ics.platform)
+  const epoch = useBarChartFilesEpoch()
+  const statusId = useId()
+  const buttonRef = useRef<HTMLButtonElement>(null)
+  // null = not read yet; 'unknown' = the read was refused.
+  const [count, setCount] = useState<number | 'unknown' | null>(null)
+  const [nonce, setNonce] = useState(0)
+  const [confirmOpen, setConfirmOpen] = useState(false)
+  const [busy, setBusy] = useState(false)
+  // Sequence-keyed children, so the same sentence twice is announced twice (v0.5.80).
+  const [alert, setAlert] = useState<{ text: string; seq: number } | null>(null)
+  const [done, setDone] = useState<{ text: string; seq: number } | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      try {
+        const manifest = await storage.getBarChartFiles()
+        if (!cancelled) setCount(Object.keys(manifest.counties).length)
+      } catch {
+        if (!cancelled) setCount('unknown')
+      }
+    })()
+    return () => { cancelled = true }
+  }, [epoch, nonce])
+
+  const syncOn = ics.syncEnabled && ics.availability === 'available'
+  const n = typeof count === 'number' ? count : 0
+  const canAct = n > 0 && !busy
+  const status = count === 'unknown'
+    ? barChartsUnknownText(here)
+    : typeof count === 'number'
+      ? (count > 0 ? barChartsSavedText(count, here) : barChartsNoneText(here))
+      : ''
+
+  function open() {
+    if (!canAct) return
+    setConfirmOpen(true)
+  }
+
+  async function confirm() {
+    setConfirmOpen(false)
+    const asked = n
+    const withSync = syncOn
+    setBusy(true)
+    setAlert(null)
+    setDone(null)
+    try {
+      const { clearAllBarChartFiles } = await import('../lib/barChart/barChartImport')
+      const r = await clearAllBarChartFiles()
+      if (r.failed.length > 0) setAlert(a => ({ text: removeAllPartialText(r.failed.length, here), seq: (a?.seq ?? 0) + 1 }))
+      else setDone(d => ({ text: removeAllDoneText(r.removed.length), seq: (d?.seq ?? 0) + 1 }))
+      if (withSync && r.removed.length > 0) void icloudActions.barChartsCleared(r.removed, new Date().toISOString())
+    } catch {
+      // The removal itself was refused: say what is still saved, from the
+      // manifest as it now reads, rather than guessing.
+      let left = asked
+      try {
+        left = Object.keys((await storage.getBarChartFiles()).counties).length
+      } catch { /* keep the count that was asked about */ }
+      if (left > 0) setAlert(a => ({ text: removeAllPartialText(left, here), seq: (a?.seq ?? 0) + 1 }))
+      else setDone(d => ({ text: removeAllDoneText(asked), seq: (d?.seq ?? 0) + 1 }))
+    } finally {
+      setBusy(false)
+      setNonce(v => v + 1)
+    }
+  }
+
+  return (
+    <div style={{ marginTop: 24 }}>
+      <SectionHeader label={BAR_CHART_FILES_HEADER} />
+      <div style={{ border: '1px solid var(--sr-border)', borderRadius: 10, background: 'var(--sr-surface)', overflow: 'hidden' }}>
+        <div style={{ padding: '14px 16px' }}>
+          <p style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)', marginBottom: 12, lineHeight: 1.5 }}>
+            {BAR_CHART_FILES_DESCRIPTION}
+          </p>
+          <div className="sr-chartfiles-row">
+            <Button
+              ref={buttonRef}
+              type="button"
+              className="sr-chartfiles-btn"
+              aria-disabled={!canAct || undefined}
+              aria-busy={busy || undefined}
+              aria-describedby={statusId}
+              onClick={open}
+            >
+              {REMOVE_ALL_BAR_CHARTS}
+            </Button>
+            <span id={statusId} className="sr-chartfiles-status">{status}</span>
+            {count === 'unknown' && (
+              <Button type="button" className="sr-tg-link" onClick={() => setNonce(v => v + 1)}>
+                <RefreshCw size={12} strokeWidth={2.2} aria-hidden="true" />{BUTTONS.retry}
+              </Button>
+            )}
+          </div>
+          <div role="alert" className="sr-chartfiles-alert">
+            {alert ? <Fragment key={alert.seq}>{alert.text}</Fragment> : null}
+          </div>
+          <div role="status" className="sr-chartfiles-done">
+            {done ? <Fragment key={done.seq}>{done.text}</Fragment> : null}
+          </div>
+        </div>
+      </div>
+      <ModalDialog
+        open={confirmOpen}
+        title={REMOVE_ALL_BAR_CHARTS_TITLE}
+        trigger={() => buttonRef.current}
+        fallbackFocus={() => buttonRef.current}
+        onRequestClose={() => setConfirmOpen(false)}
+        initialFocus="first"
+        actions={
+          <>
+            <Button type="button" className="sr-btn-quiet sr-touch-target" onClick={() => setConfirmOpen(false)}>{BUTTONS.cancel}</Button>
+            <Button type="button" className="sr-btn-quiet sr-btn-quiet--danger sr-touch-target" onClick={() => { void confirm() }}>
+              {syncOn ? BUTTONS.removeAllSynced : REMOVE_ALL_CONFIRM}
+            </Button>
+          </>
+        }
+      >
+        <p className="sr-dlg-text">{removeAllBarChartsBody(n, here, syncOn)}</p>
+      </ModalDialog>
+    </div>
+  )
+}
+
 // ---- Acknowledgments section ----
 //
 // The tab's quietest register (the Troubleshooting card shape, per the approved
@@ -2179,8 +2210,9 @@ export function Settings({
           exists for lead it: API Keys, then Default Files, with iCloud Sync
           travelling directly below Default Files. Everything below that pair
           keeps its previous relative sequence: Help & Documentation,
-          Appearance, Sharing, Default Location, Tab Layout, Troubleshooting
-          (desktop only), Acknowledgments. Spacing is order-neutral by
+          Appearance, Sharing, Default Location, Tab Layout, Bar-chart files
+          (every platform, icloud-bar-chart-sync), Troubleshooting (desktop
+          only), Acknowledgments. Spacing is order-neutral by
           construction: every block is self-contained (card plus any trailing
           explanatory paragraph) and ends in a 24px bottom margin, and the
           panel has no first-child styling, so no seam gains or loses space. */}
@@ -2477,6 +2509,10 @@ export function Settings({
           onRestoreDefaults={onRestoreDefaults}
         />
       </div>
+
+      {/* icloud-bar-chart-sync: on every platform, directly after Tab Layout
+          and before the Tauri-only Troubleshooting block. */}
+      <BarChartFilesSection />
 
       {isTauri() && (
         <div style={{ marginTop: 24 }}>

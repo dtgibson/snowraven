@@ -80,6 +80,17 @@ function makeNative(status: NativeStatus['state'] = 'available') {
     async writeKeys() { rec('writeKeys'); return { uploaded: true } },
     async removeKeys() { rec('removeKeys'); return { removed: 0 } },
     async watch(enabled) { rec('watch', enabled) },
+    // icloud-bar-chart-sync: no county file and no day-obs snapshot exists in
+    // this file's scenarios (lib/icloud/countySync.test.ts and dayObsSync.test.ts
+    // own those passes); this device has no local day cache, so its push
+    // reports the local document missing and nothing is written.
+    async listItems(kind) { rec('listItems', kind); return { items: [], truncated: false } },
+    async pushItem(item) { rec('pushItem', item); throw new ICloudNativeError('local-missing') },
+    async pushItemsCleared(counties) { rec('pushItemsCleared', counties); return { failed: [] } },
+    async pullItem(item) { rec('pullItem', item); return {} },
+    async startDownloadItem(item) { rec('startDownloadItem', item) },
+    async removeItem(item) { rec('removeItem', item); return { removed: 0 } },
+    async removeItems(kind) { rec('removeItems', kind); return { removed: 0 } },
     async onChanged(cb) { changed = cb; return () => { changed = null } },
     async onIdentityChanged(cb) { identity = cb; return () => { identity = null } },
   }
@@ -131,6 +142,11 @@ function makeStorage(meta: FilesStatus = { ebird: null, ml: null }) {
     async applySyncedKey() { return false },
     async applySyncedKeyClear() { return false },
     async stampApiKeyEntry() { return false },
+    // icloud-bar-chart-sync: no county files in this file's scenarios.
+    async getBarChartFiles() { return { version: 1 as const, counties: {} } },
+    async applySyncedBarChartFile() { return false },
+    async applySyncedBarChartClear() { return false },
+    async stampBarChartOrigin() { return false },
   }
   return { storage, settings, files, csv }
 }
@@ -153,6 +169,11 @@ function makeDeps(native: ICloudNativeLayer, storage: ControllerDeps['storage'])
     invalidateKey: () => {},
     notifyKeysChanged: () => {},
     subscribeKeysChanged: () => () => {},
+    notifyBarChartFilesChanged: () => {},
+    subscribeBarChartFilesChanged: () => () => {},
+    mergeDayObsSnapshot: async () => ({ admitted: 0, changed: false }),
+    dayObsPurgeGeneration: () => 0,
+    awaitDayObsWrites: async () => {},
     now: () => clock,
     mintDeviceId: () => ME,
     view: null,
@@ -200,10 +221,18 @@ describe('boot and preference (FR-07, FR-10, FR-13)', () => {
     expect(saved.enabled).toBe(true)
     expect(saved.deviceId).toMatch(/^[0-9a-f]{32}$/)
     expect(getICloudState().deviceId).toBe(saved.deviceId)
-    // FR-12 / QA-11: nothing but slot-scoped calls ever reach the native layer.
+    // FR-12 / QA-11: no settings, key or cache document ever reaches the
+    // native layer. icloud-bar-chart-sync re-scoped this list: a county code
+    // and the day cache's own document name now legitimately appear (the two
+    // new synced kinds), so 'county' is no longer an excluded word; the
+    // documents that must never sync are named by their own paths below.
     const text = JSON.stringify(n.calls)
-    for (const excluded of ['api-keys', 'settings.json', 'map-style', 'replay', 'county', 'hotspot', 'projects', 'taxonomy', 'icloud-sync']) {
+    for (const excluded of ['api-keys', 'settings.json', 'map-style', 'replay', 'hotspot', 'projects', 'taxonomy', 'icloud-sync', 'county-completeness']) {
       expect(text).not.toContain(excluded)
+    }
+    const args = n.calls.flatMap(x => x.args.map(a => JSON.stringify(a)))
+    for (const doc of ['data/settings.json', 'data/api-keys.json', 'county-completeness-v1', 'data/metadata.json']) {
+      expect(args.some(a => a.includes(doc))).toBe(false)
     }
   })
 

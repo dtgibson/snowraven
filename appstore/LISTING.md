@@ -189,17 +189,22 @@ definition of "collect" and none changing the answer:
   nothing about the user beyond what any request carries (IP address), goes
   device-to-Cornell in the apps, and is disabled entirely by the Disable
   embedded media setting.
-- **iCloud Sync (v1.0.11):** an opt-in, off-by-default toggle on Mac, iPhone
-  and iPad that copies the user's two data files (and a small record naming
-  each file, its upload time, and a random per-device id with the device's
-  name) into an iCloud container tied to the user's own Apple ID, so the
-  user's other devices can pick them up. It is device-to-Apple, under the
+- **iCloud Sync (v1.0.11; bar-chart files and the Targets day lists from
+  v1.0.40):** an opt-in, off-by-default toggle on Mac, iPhone and iPad that
+  copies the user's data files (the eBird backup, the Macaulay Library export
+  and any eBird bar-chart files added on the Targets tab, each with a small
+  record naming the file, its upload time, and a random per-device id with the
+  device's name) into an iCloud container tied to the user's own Apple ID, so
+  the user's other devices can pick them up. It is device-to-Apple, under the
   user's account, initiated by the user, and the developer has no server and
   no access to the container: nothing reaches the developer, so "Data Not
   Collected" holds. It is sync between the user's own devices, distinct from
   the iOS device backup, and the privacy policy describes it on its own terms
   (what is stored, whose account, that the developer never sees it, how to
-  remove it). Settings and caches are never written to it.
+  remove it). Settings are never written to it. The one cache that is: the
+  Targets tab's per-day lists of species eBird reported in a county, one copy
+  per device, so the user's other devices do not repeat those eBird requests;
+  they hold nothing from the user's files.
 - **iCloud API key sync (v1.0.12):** a second opt-in, off-by-default switch
   inside the same iCloud Sync section, available only while file sync is on,
   that writes the user's two API keys (each with its change time and the

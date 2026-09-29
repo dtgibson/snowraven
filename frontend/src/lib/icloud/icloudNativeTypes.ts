@@ -105,6 +105,58 @@ export interface NativeKeysWriteResult {
   uploaded: boolean
 }
 
+// ── icloud-bar-chart-sync: the item commands (schema.md section 9.3) ──
+
+/** The two synced kinds that are not slots. */
+export type ItemKind = 'barchart' | 'day-obs'
+
+/** One item, as the native commands take it; converted and validated natively
+ *  (and checked by the wrapper in icloudNative.ts first). */
+export type SyncItemRef = { kind: 'barchart'; county: string } | { kind: 'day-obs'; deviceId: string }
+
+/** A hostile-container bound on one listing, never a user quota; pinned to
+ *  `MAX_LISTED_ITEMS` in icloud.rs by the parity test. */
+export const MAX_LISTED_ITEMS = 4096
+
+export interface NativeListedFile {
+  present: boolean
+  downloaded: boolean
+  downloading: boolean
+  byteLength: number | null
+  /** both the file and its record report iCloud holds them */
+  uploaded: boolean
+}
+
+/**
+ * One listed item. The RECORD is tri-state, which the two slots never needed:
+ * `present: false` = no record (a local file is pushed); `present: true,
+ * record: null` = a record exists but has not downloaded (or could not be
+ * read) and the item is SKIPPED this check, never treated as absent, so a
+ * device never pushes over a peer's file it has not read; a string = the raw
+ * text, validated by the caller.
+ */
+export interface NativeListedItem {
+  /** the validated county code or device id */
+  id: string
+  present: boolean
+  record: string | null
+  file: NativeListedFile
+}
+
+export interface NativeListResult {
+  items: NativeListedItem[]
+  /** MAX_LISTED_ITEMS was reached; the rest were ignored this listing */
+  truncated: boolean
+}
+
+export interface NativeItemPushResult {
+  sha256: string
+  byteLength: number
+  uploaded: boolean
+  /** the digest equalled the `unlessSha256` handed in, so nothing was written */
+  skipped: boolean
+}
+
 /**
  * The commands and two events, as the controller sees them. The real
  * implementation is icloudNative.ts; tests inject a fake.
@@ -124,6 +176,20 @@ export interface ICloudNativeLayer {
   /** Delete the key record (and any key staging entry), never a csv or a file record. */
   removeKeys(): Promise<{ removed: number }>
   watch(enabled: boolean): Promise<void>
+  // ── icloud-bar-chart-sync ──
+  /** Every item of a kind whose record name passes the kind's predicate, in one call. */
+  listItems(kind: ItemKind): Promise<NativeListResult>
+  /** Push the item's local file then its record; nothing is written when the digest equals `unlessSha256`. */
+  pushItem(item: SyncItemRef, filename: string, uploadedAt: string, origin: RecordOrigin, unlessSha256: string | null): Promise<NativeItemPushResult>
+  /** A cleared marker per county (the county file goes); per-county failures come back in `failed`. */
+  pushItemsCleared(counties: string[], clearedAt: string, origin: RecordOrigin): Promise<{ failed: string[] }>
+  /** Verify and write the county file over the local one (`file`), or hand a snapshot back as text (`text`). */
+  pullItem(item: SyncItemRef, expectedSha256: string, expectedByteLength: number, mode: 'file' | 'text'): Promise<{ text?: string }>
+  startDownloadItem(item: SyncItemRef): Promise<void>
+  /** Delete one item's file and record (this device's own snapshot, in practice). */
+  removeItem(item: SyncItemRef): Promise<{ removed: number }>
+  /** Delete every item of a kind (every county, or every device's snapshot). */
+  removeItems(kind: ItemKind): Promise<{ removed: number }>
   onChanged(cb: () => void): Promise<() => void>
   onIdentityChanged(cb: () => void): Promise<() => void>
 }

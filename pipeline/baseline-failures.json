@@ -1,5 +1,10 @@
 {
   "recordedAt": "2026-09-23T06:07:33Z",
-  "updatedAt": "2026-09-23T06:07:33Z",
-  "failures": []
+  "updatedAt": "2026-09-29T06:38:36Z",
+  "failures": [
+    {
+      "id": "website/tools/weather-capture.test.mjs > the published Weather asset and its scoped markup agree on 1080x2021",
+      "firstSeen": "2026-09-29T06:38:36Z"
+    }
+  ]
 }

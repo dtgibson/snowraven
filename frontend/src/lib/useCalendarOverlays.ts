@@ -1,6 +1,7 @@
 // The Calendar overlays preference: hydrate once from the storage seam, then
 // persist every change of any of the three controls as ONE whole value under
-// ONE key (schema.md 1.3).
+// ONE key (schema.md 1.3), built by storedCalendarOverlays so every write
+// carries the version marker (calendar-breeding-category-default).
 //
 // A component-local hook rather than a module store: the Calendar is the only
 // reader and it is mounted once per session (tabs hide with display:none), so a
@@ -12,7 +13,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { storage } from './storage'
 import {
   CALENDAR_OVERLAYS_SETTING_KEY, DEFAULT_CALENDAR_OVERLAYS, normalizeCalendarOverlays, overlaysEqual,
-  type CalendarOverlays, type CodesMode,
+  storedCalendarOverlays, type CalendarOverlays, type CodesMode,
 } from './calendarOverlays'
 
 export interface CalendarOverlaysControls {
@@ -46,7 +47,8 @@ export function useCalendarOverlays(): CalendarOverlaysControls {
         stateRef.current = next
         setOverlays(next)
       })
-    // Hydration is a pure read: nothing is written back here (FR-03).
+    // Hydration is a pure read: nothing is written back here (FR-03), and that
+    // includes a migrated value, which is saved only on the next change.
     return () => { cancelled = true }
   }, [])
 
@@ -54,8 +56,9 @@ export function useCalendarOverlays(): CalendarOverlaysControls {
     stateRef.current = next
     userChoseRef.current = true
     setOverlays(next)
-    // Exactly one write per change, always all three fields (QA-03).
-    const value: CalendarOverlays = { media: next.media, breeding: next.breeding, codes: next.codes }
+    // Exactly one write per change, always all three fields plus the marker
+    // (QA-03), so a deliberate Every code reads back as a choice.
+    const value = storedCalendarOverlays(next)
     writeChainRef.current = writeChainRef.current
       .then(() => storage.setSetting(CALENDAR_OVERLAYS_SETTING_KEY, value))
       .catch(() => { /* FR-06: silent; the next change retries */ })

@@ -22,7 +22,13 @@
 //   through the storage seam's guarded api-keys links; the key switch, its
 //   removal-on-disable (with a retry armed while iCloud is unreachable),
 //   Clear-with-sync through a local cleared marker, and the keys epoch so a
-//   received key reaches every networked feature without a relaunch.
+//   received key reaches every networked feature without a relaunch;
+// - the COUNTY pass and the DAY-OBS pass (icloud-bar-chart-sync), inside the
+//   same check, after the file pass and before the key pass: each county's
+//   eBird bar-chart file is decided by the same reconciliation table as a data
+//   file (lib/icloud/countySync.ts), and the Targets tab's day-by-day answers
+//   sync as one snapshot per device, merged on read (lib/icloud/dayObsSync.ts).
+//   Neither ever notifies the data-files epoch.
 //
 // Everything native is behind the ICloudNativeLayer interface, and every
 // other dependency is injectable, so the controller is tested with a fake
@@ -43,9 +49,11 @@ import {
   type SharedKeyEntry, type SharedKeySlots,
 } from './keyRecord'
 import { reconcileKeySlot, type KeyDecision, type LocalKeyEntry } from './keyReconcile'
+import { isRegionCode } from '../regionCode'
 import {
   getICloudState,
   installICloudActions,
+  setBarChartView,
   setICloudState,
   setKeySlotView,
   setSlotView,
@@ -55,6 +63,13 @@ import {
   type SlotView,
 } from './icloudState'
 import { keyReasonFor, reasonFor } from './icloudCopy'
+import {
+  markCountiesUnavailable, normalizeCountyPrefFields, publishSharedCounties, pushCleared, runCountyPass,
+  awaitCountiesDownloaded, type CountyPassContext, type CountyPrefFields,
+} from './countySync'
+import {
+  emptyDayObsPref, normalizeDayObsPref, publishSharedDayObs, runDayObsPass, type DayObsPassContext, type DayObsPref,
+} from './dayObsSync'
 
 export const ICLOUD_SYNC_SETTING = 'icloud-sync'
 
@@ -84,7 +99,7 @@ export interface KnownKeySlot {
 }
 type KnownSharedKeys = Record<KeySlot, KnownKeySlot | null>
 
-export interface ICloudSyncPref {
+export interface ICloudSyncPref extends CountyPrefFields {
   version: 1
   enabled: boolean
   deviceId: string | null
@@ -104,6 +119,10 @@ export interface ICloudSyncPref {
   knownKeyRecord?: boolean
   /** per-slot state of the record at the last CONTENT read, so the rows are honest offline */
   knownSharedKeys?: KnownSharedKeys
+  // ── icloud-bar-chart-sync (all optional; a 1.0.39 document reads as none) ──
+  // knownSharedCounties, pendingCountyClears: CountyPrefFields (countySync.ts)
+  /** this device's snapshot digest and every peer's last merged digest (dayObsSync.ts) */
+  dayObs?: DayObsPref
 }
 
 export interface ControllerDeps {
@@ -112,6 +131,7 @@ export interface ControllerDeps {
     StorageAdapter,
     | 'getSetting' | 'setSetting' | 'getFilesStatus' | 'deleteFile' | 'applySyncedFile' | 'applySyncedClear' | 'stampFileOrigin'
     | 'getApiKeyEntries' | 'clearApiKeyWithMarker' | 'applySyncedKey' | 'applySyncedKeyClear' | 'stampApiKeyEntry'
+    | 'getBarChartFiles' | 'applySyncedBarChartFile' | 'applySyncedBarChartClear' | 'stampBarChartOrigin'
   >
   /** the cache invalidations Settings runs for this slot today */
   invalidate: (slot: Slot) => void
@@ -130,6 +150,13 @@ export interface ControllerDeps {
   invalidateKey: (slot: KeySlot) => void
   notifyKeysChanged: () => void
   subscribeKeysChanged: (cb: () => void) => () => void
+  /** icloud-bar-chart-sync: the bar-chart epoch (never `filesChanged`, FR-06) */
+  notifyBarChartFilesChanged: () => void
+  subscribeBarChartFilesChanged: (cb: () => void) => () => void
+  /** icloud-bar-chart-sync: `countyDayObsCache.mergeSharedSnapshot`, `dayObsPurgeGeneration` and `awaitDayObsWrites` */
+  mergeDayObsSnapshot: (text: string, gen: number) => Promise<{ admitted: number; changed: boolean }>
+  dayObsPurgeGeneration: () => number
+  awaitDayObsWrites: () => Promise<void>
   now: () => number
   mintDeviceId: () => string
   /** the window/document to hang foreground, focus and visibility listeners on; null in node */
@@ -156,7 +183,7 @@ function isoNow(now: () => number): string {
   return new Date(now()).toISOString()
 }
 
-function normalizePref(raw: unknown): ICloudSyncPref {
+function normalizePref(raw: unknown, nowMs: number): ICloudSyncPref {
   const pref: ICloudSyncPref = { version: 1, enabled: false, deviceId: null, lastCheckAt: null }
   if (typeof raw !== 'object' || raw === null) return pref
   const r = raw as Record<string, unknown>
@@ -206,6 +233,10 @@ function normalizePref(raw: unknown): ICloudSyncPref {
     }
     pref.knownSharedKeys = { ebird: pickKey('ebird'), openweather: pickKey('openweather') }
   }
+  // icloud-bar-chart-sync: one shape check per field (countySync.ts, dayObsSync.ts).
+  Object.assign(pref, normalizeCountyPrefFields(r, nowMs))
+  const dayObs = normalizeDayObsPref(r.dayObs)
+  if (dayObs) pref.dayObs = dayObs
   return pref
 }
 
@@ -231,6 +262,7 @@ export function createICloudController(deps: ControllerDeps): ICloudController {
   let queued = false
   let checksRun = 0
   let selfNotifying = false
+  let selfNotifyingBarCharts = false
   let disposed = false
   const detach: Array<() => void> = []
   // icloud-api-key-sync: the removal retry (FR-33) hangs its own listeners,
@@ -245,7 +277,7 @@ export function createICloudController(deps: ControllerDeps): ICloudController {
 
   async function loadPref(): Promise<void> {
     try {
-      pref = normalizePref(await deps.storage.getSetting<unknown>(ICLOUD_SYNC_SETTING))
+      pref = normalizePref(await deps.storage.getSetting<unknown>(ICLOUD_SYNC_SETTING), deps.now())
     } catch {
       pref = { version: 1, enabled: false, deviceId: null, lastCheckAt: null }
     }
@@ -285,7 +317,11 @@ export function createICloudController(deps: ControllerDeps): ICloudController {
 
   function publishShared(): void {
     const names = SLOTS.map((s) => shared[s]?.filename).filter((n): n is string => typeof n === 'string')
-    setICloudState({ sharedExists: names.length > 0, sharedFilenames: names })
+    const counties = Object.keys(pref.knownSharedCounties ?? {}).length > 0
+    const dayObs = pref.dayObs?.anyShared === true
+    setICloudState({ sharedExists: names.length > 0 || counties || dayObs, sharedFilenames: names })
+    publishSharedCounties(pref)
+    publishSharedDayObs(pref)
   }
 
   /** The key store fields, from the preference (icloud-api-key-sync). */
@@ -313,6 +349,56 @@ export function createICloudController(deps: ControllerDeps): ICloudController {
       deps.notifyKeysChanged()
     } finally {
       selfNotifying = false
+    }
+  }
+
+  /** A synced arrival, replacement or removal of a county file (FR-06): the
+   *  bar-chart epoch only, with its own guard, so it triggers no further check. */
+  function notifyBarCharts(): void {
+    selfNotifyingBarCharts = true
+    try {
+      deps.notifyBarChartFilesChanged()
+    } finally {
+      selfNotifyingBarCharts = false
+    }
+  }
+
+  function countyCtx(): CountyPassContext {
+    return {
+      native: deps.native,
+      storage: deps.storage,
+      pref,
+      deviceId: pref.deviceId ?? '',
+      now: deps.now,
+      log: deps.log,
+      thisDevice: () => recordOrigin(thisDevice()),
+      recordOrigin,
+      notifyBarCharts,
+      raceTimeout,
+      checkWaitMs,
+      downloadPollMs,
+    }
+  }
+
+  function dayObsCtx(): DayObsPassContext {
+    return {
+      native: deps.native,
+      pref,
+      deviceId: pref.deviceId ?? '',
+      now: deps.now,
+      log: deps.log,
+      thisDevice: () => recordOrigin(thisDevice()),
+      raceTimeout,
+      mergeSnapshot: deps.mergeDayObsSnapshot,
+      purgeGeneration: deps.dayObsPurgeGeneration,
+      awaitWrites: deps.awaitDayObsWrites,
+      hasBackup: async () => {
+        try {
+          return (await deps.storage.getFilesStatus()).ebird !== null
+        } catch {
+          return false
+        }
+      },
     }
   }
 
@@ -353,6 +439,7 @@ export function createICloudController(deps: ControllerDeps): ICloudController {
         setSlotView(slot, null)
       }
     }
+    await markCountiesUnavailable(deps.storage, pref.deviceId ?? '')
     await markKeysUnavailable()
   }
 
@@ -1085,6 +1172,26 @@ export function createICloudController(deps: ControllerDeps): ICloudController {
         const uploaded = read.file.uploaded !== false
         if (await applyDecision(slot, decision, meta, record, uploaded, remaining())) transferred = true
       }
+      // The county pass and the day-obs pass (icloud-bar-chart-sync), after
+      // the file pass and before the key pass, within the same budget. A
+      // listing that could not reach iCloud fails the check the way an
+      // undecided file slot does, and keeps lastCheckAt.
+      const counties = await runCountyPass(countyCtx(), remaining)
+      if (counties.transferred) transferred = true
+      if (counties.failed) {
+        await savePref()
+        publishShared()
+        setICloudState({ checkFailed: true })
+        return failed
+      }
+      const dayObs = await runDayObsPass(dayObsCtx(), remaining)
+      if (dayObs.transferred) transferred = true
+      if (dayObs.failed) {
+        await savePref()
+        publishShared()
+        setICloudState({ checkFailed: true })
+        return failed
+      }
       // The key pass (icloud-api-key-sync FR-43): one check, both passes, one
       // lastCheckAt. A key read that ran past the budget fails the check the
       // way an undecided file slot does.
@@ -1165,6 +1272,13 @@ export function createICloudController(deps: ControllerDeps): ICloudController {
     detach.push(
       deps.subscribeKeysChanged(() => {
         if (!selfNotifying) void requestCheck('keys changed')
+      }),
+    )
+    // icloud-bar-chart-sync: a user add, replace or remove on the Targets tab.
+    // The controller's own bumps (a synced arrival) set the guard first.
+    detach.push(
+      deps.subscribeBarChartFilesChanged(() => {
+        if (!selfNotifyingBarCharts) void requestCheck('bar-chart files changed')
       }),
     )
     const view = deps.view
@@ -1259,6 +1373,9 @@ export function createICloudController(deps: ControllerDeps): ICloudController {
     for (const slot of SLOTS) {
       setSlotView(slot, anyShared && (files[slot] || shared[slot]) ? { state: 'off', fromThisDevice: false } : null)
     }
+    // FR-15: with sync off the Targets section shows no sync state and no
+    // origin. Turning sync off writes and deletes nothing for any county (FR-13).
+    setICloudState({ barCharts: {} })
     publishShared()
     publishKeys()
     setICloudState({ syncEnabled: false, checking: false })
@@ -1291,8 +1408,12 @@ export function createICloudController(deps: ControllerDeps): ICloudController {
   }
 
   async function removeFromICloud(): Promise<void> {
+    // Widened natively (FR-13, FR-27): every county file and record and every
+    // device's day-obs snapshot go with the two data files; never the key record.
     await deps.native.removeAll()
     shared = { ebird: null, ml: null }
+    pref.knownSharedCounties = Object.create(null) as Record<string, { filename: string }>
+    pref.dayObs = emptyDayObsPref()
     publishShared()
     await savePref()
     if (pref.enabled) {
@@ -1301,6 +1422,7 @@ export function createICloudController(deps: ControllerDeps): ICloudController {
       await requestCheck('remove')
     } else {
       for (const slot of SLOTS) setSlotView(slot, null)
+      setICloudState({ barCharts: {} })
     }
   }
 
@@ -1329,6 +1451,20 @@ export function createICloudController(deps: ControllerDeps): ICloudController {
       const err = toICloudError(raw)
       setSlotView(slot, { state: 'error', fromThisDevice: true, reason: reasonFor(err.code) })
     }
+    if (slot === 'ebird') {
+      // icloud-bar-chart-sync (FR-27, D5): the day-by-day answers derived from
+      // the backup were purged here above; every device's shared copy goes
+      // too, best-effort. A device whose copy survives this removes its own at
+      // its next check, once the synced clear has purged its cache.
+      try {
+        await deps.native.removeItems('day-obs')
+      } catch (raw) {
+        deps.log(`icloud: shared day answers not removed (${toICloudError(raw).code})`)
+      }
+      pref.dayObs = emptyDayObsPref()
+      await savePref()
+      publishShared()
+    }
     return failedPurges
   }
 
@@ -1336,6 +1472,81 @@ export function createICloudController(deps: ControllerDeps): ICloudController {
     if (!pref.enabled) return
     setSlotView(slot, { state: 'uploading', fromThisDevice: true })
     void requestCheck('file saved')
+  }
+
+  // ── county actions (icloud-bar-chart-sync) ─────────────────────────────
+
+  /** One county's current view, read through `Object.hasOwn`. */
+  function barChartView(regionCode: string): SlotView | undefined {
+    const views = getICloudState().barCharts
+    return Object.hasOwn(views, regionCode) ? views[regionCode] : undefined
+  }
+
+  async function downloadBarChartNow(regionCode: string): Promise<void> {
+    if (!isRegionCode(regionCode)) return
+    const current = barChartView(regionCode)
+    setBarChartView(regionCode, { ...(current ?? { fromThisDevice: false }), state: 'downloading' })
+    try {
+      await deps.native.startDownloadItem({ kind: 'barchart', county: regionCode })
+    } catch (raw) {
+      const err = toICloudError(raw)
+      if (err.code === 'absent') {
+        setBarChartView(regionCode, { ...(current ?? { fromThisDevice: false }), state: 'error', reason: reasonFor(err.code) })
+        return
+      }
+    }
+    await awaitCountiesDownloaded({ native: deps.native, downloadPollMs }, new Set([regionCode]), downloadWaitMs)
+    await requestCheck('download bar chart now')
+  }
+
+  async function retryBarChart(regionCode: string): Promise<void> {
+    if (!isRegionCode(regionCode)) return
+    const current = barChartView(regionCode)
+    if (current) setBarChartView(regionCode, { ...current, state: 'downloading', reason: undefined })
+    await requestCheck('retry bar chart')
+  }
+
+  function barChartSaved(regionCode: string): void {
+    if (!pref.enabled || !isRegionCode(regionCode)) return
+    setBarChartView(regionCode, { state: 'uploading', fromThisDevice: true })
+  }
+
+  async function barChartsCleared(regionCodes: readonly string[], clearedAt: string): Promise<void> {
+    if (!pref.enabled) return
+    const codes = regionCodes.filter(isRegionCode)
+    if (codes.length === 0) return
+    // Every marker is REMEMBERED FIRST, synchronously, before any await. The
+    // local removal that preceded this call bumped the bar-chart epoch, which
+    // has already started a check; that check reads the memo when it reaches
+    // the county pass, so it finishes the marker instead of pulling the file
+    // straight back down, whichever of the two reaches iCloud first (FR-11).
+    const pending = pref.pendingCountyClears ?? (Object.create(null) as Record<string, string>)
+    pref.pendingCountyClears = pending
+    const known = pref.knownSharedCounties
+    for (const code of codes) {
+      pending[code] = clearedAt
+      if (known && Object.hasOwn(known, code)) delete known[code]
+      setBarChartView(code, null)
+    }
+    publishShared()
+    const { failed, unreachable } = await pushCleared(deps.native, codes, clearedAt, recordOrigin(thisDevice()))
+    const live = pref.pendingCountyClears
+    for (const code of codes) {
+      if (failed.has(code)) {
+        // The local removal stands and the memo stays: the next check finishes
+        // it. The line says so, with Retry.
+        setBarChartView(code, {
+          state: 'error', fromThisDevice: true,
+          reason: reasonFor(unreachable ? 'timeout' : 'unknown'),
+        })
+      } else if (live && Object.hasOwn(live, code) && live[code] === clearedAt) {
+        // Landed. Only THIS clear's memo is dropped: a newer one set meanwhile stays.
+        delete live[code]
+      }
+    }
+    if (live && Object.keys(live).length === 0) pref.pendingCountyClears = undefined
+    await savePref()
+    publishShared()
   }
 
   // ── key actions (icloud-api-key-sync) ──────────────────────────────────
@@ -1486,6 +1697,10 @@ export function createICloudController(deps: ControllerDeps): ICloudController {
     removeFromICloud,
     clearWithSync,
     fileSaved,
+    downloadBarChartNow,
+    retryBarChart,
+    barChartSaved,
+    barChartsCleared,
     enableKeys,
     disableKeys,
     removeKeysFromICloud,
@@ -1510,7 +1725,7 @@ let booted: Promise<void> | null = null
 export function bootICloudSync(): Promise<void> {
   if (booted) return booted
   booted = (async () => {
-    const [{ storage }, { icloudNative }, obs, ml, hs, fc, nc, kc, cd] = await Promise.all([
+    const [{ storage }, { icloudNative }, obs, ml, hs, fc, nc, kc, cd, bc, day] = await Promise.all([
       import('../storage'),
       import('./icloudNative'),
       import('../observationsCache'),
@@ -1520,6 +1735,8 @@ export function bootICloudSync(): Promise<void> {
       import('../networkCache'),
       import('../keysChanged'),
       import('../clearDerived'),
+      import('../barChartFilesChanged'),
+      import('../countyDayObsCache'),
     ])
     const controller = createICloudController({
       native: icloudNative,
@@ -1546,6 +1763,11 @@ export function bootICloudSync(): Promise<void> {
       },
       notifyKeysChanged: kc.notifyKeysChanged,
       subscribeKeysChanged: kc.subscribeKeysChanged,
+      notifyBarChartFilesChanged: bc.notifyBarChartFilesChanged,
+      subscribeBarChartFilesChanged: bc.subscribeBarChartFilesChanged,
+      mergeDayObsSnapshot: day.mergeSharedSnapshot,
+      dayObsPurgeGeneration: day.dayObsPurgeGeneration,
+      awaitDayObsWrites: day.awaitDayObsWrites,
       now: () => Date.now(),
       mintDeviceId,
       view: typeof window !== 'undefined' ? window : null,

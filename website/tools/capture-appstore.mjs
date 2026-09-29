@@ -54,6 +54,13 @@
 //   checklist IDs at the real eBird API — the capture rig must never send junk
 //   requests to eBird (the repo's standing eBird-manners posture). The stub
 //   also keeps the pass's cache out of the demo store so reruns are identical.
+// - The eBird and Birds of the World marks beside species names are served from
+//   the copies committed in ./marks/ (provenance in ./marks/PROVENANCE.md).
+//   The capture never requests either icon (eBird's bot filter refuses
+//   headless browsers on purpose, and the rig does not disguise itself),
+//   refuses to start if a copy is missing, and fails any shot that would show
+//   a fallback glyph where a mark belongs (loadSiteMarks and
+//   assertMarksInFrame in capture-lib.mjs).
 //
 // Every screenshot is dimension-verified after capture (sharp) and any failed
 // shot fails the whole run with a nonzero exit: a wrong-but-plausible App Store
@@ -61,7 +68,7 @@
 import { chromium } from 'playwright';
 import { mkdirSync } from 'node:fs';
 import sharp from 'sharp';
-import { GL, makePage, selectTab, buildProvenanceStub, installProvenanceRoutes, assertBackendServesDemoData } from './capture-lib.mjs';
+import { GL, makePage, selectTab, buildProvenanceStub, installProvenanceRoutes, assertBackendServesDemoData, loadSiteMarks, assertMarksInFrame } from './capture-lib.mjs';
 
 const BASE = process.env.BASE || 'http://localhost:1620';
 const CHECKLIST = process.env.CHECKLIST || 'S354229002'; // coastal -> shows tide
@@ -85,6 +92,9 @@ const log = (...a) => console.log(...a);
 // every image on the public website had none (security review, nav-rework).
 
 await assertBackendServesDemoData(BASE, log);
+// Refuse before the browser starts if either committed mark copy is missing
+// or is not an image. makePage reads the same cached copies.
+loadSiteMarks();
 
 const browser = await chromium.launch({ headless: true, args: GL });
 const failures = [];
@@ -141,6 +151,7 @@ async function capture(fam, file, run, routes = null) {
     await run(p, fam);
     await stripUpdaterFooter(p);
     await unwrapAttributionMarkup(p);
+    await assertMarksInFrame(p); // the whole viewport is the frame
     await p.screenshot({ path }); // viewport screenshot -> exactly px.w x px.h
     const meta = await sharp(path).metadata();
     if (meta.width !== fam.px.w || meta.height !== fam.px.h) {

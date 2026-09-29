@@ -20,7 +20,11 @@
 // against each other, so the machine cancels: a linear scan gives ~2, the
 // quadratic ancestors of these patterns measured 4.00x per doubling. The
 // ceiling sits between them with margin on both sides and means the same thing
-// on a laptop, under parallel test load, and on a shared CI runner.
+// on a laptop, under parallel test load, and on a shared CI runner. Both legs
+// are read in CPU time, not wall time (`src/test/cpuTiming.ts`): the wall
+// clock also counts the time another process held the core, and beside two
+// looping full suites it failed this file in 7 of 20 runs with nothing wrong,
+// at up to 8.60 against 3.
 //
 // IT WAS WATCHED GOING RED BEFORE ANY GREEN READING FROM IT WAS TRUSTED. The
 // header walk was mutated to re-scan its whole prefix per code point -- a
@@ -43,34 +47,32 @@ import { parseWeatherBlock, hasAnyWeatherField } from './weatherBlockParse'
 import { computeWeatherStats } from './weatherStats'
 import { ATTRIBUTION } from './weatherFormatter'
 import type { ChecklistEntry } from '../types'
+import { bestPerCallCpuMs } from '../test/cpuTiming'
 
 const SIZES = [10_000, 20_000, 40_000]
-const RUNS = 5
+const RUNS = 7
 /** Linear is ~2, the quadratic ancestors of these patterns measured 4.00. */
 const MAX_RATIO_PER_DOUBLING = 3.0
 
-function ratios(make: (n: number, run: number) => string, run: (s: string) => void): number[] {
-  // Build every input before timing, then interleave the three sizes with a
-  // rotating start. Grouping all 10k runs before all 20k runs lets a single
-  // scheduler interruption inflate one whole numerator while its denominator
-  // gets an otherwise quiet batch; CI produced a false 4.54x reading that way.
-  // Interleaving keeps the quotient same-run without weakening its 3x ceiling.
-  const inputs = SIZES.map(n => Array.from({ length: RUNS }, (_, r) => make(n, r)))
-  const times = SIZES.map(() => Number.POSITIVE_INFINITY)
-  for (let r = 0; r < RUNS; r++) {
-    for (let offset = 0; offset < SIZES.length; offset++) {
-      const i = (r + offset) % SIZES.length
-      const t = performance.now()
-      run(inputs[i][r])
-      const ms = performance.now() - t
-      if (ms < times[i]) times[i] = ms
-    }
-  }
+function ratios<T>(sizes: readonly number[], make: (n: number, run: number) => T, run: (input: T) => void): number[] {
+  // Build every input before timing: RUNS + 1 per size, one for the untimed
+  // first call and one per round, so every timed call gets a distinct input.
+  // Then the sizes are interleaved with a rotating start, best of RUNS each,
+  // in CPU time (bestPerCallCpuMs, src/test/cpuTiming.ts). Grouping all 10k
+  // runs before all 20k runs lets a single scheduler interruption inflate one
+  // whole numerator while its denominator gets an otherwise quiet batch; CI
+  // produced a false 4.54x reading that way. Interleaving keeps the quotient
+  // same-run without weakening its 3x ceiling, and the CPU clock stops a wait
+  // for a core counting as work.
+  const inputs = sizes.map(n => Array.from({ length: RUNS + 1 }, (_, r) => make(n, r)))
+  const next = sizes.map(() => 0)
+  const { perCall, calls } = bestPerCallCpuMs(inputs.map((own, i) => () => run(own[next[i]++])), { rounds: RUNS, minSampleMs: 0 })
+  expect(calls, 'one distinct input per call').toEqual(sizes.map(() => RUNS + 1))
   const out: number[] = []
-  for (let i = 1; i < times.length; i++) {
+  for (let i = 1; i < perCall.length; i++) {
     // A floor on the denominator so a sub-millisecond baseline cannot turn
     // timer granularity into a huge ratio.
-    out.push(times[i] / Math.max(times[i - 1], 0.05))
+    out.push(perCall[i] / Math.max(perCall[i - 1], 0.05))
   }
   return out
 }
@@ -167,7 +169,7 @@ describe('every quantifier on the hostile path is length-bounded', () => {
 describe('parseWeatherBlock grows linearly on every hostile shape (NFR-03)', () => {
   for (const [name, make] of SHAPES) {
     it(`${name}: at most ${MAX_RATIO_PER_DOUBLING}x per doubling`, () => {
-      const rs = ratios(make, s => { parseWeatherBlock(s) })
+      const rs = ratios(SIZES, make, s => { parseWeatherBlock(s) })
       for (const r of rs) expect(r, `${name} ratios ${rs.map(x => x.toFixed(2)).join(', ')}`).toBeLessThan(MAX_RATIO_PER_DOUBLING)
     })
   }
@@ -184,7 +186,7 @@ describe('computeWeatherStats grows linearly on every hostile shape (NFR-03)', (
 
   for (const [name, make] of SHAPES) {
     it(`${name}: at most ${MAX_RATIO_PER_DOUBLING}x per doubling`, () => {
-      const rs = ratios(make, s => { computeWeatherStats(checklistWith(s), []) })
+      const rs = ratios(SIZES, make, s => { computeWeatherStats(checklistWith(s), []) })
       for (const r of rs) expect(r, `${name} ratios ${rs.map(x => x.toFixed(2)).join(', ')}`).toBeLessThan(MAX_RATIO_PER_DOUBLING)
     })
   }
@@ -206,21 +208,18 @@ describe('computeWeatherStats grows linearly on every hostile shape (NFR-03)', (
       }
       return out
     }
-    const times = [500, 1_000, 2_000].map(n => {
-      let best = Number.POSITIVE_INFINITY
-      for (let r = 0; r < RUNS; r++) {
-        const cls = make(n, r)
-        const t = performance.now()
-        computeWeatherStats(cls, [])
-        const ms = performance.now() - t
-        if (ms < best) best = ms
-      }
-      return best
-    })
-    for (let i = 1; i < times.length; i++) {
-      const ratio = times[i] / Math.max(times[i - 1], 0.05)
-      expect(ratio, `checklist-count ratios ${times.map(t => t.toFixed(2)).join(', ')}`)
+    // Through the same interleaved CPU-time ratios as every other row. It
+    // timed each size's runs back to back by the wall clock, and read 3.16 to
+    // 4.50 against 3 in 3 of 13 full-suite runs beside a second looping suite,
+    // and 5.24 in one QA run, with nothing wrong.
+    const rs = ratios([500, 1_000, 2_000], make, cls => { computeWeatherStats(cls, []) })
+    for (const r of rs) {
+      expect(r, `checklist-count ratios ${rs.map(x => x.toFixed(2)).join(', ')}`)
         .toBeLessThan(MAX_RATIO_PER_DOUBLING)
     }
-  })
+    // An explicit budget: this row does about 0.2 s of real work on the dev
+    // Mac, and a loaded machine that gives it a fifteenth of a core would put
+    // it near vitest's 5 s default. A testTimeout cannot interrupt this
+    // synchronous work anyway (testing.md v1.0.33); the ratios decide the row.
+  }, 30_000)
 })

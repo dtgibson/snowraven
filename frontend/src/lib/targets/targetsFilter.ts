@@ -17,10 +17,16 @@ export interface TargetsToggles {
   threshold: BreedingThreshold
 }
 
+/**
+ * The state the tab opens in: lifers only, with Media and Breeding off until
+ * their pills are pressed (targets-lifers-default, reversing targets-tab FR-19's
+ * "all on"). Session-only, never saved, so there is nothing to migrate; the
+ * `## Targets` help sentence is held to these values by targetsPublishedClaims.
+ */
 export const DEFAULT_TOGGLES: TargetsToggles = {
   lifer: true,
-  media: true,
-  breeding: true,
+  media: false,
+  breeding: false,
   chips: new Set(),
   threshold: 'any',
 }

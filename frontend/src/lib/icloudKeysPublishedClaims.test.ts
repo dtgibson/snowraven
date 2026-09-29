@@ -97,9 +97,18 @@ describe('FR-48 / QA-36: no sentence claims API keys stay on the device without 
     }
     // And a live sentence from each surface still trips the claim detector,
     // so the sweep is asserting about real sentences rather than an empty set.
+    // docs/HELP.md is the exception since icloud-bar-chart-sync (copy item 27,
+    // approved 2026-09-28): the one HELP sentence of this shape ("Your settings
+    // and caches are never synced, and your API keys are synced only if ...")
+    // was split in two, so no HELP sentence claims keys stay local at all any
+    // more. The sweep above still reads HELP; its non-vacuity leg is instead the
+    // positive sentence below, which is what a reader of HELP is told.
     for (const [name, src] of SURFACES.slice(0, 5)) {
+      if (name === 'docs/HELP.md') continue
       expect(sentences(src).some(s => /API keys?/i.test(s) && STAYS_LOCAL.test(s)), `${name} has a keys sentence`).toBe(true)
     }
+    const help = SURFACES.find(([name]) => name === 'docs/HELP.md')![1]
+    expect(sentences(help)).toContain('Your API keys are synced only if you also turn on **Sync API keys** (below).')
   })
 
   it('the privacy page meta description no longer claims keys stay on the device unqualified', () => {

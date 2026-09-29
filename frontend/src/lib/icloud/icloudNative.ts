@@ -6,15 +6,21 @@
 
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
-import type { Slot } from './icloudRecord'
+import { DEVICE_ID_RE, type Slot } from './icloudRecord'
+import { isRegionCode } from '../regionCode'
 import {
+  ICloudNativeError,
   toICloudError,
   type ICloudNativeLayer,
+  type ItemKind,
+  type NativeItemPushResult,
   type NativeKeysRead,
   type NativeKeysWriteResult,
+  type NativeListResult,
   type NativePushResult,
   type NativeRecordRead,
   type NativeStatus,
+  type SyncItemRef,
 } from './icloudNativeTypes'
 
 /** The key record's fixed name; pinned to `KEYS_RECORD_NAME` in icloud.rs by the parity test. */
@@ -29,6 +35,13 @@ export const ICLOUD_CSV_FILES: Record<Slot, string> = {
   ml: 'ml-export.csv',
 }
 
+/** icloud-bar-chart-sync: the container subdirectory of each item kind;
+ *  pinned to `BARCHARTS_SUBDIR` and `DAY_OBS_SUBDIR` in icloud.rs. */
+export const ITEM_SUBDIRS: Record<ItemKind, string> = {
+  barchart: 'barcharts',
+  'day-obs': 'day-obs',
+}
+
 export const ICLOUD_CHANGED_EVENT = 'icloud-changed'
 export const ICLOUD_IDENTITY_EVENT = 'icloud-identity-changed'
 
@@ -38,6 +51,27 @@ async function call<T>(cmd: string, args?: Record<string, unknown>): Promise<T> 
   } catch (raw) {
     throw toICloudError(raw)
   }
+}
+
+/**
+ * THE TYPESCRIPT HALF OF THE TWINNED ITEM PREDICATE (FR-29, NFR-01). An item
+ * becomes a container path, so its county code (or device id) is refused HERE,
+ * before any invoke, as well as by `County::parse` / `DeviceId::parse` in
+ * icloud.rs; each side has a test that goes red when its own check is deleted
+ * (`icloudNative.regionCode.test.ts` for this one).
+ */
+function assertItem(item: SyncItemRef): SyncItemRef {
+  const ok = item.kind === 'barchart'
+    ? isRegionCode(item.county)
+    : item.kind === 'day-obs' && typeof item.deviceId === 'string' && DEVICE_ID_RE.test(item.deviceId)
+  if (!ok) throw new ICloudNativeError('unknown')
+  return item.kind === 'barchart' ? { kind: 'barchart', county: item.county } : { kind: 'day-obs', deviceId: item.deviceId }
+}
+
+async function callItem<T>(cmd: string, item: SyncItemRef, args: Record<string, unknown> = {}): Promise<T> {
+  // Refused synchronously inside the async body, so the refusal is a
+  // rejection of the closed union and the invoke is never reached.
+  return call<T>(cmd, { item: assertItem(item), ...args })
 }
 
 export const icloudNative: ICloudNativeLayer = {
@@ -54,6 +88,24 @@ export const icloudNative: ICloudNativeLayer = {
   writeKeys: (deviceId, slots) => call<NativeKeysWriteResult>('icloud_write_keys', { deviceId, slots }),
   removeKeys: () => call<{ removed: number }>('icloud_remove_keys'),
   watch: (enabled) => call<void>('icloud_watch', { enabled }),
+  listItems: (kind) => call<NativeListResult>('icloud_list_items', { kind }),
+  pushItem: (item, filename, uploadedAt, origin, unlessSha256) =>
+    callItem<NativeItemPushResult>('icloud_push_item', item, { filename, uploadedAt, origin, unlessSha256 }),
+  pushItemsCleared: async (counties, clearedAt, origin) => {
+    // Every code is checked here before the invoke; one that fails is reported
+    // failed without ever being sent.
+    const valid: string[] = []
+    const refused: string[] = []
+    for (const c of counties) (isRegionCode(c) ? valid : refused).push(c)
+    if (valid.length === 0) return { failed: refused }
+    const r = await call<{ failed: string[] }>('icloud_push_items_cleared', { counties: valid, clearedAt, origin })
+    return { failed: [...refused, ...r.failed] }
+  },
+  pullItem: (item, expectedSha256, expectedByteLength, mode) =>
+    callItem<{ text?: string }>('icloud_pull_item', item, { expectedSha256, expectedByteLength, mode }),
+  startDownloadItem: (item) => callItem<void>('icloud_start_download_item', item),
+  removeItem: (item) => callItem<{ removed: number }>('icloud_remove_item', item),
+  removeItems: (kind) => call<{ removed: number }>('icloud_remove_items', { kind }),
   onChanged: (cb) => listen(ICLOUD_CHANGED_EVENT, () => cb()),
   onIdentityChanged: (cb) => listen(ICLOUD_IDENTITY_EVENT, () => cb()),
 }

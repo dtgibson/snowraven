@@ -225,3 +225,64 @@ def test_the_manifest_route_never_falls_through_to_the_key_value_store(tmp_path)
     assert not (tmp_path / "settings" / "barcharts.json").exists()
     # And GET is this router's answer, not a stored setting.
     assert client.get("/settings/barcharts").json() == {"version": 1, "counties": {}}
+
+
+# ---- icloud-bar-chart-sync: the bulk removal (schema.md 6.4; FR-21, FR-22) ----
+
+
+def test_bulk_delete_removes_every_file_and_empties_the_manifest(tmp_path):
+    assert _post().status_code == 200
+    assert _post(region="US-CA-013").status_code == 200
+    resp = client.delete("/settings/barcharts")
+    assert resp.status_code == 200
+    assert sorted(resp.json()["removed"]) == ["US-CA-001", "US-CA-013"]
+    assert resp.json()["failed"] == []
+    assert not (tmp_path / "barcharts" / "US-CA-001.txt").exists()
+    assert not (tmp_path / "barcharts" / "US-CA-013.txt").exists()
+    assert client.get("/settings/barcharts").json() == {"version": 1, "counties": {}}
+
+
+def test_bulk_delete_reports_a_survivor_and_keeps_exactly_it_listed(tmp_path, monkeypatch):
+    assert _post().status_code == 200
+    assert _post(region="US-CA-013").status_code == 200
+    stuck = tmp_path / "barcharts" / "US-CA-013.txt"
+    real_unlink = type(stuck).unlink
+
+    def unlink(self, *args, **kwargs):
+        if self == stuck:
+            raise PermissionError("busy")
+        return real_unlink(self, *args, **kwargs)
+
+    monkeypatch.setattr(type(stuck), "unlink", unlink)
+    resp = client.delete("/settings/barcharts")
+    assert resp.status_code == 200
+    assert resp.json() == {"removed": ["US-CA-001"], "failed": ["US-CA-013"]}
+    assert stuck.exists()
+    counties = client.get("/settings/barcharts").json()["counties"]
+    assert list(counties) == ["US-CA-013"]
+
+
+def test_bulk_delete_is_idempotent_on_an_empty_store():
+    first = client.delete("/settings/barcharts")
+    assert first.status_code == 200
+    assert first.json() == {"removed": [], "failed": []}
+    assert client.delete("/settings/barcharts").json() == {"removed": [], "failed": []}
+
+
+def test_bulk_delete_never_builds_a_path_from_a_key_that_is_not_a_county(tmp_path):
+    # A hand-edited manifest: a traversal-shaped key and a trailing-newline key.
+    (tmp_path / "barcharts").mkdir(parents=True, exist_ok=True)
+    outside = tmp_path / "keep.txt"
+    outside.write_text("keep")
+    (tmp_path / "barcharts.json").write_text(json.dumps({
+        "version": 1,
+        "counties": {
+            "../keep": {"filename": "x.txt", "uploadedAt": "2026-09-01T00:00:00Z"},
+            "US-CA-001\n": {"filename": "x.txt", "uploadedAt": "2026-09-01T00:00:00Z"},
+        },
+    }))
+    resp = client.delete("/settings/barcharts")
+    assert resp.status_code == 200
+    assert resp.json() == {"removed": [], "failed": []}
+    assert outside.read_text() == "keep"
+    assert client.get("/settings/barcharts").json() == {"version": 1, "counties": {}}

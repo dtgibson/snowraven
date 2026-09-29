@@ -22,7 +22,11 @@ const DONE = c('done', { missingMedia: [], codes: new Set(['NB']) })
 const ALL = [LIFER, MISSING_PHOTO, MISSING_PHOTO_AUDIO, MEDIA_AND_BREEDING, ONLY_F, ONLY_NY, DONE]
 
 const codes = (rows: readonly Classified[]) => rows.map(r => r.speciesCode)
-const toggles = (over: Partial<TargetsToggles>): TargetsToggles => ({ ...DEFAULT_TOGGLES, ...over })
+// The semantics rows start from every type on, spelled out rather than spread
+// from DEFAULT_TOGGLES: the default opens on Lifer only (targets-lifers-default),
+// so a row built on it would leave Media and Breeding off and pass vacuously.
+const ALL_ON: TargetsToggles = { lifer: true, media: true, breeding: true, chips: new Set(), threshold: 'any' }
+const toggles = (over: Partial<TargetsToggles>): TargetsToggles => ({ ...ALL_ON, ...over })
 
 describe('isMediaTarget (QA-23)', () => {
   it('no chip: any missing type qualifies; all three present never does', () => {
@@ -49,21 +53,33 @@ describe('isBreedingTarget (QA-24)', () => {
     expect(isBreedingTarget(ONLY_NY, 'confirmed')).toBe(false)
     expect(isBreedingTarget(LIFER, 'confirmed')).toBe(false)
   })
+})
 
-  it('the default threshold is Any code', () => {
+describe('the default toggles (targets-lifers-default)', () => {
+  it('open on Lifer only: Media and Breeding off, no chip, Any code; the view is the lifer rows', () => {
+    expect(DEFAULT_TOGGLES.lifer).toBe(true)
+    expect(DEFAULT_TOGGLES.media).toBe(false)
+    expect(DEFAULT_TOGGLES.breeding).toBe(false)
+    expect(DEFAULT_TOGGLES.chips.size).toBe(0)
     expect(DEFAULT_TOGGLES.threshold).toBe('any')
+    // With the ML export loaded, so Media is off by the default and not by FR-20.
+    const r = visibleTargets(ALL, DEFAULT_TOGGLES, true)
+    expect(codes(r.rows)).toEqual(['lifer'])
+    expect(r.counts).toEqual({ lifer: 1, media: 0, breeding: 0 })
+    // Non-vacuity: the same pool with every type on shows media and breeding rows too.
+    expect(codes(visibleTargets(ALL, ALL_ON, true).rows)).toEqual(expect.arrayContaining(['lifer', 'photo', 'both']))
   })
 })
 
 describe('visibleTargets', () => {
   it('a recorded species with full media and a confirmed code never appears (QA-20)', () => {
-    for (const on of [DEFAULT_TOGGLES, toggles({ threshold: 'confirmed' }), toggles({ lifer: false })]) {
+    for (const on of [ALL_ON, toggles({ threshold: 'confirmed' }), toggles({ lifer: false })]) {
       expect(codes(visibleTargets(ALL, on, true).rows)).not.toContain('done')
     }
   })
 
   it('turning Lifer off removes exactly the Lifer rows (QA-21)', () => {
-    const on = codes(visibleTargets(ALL, DEFAULT_TOGGLES, true).rows)
+    const on = codes(visibleTargets(ALL, ALL_ON, true).rows)
     const off = codes(visibleTargets(ALL, toggles({ lifer: false }), true).rows)
     expect(on.filter(x => !off.includes(x))).toEqual(['lifer'])
   })
@@ -75,7 +91,7 @@ describe('visibleTargets', () => {
   })
 
   it('with media unavailable the Media toggle counts as off (FR-20)', () => {
-    const r = visibleTargets(ALL, DEFAULT_TOGGLES, false)
+    const r = visibleTargets(ALL, ALL_ON, false)
     expect(r.counts.media).toBe(0)
     expect(codes(r.rows)).not.toContain('photo')   // its code is NY, so only Media could show it
   })
@@ -86,7 +102,7 @@ describe('visibleTargets', () => {
 
   it('the summary counts equal the per-type badges among the visible rows (QA-27)', () => {
     for (const on of [
-      DEFAULT_TOGGLES, toggles({ lifer: false }), toggles({ chips: new Set<MediaType>(['Video']) }),
+      ALL_ON, DEFAULT_TOGGLES, toggles({ lifer: false }), toggles({ chips: new Set<MediaType>(['Video']) }),
       toggles({ threshold: 'confirmed' }), toggles({ media: false }),
     ]) {
       const { rows, counts } = visibleTargets(ALL, on, true)
