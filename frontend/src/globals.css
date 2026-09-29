@@ -3199,6 +3199,31 @@ h1, h2, h3, h4, h5, h6 {
 .sr-ics-remove-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .sr-ics-pending { margin: 8px 0 0; font-size: 0.75rem; color: var(--sr-text-muted); line-height: 1.5; }
 
+/* Settings -> Bar-chart files (icloud-bar-chart-sync), on every platform: the
+   Troubleshooting card shape. One quiet bordered button in the Rebuild caches
+   register with its status beside it (wrapping under it when the row is
+   narrow), then two ALWAYS-mounted live regions, the partial-failure alert and
+   the success status, which collapse through `:empty` margin only: display:none
+   on a live region is the insert-with-first-message trap (ui.md). The button
+   is `aria-disabled` rather than `disabled` when it cannot act (NFR-03), so the
+   hover lift is gated off that state and the dimmed look carries the reason's
+   meaning beside the text that states it. The <=640 tier lets it take its row. */
+.sr-chartfiles-row { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 12px; }
+.sr-chartfiles-btn {
+  height: 32px; padding: 0 14px;
+  background: var(--sr-surface); color: var(--sr-text);
+  border: 1px solid var(--sr-border); border-radius: 6px;
+  font-size: 0.75rem; font-weight: 500; font-family: inherit; cursor: pointer;
+  transition: border-color 120ms ease-out, background 120ms ease-out, opacity 120ms ease-out;
+}
+.sr-chartfiles-btn:hover:not([aria-disabled="true"]) { border-color: var(--sr-border-medium); background: var(--sr-surface-subtle); }
+.sr-chartfiles-btn[aria-disabled="true"] { opacity: 0.72; cursor: not-allowed; }
+.sr-chartfiles-status { font-size: 0.75rem; color: var(--sr-text-muted); line-height: 1.5; min-width: 0; flex: 1 1 200px; overflow-wrap: anywhere; }
+.sr-chartfiles-alert { margin-top: 8px; font-size: 0.75rem; color: var(--sr-error); line-height: 1.5; overflow-wrap: anywhere; }
+.sr-chartfiles-alert:empty { margin-top: 0; }
+.sr-chartfiles-done { margin-top: 8px; font-size: 0.75rem; color: var(--sr-accent); line-height: 1.5; overflow-wrap: anywhere; }
+.sr-chartfiles-done:empty { margin-top: 0; }
+
 /* The API Keys rows' value line now wraps (icloud-api-key-sync): at 320px
    and 200% text scale Show / Hide drops under the masked value instead of
    being squeezed; the value keeps its own max-width + ellipsis + nowrap.
@@ -5203,7 +5228,11 @@ select:focus-visible {
 
 /* The quiet EBIRD BAR CHART section. */
 .sr-tg-file-sec { margin-bottom: 14px; min-width: 0; }
-.sr-tg-file-card { background: var(--sr-surface); border: 1px solid var(--sr-border); border-radius: 10px; padding: 12px 16px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; min-width: 0; }
+/* position: relative so the absolutely positioned .sr-only cues inside the card
+   (the ebird.org link's, and the iCloud sync line's) resolve inside it and can
+   never extend document.scrollWidth (ui.md, the .sr-only leak standing check;
+   icloud-bar-chart-sync design decision 6). Nothing inside is z-indexed. */
+.sr-tg-file-card { position: relative; background: var(--sr-surface); border: 1px solid var(--sr-border); border-radius: 10px; padding: 12px 16px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; min-width: 0; }
 .sr-tg-file-main { flex: 1 1 320px; min-width: 0; display: flex; gap: 10px; align-items: flex-start; }
 .sr-tg-file-main > svg { flex-shrink: 0; color: var(--sr-text-muted); margin-top: 2px; }
 .sr-tg-file-line { min-width: 0; font-size: 0.8125rem; line-height: 1.5; color: var(--sr-text); overflow-wrap: anywhere; }
@@ -5345,6 +5374,9 @@ select:focus-visible {
   .sr-sync-line .sr-btn-inline { flex: 1 1 100%; }
   .sr-ics-status-row .sr-btn-quiet { flex: 1 1 100%; }
   .sr-ics-remove-row .sr-btn-quiet { width: 100%; }
+  /* Settings -> Bar-chart files (icloud-bar-chart-sync): the button takes its
+     own full row at the touch posture and may wrap; the status wraps under it. */
+  .sr-chartfiles-row > .sr-chartfiles-btn { width: 100%; min-height: 2.75rem; height: auto; white-space: normal; }
   .sr-dlg { width: calc(100% - 24px); }
   .sr-dlg-actions > * { flex: 1 1 100%; }
 

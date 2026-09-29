@@ -182,6 +182,28 @@ describe('capacity-plus-one cache inventory', () => {
     expect(registry).toContain("store: 'county-day-obs.json'")
   })
 
+  it('the day cache keeps ONE writing module under iCloud sync, and its header names the one outside reader (icloud-bar-chart-sync schema 8.3)', () => {
+    // The no-docChains argument for county-day-obs.json rests on a structural
+    // fact: this module is the document's only writer, and the synced merge
+    // writes through the same mirror and writer. The native push reads the
+    // file (read-only) after `awaitDayObsWrites`; the header must say so, so the
+    // next reader who adds a writer meets the argument it would break.
+    const header = source('./countyDayObsCache.ts').slice(0, source('./countyDayObsCache.ts').indexOf('\nimport '))
+    expect(header).toContain('SYNCED AS ONE SNAPSHOT PER DEVICE')
+    expect(header).toContain('`icloud_push_item` in')
+    expect(header).toContain('awaitDayObsWrites')
+    // Only the cache module (and the seam that defines it) touches the document.
+    const touching = shippedSources().filter(rel => /\b(set|get|delete)CountyDayObsStore\b/.test(code(`../${rel}`)))
+    expect(touching).toEqual(['lib/countyDayObsCache.ts', 'lib/storage.ts'])
+    // The merge rides the same writer as every other write.
+    const merge = code('./countyDayObsCache.ts').slice(code('./countyDayObsCache.ts').indexOf('export async function mergeSharedSnapshot('))
+    expect(merge.slice(0, merge.indexOf('\n}'))).toContain('scheduleWrite(store)')
+    // And the native reader really is the one named: it reads that file name.
+    const rust = source('../../../src-tauri/src/icloud.rs')
+    expect(rust).toContain('const LOCAL_DAY_OBS_FILE: &str = "county-day-obs.json";')
+    expect(rust).toContain('pub async fn icloud_push_item(')
+  })
+
   it('replayStore.put has ONE call site, and it hands over the pre-request generation', () => {
     // `put`'s third argument — the generation captured BEFORE the request — is
     // optional, and that is safe TODAY only because of a structural fact: one

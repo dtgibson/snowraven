@@ -416,3 +416,18 @@ export function formatDateMonthFirst(value: string): string {
 export function formatDateLabel(value: string | Date | null | undefined): string {
   return formatDate(value)
 }
+
+// An upload time for display (lifted from Settings.tsx by icloud-bar-chart-sync so
+// the Targets tab's sync line reads it the same way). uploadedAt is a true UTC instant (Date.toISOString); render it in the user's
+// LOCAL time. We build a local Date and hand it to the canonical formatter — the
+// one place a TZ conversion is intended (unlike eBird Y-M-D display dates, which
+// must never shift). The date honors the user's date-format preference; the local
+// time is appended with " at ".
+export function formatUploadDate(iso: string): string {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return iso
+  const datePart = formatDate(d)
+  if (!datePart) return iso
+  const timePart = d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', hour12: true })
+  return `${datePart} at ${timePart}`
+}

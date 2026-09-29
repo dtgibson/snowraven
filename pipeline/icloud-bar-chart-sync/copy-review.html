@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Bar-Chart Sync Copy Review</title>
+<meta name="description" content="Every new or changed user-facing string that iCloud bar-chart sync needs, as before and after, numbered so each can be approved or answered by number; and the nine product decisions to confirm alongside them." />
+<style>
+  :root {
+    --bg: #F9FAFB; --surface: #FFFFFF; --surface-subtle: #F4F4F5; --surface-faint: #FAFAFA;
+    --text: #0F1117; --muted: #6B6B74; --gray: #6B7280;
+    --border: #E4E4E7; --border-subtle: #F4F4F5; --border-medium: #C4C4CE;
+    --accent: #277448; --accent-bg: #E8F5EE; --accent-border: rgba(39,116,72,0.25);
+    --error: #D31F1F; --error-bg: #FEF2F2; --error-border: #FECACA;
+    --warn: #92400E; --warn-bg: #FFFBEB;
+    --before-bg: #FBF7F0; --before-edge: #E7DCC8;
+    --after-bg: #F1F8F4; --after-edge: #BFDCCB;
+    --mark-bg: #DCEFE3; --mark-ink: #0F3D22;
+    --shadow: 0 1px 4px rgba(15,17,23,0.06), 0 4px 16px rgba(15,17,23,0.04);
+    --font-sans: 'Inter', BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif;
+    --font-mono: ui-monospace, 'SF Mono', 'Cascadia Mono', Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #09090B; --surface: #18181B; --surface-subtle: #27272A; --surface-faint: #1C1C1F;
+      --text: #F4F4F5; --muted: #A1A1AA; --gray: #8A8A92;
+      --border: #27272A; --border-subtle: #1F1F23; --border-medium: #3F3F46;
+      --accent: #34D399; --accent-bg: #052E16; --accent-border: rgba(52,211,153,0.2);
+      --error: #F87171; --error-bg: #1C0505; --error-border: #7F1D1D;
+      --warn: #FDE68A; --warn-bg: #1C1002;
+      --before-bg: #1F1B16; --before-edge: #3A3128;
+      --after-bg: #0F1F17; --after-edge: #1F4A33;
+      --mark-bg: #14402A; --mark-ink: #BFF0D4;
+      --shadow: 0 1px 4px rgba(2,2,4,0.4), 0 4px 16px rgba(2,2,4,0.25);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #09090B; --surface: #18181B; --surface-subtle: #27272A; --surface-faint: #1C1C1F;
+    --text: #F4F4F5; --muted: #A1A1AA; --gray: #8A8A92;
+    --border: #27272A; --border-subtle: #1F1F23; --border-medium: #3F3F46;
+    --accent: #34D399; --accent-bg: #052E16; --accent-border: rgba(52,211,153,0.2);
+    --error: #F87171; --error-bg: #1C0505; --error-border: #7F1D1D;
+    --warn: #FDE68A; --warn-bg: #1C1002;
+    --before-bg: #1F1B16; --before-edge: #3A3128;
+    --after-bg: #0F1F17; --after-edge: #1F4A33;
+    --mark-bg: #14402A; --mark-ink: #BFF0D4;
+    --shadow: 0 1px 4px rgba(2,2,4,0.4), 0 4px 16px rgba(2,2,4,0.25);
+  }
+  * { box-sizing: border-box; }
+  html { font-size: 16px; }
+  body {
+    margin: 0; font-family: var(--font-sans); color: var(--text); font-size: 0.9375rem; line-height: 1.6;
+    background: linear-gradient(180deg, var(--accent-bg) 0, var(--bg) 260px);
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent); }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 28px 16px 80px; min-width: 0; }
+  header.hero { padding: 8px 0 18px; }
+  .eyebrow { display: inline-flex; align-items: center; gap: 8px; font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); margin: 0 0 8px; }
+  .eyebrow::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+  h1 { margin: 0 0 10px; font-size: 1.75rem; line-height: 1.15; letter-spacing: -0.015em; font-weight: 700; }
+  .lede { margin: 0; color: var(--muted); font-size: 1rem; max-width: 62ch; }
+  .lede b { color: var(--text); font-weight: 600; }
+  .howto { margin: 18px 0 0; padding: 14px 16px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); box-shadow: var(--shadow); font-size: 0.875rem; }
+  .howto p { margin: 0 0 6px; }
+  .howto p:last-child { margin: 0; }
+  .howto code { font-family: var(--font-mono); font-size: 0.8125rem; background: var(--surface-subtle); padding: 1px 5px; border-radius: 4px; }
+  nav.toc { margin: 22px 0 0; display: flex; flex-wrap: wrap; gap: 6px; }
+  nav.toc a { font-size: 0.75rem; font-weight: 600; text-decoration: none; padding: 5px 10px; border: 1px solid var(--border); border-radius: 15px; background: var(--surface); color: var(--text); }
+  nav.toc a:hover { border-color: var(--border-medium); background: var(--surface-subtle); }
+  nav.toc a small { color: var(--muted); font-weight: 500; margin-left: 4px; }
+  h2 { margin: 44px 0 6px; font-size: 1.25rem; letter-spacing: -0.01em; font-weight: 700; }
+  h2 + p.sub { margin: 0 0 16px; color: var(--muted); font-size: 0.875rem; }
+  h3.surface { margin: 30px 0 10px; font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; gap: 10px; }
+  h3.surface::after { content: ""; flex: 1; height: 1px; background: var(--border); }
+  h3.surface code { font-family: var(--font-mono); text-transform: none; letter-spacing: 0; font-size: 0.75rem; color: var(--text); font-weight: 600; }
+
+  .item { position: relative; margin: 0 0 12px; padding: 14px 16px 14px 60px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); box-shadow: var(--shadow); min-width: 0; }
+  .item .num { position: absolute; left: 14px; top: 13px; width: 34px; height: 34px; border-radius: 9px; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.875rem; background: var(--accent-bg); color: var(--accent); font-variant-numeric: tabular-nums; }
+  .item.decision .num { background: var(--surface-subtle); color: var(--text); }
+  .item h4 { margin: 4px 0 4px; font-size: 1rem; font-weight: 600; line-height: 1.35; }
+  .item .where { margin: 0 0 10px; font-size: 0.75rem; color: var(--muted); font-family: var(--font-mono); overflow-wrap: anywhere; }
+  .item .where b { color: var(--text); font-weight: 600; }
+  .cond { display: inline-block; font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; padding: 1px 7px; border-radius: 4px; background: var(--warn-bg); color: var(--warn); margin-left: 6px; vertical-align: 2px; border: 1px solid var(--border); }
+  .info { display: inline-block; font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; padding: 1px 7px; border-radius: 4px; background: var(--surface-subtle); color: var(--muted); margin-left: 6px; vertical-align: 2px; }
+  .ba { display: grid; gap: 8px; }
+  .ba > div { border-radius: 8px; padding: 10px 12px 10px 14px; border-left: 3px solid; font-size: 0.875rem; min-width: 0; overflow-wrap: anywhere; }
+  .before { background: var(--before-bg); border-color: var(--before-edge); }
+  .after { background: var(--after-bg); border-color: var(--after-edge); }
+  .ba .lbl { display: block; font-size: 0.625rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin: 0 0 4px; }
+  .ba p { margin: 0 0 8px; }
+  .ba p:last-child { margin: 0; }
+  .ba ul { margin: 4px 0 6px 18px; padding: 0; }
+  .ba li { margin: 2px 0; }
+  .ba .new { color: var(--muted); font-style: italic; }
+  mark { background: var(--mark-bg); color: var(--mark-ink); border-radius: 3px; padding: 0 2px; }
+  del { color: var(--error); text-decoration: line-through; text-decoration-thickness: 1px; opacity: 0.85; }
+  .why { margin: 10px 0 0; font-size: 0.8125rem; color: var(--muted); }
+  .why b { color: var(--text); font-weight: 600; }
+  .alt { margin: 10px 0 0; padding: 10px 12px; border: 1px dashed var(--border-medium); border-radius: 8px; font-size: 0.8125rem; color: var(--muted); }
+  .alt b { color: var(--text); font-weight: 600; }
+  .alt p { margin: 0 0 6px; } .alt p:last-child { margin: 0; }
+  .kv { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; font-size: 0.875rem; margin: 6px 0 0; }
+  .kv dt { color: var(--muted); font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; padding-top: 3px; }
+  .kv dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+  .kv dd.rec { font-weight: 600; }
+  table.tally { border-collapse: collapse; width: 100%; table-layout: fixed; font-size: 0.875rem; margin: 16px 0 0; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  table.tally th, table.tally td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--border-subtle); overflow-wrap: anywhere; vertical-align: top; }
+  table.tally th:last-child, table.tally td:last-child { width: 5.5em; }
+  table.tally th { font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); }
+  table.tally td:last-child, table.tally th:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+  table.tally tr:last-child td { border-bottom: 0; }
+  .foot { margin: 40px 0 0; padding: 14px 16px; border-top: 1px solid var(--border); font-size: 0.8125rem; color: var(--muted); }
+  .foot p { margin: 0 0 8px; }
+  code.s { font-family: var(--font-mono); font-size: 0.8125rem; }
+  /* A file path is an unbreakable run; let every code span break anywhere so a
+     320px column never scrolls sideways (the incompressible-run rule). */
+  code, .where, h3.surface code, h1, h2, h4, .item h4, .kv dd, .ba p, .ba li { overflow-wrap: anywhere; word-break: break-word; min-width: 0; }
+  h3.surface { flex-wrap: wrap; }
+  @media (max-width: 640px) {
+    .wrap { padding: 20px 16px 64px; }
+    .item { padding-left: 16px; padding-top: 52px; }
+    .item .num { left: 14px; top: 12px; }
+    .kv { grid-template-columns: 1fr; gap: 2px; }
+    .kv dt { padding-top: 6px; }
+    h1 { font-size: 1.5rem; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="hero">
+    <p class="eyebrow">Copy review, for your approval</p>
+    <h1>iCloud bar-chart sync: every string, before and after</h1>
+    <p class="lede"><b>Nothing on this page is written anywhere yet.</b> Each numbered item is a proposal. The Engineer writes a user-facing string only when it is in the approved table, so please answer every item, by number, with yes, a rewrite, or no.</p>
+    <div class="howto">
+      <p><b>Decisions</b> D1 to D9 come first: each has the recommended default and one line on what it costs to reverse. <b>Copy items</b> 1 to 46 follow, grouped by surface. Where a sentence changes inside a paragraph, the whole paragraph is shown so you read it in context; the changed words are <mark>marked</mark> in the After and <del>struck</del> in the Before.</p>
+      <p>An item tagged <span class="cond">if D1 = yes</span> carries a variant for the other answer underneath it. Items tagged <span class="info">for information</span> change no string; they are here so the table is complete.</p>
+      <p>Not on this page, by direction: <code>CHANGELOG.md</code> and the TestFlight and App Store release notes (reviewed at the bundle sign-off). The <code>appstore/REVIEW_NOTES.md</code> file has no sentence about iCloud Sync, so it is listed once as unchanged (item 45).</p>
+    </div>
+    <table class="tally" aria-label="Items per surface">
+      <thead><tr><th>Surface</th><th>Items</th></tr></thead>
+      <tbody>
+        <tr><td>Product decisions to confirm</td><td>D1 to D9</td></tr>
+        <tr><td>In-app strings (labels, buttons, states, dialogs, the turn-on note, screen-reader wiring)</td><td>1 to 24</td></tr>
+        <tr><td>docs/HELP.md (Targets, iCloud Sync, Settings, offline)</td><td>25 to 33</td></tr>
+        <tr><td>PRIVACY_POLICY.md, mirrored in website/privacy.html</td><td>34 to 40</td></tr>
+        <tr><td>README.md, website/index.html, appstore/LISTING.md</td><td>41 to 44</td></tr>
+        <tr><td>appstore/REVIEW_NOTES.md, ACCESSIBILITY.md</td><td>45 to 46</td></tr>
+      </tbody>
+    </table>
+    <nav class="toc" aria-label="Sections">
+      <a href="#decisions">Decisions <small>D1 to D9</small></a>
+      <a href="#inapp">In-app <small>1 to 24</small></a>
+      <a href="#help">HELP.md <small>25 to 33</small></a>
+      <a href="#privacy">Privacy <small>34 to 40</small></a>
+      <a href="#published">README, website, listing <small>41 to 44</small></a>
+      <a href="#other">Review notes, accessibility <small>45 to 46</small></a>
+    </nav>
+  </header>
+
+  <!-- ═══════════════════════════ Decisions ═══════════════════════════ -->
+  <h2 id="decisions">Decisions to confirm</h2>
+  <p class="sub">Each carries the default the plan is written to. Say the number and "yes", or the number and your answer.</p>
+
+  <article class="item decision"><span class="num">D1</span>
+    <h4>Should the Targets tab's day-by-day live answers sync too?</h4>
+    <dl class="kv">
+      <dt>Recommended</dt><dd class="rec">Yes, as one copy per device that the others merge on read (the Architect's shape, D8).</dd>
+      <dt>Consequence</dt><dd>A county swept on one device shows its days as already checked on your others, saving 30 eBird requests per county per device. The container holds one snapshot per device (about 10 MB each). It is built last, so a "no" here costs nothing already built; items 2, 3, 27, 30, 31, 33, 35, 38, 39 and 44 then take their "if D1 = no" variant, and the privacy sentence "cached lookups are never synced" stays exactly as it is.</dd>
+    </dl>
+  </article>
+
+  <article class="item decision"><span class="num">D2</span>
+    <h4>Should Remove all bar-chart files confirm even when sync is off?</h4>
+    <dl class="kv">
+      <dt>Recommended</dt><dd class="rec">Yes, always, on every platform.</dd>
+      <dt>Consequence</dt><dd>A row's Clear is instant with sync off because the row shows exactly what goes; this control shows nothing per file, so it confirms even locally. Reversing it is one branch in the Settings handler (skip the dialog when sync is off) and items 19 and 21 are then unused.</dd>
+    </dl>
+  </article>
+
+  <article class="item decision"><span class="num">D3</span>
+    <h4>The privacy sentence "You can delete your stored files and keys at any time from the Settings tab": revise it now?</h4>
+    <dl class="kv">
+      <dt>Recommended</dt><dd class="rec">Yes, revise it in this build (item 35), because the new Settings control makes it true of bar-chart files for the first time and the recorded reversal condition is met.</dd>
+      <dt>Consequence</dt><dd>Leaving it as is would be tolerable (it does not say "only"), but the sentence would then be true by accident rather than by design, and the record says to revisit it here.</dd>
+    </dl>
+  </article>
+
+  <article class="item decision"><span class="num">D4</span>
+    <h4>When an old file's saved time cannot be written into a sync record, what happens?</h4>
+    <dl class="kv">
+      <dt>Recommended</dt><dd class="rec">The record carries the time of the check that adopts it, and the file is still uploaded, never skipped.</dd>
+      <dt>Consequence</dt><dd>A file added before this version always reaches your other devices. The alternative strands it on one device with a "Could not sync" state. Reachable in practice only through a hand-edited manifest; specified so the rule has no gap.</dd>
+    </dl>
+  </article>
+
+  <article class="item decision"><span class="num">D5</span>
+    <h4>Clearing the eBird backup with sync on also removes the shared day-by-day copies from iCloud?</h4>
+    <dl class="kv">
+      <dt>Recommended</dt><dd class="rec">Yes. (Moot if D1 is no.)</dd>
+      <dt>Consequence</dt><dd>Keeps the published sentence "clearing your eBird backup also removes the day-by-day eBird reports" true across devices, not only on the device that cleared. Reversing it removes one call; each device would still remove its own copy at its next check.</dd>
+    </dl>
+  </article>
+
+  <article class="item decision"><span class="num">D6</span>
+    <h4>No compatibility behavior for a device still on an older app version?</h4>
+    <dl class="kv">
+      <dt>Recommended</dt><dd class="rec">Yes, no shim.</dd>
+      <dt>Consequence</dt><dd>An older device keeps syncing the two data files and ignores the new items; its Remove synced files leaves the bar-chart copies in place (a current device's Remove clears them). Nothing breaks either way.</dd>
+    </dl>
+  </article>
+
+  <article class="item decision"><span class="num">D7</span>
+    <h4>ACCESSIBILITY.md: leave it unchanged?</h4>
+    <dl class="kv">
+      <dt>Recommended</dt><dd class="rec">Yes, unchanged.</dd>
+      <dt>Consequence</dt><dd>The statement's confirmation sentence is scoped to the Sync API keys switch and stays true. The new control and the two new confirmations follow the same patterns it already describes. If you would rather it name them, item 46 has the sentence, written as a property rather than a list.</dd>
+    </dl>
+  </article>
+
+  <article class="item decision"><span class="num">D8</span>
+    <h4>The Architect's change: the day cache syncs as one snapshot per device, merged on read, not one shared merged copy.</h4>
+    <dl class="kv">
+      <dt>Recommended</dt><dd class="rec">Accept.</dd>
+      <dt>Consequence</dt><dd>The PRD's single merged copy cannot settle once two devices' answers exceed one device's budget (about 10 busy counties): the two would exchange a 10 MB write on every check forever. Per-device snapshots reach a fixed point within two checks. Cost: one snapshot per device in the container, and a device that leaves your account leaves its snapshot behind until Remove synced files from iCloud. No user-facing wording depends on which shape is chosen.</dd>
+    </dl>
+  </article>
+
+  <article class="item decision"><span class="num">D9</span>
+    <h4>Take the roadmap's eviction fix (the measured 0.8 s main-thread stall on a crafted document) in this build?</h4>
+    <dl class="kv">
+      <dt>Recommended</dt><dd class="rec">Yes, take it now.</dd>
+      <dt>Consequence</dt><dd>With D1, a crafted snapshot from your own iCloud account could reach the same code path once per device, so the fix (build the per-county recency map once per eviction pass) closes a stall that sync makes easier to reach. Declining it is recorded as a written non-action with the measured number and its reversal condition, not a silence.</dd>
+    </dl>
+  </article>
+
+  <!-- ═══════════════════════════ In-app ═══════════════════════════ -->
+  <h2 id="inapp">In-app strings</h2>
+  <p class="sub">Every string a user can see or hear. <code class="s">${here}</code> is the app's existing device word ("this Mac", "this iPhone", "this iPad", or "this device" before the platform is known and on Windows, web and Pi). <code class="s">${county}</code> is always "Name, ST".</p>
+
+  <h3 class="surface">iCloud Sync section <code>frontend/src/lib/icloud/icloudCopy.ts</code></h3>
+
+  <article class="item"><span class="num">1</span>
+    <h4>Section description</h4>
+    <p class="where"><b>icloudCopy.ts:12</b> <code class="s">ICS_DESCRIPTION</code>, shown under the iCloud Sync header on Settings</p>
+    <div class="ba">
+      <div class="before"><span class="lbl">Before</span><p>Keeps your eBird backup and ML export the same on every Mac, iPhone and iPad signed in to your iCloud account.</p></div>
+      <div class="after"><span class="lbl">After</span><p>Keeps your eBird backup, ML export <mark>and eBird bar-chart files</mark> the same on every Mac, iPhone and iPad signed in to your iCloud account.</p></div>
+    </div>
+    <p class="why">A third kind of file syncs; the description names what the switch governs.</p>
+  </article>
+
+  <article class="item"><span class="num">2</span>
+    <h4>Turn-on note, "What goes to iCloud" <span class="cond">if D1 = yes</span></h4>
+    <p class="where"><b>icloudCopy.ts:121</b> <code class="s">enableNoteItems(here)[0].text</code>, the first item of the note shown before iCloud Sync turns on</p>
+    <div class="ba">
+      <div class="before"><span class="lbl">Before</span><p>Your eBird backup and your Macaulay Library export, along with each file's name, when it was uploaded, which device it came from (its name), its size and a checksum. <del>Nothing else: your settings and caches</del> stay on ${here}, and so do your API keys unless you also turn on Sync API keys.</p></div>
+      <div class="after"><span class="lbl">After</span><p>Your eBird backup, your Macaulay Library export <mark>and every eBird bar-chart file you have added on the Targets tab</mark>, along with each file's name, when it was uploaded, which device it came from (its name), its size and a checksum. <mark>The day-by-day eBird answers behind the Targets tab's live counts go too, so your other devices do not ask eBird again.</mark> <mark>Your settings and other caches</mark> stay on ${here}, and so do your API keys unless you also turn on Sync API keys.</p></div>
+    </div>
+    <p class="why">The note must name the bar-chart files and, with D1, the day answers, and must stop saying nothing else goes (PRD FR-35).</p>
+    <div class="alt"><p><b>If D1 = no:</b> Your eBird backup, your Macaulay Library export and every eBird bar-chart file you have added on the Targets tab, along with each file's name, when it was uploaded, which device it came from (its name), its size and a checksum. Nothing else: your settings and caches stay on ${here}, and so do your API keys unless you also turn on Sync API keys.</p></div>
+  </article>
+
+  <article class="item"><span class="num">3</span>
+    <h4>Remove synced files from iCloud: the list of what is deleted <span class="cond">if D1 = yes</span></h4>
+    <p class="where"><b>icloudCopy.ts</b> new builder beside <code class="s">REMOVE_INTRO</code>; rendered in the list at <b>Settings.tsx:861-863</b>. The intro ("These files will be deleted from your iCloud account:") and the outro are unchanged.</p>
+    <div class="ba">
+      <div class="before"><span class="lbl">Before</span><p>The list holds the two data files' names only, for example:</p><ul><li>MyEBirdData.csv</li><li>ML__2026-09-20T12-05_audio_photo_video.csv</li></ul></div>
+      <div class="after"><span class="lbl">After</span><p>The two names as today, then one line for the county files and one for the day answers when iCloud holds them:</p><ul><li>MyEBirdData.csv</li><li>ML__2026-09-20T12-05_audio_photo_video.csv</li><li><mark>Bar-chart files for 3 counties</mark></li><li><mark>The Targets tab's saved day-by-day eBird answers</mark></li></ul><p>Singular: <mark>The bar-chart file for 1 county</mark>.</p></div>
+    </div>
+    <p class="why">The confirmation must account for the county files (FR-13). It counts rather than lists them because the state holds county codes, not names, and the number of counties is unbounded; the count is live, never published prose.</p>
+    <div class="alt"><p><b>If D1 = no:</b> the day-answers line is not added.</p></div>
+  </article>
+
+  <article class="item"><span class="num">4</span>
+    <h4>The "Could not sync" reason for an oversized file</h4>
+    <p class="where"><b>icloudCopy.ts:77</b> <code class="s">REASONS['too-large']</code></p>
+    <div class="ba">
+      <div class="before"><span class="lbl">Before</span><p>The file in iCloud is larger than <del>200 MB</del>.</p></div>
+      <div class="after"><span class="lbl">After</span><p>The file in iCloud is <mark>too large to sync</mark>.</p></div>
+    </div>
+    <p class="why">The reason quoted a constant; the house rule is to state the property so the sentence cannot go stale when the bound moves (the Architect's schema, section 12). Pre-existing string, now shared by county files.</p>
+  </article>
+
+  <h3 class="surface">Targets tab: the Remove confirmation (sync on) <code>icloudCopy.ts</code>, new</h3>
+
+  <article class="item"><span class="num">5</span>
+    <h4>Dialog title</h4>
+    <p class="where"><b>icloudCopy.ts</b> new <code class="s">removeCountyTitle(county)</code>; opens from the eBird bar chart section's Remove when iCloud Sync is on</p>
+    <div class="ba">
+      <div class="before"><span class="lbl">Before</span><p class="new">New. Today Remove acts at once with no dialog.</p></div>
+      <div class="after"><span class="lbl">After</span><p>Remove the bar-chart file for ${county}?</p><p><span class="new">Example:</span> Remove the bar-chart file for Alameda, CA?</p></div>
+    </div>
+    <p class="why">Mirrors the Default Files rows' "Clear eBird Backup?" title. "The bar-chart file for Alameda, CA" avoids the awkward possessive the shorter form would need.</p>
+  </article>
+
+  <article class="item"><span class="num">6</span>
+    <h4>Dialog body</h4>
+    <p class="where"><b>icloudCopy.ts</b> new <code class="s">removeCountyBody(county, here)</code></p>
+    <div class="ba">
+      <div class="before"><span class="lbl">Before</span><p class="new">New.</p></div>
+      <div class="after"><span class="lbl">After</span><p>The file for ${county} will be removed from ${here} and from iCloud. Every Mac, iPhone and iPad with iCloud Sync on removes its copy at its next check. Devices with sync off keep theirs.</p></div>
+    </div>
+    <p class="why">The Default Files clear body (icloudCopy.ts:150) word for word, with the file named. It names what is removed and from where, and says devices with sync off keep theirs (FR-10).</p>
+  </article>
+
+  <article class="item"><span class="num">7</span>
+    <h4>Confirm button (shared with the Settings control when sync is on, item 20)</h4>
+    <p class="where"><b>icloudCopy.ts:102-113</b> new <code class="s">BUTTONS.removeAllSynced</code>; Cancel reuses <code class="s">BUTTONS.cancel</code></p>
+    <div class="ba">
+      <div class="before"><span class="lbl">Before</span><p class="new">New. The nearest existing button is "Clear from all synced devices".</p></div>
+      <div class="after"><span class="lbl">After</span><p>Remove from all synced devices</p></div>
+    </div>
+    <p class="why">The Targets section says Remove, not Clear, so its confirm button keeps its verb; the shape is the existing "Clear from all synced devices".</p>
+  </article>
+
+  <h3 class="surface">Targets tab: the eBird bar chart section <code>frontend/src/lib/targets/targetsCopy.ts</code></h3>
+
+  <article class="item"><span class="num">8</span>
+    <h4>The add-file instruction's closing sentence</h4>
+    <p class="where"><b>targetsCopy.ts:307</b> <code class="s">ADD_FILE_DETAIL_TAIL</code>; the sentence after "Download Histogram Data" when the county has no file</p>
+    <div class="ba">
+      <div class="before"><span class="lbl">Before</span><p>On ebird.org, open the county's bar chart while signed in and choose <b>Download Histogram Data</b><del>. The file stays on this device and is not synced.</del> Open Alameda, CA's bar chart on ebird.org</p></div>
+      <div class="after"><span class="lbl">After</span><p>On ebird.org, open the county's bar chart while signed in and choose <b>Download Histogram Data</b><mark>.</mark> Open Alameda, CA's bar chart on ebird.org</p><p><span class="new">The constant becomes a lone full stop; the retired sentence is replaced by item 9 only where it is true.</span></p></div>
+    </div>
+    <p class="why">The sentence is false on a Mac, iPhone or iPad with sync on and true everywhere else, so it cannot stay as one string (FR-35).</p>
+  </article>
+
+  <article class="item"><span class="num">9</span>
+    <h4>A sync note in the add-file instruction, shown only while iCloud Sync is on</h4>
+    <p class="where"><b>targetsCopy.ts</b> new <code class="s">ADD_FILE_SYNC_NOTE</code>; rendered after item 8's sentence and before the ebird.org link, only when the section has a sync view</p>
+    <div class="ba">
+      <div class="before"><span class="lbl">Before</span><p class="new">New.</p></div>
+      <div class="after"><span class="lbl">After</span><p>With iCloud Sync on, a file you add here reaches your other synced devices too.</p></div>
+    </div>
+    <p class="why">Tells the user the one thing that changed for them at the moment it matters: the second download is no longer needed.</p>
+  </article>
+
+  <article class="item"><span class="num">10</span>
+    <h4>Section title when the county's file is in iCloud but not on this device</h4>
+    <p class="where"><b>targetsCopy.ts</b> new <code class="s">inICloudTitle(county)</code>; takes the place of "Add ... to sort by eBird frequency" in that one state, with the sync line and Download now beneath (FR-8, FR-16)</p>
+    <div class="ba">
+      <div class="before"><span class="lbl">Before</span><p class="new">New. Today the state cannot occur.</p></div>
+      <div class="after"><span class="lbl">After</span><p>A bar-chart file for ${county} is in iCloud</p><p><span class="new">Example:</span> A bar-chart file for Alameda, CA is in iCloud</p></div>
+    </div>
+    <p class="why">"Add a file" would be the wrong headline over a Download now button; the add instruction and button stay beneath it, because a file added here still wins as the newer upload.</p>
+  </article>
+
+  <article class="item"><span class="num">11</span>
+    <h4>The section's sync line reuses the Settings rows' vocabulary verbatim <span class="info">for information</span></h4>
+    <p class="where"><b>icloudCopy.ts:24-33, 53-70, 102-113</b>, rendered under the file's status line on Targets through the same status region the Default Files rows use</p>
+    <div class="ba">
+      <div class="before"><span class="lbl">Before</span><p class="new">The Targets section shows no sync state.</p></div>
+      <div class="after"><span class="lbl">After</span><p>No new string. With sync on, the section shows one of the eight existing state labels (Up to date; Syncing, uploading; Syncing, downloading; In iCloud, not downloaded here; Waiting to upload; iCloud unavailable; Sync off; Could not sync), the existing provenance ("From this device", "From Dave's iPhone (iPhone), uploaded Sep 28, 2026 at 7:12 AM"), the existing replaced line ("Replaced by the file from Dave's iPhone (iPhone), uploaded ..."), the existing reasons, and the existing Download now and Retry buttons. With sync off, or on Windows, web and Pi, nothing is shown, as today.</p></div>
+    </div>
+    <p class="why">One vocabulary for one idea (PRD FR-15): a user who has read the Settings rows reads the Targets line without learning anything new.</p>
+  </article>
+
+  <h3 class="surface">Settings: the new Bar-chart files section <code>icloudCopy.ts</code> (or a sibling copy module), new</h3>
+
+  <article class="item"><span class="num">12</span>
+    <h4>Section header</h4>
+    <p class="where">The uppercase section label between Tab Layout and Troubleshooting, on every platform</p>
+    <div class="ba">
+      <div class="before"><span class="lbl">Before</span><p class="new">New.</p></div>
+      <div class="after"><span class="lbl">After</span><p>Bar-chart files</p></div>
+    </div>
+    <p class="why">Names the thing, not the action, as the other headers do (Default Files, Tab Layout). "eBird" is left out of a header the stylesheet uppercases.</p>
+  </article>
+
+  <article class="item"><span class="num">13</span>
+    <h4>Section description</h4>
+    <p class="where">The muted line at the top of the card, the Troubleshooting register</p>
+    <div class="ba">
+      <div class="before"><span class="lbl">Before</span><p class="new">New.</p></div>
+      <div class="after"><span class="lbl">After</span><p>County bar-chart files added on the Targets tab, for sorting by eBird frequency.</p></div>
+    </div>
+    <p class="why">Says where the files came from and what they are for, so the control below cannot be mistaken for the eBird backup.</p>
+  </article>
+
+  <article class="item"><span class="num">14</span>
+    <h4>Status line: files are saved</h4>
+    <p class="where">Beside the button; also the button's <code class="s">aria-describedby</code> target</p>
+    <div class="ba">
+      <div class="before"><span class="lbl">Before</span><p class="new">New.</p></div>
+      <div class="after"><span class="lbl">After</span><p>Saved for ${counted(n, 'county', 'counties')} on ${here}.</p><p><span class="new">Examples:</span> Saved for 3 counties on this Mac. · Saved for 1 county on this device.</p></div>
+    </div>
+    <p class="why">The confirmation names a count (FR-20), so the count is shown before the press as well; it comes from the manifest and is never published prose.</p>
+  </article>
+
+  <article class="item"><span class="num">15</span>
+    <h4>Status line: nothing saved (the reason the button cannot be pressed)</h4>
+    <p class="where">Same line; the button is <code class="s">aria-disabled="true"</code>, still focusable, with this sentence as its description (FR-21, NFR-03)</p>
+    <div class="ba">
+      <div class="before"><span class="lbl">Before</span><p class="new">New.</p></div>
+      <div class="after"><span class="lbl">After</span><p>No bar-chart files are saved on ${here}.</p></div>
+    </div>
+    <p class="why">The control stays visible and focusable with its reason readable in place, the house pattern for a control that cannot act (the Sync API keys switch).</p>
+  </article>
+
+  <article class="item"><span class="num">16</span>
+    <h4>Status line: the saved files could not be checked</h4>
+    <p class="where">Same line, with the existing Retry link-button beside it; the button is <code class="s">aria-disabled</code></p>
+    <div class="ba">
+      <div class="before"><span class="lbl">Before</span><p class="new">New. The Targets section's own version is "Couldn't check for a bar-chart file".</p></div>
+      <div class="after"><span class="lbl">After</span><p>Couldn't check for bar-chart files on ${here}.</p></div>
+    </div>
+    <p class="why">A failed read is unknown, never empty: the control must not say "none saved" over a manifest it could not read.</p>
+  </article>
+
+  <article class="item"><span class="num">17</span>
+    <h4>The button</h4>
+    <p class="where">The quiet bordered button in the card, the Rebuild caches register</p>
+    <div class="ba">
+      <div class="before"><span class="lbl">Before</span><p class="new">New.</p></div>
+      <div class="after"><span class="lbl">After</span><p>Remove all bar-chart files</p></div>
+    </div>
+    <p class="why">Remove is the verb the Targets section already uses for these files; "all" says it is the bulk action.</p>
+  </article>
+
+  <article class="item"><span class="num">18</span>
+    <h4>Confirmation title</h4>
+    <div class="ba">
+      <div class="before"><span class="lbl">Before</span><p class="new">New.</p></div>
+      <div class="after"><span class="lbl">After</span><p>Remove all bar-chart files?</p></div>
+    </div>
+  </article>
+
+  <article class="item"><span class="num">19</span>
+    <h4>Confirmation body, sync off (and every non-Apple platform)</h4>
+    <p class="where">Builder <code class="s">removeAllBody(n, here, syncOn)</code>; the count is the manifest's county count</p>
+    <div class="ba">
+      <div class="before"><span class="lbl">Before</span><p class="new">New.</p></div>
+      <div class="after"><span class="lbl">After</span><p>Bar-chart files for ${counted(n, 'county', 'counties')} will be removed from ${here}. Your eBird backup, ML export and API keys are not touched.</p><p><span class="new">Singular:</span> The bar-chart file for 1 county will be removed from ${here}. Your eBird backup, ML export and API keys are not touched.</p></div>
+    </div>
+    <p class="why">Names what goes, how many counties that is, and from where (FR-20), and rules out the two files a bulk "remove all" might be feared to reach (FR-23).</p>
+  </article>
+
+  <article class="item"><span class="num">20</span>
+    <h4>Confirmation body, sync on</h4>
+    <div class="ba">
+      <div class="before"><span class="lbl">Before</span><p class="new">New.</p></div>
+      <div class="after"><span class="lbl">After</span><p>Bar-chart files for ${counted(n, 'county', 'counties')} will be removed from ${here} <mark>and from iCloud. Every Mac, iPhone and iPad with iCloud Sync on removes its copies at its next check. Devices with sync off keep theirs.</mark> Your eBird backup, ML export and API keys are not touched.</p></div>
+    </div>
+    <p class="why">The sync-off body plus the three sentences the Default Files clear body already uses for a change that reaches other devices.</p>
+  </article>
+
+  <article class="item"><span class="num">21</span>
+    <h4>Confirm button, sync off</h4>
+    <p class="where">Sync on reuses item 7, "Remove from all synced devices"; Cancel is the existing button</p>
+    <div class="ba">
+      <div class="before"><span class="lbl">Before</span><p class="new">New.</p></div>
+      <div class="after"><span class="lbl">After</span><p>Remove all</p></div>
+    </div>
+  </article>
+
+  <article class="item"><span class="num">22</span>
+    <h4>After a partial failure (some files remain)</h4>
+    <p class="where">A <code class="s">role="alert"</code> line under the button; the status line above it re-reads the manifest, which lists exactly the survivors (FR-22)</p>
+    <div class="ba">
+      <div class="before"><span class="lbl">Before</span><p class="new">New.</p></div>
+      <div class="after"><span class="lbl">After</span><p>Bar-chart files for ${counted(k, 'county', 'counties')} could not be removed and remain on ${here}. Try again.</p><p><span class="new">Singular:</span> The bar-chart file for 1 county could not be removed and remains on ${here}. Try again.</p></div>
+    </div>
+    <p class="why">Says some remain, how many, and what to do; never "removed" over a manifest that still lists a county.</p>
+  </article>
+
+  <article class="item"><span class="num">23</span>
+    <h4>After a successful removal</h4>
+    <p class="where">A polite <code class="s">role="status"</code> line, announced once; the status line then reads item 15</p>
+    <div class="ba">
+      <div class="before"><span class="lbl">Before</span><p class="new">New.</p></div>
+      <div class="after"><span class="lbl">After</span><p>Removed bar-chart files for ${counted(n, 'county', 'counties')}.</p><p><span class="new">Singular:</span> Removed the bar-chart file for 1 county.</p></div>
+    </div>
+    <p class="why">A bulk action that leaves a disabled button behind needs one sentence saying it happened; a screen reader hears the same words.</p>
+  </article>
+
+  <article class="item"><span class="num">24</span>
+    <h4>Screen-reader text <span class="info">for information</span></h4>
+    <div class="ba">
+      <div class="before"><span class="lbl">Before</span><p class="new">Not applicable.</p></div>
+      <div class="after"><span class="lbl">After</span><p>No new screen-reader-only string. The Remove all bar-chart files button's accessible name is its label; its <code class="s">aria-describedby</code> is the status line (items 14 to 16), so the count or the reason is read at the control. Both new dialogs are labelled by their titles (items 5 and 18) through the shared dialog shell. The Targets sync line is the same <code class="s">role="status"</code> region the Settings rows use, with the same sr-only full stop between the state and its detail. The Retry beside item 16 is the existing "Retry".</p></div>
+    </div>
+  </article>
+
+  <!-- ═══════════════════════════ HELP ═══════════════════════════ -->
+  <h2 id="help">docs/HELP.md</h2>
+  <p class="sub">The in-app help. Each item shows the whole paragraph; line numbers are today's.</p>
+
+  <article class="item"><span class="num">25</span>
+    <h4>Targets, "Adding a county's eBird bar-chart file": the last two sentences</h4>
+    <p class="where"><b>docs/HELP.md:424</b></p>
+    <div class="ba">
+      <div class="before"><span class="lbl">Before</span><p>The file is checked before it is saved: a file that is not an eBird bar chart, one over the size limit, or one whose name says it belongs to a different county is refused with the reason, and the county's existing file stays as it was. <b>Replace</b> swaps in a newer download and <b>Remove</b> takes the file away. The status line shows the range the file covers and how many of its rows matched the county's species list, skipped a form (a spuh, slash or hybrid), or matched nothing (usually a name eBird has since changed); <b>Show unmatched</b> lists those. <del>The file stays on this device and is not part of iCloud Sync, so add it on each device where you want eBird's frequencies.</del></p></div>
+      <div class="after"><span class="lbl">After</span><p>The file is checked before it is saved: a file that is not an eBird bar chart, one over the size limit, or one whose name says it belongs to a different county is refused with the reason, and the county's existing file stays as it was. <b>Replace</b> swaps in a newer download and <b>Remove</b> takes the file away. The status line shows the range the file covers and how many of its rows matched the county's species list, skipped a form (a spuh, slash or hybrid), or matched nothing (usually a name eBird has since changed); <b>Show unmatched</b> lists those. <mark>On a Mac, iPhone or iPad with iCloud Sync on, a file you add here reaches your other synced devices, the section shows the same sync state the Default Files rows do, and <b>Remove</b> asks you to confirm because the file is removed from those devices too (see iCloud Sync under Settings). Everywhere else the file stays on this device, so add it on each device where you want eBird's frequencies.</mark></p></div>
+    </div>
+    <p class="why">The retired sentence was the published "not part of iCloud Sync" claim; the replacement is true per platform.</p>
+  </article>
+
+  <article class="item"><span class="num">26</span>
+    <h4>iCloud Sync: the opening paragraph</h4>
+    <p class="where"><b>docs/HELP.md:739</b></p>
+    <div class="ba">
+      <div class="before"><span class="lbl">Before</span><p>On the Mac, iPhone and iPad apps, an iCloud Sync section sits directly below Default Files. It is off until you turn it on. With it on, your eBird backup and your Macaulay Library export are kept the same on every Mac, iPhone and iPad signed in to your iCloud account: <del>upload a fresh export on any one of them</del> and the others use it, with no second upload. Windows, web and Pi installs have no iCloud Sync section.</p></div>
+      <div class="after"><span class="lbl">After</span><p>On the Mac, iPhone and iPad apps, an iCloud Sync section sits directly below Default Files. It is off until you turn it on. With it on, your eBird backup, your Macaulay Library export <mark>and the eBird bar-chart files you add on the Targets tab</mark> are kept the same on every Mac, iPhone and iPad signed in to your iCloud account: <mark>upload a fresh export or add a county's bar chart on any one of them</mark> and the others use it, with no second upload. Windows, web and Pi installs have no iCloud Sync section.</p></div>
+    </div>
+  </article>
+
+  <article class="item"><span class="num">27</span>
+    <h4>iCloud Sync, "Turning it on" <span class="cond">if D1 = yes</span></h4>
+    <p class="where"><b>docs/HELP.md:741</b></p>
+    <div class="ba">
+      <div class="before"><span class="lbl">Before</span><p><b>Turning it on.</b> Flip the switch. A note first says what goes to iCloud (<del>the two files</del>, and for each its name, when it was uploaded, which device it came from (its name), its size and a checksum), whose account it goes to (your own iCloud account, on Apple's servers, with no SnowRaven server in the path and nothing the developer can see), what happens next, and how to turn it off. Press <b>Turn on</b> to proceed or <b>Cancel</b> to leave it off. Nothing is written to iCloud until you press Turn on. <del>Your settings and caches are never synced, and your</del> API keys are synced only if you also turn on <b>Sync API keys</b> (below).</p></div>
+      <div class="after"><span class="lbl">After</span><p><b>Turning it on.</b> Flip the switch. A note first says what goes to iCloud (<mark>the files</mark>, and for each its name, when it was uploaded, which device it came from (its name), its size and a checksum<mark>; and the day-by-day eBird answers behind the Targets tab's live counts</mark>), whose account it goes to (your own iCloud account, on Apple's servers, with no SnowRaven server in the path and nothing the developer can see), what happens next, and how to turn it off. Press <b>Turn on</b> to proceed or <b>Cancel</b> to leave it off. Nothing is written to iCloud until you press Turn on. <mark>Your settings and other caches stay on each device: only those day-by-day answers are shared, so a county's days checked on one device are not asked of eBird again on another. Your</mark> API keys are synced only if you also turn on <b>Sync API keys</b> (below).</p></div>
+    </div>
+    <div class="alt"><p><b>If D1 = no:</b> only "the two files" becomes "the files"; the rest of the paragraph stays as it is.</p></div>
+  </article>
+
+  <article class="item"><span class="num">28</span>
+    <h4>iCloud Sync, "What happens next"</h4>
+    <p class="where"><b>docs/HELP.md:745</b></p>
+    <div class="ba">
+      <div class="before"><span class="lbl">Before</span><p><b>What happens next.</b> SnowRaven checks iCloud when you turn sync on, when the app starts, each time it comes back to the front, and when iCloud reports a change; on the Mac it also checks every few minutes while the window is open. For each file, the most recently uploaded copy wins, whole: if iCloud holds a newer copy it replaces the one on this device, and if this device's copy is newer it goes up. Nothing is merged. A file that arrives from another device reaches every tab straight away, without a relaunch.</p></div>
+      <div class="after"><span class="lbl">After</span><p><b>What happens next.</b> SnowRaven checks iCloud when you turn sync on, when the app starts, each time it comes back to the front, and when iCloud reports a change; on the Mac it also checks every few minutes while the window is open. For each file, <mark>a county's bar-chart file included,</mark> the most recently uploaded copy wins, whole: if iCloud holds a newer copy it replaces the one on this device, and if this device's copy is newer it goes up. Nothing is merged. A file that arrives from another device reaches every tab straight away, without a relaunch.</p></div>
+    </div>
+    <p class="why">Reads the per-file rule for the county case (PRD, copy surfaces).</p>
+  </article>
+
+  <article class="item"><span class="num">29</span>
+    <h4>iCloud Sync, "What the rows tell you": one sentence added at the end</h4>
+    <p class="where"><b>docs/HELP.md:747</b></p>
+    <div class="ba">
+      <div class="before"><span class="lbl">Before</span><p><b>What the rows tell you.</b> With sync on, each Default Files row shows where its current file came from ("From this device" or the other device's name) and when, and one of eight states as plain text: <b>Up to date</b>; <b>Syncing, uploading</b>; <b>Syncing, downloading</b>; <b>In iCloud, not downloaded here</b> (a newer file exists in iCloud but has not reached this device yet, so the app keeps using the copy it has; press <b>Download now</b> to fetch it); <b>Waiting to upload</b> (a file uploaded while offline, which goes up when the connection returns); <b>iCloud unavailable</b> (signed out or iCloud Drive off, so the app keeps working from its local copy until iCloud returns); <b>Sync off</b>; and <b>Could not sync</b> (with the reason and a <b>Retry</b> button). After a check has replaced a file, the row says so ("Replaced by the file from ...") until your next action on that row. The section also shows when iCloud was last checked, and a <b>Check now</b> button runs a check on demand.</p></div>
+      <div class="after"><span class="lbl">After</span><p><b>What the rows tell you.</b> With sync on, each Default Files row shows where its current file came from ("From this device" or the other device's name) and when, and one of eight states as plain text: <b>Up to date</b>; <b>Syncing, uploading</b>; <b>Syncing, downloading</b>; <b>In iCloud, not downloaded here</b> (a newer file exists in iCloud but has not reached this device yet, so the app keeps using the copy it has; press <b>Download now</b> to fetch it); <b>Waiting to upload</b> (a file uploaded while offline, which goes up when the connection returns); <b>iCloud unavailable</b> (signed out or iCloud Drive off, so the app keeps working from its local copy until iCloud returns); <b>Sync off</b>; and <b>Could not sync</b> (with the reason and a <b>Retry</b> button). After a check has replaced a file, the row says so ("Replaced by the file from ...") until your next action on that row. The section also shows when iCloud was last checked, and a <b>Check now</b> button runs a check on demand. <mark>The Targets tab's <b>eBird bar chart</b> section shows the same state, where the file came from, and <b>Download now</b> or <b>Retry</b>, for the county you have selected.</mark></p></div>
+    </div>
+  </article>
+
+  <article class="item"><span class="num">30</span>
+    <h4>iCloud Sync, "Clearing a file with sync on" <span class="cond">if D1 = yes</span></h4>
+    <p class="where"><b>docs/HELP.md:749</b></p>
+    <div class="ba">
+      <div class="before"><span class="lbl">Before</span><p><b>Clearing a file with sync on</b> removes it from this device and from iCloud, and every other device with sync on removes its copy at its next check, so the row asks you to confirm first. On every device that clears its copy, the saved answers worked out from that file go with it, exactly as described under Default Files above. Devices with sync off keep theirs. With sync off, <del>Clear is the same instant local action</del> as everywhere else.</p></div>
+      <div class="after"><span class="lbl">After</span><p><b>Clearing a file with sync on</b> removes it from this device and from iCloud, and every other device with sync on removes its copy at its next check, so the row asks you to confirm first<mark>; <b>Remove</b> on a county's bar-chart file in the Targets tab does the same and asks the same way</mark>. On every device that clears its <mark>eBird backup</mark>, the saved answers worked out from that file go with it, exactly as described under Default Files above<mark>, and the day-by-day eBird answers' shared copies in iCloud go too</mark>. Devices with sync off keep theirs. With sync off, <mark>Clear and Remove are the same instant local actions</mark> as everywhere else.</p></div>
+    </div>
+    <p class="why">Adds the Targets Remove (FR-10) and, with D1 and D5, the shared copies (FR-27). "Its copy" became "its eBird backup" because a bar-chart file has no derived answers to remove.</p>
+    <div class="alt"><p><b>If D1 = no:</b> drop ", and the day-by-day eBird answers' shared copies in iCloud go too".</p></div>
+  </article>
+
+  <article class="item"><span class="num">31</span>
+    <h4>iCloud Sync, "Turning it off" and Remove synced files <span class="cond">if D1 = yes</span></h4>
+    <p class="where"><b>docs/HELP.md:751</b></p>
+    <div class="ba">
+      <div class="before"><span class="lbl">Before</span><p><b>Turning it off</b> needs no confirmation: the files on this device stay put, and the copies in iCloud are left alone (the key copy, if Sync API keys was on, is removed, as described above). <b>Remove synced files from iCloud</b> deletes the file copies in your iCloud account without touching any device; it appears whenever iCloud holds copies, whether sync is on or off. A device with sync on uploads its copy again at its next check, so turn sync off on each device first if you want iCloud to stay empty. The same is true of <b>Remove synced keys from iCloud</b> and a device with Sync API keys on.</p></div>
+      <div class="after"><span class="lbl">After</span><p><b>Turning it off</b> needs no confirmation: the files on this device stay put, and the copies in iCloud are left alone (the key copy, if Sync API keys was on, is removed, as described above). <b>Remove synced files from iCloud</b> deletes the file copies in your iCloud account<mark>, bar-chart files and the shared day-by-day answers included,</mark> without touching any device; it appears whenever iCloud holds copies, whether sync is on or off. A device with sync on uploads its copy again at its next check, so turn sync off on each device first if you want iCloud to stay empty. The same is true of <b>Remove synced keys from iCloud</b> and a device with Sync API keys on.</p></div>
+    </div>
+    <div class="alt"><p><b>If D1 = no:</b> ", bar-chart files included,".</p></div>
+  </article>
+
+  <article class="item"><span class="num">32</span>
+    <h4>Settings: a new "Bar-chart files" subsection, between Tab Layout and Troubleshooting</h4>
+    <p class="where"><b>docs/HELP.md</b>, new <code class="s">### Bar-chart files</code> heading after line 793 (the end of Tab Layout) and before line 795 (<code class="s">### Troubleshooting (desktop app)</code>). The Help sidebar's index (<code class="s">helpToc.test.ts</code>) is extended with it in the same change.</p>
+    <div class="ba">
+      <div class="before"><span class="lbl">Before</span><p class="new">New.</p></div>
+      <div class="after"><span class="lbl">After</span><p><b>### Bar-chart files</b></p><p>The Bar-chart files section, near the bottom of Settings on every platform, says how many counties have a bar-chart file saved on this device and offers <b>Remove all bar-chart files</b>. It always asks you to confirm first, and the confirmation says how many counties' files go. With iCloud Sync on, the copies in iCloud go too and every other device with sync on removes its files at its next check; devices with sync off keep theirs. Your eBird backup, Macaulay Library export and API keys are not touched. With no saved files the button cannot be pressed, and the line beside it says so.</p></div>
+    </div>
+    <p class="why">HELP is the detail tier for every control (FR-19 to FR-23); the paragraph states each promise the confirmation makes.</p>
+  </article>
+
+  <article class="item"><span class="num">33</span>
+    <h4>Using SnowRaven offline: the Targets live counts bullet <span class="cond">if D1 = yes</span></h4>
+    <p class="where"><b>docs/HELP.md:820</b></p>
+    <div class="ba">
+      <div class="before"><span class="lbl">Before</span><p><b>Targets live counts</b> need a connection and your eBird API key. The days already checked stay on the device and still show offline, a county's species list you have loaded before shows offline, and a county's eBird bar-chart figures never need a connection.</p></div>
+      <div class="after"><span class="lbl">After</span><p><b>Targets live counts</b> need a connection and your eBird API key. The days already checked stay on the device and still show offline <mark>(with iCloud Sync on, days another of your devices checked count too)</mark>, a county's species list you have loaded before shows offline, and a county's eBird bar-chart figures never need a connection.</p></div>
+    </div>
+    <div class="alt"><p><b>If D1 = no:</b> no change.</p></div>
+  </article>
+
+  <!-- ═══════════════════════════ Privacy ═══════════════════════════ -->
+  <h2 id="privacy">PRIVACY_POLICY.md, mirrored in website/privacy.html</h2>
+  <p class="sub">Every item below lands in both files, byte for byte in the mirrored sentence (the parity guard compares them). Line numbers are given as policy / website.</p>
+
+  <article class="item"><span class="num">34</span>
+    <h4>Your Data Stays on Your Device: the first bullet</h4>
+    <p class="where"><b>PRIVACY_POLICY.md:13</b> / <b>website/privacy.html:121</b></p>
+    <div class="ba">
+      <div class="before"><span class="lbl">Before</span><p>Your API keys, app settings, and the files you upload (your eBird backup and Macaulay Library export, and any eBird bar-chart files you add on the Targets tab) are stored only on your device (in the desktop app's local data directory, or in the iOS app's on-device sandbox on iPhone and iPad, together with the small copy its home-screen widgets read, described in the iOS App section below), or on your own machine when you self-host the web/Pi version, unless you turn on the optional iCloud Sync on a Mac, iPhone or iPad, which copies <del>the two data files (your eBird backup and Macaulay Library export)</del>, and your API keys only if you also turn on its separate Sync API keys switch, into your own iCloud account and nowhere else (see the iCloud Sync section below). They are never uploaded to the developer or to any service the developer runs.</p></div>
+      <div class="after"><span class="lbl">After</span><p>Your API keys, app settings, and the files you upload (your eBird backup and Macaulay Library export, and any eBird bar-chart files you add on the Targets tab) are stored only on your device (in the desktop app's local data directory, or in the iOS app's on-device sandbox on iPhone and iPad, together with the small copy its home-screen widgets read, described in the iOS App section below), or on your own machine when you self-host the web/Pi version, unless you turn on the optional iCloud Sync on a Mac, iPhone or iPad, which copies <mark>your data files (your eBird backup, your Macaulay Library export and any eBird bar-chart files you have added)</mark>, and your API keys only if you also turn on its separate Sync API keys switch, into your own iCloud account and nowhere else (see the iCloud Sync section below). They are never uploaded to the developer or to any service the developer runs.</p></div>
+    </div>
+  </article>
+
+  <article class="item"><span class="num">35</span>
+    <h4>Your Data Stays on Your Device: the "delete your stored files" bullet <span class="cond">D3; and if D1 = yes</span></h4>
+    <p class="where"><b>PRIVACY_POLICY.md:16</b> / <b>website/privacy.html:124</b></p>
+    <div class="ba">
+      <div class="before"><span class="lbl">Before</span><p>You can delete your stored files and keys at any time from the Settings tab, or by removing the app's data directory. Clearing your eBird backup also removes what was worked out from it and saved on your device: the escapee and Projects answers for your checklists, the county species lists behind the map's Completeness shading, the day-by-day eBird reports behind the Targets tab's live counts, the saved weather and tide readings for your checklists, and, on iPhone and iPad, the list of your species that the home-screen widgets compare against. Replacing a file with a newer export keeps those saved answers, which is what lets a newer export ask only about the checklists that have not been answered yet.</p></div>
+      <div class="after"><span class="lbl">After</span><p>You can delete your stored files and keys at any time from the Settings tab <mark>(a single county's bar-chart file, also from the Targets tab)</mark>, or by removing the app's data directory. Clearing your eBird backup also removes what was worked out from it and saved on your device: the escapee and Projects answers for your checklists, the county species lists behind the map's Completeness shading, the day-by-day eBird reports behind the Targets tab's live counts <mark>(and, with iCloud Sync on, every device's copy of them in iCloud)</mark>, the saved weather and tide readings for your checklists, and, on iPhone and iPad, the list of your species that the home-screen widgets compare against. Replacing a file with a newer export keeps those saved answers, which is what lets a newer export ask only about the checklists that have not been answered yet.</p></div>
+    </div>
+    <p class="why">D3: the Settings tab now really does remove bar-chart files, and the Targets tab is the other place one is removed. D1 and D5: the clear reaches the shared copies too.</p>
+    <div class="alt"><p><b>If D1 = no:</b> only the first marked parenthesis is added.</p></div>
+  </article>
+
+  <article class="item"><span class="num">36</span>
+    <h4>Connections, eBird: the bar-chart sub-bullet</h4>
+    <p class="where"><b>PRIVACY_POLICY.md:32</b> / <b>website/privacy.html:141</b></p>
+    <div class="ba">
+      <div class="before"><span class="lbl">Before</span><p>An eBird bar-chart file you add on the Targets tab, which you download yourself from ebird.org, <del>is stored only on your device, is read only to show eBird's frequencies for its county, and is not part of iCloud Sync.</del></p></div>
+      <div class="after"><span class="lbl">After</span><p>An eBird bar-chart file you add on the Targets tab, which you download yourself from ebird.org, <mark>is read only to show eBird's frequencies for its county. It is stored on your device, and on a Mac, iPhone or iPad with iCloud Sync on it is copied to your own iCloud account along with your other synced files (see the iCloud Sync section below).</mark></p></div>
+    </div>
+    <p class="why">The retired clause was the policy's "not part of iCloud Sync" claim (FR-36).</p>
+  </article>
+
+  <article class="item"><span class="num">37</span>
+    <h4>iCloud Sync: the opening paragraph</h4>
+    <p class="where"><b>PRIVACY_POLICY.md:65</b> / <b>website/privacy.html:170</b></p>
+    <div class="ba">
+      <div class="before"><span class="lbl">Before</span><p>On the Mac, iPhone and iPad apps, SnowRaven can keep <del>your two data files</del> the same across your own devices through iCloud. This is off until you turn it on in Settings, and it is a different thing from the iOS device backup described above: it is sync between your own devices, under your own account.</p></div>
+      <div class="after"><span class="lbl">After</span><p>On the Mac, iPhone and iPad apps, SnowRaven can keep <mark>your data files (your eBird backup, your Macaulay Library export and any eBird bar-chart files you have added on the Targets tab)</mark> the same across your own devices through iCloud. This is off until you turn it on in Settings, and it is a different thing from the iOS device backup described above: it is sync between your own devices, under your own account.</p></div>
+    </div>
+  </article>
+
+  <article class="item"><span class="num">38</span>
+    <h4>iCloud Sync, "What is stored in iCloud" <span class="cond">if D1 = yes</span></h4>
+    <p class="where"><b>PRIVACY_POLICY.md:67</b> / <b>website/privacy.html:172</b></p>
+    <div class="ba">
+      <div class="before"><span class="lbl">Before</span><p><b>What is stored in iCloud.</b> With iCloud Sync on, SnowRaven writes <del>your eBird backup and your Macaulay Library export</del> into an iCloud container that belongs to your Apple ID, together with a small record for each file: its name, when it was uploaded, its size and a checksum of its contents, and which device it came from (the device's name, its kind, and a random identifier the app makes up on that device, which is not a hardware or account identifier). Your API keys are written only while the separate <b>Sync API keys</b> switch, described next, is also on. Your app settings, map preferences and cached lookups stay on each device and are never synced<del>.</del></p></div>
+      <div class="after"><span class="lbl">After</span><p><b>What is stored in iCloud.</b> With iCloud Sync on, SnowRaven writes <mark>your eBird backup, your Macaulay Library export and each county's eBird bar-chart file</mark> into an iCloud container that belongs to your Apple ID, together with a small record for each file: its name, when it was uploaded, its size and a checksum of its contents, and which device it came from (the device's name, its kind, and a random identifier the app makes up on that device, which is not a hardware or account identifier). Your API keys are written only while the separate <b>Sync API keys</b> switch, described next, is also on. Your app settings, map preferences and cached lookups stay on each device and are never synced<mark>, with one exception: the day-by-day lists of species that eBird reported in a county, which the Targets tab fetches with your key, are written into the same container as one copy per device, each holding only what that device fetched from eBird (the county, the day, and each species eBird listed with the time and place of that report as eBird gives them), so your other devices do not repeat those requests. They hold none of your own sightings.</mark></p></div>
+    </div>
+    <p class="why">The exception is stated as what is in it and whose it is, so "never synced" stays honest rather than being deleted.</p>
+    <div class="alt"><p><b>If D1 = no:</b> only the first marked change; the sentence ends "and are never synced." as today.</p></div>
+  </article>
+
+  <article class="item"><span class="num">39</span>
+    <h4>iCloud Sync, "Turning it off and removing the copies" <span class="cond">if D1 = yes</span></h4>
+    <p class="where"><b>PRIVACY_POLICY.md:70</b> / <b>website/privacy.html:175</b></p>
+    <div class="ba">
+      <div class="before"><span class="lbl">Before</span><p><b>Turning it off and removing the copies.</b> Switch iCloud Sync off at any time in Settings; the files on each device stay in place and keep working, and Sync API keys goes off with it. <b>Remove synced files from iCloud</b> in the same section deletes the file copies in your iCloud account without touching any device, and <b>Remove synced keys from iCloud</b> does the same for the key copy. Deleting the app or its data on one device does not by itself remove the copies in iCloud, so use those controls first if you want iCloud empty.</p></div>
+      <div class="after"><span class="lbl">After</span><p><b>Turning it off and removing the copies.</b> Switch iCloud Sync off at any time in Settings; the files on each device stay in place and keep working, and Sync API keys goes off with it. <b>Remove synced files from iCloud</b> in the same section deletes the file copies in your iCloud account<mark>, the bar-chart files and the day-by-day lists included,</mark> without touching any device, and <b>Remove synced keys from iCloud</b> does the same for the key copy. Deleting the app or its data on one device does not by itself remove the copies in iCloud, so use those controls first if you want iCloud empty.</p></div>
+    </div>
+    <div class="alt"><p><b>If D1 = no:</b> ", the bar-chart files included,".</p></div>
+  </article>
+
+  <article class="item"><span class="num">40</span>
+    <h4>Effective date</h4>
+    <p class="where"><b>PRIVACY_POLICY.md:3</b> / <b>website/privacy.html:84</b></p>
+    <div class="ba">
+      <div class="before"><span class="lbl">Before</span><p><b>Effective date:</b> <del>September 27, 2026</del></p></div>
+      <div class="after"><span class="lbl">After</span><p><b>Effective date:</b> <mark>the day this version ships</mark> (written as "Month D, YYYY" in both files, the same value)</p></div>
+    </div>
+    <p class="why">A policy change moves the date (NFR-06); the parity guard checks the two files agree.</p>
+  </article>
+
+  <!-- ═══════════════════════════ README / website / listing ═══════════════════════════ -->
+  <h2 id="published">README.md, website/index.html, appstore/LISTING.md</h2>
+  <p class="sub">The register here is fixed: one correction, only where this feature made a statement inaccurate. The same sentence in all three, so they can be compared against each other.</p>
+
+  <article class="item"><span class="num">41</span>
+    <h4>README, Privacy</h4>
+    <p class="where"><b>README.md:59</b>. The Targets section of the README is not touched.</p>
+    <div class="ba">
+      <div class="before"><span class="lbl">Before</span><p>Private by default, and in your control: no account, no analytics, no telemetry, no server we run. Your eBird backup, Macaulay Library export and API keys are stored only on your device unless you turn on iCloud syncing between your devices, and anything you sync goes to your own iCloud account and nowhere else. Details: Privacy Policy · Accessibility statement.</p></div>
+      <div class="after"><span class="lbl">After</span><p>Private by default, and in your control: no account, no analytics, no telemetry, no server we run. Your eBird backup, Macaulay Library export<mark>, eBird bar-chart files</mark> and API keys are stored only on your device unless you turn on iCloud syncing between your devices, and anything you sync goes to your own iCloud account and nowhere else. Details: Privacy Policy · Accessibility statement.</p></div>
+    </div>
+    <p class="why">The sentence enumerates what stays on the device unless synced; a third synced kind makes the enumeration short by one.</p>
+  </article>
+
+  <article class="item"><span class="num">42</span>
+    <h4>Website, Privacy band</h4>
+    <p class="where"><b>website/index.html:126-129</b> (one paragraph wrapped over four source lines)</p>
+    <div class="ba">
+      <div class="before"><span class="lbl">Before</span><p>SnowRaven has no account, no analytics, no telemetry, and no server we run. Your eBird backup, Macaulay Library export and API keys are stored only on your device unless you turn on iCloud syncing between your devices, and anything you sync goes to your own iCloud account and nowhere else.</p></div>
+      <div class="after"><span class="lbl">After</span><p>SnowRaven has no account, no analytics, no telemetry, and no server we run. Your eBird backup, Macaulay Library export<mark>, eBird bar-chart files</mark> and API keys are stored only on your device unless you turn on iCloud syncing between your devices, and anything you sync goes to your own iCloud account and nowhere else.</p></div>
+    </div>
+  </article>
+
+  <article class="item"><span class="num">43</span>
+    <h4>App Store listing, PRIVACY</h4>
+    <p class="where"><b>appstore/LISTING.md:73</b> and the same text in App Store Connect</p>
+    <div class="ba">
+      <div class="before"><span class="lbl">Before</span><p>Private by default, and in your control: no account, no analytics, no telemetry, no server we run. Your eBird backup, Macaulay Library export and API keys are stored only on your device unless you turn on iCloud syncing between your devices, and anything you sync goes to your own iCloud account and nowhere else. When you ask for live data, the app talks directly to the service that has it, using your own free API keys where one is needed. The full privacy policy is at snowraven.dtgibson.com/privacy.html.</p></div>
+      <div class="after"><span class="lbl">After</span><p>Private by default, and in your control: no account, no analytics, no telemetry, no server we run. Your eBird backup, Macaulay Library export<mark>, eBird bar-chart files</mark> and API keys are stored only on your device unless you turn on iCloud syncing between your devices, and anything you sync goes to your own iCloud account and nowhere else. When you ask for live data, the app talks directly to the service that has it, using your own free API keys where one is needed. The full privacy policy is at snowraven.dtgibson.com/privacy.html.</p></div>
+    </div>
+  </article>
+
+  <article class="item"><span class="num">44</span>
+    <h4>App Store listing, review notes: the iCloud Sync bullet <span class="cond">if D1 = yes</span></h4>
+    <p class="where"><b>appstore/LISTING.md:192-202</b>. The version number is the one the Engineer reads off main at rebase time (1.0.40 unless another bundle build lands first).</p>
+    <div class="ba">
+      <div class="before"><span class="lbl">Before</span><p><b>iCloud Sync (v1.0.11):</b> an opt-in, off-by-default toggle on Mac, iPhone and iPad that copies <del>the user's two data files (and a small record naming each file, its upload time, and a random per-device id with the device's name)</del> into an iCloud container tied to the user's own Apple ID, so the user's other devices can pick them up. It is device-to-Apple, under the user's account, initiated by the user, and the developer has no server and no access to the container: nothing reaches the developer, so "Data Not Collected" holds. It is sync between the user's own devices, distinct from the iOS device backup, and the privacy policy describes it on its own terms (what is stored, whose account, that the developer never sees it, how to remove it). <del>Settings and caches are never written to it.</del></p></div>
+      <div class="after"><span class="lbl">After</span><p><b>iCloud Sync (v1.0.11<mark>; bar-chart files and the Targets day lists from v1.0.40</mark>):</b> an opt-in, off-by-default toggle on Mac, iPhone and iPad that copies <mark>the user's data files (the eBird backup, the Macaulay Library export and any eBird bar-chart files added on the Targets tab, each with a small record naming the file, its upload time, and a random per-device id with the device's name)</mark> into an iCloud container tied to the user's own Apple ID, so the user's other devices can pick them up. It is device-to-Apple, under the user's account, initiated by the user, and the developer has no server and no access to the container: nothing reaches the developer, so "Data Not Collected" holds. It is sync between the user's own devices, distinct from the iOS device backup, and the privacy policy describes it on its own terms (what is stored, whose account, that the developer never sees it, how to remove it). <mark>Settings are never written to it. The one cache that is: the Targets tab's per-day lists of species eBird reported in a county, one copy per device, so the user's other devices do not repeat those eBird requests; they hold no user sightings.</mark></p></div>
+    </div>
+    <div class="alt"><p><b>If D1 = no:</b> the heading gains "; bar-chart files from v1.0.40", the data-files change is made, and "Settings and caches are never written to it." stays.</p></div>
+  </article>
+
+  <!-- ═══════════════════════════ Other ═══════════════════════════ -->
+  <h2 id="other">appstore/REVIEW_NOTES.md and ACCESSIBILITY.md</h2>
+
+  <article class="item"><span class="num">45</span>
+    <h4>appstore/REVIEW_NOTES.md <span class="info">for information</span></h4>
+    <div class="ba">
+      <div class="before"><span class="lbl">Before</span><p class="new">The file has no sentence about iCloud Sync, the two data files, or bar-chart files (checked by search).</p></div>
+      <div class="after"><span class="lbl">After</span><p>No change.</p></div>
+    </div>
+  </article>
+
+  <article class="item"><span class="num">46</span>
+    <h4>ACCESSIBILITY.md: the Settings paragraph <span class="cond">only if D7 = revise</span></h4>
+    <p class="where"><b>ACCESSIBILITY.md:15</b>. The default (D7) is no change; this is the sentence if you would rather it name the new control and confirmations, written as a property.</p>
+    <div class="ba">
+      <div class="before"><span class="lbl">Before</span><p>Settings groups that use a row of choices (color theme, text size, and date format) are arrow-key radio groups, so you Tab to the group and use the arrow keys to change the selection. The <b>Tab Layout</b> list, which lets you reorder your tabs, offers <b>Move up</b> and <b>Move down</b> buttons on every row as a full keyboard alternative to dragging. On the Mac, iPhone and iPad apps, the iCloud Sync section's <b>Sync API keys</b> switch <del>stays in the tab order while it cannot be operated (it is marked <code class="s">aria-disabled</code> rather than removed with the native <code class="s">disabled</code> attribute), so the one-line reason associated with it is read in place, and each of its confirmations traps focus, closes on Escape, and returns focus to the control that opened it.</del></p></div>
+      <div class="after"><span class="lbl">After</span><p>Settings groups that use a row of choices (color theme, text size, and date format) are arrow-key radio groups, so you Tab to the group and use the arrow keys to change the selection. The <b>Tab Layout</b> list, which lets you reorder your tabs, offers <b>Move up</b> and <b>Move down</b> buttons on every row as a full keyboard alternative to dragging. On the Mac, iPhone and iPad apps, the iCloud Sync section's <b>Sync API keys</b> switch<mark>, and on every platform the <b>Remove all bar-chart files</b> button, stay in the tab order while they cannot be operated (each is marked <code class="s">aria-disabled</code> rather than removed with the native <code class="s">disabled</code> attribute), so the one-line reason associated with each is read in place, and every confirmation the Settings tab and the Targets tab open traps focus, closes on Escape, and returns focus to the control that opened it.</mark></p></div>
+    </div>
+    <p class="why">If written, it owes a published-claims guard row in the same change (docs-and-website.md).</p>
+  </article>
+
+  <footer class="foot">
+    <p>No proposed string contains an em dash. Spelling is American. No user-facing surface is named from a component name: the tab is "Targets", the section is "eBird bar chart", the new Settings section is "Bar-chart files".</p>
+    <p>Two things stay true and were checked rather than changed: HELP.md:823 (iCloud Sync waits for a connection) and the Targets header copy. The Engineer must not write any user-facing string that is not in this table as approved.</p>
+  </footer>
+</div>
+</body>
+</html>

@@ -89,6 +89,23 @@ describe('in-app Help TOC ↔ docs/HELP.md parity', () => {
     expect(order.indexOf('Projects')).toBeLessThan(order.indexOf('Data Quality'))
   })
 
+  it('the Bar-chart files sub-entry exists and resolves to its `###` heading under Settings (icloud-bar-chart-sync)', () => {
+    // The heading, the TOC entry and this row land in the same edit (the
+    // reason this parity file exists).
+    const start = helpSrc.indexOf('const TOC')
+    const body = helpSrc.slice(start, helpSrc.indexOf('\n]', start))
+    expect(body).toContain("{ id: 'bar-chart-files',      label: 'Bar-chart files',        sub: true  }")
+    expect(textToId('Bar-chart files')).toBe('bar-chart-files')
+    const order = helpMd.split('\n').filter(l => l.startsWith('### ')).map(l => l.slice(4).trim())
+    expect(order).toContain('Bar-chart files')
+    // ...between Tab Layout and Troubleshooting, the order Settings draws them in,
+    // and its TOC entry sits after the Settings entry and before the next section.
+    expect(order.indexOf('Bar-chart files')).toBe(order.indexOf('Tab Layout') + 1)
+    expect(order.indexOf('Troubleshooting (desktop app)')).toBe(order.indexOf('Bar-chart files') + 1)
+    expect(body.indexOf("id: 'bar-chart-files'")).toBeGreaterThan(body.indexOf("id: 'settings'"))
+    expect(body.indexOf("id: 'bar-chart-files'")).toBeLessThan(body.indexOf("id: 'using-snowraven-offline'"))
+  })
+
   it('sub-entries reference real `###` headings in HELP.md', () => {
     const subIds = (() => {
       const start = helpSrc.indexOf('const TOC')

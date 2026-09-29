@@ -42,6 +42,9 @@ const TOC: { id: string; label: string; sub: boolean }[] = [
   { id: 'checklists',           label: 'Checklists',             sub: false },
   { id: 'list-comparer',        label: 'List Comparer',          sub: false },
   { id: 'settings',             label: 'Settings',               sub: false },
+  // icloud-bar-chart-sync: the one Settings control that removes a whole family
+  // of files at once, so it is a heading a reader will look for by name.
+  { id: 'bar-chart-files',      label: 'Bar-chart files',        sub: true  },
   { id: 'using-snowraven-offline', label: 'Using SnowRaven offline', sub: false },
   { id: 'updating-snowraven',   label: 'Updating SnowRaven',     sub: false },
 ]

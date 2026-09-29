@@ -25,6 +25,8 @@ import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, screen, cleanup } from '@testing-library/react'
 
 const storageMock = vi.hoisted(() => ({
+  // icloud-bar-chart-sync: the Bar-chart files section reads the manifest on mount.
+  getBarChartFiles: vi.fn().mockResolvedValue({ version: 1, counties: {} }),
   getFilesStatus: vi.fn().mockResolvedValue({ ebird: null, ml: null }),
   getApiKey: vi.fn().mockResolvedValue(null),
   getSetting: vi.fn().mockResolvedValue(null),
@@ -70,6 +72,10 @@ function fakeActions(): ICloudActions {
     removeFromICloud: vi.fn(async () => {}),
     clearWithSync: vi.fn<(slot: Slot) => Promise<readonly string[]>>(async () => []),
     fileSaved: vi.fn<(slot: Slot) => void>(() => {}),
+    downloadBarChartNow: vi.fn<(code: string) => Promise<void>>(async () => {}),
+    retryBarChart: vi.fn<(code: string) => Promise<void>>(async () => {}),
+    barChartSaved: vi.fn<(code: string) => void>(() => {}),
+    barChartsCleared: vi.fn<(codes: readonly string[], clearedAt: string) => Promise<void>>(async () => {}),
     enableKeys: vi.fn(async () => {}),
     disableKeys: vi.fn(async () => {}),
     removeKeysFromICloud: vi.fn(async () => {}),
@@ -126,7 +132,10 @@ function sectionHeaders(container: HTMLElement): string[] {
     .map(s => (s.textContent ?? '').trim())
 }
 
-const BELOW_THE_PAIR = ['Help & Documentation', 'Appearance', 'Sharing', 'Default Location', 'Tab Layout'] as const
+// icloud-bar-chart-sync (FR-19, QA-16): Bar-chart files follows Tab Layout on
+// EVERY platform, so its position relative to the tab's last sections is the
+// same everywhere (Troubleshooting is Tauri-only; Acknowledgments stays last).
+const BELOW_THE_PAIR = ['Help & Documentation', 'Appearance', 'Sharing', 'Default Location', 'Tab Layout', 'Bar-chart files'] as const
 
 describe('Settings section order (settings-section-order)', () => {
   it('web/Pi: API Keys and Default Files lead the tab, Acknowledgments closes it', async () => {

@@ -7,10 +7,11 @@ import type { OriginPlatform } from './icloudRecord'
 import type { Availability, KeySlotState, SlotState } from './icloudState'
 import type { ICloudError } from './icloudNativeTypes'
 import type { KeySlot } from './keyRecord'
+import { counted } from '../targets/targetsCopy'
 
 export const ICS_HEADER = 'iCloud Sync'
 export const ICS_DESCRIPTION =
-  'Keeps your eBird backup and ML export the same on every Mac, iPhone and iPad signed in to your iCloud account.'
+  'Keeps your eBird backup, ML export and eBird bar-chart files the same on every Mac, iPhone and iPad signed in to your iCloud account.'
 
 /** FR-03 notes, the contract's exact strings. */
 export const AVAILABILITY_NOTES: Record<Exclude<Availability, 'available' | 'unknown'>, string> = {
@@ -74,7 +75,7 @@ export const REASONS: Record<ICloudError, string> = {
   mismatch: 'The file in iCloud did not download completely.',
   timeout: 'iCloud did not respond in time.',
   absent: 'The file is no longer in iCloud.',
-  'too-large': 'The file in iCloud is larger than 200 MB.',
+  'too-large': 'The file in iCloud is too large to sync.',
   'local-missing': 'The file on this device could not be read.',
   'not-downloaded': 'The file in iCloud has not downloaded to this device yet.',
   unavailable: 'iCloud could not be read.',
@@ -110,6 +111,8 @@ export const BUTTONS = {
   turnOn: 'Turn on',
   removeConfirm: 'Remove from iCloud',
   clearConfirm: 'Clear from all synced devices',
+  /** icloud-bar-chart-sync: the Targets Remove and the Settings clear-all, with sync on. */
+  removeAllSynced: 'Remove from all synced devices',
 } as const
 
 /** Enable note (FR-08): four required elements. */
@@ -118,7 +121,7 @@ export function enableNoteItems(here: string): { lead: string; text: string }[] 
   return [
     {
       lead: 'What goes to iCloud',
-      text: `Your eBird backup and your Macaulay Library export, along with each file's name, when it was uploaded, which device it came from (its name), its size and a checksum. Nothing else: your settings and caches stay on ${here}, and so do your API keys unless you also turn on Sync API keys.`,
+      text: `Your eBird backup, your Macaulay Library export and every eBird bar-chart file you have added on the Targets tab, along with each file's name, when it was uploaded, which device it came from (its name), its size and a checksum. The day-by-day eBird answers behind the Targets tab's live counts go too, so your other devices do not ask eBird again. Your settings and other caches stay on ${here}, and so do your API keys unless you also turn on Sync API keys.`,
     },
     {
       lead: 'Whose account',
@@ -138,6 +141,18 @@ export function enableNoteItems(here: string): { lead: string; text: string }[] 
 /** Remove confirmation (FR-33). */
 export const REMOVE_TITLE = 'Remove synced files from iCloud?'
 export const REMOVE_INTRO = 'These files will be deleted from your iCloud account:'
+
+/**
+ * icloud-bar-chart-sync (FR-13): the county files as ONE counted line in the
+ * Remove confirmation's list (the state holds codes, not names, and the set
+ * has no quota, so it is counted rather than listed; the count is live UI
+ * state, never published prose). The subject takes the singular at one.
+ */
+export function removeCountiesLine(n: number): string {
+  return n === 1 ? 'The bar-chart file for 1 county' : `Bar-chart files for ${counted(n, 'county', 'counties')}`
+}
+/** The day answers' line in the same list, when iCloud holds any device's copy. */
+export const REMOVE_DAY_OBS_LINE = "The Targets tab's saved day-by-day eBird answers"
 export function removeOutro(here: string): string {
   return `The copies on ${here} and on your other devices are not touched. To keep iCloud empty, turn iCloud Sync off on each device first: a device with sync on uploads its copy again at its next check.`
 }
@@ -267,3 +282,57 @@ export function removeKeysBody(here: string): string {
 }
 export const REMOVE_KEYS_OUTRO =
   'To keep iCloud empty, turn Sync API keys off on each device first: a device with key sync on uploads its keys again at its next check.'
+
+// ── icloud-bar-chart-sync (design-spec.md Copy table, items 5 to 7 and 12 to
+// 23, approved 2026-09-28). `here` is `hereWord(platform)`; `county` is always
+// "Name, ST". Every count renders through `counted()` and every subject takes
+// the singular at exactly one; these builders are the only place such a string
+// is composed, so the copy sweeps see all of them. ──
+
+/** The Targets tab's Remove with sync on (items 5 and 6); the confirm button is BUTTONS.removeAllSynced (item 7). */
+export function removeCountyTitle(county: string): string {
+  return `Remove the bar-chart file for ${county}?`
+}
+export function removeCountyBody(county: string, here: string): string {
+  return `The file for ${county} will be removed from ${here} and from iCloud. Every Mac, iPhone and iPad with iCloud Sync on removes its copy at its next check. Devices with sync off keep theirs.`
+}
+
+/** Settings: the Bar-chart files section (items 12, 13 and 17). */
+export const BAR_CHART_FILES_HEADER = 'Bar-chart files'
+export const BAR_CHART_FILES_DESCRIPTION = 'County bar-chart files added on the Targets tab, for sorting by eBird frequency.'
+export const REMOVE_ALL_BAR_CHARTS = 'Remove all bar-chart files'
+
+/** The status line beside the button, and the button's description (items 14 to 16). */
+export function barChartsSavedText(n: number, here: string): string {
+  return `Saved for ${counted(n, 'county', 'counties')} on ${here}.`
+}
+export function barChartsNoneText(here: string): string {
+  return `No bar-chart files are saved on ${here}.`
+}
+export function barChartsUnknownText(here: string): string {
+  return `Couldn't check for bar-chart files on ${here}.`
+}
+
+/** The confirmation (items 18 to 21); with sync on the confirm button is BUTTONS.removeAllSynced. */
+export const REMOVE_ALL_BAR_CHARTS_TITLE = 'Remove all bar-chart files?'
+export const REMOVE_ALL_CONFIRM = 'Remove all'
+export function removeAllBarChartsBody(n: number, here: string, syncOn: boolean): string {
+  const subject = n === 1 ? 'The bar-chart file for 1 county' : `Bar-chart files for ${counted(n, 'county', 'counties')}`
+  const where = syncOn ? `${here} and from iCloud` : here
+  const others = syncOn
+    ? ' Every Mac, iPhone and iPad with iCloud Sync on removes its copies at its next check. Devices with sync off keep theirs.'
+    : ''
+  return `${subject} will be removed from ${where}.${others} Your eBird backup, ML export and API keys are not touched.`
+}
+
+/** After a partial failure, role="alert" (item 22). */
+export function removeAllPartialText(k: number, here: string): string {
+  return k === 1
+    ? `The bar-chart file for 1 county could not be removed and remains on ${here}. Try again.`
+    : `Bar-chart files for ${counted(k, 'county', 'counties')} could not be removed and remain on ${here}. Try again.`
+}
+
+/** After a successful removal, polite role="status", once (item 23). */
+export function removeAllDoneText(n: number): string {
+  return n === 1 ? 'Removed the bar-chart file for 1 county.' : `Removed bar-chart files for ${counted(n, 'county', 'counties')}.`
+}

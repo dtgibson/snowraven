@@ -72,10 +72,20 @@ export interface ICloudState {
   /** the last check could not reach iCloud (FR-05: the visible suffix) */
   checkFailed: boolean
   slots: Record<Slot, SlotView | null>
-  /** at least one shared FILE record exists in iCloud (FR-33) */
+  /** at least one shared FILE record exists in iCloud (FR-33): a data file, a
+   *  county's bar-chart file or a day-obs snapshot (icloud-bar-chart-sync) */
   sharedExists: boolean
   /** the filenames of the shared files present, for the Remove confirmation */
   sharedFilenames: string[]
+
+  // ── icloud-bar-chart-sync ──
+  /** Per county (region code) with a sync view: the Targets section's line.
+   *  A county absent here has no sync state (sync off, or not an Apple build). */
+  barCharts: Record<string, SlotView>
+  /** Sorted county codes whose shared record is a FILE (the Remove confirmation counts them). */
+  sharedCountyCodes: readonly string[]
+  /** iCloud holds at least one device's day-by-day answers snapshot. */
+  sharedDayObsExists: boolean
 
   // ── icloud-api-key-sync ──
   /** the effective key switch (persisted keysEnabled && enabled) */
@@ -112,6 +122,19 @@ export interface ICloudActions {
   /** Settings saved a file locally with sync on: show "Syncing, uploading" and check. */
   fileSaved(slot: Slot): void
 
+  // ── icloud-bar-chart-sync ──
+  /** The Targets section's Download now for one county (FR-16). */
+  downloadBarChartNow(regionCode: string): Promise<void>
+  /** The Targets section's Retry for one county. */
+  retryBarChart(regionCode: string): Promise<void>
+  /** A county file was saved locally with sync on: "Syncing, uploading" at once;
+   *  the bar-chart epoch runs the check. */
+  barChartSaved(regionCode: string): void
+  /** Counties were removed LOCALLY with sync on (Targets Remove, Settings
+   *  clear-all): write their cleared markers; a marker that cannot reach
+   *  iCloud is remembered and finished at the next check (FR-11). */
+  barChartsCleared(regionCodes: readonly string[], clearedAt: string): Promise<void>
+
   // ── icloud-api-key-sync ──
   /** after the note's Turn on (FR-04) */
   enableKeys(): Promise<void>
@@ -145,6 +168,9 @@ const INITIAL: ICloudState = {
   slots: { ebird: null, ml: null },
   sharedExists: false,
   sharedFilenames: [],
+  barCharts: {},
+  sharedCountyCodes: [],
+  sharedDayObsExists: false,
   keySyncEnabled: false,
   keySyncEverOn: false,
   keyRecordExists: false,
@@ -175,6 +201,27 @@ export function setSlotView(slot: Slot, view: SlotView | null): void {
   setICloudState({ slots: { ...state.slots, [slot]: view } })
 }
 
+/** Replace one county's view (null = no sync line on that county's section). */
+export function setBarChartView(regionCode: string, view: SlotView | null): void {
+  const next: Record<string, SlotView> = Object.assign(Object.create(null) as Record<string, SlotView>, state.barCharts)
+  if (view) next[regionCode] = view
+  else delete next[regionCode]
+  setICloudState({ barCharts: next })
+}
+
+/**
+ * The origin a local save records while sync is on: this device, or null
+ * (sync off, the controller not booted, or not an Apple build). The Targets
+ * import passes it to the seam exactly as Settings passes its own for a data
+ * file (icloud-bar-chart-sync schema.md 5.6).
+ */
+export function syncOrigin(s: ICloudState): { deviceId: string; label: string; platform: OriginPlatform } | null {
+  if (!s.syncEnabled || !s.deviceId) return null
+  const platform = s.platform ?? 'mac'
+  const word = platform === 'ipad' ? 'iPad' : platform === 'iphone' ? 'iPhone' : 'Mac'
+  return { deviceId: s.deviceId, label: s.deviceLabel || word, platform }
+}
+
 /** Replace one key row's view (null = no sync line on that row). */
 export function setKeySlotView(slot: KeySlot, view: KeySlotView | null): void {
   setICloudState({ keySlots: { ...state.keySlots, [slot]: view } })
@@ -199,6 +246,10 @@ const NOOP_ACTIONS: ICloudActions = {
   removeFromICloud: async () => {},
   clearWithSync: async () => [],
   fileSaved: () => {},
+  downloadBarChartNow: async () => {},
+  retryBarChart: async () => {},
+  barChartSaved: () => {},
+  barChartsCleared: async () => {},
   enableKeys: async () => {},
   disableKeys: async () => {},
   removeKeysFromICloud: async () => {},
@@ -223,6 +274,10 @@ export const icloudActions: ICloudActions = {
   removeFromICloud: () => installed.removeFromICloud(),
   clearWithSync: (slot) => installed.clearWithSync(slot),
   fileSaved: (slot) => installed.fileSaved(slot),
+  downloadBarChartNow: (code) => installed.downloadBarChartNow(code),
+  retryBarChart: (code) => installed.retryBarChart(code),
+  barChartSaved: (code) => installed.barChartSaved(code),
+  barChartsCleared: (codes, clearedAt) => installed.barChartsCleared(codes, clearedAt),
   enableKeys: () => installed.enableKeys(),
   disableKeys: () => installed.disableKeys(),
   removeKeysFromICloud: () => installed.removeKeysFromICloud(),

@@ -245,6 +245,20 @@ pub fn run() {
             icloud::icloud_write_keys,
             #[cfg(any(target_os = "macos", target_os = "ios"))]
             icloud::icloud_remove_keys,
+            #[cfg(any(target_os = "macos", target_os = "ios"))]
+            icloud::icloud_list_items,
+            #[cfg(any(target_os = "macos", target_os = "ios"))]
+            icloud::icloud_push_item,
+            #[cfg(any(target_os = "macos", target_os = "ios"))]
+            icloud::icloud_push_items_cleared,
+            #[cfg(any(target_os = "macos", target_os = "ios"))]
+            icloud::icloud_pull_item,
+            #[cfg(any(target_os = "macos", target_os = "ios"))]
+            icloud::icloud_start_download_item,
+            #[cfg(any(target_os = "macos", target_os = "ios"))]
+            icloud::icloud_remove_item,
+            #[cfg(any(target_os = "macos", target_os = "ios"))]
+            icloud::icloud_remove_items,
             #[cfg(target_os = "ios")]
             widgets::widgets_write_handover,
             #[cfg(target_os = "ios")]

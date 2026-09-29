@@ -10,8 +10,9 @@
 //
 // DELIVERY vs CONTENT (testing.md v1.0.14): the rows that import a constant prove
 // the help and the UI say the same thing. The behaviour rows (F and H count as
-// codes; a form's media counts for its species; the file is not synced) prove
-// the help's claim is TRUE of the shipped logic, which a shared constant cannot.
+// codes; a form's media counts for its species; the file syncs on Apple builds
+// and Remove confirms there) prove the help's claim is TRUE of the shipped
+// logic, which a shared constant cannot.
 //
 // WHAT THIS CANNOT SEE: whether a sentence is well written, and any claim made
 // in words that name no constant. Those stay with review.
@@ -146,9 +147,21 @@ describe('what the help says is true of the shipped logic', () => {
     expect(isMediaTarget(junco, new Set(['Photo'] as const))).toBe(false)
   })
 
-  it('"not part of iCloud Sync": the synced slots are the two data files and nothing else', () => {
-    expect(TARGETS).toContain('is not part of iCloud Sync')
+  it('"reaches your other synced devices ... Remove asks you to confirm": the county file syncs on Apple builds, and Remove confirms there (icloud-bar-chart-sync)', () => {
+    // The retired sentence is gone, and its replacement is present (non-vacuity).
+    expect(TARGETS).not.toContain('is not part of iCloud Sync')
+    const clause = TARGETS.slice(TARGETS.indexOf('On a Mac, iPhone or iPad with iCloud Sync on, a file you add here'))
+    expect(clause.startsWith('On a Mac, iPhone or iPad with iCloud Sync on, a file you add here reaches your other synced devices')).toBe(true)
+    expect(clause).toContain(`and ${bold(copy.REMOVE_FILE)} asks you to confirm because the file is removed from those devices too`)
+    expect(TARGETS).toContain("Everywhere else the file stays on this device, so add it on each device where you want eBird's frequencies.")
+    // Held to the code: the family is a synced KIND beside the two slots (never a
+    // third slot), the controller runs its pass, and the section confirms with sync on.
     expect([...SLOTS]).toEqual(['ebird', 'ml'])
+    const code = (rel: string) => readFileSync(fileURLToPath(new URL(rel, import.meta.url)), 'utf8')
+    expect(code('./icloud/icloudSync.ts')).toContain('await runCountyPass(countyCtx(), remaining)')
+    const section = code('../components/targets/TargetsBarChartFile.tsx')
+    expect(section).toContain('if (syncOn) setConfirmOpen(true)')
+    expect(section).toContain('const syncOn = gate && ics.syncEnabled')
   })
 
   it('"a lifer is never a Media or Breeding target"', () => {
@@ -378,6 +391,14 @@ describe('D, E and G are true of the shipped code', () => {
       .map(f => f.name)
     expect(importers('importBarChartFile')).toEqual(['components/targets/TargetsBarChartFile.tsx'])
     expect(importers('removeBarChartFile')).toEqual(['components/targets/TargetsBarChartFile.tsx'])
+    // icloud-bar-chart-sync (FR-38): the Settings clear-all is the one other
+    // place a bar-chart file is removed, and it reaches the import module only
+    // through import() (Settings is on the entry graph). Named deliberately.
+    const dynamicImporters = sources
+      .filter(f => /import\(\s*['"][^'"]*barChart\/barChartImport['"]\s*\)/.test(f.text))
+      .map(f => f.name)
+    expect(dynamicImporters).toEqual(['components/Settings.tsx'])
+    expect(sources.find(f => f.name === 'components/Settings.tsx')!.text).toContain('const { clearAllBarChartFiles } = await import(')
   })
 })
 

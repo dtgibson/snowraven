@@ -19,6 +19,7 @@ paths:
   - "frontend/src/lib/barChart/*.fixture.json"
   - "frontend/src/lib/barChart/*.fixture.txt"
   - "frontend/src/lib/countyDayObs.fixture.json"
+  - "frontend/src/lib/regionCode.fixture.json"
 ---
 
 # SnowRaven testing and verification methodology

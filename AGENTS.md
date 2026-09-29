@@ -35,19 +35,13 @@ appends, rewrites or re-sequences on its own; a version-stamp step moves only
 the website's version pill and footer. The register these surfaces are written
 in, and the reasons for the rule, are in `.claude/rules/docs-and-website.md`.
 
-The same holds for every word a user can read, in every run, hands-off Spool
-spins included (user direction, 2026-09-27): in-app text (labels, buttons,
-headings, tooltips, empty and error states, confirmation dialogs, consent notes
-such as the iCloud turn-on note, and screen-reader text), `docs/HELP.md`,
-`PRIVACY_POLICY.md`, `ACCESSIBILITY.md`, `CHANGELOG.md`, TestFlight "What to
-Test" and App Store "What's New". When a build first drafts copy, usually in
-the design spec and always before any code writes it, the run stops, shows
-every string as before and after, and waits for an explicit yes. A builder that
-needs copy the approved spec does not contain stops and hands it back rather
-than writing it. The changelog and release notes may instead be shown word for
-word at the bundle sign-off, since nothing ships before that gate. The
-mechanical version stamp, code comments, test strings and internal pipeline
-records are out of scope.
+The same holds in every run, hands-off Spool spins included (user direction,
+2026-09-27, narrowed 2026-09-28), and extends to `PRIVACY_POLICY.md` (kept
+identical to `website/privacy.html`) and the App Store "What's New" text. A
+spin runs ungated until its bundle sign-off, so a build prepares those edits as
+a held patch in its pipeline folder instead of writing them; they are shown to
+the user rendered and applied only on an explicit yes, before the bundle ships.
+In-app text and `docs/HELP.md` are written without a stop.
 `docs/HELP.md` is not covered by this gate: it is the detail tier and a build
 updates it in the same change as the feature.
 

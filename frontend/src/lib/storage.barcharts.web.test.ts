@@ -63,3 +63,29 @@ describe('WebStorage bar-chart files', () => {
     expect(fetchMock).not.toHaveBeenCalled()
   })
 })
+
+// ── icloud-bar-chart-sync: the bulk removal and the unreachable sync links ──
+describe('WebStorage bulk removal (schema.md 6.4)', () => {
+  it('maps onto DELETE /settings/barcharts and reads the answer through the region-code shape', async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true, status: 200,
+      json: async () => ({ removed: ['US-CA-001', '../x', 7], failed: ['US-CA-013', 'US-CA-013\n'] }),
+    }))
+    vi.stubGlobal('fetch', fetchMock)
+    await expect(storage.deleteAllBarChartFiles()).resolves.toEqual({ removed: ['US-CA-001'], failed: ['US-CA-013'] })
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, { method: string }]
+    expect(url).toBe('/settings/barcharts')
+    expect(init.method).toBe('DELETE')
+  })
+
+  it('a non-OK answer is a real failure and is raised', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, status: 500 })))
+    await expect(storage.deleteAllBarChartFiles()).rejects.toThrow(/500/)
+  })
+
+  it('the sync links reject on web/Pi rather than silently no-op (unreachable behind the platform gate)', async () => {
+    await expect(storage.applySyncedBarChartFile('US-CA-001', { filename: 'a', uploadedAt: 'b' }, null, async () => {})).rejects.toThrow(/not supported/)
+    await expect(storage.applySyncedBarChartClear('US-CA-001', 'b')).rejects.toThrow(/not supported/)
+    await expect(storage.stampBarChartOrigin('US-CA-001', { deviceId: 'a'.repeat(32), label: 'x', platform: 'mac' }, 'b', 'b')).rejects.toThrow(/not supported/)
+  })
+})

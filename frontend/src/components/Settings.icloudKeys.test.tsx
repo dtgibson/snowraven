@@ -14,6 +14,8 @@ import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, screen, fireEvent, cleanup, waitFor, within, act } from '@testing-library/react'
 
 const storageMock = vi.hoisted(() => ({
+  // icloud-bar-chart-sync: the Bar-chart files section reads the manifest on mount.
+  getBarChartFiles: vi.fn().mockResolvedValue({ version: 1, counties: {} }),
   getFilesStatus: vi.fn(),
   getApiKey: vi.fn(),
   getSetting: vi.fn().mockResolvedValue(null),
@@ -69,6 +71,10 @@ function fakeActions(): ICloudActions {
     removeFromICloud: vi.fn(async () => {}),
     clearWithSync: vi.fn<(slot: Slot) => Promise<readonly string[]>>(async () => []),
     fileSaved: vi.fn<(slot: Slot) => void>(() => {}),
+    downloadBarChartNow: vi.fn<(code: string) => Promise<void>>(async () => {}),
+    retryBarChart: vi.fn<(code: string) => Promise<void>>(async () => {}),
+    barChartSaved: vi.fn<(code: string) => void>(() => {}),
+    barChartsCleared: vi.fn<(codes: readonly string[], clearedAt: string) => Promise<void>>(async () => {}),
     enableKeys: vi.fn(async () => {}),
     disableKeys: vi.fn(async () => {}),
     removeKeysFromICloud: vi.fn(async () => {}),

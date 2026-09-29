@@ -221,3 +221,87 @@ describe('the write-side sanitizers produce what the validator accepts (security
     expect(truncateUnits('a\u{1F426}b', 3)).toBe('a\u{1F426}')
   })
 })
+
+// ── icloud-bar-chart-sync (schema.md 4.2; QA-02, QA-25) ──────────────────────
+import { validateCountyRecord, validateDayObsRecord, DAY_OBS_SHARED_MAX_BYTES } from './icloudRecord'
+
+describe('validateCountyRecord: a county record binds itself to its name', () => {
+  const county = (o: Record<string, unknown> = {}) => JSON.stringify(fileRecord({ slot: 'barchart', county: 'US-CA-001', filename: 'ebird_US-CA-001__1900_2026_1_12_barchart.txt', ...o }))
+  const cleared = (o: Record<string, unknown> = {}) => JSON.stringify({
+    version: 1, slot: 'barchart', county: 'US-CA-001', state: 'cleared', clearedAt: '2026-08-30T10:00:00.000Z',
+    origin: { deviceId: DEVICE, label: 'iPhone', platform: 'iphone' }, ...o,
+  })
+
+  it('accepts a file record and a cleared marker, and each round-trips byte-identical', () => {
+    for (const text of [county(), cleared()]) {
+      const v = validateCountyRecord(text, 'US-CA-001', NOW)
+      expect(v.ok).toBe(true)
+      if (v.ok) {
+        expect(v.record.county).toBe('US-CA-001')
+        expect(v.record.slot).toBe('barchart')
+        expect(validateCountyRecord(serializeRecord(v.record), 'US-CA-001', NOW)).toEqual(v)
+      }
+    }
+  })
+
+  it.each([
+    ['a slot record at a county name', county({ slot: 'ebird' }), 'slot'],
+    ['a record naming another county', county({ county: 'US-CA-013' }), 'wrong-county'],
+    ['no county at all', county({ county: undefined }), 'wrong-county'],
+    ['a county that fails the shape', county({ county: 'US-CA-001\n' }), 'wrong-county'],
+    ['a lowercase county', county({ county: 'us-ca-001' }), 'wrong-county'],
+    ['a prototype-chain name', county({ county: '__proto__' }), 'wrong-county'],
+    ['a malformed origin', county({ origin: { deviceId: 'x', label: 'Mac', platform: 'mac' } }), 'origin'],
+    ['a path in the filename', county({ filename: '../x.txt' }), 'filename'],
+    ['a future upload time', county({ uploadedAt: new Date(NOW + MAX_FUTURE_MS + 1).toISOString() }), 'uploadedAt'],
+    ['a byteLength over the bound', county({ byteLength: MAX_BYTES + 1 }), 'byteLength'],
+    ['a bad digest', county({ sha256: 'z'.repeat(64) }), 'sha256'],
+    ['a bad cleared time', cleared({ clearedAt: 'soon' }), 'clearedAt'],
+    ['an unknown state', county({ state: 'gone' }), 'state'],
+  ])('%s is absent (%s)', (_label, text, reason) => {
+    const v = validateCountyRecord(text, 'US-CA-001', NOW)
+    expect(v).toEqual({ ok: false, reason })
+  })
+
+  it('the envelope rules are the shipped ones, and a reason word never carries a value', () => {
+    expect(validateCountyRecord(null, 'US-CA-001', NOW)).toEqual({ ok: false, reason: 'absent' })
+    expect(validateCountyRecord('{', 'US-CA-001', NOW)).toEqual({ ok: false, reason: 'malformed-json' })
+    expect(validateCountyRecord('x'.repeat(MAX_RECORD_TEXT + 1), 'US-CA-001', NOW)).toEqual({ ok: false, reason: 'oversized' })
+    expect(validateCountyRecord(JSON.stringify({ ...JSON.parse(county()), version: 2 }), 'US-CA-001', NOW)).toEqual({ ok: false, reason: 'version' })
+    const v = validateCountyRecord(county({ county: 'US-XX-999' }), 'US-CA-001', NOW)
+    expect(v.ok ? '' : v.reason).not.toContain('US-')
+  })
+
+  it('a county record at a SLOT name is refused there (it cannot act as a data file record)', () => {
+    expect(validateSharedRecord(county(), 'ebird', NOW)).toEqual({ ok: false, reason: 'slot' })
+  })
+})
+
+describe('validateDayObsRecord: a snapshot record binds itself to its device', () => {
+  const PEER = 'f'.repeat(32)
+  const snap = (o: Record<string, unknown> = {}) => JSON.stringify(fileRecord({
+    slot: 'day-obs', filename: 'county-day-obs.json', byteLength: 10_485_760,
+    origin: { deviceId: PEER, label: 'iPhone', platform: 'iphone' }, ...o,
+  }))
+
+  it('accepts its own device\'s snapshot and round-trips it', () => {
+    const v = validateDayObsRecord(snap(), PEER, NOW)
+    expect(v.ok).toBe(true)
+    if (v.ok) expect(validateDayObsRecord(serializeRecord(v.record), PEER, NOW)).toEqual(v)
+  })
+
+  it.each([
+    ['a county record at a snapshot name', snap({ slot: 'barchart' }), 'slot'],
+    ['another device\'s record at this name', snap({ origin: { deviceId: DEVICE, label: 'Mac', platform: 'mac' } }), 'wrong-device'],
+    ['a cleared marker (a snapshot has no cleared arm)', snap({ state: 'cleared', clearedAt: '2026-08-30T10:00:00.000Z' }), 'state'],
+    ['a byteLength one over the kind\'s bound', snap({ byteLength: DAY_OBS_SHARED_MAX_BYTES + 1 }), 'byteLength'],
+    ['a byteLength within the csv bound but over the snapshot bound', snap({ byteLength: MAX_BYTES }), 'byteLength'],
+  ])('%s is absent (%s)', (_label, text, reason) => {
+    expect(validateDayObsRecord(text, PEER, NOW)).toEqual({ ok: false, reason })
+  })
+
+  it('THE TYPESCRIPT HALF OF THE TWINNED SNAPSHOT BOUND: exactly the bound passes, one over fails', () => {
+    expect(validateDayObsRecord(snap({ byteLength: DAY_OBS_SHARED_MAX_BYTES }), PEER, NOW).ok).toBe(true)
+    expect(validateDayObsRecord(snap({ byteLength: DAY_OBS_SHARED_MAX_BYTES + 1 }), PEER, NOW).ok).toBe(false)
+  })
+})

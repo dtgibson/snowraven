@@ -304,7 +304,17 @@ export function addFileTitle(county: string): string {
 }
 export const ADD_FILE_DETAIL_LEAD = "On ebird.org, open the county's bar chart while signed in and choose "
 export const ADD_FILE_DETAIL_ACTION = 'Download Histogram Data'
-export const ADD_FILE_DETAIL_TAIL = '. The file stays on this device and is not synced.'
+// icloud-bar-chart-sync (item 8): the retired "stays on this device and is
+// not synced" sentence was false on a Mac, iPhone or iPad with sync on, so the
+// tail is now the sentence's own full stop, and ADD_FILE_SYNC_NOTE (item 9)
+// says the one thing that changed, only where it is true.
+export const ADD_FILE_DETAIL_TAIL = '.'
+/** Shown after the add instruction only while the section has a sync view (item 9). */
+export const ADD_FILE_SYNC_NOTE = 'With iCloud Sync on, a file you add here reaches your other synced devices too.'
+/** The section's title when the county's file is in iCloud but not on this device (item 10). */
+export function inICloudTitle(county: string): string {
+  return `A bar-chart file for ${county} is in iCloud`
+}
 export function openBarChartLink(county: string): string {
   return `Open ${county}'s bar chart on ebird.org`
 }

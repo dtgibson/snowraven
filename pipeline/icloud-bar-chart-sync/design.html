@@ -1,0 +1,1004 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SnowRaven Bar-Chart Sync</title>
+<meta name="description" content="Design direction for iCloud bar-chart sync: the Targets tab's eBird bar chart section with its sync state and a confirmed Remove, the Settings control that removes every saved bar-chart file, and the iCloud Sync section's changed note. Every string here is a DRAFT pending the user's approval." />
+<style>
+  /* ── SnowRaven tokens (values from frontend/src/globals.css, both themes) ── */
+  :root {
+    --sr-text-scale: 1;
+    --sr-bg: #F9FAFB;
+    --sr-surface: #FFFFFF;
+    --sr-surface-subtle: #F4F4F5;
+    --sr-surface-faint: #FAFAFA;
+    --sr-text: #0F1117;
+    --sr-text-muted: #6B6B74;
+    --sr-text-disabled: #A1A1AA;
+    --sr-text-gray: #6B7280;
+    --sr-border: #E4E4E7;
+    --sr-border-subtle: #F4F4F5;
+    --sr-border-medium: #C4C4CE;
+    --sr-border-input: #8A8A91;
+    --sr-accent: #277448;
+    --sr-accent-strong: #1A5C38;
+    --sr-accent-bg: #E8F5EE;
+    --sr-accent-bg-hover: #F0FAF4;
+    --sr-accent-border: rgba(39,116,72,0.25);
+    --sr-accent-border-strong: rgba(39,116,72,0.7);
+    --sr-on-accent: #FFFFFF;
+    --sr-error: #D31F1F;
+    --sr-error-bg: #FEF2F2;
+    --sr-error-border: #FECACA;
+    --sr-gray-400: #8E8E96;
+    --sr-card-shadow: 0 1px 4px rgba(15,17,23,0.06), 0 4px 16px rgba(15,17,23,0.04);
+    --sr-sticky-shadow: 0 3px 6px -2px rgba(15,17,23,0.12);
+    --sr-switch-thumb: #FFFFFF;
+    --sr-switch-thumb-shadow: 0 1px 2px rgba(15,17,23,0.25);
+    --sr-scrim: rgba(15,17,23,0.36);
+    /* The app's shipped type (design-system.md fixes it; the mockup must read
+       as SnowRaven, not as a new product). */
+    --font-sans: 'Inter', BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif;
+    --font-mono: ui-monospace, 'SF Mono', 'Cascadia Mono', Menlo, monospace;
+  }
+  [data-theme="dark"] {
+    --sr-bg: #09090B;
+    --sr-surface: #18181B;
+    --sr-surface-subtle: #27272A;
+    --sr-surface-faint: #1C1C1F;
+    --sr-text: #F4F4F5;
+    --sr-text-muted: #A1A1AA;
+    --sr-text-disabled: #52525B;
+    --sr-text-gray: #8A8A92;
+    --sr-border: #27272A;
+    --sr-border-subtle: #1F1F23;
+    --sr-border-medium: #3F3F46;
+    --sr-border-input: #707078;
+    --sr-accent: #34D399;
+    --sr-accent-strong: #34D399;
+    --sr-accent-bg: #052E16;
+    --sr-accent-bg-hover: #064E3B;
+    --sr-accent-border: rgba(52,211,153,0.2);
+    --sr-accent-border-strong: rgba(52,211,153,0.5);
+    --sr-on-accent: #052E16;
+    --sr-error: #F87171;
+    --sr-error-bg: #1C0505;
+    --sr-error-border: #7F1D1D;
+    --sr-gray-400: #6E6E78;
+    --sr-card-shadow: 0 1px 4px rgba(2,2,4,0.4), 0 4px 16px rgba(2,2,4,0.25);
+    --sr-sticky-shadow: 0 3px 8px -2px rgba(2,2,4,0.60);
+    --sr-scrim: rgba(9,9,11,0.6);
+  }
+
+  * { box-sizing: border-box; }
+  html { font-size: calc(16px * var(--sr-text-scale)); }
+  body {
+    margin: 0; min-height: 100vh;
+    font-family: var(--font-sans); color: var(--sr-text);
+    /* Atmosphere: the page ground carries a faint accent wash at the top, the
+       way the app's tab pages sit on --sr-bg under a surface header. */
+    background: linear-gradient(180deg, var(--sr-accent-bg) 0, var(--sr-bg) 220px);
+    font-size: 0.84375rem; line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  button { font-family: inherit; }
+  .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+  :focus-visible { outline: 2px solid var(--sr-accent); outline-offset: 2px; }
+
+  /* ── Mockup chrome (not the app) ─────────────────────────────────────── */
+  .mock-bar {
+    position: sticky; top: 0; z-index: 50;
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px;
+    padding: 10px 16px; background: var(--sr-surface); border-bottom: 1px solid var(--sr-border);
+    box-shadow: var(--sr-sticky-shadow);
+  }
+  .mock-bar .brand { display: inline-flex; align-items: center; gap: 8px; font-weight: 700; letter-spacing: -0.01em; font-size: 0.9375rem; margin-right: auto; }
+  .mock-bar .brand svg { color: var(--sr-accent); }
+  .mock-bar .brand small { font-weight: 500; color: var(--sr-text-muted); font-size: 0.75rem; }
+  .mock-group { display: inline-flex; align-items: center; gap: 6px; font-size: 0.71875rem; color: var(--sr-text-muted); }
+  .mock-group .lbl { text-transform: uppercase; letter-spacing: 0.07em; font-weight: 700; font-size: 0.625rem; }
+  .draft-note {
+    margin: 18px auto 0; max-width: 1080px; padding: 0 16px;
+    font-size: 0.75rem; color: var(--sr-text-muted);
+  }
+  .draft-note b { color: var(--sr-text); font-weight: 600; }
+  .stage { max-width: 1080px; margin: 0 auto; padding: 14px 16px 64px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 28px; }
+  .frame { margin: 0 auto; width: 100%; max-width: 100%; min-width: 0; transition: width 220ms cubic-bezier(0.2,0,0,1); }
+  .frame.phone { width: 320px; }
+  .frame-label { display: flex; align-items: baseline; gap: 10px; margin: 0 0 10px; }
+  .frame-label h1 { margin: 0; font-size: 1.125rem; font-weight: 700; letter-spacing: -0.01em; }
+  .frame-label span { font-size: 0.75rem; color: var(--sr-text-muted); }
+  .app {
+    background: var(--sr-bg); border: 1px solid var(--sr-border); border-radius: 12px;
+    box-shadow: var(--sr-card-shadow); overflow: hidden; min-width: 0;
+  }
+  .app-head { display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--sr-border); background: var(--sr-surface); }
+  .app-head .tile { width: 30px; height: 30px; border-radius: 8px; background: var(--sr-accent-bg); color: var(--sr-accent); display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .app-head h2 { margin: 0; font-size: 1.125rem; font-weight: 700; letter-spacing: -0.01em; }
+  .app-head p { margin: 0; font-size: 0.8125rem; color: var(--sr-text-muted); }
+  .app-body { padding: 16px; display: grid; gap: 18px; }
+  .demo-strip {
+    display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+    padding: 8px 10px; border: 1px dashed var(--sr-border-medium); border-radius: 8px;
+    background: var(--sr-surface-faint); font-size: 0.71875rem; color: var(--sr-text-muted);
+  }
+  .demo-strip .lbl { text-transform: uppercase; letter-spacing: 0.07em; font-weight: 700; font-size: 0.625rem; margin-right: 4px; }
+  .seg { display: inline-flex; flex-wrap: wrap; min-width: 0; background: var(--sr-surface-subtle); border-radius: 6px; padding: 2px; gap: 2px; }
+  .demo-strip { min-width: 0; }
+  .seg button {
+    border: 1px solid transparent; background: none; color: var(--sr-text-muted); border-radius: 5px;
+    font-size: 0.71875rem; padding: 0.35rem 10px; cursor: pointer; font-weight: 500;
+    transition: color 120ms ease-out, background 120ms ease-out, border-color 120ms ease-out;
+  }
+  .seg button:hover { color: var(--sr-text); }
+  .seg button[aria-pressed="true"] { background: var(--sr-surface); border-color: var(--sr-border); color: var(--sr-text); font-weight: 600; }
+
+  /* ── App registers reproduced from globals.css ───────────────────────── */
+  .sr-btn-quiet {
+    height: 32px; padding: 0 12px;
+    border: 1.5px solid var(--sr-border); background: var(--sr-surface); color: var(--sr-text);
+    border-radius: 6px; font-size: 0.75rem; font-weight: 500; cursor: pointer; white-space: nowrap;
+    display: inline-flex; align-items: center; justify-content: center;
+    transition: border-color 0.12s ease-out, background 0.12s ease-out, color 0.12s ease-out, opacity 0.12s ease-out;
+  }
+  .sr-btn-quiet:hover:not([disabled]):not([aria-disabled="true"]) { border-color: var(--sr-border-medium); background: var(--sr-surface-subtle); }
+  .sr-btn-quiet--danger { border-color: var(--sr-error-border); background: var(--sr-surface); color: var(--sr-error); }
+  .sr-btn-quiet--danger:hover:not([disabled]) { background: var(--sr-error-bg) !important; border-color: var(--sr-error-border) !important; }
+  .sr-btn-quiet[disabled] { border-color: var(--sr-border); background: var(--sr-surface-subtle); color: var(--sr-text-disabled); cursor: not-allowed; }
+  /* aria-disabled: still focusable, reason readable in place (ui.md v1.0.12). */
+  .sr-btn-quiet[aria-disabled="true"] { opacity: 0.72; cursor: not-allowed; }
+  .sr-btn-inline { height: 26px; padding: 0 9px; font-size: 0.71875rem; }
+  .sr-btn-accent {
+    height: 32px; padding: 0 14px;
+    background: var(--sr-accent); color: var(--sr-on-accent);
+    border: none; border-radius: 6px; font-size: 0.75rem; font-weight: 600; cursor: pointer; white-space: nowrap;
+    display: inline-flex; align-items: center; justify-content: center;
+    transition: background 0.12s ease-out, box-shadow 0.12s ease-out;
+  }
+  .sr-btn-accent:hover { background: var(--sr-accent-strong); }
+  [data-theme="dark"] .sr-btn-accent:hover { box-shadow: 0 0 0 3px var(--sr-accent-border); }
+  .sr-btn-accent svg { margin-right: 6px; }
+
+  .sr-sync-line {
+    display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px;
+    margin-top: 5px; font-size: 0.75rem; line-height: 1.45; color: var(--sr-text-muted);
+    transition: opacity 0.16s ease-out;
+  }
+  .sr-sync-line:empty { margin-top: 0; }
+  .sr-sync-line--fading { opacity: 0; transition-duration: 0.12s; }
+  .sr-sync-state { display: inline-flex; align-items: center; gap: 5px; font-weight: 600; color: var(--sr-text-muted); white-space: nowrap; }
+  .sr-sync-state svg { flex-shrink: 0; }
+  .sr-sync-state--error { color: var(--sr-error); }
+  .sr-sync-sep { color: var(--sr-text-disabled); }
+  .sr-sync-more { min-width: 0; overflow-wrap: anywhere; }
+
+  .sr-tg-seclabel { display: block; margin: 0 2px 6px; font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--sr-text-muted); }
+  .sr-tg-file-sec { margin-bottom: 0; min-width: 0; }
+  /* position: relative so the link's absolutely positioned .sr-only cue resolves
+     inside the card and cannot extend document.scrollWidth (ui.md, the
+     .sr-only leak rule). */
+  .sr-tg-file-card { position: relative; background: var(--sr-surface); border: 1px solid var(--sr-border); border-radius: 10px; padding: 12px 16px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; min-width: 0; }
+  .sr-tg-file-main { flex: 1 1 320px; min-width: 0; display: flex; gap: 10px; align-items: flex-start; }
+  .sr-tg-file-main > svg { flex-shrink: 0; color: var(--sr-text-muted); margin-top: 2px; }
+  .sr-tg-file-line { min-width: 0; font-size: 0.8125rem; line-height: 1.5; color: var(--sr-text); overflow-wrap: anywhere; flex: 1; }
+  .sr-tg-file-title { display: block; font-weight: 600; }
+  .sr-tg-file-detail { display: block; font-size: 0.75rem; color: var(--sr-text-muted); }
+  .sr-tg-file-detail b { font-weight: 600; color: var(--sr-text-muted); }
+  .sr-tg-file-actions { display: inline-flex; flex-wrap: wrap; gap: 8px; }
+  .sr-tg-link {
+    display: inline; padding: 0; border: 0; background: none; font: inherit; font-weight: 600;
+    color: var(--sr-accent); text-align: left; cursor: pointer; text-decoration: none;
+  }
+  .sr-tg-link:hover, .sr-tg-link:focus-visible { text-decoration: underline; }
+  .sr-tg-link > svg { display: inline-block; vertical-align: -1px; margin: 0 2px 0 3px; }
+  .sr-tg-alert { font-size: 0.75rem; color: var(--sr-error); flex: 1 1 100%; }
+  .sr-tg-alert:empty { display: none; }
+
+  /* Targets strip stubs so the section sits where it lives on the tab. */
+  .sr-tg-strip { background: var(--sr-surface); border: 1px solid var(--sr-border); border-radius: 12px; box-shadow: var(--sr-card-shadow); min-width: 0; padding: 12px 16px; display: grid; gap: 10px; }
+  .sr-tg-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+  .sr-tg-row .sr-tg-seclabel { margin: 0; }
+  .sr-tg-select { height: 34px; padding: 0 30px 0 10px; border: 1px solid var(--sr-border-input); border-radius: 6px; background: var(--sr-surface); color: var(--sr-text); font: inherit; font-size: 0.8125rem; min-width: 0; flex: 1 1 220px; max-width: 320px; }
+  .sr-pill { display: inline-flex; align-items: center; min-height: 30px; padding: 0 12px; border: 1.5px solid var(--sr-border); border-radius: 15px; background: var(--sr-surface); color: var(--sr-text-muted); font-size: 0.75rem; font-weight: 500; white-space: nowrap; }
+  .sr-pill[aria-pressed="true"] { background: var(--sr-accent-bg); color: var(--sr-accent); border-color: var(--sr-accent-border-strong); font-weight: 600; }
+  .sr-tg-summary { font-size: 0.8125rem; color: var(--sr-text); }
+  .sr-tg-summary b { font-weight: 700; }
+  .sr-tg-summary span { color: var(--sr-text-muted); }
+  .tg-table-stub { border: 1px solid var(--sr-border); border-radius: 10px; background: var(--sr-surface); overflow: hidden; }
+  .tg-table-stub .hd { display: grid; grid-template-columns: 1fr 120px 150px; gap: 12px; padding: 8px 14px; font-size: 0.625rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--sr-text-muted); font-weight: 700; border-bottom: 1px solid var(--sr-border-subtle); }
+  .tg-table-stub .rw { display: grid; grid-template-columns: 1fr 120px 150px; gap: 12px; padding: 9px 14px; font-size: 0.8125rem; border-bottom: 1px solid var(--sr-border-subtle); align-items: center; }
+  .tg-table-stub .rw:last-child { border-bottom: 0; }
+  .tg-table-stub .pct { font-variant-numeric: tabular-nums; font-weight: 600; }
+  .tg-table-stub .pct i { font-style: normal; color: var(--sr-text-muted); }
+  .tg-table-stub .bar { height: 3px; border-radius: 2px; background: var(--sr-border); margin-top: 4px; overflow: hidden; }
+  .tg-table-stub .bar b { display: block; height: 100%; background: var(--sr-text-muted); }
+  .tg-table-stub .live { font-size: 0.75rem; color: var(--sr-text-muted); }
+  .tg-badge { display: inline-block; font-size: 0.625rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; padding: 1px 6px; border-radius: 4px; background: var(--sr-surface-subtle); color: var(--sr-text-muted); margin-left: 6px; vertical-align: 1px; }
+
+  /* Settings registers. */
+  .set-header { display: flex; align-items: center; gap: 10px; margin: 0 0 12px; }
+  .set-header span { font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: var(--sr-text-muted); }
+  .set-header i { flex: 1; height: 1px; background: var(--sr-border); }
+  .set-card { border: 1px solid var(--sr-border); border-radius: 10px; background: var(--sr-surface); overflow: hidden; }
+  .sr-ics-row { padding: 14px 16px; }
+  .sr-ics-row + .sr-ics-row { border-top: 1px solid var(--sr-border-subtle); }
+  .sr-ics-toggle-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .sr-ics-desc { margin: 0; font-size: 0.8125rem; color: var(--sr-text-muted); line-height: 1.5; }
+  .sr-ics-note { margin: 6px 0 0; font-size: 0.75rem; color: var(--sr-text); line-height: 1.5; }
+  .sr-ics-key-label { margin: 0 0 2px; font-size: 0.8125rem; font-weight: 600; color: var(--sr-text); line-height: 1.4; }
+  .sr-ics-status-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 12px; }
+  .sr-ics-status { font-size: 0.75rem; color: var(--sr-text-muted); line-height: 1.45; }
+  .sr-ics-remove-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  .set-row { display: flex; align-items: center; gap: 12px; padding: 14px 16px; }
+  .set-row + .set-row { border-top: 1px solid var(--sr-border-subtle); }
+  .set-row .tile { width: 38px; height: 38px; border-radius: 9px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; background: var(--sr-accent-bg); color: var(--sr-accent); }
+  .set-row .ttl { font-size: 0.84375rem; font-weight: 600; }
+  .set-row .val { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; margin-top: 2px; font-size: 0.8125rem; }
+  .set-row .val .fn { font-weight: 500; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .set-row .val .saved { font-size: 0.75rem; color: var(--sr-text-muted); }
+  .set-row .col { flex: 1; min-width: 0; }
+  .set-row .acts { display: flex; gap: 8px; flex-shrink: 0; flex-wrap: wrap; }
+  /* Bare toggle (the Settings register). */
+  .sw { position: relative; width: 36px; height: 20px; border-radius: 10px; border: 0; padding: 0; cursor: pointer; background: var(--sr-gray-400); transition: background 120ms ease-out; flex-shrink: 0; }
+  .sw[aria-checked="true"] { background: var(--sr-accent); }
+  .sw::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--sr-switch-thumb); box-shadow: var(--sr-switch-thumb-shadow); transition: transform 140ms cubic-bezier(0.2,0,0,1); }
+  .sw[aria-checked="true"]::after { transform: translateX(16px); }
+  .sw[aria-disabled="true"] { opacity: 0.72; cursor: not-allowed; }
+  /* The quiet section register (Troubleshooting, Acknowledgments, and the new Bar-chart files). */
+  .quiet-card { padding: 14px 16px; }
+  .quiet-card p { margin: 0 0 12px; font-size: 0.75rem; color: var(--sr-text-muted); line-height: 1.5; }
+  .quiet-btn { height: 32px; padding: 0 14px; background: var(--sr-surface); color: var(--sr-text); border: 1px solid var(--sr-border); border-radius: 6px; font-size: 0.75rem; font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; transition: border-color 120ms ease-out, background 120ms ease-out; }
+  .quiet-btn:hover:not([aria-disabled="true"]) { border-color: var(--sr-border-medium); background: var(--sr-surface-subtle); }
+  .quiet-btn[aria-disabled="true"] { opacity: 0.72; cursor: not-allowed; }
+  .bc-status-row { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 12px; }
+  .bc-status { font-size: 0.75rem; color: var(--sr-text-muted); line-height: 1.5; min-width: 0; flex: 1 1 200px; }
+  .bc-status .ok { color: var(--sr-accent); }
+  .bc-alert { font-size: 0.75rem; color: var(--sr-error); margin-top: 8px; }
+  .bc-alert:empty { display: none; margin: 0; }
+  .bc-announce { font-size: 0.75rem; color: var(--sr-accent); margin-top: 8px; }
+  .bc-announce:empty { display: none; margin: 0; }
+  .tab-layout-stub { padding: 14px 16px; display: grid; gap: 6px; }
+  .tab-layout-stub .r { display: flex; align-items: center; gap: 10px; font-size: 0.8125rem; padding: 6px 8px; border: 1px solid var(--sr-border-subtle); border-radius: 6px; color: var(--sr-text-muted); }
+  .tab-layout-stub .r b { color: var(--sr-text); font-weight: 500; }
+  .tab-layout-stub .r i { margin-left: auto; font-style: normal; font-size: 0.6875rem; }
+  .mt24 { margin-top: 24px; }
+
+  /* Dialog shell (globals.css .sr-dlg-*): scrim + panel scaling in from its trigger. */
+  .sr-dlg-root {
+    position: fixed; inset: 0; z-index: 1200;
+    background: var(--sr-scrim);
+    display: flex; align-items: center; justify-content: center; padding: 16px;
+    opacity: 0; transition: opacity 0.16s ease-out;
+  }
+  .sr-dlg-root[hidden] { display: none; }
+  .sr-dlg-root--open { opacity: 1; }
+  .sr-dlg-root--closing { transition-duration: 0.12s; }
+  .sr-dlg {
+    width: calc(100% - 32px); max-width: 420px; max-height: 80vh; overflow: auto;
+    background: var(--sr-surface); color: var(--sr-text);
+    border: 1px solid var(--sr-border); border-radius: 14px; box-shadow: var(--sr-card-shadow);
+    opacity: 0; transform: scale(0.94);
+    transition: opacity 0.16s ease-out, transform 0.18s cubic-bezier(0.2, 0, 0, 1);
+  }
+  .sr-dlg-root--open .sr-dlg { opacity: 1; transform: none; }
+  .sr-dlg-root--closing .sr-dlg { transition-duration: 0.12s; }
+  .sr-dlg-head { padding: 16px 18px 12px; border-bottom: 1px solid var(--sr-border-subtle); }
+  .sr-dlg-title { margin: 0; font-size: 1rem; font-weight: 700; letter-spacing: -0.01em; line-height: 1.3; color: var(--sr-text); }
+  .sr-dlg-body { padding: 14px 18px 4px; }
+  .sr-dlg-item { padding: 0 0 12px; }
+  .sr-dlg-lead { margin: 0 0 2px; font-size: 0.8125rem; font-weight: 600; color: var(--sr-text); }
+  .sr-dlg-text { margin: 0 0 10px; font-size: 0.8125rem; color: var(--sr-text-muted); line-height: 1.55; }
+  .sr-dlg-item .sr-dlg-text { margin: 0; }
+  .sr-dlg-text strong { color: var(--sr-text); font-weight: 600; overflow-wrap: anywhere; }
+  .sr-dlg-files { margin: 0 0 12px; padding: 0 0 0 18px; font-size: 0.8125rem; color: var(--sr-text); line-height: 1.6; }
+  .sr-dlg-files li { overflow-wrap: anywhere; }
+  .sr-dlg-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; padding: 8px 18px 16px; }
+  .sr-dlg-actions > * { min-width: 96px; }
+  .sr-dlg-fine { margin: 2px 0 8px; padding-top: 10px; border-top: 1px solid var(--sr-border-subtle); font-size: 0.75rem; color: var(--sr-text-muted); line-height: 1.5; }
+  .draft-tag { display: inline-block; margin-left: 8px; font-size: 0.5625rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--sr-text-muted); border: 1px solid var(--sr-border-medium); border-radius: 3px; padding: 0 4px; vertical-align: 2px; }
+
+  /* Phone tier: the app's <=640 block, and the same rules under the .phone frame. */
+  @media (max-width: 640px) {
+    /* Mockup harness at a real phone viewport: the frame IS the viewport. */
+    .stage { padding-left: 0; padding-right: 0; }
+    .frame.phone, .frame { width: 100%; }
+    .frame-label { padding: 0 12px; }
+    .app { border-radius: 0; border-left: 0; border-right: 0; }
+    .mock-bar { padding: 8px 12px; }
+    .draft-note { padding: 0 12px; }
+    .sr-btn-quiet, .sr-btn-accent, .sr-btn-inline, .quiet-btn { min-height: 2.75rem; height: auto; white-space: normal; }
+    .sr-sync-state { white-space: normal; align-items: flex-start; }
+    .sr-sync-state svg { margin-top: 0.2em; }
+    .sr-sync-line .sr-btn-inline { flex: 1 1 100%; }
+    .sr-ics-status-row .sr-btn-quiet { flex: 1 1 100%; }
+    .sr-ics-remove-actions .sr-btn-quiet { width: 100%; }
+    .sr-dlg { width: calc(100% - 24px); }
+    .sr-dlg-actions > * { flex: 1 1 100%; }
+    .sr-tg-file-card { padding: 12px; }
+    .sr-tg-file-actions { width: 100%; }
+    .sr-tg-file-actions > * { flex: 1 1 auto; }
+    .set-row { flex-wrap: wrap; }
+    .set-row .acts { width: 100%; }
+    .set-row .acts > * { flex: 1 1 auto; }
+    .bc-status-row > .quiet-btn { width: 100%; }
+    .tg-table-stub .hd { display: none; }
+    .tg-table-stub .rw { grid-template-columns: 1fr; gap: 4px; }
+  }
+  .frame.phone .sr-btn-quiet, .frame.phone .sr-btn-accent, .frame.phone .sr-btn-inline, .frame.phone .quiet-btn { min-height: 2.75rem; height: auto; white-space: normal; }
+  .frame.phone .sr-sync-state { white-space: normal; align-items: flex-start; }
+  .frame.phone .sr-sync-state svg { margin-top: 0.2em; }
+  .frame.phone .sr-sync-line .sr-btn-inline { flex: 1 1 100%; }
+  .frame.phone .sr-ics-status-row .sr-btn-quiet { flex: 1 1 100%; }
+  .frame.phone .sr-ics-remove-actions .sr-btn-quiet { width: 100%; }
+  .frame.phone .sr-tg-file-card { padding: 12px; }
+  .frame.phone .sr-tg-file-actions { width: 100%; }
+  .frame.phone .sr-tg-file-actions > * { flex: 1 1 auto; }
+  .frame.phone .set-row { flex-wrap: wrap; }
+  .frame.phone .set-row .acts { width: 100%; }
+  .frame.phone .set-row .acts > * { flex: 1 1 auto; }
+  .frame.phone .bc-status-row > .quiet-btn { width: 100%; }
+  .frame.phone .tg-table-stub .hd { display: none; }
+  .frame.phone .tg-table-stub .rw { grid-template-columns: 1fr; gap: 4px; }
+  .frame.phone .sr-tg-select { max-width: none; }
+  .frame.phone .app-body { padding: 12px; }
+  /* Context stubs (the county picker row and the Show row) at the phone tier:
+     the select takes the row, the summary drops under the pills, pills may wrap. */
+  .sr-tg-row { min-width: 0; }
+  .frame.phone .sr-tg-select, .frame.phone .sr-tg-summary { flex: 1 1 100%; margin-left: 0; }
+  .frame.phone .sr-pill { white-space: normal; }
+  @media (max-width: 640px) {
+    .sr-tg-select, .sr-tg-summary { flex: 1 1 100%; margin-left: 0; max-width: none; }
+    .sr-pill { white-space: normal; }
+  }
+
+  /* The global reduced-motion rule: shorten, never remove, so transitionend still fires. */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+</style>
+</head>
+<body>
+
+<!-- ───────────────────────── Mockup chrome ───────────────────────── -->
+<header class="mock-bar" aria-label="Mockup controls">
+  <span class="brand">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 17.743A7 7 0 1 1 15.71 10h1.79a4.5 4.5 0 0 1 1.5 8.742"/><path d="m17 15-5.5 5.5L9 18"/></svg>
+    SnowRaven <small>iCloud bar-chart sync, design draft</small>
+  </span>
+  <span class="mock-group"><span class="lbl">Theme</span>
+    <span class="seg" role="group" aria-label="Theme">
+      <button type="button" data-theme-pick="light" aria-pressed="true">Light</button>
+      <button type="button" data-theme-pick="dark" aria-pressed="false">Dark</button>
+    </span>
+  </span>
+  <span class="mock-group"><span class="lbl">Width</span>
+    <span class="seg" role="group" aria-label="Frame width">
+      <button type="button" data-width="desktop" aria-pressed="true">Desktop</button>
+      <button type="button" data-width="phone" aria-pressed="false">Phone 320</button>
+    </span>
+  </span>
+  <span class="mock-group"><span class="lbl">Text</span>
+    <span class="seg" role="group" aria-label="Text size">
+      <button type="button" data-scale="1" aria-pressed="true">100%</button>
+      <button type="button" data-scale="2" aria-pressed="false">200%</button>
+    </span>
+  </span>
+  <span class="mock-group"><span class="lbl">iCloud Sync</span>
+    <span class="seg" role="group" aria-label="Sync switch, for the demo">
+      <button type="button" data-sync="on" aria-pressed="true">On</button>
+      <button type="button" data-sync="off" aria-pressed="false">Off</button>
+    </span>
+  </span>
+</header>
+
+<p class="draft-note"><b>Every string on this page is a draft.</b> Nothing here is written into the app until you approve it, item by item, on the copy review page beside this one. The layout, the states and the motion are what this page is for.</p>
+
+<main class="stage">
+
+  <!-- ═══════════════════ Scene 1: the Targets tab ═══════════════════ -->
+  <section class="frame" id="frame-targets" aria-labelledby="h-targets">
+    <div class="frame-label"><h1 id="h-targets">Targets</h1><span>The eBird bar chart section, with the selected county's sync state and a confirmed Remove</span></div>
+    <div class="app">
+      <div class="app-head">
+        <span class="tile"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></span>
+        <div><h2>Targets</h2><p>One county's species as your target list: lifers, media you still lack, and species you have never recorded breeding.</p></div>
+      </div>
+      <div class="app-body">
+        <div class="demo-strip" role="group" aria-label="Demo: the county file's sync state">
+          <span class="lbl">Demo state</span>
+          <span class="seg" id="tg-state-seg">
+            <button type="button" data-tg="up" aria-pressed="true">Up to date</button>
+            <button type="button" data-tg="replaced" aria-pressed="false">Replaced</button>
+            <button type="button" data-tg="notdl" aria-pressed="false">In iCloud, newer</button>
+            <button type="button" data-tg="notdl-empty" aria-pressed="false">In iCloud, none here</button>
+            <button type="button" data-tg="uploading" aria-pressed="false">Uploading</button>
+            <button type="button" data-tg="waiting" aria-pressed="false">Waiting</button>
+            <button type="button" data-tg="error" aria-pressed="false">Could not sync</button>
+            <button type="button" data-tg="absent" aria-pressed="false">No file</button>
+          </span>
+        </div>
+
+        <div class="sr-tg-strip" aria-label="Targets controls">
+          <div class="sr-tg-row">
+            <span class="sr-tg-seclabel">County</span>
+            <select class="sr-tg-select" aria-label="County"><option>Alameda, CA · 2,114 checklists</option><option>Contra Costa, CA · 611 checklists</option><option>Marin, CA · 302 checklists</option></select>
+          </div>
+          <div class="sr-tg-row">
+            <span class="sr-tg-seclabel">Show</span>
+            <span class="sr-pill" aria-pressed="true">Lifer</span>
+            <span class="sr-pill" aria-pressed="true">Media</span>
+            <span class="sr-pill" aria-pressed="false">Breeding</span>
+            <span class="sr-tg-summary" style="margin-left:auto"><b>27 targets</b> <span>· 14 lifers · 13 media</span></span>
+          </div>
+        </div>
+
+        <!-- The section this feature changes. -->
+        <section class="sr-tg-file-sec" aria-labelledby="tg-file-label">
+          <span class="sr-tg-seclabel" id="tg-file-label">eBird bar chart</span>
+          <div class="sr-tg-file-card" id="tg-card">
+            <div class="sr-tg-file-main">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>
+              <div class="sr-tg-file-line">
+                <span class="sr-tg-file-title" id="tg-title"></span>
+                <span class="sr-tg-file-detail" id="tg-detail"></span>
+                <!-- The row status line, rendered from the start, children replaced (the SyncLine shape). -->
+                <div role="status" class="sr-sync-line" id="tg-sync"></div>
+              </div>
+            </div>
+            <div class="sr-tg-file-actions" id="tg-actions"></div>
+            <div role="alert" class="sr-tg-alert" id="tg-alert"></div>
+          </div>
+        </section>
+
+        <div class="tg-table-stub" aria-label="Target list (abbreviated)">
+          <div class="hd"><span>Species</span><span>This month (%)</span><span>Reported, last 30 days</span></div>
+          <div class="rw"><span>Say's Phoebe<span class="tg-badge">Lifer</span></span><span class="pct" id="tg-pct-1">3.62<i>%</i><span class="bar"><b style="width:36%"></b></span></span><span class="live">Reported 11 of the last 30 days</span></div>
+          <div class="rw"><span>Golden-crowned Sparrow<span class="tg-badge">Media</span></span><span class="pct" id="tg-pct-2">2.14<i>%</i><span class="bar"><b style="width:21%"></b></span></span><span class="live">Reported 9 of the last 30 days</span></div>
+          <div class="rw"><span>Lewis's Woodpecker<span class="tg-badge">Lifer</span></span><span class="pct" id="tg-pct-3">0.08<i>%</i><span class="bar"><b style="width:2%"></b></span></span><span class="live">Not reported in the last 30 days</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════ Scene 2: Settings ═══════════════════ -->
+  <section class="frame" id="frame-settings" aria-labelledby="h-settings">
+    <div class="frame-label"><h1 id="h-settings">Settings</h1><span>The iCloud Sync section's changed note and Remove list, and the new Bar-chart files section near the bottom</span></div>
+    <div class="app">
+      <div class="app-head">
+        <span class="tile"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg></span>
+        <div><h2>Settings</h2><p>Keys, files, appearance and the layout of your tabs.</p></div>
+      </div>
+      <div class="app-body">
+
+        <!-- Default Files (context: the rows the Targets section borrows its vocabulary from) -->
+        <div>
+          <div class="set-header"><span>Default Files</span><i></i></div>
+          <div class="set-card">
+            <div class="set-row">
+              <span class="tile"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="m9 15 2 2 4-4"/></svg></span>
+              <div class="col">
+                <div class="ttl">eBird Backup</div>
+                <div class="val"><span class="fn">MyEBirdData.csv</span><span class="saved">· Saved Sep 26, 2026 at 6:14 PM</span></div>
+                <div role="status" class="sr-sync-line" data-sync-only><span class="sr-sync-state"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 17.743A7 7 0 1 1 15.71 10h1.79a4.5 4.5 0 0 1 1.5 8.742"/><path d="m17 15-5.5 5.5L9 18"/></svg>Up to date</span><span class="sr-only">. </span><span class="sr-sync-more"><span class="sr-sync-sep" aria-hidden="true">·</span> From this device</span></div>
+              </div>
+              <div class="acts"><button type="button" class="sr-btn-quiet">Upload new</button><button type="button" class="sr-btn-quiet sr-btn-quiet--danger">Clear</button></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- iCloud Sync -->
+        <div>
+          <div class="set-header"><span id="ics-header">iCloud Sync</span><i></i></div>
+          <div class="set-card">
+            <div class="sr-ics-row sr-ics-toggle-row">
+              <div style="flex:1;min-width:0">
+                <p class="sr-ics-desc" id="ics-desc"></p>
+              </div>
+              <button type="button" class="sw" role="switch" aria-checked="true" aria-labelledby="ics-header" aria-describedby="ics-desc" id="ics-switch"></button>
+            </div>
+            <div class="sr-ics-row sr-ics-toggle-row">
+              <div style="flex:1;min-width:0">
+                <div class="sr-ics-key-label" id="key-label">Sync API keys</div>
+                <p class="sr-ics-desc">Keeps your eBird and OpenWeather keys the same on every Mac, iPhone and iPad that also turns this on.</p>
+                <p class="sr-ics-note" id="key-note" hidden>Turn on iCloud Sync first.</p>
+              </div>
+              <button type="button" class="sw" role="switch" aria-checked="false" aria-labelledby="key-label" id="key-switch"></button>
+            </div>
+            <div class="sr-ics-row sr-ics-status-row" id="ics-status-row">
+              <span class="sr-ics-status" id="ics-status">Last checked Sep 28, 2026 at 8:02 AM</span>
+              <button type="button" class="sr-btn-quiet" id="check-now">Check now</button>
+            </div>
+            <div class="sr-ics-row" id="ics-remove-row">
+              <div class="sr-ics-remove-actions">
+                <button type="button" class="sr-btn-quiet" id="btn-remove-synced">Remove synced files from iCloud</button>
+              </div>
+            </div>
+          </div>
+          <p class="draft-note" style="margin:8px 0 0;padding:0">Turning the switch off and on again in this mockup opens the turn-on note with its changed <em>What goes to iCloud</em> item.</p>
+        </div>
+
+        <!-- Tab Layout (stub, so the new section's position reads in context) -->
+        <div>
+          <div class="set-header"><span>Tab Layout</span><i></i></div>
+          <div class="set-card tab-layout-stub">
+            <div class="r"><b>Weather</b><i>Move up · Move down</i></div>
+            <div class="r"><b>Species Detail</b><i>Move up · Move down</i></div>
+            <div class="r"><b>Targets</b><i>Move up · Move down</i></div>
+            <div class="r" style="color:var(--sr-text-disabled)"><span>… 9 more</span></div>
+          </div>
+        </div>
+
+        <!-- NEW: Bar-chart files (every platform) -->
+        <div>
+          <div class="demo-strip" role="group" aria-label="Demo: the saved bar-chart files" style="margin-bottom:12px">
+            <span class="lbl">Demo state</span>
+            <span class="seg" id="bc-state-seg">
+              <button type="button" data-bc="3" aria-pressed="true">3 counties</button>
+              <button type="button" data-bc="1" aria-pressed="false">1 county</button>
+              <button type="button" data-bc="0" aria-pressed="false">None saved</button>
+              <button type="button" data-bc="unknown" aria-pressed="false">Couldn't check</button>
+              <button type="button" data-bc="partial" aria-pressed="false">After a partial failure</button>
+            </span>
+          </div>
+          <div class="set-header"><span id="bc-header"></span><i></i></div>
+          <div class="set-card">
+            <div class="quiet-card">
+              <p id="bc-desc"></p>
+              <div class="bc-status-row">
+                <button type="button" class="quiet-btn" id="bc-button" aria-describedby="bc-status"></button>
+                <span class="bc-status" id="bc-status"></span>
+              </div>
+              <div role="alert" class="bc-alert" id="bc-alert"></div>
+              <div role="status" class="bc-announce" id="bc-announce"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Troubleshooting (desktop only; shown for position) -->
+        <div>
+          <div class="set-header"><span>Troubleshooting</span><i></i></div>
+          <div class="set-card">
+            <div class="quiet-card">
+              <p>If the map or species lookups stop working, rebuilding the app's local caches usually fixes it. The app will restart.</p>
+              <button type="button" class="quiet-btn">Rebuild caches &amp; restart</button>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="set-header"><span>Acknowledgments</span><i></i></div>
+          <div class="set-card"><div class="quiet-card" style="padding-bottom:14px"><button type="button" class="quiet-btn" style="margin:0">View acknowledgments</button></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- ───────────────────────── Dialogs (the shared shell) ───────────────────────── -->
+<div class="sr-dlg-root" role="presentation" id="dlg-remove-county" hidden>
+  <div class="sr-dlg" role="dialog" aria-modal="true" aria-labelledby="dlg-remove-county-title">
+    <div class="sr-dlg-head"><h2 class="sr-dlg-title" id="dlg-remove-county-title"></h2></div>
+    <div class="sr-dlg-body"><p class="sr-dlg-text" id="dlg-remove-county-body"></p></div>
+    <div class="sr-dlg-actions">
+      <button type="button" class="sr-btn-quiet" data-close>Cancel</button>
+      <button type="button" class="sr-btn-quiet sr-btn-quiet--danger" data-confirm="remove-county"></button>
+    </div>
+  </div>
+</div>
+
+<div class="sr-dlg-root" role="presentation" id="dlg-clear-all" hidden>
+  <div class="sr-dlg" role="dialog" aria-modal="true" aria-labelledby="dlg-clear-all-title">
+    <div class="sr-dlg-head"><h2 class="sr-dlg-title" id="dlg-clear-all-title"></h2></div>
+    <div class="sr-dlg-body"><p class="sr-dlg-text" id="dlg-clear-all-body"></p></div>
+    <div class="sr-dlg-actions">
+      <button type="button" class="sr-btn-quiet" data-close>Cancel</button>
+      <button type="button" class="sr-btn-quiet sr-btn-quiet--danger" data-confirm="clear-all"></button>
+    </div>
+  </div>
+</div>
+
+<div class="sr-dlg-root" role="presentation" id="dlg-enable" hidden>
+  <div class="sr-dlg" role="dialog" aria-modal="true" aria-labelledby="dlg-enable-title">
+    <div class="sr-dlg-head"><h2 class="sr-dlg-title" id="dlg-enable-title">Turn on iCloud Sync</h2></div>
+    <div class="sr-dlg-body" id="dlg-enable-body"></div>
+    <div class="sr-dlg-actions">
+      <button type="button" class="sr-btn-quiet" data-close>Cancel</button>
+      <button type="button" class="sr-btn-accent" data-confirm="enable">Turn on</button>
+    </div>
+  </div>
+</div>
+
+<div class="sr-dlg-root" role="presentation" id="dlg-remove-synced" hidden>
+  <div class="sr-dlg" role="dialog" aria-modal="true" aria-labelledby="dlg-remove-synced-title">
+    <div class="sr-dlg-head"><h2 class="sr-dlg-title" id="dlg-remove-synced-title">Remove synced files from iCloud?</h2></div>
+    <div class="sr-dlg-body">
+      <p class="sr-dlg-text">These files will be deleted from your iCloud account:</p>
+      <ul class="sr-dlg-files" id="dlg-remove-synced-files"></ul>
+      <p class="sr-dlg-text" id="dlg-remove-synced-outro"></p>
+    </div>
+    <div class="sr-dlg-actions">
+      <button type="button" class="sr-btn-quiet" data-close>Cancel</button>
+      <button type="button" class="sr-btn-quiet sr-btn-quiet--danger" data-confirm="remove-synced">Remove from iCloud</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  // ── Draft copy (mirrors design-spec.md's copy table; every string is pending approval) ──
+  var county = 'Alameda, CA';
+  var here = 'this Mac';
+  var otherDevice = "Dave's iPhone (iPhone)";
+  var filename = 'ebird_US-CA-001__1900_2026_1_12_barchart.txt';
+
+  function fmtCount(n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+  function counted(n, noun, plural) { return fmtCount(n) + ' ' + (n === 1 ? noun : (plural || noun + 's')); }
+  // "Bar-chart files for 3 counties" / "The bar-chart file for 1 county".
+  function filesFor(n) { return n === 1 ? 'The bar-chart file for 1 county' : 'Bar-chart files for ' + counted(n, 'county', 'counties'); }
+  function filesForLower(n) { return n === 1 ? 'the bar-chart file for 1 county' : 'bar-chart files for ' + counted(n, 'county', 'counties'); }
+
+  var COPY = {
+    // icloudCopy.ts
+    icsDescription: 'Keeps your eBird backup, ML export and eBird bar-chart files the same on every Mac, iPhone and iPad signed in to your iCloud account.',
+    enableWhatGoes: 'Your eBird backup, your Macaulay Library export and every eBird bar-chart file you have added on the Targets tab, along with each file’s name, when it was uploaded, which device it came from (its name), its size and a checksum. The day-by-day eBird answers behind the Targets tab’s live counts go too, so your other devices do not ask eBird again. Your settings and other caches stay on ' + here + ', and so do your API keys unless you also turn on Sync API keys.',
+    enableWhose: 'Your own iCloud account, on Apple’s servers. SnowRaven has no server of its own, so the files never pass through one, and the developer cannot see them.',
+    enableNow: 'If iCloud already holds a newer copy of a file, it replaces the copy on ' + here + '. If the copy here is newer, it goes up to iCloud.',
+    enableOff: 'Switch iCloud Sync off at any time; the files on ' + here + ' stay put. To delete the copies in iCloud, use Remove synced files from iCloud.',
+    removeOutro: 'The copies on ' + here + ' and on your other devices are not touched. To keep iCloud empty, turn iCloud Sync off on each device first: a device with sync on uploads its copy again at its next check.',
+    removeSyncedCountyLine: function (n) { return filesFor(n); },
+    removeSyncedDayLine: 'The Targets tab’s saved day-by-day eBird answers',
+    // Targets Remove confirmation
+    removeCountyTitle: 'Remove the bar-chart file for ' + county + '?',
+    removeCountyBody: 'The file for ' + county + ' will be removed from ' + here + ' and from iCloud. Every Mac, iPhone and iPad with iCloud Sync on removes its copy at its next check. Devices with sync off keep theirs.',
+    removeFromAllSynced: 'Remove from all synced devices',
+    // targetsCopy.ts
+    addFileTitle: 'Add ' + county + '’s eBird bar-chart file to sort by eBird frequency',
+    addFileLead: 'On ebird.org, open the county’s bar chart while signed in and choose ',
+    addFileAction: 'Download Histogram Data',
+    addFileTail: '.',
+    addFileSyncNote: 'With iCloud Sync on, a file you add here reaches your other synced devices too.',
+    inICloudTitle: 'A bar-chart file for ' + county + ' is in iCloud',
+    openLink: 'Open ' + county + '’s bar chart on ebird.org',
+    fileTitle: 'eBird bar chart, ' + county + ', 1900-2026, Jan-Dec',
+    joinDetail: '389 species matched, 41 forms skipped, 3 unmatched',
+    // Settings Bar-chart files
+    bcHeader: 'Bar-chart files',
+    bcDesc: 'County bar-chart files added on the Targets tab, for sorting by eBird frequency.',
+    bcSaved: function (n) { return 'Saved for ' + counted(n, 'county', 'counties') + ' on ' + here + '.'; },
+    bcNone: 'No bar-chart files are saved on ' + here + '.',
+    bcUnknown: 'Couldn’t check for bar-chart files on ' + here + '.',
+    bcButton: 'Remove all bar-chart files',
+    bcTitle: 'Remove all bar-chart files?',
+    bcBodyOff: function (n) { return filesFor(n) + ' will be removed from ' + here + '. Your eBird backup, ML export and API keys are not touched.'; },
+    bcBodyOn: function (n) { return filesFor(n) + ' will be removed from ' + here + ' and from iCloud. Every Mac, iPhone and iPad with iCloud Sync on removes its copies at its next check. Devices with sync off keep theirs. Your eBird backup, ML export and API keys are not touched.'; },
+    bcConfirmOff: 'Remove all',
+    bcPartial: function (k) { return filesFor(k) + ' could not be removed and ' + (k === 1 ? 'remains' : 'remain') + ' on ' + here + '. Try again.'; },
+    bcRemoved: function (n) { return 'Removed ' + filesForLower(n) + '.'; },
+    // Shared state vocabulary (icloudCopy.ts STATE_LABELS, unchanged)
+    states: {
+      'up-to-date': 'Up to date', uploading: 'Syncing, uploading', downloading: 'Syncing, downloading',
+      'in-icloud-not-downloaded': 'In iCloud, not downloaded here', 'waiting-to-upload': 'Waiting to upload',
+      unavailable: 'iCloud unavailable', off: 'Sync off', error: 'Could not sync'
+    },
+    reasonMismatch: 'The file in iCloud did not download completely.'
+  };
+
+  // ── Lucide glyphs (13px in a sync line, 12px inline) ──
+  var ICON = {
+    cloudCheck: '<path d="M5 17.743A7 7 0 1 1 15.71 10h1.79a4.5 4.5 0 0 1 1.5 8.742"/><path d="m17 15-5.5 5.5L9 18"/>',
+    cloudUp: '<path d="M12 13v8"/><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="m8 17 4-4 4 4"/>',
+    cloudDown: '<path d="M12 13v8l-4-4"/><path d="m12 21 4-4"/><path d="M4.393 15.269A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.436 8.284"/>',
+    cloudOff: '<path d="m2 2 20 20"/><path d="M5.782 5.782A7 7 0 0 0 9 19h8.5a4.5 4.5 0 0 0 1.307-.193"/><path d="M21.532 16.5A4.5 4.5 0 0 0 17.5 10h-1.79A7.008 7.008 0 0 0 10 5.07"/>',
+    alert: '<circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/>',
+    external: '<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>',
+    refresh: '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>',
+    file: '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/>'
+  };
+  function svg(name, size, sw) {
+    return '<svg width="' + size + '" height="' + size + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="' + (sw || 2.2) + '" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICON[name] + '</svg>';
+  }
+  function esc(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
+
+  var $ = function (id) { return document.getElementById(id); };
+  var reducedMq = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+  // ── Global demo state ──
+  var syncOn = true;
+  var tgState = 'up';
+  var bcState = '3';
+  var bcCount = 3;
+
+  // ── Mock chrome ──
+  function pressGroup(group, attr, value) {
+    Array.prototype.forEach.call(group.querySelectorAll('button[' + attr + ']'), function (b) {
+      b.setAttribute('aria-pressed', String(b.getAttribute(attr) === value));
+    });
+  }
+  document.querySelectorAll('[data-theme-pick]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      document.documentElement.setAttribute('data-theme', b.getAttribute('data-theme-pick'));
+      pressGroup(b.parentNode, 'data-theme-pick', b.getAttribute('data-theme-pick'));
+    });
+  });
+  document.querySelectorAll('[data-width]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var phone = b.getAttribute('data-width') === 'phone';
+      document.querySelectorAll('.frame').forEach(function (f) { f.classList.toggle('phone', phone); });
+      pressGroup(b.parentNode, 'data-width', b.getAttribute('data-width'));
+    });
+  });
+  document.querySelectorAll('[data-scale]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      document.documentElement.style.setProperty('--sr-text-scale', b.getAttribute('data-scale'));
+      pressGroup(b.parentNode, 'data-scale', b.getAttribute('data-scale'));
+    });
+  });
+  document.querySelectorAll('[data-sync]').forEach(function (b) {
+    b.addEventListener('click', function () { setSync(b.getAttribute('data-sync') === 'on', false); });
+  });
+
+  function setSync(on, viaSwitch) {
+    syncOn = on;
+    pressGroup(document.querySelector('[data-sync]').parentNode, 'data-sync', on ? 'on' : 'off');
+    $('ics-switch').setAttribute('aria-checked', String(on));
+    $('key-note').hidden = on;
+    $('key-switch').setAttribute('aria-disabled', String(!on));
+    if (!on) $('key-switch').setAttribute('aria-checked', 'false');
+    $('ics-status').textContent = on ? 'Last checked Sep 28, 2026 at 8:02 AM' : 'Last checked Sep 28, 2026 at 8:02 AM';
+    $('check-now').hidden = !on;
+    document.querySelectorAll('[data-sync-only]').forEach(function (el) { el.innerHTML = on ? el.innerHTML || '' : ''; if (!on) el.textContent = ''; });
+    renderTargets();
+    renderBarChartFiles();
+  }
+
+  // ── Dialog shell: scale in from the trigger, trap focus, one close path ──
+  var openDlg = null, openTrigger = null, fallbackFocus = null;
+  function openDialog(id, trigger, initialFocus, fallback) {
+    var root = $(id), panel = root.querySelector('.sr-dlg');
+    openDlg = root; openTrigger = trigger; fallbackFocus = fallback || null;
+    root.hidden = false;
+    // Origin-aware: transform-origin at the centre of the trigger, in the panel's space.
+    requestAnimationFrame(function () {
+      var pr = panel.getBoundingClientRect();
+      if (trigger && trigger.getBoundingClientRect) {
+        var tr = trigger.getBoundingClientRect();
+        panel.style.transformOrigin = (tr.left + tr.width / 2 - pr.left) + 'px ' + (tr.top + tr.height / 2 - pr.top) + 'px';
+      } else panel.style.transformOrigin = '50% 50%';
+      root.classList.add('sr-dlg-root--open');
+      var f = focusables(panel);
+      (initialFocus === 'first' ? f[0] : f[f.length - 1]).focus();
+    });
+  }
+  function closeDialog() {
+    if (!openDlg) return;
+    var root = openDlg, panel = root.querySelector('.sr-dlg');
+    root.classList.remove('sr-dlg-root--open');
+    root.classList.add('sr-dlg-root--closing');
+    var done = false;
+    function finish() {
+      if (done) return; done = true;
+      root.classList.remove('sr-dlg-root--closing');
+      root.hidden = true;
+      panel.removeEventListener('transitionend', onEnd);
+      var t = openTrigger;
+      var alive = t && document.contains(t) && !t.disabled && t.getAttribute('aria-disabled') !== 'true';
+      var target = alive ? t : (fallbackFocus ? fallbackFocus() : null);
+      if (target) target.focus();
+      openDlg = null; openTrigger = null; fallbackFocus = null;
+    }
+    function onEnd(e) { if (e.target === panel && e.propertyName === 'opacity') finish(); }
+    panel.addEventListener('transitionend', onEnd);
+    setTimeout(finish, reducedMq.matches ? 10 : 130);
+  }
+  function focusables(root) {
+    return Array.prototype.filter.call(root.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'), function (el) { return !el.disabled && el.offsetParent !== null; });
+  }
+  document.querySelectorAll('.sr-dlg-root').forEach(function (root) {
+    root.addEventListener('mousedown', function (e) { if (e.target === root) closeDialog(); });
+    root.querySelectorAll('[data-close]').forEach(function (b) { b.addEventListener('click', closeDialog); });
+  });
+  document.addEventListener('keydown', function (e) {
+    if (!openDlg) return;
+    if (e.key === 'Escape') { e.preventDefault(); closeDialog(); return; }
+    if (e.key === 'Tab') {
+      var f = focusables(openDlg), first = f[0], last = f[f.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    }
+  });
+  // Contain focus on focusin (the shared hook's posture).
+  document.addEventListener('focusin', function (e) {
+    if (openDlg && !openDlg.contains(e.target)) { var f = focusables(openDlg); if (f[0]) f[0].focus(); }
+  });
+
+  // ── Scene 1: Targets ──
+  function syncLineHTML(state, more, action, error) {
+    var iconName = { 'up-to-date': 'cloudCheck', uploading: 'cloudUp', downloading: 'cloudDown', 'in-icloud-not-downloaded': 'cloudDown', 'waiting-to-upload': 'cloudUp', unavailable: 'cloudOff', off: 'cloudOff', error: 'alert' }[state];
+    var html = '<span class="sr-sync-state' + (error ? ' sr-sync-state--error' : '') + '">' + svg(iconName, 13) + esc(COPY.states[state]) + '</span>';
+    if (more) html += '<span class="sr-only">. </span><span class="sr-sync-more"><span class="sr-sync-sep" aria-hidden="true">·</span> ' + esc(more) + '</span>';
+    if (action === 'download') html += '<button type="button" class="sr-btn-quiet sr-btn-inline" data-act="download">Download now</button>';
+    if (action === 'retry') html += '<button type="button" class="sr-btn-quiet sr-btn-inline" data-act="retry">Retry</button>';
+    return html;
+  }
+  function setSyncLine(el, html) {
+    // Cross-fade between views; first fill and clear-to-empty instant; reduced motion instant.
+    var instant = !el.innerHTML || !html || reducedMq.matches;
+    if (instant) { el.innerHTML = html; return; }
+    el.classList.add('sr-sync-line--fading');
+    setTimeout(function () { el.innerHTML = html; el.classList.remove('sr-sync-line--fading'); }, 120);
+  }
+  function detailPresent() {
+    return esc(COPY.joinDetail) + ' · <button type="button" class="sr-tg-link" aria-expanded="false">Show unmatched</button> · ' + esc(filename);
+  }
+  function actionsPresent() {
+    return '<button type="button" class="sr-btn-quiet" data-act="replace">Replace</button><button type="button" class="sr-btn-quiet sr-btn-quiet--danger" data-act="remove">Remove</button>';
+  }
+  function actionsAbsent() {
+    return '<button type="button" class="sr-btn-accent" data-act="add">' + svg('file', 13) + 'Add file</button>';
+  }
+  function pageLink() {
+    return '<button type="button" class="sr-tg-link">' + esc(COPY.openLink) + svg('external', 12) + '<span class="sr-only"> (opens in a new tab)</span></button>';
+  }
+  function renderTargets() {
+    var title = $('tg-title'), detail = $('tg-detail'), line = $('tg-sync'), actions = $('tg-actions');
+    $('tg-alert').textContent = '';
+    var lineHTML = '';
+    var hasFile = tgState !== 'absent' && tgState !== 'notdl-empty';
+    if (hasFile) {
+      title.textContent = COPY.fileTitle;
+      detail.innerHTML = detailPresent();
+      actions.innerHTML = actionsPresent();
+      if (syncOn) {
+        switch (tgState) {
+          case 'up': lineHTML = syncLineHTML('up-to-date', 'From this device'); break;
+          case 'replaced': lineHTML = syncLineHTML('up-to-date', 'Replaced by the file from ' + otherDevice + ', uploaded Sep 27, 2026 at 9:41 AM'); break;
+          case 'notdl': lineHTML = syncLineHTML('in-icloud-not-downloaded', 'From ' + otherDevice + ', uploaded Sep 28, 2026 at 7:12 AM', 'download'); break;
+          case 'uploading': lineHTML = syncLineHTML('uploading', 'From this device'); break;
+          case 'waiting': lineHTML = syncLineHTML('waiting-to-upload', 'From this device'); break;
+          case 'error': lineHTML = syncLineHTML('error', COPY.reasonMismatch, 'retry', true); break;
+        }
+      }
+    } else if (tgState === 'notdl-empty' && syncOn) {
+      title.textContent = COPY.inICloudTitle;
+      detail.innerHTML = esc(COPY.addFileLead) + '<b>' + esc(COPY.addFileAction) + '</b>' + esc(COPY.addFileTail) + ' ' + pageLink();
+      actions.innerHTML = actionsAbsent();
+      lineHTML = syncLineHTML('in-icloud-not-downloaded', 'From ' + otherDevice + ', uploaded Sep 28, 2026 at 7:12 AM', 'download');
+    } else {
+      title.textContent = COPY.addFileTitle;
+      detail.innerHTML = esc(COPY.addFileLead) + '<b>' + esc(COPY.addFileAction) + '</b>' + esc(COPY.addFileTail) + ' ' + (syncOn ? esc(COPY.addFileSyncNote) + ' ' : '') + pageLink();
+      actions.innerHTML = actionsAbsent();
+    }
+    setSyncLine(line, lineHTML);
+    // Probability column follows the file.
+    var pcts = hasFile ? ['3.62', '2.14', '0.08'] : ['No file', 'No file', 'No file'];
+    [1, 2, 3].forEach(function (i, k) {
+      var el = $('tg-pct-' + i);
+      el.innerHTML = hasFile ? pcts[k] + '<i>%</i><span class="bar"><b style="width:' + [36, 21, 2][k] + '%"></b></span>' : '<span style="font-weight:500;color:var(--sr-text-muted)">No file for ' + esc(county) + '</span>';
+    });
+  }
+  document.querySelectorAll('#tg-state-seg button').forEach(function (b) {
+    b.addEventListener('click', function () { tgState = b.getAttribute('data-tg'); pressGroup(b.parentNode, 'data-tg', tgState); renderTargets(); });
+  });
+  function setTgState(s) { tgState = s; pressGroup($('tg-state-seg'), 'data-tg', s); renderTargets(); }
+  $('tg-card').addEventListener('click', function (e) {
+    var act = e.target.closest('[data-act]'); if (!act) return;
+    var a = act.getAttribute('data-act');
+    if (a === 'remove') {
+      if (syncOn) {
+        $('dlg-remove-county-title').textContent = COPY.removeCountyTitle;
+        $('dlg-remove-county-body').textContent = COPY.removeCountyBody;
+        document.querySelector('[data-confirm="remove-county"]').textContent = COPY.removeFromAllSynced;
+        openDialog('dlg-remove-county', act, 'first', function () { return $('tg-actions').querySelector('button'); });
+      } else {
+        setTgState('absent');  // sync off: the instant local action it is today
+      }
+    } else if (a === 'add' || a === 'replace') {
+      setTgState(syncOn ? 'uploading' : 'up');
+      if (syncOn) setTimeout(function () { if (tgState === 'uploading') setTgState('up'); }, 1800);
+    } else if (a === 'download') {
+      setTgState('replaced');
+    } else if (a === 'retry') {
+      setTgState('up');
+    }
+  });
+  document.querySelector('[data-confirm="remove-county"]').addEventListener('click', function () {
+    closeDialog();
+    setTimeout(function () { setTgState('absent'); }, 60);
+  });
+
+  // ── Scene 2: Settings ──
+  $('ics-desc').textContent = COPY.icsDescription;
+  $('ics-switch').addEventListener('click', function () {
+    if (syncOn) { setSync(false, true); return; }
+    // Turning on: the note first; nothing is written until Turn on.
+    var body = $('dlg-enable-body');
+    var items = [
+      ['What goes to iCloud', COPY.enableWhatGoes],
+      ['Whose account', COPY.enableWhose],
+      ['What happens now', COPY.enableNow],
+      ['Turning it off', COPY.enableOff]
+    ];
+    body.innerHTML = items.map(function (it) { return '<div class="sr-dlg-item"><p class="sr-dlg-lead">' + esc(it[0]) + '</p><p class="sr-dlg-text">' + esc(it[1]) + '</p></div>'; }).join('');
+    openDialog('dlg-enable', $('ics-switch'), 'last');
+  });
+  document.querySelector('[data-confirm="enable"]').addEventListener('click', function () { closeDialog(); setSync(true, true); });
+  $('key-switch').addEventListener('click', function () {
+    if (this.getAttribute('aria-disabled') === 'true') return;
+    this.setAttribute('aria-checked', String(this.getAttribute('aria-checked') !== 'true'));
+  });
+  $('btn-remove-synced').addEventListener('click', function () {
+    var files = ['MyEBirdData.csv', 'ML__2026-09-20T12-05_audio_photo_video.csv'];
+    if (bcCount > 0) files.push(COPY.removeSyncedCountyLine(bcCount));
+    files.push(COPY.removeSyncedDayLine);
+    $('dlg-remove-synced-files').innerHTML = files.map(function (f) { return '<li>' + esc(f) + '</li>'; }).join('');
+    $('dlg-remove-synced-outro').textContent = COPY.removeOutro;
+    openDialog('dlg-remove-synced', this, 'first', function () { return $('ics-switch'); });
+  });
+  document.querySelector('[data-confirm="remove-synced"]').addEventListener('click', closeDialog);
+
+  // Bar-chart files section
+  $('bc-header').textContent = COPY.bcHeader;
+  $('bc-desc').textContent = COPY.bcDesc;
+  function renderBarChartFiles() {
+    var btn = $('bc-button'), status = $('bc-status'), alert = $('bc-alert');
+    btn.textContent = COPY.bcButton;
+    var canAct = bcState !== '0' && bcState !== 'unknown';
+    btn.setAttribute('aria-disabled', String(!canAct));
+    alert.textContent = '';
+    if (bcState === 'unknown') {
+      status.innerHTML = esc(COPY.bcUnknown) + ' <button type="button" class="sr-tg-link" data-bc-retry>' + svg('refresh', 12) + 'Retry</button>';
+    } else if (bcState === '0') {
+      status.textContent = COPY.bcNone;
+    } else if (bcState === 'partial') {
+      bcCount = 1;
+      status.textContent = COPY.bcSaved(1);
+      alert.textContent = COPY.bcPartial(1);
+    } else {
+      status.textContent = COPY.bcSaved(bcCount);
+    }
+  }
+  document.querySelectorAll('#bc-state-seg button').forEach(function (b) {
+    b.addEventListener('click', function () {
+      bcState = b.getAttribute('data-bc');
+      bcCount = bcState === '3' ? 3 : bcState === '1' ? 1 : bcState === 'partial' ? 1 : 0;
+      $('bc-announce').textContent = '';
+      pressGroup(b.parentNode, 'data-bc', bcState); renderBarChartFiles();
+    });
+  });
+  $('bc-status').addEventListener('click', function (e) {
+    if (e.target.closest('[data-bc-retry]')) { bcState = '3'; bcCount = 3; pressGroup($('bc-state-seg'), 'data-bc', '3'); renderBarChartFiles(); }
+  });
+  $('bc-button').addEventListener('click', function () {
+    if (this.getAttribute('aria-disabled') === 'true') return;   // focusable, inert, reason beside it
+    $('dlg-clear-all-title').textContent = COPY.bcTitle;
+    $('dlg-clear-all-body').textContent = syncOn ? COPY.bcBodyOn(bcCount) : COPY.bcBodyOff(bcCount);
+    document.querySelector('[data-confirm="clear-all"]').textContent = syncOn ? COPY.removeFromAllSynced : COPY.bcConfirmOff;
+    openDialog('dlg-clear-all', this, 'first', function () { return $('bc-button'); });
+  });
+  document.querySelector('[data-confirm="clear-all"]').addEventListener('click', function () {
+    closeDialog();
+    var removed = bcCount;
+    setTimeout(function () {
+      bcState = '0'; bcCount = 0;
+      pressGroup($('bc-state-seg'), 'data-bc', '0');
+      renderBarChartFiles();
+      $('bc-announce').textContent = COPY.bcRemoved(removed);
+      // The Targets tab reflects it without a relaunch.
+      if (tgState !== 'absent') setTgState('absent');
+    }, 60);
+  });
+
+  renderTargets();
+  renderBarChartFiles();
+})();
+</script>
+</body>
+</html>
