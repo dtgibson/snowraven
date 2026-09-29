@@ -63,6 +63,15 @@ describe('icloudNative refuses a county code that fails the shared predicate bef
     expect(none.failed).toEqual(bad)
   })
 
+  it('the repair digest reaches the push command by name (decisions.md entry 19), and a plain push sends it as null', async () => {
+    invoke.mockImplementation(async () => ({ sha256: 'x', byteLength: 1, uploaded: true, skipped: false }))
+    const item = { kind: 'barchart' as const, county: 'US-CA-001' }
+    await icloudNative.pushItem(item, 'f.txt', '2026-09-20T12:05:00.000Z', ORIGIN, null, 'b'.repeat(64))
+    await icloudNative.pushItem(item, 'f.txt', '2026-09-20T12:05:00.000Z', ORIGIN, null)
+    expect(invoke.mock.calls.map(c => c[0])).toEqual(['icloud_push_item', 'icloud_push_item'])
+    expect(invoke.mock.calls.map(c => (c[1] as { repairSha256: unknown }).repairSha256)).toEqual(['b'.repeat(64), null])
+  })
+
   it('a day-obs item names a 32-hex device id or nothing reaches the native side', async () => {
     invoke.mockImplementation(async () => ({ removed: 0 }))
     await icloudNative.removeItem({ kind: 'day-obs', deviceId: 'f'.repeat(32) })

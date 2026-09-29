@@ -43,7 +43,10 @@ interface CountyItem {
   record: string | null
   recordPresent: boolean
   recordDownloaded: boolean
-  file: { present: boolean; downloaded: boolean }
+  /** what the LISTING reports when it lags the container (the record here changed after the listing read it) */
+  listedRecord?: string
+  /** byteLength: the file's on-disk length as the listing reports it (1234 when unset) */
+  file: { present: boolean; downloaded: boolean; byteLength?: number | null }
   /** NSURLUbiquitousItemIsUploadedKey for the file and its record, as the listing reports it */
   uploaded: boolean
 }
@@ -56,7 +59,9 @@ function makeNative() {
   const fail: Partial<Record<string, ICloudNativeError>> = {}
   // landRecordAfterListing: a record a listing reported unread has come down
   // by the next listing (the download that listing asked for landed).
-  const knobs = { landOnStartDownload: false, pushUploaded: true, landRecordAfterListing: false }
+  // listingPending: the kind's directory is in iCloud but not here yet (native
+  // `pending`), until a test clears it.
+  const knobs = { landOnStartDownload: false, pushUploaded: true, landRecordAfterListing: false, listingPending: false }
   let holdCleared: { release: () => void } | null = null
   const hooks = { holdNextCleared: false }
   const put = (county: string, r: SharedRecord | null, fileDownloaded = true, uploaded = true) => {
@@ -70,8 +75,8 @@ function makeNative() {
   const listed = (): NativeListedItem[] => [...counties.entries()].map(([id, c]) => ({
     id,
     present: c.recordPresent,
-    record: c.recordPresent && c.recordDownloaded ? c.record : null,
-    file: { present: c.file.present, downloaded: c.file.downloaded, downloading: false, byteLength: c.file.present ? 1234 : null, uploaded: c.file.present && c.uploaded },
+    record: c.recordPresent && c.recordDownloaded ? (c.listedRecord ?? c.record) : null,
+    file: { present: c.file.present, downloaded: c.file.downloaded, downloading: false, byteLength: c.file.present ? (c.file.byteLength === undefined ? 1234 : c.file.byteLength) : null, uploaded: c.file.present && c.uploaded },
   }))
   const empty = { present: false, downloaded: false, downloading: false, byteLength: null, uploaded: false, uploading: false }
   const native: ICloudNativeLayer = {
@@ -83,6 +88,7 @@ function makeNative() {
     async startDownload(slot) { rec('startDownload', slot) },
     async removeAll() {
       rec('removeAll')
+      if (fail.removeAll) throw fail.removeAll
       const removed = counties.size
       counties.clear()
       return { removed }
@@ -94,16 +100,31 @@ function makeNative() {
     async listItems(kind) {
       rec('listItems', kind)
       if (fail.listItems) throw fail.listItems
+      if (kind === 'barchart' && knobs.listingPending) return { items: [], truncated: false, pending: true }
       const items = kind === 'barchart' ? listed() : []
       if (kind === 'barchart' && knobs.landRecordAfterListing) {
         for (const c of counties.values()) if (c.recordPresent) c.recordDownloaded = true
       }
       return { items, truncated: false }
     },
-    async pushItem(item: SyncItemRef, filename, uploadedAt, origin, unless) {
-      rec('pushItem', item, filename, uploadedAt, origin, unless)
+    async pushItem(item: SyncItemRef, filename, uploadedAt, origin, unless, repair) {
+      rec('pushItem', item, filename, uploadedAt, origin, unless, repair)
       if (item.kind === 'day-obs') throw new ICloudNativeError('local-missing')
       if (fail.pushItem) throw fail.pushItem
+      if (typeof repair === 'string') {
+        // The native repair: the county FILE only, and only for the digest the
+        // local bytes have (SHA, as every local file in this harness); the
+        // record is never touched, and nothing is written unless the record
+        // in the container still names this device's copy (the re-read).
+        if (repair !== SHA) return { sha256: SHA, byteLength: 1234, uploaded: false, skipped: true }
+        const c = counties.get(item.county)
+        const now = c?.record ? validateCountyRecord(c.record, item.county, clock) : null
+        if (!now?.ok || now.record.state !== 'file' || now.record.origin.deviceId !== origin.deviceId || now.record.sha256 !== SHA) {
+          return { sha256: SHA, byteLength: 1234, uploaded: false, skipped: false, superseded: true }
+        }
+        if (c) { c.file = { present: true, downloaded: true }; c.uploaded = knobs.pushUploaded }
+        return { sha256: SHA, byteLength: 1234, uploaded: knobs.pushUploaded, skipped: false }
+      }
       put(item.county, { ...countyFile(item.county, uploadedAt, origin.deviceId, filename), origin: { ...origin } }, true, knobs.pushUploaded)
       return { sha256: SHA, byteLength: 1234, uploaded: knobs.pushUploaded, skipped: false }
     },
@@ -984,5 +1005,174 @@ describe('device pass on 1.0.40.2: a change another device made is read here wit
     // Unread all along: the local file stays and nothing is pushed over it.
     expect(st.manifest.counties[CA].filename).toBe('mine.txt')
     expect(n.cmds('pushItem').filter(x => (x.args[0] as SyncItemRef).kind === 'barchart')).toHaveLength(0)
+  })
+})
+
+describe('device pass on 1.0.40.3: the writing device repairs a county file iCloud does not hold under its name', () => {
+  // The writing device's half (decisions.md entry 19). A pre-fix push onto a
+  // name the first device's file held only as a placeholder here left this
+  // device's file beside it, never uploaded under the name: this device's
+  // record reached iCloud (the listing always reads a record current before a
+  // push), its file did not, and every later check decided `none` (the record
+  // is this device's own, identical to the manifest) and showed "Waiting to
+  // upload", while the other device, reading that record, found its own old
+  // file or none under the name. Nothing ever wrote the file again. The native
+  // write now clears the name first (icloud.rs, `clear_way`); these rows are
+  // the controller's repair of what earlier builds left in the container.
+  const RECHECK = 1_000
+  const fakeTimers = () => vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] })
+  const step = async (intervals: number) => {
+    for (let i = 0; i < intervals; i++) await vi.advanceTimersByTimeAsync(RECHECK)
+  }
+  const barchartPushes = (n: ReturnType<typeof makeNative>) => n.cmds('pushItem').filter(x => (x.args[0] as SyncItemRef).kind === 'barchart')
+  // This device's own county: pushed here at T_NEW, the record in iCloud is ours.
+  const ours = () => {
+    const n = makeNative()
+    n.put(CA, countyFile(CA, T_NEW, ME))
+    const st = makeStorage({ [CA]: { filename: 'mine.txt', uploadedAt: T_NEW, origin: MINE } })
+    return { n, st }
+  }
+
+  it('our record is in iCloud and no file is under its name: the file alone is written again, for the digest the record names, and the next check leaves it', async () => {
+    const { n, st } = ours()
+    n.counties.get(CA)!.file = { present: false, downloaded: false }
+    const recordBefore = n.counties.get(CA)!.record
+    const { c } = await bootOn(n, st)
+    const pushes = barchartPushes(n)
+    expect(pushes).toHaveLength(1)
+    expect(pushes[0].args[5]).toBe(SHA) // the repair digest: the record's own
+    expect(pushes[0].args[2]).toBe(T_NEW)
+    expect(n.counties.get(CA)!.record).toBe(recordBefore) // never rewritten
+    expect(getICloudState().barCharts[CA]).toMatchObject({ state: 'up-to-date', fromThisDevice: true })
+    clock += 60_000
+    await c.checkNow()
+    expect(barchartPushes(n)).toHaveLength(1)
+    expect(getICloudState().barCharts[CA]?.state).toBe('up-to-date')
+  })
+
+  it('a county is repaired at most once a session: a file that still does not read as held is left on Waiting to upload, and a failed repair is tried again', async () => {
+    const { n, st } = ours()
+    n.counties.get(CA)!.file = { present: false, downloaded: false }
+    n.fail.pushItem = new ICloudNativeError('unavailable')
+    const { c } = await bootOn(n, st)
+    expect(getICloudState().barCharts[CA]).toMatchObject({ state: 'error', reason: REASONS.unavailable })
+    delete n.fail.pushItem
+    clock += 60_000
+    await c.checkNow()
+    expect(barchartPushes(n)).toHaveLength(2)
+    // The flags never catch up (the file still reads as absent): no third write.
+    n.counties.get(CA)!.file = { present: false, downloaded: false }
+    clock += 60_000
+    await c.checkNow()
+    expect(barchartPushes(n)).toHaveLength(2)
+    expect(getICloudState().barCharts[CA]?.state).toBe('waiting-to-upload')
+  })
+
+  it('the peer\'s newer file reaches this device before its record: the repair re-read finds the record no longer ours, touches nothing, and the re-read pulls the peer\'s version', async () => {
+    fakeTimers()
+    const n = makeNative()
+    // The container already holds the peer's newer record; the listing still
+    // reports this device's own (the peer's file reached here first).
+    n.put(CA, countyFile(CA, T_NEW, PEER), false)
+    n.counties.get(CA)!.listedRecord = serializeRecord(countyFile(CA, T_OLD, ME))
+    const st = makeStorage({ [CA]: { filename: 'mine.txt', uploadedAt: T_OLD, origin: MINE } })
+    const { c } = await bootOn(n, st, { uploadRecheckMs: RECHECK })
+    const pushes = barchartPushes(n)
+    expect(pushes.map(p => p.args[5])).toEqual([SHA]) // the repair was asked, and refused natively
+    expect(n.shared(CA)).toMatchObject({ uploadedAt: T_NEW, origin: { deviceId: PEER } })
+    expect(getICloudState().barCharts[CA]?.state).toBe('downloading')
+    // The listing catches up and the file lands: the re-read pulls it, with no
+    // whole push and no second repair.
+    delete n.counties.get(CA)!.listedRecord
+    n.counties.get(CA)!.file.downloaded = true
+    const runs = c.checksRun
+    await step(1)
+    expect(c.checksRun).toBe(runs + 1)
+    expect(barchartPushes(n)).toHaveLength(1)
+    expect(st.manifest.counties[CA]).toMatchObject({ uploadedAt: T_NEW, origin: { deviceId: PEER } })
+    expect(getICloudState().barCharts[CA]?.state).toBe('up-to-date')
+  })
+
+  it('Remove synced files that iCloud refuses (a folder it could not take) reports the failure, never success: the shared set stays', async () => {
+    const { n, st } = ours()
+    const { c } = await bootOn(n, st)
+    expect(getICloudState().sharedCountyCodes).toEqual([CA])
+    n.fail.removeAll = new ICloudNativeError('unavailable')
+    await expect(c.removeFromICloud()).rejects.toMatchObject({ code: 'unavailable' })
+    expect(getICloudState().sharedCountyCodes).toEqual([CA])
+  })
+
+  it('the name holds a file of another length (the other device\'s old one): repaired', async () => {
+    const { n, st } = ours()
+    n.counties.get(CA)!.file = { present: true, downloaded: true, byteLength: 999 }
+    await bootOn(n, st)
+    expect(barchartPushes(n).map(p => p.args[5])).toEqual([SHA])
+  })
+
+  it('the name holds only a placeholder, or is contested (never reported downloaded): repaired', async () => {
+    for (const byteLength of [null, 1234]) {
+      resetICloudState()
+      const { n, st } = ours()
+      n.counties.get(CA)!.file = { present: true, downloaded: false, byteLength }
+      await bootOn(n, st)
+      expect(barchartPushes(n).map(p => p.args[5])).toEqual([SHA])
+    }
+  })
+
+  it('a digest the local file does not have writes nothing, and the county is pushed whole instead', async () => {
+    const { n, st } = ours()
+    const rec = countyFile(CA, T_NEW, ME)
+    n.counties.get(CA)!.record = serializeRecord({ ...rec, sha256: 'c'.repeat(64) } as SharedRecord)
+    n.counties.get(CA)!.file = { present: false, downloaded: false }
+    await bootOn(n, st)
+    const pushes = barchartPushes(n)
+    expect(pushes.map(p => p.args[5] ?? null)).toEqual(['c'.repeat(64), null])
+    expect(n.shared(CA)).toMatchObject({ sha256: SHA, uploadedAt: T_NEW })
+  })
+
+  it('a file missing under ANOTHER device\'s record is never written here, and a healthy county of ours is never rewritten', async () => {
+    const n = makeNative()
+    n.put(CA, countyFile(CA, T_NEW, PEER))
+    n.counties.get(CA)!.file = { present: false, downloaded: false }
+    n.put(NY, countyFile(NY, T_NEW, ME))
+    const st = makeStorage({
+      [CA]: { filename: 'theirs.txt', uploadedAt: T_NEW, origin: { deviceId: PEER, label: 'iPhone', platform: 'iphone' } },
+      [NY]: { filename: 'mine.txt', uploadedAt: T_NEW, origin: MINE },
+    })
+    await bootOn(n, st)
+    expect(barchartPushes(n)).toHaveLength(0)
+    expect(getICloudState().barCharts[NY]?.state).toBe('up-to-date')
+  })
+
+  it('the kind\'s directory has not come down yet: no county is pushed into a second one, the rows say downloading, and the re-read pushes once it is here', async () => {
+    fakeTimers()
+    const n = makeNative()
+    n.knobs.listingPending = true
+    const st = makeStorage({ [CA]: { filename: 'mine.txt', uploadedAt: T_OLD, origin: MINE } })
+    const { c } = await bootOn(n, st, { uploadRecheckMs: RECHECK })
+    expect(barchartPushes(n)).toHaveLength(0)
+    expect(getICloudState().barCharts[CA]?.state).toBe('downloading')
+    const runs = c.checksRun
+    n.knobs.listingPending = false
+    await step(1)
+    expect(c.checksRun).toBe(runs + 1)
+    expect(barchartPushes(n)).toHaveLength(1)
+    expect(getICloudState().barCharts[CA]?.state).toBe('up-to-date')
+  })
+
+  it('a pull that finds the old file under the name says Could not sync and re-reads; the re-read pulls once the new file is there', async () => {
+    fakeTimers()
+    const n = makeNative()
+    n.put(CA, countyFile(CA, T_NEW, PEER))
+    n.fail.pullItem = new ICloudNativeError('mismatch')
+    const st = makeStorage({ [CA]: { filename: 'mine.txt', uploadedAt: T_OLD, origin: MINE } })
+    const { c } = await bootOn(n, st, { uploadRecheckMs: RECHECK })
+    expect(getICloudState().barCharts[CA]).toMatchObject({ state: 'error', reason: REASONS.mismatch })
+    const runs = c.checksRun
+    delete n.fail.pullItem
+    await step(1)
+    expect(c.checksRun).toBe(runs + 1)
+    expect(st.manifest.counties[CA]).toMatchObject({ uploadedAt: T_NEW, origin: { deviceId: PEER } })
+    expect(getICloudState().barCharts[CA]?.state).toBe('up-to-date')
   })
 })

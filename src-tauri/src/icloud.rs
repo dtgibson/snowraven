@@ -581,6 +581,11 @@ pub struct ListedItem {
 pub struct ListResult {
     pub items: Vec<ListedItem>,
     pub truncated: bool,
+    /// The kind's directory is in iCloud but not on this device yet (only its
+    /// placeholder is here; its download has been requested). Nothing was
+    /// read, and nothing may be decided from this listing: the frontend
+    /// re-reads shortly rather than treating the kind as empty.
+    pub pending: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -589,8 +594,13 @@ pub struct ItemPushResult {
     pub sha256: String,
     pub byte_length: u64,
     pub uploaded: bool,
-    /// The digest equalled `unless_sha256`, so nothing was written.
+    /// The digest equalled `unless_sha256` (or differed from `repair_sha256`),
+    /// so nothing was written.
     pub skipped: bool,
+    /// Repair mode only: the county's record in the container no longer names
+    /// this device's current copy (another device's newer version is arriving),
+    /// so nothing was written and the normal pass handles the county.
+    pub superseded: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -1179,6 +1189,87 @@ fn atomic_container_write(docs: &Path, target_name: &str, device_id: &str, bytes
                 return Err("unavailable".to_string());
             }
         }
+    }
+    let url = file_url(&target);
+    let result = coordinated_write(&url, NSFileCoordinatorWritingOptions::ForReplacing, |dst| replace_item(&tmp, dst));
+    if result.is_err() {
+        let _ = fs::remove_file(&tmp);
+    }
+    result
+}
+
+/// How many times `clear_way` deletes before it gives up: a name can be held by
+/// a regular file and a placeholder at once (two deletes), plus one spare.
+const CLEAR_WAY_ATTEMPTS: usize = 3;
+
+/// Make sure the name a write is about to take is held by nothing, or by a
+/// copy of that name's item that Foundation reports `Current` (decisions.md
+/// entry 19). The rename that lands every write replaces a regular file at the
+/// name, and that is how the two-file sync has always updated its items: over
+/// a copy this device holds current, because it downloads every newer version
+/// a peer writes before it could ever push over one. It does not reach an
+/// item held only as a PLACEHOLDER (`.<name>.icloud`), which the county file
+/// on a second device typically is: the first device's version, never
+/// downloaded here because this device's own copy was the newer one. The
+/// rename then creates a second item of the same name beside the placeholder,
+/// which iCloud does not upload under that name (the row stays on "Waiting to
+/// upload"), while the peer, reading this device's newer record, finds its own
+/// old file or none under the name ("Could not sync"). The same is true of a
+/// local copy iCloud reports out of date. So such an item is deleted first,
+/// through the coordinated delete on its LOGICAL URL, which NSFileManager
+/// carries out as the deletion of the iCloud item a placeholder stands for,
+/// and the write then creates its item at a free name: the replacement the
+/// rename already means for a current copy, made explicit where the rename
+/// cannot make it. A current copy, or nothing, is left to the rename exactly
+/// as before, so the two-file sync's own case is unchanged. Bounded: at most
+/// `CLEAR_WAY_ATTEMPTS` deletes, then `unavailable`, and the write is refused
+/// rather than leaving two items under one name.
+fn clear_way<I: ContainerIo>(io: &I, dir: &Path, name: &str) -> Result<(), String> {
+    for _ in 0..CLEAR_WAY_ATTEMPTS {
+        let path = dir.join(name);
+        let placeholder = is_regular_file(&placeholder_path(dir, name));
+        let on_disk = is_regular_file(&path);
+        if !placeholder && (!on_disk || io.flags(&path).downloaded) {
+            return Ok(());
+        }
+        io.delete(dir, name)?;
+    }
+    Err("unavailable".to_string())
+}
+
+/// The COUNTY kind's write (a county file, its record, a cleared marker):
+/// the shipped staging and coordinated rename of `atomic_container_write`,
+/// with `clear_way` before the rename and no directory creation of its own.
+/// Scoped to the county kind at review (decisions.md entry 19, follow-up 1):
+/// the data files, the key record and the day-obs snapshots keep the shipped
+/// helper, byte for byte, because their flows never write over a name this
+/// device does not hold current and they work on every device.
+fn county_container_write<I: ContainerIo>(io: &I, docs: &Path, target_name: &str, device_id: &str, bytes: &[u8]) -> Result<(), String> {
+    if !valid_device_id(device_id) {
+        return Err("unknown".to_string());
+    }
+    let target = docs.join(target_name);
+    let (dir, name) = match (target.parent(), target.file_name().and_then(|n| n.to_str())) {
+        (Some(d), Some(n)) => (d.to_path_buf(), n.to_string()),
+        _ => return Err("unknown".to_string()),
+    };
+    // Never create the target's directory here: an uncoordinated mkdir of a
+    // kind's subdirectory is how a second, same-named directory is made while
+    // iCloud's is still on its way (`ensure_subdir_with` owns that).
+    if !fs::symlink_metadata(&dir).map(|m| m.file_type().is_dir()).unwrap_or(false) {
+        return Err("unavailable".to_string());
+    }
+    let tmp_dir = docs.join(".tmp");
+    fs::create_dir_all(&tmp_dir).map_err(|_| "unavailable".to_string())?;
+    // A crash between a previous write and its rename leaves a complete copy
+    // in the staging dir, inside the container; clear this device's stale
+    // entries before staging a new one.
+    clear_staging(&tmp_dir, Some(device_id));
+    let tmp = tmp_dir.join(format!("{}-{}", device_id, staging_name(target_name)));
+    fs::write(&tmp, bytes).map_err(|_| "unavailable".to_string())?;
+    if let Err(e) = clear_way(io, &dir, &name) {
+        let _ = fs::remove_file(&tmp);
+        return Err(e);
     }
     let url = file_url(&target);
     let result = coordinated_write(&url, NSFileCoordinatorWritingOptions::ForReplacing, |dst| replace_item(&tmp, dst));
@@ -1803,18 +1894,39 @@ fn real_subdir(docs: &Path, kind: ItemKind) -> Option<PathBuf> {
     }
 }
 
-/// The kind's subdirectory for a WRITE: a symlink or a file planted at its
-/// name is removed as such (never followed, so no write can land outside the
-/// container), then the directory is created.
-fn ensure_subdir(docs: &Path, kind: ItemKind) -> Result<PathBuf, String> {
+/// The kind's subdirectory for a WRITE (decisions.md entry 19). A real
+/// directory is used as it is. A symlink or a file planted at its name is
+/// removed as such (never followed, so no write can land outside the
+/// container). When only iCloud's PLACEHOLDER for it is here, the directory
+/// exists in iCloud and has not come down to this device: its download is
+/// requested and the write is refused (`unavailable`), because creating one
+/// here would make a second, same-named directory that iCloud keeps apart
+/// from the first (`barcharts 2`), and every write into it would be invisible
+/// to the other devices. Otherwise the directory is created inside a
+/// coordinated write, as every other change to the container is made, so
+/// iCloud is told about the new item rather than finding it later. The
+/// residual: a first write racing a peer's directory that has not reached
+/// this device at all (not even as a placeholder) can still make a duplicate;
+/// the listing reads only the canonical name, every item in a duplicate is a
+/// copy of a local file its device pushes again to the canonical directory,
+/// and Remove synced files takes duplicates too (`remove_items_in`).
+fn ensure_subdir_with<I: ContainerIo>(io: &I, docs: &Path, kind: ItemKind) -> Result<PathBuf, String> {
     let sub = docs.join(kind.subdir());
-    if let Ok(meta) = fs::symlink_metadata(&sub) {
-        if !meta.file_type().is_dir() {
-            fs::remove_file(&sub).map_err(|_| "unavailable".to_string())?;
-        }
+    match fs::symlink_metadata(&sub) {
+        Ok(meta) if meta.file_type().is_dir() => return Ok(sub),
+        Ok(_) => fs::remove_file(&sub).map_err(|_| "unavailable".to_string())?,
+        Err(_) => {}
     }
-    fs::create_dir_all(&sub).map_err(|_| "unavailable".to_string())?;
-    Ok(sub)
+    if is_regular_file(&placeholder_path(docs, kind.subdir())) {
+        io.start_download(&sub);
+        return Err("unavailable".to_string());
+    }
+    io.create_dir(&sub)?;
+    if fs::symlink_metadata(&sub).map(|m| m.file_type().is_dir()).unwrap_or(false) {
+        Ok(sub)
+    } else {
+        Err("unavailable".to_string())
+    }
 }
 
 /// Whether the item's record reports iCloud holds it (absent reads false).
@@ -1825,6 +1937,14 @@ fn record_uploaded(sub: &Path, item: &SyncItem) -> bool {
 
 /// The item's companion file as the listing reports it: flags only, the file
 /// itself is never read here.
+///
+/// A name held by a regular file AND by iCloud's placeholder at once is
+/// CONTESTED (decisions.md entry 19): the placeholder is the item iCloud holds
+/// under that name, and the file on disk is a second item this device made
+/// beside it (a write by a 1.0.40.1 to 1.0.40.3 build onto a name whose item was never
+/// downloaded here), which iCloud cannot upload under the same name. It is
+/// never reported downloaded, so the writer repairs it and a reader never
+/// pulls the wrong bytes from it.
 fn item_file_status(sub: &Path, item: &SyncItem, record_up: bool) -> ListedFile {
     let name = item.file_name();
     if !item_present(sub, &name) {
@@ -1832,9 +1952,10 @@ fn item_file_status(sub: &Path, item: &SyncItem, record_up: bool) -> ListedFile 
     }
     let path = sub.join(&name);
     let f = ubiquity_flags(&path);
+    let contested = is_regular_file(&path) && is_regular_file(&placeholder_path(sub, &name));
     ListedFile {
         present: true,
-        downloaded: f.downloaded,
+        downloaded: f.downloaded && !contested,
         downloading: f.downloading,
         byte_length: regular_file_len(&path).ok(),
         uploaded: f.uploaded && record_up,
@@ -1967,11 +2088,13 @@ fn fetch_gate() -> &'static FetchGate {
     GATE.get_or_init(|| FetchGate::new(LISTING_READ_BUDGET, CHECK_READ_BUDGET, READ_WAIT_WINDOW))
 }
 
-/// The three container operations a listing performs on a RECORD, behind a
-/// trait so the listing's read rule is unit-tested without an iCloud account
-/// (this Mac is not signed in). `Foundation` is the only production value.
-trait RecordIo: Clone + Send + 'static {
-    /// The record's ubiquity flags (`downloaded` means Foundation reports it
+/// The container operations the listing and the writers perform through
+/// Foundation, behind a trait so their rules are unit-tested without an iCloud
+/// account (this Mac is not signed in, and a temporary directory is not a
+/// container, so Foundation cannot remove a planted placeholder there).
+/// `Foundation` is the only production value.
+trait ContainerIo: Clone + Send + 'static {
+    /// An item's ubiquity flags (`downloaded` means Foundation reports it
     /// `Current`: a local copy that is the newest version this device knows).
     fn flags(&self, path: &Path) -> UbiquityFlags;
     /// Ask iCloud to bring the item down (a placeholder) or up to date (an
@@ -1980,12 +2103,18 @@ trait RecordIo: Clone + Send + 'static {
     /// The two-file read: the raw text through a COORDINATED read, which
     /// downloads a missing or out-of-date record before handing it over.
     fn read(&self, dir: &Path, name: &str) -> Result<Option<String>, String>;
+    /// The coordinated delete of the item at `dir/name`, through its LOGICAL
+    /// URL, so a placeholder is deleted as the iCloud item it stands for.
+    fn delete(&self, dir: &Path, name: &str) -> Result<bool, String>;
+    /// Create one directory inside a coordinated write (an item iCloud must be
+    /// told about, like any other change to the container).
+    fn create_dir(&self, path: &Path) -> Result<(), String>;
 }
 
 #[derive(Clone, Copy)]
 struct Foundation;
 
-impl RecordIo for Foundation {
+impl ContainerIo for Foundation {
     fn flags(&self, path: &Path) -> UbiquityFlags {
         ubiquity_flags(path)
     }
@@ -1995,13 +2124,33 @@ impl RecordIo for Foundation {
     fn read(&self, dir: &Path, name: &str) -> Result<Option<String>, String> {
         read_record_text(dir, name)
     }
+    fn delete(&self, dir: &Path, name: &str) -> Result<bool, String> {
+        coordinated_delete(dir, name)
+    }
+    fn create_dir(&self, path: &Path) -> Result<(), String> {
+        coordinated_write(&file_url(path), NSFileCoordinatorWritingOptions::empty(), |p| match fs::create_dir(p) {
+            Ok(()) => Ok(()),
+            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => Ok(()),
+            Err(_) => Err("unavailable".to_string()),
+        })
+    }
 }
 
-fn list_items_with<I: RecordIo>(docs: &Path, kind: ItemKind, max: usize, io: &I, gate: &FetchGate) -> ListResult {
-    let empty = ListResult { items: Vec::new(), truncated: false };
+fn list_items_with<I: ContainerIo>(docs: &Path, kind: ItemKind, max: usize, io: &I, gate: &FetchGate) -> ListResult {
+    let empty = ListResult { items: Vec::new(), truncated: false, pending: false };
     let sub = match real_subdir(docs, kind) {
         Some(s) => s,
-        None => return empty,
+        None => {
+            // The kind's directory is in iCloud but not on this device yet: ask
+            // for it and report the listing as not read. Reading it as empty
+            // would make every local county "local only", and their pushes
+            // would create a SECOND directory of the same name beside it.
+            if is_regular_file(&placeholder_path(docs, kind.subdir())) {
+                io.start_download(&docs.join(kind.subdir()));
+                return ListResult { items: Vec::new(), truncated: false, pending: true };
+            }
+            return empty;
+        }
     };
     let entries = match fs::read_dir(&sub) {
         Ok(e) => e,
@@ -2056,7 +2205,7 @@ fn list_items_with<I: RecordIo>(docs: &Path, kind: ItemKind, max: usize, io: &I,
         items.push(ListedItem { id, present, record, file });
     }
     read_fetched_records(&sub, &mut items, fetch, io, gate);
-    ListResult { items, truncated }
+    ListResult { items, truncated, pending: false }
 }
 
 /// Read the records a listing had to fetch, through the coordinated read,
@@ -2072,7 +2221,7 @@ fn list_items_with<I: RecordIo>(docs: &Path, kind: ItemKind, max: usize, io: &I,
 /// text is used only when the record reports `Current` AFTER its read has
 /// returned (Apple: never read the status inside the coordinated read), so a
 /// device still never decides from a copy it knows is out of date.
-fn read_fetched_records<I: RecordIo>(
+fn read_fetched_records<I: ContainerIo>(
     sub: &Path,
     items: &mut [ListedItem],
     fetch: Vec<(usize, String, PathBuf)>,
@@ -2134,7 +2283,9 @@ fn read_fetched_records<I: RecordIo>(
 /// point a peer reads). `unless_sha256` equal to the digest of the local
 /// bytes writes nothing (the day-obs snapshot's "unchanged since my last
 /// push" case). The local file is bounded by its on-disk length BEFORE it is
-/// loaded and must be a regular file.
+/// loaded and must be a regular file. The command calls `push_item_with`
+/// (which adds the repair mode); this is its Foundation form for the tests.
+#[cfg(test)]
 fn push_item_at(
     docs: &Path,
     local: &Path,
@@ -2143,6 +2294,33 @@ fn push_item_at(
     uploaded_at: &str,
     origin: &Origin,
     unless_sha256: Option<&str>,
+) -> Result<ItemPushResult, String> {
+    push_item_with(&Foundation, docs, local, item, filename, uploaded_at, origin, unless_sha256, None)
+}
+
+/// `push_item_at` over any `ContainerIo`, plus the REPAIR mode (decisions.md
+/// entry 19): with `repair_sha256` set, this device's own record is already in
+/// iCloud and names that digest, but the county file under its name is
+/// missing, is not the file the record describes, or is contested (a pre-fix
+/// write left it beside a placeholder). The local bytes are written as the
+/// county FILE ONLY, and only when their digest equals the record's; anything
+/// else writes nothing and reports `skipped`. The record is never rewritten
+/// here: the file can go missing because another device is clearing the
+/// county (its coordinated delete of the file lands before its marker), and
+/// rewriting this device's older record could then land over that marker and
+/// bring the county back on the device that removed it. A file written beside
+/// a marker is harmless, and the next push or Remove replaces it.
+#[allow(clippy::too_many_arguments)]
+fn push_item_with<I: ContainerIo>(
+    io: &I,
+    docs: &Path,
+    local: &Path,
+    item: &SyncItem,
+    filename: &str,
+    uploaded_at: &str,
+    origin: &Origin,
+    unless_sha256: Option<&str>,
+    repair_sha256: Option<&str>,
 ) -> Result<ItemPushResult, String> {
     let max = item.max_bytes();
     let len = regular_file_len(local).map_err(|_| "local-missing".to_string())?;
@@ -2155,33 +2333,125 @@ fn push_item_at(
     }
     let sha256 = sha256_hex(&bytes);
     let byte_length = bytes.len() as u64;
-    if unless_sha256 == Some(sha256.as_str()) {
+    let skip = unless_sha256 == Some(sha256.as_str()) || repair_sha256.is_some_and(|r| r != sha256);
+    if skip {
         let uploaded = match real_subdir(docs, item.kind()) {
             Some(sub) => item_file_status(&sub, item, record_uploaded(&sub, item)).uploaded,
             None => false,
         };
-        return Ok(ItemPushResult { sha256, byte_length, uploaded, skipped: true });
+        return Ok(ItemPushResult { sha256, byte_length, uploaded, skipped: true, superseded: false });
     }
     fs::create_dir_all(docs).map_err(|_| "unavailable".to_string())?;
-    let sub = ensure_subdir(docs, item.kind())?;
-    atomic_container_write(docs, &item.container_file(), &origin.device_id, &bytes)?;
-    let (slot, county) = item.record_fields();
-    let record = RecordFile {
-        version: 1,
-        slot,
-        county,
-        state: "file",
-        filename: Some(filename),
-        uploaded_at: Some(uploaded_at),
-        cleared_at: None,
-        origin,
-        byte_length: Some(byte_length),
-        sha256: Some(&sha256),
+    let sub = ensure_subdir_with(io, docs, item.kind())?;
+    // Only a county's names are cleared before a write; a day-obs snapshot is
+    // this device's own name and keeps the shipped helper (follow-up 1).
+    let write = |target: &str, bytes: &[u8]| match item {
+        SyncItem::County(_) => county_container_write(io, docs, target, &origin.device_id, bytes),
+        SyncItem::DayObs(_) => atomic_container_write(docs, target, &origin.device_id, bytes),
     };
-    let json = serde_json::to_vec(&record).map_err(|_| "unknown".to_string())?;
-    atomic_container_write(docs, &item.container_record(), &origin.device_id, &json)?;
+    if let Some(expected) = repair_sha256 {
+        if !record_still_names_this_copy(io, &sub, item, &origin.device_id, expected) {
+            return Ok(ItemPushResult { sha256, byte_length, uploaded: false, skipped: false, superseded: true });
+        }
+    }
+    write(&item.container_file(), &bytes)?;
+    if repair_sha256.is_none() {
+        let (slot, county) = item.record_fields();
+        let record = RecordFile {
+            version: 1,
+            slot,
+            county,
+            state: "file",
+            filename: Some(filename),
+            uploaded_at: Some(uploaded_at),
+            cleared_at: None,
+            origin,
+            byte_length: Some(byte_length),
+            sha256: Some(&sha256),
+        };
+        let json = serde_json::to_vec(&record).map_err(|_| "unknown".to_string())?;
+        write(&item.container_record(), &json)?;
+    }
     let uploaded = item_file_status(&sub, item, record_uploaded(&sub, item)).uploaded;
-    Ok(ItemPushResult { sha256, byte_length, uploaded, skipped: false })
+    Ok(ItemPushResult { sha256, byte_length, uploaded, skipped: false, superseded: false })
+}
+
+/// The fields of a record the repair re-read compares, and nothing else.
+#[derive(Deserialize)]
+struct RecordHead {
+    slot: String,
+    county: Option<String>,
+    state: String,
+    sha256: Option<String>,
+    origin: RecordHeadOrigin,
+}
+
+#[derive(Deserialize)]
+struct RecordHeadOrigin {
+    #[serde(rename = "deviceId")]
+    device_id: String,
+}
+
+/// The repair's re-read (decisions.md entry 19, follow-up 2; security report
+/// L4). Immediately before a repair deletes or writes anything, the county's
+/// record in the container must still name THIS device's current copy: this
+/// device's id, a `file` state for this county, and the digest the local bytes
+/// have. A peer writes its file first and its record second, so a peer's newer
+/// file can reach this device while the listing still reads this device's own
+/// record, and the listing's file state alone cannot tell that from a pre-fix
+/// orphan. The record is read the two-file way, through the coordinated read,
+/// but only when Foundation reports it `Current` both before and after the
+/// read: a record that is not current means a newer version is on its way,
+/// which is reason enough to skip, and it keeps the wait bounded (a
+/// coordinated read of a current record downloads nothing). Any other answer,
+/// an unreadable or malformed record included, is "not this copy", and the
+/// repair writes nothing. Stated residual: a peer's file that reaches this
+/// device before iCloud has told it anything about the peer's record is still
+/// indistinguishable here.
+fn record_still_names_this_copy<I: ContainerIo>(io: &I, sub: &Path, item: &SyncItem, device_id: &str, sha256: &str) -> bool {
+    let county = match item {
+        SyncItem::County(c) => c.as_str(),
+        SyncItem::DayObs(_) => return false,
+    };
+    let name = item.record_name();
+    let path = sub.join(&name);
+    if !is_regular_file(&path) || !io.flags(&path).downloaded {
+        return false;
+    }
+    let text = match io.read(sub, &name) {
+        Ok(Some(t)) => t,
+        _ => return false,
+    };
+    if !io.flags(&path).downloaded {
+        return false;
+    }
+    match serde_json::from_str::<RecordHead>(&text) {
+        Ok(r) => {
+            r.slot == "barchart"
+                && r.county.as_deref() == Some(county)
+                && r.state == "file"
+                && r.sha256.as_deref() == Some(sha256)
+                && r.origin.device_id == device_id
+        }
+        Err(_) => false,
+    }
+}
+
+/// Delete every representation of the item at `dir/name` (a regular file, a
+/// placeholder, or both at once), through the coordinated delete, so the name
+/// is free. Bounded by `CLEAR_WAY_ATTEMPTS`.
+fn free_name<I: ContainerIo>(io: &I, dir: &Path, name: &str) -> Result<(), String> {
+    for _ in 0..CLEAR_WAY_ATTEMPTS {
+        if !item_present(dir, name) {
+            return Ok(());
+        }
+        io.delete(dir, name)?;
+    }
+    if item_present(dir, name) {
+        Err("unavailable".to_string())
+    } else {
+        Ok(())
+    }
 }
 
 /// Write the cleared marker for each county: the county file's coordinated
@@ -2189,6 +2459,16 @@ fn push_item_at(
 /// string that fails `County::parse` is reported failed and nothing happens
 /// for it; a per-county failure is collected, never raised.
 fn push_items_cleared_at(docs: &Path, counties: Vec<String>, cleared_at: &str, origin: &Origin) -> Result<ClearedResult, String> {
+    push_items_cleared_with(&Foundation, docs, counties, cleared_at, origin)
+}
+
+fn push_items_cleared_with<I: ContainerIo>(
+    io: &I,
+    docs: &Path,
+    counties: Vec<String>,
+    cleared_at: &str,
+    origin: &Origin,
+) -> Result<ClearedResult, String> {
     let mut failed = Vec::new();
     let mut valid = Vec::new();
     for raw in counties {
@@ -2201,11 +2481,11 @@ fn push_items_cleared_at(docs: &Path, counties: Vec<String>, cleared_at: &str, o
         return Ok(ClearedResult { failed });
     }
     fs::create_dir_all(docs).map_err(|_| "unavailable".to_string())?;
-    let sub = ensure_subdir(docs, ItemKind::Barchart)?;
+    let sub = ensure_subdir_with(io, docs, ItemKind::Barchart)?;
     for county in valid {
         let item = SyncItem::County(county);
         let one = || -> Result<(), String> {
-            coordinated_delete(&sub, &item.file_name())?;
+            free_name(io, &sub, &item.file_name())?;
             let (slot, c) = item.record_fields();
             let record = RecordFile {
                 version: 1,
@@ -2220,7 +2500,7 @@ fn push_items_cleared_at(docs: &Path, counties: Vec<String>, cleared_at: &str, o
                 sha256: None,
             };
             let json = serde_json::to_vec(&record).map_err(|_| "unknown".to_string())?;
-            atomic_container_write(docs, &item.container_record(), &origin.device_id, &json)
+            county_container_write(io, docs, &item.container_record(), &origin.device_id, &json)
         };
         if one().is_err() {
             if let SyncItem::County(c) = &item {
@@ -2347,28 +2627,132 @@ fn clear_staging_kind(tmp_dir: &Path, kind: ItemKind) -> u32 {
     removed
 }
 
+/// The remainder of `s` after `" <1 to 4 ASCII digits>"`, or None: the copy
+/// number iCloud inserts when it sets a same-named item aside.
+fn after_copy_number(s: &str) -> Option<&str> {
+    let b = s.as_bytes();
+    if b.first() != Some(&b' ') {
+        return None;
+    }
+    let digits = b[1..].iter().take_while(|c| c.is_ascii_digit()).count();
+    if digits == 0 || digits > 4 {
+        return None;
+    }
+    Some(&s[1 + digits..])
+}
+
+/// The LOGICAL name of an iCloud conflict twin of one of this kind's items
+/// (decisions.md entry 19): the name iCloud gives an item it set aside because
+/// another item already held the name, a copy number inserted before the
+/// extension (`US-CA-001 2.txt`, `US-CA-001 2.record.json`,
+/// `US-CA-001.record 2.json`), or that name's placeholder. The id must pass the
+/// kind's predicate and the rest is one of those three fixed shapes, so the
+/// name is a single path component this app's own writes produced; anything
+/// else is None and is left alone.
+fn twin_name(name: &str, kind: ItemKind) -> Option<String> {
+    let base = match name.strip_prefix('.').and_then(|r| r.strip_suffix(".icloud")) {
+        Some(inner) => inner,
+        None => name,
+    };
+    let id_len = match kind {
+        ItemKind::Barchart => 9,
+        ItemKind::DayObs => 32,
+    };
+    if base.len() <= id_len || !base.is_char_boundary(id_len) {
+        return None;
+    }
+    let (id, rest) = base.split_at(id_len);
+    kind.item_from_id(id)?;
+    let file_ext = match kind {
+        ItemKind::Barchart => ".txt",
+        ItemKind::DayObs => ".json",
+    };
+    let ok = match after_copy_number(rest) {
+        Some(after) => after == file_ext || after == ".record.json",
+        None => rest.strip_prefix(".record").and_then(after_copy_number) == Some(".json"),
+    };
+    if ok {
+        Some(base.to_string())
+    } else {
+        None
+    }
+}
+
+/// A duplicate of the kind's own directory: `barcharts 2` (iCloud's name for a
+/// second, same-named directory it kept apart from the first).
+fn is_duplicate_subdir(name: &str, kind: ItemKind) -> bool {
+    name.strip_prefix(kind.subdir()).and_then(after_copy_number) == Some("")
+}
+
+/// A coordinated delete of a whole directory through its logical URL (a
+/// duplicate kind directory). A link or a file at the name is removed as such.
+fn coordinated_delete_dir(docs: &Path, name: &str) -> Result<bool, String> {
+    let target = docs.join(name);
+    match fs::symlink_metadata(&target) {
+        Err(_) => return Ok(false),
+        Ok(meta) if !meta.file_type().is_dir() => {
+            fs::remove_file(&target).map_err(|_| "unavailable".to_string())?;
+            return Ok(true);
+        }
+        Ok(_) => {}
+    }
+    coordinated_write(&file_url(&target), NSFileCoordinatorWritingOptions::ForDeleting, |p| {
+        NSFileManager::defaultManager().removeItemAtURL_error(&file_url(p)).map_err(|_| "unavailable".to_string())?;
+        Ok(true)
+    })
+}
+
 /// Every valid-named item of a kind (records, companion files, and their
-/// placeholders), plus that kind's staging entries from any device. Unknown
-/// names are left alone, stated: a name this app would never write is not a
-/// copy it made. A link or file planted at the subdirectory's own name is
-/// removed as such, never followed.
+/// placeholders), every iCloud conflict twin of one (`twin_name`), and every
+/// duplicate of the kind's directory with all it holds, plus that kind's
+/// staging entries from any device. Other unknown names are left alone,
+/// stated: a name this app would never write is not a copy it made. A link or
+/// file planted at the subdirectory's own name is removed as such, never
+/// followed.
 fn remove_items_in(docs: &Path, kind: ItemKind) -> Result<u32, String> {
+    remove_items_in_with(&Foundation, docs, kind)
+}
+
+/// Delete a directory this device holds only as iCloud's placeholder
+/// (`.barcharts.icloud`, `.barcharts 2.icloud`) through the coordinated delete
+/// on its logical URL (decisions.md entry 19, follow-up 3; security report
+/// L5): the directory and everything in it leave iCloud, as the privacy
+/// policy's Remove promises. If the placeholder is still there afterwards the
+/// removal is `unavailable` (the closed union's fixed reason), never a success
+/// that left the copies in iCloud. Bounded: one delete.
+fn remove_placeholder_dir<I: ContainerIo>(io: &I, docs: &Path, logical: &str) -> Result<u32, String> {
+    if !is_regular_file(&placeholder_path(docs, logical)) {
+        return Ok(0);
+    }
+    let _ = io.delete(docs, logical)?;
+    if is_regular_file(&placeholder_path(docs, logical)) {
+        return Err("unavailable".to_string());
+    }
+    Ok(1)
+}
+
+fn remove_items_in_with<I: ContainerIo>(io: &I, docs: &Path, kind: ItemKind) -> Result<u32, String> {
     let mut removed = 0u32;
     let sub = docs.join(kind.subdir());
     match fs::symlink_metadata(&sub) {
-        Err(_) => {}
+        // Not here as a directory: iCloud may still hold it (only its
+        // placeholder is on this device), and Remove must take it too.
+        Err(_) => removed += remove_placeholder_dir(io, docs, kind.subdir())?,
         Ok(meta) if !meta.file_type().is_dir() => {
             fs::remove_file(&sub).map_err(|_| "unavailable".to_string())?;
             removed += 1;
         }
         Ok(_) => {
             let mut ids: BTreeSet<String> = BTreeSet::new();
+            let mut twins: BTreeSet<String> = BTreeSet::new();
             if let Ok(entries) = fs::read_dir(&sub) {
                 for entry in entries.flatten() {
                     let raw = entry.file_name();
                     if let Some(name) = raw.to_str() {
                         if let Some(id) = item_id_from_any_name(name, kind) {
                             ids.insert(id);
+                        } else if let Some(twin) = twin_name(name, kind) {
+                            twins.insert(twin);
                         }
                     }
                 }
@@ -2383,7 +2767,35 @@ fn remove_items_in(docs: &Path, kind: ItemKind) -> Result<u32, String> {
                     }
                 }
             }
+            for twin in twins {
+                if coordinated_delete(&sub, &twin)? {
+                    removed += 1;
+                }
+            }
         }
+    }
+    let mut duplicates: Vec<String> = Vec::new();
+    let mut duplicate_placeholders: Vec<String> = Vec::new();
+    if let Ok(entries) = fs::read_dir(docs) {
+        for entry in entries.flatten() {
+            if let Some(name) = entry.file_name().to_str() {
+                if is_duplicate_subdir(name, kind) {
+                    duplicates.push(name.to_string());
+                } else if let Some(logical) = name.strip_prefix('.').and_then(|r| r.strip_suffix(".icloud")) {
+                    if is_duplicate_subdir(logical, kind) {
+                        duplicate_placeholders.push(logical.to_string());
+                    }
+                }
+            }
+        }
+    }
+    for name in duplicates {
+        if coordinated_delete_dir(docs, &name)? {
+            removed += 1;
+        }
+    }
+    for logical in duplicate_placeholders {
+        removed += remove_placeholder_dir(io, docs, &logical)?;
     }
     removed += clear_staging_kind(&docs.join(".tmp"), kind);
     Ok(removed)
@@ -2406,6 +2818,7 @@ pub async fn icloud_push_item(
     uploaded_at: String,
     origin: Origin,
     unless_sha256: Option<String>,
+    repair_sha256: Option<String>,
 ) -> Result<ItemPushResult, String> {
     let item = SyncItem::try_from(item)?;
     let origin = item_origin(origin)?;
@@ -2416,13 +2829,25 @@ pub async fn icloud_push_item(
             return Err("unknown".to_string());
         }
     }
+    // The repair mode is for a county file only, and its digest is a digest
+    // (64 lowercase hex), checked before anything is read or written.
+    if let Some(r) = &repair_sha256 {
+        if !matches!(item, SyncItem::County(_)) || !valid_sha256(r) {
+            return Err("unknown".to_string());
+        }
+    }
     let local = item.local_path(&local_data_dir(&app)?);
     let filename = sanitize_filename(&filename);
     blocking(move || {
         let docs = container_documents().ok_or_else(|| "unavailable".to_string())?;
-        push_item_at(&docs, &local, &item, &filename, &uploaded_at, &origin, unless_sha256.as_deref())
+        push_item_with(&Foundation, &docs, &local, &item, &filename, &uploaded_at, &origin, unless_sha256.as_deref(), repair_sha256.as_deref())
     })
     .await
+}
+
+/// A SHA-256 digest as the records carry it: exactly 64 lowercase hex bytes.
+fn valid_sha256(s: &str) -> bool {
+    s.len() == 64 && s.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
 }
 
 #[tauri::command]
@@ -3126,6 +3551,10 @@ mod tests {
         records: std::sync::Arc<Mutex<std::collections::HashMap<PathBuf, FakeRecord>>>,
         downloads: std::sync::Arc<Mutex<Vec<PathBuf>>>,
         reads: std::sync::Arc<Mutex<Vec<PathBuf>>>,
+        /// Every coordinated delete, by logical path, in order.
+        deletes: std::sync::Arc<Mutex<Vec<PathBuf>>>,
+        /// Every coordinated directory creation.
+        dirs: std::sync::Arc<Mutex<Vec<PathBuf>>>,
         read_delay: Duration,
     }
 
@@ -3135,6 +3564,8 @@ mod tests {
                 records: Default::default(),
                 downloads: Default::default(),
                 reads: Default::default(),
+                deletes: Default::default(),
+                dirs: Default::default(),
                 read_delay,
             }
         }
@@ -3143,7 +3574,7 @@ mod tests {
         }
     }
 
-    impl RecordIo for FakeIo {
+    impl ContainerIo for FakeIo {
         fn flags(&self, path: &Path) -> UbiquityFlags {
             match self.records.lock().unwrap().get(path) {
                 Some(r) => UbiquityFlags { downloaded: r.status == FakeStatus::Current, downloading: false, uploaded: true, uploading: false },
@@ -3171,6 +3602,32 @@ mod tests {
             // The real read posture (a regular file, bounded, UTF-8) on what is
             // on disk now; a placeholder that was never brought down reads None.
             read_record_text(dir, name)
+        }
+        /// NSFileManager's delete through the LOGICAL URL, as it behaves in a
+        /// container: the regular file at the name when there is one, else the
+        /// iCloud item its placeholder stands for (the placeholder goes).
+        fn delete(&self, dir: &Path, name: &str) -> Result<bool, String> {
+            let path = dir.join(name);
+            self.deletes.lock().unwrap().push(path.clone());
+            self.records.lock().unwrap().remove(&path);
+            if is_regular_file(&path) {
+                fs::remove_file(&path).map_err(|_| "unavailable".to_string())?;
+                return Ok(true);
+            }
+            let placeholder = placeholder_path(dir, name);
+            if is_regular_file(&placeholder) {
+                fs::remove_file(&placeholder).map_err(|_| "unavailable".to_string())?;
+                return Ok(true);
+            }
+            Ok(false)
+        }
+        fn create_dir(&self, path: &Path) -> Result<(), String> {
+            self.dirs.lock().unwrap().push(path.to_path_buf());
+            match fs::create_dir(path) {
+                Ok(()) => Ok(()),
+                Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => Ok(()),
+                Err(_) => Err("unavailable".to_string()),
+            }
         }
     }
 
@@ -3400,5 +3857,490 @@ mod tests {
         assert_eq!(remove_item_at(&docs, &county("US-CA-003")).unwrap(), 3);
         assert!(sub.join("notes.txt").exists());
         let _ = fs::remove_dir_all(&docs);
+    }
+
+    // ── device pass on 1.0.40.3 (decisions.md entry 19): the WRITING device ──
+    //
+    // The county record is always brought current before a push (the listing
+    // reads it through a coordinated read, and a record it cannot read skips
+    // the county), but the county FILE was written over whatever its name held
+    // on this device. On the second device that is typically the first
+    // device's version held only as a placeholder (`.US-CA-001.txt.icloud`,
+    // never downloaded here because this device's own copy was newer), and a
+    // rename onto the name then puts a SECOND item beside it. These rows run
+    // against the real Foundation calls in a temporary directory (which is not
+    // an iCloud container, so a planted placeholder cannot be removed there):
+    // the fixed write refuses rather than leave a twin. The success path runs
+    // over the fake below.
+
+    /// Both representations of one name at once: a real file AND iCloud's
+    /// placeholder for an item of the same name.
+    fn twin_at(dir: &Path, name: &str) -> bool {
+        is_regular_file(&dir.join(name)) && is_regular_file(&placeholder_path(dir, name))
+    }
+
+    #[test]
+    fn a_county_push_never_leaves_a_twin_beside_a_placeholder() {
+        let docs = tmp_dir("w-twin-file");
+        let sub = docs.join("barcharts");
+        fs::create_dir_all(&sub).unwrap();
+        // The first device's file, held here only as a placeholder.
+        fs::write(sub.join(".US-CA-001.txt.icloud"), b"bplist-stub").unwrap();
+        let local = docs.join("local/barcharts/US-CA-001.txt");
+        fs::create_dir_all(local.parent().unwrap()).unwrap();
+        fs::write(&local, b"Sample Size:\t2.0\n").unwrap();
+        let _ = push_item_at(&docs, &local, &county("US-CA-001"), "e.txt", "2026-09-29T12:00:00.000Z", &mac_origin(), None);
+        assert!(!twin_at(&sub, "US-CA-001.txt"), "the push left a second item beside the placeholder");
+        let _ = fs::remove_dir_all(&docs);
+    }
+
+    #[test]
+    fn a_cleared_marker_never_leaves_a_twin_beside_a_placeholder_record() {
+        let docs = tmp_dir("w-twin-marker");
+        let sub = docs.join("barcharts");
+        fs::create_dir_all(&sub).unwrap();
+        fs::write(sub.join(".US-CA-001.record.json.icloud"), b"bplist-stub").unwrap();
+        let _ = push_items_cleared_at(&docs, vec!["US-CA-001".to_string()], "2026-09-29T12:00:00.000Z", &mac_origin());
+        assert!(!twin_at(&sub, "US-CA-001.record.json"), "the marker left a second record beside the placeholder");
+        let _ = fs::remove_dir_all(&docs);
+    }
+
+    /// Follow-up 1 (the Tester): the delete-before-write is the COUNTY kind's
+    /// only. The long-shipped data-file and key writes, and the day-obs
+    /// snapshot, keep the shipped helper byte for byte and never delete: over
+    /// a name held only by a placeholder they still write beside it, exactly
+    /// as before this fix (their flows never reach that state).
+    #[test]
+    fn data_file_key_and_day_obs_writes_keep_the_shipped_helper_and_never_delete() {
+        let docs = tmp_dir("w-shipped-writes");
+        let me = "a".repeat(32);
+        for name in ["ebird-backup.csv", "ebird.record.json", KEYS_RECORD_NAME] {
+            fs::write(placeholder_path(&docs, name), b"bplist-stub").unwrap();
+            atomic_container_write(&docs, name, &me, b"new").unwrap();
+            assert!(is_regular_file(&placeholder_path(&docs, name)), "{} lost its placeholder", name);
+            assert_eq!(fs::read(docs.join(name)).unwrap(), b"new");
+        }
+        // The day-obs snapshot and its record: no delete through any io.
+        let o = phone_origin();
+        let item = SyncItem::DayObs(DeviceId::parse(&o.device_id).unwrap());
+        let local = docs.join("local/county-day-obs.json");
+        fs::create_dir_all(local.parent().unwrap()).unwrap();
+        fs::write(&local, b"{}").unwrap();
+        fs::create_dir_all(docs.join("day-obs")).unwrap();
+        fs::write(placeholder_path(&docs.join("day-obs"), &item.file_name()), b"bplist-stub").unwrap();
+        let io = FakeIo::new(Duration::ZERO);
+        push_item_with(&io, &docs, &local, &item, "county-day-obs.json", "2026-09-29T12:00:00.000Z", &o, None, None).unwrap();
+        assert!(io.deletes.lock().unwrap().is_empty());
+        // And in source: the shipped helper names no delete, and the slot and
+        // key commands call it, never the county writer.
+        let src = include_str!("icloud.rs");
+        let helper = &src[src.find("fn atomic_container_write(docs").unwrap()..];
+        let helper = &helper[..helper.find("\n}\n").unwrap()];
+        for forbidden in ["clear_way", "free_name", "delete"] {
+            assert!(!helper.contains(forbidden), "the shipped helper now names {}", forbidden);
+        }
+        for cmd in ["pub async fn icloud_push(", "pub async fn icloud_push_cleared(", "pub async fn icloud_write_keys("] {
+            let body = &src[src.find(cmd).unwrap()..];
+            let body = &body[..body.find("\n}\n").unwrap()];
+            assert!(body.contains("atomic_container_write(&docs") && !body.contains("county_container_write"), "{}", cmd);
+        }
+        let _ = fs::remove_dir_all(&docs);
+    }
+
+    /// The kind's directory is in iCloud but not on this device yet (its
+    /// placeholder is here): a write must never create a second directory of
+    /// the same name, which iCloud would keep apart from the first.
+    #[test]
+    fn a_push_never_creates_a_second_kind_directory_beside_its_placeholder() {
+        let docs = tmp_dir("w-dir-placeholder");
+        fs::write(docs.join(".barcharts.icloud"), b"bplist-stub").unwrap();
+        let local = docs.join("local/barcharts/US-CA-001.txt");
+        fs::create_dir_all(local.parent().unwrap()).unwrap();
+        fs::write(&local, b"abc").unwrap();
+        let r = push_item_at(&docs, &local, &county("US-CA-001"), "e.txt", "2026-09-29T12:00:00.000Z", &mac_origin(), None);
+        assert_eq!(r.err().as_deref(), Some("unavailable"));
+        assert!(!docs.join("barcharts").exists());
+        let _ = fs::remove_dir_all(&docs);
+    }
+
+    /// A name held by a real file AND a placeholder is contested: the copy on
+    /// disk is not iCloud's item of that name, so the listing never reports
+    /// it downloaded (the writer then repairs it; a reader waits for it).
+    #[test]
+    fn a_listing_never_reports_a_contested_name_as_downloaded() {
+        let docs = tmp_dir("w-contested");
+        let sub = docs.join("barcharts");
+        fs::create_dir_all(&sub).unwrap();
+        fs::write(sub.join("US-CA-001.record.json"), COUNTY_RECORD_GOLDEN).unwrap();
+        fs::write(sub.join("US-CA-001.txt"), b"mine").unwrap();
+        fs::write(sub.join(".US-CA-001.txt.icloud"), b"bplist-stub").unwrap();
+        let listed = list_items_bounded(&docs, ItemKind::Barchart, MAX_LISTED_ITEMS);
+        assert!(listed.items[0].file.present);
+        assert!(!listed.items[0].file.downloaded);
+        let _ = fs::remove_dir_all(&docs);
+    }
+
+    /// Remove synced files takes the copies iCloud set aside under a changed
+    /// name (a bounced twin, `US-CA-001 2.txt`) and a duplicate directory
+    /// (`barcharts 2`), so "the copies in your iCloud account" stays exact.
+    #[test]
+    fn remove_all_takes_conflict_twins_and_duplicate_directories() {
+        let docs = tmp_dir("w-remove-twins");
+        let sub = docs.join("barcharts");
+        fs::create_dir_all(&sub).unwrap();
+        for n in ["US-CA-001 2.txt", "US-CA-001 2.record.json", "US-CA-001.record 2.json", "notes 2.txt", "US-CA-001 x.txt"] {
+            fs::write(sub.join(n), b"x").unwrap();
+        }
+        let dup = docs.join("barcharts 2");
+        fs::create_dir_all(&dup).unwrap();
+        fs::write(dup.join("US-NY-005.txt"), b"x").unwrap();
+        fs::write(dup.join("US-NY-005.record.json"), b"x").unwrap();
+        // Not a duplicate of the kind's directory: left alone.
+        fs::create_dir_all(docs.join("barcharts2")).unwrap();
+        fs::create_dir_all(docs.join("barcharts x")).unwrap();
+        remove_items_in(&docs, ItemKind::Barchart).unwrap();
+        for n in ["US-CA-001 2.txt", "US-CA-001 2.record.json", "US-CA-001.record 2.json"] {
+            assert!(!sub.join(n).exists(), "{} left behind", n);
+        }
+        assert!(sub.join("notes 2.txt").exists() && sub.join("US-CA-001 x.txt").exists());
+        assert!(!dup.exists());
+        assert!(docs.join("barcharts2").exists() && docs.join("barcharts x").exists());
+        let _ = fs::remove_dir_all(&docs);
+    }
+
+    /// A container with the kind's directory present and the local county file
+    /// ready: (docs, sub, local).
+    fn writer_fixture(tag: &str, bytes: &[u8]) -> (PathBuf, PathBuf, PathBuf) {
+        let docs = tmp_dir(tag);
+        let sub = docs.join("barcharts");
+        fs::create_dir_all(&sub).unwrap();
+        let local = docs.join("local/barcharts/US-CA-001.txt");
+        fs::create_dir_all(local.parent().unwrap()).unwrap();
+        fs::write(&local, bytes).unwrap();
+        (docs, sub, local)
+    }
+
+    /// The success path the real container gives: the placeholder of the first
+    /// device's file is deleted as the iCloud item it stands for, and THEN this
+    /// device's file takes the free name; the record follows as before.
+    #[test]
+    fn a_push_over_a_placeholder_deletes_that_item_then_takes_its_name() {
+        let (docs, sub, local) = writer_fixture("w-fake-placeholder", b"Sample Size:\t2.0\n");
+        fs::write(sub.join(".US-CA-001.txt.icloud"), b"bplist-stub").unwrap();
+        let io = FakeIo::new(Duration::ZERO);
+        let r = push_item_with(&io, &docs, &local, &county("US-CA-001"), "e.txt", "2026-09-29T12:00:00.000Z", &mac_origin(), None, None).unwrap();
+        assert!(!r.skipped);
+        assert_eq!(*io.deletes.lock().unwrap(), vec![sub.join("US-CA-001.txt")]);
+        assert!(!is_regular_file(&placeholder_path(&sub, "US-CA-001.txt")));
+        assert_eq!(fs::read(sub.join("US-CA-001.txt")).unwrap(), b"Sample Size:\t2.0\n");
+        let rec = record_text_at(&sub.join("US-CA-001.record.json")).unwrap().unwrap();
+        assert!(rec.contains(&r.sha256) && rec.contains(r#""byteLength":17"#));
+        let _ = fs::remove_dir_all(&docs);
+    }
+
+    /// An out-of-date local copy is deleted first too; a contested name (a
+    /// file AND a placeholder) takes two deletes; a CURRENT copy is left to the
+    /// rename with no delete at all, which is the two-file sync's own case.
+    #[test]
+    fn only_a_copy_that_is_not_current_is_deleted_before_a_write() {
+        let (docs, sub, local) = writer_fixture("w-fake-states", b"new");
+        let io = FakeIo::new(Duration::ZERO);
+        let item = county("US-CA-001");
+        let path = sub.join("US-CA-001.txt");
+        fs::write(&path, b"old").unwrap();
+        io.set(path.clone(), FakeStatus::Stale, None, false);
+        push_item_with(&io, &docs, &local, &item, "e.txt", "2026-09-29T12:00:00.000Z", &mac_origin(), None, None).unwrap();
+        assert_eq!(io.deletes.lock().unwrap().len(), 1);
+        assert_eq!(fs::read(&path).unwrap(), b"new");
+        // Current now (written here): the next push deletes nothing.
+        io.deletes.lock().unwrap().clear();
+        push_item_with(&io, &docs, &local, &item, "e.txt", "2026-09-29T12:01:00.000Z", &mac_origin(), None, None).unwrap();
+        assert!(io.deletes.lock().unwrap().is_empty(), "a current copy was deleted: {:?}", io.deletes.lock().unwrap());
+        // Contested: both representations go, the file first, then the item.
+        fs::write(placeholder_path(&sub, "US-CA-001.txt"), b"bplist-stub").unwrap();
+        push_item_with(&io, &docs, &local, &item, "e.txt", "2026-09-29T12:02:00.000Z", &mac_origin(), None, None).unwrap();
+        assert_eq!(*io.deletes.lock().unwrap(), vec![path.clone(), path.clone()]);
+        assert!(!twin_at(&sub, "US-CA-001.txt"));
+        assert_eq!(fs::read(&path).unwrap(), b"new");
+        let _ = fs::remove_dir_all(&docs);
+    }
+
+    /// A name that cannot be freed refuses the write (bounded), never a twin.
+    #[test]
+    fn a_name_that_cannot_be_freed_refuses_the_write() {
+        #[derive(Clone)]
+        struct Stuck(FakeIo);
+        impl ContainerIo for Stuck {
+            fn flags(&self, p: &Path) -> UbiquityFlags { self.0.flags(p) }
+            fn start_download(&self, p: &Path) { self.0.start_download(p) }
+            fn read(&self, d: &Path, n: &str) -> Result<Option<String>, String> { self.0.read(d, n) }
+            fn delete(&self, d: &Path, n: &str) -> Result<bool, String> {
+                self.0.deletes.lock().unwrap().push(d.join(n));
+                Ok(false)
+            }
+            fn create_dir(&self, p: &Path) -> Result<(), String> { self.0.create_dir(p) }
+        }
+        let (docs, sub, local) = writer_fixture("w-fake-stuck", b"new");
+        fs::write(sub.join(".US-CA-001.txt.icloud"), b"bplist-stub").unwrap();
+        let io = Stuck(FakeIo::new(Duration::ZERO));
+        let r = push_item_with(&io, &docs, &local, &county("US-CA-001"), "e.txt", "2026-09-29T12:00:00.000Z", &mac_origin(), None, None);
+        assert_eq!(r.err().as_deref(), Some("unavailable"));
+        assert_eq!(io.0.deletes.lock().unwrap().len(), CLEAR_WAY_ATTEMPTS);
+        assert!(!sub.join("US-CA-001.txt").exists());
+        assert!(!sub.join("US-CA-001.record.json").exists(), "the record was published without its file");
+        assert_eq!(fs::read_dir(docs.join(".tmp")).unwrap().count(), 0, "a staged copy was left behind");
+        let _ = fs::remove_dir_all(&docs);
+    }
+
+    /// The kind's directory: created through the coordinator on first write,
+    /// never again once it exists, and never beside its own placeholder (the
+    /// download of the directory is asked for instead, and the listing says
+    /// it has not been read rather than reporting an empty kind).
+    #[test]
+    fn the_kind_directory_is_created_coordinated_and_never_beside_its_placeholder() {
+        let docs = tmp_dir("w-fake-dir");
+        let local = docs.join("local/barcharts/US-CA-001.txt");
+        fs::create_dir_all(local.parent().unwrap()).unwrap();
+        fs::write(&local, b"abc").unwrap();
+        let io = FakeIo::new(Duration::ZERO);
+        let item = county("US-CA-001");
+        fs::write(docs.join(".barcharts.icloud"), b"bplist-stub").unwrap();
+        let r = push_item_with(&io, &docs, &local, &item, "e.txt", "2026-09-29T12:00:00.000Z", &mac_origin(), None, None);
+        assert_eq!(r.err().as_deref(), Some("unavailable"));
+        assert!(io.dirs.lock().unwrap().is_empty());
+        assert_eq!(*io.downloads.lock().unwrap(), vec![docs.join("barcharts")]);
+        assert!(push_items_cleared_with(&io, &docs, vec!["US-CA-001".to_string()], "2026-09-29T12:00:00.000Z", &mac_origin()).is_err());
+        assert!(!docs.join("barcharts").exists());
+        let listed = list_items_with(&docs, ItemKind::Barchart, MAX_LISTED_ITEMS, &io, &test_gate(LISTING_READ_BUDGET));
+        assert!(listed.pending && listed.items.is_empty());
+        // No placeholder: the listing is an honest empty, and the first write
+        // creates the directory through the coordinator, once.
+        fs::remove_file(docs.join(".barcharts.icloud")).unwrap();
+        let listed = list_items_with(&docs, ItemKind::Barchart, MAX_LISTED_ITEMS, &io, &test_gate(LISTING_READ_BUDGET));
+        assert!(!listed.pending && listed.items.is_empty());
+        push_item_with(&io, &docs, &local, &item, "e.txt", "2026-09-29T12:00:00.000Z", &mac_origin(), None, None).unwrap();
+        push_item_with(&io, &docs, &local, &item, "e.txt", "2026-09-29T12:01:00.000Z", &mac_origin(), None, None).unwrap();
+        assert_eq!(*io.dirs.lock().unwrap(), vec![docs.join("barcharts")]);
+        // The county writer never creates a missing parent on its own.
+        fs::remove_dir_all(docs.join("barcharts")).unwrap();
+        assert_eq!(county_container_write(&io, &docs, "barcharts/US-CA-001.txt", &"a".repeat(32), b"x").err().as_deref(), Some("unavailable"));
+        assert!(!docs.join("barcharts").exists());
+        let _ = fs::remove_dir_all(&docs);
+    }
+
+    /// The repair mode writes the county FILE only, over whatever holds the
+    /// name, and only when the local bytes are the ones the record names; the
+    /// record in iCloud is never rewritten (it may already be another device's
+    /// newer marker), and a digest that does not match writes nothing.
+    #[test]
+    fn a_repair_writes_only_the_file_and_only_for_the_digest_the_record_names() {
+        let (docs, sub, local) = writer_fixture("w-fake-repair", b"Sample Size:\t2.0\n");
+        let io = FakeIo::new(Duration::ZERO);
+        let item = county("US-CA-001");
+        let sha = sha256_hex(b"Sample Size:\t2.0\n");
+        // This device's own record, naming these bytes, and the first
+        // device's old file held here only as a placeholder.
+        let ours = COUNTY_RECORD_GOLDEN.replace(GOLDEN_SHA, &sha);
+        fs::write(sub.join("US-CA-001.record.json"), &ours).unwrap();
+        fs::write(sub.join(".US-CA-001.txt.icloud"), b"bplist-stub").unwrap();
+        let wrong = push_item_with(&io, &docs, &local, &item, "e.txt", "2026-09-29T12:00:00.000Z", &mac_origin(), None, Some(&"0".repeat(64))).unwrap();
+        assert!(wrong.skipped);
+        assert!(io.deletes.lock().unwrap().is_empty());
+        assert!(!sub.join("US-CA-001.txt").exists());
+        let r = push_item_with(&io, &docs, &local, &item, "e.txt", "2026-09-29T12:00:00.000Z", &mac_origin(), None, Some(&sha)).unwrap();
+        assert!(!r.skipped);
+        assert_eq!(fs::read(sub.join("US-CA-001.txt")).unwrap(), b"Sample Size:\t2.0\n");
+        assert!(!r.superseded);
+        assert!(!is_regular_file(&placeholder_path(&sub, "US-CA-001.txt")));
+        assert_eq!(fs::read_to_string(sub.join("US-CA-001.record.json")).unwrap(), ours);
+        assert!(valid_sha256(&sha));
+        for bad in ["", "A".repeat(64).as_str(), &"0".repeat(63), &"0".repeat(65), &format!("{}\n", &"0".repeat(63)), &"g".repeat(64)] {
+            assert!(!valid_sha256(bad), "{:?}", bad);
+        }
+        let _ = fs::remove_dir_all(&docs);
+    }
+
+    /// A marker over a record held only as a placeholder, and over a county
+    /// file held both ways: every representation of the file goes, and the
+    /// marker takes a free name.
+    #[test]
+    fn a_marker_frees_both_names_before_it_lands() {
+        let (docs, sub, _local) = writer_fixture("w-fake-marker", b"x");
+        let io = FakeIo::new(Duration::ZERO);
+        fs::write(sub.join(".US-CA-001.record.json.icloud"), b"bplist-stub").unwrap();
+        fs::write(sub.join("US-CA-001.txt"), b"mine").unwrap();
+        fs::write(sub.join(".US-CA-001.txt.icloud"), b"bplist-stub").unwrap();
+        let r = push_items_cleared_with(&io, &docs, vec!["US-CA-001".to_string()], "2026-09-21T08:00:00.000Z", &phone_origin()).unwrap();
+        assert!(r.failed.is_empty());
+        assert!(!item_present(&sub, "US-CA-001.txt"));
+        assert!(!is_regular_file(&placeholder_path(&sub, "US-CA-001.record.json")));
+        assert_eq!(record_text_at(&sub.join("US-CA-001.record.json")).unwrap().as_deref(), Some(COUNTY_CLEARED_GOLDEN));
+        let _ = fs::remove_dir_all(&docs);
+    }
+
+    /// Follow-up 2 (security report L4): the peer writes its file first and
+    /// its record second, so its NEWER file can reach this device while the
+    /// listing still reads this device's own record. The repair re-reads the
+    /// record immediately before it touches anything: a record iCloud reports
+    /// out of date (the peer's is on its way), or one that now names another
+    /// device or other bytes, and the repair writes nothing and deletes
+    /// nothing (`superseded`), so the normal pull takes the peer's version.
+    #[test]
+    fn a_repair_never_touches_a_county_whose_record_no_longer_names_this_copy() {
+        let bytes = b"Sample Size:\t2.0\n";
+        let sha = sha256_hex(bytes);
+        let ours = COUNTY_RECORD_GOLDEN.replace(GOLDEN_SHA, &sha);
+        let theirs = COUNTY_RECORD_GOLDEN.replace(GOLDEN_SHA, &"c".repeat(64)).replace(&"a".repeat(32), &"f".repeat(32));
+        let item = county("US-CA-001");
+        // (a) The race itself: the peer's newer file is here (a placeholder),
+        // its record is known to be newer (ours reads out of date).
+        let (docs, sub, local) = writer_fixture("w-race-file-first", bytes);
+        let rec = sub.join("US-CA-001.record.json");
+        fs::write(&rec, &ours).unwrap();
+        fs::write(sub.join(".US-CA-001.txt.icloud"), b"bplist-stub").unwrap();
+        let io = FakeIo::new(Duration::ZERO);
+        io.set(rec.clone(), FakeStatus::Stale, Some(&theirs), true);
+        let r = push_item_with(&io, &docs, &local, &item, "e.txt", "2026-09-29T12:00:00.000Z", &mac_origin(), None, Some(&sha)).unwrap();
+        assert!(r.superseded && !r.skipped);
+        assert!(io.deletes.lock().unwrap().is_empty(), "the peer's newer file was deleted");
+        assert!(is_regular_file(&placeholder_path(&sub, "US-CA-001.txt")));
+        assert!(!sub.join("US-CA-001.txt").exists());
+        let _ = fs::remove_dir_all(&docs);
+        // (b) The peer's record already here and current; (c) a peer's marker;
+        // (d) our record naming other bytes; (e) unreadable text.
+        let other_sha = COUNTY_RECORD_GOLDEN.replace(GOLDEN_SHA, &"d".repeat(64));
+        for (tag, text) in [("w-race-b", theirs.as_str()), ("w-race-c", COUNTY_CLEARED_GOLDEN), ("w-race-d", other_sha.as_str()), ("w-race-e", "{")] {
+            let (docs, sub, local) = writer_fixture(tag, bytes);
+            fs::write(sub.join("US-CA-001.record.json"), text).unwrap();
+            fs::write(sub.join(".US-CA-001.txt.icloud"), b"bplist-stub").unwrap();
+            let io = FakeIo::new(Duration::ZERO);
+            let r = push_item_with(&io, &docs, &local, &item, "e.txt", "2026-09-29T12:00:00.000Z", &mac_origin(), None, Some(&sha)).unwrap();
+            assert!(r.superseded, "{}", tag);
+            assert!(io.deletes.lock().unwrap().is_empty(), "{}", tag);
+            assert!(!sub.join("US-CA-001.txt").exists(), "{}", tag);
+            let _ = fs::remove_dir_all(&docs);
+        }
+    }
+
+    /// The re-read's second half: a record that goes out of date DURING the
+    /// read (the peer's arrived meanwhile) is not taken as this copy either.
+    #[test]
+    fn a_record_that_goes_out_of_date_during_the_re_read_supersedes_the_repair() {
+        #[derive(Clone)]
+        struct FlipOnRead(FakeIo);
+        impl ContainerIo for FlipOnRead {
+            fn flags(&self, p: &Path) -> UbiquityFlags { self.0.flags(p) }
+            fn start_download(&self, p: &Path) { self.0.start_download(p) }
+            fn read(&self, d: &Path, n: &str) -> Result<Option<String>, String> {
+                let text = read_record_text(d, n);
+                self.0.set(d.join(n), FakeStatus::Stale, None, false);
+                text
+            }
+            fn delete(&self, d: &Path, n: &str) -> Result<bool, String> { self.0.delete(d, n) }
+            fn create_dir(&self, p: &Path) -> Result<(), String> { self.0.create_dir(p) }
+        }
+        let bytes = b"Sample Size:\t2.0\n";
+        let sha = sha256_hex(bytes);
+        let (docs, sub, local) = writer_fixture("w-race-flip", bytes);
+        fs::write(sub.join("US-CA-001.record.json"), COUNTY_RECORD_GOLDEN.replace(GOLDEN_SHA, &sha)).unwrap();
+        fs::write(sub.join(".US-CA-001.txt.icloud"), b"bplist-stub").unwrap();
+        let io = FlipOnRead(FakeIo::new(Duration::ZERO));
+        let r = push_item_with(&io, &docs, &local, &county("US-CA-001"), "e.txt", "2026-09-29T12:00:00.000Z", &mac_origin(), None, Some(&sha)).unwrap();
+        assert!(r.superseded);
+        assert!(io.0.deletes.lock().unwrap().is_empty());
+        let _ = fs::remove_dir_all(&docs);
+    }
+
+    /// Follow-up 3 (security report L5): Remove takes a kind's directory, and
+    /// a duplicate of it, that this device holds only as iCloud's placeholder,
+    /// through the coordinated delete of its logical URL; the other kind's is
+    /// left alone.
+    #[test]
+    fn remove_takes_a_kind_directory_held_only_as_a_placeholder() {
+        let docs = tmp_dir("w-remove-placeholder-dir");
+        for name in [".barcharts.icloud", ".barcharts 2.icloud", ".day-obs.icloud", ".barcharts2.icloud"] {
+            fs::write(docs.join(name), b"bplist-stub").unwrap();
+        }
+        let io = FakeIo::new(Duration::ZERO);
+        let removed = remove_items_in_with(&io, &docs, ItemKind::Barchart).unwrap();
+        assert_eq!(removed, 2);
+        assert_eq!(*io.deletes.lock().unwrap(), vec![docs.join("barcharts"), docs.join("barcharts 2")]);
+        assert!(!docs.join(".barcharts.icloud").exists() && !docs.join(".barcharts 2.icloud").exists());
+        assert!(docs.join(".day-obs.icloud").exists() && docs.join(".barcharts2.icloud").exists());
+        let _ = fs::remove_dir_all(&docs);
+    }
+
+    /// ...and when the placeholder cannot be deleted (here: a temporary
+    /// directory, where Foundation cannot delete a planted placeholder through
+    /// its logical URL), Remove reports the fixed `unavailable`, never success.
+    #[test]
+    fn remove_that_cannot_take_a_placeholder_directory_reports_unavailable() {
+        for name in [".barcharts.icloud", ".barcharts 2.icloud"] {
+            let docs = tmp_dir("w-remove-placeholder-refused");
+            fs::write(docs.join(name), b"bplist-stub").unwrap();
+            assert_eq!(remove_items_in(&docs, ItemKind::Barchart).err().as_deref(), Some("unavailable"), "{}", name);
+            assert!(docs.join(name).exists());
+            let _ = fs::remove_dir_all(&docs);
+        }
+    }
+
+    /// The still-there check, on its own: a delete that REPORTS success but
+    /// leaves the placeholder (iCloud answered, the item did not go) is the
+    /// fixed `unavailable`, never a success over copies left in iCloud. The
+    /// temporary-directory row above cannot show this, because there the
+    /// delete itself fails first.
+    #[test]
+    fn remove_whose_delete_reports_success_but_leaves_the_placeholder_is_unavailable() {
+        #[derive(Clone)]
+        struct ClaimsGone(FakeIo);
+        impl ContainerIo for ClaimsGone {
+            fn flags(&self, p: &Path) -> UbiquityFlags { self.0.flags(p) }
+            fn start_download(&self, p: &Path) { self.0.start_download(p) }
+            fn read(&self, d: &Path, n: &str) -> Result<Option<String>, String> { self.0.read(d, n) }
+            fn delete(&self, d: &Path, n: &str) -> Result<bool, String> {
+                self.0.deletes.lock().unwrap().push(d.join(n));
+                Ok(true)
+            }
+            fn create_dir(&self, p: &Path) -> Result<(), String> { self.0.create_dir(p) }
+        }
+        for name in [".barcharts.icloud", ".barcharts 2.icloud"] {
+            let docs = tmp_dir("w-remove-claims-gone");
+            fs::write(docs.join(name), b"bplist-stub").unwrap();
+            let io = ClaimsGone(FakeIo::new(Duration::ZERO));
+            assert_eq!(remove_items_in_with(&io, &docs, ItemKind::Barchart).err().as_deref(), Some("unavailable"), "{}", name);
+            assert_eq!(io.0.deletes.lock().unwrap().len(), 1, "{}", name);
+            assert!(docs.join(name).exists());
+            let _ = fs::remove_dir_all(&docs);
+        }
+    }
+
+    /// The twin and duplicate-directory predicates accept only iCloud's own
+    /// set-aside shapes of a valid id, never a path, never a near miss.
+    #[test]
+    fn twin_and_duplicate_names_are_exact() {
+        let yes = [
+            ("US-CA-001 2.txt", "US-CA-001 2.txt"),
+            ("US-CA-001 12.record.json", "US-CA-001 12.record.json"),
+            ("US-CA-001.record 3.json", "US-CA-001.record 3.json"),
+            (".US-CA-001 2.txt.icloud", "US-CA-001 2.txt"),
+        ];
+        for (name, logical) in yes {
+            assert_eq!(twin_name(name, ItemKind::Barchart).as_deref(), Some(logical), "{:?}", name);
+        }
+        for name in [
+            "US-CA-001.txt", "US-CA-001.record.json", "US-CA-001 2.json", "US-CA-001 12345.txt", "US-CA-001  2.txt",
+            "US-CA-001 2.txt\n", "US-CA-001 2.txt.icloud", "us-ca-001 2.txt", "US-CA-0012 2.txt", "US-CA-001 ٢.txt",
+            "US-CA-001 2.txt/x", "notes 2.txt", "US-CA-001 2", ".US-CA-001 2.txt",
+        ] {
+            assert_eq!(twin_name(name, ItemKind::Barchart), None, "{:?}", name);
+        }
+        let dev = "f".repeat(32);
+        assert_eq!(twin_name(&format!("{} 2.json", dev), ItemKind::DayObs), Some(format!("{} 2.json", dev)));
+        assert_eq!(twin_name(&format!("{} 2.txt", dev), ItemKind::DayObs), None);
+        assert!(is_duplicate_subdir("barcharts 2", ItemKind::Barchart));
+        assert!(is_duplicate_subdir("day-obs 13", ItemKind::DayObs));
+        for name in ["barcharts", "barcharts2", "barcharts 2x", "barcharts  2", "barcharts 12345", "barcharts 2/..", "day-obs 2"] {
+            assert!(!is_duplicate_subdir(name, ItemKind::Barchart), "{:?}", name);
+        }
     }
 }

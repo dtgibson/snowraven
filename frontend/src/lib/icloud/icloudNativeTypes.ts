@@ -147,14 +147,27 @@ export interface NativeListResult {
   items: NativeListedItem[]
   /** MAX_LISTED_ITEMS was reached; the rest were ignored this listing */
   truncated: boolean
+  /**
+   * The kind's directory is in iCloud but not on this device yet (its download
+   * has been asked for): nothing was read, and nothing may be decided from
+   * this listing, least of all a push, which would make a second directory of
+   * the same name. Absent from an older native layer, read as false.
+   */
+  pending?: boolean
 }
 
 export interface NativeItemPushResult {
   sha256: string
   byteLength: number
   uploaded: boolean
-  /** the digest equalled the `unlessSha256` handed in, so nothing was written */
+  /** nothing was written: the digest equalled `unlessSha256`, or differed from `repairSha256` */
   skipped: boolean
+  /**
+   * Repair mode only: the county's record in iCloud no longer names this
+   * device's current copy (another device's newer version is on its way), so
+   * nothing was written or deleted. Absent from an older native layer.
+   */
+  superseded?: boolean
 }
 
 /**
@@ -179,8 +192,13 @@ export interface ICloudNativeLayer {
   // ── icloud-bar-chart-sync ──
   /** Every item of a kind whose record name passes the kind's predicate, in one call. */
   listItems(kind: ItemKind): Promise<NativeListResult>
-  /** Push the item's local file then its record; nothing is written when the digest equals `unlessSha256`. */
-  pushItem(item: SyncItemRef, filename: string, uploadedAt: string, origin: RecordOrigin, unlessSha256: string | null): Promise<NativeItemPushResult>
+  /**
+   * Push the item's local file then its record; nothing is written when the
+   * digest equals `unlessSha256`. With `repairSha256` (a county only), the
+   * FILE alone is written, and only when the local digest equals it: the
+   * record in iCloud is this device's own and already names that digest.
+   */
+  pushItem(item: SyncItemRef, filename: string, uploadedAt: string, origin: RecordOrigin, unlessSha256: string | null, repairSha256?: string | null): Promise<NativeItemPushResult>
   /** A cleared marker per county (the county file goes); per-county failures come back in `failed`. */
   pushItemsCleared(counties: string[], clearedAt: string, origin: RecordOrigin): Promise<{ failed: string[] }>
   /** Verify and write the county file over the local one (`file`), or hand a snapshot back as text (`text`). */

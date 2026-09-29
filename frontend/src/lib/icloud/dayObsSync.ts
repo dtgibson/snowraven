@@ -120,6 +120,10 @@ export async function runDayObsPass(
   try {
     if (remaining() <= 0) throw new ICloudNativeError('timeout')
     const listed = await ctx.raceTimeout(ctx.native.listItems('day-obs'), remaining())
+    // The day-obs directory is in iCloud but not here yet (decisions.md entry
+    // 19): nothing was read, and a push now would create a second directory of
+    // the same name. Nothing is decided; the follow-up re-read comes shortly.
+    if (listed.pending) return { transferred: false, failed: false, pending: true }
     items = listed.items.filter(it => DEVICE_ID_RE.test(it.id))
   } catch (raw) {
     const err = toICloudError(raw)

@@ -53,6 +53,8 @@ function makeContainer() {
   const snaps = new Map<string, Snap>()
   const calls: Array<{ device: string; cmd: string; args: unknown[] }> = []
   const fail: Partial<Record<string, ICloudNativeError>> = {}
+  // The day-obs directory is in iCloud but not here yet (native `pending`).
+  const knobs = { pending: false }
   function nativeFor(device: string, local: () => string | null): ICloudNativeLayer {
     const rec = (cmd: string, ...args: unknown[]) => calls.push({ device, cmd, args })
     const listed = (): NativeListedItem[] => [...snaps.entries()].map(([id, s]) => ({
@@ -68,6 +70,7 @@ function makeContainer() {
       async listItems(kind) {
         rec('listItems', kind)
         if (fail.listItems) throw fail.listItems
+        if (knobs.pending) return { items: [], truncated: false, pending: true }
         return { items: kind === 'day-obs' ? listed() : [], truncated: false }
       },
       async pushItem(item: SyncItemRef, filename, uploadedAt, origin, unless) {
@@ -97,7 +100,7 @@ function makeContainer() {
       async removeItems(kind) { rec('removeItems', kind); snaps.clear(); return { removed: 0 } },
     }
   }
-  return { snaps, calls, fail, nativeFor }
+  return { snaps, calls, fail, knobs, nativeFor }
 }
 
 function device(id: string, container: ReturnType<typeof makeContainer>, opts: { store?: Store; hasBackup?: boolean; pref?: DayObsPref } = {}) {
@@ -258,6 +261,19 @@ describe('the push half: this device\'s own snapshot (FR-25, schema.md 8.2)', ()
     const r = await a.pass()
     expect(r).toEqual({ transferred: false, failed: true, pending: false })
     expect(c.calls.filter(x => x.cmd === 'pushItem')).toHaveLength(0)
+  })
+})
+
+describe('device pass on 1.0.40.3: the day-obs directory not here yet (decisions.md entry 19)', () => {
+  it('a pending listing decides nothing: no push into a second directory, no merge, pending; the next pass pushes', async () => {
+    const c = makeContainer()
+    c.knobs.pending = true
+    const a = device(A, c, { store: new Map([['US-CA-001|2026-08-30', { complete: true, fetchedAt: 5 }]]) })
+    expect(await a.pass()).toEqual({ transferred: false, failed: false, pending: true })
+    expect(c.calls.filter(x => x.device === A && x.cmd === 'pushItem')).toHaveLength(0)
+    c.knobs.pending = false
+    expect((await a.pass()).pending).toBe(false)
+    expect(c.calls.filter(x => x.device === A && x.cmd === 'pushItem')).toHaveLength(1)
   })
 })
 

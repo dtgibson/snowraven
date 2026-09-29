@@ -89,8 +89,8 @@ export const icloudNative: ICloudNativeLayer = {
   removeKeys: () => call<{ removed: number }>('icloud_remove_keys'),
   watch: (enabled) => call<void>('icloud_watch', { enabled }),
   listItems: (kind) => call<NativeListResult>('icloud_list_items', { kind }),
-  pushItem: (item, filename, uploadedAt, origin, unlessSha256) =>
-    callItem<NativeItemPushResult>('icloud_push_item', item, { filename, uploadedAt, origin, unlessSha256 }),
+  pushItem: (item, filename, uploadedAt, origin, unlessSha256, repairSha256) =>
+    callItem<NativeItemPushResult>('icloud_push_item', item, { filename, uploadedAt, origin, unlessSha256, repairSha256: repairSha256 ?? null }),
   pushItemsCleared: async (counties, clearedAt, origin) => {
     // Every code is checked here before the invoke; one that fails is reported
     // failed without ever being sent.

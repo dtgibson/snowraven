@@ -296,6 +296,11 @@ export function createICloudController(deps: ControllerDeps): ICloudController {
   let uploadRechecks = 0
   // Whether the last check left something it asked iCloud for on its way.
   let checkPending = false
+  // Counties whose own file the county pass wrote again this session (the
+  // repair of a pre-fix write, decisions.md entry 19): at most once each, so a
+  // device whose flags never read a just-written file as current cannot
+  // rewrite it on every check.
+  const repairedCountyFiles = new Set<string>()
 
   // ── preference ─────────────────────────────────────────────────────────
 
@@ -401,6 +406,7 @@ export function createICloudController(deps: ControllerDeps): ICloudController {
       raceTimeout,
       checkWaitMs,
       downloadPollMs,
+      repairedFiles: repairedCountyFiles,
     }
   }
 

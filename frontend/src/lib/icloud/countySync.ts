@@ -27,7 +27,7 @@
 
 import type { BarChartFileMeta, BarChartFilesStatus, FileOrigin, StorageAdapter } from '../storage'
 import { isRegionCode } from '../regionCode'
-import type { ICloudNativeLayer, NativeListedItem, SyncItemRef } from './icloudNativeTypes'
+import type { ICloudNativeLayer, NativeListedFile, NativeListedItem, SyncItemRef } from './icloudNativeTypes'
 import { ICloudNativeError, toICloudError } from './icloudNativeTypes'
 import {
   MAX_FILENAME, isPlausibleTime, isWritableTime, recordTimeMs, sanitizeFilename, validateCountyRecord,
@@ -103,6 +103,14 @@ export interface CountyPassContext {
   raceTimeout: <T>(p: Promise<T>, ms: number) => Promise<T>
   checkWaitMs: number
   downloadPollMs: number
+  /**
+   * Counties whose own file was already written again this session (the
+   * repair, decisions.md entry 19). Owned by the controller; the pass adds a
+   * county after a repair that wrote or was refused, never after a failure or
+   * a superseded repair, so a county is repaired at most once per session and
+   * a failed repair is tried again at the next check.
+   */
+  repairedFiles: Set<string>
 }
 
 const item = (county: string): SyncItemRef => ({ kind: 'barchart', county })
@@ -191,17 +199,25 @@ export async function awaitCountiesDownloaded(
 }
 
 /**
- * Pull one county's shared file through the guarded seam link. `true` when it
- * landed. A first arrival stamps no `replacedBySyncAt`; only a real replacement
- * does, so FR-17's "Replaced by" line never shows for a file that replaced
- * nothing (the deliberate difference from the slot pull).
+ * Pull one county's shared file through the guarded seam link. `'landed'` when
+ * it landed. A first arrival stamps no `replacedBySyncAt`; only a real
+ * replacement does, so FR-17's "Replaced by" line never shows for a file that
+ * replaced nothing (the deliberate difference from the slot pull).
+ *
+ * `'retry'` when the file under the county's name is not yet the one the
+ * record names (`mismatch`, `absent`, `not-downloaded`): the record is the
+ * small item and routinely reaches this device before the file it commits to,
+ * and a device repairing a pre-fix write (decisions.md entry 19) writes the
+ * file again without touching the record, so no native event follows. The
+ * pass reports it pending and the follow-up re-read pulls it; the view says
+ * what it says now until then.
  */
 async function pullCounty(
   ctx: CountyPassContext,
   code: string,
   meta: BarChartFileMeta | null,
   record: SharedRecord & { state: 'file' },
-): Promise<boolean> {
+): Promise<'landed' | 'not-landed' | 'retry'> {
   const base: SlotView = { state: 'downloading', ...recordView(record, ctx.deviceId), uploadedAt: record.uploadedAt }
   setBarChartView(code, base)
   const entry: BarChartFileMeta = {
@@ -216,17 +232,85 @@ async function pullCounty(
     })
     // A user add or remove landed during the download: the user wins, and the
     // next check (already queued by the bar-chart epoch) pushes it.
-    if (!applied) return false
+    if (!applied) return 'not-landed'
     ctx.notifyBarCharts()
     setBarChartView(code, meta
       ? { ...base, state: 'up-to-date', replacedAt: record.uploadedAt }
       : { state: 'up-to-date', ...recordView(record, ctx.deviceId) })
-    return true
+    return 'landed'
   } catch (raw) {
     const err = toICloudError(raw)
     if (err.code === 'not-downloaded') setBarChartView(code, { ...base, state: 'in-icloud-not-downloaded' })
     else errorView(code, err, base)
-    return false
+    return err.code === 'mismatch' || err.code === 'absent' || err.code === 'not-downloaded' ? 'retry' : 'not-landed'
+  }
+}
+
+/**
+ * Whether THIS device's own county file must be written again (decisions.md
+ * entry 19). The record in iCloud is this device's own and names its file,
+ * but iCloud does not hold that file under the county's name: nothing is
+ * there, a placeholder is (the other device's old file, never downloaded
+ * here), the name is contested (a regular file beside a placeholder, which the
+ * listing never reports downloaded), or the file on disk has another length
+ * than the record names. A 1.0.40.1 to 1.0.40.3 push onto a name held only by a
+ * placeholder left exactly these states, and every later check decided `none`
+ * and showed "Waiting to upload" while the other device, reading this record,
+ * found its own old file or none. A county whose record is another device's is
+ * never written here (it is that device's to repair).
+ */
+export function needsFileRepair(
+  record: SharedRecord & { state: 'file' },
+  file: NativeListedFile | undefined,
+  deviceId: string,
+): boolean {
+  if (record.origin.deviceId !== deviceId || !file) return false
+  if (!file.present || !file.downloaded) return true
+  return file.byteLength !== null && file.byteLength !== record.byteLength
+}
+
+/**
+ * Write this device's county FILE again, with the record's own digest: the
+ * native side writes the file only, and only when the local bytes have that
+ * digest (`skipped` otherwise). The record is never rewritten here, because
+ * the file also goes missing for a moment while another device clears the
+ * county (its delete of the file lands before its marker), and this device's
+ * older record landing over that marker would bring the county back on the
+ * device that removed it.
+ */
+async function repairCountyFile(
+  ctx: CountyPassContext,
+  code: string,
+  meta: BarChartFileMeta,
+  record: SharedRecord & { state: 'file' },
+): Promise<'repaired' | 'skipped' | 'superseded' | 'failed'> {
+  const origin = ctx.recordOrigin(meta.origin ?? ctx.thisDevice())
+  const base: SlotView = {
+    state: 'uploading',
+    fromThisDevice: true,
+    origin: { label: record.origin.label, platform: record.origin.platform },
+  }
+  setBarChartView(code, base)
+  try {
+    const r = await ctx.native.pushItem(item(code), sanitizeFilename(record.filename), record.uploadedAt, origin, null, record.sha256)
+    if (r.skipped) return 'skipped'
+    if (r.superseded) {
+      // The native re-read found the county's record no longer naming this
+      // copy (security report L4): another device's newer version is on its
+      // way, so nothing was touched and the pull takes it (follow-up 2).
+      setBarChartView(code, { ...base, fromThisDevice: false, state: 'downloading' })
+      return 'superseded'
+    }
+    ctx.log(`icloud: county ${code}'s file was not in iCloud under its name; written again`)
+    setBarChartView(code, {
+      ...base,
+      state: r.uploaded === false ? 'waiting-to-upload' : 'up-to-date',
+      ...(meta.replacedBySyncAt ? { replacedAt: meta.uploadedAt } : {}),
+    })
+    return 'repaired'
+  } catch (raw) {
+    errorView(code, toICloudError(raw), base)
+    return 'failed'
   }
 }
 
@@ -321,6 +405,18 @@ export async function runCountyPass(
     return { transferred: false, failed: timeout, pending: false }
   }
   if (listed.truncated) ctx.log('icloud: county listing reached its bound; the rest are ignored this check')
+  if (listed.pending) {
+    // The container's bar-chart directory is in iCloud but has not come down
+    // to this device yet (decisions.md entry 19). Nothing was read, so nothing
+    // is decided: pushing a local county now would create a second directory
+    // of the same name, which iCloud keeps apart from the first. Remembered
+    // clears and the shared set wait too; the follow-up re-read comes shortly.
+    for (const code of Object.keys(manifest.counties)) {
+      const meta = entryOf(manifest, code)
+      if (meta) setBarChartView(code, { state: 'downloading', ...originView(meta, ctx.deviceId) })
+    }
+    return { transferred: false, failed: false, pending: true }
+  }
 
   const shared = new Map<string, NativeListedItem>()
   for (const it of listed.items) if (isRegionCode(it.id)) shared.set(it.id, it)
@@ -412,6 +508,23 @@ export async function runCountyPass(
     })
     switch (decision.action) {
       case 'none': {
+        if (meta && record?.state === 'file' && needsFileRepair(record, file, ctx.deviceId) && !ctx.repairedFiles.has(code)) {
+          const repaired = await repairCountyFile(ctx, code, meta, record)
+          if (repaired === 'repaired' || repaired === 'skipped') ctx.repairedFiles.add(code)
+          if (repaired === 'superseded') pending = true
+          if (repaired === 'repaired') transferred = true
+          else if (repaired === 'skipped') {
+            // The local file is not the one this device's own record names
+            // (same time, other bytes): the record is what is wrong, so the
+            // county is pushed whole.
+            const filename = await pushCounty(ctx, code, meta)
+            if (filename !== null) {
+              pushed.set(code, filename)
+              transferred = true
+            }
+          }
+          break
+        }
         if (meta && record?.state === 'file') {
           setBarChartView(code, {
             state: file?.uploaded === false ? 'waiting-to-upload' : 'up-to-date',
@@ -434,9 +547,13 @@ export async function runCountyPass(
         }
         break
       }
-      case 'pull':
-        if (record?.state === 'file' && await pullCounty(ctx, code, meta, record)) transferred = true
+      case 'pull': {
+        if (record?.state !== 'file') break
+        const got = await pullCounty(ctx, code, meta, record)
+        if (got === 'landed') transferred = true
+        else if (got === 'retry') pending = true
         break
+      }
       case 'download': {
         if (record?.state !== 'file') break
         setBarChartView(code, { state: 'downloading', ...recordView(record, ctx.deviceId), uploadedAt: record.uploadedAt })
@@ -464,7 +581,9 @@ export async function runCountyPass(
     const landed = await awaitCountiesDownloaded(ctx, new Set(downloads.keys()), Math.max(0, Math.min(ctx.checkWaitMs, remaining())))
     for (const [code, d] of downloads) {
       if (landed.has(code)) {
-        if (await pullCounty(ctx, code, d.meta, d.record)) transferred = true
+        const got = await pullCounty(ctx, code, d.meta, d.record)
+        if (got === 'landed') transferred = true
+        else if (got === 'retry') pending = true
       } else {
         // FR-08: keep the local file (or none), say a newer file exists, offer Download now.
         setBarChartView(code, { state: 'in-icloud-not-downloaded', ...recordView(d.record, ctx.deviceId), uploadedAt: d.record.uploadedAt })
