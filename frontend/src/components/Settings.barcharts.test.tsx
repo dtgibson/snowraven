@@ -57,7 +57,7 @@ function actions(): ICloudActions {
     enable: noop, disable: noop, checkNow: async () => ({ ok: true, transferred: false, at: null }),
     downloadNow: noop, retry: noop, removeFromICloud: noop, clearWithSync: async () => [], fileSaved: () => {},
     downloadBarChartNow: noop, retryBarChart: noop, barChartSaved: () => {}, barChartsCleared,
-    enableKeys: noop, disableKeys: noop, removeKeysFromICloud: noop, clearKeyWithSync: noop, retryKey: noop, keySaved: () => {},
+    enableKeys: noop, disableKeys: noop, removeKeysFromICloud: noop, clearKeyWithSync: noop, retryKey: noop, keySaved: () => {}, detailsReport: async () => null,
   }
 }
 

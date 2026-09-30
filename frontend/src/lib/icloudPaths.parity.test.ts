@@ -290,6 +290,23 @@ describe('the bar-chart files and the day cache sync as ITEMS, never as slots (i
     expect(removeAll).not.toContain('KEYS_RECORD_NAME')
   })
 
+  it('the diagnostics command exists on both sides, is registered under the Apple cfg, and reads only (decisions.md entry 20)', () => {
+    expect(rust).toContain('pub async fn icloud_diagnostics(')
+    expect(native).toContain("'icloud_diagnostics'")
+    expect(libRs).toContain('#[cfg(any(target_os = "macos", target_os = "ios"))]\n            icloud::icloud_diagnostics,')
+    expect(types).toContain('diagnostics?(')
+    // The scan's body names no writer, no delete, no download request and no
+    // coordinated read: it is metadata and a bounded local read only.
+    const scan = rust.slice(rust.indexOf('// ── Diagnostics: "Copy iCloud details"'), rust.indexOf('#[cfg(test)]\nmod tests {'))
+    expect(scan.length).toBeGreaterThan(1000)
+    for (const forbidden of [
+      'atomic_container_write(', 'county_container_write(', 'coordinated_write(', 'coordinated_delete(', 'coordinated_read(',
+      'startDownloadingUbiquitousItemAtURL', 'removeItemAtURL', 'read_record_text(', 'fs::write(', 'fs::remove', 'fs::rename(', 'fs::read(',
+    ]) {
+      expect(scan, forbidden).not.toContain(forbidden)
+    }
+  })
+
   it('the subdirectories, the local names and the two bounds are one value on both sides', async () => {
     const { ITEM_SUBDIRS } = await import('./icloud/icloudNative')
     const { BARCHARTS_DIR, COUNTY_DAY_OBS_PATH } = await import('./storage')

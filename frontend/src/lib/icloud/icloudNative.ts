@@ -106,6 +106,7 @@ export const icloudNative: ICloudNativeLayer = {
   startDownloadItem: (item) => callItem<void>('icloud_start_download_item', item),
   removeItem: (item) => callItem<{ removed: number }>('icloud_remove_item', item),
   removeItems: (kind) => call<{ removed: number }>('icloud_remove_items', { kind }),
+  diagnostics: () => call<unknown>('icloud_diagnostics'),
   onChanged: (cb) => listen(ICLOUD_CHANGED_EVENT, () => cb()),
   onIdentityChanged: (cb) => listen(ICLOUD_IDENTITY_EVENT, () => cb()),
 }

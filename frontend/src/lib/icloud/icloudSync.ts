@@ -71,6 +71,7 @@ import {
 import {
   emptyDayObsPref, normalizeDayObsPref, publishSharedDayObs, runDayObsPass, type DayObsPassContext, type DayObsPref,
 } from './dayObsSync'
+import { buildICloudReport } from './icloudDiagnostics'
 
 export const ICLOUD_SYNC_SETTING = 'icloud-sync'
 
@@ -104,6 +105,11 @@ export const CHECK_DEADLINE_MS = 10_000
     reason: nothing else re-reads a county file that finishes downloading. */
 export const UPLOAD_RECHECK_MS = 15_000
 export const UPLOAD_RECHECK_MAX = 8
+/** How long "Copy iCloud details" waits for the native scan. The command
+    itself answers within its 8 s budget (a scan that runs out comes back as
+    `scanError`) plus the iOS device-name hop; this only bounds a native layer
+    that never answers, and the report then says so. */
+export const DETAILS_DEADLINE_MS = 15_000
 
 type KnownShared = Record<Slot, { filename: string } | null>
 
@@ -1761,6 +1767,52 @@ export function createICloudController(deps: ControllerDeps): ICloudController {
     installICloudActions(null)
   }
 
+  // ── diagnostics (icloud-bar-chart-sync decisions.md entry 20) ──────────
+
+  /**
+   * The "Copy iCloud details" report. Read-only: the native scan downloads,
+   * writes and deletes nothing, and nothing here changes the preference or
+   * the state. Never rejects: a native layer that refuses or never answers,
+   * or a manifest that cannot be read, is named in the report instead.
+   */
+  async function detailsReport(): Promise<string> {
+    let native: unknown = null
+    let nativeError: string | null = null
+    if (deps.native.diagnostics) {
+      try {
+        native = await raceTimeout(deps.native.diagnostics(), DETAILS_DEADLINE_MS)
+      } catch (raw) {
+        nativeError = toICloudError(raw).code
+      }
+    }
+    let manifest: Awaited<ReturnType<typeof deps.storage.getBarChartFiles>> | null
+    try {
+      manifest = await deps.storage.getBarChartFiles()
+    } catch {
+      manifest = null
+    }
+    return buildICloudReport({
+      generatedAt: isoNow(deps.now),
+      native,
+      nativeError,
+      state: getICloudState(),
+      pref: {
+        enabled: pref.enabled,
+        pendingCountyClears: pref.pendingCountyClears,
+        knownSharedCounties: pref.knownSharedCounties,
+      },
+      manifest,
+      controller: {
+        checksRun,
+        uploadRechecks,
+        checkPending,
+        checkInFlight: inFlight !== null,
+        checkQueued: queued,
+        repairedCounties: [...repairedCountyFiles],
+      },
+    })
+  }
+
   const controller: ICloudController = {
     boot,
     requestCheck,
@@ -1783,6 +1835,7 @@ export function createICloudController(deps: ControllerDeps): ICloudController {
     clearKeyWithSync,
     retryKey,
     keySaved,
+    detailsReport,
     get checksRun() {
       return checksRun
     },

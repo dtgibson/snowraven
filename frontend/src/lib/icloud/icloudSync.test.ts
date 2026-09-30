@@ -4,7 +4,8 @@
 // semantics, with the REAL validator and reconcile modules underneath.
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { createICloudController, mintDeviceId, type ControllerDeps, ICLOUD_SYNC_SETTING } from './icloudSync'
+import { createICloudController, mintDeviceId, type ControllerDeps, ICLOUD_SYNC_SETTING, DETAILS_DEADLINE_MS } from './icloudSync'
+import fixture from './icloudDiagnostics.fixture.json'
 import { getICloudState, resetICloudState, installICloudActions } from './icloudState'
 import { serializeRecord, validateSharedRecord, type SharedRecord, type Slot } from './icloudRecord'
 import type { FileMetadata, FilesStatus, FileOrigin } from '../storage'
@@ -769,5 +770,52 @@ describe('security round: the write chokepoint sanitizes what it pushes', () => 
     await c.checkNow()
     expect(n.calls.filter(x => x.cmd === 'push').length).toBe(1)
     expect(getICloudState().slots.ebird?.state).toBe('up-to-date')
+  })
+})
+
+describe('Copy iCloud details (icloud-bar-chart-sync decisions.md entry 20)', () => {
+  it('builds the report from the native scan, the state and the manifest, and writes, pushes and removes nothing', async () => {
+    const n = makeNative()
+    const { storage, settings } = makeStorage()
+    n.native.diagnostics = async () => fixture
+    const c = createICloudController(makeDeps(n.native, storage).deps)
+    const before = JSON.stringify(settings)
+    const report = await c.detailsReport()
+    expect(report).toContain('SnowRaven 1.0.40 (bundle 1.0.40, build 1.0.40.5) on ipad')
+    expect(report).toContain('Generated 2026-09-01T16:00:00.000Z.')
+    expect(report).toContain('Checks this session: 0.')
+    expect(n.calls.map((x) => x.cmd)).toEqual([])
+    expect(JSON.stringify(settings)).toBe(before)
+  })
+
+  it('never rejects: a refused scan, a scan that never answers, a build without one and an unreadable manifest are each named', async () => {
+    const n = makeNative()
+    const { storage } = makeStorage()
+    n.native.diagnostics = async () => { throw new ICloudNativeError('unavailable') }
+    storage.getBarChartFiles = async () => { throw new Error('unknown') }
+    const c = createICloudController(makeDeps(n.native, storage).deps)
+    const refused = await c.detailsReport()
+    expect(refused).toContain('Native details could not be read in full: unavailable.')
+
+    delete n.native.diagnostics
+    expect(await c.detailsReport()).toContain('Native details are not available on this build.')
+
+    vi.useFakeTimers()
+    try {
+      n.native.diagnostics = () => new Promise(() => {})
+      const pending = c.detailsReport()
+      await vi.advanceTimersByTimeAsync(DETAILS_DEADLINE_MS + 1)
+      expect(await pending).toContain('Native details could not be read in full: timeout.')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('is installed as the action Settings calls', async () => {
+    const n = makeNative()
+    n.native.diagnostics = async () => fixture
+    createICloudController(makeDeps(n.native, makeStorage().storage).deps)
+    const { icloudActions } = await import('./icloudState')
+    expect(await icloudActions.detailsReport()).toContain('SnowRaven iCloud details')
   })
 })

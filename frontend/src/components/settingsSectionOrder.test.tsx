@@ -82,6 +82,7 @@ function fakeActions(): ICloudActions {
     clearKeyWithSync: vi.fn<(slot: KeySlot) => Promise<void>>(async () => {}),
     retryKey: vi.fn<(slot: KeySlot) => Promise<void>>(async () => {}),
     keySaved: vi.fn<(slot: KeySlot) => void>(() => {}),
+    detailsReport: vi.fn<() => Promise<string | null>>(async () => null),
   }
 }
 

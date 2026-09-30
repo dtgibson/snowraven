@@ -208,6 +208,14 @@ export interface ICloudNativeLayer {
   removeItem(item: SyncItemRef): Promise<{ removed: number }>
   /** Delete every item of a kind (every county, or every device's snapshot). */
   removeItems(kind: ItemKind): Promise<{ removed: number }>
+  /**
+   * Diagnostics (icloud-bar-chart-sync decisions.md entry 20): the raw
+   * `icloud_diagnostics` payload, a read-only scan of the container and the
+   * native operation log. Handed to `buildICloudReport` as UNTRUSTED input,
+   * which keeps only the fields it names. Optional so test fakes need not
+   * carry it; the report says so when it is missing.
+   */
+  diagnostics?(): Promise<unknown>
   onChanged(cb: () => void): Promise<() => void>
   onIdentityChanged(cb: () => void): Promise<() => void>
 }

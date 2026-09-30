@@ -113,7 +113,12 @@ export const BUTTONS = {
   clearConfirm: 'Clear from all synced devices',
   /** icloud-bar-chart-sync: the Targets Remove and the Settings clear-all, with sync on. */
   removeAllSynced: 'Remove from all synced devices',
+  /** icloud-bar-chart-sync diagnostics (decisions.md entry 20). */
+  copyDetails: 'Copy iCloud details',
 } as const
+
+/** The brief confirmation after Copy iCloud details put the report on the clipboard. */
+export const DETAILS_COPIED_TEXT = 'Copied'
 
 /** Enable note (FR-08): four required elements. */
 export const ENABLE_TITLE = 'Turn on iCloud Sync'

@@ -847,6 +847,8 @@ describe('entry-chunk exclusion (NFR-03 / QA-30)', () => {
     'lib/icloud/icloudNative.ts',
     'lib/countyDayObsCache.ts',
     'lib/barChart/barChartImport.ts',
+    // The "Copy iCloud details" report builder (decisions.md entry 20).
+    'lib/icloud/icloudDiagnostics.ts',
   ]
 
   it.each(BAR_CHART_SYNC_OFF_ENTRY)('%s is off the App static closure (icloud-bar-chart-sync)', file => {
@@ -871,6 +873,21 @@ describe('entry-chunk exclusion (NFR-03 / QA-30)', () => {
       expect(hasIn(c.files, 'lib/storage.ts'), m).toBe(false)
       expect(hasIn(c.files, 'lib/countyDayObsCache.ts'), m).toBe(false)
     }
+  })
+
+  it('the report builder rides the controller, and pulls no Tauri module or storage singleton (decisions.md entry 20)', () => {
+    const ctrl = closureFrom(resolve(SRC, 'lib/icloud/icloudSync.ts'))
+    expect(hasIn(ctrl.files, 'lib/icloud/icloudDiagnostics.ts')).toBe(true)
+    const builder = closureFrom(resolve(SRC, 'lib/icloud/icloudDiagnostics.ts'))
+    expect([...builder.externals].filter(s => s.startsWith('@tauri-apps/')), 'externals').toEqual([])
+    expect(hasIn(builder.files, 'lib/storage.ts')).toBe(false)
+    // Settings reaches it only through the installed action, and copies
+    // through the entry-safe clipboard seam, whose plugin is itself a
+    // dynamic import.
+    const settingsSrc = readFileSync(resolve(SRC, 'components/Settings.tsx'), 'utf8')
+    expect(settingsSrc).toContain('icloudActions.detailsReport()')
+    expect(settingsSrc).not.toContain('icloudDiagnostics')
+    expect(has('lib/clipboard.ts')).toBe(true)
   })
 
   it('Settings reaches the bar-chart removal only through import(), and the shared sync line statically', () => {

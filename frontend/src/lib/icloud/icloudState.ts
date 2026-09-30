@@ -148,6 +148,11 @@ export interface ICloudActions {
   retryKey(slot: KeySlot): Promise<void>
   /** Settings saved a key locally with the key switch on: row "Syncing", check. */
   keySaved(slot: KeySlot): void
+
+  // ── icloud-bar-chart-sync diagnostics (decisions.md entry 20) ──
+  /** The "Copy iCloud details" report (lib/icloud/icloudDiagnostics.ts), for
+   *  Settings to put on the clipboard; null before the controller has loaded. */
+  detailsReport(): Promise<string | null>
 }
 
 function emptyKeySlots(): Record<KeySlot, KeySlotView | null> {
@@ -256,6 +261,7 @@ const NOOP_ACTIONS: ICloudActions = {
   clearKeyWithSync: async () => {},
   retryKey: async () => {},
   keySaved: () => {},
+  detailsReport: async () => null,
 }
 
 /**
@@ -284,6 +290,7 @@ export const icloudActions: ICloudActions = {
   clearKeyWithSync: (slot) => installed.clearKeyWithSync(slot),
   retryKey: (slot) => installed.retryKey(slot),
   keySaved: (slot) => installed.keySaved(slot),
+  detailsReport: () => installed.detailsReport(),
 }
 
 export function installICloudActions(actions: ICloudActions | null): void {

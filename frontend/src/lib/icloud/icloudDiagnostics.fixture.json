@@ -1,0 +1,403 @@
+{
+  "appVersion": "1.0.40",
+  "bundleBuild": "1.0.40.5",
+  "bundleVersion": "1.0.40",
+  "collectedAtMs": 1790683203000,
+  "deviceLabel": "Dave's iPad",
+  "lastOps": [
+    {
+      "clear": null,
+      "county": "US-CA-001",
+      "pull": null,
+      "push": {
+        "atMs": 1790683202000,
+        "result": "unavailable"
+      }
+    }
+  ],
+  "ops": [
+    {
+      "atMs": 1790683200000,
+      "count": 1,
+      "detail": "2 counties, 1 records unread, 1 files not uploaded",
+      "op": "list",
+      "result": "ok",
+      "target": "barcharts"
+    },
+    {
+      "atMs": 1790683201000,
+      "count": 1,
+      "detail": "coordinated rename (NSCocoaErrorDomain 512 / NSPOSIXErrorDomain 1)",
+      "op": "write",
+      "result": "unavailable",
+      "target": "US-CA-001.txt"
+    },
+    {
+      "atMs": 1790683202000,
+      "count": 1,
+      "detail": null,
+      "op": "push",
+      "result": "unavailable",
+      "target": "US-CA-001"
+    }
+  ],
+  "platform": "ipad",
+  "scan": {
+    "availability": "available",
+    "buildCanUseIcloud": true,
+    "container": {
+      "barcharts": {
+        "folder": {
+          "modifiedMs": 1790742419609,
+          "name": "barcharts",
+          "onDisk": "folder",
+          "record": null,
+          "role": "folder",
+          "size": null,
+          "values": {
+            "conflictVersions": null,
+            "downloadError": null,
+            "downloadStatus": null,
+            "downloading": null,
+            "excludedFromSync": null,
+            "hasUnresolvedConflicts": null,
+            "isUbiquitous": null,
+            "readError": null,
+            "uploadError": null,
+            "uploaded": null,
+            "uploading": null
+          }
+        },
+        "items": [
+          {
+            "modifiedMs": 1790742419609,
+            "name": "US-CA-001 2.txt",
+            "onDisk": "file",
+            "record": null,
+            "role": "twin",
+            "size": 11,
+            "values": {
+              "conflictVersions": 0,
+              "downloadError": null,
+              "downloadStatus": null,
+              "downloading": null,
+              "excludedFromSync": null,
+              "hasUnresolvedConflicts": null,
+              "isUbiquitous": null,
+              "readError": null,
+              "uploadError": null,
+              "uploaded": null,
+              "uploading": null
+            }
+          },
+          {
+            "modifiedMs": 1790742419608,
+            "name": "US-CA-001.record.json",
+            "onDisk": "file",
+            "record": {
+              "byteLength": 11,
+              "clearedAt": null,
+              "county": "US-CA-001",
+              "originDeviceId": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "originLabel": "Dave's iPad",
+              "originPlatform": "ipad",
+              "readable": true,
+              "slot": "barchart",
+              "state": "file",
+              "uploadedAt": "2026-09-29T12:00:00.000Z"
+            },
+            "role": "record",
+            "size": 349,
+            "values": {
+              "conflictVersions": 0,
+              "downloadError": null,
+              "downloadStatus": null,
+              "downloading": null,
+              "excludedFromSync": null,
+              "hasUnresolvedConflicts": null,
+              "isUbiquitous": null,
+              "readError": null,
+              "uploadError": null,
+              "uploaded": null,
+              "uploading": null
+            }
+          },
+          {
+            "modifiedMs": 1790742419607,
+            "name": "US-CA-001.txt",
+            "onDisk": "file",
+            "record": null,
+            "role": "file",
+            "size": 11,
+            "values": {
+              "conflictVersions": 0,
+              "downloadError": null,
+              "downloadStatus": null,
+              "downloading": null,
+              "excludedFromSync": null,
+              "hasUnresolvedConflicts": null,
+              "isUbiquitous": null,
+              "readError": null,
+              "uploadError": null,
+              "uploaded": null,
+              "uploading": null
+            }
+          },
+          {
+            "modifiedMs": 1790742419609,
+            "name": "US-CA-002.record.json",
+            "onDisk": "placeholder",
+            "record": null,
+            "role": "record",
+            "size": null,
+            "values": {
+              "conflictVersions": 0,
+              "downloadError": null,
+              "downloadStatus": null,
+              "downloading": null,
+              "excludedFromSync": null,
+              "hasUnresolvedConflicts": null,
+              "isUbiquitous": null,
+              "readError": null,
+              "uploadError": null,
+              "uploaded": null,
+              "uploading": null
+            }
+          },
+          {
+            "modifiedMs": 1790742419608,
+            "name": "US-CA-002.txt",
+            "onDisk": "placeholder",
+            "record": null,
+            "role": "file",
+            "size": null,
+            "values": {
+              "conflictVersions": 0,
+              "downloadError": null,
+              "downloadStatus": null,
+              "downloading": null,
+              "excludedFromSync": null,
+              "hasUnresolvedConflicts": null,
+              "isUbiquitous": null,
+              "readError": null,
+              "uploadError": null,
+              "uploaded": null,
+              "uploading": null
+            }
+          },
+          {
+            "modifiedMs": null,
+            "name": "US-CA-003.txt",
+            "onDisk": "symlink",
+            "record": null,
+            "role": "file",
+            "size": null,
+            "values": null
+          }
+        ],
+        "itemsMore": 0,
+        "other": [
+          {
+            "kind": "file",
+            "modifiedMs": 1790742419609,
+            "name": "notes.txt",
+            "size": 1
+          },
+          {
+            "kind": "file",
+            "modifiedMs": 1790742419609,
+            "name": "readme.md",
+            "size": 1
+          }
+        ],
+        "otherMore": 0,
+        "scanTruncated": false
+      },
+      "control": [
+        {
+          "modifiedMs": 1790742419606,
+          "name": "ebird-backup.csv",
+          "onDisk": "file",
+          "record": null,
+          "role": "file",
+          "size": 26,
+          "values": {
+            "conflictVersions": 0,
+            "downloadError": null,
+            "downloadStatus": null,
+            "downloading": null,
+            "excludedFromSync": null,
+            "hasUnresolvedConflicts": null,
+            "isUbiquitous": null,
+            "readError": null,
+            "uploadError": null,
+            "uploaded": null,
+            "uploading": null
+          }
+        },
+        {
+          "modifiedMs": 1790742419607,
+          "name": "ebird.record.json",
+          "onDisk": "file",
+          "record": {
+            "byteLength": 1000,
+            "clearedAt": null,
+            "county": null,
+            "originDeviceId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "originLabel": "Dave's MacBook Pro",
+            "originPlatform": "mac",
+            "readable": true,
+            "slot": "ebird",
+            "state": "file",
+            "uploadedAt": "2026-08-24T22:12:00.000Z"
+          },
+          "role": "record",
+          "size": 309,
+          "values": {
+            "conflictVersions": 0,
+            "downloadError": null,
+            "downloadStatus": null,
+            "downloading": null,
+            "excludedFromSync": null,
+            "hasUnresolvedConflicts": null,
+            "isUbiquitous": null,
+            "readError": null,
+            "uploadError": null,
+            "uploaded": null,
+            "uploading": null
+          }
+        }
+      ],
+      "dayObs": {
+        "folder": {
+          "modifiedMs": 1790742419610,
+          "name": "day-obs",
+          "onDisk": "folder",
+          "record": null,
+          "role": "folder",
+          "size": null,
+          "values": {
+            "conflictVersions": null,
+            "downloadError": null,
+            "downloadStatus": null,
+            "downloading": null,
+            "excludedFromSync": null,
+            "hasUnresolvedConflicts": null,
+            "isUbiquitous": null,
+            "readError": null,
+            "uploadError": null,
+            "uploaded": null,
+            "uploading": null
+          }
+        },
+        "items": [
+          {
+            "modifiedMs": 1790742419610,
+            "name": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.json",
+            "onDisk": "file",
+            "record": null,
+            "role": "file",
+            "size": 2,
+            "values": {
+              "conflictVersions": 0,
+              "downloadError": null,
+              "downloadStatus": null,
+              "downloading": null,
+              "excludedFromSync": null,
+              "hasUnresolvedConflicts": null,
+              "isUbiquitous": null,
+              "readError": null,
+              "uploadError": null,
+              "uploaded": null,
+              "uploading": null
+            }
+          }
+        ],
+        "itemsMore": 0,
+        "other": [],
+        "otherMore": 0,
+        "scanTruncated": false
+      },
+      "documents": {
+        "modifiedMs": 1790742419610,
+        "name": "Documents",
+        "onDisk": "folder",
+        "record": null,
+        "role": "folder",
+        "size": null,
+        "values": {
+          "conflictVersions": null,
+          "downloadError": null,
+          "downloadStatus": null,
+          "downloading": null,
+          "excludedFromSync": null,
+          "hasUnresolvedConflicts": null,
+          "isUbiquitous": null,
+          "readError": null,
+          "uploadError": null,
+          "uploaded": null,
+          "uploading": null
+        }
+      },
+      "documentsOther": 0,
+      "duplicates": [
+        {
+          "modifiedMs": 1790742419610,
+          "name": "barcharts 2",
+          "onDisk": "folder",
+          "record": null,
+          "role": "duplicate-folder",
+          "size": null,
+          "values": {
+            "conflictVersions": null,
+            "downloadError": null,
+            "downloadStatus": null,
+            "downloading": null,
+            "excludedFromSync": null,
+            "hasUnresolvedConflicts": null,
+            "isUbiquitous": null,
+            "readError": null,
+            "uploadError": null,
+            "uploaded": null,
+            "uploading": null
+          }
+        }
+      ],
+      "staging": {
+        "barchart": [
+          {
+            "kind": "file",
+            "modifiedMs": 1790742419610,
+            "name": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-barcharts-US-CA-001.txt",
+            "size": 6
+          }
+        ],
+        "barchartMore": 0,
+        "total": 1
+      }
+    },
+    "containerResolves": true,
+    "identityTokenPresent": true,
+    "local": {
+      "barcharts": [
+        {
+          "kind": "file",
+          "modifiedMs": 1790742419611,
+          "name": "US-CA-001.txt",
+          "size": 11
+        }
+      ],
+      "barchartsFolder": true,
+      "barchartsMore": 0,
+      "barchartsOther": 1,
+      "dayObsFile": null,
+      "ebirdFile": {
+        "kind": "file",
+        "modifiedMs": 1790742419612,
+        "name": "ebird-backup.csv",
+        "size": 14
+      }
+    }
+  },
+  "scanError": null
+}

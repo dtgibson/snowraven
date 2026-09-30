@@ -58,7 +58,7 @@
 //! sanitized, as for file records.
 
 use std::cell::RefCell;
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::ptr::NonNull;
@@ -1029,6 +1029,54 @@ fn device_identity(app: &AppHandle) -> (String, &'static str) {
     ("iPhone".to_string(), "iphone")
 }
 
+// ── Diagnostics: the last Apple error on this thread (decisions.md entry 20) ─
+//
+// The coordinated helpers below map every failure to the closed union's
+// `unavailable`, which is right for the UI and says nothing about WHY. For
+// the diagnostics report they also leave the failure's codes here, on the
+// thread that met it (every command body runs on one helper thread, and the
+// coordinator's error comes back on the calling thread), and the operation
+// log takes them. Side effect only: no helper's result changes. Codes only
+// (domain and number, and the underlying error's), never a description or a
+// path, so nothing here can carry a file name the user chose.
+
+thread_local! {
+    static LAST_ERROR: RefCell<Option<String>> = const { RefCell::new(None) };
+}
+
+fn remember_error(text: String) {
+    LAST_ERROR.with(|c| *c.borrow_mut() = Some(text));
+}
+
+/// The last error this thread remembered, cleared as it is taken.
+fn take_last_error() -> Option<String> {
+    LAST_ERROR.with(|c| c.borrow_mut().take())
+}
+
+/// `NSCocoaErrorDomain 4 / NSPOSIXErrorDomain 2`: an error's domain and code,
+/// and its underlying error's, bounded.
+fn ns_error_brief(e: &NSError) -> String {
+    let mut s = format!("{} {}", diag_text(&e.domain().to_string(), DIAG_NAME_MAX), e.code());
+    let info = e.userInfo();
+    if let Some(u) = info.objectForKey(unsafe { objc2_foundation::NSUnderlyingErrorKey }) {
+        if let Some(u) = u.downcast_ref::<NSError>() {
+            s.push_str(&format!(" / {} {}", diag_text(&u.domain().to_string(), DIAG_NAME_MAX), u.code()));
+        }
+    }
+    s
+}
+
+fn remember_ns_error(e: &NSError) {
+    remember_error(ns_error_brief(e));
+}
+
+fn remember_io_error(what: &str, e: &std::io::Error) {
+    match e.raw_os_error() {
+        Some(n) => remember_error(format!("{}: errno {}", what, n)),
+        None => remember_error(format!("{}: {:?}", what, e.kind())),
+    }
+}
+
 // ── Coordinated file access ─────────────────────────────────────────────────
 
 /// Coordinated read: `f` runs inside the coordinator's accessor with the
@@ -1054,7 +1102,8 @@ fn coordinated_read<T>(url: &NSURL, f: impl Fn(&Path) -> Result<T, String>) -> R
         Some(&mut err),
         &block,
     );
-    if err.is_some() {
+    if let Some(e) = err.as_deref() {
+        remember_ns_error(e);
         return Err("unavailable".to_string());
     }
     out.into_inner().unwrap_or_else(|| Err("unavailable".to_string()))
@@ -1080,7 +1129,8 @@ fn coordinated_write<T>(
     let coordinator = NSFileCoordinator::new();
     let mut err: Option<Retained<NSError>> = None;
     coordinator.coordinateWritingItemAtURL_options_error_byAccessor(url, options, Some(&mut err), &block);
-    if err.is_some() {
+    if let Some(e) = err.as_deref() {
+        remember_ns_error(e);
         return Err("unavailable".to_string());
     }
     out.into_inner().unwrap_or_else(|| Err("unavailable".to_string()))
@@ -1149,9 +1199,15 @@ fn clear_staging_for(tmp_dir: &Path, target_name: &str) -> u32 {
 /// replaced by the rename itself, as a link, never followed.
 fn replace_item(tmp: &Path, dst: &Path) -> Result<(), String> {
     if fs::symlink_metadata(dst).map(|m| m.file_type().is_dir()).unwrap_or(false) {
-        fs::remove_dir_all(dst).map_err(|_| "unavailable".to_string())?;
+        fs::remove_dir_all(dst).map_err(|e| {
+            remember_io_error("remove planted directory", &e);
+            "unavailable".to_string()
+        })?;
     }
-    fs::rename(tmp, dst).map_err(|_| "unavailable".to_string())
+    fs::rename(tmp, dst).map_err(|e| {
+        remember_io_error("rename", &e);
+        "unavailable".to_string()
+    })
 }
 
 /// Write `bytes` to a temp file beside the target inside the container, then
@@ -1232,7 +1288,17 @@ fn clear_way<I: ContainerIo>(io: &I, dir: &Path, name: &str) -> Result<(), Strin
         if !placeholder && (!on_disk || io.flags(&path).downloaded) {
             return Ok(());
         }
-        io.delete(dir, name)?;
+        // Diagnostics (entry 20): why this name was deleted, and what the
+        // delete returned. `name` derives from a validated county code.
+        let why = match (placeholder, on_disk) {
+            (true, true) => "clear the way: a file beside a placeholder",
+            (true, false) => "clear the way: a placeholder",
+            _ => "clear the way: a copy that is not current",
+        };
+        let _ = take_last_error();
+        let r = io.delete(dir, name);
+        io.note("delete", name, &outcome(&r), Some(with_error(why, take_last_error())));
+        r?;
     }
     Err("unavailable".to_string())
 }
@@ -1245,6 +1311,29 @@ fn clear_way<I: ContainerIo>(io: &I, dir: &Path, name: &str) -> Result<(), Strin
 /// helper, byte for byte, because their flows never write over a name this
 /// device does not hold current and they work on every device.
 fn county_container_write<I: ContainerIo>(io: &I, docs: &Path, target_name: &str, device_id: &str, bytes: &[u8]) -> Result<(), String> {
+    // Diagnostics (entry 20): one log entry per county write, naming the step
+    // that failed and the Apple or POSIX codes it met. `target_name` derives
+    // from a validated county code; only its last component is logged.
+    let _ = take_last_error();
+    let mut step = "check the device id";
+    let r = county_container_write_steps(io, docs, target_name, device_id, bytes, &mut step);
+    let name = target_name.rsplit('/').next().unwrap_or(target_name);
+    let detail = match &r {
+        Ok(()) => None,
+        Err(_) => Some(with_error(step, take_last_error())),
+    };
+    io.note("write", name, &outcome(&r), detail);
+    r
+}
+
+fn county_container_write_steps<I: ContainerIo>(
+    io: &I,
+    docs: &Path,
+    target_name: &str,
+    device_id: &str,
+    bytes: &[u8],
+    step: &mut &'static str,
+) -> Result<(), String> {
     if !valid_device_id(device_id) {
         return Err("unknown".to_string());
     }
@@ -1256,21 +1345,31 @@ fn county_container_write<I: ContainerIo>(io: &I, docs: &Path, target_name: &str
     // Never create the target's directory here: an uncoordinated mkdir of a
     // kind's subdirectory is how a second, same-named directory is made while
     // iCloud's is still on its way (`ensure_subdir_with` owns that).
+    *step = "the folder is not here";
     if !fs::symlink_metadata(&dir).map(|m| m.file_type().is_dir()).unwrap_or(false) {
         return Err("unavailable".to_string());
     }
+    *step = "stage";
     let tmp_dir = docs.join(".tmp");
-    fs::create_dir_all(&tmp_dir).map_err(|_| "unavailable".to_string())?;
+    fs::create_dir_all(&tmp_dir).map_err(|e| {
+        remember_io_error("staging folder", &e);
+        "unavailable".to_string()
+    })?;
     // A crash between a previous write and its rename leaves a complete copy
     // in the staging dir, inside the container; clear this device's stale
     // entries before staging a new one.
     clear_staging(&tmp_dir, Some(device_id));
     let tmp = tmp_dir.join(format!("{}-{}", device_id, staging_name(target_name)));
-    fs::write(&tmp, bytes).map_err(|_| "unavailable".to_string())?;
+    fs::write(&tmp, bytes).map_err(|e| {
+        remember_io_error("stage", &e);
+        "unavailable".to_string()
+    })?;
+    *step = "clear the way";
     if let Err(e) = clear_way(io, &dir, &name) {
         let _ = fs::remove_file(&tmp);
         return Err(e);
     }
+    *step = "coordinated rename";
     let url = file_url(&target);
     let result = coordinated_write(&url, NSFileCoordinatorWritingOptions::ForReplacing, |dst| replace_item(&tmp, dst));
     if result.is_err() {
@@ -1319,7 +1418,8 @@ fn coordinated_delete(docs: &Path, name: &str) -> Result<bool, String> {
         let fm = NSFileManager::defaultManager();
         match fm.removeItemAtURL_error(&file_url(p)) {
             Ok(()) => Ok(true),
-            Err(_) => {
+            Err(e) => {
+                remember_ns_error(&e);
                 // A placeholder-only item may still be reported as absent by
                 // the time we get here; treat "gone" as success.
                 if item_present(docs, name) {
@@ -1658,7 +1758,7 @@ pub async fn icloud_start_download(slot: Slot) -> Result<(), String> {
 
 #[tauri::command]
 pub async fn icloud_remove_all() -> Result<RemoveResult, String> {
-    blocking(move || {
+    let r = blocking(move || {
         let docs = container_documents().ok_or_else(|| "unavailable".to_string())?;
         let mut removed = 0u32;
         for slot in [Slot::Ebird, Slot::Ml] {
@@ -1682,7 +1782,9 @@ pub async fn icloud_remove_all() -> Result<RemoveResult, String> {
         let _ = fs::remove_dir(&tmp_dir);
         Ok(RemoveResult { removed })
     })
-    .await
+    .await;
+    note_removal(&r, "all synced files");
+    r
 }
 
 // ── icloud-api-key-sync: the key record commands ────────────────────────────
@@ -1918,15 +2020,25 @@ fn ensure_subdir_with<I: ContainerIo>(io: &I, docs: &Path, kind: ItemKind) -> Re
         Err(_) => {}
     }
     if is_regular_file(&placeholder_path(docs, kind.subdir())) {
+        let _ = take_last_error();
         io.start_download(&sub);
+        if kind == ItemKind::Barchart {
+            io.note("mkdir", kind.subdir(), "unavailable", Some(with_error("the folder is only a placeholder here; its download was requested", take_last_error())));
+        }
         return Err("unavailable".to_string());
     }
-    io.create_dir(&sub)?;
-    if fs::symlink_metadata(&sub).map(|m| m.file_type().is_dir()).unwrap_or(false) {
-        Ok(sub)
-    } else {
-        Err("unavailable".to_string())
+    let _ = take_last_error();
+    let r = io.create_dir(&sub).and_then(|()| {
+        if fs::symlink_metadata(&sub).map(|m| m.file_type().is_dir()).unwrap_or(false) {
+            Ok(sub.clone())
+        } else {
+            Err("unavailable".to_string())
+        }
+    });
+    if kind == ItemKind::Barchart {
+        io.note("mkdir", kind.subdir(), &outcome(&r), take_last_error());
     }
+    r
 }
 
 /// Whether the item's record reports iCloud holds it (absent reads false).
@@ -2109,6 +2221,12 @@ trait ContainerIo: Clone + Send + 'static {
     /// Create one directory inside a coordinated write (an item iCloud must be
     /// told about, like any other change to the container).
     fn create_dir(&self, path: &Path) -> Result<(), String>;
+    /// Diagnostics (decisions.md entry 20): record one bar-chart operation in
+    /// the in-memory log the "Copy iCloud details" report reads. `target` is
+    /// always a name derived from a validated county code (or the fixed folder
+    /// name), never raw input. A no-op by default, so a test's fake records
+    /// nothing into the process-wide log; `Foundation` records.
+    fn note(&self, _op: &'static str, _target: &str, _result: &str, _detail: Option<String>) {}
 }
 
 #[derive(Clone, Copy)]
@@ -2119,7 +2237,11 @@ impl ContainerIo for Foundation {
         ubiquity_flags(path)
     }
     fn start_download(&self, path: &Path) {
-        let _ = NSFileManager::defaultManager().startDownloadingUbiquitousItemAtURL_error(&file_url(path));
+        // The result was always discarded; a failure's codes are remembered
+        // for the operation log (entry 20) and the behavior is unchanged.
+        if let Err(e) = NSFileManager::defaultManager().startDownloadingUbiquitousItemAtURL_error(&file_url(path)) {
+            remember_ns_error(&e);
+        }
     }
     fn read(&self, dir: &Path, name: &str) -> Result<Option<String>, String> {
         read_record_text(dir, name)
@@ -2131,13 +2253,21 @@ impl ContainerIo for Foundation {
         coordinated_write(&file_url(path), NSFileCoordinatorWritingOptions::empty(), |p| match fs::create_dir(p) {
             Ok(()) => Ok(()),
             Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => Ok(()),
-            Err(_) => Err("unavailable".to_string()),
+            Err(e) => {
+                remember_io_error("mkdir", &e);
+                Err("unavailable".to_string())
+            }
         })
+    }
+    fn note(&self, op: &'static str, target: &str, result: &str, detail: Option<String>) {
+        note_op(op, target, result, detail);
     }
 }
 
 fn list_items_with<I: ContainerIo>(docs: &Path, kind: ItemKind, max: usize, io: &I, gate: &FetchGate) -> ListResult {
     let empty = ListResult { items: Vec::new(), truncated: false, pending: false };
+    // Diagnostics (entry 20): the listing logs the bar-chart kind only.
+    let logs = kind == ItemKind::Barchart;
     let sub = match real_subdir(docs, kind) {
         Some(s) => s,
         None => {
@@ -2146,15 +2276,28 @@ fn list_items_with<I: ContainerIo>(docs: &Path, kind: ItemKind, max: usize, io: 
             // would make every local county "local only", and their pushes
             // would create a SECOND directory of the same name beside it.
             if is_regular_file(&placeholder_path(docs, kind.subdir())) {
+                let _ = take_last_error();
                 io.start_download(&docs.join(kind.subdir()));
+                if logs {
+                    io.note("list", kind.subdir(), "pending", Some(with_error("the folder is only a placeholder here; its download was requested", take_last_error())));
+                }
                 return ListResult { items: Vec::new(), truncated: false, pending: true };
+            }
+            if logs {
+                io.note("list", kind.subdir(), "ok", Some("no folder".to_string()));
             }
             return empty;
         }
     };
     let entries = match fs::read_dir(&sub) {
         Ok(e) => e,
-        Err(_) => return empty,
+        Err(e) => {
+            if logs {
+                remember_io_error("read folder", &e);
+                io.note("list", kind.subdir(), "unavailable", take_last_error());
+            }
+            return empty;
+        }
     };
     let mut ids: BTreeSet<String> = BTreeSet::new();
     let mut truncated = false;
@@ -2195,7 +2338,16 @@ fn list_items_with<I: ContainerIo>(docs: &Path, kind: ItemKind, max: usize, io: 
             let flags = io.flags(&record_path);
             record_up = flags.uploaded;
             if flags.downloaded {
-                record = io.read(&sub, &record_name).ok().flatten();
+                let _ = take_last_error();
+                record = match io.read(&sub, &record_name) {
+                    Ok(text) => text,
+                    Err(e) => {
+                        if logs {
+                            io.note("read", &record_name, &e, Some(with_error("a current record", take_last_error())));
+                        }
+                        None
+                    }
+                };
             } else {
                 io.start_download(&record_path);
                 fetch.push((items.len(), record_name, record_path));
@@ -2204,7 +2356,28 @@ fn list_items_with<I: ContainerIo>(docs: &Path, kind: ItemKind, max: usize, io: 
         let file = item_file_status(&sub, &item, record_up);
         items.push(ListedItem { id, present, record, file });
     }
-    read_fetched_records(&sub, &mut items, fetch, io, gate);
+    let outcomes = read_fetched_records(&sub, &mut items, fetch, io, gate);
+    if logs {
+        for (i, name, what, detail) in outcomes {
+            if items.get(i).is_some() {
+                io.note("read", &name, what, detail);
+            }
+        }
+        let unread = items.iter().filter(|it| it.present && it.record.is_none()).count();
+        let not_uploaded = items.iter().filter(|it| it.file.present && !it.file.uploaded).count();
+        io.note(
+            "list",
+            kind.subdir(),
+            "ok",
+            Some(format!(
+                "{} counties, {} records unread, {} files not uploaded{}",
+                items.len(),
+                unread,
+                not_uploaded,
+                if truncated { ", truncated" } else { "" }
+            )),
+        );
+    }
     ListResult { items, truncated, pending: false }
 }
 
@@ -2221,25 +2394,35 @@ fn list_items_with<I: ContainerIo>(docs: &Path, kind: ItemKind, max: usize, io: 
 /// text is used only when the record reports `Current` AFTER its read has
 /// returned (Apple: never read the status inside the coordinated read), so a
 /// device still never decides from a copy it knows is out of date.
+/// What happened to each fetched record, for the operation log (entry 20):
+/// its index in the listing, its record name, the outcome, and any codes.
+type FetchOutcome = (usize, String, &'static str, Option<String>);
+
 fn read_fetched_records<I: ContainerIo>(
     sub: &Path,
     items: &mut [ListedItem],
     fetch: Vec<(usize, String, PathBuf)>,
     io: &I,
     gate: &FetchGate,
-) {
+) -> Vec<FetchOutcome> {
     if fetch.is_empty() {
-        return;
+        return Vec::new();
     }
+    let all = |fetch: &[(usize, String, PathBuf)], what: &'static str| -> Vec<FetchOutcome> {
+        fetch.iter().map(|(i, name, _)| (*i, name.clone(), what, None)).collect()
+    };
     let allowance = gate.allowance();
     if allowance.is_zero() {
-        return; // this window's waiting is spent: a later check reads them
+        // this window's waiting is spent: a later check reads them
+        return all(&fetch, "not read: this check's wait was spent");
     }
     if gate.in_flight.compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire).is_err() {
-        return; // a helper is still reading: never a second one
+        // a helper is still reading: never a second one
+        return all(&fetch, "not read: an earlier read is still waiting");
     }
+    let names: Vec<(usize, String)> = fetch.iter().map(|(i, name, _)| (*i, name.clone())).collect();
     let flag = InFlight(gate.in_flight.clone());
-    let (tx, rx) = mpsc::channel::<(usize, Option<String>)>();
+    let (tx, rx) = mpsc::channel::<(usize, Option<String>, &'static str, Option<String>)>();
     let io = io.clone();
     let dir = sub.to_path_buf();
     // Builder, not thread::spawn: a thread the OS refuses is "not read", never
@@ -2249,20 +2432,31 @@ fn read_fetched_records<I: ContainerIo>(
     let spawned = std::thread::Builder::new().spawn(move || {
         let _flag = flag;
         for (i, name, path) in fetch {
-            let text = io.read(&dir, &name).ok().flatten();
-            let text = if io.flags(&path).downloaded { text } else { None };
-            if tx.send((i, text)).is_err() {
+            let _ = take_last_error();
+            let read = io.read(&dir, &name);
+            let current = io.flags(&path).downloaded;
+            let (what, detail) = match (&read, current) {
+                (Err(_), _) => ("coordinated read failed", take_last_error()),
+                (Ok(None), _) => ("coordinated read found nothing", None),
+                (Ok(Some(_)), false) => ("read, but still not current", None),
+                (Ok(Some(_)), true) => ("read current", None),
+            };
+            let text = read.ok().flatten();
+            let text = if current { text } else { None };
+            if tx.send((i, text, what, detail)).is_err() {
                 return;
             }
         }
     });
     if spawned.is_err() {
-        return;
+        return names.into_iter().map(|(i, name)| (i, name, "not read: the helper thread was refused", None)).collect();
     }
-    let mut take = |(i, text): (usize, Option<String>)| {
+    let mut answered: BTreeMap<usize, (&'static str, Option<String>)> = BTreeMap::new();
+    let mut take = |(i, text, what, detail): (usize, Option<String>, &'static str, Option<String>)| {
         if let Some(it) = items.get_mut(i) {
             it.record = text;
         }
+        answered.insert(i, (what, detail));
     };
     let started = Instant::now();
     let deadline = started + allowance;
@@ -2277,6 +2471,13 @@ fn read_fetched_records<I: ContainerIo>(
     while let Ok(answer) = rx.try_recv() {
         take(answer);
     }
+    names
+        .into_iter()
+        .map(|(i, name)| match answered.remove(&i) {
+            Some((what, detail)) => (i, name, what, detail),
+            None => (i, name, "not read in time", None),
+        })
+        .collect()
 }
 
 /// Push one item's local file and then its record (the record is the commit
@@ -2312,6 +2513,40 @@ fn push_item_at(
 /// a marker is harmless, and the next push or Remove replaces it.
 #[allow(clippy::too_many_arguments)]
 fn push_item_with<I: ContainerIo>(
+    io: &I,
+    docs: &Path,
+    local: &Path,
+    item: &SyncItem,
+    filename: &str,
+    uploaded_at: &str,
+    origin: &Origin,
+    unless_sha256: Option<&str>,
+    repair_sha256: Option<&str>,
+) -> Result<ItemPushResult, String> {
+    let r = push_item_steps(io, docs, local, item, filename, uploaded_at, origin, unless_sha256, repair_sha256);
+    // Diagnostics (entry 20): one log entry per county push, whatever it did.
+    // The writes inside it log their own step and codes when they fail.
+    if let SyncItem::County(c) = item {
+        let repair = repair_sha256.is_some();
+        let (result, detail): (&str, Option<String>) = match &r {
+            Ok(p) if p.superseded => ("superseded", Some("repair: the record no longer names this copy".to_string())),
+            Ok(p) if p.skipped => (
+                "skipped",
+                Some(if repair { "repair: the local bytes are not the ones the record names" } else { "unchanged" }.to_string()),
+            ),
+            Ok(p) => (
+                "ok",
+                Some(format!("{}; uploaded={}", if repair { "repair: wrote the file only" } else { "wrote the file and its record" }, p.uploaded)),
+            ),
+            Err(e) => (e.as_str(), None),
+        };
+        io.note("push", c.as_str(), result, detail);
+    }
+    r
+}
+
+#[allow(clippy::too_many_arguments)]
+fn push_item_steps<I: ContainerIo>(
     io: &I,
     docs: &Path,
     local: &Path,
@@ -2445,7 +2680,10 @@ fn free_name<I: ContainerIo>(io: &I, dir: &Path, name: &str) -> Result<(), Strin
         if !item_present(dir, name) {
             return Ok(());
         }
-        io.delete(dir, name)?;
+        let _ = take_last_error();
+        let r = io.delete(dir, name);
+        io.note("delete", name, &outcome(&r), Some(with_error("free the name for a removal marker", take_last_error())));
+        r?;
     }
     if item_present(dir, name) {
         Err("unavailable".to_string())
@@ -2502,8 +2740,10 @@ fn push_items_cleared_with<I: ContainerIo>(
             let json = serde_json::to_vec(&record).map_err(|_| "unknown".to_string())?;
             county_container_write(io, docs, &item.container_record(), &origin.device_id, &json)
         };
-        if one().is_err() {
-            if let SyncItem::County(c) = &item {
+        let r = one();
+        if let SyncItem::County(c) = &item {
+            io.note("clear", c.as_str(), &outcome(&r), None);
+            if r.is_err() {
                 failed.push(c.as_str().to_string());
             }
         }
@@ -2697,7 +2937,10 @@ fn coordinated_delete_dir(docs: &Path, name: &str) -> Result<bool, String> {
         Ok(_) => {}
     }
     coordinated_write(&file_url(&target), NSFileCoordinatorWritingOptions::ForDeleting, |p| {
-        NSFileManager::defaultManager().removeItemAtURL_error(&file_url(p)).map_err(|_| "unavailable".to_string())?;
+        NSFileManager::defaultManager().removeItemAtURL_error(&file_url(p)).map_err(|e| {
+            remember_ns_error(&e);
+            "unavailable".to_string()
+        })?;
         Ok(true)
     })
 }
@@ -2803,11 +3046,20 @@ fn remove_items_in_with<I: ContainerIo>(io: &I, docs: &Path, kind: ItemKind) -> 
 
 #[tauri::command]
 pub async fn icloud_list_items(kind: ItemKind) -> Result<ListResult, String> {
-    blocking(move || {
-        let docs = container_documents().ok_or_else(|| "unavailable".to_string())?;
+    let r = blocking(move || {
+        let docs = container_documents().ok_or_else(|| {
+            if kind == ItemKind::Barchart {
+                note_op("list", BARCHARTS_SUBDIR, "unavailable", Some("no iCloud container".to_string()));
+            }
+            "unavailable".to_string()
+        })?;
         Ok(list_items_bounded(&docs, kind, MAX_LISTED_ITEMS))
     })
-    .await
+    .await;
+    if kind == ItemKind::Barchart {
+        note_timeout(&r, "list", BARCHARTS_SUBDIR);
+    }
+    r
 }
 
 #[tauri::command]
@@ -2838,11 +3090,21 @@ pub async fn icloud_push_item(
     }
     let local = item.local_path(&local_data_dir(&app)?);
     let filename = sanitize_filename(&filename);
-    blocking(move || {
-        let docs = container_documents().ok_or_else(|| "unavailable".to_string())?;
+    let county = county_of(&item);
+    let r = blocking(move || {
+        let docs = container_documents().ok_or_else(|| {
+            if let SyncItem::County(c) = &item {
+                note_op("push", c.as_str(), "unavailable", Some("no iCloud container".to_string()));
+            }
+            "unavailable".to_string()
+        })?;
         push_item_with(&Foundation, &docs, &local, &item, &filename, &uploaded_at, &origin, unless_sha256.as_deref(), repair_sha256.as_deref())
     })
-    .await
+    .await;
+    if let Some(c) = county {
+        note_timeout(&r, "push", &c);
+    }
+    r
 }
 
 /// A SHA-256 digest as the records carry it: exactly 64 lowercase hex bytes.
@@ -2853,11 +3115,16 @@ fn valid_sha256(s: &str) -> bool {
 #[tauri::command]
 pub async fn icloud_push_items_cleared(counties: Vec<String>, cleared_at: String, origin: Origin) -> Result<ClearedResult, String> {
     let origin = item_origin(origin)?;
-    blocking(move || {
-        let docs = container_documents().ok_or_else(|| "unavailable".to_string())?;
+    let r = blocking(move || {
+        let docs = container_documents().ok_or_else(|| {
+            note_op("clear", BARCHARTS_SUBDIR, "unavailable", Some("no iCloud container".to_string()));
+            "unavailable".to_string()
+        })?;
         push_items_cleared_at(&docs, counties, &cleared_at, &origin)
     })
-    .await
+    .await;
+    note_timeout(&r, "clear", BARCHARTS_SUBDIR);
+    r
 }
 
 #[tauri::command]
@@ -2870,47 +3137,913 @@ pub async fn icloud_pull_item(
 ) -> Result<PullItemResult, String> {
     let item = SyncItem::try_from(item)?;
     let local = item.local_path(&local_data_dir(&app)?);
-    blocking(move || {
-        let docs = container_documents().ok_or_else(|| "unavailable".to_string())?;
-        pull_item_at(&docs, &local, &item, &expected_sha256, expected_byte_length, mode)
+    let county = county_of(&item);
+    let r = blocking(move || {
+        let _ = take_last_error();
+        let r = match container_documents() {
+            Some(docs) => pull_item_at(&docs, &local, &item, &expected_sha256, expected_byte_length, mode),
+            None => Err("unavailable".to_string()),
+        };
+        if let SyncItem::County(c) = &item {
+            let detail = match &r {
+                Ok(_) => None,
+                Err(_) => take_last_error(),
+            };
+            note_op("pull", c.as_str(), &outcome(&r), detail);
+        }
+        r
     })
-    .await
+    .await;
+    if let Some(c) = county {
+        note_timeout(&r, "pull", &c);
+    }
+    r
 }
 
 #[tauri::command]
 pub async fn icloud_start_download_item(item: ItemArg) -> Result<(), String> {
     let item = SyncItem::try_from(item)?;
-    blocking(move || {
-        let docs = container_documents().ok_or_else(|| "unavailable".to_string())?;
-        let sub = real_subdir(&docs, item.kind()).ok_or_else(|| "absent".to_string())?;
-        let name = item.file_name();
-        if !item_present(&sub, &name) {
-            return Err("absent".to_string());
+    let county = county_of(&item);
+    let r = blocking(move || {
+        let _ = take_last_error();
+        let r = (|| {
+            let docs = container_documents().ok_or_else(|| "unavailable".to_string())?;
+            let sub = real_subdir(&docs, item.kind()).ok_or_else(|| "absent".to_string())?;
+            let name = item.file_name();
+            if !item_present(&sub, &name) {
+                return Err("absent".to_string());
+            }
+            NSFileManager::defaultManager()
+                .startDownloadingUbiquitousItemAtURL_error(&file_url(&sub.join(&name)))
+                .map_err(|e| {
+                    remember_ns_error(&e);
+                    "unavailable".to_string()
+                })
+        })();
+        if let SyncItem::County(c) = &item {
+            let detail = match &r {
+                Ok(()) => None,
+                Err(_) => take_last_error(),
+            };
+            note_op("download", c.as_str(), &outcome(&r), detail);
         }
-        NSFileManager::defaultManager()
-            .startDownloadingUbiquitousItemAtURL_error(&file_url(&sub.join(&name)))
-            .map_err(|_| "unavailable".to_string())
+        r
     })
-    .await
+    .await;
+    if let Some(c) = county {
+        note_timeout(&r, "download", &c);
+    }
+    r
 }
 
 #[tauri::command]
 pub async fn icloud_remove_item(item: ItemArg) -> Result<RemoveResult, String> {
     let item = SyncItem::try_from(item)?;
-    blocking(move || {
+    let county = county_of(&item);
+    let r = blocking(move || {
         let docs = container_documents().ok_or_else(|| "unavailable".to_string())?;
         Ok(RemoveResult { removed: remove_item_at(&docs, &item)? })
     })
-    .await
+    .await;
+    if let Some(c) = county {
+        note_removal(&r, &c);
+    }
+    r
 }
 
 #[tauri::command]
 pub async fn icloud_remove_items(kind: ItemKind) -> Result<RemoveResult, String> {
-    blocking(move || {
+    let r = blocking(move || {
         let docs = container_documents().ok_or_else(|| "unavailable".to_string())?;
         Ok(RemoveResult { removed: remove_items_in(&docs, kind)? })
     })
-    .await
+    .await;
+    if kind == ItemKind::Barchart {
+        note_removal(&r, BARCHARTS_SUBDIR);
+    }
+    r
+}
+
+// ── Diagnostics: "Copy iCloud details" (decisions.md entry 20) ──────────────
+//
+// A DIAGNOSTIC for the bar-chart sync failure on the user's devices (TestFlight
+// 1.0.40.5), to be kept or removed once that fix lands. Two parts, both
+// read-only with respect to iCloud:
+//
+// - An in-memory log of the last `DIAG_OPS_MAX` native bar-chart operations
+//   (each listing, each record read that had to be fetched, each write,
+//   delete and folder creation, each push, pull, removal marker, download
+//   request and removal) with what it returned and the Apple or POSIX codes it
+//   met, a repeat of the newest entry folded into a count; plus, per county,
+//   the last push, pull and removal marker. Process memory only: never
+//   persisted, never synced, gone at relaunch.
+// - `icloud_diagnostics`, a scan of the container and the local bar-chart
+//   store: for the control item (the eBird backup and its record), the
+//   `Documents`, `barcharts` and `day-obs` folders, every entry in those two
+//   folders (records, removal markers, iCloud's set-aside twins and the
+//   `.name.icloud` placeholders, grouped by the item they stand for), any
+//   duplicate folder and the staging entries: the on-disk shape, size and
+//   modification time, Foundation's ubiquity resource values, and
+//   NSFileVersion's unresolved-conflict count.
+//
+// What it never does: download, write or delete anything (resource values and
+// NSFileVersion's list are metadata reads, and a placeholder is never opened);
+// read an eBird file's bytes, a filename the user chose, a digest or an API
+// key (a record is read only through `record_text_at`, from a local copy
+// already on disk, and only its state, county, times, size and origin are
+// kept). Every name that becomes a path passed `County::parse`,
+// `DeviceId::parse`, `twin_name` or `is_duplicate_subdir` first, or is a fixed
+// constant; an entry that matches none is reported by its sanitized name with
+// the type and size `DirEntry` gives (no symlink followed, no path built).
+//
+// Bounds: `MAX_LISTED_ITEMS` entries scanned per folder, `DIAG_ITEMS_MAX`
+// items reported per folder and `DIAG_OTHER_MAX` unrecognized names (the rest
+// counted), `DIAG_STAGING_MAX` staging entries, `DIAG_DUPLICATES_MAX`
+// duplicate folders, `DIAG_OPS_MAX` operations, `DIAG_LAST_MAX` counties in
+// the last-operation table, and every string at most `DIAG_TEXT_MAX` UTF-16
+// units. The scan runs inside the 8 s command budget and a timeout comes back
+// as `scanError`, never as a failed command, so the log always arrives. The
+// report the frontend builds from this (`icloudDiagnostics.ts`) is capped at
+// 64,000 characters and only ever goes to the clipboard.
+
+/// Operations the in-memory log keeps (newest last).
+const DIAG_OPS_MAX: usize = 20;
+/// Counties the last-push, last-pull and last-marker table holds. Admission
+/// control: when full, a county not already in it is not admitted.
+const DIAG_LAST_MAX: usize = 64;
+/// Items reported per container folder; the rest are counted.
+const DIAG_ITEMS_MAX: usize = 48;
+/// Unrecognized names reported per folder; the rest are counted.
+const DIAG_OTHER_MAX: usize = 8;
+/// Bar-chart staging entries reported; the rest are counted.
+const DIAG_STAGING_MAX: usize = 16;
+/// Duplicate kind folders reported.
+const DIAG_DUPLICATES_MAX: usize = 8;
+/// Any string in the payload, in UTF-16 code units.
+const DIAG_TEXT_MAX: usize = 160;
+/// A name, a domain, a result, in UTF-16 code units.
+const DIAG_NAME_MAX: usize = 64;
+
+/// A string as the report may carry it: no control characters (C0, DEL, C1),
+/// no line or paragraph separators, no bidirectional overrides, trimmed and
+/// bounded without splitting a surrogate pair.
+fn diag_text(s: &str, max: usize) -> String {
+    let cleaned: String = s
+        .chars()
+        .filter(|c| {
+            !is_control(*c) && !matches!(*c, '\u{2028}' | '\u{2029}' | '\u{200E}' | '\u{200F}' | '\u{202A}'..='\u{202E}' | '\u{2066}'..='\u{2069}')
+        })
+        .collect();
+    truncate_units(cleaned.trim(), max)
+}
+
+/// Apple's descriptions can name a path; the home directory (on the Mac, the
+/// user's account name) is replaced by `~`, and any other `/Users/<name>` by
+/// `/Users/~`, before the text is bounded.
+fn redact_paths(s: &str) -> String {
+    let mut out = s.to_string();
+    if let Ok(home) = std::env::var("HOME") {
+        if home.len() > 1 {
+            out = out.replace(&home, "~");
+        }
+    }
+    let mut redacted = String::with_capacity(out.len());
+    let mut rest = out.as_str();
+    while let Some(at) = rest.find("/Users/") {
+        redacted.push_str(&rest[..at + 7]);
+        let after = &rest[at + 7..];
+        let end = after.find('/').unwrap_or(after.len());
+        redacted.push('~');
+        rest = &after[end..];
+    }
+    redacted.push_str(rest);
+    redacted
+}
+
+fn outcome<T>(r: &Result<T, String>) -> String {
+    match r {
+        Ok(_) => "ok".to_string(),
+        Err(e) => e.clone(),
+    }
+}
+
+fn with_error(what: &str, err: Option<String>) -> String {
+    match err {
+        Some(e) => format!("{} ({})", what, e),
+        None => what.to_string(),
+    }
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct DiagOp {
+    pub at_ms: i64,
+    pub op: &'static str,
+    pub target: String,
+    pub result: String,
+    pub detail: Option<String>,
+    /// How many times in a row this exact entry happened (`at_ms` is the last).
+    pub count: u32,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct DiagLastOp {
+    pub at_ms: i64,
+    pub result: String,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct DiagCountyLast {
+    pub county: String,
+    pub push: Option<DiagLastOp>,
+    pub pull: Option<DiagLastOp>,
+    pub clear: Option<DiagLastOp>,
+}
+
+struct OpLog {
+    cap: usize,
+    last_cap: usize,
+    inner: Mutex<(VecDeque<DiagOp>, BTreeMap<String, DiagCountyLast>)>,
+}
+
+impl OpLog {
+    fn new(cap: usize, last_cap: usize) -> OpLog {
+        OpLog { cap, last_cap, inner: Mutex::new((VecDeque::new(), BTreeMap::new())) }
+    }
+
+    fn push(&self, at_ms: i64, op: &'static str, target: &str, result: &str, detail: Option<String>) {
+        let target = diag_text(target, DIAG_NAME_MAX);
+        let result = diag_text(result, DIAG_NAME_MAX);
+        let detail = detail.map(|d| diag_text(&d, DIAG_TEXT_MAX));
+        let mut g = match self.inner.lock() {
+            Ok(g) => g,
+            Err(poisoned) => poisoned.into_inner(),
+        };
+        let (ops, last) = &mut *g;
+        match ops.back_mut() {
+            Some(b) if b.op == op && b.target == target && b.result == result && b.detail == detail => {
+                b.count = b.count.saturating_add(1);
+                b.at_ms = at_ms;
+            }
+            _ if self.cap == 0 => {}
+            _ => {
+                while ops.len() >= self.cap {
+                    ops.pop_front();
+                }
+                ops.push_back(DiagOp { at_ms, op, target: target.clone(), result: result.clone(), detail: detail.clone(), count: 1 });
+            }
+        }
+        if matches!(op, "push" | "pull" | "clear") && County::parse(&target).is_ok() && (last.contains_key(&target) || last.len() < self.last_cap) {
+            let entry = last
+                .entry(target.clone())
+                .or_insert_with(|| DiagCountyLast { county: target.clone(), push: None, pull: None, clear: None });
+            let text = match &detail {
+                Some(d) => diag_text(&format!("{}: {}", result, d), DIAG_TEXT_MAX),
+                None => result,
+            };
+            let value = Some(DiagLastOp { at_ms, result: text });
+            match op {
+                "push" => entry.push = value,
+                "pull" => entry.pull = value,
+                _ => entry.clear = value,
+            }
+        }
+    }
+
+    fn snapshot(&self) -> (Vec<DiagOp>, Vec<DiagCountyLast>) {
+        let g = match self.inner.lock() {
+            Ok(g) => g,
+            Err(poisoned) => poisoned.into_inner(),
+        };
+        (g.0.iter().cloned().collect(), g.1.values().cloned().collect())
+    }
+}
+
+fn op_log() -> &'static OpLog {
+    static LOG: OnceLock<OpLog> = OnceLock::new();
+    LOG.get_or_init(|| OpLog::new(DIAG_OPS_MAX, DIAG_LAST_MAX))
+}
+
+/// Record one bar-chart operation in the process-wide log. `target` is a
+/// name derived from a validated county code, or a fixed constant.
+fn note_op(op: &'static str, target: &str, result: &str, detail: Option<String>) {
+    op_log().push(unix_now_ms(), op, target, result, detail);
+}
+
+/// A command that ran out of its 8 s budget: the helper may still finish (and
+/// log its own result later), but the frontend has already been told.
+fn note_timeout<T>(r: &Result<T, String>, op: &'static str, target: &str) {
+    if matches!(r, Err(e) if e == "timeout") {
+        note_op(op, target, "timeout", Some("no answer within the 8 s command budget; the work may still finish".to_string()));
+    }
+}
+
+fn note_removal(r: &Result<RemoveResult, String>, target: &str) {
+    match r {
+        Ok(x) => note_op("remove", target, "ok", Some(format!("{} removed", x.removed))),
+        Err(e) => note_op("remove", target, e, None),
+    }
+}
+
+fn county_of(item: &SyncItem) -> Option<String> {
+    match item {
+        SyncItem::County(c) => Some(c.as_str().to_string()),
+        SyncItem::DayObs(_) => None,
+    }
+}
+
+/// An Apple error as the report carries it: domain, code, description (paths
+/// redacted), and one level of underlying error.
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct DiagError {
+    pub domain: String,
+    pub code: i64,
+    pub description: String,
+    pub underlying: Option<Box<DiagError>>,
+}
+
+fn diag_error(e: &NSError, depth: u8) -> DiagError {
+    let underlying = if depth == 0 {
+        None
+    } else {
+        e.userInfo()
+            .objectForKey(unsafe { objc2_foundation::NSUnderlyingErrorKey })
+            .and_then(|u| u.downcast_ref::<NSError>().map(|u| Box::new(diag_error(u, depth - 1))))
+    };
+    DiagError {
+        domain: diag_text(&e.domain().to_string(), DIAG_NAME_MAX),
+        code: e.code() as i64,
+        description: diag_text(&redact_paths(&e.localizedDescription().to_string()), DIAG_TEXT_MAX),
+        underlying,
+    }
+}
+
+/// Foundation's ubiquity resource values for one item, each `None` when
+/// Foundation reports no value (every one of them for an item that is not in
+/// iCloud, except `isUbiquitous` itself).
+#[derive(Debug, Clone, Default, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct DiagValues {
+    pub is_ubiquitous: Option<bool>,
+    pub uploaded: Option<bool>,
+    pub uploading: Option<bool>,
+    pub upload_error: Option<DiagError>,
+    pub downloading: Option<bool>,
+    /// `Current`, `Downloaded` (a local copy iCloud knows is out of date) or
+    /// `NotDownloaded`.
+    pub download_status: Option<String>,
+    pub download_error: Option<DiagError>,
+    pub has_unresolved_conflicts: Option<bool>,
+    pub excluded_from_sync: Option<bool>,
+    /// `NSFileVersion.unresolvedConflictVersionsOfItemAtURL`'s count (files only).
+    pub conflict_versions: Option<u32>,
+    /// `resourceValuesForKeys` itself failed (an absent item, for instance).
+    pub read_error: Option<DiagError>,
+}
+
+/// THE RESOURCE-VALUE COLLECTOR. A metadata read on the item's LOGICAL URL
+/// (Foundation answers for a placeholder too): nothing is downloaded, opened
+/// or written. It never fails: a value Foundation does not report is `None`,
+/// and a refused read is `read_error`.
+fn diag_values(path: &Path, versions: bool) -> DiagValues {
+    let url = file_url(path);
+    let keys = unsafe {
+        NSArray::from_slice(&[
+            objc2_foundation::NSURLIsUbiquitousItemKey,
+            objc2_foundation::NSURLUbiquitousItemIsUploadedKey,
+            objc2_foundation::NSURLUbiquitousItemIsUploadingKey,
+            objc2_foundation::NSURLUbiquitousItemUploadingErrorKey,
+            objc2_foundation::NSURLUbiquitousItemIsDownloadingKey,
+            objc2_foundation::NSURLUbiquitousItemDownloadingStatusKey,
+            objc2_foundation::NSURLUbiquitousItemDownloadingErrorKey,
+            objc2_foundation::NSURLUbiquitousItemHasUnresolvedConflictsKey,
+            objc2_foundation::NSURLUbiquitousItemIsExcludedFromSyncKey,
+        ])
+    };
+    let mut out = DiagValues::default();
+    match url.resourceValuesForKeys_error(&keys) {
+        Err(e) => out.read_error = Some(diag_error(&e, 1)),
+        Ok(values) => {
+            let flag = |key: &objc2_foundation::NSURLResourceKey| -> Option<bool> {
+                values.objectForKey(key).and_then(|v| v.downcast_ref::<objc2_foundation::NSNumber>().map(|n| n.boolValue()))
+            };
+            let error = |key: &objc2_foundation::NSURLResourceKey| -> Option<DiagError> {
+                values.objectForKey(key).and_then(|v| v.downcast_ref::<NSError>().map(|e| diag_error(e, 1)))
+            };
+            out.is_ubiquitous = flag(unsafe { objc2_foundation::NSURLIsUbiquitousItemKey });
+            out.uploaded = flag(unsafe { objc2_foundation::NSURLUbiquitousItemIsUploadedKey });
+            out.uploading = flag(unsafe { objc2_foundation::NSURLUbiquitousItemIsUploadingKey });
+            out.upload_error = error(unsafe { objc2_foundation::NSURLUbiquitousItemUploadingErrorKey });
+            out.downloading = flag(unsafe { objc2_foundation::NSURLUbiquitousItemIsDownloadingKey });
+            out.download_error = error(unsafe { objc2_foundation::NSURLUbiquitousItemDownloadingErrorKey });
+            out.has_unresolved_conflicts = flag(unsafe { objc2_foundation::NSURLUbiquitousItemHasUnresolvedConflictsKey });
+            out.excluded_from_sync = flag(unsafe { objc2_foundation::NSURLUbiquitousItemIsExcludedFromSyncKey });
+            out.download_status = values
+                .objectForKey(unsafe { objc2_foundation::NSURLUbiquitousItemDownloadingStatusKey })
+                .and_then(|v| v.downcast_ref::<NSString>().map(|s| s.to_string()))
+                .map(|s| {
+                    let status = |k: &NSString| k.to_string();
+                    if s == status(unsafe { objc2_foundation::NSURLUbiquitousItemDownloadingStatusCurrent }) {
+                        "Current".to_string()
+                    } else if s == status(unsafe { objc2_foundation::NSURLUbiquitousItemDownloadingStatusDownloaded }) {
+                        "Downloaded".to_string()
+                    } else if s == status(unsafe { objc2_foundation::NSURLUbiquitousItemDownloadingStatusNotDownloaded }) {
+                        "NotDownloaded".to_string()
+                    } else {
+                        diag_text(&s, DIAG_NAME_MAX)
+                    }
+                });
+        }
+    }
+    if versions {
+        out.conflict_versions = objc2_foundation::NSFileVersion::unresolvedConflictVersionsOfItemAtURL(&url).map(|a| a.count().min(u32::MAX as usize) as u32);
+    }
+    out
+}
+
+/// The fields of a record the report keeps: never its filename or digest.
+#[derive(Debug, Clone, Default, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct DiagRecord {
+    /// The text parsed as JSON.
+    pub readable: bool,
+    pub slot: Option<String>,
+    pub state: Option<String>,
+    pub county: Option<String>,
+    pub uploaded_at: Option<String>,
+    pub cleared_at: Option<String>,
+    pub byte_length: Option<u64>,
+    pub origin_label: Option<String>,
+    pub origin_platform: Option<String>,
+    pub origin_device_id: Option<String>,
+}
+
+/// A record's fields from a LOCAL copy already on disk: the read is
+/// `record_text_at`'s (a regular file, never followed, bounded at 16 KB
+/// before it is loaded, UTF-8 or empty), uncoordinated, so it downloads
+/// nothing. Each kept field is bounded or validated; everything else is
+/// dropped.
+fn diag_record(path: &Path) -> Option<DiagRecord> {
+    let text = match record_text_at(path) {
+        Ok(Some(t)) => t,
+        _ => return None,
+    };
+    let v: serde_json::Value = match serde_json::from_str(&text) {
+        Ok(v) => v,
+        Err(_) => return Some(DiagRecord::default()),
+    };
+    let s = |k: &str, max: usize| v.get(k).and_then(|x| x.as_str()).map(|x| diag_text(x, max));
+    let origin = |k: &str| v.get("origin").and_then(|o| o.get(k)).and_then(|x| x.as_str());
+    Some(DiagRecord {
+        readable: true,
+        slot: s("slot", 16),
+        state: s("state", 16),
+        county: v.get("county").and_then(|x| x.as_str()).filter(|c| County::parse(c).is_ok()).map(str::to_string),
+        uploaded_at: s("uploadedAt", 32),
+        cleared_at: s("clearedAt", 32),
+        byte_length: v.get("byteLength").and_then(|x| x.as_u64()),
+        origin_label: origin("label").map(|l| sanitize_label(l, "")).filter(|l| !l.is_empty()),
+        origin_platform: origin("platform").filter(|p| matches!(*p, "mac" | "iphone" | "ipad")).map(str::to_string),
+        origin_device_id: origin("deviceId").filter(|d| valid_device_id(d)).map(str::to_string),
+    })
+}
+
+/// One logical item as the report shows it.
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct DiagItem {
+    pub name: String,
+    /// `folder`, `file`, `record`, `twin` or `duplicate-folder`.
+    pub role: &'static str,
+    /// What is on disk under the name and its placeholder: `absent`, `file`,
+    /// `placeholder`, `file+placeholder`, `folder`, `folder+placeholder`,
+    /// `symlink`, `other`, and the `+placeholder` forms of the last two.
+    pub on_disk: &'static str,
+    /// A regular file's length (never a placeholder's).
+    pub size: Option<u64>,
+    pub modified_ms: Option<i64>,
+    /// None when nothing is under the name or it is a symlink (never asked).
+    pub values: Option<DiagValues>,
+    /// A record's fields, when a local copy is on disk.
+    pub record: Option<DiagRecord>,
+}
+
+fn meta_ms(meta: &fs::Metadata) -> Option<i64> {
+    meta.modified().ok()?.duration_since(UNIX_EPOCH).ok().map(|d| d.as_millis().min(i64::MAX as u128) as i64)
+}
+
+/// One item at `dir/name`, where `name` is a fixed constant or was rebuilt
+/// from a validated id or twin shape (`diag_logical_name`).
+fn diag_item(dir: &Path, name: &str, role: &'static str) -> DiagItem {
+    let path = dir.join(name);
+    let meta = fs::symlink_metadata(&path).ok();
+    let placeholder = fs::symlink_metadata(placeholder_path(dir, name)).ok().filter(|m| m.file_type().is_file());
+    let p = placeholder.is_some();
+    let on_disk = match &meta {
+        None if p => "placeholder",
+        None => "absent",
+        Some(m) if m.file_type().is_symlink() => if p { "symlink+placeholder" } else { "symlink" },
+        Some(m) if m.file_type().is_dir() => if p { "folder+placeholder" } else { "folder" },
+        Some(m) if m.file_type().is_file() => if p { "file+placeholder" } else { "file" },
+        Some(_) => if p { "other+placeholder" } else { "other" },
+    };
+    let is_link = meta.as_ref().is_some_and(|m| m.file_type().is_symlink());
+    let is_file = meta.as_ref().is_some_and(|m| m.file_type().is_file());
+    let size = meta.as_ref().filter(|m| m.file_type().is_file()).map(|m| m.len());
+    let modified_ms = meta.as_ref().filter(|m| !m.file_type().is_symlink()).or(placeholder.as_ref()).and_then(meta_ms);
+    let values = if on_disk == "absent" || is_link {
+        None
+    } else {
+        Some(diag_values(&path, !matches!(role, "folder" | "duplicate-folder")))
+    };
+    let record = if role == "record" && is_file { diag_record(&path) } else { None };
+    DiagItem { name: diag_text(name, DIAG_NAME_MAX), role, on_disk, size, modified_ms, values, record }
+}
+
+/// An entry reported by name only, from what `DirEntry` gives (an lstat: a
+/// symlink is reported as one, never followed); no path is built from it.
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct DiagOther {
+    pub name: String,
+    pub kind: &'static str,
+    pub size: Option<u64>,
+    pub modified_ms: Option<i64>,
+}
+
+fn diag_other(entry: &fs::DirEntry, name: String) -> DiagOther {
+    let meta = entry.metadata().ok();
+    let kind = match &meta {
+        Some(m) if m.file_type().is_symlink() => "symlink",
+        Some(m) if m.file_type().is_dir() => "folder",
+        Some(m) if m.file_type().is_file() => "file",
+        Some(_) => "other",
+        None => "unreadable",
+    };
+    DiagOther {
+        name,
+        kind,
+        size: meta.as_ref().filter(|m| m.file_type().is_file()).map(|m| m.len()),
+        modified_ms: meta.as_ref().and_then(meta_ms),
+    }
+}
+
+/// The sanitized name of an entry this scan does not recognize.
+fn other_name(raw: &std::ffi::OsStr) -> String {
+    match raw.to_str() {
+        Some(n) => diag_text(n, DIAG_NAME_MAX),
+        None => "(a name that is not UTF-8)".to_string(),
+    }
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct DiagDir {
+    pub folder: DiagItem,
+    pub items: Vec<DiagItem>,
+    pub items_more: u32,
+    pub other: Vec<DiagOther>,
+    pub other_more: u32,
+    pub scan_truncated: bool,
+}
+
+/// The LOGICAL name and role of a directory entry of this kind: rebuilt from
+/// the validated id (`US-CA-001.txt`, `US-CA-001.record.json`) or the
+/// validated twin shape (`US-CA-001 2.txt`), a placeholder (`.<name>.icloud`)
+/// mapping to the name it stands for. None for anything else.
+fn diag_logical_name(name: &str, kind: ItemKind) -> Option<(String, &'static str)> {
+    if let Some(id) = item_id_from_any_name(name, kind) {
+        let item = kind.item_from_id(&id)?;
+        let base = name.strip_prefix('.').and_then(|r| r.strip_suffix(".icloud")).unwrap_or(name);
+        return Some(if base.ends_with(".record.json") { (item.record_name(), "record") } else { (item.file_name(), "file") });
+    }
+    twin_name(name, kind).map(|t| (t, "twin"))
+}
+
+fn diag_dir(docs: &Path, kind: ItemKind, max_items: usize, max_other: usize, max_scan: usize) -> DiagDir {
+    let mut out = DiagDir {
+        folder: diag_item(docs, kind.subdir(), "folder"),
+        items: Vec::new(),
+        items_more: 0,
+        other: Vec::new(),
+        other_more: 0,
+        scan_truncated: false,
+    };
+    let sub = match real_subdir(docs, kind) {
+        Some(s) => s,
+        None => return out,
+    };
+    let entries = match fs::read_dir(&sub) {
+        Ok(e) => e,
+        Err(_) => return out,
+    };
+    let mut logical: BTreeMap<String, &'static str> = BTreeMap::new();
+    for (n, entry) in entries.flatten().enumerate() {
+        if n >= max_scan {
+            out.scan_truncated = true;
+            break;
+        }
+        let raw = entry.file_name();
+        match raw.to_str().and_then(|name| diag_logical_name(name, kind)) {
+            Some((name, role)) => {
+                logical.insert(name, role);
+            }
+            None if out.other.len() < max_other => out.other.push(diag_other(&entry, other_name(&raw))),
+            None => out.other_more = out.other_more.saturating_add(1),
+        }
+    }
+    for (name, role) in logical {
+        if out.items.len() < max_items {
+            out.items.push(diag_item(&sub, &name, role));
+        } else {
+            out.items_more = out.items_more.saturating_add(1);
+        }
+    }
+    out
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct DiagStaging {
+    /// Every entry in `Documents/.tmp/` (up to the scan bound).
+    pub total: u32,
+    /// Bar-chart staging entries (`<deviceId>-barcharts-<item name>`).
+    pub barchart: Vec<DiagOther>,
+    pub barchart_more: u32,
+}
+
+fn diag_staging(docs: &Path, max: usize, max_scan: usize) -> DiagStaging {
+    let mut out = DiagStaging { total: 0, barchart: Vec::new(), barchart_more: 0 };
+    let entries = match fs::read_dir(docs.join(".tmp")) {
+        Ok(e) => e,
+        Err(_) => return out,
+    };
+    let marker = format!("{}-", BARCHARTS_SUBDIR);
+    for (n, entry) in entries.flatten().enumerate() {
+        if n >= max_scan {
+            break;
+        }
+        out.total = out.total.saturating_add(1);
+        let raw = entry.file_name();
+        let name = match raw.to_str() {
+            Some(n) => n,
+            None => continue,
+        };
+        let b = name.as_bytes();
+        if b.len() <= 33 || b[32] != b'-' || !name.is_char_boundary(32) || !valid_device_id(&name[..32]) {
+            continue;
+        }
+        let item_name = match name[33..].strip_prefix(&marker) {
+            Some(rest) => rest,
+            None => continue,
+        };
+        if item_id_from_any_name(item_name, ItemKind::Barchart).is_none() {
+            continue;
+        }
+        if out.barchart.len() < max {
+            out.barchart.push(diag_other(&entry, diag_text(name, DIAG_NAME_MAX)));
+        } else {
+            out.barchart_more = out.barchart_more.saturating_add(1);
+        }
+    }
+    out
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct DiagContainer {
+    pub documents: DiagItem,
+    /// The control item: the synced eBird backup and its record.
+    pub control: Vec<DiagItem>,
+    pub barcharts: DiagDir,
+    pub day_obs: DiagDir,
+    pub duplicates: Vec<DiagItem>,
+    pub staging: DiagStaging,
+    /// Entries in `Documents/` that are none of the above (counted only).
+    pub documents_other: u32,
+}
+
+/// The container half of the scan, over any directory (a temporary one in
+/// the tests). `docs` is the container's `Documents/`.
+fn diag_container(docs: &Path, max_items: usize, max_scan: usize) -> DiagContainer {
+    let documents = match (docs.parent(), docs.file_name().and_then(|n| n.to_str())) {
+        (Some(parent), Some(name)) => diag_item(parent, name, "folder"),
+        _ => diag_item(docs, ".", "folder"),
+    };
+    let control = vec![diag_item(docs, Slot::Ebird.csv_name(), "file"), diag_item(docs, &Slot::Ebird.record_name(), "record")];
+    let known: [String; 8] = [
+        LOCAL_EBIRD_FILE.to_string(),
+        LOCAL_ML_FILE.to_string(),
+        Slot::Ebird.record_name(),
+        Slot::Ml.record_name(),
+        KEYS_RECORD_NAME.to_string(),
+        BARCHARTS_SUBDIR.to_string(),
+        DAY_OBS_SUBDIR.to_string(),
+        ".tmp".to_string(),
+    ];
+    let mut duplicates: BTreeSet<String> = BTreeSet::new();
+    let mut documents_other = 0u32;
+    if let Ok(entries) = fs::read_dir(docs) {
+        for (n, entry) in entries.flatten().enumerate() {
+            if n >= max_scan {
+                break;
+            }
+            let raw = entry.file_name();
+            let name = match raw.to_str() {
+                Some(n) => n,
+                None => {
+                    documents_other = documents_other.saturating_add(1);
+                    continue;
+                }
+            };
+            let logical = name.strip_prefix('.').and_then(|r| r.strip_suffix(".icloud")).unwrap_or(name);
+            if known.iter().any(|k| k == name || k == logical) {
+                continue;
+            }
+            if is_duplicate_subdir(logical, ItemKind::Barchart) || is_duplicate_subdir(logical, ItemKind::DayObs) {
+                duplicates.insert(logical.to_string());
+            } else {
+                documents_other = documents_other.saturating_add(1);
+            }
+        }
+    }
+    DiagContainer {
+        documents,
+        control,
+        barcharts: diag_dir(docs, ItemKind::Barchart, max_items, DIAG_OTHER_MAX, max_scan),
+        day_obs: diag_dir(docs, ItemKind::DayObs, max_items, DIAG_OTHER_MAX, max_scan),
+        duplicates: duplicates.iter().take(DIAG_DUPLICATES_MAX).map(|d| diag_item(docs, d, "duplicate-folder")).collect(),
+        staging: diag_staging(docs, DIAG_STAGING_MAX, max_scan),
+        documents_other,
+    }
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct DiagLocalFile {
+    pub name: String,
+    pub kind: &'static str,
+    pub size: Option<u64>,
+    pub modified_ms: Option<i64>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct DiagLocal {
+    pub ebird_file: Option<DiagLocalFile>,
+    pub day_obs_file: Option<DiagLocalFile>,
+    pub barcharts_folder: bool,
+    pub barcharts: Vec<DiagLocalFile>,
+    pub barcharts_more: u32,
+    /// Entries in the local bar-chart folder that are not `<county>.txt`.
+    pub barcharts_other: u32,
+}
+
+fn local_file(path: &Path, name: &str) -> Option<DiagLocalFile> {
+    let meta = fs::symlink_metadata(path).ok()?;
+    let kind = if meta.file_type().is_symlink() {
+        "symlink"
+    } else if meta.file_type().is_dir() {
+        "folder"
+    } else if meta.file_type().is_file() {
+        "file"
+    } else {
+        "other"
+    };
+    Some(DiagLocalFile {
+        name: name.to_string(),
+        kind,
+        size: if meta.file_type().is_file() { Some(meta.len()) } else { None },
+        modified_ms: meta_ms(&meta),
+    })
+}
+
+/// The local, app-side store: sizes and times only, never a byte of a file.
+/// `data_dir` is `app_local_data_dir()/data`.
+fn diag_local(data_dir: &Path, max_items: usize, max_scan: usize) -> DiagLocal {
+    let mut out = DiagLocal {
+        ebird_file: local_file(&data_dir.join(LOCAL_EBIRD_FILE), LOCAL_EBIRD_FILE),
+        day_obs_file: local_file(&data_dir.join(LOCAL_DAY_OBS_FILE), LOCAL_DAY_OBS_FILE),
+        barcharts_folder: fs::symlink_metadata(data_dir.join(LOCAL_BARCHARTS_DIR)).map(|m| m.file_type().is_dir()).unwrap_or(false),
+        barcharts: Vec::new(),
+        barcharts_more: 0,
+        barcharts_other: 0,
+    };
+    if !out.barcharts_folder {
+        return out;
+    }
+    let dir = data_dir.join(LOCAL_BARCHARTS_DIR);
+    let entries = match fs::read_dir(&dir) {
+        Ok(e) => e,
+        Err(_) => return out,
+    };
+    let mut names: BTreeSet<String> = BTreeSet::new();
+    for (n, entry) in entries.flatten().enumerate() {
+        if n >= max_scan {
+            break;
+        }
+        let raw = entry.file_name();
+        match raw.to_str().and_then(|name| name.strip_suffix(".txt")).and_then(|code| County::parse(code).ok()) {
+            Some(c) => {
+                names.insert(format!("{}.txt", c.as_str()));
+            }
+            None => out.barcharts_other = out.barcharts_other.saturating_add(1),
+        }
+    }
+    for name in names {
+        if out.barcharts.len() < max_items {
+            if let Some(f) = local_file(&dir.join(&name), &name) {
+                out.barcharts.push(f);
+            }
+        } else {
+            out.barcharts_more = out.barcharts_more.saturating_add(1);
+        }
+    }
+    out
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct DiagScan {
+    pub availability: &'static str,
+    pub build_can_use_icloud: bool,
+    pub identity_token_present: bool,
+    pub container_resolves: bool,
+    pub container: Option<DiagContainer>,
+    pub local: Option<DiagLocal>,
+}
+
+fn diag_scan(local: Option<&Path>) -> DiagScan {
+    let build_ok = build_can_use_icloud();
+    let token = NSFileManager::defaultManager().ubiquityIdentityToken().is_some();
+    let docs = container_documents();
+    let availability = if !build_ok {
+        "build-cannot-use-icloud"
+    } else if !token {
+        "not-signed-in"
+    } else if docs.is_none() {
+        "drive-off-or-unauthorized"
+    } else {
+        "available"
+    };
+    DiagScan {
+        availability,
+        build_can_use_icloud: build_ok,
+        identity_token_present: token,
+        container_resolves: docs.is_some(),
+        container: docs.as_deref().map(|d| diag_container(d, DIAG_ITEMS_MAX, MAX_LISTED_ITEMS)),
+        local: local.map(|d| diag_local(d, DIAG_ITEMS_MAX, MAX_LISTED_ITEMS)),
+    }
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct Diagnostics {
+    pub collected_at_ms: i64,
+    pub app_version: String,
+    pub bundle_version: Option<String>,
+    pub bundle_build: Option<String>,
+    pub platform: &'static str,
+    pub device_label: String,
+    pub scan: Option<DiagScan>,
+    /// The scan did not finish (`timeout`) or could not run.
+    pub scan_error: Option<String>,
+    pub ops: Vec<DiagOp>,
+    pub last_ops: Vec<DiagCountyLast>,
+}
+
+fn bundle_string(key: &str) -> Option<String> {
+    let value = objc2_foundation::NSBundle::mainBundle().objectForInfoDictionaryKey(&NSString::from_str(key))?;
+    value.downcast_ref::<NSString>().map(|s| diag_text(&s.to_string(), 32))
+}
+
+/// "Copy iCloud details": everything above, for the report. Read-only.
+#[tauri::command]
+pub async fn icloud_diagnostics(app: AppHandle) -> Result<Diagnostics, String> {
+    let (device_label, platform) = device_identity(&app);
+    let app_version = diag_text(&app.package_info().version.to_string(), 32);
+    let local = local_data_dir(&app).ok();
+    // The log is taken first: a scan that runs out of time must not cost it.
+    let (ops, last_ops) = op_log().snapshot();
+    let (scan, scan_error) = match blocking(move || Ok(diag_scan(local.as_deref()))).await {
+        Ok(s) => (Some(s), None),
+        Err(e) => (None, Some(e)),
+    };
+    Ok(Diagnostics {
+        collected_at_ms: unix_now_ms(),
+        app_version,
+        bundle_version: bundle_string("CFBundleShortVersionString"),
+        bundle_build: bundle_string("CFBundleVersion"),
+        platform,
+        device_label,
+        scan,
+        scan_error,
+        ops,
+        last_ops,
+    })
 }
 
 #[cfg(test)]
@@ -4342,5 +5475,372 @@ mod tests {
         for name in ["barcharts", "barcharts2", "barcharts 2x", "barcharts  2", "barcharts 12345", "barcharts 2/..", "day-obs 2"] {
             assert!(!is_duplicate_subdir(name, ItemKind::Barchart), "{:?}", name);
         }
+    }
+
+    // ── Diagnostics (decisions.md entry 20) ──────────────────────────────────
+
+    /// Every key path in a JSON value, array indices folded to `[]`, so a
+    /// payload's SHAPE can be compared without its values.
+    fn key_paths(v: &serde_json::Value, prefix: &str, out: &mut BTreeSet<String>) {
+        match v {
+            serde_json::Value::Object(m) => {
+                for (k, child) in m {
+                    let p = if prefix.is_empty() { k.clone() } else { format!("{}.{}", prefix, k) };
+                    out.insert(p.clone());
+                    key_paths(child, &p, out);
+                }
+            }
+            serde_json::Value::Array(a) => {
+                for child in a {
+                    key_paths(child, &format!("{}[]", prefix), out);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    /// Every string anywhere in a JSON value.
+    fn strings(v: &serde_json::Value, out: &mut Vec<String>) {
+        match v {
+            serde_json::Value::String(s) => out.push(s.clone()),
+            serde_json::Value::Object(m) => m.values().for_each(|c| strings(c, out)),
+            serde_json::Value::Array(a) => a.iter().for_each(|c| strings(c, out)),
+            _ => {}
+        }
+    }
+
+    /// THE RESOURCE-VALUE COLLECTOR ON A TEMPORARY DIRECTORY: nothing there is
+    /// in iCloud, so every ubiquity value is reported ABSENT (never a guessed
+    /// false or true), a path that is not there is a `read_error` rather than a
+    /// crash, and a folder and a planted placeholder are read without incident.
+    #[test]
+    fn the_resource_value_collector_reports_non_ubiquitous_values_as_absent_and_never_crashes() {
+        let dir = tmp_dir("diag-values");
+        fs::write(dir.join("plain.txt"), b"hello").unwrap();
+        fs::create_dir_all(dir.join("folder")).unwrap();
+        fs::write(placeholder_path(&dir, "ghost.txt"), b"bplist-stub").unwrap();
+        let absent_ubiquity = |v: &DiagValues, what: &str| {
+            assert_ne!(v.is_ubiquitous, Some(true), "{}", what);
+            assert_eq!(v.uploaded, None, "{}", what);
+            assert_eq!(v.uploading, None, "{}", what);
+            assert_eq!(v.upload_error, None, "{}", what);
+            assert_eq!(v.downloading, None, "{}", what);
+            assert_eq!(v.download_status, None, "{}", what);
+            assert_eq!(v.download_error, None, "{}", what);
+            assert_eq!(v.has_unresolved_conflicts, None, "{}", what);
+            assert_ne!(v.excluded_from_sync, Some(true), "{}", what);
+        };
+        let file = diag_values(&dir.join("plain.txt"), true);
+        absent_ubiquity(&file, "a regular file");
+        assert_eq!(file.read_error, None);
+        assert!(file.conflict_versions.unwrap_or(0) == 0, "a local file has no conflict versions");
+
+        let folder = diag_values(&dir.join("folder"), false);
+        absent_ubiquity(&folder, "a folder");
+        assert_eq!(folder.conflict_versions, None, "versions are not asked of a folder");
+
+        // A placeholder's LOGICAL name: in a real container Foundation answers
+        // for the iCloud item; here nothing stands behind it. Measured on this
+        // Mac, Foundation then answers with no values rather than an error;
+        // either way the collector reports nothing it was not told, and
+        // nothing is downloaded or created.
+        let ghost = diag_values(&dir.join("ghost.txt"), true);
+        absent_ubiquity(&ghost, "a placeholder's logical name");
+        assert!(ghost.conflict_versions.unwrap_or(0) == 0);
+        assert!(!dir.join("ghost.txt").exists(), "the collector created or downloaded nothing");
+        assert!(is_regular_file(&placeholder_path(&dir, "ghost.txt")), "the placeholder is untouched");
+
+        let missing = diag_values(&dir.join("never-there.txt"), true);
+        absent_ubiquity(&missing, "a missing path");
+        if let Some(e) = &missing.read_error {
+            assert!(!e.domain.is_empty() && e.description.encode_utf16().count() <= DIAG_TEXT_MAX);
+        }
+        assert!(!dir.join("never-there.txt").exists());
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// A temporary stand-in for a container and the local store, shaped like
+    /// the user's report: the control item, a county file and record, another
+    /// county held only as placeholders, a set-aside twin, a symlink planted at
+    /// a county name, two unrecognized names, a duplicate folder, a staging
+    /// entry and a day-obs snapshot.
+    fn diag_fixture(tag: &str) -> (PathBuf, PathBuf, PathBuf) {
+        let root = tmp_dir(tag);
+        let docs = root.join("Documents");
+        let bc = docs.join("barcharts");
+        fs::create_dir_all(&bc).unwrap();
+        fs::write(docs.join("ebird-backup.csv"), b"Submission ID,Common Name\n").unwrap();
+        fs::write(docs.join("ebird.record.json"), SLOT_RECORD_GOLDEN).unwrap();
+        fs::write(bc.join("US-CA-001.txt"), b"frequencies").unwrap();
+        fs::write(
+            bc.join("US-CA-001.record.json"),
+            format!(
+                r#"{{"version":1,"slot":"barchart","county":"US-CA-001","state":"file","filename":"secret-name.txt","uploadedAt":"2026-09-29T12:00:00.000Z","origin":{{"deviceId":"{}","label":"Dave's iPad","platform":"ipad"}},"byteLength":11,"sha256":"{}","apiKey":"SENTINEL-KEY"}}"#,
+                "b".repeat(32),
+                GOLDEN_SHA
+            ),
+        )
+        .unwrap();
+        fs::write(placeholder_path(&bc, "US-CA-002.txt"), b"bplist-stub").unwrap();
+        fs::write(placeholder_path(&bc, "US-CA-002.record.json"), b"bplist-stub").unwrap();
+        fs::write(bc.join("US-CA-001 2.txt"), b"frequencies").unwrap();
+        std::os::unix::fs::symlink("/etc/hosts", bc.join("US-CA-003.txt")).unwrap();
+        fs::write(bc.join("notes\u{7}\u{202E}.txt"), b"x").unwrap();
+        fs::write(bc.join("readme.md"), b"x").unwrap();
+        fs::create_dir_all(docs.join("barcharts 2")).unwrap();
+        fs::create_dir_all(docs.join(".tmp")).unwrap();
+        fs::write(docs.join(".tmp").join(format!("{}-barcharts-US-CA-001.txt", "a".repeat(32))), b"staged").unwrap();
+        fs::create_dir_all(docs.join("day-obs")).unwrap();
+        fs::write(docs.join("day-obs").join(format!("{}.json", "b".repeat(32))), b"{}").unwrap();
+        let local = root.join("data");
+        fs::create_dir_all(local.join("barcharts")).unwrap();
+        fs::write(local.join("barcharts").join("US-CA-001.txt"), b"frequencies").unwrap();
+        fs::write(local.join("barcharts").join("US-CA-001.txt.tmp"), b"half").unwrap();
+        fs::write(local.join("ebird-backup.csv"), b"Submission ID\n").unwrap();
+        (root, docs, local)
+    }
+
+    fn diag_fixture_payload(docs: &Path, local: &Path, max_items: usize) -> Diagnostics {
+        let log = OpLog::new(DIAG_OPS_MAX, DIAG_LAST_MAX);
+        log.push(1_790_683_200_000, "list", BARCHARTS_SUBDIR, "ok", Some("2 counties, 1 records unread, 1 files not uploaded".to_string()));
+        log.push(1_790_683_201_000, "write", "US-CA-001.txt", "unavailable", Some("coordinated rename (NSCocoaErrorDomain 512 / NSPOSIXErrorDomain 1)".to_string()));
+        log.push(1_790_683_202_000, "push", "US-CA-001", "unavailable", None);
+        let (ops, last_ops) = log.snapshot();
+        Diagnostics {
+            collected_at_ms: 1_790_683_203_000,
+            app_version: "1.0.40".to_string(),
+            bundle_version: Some("1.0.40".to_string()),
+            bundle_build: Some("1.0.40.5".to_string()),
+            platform: "ipad",
+            device_label: "Dave's iPad".to_string(),
+            scan: Some(DiagScan {
+                availability: "available",
+                build_can_use_icloud: true,
+                identity_token_present: true,
+                container_resolves: true,
+                container: Some(diag_container(docs, max_items, MAX_LISTED_ITEMS)),
+                local: Some(diag_local(local, max_items, MAX_LISTED_ITEMS)),
+            }),
+            scan_error: None,
+            ops,
+            last_ops,
+        }
+    }
+
+    /// The scan over the temporary container: every entry grouped under the
+    /// item it stands for, placeholders and twins included, a symlink reported
+    /// and never followed or asked about, unrecognized names sanitized and
+    /// kept apart, and nothing but the allowed fields: no filename the user
+    /// chose, no digest, no key, no byte of a file. Its JSON SHAPE is pinned to
+    /// the frontend's fixture (`icloudDiagnostics.fixture.json`), so a field
+    /// added or renamed here cannot leave the report builder reading nothing.
+    #[test]
+    fn a_diagnostic_scan_groups_each_item_reports_only_allowed_fields_and_matches_the_frontend_fixture() {
+        let (root, docs, local) = diag_fixture("diag-scan");
+        let payload = diag_fixture_payload(&docs, &local, DIAG_ITEMS_MAX);
+        let c = payload.scan.as_ref().unwrap().container.as_ref().unwrap();
+
+        assert_eq!(c.documents.on_disk, "folder");
+        assert_eq!(c.control.iter().map(|i| (i.name.as_str(), i.role, i.on_disk)).collect::<Vec<_>>(), vec![
+            ("ebird-backup.csv", "file", "file"),
+            ("ebird.record.json", "record", "file"),
+        ]);
+        let slot_record = c.control[1].record.as_ref().unwrap();
+        assert_eq!((slot_record.state.as_deref(), slot_record.origin_label.as_deref()), (Some("file"), Some("Dave's MacBook Pro")));
+
+        assert_eq!(c.barcharts.folder.on_disk, "folder");
+        let items: Vec<(&str, &str, &str)> = c.barcharts.items.iter().map(|i| (i.name.as_str(), i.role, i.on_disk)).collect();
+        assert_eq!(items, vec![
+            ("US-CA-001 2.txt", "twin", "file"),
+            ("US-CA-001.record.json", "record", "file"),
+            ("US-CA-001.txt", "file", "file"),
+            ("US-CA-002.record.json", "record", "placeholder"),
+            ("US-CA-002.txt", "file", "placeholder"),
+            ("US-CA-003.txt", "file", "symlink"),
+        ]);
+        let by = |n: &str| c.barcharts.items.iter().find(|i| i.name == n).unwrap();
+        assert_eq!(by("US-CA-001.txt").size, Some(11));
+        assert_eq!(by("US-CA-002.txt").size, None, "a placeholder's own bytes are not the item's size");
+        assert!(by("US-CA-003.txt").values.is_none() && by("US-CA-003.txt").size.is_none(), "a symlink is never asked about or followed");
+        let rec = by("US-CA-001.record.json").record.as_ref().unwrap();
+        assert_eq!(rec.county.as_deref(), Some("US-CA-001"));
+        assert_eq!(rec.origin_device_id.as_deref(), Some("b".repeat(32).as_str()));
+        assert_eq!(rec.byte_length, Some(11));
+        assert!(by("US-CA-002.record.json").record.is_none(), "a placeholder record is never opened");
+
+        let other: Vec<&str> = c.barcharts.other.iter().map(|o| o.name.as_str()).collect();
+        assert_eq!(other.len(), 2);
+        assert!(other.contains(&"notes.txt") && other.contains(&"readme.md"), "{:?}", other);
+        assert_eq!(c.duplicates.iter().map(|d| d.name.as_str()).collect::<Vec<_>>(), vec!["barcharts 2"]);
+        assert_eq!((c.staging.total, c.staging.barchart.len()), (1, 1));
+        assert_eq!(c.day_obs.items.len(), 1);
+
+        let l = payload.scan.as_ref().unwrap().local.as_ref().unwrap();
+        assert!(l.barcharts_folder);
+        assert_eq!(l.barcharts.iter().map(|f| f.name.as_str()).collect::<Vec<_>>(), vec!["US-CA-001.txt"]);
+        assert_eq!(l.barcharts_other, 1);
+        assert_eq!(l.ebird_file.as_ref().and_then(|f| f.size), Some(14));
+
+        let json = serde_json::to_value(&payload).unwrap();
+        let mut all = Vec::new();
+        strings(&json, &mut all);
+        for s in &all {
+            for forbidden in ["secret-name", "MyEBirdData", GOLDEN_SHA, "SENTINEL-KEY", "frequencies", "Submission ID", "localhost"] {
+                assert!(!s.contains(forbidden), "{:?} carries {:?}", s, forbidden);
+            }
+            assert!(!s.chars().any(|ch| is_control(ch) || ch == '\u{202E}'), "{:?} carries a control character", s);
+            assert!(s.encode_utf16().count() <= DIAG_TEXT_MAX, "{:?} is over the bound", s);
+        }
+
+        // The frontend builds its report from this shape; pin it.
+        let fixture: serde_json::Value = serde_json::from_str(include_str!("../../frontend/src/lib/icloud/icloudDiagnostics.fixture.json")).unwrap();
+        let (mut ours, mut theirs) = (BTreeSet::new(), BTreeSet::new());
+        key_paths(&json, "", &mut ours);
+        key_paths(&fixture, "", &mut theirs);
+        if std::env::var("SR_PRINT_DIAG_FIXTURE").is_ok() {
+            println!("{}", serde_json::to_string_pretty(&json).unwrap());
+        }
+        assert_eq!(ours, theirs, "the payload's shape and icloudDiagnostics.fixture.json disagree");
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    /// The scan's bounds: items past `max_items` and names past the other
+    /// bound are counted, never listed, and a folder scan stops at its entry
+    /// bound.
+    #[test]
+    fn a_diagnostic_scan_is_bounded_per_folder() {
+        let (root, docs, local) = diag_fixture("diag-bounds");
+        for n in 10..40 {
+            fs::write(docs.join("barcharts").join(format!("US-TX-0{:02}.record.json", n)), b"{}").unwrap();
+            fs::write(docs.join("barcharts").join(format!("junk-{}", n)), b"x").unwrap();
+        }
+        let d = diag_dir(&docs, ItemKind::Barchart, 5, 3, MAX_LISTED_ITEMS);
+        assert_eq!(d.items.len(), 5);
+        assert_eq!(d.items_more as usize, 6 + 30 - 5);
+        assert_eq!(d.other.len(), 3);
+        assert_eq!(d.other_more as usize, 2 + 30 - 3);
+        assert!(!d.scan_truncated);
+        let d = diag_dir(&docs, ItemKind::Barchart, 5, 3, 10);
+        assert!(d.scan_truncated);
+        assert!(d.items.len() + d.items_more as usize + d.other.len() + d.other_more as usize <= 10);
+        let l = diag_local(&local, 0, MAX_LISTED_ITEMS);
+        assert_eq!((l.barcharts.len(), l.barcharts_more), (0, 1));
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    /// The operation log: bounded at its cap (oldest out), a repeat of the
+    /// newest entry folded into a count, strings sanitized and bounded, and
+    /// the per-county table filled by pushes, pulls and markers only, for
+    /// valid county codes only, by admission control.
+    #[test]
+    fn the_operation_log_is_bounded_coalesces_repeats_and_keeps_the_last_push_per_county() {
+        let log = OpLog::new(3, 2);
+        for (i, op) in ["list", "read", "write", "delete", "mkdir"].iter().enumerate() {
+            log.push(i as i64, op, "US-CA-001.txt", "ok", None);
+        }
+        let (ops, _) = log.snapshot();
+        assert_eq!(ops.iter().map(|o| o.op).collect::<Vec<_>>(), vec!["write", "delete", "mkdir"]);
+        log.push(10, "mkdir", "US-CA-001.txt", "ok", None);
+        log.push(11, "mkdir", "US-CA-001.txt", "ok", None);
+        let (ops, _) = log.snapshot();
+        assert_eq!(ops.len(), 3);
+        assert_eq!((ops[2].count, ops[2].at_ms), (3, 11));
+        log.push(12, "mkdir", "US-CA-001.txt", "unavailable", None);
+        assert_eq!(log.snapshot().0[2].count, 1, "a different result is a new entry");
+
+        log.push(13, "push", "US-CA-001", "ok", Some("wrote the file and its record; uploaded=false".to_string()));
+        log.push(14, "pull", "US-CA-001", "mismatch", None);
+        log.push(15, "push", "US-CA-002", "ok", None);
+        log.push(16, "push", "US-CA-003", "ok", None);
+        log.push(17, "clear", BARCHARTS_SUBDIR, "unavailable", None);
+        log.push(18, "push", "US-CA-001", "timeout", None);
+        let (_, last) = log.snapshot();
+        assert_eq!(last.iter().map(|l| l.county.as_str()).collect::<Vec<_>>(), vec!["US-CA-001", "US-CA-002"]);
+        assert_eq!(last[0].push.as_ref().map(|p| (p.at_ms, p.result.as_str())), Some((18, "timeout")));
+        assert_eq!(last[0].pull.as_ref().map(|p| p.result.as_str()), Some("mismatch"));
+        assert!(last[0].clear.is_none());
+
+        log.push(19, "write", "bad\u{7}\u{202E}name\n", "ok", Some("x".repeat(500)));
+        let (ops, _) = log.snapshot();
+        let newest = ops.last().unwrap();
+        assert_eq!(newest.target, "badname");
+        assert_eq!(newest.detail.as_ref().unwrap().encode_utf16().count(), DIAG_TEXT_MAX);
+        let empty = OpLog::new(0, 0);
+        empty.push(20, "push", "US-CA-001", "ok", None);
+        assert_eq!((empty.snapshot().0.len(), empty.snapshot().1.len()), (0, 0));
+    }
+
+    /// One kept note: operation, target, result, detail.
+    type Note = (String, String, String, Option<String>);
+
+    /// A ContainerIo that keeps every note, over the fake.
+    #[derive(Clone)]
+    struct NotingIo(FakeIo, std::sync::Arc<Mutex<Vec<Note>>>);
+    impl ContainerIo for NotingIo {
+        fn flags(&self, p: &Path) -> UbiquityFlags { self.0.flags(p) }
+        fn start_download(&self, p: &Path) { self.0.start_download(p) }
+        fn read(&self, d: &Path, n: &str) -> Result<Option<String>, String> { self.0.read(d, n) }
+        fn delete(&self, d: &Path, n: &str) -> Result<bool, String> { self.0.delete(d, n) }
+        fn create_dir(&self, p: &Path) -> Result<(), String> { self.0.create_dir(p) }
+        fn note(&self, op: &'static str, target: &str, result: &str, detail: Option<String>) {
+            self.1.lock().unwrap().push((op.to_string(), target.to_string(), result.to_string(), detail));
+        }
+    }
+
+    /// What the log sees of a county push over a placeholder: the folder
+    /// creation, the delete that cleared the way (and why), the two writes and
+    /// the push itself. The day-obs kind is never logged. Observation only:
+    /// the push's result is the one the unlogged fake gives.
+    #[test]
+    fn a_county_push_logs_its_folder_delete_writes_and_result_and_changes_nothing() {
+        let (docs, _sub, local) = writer_fixture("diag-noting", b"new bytes");
+        fs::remove_dir_all(docs.join("barcharts")).ok();
+        let notes = std::sync::Arc::new(Mutex::new(Vec::new()));
+        let io = NotingIo(FakeIo::new(Duration::ZERO), notes.clone());
+        let item = county("US-CA-001");
+        // The folder does not exist yet: the first push creates it.
+        push_item_with(&io, &docs, &local, &item, "x.txt", "2026-09-29T12:00:00.000Z", &mac_origin(), None, None).unwrap();
+        fs::remove_file(docs.join("barcharts/US-CA-001.txt")).unwrap();
+        fs::write(placeholder_path(&docs.join("barcharts"), "US-CA-001.txt"), b"bplist-stub").unwrap();
+        let r = push_item_with(&io, &docs, &local, &item, "x.txt", "2026-09-29T12:00:01.000Z", &mac_origin(), None, None).unwrap();
+        let plain = push_item_with(&FakeIo::new(Duration::ZERO), &docs, &local, &item, "x.txt", "2026-09-29T12:00:02.000Z", &mac_origin(), None, None).unwrap();
+        assert_eq!((r.skipped, r.superseded), (plain.skipped, plain.superseded));
+        let got: Vec<(String, String, String)> = notes.lock().unwrap().iter().map(|(o, t, r, _)| (o.clone(), t.clone(), r.clone())).collect();
+        let want: Vec<(String, String, String)> = [
+            ("mkdir", "barcharts", "ok"),
+            ("write", "US-CA-001.txt", "ok"),
+            ("write", "US-CA-001.record.json", "ok"),
+            ("push", "US-CA-001", "ok"),
+            ("delete", "US-CA-001.txt", "ok"),
+            ("write", "US-CA-001.txt", "ok"),
+            ("write", "US-CA-001.record.json", "ok"),
+            ("push", "US-CA-001", "ok"),
+        ]
+        .iter()
+        .map(|(a, b, c)| (a.to_string(), b.to_string(), c.to_string()))
+        .collect();
+        assert_eq!(got, want);
+        let delete_detail = notes.lock().unwrap()[4].3.clone().unwrap();
+        assert!(delete_detail.contains("a placeholder"), "{}", delete_detail);
+
+        // A refused write names its step.
+        notes.lock().unwrap().clear();
+        let _ = county_container_write(&io, &docs, "barcharts/US-CA-009.txt", "not-a-device-id", b"x");
+        fs::remove_dir_all(docs.join("barcharts")).unwrap();
+        let e = county_container_write(&io, &docs, "barcharts/US-CA-009.txt", &"a".repeat(32), b"x");
+        assert_eq!(e.err().as_deref(), Some("unavailable"));
+        let last = notes.lock().unwrap().last().cloned().unwrap();
+        assert_eq!((last.0.as_str(), last.1.as_str(), last.2.as_str()), ("write", "US-CA-009.txt", "unavailable"));
+        assert_eq!(last.3.as_deref(), Some("the folder is not here"));
+
+        // The day-obs kind logs nothing.
+        notes.lock().unwrap().clear();
+        let o = phone_origin();
+        let snap = SyncItem::DayObs(DeviceId::parse(&o.device_id).unwrap());
+        fs::write(local.parent().unwrap().join("county-day-obs.json"), b"{}").unwrap();
+        let _ = push_item_with(&io, &docs, &local.parent().unwrap().join("county-day-obs.json"), &snap, "d.json", "2026-09-29T12:00:00.000Z", &o, None, None);
+        let _ = list_items_with(&docs, ItemKind::DayObs, MAX_LISTED_ITEMS, &io, &test_gate(LISTING_READ_BUDGET));
+        assert!(notes.lock().unwrap().is_empty(), "{:?}", notes.lock().unwrap());
+        let _ = fs::remove_dir_all(&docs);
     }
 }

@@ -33,7 +33,9 @@ import {
   removeCountiesLine, REMOVE_DAY_OBS_LINE, BAR_CHART_FILES_HEADER, BAR_CHART_FILES_DESCRIPTION,
   REMOVE_ALL_BAR_CHARTS, barChartsSavedText, barChartsNoneText, barChartsUnknownText,
   REMOVE_ALL_BAR_CHARTS_TITLE, REMOVE_ALL_CONFIRM, removeAllBarChartsBody, removeAllPartialText, removeAllDoneText,
+  DETAILS_COPIED_TEXT,
 } from '../lib/icloud/icloudCopy'
+import { copyText } from '../lib/clipboard'
 import { ModalDialog } from './ui/ModalDialog'
 import { SyncContent, SyncLine } from './ui/SyncLine'
 import { fileRowButtonLabel } from '../lib/fileRowCopy'
@@ -502,6 +504,10 @@ function KeySyncContent({ view, onRetry }: { view: KeySlotView; onRetry?: () => 
 // Rendered only while showICloudSync() (gated markup, never hidden markup).
 // Reads the entry-safe state store and calls the actions the controller
 // installed; nothing here imports the controller or @tauri-apps/api.
+
+/** How long "Copied" stays beside Copy iCloud details. */
+const DETAILS_COPIED_MS = 3000
+
 function ICloudSyncSection() {
   const ics = useICloudState()
   const headerId = useId()
@@ -524,6 +530,16 @@ function ICloudSyncSection() {
   // press is a real DOM replacement (the v0.5.80 live-region rule). The time
   // in the text makes repeated presses distinct too.
   const [announce, setAnnounce] = useState<{ text: string; seq: number }>({ text: '', seq: 0 })
+  // Copy iCloud details (icloud-bar-chart-sync decisions.md entry 20): the
+  // report is built by the controller and copied through the clipboard seam;
+  // "Copied" shows briefly beside the button and is announced once through
+  // the section's status region, the Check now pattern.
+  const [copyingDetails, setCopyingDetails] = useState(false)
+  const [detailsCopied, setDetailsCopied] = useState(false)
+  const detailsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => () => {
+    if (detailsTimerRef.current) clearTimeout(detailsTimerRef.current)
+  }, [])
 
   const available = ics.availability === 'available'
   const note = ics.availability === 'available' || ics.availability === 'unknown'
@@ -594,6 +610,23 @@ function ICloudSyncSection() {
   function handleRemove() {
     setRemoveOpen(false)
     void icloudActions.removeFromICloud()
+  }
+
+  async function handleCopyDetails() {
+    setCopyingDetails(true)
+    try {
+      const report = await icloudActions.detailsReport()
+      if (report === null || !(await copyText(report))) return
+      setDetailsCopied(true)
+      setAnnounce(a => ({ text: DETAILS_COPIED_TEXT, seq: a.seq + 1 }))
+      if (detailsTimerRef.current) clearTimeout(detailsTimerRef.current)
+      detailsTimerRef.current = setTimeout(() => {
+        setDetailsCopied(false)
+        detailsTimerRef.current = null
+      }, DETAILS_COPIED_MS)
+    } finally {
+      setCopyingDetails(false)
+    }
   }
 
   return (
@@ -696,6 +729,25 @@ function ICloudSyncSection() {
             {ics.keyRemovalPending && (
               <p id={keyPendingId} className="sr-ics-pending">{KEY_REMOVAL_PENDING_TEXT}</p>
             )}
+          </div>
+        )}
+
+        {/* Copy iCloud details: a plain-text diagnostic report to the
+            clipboard, whatever the sync state, once the controller has loaded
+            (before then there is nothing to report from). Laid out as the
+            status row: the confirmation where the status text sits. */}
+        {ics.availability !== 'unknown' && (
+          <div className="sr-ics-row sr-ics-status-row sr-ics-details-row">
+            <span className="sr-ics-status">{detailsCopied ? DETAILS_COPIED_TEXT : ''}</span>
+            <Button
+              type="button"
+              className="sr-btn-quiet sr-touch-target"
+              disabled={copyingDetails}
+              aria-busy={copyingDetails || undefined}
+              onClick={() => { void handleCopyDetails() }}
+            >
+              {BUTTONS.copyDetails}
+            </Button>
           </div>
         )}
       </div>

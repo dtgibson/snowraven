@@ -259,6 +259,8 @@ pub fn run() {
             icloud::icloud_remove_item,
             #[cfg(any(target_os = "macos", target_os = "ios"))]
             icloud::icloud_remove_items,
+            #[cfg(any(target_os = "macos", target_os = "ios"))]
+            icloud::icloud_diagnostics,
             #[cfg(target_os = "ios")]
             widgets::widgets_write_handover,
             #[cfg(target_os = "ios")]

@@ -9,7 +9,7 @@
 // pinned here is gating, structure, semantics, copy, and wiring.
 
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
-import { render, screen, fireEvent, cleanup, waitFor, within } from '@testing-library/react'
+import { render, screen, fireEvent, cleanup, waitFor, within, act } from '@testing-library/react'
 
 const storageMock = vi.hoisted(() => ({
   // icloud-bar-chart-sync: the Bar-chart files section reads the manifest on mount.
@@ -37,6 +37,7 @@ vi.mock('../lib/networkCache', () => ({ clearNetworkCache: vi.fn() }))
 vi.mock('../lib/hotspotSet', () => ({ invalidateHotspotSet: vi.fn() }))
 vi.mock('../lib/iosImport', () => ({ IOS_IMPORT_MECHANISM: 'input', pickCsvViaDialog: vi.fn() }))
 vi.mock('@tauri-apps/plugin-process', () => ({ relaunch: vi.fn() }))
+vi.mock('../lib/clipboard', () => ({ copyText: vi.fn().mockResolvedValue(true) }))
 
 import { Settings } from './Settings'
 import { isTauri, isIOS, isMacOS } from '../lib/platform'
@@ -49,6 +50,7 @@ import {
 import type { Slot } from '../lib/icloud/icloudRecord'
 import type { KeySlot } from '../lib/icloud/keyRecord'
 import * as copy from '../lib/icloud/icloudCopy'
+import { copyText } from '../lib/clipboard'
 
 const FILES = {
   ebird: { filename: 'MyEBirdData.csv', uploadedAt: '2026-08-24T22:12:00.000Z' },
@@ -76,6 +78,7 @@ function fakeActions(): ICloudActions {
     clearKeyWithSync: vi.fn<(slot: KeySlot) => Promise<void>>(async () => {}),
     retryKey: vi.fn<(slot: KeySlot) => Promise<void>>(async () => {}),
     keySaved: vi.fn<(slot: KeySlot) => void>(() => {}),
+    detailsReport: vi.fn<() => Promise<string | null>>(async () => null),
   }
 }
 
@@ -497,6 +500,77 @@ describe('Clear with sync on and off (FR-30, QA-28)', () => {
   })
 })
 
+describe('Copy iCloud details (icloud-bar-chart-sync decisions.md entry 20)', () => {
+  const detailsButton = () => screen.queryByRole('button', { name: copy.BUTTONS.copyDetails })
+  const detailsRow = () => document.querySelector('.sr-ics-details-row') as HTMLElement
+  const announcer = () => document.querySelector('.sr-ics-status-row [role="status"]') as HTMLElement
+
+  beforeEach(() => {
+    vi.mocked(copyText).mockReset().mockResolvedValue(true)
+  })
+
+  it('renders once the controller has loaded, whatever the sync state, and not before', async () => {
+    gate(true)
+    renderSettings()
+    await screen.findByRole('switch', { name: copy.ICS_HEADER })
+    expect(detailsButton()).toBeNull()
+    for (const availability of ['available', 'not-signed-in', 'drive-off-or-unauthorized', 'build-cannot-use-icloud'] as const) {
+      act(() => { setICloudState({ availability, syncEnabled: false, platform: 'ipad' }) })
+      expect(detailsButton(), availability).toBeTruthy()
+    }
+    act(() => { setICloudState({ availability: 'available', syncEnabled: true }) })
+    expect(detailsButton()?.textContent).toBe('Copy iCloud details')
+  })
+
+  it('copies the report through the clipboard seam, shows "Copied" beside the button, and announces it once', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      gate(true)
+      setICloudState({ availability: 'available', syncEnabled: true, platform: 'ipad' })
+      vi.mocked(actions.detailsReport).mockResolvedValue('SnowRaven iCloud details\nreport body')
+      renderSettings()
+      await screen.findByRole('switch', { name: copy.ICS_HEADER })
+      expect(announcer().textContent).toBe('')
+      fireEvent.click(detailsButton()!)
+      await waitFor(() => expect(copyText).toHaveBeenCalledWith('SnowRaven iCloud details\nreport body'))
+      await waitFor(() => expect(within(detailsRow()).getByText(copy.DETAILS_COPIED_TEXT)).toBeTruthy())
+      expect(copy.DETAILS_COPIED_TEXT).toBe('Copied')
+      expect(announcer().textContent).toBe('Copied')
+      // The visible confirmation is plain text, never a second live region.
+      const confirmation = within(detailsRow()).getByText('Copied')
+      expect(confirmation.getAttribute('role')).toBeNull()
+      expect(confirmation.getAttribute('aria-live')).toBeNull()
+      expect(actions.detailsReport).toHaveBeenCalledTimes(1)
+      await act(async () => { vi.advanceTimersByTime(3100) })
+      expect(within(detailsRow()).queryByText('Copied')).toBeNull()
+      expect(detailsButton()).toBeTruthy()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('confirms nothing when the clipboard refuses, and copies nothing when there is no report', async () => {
+    gate(true)
+    setICloudState({ availability: 'available', syncEnabled: true, platform: 'mac' })
+    vi.mocked(actions.detailsReport).mockResolvedValue('report')
+    vi.mocked(copyText).mockResolvedValue(false)
+    renderSettings()
+    await screen.findByRole('switch', { name: copy.ICS_HEADER })
+    fireEvent.click(detailsButton()!)
+    await waitFor(() => expect(copyText).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect((detailsButton() as HTMLButtonElement).disabled).toBe(false))
+    expect(within(detailsRow()).queryByText('Copied')).toBeNull()
+    expect(announcer().textContent).toBe('')
+
+    vi.mocked(actions.detailsReport).mockResolvedValue(null)
+    fireEvent.click(detailsButton()!)
+    await waitFor(() => expect(actions.detailsReport).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect((detailsButton() as HTMLButtonElement).disabled).toBe(false))
+    expect(copyText).toHaveBeenCalledTimes(1)
+    expect(within(detailsRow()).queryByText('Copied')).toBeNull()
+  })
+})
+
 describe('copy (NFR-03, QA-40)', () => {
   it('no em dash in any iCloud Sync string or rendered text', async () => {
     const strings: string[] = [
@@ -507,6 +581,7 @@ describe('copy (NFR-03, QA-40)', () => {
       ...Object.values(copy.REASONS), ...Object.values(copy.BUTTONS),
       ...copy.enableNoteItems('this Mac').flatMap(i => [i.lead, i.text]),
       copy.announcerText({ ok: true, transferred: false }, 'now'), copy.announcerText({ ok: false, transferred: false }, null),
+      copy.DETAILS_COPIED_TEXT,
     ]
     for (const s of strings) expect(s).not.toContain('—')
     gate(true)
