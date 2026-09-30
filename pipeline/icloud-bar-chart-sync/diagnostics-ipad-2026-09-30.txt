@@ -1,0 +1,91 @@
+SnowRaven iCloud details
+Generated 2026-09-30T16:17:58.117Z. No file contents, file names you chose or API keys are included.
+
+App
+  SnowRaven 1.0.40 (bundle 1.0.40, build 1.0.40.5) on ipad
+  Device name: iPad
+  Device id (random, this app's own): 2af18075ac4eaf09a4cc7903c98d76e3
+
+iCloud
+  Availability: available. Account token present: yes. Container resolves: yes. Build can use iCloud: yes.
+  This device's view: available. Sync on: yes. Last check: 2026-09-30T16:17:55.044Z. Last check failed: no. Checking now: no.
+  Checks this session: 30. Follow-up re-reads in a row: 8. Last check left something on its way: no. Check running: no, queued: no.
+  Counties whose file was written again this session: none.
+  iCloud holds day-by-day answers: yes.
+
+Bar-chart counties (1)
+  US-CA-001
+    This device's view: waiting-to-upload, from this device
+    Local manifest: uploaded 2026-09-30T16:04:15.493Z, from iPad (ipad) [2af18075ac4eaf09a4cc7903c98d76e3]
+    Local file: file, 254827 bytes, modified 2026-09-30T16:04:15.484Z
+    In iCloud, file: file, 254827 bytes, uploaded no, status Current
+    In iCloud, record: file, 351 bytes, uploaded yes, status Current, unresolved conflicts; record: file from iPad (ipad) [2af18075ac4eaf09a4cc7903c98d76e3], uploaded 2026-09-30T16:04:15.493Z, 254827 bytes
+    Pending removal marker: none. Known as a shared file: yes.
+    Last push: 2026-09-30T16:04:15.819Z ok: wrote the file and its record; uploaded=false. Last pull: 2026-09-30T16:03:42.409Z ok. Last removal marker: 2026-09-30T16:03:49.854Z ok.
+
+Native bar-chart operations (oldest first)
+  2026-09-30T16:03:38.628Z list barcharts: ok (1 counties, 1 records unread, 0 files not uploaded)
+  2026-09-30T16:03:38.833Z read US-CA-001.record.json: read, but still not current
+  2026-09-30T16:03:38.833Z list barcharts: ok (1 counties, 1 records unread, 0 files not uploaded)
+  2026-09-30T16:03:39.015Z read US-CA-001.record.json: read, but still not current
+  2026-09-30T16:03:39.015Z list barcharts: ok (1 counties, 1 records unread, 0 files not uploaded)
+  2026-09-30T16:03:40.028Z read US-CA-001.record.json: read, but still not current
+  2026-09-30T16:03:40.028Z list barcharts: ok (1 counties, 1 records unread, 0 files not uploaded)
+  2026-09-30T16:03:41.298Z list barcharts: ok (1 counties, 0 records unread, 0 files not uploaded)
+  2026-09-30T16:03:41.300Z download US-CA-001: ok
+  2026-09-30T16:03:42.371Z list barcharts: ok (1 counties, 0 records unread, 0 files not uploaded) x2
+  2026-09-30T16:03:42.409Z pull US-CA-001: ok
+  2026-09-30T16:03:48.107Z list barcharts: ok (1 counties, 0 records unread, 0 files not uploaded) x2
+  2026-09-30T16:03:49.843Z delete US-CA-001.txt: ok (free the name for a removal marker)
+  2026-09-30T16:03:49.854Z write US-CA-001.record.json: ok
+  2026-09-30T16:03:49.854Z clear US-CA-001: ok
+  2026-09-30T16:04:15.792Z list barcharts: ok (1 counties, 0 records unread, 0 files not uploaded) x3
+  2026-09-30T16:04:15.802Z write US-CA-001.txt: ok
+  2026-09-30T16:04:15.813Z write US-CA-001.record.json: ok
+  2026-09-30T16:04:15.819Z push US-CA-001: ok (wrote the file and its record; uploaded=false)
+  2026-09-30T16:17:54.952Z list barcharts: ok (1 counties, 0 records unread, 1 files not uploaded) x19
+
+iCloud container
+  Documents folder: folder
+    ubiquitous yes, uploaded yes, uploading no, downloading no, status Current, conflicts no, conflict versions -, excluded no
+  Control item (the synced eBird backup):
+    ebird-backup.csv: file, 8533035 bytes, modified 2026-09-25T21:43:34.000Z
+      ubiquitous yes, uploaded yes, uploading no, downloading no, status Current, conflicts no, conflict versions 0, excluded no
+    ebird.record.json (record): file, 313 bytes, modified 2026-09-25T21:43:34.000Z
+      ubiquitous yes, uploaded yes, uploading no, downloading no, status Current, conflicts no, conflict versions 0, excluded no
+      record: file from Almathea (mac) [a1dac5aacffe755bfa5ebea5869b847d], uploaded 2026-09-25T21:43:34.923Z, 8533035 bytes
+    This device's view of it: up-to-date, from Almathea (mac), replaced 2026-09-25T21:43:49.655Z
+  barcharts folder: folder, modified 2026-09-30T16:04:15.812Z
+    ubiquitous yes, uploaded yes, uploading no, downloading no, status Current, conflicts no, conflict versions -, excluded no
+    US-CA-001.record.json (record): file, 351 bytes, modified 2026-09-30T16:04:15.802Z
+      ubiquitous yes, uploaded yes, uploading no, downloading no, status Current, conflicts yes, conflict versions 7, excluded no
+      record: file from iPad (ipad) [2af18075ac4eaf09a4cc7903c98d76e3], uploaded 2026-09-30T16:04:15.493Z, 254827 bytes
+    US-CA-001.txt: file, 254827 bytes, modified 2026-09-30T16:04:15.796Z
+      ubiquitous yes, uploaded no, uploading no, downloading no, status Current, conflicts no, conflict versions 0, excluded no
+  Duplicate folders: none
+  Staging entries: 0 in all, 0 for bar charts
+  day-obs folder: folder, modified 2026-09-30T16:04:47.190Z
+    ubiquitous yes, uploaded yes, uploading no, downloading no, status Current, conflicts no, conflict versions -, excluded no
+    2af18075ac4eaf09a4cc7903c98d76e3.json: file, 671334 bytes, modified 2026-09-30T16:04:47.178Z
+      ubiquitous yes, uploaded no, uploading no, downloading no, status Current, conflicts no, conflict versions 0, excluded no
+    2af18075ac4eaf09a4cc7903c98d76e3.record.json (record): file, 304 bytes, modified 2026-09-30T16:04:47.185Z
+      ubiquitous yes, uploaded no, uploading no, downloading no, status Current, conflicts no, conflict versions 0, excluded no
+      record: file from iPad (ipad) [2af18075ac4eaf09a4cc7903c98d76e3], uploaded 2026-09-30T16:04:47.172Z, 671334 bytes
+    a1dac5aacffe755bfa5ebea5869b847d.json: file, 660047 bytes, modified 2026-09-30T05:55:03.000Z
+      ubiquitous yes, uploaded yes, uploading no, downloading no, status Current, conflicts no, conflict versions 0, excluded no
+    a1dac5aacffe755bfa5ebea5869b847d.record.json (record): file, 307 bytes, modified 2026-09-30T05:55:03.000Z
+      ubiquitous yes, uploaded yes, uploading no, downloading no, status Current, conflicts no, conflict versions 0, excluded no
+      record: file from Almathea (mac) [a1dac5aacffe755bfa5ebea5869b847d], uploaded 2026-09-30T05:55:03.009Z, 660047 bytes
+    f44bf37bd16f9740f8644c772d51ce69.json: file, 671334 bytes, modified 2026-09-30T16:04:37.000Z
+      ubiquitous yes, uploaded yes, uploading no, downloading no, status Current, conflicts no, conflict versions 0, excluded no
+    f44bf37bd16f9740f8644c772d51ce69.record.json (record): file, 308 bytes, modified 2026-09-30T16:04:37.000Z
+      ubiquitous yes, uploaded yes, uploading no, downloading no, status Current, conflicts no, conflict versions 0, excluded no
+      record: file from iPhone (iphone) [f44bf37bd16f9740f8644c772d51ce69], uploaded 2026-09-30T16:04:37.834Z, 671334 bytes
+  Other entries in Documents: 0
+
+This device's own copies
+  eBird backup: file, 8533035 bytes, modified 2026-09-25T21:43:49.781Z
+  Day-by-day answers: file, 671334 bytes, modified 2026-09-30T16:04:47.171Z
+  Bar-chart folder: yes
+    US-CA-001.txt: file, 254827 bytes, modified 2026-09-30T16:04:15.484Z
+  Bar-chart manifest entries: 1

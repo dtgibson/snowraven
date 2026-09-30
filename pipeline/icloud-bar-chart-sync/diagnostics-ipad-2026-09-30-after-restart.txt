@@ -1,0 +1,36 @@
+SnowRaven iCloud details (iPad, after restart; user reports the Files-app test now syncs, and the other devices see the iPad's bar chart while the iPad still says Waiting to upload)
+Generated 2026-09-30T16:48:30.213Z.
+
+App: SnowRaven 1.0.40 build 1.0.40.5 on iPad, device id 2af18075ac4eaf09a4cc7903c98d76e3
+
+iCloud
+  Availability: available. Account token present: yes. Container resolves: yes.
+  Sync on: yes. Last check: 2026-09-30T16:47:38.494Z. Last check failed: no.
+  Checks this session: 31. Follow-up re-reads in a row: 8. Last check left something on its way: yes. Check running: no, queued: no.
+
+Bar-chart counties (1)
+  US-CA-001
+    This device's view: waiting-to-upload, from this device
+    Local manifest: uploaded 2026-09-30T16:45:18.666Z, from iPad
+    Local file: file, 254827 bytes, modified 2026-09-30T16:45:18.656Z
+    In iCloud, file: file, 254827 bytes, uploaded no, status Current
+    In iCloud, record: file, 351 bytes, uploaded yes, status Current, unresolved conflicts; record from iPad, uploaded 2026-09-30T16:45:18.666Z, 254827 bytes
+    Last push: 2026-09-30T16:45:19.014Z ok: wrote the file and its record; uploaded=false. Last pull: none. Last removal marker: 2026-09-30T16:45:03.565Z ok.
+
+Native bar-chart operations (oldest first)
+  16:44:55.067Z list barcharts: ok (1 counties, 0 records unread, 1 files not uploaded) x6
+  16:45:03.525Z delete US-CA-001.txt: ok (free the name for a removal marker)
+  16:45:03.565Z write US-CA-001.record.json: ok
+  16:45:03.565Z clear US-CA-001: ok
+  16:45:18.979Z list barcharts: ok (1 counties, 0 records unread, 0 files not uploaded) x11
+  16:45:18.991Z write US-CA-001.txt: ok
+  16:45:19.006Z write US-CA-001.record.json: ok
+  16:45:19.014Z push US-CA-001: ok (wrote the file and its record; uploaded=false)
+  16:47:38.390Z list barcharts: ok (1 counties, 0 records unread, 1 files not uploaded) x14
+
+iCloud container (key lines)
+  barcharts/US-CA-001.record.json: uploaded yes, uploading no, conflicts yes, conflict versions 7
+  barcharts/US-CA-001.txt (modified 16:45:18.984Z): uploaded no, UPLOADING YES, no error
+  day-obs/2af18075....json (iPad's own, modified 16:45:03): uploaded YES (was "no" before the restart)
+  day-obs/2af18075....record.json: uploaded YES (was "no" before the restart)
+  Mac (Almathea) and iPhone day-obs files: uploaded yes
