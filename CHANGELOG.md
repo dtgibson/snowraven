@@ -2,6 +2,14 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [1.0.42] - 2026-10-01
+
+### Added
+- **Alerts on iPhone and iPad.** Settings gains an Alerts section, directly below Default Location and off until you turn it on, that tells you when eBird reports a species you have never recorded near a place you choose. A check runs about hourly or about daily, as iOS allows, and again when you open the app once the interval has passed; each one is the same nearby-sightings request Nearby Lifers makes, sent to eBird with your own key, and nothing reaches the developer. Measure from a **Fixed place**, which follows your Default Location until you pick one, or from **My location**, the most recent position the app or a widget read from your device in the past 24 hours, rounded to about a kilometer; a check never reads your location while the app is closed and never asks for Always access. The radius is 1 to 25 miles. One check sends one notification however many species it found, a species that alerted does not alert again for seven days, and spuhs, slashes and hybrids never alert. **Quiet hours** hold anything found inside the window and deliver it as one notification when the window ends. An **inbox** keeps your alerts on this device for 30 days, up to 200, and never syncs them; open it from the Alerts section, the bell at the top of the screen on iPhone, the Alerts inbox item in the sidebar on iPad, or Search. Tapping an alert or a notification opens Map Explorer's Nearby Lifers view from the alert's own place and radius. Clearing your eBird backup clears the inbox too. The Mac, Windows, web and Pi versions have no Alerts section. Help and the privacy policy describe what a check sends and what is kept on your device.
+
+### Internal
+- The alert check, its schedule and its notifications are native Swift in the iOS app, reusing the widgets' eBird request and hand-over reader, with a TypeScript twin of the alert rules held to the Swift one by a generated parity fixture that both test suites read. The widgets' saved results now record whether their position came from the device, so a widget that fell back to the Default Location never counts as your location for an alert; nothing a widget shows changes.
+
 ## [1.0.41] - 2026-09-30
 
 ### Added
