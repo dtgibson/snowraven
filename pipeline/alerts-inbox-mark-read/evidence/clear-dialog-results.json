@@ -1,0 +1,48 @@
+{
+  "light": {
+    "viewedAfterMark": "2026-10-01T21:49:17Z",
+    "dialog": {
+      "w": 390,
+      "h": 663,
+      "opacity": "1",
+      "visibility": "visible",
+      "active": "Cancel"
+    },
+    "afterCancel": {
+      "rows": 6,
+      "active": "Clear",
+      "viewed": "2026-10-01T21:49:17Z"
+    },
+    "afterClear": {
+      "rows": 0,
+      "viewed": "2026-10-01T21:49:17Z",
+      "markDisabled": true,
+      "clearDisabled": true,
+      "active": "Close the inbox",
+      "empty": "No alerts yet.A species eBird reports near your place that is not in your backup appears here, and as a notification."
+    }
+  },
+  "dark": {
+    "viewedAfterMark": "2026-10-01T21:49:21Z",
+    "dialog": {
+      "w": 390,
+      "h": 663,
+      "opacity": "1",
+      "visibility": "visible",
+      "active": "Cancel"
+    },
+    "afterCancel": {
+      "rows": 6,
+      "active": "Clear",
+      "viewed": "2026-10-01T21:49:21Z"
+    },
+    "afterClear": {
+      "rows": 0,
+      "viewed": "2026-10-01T21:49:21Z",
+      "markDisabled": true,
+      "clearDisabled": true,
+      "active": "Close the inbox",
+      "empty": "No alerts yet.A species eBird reports near your place that is not in your backup appears here, and as a notification."
+    }
+  }
+}

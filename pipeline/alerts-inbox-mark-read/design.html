@@ -1,0 +1,859 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Alerts Inbox Mark Read</title>
+<meta name="description" content="Design direction for the Mark read button in the iOS Alerts inbox sheet of SnowRaven: today beside proposed, on the iPhone sheet at 390 and 320 points and on the iPad panel, in both themes and at 200% text.">
+<style>
+/* ============================================================================
+   SnowRaven design tokens, copied from frontend/src/globals.css (:root and
+   [data-theme="dark"]). Every color inside a device frame resolves to one of
+   these. The page shell around the frames has its own small tinted set
+   (--demo-*) so it never reads as part of the app.
+   ========================================================================== */
+.sr-frame, .sr-frame[data-theme="light"] {
+  --sr-text-scale: 1;
+  --R: calc(16px * var(--sr-text-scale));   /* the app's rem, scoped to the frame */
+  --sr-bg: #F9FAFB;
+  --sr-surface: #FFFFFF;
+  --sr-surface-subtle: #F4F4F5;
+  --sr-surface-faint: #FAFAFA;
+  --sr-text: #0F1117;
+  --sr-text-muted: #6B6B74;
+  --sr-text-disabled: #A1A1AA;
+  --sr-text-gray: #6B7280;
+  --sr-border: #E4E4E7;
+  --sr-border-subtle: #F4F4F5;
+  --sr-border-medium: #C4C4CE;
+  --sr-border-input: #8A8A91;
+  --sr-accent: #277448;
+  --sr-accent-strong: #1A5C38;
+  --sr-accent-bg: #E8F5EE;
+  --sr-accent-bg-hover: #F0FAF4;
+  --sr-accent-border: rgba(39,116,72,0.25);
+  --sr-accent-border-strong: rgba(39,116,72,0.7);
+  --sr-on-accent: #FFFFFF;
+  --sr-error: #D31F1F;
+  --sr-error-bg: #FEF2F2;
+  --sr-error-border: #FECACA;
+  --sr-card-shadow: 0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+  --sr-scrim: rgba(15,17,23,0.36);
+  --sr-focus-halo: rgba(45,134,83,0.12);
+  --font-sans: 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
+  color-scheme: light;
+}
+.sr-frame[data-theme="dark"] {
+  --sr-bg: #09090B;
+  --sr-surface: #18181B;
+  --sr-surface-subtle: #27272A;
+  --sr-surface-faint: #1C1C1F;
+  --sr-text: #F4F4F5;
+  --sr-text-muted: #A1A1AA;
+  --sr-text-disabled: #52525B;
+  --sr-text-gray: #8A8A92;
+  --sr-border: #27272A;
+  --sr-border-subtle: #1F1F23;
+  --sr-border-medium: #3F3F46;
+  --sr-border-input: #707078;
+  --sr-accent: #34D399;
+  --sr-accent-strong: #34D399;
+  --sr-accent-bg: #052E16;
+  --sr-accent-bg-hover: #064E3B;
+  --sr-accent-border: rgba(52,211,153,0.2);
+  --sr-accent-border-strong: rgba(52,211,153,0.5);
+  --sr-on-accent: #052E16;
+  --sr-error: #F87171;
+  --sr-error-bg: #1C0505;
+  --sr-error-border: #7F1D1D;
+  --sr-card-shadow: 0 1px 4px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.25);
+  --sr-scrim: rgba(9,9,11,0.6);
+  color-scheme: dark;
+}
+.sr-frame[data-text-scale="2"] { --sr-text-scale: 2; }
+
+/* ============================================================================
+   The page shell. Tinted zinc neutrals of its own; it frames the devices and
+   never pretends to be the app.
+   ========================================================================== */
+:root {
+  --demo-bg: #ECEDF0;
+  --demo-bg-deep: #E2E4E9;
+  --demo-surface: #FFFFFF;
+  --demo-text: #1B1D24;
+  --demo-muted: #666B78;
+  --demo-border: #D5D8DF;
+  --demo-accent: #277448;
+  --demo-accent-bg: #E8F5EE;
+  --demo-bezel: #23252C;
+  --demo-bezel-edge: #3B3E47;
+  color-scheme: light;
+}
+:root[data-theme="dark"] {
+  --demo-bg: #111216;
+  --demo-bg-deep: #0B0C0F;
+  --demo-surface: #1A1B20;
+  --demo-text: #ECEDF1;
+  --demo-muted: #9A9FAB;
+  --demo-border: #2B2E36;
+  --demo-accent: #34D399;
+  --demo-accent-bg: #0C2A1D;
+  --demo-bezel: #2A2C33;
+  --demo-bezel-edge: #43464F;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { background: var(--demo-bg); }
+body {
+  margin: 0; min-height: 100vh;
+  background: radial-gradient(1200px 520px at 50% -120px, var(--demo-bg-deep), transparent 70%), var(--demo-bg);
+  color: var(--demo-text);
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-size: 14px; line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+.demo-bar {
+  position: sticky; top: 0; z-index: 50;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px;
+  padding: 10px 16px; background: color-mix(in srgb, var(--demo-surface) 88%, transparent);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--demo-border);
+}
+.demo-bar h1 { margin: 0 8px 0 0; font-size: 13px; font-weight: 700; letter-spacing: -0.01em; }
+.demo-bar h1 span { color: var(--demo-accent); }
+.demo-group { display: inline-flex; align-items: center; gap: 6px; }
+.demo-group > span { color: var(--demo-muted); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; }
+.demo-seg { display: inline-flex; border: 1px solid var(--demo-border); border-radius: 8px; overflow: hidden; background: var(--demo-surface); }
+.demo-seg button {
+  appearance: none; border: 0; background: transparent; color: var(--demo-text);
+  font: inherit; font-size: 12px; padding: 5px 10px; cursor: pointer; min-height: 30px;
+}
+.demo-seg button + button { border-left: 1px solid var(--demo-border); }
+.demo-seg button[aria-pressed="true"] { background: var(--demo-accent-bg); color: var(--demo-accent); font-weight: 600; }
+.demo-seg button:focus-visible { outline: 2px solid var(--demo-accent); outline-offset: -2px; }
+.demo-main { padding: 28px 16px 72px; display: flex; flex-direction: column; align-items: center; gap: 44px; }
+.demo-intro { max-width: 700px; text-align: center; color: var(--demo-muted); font-size: 13px; line-height: 1.6; margin: 0; }
+.demo-intro strong { color: var(--demo-text); font-weight: 600; }
+.demo-section { width: 100%; max-width: 1080px; display: flex; flex-direction: column; align-items: center; gap: 18px; }
+.demo-h { margin: 0; font-size: 17px; font-weight: 700; letter-spacing: -0.015em; text-align: center; }
+.demo-h small { display: block; font-weight: 500; color: var(--demo-muted); font-size: 12.5px; margin-top: 4px; letter-spacing: 0; }
+.demo-pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 32px 40px; width: 100%; justify-items: center; }
+.demo-stack { display: flex; flex-direction: column; align-items: center; gap: 32px; width: 100%; }
+.demo-stage { display: flex; flex-direction: column; align-items: center; gap: 12px; max-width: 100%; }
+.demo-tag {
+  display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--demo-muted); padding: 4px 10px; border-radius: 999px; border: 1px solid var(--demo-border); background: var(--demo-surface);
+}
+.demo-tag--proposed { color: var(--demo-accent); border-color: color-mix(in srgb, var(--demo-accent) 35%, transparent); background: var(--demo-accent-bg); }
+.demo-under { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; min-height: 30px; }
+.demo-under button {
+  appearance: none; font: inherit; font-size: 12px; min-height: 30px; padding: 4px 11px; border-radius: 8px; cursor: pointer;
+  border: 1px solid var(--demo-border); background: var(--demo-surface); color: var(--demo-text);
+}
+.demo-under button:hover { border-color: var(--demo-muted); }
+.demo-under button:focus-visible { outline: 2px solid var(--demo-accent); outline-offset: 2px; }
+.demo-announce {
+  margin: 0; font-size: 12px; color: var(--demo-accent); font-weight: 600; min-height: 18px;
+  opacity: 0; transition: opacity 160ms ease-out;
+}
+.demo-announce--on { opacity: 1; }
+.demo-scroll { width: 100%; overflow-x: auto; display: flex; justify-content: center; padding-bottom: 6px; }
+.demo-notes { max-width: 700px; width: 100%; margin: 0; padding: 18px 22px; border: 1px solid var(--demo-border); border-radius: 14px; background: var(--demo-surface); font-size: 13px; line-height: 1.6; }
+.demo-notes h2 { margin: 0 0 8px; font-size: 14px; font-weight: 700; letter-spacing: -0.01em; }
+.demo-notes ul { margin: 0; padding-left: 18px; }
+.demo-notes li + li { margin-top: 6px; }
+.demo-notes b { font-weight: 600; }
+
+/* The device bezel. */
+.device { padding: 10px; border-radius: 44px; background: var(--demo-bezel); box-shadow: inset 0 0 0 1px var(--demo-bezel-edge), 0 24px 60px rgba(0,0,0,0.28); flex: none; }
+.device--ipad { border-radius: 26px; padding: 14px; }
+
+/* ============================================================================
+   The frame: a device viewport running the app's tokens and type.
+   ========================================================================== */
+.sr-frame {
+  position: relative; overflow: hidden; border-radius: 34px;
+  font-family: var(--font-sans); font-size: var(--R); line-height: 1.5;
+  color: var(--sr-text); background: var(--sr-bg);
+}
+.device--ipad .sr-frame { border-radius: 14px; }
+.sr-frame button { font-family: inherit; }
+.sr-frame--phone { width: var(--w); height: var(--h); }
+.sr-frame--ipad { width: 820px; height: 580px; }
+
+/* The app behind the sheet, enough of it to be the real place. */
+.sr-hdr {
+  position: relative; height: calc(3 * var(--R) + 8px); display: flex; align-items: center; justify-content: center;
+  padding: 14px 56px 0; background: var(--sr-surface); border-bottom: 1px solid var(--sr-border);
+}
+.sr-brand { font-size: calc(1.0625 * var(--R)); font-weight: 700; letter-spacing: -0.02em; color: var(--sr-text); text-align: center; line-height: 1.15; }
+.sr-brand span { color: var(--sr-accent); }
+.sr-hdr-inbox {
+  position: absolute; right: 12px; top: calc(50% + 7px); transform: translateY(-50%);
+  width: calc(2.25 * var(--R)); height: calc(2.25 * var(--R)); border-radius: 8px; border: 0; background: none;
+  color: var(--sr-text-muted); cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+  transition: background-color 120ms ease-out, color 120ms ease-out;
+}
+.sr-hdr-inbox:hover { background: var(--sr-surface-subtle); color: var(--sr-text); }
+.sr-hdr-inbox svg { width: calc(1.125 * var(--R)); height: calc(1.125 * var(--R)); }
+.sr-badge {
+  position: absolute; top: 2px; right: 2px; min-width: var(--R); height: var(--R); padding: 0 calc(0.3 * var(--R)); border-radius: calc(0.5 * var(--R));
+  background: var(--sr-accent); color: var(--sr-on-accent); font-size: calc(0.625 * var(--R)); font-weight: 700; line-height: var(--R);
+  font-variant-numeric: tabular-nums; text-align: center;
+}
+.sr-badge:empty { display: none; }
+.sr-page { padding: 18px 16px; }
+.sr-page-h { margin: 0 0 12px; font-size: calc(1.125 * var(--R)); font-weight: 700; letter-spacing: -0.01em; }
+.sr-sec-label { margin: 0 0 8px; font-size: calc(0.6875 * var(--R)); font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--sr-text-muted); }
+.sr-card { border: 1px solid var(--sr-border); border-radius: 10px; background: var(--sr-surface); box-shadow: var(--sr-card-shadow); overflow: hidden; }
+.sr-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; }
+.sr-row + .sr-row { border-top: 1px solid var(--sr-border-subtle); }
+.sr-row-t { font-size: calc(0.8125 * var(--R)); font-weight: 600; }
+.sr-row-d { font-size: calc(0.75 * var(--R)); color: var(--sr-text-muted); margin-top: 2px; }
+.sr-switch { flex: none; width: calc(2.4 * var(--R)); height: calc(1.4 * var(--R)); border-radius: 999px; background: var(--sr-accent); position: relative; }
+.sr-switch::after { content: ""; position: absolute; top: 2px; right: 2px; width: calc(1.4 * var(--R) - 4px); height: calc(1.4 * var(--R) - 4px); border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(15,17,23,0.25); }
+.sr-inbox-link {
+  display: flex; align-items: center; gap: 12px; width: 100%; padding: 13px 16px; border: 0; border-top: 1px solid var(--sr-border-subtle);
+  background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; transition: background-color 120ms ease-out;
+}
+.sr-inbox-link:hover { background: var(--sr-surface-subtle); }
+.sr-inbox-link-glyph { flex: none; color: var(--sr-accent); width: 15px; height: 15px; }
+.sr-inbox-link-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.sr-inbox-link-title { font-size: calc(0.8125 * var(--R)); font-weight: 600; color: var(--sr-text); }
+.sr-inbox-link-sub { font-size: calc(0.75 * var(--R)); color: var(--sr-text-muted); }
+.sr-inbox-link-chev { flex: none; color: var(--sr-text-muted); width: 15px; height: 15px; }
+
+/* iPad: the sidebar nav and a main area. */
+.sr-ipad { display: flex; height: 100%; }
+.sr-nav { flex: none; width: calc(13.5 * var(--R)); background: var(--sr-surface); border-right: 1px solid var(--sr-border); padding: 16px 10px; display: flex; flex-direction: column; gap: 4px; }
+.sr-nav .sr-brand { text-align: left; padding: 0 8px 12px; }
+.sr-nav-search { height: 34px; border: 1px solid var(--sr-border-input); border-radius: 8px; background: var(--sr-surface); color: var(--sr-text-disabled); font-size: calc(0.8125 * var(--R)); display: flex; align-items: center; padding: 0 10px; margin: 0 0 8px; }
+.sr-nav-item {
+  display: flex; align-items: center; gap: 10px; height: 34px; padding: 0 10px; border-radius: 8px; border: 0; background: none;
+  color: var(--sr-text); font-size: calc(0.8125 * var(--R)); font-weight: 500; text-align: left; cursor: pointer; width: 100%;
+  transition: background-color 120ms ease-out, color 120ms ease-out; position: relative;
+}
+.sr-nav-item:hover { background: var(--sr-surface-subtle); }
+.sr-nav-item svg { width: 16px; height: 16px; flex: none; color: var(--sr-text-muted); }
+.sr-nav-item--active { background: var(--sr-accent-bg); color: var(--sr-accent); font-weight: 600; }
+.sr-nav-item--active svg { color: var(--sr-accent); }
+.sr-nav-item--active::before { content: ""; position: absolute; left: 0; top: 7px; bottom: 7px; width: 3px; border-radius: 2px; background: var(--sr-accent); }
+.sr-nav-count { margin-left: auto; min-width: 18px; height: 18px; padding: 0 6px; border-radius: 9px; background: var(--sr-accent-bg); color: var(--sr-accent); font-size: calc(0.6875 * var(--R)); font-weight: 700; line-height: 18px; text-align: center; font-variant-numeric: tabular-nums; }
+.sr-nav-count:empty { display: none; }
+.sr-nav-rule { height: 1px; background: var(--sr-border-subtle); margin: 6px 4px; }
+.sr-nav-item--inbox { margin-bottom: 6px; }
+.sr-main { flex: 1; min-width: 0; padding: 22px 28px; }
+
+/* ============================================================================
+   The inbox sheet, copied from globals.css (.sr-inbox-*, .sr-alert*,
+   .sr-btn-quiet), with fixed positioning scoped to the frame and the 641px
+   density chosen by the frame class rather than a media query.
+   ========================================================================== */
+.sr-inbox-root {
+  position: absolute; inset: 0; z-index: 10;
+  background: var(--sr-scrim);
+  display: flex; align-items: flex-end; justify-content: center;
+  opacity: 0; transition: opacity 160ms ease-out; pointer-events: none;
+}
+.sr-inbox-root--open { opacity: 1; pointer-events: auto; }
+.sr-inbox-root--closing { pointer-events: none; }
+.sr-inbox-sheet {
+  width: 100%; max-height: 92%; display: flex; flex-direction: column;
+  background: var(--sr-surface); color: var(--sr-text);
+  border-top: 1px solid var(--sr-border); border-radius: 16px 16px 0 0; box-shadow: var(--sr-card-shadow);
+  transform: translateY(100%); transition: transform 220ms cubic-bezier(0.2, 0, 0, 1);
+}
+.sr-inbox-root--open .sr-inbox-sheet { transform: none; }
+.sr-inbox-grab { flex: none; padding: 8px 0 2px; touch-action: none; cursor: grab; }
+.sr-inbox-handle { width: 36px; height: 4px; border-radius: 2px; background: var(--sr-border-medium); margin: 0 auto; }
+.sr-inbox-head { flex: none; display: flex; align-items: center; gap: 10px; padding: 10px 12px 10px 18px; border-bottom: 1px solid var(--sr-border); }
+.sr-inbox-glyph { flex: none; color: var(--sr-accent); width: 16px; height: 16px; }
+.sr-inbox-title { flex: 1; min-width: 0; margin: 0; font-size: calc(0.9375 * var(--R)); font-weight: 700; letter-spacing: -0.01em; color: var(--sr-text); }
+.sr-inbox-title small { margin-left: 6px; font-size: calc(0.75 * var(--R)); font-weight: 500; letter-spacing: 0; color: var(--sr-text-muted); }
+.sr-inbox-close {
+  flex: none; width: 32px; height: 32px; border-radius: 6px; border: 0; background: none;
+  color: var(--sr-text-muted); cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+  transition: background-color 120ms ease-out, color 120ms ease-out;
+}
+.sr-inbox-close svg { width: 16px; height: 16px; }
+.sr-inbox-close:hover { background: var(--sr-surface-subtle); color: var(--sr-text); }
+.sr-inbox-body { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; }
+.sr-alerts-inbox { list-style: none; margin: 0; padding: 0; }
+.sr-alerts-inbox > li + li { border-top: 1px solid var(--sr-border-subtle); }
+.sr-alert {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: "name dist" "place chev" "when chev";
+  column-gap: 12px; row-gap: 2px; width: 100%; padding: 11px 16px;
+  border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer;
+  transition: background-color 120ms ease-out;
+}
+.sr-alert:hover { background: var(--sr-surface-subtle); }
+.sr-alert-name { grid-area: name; min-width: 0; font-size: calc(0.84375 * var(--R)); font-weight: 500; color: var(--sr-text); overflow-wrap: anywhere; }
+.sr-alert-dist { grid-area: dist; align-self: start; font-size: calc(0.8125 * var(--R)); font-weight: 600; color: var(--sr-text); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sr-alert-place { grid-area: place; min-width: 0; font-size: calc(0.75 * var(--R)); color: var(--sr-text-muted); overflow-wrap: anywhere; }
+.sr-alert-when { grid-area: when; min-width: 0; font-size: calc(0.71875 * var(--R)); color: var(--sr-text-muted); }
+.sr-alert-when b { font-weight: 600; }
+.sr-alert-chev { grid-area: chev; align-self: center; justify-self: end; color: var(--sr-text-muted); width: 15px; height: 15px; }
+.sr-alert--new .sr-alert-name { display: flex; flex-wrap: wrap; align-items: center; column-gap: 6px; }
+.sr-alert-dot { flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--sr-accent); }
+.sr-alert-new { font-size: calc(0.6875 * var(--R)); font-weight: 600; color: var(--sr-accent); }
+.sr-birdname { display: inline-flex; min-width: 0; vertical-align: top; }
+.sr-birdname-text { font-weight: 500; color: var(--sr-text); font-size: calc(0.84375 * var(--R)); }
+/* PROPOSED: the marks of a row just marked read fade out in place (opacity
+   only, 160ms ease-out), then unmount. Reduced motion: the global rule below
+   collapses the transition, so they simply go. */
+.sr-alert--read .sr-alert-dot, .sr-alert--read .sr-alert-new { opacity: 0; transition: opacity 160ms ease-out; }
+.sr-inbox-empty { padding: 22px 18px 24px; font-size: calc(0.8125 * var(--R)); color: var(--sr-text-muted); }
+.sr-inbox-empty p { margin: 0; }
+.sr-inbox-empty .sr-inbox-empty-detail { margin-top: 4px; font-size: calc(0.75 * var(--R)); }
+.sr-inbox-foot {
+  flex: none; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 12px;
+  padding: 10px 16px 18px; border-top: 1px solid var(--sr-border-subtle);
+}
+.sr-frame--phone .sr-inbox-foot { padding-bottom: calc(18px + 16px); } /* + the iOS bottom safe area */
+.sr-inbox-fine { flex: 1 1 calc(12 * var(--R)); min-width: 0; margin: 0; font-size: calc(0.75 * var(--R)); color: var(--sr-text-muted); line-height: 1.5; }
+/* PROPOSED: the two footer actions travel as one group, wrapping under the
+   fine print together and keeping the trailing edge. */
+.sr-inbox-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 8px; margin-left: auto; }
+.sr-btn-quiet {
+  height: 32px; padding: 0 12px;
+  border: 1.5px solid var(--sr-border); background: var(--sr-surface); color: var(--sr-text);
+  border-radius: 6px; font-size: calc(0.75 * var(--R)); font-weight: 500; font-family: inherit;
+  cursor: pointer; white-space: nowrap;
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: border-color 0.12s ease-out, background 0.12s ease-out, color 0.12s ease-out, opacity 0.12s ease-out;
+}
+.sr-btn-quiet:hover { border-color: var(--sr-border-medium); background: var(--sr-surface-subtle); }
+.sr-btn-quiet--danger { border-color: var(--sr-error-border); background: var(--sr-surface); color: var(--sr-error); }
+.sr-btn-quiet--danger:hover { background: var(--sr-error-bg); }
+.sr-btn-quiet[disabled] { border-color: var(--sr-border); background: var(--sr-surface-subtle); color: var(--sr-text-disabled); cursor: not-allowed; }
+.sr-touch-target { display: inline-flex; align-items: center; justify-content: center; }
+/* The phone tier (640px and below in the app): the 44px touch posture, wrapping labels. */
+.sr-frame--phone .sr-touch-target { min-height: calc(2.75 * var(--R)); }
+.sr-frame--phone .sr-btn-quiet { min-height: calc(2.75 * var(--R)); height: auto; white-space: normal; }
+/* 641px and up: the centered panel in the dialog register, scaling in from the opener. */
+.sr-frame--ipad .sr-inbox-root { align-items: center; padding: 24px; }
+.sr-frame--ipad .sr-inbox-sheet {
+  max-width: 520px; max-height: 80%; border: 1px solid var(--sr-border); border-radius: 14px;
+  opacity: 0; transform: scale(0.96);
+  transition: transform 160ms cubic-bezier(0.2, 0, 0, 1), opacity 160ms ease-out;
+}
+.sr-frame--ipad .sr-inbox-root--open .sr-inbox-sheet { opacity: 1; transform: none; }
+.sr-frame--ipad .sr-inbox-grab { display: none; }
+
+/* The Clear confirmation: the shared ModalDialog shell (.sr-dlg-*), inside the
+   sheet root after the panel so it stacks above it. */
+.sr-dlg-root {
+  position: absolute; inset: 0; z-index: 20; background: var(--sr-scrim);
+  display: flex; align-items: center; justify-content: center; padding: 16px;
+  opacity: 0; transition: opacity 160ms ease-out; pointer-events: none;
+}
+.sr-dlg-root--open { opacity: 1; pointer-events: auto; }
+.sr-dlg {
+  width: calc(100% - 32px); max-width: 420px; max-height: 80%; overflow: auto;
+  background: var(--sr-surface); border: 1px solid var(--sr-border); border-radius: 14px; box-shadow: var(--sr-card-shadow);
+  opacity: 0; transform: scale(0.94); transition: transform 160ms cubic-bezier(0.2, 0, 0, 1), opacity 160ms ease-out;
+}
+.sr-dlg-root--open .sr-dlg { opacity: 1; transform: none; }
+.sr-dlg-head { padding: 16px 18px 12px; border-bottom: 1px solid var(--sr-border-subtle); }
+.sr-dlg-title { margin: 0; font-size: var(--R); font-weight: 700; letter-spacing: -0.01em; line-height: 1.3; color: var(--sr-text); }
+.sr-dlg-body { padding: 14px 18px 4px; }
+.sr-dlg-text { margin: 0 0 10px; font-size: calc(0.8125 * var(--R)); color: var(--sr-text-muted); line-height: 1.55; }
+.sr-dlg-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; padding: 8px 18px 16px; }
+.sr-dlg-actions > * { min-width: 96px; }
+.sr-frame--phone .sr-dlg-actions > * { flex: 1 1 100%; }
+
+/* Visually hidden live region (the app's .sr-only). */
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+
+/* The app's global focus ring. The demo's Show focus switch makes a
+   programmatic focus visible even after a pointer press. */
+.sr-frame button:focus-visible, .demo-showfocus .sr-frame button:focus {
+  outline: 3px solid var(--sr-accent); outline-offset: 3px; box-shadow: 0 0 0 6px var(--sr-focus-halo);
+}
+.sr-frame .sr-alert:focus-visible { outline-offset: -3px; }
+
+/* Reduced motion: the app's global rule. */
+@media (prefers-reduced-motion: reduce) {
+  .sr-frame *, .sr-frame *::before, .sr-frame *::after, .demo-announce { transition-duration: 0.001ms !important; animation-duration: 0.001ms !important; }
+}
+</style>
+</head>
+<body>
+
+<header class="demo-bar" aria-label="Preview controls">
+  <h1><span>SnowRaven</span> Alerts inbox: Mark read</h1>
+  <div class="demo-group"><span>Theme</span>
+    <div class="demo-seg" role="group" aria-label="Theme">
+      <button type="button" data-theme-pick="light" aria-pressed="true">Light</button>
+      <button type="button" data-theme-pick="dark" aria-pressed="false">Dark</button>
+    </div>
+  </div>
+  <div class="demo-group"><span>Text</span>
+    <div class="demo-seg" role="group" aria-label="Text size">
+      <button type="button" data-scale-pick="1" aria-pressed="true">100%</button>
+      <button type="button" data-scale-pick="2" aria-pressed="false">200%</button>
+    </div>
+  </div>
+  <div class="demo-group"><span>Label</span>
+    <div class="demo-seg" role="group" aria-label="Button label">
+      <button type="button" data-label-pick="short" aria-pressed="true">Mark read</button>
+      <button type="button" data-label-pick="all" aria-pressed="false">Mark all read</button>
+    </div>
+  </div>
+  <div class="demo-group"><span>Marks</span>
+    <div class="demo-seg" role="group" aria-label="How the New marks go">
+      <button type="button" data-motion-pick="fade" aria-pressed="true">Fade</button>
+      <button type="button" data-motion-pick="instant" aria-pressed="false">Instant</button>
+    </div>
+  </div>
+  <div class="demo-group"><span>Focus</span>
+    <div class="demo-seg" role="group" aria-label="Show where focus lands">
+      <button type="button" data-focus-pick="off" aria-pressed="true">Hidden</button>
+      <button type="button" data-focus-pick="on" aria-pressed="false">Shown</button>
+    </div>
+  </div>
+</header>
+
+<main class="demo-main">
+  <p class="demo-intro">
+    <strong>Today</strong> the inbox sheet's footer has one button, Clear, and the New marks go only when you close the sheet.
+    <strong>Proposed</strong> adds Mark read beside it. Press it: every New mark goes, the badge drops to zero, nothing is removed, and the button rests until a new alert arrives.
+    Every frame below is live. Press Mark read, close with the X, reopen from the bell, use Clear, or add an alert with the button under the device.
+  </p>
+
+  <section class="demo-section" aria-labelledby="h-390">
+    <h2 class="demo-h" id="h-390">iPhone, 390 points<small>Today beside proposed</small></h2>
+    <div class="demo-pair">
+      <div class="demo-stage" data-frame="phone" data-w="390" data-h="760" data-variant="today"></div>
+      <div class="demo-stage" data-frame="phone" data-w="390" data-h="760" data-variant="proposed"></div>
+    </div>
+  </section>
+
+  <section class="demo-section" aria-labelledby="h-320">
+    <h2 class="demo-h" id="h-320">iPhone, 320 points<small>The narrowest width the app supports. Try 200% text here.</small></h2>
+    <div class="demo-pair">
+      <div class="demo-stage" data-frame="phone" data-w="320" data-h="640" data-variant="today"></div>
+      <div class="demo-stage" data-frame="phone" data-w="320" data-h="640" data-variant="proposed"></div>
+    </div>
+  </section>
+
+  <section class="demo-section" aria-labelledby="h-ipad">
+    <h2 class="demo-h" id="h-ipad">iPad, the centered panel<small>Opened from the sidebar's Alerts inbox item</small></h2>
+    <div class="demo-stack">
+      <div class="demo-scroll"><div class="demo-stage" data-frame="ipad" data-variant="today"></div></div>
+      <div class="demo-scroll"><div class="demo-stage" data-frame="ipad" data-variant="proposed"></div></div>
+    </div>
+  </section>
+
+  <section class="demo-section" aria-labelledby="h-notes">
+    <div class="demo-notes">
+      <h2 id="h-notes">What this direction decides</h2>
+      <ul>
+        <li><b>Label:</b> "Mark read", your words. Clear already acts on the whole inbox without saying "all", so the pair reads as two whole-inbox actions. "Mark all read" is in the Label switch above so you can compare how both wrap at 320 and 200%.</li>
+        <li><b>Place:</b> just before Clear, in Clear's own quiet register, so the one action that removes things keeps the trailing edge. The two buttons move as a pair: under the fine print when the line is short, side by side when it fits.</li>
+        <li><b>Rest state:</b> the button is disabled whenever nothing in the open sheet is New, the same way Clear is disabled when the inbox is empty. No confirmation, because nothing is removed.</li>
+        <li><b>Focus:</b> the moment you press it the button goes quiet, so focus steps to the Close button at the top of the sheet, the same place the Clear confirmation sends it after a clear. Never to nowhere.</li>
+        <li><b>What a screen reader hears:</b> one polite sentence, "Marked read." It names the action and never a count.</li>
+        <li><b>The marks:</b> the green dot and the word New fade out in place over 160 ms, then go. With Reduce Motion on they simply go. The Marks switch above shows the instant version for comparison.</li>
+      </ul>
+    </div>
+  </section>
+</main>
+
+<script>
+(function () {
+  'use strict';
+
+  // ── Copy, verbatim from alertsCopy.ts plus the two new strings ─────────────
+  const COPY = {
+    title: 'Alerts inbox',
+    close: 'Close the inbox',
+    listLabel: 'Past alerts, newest first',
+    empty: 'No alerts yet.',
+    emptyDetail: 'A species eBird reports near your place that is not in your backup appears here, and as a notification.',
+    bound: 'Kept on this device for 30 days, up to 200 alerts, and never synced. Cleared with your eBird backup. Tap an alert to see it on the map.',
+    clear: 'Clear',
+    cancel: 'Cancel',
+    clearTitle: 'Clear the inbox?',
+    clearBody: 'Removes every alert from this device. Your settings stay as they are, and alerts stay on. A species alerted before may alert again at the next check.',
+    newWord: 'New',
+    newPrefix: 'New. ',
+    markRead: { short: 'Mark read', all: 'Mark all read' },
+    markedStatus: 'Marked read.',
+  };
+  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  const ICON = {
+    bell: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.268 21a2 2 0 0 0 3.464 0"/><path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326"/></svg>',
+    x: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>',
+    chev: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>',
+    map: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.106 5.553a2 2 0 0 0 1.788 0l3.659-1.83A1 1 0 0 1 21 4.619v12.764a1 1 0 0 1-.553.894l-4.553 2.277a2 2 0 0 1-1.788 0l-4.212-2.106a2 2 0 0 0-1.788 0l-3.659 1.83A1 1 0 0 1 3 19.381V6.618a1 1 0 0 1 .553-.894l4.553-2.277a2 2 0 0 1 1.788 0z"/><path d="M15 5.764v15"/><path d="M9 3.236v15"/></svg>',
+    chart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>',
+    list: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h.01"/><path d="M3 18h.01"/><path d="M3 6h.01"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M8 6h13"/></svg>',
+    cal: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg>',
+    target: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>',
+    gear: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>',
+  };
+
+  // ── Times, ported from alertsCopy.ts ───────────────────────────────────────
+  function clockAt(ms) {
+    const d = new Date(ms); const h24 = d.getHours(); const m = d.getMinutes();
+    const h = h24 % 12 === 0 ? 12 : h24 % 12;
+    return h + ':' + String(m).padStart(2, '0') + ' ' + (h24 < 12 ? 'AM' : 'PM');
+  }
+  function sameDay(a, b) { return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate(); }
+  function whenLocal(ms, nowMs) {
+    const at = new Date(ms), now = new Date(nowMs), t = clockAt(ms);
+    if (sameDay(at, now)) return t;
+    const y = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+    if (sameDay(at, y)) return 'Yesterday, ' + t;
+    return MONTHS[at.getMonth()] + ' ' + at.getDate() + ', ' + t;
+  }
+  function atLocal(daysAgo, h, m) {
+    const d = new Date(); d.setDate(d.getDate() - daysAgo); d.setHours(h, m, 0, 0); return d.getTime();
+  }
+  function inboxCount(n) { return n === 0 ? '' : n + ' ' + (n === 1 ? 'alert' : 'alerts'); }
+  function badgeText(n) { return n === 0 ? '' : n > 9 ? '9+' : String(n); }
+  function esc(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); }
+
+  // ── Illustrative content: Davis, CA, as in the ios-alerts design ───────────
+  function baseRows() {
+    const now = Date.now(); const H = 3600e3, M = 60e3;
+    return [
+      { id: 'a1', name: 'Ruff', place: 'Yolo Bypass Wildlife Area', dist: '6.2', day: 'today', alertedAt: now - 2 * H - 11 * M },
+      { id: 'a2', name: "Sabine's Gull", place: 'Davis Wetlands', dist: '3.8', day: 'today', alertedAt: now - 2 * H - 11 * M },
+      { id: 'a3', name: "Baird's Sandpiper", place: 'Yolo County Central Landfill', dist: '8.9', day: 'yesterday', alertedAt: now - 2 * H - 11 * M },
+      { id: 'a4', name: 'Pectoral Sandpiper', place: 'Putah Creek Riparian Reserve', dist: '2.1', day: 'yesterday', alertedAt: atLocal(1, 16, 10) },
+      { id: 'a5', name: 'Broad-winged Hawk', place: 'Lake Solano County Park', dist: '14.6', day: '3 days ago', alertedAt: atLocal(3, 11, 3) },
+      { id: 'a6', name: 'Lesser Black-backed Gull', place: 'Davis Wetlands', dist: '3.8', day: '4 days ago', alertedAt: atLocal(4, 8, 12) },
+    ];
+  }
+  const ARRIVALS = [
+    { name: 'Red-necked Phalarope', place: 'Yolo Bypass Wildlife Area', dist: '6.2' },
+    { name: 'Black Tern', place: 'Davis Wetlands', dist: '3.8' },
+    { name: 'Vermilion Flycatcher', place: 'Putah Creek Riparian Reserve', dist: '2.1' },
+    { name: 'Tropical Kingbird', place: 'Lake Solano County Park', dist: '14.6' },
+    { name: 'Red Phalarope', place: 'Yolo County Central Landfill', dist: '8.9' },
+  ];
+
+  // ── Page-wide demo settings ────────────────────────────────────────────────
+  const demo = { theme: 'light', scale: '1', label: 'short', motion: 'fade', focus: 'off' };
+  const frames = [];
+
+  // ── One frame: the app behind, the sheet, the Clear dialog ─────────────────
+  function makeFrame(stage) {
+    const kind = stage.dataset.frame;             // phone | ipad
+    const variant = stage.dataset.variant;        // today | proposed
+    const fid = 'f' + frames.length;
+    const st = {
+      kind, variant, fid,
+      rows: baseRows(),
+      viewedAt: Date.now() - 5 * 3600e3,          // last opened the inbox five hours ago
+      pending: null,                              // the "now" taken when the sheet opened
+      open: false, closing: false, dlgOpen: false,
+      arrivals: 0, fading: false, statusTimer: 0, announceTimer: 0,
+    };
+
+    // Shell.
+    stage.innerHTML =
+      '<span class="demo-tag' + (variant === 'proposed' ? ' demo-tag--proposed' : '') + '">' + (variant === 'proposed' ? 'Proposed' : 'Today') + '</span>' +
+      '<div class="device' + (kind === 'ipad' ? ' device--ipad' : '') + '">' +
+        '<div class="sr-frame sr-frame--' + kind + '" data-theme="light"' +
+          (kind === 'phone' ? ' style="--w:' + stage.dataset.w + 'px;--h:' + stage.dataset.h + 'px"' : '') + '></div>' +
+      '</div>' +
+      '<div class="demo-under">' +
+        '<button type="button" data-arrive>New alert arrives</button>' +
+        '<button type="button" data-reset>Reset</button>' +
+      '</div>' +
+      '<p class="demo-announce" aria-hidden="true"></p>';
+
+    const frame = stage.querySelector('.sr-frame');
+    const announce = stage.querySelector('.demo-announce');
+
+    // The app behind the sheet.
+    const appHTML = kind === 'phone'
+      ? '<header class="sr-hdr">' +
+          '<div class="sr-brand">Snow<span>Raven</span></div>' +
+          '<button type="button" class="sr-hdr-inbox" data-opener aria-haspopup="dialog" aria-label="' + COPY.title + '">' + ICON.bell + '<span class="sr-badge" aria-hidden="true" data-badge></span></button>' +
+        '</header>' +
+        '<div class="sr-page">' +
+          '<h2 class="sr-page-h">Settings</h2>' +
+          '<p class="sr-sec-label">Alerts</p>' +
+          '<div class="sr-card">' +
+            '<div class="sr-row"><div><div class="sr-row-t">Alerts</div><div class="sr-row-d">Checks run in the background and when you open the app.</div></div><span class="sr-switch" aria-hidden="true"></span></div>' +
+            '<button type="button" class="sr-inbox-link" data-opener aria-haspopup="dialog">' + ICON.bell.replace('<svg', '<svg class="sr-inbox-link-glyph"') +
+              '<span class="sr-inbox-link-text"><span class="sr-inbox-link-title">Inbox</span><span class="sr-inbox-link-sub" data-rowsub></span></span>' +
+              ICON.chev.replace('<svg', '<svg class="sr-inbox-link-chev"') +
+            '</button>' +
+          '</div>' +
+        '</div>'
+      : '<div class="sr-ipad">' +
+          '<nav class="sr-nav" aria-label="Main">' +
+            '<div class="sr-brand">Snow<span>Raven</span></div>' +
+            '<div class="sr-nav-search">Search</div>' +
+            '<button type="button" class="sr-nav-item sr-nav-item--inbox" data-opener aria-haspopup="dialog" aria-label="' + COPY.title + '">' + ICON.bell + '<span>Alerts inbox</span><span class="sr-nav-count" aria-hidden="true" data-badge></span></button>' +
+            '<div class="sr-nav-item">' + ICON.map + '<span>Map Explorer</span></div>' +
+            '<div class="sr-nav-item">' + ICON.chart + '<span>Statistics</span></div>' +
+            '<div class="sr-nav-item">' + ICON.list + '<span>Checklists</span></div>' +
+            '<div class="sr-nav-item">' + ICON.cal + '<span>Calendar</span></div>' +
+            '<div class="sr-nav-item">' + ICON.target + '<span>Targets</span></div>' +
+            '<div class="sr-nav-rule"></div>' +
+            '<div class="sr-nav-item sr-nav-item--active">' + ICON.gear + '<span>Settings</span></div>' +
+          '</nav>' +
+          '<div class="sr-main"><h2 class="sr-page-h">Settings</h2><p class="sr-sec-label">Alerts</p>' +
+            '<div class="sr-card"><div class="sr-row"><div><div class="sr-row-t">Alerts</div><div class="sr-row-d">Checks run in the background and when you open the app.</div></div><span class="sr-switch" aria-hidden="true"></span></div>' +
+            '<button type="button" class="sr-inbox-link" data-opener aria-haspopup="dialog">' + ICON.bell.replace('<svg', '<svg class="sr-inbox-link-glyph"') +
+              '<span class="sr-inbox-link-text"><span class="sr-inbox-link-title">Inbox</span><span class="sr-inbox-link-sub" data-rowsub></span></span>' +
+              ICON.chev.replace('<svg', '<svg class="sr-inbox-link-chev"') + '</button></div>' +
+          '</div>' +
+        '</div>';
+
+    const footHTML = variant === 'proposed'
+      ? '<div class="sr-inbox-actions">' +
+          '<button type="button" class="sr-btn-quiet sr-touch-target" data-markread></button>' +
+          '<button type="button" class="sr-btn-quiet sr-touch-target" data-clear>' + COPY.clear + '</button>' +
+        '</div>' +
+        '<div class="sr-only" role="status" aria-live="polite" data-status></div>'
+      : '<button type="button" class="sr-btn-quiet sr-touch-target" data-clear>' + COPY.clear + '</button>';
+
+    frame.innerHTML = appHTML +
+      '<div class="sr-inbox-root" role="presentation" data-root>' +
+        '<div class="sr-inbox-sheet" role="dialog" aria-modal="true" aria-labelledby="' + fid + '-title" data-panel>' +
+          '<div class="sr-inbox-grab" aria-hidden="true"><div class="sr-inbox-handle"></div></div>' +
+          '<div class="sr-inbox-head">' +
+            ICON.bell.replace('<svg', '<svg class="sr-inbox-glyph"') +
+            '<h2 class="sr-inbox-title" id="' + fid + '-title">' + COPY.title + '<small data-count></small></h2>' +
+            '<button type="button" class="sr-inbox-close" aria-label="' + COPY.close + '" data-close>' + ICON.x + '</button>' +
+          '</div>' +
+          '<div class="sr-inbox-body" data-body></div>' +
+          '<div class="sr-inbox-foot"><p class="sr-inbox-fine">' + COPY.bound + '</p>' + footHTML + '</div>' +
+        '</div>' +
+        '<div class="sr-dlg-root" role="presentation" data-dlgroot>' +
+          '<div class="sr-dlg" role="dialog" aria-modal="true" aria-labelledby="' + fid + '-dlgt" data-dlg>' +
+            '<div class="sr-dlg-head"><h2 class="sr-dlg-title" id="' + fid + '-dlgt">' + COPY.clearTitle + '</h2></div>' +
+            '<div class="sr-dlg-body"><p class="sr-dlg-text">' + COPY.clearBody + '</p></div>' +
+            '<div class="sr-dlg-actions">' +
+              '<button type="button" class="sr-btn-quiet sr-touch-target" data-cancel>' + COPY.cancel + '</button>' +
+              '<button type="button" class="sr-btn-quiet sr-btn-quiet--danger sr-touch-target" data-confirm>' + COPY.clear + '</button>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+
+    const $ = (sel) => frame.querySelector(sel);
+    const root = $('[data-root]'), panel = $('[data-panel]'), body = $('[data-body]');
+    const closeBtn = $('[data-close]'), clearBtn = $('[data-clear]'), markBtn = $('[data-markread]');
+    const statusEl = $('[data-status]');
+    const dlgRoot = $('[data-dlgroot]'), dlg = $('[data-dlg]');
+    const openers = Array.from(frame.querySelectorAll('[data-opener]'));
+    let lastOpener = openers[0];
+
+    const newCount = (since) => st.rows.filter(r => r.alertedAt > since).length;
+    const storeCount = () => newCount(st.viewedAt);
+    // The marks are computed against "last viewed" as of this opening (7.5).
+    const marksAgainst = () => st.open ? st.marksSince : st.viewedAt;
+
+    function renderEntry() {
+      const n = st.rows.length, k = storeCount();
+      frame.querySelectorAll('[data-badge]').forEach(b => { b.textContent = badgeText(k); });
+      frame.querySelectorAll('[data-rowsub]').forEach(s => { s.textContent = n === 0 ? 'No alerts yet' : inboxCount(n) + (k > 0 ? ', ' + k + ' new' : ''); });
+      openers.forEach(o => { if (o.hasAttribute('aria-label')) o.setAttribute('aria-label', k > 0 ? COPY.title + ', ' + k + ' new' : COPY.title); });
+    }
+
+    function rowHTML(r, i, isNew, nowMs) {
+      const alerted = whenLocal(r.alertedAt, nowMs);
+      const label = (isNew ? COPY.newPrefix : '') + r.name + ', ' + r.place + ', ' + r.dist + ' miles, reported ' + r.day + ', alerted ' + alerted + '. Show on the map';
+      return '<li><button type="button" id="' + fid + '-row-' + i + '" class="sr-alert' + (isNew ? ' sr-alert--new' : '') + '" aria-label="' + esc(label) + '" data-row="' + r.id + '">' +
+        '<span class="sr-alert-name" aria-hidden="true">' +
+          (isNew ? '<span class="sr-alert-dot"></span>' : '') +
+          '<span class="sr-birdname"><span class="sr-birdname-text">' + esc(r.name) + '</span></span>' +
+          (isNew ? '<span class="sr-alert-new">' + COPY.newWord + '</span>' : '') +
+        '</span>' +
+        '<span class="sr-alert-dist" aria-hidden="true">' + r.dist + ' mi</span>' +
+        '<span class="sr-alert-place" aria-hidden="true">' + esc(r.place) + '</span>' +
+        '<span class="sr-alert-when" aria-hidden="true">Reported <b>' + r.day + '</b> · Alerted ' + alerted + '</span>' +
+        ICON.chev.replace('<svg', '<svg class="sr-alert-chev"') +
+      '</button></li>';
+    }
+
+    function renderSheet() {
+      const nowMs = Date.now();
+      $('[data-count]').textContent = inboxCount(st.rows.length);
+      const since = marksAgainst();
+      if (st.rows.length) {
+        body.innerHTML = '<ul class="sr-alerts-inbox" aria-label="' + COPY.listLabel + '">' +
+          st.rows.map((r, i) => rowHTML(r, i, r.alertedAt > since, nowMs)).join('') + '</ul>';
+      } else {
+        body.innerHTML = '<div class="sr-inbox-empty"><p>' + COPY.empty + '</p><p class="sr-inbox-empty-detail">' + COPY.emptyDetail + '</p></div>';
+      }
+      clearBtn.disabled = st.rows.length === 0;
+      if (markBtn) {
+        markBtn.textContent = COPY.markRead[demo.label];
+        markBtn.disabled = st.fading || newCount(since) === 0;
+      }
+    }
+    function renderAll() { renderEntry(); renderSheet(); }
+
+    // ── Open and close ────────────────────────────────────────────────────
+    function openSheet(opener) {
+      if (st.open) return;
+      lastOpener = opener || lastOpener;
+      st.open = true; st.closing = false;
+      st.marksSince = st.viewedAt;          // the marks for the life of this opening
+      st.pending = Date.now();              // "last viewed" is written now, read on close
+      renderSheet();
+      if (kind === 'ipad' && lastOpener) {
+        const tr = lastOpener.getBoundingClientRect(), pr = panel.getBoundingClientRect();
+        panel.style.transformOrigin = (tr.left + tr.width / 2 - pr.left) + 'px ' + (tr.top + tr.height / 2 - pr.top) + 'px';
+      }
+      requestAnimationFrame(() => { root.classList.add('sr-inbox-root--open'); closeBtn.focus({ preventScroll: true }); });
+    }
+    function requestClose() {
+      if (!st.open || st.closing) return;
+      st.closing = true;
+      root.classList.remove('sr-inbox-root--open'); root.classList.add('sr-inbox-root--closing');
+      const finish = () => {
+        if (!st.closing) return;
+        st.closing = false; st.open = false;
+        root.classList.remove('sr-inbox-root--closing');
+        // Close never moves "last viewed" backwards: the later of pending and viewedAt.
+        if (st.pending != null) st.viewedAt = Math.max(st.viewedAt, st.pending);
+        st.pending = null;
+        if (statusEl) statusEl.textContent = '';
+        renderAll();
+        if (lastOpener) lastOpener.focus({ preventScroll: true });
+      };
+      const onEnd = (e) => { if (e.target === panel) { panel.removeEventListener('transitionend', onEnd); finish(); } };
+      panel.addEventListener('transitionend', onEnd);
+      setTimeout(() => { panel.removeEventListener('transitionend', onEnd); finish(); }, 260);
+    }
+
+    // ── Mark read (proposed only) ─────────────────────────────────────────
+    function markRead() {
+      if (!markBtn || markBtn.disabled) return;
+      // 1. Focus moves first, so the button that is about to go quiet never
+      //    leaves focus on nothing. Close is the sheet's standing fallback.
+      closeBtn.focus({ preventScroll: true });
+      // 2. The write: "last viewed" moves to the snapshot's now, the badge is
+      //    zero at once, and close can never move the time backwards.
+      const now = Date.now();
+      st.viewedAt = now; st.pending = now;
+      renderEntry();
+      // 3. One polite sentence that names the action, never a count.
+      if (statusEl) {
+        statusEl.textContent = '';
+        clearTimeout(st.statusTimer);
+        setTimeout(() => { statusEl.textContent = COPY.markedStatus; }, 30);
+        st.statusTimer = setTimeout(() => { statusEl.textContent = ''; }, 4000);
+      }
+      announce.textContent = 'Screen reader hears: "' + COPY.markedStatus + '"';
+      announce.classList.add('demo-announce--on');
+      clearTimeout(st.announceTimer);
+      st.announceTimer = setTimeout(() => announce.classList.remove('demo-announce--on'), 4200);
+      // 4. The marks: fade in place, then unmount. Instant under reduced motion.
+      const reduced = demo.motion === 'instant' || matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const newRows = Array.from(body.querySelectorAll('.sr-alert--new'));
+      if (reduced || newRows.length === 0) { st.marksSince = now; renderSheet(); return; }
+      st.fading = true; markBtn.disabled = true;
+      newRows.forEach(r => r.classList.add('sr-alert--read'));
+      setTimeout(() => { st.fading = false; st.marksSince = now; renderSheet(); }, 180);
+    }
+
+    // ── Clear confirmation ────────────────────────────────────────────────
+    function openDialog() {
+      st.dlgOpen = true;
+      const tr = clearBtn.getBoundingClientRect(), pr = dlg.getBoundingClientRect();
+      dlg.style.transformOrigin = (tr.left + tr.width / 2 - pr.left) + 'px ' + (tr.top + tr.height / 2 - pr.top) + 'px';
+      dlgRoot.classList.add('sr-dlg-root--open');
+      requestAnimationFrame(() => $('[data-cancel]').focus({ preventScroll: true }));
+    }
+    function closeDialog(confirmed) {
+      st.dlgOpen = false;
+      dlgRoot.classList.remove('sr-dlg-root--open');
+      if (confirmed) {
+        st.rows = [];                       // Clear leaves "last viewed" alone (7.5).
+        if (statusEl) statusEl.textContent = '';
+        renderAll();
+        closeBtn.focus({ preventScroll: true });   // the trigger is disabled now
+      } else {
+        clearBtn.focus({ preventScroll: true });
+      }
+    }
+
+    // ── Wiring ────────────────────────────────────────────────────────────
+    openers.forEach(o => o.addEventListener('click', () => openSheet(o)));
+    closeBtn.addEventListener('click', () => requestClose());
+    root.addEventListener('mousedown', (e) => { if (e.target === root) requestClose(); });
+    body.addEventListener('click', (e) => { if (e.target.closest('[data-row]')) requestClose(); }); // the real row tap opens the map after the close
+    clearBtn.addEventListener('click', openDialog);
+    if (markBtn) markBtn.addEventListener('click', markRead);
+    $('[data-cancel]').addEventListener('click', () => closeDialog(false));
+    $('[data-confirm]').addEventListener('click', () => closeDialog(true));
+    dlgRoot.addEventListener('mousedown', (e) => { if (e.target === dlgRoot) closeDialog(false); });
+    // A downward swipe on the handle closes (phone).
+    const grab = $('.sr-inbox-grab'); let drag = null;
+    grab.addEventListener('pointerdown', (e) => { drag = { id: e.pointerId, y: e.clientY }; grab.setPointerCapture && grab.setPointerCapture(e.pointerId); });
+    grab.addEventListener('pointerup', (e) => { const d = drag; drag = null; if (d && d.id === e.pointerId && e.clientY - d.y >= 56) requestClose(); });
+    grab.addEventListener('pointercancel', () => { drag = null; });
+
+    stage.querySelector('[data-arrive]').addEventListener('click', () => {
+      const a = ARRIVALS[st.arrivals % ARRIVALS.length]; st.arrivals++;
+      st.rows.unshift({ id: 'n' + st.arrivals, name: a.name, place: a.place, dist: a.dist, day: 'today', alertedAt: Date.now() });
+      renderAll();
+    });
+    stage.querySelector('[data-reset]').addEventListener('click', () => {
+      st.rows = baseRows(); st.viewedAt = Date.now() - 5 * 3600e3; st.arrivals = 0; st.fading = false;
+      if (st.open) { st.marksSince = st.viewedAt; st.pending = Date.now(); }
+      if (statusEl) statusEl.textContent = '';
+      renderAll();
+    });
+
+    const api = {
+      st, frame, requestClose, closeDialog, contains: (el) => frame.contains(el),
+      applyDemo() { frame.dataset.theme = demo.theme; frame.dataset.textScale = demo.scale; renderSheet(); },
+    };
+    frames.push(api);
+    renderAll();
+    // Every frame opens with the sheet up, which is the state this stage is about.
+    setTimeout(() => openSheet(openers[0]), 60);
+    return api;
+  }
+
+  document.querySelectorAll('.demo-stage[data-frame]').forEach(makeFrame);
+
+  // Escape: the confirmation first, else the sheet that holds focus (or any open one).
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    const withDlg = frames.find(f => f.st.dlgOpen);
+    if (withDlg) { e.preventDefault(); withDlg.closeDialog(false); return; }
+    const focused = frames.find(f => f.st.open && f.contains(document.activeElement));
+    if (focused) { e.preventDefault(); focused.requestClose(); }
+  });
+
+  // ── Demo bar ──────────────────────────────────────────────────────────────
+  function pick(group, attr, value) {
+    document.querySelectorAll('[' + attr + ']').forEach(b => b.setAttribute('aria-pressed', String(b.getAttribute(attr) === value)));
+    demo[group] = value;
+    document.documentElement.dataset.theme = demo.theme;
+    document.documentElement.classList.toggle('demo-showfocus', demo.focus === 'on');
+    frames.forEach(f => f.applyDemo());
+  }
+  document.querySelectorAll('[data-theme-pick]').forEach(b => b.addEventListener('click', () => pick('theme', 'data-theme-pick', b.dataset.themePick)));
+  document.querySelectorAll('[data-scale-pick]').forEach(b => b.addEventListener('click', () => pick('scale', 'data-scale-pick', b.dataset.scalePick)));
+  document.querySelectorAll('[data-label-pick]').forEach(b => b.addEventListener('click', () => pick('label', 'data-label-pick', b.dataset.labelPick)));
+  document.querySelectorAll('[data-motion-pick]').forEach(b => b.addEventListener('click', () => pick('motion', 'data-motion-pick', b.dataset.motionPick)));
+  document.querySelectorAll('[data-focus-pick]').forEach(b => b.addEventListener('click', () => pick('focus', 'data-focus-pick', b.dataset.focusPick)));
+
+  // Start in the viewer's own color scheme; the query string can preset any
+  // switch (?theme=dark&scale=2&label=all&marks=instant&focus=on).
+  const q = new URLSearchParams(location.search);
+  pick('theme', 'data-theme-pick', q.get('theme') === 'dark' || (!q.get('theme') && matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light');
+  if (q.get('scale') === '2') pick('scale', 'data-scale-pick', '2');
+  if (q.get('label') === 'all') pick('label', 'data-label-pick', 'all');
+  if (q.get('marks') === 'instant') pick('motion', 'data-motion-pick', 'instant');
+  if (q.get('focus') === 'on') pick('focus', 'data-focus-pick', 'on');
+})();
+</script>
+</body>
+</html>
