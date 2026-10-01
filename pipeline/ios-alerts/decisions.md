@@ -48,3 +48,19 @@ Run on the Orchestrator's routed production gate decision ("Confirm, release 1.0
 | Pipeline (run of record) | success, frontend and backend, on the stamp commit; the tag commit's run `36904856711` was cancelled by the stamp push, as the runbook expects | `36907400108` |
 
 Not done, by design: no App Store version record and no submission for 1.0.42 (the user's device check of build 1.0.42.1 comes first, and the review-notes trim is still the user's decision). App Store state at this ship (read only): 1.0.40 `READY_FOR_SALE` on record `203ea1fd` (build 1.0.40.6, submission `62834004` COMPLETE), so 1.0.40 is RESOLVED; 1.0.41 still DEFERRED with VALID build 1.0.41.1 and no record, its stated condition (1.0.40 for sale) now met; 1.0.42 on TestFlight as 1.0.42.1 with no record yet. No rollback was needed.
+
+## 2026-10-01 · The user's device check of 1.0.42.1 and yes on the review-notes trim
+
+- Review-notes trim (held-copy/i-review-notes-trim.md, 3,898 characters with the Alerts block word for word): APPROVED by the user ("trim is good"). Applied to appstore/REVIEW_NOTES.md at the App Store submission.
+- Device check, TestFlight build 1.0.42.1 on the user's iPhone: installed and launched; turning Alerts on posted a notification; no new nearby lifer was reported in the following hour, so no scheduled-check notification was observed yet. The user reports Alerts "appear to be working". Per the 2026-09-26 direction (automated tests are the usual path; a criterion the user does not cover stays Partial and deferred, without repeated asks), QA-35 and QA-53..55 (real cadence, locked-phone delivery, quiet-hour delivery, notification tap) are recorded as Partial, observed only in part on hardware, not passed.
+
+## 2026-10-01 · App Store plan: one submission (1.0.41 rolled up into 1.0.42)
+
+The user chose one submission: a 1.0.42 App Store record on build 1.0.42.1 that also carries 1.0.41 (Splits and lumps). 1.0.41 therefore ends with VALID build 1.0.41.1 and no version record of its own BY ROLLUP, not by skip; the 1.0.42 record carries it and its What's New names it. This is to be added to CLAUDE.md's version-record list in the same ship. The combined What's New text still needs the user's express yes before it is entered.
+
+## 2026-10-01 · The Deployer, submission preparation for option A (no App Store Connect writes)
+
+- Applied the approved review-notes trim (`dd1d17e`): the pasted part of `appstore/REVIEW_NOTES.md` is exactly the AFTER text of `held-copy/i-review-notes-trim.md`, 3,898 characters as committed.
+- Combined What's New drafted as held proposal (j): both approved texts word for word, Alerts first, 523 characters. Awaiting the user's yes.
+- Screenshots, checked against App Store Connect (read only): Alerts makes nothing stale. No store or website shot shows Settings; the bell, the iPad sidebar item and the Search row render no markup while Alerts is off and the inbox is empty, which is the state every shot shows; the one unconditional style change (`.sr-header { position: relative; }`) has no positioned descendant to move while the bell is absent. But `05-species-detail.png` in BOTH store sets differs from the live record (1.0.41's approved Splits and lumps recapture, never uploaded because 1.0.41 had no record); 01 to 04 and 06 match byte for byte. The 1.0.42 record therefore replaces both sets whole and in order.
+- App Store Connect facts (read only): 1.0.40 `READY_FOR_SALE` (record `203ea1fd`); no 1.0.41 or 1.0.42 record; builds 1.0.41.1 (`ec258e92`) and 1.0.42.1 (`f03c6cc2`) `VALID`, `usesNonExemptEncryption` false, expiring 2026-12-29 and 2026-12-30; age rating 4+, its only unset fields `developerAgeRatingInfoUrl`, `gracRatingClassificationNumber` and `kidsAgeBand` (non-blocking on a non-Kids app); the 1.0.40 record is `AFTER_APPROVAL` with no phased release, and its review detail has `demoAccountRequired` false.
