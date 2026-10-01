@@ -119,6 +119,11 @@ italic at 0.71875rem `--sr-text-gray`.
   the accent appearing only in the toggle's open-state tint. Troubleshooting
   and Acknowledgments are the exemplars; pick this register over the
   icon-tile action row when the section should not compete for attention.
+- **Two disclosure controls on one row:** each toggle stays in the row and its
+  open panel portals into ONE shared host after the row (`PanelSlot`,
+  `speciesDetail/ui.tsx`), so either panel spans the full width below both
+  toggles and DOM order is visual order; never reorder with CSS `order`.
+  Subspecies and forms beside Splits and lumps on Species Detail is the exemplar.
 - **Confirmation dialog:** any fixed-position confirmation or short note
   that must be read before an action proceeds renders through the shared
   `components/ui/ModalDialog.tsx` shell (`.sr-dlg-*` in globals.css), never
@@ -213,7 +218,10 @@ italic at 0.71875rem `--sr-text-gray`.
   surface the preference governs.
 - **Quoted comments:** `--sr-quote-bg` block, 3px `--sr-accent-border` left edge.
 - **Bird names:** ALWAYS `<BirdName>` (link gated on hasEntry, favicons via
-  taxon codes).
+  taxon codes). Where a slash name ("Eastern/Western Warbling Vireo") sits in a
+  narrow cell, pass `breakAfterSlash`: it adds a `<wbr>` after each "/" so the
+  name wraps after the slash instead of mid-word, with text content and
+  accessible name unchanged. Default off; a no-op on a name without a slash.
 - **Links out:** eBird checklist links only behind `SUBMISSION_ID_RE`
   (`/^S\d+$/`); a species code only behind `SPECIES_CODE_RE`
   (`/^[a-z0-9-]{2,16}$/`), rendering nothing on a miss exactly as a missing code
@@ -232,6 +240,14 @@ italic at 0.71875rem `--sr-text-gray`.
   that clears in both themes. **A substitution is not an entrance: nothing
   animates.** `SpeciesLinks` is the exemplar.
 - **Icons:** Lucide, 11–15px, stroke ~2.2, purposeful only.
+  **A direction glyph that must follow a chart's flow is hand-drawn when Lucide
+  has no shape for it.** Lucide's `Split` and `Merge` are both drawn vertically
+  and there is no horizontal fork, so a split or lump badge carries an inline SVG
+  on the Lucide grid (24 viewBox, stroke 2.2, round caps, `currentColor`,
+  `aria-hidden`): three strokes fanning out (split) or two converging (lump) in
+  the chart's reading direction, rotated 90deg by CSS in the tier where the chart
+  stacks, so the glyph turns with it. The Lucide icon stays where it identifies
+  the feature (control tile, section head) rather than a direction. No dependency.
 - **Maps:** `<SnowMap>`/`SightingsMap` wrappers only.
 - **Map tools & transient pins:** a pointer gesture on a map (right-click /
   long-press) always has a VISIBLE companion control, not a hidden shortcut — a
