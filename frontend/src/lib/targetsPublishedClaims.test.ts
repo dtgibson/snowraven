@@ -407,7 +407,9 @@ describe.each([
 
   it('E: the Targets tab\'s location control is listed by its on-screen name, with what the coordinates are used for', () => {
     expect(location).toContain(`"${copy.CHOOSER_MY_LOCATION}" when choosing where the Targets tab measures distances from`)
-    expect(location).toContain("they set the map's center, measure distances on the Targets tab, and can be saved as your default location locally")
+    // The clause's tail names Alerts' saved place since 1.0.42 (the
+    // user-approved ios-alerts privacy copy); the Targets claim is unchanged.
+    expect(location).toContain("they set the map's center, measure distances on the Targets tab, and can be saved locally as your default location or as the place Alerts checks around")
     // The next sentence's "only sent outward if..." is still there to be true.
     expect(location).toContain('They are only sent outward if you then run a search')
   })
