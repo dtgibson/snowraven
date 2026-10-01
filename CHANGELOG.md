@@ -2,6 +2,14 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [1.0.41] - 2026-09-30
+
+### Added
+- **Splits and lumps on Species Detail.** Beside "Subspecies and forms", a "Splits and lumps" control lists every species in your loaded data that eBird split or lumped in one of its annual taxonomy updates, with the kind of change and the year. Pick one, or choose any species in the selector, and a Splits and Lumps section shows what the species was, what it became and which update did it, with your species marked and, on each name you have reports under, how many of them eBird reassigned when it made the change and how many you have recorded since. Where a split left reports eBird could not assign, the slash name they went to appears too. A backup exported before an update is recognized and labeled as such. The record of eBird's updates ships with the app, covers the 2023, 2024 and 2025 updates in this release and says so on screen, and needs no connection and no API key. Help describes it.
+
+### Internal
+- A developer-run generator, `scripts/build-taxonomy-history.mjs`, derives that record from Cornell's published eBird/Clements checklists and eBird taxonomy files and refuses to write anything it cannot resolve; for each covered update its splits and lumps reproduce the species eBird announced as gained and lost, and a new test holds the committed record to the bundled taxonomy snapshot.
+
 ## [1.0.40] - 2026-09-29
 
 ### Added
