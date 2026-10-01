@@ -5,9 +5,10 @@ read every item rendered before and after on the tailnet review page.**
 Sections 1, 2 and 3 were applied word for word in the 1.0.44 release, with
 `PRIVACY_POLICY.md` and `website/privacy.html` kept identical. Section 5's
 What's New line is approved as written and is NOT yet in App Store Connect:
-the user chose to DEFER 1.0.44 behind 1.0.42 (which is `WAITING_FOR_REVIEW`),
-so the line goes into 1.0.44's own version record once 1.0.42 is
-`READY_FOR_SALE` and after the user's device check of build 1.0.44.1. The
+the user chose to DEFER 1.0.44 behind the record in review (`73b6e8ac`, which
+the 1.0.43 run then rolled forward to 1.0.43, carrying 1.0.42), so the line
+goes into 1.0.44's own version record once that record is `READY_FOR_SALE`
+and after the user's device check of build 1.0.44.1. The
 user also directed no other change to `README.md` or `website/`: only the
 version stamp in `website/index.html` and the approved `privacy.html` wording.
 
@@ -114,10 +115,9 @@ width when applying.)
 ## 5. What's New, at ship
 
 **Approved 2026-10-01 for 1.0.44, word for word (155 characters). Not yet
-entered in App Store Connect: 1.0.44 is deferred behind 1.0.42 by the user's
-choice at the deploy gate.** When 1.0.44's own record is created, this line is
-its What's New; if that record also carries 1.0.43 (VALID build 1.0.43.1,
-with no record of its own as of 2026-10-01), 1.0.43's approved line comes
-first, each word for word. 1.0.43's App Store disposition belongs to its own run.
+entered in App Store Connect: 1.0.44 is deferred behind the record in review
+by the user's choice at the deploy gate.** That record, `73b6e8ac`, is now
+1.0.43 (submission `dc1ce5dd`), carrying 1.0.42 and 1.0.43's own What's New,
+so when 1.0.44's own record is created this line alone is its What's New.
 
 > Home-screen widgets can now measure from your Default Location instead of where you are: touch and hold a widget, choose Edit Widget, and set Measure from.
