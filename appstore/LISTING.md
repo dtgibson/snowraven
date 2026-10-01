@@ -233,6 +233,21 @@ definition of "collect" and none changing the answer:
   and their latest results in an App Group container on the device that only
   the app and its extension can read, never synced. Device-to-provider, and
   nothing reaches the developer, so "Data Not Collected" holds.
+- **Alerts (v1.0.42):** an optional iPhone and iPad feature, off until the
+  user turns it on in Settings, that checks about hourly or about daily (a
+  `BGAppRefreshTask`, the `fetch` background mode, as iOS allows) and when the
+  app is opened after the interval, for species the user has never recorded
+  near a place they choose. Each check is the same eBird nearby-sightings
+  request the app's Nearby Lifers view makes, with the user's own key, from a
+  fixed place or, under My location, from the most recent position the app
+  recorded while in use or a placed widget read from the device on its own
+  refresh, within 24 hours (the check itself never reads location in the
+  background and never asks for Always). The one summary notification per
+  check is a local notification made on the device; there is no push and no
+  `aps-environment` entitlement. The settings, the last check and the inbox
+  stay in the App Group container on the device, never synced.
+  Device-to-provider, and nothing reaches the developer, so "Data Not
+  Collected" holds.
 
 Nuance to hold onto if App Review pushes back on the label because
 location/coordinates reach OpenWeather or NOAA: the app is a client for

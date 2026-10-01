@@ -32,7 +32,7 @@ A birder installs SnowRaven, points it at their eBird backup and Macaulay export
 - Works alongside eBird and the Macaulay Library; never replaces or competes with them.
 - No accounts, no authentication — your own API keys, entered once.
 - Distributed as a standalone Mac/Windows desktop app, on the iPhone and iPad App Store, and as a self-hosted Pi/Linux install.
-- Network calls only device-to-provider (eBird, OpenWeather, OpenStreetMap/Nominatim, NOAA, map-tile hosts, Cornell Lab media/icons), with the user's keys where needed, on demand or, for a home-screen widget the user placed on iPhone or iPad, on the widget's refresh schedule; the full list is disclosed in PRIVACY_POLICY.md.
+- Network calls only device-to-provider (eBird, OpenWeather, OpenStreetMap/Nominatim, NOAA, map-tile hosts, Cornell Lab media/icons), with the user's keys where needed, on demand or, on iPhone and iPad, on a schedule the user turned on: a home-screen widget's refresh, or the Alerts check about hourly or about daily; the full list is disclosed in PRIVACY_POLICY.md.
 
 ## Out of Scope
 - User accounts or authentication
