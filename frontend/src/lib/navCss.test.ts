@@ -262,6 +262,9 @@ describe('the nav rules apply at every width', () => {
       '.sr-nav-item', '.sr-nav-sep', '.sr-nav-collapse', '.sr-nav-tip',
       '.sr-navbar', '.sr-navbar-cell', '.sr-navbar-label',
       '.sr-nav-sheet-root', '.sr-nav-sheet',
+      // The scrolling body and the foot that pins Settings below it
+      // (settings-tab-hidden-iphone); their resolved values are TabNav.test.tsx's.
+      '.sr-nav-sheet-body', '.sr-nav-sheet-foot',
     ]) {
       expect(RULES.has(sel), `${sel} is not a top-level rule`).toBe(true)
     }

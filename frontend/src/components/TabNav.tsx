@@ -823,6 +823,34 @@ function NavMoreSheet({ items, activeTab, onSelect, onClose, inert, onOpenSearch
   const [open, setOpen] = useState(false)
   const hint = resolveChordHint()
 
+  // SETTINGS IS PINNED BELOW THE LIST, NEVER SCROLLED WITH IT
+  // (settings-tab-hidden-iphone). It is appended after the saved order, so in a
+  // tall list it was the row the sheet's height cap cut off, and on a notched iPhone it
+  // sat under the home indicator with no scroll cue. Only a trailing Settings
+  // moves, so DOM order -- and with it Tab order, the focus trap's list and the
+  // `rows[idx]` focus mapping below -- is exactly `items` order, unchanged.
+  const last = items[items.length - 1]
+  const pinned = last?.id === 'settings' ? last : undefined
+  const listed = pinned ? items.slice(0, -1) : items
+
+  const row = (item: NavItem) => {
+    const active = item.id === activeTab
+    const Icon = item.icon
+    return (
+      <Button
+        type="button"
+        // Plain buttons inside the trap, NOT a roving group: this is what
+        // retires the old dropdown's role="option" listbox exception.
+        className={'sr-nav-item' + (active ? ' sr-nav-item--active' : '')}
+        aria-current={active ? 'true' : undefined}
+        onClick={() => onSelect(item.id)}
+      >
+        <Icon size={NAV_ICON.sheet.size} strokeWidth={NAV_ICON.sheet.strokeWidth} />
+        <span>{item.label}</span>
+      </Button>
+    )
+  }
+
   useFocusTrap(true, panelRef)
 
   // Mount closed, then open on the next frame so the transform actually
@@ -863,46 +891,43 @@ function NavMoreSheet({ items, activeTab, onSelect, onClose, inert, onOpenSearch
       onMouseDown={e => { if (e.target === e.currentTarget) onClose() }}
     >
       <div className="sr-nav-sheet" ref={panelRef}>
-        <div className="sr-nav-sheet-handle" aria-hidden="true" />
-        {/* ABOVE the <h2>, because that heading names the destination list and
-            not the search. The bottom bar's own anatomy is untouched: four
-            favourites plus More, no fifth cell (FR-07). This button inherits
-            tabIndex={0} like every other button in this panel, which keeps the
-            focus trap's keydown prediction and WebKit's real tab order in
-            agreement -- see this component's header. */}
-        <Button
-          type="button"
-          className="sr-nav-search"
-          aria-keyshortcuts="Meta+K Control+K"
-          onClick={onOpenSearch}
-        >
-          <Search size={NAV_ICON.sheet.size} strokeWidth={NAV_ICON.sheet.strokeWidth} aria-hidden="true" />
-          <span className="sr-nav-search-label">{PALETTE_COPY.controlLabel}</span>
-          {hint !== 'none' && (
-            <span className="sr-nav-search-hint" aria-hidden="true">{chordHintText(hint)}</span>
-          )}
-        </Button>
-        <h2>More</h2>
-        {items.map((item, i) => {
-          const active = item.id === activeTab
-          const Icon = item.icon
-          return (
+        {/* The scrolling part. The sheet is a column whose foot always keeps
+            its full height, so any overflow -- more rows, larger text -- is
+            taken here. */}
+        <div className="sr-nav-sheet-body">
+          <div className="sr-nav-sheet-handle" aria-hidden="true" />
+          {/* ABOVE the <h2>, because that heading names the destination list and
+              not the search. The bottom bar's own anatomy is untouched: four
+              favourites plus More, no fifth cell (FR-07). This button inherits
+              tabIndex={0} like every other button in this panel, which keeps the
+              focus trap's keydown prediction and WebKit's real tab order in
+              agreement -- see this component's header. */}
+          <Button
+            type="button"
+            className="sr-nav-search"
+            aria-keyshortcuts="Meta+K Control+K"
+            onClick={onOpenSearch}
+          >
+            <Search size={NAV_ICON.sheet.size} strokeWidth={NAV_ICON.sheet.strokeWidth} aria-hidden="true" />
+            <span className="sr-nav-search-label">{PALETTE_COPY.controlLabel}</span>
+            {hint !== 'none' && (
+              <span className="sr-nav-search-hint" aria-hidden="true">{chordHintText(hint)}</span>
+            )}
+          </Button>
+          <h2>More</h2>
+          {listed.map((item, i) => (
             <Fragment key={item.id}>
               {item.id === 'settings' && i > 0 && <hr className="sr-nav-sep" aria-hidden="true" />}
-              <Button
-                type="button"
-                // Plain buttons inside the trap, NOT a roving group: this is what
-                // retires the old dropdown's role="option" listbox exception.
-                className={'sr-nav-item' + (active ? ' sr-nav-item--active' : '')}
-                aria-current={active ? 'true' : undefined}
-                onClick={() => onSelect(item.id)}
-              >
-                <Icon size={NAV_ICON.sheet.size} strokeWidth={NAV_ICON.sheet.strokeWidth} />
-                <span>{item.label}</span>
-              </Button>
+              {row(item)}
             </Fragment>
-          )
-        })}
+          ))}
+        </div>
+        {pinned && (
+          <div className="sr-nav-sheet-foot">
+            {listed.length > 0 && <hr className="sr-nav-sep" aria-hidden="true" />}
+            {row(pinned)}
+          </div>
+        )}
       </div>
     </div>
   )

@@ -25,3 +25,5 @@ ios-lifer-widgets/screens/
 ios-lifer-widgets/copy-review.html
 # ios-alerts working files: simulator and preview renders (8.8 MB). Reference only, kept on disk; the method and what each shows are in ios-alerts/evidence/README.md.
 ios-alerts/evidence/*.png
+# settings-tab-hidden-iphone working files: probe and mutation scripts (absolute paths, rewrite source in place) and their renders. Reference only, kept on disk.
+settings-tab-hidden-iphone/evidence/
