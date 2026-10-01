@@ -114,6 +114,12 @@ export const NEW_WORD = 'New'
 export const NEW_PREFIX = 'New. '
 /** The empty sheet's second line. */
 export const INBOX_EMPTY_DETAIL = 'A species eBird reports near your place that is not in your backup appears here, and as a notification.'
+/** The footer's Mark read button: its visible label and its accessible name
+ *  (alerts-inbox-mark-read; no hidden "all", Clear does not say it either). */
+export const MARK_READ = 'Mark read'
+/** The one polite announcement after Mark read: it names the action, never a
+ *  count (design-spec 7.5: the count is never announced live). */
+export const MARKED_READ_STATUS = 'Marked read.'
 
 /** The card row's second line: "6 alerts, 3 new", "1 alert", "No alerts yet". */
 export function inboxRowSub(n: number, newCount: number): string {

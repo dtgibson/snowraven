@@ -14,8 +14,18 @@
 // the storage seam (`docChains`; device-local, never synced, never read by
 // native), so a check that lands while the sheet is open shows as new on the
 // next opening. The store's own copy, which every count reads, moves forward
-// only on CLOSE, so the marks and the badge the user is looking at do not
-// change under them. Clear leaves the timestamp alone.
+// on CLOSE, so the marks and the badge the user is looking at do not change
+// under them, unless the user presses Mark read. Clear leaves the timestamp
+// alone.
+//
+// MARK READ (alerts-inbox-mark-read) is the second writer, through the same
+// seam and the same `parseViewedAt` check: it moves "last viewed" to the
+// CURRENT snapshot's `now` (newer than the opening's when a check landed while
+// the sheet was open), writes it to disk, moves the store's copy at once (so
+// every count reads zero before the close) and the open sheet's marks with it.
+// It also becomes the pending value the close commits, so a close can never
+// move "last viewed" back to the time taken at opening. A `now` the read would
+// refuse is neither written nor kept, exactly as on opening.
 //
 // FOCUS (7.3). Back to the control that opened the sheet; if it has since
 // unmounted or hidden (the gate flipped while open), to the Alerts switch when
@@ -41,6 +51,11 @@ export interface AlertsInboxHost {
   openInbox: (o: InboxOpener) => void
   /** The sheet's one close path, after its exit; a chosen row opens the map AFTER the close. */
   closeInbox: (row: InboxRow | null) => void
+  /** Mark read: "last viewed" moves to the snapshot's `now`, on disk, in the
+   *  store and in the open sheet, and a later close cannot move it back. False
+   *  when nothing moved (a `now` the read would refuse), so the sheet does not
+   *  announce an action that did not happen. */
+  markRead: () => boolean
   /** The opener's element, for the iPad panel's transform-origin. */
   openerEl: () => HTMLElement | null
 }
@@ -77,6 +92,18 @@ export function useAlertsInboxHost(mainRef: RefObject<HTMLElement | null>): Aler
     if (row) alertsActions.openRow(row)
   }, [])
 
+  const markRead = useCallback((): boolean => {
+    if (!alertsSupported()) return false
+    // The same one validation opening uses, so memory and disk still agree.
+    const now = parseViewedAt(getAlertsState().snapshot?.now, Date.now())
+    if (!now) return false
+    pendingRef.current = now
+    void storage.setSetting(INBOX_VIEWED_SETTING, now).catch(() => {})
+    setAlertsState({ inboxViewedAt: now })
+    setOpen(o => (o ? { viewedAt: now } : o))
+    return true
+  }, [])
+
   const openerEl = useCallback(() => openerRef.current?.trigger() ?? null, [])
 
   // The one opener every entry control calls (iPhone and iPad only).
@@ -93,5 +120,5 @@ export function useAlertsInboxHost(mainRef: RefObject<HTMLElement | null>): Aler
     restoreOpenerFocus(openerRef.current, mainRef.current)
   }, [open, mainRef])
 
-  return { open, openInbox, closeInbox, openerEl }
+  return { open, openInbox, closeInbox, markRead, openerEl }
 }

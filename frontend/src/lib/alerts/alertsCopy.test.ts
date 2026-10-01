@@ -139,6 +139,10 @@ describe('the spec\'s literal sentences (content, not delivery)', () => {
     expect(C.NEW_PREFIX).toBe('New. ')
     expect(C.INBOX_EMPTY).toBe('No alerts yet.')
     expect(C.INBOX_EMPTY_DETAIL).toBe('A species eBird reports near your place that is not in your backup appears here, and as a notification.')
+    // Mark read (alerts-inbox-mark-read): the label is also the accessible
+    // name; the announcement names the action, never a count (7.5).
+    expect(C.MARK_READ).toBe('Mark read')
+    expect(C.MARKED_READ_STATUS).toBe('Marked read.')
   })
 
   it('the network sentence is the durable form (QA-19, QA-48): eBird, your own key, nothing to the developer', () => {
