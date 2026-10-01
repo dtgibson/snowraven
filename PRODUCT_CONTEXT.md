@@ -5,6 +5,10 @@ It records what has been built and key decisions made during development.
 
 ## Features Built
 
+### Alerts (iPhone and iPad)
+
+An off-by-default **Alerts** section in Settings checks about hourly or about daily, in the background and when the app is opened, for eBird reports within a chosen radius (up to 25 miles) of a fixed place or the device's most recent position of countable species not in the user's eBird backup, sends one summary notification that waits out the user's quiet hours and opens Nearby Lifers at the sighting, alerts a species again only after seven days, and keeps 30 days of alerts in an inbox reached from Settings, a header bell or sidebar item that counts what is new, and Search.
+
 ### Splits and lumps on Species Detail
 
 A **Splits and lumps** control beside Subspecies and forms lists every species in the user's eBird backup that eBird split or lumped in a covered annual taxonomy update, and for the selected species a section charts what it was, what it became and which update did it, marks the user's own species, and counts the user's reports under each name, split between those eBird reassigned in the update and those recorded since, all offline from a bundled record of eBird's updates that states the years it covers.

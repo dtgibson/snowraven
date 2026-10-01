@@ -144,6 +144,46 @@ italic at 0.71875rem `--sr-text-gray`.
   is written to iCloud until you choose Turn on.") carries it in `.sr-dlg-fine`:
   0.75rem muted text over a `--sr-border-subtle` top rule, below the body and
   above the actions.
+- **App-level sheet (a view that opens over any tab):** one component at the
+  App root, a sibling of the shell like Help and the palette, `role="dialog"
+  aria-modal="true"` labelled by its `<h2>`. At phone width it is a bottom
+  sheet in the More sheet's register: `--sr-scrim` root, `--sr-surface` panel
+  with top radius 16, a 1px `--sr-border` top edge, `--sr-card-shadow`, a
+  36x4 `--sr-border-medium` handle in a larger grab area, max height 92dvh,
+  rising 220ms, the bottom safe area padded on iOS. At 641px and up the same
+  component is a centered panel in the dialog register (max 520px wide, 80dvh,
+  radius 14, 1px `--sr-border`, no handle) scaling in from the control that
+  opened it. The density is chosen in CSS alone. A header row (16px accent
+  glyph, the title with a muted count, a 32px Close as initial focus) sits
+  over a body that scrolls on its own (`overscroll-behavior: contain`) and a
+  wrapping footer for the fine print and a quiet action. One close path: the
+  X, a tap on the scrim, a swipe down on the handle (phone, never the only
+  way) and Escape. Focus returns to the opener, else to a named fallback,
+  else to `<main>`. A confirmation it opens is the shared `ModalDialog`
+  rendered inside the sheet's root after the panel, so it stacks above the
+  panel within the root's own stacking context; while it is open, the sheet's
+  Escape and focus trap stand down, so one Escape closes only the
+  confirmation. Root `z-index: 1270`: above the fullscreen map and phone bar
+  (1200) and the More sheet (1260), below the palette (1280). The Alerts
+  inbox is the exemplar (`.sr-inbox-*`).
+- **Header bell with a count (an entry point that announces new items):** a
+  36px icon `Button` (in rem, so it keeps its proportions at every text size)
+  at the trailing edge of the phone header, inside the `<header>` so it
+  inherits the chrome's inert state. The brand takes symmetric inline padding
+  while it is present, so the centered wordmark wraps before it runs under
+  the bell. The count is an `aria-hidden` badge (`.sr-badge`: 1rem tall,
+  `--sr-accent` fill, `--sr-on-accent` 0.625rem/700 tabular figures, "9+"
+  above nine, no badge at zero). The count lives in the control's accessible
+  name ("Alerts inbox, 3 new") and is never announced live. The wide-nav twin
+  is a nav-column item that is not a tab and not in the saved order, carrying
+  an accent-tinted count pill (`.sr-nav-count`). At rail density the pill
+  becomes a corner badge **anchored by its LEFT edge** just inside the glyph,
+  because the rail item and glyph are fixed px while the badge is rem; it
+  then grows away from the glyph, where a right-anchored badge covered it at
+  200%. Every entry point shares ONE gate and ONE count, and is absent markup
+  (not hidden, not disabled) when the gate is closed, so an off feature is
+  never advertised. The glyph inside such a control is sized by its own
+  class, never by `.x > svg` (`.claude/rules/ui.md`).
 - **Tab pages:** house header (30px accent-bg icon tile + h2 + one-line muted
   description); Phase union loading → SetupRequired → error → ready;
   defer-mount via App's `mountedTabs`.
