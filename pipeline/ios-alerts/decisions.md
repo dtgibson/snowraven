@@ -26,3 +26,25 @@ After the second live look (the inbox sheet with its bell, Settings row and pale
 - Applied as approved (`88451c8`): (a) the privacy policy and `website/privacy.html`, effective October 1, 2026, after re-checking that both proposed files equal the merged live files plus exactly the listed substitutions; (b) product brief; (d) listing bullet; (g) accessibility clause.
 - HELD, not applied: (h) the App Review notes block. With it, the pasted notes measure 4,792 characters as committed (4,749 unwrapped) against App Store Connect's 4,000; they were 3,953 before it. No wording of the new block fits without trimming text the user already approved, so the trim is the user's decision, due before the App Store submission (the notes are pasted only then). The approved block stays in `held-copy/h-review-notes.md`.
 - Version 1.0.42 across the four-file set and the lockfile, with its CHANGELOG entry (`8ccaea3`). The iOS plist is stamped at the TestFlight build.
+
+## 2026-10-01 · Deployment record: 1.0.42 shipped (desktop, web, TestFlight)
+
+Run on the Orchestrator's routed production gate decision ("Confirm, release 1.0.42 now"), one leg at a time, each verified before the next.
+
+| Leg | Result | Ids |
+|---|---|---|
+| Push `main` | fast-forward `faed221..9f7adf1` (origin/main re-checked unmoved first) | |
+| Tag | `v1.0.42` (annotated) at `9f7adf1` | |
+| Windows CI | success, run on the tag commit; `release.sh`'s pinned selection resolved to it | `36904871606` |
+| Website | Pages deploy success; live pill and footer read v1.0.42; live `privacy.html` byte-identical to the committed file (effective October 1, 2026) | `36904856940` |
+| `./release.sh` | exit 0; release published 2026-10-01T18:28:51Z with the universal DMG, `SnowRaven-updater.app.tar.gz` + `.sig`, `SnowRaven_1.0.42_x64-setup.exe` + `.sig`, `latest.json` | https://github.com/dtgibson/snowraven/releases/tag/v1.0.42 |
+| DMG, downloaded independently | `codesign --verify` valid, `stapler validate` worked, `spctl` accepted, `source=Notarized Developer ID` | |
+| Updater | `releases/latest/download/latest.json` serves version 1.0.42 with `darwin-aarch64`, `darwin-x86_64` and `windows-x86_64` | |
+| iOS archive | `tauri ios build --build-number 1`: archive succeeded, stamped 1.0.42 / 1.0.42.1, executable `platform IOS` (minos 16.0), all 9 swift-rs libs `platform 2`; Tauri's own export refused as the runbook expects (this time worded "No Account for Team" / "No profiles found") | |
+| iOS export | widget extension ad-hoc signed with its App Group before export; manual export with `~/.tauri/snowraven-ios-export-options.plist` succeeded; DistributionSummary lists both bundle ids, the appex with the App Group only, the app with the group and its three iCloud keys, no push entitlement | |
+| Validate, upload | `altool --validate-app`: VERIFY SUCCEEDED with no errors; `--upload-app`: UPLOAD SUCCEEDED | delivery `f03c6cc2-8986-40f5-819d-fd168b38615a` |
+| TestFlight | build 1.0.42.1 `VALID` (ASC API, read only) | `f03c6cc2-8986-40f5-819d-fd168b38615a` |
+| iOS stamp | `0cbb40a chore(ios): stamp iOS 1.0.42 build 1` pushed (`9f7adf1..0cbb40a`); pbxproj's cosmetic re-quote restored, as in every earlier stamp | |
+| Pipeline (run of record) | success, frontend and backend, on the stamp commit; the tag commit's run `36904856711` was cancelled by the stamp push, as the runbook expects | `36907400108` |
+
+Not done, by design: no App Store version record and no submission for 1.0.42 (the user's device check of build 1.0.42.1 comes first, and the review-notes trim is still the user's decision). App Store state at this ship (read only): 1.0.40 `READY_FOR_SALE` on record `203ea1fd` (build 1.0.40.6, submission `62834004` COMPLETE), so 1.0.40 is RESOLVED; 1.0.41 still DEFERRED with VALID build 1.0.41.1 and no record, its stated condition (1.0.40 for sale) now met; 1.0.42 on TestFlight as 1.0.42.1 with no record yet. No rollback was needed.
