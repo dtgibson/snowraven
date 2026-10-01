@@ -100,8 +100,10 @@ export function buildWidgetFixture() {
 
 /** The deep-link table (schema.md 7.2): each row is `{ raw, expected }`, the
  *  expectation produced by the SHIPPED parser; the Swift builder must produce
- *  every `views` and `birds` raw exactly, and the view link for every refused
- *  pair. The family a row sits in is its authored intent. */
+ *  every `views`, `birds` and `fromDefault` raw exactly, and the view link for
+ *  every refused pair. The family a row sits in is its authored intent.
+ *  `fromDefault` (widget-measure-from-choice) is every view and bird row again,
+ *  carrying the Default Location marker. */
 function linkFamilies() {
   const row = (raw: string) => ({ raw, expected: parseWidgetLink(raw) })
   const birds: WidgetLink[] = [
@@ -114,5 +116,6 @@ function linkFamilies() {
     degraded: LINK_DEGRADE_BASES.flatMap(v => LINK_DEGRADED_SUFFIXES.map(s => row(buildWidgetLink(v as ViewLink) + s))),
     rejected: LINK_REJECTED.map(row),
     refusedPairs: LINK_REFUSED_PAIRS,
+    fromDefault: [...WIDGET_LINKS, ...birds].map(l => row(buildWidgetLink({ ...l, fromDefault: true }))),
   }
 }

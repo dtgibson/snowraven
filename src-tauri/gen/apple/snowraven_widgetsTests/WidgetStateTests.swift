@@ -82,6 +82,88 @@ final class WidgetStateTests: XCTestCase {
         XCTAssertEqual(located.store.cache?.cellSource, .device)
     }
 
+    // widget-measure-from-choice: a widget set to Default Location never calls
+    // the locator, even where the device could be located; it measures from the
+    // hand-over's point, shows the caption, marks every link, and writes its OWN
+    // cache area marked `default-location`, never `cache.json` (the file Alerts
+    // reads for a device cell, so Alerts' My location cannot regress).
+    func testDefaultLocationChosenReadsNoLocationAndMeasuresFromTheSavedPoint() async {
+        let d = DefaultLocation(lat: 37.3, lng: -121.9)
+        let harness = Harness(handover: .valid(h.with(defaultLocation: .some(d))))
+        let m = await harness.refresh(.lifers, .all, .any, .defaultLocation)
+        XCTAssertEqual(harness.locator.calls, 0, "no location read")
+        XCTAssertEqual(m.state, .list)
+        XCTAssertTrue(m.usedDefaultLocation)
+        let first = m.rows[0]
+        XCTAssertEqual(first.distanceMi, Distance.miles(d.lat, d.lng, first.lat, first.lng), accuracy: 1e-9)
+        XCTAssertEqual(harness.transport.requests.count, 1)
+        XCTAssertTrue(harness.transport.requests[0].url!.absoluteString.contains("lat=37.30000&lng=-121.90000&dist=40&back=30"))
+        XCTAssertNil(harness.store.cache, "My location's area (cache.json) is untouched")
+        XCTAssertEqual(harness.store.defaultCache?.cellSource, .defaultLocation)
+        XCTAssertEqual(harness.store.defaultCache?.cell, WidgetCache.cell(for: Coordinate(lat: d.lat, lng: d.lng)))
+        let posix = Locale(identifier: "en_US_POSIX")
+        for family in WidgetFamilySize.allCases {
+            let p = WidgetPresentation.make(m, family: family, now: Fixture.shared.now, tz: Fixture.shared.timeZone, locale: posix)
+            XCTAssertEqual(p.footer.first, "From your default location", "\(family)")
+            XCTAssertTrue(p.accessibilityLabel.contains(" From your default location."), "\(family)")
+            XCTAssertEqual(p.link, "snowraven://map/lifers?window=all&from=default")
+            for (row, link) in zip(p.rows, p.rowLinks) {
+                XCTAssertEqual(link, "snowraven://map/lifers?window=all&sp=\(row.speciesCode)&loc=\(row.locId)&from=default")
+            }
+        }
+        // The same S7 caption and marker on My location's fallback.
+        let fallback = Harness(handover: .valid(h.with(defaultLocation: .some(d))), location: .unavailable)
+        let fm = await fallback.refresh(.lifers, .all)
+        let fp = WidgetPresentation.make(fm, family: .medium, now: Fixture.shared.now, tz: Fixture.shared.timeZone, locale: posix)
+        XCTAssertEqual(fp.link, "snowraven://map/lifers?window=all&from=default")
+        XCTAssertNil(fallback.store.defaultCache, "the fallback stays in My location's area, as shipped")
+    }
+
+    func testS13DefaultLocationChosenWithNoneSavedAsksForOneAndMakesNoRequest() async {
+        let none = Harness(handover: .valid(h.with(defaultLocation: .some(nil))))
+        for kind in WidgetKind.allCases {
+            let m = await none.refresh(kind, .week, .any, .defaultLocation)
+            XCTAssertEqual(m.state, .noDefaultLocation)
+            XCTAssertFalse(m.usedDefaultLocation)
+            let p = WidgetPresentation.make(m, family: .small, now: Fixture.shared.now, tz: Fixture.shared.timeZone,
+                                            locale: Locale(identifier: "en_US_POSIX"))
+            XCTAssertEqual(p.message, "Set a Default Location in SnowRaven's Settings, or switch this widget to My location.")
+            XCTAssertEqual(p.accessibilityLabel, "\(WidgetCopy.title(kind)), Week. \(p.message!)")
+            XCTAssertTrue(p.footer.isEmpty)
+            XCTAssertFalse(p.widgetLink.contains("&from="), "a state opens the view link only")
+        }
+        XCTAssertEqual(none.locator.calls, 0)
+        XCTAssertEqual(none.transport.requests.count, 0)
+        XCTAssertNil(none.store.defaultCache)
+        // The preconditions before it keep their order: no key outranks it.
+        let noKey = Harness(handover: .valid(h.with(key: .some(nil), defaultLocation: .some(nil))))
+        let k = await noKey.refresh(.lifers, .week, .any, .defaultLocation)
+        XCTAssertEqual(k.state, .noKey)
+        // My location with neither still says today's sentence (S6).
+        let s6 = await Harness(handover: .valid(h.with(defaultLocation: .some(nil))), location: .unavailable).refresh(.lifers)
+        XCTAssertEqual(s6.state, .noLocation)
+    }
+
+    /// My location is today's path to the letter: the default value, the rows
+    /// against the fixture, no caption and no marker when the device is read.
+    func testMyLocationIsTheShippedPath() async {
+        let f = Fixture.shared
+        let explicit = Harness()
+        let byDefault = Harness()
+        let a = await explicit.refresh(.targets, .week, .photo, .myLocation)
+        let b = await byDefault.refresh(.targets, .week, .photo)
+        XCTAssertEqual(a, b)
+        assertRowsEqual(a.rows, f.expected.targets["photo"]!["week"]!, "My location rows")
+        XCTAssertEqual(explicit.locator.calls, 1)
+        XCTAssertFalse(a.usedDefaultLocation)
+        XCTAssertEqual(explicit.store.cache?.cellSource, .device)
+        XCTAssertNil(explicit.store.defaultCache)
+        let p = WidgetPresentation.make(a, family: .medium, now: f.now, tz: f.timeZone, locale: Locale(identifier: "en_US_POSIX"))
+        XCTAssertFalse(p.footer.contains("From your default location"))
+        XCTAssertEqual(p.link, "snowraven://map/targets?window=week&media=photo")
+        XCTAssertFalse(p.rowLinks.contains { $0.contains("&from=") })
+    }
+
     func testS5NamesTheSingleType() {
         XCTAssertEqual(WidgetCopy.message(state: .nothingMissing, kind: .targets, window: .week, media: .photo, lastSuccess: nil),
                        "You already have a photo of every species in your backup.")

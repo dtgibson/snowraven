@@ -2,6 +2,8 @@
 // S7 (from the Default Location) and S9 (a marked last good list) are not
 // states of their own: they decorate a list, or S10, through
 // `usedDefaultLocation` and `stale`, which is how the design composes them.
+// S13 (widget-measure-from-choice) is a widget set to Default Location with
+// none saved: its own sentence, no request, no location read.
 
 import Foundation
 
@@ -12,6 +14,7 @@ enum WidgetState: String, Codable, Equatable {
     case noExport = "S4"
     case nothingMissing = "S5"
     case noLocation = "S6"
+    case noDefaultLocation = "S13"
     case unreachable = "S8"
     case empty = "S10"
     case keyRejected = "S11"
@@ -31,7 +34,9 @@ struct WidgetModel: Equatable {
     let state: WidgetState
     /// The whole ordered list; a family shows the first 1, 3 or 8.
     let rows: [WidgetRow]
-    /// S7: the reference point is the saved Default Location.
+    /// S7: the reference point is the saved Default Location, chosen or as
+    /// My location's fallback. It shows the caption and puts the Default
+    /// Location marker on every link (widget-measure-from-choice).
     let usedDefaultLocation: Bool
     /// S9: the latest attempt failed and this is the last good list.
     let stale: StaleReason?

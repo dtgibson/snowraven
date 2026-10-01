@@ -14,8 +14,16 @@ enum AppGroup {
     static let widgetsDir = "widgets"
     static let handoverFile = "handover.json"
     static let cacheFile = "cache.json"
+    /// The Default Location area's cache (widget-measure-from-choice): the
+    /// same document, bounds and writer as `cacheFile`, read and written by the
+    /// extension only. `cacheFile` stays My location's, the one Alerts reads.
+    static let defaultLocationCacheFile = "cache-default-location.json"
     /// The hand-over, in bytes, checked from the file's attributes BEFORE it is read.
     static let handoverMaxBytes = 4_000_000
-    /// The extension's own cache document, likewise.
+    /// The extension's own cache documents, likewise.
     static let cacheMaxBytes = 8_000_000
+
+    static func cacheFileName(for area: WidgetMeasure) -> String {
+        area == .myLocation ? cacheFile : defaultLocationCacheFile
+    }
 }

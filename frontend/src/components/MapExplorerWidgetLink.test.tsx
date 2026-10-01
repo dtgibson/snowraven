@@ -101,11 +101,18 @@ import { transport } from '../lib/transport'
 const world = vi.hoisted(() => ({
   files: { ebird: true, ml: true } as { ebird: boolean; ml: boolean },
   key: 'k' as string | null,
+  // The saved `map-defaults` (null: none), or a read that fails.
+  mapDefaults: null as unknown,
+  mapDefaultsFails: false,
 }))
 vi.mock('../lib/storage', () => ({
   storage: {
     getApiKey: vi.fn(async () => world.key),
-    getSetting: vi.fn().mockResolvedValue(null),
+    getSetting: vi.fn(async (k: string) => {
+      if (k !== 'map-defaults') return null
+      if (world.mapDefaultsFails) throw new Error('unreadable')
+      return world.mapDefaults
+    }),
     setSetting: vi.fn().mockResolvedValue(undefined),
     getFilesStatus: vi.fn(async () => world.files),
   },
@@ -173,6 +180,8 @@ const pressed = (name: string) => screen.getAllByRole('button', { name }).some(b
 beforeEach(() => {
   world.files = { ebird: true, ml: true }
   world.key = 'k'
+  world.mapDefaults = null
+  world.mapDefaultsFails = false
   obs.gate = null
   records.extra = []
   records.gate = null
@@ -754,5 +763,83 @@ describe('an alert link searches from the check point, never from here (ios-aler
       expect(pill()).toBeNull()
       cleanup()
     }
+  })
+})
+
+// ── widget-measure-from-choice: the Default Location marker ───────────────────
+// A widget whose list was measured from the saved Default Location (chosen, or
+// as My location's fallback) links with `fromDefault`, and the landing searches
+// from the SAVED Default Location with no location read, so the listed bird is
+// on the map. A link without it, or a marker with no usable Default Location,
+// lands exactly as a widget link always has.
+describe('a widget link measured from the Default Location searches from it, never from here', () => {
+  const HOME = { lat: 37.54321, lng: -121.98765, dist: 5 }
+  const DIST = String(Math.round(25 * 1.60934))
+  const RUFF_ELSEWHERE = () => [
+    pin('ruff', 'Ruff', 'L200', 37.95), pin('baisan', "Baird's Sandpiper", 'L200', 37.95), pin('ruff', 'Ruff', 'L300', 37.80),
+  ]
+  const pill = () => screen.queryByRole('button', { name: /^Showing only / })
+  const chip = () => document.querySelector('.sr-map-landing-chip')
+
+  it('a bird tap: one search from the saved point at the widget\'s 25 miles, no location read, the listed bird focused', async () => {
+    world.mapDefaults = HOME
+    records.extra = RUFF_ELSEWHERE()
+    renderMap({ view: 'lifers', window: 'week', id: 1, bird: { speciesCode: 'ruff', locId: 'L300' }, fromDefault: true })
+    await waitFor(() => expect(markers.lifers?.sel).toBe('L300'))
+    const { getCurrentLocation } = await import('../lib/location')
+    expect(getCurrentLocation).not.toHaveBeenCalled()
+    expect(recentObsCalls()).toHaveLength(1)
+    expect(recentObsCalls()[0]![1]).toEqual({ lat: String(HOME.lat), lng: String(HOME.lng), dist: DIST })
+    expect(pill()!.textContent).toBe('Only Ruff· Show all')
+    expect(storage.setSetting).not.toHaveBeenCalledWith('map-defaults', expect.anything())
+  })
+
+  it('a view tap on Media Targets: the view\'s search from the saved point, no location read', async () => {
+    world.mapDefaults = HOME
+    renderMap({ view: 'targets', window: 'day', media: 'photo', id: 1, fromDefault: true })
+    await waitFor(() => expect(recentObsCalls()).toHaveLength(1))
+    expect(recentObsCalls()[0]![1]).toMatchObject({ lat: String(HOME.lat), lng: String(HOME.lng), dist: DIST })
+    const { getCurrentLocation } = await import('../lib/location')
+    expect(getCurrentLocation).not.toHaveBeenCalled()
+    await waitFor(() => expect(screen.getByText('1 species')).toBeTruthy())
+  })
+
+  it('the landing line drops "near you", the alert link\'s form', async () => {
+    world.mapDefaults = HOME
+    records.gate = new Promise(() => {})
+    renderMap({ view: 'targets', window: 'week', media: 'any', id: 1, bird: { speciesCode: 'wrenti', locId: 'L-wrenti' }, fromDefault: true })
+    await waitFor(() => expect(chip()?.textContent).toBe('Finding Wrentit\u2026'))
+    cleanup()
+    renderMap({ view: 'lifers', window: 'week', id: 2, fromDefault: true })
+    await waitFor(() => expect(chip()?.textContent).toBe('Finding nearby lifers\u2026'))
+  })
+
+  it('no usable Default Location (none, out of range, or unreadable): the shipped landing, from here', async () => {
+    const { getCurrentLocation } = await import('../lib/location')
+    const cases: [string, () => void][] = [
+      ['none saved', () => { world.mapDefaults = null }],
+      ['out of range', () => { world.mapDefaults = { lat: 200, lng: 0, dist: 5 } }],
+      ['unreadable', () => { world.mapDefaultsFails = true }],
+    ]
+    for (const [name, arrange] of cases) {
+      world.mapDefaults = null
+      world.mapDefaultsFails = false
+      arrange()
+      vi.clearAllMocks()
+      renderMap({ view: 'lifers', window: 'all', id: 1, fromDefault: true })
+      await waitFor(() => expect(recentObsCalls(), name).toHaveLength(1))
+      expect(getCurrentLocation, name).toHaveBeenCalledTimes(1)
+      expect(recentObsCalls()[0]![1], name).toMatchObject({ lat: String(HERE.lat), lng: String(HERE.lng), dist: DIST })
+      cleanup()
+    }
+  })
+
+  it('a link without the marker reads location even with a Default Location saved: the marker is what switches it', async () => {
+    world.mapDefaults = HOME
+    renderMap({ view: 'lifers', window: 'all', id: 1 })
+    await waitFor(() => expect(recentObsCalls()).toHaveLength(1))
+    const { getCurrentLocation } = await import('../lib/location')
+    expect(getCurrentLocation).toHaveBeenCalledTimes(1)
+    expect(recentObsCalls()[0]![1]).toMatchObject({ lat: String(HERE.lat), lng: String(HERE.lng) })
   })
 })

@@ -1,10 +1,14 @@
 // The widget's own cache document (ios-lifer-widgets, schema.md section 3):
-// `<App Group>/widgets/cache.json`, written and read by the extension only.
-// Both kinds and every placed instance share it, so two placed widgets of any
-// kind, window or media value make at most one eBird request per 15 minutes
-// per device (FR-24, NFR-03). It holds the reduced records and the fetch time;
-// distances, recency and window membership are recomputed on every refresh,
-// never stored. The key itself is never written here, only a fingerprint, and
+// `<App Group>/widgets/cache.json`, written by the extension only (Alerts reads
+// its cell). Both kinds and every placed instance share it, so two placed
+// widgets of any kind, window or media value make at most one eBird request
+// per 15 minutes per device (FR-24, NFR-03). Since widget-measure-from-choice
+// that holds per Measure from choice: widgets set to Default Location keep a
+// second document of this same shape, `cache-default-location.json`, so a
+// home screen that mixes the two makes at most one request per 15 minutes for
+// each (`AppGroup.cacheFileName(for:)`). It holds the reduced records and the
+// fetch time; distances, recency and window membership are recomputed on every
+// refresh, never stored. The key itself is never written here, only a fingerprint, and
 // a hand-over whose key fingerprint differs makes the cache invalid (FR-25).
 //
 // Validated on read like the hand-over: any failure means "no cache", never a
@@ -15,7 +19,8 @@ import Foundation
 
 /// Where a cache cell's search area came from (ios-alerts, security review
 /// L7): a position the widget read from the device, or the saved Default
-/// Location it falls back to when it cannot read one. Data provenance only:
+/// Location, as My location's fallback or because the widget is set to
+/// measure from it (widget-measure-from-choice). Data provenance only:
 /// the widget writes it and never reads it, and nothing it shows changes.
 /// Alerts, which can measure My location from the cell, accepts only `device`.
 enum CellSource: String, Codable, Equatable, Sendable {
@@ -63,6 +68,25 @@ struct WidgetCache: Codable, Equatable {
     static let distKm = Int((25 * 1.60934).rounded())
     static let freshSeconds: TimeInterval = 15 * 60
     static let staleLimitSeconds: TimeInterval = 24 * 60 * 60
+
+    /// A HOLD-ONLY document's fetch time (widget-measure-from-choice, security
+    /// review L1). A 429 in an area with no usable document writes one, so the
+    /// hold persists and the other area sees it. The epoch is a time no
+    /// refresh ever fetched at: the engine reads it as no fetch at all (never a
+    /// fresh or stale list, no "Last updated"), and it is far older than
+    /// `staleLimitSeconds` and Alerts' 24-hour window, so Alerts' My location
+    /// never takes its cell as a device position.
+    static let holdOnlyFetchedAt = "1970-01-01T00:00:00Z"
+
+    var isHoldOnly: Bool { fetchedAt == WidgetCache.holdOnlyFetchedAt }
+
+    /// The hold-only document: the hold, the refresh's cell and where it came
+    /// from, the key as a fingerprint only, and no records.
+    static func holdOnly(keyFingerprint: String, cell: CacheCell, cellSource: CellSource, until: Date, at: Date) -> WidgetCache {
+        WidgetCache(version: currentVersion, keyFingerprint: keyFingerprint, cell: cell, fetchedAt: holdOnlyFetchedAt,
+                    records: [], backoff: CacheBackoff(until: WidgetTime.string(until), reason: "429"),
+                    lastFailure: CacheFailure(at: WidgetTime.string(at), kind: .rateLimited), cellSource: cellSource)
+    }
 
     /// The cache key: the reference rounded half away from zero to two
     /// decimals (about 0.7 mi of latitude), plus the fixed radius. It decides

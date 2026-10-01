@@ -18,7 +18,7 @@ import {
   APP_GROUP_ID, HANDOVER_FILE, HANDOVER_MAX_BYTES, MAX_EXCEPTION_ENTRIES, MAX_KEY_LEN, MAX_NAME_UNITS, MAX_SET_ENTRIES,
   WIDGETS_DIR,
 } from './widgets/widgetHandover'
-import { ALERT_LINK_PATTERN, LINK_MAX_LENGTH, LINK_SCHEME, LOC_ID_RE } from './links/deepLink'
+import { ALERT_LINK_PATTERN, FROM_DEFAULT_MARKER, LINK_MAX_LENGTH, LINK_SCHEME, LOC_ID_RE } from './links/deepLink'
 import { SPECIES_CODE_RE } from './speciesCode'
 import { RECORD_MAX_STRING, WIDGET_BACK_DAYS, WIDGET_DIST_KM } from './widgets/widgetRows'
 
@@ -125,6 +125,15 @@ describe('the deep link: one scheme, one length bound, one event', () => {
     const speciesLinks = readFileSync(new URL('../components/SpeciesLinks.tsx', import.meta.url), 'utf8')
     expect(speciesLinks).toContain("import { SPECIES_CODE_RE } from '../lib/speciesCode'")
     expect(speciesLinks).not.toMatch(/const SPECIES_CODE_RE\s*=/)
+  })
+
+  // widget-measure-from-choice: the Default Location marker is one literal on
+  // both sides, appended after the bird suffix, never inside it.
+  it('the Default Location marker is one literal on both sides, and the builder appends it last', () => {
+    expect(FROM_DEFAULT_MARKER).toBe('&from=default')
+    expect(deepLinkSwift).toContain(`static let fromDefaultMarker = "${FROM_DEFAULT_MARKER}"`)
+    expect(deepLinkSwift).toContain('return "\\(view)&sp=\\(speciesCode)&loc=\\(locId)" + marker')
+    expect(deepLinkSwift).toContain('return fromDefault ? view + fromDefaultMarker : view')
   })
 
   it('the event, commands, widget plugin, and launch backdrop are registered for iOS only', () => {

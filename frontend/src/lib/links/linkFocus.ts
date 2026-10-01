@@ -141,8 +141,10 @@ export function focusAbsentStatement(name: string | null, view: FocusView, radiu
  *  names the bird only when the app already holds its name; otherwise it
  *  says "the bird you tapped". A real ellipsis, as the in-app search chip uses. */
 export function landingText(view: FocusView, birdName: string | null, isBirdTap: boolean, fromPoint = false): string {
-  // An alert link (ios-alerts) searches from the check's own point, which is
-  // not where the user is, so "near you" would be untrue there.
+  // An alert link (ios-alerts) searches from the check's own point, and a
+  // widget link carrying the Default Location marker (widget-measure-from-
+  // choice) from the saved Default Location; neither is where the user is, so
+  // "near you" would be untrue there.
   if (isBirdTap) return birdName ? `Finding ${birdName}${fromPoint ? '' : ' near you'}…` : 'Finding the bird you tapped…'
   return `Finding nearby ${ALL[view]}…`
 }

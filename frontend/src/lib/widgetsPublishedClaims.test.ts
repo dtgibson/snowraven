@@ -30,10 +30,12 @@ function section(md: string, heading: string): string {
   return out.join('\n')
 }
 
-const WORDS: Record<number, string> = { 1: 'one', 3: 'three', 8: 'eight' }
+const WORDS: Record<number, string> = { 1: 'one', 2: 'two', 3: 'three', 8: 'eight' }
 const cadenceMin = Number(/static let cadenceSeconds: TimeInterval = (\d+) \* 60/.exec(swift('Logic/RefreshEngine.swift'))![1])
 const freshMin = Number(/static let freshSeconds: TimeInterval = (\d+) \* 60/.exec(swift('Logic/WidgetCache.swift'))![1])
 const iosTarget = /snowraven_widgets:[\s\S]*?deploymentTarget: "(\d+)\.0"/.exec(repo('src-tauri/gen/apple/project.yml'))![1]
+// widget-measure-from-choice: the Measure from choices, one cache area each.
+const measures = /enum WidgetMeasure[^{]*\{\s*case ([^\n]+)\n/.exec(swift('Logic/RefreshEngine.swift'))![1]!.split(',').map(c => c.trim())
 
 describe('docs/HELP.md: the Widgets section under Map Explorer', () => {
   const help = section(repo('docs/HELP.md'), '### Widgets')
@@ -62,12 +64,43 @@ describe('docs/HELP.md: the Widgets section under Map Explorer', () => {
     expect(help).toContain('a new widget starts on Week')
     expect(help).toContain('**Media**: Photo, Audio, Video, or Any')
     expect(intents).toContain('@Parameter(title: "Media", default: .any)')
+    // widget-measure-from-choice: Measure from, its two values, and the default.
+    expect(help).toContain('**Measure from**: **My location**, where you are when the widget refreshes, or **Default Location**, the one saved in SnowRaven\'s Settings')
+    expect(intents).toContain('DisplayRepresentation(title: "My location", subtitle: "Where you are when the widget refreshes")')
+    expect(intents).toContain('DisplayRepresentation(title: "Default Location", subtitle: "The one saved in SnowRaven\'s Settings")')
+    expect(help).toContain('A new widget starts on My location')
+    expect(intents.match(/@Parameter\(title: "Measure from", default: \.myLocation\)/g)).toHaveLength(2)
+  })
+
+  it('says Default Location reads no location, names its sentence, and the code does', () => {
+    expect(help).toContain('On Default Location, the widget measures from your saved Default Location on every refresh, reads no location')
+    expect(help).toContain('set a Default Location, or switch the widget to My location')
+    expect(swift('Logic/WidgetCopy.swift')).toContain(
+      'case .noDefaultLocation: return "Set a Default Location in SnowRaven\'s Settings, or switch this widget to My location."')
+    // Comments stripped: the branch's own note names the locator it never calls.
+    const engine = swift('Logic/RefreshEngine.swift').split('\n').map(l => l.replace(/\/\/.*$/, '')).join('\n')
+    const start = engine.indexOf('case .defaultLocation:')
+    const mine = engine.indexOf('case .myLocation:', start)
+    const branch = engine.slice(start, mine)
+    expect(branch).toContain('h.defaultLocation')
+    expect(branch).not.toContain('locator')
+    // Non-vacuity: the same scan sees the call in the My location branch.
+    expect(engine.slice(mine, engine.indexOf('let now2 = clock()'))).toContain('await locator.currentLocation()')
+    // The tap lands from the saved point with no location read.
+    expect(help).toContain('the search runs from your saved Default Location instead and reads no location')
+    const map = repo('frontend/src/components/MapExplorer.tsx')
+    expect(map).toContain("? await storage.getSetting<unknown>('map-defaults').then(readDefaultLocation, () => null)")
+    expect(map).toContain('const loc = saved ?? await boundedLocation(getCurrentLocation(), LANDING_LOCATION_BOUND_MS)')
   })
 
   it('states the radius, the cadence and the shared-result window from the code', () => {
     expect(help).toContain(`always ${WIDGET_RADIUS_MI} miles`)
     expect(help).toContain(`about every ${cadenceMin} minutes`)
     expect(help).toContain(`for ${freshMin} minutes`)
+    // One cache area per Measure from choice, so the request bound is one per area.
+    expect(measures).toEqual(['myLocation', 'defaultLocation'])
+    expect(help).toContain(`makes at most one for each, so at most ${WORDS[measures.length]}`)
+    expect(swift('Logic/AppGroup.swift')).toContain('area == .myLocation ? cacheFile : defaultLocationCacheFile')
   })
 
   it('names how to stop it, and never claims Always access', () => {

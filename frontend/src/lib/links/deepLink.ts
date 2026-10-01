@@ -12,7 +12,8 @@
 // of these URLs (`DeepLink.swift` builds them, and the shared fixture pins both
 // builders to one table). A link is a VIEW LINK, one of exactly fifteen strings,
 // optionally followed by a BIRD SUFFIX `&sp=<speciesCode>&loc=<locId>` (Stage 8:
-// a bird tap carries which bird):
+// a bird tap carries which bird), optionally followed by the Default Location
+// marker `&from=default` (widget-measure-from-choice):
 //
 //   1. `typeof raw === 'string'` and `raw.length <= LINK_MAX_LENGTH`, checked
 //      BEFORE anything else, so every later step runs over at most 128 code
@@ -22,7 +23,16 @@
 //      radius as two bounded decimals and one bounded integer, each then range
 //      checked with `Number()`; a range failure REJECTS the whole link (its head
 //      is not a view link, so there is no correct partial landing). No match
-//      falls through to step 2 unchanged, so every widget link keeps its verdict.
+//      falls through to step 1b unchanged, so every widget link keeps its verdict.
+//   1b. THE DEFAULT LOCATION MARKER (widget-measure-from-choice): a link that
+//      ENDS in the one fixed literal `FROM_DEFAULT_MARKER` (`&from=default`)
+//      was built from a list measured from the saved Default Location, so it
+//      sets `fromDefault` and steps 2 to 4 run over the rest, unchanged. A
+//      string comparison, no pattern: the marker carries no value to parse, so
+//      it can only be present exactly or absent. Anywhere but the end, or
+//      spelled any other way, it is part of the head or the tail and fails
+//      there as any other stray text does. Absent, the link lands as it always
+//      has, so an older widget entry keeps its shipped landing.
 //   2. Cut at the FIRST `&sp=` (a `&sp=` anywhere in a malformed string only
 //      moves the cut earlier, and the head then fails step 3).
 //   3. The head is byte-equal to one of the fifteen view links, looked up with
@@ -39,9 +49,11 @@
 //
 // No `URL` constructor, no query parsing, no case folding, no trailing-slash
 // tolerance, no percent-decoding, no parameter reordering. Nothing from the URL
-// is ever reflected into the UI: the view values come from the table, and the
-// two bird ids are used only as `===` keys against records the app fetched from
-// eBird itself (MapExplorer's `linkFocus`); the name it shows is the record's.
+// is ever reflected into the UI: the view values come from the table, the two
+// bird ids are used only as `===` keys against records the app fetched from
+// eBird itself (MapExplorer's `linkFocus`), and the marker is one boolean that
+// points the search at the Default Location the app already saved, never a
+// point the link names; the name it shows is the record's.
 //
 // Two unrelated words share a spelling here and must not be confused: the
 // window token `all` is the Time range value "30 days" (the in-app TimeWindow),
@@ -51,12 +63,20 @@
 import { SPECIES_CODE_RE } from '../speciesCode'
 
 export const LINK_SCHEME = 'snowraven'
-/** The longest widget link is 88 characters (a 47-character view link and a
- *  41-character bird suffix). The longest ALERT link is 117 (ios-alerts,
- *  schema.md 5.1: 33 + `&lat=-12.34567` 14 + `&lng=-123.45678` 15 + `&r=25` 5 +
- *  `&sp=` and 16, 20 + `&loc=` and 16, 21 + `&show=all` 9). 128 leaves nothing
- *  useful for a payload. Pinned to `DeepLink.maxLength` in Swift. */
+/** The longest widget link is 101 characters (a 47-character view link, a
+ *  41-character bird suffix and the 13-character Default Location marker).
+ *  The longest ALERT link is 117 (ios-alerts, schema.md 5.1: 33 +
+ *  `&lat=-12.34567` 14 + `&lng=-123.45678` 15 + `&r=25` 5 + `&sp=` and 16, 20 +
+ *  `&loc=` and 16, 21 + `&show=all` 9). 128 leaves nothing useful for a
+ *  payload. Pinned to `DeepLink.maxLength` in Swift. */
 export const LINK_MAX_LENGTH = 128
+
+/** The Default Location marker (widget-measure-from-choice): the LAST part of a
+ *  widget link whose list was measured from the saved Default Location, chosen
+ *  or as My location's fallback. Map Explorer then searches from its saved
+ *  Default Location and reads no location. Pinned to `DeepLink.fromDefaultMarker`
+ *  in Swift by widgetPaths.parity.test.ts. */
+export const FROM_DEFAULT_MARKER = '&from=default'
 
 /** The widget's fixed search radius, in miles (FR-18, FR-36): the widget
  *  fetches within it and the tap-through applies it as the session radius. */
@@ -94,7 +114,9 @@ export interface AlertLinkParts {
   show?: AlertShow
 }
 
-export type WidgetLink = ViewLink & { bird?: BirdRef } & AlertLinkParts
+/** `fromDefault`: the widget measured its list from the saved Default Location
+ *  (the marker was present). Never on an alert link, which carries its own point. */
+export type WidgetLink = ViewLink & { bird?: BirdRef; fromDefault?: true } & AlertLinkParts
 
 export const LINK_WINDOWS: readonly LinkWindow[] = ['day', 'week', 'all']
 export const LINK_MEDIA: readonly LinkMedia[] = ['photo', 'audio', 'video', 'any']
@@ -146,9 +168,10 @@ export function isLinkableBird(bird: BirdRef): boolean {
 
 /**
  * The inverse of the parser, in the fixed parameter order: window, then media,
- * then the bird. REFUSES (throws) a bird whose ids fail the two patterns, so
- * this side can never build an out-of-pattern link (the Swift builder returns
- * the view link for the same pair, which the fixture pins).
+ * then the bird, then the Default Location marker. REFUSES (throws) a bird whose
+ * ids fail the two patterns, so this side can never build an out-of-pattern
+ * link (the Swift builder returns the view link for the same pair, which the
+ * fixture pins), and an alert link that also claims the marker.
  */
 export function buildWidgetLink(link: WidgetLink): string {
   const view = viewString(link)
@@ -161,14 +184,16 @@ export function buildWidgetLink(link: WidgetLink): string {
     if (!isAlertLink(link) || link.view !== 'lifers' || link.window !== 'day') {
       throw new Error('buildWidgetLink: an incomplete alert link')
     }
+    if (link.fromDefault) throw new Error('buildWidgetLink: an alert link carries its own point')
     if (!inRange(link.point.lat, link.point.lng, link.radiusMi)) throw new Error('buildWidgetLink: an alert link out of range')
     if (!isLinkableBird(link.bird)) throw new Error('buildWidgetLink: a bird id outside its pattern')
     return `${view}&lat=${link.point.lat.toFixed(5)}&lng=${link.point.lng.toFixed(5)}&r=${link.radiusMi}`
       + `&sp=${link.bird.speciesCode}&loc=${link.bird.locId}&show=${link.show}`
   }
-  if (!link.bird) return view
+  const marker = link.fromDefault ? FROM_DEFAULT_MARKER : ''
+  if (!link.bird) return view + marker
   if (!isLinkableBird(link.bird)) throw new Error('buildWidgetLink: a bird id outside its pattern')
-  return `${view}&sp=${link.bird.speciesCode}&loc=${link.bird.locId}`
+  return `${view}&sp=${link.bird.speciesCode}&loc=${link.bird.locId}${marker}`
 }
 
 /** Every valid view link, in a fixed order: the three lifers links, then the
@@ -182,7 +207,8 @@ const TABLE: Record<string, ViewLink> = Object.create(null)
 for (const link of WIDGET_LINKS) TABLE[viewString(link)] = Object.freeze({ ...link })
 
 /** The link a widget built, or null for anything whose view part is not one of
- *  the fifteen (rejected whole). A malformed bird suffix degrades to the view. */
+ *  the fifteen (rejected whole). A malformed bird suffix degrades to the view,
+ *  and keeps a trailing Default Location marker. */
 export function parseWidgetLink(raw: unknown): WidgetLink | null {
   if (typeof raw !== 'string' || raw.length > LINK_MAX_LENGTH) return null
   const alert = ALERT_LINK_RE.exec(raw)
@@ -199,12 +225,15 @@ export function parseWidgetLink(raw: unknown): WidgetLink | null {
       show: alert[6] as AlertShow,
     }
   }
-  const cut = raw.indexOf('&sp=')
-  const head = cut < 0 ? raw : raw.slice(0, cut)
+  const fromDefault = raw.endsWith(FROM_DEFAULT_MARKER)
+  const rest = fromDefault ? raw.slice(0, raw.length - FROM_DEFAULT_MARKER.length) : raw
+  const cut = rest.indexOf('&sp=')
+  const head = cut < 0 ? rest : rest.slice(0, cut)
   if (!Object.hasOwn(TABLE, head)) return null
   const view: WidgetLink = { ...TABLE[head] }
+  if (fromDefault) view.fromDefault = true
   if (cut < 0) return view
-  const m = BIRD_SUFFIX_RE.exec(raw.slice(cut))
+  const m = BIRD_SUFFIX_RE.exec(rest.slice(cut))
   if (m) view.bird = { speciesCode: m[1]!, locId: m[2]! }
   return view
 }

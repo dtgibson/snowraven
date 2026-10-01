@@ -40,9 +40,9 @@ enum WidgetCopy {
     ]
 
     static let liferDescription =
-        "Recent eBird reports of species you still need, within 25 miles of where you are, nearest first. Tap to open them in Map Explorer."
+        "Recent eBird reports of species you still need, within 25 miles of where you are or your Default Location, nearest first. Tap to open them in Map Explorer."
     static let targetDescription =
-        "Recent eBird reports of species you have recorded but still need a photo, audio or video of, within 25 miles of where you are, nearest first. Tap to open them in Map Explorer."
+        "Recent eBird reports of species you have recorded but still need a photo, audio or video of, within 25 miles of where you are or your Default Location, nearest first. Tap to open them in Map Explorer."
 
     /// The header's trailing words: the window, and the media type when it is a single type.
     static func windowText(kind: WidgetKind, window: WidgetWindow, media: WidgetMedia) -> String {
@@ -85,6 +85,7 @@ enum WidgetCopy {
             if media == .any { return "You already have media for every species in your backup." }
             return "You already have \(needing(media)) of every species in your backup."
         case .noLocation: return "Open SnowRaven to allow location, or set a Default Location in Settings."
+        case .noDefaultLocation: return "Set a Default Location in SnowRaven's Settings, or switch this widget to My location."
         case .unreachable:
             if let when = lastSuccess { return "Could not reach eBird. Last updated \(when)." }
             return "Could not reach eBird."

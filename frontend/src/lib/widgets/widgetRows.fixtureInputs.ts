@@ -213,6 +213,19 @@ export const LINK_REJECTED = [
   // 96; ios-alerts raised the bound to 128 for the alert form, so the row moved
   // with it and still sits exactly one over.
   'snowraven://map/targets?window=week&media=photo&sp=norcar&loc=L1' + 'x'.repeat(65),
+  // widget-measure-from-choice: the Default Location marker anywhere but last,
+  // or spelled any other way, is stray text in the head.
+  'snowraven://map/lifers?window=week&from=default&sp=norcar&loc=L1',  // before the bird
+  'snowraven://map/lifers?window=week&from=default&from=default',      // twice
+  'snowraven://map/lifers?window=week&from=Default',                   // case
+  'snowraven://map/lifers?window=week&from=device',                    // another value
+  'snowraven://map/lifers?window=week&from=',                          // no value
+  'snowraven://map/lifers?window=week&from=default#f',                 // a fragment after it
+  'snowraven://map/lifers?window=week&from=default\n',                 // a trailing newline
+  '&from=default',                                                     // a marker with no view
+  // On an alert link, which carries its own point: not the alert form (its
+  // pattern is anchored), and its head is not a view link.
+  'snowraven://map/lifers?window=day&lat=1&lng=1&r=5&sp=ruff&loc=L1&show=all&from=default',
 ]
 
 /** Id pairs the builders REFUSE: TypeScript throws, Swift returns the view link. */
