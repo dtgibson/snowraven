@@ -1,0 +1,1323 @@
+[
+  {
+    "config": "iphone-390-light",
+    "press": "keyboard",
+    "checks": {
+      "entryBeforeOpen": {
+        "opener": "Alerts inbox, 2 new",
+        "openerBadge": "2",
+        "settingsRow": "Inbox, 6 alerts, 2 new",
+        "settingsRowSub": "6 alerts, 2 new"
+      },
+      "viewedBeforeOpen": "2026-09-30T21:46:36Z",
+      "viewedAfterOpen": "2026-10-01T21:46:36Z",
+      "snapshotNowAtOpen": "2026-10-01T21:46:36Z",
+      "beforePress": {
+        "order": [
+          "Mark read",
+          "Clear"
+        ],
+        "markDisabled": false,
+        "clearDisabled": false,
+        "rects": [
+          {
+            "text": "Mark read",
+            "left": 225,
+            "right": 310,
+            "top": 768,
+            "height": 44,
+            "width": 84
+          },
+          {
+            "text": "Clear",
+            "left": 318,
+            "right": 374,
+            "top": 768,
+            "height": 44,
+            "width": 56
+          }
+        ],
+        "fine": {
+          "left": 16,
+          "right": 213,
+          "top": 754,
+          "bottom": 826
+        },
+        "foot": {
+          "left": 0,
+          "right": 390
+        },
+        "footOverflow": 0,
+        "pageScrollW": 390,
+        "dots": 2,
+        "newNames": 2,
+        "rows": 6,
+        "statusText": "",
+        "statusLive": "polite",
+        "headerCount": "6 alerts"
+      },
+      "tabFromLastRow": [
+        "Mark read",
+        "Clear"
+      ],
+      "immediatelyAfterPress": {
+        "active": "Close the inbox",
+        "activeIsBody": false,
+        "markDisabled": true,
+        "statusText": "Marked read.",
+        "newNames": 0,
+        "rows": 6,
+        "headerCount": "6 alerts"
+      },
+      "entryRightAfterPress": {
+        "opener": "Alerts inbox",
+        "openerBadge": null,
+        "settingsRow": "Inbox, 6 alerts",
+        "settingsRowSub": "6 alerts"
+      },
+      "viewedRightAfterPress": "2026-10-01T21:46:36Z",
+      "snapshotNowAtPress": "2026-10-01T21:46:36Z",
+      "fade": {
+        "pressT": 10,
+        "unmountMsAfterPress": 189,
+        "framesWithMarksAfterPress": 11,
+        "midFadeFrames": 8,
+        "midFadeOpacities": [
+          "23ms:0.87,0.87|0.87,0.87",
+          "40ms:0.70,0.70|0.70,0.70",
+          "59ms:0.55,0.54|0.54,0.54",
+          "73ms:0.43,0.43|0.43,0.43",
+          "90ms:0.32,0.32|0.32,0.32",
+          "109ms:0.20,0.20|0.20,0.20",
+          "124ms:0.12,0.12|0.12,0.12",
+          "141ms:0.05,0.05|0.05,0.05"
+        ],
+        "preFrame": {
+          "t": 1,
+          "dots": 2,
+          "op": "1.00,1.00",
+          "wop": "1.00,1.00",
+          "reading": 0
+        }
+      },
+      "afterFade": {
+        "dots": 0,
+        "words": 0,
+        "markedClasses": 0,
+        "rows": 6,
+        "active": "Close the inbox"
+      },
+      "statusAt4300ms": "",
+      "afterClose": {
+        "viewed": "2026-10-01T21:46:36Z",
+        "entry": {
+          "opener": "Alerts inbox",
+          "openerBadge": null,
+          "settingsRow": "Inbox, 6 alerts",
+          "settingsRowSub": "6 alerts"
+        },
+        "focusBackOnOpener": true
+      },
+      "reopened": {
+        "dots": 0,
+        "newNames": 0,
+        "markDisabled": true,
+        "statusText": ""
+      },
+      "viewedAfterReopen": "2026-10-01T21:46:36Z",
+      "addedAlertAt": "2026-10-01T21:46:44Z",
+      "newer": {
+        "rows": 7,
+        "dots": 1,
+        "newNames": [
+          "sr-alerts-row-0"
+        ],
+        "markDisabled": false
+      },
+      "entryWithNewer": {
+        "opener": "Alerts inbox, 1 new",
+        "openerBadge": "1",
+        "settingsRow": "Inbox, 7 alerts, 1 new",
+        "settingsRowSub": "7 alerts, 1 new"
+      },
+      "secondPress": {
+        "active": "Close the inbox",
+        "statusText": "Marked read.",
+        "statusChildTag": "SPAN",
+        "markDisabled": true,
+        "snapshotNow": "2026-10-01T21:46:44Z"
+      },
+      "viewedAfterSecondPress": "2026-10-01T21:46:44Z",
+      "statusDuringClosing": "",
+      "afterSecondClose": {
+        "viewed": "2026-10-01T21:46:44Z",
+        "entry": {
+          "opener": "Alerts inbox",
+          "openerBadge": null,
+          "settingsRow": "Inbox, 7 alerts",
+          "settingsRowSub": "7 alerts"
+        }
+      },
+      "clear": {
+        "dialogButtons": [
+          "Cancel",
+          "Clear"
+        ],
+        "viewedBefore": "2026-10-01T21:46:44Z",
+        "viewedAfterOpen": "2026-10-01T21:46:44Z",
+        "viewedAfterClear": "2026-10-01T21:46:44Z",
+        "settingsWritesBeforeOpen": 4,
+        "settingsWritesAfterOpen": 5,
+        "settingsWritesAfterClear": 5,
+        "markDisabledEmpty": true,
+        "clearDisabledEmpty": true,
+        "active": "Close the inbox"
+      },
+      "settingsWrites": [
+        "2026-10-01T21:46:36Z",
+        "2026-10-01T21:46:36Z",
+        "2026-10-01T21:46:36Z",
+        "2026-10-01T21:46:44Z",
+        "2026-10-01T21:46:44Z"
+      ]
+    },
+    "errors": []
+  },
+  {
+    "config": "iphone-390-dark",
+    "press": "mouse",
+    "checks": {
+      "entryBeforeOpen": {
+        "opener": "Alerts inbox, 2 new",
+        "openerBadge": "2",
+        "settingsRow": "Inbox, 6 alerts, 2 new",
+        "settingsRowSub": "6 alerts, 2 new"
+      },
+      "viewedBeforeOpen": "2026-09-30T21:46:46Z",
+      "viewedAfterOpen": "2026-10-01T21:46:46Z",
+      "snapshotNowAtOpen": "2026-10-01T21:46:46Z",
+      "beforePress": {
+        "order": [
+          "Mark read",
+          "Clear"
+        ],
+        "markDisabled": false,
+        "clearDisabled": false,
+        "rects": [
+          {
+            "text": "Mark read",
+            "left": 225,
+            "right": 310,
+            "top": 768,
+            "height": 44,
+            "width": 84
+          },
+          {
+            "text": "Clear",
+            "left": 318,
+            "right": 374,
+            "top": 768,
+            "height": 44,
+            "width": 56
+          }
+        ],
+        "fine": {
+          "left": 16,
+          "right": 213,
+          "top": 754,
+          "bottom": 826
+        },
+        "foot": {
+          "left": 0,
+          "right": 390
+        },
+        "footOverflow": 0,
+        "pageScrollW": 390,
+        "dots": 2,
+        "newNames": 2,
+        "rows": 6,
+        "statusText": "",
+        "statusLive": "polite",
+        "headerCount": "6 alerts"
+      },
+      "immediatelyAfterPress": {
+        "active": "Close the inbox",
+        "activeIsBody": false,
+        "markDisabled": true,
+        "statusText": "Marked read.",
+        "newNames": 0,
+        "rows": 6,
+        "headerCount": "6 alerts"
+      },
+      "entryRightAfterPress": {
+        "opener": "Alerts inbox",
+        "openerBadge": null,
+        "settingsRow": "Inbox, 6 alerts",
+        "settingsRowSub": "6 alerts"
+      },
+      "viewedRightAfterPress": "2026-10-01T21:46:46Z",
+      "snapshotNowAtPress": "2026-10-01T21:46:46Z",
+      "fade": {
+        "pressT": 37,
+        "unmountMsAfterPress": 196,
+        "framesWithMarksAfterPress": 11,
+        "midFadeFrames": 8,
+        "midFadeOpacities": [
+          "27ms:0.83,0.83|0.83,0.83",
+          "44ms:0.67,0.67|0.67,0.67",
+          "61ms:0.53,0.53|0.53,0.53",
+          "76ms:0.41,0.41|0.41,0.41",
+          "95ms:0.28,0.28|0.28,0.28",
+          "111ms:0.18,0.18|0.18,0.18",
+          "128ms:0.10,0.10|0.10,0.10",
+          "147ms:0.03,0.03|0.03,0.03"
+        ],
+        "preFrame": {
+          "t": 33,
+          "dots": 2,
+          "op": "1.00,1.00",
+          "wop": "1.00,1.00",
+          "reading": 0
+        }
+      },
+      "afterFade": {
+        "dots": 0,
+        "words": 0,
+        "markedClasses": 0,
+        "rows": 6,
+        "active": "Close the inbox"
+      },
+      "statusAt4300ms": "",
+      "afterClose": {
+        "viewed": "2026-10-01T21:46:46Z",
+        "entry": {
+          "opener": "Alerts inbox",
+          "openerBadge": null,
+          "settingsRow": "Inbox, 6 alerts",
+          "settingsRowSub": "6 alerts"
+        },
+        "focusBackOnOpener": true
+      },
+      "reopened": {
+        "dots": 0,
+        "newNames": 0,
+        "markDisabled": true,
+        "statusText": ""
+      },
+      "viewedAfterReopen": "2026-10-01T21:46:46Z",
+      "addedAlertAt": "2026-10-01T21:46:54Z",
+      "newer": {
+        "rows": 7,
+        "dots": 1,
+        "newNames": [
+          "sr-alerts-row-0"
+        ],
+        "markDisabled": false
+      },
+      "entryWithNewer": {
+        "opener": "Alerts inbox, 1 new",
+        "openerBadge": "1",
+        "settingsRow": "Inbox, 7 alerts, 1 new",
+        "settingsRowSub": "7 alerts, 1 new"
+      },
+      "secondPress": {
+        "active": "Close the inbox",
+        "statusText": "Marked read.",
+        "statusChildTag": "SPAN",
+        "markDisabled": true,
+        "snapshotNow": "2026-10-01T21:46:54Z"
+      },
+      "viewedAfterSecondPress": "2026-10-01T21:46:54Z",
+      "statusDuringClosing": "",
+      "afterSecondClose": {
+        "viewed": "2026-10-01T21:46:54Z",
+        "entry": {
+          "opener": "Alerts inbox",
+          "openerBadge": null,
+          "settingsRow": "Inbox, 7 alerts",
+          "settingsRowSub": "7 alerts"
+        }
+      },
+      "settingsWrites": [
+        "2026-10-01T21:46:46Z",
+        "2026-10-01T21:46:46Z",
+        "2026-10-01T21:46:46Z",
+        "2026-10-01T21:46:54Z"
+      ]
+    },
+    "errors": []
+  },
+  {
+    "config": "iphone-320-light",
+    "press": "keyboard",
+    "checks": {
+      "entryBeforeOpen": {
+        "opener": "Alerts inbox, 2 new",
+        "openerBadge": "2",
+        "settingsRow": "Inbox, 6 alerts, 2 new",
+        "settingsRowSub": "6 alerts, 2 new"
+      },
+      "viewedBeforeOpen": "2026-09-30T21:46:55Z",
+      "viewedAfterOpen": "2026-10-01T21:46:55Z",
+      "snapshotNowAtOpen": "2026-10-01T21:46:55Z",
+      "beforePress": {
+        "order": [
+          "Mark read",
+          "Clear"
+        ],
+        "markDisabled": false,
+        "clearDisabled": false,
+        "rects": [
+          {
+            "text": "Mark read",
+            "left": 155,
+            "right": 240,
+            "top": 578,
+            "height": 44,
+            "width": 84
+          },
+          {
+            "text": "Clear",
+            "left": 248,
+            "right": 304,
+            "top": 578,
+            "height": 44,
+            "width": 56
+          }
+        ],
+        "fine": {
+          "left": 16,
+          "right": 304,
+          "top": 516,
+          "bottom": 570
+        },
+        "foot": {
+          "left": 0,
+          "right": 320
+        },
+        "footOverflow": 0,
+        "pageScrollW": 320,
+        "dots": 2,
+        "newNames": 2,
+        "rows": 6,
+        "statusText": "",
+        "statusLive": "polite",
+        "headerCount": "6 alerts"
+      },
+      "immediatelyAfterPress": {
+        "active": "Close the inbox",
+        "activeIsBody": false,
+        "markDisabled": true,
+        "statusText": "Marked read.",
+        "newNames": 0,
+        "rows": 6,
+        "headerCount": "6 alerts"
+      },
+      "entryRightAfterPress": {
+        "opener": "Alerts inbox",
+        "openerBadge": null,
+        "settingsRow": "Inbox, 6 alerts",
+        "settingsRowSub": "6 alerts"
+      },
+      "viewedRightAfterPress": "2026-10-01T21:46:55Z",
+      "snapshotNowAtPress": "2026-10-01T21:46:55Z",
+      "fade": {
+        "pressT": 13,
+        "unmountMsAfterPress": 196,
+        "framesWithMarksAfterPress": 11,
+        "midFadeFrames": 8,
+        "midFadeOpacities": [
+          "29ms:0.81,0.81|0.81,0.81",
+          "45ms:0.66,0.66|0.66,0.66",
+          "61ms:0.53,0.53|0.53,0.53",
+          "78ms:0.39,0.39|0.39,0.39",
+          "96ms:0.28,0.28|0.28,0.28",
+          "111ms:0.18,0.18|0.18,0.18",
+          "129ms:0.10,0.10|0.10,0.10",
+          "147ms:0.03,0.03|0.03,0.03"
+        ],
+        "preFrame": {
+          "t": 9,
+          "dots": 2,
+          "op": "1.00,1.00",
+          "wop": "1.00,1.00",
+          "reading": 0
+        }
+      },
+      "afterFade": {
+        "dots": 0,
+        "words": 0,
+        "markedClasses": 0,
+        "rows": 6,
+        "active": "Close the inbox"
+      },
+      "statusAt4300ms": "",
+      "afterClose": {
+        "viewed": "2026-10-01T21:46:55Z",
+        "entry": {
+          "opener": "Alerts inbox",
+          "openerBadge": null,
+          "settingsRow": "Inbox, 6 alerts",
+          "settingsRowSub": "6 alerts"
+        },
+        "focusBackOnOpener": true
+      },
+      "reopened": {
+        "dots": 0,
+        "newNames": 0,
+        "markDisabled": true,
+        "statusText": ""
+      },
+      "viewedAfterReopen": "2026-10-01T21:46:55Z",
+      "addedAlertAt": "2026-10-01T21:47:03Z",
+      "newer": {
+        "rows": 7,
+        "dots": 1,
+        "newNames": [
+          "sr-alerts-row-0"
+        ],
+        "markDisabled": false
+      },
+      "entryWithNewer": {
+        "opener": "Alerts inbox, 1 new",
+        "openerBadge": "1",
+        "settingsRow": "Inbox, 7 alerts, 1 new",
+        "settingsRowSub": "7 alerts, 1 new"
+      },
+      "secondPress": {
+        "active": "Close the inbox",
+        "statusText": "Marked read.",
+        "statusChildTag": "SPAN",
+        "markDisabled": true,
+        "snapshotNow": "2026-10-01T21:47:03Z"
+      },
+      "viewedAfterSecondPress": "2026-10-01T21:47:03Z",
+      "statusDuringClosing": "",
+      "afterSecondClose": {
+        "viewed": "2026-10-01T21:47:03Z",
+        "entry": {
+          "opener": "Alerts inbox",
+          "openerBadge": null,
+          "settingsRow": "Inbox, 7 alerts",
+          "settingsRowSub": "7 alerts"
+        }
+      },
+      "settingsWrites": [
+        "2026-10-01T21:46:55Z",
+        "2026-10-01T21:46:55Z",
+        "2026-10-01T21:46:55Z",
+        "2026-10-01T21:47:03Z"
+      ]
+    },
+    "errors": []
+  },
+  {
+    "config": "iphone-320-dark",
+    "press": "mouse",
+    "checks": {
+      "entryBeforeOpen": {
+        "opener": "Alerts inbox, 2 new",
+        "openerBadge": "2",
+        "settingsRow": "Inbox, 6 alerts, 2 new",
+        "settingsRowSub": "6 alerts, 2 new"
+      },
+      "viewedBeforeOpen": "2026-09-30T21:47:04Z",
+      "viewedAfterOpen": "2026-10-01T21:47:04Z",
+      "snapshotNowAtOpen": "2026-10-01T21:47:04Z",
+      "beforePress": {
+        "order": [
+          "Mark read",
+          "Clear"
+        ],
+        "markDisabled": false,
+        "clearDisabled": false,
+        "rects": [
+          {
+            "text": "Mark read",
+            "left": 155,
+            "right": 240,
+            "top": 578,
+            "height": 44,
+            "width": 84
+          },
+          {
+            "text": "Clear",
+            "left": 248,
+            "right": 304,
+            "top": 578,
+            "height": 44,
+            "width": 56
+          }
+        ],
+        "fine": {
+          "left": 16,
+          "right": 304,
+          "top": 516,
+          "bottom": 570
+        },
+        "foot": {
+          "left": 0,
+          "right": 320
+        },
+        "footOverflow": 0,
+        "pageScrollW": 320,
+        "dots": 2,
+        "newNames": 2,
+        "rows": 6,
+        "statusText": "",
+        "statusLive": "polite",
+        "headerCount": "6 alerts"
+      },
+      "immediatelyAfterPress": {
+        "active": "Close the inbox",
+        "activeIsBody": false,
+        "markDisabled": true,
+        "statusText": "Marked read.",
+        "newNames": 0,
+        "rows": 6,
+        "headerCount": "6 alerts"
+      },
+      "entryRightAfterPress": {
+        "opener": "Alerts inbox",
+        "openerBadge": null,
+        "settingsRow": "Inbox, 6 alerts",
+        "settingsRowSub": "6 alerts"
+      },
+      "viewedRightAfterPress": "2026-10-01T21:47:04Z",
+      "snapshotNowAtPress": "2026-10-01T21:47:04Z",
+      "fade": {
+        "pressT": 72,
+        "unmountMsAfterPress": 190,
+        "framesWithMarksAfterPress": 11,
+        "midFadeFrames": 8,
+        "midFadeOpacities": [
+          "23ms:0.85,0.85|0.85,0.85",
+          "40ms:0.69,0.69|0.69,0.69",
+          "55ms:0.56,0.56|0.56,0.56",
+          "73ms:0.42,0.42|0.42,0.42",
+          "90ms:0.30,0.30|0.30,0.30",
+          "109ms:0.19,0.19|0.19,0.19",
+          "123ms:0.12,0.11|0.11,0.11",
+          "140ms:0.05,0.05|0.05,0.05"
+        ],
+        "preFrame": {
+          "t": 69,
+          "dots": 2,
+          "op": "1.00,1.00",
+          "wop": "1.00,1.00",
+          "reading": 0
+        }
+      },
+      "afterFade": {
+        "dots": 0,
+        "words": 0,
+        "markedClasses": 0,
+        "rows": 6,
+        "active": "Close the inbox"
+      },
+      "statusAt4300ms": "",
+      "afterClose": {
+        "viewed": "2026-10-01T21:47:04Z",
+        "entry": {
+          "opener": "Alerts inbox",
+          "openerBadge": null,
+          "settingsRow": "Inbox, 6 alerts",
+          "settingsRowSub": "6 alerts"
+        },
+        "focusBackOnOpener": true
+      },
+      "reopened": {
+        "dots": 0,
+        "newNames": 0,
+        "markDisabled": true,
+        "statusText": ""
+      },
+      "viewedAfterReopen": "2026-10-01T21:47:04Z",
+      "addedAlertAt": "2026-10-01T21:47:12Z",
+      "newer": {
+        "rows": 7,
+        "dots": 1,
+        "newNames": [
+          "sr-alerts-row-0"
+        ],
+        "markDisabled": false
+      },
+      "entryWithNewer": {
+        "opener": "Alerts inbox, 1 new",
+        "openerBadge": "1",
+        "settingsRow": "Inbox, 7 alerts, 1 new",
+        "settingsRowSub": "7 alerts, 1 new"
+      },
+      "secondPress": {
+        "active": "Close the inbox",
+        "statusText": "Marked read.",
+        "statusChildTag": "SPAN",
+        "markDisabled": true,
+        "snapshotNow": "2026-10-01T21:47:12Z"
+      },
+      "viewedAfterSecondPress": "2026-10-01T21:47:12Z",
+      "statusDuringClosing": "",
+      "afterSecondClose": {
+        "viewed": "2026-10-01T21:47:12Z",
+        "entry": {
+          "opener": "Alerts inbox",
+          "openerBadge": null,
+          "settingsRow": "Inbox, 7 alerts",
+          "settingsRowSub": "7 alerts"
+        }
+      },
+      "settingsWrites": [
+        "2026-10-01T21:47:04Z",
+        "2026-10-01T21:47:04Z",
+        "2026-10-01T21:47:04Z",
+        "2026-10-01T21:47:12Z"
+      ]
+    },
+    "errors": []
+  },
+  {
+    "config": "iphone-320-light-text200",
+    "press": "mouse",
+    "checks": {
+      "textScaleApplied": "2",
+      "entryBeforeOpen": {
+        "opener": "Alerts inbox, 2 new",
+        "openerBadge": "2",
+        "settingsRow": "Inbox, 6 alerts, 2 new",
+        "settingsRowSub": "6 alerts, 2 new"
+      },
+      "viewedBeforeOpen": "2026-09-30T21:47:13Z",
+      "viewedAfterOpen": "2026-10-01T21:47:13Z",
+      "snapshotNowAtOpen": "2026-10-01T21:47:13Z",
+      "beforePress": {
+        "order": [
+          "Mark read",
+          "Clear"
+        ],
+        "markDisabled": false,
+        "clearDisabled": false,
+        "rects": [
+          {
+            "text": "Mark read",
+            "left": 82,
+            "right": 214,
+            "top": 534,
+            "height": 88,
+            "width": 132
+          },
+          {
+            "text": "Clear",
+            "left": 222,
+            "right": 304,
+            "top": 534,
+            "height": 88,
+            "width": 82
+          }
+        ],
+        "fine": {
+          "left": 16,
+          "right": 304,
+          "top": 346,
+          "bottom": 526
+        },
+        "foot": {
+          "left": 0,
+          "right": 320
+        },
+        "footOverflow": 0,
+        "pageScrollW": 320,
+        "dots": 2,
+        "newNames": 2,
+        "rows": 6,
+        "statusText": "",
+        "statusLive": "polite",
+        "headerCount": "6 alerts"
+      },
+      "immediatelyAfterPress": {
+        "active": "Close the inbox",
+        "activeIsBody": false,
+        "markDisabled": true,
+        "statusText": "Marked read.",
+        "newNames": 0,
+        "rows": 6,
+        "headerCount": "6 alerts"
+      },
+      "entryRightAfterPress": {
+        "opener": "Alerts inbox",
+        "openerBadge": null,
+        "settingsRow": "Inbox, 6 alerts",
+        "settingsRowSub": "6 alerts"
+      },
+      "viewedRightAfterPress": "2026-10-01T21:47:13Z",
+      "snapshotNowAtPress": "2026-10-01T21:47:13Z",
+      "fade": {
+        "pressT": 76,
+        "unmountMsAfterPress": 196,
+        "framesWithMarksAfterPress": 11,
+        "midFadeFrames": 8,
+        "midFadeOpacities": [
+          "31ms:0.84,0.84|0.84,0.84",
+          "49ms:0.67,0.67|0.67,0.67",
+          "63ms:0.55,0.55|0.55,0.55",
+          "82ms:0.41,0.41|0.41,0.41",
+          "98ms:0.30,0.30|0.30,0.30",
+          "114ms:0.20,0.19|0.19,0.19",
+          "131ms:0.11,0.11|0.11,0.11",
+          "148ms:0.05,0.05|0.05,0.05"
+        ],
+        "preFrame": {
+          "t": 73,
+          "dots": 2,
+          "op": "1.00,1.00",
+          "wop": "1.00,1.00",
+          "reading": 0
+        }
+      },
+      "afterFade": {
+        "dots": 0,
+        "words": 0,
+        "markedClasses": 0,
+        "rows": 6,
+        "active": "Close the inbox"
+      },
+      "statusAt4300ms": "",
+      "afterClose": {
+        "viewed": "2026-10-01T21:47:13Z",
+        "entry": {
+          "opener": "Alerts inbox",
+          "openerBadge": null,
+          "settingsRow": "Inbox, 6 alerts",
+          "settingsRowSub": "6 alerts"
+        },
+        "focusBackOnOpener": true
+      },
+      "reopened": {
+        "dots": 0,
+        "newNames": 0,
+        "markDisabled": true,
+        "statusText": ""
+      },
+      "viewedAfterReopen": "2026-10-01T21:47:13Z",
+      "addedAlertAt": "2026-10-01T21:47:21Z",
+      "newer": {
+        "rows": 7,
+        "dots": 1,
+        "newNames": [
+          "sr-alerts-row-0"
+        ],
+        "markDisabled": false
+      },
+      "entryWithNewer": {
+        "opener": "Alerts inbox, 1 new",
+        "openerBadge": "1",
+        "settingsRow": "Inbox, 7 alerts, 1 new",
+        "settingsRowSub": "7 alerts, 1 new"
+      },
+      "secondPress": {
+        "active": "Close the inbox",
+        "statusText": "Marked read.",
+        "statusChildTag": "SPAN",
+        "markDisabled": true,
+        "snapshotNow": "2026-10-01T21:47:21Z"
+      },
+      "viewedAfterSecondPress": "2026-10-01T21:47:21Z",
+      "statusDuringClosing": "",
+      "afterSecondClose": {
+        "viewed": "2026-10-01T21:47:21Z",
+        "entry": {
+          "opener": "Alerts inbox",
+          "openerBadge": null,
+          "settingsRow": "Inbox, 7 alerts",
+          "settingsRowSub": "7 alerts"
+        }
+      },
+      "settingsWrites": [
+        "2026-10-01T21:47:13Z",
+        "2026-10-01T21:47:13Z",
+        "2026-10-01T21:47:13Z",
+        "2026-10-01T21:47:21Z"
+      ]
+    },
+    "errors": []
+  },
+  {
+    "config": "ipad-light",
+    "press": "mouse",
+    "checks": {
+      "entryBeforeOpen": {
+        "opener": "Alerts inbox, 2 new",
+        "openerBadge": "2",
+        "settingsRow": "Inbox, 6 alerts, 2 new",
+        "settingsRowSub": "6 alerts, 2 new"
+      },
+      "viewedBeforeOpen": "2026-09-30T21:47:22Z",
+      "viewedAfterOpen": "2026-10-01T21:47:22Z",
+      "snapshotNowAtOpen": "2026-10-01T21:47:22Z",
+      "beforePress": {
+        "order": [
+          "Mark read",
+          "Clear"
+        ],
+        "markDisabled": false,
+        "clearDisabled": false,
+        "rects": [
+          {
+            "text": "Mark read",
+            "left": 606,
+            "right": 691,
+            "top": 937,
+            "height": 32,
+            "width": 84
+          },
+          {
+            "text": "Clear",
+            "left": 699,
+            "right": 755,
+            "top": 937,
+            "height": 32,
+            "width": 56
+          }
+        ],
+        "fine": {
+          "left": 269,
+          "right": 594,
+          "top": 926,
+          "bottom": 980
+        },
+        "foot": {
+          "left": 253,
+          "right": 771
+        },
+        "footOverflow": 0,
+        "pageScrollW": 1024,
+        "dots": 2,
+        "newNames": 2,
+        "rows": 6,
+        "statusText": "",
+        "statusLive": "polite",
+        "headerCount": "6 alerts"
+      },
+      "immediatelyAfterPress": {
+        "active": "Close the inbox",
+        "activeIsBody": false,
+        "markDisabled": true,
+        "statusText": "Marked read.",
+        "newNames": 0,
+        "rows": 6,
+        "headerCount": "6 alerts"
+      },
+      "entryRightAfterPress": {
+        "opener": "Alerts inbox",
+        "openerBadge": null,
+        "settingsRow": "Inbox, 6 alerts",
+        "settingsRowSub": "6 alerts"
+      },
+      "viewedRightAfterPress": "2026-10-01T21:47:22Z",
+      "snapshotNowAtPress": "2026-10-01T21:47:22Z",
+      "fade": {
+        "pressT": 86,
+        "unmountMsAfterPress": 192,
+        "framesWithMarksAfterPress": 11,
+        "midFadeFrames": 8,
+        "midFadeOpacities": [
+          "26ms:0.83,0.83|0.83,0.83",
+          "41ms:0.69,0.69|0.69,0.69",
+          "59ms:0.53,0.53|0.53,0.53",
+          "76ms:0.41,0.41|0.41,0.41",
+          "92ms:0.30,0.30|0.30,0.30",
+          "109ms:0.19,0.19|0.19,0.19",
+          "126ms:0.11,0.11|0.11,0.11",
+          "144ms:0.04,0.04|0.04,0.04"
+        ],
+        "preFrame": {
+          "t": 84,
+          "dots": 2,
+          "op": "1.00,1.00",
+          "wop": "1.00,1.00",
+          "reading": 0
+        }
+      },
+      "afterFade": {
+        "dots": 0,
+        "words": 0,
+        "markedClasses": 0,
+        "rows": 6,
+        "active": "Close the inbox"
+      },
+      "statusAt4300ms": "",
+      "afterClose": {
+        "viewed": "2026-10-01T21:47:22Z",
+        "entry": {
+          "opener": "Alerts inbox",
+          "openerBadge": null,
+          "settingsRow": "Inbox, 6 alerts",
+          "settingsRowSub": "6 alerts"
+        },
+        "focusBackOnOpener": true
+      },
+      "reopened": {
+        "dots": 0,
+        "newNames": 0,
+        "markDisabled": true,
+        "statusText": ""
+      },
+      "viewedAfterReopen": "2026-10-01T21:47:22Z",
+      "addedAlertAt": "2026-10-01T21:47:30Z",
+      "newer": {
+        "rows": 7,
+        "dots": 1,
+        "newNames": [
+          "sr-alerts-row-0"
+        ],
+        "markDisabled": false
+      },
+      "entryWithNewer": {
+        "opener": "Alerts inbox, 1 new",
+        "openerBadge": "1",
+        "settingsRow": "Inbox, 7 alerts, 1 new",
+        "settingsRowSub": "7 alerts, 1 new"
+      },
+      "secondPress": {
+        "active": "Close the inbox",
+        "statusText": "Marked read.",
+        "statusChildTag": "SPAN",
+        "markDisabled": true,
+        "snapshotNow": "2026-10-01T21:47:30Z"
+      },
+      "viewedAfterSecondPress": "2026-10-01T21:47:30Z",
+      "statusDuringClosing": "",
+      "afterSecondClose": {
+        "viewed": "2026-10-01T21:47:30Z",
+        "entry": {
+          "opener": "Alerts inbox",
+          "openerBadge": null,
+          "settingsRow": "Inbox, 7 alerts",
+          "settingsRowSub": "7 alerts"
+        }
+      },
+      "paletteInboxRow": {
+        "text": "Alerts inbox",
+        "label": "Alerts inbox"
+      },
+      "settingsWrites": [
+        "2026-10-01T21:47:22Z",
+        "2026-10-01T21:47:22Z",
+        "2026-10-01T21:47:22Z",
+        "2026-10-01T21:47:30Z"
+      ]
+    },
+    "errors": []
+  },
+  {
+    "config": "ipad-dark",
+    "press": "keyboard",
+    "checks": {
+      "entryBeforeOpen": {
+        "opener": "Alerts inbox, 2 new",
+        "openerBadge": "2",
+        "settingsRow": "Inbox, 6 alerts, 2 new",
+        "settingsRowSub": "6 alerts, 2 new"
+      },
+      "viewedBeforeOpen": "2026-09-30T21:47:31Z",
+      "viewedAfterOpen": "2026-10-01T21:47:32Z",
+      "snapshotNowAtOpen": "2026-10-01T21:47:32Z",
+      "beforePress": {
+        "order": [
+          "Mark read",
+          "Clear"
+        ],
+        "markDisabled": false,
+        "clearDisabled": false,
+        "rects": [
+          {
+            "text": "Mark read",
+            "left": 606,
+            "right": 691,
+            "top": 937,
+            "height": 32,
+            "width": 84
+          },
+          {
+            "text": "Clear",
+            "left": 699,
+            "right": 755,
+            "top": 937,
+            "height": 32,
+            "width": 56
+          }
+        ],
+        "fine": {
+          "left": 269,
+          "right": 594,
+          "top": 926,
+          "bottom": 980
+        },
+        "foot": {
+          "left": 253,
+          "right": 771
+        },
+        "footOverflow": 0,
+        "pageScrollW": 1024,
+        "dots": 2,
+        "newNames": 2,
+        "rows": 6,
+        "statusText": "",
+        "statusLive": "polite",
+        "headerCount": "6 alerts"
+      },
+      "immediatelyAfterPress": {
+        "active": "Close the inbox",
+        "activeIsBody": false,
+        "markDisabled": true,
+        "statusText": "Marked read.",
+        "newNames": 0,
+        "rows": 6,
+        "headerCount": "6 alerts"
+      },
+      "entryRightAfterPress": {
+        "opener": "Alerts inbox",
+        "openerBadge": null,
+        "settingsRow": "Inbox, 6 alerts",
+        "settingsRowSub": "6 alerts"
+      },
+      "viewedRightAfterPress": "2026-10-01T21:47:32Z",
+      "snapshotNowAtPress": "2026-10-01T21:47:32Z",
+      "fade": {
+        "pressT": 14,
+        "unmountMsAfterPress": 215,
+        "framesWithMarksAfterPress": 10,
+        "midFadeFrames": 7,
+        "midFadeOpacities": [
+          "82ms:0.54,0.54|0.54,0.54",
+          "87ms:0.50,0.50|0.50,0.50",
+          "98ms:0.41,0.41|0.41,0.41",
+          "115ms:0.30,0.30|0.30,0.30",
+          "131ms:0.19,0.19|0.19,0.19",
+          "149ms:0.11,0.11|0.11,0.11",
+          "165ms:0.05,0.05|0.05,0.05"
+        ],
+        "preFrame": null
+      },
+      "afterFade": {
+        "dots": 0,
+        "words": 0,
+        "markedClasses": 0,
+        "rows": 6,
+        "active": "Close the inbox"
+      },
+      "statusAt4300ms": "",
+      "afterClose": {
+        "viewed": "2026-10-01T21:47:32Z",
+        "entry": {
+          "opener": "Alerts inbox",
+          "openerBadge": null,
+          "settingsRow": "Inbox, 6 alerts",
+          "settingsRowSub": "6 alerts"
+        },
+        "focusBackOnOpener": true
+      },
+      "reopened": {
+        "dots": 0,
+        "newNames": 0,
+        "markDisabled": true,
+        "statusText": ""
+      },
+      "viewedAfterReopen": "2026-10-01T21:47:32Z",
+      "addedAlertAt": "2026-10-01T21:47:39Z",
+      "newer": {
+        "rows": 7,
+        "dots": 1,
+        "newNames": [
+          "sr-alerts-row-0"
+        ],
+        "markDisabled": false
+      },
+      "entryWithNewer": {
+        "opener": "Alerts inbox, 1 new",
+        "openerBadge": "1",
+        "settingsRow": "Inbox, 7 alerts, 1 new",
+        "settingsRowSub": "7 alerts, 1 new"
+      },
+      "secondPress": {
+        "active": "Close the inbox",
+        "statusText": "Marked read.",
+        "statusChildTag": "SPAN",
+        "markDisabled": true,
+        "snapshotNow": "2026-10-01T21:47:39Z"
+      },
+      "viewedAfterSecondPress": "2026-10-01T21:47:39Z",
+      "statusDuringClosing": "",
+      "afterSecondClose": {
+        "viewed": "2026-10-01T21:47:39Z",
+        "entry": {
+          "opener": "Alerts inbox",
+          "openerBadge": null,
+          "settingsRow": "Inbox, 7 alerts",
+          "settingsRowSub": "7 alerts"
+        }
+      },
+      "settingsWrites": [
+        "2026-10-01T21:47:32Z",
+        "2026-10-01T21:47:32Z",
+        "2026-10-01T21:47:32Z",
+        "2026-10-01T21:47:39Z"
+      ]
+    },
+    "errors": []
+  },
+  {
+    "config": "iphone-390-light-reduced-motion",
+    "press": "mouse",
+    "checks": {
+      "entryBeforeOpen": {
+        "opener": "Alerts inbox, 2 new",
+        "openerBadge": "2",
+        "settingsRow": "Inbox, 6 alerts, 2 new",
+        "settingsRowSub": "6 alerts, 2 new"
+      },
+      "viewedBeforeOpen": "2026-09-30T21:47:40Z",
+      "viewedAfterOpen": "2026-10-01T21:47:40Z",
+      "snapshotNowAtOpen": "2026-10-01T21:47:40Z",
+      "beforePress": {
+        "order": [
+          "Mark read",
+          "Clear"
+        ],
+        "markDisabled": false,
+        "clearDisabled": false,
+        "rects": [
+          {
+            "text": "Mark read",
+            "left": 225,
+            "right": 310,
+            "top": 768,
+            "height": 44,
+            "width": 84
+          },
+          {
+            "text": "Clear",
+            "left": 318,
+            "right": 374,
+            "top": 768,
+            "height": 44,
+            "width": 56
+          }
+        ],
+        "fine": {
+          "left": 16,
+          "right": 213,
+          "top": 754,
+          "bottom": 826
+        },
+        "foot": {
+          "left": 0,
+          "right": 390
+        },
+        "footOverflow": 0,
+        "pageScrollW": 390,
+        "dots": 2,
+        "newNames": 2,
+        "rows": 6,
+        "statusText": "",
+        "statusLive": "polite",
+        "headerCount": "6 alerts"
+      },
+      "immediatelyAfterPress": {
+        "active": "Close the inbox",
+        "activeIsBody": false,
+        "markDisabled": true,
+        "statusText": "Marked read.",
+        "newNames": 0,
+        "rows": 6,
+        "headerCount": "6 alerts"
+      },
+      "entryRightAfterPress": {
+        "opener": "Alerts inbox",
+        "openerBadge": null,
+        "settingsRow": "Inbox, 6 alerts",
+        "settingsRowSub": "6 alerts"
+      },
+      "viewedRightAfterPress": "2026-10-01T21:47:40Z",
+      "snapshotNowAtPress": "2026-10-01T21:47:40Z",
+      "fade": {
+        "pressT": 37,
+        "unmountMsAfterPress": 46,
+        "framesWithMarksAfterPress": 2,
+        "midFadeFrames": 0,
+        "midFadeOpacities": [],
+        "preFrame": {
+          "t": 34,
+          "dots": 2,
+          "op": "1.00,1.00",
+          "wop": "1.00,1.00",
+          "reading": 0
+        }
+      },
+      "afterFade": {
+        "dots": 0,
+        "words": 0,
+        "markedClasses": 0,
+        "rows": 6,
+        "active": "Close the inbox"
+      },
+      "statusAt4300ms": "",
+      "afterClose": {
+        "viewed": "2026-10-01T21:47:40Z",
+        "entry": {
+          "opener": "Alerts inbox",
+          "openerBadge": null,
+          "settingsRow": "Inbox, 6 alerts",
+          "settingsRowSub": "6 alerts"
+        },
+        "focusBackOnOpener": true
+      },
+      "reopened": {
+        "dots": 0,
+        "newNames": 0,
+        "markDisabled": true,
+        "statusText": ""
+      },
+      "viewedAfterReopen": "2026-10-01T21:47:40Z",
+      "addedAlertAt": "2026-10-01T21:47:47Z",
+      "newer": {
+        "rows": 7,
+        "dots": 1,
+        "newNames": [
+          "sr-alerts-row-0"
+        ],
+        "markDisabled": false
+      },
+      "entryWithNewer": {
+        "opener": "Alerts inbox, 1 new",
+        "openerBadge": "1",
+        "settingsRow": "Inbox, 7 alerts, 1 new",
+        "settingsRowSub": "7 alerts, 1 new"
+      },
+      "secondPress": {
+        "active": "Close the inbox",
+        "statusText": "Marked read.",
+        "statusChildTag": "SPAN",
+        "markDisabled": true,
+        "snapshotNow": "2026-10-01T21:47:47Z"
+      },
+      "viewedAfterSecondPress": "2026-10-01T21:47:47Z",
+      "statusDuringClosing": "",
+      "afterSecondClose": {
+        "viewed": "2026-10-01T21:47:47Z",
+        "entry": {
+          "opener": "Alerts inbox",
+          "openerBadge": null,
+          "settingsRow": "Inbox, 7 alerts",
+          "settingsRowSub": "7 alerts"
+        }
+      },
+      "settingsWrites": [
+        "2026-10-01T21:47:40Z",
+        "2026-10-01T21:47:40Z",
+        "2026-10-01T21:47:40Z",
+        "2026-10-01T21:47:47Z"
+      ]
+    },
+    "errors": []
+  }
+]

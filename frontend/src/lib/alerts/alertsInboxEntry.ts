@@ -13,8 +13,9 @@
 //
 // THE COUNT is the number of rows alerted after "last viewed", a device-local
 // ISO timestamp in settings.json (`alertsInboxViewedAt`, written through the
-// storage seam when the sheet opens, never synced, never read by native). A
-// missing value means every row is new, which is the right first-run reading.
+// storage seam when the sheet opens and when Mark read is pressed in it, never
+// synced, never read by native). A missing value means every row is new, which
+// is the right first-run reading.
 
 import { alertsSupported, useAlertsState, type AlertsSnapshot, type InboxRow } from './alertsState'
 

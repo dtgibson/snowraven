@@ -5,9 +5,9 @@
 // AlertsSection.test.tsx with the inbox itself (QA-36, QA-39; NFR-07). The
 // host rows drive the sheet through `useAlertsInboxHost`, the same hook App.tsx
 // calls, so the close paths, "last viewed" and the focus return are tested
-// where they are decided.
+// where they are decided, and so is Mark read (alerts-inbox-mark-read).
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, cleanup, fireEvent, within, waitFor } from '@testing-library/react'
+import { render, screen, cleanup, fireEvent, within, waitFor, act } from '@testing-library/react'
 import { useRef } from 'react'
 
 const storageMock = vi.hoisted(() => ({ setSetting: vi.fn().mockResolvedValue(undefined), getSetting: vi.fn().mockResolvedValue(null) }))
@@ -24,7 +24,7 @@ import {
   type AlertsActions, type AlertsSnapshot, type InboxRow,
 } from '../lib/alerts/alertsState'
 import { useAlertsInboxHost } from '../lib/alerts/alertsInboxHost'
-import { INBOX_VIEWED_SETTING } from '../lib/alerts/alertsInboxEntry'
+import { INBOX_VIEWED_SETTING, newSinceViewed } from '../lib/alerts/alertsInboxEntry'
 import * as C from '../lib/alerts/alertsCopy'
 import { isIOS } from '../lib/platform'
 
@@ -68,8 +68,9 @@ afterEach(() => { cleanup(); installAlertsActions(null); vi.mocked(isIOS).mockRe
 function sheet(s: AlertsSnapshot, viewedAt: string | null = null) {
   setAlertsState({ loaded: true, snapshot: s })
   const onClosed = vi.fn()
-  const utils = render(<AlertsInboxSheet viewedAt={viewedAt} opener={() => null} onClosed={onClosed} />)
-  return { ...utils, onClosed }
+  const onMarkRead = vi.fn(() => true)
+  const utils = render(<AlertsInboxSheet viewedAt={viewedAt} opener={() => null} onClosed={onClosed} onMarkRead={onMarkRead} />)
+  return { ...utils, onClosed, onMarkRead }
 }
 
 describe('the sheet: rows, the empty state, the New marks (QA-36; NFR-07)', () => {
@@ -81,12 +82,13 @@ describe('the sheet: rows, the empty state, the New marks (QA-36; NFR-07)', () =
     expect(dialog.textContent).toContain('1 alert')
   })
 
-  it('empty: the two sentences, no list, Clear disabled', () => {
+  it('empty: the two sentences, no list, Clear and Mark read disabled', () => {
     const { container } = sheet(snap())
     expect(container.textContent).toContain(C.INBOX_EMPTY)
     expect(container.textContent).toContain(C.INBOX_EMPTY_DETAIL)
     expect(container.querySelector('ul')).toBeNull()
     expect((screen.getByRole('button', { name: C.CLEAR }) as HTMLButtonElement).disabled).toBe(true)
+    expect((screen.getByRole('button', { name: C.MARK_READ }) as HTMLButtonElement).disabled).toBe(true)
     expect(container.textContent).toContain(C.INBOX_BOUND)
   })
 
@@ -103,6 +105,16 @@ describe('the sheet: rows, the empty state, the New marks (QA-36; NFR-07)', () =
     expect(buttons[1]!.className).not.toContain('sr-alert--new')
     expect(container.querySelectorAll('.sr-alert-dot')).toHaveLength(1)
     for (const el of Array.from(container.querySelectorAll('[id]'))) expect(el.id).not.toMatch(/Species|Place|sp1|sp2/)
+    // Mark read sits just before Clear, in one group, enabled while a row is New.
+    const actions = container.querySelector('.sr-inbox-actions')!
+    expect(within(actions as HTMLElement).getAllByRole('button').map(b => b.textContent)).toEqual([C.MARK_READ, C.CLEAR])
+    expect((screen.getByRole('button', { name: C.MARK_READ }) as HTMLButtonElement).disabled).toBe(false)
+  })
+
+  it('rows but none New: Mark read is disabled, Clear is not', () => {
+    sheet(snap({ inbox: [row(1, { alertedAt: '2026-09-29T15:00:00Z' })] }), '2026-09-30T00:00:00Z')
+    expect((screen.getByRole('button', { name: C.MARK_READ }) as HTMLButtonElement).disabled).toBe(true)
+    expect((screen.getByRole('button', { name: C.CLEAR }) as HTMLButtonElement).disabled).toBe(false)
   })
 
   it('never viewed: every row is new', () => {
@@ -197,7 +209,9 @@ function Host({ showOpener = true, showSwitch = false }: { showOpener?: boolean;
           <Button ref={btn} type="button" onClick={() => host.openInbox({ trigger: () => btn.current })}>Open inbox</Button>
         )}
       </main>
-      {host.open && <AlertsInboxSheet viewedAt={host.open.viewedAt} opener={host.openerEl} onClosed={host.closeInbox} />}
+      {host.open && (
+        <AlertsInboxSheet viewedAt={host.open.viewedAt} opener={host.openerEl} onClosed={host.closeInbox} onMarkRead={host.markRead} />
+      )}
     </>
   )
 }
@@ -269,5 +283,91 @@ describe('the host (design-spec 7.3 and 7.5)', () => {
     expect(actions.openRow).not.toHaveBeenCalled()
     await waitFor(() => expect(actions.openRow).toHaveBeenCalledWith(rows[1]))
     await waitFor(() => expect(document.querySelector('.sr-inbox-root')).toBeNull())
+  })
+})
+
+describe('Mark read (alerts-inbox-mark-read)', () => {
+  const OPENED = '2026-09-29T00:00:00Z'
+  const LANDED = '2026-09-30T16:30:00Z'
+  const LATER = '2026-09-30T17:15:00Z'
+  const newNames = () => screen.queryAllByRole('button', { name: /^New\. / })
+  const markBtn = () => screen.getByRole('button', { name: C.MARK_READ }) as HTMLButtonElement
+  const closeBtn = () => screen.getByRole('button', { name: C.CLOSE_INBOX })
+
+  function openWithLateCheck() {
+    setAlertsState({ loaded: true, snapshot: snap({ inbox: [row(1)] }), inboxViewedAt: OPENED })
+    render(<Host />)
+    fireEvent.click(screen.getByRole('button', { name: 'Open inbox' }))
+    expect(storageMock.setSetting).toHaveBeenCalledWith(INBOX_VIEWED_SETTING, NOW)
+    // A check lands while the sheet is open: a newer snapshot, a newer row.
+    act(() => setAlertsState({ snapshot: snap({ inbox: [row(2, { alertedAt: LANDED }), row(1)], now: LANDED }) }))
+    expect(newNames()).toHaveLength(2)
+    storageMock.setSetting.mockClear()
+  }
+
+  it('clears every New mark in place, moves "last viewed" to the snapshot\'s now on disk and in the store before close, and close never moves it back', async () => {
+    openWithLateCheck()
+    const mark = markBtn()
+    mark.focus()
+    fireEvent.click(mark)
+    // Focus went to Close before the button disabled itself: never <body>.
+    expect(document.activeElement).toBe(closeBtn())
+    expect(mark.disabled).toBe(true)
+    // The accessible names drop "New. " at once; nothing is removed.
+    expect(newNames()).toHaveLength(0)
+    expect(screen.getAllByRole('button', { name: /^Species Number / })).toHaveLength(2)
+    expect(storageMock.setSetting).toHaveBeenCalledTimes(1)
+    expect(storageMock.setSetting).toHaveBeenCalledWith(INBOX_VIEWED_SETTING, LANDED)
+    const st = getAlertsState()
+    expect(st.inboxViewedAt).toBe(LANDED)
+    expect(newSinceViewed(st.snapshot!.inbox, st.inboxViewedAt)).toBe(0)
+    expect(screen.getByRole('status').textContent).toBe(C.MARKED_READ_STATUS)
+    // The visible marks fade (aria-hidden), then go: the write did not wait for them.
+    expect(document.querySelectorAll('.sr-alert--read .sr-alert-dot')).toHaveLength(2)
+    await waitFor(() => expect(document.querySelectorAll('.sr-alert-dot')).toHaveLength(0))
+    expect(document.querySelectorAll('.sr-alert--read, .sr-alert--new')).toHaveLength(0)
+    // Close commits the pending value: the Mark read time, not the opening's.
+    fireEvent.click(closeBtn())
+    await waitFor(() => expect(document.querySelector('.sr-inbox-root')).toBeNull())
+    expect(getAlertsState().inboxViewedAt).toBe(LANDED)
+    expect(storageMock.setSetting).toHaveBeenCalledTimes(1)
+  })
+
+  it('a row that arrives later is New again and re-enables the button; a second press announces again', async () => {
+    openWithLateCheck()
+    fireEvent.click(markBtn())
+    const status = screen.getByRole('status')
+    const first = status.firstElementChild
+    expect(first?.textContent).toBe(C.MARKED_READ_STATUS)
+    act(() => setAlertsState({ snapshot: snap({ inbox: [row(3, { alertedAt: LATER }), row(2, { alertedAt: LANDED }), row(1)], now: LATER }) }))
+    expect(newNames().map(b => b.id)).toEqual(['sr-alerts-row-0'])
+    expect(markBtn().disabled).toBe(false)
+    fireEvent.click(markBtn())
+    expect(newNames()).toHaveLength(0)
+    expect(storageMock.setSetting).toHaveBeenLastCalledWith(INBOX_VIEWED_SETTING, LATER)
+    expect(getAlertsState().inboxViewedAt).toBe(LATER)
+    // The same sentence in a NEW node, so the live region speaks again (ui.md).
+    expect(status.textContent).toBe(C.MARKED_READ_STATUS)
+    expect(status.firstElementChild).not.toBe(first)
+    // The marks' own opacity transitionend ends the fade before the fallback.
+    const dot = document.querySelector('.sr-alert--read .sr-alert-dot')!
+    fireEvent.transitionEnd(dot, { propertyName: 'opacity' })
+    expect(document.querySelectorAll('.sr-alert-dot')).toHaveLength(0)
+  })
+
+  it('a snapshot time "last viewed" would refuse is neither written nor kept, and nothing is announced (security I11)', async () => {
+    openWithLateCheck()
+    const ahead = new Date(Date.now() + 25 * 3_600_000).toISOString().slice(0, 19) + 'Z'
+    act(() => setAlertsState({ snapshot: snap({ inbox: [row(2, { alertedAt: LANDED }), row(1)], now: ahead }) }))
+    fireEvent.click(markBtn())
+    expect(document.activeElement).toBe(closeBtn())
+    expect(storageMock.setSetting).not.toHaveBeenCalled()
+    expect(getAlertsState().inboxViewedAt).toBe(OPENED)
+    expect(newNames()).toHaveLength(2)
+    expect(screen.getByRole('status').textContent).toBe('')
+    // The close still commits the opening's own validated time, never the refused one.
+    fireEvent.click(closeBtn())
+    await waitFor(() => expect(document.querySelector('.sr-inbox-root')).toBeNull())
+    expect(getAlertsState().inboxViewedAt).toBe(NOW)
   })
 })

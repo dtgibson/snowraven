@@ -1780,6 +1780,7 @@ export default function App() {
             viewedAt={inboxHost.open.viewedAt}
             opener={inboxHost.openerEl}
             onClosed={inboxHost.closeInbox}
+            onMarkRead={inboxHost.markRead}
           />
         </Suspense>
       )}

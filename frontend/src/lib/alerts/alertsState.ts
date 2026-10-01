@@ -178,8 +178,9 @@ export interface AlertsState {
   /** "Last viewed" for the inbox count (`alertsInboxViewedAt`, settings.json,
    *  validated on read): the controller reads it alongside the first snapshot
    *  (applied before it when the read answers within 1 s), and the inbox host
-   *  moves it forward when the sheet CLOSES, so the marks and the badge
-   *  update on close (design-spec 7.5). null: every row counts as new. */
+   *  moves it forward when the sheet CLOSES, or at once on Mark read, so the
+   *  marks and the badge update on close or on that press (design-spec 7.5;
+   *  alerts-inbox-mark-read). null: every row counts as new. */
   inboxViewedAt: string | null
 }
 

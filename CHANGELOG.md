@@ -2,6 +2,19 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [1.0.44] - 2026-10-01
+
+### Added
+- **Measure from on the home-screen widgets** (iPhone and iPad). Edit Widget on Nearby Lifers and Media Targets gains a Measure from setting: **My location**, where you are when the widget refreshes, or **Default Location**, the one saved in SnowRaven's Settings. A new widget starts on My location, and a widget you placed before this setting existed stays on it, so nothing changes until you choose. On Default Location a widget measures from your saved Default Location on every refresh, reads no location, and says "From your default location"; with no Default Location saved, it asks you to set one or switch the widget to My location, and asks eBird nothing. Tapping a widget whose list was measured from your Default Location, whether you chose it or location was off, now opens Map Explorer searched from your saved Default Location without reading your location, so the map matches the widget. Widgets on the same choice still share one eBird request per 15 minutes, and a Home Screen that mixes both makes at most one for each. Help and the privacy policy describe it.
+
+### Internal
+- Each Measure from choice keeps its own saved results in the widgets' shared container, and Alerts reads only the My location set, so a Default Location result never counts as your location for an alert. A 429 from eBird in either set holds both, and is kept even when it arrives before that set's first list. A link from a list measured from the Default Location carries one fixed marker, accepted only in last place; a link without it lands exactly as before.
+
+## [1.0.43] - 2026-10-01
+
+### Added
+- **Mark read in the Alerts inbox** (iPhone and iPad). A Mark read button beside Clear at the foot of the inbox clears every New mark at once and sets the count on the bell, the iPad sidebar item, Search and the Settings Inbox row to zero, without removing any alert. Until now the marks cleared only when you closed the inbox, so an alert that arrived while it was open still counted as new afterwards; Mark read covers that too. Alerts that arrive later are marked New as before. The "last viewed" time it moves is the same one opening the inbox sets, kept on this device and never synced. Help describes it.
+
 ## [1.0.42] - 2026-10-01
 
 ### Added

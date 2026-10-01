@@ -29,6 +29,31 @@ final class DeepLinkTests: XCTestCase {
         }
     }
 
+    /// widget-measure-from-choice: every view and bird row again with the
+    /// Default Location marker, built byte for byte, the marker always last.
+    func testEveryDefaultLocationRowIsBuiltExactly() {
+        XCTAssertEqual(f.links.fromDefault.count, f.links.views.count + f.links.birds.count)
+        for r in f.links.fromDefault {
+            let e = r.expected!
+            XCTAssertEqual(e.fromDefault, true)
+            let s = e.bird.map {
+                DeepLink.string(kind: kind(e), window: window(e), media: media(e), speciesCode: $0.speciesCode, locId: $0.locId,
+                                fromDefault: true)
+            } ?? DeepLink.string(kind: kind(e), window: window(e), media: media(e), fromDefault: true)
+            XCTAssertEqual(s, r.raw)
+            XCTAssertTrue(s.hasSuffix(DeepLink.fromDefaultMarker))
+            XCTAssertLessThanOrEqual(s.utf16.count, DeepLink.maxLength)
+            XCTAssertNotNil(URL(string: s))
+        }
+        // A refused pair still yields the view link, marked.
+        let p = f.links.refusedPairs[0]
+        XCTAssertEqual(DeepLink.string(kind: .lifers, window: .week, media: .any, speciesCode: p.speciesCode, locId: p.locId,
+                                       fromDefault: true),
+                       "snowraven://map/lifers?window=week&from=default")
+        // And no unmarked row ever carries it.
+        for r in f.links.views + f.links.birds { XCTAssertNil(r.expected!.fromDefault) }
+    }
+
     /// The enforcement on this side: delete the pattern check and these go red.
     func testEveryRefusedPairYieldsTheViewLinkNeverAnOutOfPatternLink() {
         XCTAssertEqual(f.links.refusedPairs.count, 9)

@@ -30,6 +30,15 @@
 // keydown arm only, as the More sheet and ModalDialog use it: every focusable in
 // the panel is a shared Button primitive, so WebKit's tab order and the trap's
 // list agree). Initial focus is the Close button.
+//
+// MARK READ (alerts-inbox-mark-read). Beside Clear, enabled while any row is
+// New against `viewedAt`. A press moves focus to Close FIRST (the button is
+// about to disable itself, and focus must never fall to <body>), then has the
+// host move "last viewed" (disk, store and this sheet's `viewedAt`, at once),
+// then sets the one polite status sentence. The rows' accessible names drop
+// "New. " with the new `viewedAt` straight away; only the VISIBLE marks (the
+// dot and the word, both aria-hidden) keep the pre-press value while they fade
+// (`.sr-alert--read`), until their transitionend or a fallback, then unmount.
 
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import { Bell, ChevronRight, X } from 'lucide-react'
@@ -47,18 +56,26 @@ type Phase = 'enter' | 'open' | 'closing'
 const CLOSE_FALLBACK_MS = 260
 /** A downward drag on the handle past this many px closes the sheet. */
 const SWIPE_CLOSE_PX = 56
+/** The marks' fade is 160ms; this ends it where no transitionend arrives. */
+const MARKS_FADE_FALLBACK_MS = 200
+/** How long "Marked read." stays in the status region before it is cleared. */
+const STATUS_CLEAR_MS = 4000
 
 export interface AlertsInboxSheetProps {
   /** "Last viewed" as of this opening: the New marks are computed against it
-   *  and stay for the life of the opening (design-spec 7.5). */
+   *  and stay for the life of the opening (design-spec 7.5) unless Mark read
+   *  moves it, when the host passes the new value. */
   viewedAt: string | null
   /** The control that opened the sheet: the iPad panel scales in from it. */
   opener: () => HTMLElement | null
   /** Called once, after the exit, with the row that was tapped (or null). */
   onClosed: (row: InboxRow | null) => void
+  /** Mark read: the host moves "last viewed" to the snapshot's `now`; false
+   *  when it could not (then nothing fades and nothing is announced). */
+  onMarkRead: () => boolean
 }
 
-export default function AlertsInboxSheet({ viewedAt, opener, onClosed }: AlertsInboxSheetProps) {
+export default function AlertsInboxSheet({ viewedAt, opener, onClosed, onMarkRead }: AlertsInboxSheetProps) {
   const { snapshot: snap } = useAlertsState()
   const inbox = snap?.inbox ?? []
   const nowMs = snap ? Date.parse(snap.now) : 0
@@ -69,6 +86,12 @@ export default function AlertsInboxSheet({ viewedAt, opener, onClosed }: AlertsI
   const clearRef = useRef<HTMLButtonElement>(null)
   const [phase, setPhase] = useState<Phase>('enter')
   const [clearOpen, setClearOpen] = useState(false)
+  // While the marks fade after a Mark read: the `viewedAt` they were drawn
+  // against before the press (a wrapper, because null is a real value: never viewed).
+  const [fade, setFade] = useState<{ from: string | null } | null>(null)
+  // The status sentence, in a sequence-keyed child so a second press announces (ui.md).
+  const [status, setStatus] = useState<{ seq: number; text: string }>({ seq: 0, text: '' })
+  const statusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   // Refs for the document listener, which must read the CURRENT values.
   const phaseRef = useRef<Phase>('enter')
   const clearOpenRef = useRef(false)
@@ -103,7 +126,51 @@ export default function AlertsInboxSheet({ viewedAt, opener, onClosed }: AlertsI
     chosenRef.current = row
     phaseRef.current = 'closing'
     setPhase('closing')
+    setStatus(s => (s.text ? { seq: s.seq, text: '' } : s))
   }, [])
+
+  // The status timer never outlives the sheet.
+  useEffect(() => () => { if (statusTimerRef.current) clearTimeout(statusTimerRef.current) }, [])
+
+  // The marks' fade ends on their own opacity transitionend, or the fallback;
+  // then they adopt the new `viewedAt` and unmount. Under reduced motion the
+  // global rule makes the transition near-instant, so they simply go.
+  useEffect(() => {
+    if (!fade) return
+    const panel = panelRef.current
+    const done = () => setFade(null)
+    const onEnd = (e: TransitionEvent) => {
+      const t = e.target
+      if (e.propertyName === 'opacity' && t instanceof Element && t.matches('.sr-alert--read .sr-alert-dot, .sr-alert--read .sr-alert-new')) done()
+    }
+    panel?.addEventListener('transitionend', onEnd)
+    const timer = setTimeout(done, MARKS_FADE_FALLBACK_MS)
+    return () => {
+      panel?.removeEventListener('transitionend', onEnd)
+      clearTimeout(timer)
+    }
+  }, [fade])
+
+  const anyNew = inbox.some(row => isNewSince(row, viewedAt))
+
+  const pressMarkRead = () => {
+    // 1. Focus first: this button is about to disable itself. Close is always
+    //    mounted with the sheet; <main> is 7.3's last resort, never <body>.
+    const close = closeRef.current
+    if (close) close.focus()
+    else document.querySelector<HTMLElement>('main')?.focus()
+    // 2. The host: disk, store and this sheet's `viewedAt`, none of it delayed
+    //    by the fade, which keeps the pre-press value for the visible marks only.
+    if (!onMarkRead()) return
+    setFade({ from: viewedAt })
+    // 3. One polite sentence naming the action, cleared after a while.
+    setStatus(s => ({ seq: s.seq + 1, text: C.MARKED_READ_STATUS }))
+    if (statusTimerRef.current) clearTimeout(statusTimerRef.current)
+    statusTimerRef.current = setTimeout(() => {
+      statusTimerRef.current = null
+      setStatus(s => ({ seq: s.seq, text: '' }))
+    }, STATUS_CLEAR_MS)
+  }
 
   // The exit, then the host: on the panel's own transition end, or the fallback.
   useEffect(() => {
@@ -191,12 +258,15 @@ export default function AlertsInboxSheet({ viewedAt, opener, onClosed }: AlertsI
               {inbox.map((row, i) => {
                 const w = C.rowWhen(row, nowMs)
                 const isNew = isNewSince(row, viewedAt)
+                // Read by Mark read but still fading: visible marks only.
+                const leaving = !isNew && fade !== null && isNewSince(row, fade.from)
+                const marked = isNew || leaving
                 return (
                   <li key={row.id}>
                     <Button
                       type="button"
                       id={`sr-alerts-row-${i}`}
-                      className={'sr-alert' + (isNew ? ' sr-alert--new' : '')}
+                      className={'sr-alert' + (marked ? ' sr-alert--new' : '') + (leaving ? ' sr-alert--read' : '')}
                       aria-label={C.rowLabel(row, nowMs, undefined, undefined, isNew)}
                       onClick={() => requestClose(row)}
                     >
@@ -204,9 +274,9 @@ export default function AlertsInboxSheet({ viewedAt, opener, onClosed }: AlertsI
                           content cannot nest in a button, and the row tap
                           already opens the sighting. */}
                       <span className="sr-alert-name" aria-hidden="true">
-                        {isNew && <span className="sr-alert-dot" />}
+                        {marked && <span className="sr-alert-dot" />}
                         <BirdName commonName={row.comName} hasEntry={false} size="md" />
-                        {isNew && <span className="sr-alert-new">{C.NEW_WORD}</span>}
+                        {marked && <span className="sr-alert-new">{C.NEW_WORD}</span>}
                       </span>
                       <span className="sr-alert-dist" aria-hidden="true">{`${row.distanceMi.toFixed(1)} mi`}</span>
                       <span className="sr-alert-place" aria-hidden="true">{row.locName || C.placeLabel(row.place)}</span>
@@ -229,15 +299,31 @@ export default function AlertsInboxSheet({ viewedAt, opener, onClosed }: AlertsI
 
         <div className="sr-inbox-foot">
           <p className="sr-inbox-fine">{C.INBOX_BOUND}</p>
-          <Button
-            ref={clearRef}
-            type="button"
-            className="sr-btn-quiet sr-touch-target"
-            disabled={inbox.length === 0}
-            onClick={() => setClearOpen(true)}
-          >
-            {C.CLEAR}
-          </Button>
+          {/* The two whole-inbox actions travel as one group, so they wrap
+              under the fine print together; Clear keeps the trailing edge. */}
+          <div className="sr-inbox-actions">
+            <Button
+              type="button"
+              className="sr-btn-quiet sr-touch-target"
+              disabled={!anyNew}
+              onClick={pressMarkRead}
+            >
+              {C.MARK_READ}
+            </Button>
+            <Button
+              ref={clearRef}
+              type="button"
+              className="sr-btn-quiet sr-touch-target"
+              disabled={inbox.length === 0}
+              onClick={() => setClearOpen(true)}
+            >
+              {C.CLEAR}
+            </Button>
+          </div>
+          {/* Always mounted, only its child changes (ui.md). */}
+          <div className="sr-only" role="status" aria-live="polite">
+            {status.text ? <span key={status.seq}>{status.text}</span> : null}
+          </div>
         </div>
       </div>
 

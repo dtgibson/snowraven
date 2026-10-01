@@ -1,7 +1,10 @@
 // The Edit Widget parameters (ios-lifer-widgets FR-10, FR-50;
-// design-spec.md "Edit Widget sheet"). Nearby Lifers has exactly one
-// parameter, Time range; Media Targets has Time range and Media. New widgets
-// default to Week, and a new Media Targets widget to Any.
+// design-spec.md "Edit Widget sheet"; widget-measure-from-choice). Nearby
+// Lifers has Time range then Measure from; Media Targets has Time range, Media,
+// then Measure from. New widgets default to Week, a new Media Targets widget
+// to Any, and every widget to My location, which is also what a widget placed
+// before Measure from existed reads (its stored configuration has no value
+// for it), so its behavior does not change.
 
 import AppIntents
 import WidgetKit
@@ -46,21 +49,44 @@ enum MediaOption: String, AppEnum {
     }
 }
 
+enum MeasureFromOption: String, AppEnum {
+    case myLocation, defaultLocation
+
+    static var typeDisplayRepresentation: TypeDisplayRepresentation = "Measure from"
+    static var caseDisplayRepresentations: [MeasureFromOption: DisplayRepresentation] = [
+        .myLocation: DisplayRepresentation(title: "My location", subtitle: "Where you are when the widget refreshes"),
+        .defaultLocation: DisplayRepresentation(title: "Default Location", subtitle: "The one saved in SnowRaven's Settings"),
+    ]
+
+    var measure: WidgetMeasure {
+        switch self {
+        case .myLocation: return .myLocation
+        case .defaultLocation: return .defaultLocation
+        }
+    }
+}
+
 struct NearbyLifersIntent: WidgetConfigurationIntent {
     static var title: LocalizedStringResource = "Nearby Lifers"
-    static var description = IntentDescription("Choose the time range the widget lists.")
+    static var description = IntentDescription("Choose the time range the widget lists and where it measures from.")
 
     @Parameter(title: "Time range", default: .week)
     var range: TimeRangeOption
+
+    @Parameter(title: "Measure from", default: .myLocation)
+    var measureFrom: MeasureFromOption
 }
 
 struct MediaTargetsIntent: WidgetConfigurationIntent {
     static var title: LocalizedStringResource = "Media Targets"
-    static var description = IntentDescription("Choose the time range and the media the widget lists.")
+    static var description = IntentDescription("Choose the time range and the media the widget lists, and where it measures from.")
 
     @Parameter(title: "Time range", default: .week)
     var range: TimeRangeOption
 
     @Parameter(title: "Media", default: .any)
     var media: MediaOption
+
+    @Parameter(title: "Measure from", default: .myLocation)
+    var measureFrom: MeasureFromOption
 }

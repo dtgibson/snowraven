@@ -14,11 +14,12 @@ struct LiferEntry: TimelineEntry {
 
 enum WidgetService {
     /// One engine per extension process, so every placed widget shares one
-    /// serialized refresh path and one cache (NFR-03).
+    /// serialized refresh path and one cache area per Measure from choice (NFR-03).
     static let engine = RefreshEngine(store: AppGroupStore(), transport: EBirdClient(), locator: CoreLocationLocator())
 
-    static func timeline(kind: WidgetKind, window: WidgetWindow, media: WidgetMedia) async -> Timeline<LiferEntry> {
-        let model = await engine.refresh(kind: kind, window: window, media: media)
+    static func timeline(kind: WidgetKind, window: WidgetWindow, media: WidgetMedia,
+                         measure: WidgetMeasure) async -> Timeline<LiferEntry> {
+        let model = await engine.refresh(kind: kind, window: window, media: media, measure: measure)
         return Timeline(entries: [LiferEntry(date: Date(), model: model, redacted: false)], policy: .after(model.nextRefresh))
     }
 }
@@ -34,7 +35,8 @@ struct NearbyLifersProvider: AppIntentTimelineProvider {
     }
 
     func timeline(for configuration: NearbyLifersIntent, in context: Context) async -> Timeline<LiferEntry> {
-        await WidgetService.timeline(kind: .lifers, window: configuration.range.window, media: .any)
+        await WidgetService.timeline(kind: .lifers, window: configuration.range.window, media: .any,
+                                     measure: configuration.measureFrom.measure)
     }
 }
 
@@ -49,6 +51,7 @@ struct MediaTargetsProvider: AppIntentTimelineProvider {
     }
 
     func timeline(for configuration: MediaTargetsIntent, in context: Context) async -> Timeline<LiferEntry> {
-        await WidgetService.timeline(kind: .targets, window: configuration.range.window, media: configuration.media.media)
+        await WidgetService.timeline(kind: .targets, window: configuration.range.window, media: configuration.media.media,
+                                     measure: configuration.measureFrom.measure)
     }
 }

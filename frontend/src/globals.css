@@ -3294,6 +3294,12 @@ h1, h2, h3, h4, h5, h6 {
 .sr-alert--new .sr-alert-name { display: flex; flex-wrap: wrap; align-items: center; column-gap: 6px; }
 .sr-alert-dot { flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--sr-accent); }
 .sr-alert-new { font-size: 0.6875rem; font-weight: 600; color: var(--sr-accent); }
+/* Mark read (alerts-inbox-mark-read): the marks of a row just read fade out in
+   place, opacity only, 160ms ease-out, then unmount (the sheet ends the fade on
+   their transitionend or a fallback). No transform and no layout change during
+   the fade. The global prefers-reduced-motion block collapses it, so they go. */
+.sr-alert--read .sr-alert-dot,
+.sr-alert--read .sr-alert-new { opacity: 0; transition: opacity 160ms ease-out; }
 
 /* ── The Alerts inbox's entry points and its sheet (ios-alerts, the revision
    after the live look; design-spec 7.1 to 7.5) ───────────────────────────────
@@ -3420,6 +3426,12 @@ h1, h2, h3, h4, h5, h6 {
   padding: 10px 16px 18px; border-top: 1px solid var(--sr-border-subtle);
 }
 .sr-inbox-fine { flex: 1 1 12rem; min-width: 0; margin: 0; font-size: 0.75rem; color: var(--sr-text-muted); line-height: 1.5; }
+/* The footer's two whole-inbox actions, Mark read then Clear, as one group: it
+   sits beside the fine print when the line is long enough and wraps under it,
+   right-aligned, when not, so Clear keeps the trailing edge. Each button keeps
+   .sr-btn-quiet sr-touch-target (the 44px posture and a wrapping label at the
+   phone tier). The status region beside it is .sr-only, out of the flow. */
+.sr-inbox-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 8px; margin-left: auto; }
 /* 641px and up: the ModalDialog panel register, centred, scaling in from the
    opener (the component sets transform-origin), no handle. */
 @media (min-width: 641px) {

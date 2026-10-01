@@ -159,8 +159,8 @@ final class ProbeStore: WidgetStore, @unchecked Sendable {
     var liveAtWrite: [Int] = []
     init(transport: DenseTransport) { self.transport = transport }
     func readHandover() -> HandoverRead { .valid(Fixture.shared.handover) }
-    func readCache() -> WidgetCache? { cache }
-    func writeCache(_ c: WidgetCache) { liveAtWrite.append(transport.live); cache = c }
+    func readCache(_ area: WidgetMeasure) -> WidgetCache? { area == .myLocation ? cache : nil }
+    func writeCache(_ c: WidgetCache, _ area: WidgetMeasure) { liveAtWrite.append(transport.live); cache = c }
 }
 
 /// A byte sequence that yields `count` bytes lazily and counts how many were
