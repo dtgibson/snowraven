@@ -2,6 +2,11 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [1.0.45] - 2026-10-01
+
+### Fixed
+- On iPhone, and anywhere the tabs sit in a bar across the bottom of the screen, the More sheet now keeps Settings in view at its bottom edge at every screen size and text size. Since Targets joined the tabs in 1.0.39, Settings sat below the sheet's visible area, under the home indicator on most iPhones, and looked missing. The sheet is also a little taller, so at the default text size every tab in it shows without scrolling on iPhones with a home indicator; at larger text sizes the list above Settings scrolls.
+
 ## [1.0.44] - 2026-10-01
 
 ### Added
