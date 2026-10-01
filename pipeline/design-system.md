@@ -156,7 +156,10 @@ italic at 0.71875rem `--sr-text-gray`.
   opened it. The density is chosen in CSS alone. A header row (16px accent
   glyph, the title with a muted count, a 32px Close as initial focus) sits
   over a body that scrolls on its own (`overscroll-behavior: contain`) and a
-  wrapping footer for the fine print and a quiet action. One close path: the
+  wrapping footer for the fine print and its quiet actions, grouped
+  (`.sr-inbox-actions`) so they wrap as one right-aligned pair with the
+  destructive one trailing; an action that disables itself on press sends
+  focus to Close first, never to its destructive neighbor. One close path: the
   X, a tap on the scrim, a swipe down on the handle (phone, never the only
   way) and Escape. Focus returns to the opener, else to a named fallback,
   else to `<main>`. A confirmation it opens is the shared `ModalDialog`

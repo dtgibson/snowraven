@@ -7,7 +7,7 @@ It records what has been built and key decisions made during development.
 
 ### Alerts (iPhone and iPad)
 
-An off-by-default **Alerts** section in Settings checks about hourly or about daily, in the background and when the app is opened, for eBird reports within a chosen radius (up to 25 miles) of a fixed place or the device's most recent position of countable species not in the user's eBird backup, sends one summary notification that waits out the user's quiet hours and opens Nearby Lifers at the sighting, alerts a species again only after seven days, and keeps 30 days of alerts in an inbox reached from Settings, a header bell or sidebar item that counts what is new, and Search.
+An off-by-default **Alerts** section in Settings checks about hourly or about daily, in the background and when the app is opened, for eBird reports within a chosen radius (up to 25 miles) of a fixed place or the device's most recent position of countable species not in the user's eBird backup, sends one summary notification that waits out the user's quiet hours and opens Nearby Lifers at the sighting, alerts a species again only after seven days, and keeps 30 days of alerts in an inbox reached from Settings, a header bell or sidebar item that counts what is new until the inbox is viewed or marked read, and Search.
 
 ### Splits and lumps on Species Detail
 
