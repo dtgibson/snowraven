@@ -19,7 +19,8 @@
 //     Xcode report a malformed project) and links the three frameworks, and
 //     the test target compiles
 //     AlertsLogic with the parity fixture as a resource;
-//   * the widget extension's plist and both entitlement files are byte-for-byte
+//   * the widget extension's plist (but for the build number the release
+//     stamps) and both entitlement files are byte-for-byte
 //     what they were before this feature (a snapshot row, since "no change to
 //     the widgets" is a claim).
 // Each check is a pure function over file text, run against the real files and
@@ -37,6 +38,20 @@ const ENTITLEMENTS = [
   'src-tauri/gen/apple/snowraven_iOS/snowraven_iOS.entitlements',
   'src-tauri/gen/apple/snowraven_widgets/snowraven_widgets.entitlements',
 ]
+const WIDGET_PLIST = 'src-tauri/gen/apple/snowraven_widgets/Info.plist'
+// The extension plist's CFBundleVersion is written by the release itself:
+// `tauri ios build --build-number N` stamps it at every iOS build (the
+// snowraven-release runbook), and its value is governed by
+// iosWidgetManifest.test.ts. The snapshot below therefore masks that ONE value
+// and pins every other byte; hashed whole, it went red at main's routine
+// `stamp iOS 1.0.41 build 1` and would have again at every stamp after it
+// (found at the 1.0.42 pre-deploy merge). Exactly one slot, or it throws.
+const STAMP_SLOT = /(<key>CFBundleVersion<\/key>\s*<string>)[^<]*(<\/string>)/g
+const maskStamp = (xml: string): string => {
+  const slots = [...xml.matchAll(STAMP_SLOT)].length
+  if (slots !== 1) throw new Error(`expected one CFBundleVersion value, found ${slots}`)
+  return xml.replace(STAMP_SLOT, '$1<stamp>$2')
+}
 
 type Dict = Record<string, PlistValue>
 const dict = (xml: string): Dict => {
@@ -122,7 +137,9 @@ describe('no push, and the widget extension is untouched', () => {
 
   it('the extension plist and both entitlement files are byte-identical to before this feature (snapshot)', () => {
     const sha = (p: string) => createHash('sha256').update(readFileSync(new URL(`../../../${p}`, import.meta.url))).digest('hex')
-    expect(sha('src-tauri/gen/apple/snowraven_widgets/Info.plist')).toBe('fce78bfcced7e9ad76ffe131f8518dc67981277f019051e4e7e8a724221d67c7')
+    // Every byte of the extension plist but the one value the release stamp
+    // owns (see maskStamp below).
+    expect(createHash('sha256').update(maskStamp(read(WIDGET_PLIST))).digest('hex')).toBe('81a2afd69771f226327b5708c474833c964b97b6752a5d2022987882faa8632c')
     expect(sha(ENTITLEMENTS[1]!)).toBe('36b8bdc903ad13dc51945fa721637436381ddd26665d5a8efaebb51013de8bc9')
     expect(sha(ENTITLEMENTS[0]!)).toBe('6b7673cd778e67477d03ccd743d8d7160a81728b3da79955bb1dfc7ea976bb79')
   })
@@ -148,5 +165,20 @@ describe('guard the guard: each check fails on a one-character mutation', () => 
   })
   it('the entitlement check', () => {
     expect(entitlementProblems(read(ENTITLEMENTS[0]!).replace('<dict>', '<dict><key>aps-environment</key><string>production</string>'))).not.toEqual([])
+  })
+  it('the extension snapshot masks the stamped build number and nothing else', () => {
+    const xml = read(WIDGET_PLIST)
+    const h = (x: string) => createHash('sha256').update(maskStamp(x)).digest('hex')
+    const stamped = /<key>CFBundleVersion<\/key>\s*<string>([^<]*)<\/string>/.exec(xml)![1]!
+    // A different stamp, or the build-setting form, is the same snapshot...
+    expect(h(xml.replace(`<string>${stamped}</string>`, '<string>9.9.9.9</string>'))).toBe(h(xml))
+    expect(h(xml.replace(`<string>${stamped}</string>`, '<string>$(CURRENT_PROJECT_VERSION)</string>'))).toBe(h(xml))
+    // ...while a one-character change anywhere else is not, the marketing
+    // version beside it included,
+    expect(h(xml.replace('com.apple.widgetkit-extension', 'com.apple.widgetkit-extensioN'))).not.toBe(h(xml))
+    expect(h(xml.replace('$(MARKETING_VERSION)', '$(MARKETING_VERSIOn)'))).not.toBe(h(xml))
+    // and a plist with no stamp slot, or two, is refused rather than hashed.
+    expect(() => maskStamp(xml.replace('<key>CFBundleVersion</key>', '<key>CFBundleVersioN</key>'))).toThrow()
+    expect(() => maskStamp(xml.replace('<dict>', `<dict><key>CFBundleVersion</key><string>${stamped}</string>`))).toThrow()
   })
 })
