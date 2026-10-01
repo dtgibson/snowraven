@@ -21,6 +21,9 @@ paths:
   - "backend/staticdata/**"
   - "scripts/build-ebird-taxonomy.mjs"
   - "scripts/build-countability.mjs"
+  - "frontend/src/assets/ebird-taxonomy-history.json"
+  - "scripts/build-taxonomy-history.mjs"
+  - "scripts/lib/taxonomyHistoryDerive*"
 ---
 
 # SnowRaven bird-name conventions

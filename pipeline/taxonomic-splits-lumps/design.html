@@ -1,0 +1,991 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Splits and Lumps design</title>
+<style>
+/* ── SnowRaven tokens, copied verbatim from frontend/src/globals.css ── */
+:root {
+  --font-sans: 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
+
+  --sr-bg: #F9FAFB;
+  --sr-surface: #FFFFFF;
+  --sr-surface-subtle: #F4F4F5;
+  --sr-surface-faint: #FAFAFA;
+
+  --sr-text: #0F1117;
+  --sr-text-muted: #6B6B74;
+  --sr-text-disabled: #A1A1AA;
+  --sr-text-gray: #6B7280;
+
+  --sr-border: #E4E4E7;
+  --sr-border-subtle: #F4F4F5;
+  --sr-border-medium: #C4C4CE;
+  --sr-border-input: #8A8A91;
+
+  --sr-accent: #277448;
+  --sr-accent-strong: #1A5C38;
+  --sr-accent-bg: #E8F5EE;
+  --sr-accent-bg-hover: #F0FAF4;
+  --sr-accent-border: rgba(39,116,72,0.25);
+  --sr-accent-border-strong: rgba(39,116,72,0.7);
+  --sr-on-accent: #FFFFFF;
+
+  --sr-gray-400: #8E8E96;
+  --sr-card-shadow: 0 1px 4px rgba(15,17,23,0.06), 0 4px 16px rgba(15,17,23,0.04);
+  --sr-switch-thumb: #FFFFFF;
+  --sr-switch-thumb-shadow: 0 1px 2px rgba(15,17,23,0.25);
+}
+[data-theme="dark"] {
+  --sr-bg: #09090B;
+  --sr-surface: #18181B;
+  --sr-surface-subtle: #27272A;
+  --sr-surface-faint: #1C1C1F;
+
+  --sr-text: #F4F4F5;
+  --sr-text-muted: #A1A1AA;
+  --sr-text-disabled: #52525B;
+  --sr-text-gray: #8A8A92;
+
+  --sr-border: #27272A;
+  --sr-border-subtle: #1F1F23;
+  --sr-border-medium: #3F3F46;
+  --sr-border-input: #707078;
+
+  --sr-accent: #34D399;
+  --sr-accent-strong: #34D399;
+  --sr-accent-bg: #052E16;
+  --sr-accent-bg-hover: #064E3B;
+  --sr-accent-border: rgba(52,211,153,0.2);
+  --sr-accent-border-strong: rgba(52,211,153,0.5);
+  --sr-on-accent: #052E16;
+
+  --sr-gray-400: #6E6E78;
+  --sr-card-shadow: 0 1px 4px rgba(2,2,4,0.4), 0 4px 16px rgba(2,2,4,0.25);
+}
+
+/* ── Base ── */
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: var(--font-sans);
+  color: var(--sr-text);
+  background:
+    radial-gradient(900px 420px at 50% -160px, var(--sr-accent-bg), transparent 70%),
+    var(--sr-bg);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  line-height: 1.5;
+}
+button { font-family: inherit; }
+button:focus-visible, [tabindex]:focus-visible, select:focus-visible, input:focus-visible {
+  outline: 3px solid var(--sr-accent);
+  outline-offset: 3px;
+}
+svg { flex-shrink: 0; }
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border-width: 0;
+}
+
+/* ── Preview chrome (design review scaffolding, not part of the app) ── */
+.preview-bar {
+  max-width: 1080px; margin: 0 auto;
+  padding: 16px 20px 10px;
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 10px 16px;
+}
+.preview-label {
+  font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.09em;
+  text-transform: uppercase; color: var(--sr-text-muted);
+}
+.preview-controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.preview-controls .pc-name { font-size: 0.6875rem; color: var(--sr-text-muted); margin-left: 6px; }
+.seg {
+  display: inline-flex; border: 1.5px solid var(--sr-border);
+  border-radius: 6px; overflow: hidden; background: var(--sr-surface);
+}
+.seg button {
+  border: none; background: none; cursor: pointer;
+  padding: 5px 11px; font-size: 0.71875rem; font-weight: 500;
+  color: var(--sr-text-muted);
+  transition: background 120ms ease-out, color 120ms ease-out;
+}
+.seg button + button { border-left: 1px solid var(--sr-border); }
+.seg button[aria-pressed="true"] {
+  background: var(--sr-accent-bg); color: var(--sr-accent); font-weight: 600;
+}
+.stage { padding: 4px 20px 56px; display: flex; justify-content: center; }
+.app-frame {
+  width: 100%; max-width: 1020px;
+  background: var(--sr-bg);
+  border: 1px solid var(--sr-border);
+  border-radius: 14px;
+  box-shadow: var(--sr-card-shadow);
+  padding: 28px 24px 28px;
+  transition: max-width 200ms ease-out;
+}
+.stage.phone-w .app-frame { max-width: 320px; }
+.preview-note {
+  margin: 34px 0 10px; padding-top: 14px;
+  border-top: 1px dashed var(--sr-border-medium);
+  font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.09em;
+  text-transform: uppercase; color: var(--sr-text-muted);
+}
+.preview-sub { font-size: 0.71875rem; color: var(--sr-text-muted); margin: 0 0 10px; }
+
+/* ── App slice: tab header (house header register) ── */
+.tab-head { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
+.tab-tile {
+  width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0;
+  background: var(--sr-accent-bg); color: var(--sr-accent);
+  display: flex; align-items: center; justify-content: center;
+}
+.tab-head h2 { margin: 0; font-size: 1.125rem; font-weight: 700; letter-spacing: -0.01em; line-height: 1.2; }
+.tab-head p { margin: 1px 0 0; font-size: 0.8125rem; color: var(--sr-text-muted); }
+
+/* ── App slice: toolbar ── */
+.ctl-row {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 14px; flex-wrap: wrap;
+}
+.toggle-chip {
+  display: inline-flex; align-items: center; gap: 7px;
+  height: 30px; padding: 0 10px 0 8px; border-radius: 6px;
+  border: 1.5px solid var(--sr-border); background: var(--sr-surface);
+  font-size: 0.75rem; font-weight: 500; color: var(--sr-text-muted);
+  white-space: nowrap;
+}
+.toggle-track {
+  width: 28px; height: 16px; border-radius: 8px; position: relative;
+  background: var(--sr-gray-400);
+}
+.toggle-knob {
+  width: 12px; height: 12px; border-radius: 50%; position: absolute;
+  top: 2px; left: 2px; background: var(--sr-switch-thumb);
+  box-shadow: var(--sr-switch-thumb-shadow);
+}
+.species-count { margin-left: auto; font-size: 0.75rem; color: var(--sr-text-muted); }
+
+/* ── Species combobox replica ── */
+.combo { position: relative; margin-bottom: 16px; }
+.combo-btn {
+  width: 100%; display: flex; align-items: center; gap: 9px;
+  min-height: 40px; padding: 0 12px; border-radius: 8px;
+  border: 1.5px solid var(--sr-border-input); background: var(--sr-surface);
+  font-size: 0.875rem; font-weight: 500; color: var(--sr-text);
+  cursor: pointer; text-align: left;
+}
+.combo-btn .combo-caret { margin-left: auto; color: var(--sr-text-muted); }
+.combo-pop {
+  position: absolute; z-index: 20; top: calc(100% + 5px); left: 0; right: 0;
+  background: var(--sr-surface); border: 1px solid var(--sr-border);
+  border-radius: 8px; box-shadow: var(--sr-card-shadow); overflow: hidden;
+  transform-origin: top center;
+  animation: pop-in 140ms cubic-bezier(0.2, 0, 0, 1);
+}
+.combo-pop ul { list-style: none; margin: 0; padding: 4px; }
+.combo-opt {
+  display: flex; align-items: baseline; gap: 8px; width: 100%; text-align: left; border: none; background: none;
+  padding: 7px 10px; border-radius: 6px; cursor: pointer;
+  font-size: 0.84375rem; font-weight: 500; color: var(--sr-text);
+  transition: background 120ms ease-out;
+}
+.combo-opt .combo-sci { font-size: 0.71875rem; font-style: italic; color: var(--sr-text-gray); margin-left: auto; max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.combo-opt:hover { background: var(--sr-surface-subtle); }
+.combo-opt[aria-selected="true"] { background: var(--sr-accent-bg); color: var(--sr-accent); }
+.combo-more {
+  padding: 7px 12px 8px; font-size: 0.71875rem; color: var(--sr-text-muted);
+  border-top: 1px solid var(--sr-border-subtle);
+}
+@keyframes pop-in {
+  from { opacity: 0; transform: translateY(-4px) scale(0.985); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ── The taxonomy-tools row: "Subspecies and forms" (shipped, static here)
+      beside the NEW "Splits and lumps" control. Same .sr-ssx-toggle register
+      from globals.css, byte-for-byte, so the two read as one family. ── */
+.tools-wrap { margin-bottom: 16px; }
+.tools-row { display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: flex-start; }
+.ssx-toggle {
+  display: inline-flex; align-items: center; gap: 8px;
+  min-height: 34px; padding: 0 12px 0 8px; border-radius: 8px;
+  border: 1.5px solid var(--sr-border); background: var(--sr-surface);
+  font-size: 0.75rem; font-weight: 500; color: var(--sr-text); cursor: pointer;
+  transition: background 140ms ease-out, border-color 140ms ease-out, color 140ms ease-out;
+}
+.ssx-toggle:hover { background: var(--sr-surface-subtle); }
+.ssx-toggle[aria-expanded="true"] {
+  background: var(--sr-accent-bg);
+  border-color: var(--sr-accent-border-strong);
+  color: var(--sr-accent);
+}
+.ssx-tile {
+  width: 22px; height: 22px; border-radius: 6px; flex-shrink: 0;
+  background: var(--sr-accent-bg); color: var(--sr-accent);
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.ssx-toggle[aria-expanded="true"] .ssx-tile { background: var(--sr-surface); }
+[data-theme="dark"] .ssx-toggle[aria-expanded="true"] .ssx-tile { background: var(--sr-surface-subtle); }
+.ssx-n { color: var(--sr-text-muted); font-weight: 500; }
+.ssx-toggle[aria-expanded="true"] .ssx-n { color: var(--sr-accent); }
+.ssx-caret { color: var(--sr-text-muted); transition: transform 200ms ease-out; }
+.ssx-toggle[aria-expanded="true"] .ssx-caret { transform: rotate(180deg); color: var(--sr-accent); }
+
+/* The Splits and lumps list panel: the explorer panel's register (surface-faint,
+   radius 10, origin-aware pop-in from the control above). */
+.sl-panel {
+  margin-top: 8px;
+  border: 1px solid var(--sr-border); border-radius: 10px;
+  background: var(--sr-surface-faint);
+  overflow: hidden;
+  transform-origin: top left;
+  animation: pop-in 200ms ease-out;
+}
+.sl-panel-head { padding: 10px 14px; font-size: 0.71875rem; color: var(--sr-text-muted); line-height: 1.5; }
+.sl-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--sr-border-subtle); }
+.sl-list li + li { border-top: 1px solid var(--sr-border-subtle); }
+.sl-row {
+  display: flex; align-items: baseline; gap: 10px; width: 100%; text-align: left;
+  border: none; background: none; cursor: pointer;
+  padding: 10px 14px; transition: background 120ms ease-out;
+}
+.sl-row:hover { background: var(--sr-surface-subtle); }
+.sl-row[aria-current="true"] { background: var(--sr-accent-bg); }
+.sl-row-name { min-width: 0; overflow-wrap: anywhere; font-size: 0.84375rem; font-weight: 600; color: var(--sr-text); }
+.sl-row[aria-current="true"] .sl-row-name { color: var(--sr-accent); }
+.sl-row-ev {
+  margin-left: auto; flex-shrink: 0; display: inline-flex; align-items: center; gap: 5px;
+  font-size: 0.6875rem; color: var(--sr-text-muted); font-variant-numeric: tabular-nums;
+}
+.sl-row-ev b { font-weight: 600; color: var(--sr-text); }
+.sl-row[aria-current="true"] .sl-row-ev b { color: var(--sr-accent); }
+.sl-row-ev svg { color: var(--sr-text-muted); }
+
+/* ── Filter row replica (static) ── */
+.filter-row { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+.sel {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 30px; padding: 0 10px 0 8px;
+  border: 1.5px solid var(--sr-border); border-radius: 6px; background: var(--sr-surface);
+  font-size: 0.75rem; color: var(--sr-text-muted);
+}
+.sel svg { color: var(--sr-text-muted); }
+.date-pair { display: inline-flex; align-items: center; gap: 6px; font-size: 0.75rem; color: var(--sr-text-muted); }
+.date-box { min-height: 30px; padding: 0 9px; border: 1.5px solid var(--sr-border); border-radius: 6px; background: var(--sr-surface); display: inline-flex; align-items: center; font-size: 0.75rem; color: var(--sr-text-muted); }
+
+/* ── Cards (SectionCard / SectionHead / StatLabel registers) ── */
+.card {
+  background: var(--sr-surface); border: 1px solid var(--sr-border);
+  border-radius: 12px; overflow: hidden; box-shadow: var(--sr-card-shadow);
+  margin-bottom: 14px;
+}
+.section-head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 14px 18px 12px; border-bottom: 1px solid var(--sr-border-subtle);
+}
+.section-tile {
+  width: 28px; height: 28px; border-radius: 7px; flex-shrink: 0;
+  background: var(--sr-accent-bg); color: var(--sr-accent);
+  display: flex; align-items: center; justify-content: center;
+}
+.section-title { font-size: 0.8125rem; font-weight: 600; color: var(--sr-text); }
+.card-body { padding: 16px 18px; }
+.stat-row { display: flex; gap: 28px; flex-wrap: wrap; }
+.stat-label {
+  font-size: 0.6875rem; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.07em; color: var(--sr-text-muted); margin-bottom: 4px;
+}
+.stat-val { font-size: 1.25rem; font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; color: var(--sr-text); font-variant-numeric: tabular-nums; }
+.stat-val.accent { color: var(--sr-accent); }
+.muted-line { font-size: 0.8125rem; color: var(--sr-text-muted); }
+.graph-stub { display: flex; gap: 6px; flex-wrap: wrap; }
+.graph-stub span {
+  padding: 5px 13px; border-radius: 5px; font-size: 0.75rem; font-weight: 500;
+  background: var(--sr-surface-subtle); color: var(--sr-text-muted);
+}
+.graph-stub span.on { background: var(--sr-accent-bg); color: var(--sr-accent); font-weight: 600; }
+
+/* ══ NEW: the Splits and Lumps lineage section ══════════════════════════════ */
+.lin-body { }
+.lin-body.enter { animation: lin-in 160ms ease-out; }
+@keyframes lin-in { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+
+.lin-filter-line { font-size: 0.71875rem; color: var(--sr-text-muted); margin-bottom: 12px; }
+
+/* The stale-export note: the quiet bordered register, never an error. */
+.lin-note {
+  display: flex; gap: 9px; align-items: flex-start;
+  padding: 9px 12px; margin-bottom: 14px;
+  border: 1px solid var(--sr-border); border-radius: 8px; background: var(--sr-surface-faint);
+  font-size: 0.75rem; line-height: 1.5; color: var(--sr-text);
+}
+.lin-note svg { color: var(--sr-text-muted); margin-top: 2px; }
+.lin-note b { font-weight: 600; }
+
+.lin-event + .lin-event { margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--sr-border-subtle); }
+
+/* The flow chart: before | rail (kind + update) | after. Every connector is a
+   1px --sr-border-medium hairline drawn by pseudo-elements, so a node's own
+   height decides its geometry and nothing is measured in JS. */
+.lin-chart {
+  /* The stub meets each node at the centre of its first name line: 10px padding
+     plus half a 1.3 line of 0.84375rem text, so it tracks the text scale. */
+  --lin-stub: calc(10px + 0.55rem);
+  display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center; column-gap: 0;
+}
+.lin-side { display: flex; flex-direction: column; gap: 10px; min-width: 0; position: relative; }
+.lin-side--before { padding-right: 18px; }
+.lin-side--after  { padding-left: 18px; }
+.lin-side-label { font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: var(--sr-text-muted); }
+
+.lin-node {
+  position: relative; border: 1px solid var(--sr-border); border-radius: 8px;
+  background: var(--sr-surface); padding: 10px 12px; min-width: 0;
+}
+.lin-node.is-you { border-color: var(--sr-accent-border-strong); background: var(--sr-accent-bg); }
+.lin-node.is-absent { border-style: dashed; border-color: var(--sr-border-medium); background: transparent; }
+
+/* Stubs: a single-node side meets the rail at its vertical centre; a multi-node
+   side hangs each node off a shared spine at the name line (20px down). */
+.lin-node::before {
+  content: ''; position: absolute; width: 18px; height: 1px; background: var(--sr-border-medium);
+}
+.lin-side--before .lin-node::before { right: -18px; }
+.lin-side--after  .lin-node::before { left: -18px; }
+.lin-side--single .lin-node::before { top: 50%; }
+.lin-side--multi  .lin-node::before { top: var(--lin-stub); }
+.lin-side--multi .lin-node::after {
+  content: ''; position: absolute; width: 1px; background: var(--sr-border-medium);
+  top: -10px; bottom: -10px;
+}
+.lin-side--before.lin-side--multi .lin-node::after { right: -18px; }
+.lin-side--after.lin-side--multi  .lin-node::after { left: -18px; }
+.lin-side--multi .lin-node:first-child::after { top: var(--lin-stub); }
+.lin-side--multi .lin-node:last-child::after  { bottom: calc(100% - var(--lin-stub)); }
+.lin-side--multi .lin-node:only-child::after  { display: none; }
+
+.lin-rail { display: flex; align-items: center; }
+.lin-rail::before, .lin-rail::after { content: ''; width: 22px; height: 1px; background: var(--sr-border-medium); }
+.lin-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  min-height: 28px; padding: 0 11px; border-radius: 14px;
+  border: 1px solid var(--sr-border); background: var(--sr-surface-faint);
+  font-size: 0.75rem; white-space: nowrap;
+}
+.lin-badge b { font-weight: 700; color: var(--sr-text); }
+.lin-badge span { color: var(--sr-text-muted); }
+.lin-badge svg { color: var(--sr-text-muted); }
+
+/* Node internals */
+.lin-name { font-size: 0.84375rem; font-weight: 600; line-height: 1.3; color: var(--sr-text); overflow-wrap: anywhere; }
+.lin-name .lin-link {
+  background: none; border: 0; padding: 0; margin: 0; cursor: pointer;
+  font: inherit; color: inherit; text-align: left; overflow-wrap: anywhere;
+}
+.lin-name .lin-link:hover, .lin-name .lin-link:focus-visible { color: var(--sr-accent); text-decoration: underline; }
+.lin-sci { font-size: 0.71875rem; font-style: italic; color: var(--sr-text-gray); line-height: 1.3; overflow-wrap: anywhere; }
+.is-absent .lin-name { color: var(--sr-text-muted); font-weight: 500; }
+.lin-mark {
+  display: inline-flex; align-items: center; gap: 4px; margin-top: 6px;
+  font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em;
+}
+.lin-mark--you { color: var(--sr-accent); }
+.lin-mark--absent { color: var(--sr-text-muted); }
+.lin-mark--slash { color: var(--sr-text-muted); }
+.lin-count { margin-top: 6px; font-size: 0.84375rem; font-weight: 700; color: var(--sr-text); font-variant-numeric: tabular-nums; }
+.lin-part { margin-top: 1px; font-size: 0.71875rem; color: var(--sr-text-muted); line-height: 1.5; display: flex; flex-wrap: wrap; gap: 0 12px; }
+.lin-part b { font-weight: 600; color: var(--sr-text); font-variant-numeric: tabular-nums; }
+/* One bar, one fill: the track itself is the "reassigned" share and the single
+   accent fill is the "recorded since" share, right-aligned. Two abutting fills
+   left a hairline of track showing at their subpixel seam. */
+.lin-bar { display: flex; justify-content: flex-end; height: 3px; border-radius: 2px; margin-top: 7px; background: var(--sr-gray-400); overflow: hidden; }
+.lin-bar i { display: block; height: 100%; flex: none; background: var(--sr-accent); animation: lin-bar-in 240ms ease-out; }
+@keyframes lin-bar-in { from { width: 0; } }
+
+.lin-sentence { margin: 14px 0 0; font-size: 0.75rem; line-height: 1.55; color: var(--sr-text-muted); max-width: 66ch; }
+.lin-sentence b { font-weight: 600; color: var(--sr-text); }
+.lin-coverage { margin: 16px 0 0; padding-top: 12px; border-top: 1px solid var(--sr-border-subtle); font-size: 0.71875rem; color: var(--sr-text-muted); line-height: 1.5; }
+.lin-empty { font-size: 0.8125rem; color: var(--sr-text-muted); }
+
+/* The text equivalent: what a screen reader receives, in reading order. Hidden
+   visually by default; the preview's "Text equivalent" toggle reveals it. */
+.lin-alt { margin: 12px 0 0; padding: 10px 12px; border-left: 3px solid var(--sr-accent-border); background: var(--sr-surface-faint); font-size: 0.75rem; line-height: 1.55; color: var(--sr-text); }
+.lin-alt p { margin: 0; }
+.lin-alt p + p { margin-top: 6px; }
+html:not(.show-alt) .lin-alt { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border-width: 0; }
+.show-alt .lin-chart, .show-alt .lin-sentence { opacity: 0.55; }
+.alt-caption { display: none; font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: var(--sr-accent); margin-bottom: 4px; }
+.show-alt .alt-caption { display: block; }
+
+/* ── Narrow layout (mirrors the app's <=640 tier; applied by toggle or viewport) ── */
+.narrow .app-frame { padding: 20px 12px 24px; }
+.narrow .card-body { padding-left: 16px; padding-right: 16px; }
+.narrow .section-head { padding-left: 16px; padding-right: 16px; }
+.narrow .species-count { margin-left: 0; width: 100%; }
+.narrow .ssx-toggle { flex-wrap: wrap; max-width: 100%; row-gap: 2px; padding-top: 4px; padding-bottom: 4px; }
+.narrow .tools-row { flex-direction: column; align-items: stretch; }
+.narrow .tools-row .ssx-toggle { justify-content: flex-start; }
+.narrow .filter-row .sel { width: 100%; }
+/* The chart stacks: before, then a vertical rail with the badge, then after.
+   Multi-node sides keep their spine, now on the left at x = 24px, and the rail
+   drops into it. */
+.narrow .lin-chart { grid-template-columns: minmax(0, 1fr); row-gap: 8px; }
+.narrow .lin-side--before, .narrow .lin-side--after { padding: 0; }
+.narrow .lin-side--multi { padding-left: 42px; }
+/* The rail's two lines reach 8px past the badge on each side (the grid's row
+   gap) so they touch a single node's edge; a multi-node side's spine already
+   extends into that gap, and the two overlap on the same 1px line. */
+.narrow .lin-rail { flex-direction: column; align-items: flex-start; margin: -8px 0; }
+.narrow .lin-rail::before, .narrow .lin-rail::after { width: 1px; height: 22px; margin-left: 24px; }
+/* The kind glyph follows the flow: it fans out (or converges) to the right in
+   the wide layout and turns to fan downward when the chart stacks. */
+.narrow .lin-badge svg { transform: rotate(90deg); }
+.narrow .lin-node::before { display: none; }
+.narrow .lin-side--multi .lin-node::before { display: block; left: -18px; right: auto; top: var(--lin-stub); }
+.narrow .lin-side--multi .lin-node::after { left: -18px; right: auto; }
+.narrow .lin-side--before.lin-side--multi .lin-node:last-child::after { bottom: 0; }
+.narrow .lin-side--after.lin-side--multi .lin-node:first-child::after { top: 0; }
+.narrow .lin-badge { white-space: normal; }
+
+/* ── Reduced motion: the app's global block collapses every transition and
+      animation; the preview's Motion toggle mirrors it with .reduce-motion. ── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
+}
+.reduce-motion *, .reduce-motion *::before, .reduce-motion *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
+</style>
+</head>
+<body>
+
+<!-- ══ Preview chrome (design review scaffolding, not part of the app) ══ -->
+<div class="preview-bar">
+  <span class="preview-label">Design preview · Splits and Lumps</span>
+  <div class="preview-controls">
+    <div class="seg" role="group" aria-label="Theme">
+      <button type="button" id="themeLight" aria-pressed="true">Light</button>
+      <button type="button" id="themeDark" aria-pressed="false">Dark</button>
+    </div>
+    <div class="seg" role="group" aria-label="Preview width">
+      <button type="button" id="widthWide" aria-pressed="true">Desktop</button>
+      <button type="button" id="widthPhone" aria-pressed="false">Phone 320</button>
+    </div>
+    <span class="pc-name">Backup exported</span>
+    <div class="seg" role="group" aria-label="When the backup was exported">
+      <button type="button" id="exportNow" aria-pressed="true">Sept 2026</button>
+      <button type="button" id="exportOld" aria-pressed="false">Sept 2025 (before the update)</button>
+    </div>
+    <span class="pc-name">Text equivalent</span>
+    <div class="seg" role="group" aria-label="Text equivalent">
+      <button type="button" id="altHide" aria-pressed="true">Hidden</button>
+      <button type="button" id="altShow" aria-pressed="false">Shown</button>
+    </div>
+    <span class="pc-name">Motion</span>
+    <div class="seg" role="group" aria-label="Motion">
+      <button type="button" id="motionOn" aria-pressed="true">Normal</button>
+      <button type="button" id="motionOff" aria-pressed="false">Reduced</button>
+    </div>
+  </div>
+</div>
+
+<div class="stage" id="stage">
+  <div class="app-frame">
+
+    <!-- Tab header (existing) -->
+    <div class="tab-head">
+      <div class="tab-tile" aria-hidden="true">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 7h.01"/><path d="M3.4 18H12a8 8 0 0 0 8-8V7a4 4 0 0 0-7.28-2.3L2 20"/><path d="m20 7 2 .5-2 .5"/><path d="M10 18v3"/><path d="M14 17.75V21"/><path d="M7 18a6 6 0 0 0 3.84-10.61"/></svg>
+      </div>
+      <div>
+        <h2>Species Detail</h2>
+        <p>Everything your backup holds for one species.</p>
+      </div>
+    </div>
+
+    <!-- Existing toolbar (static context in this mockup) -->
+    <div class="ctl-row" aria-label="Existing page controls, static in this mockup">
+      <span class="toggle-chip"><span class="toggle-track"><span class="toggle-knob"></span></span>Show subspecies</span>
+      <span class="toggle-chip"><span class="toggle-track"><span class="toggle-knob"></span></span>Show all forms</span>
+      <span class="toggle-chip"><span class="toggle-track"><span class="toggle-knob"></span></span>Show escapees</span>
+      <span class="species-count">341 species</span>
+    </div>
+
+    <!-- Species selector (working replica; swaps every section below) -->
+    <div class="combo">
+      <button type="button" class="combo-btn" id="comboBtn" aria-haspopup="listbox" aria-expanded="false">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--sr-text-muted)" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <span id="comboValue">Eastern Warbling Vireo</span>
+        <svg class="combo-caret" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+      </button>
+      <div class="combo-pop" id="comboPop" hidden>
+        <ul role="listbox" aria-label="Species" id="comboList"></ul>
+        <div class="combo-more">Plus 329 more in your full list (shortened for this mockup)</div>
+      </div>
+    </div>
+
+    <!-- ══ The taxonomy-tools row: "Subspecies and forms" (shipped) beside the NEW "Splits and lumps" ══ -->
+    <div class="tools-wrap">
+      <div class="tools-row">
+        <button type="button" class="ssx-toggle" aria-expanded="false" title="Shipped control, static in this mockup">
+          <span class="ssx-tile" aria-hidden="true">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12h-8"/><path d="M21 6H8"/><path d="M21 18h-8"/><path d="M3 6v4c0 1.1.9 2 2 2h3"/><path d="M3 10v6c0 1.1.9 2 2 2h3"/></svg>
+          </span>
+          Subspecies and forms
+          <span class="ssx-n">7 species</span>
+          <svg class="ssx-caret" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+        </button>
+
+        <button type="button" class="ssx-toggle" id="slToggle" aria-expanded="false" aria-controls="slPanel">
+          <span class="ssx-tile" aria-hidden="true">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3h5v5"/><path d="M8 3H3v5"/><path d="M12 22v-8.3a4 4 0 0 0-1.172-2.872L3 3"/><path d="m15 9 6-6"/></svg>
+          </span>
+          Splits and lumps
+          <span class="ssx-n" id="slCount">5 species</span>
+          <svg class="ssx-caret" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+        </button>
+      </div>
+      <div class="sl-panel" id="slPanel" hidden>
+        <div class="sl-panel-head">
+          Every species in your loaded data that eBird split or lumped in its 2023 to 2025 taxonomy updates.
+          Pick one to see what changed, when, and where your reports went.
+        </div>
+        <ul class="sl-list" id="slList"></ul>
+      </div>
+    </div>
+
+    <!-- Filter row (existing, static) -->
+    <div class="filter-row" aria-label="Existing filters, static in this mockup">
+      <span class="sel">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></svg>
+        All counties
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+      </span>
+      <span class="date-pair"><span class="date-box">From date</span><span aria-hidden="true">→</span><span class="date-box">To date</span></span>
+    </div>
+
+    <!-- Summary (existing, condensed) -->
+    <div class="card">
+      <div class="section-head">
+        <div class="section-tile" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg></div>
+        <span class="section-title">Summary</span>
+      </div>
+      <div class="card-body">
+        <div class="stat-row" id="summaryStats"></div>
+      </div>
+    </div>
+
+    <!-- Subspecies and Forms (existing) -->
+    <div class="card">
+      <div class="section-head">
+        <div class="section-tile" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12h-8"/><path d="M21 6H8"/><path d="M21 18h-8"/><path d="M3 6v4c0 1.1.9 2 2 2h3"/><path d="M3 10v6c0 1.1.9 2 2 2h3"/></svg></div>
+        <span class="section-title">Subspecies and Forms</span>
+      </div>
+      <div class="card-body"><span class="muted-line" id="ssxLine">No subspecies or form detail is recorded for this species.</span></div>
+    </div>
+
+    <!-- ══ NEW: Splits and Lumps section, immediately after Subspecies and Forms ══ -->
+    <div class="card" id="slSection" tabindex="-1">
+      <div class="section-head">
+        <div class="section-tile" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3h5v5"/><path d="M8 3H3v5"/><path d="M12 22v-8.3a4 4 0 0 0-1.172-2.872L3 3"/><path d="m15 9 6-6"/></svg></div>
+        <span class="section-title" id="slSectionTitle">Splits and Lumps</span>
+      </div>
+      <div class="card-body">
+        <div class="lin-body" id="linBody"></div>
+      </div>
+    </div>
+
+    <!-- Graph Options (existing, stub) -->
+    <div class="card">
+      <div class="section-head">
+        <div class="section-tile" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" x2="14" y1="4" y2="4"/><line x1="10" x2="3" y1="4" y2="4"/><line x1="21" x2="12" y1="12" y2="12"/><line x1="8" x2="3" y1="12" y2="12"/><line x1="21" x2="16" y1="20" y2="20"/><line x1="12" x2="3" y1="20" y2="20"/><line x1="14" x2="14" y1="2" y2="6"/><line x1="8" x2="8" y1="10" y2="14"/><line x1="16" x2="16" y1="18" y2="22"/></svg></div>
+        <span class="section-title">Graph Options</span>
+      </div>
+      <div class="card-body"><div class="graph-stub"><span class="on">By year</span><span>By month</span><span>By week</span></div></div>
+    </div>
+
+    <!-- ══ Preview only: the other states, rendered statically ══ -->
+    <div class="preview-note">Preview only · other states</div>
+    <p class="preview-sub">Not part of the page flow above. The list with no affected species, and the section with a county or date filter active.</p>
+
+    <div class="tools-wrap">
+      <div class="tools-row">
+        <button type="button" class="ssx-toggle" aria-expanded="true" tabindex="-1">
+          <span class="ssx-tile" aria-hidden="true">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3h5v5"/><path d="M8 3H3v5"/><path d="M12 22v-8.3a4 4 0 0 0-1.172-2.872L3 3"/><path d="m15 9 6-6"/></svg>
+          </span>
+          Splits and lumps
+          <span class="ssx-n">0 species</span>
+          <svg class="ssx-caret" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+        </button>
+      </div>
+      <div class="sl-panel" style="animation: none;">
+        <div class="sl-panel-head">
+          None of the species in your loaded data was split or lumped in eBird's 2023 to 2025 taxonomy updates.
+          A change made before 2023 is not recorded here.
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-head">
+        <div class="section-tile" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3h5v5"/><path d="M8 3H3v5"/><path d="M12 22v-8.3a4 4 0 0 0-1.172-2.872L3 3"/><path d="m15 9 6-6"/></svg></div>
+        <span class="section-title">Splits and Lumps</span>
+      </div>
+      <div class="card-body">
+        <div class="lin-filter-line">The figures cover every checklist in your export, not the current county or date filter.</div>
+        <div class="lin-body" id="linBodyFiltered"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  var el = function (id) { return document.getElementById(id); };
+
+  /* ── Real eBird update events (2023 to 2025), names as the eBird taxonomy prints them ── */
+  var UPDATE_LABEL = { 2025: 'October 2025', 2024: 'October 2024', 2023: 'October 2023' };
+  var PUBLISHED    = { 2025: '31 October 2025', 2024: '22 October 2024', 2023: '24 October 2023' };
+  var COVERAGE = "Covers eBird's 2023 to 2025 taxonomy updates. A change made before 2023 is not recorded here.";
+
+  // count = rows in the full backup under that name; reassigned = rows dated on
+  // or before the update's published date. since = count - reassigned.
+  var EVENTS_CURRENT = [
+    { id: 'warvir', kind: 'split', year: 2025,
+      before: [{ com: 'Warbling Vireo', sci: 'Vireo gilvus', count: 0 }],
+      after:  [{ com: 'Eastern Warbling Vireo', sci: 'Vireo gilvus', count: 312, reassigned: 289 },
+               { com: 'Western Warbling Vireo', sci: 'Vireo swainsoni', count: 6, reassigned: 6 }],
+      slashes: [{ com: 'Eastern/Western Warbling Vireo', sci: 'Vireo gilvus/swainsoni', count: 11, reassigned: 11 }] },
+    { id: 'whimbr', kind: 'split', year: 2025,
+      before: [{ com: 'Whimbrel', sci: 'Numenius phaeopus', count: 0 }],
+      after:  [{ com: 'Eurasian Whimbrel', sci: 'Numenius phaeopus', count: 0 },
+               { com: 'Hudsonian Whimbrel', sci: 'Numenius hudsonicus', count: 47, reassigned: 44 }],
+      slashes: [{ com: 'Hudsonian/Eurasian Whimbrel', sci: 'Numenius hudsonicus/phaeopus', count: 0 }] },
+    { id: 'corshe', kind: 'split', year: 2024,
+      before: [{ com: "Cory's Shearwater", sci: 'Calonectris diomedea', count: 0 }],
+      after:  [{ com: "Cory's Shearwater", sci: 'Calonectris borealis', count: 12, reassigned: 11 },
+               { com: "Scopoli's Shearwater", sci: 'Calonectris diomedea', count: 0 }],
+      slashes: [{ com: "Cory's/Scopoli's Shearwater", sci: 'Calonectris borealis/diomedea', count: 2, reassigned: 2 }] },
+    { id: 'norgos', kind: 'split', year: 2023,
+      before: [{ com: 'Northern Goshawk', sci: 'Accipiter gentilis', count: 0 }],
+      after:  [{ com: 'American Goshawk', sci: 'Astur atricapillus', count: 9, reassigned: 7 },
+               { com: 'Eurasian Goshawk', sci: 'Astur gentilis', count: 0 }],
+      slashes: [] },
+    { id: 'redpol', kind: 'lump', year: 2024,
+      before: [{ com: 'Common Redpoll', sci: 'Acanthis flammea', count: 0 },
+               { com: 'Hoary Redpoll', sci: 'Acanthis hornemanni', count: 0 },
+               { com: 'Lesser Redpoll', sci: 'Acanthis cabaret', count: 0 }],
+      after:  [{ com: 'Redpoll', sci: 'Acanthis flammea', count: 58, reassigned: 53 }],
+      slashes: [] }
+  ];
+
+  // The same backup exported in September 2025, before the 2025 update: the two
+  // 2025 events still carry the earlier name (FR-19). Everything else is unchanged.
+  var EVENTS_STALE = JSON.parse(JSON.stringify(EVENTS_CURRENT));
+  EVENTS_STALE[0].before[0].count = 306; EVENTS_STALE[0].before[0].reassigned = 306;
+  EVENTS_STALE[0].after.forEach(function (e) { e.count = 0; e.reassigned = 0; });
+  EVENTS_STALE[0].slashes.forEach(function (e) { e.count = 0; e.reassigned = 0; });
+  EVENTS_STALE[1].before[0].count = 44; EVENTS_STALE[1].before[0].reassigned = 44;
+  EVENTS_STALE[1].after.forEach(function (e) { e.count = 0; e.reassigned = 0; });
+
+  /* ── The species list, in the selector's (taxonomic) order ── */
+  var SPECIES_CURRENT = [
+    { name: 'Wood Duck', sci: 'Aix sponsa', reports: 402, first: '12 Apr 2010', last: '19 Sep 2026' },
+    { name: 'Piping Plover', sci: 'Charadrius melodus', reports: 61, first: '3 May 2011', last: '2 Aug 2026' },
+    { name: 'Hudsonian Whimbrel', sci: 'Numenius hudsonicus', reports: 47, first: '28 Jul 2010', last: '30 Aug 2026', ev: 'whimbr' },
+    { name: "Cory's Shearwater", sci: 'Calonectris borealis', reports: 12, first: '14 Aug 2013', last: '23 Aug 2025', ev: 'corshe' },
+    { name: 'American Goshawk', sci: 'Astur atricapillus', reports: 9, first: '2 Nov 2012', last: '11 Mar 2026', ev: 'norgos' },
+    { name: 'Eastern Warbling Vireo', sci: 'Vireo gilvus', reports: 312, first: '9 May 2010', last: '6 Sep 2026', ev: 'warvir' },
+    { name: 'Black-capped Chickadee', sci: 'Poecile atricapillus', reports: 1184, first: '2 Jan 2010', last: '27 Sep 2026' },
+    { name: 'Varied Thrush', sci: 'Ixoreus naevius', reports: 1, first: '18 Dec 2014', last: '18 Dec 2014' },
+    { name: 'Redpoll', sci: 'Acanthis flammea', reports: 58, first: '21 Jan 2011', last: '8 Feb 2026', ev: 'redpol' },
+    { name: 'Song Sparrow', sci: 'Melospiza melodia', reports: 976, first: '2 Jan 2010', last: '28 Sep 2026' },
+    { name: 'Dark-eyed Junco', sci: 'Junco hyemalis', reports: 733, first: '2 Jan 2010', last: '14 Apr 2026' },
+    { name: 'Scarlet Tanager', sci: 'Piranga olivacea', reports: 88, first: '15 May 2010', last: '30 Aug 2026' }
+  ];
+  var SPECIES_STALE = JSON.parse(JSON.stringify(SPECIES_CURRENT));
+  SPECIES_STALE[2] = { name: 'Whimbrel', sci: 'Numenius phaeopus', reports: 44, first: '28 Jul 2010', last: '17 Aug 2025', ev: 'whimbr' };
+  SPECIES_STALE[5] = { name: 'Warbling Vireo', sci: 'Vireo gilvus', reports: 306, first: '9 May 2010', last: '3 Sep 2025', ev: 'warvir' };
+  SPECIES_STALE.forEach(function (s) { if (s.last.indexOf('2026') >= 0) s.last = s.last.replace('2026', '2025'); });
+
+  var stale = false;
+  var selected = 'Eastern Warbling Vireo';
+  var slOpen = false, comboOpen = false;
+
+  function events()  { return stale ? EVENTS_STALE : EVENTS_CURRENT; }
+  function species() { return stale ? SPECIES_STALE : SPECIES_CURRENT; }
+  function eventById(id) { return events().filter(function (e) { return e.id === id; })[0]; }
+  function speciesByName(n) { return species().filter(function (s) { return s.name === n; })[0]; }
+  function affected() { return species().filter(function (s) { return s.ev; }); }
+
+  function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+  function reports(n) { return n + (n === 1 ? ' report' : ' reports'); }
+  function kindWord(k) { return k === 'split' ? 'Split' : 'Lump'; }
+  function kindIcon(k, size) {
+    var s = size || 12;
+    // Direction glyphs drawn in the chart's own flow (left to right): a split is
+    // one line in and two out, a lump two in and one out. The stacked layout
+    // rotates them 90 degrees so they fan downward with the chart.
+    var head = '<svg width="' + s + '" height="' + s + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">';
+    if (k === 'split') return head + '<path d="M2 12h6"/><path d="m8 12 7-6h7"/><path d="m8 12 7 6h7"/></svg>';
+    return head + '<path d="M2 6h7l7 6h6"/><path d="M2 18h7l7-6"/></svg>';
+  }
+
+  /* ── The list panel ── */
+  function renderList() {
+    var rows = affected();
+    el('slCount').textContent = rows.length + (rows.length === 1 ? ' species' : ' species');
+    el('slList').innerHTML = rows.map(function (s) {
+      var ev = eventById(s.ev);
+      return '<li><button type="button" class="sl-row" data-species="' + esc(s.name) + '"' +
+        (s.name === selected ? ' aria-current="true"' : '') + '>' +
+        '<span class="sl-row-name">' + esc(s.name) + '</span>' +
+        '<span class="sl-row-ev">' + kindIcon(ev.kind, 11) + '<b>' + kindWord(ev.kind) + '</b>' + '<span aria-hidden="true">·</span> ' + ev.year + '</span>' +
+        '</button></li>';
+    }).join('');
+    Array.prototype.forEach.call(el('slList').querySelectorAll('.sl-row'), function (btn) {
+      btn.addEventListener('click', function () {
+        setListOpen(false);
+        selectSpecies(btn.getAttribute('data-species'), true);
+      });
+    });
+  }
+  function setListOpen(on) {
+    slOpen = on;
+    el('slToggle').setAttribute('aria-expanded', String(on));
+    el('slPanel').hidden = !on;
+    if (on) renderList();
+  }
+  el('slToggle').addEventListener('click', function () { setListOpen(!slOpen); });
+
+  /* ── The lineage section ── */
+  function node(entry, opts) {
+    var you = opts.you, absent = entry.count === 0, slash = !!opts.slash;
+    var cls = 'lin-node' + (you ? ' is-you' : '') + (absent ? ' is-absent' : '');
+    // A slash name gets a break opportunity after each "/", so at 320px and 200%
+    // text it wraps "Eastern/" + "Western" rather than mid-word.
+    var shown = esc(entry.com).replace(/\//g, '/<wbr>');
+    var name = (!absent && !you && !slash)
+      ? '<button type="button" class="lin-link" data-species="' + esc(entry.com) + '">' + shown + '</button>'
+      : shown;
+    var h = '<div class="' + cls + '">';
+    h += '<div class="lin-name">' + name + '</div>';
+    h += '<div class="lin-sci">' + esc(entry.sci) + '</div>';
+    if (you) h += '<div class="lin-mark lin-mark--you">' + check() + 'Your species</div>';
+    else if (absent) h += '<div class="lin-mark lin-mark--absent">No reports under this name</div>';
+    else if (slash) h += '<div class="lin-mark lin-mark--slash">Reports eBird could not assign</div>';
+    if (!absent) {
+      var since = entry.count - entry.reassigned;
+      h += '<div class="lin-count">' + reports(entry.count) + '</div>';
+      if (opts.predates) {
+        h += '<div class="lin-part"><span>all dated before the update</span></div>';
+      } else {
+        h += '<div class="lin-part"><span><b>' + entry.reassigned + '</b> reassigned by eBird</span><span><b>' + since + '</b> recorded since</span></div>';
+        var ps = entry.count ? (since / entry.count * 100) : 0;
+        h += '<div class="lin-bar" aria-hidden="true"><i style="width:' + ps.toFixed(2) + '%"></i></div>';
+      }
+    }
+    h += '</div>';
+    return h;
+  }
+  function check() {
+    return '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>';
+  }
+  function altEntry(entry, opts) {
+    var s = entry.com + ' (' + entry.sci + ')';
+    if (opts.you) s += ', your species';
+    if (opts.slash) s += ', the slash entry for reports eBird could not assign';
+    if (entry.count === 0) return s + ': no reports under this name.';
+    s += ': ' + reports(entry.count);
+    if (opts.predates) return s + ', all dated before the update.';
+    return s + ', ' + entry.reassigned + ' reassigned by eBird, ' + (entry.count - entry.reassigned) + ' recorded since.';
+  }
+
+  function renderEvent(ev, selectedName) {
+    var predates = ev.before.some(function (e) { return e.count > 0; }) && ev.after.every(function (e) { return e.count === 0; });
+    var shownSlashes = ev.slashes.filter(function (e) { return e.count > 0; });
+    var isYou = function (e) { return e.com === selectedName && e.count > 0; };
+    var afterAll = ev.after.concat(shownSlashes);
+    var beforeMulti = ev.before.length > 1, afterMulti = afterAll.length > 1;
+
+    var h = '<div class="lin-event">';
+    if (predates) {
+      h += '<div class="lin-note">' +
+        '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>' +
+        '<span><b>Your backup predates the ' + UPDATE_LABEL[ev.year] + ' update</b>, so your reports still carry the earlier name. A fresh backup from eBird shows where they went.</span></div>';
+    }
+
+    h += '<div class="lin-chart" aria-hidden="true">';
+    h += '<div class="lin-side lin-side--before ' + (beforeMulti ? 'lin-side--multi' : 'lin-side--single') + '">';
+    h += ev.before.map(function (e) { return node(e, { you: isYou(e), predates: predates }); }).join('');
+    h += '</div>';
+    h += '<div class="lin-rail"><span class="lin-badge">' + kindIcon(ev.kind, 13) + '<b>' + kindWord(ev.kind) + '</b><span>' + UPDATE_LABEL[ev.year] + '</span></span></div>';
+    h += '<div class="lin-side lin-side--after ' + (afterMulti ? 'lin-side--multi' : 'lin-side--single') + '">';
+    h += ev.after.map(function (e) { return node(e, { you: isYou(e) }); }).join('');
+    h += shownSlashes.map(function (e) { return node(e, { slash: true }); }).join('');
+    h += '</div>';
+    h += '</div>';
+
+    // The plain statement of what eBird did (FR-17), once per event.
+    var sentence;
+    if (predates) {
+      sentence = 'eBird reassigned every report dated on or before <b>' + PUBLISHED[ev.year] + '</b> when it made this ' + ev.kind + '. Your backup was exported before that, so the reassignment is not in it yet.';
+    } else if (ev.kind === 'split') {
+      sentence = 'eBird reassigned every report dated on or before <b>' + PUBLISHED[ev.year] + '</b> to one of the new names when it made this split. Reports dated after it were recorded under the current names.';
+      if (shownSlashes.length) sentence += ' Reports it could not place went to ' + esc(shownSlashes[0].com) + '.';
+    } else {
+      sentence = 'eBird reassigned every report dated on or before <b>' + PUBLISHED[ev.year] + '</b> to ' + esc(ev.after[0].com) + ' when it made this lump. Your backup no longer carries the earlier names.';
+    }
+    h += '<p class="lin-sentence">' + sentence + '</p>';
+
+    // Text equivalent, in reading order: kind and update, before, after, the sentence.
+    var alt = '<div class="lin-alt"><div class="alt-caption">Text equivalent (what a screen reader receives)</div>';
+    alt += '<p>' + kindWord(ev.kind) + ', ' + UPDATE_LABEL[ev.year] + '.</p>';
+    alt += '<p>Before: ' + ev.before.map(function (e) { return altEntry(e, { you: isYou(e), predates: predates }); }).join(' ') + '</p>';
+    alt += '<p>After: ' + ev.after.map(function (e) { return altEntry(e, { you: isYou(e) }); }).join(' ') +
+      (shownSlashes.length ? ' ' + shownSlashes.map(function (e) { return altEntry(e, { slash: true }); }).join(' ') : '') + '</p>';
+    alt += '<p>' + sentence.replace(/<\/?b>/g, '') + '</p></div>';
+    h += alt;
+    h += '</div>';
+    return h;
+  }
+
+  function renderSection(target, animate) {
+    var sp = speciesByName(selected);
+    var h = '';
+    if (sp && sp.ev) {
+      h += renderEvent(eventById(sp.ev), sp.name);
+    } else {
+      h += '<div class="lin-empty">No split or lump is recorded for this species in the covered updates.</div>';
+    }
+    h += '<div class="lin-coverage">' + COVERAGE + '</div>';
+    target.innerHTML = h;
+    Array.prototype.forEach.call(target.querySelectorAll('.lin-link'), function (b) {
+      b.addEventListener('click', function () { selectSpecies(b.getAttribute('data-species'), false); });
+    });
+    if (animate) {
+      target.classList.remove('enter'); void target.offsetWidth; target.classList.add('enter');
+    }
+  }
+
+  /* ── Summary and Subspecies (existing sections, condensed) ── */
+  function renderSummary() {
+    var sp = speciesByName(selected) || { reports: 0, first: '', last: '' };
+    el('summaryStats').innerHTML =
+      '<div><div class="stat-label">Reports</div><div class="stat-val">' + sp.reports + '</div></div>' +
+      '<div><div class="stat-label">First seen</div><div class="stat-val">' + esc(sp.first) + '</div></div>' +
+      '<div><div class="stat-label">Last seen</div><div class="stat-val">' + esc(sp.last) + '</div></div>';
+    el('ssxLine').textContent = selected === 'Dark-eyed Junco'
+      ? 'Oregon 50.8% · Slate-colored 13.7% · No form noted 33.4% (shortened for this mockup)'
+      : 'No subspecies or form detail is recorded for this species.';
+  }
+
+  /* ── Selection: the page's own path; a list pick also scrolls and focuses the section ── */
+  function selectSpecies(name, fromList) {
+    if (!speciesByName(name)) return;
+    selected = name;
+    el('comboValue').textContent = name;
+    renderSummary();
+    renderSection(el('linBody'), true);
+    renderSection(el('linBodyFiltered'), false);
+    if (comboOpen) setComboOpen(false);
+    if (fromList) {
+      var reduce = document.documentElement.classList.contains('reduce-motion') ||
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      requestAnimationFrame(function () {
+        el('slSection').scrollIntoView({ block: 'nearest', behavior: reduce ? 'auto' : 'smooth' });
+        el('slSection').focus({ preventScroll: true });
+      });
+    }
+  }
+
+  /* ── Combobox replica ── */
+  function renderComboList() {
+    el('comboList').innerHTML = species().map(function (s) {
+      return '<li><button type="button" class="combo-opt" role="option" aria-selected="' + (s.name === selected) + '" data-species="' + esc(s.name) + '">' +
+        '<span>' + esc(s.name) + '</span><span class="combo-sci">' + esc(s.sci) + '</span></button></li>';
+    }).join('');
+    Array.prototype.forEach.call(el('comboList').querySelectorAll('.combo-opt'), function (b) {
+      b.addEventListener('click', function () { selectSpecies(b.getAttribute('data-species'), false); });
+    });
+  }
+  function setComboOpen(on) {
+    comboOpen = on;
+    el('comboBtn').setAttribute('aria-expanded', String(on));
+    el('comboPop').hidden = !on;
+    if (on) renderComboList();
+  }
+  el('comboBtn').addEventListener('click', function () { setComboOpen(!comboOpen); });
+  document.addEventListener('click', function (e) {
+    if (comboOpen && !e.target.closest('.combo')) setComboOpen(false);
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') {
+      if (comboOpen) { setComboOpen(false); el('comboBtn').focus(); }
+      else if (slOpen) { setListOpen(false); el('slToggle').focus(); }
+    }
+  });
+
+  /* ── Preview chrome ── */
+  function press(onId, offId, on) {
+    el(onId).setAttribute('aria-pressed', String(on));
+    el(offId).setAttribute('aria-pressed', String(!on));
+  }
+  function setTheme(dark) {
+    if (dark) document.documentElement.setAttribute('data-theme', 'dark');
+    else document.documentElement.removeAttribute('data-theme');
+    press('themeDark', 'themeLight', dark);
+  }
+  el('themeLight').addEventListener('click', function () { setTheme(false); });
+  el('themeDark').addEventListener('click', function () { setTheme(true); });
+  if (window.matchMedia('(prefers-color-scheme: dark)').matches) setTheme(true);
+
+  var stage = el('stage');
+  function applyNarrow() {
+    var narrow = stage.classList.contains('phone-w') || window.innerWidth <= 640;
+    stage.classList.toggle('narrow', narrow);
+  }
+  function setPhone(on) {
+    stage.classList.toggle('phone-w', on);
+    applyNarrow();
+    press('widthPhone', 'widthWide', on);
+  }
+  el('widthWide').addEventListener('click', function () { setPhone(false); });
+  el('widthPhone').addEventListener('click', function () { setPhone(true); });
+  window.addEventListener('resize', applyNarrow);
+
+  function setStale(on) {
+    stale = on;
+    press('exportOld', 'exportNow', on);
+    // Keep the same bird selected across the two exports: it is named differently in each.
+    if (on && selected === 'Eastern Warbling Vireo') selected = 'Warbling Vireo';
+    else if (on && selected === 'Hudsonian Whimbrel') selected = 'Whimbrel';
+    else if (!on && selected === 'Warbling Vireo') selected = 'Eastern Warbling Vireo';
+    else if (!on && selected === 'Whimbrel') selected = 'Hudsonian Whimbrel';
+    selectSpecies(selected, false);
+    if (slOpen) renderList();
+  }
+  el('exportNow').addEventListener('click', function () { setStale(false); });
+  el('exportOld').addEventListener('click', function () { setStale(true); });
+
+  function setAlt(on) { document.documentElement.classList.toggle('show-alt', on); press('altShow', 'altHide', on); }
+  el('altHide').addEventListener('click', function () { setAlt(false); });
+  el('altShow').addEventListener('click', function () { setAlt(true); });
+
+  function setMotion(reduced) { document.documentElement.classList.toggle('reduce-motion', reduced); press('motionOff', 'motionOn', reduced); }
+  el('motionOn').addEventListener('click', function () { setMotion(false); });
+  el('motionOff').addEventListener('click', function () { setMotion(true); });
+
+  /* ── First paint ── */
+  applyNarrow();
+  renderSummary();
+  renderSection(el('linBody'), false);
+  renderSection(el('linBodyFiltered'), false);
+})();
+</script>
+</body>
+</html>

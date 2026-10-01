@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom'
 import { ChecklistLink } from '../ChecklistLink'
 
 // ── Presentational primitives ──────────────────────────────────────────────
@@ -34,6 +35,17 @@ export function SectionHead({ icon, title }: { icon: React.ReactNode; title: str
       <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--sr-text)' }}>{title}</span>
     </div>
   )
+}
+
+/** Renders its children into `host` when that element has mounted, else in
+ *  place (taxonomic-splits-lumps). The Species Detail taxonomy tools row hands
+ *  both of its controls one host after the row, so each control's panel opens
+ *  below BOTH toggles at full width while DOM order stays the visual order (the
+ *  toggles, then the panels): the WCAG 2.4.3 alternative to CSS `order`, which
+ *  ui.md forbids. React events bubble through a portal along the component tree,
+ *  so a control's own Escape handler still sees keys pressed inside its panel. */
+export function PanelSlot({ host, children }: { host: HTMLElement | null; children: React.ReactNode }) {
+  return host ? createPortal(children, host) : <>{children}</>
 }
 
 export function StatLabel({ children }: { children: React.ReactNode }) {

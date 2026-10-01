@@ -225,6 +225,27 @@ describe('entry-chunk exclusion (NFR-03 / QA-30)', () => {
     expect(hasIn(sd.files, 'components/WeatherSpeciesRow.tsx')).toBe(false)
   })
 
+  it('the splits-and-lumps history asset is off the entry graph AND off Species Detail\'s static graph (taxonomic-splits-lumps)', () => {
+    // Off App.tsx's closure, and off the tab's own static closure too: the tab
+    // reaches it only through the loader's `import()`, so a static import
+    // anywhere in the tab's graph would put it on the tab chunk and show here.
+    expect(has('assets/ebird-taxonomy-history.json')).toBe(false)
+    const sd = closureFrom(resolve(SRC, 'components/SpeciesDetail.tsx'))
+    expect(hasIn(sd.files, 'assets/ebird-taxonomy-history.json')).toBe(false)
+  })
+
+  it('and Species Detail really does reach its loader and derivation, which is what makes that negative live', () => {
+    const sd = closureFrom(resolve(SRC, 'components/SpeciesDetail.tsx'))
+    expect(hasIn(sd.files, 'lib/taxonomyHistoryAsset.ts')).toBe(true)
+    expect(hasIn(sd.files, 'lib/taxonomyHistory.ts')).toBe(true)
+    // The loader names the asset exactly once, and that one reference is a
+    // dynamic import.
+    const loader = stripComments(readFileSync(resolve(SRC, 'lib/taxonomyHistoryAsset.ts'), 'utf8'))
+    const refs = loader.match(/ebird-taxonomy-history\.json/g) ?? []
+    expect(refs).toHaveLength(1)
+    expect(loader).toMatch(/import\(\s*'\.\.\/assets\/ebird-taxonomy-history\.json'\s*\)/)
+  })
+
   it('the county-completeness code is only reachable through the lazy Map Explorer (NFR-02)', () => {
     expect(has('lib/countyCompleteness.ts')).toBe(false)
     expect(has('lib/countyCompletenessCache.ts')).toBe(false)
@@ -938,7 +959,12 @@ describe.skipIf(!existsSync(DIST_INDEX))('dist/index.html modulepreload (post-bu
   const html = existsSync(DIST_INDEX) ? readFileSync(DIST_INDEX, 'utf8') : ''
   it('does not modulepreload the county geometry chunk, completeness code, MapLibre, its worker, or the chart library', () => {
     const preloads = [...html.matchAll(/<link[^>]+rel="modulepreload"[^>]+href="([^"]+)"/g)].map(m => m[1])
-    expect(preloads.some(h => /us-counties|CountyLayer|countyCompleteness|vendor-maplibre|maplibre-gl-worker|vendor-recharts|PlanChart/i.test(h))).toBe(false)
+    expect(preloads.some(h => /us-counties|CountyLayer|countyCompleteness|vendor-maplibre|maplibre-gl-worker|vendor-recharts|PlanChart|ebird-taxonomy-history/i.test(h))).toBe(false)
+  })
+
+  it('emits the splits-and-lumps history as its own lazy chunk (taxonomic-splits-lumps, guards the guard above)', () => {
+    const assets = existsSync(DIST_ASSETS) ? readdirSync(DIST_ASSETS) : []
+    expect(assets.filter(name => /^ebird-taxonomy-history-[^.]+\.js$/.test(name))).toHaveLength(1)
   })
 
   it('emits the planner chart as its own lazy chunk (guards the guard above)', () => {

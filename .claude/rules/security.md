@@ -48,6 +48,8 @@ paths:
   - "frontend/src/lib/barChartFilesChanged.ts"
   - "frontend/src/lib/regionCode.ts"
   - "frontend/src/lib/regionCode.fixture.json"
+  - "frontend/src/lib/taxonomyHistory.ts"
+  - "frontend/src/lib/taxonomyHistoryAsset.ts"
   - "frontend/src/lib/placeSearch*.ts"
   - "src-tauri/src/widgets.rs"
   - "src-tauri/gen/apple/snowraven_widgets/**"

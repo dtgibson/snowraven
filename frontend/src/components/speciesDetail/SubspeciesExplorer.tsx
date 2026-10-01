@@ -12,7 +12,7 @@ import { Button } from '../ui/Button'
 import { forwardRef, useId, useRef, useState } from 'react'
 import { ChevronDown, ListTree } from 'lucide-react'
 import { BirdName } from '../BirdName'
-import { SectionCard, SectionHead, StatLabel } from './ui'
+import { PanelSlot, SectionCard, SectionHead, StatLabel } from './ui'
 import {
   type Breakdown, type ExplorerEntry,
   formCountLabel, formNotedLabel, ledgerNote, reportCountLabel, speciesCountLabel,
@@ -20,13 +20,22 @@ import {
 
 // ── The entry control + explorer list ───────────────────────────────────────
 
-export function SubspeciesExplorerControl({ entries, selectedSpecies, onPick }: {
+export function SubspeciesExplorerControl({ entries, selectedSpecies, onPick, panelHost }: {
   entries: ExplorerEntry[]
   /** The page's selected species (merged-mode normalized name), for aria-current. */
   selectedSpecies: string | null
   /** Selects via the page's own selectSpecies path and scrolls to the breakdown
    *  (FR-06) — the same code path as the selector, not a parallel one. */
   onPick: (species: string) => void
+  /** Where the open panel renders (taxonomic-splits-lumps). This control now
+   *  shares a row with "Splits and lumps", and each control's panel opens BELOW
+   *  that row at full width, so the page hands both controls one host element
+   *  after the row and each portals its panel into it. DOM order is then the
+   *  visual order: both toggles, then the panels (WCAG 2.4.3, never `order`).
+   *  React events still bubble through the portal to this wrapper, so Escape is
+   *  handled here as before. Null only before the host has mounted, when the
+   *  panel (closed on every visit) renders in place. */
+  panelHost: HTMLElement | null
 }) {
   // Ephemeral component state: collapsed by default, never persisted (FR-06).
   // No storage seam, no setting.
@@ -46,8 +55,9 @@ export function SubspeciesExplorerControl({ entries, selectedSpecies, onPick }: 
   return (
     // .sr-ctl-row: on a phone the control's label reads at the same
     // scale-tracking size as the toggles above and the county select below
-    // (globals.css); the panel rows' text is span-sized and unaffected.
-    <div className="sr-ctl-row" style={{ marginBottom: 16, flexShrink: 0 }} onKeyDown={handleKeyDown}>
+    // (globals.css); the panel rows' text is span-sized and unaffected. The
+    // row it sits in (.sr-taxtools) owns the spacing below it.
+    <div className="sr-ctl-row" onKeyDown={handleKeyDown}>
       <Button
         ref={toggleRef}
         type="button"
@@ -67,53 +77,55 @@ export function SubspeciesExplorerControl({ entries, selectedSpecies, onPick }: 
       {/* Conditionally RENDERED, not CSS-collapsed: while closed there is no
           subtree, so no `inert` is owed and nothing strays into the tab order. */}
       {open && (
-        <div className="sr-ssx-panel" id={panelId}>
-          <div className="sr-ssx-panel-head">
-            {entries.length === 0
-              // FR-07: the honest empty message, in the panel-header style.
-              ? 'Your loaded data contains no subspecies or form entries.'
-              // FR-04's "subspecies and forms" descriptive copy + FR-08's
-              // honesty note, exact per the approved design.
-              : 'Every species in your loaded data with at least one subspecies or form noted. Shares reflect your whole backup, not the current filter.'}
+        <PanelSlot host={panelHost}>
+          <div className="sr-ssx-panel" id={panelId}>
+            <div className="sr-ssx-panel-head">
+              {entries.length === 0
+                // FR-07: the honest empty message, in the panel-header style.
+                ? 'Your loaded data contains no subspecies or form entries.'
+                // FR-04's "subspecies and forms" descriptive copy + FR-08's
+                // honesty note, exact per the approved design.
+                : 'Every species in your loaded data with at least one subspecies or form noted. Shares reflect your whole backup, not the current filter.'}
+            </div>
+            {entries.length > 0 && (
+              <ul className="sr-ssx-list">
+                {entries.map(entry => (
+                  <li key={entry.species}>
+                    <Button
+                      type="button"
+                      className="sr-ssx-row"
+                      aria-current={entry.species === selectedSpecies ? 'true' : undefined}
+                      onClick={() => {
+                        setOpen(false)
+                        onPick(entry.species)
+                      }}
+                    >
+                      <span className="sr-ssx-row-top">
+                        {/* FR-17: names render through BirdName. Its non-link,
+                            favicon-less form, deliberately: the whole row is one
+                            button, so a nested link or favicon anchor would be an
+                            interactive-inside-interactive violation — and the
+                            approved mockup shows none here. */}
+                        <span className="sr-ssx-row-name"><BirdName commonName={entry.species} /></span>
+                        <span className="sr-ssx-row-count">{formCountLabel(entry.forms.length)}</span>
+                      </span>
+                      <span className="sr-ssx-row-forms">
+                        {entry.forms.map((form, i) => (
+                          <span key={form.name}>
+                            {i > 0 && <span className="sr-ssx-dot" aria-hidden="true">·</span>}
+                            <BirdName commonName={form.name} />
+                            {' '}
+                            <span className="sr-ssx-pct">{form.pctLabel}</span>
+                          </span>
+                        ))}
+                      </span>
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
-          {entries.length > 0 && (
-            <ul className="sr-ssx-list">
-              {entries.map(entry => (
-                <li key={entry.species}>
-                  <Button
-                    type="button"
-                    className="sr-ssx-row"
-                    aria-current={entry.species === selectedSpecies ? 'true' : undefined}
-                    onClick={() => {
-                      setOpen(false)
-                      onPick(entry.species)
-                    }}
-                  >
-                    <span className="sr-ssx-row-top">
-                      {/* FR-17: names render through BirdName. Its non-link,
-                          favicon-less form, deliberately: the whole row is one
-                          button, so a nested link or favicon anchor would be an
-                          interactive-inside-interactive violation — and the
-                          approved mockup shows none here. */}
-                      <span className="sr-ssx-row-name"><BirdName commonName={entry.species} /></span>
-                      <span className="sr-ssx-row-count">{formCountLabel(entry.forms.length)}</span>
-                    </span>
-                    <span className="sr-ssx-row-forms">
-                      {entry.forms.map((form, i) => (
-                        <span key={form.name}>
-                          {i > 0 && <span className="sr-ssx-dot" aria-hidden="true">·</span>}
-                          <BirdName commonName={form.name} />
-                          {' '}
-                          <span className="sr-ssx-pct">{form.pctLabel}</span>
-                        </span>
-                      ))}
-                    </span>
-                  </Button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+        </PanelSlot>
       )}
     </div>
   )

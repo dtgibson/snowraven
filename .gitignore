@@ -39,3 +39,8 @@ src-tauri/gen/schemas/
 
 # Root package manager
 node_modules/
+
+# Splits-and-lumps history generator inputs (taxonomic-splits-lumps): Cornell's
+# published files, re-downloadable and not ours to commit. The README says which.
+scripts/taxonomy-history-input/*
+!scripts/taxonomy-history-input/README.md
