@@ -12,6 +12,14 @@
 // builder returns the view link, so the extension never emits a link the app
 // would have to degrade. The fixture's `links` rows pin this builder to the
 // app's parser.
+//
+// THE DEFAULT LOCATION MARKER (widget-measure-from-choice): when the list was
+// measured from the saved Default Location, chosen or as My location's
+// fallback, every link ends in `&from=default`, LAST, after the view link and
+// any bird suffix, so Map Explorer searches from that saved point and reads no
+// location. One fixed literal with no value to parse, pinned to the app's
+// `FROM_DEFAULT_MARKER` by widgetPaths.parity.test.ts. A link without it lands
+// as it always has, so an entry rendered by an older build stays correct.
 
 import Foundation
 
@@ -20,6 +28,7 @@ enum DeepLink {
     static let maxLength = 128
     static let speciesCodePattern = "^[a-z0-9-]{2,16}$"
     static let locIdPattern = "^L[0-9]{1,15}$"
+    static let fromDefaultMarker = "&from=default"
 
     private static let speciesCodeRE = try! NSRegularExpression(pattern: speciesCodePattern)
     private static let locIdRE = try! NSRegularExpression(pattern: locIdPattern)
@@ -38,17 +47,20 @@ enum DeepLink {
         matches(speciesCodeRE, speciesCode) && matches(locIdRE, locId)
     }
 
-    static func string(kind: WidgetKind, window: WidgetWindow, media: WidgetMedia) -> String {
+    static func string(kind: WidgetKind, window: WidgetWindow, media: WidgetMedia, fromDefault: Bool = false) -> String {
         let base = "\(scheme)://map/\(kind.rawValue)?window=\(window.rawValue)"
-        return kind == .targets ? "\(base)&media=\(media.rawValue)" : base
+        let view = kind == .targets ? "\(base)&media=\(media.rawValue)" : base
+        return fromDefault ? view + fromDefaultMarker : view
     }
 
     /// The bird link for one row, or the view link when either id is outside
-    /// its pattern.
-    static func string(kind: WidgetKind, window: WidgetWindow, media: WidgetMedia, speciesCode: String, locId: String) -> String {
+    /// its pattern; either one followed by the marker when `fromDefault`.
+    static func string(kind: WidgetKind, window: WidgetWindow, media: WidgetMedia, speciesCode: String, locId: String,
+                       fromDefault: Bool = false) -> String {
         let view = string(kind: kind, window: window, media: media)
-        guard isLinkable(speciesCode: speciesCode, locId: locId) else { return view }
-        return "\(view)&sp=\(speciesCode)&loc=\(locId)"
+        let marker = fromDefault ? fromDefaultMarker : ""
+        guard isLinkable(speciesCode: speciesCode, locId: locId) else { return view + marker }
+        return "\(view)&sp=\(speciesCode)&loc=\(locId)" + marker
     }
 
     static func url(kind: WidgetKind, window: WidgetWindow, media: WidgetMedia) -> URL {

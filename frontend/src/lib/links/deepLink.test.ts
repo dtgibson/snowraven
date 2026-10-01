@@ -6,8 +6,8 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import {
-  ALERT_LINK_PATTERN, ALERT_LINK_RE, BIRD_SUFFIX_RE, buildWidgetLink, isLinkableBird, LINK_MAX_LENGTH, LINK_SCHEME,
-  LOC_ID_RE, parseWidgetLink, WIDGET_LINKS, type WidgetLink,
+  ALERT_LINK_PATTERN, ALERT_LINK_RE, BIRD_SUFFIX_RE, buildWidgetLink, FROM_DEFAULT_MARKER, isLinkableBird, LINK_MAX_LENGTH,
+  LINK_SCHEME, LOC_ID_RE, parseWidgetLink, WIDGET_LINKS, type WidgetLink,
 } from './deepLink'
 import { SPECIES_CODE_RE } from '../speciesCode'
 import fixture from '../widgets/widgetRows.fixture.json'
@@ -40,6 +40,9 @@ describe('the fifteen view links', () => {
     const longestBird = buildWidgetLink({ ...longestViewLink, bird: { speciesCode: 'a'.repeat(16), locId: `L${'1'.repeat(15)}` } })
     expect(longestView).toBe(47)
     expect(longestBird.length).toBe(88)
+    // widget-measure-from-choice: the marker adds 13, still under the alert form.
+    const longestMarked = buildWidgetLink({ ...longestViewLink, bird: { speciesCode: 'a'.repeat(16), locId: `L${'1'.repeat(15)}` }, fromDefault: true })
+    expect(longestMarked.length).toBe(101)
     // ios-alerts (schema.md 5.1): the bound is set by the longest ALERT link,
     // 117 characters, and leaves no room for a payload beyond it.
     const longestAlert = buildWidgetLink({
@@ -100,6 +103,19 @@ describe('the fixture link families (schema.md 7.2), each against its authored i
       expect(r.expected, JSON.stringify(r.raw)).toBeNull()
       expect(parseWidgetLink(r.raw), JSON.stringify(r.raw)).toBeNull()
     }
+  })
+
+  it('fromDefault: every view and bird row again with the marker, round trip, and the marker always last', () => {
+    expect(F.fromDefault).toHaveLength(F.views.length + F.birds.length)
+    expect(F.fromDefault.map(r => r.raw)).toEqual([...F.views, ...F.birds].map(r => r.raw + FROM_DEFAULT_MARKER))
+    for (const r of F.fromDefault) {
+      const got = parseWidgetLink(r.raw)
+      expect(got, r.raw).toEqual(r.expected)
+      expect(got!.fromDefault, r.raw).toBe(true)
+      expect(buildWidgetLink(got!)).toBe(r.raw)
+    }
+    // No unmarked row carries the flag.
+    for (const r of [...F.views, ...F.birds, ...F.degraded]) expect(r.expected).not.toHaveProperty('fromDefault')
   })
 
   it('refused pairs: the builder throws rather than emit an out-of-pattern link', () => {
@@ -185,6 +201,49 @@ describe('the structural rules (schema.md 7.3 d and e)', () => {
     expect(refused).toBeGreaterThan(1500)
     expect(accepted).toBeGreaterThan(50)
   })
+
+  // widget-measure-from-choice. The marker is independent of everything before
+  // it, which is the claim this derives STRUCTURALLY rather than restating: a
+  // string with the marker appended parses exactly as the same string without
+  // it, plus `fromDefault`, or is rejected exactly when that one is. Run over
+  // the (e) corpus, every fixture family and the hostile list below.
+  it('(f) marker identity: parse(x + marker) is parse(x) plus fromDefault, for every non-alert x', () => {
+    const valid = '&sp=norcar&loc=L123456'
+    const alphabet = [...new Set(`${CODE_ALPHABET}ABCLMNZ&=#?%/ .\n\t١éL_:;+`)]
+    const xs = new Set<string>()
+    for (const v of [WIDGET_LINKS[1]!, WIDGET_LINKS[14]!]) {
+      const view = buildWidgetLink(v)
+      for (let i = 0; i <= valid.length; i++) {
+        xs.add(view + valid.slice(0, i))
+        for (const c of alphabet) if (i < valid.length) xs.add(view + valid.slice(0, i) + c + valid.slice(i + 1))
+      }
+    }
+    for (const r of [...F.views, ...F.birds, ...F.degraded, ...F.rejected]) xs.add(r.raw)
+    let marked = 0
+    let rejected = 0
+    for (const x of xs) {
+      if (ALERT_LINK_RE.test(x)) continue
+      const plain = parseWidgetLink(x)
+      const got = parseWidgetLink(x + FROM_DEFAULT_MARKER)
+      if (plain === null || x.length + FROM_DEFAULT_MARKER.length > LINK_MAX_LENGTH) {
+        if (plain === null) { expect(got, JSON.stringify(x)).toBeNull(); rejected++ }
+        continue
+      }
+      expect(got, JSON.stringify(x)).toEqual({ ...plain, fromDefault: true })
+      marked++
+    }
+    expect(marked).toBeGreaterThan(500)
+    expect(rejected).toBeGreaterThan(20)
+  })
+
+  it('the marker is refused on an alert link by the builder, and absent from every alert parse', () => {
+    const alert: WidgetLink = {
+      view: 'lifers', window: 'day', point: { lat: 1, lng: 1 }, radiusMi: 5, bird: { speciesCode: 'ruff', locId: 'L1' }, show: 'all',
+    }
+    expect(() => buildWidgetLink({ ...alert, fromDefault: true })).toThrow()
+    expect(parseWidgetLink(buildWidgetLink(alert))).not.toHaveProperty('fromDefault')
+    expect(parseWidgetLink(buildWidgetLink(alert) + FROM_DEFAULT_MARKER)).toBeNull()
+  })
 })
 
 describe('everything whose view part is not exact is rejected whole', () => {
@@ -224,12 +283,16 @@ describe('everything whose view part is not exact is rejected whole', () => {
     const body = src.slice(src.indexOf('export function parseWidgetLink'))
     const gate = body.indexOf('raw.length > LINK_MAX_LENGTH')
     const alert = body.indexOf('ALERT_LINK_RE.exec(raw)')
-    const cut = body.indexOf("raw.indexOf('&sp=')")
+    const marker = body.indexOf('raw.endsWith(FROM_DEFAULT_MARKER)')
+    const cut = body.indexOf("rest.indexOf('&sp=')")
     const lookup = body.indexOf('Object.hasOwn(TABLE, head)')
     expect(gate).toBeGreaterThan(-1)
-    // ios-alerts: the alert form is tried after the gate and before the cut.
+    // ios-alerts: the alert form is tried after the gate and before the cut;
+    // widget-measure-from-choice: the marker is taken off after the alert form
+    // and before the cut, so the cut and the lookup see exactly the shipped grammar.
     expect(alert).toBeGreaterThan(gate)
-    expect(cut).toBeGreaterThan(alert)
+    expect(marker).toBeGreaterThan(alert)
+    expect(cut).toBeGreaterThan(marker)
     expect(lookup).toBeGreaterThan(cut)
     expect(src).toContain('const TABLE: Record<string, ViewLink> = Object.create(null)')
     // No URL parsing or decoding, and the one pattern is the anchored suffix.

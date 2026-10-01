@@ -31,7 +31,7 @@ struct Fixture: Decodable {
     }
     struct NeedsRow: Decodable { let missing: [MediaNeed]; let phrase: String }
     struct LinkBird: Decodable, Equatable { let speciesCode: String; let locId: String }
-    struct LinkParsed: Decodable { let view: String; let window: String; let media: String?; let bird: LinkBird? }
+    struct LinkParsed: Decodable { let view: String; let window: String; let media: String?; let bird: LinkBird?; let fromDefault: Bool? }
     struct LinkRow: Decodable { let raw: String; let expected: LinkParsed? }
     struct Links: Decodable {
         let views: [LinkRow]
@@ -39,6 +39,7 @@ struct Fixture: Decodable {
         let degraded: [LinkRow]
         let rejected: [LinkRow]
         let refusedPairs: [LinkBird]
+        let fromDefault: [LinkRow]
     }
 
     let tz: String

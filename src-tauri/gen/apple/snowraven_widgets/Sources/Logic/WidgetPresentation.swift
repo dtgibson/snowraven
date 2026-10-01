@@ -4,10 +4,11 @@
 // rules and the whole-widget VoiceOver label are tested exactly.
 //
 // Footer: on a list (and on S10, which S7 and S9 compose with), the Default
-// Location caption when it applies, the stale reason when the latest attempt
-// failed, then the update time; medium and large always show the update time,
-// small only when the list is marked stale. Joined with middle dots on screen
-// and read as sentences.
+// Location caption whenever the list was measured from it (chosen, or as My
+// location's fallback: widget-measure-from-choice), the stale reason when the
+// latest attempt failed, then the update time; medium and large always show
+// the update time, small only when the list is marked stale. Joined with
+// middle dots on screen and read as sentences.
 
 import Foundation
 
@@ -93,9 +94,13 @@ struct WidgetPresentation: Equatable {
         if let msg = message { label += " \(msg)" }
         for r in rows { label += " \(r.label)" }
         if !footer.isEmpty { label += " \(footer.joined(separator: ". "))." }
-        let viewLink = DeepLink.string(kind: m.kind, window: m.window, media: m.media)
+        // A list measured from the Default Location (chosen or fallback) says
+        // so on every link, so the map searches from the same point.
+        let fromDefault = m.usedDefaultLocation
+        let viewLink = DeepLink.string(kind: m.kind, window: m.window, media: m.media, fromDefault: fromDefault)
         let rowLinks = rows.map {
-            DeepLink.string(kind: m.kind, window: m.window, media: m.media, speciesCode: $0.speciesCode, locId: $0.locId)
+            DeepLink.string(kind: m.kind, window: m.window, media: m.media, speciesCode: $0.speciesCode, locId: $0.locId,
+                            fromDefault: fromDefault)
         }
         return WidgetPresentation(
             title: title, windowText: windowText, rows: rows, message: message, footer: footer,

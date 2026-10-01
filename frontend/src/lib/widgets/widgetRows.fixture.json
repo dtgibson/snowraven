@@ -3374,6 +3374,42 @@
    {
     "raw": "snowraven://map/targets?window=week&media=photo&sp=norcar&loc=L1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
     "expected": null
+   },
+   {
+    "raw": "snowraven://map/lifers?window=week&from=default&sp=norcar&loc=L1",
+    "expected": null
+   },
+   {
+    "raw": "snowraven://map/lifers?window=week&from=default&from=default",
+    "expected": null
+   },
+   {
+    "raw": "snowraven://map/lifers?window=week&from=Default",
+    "expected": null
+   },
+   {
+    "raw": "snowraven://map/lifers?window=week&from=device",
+    "expected": null
+   },
+   {
+    "raw": "snowraven://map/lifers?window=week&from=",
+    "expected": null
+   },
+   {
+    "raw": "snowraven://map/lifers?window=week&from=default#f",
+    "expected": null
+   },
+   {
+    "raw": "snowraven://map/lifers?window=week&from=default\n",
+    "expected": null
+   },
+   {
+    "raw": "&from=default",
+    "expected": null
+   },
+   {
+    "raw": "snowraven://map/lifers?window=day&lat=1&lng=1&r=5&sp=ruff&loc=L1&show=all&from=default",
+    "expected": null
    }
   ],
   "refusedPairs": [
@@ -3412,6 +3448,371 @@
    {
     "speciesCode": "",
     "locId": ""
+   }
+  ],
+  "fromDefault": [
+   {
+    "raw": "snowraven://map/lifers?window=day&from=default",
+    "expected": {
+     "view": "lifers",
+     "window": "day",
+     "fromDefault": true
+    }
+   },
+   {
+    "raw": "snowraven://map/lifers?window=week&from=default",
+    "expected": {
+     "view": "lifers",
+     "window": "week",
+     "fromDefault": true
+    }
+   },
+   {
+    "raw": "snowraven://map/lifers?window=all&from=default",
+    "expected": {
+     "view": "lifers",
+     "window": "all",
+     "fromDefault": true
+    }
+   },
+   {
+    "raw": "snowraven://map/targets?window=day&media=photo&from=default",
+    "expected": {
+     "view": "targets",
+     "window": "day",
+     "media": "photo",
+     "fromDefault": true
+    }
+   },
+   {
+    "raw": "snowraven://map/targets?window=day&media=audio&from=default",
+    "expected": {
+     "view": "targets",
+     "window": "day",
+     "media": "audio",
+     "fromDefault": true
+    }
+   },
+   {
+    "raw": "snowraven://map/targets?window=day&media=video&from=default",
+    "expected": {
+     "view": "targets",
+     "window": "day",
+     "media": "video",
+     "fromDefault": true
+    }
+   },
+   {
+    "raw": "snowraven://map/targets?window=day&media=any&from=default",
+    "expected": {
+     "view": "targets",
+     "window": "day",
+     "media": "any",
+     "fromDefault": true
+    }
+   },
+   {
+    "raw": "snowraven://map/targets?window=week&media=photo&from=default",
+    "expected": {
+     "view": "targets",
+     "window": "week",
+     "media": "photo",
+     "fromDefault": true
+    }
+   },
+   {
+    "raw": "snowraven://map/targets?window=week&media=audio&from=default",
+    "expected": {
+     "view": "targets",
+     "window": "week",
+     "media": "audio",
+     "fromDefault": true
+    }
+   },
+   {
+    "raw": "snowraven://map/targets?window=week&media=video&from=default",
+    "expected": {
+     "view": "targets",
+     "window": "week",
+     "media": "video",
+     "fromDefault": true
+    }
+   },
+   {
+    "raw": "snowraven://map/targets?window=week&media=any&from=default",
+    "expected": {
+     "view": "targets",
+     "window": "week",
+     "media": "any",
+     "fromDefault": true
+    }
+   },
+   {
+    "raw": "snowraven://map/targets?window=all&media=photo&from=default",
+    "expected": {
+     "view": "targets",
+     "window": "all",
+     "media": "photo",
+     "fromDefault": true
+    }
+   },
+   {
+    "raw": "snowraven://map/targets?window=all&media=audio&from=default",
+    "expected": {
+     "view": "targets",
+     "window": "all",
+     "media": "audio",
+     "fromDefault": true
+    }
+   },
+   {
+    "raw": "snowraven://map/targets?window=all&media=video&from=default",
+    "expected": {
+     "view": "targets",
+     "window": "all",
+     "media": "video",
+     "fromDefault": true
+    }
+   },
+   {
+    "raw": "snowraven://map/targets?window=all&media=any&from=default",
+    "expected": {
+     "view": "targets",
+     "window": "all",
+     "media": "any",
+     "fromDefault": true
+    }
+   },
+   {
+    "raw": "snowraven://map/lifers?window=day&sp=norcar&loc=L123456&from=default",
+    "expected": {
+     "view": "lifers",
+     "window": "day",
+     "fromDefault": true,
+     "bird": {
+      "speciesCode": "norcar",
+      "locId": "L123456"
+     }
+    }
+   },
+   {
+    "raw": "snowraven://map/lifers?window=week&sp=norcar&loc=L123456&from=default",
+    "expected": {
+     "view": "lifers",
+     "window": "week",
+     "fromDefault": true,
+     "bird": {
+      "speciesCode": "norcar",
+      "locId": "L123456"
+     }
+    }
+   },
+   {
+    "raw": "snowraven://map/lifers?window=all&sp=norcar&loc=L123456&from=default",
+    "expected": {
+     "view": "lifers",
+     "window": "all",
+     "fromDefault": true,
+     "bird": {
+      "speciesCode": "norcar",
+      "locId": "L123456"
+     }
+    }
+   },
+   {
+    "raw": "snowraven://map/targets?window=day&media=photo&sp=norcar&loc=L123456&from=default",
+    "expected": {
+     "view": "targets",
+     "window": "day",
+     "media": "photo",
+     "fromDefault": true,
+     "bird": {
+      "speciesCode": "norcar",
+      "locId": "L123456"
+     }
+    }
+   },
+   {
+    "raw": "snowraven://map/targets?window=day&media=audio&sp=norcar&loc=L123456&from=default",
+    "expected": {
+     "view": "targets",
+     "window": "day",
+     "media": "audio",
+     "fromDefault": true,
+     "bird": {
+      "speciesCode": "norcar",
+      "locId": "L123456"
+     }
+    }
+   },
+   {
+    "raw": "snowraven://map/targets?window=day&media=video&sp=norcar&loc=L123456&from=default",
+    "expected": {
+     "view": "targets",
+     "window": "day",
+     "media": "video",
+     "fromDefault": true,
+     "bird": {
+      "speciesCode": "norcar",
+      "locId": "L123456"
+     }
+    }
+   },
+   {
+    "raw": "snowraven://map/targets?window=day&media=any&sp=norcar&loc=L123456&from=default",
+    "expected": {
+     "view": "targets",
+     "window": "day",
+     "media": "any",
+     "fromDefault": true,
+     "bird": {
+      "speciesCode": "norcar",
+      "locId": "L123456"
+     }
+    }
+   },
+   {
+    "raw": "snowraven://map/targets?window=week&media=photo&sp=norcar&loc=L123456&from=default",
+    "expected": {
+     "view": "targets",
+     "window": "week",
+     "media": "photo",
+     "fromDefault": true,
+     "bird": {
+      "speciesCode": "norcar",
+      "locId": "L123456"
+     }
+    }
+   },
+   {
+    "raw": "snowraven://map/targets?window=week&media=audio&sp=norcar&loc=L123456&from=default",
+    "expected": {
+     "view": "targets",
+     "window": "week",
+     "media": "audio",
+     "fromDefault": true,
+     "bird": {
+      "speciesCode": "norcar",
+      "locId": "L123456"
+     }
+    }
+   },
+   {
+    "raw": "snowraven://map/targets?window=week&media=video&sp=norcar&loc=L123456&from=default",
+    "expected": {
+     "view": "targets",
+     "window": "week",
+     "media": "video",
+     "fromDefault": true,
+     "bird": {
+      "speciesCode": "norcar",
+      "locId": "L123456"
+     }
+    }
+   },
+   {
+    "raw": "snowraven://map/targets?window=week&media=any&sp=norcar&loc=L123456&from=default",
+    "expected": {
+     "view": "targets",
+     "window": "week",
+     "media": "any",
+     "fromDefault": true,
+     "bird": {
+      "speciesCode": "norcar",
+      "locId": "L123456"
+     }
+    }
+   },
+   {
+    "raw": "snowraven://map/targets?window=all&media=photo&sp=norcar&loc=L123456&from=default",
+    "expected": {
+     "view": "targets",
+     "window": "all",
+     "media": "photo",
+     "fromDefault": true,
+     "bird": {
+      "speciesCode": "norcar",
+      "locId": "L123456"
+     }
+    }
+   },
+   {
+    "raw": "snowraven://map/targets?window=all&media=audio&sp=norcar&loc=L123456&from=default",
+    "expected": {
+     "view": "targets",
+     "window": "all",
+     "media": "audio",
+     "fromDefault": true,
+     "bird": {
+      "speciesCode": "norcar",
+      "locId": "L123456"
+     }
+    }
+   },
+   {
+    "raw": "snowraven://map/targets?window=all&media=video&sp=norcar&loc=L123456&from=default",
+    "expected": {
+     "view": "targets",
+     "window": "all",
+     "media": "video",
+     "fromDefault": true,
+     "bird": {
+      "speciesCode": "norcar",
+      "locId": "L123456"
+     }
+    }
+   },
+   {
+    "raw": "snowraven://map/targets?window=all&media=any&sp=norcar&loc=L123456&from=default",
+    "expected": {
+     "view": "targets",
+     "window": "all",
+     "media": "any",
+     "fromDefault": true,
+     "bird": {
+      "speciesCode": "norcar",
+      "locId": "L123456"
+     }
+    }
+   },
+   {
+    "raw": "snowraven://map/targets?window=day&media=audio&sp=ab&loc=L1&from=default",
+    "expected": {
+     "view": "targets",
+     "window": "day",
+     "media": "audio",
+     "fromDefault": true,
+     "bird": {
+      "speciesCode": "ab",
+      "locId": "L1"
+     }
+    }
+   },
+   {
+    "raw": "snowraven://map/targets?window=day&media=audio&sp=abcdefghijklmno1&loc=L123456789012345&from=default",
+    "expected": {
+     "view": "targets",
+     "window": "day",
+     "media": "audio",
+     "fromDefault": true,
+     "bird": {
+      "speciesCode": "abcdefghijklmno1",
+      "locId": "L123456789012345"
+     }
+    }
+   },
+   {
+    "raw": "snowraven://map/targets?window=day&media=audio&sp=x-00001&loc=L7&from=default",
+    "expected": {
+     "view": "targets",
+     "window": "day",
+     "media": "audio",
+     "fromDefault": true,
+     "bird": {
+      "speciesCode": "x-00001",
+      "locId": "L7"
+     }
+    }
    }
   ]
  }

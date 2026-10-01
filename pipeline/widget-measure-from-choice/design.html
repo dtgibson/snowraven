@@ -1,0 +1,881 @@
+<!doctype html>
+<html lang="en" data-appearance="light" data-measure="default">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Widget Measure From</title>
+<meta name="description" content="Design pass for the iOS widgets' Measure from choice: the Edit Widget sheet, the footer caption, the no-Default-Location sentence, the gallery descriptions and the Map Explorer landing line, each shown as it ships today beside the proposal.">
+<style>
+/* ── Board tokens (the SnowRaven design system, light theme; values from globals.css) ── */
+:root {
+  --sr-bg: #F9FAFB;
+  --sr-surface: #FFFFFF;
+  --sr-surface-subtle: #F4F4F5;
+  --sr-surface-faint: #FAFAFA;
+  --sr-text: #0F1117;
+  --sr-text-muted: #6B6B74;
+  --sr-border: #E4E4E7;
+  --sr-border-subtle: #F4F4F5;
+  --sr-border-medium: #C4C4CE;
+  --sr-accent: #277448;
+  --sr-accent-strong: #1A5C38;
+  --sr-accent-bg: #E8F5EE;
+  --sr-accent-border: rgba(39,116,72,0.25);
+  --sr-accent-border-strong: rgba(39,116,72,0.7);
+  --sr-on-accent: #FFFFFF;
+  --sr-warning: #92400E;
+  --sr-warning-bg: #FFFBEB;
+  --sr-card-shadow: 0 1px 4px rgba(15,17,23,0.06), 0 4px 16px rgba(15,17,23,0.04);
+  --sr-share-pin: #B4341F;
+  --sr-map-target-fresh: #2D8653;
+  --sr-map-target-fresh-text: #FFFFFF;
+
+  --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+  --font-body: -apple-system, "SF Pro Text", "Helvetica Neue", "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  --ease-out: cubic-bezier(0.2, 0, 0, 1);
+  --dur: 160ms;
+}
+
+/* ── The iOS surfaces: one variable set per appearance mode ── */
+.ios {
+  --w-bg: #FFFFFF;
+  --w-text: #0F1117;
+  --w-muted: #6B6B74;
+  --w-sep: #ECECEF;
+  --w-accent: #277448;
+  --w-shadow: 0 8px 22px rgba(15,17,23,0.12);
+  --hs-label: #FFFFFF;
+  --hs-shadow: 0 1px 3px rgba(15,17,23,0.45);
+  --dock: rgba(255,255,255,0.28);
+  --wall:
+    radial-gradient(120% 70% at 18% 0%, #FFE2C4 0%, rgba(255,226,196,0) 55%),
+    radial-gradient(90% 60% at 92% 18%, #D5EAF7 0%, rgba(213,234,247,0) 60%),
+    linear-gradient(180deg, #F2E6DB 0%, #B8CEDC 58%, #5F7F97 100%);
+  --status: #0F1117;
+  --a-bg: #F9FAFB; --a-surface: #FFFFFF; --a-subtle: #F4F4F5; --a-text: #0F1117; --a-muted: #6B6B74;
+  --a-border: #E4E4E7; --a-border-med: #C4C4CE; --a-accent: #277448; --a-accent-bg: #E8F5EE; --a-on-accent: #FFFFFF;
+  --a-accent-border: rgba(39,116,72,0.25); --a-accent-border-strong: rgba(39,116,72,0.7);
+}
+[data-appearance="dark"] .ios {
+  --w-bg: #1C1C1E;
+  --w-text: #F4F4F5;
+  --w-muted: #A1A1AA;
+  --w-sep: #2C2C2E;
+  --w-accent: #34D399;
+  --w-shadow: 0 8px 22px rgba(4,6,10,0.45);
+  --dock: rgba(255,255,255,0.14);
+  --wall:
+    radial-gradient(100% 55% at 28% 0%, #1F4152 0%, rgba(31,65,82,0) 60%),
+    radial-gradient(60% 40% at 85% 90%, #24313F 0%, rgba(36,49,63,0) 60%),
+    linear-gradient(180deg, #0B131B 0%, #111F2A 55%, #182A38 100%);
+  --status: #FFFFFF;
+  --a-bg: #09090B; --a-surface: #18181B; --a-subtle: #27272A; --a-text: #F4F4F5; --a-muted: #A1A1AA;
+  --a-border: #27272A; --a-border-med: #3F3F46; --a-accent: #34D399; --a-accent-bg: #052E16; --a-on-accent: #052E16;
+  --a-accent-border: rgba(52,211,153,0.2); --a-accent-border-strong: rgba(52,211,153,0.5);
+}
+
+/* ── Board ── */
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--sr-text);
+  background:
+    radial-gradient(70% 40% at 0% 0%, rgba(39,116,72,0.07) 0%, rgba(39,116,72,0) 60%),
+    radial-gradient(50% 30% at 100% 10%, rgba(39,116,72,0.05) 0%, rgba(39,116,72,0) 60%),
+    var(--sr-bg);
+}
+svg.icon { width: 1em; height: 1em; stroke: currentColor; fill: none; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+svg.raven { fill: currentColor; flex: none; }
+
+.board-top {
+  position: sticky; top: 0; z-index: 50;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px;
+  padding: 12px 24px;
+  background: rgba(255,255,255,0.86);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--sr-border);
+  box-shadow: 0 3px 6px -2px rgba(15,17,23,0.08);
+}
+.board-brand { display: flex; align-items: center; gap: 9px; margin-right: 6px; }
+.board-brand .raven { width: 22px; height: 22px; color: var(--sr-accent); }
+.board-brand h1 { font-family: var(--font-display); font-weight: 600; font-size: 20px; letter-spacing: -0.01em; margin: 0; line-height: 1; }
+.board-brand small { display: block; font-family: var(--font-body); font-size: 11px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: var(--sr-text-muted); margin-top: 3px; }
+.board-nav { display: flex; flex-wrap: wrap; gap: 2px; }
+.board-nav a { font-size: 12.5px; font-weight: 600; color: var(--sr-text-muted); text-decoration: none; padding: 6px 9px; border-radius: 6px; transition: background-color var(--dur) ease-out, color var(--dur) ease-out; }
+.board-nav a:hover { background: var(--sr-surface-subtle); color: var(--sr-text); }
+.board-controls { margin-left: auto; display: flex; flex-wrap: wrap; align-items: center; gap: 14px; }
+.ctl-label { font-size: 11px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--sr-text-muted); }
+
+/* SegControl register from the design system */
+.seg { display: inline-flex; gap: 2px; padding: 2px; border-radius: 6px; background: var(--sr-surface-subtle); }
+.seg button {
+  display: inline-flex; align-items: center; gap: 6px;
+  font: inherit; font-size: 11.5px; font-weight: 500; color: var(--sr-text-muted);
+  padding: 0.35rem 12px; border-radius: 5px; border: 1px solid transparent; background: transparent; cursor: pointer;
+  transition: background-color 120ms ease-out, color 120ms ease-out, border-color 120ms ease-out;
+}
+.seg button:hover { color: var(--sr-text); }
+.seg button[aria-pressed="true"] { background: var(--sr-surface); border-color: var(--sr-border); color: var(--sr-text); font-weight: 600; }
+.seg button:focus-visible, .board-nav a:focus-visible, .edit-row[role="radio"]:focus-visible { outline: 2px solid var(--sr-accent); outline-offset: 2px; }
+
+main { max-width: 1220px; margin: 0 auto; padding: 8px 24px 80px; }
+section.sec { padding: 44px 0 20px; border-bottom: 1px solid var(--sr-border); }
+section.sec:last-of-type { border-bottom: 0; }
+.sec-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 24px; align-items: end; margin-bottom: 22px; }
+.sec-kicker { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--sr-accent); margin: 0 0 6px; }
+.sec-head h2 { font-family: var(--font-display); font-weight: 600; font-size: 30px; line-height: 1.1; letter-spacing: -0.015em; margin: 0; }
+.sec-lede { font-size: 14.5px; color: var(--sr-text-muted); margin: 8px 0 0; max-width: 62ch; }
+.sec-aside { font-size: 12.5px; color: var(--sr-text-muted); max-width: 34ch; line-height: 1.45; }
+.note { font-size: 12.5px; color: var(--sr-text-muted); line-height: 1.5; max-width: 70ch; }
+.note b { color: var(--sr-text); font-weight: 600; }
+.cap { font-size: 11px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--sr-text-muted); margin: 0 0 10px; }
+.cap span { font-weight: 500; text-transform: none; letter-spacing: 0; margin-left: 6px; }
+.cap .tag { display: inline-block; margin: 0 8px 0 0; padding: 1px 7px; border-radius: 4px; font-size: 10px; letter-spacing: 0.08em; }
+.cap .tag.before { background: var(--sr-surface-subtle); color: var(--sr-text-muted); border: 1px solid var(--sr-border); }
+.cap .tag.after { background: var(--sr-accent-bg); color: var(--sr-accent); border: 1px solid var(--sr-accent-border); }
+
+/* Layouts */
+.flow { display: grid; grid-template-columns: repeat(3, auto); gap: 18px; align-items: start; overflow-x: auto; padding-bottom: 8px; }
+.flow.four { grid-template-columns: repeat(4, auto); gap: 14px; }
+.flow.four .phone.scaled { transform: scale(0.66); }
+.flow.four .phone-box { width: 259px; height: 562px; margin: 10px 6px; }
+.flow .step { display: flex; flex-direction: column; gap: 10px; }
+.flow .cap { display: flex; align-items: center; margin: 0; flex-wrap: wrap; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, 364px); gap: 26px; align-items: start; }
+.tiles .cell { display: flex; flex-direction: column; gap: 10px; }
+.tiles .cell .cap { margin: 0; }
+.tiles .cell .why { font-size: 12px; color: var(--sr-text-muted); line-height: 1.4; margin: 0; }
+.tiles .cell.narrow { width: 170px; }
+.pair { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 26px; align-items: start; }
+@media (max-width: 1100px) { .pair { grid-template-columns: 1fr; } }
+
+/* The copy table: one row per surface, today beside proposed */
+.copy { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; background: var(--sr-surface); border: 1px solid var(--sr-border); border-radius: 10px; box-shadow: var(--sr-card-shadow); overflow: hidden; }
+.copy th { text-align: left; font-size: 11px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--sr-text-muted); padding: 10px 14px; border-bottom: 1px solid var(--sr-border); background: var(--sr-surface-faint); }
+.copy td { padding: 10px 14px; vertical-align: top; border-bottom: 1px solid var(--sr-border-subtle); line-height: 1.45; }
+.copy tr:last-child td { border-bottom: 0; }
+.copy td:first-child { font-weight: 600; white-space: nowrap; width: 1%; }
+.copy .q { color: var(--sr-text); }
+.copy .old { color: var(--sr-text-muted); }
+.copy .sub { display: block; font-size: 12px; color: var(--sr-text-muted); }
+.copy .same { color: var(--sr-text-muted); font-style: italic; }
+.copy .diff { background: var(--sr-accent-bg); border-radius: 3px; padding: 0 3px; }
+.copy .gone { text-decoration: line-through; color: var(--sr-text-muted); }
+
+/* ── Device frames ── */
+.ios { font-family: var(--font-body); }
+.phone {
+  position: relative; width: 393px; height: 852px; border-radius: 54px; overflow: hidden;
+  background: var(--wall);
+  box-shadow: 0 0 0 10px #1B1B1F, 0 0 0 12px #3A3A40, 0 30px 60px -20px rgba(15,17,23,0.45);
+  transition: background-color var(--dur) ease-out;
+}
+.phone.scaled { transform: scale(0.7); transform-origin: top left; }
+.phone-box { width: 275px; height: 596px; margin: 12px; }
+.island { position: absolute; top: 11px; left: 50%; width: 126px; height: 37px; margin-left: -63px; border-radius: 20px; background: #0A0A0C; }
+.statusbar { position: absolute; top: 18px; left: 0; right: 0; display: flex; justify-content: space-between; padding: 0 34px 0 38px; font-size: 16px; font-weight: 600; color: var(--status); }
+.statusbar .rt { display: flex; gap: 6px; align-items: center; }
+.statusbar .cell4 { display: inline-flex; gap: 1.5px; align-items: flex-end; height: 11px; }
+.statusbar .cell4 i { display: block; width: 3px; background: currentColor; border-radius: 1px; }
+.statusbar .batt { width: 26px; height: 12px; border: 1.5px solid currentColor; border-radius: 4px; position: relative; opacity: 0.9; }
+.statusbar .batt::after { content: ""; position: absolute; inset: 2px; right: 4px; background: currentColor; border-radius: 1.5px; }
+.hs { position: absolute; left: 14.5px; right: 14.5px; top: 94px; }
+.hs-row { display: grid; grid-template-columns: repeat(4, 91px); position: absolute; left: 0; }
+.app { display: flex; flex-direction: column; align-items: center; gap: 5px; width: 91px; }
+.app .tile { width: 60px; height: 60px; border-radius: 14px; display: flex; align-items: center; justify-content: center; color: #FFFFFF; box-shadow: 0 2px 6px rgba(15,17,23,0.2); }
+.app .tile .icon { width: 28px; height: 28px; stroke-width: 1.9; }
+.app .tile .raven { width: 36px; height: 36px; }
+.app .lbl { font-size: 11px; font-weight: 500; color: var(--hs-label); text-shadow: var(--hs-shadow); white-space: nowrap; letter-spacing: -0.01em; }
+.pagedots { position: absolute; left: 0; right: 0; top: 728px; display: flex; justify-content: center; gap: 8px; }
+.pagedots i { width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,0.45); }
+.pagedots i.on { background: rgba(255,255,255,0.95); }
+.dock { position: absolute; left: 14.5px; right: 14.5px; top: 752px; height: 92px; border-radius: 32px; background: var(--dock); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); display: flex; align-items: center; justify-content: space-evenly; }
+.dock .app { gap: 0; }
+.dock .app .lbl { display: none; }
+.tap { position: absolute; width: 34px; height: 34px; border-radius: 50%; border: 2.5px solid rgba(255,255,255,0.95); background: rgba(39,116,72,0.35); box-shadow: 0 0 0 4px rgba(39,116,72,0.22), 0 2px 8px rgba(15,17,23,0.35); pointer-events: none; }
+.tap::after { content: ""; position: absolute; inset: 9px; border-radius: 50%; background: #FFFFFF; }
+
+/* ── The widget itself (SwiftUI/WidgetKit rendering, faithfully; the shipped v1.0.36 board's rules) ── */
+.w {
+  --ws: 1;
+  position: relative;
+  display: flex; flex-direction: column;
+  border-radius: 22px;
+  background: var(--w-bg);
+  color: var(--w-text);
+  box-shadow: var(--w-shadow);
+  padding: 12px 15px 10px;
+  font-family: var(--font-body);
+  overflow: hidden;
+  transition: background-color var(--dur) ease-out, color var(--dur) ease-out;
+}
+.w--small { width: 170px; height: 170px; }
+.w--medium { width: 364px; height: 170px; }
+.w-h { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; margin-bottom: 3px; }
+.w-h .raven { width: 13px; height: 13px; color: var(--w-accent); }
+.w-title { font-size: 13px; font-weight: 600; letter-spacing: -0.1px; line-height: 1.2; }
+.w-win { margin-left: auto; font-size: 11px; font-weight: 600; color: var(--w-muted); line-height: 1.2; }
+.w--small .w-title { font-size: 12px; }
+.w-rows { display: flex; flex-direction: column; min-height: 0; }
+.w-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 10px; align-items: baseline; padding: 3px 0; border-top: 1px solid var(--w-sep); }
+.w-row:first-child { border-top: 0; }
+.w-name { display: flex; align-items: center; gap: 5px; min-width: 0; font-size: 13.5px; font-weight: 600; line-height: 1.15; letter-spacing: -0.1px; }
+.w-name-t { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.m { display: inline-flex; align-items: center; gap: 3px; color: var(--w-muted); flex: none; }
+.m svg { width: 11px; height: 11px; fill: currentColor; stroke: none; }
+.w-dist { font-size: 13.5px; font-weight: 600; color: var(--w-accent); font-variant-numeric: tabular-nums; line-height: 1.15; }
+.w-sub { grid-column: 1 / -1; font-size: 10.5px; color: var(--w-muted); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+.w-f { margin-top: auto; padding-top: 3px; display: flex; align-items: center; gap: 5px; font-size: 10.5px; color: var(--w-muted); line-height: 1.2; white-space: nowrap; overflow: hidden; }
+.w-f .sep { opacity: 0.55; }
+.w-one { margin-top: auto; display: flex; flex-direction: column; gap: 4px; }
+.w-one-name { font-size: 18px; font-weight: 700; letter-spacing: -0.3px; line-height: 1.12; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.w-one-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; min-width: 0; }
+.w-one-dist { font-size: 22px; font-weight: 700; color: var(--w-accent); font-variant-numeric: tabular-nums; letter-spacing: -0.4px; line-height: 1.05; white-space: nowrap; }
+.w-one-rec { font-size: 11px; color: var(--w-muted); font-weight: 500; white-space: nowrap; }
+.w-msg { margin: auto 0; font-size: 13px; font-weight: 500; line-height: 1.32; color: var(--w-text); padding-right: 4px; }
+.w--small .w-msg { font-size: 12px; }
+.w-msg + .w-f { margin-top: 0; }
+/* The one motion WidgetKit gives a refresh: content cross-fades (.contentTransition(.opacity)) */
+.w-f.swap, .w-rows.swap { animation: fadeIn 200ms var(--ease-out) both; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* ── Edit Widget sheet (iOS's own; we supply the rows) ── */
+.edit-scrim { position: absolute; inset: 0; background: rgba(8,8,14,0.62); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+.edit-top { position: absolute; top: 62px; left: 0; right: 0; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; color: #FFFFFF; font-size: 17px; }
+.edit-top b { font-weight: 600; }
+.edit-top .done { font-weight: 600; color: #FFFFFF; }
+.edit-preview { position: absolute; left: 14.5px; top: 118px; }
+.edit-list { position: absolute; left: 20px; right: 20px; top: 326px; border-radius: 12px; overflow: hidden; background: var(--w-bg); color: var(--w-text); box-shadow: var(--w-shadow); }
+.edit-row { display: flex; align-items: center; gap: 12px; min-height: 46px; padding: 0 16px; font-size: 16px; border-top: 1px solid var(--w-sep); }
+.edit-row:first-child { border-top: 0; }
+.edit-row.new { position: relative; }
+.edit-row.new::before { content: ""; position: absolute; left: 0; top: 6px; bottom: 6px; width: 3px; border-radius: 0 2px 2px 0; background: var(--w-accent); }
+.edit-row .v { margin-left: auto; color: var(--w-muted); display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.edit-row .v .icon { width: 14px; height: 14px; color: var(--w-muted); }
+.edit-row .check { margin-left: auto; width: 18px; height: 18px; color: var(--w-accent); stroke-width: 2.8; flex: none; transform: scale(0.6); opacity: 0; transition: transform var(--dur) var(--ease-out), opacity var(--dur) ease-out; }
+.edit-row[aria-checked="true"] .check { transform: none; opacity: 1; }
+.edit-row .tx { display: flex; flex-direction: column; padding: 8px 0; line-height: 1.25; }
+.edit-row .tx small { font-size: 12.5px; color: var(--w-muted); }
+.edit-row[role="radio"] { cursor: pointer; }
+.picker-top { position: absolute; top: 62px; left: 0; right: 0; display: flex; align-items: center; padding: 0 16px; color: #FFFFFF; font-size: 17px; gap: 4px; }
+.picker-top .icon { width: 20px; height: 20px; }
+.picker-list { top: 112px; }
+.picker-hint { position: absolute; left: 20px; right: 20px; top: 232px; font-size: 12.5px; color: rgba(255,255,255,0.72); line-height: 1.4; }
+
+/* ── The widget gallery card (Add Widget) ── */
+.gal { position: absolute; left: 0; right: 0; top: 0; bottom: 0; background: var(--a-bg); color: var(--a-text); }
+.gal-top { position: absolute; top: 62px; left: 0; right: 0; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; font-size: 17px; }
+.gal-top .x { width: 30px; height: 30px; border-radius: 50%; background: var(--a-subtle); display: inline-flex; align-items: center; justify-content: center; color: var(--a-muted); }
+.gal-top .x .icon { width: 14px; height: 14px; stroke-width: 2.8; }
+.gal-title { position: absolute; top: 112px; left: 0; right: 0; text-align: center; font-size: 28px; font-weight: 700; letter-spacing: -0.4px; }
+.gal-desc { position: absolute; top: 156px; left: 36px; right: 36px; text-align: center; font-size: 14px; line-height: 1.4; color: var(--a-muted); }
+.gal-preview { position: absolute; left: 14.5px; top: 268px; }
+.gal-dots { position: absolute; left: 0; right: 0; top: 460px; display: flex; justify-content: center; gap: 8px; }
+.gal-dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--a-border-med); }
+.gal-dots i.on { background: var(--a-text); }
+.gal-add { position: absolute; left: 56px; right: 56px; top: 520px; height: 50px; border-radius: 25px; background: #1A73E8; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 17px; font-weight: 600; }
+[data-appearance="dark"] .gal-add { background: #4D8DF5; }
+
+/* ── The app (Map Explorer, phone tier), faithful to the shipped app ── */
+.appscreen { position: absolute; inset: 0; background: var(--a-bg); color: var(--a-text); display: flex; flex-direction: column; font-family: var(--font-body); }
+.a-header { display: flex; align-items: center; justify-content: center; gap: 7px; padding: 56px 24px 8px; }
+.a-header .raven { width: 20px; height: 20px; color: var(--a-accent); }
+.a-header h1 { margin: 0; font-size: 18px; font-weight: 700; letter-spacing: -0.6px; }
+.a-header h1 span:last-child { color: var(--a-accent); }
+.a-modes { display: flex; flex-wrap: wrap; gap: 8px; padding: 10px 16px; border-bottom: 1px solid var(--a-border); background: var(--a-surface); }
+.pill { display: inline-flex; align-items: center; gap: 5px; min-height: 30px; padding: 0 12px; border-radius: 15px; border: 1.5px solid var(--a-border); background: var(--a-surface); color: var(--a-muted); font-size: 12px; font-weight: 500; white-space: nowrap; }
+.pill .icon { width: 14px; height: 14px; stroke-width: 2.5; }
+.pill[aria-pressed="true"] { background: var(--a-accent-bg); border-color: var(--a-accent-border); color: var(--a-accent); font-weight: 600; }
+.a-map { position: relative; flex: 1; min-height: 0; overflow: hidden; background: #ECEAE4; }
+.a-map svg.base { position: absolute; inset: 0; width: 100%; height: 100%; }
+.chip { position: absolute; display: inline-flex; align-items: center; gap: 6px; transform: translate(-6px, -50%); }
+.chip i { width: 11px; height: 11px; border-radius: 50%; background: var(--sr-map-target-fresh); border: 2px solid rgba(255,255,255,0.95); box-shadow: 0 1px 3px rgba(15,17,23,0.45); flex: none; }
+.chip span { background: var(--sr-map-target-fresh); color: var(--sr-map-target-fresh-text); padding: 3px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; white-space: nowrap; border: 1.5px solid rgba(255,255,255,0.85); box-shadow: 0 2px 6px rgba(15,17,23,0.35), 0 0 0 1px rgba(15,17,23,0.1); }
+.chip.sel span { outline: 2px solid #FFFFFF; outline-offset: 1px; }
+.me { position: absolute; width: 16px; height: 16px; border-radius: 50%; background: var(--sr-accent); border: 3px solid #FFFFFF; box-shadow: 0 0 0 1px rgba(15,17,23,0.25), 0 2px 6px rgba(15,17,23,0.35); transform: translate(-50%, -50%); }
+/* The search-center pin: the accent, a teardrop, where the search was run from */
+.ctr { position: absolute; transform: translate(-50%, -100%); width: 22px; height: 30px; }
+.ctr svg { width: 22px; height: 30px; }
+.fabs { position: absolute; right: 12px; bottom: 12px; display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
+.a-only { display: inline-flex; align-items: center; gap: 7px; max-width: 100%; padding: 7px 15px; border-radius: 20px; background: var(--a-accent-bg); color: var(--a-accent); border: 1px solid var(--a-accent-border-strong); box-shadow: 0 2px 8px rgba(15,17,23,0.18); font-size: 13px; font-weight: 600; line-height: 1.25; white-space: nowrap; }
+.a-only .t { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.a-only .sep { opacity: 0.6; }
+/* The top-center statement slot: the landing chip (.sr-map-landing-chip, spinner plus muted text) */
+.a-status { position: absolute; top: 12px; left: 12px; right: 12px; display: flex; justify-content: center; pointer-events: none; }
+.a-status span { display: inline-flex; align-items: center; gap: 7px; padding: 5px 12px; border-radius: 20px; background: var(--a-surface); border: 1px solid var(--a-border); color: var(--a-muted); font-size: 12px; font-weight: 500; line-height: 1.3; text-align: center; white-space: nowrap; box-shadow: 0 2px 8px rgba(15,17,23,0.18); }
+.a-status .spin { width: 11px; height: 11px; border-radius: 50%; border: 2px solid var(--a-border-med); border-top-color: var(--a-accent); flex: none; animation: spin 900ms linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.a-pop { position: absolute; width: 214px; transform: translate(-50%, calc(-100% - 16px)); background: var(--a-surface); color: var(--a-text); border-radius: 8px; box-shadow: 0 3px 14px rgba(15,17,23,0.28); padding: 10px 12px 10px; font-size: 11px; }
+.a-pop::after { content: ""; position: absolute; left: 50%; bottom: -7px; margin-left: -7px; border: 7px solid transparent; border-top-color: var(--a-surface); border-bottom: 0; }
+.a-pop .x { position: absolute; top: 4px; right: 8px; font-size: 16px; line-height: 1; color: var(--a-muted); }
+.a-pop .loc { color: var(--a-muted); margin-bottom: 8px; padding-right: 16px; overflow-wrap: anywhere; }
+.a-pop .nm { display: flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; margin-bottom: 3px; }
+.a-pop .nm i { width: 9px; height: 9px; border-radius: 50%; background: var(--sr-map-target-fresh); flex: none; }
+.a-pop .dt { margin-left: 15px; font-size: 10px; color: var(--a-muted); margin-bottom: 4px; }
+.a-pop .lk { margin-left: 15px; color: var(--a-accent); font-weight: 600; display: inline-flex; align-items: center; gap: 4px; }
+.a-pop .lk .icon { width: 11px; height: 11px; }
+.fab-row { display: flex; gap: 10px; }
+.fab { width: 44px; height: 44px; border-radius: 50%; background: var(--a-surface); color: var(--a-text); border: 1px solid var(--a-border); display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(15,17,23,0.18); }
+.fab .icon { width: 17px; height: 17px; }
+.fab-filters { display: inline-flex; align-items: center; gap: 6px; height: 44px; padding: 0 16px; border-radius: 24px; background: var(--a-accent); color: var(--a-on-accent); font-size: 13px; font-weight: 600; box-shadow: 0 4px 12px rgba(45,134,83,0.4); }
+.fab-filters .icon { width: 14px; height: 14px; stroke-width: 2.5; }
+.a-nav { display: grid; grid-template-columns: repeat(5, 1fr); background: var(--a-surface); border-top: 1px solid var(--a-border); box-shadow: 0 -3px 6px -2px rgba(15,17,23,0.12); padding-bottom: 22px; }
+.a-nav .cell { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; min-height: 52px; padding: 7px 3px 8px; color: var(--a-muted); }
+.a-nav .glyph { display: flex; align-items: center; justify-content: center; width: 40px; height: 26px; border-radius: 13px; }
+.a-nav .glyph .icon { width: 18px; height: 18px; }
+.a-nav .lbl { font-size: 10px; font-weight: 600; line-height: 1.15; text-align: center; }
+.a-nav .cell.on { color: var(--a-accent); }
+.a-nav .cell.on .glyph { background: var(--a-accent-bg); }
+.a-nav .cell.on .lbl { font-weight: 700; }
+.homebar { position: absolute; bottom: 8px; left: 50%; width: 134px; height: 5px; margin-left: -67px; border-radius: 3px; background: var(--a-text); opacity: 0.85; }
+
+/* The held-copy block */
+.held { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+.held .card { background: var(--sr-surface); border: 1px solid var(--sr-border); border-radius: 10px; padding: 14px 16px; box-shadow: var(--sr-card-shadow); font-size: 13px; line-height: 1.5; }
+.held .card h3 { margin: 0 0 6px; font-size: 13px; font-weight: 700; }
+.held .card .where { display: block; font-size: 11px; color: var(--sr-text-muted); font-family: var(--font-mono); margin-bottom: 8px; }
+.held .card q { quotes: "\201C" "\201D"; }
+.held .card .old { color: var(--sr-text-muted); }
+.held .card .pill { margin-top: 10px; min-height: 24px; padding: 0 9px; font-size: 11px; background: var(--sr-warning-bg); border-color: var(--sr-warning); color: var(--sr-warning); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation: none !important; }
+  .a-status .spin { border-top-color: var(--a-border-med); }
+}
+</style>
+</head>
+<body>
+
+<svg hidden aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+  <symbol id="raven" viewBox="0 0 512 512"><path fill-rule="evenodd" clip-rule="evenodd" d="M 150.79 440.77 L 176.47 435.39 L 197.48 429.33 L 213.04 423.88 L 245.73 409.97 L 270.63 397.28 L 296.30 381.80 L 318.09 366.18 L 336.57 350.44 L 352.33 334.58 L 367.31 316.20 L 379.08 297.53 L 385.19 285.08 L 389.91 273.41 L 395.34 253.95 L 396.99 244.61 L 398.12 232.16 L 397.64 214.27 L 393.73 194.04 L 386.46 169.91 L 384.84 159.02 L 385.60 149.68 L 388.70 139.57 L 394.35 130.77 L 399.02 125.85 L 405.25 120.87 L 417.70 113.66 L 430.15 109.05 L 445.71 105.74 L 451.93 105.05 L 464.38 105.06 L 473.72 106.67 L 484.62 111.08 L 485.38 110.77 L 485.11 101.44 L 483.21 95.21 L 479.17 87.44 L 473.72 81.39 L 464.38 74.65 L 449.60 68.35 L 437.93 65.33 L 410.69 60.66 L 402.71 53.19 L 392.02 45.17 L 381.12 38.75 L 373.34 35.08 L 354.67 28.85 L 339.10 26.17 L 322.76 25.37 L 311.09 26.27 L 297.08 28.66 L 288.52 31.10 L 273.74 37.43 L 262.07 44.46 L 253.51 51.19 L 244.65 60.19 L 234.69 73.42 L 226.06 88.21 L 215.97 110.77 L 198.93 152.79 L 199.81 153.14 L 210.71 148.11 L 230.16 141.75 L 241.83 139.37 L 254.28 138.31 L 267.51 138.63 L 281.50 141.12 L 293.19 144.94 L 303.31 150.17 L 311.57 155.91 L 321.42 166.02 L 327.70 175.36 L 332.88 187.08 L 335.35 196.37 L 336.92 208.82 L 336.90 218.94 L 334.38 236.06 L 328.50 255.51 L 319.29 274.96 L 307.20 294.01 L 289.43 316.20 L 271.40 335.03 L 248.84 355.96 L 146.83 440.71 L 147.68 441.18 Z M 361.37 83.54 L 355.44 83.04 L 349.39 79.65 L 345.70 75.76 L 340.28 67.20 L 335.99 63.61 L 331.05 60.97 L 331.32 60.45 L 343.77 60.10 L 354.67 61.50 L 367.12 66.26 L 376.07 72.64 L 374.90 74.46 L 367.89 80.74 Z M 384.80 96.77 L 381.12 97.22 L 379.95 96.77 L 389.68 89.61 L 398.24 84.87 L 409.14 81.06 L 423.14 79.17 L 436.37 79.99 L 446.49 82.49 L 458.16 88.01 L 465.16 93.23 L 467.68 95.99 L 466.72 96.57 L 440.26 94.09 L 416.92 93.78 L 399.02 94.86 Z M 27.07 486.63 L 42.63 480.11 L 57.41 472.78 L 83.87 457.96 L 111.11 441.03 L 146.90 416.35 L 188.78 384.68 L 227.05 353.61 L 252.69 330.99 L 266.74 317.42 L 278.01 305.31 L 291.95 288.19 L 298.64 278.72 L 306.04 266.40 L 311.49 255.51 L 315.26 246.17 L 317.53 239.17 L 319.92 228.27 L 321.08 218.94 L 321.06 210.38 L 320.04 201.82 L 318.42 194.81 L 315.25 187.03 L 311.19 180.03 L 307.72 175.36 L 302.53 170.13 L 295.53 164.95 L 286.97 160.39 L 276.07 156.55 L 269.07 154.98 L 260.51 153.84 L 248.84 153.69 L 231.72 155.87 L 220.82 158.88 L 212.26 162.07 L 203.81 166.02 L 195.15 171.24 L 186.59 177.15 L 176.64 185.48 L 162.41 200.26 L 153.88 211.15 L 143.79 226.74 L 136.73 239.17 L 125.74 261.73 L 109.38 300.64 L 78.90 379.23 L 79.98 379.55 L 90.87 375.49 L 106.44 367.80 L 123.56 357.64 L 148.46 339.41 L 149.24 339.06 L 149.37 339.55 L 133.67 359.67 L 120.96 373.01 L 107.66 384.68 L 87.69 397.91 L 62.88 436.82 L 44.33 463.27 L 26.62 485.84 Z"/></symbol>
+  <symbol id="i-binoculars" viewBox="0 0 24 24"><path d="M10 10h4"/><path d="M19 7V4a1 1 0 0 0-1-1h-2a1 1 0 0 0-1 1v3"/><path d="M20 21a2 2 0 0 0 2-2v-3.851c0-1.39-2-2.962-2-4.829V8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v11a2 2 0 0 0 2 2z"/><path d="M22 16H2"/><path d="M4 21a2 2 0 0 1-2-2v-3.851c0-1.39 2-2.962 2-4.829V8a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v11a2 2 0 0 1-2 2z"/><path d="M9 7V4a1 1 0 0 0-1-1H6a1 1 0 0 0-1 1v3"/></symbol>
+  <symbol id="i-camera" viewBox="0 0 24 24"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></symbol>
+  <symbol id="i-mappin" viewBox="0 0 24 24"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></symbol>
+  <symbol id="i-hotspots" viewBox="0 0 24 24"><circle cx="8" cy="12" r="4"/><circle cx="16" cy="12" r="4"/></symbol>
+  <symbol id="i-filter" viewBox="0 0 24 24"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></symbol>
+  <symbol id="i-locate" viewBox="0 0 24 24"><line x1="2" x2="5" y1="12" y2="12"/><line x1="19" x2="22" y1="12" y2="12"/><line x1="12" x2="12" y1="2" y2="5"/><line x1="12" x2="12" y1="19" y2="22"/><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-max" viewBox="0 0 24 24"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" x2="14" y1="3" y2="10"/><line x1="3" x2="10" y1="21" y2="14"/></symbol>
+  <symbol id="i-flag" viewBox="0 0 24 24"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" x2="4" y1="22" y2="15"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></symbol>
+  <symbol id="i-chev-l" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
+  <symbol id="i-chev-r" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></symbol>
+  <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></symbol>
+  <symbol id="i-bar" viewBox="0 0 24 24"><line x1="18" x2="18" y1="20" y2="10"/><line x1="12" x2="12" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="14"/></symbol>
+  <symbol id="i-map" viewBox="0 0 24 24"><path d="M14.106 5.553a2 2 0 0 0 1.788 0l3.659-1.83A1 1 0 0 1 21 4.619v12.764a1 1 0 0 1-.553.894l-4.553 2.277a2 2 0 0 1-1.788 0l-4.212-2.106a2 2 0 0 0-1.788 0l-3.659 1.83A1 1 0 0 1 3 19.381V6.618a1 1 0 0 1 .553-.894l4.553-2.277a2 2 0 0 1 1.788 0z"/><path d="M15 5.764v15"/><path d="M9 3.236v15"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></symbol>
+  <symbol id="i-more" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></symbol>
+  <symbol id="i-msg" viewBox="0 0 24 24"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></symbol>
+  <symbol id="i-compass" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></symbol>
+  <symbol id="i-photos" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></symbol>
+  <symbol id="i-mail" viewBox="0 0 24 24"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></symbol>
+  <symbol id="i-note" viewBox="0 0 24 24"><path d="M15.5 3H5a2 2 0 0 0-2 2v14c0 1.1.9 2 2 2h14a2 2 0 0 0 2-2V8.5L15.5 3Z"/><path d="M15 3v6h6"/></symbol>
+  <symbol id="i-cal" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></symbol>
+  <symbol id="i-music" viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></symbol>
+  <symbol id="i-phone" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></symbol>
+  <symbol id="i-ext" viewBox="0 0 24 24"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></symbol>
+  <symbol id="i-weather" viewBox="0 0 24 24"><path d="M12 2v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="M20 12h2"/><path d="m19.07 4.93-1.41 1.41"/><path d="M15.947 12.65a4 4 0 0 0-5.925-4.128"/><path d="M13 22H7a5 5 0 1 1 4.9-6H13a3 3 0 0 1 0 6Z"/></symbol>
+  <symbol id="sf-camera" viewBox="0 0 24 24"><path d="M9.2 3.5a1.5 1.5 0 0 0-1.25.67L6.8 6H4.5A2.5 2.5 0 0 0 2 8.5v9A2.5 2.5 0 0 0 4.5 20h15a2.5 2.5 0 0 0 2.5-2.5v-9A2.5 2.5 0 0 0 19.5 6h-2.3l-1.15-1.83A1.5 1.5 0 0 0 14.8 3.5zM12 9.25a3.75 3.75 0 1 1 0 7.5 3.75 3.75 0 0 1 0-7.5z"/></symbol>
+  <symbol id="sf-video" viewBox="0 0 24 24"><path d="M3.5 6A2.5 2.5 0 0 0 1 8.5v7A2.5 2.5 0 0 0 3.5 18h10a2.5 2.5 0 0 0 2.5-2.5v-7A2.5 2.5 0 0 0 13.5 6zM17.5 10.2v3.6l4.05 2.7a.9.9 0 0 0 1.45-.72V8.22a.9.9 0 0 0-1.45-.72z"/></symbol>
+  <symbol id="sf-mic" viewBox="0 0 24 24"><path d="M12 2.25A3.25 3.25 0 0 0 8.75 5.5v6.5a3.25 3.25 0 0 0 6.5 0V5.5A3.25 3.25 0 0 0 12 2.25z"/><path d="M6 11.25a.9.9 0 0 1 .9.9V12a5.1 5.1 0 0 0 10.2 0v.15a.9.9 0 1 1 1.8 0V12a6.9 6.9 0 0 1-6 6.84v2.16a.9.9 0 1 1-1.8 0v-2.16A6.9 6.9 0 0 1 5.1 12v.15a.9.9 0 0 1 .9-.9z"/></symbol>
+</svg>
+
+<header class="board-top">
+  <div class="board-brand">
+    <svg class="raven" aria-hidden="true"><use href="#raven"/></svg>
+    <div><h1>Measure from</h1><small>SnowRaven widgets, a design pass</small></div>
+  </div>
+  <nav class="board-nav" aria-label="Sections">
+    <a href="#sheet">Edit Widget</a>
+    <a href="#tile">The tile</a>
+    <a href="#sentence">No Default Location</a>
+    <a href="#gallery">Gallery</a>
+    <a href="#landing">The tap</a>
+    <a href="#words">Every word</a>
+    <a href="#held">Held copy</a>
+  </nav>
+  <div class="board-controls">
+    <span class="ctl-label">Measure from</span>
+    <div class="seg" role="group" aria-label="The proposed widget setting" id="measure">
+      <button type="button" data-measure="my" aria-pressed="false">My location</button>
+      <button type="button" data-measure="default" aria-pressed="true">Default Location</button>
+    </div>
+    <span class="ctl-label">Appearance</span>
+    <div class="seg" role="group" aria-label="Appearance mode" id="appearance">
+      <button type="button" data-mode="light" aria-pressed="true"><svg class="icon" aria-hidden="true"><use href="#i-sun"/></svg>Light</button>
+      <button type="button" data-mode="dark" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="#i-moon"/></svg>Dark</button>
+    </div>
+  </div>
+</header>
+
+<main>
+
+<!-- ───────── 1. Edit Widget ───────── -->
+<section class="sec" id="sheet">
+  <div class="sec-head">
+    <div>
+      <p class="sec-kicker">Starting point, surface 1</p>
+      <h2>One more row in a sheet that already exists</h2>
+      <p class="sec-lede">Long-press, Edit Widget. The sheet is iOS's own; we supply the rows. The new row is <b>Measure from</b>, the exact words Alerts uses in Settings and the Targets tab uses in its chooser. Its two values are <b>My location</b> and <b>Default Location</b>, the Targets chooser's own pair, because the second value <em>is</em> the Default Location, so its name says so where Alerts' "Fixed place" could not. My location is the default and is today's behavior to the letter, so a widget placed before the update changes nothing.</p>
+    </div>
+    <p class="sec-aside">Nearby Lifers gets it as its second row, Media Targets as its third, after the rows a birder already knows. Tap a value in the third phone, or use the Measure from control above: every proposal on this page follows it.</p>
+  </div>
+  <div class="ios flow four">
+    <div class="step">
+      <p class="cap"><span class="tag before">Today</span>Nearby Lifers <span>one row</span></p>
+      <div class="phone-box"><div class="phone scaled" id="sheet-before"></div></div>
+    </div>
+    <div class="step">
+      <p class="cap"><span class="tag after">Proposed</span>Nearby Lifers <span>Measure from, second</span></p>
+      <div class="phone-box"><div class="phone scaled" id="sheet-after"></div></div>
+    </div>
+    <div class="step">
+      <p class="cap"><span class="tag after">Proposed</span>The picker <span>two values, a second line each</span></p>
+      <div class="phone-box"><div class="phone scaled" id="sheet-picker"></div></div>
+    </div>
+    <div class="step">
+      <p class="cap"><span class="tag after">Proposed</span>Media Targets <span>Measure from, third</span></p>
+      <div class="phone-box"><div class="phone scaled" id="sheet-targets"></div></div>
+    </div>
+  </div>
+  <p class="note" style="margin-top:10px">The second lines follow the Media picker's register (one short clause saying what the value means): <b>Where you are when the widget refreshes</b> under My location, and <b>The one saved in SnowRaven's Settings</b> under Default Location, "SnowRaven's Settings" being how every widget sentence already points at the app. The thin green edge on the new row is a board mark only, to show what is new; iOS draws nothing there.</p>
+</section>
+
+<!-- ───────── 2. The tile ───────── -->
+<section class="sec" id="tile">
+  <div class="sec-head">
+    <div>
+      <p class="sec-kicker">Surface 2</p>
+      <h2>The caption says where the distances come from, however it got there</h2>
+      <p class="sec-lede">Today "From your default location" appears only as a fallback, when the phone could not be located. The proposal shows it whenever the list was measured from the Default Location, chosen or fallback, with the same words. The reason is the mixed home screen: a Nearby Lifers from home beside a Nearby Lifers from here look identical without it, and the caption is the only place the tile can say which is which. It is true in both cases, and it is one string rather than two.</p>
+    </div>
+    <p class="sec-aside">A Default Location in Fremont, Alameda County, for a birder reading the widget from the office in San Jose. Same reports, different distances, because the reference point moved.</p>
+  </div>
+  <div class="ios tiles">
+    <div class="cell">
+      <p class="cap"><span class="tag before">Today</span>Measured from the phone <span>no caption</span></p>
+      <div id="tile-before-my"></div>
+      <p class="why">The device position at refresh. Nothing changes here: this is also the proposal's My location, byte for byte.</p>
+    </div>
+    <div class="cell">
+      <p class="cap"><span class="tag before">Today</span>Fallback <span>location off, Default Location saved</span></p>
+      <div id="tile-before-fb"></div>
+      <p class="why">The only case the caption shows today. The proposal keeps it exactly.</p>
+    </div>
+    <div class="cell">
+      <p class="cap"><span class="tag after">Proposed</span>Default Location chosen <span>reads no location</span></p>
+      <div id="tile-after-default"></div>
+      <p class="why">The widget never asks the locator, measures from the saved point on every refresh, and says so in the same footer slot. The VoiceOver label reads the caption as a sentence, as it does today.</p>
+    </div>
+    <div class="cell narrow">
+      <p class="cap"><span class="tag after">Proposed</span>Small</p>
+      <div id="tile-after-small"></div>
+      <p class="why">Small shows the caption and keeps its rule of showing the time only when stale.</p>
+    </div>
+    <div class="cell">
+      <p class="cap"><span class="tag after">Proposed</span>Follows the control above <span>switch it and watch the footer</span></p>
+      <div id="tile-live"></div>
+      <p class="why">What a refresh does when the setting changed: rows cross-fade, the footer with them, 200 ms, instant under Reduce Motion. Nothing else moves.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ───────── 3. The sentence ───────── -->
+<section class="sec" id="sentence">
+  <div class="sec-head">
+    <div>
+      <p class="sec-kicker">Surface 3</p>
+      <h2>Default Location chosen, none saved</h2>
+      <p class="sec-lede">A new state with its own sentence, in the register every widget sentence uses: name the one thing in the way and the two ways out, as the existing no-location sentence does. It makes no request. The two ways out are the two things the birder can actually do from there: save a Default Location in the app, or put the widget back on My location.</p>
+    </div>
+    <p class="sec-aside">Today's sentence stays for My location with neither a position nor a Default Location. The new one is only ever shown on a widget set to Default Location.</p>
+  </div>
+  <div class="ios tiles">
+    <div class="cell">
+      <p class="cap"><span class="tag before">Today</span>No location, no Default Location <span>My location, unchanged</span></p>
+      <div id="sent-before"></div>
+      <p class="why">"Open SnowRaven to allow location, or set a Default Location in Settings." Still shipped, still the My location sentence.</p>
+    </div>
+    <div class="cell">
+      <p class="cap"><span class="tag after">Proposed</span>Default Location chosen, none saved</p>
+      <div id="sent-after"></div>
+      <p class="why">"Set a Default Location in SnowRaven's Settings, or switch this widget to My location." Names the value as the picker spells it, so the way back is findable.</p>
+    </div>
+    <div class="cell narrow">
+      <p class="cap"><span class="tag after">Proposed</span>Small</p>
+      <div id="sent-after-small"></div>
+      <p class="why">Fits the small tile at the default text size, as the current sentence does.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ───────── 4. Gallery ───────── -->
+<section class="sec" id="gallery">
+  <div class="sec-head">
+    <div>
+      <p class="sec-kicker">Surface 4</p>
+      <h2>The gallery no longer promises "where you are"</h2>
+      <p class="sec-lede">The widget gallery's description is the only place the widget explains itself before it is placed, and today it says "within 25 miles of where you are". With a choice, that is true of one value. The proposal names both in the same breath and changes nothing else in the sentence. The Shortcuts-facing intent descriptions gain the same clause.</p>
+    </div>
+    <p class="sec-aside">The description lives in the gallery, under the name; the Edit Widget sheet shows only the rows.</p>
+  </div>
+  <div class="ios flow">
+    <div class="step">
+      <p class="cap"><span class="tag before">Today</span>Add Widget</p>
+      <div class="phone-box"><div class="phone scaled" id="gal-before"></div></div>
+    </div>
+    <div class="step">
+      <p class="cap"><span class="tag after">Proposed</span>Add Widget</p>
+      <div class="phone-box"><div class="phone scaled" id="gal-after"></div></div>
+    </div>
+    <div class="step">
+      <p class="cap"><span class="tag after">Proposed</span>Media Targets</p>
+      <div class="phone-box"><div class="phone scaled" id="gal-after-t"></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────── 5. The tap ───────── -->
+<section class="sec" id="landing">
+  <div class="sec-head">
+    <div>
+      <p class="sec-kicker">Surface 5</p>
+      <h2>A tap lands where the list was measured from</h2>
+      <p class="sec-lede">Tapping a bird on a widget whose list came from the Default Location opens Map Explorer searched from the Default Location, with no location read, so the bird the widget listed is on the map. The landing line reuses the alert link's wording and drops "near you": <b>Finding Ruff…</b> rather than <b>Finding Ruff near you…</b>, because the search point is not where the phone is. A tap on the widget outside a bird still says "Finding nearby lifers…", which is true from either point.</p>
+    </div>
+    <p class="sec-aside">On the map, the difference is the center: the pin where the search was run from sits on the Default Location, and there is no blue dot for the phone, because nothing asked where it was.</p>
+  </div>
+  <div class="ios flow four">
+    <div class="step">
+      <p class="cap"><span class="tag before">Today</span>Landing <span>from the phone</span></p>
+      <div class="phone-box"><div class="phone scaled" id="land-before-1"></div></div>
+    </div>
+    <div class="step">
+      <p class="cap"><span class="tag before">Today</span>Landed <span>the phone on the map</span></p>
+      <div class="phone-box"><div class="phone scaled" id="land-before-2"></div></div>
+    </div>
+    <div class="step">
+      <p class="cap"><span class="tag after">Proposed</span>Landing <span>from the Default Location</span></p>
+      <div class="phone-box"><div class="phone scaled" id="land-after-1"></div></div>
+    </div>
+    <div class="step">
+      <p class="cap"><span class="tag after">Proposed</span>Landed <span>searched from the Default Location</span></p>
+      <div class="phone-box"><div class="phone scaled" id="land-after-2"></div></div>
+    </div>
+  </div>
+  <p class="note" style="margin-top:10px">The tap carries which point the list came from, chosen or fallback, so the map matches the widget in both cases. A widget on My location that did locate the phone taps through exactly as today. The "Only Ruff · Show all" pill, the popup and the statement line are the shipped Map Explorer's own and do not change.</p>
+</section>
+
+<!-- ───────── 6. Every word ───────── -->
+<section class="sec" id="words">
+  <div class="sec-head">
+    <div>
+      <p class="sec-kicker">Every word</p>
+      <h2>Today beside proposed, surface by surface</h2>
+      <p class="sec-lede">Every string the pass adds or changes. Everything a widget already says under My location is untouched, including the fallback caption and the no-location sentence.</p>
+    </div>
+  </div>
+  <table class="copy">
+    <thead><tr><th>Surface</th><th>Today</th><th>Proposed</th></tr></thead>
+    <tbody>
+      <tr><td>Parameter title</td><td class="old">(no row)</td><td class="q">Measure from<span class="sub">Nearby Lifers: second row. Media Targets: third row. Default: My location.</span></td></tr>
+      <tr><td>Value 1</td><td class="old">(no row)</td><td class="q">My location<span class="sub">Where you are when the widget refreshes</span></td></tr>
+      <tr><td>Value 2</td><td class="old">(no row)</td><td class="q">Default Location<span class="sub">The one saved in SnowRaven's Settings</span></td></tr>
+      <tr><td>Footer caption</td><td class="old">From your default location<span class="sub">fallback only</span></td><td class="q">From your default location<span class="sub">whenever the list was measured from it, chosen or fallback</span></td></tr>
+      <tr><td>New sentence</td><td class="old">(no state)</td><td class="q">Set a Default Location in SnowRaven's Settings, or switch this widget to My location.</td></tr>
+      <tr><td>Existing sentence</td><td class="old">Open SnowRaven to allow location, or set a Default Location in Settings.</td><td class="same">unchanged, My location only</td></tr>
+      <tr><td>Gallery, Nearby Lifers</td><td class="old">Recent eBird reports of species you still need, within 25 miles of <span class="gone">where you are</span>, nearest first. Tap to open them in Map Explorer.</td><td class="q">Recent eBird reports of species you still need, within 25 miles of <span class="diff">where you are or your Default Location</span>, nearest first. Tap to open them in Map Explorer.</td></tr>
+      <tr><td>Gallery, Media Targets</td><td class="old">Recent eBird reports of species you have recorded but still need a photo, audio or video of, within 25 miles of <span class="gone">where you are</span>, nearest first. Tap to open them in Map Explorer.</td><td class="q">Recent eBird reports of species you have recorded but still need a photo, audio or video of, within 25 miles of <span class="diff">where you are or your Default Location</span>, nearest first. Tap to open them in Map Explorer.</td></tr>
+      <tr><td>Intent, Nearby Lifers</td><td class="old">Choose the time range the widget lists.</td><td class="q">Choose the time range the widget lists <span class="diff">and where it measures from</span>.</td></tr>
+      <tr><td>Intent, Media Targets</td><td class="old">Choose the time range and the media the widget lists.</td><td class="q">Choose the time range and the media the widget lists<span class="diff">, and where it measures from</span>.</td></tr>
+      <tr><td>Landing, bird tap</td><td class="old">Finding Ruff near you…</td><td class="q">Finding Ruff…<span class="sub">when the list came from the Default Location; the alert link's existing form</span></td></tr>
+      <tr><td>Landing, view tap</td><td class="old">Finding nearby lifers…</td><td class="same">unchanged</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ───────── 7. Held copy ───────── -->
+<section class="sec" id="held">
+  <div class="sec-head">
+    <div>
+      <p class="sec-kicker">Held, for your express yes</p>
+      <h2>Three published sentences this would touch</h2>
+      <p class="sec-lede">None of these is written by the design pass. They are listed so the Engineer prepares them as a held patch and they are shown to you before the bundle ships.</p>
+    </div>
+  </div>
+  <div class="held">
+    <div class="card">
+      <h3>Privacy policy, Your Location</h3>
+      <span class="where">PRIVACY_POLICY.md, website/privacy.html</span>
+      <p class="old">Today: <q>…the widget also reads your location each time iOS refreshes it…</q></p>
+      <p>Would gain a clause: <q>A widget you set to measure from your Default Location reads no location and sends that saved point instead.</q></p>
+      <span class="pill">Needs your yes</span>
+    </div>
+    <div class="card">
+      <h3>App Review notes, the widgets bullet</h3>
+      <span class="where">appstore/LISTING.md</span>
+      <p class="old">Today: <q>Sends the device's coordinates (or, with location off, the saved Default Location)</q></p>
+      <p>Would become: <q>Sends the device's coordinates (or the saved Default Location, when location is off or the widget is set to measure from it)</q></p>
+      <span class="pill">Needs your yes</span>
+    </div>
+    <div class="card">
+      <h3>What's New, at ship</h3>
+      <span class="where">App Store Connect</span>
+      <p>One line, decided at the deploy gate with the version it ships in. README and the website have no widget sentence and stay as they are.</p>
+      <span class="pill">Needs your yes</span>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<script>
+(function () {
+  'use strict';
+
+  // ── Realistic content: a Bay Area birder, late September ──
+  // Measured from the phone (San Jose)
+  var FROM_PHONE = [
+    { n: "Ruff", d: "3.2", r: "Today", l: "Coyote Hills Regional Park" },
+    { n: "Baird's Sandpiper", d: "5.8", r: "Yesterday", l: "Hayward Regional Shoreline" },
+    { n: "Pectoral Sandpiper", d: "9.1", r: "Yesterday", l: "Don Edwards NWR, Alviso" }
+  ];
+  // The same week, measured from the Default Location (Fremont): the order changes with the point
+  var FROM_HOME = [
+    { n: "Ruff", d: "6.8", r: "Today", l: "Coyote Hills Regional Park" },
+    { n: "Tropical Kingbird", d: "7.2", r: "2 days ago", l: "Alameda Point" },
+    { n: "Baird's Sandpiper", d: "9.5", r: "Yesterday", l: "Hayward Regional Shoreline" }
+  ];
+  var TARGETS = [
+    { n: "Wrentit", d: "0.9", r: "Today", l: "Sunol Regional Wilderness", m: ["audio"] },
+    { n: "Nuttall's Woodpecker", d: "2.4", r: "Today", l: "Alum Rock Park", m: ["photo"] },
+    { n: "Hutton's Vireo", d: "4.6", r: "Yesterday", l: "Joseph D. Grant County Park", m: ["photo", "audio"] }
+  ];
+  var TITLE = { lifers: "Nearby Lifers", targets: "Media Targets" };
+  var SF = { photo: "sf-camera", audio: "sf-mic", video: "sf-video" };
+  var CAP = { small: 1, medium: 3 };
+
+  // The strings, exactly as proposed (one place, like WidgetCopy.swift)
+  var COPY = {
+    measureTitle: "Measure from",
+    my: "My location", mySub: "Where you are when the widget refreshes",
+    def: "Default Location", defSub: "The one saved in SnowRaven's Settings",
+    caption: "From your default location",
+    noDefault: "Set a Default Location in SnowRaven's Settings, or switch this widget to My location.",
+    noLocation: "Open SnowRaven to allow location, or set a Default Location in Settings.",
+    galLifersOld: "Recent eBird reports of species you still need, within 25 miles of where you are, nearest first. Tap to open them in Map Explorer.",
+    galLifers: "Recent eBird reports of species you still need, within 25 miles of where you are or your Default Location, nearest first. Tap to open them in Map Explorer.",
+    galTargets: "Recent eBird reports of species you have recorded but still need a photo, audio or video of, within 25 miles of where you are or your Default Location, nearest first. Tap to open them in Map Explorer."
+  };
+
+  function esc(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
+  function icon(id, cls) { return '<svg class="icon' + (cls ? " " + cls : "") + '" aria-hidden="true"><use href="#' + id + '"/></svg>'; }
+  var RAVEN = '<svg class="raven" aria-hidden="true"><use href="#raven"/></svg>';
+  function glyphs(m) { return '<span class="m">' + m.map(function (t) { return '<svg aria-hidden="true"><use href="#' + SF[t] + '"/></svg>'; }).join("") + '</span>'; }
+
+  function voLabel(kind, rows, footer, msg, anyMedia) {
+    var s = TITLE[kind] + ", Week.";
+    if (msg) s += " " + msg;
+    rows.forEach(function (r) {
+      var need = (anyMedia && r.m) ? ", needs " + r.m.join(" and ") : "";
+      s += " " + r.n + need + ", " + r.d + " miles, " + r.r + ", " + r.l + ".";
+    });
+    if (footer.length) s += " " + footer.join(". ") + ".";
+    return s;
+  }
+
+  // Renders one widget. o: { rows, state, caption, updated, swap }
+  function widget(kind, fam, o) {
+    o = o || {};
+    var data = o.rows || (kind === "lifers" ? FROM_PHONE : TARGETS);
+    var rows = o.state ? [] : data.slice(0, CAP[fam]);
+    var anyMedia = kind === "targets";
+    var footer = [];
+    if (!o.state) {
+      if (o.caption) footer.push(COPY.caption);
+      if (fam !== "small") footer.push("Updated " + (o.updated || "9:41 AM"));
+    }
+    var swap = o.swap ? " swap" : "";
+    var html = '<div class="w-h">' + RAVEN + '<span class="w-title">' + TITLE[kind] + '</span><span class="w-win">Week</span></div>';
+    if (o.state) {
+      html += '<p class="w-msg">' + esc(o.state) + '</p>';
+    } else if (fam === "small") {
+      var r0 = rows[0];
+      html += '<div class="w-one' + swap + '"><div class="w-one-name">' + esc(r0.n) + '</div><div class="w-one-line"><span class="w-one-dist">' + r0.d + ' mi</span><span class="w-one-rec">' + r0.r + '</span>' + (anyMedia && r0.m ? glyphs(r0.m) : "") + '</div></div>';
+    } else {
+      html += '<div class="w-rows' + swap + '">' + rows.map(function (r) {
+        return '<div class="w-row"><span class="w-name"><span class="w-name-t">' + esc(r.n) + '</span>' + (anyMedia && r.m ? glyphs(r.m) : "") + '</span><span class="w-dist">' + r.d + ' mi</span><span class="w-sub">' + r.r + ' · ' + esc(r.l) + '</span></div>';
+      }).join("") + '</div>';
+    }
+    if (footer.length) {
+      html += '<div class="w-f' + swap + '">' + footer.map(function (p) { return '<span>' + esc(p) + '</span>'; }).join('<span class="sep">·</span>') + '</div>';
+    }
+    var label = voLabel(kind, rows, footer, o.state || "", anyMedia);
+    return '<div class="w w--' + fam + '" role="group" aria-label="' + esc(label) + '">' + html + '</div>';
+  }
+
+  // ── Phone chrome ──
+  function statusbar() {
+    return '<div class="statusbar" aria-hidden="true"><span>9:41</span><span class="rt"><span class="cell4"><i style="height:4px"></i><i style="height:6px"></i><i style="height:8px"></i><i style="height:11px"></i></span><span class="batt"></span></span></div>';
+  }
+
+  // ── Edit Widget sheet ──
+  // kind: lifers | targets; o: { measure: bool (show the row), value: 'my'|'default' }
+  function editSheet(kind, o) {
+    o = o || {};
+    var preview = widget(kind, "medium", { rows: kind === "lifers" ? (o.value === "default" ? FROM_HOME : FROM_PHONE) : TARGETS, caption: o.value === "default" });
+    var rows = '<div class="edit-row"><span>Time range</span><span class="v">Week ' + icon("i-chev-r") + '</span></div>';
+    if (kind === "targets") rows += '<div class="edit-row"><span>Media</span><span class="v">Any ' + icon("i-chev-r") + '</span></div>';
+    if (o.measure) rows += '<div class="edit-row new"><span>' + COPY.measureTitle + '</span><span class="v">' + (o.value === "default" ? COPY.def : COPY.my) + ' ' + icon("i-chev-r") + '</span></div>';
+    return statusbar() + '<div class="island"></div><div class="edit-scrim"></div>' +
+      '<div class="edit-top"><b>' + TITLE[kind] + '</b><span class="done">Done</span></div>' +
+      '<div class="edit-preview">' + preview + '</div>' +
+      '<div class="edit-list">' + rows + '</div>';
+  }
+  function pickerSheet(value) {
+    function row(key, title, sub) {
+      return '<div class="edit-row" role="radio" tabindex="0" data-pick="' + key + '" aria-checked="' + (value === key) + '"><span class="tx">' + title + '<small>' + sub + '</small></span>' + icon("i-check", "check") + '</div>';
+    }
+    return statusbar() + '<div class="island"></div><div class="edit-scrim"></div>' +
+      '<div class="picker-top">' + icon("i-chev-l") + '<b>' + COPY.measureTitle + '</b></div>' +
+      '<div class="edit-list picker-list" role="radiogroup" aria-label="' + COPY.measureTitle + '">' + row("my", COPY.my, COPY.mySub) + row("default", COPY.def, COPY.defSub) + '</div>' +
+      '<p class="picker-hint">A change takes effect at the next refresh. Default Location never reads your location.</p>';
+  }
+
+  // ── The gallery card ──
+  function gallery(kind, desc) {
+    return statusbar() + '<div class="island"></div>' +
+      '<div class="gal">' +
+        '<div class="gal-top"><span></span><span class="x">' + icon("i-x") + '</span></div>' +
+        '<div class="gal-title">' + TITLE[kind] + '</div>' +
+        '<div class="gal-desc">' + esc(desc) + '</div>' +
+        '<div class="gal-preview">' + widget(kind, "medium") + '</div>' +
+        '<div class="gal-dots" aria-hidden="true"><i></i><i class="on"></i><i></i></div>' +
+        '<div class="gal-add">Add Widget</div>' +
+      '</div><div class="homebar"></div>';
+  }
+
+  // ── Map Explorer (phone tier) ──
+  function basemap(cx, cy) {
+    return '<svg class="base" viewBox="0 0 393 560" preserveAspectRatio="xMidYMid slice" aria-hidden="true">' +
+      '<rect width="393" height="560" fill="#EEECE6"/>' +
+      '<path d="M250 0 C 235 60, 285 120, 260 190 C 240 250, 300 300, 330 380 C 350 440, 300 520, 330 560 L 393 560 L 393 0 Z" fill="#CBD9E2"/>' +
+      '<path d="M0 470 C 60 455, 120 480, 160 460 C 210 435, 240 470, 260 520 L 260 560 L 0 560 Z" fill="#CBD9E2"/>' +
+      '<ellipse cx="110" cy="120" rx="70" ry="42" fill="#DDE7D3"/>' +
+      '<ellipse cx="70" cy="330" rx="56" ry="70" fill="#DDE7D3"/>' +
+      '<ellipse cx="200" cy="400" rx="40" ry="26" fill="#DDE7D3"/>' +
+      '<g stroke="#FFFFFF" stroke-width="3" fill="none" stroke-linecap="round">' +
+        '<path d="M-10 220 C 80 200, 140 240, 250 215"/>' +
+        '<path d="M150 -10 C 160 120, 130 300, 175 560"/>' +
+        '<path d="M-10 380 C 60 372, 120 400, 235 360"/>' +
+        '<path d="M40 -10 C 50 100, 30 240, 60 470"/>' +
+      '</g>' +
+      '<path fill-rule="evenodd" d="M0 0H393V560H0Z M' + (cx - 216) + ' ' + cy + ' a 216 216 0 1 0 432 0 a 216 216 0 1 0 -432 0 Z" fill="rgba(15,17,23,0.22)"/>' +
+      '<circle cx="' + cx + '" cy="' + cy + '" r="216" fill="none" stroke="rgba(180,52,31,0.85)" stroke-width="1.5"/>' +
+    '</svg>';
+  }
+  function modes(active) {
+    var list = [["sightings", "My Sightings", "i-mappin"], ["hotspots", "Hotspots", "i-hotspots"], ["lifers", "Nearby Lifers", "i-binoculars"], ["targets", "Media Targets", "i-camera"]];
+    return '<div class="a-modes" role="group" aria-label="Map view mode">' + list.map(function (m) {
+      return '<span class="pill" aria-pressed="' + (m[0] === active) + '">' + icon(m[2]) + m[1] + '</span>';
+    }).join("") + '</div>';
+  }
+  function nav() {
+    return '<div class="a-nav">' +
+      '<div class="cell"><span class="glyph">' + icon("i-cloud") + '</span><span class="lbl">Weather</span></div>' +
+      '<div class="cell"><span class="glyph">' + icon("i-bar") + '</span><span class="lbl">Statistics</span></div>' +
+      '<div class="cell on"><span class="glyph">' + icon("i-map") + '</span><span class="lbl">Map Explorer</span></div>' +
+      '<div class="cell"><span class="glyph">' + icon("i-book") + '</span><span class="lbl">Species Detail</span></div>' +
+      '<div class="cell"><span class="glyph">' + icon("i-more") + '</span><span class="lbl">More</span></div>' +
+    '</div>';
+  }
+  var CENTER_PIN = '<svg viewBox="0 0 22 30" aria-hidden="true"><path d="M11 29 C 11 29, 1 17, 1 11 A 10 10 0 1 1 21 11 C 21 17, 11 29, 11 29 Z" fill="#277448" stroke="#FFFFFF" stroke-width="2"/><circle cx="11" cy="11" r="3.5" fill="#FFFFFF"/></svg>';
+  // o.landing: the chip line while the search runs; o.only: the landed state; o.fromDefault: center on the Default Location, no phone dot
+  function mapPhone(o) {
+    o = o || {};
+    var fromDefault = !!o.fromDefault;
+    var cx = fromDefault ? 150 : 220, cy = fromDefault ? 236 : 300;
+    var body = "";
+    if (o.only) {
+      body = '<div class="chip sel" style="left:42%;top:50%"><i></i><span>' + esc(o.only.name) + '</span></div>' +
+        '<div class="a-pop" style="left:44%;top:50%"><span class="x" aria-hidden="true">×</span><div class="loc">📍 ' + esc(o.only.loc) + '</div><div class="nm"><i></i>' + esc(o.only.name) + '</div><div class="dt">' + o.only.date + '</div><div class="lk">View checklist ' + icon("i-ext") + '</div></div>';
+    }
+    body += '<div class="ctr" style="left:' + (cx / 393 * 100) + '%;top:' + (cy / 560 * 100) + '%">' + CENTER_PIN + '</div>';
+    if (!fromDefault) body += '<div class="me" style="left:' + (cx / 393 * 100) + '%;top:' + (cy / 560 * 100 + 1) + '%"></div>';
+    var onlyRow = o.only ? '<span class="a-only" role="button" aria-label="Showing only ' + esc(o.only.name) + '. Show all nearby lifers"><span class="t">Only ' + esc(o.only.name) + '</span><span class="sep">·</span><span>Show all</span></span>' : '';
+    var chipLine = o.landing ? '<div class="a-status" role="status"><span><i class="spin"></i>' + esc(o.landing) + '</span></div>' : '';
+    return statusbar() + '<div class="island"></div>' +
+      '<div class="appscreen"><div class="a-header">' + RAVEN + '<h1><span>Snow</span><span>Raven</span></h1></div>' + modes("lifers") +
+        '<div class="a-map">' + basemap(cx, cy) + body + chipLine +
+          '<div class="fabs">' + onlyRow + '<div class="fab-row"><span class="fab">' + icon("i-flag") + '</span><span class="fab">' + icon("i-locate") + '</span><span class="fab">' + icon("i-max") + '</span></div><span class="fab-filters">' + icon("i-filter") + 'Filters</span></div>' +
+        '</div>' + nav() +
+      '</div><div class="homebar"></div>';
+  }
+
+  // ── Mount the fixed frames ──
+  var $ = function (id) { return document.getElementById(id); };
+  $("sheet-before").innerHTML = editSheet("lifers", { measure: false, value: "my" });
+  $("tile-before-my").innerHTML = widget("lifers", "medium");
+  $("tile-before-fb").innerHTML = widget("lifers", "medium", { rows: FROM_HOME, caption: true });
+  $("tile-after-default").innerHTML = widget("lifers", "medium", { rows: FROM_HOME, caption: true });
+  $("tile-after-small").innerHTML = widget("lifers", "small", { rows: FROM_HOME, caption: true });
+  $("sent-before").innerHTML = widget("lifers", "medium", { state: COPY.noLocation });
+  $("sent-after").innerHTML = widget("lifers", "medium", { state: COPY.noDefault });
+  $("sent-after-small").innerHTML = widget("lifers", "small", { state: COPY.noDefault });
+  $("gal-before").innerHTML = gallery("lifers", COPY.galLifersOld);
+  $("gal-after").innerHTML = gallery("lifers", COPY.galLifers);
+  $("gal-after-t").innerHTML = gallery("targets", COPY.galTargets);
+  var BIRD = { name: "Ruff", loc: "Coyote Hills Regional Park", date: "Sep 29, 2026" };
+  $("land-before-1").innerHTML = mapPhone({ landing: "Finding Ruff near you…" });
+  $("land-before-2").innerHTML = mapPhone({ only: BIRD });
+  $("land-after-1").innerHTML = mapPhone({ landing: "Finding Ruff…", fromDefault: true });
+  $("land-after-2").innerHTML = mapPhone({ only: BIRD, fromDefault: true });
+
+  // ── The frames that follow the Measure from choice ──
+  var root = document.documentElement;
+  function render(value, animate) {
+    $("sheet-after").innerHTML = editSheet("lifers", { measure: true, value: value });
+    $("sheet-targets").innerHTML = editSheet("targets", { measure: true, value: value });
+    $("sheet-picker").innerHTML = pickerSheet(value);
+    $("tile-live").innerHTML = widget("lifers", "medium", { rows: value === "default" ? FROM_HOME : FROM_PHONE, caption: value === "default", updated: value === "default" ? "10:11 AM" : "9:41 AM", swap: animate });
+    Array.prototype.forEach.call(document.querySelectorAll("#measure button"), function (b) { b.setAttribute("aria-pressed", String(b.getAttribute("data-measure") === value)); });
+    root.setAttribute("data-measure", value);
+  }
+  render(root.getAttribute("data-measure") || "default", false);
+  function choose(value) { if (root.getAttribute("data-measure") !== value) render(value, true); }
+  $("measure").addEventListener("click", function (e) {
+    var b = e.target.closest("button[data-measure]");
+    if (b) choose(b.getAttribute("data-measure"));
+  });
+  $("sheet-picker").addEventListener("click", function (e) {
+    var r = e.target.closest("[data-pick]");
+    if (r) choose(r.getAttribute("data-pick"));
+  });
+  $("sheet-picker").addEventListener("keydown", function (e) {
+    var r = e.target.closest("[data-pick]");
+    if (r && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); choose(r.getAttribute("data-pick")); }
+  });
+
+  // ── Appearance ──
+  var seg = $("appearance");
+  seg.addEventListener("click", function (e) {
+    var b = e.target.closest("button[data-mode]");
+    if (!b) return;
+    root.setAttribute("data-appearance", b.getAttribute("data-mode"));
+    Array.prototype.forEach.call(seg.querySelectorAll("button"), function (x) { x.setAttribute("aria-pressed", String(x === b)); });
+  });
+})();
+</script>
+</body>
+</html>

@@ -98,6 +98,7 @@ import {
   LANDING_LOCATION_BOUND_MS, landingText, nameForCode, type LinkFocus,
 } from '../lib/links/linkFocus'
 import type { BirdRef } from '../lib/links/deepLink'
+import { readDefaultLocation } from '../lib/widgets/widgetHandover'
 import { useProvenanceLookup } from '../lib/useProvenanceLookup'
 
 // ── The filters sidebar's focus-trap options ─────────────────────────────────
@@ -1590,6 +1591,8 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
   // either stops at the view's own setup message or key notice (FR-38), or
   // runs "Use my location" and that view's search UNCONDITIONALLY, unlike
   // `handleUseMyLocation`, which searches only when no center was set (FR-36).
+  // A link carrying the Default Location marker (widget-measure-from-choice)
+  // searches from the saved Default Location instead, with no location read.
   // The chips are set again AFTER `handleFindSightings` is called, because its
   // first statement clears them; React batches the two and the link's wins.
   //
@@ -1608,7 +1611,9 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
         setLinkFocus(null)
         // The landing starts now, whatever is still loading; any previous
         // outcome leaves the top-centre slot the chip shares with it.
-        setLinkLanding({ id: link.id, view: link.view, bird: link.bird, fromPoint: link.point !== undefined })
+        setLinkLanding({
+          id: link.id, view: link.view, bird: link.bird, fromPoint: link.point !== undefined || link.fromDefault === true,
+        })
         setSearchOutcome('')
         setGeoError('')
         setRetainSearchBtn(false)
@@ -1663,16 +1668,28 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
       return
     }
     queueMicrotask(async () => {
-      setIsLocating(true)
       try {
+        // THE DEFAULT LOCATION BRANCH (widget-measure-from-choice): the
+        // widget's list was measured from the saved Default Location (chosen,
+        // or as My location's fallback), so the search runs from that saved
+        // point and reads no location, and the listed bird is on the map. Read
+        // through the hand-over's own shape rule, so the map's point is the
+        // widget's point. None saved, or a read that fails: the link lands as
+        // a link without the marker always has, from here. Without the marker
+        // nothing is awaited here, so that path is unchanged to the tick.
+        const saved = link.fromDefault
+          ? await storage.getSetting<unknown>('map-defaults').then(readDefaultLocation, () => null)
+          : null
+        if (!saved) setIsLocating(true)
         // Bounded here, because the iOS location plugin ignores its own
         // timeout option (lib/location.ts): without this a fix that never
         // comes would leave the landing up forever. Past the bound the landing
         // ends in the existing timeout message and a late fix is ignored.
-        const loc = await boundedLocation(getCurrentLocation(), LANDING_LOCATION_BOUND_MS)
+        const loc = saved ?? await boundedLocation(getCurrentLocation(), LANDING_LOCATION_BOUND_MS)
         setLat(loc.lat.toFixed(5))
         setLng(loc.lng.toFixed(5))
-        setDetectedLocation({ lat: loc.lat, lng: loc.lng })
+        // No device dot when nothing asked where the phone was.
+        setDetectedLocation(saved ? null : { lat: loc.lat, lng: loc.lng })
         setPanTarget({ lat: loc.lat, lng: loc.lng })
         const search = link.view === 'lifers'
           ? findLifers(loc.lat, loc.lng, WIDGET_RADIUS_MI)

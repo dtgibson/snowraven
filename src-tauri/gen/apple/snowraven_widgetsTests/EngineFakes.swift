@@ -7,12 +7,18 @@ import Foundation
 
 final class FakeStore: WidgetStore, @unchecked Sendable {
     var handover: HandoverRead
+    /// My location's area (`cache.json`, the file Alerts reads).
     var cache: WidgetCache?
+    /// Default Location's area (widget-measure-from-choice).
+    var defaultCache: WidgetCache?
     var cacheWrites = 0
     init(handover: HandoverRead, cache: WidgetCache? = nil) { self.handover = handover; self.cache = cache }
     func readHandover() -> HandoverRead { handover }
-    func readCache() -> WidgetCache? { cache }
-    func writeCache(_ c: WidgetCache) { cache = c; cacheWrites += 1 }
+    func readCache(_ area: WidgetMeasure) -> WidgetCache? { area == .myLocation ? cache : defaultCache }
+    func writeCache(_ c: WidgetCache, _ area: WidgetMeasure) {
+        if area == .myLocation { cache = c } else { defaultCache = c }
+        cacheWrites += 1
+    }
 }
 
 final class FakeTransport: WidgetTransport, @unchecked Sendable {
@@ -58,8 +64,9 @@ struct Harness {
         self.engine = RefreshEngine(store: store, transport: transport, locator: locator, clock: { clock.now }, tz: { tz })
     }
 
-    func refresh(_ kind: WidgetKind = .lifers, _ window: WidgetWindow = .week, _ media: WidgetMedia = .any) async -> WidgetModel {
-        await engine.refresh(kind: kind, window: window, media: media)
+    func refresh(_ kind: WidgetKind = .lifers, _ window: WidgetWindow = .week, _ media: WidgetMedia = .any,
+                 _ measure: WidgetMeasure = .myLocation) async -> WidgetModel {
+        await engine.refresh(kind: kind, window: window, media: media, measure: measure)
     }
 }
 
