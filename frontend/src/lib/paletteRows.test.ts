@@ -35,7 +35,7 @@ const build = (query: string, index: SpeciesIndexEntry[] | null = INDEX, cap?: n
   buildPaletteRows({ items: ITEMS, index, query, cap })
 
 const names = (r: ReturnType<typeof build>) =>
-  r.rows.map(row => (row.kind === 'tab' ? row.label : row.name))
+  r.rows.map(row => (row.kind === 'species' ? row.name : row.label))
 
 describe('the empty query (FR-21, FR-24, QA-23)', () => {
   it('shows every destination and ZERO species', () => {
@@ -208,5 +208,24 @@ describe('performance (NFR-02, QA-58)', () => {
       best = Math.min(best, elapsed)
     }
     expect(FRAME_MS / best).toBeGreaterThanOrEqual(4)
+  })
+})
+
+describe('the Alerts inbox row (ios-alerts design-spec 7.2)', () => {
+  const inbox = { label: 'Alerts inbox', count: 3 }
+
+  it('is first in Destinations when given, counted as a destination, and carries its count', () => {
+    const r = buildPaletteRows({ items: ITEMS, index: INDEX, query: '', inbox })
+    expect(r.rows[0]).toEqual({ kind: 'inbox', label: 'Alerts inbox', count: 3 })
+    expect(r.destinationCount).toBe(ITEMS.length + 1)
+    expect(r.rows.slice(1).every(row => row.kind === 'tab')).toBe(true)
+  })
+
+  it('is filtered by the same rule as a destination label, and absent when not given', () => {
+    expect(buildPaletteRows({ items: ITEMS, index: INDEX, query: 'inbox', inbox }).rows[0]?.kind).toBe('inbox')
+    expect(buildPaletteRows({ items: ITEMS, index: INDEX, query: 'robin', inbox }).rows.some(row => row.kind === 'inbox')).toBe(false)
+    const none = buildPaletteRows({ items: ITEMS, index: INDEX, query: '', inbox: null })
+    expect(none.rows.some(row => row.kind === 'inbox')).toBe(false)
+    expect(none.destinationCount).toBe(ITEMS.length)
   })
 })

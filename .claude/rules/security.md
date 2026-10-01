@@ -57,6 +57,10 @@ paths:
   - "src-tauri/Info.ios.plist"
   - "src-tauri/gen/apple/snowraven_iOS/Info.plist"
   - "src-tauri/gen/apple/project.yml"
+  - "frontend/src/lib/alerts/**"
+  - "frontend/src/components/settingsSections/AlertsSection.tsx"
+  - "src-tauri/src/alerts.rs"
+  - "src-tauri/gen/apple/Sources/snowraven/**"
 ---
 
 <!--

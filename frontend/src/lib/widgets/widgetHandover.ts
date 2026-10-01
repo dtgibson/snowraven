@@ -29,7 +29,7 @@
 // (widgetHandoverController.ts).
 
 import { isIOS, isTauri } from '../platform'
-import { normalizeSpeciesName } from '../speciesUtils'
+import { EBIRD_COUNTABLE_EXCEPTIONS, EBIRD_NONCOUNTABLE_EXCEPTIONS, normalizeSpeciesName } from '../speciesUtils'
 
 /** The App Group both targets are entitled to. */
 export const APP_GROUP_ID = 'group.com.dtgibson.snowraven'
@@ -44,6 +44,10 @@ export const HANDOVER_MAX_BYTES = 4_000_000
 export const MAX_SET_ENTRIES = 20_000
 /** Per name, in UTF-16 code units: well above the longest eBird common name. */
 export const MAX_NAME_UNITS = 200
+/** Entries per countability exception list (ios-alerts, schema.md 3.6). The
+ *  asset's lists are 88 and 81 names and its generator fails closed on a short
+ *  or overlapping list, so this is a shape bound, not a forecast. */
+export const MAX_EXCEPTION_ENTRIES = 1_000
 /** The eBird key: `^[A-Za-z0-9]{1,128}$`, a class that cannot express a
  *  header separator. 128 is the app's own key bound (keyRecord.ts). */
 export const MAX_KEY_LEN = 128
@@ -70,6 +74,12 @@ export interface WidgetHandoverV1 {
   targetsMissingVideo: string[]
   /** The saved Default Location's coordinates, or null. */
   defaultLocation: { lat: number; lng: number } | null
+  /** ios-alerts (schema.md 3.6): eBird's countability exceptions as the app's
+   *  artifact holds them, raw names, sorted by code unit. The native alert
+   *  check applies `isNonCountableForm`'s three-clause shape rule with these as
+   *  its data; the widget rows never read them. */
+  countableExceptions: string[]
+  nonCountableExceptions: string[]
 }
 
 export interface HandoverInputs {
@@ -207,10 +217,17 @@ export function buildHandover(inputs: HandoverInputs): WidgetHandoverV1 | null {
     targetsMissingAudio: sortedDistinct(missing.Audio),
     targetsMissingVideo: sortedDistinct(missing.Video),
     defaultLocation: readDefaultLocation(inputs.mapDefaults),
+    // Every name in the artifact is a real eBird name and passes the per-name
+    // rule; one that did not would be skipped, the M1 posture above.
+    countableExceptions: sortedDistinct(EBIRD_COUNTABLE_EXCEPTIONS.filter(isValidHandoverName)),
+    nonCountableExceptions: sortedDistinct(EBIRD_NONCOUNTABLE_EXCEPTIONS.filter(isValidHandoverName)),
   }
 
   for (const set of [doc.recorded, doc.targetsMissingPhoto, doc.targetsMissingAudio, doc.targetsMissingVideo]) {
     if (set.length > MAX_SET_ENTRIES) return null
+  }
+  for (const list of [doc.countableExceptions, doc.nonCountableExceptions]) {
+    if (list.length > MAX_EXCEPTION_ENTRIES) return null
   }
   if (handoverByteLength(serializeHandover(doc)) > HANDOVER_MAX_BYTES) return null
   return doc

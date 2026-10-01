@@ -161,3 +161,43 @@ describe('boundedLocation: the landing never waits on a fix forever', () => {
     }
   })
 })
+
+// ── ios-alerts (schema.md 5.4): the `center` mode and the search's own radius ─
+describe('the alert focus modes (ios-alerts)', () => {
+  const centerFocus = (speciesCode: string, locId: string): LinkFocus => ({ speciesCode, locId, searchId: 5, mode: 'center' })
+
+  it('`center` keeps EVERY result and targets the listed full location, with the record name (FR-31)', () => {
+    const r = focusLifers(LOCS, centerFocus('ruff', 'L1'), 5, CENTER)
+    expect(r.kind).toBe('centered')
+    if (r.kind !== 'centered') return
+    expect(r.pins).toBe(LOCS)
+    expect(r.target).toBe(LOCS[0])
+    expect(r.target.lifers).toHaveLength(2)
+    expect(r.name).toBe('Ruff')
+  })
+
+  it('`center` falls back to the nearest holder of the species; absent and stale are unchanged', () => {
+    const r = focusLifers(LOCS, centerFocus('ruff', 'L9'), 5, CENTER)
+    expect(r.kind === 'centered' && r.target.locId).toBe('L2')
+    expect(focusLifers(LOCS, centerFocus('sabgul', 'L1'), 5, CENTER)).toEqual({ kind: 'absent', pins: LOCS })
+    expect(focusLifers(LOCS, { ...centerFocus('ruff', 'L1'), searchId: 4 }, 5, CENTER)).toEqual({ kind: 'none', pins: LOCS })
+  })
+
+  it('`only` and an absent mode are the shipped behavior (FR-37: that species alone)', () => {
+    const shipped = focusLifers(LOCS, focus('ruff', 'L1'), 5, CENTER)
+    expect(focusLifers(LOCS, { ...focus('ruff', 'L1'), mode: 'only' }, 5, CENTER)).toEqual(shipped)
+    expect(shipped.kind).toBe('focused')
+  })
+
+  it('the not-found sentence names the search radius; the widget default is unchanged', () => {
+    expect(focusAbsentStatement('Ruff', 'lifers')).toBe('Ruff was not found within 25 miles. Showing all lifers.')
+    expect(focusAbsentStatement('Ruff', 'lifers', 7)).toBe('Ruff was not found within 7 miles. Showing all lifers.')
+    expect(focusAbsentStatement(null, 'lifers', 1)).toBe('The bird you tapped was not found within 1 mile. Showing all lifers.')
+  })
+
+  it('an alert landing searches from the check point, so it never says "near you"', () => {
+    expect(landingText('lifers', 'Ruff', true, true)).toBe('Finding Ruff…')
+    expect(landingText('lifers', 'Ruff', true)).toBe('Finding Ruff near you…')
+    expect(landingText('lifers', null, true, true)).toBe('Finding the bird you tapped…')
+  })
+})

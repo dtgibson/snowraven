@@ -6,8 +6,8 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import {
-  BIRD_SUFFIX_RE, buildWidgetLink, isLinkableBird, LINK_MAX_LENGTH, LINK_SCHEME, LOC_ID_RE, parseWidgetLink,
-  WIDGET_LINKS, type WidgetLink,
+  ALERT_LINK_PATTERN, ALERT_LINK_RE, BIRD_SUFFIX_RE, buildWidgetLink, isLinkableBird, LINK_MAX_LENGTH, LINK_SCHEME,
+  LOC_ID_RE, parseWidgetLink, WIDGET_LINKS, type WidgetLink,
 } from './deepLink'
 import { SPECIES_CODE_RE } from '../speciesCode'
 import fixture from '../widgets/widgetRows.fixture.json'
@@ -40,9 +40,17 @@ describe('the fifteen view links', () => {
     const longestBird = buildWidgetLink({ ...longestViewLink, bird: { speciesCode: 'a'.repeat(16), locId: `L${'1'.repeat(15)}` } })
     expect(longestView).toBe(47)
     expect(longestBird.length).toBe(88)
-    expect(LINK_MAX_LENGTH).toBe(96)
+    // ios-alerts (schema.md 5.1): the bound is set by the longest ALERT link,
+    // 117 characters, and leaves no room for a payload beyond it.
+    const longestAlert = buildWidgetLink({
+      view: 'lifers', window: 'day', point: { lat: -12.34567, lng: -123.45678 }, radiusMi: 25,
+      bird: { speciesCode: 'a'.repeat(16), locId: `L${'1'.repeat(15)}` }, show: 'all',
+    })
+    expect(longestAlert.length).toBe(117)
+    expect(LINK_MAX_LENGTH).toBe(128)
+    expect(LINK_MAX_LENGTH).toBeGreaterThanOrEqual(longestAlert.length)
+    expect(LINK_MAX_LENGTH - longestAlert.length).toBeLessThan(16)
     expect(LINK_MAX_LENGTH).toBeGreaterThanOrEqual(longestBird.length)
-    expect(LINK_MAX_LENGTH - longestBird.length).toBeLessThan(16)
     expect(LINK_SCHEME).toBe('snowraven')
   })
 
@@ -215,15 +223,21 @@ describe('everything whose view part is not exact is rejected whole', () => {
       .split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n')
     const body = src.slice(src.indexOf('export function parseWidgetLink'))
     const gate = body.indexOf('raw.length > LINK_MAX_LENGTH')
+    const alert = body.indexOf('ALERT_LINK_RE.exec(raw)')
     const cut = body.indexOf("raw.indexOf('&sp=')")
     const lookup = body.indexOf('Object.hasOwn(TABLE, head)')
     expect(gate).toBeGreaterThan(-1)
-    expect(cut).toBeGreaterThan(gate)
+    // ios-alerts: the alert form is tried after the gate and before the cut.
+    expect(alert).toBeGreaterThan(gate)
+    expect(cut).toBeGreaterThan(alert)
     expect(lookup).toBeGreaterThan(cut)
     expect(src).toContain('const TABLE: Record<string, ViewLink> = Object.create(null)')
     // No URL parsing or decoding, and the one pattern is the anchored suffix.
     expect(src).not.toMatch(/new URL\(|decodeURI|URLSearchParams|\.match\(/)
-    expect(src.match(/new RegExp\(/g)).toHaveLength(1)
+    // Two patterns: the anchored bird suffix, and (ios-alerts) the anchored
+    // alert form, built from its one exported source string.
+    expect(src.match(/new RegExp\(/g)).toHaveLength(2)
+    expect(src).toContain('export const ALERT_LINK_RE = new RegExp(ALERT_LINK_PATTERN)')
   })
 
   it('the suffix pattern is anchored, fixed-class and bounded, and derived from the two id patterns', () => {
@@ -240,7 +254,8 @@ describe('everything whose view part is not exact is rejected whole', () => {
     const start = performance.now()
     for (let i = 0; i < 10_000; i++) {
       const len = rand() % 200_000
-      const s = (i % 2 === 0 ? base : '') + String.fromCharCode(32 + (rand() % 90)).repeat(len > 64 ? len : 64)
+      // At least 65 characters of tail, so every input is past the 128 bound.
+      const s = (i % 2 === 0 ? base : '') + String.fromCharCode(32 + (rand() % 90)).repeat(len > 65 ? len : 65)
       expect(parseWidgetLink(s)).toBeNull()
     }
     // The gate makes each rejection O(1); 10k rejections well under a second
@@ -259,5 +274,106 @@ describe('everything whose view part is not exact is rejected whole', () => {
       expect(raw.length).toBeLessThanOrEqual(LINK_MAX_LENGTH)
       expect(parseWidgetLink(raw)).toEqual({ view: 'lifers', window: 'day' })
     }
+  })
+})
+
+
+// ── ios-alerts (schema.md 5.1 and 5.2): the one anchored alert form ──────────
+describe('the alert link form (ios-alerts)', () => {
+  const HEAD = 'snowraven://map/lifers?window=day'
+  const at = (lat: string, lng: string, r: string, show = 'all', sp = 'ruff', loc = 'L1000001') =>
+    `${HEAD}&lat=${lat}&lng=${lng}&r=${r}&sp=${sp}&loc=${loc}&show=${show}`
+
+  it('valid at every bound, both show modes, and the shortest and longest instances', () => {
+    const rows: [string, string, string][] = [
+      ['-90', '0', '1'], ['90', '0', '25'], ['0.00001', '-180', '5'], ['0', '180', '25'],
+      ['38.54490', '-121.74050', '25'], ['-12.34567', '-123.45678', '1'],
+    ]
+    for (const [lat, lng, r] of rows) {
+      for (const show of ['all', 'one'] as const) {
+        const got = parseWidgetLink(at(lat, lng, r, show))
+        expect(got, at(lat, lng, r, show)).toEqual({
+          view: 'lifers', window: 'day', point: { lat: Number(lat), lng: Number(lng) }, radiusMi: Number(r),
+          bird: { speciesCode: 'ruff', locId: 'L1000001' }, show,
+        })
+      }
+    }
+    const shortest = at('0', '0', '1', 'one', 'ab', 'L1')
+    expect(parseWidgetLink(shortest)).not.toBeNull()
+    const longest = at('-12.34567', '-123.45678', '25', 'all', 'a'.repeat(16), `L${'1'.repeat(15)}`)
+    expect(longest.length).toBe(117)
+    expect(parseWidgetLink(longest)).not.toBeNull()
+  })
+
+  it('rejected WHOLE (never degraded): out-of-range numbers, bad shapes, reordering, extras, over-length', () => {
+    const rejected = [
+      at('0', '0', '0'), at('0', '0', '26'), at('0', '0', '100'), at('91', '0', '5'), at('0', '-181', '5'),
+      at('0.123456', '0', '5'), at('+1', '0', '5'), at('0', '0', '5', 'some'), at('0', '0', '5', 'ALL'),
+      at('0', '0', '5', 'all', 'Ruff'), at('0', '0', '5', 'all', 'ruff', ''),
+      `${HEAD}&lng=0&lat=0&r=5&sp=ruff&loc=L1&show=all`,
+      `${at('0', '0', '5')}&x=1`, `${at('0', '0', '5')}#frag`, `${at('0', '0', '5')}\n`,
+      `${HEAD}&lat=0&lng=0&r=5&sp=ruff&loc=L1`, // no show: not the alert form, and not a view link
+      at('1.', '0', '5'), at('.5', '0', '5'), at('1e1', '0', '5'), at('0x1', '0', '5'),
+      `${HEAD.replace('lifers', 'targets')}&lat=0&lng=0&r=5&sp=ruff&loc=L1&show=all`,
+      `${HEAD.replace('day', 'week')}&lat=0&lng=0&r=5&sp=ruff&loc=L1&show=all`,
+      (at('0', '0', '5') + 'x'.repeat(128)).slice(0, LINK_MAX_LENGTH + 1),
+    ]
+    for (const raw of rejected) expect(parseWidgetLink(raw), JSON.stringify(raw)).toBeNull()
+  })
+
+  it('negative zero reads as zero, so the two builders agree on the value', () => {
+    const got = parseWidgetLink(at('-0.00000', '-0', '5'))
+    expect(Object.is(got!.point!.lat, 0)).toBe(true)
+    expect(Object.is(got!.point!.lng, 0)).toBe(true)
+  })
+
+  it('the builder refuses what the parser would reject, and round-trips over generated points and radii', () => {
+    const base: WidgetLink = {
+      view: 'lifers', window: 'day', point: { lat: 1, lng: 1 }, radiusMi: 5, bird: { speciesCode: 'ruff', locId: 'L1' }, show: 'all',
+    }
+    expect(() => buildWidgetLink({ ...base, radiusMi: 26 })).toThrow()
+    expect(() => buildWidgetLink({ ...base, radiusMi: 2.5 })).toThrow()
+    expect(() => buildWidgetLink({ ...base, point: { lat: 91, lng: 0 } })).toThrow()
+    expect(() => buildWidgetLink({ ...base, bird: { speciesCode: 'Ruff', locId: 'L1' } })).toThrow()
+    expect(() => buildWidgetLink({ ...base, show: undefined })).toThrow()
+    expect(() => buildWidgetLink({ ...base, view: 'targets', media: 'any' } as WidgetLink)).toThrow()
+    let seed = 11
+    const rand = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff }
+    for (let i = 0; i < 2000; i++) {
+      const lat = Number((rand() * 180 - 90).toFixed(5)) || 0
+      const lng = Number((rand() * 360 - 180).toFixed(5)) || 0
+      const radiusMi = 1 + Math.floor(rand() * 25)
+      const link: WidgetLink = { ...base, point: { lat, lng }, radiusMi, show: i % 2 ? 'one' : 'all' }
+      const raw = buildWidgetLink(link)
+      expect(raw.length).toBeLessThanOrEqual(LINK_MAX_LENGTH)
+      expect(parseWidgetLink(raw)).toEqual(link)
+    }
+  })
+
+  it('the pattern is one anchored literal: fixed classes, bounded quantifiers, the id classes spelled as the id patterns', () => {
+    expect(ALERT_LINK_RE.source).toBe(new RegExp(ALERT_LINK_PATTERN).source)
+    expect(ALERT_LINK_PATTERN.startsWith('^snowraven://map/lifers\\?window=day&')).toBe(true)
+    expect(ALERT_LINK_PATTERN.endsWith('&show=(all|one)$')).toBe(true)
+    expect(ALERT_LINK_PATTERN).toContain(`&sp=(${SPECIES_CODE_RE.source.slice(1, -1)})`)
+    expect(ALERT_LINK_PATTERN).toContain(`&loc=(${LOC_ID_RE.source.slice(1, -1)})`)
+    expect(ALERT_LINK_PATTERN).not.toMatch(/[*+](?![^{]*\})/)
+    expect(ALERT_LINK_RE.flags).toBe('')
+  })
+
+  it('a 128-character adversarial near-miss is refused in linear time', () => {
+    const tails = [
+      '&lat=' + '1'.repeat(LINK_MAX_LENGTH), '&lat=1.' + '1'.repeat(LINK_MAX_LENGTH),
+      '&lat=0&lng=0&r=5&sp=' + 'a-'.repeat(LINK_MAX_LENGTH), '&lat=0&lng=0&r=5&sp=ruff&loc=L' + '1'.repeat(LINK_MAX_LENGTH),
+    ]
+    const start = performance.now()
+    for (let i = 0; i < 20_000; i++) {
+      for (const t of tails) {
+        const raw = (HEAD + t).slice(0, LINK_MAX_LENGTH)
+        ALERT_LINK_RE.exec(raw)
+      }
+    }
+    // 80,000 anchored scans over at most 128 characters: linear work, so a
+    // generous ceiling; a backtracking blowup would be orders slower.
+    expect(performance.now() - start).toBeLessThan(5_000)
   })
 })

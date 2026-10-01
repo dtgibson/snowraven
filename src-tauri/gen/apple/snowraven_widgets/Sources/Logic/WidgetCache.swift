@@ -13,6 +13,16 @@
 import CryptoKit
 import Foundation
 
+/// Where a cache cell's search area came from (ios-alerts, security review
+/// L7): a position the widget read from the device, or the saved Default
+/// Location it falls back to when it cannot read one. Data provenance only:
+/// the widget writes it and never reads it, and nothing it shows changes.
+/// Alerts, which can measure My location from the cell, accepts only `device`.
+enum CellSource: String, Codable, Equatable, Sendable {
+    case device
+    case defaultLocation = "default-location"
+}
+
 struct CacheCell: Codable, Equatable {
     let lat: Double
     let lng: Double
@@ -43,6 +53,10 @@ struct WidgetCache: Codable, Equatable {
     let records: [WidgetRecord]
     var backoff: CacheBackoff?
     var lastFailure: CacheFailure?
+    /// Where `cell` came from. Absent in a cache written before ios-alerts,
+    /// which still decodes (as unmarked); an unknown value refuses the cache
+    /// like any other malformed field. Not part of the freshness comparison.
+    var cellSource: CellSource? = nil
 
     static let currentVersion = 1
     /// eBird's `dist`, computed as the app's handlers compute it.

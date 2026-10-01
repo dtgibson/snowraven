@@ -23,3 +23,5 @@ handoff.md
 # ios-lifer-widgets working files: simulator and QA renders, and the copy-review page (its approved text landed at 7d11d6b). Reference only, kept on disk.
 ios-lifer-widgets/screens/
 ios-lifer-widgets/copy-review.html
+# ios-alerts working files: simulator and preview renders (8.8 MB). Reference only, kept on disk; the method and what each shows are in ios-alerts/evidence/README.md.
+ios-alerts/evidence/*.png

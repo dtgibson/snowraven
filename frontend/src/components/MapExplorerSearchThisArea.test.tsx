@@ -1571,7 +1571,9 @@ describe('surface area (QA-30, QA-07)', () => {
     expect(writes).toHaveLength(3)
     expect(code).toContain('setRadius(data.dist)')          // saved map-defaults
     expect(code).toContain('setRadius(Number(v))')          // the sidebar SegControl
-    expect(code).toContain('setRadius(WIDGET_RADIUS_MI)')   // a widget tap (session only)
+    // A widget tap, or (ios-alerts) an alert link carrying its check's own
+    // radius; session only either way, map-defaults untouched.
+    expect(code).toContain('setRadius(link.radiusMi ?? WIDGET_RADIUS_MI)')
 
     // ...and applyCenter writes no radius at all. Sliced from its declaration to
     // its dependency array, so this reads the real body rather than the file.

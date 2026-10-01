@@ -399,6 +399,16 @@ const EBIRD_COUNTS: ReadonlySet<string> = new Set(countabilityArtifact.countable
 const EBIRD_REJECTS: ReadonlySet<string> = new Set(countabilityArtifact.nonCountable)
 
 /**
+ * The two exception lists as the artifact holds them (raw names, parenthetical
+ * intact), for the iOS widget hand-over, which carries them to the native alert
+ * check so it applies THIS rule without a second copy of the asset in Swift
+ * (ios-alerts, schema.md 3.6 and 3.7). They ride the entry chunk at zero cost:
+ * the artifact is already there for the two sets above.
+ */
+export const EBIRD_COUNTABLE_EXCEPTIONS: readonly string[] = countabilityArtifact.countable
+export const EBIRD_NONCOUNTABLE_EXCEPTIONS: readonly string[] = countabilityArtifact.nonCountable
+
+/**
  * eBird's naming convention, read off the name alone: a form whose name leaves
  * the species in doubt carries " sp.", a "/", or an " x ".
  *

@@ -1,0 +1,1398 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SnowRaven Alerts Design</title>
+<meta name="description" content="Design direction for the iPhone and iPad Alerts section of SnowRaven's Settings tab: the off state, turning on, the configuration, the status sentences, the inbox, the notification and where a tap lands.">
+<style>
+/* ============================================================================
+   SnowRaven design tokens, copied from frontend/src/globals.css for both themes.
+   Every color inside the device frame resolves to one of these. The demo shell
+   around the frame has its own small, tinted set (--demo-*) so it never reads
+   as part of the app.
+   ========================================================================== */
+.sr-frame, .sr-frame[data-theme="light"] {
+  --sr-text-scale: 1;
+  --sr-ctl-floor: 16px;
+  --sr-bg: #F9FAFB;
+  --sr-surface: #FFFFFF;
+  --sr-surface-subtle: #F4F4F5;
+  --sr-surface-faint: #FAFAFA;
+  --sr-text: #0F1117;
+  --sr-text-muted: #6B6B74;
+  --sr-text-disabled: #A1A1AA;
+  --sr-text-gray: #6B7280;
+  --sr-border: #E4E4E7;
+  --sr-border-subtle: #F4F4F5;
+  --sr-border-medium: #C4C4CE;
+  --sr-border-input: #8A8A91;
+  --sr-accent: #277448;
+  --sr-accent-strong: #1A5C38;
+  --sr-accent-bg: #E8F5EE;
+  --sr-accent-bg-hover: #F0FAF4;
+  --sr-accent-border: rgba(39,116,72,0.25);
+  --sr-accent-border-strong: rgba(39,116,72,0.7);
+  --sr-accent-surface: #fafffd;
+  --sr-on-accent: #FFFFFF;
+  --sr-error: #D31F1F;
+  --sr-error-bg: #FEF2F2;
+  --sr-error-border: #FECACA;
+  --sr-warning: #92400E;
+  --sr-warning-bg: #FFFBEB;
+  --sr-gray-400: #8E8E96;
+  --sr-switch-thumb: #FFFFFF;
+  --sr-switch-thumb-shadow: 0 1px 2px rgba(15,17,23,0.25);
+  --sr-card-shadow: 0 1px 4px rgba(15,17,23,0.06), 0 4px 16px rgba(15,17,23,0.04);
+  --sr-scrim: rgba(15,17,23,0.36);
+  --sr-nav-bar-shadow: 0 -2px 10px rgba(15,17,23,0.06);
+  --sr-ink-rgb: 15,17,23;
+  --font-sans: 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  color-scheme: light;
+}
+.sr-frame[data-theme="dark"] {
+  --sr-bg: #09090B;
+  --sr-surface: #18181B;
+  --sr-surface-subtle: #27272A;
+  --sr-surface-faint: #1C1C1F;
+  --sr-text: #F4F4F5;
+  --sr-text-muted: #A1A1AA;
+  --sr-text-disabled: #52525B;
+  --sr-text-gray: #8A8A92;
+  --sr-border: #27272A;
+  --sr-border-subtle: #1F1F23;
+  --sr-border-medium: #3F3F46;
+  --sr-border-input: #707078;
+  --sr-accent: #34D399;
+  --sr-accent-strong: #34D399;
+  --sr-accent-bg: #052E16;
+  --sr-accent-bg-hover: #064E3B;
+  --sr-accent-border: rgba(52,211,153,0.2);
+  --sr-accent-border-strong: rgba(52,211,153,0.5);
+  --sr-accent-surface: #0c1a12;
+  --sr-on-accent: #052E16;
+  --sr-error: #F87171;
+  --sr-error-bg: #1C0505;
+  --sr-error-border: #7F1D1D;
+  --sr-warning: #FDE68A;
+  --sr-warning-bg: #1C1002;
+  --sr-gray-400: #6E6E78;
+  --sr-switch-thumb: #FFFFFF;
+  --sr-switch-thumb-shadow: 0 1px 2px rgba(9,9,11,0.25);
+  --sr-card-shadow: 0 1px 4px rgba(9,9,11,0.4), 0 4px 16px rgba(9,9,11,0.25);
+  --sr-scrim: rgba(9,9,11,0.6);
+  --sr-nav-bar-shadow: 0 -2px 12px rgba(9,9,11,0.5);
+  --sr-ink-rgb: 9,9,11;
+  color-scheme: dark;
+}
+
+/* ---- The demo shell (not the app) ---------------------------------------- */
+:root {
+  --demo-bg: #EEF0F3;
+  --demo-surface: #FFFFFF;
+  --demo-text: #1B1D26;
+  --demo-muted: #5E6270;
+  --demo-border: #D9DCE3;
+  --demo-accent: #277448;
+  --demo-accent-bg: #E8F5EE;
+  --demo-shadow: 0 10px 40px rgba(27,29,38,0.14);
+  --demo-font: 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --demo-bg: #101216;
+    --demo-surface: #191B21;
+    --demo-text: #ECEDF1;
+    --demo-muted: #9A9DAA;
+    --demo-border: #2A2D36;
+    --demo-accent: #34D399;
+    --demo-accent-bg: #0B2A1C;
+    --demo-shadow: 0 10px 40px rgba(0,0,0,0.5);
+  }
+}
+:root[data-theme="dark"] {
+  --demo-bg: #101216;
+  --demo-surface: #191B21;
+  --demo-text: #ECEDF1;
+  --demo-muted: #9A9DAA;
+  --demo-border: #2A2D36;
+  --demo-accent: #34D399;
+  --demo-accent-bg: #0B2A1C;
+  --demo-shadow: 0 10px 40px rgba(0,0,0,0.5);
+}
+* { box-sizing: border-box; }
+html { font-size: 16px; }
+body {
+  margin: 0;
+  background: var(--demo-bg);
+  color: var(--demo-text);
+  font-family: var(--demo-font);
+  -webkit-font-smoothing: antialiased;
+}
+.demo-bar {
+  position: sticky; top: 0; z-index: 50;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px;
+  padding: 10px 16px;
+  background: var(--demo-surface);
+  border-bottom: 1px solid var(--demo-border);
+  font-size: 12px;
+}
+.demo-bar h1 { margin: 0 8px 0 0; font-size: 13px; font-weight: 700; letter-spacing: -0.01em; }
+.demo-bar h1 span { color: var(--demo-accent); }
+.demo-group { display: inline-flex; align-items: center; gap: 6px; }
+.demo-group > span { color: var(--demo-muted); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; }
+.demo-seg { display: inline-flex; border: 1px solid var(--demo-border); border-radius: 8px; overflow: hidden; }
+.demo-seg button {
+  border: 0; background: transparent; color: var(--demo-muted); font: inherit; font-size: 12px; font-weight: 500;
+  padding: 5px 10px; cursor: pointer; transition: background-color 120ms ease-out, color 120ms ease-out;
+}
+.demo-seg button + button { border-left: 1px solid var(--demo-border); }
+.demo-seg button[aria-pressed="true"] { background: var(--demo-accent-bg); color: var(--demo-accent); font-weight: 600; }
+.demo-bar select {
+  font: inherit; font-size: 12px; padding: 5px 8px; border-radius: 8px;
+  border: 1px solid var(--demo-border); background: var(--demo-surface); color: var(--demo-text);
+}
+.demo-note { color: var(--demo-muted); font-size: 12px; }
+
+.demo-main { padding: 28px 16px 64px; display: flex; flex-direction: column; align-items: center; gap: 36px; }
+.demo-caption { max-width: 640px; text-align: center; color: var(--demo-muted); font-size: 13px; line-height: 1.55; margin: -18px 0 0; }
+.demo-caption strong { color: var(--demo-text); font-weight: 600; }
+.demo-h { margin: 0; font-size: 15px; font-weight: 700; letter-spacing: -0.01em; text-align: center; }
+.demo-h small { display: block; font-weight: 500; color: var(--demo-muted); font-size: 12px; margin-top: 4px; }
+.demo-stage { display: flex; flex-direction: column; align-items: center; gap: 14px; width: 100%; }
+.demo-pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr)); gap: 28px; width: 100%; max-width: 900px; justify-items: center; }
+
+/* ---- Device frames ------------------------------------------------------- */
+.sr-frame {
+  font-family: var(--font-sans);
+  font-size: 1rem; line-height: 1.5;
+  color: var(--sr-text);
+  background: var(--sr-bg);
+  border: 1px solid var(--demo-border);
+  border-radius: 34px;
+  box-shadow: var(--demo-shadow);
+  overflow: hidden;
+  position: relative;
+  width: 390px; max-width: 100%;
+  transition: width 220ms cubic-bezier(0.2, 0, 0, 1);
+}
+.sr-frame--ipad { width: 900px; }
+/* A real phone viewport: the content scrolls inside the frame, the bottom bar
+   stays put, and overlays (the inbox sheet, the palette, the dialog) are
+   viewport-fixed exactly as they are in the app. */
+.sr-frame__screen { display: flex; height: 844px; }
+.sr-frame--ipad .sr-frame__screen { height: 1080px; }
+.sr-frame__content { flex: 1; min-width: 0; display: flex; flex-direction: column; min-height: 0; }
+.sr-frame__scroll { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+/* The 200% text-scale preview doubles the root font size, as the app's Text
+   Size control does: everything in rem grows, px geometry stays. The lock
+   screen below is system UI and is set in px so it does not follow. */
+html[data-scale="2"] { font-size: 32px; }
+
+/* iPhone header (compact single line, as .sr-header-compact on iOS) */
+.sr-header { display: flex; flex-direction: column; align-items: center; padding: 20px 24px 0; }
+.sr-header-brand { display: flex; align-items: center; gap: 7px; }
+.sr-header-title { font-size: 1.125rem; font-weight: 700; letter-spacing: -0.6px; margin: 0; }
+.sr-header-title span:last-child { color: var(--sr-accent); }
+.sr-statusbar { display: flex; justify-content: space-between; align-items: center; padding: 14px 28px 0; font-size: 0.75rem; font-weight: 600; color: var(--sr-text); }
+.sr-statusbar svg { width: 18px; height: 12px; }
+.sr-frame--ipad .sr-header { display: none; }
+
+/* The phone bottom bar (.sr-navbar) */
+.sr-navbar {
+  display: grid; grid-template-columns: repeat(5, minmax(0, 1fr));
+  background: var(--sr-surface); border-top: 1px solid var(--sr-border);
+  box-shadow: var(--sr-nav-bar-shadow); padding-bottom: 14px;
+}
+.sr-navbar-cell {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  min-height: 52px; padding: 7px 3px 8px; border: 0; background: none; cursor: pointer;
+  color: var(--sr-text-muted); font-family: inherit;
+  transition: background-color 120ms ease-out, color 120ms ease-out;
+}
+.sr-navbar-cell:hover { background: var(--sr-surface-subtle); }
+.sr-navbar-cell--active { color: var(--sr-accent); }
+.sr-navbar-cell--active .sr-navbar-glyph { background: var(--sr-accent-bg); }
+.sr-navbar-glyph { display: flex; align-items: center; justify-content: center; width: 40px; height: 26px; border-radius: 13px; transition: background-color 140ms ease-out; }
+.sr-navbar-glyph svg { width: 17px; height: 17px; }
+.sr-navbar-label { font-size: 0.625rem; font-weight: 600; line-height: 1.15; text-align: center; }
+.sr-navbar-cell--active .sr-navbar-label { font-weight: 700; }
+.sr-frame--ipad .sr-navbar { display: none; }
+
+/* The iPad sidebar (.sr-nav-col) */
+.sr-nav-col { display: none; width: 13.5rem; flex: none; padding: 26px 10px 16px; border-right: 1px solid var(--sr-border); background: var(--sr-surface); }
+.sr-frame--ipad .sr-nav-col { display: flex; flex-direction: column; }
+.sr-nav-brand { display: flex; align-items: center; gap: 9px; padding: 2px 6px 0; margin-bottom: 2px; }
+.sr-nav-word { font-size: 1.0625rem; font-weight: 700; letter-spacing: -0.4px; margin: 0; white-space: nowrap; }
+.sr-nav-word span { color: var(--sr-accent); }
+.sr-nav-tagline { font-size: 0.6875rem; color: var(--sr-text-muted); padding: 0 6px; margin: 0 0 14px; }
+.sr-nav-list { display: flex; flex-direction: column; gap: 2px; }
+.sr-nav-item {
+  position: relative; display: flex; align-items: center; gap: 9px;
+  height: 34px; padding: 0 10px; border: 0; border-radius: 8px; background: none;
+  color: var(--sr-text-muted); font: inherit; font-size: 0.8125rem; font-weight: 500; cursor: pointer; text-align: left;
+  transition: background-color 120ms ease-out, color 120ms ease-out;
+}
+.sr-nav-item svg { width: 16px; height: 16px; flex: none; }
+.sr-nav-item:hover { background: var(--sr-surface-subtle); color: var(--sr-text); }
+.sr-nav-item--active, .sr-nav-item--active:hover { background: var(--sr-accent-bg); color: var(--sr-accent); font-weight: 600; }
+.sr-nav-item--active::before { content: ""; position: absolute; left: -4px; top: 7px; bottom: 7px; width: 3px; border-radius: 2px; background: var(--sr-accent); }
+.sr-nav-sep { height: 1px; background: var(--sr-border); margin: 8px 4px; }
+
+/* ---- Settings tab ---------------------------------------------------------- */
+.sr-settings { width: 100%; max-width: 680px; margin: 0 auto; padding: 18px 16px 40px; }
+.sr-frame--ipad .sr-settings { padding: 34px 32px 48px; }
+.sr-section-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.sr-section-head span { font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: var(--sr-text-muted); }
+.sr-section-head i { flex: 1; height: 1px; background: var(--sr-border); }
+.sr-card { border: 1px solid var(--sr-border); border-radius: 10px; background: var(--sr-surface); overflow: hidden; margin-bottom: 24px; }
+.sr-card--peek { margin-bottom: 24px; }
+.sr-row { padding: 14px 16px; }
+.sr-row + .sr-row { border-top: 1px solid var(--sr-border-subtle); }
+.sr-row--toggle { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.sr-row--toggle > div { flex: 1; min-width: 0; }
+.sr-desc { margin: 0; font-size: 0.8125rem; color: var(--sr-text-muted); line-height: 1.5; }
+.sr-desc + .sr-desc { margin-top: 6px; }
+.sr-note { margin: 6px 0 0; font-size: 0.75rem; color: var(--sr-text); line-height: 1.5; }
+.sr-note--muted { color: var(--sr-text-muted); }
+.sr-sublabel { margin: 0 0 2px; font-size: 0.8125rem; font-weight: 600; color: var(--sr-text); line-height: 1.4; }
+.sr-field-label { display: block; font-size: 0.6875rem; font-weight: 600; color: var(--sr-text-muted); margin-bottom: 4px; }
+.sr-fine { margin: 0; padding: 12px 16px 14px; border-top: 1px solid var(--sr-border-subtle); font-size: 0.75rem; color: var(--sr-text-muted); line-height: 1.5; }
+.sr-fine + .sr-fine { padding-top: 0; border-top: 0; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+
+/* Bare switch (ToggleSwitch bare: 36x20 track, 16px knob) */
+.sr-switch {
+  display: inline-flex; align-items: center; gap: 7px; padding: 7px; border-radius: 999px;
+  border: 0; background: none; cursor: pointer; font: inherit; flex: none;
+  transition: opacity 150ms ease-out;
+}
+.sr-switch[aria-disabled="true"] { opacity: 0.72; cursor: not-allowed; }
+.sr-switch__track { width: 36px; height: 20px; border-radius: 10px; position: relative; background: var(--sr-gray-400); transition: background-color 180ms ease-out; }
+.sr-switch[aria-checked="true"] .sr-switch__track { background: var(--sr-accent); }
+.sr-switch__knob { position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--sr-switch-thumb); box-shadow: var(--sr-switch-thumb-shadow); transition: left 180ms ease-out; }
+.sr-switch[aria-checked="true"] .sr-switch__knob { left: 18px; }
+
+/* Radio group in the Appearance register */
+.sr-radios { display: flex; flex-wrap: wrap; gap: 6px; }
+.sr-radio {
+  flex: 1; min-width: 0; height: 34px; padding: 0 10px;
+  border: 1.5px solid var(--sr-border); background: var(--sr-surface-subtle); color: var(--sr-text-muted);
+  font: inherit; font-size: 0.8125rem; font-weight: 500; cursor: pointer; border-radius: 6px;
+  transition: background-color 120ms ease-out, color 120ms ease-out, border-color 120ms ease-out;
+}
+.sr-radio:hover { color: var(--sr-text); border-color: var(--sr-border-medium); }
+.sr-radio[aria-checked="true"] { border-color: var(--sr-accent-border); background: var(--sr-accent-bg); color: var(--sr-accent); font-weight: 600; }
+
+/* Inputs in the Default Location register */
+.sr-input {
+  width: 100%; height: 34px; padding: 0 8px; border: 1.5px solid var(--sr-border); border-radius: 6px;
+  font-size: max(var(--sr-ctl-floor), 0.75rem); font-family: var(--font-mono); color: var(--sr-text); background: var(--sr-surface);
+  transition: border-color 120ms ease-out;
+}
+.sr-input--text { font-family: inherit; }
+.sr-input::placeholder { color: var(--sr-text-disabled); }
+.sr-input:focus { border-color: var(--sr-accent); }
+.sr-grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(7rem, 100%), 1fr)); gap: 8px; margin-bottom: 10px; }
+.sr-grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(8rem, 100%), 1fr)); gap: 8px; }
+.sr-radius-wrap { display: flex; align-items: center; gap: 8px; max-width: 12rem; }
+.sr-radius-wrap .sr-input { width: 5.5rem; }
+.sr-radius-unit { font-size: 0.8125rem; color: var(--sr-text-muted); }
+.sr-search { display: flex; gap: 6px; margin-bottom: 10px; }
+.sr-search .sr-input { flex: 1; min-width: 0; }
+
+/* Buttons */
+.sr-btn-quiet {
+  height: 32px; padding: 0 12px; border: 1.5px solid var(--sr-border); background: var(--sr-surface); color: var(--sr-text);
+  border-radius: 6px; font-size: 0.75rem; font-weight: 500; font-family: inherit; cursor: pointer; white-space: nowrap;
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  transition: border-color 120ms ease-out, background-color 120ms ease-out, color 120ms ease-out, opacity 120ms ease-out;
+}
+.sr-btn-quiet:hover { border-color: var(--sr-border-medium); background: var(--sr-surface-subtle); }
+.sr-btn-quiet[disabled] { border-color: var(--sr-border); background: var(--sr-surface-subtle); color: var(--sr-text-disabled); cursor: not-allowed; }
+.sr-btn-quiet svg { width: 13px; height: 13px; color: var(--sr-accent); flex: none; }
+.sr-btn-quiet--danger { border-color: var(--sr-error-border); color: var(--sr-error); }
+.sr-btn-quiet--danger:hover { background: var(--sr-error-bg); }
+.sr-btn-accent {
+  height: 32px; padding: 0 14px; background: var(--sr-accent); color: var(--sr-on-accent); border: 0; border-radius: 6px;
+  font-size: 0.75rem; font-weight: 600; font-family: inherit; cursor: pointer; white-space: nowrap;
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: background-color 120ms ease-out;
+}
+.sr-btn-accent:hover { background: var(--sr-accent-strong); }
+.sr-btn-search { height: 34px; padding: 0 12px; }
+.sr-btn-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.sr-locate { margin-bottom: 10px; }
+
+/* Focus rings (the app's global ring) */
+.sr-frame button:focus-visible, .sr-frame [role="switch"]:focus-visible, .sr-frame [role="radio"]:focus-visible, .sr-frame [tabindex]:focus-visible {
+  outline: 3px solid var(--sr-accent); outline-offset: 3px; box-shadow: 0 0 0 6px rgba(45,134,83,0.12);
+}
+.sr-frame input:focus-visible { outline: 2px solid var(--sr-accent); outline-offset: 0; border-color: var(--sr-accent); box-shadow: 0 0 0 4px rgba(45,134,83,0.12); }
+
+/* The configuration reveals when the switch goes on: a grid collapse. */
+.sr-reveal { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 220ms cubic-bezier(0.2, 0, 0, 1); }
+.sr-reveal > div { overflow: hidden; min-height: 0; }
+.sr-reveal--open { grid-template-rows: 1fr; }
+.sr-reveal--open > div { border-top: 1px solid var(--sr-border-subtle); }
+.sr-reveal[inert] { }
+
+/* Quiet hours time pair */
+.sr-times { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(8rem, 100%), 1fr)); gap: 8px; margin-top: 10px; }
+.sr-times .sr-input { font-family: inherit; }
+
+/* Fixed place summary line: name, coordinates, and the way back */
+.sr-place { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; margin-bottom: 10px; font-size: 0.8125rem; }
+.sr-place__name { font-weight: 600; color: var(--sr-text); }
+.sr-place__coords { font-family: var(--font-mono); font-size: 0.75rem; color: var(--sr-text-muted); }
+.sr-place__from { font-size: 0.75rem; color: var(--sr-text-muted); }
+
+/* Status line (role=status), in the iCloud status register */
+.sr-status-row { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 8px 12px; }
+.sr-status { font-size: 0.75rem; color: var(--sr-text-muted); line-height: 1.45; min-width: 0; }
+.sr-status b { font-weight: 600; color: var(--sr-text); }
+.sr-status__cap { display: block; color: var(--sr-text-muted); }
+.sr-status--blocked b { color: var(--sr-text); }
+.sr-hint { margin: 6px 0 0; font-size: 0.6875rem; color: var(--sr-text-muted); }
+.sr-err { margin: 6px 0 0; font-size: 0.6875rem; color: var(--sr-error); }
+
+/* ---- Inbox --------------------------------------------------------------- */
+.sr-inbox-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.sr-inbox-head .sr-sublabel { margin: 0; }
+.sr-inbox-count { font-size: 0.75rem; color: var(--sr-text-muted); margin-left: 6px; font-weight: 500; }
+.sr-inbox { list-style: none; margin: 0; padding: 0; }
+.sr-inbox li + li { border-top: 1px solid var(--sr-border-subtle); }
+.sr-alert {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "name dist" "place chev" "when chev"; column-gap: 12px; row-gap: 2px;
+  width: 100%; padding: 11px 16px; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer;
+  transition: background-color 120ms ease-out;
+}
+.sr-alert:hover { background: var(--sr-surface-subtle); }
+.sr-alert__name { grid-area: name; display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; min-width: 0; font-size: 0.84375rem; font-weight: 500; color: var(--sr-text); overflow-wrap: anywhere; }
+.sr-alert__name .sr-favicon-slot { display: inline-flex; width: 14px; height: 14px; align-items: center; justify-content: center; flex: none; color: var(--sr-text); opacity: 0.75; }
+.sr-alert__name .sr-favicon-slot svg { width: 12px; height: 12px; }
+.sr-alert__dist { grid-area: dist; font-size: 0.8125rem; font-weight: 600; color: var(--sr-text); font-variant-numeric: tabular-nums; white-space: nowrap; align-self: start; }
+.sr-alert__place { grid-area: place; font-size: 0.75rem; color: var(--sr-text-muted); min-width: 0; overflow-wrap: anywhere; }
+.sr-alert__when { grid-area: when; font-size: 0.71875rem; color: var(--sr-text-muted); }
+.sr-alert__when b { font-weight: 600; color: var(--sr-text-muted); }
+.sr-alert__chev { grid-area: chev; align-self: center; justify-self: end; color: var(--sr-text-muted); width: 15px; height: 15px; }
+.sr-empty { padding: 18px 16px 20px; font-size: 0.8125rem; color: var(--sr-text-muted); border-top: 1px solid var(--sr-border-subtle); }
+.sr-empty[hidden] { display: none; }
+
+/* ---- Modal (the shared ModalDialog shell) --------------------------------- */
+.sr-dlg-root { position: absolute; inset: 0; z-index: 30; background: var(--sr-scrim); display: flex; align-items: center; justify-content: center; padding: 16px; opacity: 0; transition: opacity 160ms ease-out; }
+.sr-dlg-root[hidden] { display: none; }
+.sr-dlg-root--open { opacity: 1; }
+.sr-dlg { width: calc(100% - 32px); max-width: 420px; background: var(--sr-surface); border: 1px solid var(--sr-border); border-radius: 14px; box-shadow: var(--sr-card-shadow); opacity: 0; transform: scale(0.94); transition: opacity 160ms ease-out, transform 160ms cubic-bezier(0.2, 0, 0, 1); }
+.sr-dlg-root--open .sr-dlg { opacity: 1; transform: none; }
+.sr-dlg-head { padding: 16px 18px 12px; border-bottom: 1px solid var(--sr-border-subtle); }
+.sr-dlg-title { margin: 0; font-size: 1rem; font-weight: 700; letter-spacing: -0.01em; line-height: 1.3; color: var(--sr-text); }
+.sr-dlg-body { padding: 14px 18px 4px; }
+.sr-dlg-text { margin: 0 0 10px; font-size: 0.8125rem; color: var(--sr-text-muted); line-height: 1.55; }
+.sr-dlg-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; padding: 8px 18px 16px; }
+.sr-dlg-actions > * { min-width: 96px; }
+
+/* The place the system prompt appears (deliberately schematic, not a fake dialog) */
+.sr-sysprompt-root { position: absolute; inset: 0; z-index: 25; background: var(--sr-scrim); display: flex; align-items: center; justify-content: center; padding: 24px; opacity: 0; transition: opacity 160ms ease-out; }
+.sr-sysprompt-root[hidden] { display: none; }
+.sr-sysprompt-root--open { opacity: 1; }
+.sr-sysprompt { width: 270px; max-width: 100%; padding: 18px 16px; border: 2px dashed var(--sr-border-medium); border-radius: 14px; background: var(--sr-surface); text-align: center; color: var(--sr-text-muted); font-size: 0.75rem; line-height: 1.5; transform: scale(0.94); transition: transform 160ms cubic-bezier(0.2, 0, 0, 1); }
+.sr-sysprompt-root--open .sr-sysprompt { transform: none; }
+.sr-sysprompt b { display: block; color: var(--sr-text); font-size: 0.8125rem; margin-bottom: 4px; }
+.sr-sysprompt__actions { display: flex; gap: 8px; margin-top: 12px; }
+.sr-sysprompt__actions button { flex: 1; height: 32px; border-radius: 6px; border: 1.5px solid var(--sr-border); background: var(--sr-surface); color: var(--sr-text); font: inherit; font-size: 0.75rem; font-weight: 500; cursor: pointer; }
+.sr-sysprompt__actions button:hover { background: var(--sr-surface-subtle); border-color: var(--sr-border-medium); }
+
+/* ---- Lock screen with the notification ------------------------------------ */
+.sr-lock {
+  width: 390px; max-width: 100%; height: 520px; border-radius: 34px; overflow: hidden; position: relative;
+  border: 1px solid var(--demo-border); box-shadow: var(--demo-shadow);
+  background:
+    radial-gradient(120% 80% at 20% 0%, rgba(39,116,72,0.55), transparent 60%),
+    radial-gradient(90% 70% at 90% 100%, rgba(26,92,56,0.6), transparent 55%),
+    linear-gradient(180deg, #1B2A33 0%, #0F1B22 100%);
+  color: #F4F4F5;
+  font-family: var(--font-sans);
+}
+.sr-lock__time { position: absolute; top: 58px; left: 0; right: 0; text-align: center; }
+.sr-lock__time b { display: block; font-size: 72px; font-weight: 600; letter-spacing: -0.03em; line-height: 1; }
+.sr-lock__time span { display: block; font-size: 15px; font-weight: 500; opacity: 0.85; margin-top: 8px; }
+.sr-banner {
+  position: absolute; left: 12px; right: 12px; top: 220px;
+  display: grid; grid-template-columns: 38px minmax(0, 1fr); gap: 12px; align-items: start;
+  padding: 12px 14px; border-radius: 22px;
+  background: rgba(244,244,245,0.92); color: #0F1117;
+  box-shadow: 0 8px 30px rgba(9,9,11,0.35);
+  transform: translateY(-12px); opacity: 0;
+  animation: sr-banner-in 240ms cubic-bezier(0.2, 0, 0, 1) forwards;
+}
+.sr-banner--dark { background: rgba(24,24,27,0.92); color: #F4F4F5; }
+.sr-banner__icon { width: 38px; height: 38px; border-radius: 9px; background: #277448; display: flex; align-items: center; justify-content: center; color: #FFFFFF; }
+.sr-banner__app { display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; opacity: 0.7; margin-bottom: 1px; }
+.sr-banner__title { font-size: 14px; font-weight: 600; line-height: 1.3; }
+.sr-banner__body { font-size: 13px; line-height: 1.35; opacity: 0.9; }
+@keyframes sr-banner-in { to { transform: none; opacity: 1; } }
+.sr-lock__foot { position: absolute; bottom: 22px; left: 0; right: 0; text-align: center; font-size: 11px; opacity: 0.7; }
+
+/* ---- Map Explorer landing (the tap-through destination) ------------------- */
+.sr-map-frame { width: 390px; max-width: 100%; height: 520px; border-radius: 34px; overflow: hidden; position: relative; border: 1px solid var(--demo-border); box-shadow: var(--demo-shadow); background: var(--sr-bg); font-family: var(--font-sans); color: var(--sr-text); }
+.sr-map-top { padding: 22px 16px 10px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.sr-map-top h2 { margin: 0; font-size: 1.125rem; font-weight: 700; letter-spacing: -0.01em; white-space: nowrap; }
+.sr-segbar { display: inline-flex; border: 1.5px solid var(--sr-accent-border); border-radius: 15px; overflow: hidden; background: var(--sr-surface); }
+.sr-segbar-btn { min-height: 30px; padding: 0 8px; border: 0; background: transparent; color: var(--sr-text-muted); font: inherit; font-size: 0.71875rem; font-weight: 500; cursor: pointer; white-space: nowrap; transition: background-color 120ms ease-out, color 120ms ease-out; }
+.sr-segbar-btn + .sr-segbar-btn { border-left: 1.5px solid var(--sr-accent-border); }
+.sr-segbar-btn[aria-pressed="true"] { background: var(--sr-accent-bg); color: var(--sr-accent); font-weight: 600; }
+.sr-map-canvas { position: absolute; left: 0; right: 0; top: 66px; bottom: 0; background: #EEF3EA; overflow: hidden; }
+.sr-map-water { position: absolute; background: #CFE3EE; }
+.sr-map-road { position: absolute; background: #FFFFFF; }
+.sr-map-label { position: absolute; font-size: 0.625rem; color: #5A6B5F; letter-spacing: 0.02em; }
+.sr-pin { position: absolute; width: 22px; height: 22px; transform: translate(-50%, -100%); }
+.sr-pin svg { width: 22px; height: 22px; }
+.sr-pin--target { color: #277448; }
+.sr-pin--center { color: #277448; }
+.sr-map-popup { position: absolute; left: 50%; top: 78px; transform: translateX(-50%); width: 240px; background: var(--sr-surface); border: 1px solid var(--sr-border); border-radius: 10px; box-shadow: var(--sr-card-shadow); padding: 10px 12px; font-size: 0.75rem; color: var(--sr-text-muted); }
+.sr-map-popup::after { content: ""; position: absolute; left: 50%; bottom: -7px; width: 12px; height: 12px; background: var(--sr-surface); border-right: 1px solid var(--sr-border); border-bottom: 1px solid var(--sr-border); transform: translateX(-50%) rotate(45deg); }
+.sr-map-popup b { display: block; font-size: 0.84375rem; font-weight: 600; color: var(--sr-text); margin-bottom: 2px; }
+.sr-map-popup a { color: var(--sr-accent); text-decoration: none; font-weight: 500; }
+.sr-map-fabs { position: absolute; left: 12px; right: 12px; bottom: 26px; display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 8px; }
+.sr-map-fab { width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--sr-border); background: var(--sr-surface); color: var(--sr-text); display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(var(--sr-ink-rgb),0.18); }
+.sr-map-fab svg { width: 16px; height: 16px; }
+.sr-map-focus-row { flex: 0 0 100%; display: flex; justify-content: center; }
+.sr-map-focus-btn {
+  display: inline-flex; align-items: center; gap: 0.35em; max-width: 100%; padding: 7px 15px;
+  background: var(--sr-accent-bg); color: var(--sr-accent); border: 1px solid var(--sr-accent-border-strong); border-radius: 20px;
+  box-shadow: 0 2px 8px rgba(var(--sr-ink-rgb),0.18); font: inherit; font-size: 0.8125rem; font-weight: 600; line-height: 1.25; cursor: pointer; white-space: nowrap;
+  transform-origin: bottom center; animation: sr-arrive 190ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.sr-map-focus-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.sr-map-focus-sep { opacity: 0.6; }
+@keyframes sr-arrive { from { opacity: 0; transform: translateY(8px) scale(0.965); } }
+.sr-map-chip { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 6px; padding: 5px 12px; background: var(--sr-surface); border: 1px solid var(--sr-border); border-radius: 20px; box-shadow: 0 2px 8px rgba(var(--sr-ink-rgb),0.18); font-size: 0.75rem; color: var(--sr-text-muted); white-space: nowrap; pointer-events: none; }
+
+/* ---- Entry points ------------------------------------------------------- */
+/* iPhone header: a trailing bell, present only while Alerts is on or the inbox
+   has rows, with a new-since-last-viewed count. */
+.sr-header { position: relative; }
+.sr-hdr-inbox {
+  position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+  width: 36px; height: 36px; border-radius: 8px; border: 0; background: none; color: var(--sr-text-muted);
+  cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+  transition: background-color 120ms ease-out, color 120ms ease-out;
+}
+.sr-hdr-inbox:hover { background: var(--sr-surface-subtle); color: var(--sr-text); }
+.sr-hdr-inbox svg { width: 18px; height: 18px; }
+.sr-hdr-inbox[hidden] { display: none; }
+.sr-badge {
+  position: absolute; top: 2px; right: 2px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px;
+  background: var(--sr-accent); color: var(--sr-on-accent); font-size: 0.625rem; font-weight: 700; line-height: 16px; text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.sr-badge[hidden] { display: none; }
+/* iPad nav column: the Search field the app already has, then an Inbox row. */
+.sr-nav-search {
+  display: flex; align-items: center; gap: 8px; width: 100%; min-height: 32px; margin: 0 0 10px; padding: 0 8px 0 9px;
+  border: 1px solid var(--sr-border-input); border-radius: 8px; background: var(--sr-surface-faint); color: var(--sr-text-muted);
+  font: inherit; font-size: 0.84375rem; font-weight: 500; text-align: left; cursor: pointer;
+}
+.sr-nav-search svg { width: 15px; height: 15px; flex: none; }
+.sr-nav-search span:last-child { margin-left: auto; font-size: 0.6875rem; color: var(--sr-text-disabled); }
+.sr-nav-item[hidden] { display: none; }
+.sr-nav-count {
+  margin-left: auto; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px;
+  background: var(--sr-accent-bg); color: var(--sr-accent); font-size: 0.6875rem; font-weight: 700; line-height: 18px; text-align: center;
+}
+.sr-nav-count[hidden] { display: none; }
+/* Settings card: the inbox row that opens the sheet (replaces the inline list). */
+.sr-inbox-link {
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 13px 16px;
+  border: 0; border-top: 1px solid var(--sr-border-subtle); background: none; color: inherit; font: inherit; text-align: left; cursor: pointer;
+  transition: background-color 120ms ease-out;
+}
+.sr-inbox-link:hover { background: var(--sr-surface-subtle); }
+.sr-inbox-link[hidden] { display: none; }
+.sr-inbox-link .glyph { width: 15px; height: 15px; color: var(--sr-accent); flex: none; }
+.sr-inbox-link__text { flex: 1; min-width: 0; }
+.sr-inbox-link__title { font-size: 0.8125rem; font-weight: 600; color: var(--sr-text); }
+.sr-inbox-link__sub { font-size: 0.75rem; color: var(--sr-text-muted); }
+.sr-inbox-link__chev { width: 15px; height: 15px; color: var(--sr-text-muted); flex: none; }
+
+/* ---- The inbox sheet (iPhone) / panel (iPad) ------------------------------ */
+.sr-inbox-root {
+  position: absolute; inset: 0; z-index: 28; background: var(--sr-scrim);
+  display: flex; align-items: flex-end; justify-content: center;
+  opacity: 0; transition: opacity 160ms ease-out;
+}
+.sr-inbox-root[hidden] { display: none; }
+.sr-inbox-root--open { opacity: 1; }
+.sr-inbox-sheet {
+  width: 100%; max-height: 92%; display: flex; flex-direction: column;
+  background: var(--sr-surface); border-top: 1px solid var(--sr-border); border-radius: 16px 16px 0 0; box-shadow: var(--sr-card-shadow);
+  transform: translateY(100%); transition: transform 220ms cubic-bezier(0.2, 0, 0, 1);
+}
+.sr-inbox-root--open .sr-inbox-sheet { transform: none; }
+.sr-inbox-handle { width: 36px; height: 4px; border-radius: 2px; background: var(--sr-border-medium); margin: 8px auto 0; flex: none; }
+.sr-inbox-head { display: flex; align-items: center; gap: 10px; padding: 10px 12px 10px 18px; border-bottom: 1px solid var(--sr-border); flex: none; }
+.sr-inbox-head .glyph { width: 16px; height: 16px; color: var(--sr-accent); flex: none; }
+.sr-inbox-title { flex: 1; min-width: 0; margin: 0; font-size: 0.9375rem; font-weight: 700; letter-spacing: -0.01em; color: var(--sr-text); }
+.sr-inbox-title small { font-weight: 500; font-size: 0.75rem; color: var(--sr-text-muted); margin-left: 6px; }
+.sr-inbox-close {
+  width: 32px; height: 32px; border-radius: 6px; border: 0; background: none; color: var(--sr-text-muted); cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; flex: none;
+  transition: background-color 120ms ease-out, color 120ms ease-out;
+}
+.sr-inbox-close:hover { background: var(--sr-surface-subtle); color: var(--sr-text); }
+.sr-inbox-close svg { width: 16px; height: 16px; }
+.sr-inbox-body { flex: 1; min-height: 0; overflow: auto; }
+.sr-inbox-body .sr-empty { border-top: 0; padding: 22px 18px 24px; }
+.sr-inbox-body .sr-empty small { display: block; margin-top: 4px; font-size: 0.75rem; }
+.sr-inbox-foot { flex: none; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 12px; padding: 10px 16px 18px; border-top: 1px solid var(--sr-border-subtle); }
+.sr-inbox-foot .sr-fine { flex: 1 1 200px; padding: 0; border: 0; }
+.sr-alert--new .sr-alert__name::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--sr-accent); flex: none; }
+.sr-alert__new-word { font-size: 0.6875rem; font-weight: 600; color: var(--sr-accent); margin-left: 2px; }
+.sr-frame--ipad .sr-inbox-root { align-items: center; padding: 24px; }
+.sr-frame--ipad .sr-inbox-sheet {
+  max-width: 520px; max-height: 80%; border: 1px solid var(--sr-border); border-radius: 14px;
+  transform: scale(0.96); opacity: 0; transition: transform 160ms cubic-bezier(0.2, 0, 0, 1), opacity 160ms ease-out;
+}
+.sr-frame--ipad .sr-inbox-root--open .sr-inbox-sheet { transform: none; opacity: 1; }
+.sr-frame--ipad .sr-inbox-handle { display: none; }
+
+/* ---- Command palette (illustrative: the shipped palette with one more row) --- */
+.sr-palette-root { position: absolute; inset: 0; z-index: 29; background: var(--sr-scrim); display: flex; align-items: flex-start; justify-content: center; padding: 64px 16px; opacity: 0; transition: opacity 160ms ease-out; }
+.sr-palette-root[hidden] { display: none; }
+.sr-palette-root--open { opacity: 1; }
+.sr-palette-panel { width: 100%; max-width: 460px; background: var(--sr-surface); border: 1px solid var(--sr-border); border-radius: 12px; box-shadow: var(--sr-card-shadow); overflow: hidden; transform: scale(0.97); transition: transform 160ms cubic-bezier(0.2, 0, 0, 1); }
+.sr-palette-root--open .sr-palette-panel { transform: none; }
+.sr-palette-head { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--sr-border); color: var(--sr-text-muted); }
+.sr-palette-head svg { width: 15px; height: 15px; flex: none; }
+.sr-palette-head input { flex: 1; min-width: 0; border: 0; background: none; font: inherit; font-size: max(var(--sr-ctl-floor), 0.9375rem); color: var(--sr-text); outline: none; }
+.sr-palette-group { padding: 10px 14px 4px; font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: var(--sr-text-muted); }
+.sr-palette-row { display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 14px; border: 0; background: none; color: var(--sr-text); font: inherit; font-size: 0.84375rem; text-align: left; cursor: pointer; }
+.sr-palette-row svg { width: 15px; height: 15px; color: var(--sr-text-muted); flex: none; }
+.sr-palette-row:hover { background: var(--sr-surface-subtle); }
+.sr-palette-row[hidden] { display: none; }
+.sr-palette-row--active { background: var(--sr-accent-bg); }
+.sr-palette-row--active svg { color: var(--sr-accent); }
+.sr-palette-row .sr-nav-count { margin-left: auto; }
+.sr-palette-list { padding-bottom: 8px; }
+
+/* Reduced motion: every transition and entrance collapses to its end state.
+   The banner's resting state is restated because its entrance supplied it. */
+@media (prefers-reduced-motion: reduce) {
+  .sr-frame, .sr-reveal, .sr-switch__track, .sr-switch__knob, .sr-dlg-root, .sr-dlg, .sr-sysprompt-root, .sr-sysprompt, .sr-radio, .sr-btn-quiet, .sr-alert, .sr-navbar-cell, .sr-nav-item, .sr-input, .sr-segbar-btn,
+  .sr-hdr-inbox, .sr-inbox-link, .sr-inbox-root, .sr-inbox-sheet, .sr-inbox-close, .sr-palette-root, .sr-palette-panel { transition: none !important; }
+  .sr-banner, .sr-map-focus-btn { animation: none !important; }
+  .sr-banner { transform: none; opacity: 1; }
+}
+@media (max-width: 420px) {
+  .sr-frame, .sr-lock, .sr-map-frame { border-radius: 18px; }
+}
+</style>
+</head>
+<body>
+
+<div class="demo-bar" role="toolbar" aria-label="Design preview controls">
+  <h1>Snow<span>Raven</span> · Alerts, first design direction</h1>
+  <div class="demo-group"><span>Theme</span>
+    <div class="demo-seg" role="group" aria-label="Theme">
+      <button type="button" data-theme-pick="light" aria-pressed="true">Light</button>
+      <button type="button" data-theme-pick="dark" aria-pressed="false">Dark</button>
+    </div>
+  </div>
+  <div class="demo-group"><span>Device</span>
+    <div class="demo-seg" role="group" aria-label="Device">
+      <button type="button" data-device="iphone" aria-pressed="true">iPhone</button>
+      <button type="button" data-device="ipad" aria-pressed="false">iPad</button>
+    </div>
+  </div>
+  <div class="demo-group"><span>Text</span>
+    <div class="demo-seg" role="group" aria-label="Text size">
+      <button type="button" data-scale="1" aria-pressed="true">100%</button>
+      <button type="button" data-scale="2" aria-pressed="false">200%</button>
+    </div>
+  </div>
+  <div class="demo-group"><span>Status</span>
+    <select id="demo-status" aria-label="Status line to show">
+      <option value="hits">Last check found 3 lifers</option>
+      <option value="nothing">Last check, nothing new</option>
+      <option value="notyet">Not checked yet</option>
+      <option value="offline">Offline</option>
+      <option value="noanswer">eBird did not answer (the sixth sentence)</option>
+      <option value="busy">eBird busy</option>
+      <option value="badkey">eBird did not accept your key</option>
+      <option value="fallback">Fallback: from your fixed place</option>
+      <option value="nokey">Setup: no eBird key</option>
+      <option value="nobackup">Setup: no eBird backup</option>
+      <option value="noplace">Setup: no place</option>
+      <option value="locoff">Setup: location off (My location)</option>
+      <option value="noposition">Setup: no recent position (My location)</option>
+      <option value="notifdenied">Notifications denied for SnowRaven</option>
+      <option value="bgoff">Background App Refresh off</option>
+    </select>
+  </div>
+  <div class="demo-group"><span>Inbox</span>
+    <div class="demo-seg" role="group" aria-label="Inbox contents">
+      <button type="button" data-inbox="rows" aria-pressed="true">6 alerts</button>
+      <button type="button" data-inbox="empty" aria-pressed="false">Empty</button>
+    </div>
+  </div>
+  <div class="demo-group"><span>New</span>
+    <div class="demo-seg" role="group" aria-label="New alerts since last viewed">
+      <button type="button" data-new="3" aria-pressed="true">3 new</button>
+      <button type="button" data-new="0" aria-pressed="false">None</button>
+    </div>
+  </div>
+  <div class="demo-group"><span>Open</span>
+    <div class="demo-seg" role="group" aria-label="Open an overlay">
+      <button type="button" data-open="sheet" aria-pressed="false">Inbox</button>
+      <button type="button" data-open="palette" aria-pressed="false">Palette</button>
+    </div>
+  </div>
+  <span class="demo-note">The switch, cadence, quiet hours, place model, the bell, the Inbox row, the palette row and Clear all work. Scroll down for the notification and where a tap lands.</span>
+</div>
+
+<main class="demo-main">
+
+<!-- ===================================================================== -->
+<!-- The Settings tab, Alerts section                                       -->
+<!-- ===================================================================== -->
+<section class="demo-stage" aria-labelledby="stage1-h">
+  <h2 class="demo-h" id="stage1-h">Settings, Alerts, and the inbox<small>The card keeps its settings and ends in one Inbox row. The inbox itself is a sheet (iPhone) or a panel (iPad), reached from that row, the bell in the header, the Inbox item in the iPad sidebar, or the command palette.</small></h2>
+
+  <div class="sr-frame" id="frame" data-theme="light" data-scale="1">
+    <div class="sr-frame__screen">
+
+      <!-- iPad sidebar -->
+      <nav class="sr-nav-col" aria-label="Main navigation">
+        <div class="sr-nav-brand">
+          <svg width="22" height="22" viewBox="0 0 512 512" aria-hidden="true" focusable="false" style="color: var(--sr-accent)"><use href="#raven"/></svg>
+          <p class="sr-nav-word">Snow<span>Raven</span></p>
+        </div>
+        <p class="sr-nav-tagline">Self-hosted birding tools</p>
+        <button type="button" class="sr-nav-search" id="nav-search" aria-keyshortcuts="Meta+K Control+K"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-search"/></svg>Search<span aria-hidden="true">⌘K</span></button>
+        <button type="button" class="sr-nav-item" id="nav-inbox" aria-haspopup="dialog" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-bell"/></svg><span>Alerts inbox</span><span class="sr-nav-count" id="nav-count" aria-hidden="true" hidden>3</span></button>
+        <div class="sr-nav-list">
+          <button type="button" class="sr-nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-cloud"/></svg><span>Weather</span></button>
+          <button type="button" class="sr-nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-feather"/></svg><span>Species Detail</span></button>
+          <button type="button" class="sr-nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-bars"/></svg><span>Statistics</span></button>
+          <button type="button" class="sr-nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-map"/></svg><span>Map Explorer</span></button>
+          <button type="button" class="sr-nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-camera"/></svg><span>Multimedia</span></button>
+          <button type="button" class="sr-nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-calendar"/></svg><span>Calendar</span></button>
+          <button type="button" class="sr-nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-target"/></svg><span>Targets</span></button>
+          <div class="sr-nav-sep" role="presentation"></div>
+          <button type="button" class="sr-nav-item sr-nav-item--active" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-cog"/></svg><span>Settings</span></button>
+        </div>
+      </nav>
+
+      <div class="sr-frame__content">
+        <div class="sr-statusbar" aria-hidden="true"><span>9:41</span><svg viewBox="0 0 18 12" fill="currentColor"><rect x="0" y="8" width="3" height="4" rx="0.8"/><rect x="4.5" y="5.5" width="3" height="6.5" rx="0.8"/><rect x="9" y="3" width="3" height="9" rx="0.8"/><rect x="13.5" y="0.5" width="3" height="11.5" rx="0.8"/></svg></div>
+        <header class="sr-header">
+          <div class="sr-header-brand">
+            <svg width="20" height="20" viewBox="0 0 512 512" aria-hidden="true" focusable="false" style="color: var(--sr-accent)"><use href="#raven"/></svg>
+            <h1 class="sr-header-title"><span>Snow</span><span>Raven</span></h1>
+          </div>
+          <button type="button" class="sr-hdr-inbox" id="hdr-inbox" aria-label="Alerts inbox" aria-haspopup="dialog" hidden>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-bell"/></svg>
+            <span class="sr-badge" id="hdr-badge" aria-hidden="true" hidden>3</span>
+          </button>
+        </header>
+
+        <div class="sr-frame__scroll">
+        <div class="sr-settings">
+
+          <!-- The section above, abbreviated, so the placement reads -->
+          <div class="sr-section-head"><span>Default Location</span><i></i></div>
+          <div class="sr-card sr-card--peek">
+            <div class="sr-row">
+              <p class="sr-desc">Set a home location for the Map Explorer. These coordinates load automatically every time you open the map tab.</p>
+              <div class="sr-grid-3" style="margin-top: 12px; margin-bottom: 0;">
+                <div><label class="sr-field-label" for="dl-lat">Latitude</label><input class="sr-input" id="dl-lat" type="text" value="38.54460" readonly></div>
+                <div><label class="sr-field-label" for="dl-lng">Longitude</label><input class="sr-input" id="dl-lng" type="text" value="-121.74050" readonly></div>
+                <div><label class="sr-field-label" for="dl-rad">Radius (mi)</label><input class="sr-input" id="dl-rad" type="text" value="5" readonly></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ============================ ALERTS ============================ -->
+          <div class="sr-section-head"><span id="alerts-h">Alerts</span><i></i></div>
+          <div class="sr-card" id="alerts-card">
+
+            <!-- Row 1: the switch -->
+            <div class="sr-row sr-row--toggle">
+              <div>
+                <p class="sr-desc" id="alerts-desc">Tells you when eBird reports a species you have never recorded near a place you choose. Only on iPhone and iPad.</p>
+                <p class="sr-desc" id="alerts-off-note">Off until you turn it on. Nothing is checked, sent or asked for before then.</p>
+              </div>
+              <button type="button" class="sr-switch" id="alerts-switch" role="switch" aria-checked="false" aria-labelledby="alerts-h" aria-describedby="alerts-desc alerts-off-note">
+                <span class="sr-switch__track"><span class="sr-switch__knob"></span></span>
+                <span class="sr-only">Alerts</span>
+              </button>
+            </div>
+
+            <!-- Everything below appears when the switch is on -->
+            <div class="sr-reveal" id="alerts-config" inert>
+              <div>
+
+                <!-- Cadence -->
+                <div class="sr-row">
+                  <p class="sr-sublabel" id="cad-label">Cadence</p>
+                  <p class="sr-desc" id="cad-desc" style="margin-bottom: 10px;">Hourly checks about once an hour, Daily about once a day. iOS decides when a background check runs. Opening the app also checks, once the interval has passed.</p>
+                  <div class="sr-radios" role="radiogroup" aria-labelledby="cad-label" aria-describedby="cad-desc" data-radios="cadence">
+                    <button type="button" class="sr-radio" role="radio" aria-checked="true" data-value="hourly">Hourly</button>
+                    <button type="button" class="sr-radio" role="radio" aria-checked="false" data-value="daily" tabindex="-1">Daily</button>
+                  </div>
+                </div>
+
+                <!-- Quiet hours -->
+                <div class="sr-row sr-row--toggle" style="flex-wrap: wrap;">
+                  <div>
+                    <p class="sr-sublabel" id="qh-label">Quiet hours</p>
+                    <p class="sr-desc" id="qh-desc">No alert arrives inside the window. Anything found then goes into the inbox right away and is delivered when the window ends.</p>
+                  </div>
+                  <button type="button" class="sr-switch" id="qh-switch" role="switch" aria-checked="false" aria-labelledby="qh-label" aria-describedby="qh-desc">
+                    <span class="sr-switch__track"><span class="sr-switch__knob"></span></span>
+                    <span class="sr-only">Quiet hours</span>
+                  </button>
+                  <div class="sr-reveal" id="qh-config" inert style="flex: 0 0 100%;">
+                    <div style="border-top: 0;">
+                      <div class="sr-times" style="margin-top: 4px;">
+                        <div><label class="sr-field-label" for="qh-start">From</label><input class="sr-input" id="qh-start" type="time" value="22:00"></div>
+                        <div><label class="sr-field-label" for="qh-end">To</label><input class="sr-input" id="qh-end" type="time" value="07:00"></div>
+                      </div>
+                      <p class="sr-note sr-note--muted" id="qh-note">Quiet from 10:00 PM to 7:00 AM, across midnight. A find at 11:30 PM is delivered at 7:00 AM.</p>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Measure from -->
+                <div class="sr-row">
+                  <p class="sr-sublabel" id="mf-label">Measure from</p>
+                  <div class="sr-radios" role="radiogroup" aria-labelledby="mf-label" data-radios="model" style="margin-bottom: 8px;">
+                    <button type="button" class="sr-radio" role="radio" aria-checked="true" data-value="fixed">Fixed place</button>
+                    <button type="button" class="sr-radio" role="radio" aria-checked="false" data-value="my-location" tabindex="-1">My location</button>
+                  </div>
+                  <p class="sr-desc" id="mf-desc-fixed">Distances are measured from the place below.</p>
+                  <p class="sr-desc" id="mf-desc-my" hidden>Your most recent known position, under the same While Using permission as Use my location. With the app closed, a check uses the last position the app or a widget recorded in the past 24 hours; SnowRaven never asks for Always. When no recent position is known, the fixed place below is used instead.</p>
+                </div>
+
+                <!-- Fixed place -->
+                <div class="sr-row" id="fp-row">
+                  <p class="sr-sublabel" id="fp-label">Fixed place</p>
+                  <div class="sr-place" id="fp-summary">
+                    <span class="sr-place__name" id="fp-name">Davis, CA</span>
+                    <span class="sr-place__coords" id="fp-coords">38.54490, -121.74050</span>
+                    <span class="sr-place__from" id="fp-from" hidden>Following your Default Location</span>
+                  </div>
+                  <div class="sr-search">
+                    <label class="sr-only" for="fp-search">Search by place name</label>
+                    <input class="sr-input sr-input--text" id="fp-search" type="text" placeholder="Search by place name" autocomplete="off">
+                    <button type="button" class="sr-btn-accent sr-btn-search" id="fp-search-go">Search</button>
+                  </div>
+                  <div class="sr-grid-3">
+                    <div><label class="sr-field-label" for="fp-lat">Latitude</label><input class="sr-input" id="fp-lat" type="text" inputmode="decimal" value="38.54490"></div>
+                    <div><label class="sr-field-label" for="fp-lng">Longitude</label><input class="sr-input" id="fp-lng" type="text" inputmode="decimal" value="-121.74050"></div>
+                  </div>
+                  <div class="sr-btn-row">
+                    <button type="button" class="sr-btn-quiet" id="fp-locate"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-nav"/></svg>Use my location</button>
+                    <button type="button" class="sr-btn-quiet" id="fp-follow">Follow Default Location</button>
+                  </div>
+                  <p class="sr-hint">Editing this place never changes your Default Location, and saving a Default Location later leaves a place you set here alone.</p>
+                </div>
+
+                <!-- Radius -->
+                <div class="sr-row">
+                  <label class="sr-sublabel" for="radius" style="display: block;">Radius</label>
+                  <div class="sr-radius-wrap">
+                    <input class="sr-input" id="radius" type="text" inputmode="numeric" value="25" aria-describedby="radius-hint">
+                    <span class="sr-radius-unit">miles</span>
+                  </div>
+                  <p class="sr-hint" id="radius-hint">A whole number from 1 to 25.</p>
+                  <p class="sr-err" id="radius-err" role="alert" hidden></p>
+                </div>
+
+                <!-- Status line -->
+                <div class="sr-row sr-status-row">
+                  <p class="sr-status" id="status" role="status" aria-live="polite"></p>
+                </div>
+                <div class="sr-row" id="status-notes" hidden>
+                  <p class="sr-note" id="status-note"></p>
+                </div>
+
+                <!-- Fine print: the network sentence and the countability line -->
+                <p class="sr-fine">A check sends the chosen coordinates to eBird with your own key, the same nearby-sightings request Nearby Lifers makes. Nothing is sent to the developer.</p>
+                <p class="sr-fine">Alerts name species only. Spuhs, slashes and hybrids stay on the map and in the widgets, but never interrupt you.</p>
+
+              </div>
+            </div>
+
+            <!-- The inbox row: outside the on/off reveal, so history stays
+                 reachable while alerts are off; absent only when off AND empty. -->
+            <button type="button" class="sr-inbox-link" id="card-inbox" aria-haspopup="dialog" hidden>
+              <svg class="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-bell"/></svg>
+              <span class="sr-inbox-link__text">
+                <span class="sr-inbox-link__title">Inbox</span>
+                <span class="sr-inbox-link__sub" id="card-inbox-sub"></span>
+              </span>
+              <svg class="sr-inbox-link__chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-chev"/></svg>
+            </button>
+          </div>
+
+          <div class="sr-section-head"><span>Tab Layout</span><i></i></div>
+          <div class="sr-card sr-card--peek" style="height: 54px; margin-bottom: 0;"></div>
+        </div>
+        </div>
+
+        <!-- Phone bottom bar -->
+        <nav class="sr-navbar" aria-label="Main navigation">
+          <button type="button" class="sr-navbar-cell"><span class="sr-navbar-glyph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-cloud"/></svg></span><span class="sr-navbar-label">Weather</span></button>
+          <button type="button" class="sr-navbar-cell"><span class="sr-navbar-glyph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-map"/></svg></span><span class="sr-navbar-label">Map</span></button>
+          <button type="button" class="sr-navbar-cell"><span class="sr-navbar-glyph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-bars"/></svg></span><span class="sr-navbar-label">Statistics</span></button>
+          <button type="button" class="sr-navbar-cell"><span class="sr-navbar-glyph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-target"/></svg></span><span class="sr-navbar-label">Targets</span></button>
+          <button type="button" class="sr-navbar-cell sr-navbar-cell--active" aria-current="page"><span class="sr-navbar-glyph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-more"/></svg></span><span class="sr-navbar-label">More</span></button>
+        </nav>
+      </div>
+    </div>
+
+    <!-- The inbox: a bottom sheet on iPhone, a centered panel on iPad -->
+    <div class="sr-inbox-root" id="inbox-root" hidden>
+      <div class="sr-inbox-sheet" role="dialog" aria-modal="true" aria-labelledby="inbox-title">
+        <div class="sr-inbox-handle" aria-hidden="true"></div>
+        <div class="sr-inbox-head">
+          <svg class="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-bell"/></svg>
+          <h2 class="sr-inbox-title" id="inbox-title">Alerts inbox<small id="inbox-count"></small></h2>
+          <button type="button" class="sr-inbox-close" id="inbox-close" aria-label="Close the inbox"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-x"/></svg></button>
+        </div>
+        <div class="sr-inbox-body">
+          <ul class="sr-inbox" id="inbox" aria-label="Past alerts, newest first"></ul>
+          <p class="sr-empty" id="inbox-empty" hidden>No alerts yet.<small>A species eBird reports near your place that is not in your backup appears here, and as a notification.</small></p>
+        </div>
+        <div class="sr-inbox-foot">
+          <p class="sr-fine">Kept on this device for 30 days, up to 200 alerts, and never synced. Cleared with your eBird backup. Tap an alert to see it on the map.</p>
+          <button type="button" class="sr-btn-quiet" id="inbox-clear">Clear</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- The command palette, with the one added destination -->
+    <div class="sr-palette-root" id="palette" hidden>
+      <div class="sr-palette-panel" role="dialog" aria-modal="true" aria-label="Search">
+        <div class="sr-palette-head">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-search"/></svg>
+          <input type="text" placeholder="Search destinations and species" aria-label="Search" id="palette-input">
+          <button type="button" class="sr-inbox-close" id="palette-close" aria-label="Close search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-x"/></svg></button>
+        </div>
+        <div class="sr-palette-list" role="listbox" aria-label="Results">
+          <div class="sr-palette-group" role="presentation">Destinations</div>
+          <button type="button" class="sr-palette-row sr-palette-row--active" id="palette-inbox" role="option" aria-selected="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-bell"/></svg>Alerts inbox<span class="sr-nav-count" id="palette-count" aria-hidden="true" hidden>3</span></button>
+          <button type="button" class="sr-palette-row" role="option" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-cloud"/></svg>Weather</button>
+          <button type="button" class="sr-palette-row" role="option" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-map"/></svg>Map Explorer</button>
+          <button type="button" class="sr-palette-row" role="option" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-bars"/></svg>Statistics</button>
+          <button type="button" class="sr-palette-row" role="option" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-target"/></svg>Targets</button>
+          <button type="button" class="sr-palette-row" role="option" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-cog"/></svg>Settings</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Where the system notification prompt appears, on switch-on only -->
+    <div class="sr-sysprompt-root" id="sysprompt" hidden>
+      <div class="sr-sysprompt" role="dialog" aria-modal="true" aria-labelledby="sysprompt-t">
+        <b id="sysprompt-t">iOS asks here, once</b>
+        The system's own notification prompt for SnowRaven appears at this moment, and only the first time you turn alerts on. If you decline, alerts stay on and the inbox still fills; no banner is sent.
+        <div class="sr-sysprompt__actions">
+          <button type="button" data-sys="deny">Don't Allow</button>
+          <button type="button" data-sys="allow">Allow</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Clear confirmation, the shared ModalDialog shell -->
+    <div class="sr-dlg-root" id="clear-dlg" hidden>
+      <div class="sr-dlg" role="dialog" aria-modal="true" aria-labelledby="clear-t" aria-describedby="clear-d">
+        <div class="sr-dlg-head"><h2 class="sr-dlg-title" id="clear-t">Clear the inbox?</h2></div>
+        <div class="sr-dlg-body"><p class="sr-dlg-text" id="clear-d">Removes every alert from this device. Your settings stay as they are, and alerts stay on. A species alerted before may alert again at the next check.</p></div>
+        <div class="sr-dlg-actions">
+          <button type="button" class="sr-btn-quiet" data-dlg="cancel">Cancel</button>
+          <button type="button" class="sr-btn-quiet sr-btn-quiet--danger" data-dlg="confirm">Clear</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <p class="demo-caption">The status line is one sentence in the widgets' register, chosen in the toolbar above. <strong>Six outcomes, not five:</strong> a request that never got an answer reads <em>offline</em>; an answer that came back unusable (a server error, a malformed reply) reads <em>eBird did not answer</em>, so "check your connection" is never the wrong advice.</p>
+</section>
+
+<!-- ===================================================================== -->
+<!-- The notification and where a tap lands                                 -->
+<!-- ===================================================================== -->
+<section class="demo-stage" aria-labelledby="stage2-h">
+  <h2 class="demo-h" id="stage2-h">The notification, and where a tap lands<small>One summary per check, never one per species. Names are eBird's display names, nearest first.</small></h2>
+  <div class="demo-pair">
+    <div class="demo-stage">
+      <div class="sr-lock" role="img" aria-label="An iPhone lock screen showing one SnowRaven notification titled 3 lifers reported near Davis, with the body Sabine's Gull, Ruff, Baird's Sandpiper">
+        <div class="sr-lock__time"><b>9:41</b><span>Wednesday, September 30</span></div>
+        <div class="sr-banner" id="banner">
+          <div class="sr-banner__icon"><svg width="24" height="24" viewBox="0 0 512 512" aria-hidden="true"><use href="#raven"/></svg></div>
+          <div>
+            <div class="sr-banner__app"><span>SnowRaven</span><span>now</span></div>
+            <div class="sr-banner__title">3 lifers reported near Davis</div>
+            <div class="sr-banner__body">Sabine's Gull, Ruff, Baird's Sandpiper</div>
+          </div>
+        </div>
+        <div class="sr-lock__foot">With five hits the body reads "Sabine's Gull, Ruff, Baird's Sandpiper and 2 more"</div>
+      </div>
+      <p class="demo-caption">Under <strong>My location</strong> the title says "near you"; a fixed place entered as coordinates says "nearby". Inside quiet hours the same banner waits for the window's end, and several checks in one window merge into one.</p>
+    </div>
+
+    <div class="demo-stage">
+      <div class="sr-map-frame" id="mapframe" data-theme="light">
+        <div class="sr-map-top">
+          <h2>Map Explorer</h2>
+          <div class="sr-segbar" role="group" aria-label="Map view">
+                        <button type="button" class="sr-segbar-btn" aria-pressed="false">Hotspots</button>
+            <button type="button" class="sr-segbar-btn" aria-pressed="true">Nearby Lifers</button>
+          </div>
+        </div>
+        <div class="sr-map-canvas" aria-hidden="true">
+          <div class="sr-map-water" style="left: -20px; top: 40px; width: 140px; height: 90px; border-radius: 60% 40% 50% 50%; transform: rotate(-12deg);"></div>
+          <div class="sr-map-water" style="left: 230px; top: 250px; width: 220px; height: 120px; border-radius: 50%; transform: rotate(18deg);"></div>
+          <div class="sr-map-road" style="left: 0; right: 0; top: 190px; height: 4px; transform: rotate(-6deg);"></div>
+          <div class="sr-map-road" style="left: 150px; top: 0; bottom: 0; width: 3px; transform: rotate(8deg);"></div>
+          <div class="sr-map-road" style="left: 0; right: 0; top: 330px; height: 3px; transform: rotate(3deg);"></div>
+          <span class="sr-map-label" style="left: 86px; top: 236px;">Davis</span>
+          <span class="sr-map-label" style="left: 232px; top: 96px;">Yolo Bypass Wildlife Area</span>
+          <span class="sr-map-label" style="left: 262px; top: 318px;">Putah Creek</span>
+          <div class="sr-pin sr-pin--center" style="left: 110px; top: 250px;"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="6" opacity="0.25"/><circle cx="12" cy="12" r="3"/></svg></div>
+          <div class="sr-pin sr-pin--target" style="left: 258px; top: 172px;"><svg viewBox="0 0 24 24" fill="currentColor" stroke="#FFFFFF" stroke-width="1.2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3" fill="#FFFFFF" stroke="none"/></svg></div>
+          <div class="sr-map-popup">
+            <b>Ruff</b>
+            Yolo Bypass Wildlife Area · 6.3 mi<br>
+            Reported today · 1 seen<br>
+            <a href="#" onclick="return false">View checklist</a>
+          </div>
+          <div class="sr-map-fabs">
+            <div class="sr-map-fab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-nav"/></svg></div>
+            <div class="sr-map-fab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-share"/></svg></div>
+            <div class="sr-map-focus-row">
+              <button type="button" class="sr-map-focus-btn" aria-label="Showing only Ruff. Show all nearby lifers"><span class="sr-map-focus-name">Only Ruff</span><span class="sr-map-focus-sep">·</span><span>Show all</span></button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p class="demo-caption">Tapping the inbox row for Ruff lands here: Nearby Lifers from the alert's own point and radius over the Day range, that species alone beside <strong>Show all</strong>, the widget row precedent. Tapping the notification lands the same way but with every lifer shown, centered on the first-named bird. Your saved Default Location and Radius are untouched. This view is not redesigned.</p>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<!-- Icon sprite: the raven mark (RavenGlyph) and a few lucide glyphs -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <path id="raven" fill="currentColor" fill-rule="evenodd" clip-rule="evenodd" d="M 150.79 440.77 L 176.47 435.39 L 197.48 429.33 L 213.04 423.88 L 245.73 409.97 L 270.63 397.28 L 296.30 381.80 L 318.09 366.18 L 336.57 350.44 L 352.33 334.58 L 367.31 316.20 L 379.08 297.53 L 385.19 285.08 L 389.91 273.41 L 395.34 253.95 L 396.99 244.61 L 398.12 232.16 L 397.64 214.27 L 393.73 194.04 L 386.46 169.91 L 384.84 159.02 L 385.60 149.68 L 388.70 139.57 L 394.35 130.77 L 399.02 125.85 L 405.25 120.87 L 417.70 113.66 L 430.15 109.05 L 445.71 105.74 L 451.93 105.05 L 464.38 105.06 L 473.72 106.67 L 484.62 111.08 L 485.38 110.77 L 485.11 101.44 L 483.21 95.21 L 479.17 87.44 L 473.72 81.39 L 464.38 74.65 L 449.60 68.35 L 437.93 65.33 L 410.69 60.66 L 402.71 53.19 L 392.02 45.17 L 381.12 38.75 L 373.34 35.08 L 354.67 28.85 L 339.10 26.17 L 322.76 25.37 L 311.09 26.27 L 297.08 28.66 L 288.52 31.10 L 273.74 37.43 L 262.07 44.46 L 253.51 51.19 L 244.65 60.19 L 234.69 73.42 L 226.06 88.21 L 215.97 110.77 L 198.93 152.79 L 199.81 153.14 L 210.71 148.11 L 230.16 141.75 L 241.83 139.37 L 254.28 138.31 L 267.51 138.63 L 281.50 141.12 L 293.19 144.94 L 303.31 150.17 L 311.57 155.91 L 321.42 166.02 L 327.70 175.36 L 332.88 187.08 L 335.35 196.37 L 336.92 208.82 L 336.90 218.94 L 334.38 236.06 L 328.50 255.51 L 319.29 274.96 L 307.20 294.01 L 289.43 316.20 L 271.40 335.03 L 248.84 355.96 L 146.83 440.71 L 147.68 441.18 Z M 361.37 83.54 L 355.44 83.04 L 349.39 79.65 L 345.70 75.76 L 340.28 67.20 L 335.99 63.61 L 331.05 60.97 L 331.32 60.45 L 343.77 60.10 L 354.67 61.50 L 367.12 66.26 L 376.07 72.64 L 374.90 74.46 L 367.89 80.74 Z M 384.80 96.77 L 381.12 97.22 L 379.95 96.77 L 389.68 89.61 L 398.24 84.87 L 409.14 81.06 L 423.14 79.17 L 436.37 79.99 L 446.49 82.49 L 458.16 88.01 L 465.16 93.23 L 467.68 95.99 L 466.72 96.57 L 440.26 94.09 L 416.92 93.78 L 399.02 94.86 Z M 27.07 486.63 L 42.63 480.11 L 57.41 472.78 L 83.87 457.96 L 111.11 441.03 L 146.90 416.35 L 188.78 384.68 L 227.05 353.61 L 252.69 330.99 L 266.74 317.42 L 278.01 305.31 L 291.95 288.19 L 298.64 278.72 L 306.04 266.40 L 311.49 255.51 L 315.26 246.17 L 317.53 239.17 L 319.92 228.27 L 321.08 218.94 L 321.06 210.38 L 320.04 201.82 L 318.42 194.81 L 315.25 187.03 L 311.19 180.03 L 307.72 175.36 L 302.53 170.13 L 295.53 164.95 L 286.97 160.39 L 276.07 156.55 L 269.07 154.98 L 260.51 153.84 L 248.84 153.69 L 231.72 155.87 L 220.82 158.88 L 212.26 162.07 L 203.81 166.02 L 195.15 171.24 L 186.59 177.15 L 176.64 185.48 L 162.41 200.26 L 153.88 211.15 L 143.79 226.74 L 136.73 239.17 L 125.74 261.73 L 109.38 300.64 L 78.90 379.23 L 79.98 379.55 L 90.87 375.49 L 106.44 367.80 L 123.56 357.64 L 148.46 339.41 L 149.24 339.06 L 149.37 339.55 L 133.67 359.67 L 120.96 373.01 L 107.66 384.68 L 87.69 397.91 L 62.88 436.82 L 44.33 463.27 L 26.62 485.84 Z"/>
+    <g id="i-cloud"><path d="M12 2v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="M20 12h2"/><path d="m19.07 4.93-1.41 1.41"/><path d="M15.947 12.65a4 4 0 0 0-5.925-4.128"/><path d="M13 22H7a5 5 0 1 1 4.9-6H13a3 3 0 0 1 0 6Z"/></g>
+    <g id="i-feather"><path d="M12.67 19a2 2 0 0 0 1.416-.588l6.154-6.172a6 6 0 0 0-8.49-8.49L5.586 9.914A2 2 0 0 0 5 11.328V18a1 1 0 0 0 1 1z"/><path d="M16 8 2 22"/><path d="M17.5 15H9"/></g>
+    <g id="i-bars"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></g>
+    <g id="i-map"><path d="M14.106 5.553a2 2 0 0 0 1.788 0l3.659-1.83A1 1 0 0 1 21 4.619v12.764a1 1 0 0 1-.553.894l-4.553 2.277a2 2 0 0 1-1.788 0l-4.212-2.106a2 2 0 0 0-1.788 0l-3.659 1.83A1 1 0 0 1 3 19.381V6.618a1 1 0 0 1 .553-.894l4.553-2.277a2 2 0 0 1 1.788 0z"/><path d="M15 5.764v15"/><path d="M9 3.236v15"/></g>
+    <g id="i-camera"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></g>
+    <g id="i-calendar"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></g>
+    <g id="i-target"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></g>
+    <g id="i-cog"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></g>
+    <g id="i-more"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></g>
+    <g id="i-nav"><polygon points="3 11 22 2 13 21 11 13 3 11"/></g>
+    <g id="i-share"><path d="M12 2v13"/><path d="m16 6-4-4-4 4"/><path d="M8 10H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2h-2"/></g>
+    <g id="i-chev"><path d="m9 18 6-6-6-6"/></g>
+    <g id="i-bell"><path d="M10.268 21a2 2 0 0 0 3.464 0"/><path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326"/></g>
+    <g id="i-search"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></g>
+    <g id="i-x"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></g>
+    <g id="i-fav-circle"><circle cx="12" cy="12" r="9"/></g>
+    <g id="i-fav-square"><rect x="4" y="4" width="16" height="16" rx="2"/></g>
+  </defs>
+</svg>
+
+<script>
+(function () {
+  'use strict';
+  var $ = function (sel, root) { return (root || document).querySelector(sel); };
+  var $$ = function (sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); };
+  var frame = $('#frame');
+  var mapframe = $('#mapframe');
+
+  // ---- Demo toolbar -------------------------------------------------------
+  function seg(attr, apply) {
+    $$('[' + attr + ']').forEach(function (b) {
+      b.addEventListener('click', function () {
+        $$('[' + attr + ']').forEach(function (o) { o.setAttribute('aria-pressed', o === b ? 'true' : 'false'); });
+        apply(b.getAttribute(attr));
+      });
+    });
+  }
+  seg('data-theme-pick', function (t) { frame.setAttribute('data-theme', t); mapframe.setAttribute('data-theme', t); document.documentElement.setAttribute('data-theme', t); });
+  seg('data-device', function (d) { frame.classList.toggle('sr-frame--ipad', d === 'ipad'); });
+  seg('data-scale', function (s) { document.documentElement.setAttribute('data-scale', s); });
+  seg('data-inbox', function (v) { state.inboxEmpty = v === 'empty'; renderInbox(); });
+  seg('data-new', function (v) { state.rows.forEach(function (r, i) { r.isNew = v === '3' && i < 3; }); renderInbox(); });
+  $$('[data-open]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      if (b.getAttribute('data-open') === 'sheet') openSheet(b); else openPalette(b);
+    });
+  });
+  $('#demo-status').addEventListener('change', function (e) { state.status = e.target.value; renderStatus(); });
+
+  // ---- State ----------------------------------------------------------------
+  var state = {
+    on: false,
+    permissionAsked: false,
+    cadence: 'hourly',
+    quiet: { on: false, start: '22:00', end: '07:00' },
+    model: 'fixed',
+    place: { mode: 'name', name: 'Davis, CA', lat: '38.54490', lng: '-121.74050' },
+    radius: '25',
+    status: 'hits',
+    inboxEmpty: false,
+    // isNew = alerted after the device-local "last viewed" time (the three from
+    // this morning's check, which the user has not opened the inbox since).
+    rows: [
+      { name: "Baird's Sandpiper", place: 'Yolo County Central Landfill', dist: '8.9', reported: 'today', alerted: '9:41 AM', isNew: true },
+      { name: 'Ruff', place: 'Yolo Bypass Wildlife Area', dist: '6.3', reported: 'today', alerted: '9:41 AM', isNew: true },
+      { name: "Sabine's Gull", place: 'Davis Wetlands', dist: '3.1', reported: 'today', alerted: '9:41 AM', isNew: true },
+      { name: 'Pectoral Sandpiper', place: 'Putah Creek Riparian Reserve', dist: '4.7', reported: 'yesterday', alerted: 'Yesterday, 4:10 PM' },
+      { name: 'Broad-winged Hawk', place: 'Lake Solano County Park', dist: '17.2', reported: '3 days ago', alerted: 'Sep 27, 11:03 AM' },
+      { name: 'Lesser Black-backed Gull', place: 'Yolo County Central Landfill', dist: '8.9', reported: '5 days ago', alerted: 'Sep 25, 8:52 AM' }
+    ]
+  };
+
+  // ---- Switch on / off --------------------------------------------------
+  var sw = $('#alerts-switch');
+  var config = $('#alerts-config');
+  var offNote = $('#alerts-off-note');
+  var sysprompt = $('#sysprompt');
+
+  function setOn(on) {
+    state.on = on;
+    sw.setAttribute('aria-checked', on ? 'true' : 'false');
+    config.classList.toggle('sr-reveal--open', on);
+    if (on) config.removeAttribute('inert'); else config.setAttribute('inert', '');
+    offNote.textContent = on
+      ? 'Checks run in the background and when you open the app. Turn it off and every scheduled check and pending notification stops at once.'
+      : 'Off until you turn it on. Nothing is checked, sent or asked for before then.';
+    renderStatus();
+    renderEntries();
+  }
+  sw.addEventListener('click', function () {
+    if (!state.on && !state.permissionAsked) {
+      // FR-14: the system prompt appears only here, and only once.
+      openOverlay(sysprompt, 'sr-sysprompt-root--open');
+      return;
+    }
+    setOn(!state.on);
+  });
+  $$('[data-sys]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      state.permissionAsked = true;
+      closeOverlay(sysprompt, 'sr-sysprompt-root--open', function () {
+        setOn(true);
+        if (b.getAttribute('data-sys') === 'deny') { state.status = 'notifdenied'; $('#demo-status').value = 'notifdenied'; renderStatus(); }
+        sw.focus();
+      });
+    });
+  });
+
+  // ---- Radio groups -----------------------------------------------------
+  $$('[data-radios]').forEach(function (group) {
+    var key = group.getAttribute('data-radios');
+    var radios = $$('[role="radio"]', group);
+    function pick(idx) {
+      radios.forEach(function (r, i) { r.setAttribute('aria-checked', i === idx ? 'true' : 'false'); r.tabIndex = i === idx ? 0 : -1; });
+      state[key] = radios[idx].getAttribute('data-value');
+      if (key === 'model') renderModel();
+    }
+    radios.forEach(function (r, i) { r.addEventListener('click', function () { pick(i); }); });
+    group.addEventListener('keydown', function (e) {
+      var cur = radios.findIndex(function (r) { return r.getAttribute('aria-checked') === 'true'; });
+      var next = null;
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') next = (cur + 1) % radios.length;
+      else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') next = (cur - 1 + radios.length) % radios.length;
+      else if (e.key === 'Home') next = 0; else if (e.key === 'End') next = radios.length - 1;
+      if (next === null) return;
+      e.preventDefault(); pick(next); radios[next].focus();
+    });
+  });
+
+  function renderModel() {
+    var my = state.model === 'my-location';
+    $('#mf-desc-fixed').hidden = my;
+    $('#mf-desc-my').hidden = !my;
+    $('#fp-label').textContent = my ? 'Fixed place, used when no recent position is known' : 'Fixed place';
+    renderStatus();
+  }
+
+  // ---- Quiet hours --------------------------------------------------------
+  var qhSw = $('#qh-switch'), qhCfg = $('#qh-config');
+  qhSw.addEventListener('click', function () {
+    state.quiet.on = !state.quiet.on;
+    qhSw.setAttribute('aria-checked', state.quiet.on ? 'true' : 'false');
+    qhCfg.classList.toggle('sr-reveal--open', state.quiet.on);
+    if (state.quiet.on) qhCfg.removeAttribute('inert'); else qhCfg.setAttribute('inert', '');
+  });
+  function fmt12(t) {
+    var p = t.split(':'); var h = parseInt(p[0], 10); var m = p[1];
+    var ap = h >= 12 ? 'PM' : 'AM'; h = h % 12; if (h === 0) h = 12;
+    return h + ':' + m + ' ' + ap;
+  }
+  function renderQuietNote() {
+    var s = $('#qh-start').value || '22:00', e = $('#qh-end').value || '07:00';
+    state.quiet.start = s; state.quiet.end = e;
+    var note = $('#qh-note');
+    if (s === e) {
+      note.classList.remove('sr-note--muted');
+      note.textContent = 'Start and end must differ. Until they do, no quiet period applies.';
+      return;
+    }
+    note.classList.add('sr-note--muted');
+    var spans = e < s;
+    note.textContent = 'Quiet from ' + fmt12(s) + ' to ' + fmt12(e) + (spans ? ', across midnight' : '') + '. A find inside the window is delivered at ' + fmt12(e) + '.';
+  }
+  $('#qh-start').addEventListener('input', renderQuietNote);
+  $('#qh-end').addEventListener('input', renderQuietNote);
+
+  // ---- Fixed place ------------------------------------------------------
+  function renderPlace() {
+    var p = state.place;
+    var following = p.mode === 'follow';
+    $('#fp-from').hidden = !following;
+    $('#fp-name').hidden = following || p.mode !== 'name';
+    $('#fp-name').textContent = p.name || '';
+    $('#fp-coords').textContent = p.lat + ', ' + p.lng;
+    $('#fp-lat').value = p.lat; $('#fp-lng').value = p.lng;
+    $('#fp-follow').disabled = following;
+    renderStatus();
+  }
+  $('#fp-follow').addEventListener('click', function () {
+    state.place = { mode: 'follow', name: null, lat: '38.54460', lng: '-121.74050' };
+    renderPlace();
+  });
+  $('#fp-locate').addEventListener('click', function () {
+    var b = $('#fp-locate'); b.disabled = true; b.lastChild.textContent = 'Locating…';
+    setTimeout(function () {
+      state.place = { mode: 'coords', name: null, lat: '38.55210', lng: '-121.72880' };
+      b.disabled = false; b.lastChild.textContent = 'Use my location';
+      renderPlace();
+    }, 700);
+  });
+  function doSearch() {
+    var q = $('#fp-search').value.trim();
+    if (!q) return;
+    state.place = { mode: 'name', name: q, lat: '38.54490', lng: '-121.74050' };
+    $('#fp-search').value = '';
+    renderPlace();
+  }
+  $('#fp-search-go').addEventListener('click', doSearch);
+  $('#fp-search').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); doSearch(); } });
+  function onCoordEdit() {
+    state.place = { mode: 'coords', name: null, lat: $('#fp-lat').value, lng: $('#fp-lng').value };
+    $('#fp-from').hidden = true; $('#fp-name').hidden = true;
+    $('#fp-coords').textContent = state.place.lat + ', ' + state.place.lng;
+    $('#fp-follow').disabled = false;
+  }
+  $('#fp-lat').addEventListener('input', onCoordEdit);
+  $('#fp-lng').addEventListener('input', onCoordEdit);
+
+  // ---- Radius -------------------------------------------------------------
+  $('#radius').addEventListener('input', function (e) {
+    var v = e.target.value.trim();
+    var err = $('#radius-err');
+    var ok = /^\d+$/.test(v) && +v >= 1 && +v <= 25;
+    err.hidden = ok || v === '';
+    err.textContent = ok || v === '' ? '' : 'Radius is a whole number from 1 to 25 miles.';
+    if (ok) state.radius = v;
+  });
+
+  // ---- Status line --------------------------------------------------------
+  var STATUS = {
+    hits:      { html: '<b>Last checked 9:41 AM, 3 lifers</b>' },
+    nothing:   { html: '<b>Last checked 9:41 AM, nothing new</b>' },
+    notyet:    { html: '<b>Not checked yet</b>' },
+    offline:   { html: '<b>Last checked 9:41 AM, offline</b>' },
+    noanswer:  { html: '<b>Last checked 9:41 AM, eBird did not answer</b>' },
+    busy:      { html: '<b>Last checked 9:41 AM, eBird busy</b>' },
+    badkey:    { html: '<b>Last checked 9:41 AM, eBird did not accept your key</b>' },
+    fallback:  { html: '<b>Last checked 9:41 AM, nothing new</b><span class="sr-status__cap">From your fixed place</span>', model: 'my-location' },
+    nokey:     { html: '<b>Add your eBird API key</b> in API Keys, above. Checks wait until then.', blocked: true },
+    nobackup:  { html: '<b>Load your eBird backup</b> in Default Files, above. Checks wait until then.', blocked: true },
+    noplace:   { html: '<b>Set a place to measure from.</b> Search a place name, enter coordinates, or use your location above.', blocked: true },
+    locoff:    { html: '<b>Location is off for SnowRaven.</b> Turn it on in Settings, Privacy &amp; Security, Location Services, or set a fixed place instead.', blocked: true, model: 'my-location' },
+    noposition:{ html: '<b>No recent position.</b> Open SnowRaven with Location on, or set a fixed place instead.', blocked: true, model: 'my-location' },
+    notifdenied:{ html: '<b>Last checked 9:41 AM, 3 lifers</b>', note: 'Notifications are off for SnowRaven, so checks fill the inbox but no banner is sent. Turn them on in Settings, Notifications, SnowRaven.' },
+    bgoff:     { html: '<b>Last checked 9:41 AM, nothing new</b>', note: 'Background App Refresh is off for SnowRaven, so checks run only when you open the app. Turn it on in Settings, General, Background App Refresh.' }
+  };
+  function renderStatus() {
+    var st = STATUS[state.status] || STATUS.hits;
+    var el = $('#status');
+    el.innerHTML = st.html;
+    el.classList.toggle('sr-status--blocked', !!st.blocked);
+    $('#status-notes').hidden = !st.note;
+    $('#status-note').textContent = st.note || '';
+  }
+
+  // ---- Inbox (rendered inside the sheet) -----------------------------------
+  function esc(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); }
+  function rows() { return state.inboxEmpty ? [] : state.rows; }
+  function newCount() { return rows().filter(function (r) { return r.isNew; }).length; }
+  function countWords(n) { return n + (n === 1 ? ' alert' : ' alerts'); }
+  function renderInbox() {
+    var ul = $('#inbox');
+    var list = rows();
+    ul.innerHTML = list.map(function (r, i) {
+      // No favicon links inside a row: interactive content cannot nest in a
+      // button, and the tap already opens the sighting (the built decision).
+      return '<li><button type="button" class="sr-alert' + (r.isNew ? ' sr-alert--new' : '') + '" id="sr-alerts-row-' + i + '" aria-label="' + (r.isNew ? 'New. ' : '') + esc(r.name) + ', ' + esc(r.place) + ', ' + r.dist + ' miles, reported ' + r.reported + ', alerted ' + esc(r.alerted) + '. Show on the map">' +
+        '<span class="sr-alert__name" aria-hidden="true"><span>' + esc(r.name) + '</span>' + (r.isNew ? '<span class="sr-alert__new-word">New</span>' : '') + '</span>' +
+        '<span class="sr-alert__dist" aria-hidden="true">' + r.dist + ' mi</span>' +
+        '<span class="sr-alert__place" aria-hidden="true">' + esc(r.place) + '</span>' +
+        '<span class="sr-alert__when" aria-hidden="true">Reported <b>' + r.reported + '</b> · Alerted ' + esc(r.alerted) + '</span>' +
+        '<svg class="sr-alert__chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-chev"/></svg>' +
+        '</button></li>';
+    }).join('');
+    $('#inbox-empty').hidden = list.length > 0;
+    $('#inbox-count').textContent = list.length ? countWords(list.length) : '';
+    $('#inbox-clear').disabled = list.length === 0;
+    $$('.sr-alert', ul).forEach(function (b) {
+      // A row tap closes the sheet and opens Nearby Lifers (FR-37).
+      b.addEventListener('click', function () { closeSheet(function () { $('#mapframe').scrollIntoView({ behavior: 'smooth', block: 'center' }); }); });
+    });
+    renderEntries();
+  }
+
+  // ---- The entry points: one gate, four surfaces --------------------------
+  // Shown only while Alerts is on OR the inbox has rows (off and empty: nothing,
+  // so an off switch is never advertised). The count is rows alerted after the
+  // device-local "last viewed" time.
+  function renderEntries() {
+    var list = rows(), n = newCount(), gate = state.on || list.length > 0;
+    var countLabel = n ? ', ' + n + ' new' : '';
+    var bell = $('#hdr-inbox'), badge = $('#hdr-badge');
+    bell.hidden = !gate; badge.hidden = n === 0; badge.textContent = n > 9 ? '9+' : String(n);
+    bell.setAttribute('aria-label', 'Alerts inbox' + countLabel);
+    var nav = $('#nav-inbox'), navCount = $('#nav-count');
+    nav.hidden = !gate; navCount.hidden = n === 0; navCount.textContent = String(n);
+    nav.setAttribute('aria-label', 'Alerts inbox' + countLabel);
+    var pc = $('#palette-count'); pc.hidden = n === 0; pc.textContent = String(n);
+    $('#palette-inbox').hidden = !gate;
+    $('#palette-inbox').setAttribute('aria-label', 'Alerts inbox' + countLabel);
+    var card = $('#card-inbox');
+    card.hidden = !gate;
+    $('#card-inbox-sub').textContent = list.length ? countWords(list.length) + (n ? ', ' + n + ' new' : '') : 'No alerts yet';
+    card.setAttribute('aria-label', 'Inbox, ' + (list.length ? countWords(list.length) + countLabel : 'no alerts yet'));
+  }
+
+  // ---- The sheet ------------------------------------------------------------
+  var sheetRoot = $('#inbox-root'), sheetTrigger = null;
+  function openSheet(trigger) {
+    sheetTrigger = trigger || null;
+    // iPad: the panel scales in from whatever opened it (origin-aware).
+    var panel = $('.sr-inbox-sheet', sheetRoot);
+    if (trigger && frame.classList.contains('sr-frame--ipad')) {
+      var r = trigger.getBoundingClientRect(), f = frame.getBoundingClientRect();
+      panel.style.transformOrigin = ((r.left + r.width / 2 - f.left) / f.width * 100) + '% ' + ((r.top + r.height / 2 - f.top) / f.height * 100) + '%';
+    } else { panel.style.transformOrigin = ''; }
+    openOverlay(sheetRoot, 'sr-inbox-root--open', function () { $('#inbox-close').focus(); });
+  }
+  function closeSheet(after) {
+    if (sheetRoot.hidden) { if (after) after(); return; }
+    // Closing is "viewed": the new marks and the badge clear.
+    var hadNew = newCount() > 0;
+    closeOverlay(sheetRoot, 'sr-inbox-root--open', function () {
+      if (hadNew) { state.rows.forEach(function (r) { r.isNew = false; }); $$('[data-new]').forEach(function (o) { o.setAttribute('aria-pressed', o.getAttribute('data-new') === '0' ? 'true' : 'false'); }); renderInbox(); }
+      if (sheetTrigger && !sheetTrigger.hidden && sheetTrigger.isConnected) sheetTrigger.focus();
+      if (after) after();
+    });
+  }
+  $('#inbox-close').addEventListener('click', function () { closeSheet(); });
+  sheetRoot.addEventListener('click', function (e) { if (e.target === sheetRoot) closeSheet(); });
+  $('#hdr-inbox').addEventListener('click', function () { openSheet(this); });
+  $('#nav-inbox').addEventListener('click', function () { openSheet(this); });
+  $('#card-inbox').addEventListener('click', function () { openSheet(this); });
+
+  // ---- The palette ----------------------------------------------------------
+  var palette = $('#palette'), paletteTrigger = null;
+  function openPalette(trigger) { paletteTrigger = trigger || null; openOverlay(palette, 'sr-palette-root--open', function () { $('#palette-input').focus(); }); }
+  function closePalette(after) { if (palette.hidden) { if (after) after(); return; } closeOverlay(palette, 'sr-palette-root--open', function () { if (paletteTrigger && paletteTrigger.isConnected) paletteTrigger.focus(); if (after) after(); }); }
+  $('#nav-search').addEventListener('click', function () { openPalette(this); });
+  $('#palette-close').addEventListener('click', function () { closePalette(); });
+  palette.addEventListener('click', function (e) { if (e.target === palette) closePalette(); });
+  $('#palette-inbox').addEventListener('click', function () { var t = paletteTrigger; closePalette(function () { openSheet(t); }); });
+  $$('.sr-palette-row:not(#palette-inbox)').forEach(function (b) { b.addEventListener('click', function () { closePalette(); }); });
+
+  // ---- Clear confirmation (opened from the sheet; it stacks above it) ------
+  var dlg = $('#clear-dlg'), clearBtn = $('#inbox-clear');
+  clearBtn.addEventListener('click', function () {
+    // Origin-aware: the panel scales in from the control that opened it.
+    var r = clearBtn.getBoundingClientRect(), f = frame.getBoundingClientRect();
+    var panel = $('.sr-dlg', dlg);
+    panel.style.transformOrigin = ((r.left + r.width / 2 - f.left) / f.width * 100) + '% ' + ((r.top + r.height / 2 - f.top) / f.height * 100) + '%';
+    openOverlay(dlg, 'sr-dlg-root--open', function () { $('[data-dlg="cancel"]', dlg).focus(); });
+  });
+  $$('[data-dlg]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      if (b.getAttribute('data-dlg') === 'confirm') { state.inboxEmpty = true; $$('[data-inbox]').forEach(function (o) { o.setAttribute('aria-pressed', o.getAttribute('data-inbox') === 'empty' ? 'true' : 'false'); }); renderInbox(); }
+      // After a confirmed clear the trigger is disabled, so focus falls back to Close.
+      closeOverlay(dlg, 'sr-dlg-root--open', function () { (state.inboxEmpty ? $('#inbox-close') : clearBtn).focus(); });
+    });
+  });
+  dlg.addEventListener('click', function (e) { if (e.target === dlg) closeOverlay(dlg, 'sr-dlg-root--open', function () { clearBtn.focus(); }); });
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape') return;
+    if (!dlg.hidden) { closeOverlay(dlg, 'sr-dlg-root--open', function () { clearBtn.focus(); }); return; }
+    if (!palette.hidden) { closePalette(); return; }
+    if (!sheetRoot.hidden) { closeSheet(); return; }
+    if (!sysprompt.hidden) closeOverlay(sysprompt, 'sr-sysprompt-root--open', function () { sw.focus(); });
+  });
+
+  // ---- Overlay helpers ------------------------------------------------------
+  function openOverlay(root, openCls, after) {
+    root.hidden = false;
+    requestAnimationFrame(function () { requestAnimationFrame(function () { root.classList.add(openCls); if (after) after(); }); });
+  }
+  function closeOverlay(root, openCls, after) {
+    root.classList.remove(openCls);
+    var done = false;
+    var finish = function () { if (done) return; done = true; root.hidden = true; if (after) after(); };
+    root.addEventListener('transitionend', finish, { once: true });
+    setTimeout(finish, 200);
+  }
+
+  // ---- First paint ----------------------------------------------------------
+  renderQuietNote();
+  renderPlace();
+  renderStatus();
+  renderInbox();
+  renderModel();
+
+  // ---- URL presets, so a state can be linked directly ---------------------
+  // ?theme=dark&device=ipad&scale=2&on=1&status=locoff&quiet=1&model=my-location&inbox=empty&place=follow
+  var q = new URLSearchParams(location.search);
+  function press(attr, val) { var b = $('[' + attr + '="' + val + '"]'); if (b) b.click(); }
+  if (q.get('theme')) press('data-theme-pick', q.get('theme'));
+  if (q.get('device')) press('data-device', q.get('device'));
+  if (q.get('scale')) press('data-scale', q.get('scale'));
+  if (q.get('inbox')) press('data-inbox', q.get('inbox'));
+  if (q.get('status') && STATUS[q.get('status')]) { state.status = q.get('status'); $('#demo-status').value = state.status; renderStatus(); }
+  if (q.get('model') === 'my-location') $('[data-radios="model"] [data-value="my-location"]').click();
+  if (q.get('cadence') === 'daily') $('[data-radios="cadence"] [data-value="daily"]').click();
+  if (q.get('quiet') === '1') qhSw.click();
+  if (q.get('place') === 'follow') $('#fp-follow').click();
+  if (q.get('new') === '0') press('data-new', '0');
+  if (q.get('on') === '1') { state.permissionAsked = true; setOn(true); }
+  // ?sheet=1 opens the inbox; ?palette=1 opens the command palette. Both
+  // skip their entrance so a screenshot lands on the settled state.
+  if (q.get('sheet') === '1' || q.get('palette') === '1') {
+    var root = q.get('sheet') === '1' ? sheetRoot : palette;
+    var cls = q.get('sheet') === '1' ? 'sr-inbox-root--open' : 'sr-palette-root--open';
+    root.hidden = false; root.classList.add(cls);
+    if (q.get('sheet') === '1') sheetTrigger = $('#card-inbox');
+  }
+})();
+</script>
+</body>
+</html>

@@ -236,10 +236,12 @@ const EXCLUSIONS: ReadonlyArray<{ file: string; tabIndex: string; count: number;
     why: 'roving group: role="tab" in the main navigation\'s VERTICAL tablist (aria-orientation="vertical"), so the tablist holds one stop and ArrowUp/ArrowDown move between destinations. The nav\'s other controls — the collapse toggle, the five bottom-bar cells, every More-sheet row — are ordinary Button calls inheriting tabIndex=0 and are deliberately NOT here',
   },
   {
-    file: 'components/Settings.tsx',
+    // ios-alerts: the RadioGroup moved out of Settings.tsx, unchanged, so the
+    // lazy Alerts section can use it; the one site moved with it.
+    file: 'components/settingsSections/RadioGroup.tsx',
     tabIndex: '{checked ? 0 : -1}',
     count: 1,
-    why: 'roving group: role="radio" in the Color theme / Text size / Date format RadioGroups',
+    why: 'roving group: role="radio" in the Settings RadioGroups (Color theme, Text size, Date format, and on iPhone and iPad the Alerts Cadence and Measure from groups)',
   },
   {
     file: 'components/SpeciesCombobox.tsx',

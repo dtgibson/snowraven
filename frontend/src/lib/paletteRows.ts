@@ -34,6 +34,10 @@ export interface PaletteNavItem {
 export type PaletteRow =
   | { kind: 'tab'; id: Tab; label: string; icon: TabIcon }
   | { kind: 'species'; name: string; sciName: string }
+  /** The iOS Alerts inbox (ios-alerts design-spec 7.2): a destination the user
+   *  types for, first in Destinations, present only when App passes it (alerts
+   *  on or the inbox has rows, on iPhone and iPad). It opens a sheet, not a tab. */
+  | { kind: 'inbox'; label: string; count: number }
 
 /**
  * FR-26 / PRD Open Question 3. A judgement, not a measurement -- and ONE
@@ -49,6 +53,8 @@ export interface PaletteRowsInput {
   index: readonly SpeciesIndexEntry[] | null
   /** The raw query, exactly as typed. Normalized ONCE here, never per row. */
   query: string
+  /** The Alerts inbox row, or null/absent where its gate is false. */
+  inbox?: { label: string; count: number } | null
   /** Overridable for tests; production always uses `SPECIES_CAP`. */
   cap?: number
 }
@@ -86,12 +92,13 @@ export function buildPaletteRows(input: PaletteRowsInput): PaletteRowsResult {
   const destinations = q
     ? items.filter(it => it.label.toLowerCase().includes(q))
     : items
-  const rows: PaletteRow[] = destinations.map(it => ({
-    kind: 'tab',
-    id: it.id,
-    label: it.label,
-    icon: it.icon,
-  }))
+  const rows: PaletteRow[] = []
+  // First in Destinations, filtered by the same rule as a destination's label.
+  const inbox = input.inbox ?? null
+  if (inbox && (!q || inbox.label.toLowerCase().includes(q))) {
+    rows.push({ kind: 'inbox', label: inbox.label, count: inbox.count })
+  }
+  for (const it of destinations) rows.push({ kind: 'tab', id: it.id, label: it.label, icon: it.icon })
   const destinationCount = rows.length
 
   let speciesTruncated = false

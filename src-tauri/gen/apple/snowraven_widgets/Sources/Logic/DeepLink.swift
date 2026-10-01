@@ -17,7 +17,7 @@ import Foundation
 
 enum DeepLink {
     static let scheme = "snowraven"
-    static let maxLength = 96
+    static let maxLength = 128
     static let speciesCodePattern = "^[a-z0-9-]{2,16}$"
     static let locIdPattern = "^L[0-9]{1,15}$"
 

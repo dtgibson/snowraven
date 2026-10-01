@@ -53,6 +53,8 @@ import type { Tab } from '../lib/tabLayout'
 import { NAV_ICON, type TabIcon } from '../lib/tabIcons'
 import { RavenGlyph } from './RavenGlyph'
 import { useFocusTrap } from '../lib/useFocusTrap'
+import { AlertsInboxNavItem } from './AlertsInboxEntry'
+import { INBOX_ENTRY_LABEL } from '../lib/alerts/alertsInboxEntry'
 import { PALETTE_COPY } from '../lib/paletteCopy'
 import { chordHintText, resolveChordHint } from '../lib/paletteHint'
 import type { PaletteOpener } from '../lib/paletteFocus'
@@ -371,6 +373,15 @@ function NavColumn(props: NavColumnProps) {
           <span className="sr-nav-search-hint" aria-hidden="true">{chordHintText(hint)}</span>
         )}
       </Button>
+      {/* The Alerts inbox (ios-alerts design-spec 7.2), directly under Search
+          and above the destinations: a plain button in the row register, NOT a
+          role="tab" and not in the saved order, so it sits OUTSIDE the tablist
+          exactly as Search does. iPhone and iPad only, and only while alerts
+          are on or the inbox has rows; otherwise it renders nothing at all. */}
+      <AlertsInboxNavItem
+        glyph={glyph}
+        tipHandlers={tip.handlers(INBOX_ENTRY_LABEL)}
+      />
       {/* In the rail the control's box chrome goes with its label, so this
           hairline is what says "not a destination" -- the nav's own structural
           separator, and structurally true for the same reason Settings' is: the

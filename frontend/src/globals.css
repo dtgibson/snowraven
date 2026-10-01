@@ -3199,6 +3199,240 @@ h1, h2, h3, h4, h5, h6 {
 .sr-ics-remove-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .sr-ics-pending { margin: 8px 0 0; font-size: 0.75rem; color: var(--sr-text-muted); line-height: 1.5; }
 
+/* Settings -> Alerts (ios-alerts, design-spec.md), iPhone and iPad only. The
+   Settings card and the iCloud row register (.sr-ics-desc / -note / -key-label
+   are reused as they are), plus what the section adds. Layout lives here, not
+   inline (ui.md: responsive by lifting to a class); every colour is a token.
+   Grids self-collapse with minmax(min(Nrem, 100%), 1fr), nothing carries a
+   positive min-width, and the summary line, the button row and the status row
+   wrap, so the section holds at 320px and 200% text with no tier of its own.
+   Motion: the reveal is a 0fr/1fr grid collapse at 220ms, the rows' colour at
+   120ms, both ease-out family; the global prefers-reduced-motion block
+   collapses every transition, so nothing here needs its own query. */
+.sr-alerts { margin-top: 24px; }
+.sr-alerts-card { border: 1px solid var(--sr-border); border-radius: 10px; background: var(--sr-surface); overflow: hidden; }
+.sr-alerts-row { padding: 14px 16px; }
+.sr-alerts-row + .sr-alerts-row { border-top: 1px solid var(--sr-border-subtle); }
+.sr-alerts-toggle-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+/* The quiet-hours row wraps its collapsible times onto a line of their own; no
+   ROW gap, so the collapsed block adds no height (the times carry their own
+   top margin when open). Measured in the simulator: a 12px gap sat under the
+   row with the times collapsed. */
+.sr-alerts-toggle-row--wrap { flex-wrap: wrap; row-gap: 0; }
+.sr-alerts-grow { flex: 1; min-width: 0; }
+.sr-alerts-switch { flex: none; }
+.sr-alerts-desc-2 { margin-top: 6px; }
+.sr-alerts-gap { margin-bottom: 10px; }
+.sr-alerts-block { display: block; }
+.sr-alerts-flat { margin: 0; }
+/* The configuration reveal (and the quiet-hours times inside it). The inner
+   block is `inert` while collapsed, set by the component, so it has no tab
+   stops and no accessibility-tree presence while it contributes no height. */
+.sr-alerts-reveal { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 220ms cubic-bezier(0.2, 0, 0, 1); }
+.sr-alerts-reveal--open { grid-template-rows: 1fr; }
+.sr-alerts-reveal-inner { overflow: hidden; min-height: 0; }
+.sr-alerts-reveal--rule.sr-alerts-reveal--open > .sr-alerts-reveal-inner { border-top: 1px solid var(--sr-border-subtle); }
+.sr-alerts-reveal--full { flex: 0 0 100%; }
+/* Inputs in the Default Location register. */
+.sr-alerts-field-label { display: block; font-size: 0.6875rem; font-weight: 600; color: var(--sr-text-muted); margin-bottom: 4px; }
+.sr-alerts-input {
+  width: 100%; height: 34px; padding: 0 8px; border: 1.5px solid var(--sr-border); border-radius: 6px;
+  font-size: 0.75rem; font-family: var(--font-mono, ui-monospace, monospace); color: var(--sr-text);
+  background: var(--sr-surface); box-sizing: border-box; transition: border-color 120ms ease-out;
+}
+.sr-alerts-input--text { font-family: inherit; }
+.sr-alerts-input:focus { border-color: var(--sr-accent); }
+.sr-alerts-input::placeholder { color: var(--sr-text-disabled); }
+.sr-alerts-grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(8rem, 100%), 1fr)); gap: 8px; }
+.sr-alerts-times { margin-top: 10px; }
+.sr-alerts-coords { margin-bottom: 10px; }
+.sr-alerts-note--muted { color: var(--sr-text-muted); }
+/* The fixed place's summary line: name, coordinates, and following. */
+.sr-alerts-place { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; margin: 0 0 10px; font-size: 0.8125rem; min-width: 0; }
+.sr-alerts-place-name { font-weight: 600; color: var(--sr-text); overflow-wrap: anywhere; min-width: 0; }
+.sr-alerts-place-coords { font-family: var(--font-mono, ui-monospace, monospace); font-size: 0.75rem; color: var(--sr-text-muted); }
+.sr-alerts-place-from { font-size: 0.75rem; color: var(--sr-text-muted); }
+.sr-alerts-btn-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.sr-alerts-glyph { color: var(--sr-accent); flex: none; margin-right: 7px; }
+.sr-alerts-hint { margin: 6px 0 0; font-size: 0.6875rem; color: var(--sr-text-muted); line-height: 1.45; }
+/* Always-mounted alert regions (ui.md: a region exists before its message):
+   empty, they take no space; they are never hidden to achieve that. */
+.sr-alerts-err { margin: 6px 0 0; font-size: 0.6875rem; color: var(--sr-error); line-height: 1.45; }
+.sr-alerts-err:empty { margin: 0; }
+.sr-alerts-radius { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.sr-alerts-radius .sr-alerts-input { width: 5.5rem; }
+.sr-alerts-unit { font-size: 0.8125rem; color: var(--sr-text-muted); }
+/* The status line (the one live region) and the notes under it. */
+.sr-alerts-status { margin: 0; font-size: 0.75rem; color: var(--sr-text-muted); line-height: 1.45; min-width: 0; }
+.sr-alerts-status-lead { font-weight: 600; color: var(--sr-text); }
+.sr-alerts-status-cap { display: block; }
+.sr-alerts-note { margin: 0; }
+.sr-alerts-note + .sr-alerts-note { margin-top: 6px; }
+.sr-alerts-fine { margin: 0; padding: 12px 16px 14px; border-top: 1px solid var(--sr-border-subtle); font-size: 0.75rem; color: var(--sr-text-muted); line-height: 1.5; }
+.sr-alerts-fine + .sr-alerts-fine { padding-top: 0; border-top: 0; }
+/* The inbox's rows (rendered in the inbox sheet, below; the inline inbox this
+   card first carried is superseded, design-spec 7.0). */
+.sr-alerts-inbox { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--sr-border-subtle); }
+.sr-alerts-inbox > li + li { border-top: 1px solid var(--sr-border-subtle); }
+.sr-alert {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: "name dist" "place chev" "when chev";
+  column-gap: 12px; row-gap: 2px; width: 100%; padding: 11px 16px;
+  border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer;
+  transition: background-color 120ms ease-out;
+}
+.sr-alert:hover { background: var(--sr-surface-subtle); }
+.sr-alert-name { grid-area: name; min-width: 0; font-size: 0.84375rem; font-weight: 500; color: var(--sr-text); overflow-wrap: anywhere; }
+.sr-alert-dist { grid-area: dist; align-self: start; font-size: 0.8125rem; font-weight: 600; color: var(--sr-text); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sr-alert-place { grid-area: place; min-width: 0; font-size: 0.75rem; color: var(--sr-text-muted); overflow-wrap: anywhere; }
+.sr-alert-when { grid-area: when; min-width: 0; font-size: 0.71875rem; color: var(--sr-text-muted); }
+.sr-alert-when b { font-weight: 600; }
+.sr-alert-chev { grid-area: chev; align-self: center; justify-self: end; color: var(--sr-text-muted); }
+/* A row alerted after the inbox was last viewed: a 6px accent dot before the
+   name and the word New after it. The name line WRAPS, so the word follows the
+   name onto a second line at 200% text rather than pushing past the column. */
+.sr-alert--new .sr-alert-name { display: flex; flex-wrap: wrap; align-items: center; column-gap: 6px; }
+.sr-alert-dot { flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--sr-accent); }
+.sr-alert-new { font-size: 0.6875rem; font-weight: 600; color: var(--sr-accent); }
+
+/* ── The Alerts inbox's entry points and its sheet (ios-alerts, the revision
+   after the live look; design-spec 7.1 to 7.5) ───────────────────────────────
+   Every value is a --sr-* token in both themes; no new token. Positioning lives
+   here, never inline, so the iOS safe-area gates below can reach it. Motion is
+   CSS only (the shipped More sheet's rise and the ModalDialog's scale), and the
+   global prefers-reduced-motion block collapses every transition here.
+
+   The card's Inbox row (7.1): the card's last element, outside the reveal. */
+.sr-inbox-link {
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 13px 16px;
+  border: 0; border-top: 1px solid var(--sr-border-subtle); background: none; color: inherit;
+  font: inherit; text-align: left; cursor: pointer;
+  transition: background-color 120ms ease-out;
+}
+.sr-inbox-link:hover { background: var(--sr-surface-subtle); }
+.sr-inbox-link-glyph { flex: none; color: var(--sr-accent); }
+.sr-inbox-link-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.sr-inbox-link-title { font-size: 0.8125rem; font-weight: 600; color: var(--sr-text); }
+.sr-inbox-link-sub { font-size: 0.75rem; color: var(--sr-text-muted); }
+.sr-inbox-link-chev { flex: none; color: var(--sr-text-muted); }
+
+/* The iPhone header bell (7.2): at the trailing edge of the compact header,
+   vertically centred on it. The header is the bell's containing block. The
+   control, its glyph and its badge are sized in rem (36px, 18px and 16px at
+   100%), so the badge's figure always fits its pill and the whole control keeps
+   its proportions at every in-app text size: px geometry around a rem figure
+   left the digit spilling out of a 16px pill at 200% in the simulator. The
+   brand takes symmetric inline padding in the same unit while the bell is
+   there, so the centred wordmark can never run under it at 320px and 200%
+   text (it wraps between its two halves first, the shipped .sr-header-title
+   behaviour). */
+.sr-header { position: relative; }
+.sr-header:has(.sr-hdr-inbox) .sr-header-brand { padding-inline: 2.5rem; }
+.sr-hdr-inbox {
+  position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+  width: 2.25rem; height: 2.25rem; border-radius: 8px; border: 0; background: none;
+  color: var(--sr-text-muted); cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: background-color 120ms ease-out, color 120ms ease-out;
+}
+.sr-hdr-inbox:hover { background: var(--sr-surface-subtle); color: var(--sr-text); }
+/* The glyph is sized by its OWN class, not `.sr-hdr-inbox > svg`: a rule whose
+   rightmost compound is a bare `svg` competes with the map FAB glyph rule
+   (mapFabCascade.test.ts) at equal specificity and later source order. */
+.sr-hdr-inbox-glyph { width: 1.125rem; height: 1.125rem; }
+.sr-badge {
+  position: absolute; top: 0.125rem; right: 0.125rem; min-width: 1rem; height: 1rem; padding: 0 0.25rem; border-radius: 0.5rem;
+  background: var(--sr-accent); color: var(--sr-on-accent);
+  font-size: 0.625rem; font-weight: 700; line-height: 1rem; text-align: center; font-variant-numeric: tabular-nums;
+}
+/* The nav column's item (7.2), under Search, in the row register; and the count
+   pill it shares with the palette row. The pill out-ranks `.sr-nav-item span`'s
+   min-width: 0 so it keeps its round shape. */
+.sr-nav-inbox { margin-bottom: 8px; }
+.sr-nav-count,
+.sr-nav-item .sr-nav-count {
+  flex: none; margin-left: auto; min-width: 1.125rem; height: 1.125rem; padding: 0 0.3125rem; border-radius: 0.5625rem;
+  background: var(--sr-accent-bg); color: var(--sr-accent);
+  font-size: 0.6875rem; font-weight: 700; line-height: 1.125rem; text-align: center; font-variant-numeric: tabular-nums;
+  overflow: visible;
+}
+/* In the rail the label goes and the pill becomes a corner badge on the glyph.
+   The rail item (40px) and its glyph (NAV_ICON.rail, 18px, centered, so its
+   box spans 11px to 29px) are fixed px, while the badge is rem and grows with
+   the text size. So the badge is anchored by its LEFT edge, 5px inside the
+   glyph's right edge, and grows right (into the rail column, which is rem too)
+   and down: it can only ever cover that 5px strip of the bell, at any text
+   size and for any count. Anchored by its right edge, it grew left over the
+   bell and hid it entirely at 200% (QA, the inbox redesign); the rail item is
+   icon-only, so the bell must stay visible. AlertsInboxEntry.test.tsx resolves the
+   cascade over every rule that matches the badge and pins this. */
+.sr-nav-col--rail .sr-nav-inbox { margin-bottom: 0; }
+.sr-nav-col--rail .sr-nav-inbox .sr-nav-count {
+  display: block; position: absolute; top: 1px; left: 24px; margin: 0;
+  min-width: 1rem; height: 1rem; padding: 0 0.25rem; border-radius: 0.5rem; line-height: 1rem; font-size: 0.625rem;
+}
+
+/* The sheet (7.3). One component, two densities, chosen here alone. Root
+   z-index 1270: above the fullscreen map and the phone bar (1200) and the More
+   sheet (1260), below the palette (1280). The Clear confirmation (.sr-dlg-root)
+   is rendered INSIDE this root, after the panel, so it stacks above the panel
+   within this root's stacking context. */
+.sr-inbox-root {
+  position: fixed; inset: 0; z-index: 1270;
+  background: var(--sr-scrim);
+  display: flex; align-items: flex-end; justify-content: center;
+  opacity: 0; transition: opacity 160ms ease-out;
+}
+.sr-inbox-root--open { opacity: 1; }
+.sr-inbox-root--closing { pointer-events: none; }
+.sr-inbox-sheet {
+  width: 100%; max-height: 92dvh; display: flex; flex-direction: column;
+  background: var(--sr-surface); color: var(--sr-text);
+  border-top: 1px solid var(--sr-border); border-radius: 16px 16px 0 0; box-shadow: var(--sr-card-shadow);
+  transform: translateY(100%); transition: transform 220ms cubic-bezier(0.2, 0, 0, 1);
+}
+.sr-inbox-root--open .sr-inbox-sheet { transform: none; }
+/* The grab area is larger than the 36x4 handle it draws, and owns the swipe. */
+.sr-inbox-grab { flex: none; padding: 8px 0 2px; touch-action: none; cursor: grab; }
+.sr-inbox-handle { width: 36px; height: 4px; border-radius: 2px; background: var(--sr-border-medium); margin: 0 auto; }
+.sr-inbox-head {
+  flex: none; display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px 10px 18px; border-bottom: 1px solid var(--sr-border);
+}
+.sr-inbox-glyph { flex: none; color: var(--sr-accent); }
+.sr-inbox-title { flex: 1; min-width: 0; margin: 0; font-size: 0.9375rem; font-weight: 700; letter-spacing: -0.01em; color: var(--sr-text); }
+.sr-inbox-title small { margin-left: 6px; font-size: 0.75rem; font-weight: 500; letter-spacing: 0; color: var(--sr-text-muted); }
+.sr-inbox-close {
+  flex: none; width: 32px; height: 32px; border-radius: 6px; border: 0; background: none;
+  color: var(--sr-text-muted); cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: background-color 120ms ease-out, color 120ms ease-out;
+}
+.sr-inbox-close:hover { background: var(--sr-surface-subtle); color: var(--sr-text); }
+/* The sheet scrolls, never the page behind it. */
+.sr-inbox-body { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; }
+.sr-inbox-list { border-top: 0; }
+.sr-inbox-empty { padding: 22px 18px 24px; font-size: 0.8125rem; color: var(--sr-text-muted); }
+.sr-inbox-empty p { margin: 0; }
+.sr-inbox-empty .sr-inbox-empty-detail { margin-top: 4px; font-size: 0.75rem; }
+.sr-inbox-foot {
+  flex: none; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 12px;
+  padding: 10px 16px 18px; border-top: 1px solid var(--sr-border-subtle);
+}
+.sr-inbox-fine { flex: 1 1 12rem; min-width: 0; margin: 0; font-size: 0.75rem; color: var(--sr-text-muted); line-height: 1.5; }
+/* 641px and up: the ModalDialog panel register, centred, scaling in from the
+   opener (the component sets transform-origin), no handle. */
+@media (min-width: 641px) {
+  .sr-inbox-root { align-items: center; padding: 24px; }
+  .sr-inbox-sheet {
+    max-width: 520px; max-height: 80dvh; border: 1px solid var(--sr-border); border-radius: 14px;
+    opacity: 0; transform: scale(0.96);
+    transition: transform 160ms cubic-bezier(0.2, 0, 0, 1), opacity 160ms ease-out;
+  }
+  .sr-inbox-root--open .sr-inbox-sheet { opacity: 1; transform: none; }
+  .sr-inbox-grab { display: none; }
+}
+
 /* Settings -> Bar-chart files (icloud-bar-chart-sync), on every platform: the
    Troubleshooting card shape. One quiet bordered button in the Rebuild caches
    register with its status beside it (wrapping under it when the row is
@@ -6895,6 +7129,15 @@ select:focus-visible {
 }
 .sr-ios-app .sr-navbar { padding-bottom: calc(6px + env(safe-area-inset-bottom, 0px)); }
 .sr-ios-app .sr-nav-sheet { padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px)); }
+/* The Alerts inbox sheet (ios-alerts): its footer pads the bottom edge like the
+   More sheet; at 641px and up the centred panel's root pads the top like the
+   dialog's, so a tall panel never sits under the status bar. */
+.sr-ios-app .sr-inbox-foot { padding-bottom: calc(18px + env(safe-area-inset-bottom, 0px)); }
+.sr-ios-app .sr-inbox-root { padding-top: env(safe-area-inset-top, 0px); }
+@media (min-width: 641px) {
+  .sr-ios-app .sr-inbox-root { padding-top: calc(24px + env(safe-area-inset-top, 0px)); }
+  .sr-ios-app .sr-inbox-foot { padding-bottom: 18px; }
+}
 
 /* ══════════════════════════════════════════════════════════════════════════
    COMMAND PALETTE (feature: command-palette)

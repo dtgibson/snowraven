@@ -704,3 +704,55 @@ describe('App wiring, read from source (comments stripped)', () => {
     expect(app.indexOf("void import('./lib/links/linkController')")).toBeLessThan(app.indexOf(releaseGate))
   })
 })
+
+// ── ios-alerts (schema.md 5.4; FR-31, FR-37; QA-30, QA-37) ───────────────────
+// An alert link searches from the CHECK's point with the check's radius over
+// the Day range, reads no location, and leaves the saved Default Location and
+// Radius alone. `show=all` centers on the sighting with every lifer shown and
+// no pill (a notification tap); `show=one` is the widget bird tap's shape
+// (an inbox row).
+describe('an alert link searches from the check point, never from here (ios-alerts)', () => {
+  const POINT = { lat: 38.5449, lng: -121.7405 }
+  const RUFF_ELSEWHERE = () => [
+    pin('ruff', 'Ruff', 'L200', 37.95), pin('baisan', "Baird's Sandpiper", 'L200', 37.95), pin('ruff', 'Ruff', 'L300', 37.80),
+  ]
+  const lifersShown = () => markers.lifers!.pins.map(p => `${p.locId}:${p.lifers.map(l => l.speciesCode).sort().join('+')}`).sort()
+  const pill = () => screen.queryByRole('button', { name: /^Showing only / })
+  const alertLink = (show: 'all' | 'one', id = 1, speciesCode = 'ruff', locId = 'L300', radiusMi = 7): PendingLink => ({
+    view: 'lifers', window: 'day', id, point: POINT, radiusMi, bird: { speciesCode, locId }, show,
+  })
+
+  it('QA-30: the notification tap (show=all): one search from the point at the check radius, no location read, every lifer shown, centered, no pill', async () => {
+    records.extra = RUFF_ELSEWHERE()
+    renderMap(alertLink('all'))
+    await waitFor(() => expect(markers.lifers?.sel).toBe('L300'))
+    const { getCurrentLocation } = await import('../lib/location')
+    expect(getCurrentLocation).not.toHaveBeenCalled()
+    expect(recentObsCalls()).toHaveLength(1)
+    expect(recentObsCalls()[0]![1]).toEqual({ lat: String(POINT.lat), lng: String(POINT.lng), dist: String(Math.round(7 * 1.60934)) })
+    // Every lifer, unnarrowed: L200 keeps its Baird's Sandpiper beside the Ruff.
+    expect(lifersShown()).toEqual(['L-ruff:ruff', 'L200:baisan+ruff', 'L300:ruff'])
+    expect(pill()).toBeNull()
+    expect(pressed('Day')).toBe(true)
+    expect(storage.setSetting).not.toHaveBeenCalledWith('map-defaults', expect.anything())
+  })
+
+  it('QA-37: an inbox row (show=one): that species alone beside Show all, from the row\'s point', async () => {
+    records.extra = RUFF_ELSEWHERE()
+    renderMap(alertLink('one'))
+    await waitFor(() => expect(markers.lifers?.sel).toBe('L300'))
+    expect(lifersShown()).toEqual(['L-ruff:ruff', 'L200:ruff', 'L300:ruff'])
+    expect(pill()).toBeTruthy()
+    const { getCurrentLocation } = await import('../lib/location')
+    expect(getCurrentLocation).not.toHaveBeenCalled()
+  })
+
+  it('a species no longer reported: every lifer and the statement line with the alert\'s own radius, in both modes', async () => {
+    for (const show of ['all', 'one'] as const) {
+      renderMap(alertLink(show, 1, 'nosuch1', 'L1', 7))
+      await waitFor(() => expect(screen.getByText('The bird you tapped was not found within 7 miles. Showing all lifers.')).toBeTruthy())
+      expect(pill()).toBeNull()
+      cleanup()
+    }
+  })
+})

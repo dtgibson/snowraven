@@ -34,6 +34,21 @@
       </array>
     </dict>
   </array>
+  <!-- iOS Alerts (ios-alerts, schema.md 9.1): the opt-in lifer alert's
+       background check. `fetch` only: no `location` mode (the app never reads
+       location in the background, FR-15), no `remote-notification` (the
+       notifications are local; there is no push), no `processing` task. The
+       one task identifier is the BGTaskScheduler registration's. Declared
+       identically in gen/apple/snowraven_iOS/Info.plist and
+       gen/apple/project.yml, pinned by frontend/src/lib/iosAlertsManifest.test.ts. -->
+  <key>UIBackgroundModes</key>
+  <array>
+    <string>fetch</string>
+  </array>
+  <key>BGTaskSchedulerPermittedIdentifiers</key>
+  <array>
+    <string>com.dtgibson.snowraven.alerts.refresh</string>
+  </array>
   <!-- Standard HTTPS only — skips the export-compliance question on every
        TestFlight upload. -->
   <key>ITSAppUsesNonExemptEncryption</key>

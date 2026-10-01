@@ -22,7 +22,7 @@
 // spacing-neutral) is a stylesheet/browser matter and is not asserted here.
 
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
-import { render, screen, cleanup } from '@testing-library/react'
+import { render, screen, cleanup, waitFor } from '@testing-library/react'
 
 const storageMock = vi.hoisted(() => ({
   // icloud-bar-chart-sync: the Bar-chart files section reads the manifest on mount.
@@ -171,6 +171,37 @@ describe('Settings section order (settings-section-order)', () => {
     expect(sectionHeaders(container)).toEqual([
       'API Keys', 'Default Files', ICS_HEADER, ...BELOW_THE_PAIR, 'Troubleshooting', 'Acknowledgments',
     ])
+  })
+
+  it('iPhone/iPad: Alerts sits DIRECTLY after Default Location and before Tab Layout (ios-alerts)', async () => {
+    vi.mocked(isTauri).mockReturnValue(true)
+    vi.mocked(isIOS).mockReturnValue(true)
+    setICloudState({ availability: 'available', platform: 'iphone', deviceLabel: "Dave's iPhone" })
+    const { container } = renderSettings()
+    await screen.findByText('eBird API Key')
+    // The section is lazy: wait for its own header before reading the order.
+    await waitFor(() => expect(sectionHeaders(container)).toContain('Alerts'))
+    const withAlerts = [...BELOW_THE_PAIR.slice(0, 4), 'Alerts', ...BELOW_THE_PAIR.slice(4)]
+    expect(sectionHeaders(container)).toEqual([
+      'API Keys', 'Default Files', ICS_HEADER, ...withAlerts, 'Troubleshooting', 'Acknowledgments',
+    ])
+  })
+
+  it('Alerts is absent (gated, not hidden) on web/Pi, Windows and the Mac', async () => {
+    for (const platform of [
+      { tauri: false, mac: false },
+      { tauri: true, mac: false },
+      { tauri: true, mac: true },
+    ]) {
+      vi.mocked(isTauri).mockReturnValue(platform.tauri)
+      vi.mocked(isMacOS).mockReturnValue(platform.mac)
+      const { container } = renderSettings()
+      await screen.findByText('eBird API Key')
+      await new Promise(r => setTimeout(r, 20))
+      expect(sectionHeaders(container)).not.toContain('Alerts')
+      expect(container.innerHTML).not.toContain('Alerts')
+      cleanup()
+    }
   })
 
   it('API Keys is the first section on every platform shape', async () => {

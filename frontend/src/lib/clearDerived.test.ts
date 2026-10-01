@@ -191,6 +191,8 @@ afterEach(() => {
 describe('the registry (clear-means-clear)', () => {
   it('names every eBird-derived durable store, and nothing for ML', () => {
     expect([...registeredTeardowns('ebird')].sort()).toEqual([
+      // ios-alerts: the native-owned alert inbox (a no-op off iPhone and iPad).
+      'alerts/inbox.json (App Group, native-owned)',
       'checklist-projects-v1',
       'county-completeness-v1',
       'county-day-obs.json',

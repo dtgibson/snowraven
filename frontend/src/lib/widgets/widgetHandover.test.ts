@@ -8,9 +8,9 @@ vi.mock('../platform', () => ({ isTauri: () => platform.tauri, isIOS: () => plat
 
 import {
   buildHandover, buildRevocation, foldSpeciesName, handoverByteLength, HANDOVER_MAX_BYTES, isValidHandoverName, MAX_NAME_UNITS,
-  MAX_SET_ENTRIES, serializeHandover, widgetsSupported, type HandoverInputs,
+  MAX_EXCEPTION_ENTRIES, MAX_SET_ENTRIES, serializeHandover, widgetsSupported, type HandoverInputs,
 } from './widgetHandover'
-import { normalizeSpeciesName } from '../speciesUtils'
+import { EBIRD_COUNTABLE_EXCEPTIONS, EBIRD_NONCOUNTABLE_EXCEPTIONS, normalizeSpeciesName } from '../speciesUtils'
 
 const NOW = Date.UTC(2026, 8, 23, 18, 4, 11, 500)
 const base = (over: Partial<HandoverInputs> = {}): HandoverInputs => ({
@@ -32,7 +32,7 @@ const base = (over: Partial<HandoverInputs> = {}): HandoverInputs => ({
 beforeEach(() => { platform.tauri = false; platform.ios = false })
 
 describe('the document carries exactly the FR-30 fields (QA-30)', () => {
-  it('the key set at every depth is exactly the ten fields plus lat/lng', () => {
+  it('the key set at every depth is exactly the twelve fields plus lat/lng', () => {
     const doc = buildHandover(base())!
     const keys = new Set<string>()
     const walk = (v: unknown) => {
@@ -41,8 +41,9 @@ describe('the document carries exactly the FR-30 fields (QA-30)', () => {
     }
     walk(JSON.parse(serializeHandover(doc)))
     expect([...keys].sort()).toEqual([
-      'appVersion', 'defaultLocation', 'ebirdKey', 'hasEbirdBackup', 'hasMlExport', 'lat', 'lng', 'recorded',
-      'targetsMissingAudio', 'targetsMissingPhoto', 'targetsMissingVideo', 'version', 'writtenAt',
+      'appVersion', 'countableExceptions', 'defaultLocation', 'ebirdKey', 'hasEbirdBackup', 'hasMlExport', 'lat', 'lng',
+      'nonCountableExceptions', 'recorded', 'targetsMissingAudio', 'targetsMissingPhoto', 'targetsMissingVideo',
+      'version', 'writtenAt',
     ])
     // No observation row, checklist id, ML asset id or OpenWeather key can
     // appear: nothing that looks like one is anywhere in the text.
@@ -155,10 +156,14 @@ describe('the builder REFUSES a document over its bounds (this side\'s enforceme
 describe('the revocation document (M1)', () => {
   it('carries no key, no names and no location, and is valid under every bound', () => {
     const doc = buildRevocation(Date.UTC(2026, 8, 24, 12, 0, 0), '1.0.36')!
+    // The two countability lists ride along: eBird's public exception names
+    // (ios-alerts), nothing of the user's, and the same in every document.
     expect(doc).toEqual({
       version: 1, writtenAt: '2026-09-24T12:00:00Z', appVersion: '1.0.36', ebirdKey: null,
       hasEbirdBackup: false, recorded: [], hasMlExport: false,
       targetsMissingPhoto: [], targetsMissingAudio: [], targetsMissingVideo: [], defaultLocation: null,
+      countableExceptions: [...EBIRD_COUNTABLE_EXCEPTIONS].sort(),
+      nonCountableExceptions: [...EBIRD_NONCOUNTABLE_EXCEPTIONS].sort(),
     })
   })
 
@@ -195,5 +200,25 @@ describe('the platform gate (FR-32, QA-32)', () => {
     expect(widgetsSupported()).toBe(true)
     platform.tauri = false
     expect(widgetsSupported()).toBe(false)   // web / Pi
+  })
+})
+
+// ── ios-alerts (schema.md 3.6): the two countability lists ────────────────────
+describe('the countability lists the alert check reads (ios-alerts)', () => {
+  it('equal the artifact\'s two lists exactly, sorted by code unit, in every document', () => {
+    const doc = buildHandover(base())!
+    const byUnit = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0)
+    expect(doc.countableExceptions).toEqual([...EBIRD_COUNTABLE_EXCEPTIONS].sort(byUnit))
+    expect(doc.nonCountableExceptions).toEqual([...EBIRD_NONCOUNTABLE_EXCEPTIONS].sort(byUnit))
+    expect(doc.countableExceptions.length).toBeGreaterThan(50)
+    expect(doc.nonCountableExceptions.length).toBeGreaterThan(50)
+    // Every name passes the per-name rule the Rust and Swift validators apply.
+    for (const n of [...doc.countableExceptions, ...doc.nonCountableExceptions]) expect(isValidHandoverName(n), n).toBe(true)
+  })
+
+  it('the per-list bound is a shape bound far above the artifact, pinned to 1,000', () => {
+    expect(MAX_EXCEPTION_ENTRIES).toBe(1_000)
+    expect(EBIRD_COUNTABLE_EXCEPTIONS.length).toBeLessThan(MAX_EXCEPTION_ENTRIES)
+    expect(EBIRD_NONCOUNTABLE_EXCEPTIONS.length).toBeLessThan(MAX_EXCEPTION_ENTRIES)
   })
 })

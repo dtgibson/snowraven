@@ -73,6 +73,13 @@ final class WidgetStateTests: XCTestCase {
         let p = WidgetPresentation.make(m, family: .medium, now: Fixture.shared.now, tz: Fixture.shared.timeZone,
                                         locale: Locale(identifier: "en_US_POSIX"))
         XCTAssertEqual(p.footer.first, "From your default location")
+        // ios-alerts L7: the cache records where its area came from (data
+        // provenance only; nothing above changed): the fallback here, the
+        // device when the widget read a position.
+        XCTAssertEqual(harness.store.cache?.cellSource, .defaultLocation)
+        let located = Harness(handover: .valid(h.with(defaultLocation: .some(d))))
+        _ = await located.refresh(.lifers, .all)
+        XCTAssertEqual(located.store.cache?.cellSource, .device)
     }
 
     func testS5NamesTheSingleType() {

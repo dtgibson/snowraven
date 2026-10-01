@@ -12,6 +12,11 @@ mod icloud;
 // Mac, Windows or Linux binaries.
 #[cfg(any(target_os = "ios", test))]
 mod widgets;
+// iOS Alerts (ios-alerts): the five commands and the callbacks between the
+// webview and the native Swift alert engine. iOS only, plus the host's
+// `cargo test` for its pure helpers. Never in the Mac, Windows or Linux binaries.
+#[cfg(any(target_os = "ios", test))]
+mod alerts;
 #[cfg(target_os = "ios")]
 mod launch_backdrop;
 // Post-restore on-screen clamp for the remembered window geometry (macOS +
@@ -207,8 +212,10 @@ pub fn run() {
     // iOS-only: the widget deep-link hook (src/widgets.rs). A plugin
     // `on_event` on RunEvent::Opened, NOT a custom run callback, so the
     // single-webview keeper below is untouched.
+    // iOS-only: the alert engine's plugin (src/alerts.rs), `setup` only and no
+    // `on_event`, so the single-webview keeper below is untouched as well.
     #[cfg(target_os = "ios")]
-    let builder = builder.plugin(widgets::plugin()).setup(|app| {
+    let builder = builder.plugin(widgets::plugin()).plugin(alerts::plugin()).setup(|app| {
         launch_backdrop::install(app);
         Ok(())
     });
@@ -267,6 +274,16 @@ pub fn run() {
             widgets::widgets_remove_handover,
             #[cfg(target_os = "ios")]
             widgets::widgets_take_pending_link,
+            #[cfg(target_os = "ios")]
+            alerts::ios::alerts_snapshot,
+            #[cfg(target_os = "ios")]
+            alerts::ios::alerts_update_settings,
+            #[cfg(target_os = "ios")]
+            alerts::ios::alerts_set_enabled,
+            #[cfg(target_os = "ios")]
+            alerts::ios::alerts_clear_inbox,
+            #[cfg(target_os = "ios")]
+            alerts::ios::alerts_purge_inbox,
         ])
         // SINGLE-WEBVIEW INVARIANT. `Builder::run` supplies Tauri's own no-op
         // run callback, which drops `RunEvent::SceneRequested`, so a second

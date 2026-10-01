@@ -127,12 +127,17 @@ describe('capacity-plus-one cache inventory', () => {
     // purge no store exports — fails HERE rather than silently leaving a user's
     // checklist ids on disk after they pressed Clear.
     const registry = code('./clearDerived.ts')
-    const stores: Array<[string, string]> = [
-      ['./exoticProvenanceCache.ts', 'purgeProvenanceStore'],
-      ['./checklistProjectsCache.ts', 'purgeProjectsStore'],
-      ['./countyCompletenessCache.ts', 'purgeCountyCompletenessStore'],
-      ['./countyDayObsCache.ts', 'purgeCountyDayObsStore'],
-      ['./replayStore.ts', 'purgeChecklistReplay'],
+    // Three row CLASSES, each with its own assertions (ios-alerts, schema.md 7):
+    // a settings-document store, an own-document store with an ordered writer,
+    // and a NATIVE-OWNED store the webview has no write path to at all.
+    type Kind = 'setting' | 'ordered-writer' | 'native'
+    const stores: Array<[string, string, Kind]> = [
+      ['./exoticProvenanceCache.ts', 'purgeProvenanceStore', 'setting'],
+      ['./checklistProjectsCache.ts', 'purgeProjectsStore', 'setting'],
+      ['./countyCompletenessCache.ts', 'purgeCountyCompletenessStore', 'setting'],
+      ['./countyDayObsCache.ts', 'purgeCountyDayObsStore', 'ordered-writer'],
+      ['./replayStore.ts', 'purgeChecklistReplay', 'ordered-writer'],
+      ['./alerts/alertsPurge.ts', 'purgeAlertsInbox', 'native'],
     ]
     for (const [module, purge] of stores) {
       // A PRODUCTION export, not a test seam: `_reset*ForTests` only detaches
@@ -141,22 +146,41 @@ describe('capacity-plus-one cache inventory', () => {
       expect(registry).toContain(`.${purge}()`)
     }
     // Every registry row states the slot it belongs to, and the ONE entry point
-    // is named for the side of the clear/replace boundary it serves.
+    // is named for the side of the clear/replace boundary it serves. The count
+    // is over every class.
     expect(registry).toContain('export async function purgeDerivedOnClear(')
     expect(registry.match(/slot: 'ebird'/g)).toHaveLength(stores.length)
 
     // The three settings-document stores purge through the CHAINED seam link
     // rather than a hand-rolled read-modify-write (CLAUDE.md docChains, v1.0.9).
-    for (const [module] of stores.slice(0, 3)) {
+    for (const [module] of stores.filter(s => s[2] === 'setting')) {
       expect(code(module)).toMatch(/storage\.deleteSetting\(/)
     }
     // The two own-document stores (targets-tab schema 3.5 / 3.6) are NOT on
     // docChains, so each owes its own ordered writer instead, and each purge
     // rides it.
-    for (const [module] of stores.slice(3)) {
+    for (const [module] of stores.filter(s => s[2] === 'ordered-writer')) {
       expect(code(module)).toContain('function writeThrough(')
       expect(code(module)).toContain('_writeChain')
     }
+    // The native-owned store (the iOS alert inbox): the webview owns NO write
+    // path to it, so its purge touches no seam document and no writer of its
+    // own; it is exactly one message to the native actor, behind the platform
+    // gate, reached through the lazy native wrapper.
+    for (const [module] of stores.filter(s => s[2] === 'native')) {
+      const src = code(module)
+      expect(src).not.toContain('deleteSetting')
+      expect(src).not.toContain('writeThrough')
+      expect(src).not.toMatch(/\bstorage\./)
+      const gate = src.indexOf('if (!alertsSupported()) return')
+      const lazy = src.indexOf("await import('./alertsNative')")
+      expect(gate).toBeGreaterThan(-1)
+      expect(lazy).toBeGreaterThan(gate)
+      const native = code('./alerts/alertsNative.ts')
+      expect(native.match(/invoke<void>\('alerts_purge_inbox'\)/g)).toHaveLength(1)
+      expect(native.match(/'alerts_purge_inbox'/g)).toHaveLength(1)
+    }
+    expect(stores.filter(s => s[2] === 'native')).toHaveLength(1)
     // Re-scoped so it cannot be satisfied for the wrong reason: the day cache's
     // one `storage.deleteSetting(` removes the preview build's LEGACY key once
     // per session and is not its purge. Its purge deletes its own document, on

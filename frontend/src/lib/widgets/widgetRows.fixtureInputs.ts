@@ -208,8 +208,11 @@ export const LINK_REJECTED = [
   'snowraven://map/targets?window=day&sp=norcar&loc=L1',               // targets without media
   'snowraven://map/targets?media=photo&window=day&sp=norcar&loc=L1',   // reordered
   '&sp=norcar&loc=L1',                                                 // a bird with no view
-  // 97 characters behind an exact view part: the length gate refuses it first.
-  'snowraven://map/targets?window=week&media=photo&sp=norcar&loc=L1' + 'x'.repeat(33),
+  // One past LINK_MAX_LENGTH (129 characters) behind an exact view part: the
+  // length gate refuses it first. It was 97 against the widget-only bound of
+  // 96; ios-alerts raised the bound to 128 for the alert form, so the row moved
+  // with it and still sits exactly one over.
+  'snowraven://map/targets?window=week&media=photo&sp=norcar&loc=L1' + 'x'.repeat(65),
 ]
 
 /** Id pairs the builders REFUSE: TypeScript throws, Swift returns the view link. */

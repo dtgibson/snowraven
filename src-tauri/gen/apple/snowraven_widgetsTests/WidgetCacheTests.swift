@@ -153,5 +153,20 @@ final class WidgetCacheTests: XCTestCase {
                           backoff: nil, lastFailure: nil)
         XCTAssertNil(WidgetCache.decode(bad.encoded()!))
         XCTAssertEqual(WidgetCache.cell(for: Coordinate(lat: 37.405, lng: -122.005)), CacheCell(lat: 37.41, lng: -122.01, distKm: 40))
+
+        // ios-alerts L7: where the cell came from. A cache written before the
+        // marker existed has no such key and still decodes, unmarked; a marked
+        // one round-trips; an unknown value refuses the cache like any other
+        // malformed field.
+        let legacy = String(data: c.encoded()!, encoding: .utf8)!
+        XCTAssertFalse(legacy.contains("cellSource"))
+        XCTAssertNotNil(WidgetCache.decode(Data(legacy.utf8)))
+        XCTAssertNil(WidgetCache.decode(Data(legacy.utf8))?.cellSource)
+        var marked = c
+        marked.cellSource = .defaultLocation
+        let text = String(data: marked.encoded()!, encoding: .utf8)!
+        XCTAssertTrue(text.contains(#""cellSource":"default-location""#), text)
+        XCTAssertEqual(WidgetCache.decode(marked.encoded()!), marked)
+        XCTAssertNil(WidgetCache.decode(Data(text.replacingOccurrences(of: "default-location", with: "elsewhere").utf8)))
     }
 }

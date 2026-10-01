@@ -25,18 +25,26 @@ struct Handover: Codable, Equatable {
     let targetsMissingAudio: [String]
     let targetsMissingVideo: [String]
     let defaultLocation: DefaultLocation?
+    /// ios-alerts (schema.md 3.6): eBird's countability exceptions as the app's
+    /// artifact holds them (raw names). OPTIONAL so a hand-over written before
+    /// them decodes (the alert check then treats it as stale); the widget rows
+    /// never read them.
+    var countableExceptions: [String]? = nil
+    var nonCountableExceptions: [String]? = nil
 
     static let currentVersion = 1
     static let maxSetEntries = 20_000
     static let maxNameUnits = 200
     static let maxKeyLength = 128
     static let maxAppVersionLength = 32
+    static let maxExceptionEntries = 1_000
 
     /// The exact field set, so a document carrying anything else is refused
     /// (the Rust writer's `deny_unknown_fields`, read side).
     static let fieldNames: Set<String> = [
         "version", "writtenAt", "appVersion", "ebirdKey", "hasEbirdBackup", "recorded", "hasMlExport",
         "targetsMissingPhoto", "targetsMissingAudio", "targetsMissingVideo", "defaultLocation",
+        "countableExceptions", "nonCountableExceptions",
     ]
 
     static func isValidName(_ s: String) -> Bool {
@@ -93,6 +101,11 @@ struct Handover: Codable, Equatable {
                 return false
             }
         }
+        for list in [countableExceptions, nonCountableExceptions] {
+            if let l = list {
+                guard l.count <= Handover.maxExceptionEntries, l.allSatisfy(Handover.isValidName) else { return false }
+            }
+        }
         return true
     }
 }
@@ -110,7 +123,8 @@ extension Handover: CustomStringConvertible, CustomDebugStringConvertible, Custo
         "Handover(version: \(version), writtenAt: \(writtenAt), appVersion: \(appVersion), ebirdKey: \(redactedKey), "
             + "hasEbirdBackup: \(hasEbirdBackup), recorded: \(recorded.count) names, hasMlExport: \(hasMlExport), "
             + "targetsMissing: \(targetsMissingPhoto.count)/\(targetsMissingAudio.count)/\(targetsMissingVideo.count), "
-            + "defaultLocation: \(defaultLocation == nil ? "nil" : "set"))"
+            + "defaultLocation: \(defaultLocation == nil ? "nil" : "set"), "
+            + "exceptions: \(countableExceptions?.count ?? -1)/\(nonCountableExceptions?.count ?? -1))"
     }
 
     var debugDescription: String { description }
@@ -121,6 +135,8 @@ extension Handover: CustomStringConvertible, CustomDebugStringConvertible, Custo
             "hasEbirdBackup": hasEbirdBackup, "recorded": recorded.count, "hasMlExport": hasMlExport,
             "targetsMissingPhoto": targetsMissingPhoto.count, "targetsMissingAudio": targetsMissingAudio.count,
             "targetsMissingVideo": targetsMissingVideo.count, "defaultLocation": defaultLocation == nil ? "nil" : "set",
+            "countableExceptions": countableExceptions?.count ?? -1,
+            "nonCountableExceptions": nonCountableExceptions?.count ?? -1,
         ], displayStyle: .struct)
     }
 }

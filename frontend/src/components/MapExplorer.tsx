@@ -418,7 +418,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
   // three waits (the stored data loading, the location fix, the eBird fetch),
   // not only the fetch. Ended by the link's own flow on every path (below), and
   // by a view switch, the user taking over. Session state only.
-  const [linkLanding, setLinkLanding]       = useState<{ id: number; view: 'lifers' | 'targets'; bird?: BirdRef } | null>(null)
+  const [linkLanding, setLinkLanding]       = useState<{ id: number; view: 'lifers' | 'targets'; bird?: BirdRef; fromPoint?: boolean } | null>(null)
 
   // Marker style per panel (session-only): 'labels' shows the name chip, 'dots'
   // collapses each marker to just its locator dot. Independent for Lifers/Targets.
@@ -1608,13 +1608,16 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
         setLinkFocus(null)
         // The landing starts now, whatever is still loading; any previous
         // outcome leaves the top-centre slot the chip shares with it.
-        setLinkLanding({ id: link.id, view: link.view, bird: link.bird })
+        setLinkLanding({ id: link.id, view: link.view, bird: link.bird, fromPoint: link.point !== undefined })
         setSearchOutcome('')
         setGeoError('')
         setRetainSearchBtn(false)
         if (link.view === 'lifers') setLiferWindow(link.window)
         else setTargetViewMode(link.window)
-        setRadius(WIDGET_RADIUS_MI)
+        // An alert link (ios-alerts, schema.md 5.4) carries the check's own
+        // radius; a widget link applies the widget's fixed 25. Session state
+        // either way: `map-defaults` is never written here (FR-31).
+        setRadius(link.radiusMi ?? WIDGET_RADIUS_MI)
         if (chips) setTargetTypeFilter(new Set(chips))
       })
     }
@@ -1630,6 +1633,35 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
     }
     const findLifers = handleFindLifers
     const findSightings = handleFindSightings
+    // THE ALERT BRANCH (ios-alerts, schema.md 5.4, FR-31 / FR-37): an alert
+    // link searches from the check's point with the check's radius, so no
+    // location is read at all. The saved Default Location and Radius stay as
+    // they were. `show=all` centers on the sighting with every lifer shown (the
+    // notification tap); `show=one` is the widget bird tap's shape, that species
+    // alone beside Show all (an inbox row).
+    if (link.point && link.radiusMi !== undefined && link.view === 'lifers') {
+      const point = link.point
+      const radiusMi = link.radiusMi
+      queueMicrotask(async () => {
+        try {
+          setLat(point.lat.toFixed(5))
+          setLng(point.lng.toFixed(5))
+          setDetectedLocation(null)
+          setPanTarget({ lat: point.lat, lng: point.lng })
+          const search = findLifers(point.lat, point.lng, radiusMi)
+          if (link.bird) {
+            setLinkFocus({
+              speciesCode: link.bird.speciesCode, locId: link.bird.locId, searchId: searchSeq.current,
+              mode: link.show === 'one' ? 'only' : 'center', radiusMi,
+            })
+          }
+          await search
+        } finally {
+          endLanding()
+        }
+      })
+      return
+    }
     queueMicrotask(async () => {
       setIsLocating(true)
       try {
@@ -1672,7 +1704,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
   // ends. The chip itself is aria-hidden while it shows the landing, so the
   // phases it covers are never re-announced.
   const landingName = linkLanding?.bird ? nameForCode(linkLanding.bird.speciesCode, speciesCodeMap) : null
-  const landingLine = linkLanding ? landingText(linkLanding.view, landingName, linkLanding.bird !== undefined) : ''
+  const landingLine = linkLanding ? landingText(linkLanding.view, landingName, linkLanding.bird !== undefined, linkLanding.fromPoint === true) : ''
   const [landingAnnouncement, setLandingAnnouncement] = useState('')
   const announcedLandingRef = useRef<number | null>(null)
   useEffect(() => {
@@ -1703,7 +1735,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
     const result = isLifers ? liferFocus : linkFocus.searchId === resultSeq.targets ? targetFocus : null
     if (!result || result.kind === 'none') return
     settledFocusRef.current = linkFocus.searchId
-    if (result.kind === 'focused') {
+    if (result.kind === 'focused' || result.kind === 'centered') {
       const t = result.target
       queueMicrotask(() => {
         if (isLifers) setSelectedLiferLocId(t.locId)
@@ -1714,7 +1746,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
       const name = nameForCode(linkFocus.speciesCode, speciesCodeMap)
       queueMicrotask(() => {
         setLinkFocus(null)
-        setSearchOutcome(focusAbsentStatement(name, isLifers ? 'lifers' : 'targets'))
+        setSearchOutcome(focusAbsentStatement(name, isLifers ? 'lifers' : 'targets', linkFocus.radiusMi))
       })
     }
   }, [linkFocus, resultSeq, liferFocus, targetFocus, speciesCodeMap, setPanTarget])

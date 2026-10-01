@@ -14,6 +14,9 @@ import { useFilesEpoch } from './lib/useFilesEpoch'
 import { notifyKeysChanged } from './lib/keysChanged'
 import { useKeysEpoch } from './lib/useKeysEpoch'
 import { widgetsSupported } from './lib/widgets/widgetHandover'
+import { alertsSupported } from './lib/alerts/alertsState'
+import { useAlertsInboxHost } from './lib/alerts/alertsInboxHost'
+import { AlertsInboxBell } from './components/AlertsInboxEntry'
 import { clearPendingLink, getPendingLink, subscribePendingLink } from './lib/links/linkRequest'
 import { compactChrome } from './lib/platformGates'
 import { copyText } from './lib/clipboard'
@@ -85,6 +88,11 @@ const Checklists = lazy(() => importChecklists().then(m => ({ default: m.Checkli
 const Calendar = lazy(() => importCalendar().then(m => ({ default: m.Calendar })))
 const Targets = lazy(() => importTargets().then(m => ({ default: m.Targets })))
 const CommandPalette = lazy(() => importCommandPalette().then(m => ({ default: m.CommandPalette })))
+// The Alerts inbox sheet (ios-alerts design-spec 7.3, the revision after the
+// live look). Lazy like Help and the palette, and reachable only on iPhone and
+// iPad: the entry controls exist there alone (alertsInboxEntry.ts's gate).
+const importAlertsInboxSheet = () => import('./components/AlertsInboxSheet')
+const AlertsInboxSheet = lazy(importAlertsInboxSheet)
 import {
   type ConfigurableTab,
   type Tab,
@@ -327,6 +335,20 @@ export default function App() {
     restorePaletteFocusRef.current = false
     restoreOpenerFocus(paletteOpenerRef.current, mainRef.current)
   }, [paletteOpen])
+
+  // ── The Alerts inbox sheet (ios-alerts design-spec 7.3 and 7.5) ───────────
+  //
+  // The host owns open/close, "last viewed" and the focus restore after the
+  // close commits; see lib/alerts/alertsInboxHost.ts. The palette's row closes
+  // the palette through its ONE close path and then opens the sheet: the
+  // palette's own restore is cancelled here and its opener becomes the sheet's,
+  // so focus goes back to whatever opened the palette when the sheet closes.
+  const inboxHost = useAlertsInboxHost(mainRef)
+  const { openInbox } = inboxHost
+  const openInboxFromPalette = useCallback(() => {
+    restorePaletteFocusRef.current = false
+    openInbox(paletteOpenerRef.current ?? { trigger: () => null })
+  }, [openInbox])
 
   // The chord, always armed, at `window` in the capture phase. The opener is
   // captured EAGERLY here: the element handed back is `document.activeElement`
@@ -573,6 +595,22 @@ export default function App() {
     if (!widgetsSupported()) return
     const t = setTimeout(() => {
       void import('./lib/widgets/widgetHandoverController').then(m => m.startWidgetHandover()).catch(() => {})
+    }, 0)
+    return () => clearTimeout(t)
+  }, [])
+
+  // iOS Alerts (ios-alerts, schema.md 6.2): the controller that reads the
+  // native alert snapshot and installs the Settings section's actions. After
+  // first paint, dynamic-imported, iPhone and iPad only; elsewhere the gate is
+  // false and the module is never fetched (entryChunk.test.ts). Booting it
+  // reads a snapshot and nothing else: no check, prompt or location read
+  // happens until the user turns alerts on (FR-03).
+  useEffect(() => {
+    if (!alertsSupported()) return
+    const t = setTimeout(() => {
+      void import('./lib/alerts/alertsController').then(m => m.bootAlertsController()).catch(() => {})
+      // Warm the inbox sheet so its first opening needs no fetch.
+      void importAlertsInboxSheet().catch(() => {})
     }, 0)
     return () => clearTimeout(t)
   }, [])
@@ -959,6 +997,11 @@ export default function App() {
                   Self-hosted birding tools and data explorer
                 </p>
               )}
+              {/* The Alerts inbox bell (ios-alerts design-spec 7.2), inside the
+                  header so it inherits `chromeInert` under the fullscreen map.
+                  iPhone and iPad only, and absent markup while alerts are off
+                  and the inbox is empty. */}
+              <AlertsInboxBell />
             </header>
           )}
 
@@ -1707,6 +1750,7 @@ export default function App() {
             onSelectTab={selectTabFromPalette}
             onOpenSpecies={openSpeciesFromPalette}
             onClose={closePalette}
+            onOpenInbox={openInboxFromPalette}
           />
         </Suspense>
       )}
@@ -1722,6 +1766,21 @@ export default function App() {
       {helpOpen && (
         <Suspense fallback={null}>
           <HelpDocs onClose={() => setHelpOpen(false)} />
+        </Suspense>
+      )}
+
+      {/* THE ALERTS INBOX, a sibling of .sr-shell at the App root like Help and
+          the palette, so it opens over any tab and outside every `chromeInert`
+          box. Its root is z-index 1270 (above the fullscreen map, the phone bar
+          and the More sheet, below the palette); its Clear confirmation renders
+          inside it, above the panel. */}
+      {inboxHost.open && (
+        <Suspense fallback={null}>
+          <AlertsInboxSheet
+            viewedAt={inboxHost.open.viewedAt}
+            opener={inboxHost.openerEl}
+            onClosed={inboxHost.closeInbox}
+          />
         </Suspense>
       )}
     </div>

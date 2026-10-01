@@ -104,6 +104,16 @@ const TEARDOWNS: ReadonlyArray<{
     store: 'replay.json (checklist-keyed entries)',
     purge: async () => (await import('./replayStore')).purgeChecklistReplay(),
   },
+  {
+    // ios-alerts (schema.md 7). A NATIVE-OWNED store: the alert inbox lives in
+    // the App Group container and only the Swift alert actor writes it, so its
+    // purge is a message to that actor (a no-op off iPhone and iPad). Every
+    // row exists only because a species was absent from the eBird backup, so
+    // it is registered on its key set like the stores above.
+    slot: 'ebird',
+    store: 'alerts/inbox.json (App Group, native-owned)',
+    purge: async () => (await import('./alerts/alertsPurge')).purgeAlertsInbox(),
+  },
 ]
 
 /** The registered store names for a slot. Exported for the inventory guard. */

@@ -15,9 +15,10 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync, readdirSync } from 'node:fs'
 import {
-  APP_GROUP_ID, HANDOVER_FILE, HANDOVER_MAX_BYTES, MAX_KEY_LEN, MAX_NAME_UNITS, MAX_SET_ENTRIES, WIDGETS_DIR,
+  APP_GROUP_ID, HANDOVER_FILE, HANDOVER_MAX_BYTES, MAX_EXCEPTION_ENTRIES, MAX_KEY_LEN, MAX_NAME_UNITS, MAX_SET_ENTRIES,
+  WIDGETS_DIR,
 } from './widgets/widgetHandover'
-import { LINK_MAX_LENGTH, LINK_SCHEME, LOC_ID_RE } from './links/deepLink'
+import { ALERT_LINK_PATTERN, LINK_MAX_LENGTH, LINK_SCHEME, LOC_ID_RE } from './links/deepLink'
 import { SPECIES_CODE_RE } from './speciesCode'
 import { RECORD_MAX_STRING, WIDGET_BACK_DAYS, WIDGET_DIST_KM } from './widgets/widgetRows'
 
@@ -136,7 +137,9 @@ describe('the deep link: one scheme, one length bound, one event', () => {
     }
     expect(libRs).toContain('#[cfg(any(target_os = "ios", test))]\nmod widgets;')
     expect(libRs).toContain('#[cfg(target_os = "ios")]\nmod launch_backdrop;')
-    expect(libRs).toMatch(/#\[cfg\(target_os = "ios"\)\]\s*let builder = builder\s*\.plugin\(widgets::plugin\(\)\)\s*\.setup\(\|app\| \{\s*launch_backdrop::install\(app\);\s*Ok\(\(\)\)\s*\}\);/)
+    // ios-alerts: the alert plugin (`setup` only, no `on_event`) joins the
+    // widget plugin on the same iOS-only builder line.
+    expect(libRs).toMatch(/#\[cfg\(target_os = "ios"\)\]\s*let builder = builder\s*\.plugin\(widgets::plugin\(\)\)\s*\.plugin\(alerts::plugin\(\)\)\s*\.setup\(\|app\| \{\s*launch_backdrop::install\(app\);\s*Ok\(\(\)\)\s*\}\);/)
     // The single-webview keeper is untouched: still Builder::run with Tauri's own callback.
     expect(libRs).toContain('.run(tauri::generate_context!())')
     expect(rustCode).not.toContain('SceneRequested')
@@ -210,5 +213,45 @@ describe('the Swift tests state that CI cannot run them (schema.md section 7.4)'
         '// ubuntu-latest CI cannot compile Swift, so these tests run on the release machine (see the snowraven-release skill).',
       )
     }
+  })
+})
+
+// ── ios-alerts (schema.md 3.6, 5.1, 8.1) ─────────────────────────────────────
+describe('ios-alerts: the hand-over lists and the alert link are one declaration on every side', () => {
+  const handoverTs = readFileSync(new URL('./widgets/widgetHandover.ts', import.meta.url), 'utf8')
+  const deepLinkTs = readFileSync(new URL('./links/deepLink.ts', import.meta.url), 'utf8')
+  const alertLinkSwift = repo(`${APPLE}/Sources/snowraven/AlertsLogic/AlertLink.swift`)
+
+  it('the two countability lists are named on all three sides, with one entry bound', () => {
+    for (const [ts, rs] of [['countableExceptions', 'countable_exceptions'], ['nonCountableExceptions', 'non_countable_exceptions']]) {
+      expect(handoverTs).toContain(`  ${ts}: string[]`)
+      expect(rustCode).toContain(`    ${rs}: Vec<String>,`)
+      expect(handoverSwift).toMatch(new RegExp(`static let fieldNames: Set<String> = \\[[^\\]]*"${ts}"`))
+      expect(handoverSwift).toContain(`var ${ts}: [String]?`)
+    }
+    expect(rustConst('MAX_EXCEPTION_ENTRIES')).toBe(num(MAX_EXCEPTION_ENTRIES))
+    expect(handoverSwift).toContain(`static let maxExceptionEntries = ${MAX_EXCEPTION_ENTRIES.toLocaleString('en-US').replace(/,/g, '_')}`)
+  })
+
+  it('the alert link pattern is one text: the TypeScript literal and the Swift literal, character for character', () => {
+    const ts = /export const ALERT_LINK_PATTERN =\s*\n\s*'([^'\n]+)'/.exec(deepLinkTs)
+    const sw = /static let pattern = "([^"\n]+)"/.exec(alertLinkSwift)
+    expect(ts, 'deepLink.ts literal').not.toBeNull()
+    expect(sw, 'AlertLink.swift literal').not.toBeNull()
+    expect(sw![1]).toBe(ts![1])
+    // Non-vacuity: the literal really is the exported pattern's source text.
+    expect(ts![1]!.replace(/\\\\/g, '\\')).toBe(ALERT_LINK_PATTERN)
+  })
+
+  it('the one parking path: the notification tap and the widget hook share the filter and the slot', () => {
+    expect(rustCode).toContain('pub(crate) fn park_link<R: tauri::Runtime>(app: &tauri::AppHandle<R>, url: String)')
+    expect(rustCode).toContain('pub(crate) fn park_raw_link<R: tauri::Runtime>(app: &tauri::AppHandle<R>, raw: &str)')
+    expect(rustCode).toMatch(/if qualifies_as_link\(u\.scheme\(\), u\.as_str\(\)\) \{\s*park_link\(app, u\.as_str\(\)\.to_string\(\)\);/)
+    const hook = rustCode.slice(rustCode.indexOf('.on_event(|app, event|'))
+    expect(hook).toContain('park_link(app, url);')
+    const alertsRs = repo('src-tauri/src/alerts.rs').split('\n').map(l => l.replace(/\/\/.*$/, '')).join('\n')
+    expect(alertsRs).toContain('crate::widgets::park_raw_link(app, &raw);')
+    expect(alertsRs).not.toContain('on_event')
+    expect(alertsRs).not.toMatch(/derive\([^)]*Debug/)
   })
 })

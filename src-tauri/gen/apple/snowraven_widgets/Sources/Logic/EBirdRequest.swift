@@ -19,13 +19,19 @@ enum EBirdRequest {
     /// inside the extension's memory limit with margin (measured, schema 6.5).
     static let bodyCapBytes = 2_000_000
 
-    static func urlString(for c: Coordinate) -> String {
+    /// `distKm` and `backDays` default to the widget's own values, so every
+    /// widget call site builds the byte-identical URL the fixture pins; the
+    /// iOS alert check passes its radius and one day (ios-alerts, schema 3.8).
+    static func urlString(for c: Coordinate, distKm: Int = WidgetCache.distKm, backDays: Int = EBirdRequest.backDays) -> String {
         "https://\(host)\(path)?lat=\(JSNumber.toFixed(c.lat, 5))&lng=\(JSNumber.toFixed(c.lng, 5))"
-            + "&dist=\(WidgetCache.distKm)&back=\(backDays)&fmt=json"
+            + "&dist=\(distKm)&back=\(backDays)&fmt=json"
     }
 
-    static func make(for c: Coordinate, key: String) -> URLRequest? {
-        guard Handover.isValidKey(key), let url = URL(string: urlString(for: c)) else { return nil }
+    static func make(for c: Coordinate, key: String, distKm: Int = WidgetCache.distKm,
+                     backDays: Int = EBirdRequest.backDays) -> URLRequest? {
+        guard Handover.isValidKey(key), let url = URL(string: urlString(for: c, distKm: distKm, backDays: backDays)) else {
+            return nil
+        }
         var r = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: timeoutSeconds)
         r.httpMethod = "GET"
         r.httpShouldHandleCookies = false

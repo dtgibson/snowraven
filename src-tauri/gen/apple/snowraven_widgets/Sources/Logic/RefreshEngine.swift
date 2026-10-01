@@ -155,7 +155,8 @@ actor RefreshEngine {
             return failed(.malformed)
         case .records(let records):
             let fresh = WidgetCache(version: WidgetCache.currentVersion, keyFingerprint: fp, cell: cell,
-                                    fetchedAt: WidgetTime.string(now2), records: records, backoff: nil, lastFailure: nil)
+                                    fetchedAt: WidgetTime.string(now2), records: records, backoff: nil, lastFailure: nil,
+                                    cellSource: usedDefault ? .defaultLocation : .device)
             store.writeCache(fresh)
             return list(records, fetched: WidgetTime.parse(fresh.fetchedAt) ?? now2, stale: nil, next: cadenceNext)
         case .status(let code, _) where code == 401 || code == 403:

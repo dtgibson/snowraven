@@ -763,6 +763,66 @@ describe('entry-chunk exclusion (NFR-03 / QA-30)', () => {
     }
   })
 
+  // ── iOS Alerts (ios-alerts NFR-06 / QA-51; schema.md 6.5). The entry graph
+  // carries the store and its platform gate only; the controller, the native
+  // wrapper, the purge, the rules twin, the copy and the section are reached
+  // through import() alone. Positive legs first, so the negatives cannot pass
+  // vacuously on a rename.
+  it('the alerts store IS on the entry graph, and is dependency-light', () => {
+    expect(has('lib/alerts/alertsState.ts')).toBe(true)
+    const store = closureFrom(resolve(SRC, 'lib/alerts/alertsState.ts'))
+    expect(store.files.size).toBeLessThanOrEqual(3)
+    expect([...store.externals].sort()).toEqual(['@tauri-apps/plugin-os', 'react'])
+  })
+
+  // The inbox revision (design-spec 7.2): the header bell and the sidebar item
+  // ride the shell, so their gate, count and few words are entry-safe, beside
+  // the store, and import nothing else of the feature.
+  it('the inbox entry points ARE on the entry graph, and reach only the store', () => {
+    for (const f of ['lib/alerts/alertsInboxEntry.ts', 'lib/alerts/alertsInboxHost.ts', 'components/AlertsInboxEntry.tsx']) {
+      expect(has(f), f).toBe(true)
+    }
+    const entry = closureFrom(resolve(SRC, 'lib/alerts/alertsInboxEntry.ts'))
+    expect([...entry.files].filter(f => f.includes('/lib/alerts/')).map(f => f.slice(f.indexOf('lib/alerts/'))).sort())
+      .toEqual(['lib/alerts/alertsInboxEntry.ts', 'lib/alerts/alertsState.ts'])
+  })
+
+  const ALERTS_OFF_ENTRY = [
+    'components/AlertsInboxSheet.tsx',
+    'lib/alerts/alertsController.ts',
+    'lib/alerts/alertsNative.ts',
+    'lib/alerts/alertsPurge.ts',
+    'lib/alerts/alertRules.ts',
+    'lib/alerts/alertsCopy.ts',
+    'components/settingsSections/AlertsSection.tsx',
+    'components/AddressSearch.tsx',
+  ]
+  it.each(ALERTS_OFF_ENTRY)('%s is off the App static closure (ios-alerts)', file => {
+    expect(has(file)).toBe(false)
+  })
+
+  it('and the lazy edges are real: App, Settings and the clear registry reach alerts only through import()', () => {
+    const appSrc = readFileSync(APP, 'utf8')
+    expect(appSrc).toContain("import('./lib/alerts/alertsController')")
+    expect(appSrc).toContain("import('./components/AlertsInboxSheet')")
+    const settingsSrc = readFileSync(resolve(SRC, 'components/Settings.tsx'), 'utf8')
+    expect(settingsSrc).toContain("import('./settingsSections/AlertsSection')")
+    const registrySrc = readFileSync(resolve(SRC, 'lib/clearDerived.ts'), 'utf8')
+    expect(registrySrc).toContain("import('./alerts/alertsPurge')")
+    // The registry's own closure is still itself alone (the teardown test above).
+    expect(closureFrom(resolve(SRC, 'lib/clearDerived.ts')).files.size).toBe(1)
+    // And the lazy subtree really does reach what the negatives exclude.
+    const section = closureFrom(resolve(SRC, 'components/settingsSections/AlertsSection.tsx'))
+    expect(hasIn(section.files, 'lib/alerts/alertsCopy.ts')).toBe(true)
+    expect(hasIn(section.files, 'lib/alerts/alertRules.ts')).toBe(true)
+    expect(hasIn(section.files, 'components/AddressSearch.tsx')).toBe(true)
+    const sheet = closureFrom(resolve(SRC, 'components/AlertsInboxSheet.tsx'))
+    expect(hasIn(sheet.files, 'lib/alerts/alertsCopy.ts')).toBe(true)
+    const native = closureFrom(resolve(SRC, 'lib/alerts/alertsNative.ts'))
+    expect([...native.externals]).toContain('@tauri-apps/api/core')
+    expect([...native.externals]).toContain('@tauri-apps/api/event')
+  })
+
   // ── The Targets tab (targets-tab NFR-02, QA-04). Lazy like every heavy tab:
   // its parser, its day cache, its reducer and its county picker ride their own
   // chunk, and the 3.85 MB county geometry is reached only through import().

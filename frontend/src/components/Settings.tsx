@@ -1,5 +1,5 @@
 import { Button } from './ui/Button'
-import { Fragment, useEffect, useId, useImperativeHandle, useRef, useState } from 'react'
+import { Fragment, lazy, Suspense, useEffect, useId, useImperativeHandle, useRef, useState } from 'react'
 import {
   BookOpen, ChevronDown, ChevronUp, CircleAlert, Cloud, CloudCheck, CloudOff, CloudUpload,
   Copy, Eye, EyeOff, FileCheck, FileQuestion, Loader2, Lock, Navigation, RefreshCw,
@@ -56,70 +56,16 @@ import {
 import { useShareCopySelection, toggleShareCopyPart } from '../lib/shareCopyPreference'
 import { OutboundLink } from './OutboundLink'
 import { ToggleSwitch } from './ui/ToggleSwitch'
+import { SectionHeader } from './settingsSections/SectionHeader'
+import { alertsSupported } from '../lib/alerts/alertsState'
+import { RadioGroup } from './settingsSections/RadioGroup'
 
 type ConsentState = 'idle' | 'pending'
 
-// ---- Accessible radio group (APG pattern) ----
-//
-// role="radiogroup" with role="radio" buttons, roving tabindex, and
-// Arrow/Home/End key navigation that moves the checked option — what a screen
-// reader announces ("radio, 1 of N — use arrow keys") then actually works, and
-// only the checked radio is a Tab stop. Generic over the option key type.
-interface RadioOption<T extends string | number> {
-  key: T
-  /** Accessible name for the radio (falls back to the rendered children). */
-  ariaLabel?: string
-  style: React.CSSProperties
-  children: React.ReactNode
-}
-
-function RadioGroup<T extends string | number>({
-  label, value, options, onChange,
-}: {
-  label: string
-  value: T
-  options: RadioOption<T>[]
-  onChange: (key: T) => void
-}) {
-  function handleKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
-    const idx = options.findIndex(o => o.key === value)
-    if (idx < 0) return
-    let next: number
-    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') next = (idx + 1) % options.length
-    else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') next = (idx - 1 + options.length) % options.length
-    else if (e.key === 'Home') next = 0
-    else if (e.key === 'End') next = options.length - 1
-    else return
-    e.preventDefault()
-    const nextKey = options[next].key
-    if (nextKey !== value) onChange(nextKey)
-    // Move focus to the newly checked radio (roving tabindex).
-    const group = e.currentTarget
-    const radios = group.querySelectorAll<HTMLButtonElement>('[role="radio"]')
-    radios[next]?.focus()
-  }
-
-  return (
-    <div role="radiogroup" aria-label={label} className="sr-wrap-flex" style={{ ['--sr-wrap-gap' as string]: '6px' }} onKeyDown={handleKeyDown}>
-      {options.map(o => {
-        const checked = o.key === value
-        return (
-          <Button
-            key={o.key}
-            role="radio"
-            aria-checked={checked}
-            aria-label={o.ariaLabel}
-            tabIndex={checked ? 0 : -1}
-            style={o.style}
-            onClick={() => onChange(o.key)}
-          >
-            {o.children}
-          </Button>
-        )
-      })}
-    </div>
-  )
-}
+// ios-alerts: the Alerts section, iPhone and iPad only. Lazy, so its chunk
+// (the section, its copy, the place search) is never fetched elsewhere, and
+// GATED, never hidden: off iOS the element is not in the tree at all (FR-01).
+const AlertsSection = lazy(() => import('./settingsSections/AlertsSection'))
 
 // ---- Appearance row ----
 
@@ -1302,29 +1248,6 @@ function EmbeddedMediaRow({ value, saving, error, onChange }: {
           onChange={() => onChange(!value)}
         />
       )}
-    </div>
-  )
-}
-
-// ---- Section header ----
-
-function SectionHeader({ label, id }: { label: string; id?: string }) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-      {/* No `white-space: nowrap` (v1.0.4). Uppercased and letter-spaced, the
-          longest header ("Help & Documentation") measures 297.14px inside a 272px
-          panel at 320px and 200% text scale, and nowrap made that unbreakable —
-          1.14px of page horizontal scroll, the last leak on any tab. Allowing the
-          wrap is self-limiting: a flex item only breaks a line it cannot fit, and
-          no header comes close at any desktop width, so this is byte-identical
-          everywhere else. The divider below then sits beside the final line. */}
-      <span id={id} style={{
-        fontSize: '0.6875rem', fontWeight: 600, textTransform: 'uppercase',
-        letterSpacing: '0.07em', color: 'var(--sr-text-muted)',
-      }}>
-        {label}
-      </span>
-      <div style={{ flex: 1, height: 1, background: 'var(--sr-border)' }} />
     </div>
   )
 }
@@ -2551,6 +2474,15 @@ export function Settings({
           </div>
         </div>
       </div>
+
+      {/* ios-alerts: directly after Default Location (its fixed place defaults
+          to it) and before Tab Layout. The section carries its own 24px top
+          margin, so the tab's spacing is unchanged with or without it. */}
+      {alertsSupported() && (
+        <Suspense fallback={null}>
+          <AlertsSection />
+        </Suspense>
+      )}
 
       <div style={{ marginTop: 24 }}>
         <TabLayoutSection

@@ -68,6 +68,9 @@ pub const MAX_NAME_UNITS: usize = 200;
 pub const MAX_KEY_LEN: usize = 128;
 /// `appVersion` bound; display-only in the extension.
 pub const MAX_APP_VERSION_LEN: usize = 32;
+/// Entries per countability exception list (ios-alerts, schema.md 3.6). The
+/// app's artifact holds 88 and 81 names; this is a shape bound, not a forecast.
+pub const MAX_EXCEPTION_ENTRIES: usize = 1_000;
 /// The widget deep-link scheme, and the most the hook will park.
 pub const LINK_SCHEME: &str = "snowraven";
 pub const LINK_MAX_BYTES: usize = 512;
@@ -90,6 +93,13 @@ struct HandoverDoc {
     targets_missing_audio: Vec<String>,
     targets_missing_video: Vec<String>,
     default_location: Option<DefaultLocation>,
+    /// ios-alerts (schema.md 3.6): eBird's countability exceptions, raw names,
+    /// for the native alert check. REQUIRED here: the app and the extension
+    /// ship in one bundle, so the writer is always this build's, and the Swift
+    /// reader decodes them as optional only so a document a previous build
+    /// wrote stays readable by the widget until the app regenerates it.
+    countable_exceptions: Vec<String>,
+    non_countable_exceptions: Vec<String>,
 }
 
 #[derive(Deserialize)]
@@ -130,6 +140,11 @@ fn valid_name(s: &str) -> bool {
 
 fn valid_set(v: &[String]) -> bool {
     v.len() <= MAX_SET_ENTRIES && v.iter().all(|s| valid_name(s))
+}
+
+/// A countability exception list: the per-name rule, and the list bound.
+fn valid_exceptions(v: &[String]) -> bool {
+    v.len() <= MAX_EXCEPTION_ENTRIES && v.iter().all(|s| valid_name(s))
 }
 
 /// `^[A-Za-z0-9]{1,128}$`, byte-wise.
@@ -177,6 +192,9 @@ impl HandoverDoc {
             || !valid_set(&self.targets_missing_audio)
             || !valid_set(&self.targets_missing_video)
         {
+            return false;
+        }
+        if !valid_exceptions(&self.countable_exceptions) || !valid_exceptions(&self.non_countable_exceptions) {
             return false;
         }
         // The presence flags and the sets agree: no backup means no recorded
@@ -359,11 +377,46 @@ pub fn widgets_take_pending_link(state: tauri::State<'_, PendingLink>) -> Option
     state.0.lock().ok().and_then(|mut g| g.take())
 }
 
+/// Park a URL that already passed `qualifies_as_link` and poke the webview.
+/// The ONE parking path (ios-alerts, schema.md 5.3): the `RunEvent::Opened`
+/// hook below and the alert notification tap (`alerts.rs`) both end here, so a
+/// widget tap and a notification tap reach the same slot, the same poke and the
+/// same parser.
+#[cfg(target_os = "ios")]
+pub(crate) fn park_link<R: tauri::Runtime>(app: &tauri::AppHandle<R>, url: String) {
+    use tauri::{Emitter, Manager};
+    if let Some(state) = app.try_state::<PendingLink>() {
+        if let Ok(mut g) = state.0.lock() {
+            *g = Some(url);
+        }
+    }
+    // A poke, not the payload the JS applies: the controller answers it by
+    // taking the parked URL.
+    let _ = app.emit_to("main", LINK_EVENT, ());
+}
+
+/// A raw URL string from native (the notification's `userInfo.link`): parsed
+/// as a URL, then the SAME filter the hook applies (`qualifies_as_link` over the
+/// parsed scheme and serialization), then parked. Anything else is dropped
+/// without a poke. Nothing here reads the URL beyond its scheme and length: the
+/// allowlist is `parseWidgetLink` in the webview.
+#[cfg(target_os = "ios")]
+pub(crate) fn park_raw_link<R: tauri::Runtime>(app: &tauri::AppHandle<R>, raw: &str) {
+    if raw.len() > LINK_MAX_BYTES {
+        return;
+    }
+    if let Ok(u) = tauri::Url::parse(raw) {
+        if qualifies_as_link(u.scheme(), u.as_str()) {
+            park_link(app, u.as_str().to_string());
+        }
+    }
+}
+
 /// The deep-link hook (schema.md section 4.3): a plugin `on_event`, so Tauri's
 /// own run callback, and with it the single-webview keeper, is untouched.
 #[cfg(target_os = "ios")]
 pub fn plugin<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
-    use tauri::{Emitter, Manager, RunEvent};
+    use tauri::{Manager, RunEvent};
     tauri::plugin::Builder::new("snowraven-links")
         .setup(|app, _api| {
             app.manage(PendingLink(Mutex::new(None)));
@@ -377,14 +430,7 @@ pub fn plugin<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
                     .next_back()
                     .map(|u| u.as_str().to_string());
                 if let Some(url) = last {
-                    if let Some(state) = app.try_state::<PendingLink>() {
-                        if let Ok(mut g) = state.0.lock() {
-                            *g = Some(url);
-                        }
-                    }
-                    // A poke, not the payload the JS applies: the controller
-                    // answers it by taking the parked URL.
-                    let _ = app.emit_to("main", LINK_EVENT, ());
+                    park_link(app, url);
                 }
             }
         })
@@ -407,7 +453,9 @@ mod tests {
             "targetsMissingPhoto": ["mallard"],
             "targetsMissingAudio": [],
             "targetsMissingVideo": ["northern shrike"],
-            "defaultLocation": { "lat": 37.5, "lng": -122.25 }
+            "defaultLocation": { "lat": 37.5, "lng": -122.25 },
+            "countableExceptions": ["Canada Goose (moffitti/maxima)"],
+            "nonCountableExceptions": ["Domestic goose sp. (Domestic type)"]
         });
         for (k, val) in overrides {
             v[*k] = val.clone();
@@ -495,6 +543,25 @@ mod tests {
     fn presence_flags_agree_with_the_sets() {
         assert_eq!(validate_handover(&doc(&[("hasEbirdBackup", false.into())])), Err("invalid"));
         assert_eq!(validate_handover(&doc(&[("hasMlExport", false.into())])), Err("invalid"));
+    }
+
+    #[test]
+    fn the_two_countability_lists_are_required_and_bounded() {
+        // ios-alerts (schema.md 3.6): required on the write side, the per-name
+        // rule applies to every entry, and each list holds at most 1,000.
+        for field in ["countableExceptions", "nonCountableExceptions"] {
+            let mut v: serde_json::Value = serde_json::from_str(&doc(&[])).unwrap();
+            v.as_object_mut().unwrap().remove(field);
+            assert_eq!(validate_handover(&v.to_string()), Err("invalid"), "{field} missing");
+            for bad in ["", " sp.", "gull sp. ", "gu\u{0000}ll"] {
+                assert_eq!(validate_handover(&doc(&[(field, serde_json::json!([bad]))])), Err("invalid"), "{field}");
+            }
+            let at: Vec<String> = (0..MAX_EXCEPTION_ENTRIES).map(|i| format!("n{i} sp.")).collect();
+            assert_eq!(validate_handover(&doc(&[(field, serde_json::json!(at))])), Ok(()), "{field} at the bound");
+            let over: Vec<String> = (0..=MAX_EXCEPTION_ENTRIES).map(|i| format!("n{i} sp.")).collect();
+            assert_eq!(validate_handover(&doc(&[(field, serde_json::json!(over))])), Err("invalid"), "{field} over");
+            assert_eq!(validate_handover(&doc(&[(field, serde_json::json!([]))])), Ok(()), "{field} empty");
+        }
     }
 
     #[test]

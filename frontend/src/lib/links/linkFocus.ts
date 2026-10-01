@@ -21,18 +21,30 @@ import type { DisplayTargetPin, NearbyLiferLocation } from '../mapExplorerTypes'
 import type { LocationError } from '../location'
 import { WIDGET_RADIUS_MI } from './deepLink'
 
-export interface LinkFocus { speciesCode: string; locId: string; searchId: number }
+/** How a focus shows its species (ios-alerts, schema.md 5.4):
+ *  - `only`: that species alone, with the Show all pill (the widget bird tap
+ *    and an alert inbox row, FR-37);
+ *  - `center`: every lifer stays shown and the map centers on the sighting,
+ *    with no pill (the alert notification tap, FR-31).
+ *  Absent means `only`, the shipped behavior. `radiusMi` is the search's own
+ *  radius, for the not-found sentence; absent means the widget's 25. */
+export type FocusMode = 'only' | 'center'
+
+export interface LinkFocus { speciesCode: string; locId: string; searchId: number; mode?: FocusMode; radiusMi?: number }
 
 export type FocusView = 'lifers' | 'targets'
 
 /** What a view shows under a focus:
  *  - `none`: no focus for this view's current results (show them all);
  *  - `focused`: only the species, with the sighting to select and center;
+ *  - `centered`: every result, with the sighting to select and center, and no
+ *    pill (the `center` mode);
  *  - `absent`: the focused search's results hold no sighting of the species
  *    (show them all, with the statement line). */
 export type FocusResult<P> =
   | { kind: 'none'; pins: P[] }
   | { kind: 'focused'; pins: P[]; target: P; name: string }
+  | { kind: 'centered'; pins: P[]; target: P; name: string }
   | { kind: 'absent'; pins: P[] }
 
 interface Center { lat: number; lng: number }
@@ -59,12 +71,21 @@ export function focusLifers(
 ): FocusResult<NearbyLiferLocation> {
   if (!focus || focus.searchId !== resultSeq) return { kind: 'none', pins: locations }
   const pins: NearbyLiferLocation[] = []
+  // Under `center`, the full locations holding the species, so the target is
+  // a real pin of the unnarrowed map; under `only`, each narrowed to the one lifer.
+  const holders: NearbyLiferLocation[] = []
   for (const loc of locations) {
     const lifer = loc.lifers.find(l => l.speciesCode === focus.speciesCode)
     if (!lifer) continue
+    holders.push(loc)
     pins.push({ ...loc, lifers: [lifer], count: 1, mostRecentDate: lifer.recentDate, tier: recencyTier(lifer.recentDate) })
   }
   if (pins.length === 0) return { kind: 'absent', pins: locations }
+  if (focus.mode === 'center') {
+    const target = pickTarget(holders, focus.locId, center)
+    const name = target.lifers.find(l => l.speciesCode === focus.speciesCode)!.comName
+    return { kind: 'centered', pins: locations, target, name }
+  }
   const target = pickTarget(pins, focus.locId, center)
   return { kind: 'focused', pins, target, name: target.lifers[0]!.comName }
 }
@@ -110,16 +131,19 @@ export function focusPillLabel(name: string, view: FocusView): string {
 
 /** The statement line when the tapped species is not in the results. With no
  *  name the app can vouch for, the sentence says "The bird you tapped". */
-export function focusAbsentStatement(name: string | null, view: FocusView): string {
-  return `${name ?? 'The bird you tapped'} was not found within ${WIDGET_RADIUS_MI} miles. Showing all ${ALL[view]}.`
+export function focusAbsentStatement(name: string | null, view: FocusView, radiusMi: number = WIDGET_RADIUS_MI): string {
+  const miles = radiusMi === 1 ? '1 mile' : `${radiusMi} miles`
+  return `${name ?? 'The bird you tapped'} was not found within ${miles}. Showing all ${ALL[view]}.`
 }
 
 /** The loading line a widget-link landing shows from the moment the link
  *  arrives until results (or an honest failure) are on the map. A bird tap
  *  names the bird only when the app already holds its name; otherwise it
  *  says "the bird you tapped". A real ellipsis, as the in-app search chip uses. */
-export function landingText(view: FocusView, birdName: string | null, isBirdTap: boolean): string {
-  if (isBirdTap) return birdName ? `Finding ${birdName} near you…` : 'Finding the bird you tapped…'
+export function landingText(view: FocusView, birdName: string | null, isBirdTap: boolean, fromPoint = false): string {
+  // An alert link (ios-alerts) searches from the check's own point, which is
+  // not where the user is, so "near you" would be untrue there.
+  if (isBirdTap) return birdName ? `Finding ${birdName}${fromPoint ? '' : ' near you'}…` : 'Finding the bird you tapped…'
   return `Finding nearby ${ALL[view]}…`
 }
 

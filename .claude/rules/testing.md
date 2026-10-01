@@ -20,6 +20,10 @@ paths:
   - "frontend/src/lib/barChart/*.fixture.txt"
   - "frontend/src/lib/countyDayObs.fixture.json"
   - "frontend/src/lib/regionCode.fixture.json"
+  - "frontend/src/lib/alerts/*.fixture.json"
+  - "frontend/src/lib/alerts/alertRules.fixtureInputs.ts"
+  - "frontend/src/lib/alerts/alertRules.fixtureBuild.ts"
+  - "frontend/src/components/settingsSections/settingsOffIos.fixture.json"
 ---
 
 # SnowRaven testing and verification methodology

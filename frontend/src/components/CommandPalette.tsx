@@ -52,7 +52,8 @@
 
 import { Button } from './ui/Button'
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
-import { AlertCircle, Loader2, Search, Upload, X } from 'lucide-react'
+import { AlertCircle, Bell, Loader2, Search, Upload, X } from 'lucide-react'
+import { badgeText, INBOX_ENTRY_LABEL, inboxEntryName, useInboxEntry } from '../lib/alerts/alertsInboxEntry'
 import { NAV_ICON } from '../lib/tabIcons'
 import { useFilesEpoch } from '../lib/useFilesEpoch'
 import { useFocusTrap } from '../lib/useFocusTrap'
@@ -101,15 +102,28 @@ export interface CommandPaletteProps {
   onOpenSpecies: (commonName: string) => void
   /** The ONE close path: Escape, the backdrop, the close button and any selection. */
   onClose: () => void
+  /** Open the Alerts inbox sheet (ios-alerts design-spec 7.2). The row it
+   *  backs is first in Destinations and exists only while the shared gate is
+   *  true (iPhone and iPad, alerts on or the inbox has rows), read from the
+   *  entry-safe store with the since-last-viewed count; on the Mac, Windows and
+   *  web/Pi the gate is false and the palette is unchanged. Called right after
+   *  `onClose`, so App hands the palette's own opener to the sheet. */
+  onOpenInbox?: () => void
 }
 
-export function CommandPalette({ items, onSelectTab, onOpenSpecies, onClose }: CommandPaletteProps) {
+export function CommandPalette({ items, onSelectTab, onOpenSpecies, onClose, onOpenInbox }: CommandPaletteProps) {
   const panelRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const [query, setQuery] = useState('')
   const [activeIdx, setActiveIdx] = useState(-1)
   const [species, setSpecies] = useState<SpeciesHalf>(undefined)
   const filesEpoch = useFilesEpoch()
+
+  const inboxEntry = useInboxEntry()
+  const inbox = useMemo(
+    () => (onOpenInbox && inboxEntry.visible ? { label: INBOX_ENTRY_LABEL, count: inboxEntry.count } : null),
+    [onOpenInbox, inboxEntry.visible, inboxEntry.count],
+  )
 
   const uid = useId()
   const listboxId = `${uid}-listbox`
@@ -174,8 +188,8 @@ export function CommandPalette({ items, onSelectTab, onOpenSpecies, onClose }: C
 
   const index = Array.isArray(species) ? species : null
   const { rows, destinationCount, speciesTruncated } = useMemo(
-    () => buildPaletteRows({ items, index, query }),
-    [items, index, query],
+    () => buildPaletteRows({ items, index, query, inbox }),
+    [items, index, query, inbox],
   )
   const speciesCount = rows.length - destinationCount
 
@@ -193,10 +207,18 @@ export function CommandPalette({ items, onSelectTab, onOpenSpecies, onClose }: C
   const choose = useCallback((row: PaletteRow) => {
     // Every selection closes through the SAME `onClose` the backdrop, the close
     // button, Escape and a second chord press use (FR-11, QA-11).
+    if (row.kind === 'inbox') {
+      // Closed through the same `onClose`, THEN the sheet opens: App's opener
+      // cancels the palette's own focus restore and hands the palette's opener
+      // to the sheet, which returns focus there when it closes.
+      onClose()
+      onOpenInbox?.()
+      return
+    }
     if (row.kind === 'tab') onSelectTab(row.id)
     else onOpenSpecies(row.name)
     onClose()
-  }, [onSelectTab, onOpenSpecies, onClose])
+  }, [onSelectTab, onOpenSpecies, onClose, onOpenInbox])
 
   const onInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     // CLAMPED, NEVER WRAPPED (FR-39, PRD Open Question 11), matching the shipped
@@ -407,6 +429,7 @@ export function CommandPalette({ items, onSelectTab, onOpenSpecies, onClose }: C
 
 /** A React key that is unique across both groups without leaning on the index. */
 function rowKey(row: PaletteRow): string {
+  if (row.kind === 'inbox') return 'inbox'
   return row.kind === 'tab' ? `tab:${row.id}` : `species:${row.name}`
 }
 
@@ -434,6 +457,18 @@ function Option({
   onChoose: (row: PaletteRow) => void
 }) {
   const className = 'sr-palette-row' + (active ? ' sr-palette-row--active' : '')
+  if (row.kind === 'inbox') {
+    // The count pill is aria-hidden; the option's own name carries the count.
+    return (
+      <div id={id} role="option" aria-selected={active} aria-label={inboxEntryName(row.count)} className={className} onClick={() => onChoose(row)}>
+        <span className="sr-palette-row-icon">
+          <Bell size={NAV_ICON.sheet.size} strokeWidth={NAV_ICON.sheet.strokeWidth} aria-hidden="true" />
+        </span>
+        <span className="sr-palette-row-name">{row.label}</span>
+        {row.count > 0 && <span className="sr-nav-count" aria-hidden="true">{badgeText(row.count)}</span>}
+      </div>
+    )
+  }
   if (row.kind === 'tab') {
     const Icon = row.icon
     return (
