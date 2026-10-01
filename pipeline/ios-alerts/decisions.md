@@ -64,3 +64,21 @@ The user chose one submission: a 1.0.42 App Store record on build 1.0.42.1 that 
 - Combined What's New drafted as held proposal (j): both approved texts word for word, Alerts first, 523 characters. Awaiting the user's yes.
 - Screenshots, checked against App Store Connect (read only): Alerts makes nothing stale. No store or website shot shows Settings; the bell, the iPad sidebar item and the Search row render no markup while Alerts is off and the inbox is empty, which is the state every shot shows; the one unconditional style change (`.sr-header { position: relative; }`) has no positioned descendant to move while the bell is absent. But `05-species-detail.png` in BOTH store sets differs from the live record (1.0.41's approved Splits and lumps recapture, never uploaded because 1.0.41 had no record); 01 to 04 and 06 match byte for byte. The 1.0.42 record therefore replaces both sets whole and in order.
 - App Store Connect facts (read only): 1.0.40 `READY_FOR_SALE` (record `203ea1fd`); no 1.0.41 or 1.0.42 record; builds 1.0.41.1 (`ec258e92`) and 1.0.42.1 (`f03c6cc2`) `VALID`, `usesNonExemptEncryption` false, expiring 2026-12-29 and 2026-12-30; age rating 4+, its only unset fields `developerAgeRatingInfoUrl`, `gracRatingClassificationNumber` and `kidsAgeBand` (non-blocking on a non-Kids app); the 1.0.40 record is `AFTER_APPROVAL` with no phased release, and its review detail has `demoAccountRequired` false.
+
+## 2026-10-01 · App Store submission record: 1.0.42 submitted, 1.0.41 rolled up
+
+Run on the Orchestrator's routed App Store gate decision ("Confirm, submit 1.0.42"), with the combined What's New shown to the user verbatim. Metadata key `QJA25M7XHM`; each step read back before the next.
+
+| Step | Result | Ids |
+|---|---|---|
+| 1. Create record | `POST /v1/appStoreVersions`: 1.0.42, IOS, `AFTER_APPROVAL`, copyright "2026 Dave Gibson" as on 1.0.40; no phased release | record `73b6e8ac-8f86-4321-92c1-b1b3eea329bd` |
+| 2. Attach build | build 1.0.42.1, read back `VALID` | build `f03c6cc2-8986-40f5-819d-fd168b38615a` |
+| 3. What's New | en-US set to `held-copy/j-whats-new-combined.md` exactly (523 characters), read back equal. Description, keywords and URLs carried over equal to 1.0.40; promotional text arrived EMPTY and was restored from 1.0.40 (equal to `appstore/LISTING.md`) | localization `a993e02c` on 1.0.40; new en-US localization on 1.0.42 |
+| 4. Review notes | the carried review detail patched: notes 3,953 to 3,898 characters, read back equal to `appstore/REVIEW_NOTES.md`'s pasted part; contact and demo-account fields equal to 1.0.40 | review detail `e9dec852-d7ee-41f5-8df6-229a44d3a850` |
+| 5. Screenshots | both sets replaced whole and in order (all six deleted, 01 to 06 uploaded, each `COMPLETE`); all twelve checksums equal the committed files; only 05 differs from 1.0.40 in each set | sets `642697ae` (APP_IPHONE_67), `edff79de` (APP_IPAD_PRO_3GEN_129) |
+| 6. Age rating | editable app info `fd68e0c2` at 4+; only `developerAgeRatingInfoUrl`, `gracRatingClassificationNumber` and `kidsAgeBand` unset, as on the live record; no new question, nothing answered | |
+| 7. Unchanged answers | export compliance needs nothing (`usesNonExemptEncryption` false on the build); privacy label unchanged per held (d), UI-only | |
+| 8. Submit | `reviewSubmissions` flow; record and submission both `WAITING_FOR_REVIEW` | submission `ffe1ed1d-68e4-4977-b9ba-d6577bde9bea` |
+| 9. Record | CLAUDE.md's version-record list: the rollup roster gains 1.0.41 into 1.0.42, and the 1.0.42 ship's entries are added | |
+
+1.0.41 ends with VALID build 1.0.41.1 (delivery `ec258e92`) and no version record of its own BY ROLLUP (the user's decision, 2026-10-01), never device-checked and not needed. Reconciliation over every TestFlight train found no unaccounted gap between 1.0.13 and 1.0.42.
