@@ -2,6 +2,11 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [1.0.43] - 2026-10-01
+
+### Added
+- **Mark read in the Alerts inbox** (iPhone and iPad). A Mark read button beside Clear at the foot of the inbox clears every New mark at once and sets the count on the bell, the iPad sidebar item, Search and the Settings Inbox row to zero, without removing any alert. Until now the marks cleared only when you closed the inbox, so an alert that arrived while it was open still counted as new afterwards; Mark read covers that too. Alerts that arrive later are marked New as before. The "last viewed" time it moves is the same one opening the inbox sets, kept on this device and never synced. Help describes it.
+
 ## [1.0.42] - 2026-10-01
 
 ### Added
