@@ -2,13 +2,27 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [1.0.41] - 2026-09-30
+
+### Added
+- **Splits and lumps on Species Detail.** Beside "Subspecies and forms", a "Splits and lumps" control lists every species in your loaded data that eBird split or lumped in one of its annual taxonomy updates, with the kind of change and the year. Pick one, or choose any species in the selector, and a Splits and Lumps section shows what the species was, what it became and which update did it, with your species marked and, on each name you have reports under, how many of them eBird reassigned when it made the change and how many you have recorded since. Where a split left reports eBird could not assign, the slash name they went to appears too. A backup exported before an update is recognized and labeled as such. The record of eBird's updates ships with the app, covers the 2023, 2024 and 2025 updates in this release and says so on screen, and needs no connection and no API key. Help describes it.
+
+### Changed
+- The Mac app now has Copy iCloud details and the more reliable bar-chart sync that reached iPhone and iPad in 1.0.40.
+
+### Internal
+- A developer-run generator, `scripts/build-taxonomy-history.mjs`, derives that record from Cornell's published eBird/Clements checklists and eBird taxonomy files and refuses to write anything it cannot resolve; for each covered update its splits and lumps reproduce the species eBird announced as gained and lost, and a new test holds the committed record to the bundled taxonomy snapshot.
+
 ## [1.0.40] - 2026-09-29
 
 ### Added
 - **iCloud Sync now carries your eBird bar-chart files.** On a Mac, iPhone or iPad with iCloud Sync on, a county's bar-chart file you add on the Targets tab reaches your other synced devices, with no second download from ebird.org. Each county's file syncs on its own, and the most recently added copy wins, the same way the eBird backup and Macaulay Library export do. The Targets tab's eBird bar chart section shows the same sync state the Default Files rows do, with Download now or Retry for the county you have selected, and with sync on, Remove asks you to confirm because the file leaves your other devices too. The day-by-day eBird answers behind the Targets tab's live counts are shared through the same iCloud container, one copy per device, so a county's days checked on one device are not asked of eBird again on another. Nothing reaches the developer. Help and the privacy policy describe what is copied to your iCloud account.
 - **A Bar-chart files section in Settings,** on every platform, says how many counties have a bar-chart file saved on this device and offers Remove all bar-chart files. It always asks you to confirm first and says how many counties' files go; with iCloud Sync on, the copies in iCloud go too. Your eBird backup, Macaulay Library export and API keys are not touched.
+- **Copy iCloud details** (iPhone and iPad), at the foot of Settings' iCloud Sync section, puts a plain-text troubleshooting report on the clipboard for you to paste into a message to the developer when sync is not working. It lists what iCloud reports for each synced file, with your device names, county codes, file sizes, dates and Apple's error codes and messages, and holds no file contents, file names you chose or API keys. Nothing is sent anywhere unless you paste it.
 
 ### Changed
+- On iPhone and iPad, bar-chart sync is more reliable, including when a device is slow to upload: while a file is still waiting, SnowRaven keeps checking for up to about 18 minutes, so the row moves on to Up to date once iCloud has sent it instead of staying on Waiting to upload. A removal on one device now reaches the others, and a file SnowRaven could not hand to iCloud reads Could not sync, with the reason and Retry, instead of Waiting to upload.
+- The Mac app gets the Copy iCloud details button and the more reliable bar-chart sync in the next desktop release; the 1.0.40 Mac and Windows downloads carry the rest of this release.
 - The Targets tab now opens showing lifers only. Media and Breeding start off and come back with their existing switches.
 - With the Calendar's Breeding overlay on, days now start in By category, one row per breeding category, instead of Every code. A saved Every code from 1.0.38 or 1.0.39 moves to the new default once; choose Every code again and it is remembered.
 

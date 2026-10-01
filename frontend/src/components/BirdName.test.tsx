@@ -73,4 +73,27 @@ describe('BirdName', () => {
     rerender(<BirdName commonName="American Robin" scientificName="Turdus migratorius" showSci />)
     expect(queryByText('Turdus migratorius')).toBeTruthy()
   })
+
+  // taxonomic-splits-lumps: the default-off opt-in that lets a slash name wrap
+  // after its "/" rather than mid-word. <wbr> adds no character, so the text
+  // and the accessible name are unchanged, and the default is byte-identical.
+  it('breakAfterSlash puts a <wbr> after each "/" and changes neither the text nor the default markup', () => {
+    const name = 'European/African/Eastern Red-rumped Swallow'
+    const plain = render(<BirdName commonName={name} />).container.innerHTML
+    cleanup()
+    const off = render(<BirdName commonName={name} breakAfterSlash={false} />).container
+    expect(off.innerHTML).toBe(plain)
+    expect(off.querySelectorAll('wbr')).toHaveLength(0)
+    cleanup()
+    const on = render(<BirdName commonName={name} breakAfterSlash />).container
+    expect(on.querySelectorAll('wbr')).toHaveLength(2)
+    expect(on.textContent).toBe(name)
+    cleanup()
+    render(<BirdName commonName={name} breakAfterSlash hasEntry onOpenSpecies={() => {}} />)
+    expect(screen.getByRole('button', { name }).querySelectorAll('wbr')).toHaveLength(2)
+    cleanup()
+    const noSlash = render(<BirdName commonName="Redpoll" breakAfterSlash />).container.innerHTML
+    cleanup()
+    expect(noSlash).toBe(render(<BirdName commonName="Redpoll" />).container.innerHTML)
+  })
 })

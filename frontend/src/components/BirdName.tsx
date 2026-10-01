@@ -5,7 +5,7 @@
 // presentational — callers supply the taxon code and the navigation handler.
 
 import { Button } from './ui/Button'
-import { memo } from 'react'
+import { Fragment, memo } from 'react'
 import { SpeciesLinks } from './SpeciesLinks'
 
 export interface BirdNameProps {
@@ -23,6 +23,23 @@ export interface BirdNameProps {
   showSci?: boolean
   /** Text scale: 'sm' (dense/popups), 'md' (table default), 'lg' (prominent stat). */
   size?: 'sm' | 'md' | 'lg'
+  /** Opt in to a line-break opportunity (`<wbr>`) after each "/" in the common
+   *  name, so a slash name ("Eastern/Western Warbling Vireo") wraps after the
+   *  slash in a narrow box rather than mid-word (taxonomic-splits-lumps). `<wbr>`
+   *  contributes no character, so the text content and accessible name are
+   *  unchanged. Default off: every other surface renders byte-identically. */
+  breakAfterSlash?: boolean
+}
+
+/** The common name with a `<wbr>` after each "/". Keys are segment indexes. */
+function withSlashBreaks(name: string) {
+  const segments = name.split('/')
+  return segments.map((seg, i) => (
+    <Fragment key={i}>
+      {seg}
+      {i < segments.length - 1 && <>/<wbr /></>}
+    </Fragment>
+  ))
 }
 
 export const BirdName = memo(function BirdName({
@@ -33,8 +50,10 @@ export const BirdName = memo(function BirdName({
   onOpenSpecies,
   showSci = false,
   size = 'md',
+  breakAfterSlash = false,
 }: BirdNameProps) {
   const linkable = hasEntry && !!onOpenSpecies
+  const shown = breakAfterSlash && commonName.includes('/') ? withSlashBreaks(commonName) : commonName
   const sci = showSci && scientificName ? scientificName : null
   const cls = `sr-birdname sr-birdname-${size}${sci ? '' : ' sr-birdname-inline'}`
 
@@ -47,10 +66,10 @@ export const BirdName = memo(function BirdName({
             className="sr-birdname-link"
             onClick={() => onOpenSpecies!(commonName)}
           >
-            {commonName}
+            {shown}
           </Button>
         ) : (
-          <span className="sr-birdname-text">{commonName}</span>
+          <span className="sr-birdname-text">{shown}</span>
         )}
         <SpeciesLinks speciesCode={taxonCode} commonName={commonName} />
       </span>

@@ -119,6 +119,11 @@ italic at 0.71875rem `--sr-text-gray`.
   the accent appearing only in the toggle's open-state tint. Troubleshooting
   and Acknowledgments are the exemplars; pick this register over the
   icon-tile action row when the section should not compete for attention.
+- **Two disclosure controls on one row:** each toggle stays in the row and its
+  open panel portals into ONE shared host after the row (`PanelSlot`,
+  `speciesDetail/ui.tsx`), so either panel spans the full width below both
+  toggles and DOM order is visual order; never reorder with CSS `order`.
+  Subspecies and forms beside Splits and lumps on Species Detail is the exemplar.
 - **Confirmation dialog:** any fixed-position confirmation or short note
   that must be read before an action proceeds renders through the shared
   `components/ui/ModalDialog.tsx` shell (`.sr-dlg-*` in globals.css), never
@@ -213,7 +218,10 @@ italic at 0.71875rem `--sr-text-gray`.
   surface the preference governs.
 - **Quoted comments:** `--sr-quote-bg` block, 3px `--sr-accent-border` left edge.
 - **Bird names:** ALWAYS `<BirdName>` (link gated on hasEntry, favicons via
-  taxon codes).
+  taxon codes). Where a slash name ("Eastern/Western Warbling Vireo") sits in a
+  narrow cell, pass `breakAfterSlash`: it adds a `<wbr>` after each "/" so the
+  name wraps after the slash instead of mid-word, with text content and
+  accessible name unchanged. Default off; a no-op on a name without a slash.
 - **Links out:** eBird checklist links only behind `SUBMISSION_ID_RE`
   (`/^S\d+$/`); a species code only behind `SPECIES_CODE_RE`
   (`/^[a-z0-9-]{2,16}$/`), rendering nothing on a miss exactly as a missing code
@@ -232,6 +240,14 @@ italic at 0.71875rem `--sr-text-gray`.
   that clears in both themes. **A substitution is not an entrance: nothing
   animates.** `SpeciesLinks` is the exemplar.
 - **Icons:** Lucide, 11–15px, stroke ~2.2, purposeful only.
+  **A direction glyph that must follow a chart's flow is hand-drawn when Lucide
+  has no shape for it.** Lucide's `Split` and `Merge` are both drawn vertically
+  and there is no horizontal fork, so a split or lump badge carries an inline SVG
+  on the Lucide grid (24 viewBox, stroke 2.2, round caps, `currentColor`,
+  `aria-hidden`): three strokes fanning out (split) or two converging (lump) in
+  the chart's reading direction, rotated 90deg by CSS in the tier where the chart
+  stacks, so the glyph turns with it. The Lucide icon stays where it identifies
+  the feature (control tile, section head) rather than a direction. No dependency.
 - **Maps:** `<SnowMap>`/`SightingsMap` wrappers only.
 - **Map tools & transient pins:** a pointer gesture on a map (right-click /
   long-press) always has a VISIBLE companion control, not a hidden shortcut — a
@@ -380,7 +396,8 @@ italic at 0.71875rem `--sr-text-gray`.
 - **Range slider (a filter over a short ordered ladder of discrete stops):** a native `<input type="range">` with `step="1"` indexing the ladder (Any, 1, 5, 10, 25, 50 mi), drawn from the `ToggleSwitch` tokens so it reads as the switch's sibling: a 4px `--sr-border` track with the span up to the thumb in `--sr-accent`, an 18px `--sr-switch-thumb` knob with `--sr-switch-thumb-shadow` and a 1.5px `--sr-accent` ring, the global focus ring, and the 120ms ease-out colour change. Its value is a phrase shown beside it (0.75rem/600 `--sr-text`: "Any distance", "Within 5 miles") and is the `aria-valuetext`; the `aria-label` names what is measured and from where ("Distance from Arrowhead Marsh to the last report"); `aria-describedby` points at a plain-text twin of the status line that explains it, never at a line that contains a button, whose name would be spliced into the description. Arrow keys step one stop. Stop labels (0.625rem `--sr-text-muted`, tabular) sit under the thumb centres at `9px + (100% - 18px) * i/n`, except that the first and last pin to the track's ends so neither overhangs it; the current stop is `--sr-accent` 700; on a narrow track (a container query on the stops row) the last label drops its unit ("50" for "50 mi") so it cannot collide with its neighbour, while the phrase keeps it. **Disabled, it snaps to the no-narrowing stop**: native `disabled`, track and knob in `--sr-border` / `--sr-gray-400` / `--sr-surface-subtle`, labels and phrase in `--sr-text-disabled`, value "Any distance", because a disabled slider must never show a filter it is not applying. 16rem on desktop, the full row on the phone tier. Reach for it when an ordered choice has about five or more stops and the order is the meaning; four or fewer rungs stay a `SegControl` (Map Explorer's Radius). The Targets tab's Distance is the exemplar.
 - **Anchor chooser (the subject of a status line is the button that changes it):** where a line states what a set of figures is measured from ("Distances from your Default Location."), the anchor's name in that line IS the trigger: a `Button` in the line's own type at 600 `--sr-text` with a 1px dashed `--sr-border-medium` underline and an 11px ChevronDown in `--sr-text-muted`, lifting to `--sr-accent` / `--sr-accent-border-strong` on hover; with nothing set, it is the call to action in `--sr-accent` with no underline. `aria-haspopup="dialog"`, `aria-expanded`, `aria-controls`, and an accessible name that contains the visible words ("Distances are measured from Arrowhead Marsh. Change"; WCAG 2.5.3 Label in Name). It opens a small `role="dialog"` hung from the trigger (`--sr-surface`, 1px `--sr-border`, radius 10, `--sr-card-shadow`, padding 6, about 22rem and never wider than its row, the full row on the phone tier; a 140ms scale-and-fade from the top left, reduced motion instant) holding section-label headings over `Button` items (34px minimum, radius 6, glyph + name + muted sub-line, hover `--sr-surface-subtle` at 120ms; the item in force `aria-current` on `--sr-accent-bg` / `--sr-accent`; an unavailable item native `disabled` with its reason as the sub-line) and, for a free choice, the shared submit-only place search (`components/AddressSearch.tsx`). Focus goes to the first enabled item on open and the shared `useFocusTrap` holds Tab; Escape, a choice, a successful search and a click outside close through one path and return focus to the trigger (a click that landed on another control keeps its focus); a search miss keeps it open with focus in the field. An item that is busy (locating, searching) is `aria-disabled`, not native `disabled`, so a press never drops focus to `<body>`. No map for a one-control choice. Targets' "Measure distances from" is the exemplar.
 - **Row status line (a row that reports where its data came from and its sync
-  state):** the shared `SyncLine` in `Settings.tsx` (`.sr-sync-line`), a
+  state):** the shared `SyncLine` in `components/ui/SyncLine.tsx`
+  (`.sr-sync-line`), a
   `role="status"` element rendered from the start inside the row's text column
   under the value line, empty when the row has no view, its children replaced
   on change and never unmounted or `display: none`, cross-fading between views
@@ -395,8 +412,11 @@ italic at 0.71875rem `--sr-text-gray`.
   state colors the label `--sr-error` as reinforcement of the text, never
   alone. Phone tier: the label wraps and the inline action takes the full row
   width; the row's own value or filename line wraps too, so Show / Hide drops
-  under the value at 320px and 200% text. Default Files rows and API Keys rows
-  are the two instances.
+  under the value at 320px and 200% text. A section that reports a stored
+  file's sync state keeps the region at one fixed position in every state,
+  the file-absent state included, so it is never remounted. Default Files
+  rows, API Keys rows and the Targets tab's eBird bar chart section are the
+  instances.
 - **Phone wide-table:** a wide matrix/table (many narrow columns beside a label
   column) is made comfortable on a phone by (1) narrowing the data columns to
   dot-width via a single CSS class at the ≤640 tier — never an inline width — with

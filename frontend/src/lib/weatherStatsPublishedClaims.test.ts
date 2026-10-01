@@ -304,13 +304,19 @@ function readmeSpeciesCardPassage(): string {
   return readmeSection('Species Detail')
 }
 
+/** Where the website's card sentence starts. The source is hand-wrapped, so the
+ *  anchor may break across a line (the 1.0.41 copy puts "card" at a line end):
+ *  it is matched whitespace-tolerantly, never as one source line. */
+function siteCardAnchor(src: string): number {
+  return src.search(/card\s+shows\s+the\s+skies/)
+}
+
 /** The website's paragraph for the card, tags stripped so the prose reads as prose.
- *  The anchor is short and sits on one source line; the paragraph is
- *  whitespace-normalised after extraction, so the longer claim is matched below
- *  over the normalised text rather than over the raw source. */
+ *  The paragraph is whitespace-normalised after extraction, so the longer claim
+ *  is matched below over the normalised text rather than over the raw source. */
 function siteSpeciesCardParagraph(): string {
   const src = read('website/index.html')
-  const i = src.indexOf('card shows the skies')
+  const i = siteCardAnchor(src)
   expect(i, 'website/index.html states the Species Detail Weather card').toBeGreaterThan(-1)
   const open = src.lastIndexOf('<p>', i)
   const close = src.indexOf('</p>', i)
@@ -353,7 +359,8 @@ describe('the published Species Detail card passages exist at all', () => {
     // guard that stops the append-log shape (a Species Detail card described
     // under the Statistics heading) coming back.
     const src = read('website/index.html')
-    const card = src.indexOf('card shows the skies')
+    const card = siteCardAnchor(src)
+    expect(card, 'website/index.html states the Species Detail Weather card').toBeGreaterThan(-1)
     const heading = src.lastIndexOf('<h3>', card)
     expect(src.slice(heading, src.indexOf('</h3>', heading))).toBe('<h3>Species Detail')
   })
@@ -500,7 +507,7 @@ describe('the three card passages agree with each other, not merely each with th
     // named. One surface having it right does not make the other right.
     for (const [name, get] of CARD_SURFACES.slice(1)) {
       const text = get()
-      expect(text, name).toMatch(/card shows the skies and temperatures you have found this bird in/)
+      expect(text, name).toMatch(/card shows the skies and temperatures you found it in/)
       expect(text, name).toMatch(/SnowRaven and RainCrow weather blocks/)
     }
   })

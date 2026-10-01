@@ -41,6 +41,9 @@ import { HEAT_INTENSITY_DEFAULT, heatWeight } from '../lib/heat'
 import { jumpTo, smoothScrollIntoView } from '../lib/scroll'
 import { buildSubspeciesIndex, computeSpeciesBreakdown, explorerEntries } from '../lib/subspeciesExplorer'
 import { SubspeciesExplorerControl, SubspeciesBreakdownSection } from './speciesDetail/SubspeciesExplorer'
+import { buildTaxonomyHistoryIndex, historyListEntries, lineageFor, type TaxonomyHistory } from '../lib/taxonomyHistory'
+import { loadTaxonomyHistory } from '../lib/taxonomyHistoryAsset'
+import { SplitsLumpsControl, SplitsLumpsSection } from './speciesDetail/SplitsLumps'
 import { SnowMap } from './SnowMap'
 import { SightingsMap } from './SightingsMap'
 import { buildSightingMarkers } from '../lib/sightingMarkers'
@@ -499,6 +502,58 @@ export function SpeciesDetail({ onGoToSettings, onGoToWeather, filesVersion, req
     requestAnimationFrame(() => jumpTo(breakdownRef.current, { block: 'nearest' }))
   }, [revealAndSelect])
 
+  // ── Splits and lumps (taxonomic-splits-lumps) ──────────────────────────
+  // The bundled history asset, loaded through its one dynamic import once the
+  // tab is ready (it rides its own chunk, off the entry graph). The loader
+  // memoizes its promise for the session and resolves null on failure, which is
+  // FR-28: nothing renders and no alert is raised.
+  const [history, setHistory] = useState<TaxonomyHistory | null>(null)
+  useEffect(() => {
+    if (phase.tag !== 'ready') return
+    let cancelled = false
+    loadTaxonomyHistory().then(h => { if (!cancelled) setHistory(h) })
+    return () => { cancelled = true }
+  }, [phase.tag])
+
+  // The index over the FULL backup, once per (observations, asset, codes)
+  // triple: the county/date filters and all three toolbar switches are
+  // structurally not inputs (FR-09, FR-24). `taxonMap` is the page's existing
+  // `/taxonomy/codes` result, so the index re-derives once more when that batch
+  // lands after the asset. A new load is a new observations array, so FR-27's
+  // full recompute falls out of memo identity and the old index becomes
+  // unreachable (the in-memory lifetime schema.md section 8 states).
+  const readyObservations = phase.tag === 'ready' ? phase.observations : null
+  const historyIndex = useMemo(
+    () => (readyObservations && history
+      ? buildTaxonomyHistoryIndex(readyObservations, history, { codes: taxonMap })
+      : null),
+    [readyObservations, history, taxonMap],
+  )
+  // The list: affected keys in the selector's order (FR-11). O(keys), no row work.
+  const historyEntries = useMemo(
+    () => (historyIndex ? historyListEntries(historyIndex, sortedSpeciesList) : []),
+    [historyIndex, sortedSpeciesList],
+  )
+  // The selected species' lineage: a Map read per species change (FR-25: one
+  // index and one lookup, whichever route selected it).
+  const selectedLineage = useMemo(
+    () => (historyIndex ? lineageFor(historyIndex, selectedSpecies) : null),
+    [historyIndex, selectedSpecies],
+  )
+  // A list pick selects through the page's own path, escapee reveal included,
+  // then brings the lineage section into view and focuses it (FR-12), exactly as
+  // the Subspecies Explorer's pick does for its breakdown.
+  const lineageRef = useRef<HTMLDivElement>(null)
+  const pickLineageSpecies = useCallback((name: string) => {
+    revealAndSelect(name)
+    requestAnimationFrame(() => jumpTo(lineageRef.current, { block: 'nearest' }))
+  }, [revealAndSelect])
+  // The shared host both taxonomy controls portal their open panels into, so a
+  // panel opens below BOTH toggles at full width with DOM order equal to visual
+  // order (PanelSlot in speciesDetail/ui.tsx). State, not a ref, so the controls
+  // re-render once it has mounted (ui.md v1.0.17).
+  const [taxToolsHost, setTaxToolsHost] = useState<HTMLDivElement | null>(null)
+
   // Media counts
   const mediaCounts = useMemo(
     () => computeMediaCounts(speciesObs, phase.tag === 'ready' ? phase.mediaMap : new Map<string, string>()),
@@ -774,15 +829,34 @@ export function SpeciesDetail({ onGoToSettings, onGoToWeather, filesVersion, req
         />
       </div>
 
-      {/* Subspecies Explorer entry control, directly below the selector and
-          above the filter row (FR-04). Merged mode only (FR-19); ready state
-          only by position in this branch (FR-23). */}
+      {/* The taxonomy tools row, directly below the selector and above the
+          filter row: "Subspecies and forms" (FR-04) with "Splits and lumps"
+          beside it (taxonomic-splits-lumps FR-10). Merged mode only (FR-19,
+          FR-24); ready state only by position in this branch (FR-23). The
+          Splits and lumps control also waits for its asset and is absent if it
+          fails to load (FR-28). Each control's panel opens in the host below
+          the row, at full width. */}
       {mergeSubspecies && (
-        <SubspeciesExplorerControl
-          entries={ssxEntries}
-          selectedSpecies={selectedSpecies}
-          onPick={pickExplorerSpecies}
-        />
+        <div className="sr-taxtools">
+          <div className="sr-taxtools-row">
+            <SubspeciesExplorerControl
+              entries={ssxEntries}
+              selectedSpecies={selectedSpecies}
+              onPick={pickExplorerSpecies}
+              panelHost={taxToolsHost}
+            />
+            {history && historyIndex && (
+              <SplitsLumpsControl
+                entries={historyEntries}
+                coverage={history.coverage}
+                selectedSpecies={selectedSpecies}
+                onPick={pickLineageSpecies}
+                panelHost={taxToolsHost}
+              />
+            )}
+          </div>
+          <div ref={setTaxToolsHost} />
+        </div>
       )}
 
       {/* Filter controls row. .sr-ctl-row keeps the Clear filter button at the same
@@ -1124,6 +1198,24 @@ export function SpeciesDetail({ onGoToSettings, onGoToWeather, filesVersion, req
               qualifies={(subspeciesIndex?.get(selectedSpecies)?.formCounts.size ?? 0) > 0}
               sightingsTotal={speciesObs.length}
               resetKey={`${selectedSpecies}|${countyFilter ?? ''}|${dateRange.from}|${dateRange.to}`}
+            />
+          )}
+
+          {/* Splits and Lumps lineage (taxonomic-splits-lumps), immediately
+              after Subspecies and Forms and before Graph Options (OQ-03), full
+              width. Merged mode only, and never silently absent for a selected
+              species there (FR-21): outside the Sightings fragment, so it
+              renders in every body state. Counts cover the whole backup; a
+              county or date filter only adds the one-line note (FR-09). */}
+          {mergeSubspecies && history && historyIndex && (
+            <SplitsLumpsSection
+              ref={lineageRef}
+              lineage={selectedLineage}
+              events={historyIndex.events}
+              selectedSpecies={selectedSpecies}
+              coverage={history.coverage}
+              filterActive={hasLocationFilter}
+              onOpenSpecies={openSpeciesInTab}
             />
           )}
 

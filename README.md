@@ -24,7 +24,7 @@ Your sightings on an interactive map, with nearby eBird hotspots and where speci
 
 ### Species Detail
 
-Your whole history with one bird: sightings, field notes, breeding codes and a map of every observation. A weather card shows the skies and temperatures you have found this bird in, drawn from the same SnowRaven and RainCrow weather blocks.
+Your whole history with one bird: sightings, field notes, breeding codes, a map of every observation and any splits or lumps along the way. A weather card shows the skies and temperatures you found it in, from SnowRaven and RainCrow weather blocks.
 
 ### Calendar
 

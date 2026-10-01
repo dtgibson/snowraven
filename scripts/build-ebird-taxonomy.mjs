@@ -37,6 +37,15 @@
 // VERSION: hand-bumped to the Clements/eBird year, aligned with the desktop
 // CACHE_KEY suffix in taxonomyService.ts (taxonomy-v2027 => "2027"). Bump this AND
 // CACHE_KEY together on the annual revision (see CLAUDE.md / DECISIONS.md).
+//
+// THE ANNUAL REVISION ALSO RE-RUNS THE SPLITS-AND-LUMPS HISTORY
+// (taxonomic-splits-lumps): after this writes the new snapshot, add the new
+// year's two Cornell files to scripts/taxonomy-history-input/ (its README says
+// which), add the year's published date and eBird's announced tally to
+// UPDATE_PUBLISHED in scripts/lib/taxonomyHistoryDerive.mjs, and run
+//   node scripts/build-taxonomy-history.mjs
+// The history records the snapshot version it was built against, and
+// taxonomyHistoryAsset.test.ts fails while the two disagree.
 
 import { writeFile, mkdir } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'

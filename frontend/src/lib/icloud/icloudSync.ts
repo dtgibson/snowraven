@@ -12,7 +12,8 @@
 //   enable, foreground/focus, the native change and identity events
 //   (debounced), a five-minute poll while visible, Check now, Download now,
 //   Retry, a local file save, and a bounded re-read while a county reads
-//   "Waiting to upload" (UPLOAD_RECHECK_MS);
+//   "Waiting to upload" (UPLOAD_RECHECK_MS, backing off to
+//   UPLOAD_RECHECK_LONG_MAX while its upload is still being sent);
 // - applying each slot's decision through the storage seam's chained links,
 //   running exactly the cache invalidations Settings runs today, and
 //   notifying the file epoch so every tab re-enters its loading phase;
@@ -94,7 +95,8 @@ export const CHECK_DEADLINE_MS = 10_000
     While a check leaves a county reading "Waiting to upload" (the daemon has
     not sent it yet), a follow-up check re-reads the flag this often, at most
     UPLOAD_RECHECK_MAX times in a row (two minutes), after which the
-    five-minute visible poll governs as before. Nothing else reliably
+    five-minute visible poll governs as before (unless the upload is still
+    being sent: UPLOAD_RECHECK_LONG_MAX, below, entry 22). Nothing else reliably
     re-reads it: the native watch sees record files only, never the county
     file whose flag also gates the row, and the check the push's own record
     write triggers runs before the daemon has sent anything. Since the device
@@ -105,6 +107,26 @@ export const CHECK_DEADLINE_MS = 10_000
     reason: nothing else re-reads a county file that finishes downloading. */
 export const UPLOAD_RECHECK_MS = 15_000
 export const UPLOAD_RECHECK_MAX = 8
+/** The iPad report after its restart (icloud-bar-chart-sync decisions.md
+    entry 22): a 250 KB county file was still being sent when the eighth
+    re-read ran, so the row stayed on "Waiting to upload" after iCloud had
+    finished. While a check leaves a county waiting on an upload iCloud is
+    still sending (the county pass's `uploading`: the file or its record
+    reports an upload under way, or no upload error), the SAME timer and the
+    SAME count carry on past UPLOAD_RECHECK_MAX, backing off, up to this many
+    re-reads in a row. The schedule (`uploadRecheckDelay`): 8 at
+    UPLOAD_RECHECK_MS (15 s), 4 at twice it (30 s), 14 at four times it (60 s),
+    which is 18 minutes of waiting in all before the last re-read. Bounded by
+    COUNT, never a clock read. Only what already reset the count resets it: a
+    check that leaves nothing waiting, and a new add on the Targets tab. */
+export const UPLOAD_RECHECK_LONG_MAX = 26
+
+/** The wait before re-read number `done + 1`, as a multiple of `baseMs`. */
+export function uploadRecheckDelay(done: number, baseMs: number): number {
+  if (done < UPLOAD_RECHECK_MAX) return baseMs
+  if (done < UPLOAD_RECHECK_MAX + 4) return 2 * baseMs
+  return 4 * baseMs
+}
 /** How long "Copy iCloud details" waits for the native scan. The command
     itself answers within its 8 s budget (a scan that runs out comes back as
     `scanError`) plus the iOS device-name hop; this only bounds a native layer
@@ -302,6 +324,9 @@ export function createICloudController(deps: ControllerDeps): ICloudController {
   let uploadRechecks = 0
   // Whether the last check left something it asked iCloud for on its way.
   let checkPending = false
+  // Whether the last check left a county waiting on an upload iCloud is still
+  // sending (entry 22): the re-read may then run to UPLOAD_RECHECK_LONG_MAX.
+  let checkUploading = false
   // Counties whose own file the county pass wrote again this session (the
   // repair of a pre-fix write, decisions.md entry 19): at most once each, so a
   // device whose flags never read a just-written file as current cannot
@@ -1114,6 +1139,7 @@ export function createICloudController(deps: ControllerDeps): ICloudController {
   async function runCheck(): Promise<CheckOutcome> {
     checksRun += 1
     checkPending = false
+    checkUploading = false
     setICloudState({ checking: true })
     const failed: CheckOutcome = { ok: false, transferred: false, at: pref.lastCheckAt }
     // NFR-04: one 10 s budget for the reads of this check. Wall-clock from
@@ -1216,6 +1242,7 @@ export function createICloudController(deps: ControllerDeps): ICloudController {
       const counties = await runCountyPass(countyCtx(), remaining)
       if (counties.transferred) transferred = true
       if (counties.pending) checkPending = true
+      if (counties.uploading) checkUploading = true
       if (counties.failed) {
         await savePref()
         publishShared()
@@ -1297,25 +1324,31 @@ export function createICloudController(deps: ControllerDeps): ICloudController {
    * After every check: while a county reads "Waiting to upload", or the check
    * left something it asked iCloud for still on its way (`checkPending`), on
    * a check that reached iCloud, re-read in UPLOAD_RECHECK_MS, at most
-   * UPLOAD_RECHECK_MAX times in a row. A failed check arms nothing (offline,
-   * the rows keep their state and the usual triggers resume), a queued check
-   * is about to re-read anyway, and a hidden window waits for the foreground
-   * trigger, as the poll does. Only a check that leaves nothing waiting
-   * resets the count, so a file iCloud never takes or never sends cannot keep
-   * this running.
+   * UPLOAD_RECHECK_MAX times in a row; and while a waiting county's upload is
+   * still being sent (`checkUploading`, entry 22), on to
+   * UPLOAD_RECHECK_LONG_MAX on the `uploadRecheckDelay` backoff. A failed
+   * check arms nothing (offline, the rows keep their state and the usual
+   * triggers resume), a queued check is about to re-read anyway, and a hidden
+   * window waits for the foreground trigger, as the poll does. Only a check
+   * that leaves nothing waiting resets the count (and a new add, in
+   * `barChartSaved`), so a file iCloud never takes or never sends cannot keep
+   * this running: one timer, one count, and every path through here clears
+   * the timer before it arms one.
    */
   function armUploadRecheck(outcome: CheckOutcome): void {
     clearUploadRecheck()
-    const waiting = checkPending || Object.values(getICloudState().barCharts).some((v) => v.state === 'waiting-to-upload')
+    const countyWaiting = Object.values(getICloudState().barCharts).some((v) => v.state === 'waiting-to-upload')
+    const waiting = checkPending || countyWaiting
     if (!waiting) uploadRechecks = 0
-    if (disposed || !pref.enabled || !outcome.ok || !waiting || queued || uploadRechecks >= UPLOAD_RECHECK_MAX) return
+    const cap = countyWaiting && checkUploading ? UPLOAD_RECHECK_LONG_MAX : UPLOAD_RECHECK_MAX
+    if (disposed || !pref.enabled || !outcome.ok || !waiting || queued || uploadRechecks >= cap) return
     uploadRecheckTimer = setTimeout(() => {
       uploadRecheckTimer = null
       const view = deps.view
       if (view && view.document.visibilityState === 'hidden') return
       uploadRechecks += 1
       void requestCheck('upload status')
-    }, uploadRecheckMs)
+    }, uploadRecheckDelay(uploadRechecks, uploadRecheckMs))
   }
 
   // ── triggers ───────────────────────────────────────────────────────────
