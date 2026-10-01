@@ -372,10 +372,13 @@ italic at 0.71875rem `--sr-text-gray`.
   on the map. It covers every phase in between (the data load, the location
   fix, the fetch), because a landing that takes seconds with nothing on screen
   reads as a tap that did nothing. Copy is `Finding {name} near you…` when the
-  app already holds the name, otherwise a fixed line (`Finding the bird you
-  tapped…`, `Finding nearby lifers…`); a name is only ever the app's own, never
-  text the link carried. The visible chip is `aria-hidden` and one ALWAYS-
-  mounted polite live region announces the line once per link; the spinner is
+  app already holds the name and the search is from the device, `Finding
+  {name}…` when it is from a point the link names (an alert's point, or a
+  widget list measured from the Default Location), otherwise a fixed line
+  (`Finding the bird you tapped…`, `Finding nearby lifers…`); a name is only
+  ever the app's own, never text the link carried. The visible chip is
+  `aria-hidden` and one ALWAYS-mounted polite live region announces the line
+  once per link; the spinner is
   static under reduced motion. The landing chip sizes to its content
   (`.sr-map-landing-chip`, `width: max-content`, still capped at the map less
   24px), because the centered chip's shrink-to-fit width is capped at half the
@@ -671,7 +674,15 @@ italic at 0.71875rem `--sr-text-gray`.
   footer turn to bars; a placeholder is a state); a nearest-first list with
   the distance as the single accented figure; and a muted footer
   (`Updated 9:41 AM`, preceded by `From your default location`, `Offline` or
-  `eBird busy`, joined by middle dots). Rows per family are fixed (small one,
+  `eBird busy`, joined by middle dots). `From your default location` shows
+  whenever the list was measured from the Default Location, chosen or as the
+  fallback for a position the widget could not get: the tile never shows its
+  settings, so on a home screen mixing both choices the caption is the only
+  thing that tells two tiles apart. Settings live in iOS's Edit Widget sheet as
+  App Intents parameters (`Time range`, then `Media` on Media Targets, then
+  `Measure from`), the rows a birder already knows first, each value with a
+  one-clause second line, and each default being the shipped behavior, so an
+  update leaves a placed widget unchanged. Rows per family are fixed (small one,
   medium three, large eight) and a row that does not fit at the rendered text
   size is dropped WHOLE, never clipped. An empty or error state is one plain
   sentence in the Map Explorer overlay register, with no icon and no color;
