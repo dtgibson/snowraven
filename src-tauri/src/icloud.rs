@@ -560,6 +560,15 @@ pub struct ListedFile {
     pub byte_length: Option<u64>,
     /// Both the file and its record report iCloud holds them (the csv rule).
     pub uploaded: bool,
+    /// The file or its record reports iCloud is sending it now
+    /// (`NSURLUbiquitousItemIsUploadingKey`), decisions.md entry 22.
+    pub uploading: bool,
+    /// The file or its record carries `NSURLUbiquitousItemUploadingErrorKey`
+    /// (a refused upload, a quota refusal among them), entry 22. The frontend
+    /// keeps re-reading a waiting county past its short cap only while this is
+    /// false or `uploading` is true: an upload iCloud has refused and stopped
+    /// trying will not finish by itself.
+    pub upload_error: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -1438,12 +1447,15 @@ fn coordinated_delete(docs: &Path, name: &str) -> Result<bool, String> {
 /// resourceValuesForKeys on its logical URL (Foundation answers for a
 /// not-yet-downloaded placeholder too). Absent values fall back to what the
 /// bytes on disk say, so a non-ubiquitous copy reads as downloaded and
-/// uploaded rather than trapping a row in a transfer state.
+/// uploaded rather than trapping a row in a transfer state. `upload_error` is
+/// whether an uploading error is present (entry 22); absent reads false.
+#[derive(Clone, Copy)]
 struct UbiquityFlags {
     downloaded: bool,
     downloading: bool,
     uploaded: bool,
     uploading: bool,
+    upload_error: bool,
 }
 
 fn ubiquity_flags(path: &Path) -> UbiquityFlags {
@@ -1455,12 +1467,13 @@ fn ubiquity_flags(path: &Path) -> UbiquityFlags {
             objc2_foundation::NSURLUbiquitousItemIsDownloadingKey,
             objc2_foundation::NSURLUbiquitousItemIsUploadedKey,
             objc2_foundation::NSURLUbiquitousItemIsUploadingKey,
+            objc2_foundation::NSURLUbiquitousItemUploadingErrorKey,
         ])
     };
     let values = match url.resourceValuesForKeys_error(&keys) {
         Ok(v) => v,
         Err(_) => {
-            return UbiquityFlags { downloaded: on_disk, downloading: false, uploaded: on_disk, uploading: false };
+            return UbiquityFlags { downloaded: on_disk, downloading: false, uploaded: on_disk, uploading: false, upload_error: false };
         }
     };
     let bool_for = |key: &objc2_foundation::NSURLResourceKey| -> Option<bool> {
@@ -1481,6 +1494,7 @@ fn ubiquity_flags(path: &Path) -> UbiquityFlags {
         downloading: bool_for(unsafe { objc2_foundation::NSURLUbiquitousItemIsDownloadingKey }).unwrap_or(false),
         uploaded: bool_for(unsafe { objc2_foundation::NSURLUbiquitousItemIsUploadedKey }).unwrap_or(on_disk),
         uploading: bool_for(unsafe { objc2_foundation::NSURLUbiquitousItemIsUploadingKey }).unwrap_or(false),
+        upload_error: values.objectForKey(unsafe { objc2_foundation::NSURLUbiquitousItemUploadingErrorKey }).is_some(),
     }
 }
 
@@ -1505,7 +1519,7 @@ fn csv_status(docs: &Path, slot: Slot) -> FileStatus {
     let record = if item_present(docs, &record_name) {
         ubiquity_flags(&docs.join(&record_name))
     } else {
-        UbiquityFlags { downloaded: true, downloading: false, uploaded: true, uploading: false }
+        UbiquityFlags { downloaded: true, downloading: false, uploaded: true, uploading: false, upload_error: false }
     };
     let byte_length = regular_file_len(&real).ok();
     FileStatus {
@@ -2041,10 +2055,15 @@ fn ensure_subdir_with<I: ContainerIo>(io: &I, docs: &Path, kind: ItemKind) -> Re
     r
 }
 
-/// Whether the item's record reports iCloud holds it (absent reads false).
-fn record_uploaded(sub: &Path, item: &SyncItem) -> bool {
+/// The item's record's ubiquity flags; None when there is no record (which
+/// the listing reads as not uploaded).
+fn record_flags(sub: &Path, item: &SyncItem) -> Option<UbiquityFlags> {
     let name = item.record_name();
-    item_present(sub, &name) && ubiquity_flags(&sub.join(&name)).uploaded
+    if item_present(sub, &name) {
+        Some(ubiquity_flags(&sub.join(&name)))
+    } else {
+        None
+    }
 }
 
 /// The item's companion file as the listing reports it: flags only, the file
@@ -2055,12 +2074,23 @@ fn record_uploaded(sub: &Path, item: &SyncItem) -> bool {
 /// under that name, and the file on disk is a second item this device made
 /// beside it (a write by a 1.0.40.1 to 1.0.40.3 build onto a name whose item was never
 /// downloaded here), which iCloud cannot upload under the same name. It is
-/// never reported downloaded, so the writer repairs it and a reader never
-/// pulls the wrong bytes from it.
-fn item_file_status(sub: &Path, item: &SyncItem, record_up: bool) -> ListedFile {
+/// never reported downloaded, so a reader never pulls the wrong bytes from it
+/// (and, since entry 22, the writer does not repair it either).
+///
+/// `uploading` and `upload_error` fold the file's and its record's flags the
+/// way `uploaded` does (entry 22): the row waits on both.
+fn item_file_status(sub: &Path, item: &SyncItem, record: Option<&UbiquityFlags>) -> ListedFile {
     let name = item.file_name();
     if !item_present(sub, &name) {
-        return ListedFile { present: false, downloaded: false, downloading: false, byte_length: None, uploaded: false };
+        return ListedFile {
+            present: false,
+            downloaded: false,
+            downloading: false,
+            byte_length: None,
+            uploaded: false,
+            uploading: false,
+            upload_error: false,
+        };
     }
     let path = sub.join(&name);
     let f = ubiquity_flags(&path);
@@ -2070,7 +2100,9 @@ fn item_file_status(sub: &Path, item: &SyncItem, record_up: bool) -> ListedFile 
         downloaded: f.downloaded && !contested,
         downloading: f.downloading,
         byte_length: regular_file_len(&path).ok(),
-        uploaded: f.uploaded && record_up,
+        uploaded: f.uploaded && record.is_some_and(|r| r.uploaded),
+        uploading: f.uploading || record.is_some_and(|r| r.uploading),
+        upload_error: f.upload_error || record.is_some_and(|r| r.upload_error),
     }
 }
 
@@ -2333,10 +2365,10 @@ fn list_items_with<I: ContainerIo>(docs: &Path, kind: ItemKind, max: usize, io: 
         let record_path = sub.join(&record_name);
         let present = item_present(&sub, &record_name);
         let mut record = None;
-        let mut record_up = false;
+        let mut record_fl = None;
         if present {
             let flags = io.flags(&record_path);
-            record_up = flags.uploaded;
+            record_fl = Some(flags);
             if flags.downloaded {
                 let _ = take_last_error();
                 record = match io.read(&sub, &record_name) {
@@ -2353,7 +2385,7 @@ fn list_items_with<I: ContainerIo>(docs: &Path, kind: ItemKind, max: usize, io: 
                 fetch.push((items.len(), record_name, record_path));
             }
         }
-        let file = item_file_status(&sub, &item, record_up);
+        let file = item_file_status(&sub, &item, record_fl.as_ref());
         items.push(ListedItem { id, present, record, file });
     }
     let outcomes = read_fetched_records(&sub, &mut items, fetch, io, gate);
@@ -2502,8 +2534,9 @@ fn push_item_at(
 /// `push_item_at` over any `ContainerIo`, plus the REPAIR mode (decisions.md
 /// entry 19): with `repair_sha256` set, this device's own record is already in
 /// iCloud and names that digest, but the county file under its name is
-/// missing, is not the file the record describes, or is contested (a pre-fix
-/// write left it beside a placeholder). The local bytes are written as the
+/// missing (no file and no placeholder) or is a current copy of another length
+/// than the record names (the caller's trigger, narrowed in entry 22 so an
+/// evicted or contested copy never reaches here). The local bytes are written as the
 /// county FILE ONLY, and only when their digest equals the record's; anything
 /// else writes nothing and reports `skipped`. The record is never rewritten
 /// here: the file can go missing because another device is clearing the
@@ -2571,7 +2604,7 @@ fn push_item_steps<I: ContainerIo>(
     let skip = unless_sha256 == Some(sha256.as_str()) || repair_sha256.is_some_and(|r| r != sha256);
     if skip {
         let uploaded = match real_subdir(docs, item.kind()) {
-            Some(sub) => item_file_status(&sub, item, record_uploaded(&sub, item)).uploaded,
+            Some(sub) => item_file_status(&sub, item, record_flags(&sub, item).as_ref()).uploaded,
             None => false,
         };
         return Ok(ItemPushResult { sha256, byte_length, uploaded, skipped: true, superseded: false });
@@ -2607,7 +2640,7 @@ fn push_item_steps<I: ContainerIo>(
         let json = serde_json::to_vec(&record).map_err(|_| "unknown".to_string())?;
         write(&item.container_record(), &json)?;
     }
-    let uploaded = item_file_status(&sub, item, record_uploaded(&sub, item)).uploaded;
+    let uploaded = item_file_status(&sub, item, record_flags(&sub, item).as_ref()).uploaded;
     Ok(ItemPushResult { sha256, byte_length, uploaded, skipped: false, superseded: false })
 }
 
@@ -3238,7 +3271,8 @@ pub async fn icloud_remove_items(kind: ItemKind) -> Result<RemoveResult, String>
 //   the last push, pull and removal marker. Process memory only: never
 //   persisted, never synced, gone at relaunch.
 // - `icloud_diagnostics`, a scan of the container and the local bar-chart
-//   store: for the control item (the eBird backup and its record), the
+//   store: for the two control items (the eBird backup and the Macaulay
+//   Library export, each with its record), the
 //   `Documents`, `barcharts` and `day-obs` folders, every entry in those two
 //   folders (records, removal markers, iCloud's set-aside twins and the
 //   `.name.icloud` placeholders, grouped by the item they stand for), any
@@ -3248,10 +3282,11 @@ pub async fn icloud_remove_items(kind: ItemKind) -> Result<RemoveResult, String>
 //
 // What it never does: download, write or delete anything (resource values and
 // NSFileVersion's list are metadata reads, and a placeholder is never opened);
-// read an eBird file's bytes, a filename the user chose, a digest or an API
-// key (a record is read only through `record_text_at`, from a local copy
-// already on disk, and only its state, county, times, size and origin are
-// kept). Every name that becomes a path passed `County::parse`,
+// read an eBird backup's or Macaulay Library export's bytes, a filename the
+// user chose, a digest or an API key (a record is read only through
+// `record_text_at`, and only when its own resource values say its bytes are
+// already on this device, `record_bytes_are_local`; only its state, county,
+// times, size and origin are kept). Every name that becomes a path passed `County::parse`,
 // `DeviceId::parse`, `twin_name` or `is_duplicate_subdir` first, or is a fixed
 // constant; an entry that matches none is reported by its sanitized name with
 // the type and size `DirEntry` gives (no symlink followed, no path built).
@@ -3570,6 +3605,10 @@ fn diag_values(path: &Path, versions: bool) -> DiagValues {
 pub struct DiagRecord {
     /// The text parsed as JSON.
     pub readable: bool,
+    /// The record's bytes are not on this device (a placeholder, or resource
+    /// values that do not say its copy is here), so it was not read: the
+    /// report says "not downloaded here" (security report I10).
+    pub not_downloaded: bool,
     pub slot: Option<String>,
     pub state: Option<String>,
     pub county: Option<String>,
@@ -3581,11 +3620,31 @@ pub struct DiagRecord {
     pub origin_device_id: Option<String>,
 }
 
-/// A record's fields from a LOCAL copy already on disk: the read is
-/// `record_text_at`'s (a regular file, never followed, bounded at 16 KB
-/// before it is loaded, UTF-8 or empty), uncoordinated, so it downloads
-/// nothing. Each kept field is bounded or validated; everything else is
-/// dropped.
+/// Whether a record's bytes are already on this device, as its OWN resource
+/// values say (security report I10, App Store build 1.0.40.6). Where iCloud
+/// Drive keeps a not-downloaded item as a dataless file under its real name
+/// (File Provider), lstat reports a regular file and a plain read would make
+/// the kernel download it, stalling the scan on a device that is offline or
+/// stuck. So the read happens only for `Current` or `Downloaded` (a local copy
+/// iCloud knows is out of date, which is still whole on disk), or for an item
+/// Foundation does not call ubiquitous and could describe (not in iCloud, so
+/// there is nothing to download: the tests' temporary directory). Anything
+/// else, `NotDownloaded`, a status this build does not know, an iCloud item
+/// with no status, or values that could not be read, is not read.
+fn record_bytes_are_local(values: Option<&DiagValues>) -> bool {
+    let Some(v) = values else { return false };
+    match v.download_status.as_deref() {
+        Some("Current") | Some("Downloaded") => true,
+        Some(_) => false,
+        None => v.is_ubiquitous != Some(true) && v.read_error.is_none(),
+    }
+}
+
+/// A record's fields from a LOCAL copy already on disk (the caller has
+/// checked `record_bytes_are_local`): the read is `record_text_at`'s (a
+/// regular file, never followed, bounded at 16 KB before it is loaded, UTF-8
+/// or empty), uncoordinated. Each kept field is bounded or validated;
+/// everything else is dropped.
 fn diag_record(path: &Path) -> Option<DiagRecord> {
     let text = match record_text_at(path) {
         Ok(Some(t)) => t,
@@ -3599,6 +3658,7 @@ fn diag_record(path: &Path) -> Option<DiagRecord> {
     let origin = |k: &str| v.get("origin").and_then(|o| o.get(k)).and_then(|x| x.as_str());
     Some(DiagRecord {
         readable: true,
+        not_downloaded: false,
         slot: s("slot", 16),
         state: s("state", 16),
         county: v.get("county").and_then(|x| x.as_str()).filter(|c| County::parse(c).is_ok()).map(str::to_string),
@@ -3627,7 +3687,8 @@ pub struct DiagItem {
     pub modified_ms: Option<i64>,
     /// None when nothing is under the name or it is a symlink (never asked).
     pub values: Option<DiagValues>,
-    /// A record's fields, when a local copy is on disk.
+    /// A record's fields, when its copy is on this device; `not_downloaded`
+    /// when a placeholder or a copy its values do not call local stands there.
     pub record: Option<DiagRecord>,
 }
 
@@ -3638,6 +3699,13 @@ fn meta_ms(meta: &fs::Metadata) -> Option<i64> {
 /// One item at `dir/name`, where `name` is a fixed constant or was rebuilt
 /// from a validated id or twin shape (`diag_logical_name`).
 fn diag_item(dir: &Path, name: &str, role: &'static str) -> DiagItem {
+    diag_item_with(dir, name, role, &diag_values)
+}
+
+/// `diag_item` with the resource-value collector passed in, so a test can
+/// give a record the status a real container would (a temporary directory
+/// never reports one).
+fn diag_item_with(dir: &Path, name: &str, role: &'static str, values_of: &dyn Fn(&Path, bool) -> DiagValues) -> DiagItem {
     let path = dir.join(name);
     let meta = fs::symlink_metadata(&path).ok();
     let placeholder = fs::symlink_metadata(placeholder_path(dir, name)).ok().filter(|m| m.file_type().is_file());
@@ -3657,9 +3725,18 @@ fn diag_item(dir: &Path, name: &str, role: &'static str) -> DiagItem {
     let values = if on_disk == "absent" || is_link {
         None
     } else {
-        Some(diag_values(&path, !matches!(role, "folder" | "duplicate-folder")))
+        Some(values_of(&path, !matches!(role, "folder" | "duplicate-folder")))
     };
-    let record = if role == "record" && is_file { diag_record(&path) } else { None };
+    let not_downloaded = || Some(DiagRecord { not_downloaded: true, ..DiagRecord::default() });
+    let record = if role != "record" {
+        None
+    } else if is_file {
+        if record_bytes_are_local(values.as_ref()) { diag_record(&path) } else { not_downloaded() }
+    } else if meta.is_none() && p {
+        not_downloaded()
+    } else {
+        None
+    };
     DiagItem { name: diag_text(name, DIAG_NAME_MAX), role, on_disk, size, modified_ms, values, record }
 }
 
@@ -3816,14 +3893,24 @@ fn diag_staging(docs: &Path, max: usize, max_scan: usize) -> DiagStaging {
 #[serde(rename_all = "camelCase")]
 pub struct DiagContainer {
     pub documents: DiagItem,
-    /// The control item: the synced eBird backup and its record.
-    pub control: Vec<DiagItem>,
+    /// The control items: the synced eBird backup and the Macaulay Library
+    /// export, each file with its record.
+    pub control: Vec<DiagControl>,
     pub barcharts: DiagDir,
     pub day_obs: DiagDir,
     pub duplicates: Vec<DiagItem>,
     pub staging: DiagStaging,
     /// Entries in `Documents/` that are none of the above (counted only).
     pub documents_other: u32,
+}
+
+/// One synced slot's file and record, as the report shows them.
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct DiagControl {
+    /// `ebird` or `ml`.
+    pub slot: &'static str,
+    pub items: Vec<DiagItem>,
 }
 
 /// The container half of the scan, over any directory (a temporary one in
@@ -3833,7 +3920,13 @@ fn diag_container(docs: &Path, max_items: usize, max_scan: usize) -> DiagContain
         (Some(parent), Some(name)) => diag_item(parent, name, "folder"),
         _ => diag_item(docs, ".", "folder"),
     };
-    let control = vec![diag_item(docs, Slot::Ebird.csv_name(), "file"), diag_item(docs, &Slot::Ebird.record_name(), "record")];
+    let control = [Slot::Ebird, Slot::Ml]
+        .into_iter()
+        .map(|slot| DiagControl {
+            slot: slot.key(),
+            items: vec![diag_item(docs, slot.csv_name(), "file"), diag_item(docs, &slot.record_name(), "record")],
+        })
+        .collect();
     let known: [String; 8] = [
         LOCAL_EBIRD_FILE.to_string(),
         LOCAL_ML_FILE.to_string(),
@@ -3894,6 +3987,7 @@ pub struct DiagLocalFile {
 #[serde(rename_all = "camelCase")]
 pub struct DiagLocal {
     pub ebird_file: Option<DiagLocalFile>,
+    pub ml_file: Option<DiagLocalFile>,
     pub day_obs_file: Option<DiagLocalFile>,
     pub barcharts_folder: bool,
     pub barcharts: Vec<DiagLocalFile>,
@@ -3926,6 +4020,7 @@ fn local_file(path: &Path, name: &str) -> Option<DiagLocalFile> {
 fn diag_local(data_dir: &Path, max_items: usize, max_scan: usize) -> DiagLocal {
     let mut out = DiagLocal {
         ebird_file: local_file(&data_dir.join(LOCAL_EBIRD_FILE), LOCAL_EBIRD_FILE),
+        ml_file: local_file(&data_dir.join(LOCAL_ML_FILE), LOCAL_ML_FILE),
         day_obs_file: local_file(&data_dir.join(LOCAL_DAY_OBS_FILE), LOCAL_DAY_OBS_FILE),
         barcharts_folder: fs::symlink_metadata(data_dir.join(LOCAL_BARCHARTS_DIR)).map(|m| m.file_type().is_dir()).unwrap_or(false),
         barcharts: Vec::new(),
@@ -4623,6 +4718,13 @@ mod tests {
         assert_eq!(ca.record.as_deref(), Some(COUNTY_RECORD_GOLDEN));
         assert!(ca.file.present && ca.file.downloaded);
         assert_eq!(ca.file.byte_length, Some(3));
+        // Entry 22: a copy outside iCloud reports no upload under way and no
+        // upload error, and both fields travel under the names the frontend
+        // reads (`NativeListedFile.uploading`, `.uploadError`).
+        assert!(!ca.file.uploading && !ca.file.upload_error);
+        let wire = serde_json::to_value(&ca.file).unwrap();
+        assert_eq!(wire["uploading"], serde_json::json!(false));
+        assert_eq!(wire["uploadError"], serde_json::json!(false));
         let ny = &listed.items[1];
         assert_eq!(ny.record.as_deref(), Some(COUNTY_CLEARED_GOLDEN));
         assert!(!ny.file.present);
@@ -4649,6 +4751,32 @@ mod tests {
         // The placeholder name of an undownloaded record names the same id.
         assert_eq!(record_id_from_name(".US-CA-001.record.json.icloud", ItemKind::Barchart).as_deref(), Some("US-CA-001"));
         assert_eq!(record_id_from_name(".US-CA-001.record.json", ItemKind::Barchart), None);
+        let _ = fs::remove_dir_all(&docs);
+    }
+
+    #[test]
+    fn a_listed_file_folds_its_records_upload_flags() {
+        // Entry 22: the listing's `uploading` and `upload_error` fold the
+        // file's flags with its record's, the way `uploaded` does. The file
+        // here is outside iCloud (Foundation reports no upload of its own), so
+        // every value the row sees comes from the record's flags.
+        let docs = tmp_dir("items-upload-fold");
+        let sub = docs.join("barcharts");
+        fs::create_dir_all(&sub).unwrap();
+        fs::write(sub.join("US-CA-001.txt"), b"abc").unwrap();
+        let item = county("US-CA-001");
+        let rec = |uploaded, uploading, upload_error| UbiquityFlags { downloaded: true, downloading: false, uploaded, uploading, upload_error };
+        let none = item_file_status(&sub, &item, None);
+        assert!(!none.uploaded && !none.uploading && !none.upload_error, "no record: not uploaded, nothing under way");
+        let sending = item_file_status(&sub, &item, Some(&rec(false, true, false)));
+        assert!(!sending.uploaded && sending.uploading && !sending.upload_error, "the record is being sent");
+        let refused = item_file_status(&sub, &item, Some(&rec(false, false, true)));
+        assert!(!refused.uploaded && !refused.uploading && refused.upload_error, "the record's upload was refused");
+        let held = item_file_status(&sub, &item, Some(&rec(true, false, false)));
+        assert!(held.uploaded && !held.uploading && !held.upload_error, "both held: uploaded");
+        fs::remove_file(sub.join("US-CA-001.txt")).unwrap();
+        let gone = item_file_status(&sub, &item, Some(&rec(false, true, true)));
+        assert!(!gone.present && !gone.uploading && !gone.upload_error, "an absent file reports none of it");
         let _ = fs::remove_dir_all(&docs);
     }
 
@@ -4710,7 +4838,7 @@ mod tests {
     impl ContainerIo for FakeIo {
         fn flags(&self, path: &Path) -> UbiquityFlags {
             match self.records.lock().unwrap().get(path) {
-                Some(r) => UbiquityFlags { downloaded: r.status == FakeStatus::Current, downloading: false, uploaded: true, uploading: false },
+                Some(r) => UbiquityFlags { downloaded: r.status == FakeStatus::Current, downloading: false, uploaded: true, uploading: false, upload_error: false },
                 None => ubiquity_flags(path),
             }
         }
@@ -5560,7 +5688,7 @@ mod tests {
     }
 
     /// A temporary stand-in for a container and the local store, shaped like
-    /// the user's report: the control item, a county file and record, another
+    /// the user's report: the two control items, a county file and record, another
     /// county held only as placeholders, a set-aside twin, a symlink planted at
     /// a county name, two unrecognized names, a duplicate folder, a staging
     /// entry and a day-obs snapshot.
@@ -5571,6 +5699,16 @@ mod tests {
         fs::create_dir_all(&bc).unwrap();
         fs::write(docs.join("ebird-backup.csv"), b"Submission ID,Common Name\n").unwrap();
         fs::write(docs.join("ebird.record.json"), SLOT_RECORD_GOLDEN).unwrap();
+        fs::write(docs.join("ml-export.csv"), b"ML Catalog Number,Format\n").unwrap();
+        fs::write(
+            docs.join("ml.record.json"),
+            format!(
+                r#"{{"version":1,"slot":"ml","state":"file","filename":"MyMLSecret.csv","uploadedAt":"2026-08-25T09:00:00.000Z","origin":{{"deviceId":"{}","label":"Dave's iPhone","platform":"iphone"}},"byteLength":2000,"sha256":"{}"}}"#,
+                "c".repeat(32),
+                GOLDEN_SHA
+            ),
+        )
+        .unwrap();
         fs::write(bc.join("US-CA-001.txt"), b"frequencies").unwrap();
         fs::write(
             bc.join("US-CA-001.record.json"),
@@ -5597,6 +5735,7 @@ mod tests {
         fs::write(local.join("barcharts").join("US-CA-001.txt"), b"frequencies").unwrap();
         fs::write(local.join("barcharts").join("US-CA-001.txt.tmp"), b"half").unwrap();
         fs::write(local.join("ebird-backup.csv"), b"Submission ID\n").unwrap();
+        fs::write(local.join("ml-export.csv"), b"ML Catalog Number\n").unwrap();
         (root, docs, local)
     }
 
@@ -5641,12 +5780,22 @@ mod tests {
         let c = payload.scan.as_ref().unwrap().container.as_ref().unwrap();
 
         assert_eq!(c.documents.on_disk, "folder");
-        assert_eq!(c.control.iter().map(|i| (i.name.as_str(), i.role, i.on_disk)).collect::<Vec<_>>(), vec![
-            ("ebird-backup.csv", "file", "file"),
-            ("ebird.record.json", "record", "file"),
+        // Both synced slots, each file with its record (the Macaulay Library
+        // export joined the eBird backup for the App Store build 1.0.40.6).
+        let control: Vec<(&str, Vec<(&str, &str, &str)>)> =
+            c.control.iter().map(|g| (g.slot, g.items.iter().map(|i| (i.name.as_str(), i.role, i.on_disk)).collect())).collect();
+        assert_eq!(control, vec![
+            ("ebird", vec![("ebird-backup.csv", "file", "file"), ("ebird.record.json", "record", "file")]),
+            ("ml", vec![("ml-export.csv", "file", "file"), ("ml.record.json", "record", "file")]),
         ]);
-        let slot_record = c.control[1].record.as_ref().unwrap();
+        let slot_record = c.control[0].items[1].record.as_ref().unwrap();
         assert_eq!((slot_record.state.as_deref(), slot_record.origin_label.as_deref()), (Some("file"), Some("Dave's MacBook Pro")));
+        let ml_record = c.control[1].items[1].record.as_ref().unwrap();
+        assert_eq!(
+            (ml_record.slot.as_deref(), ml_record.origin_label.as_deref(), ml_record.origin_platform.as_deref(), ml_record.byte_length),
+            (Some("ml"), Some("Dave's iPhone"), Some("iphone"), Some(2000))
+        );
+        assert_eq!(c.control[1].items[0].size, Some(25));
 
         assert_eq!(c.barcharts.folder.on_disk, "folder");
         let items: Vec<(&str, &str, &str)> = c.barcharts.items.iter().map(|i| (i.name.as_str(), i.role, i.on_disk)).collect();
@@ -5666,7 +5815,11 @@ mod tests {
         assert_eq!(rec.county.as_deref(), Some("US-CA-001"));
         assert_eq!(rec.origin_device_id.as_deref(), Some("b".repeat(32).as_str()));
         assert_eq!(rec.byte_length, Some(11));
-        assert!(by("US-CA-002.record.json").record.is_none(), "a placeholder record is never opened");
+        assert_eq!(
+            by("US-CA-002.record.json").record,
+            Some(DiagRecord { not_downloaded: true, ..DiagRecord::default() }),
+            "a placeholder record is never opened, and reads as not downloaded here"
+        );
 
         let other: Vec<&str> = c.barcharts.other.iter().map(|o| o.name.as_str()).collect();
         assert_eq!(other.len(), 2);
@@ -5680,12 +5833,13 @@ mod tests {
         assert_eq!(l.barcharts.iter().map(|f| f.name.as_str()).collect::<Vec<_>>(), vec!["US-CA-001.txt"]);
         assert_eq!(l.barcharts_other, 1);
         assert_eq!(l.ebird_file.as_ref().and_then(|f| f.size), Some(14));
+        assert_eq!(l.ml_file.as_ref().and_then(|f| f.size), Some(18));
 
         let json = serde_json::to_value(&payload).unwrap();
         let mut all = Vec::new();
         strings(&json, &mut all);
         for s in &all {
-            for forbidden in ["secret-name", "MyEBirdData", GOLDEN_SHA, "SENTINEL-KEY", "frequencies", "Submission ID", "localhost"] {
+            for forbidden in ["secret-name", "MyEBirdData", "MyMLSecret", GOLDEN_SHA, "SENTINEL-KEY", "frequencies", "Submission ID", "ML Catalog", "localhost"] {
                 assert!(!s.contains(forbidden), "{:?} carries {:?}", s, forbidden);
             }
             assert!(!s.chars().any(|ch| is_control(ch) || ch == '\u{202E}'), "{:?} carries a control character", s);
@@ -5702,6 +5856,52 @@ mod tests {
         }
         assert_eq!(ours, theirs, "the payload's shape and icloudDiagnostics.fixture.json disagree");
         let _ = fs::remove_dir_all(&root);
+    }
+
+    /// SECURITY REPORT I10 (App Store build 1.0.40.6): the report never makes
+    /// iCloud download a record. Where iCloud Drive keeps a not-downloaded
+    /// item as a dataless file under its real name, lstat sees a regular file
+    /// and a plain read would download it, so a record is read only when its
+    /// own resource values say its bytes are here. A temporary directory never
+    /// reports a status, so the statuses a container reports are passed in.
+    #[test]
+    fn a_diagnostic_record_is_read_only_when_its_values_say_its_bytes_are_on_this_device() {
+        let dir = tmp_dir("diag-record-gate");
+        fs::write(dir.join("US-CA-001.record.json"), format!(r#"{{"version":1,"slot":"barchart","county":"US-CA-001","state":"file","filename":"x.txt","uploadedAt":"2026-09-29T12:00:00.000Z","origin":{{"deviceId":"{}","label":"iPad","platform":"ipad"}},"byteLength":11,"sha256":"{}"}}"#, "b".repeat(32), GOLDEN_SHA)).unwrap();
+        let error = DiagError { domain: "NSCocoaErrorDomain".to_string(), code: 256, description: String::new(), underlying: None };
+        let item = |name: &str, status: Option<&str>, ubiquitous: Option<bool>, read_error: Option<DiagError>| {
+            let v = DiagValues { is_ubiquitous: ubiquitous, download_status: status.map(str::to_string), read_error, ..DiagValues::default() };
+            diag_item_with(&dir, name, "record", &move |_, _| v.clone())
+        };
+        let not_downloaded = Some(DiagRecord { not_downloaded: true, ..DiagRecord::default() });
+        // Read: a current copy, an out-of-date copy that is still whole on
+        // disk, and an item Foundation does not call ubiquitous (not in iCloud).
+        for (status, ubiquitous) in [(Some("Current"), Some(true)), (Some("Downloaded"), Some(true)), (None, None), (None, Some(false))] {
+            let r = item("US-CA-001.record.json", status, ubiquitous, None).record.unwrap_or_default();
+            assert!(r.readable && !r.not_downloaded, "{:?} {:?}", status, ubiquitous);
+            assert_eq!((r.county.as_deref(), r.byte_length), (Some("US-CA-001"), Some(11)), "{:?}", status);
+        }
+        // Not read, "not downloaded here": the dataless stand-in, a status this
+        // build does not know, an iCloud item with no status, and values that
+        // could not be read.
+        for (status, ubiquitous, read_error) in [
+            (Some("NotDownloaded"), Some(true), None),
+            (Some("SomethingNew"), Some(true), None),
+            (None, Some(true), None),
+            (None, None, Some(error.clone())),
+        ] {
+            assert_eq!(item("US-CA-001.record.json", status, ubiquitous, read_error).record, not_downloaded, "{:?} {:?}", status, ubiquitous);
+        }
+        // A placeholder alone reads the same, and is never opened.
+        fs::write(placeholder_path(&dir, "US-CA-002.record.json"), b"bplist-stub").unwrap();
+        assert_eq!(item("US-CA-002.record.json", Some("NotDownloaded"), Some(true), None).record, not_downloaded);
+        // Nothing under the name: no record line at all; and a county FILE is
+        // never read, whatever its status.
+        assert_eq!(item("US-CA-003.record.json", None, None, None).record, None);
+        fs::write(dir.join("US-CA-001.txt"), b"frequencies").unwrap();
+        let v = DiagValues { download_status: Some("Current".to_string()), ..DiagValues::default() };
+        assert_eq!(diag_item_with(&dir, "US-CA-001.txt", "file", &move |_, _| v.clone()).record, None);
+        let _ = fs::remove_dir_all(&dir);
     }
 
     /// The scan's bounds: items past `max_items` and names past the other

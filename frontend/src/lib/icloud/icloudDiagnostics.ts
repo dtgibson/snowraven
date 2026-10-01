@@ -15,8 +15,10 @@
 // platform, device names and the app's random device id, whether an iCloud
 // account token is present and the container resolves, county codes, item
 // names derived from them, sizes, dates, sync states and Apple's error codes
-// and descriptions. What it never carries: a byte of any file, a filename the
-// user chose, a digest, an API key.
+// and descriptions, for every synced file (the eBird backup, the Macaulay
+// Library export, each bar-chart file and the day-by-day answers). What it
+// never carries: a byte of any file, a filename the user chose, a digest, an
+// API key.
 //
 // SIZE BOUND. At most MAX_REPORT_CHARS (64,000) UTF-16 code units; a longer
 // report is cut at a line boundary and ends with TRUNCATED_NOTE. Every string
@@ -44,6 +46,9 @@ const MAX_OPS = 20
 const MAX_LAST = 64
 /** Local bar-chart files. */
 const MAX_LOCAL = 48
+/** The synced slots the container's control items stand for, by the native
+ *  `slot` word; any other word is dropped. */
+const CONTROL_SLOTS = { ebird: 'the synced eBird backup', ml: 'the synced Macaulay Library export' } as const
 
 export const TRUNCATED_NOTE = `[Report cut at ${MAX_REPORT_CHARS} characters.]`
 
@@ -203,6 +208,9 @@ function valuesText(v: unknown): string[] {
 function recordText(v: unknown): string | null {
   const r = obj(v)
   if (!r) return null
+  // The native scan reads a record only when its values say its bytes are
+  // here (security report I10), so it never makes iCloud download one.
+  if (bool(r, 'notDownloaded') === true) return 'record: not downloaded here'
   if (bool(r, 'readable') !== true) return 'record: not readable as JSON'
   const state = str(r, 'state', 16) ?? '-'
   const who = device(str(r, 'originLabel', 64), str(r, 'originPlatform', 8))
@@ -407,9 +415,13 @@ export function buildICloudReport(input: DetailsInput): string {
       out.push(`  Documents folder: ${str(docs, 'onDisk', 32) ?? '-'}`)
       for (const l of valuesText(field(docs, 'values'))) out.push(`    ${l}`)
     }
-    out.push('  Control item (the synced eBird backup):')
-    for (const it of list(container, 'control', 4)) out.push(...itemLines(it, '    '))
-    out.push(`    This device's view of it: ${viewText(s.slots.ebird)}`)
+    for (const ctl of list(container, 'control', 2)) {
+      const slot = str(ctl, 'slot', 8)
+      if (slot !== 'ebird' && slot !== 'ml') continue
+      out.push(`  Control item (${CONTROL_SLOTS[slot]}):`)
+      for (const it of list(ctl, 'items', 2)) out.push(...itemLines(it, '    '))
+      out.push(`    This device's view of it: ${viewText(s.slots[slot])}`)
+    }
     out.push(...dirLines('barcharts', barcharts))
     const dups = list(container, 'duplicates', MAX_DUPLICATES)
     out.push(dups.length === 0 ? '  Duplicate folders: none' : '  Duplicate folders:')
@@ -433,6 +445,7 @@ export function buildICloudReport(input: DetailsInput): string {
       return f ? `${str(f, 'kind', 16) ?? '-'}, ${bytes(num(f, 'size'))}, modified ${isoMs(num(f, 'modifiedMs'))}` : 'none'
     }
     out.push(`  eBird backup: ${lf(field(local, 'ebirdFile'))}`)
+    out.push(`  Macaulay Library export: ${lf(field(local, 'mlFile'))}`)
     out.push(`  Day-by-day answers: ${lf(field(local, 'dayObsFile'))}`)
     out.push(`  Bar-chart folder: ${yn(bool(local, 'barchartsFolder'))}`)
     for (const f of list(local, 'barcharts', MAX_LOCAL)) out.push(`    ${str(f, 'name', 64) ?? '(unnamed)'}: ${lf(f)}`)

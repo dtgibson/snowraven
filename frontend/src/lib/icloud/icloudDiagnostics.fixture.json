@@ -48,7 +48,7 @@
     "container": {
       "barcharts": {
         "folder": {
-          "modifiedMs": 1790742419609,
+          "modifiedMs": 1790790109136,
           "name": "barcharts",
           "onDisk": "folder",
           "record": null,
@@ -70,7 +70,7 @@
         },
         "items": [
           {
-            "modifiedMs": 1790742419609,
+            "modifiedMs": 1790790109136,
             "name": "US-CA-001 2.txt",
             "onDisk": "file",
             "record": null,
@@ -91,13 +91,14 @@
             }
           },
           {
-            "modifiedMs": 1790742419608,
+            "modifiedMs": 1790790109135,
             "name": "US-CA-001.record.json",
             "onDisk": "file",
             "record": {
               "byteLength": 11,
               "clearedAt": null,
               "county": "US-CA-001",
+              "notDownloaded": false,
               "originDeviceId": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
               "originLabel": "Dave's iPad",
               "originPlatform": "ipad",
@@ -123,7 +124,7 @@
             }
           },
           {
-            "modifiedMs": 1790742419607,
+            "modifiedMs": 1790790109135,
             "name": "US-CA-001.txt",
             "onDisk": "file",
             "record": null,
@@ -144,10 +145,22 @@
             }
           },
           {
-            "modifiedMs": 1790742419609,
+            "modifiedMs": 1790790109136,
             "name": "US-CA-002.record.json",
             "onDisk": "placeholder",
-            "record": null,
+            "record": {
+              "byteLength": null,
+              "clearedAt": null,
+              "county": null,
+              "notDownloaded": true,
+              "originDeviceId": null,
+              "originLabel": null,
+              "originPlatform": null,
+              "readable": false,
+              "slot": null,
+              "state": null,
+              "uploadedAt": null
+            },
             "role": "record",
             "size": null,
             "values": {
@@ -165,7 +178,7 @@
             }
           },
           {
-            "modifiedMs": 1790742419608,
+            "modifiedMs": 1790790109135,
             "name": "US-CA-002.txt",
             "onDisk": "placeholder",
             "record": null,
@@ -199,13 +212,13 @@
         "other": [
           {
             "kind": "file",
-            "modifiedMs": 1790742419609,
+            "modifiedMs": 1790790109136,
             "name": "notes.txt",
             "size": 1
           },
           {
             "kind": "file",
-            "modifiedMs": 1790742419609,
+            "modifiedMs": 1790790109136,
             "name": "readme.md",
             "size": 1
           }
@@ -215,62 +228,127 @@
       },
       "control": [
         {
-          "modifiedMs": 1790742419606,
-          "name": "ebird-backup.csv",
-          "onDisk": "file",
-          "record": null,
-          "role": "file",
-          "size": 26,
-          "values": {
-            "conflictVersions": 0,
-            "downloadError": null,
-            "downloadStatus": null,
-            "downloading": null,
-            "excludedFromSync": null,
-            "hasUnresolvedConflicts": null,
-            "isUbiquitous": null,
-            "readError": null,
-            "uploadError": null,
-            "uploaded": null,
-            "uploading": null
-          }
+          "items": [
+            {
+              "modifiedMs": 1790790109135,
+              "name": "ebird-backup.csv",
+              "onDisk": "file",
+              "record": null,
+              "role": "file",
+              "size": 26,
+              "values": {
+                "conflictVersions": 0,
+                "downloadError": null,
+                "downloadStatus": null,
+                "downloading": null,
+                "excludedFromSync": null,
+                "hasUnresolvedConflicts": null,
+                "isUbiquitous": null,
+                "readError": null,
+                "uploadError": null,
+                "uploaded": null,
+                "uploading": null
+              }
+            },
+            {
+              "modifiedMs": 1790790109135,
+              "name": "ebird.record.json",
+              "onDisk": "file",
+              "record": {
+                "byteLength": 1000,
+                "clearedAt": null,
+                "county": null,
+                "notDownloaded": false,
+                "originDeviceId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "originLabel": "Dave's MacBook Pro",
+                "originPlatform": "mac",
+                "readable": true,
+                "slot": "ebird",
+                "state": "file",
+                "uploadedAt": "2026-08-24T22:12:00.000Z"
+              },
+              "role": "record",
+              "size": 309,
+              "values": {
+                "conflictVersions": 0,
+                "downloadError": null,
+                "downloadStatus": null,
+                "downloading": null,
+                "excludedFromSync": null,
+                "hasUnresolvedConflicts": null,
+                "isUbiquitous": null,
+                "readError": null,
+                "uploadError": null,
+                "uploaded": null,
+                "uploading": null
+              }
+            }
+          ],
+          "slot": "ebird"
         },
         {
-          "modifiedMs": 1790742419607,
-          "name": "ebird.record.json",
-          "onDisk": "file",
-          "record": {
-            "byteLength": 1000,
-            "clearedAt": null,
-            "county": null,
-            "originDeviceId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-            "originLabel": "Dave's MacBook Pro",
-            "originPlatform": "mac",
-            "readable": true,
-            "slot": "ebird",
-            "state": "file",
-            "uploadedAt": "2026-08-24T22:12:00.000Z"
-          },
-          "role": "record",
-          "size": 309,
-          "values": {
-            "conflictVersions": 0,
-            "downloadError": null,
-            "downloadStatus": null,
-            "downloading": null,
-            "excludedFromSync": null,
-            "hasUnresolvedConflicts": null,
-            "isUbiquitous": null,
-            "readError": null,
-            "uploadError": null,
-            "uploaded": null,
-            "uploading": null
-          }
+          "items": [
+            {
+              "modifiedMs": 1790790109135,
+              "name": "ml-export.csv",
+              "onDisk": "file",
+              "record": null,
+              "role": "file",
+              "size": 25,
+              "values": {
+                "conflictVersions": 0,
+                "downloadError": null,
+                "downloadStatus": null,
+                "downloading": null,
+                "excludedFromSync": null,
+                "hasUnresolvedConflicts": null,
+                "isUbiquitous": null,
+                "readError": null,
+                "uploadError": null,
+                "uploaded": null,
+                "uploading": null
+              }
+            },
+            {
+              "modifiedMs": 1790790109135,
+              "name": "ml.record.json",
+              "onDisk": "file",
+              "record": {
+                "byteLength": 2000,
+                "clearedAt": null,
+                "county": null,
+                "notDownloaded": false,
+                "originDeviceId": "cccccccccccccccccccccccccccccccc",
+                "originLabel": "Dave's iPhone",
+                "originPlatform": "iphone",
+                "readable": true,
+                "slot": "ml",
+                "state": "file",
+                "uploadedAt": "2026-08-25T09:00:00.000Z"
+              },
+              "role": "record",
+              "size": 303,
+              "values": {
+                "conflictVersions": 0,
+                "downloadError": null,
+                "downloadStatus": null,
+                "downloading": null,
+                "excludedFromSync": null,
+                "hasUnresolvedConflicts": null,
+                "isUbiquitous": null,
+                "readError": null,
+                "uploadError": null,
+                "uploaded": null,
+                "uploading": null
+              }
+            }
+          ],
+          "slot": "ml"
         }
       ],
       "dayObs": {
         "folder": {
-          "modifiedMs": 1790742419610,
+          "modifiedMs": 1790790109136,
           "name": "day-obs",
           "onDisk": "folder",
           "record": null,
@@ -292,7 +370,7 @@
         },
         "items": [
           {
-            "modifiedMs": 1790742419610,
+            "modifiedMs": 1790790109136,
             "name": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.json",
             "onDisk": "file",
             "record": null,
@@ -319,7 +397,7 @@
         "scanTruncated": false
       },
       "documents": {
-        "modifiedMs": 1790742419610,
+        "modifiedMs": 1790790109136,
         "name": "Documents",
         "onDisk": "folder",
         "record": null,
@@ -342,7 +420,7 @@
       "documentsOther": 0,
       "duplicates": [
         {
-          "modifiedMs": 1790742419610,
+          "modifiedMs": 1790790109136,
           "name": "barcharts 2",
           "onDisk": "folder",
           "record": null,
@@ -367,7 +445,7 @@
         "barchart": [
           {
             "kind": "file",
-            "modifiedMs": 1790742419610,
+            "modifiedMs": 1790790109136,
             "name": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-barcharts-US-CA-001.txt",
             "size": 6
           }
@@ -382,7 +460,7 @@
       "barcharts": [
         {
           "kind": "file",
-          "modifiedMs": 1790742419611,
+          "modifiedMs": 1790790109136,
           "name": "US-CA-001.txt",
           "size": 11
         }
@@ -393,9 +471,15 @@
       "dayObsFile": null,
       "ebirdFile": {
         "kind": "file",
-        "modifiedMs": 1790742419612,
+        "modifiedMs": 1790790109136,
         "name": "ebird-backup.csv",
         "size": 14
+      },
+      "mlFile": {
+        "kind": "file",
+        "modifiedMs": 1790790109137,
+        "name": "ml-export.csv",
+        "size": 18
       }
     }
   },

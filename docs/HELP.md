@@ -757,7 +757,7 @@ On the Mac, iPhone and iPad apps, an iCloud Sync section sits directly below Def
 
 **If the switch cannot be turned on**, a note beneath it says why: sign in to iCloud in System Settings (or Settings on iPhone and iPad), allow SnowRaven under iCloud Drive in the system settings, or, for a build that was not signed for iCloud (a development build, for instance), that this build cannot use iCloud.
 
-**If sync is not working**, **Copy iCloud details** at the foot of the section puts a plain-text report on the clipboard for you to paste into a message to the developer; it lists what iCloud reports for each synced file, with your device names, county codes, file sizes, dates and Apple's error codes, and holds no file contents, file names you chose or API keys.
+**If sync is not working**, **Copy iCloud details** at the foot of the section puts a plain-text report on the clipboard for you to paste into a message to the developer. It lists what iCloud reports for every synced file, with your device names, county codes, file sizes and dates, and Apple's error codes and messages. It holds no file contents, file names you chose or API keys.
 
 ### Appearance
 

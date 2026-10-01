@@ -248,16 +248,21 @@ async function pullCounty(
 
 /**
  * Whether THIS device's own county file must be written again (decisions.md
- * entry 19). The record in iCloud is this device's own and names its file,
- * but iCloud does not hold that file under the county's name: nothing is
- * there, a placeholder is (the other device's old file, never downloaded
- * here), the name is contested (a regular file beside a placeholder, which the
- * listing never reports downloaded), or the file on disk has another length
- * than the record names. A 1.0.40.1 to 1.0.40.3 push onto a name held only by a
- * placeholder left exactly these states, and every later check decided `none`
- * and showed "Waiting to upload" while the other device, reading this record,
- * found its own old file or none. A county whose record is another device's is
- * never written here (it is that device's to repair).
+ * entry 19, narrowed in entry 22). The record in iCloud is this device's own
+ * and names its file, but iCloud does not hold that file under the county's
+ * name: nothing is there at all (no file and no placeholder), or a CURRENT
+ * copy of another length than the record names is, which is what a file
+ * conflict won by the other device leaves and nothing else repairs. A county
+ * whose record is another device's is never written here (it is that
+ * device's to repair).
+ *
+ * NOT a trigger since entry 22: a placeholder alone, a copy that is not
+ * current, or a contested name. iOS may evict any file this device has
+ * uploaded, which leaves exactly a placeholder (or a copy that is not
+ * downloaded) under a record that is right, and the repair would then delete
+ * the county from iCloud and upload it again, once per session, for a file
+ * that was fine. The native re-read (`record_still_names_this_copy`, security
+ * report L4) still guards the write that remains.
  */
 export function needsFileRepair(
   record: SharedRecord & { state: 'file' },
@@ -265,8 +270,8 @@ export function needsFileRepair(
   deviceId: string,
 ): boolean {
   if (record.origin.deviceId !== deviceId || !file) return false
-  if (!file.present || !file.downloaded) return true
-  return file.byteLength !== null && file.byteLength !== record.byteLength
+  if (!file.present) return true
+  return file.downloaded && file.byteLength !== null && file.byteLength !== record.byteLength
 }
 
 /**
@@ -357,21 +362,38 @@ async function pushCounty(ctx: CountyPassContext, code: string, meta: BarChartFi
 }
 
 /**
+ * Whether a county the pass left on "Waiting to upload" is one iCloud is still
+ * sending (decisions.md entry 22): the file or its record reports an upload
+ * under way, or neither reports an upload error (a flag an older native layer
+ * does not send reads as no error). An upload iCloud refused and is not
+ * retrying is not, so it gets only the short re-read, as before. A county
+ * this pass pushed is judged by the listing taken before the push, which for
+ * a new county is no file (in flight) and for a replacement is the old copy's
+ * flags; the next re-read lists the new copy.
+ */
+function uploadInFlight(file: NativeListedFile | undefined): boolean {
+  return !file || file.uploading === true || file.uploadError !== true
+}
+
+/**
  * The county pass. `remaining` is the check's own deadline (the reads that
  * decide it share the check's budget; transfers are never raced). Resolves
  * with whether anything transferred, whether the check must report failure
- * (the listing could not reach iCloud: the file pass's own rule), and whether
+ * (the listing could not reach iCloud: the file pass's own rule), whether
  * something this check asked iCloud for has not arrived yet (`pending`: a
  * record the listing could not read, or a county file whose download did not
  * land in the wait), which the controller re-reads shortly (device pass on
  * 1.0.40.2, decisions.md entry 18) instead of leaving it to the five-minute
- * poll: the native watch sees records only, never a county file landing.
+ * poll: the native watch sees records only, never a county file landing; and
+ * whether a county left on "Waiting to upload" is still being sent
+ * (`uploading`, entry 22), which lets the controller keep re-reading it on a
+ * longer, bounded schedule until the upload finishes.
  */
 export async function runCountyPass(
   ctx: CountyPassContext,
   remaining: () => number,
-): Promise<{ transferred: boolean; failed: boolean; pending: boolean }> {
-  const none = { transferred: false, failed: false, pending: false }
+): Promise<{ transferred: boolean; failed: boolean; pending: boolean; uploading: boolean }> {
+  const none = { transferred: false, failed: false, pending: false, uploading: false }
 
   // 1. The manifest. UNKNOWN is never EMPTY: a rejected read skips the pass.
   let manifest: BarChartFilesStatus
@@ -402,7 +424,7 @@ export async function runCountyPass(
       if (timeout && ours && !known) setBarChartView(code, { state: 'waiting-to-upload', ...originView(meta, ctx.deviceId) })
       else errorView(code, timeout ? new ICloudNativeError('timeout') : err, originView(meta, ctx.deviceId))
     }
-    return { transferred: false, failed: timeout, pending: false }
+    return { transferred: false, failed: timeout, pending: false, uploading: false }
   }
   if (listed.truncated) ctx.log('icloud: county listing reached its bound; the rest are ignored this check')
   if (listed.pending) {
@@ -415,7 +437,7 @@ export async function runCountyPass(
       const meta = entryOf(manifest, code)
       if (meta) setBarChartView(code, { state: 'downloading', ...originView(meta, ctx.deviceId) })
     }
-    return { transferred: false, failed: false, pending: true }
+    return { transferred: false, failed: false, pending: true, uploading: false }
   }
 
   const shared = new Map<string, NativeListedItem>()
@@ -469,7 +491,7 @@ export async function runCountyPass(
     }
     if (unreachable) {
       ctx.pref.pendingCountyClears = clears
-      return { transferred, failed: true, pending }
+      return { transferred, failed: true, pending, uploading: false }
     }
   }
   ctx.pref.pendingCountyClears = Object.keys(clears).length > 0 ? clears : undefined
@@ -610,7 +632,10 @@ export async function runCountyPass(
   const views = getICloudState().barCharts
   for (const code of Object.keys(views)) if (!union.has(code)) setBarChartView(code, null)
   publishSharedCounties(ctx.pref)
-  return { transferred, failed: false, pending }
+  // 6. Whether a county left waiting is still being sent (entry 22).
+  const uploading = codes.some((code) =>
+    Object.hasOwn(views, code) && views[code].state === 'waiting-to-upload' && uploadInFlight(shared.get(code)?.file))
+  return { transferred, failed: false, pending, uploading }
 }
 
 /** Every county with a local file reads "iCloud unavailable" (availability is not 'available'). */

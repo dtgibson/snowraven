@@ -50,6 +50,7 @@ beforeEach(() => {
   })
   setBarChartView('US-CA-001', { state: 'waiting-to-upload', fromThisDevice: true })
   setSlotView('ebird', { state: 'up-to-date', fromThisDevice: false, origin: { label: "Dave's iPhone", platform: 'iphone' } })
+  setSlotView('ml', { state: 'waiting-to-upload', fromThisDevice: true })
 })
 
 describe('the report over a payload from the real collector', () => {
@@ -70,14 +71,24 @@ describe('the report over a payload from the real collector', () => {
     has(`    Local manifest: uploaded 2026-09-29T12:00:00.000Z, from Dave's iPad (ipad) [${ME}]`)
     has('    Pending removal marker: 2026-09-29T20:00:00.000Z. Known as a shared file: no.')
     has('    In iCloud, file: placeholder, uploaded -, status -')
+    // A record whose bytes are not on this device is never read (security
+    // report I10), and says so.
+    has('    In iCloud, record: placeholder, uploaded -, status -; record: not downloaded here')
     has('    In iCloud, record: file, 349 bytes, uploaded -, status -; record: file from Dave\'s iPad (ipad) [' + 'b'.repeat(32) + '], uploaded 2026-09-29T12:00:00.000Z, 11 bytes')
     has('    Last push: 2026-09-29T12:00:02.000Z unavailable.')
     // The log, oldest first, with the step and the Apple codes a write met.
     has('2026-09-29T12:00:01.000Z write US-CA-001.txt: unavailable (coordinated rename (NSCocoaErrorDomain 512 / NSPOSIXErrorDomain 1))')
-    // The container: control item, the folder, a twin, placeholders, a symlink,
-    // unrecognized names, a duplicate folder, staging, day-obs.
-    has('    ebird-backup.csv: file, 26 bytes, modified')
-    has("    This device's view of it: up-to-date, from Dave's iPhone (iphone)")
+    // The container: both control items (every synced file is covered), the
+    // folder, a twin, placeholders, a symlink, unrecognized names, a duplicate
+    // folder, staging, day-obs.
+    has('  Control item (the synced eBird backup):\n    ebird-backup.csv: file, 26 bytes, modified')
+    has("      record: file from Dave's MacBook Pro (mac) [" + 'a'.repeat(32) + '], uploaded 2026-08-24T22:12:00.000Z, 1000 bytes\n'
+      + "    This device's view of it: up-to-date, from Dave's iPhone (iphone)\n"
+      + '  Control item (the synced Macaulay Library export):\n    ml-export.csv: file, 25 bytes, modified')
+    has("      record: file from Dave's iPhone (iphone) [" + 'c'.repeat(32) + '], uploaded 2026-08-25T09:00:00.000Z, 2000 bytes\n'
+      + "    This device's view of it: waiting-to-upload, from this device")
+    has('    US-CA-002.record.json (record): placeholder, -, modified')
+    has('      record: not downloaded here')
     has('  barcharts folder: folder')
     has('    US-CA-001 2.txt (twin): file, 11 bytes')
     has('    US-CA-002.txt: placeholder, -, modified')
@@ -89,6 +100,8 @@ describe('the report over a payload from the real collector', () => {
     has('  day-obs folder: folder')
     has('    US-CA-001.txt: file, 11 bytes, modified')
     has('    Other entries: 1')
+    has('  eBird backup: file, 14 bytes, modified')
+    has('  Macaulay Library export: file, 18 bytes, modified')
     expect(r.length).toBeLessThan(MAX_REPORT_CHARS)
   })
 
@@ -108,10 +121,12 @@ describe('the report over a payload from the real collector', () => {
     ;(items[1].values as Record<string, unknown>).secret = 'SENTINEL-VALUES'
     ;(items[1].record as Record<string, unknown>).filename = 'SENTINEL-RECORD-FILENAME'
     ;(items[1].record as Record<string, unknown>).sha256 = 'SENTINEL-RECORD-DIGEST'
-    ;(container.control as Record<string, unknown>[])[1].recordText = 'SENTINEL-RECORD-TEXT'
+    const control = container.control as Record<string, unknown>[]
+    ;((control[0].items as Record<string, unknown>[])[1]).recordText = 'SENTINEL-RECORD-TEXT'
+    ;(((control[1].items as Record<string, unknown>[])[1]).record as Record<string, unknown>).filename = 'SENTINEL-ML-FILENAME'
     const r = buildICloudReport(input({ native: hostile }))
     for (const s of [
-      'SENTINEL', 'known-secret', 'manifest-secret', 'MyEBirdData-secret', 'MyEBirdData', 'secret-name',
+      'SENTINEL', 'known-secret', 'manifest-secret', 'MyEBirdData-secret', 'MyEBirdData', 'MyMLSecret', 'secret-name',
       '3f79bb7b435b05321651daefd374cdc681dc06faa65e374e38337b88ca046dea',
     ]) {
       expect(r, s).not.toContain(s)
@@ -119,15 +134,45 @@ describe('the report over a payload from the real collector', () => {
     // A key-shaped value anywhere in the state never reaches it either.
     setICloudState({ keySyncEnabled: true })
     expect(buildICloudReport(input({ native: hostile }))).not.toContain('SENTINEL')
+    // A control item for a slot the report does not know is dropped whole, in
+    // either of the two positions the report reads (a third is never read, so
+    // it could not test the slot check).
+    for (const at of [0, 1]) {
+      const odd = JSON.parse(JSON.stringify(fixture)) as { scan: { container: { control: unknown[] } } }
+      odd.scan.container.control[at] = { slot: 'keys', items: [{ name: 'SENTINEL-SLOT', role: 'file', onDisk: 'file', size: 1, record: null, values: null }] }
+      const r2 = buildICloudReport(input({ native: odd }))
+      expect(r2, `slot at ${at}`).not.toContain('SENTINEL')
+      expect(r2, `slot at ${at}`).not.toContain('undefined')
+      expect(r2.match(/^ {2}Control item \(/gm), `slot at ${at}`).toHaveLength(1)
+    }
   })
 
   it('reads inherited names as absent, never as members', () => {
+    // JSON.parse makes "__proto__" an OWN key, so this payload has no
+    // inherited names at all: it pins that such keys are not printed.
     const polluted = JSON.parse('{"__proto__":{"appVersion":"SENTINEL"},"constructor":"SENTINEL","ops":[{"op":"toString","target":"__proto__","result":"ok","atMs":0,"count":1}]}')
     const r = buildICloudReport(input({ native: polluted }))
     expect(r).not.toContain('SENTINEL')
     expect(r).toContain('SnowRaven - (bundle -, build -) on -')
     expect(r).not.toContain('[object Object]')
     expect(r).not.toContain('function')
+    // Names that really are INHERITED, at the top and nested, read as absent
+    // (the Tester's D12: a row built only from JSON.parse passes with the
+    // own-property check deleted).
+    const inheritedOp = Object.create({ atMs: 0, op: 'SENTINEL-OP', target: 'SENTINEL', result: 'SENTINEL', count: 1 }) as object
+    const inherited = Object.create({
+      appVersion: 'SENTINEL-VERSION',
+      deviceLabel: 'SENTINEL-LABEL',
+      scanError: 'SENTINEL-ERROR',
+      ops: [{ atMs: 0, op: 'SENTINEL-OP', target: 'SENTINEL', result: 'SENTINEL', count: 1 }],
+    }) as Record<string, unknown>
+    const nested = buildICloudReport(input({ native: { appVersion: '1.0.40', ops: [inheritedOp] } }))
+    const top = buildICloudReport(input({ native: inherited }))
+    for (const report of [top, nested]) expect(report).not.toContain('SENTINEL')
+    expect(top).toContain('SnowRaven - (bundle -, build -) on -')
+    expect(top).toContain('Device name: -')
+    expect(top).toContain('  none since the app started')
+    expect(nested).toContain('  - - -: -')
   })
 })
 

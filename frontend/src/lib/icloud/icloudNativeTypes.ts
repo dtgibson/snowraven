@@ -125,6 +125,15 @@ export interface NativeListedFile {
   byteLength: number | null
   /** both the file and its record report iCloud holds them */
   uploaded: boolean
+  /**
+   * The file or its record reports iCloud is sending it now, and whether
+   * either carries an upload error (decisions.md entry 22). A county left on
+   * "Waiting to upload" is re-read past the short cap only while its upload is
+   * under way or has no error. Absent from an older native layer (and from a
+   * harness that does not report them), read as under way with no error.
+   */
+  uploading?: boolean
+  uploadError?: boolean
 }
 
 /**
