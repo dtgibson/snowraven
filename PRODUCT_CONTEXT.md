@@ -23,7 +23,7 @@ A new iPhone or iPad session shows a small white raven on SnowRaven green until 
 
 ### Home-screen widgets for nearby lifers and media targets on iPhone and iPad (complete -- September 2026, v1.0.36)
 
-On iPhone and iPad, two home-screen widgets, **Nearby Lifers** and **Media Targets** (set to Photo, Audio, Video or Any), list the nearest recent eBird reports within 25 miles of birds you still need over a chosen Day, Week or 30 days, and a tap opens the matching Map Explorer view already searching from where you are, with a tapped bird shown alone and centered on its sighting beside a **Show all** pill; the widgets need iOS 17, while the app itself still runs on iOS 16.
+On iPhone and iPad, two home-screen widgets, **Nearby Lifers** and **Media Targets** (set to Photo, Audio, Video or Any), list the nearest recent eBird reports within 25 miles of birds you still need over a chosen Day, Week or 30 days, measured from where you are or, if a widget is set to, always from the saved Default Location with no location read, and a tap opens the matching Map Explorer view already searching from the same place, with a tapped bird shown alone and centered on its sighting beside a **Show all** pill; the widgets need iOS 17, while the app itself still runs on iOS 16.
 
 ### One control family across every tab, and a phone text-size rule that only ever raises (complete -- September 2026, v1.0.33)
 
