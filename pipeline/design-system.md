@@ -95,7 +95,10 @@ italic at 0.71875rem `--sr-text-gray`.
   640px content floor, never a device check. The saved order is flat and
   authoritative; the only separator is the structural hairline above Settings,
   because Settings is appended after that order and is never part of it, while
-  every other destination is peer to every other. Active state is
+  every other destination is peer to every other. The More sheet keeps that
+  hairline and Settings in a pinned foot (below), and its cap,
+  `min(70dvh, 528px)`, is its measured height, so on a notched phone at the
+  default text size every destination shows with nothing to scroll. Active state is
   `--sr-accent-bg` + `--sr-accent` + weight + a 3px leading accent bar, so three
   cues carry it and one of them is a shape. Nav-scale lucide icons run 15 to 20px
   (a deliberate extension of the 11 to 15px in-content range: at these densities
@@ -169,6 +172,18 @@ italic at 0.71875rem `--sr-text-gray`.
   confirmation. Root `z-index: 1270`: above the fullscreen map and phone bar
   (1200) and the More sheet (1260), below the palette (1280). The Alerts
   inbox is the exemplar (`.sr-inbox-*`).
+- **A sheet row that must always stay in view:** the sheet is a flex column, a
+  body that scrolls on its own and may shrink to nothing (`min-height: 0`)
+  over a `flex: none` foot outside the scroll area that holds the row. Never a
+  `position: sticky` row inside the scroller: a row reached by Tab scrolls
+  under it, and on iOS the rows show through the home-indicator strip below
+  it. Nothing scrolls under the foot, so it takes the sheet's `--sr-surface`
+  and needs no fill of its own; the iOS bottom inset pads the sheet or the
+  foot, never the body. A capped sheet's `max-height` includes that padding,
+  so size the cap from the measured height of the content, inset included.
+  The More sheet (the hairline and Settings in `.sr-nav-sheet-foot`) and the
+  Alerts inbox (its fine print and actions in `.sr-inbox-foot`) are the
+  exemplars.
 - **Header bell with a count (an entry point that announces new items):** a
   36px icon `Button` (in rem, so it keeps its proportions at every text size)
   at the trailing edge of the phone header, inside the `<header>` so it

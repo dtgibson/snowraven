@@ -20,7 +20,16 @@ Automated tests are the usual verification path. Do not expand routine QA into
 manual platform or device checks on your own. If an approved criterion remains
 unverified and the user defers it, record it as partial and leave it deferred.
 
-One rule is restated here because it must never be missed:
+## Other worktrees and work in progress
+
+Never touch another worktree, or any other work in progress, without asking
+the user first. Work only in the checkout or worktree you were given: do not
+edit, commit in, merge, land, prune or remove another worktree or its branch,
+and never run a bare `git stash` or `git stash pop`, since every worktree
+shares one stash stack. If a tool offers to clean up or land other worktrees,
+ask before it runs. This is the user's direction of 2026-10-01.
+
+This rule is restated here too, because it must never be missed:
 
 ## Published copy needs the user's approval first
 
