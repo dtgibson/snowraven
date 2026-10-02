@@ -26,10 +26,26 @@
 // in a hold-only document (`WidgetCache.holdOnly`), so the hold reaches the
 // other area in that case too. So widgets on one choice make at most one
 // request per 15 minutes between them, and a mixed home screen at most one
-// per area. The actor serializes refreshes, so two widgets refreshing at once
-// make one request between them. A 429 or a failure is never stored as a
-// result: the records and fetch time stay as they were, and only the failure
-// (and a 429's backoff) is written beside them.
+// per area. A 429 or a failure is never stored as a result: the records and
+// fetch time stay as they were, and only the failure (and a 429's backoff) is
+// written beside them.
+//
+// TAKING TURNS (widget-refresh-take-turns): the actor does NOT serialize
+// refreshes. Swift actors are reentrant at every `await`, and WidgetKit can
+// run several placed widgets' timelines at once (after a hand-over write, for
+// one), so two refreshes of one area can both find it stale. Each area
+// therefore has at most one request in flight (`inFlight`), marked in the
+// same synchronous step as the cache read that decided to make it. A refresh
+// that reaches the request point while its area has a request in flight for
+// the same key and cell sends nothing: it waits for that request and builds
+// its own widget from the same outcome (a list, a 429 hold or a failure), and
+// only the refresh that asked writes the area. One with a different key or
+// cell waits for that request and its write, then decides again from the area
+// as it then stands. So N overlapping refreshes of one area make one request.
+// The two areas never wait on each other, so a mixed home screen can have two
+// in flight at once. Waiters share the decoded `Fetched`, never the body
+// (NFR-02). The engine is one per extension process, where every placed
+// widget refreshes, so that is the scope of the bound.
 
 import Foundation
 
@@ -79,6 +95,18 @@ actor RefreshEngine {
     private let locator: WidgetLocator
     private let clock: @Sendable () -> Date
     private let tz: @Sendable () -> TimeZone
+
+    /// The request in flight for one area (widget-refresh-take-turns): what it
+    /// asks for, and the refreshes waiting on it.
+    private struct Turn {
+        let keyFingerprint: String
+        let cell: CacheCell
+        /// The asking refresh's time: what it stores as the fetch time and
+        /// where a 429's hold counts from, so a joiner shows exactly that.
+        let at: Date
+        var waiters: [CheckedContinuation<Fetched?, Never>] = []
+    }
+    private var inFlight: [WidgetMeasure: Turn] = [:]
 
     init(store: WidgetStore, transport: WidgetTransport, locator: WidgetLocator,
          clock: @escaping @Sendable () -> Date = { Date() },
@@ -156,12 +184,15 @@ actor RefreshEngine {
             return list(c.records, fetched: f, stale: nil, next: cadenceNext)
         }
 
+        // True when this refresh joined another's request: it shows the same
+        // outcome and writes nothing, since the refresh that asked writes it.
+        var joined = false
         func failed(_ failure: FailureKind, backoffUntil: Date? = nil) -> WidgetModel {
-            if var c = cache {
+            if !joined, var c = cache {
                 c.lastFailure = CacheFailure(at: WidgetTime.string(now2), kind: failure)
                 if let until = backoffUntil { c.backoff = CacheBackoff(until: WidgetTime.string(until), reason: "429") }
                 store.writeCache(c, measure)
-            } else if let until = backoffUntil {
+            } else if !joined, let until = backoffUntil {
                 // No usable document in this area (never fetched, or a new
                 // key): the hold still persists, in a hold-only one (L1).
                 store.writeCache(WidgetCache.holdOnly(keyFingerprint: fp, cell: cell,
@@ -189,25 +220,50 @@ actor RefreshEngine {
         }
 
         guard let request = EBirdRequest.make(for: reference, key: key) else { return message(.noHandover) }
-        // One payload at a time (NFR-02, schema.md 6.5): the body's last
-        // reference is `decode`'s argument, so it is released when that call
-        // returns, before the cache is written or a row is built. A `switch`
-        // over the fetch itself would keep the body alive to the end of the
-        // case, beside everything built from it (measured: DenseBodyTests).
-        switch RefreshEngine.decode(await transport.fetch(request)) {
+        // Taking turns (header). Nothing has awaited since the cache read, so
+        // the decision above and this check are one step.
+        let fetched: Fetched
+        let at: Date
+        if let turn = inFlight[measure] {
+            let shared = await waitForTurn(measure)   // resumes after that request's write
+            guard turn.keyFingerprint == fp, turn.cell == cell, let shared else {
+                // A different key or cell: decide again, from the area as written.
+                return await refresh(kind: kind, window: window, media: media, measure: measure)
+            }
+            fetched = shared
+            at = turn.at
+            joined = true
+        } else {
+            inFlight[measure] = Turn(keyFingerprint: fp, cell: cell, at: now2)
+            // One payload at a time (NFR-02, schema.md 6.5): the body's last
+            // reference is `decode`'s argument, so it is released when that
+            // call returns, before the cache is written or a row is built. A
+            // `switch` over the fetch itself would keep the body alive to the
+            // end of the case, beside everything built from it (measured:
+            // DenseBodyTests). Waiters get this decoded value, never the body.
+            fetched = RefreshEngine.decode(await transport.fetch(request))
+            at = now2
+        }
+        // The refresh that asked ends its turn AFTER the write in the case
+        // below (a `defer` runs once the returned model is built), so a waiter
+        // that decides again reads the area as written, a 429's hold included.
+        // No case awaits today, so a resumed waiter could not run before the
+        // write anyway; the `defer` keeps that true if one ever does.
+        defer { if !joined { endTurn(measure, fetched) } }
+        switch fetched {
         case .malformed:
             return failed(.malformed)
         case .records(let records):
             let fresh = WidgetCache(version: WidgetCache.currentVersion, keyFingerprint: fp, cell: cell,
-                                    fetchedAt: WidgetTime.string(now2), records: records, backoff: nil, lastFailure: nil,
+                                    fetchedAt: WidgetTime.string(at), records: records, backoff: nil, lastFailure: nil,
                                     cellSource: usedDefault ? .defaultLocation : .device)
-            store.writeCache(fresh, measure)
-            return list(records, fetched: WidgetTime.parse(fresh.fetchedAt) ?? now2, stale: nil, next: cadenceNext)
+            if !joined { store.writeCache(fresh, measure) }
+            return list(records, fetched: WidgetTime.parse(fresh.fetchedAt) ?? at, stale: nil, next: cadenceNext)
         case .status(let code, _) where code == 401 || code == 403:
             return message(.keyRejected, usedDefault: usedDefault)
         case .status(429, let retryAfter):
             let seconds = TimeInterval(RetryAfter.parseSeconds(retryAfter) ?? 0)
-            let until = now2.addingTimeInterval(max(RefreshEngine.cadenceSeconds, seconds))
+            let until = at.addingTimeInterval(max(RefreshEngine.cadenceSeconds, seconds))
             return failed(.rateLimited, backoffUntil: until)
         case .status:
             return failed(.http)
@@ -228,6 +284,21 @@ actor RefreshEngine {
         guard let o = store.readCache(other), o.keyFingerprint == fp, let b = o.backoff,
               let until = WidgetTime.parse(b.until), until > now else { return nil }
         return until
+    }
+
+    /// Waits for the request in flight for `measure` and returns its outcome.
+    /// The waiter is added before this suspends, so in the same step as the
+    /// caller's check; nil only if there was no request to wait for.
+    private func waitForTurn(_ measure: WidgetMeasure) async -> Fetched? {
+        await withCheckedContinuation { waiter in
+            if inFlight[measure] == nil { waiter.resume(returning: nil) } else { inFlight[measure]!.waiters.append(waiter) }
+        }
+    }
+
+    /// Ends the area's turn: every refresh waiting on it resumes with the
+    /// outcome. Called after the request's write, never before.
+    private func endTurn(_ measure: WidgetMeasure, _ fetched: Fetched) {
+        for waiter in inFlight.removeValue(forKey: measure)?.waiters ?? [] { waiter.resume(returning: fetched) }
     }
 
     /// A fetch outcome with the body already reduced, so it holds no payload.

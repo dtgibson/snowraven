@@ -33,7 +33,7 @@ import {
   removeCountiesLine, REMOVE_DAY_OBS_LINE, BAR_CHART_FILES_HEADER, BAR_CHART_FILES_DESCRIPTION,
   REMOVE_ALL_BAR_CHARTS, barChartsSavedText, barChartsNoneText, barChartsUnknownText,
   REMOVE_ALL_BAR_CHARTS_TITLE, REMOVE_ALL_CONFIRM, removeAllBarChartsBody, removeAllPartialText, removeAllDoneText,
-  DETAILS_COPIED_TEXT,
+  DETAILS_COPIED_TEXT, REMOVE_FAILED_TEXT,
 } from '../lib/icloud/icloudCopy'
 import { copyText } from '../lib/clipboard'
 import { ModalDialog } from './ui/ModalDialog'
@@ -463,6 +463,11 @@ function ICloudSyncSection() {
   const keyDescId = useId()
   const keyNoteId = useId()
   const keyPendingId = useId()
+  // Derived from the section's own id rather than a new useId(): on a client
+  // render useId draws from one global counter, so one more call here would
+  // renumber every id rendered after this section and break the at-rest
+  // markup fixture (settingsAlertsOff.test.tsx), which this fix leaves alone.
+  const removeFailedId = `${headerId}-remove-failed`
   const switchWrapRef = useRef<HTMLSpanElement>(null)
   const keySwitchWrapRef = useRef<HTMLSpanElement>(null)
   const removeBtnRef = useRef<HTMLButtonElement>(null)
@@ -472,6 +477,12 @@ function ICloudSyncSection() {
   const [removeOpen, setRemoveOpen] = useState(false)
   const [removeKeysOpen, setRemoveKeysOpen] = useState(false)
   const [userChecking, setUserChecking] = useState(false)
+  // A Remove synced files that did not finish (icloud-remove-synced-failure):
+  // the line under the button, and the attempt counter that lets only the
+  // latest press write it (an earlier press that fails after a later one went
+  // through must not put a stale failure over that success).
+  const [removeFailed, setRemoveFailed] = useState(false)
+  const removeAttemptRef = useRef(0)
   // One announcement per user-pressed Check now, sequence-keyed so a repeat
   // press is a real DOM replacement (the v0.5.80 live-region rule). The time
   // in the text makes repeated presses distinct too.
@@ -553,9 +564,44 @@ function ICloudSyncSection() {
     }
   }
 
-  function handleRemove() {
+  // icloud-remove-synced-failure: the controller rejects when the native
+  // removal fails and leaves the shared set as it was (countySync.test.ts);
+  // this is where that rejection is caught, so it is never unhandled.
+  //
+  // Clearing: a new attempt clears the last failure AT THE PRESS, both the
+  // line and the status region's copy of it (only if the region still holds
+  // it, so a Check now or Copied announcement is left alone), and a success
+  // writes nothing back. So a stale failure never sits above a later success.
+  // Cancelling the dialog is not an attempt and clears nothing: the failure it
+  // reports is still true.
+  async function handleRemove() {
     setRemoveOpen(false)
-    void icloudActions.removeFromICloud()
+    const attempt = ++removeAttemptRef.current
+    setRemoveFailed(false)
+    setAnnounce(a => (a.text === REMOVE_FAILED_TEXT ? { text: '', seq: a.seq } : a))
+    try {
+      await icloudActions.removeFromICloud()
+    } catch {
+      if (attempt !== removeAttemptRef.current) return
+      setRemoveFailed(true)
+      // Sequence-keyed, so the same failure twice is announced twice (v0.5.80).
+      setAnnounce(a => ({ text: REMOVE_FAILED_TEXT, seq: a.seq + 1 }))
+    }
+  }
+
+  // Once iCloud no longer holds synced files (a removal that timed out may
+  // finish in the background, and a later check sees it), the line has nothing
+  // true left to say, and must not come back when a device uploads again.
+  // The status region's copy of THIS failure goes with it (guarded as at the
+  // press, so a newer Check now or Copied message is left alone): otherwise a
+  // screen reader could still read, or in the overlapping-press case be told,
+  // a failure nothing on screen shows. Adjusted during render, never in an
+  // effect: the MapExplorer sidebar shape, self-terminating because the update
+  // falsifies its own condition, and re-run before anything commits, so an
+  // announcement made in the same update never reaches the DOM.
+  if (removeFailed && !ics.sharedExists) {
+    setRemoveFailed(false)
+    setAnnounce(a => (a.text === REMOVE_FAILED_TEXT ? { text: '', seq: a.seq } : a))
   }
 
   async function handleCopyDetails() {
@@ -655,6 +701,7 @@ function ICloudSyncSection() {
                   ref={removeBtnRef}
                   type="button"
                   className="sr-btn-quiet sr-touch-target"
+                  aria-describedby={removeFailed ? removeFailedId : undefined}
                   onClick={() => setRemoveOpen(true)}
                 >
                   {BUTTONS.remove}
@@ -672,6 +719,13 @@ function ICloudSyncSection() {
                 </Button>
               )}
             </div>
+            {/* icloud-remove-synced-failure: beside the button it describes, the
+                pending line's shape, so it shows even while the status row is
+                collapsed (sync off, never checked). Plain text, never a second
+                live region: the status region above announces it. */}
+            {removeFailed && (
+              <p id={removeFailedId} className="sr-ics-remove-failed">{REMOVE_FAILED_TEXT}</p>
+            )}
             {ics.keyRemovalPending && (
               <p id={keyPendingId} className="sr-ics-pending">{KEY_REMOVAL_PENDING_TEXT}</p>
             )}
@@ -729,7 +783,7 @@ function ICloudSyncSection() {
         actions={
           <>
             <Button type="button" className="sr-btn-quiet sr-touch-target" onClick={() => setRemoveOpen(false)}>{BUTTONS.cancel}</Button>
-            <Button type="button" className="sr-btn-quiet sr-btn-quiet--danger sr-touch-target" onClick={handleRemove}>{BUTTONS.removeConfirm}</Button>
+            <Button type="button" className="sr-btn-quiet sr-btn-quiet--danger sr-touch-target" onClick={() => { void handleRemove() }}>{BUTTONS.removeConfirm}</Button>
           </>
         }
       >
