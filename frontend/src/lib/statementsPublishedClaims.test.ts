@@ -135,6 +135,119 @@ describe('H-P2 (Auditor I6): the iOS location prompt can first come from Current
   })
 })
 
+// ── The optional extras the user chose (1, 2, 3, 4, 5 and 8) ─────────────────
+
+/** The policy's list item that opens with `opener`, as rendered text (bold markers dropped). */
+function mdItem(doc: string, opener: string): string {
+  const line = doc.split('\n').find(l => l.startsWith(`- ${opener}`)) ?? ''
+  return plain(line.replace(/^- /, '').replace(/\[([^\]]*)\]\([^)]*\)/g, '$1').replace(/\*\*/g, ''))
+}
+/** The page's `<li>` whose text opens with `opener`, up to its first nested list or its end, tags stripped. */
+function htmlItem(doc: string, opener: string): string {
+  const start = doc.indexOf(`<li>${opener}`)
+  if (start === -1) return ''
+  const ends = [doc.indexOf('</li>', start), doc.indexOf('<ul>', start)].filter(i => i > -1)
+  return plain(doc.slice(start, Math.min(...ends)).replace(/<[^>]+>/g, ' ')).replace(/\s+([.,;:)])/g, '$1')
+}
+
+describe('extras 1 and 4: the "You can delete your stored files" point', () => {
+  const OPENER = 'You can delete your stored files'
+  const md = mdItem(POLICY, OPENER)
+  const html = htmlItem(PAGE, OPENER)
+
+  it('the point is found in both files and reads the same', () => {
+    expect(md.length).toBeGreaterThan(500)
+    expect(html).toBe(md)
+  })
+
+  it('extra 4: says what a clear with sync on does on your other devices, switch by switch', () => {
+    const s = sentenceWith(md, 'With iCloud Sync on, clearing a data file')
+    expect(s).toBe('With iCloud Sync on, clearing a data file or removing a bar-chart file also removes it from iCloud, and with Sync API keys on, clearing a key does the same; each of your other devices then removes its copy at its next check if it has the same switch on, and a device with it off keeps its own.')
+  })
+
+  it('extra 4 is true of the code: the clears with sync on go through iCloud, and only an enabled device applies them', () => {
+    const state = code('lib/icloud/icloudState.ts')
+    expect(state).toContain('clearWithSync(slot: Slot): Promise<readonly string[]>')
+    expect(state).toContain('barChartsCleared(regionCodes: readonly string[], clearedAt: string): Promise<void>')
+    expect(state).toContain('clearKeyWithSync(slot: KeySlot): Promise<void>')
+    // Both places that remove bar-chart files hand the removal to iCloud.
+    expect(code('components/targets/TargetsBarChartFile.tsx')).toContain('void icloudActions.barChartsCleared([regionCode], clearedAt)')
+    expect(code('components/Settings.tsx')).toContain('if (withSync && r.removed.length > 0) void icloudActions.barChartsCleared(r.removed, new Date().toISOString())')
+    // This device writes the cleared marker only with sync on; another device applies it in its own sync pass.
+    const sync = code('lib/icloud/icloudSync.ts')
+    const fn = sync.slice(sync.indexOf('async function barChartsCleared('))
+    expect(fn.slice(0, 200)).toContain('if (!pref.enabled) return')
+    expect(code('lib/icloud/countySync.ts')).toContain('await ctx.storage.applySyncedBarChartClear(code, meta.uploadedAt)')
+  })
+
+  it('extra 1: the Alerts position is in the list, as the iOS App section already says', () => {
+    expect(sentenceWith(md, 'Clearing your eBird backup also removes')).toContain('and the Alerts inbox together with any alert waiting for the end of your quiet hours and the position the app read for Alerts.')
+    expect(POLICY).toContain('clearing your eBird backup removes the inbox, any alert waiting for the end of your quiet hours, and the position the app read')
+    const engine = read('src-tauri/gen/apple/Sources/snowraven/AlertsLogic/AlertsEngine.swift')
+    const purge = engine.slice(engine.indexOf('func purgeInbox()'), engine.indexOf('func purgeInbox()') + 600)
+    expect(purge).toContain('st.position = nil')
+  })
+})
+
+describe('extras 3 and 5: the eBird point', () => {
+  const OPENER = '<strong>eBird</strong>:'
+  const md = mdItem(POLICY, '**eBird**:')
+  const html = htmlItem(PAGE, OPENER)
+
+  it('extra 3: names every time the Targets tab asks for the 30 days, in both files', () => {
+    const needle = 'a per-day list of the species reported in a county over the last 30 days'
+    const s = sentenceWith(md, needle)
+    expect(s).toContain('when you open the Targets tab and whenever you choose another county there, and again when your connection or key comes back or you press Retry (the answers are kept on your device, so each of these asks again only about days whose answer was not yet final:')
+    expect(sentenceWith(html, needle)).toBe(s)
+  })
+
+  it('extra 3 is true of the code: the sweep re-runs on the county, the key, the connection and Retry', () => {
+    const sweep = code('lib/targets/useCountyDaySweep.ts')
+    expect(sweep).toContain('}, [regionCode, hasEbirdKey, online, nonce])')
+    expect(sweep).toContain('const retry = useCallback(() => setNonce(n => n + 1), [])')
+  })
+
+  it('extra 5: the escapee sub-point states the covering set as a property, with no count', () => {
+    const sub = (doc: string) => sentenceWith(plain(doc.replace(/<[^>]+>/g, ' ')), 'It sends only your own checklist IDs, and only a small covering subset of them')
+    const s = sub(POLICY)
+    expect(s).toBe('It sends only your own checklist IDs, and only a small covering subset of them (a set of checklists that between them carry every species you have recorded, worked out on your device before anything is sent), not your whole history.')
+    expect(sub(PAGE)).toBe(s)
+    expect(POLICY).not.toMatch(/\d[\d,]* on a [\d,]+-observation export/)
+    expect(PAGE).not.toMatch(/\d[\d,]* on a [\d,]+-observation export/)
+  })
+
+  it('extra 5 is true of the code: the set is a greedy cover over your species, built on the device', () => {
+    expect(read('frontend/src/lib/exoticProvenance.ts')).toContain('export function greedyCover(')
+    expect(code('lib/useExoticProvenance.ts')).toContain('greedyCover(')
+  })
+})
+
+describe('extra 2: the OpenWeather point covers the Planner\'s forecast window', () => {
+  const md = mdItem(POLICY, '**OpenWeather**:')
+  const html = htmlItem(PAGE, '<strong>OpenWeather</strong>:')
+
+  it('names the three kinds of request, in both files', () => {
+    expect(md).toContain('to fetch weather: the historical weather for a checklist, the current or forecast weather for a location and time you choose, or the forecast across the days ahead for a place you choose.')
+    expect(html).toBe(md)
+  })
+
+  it('is true of the code: the plan\'s weather is one OpenWeather One Call request', () => {
+    expect(read('backend/routers/weather.py')).toContain('@router.get("/weather/plan")')
+    expect(read('backend/routers/weather.py')).toContain('Exactly one OpenWeather request and zero NOAA requests on')
+    expect(code('lib/tauri/weatherService.ts')).toContain('const onecall = await fetchForecast(lat, lng, owmKey);')
+  })
+})
+
+describe('extra 8: the privacy page\'s summary band', () => {
+  it('the "Keys & data stay local" tile names the device, a self-hosted server and the opt-in iCloud copy', () => {
+    const tile = /<li><strong>Keys &amp; data stay local<\/strong><span>([^<]*)<\/span><\/li>/.exec(PAGE)
+    expect(tile).not.toBeNull()
+    expect(tile![1]).toBe('Device or server, plus iCloud if you sync')
+    // The policy it summarizes says the same three things.
+    expect(POLICY).toContain('or on your own machine when you self-host the web/Pi version, unless you turn on the optional iCloud Sync')
+  })
+})
+
 // ── ACCESSIBILITY.md ────────────────────────────────────────────────────────
 
 describe('H-A1: the opening names every platform the statement goes on to describe', () => {

@@ -1,0 +1,190 @@
+diff --git a/PRIVACY_POLICY.md b/PRIVACY_POLICY.md
+index a079448..a6d4b2c 100644
+--- a/PRIVACY_POLICY.md
++++ b/PRIVACY_POLICY.md
+@@ -13,7 +13,7 @@ SnowRaven keeps your data on your own device by choice and design. You keep it,
+ - Your API keys, app settings, and the files you upload (your eBird backup and Macaulay Library export, and any eBird bar-chart files you add on the Targets tab) are stored only on your device (in the desktop app's local data directory, or in the iOS app's on-device sandbox on iPhone and iPad, together with the small copy its home-screen widgets read and, if you turn on Alerts, the alert settings and inbox, all described in the iOS App section below), or on your own machine when you self-host the web/Pi version, unless you turn on the optional iCloud Sync on a Mac, iPhone or iPad, which copies your data files (your eBird backup, your Macaulay Library export and any eBird bar-chart files you have added), and your API keys only if you also turn on its separate Sync API keys switch, into your own iCloud account and nowhere else (see the iCloud Sync section below). They are never uploaded to the developer or to any service the developer runs.
+ - All processing of your eBird and media files happens locally, on your own device.
+ - There is no SnowRaven account, no login, and no SnowRaven-operated server sitting between you and your data.
+-- You can delete your stored files and keys at any time from the Settings tab (a single county's bar-chart file, also from the Targets tab), or by removing the app's data directory. Clearing your eBird backup also removes what was worked out from it and saved on your device: the escapee and Projects answers for your checklists, the county species lists behind the map's Completeness shading, the day-by-day eBird reports behind the Targets tab's live counts (and, with iCloud Sync on, every device's copy of them in iCloud), the saved weather and tide readings for your checklists, and, on iPhone and iPad, the list of your species that the home-screen widgets compare against, and the Alerts inbox together with any alert waiting for the end of your quiet hours. Replacing a file with a newer export keeps those saved answers, which is what lets a newer export ask only about the checklists that have not been answered yet.
++- You can delete your stored files and keys at any time from the Settings tab (a single county's bar-chart file, also from the Targets tab), or by removing the app's data directory. With iCloud Sync on, clearing a data file or removing a bar-chart file also removes it from iCloud, and with Sync API keys on, clearing a key does the same; each of your other devices then removes its copy at its next check if it has the same switch on, and a device with it off keeps its own. Clearing your eBird backup also removes what was worked out from it and saved on your device: the escapee and Projects answers for your checklists, the county species lists behind the map's Completeness shading, the day-by-day eBird reports behind the Targets tab's live counts (and, with iCloud Sync on, every device's copy of them in iCloud), the saved weather and tide readings for your checklists, and, on iPhone and iPad, the list of your species that the home-screen widgets compare against, and the Alerts inbox together with any alert waiting for the end of your quiet hours and the position the app read for Alerts. Replacing a file with a newer export keeps those saved answers, which is what lets a newer export ask only about the checklists that have not been answered yet.
+ 
+ ## No Data Collection
+ 
+@@ -28,10 +28,10 @@ SnowRaven collects nothing about you.
+ 
+ SnowRaven's job is to fetch birding and weather information for you, so the app does make requests to a few outside services, using your own API keys, and only to get the data you ask for, which includes the nearby sightings a home-screen widget you placed shows and, if you turn on Alerts on iPhone or iPad, the nearby sightings an alert check looks at. These requests go directly from your device (or your own self-hosted server) to the provider. There is no SnowRaven server in the middle, and nothing is logged or retained by the developer.
+ 
+-- **eBird**: to look up checklist details, hotspots, recent nearby sightings (including, on iPhone and iPad, the same kind of nearby-sightings request made by a Nearby Lifers or Media Targets home-screen widget each time it refreshes, and by an alert check if you turn on Alerts, both described under Your Location, and, when you turn on the map's Recent activity hotspot coloring, the recent community sightings at each public hotspot in your current search, one request per hotspot, bounded and cached on your device for six hours), region info (including the species list ever reported for a county region, used by the map's county Completeness shading and by the Targets tab), a per-day list of the species reported in a county over the last 30 days, when you open the Targets tab (the answers are kept on your device, so a return visit asks again only about days whose answer was not yet final: the current day, an earlier day that was still in progress when it was last asked, and any day with no answer kept on your device), and species taxonomy. Uses your own eBird API key. See [eBird's terms](https://www.birds.cornell.edu/home/ebird-api-terms-of-use/).
++- **eBird**: to look up checklist details, hotspots, recent nearby sightings (including, on iPhone and iPad, the same kind of nearby-sightings request made by a Nearby Lifers or Media Targets home-screen widget each time it refreshes, and by an alert check if you turn on Alerts, both described under Your Location, and, when you turn on the map's Recent activity hotspot coloring, the recent community sightings at each public hotspot in your current search, one request per hotspot, bounded and cached on your device for six hours), region info (including the species list ever reported for a county region, used by the map's county Completeness shading and by the Targets tab), a per-day list of the species reported in a county over the last 30 days, when you open the Targets tab and whenever you choose another county there, and again when your connection or key comes back or you press Retry (the answers are kept on your device, so each of these asks again only about days whose answer was not yet final: the current day, an earlier day that was still in progress when it was last asked, and any day with no answer kept on your device), and species taxonomy. Uses your own eBird API key. See [eBird's terms](https://www.birds.cornell.edu/home/ebird-api-terms-of-use/).
+   - An eBird bar-chart file you add on the Targets tab, which you download yourself from ebird.org, is read only to show eBird's frequencies for its county. It is stored on your device, and on a Mac, iPhone or iPad with iCloud Sync on it is copied to your own iCloud account along with your other synced files (see the iCloud Sync section below).
+-  - The Statistics tab also asks eBird about a set of your own checklists, in order to find out which of your birds eBird tags as exotic escapees. It sends only your own checklist IDs, and only a small covering subset of them (73 on a 21,000-observation export, worked out on your device before anything is sent), not your whole history. The answer is stored on your device for 30 days, so returning to the tab does not repeat the requests. If you have no eBird key or no connection, nothing is sent and the tab says so. What is new here is that a figure summarizing your own history now depends on a lookup: the Statistics tab's displayed numbers were previously worked out on your device. The tab itself has always made requests, which is a different thing, and worth stating plainly on this page: it matches your species names against the bird taxonomy, and it asks eBird which locations in the regions you have birded are public hotspots. The name matching happens against a copy of the taxonomy the app already holds, so your species list is not sent to eBird. Other parts of the app already show numbers that come from eBird, such as a county's completeness percentage on the map and a hotspot's species count. The Statistics tab's Projects section makes one further request per checklist, to find out which eBird projects your checklists were submitted to. It sends only your own checklist IDs, and only after you press one of that section's own controls: it is never started automatically, on tab open, or on relaunch. The answers are stored on your device, so stopping, quitting, or loading a newer export asks only about checklists that have not been answered yet, and an answer already given is not re-checked for a year unless you press Check again, which re-asks about all of them. With no eBird key or no connection, nothing is sent and the section says so.
+-- **OpenWeather**: to fetch weather, either the historical weather for a checklist, or the current and forecast weather for a location and time you choose. Uses your own OpenWeather API key. See [OpenWeather's privacy policy](https://openweather.co.uk/privacy-policy).
++  - The Statistics tab also asks eBird about a set of your own checklists, in order to find out which of your birds eBird tags as exotic escapees. It sends only your own checklist IDs, and only a small covering subset of them (a set of checklists that between them carry every species you have recorded, worked out on your device before anything is sent), not your whole history. The answer is stored on your device for 30 days, so returning to the tab does not repeat the requests. If you have no eBird key or no connection, nothing is sent and the tab says so. What is new here is that a figure summarizing your own history now depends on a lookup: the Statistics tab's displayed numbers were previously worked out on your device. The tab itself has always made requests, which is a different thing, and worth stating plainly on this page: it matches your species names against the bird taxonomy, and it asks eBird which locations in the regions you have birded are public hotspots. The name matching happens against a copy of the taxonomy the app already holds, so your species list is not sent to eBird. Other parts of the app already show numbers that come from eBird, such as a county's completeness percentage on the map and a hotspot's species count. The Statistics tab's Projects section makes one further request per checklist, to find out which eBird projects your checklists were submitted to. It sends only your own checklist IDs, and only after you press one of that section's own controls: it is never started automatically, on tab open, or on relaunch. The answers are stored on your device, so stopping, quitting, or loading a newer export asks only about checklists that have not been answered yet, and an answer already given is not re-checked for a year unless you press Check again, which re-asks about all of them. With no eBird key or no connection, nothing is sent and the section says so.
++- **OpenWeather**: to fetch weather: the historical weather for a checklist, the current or forecast weather for a location and time you choose, or the forecast across the days ahead for a place you choose. Uses your own OpenWeather API key. See [OpenWeather's privacy policy](https://openweather.co.uk/privacy-policy).
+ - **Nominatim (OpenStreetMap)**: to turn a place name you type into map coordinates, and to look up the county for a set of coordinates. See the [OSM privacy policy](https://wiki.osmfoundation.org/wiki/Privacy_Policy).
+ - **NOAA Tides & Currents (CO-OPS)**: to fetch the tide for a checklist's location and time, the current or predicted tide for a location and time you choose, or the predicted tide across the days ahead for a place you choose. No key or account; a U.S. government service. See [NOAA's privacy policy](https://www.noaa.gov/protecting-your-privacy).
+ 
+diff --git a/frontend/src/lib/statementsPublishedClaims.test.ts b/frontend/src/lib/statementsPublishedClaims.test.ts
+index 44997b3..d648097 100644
+--- a/frontend/src/lib/statementsPublishedClaims.test.ts
++++ b/frontend/src/lib/statementsPublishedClaims.test.ts
+@@ -135,6 +135,119 @@ describe('H-P2 (Auditor I6): the iOS location prompt can first come from Current
+   })
+ })
+ 
++// ── The optional extras the user chose (1, 2, 3, 4, 5 and 8) ─────────────────
++
++/** The policy's list item that opens with `opener`, as rendered text (bold markers dropped). */
++function mdItem(doc: string, opener: string): string {
++  const line = doc.split('\n').find(l => l.startsWith(`- ${opener}`)) ?? ''
++  return plain(line.replace(/^- /, '').replace(/\[([^\]]*)\]\([^)]*\)/g, '$1').replace(/\*\*/g, ''))
++}
++/** The page's `<li>` whose text opens with `opener`, up to its first nested list or its end, tags stripped. */
++function htmlItem(doc: string, opener: string): string {
++  const start = doc.indexOf(`<li>${opener}`)
++  if (start === -1) return ''
++  const ends = [doc.indexOf('</li>', start), doc.indexOf('<ul>', start)].filter(i => i > -1)
++  return plain(doc.slice(start, Math.min(...ends)).replace(/<[^>]+>/g, ' ')).replace(/\s+([.,;:)])/g, '$1')
++}
++
++describe('extras 1 and 4: the "You can delete your stored files" point', () => {
++  const OPENER = 'You can delete your stored files'
++  const md = mdItem(POLICY, OPENER)
++  const html = htmlItem(PAGE, OPENER)
++
++  it('the point is found in both files and reads the same', () => {
++    expect(md.length).toBeGreaterThan(500)
++    expect(html).toBe(md)
++  })
++
++  it('extra 4: says what a clear with sync on does on your other devices, switch by switch', () => {
++    const s = sentenceWith(md, 'With iCloud Sync on, clearing a data file')
++    expect(s).toBe('With iCloud Sync on, clearing a data file or removing a bar-chart file also removes it from iCloud, and with Sync API keys on, clearing a key does the same; each of your other devices then removes its copy at its next check if it has the same switch on, and a device with it off keeps its own.')
++  })
++
++  it('extra 4 is true of the code: the clears with sync on go through iCloud, and only an enabled device applies them', () => {
++    const state = code('lib/icloud/icloudState.ts')
++    expect(state).toContain('clearWithSync(slot: Slot): Promise<readonly string[]>')
++    expect(state).toContain('barChartsCleared(regionCodes: readonly string[], clearedAt: string): Promise<void>')
++    expect(state).toContain('clearKeyWithSync(slot: KeySlot): Promise<void>')
++    // Both places that remove bar-chart files hand the removal to iCloud.
++    expect(code('components/targets/TargetsBarChartFile.tsx')).toContain('void icloudActions.barChartsCleared([regionCode], clearedAt)')
++    expect(code('components/Settings.tsx')).toContain('if (withSync && r.removed.length > 0) void icloudActions.barChartsCleared(r.removed, new Date().toISOString())')
++    // This device writes the cleared marker only with sync on; another device applies it in its own sync pass.
++    const sync = code('lib/icloud/icloudSync.ts')
++    const fn = sync.slice(sync.indexOf('async function barChartsCleared('))
++    expect(fn.slice(0, 200)).toContain('if (!pref.enabled) return')
++    expect(code('lib/icloud/countySync.ts')).toContain('await ctx.storage.applySyncedBarChartClear(code, meta.uploadedAt)')
++  })
++
++  it('extra 1: the Alerts position is in the list, as the iOS App section already says', () => {
++    expect(sentenceWith(md, 'Clearing your eBird backup also removes')).toContain('and the Alerts inbox together with any alert waiting for the end of your quiet hours and the position the app read for Alerts.')
++    expect(POLICY).toContain('clearing your eBird backup removes the inbox, any alert waiting for the end of your quiet hours, and the position the app read')
++    const engine = read('src-tauri/gen/apple/Sources/snowraven/AlertsLogic/AlertsEngine.swift')
++    const purge = engine.slice(engine.indexOf('func purgeInbox()'), engine.indexOf('func purgeInbox()') + 600)
++    expect(purge).toContain('st.position = nil')
++  })
++})
++
++describe('extras 3 and 5: the eBird point', () => {
++  const OPENER = '<strong>eBird</strong>:'
++  const md = mdItem(POLICY, '**eBird**:')
++  const html = htmlItem(PAGE, OPENER)
++
++  it('extra 3: names every time the Targets tab asks for the 30 days, in both files', () => {
++    const needle = 'a per-day list of the species reported in a county over the last 30 days'
++    const s = sentenceWith(md, needle)
++    expect(s).toContain('when you open the Targets tab and whenever you choose another county there, and again when your connection or key comes back or you press Retry (the answers are kept on your device, so each of these asks again only about days whose answer was not yet final:')
++    expect(sentenceWith(html, needle)).toBe(s)
++  })
++
++  it('extra 3 is true of the code: the sweep re-runs on the county, the key, the connection and Retry', () => {
++    const sweep = code('lib/targets/useCountyDaySweep.ts')
++    expect(sweep).toContain('}, [regionCode, hasEbirdKey, online, nonce])')
++    expect(sweep).toContain('const retry = useCallback(() => setNonce(n => n + 1), [])')
++  })
++
++  it('extra 5: the escapee sub-point states the covering set as a property, with no count', () => {
++    const sub = (doc: string) => sentenceWith(plain(doc.replace(/<[^>]+>/g, ' ')), 'It sends only your own checklist IDs, and only a small covering subset of them')
++    const s = sub(POLICY)
++    expect(s).toBe('It sends only your own checklist IDs, and only a small covering subset of them (a set of checklists that between them carry every species you have recorded, worked out on your device before anything is sent), not your whole history.')
++    expect(sub(PAGE)).toBe(s)
++    expect(POLICY).not.toMatch(/\d[\d,]* on a [\d,]+-observation export/)
++    expect(PAGE).not.toMatch(/\d[\d,]* on a [\d,]+-observation export/)
++  })
++
++  it('extra 5 is true of the code: the set is a greedy cover over your species, built on the device', () => {
++    expect(read('frontend/src/lib/exoticProvenance.ts')).toContain('export function greedyCover(')
++    expect(code('lib/useExoticProvenance.ts')).toContain('greedyCover(')
++  })
++})
++
++describe('extra 2: the OpenWeather point covers the Planner\'s forecast window', () => {
++  const md = mdItem(POLICY, '**OpenWeather**:')
++  const html = htmlItem(PAGE, '<strong>OpenWeather</strong>:')
++
++  it('names the three kinds of request, in both files', () => {
++    expect(md).toContain('to fetch weather: the historical weather for a checklist, the current or forecast weather for a location and time you choose, or the forecast across the days ahead for a place you choose.')
++    expect(html).toBe(md)
++  })
++
++  it('is true of the code: the plan\'s weather is one OpenWeather One Call request', () => {
++    expect(read('backend/routers/weather.py')).toContain('@router.get("/weather/plan")')
++    expect(read('backend/routers/weather.py')).toContain('Exactly one OpenWeather request and zero NOAA requests on')
++    expect(code('lib/tauri/weatherService.ts')).toContain('const onecall = await fetchForecast(lat, lng, owmKey);')
++  })
++})
++
++describe('extra 8: the privacy page\'s summary band', () => {
++  it('the "Keys & data stay local" tile names the device, a self-hosted server and the opt-in iCloud copy', () => {
++    const tile = /<li><strong>Keys &amp; data stay local<\/strong><span>([^<]*)<\/span><\/li>/.exec(PAGE)
++    expect(tile).not.toBeNull()
++    expect(tile![1]).toBe('Device or server, plus iCloud if you sync')
++    // The policy it summarizes says the same three things.
++    expect(POLICY).toContain('or on your own machine when you self-host the web/Pi version, unless you turn on the optional iCloud Sync')
++  })
++})
++
+ // ── ACCESSIBILITY.md ────────────────────────────────────────────────────────
+ 
+ describe('H-A1: the opening names every platform the statement goes on to describe', () => {
+diff --git a/website/privacy.html b/website/privacy.html
+index 54c4004..4b7e8ed 100644
+--- a/website/privacy.html
++++ b/website/privacy.html
+@@ -102,7 +102,7 @@
+         <ul class="pp-points">
+           <li><strong>No accounts</strong><span>Nothing to sign up for</span></li>
+           <li><strong>No tracking</strong><span>Zero analytics or telemetry</span></li>
+-          <li><strong>Keys &amp; data stay local</strong><span>On your device only</span></li>
++          <li><strong>Keys &amp; data stay local</strong><span>Device or server, plus iCloud if you sync</span></li>
+           <li><strong>No developer server</strong><span>There is no SnowRaven cloud</span></li>
+         </ul>
+       </div>
+@@ -121,7 +121,7 @@
+         <li>Your API keys, app settings, and the files you upload (your eBird backup and Macaulay Library export, and any eBird bar-chart files you add on the Targets tab) are stored only on your device (in the desktop app's local data directory, or in the iOS app's on-device sandbox on iPhone and iPad, together with the small copy its home-screen widgets read and, if you turn on Alerts, the alert settings and inbox, all described in the iOS App section below), or on your own machine when you self-host the web/Pi version, unless you turn on the optional iCloud Sync on a Mac, iPhone or iPad, which copies your data files (your eBird backup, your Macaulay Library export and any eBird bar-chart files you have added), and your API keys only if you also turn on its separate Sync API keys switch, into your own iCloud account and nowhere else (see the iCloud Sync section below). They are never uploaded to the developer or to any service the developer runs.</li>
+         <li>All processing of your eBird and media files happens locally, on your own device.</li>
+         <li>There is no SnowRaven account, no login, and no SnowRaven-operated server sitting between you and your data.</li>
+-        <li>You can delete your stored files and keys at any time from the Settings tab (a single county's bar-chart file, also from the Targets tab), or by removing the app's data directory. Clearing your eBird backup also removes what was worked out from it and saved on your device: the escapee and Projects answers for your checklists, the county species lists behind the map's Completeness shading, the day-by-day eBird reports behind the Targets tab's live counts (and, with iCloud Sync on, every device's copy of them in iCloud), the saved weather and tide readings for your checklists, and, on iPhone and iPad, the list of your species that the home-screen widgets compare against, and the Alerts inbox together with any alert waiting for the end of your quiet hours. Replacing a file with a newer export keeps those saved answers, which is what lets a newer export ask only about the checklists that have not been answered yet.</li>
++        <li>You can delete your stored files and keys at any time from the Settings tab (a single county's bar-chart file, also from the Targets tab), or by removing the app's data directory. With iCloud Sync on, clearing a data file or removing a bar-chart file also removes it from iCloud, and with Sync API keys on, clearing a key does the same; each of your other devices then removes its copy at its next check if it has the same switch on, and a device with it off keeps its own. Clearing your eBird backup also removes what was worked out from it and saved on your device: the escapee and Projects answers for your checklists, the county species lists behind the map's Completeness shading, the day-by-day eBird reports behind the Targets tab's live counts (and, with iCloud Sync on, every device's copy of them in iCloud), the saved weather and tide readings for your checklists, and, on iPhone and iPad, the list of your species that the home-screen widgets compare against, and the Alerts inbox together with any alert waiting for the end of your quiet hours and the position the app read for Alerts. Replacing a file with a newer export keeps those saved answers, which is what lets a newer export ask only about the checklists that have not been answered yet.</li>
+       </ul>
+ 
+       <h2 id="no-data-collection">No Data Collection</h2>
+@@ -136,13 +136,13 @@
+       <h2 id="connections-to-bird-and-weather-services">Connections to Bird and Weather Services</h2>
+       <p>SnowRaven's job is to fetch birding and weather information for you, so the app does make requests to a few outside services, using your own API keys, and only to get the data you ask for, which includes the nearby sightings a home-screen widget you placed shows and, if you turn on Alerts on iPhone or iPad, the nearby sightings an alert check looks at. These requests go directly from your device (or your own self-hosted server) to the provider. There is no SnowRaven server in the middle, and nothing is logged or retained by the developer.</p>
+       <ul>
+-        <li><strong>eBird</strong>: to look up checklist details, hotspots, recent nearby sightings (including, on iPhone and iPad, the same kind of nearby-sightings request made by a Nearby Lifers or Media Targets home-screen widget each time it refreshes, and by an alert check if you turn on Alerts, both described under Your Location, and, when you turn on the map's Recent activity hotspot coloring, the recent community sightings at each public hotspot in your current search, one request per hotspot, bounded and cached on your device for six hours), region info (including the species list ever reported for a county region, used by the map's county Completeness shading and by the Targets tab), a per-day list of the species reported in a county over the last 30 days, when you open the Targets tab (the answers are kept on your device, so a return visit asks again only about days whose answer was not yet final: the current day, an earlier day that was still in progress when it was last asked, and any day with no answer kept on your device), and species taxonomy. Uses your own eBird API key. See <a href="https://www.birds.cornell.edu/home/ebird-api-terms-of-use/" target="_blank" rel="noopener">eBird's terms</a>.
++        <li><strong>eBird</strong>: to look up checklist details, hotspots, recent nearby sightings (including, on iPhone and iPad, the same kind of nearby-sightings request made by a Nearby Lifers or Media Targets home-screen widget each time it refreshes, and by an alert check if you turn on Alerts, both described under Your Location, and, when you turn on the map's Recent activity hotspot coloring, the recent community sightings at each public hotspot in your current search, one request per hotspot, bounded and cached on your device for six hours), region info (including the species list ever reported for a county region, used by the map's county Completeness shading and by the Targets tab), a per-day list of the species reported in a county over the last 30 days, when you open the Targets tab and whenever you choose another county there, and again when your connection or key comes back or you press Retry (the answers are kept on your device, so each of these asks again only about days whose answer was not yet final: the current day, an earlier day that was still in progress when it was last asked, and any day with no answer kept on your device), and species taxonomy. Uses your own eBird API key. See <a href="https://www.birds.cornell.edu/home/ebird-api-terms-of-use/" target="_blank" rel="noopener">eBird's terms</a>.
+           <ul>
+             <li>An eBird bar-chart file you add on the Targets tab, which you download yourself from ebird.org, is read only to show eBird's frequencies for its county. It is stored on your device, and on a Mac, iPhone or iPad with iCloud Sync on it is copied to your own iCloud account along with your other synced files (see the iCloud Sync section below).</li>
+-            <li>The Statistics tab also asks eBird about a set of your own checklists, in order to find out which of your birds eBird tags as exotic escapees. It sends only your own checklist IDs, and only a small covering subset of them (73 on a 21,000-observation export, worked out on your device before anything is sent), not your whole history. The answer is stored on your device for 30 days, so returning to the tab does not repeat the requests. If you have no eBird key or no connection, nothing is sent and the tab says so. What is new here is that a figure summarizing your own history now depends on a lookup: the Statistics tab's displayed numbers were previously worked out on your device. The tab itself has always made requests, which is a different thing, and worth stating plainly on this page: it matches your species names against the bird taxonomy, and it asks eBird which locations in the regions you have birded are public hotspots. The name matching happens against a copy of the taxonomy the app already holds, so your species list is not sent to eBird. Other parts of the app already show numbers that come from eBird, such as a county's completeness percentage on the map and a hotspot's species count. The Statistics tab's Projects section makes one further request per checklist, to find out which eBird projects your checklists were submitted to. It sends only your own checklist IDs, and only after you press one of that section's own controls: it is never started automatically, on tab open, or on relaunch. The answers are stored on your device, so stopping, quitting, or loading a newer export asks only about checklists that have not been answered yet, and an answer already given is not re-checked for a year unless you press Check again, which re-asks about all of them. With no eBird key or no connection, nothing is sent and the section says so.</li>
++            <li>The Statistics tab also asks eBird about a set of your own checklists, in order to find out which of your birds eBird tags as exotic escapees. It sends only your own checklist IDs, and only a small covering subset of them (a set of checklists that between them carry every species you have recorded, worked out on your device before anything is sent), not your whole history. The answer is stored on your device for 30 days, so returning to the tab does not repeat the requests. If you have no eBird key or no connection, nothing is sent and the tab says so. What is new here is that a figure summarizing your own history now depends on a lookup: the Statistics tab's displayed numbers were previously worked out on your device. The tab itself has always made requests, which is a different thing, and worth stating plainly on this page: it matches your species names against the bird taxonomy, and it asks eBird which locations in the regions you have birded are public hotspots. The name matching happens against a copy of the taxonomy the app already holds, so your species list is not sent to eBird. Other parts of the app already show numbers that come from eBird, such as a county's completeness percentage on the map and a hotspot's species count. The Statistics tab's Projects section makes one further request per checklist, to find out which eBird projects your checklists were submitted to. It sends only your own checklist IDs, and only after you press one of that section's own controls: it is never started automatically, on tab open, or on relaunch. The answers are stored on your device, so stopping, quitting, or loading a newer export asks only about checklists that have not been answered yet, and an answer already given is not re-checked for a year unless you press Check again, which re-asks about all of them. With no eBird key or no connection, nothing is sent and the section says so.</li>
+           </ul>
+         </li>
+-        <li><strong>OpenWeather</strong>: to fetch weather, either the historical weather for a checklist, or the current and forecast weather for a location and time you choose. Uses your own OpenWeather API key. See <a href="https://openweather.co.uk/privacy-policy" target="_blank" rel="noopener">OpenWeather's privacy policy</a>.</li>
++        <li><strong>OpenWeather</strong>: to fetch weather: the historical weather for a checklist, the current or forecast weather for a location and time you choose, or the forecast across the days ahead for a place you choose. Uses your own OpenWeather API key. See <a href="https://openweather.co.uk/privacy-policy" target="_blank" rel="noopener">OpenWeather's privacy policy</a>.</li>
+         <li><strong>Nominatim (OpenStreetMap)</strong>: to turn a place name you type into map coordinates, and to look up the county for a set of coordinates. See the <a href="https://wiki.osmfoundation.org/wiki/Privacy_Policy" target="_blank" rel="noopener">OSM privacy policy</a>.</li>
+         <li><strong>NOAA Tides &amp; Currents (CO-OPS)</strong>: to fetch the tide for a checklist's location and time, the current or predicted tide for a location and time you choose, or the predicted tide across the days ahead for a place you choose. No key or account; a U.S. government service. See <a href="https://www.noaa.gov/protecting-your-privacy" target="_blank" rel="noopener">NOAA's privacy policy</a>.</li>
+       </ul>
