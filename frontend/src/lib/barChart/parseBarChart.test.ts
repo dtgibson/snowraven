@@ -21,10 +21,14 @@
 //      has its own doubling row, because the raw name-cell bound shields it
 //      from every file-level shape; that row times batched samples after an
 //      untimed warm-up, because one call at its small leg is too short to be
-//      a measurement (CI read it at 3.3 twice with nothing wrong). Every row
-//      reads its quotient in CPU time (`src/test/cpuTiming.ts`), not wall
-//      time: beside two looping full suites the wall clock failed these rows
-//      in 17 of 20 runs of this file with nothing wrong.
+//      a measurement (CI read it at 3.3 twice with nothing wrong), and its
+//      cells stay at 16,000 to 64,000 characters. There, once the file-level
+//      rows above have grown V8's young generation, Node 20's own string
+//      building stays near linear. assertLinear's ENGINE note says how far
+//      that holds and what these legs no longer catch.
+//      Every row reads its quotient in CPU time (`src/test/cpuTiming.ts`), not
+//      wall time: beside two looping full suites the wall clock failed these
+//      rows in 17 of 20 runs of this file with nothing wrong.
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { bestPerCallCpuMs } from '../../test/cpuTiming'
@@ -358,13 +362,70 @@ describe('linear in the input over the hostile shapes (schema.md 9.2 and 10)', (
    *
    * `sampleMs` (the entity decoder's row only) batches each sample to at least
    * that much CPU time, sized per leg from a warm call after an untimed one.
-   * That row's small leg is one call of about 1.4 ms with no walk before it,
-   * and CI read it by the wall clock as 2.00 ms -> 6.61 ms (3.31, run
-   * 36373007076) and 1.96 ms -> 6.53 ms (3.32, run 36376776547) with the
-   * decoder unchanged; the untimed call and the batch are what removed that
-   * (11e16b8). A quadratic's one call is already past `sampleMs`, so it gets a
-   * batch of 1 and costs what it did before: the decoder with its bounded
-   * lookahead reverted is red at the first leg in about two seconds.
+   * That row's small leg is one call of about 0.35 ms with no walk before it.
+   * At its former 64,000-character small leg, one call per sample by the wall
+   * clock, CI read 2.00 ms -> 6.61 ms (3.31, run 36373007076) and 1.96 ms ->
+   * 6.53 ms (3.32, run 36376776547) with the decoder unchanged; the untimed
+   * call and the batch are what removed that (11e16b8). With the bounded
+   * lookahead reverted the row is red at its first leg (3.6) in under a
+   * second, and its second leg reads 3.8.
+   *
+   * TWO ENGINE EFFECTS the rows are sized and built around, and the reach the
+   * decoder row gave up for the first (barchart-speed-check-ci), each measured
+   * on Node 20.20.2, which CI runs, and on Node 24, which the dev Mac runs:
+   *  - Node 20 builds a long string one character at a time superlinearly: a
+   *    bare `out += ch` loop reads 10x at 512,000 -> 1,024,000 characters
+   *    there and 2.0 on Node 24, and the decoder row's old leg at that size
+   *    read 2.95 to 9.35 on CI with the decoder unchanged. The growth depends
+   *    on the HEAP as well as the size. The call keeps its chain of
+   *    one-character pieces alive, so when V8's young generation (where new
+   *    objects start) is small against that chain, collections during the
+   *    call copy it again and again. In this file the row runs after the
+   *    allocation-heavy file-level rows have grown that area. There its legs,
+   *    16,000 -> 32,000 -> 64,000, read 1.95 to 2.19 over 40 runs of this
+   *    file on each Node, and 3.57 to 3.80 with the lookahead reverted. (A
+   *    vitest probe read Node 20 at 2.3 at 64,000 -> 128,000 and 3.0 to 3.2
+   *    at 128,000 -> 256,000.) In a bare Node process the same legs read 2.66
+   *    to 3.06 on Node 20, and `--max-semi-space-size=1` turns the real row
+   *    red on Node 24 (5.4 to 6.0) with the decoder unchanged. So a different
+   *    heap history can bring a false red back: the row moved, a test
+   *    reorder, a V8 change to how that area is sized, or a runner's
+   *    NODE_OPTIONS. Building the decoder's output from slices removes the
+   *    cause (`pipeline/barchart-speed-check-ci/decisions.md`). The legs stay
+   *    above MAX_RAW_NAME_CELL because at the 2,048 bound itself the reverted
+   *    decoder reads only 2.8 to 3.1.
+   *  - What the smaller legs give up. A same-run quotient sees a quadratic
+   *    only once it outweighs the linear work at the small leg. So with the
+   *    unbounded `;` search run at every k-th `&` only (1/k of the reverted
+   *    lookahead's strength), the security review measured, at these legs
+   *    and with the young generation grown as in this file: 1/4 caught (3.45
+   *    to 3.51 at the second leg), 1/8 caught about half the time (3.11 to
+   *    3.21), and 1/16 missed (2.55 to 2.97). The old 64,000 ->
+   *    128,000 first leg caught 1/16 (3.30). The miss is bounded. With
+   *    MAX_RAW_NAME_CELL in place no file hands the decoder enough characters
+   *    for such a quadratic to show. With that bound also gone,
+   *    MAX_LINE_CHARS (65,536) still caps each cell, so a missed quadratic
+   *    costs a constant factor per row (about 4x at 1/8 strength), never a
+   *    hang. Accepted as a decision in the same `decisions.md`, which names
+   *    the change that restores the reach.
+   *  - The same text built with `+` or `repeat` parses at one of two speeds
+   *    per character (3.17 against 1.93 ns on Node 20, 2.54 against 1.92 on
+   *    Node 24), and which one a leg gets depends on what was allocated before
+   *    it is timed: most likely whether the variable still reaches the text
+   *    through the cons string the parse flattened, or the collector has since
+   *    pointed it at the flat copy. A parse that allocates almost nothing runs
+   *    no collection that would even the two legs out, so the all-tabs shape
+   *    read 3.28 to 3.32 on Node 20 at its large leg (CI: 3.29 and 3.57)
+   *    whenever only its small input ran at the fast speed, and a smaller leg
+   *    is no cure: the same split read 3.27 at 512,000 -> 1,024,000 after
+   *    different allocations. The `&`-cell (M1 B) shape's parse allocates
+   *    little as well, and split the same way once in 20 Node 20 runs (small
+   *    leg 0.42 ms against 0.73 to 0.84): 3.49, held to 2.91 only by its 0.5 ms
+   *    floor. Both shapes are built with `join`, one flat string from the
+   *    start, and then read 1.92 to 2.03 (all tabs, 40 runs of this file on
+   *    each Node) and 1.97 to 2.00 (M1 B, 20 runs on each) before the floor.
+   *    Both small legs mostly sit under that floor on Node 24, which lowers
+   *    the asserted first-leg reading to about 1.63 to 1.73, not the raw one.
    *
    * The file-level rows time one call per sample. Their walk already runs each
    * input once before timing, one call is milliseconds long, and batching
@@ -426,7 +487,9 @@ describe('linear in the input over the hostile shapes (schema.md 9.2 and 10)', (
 
   const SHAPES: [string, (n: number) => string][] = [
     ['a line with no line break at all', n => 'x'.repeat(n)],
-    ['all tabs, after a real Sample Size row', n => `t\n${SAMPLE_ROW}\n` + ('\t'.repeat(999) + '\n').repeat(Math.ceil(n / 1000))],
+    // Built by `join`, one flat string from the start: the same text built with
+    // `+` and `repeat` read 3.28 here on Node 20 (assertLinear's ENGINE note).
+    ['all tabs, after a real Sample Size row', n => [`t\n${SAMPLE_ROW}\n`, ...Array<string>(Math.ceil(n / 1000)).fill('\t'.repeat(999) + '\n')].join('')],
     // Kept under MAX_RAW_NAME_CELL so every row still reaches the name
     // splitter this shape was written for (a longer cell is malformed before it).
     ['`<em` repeated inside name cells', n => `t\n${SAMPLE_ROW}\n` + (speciesRow('<em'.repeat(Math.floor(MAX_RAW_NAME_CELL / 3))) + '\n').repeat(Math.ceil(n / 2_240))],
@@ -444,10 +507,12 @@ describe('linear in the input over the hostile shapes (schema.md 9.2 and 10)', (
     // fixed these cells are over MAX_RAW_NAME_CELL and never reach the decoder,
     // so this row proves the whole PATH linear and would stay green with the
     // decoder's own bound reverted: the decoder's own test below pins that.
+    // Built by `join`, one flat string from the start, like the all-tabs
+    // shape and for the same reason (assertLinear's ENGINE note).
     ['`&` with no `;` filling 48-cell rows\' name cells (M1 B)', n => {
       const rows = ampRows(n)
       const cell = Math.floor(n / rows) - 200
-      return `t\n${SAMPLE_ROW}\n` + (speciesRow('&'.repeat(cell)) + '\n').repeat(rows) + speciesRow('Bushtit') + '\n'
+      return [`t\n${SAMPLE_ROW}\n`, ...Array<string>(rows).fill(speciesRow('&'.repeat(cell)) + '\n'), speciesRow('Bushtit') + '\n'].join('')
     }],
   ]
 
@@ -487,9 +552,15 @@ describe('linear in the input over the hostile shapes (schema.md 9.2 and 10)', (
     // without this row the decoder's six-character window could be reverted
     // with the suite green. Not a hang guard: the decoder's cursor advances on
     // every branch; this guards growth. One call at the small leg is about
-    // 1.4 ms, so this row warms up and times batched samples of at least 20 ms
-    // of CPU time (assertLinear's `sampleMs`, which says why).
-    assertLinear(n => '&'.repeat(n), [[64_000, 128_000], [512_000, 1_024_000]], splitNameCell, 0.5, { sampleMs: 20 })
+    // 0.35 ms, so this row warms up and times batched samples of at least
+    // 20 ms of CPU time (assertLinear's `sampleMs`, which says why), and its
+    // floor sits well under that call. The legs stay above the raw bound and
+    // below the sizes where Node 20's string building outgrows the input in
+    // THIS file's heap state. Its passing margin relies on running after the
+    // file-level rows above. It no longer catches a decoder quadratic much
+    // weaker than a quarter of the reverted lookahead, which the line bound
+    // keeps to a constant factor (assertLinear's ENGINE note).
+    assertLinear(n => '&'.repeat(n), [[16_000, 32_000], [32_000, 64_000]], splitNameCell, 0.1, { sampleMs: 20 })
   }, 60_000)
 
   it('the no-line-break shape at 40 MB is one scan and a refusal, not a hang', () => {
