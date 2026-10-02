@@ -1663,23 +1663,23 @@ A pure TypeScript port of `backend/formatters/weather.py` with a golden test sui
 
 ### In-App Help Documentation (complete -- May 2026)
 
-A full-screen documentation overlay accessible from the top of the Settings tab. `docs/HELP.md` at the repo root is the single source of truth -- imported at build time via Vite's `?raw` loader and bundled as a string literal, making documentation always available offline with no runtime network call. The same file is rendered by GitHub at a predictable URL.
+A full-screen documentation overlay that opens from the Help link in the app's footer, from Settings' Help & Documentation section, and from the first-run welcome screen. `docs/HELP.md` at the repo root is the single source of truth -- imported at build time via Vite's `?raw` loader and bundled as a string literal, making documentation always available offline with no runtime network call. The same file is rendered by GitHub at a predictable URL.
 
 **What it does:**
-- "Help & Documentation" section at the very top of Settings (above Appearance), with an "Open documentation" button
+- "Help & Documentation" section in Settings, the first one after API Keys, Default Files and (on the Mac, iPhone and iPad) iCloud Sync, with an "Open documentation" button
 - Full-screen overlay (`z-index: 1200`, `position: fixed; inset: 0`) with a sticky 200px sidebar TOC and a max-width 680px content area
-- 15-entry TOC with sub-item indentation; clicking any entry scrolls to the corresponding section using `getBoundingClientRect()` arithmetic against the scrollable body ref
+- Sidebar TOC with one entry per section plus a chosen few indented sub-entries; clicking any entry scrolls to the corresponding section using `getBoundingClientRect()` arithmetic against the scrollable body ref
 - Focus trap cycles Tab/Shift+Tab among focusable elements inside the overlay; Escape closes; close button (`aria-label="Close documentation"`) auto-focuses on mount
 - Custom lightweight markdown renderer: `parseBlocks()` (line-by-line block parser) + `renderInline()` (regex-based inline renderer for bold, code, links) -- zero new npm dependencies
 - Supported block types: H1, H2, H3, paragraphs, unordered lists, ordered lists, fenced code blocks, horizontal rules, inline code, bold, hyperlinks
 - All links rendered with `target="_blank" rel="noreferrer"`; all colors use `var(--sr-*)` tokens only
-- `docs/HELP.md` covers: Getting Started, API Keys (eBird + OpenWeather with One Call by Call warning), Default Files (eBird backup + ML export), Weather, Species Detail, Statistics (all 9 cards including Top Local Target Species with dot color explanation), Map Explorer, Media List, Breeding Codes, Life List Comparer, Settings
-- `README.md` updated with a "Documentation" section linking to `docs/HELP.md` and full descriptions of all tabs
+- `docs/HELP.md` opens with Getting Started, Search, API Keys and Default Files, covers every tab in the app's default tab order, walks through Settings in the order Settings draws its sections, and ends with offline use and updating; it names the iPhone and iPad apps wherever it says where SnowRaven runs or where files and keys are kept
+- `README.md` and the website footer link to `docs/HELP.md` on GitHub, which is the online documentation
 
 **Key files:**
 - `docs/HELP.md` -- single source of truth for all help content; update when adding or changing features
 - `frontend/src/components/HelpDocs.tsx` -- overlay component with custom markdown renderer
-- `frontend/src/components/Settings.tsx` -- Help & Documentation section (first section), `helpOpen` state, `HelpDocs` mount
+- `frontend/src/components/Settings.tsx` -- Help & Documentation section (its button calls `onOpenHelp`); `App.tsx` holds the `helpOpen` state and mounts `HelpDocs`
 - `frontend/vite.config.ts` -- `server.fs.allow: ['..']` enables dev server to resolve the `?raw` import outside `frontend/`
 
 ### Accessibility Pass (complete — May 2026, v0.3.28)
