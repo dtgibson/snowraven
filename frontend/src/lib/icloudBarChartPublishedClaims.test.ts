@@ -108,6 +108,15 @@ describe.each([
   it('39: Remove synced files from iCloud reaches the bar-chart files and the day lists', () => {
     expect(section).toContain('Remove synced files from iCloud in the same section deletes the file copies in your iCloud account, the bar-chart files and the day-by-day lists included, without touching any device')
   })
+
+  // help-docs-refresh H-P3: the one route by which details about the user's
+  // synced files can reach the developer, and only by the user's own paste.
+  it('Copy iCloud details: what the report holds, what it never holds, and that it leaves only by your own paste', () => {
+    expect(section).toContain('Copy iCloud details. If sync is not working, Copy iCloud details at the foot of the iCloud Sync section in Settings puts a plain-text report on your clipboard')
+    expect(section).toContain("your devices' names and the random identifier the app made up for each, whether iCloud is available, county codes, file sizes and dates, sync states, and Apple's error codes and messages")
+    expect(section).toContain('It holds no file contents, no file names you chose and no API keys.')
+    expect(section).toContain('SnowRaven never sends it anywhere itself: it reaches the developer only if you paste it into a message.')
+  })
 })
 
 describe('the two policy files state items 37 to 39 identically', () => {
@@ -117,10 +126,39 @@ describe('the two policy files state items 37 to 39 identically', () => {
       'SnowRaven writes your eBird backup',
       'Your app settings, map preferences and cached lookups',
       'Remove synced files from iCloud in the same section',
+      // help-docs-refresh H-P3
+      'If sync is not working, Copy iCloud details',
+      'It lists what iCloud reports for each synced file',
+      'It holds no file contents',
+      'SnowRaven never sends it anywhere itself',
     ]) {
       expect(sentenceWith(HTML, needle), needle).toBe(sentenceWith(MD, needle))
       expect(sentenceWith(MD, needle), needle).not.toBe('')
     }
+  })
+})
+
+describe('the Copy iCloud details sentences are true of the shipped code (help-docs-refresh H-P3)', () => {
+  it('the button is named as published, and the report goes only to the clipboard', () => {
+    expect(src('lib/icloud/icloudCopy.ts')).toContain("copyDetails: 'Copy iCloud details',")
+    // Settings hands the report to the clipboard seam and nothing else.
+    const settings = code('components/Settings.tsx')
+    expect(settings).toContain('const report = await icloudActions.detailsReport()')
+    expect(settings).toContain('if (report === null || !(await copyText(report))) return')
+    // The builder is pure: no network, no storage, no native call of its own.
+    const builder = code('lib/icloud/icloudDiagnostics.ts')
+    expect(builder).toContain('export function buildICloudReport(input: DetailsInput): string {')
+    expect(builder).not.toMatch(/\btransport\b|\bfetch\(|\binvoke\(|\bstorage\./)
+  })
+
+  it('"no file contents, no file names you chose and no API keys": the builder reads only its allowed fields', () => {
+    // The module's own contract, stated where the fields are read.
+    const header = src('lib/icloud/icloudDiagnostics.ts')
+    expect(header).toContain('ALLOWED FIELDS ONLY.')
+    expect(header).toContain('never carries: a byte of any file, a filename the user chose, a digest, an\n// API key.')
+    // The input type carries no key and no file text at all.
+    const input = /export interface DetailsInput \{([\s\S]*?)\n\}/.exec(header)![1]!
+    expect(input).not.toMatch(/apiKey|ebirdKey|openweather|csv|fileText|contents/i)
   })
 })
 
