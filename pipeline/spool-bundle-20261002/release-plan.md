@@ -2,17 +2,37 @@
 
 Drafted 2026-10-02 in phase 1 against `main` at `03980ee`. The Help refresh then landed on `origin/main` as `8934f19`; see (a).
 
-**Status:**
+**Status (2026-10-02): shipped on every leg.** The plan below is kept as drafted, and this section records what was done with it.
 
-- Phase 2 was started under the user's "Ship it" sign-off. Sections (a) and (b) are being applied in the release commit that carries this file.
-- Nothing in (c) is applied. Every App Store Connect write waits for the user's device check, their disposition choice and their word-for-word approval of the What's New.
+**(a) and (b): the release and the iOS stamp.**
 
-**CI of record for the bundle's code:** Pipeline run `37066670579`, on `8934f19`, was green.
+- Release commit `7c939a0` is tagged `v1.0.46`. The iOS stamp commit is `9a9f478`.
+- Windows CI run `37068533837`, on the tag commit, passed.
+- `release.sh` published https://github.com/dtgibson/snowraven/releases/tag/v1.0.46. The DMG was downloaded back from the release:
+  - its signature checks as valid;
+  - its staple validates;
+  - Gatekeeper accepts it as Notarized Developer ID.
+- `latest.json` is at 1.0.46 for `darwin-aarch64`, `darwin-x86_64` and `windows-x86_64`.
+- The website shows v1.0.46.
+- TestFlight build 1.0.46.1 (delivery `45148a5b`) is VALID:
+  - `--validate-app` passed before the upload;
+  - the widget Swift tests passed 143 of 143 on the iPhone 17 simulator first.
+
+**(c): the App Store leg.**
+
+- The user checked build 1.0.46.1 on their own device and approved the What's New word for word, with the optional Help sentence.
+- Record `0d823282-fa3d-4276-87c7-209a0cf6cea8` was submitted as `c3fbb8c7-5b7b-4cca-9043-f26c828ed1f8` and reads `WAITING_FOR_REVIEW`.
+- `whats-new.md`, beside this file, holds every read-back.
+
+**CI.** Pipeline run `37071637395`, on `30a2554`, is the run of record. It contains everything shipped, and it was green:
 
 - The backend job passed.
 - The frontend job passed lint, typecheck and the vitest suite (431 files passed, 5 skipped) on Node 20.20.2. `parseBarChart.test.ts` was 55 of 55 (build 3).
 - The real-engine gate was 7 of 7 harnesses green in Chromium and WebKit on Ubuntu, `verify-plan-daylabels.mjs` PASS (build 5).
-- Run `37066215920`, on `03980ee`, was cancelled by the Help refresh push after its backend job passed.
+- Run `37066670579`, on `8934f19` (the bundle plus the Help refresh), was green on the same points.
+- The runs on `03980ee`, `7c939a0`, `9a9f478` and `446c18e` were each cancelled by the next push to `main`. Their backend jobs had passed.
+
+**Not in 1.0.46.** After the tag, `de6df5e` changed one paragraph of `docs/HELP.md`, the Statistics escapee paragraph. `docs/HELP.md` is built into the app, so that edit rides the next release. Its privacy-page changes went live with the website on push.
 
 The bundle carries five builds. Two of them change what a user gets:
 
