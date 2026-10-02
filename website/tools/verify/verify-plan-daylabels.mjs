@@ -54,6 +54,7 @@ import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { serveDist } from './serveDist.mjs'
 import { requirePlaywright } from './playwright.mjs'
+import { dismissWelcome } from './dismissWelcome.mjs'
 
 const { chromium, webkit } = requirePlaywright()
 
@@ -315,8 +316,9 @@ async function openPlan(page, base) {
   const welcome = page.getByRole('dialog', { name: 'Welcome to SnowRaven' })
   await page.getByRole('button', { name: 'Plan weather and tide for a place' }).waitFor({ timeout: 60_000 })
   if (await welcome.waitFor({ state: 'visible', timeout: 4000 }).then(() => true, () => false)) {
-    await page.keyboard.press('Escape')
-    await welcome.waitFor({ state: 'detached', timeout: 5000 })
+    // Not Escape on `visible`: its listener arms after the dialog paints, and
+    // this sweep's wide tier is where that gap lost the key on CI.
+    await dismissWelcome(welcome)
   }
   await page.getByRole('button', { name: 'Plan weather and tide for a place' }).click()
   await page.getByLabel('Latitude (-90 to 90)').fill('36.603')
