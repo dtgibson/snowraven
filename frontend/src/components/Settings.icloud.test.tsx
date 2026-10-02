@@ -402,9 +402,29 @@ describe('status row, Check now and the announcer (FR-26, QA-24)', () => {
 })
 
 describe('Remove synced files from iCloud (FR-33, QA-31)', () => {
+  const removeRow = () => document.querySelector('.sr-ics-remove-row') as HTMLElement
+  const announcer = () => document.querySelector('.sr-ics-status-row [role="status"]') as HTMLElement
+  const removeButton = () => screen.queryByRole('button', { name: copy.BUTTONS.remove }) as HTMLButtonElement | null
+  async function confirmRemove() {
+    fireEvent.click(removeButton()!)
+    const dialog = await screen.findByRole('dialog', { name: copy.REMOVE_TITLE })
+    fireEvent.click(within(dialog).getByRole('button', { name: copy.BUTTONS.removeConfirm }))
+  }
+  /** A removal whose outcome the test decides, to see what the press itself does. */
+  function deferred() {
+    let resolve!: () => void
+    let reject!: (e: unknown) => void
+    const promise = new Promise<void>((res, rej) => { resolve = res; reject = rej })
+    return { promise, resolve, reject }
+  }
+
   it('appears only when available and something is shared, regardless of the toggle; confirms with the filenames', async () => {
     gate(true)
     setICloudState({ availability: 'available', syncEnabled: false, platform: 'mac', sharedExists: true, sharedFilenames: ['MyEBirdData.csv', 'ML_2026-08-24_dave.csv'] })
+    // What the controller publishes after a removal with sync off (icloudSync.test.ts).
+    vi.mocked(actions.removeFromICloud).mockImplementation(async () => {
+      setICloudState({ sharedExists: false, sharedFilenames: [] })
+    })
     renderSettings()
     const btn = await screen.findByRole('button', { name: copy.BUTTONS.remove })
     fireEvent.click(btn)
@@ -414,6 +434,185 @@ describe('Remove synced files from iCloud (FR-33, QA-31)', () => {
     expect(within(dialog).getByText(copy.removeOutro('this Mac'))).toBeTruthy()
     fireEvent.click(within(dialog).getByRole('button', { name: copy.BUTTONS.removeConfirm }))
     expect(actions.removeFromICloud).toHaveBeenCalledTimes(1)
+    // icloud-remove-synced-failure: a success keeps today's behaviour (with
+    // sync off the button goes away) and says nothing about a failure.
+    await waitFor(() => expect(removeButton()).toBeNull())
+    expect(document.body.textContent).not.toContain(copy.REMOVE_FAILED_TEXT)
+    expect(announcer().textContent).toBe('')
+  })
+
+  // icloud-remove-synced-failure: the controller rejects with the native code
+  // and leaves the shared set as it was (countySync.test.ts, "reports the
+  // failure, never success"). Settings used to drop that rejection.
+  it('a Remove that fails says so in the remove row with the status row collapsed, describes the button, and announces once per failure, a repeat included', async () => {
+    gate(true)
+    setICloudState({ availability: 'available', syncEnabled: false, lastCheckAt: null, platform: 'mac', sharedExists: true, sharedFilenames: ['MyEBirdData.csv'] })
+    // A PLAIN function here, not vi.fn: vitest's spy attaches its own settle
+    // handlers to every promise it returns (mock.settledResults), which marks
+    // the rejection handled and hides a dropped one from vitest's unhandled-
+    // rejection detector. Unwrapped, HEAD's `void removeFromICloud()` fails
+    // the run with an Unhandled Rejection; the fix must not.
+    let calls = 0
+    installICloudActions({ ...actions, removeFromICloud: () => { calls++; return Promise.reject({ code: 'unavailable' }) } })
+    renderSettings()
+    await screen.findByRole('button', { name: copy.BUTTONS.remove })
+    // Sync off and never checked: the status row has collapsed, so the line
+    // must live in the remove row to be seen at all.
+    expect((document.querySelector('.sr-ics-status-row') as HTMLElement).className).toContain('sr-ics-status-row--empty')
+    expect(copy.REMOVE_FAILED_TEXT).not.toBe(copy.CHECK_FAILED_SUFFIX)
+
+    await confirmRemove()
+    const line = await within(removeRow()).findByText(copy.REMOVE_FAILED_TEXT)
+    expect(line.className).toContain('sr-ics-remove-failed')
+    // Plain text, never a second live region: the announcer below speaks it.
+    expect(line.getAttribute('role')).toBeNull()
+    expect(line.getAttribute('aria-live')).toBeNull()
+    expect(removeButton()!.getAttribute('aria-describedby')).toBe(line.id)
+    // Announced through the section's one status region, the one Check now
+    // and Copy iCloud details use.
+    expect(announcer().textContent).toBe(copy.REMOVE_FAILED_TEXT)
+    const first = announcer().firstElementChild
+    expect(first).toBeTruthy()
+
+    // The same failure again is announced again: the message is a NEW node,
+    // not the old one left in place. What this rejects, measured: a second
+    // failure that leaves the first message node standing. It does NOT on its
+    // own reject dropping the failure's seq bump, because the press already
+    // empties the region (the clear below), so the re-add is a new node keyed
+    // or not (ui.md, v0.5.81 nuance); dropping both goes red here. The shared
+    // region's key itself is rejected by the Check now test above, whose two
+    // identical announcements only differ as nodes.
+    await confirmRemove()
+    await waitFor(() => expect(calls).toBe(2))
+    await waitFor(() => {
+      const child = announcer().firstElementChild
+      expect(child).not.toBe(first)
+      expect(child?.textContent).toBe(copy.REMOVE_FAILED_TEXT)
+    })
+    expect(within(removeRow()).getAllByText(copy.REMOVE_FAILED_TEXT)).toHaveLength(1)
+    expect(removeButton()).toBeTruthy() // the button stays: the honest retry
+  })
+
+  it('pressing Remove again clears the stale line at once, and a success leaves no failure behind; Cancel is not an attempt', async () => {
+    gate(true)
+    setICloudState({ availability: 'available', syncEnabled: true, lastCheckAt: '2026-09-01T16:14:00.000Z', platform: 'mac', sharedExists: true, sharedFilenames: ['MyEBirdData.csv'] })
+    const second = deferred()
+    vi.mocked(actions.removeFromICloud)
+      .mockRejectedValueOnce({ code: 'timeout' })
+      .mockImplementationOnce(async () => {
+        await second.promise
+        // With sync on the controller runs a check after a removal; this is
+        // the new time it publishes (the device uploads its copy again).
+        setICloudState({ lastCheckAt: '2026-09-01T16:20:00.000Z' })
+      })
+    renderSettings()
+    await screen.findByRole('button', { name: copy.BUTTONS.remove })
+    await confirmRemove()
+    await within(removeRow()).findByText(copy.REMOVE_FAILED_TEXT)
+
+    // Opening the dialog and cancelling changes nothing: the failure is still true.
+    fireEvent.click(removeButton()!)
+    const dialog = await screen.findByRole('dialog', { name: copy.REMOVE_TITLE })
+    fireEvent.click(within(dialog).getByRole('button', { name: copy.BUTTONS.cancel }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: copy.REMOVE_TITLE })).toBeNull())
+    expect(within(removeRow()).getByText(copy.REMOVE_FAILED_TEXT)).toBeTruthy()
+
+    // A new attempt clears the line and the announcer's copy of it at the
+    // press, before its outcome is known.
+    await confirmRemove()
+    await waitFor(() => expect(within(removeRow()).queryByText(copy.REMOVE_FAILED_TEXT)).toBeNull())
+    expect(announcer().textContent).toBe('')
+    expect(removeButton()!.hasAttribute('aria-describedby')).toBe(false)
+
+    const statusBefore = (document.querySelector('.sr-ics-status') as HTMLElement).textContent
+    second.resolve()
+    await waitFor(() => expect((document.querySelector('.sr-ics-status') as HTMLElement).textContent).not.toBe(statusBefore))
+    expect(document.body.textContent).not.toContain(copy.REMOVE_FAILED_TEXT)
+    expect(announcer().textContent).toBe('')
+    expect(removeButton()).toBeTruthy()
+  })
+
+  it('an earlier Remove that fails after a later one has gone through says nothing', async () => {
+    gate(true)
+    setICloudState({ availability: 'available', syncEnabled: true, platform: 'mac', sharedExists: true, sharedFilenames: ['MyEBirdData.csv'] })
+    const earlier = deferred()
+    let laterSettled = false
+    vi.mocked(actions.removeFromICloud)
+      .mockImplementationOnce(() => earlier.promise)
+      .mockImplementationOnce(async () => { laterSettled = true })
+    renderSettings()
+    await screen.findByRole('button', { name: copy.BUTTONS.remove })
+    await confirmRemove()
+    await confirmRemove()
+    await waitFor(() => expect(laterSettled).toBe(true))
+    earlier.reject({ code: 'timeout' })
+    // The earlier attempt's rejection has been handled once its catch has run.
+    await act(async () => { await earlier.promise.catch(() => {}) })
+    expect(document.body.textContent).not.toContain(copy.REMOVE_FAILED_TEXT)
+    expect(announcer().textContent).toBe('')
+  })
+
+  it('the failure line goes once iCloud no longer holds synced files, and does not come back with a later upload', async () => {
+    gate(true)
+    // The keys button keeps the remove row mounted after the files have gone.
+    setICloudState({ availability: 'available', syncEnabled: true, platform: 'mac', sharedExists: true, sharedFilenames: ['MyEBirdData.csv'], keyRecordExists: true })
+    vi.mocked(actions.removeFromICloud).mockRejectedValue({ code: 'timeout' })
+    renderSettings()
+    await screen.findByRole('button', { name: copy.BUTTONS.remove })
+    await confirmRemove()
+    await within(removeRow()).findByText(copy.REMOVE_FAILED_TEXT)
+    expect(announcer().textContent).toBe(copy.REMOVE_FAILED_TEXT)
+    // The removal that timed out finished in the background; a check saw it.
+    // The status region's copy goes with the line (security report, case 1):
+    // a screen reader must not read a failure the screen has withdrawn.
+    act(() => { setICloudState({ sharedExists: false, sharedFilenames: [] }) })
+    expect(removeRow()).toBeTruthy()
+    expect(within(removeRow()).queryByText(copy.REMOVE_FAILED_TEXT)).toBeNull()
+    expect(announcer().textContent).toBe('')
+    // Another device uploads again: the old failure is not what that is.
+    act(() => { setICloudState({ sharedExists: true, sharedFilenames: ['MyEBirdData.csv'] }) })
+    expect(removeButton()).toBeTruthy()
+    expect(within(removeRow()).queryByText(copy.REMOVE_FAILED_TEXT)).toBeNull()
+    expect(removeButton()!.hasAttribute('aria-describedby')).toBe(false)
+
+    // Only THIS failure is withdrawn: a newer Check now message in the shared
+    // region survives the files going.
+    await confirmRemove()
+    await within(removeRow()).findByText(copy.REMOVE_FAILED_TEXT)
+    fireEvent.click(screen.getByRole('button', { name: copy.BUTTONS.checkNow }))
+    await waitFor(() => expect(announcer().textContent).toMatch(/^Checked .*\. Nothing to transfer\.$/))
+    const checked = announcer().textContent
+    act(() => { setICloudState({ sharedExists: false, sharedFilenames: [] }) })
+    expect(within(removeRow()).queryByText(copy.REMOVE_FAILED_TEXT)).toBeNull()
+    expect(announcer().textContent).toBe(checked)
+  })
+
+  it('two presses in flight with sync off: the earlier empties iCloud, the later fails, and nothing is shown OR announced', async () => {
+    // Security report, case 2. The button stays while a removal is in flight
+    // (up to the native 8 s budget), so a second confirm can follow the first.
+    gate(true)
+    setICloudState({ availability: 'available', syncEnabled: false, platform: 'mac', sharedExists: true, sharedFilenames: ['MyEBirdData.csv'] })
+    const earlier = deferred()
+    const later = deferred()
+    vi.mocked(actions.removeFromICloud)
+      .mockImplementationOnce(async () => {
+        await earlier.promise
+        // What the controller publishes after a removal with sync off.
+        setICloudState({ sharedExists: false, sharedFilenames: [] })
+      })
+      .mockImplementationOnce(() => later.promise)
+    renderSettings()
+    await screen.findByRole('button', { name: copy.BUTTONS.remove })
+    await confirmRemove()
+    await confirmRemove()
+    await waitFor(() => expect(actions.removeFromICloud).toHaveBeenCalledTimes(2))
+    earlier.resolve()
+    await waitFor(() => expect(removeButton()).toBeNull())
+    later.reject({ code: 'timeout' })
+    // The later attempt's rejection has been handled once its catch has run.
+    await act(async () => { await later.promise.catch(() => {}) })
+    expect(document.body.textContent).not.toContain(copy.REMOVE_FAILED_TEXT)
+    expect(announcer().textContent).toBe('')
   })
 
   it('is absent when nothing is shared, and when iCloud is unavailable', async () => {
@@ -581,7 +780,7 @@ describe('copy (NFR-03, QA-40)', () => {
       ...Object.values(copy.REASONS), ...Object.values(copy.BUTTONS),
       ...copy.enableNoteItems('this Mac').flatMap(i => [i.lead, i.text]),
       copy.announcerText({ ok: true, transferred: false }, 'now'), copy.announcerText({ ok: false, transferred: false }, null),
-      copy.DETAILS_COPIED_TEXT,
+      copy.DETAILS_COPIED_TEXT, copy.REMOVE_FAILED_TEXT,
     ]
     for (const s of strings) expect(s).not.toContain('—')
     gate(true)

@@ -162,6 +162,19 @@ export function removeOutro(here: string): string {
   return `The copies on ${here} and on your other devices are not touched. To keep iCloud empty, turn iCloud Sync off on each device first: a device with sync on uploads its copy again at its next check.`
 }
 
+/**
+ * icloud-remove-synced-failure: the line under Remove synced files from iCloud
+ * after a removal that did not finish, also announced once per failure through
+ * the section's status region. Deliberately NOT `CHECK_FAILED_SUFFIX`: "Could
+ * not reach iCloud." is not true of every way this fails. The native removal
+ * (`icloud_remove_all`) stops at the first item iCloud will not delete, with
+ * everything before it already gone, while iCloud was plainly reachable; and
+ * after its 8 s timeout the work keeps running in the background and may yet
+ * finish. "May still be" holds in all three cases. It names no file because
+ * the app cannot know which remain; the button staying is the retry.
+ */
+export const REMOVE_FAILED_TEXT = 'Some synced files may still be in iCloud. Try again.'
+
 /** Clear with sync on (FR-30). */
 export function clearTitle(rowTitle: string): string {
   return `Clear ${rowTitle}?`

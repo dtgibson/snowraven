@@ -14,7 +14,9 @@ struct LiferEntry: TimelineEntry {
 
 enum WidgetService {
     /// One engine per extension process, so every placed widget shares one
-    /// serialized refresh path and one cache area per Measure from choice (NFR-03).
+    /// cache area per Measure from choice and takes turns on its request:
+    /// refreshes that overlap make one request per area between them (NFR-03,
+    /// widget-refresh-take-turns; the header of Logic/RefreshEngine.swift).
     static let engine = RefreshEngine(store: AppGroupStore(), transport: EBirdClient(), locator: CoreLocationLocator())
 
     static func timeline(kind: WidgetKind, window: WidgetWindow, media: WidgetMedia,
