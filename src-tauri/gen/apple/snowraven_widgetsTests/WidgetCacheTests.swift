@@ -1,12 +1,21 @@
 // ubuntu-latest CI cannot compile Swift, so these tests run on the release machine (see the snowraven-release skill).
 //
 // QA-12, QA-21, QA-22, QA-24 to QA-28, QA-51, QA-56: the shared cache and the
-// request etiquette, counted on a recording transport over a fake clock.
+// request etiquette, counted on a recording transport over a fake clock. The
+// widget-refresh-take-turns rows run refreshes that OVERLAP, through a
+// transport held open at a gate.
 
 import XCTest
 
 final class WidgetCacheTests: XCTestCase {
     let f = Fixture.shared
+
+    override func setUp() {
+        super.setUp()
+        // The backstop for the overlap rows' waits, which are never sleeps;
+        // armed by `-test-timeouts-enabled YES`, as the release skill runs it.
+        executionTimeAllowance = 60
+    }
 
     func testEveryRequestIsTheOneHostWithTheKey_AndNoKeyMeansNoRequest() async {
         let h = Harness()
@@ -314,6 +323,179 @@ final class WidgetCacheTests: XCTestCase {
                                fetchedAt: WidgetTime.string(f.now.addingTimeInterval(-3600)), records: [], backoff: nil,
                                lastFailure: nil, cellSource: .device)
         guard case .point(_, _, .myLocation) = resolve(read) else { return XCTFail("the control reading should resolve") }
+    }
+
+    // widget-refresh-take-turns: refreshes that OVERLAP. Every row above awaits
+    // one refresh after another through a fake that answers at once, and a
+    // Swift actor is reentrant at every `await`, so none of them can put a
+    // second refresh of an area between the first one's cache read and its
+    // write. These hold the request open at a gate and count.
+
+    /// Logs the harness's reads, writes and requests, and holds every request
+    /// open at the returned gate.
+    private func hold(_ h: Harness) -> (EngineLog, AlertsGate) {
+        let log = EngineLog(), gate = AlertsGate()
+        h.store.log = log
+        h.transport.log = log
+        h.transport.gate = gate
+        return (log, gate)
+    }
+
+    /// A harness whose requests answer `answer`. Primed, each area first holds
+    /// a list fetched 20 minutes before: stale, so a refresh asks again.
+    private func harness(_ answer: FetchResult, primed: Bool) async -> Harness {
+        let h = Harness(transport: FakeTransport(fallback: answer))
+        if primed {
+            h.transport.next = [.ok(Fixture.bodyData), .ok(Fixture.bodyData)]
+            for m in WidgetMeasure.allCases { _ = await h.refresh(.lifers, .week, .any, m) }
+            h.clock.now = f.now.addingTimeInterval(20 * 60)
+        }
+        return h
+    }
+
+    /// Three widgets on one choice refreshing at once, as WidgetKit runs them
+    /// after a hand-over write: ONE request between them, in either area,
+    /// whatever it answers, and each widget shows exactly what it would have
+    /// shown refreshing alone. Only the refresh that asked writes the area.
+    @MainActor  // on Xcode 27, XCTest drops some failures an async test records off the main thread
+    func testOverlappingRefreshesOfOneAreaMakeOneRequestWhateverItAnswers() async {
+        let placed: [(WidgetKind, WidgetWindow, WidgetMedia)] = [(.lifers, .week, .any), (.targets, .week, .photo), (.lifers, .day, .any)]
+        // The answer, then the state and mark every widget shows, from an
+        // empty area and from a stale one.
+        let outcomes: [(String, FetchResult, empty: (WidgetState, StaleReason?), stale: (WidgetState, StaleReason?))] = [
+            ("a list", .ok(Fixture.bodyData), (.list, nil), (.list, nil)),
+            ("a 429", .status(429, retryAfter: nil), (.unreachable, nil), (.list, .busy)),
+            ("no connection", .offline, (.unreachable, nil), (.list, .offline)),
+            ("a rejected key", .status(401, retryAfter: nil), (.keyRejected, nil), (.keyRejected, nil)),
+        ]
+        for (name, answer, fromEmpty, fromStale) in outcomes {
+            for primed in [false, true] {
+                for measure in WidgetMeasure.allCases {
+                    let label = "\(name), \(primed ? "stale" : "empty") \(measure) area"
+                    let h = await harness(answer, primed: primed)
+                    let writesBefore = h.store.cacheWrites
+                    let (log, gate) = hold(h)
+                    async let a = h.refresh(placed[0].0, placed[0].1, placed[0].2, measure)
+                    async let b = h.refresh(placed[1].0, placed[1].1, placed[1].2, measure)
+                    async let c = h.refresh(placed[2].0, placed[2].1, placed[2].2, measure)
+                    // Each has made its last check before the request point
+                    // (its own area, then the other area's hold) while the
+                    // first request is still held open.
+                    await log.until(reads: 2 * placed.count)
+                    await gate.release()
+                    let models = await [a, b, c]
+
+                    XCTAssertEqual(log.requestCount, 1, label)
+                    let (state, mark) = primed ? fromStale : fromEmpty
+                    XCTAssertEqual(models.map(\.state), [state, state, state], label)
+                    XCTAssertEqual(models.map(\.stale), [mark, mark, mark], label)
+                    // Each exactly as alone (a structural expectation, from the
+                    // same engine refreshing once), and the area as one writes it.
+                    var aloneWrites = 0
+                    for (i, p) in placed.enumerated() {
+                        let alone = await harness(answer, primed: primed)
+                        let before = alone.store.cacheWrites
+                        let expected = await alone.refresh(p.0, p.1, p.2, measure)
+                        XCTAssertEqual(models[i], expected, "\(label): \(p)")
+                        XCTAssertEqual(h.store.cache, alone.store.cache, "\(label): My location's area")
+                        XCTAssertEqual(h.store.defaultCache, alone.store.defaultCache, "\(label): Default Location's area")
+                        aloneWrites = alone.store.cacheWrites - before
+                    }
+                    XCTAssertEqual(h.store.cacheWrites - writesBefore, aloneWrites, "\(label): written once, by the refresh that asked")
+                }
+            }
+        }
+    }
+
+    /// A refresh that arrives while its area's request is in flight. For the
+    /// same cell and key (here a minute on, as another widget) it joins: no
+    /// request, and it shows the fetch time the area stores, not its own. For
+    /// a different cell (the device moved) or key (a new one saved) it waits
+    /// for that request AND its write, decides again from the area as written,
+    /// and only then asks; after a 429 that decision is the key's hold, so it
+    /// does not ask at all.
+    @MainActor  // on Xcode 27, XCTest drops some failures an async test records off the main thread
+    func testARefreshArrivingMidRequestJoinsItOrDecidesAfterItsWrite() async {
+        enum Change { case none, cell, key }
+        let elsewhere = Coordinate(lat: f.reference.lat + 0.5, lng: f.reference.lng)
+        XCTAssertNotEqual(WidgetCache.cell(for: elsewhere), WidgetCache.cell(for: f.reference))
+        let newKey = "otherKey999"
+        let cases: [(String, Change, firstAnswer: FetchResult, asks: Int)] = [
+            ("the same cell and key", .none, .ok(Fixture.bodyData), 1),
+            ("another cell", .cell, .ok(Fixture.bodyData), 2),
+            ("another key", .key, .ok(Fixture.bodyData), 2),
+            ("another cell, after a 429", .cell, .status(429, retryAfter: nil), 1),
+        ]
+        for (name, change, firstAnswer, asks) in cases {
+            let h = Harness(transport: FakeTransport([firstAnswer]))
+            let (log, gate) = hold(h)
+            async let first = h.refresh(.lifers, .week, .any, .myLocation)
+            await log.until(requests: 1)   // the first request is in flight, held open
+            h.clock.now = f.now.addingTimeInterval(60)
+            // The second refresh's control: the same widget refreshing alone,
+            // a minute on, with the area as the first request leaves it.
+            let control: Harness
+            switch change {
+            case .none:
+                control = Harness(now: h.clock.now)
+            case .cell:
+                h.locator.result = .located(elsewhere)
+                control = Harness(location: .located(elsewhere), now: h.clock.now)
+            case .key:
+                h.store.handover = .valid(f.handover.with(key: .some(newKey)))
+                control = Harness(handover: h.store.handover, now: h.clock.now)
+            }
+            async let second = h.refresh(.targets, .week, .photo, .myLocation)
+            await log.until(reads: 4)      // it has made its last check before the request point
+            await gate.release()
+            let (m1, m2) = await (first, second)
+
+            let e = log.events
+            XCTAssertEqual(e.filter(\.isRequest).count, asks, name)
+            guard let asked = e.firstIndex(where: \.isRequest), let written = e.firstIndex(of: .write(.myLocation)) else {
+                XCTFail("\(name): the first request was not made, or wrote nothing"); continue
+            }
+            XCTAssertLessThan(asked, written, name)
+            let after = e[(written + 1)...]
+            XCTAssertEqual(after.contains(.read(.myLocation)), change != .none,
+                           "\(name): only another cell or key decides again, from the area as written")
+            XCTAssertEqual(after.filter(\.isRequest).count, asks - 1, "\(name): and asks, if at all, only after that write")
+            if change == .key {
+                XCTAssertEqual(h.transport.requests.last?.value(forHTTPHeaderField: "X-eBirdApiToken"), newKey, name)
+            }
+            // Each shows exactly what its control shows: the first its own
+            // answer, the second what the area as written gives it.
+            let firstAlone = Harness(transport: FakeTransport([firstAnswer]))
+            let firstExpected = await firstAlone.refresh(.lifers, .week, .any, .myLocation)
+            XCTAssertEqual(m1, firstExpected, name)
+            control.store.cache = firstAlone.store.cache
+            let secondExpected = await control.refresh(.targets, .week, .photo, .myLocation)
+            XCTAssertEqual(m2, secondExpected, name)
+            XCTAssertEqual(control.transport.requests.count, asks - 1, "\(name): the control asks the same")
+            if change == .none { XCTAssertEqual(m2.updatedAt, f.now, "\(name): the stored fetch time, not the joiner's") }
+            if asks == 1 && change != .none { XCTAssertEqual(m2.state, .unreachable, "\(name): held, not asked") }
+        }
+    }
+
+    /// The two areas never wait on each other: a mixed home screen refreshing
+    /// at once has one request in flight for EACH area together, and makes two.
+    @MainActor  // on Xcode 27, XCTest drops some failures an async test records off the main thread
+    func testAMixedHomeScreenRefreshingAtOnceMakesTwoRequestsInFlightTogether() async {
+        let h = Harness()
+        let (log, gate) = hold(h)
+        async let a = h.refresh(.lifers, .week, .any, .myLocation)
+        async let b = h.refresh(.lifers, .day, .any, .defaultLocation)
+        async let c = h.refresh(.targets, .all, .any, .myLocation)
+        async let d = h.refresh(.targets, .week, .photo, .defaultLocation)
+        // Both areas' requests are held open at once: neither waited for the other.
+        await log.until(reads: 8, requests: 2)
+        await gate.release()
+        let models = await [a, b, c, d]
+        XCTAssertEqual(log.requestCount, 2)
+        let areas = h.transport.requests.map { $0.url!.absoluteString.contains("lat=37.30000") ? "home" : "here" }
+        XCTAssertEqual(Set(areas), ["home", "here"])
+        XCTAssertEqual(models.map(\.state), [.list, .list, .list, .list])
+        XCTAssertEqual(models.map(\.usedDefaultLocation), [false, true, false, true])
     }
 
     func testTheCacheDocumentRoundTripsAndValidates() {
