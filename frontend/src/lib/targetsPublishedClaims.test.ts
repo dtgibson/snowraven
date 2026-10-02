@@ -153,11 +153,17 @@ describe('what the help says is true of the shipped logic', () => {
     const clause = TARGETS.slice(TARGETS.indexOf('On a Mac, iPhone or iPad with iCloud Sync on, a file you add here'))
     expect(clause.startsWith('On a Mac, iPhone or iPad with iCloud Sync on, a file you add here reaches your other synced devices')).toBe(true)
     expect(clause).toContain(`and ${bold(copy.REMOVE_FILE)} asks you to confirm because the file is removed from those devices too`)
-    expect(TARGETS).toContain("Everywhere else the file stays on this device, so add it on each device where you want eBird's frequencies.")
+    // help-docs-refresh (B8): on web and Pi the file lives on the server like the
+    // two data files (backend/routers/barcharts.py), so the "everywhere else"
+    // sentence is scoped after the web/Pi one rather than claiming every other install.
+    expect(TARGETS).toContain('On a web or Raspberry Pi install the file is saved on the server, like your other files, so every browser that opens that install uses it.')
+    expect(TARGETS).toContain("Everywhere else it stays on this device, so add it on each device where you want eBird's frequencies.")
     // Held to the code: the family is a synced KIND beside the two slots (never a
     // third slot), the controller runs its pass, and the section confirms with sync on.
     expect([...SLOTS]).toEqual(['ebird', 'ml'])
     const code = (rel: string) => readFileSync(fileURLToPath(new URL(rel, import.meta.url)), 'utf8')
+    // ...and the web/Pi seam saves the file to the server's bar-chart route.
+    expect(code('./storage.ts')).toContain("const res = await fetch(`/settings/barcharts/${encodeURIComponent(regionCode)}`, { method: 'POST', body: form });")
     expect(code('./icloud/icloudSync.ts')).toContain('await runCountyPass(countyCtx(), remaining)')
     const section = code('../components/targets/TargetsBarChartFile.tsx')
     expect(section).toContain('if (syncOn) setConfirmOpen(true)')
@@ -357,6 +363,17 @@ describe('the privacy claims are true of the shipped code', () => {
 
   it('"clearing your eBird backup also removes ... the day-by-day eBird reports": the day cache is registered with the clear', () => {
     expect(registeredTeardowns('ebird')).toContain('county-day-obs.json')
+    // help-docs-refresh (I7): Help's Settings, Default Files sentence gives the
+    // day answers and the Alerts position among its examples, and the clear
+    // reaches both (the Alerts purge empties the saved position as well as the inbox).
+    const clear = HELP.split('\n').find(l => l.startsWith('Upload your eBird backup CSV and Macaulay Library export.')) ?? ''
+    expect(clear).toContain('Clearing the eBird backup also removes everything SnowRaven had worked out from it and saved on this device. That includes, for example,')
+    expect(clear).toContain("the day-by-day eBird answers behind the Targets tab's live counts")
+    expect(clear).toContain('and the position Alerts last read.')
+    expect(registeredTeardowns('ebird')).toContain('alerts/inbox.json (App Group, native-owned)')
+    const engine = readFileSync(fileURLToPath(new URL('../../../src-tauri/gen/apple/Sources/snowraven/AlertsLogic/AlertsEngine.swift', import.meta.url)), 'utf8')
+    const purge = engine.slice(engine.indexOf('func purgeInbox()'), engine.indexOf('func purgeInbox()') + 600)
+    expect(purge).toContain('st.position = nil')
   })
 })
 

@@ -17,6 +17,7 @@
 /// <reference types="node" />
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
+import { DEFAULT_TAB_ORDER, TAB_LABELS } from './tabLayout'
 
 const helpSrc = readFileSync(new URL('../components/HelpDocs.tsx', import.meta.url), 'utf8')
 const helpMd = readFileSync(new URL('../../../docs/HELP.md', import.meta.url), 'utf8')
@@ -101,9 +102,81 @@ describe('in-app Help TOC ↔ docs/HELP.md parity', () => {
     // ...between Tab Layout and Troubleshooting, the order Settings draws them in,
     // and its TOC entry sits after the Settings entry and before the next section.
     expect(order.indexOf('Bar-chart files')).toBe(order.indexOf('Tab Layout') + 1)
-    expect(order.indexOf('Troubleshooting (desktop app)')).toBe(order.indexOf('Bar-chart files') + 1)
+    expect(order.indexOf('Troubleshooting (Mac, Windows, iPhone and iPad)')).toBe(order.indexOf('Bar-chart files') + 1)
     expect(body.indexOf("id: 'bar-chart-files'")).toBeGreaterThan(body.indexOf("id: 'settings'"))
     expect(body.indexOf("id: 'bar-chart-files'")).toBeLessThan(body.indexOf("id: 'using-snowraven-offline'"))
+  })
+
+  it('the tab sections run in DEFAULT_TAB_ORDER, named through TAB_LABELS, in HELP.md and in the TOC (help-docs-refresh)', () => {
+    // The app's navigation, README and the website all list the tabs in this
+    // order; Help drifted from it a section at a time. Every tab has its own
+    // `##` section, and they form one run between Default Files and Settings.
+    const tabs = DEFAULT_TAB_ORDER.map(t => TAB_LABELS[t])
+    for (const label of tabs) expect(mdSections, label).toContain(label)
+    const at = mdSections.indexOf(tabs[0])
+    expect(mdSections.slice(at, at + tabs.length)).toEqual(tabs)
+    expect(mdSections[at - 1]).toBe('Default Files')
+    expect(mdSections[at + tabs.length]).toBe('Settings')
+    // The sidebar follows the same order (the parity row above implies it; this
+    // says why a reorder of either side goes red here by name).
+    const toc = tocTopLevel.map(t => t.label)
+    const tocAt = toc.indexOf(tabs[0])
+    expect(toc.slice(tocAt, tocAt + tabs.length)).toEqual(tabs)
+  })
+
+  it('the Widgets sub-entry exists and resolves to its `###` heading under Map Explorer (help-docs-refresh)', () => {
+    // The heading, the TOC entry and this row land in the same edit (the
+    // reason this parity file exists).
+    const start = helpSrc.indexOf('const TOC')
+    const body = helpSrc.slice(start, helpSrc.indexOf('\n]', start))
+    expect(body).toContain("{ id: 'widgets',              label: 'Widgets',                sub: true  }")
+    expect(textToId('Widgets')).toBe('widgets')
+    // The heading sits inside the Map Explorer section, before the next `##`.
+    const lines = helpMd.split('\n')
+    const map = lines.indexOf('## Map Explorer')
+    const next = lines.findIndex((l, i) => i > map && l.startsWith('## '))
+    const at = lines.indexOf('### Widgets')
+    expect(map).toBeGreaterThan(-1)
+    expect(at).toBeGreaterThan(map)
+    expect(at).toBeLessThan(next)
+    // ...and its TOC entry sits after the Map Explorer entry and before the next section's.
+    const nextId = tocTopLevel[tocTopLevel.findIndex(t => t.id === 'map-explorer') + 1].id
+    expect(body.indexOf("id: 'widgets'")).toBeGreaterThan(body.indexOf("id: 'map-explorer'"))
+    expect(body.indexOf("id: 'widgets'")).toBeLessThan(body.indexOf(`id: '${nextId}'`))
+  })
+
+  it('the Alerts sub-entry exists and resolves to its `###` heading under Settings (help-docs-refresh)', () => {
+    const start = helpSrc.indexOf('const TOC')
+    const body = helpSrc.slice(start, helpSrc.indexOf('\n]', start))
+    expect(body).toContain("{ id: 'alerts-iphone-and-ipad', label: 'Alerts',               sub: true  }")
+    expect(textToId('Alerts (iPhone and iPad)')).toBe('alerts-iphone-and-ipad')
+    const order = helpMd.split('\n').filter(l => l.startsWith('### ')).map(l => l.slice(4).trim())
+    expect(order).toContain('Alerts (iPhone and iPad)')
+    // ...between Default Location and Tab Layout, the order Settings draws them
+    // in, and its TOC entry sits after Settings and before Bar-chart files.
+    expect(order.indexOf('Alerts (iPhone and iPad)')).toBe(order.indexOf('Default Location') + 1)
+    expect(order.indexOf('Tab Layout')).toBe(order.indexOf('Alerts (iPhone and iPad)') + 1)
+    expect(body.indexOf("id: 'alerts-iphone-and-ipad'")).toBeGreaterThan(body.indexOf("id: 'settings'"))
+    expect(body.indexOf("id: 'alerts-iphone-and-ipad'")).toBeLessThan(body.indexOf("id: 'bar-chart-files'"))
+  })
+
+  it('the Settings walkthrough follows the order Settings draws its sections in (help-docs-refresh)', () => {
+    // The app's own sequence is pinned in components/settingsSectionOrder.test.tsx
+    // (iPhone and iPad render every section; the other platforms render a subset
+    // in the same relative order). HELP's `###` headings under Settings carry a
+    // platform note in parentheses where a section is platform-gated; that note
+    // is not part of the on-screen header, so it is dropped before comparing.
+    const lines = helpMd.split('\n')
+    const settings = lines.indexOf('## Settings')
+    const end = lines.findIndex((l, i) => i > settings && l.startsWith('## '))
+    expect(settings).toBeGreaterThan(-1)
+    const walkthrough = lines.slice(settings, end)
+      .filter(l => l.startsWith('### '))
+      .map(l => l.slice(4).replace(/\s*\([^)]*\)$/, '').trim())
+    expect(walkthrough).toEqual([
+      'API Keys', 'Default Files', 'iCloud Sync', 'Help & Documentation', 'Appearance', 'Sharing',
+      'Default Location', 'Alerts', 'Tab Layout', 'Bar-chart files', 'Troubleshooting', 'Acknowledgments',
+    ])
   })
 
   it('sub-entries reference real `###` headings in HELP.md', () => {

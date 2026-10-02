@@ -44,7 +44,9 @@ describe('docs/HELP.md: the Widgets section under Map Explorer', () => {
     expect(help.length).toBeGreaterThan(500)
     const md = repo('docs/HELP.md')
     expect(md.indexOf('### Widgets')).toBeGreaterThan(md.indexOf('## Map Explorer'))
-    expect(md.indexOf('### Widgets')).toBeLessThan(md.indexOf('## Multimedia'))
+    // Before the `##` that follows Map Explorer, whichever tab that is (the
+    // tab sections run in DEFAULT_TAB_ORDER since help-docs-refresh).
+    expect(md.indexOf('### Widgets')).toBeLessThan(md.indexOf('\n## ', md.indexOf('## Map Explorer')))
   })
 
   it('names both kinds, the iOS version the extension targets, and the three sizes with their row counts', () => {
