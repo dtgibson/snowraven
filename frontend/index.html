@@ -134,7 +134,7 @@
         if (belowFloor) {
           window.__SR_WEBVIEW_BELOW_FLOOR__ = true;
           splash.dataset.state = 'webview';
-          status.textContent = 'SnowRaven needs a newer Android System WebView. Update it from Google Play, then open SnowRaven again.';
+          status.textContent = 'SnowRaven needs a newer Android System WebView: update it through your phone’s app store or system update, then open SnowRaven again.';
           reload.hidden = true;
         }
         reload.addEventListener('click', function () { window.location.reload(); });

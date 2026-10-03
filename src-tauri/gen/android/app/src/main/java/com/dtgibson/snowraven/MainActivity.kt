@@ -85,8 +85,8 @@ class MainActivity : TauriActivity() {
   // from applyTheme() (lib/theme.ts, reportPaintedTheme). The origin allowlist
   // is the whole trust argument: only the app's own document can post here,
   // and anything but those two strings from the main frame is ignored.
-  // Navigation bar glyph appearance needs API 26; below it the compat setter
-  // is a no-op and enableEdgeToEdge()'s dark scrim keeps light glyphs.
+  // Both setters take effect on every supported version (the floor is API 26,
+  // where navigation bar glyph appearance arrived).
   private fun installThemeChannel(webView: WebView) {
     if (!WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) return
     WebViewCompat.addWebMessageListener(

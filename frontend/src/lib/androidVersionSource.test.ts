@@ -29,7 +29,7 @@ const APP = 'src-tauri/gen/android/app'
 const EXPECTED_DEFAULT_CONFIG = [
   'manifestPlaceholders["usesCleartextTraffic"] = "false"',
   'applicationId = "com.dtgibson.snowraven"',
-  'minSdk = 24',
+  'minSdk = 26',
   'targetSdk = 36',
   'versionCode = tauriProperties.getProperty("tauri.android.versionCode", "1").toInt()',
   'versionName = tauriProperties.getProperty("tauri.android.versionName", "1.0")',
@@ -125,12 +125,12 @@ describe('the version guard rejects a hand-set version', () => {
   })
 
   it('an unrecognised statement in defaultConfig fails the shape check', () => {
-    const bad = gradle.replace('minSdk = 24', 'minSdk = 24\n        multiDexEnabled = true')
+    const bad = gradle.replace('minSdk = 26', 'minSdk = 26\n        multiDexEnabled = true')
     expect(versionFindings(bad).defaultConfig).not.toEqual(EXPECTED_DEFAULT_CONFIG)
   })
 
   it('a commented-out hand-set version is not a finding', () => {
-    const commented = gradle.replace('minSdk = 24', 'minSdk = 24\n        // versionName = "9.9.9"')
+    const commented = gradle.replace('minSdk = 26', 'minSdk = 26\n        // versionName = "9.9.9"')
     expect(versionFindings(commented).defaultConfig).toEqual(EXPECTED_DEFAULT_CONFIG)
   })
 })

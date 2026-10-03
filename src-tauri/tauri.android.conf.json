@@ -3,7 +3,7 @@
   "identifier": "com.dtgibson.snowraven",
   "bundle": {
     "android": {
-      "minSdkVersion": 24
+      "minSdkVersion": 26
     }
   }
 }

@@ -44,7 +44,11 @@ android {
     defaultConfig {
         manifestPlaceholders["usesCleartextTraffic"] = "false"
         applicationId = "com.dtgibson.snowraven"
-        minSdk = 24
+        // minSdk 26 (Android 8.0), decided by the user 2026-10-03: the locked
+        // Tauri 2.11.2 Android runtime pins jackson-databind 2.15.3, whose
+        // ExceptionUtil references java.lang.BootstrapMethodError (API 26+), so the
+        // app crashes at launch on API 24 and 25 (pipeline/android-release/decisions.md).
+        minSdk = 26
         // targetSdk 36 (Android 16), read 2026-10-03: the tauri-cli 2.11.2 template
         // value, and Google Play's requirement for new apps and updates from
         // 2026-08-31. Re-read the current requirement before a store submission.

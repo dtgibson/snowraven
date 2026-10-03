@@ -1,7 +1,7 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Base application theme. The launch state (android-release design-spec
          section 1) is the same green in light and dark, so a dark system theme
-         cannot flash a light frame: on API 24 to 30 the window background is
+         cannot flash a light frame: on API 26 to 30 the window background is
          the green with the raven mark (drawable/sr_launch_background.xml), and
          the status bar starts with light glyphs over it. After the first frame
          enableEdgeToEdge() and the page's theme report own the glyphs. The

@@ -102,7 +102,7 @@ describe('in-app Help TOC ↔ docs/HELP.md parity', () => {
     // ...between Tab Layout and Troubleshooting, the order Settings draws them in,
     // and its TOC entry sits after the Settings entry and before the next section.
     expect(order.indexOf('Bar-chart files')).toBe(order.indexOf('Tab Layout') + 1)
-    expect(order.indexOf('Troubleshooting (Mac, Windows, iPhone and iPad)')).toBe(order.indexOf('Bar-chart files') + 1)
+    expect(order.indexOf('Troubleshooting (Mac, Windows, iPhone, iPad and Android)')).toBe(order.indexOf('Bar-chart files') + 1)
     expect(body.indexOf("id: 'bar-chart-files'")).toBeGreaterThan(body.indexOf("id: 'settings'"))
     expect(body.indexOf("id: 'bar-chart-files'")).toBeLessThan(body.indexOf("id: 'using-snowraven-offline'"))
   })

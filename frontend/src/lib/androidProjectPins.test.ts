@@ -85,10 +85,12 @@ describe('the application id and the desktop identifier (FR-04, QA-04)', () => {
 })
 
 describe('API levels (FR-07, QA-07)', () => {
-  it('minSdk 24 in both the overlay and Gradle; targetSdk and compileSdk 36', () => {
-    expect(androidConf.bundle?.android?.minSdkVersion).toBe(24)
+  // minSdk 26 (Android 8.0), the user's decision of 2026-10-03: the locked Tauri
+  // runtime's Jackson crashes at launch on API 24 and 25 (decisions.md, BLOCKER).
+  it('minSdk 26 in both the overlay and Gradle; targetSdk and compileSdk 36', () => {
+    expect(androidConf.bundle?.android?.minSdkVersion).toBe(26)
     const g = gradlePins(gradle)
-    expect(g.minSdk).toBe(24)
+    expect(g.minSdk).toBe(26)
     expect(g.targetSdk).toBe(36)
     expect(g.compileSdk).toBe(36)
   })
@@ -175,7 +177,7 @@ describe('the launch state (FR-31, FR-32, design-spec section 1)', () => {
     return items
   }
 
-  it('API 24 to 30, light and dark alike: the green layer-list and light status glyphs', () => {
+  it('API 26 to 30, light and dark alike: the green layer-list and light status glyphs', () => {
     for (const dir of ['values', 'values-night']) {
       expect(style(`${RES}/${dir}/themes.xml`), dir).toEqual({
         'android:windowBackground': '@drawable/sr_launch_background',
@@ -298,12 +300,12 @@ describe('the CI build (FR-34, QA-34, NFR-07)', () => {
 // GUARD THE GUARD: the same pin functions, driven against scratch strings in
 // the shapes the defect would return in.
 describe('the pins reject the shapes a regeneration or a slip would produce', () => {
-  it('a minSdk of 23 is read as 23 (and so fails the pin above)', () => {
-    expect(gradlePins(gradle.replace(/minSdk = 24/, 'minSdk = 23')).minSdk).toBe(23)
+  it('a minSdk of 24 is read as 24 (and so fails the pin above)', () => {
+    expect(gradlePins(gradle.replace(/minSdk = 26/, 'minSdk = 24')).minSdk).toBe(24)
   })
 
   it('a second minSdk assignment fails closed rather than picking one', () => {
-    expect(() => gradlePins(gradle.replace(/minSdk = 24/, 'minSdk = 24\n        minSdk = 26'))).toThrow(/exactly one/)
+    expect(() => gradlePins(gradle.replace(/minSdk = 26/, 'minSdk = 26\n        minSdk = 28'))).toThrow(/exactly one/)
   })
 
   it('a missing defaultConfig block fails closed', () => {

@@ -1,0 +1,892 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SnowRaven on Android</title>
+<style>
+/* ------------------------------------------------------------------------
+   SnowRaven design mockup: the Android release.
+   Tokens are the shipped values from frontend/src/globals.css (:root and
+   [data-theme="dark"]). The type stack is the app's own (--font-sans), so
+   this page renders in the face the Android app will ship in: Roboto through
+   system-ui on a device, Inter where it is installed. See decisions.md.
+   ------------------------------------------------------------------------ */
+:root {
+  --sr-bg: #F9FAFB; --sr-surface: #FFFFFF; --sr-surface-subtle: #F4F4F5; --sr-surface-faint: #FAFAFA;
+  --sr-text: #0F1117; --sr-text-muted: #6B6B74; --sr-text-gray: #6B7280; --sr-text-disabled: #A1A1AA;
+  --sr-border: #E4E4E7; --sr-border-subtle: #F4F4F5; --sr-border-medium: #C4C4CE;
+  --sr-accent: #277448; --sr-accent-strong: #1A5C38; --sr-accent-bg: #E8F5EE;
+  --sr-accent-border: rgba(39,116,72,0.25); --sr-accent-border-strong: rgba(39,116,72,0.7);
+  --sr-on-accent: #FFFFFF; --sr-error: #D31F1F; --sr-error-bg: #FDECEC;
+  --sr-gray-400: #8E8E96; --sr-scrim: rgba(15,17,23,0.36);
+  --sr-card-shadow: 0 1px 4px rgba(15,17,23,0.06), 0 4px 16px rgba(15,17,23,0.04);
+  --sr-nav-bar-shadow: 0 -3px 6px -2px rgba(15,17,23,0.12);
+  --sr-brand: #2D8653; /* the launch green: the icon background and the window background, both themes */
+  --sr-bar-ink: #0F1117; /* status-bar glyphs over the light theme (dark icons) */
+  --page-wash: radial-gradient(1200px 600px at 10% -10%, rgba(45,134,83,0.10), transparent 60%),
+               radial-gradient(900px 500px at 100% 0%, rgba(45,134,83,0.06), transparent 55%);
+  --font-sans: 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  --sr-text-scale: 1;
+}
+:root[data-theme="dark"] {
+  --sr-bg: #09090B; --sr-surface: #18181B; --sr-surface-subtle: #27272A; --sr-surface-faint: #1C1C1F;
+  --sr-text: #F4F4F5; --sr-text-muted: #A1A1AA; --sr-text-gray: #8A8A92; --sr-text-disabled: #52525B;
+  --sr-border: #27272A; --sr-border-subtle: #1F1F23; --sr-border-medium: #3F3F46;
+  --sr-accent: #34D399; --sr-accent-strong: #34D399; --sr-accent-bg: #052E16;
+  --sr-accent-border: rgba(52,211,153,0.2); --sr-accent-border-strong: rgba(52,211,153,0.5);
+  --sr-on-accent: #052E16; --sr-error: #F87171; --sr-error-bg: #2A1414;
+  --sr-gray-400: #6E6E78; --sr-scrim: rgba(9,9,11,0.6);
+  --sr-card-shadow: 0 1px 4px rgba(2,2,4,0.4), 0 4px 16px rgba(2,2,4,0.25);
+  --sr-nav-bar-shadow: 0 -3px 8px -2px rgba(2,2,4,0.60);
+  --sr-bar-ink: #F4F4F5; /* status-bar glyphs over the dark theme (light icons) */
+  --page-wash: radial-gradient(1200px 600px at 10% -10%, rgba(52,211,153,0.08), transparent 60%),
+               radial-gradient(900px 500px at 100% 0%, rgba(52,211,153,0.05), transparent 55%);
+}
+
+* { box-sizing: border-box; }
+html { font-size: calc(16px * var(--sr-text-scale)); }
+body {
+  margin: 0; font-family: var(--font-sans); color: var(--sr-text);
+  background: var(--page-wash), var(--sr-bg); line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+button { font: inherit; }
+a { color: var(--sr-accent); }
+
+/* ---- page chrome -------------------------------------------------------- */
+.page { max-width: 1180px; margin: 0 auto; padding: 32px 16px 96px; }
+.masthead { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 24px; align-items: end; margin-bottom: 40px; }
+.masthead h1 { font-size: 2rem; font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; margin: 0 0 8px; }
+.masthead h1 .accent { color: var(--sr-accent); }
+.masthead p { margin: 0; color: var(--sr-text-muted); font-size: 0.9375rem; max-width: 56ch; }
+.controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: flex-end; }
+.seg { display: inline-flex; border: 1.5px solid var(--sr-accent-border); border-radius: 15px; overflow: hidden; background: var(--sr-surface); }
+.seg button { min-height: 30px; padding: 0 12px; border: 0; background: transparent; color: var(--sr-text-muted); font-size: 0.75rem; font-weight: 500; cursor: pointer; border-left: 1.5px solid var(--sr-accent-border); transition: background-color 120ms ease-out, color 120ms ease-out; }
+.seg button:first-child { border-left: 0; }
+.seg button:hover { color: var(--sr-text); }
+.seg button[aria-pressed="true"] { background: var(--sr-accent-bg); color: var(--sr-accent); font-weight: 600; }
+.seg button:focus-visible { outline: 2px solid var(--sr-accent); outline-offset: -3px; }
+.seg-label { font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--sr-text-muted); margin-right: 4px; }
+
+.section { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; margin: 0 0 64px; }
+@media (min-width: 900px) { .section { grid-template-columns: auto minmax(0, 1fr); gap: 40px; align-items: start; } .section.wide { grid-template-columns: minmax(0, 1fr); } }
+.section-head { grid-column: 1 / -1; }
+.kicker { font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--sr-accent); margin: 0 0 6px; }
+.section-head h2 { font-size: 1.375rem; font-weight: 700; letter-spacing: -0.015em; margin: 0 0 6px; }
+.section-head p { margin: 0; color: var(--sr-text-muted); font-size: 0.875rem; max-width: 70ch; }
+.notes { font-size: 0.84375rem; line-height: 1.55; max-width: 62ch; }
+.notes h3 { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--sr-text-muted); margin: 18px 0 6px; }
+.notes h3:first-child { margin-top: 0; }
+.notes p { margin: 0 0 10px; }
+.notes ul { margin: 0 0 10px; padding-left: 18px; }
+.notes li { margin: 0 0 6px; }
+.notes code { font-family: var(--font-mono); font-size: 0.78em; background: var(--sr-surface-subtle); padding: 1px 5px; border-radius: 4px; }
+.notes-cols { margin-top: 16px; max-width: none; }
+@media (min-width: 700px) { .notes-cols { columns: 2; column-gap: 40px; } }
+.decision { border-left: 3px solid var(--sr-accent-border-strong); padding: 2px 0 2px 12px; margin: 0 0 12px; }
+.decision strong { color: var(--sr-text); }
+
+/* ---- the phone frame ---------------------------------------------------- */
+.phone-host { position: relative; width: 100%; max-width: 360px; height: 800px; margin: 12px 0; }
+.phone-host .phone { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+.frame-wrap { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
+.phone {
+  position: relative; width: 360px; height: 800px; border-radius: 28px; overflow: hidden;
+  background: var(--sr-bg); color: var(--sr-text);
+  box-shadow: 0 0 0 10px #1B1D23, 0 0 0 11px #3A3D47, 0 24px 60px rgba(15,17,23,0.35);
+  font-size: 1rem;
+}
+.frame-caption { font-size: 0.75rem; color: var(--sr-text-muted); max-width: 360px; margin: 0; }
+.frame-caption strong { color: var(--sr-text); font-weight: 600; }
+
+/* Android system bars. In the app these are TRANSPARENT; the app draws under
+   them and the native side reports their heights as --sr-inset-top / -bottom.
+   The frame models the same thing: the bars are overlays, the app paints to
+   every edge, and the inset variables pad its first and last rows. */
+.phone { --sr-inset-top: 24px; --sr-inset-bottom: 24px; --sr-inset-left: 0px; --sr-inset-right: 0px; --ime: 0px; }
+.phone.nav-buttons { --sr-inset-bottom: 48px; }
+.statusbar {
+  position: absolute; left: 0; right: 0; top: 0; height: var(--sr-inset-top); z-index: 50;
+  display: flex; align-items: center; justify-content: space-between; padding: 0 14px 0 18px;
+  font-size: 12px; font-weight: 600; color: var(--sr-bar-ink); pointer-events: none; letter-spacing: 0.01em;
+}
+.statusbar .cluster { display: flex; gap: 5px; align-items: center; }
+.statusbar svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 2; }
+.phone.on-green .statusbar { color: #FFFFFF; }
+.navbar-sys {
+  position: absolute; left: 0; right: 0; bottom: 0; height: var(--sr-inset-bottom); z-index: 50;
+  display: flex; align-items: center; justify-content: center; gap: 72px; color: var(--sr-bar-ink); pointer-events: none;
+}
+.phone.on-green .navbar-sys { color: #FFFFFF; }
+.navbar-sys .pill { width: 108px; height: 4px; border-radius: 2px; background: currentColor; opacity: 0.85; }
+.navbar-sys .btn { display: none; width: 16px; height: 16px; }
+.phone.nav-buttons .navbar-sys .pill { display: none; }
+.phone.nav-buttons .navbar-sys .btn { display: block; }
+.navbar-sys .btn svg { width: 16px; height: 16px; fill: currentColor; stroke: none; }
+
+/* the app surface inside the frame */
+.app { position: absolute; inset: 0; display: flex; flex-direction: column; background: var(--sr-bg); padding-top: var(--sr-inset-top); padding-bottom: var(--ime); overflow: hidden; }
+.app-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding-bottom: calc(var(--sr-navbar-h, 66px) + var(--sr-inset-bottom)); }
+.phone.ime-open .app-scroll { padding-bottom: 12px; }
+.hdr { display: flex; align-items: center; justify-content: center; gap: 7px; padding: 8px 16px 6px; flex-shrink: 0; }
+.hdr h1 { font-size: 1.125rem; font-weight: 700; letter-spacing: -0.6px; margin: 0; }
+.hdr h1 .accent { color: var(--sr-accent); }
+.raven { width: 20px; height: 20px; color: var(--sr-accent); flex-shrink: 0; }
+.panel { padding: 0 12px; }
+
+/* bottom phone bar (the shipped .sr-navbar register) */
+.navbar {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 40;
+  display: grid; grid-template-columns: repeat(5, minmax(0, 1fr));
+  background: var(--sr-surface); border-top: 1px solid var(--sr-border); box-shadow: var(--sr-nav-bar-shadow);
+  padding-bottom: calc(6px + var(--sr-inset-bottom));
+  transition: transform 160ms ease-out;
+}
+.phone.ime-open .navbar { transform: translateY(100%); }
+.navbar button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; min-height: 52px; padding: 7px 3px 8px; border: 0; background: none; color: var(--sr-text-muted); cursor: pointer; transition: background-color 120ms ease-out, color 120ms ease-out; }
+.navbar button:hover { background: var(--sr-surface-subtle); }
+.navbar .glyph { display: flex; align-items: center; justify-content: center; width: 40px; height: 26px; border-radius: 13px; transition: background-color 140ms ease-out; }
+.navbar .glyph svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.navbar .label { font-size: 0.625rem; font-weight: 600; line-height: 1.15; }
+.navbar button.active { color: var(--sr-accent); }
+.navbar button.active .glyph { background: var(--sr-accent-bg); }
+.navbar button.active .label { font-weight: 700; }
+
+/* tab page header + cards (house registers) */
+.tab-head { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0 12px; }
+.tile { width: 30px; height: 30px; border-radius: 8px; background: var(--sr-accent-bg); color: var(--sr-accent); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.tile svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.tab-head h2 { font-size: 1.125rem; font-weight: 700; letter-spacing: -0.01em; margin: 0; line-height: 1.2; }
+.tab-head p { margin: 2px 0 0; font-size: 0.8125rem; color: var(--sr-text-muted); }
+.card { background: var(--sr-surface); border: 1px solid var(--sr-border); border-radius: 10px; box-shadow: var(--sr-card-shadow); margin: 0 0 12px; overflow: hidden; }
+.card-pad { padding: 12px 14px; }
+.stat-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.stat-label { font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--sr-text-muted); }
+.stat-val { font-size: 1.25rem; font-weight: 700; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
+.stat-val.accent { color: var(--sr-accent); }
+.row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 10px; align-items: center; padding: 8px 14px; border-top: 1px solid var(--sr-border-subtle); font-size: 0.84375rem; }
+.row:first-child { border-top: 0; }
+.row .sub { grid-column: 1 / -1; height: 3px; border-radius: 2px; background: var(--sr-border); overflow: hidden; }
+.row .sub i { display: block; height: 100%; background: var(--sr-accent); }
+.row .num { font-variant-numeric: tabular-nums; font-weight: 700; }
+.row .num small { color: var(--sr-text-muted); font-weight: 500; font-size: 0.75rem; margin-left: 4px; }
+.sci { font-style: italic; font-size: 0.71875rem; color: var(--sr-text-gray); }
+.micro { font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--sr-text-muted); }
+
+/* Settings registers */
+.sec-h { font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--sr-text-muted); margin: 18px 0 8px; }
+.srow { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 12px 14px; border-top: 1px solid var(--sr-border-subtle); }
+.srow:first-child { border-top: 0; }
+.srow .t { font-size: 0.84375rem; font-weight: 600; }
+.srow .d { font-size: 0.75rem; color: var(--sr-text-muted); margin-top: 1px; overflow-wrap: anywhere; }
+.btn-q { min-height: 30px; padding: 0 12px; border: 1.5px solid var(--sr-border); border-radius: 6px; background: var(--sr-surface); color: var(--sr-text); font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: border-color 120ms ease-out, background-color 120ms ease-out; white-space: nowrap; }
+.btn-q:hover { border-color: var(--sr-border-medium); background: var(--sr-surface-subtle); }
+.btn-a { min-height: 30px; padding: 0 12px; border: 1.5px solid var(--sr-accent-border-strong); border-radius: 6px; background: var(--sr-accent-bg); color: var(--sr-accent); font-size: 0.75rem; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.toggle { width: 36px; height: 20px; border-radius: 10px; background: var(--sr-gray-400); position: relative; flex-shrink: 0; }
+.toggle.on { background: var(--sr-accent); }
+.toggle::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #FFFFFF; box-shadow: 0 1px 2px rgba(15,17,23,0.25); transition: transform 140ms ease-out; }
+.toggle.on::after { transform: translateX(16px); }
+.fine { font-size: 0.75rem; color: var(--sr-text-muted); padding: 0 2px; margin: 0 0 6px; }
+.absent { display: inline-flex; gap: 6px; align-items: center; font-size: 0.71875rem; color: var(--sr-text-muted); border: 1px dashed var(--sr-border-medium); border-radius: 6px; padding: 4px 8px; margin: 0 0 8px; }
+.absent svg { width: 12px; height: 12px; stroke: currentColor; fill: none; stroke-width: 2.2; }
+.input { display: flex; align-items: center; gap: 8px; min-height: 36px; border: 1px solid var(--sr-border-medium); border-radius: 6px; padding: 0 10px; background: var(--sr-surface); font-size: 1rem; color: var(--sr-text); }
+.input.focus { border-color: var(--sr-accent); box-shadow: 0 0 0 3px var(--sr-accent-border); }
+.input .caret { width: 1px; height: 18px; background: var(--sr-text); }
+.input .ph { color: var(--sr-text-disabled); }
+
+/* ---- launch sequence ---------------------------------------------------- */
+.launch { position: absolute; inset: 0; background: var(--sr-brand); color: #FFFFFF; display: flex; align-items: center; justify-content: center; z-index: 30; }
+.launch .mark { width: 88px; height: 88px; color: #FFFFFF; }
+.launch .splash-icon { width: 160px; height: 160px; border-radius: 50%; background: var(--sr-brand); display: flex; align-items: center; justify-content: center; }
+.launch .splash-icon svg { width: 88px; height: 88px; color: #FFFFFF; }
+.launch .copy { position: absolute; top: calc(50% + 56px); left: 24px; right: 24px; text-align: center; font-size: 1rem; font-weight: 600; line-height: 1.35; }
+.launch .copy p { margin: 0 auto 12px; max-width: 20rem; }
+.homescreen { position: absolute; inset: 0; background: linear-gradient(180deg, #1F3A2E 0%, #0E1A14 100%); display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px 8px; padding: 92px 22px 0; align-content: start; }
+.homescreen .ic { display: flex; flex-direction: column; align-items: center; gap: 6px; color: #E8EEEA; font-size: 11px; }
+.homescreen .ic .sq { width: 56px; height: 56px; border-radius: 50%; background: #2A2F36; }
+.homescreen .ic.sr .sq { background: var(--sr-brand); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 0 0 rgba(255,255,255,0); transition: transform 160ms ease-out; }
+.homescreen .ic.sr .sq svg { width: 36px; height: 36px; color: #FFFFFF; }
+.homescreen .ic.sr.pressed .sq { transform: scale(0.92); }
+.steps { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 0 0 10px; }
+.step { min-height: 30px; padding: 0 12px; border-radius: 15px; border: 1.5px solid var(--sr-border); background: var(--sr-surface); color: var(--sr-text-muted); font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: background-color 120ms ease-out, color 120ms ease-out, border-color 120ms ease-out; }
+.step[aria-pressed="true"] { background: var(--sr-accent-bg); color: var(--sr-accent); border-color: var(--sr-accent-border-strong); }
+.step:focus-visible, .step-play:focus-visible { outline: 2px solid var(--sr-accent); outline-offset: 2px; }
+.step-play { min-height: 30px; padding: 0 14px; border-radius: 15px; border: 1.5px solid var(--sr-accent-border-strong); background: var(--sr-accent); color: var(--sr-on-accent); font-size: 0.75rem; font-weight: 700; cursor: pointer; }
+.stage { position: absolute; inset: 0; opacity: 0; visibility: hidden; transition: opacity 180ms ease-out, visibility 0s linear 180ms; }
+.stage.on { opacity: 1; visibility: visible; transition: opacity 180ms ease-out, visibility 0s; }
+.stage.first { transition: none; }
+
+/* ---- location dialog (the OS dialog, drawn for the mockup) ---------------- */
+.scrim[hidden] { display: none; }
+.scrim { position: absolute; inset: 0; background: var(--sr-scrim); z-index: 45; display: flex; align-items: flex-end; justify-content: center; padding: 0 12px calc(12px + var(--sr-inset-bottom)); }
+.sysdlg { width: 100%; max-width: 336px; border-radius: 28px; background: var(--sr-surface); color: var(--sr-text); padding: 22px 20px 12px; transform-origin: 50% 100%; animation: dlg-in 180ms ease-out both; }
+@keyframes dlg-in { from { opacity: 0; transform: translateY(12px) scale(0.98); } to { opacity: 1; transform: none; } }
+.sysdlg .ico { width: 32px; height: 32px; border-radius: 50%; background: var(--sr-accent-bg); color: var(--sr-accent); display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; }
+.sysdlg .ico svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2; }
+.sysdlg h4 { margin: 0 0 16px; text-align: center; font-size: 1.0625rem; font-weight: 500; line-height: 1.3; }
+.sysdlg .prec { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 0 0 14px; }
+.sysdlg .prec div { height: 96px; border-radius: 16px; background: var(--sr-surface-subtle); position: relative; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 8px; font-size: 0.75rem; font-weight: 600; }
+.sysdlg .prec div.sel { outline: 2px solid var(--sr-accent); outline-offset: -2px; }
+.sysdlg .prec div::before { content: ""; position: absolute; left: 50%; top: 32px; width: 14px; height: 14px; border-radius: 50%; background: var(--sr-accent); transform: translateX(-50%); box-shadow: 0 0 0 10px var(--sr-accent-border); }
+.sysdlg .prec div.approx::before { width: 44px; height: 44px; top: 18px; background: var(--sr-accent-border); box-shadow: none; }
+.sysdlg .opt { display: block; width: 100%; min-height: 44px; border: 0; border-radius: 22px; background: var(--sr-surface-subtle); color: var(--sr-accent); font-weight: 600; font-size: 0.875rem; margin: 0 0 8px; cursor: pointer; }
+.sysdlg .opt.quiet { background: transparent; color: var(--sr-text-muted); margin-bottom: 0; }
+.denied[hidden] { display: none; }
+.denied { display: flex; gap: 8px; align-items: flex-start; font-size: 0.78125rem; color: var(--sr-error); background: var(--sr-error-bg); border-radius: 8px; padding: 8px 10px; margin: 8px 0 0; line-height: 1.4; }
+.denied svg { width: 14px; height: 14px; flex-shrink: 0; stroke: currentColor; fill: none; stroke-width: 2.2; margin-top: 2px; }
+
+/* a fake map */
+.map { position: relative; height: 420px; border-radius: 10px; overflow: hidden; border: 1px solid var(--sr-border);
+  background:
+    linear-gradient(90deg, rgba(15,17,23,0.05) 1px, transparent 1px) 0 0 / 40px 40px,
+    linear-gradient(0deg, rgba(15,17,23,0.05) 1px, transparent 1px) 0 0 / 40px 40px,
+    radial-gradient(260px 160px at 70% 30%, #D9E8DD, transparent 70%),
+    radial-gradient(220px 200px at 20% 75%, #CFE0F0, transparent 70%),
+    #EEF1EC; }
+.map .pin { position: absolute; width: 22px; height: 22px; border-radius: 50% 50% 50% 0; background: var(--sr-brand); transform: rotate(-45deg); box-shadow: 0 1px 3px rgba(15,17,23,0.35); }
+.fabs { position: absolute; right: 10px; bottom: 10px; display: flex; gap: 8px; }
+.fab { width: 38px; height: 38px; border-radius: 50%; background: var(--sr-surface); border: 1px solid var(--sr-border); box-shadow: var(--sr-card-shadow); display: flex; align-items: center; justify-content: center; color: var(--sr-text); }
+.fab svg { width: 17px; height: 17px; stroke: currentColor; fill: none; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.phone.branch-b .fab-locate { display: none; }
+.defloc-b[hidden] { display: none; }
+.fab.pill { width: auto; padding: 0 12px; border-radius: 19px; background: var(--sr-accent); color: var(--sr-on-accent); border-color: var(--sr-accent); font-size: 0.75rem; font-weight: 700; gap: 6px; }
+
+/* keyboard occluder */
+.ime { position: absolute; left: 0; right: 0; bottom: 0; height: 0; background: #DADFE3; z-index: 48; overflow: hidden; transition: height 200ms ease-out; display: grid; grid-template-rows: repeat(4, 1fr); gap: 6px; padding: 10px 4px calc(6px + var(--sr-inset-bottom)); }
+:root[data-theme="dark"] .ime { background: #202327; }
+.phone.ime-open .ime { height: var(--ime-h, 300px); }
+.ime .kr { display: flex; gap: 5px; justify-content: center; }
+.ime .k { flex: 0 0 30px; height: 100%; border-radius: 5px; background: var(--sr-surface); box-shadow: 0 1px 0 rgba(15,17,23,0.25); }
+.ime .k.w { flex-basis: 48px; } .ime .k.sp { flex-basis: 150px; }
+
+/* ---- tablet frame ------------------------------------------------------- */
+.tablet-host { width: 100%; max-width: 1180px; aspect-ratio: 1280 / 800; position: relative; }
+.tablet { position: absolute; left: 0; top: 0; width: 1280px; height: 800px; transform-origin: 0 0; border-radius: 22px; overflow: hidden; background: var(--sr-bg); box-shadow: 0 0 0 12px #1B1D23, 0 0 0 13px #3A3D47, 0 24px 60px rgba(15,17,23,0.35); --sr-inset-top: 24px; --sr-inset-bottom: 24px; }
+.tablet .statusbar { font-size: 13px; }
+.tablet .shell { position: absolute; inset: 0; display: grid; grid-template-columns: 13.5rem minmax(0, 1fr); padding-top: var(--sr-inset-top); }
+.navcol { border-right: 1px solid var(--sr-border); background: var(--sr-surface); padding: 14px 10px; display: flex; flex-direction: column; gap: 2px; }
+.navcol .brand { display: flex; align-items: center; gap: 8px; padding: 6px 10px 14px; }
+.navcol .brand .raven { width: 24px; height: 24px; }
+.navcol .brand h1 { font-size: 1.125rem; font-weight: 700; letter-spacing: -0.5px; margin: 0; }
+.navcol .brand h1 .accent { color: var(--sr-accent); }
+.navitem { display: flex; align-items: center; gap: 10px; min-height: 36px; padding: 0 10px; border-radius: 8px; color: var(--sr-text-muted); font-size: 0.84375rem; font-weight: 500; position: relative; }
+.navitem svg { width: 17px; height: 17px; stroke: currentColor; fill: none; stroke-width: 2.1; stroke-linecap: round; stroke-linejoin: round; }
+.navitem.active { background: var(--sr-accent-bg); color: var(--sr-accent); font-weight: 700; }
+.navitem.active::before { content: ""; position: absolute; left: 0; top: 8px; bottom: 8px; width: 3px; border-radius: 2px; background: var(--sr-accent); }
+.navcol .hair { height: 1px; background: var(--sr-border); margin: 6px 10px; }
+.navcol .spacer { flex: 1; }
+.tmain { padding: 18px 28px 0; overflow: hidden; }
+.ttable { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 0.84375rem; }
+.ttable th { text-align: left; font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--sr-text-muted); padding: 8px 10px; border-bottom: 1px solid var(--sr-border); }
+.ttable th.grp { font-size: 0.6875rem; padding-bottom: 2px; border-bottom: 0; }
+.ttable th.grp small { display: block; text-transform: none; letter-spacing: 0; font-weight: 500; }
+.ttable td { padding: 9px 10px; border-bottom: 1px solid var(--sr-border-subtle); vertical-align: middle; }
+.ttable td.num { font-variant-numeric: tabular-nums; font-weight: 700; white-space: nowrap; }
+.ttable td.num small { font-weight: 500; color: var(--sr-text-muted); }
+.ttable .div { border-left: 1px solid var(--sr-border); }
+.bar { height: 3px; width: 120px; border-radius: 2px; background: var(--sr-border); overflow: hidden; margin-top: 4px; }
+.bar i { display: block; height: 100%; background: var(--sr-accent); }
+.ticks { display: flex; gap: 2px; margin-top: 5px; }
+.ticks i { width: 4px; height: 8px; border-radius: 1px; background: var(--sr-border); }
+.ticks i.on { background: var(--sr-text); }
+.link { color: var(--sr-accent); text-decoration: none; display: inline-flex; align-items: center; gap: 4px; font-weight: 500; }
+.link svg { width: 12px; height: 12px; stroke: currentColor; fill: none; stroke-width: 2.2; }
+
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .stage, .stage.on, .navbar, .ime, .toggle::after, .homescreen .ic.sr .sq, .seg button, .step, .btn-q, .navbar button, .navbar .glyph { transition: none !important; }
+  .sysdlg { animation: none; }
+}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="raven" viewBox="0 0 512 512"><path fill="currentColor" fill-rule="evenodd" clip-rule="evenodd" d="M 150.79 440.77 L 176.47 435.39 L 197.48 429.33 L 213.04 423.88 L 245.73 409.97 L 270.63 397.28 L 296.30 381.80 L 318.09 366.18 L 336.57 350.44 L 352.33 334.58 L 367.31 316.20 L 379.08 297.53 L 385.19 285.08 L 389.91 273.41 L 395.34 253.95 L 396.99 244.61 L 398.12 232.16 L 397.64 214.27 L 393.73 194.04 L 386.46 169.91 L 384.84 159.02 L 385.60 149.68 L 388.70 139.57 L 394.35 130.77 L 399.02 125.85 L 405.25 120.87 L 417.70 113.66 L 430.15 109.05 L 445.71 105.74 L 451.93 105.05 L 464.38 105.06 L 473.72 106.67 L 484.62 111.08 L 485.38 110.77 L 485.11 101.44 L 483.21 95.21 L 479.17 87.44 L 473.72 81.39 L 464.38 74.65 L 449.60 68.35 L 437.93 65.33 L 410.69 60.66 L 402.71 53.19 L 392.02 45.17 L 381.12 38.75 L 373.34 35.08 L 354.67 28.85 L 339.10 26.17 L 322.76 25.37 L 311.09 26.27 L 297.08 28.66 L 288.52 31.10 L 273.74 37.43 L 262.07 44.46 L 253.51 51.19 L 244.65 60.19 L 234.69 73.42 L 226.06 88.21 L 215.97 110.77 L 198.93 152.79 L 199.81 153.14 L 210.71 148.11 L 230.16 141.75 L 241.83 139.37 L 254.28 138.31 L 267.51 138.63 L 281.50 141.12 L 293.19 144.94 L 303.31 150.17 L 311.57 155.91 L 321.42 166.02 L 327.70 175.36 L 332.88 187.08 L 335.35 196.37 L 336.92 208.82 L 336.90 218.94 L 334.38 236.06 L 328.50 255.51 L 319.29 274.96 L 307.20 294.01 L 289.43 316.20 L 271.40 335.03 L 248.84 355.96 L 146.83 440.71 L 147.68 441.18 Z M 361.37 83.54 L 355.44 83.04 L 349.39 79.65 L 345.70 75.76 L 340.28 67.20 L 335.99 63.61 L 331.05 60.97 L 331.32 60.45 L 343.77 60.10 L 354.67 61.50 L 367.12 66.26 L 376.07 72.64 L 374.90 74.46 L 367.89 80.74 Z M 384.80 96.77 L 381.12 97.22 L 379.95 96.77 L 389.68 89.61 L 398.24 84.87 L 409.14 81.06 L 423.14 79.17 L 436.37 79.99 L 446.49 82.49 L 458.16 88.01 L 465.16 93.23 L 467.68 95.99 L 466.72 96.57 L 440.26 94.09 L 416.92 93.78 L 399.02 94.86 Z M 27.07 486.63 L 42.63 480.11 L 57.41 472.78 L 83.87 457.96 L 111.11 441.03 L 146.90 416.35 L 188.78 384.68 L 227.05 353.61 L 252.69 330.99 L 266.74 317.42 L 278.01 305.31 L 291.95 288.19 L 298.64 278.72 L 306.04 266.40 L 311.49 255.51 L 315.26 246.17 L 317.53 239.17 L 319.92 228.27 L 321.08 218.94 L 321.06 210.38 L 320.04 201.82 L 318.42 194.81 L 315.25 187.03 L 311.19 180.03 L 307.72 175.36 L 302.53 170.13 L 295.53 164.95 L 286.97 160.39 L 276.07 156.55 L 269.07 154.98 L 260.51 153.84 L 248.84 153.69 L 231.72 155.87 L 220.82 158.88 L 212.26 162.07 L 203.81 166.02 L 195.15 171.24 L 186.59 177.15 L 176.64 185.48 L 162.41 200.26 L 153.88 211.15 L 143.79 226.74 L 136.73 239.17 L 125.74 261.73 L 109.38 300.64 L 78.90 379.23 L 79.98 379.55 L 90.87 375.49 L 106.44 367.80 L 123.56 357.64 L 148.46 339.41 L 149.24 339.06 L 149.37 339.55 L 133.67 359.67 L 120.96 373.01 L 107.66 384.68 L 87.69 397.91 L 62.88 436.82 L 44.33 463.27 L 26.62 485.84 Z"/></symbol>
+    <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></symbol>
+    <symbol id="i-bars" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></symbol>
+    <symbol id="i-map" viewBox="0 0 24 24"><path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3z"/><path d="M9 3v15M15 6v15"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></symbol>
+    <symbol id="i-more" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></symbol>
+    <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></symbol>
+    <symbol id="i-cal" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></symbol>
+    <symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/></symbol>
+    <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></symbol>
+    <symbol id="i-list" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></symbol>
+    <symbol id="i-compare" viewBox="0 0 24 24"><path d="M16 3h5v5M4 20 21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/></symbol>
+    <symbol id="i-tag" viewBox="0 0 24 24"><path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2Z"/><path d="M7 7h.01"/></symbol>
+    <symbol id="i-settings" viewBox="0 0 24 24"><path d="M21 4h-7M10 4H3M21 12h-9M8 12H3M21 20h-5M12 20H3M14 2v4M8 10v4M16 18v4"/></symbol>
+    <symbol id="i-key" viewBox="0 0 24 24"><path d="m21 2-9.6 9.6"/><circle cx="7.5" cy="15.5" r="5.5"/><path d="m15.5 7.5 3 3L22 7l-3-3"/></symbol>
+    <symbol id="i-file" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/></symbol>
+    <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3M12 17h.01"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></symbol>
+    <symbol id="i-share" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.59 13.51 6.83 3.98M15.41 6.51l-6.82 3.98"/></symbol>
+    <symbol id="i-pin" viewBox="0 0 24 24"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></symbol>
+    <symbol id="i-locate" viewBox="0 0 24 24"><path d="M2 12h3M19 12h3M12 2v3M12 19v3"/><circle cx="12" cy="12" r="7"/></symbol>
+    <symbol id="i-max" viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></symbol>
+    <symbol id="i-filter" viewBox="0 0 24 24"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/></symbol>
+    <symbol id="i-wrench" viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></symbol>
+    <symbol id="i-ext" viewBox="0 0 24 24"><path d="M15 3h6v6M10 14 21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+    <symbol id="i-wifi" viewBox="0 0 24 24"><path d="M5 12.55a11 11 0 0 1 14.08 0M1.42 9a16 16 0 0 1 21.16 0M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01"/></symbol>
+    <symbol id="i-signal" viewBox="0 0 24 24"><path d="M2 20h.01M7 20v-4M12 20v-8M17 20V8M22 4v16"/></symbol>
+    <symbol id="i-batt" viewBox="0 0 24 24"><rect x="2" y="7" width="18" height="10" rx="2"/><path d="M22 11v2M6 11v2M10 11v2M14 11v2"/></symbol>
+    <symbol id="b-back" viewBox="0 0 24 24"><path d="M15 4 7 12l8 8z"/></symbol>
+    <symbol id="b-home" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/></symbol>
+    <symbol id="b-recent" viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="2"/></symbol>
+  </defs>
+</svg>
+
+<div class="page">
+  <header class="masthead">
+    <div>
+      <h1>Snow<span class="accent">Raven</span> on Android</h1>
+      <p>The same responsive app, decided deliberately for a phone that draws under its own system bars: the launch, the insets, the Settings that remain, the location prompt, and what a 10-inch tablet gets.</p>
+    </div>
+    <div class="controls">
+      <span class="seg-label">Theme</span>
+      <div class="seg" role="group" aria-label="Theme">
+        <button type="button" data-theme-pick="light" aria-pressed="true">Light</button>
+        <button type="button" data-theme-pick="dark" aria-pressed="false">Dark</button>
+      </div>
+      <span class="seg-label">Navigation</span>
+      <div class="seg" role="group" aria-label="Android navigation mode">
+        <button type="button" data-nav-pick="gesture" aria-pressed="true">Gesture</button>
+        <button type="button" data-nav-pick="buttons" aria-pressed="false">3-button</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ================================================================= A -->
+  <section class="section" aria-labelledby="h-launch">
+    <div class="section-head">
+      <p class="kicker">A. Launch</p>
+      <h2 id="h-launch">Green from the tap to the first frame</h2>
+      <p>Android has no launch backdrop, so three resources do the job the iOS storyboard does: the system splash, the window background, and the HTML launch frame the app already ships. All three are the brand green with the raven, in both themes, so nothing white can appear between them.</p>
+    </div>
+    <div class="frame-wrap">
+      <div class="steps" role="group" aria-label="Launch steps">
+        <button type="button" class="step-play" id="play">Play the launch</button>
+        <button type="button" class="step" data-step="0" aria-pressed="true">1 Tap</button>
+        <button type="button" class="step" data-step="1" aria-pressed="false">2 System splash</button>
+        <button type="button" class="step" data-step="2" aria-pressed="false">3 Window + launch frame</button>
+        <button type="button" class="step" data-step="3" aria-pressed="false">4 First frame</button>
+        <button type="button" class="step" data-step="4" aria-pressed="false">Old WebView</button>
+      </div>
+      <div class="phone-host"><div class="phone on-green" id="launch-phone">
+        <div class="statusbar" aria-hidden="true"><span>7:12</span><span class="cluster"><svg><use href="#i-wifi"/></svg><svg><use href="#i-signal"/></svg><svg><use href="#i-batt"/></svg></span></div>
+        <!-- step 0: home screen with the adaptive icon -->
+        <div class="stage first on" data-stage="0">
+          <div class="homescreen" aria-hidden="true">
+            <div class="ic"><div class="sq"></div>Camera</div>
+            <div class="ic"><div class="sq"></div>Maps</div>
+            <div class="ic"><div class="sq"></div>Merlin</div>
+            <div class="ic"><div class="sq"></div>eBird</div>
+            <div class="ic sr" id="sr-icon"><div class="sq"><svg><use href="#raven"/></svg></div>SnowRaven</div>
+            <div class="ic"><div class="sq"></div>Files</div>
+            <div class="ic"><div class="sq"></div>Clock</div>
+            <div class="ic"><div class="sq"></div>F-Droid</div>
+          </div>
+        </div>
+        <!-- step 1: API 31+ system splash: icon on the green -->
+        <div class="stage" data-stage="1">
+          <div class="launch"><div class="splash-icon"><svg><use href="#raven"/></svg></div></div>
+        </div>
+        <!-- step 2: window background + the HTML launch frame (identical look) -->
+        <div class="stage" data-stage="2">
+          <div class="launch"><svg class="mark"><use href="#raven"/></svg><div class="copy sr-only">Opening SnowRaven</div></div>
+        </div>
+        <!-- step 3: the app's first frame -->
+        <div class="stage" data-stage="3">
+          <div class="app">
+            <div class="hdr"><svg class="raven"><use href="#raven"/></svg><h1>Snow<span class="accent">Raven</span></h1></div>
+            <div class="app-scroll"><div class="panel">
+              <div class="tab-head"><div class="tile"><svg><use href="#i-cloud"/></svg></div><div><h2>Weather</h2><p>Weather and tide for a checklist, pasted as a comment</p></div></div>
+              <div class="card card-pad">
+                <div class="micro" style="margin-bottom:6px">Checklist</div>
+                <div class="input"><span class="ph">eBird checklist ID or link</span></div>
+                <div style="display:flex;gap:8px;margin-top:10px"><button type="button" class="btn-a">Look up</button><button type="button" class="btn-q">Current weather and tide</button></div>
+              </div>
+              <div class="card">
+                <div class="row" style="padding:10px 14px"><div><div style="font-weight:600">Checklists with no weather block</div><div class="sci" style="font-style:normal">Newest first</div></div><div class="num">37</div></div>
+                <div class="row"><div>Arrowhead Marsh<br><span class="sci" style="font-style:normal">Sep 28, 2026 · 7:04 AM</span></div><div class="num">S208114522</div></div>
+                <div class="row"><div>Coyote Hills Regional Park<br><span class="sci" style="font-style:normal">Sep 26, 2026 · 6:51 AM</span></div><div class="num">S207902311</div></div>
+                <div class="row"><div>Hayward Regional Shoreline<br><span class="sci" style="font-style:normal">Sep 21, 2026 · 7:30 AM</span></div><div class="num">S207511840</div></div>
+              </div>
+            </div></div>
+            <nav class="navbar" aria-label="Tabs">
+              <button type="button" class="active"><span class="glyph"><svg><use href="#i-cloud"/></svg></span><span class="label">Weather</span></button>
+              <button type="button"><span class="glyph"><svg><use href="#i-bars"/></svg></span><span class="label">Statistics</span></button>
+              <button type="button"><span class="glyph"><svg><use href="#i-map"/></svg></span><span class="label">Map</span></button>
+              <button type="button"><span class="glyph"><svg><use href="#i-search"/></svg></span><span class="label">Species</span></button>
+              <button type="button"><span class="glyph"><svg><use href="#i-more"/></svg></span><span class="label">More</span></button>
+            </nav>
+          </div>
+        </div>
+        <!-- step 4: below the WebView floor -->
+        <div class="stage" data-stage="4">
+          <div class="launch"><svg class="mark"><use href="#raven"/></svg>
+            <div class="copy"><p>SnowRaven needs a newer Android System WebView: update it through your phone’s app store or system update, then open SnowRaven again.</p></div>
+          </div>
+        </div>
+        <div class="navbar-sys" aria-hidden="true"><svg class="btn"><use href="#b-back"/></svg><svg class="btn"><use href="#b-home"/></svg><svg class="btn"><use href="#b-recent"/></svg><span class="pill"></span></div>
+      </div></div>
+      <p class="frame-caption" id="launch-caption"><strong>1 Tap.</strong> The adaptive icon: the raven foreground on the #2D8653 background, the launcher's own mask.</p>
+    </div>
+    <div class="notes">
+      <h3>What each frame is</h3>
+      <div class="decision"><strong>System splash (API 31 and later).</strong> <code>windowSplashScreenBackground</code> is the brand green and <code>windowSplashScreenAnimatedIcon</code> is the adaptive icon's foreground, so the splash is the mark on the green. No <code>core-splashscreen</code> library, no fixed wait: it yields on the Activity's first draw.</div>
+      <div class="decision"><strong>API 24 to 30.</strong> No system splash exists, so the window background itself is a layer-list: the green with the same mark centered. It reads as the same frame.</div>
+      <div class="decision"><strong>Window background, both themes.</strong> <code>android:windowBackground</code> is <code>@color/ic_launcher_background</code> in <code>values/</code> and <code>values-night/</code> alike. The green is the launch color on every platform and is not a light color, so dark mode cannot flash; the first thing the app's own theme paints is its first frame.</div>
+      <div class="decision"><strong>Status bar during launch.</strong> Light glyphs over the green (<code>windowLightStatusBar=false</code> in the splash theme). Once the app paints, <code>enableEdgeToEdge()</code> picks the glyph color from the system theme.</div>
+      <h3>Handoff</h3>
+      <p>Splash to window to launch frame to first frame is four paints of the same green with the mark in the same place. The frame-to-frame change the user can see is the splash's circular icon plate giving way to the bare 88px mark; nothing animates between them, and the launch frame removes itself the instant React has painted, as it does today.</p>
+      <h3>Old WebView</h3>
+      <p>Below the Chromium 111 floor the launch frame stays and says one thing: <em>SnowRaven needs a newer Android System WebView: update it through your phone’s app store or system update, then open SnowRaven again.</em> It names no store, because an F-Droid or sideloaded install may be on a phone with none of Google’s; the System WebView updates through whatever store the device has, or through the ROM’s own update. No Reload button, because reloading cannot change the WebView.</p>
+    </div>
+  </section>
+
+  <!-- ================================================================= B -->
+  <section class="section" aria-labelledby="h-insets">
+    <div class="section-head">
+      <p class="kicker">B. Edge to edge</p>
+      <h2 id="h-insets">The app draws under the bars and its own rows stay clear</h2>
+      <p>Android paints the webview under the status bar and the navigation bar, and the WebView reports <code>env(safe-area-inset-*)</code> as zero. The native Activity reports the real insets into four CSS variables, an <code>sr-android-app</code> root marker gates rules that read them, and the compact header and the phone bar pad themselves exactly as the iOS rules pad with <code>env()</code>. Toggle the keyboard to see what moves.</p>
+    </div>
+    <div class="frame-wrap">
+      <div class="steps">
+        <button type="button" class="step" id="ime-toggle" aria-pressed="false">Keyboard over an input</button>
+      </div>
+      <div class="phone-host"><div class="phone" id="main-phone">
+        <div class="statusbar" aria-hidden="true"><span>7:14</span><span class="cluster"><svg><use href="#i-wifi"/></svg><svg><use href="#i-signal"/></svg><svg><use href="#i-batt"/></svg></span></div>
+        <div class="app">
+          <div class="hdr"><svg class="raven"><use href="#raven"/></svg><h1>Snow<span class="accent">Raven</span></h1></div>
+          <div class="app-scroll" id="main-scroll"><div class="panel">
+            <div class="tab-head"><div class="tile"><svg><use href="#i-bars"/></svg></div><div><h2>Statistics</h2><p>Your eBird backup, counted</p></div></div>
+            <div class="card card-pad">
+              <div class="stat-row">
+                <div><div class="stat-label">Species</div><div class="stat-val accent">412</div></div>
+                <div><div class="stat-label">Checklists</div><div class="stat-val">1,286</div></div>
+                <div><div class="stat-label">Counties</div><div class="stat-val">38</div></div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="row" style="padding-top:10px"><div class="micro">Species by county</div><div class="micro">of 412</div></div>
+              <div class="row"><div>Alameda, CA</div><div class="num">318<small>77%</small></div><div class="sub"><i style="width:100%"></i></div></div>
+              <div class="row"><div>Santa Clara, CA</div><div class="num">201<small>49%</small></div><div class="sub"><i style="width:63%"></i></div></div>
+              <div class="row"><div>Marin, CA</div><div class="num">176<small>43%</small></div><div class="sub"><i style="width:55%"></i></div></div>
+              <div class="row"><div>Monterey, CA</div><div class="num">164<small>40%</small></div><div class="sub"><i style="width:52%"></i></div></div>
+              <div class="row"><div>Contra Costa, CA</div><div class="num">151<small>37%</small></div><div class="sub"><i style="width:47%"></i></div></div>
+            </div>
+            <div class="card">
+              <div class="row" style="padding-top:10px"><div class="micro">Most recent lifers</div><div class="micro">2026</div></div>
+              <div class="row"><div>Lewis's Woodpecker<br><span class="sci">Melanerpes lewis</span></div><div class="num" style="font-weight:500;font-size:0.78125rem">Sep 14</div></div>
+              <div class="row"><div>Tricolored Blackbird<br><span class="sci">Agelaius tricolor</span></div><div class="num" style="font-weight:500;font-size:0.78125rem">Aug 30</div></div>
+              <div class="row"><div>Black Skimmer<br><span class="sci">Rynchops niger</span></div><div class="num" style="font-weight:500;font-size:0.78125rem">Jul 19</div></div>
+            </div>
+            <div class="card card-pad" id="search-card">
+              <div class="micro" style="margin-bottom:6px">Find a species</div>
+              <div class="input" id="search-input"><svg style="width:16px;height:16px;stroke:var(--sr-text-muted);fill:none;stroke-width:2.2"><use href="#i-search"/></svg><span class="ph" id="search-ph">Common or scientific name</span><span class="caret" id="search-caret" hidden></span></div>
+            </div>
+          </div></div>
+          <nav class="navbar" aria-label="Tabs">
+            <button type="button"><span class="glyph"><svg><use href="#i-cloud"/></svg></span><span class="label">Weather</span></button>
+            <button type="button" class="active"><span class="glyph"><svg><use href="#i-bars"/></svg></span><span class="label">Statistics</span></button>
+            <button type="button"><span class="glyph"><svg><use href="#i-map"/></svg></span><span class="label">Map</span></button>
+            <button type="button"><span class="glyph"><svg><use href="#i-search"/></svg></span><span class="label">Species</span></button>
+            <button type="button"><span class="glyph"><svg><use href="#i-more"/></svg></span><span class="label">More</span></button>
+          </nav>
+        </div>
+        <div class="ime" aria-hidden="true">
+          <div class="kr"><i class="k"></i><i class="k"></i><i class="k"></i><i class="k"></i><i class="k"></i><i class="k"></i><i class="k"></i><i class="k"></i><i class="k"></i><i class="k"></i></div>
+          <div class="kr"><i class="k"></i><i class="k"></i><i class="k"></i><i class="k"></i><i class="k"></i><i class="k"></i><i class="k"></i><i class="k"></i><i class="k"></i></div>
+          <div class="kr"><i class="k w"></i><i class="k"></i><i class="k"></i><i class="k"></i><i class="k"></i><i class="k"></i><i class="k"></i><i class="k"></i><i class="k w"></i></div>
+          <div class="kr"><i class="k w"></i><i class="k"></i><i class="k sp"></i><i class="k"></i><i class="k w"></i></div>
+        </div>
+        <div class="navbar-sys" aria-hidden="true"><svg class="btn"><use href="#b-back"/></svg><svg class="btn"><use href="#b-home"/></svg><svg class="btn"><use href="#b-recent"/></svg><span class="pill"></span></div>
+      </div></div>
+      <p class="frame-caption"><strong>Phone, portrait.</strong> The compact header pads itself by <code>--sr-inset-top</code>; the bar pads itself by <code>--sr-inset-bottom</code>. Switch to 3-button navigation above to see the variable change.</p>
+    </div>
+    <div class="notes">
+      <h3>Mechanism</h3>
+      <div class="decision"><strong>Injected insets, the Architect's option (b).</strong> <code>MainActivity</code> installs one window-insets listener on the webview and sets <code>--sr-inset-top/right/bottom/left</code> on <code>documentElement</code> in CSS px (inset over density). The app keeps drawing under the bars in its own theme, so the strip under the status bar is <code>--sr-bg</code> in light and in dark, and the in-app theme toggle is honored there as it is on iOS.</div>
+      <div class="decision"><strong>Root marker <code>sr-android-app</code>.</strong> Added by <code>main.tsx</code> when <code>isAndroid()</code>. Every Android inset rule reads only the four variables and never <code>env()</code>, so a future WebView that starts reporting <code>env()</code> cannot double-pad. <code>sr-ios-app</code> is never applied on Android.</div>
+      <div class="decision"><strong>Which surfaces, exactly.</strong> One Android twin for each iOS rule, same selector list: body top/left/right; the phone bar and the More sheet bottom; the nav column top and height; the map fullscreen panel top/left/right; the FAB cluster bottom; the Help panel and TOC; the dialog root; the palette and inbox roots; the pinned table bands; the skip link. The two pinned-band rules and the skip link re-point an offset; everything else pads.</div>
+      <h3>Status bar glyphs</h3>
+      <p>Dark glyphs over the light in-app theme, light glyphs over the dark one, following the theme the app has <em>painted</em>, not the system setting. The page reports <code>light</code> or <code>dark</code> to native through a web message listener registered in the same <code>MainActivity</code> hook as the insets, and native sets the status and navigation bar icon appearance to match: on first paint, on every Appearance change, and when the system theme flips while the app is open in the System setting. Status-bar glyphs follow on every supported Android; navigation-bar glyphs follow on API 26 and later, and on 24 and 25 stay light over the platform's dark scrim.</p>
+      <h3>Keyboard</h3>
+      <div class="decision"><strong>The keyboard is an occluder, not decoration.</strong> The <code>ime()</code> inset is applied natively as bottom padding on the webview, so the viewport shrinks exactly as it does under <code>adjustResize</code> and Chromium scrolls the focused input into view on its own. The system bars stay injected variables; the keyboard is the one inset the app must never paint under.</div>
+      <p>While the keyboard is up, the phone bar slides out (160ms ease-out, instant under reduced motion) instead of riding on top of the keyboard where it would spend a quarter of the remaining height. <code>100dvh</code> surfaces shrink with the viewport, so a sheet or the fullscreen map never hides a field under the keys.</p>
+      <h3>Landscape and cutouts</h3>
+      <p>A punch-hole or a landscape sensor housing arrives as a larger top or side inset in the same variables; the fullscreen map's pills, its Filters sidebar and its corner buttons clear it the way they clear the Dynamic Island, because the padding is on the panel and the FAB cluster reads the bottom and side variables.</p>
+    </div>
+  </section>
+
+  <!-- ================================================================= C -->
+  <section class="section" aria-labelledby="h-settings">
+    <div class="section-head">
+      <p class="kicker">C. Settings</p>
+      <h2 id="h-settings">Only the settings that apply to this phone</h2>
+      <p>No iCloud Sync, no Alerts, no widgets, no updater footer. Each is a whole section that is absent, so no heading is left over an empty card. Everything else keeps its order: API Keys, Default Files, Help, Appearance, Sharing, Default Location, Tab Layout, eBird bar-chart files, Troubleshooting, Acknowledgments.</p>
+    </div>
+    <div class="frame-wrap">
+      <div class="phone-host"><div class="phone" id="settings-phone">
+        <div class="statusbar" aria-hidden="true"><span>7:16</span><span class="cluster"><svg><use href="#i-wifi"/></svg><svg><use href="#i-signal"/></svg><svg><use href="#i-batt"/></svg></span></div>
+        <div class="app">
+          <div class="hdr"><svg class="raven"><use href="#raven"/></svg><h1>Snow<span class="accent">Raven</span></h1></div>
+          <div class="app-scroll"><div class="panel">
+            <div class="tab-head"><div class="tile"><svg><use href="#i-settings"/></svg></div><div><h2>Settings</h2><p>Keys, files and how SnowRaven looks</p></div></div>
+
+            <div class="sec-h">API Keys</div>
+            <div class="card">
+              <div class="srow"><div class="tile"><svg><use href="#i-key"/></svg></div><div><div class="t">eBird API Key</div><div class="d">Saved · ••••••••k4q2</div></div><div style="display:flex;gap:6px"><button type="button" class="btn-q">Show</button><button type="button" class="btn-q">Update</button></div></div>
+              <div class="srow"><div class="tile"><svg><use href="#i-key"/></svg></div><div><div class="t">OpenWeather API Key</div><div class="d">Saved · ••••••••7f1e</div></div><div style="display:flex;gap:6px"><button type="button" class="btn-q">Show</button><button type="button" class="btn-q">Update</button></div></div>
+            </div>
+            <p class="fine">Keys are saved in the app's private storage on this phone and are never sent to the developer.</p>
+
+            <div class="sec-h">Default Files</div>
+            <div class="card">
+              <div class="srow"><div class="tile"><svg><use href="#i-file"/></svg></div><div><div class="t">eBird backup</div><div class="d">MyEBirdData.csv · Sep 28, 2026 · 1,286 checklists</div></div><button type="button" class="btn-q">Import new…</button></div>
+              <div class="srow"><div class="tile"><svg><use href="#i-image"/></svg></div><div><div class="t">ML export</div><div class="d">No file saved</div></div><button type="button" class="btn-a">Import file…</button></div>
+            </div>
+            <p class="fine">Import opens the system file picker. The file stays on this phone.</p>
+            <div class="absent"><svg><use href="#i-x"/></svg>iCloud Sync is not here: a Mac, iPhone and iPad section</div>
+
+            <div class="sec-h">Help &amp; Documentation</div>
+            <div class="card"><div class="srow"><div class="tile"><svg><use href="#i-help"/></svg></div><div><div class="t">Open Help</div><div class="d">Every tab explained, with the keys and files each one needs</div></div><button type="button" class="btn-q">Open</button></div></div>
+
+            <div class="sec-h">Appearance</div>
+            <div class="card">
+              <div class="srow"><div class="tile"><svg><use href="#i-sun"/></svg></div><div><div class="t">Theme</div><div class="d">Follows the system</div></div><button type="button" class="btn-q">Change</button></div>
+              <div class="srow"><div class="tile"><svg><use href="#i-list"/></svg></div><div><div class="t">Text size</div><div class="d">100%</div></div><button type="button" class="btn-q">Change</button></div>
+              <div class="srow"><div class="tile"><svg><use href="#i-image"/></svg></div><div><div class="t">Embedded media</div><div class="d">Show Macaulay Library players inline</div></div><span class="toggle on" role="switch" aria-checked="true" aria-label="Embedded media"></span></div>
+            </div>
+
+            <div class="sec-h">Sharing</div>
+            <div class="card"><div class="srow"><div class="tile"><svg><use href="#i-share"/></svg></div><div><div class="t">Share a location as</div><div class="d">Coordinates and map links</div></div><button type="button" class="btn-q">Change</button></div></div>
+
+            <div class="sec-h">Default Location</div>
+            <div class="card card-pad">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px"><div class="input" style="font-size:0.875rem">37.74622</div><div class="input" style="font-size:0.875rem">-122.20051</div></div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn-q">Use my location</button><button type="button" class="btn-q">Save</button></div>
+            </div>
+            <div class="absent"><svg><use href="#i-x"/></svg>Alerts is not here: an iPhone and iPad section</div>
+
+            <div class="sec-h">Tab Layout</div>
+            <div class="card"><div class="srow"><div class="tile"><svg><use href="#i-grid"/></svg></div><div><div class="t">Order and visibility</div><div class="d">Weather, Statistics, Map Explorer, Species Detail and 7 more</div></div><button type="button" class="btn-q">Edit</button></div></div>
+
+            <div class="sec-h">eBird bar-chart files</div>
+            <div class="card"><div class="srow"><div class="tile"><svg><use href="#i-bars"/></svg></div><div><div class="t">Alameda, CA</div><div class="d">ebird_US-CA-001_1900_2026.txt · 1900 to 2026</div></div><button type="button" class="btn-q">Replace</button></div></div>
+
+            <div class="sec-h">Troubleshooting</div>
+            <div class="card card-pad">
+              <p style="margin:0 0 10px;font-size:0.8125rem;color:var(--sr-text-muted)">If the map or species lookups stop working, rebuilding the app's local caches usually fixes it. Afterwards, close and reopen the app.</p>
+              <button type="button" class="btn-q">Rebuild caches</button>
+            </div>
+
+            <div class="sec-h">Acknowledgments</div>
+            <div class="card card-pad"><button type="button" class="btn-q">Show acknowledgments</button></div>
+            <div class="absent" style="margin-top:4px"><svg><use href="#i-x"/></svg>No update footer: Android updates come through F-Droid or a newer APK</div>
+            <div style="height:12px"></div>
+          </div></div>
+          <nav class="navbar" aria-label="Tabs">
+            <button type="button"><span class="glyph"><svg><use href="#i-cloud"/></svg></span><span class="label">Weather</span></button>
+            <button type="button"><span class="glyph"><svg><use href="#i-bars"/></svg></span><span class="label">Statistics</span></button>
+            <button type="button"><span class="glyph"><svg><use href="#i-map"/></svg></span><span class="label">Map</span></button>
+            <button type="button"><span class="glyph"><svg><use href="#i-search"/></svg></span><span class="label">Species</span></button>
+            <button type="button" class="active"><span class="glyph"><svg><use href="#i-more"/></svg></span><span class="label">More</span></button>
+          </nav>
+        </div>
+        <div class="navbar-sys" aria-hidden="true"><svg class="btn"><use href="#b-back"/></svg><svg class="btn"><use href="#b-home"/></svg><svg class="btn"><use href="#b-recent"/></svg><span class="pill"></span></div>
+      </div></div>
+      <p class="frame-caption"><strong>Scroll inside the frame.</strong> The dashed notes mark where an Apple section would sit; they are not rendered in the app.</p>
+    </div>
+    <div class="notes">
+      <h3>Decisions</h3>
+      <div class="decision"><strong>Import wording.</strong> The two Default Files rows read <em>Import file…</em>, <em>Import new…</em> and <em>Importing…</em>, the approved iOS strings; <em>Upload</em> appears nowhere on the tab.</div>
+      <div class="decision"><strong>Troubleshooting stays.</strong> Rebuild caches clears, skips the relaunch, and says <em>Caches cleared. Close and reopen SnowRaven to finish.</em> in the iOS words.</div>
+      <div class="decision"><strong>No placeholders.</strong> Nothing says "not available on Android". Help is where the platform split is stated, in one sentence.</div>
+      <h3>Help sentence (written without a stop)</h3>
+      <p><em>On Android there is no iCloud Sync, no home-screen widget and no Alerts; those are Mac, iPhone and iPad features. Everything else on this page works the same way.</em></p>
+      <p>Help also gains the two install sentences: <em>Installs from F-Droid and from the GitHub APK are signed by different keys and do not update each other; switching between them means uninstalling one and installing the other, and your files and keys do not carry over unless you import them again.</em> And: <em>On Android, updates arrive through the F-Droid client or by installing a newer APK from the GitHub release over the old one, never from inside the app.</em></p>
+      <h3>Largest system font</h3>
+      <p>Android's font scale reaches the WebView as text zoom on top of the in-app Text Size. Rows wrap rather than clip: the description column takes <code>overflow-wrap: anywhere</code> already, the quiet buttons keep their 30px minimum, and the row grid lets the action drop under the text at the phone tier exactly as it does at 200% today.</p>
+    </div>
+  </section>
+
+  <!-- ================================================================= D -->
+  <section class="section" aria-labelledby="h-loc">
+    <div class="section-head">
+      <p class="kicker">D. Location</p>
+      <h2 id="h-loc">Two branches, decided by a measurement</h2>
+      <p>Location on Android is the Android System WebView’s own geolocation with nothing of Google’s, and whether that works is measured on an emulator before the location path is built. Branch A: the surface stands, the system dialog on first press, the approved denied sentence. Branch B, the default until a passing measurement lifts it: every location control is absent, with no placeholder and nothing else moved. The three buttons switch between them.</p>
+    </div>
+    <div class="frame-wrap">
+      <div class="steps" role="group" aria-label="Location states">
+        <button type="button" class="step" data-loc="prompt" aria-pressed="true">System prompt</button>
+        <button type="button" class="step" data-loc="denied" aria-pressed="false">Denied</button>
+        <button type="button" class="step" data-loc="branchb" aria-pressed="false">Branch B: no location controls</button>
+      </div>
+      <div class="phone-host"><div class="phone" id="loc-phone">
+        <div class="statusbar" aria-hidden="true"><span>7:19</span><span class="cluster"><svg><use href="#i-wifi"/></svg><svg><use href="#i-signal"/></svg><svg><use href="#i-batt"/></svg></span></div>
+        <div class="app">
+          <div class="hdr"><svg class="raven"><use href="#raven"/></svg><h1>Snow<span class="accent">Raven</span></h1></div>
+          <div class="app-scroll"><div class="panel">
+            <div class="tab-head"><div class="tile"><svg><use href="#i-map"/></svg></div><div><h2>Map Explorer</h2><p>Hotspots, nearby lifers and your own sightings</p></div></div>
+            <div class="map" aria-label="Map of Alameda County">
+              <span class="pin" style="left:120px;top:150px"></span><span class="pin" style="left:210px;top:220px"></span><span class="pin" style="left:80px;top:300px"></span>
+              <div class="fabs"><span class="fab pill"><svg><use href="#i-filter"/></svg>Filters</span><span class="fab fab-locate"><svg><use href="#i-locate"/></svg></span><span class="fab"><svg><use href="#i-max"/></svg></span></div>
+            </div>
+            <div class="denied" id="denied-note" hidden role="alert"><svg><use href="#i-alert"/></svg><span>Allow location for SnowRaven in Settings → Apps → SnowRaven → Permissions → Location, and make sure Location is turned on, then try again.</span></div>
+            <div class="card card-pad defloc-b" id="defloc-b" hidden style="margin-top:12px">
+              <div class="micro" style="margin-bottom:6px">Settings · Default Location</div>
+              <p style="margin:0 0 12px;font-size:0.75rem;color:var(--sr-text-muted);line-height:1.5">Set a home location for the Map Explorer. These coordinates load automatically every time you open the map tab.</p>
+              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(7rem,100%),1fr));gap:8px;margin-bottom:12px"><div><div class="micro" style="margin-bottom:4px;letter-spacing:0">Latitude</div><div class="input" style="font-size:0.75rem;font-family:var(--font-mono);min-height:34px">37.74622</div></div><div><div class="micro" style="margin-bottom:4px;letter-spacing:0">Longitude</div><div class="input" style="font-size:0.75rem;font-family:var(--font-mono);min-height:34px">-122.20051</div></div><div><div class="micro" style="margin-bottom:4px;letter-spacing:0">Radius (mi)</div><div class="input" style="font-size:0.75rem;font-family:var(--font-mono);min-height:34px">5</div></div></div>
+              <button type="button" class="btn-a">Save</button>
+            </div>
+            <div class="card" style="margin-top:12px" id="nearby-card">
+              <div class="row" style="padding-top:10px"><div class="micro">Nearby lifers</div><div class="micro">25 mi</div></div>
+              <div class="row"><div>Ridgway's Rail<br><span class="sci">Rallus obsoletus</span></div><div class="num" style="font-weight:600">2.1 mi</div></div>
+              <div class="row"><div>Burrowing Owl<br><span class="sci">Athene cunicularia</span></div><div class="num" style="font-weight:600">4.8 mi</div></div>
+              <div class="row"><div>Golden Eagle<br><span class="sci">Aquila chrysaetos</span></div><div class="num" style="font-weight:600">9.3 mi</div></div>
+            </div>
+          </div></div>
+          <nav class="navbar" aria-label="Tabs">
+            <button type="button"><span class="glyph"><svg><use href="#i-cloud"/></svg></span><span class="label">Weather</span></button>
+            <button type="button"><span class="glyph"><svg><use href="#i-bars"/></svg></span><span class="label">Statistics</span></button>
+            <button type="button" class="active"><span class="glyph"><svg><use href="#i-map"/></svg></span><span class="label">Map</span></button>
+            <button type="button"><span class="glyph"><svg><use href="#i-search"/></svg></span><span class="label">Species</span></button>
+            <button type="button"><span class="glyph"><svg><use href="#i-more"/></svg></span><span class="label">More</span></button>
+          </nav>
+        </div>
+        <div class="scrim" id="loc-scrim">
+          <div class="sysdlg" role="dialog" aria-labelledby="sysdlg-title">
+            <div class="ico"><svg><use href="#i-pin"/></svg></div>
+            <h4 id="sysdlg-title">Allow SnowRaven to access this device's location?</h4>
+            <div class="prec" aria-hidden="true"><div class="sel">Precise</div><div class="approx">Approximate</div></div>
+            <button type="button" class="opt">While using the app</button>
+            <button type="button" class="opt">Only this time</button>
+            <button type="button" class="opt quiet">Don't allow</button>
+          </div>
+        </div>
+        <div class="navbar-sys" aria-hidden="true"><svg class="btn"><use href="#b-back"/></svg><svg class="btn"><use href="#b-home"/></svg><svg class="btn"><use href="#b-recent"/></svg><span class="pill"></span></div>
+      </div></div>
+      <p class="frame-caption" id="loc-caption"><strong>Branch A, the dialog is Android’s.</strong> Its words, its Precise and Approximate choice and its three buttons are the OS’s; SnowRaven cannot change them and does not try.</p>
+    </div>
+    <div class="notes">
+      <h3>The denied sentence</h3>
+      <div class="decision"><strong>Allow location for SnowRaven in Settings → Apps → SnowRaven → Permissions → Location, and make sure Location is turned on, then try again.</strong></div>
+      <p>Same register and the same arrow path as the iOS and Windows sentences. It names the app's own permission and the phone's master switch in one line, because the plugin reports both refusals on the same path. It is the only platform sentence shown on Android.</p>
+      <h3>Branch A, what the user sees, by state</h3>
+      <ul>
+        <li><strong>First press:</strong> the system dialog. Allow returns the position; the map centers on it.</li>
+        <li><strong>Refused, or "don't ask again":</strong> the red note, no second dialog.</li>
+        <li><strong>Location off at the phone level:</strong> the same note, because the plugin reports the switch as a refusal.</li>
+        <li><strong>No fix in ten seconds:</strong> the timeout sentence the app already has, not the denied one.</li>
+        <li><strong>A phone without a network location service</strong> (a de-Googled ROM): a position may take longer or need GPS; that is the phone’s provider set, not the app, and one Help sentence says so only if the emulator reading shows it.</li>
+      </ul>
+      <h3>Approximate location</h3>
+      <p>With both permissions declared the dialog offers Approximate. The app asks for high accuracy and the WebView downgrades it itself when only Approximate is granted; the measurement’s step 4 records whether that yields a position a few kilometers off or the generic unavailable sentence, and that decides one Help sentence. The surface is the same either way.</p>
+      <h3>Branch B, surface by surface</h3>
+      <ul>
+        <li><strong>Map Explorer:</strong> the FAB row is share, Filters, fullscreen; the locate disc is simply not in the row and flex closes the gap, so nothing is reserved. The map still opens on the Default Location and moves to a searched place.</li>
+        <li><strong>Filters sidebar:</strong> no Use my location row; the place search takes the full row.</li>
+        <li><strong>Settings, Default Location:</strong> description, the three fields, Save. No button, no error line, no blank band where the button was, no sentence about location.</li>
+        <li><strong>Targets:</strong> the Measure distances from chooser opens on Default Location and the place search; no My location item.</li>
+        <li><strong>Weather:</strong> no Current weather and tide control; the checklist lookup and the Planner stay, and Plan with no place takes its existing no-place state.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ================================================================= E -->
+  <section class="section wide" aria-labelledby="h-tablet">
+    <div class="section-head">
+      <p class="kicker">E. Tablet</p>
+      <h2 id="h-tablet">A 10-inch tablet gets the wide layout, as iPad does</h2>
+      <p>At 1280 CSS px the nav picks the sidebar density from measured width, and <code>&lt;main&gt;</code> starts at the top of the window under the status-bar inset. In portrait (800 wide) the same rule picks the icon rail. No tablet-specific reading: the Android tablet is the desktop layout with the insets injected, exactly as iPad is the desktop layout with <code>env()</code>.</p>
+    </div>
+    <div class="tablet-host" id="tablet-host">
+      <div class="tablet" id="tablet">
+        <div class="statusbar" aria-hidden="true"><span>7:21</span><span class="cluster"><svg><use href="#i-wifi"/></svg><svg><use href="#i-signal"/></svg><svg><use href="#i-batt"/></svg></span></div>
+        <div class="shell">
+          <aside class="navcol" aria-label="Destinations">
+            <div class="brand"><svg class="raven"><use href="#raven"/></svg><h1>Snow<span class="accent">Raven</span></h1></div>
+            <div class="navitem"><svg><use href="#i-cloud"/></svg>Weather</div>
+            <div class="navitem"><svg><use href="#i-bars"/></svg>Statistics</div>
+            <div class="navitem"><svg><use href="#i-map"/></svg>Map Explorer</div>
+            <div class="navitem"><svg><use href="#i-search"/></svg>Species Detail</div>
+            <div class="navitem"><svg><use href="#i-cal"/></svg>Calendar</div>
+            <div class="navitem active"><svg><use href="#i-target"/></svg>Targets</div>
+            <div class="navitem"><svg><use href="#i-image"/></svg>Multimedia</div>
+            <div class="navitem"><svg><use href="#i-grid"/></svg>Breeding Codes</div>
+            <div class="navitem"><svg><use href="#i-list"/></svg>Checklists</div>
+            <div class="navitem"><svg><use href="#i-compare"/></svg>List Comparer</div>
+            <div class="navitem"><svg><use href="#i-tag"/></svg>Named Birds</div>
+            <div class="spacer"></div>
+            <div class="hair"></div>
+            <div class="navitem"><svg><use href="#i-settings"/></svg>Settings</div>
+          </aside>
+          <main class="tmain">
+            <div class="tab-head" style="padding-top:0"><div class="tile"><svg><use href="#i-target"/></svg></div><div><h2>Targets</h2><p>What you still need in Alameda, CA, and who has reported it lately</p></div></div>
+            <div style="display:flex;gap:10px;align-items:center;margin:0 0 12px;font-size:0.84375rem;color:var(--sr-text-muted)">Distances are measured from <span style="font-weight:600;color:var(--sr-text);border-bottom:1px dashed var(--sr-border-medium)">Arrowhead Marsh</span> · Within 25 miles · 14 of 61 targets shown</div>
+            <div class="card">
+              <table class="ttable" aria-label="Targets in Alameda, CA">
+                <thead>
+                  <tr><th rowspan="2">Species</th><th class="grp" colspan="2">eBird bar chart<small>Alameda, CA, 1900 to 2026</small></th><th class="grp div" colspan="2">eBird API<small>last 30 days</small></th><th rowspan="2">Last report</th></tr>
+                  <tr><th>Frequency %</th><th>Season</th><th class="div">Days reported</th><th>Nearest</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td>Tricolored Blackbird<br><span class="sci">Agelaius tricolor</span></td><td class="num">6.4<small>%</small><div class="bar"><i style="width:64%"></i></div></td><td>Peaks Apr to Jun</td><td class="num div">12 <small>of 30</small><div class="ticks"><i class="on"></i><i></i><i class="on"></i><i class="on"></i><i></i><i></i><i class="on"></i><i class="on"></i><i></i><i class="on"></i><i class="on"></i><i></i><i class="on"></i><i></i><i class="on"></i><i class="on"></i><i></i><i></i><i class="on"></i><i></i></div></td><td class="num">3.2 mi</td><td><a class="link" href="#">Coyote Hills Regional Park <svg><use href="#i-ext"/></svg></a></td></tr>
+                  <tr><td>Burrowing Owl<br><span class="sci">Athene cunicularia</span></td><td class="num">4.1<small>%</small><div class="bar"><i style="width:41%"></i></div></td><td>Oct to Mar</td><td class="num div">9 <small>of 30</small><div class="ticks"><i></i><i class="on"></i><i></i><i class="on"></i><i></i><i></i><i class="on"></i><i></i><i class="on"></i><i></i><i class="on"></i><i></i><i></i><i class="on"></i><i></i><i class="on"></i><i></i><i class="on"></i><i></i><i class="on"></i></div></td><td class="num">4.8 mi</td><td><a class="link" href="#">Cesar Chavez Park <svg><use href="#i-ext"/></svg></a></td></tr>
+                  <tr><td>Ridgway's Rail<br><span class="sci">Rallus obsoletus</span></td><td class="num">3.7<small>%</small><div class="bar"><i style="width:37%"></i></div></td><td>Year round</td><td class="num div">7 <small>of 30</small><div class="ticks"><i class="on"></i><i></i><i></i><i class="on"></i><i></i><i></i><i></i><i class="on"></i><i></i><i></i><i class="on"></i><i></i><i></i><i class="on"></i><i></i><i></i><i class="on"></i><i></i><i></i><i class="on"></i></div></td><td class="num">2.1 mi</td><td><a class="link" href="#">Arrowhead Marsh <svg><use href="#i-ext"/></svg></a></td></tr>
+                  <tr><td>Golden Eagle<br><span class="sci">Aquila chrysaetos</span></td><td class="num">2.9<small>%</small><div class="bar"><i style="width:29%"></i></div></td><td>Year round</td><td class="num div">5 <small>of 30</small><div class="ticks"><i></i><i></i><i class="on"></i><i></i><i></i><i></i><i class="on"></i><i></i><i></i><i></i><i class="on"></i><i></i><i></i><i></i><i class="on"></i><i></i><i></i><i></i><i class="on"></i><i></i></div></td><td class="num">9.3 mi</td><td><a class="link" href="#">Sunol Regional Wilderness <svg><use href="#i-ext"/></svg></a></td></tr>
+                  <tr><td>Lewis's Woodpecker<br><span class="sci">Melanerpes lewis</span></td><td class="num">0.8<small>%</small><div class="bar"><i style="width:8%"></i></div></td><td>Oct to Feb</td><td class="num div">2 <small>of 30</small><div class="ticks"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i class="on"></i><i></i><i></i></div></td><td class="num">17.6 mi</td><td><a class="link" href="#">Del Valle Regional Park <svg><use href="#i-ext"/></svg></a></td></tr>
+                  <tr><td>Black Skimmer<br><span class="sci">Rynchops niger</span></td><td class="num">0.6<small>%</small><div class="bar"><i style="width:6%"></i></div></td><td>Jul to Sep</td><td class="num div">1 <small>of 30</small><div class="ticks"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i class="on"></i></div></td><td class="num">6.0 mi</td><td><a class="link" href="#">Hayward Regional Shoreline <svg><use href="#i-ext"/></svg></a></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </main>
+        </div>
+        <div class="navbar-sys" aria-hidden="true"><svg class="btn"><use href="#b-back"/></svg><svg class="btn"><use href="#b-home"/></svg><svg class="btn"><use href="#b-recent"/></svg><span class="pill"></span></div>
+      </div>
+    </div>
+    <div class="notes notes-cols">
+      <p><strong>Insets on the wide layout.</strong> The body pads by <code>--sr-inset-top</code>, the sticky nav column re-points its <code>top</code> and shortens its height by the same value, and nothing pads the bottom but the surfaces that reach it (the footer, the FAB cluster, a sheet). Landscape with a side cutout arrives as <code>--sr-inset-left</code> or <code>-right</code> on the body.</p>
+      <p><strong>200% text and the system font.</strong> The in-app Text Size is the designed scale and applies here as everywhere; Android's own font scale multiplies it through the WebView's text zoom. At 800px wide the nav collapses to the icon rail, then to the phone bar, by the same measured-width rule, so a large font moves the layout down a density rather than clipping it.</p>
+    </div>
+  </section>
+</div>
+
+<script>
+(function () {
+  var root = document.documentElement;
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+  // theme
+  var themeBtns = document.querySelectorAll('[data-theme-pick]');
+  themeBtns.forEach(function (b) {
+    b.addEventListener('click', function () {
+      root.setAttribute('data-theme', b.getAttribute('data-theme-pick'));
+      themeBtns.forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); });
+    });
+  });
+  // follow the system by default
+  if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+    root.setAttribute('data-theme', 'dark');
+    themeBtns.forEach(function (x) { x.setAttribute('aria-pressed', String(x.getAttribute('data-theme-pick') === 'dark')); });
+  }
+
+  // navigation mode (gesture 24px vs 3-button 48px bottom inset)
+  var navBtns = document.querySelectorAll('[data-nav-pick]');
+  var phones = document.querySelectorAll('.phone, .tablet');
+  navBtns.forEach(function (b) {
+    b.addEventListener('click', function () {
+      var buttons = b.getAttribute('data-nav-pick') === 'buttons';
+      phones.forEach(function (p) { p.classList.toggle('nav-buttons', buttons); });
+      navBtns.forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); });
+    });
+  });
+
+  // launch sequence
+  var stages = document.querySelectorAll('#launch-phone .stage');
+  var stepBtns = document.querySelectorAll('[data-step]');
+  var launchPhone = document.getElementById('launch-phone');
+  var caption = document.getElementById('launch-caption');
+  var captions = [
+    '<strong>1 Tap.</strong> The adaptive icon: the raven foreground on the #2D8653 background, the launcher’s own mask.',
+    '<strong>2 System splash (API 31+).</strong> The icon on the same green; light status-bar glyphs. Yields on the first draw, with no fixed wait. On API 24 to 30 the window background draws this frame instead.',
+    '<strong>3 Window background, then the launch frame.</strong> Both are the green. The HTML frame paints the 88px mark; the raven does not move.',
+    '<strong>4 First frame.</strong> The app’s own theme under transparent bars. The status-bar glyphs flip to the theme’s ink.',
+    '<strong>Old WebView.</strong> Below Chromium 111 the launch frame stays with one sentence and no Reload.'
+  ];
+  var timer = 0;
+  function show(i) {
+    clearTimeout(timer);
+    stages.forEach(function (s, k) { s.classList.toggle('on', k === i); s.classList.remove('first'); });
+    stepBtns.forEach(function (b) { b.setAttribute('aria-pressed', String(Number(b.getAttribute('data-step')) === i)); });
+    launchPhone.classList.toggle('on-green', i !== 3);
+    caption.innerHTML = captions[i];
+  }
+  stepBtns.forEach(function (b) { b.addEventListener('click', function () { show(Number(b.getAttribute('data-step'))); }); });
+  document.getElementById('play').addEventListener('click', function () {
+    var icon = document.getElementById('sr-icon');
+    show(0);
+    icon.classList.add('pressed');
+    var d = reduce.matches ? 0 : 1;
+    timer = setTimeout(function () {
+      icon.classList.remove('pressed');
+      show(1);
+      timer = setTimeout(function () {
+        show(2);
+        timer = setTimeout(function () { show(3); }, 700 * d + 1);
+      }, 900 * d + 1);
+    }, 260 * d + 1);
+  });
+
+  // keyboard over an input
+  var imeBtn = document.getElementById('ime-toggle');
+  var mainPhone = document.getElementById('main-phone');
+  var scroll = document.getElementById('main-scroll');
+  imeBtn.addEventListener('click', function () {
+    var open = mainPhone.classList.toggle('ime-open');
+    imeBtn.setAttribute('aria-pressed', String(open));
+    mainPhone.style.setProperty('--ime', open ? 'var(--ime-h, 300px)' : '0px');
+    document.getElementById('search-input').classList.toggle('focus', open);
+    document.getElementById('search-ph').hidden = open;
+    document.getElementById('search-caret').hidden = !open;
+    if (open) {
+      // Chromium scrolls the focused input into view itself once the viewport
+      // shrinks; the frame does the same so the model matches the device.
+      requestAnimationFrame(function () {
+        document.getElementById('search-card').scrollIntoView({ block: 'end', behavior: reduce.matches ? 'auto' : 'smooth' });
+      });
+    } else {
+      scroll.scrollTo({ top: 0, behavior: reduce.matches ? 'auto' : 'smooth' });
+    }
+  });
+
+  // location states
+  var locBtns = document.querySelectorAll('[data-loc]');
+  var scrim = document.getElementById('loc-scrim');
+  var note = document.getElementById('denied-note');
+  var locPhone = document.getElementById('loc-phone');
+  var locCaption = document.getElementById('loc-caption');
+  var locCaptions = {
+    prompt: '<strong>Branch A, the dialog is Android\u2019s.</strong> Its words, its Precise and Approximate choice and its three buttons are the OS\u2019s; SnowRaven cannot change them and does not try.',
+    denied: '<strong>Branch A, refused.</strong> The approved sentence in the red note above the map\u2019s buttons; no second dialog, including after \u201cdon\u2019t ask again\u201d.',
+    branchb: '<strong>Branch B.</strong> No locate disc in the FAB row and no Use my location in Settings; the card below shows the Default Location card as it renders. Nothing says location is unavailable.'
+  };
+  locBtns.forEach(function (b) {
+    b.addEventListener('click', function () {
+      var mode = b.getAttribute('data-loc');
+      var denied = mode === 'denied';
+      var branchB = mode === 'branchb';
+      scrim.hidden = denied || branchB;
+      note.hidden = !denied;
+      locPhone.classList.toggle('branch-b', branchB);
+      document.getElementById('defloc-b').hidden = !branchB;
+      document.getElementById('nearby-card').hidden = branchB;
+      locCaption.innerHTML = locCaptions[mode];
+      locBtns.forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); });
+    });
+  });
+
+  // tablet scale-to-fit
+  var host = document.getElementById('tablet-host');
+  var tablet = document.getElementById('tablet');
+  function fit() { tablet.style.transform = 'scale(' + (host.clientWidth / 1280) + ')'; }
+  var hosts = document.querySelectorAll('.phone-host');
+  function fitPhones() { hosts.forEach(function (hh) { var s = Math.min(1, hh.clientWidth / 360); hh.style.height = (800 * s) + 'px'; hh.firstElementChild.style.transform = 'scale(' + s + ')'; }); }
+  fitPhones();
+  if ('ResizeObserver' in window) hosts.forEach(function (hh) { new ResizeObserver(fitPhones).observe(hh); }); else window.addEventListener('resize', fitPhones);
+  fit();
+  if ('ResizeObserver' in window) new ResizeObserver(fit).observe(host); else window.addEventListener('resize', fit);
+})();
+</script>
+</body>
+</html>

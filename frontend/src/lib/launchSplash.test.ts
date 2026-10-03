@@ -143,6 +143,9 @@ describe('launch splash: the Android WebView floor', () => {
     expect(bootScript).toContain(`CSS.supports('${WEBVIEW_FLOOR_PROBE[0]}', '${WEBVIEW_FLOOR_PROBE[1]}')`)
     expect(bootScript).toContain(WEBVIEW_FLOOR_MESSAGE)
     expect(bootScript).toContain("osInternals.platform === 'android'")
+    // revised FR-33: the sentence names the WebView and no store
+    expect(WEBVIEW_FLOOR_MESSAGE).toContain('Android System WebView')
+    expect(WEBVIEW_FLOOR_MESSAGE).not.toMatch(/Google|Play/)
   })
 
   it('web (no os plugin internals): the probe never runs and the launch is unchanged', () => {

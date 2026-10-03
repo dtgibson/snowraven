@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- The launch frame on API 24 to 30, which have no system splash
+<!-- The launch frame on API 26 to 30, which have no system splash
      (android-release design-spec section 1): SnowRaven green with the adaptive
      icon's foreground centered at its own 108dp, so it reads as the same frame
      as the API 31+ splash and the web launch frame that follows. -->

@@ -15,8 +15,8 @@
 // groupBy, Set.prototype.union, Promise.withResolvers, URL.canParse or
 // structuredClone), so the floor is the Tailwind and Vite toolchain floor, and
 // the probe that maps to it one to one is Tailwind's own: color-mix() in lab
-// space, supported from Chromium 111. Every API 24 device can reach it: Chrome
-// 119 was the last WebView release for Android 7.
+// space, supported from Chromium 111. Every device at the app's floor (API 26,
+// Android 8.0) can update its WebView past it.
 //
 // The probe RUNS in frontend/index.html's inline launch script (it must decide
 // before the bundle loads, and an inline script adds nothing to the entry
@@ -27,8 +27,9 @@ export const ANDROID_WEBVIEW_FLOOR = 111
 // CSS.supports(property, value) arguments for the probe.
 export const WEBVIEW_FLOOR_PROBE = ['color', 'color-mix(in lab, red, red)'] as const
 
-// The approved copy (design-spec, Content Notes): shown in the launch frame's
-// status line, with no Reload control, because reloading cannot change the
-// WebView.
+// The approved copy (design-spec, Content Notes, as revised for F-Droid): shown
+// in the launch frame's status line, with no Reload control, because reloading
+// cannot change the WebView. It names no store: an F-Droid or sideloaded
+// install may be on a phone with none of Google's software.
 export const WEBVIEW_FLOOR_MESSAGE =
-  'SnowRaven needs a newer Android System WebView. Update it from Google Play, then open SnowRaven again.'
+  'SnowRaven needs a newer Android System WebView: update it through your phone’s app store or system update, then open SnowRaven again.'
