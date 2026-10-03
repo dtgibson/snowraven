@@ -21,6 +21,7 @@ import {
 } from 'lucide-react'
 import { Button } from '../ui/Button'
 import { BirdName } from '../BirdName'
+import { HotspotLink } from '../HotspotLink'
 import { formatDate } from '../../lib/formatDate'
 import { SORT_LABELS, type TargetRow, type TargetsSort } from '../../lib/targets/targetsSort'
 import type { DayState } from '../../lib/targets/targetsLive'
@@ -68,6 +69,8 @@ export interface ListProps {
   availability: Record<TargetsSort, string | null>
   onSort: (s: TargetsSort) => void
   onOpenSpecies?: (name: string) => void
+  /** Public-hotspot membership, from the parent's single `useHotspotSet()` call. */
+  isHotspot: (locId: string | null | undefined) => boolean
   /** The sentence that replaces the table, or null to show the table. */
   empty: ReactNode | null
   showSweep: boolean
@@ -397,7 +400,21 @@ function Row({ row, idx, p, maxMonth, maxYear, probTag, liveTag }: RowProps) {
           {cell.lastDate !== null ? (
             <>
               <span>{lastLabel(cell.lastDate, p.dates)}</span>
-              {cell.place ? <span className="sr-tg-place">{cell.place}</span> : null}
+              {cell.place ? (
+                // The block line stays the wrapper and keeps its shipped rule; a
+                // public hotspot's name links to its eBird page inside it, and a
+                // personal place (or a null id, or a Set not yet loaded) is the
+                // same muted text it always was. Names WRAP, never truncate: eBird
+                // puts what tells two hotspots apart at the end of the name.
+                <span className="sr-tg-place">
+                  <HotspotLink
+                    locId={cell.locId ?? ''}
+                    name={cell.place}
+                    isHotspot={p.isHotspot(cell.locId)}
+                    style={{ color: 'var(--sr-text-muted)' }}
+                  />
+                </span>
+              ) : null}
             </>
           ) : <span className="sr-tg-na">{partial && cell.daysReported === 0 ? NONE_IN_CHECKED : NO_REPORT_30}</span>}
         </td>

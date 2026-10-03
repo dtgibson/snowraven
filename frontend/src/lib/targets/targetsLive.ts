@@ -29,6 +29,14 @@ export interface LiveCell {
   lastDate: string | null
   /** That report's place, when eBird supplied one. */
   place: string | null
+  /**
+   * That SAME report's eBird location id (shape-checked by `DAY_LOC_ID_RE` on
+   * the way in), or null. Taken from the record that supplies `place`, never
+   * from another day's, so a hotspot link always names the place it opens
+   * (targets-hotspot-link). Whether it is a public hotspot is decided by the
+   * caller against the hotspot Set, not here.
+   */
+  locId: string | null
   lat: number | null
   lng: number | null
   /** Newest first, one entry per date in `dates`: true when reported that day. */
@@ -52,7 +60,7 @@ export function deriveLive(
   let checkedDays = 0
   for (const d of dates) if (isChecked(days.get(d))) checkedDays += 1
 
-  interface Acc { n: number; mask: boolean[]; bestDt: string; place: string | null; lat: number | null; lng: number | null; date: string | null }
+  interface Acc { n: number; mask: boolean[]; bestDt: string; place: string | null; locId: string | null; lat: number | null; lng: number | null; date: string | null }
   const acc = new Map<string, Acc>()
   for (let i = 0; i < dates.length; i++) {
     const entry = days.get(dates[i])
@@ -61,7 +69,7 @@ export function deriveLive(
       if (!poolCodes.has(r.speciesCode)) continue
       let a = acc.get(r.speciesCode)
       if (!a) {
-        a = { n: 0, mask: new Array<boolean>(dates.length).fill(false), bestDt: '', place: null, lat: null, lng: null, date: null }
+        a = { n: 0, mask: new Array<boolean>(dates.length).fill(false), bestDt: '', place: null, locId: null, lat: null, lng: null, date: null }
         acc.set(r.speciesCode, a)
       }
       if (!a.mask[i]) { a.mask[i] = true; a.n += 1 }
@@ -69,6 +77,7 @@ export function deriveLive(
         a.bestDt = r.obsDt
         a.date = dates[i]
         a.place = r.locName || null
+        a.locId = r.locId
         a.lat = r.lat
         a.lng = r.lng
       }
@@ -80,8 +89,8 @@ export function deriveLive(
   for (const code of poolCodes) {
     const a = acc.get(code)
     out.set(code, a
-      ? { daysReported: a.n, checkedDays, lastDate: a.date, place: a.place, lat: a.lat, lng: a.lng, reported: a.mask }
-      : { daysReported: 0, checkedDays, lastDate: null, place: null, lat: null, lng: null, reported: empty })
+      ? { daysReported: a.n, checkedDays, lastDate: a.date, place: a.place, locId: a.locId, lat: a.lat, lng: a.lng, reported: a.mask }
+      : { daysReported: 0, checkedDays, lastDate: null, place: null, locId: null, lat: null, lng: null, reported: empty })
   }
   return out
 }

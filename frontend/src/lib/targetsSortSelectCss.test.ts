@@ -29,10 +29,16 @@
 // WHAT THIS CANNOT SEE: whether WebKit still widens the page (layout), which is
 // the scratch-probe measurement recorded with the fix; and rules outside
 // globals.css other than the built bundle's preflight, checked in the last block.
+//
+// F4. The Last report hotspot glyph hangs into the cell's spare padding so it
+// never starts a line alone (targets-hotspot-link), described at its own block.
 /// <reference types="node" />
 import { describe, expect, it } from 'vitest'
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
+import { createElement } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
+import { HotspotLink } from '../components/HotspotLink'
 
 const SRC = fileURLToPath(new URL('../', import.meta.url))
 const css = readFileSync(`${SRC}globals.css`, 'utf8')
@@ -103,24 +109,33 @@ function declarations(body: string): Map<string, { value: string; important: boo
   return out
 }
 
-/** One element in the chain: its tag and classes. */
-interface El { tag: string; classes: string[] }
+/**
+ * One element in the chain: its tag and classes, and the STRUCTURAL
+ * pseudo-classes it satisfies (`last-child`), which the element declares
+ * because the chain carries no siblings to derive them from.
+ */
+interface El { tag: string; classes: string[]; structural?: string[] }
+
+/** Structural pseudo-classes: a fact about the element's place in the tree, not a state. */
+const STRUCTURAL = /:(first-child|last-child)(?![-\w])/g
 
 /**
  * A compound selector's parts. A state pseudo-class (`:hover`, `:focus-visible`,
  * `:disabled`) or a pseudo-element makes it a non-RESTING match, which is what
- * this file resolves. An attribute selector is treated as SATISFIABLE (ignored),
+ * this file resolves. A structural pseudo-class matches only an element that
+ * declares it. An attribute selector is treated as SATISFIABLE (ignored),
  * which errs toward including a rule, so a themed or data-attribute override
  * that could win is never silently left out of the cascade.
  */
 function parseCompound(compound: string) {
   const fnRe = /:(is|where|not)\(([^)]*)\)/g
   const fns = [...compound.matchAll(fnRe)].map(m => ({ fn: m[1], args: splitList(m[2]) }))
-  const rest = compound.replace(fnRe, '').replace(/\[[^\]]*\]/g, '')
+  const structural = [...compound.replace(fnRe, '').matchAll(STRUCTURAL)].map(m => m[1])
+  const rest = compound.replace(fnRe, '').replace(/\[[^\]]*\]/g, '').replace(STRUCTURAL, '')
   const tag = /^[a-z][a-z0-9-]*|^\*/i.exec(rest)?.[0] ?? null
   const classes = [...rest.matchAll(/\.([-\w]+)/g)].map(m => m[1])
   const statePseudo = /:/.test(rest)
-  return { tag, classes, fns, statePseudo }
+  return { tag, classes, fns, statePseudo, structural }
 }
 
 /** Does one simple argument of :is()/:where()/:not() match the element? */
@@ -128,6 +143,7 @@ function argMatches(arg: string, el: El): boolean {
   const p = parseCompound(arg.trim())
   if (p.statePseudo || p.fns.length) return false
   if (p.tag && p.tag !== '*' && p.tag !== el.tag) return false
+  if (!p.structural.every(s => el.structural?.includes(s))) return false
   return p.classes.every(c => el.classes.includes(c))
 }
 
@@ -135,6 +151,7 @@ function compoundMatches(compound: string, el: El): boolean {
   const p = parseCompound(compound)
   if (p.statePseudo) return false
   if (p.tag && p.tag !== '*' && p.tag !== el.tag) return false
+  if (!p.structural.every(s => el.structural?.includes(s))) return false
   if (!p.classes.every(c => el.classes.includes(c))) return false
   for (const f of p.fns) {
     const any = f.args.some(a => argMatches(a, el))
@@ -511,6 +528,105 @@ describe('F3: the distance slider\'s end stop labels stay inside the track (targ
   })
 })
 
+// ── F4: the Last report glyph hangs into the cell's spare padding ────────────
+// (targets-hotspot-link, QA amendment.) HotspotLink binds the glyph to the
+// name's last word in one inline-block; when that word nearly fills its line
+// the glyph would start the next line alone. In the Last report cell it adds
+// no width to its line and hangs into the room to the cell's right instead.
+// Pinned three ways: the hang equals the glyph HotspotLink actually renders
+// (its gap plus its box, read off the server-rendered markup, never restated);
+// the hang declarations resolve on the link and the glyph, at both tiers, and
+// never on the last-word box or the lead span; and the room to the right of the
+// column is at least the hang at each tier. WHAT THIS CANNOT SEE: that the glyph really
+// shares the line in a real engine, which the build's browser sweep measured.
+
+const LAST_TD: El[] = [
+  { tag: 'td', classes: ['sr-tg-last'] },
+  { tag: 'tr', classes: [] },
+  { tag: 'tbody', classes: [] },
+  { tag: 'table', classes: ['sr-tg-table'] },
+  { tag: 'div', classes: ['sr-scroll-x'] },
+  { tag: 'section', classes: ['sr-tg-list-card'] },
+]
+const ANCHOR: El[] = [{ tag: 'a', classes: [] }, { tag: 'span', classes: ['sr-tg-place'] }, ...LAST_TD]
+const BOX: El[] = [{ tag: 'span', classes: [], structural: ['last-child'] }, ...ANCHOR]
+const LEAD: El[] = [{ tag: 'span', classes: [], structural: ['first-child'] }, ...ANCHOR]
+const GLYPH: El[] = [{ tag: 'svg', classes: ['lucide', 'lucide-external-link'] }, ...BOX]
+const DIST_TD: El[] = [{ tag: 'td', classes: ['sr-tg-distc'] }, ...LAST_TD.slice(1)]
+const ROW: El[] = LAST_TD.slice(1)
+
+const px = (v: string | null | undefined): number => {
+  const m = /^(-?[0-9.]+)px$/.exec((v ?? '').trim())
+  if (!m) throw new Error(`not a px value: ${v}`)
+  return Number(m[1])
+}
+/** The inline-end (right) component of a `padding` shorthand. */
+const padRight = (v: string) => { const p = v.trim().split(/\s+/); return p[1] ?? p[0] }
+const padLeft = (v: string) => { const p = v.trim().split(/\s+/); return p[3] ?? p[1] ?? p[0] }
+const hangDecl = 'var(--sr-tg-glyph-hang)'
+const negHangDecl = 'calc(-1 * var(--sr-tg-glyph-hang))'
+
+describe('F4: the Last report glyph hangs into the cell\'s spare padding (targets-hotspot-link)', () => {
+  it('the hang is the glyph HotspotLink renders in the Targets call: its gap plus its box', () => {
+    // The Targets call passes no size, compact or truncate (the full-name, default-size branch).
+    const list = readFileSync(`${SRC}components/targets/TargetsList.tsx`, 'utf8')
+    const call = /<HotspotLink\b[\s\S]*?\/>/.exec(list)![0]
+    expect(call).not.toMatch(/\b(size|compact|truncate)\b/)
+    const html = renderToStaticMarkup(createElement(HotspotLink, { locId: 'L1', name: 'Lake Elizabeth', isHotspot: true, style: { color: 'var(--sr-text-muted)' } }))
+    const svg = /<svg\b[^>]*>/.exec(html)![0]
+    const width = Number(/\bwidth="([0-9.]+)"/.exec(svg)![1])
+    const gap = px(/margin-left:\s*([0-9.]+px)/.exec(svg)![1])
+    const hang = resolve('--sr-tg-glyph-hang', LAST_TD, 'desktop').winner
+    expect(hang, 'the hang must be declared where Last report can inherit it').not.toBeNull()
+    expect(px(hang!.value)).toBe(gap + width)
+  })
+
+  it.each(['desktop', 'phone'] as const)('%s: the link and the glyph resolve the hang; the last-word box and the lead span take none of it', tier => {
+    // The link: end padding of the hang, cancelled by a negative margin, so its
+    // last fragment (what WebKit outlines once the link has padding) reaches the
+    // glyph's far edge while adding nothing to line fitting.
+    expect(resolve('padding-inline-end', ANCHOR, tier).winner?.value).toBe(hangDecl)
+    expect(resolve('margin-inline-end', ANCHOR, tier).winner?.value).toBe(negHangDecl)
+    expect(resolve('margin-inline-end', GLYPH, tier).winner?.value).toBe(negHangDecl)
+    // The last-word box takes NO padding or margin: padding there comes out of
+    // the room its content may use, which split a word that fits the column
+    // mid-word ("Sanctuar" / "y"), and a cancelling margin there ended the
+    // link's fragment at the last letter, so WebKit's ring missed the glyph.
+    for (const chain of [BOX, LEAD]) {
+      for (const prop of ['box-sizing', 'padding-inline-end', 'margin-inline-end']) {
+        expect(resolve(prop, chain, tier).winner, `${prop} on the ${chain === BOX ? 'last-word box' : 'lead span'}`).toBeNull()
+      }
+    }
+  })
+
+  it('desktop: this cell\'s end padding plus the Distance cell\'s start padding is at least the hang', () => {
+    const hang = px(resolve('--sr-tg-glyph-hang', LAST_TD, 'desktop').winner!.value)
+    expect(resolve('padding-inline-end', LAST_TD, 'desktop').winner).toBeNull()
+    const mine = px(padRight(resolve('padding', LAST_TD, 'desktop').winner!.value))
+    const theirs = px(padLeft(resolve('padding', DIST_TD, 'desktop').winner!.value))
+    expect(mine + theirs).toBeGreaterThanOrEqual(hang)
+  })
+
+  it('phone: the column gap plus this cell\'s end padding is exactly the hang, and that padding beats the cells\' padding reset', () => {
+    const hang = px(resolve('--sr-tg-glyph-hang', LAST_TD, 'phone').winner!.value)
+    // The Distance cell has no start padding here, so the room is the gap plus ours.
+    expect(resolve('padding', DIST_TD, 'phone').winner?.value).toBe('0')
+    const gapDecl = resolve('gap', ROW, 'phone').winner!.value.split(/\s+/)
+    const columnGap = px(gapDecl[1] ?? gapDecl[0])
+    const end = resolve('padding-inline-end', LAST_TD, 'phone').winner!
+    // calc(var(--sr-tg-glyph-hang) - <the column gap>): compared to the gap rule, never restated.
+    const m = /^calc\(var\(--sr-tg-glyph-hang\) - ([0-9.]+px)\)$/.exec(end.value)
+    expect(m, `the phone end padding is ${end.value}`).not.toBeNull()
+    expect(px(m![1])).toBe(columnGap)
+    expect((hang - px(m![1])) + columnGap).toBe(hang)
+    // The longhand must win over the tier's `padding: 0` on the same cell.
+    const reset = resolve('padding', LAST_TD, 'phone').winner!
+    const [b1, c1] = specificity(end.selector)
+    const [b0, c0] = specificity(reset.selector)
+    expect(b1 > b0 || (b1 === b0 && c1 >= c0), `${end.selector} vs ${reset.selector}`).toBe(true)
+  })
+})
+
 // The built bundle is where preflight lives. Its `svg { display: block }` sits in
 // `@layer base`; an unlayered rule beats any layered one whatever its
 // specificity, so the Targets rules must be emitted OUTSIDE every @layer.
@@ -531,6 +647,10 @@ describe.skipIf(built.length === 0)('the emitted bundle: our rules are unlayered
     ['.sr-tg-sel', 'overflow', 'hidden'],
     ['.sr-tg-status>svg', 'display', 'inline-block'],
     ['.sr-tg-link>svg', 'display', 'inline-block'],
+    // F4: the hang survives minification as logical properties, outside every layer.
+    ['.sr-tg-place>a', 'margin-inline-end', 'calc(-1 * var(--sr-tg-glyph-hang))'],
+    ['.sr-tg-place>a', 'padding-inline-end', 'var(--sr-tg-glyph-hang)'],
+    ['.sr-tg-place>a>span:last-child>svg', 'margin-inline-end', 'calc(-1 * var(--sr-tg-glyph-hang))'],
   ])('%s is emitted unlayered with %s: %s', (sel, prop, value) => {
     const hits = find(sel)
     expect(hits.length, `${sel} must be emitted`).toBeGreaterThan(0)

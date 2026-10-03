@@ -1,12 +1,15 @@
 // @vitest-environment jsdom
 // The Targets tab, rendered (targets-tab QA-09, QA-11, QA-12, QA-22, QA-25,
-// QA-27, QA-38, QA-40, QA-42, QA-44, QA-58, QA-59, QA-60, QA-68).
+// QA-27, QA-38, QA-40, QA-42, QA-44, QA-58, QA-59, QA-60, QA-68; the Last
+// report hotspot link, targets-hotspot-link).
 //
 // The pool comes from the REAL shared completeness store over a faked storage
 // seam, so "renders before any network call" is a claim about the shipped
 // store rather than about a mock of it; the day cache and the bar-chart pipeline
-// are real too. Faked: storage, the backup and ML loaders, the transport, the
-// county geometry and the external-open seam.
+// are real too, and so is the shared public-hotspot Set (lib/hotspotSet.ts),
+// reached through the faked transport and reset before every test. Faked:
+// storage, the backup and ML loaders, the transport, the county geometry and
+// the external-open seam.
 //
 // WHAT THIS CANNOT SEE: layout (jsdom has none), the accessibility tree (only
 // the DOM's roles and names), and WebKit's tab order. The 320px / 200% claims
@@ -84,6 +87,7 @@ import { Targets } from './Targets'
 import { COMPLETENESS_STORE_KEY } from '../../lib/countyCompletenessCache'
 import { _resetCountyCompletenessCacheForTests } from '../../lib/countyCompletenessCache'
 import { _resetCountyDayObsCacheForTests } from '../../lib/countyDayObsCache'
+import { invalidateHotspotSet } from '../../lib/hotspotSet'
 import { EBIRD_BACKUP_LOAD_ERROR } from '../setupCopy'
 import { CHIPS_GROUP_LABEL, THRESHOLD_GROUP_LABEL } from '../../lib/targets/targetsCopy'
 
@@ -135,6 +139,10 @@ beforeEach(() => {
   H.locate.mockReset().mockImplementation(async () => { throw { code: 'permission-denied' } })
   _resetCountyCompletenessCacheForTests()
   _resetCountyDayObsCacheForTests()
+  // The hotspot Set is cached per module on the backup's region list, which is
+  // the same in every test here, so without this one test's answer (or its
+  // rejected, empty one) would decide the next test's links.
+  invalidateHotspotSet()
 })
 afterEach(cleanup)
 
@@ -173,7 +181,12 @@ describe('before any network call (QA-11, QA-12, FR-52)', () => {
     expect(screen.getByRole('table', { name: 'Target list' })).toBeTruthy()
     // Only the hostile-named species is unrecorded anywhere in the backup, so it
     // is the one lifer; the others are in the record by name.
-    expect(H.tGet).not.toHaveBeenCalled()
+    // The only transport call is the public-hotspot lookup every tab shares
+    // (useHotspotSet, targets-hotspot-link). It is not this county's data,
+    // nothing on screen waited for it (here it fails, and the list rendered
+    // anyway), and a failed or keyless answer leaves place names plain. Nothing
+    // else was asked.
+    expect(H.tGet.mock.calls.filter(c => c[0] !== '/map/hotspot-region')).toEqual([])
     // Alphabetical and Taxonomic are available with no key, no file, offline.
     const sort = screen.getByRole('combobox', { name: 'Sort targets' }) as HTMLSelectElement
     const opts = [...sort.options]
@@ -413,26 +426,42 @@ describe('color is tokens only (QA-68)', () => {
 
 // Today's answer names three places, one per recorded species; every other day
 // is empty. Coordinates are real Alameda points, so the distances are real.
+// Lake Merritt is a public hotspot (its id is in HOTSPOT_IDS); Arrowhead Marsh
+// is a personal location (a valid id the Set does not hold).
 const PLACES = {
-  'Lake Merritt': { lat: 37.8024, lng: -122.2566, code: 'sonspa' },
-  'Arrowhead Marsh': { lat: 37.7466, lng: -122.2014, code: 'linspa' },
-  'Coyote Hills': { lat: 37.5563, lng: -122.0936, code: 'amerob' },
+  'Lake Merritt': { lat: 37.8024, lng: -122.2566, code: 'sonspa', locId: 'L100' },
+  'Arrowhead Marsh': { lat: 37.7466, lng: -122.2014, code: 'linspa', locId: 'L200' },
+  'Coyote Hills': { lat: 37.5563, lng: -122.0936, code: 'amerob', locId: 'L300' },
 } as const
+const HOTSPOT_IDS = ['L100', 'L300', 'L999']
 const OAKLAND = { lat: 37.8044, lng: -122.2712, dist: 10 }
 let today: string | null = null
 
-function liveTransport(search: (q: string) => Promise<unknown> = async () => []) {
+interface LiveOpts {
+  /** The `/map/hotspot-region` answer (the backup's one region, US-CA). */
+  hotspots?: () => Promise<unknown>
+  /** Per-place location id overrides for today's records. */
+  locIds?: Partial<Record<keyof typeof PLACES, string | null>>
+}
+
+function liveTransport(search: (q: string) => Promise<unknown> = async () => [], opts: LiveOpts = {}) {
   today = null
+  const hotspots = opts.hotspots ?? (async () => [...HOTSPOT_IDS])
   H.tGet.mockImplementation(async (path: string, params: Record<string, string>) => {
     if (path === '/map/county-day-obs') {
       // The sweep asks newest first, so the first date asked is today.
       today ??= params.date
       const species = params.date === today
-        ? Object.entries(PLACES).map(([name, p]) => ({ speciesCode: p.code, obsDt: `${params.date} 08:00`, locId: 'L1', locName: name, lat: p.lat, lng: p.lng }))
+        ? (Object.entries(PLACES) as Array<[keyof typeof PLACES, (typeof PLACES)[keyof typeof PLACES]]>).map(([name, p]) => ({
+          speciesCode: p.code, obsDt: `${params.date} 08:00`,
+          locId: opts.locIds && name in opts.locIds ? opts.locIds[name] : p.locId,
+          locName: name, lat: p.lat, lng: p.lng,
+        }))
         : []
       return { regionCode: params.regionCode, date: params.date, species }
     }
     if (path === '/nominatim/search') return search(params.q)
+    if (path === '/map/hotspot-region') return hotspots()
     throw new Error(`unexpected ${path}`)
   })
 }
@@ -641,4 +670,71 @@ describe('the measuring-point chooser (FR-51a, QA-53a)', () => {
     await liveReady()
     expect(statusLine()).toBe('Distances from your Default Location.')
   }, 15_000)
+})
+
+// ── The Last report place links a public hotspot (targets-hotspot-link) ───────
+//
+// The accessible name is written here as a LITERAL rather than imported from
+// hotspotLinkAriaLabel, so these rows check the content and not only its
+// delivery (testing.md v1.0.14). Every "stays plain" row is asserted only AFTER
+// a link has appeared in the same table, which proves the Set had loaded:
+// without that ordering a plain place would pass on a Set that was simply still
+// empty.
+
+/** The Last report place line in a species' row. */
+function placeOf(species: string): HTMLElement {
+  const row = within(screen.getByRole('table')).getAllByRole('row').find(r => r.textContent!.startsWith(species))!
+  return row.querySelector<HTMLElement>('.sr-tg-last .sr-tg-place')!
+}
+
+describe('the Last report place links a public hotspot (targets-hotspot-link)', () => {
+  it('a hotspot place is a link to its eBird hotspot page; a personal place stays the muted plain text it was', async () => {
+    liveTransport()
+    await liveReady()
+    breedingOn()
+    const link = await screen.findByRole('link', { name: 'Open Lake Merritt on eBird (opens in a new tab)' })
+    expect(link.getAttribute('href')).toBe('https://ebird.org/hotspot/L100')
+    expect(link.getAttribute('target')).toBe('_blank')
+    expect(link.textContent).toBe('Lake Merritt')
+    // It sits in the place line of the row it names, under the date.
+    expect(placeOf('Song Sparrow').contains(link)).toBe(true)
+    // The personal place: the same text, no anchor, and kept muted rather than
+    // taking HotspotLink's own plain-text color.
+    const personal = placeOf("Lincoln's Sparrow")
+    expect(personal.textContent).toBe('Arrowhead Marsh')
+    expect(personal.querySelector('a')).toBeNull()
+    expect(personal.querySelector('span')!.style.color).toBe('var(--sr-text-muted)')
+    expect(screen.queryByRole('link', { name: /Arrowhead Marsh/ })).toBeNull()
+    // One lookup for the backup's one region, not one per row.
+    expect(H.tGet.mock.calls.filter(c => c[0] === '/map/hotspot-region')).toEqual([['/map/hotspot-region', { regionCode: 'US-CA' }]])
+  })
+
+  it('a report with no location id stays plain text, with the Set loaded', async () => {
+    liveTransport(undefined, { locIds: { 'Lake Merritt': null, 'Arrowhead Marsh': 'L999' } })
+    await liveReady()
+    breedingOn()
+    await screen.findByRole('link', { name: 'Open Arrowhead Marsh on eBird (opens in a new tab)' })
+    const place = placeOf('Song Sparrow')
+    expect(place.textContent).toBe('Lake Merritt')
+    expect(place.querySelector('a')).toBeNull()
+  })
+
+  it('before the Set loads every place is plain text, and the hotspot links once it arrives', async () => {
+    let release: (ids: string[]) => void = () => {}
+    liveTransport(undefined, { hotspots: () => new Promise<string[]>(r => { release = r }) })
+    await liveReady()
+    breedingOn()
+    // Wait for the REQUEST, not the render (testing.md v1.0.25): releasing
+    // before it is made would resolve the no-op and leave the Set pending.
+    await waitFor(() => expect(H.tGet).toHaveBeenCalledWith('/map/hotspot-region', { regionCode: 'US-CA' }))
+    expect(placeOf('Song Sparrow').textContent).toBe('Lake Merritt')
+    // Scoped to the place lines: the species name in each row carries links of
+    // its own (BirdName's reference-site marks).
+    const places = [...screen.getByRole('table').querySelectorAll('.sr-tg-last .sr-tg-place')]
+    expect(places.map(p => p.textContent)).toEqual(expect.arrayContaining(['Lake Merritt', 'Arrowhead Marsh']))
+    expect(places.flatMap(p => [...p.querySelectorAll('a')])).toEqual([])
+    release([...HOTSPOT_IDS])
+    const link = await screen.findByRole('link', { name: 'Open Lake Merritt on eBird (opens in a new tab)' })
+    expect(placeOf('Song Sparrow').contains(link)).toBe(true)
+  })
 })

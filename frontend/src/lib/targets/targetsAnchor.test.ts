@@ -5,7 +5,7 @@ import { listPlaces, placeDistance } from './targetsAnchor'
 import type { LiveCell } from './targetsLive'
 
 function cell(place: string | null, lat: number | null, lng: number | null): LiveCell {
-  return { daysReported: 1, checkedDays: 30, lastDate: '2026-09-20', place, lat, lng, reported: [] }
+  return { daysReported: 1, checkedDays: 30, lastDate: '2026-09-20', place, locId: null, lat, lng, reported: [] }
 }
 
 describe('listPlaces', () => {

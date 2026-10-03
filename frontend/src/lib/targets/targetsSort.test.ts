@@ -7,7 +7,7 @@ import {
 import type { LiveCell } from './targetsLive'
 
 function live(daysReported: number): LiveCell {
-  return { daysReported, checkedDays: 30, lastDate: null, place: null, lat: null, lng: null, reported: [] }
+  return { daysReported, checkedDays: 30, lastDate: null, place: null, locId: null, lat: null, lng: null, reported: [] }
 }
 
 function row(code: string, poolIndex: number, over: Partial<TargetRow> = {}): TargetRow {

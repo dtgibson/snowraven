@@ -414,7 +414,7 @@ A lifer is never a Media or Breeding target, and a species you have recorded can
 Every row can carry two kinds of figure, and the tab keeps them apart in words, not only in color or position.
 
 - **Probability** is eBird's own frequency: the percent of checklists in the county that reported the species, from the county's **eBird bar-chart file**. It shows **this month** (the current calendar month) and **year-round** (across the whole year), always with a "%" and always naming the file's county and year range, for example "eBird, Alameda, CA, 1900-2026, year-round". Year-round appears only when the file covers all twelve months.
-- **Live** is what the eBird API reports now: on how many of the last 30 days the species was reported in the county, when it was last reported, where, and how far that is from the point distances are measured from. It is always a count with its window, "Reported 12 of the last 30 days", and never a percent.
+- **Live** is what the eBird API reports now: on how many of the last 30 days the species was reported in the county, when it was last reported, where (a public hotspot's name links to its hotspot page on eBird), and how far that is from the point distances are measured from. It is always a count with its window, "Reported 12 of the last 30 days", and never a percent.
 
 ### Adding a county's eBird bar-chart file
 

@@ -54,6 +54,7 @@ describe('deriveLive (QA-43, QA-49)', () => {
     expect(cell.daysReported).toBe(0)
     expect(cell.lastDate).toBeNull()
     expect(cell.place).toBeNull()
+    expect(cell.locId).toBeNull()
     expect(distanceCell(cell, { lat: 37, lng: -122 })).toBeNull()
   })
 
@@ -64,12 +65,19 @@ describe('deriveLive (QA-43, QA-49)', () => {
     expect(cells.has('stranger')).toBe(false)
   })
 
-  it('the last report is the greatest obsDt, not the first seen', () => {
+  it('the last report is the greatest obsDt, not the first seen, and its place and location id come from that one record', () => {
     const days = new Map<string, DayState>([[DATES[0], entry([
-      rec('recent', DATES[0], { obsDt: `${DATES[0]} 06:00`, locName: 'Early' }),
-      rec('recent', DATES[0], { obsDt: `${DATES[0]} 17:00`, locName: 'Late' }),
+      rec('recent', DATES[0], { obsDt: `${DATES[0]} 06:00`, locName: 'Early', locId: 'L10' }),
+      rec('recent', DATES[0], { obsDt: `${DATES[0]} 17:00`, locName: 'Late', locId: 'L20' }),
+      // The newest report carries no id: the cell's id is null, never an older
+      // report's, so a link can never name one place and open another
+      // (targets-hotspot-link).
+      rec('old', DATES[0], { obsDt: `${DATES[0]} 07:00`, locName: 'Shoreline', locId: 'L30' }),
+      rec('old', DATES[0], { obsDt: `${DATES[0]} 09:00`, locName: 'Backyard', locId: null }),
     ])]])
-    expect(deriveLive(DATES, days, POOL).get('recent')!.place).toBe('Late')
+    const cells = deriveLive(DATES, days, POOL)
+    expect([cells.get('recent')!.place, cells.get('recent')!.locId]).toEqual(['Late', 'L20'])
+    expect([cells.get('old')!.place, cells.get('old')!.locId]).toEqual(['Backyard', null])
   })
 })
 
@@ -112,7 +120,7 @@ describe('the distance rule (QA-56a)', () => {
   // A report at a known point, and anchors placed by measured distance from it.
   const at = { lat: 37.8, lng: -122.2 }
   function cellAt(lat: number | null, lng: number | null, lastDate: string | null = DATES[1]): LiveCell {
-    return { daysReported: lastDate ? 1 : 0, checkedDays: 30, lastDate, place: 'P', lat, lng, reported: [] }
+    return { daysReported: lastDate ? 1 : 0, checkedDays: 30, lastDate, place: 'P', locId: null, lat, lng, reported: [] }
   }
   // Two anchors straddling 5 miles, found with the production distance function.
   const DEG_PER_MILE = 1 / 69.05

@@ -29,6 +29,7 @@ import { TabLoadErrorAlert } from '../ui/TabLoadErrorAlert'
 import { EBIRD_BACKUP_STEPS } from '../setupCopy'
 import { storage } from '../../lib/storage'
 import { useOnline } from '../../lib/useOnline'
+import { useHotspotSet } from '../../lib/useHotspotSet'
 import { isRegionCode } from '../../lib/regionCode'
 import { useBarChartFilesEpoch } from '../../lib/useBarChartFilesEpoch'
 import { monthRangeLabel } from '../../lib/barChart/barChartFilename'
@@ -130,6 +131,11 @@ type GeometryState = { status: 'loading' } | { status: 'ready'; fc: CountyFC } |
 
 function TargetsReady({ observations, record, media, onRetryRecord, filesVersion, keysVersion, onOpenSpecies }: ReadyProps) {
   const online = useOnline()
+  // One call for the whole list, never per row (ui.md, HotspotLink): the Last
+  // report place links to eBird only when it is a public hotspot. The Set is
+  // the one every tab shares, empty until it loads, so a place reads plain
+  // until then and stays plain with no key or offline (targets-hotspot-link).
+  const { isHotspot } = useHotspotSet()
 
   // ── The key (FR-43: no eBird call without it) ──────────────────────────────
   const [hasEbirdKey, setHasEbirdKey] = useState<boolean | null>(null)
@@ -403,6 +409,7 @@ function TargetsReady({ observations, record, media, onRetryRecord, filesVersion
             availability={availability}
             onSort={setChosenSort}
             onOpenSpecies={onOpenSpecies}
+            isHotspot={isHotspot}
             empty={empty}
             showSweep={poolData !== null}
             sweep={sweep.status}

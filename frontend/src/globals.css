@@ -5549,6 +5549,44 @@ select:focus-visible {
 .sr-tg-ticks > i.is-on { background: var(--sr-text-muted); }
 .sr-tg-ticks > i.is-unk { background: transparent; border: 1px dashed var(--sr-border-medium); }
 .sr-tg-place { display: block; color: var(--sr-text-muted); font-size: 0.75rem; overflow-wrap: anywhere; }
+/* Last report: a public hotspot renders through HotspotLink inside the place
+   line; a personal place is the plain span it always was (targets-hotspot-link).
+   HotspotLink's own inline styles (text-decoration, the forced accent color,
+   the box's display and max-width, the glyph's display, gap and alignment) are
+   left alone: the underline rules reach only its two text spans, the name's
+   lead and the box that holds its last word with the glyph. Decoration does not
+   propagate into that inline-block, so it is declared on each span, and it is
+   never drawn across the inline glyph. The name WRAPS like a personal place
+   does, never truncates, because eBird puts what tells two hotspots apart at
+   the end of the name. The underline transition is collapsed by the global
+   prefers-reduced-motion block. */
+.sr-tg-place > a { font-weight: 500; }
+.sr-tg-place > a > span { text-decoration: underline; text-decoration-color: transparent; text-decoration-thickness: 1px; text-underline-offset: 0.14em; transition: text-decoration-color 120ms ease-out; }
+.sr-tg-place > a:hover > span, .sr-tg-place > a:focus-visible > span { text-decoration-color: currentColor; }
+/* The glyph HANGS into the cell's spare end padding (targets-hotspot-link, QA
+   amendment). HotspotLink binds the glyph to the name's last word in one
+   inline-block; when that word nearly fills its line, word plus glyph no longer
+   fit and the glyph would start the next line alone. Here the glyph adds no
+   width to its line (a negative end margin the size of its gap plus its box),
+   so it shares the last word's line whenever the word alone fits, and runs up
+   to one hang past the column. The last-word box itself takes no padding or
+   margin, so its content can use the whole column and a word that fits the
+   column is never split mid-word. The LINK takes end padding of the hang,
+   cancelled by a negative end margin, so it adds nothing to line fitting but
+   its last line fragment reaches the glyph's far edge: that fragment is what
+   the focus outline is drawn around (WebKit outlines a link's own fragments
+   once the link has any padding, as this rule and the phone tier give it,
+   rather than the boxes inside it), so the ring encloses a hanging glyph in
+   every engine. Neither half may move to the last-word box: a cancelling
+   margin there ends the link's fragment at the last letter, and padding there
+   comes out of the width its content may use, splitting words that fit. The
+   overrun lands in this cell's
+   12px end padding and the Distance cell's 12px start padding on desktop,
+   never its text. The hang is HotspotLink's 3px gap plus its 10px glyph (size
+   sm); targetsSortSelectCss.test.ts pins it to the rendered glyph. */
+.sr-tg-table .sr-tg-last { --sr-tg-glyph-hang: 13px; }
+.sr-tg-place > a { padding-inline-end: var(--sr-tg-glyph-hang); margin-inline-end: calc(-1 * var(--sr-tg-glyph-hang)); }
+.sr-tg-place > a > span:last-child > svg { margin-inline-end: calc(-1 * var(--sr-tg-glyph-hang)); }
 .sr-tg-dist { font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
 .sr-tg-dist-unit { color: var(--sr-text-muted); font-weight: 500; }
 /* The per-cell column label and the per-row kind tag exist for the phone tier;
@@ -6461,6 +6499,21 @@ select:focus-visible {
   .sr-tg-cell-k { position: static; width: auto; height: auto; margin: 0 0 1px; overflow: visible; clip: auto; white-space: normal; display: block; font-size: 0.6875rem; color: var(--sr-text-muted); font-weight: 500; }
   .sr-tg-kind-tag { display: flex; align-items: center; flex-wrap: wrap; gap: 2px 5px; margin: 6px 0 5px; font-size: 0.625rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--sr-text); }
   .sr-tg-kind-src { font-weight: 500; text-transform: none; letter-spacing: 0; color: var(--sr-text-muted); }
+  /* A hotspot name in Last report: 5px of vertical padding on the inline link
+     grows its hit box by 10px without changing the height of its line, so the
+     card is exactly as tall as without the link. Inline padding wraps the
+     font's content area, not the line box: measured 24 to 25px tall at the
+     default text size and 38px at 200%. The ring sits closer so the padded
+     box's ring does not run into the Distance cell beside it
+     (targets-hotspot-link). */
+  .sr-tg-table .sr-tg-place > a { padding-block: 5px; }
+  .sr-tg-table .sr-tg-place > a:focus-visible { outline-offset: 1px; }
+  /* Here the cells have no padding, so the only room for the hanging glyph is
+     the 12px column gap before Distance. End padding of one hang less that gap
+     makes the room a full hang, so even a word that fills its line leaves the
+     glyph clear of the Distance column (the gap is the 12px in the tbody tr
+     rule above). */
+  .sr-tg-table .sr-tg-last { padding-inline-end: calc(var(--sr-tg-glyph-hang) - 12px); }
 }
 
 /* ── REPAIR 2: the per-species row's stacked tier, keyed on its own column ────

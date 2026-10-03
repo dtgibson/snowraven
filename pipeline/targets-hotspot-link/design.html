@@ -1,0 +1,510 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Targets hotspot link</title>
+<meta name="description" content="Design refinement: the Last report place in the Targets tab becomes an eBird hotspot link. Today against proposed, desktop table and phone cards, both themes.">
+<style>
+/* ── SnowRaven tokens, copied from frontend/src/globals.css (both themes) ───── */
+:root {
+  --rem: 16px;
+  --font-sans: 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
+  --sr-bg: #F9FAFB;
+  --sr-surface: #FFFFFF;
+  --sr-surface-subtle: #F4F4F5;
+  --sr-surface-faint: #FAFAFA;
+  --sr-text: #0F1117;
+  --sr-text-muted: #6B6B74;
+  --sr-text-disabled: #A1A1AA;
+  --sr-text-gray: #6B7280;
+  --sr-border: #E4E4E7;
+  --sr-border-subtle: #F4F4F5;
+  --sr-border-medium: #C4C4CE;
+  --sr-accent: #277448;
+  --sr-accent-strong: #1A5C38;
+  --sr-accent-bg: #E8F5EE;
+  --sr-accent-border: rgba(39,116,72,0.25);
+  --sr-accent-border-strong: rgba(39,116,72,0.7);
+  --sr-on-accent: #FFFFFF;
+  --sr-card-shadow: 0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+  --sr-sticky-shadow: 0 3px 6px -2px rgba(15,17,23,0.12);
+  --sr-focus-halo: rgba(45, 134, 83, 0.12);
+}
+:root[data-theme="dark"] {
+  --sr-bg: #09090B;
+  --sr-surface: #18181B;
+  --sr-surface-subtle: #27272A;
+  --sr-surface-faint: #1C1C1F;
+  --sr-text: #F4F4F5;
+  --sr-text-muted: #A1A1AA;
+  --sr-text-disabled: #52525B;
+  --sr-text-gray: #8A8A92;
+  --sr-border: #27272A;
+  --sr-border-subtle: #1F1F23;
+  --sr-border-medium: #3F3F46;
+  --sr-accent: #34D399;
+  --sr-accent-strong: #34D399;
+  --sr-accent-bg: #052E16;
+  --sr-accent-border: rgba(52,211,153,0.2);
+  --sr-accent-border-strong: rgba(52,211,153,0.5);
+  --sr-on-accent: #052E16;
+  --sr-card-shadow: 0 1px 4px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.25);
+  --sr-sticky-shadow: 0 3px 8px -2px rgba(2,2,4,0.60);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --sr-bg: #09090B;
+    --sr-surface: #18181B;
+    --sr-surface-subtle: #27272A;
+    --sr-surface-faint: #1C1C1F;
+    --sr-text: #F4F4F5;
+    --sr-text-muted: #A1A1AA;
+    --sr-text-disabled: #52525B;
+    --sr-text-gray: #8A8A92;
+    --sr-border: #27272A;
+    --sr-border-subtle: #1F1F23;
+    --sr-border-medium: #3F3F46;
+    --sr-accent: #34D399;
+    --sr-accent-strong: #34D399;
+    --sr-accent-bg: #052E16;
+    --sr-accent-border: rgba(52,211,153,0.2);
+    --sr-accent-border-strong: rgba(52,211,153,0.5);
+    --sr-on-accent: #052E16;
+    --sr-card-shadow: 0 1px 4px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.25);
+    --sr-sticky-shadow: 0 3px 8px -2px rgba(2,2,4,0.60);
+  }
+}
+
+* { box-sizing: border-box; }
+html { background: var(--sr-bg); }
+body { margin: 0; background: var(--sr-bg); color: var(--sr-text); font-family: var(--font-sans); font-size: 16px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+svg { display: inline-block; vertical-align: middle; }
+
+/* ── Mockup page chrome (not the product) ──────────────────────────────────── */
+.page { max-width: 1160px; margin: 0 auto; padding: 28px 16px 72px; }
+.top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 14px 24px; padding-bottom: 18px; border-bottom: 1px solid var(--sr-border); margin-bottom: 30px; }
+.top h1 { font-size: 1.375rem; font-weight: 700; letter-spacing: -0.015em; margin: 0 0 4px; }
+.top p { margin: 0; color: var(--sr-text-muted); font-size: 0.875rem; max-width: 58ch; }
+.ctl { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; }
+.ctl-group { display: flex; align-items: center; gap: 8px; }
+.ctl-label { font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--sr-text-muted); }
+.sr-segbar { display: inline-flex; border: 1.5px solid var(--sr-accent-border); border-radius: 15px; overflow: hidden; background: var(--sr-surface); }
+.sr-segbar-btn { min-height: 30px; padding: 0 12px; font: inherit; font-size: 0.75rem; font-weight: 500; border: 0; border-left: 1.5px solid var(--sr-accent-border); background: transparent; color: var(--sr-text-muted); cursor: pointer; transition: background-color 120ms ease-out, color 120ms ease-out; }
+.sr-segbar-btn:first-child { border-left: 0; }
+.sr-segbar-btn:hover { color: var(--sr-text); }
+.sr-segbar-btn[aria-pressed="true"] { background: var(--sr-accent-bg); color: var(--sr-accent); font-weight: 600; }
+.sr-segbar-btn:focus-visible { outline: 3px solid var(--sr-accent); outline-offset: -3px; }
+
+.sec { margin: 0 0 44px; }
+.sec-label { display: block; font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--sr-text-muted); margin-bottom: 6px; }
+.sec h2 { font-size: 1.125rem; font-weight: 700; letter-spacing: -0.01em; margin: 0 0 6px; }
+.sec > p { margin: 0 0 18px; color: var(--sr-text-muted); font-size: 0.875rem; max-width: 72ch; }
+.sec > p b { color: var(--sr-text); font-weight: 600; }
+.cmp { margin-bottom: 22px; }
+.cmp-tag { display: inline-flex; align-items: center; gap: 6px; font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--sr-text-muted); margin: 0 0 8px 2px; }
+.cmp-tag i { display: inline-block; width: 7px; height: 7px; border-radius: 2px; background: var(--sr-border-medium); }
+.cmp-tag.is-prop { color: var(--sr-text); }
+.cmp-tag.is-prop i { background: var(--sr-accent); }
+.cmp-tag small { font-weight: 500; text-transform: none; letter-spacing: 0; color: var(--sr-text-muted); }
+.frames { display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start; }
+.frame { border: 1px solid var(--sr-border-medium); border-radius: 22px; padding: 10px; background: var(--sr-bg); flex: 0 0 auto; }
+.frame .sr-tg-list-card { border-radius: 14px; }
+.frame-cap { font-size: 0.6875rem; color: var(--sr-text-muted); margin: 8px 4px 0; }
+.notes { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px 28px; margin: 0; padding: 0; list-style: none; font-size: 0.84375rem; color: var(--sr-text-muted); max-width: 980px; }
+.notes li { padding-left: 14px; position: relative; }
+.notes li::before { content: ''; position: absolute; left: 0; top: 0.62em; width: 5px; height: 5px; border-radius: 50%; background: var(--sr-accent); }
+.notes b { color: var(--sr-text); font-weight: 600; }
+.states { display: flex; flex-wrap: wrap; gap: 14px; }
+.state { flex: 1 1 200px; max-width: 260px; background: var(--sr-surface); border: 1px solid var(--sr-border); border-radius: 12px; box-shadow: var(--sr-card-shadow); padding: 14px 16px 16px; }
+.state .k { font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--sr-text-muted); margin-bottom: 10px; }
+.state .sr-tg-table { width: auto; }
+.state td { padding: 0 !important; border: 0 !important; }
+.state .sr-tg-table tbody td { border-bottom: 0; }
+.ask { background: var(--sr-surface); border: 1px solid var(--sr-border); border-radius: 12px; box-shadow: var(--sr-card-shadow); padding: 16px 18px; max-width: 760px; }
+.ask h3 { margin: 0 0 6px; font-size: 0.9375rem; font-weight: 700; }
+.ask p { margin: 0 0 10px; font-size: 0.84375rem; color: var(--sr-text-muted); }
+.ask p:last-child { margin-bottom: 0; }
+.ask b { color: var(--sr-text); font-weight: 600; }
+@media (max-width: 640px) {
+  .page { padding-top: 18px; }
+  .frames { gap: 16px; }
+  .frame { max-width: 100%; }
+}
+
+/* ── Product CSS, copied from globals.css (.sr-tg-*) with rem → calc(n * --rem)
+   so the 200% frame can scale text the way the in-app Text Size control does
+   (text in rem grows, px padding does not). ──────────────────────────────── */
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border-width: 0; }
+.sr-truncate { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sr-scroll-x { overflow-x: auto; -webkit-overflow-scrolling: touch; max-width: 100%; min-width: 0; position: relative; }
+a:focus-visible { outline: 3px solid var(--sr-accent); outline-offset: 3px; box-shadow: 0 0 0 6px var(--sr-focus-halo); }
+
+.sr-tg-list-card { background: var(--sr-surface); border: 1px solid var(--sr-border); border-radius: 12px; box-shadow: var(--sr-card-shadow); overflow: hidden; min-width: 0; }
+.sr-tg-kind { display: inline-flex; align-items: center; gap: 6px; font-size: calc(0.6875 * var(--rem)); font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--sr-text); }
+.sr-tg-kind-sub { display: block; font-size: calc(0.71875 * var(--rem)); font-weight: 500; text-transform: none; letter-spacing: 0; color: var(--sr-text-muted); margin-top: 2px; }
+.sr-tg-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: calc(0.8125 * var(--rem)); color: var(--sr-text); }
+.sr-tg-table th, .sr-tg-table td { text-align: left; vertical-align: top; padding: 10px 12px; }
+.sr-tg-table thead th { position: sticky; top: 0; z-index: 2; background: var(--sr-surface); font-weight: 600; color: var(--sr-text-muted); font-size: calc(0.71875 * var(--rem)); line-height: 1.35; }
+.sr-tg-table thead tr.sr-tg-groups th { padding: 12px 12px 6px; }
+.sr-tg-table thead tr.sr-tg-cols th { padding-top: 0; padding-bottom: 8px; border-bottom: 1px solid var(--sr-border); box-shadow: var(--sr-sticky-shadow); white-space: nowrap; }
+.sr-tg-table .sr-tg-k-prob, .sr-tg-table .sr-tg-k-live { border-left: 1px solid var(--sr-border); }
+.sr-tg-table tbody td { border-bottom: 1px solid var(--sr-border-subtle); }
+.sr-tg-table tbody tr:last-child td { border-bottom: 0; }
+.sr-tg-table tbody tr:hover td { background: var(--sr-surface-faint); }
+.sr-tg-th-active { color: var(--sr-text); display: inline-flex; align-items: center; gap: 4px; }
+.sr-tg-th-active svg { color: var(--sr-accent); }
+.sr-tg-unit { color: var(--sr-text-muted); font-weight: 500; }
+.sr-tg-name { min-width: calc(14 * var(--rem)); }
+.sr-tg-days { min-width: calc(15 * var(--rem)); }
+.sr-birdname-link { font: inherit; font-weight: 500; color: var(--sr-text); background: none; border: 0; padding: 0; margin: 0; cursor: pointer; text-decoration: none; text-align: left; font-size: calc(0.78125 * var(--rem)); }
+.sr-birdname-link:hover, .sr-birdname-link:focus-visible { color: var(--sr-accent); text-decoration: underline; }
+.sr-tg-sci { display: block; font-style: italic; color: var(--sr-text-gray); font-size: calc(0.71875 * var(--rem)); }
+.sr-tg-badges { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
+.sr-tg-badge { display: inline-flex; align-items: center; gap: 4px; height: 18px; padding: 0 6px; border-radius: 4px; border: 1px solid var(--sr-border); background: var(--sr-surface-subtle); color: var(--sr-text-muted); font-size: calc(0.625 * var(--rem)); font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; white-space: nowrap; }
+.sr-tg-badge--lifer { color: var(--sr-text); border-color: var(--sr-border-medium); background: var(--sr-surface); }
+.sr-tg-pct { font-variant-numeric: tabular-nums; font-weight: 600; color: var(--sr-text); white-space: nowrap; }
+.sr-tg-sign { color: var(--sr-text-muted); font-weight: 500; margin-left: 1px; }
+.sr-tg-share { display: block; width: calc(3.75 * var(--rem)); max-width: 100%; height: 3px; border-radius: 2px; background: var(--sr-border); margin-top: 5px; overflow: hidden; }
+.sr-tg-share > i { display: block; height: 100%; min-width: 2px; background: var(--sr-text-muted); border-radius: 2px; }
+.sr-tg-na { color: var(--sr-text-muted); font-style: italic; font-size: calc(0.75 * var(--rem)); }
+.sr-tg-live { font-variant-numeric: tabular-nums; color: var(--sr-text); }
+.sr-tg-live-lead { color: var(--sr-text-muted); }
+.sr-tg-live b { font-weight: 700; }
+.sr-tg-ticks { display: flex; gap: 1px; margin-top: 6px; height: 9px; width: max-content; }
+.sr-tg-ticks > i { display: block; width: 3px; height: 9px; border-radius: 1px; background: var(--sr-border); }
+.sr-tg-ticks > i.is-on { background: var(--sr-text-muted); }
+.sr-tg-dist { font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
+.sr-tg-dist-unit { color: var(--sr-text-muted); font-weight: 500; }
+.sr-tg-cell-k { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+.sr-tg-kind-tag { display: none; }
+
+/* TODAY: the place line as shipped (v1.0.39). Unchanged in the proposal. */
+.sr-tg-place { display: block; color: var(--sr-text-muted); font-size: calc(0.75 * var(--rem)); overflow-wrap: anywhere; }
+
+/* ── PROPOSED additions (what the Engineer adds to globals.css) ─────────────
+   The place keeps its block line under the date. A public hotspot renders
+   through HotspotLink INSIDE that line; a personal place is the plain span it
+   always was (the caller keeps it muted). HotspotLink's own inline styles
+   (accent, no text-decoration) are left alone: the rules below reach the
+   link's two text spans, so nothing fights the component. */
+.sr-tg-place > a { font-weight: 500; }
+.sr-tg-place > a > span { text-decoration: underline; text-decoration-color: transparent; text-decoration-thickness: 1px; text-underline-offset: 0.14em; transition: text-decoration-color 120ms ease-out; }
+.sr-tg-place > a:hover > span, .sr-tg-place > a:focus-visible > span, .sr-tg-place > a.demo-hover > span { text-decoration-color: currentColor; }
+.sr-tg-place > a.demo-focus { outline: 3px solid var(--sr-accent); outline-offset: 3px; box-shadow: 0 0 0 6px var(--sr-focus-halo); }
+
+/* The mockup's stand-ins for HotspotLink's two branches. `.hl` carries the
+   amended component's literal inline styles in the markup: the anchor is
+   ordinary inline flow, and the last word travels with the glyph inside one
+   inline-block (`.lw`) that can only wrap internally when the word itself is
+   wider than the whole container. `.pl` is the plain branch, unchanged. */
+.lw { display: inline-block; max-width: 100%; overflow-wrap: anywhere; }
+.pl { color: var(--sr-text-muted); }
+
+/* Another surface (Species detail, recent sightings row) before and after,
+   with the component's SHIPPED structure on the left for comparison. */
+.other { display: flex; flex-wrap: wrap; gap: 14px; }
+.other .state { max-width: 300px; flex-basis: 260px; }
+.sd-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: calc(0.75 * var(--rem)); }
+.sd-row .dt { font-weight: 600; color: var(--sr-accent); white-space: nowrap; }
+.sd-row .dot { color: var(--sr-border-medium); }
+.sd-row .sr-wrap-anywhere { overflow-wrap: anywhere; word-break: break-word; }
+
+/* ── Phone tier (globals.css ≤640px block), scoped to the phone frames ─────── */
+.phone .sr-tg-table, .phone .sr-tg-table tbody, .phone .sr-tg-table tr, .phone .sr-tg-table td { display: block; }
+.phone .sr-tg-table thead { display: none; }
+.phone .sr-tg-table tbody tr { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 6px 12px; padding: 12px 14px; border-bottom: 1px solid var(--sr-border-subtle); }
+.phone .sr-tg-table tbody tr:last-child { border-bottom: 0; }
+.phone .sr-tg-table tbody td { padding: 0; border: 0; min-width: 0; }
+.phone .sr-tg-table tbody tr:hover td { background: transparent; }
+.phone .sr-tg-table .sr-tg-name { grid-column: 1 / -1; min-width: 0; }
+.phone .sr-tg-table .sr-tg-month, .phone .sr-tg-table .sr-tg-year { grid-column: 1 / -1; display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; }
+.phone .sr-tg-table .sr-tg-month .sr-tg-cell-k, .phone .sr-tg-table .sr-tg-year .sr-tg-cell-k { flex: 1 1 auto; margin: 0; }
+.phone .sr-tg-table .sr-tg-month .sr-tg-share, .phone .sr-tg-table .sr-tg-year .sr-tg-share { width: calc(3.75 * var(--rem)); margin-top: 0; flex-shrink: 0; }
+.phone .sr-tg-table .sr-tg-month .sr-tg-kind-tag { flex-basis: 100%; }
+.phone .sr-tg-table .sr-tg-days { grid-column: 1 / -1; min-width: 0; }
+.phone .sr-tg-table .sr-tg-last { grid-column: 1; }
+.phone .sr-tg-table .sr-tg-distc { grid-column: 2; }
+.phone .sr-tg-cell-k { position: static; width: auto; height: auto; margin: 0 0 1px; overflow: visible; clip: auto; white-space: normal; display: block; font-size: calc(0.6875 * var(--rem)); color: var(--sr-text-muted); font-weight: 500; }
+.phone .sr-tg-kind-tag { display: flex; align-items: center; flex-wrap: wrap; gap: 2px 5px; margin: 6px 0 5px; font-size: calc(0.625 * var(--rem)); font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--sr-text); }
+.phone .sr-tg-kind-src { font-weight: 500; text-transform: none; letter-spacing: 0; color: var(--sr-text-muted); }
+.phone .sr-tg-name { min-width: 0; }
+.phone .sr-tg-days { min-width: 0; }
+/* PROPOSED, phone tier: a comfortable thumb target without moving the row.
+   The anchor is inline, so vertical padding grows its hit box past 24px and
+   never changes the line box: the card is exactly as tall as it is today. */
+.phone .sr-tg-table .sr-tg-place > a { padding-block: 5px; }
+.phone .sr-tg-table .sr-tg-place > a:focus-visible, .phone .sr-tg-table .sr-tg-place > a.demo-focus { outline-offset: 1px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 0.001ms !important; animation-duration: 0.001ms !important; }
+}
+</style>
+</head>
+<body>
+<div class="page">
+  <header class="top">
+    <div>
+      <h1>Targets: the Last report place as a hotspot link</h1>
+      <p>Today against proposed, on the desktop table and the phone cards. Alameda County, Thursday, October 2. Hover and tab through the proposed tables; the links are live stand-ins.</p>
+    </div>
+    <div class="ctl">
+      <div class="ctl-group">
+        <span class="ctl-label" id="lbl-theme">Theme</span>
+        <div class="sr-segbar" role="group" aria-labelledby="lbl-theme">
+          <button type="button" class="sr-segbar-btn" data-theme-pick="light" aria-pressed="true">Light</button>
+          <button type="button" class="sr-segbar-btn" data-theme-pick="dark" aria-pressed="false">Dark</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <section class="sec">
+    <span class="sec-label">Desktop</span>
+    <h2>The Targets table</h2>
+    <p>Twelve rows: eight public hotspots (three with the long, two-part names eBird gives sub-areas), two personal locations, one species with no report in the window. The link takes the house register every other tab already uses for a hotspot: <b>0.75rem, accent, weight 500, the small open-on-eBird glyph</b>, no underline at rest. Personal places are untouched.</p>
+    <div class="cmp">
+      <div class="cmp-tag"><i></i>Today <small>· v1.0.45, as shipped</small></div>
+      <div id="desk-today"></div>
+    </div>
+    <div class="cmp">
+      <div class="cmp-tag is-prop"><i></i>Proposed</div>
+      <div id="desk-prop"></div>
+    </div>
+  </section>
+
+  <section class="sec">
+    <span class="sec-label">iPhone</span>
+    <h2>The phone cards, 375px and 320px</h2>
+    <p>Last report and Distance share one line of the card, so a place has about half the card's width. The link's hit area grows to about 28px tall through vertical padding on an inline link, which never changes a line's height, so <b>the card is exactly as tall as today</b> and the thumb still lands.</p>
+    <div class="frames">
+      <div>
+        <div class="cmp-tag"><i></i>Today <small>· 375px</small></div>
+        <div class="frame phone" style="width: 375px;"><div id="ph-today"></div></div>
+      </div>
+      <div>
+        <div class="cmp-tag is-prop"><i></i>Proposed <small>· 375px</small></div>
+        <div class="frame phone" style="width: 375px;"><div id="ph-prop"></div></div>
+      </div>
+      <div>
+        <div class="cmp-tag is-prop"><i></i>Proposed <small>· 320px</small></div>
+        <div class="frame phone" style="width: 320px;"><div id="ph-prop-320"></div></div>
+      </div>
+      <div>
+        <div class="cmp-tag is-prop"><i></i>Proposed <small>· 320px at 200% text</small></div>
+        <div class="frame phone" style="width: 320px; --rem: 32px;"><div id="ph-prop-200"></div></div>
+        <div class="frame-cap">The in-app Text Size control at its ceiling. Text doubles, padding does not, nothing scrolls sideways.</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec">
+    <span class="sec-label">States</span>
+    <h2>Rest, hover, keyboard focus, and a personal place</h2>
+    <p>Hover underlines the name in its own color over 120ms (instant under Reduce Motion); keyboard focus takes the app's global 3px accent ring. The glyph follows the last word of the name on the same line, like a trailing character, so a wrapped name reads as one link rather than a block with an arrow off to the side; it never drops onto a line by itself.</p>
+    <div class="states" id="states"></div>
+  </section>
+
+  <section class="sec">
+    <span class="sec-label">Other surfaces</span>
+    <h2>The same link everywhere a full hotspot name shows</h2>
+    <p>The fix lives in the shared link, so every tab that shows a full hotspot name gets it: Species detail, Named Birds, the Weather backlog, a Birding Statistics card, the county popup. One row from Species detail's recent sightings, 300px wide, as shipped and as amended. Truncated and icon-only links are untouched.</p>
+    <div class="other" id="other"></div>
+  </section>
+
+  <section class="sec">
+    <span class="sec-label">Decided</span>
+    <div class="ask">
+      <h3>Wrap, green link, and the glyph beside the last word</h3>
+      <p>Approved on the mockup: long hotspot names <b>wrap</b> (eBird puts the part that tells two hotspots apart at the end of the name, and truncating cuts exactly that part); the green link at this size and weight is right; personal places stay exactly as today.</p>
+      <p>Amended after the live look at the built app: "It would look much better and flow more logically if the link button was right next to the link, instead of off to the side." Fixed in the shared link rather than only on Targets.</p>
+    </div>
+  </section>
+
+  <section class="sec">
+    <span class="sec-label">What changes</span>
+    <ul class="notes">
+      <li><b>Only the Last report place.</b> The date above it, the ticks, the distance and the sort order are untouched.</li>
+      <li><b>A personal place looks exactly as today.</b> Same muted gray, same size, same line, same wrap.</li>
+      <li><b>Hotspot green, one line per row, 0.75rem.</b> The same weight and glyph as a hotspot in Checklists and Named Birds, so a long list stays calm: nothing is bolder or larger than the date it sits under.</li>
+      <li><b>The spoken name</b> is the app's shared one: "Open Lake Merritt on eBird (opens in a new tab)".</li>
+      <li><b>Both themes, AA.</b> Light accent #277448 is 5.71:1 on white and 5.47:1 on the row-hover surface; dark accent #34D399 is 9.22:1 on the card.</li>
+      <li><b>No new tokens, no new component.</b> One change inside the shared hotspot link (the glyph rides with the last word), three short rules on the existing <code>.sr-tg-place</code> line and one phone-tier rule.</li>
+    </ul>
+  </section>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  // Realistic Alameda County target rows for Thursday, October 2, 2026.
+  // dates[0] is today, dates[1] yesterday (lastLabel in TargetsList.tsx).
+  var ROWS = [
+    { n: 'Pacific Golden-Plover', s: 'Pluvialis fulva', lifer: true,  m: 1.4, y: 0.6, rep: 6, last: 'Today',        place: 'Hayward Regional Shoreline--Winton Ave. entrance', hs: 'L249325', mi: '12.4' },
+    { n: 'Red-necked Grebe',      s: 'Podiceps grisegena', lifer: false, m: 2.1, y: 1.8, rep: 3, last: 'Yesterday',    place: 'Lake Merritt', hs: 'L227003', mi: '3.1' },
+    { n: 'Vermilion Flycatcher',  s: 'Pyrocephalus rubinus', lifer: true, m: 0.3, y: 0.2, rep: 2, last: 'Sep 29, 2026', place: 'Castro Valley backyard', hs: null, mi: '7.9' },
+    { n: 'Chestnut-sided Warbler',s: 'Setophaga pensylvanica', lifer: false, m: 0.8, y: 0.3, rep: 5, last: 'Today',    place: 'Lake Merritt--Lakeside Park/Garden Center', hs: 'L326742', mi: '3.4' },
+    { n: 'Tropical Kingbird',     s: 'Tyrannus melancholicus', lifer: false, m: 1.1, y: 0.4, rep: 4, last: 'Sep 28, 2026', place: 'Coyote Hills Regional Park', hs: 'L250009', mi: '18.7' },
+    { n: 'Yellow-headed Blackbird', s: 'Xanthocephalus xanthocephalus', lifer: false, m: 0.9, y: 0.5, rep: 2, last: 'Sep 30, 2026', place: 'Martin Luther King Jr. Regional Shoreline--Arrowhead Marsh', hs: 'L227004', mi: '6.2' },
+    { n: 'Lapland Longspur',      s: 'Calcarius lapponicus', lifer: true, m: 0.5, y: 0.3, rep: 1, last: 'Sep 25, 2026', place: "Hayward Regional Shoreline--Frank's Dump (west)", hs: 'L2184441', mi: '13.0' },
+    { n: 'Ruff',                  s: 'Calidris pugnax', lifer: true, m: 0.6, y: 0.4, rep: 3, last: 'Sep 27, 2026', place: 'Eden Landing Ecological Reserve', hs: 'L446434', mi: '16.5' },
+    { n: "Lewis's Woodpecker",    s: 'Melanerpes lewis', lifer: false, m: 0.4, y: 0.2, rep: 1, last: 'Sep 23, 2026', place: 'Niles Canyon Rd pullout, Fremont', hs: null, mi: '21.3' },
+    { n: 'Snow Bunting',          s: 'Plectrophenax nivalis', lifer: true, m: 0.2, y: 0.1, rep: 0, last: null, place: null, hs: null, mi: null },
+    { n: "Lucy's Warbler",        s: 'Leiothlypis luciae', lifer: false, m: 0.3, y: 0.1, rep: 2, last: 'Sep 20, 2026', place: 'Albany Bulb', hs: 'L274776', mi: '9.8' },
+    { n: 'Brant',                 s: 'Branta bernicla', lifer: false, m: 3.6, y: 2.2, rep: 8, last: 'Today',        place: 'Elsie Roemer Bird Sanctuary', hs: 'L227002', mi: '5.7' }
+  ];
+  var MAX_M = 3.6, MAX_Y = 2.2;
+
+  var GLYPH = '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>';
+  var SPARK = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/><path d="M4 17v2"/><path d="M5 18H3"/></svg>';
+  var PCT = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="19" x2="5" y1="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>';
+  var RADIO = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16.247 7.761a6 6 0 0 1 0 8.478"/><path d="M19.075 4.933a10 10 0 0 1 0 14.134"/><path d="M4.925 19.067a10 10 0 0 1 0-14.134"/><path d="M7.753 16.239a6 6 0 0 1 0-8.478"/><circle cx="12" cy="12" r="2"/></svg>';
+  var SORT = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 16 4 4 4-4"/><path d="M7 20V4"/><path d="m21 8-4-4-4 4"/><path d="M17 4v16"/></svg>';
+
+  function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+
+  // The literal inline styles the AMENDED HotspotLink puts on its anchor and
+  // its glyph, so the mockup shows what the Engineer actually gets.
+  var LINK_STYLE = 'text-decoration:none;color:var(--sr-accent)';
+  var GLYPH_INLINE = GLYPH.replace('style="flex-shrink:0"', 'style="margin-left:3px;vertical-align:baseline"');
+  // The shipped (v1.0.45) structure: two flex boxes, name then glyph.
+  var LINK_STYLE_OLD = 'display:inline-flex;align-items:center;gap:3px;min-width:0;text-decoration:none;color:var(--sr-accent)';
+
+  // Split the name at its last space: everything up to and including that
+  // space stays ordinary inline text; the last word and the glyph share one
+  // inline-block, so they wrap as a unit and part only when the word itself is
+  // wider than the whole container.
+  function linkHtml(name, locId, extraStyle) {
+    var cut = name.lastIndexOf(' ');
+    var lead = cut === -1 ? '' : name.slice(0, cut + 1);
+    var last = cut === -1 ? name : name.slice(cut + 1);
+    return '<a class="hl" href="https://ebird.org/hotspot/' + locId + '" target="_blank" rel="noreferrer" aria-label="Open ' + esc(name) + ' on eBird (opens in a new tab)" style="' + LINK_STYLE + (extraStyle || '') + '">' +
+      (lead ? '<span>' + esc(lead) + '</span>' : '') +
+      '<span class="lw">' + esc(last) + GLYPH_INLINE + '</span></a>';
+  }
+  function linkHtmlOld(name, locId, extraStyle) {
+    return '<a class="hl" href="https://ebird.org/hotspot/' + locId + '" target="_blank" rel="noreferrer" aria-label="Open ' + esc(name) + ' on eBird (opens in a new tab)" style="' + LINK_STYLE_OLD + (extraStyle || '') + '"><span>' + esc(name) + '</span>' + GLYPH + '</a>';
+  }
+
+  function placeHtml(r, mode) {
+    if (!r.place) return '';
+    if (mode === 'today') return '<span class="sr-tg-place">' + esc(r.place) + '</span>';
+    if (r.hs) return '<span class="sr-tg-place">' + linkHtml(r.place, r.hs) + '</span>';
+    return '<span class="sr-tg-place"><span class="pl"><span>' + esc(r.place) + '</span></span></span>';
+  }
+
+  function ticks(rep, seed) {
+    var out = '', on = 0, x = seed * 9301 + 49297;
+    var set = [];
+    for (var i = 0; i < 30; i++) set.push(false);
+    // Deterministic spread of `rep` reported days across the window, newest first.
+    var k = 0;
+    while (on < rep && k < 200) { x = (x * 9301 + 49297) % 233280; var idx = x % 30; if (!set[idx]) { set[idx] = true; on++; } k++; }
+    for (var j = 0; j < 30; j++) out += '<i' + (set[j] ? ' class="is-on"' : '') + '></i>';
+    return out;
+  }
+
+  function pct(v, max) {
+    return '<span class="sr-tg-pct">' + v.toFixed(1) + '<span class="sr-tg-sign">%</span></span><span class="sr-tg-share" aria-hidden="true"><i style="width:' + Math.round(v / max * 100) + '%"></i></span>';
+  }
+
+  function rowHtml(r, i, mode) {
+    var last = r.last
+      ? '<span>' + esc(r.last) + '</span>' + placeHtml(r, mode)
+      : '<span class="sr-tg-na">No report in the last 30 days</span>';
+    var live = r.rep > 0
+      ? '<span class="sr-tg-live-lead">Reported </span><b>' + r.rep + '</b> of the last 30 days'
+      : '<span class="sr-tg-live-lead">Not reported in the last 30 days</span>';
+    var dist = r.mi
+      ? '<span class="sr-tg-dist">' + r.mi + ' <span class="sr-tg-dist-unit">mi</span></span>'
+      : '<span class="sr-tg-na">No distance</span>';
+    return '<tr role="row">' +
+      '<td role="cell" class="sr-tg-name"><span class="sr-birdname-link">' + esc(r.n) + '</span><span class="sr-tg-sci">' + esc(r.s) + '</span>' +
+        (r.lifer ? '<span class="sr-tg-badges"><span class="sr-tg-badge sr-tg-badge--lifer">' + SPARK + 'Lifer</span></span>' : '') + '</td>' +
+      '<td role="cell" class="sr-tg-k-prob sr-tg-month"><span class="sr-tg-kind-tag" aria-hidden="true">' + PCT + 'Probability<span class="sr-tg-kind-src">eBird bar chart, 1900-2026</span></span><span class="sr-tg-cell-k">This month, October</span>' + pct(r.m, MAX_M) + '</td>' +
+      '<td role="cell" class="sr-tg-year"><span class="sr-tg-cell-k">Year-round</span>' + pct(r.y, MAX_Y) + '</td>' +
+      '<td role="cell" class="sr-tg-k-live sr-tg-days"><span class="sr-tg-kind-tag" aria-hidden="true">' + RADIO + 'Live<span class="sr-tg-kind-src">eBird API, last 30 days</span></span><span class="sr-tg-cell-k">Reported, last 30 days</span><span class="sr-tg-live">' + live + '</span><span class="sr-tg-ticks" aria-hidden="true">' + ticks(r.rep, i + 1) + '</span></td>' +
+      '<td role="cell" class="sr-tg-last"><span class="sr-tg-cell-k">Last report</span>' + last + '</td>' +
+      '<td role="cell" class="sr-tg-distc"><span class="sr-tg-cell-k">Distance</span>' + dist + '</td>' +
+    '</tr>';
+  }
+
+  var HEAD = '<thead>' +
+    '<tr role="row" class="sr-tg-groups">' +
+      '<th role="columnheader" scope="col">Species</th>' +
+      '<th role="columnheader" scope="colgroup" colspan="2" class="sr-tg-k-prob"><span class="sr-tg-kind">' + PCT + 'Probability</span><span class="sr-tg-kind-sub">eBird bar chart, Alameda, CA, 1900-2026</span></th>' +
+      '<th role="columnheader" scope="colgroup" colspan="3" class="sr-tg-k-live"><span class="sr-tg-kind">' + RADIO + 'Live</span><span class="sr-tg-kind-sub">eBird API, last 30 days</span></th>' +
+    '</tr>' +
+    '<tr role="row" class="sr-tg-cols">' +
+      '<th role="columnheader" scope="col"></th>' +
+      '<th role="columnheader" scope="col" class="sr-tg-k-prob">This month <span class="sr-tg-unit">(%)</span></th>' +
+      '<th role="columnheader" scope="col">Year-round <span class="sr-tg-unit">(%)</span></th>' +
+      '<th role="columnheader" scope="col" class="sr-tg-k-live" aria-sort="descending"><span class="sr-tg-th-active">Reported, last 30 days ' + SORT + '</span></th>' +
+      '<th role="columnheader" scope="col">Last report</th>' +
+      '<th role="columnheader" scope="col">Distance</th>' +
+    '</tr>' +
+  '</thead>';
+
+  function table(rows, mode, label) {
+    var body = '';
+    for (var i = 0; i < rows.length; i++) body += rowHtml(rows[i], i, mode);
+    return '<section class="sr-tg-list-card" aria-label="' + esc(label) + '"><div class="sr-scroll-x"><table class="sr-tg-table" role="table" aria-label="' + esc(label) + '">' + HEAD + '<tbody role="rowgroup">' + body + '</tbody></table></div></section>';
+  }
+
+  var PHONE_ROWS = [ROWS[0], ROWS[2], ROWS[5], ROWS[9], ROWS[1]];
+  document.getElementById('desk-today').innerHTML = table(ROWS, 'today', 'Target list, today');
+  document.getElementById('desk-prop').innerHTML = table(ROWS, 'prop', 'Target list, proposed');
+  document.getElementById('ph-today').innerHTML = table(PHONE_ROWS, 'today', 'Target list, today, phone');
+  document.getElementById('ph-prop').innerHTML = table(PHONE_ROWS, 'prop', 'Target list, proposed, phone');
+  document.getElementById('ph-prop-320').innerHTML = table([ROWS[0], ROWS[2], ROWS[5]], 'prop', 'Target list, proposed, 320px');
+  document.getElementById('ph-prop-200').innerHTML = table([ROWS[0], ROWS[2]], 'prop', 'Target list, proposed, 320px at 200% text');
+
+  // State samples: one Last report cell each.
+  function cell(r, mode, cls) {
+    var html = '<section class="sr-tg-list-card" style="border:0;box-shadow:none;background:transparent"><table class="sr-tg-table"><tbody><tr><td class="sr-tg-last"><span>' + esc(r.last) + '</span>' + placeHtml(r, mode) + '</td></tr></tbody></table></section>';
+    if (cls) html = html.replace('class="hl"', 'class="hl ' + cls + '"');
+    return html;
+  }
+  var ST = [
+    ['Rest', cell(ROWS[1], 'prop', '')],
+    ['Hover', cell(ROWS[1], 'prop', 'demo-hover')],
+    ['Keyboard focus', cell(ROWS[1], 'prop', 'demo-focus')],
+    ['Wrapped name', cell(ROWS[5], 'prop', '')],
+    ['Personal place, unchanged', cell(ROWS[2], 'prop', '')]
+  ];
+  var st = '';
+  for (var k = 0; k < ST.length; k++) st += '<div class="state"><div class="k">' + ST[k][0] + '</div>' + ST[k][1] + '</div>';
+  document.getElementById('states').innerHTML = st;
+
+  // Another surface: a Species detail recent-sightings row (SpeciesDetail.tsx
+  // ~1710: a wrapping flex row of date link, dot, HotspotLink at 0.75rem muted
+  // with sr-wrap-anywhere). Left: the shipped two-box link. Right: amended.
+  var SD_NAME = 'Martin Luther King Jr. Regional Shoreline--Arrowhead Marsh';
+  var SD_STYLE = ';font-size:calc(0.75 * var(--rem));color:var(--sr-text-muted)';
+  function sdRow(linkFn) {
+    return '<div class="sd-row"><span class="dt">Sep 30, 2026</span><span class="dot" aria-hidden="true">·</span>' + linkFn(SD_NAME, 'L227004', SD_STYLE).replace('class="hl"', 'class="hl sr-wrap-anywhere"') + '</div>';
+  }
+  document.getElementById('other').innerHTML =
+    '<div class="state"><div class="k">Species detail, as shipped</div>' + sdRow(linkHtmlOld) + '</div>' +
+    '<div class="state"><div class="k">Species detail, amended</div>' + sdRow(linkHtml) + '</div>';
+
+  // Theme toggle.
+  var root = document.documentElement;
+  function setPressed(sel, attr, val) {
+    var btns = document.querySelectorAll(sel);
+    for (var i = 0; i < btns.length; i++) btns[i].setAttribute('aria-pressed', btns[i].getAttribute(attr) === val ? 'true' : 'false');
+  }
+  function applyTheme(t) { root.setAttribute('data-theme', t); setPressed('[data-theme-pick]', 'data-theme-pick', t); }
+  var pref = 'light';
+  try { if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) pref = 'dark'; } catch (e) {}
+  try { var saved = localStorage.getItem('tg-hl-theme'); if (saved === 'light' || saved === 'dark') pref = saved; } catch (e) {}
+  applyTheme(pref);
+  document.addEventListener('click', function (ev) {
+    var b = ev.target.closest ? ev.target.closest('button[data-theme-pick]') : null;
+    if (!b) return;
+    var t = b.getAttribute('data-theme-pick'); applyTheme(t); try { localStorage.setItem('tg-hl-theme', t); } catch (e) {}
+  });
+})();
+</script>
+</body>
+</html>

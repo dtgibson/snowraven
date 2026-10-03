@@ -27,3 +27,5 @@ ios-lifer-widgets/copy-review.html
 ios-alerts/evidence/*.png
 # settings-tab-hidden-iphone working files: probe and mutation scripts (absolute paths, rewrite source in place) and their renders. Reference only, kept on disk.
 settings-tab-hidden-iphone/evidence/
+# targets-hotspot-link working files: browser and QA renders. Reference only, kept on disk (one shows a user's own checklist comment, and this repo is public).
+targets-hotspot-link/*.png
