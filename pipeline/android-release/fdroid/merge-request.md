@@ -1,0 +1,123 @@
+# The fdroiddata merge request (first Android release only)
+
+**Status: prepared, not opened.** This is the one-time request that asks F-Droid to include SnowRaven (android-release FR-59, schema 6.5). It is opened under your own GitLab account, by you, or by the Deployer on your explicit word. After it is merged, F-Droid's update checker finds every later `vX.Y.Z` tag by itself, so nothing goes to fdroiddata per release unless the recipe itself changes (a toolchain pin, in the release skill's Android section).
+
+Review usually takes weeks. On the day of the first ship, the Android download is the signed APK on the GitHub release; the F-Droid listing follows when the request is merged and F-Droid has built the app.
+
+## Before you open it
+
+Each of these happens in the SnowRaven repository, before the tag, because F-Droid reads the tagged commit:
+
+1. The version bump has set the recipe's `versionName`, `versionCode`, `commit`, `CurrentVersion` and `CurrentVersionCode` to the shipping version (`fdroidRecipe.test.ts` goes red if they disagree with `tauri.conf.json`).
+2. The `NonFreeNet` sentence and the category you approved in `held-copy.md` are in the recipe (it is listing copy, so it takes your yes like the rest).
+3. The Fastlane folder you approved is at `fastlane/metadata/android/en-US/` (without it the listing has no description until the next tag).
+4. The tag `vX.Y.Z` is pushed, and the Android CI run on it is green.
+5. The local F-Droid checks in the release skill passed on that recipe: `fdroid lint -f --force-yamllint`, `fdroid rewritemeta -l`, `fdroid scanner -e` and `fdroid build -v -l`.
+
+## Open it: the web route (no clone needed)
+
+1. Sign in at https://gitlab.com with your own account.
+2. Open https://gitlab.com/fdroid/fdroiddata.
+3. Press **Fork**, and fork it into your own namespace.
+4. In your fork, open the branch menu and create a branch named `com.dtgibson.snowraven` from `master`.
+5. On that branch, open the `metadata` folder.
+6. Press **+**, then **New file**.
+7. Name the file `com.dtgibson.snowraven.yml`.
+8. Paste the recipe exactly as committed at the tag: `pipeline/android-release/fdroid/com.dtgibson.snowraven.yml` at `vX.Y.Z` (on GitHub: `https://github.com/dtgibson/snowraven/blob/vX.Y.Z/pipeline/android-release/fdroid/com.dtgibson.snowraven.yml`, then **Raw**).
+9. Make sure the pasted file ends with one newline and nothing after it.
+10. Commit message: `New app: SnowRaven (com.dtgibson.snowraven)`
+11. Commit to the `com.dtgibson.snowraven` branch.
+12. Press **Create merge request**.
+13. Source: your fork's `com.dtgibson.snowraven`. Target: `fdroid/fdroiddata`, branch `master`.
+14. Title: `New app: SnowRaven (com.dtgibson.snowraven)`
+15. If GitLab offers a description template for new apps, pick it, then put the text below under it, answering its checklist with the facts below.
+16. Paste the description text below.
+17. Press **Create merge request**.
+18. Copy the merge request's URL for the ship record.
+
+## Or: the command-line route
+
+Run in a scratch folder outside the SnowRaven repository, replacing `<you>` with your GitLab user name and `vX.Y.Z` with the shipping tag:
+
+1. Fork https://gitlab.com/fdroid/fdroiddata into your namespace (step 3 above).
+2. `git clone --depth 1 https://gitlab.com/<you>/fdroiddata.git`
+3. `cd fdroiddata`
+4. `git switch -c com.dtgibson.snowraven`
+5. `git -C ~/devwork/snowraven show vX.Y.Z:pipeline/android-release/fdroid/com.dtgibson.snowraven.yml > metadata/com.dtgibson.snowraven.yml`
+6. `git -C ~/devwork/snowraven show vX.Y.Z:pipeline/android-release/fdroid/com.dtgibson.snowraven.yml | shasum -a 256`
+7. `shasum -a 256 metadata/com.dtgibson.snowraven.yml` (must print the same hash as step 6)
+8. `git add metadata/com.dtgibson.snowraven.yml`
+9. `git commit -m "New app: SnowRaven (com.dtgibson.snowraven)"`
+10. `git push -u origin com.dtgibson.snowraven`
+11. Open the link Git prints, and continue from step 13 of the web route.
+
+## The merge request description
+
+```markdown
+SnowRaven is a birding companion for your own eBird and Macaulay Library exports: weather and tides for your checklists, your history with every species, life-list statistics, a calendar of your birding and an interactive map. I am its author, and this request adds my own app.
+
+- Source: https://github.com/dtgibson/snowraven (AGPL-3.0-only; `LICENSE` at the root)
+- Website: https://snowraven.dtgibson.com/
+- Releases are tagged `vX.Y.Z`; the recipe reads the version and version code from `src-tauri/tauri.conf.json` at each tag (`UpdateCheckMode: Tags`, `AutoUpdateMode: Version`).
+- The listing text, icon, screenshots and per-release changelogs are in the repository at `fastlane/metadata/android/en-US/`.
+- No Google services, no Firebase, no analytics, advertising or crash-reporting library. Nothing from `com.google.android.gms`, `com.google.firebase` or Play is in the build.
+
+Three things in the recipe that look unusual, and why:
+
+1. **The Rust toolchain and the Tauri CLI are installed under `/opt` in `sudo:`.** SnowRaven is a Tauri 2 app. Gradle's Rust tasks call back into the Tauri CLI (`cargo tauri android android-studio-script`), which needs its parent `cargo tauri android build` process, so the build cannot be a plain `gradle` build. The CLI is compiled from crates.io (`cargo install tauri-cli --version 2.11.2 --locked`); no prebuilt binary is fetched. The real binaries are linked into `/usr/local/bin` so the unprivileged build user needs no rustup environment.
+2. **`prebuild` builds the web frontend, then removes `frontend/node_modules`.** The frontend is compiled to `frontend/dist` before the scan, which the Rust build embeds; the Node toolchain is not needed after that, and removing it keeps the scan clean of the bundler's native binaries. `scandelete` names only `src-tauri/dmg/dmg-DS_Store`, the macOS disk-image layout file, which the Android build never reads.
+3. **`NonFreeNet` is self-declared.** The app works with the user's own eBird and OpenWeather API keys; the reason sentence is in the recipe and in the description.
+
+`fdroid lint`, `fdroid rewritemeta`, `fdroid scanner` and `fdroid build -l` pass locally with fdroidserver 2.4.5 on macOS. The `sudo:` block could not be run locally (the buildserver image does not run on Apple silicon), so this merge request's build job is its first run; I will fix anything it finds in this branch.
+```
+
+## The pipeline to watch
+
+1. On the merge request page, open the **Pipelines** tab.
+2. The lint and formatting jobs check the recipe with `fdroid lint` and `fdroid rewritemeta`; they should pass, since the same checks passed locally.
+3. The build job runs the recipe on F-Droid's own build image, `sudo:` block included. It is the only place that block has ever run, and it can take a long while (the recipe allows three hours).
+4. GitLab may ask you to verify your account before it runs a pipeline on your fork; that is GitLab's own step.
+5. If a job fails, open its log and send the failing lines to the Deployer (or paste them into a new session).
+6. A fix to the recipe is a new commit on the same `com.dtgibson.snowraven` branch, which re-runs the pipeline. Make the same change to `pipeline/android-release/fdroid/com.dtgibson.snowraven.yml` in the SnowRaven repository, so the two stay equal.
+7. A failure here never blocks the GitHub APK; the release goes out without waiting for it.
+8. Reviewers may ask questions in the merge request; answer there.
+9. When it is merged, F-Droid builds the app on its own schedule; the listing appears at https://f-droid.org/packages/com.dtgibson.snowraven/ after a later index update, often days afterward.
+
+## Instead of a merge request: a Request For Packaging
+
+If you would rather not open and maintain the merge request yourself, you can ask F-Droid's volunteers to package the app. An RFP waits for a volunteer to pick it up, so it is usually slower than the merge request, and the volunteer would then open a merge request much like the one above.
+
+1. Open https://gitlab.com/fdroid/rfp/-/issues.
+2. Press **New issue**.
+3. Title: `SnowRaven`
+4. If GitLab offers an issue template, pick it and fill it in with the facts below.
+5. Paste the text below.
+6. Press **Create issue**, and copy its URL for the ship record.
+
+```markdown
+* Name: SnowRaven
+* Summary: Birding tools and data explorer for your eBird and Macaulay Library exports
+* Category: Science & Education
+* License: AGPL-3.0-only
+* Source code: https://github.com/dtgibson/snowraven
+* Website: https://snowraven.dtgibson.com/
+* Issue tracker: https://github.com/dtgibson/snowraven/issues
+* Changelog: https://github.com/dtgibson/snowraven/blob/HEAD/CHANGELOG.md
+* Anti-features: NonFreeNet (eBird and OpenWeather, with the user's own API keys)
+
+I am the author. The repository already carries a tested fdroiddata recipe at `pipeline/android-release/fdroid/com.dtgibson.snowraven.yml` and Fastlane metadata at `fastlane/metadata/android/en-US/`. It is a Tauri 2 app (Rust and a web frontend); why the recipe installs its toolchain the way it does is written up in `pipeline/android-release/fdroid/merge-request.md`.
+```
+
+## What the Deployer records
+
+At the first Android ship, CLAUDE.md's Android record line and `pipeline/android-release/decisions.md` each carry one of these, never silence:
+
+- Opened: `fdroiddata merge request opened at <version> (<date>): <merge request URL>.`
+- RFP instead: `fdroiddata RFP opened at <version> (<date>): <issue URL>; no merge request from us.`
+- Deferred, in exactly this form:
+
+```text
+fdroiddata merge request deferred at <version> (<date>): <reason>; opens when <condition>.
+```
+
+For example: `fdroiddata merge request deferred at 1.0.49 (2026-10-10): the user chose to ship the GitHub APK first and open the request after a week of feedback; opens when the user says go, at the next ship at the latest.`
