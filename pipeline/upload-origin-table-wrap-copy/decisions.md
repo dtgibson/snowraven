@@ -45,6 +45,16 @@ have broken writes for self-hosters behind a default nginx. The narrower Vite `x
 nginx documentation route was not taken either, because it still relies on a header a
 proxy may or may not forward.
 
+**Vite's dev CORS turned off (QA attempt 1, Engineer, hands-off).** The header is
+unforgeable only if nothing in front of the backend answers a preflight itself. Vite 8's
+dev server does, for any `localhost` or `127.0.0.1` origin, echoing the requested headers;
+measured in Chromium and WebKit, a page on another local port added the header and wrote
+through the dev proxy. `frontend/vite.config.ts` now sets `server.cors: false`, so the
+preflight reaches the backend's CORS and is refused. The app's dev page is same-origin with
+Vite and never preflights. The browser marker is `Origin` or `Sec-Fetch-Site`, not any
+`Sec-Fetch-*`: Node's `fetch` sends `Sec-Fetch-Mode: cors` with no Origin, and the Node
+tooling in `website/tools` posts to the backend.
+
 ## 5. Audit findings (Stage 4, Guide, hands-off)
 
 - **M1 (Medium), fixed before ship:** the backend's CORS still trusted
@@ -59,13 +69,3 @@ proxy may or may not forward.
   Chronicler records an opt-in Host allowlist in ROADMAP.
 - **I1 (Informational), accepted:** an unhandled-exception 500 carries none of the four
   headers; its body is a fixed "Internal Server Error".
-
-**Vite's dev CORS turned off (QA attempt 1, Engineer, hands-off).** The header is
-unforgeable only if nothing in front of the backend answers a preflight itself. Vite 8's
-dev server does, for any `localhost` or `127.0.0.1` origin, echoing the requested headers;
-measured in Chromium and WebKit, a page on another local port added the header and wrote
-through the dev proxy. `frontend/vite.config.ts` now sets `server.cors: false`, so the
-preflight reaches the backend's CORS and is refused. The app's dev page is same-origin with
-Vite and never preflights. The browser marker is `Origin` or `Sec-Fetch-Site`, not any
-`Sec-Fetch-*`: Node's `fetch` sends `Sec-Fetch-Mode: cors` with no Origin, and the Node
-tooling in `website/tools` posts to the backend.
