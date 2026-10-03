@@ -147,8 +147,9 @@ describe('the deep link: one scheme, one length bound, one event', () => {
     expect(libRs).toContain('#[cfg(any(target_os = "ios", test))]\nmod widgets;')
     expect(libRs).toContain('#[cfg(target_os = "ios")]\nmod launch_backdrop;')
     // ios-alerts: the alert plugin (`setup` only, no `on_event`) joins the
-    // widget plugin on the same iOS-only builder line.
-    expect(libRs).toMatch(/#\[cfg\(target_os = "ios"\)\]\s*let builder = builder\s*\.plugin\(widgets::plugin\(\)\)\s*\.plugin\(alerts::plugin\(\)\)\s*\.setup\(\|app\| \{\s*launch_backdrop::install\(app\);\s*Ok\(\(\)\)\s*\}\);/)
+    // widget plugin on the same iOS-only builder line; android-release (schema
+    // 4.1) put the geolocation plugin at its head, so it never reaches Android.
+    expect(libRs).toMatch(/#\[cfg\(target_os = "ios"\)\]\s*let builder = builder\s*\.plugin\(tauri_plugin_geolocation::init\(\)\)\s*\.plugin\(widgets::plugin\(\)\)\s*\.plugin\(alerts::plugin\(\)\)\s*\.setup\(\|app\| \{\s*launch_backdrop::install\(app\);\s*Ok\(\(\)\)\s*\}\);/)
     // The single-webview keeper is untouched: still Builder::run with Tauri's own callback.
     expect(libRs).toContain('.run(tauri::generate_context!())')
     expect(rustCode).not.toContain('SceneRequested')

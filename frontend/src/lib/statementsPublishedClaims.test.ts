@@ -97,7 +97,11 @@ describe('H-P2: the location paragraph lists the Weather tab\'s Plan form', () =
 
   it('is true of the code: pressing Plan with no place reads the location, labels it "Your location", and sends nothing', () => {
     const panel = code('components/WeatherForecastPanel.tsx')
-    expect(panel).toContain("if (!presetError && !coordRef.current) {\n      try { const c = await getCurrentLocation(); setCoord(c); setPlace('Your location') } catch")
+    // android-release FR-56: the read is skipped where showLocationControls()
+    // is false (Android under location branch B, which has no location control
+    // for this paragraph to describe); it is true on every platform the
+    // paragraph names (platformGates.test.ts).
+    expect(panel).toContain("if (!presetError && !coordRef.current && showLocationControls()) {\n      try { const c = await getCurrentLocation(); setCoord(c); setPlace('Your location') } catch")
     // The read runs only from the Plan button, and the opening itself fetches nothing.
     expect(panel).toContain('onClick={() => void openPredict()}')
     const open = panel.slice(panel.indexOf('const openPredict = useCallback('), panel.indexOf('}, [setCoord])', panel.indexOf('const openPredict = useCallback(')))
