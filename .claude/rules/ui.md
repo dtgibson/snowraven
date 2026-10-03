@@ -17,6 +17,10 @@ paths:
   - "frontend/src/lib/alerts/alertsInboxHost.ts"
   - "frontend/src/lib/tabLayout.ts"
   - "frontend/src/lib/icloud/icloudCopy.ts"
+  - "frontend/src/lib/rootMarkers.ts"
+  - "frontend/src/lib/webviewFloor.ts"
+  - "src-tauri/gen/android/app/src/main/java/**/MainActivity.kt"
+  - "src-tauri/gen/android/app/src/main/res/**"
 ---
 
 # SnowRaven UI construction conventions (colors, responsive layout, accessibility, display copy)

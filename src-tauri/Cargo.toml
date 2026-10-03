@@ -3,7 +3,7 @@ name = "snowraven"
 version = "0.0.0"
 description = "SnowRaven — Birding Analytics Desktop App"
 authors = []
-license = ""
+license = "AGPL-3.0-only"
 repository = "https://github.com/dtgibson/snowraven"
 default-run = "snowraven"
 edition = "2021"
@@ -54,7 +54,9 @@ tauri-plugin-window-state = "2"
 
 # Mobile-only (schema §2.7/§2.6): geolocation for "Use my location" (the desktop
 # native get_location paths are byte-untouched), and dialog for the Mechanism B
-# document-picker fallback (see frontend/src/lib/iosImport.ts).
+# document-picker fallback (see frontend/src/lib/importMechanism.ts). Android
+# links both as well (cfg(mobile) in lib.rs); android-release keeps the
+# registration as it is while the Android location path is on hold.
 [target.'cfg(any(target_os = "android", target_os = "ios"))'.dependencies]
 tauri-plugin-geolocation = "2"
 tauri-plugin-dialog = "2"

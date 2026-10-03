@@ -1,0 +1,111 @@
+name: Android Build
+
+# Builds the UNSIGNED release Android App Bundle and universal APK for a
+# release (android-release FR-34, schema 6.1), the way windows-build.yml builds
+# the Windows installer. This job holds no signing key, keystore password or
+# store credential: with no keystore properties file present, the committed
+# Gradle project builds unsigned outputs, and signing happens on the release
+# machine (the snowraven-release skill's Android section). The artifacts are
+# uploaded for the release machine to fetch with `gh run download`.
+#
+# Everything is fetched from the package registries and the platform's own
+# toolchain sources (npm, crates.io, Maven/Google, the Android SDK manager);
+# no third-party setup action downloads a binary, so a build-from-source
+# recipe can mirror these steps.
+#
+# Trigger: push a version tag (vX.Y.Z), or run manually.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+# Keep the release build read-only even if the repository default changes.
+permissions:
+  contents: read
+
+env:
+  # Pinned toolchain (the same pins as pipeline/android-release/toolchain.md
+  # and the release skill). Change them together, deliberately.
+  ANDROID_PLATFORM: 'platforms;android-36'
+  ANDROID_BUILD_TOOLS: 'build-tools;36.0.0'
+  ANDROID_NDK_VERSION: '27.2.12479018'
+
+jobs:
+  android:
+    name: Build Android AAB + universal APK
+    # Pinned image, for the same reason windows-build.yml pins its own.
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: |
+            package-lock.json
+            frontend/package-lock.json
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install the pinned Android SDK packages
+        run: |
+          # The runner image ships the Android command-line tools at $ANDROID_HOME.
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          test -x "$SDKMANAGER" || { echo "sdkmanager not found under \$ANDROID_HOME ($ANDROID_HOME)"; exit 1; }
+          yes | "$SDKMANAGER" --licenses > /dev/null
+          "$SDKMANAGER" "platform-tools" "$ANDROID_PLATFORM" "$ANDROID_BUILD_TOOLS" "ndk;$ANDROID_NDK_VERSION"
+          echo "NDK_HOME=$ANDROID_HOME/ndk/$ANDROID_NDK_VERSION" >> "$GITHUB_ENV"
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          npm --prefix frontend ci
+
+      - name: Build Android app (unsigned release)
+        run: |
+          # No SNOWRAVEN_ANDROID_KEYSTORE_PROPERTIES and no keystore.properties
+          # exist here, so app/build.gradle.kts creates no signing config.
+          test -z "${SNOWRAVEN_ANDROID_KEYSTORE_PROPERTIES:-}"
+          test ! -e src-tauri/gen/android/keystore.properties
+          npx tauri android build --ci --aab --apk --target aarch64 armv7 i686 x86_64
+
+      - name: Collect AAB and universal APK
+        run: |
+          set -euo pipefail
+          VERSION=$(node -p "require('./src-tauri/tauri.conf.json').version")
+          OUT=src-tauri/gen/android/app/build/outputs
+          # Exactly one of each, or stop: the Windows job's artifact-selection
+          # lesson (never ship whichever file a glob happened to match first).
+          mapfile -t AABS < <(find "$OUT/bundle" -name '*.aab')
+          mapfile -t APKS < <(find "$OUT/apk/universal/release" -name '*.apk')
+          echo "AABs: ${AABS[*]:-none}"; echo "APKs: ${APKS[*]:-none}"
+          [ "${#AABS[@]}" -eq 1 ] || { echo "expected exactly one .aab"; exit 1; }
+          [ "${#APKS[@]}" -eq 1 ] || { echo "expected exactly one universal .apk"; exit 1; }
+          mkdir -p dist-android
+          cp "${AABS[0]}" "dist-android/SnowRaven_${VERSION}_android.aab"
+          cp "${APKS[0]}" "dist-android/SnowRaven_${VERSION}_android_universal.apk"
+          ls -la dist-android
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: android-build
+          path: dist-android/*
+          if-no-files-found: error

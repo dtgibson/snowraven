@@ -67,6 +67,12 @@ paths:
   - "frontend/src/components/settingsSections/AlertsSection.tsx"
   - "src-tauri/src/alerts.rs"
   - "src-tauri/gen/apple/Sources/snowraven/**"
+  - "src-tauri/tauri.android.conf.json"
+  - "src-tauri/capabilities/*.json"
+  - "src-tauri/gen/android/app/build.gradle.kts"
+  - "src-tauri/gen/android/app/src/main/AndroidManifest.xml"
+  - "src-tauri/gen/android/app/src/main/java/**/MainActivity.kt"
+  - ".github/workflows/android-build.yml"
 ---
 
 <!--
@@ -117,6 +123,15 @@ that header unforgeable through the Vite proxy, and the backend test that
 compares the two declarations and sends each deployment shape. All three are
 named in the browser-protections rule below; `backend/main.py` was already
 gated.
+
+The `tauri.android.conf.json` / `capabilities/*.json` / Android manifest /
+`build.gradle.kts` / `MainActivity.kt` / `android-build.yml` entries were added
+by android-release, in the change that created or first committed them: the
+Android application id and permission set, the capability grants (which no rule
+had gated until then, though they decide what the webview may call), the
+release signing block that must never hold a password, the page-to-native
+`srAndroid` channel whose origin allowlist is its whole trust argument, and the
+CI job that must stay read-only and secret-free.
 -->
 
 # SnowRaven security standing checks
