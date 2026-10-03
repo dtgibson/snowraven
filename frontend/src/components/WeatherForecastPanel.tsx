@@ -490,7 +490,11 @@ export function WeatherForecastPanel({ onPlanVisible }: WeatherForecastPanelProp
 
       <div style={{ fontSize: '1.0625rem', fontWeight: 700, letterSpacing: '-0.01em' }}>Now, or any time ahead</div>
       <p style={{ margin: '4px 0 14px', fontSize: '0.8125rem', color: 'var(--sr-text-muted)' }}>
-        Skip the checklist: get weather and tide for where you are, or for a place and time you choose.
+        {/* Under location branch B (Android) the Current lookup below is absent,
+            so the sentence names only what Plan does there. */}
+        {showLocationControls()
+          ? 'Skip the checklist: get weather and tide for where you are, or for a place and time you choose.'
+          : 'Skip the checklist: get weather and tide for a place and time you choose.'}
       </p>
 
       <div className="sr-grid-2" style={{ ['--sr-grid-gap' as string]: '10px' }}>

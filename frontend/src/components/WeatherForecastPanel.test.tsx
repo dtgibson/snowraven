@@ -36,6 +36,14 @@ vi.mock('../lib/location', () => ({
   describeLocationError: () => 'Location access was denied.',
 }))
 
+// android-release FR-56: the predicate that hides the Current lookup under
+// location branch B. True by default (iOS, desktop, web); one test flips it.
+const showLocationControlsMock = vi.fn(() => true)
+vi.mock('../lib/platformGates', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../lib/platformGates')>()),
+  showLocationControls: () => showLocationControlsMock(),
+}))
+
 import { WeatherForecastPanel } from './WeatherForecastPanel'
 import { PLAN_COPY } from '../lib/planCopy'
 
@@ -67,6 +75,7 @@ const TIDE_OK = {
 beforeEach(() => {
   getMock.mockReset()
   getCurrentLocationMock.mockReset()
+  showLocationControlsMock.mockReturnValue(true)
   // Restore the default replay wrapper (live result, replayedAt null) — a prior
   // test may have overridden it to simulate a replayed read.
   getReplayableMock.mockImplementation((path: string, params?: Record<string, string>) =>
@@ -75,6 +84,27 @@ beforeEach(() => {
 afterEach(cleanup)
 
 describe('WeatherForecastPanel', () => {
+  // android-release FR-56: under location branch B (Android) the Current lookup
+  // is absent, so the card's sentence names only what Plan does there; with
+  // location controls shown (iOS, desktop, web) the sentence is unchanged.
+  it('the "Now, or any time ahead" sentence follows the location predicate', () => {
+    const withCurrent = 'Skip the checklist: get weather and tide for where you are, or for a place and time you choose.'
+    const planOnly = 'Skip the checklist: get weather and tide for a place and time you choose.'
+
+    render(<WeatherForecastPanel />)
+    expect(screen.getByText(withCurrent)).toBeTruthy()
+    expect(screen.queryByText(planOnly)).toBeNull()
+    expect(screen.getByRole('button', { name: /current weather and tide/i })).toBeTruthy()
+    cleanup()
+
+    showLocationControlsMock.mockReturnValue(false)
+    const { container } = render(<WeatherForecastPanel />)
+    expect(screen.getByText(planOnly)).toBeTruthy()
+    expect(container.textContent).not.toMatch(/where you are/)
+    expect(screen.queryByRole('button', { name: /current weather and tide/i })).toBeNull()
+    expect(screen.getByRole('button', { name: PLAN_COPY.entryAria })).toBeTruthy()
+  })
+
   it('Current: shows live weather + tide summary', async () => {
     getCurrentLocationMock.mockResolvedValue({ lat: 37.87, lng: -122.30 })
     getMock.mockImplementation((p: string) =>

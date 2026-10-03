@@ -129,7 +129,7 @@ The Weft doctrine's mechanical lint flags Inter and `system-ui` as display faces
 
 ### Observations for The Designer (no change made)
 
-- Under branch B the Weather tab's introductory sentence still reads "get weather and tide for where you are, or for a place and time you choose" while its Current control is absent on Android; the spec says nothing else moves, so it is unchanged and flagged here.
+- Under branch B the Weather tab's introductory sentence still reads "get weather and tide for where you are, or for a place and time you choose" while its Current control is absent on Android; the spec says nothing else moves, so it is unchanged and flagged here. **Resolved in the release-leg errand (2026-10-03):** the sentence now follows `showLocationControls()`, so Android under branch B reads "Skip the checklist: get weather and tide for a place and time you choose." and iOS, desktop and web keep the original; `WeatherForecastPanel.test.tsx` renders both readings.
 
 - Scrolled content passes under the translucent status bar, as on iPhone with `viewport-fit=cover` (the body's top padding scrolls away with the page).
 - Below the WebView floor the status glyphs are dark over the green launch frame (no theme report is sent there by design); posting `dark` from the floor branch would give light glyphs if wanted.
