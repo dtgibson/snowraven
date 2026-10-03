@@ -1,9 +1,20 @@
 # App Store What's New: 1.0.48 (upload-origin-table-wrap-copy)
 
-**HELD PROPOSAL. Not written to `appstore/` or to App Store Connect.** Published
-copy changes only with the user's express yes (CLAUDE.md). The Deployer drafted
-this at pre-deploy preparation on 2026-10-02; the user approves, edits or
-declines it at the production gate.
+**APPROVED at the production gate, 2026-10-02: text (a), both sentences, word
+for word.** Route: **deferred behind 1.0.47** (shape 1 below). Record `0d823282`
+(1.0.47, carrying 1.0.46) was still `WAITING_FOR_REVIEW` as submission
+`503d3481`, and the user chose to leave its review undisturbed. 1.0.48 gets its
+own record on build 1.0.48.1 (delivery `c0484168`, VALID, the user's own device
+check passed) once `0d823282` is `READY_FOR_SALE`, with this What's New:
+
+> On the Targets tab, long species names now wrap within their row instead of making the table scroll sideways. In Settings, Appearance now says correctly where your color scheme is saved.
+
+No screenshot changes. Read every listing field back on the new record,
+promotional text included (it has arrived empty three times). Not yet written to
+App Store Connect; the deferral is recorded in CLAUDE.md's App Store list.
+
+The drafting notes below are kept as they were written at pre-deploy
+preparation.
 
 ## What the iPhone and iPad app gets in 1.0.48
 

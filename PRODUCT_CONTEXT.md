@@ -1020,12 +1020,12 @@ An "API Keys" section added above "Default Files" on the Settings tab. Users can
 
 ### Dark Mode (complete — May 2026)
 
-Full dark theme with automatic OS preference detection, no flash of the wrong theme on load, and a consent-gated localStorage preference stored only after explicit user approval.
+Full dark theme with automatic OS preference detection, no flash of the wrong theme on load, and a consent-gated preference saved only after explicit user approval: in the app's settings on this device in the Mac, Windows, iPhone and iPad apps, and on the server for every browser that opens a web or Raspberry Pi install.
 
 **What it does:**
 - Settings → Appearance section (above API Keys) has a three-option toggle: System / Light / Dark. Default is System — follows OS preference, writes nothing to the browser.
 - Anti-flash inline `<script>` in `index.html` reads `sr-theme` from localStorage (or falls back to `prefers-color-scheme`) and sets `data-theme` on `<html>` synchronously before first paint — no white flash for dark-mode users.
-- Consent flow: selecting Light or Dark applies the theme immediately, then shows an inline prompt ("Save preference" writes to localStorage; "This session only" dismisses without writing). Once consent has been given for this browser, future Light/Dark changes are silent. Selecting System removes `sr-theme` from localStorage and shows no prompt.
+- Consent flow: selecting Light or Dark applies the theme immediately, then shows an inline prompt that says where the choice will be saved ("Save preference" saves it through the storage seam, with a localStorage copy for the anti-flash script; "This session only" dismisses without writing). Once consent has been given for this browser, future Light/Dark changes are silent. Selecting System clears the choice in both places and shows no prompt.
 - All component colors use `var(--sr-*)` CSS custom properties — no hardcoded hex in any component file. `:root` defines the light palette; `[data-theme="dark"]` overrides all tokens for dark.
 - Dark palette: zinc-based backgrounds (`#09090B` page, `#18181B` surface), `#34D399` emerald accent (better contrast than the light-mode green on dark surfaces), lightened purple tier colors for breeding code badges.
 - `--sr-tier-N-rgb` variables hold RGB triplets for use in `rgba(var(--sr-tier-N-rgb), alpha)` inline styles where dynamic alpha is needed.
@@ -1809,6 +1809,8 @@ if you need a different port.
 FastAPI serves both the API and the built frontend static files. No nginx or
 separate static file server is needed for local/Pi deployment. For
 internet-facing installs, add a reverse proxy for HTTPS.
+The server accepts a browser write only from SnowRaven's own page and tells
+browsers never to show it inside another site's frame.
 
 **Location name is not in the eBird checklist view response**
 The `/v2/product/checklist/view/{id}` endpoint does not return `locName` as a top-level field. Location name is sourced from the `result` field of the `ref/region/info` response (primary coordinate path), or from `loc.name` in the `product/lists` response (fallback path), or falls back to `locId`. Use `.get()` with fallbacks — never `data["locName"]` directly.

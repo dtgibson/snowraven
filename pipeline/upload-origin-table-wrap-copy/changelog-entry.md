@@ -1,6 +1,7 @@
 # Proposed CHANGELOG entry (upload-origin-table-wrap-copy)
 
-Written by The Engineer; NOT yet in `CHANGELOG.md`. This fix ships as 1.0.48
+**Landed in `CHANGELOG.md` under `[1.0.48] - 2026-10-02` (`893004b`).** Written by
+The Engineer before the release. This fix ships as 1.0.48
 after 1.0.47 has shipped on every leg. The Deployer bumps the version, then
 pastes the entry below under the new version heading with that day's date.
 American spelling, no em dashes.
