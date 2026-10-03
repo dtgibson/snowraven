@@ -1,0 +1,47 @@
+AntiFeatures:
+  NonFreeNet:
+    en-US: Bird records, weather and tide data come from eBird, OpenWeather and NOAA,
+      which are not free services; the app is unusable without an eBird key.
+Categories:
+  - Science & Education
+License: AGPL-3.0-only
+AuthorName: Dave Gibson
+WebSite: https://snowraven.dtgibson.com/
+SourceCode: https://github.com/dtgibson/snowraven
+IssueTracker: https://github.com/dtgibson/snowraven/issues
+Changelog: https://github.com/dtgibson/snowraven/blob/HEAD/CHANGELOG.md
+
+RepoType: git
+Repo: https://github.com/dtgibson/snowraven.git
+
+Builds:
+  - versionName: 1.0.48
+    versionCode: 1000048
+    commit: v1.0.48
+    timeout: 10800
+    sudo:
+      - apt-get update
+      - apt-get install -y nodejs npm rustup build-essential pkg-config libssl-dev
+        cmake
+      - export RUSTUP_HOME=/opt/rustup CARGO_HOME=/opt/cargo
+      - rustup toolchain install 1.96.1 --profile minimal --target aarch64-linux-android
+        --target armv7-linux-androideabi --target x86_64-linux-android
+      - cargo +1.96.1 install tauri-cli --version 2.11.2 --locked --root /opt/cargo
+      - ln -s /opt/rustup/toolchains/1.96.1-x86_64-unknown-linux-gnu/bin/* /usr/local/bin/
+      - ln -s /opt/cargo/bin/cargo-tauri /usr/local/bin/cargo-tauri
+      - chmod -R a+rX /opt/rustup /opt/cargo
+    output: src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release-unsigned.apk
+    prebuild:
+      - npm --prefix frontend ci
+      - npm --prefix frontend run build
+      - rm -rf frontend/node_modules
+    scandelete:
+      - src-tauri/dmg/dmg-DS_Store
+    build: sh scripts/android/build-apk.sh
+    ndk: r27c
+
+AutoUpdateMode: Version
+UpdateCheckMode: Tags ^v[0-9.]+$
+UpdateCheckData: src-tauri/tauri.conf.json|"versionCode":\s*(\d+)|.|"version":\s*"([\d.]+)"
+CurrentVersion: 1.0.48
+CurrentVersionCode: 1000048
