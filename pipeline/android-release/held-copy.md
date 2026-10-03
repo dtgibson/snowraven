@@ -1,6 +1,6 @@
 # Held copy: Android release (the F-Droid leg)
 
-**Status: HELD. Nothing here is published.** Each surface below is written only after the user reads the exact text and says yes (CLAUDE.md, "Published copy needs the user's approval first"). The staged Fastlane files are under `pipeline/android-release/fdroid/fastlane-proposal/en-US/` and hold exactly the listing text in section (a); on the yes they move to `fastlane/metadata/android/en-US/` in the same commit that adds `fastlaneMetadata.test.ts`, before the tag (schema 6.5).
+**Status: HELD. Nothing here is published.** Each surface below is written only after the user reads the exact text and says yes (CLAUDE.md, "Published copy needs the user's approval first"). The staged Fastlane files are under `pipeline/android-release/fdroid/fastlane-proposal/en-US/` and hold exactly the listing text in section (a) and the screenshots in section (b); on the yes they move to `fastlane/metadata/android/en-US/` in the same commit that adds `fastlaneMetadata.test.ts`, before the tag (schema 6.5).
 
 **Location branch: B, decided by the measurement (2026-10-03).** The FR-55 measurement is recorded in `decisions.md` ("FR-55 measurement ... branch B stands") and `pipeline/android-release/measurements/`: its step 9 failed (during a fix the app's own UID held a connection to a Google address). So Android has no location controls and a place is typed or searched for. Every location-dependent passage below is still given in both forms, labeled **Branch A** and **Branch B**, because the decision has a reversal condition; **only the Branch B forms apply**, and the staged files carry them. (The branch-A edit seen in the working tree while this was drafted was the measurement build's scratch edit, reverted after the run.)
 
@@ -145,26 +145,43 @@ Copied byte for byte from `pipeline/ebird-cooldown-and-app-icon/icon-source/Snow
 
 ---
 
-## (b) Screenshots: the plan (NOT CAPTURED YET)
+## (b) Screenshots: captured and staged (2026-10-03)
 
-No screenshot exists yet. The plan is to capture from the synthetic demo dataset (`website/tools/gen-demo-data.mjs`, the S9 submission-id range) imported into the release-signed app on the API 36 emulators, never from real data, and to mirror the App Store set's screens and order so the store sets match:
+Twelve screenshots are staged under `pipeline/android-release/fdroid/fastlane-proposal/en-US/images/`, with F-Droid's names, and move to `fastlane/metadata/android/en-US/images/` with the rest of the folder on your yes. Nothing is published. Each caption below is for you, not listing copy; F-Droid shows the images without captions.
 
-| File | Phone (`images/phoneScreenshots/`), API 36 phone emulator, portrait | Ten-inch tablet (`images/tenInchScreenshots/`), API 36 tablet emulator, landscape |
-|---|---|---|
-| `01-map-explorer.png` | Map Explorer, My Sightings, the compact header and the FAB row | Map Explorer with the filters sidebar in flow |
-| `02-statistics.png` | Statistics, life-list totals and the growth chart | Statistics, same section, wide layout with the nav sidebar |
-| `03-weather-tide.png` | Weather, the Weather/tide Planner for a public place (see note) | Weather, the same Planner |
-| `04-calendar.png` | Calendar, a year of month grids | Calendar, wide layout |
-| `05-species-detail.png` | Species Detail for one demo species | Species Detail, wide layout |
-| `06-breeding-codes.png` | Breeding Codes matrix | Breeding Codes matrix, wide layout |
+**Phone** (`images/phoneScreenshots/`, API 36 Pixel 7 emulator, portrait, 1080 by 2400):
 
-Notes for the capture, none of them copy:
+| File | What it shows |
+|---|---|
+| `1.png` | Map Explorer, My Sightings: the demo birder's ten hotspots from New York to Cape May, the layer chooser, and the share, fullscreen and Filters discs (no locate disc, branch B). |
+| `2.png` | Statistics: the Life List Accumulation chart and the Top Species list. |
+| `3.png` | Calendar, 2025: the year heading and shade key over the January and February grids. |
+| `4.png` | Species Detail for Scarlet Tanager: the species card and its sightings figures. |
+| `5.png` | Breeding Codes: the species-by-code matrix with its counts. |
+| `6.png` | Multimedia: the filter pills over the media checklist, photo and audio counts per species. |
 
-- F-Droid sorts screenshots by file name; the names mirror `appstore/screenshots/` (the schema wrote `01.png`, and either sorts the same).
-- **The Weather shot cannot be the checklist lookup the App Store set shows.** eBird answers 410 Gone for the synthetic S9 ids by design, and the emulator runs the real app with no request stubbing, so the shot shows the Planner for a public place (live OpenWeather and NOAA data, nothing personal). Other screens are framed on what reads only the demo files.
-- Under Branch B the Map Explorer FAB row has no locate disc (share, Filters, fullscreen); under Branch A it does. Capture after the branch is set.
-- No Settings shot (it would show key rows). Before the first frame, check that the imported backup's submission ids are all in the S9 range (the fail-closed dataset guard `capture-appstore.mjs` applies to its backend, adapted to the emulator), and put the status bar in Android's demo mode so no notification, clock or carrier detail is published.
-- Run the emulator with `-gpu host` (the Engineer's SwiftShader artifact, `decisions.md`).
+**Ten-inch tablet** (`images/tenInchScreenshots/`, API 36 Pixel Tablet emulator, landscape, 2560 by 1600, with the labelled navigation sidebar):
+
+| File | What it shows |
+|---|---|
+| `1.png` | Map Explorer, My Sightings, with the filters panel beside the map and the 10 locations, 149 species, 7.9k observations summary. |
+| `2.png` | Statistics: Life List Totals, the first and latest checklists and the start of the accumulation chart. |
+| `3.png` | Calendar, 2025: eight month grids shaded by species per day. |
+| `4.png` | Species Detail for American Goldfinch: the species card, sightings and media counts. |
+| `5.png` | Breeding Codes: the code filter pills and the matrix across every code. |
+| `6.png` | Multimedia: the filters and the media table with photo, audio, video and total columns. |
+
+How they were made, none of it copy:
+
+- **Data:** the synthetic demo dataset the website and App Store screenshots use (`node website/tools/gen-demo-data.mjs`, a fictional birder at public northeast-US hotspots), never real data. All 7,869 rows' submission ids were checked to be in the synthetic `S9` range before the first frame (the `capture-lib.mjs` guard, applied by hand), and the app showed 149 species and 368 checklists, the dataset's own figures. The two files, their metadata and a settings file (the demo map center, Welcome marked seen) were written into the app's private storage on the emulator with root, since a release build cannot be reached through `run-as`; no keys were entered, so no Settings or key screen appears.
+- **Build:** the CI-shaped unsigned universal APK of this branch (with the branch-B Weather sentence), signed by `scripts/android/sign.sh` with the THROWAWAY emulator key; nothing signed with that key is distributed.
+- **Emulator:** `-gpu host`, Android's status-bar demo mode (9:00, full Wi-Fi and battery, no notifications), light theme.
+- **Scrolled shots** were positioned so the status bar sits over a gap between blocks rather than over text; content scrolling under the translucent status bar is the shipped behavior, as on iPhone.
+
+**Gaps, named:**
+
+- **No Weather shot.** The App Store set's third screen is the checklist weather lookup, and the planned stand-in was the Weather/tide Planner for a public place. Both need an OpenWeather key in the app (the lookup also needs eBird, which answers nothing for the synthetic ids), and this capture put no API key on the emulator, so the Weather tab shows only its two "key not configured" notices above the forms. Multimedia, which reads only the demo export, takes the sixth slot instead. A Planner shot needs a capture with a key entered, then the image added as `7.png` (or swapped in) before your yes.
+- Statistics carries the line "No eBird key, so exotic status cannot be checked. Every species counts." in the tablet shot, for the same reason. It is true of a keyless install and reads as a setup note; recapturing with a key removes it.
 
 ---
 
@@ -375,6 +392,6 @@ This is the only change in 1.0.49 so far that reaches the iPhone and iPad app (t
 1. **The schema's `NonFreeNet` sentence over-claims** (section a). The committed recipe `pipeline/android-release/fdroid/com.dtgibson.snowraven.yml` carries the schema's original sentence as its `AntiFeatures.NonFreeNet.en-US` value (folded over two lines, as `fdroid rewritemeta` writes it); it takes whichever sentence you approve, so the listing and the recipe agree. Its `Categories:` reads the default, `Science & Education`.
 2. **App Store risk in the iOS bundle, outside this file's scope.** Guideline 2.3.10 covers the app as well as its metadata, and the in-app Help bundled into the iOS app now names Android (`docs/HELP.md`'s opening, the data-files passage, Settings' API Keys and Default Files, and Troubleshooting). That is the Engineer's and the user's call; flagged because it could draw a review question on the 1.0.49 submission.
 3. **`CHANGELOG.md`'s 1.0.49 entry disagreed with the revised plan in two places; both are resolved** by The Engineer: the Internal line now names the one build script and the unsigned universal APK (no App Bundle), and the Added line now reads "On Android the app does not offer to find your location: you move the map by searching for a place or by setting a Default Location.", which is the Branch B fact.
-4. **The Weather screenshot** cannot repeat the App Store set's checklist lookup on the emulator (section b); the Planner for a public place stands in.
+4. **The Weather screenshot** cannot repeat the App Store set's checklist lookup on the emulator, and the Planner stand-in needs an OpenWeather key the capture did not enter; the staged sets carry Multimedia in its place (section b).
 5. **Schema 7.4's "typically nothing in a cloud backup"** is not adopted (d5).
 6. **Not decided here:** the category, the `NonFreeNet` wording, the website and README timing, and each of C1 to C7. (The location branch is decided: B.)
