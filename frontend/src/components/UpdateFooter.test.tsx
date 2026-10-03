@@ -6,7 +6,19 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, cleanup } from '@testing-library/react'
 
 vi.mock('../lib/platformGates', () => ({ showUpdaterFooter: vi.fn() }))
-vi.mock('../lib/platform', () => ({ isTauri: vi.fn(), isIOS: vi.fn(), isWindows: vi.fn() }))
+vi.mock('../lib/platform', () => {
+  // isMobileApp is derived from the two mocked OS probes, so a row that sets
+  // isIOS (or isAndroid) true sees the mobile gates follow, as in the app.
+  const isIOS = vi.fn()
+  const isAndroid = vi.fn(() => false)
+  return {
+    isTauri: vi.fn(),
+    isIOS,
+    isWindows: vi.fn(),
+    isAndroid,
+    isMobileApp: vi.fn(() => isIOS() || isAndroid()),
+  }
+})
 
 import { showUpdaterFooter } from '../lib/platformGates'
 import { isTauri } from '../lib/platform'

@@ -106,20 +106,45 @@
           splash.remove();
           document.documentElement.classList.remove('sr-launching');
         }
+        // Android System WebView floor (android-release FR-33; the number, the
+        // probe and the copy live in src/lib/webviewFloor.ts, which the launch
+        // test holds this script to). Decided here, before the bundle loads,
+        // gated on the os plugin's injected internals (present before any page
+        // script, the same object platform() reads), so the web build and the
+        // other apps never run the probe. At or above the floor this is one
+        // CSS.supports() call and nothing else happens. Below it the launch
+        // frame keeps its green and its mark and says why, with no Reload
+        // (reloading cannot change the WebView), and nothing can overwrite it.
+        var belowFloor = false;
+        try {
+          var osInternals = window.__TAURI_OS_PLUGIN_INTERNALS__;
+          belowFloor = !!(osInternals && osInternals.platform === 'android') &&
+            !(window.CSS && CSS.supports && CSS.supports('color', 'color-mix(in lab, red, red)'));
+        } catch (e) {
+          belowFloor = false;
+        }
         function fail() {
-          if (released) return;
+          if (released || belowFloor) return;
           clearClocks();
           splash.dataset.state = 'error';
           status.textContent = 'SnowRaven couldn’t open';
           reload.hidden = false;
         }
         window.srLaunch = { release: release, fail: fail };
+        if (belowFloor) {
+          window.__SR_WEBVIEW_BELOW_FLOOR__ = true;
+          splash.dataset.state = 'webview';
+          status.textContent = 'SnowRaven needs a newer Android System WebView. Update it from Google Play, then open SnowRaven again.';
+          reload.hidden = true;
+        }
         reload.addEventListener('click', function () { window.location.reload(); });
         window.addEventListener('error', function (event) {
           if (event.target === window ||
               (event.target instanceof HTMLScriptElement && event.target.type === 'module')) fail();
         }, true);
-        firstFrame = requestAnimationFrame(function () {
+        // Below the WebView floor the frame's sentence is final: no slow or
+        // long state may replace it.
+        if (!belowFloor) firstFrame = requestAnimationFrame(function () {
           firstFrame = 0;
           slowTimer = setTimeout(function () {
             if (!released && splash.dataset.state === 'first') splash.dataset.state = 'slow';

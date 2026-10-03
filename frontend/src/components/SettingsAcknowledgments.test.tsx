@@ -29,17 +29,25 @@ vi.mock('../lib/storage', () => ({
     deleteSetting: vi.fn().mockResolvedValue(undefined),
   },
 }))
-vi.mock('../lib/platform', () => ({
-  isTauri: vi.fn(() => false),
-  isIOS: vi.fn(() => false),
-  isWindows: vi.fn(() => false),
-  isMacOS: vi.fn(() => false),
-}))
+vi.mock('../lib/platform', () => {
+  // isMobileApp is derived from the two mocked OS probes, so a row that sets
+  // isIOS (or isAndroid) true sees the mobile gates follow, as in the app.
+  const isIOS = vi.fn(() => false)
+  const isAndroid = vi.fn(() => false)
+  return {
+    isTauri: vi.fn(() => false),
+    isIOS,
+    isWindows: vi.fn(() => false),
+    isMacOS: vi.fn(() => false),
+    isAndroid,
+    isMobileApp: vi.fn(() => isIOS() || isAndroid()),
+  }
+})
 vi.mock('../lib/observationsCache', () => ({ clearEbirdObservationsCache: vi.fn() }))
 vi.mock('../lib/mlExportCache', () => ({ clearMLExportCache: vi.fn() }))
 vi.mock('../lib/networkCache', () => ({ clearNetworkCache: vi.fn() }))
 vi.mock('../lib/hotspotSet', () => ({ invalidateHotspotSet: vi.fn() }))
-vi.mock('../lib/iosImport', () => ({ IOS_IMPORT_MECHANISM: 'input', pickCsvViaDialog: vi.fn() }))
+vi.mock('../lib/importMechanism', () => ({ activeImportMechanism: () => 'input', pickCsvViaDialog: vi.fn() }))
 vi.mock('@tauri-apps/plugin-process', () => ({ relaunch: vi.fn() }))
 
 import { Settings } from './Settings'

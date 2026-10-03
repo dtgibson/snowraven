@@ -5,13 +5,29 @@ import { resolve } from 'node:path'
 // @ts-expect-error No declaration file is installed for the dev-only jsdom package.
 import { JSDOM } from 'jsdom'
 import { describe, expect, it } from 'vitest'
+import { ANDROID_WEBVIEW_FLOOR, WEBVIEW_FLOOR_MESSAGE, WEBVIEW_FLOOR_PROBE } from './webviewFloor'
 
 const html = readFileSync(resolve(import.meta.dirname, '../../index.html'), 'utf8')
 const bootScript = html.match(/<script>([\s\S]*?)<\/script>/)?.[1]
 if (!bootScript) throw new Error('Launch controller is missing from index.html')
 
-function start() {
+// `env` models what the launch script can see before the bundle: the os
+// plugin's injected internals (absent on web) and CSS.supports() for the
+// WebView floor probe (android-release FR-33).
+interface LaunchEnv { osPlatform?: string; supportsFloor?: boolean }
+
+function start(env: LaunchEnv = {}) {
   const dom = new JSDOM(html, { url: 'https://snowraven.test/', runScripts: 'outside-only' })
+  const supportsCalls: Array<[string, string]> = []
+  if (env.osPlatform !== undefined) {
+    Object.defineProperty(dom.window, '__TAURI_OS_PLUGIN_INTERNALS__', { value: { platform: env.osPlatform } })
+  }
+  if (env.supportsFloor !== undefined) {
+    const supportsFloor = env.supportsFloor
+    Object.defineProperty(dom.window, 'CSS', {
+      value: { supports: (p: string, v: string) => { supportsCalls.push([p, v]); return supportsFloor } },
+    })
+  }
   const frames = new Map<number, FrameRequestCallback>()
   const timers = new Map<number, { callback: () => void; delay: number }>()
   let nextId = 1
@@ -34,7 +50,7 @@ function start() {
   const status = dom.window.document.getElementById('sr-launch-status')!
   const reload = dom.window.document.getElementById('sr-launch-reload') as HTMLButtonElement
   return {
-    dom, frames, timers, launch, splash, status, reload,
+    dom, frames, timers, launch, splash, status, reload, supportsCalls,
     firstPaint() {
       const callbacks = [...frames.values()]
       frames.clear()
@@ -113,5 +129,68 @@ describe('launch splash', () => {
     expect(page.frames.size).toBe(0)
     expect(page.timers.size).toBe(0)
     page.dom.window.close()
+  })
+})
+
+// android-release FR-33 / QA-33: the Android System WebView floor, decided by
+// the inline launch script before the bundle loads.
+describe('launch splash: the Android WebView floor', () => {
+  const belowFloor = (page: ReturnType<typeof start>) =>
+    (page.dom.window as unknown as { __SR_WEBVIEW_BELOW_FLOOR__?: boolean }).__SR_WEBVIEW_BELOW_FLOOR__
+
+  it('the script, the probe and the copy agree with lib/webviewFloor.ts', () => {
+    expect(ANDROID_WEBVIEW_FLOOR).toBe(111)
+    expect(bootScript).toContain(`CSS.supports('${WEBVIEW_FLOOR_PROBE[0]}', '${WEBVIEW_FLOOR_PROBE[1]}')`)
+    expect(bootScript).toContain(WEBVIEW_FLOOR_MESSAGE)
+    expect(bootScript).toContain("osInternals.platform === 'android'")
+  })
+
+  it('web (no os plugin internals): the probe never runs and the launch is unchanged', () => {
+    const page = start({ supportsFloor: false })
+    expect(page.supportsCalls).toEqual([])
+    expect(page.splash.dataset.state).toBe('first')
+    expect(belowFloor(page)).toBeUndefined()
+    page.dom.window.close()
+  })
+
+  it('another Tauri platform: the probe never runs', () => {
+    const page = start({ osPlatform: 'ios', supportsFloor: false })
+    expect(page.supportsCalls).toEqual([])
+    expect(page.splash.dataset.state).toBe('first')
+    page.dom.window.close()
+  })
+
+  it('Android at or above the floor: one probe call, nothing visible changes', () => {
+    const page = start({ osPlatform: 'android', supportsFloor: true })
+    expect(page.supportsCalls).toEqual([[...WEBVIEW_FLOOR_PROBE]])
+    expect(page.splash.dataset.state).toBe('first')
+    expect(page.status.textContent).toBe('Opening SnowRaven…')
+    expect(belowFloor(page)).toBeUndefined()
+    page.launch.release()
+    expect(page.dom.window.document.getElementById('sr-launch')).toBeNull()
+    page.dom.window.close()
+  })
+
+  it('Android below the floor: the message, no Reload, the React mount refused, nothing can overwrite it', () => {
+    const page = start({ osPlatform: 'android', supportsFloor: false })
+    expect(page.splash.dataset.state).toBe('webview')
+    expect(page.status.textContent).toBe(WEBVIEW_FLOOR_MESSAGE)
+    expect(page.reload.hidden).toBe(true)
+    expect(belowFloor(page)).toBe(true)
+    // no slow/long clock was started, and a module error cannot replace it
+    expect(page.frames.size).toBe(0)
+    expect(page.timers.size).toBe(0)
+    page.dom.window.dispatchEvent(new page.dom.window.Event('error'))
+    expect(page.splash.dataset.state).toBe('webview')
+    expect(page.status.textContent).toBe(WEBVIEW_FLOOR_MESSAGE)
+    expect(page.reload.hidden).toBe(true)
+    // the frame stays visible: its status is not the visually hidden one
+    expect(html).toMatch(/\.sr-launch\[data-state="first"\] \.sr-launch-status/)
+    page.dom.window.close()
+  })
+
+  it('main.tsx refuses to mount React when the script set the flag', () => {
+    const main = readFileSync(resolve(import.meta.dirname, '../main.tsx'), 'utf8')
+    expect(main).toMatch(/if \(!window\.__SR_WEBVIEW_BELOW_FLOOR__\) \{[\s\S]*createRoot\(/)
   })
 })

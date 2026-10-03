@@ -27,7 +27,7 @@ import type { TideResponse } from './lib/tide'
 import type { KeyStatus } from './lib/keyStatus'
 import { readStoredScale, persistTextScale, applyScaleToDom, hydrateStoredScale } from './lib/textScale'
 import type { TextScale } from './lib/textScale'
-import { applyTheme, hydrateStoredTheme } from './lib/theme'
+import { applyTheme, hydrateStoredTheme, subscribeSystemThemeChanges } from './lib/theme'
 import { setDateFormatPref, asDateFormatPref } from './lib/formatDate'
 import type { DateFormatPref } from './lib/formatDate'
 import { formatObsDate } from './lib/compareChecklists'
@@ -574,6 +574,11 @@ export default function App() {
     })
     return () => { cancelled = true }
   }, [])
+
+  // Follow a live OS light/dark flip while the preference is System, on every
+  // platform (android-release design-spec section 2; on Android this is also
+  // what keeps the status and navigation bar glyphs matching the page).
+  useEffect(() => subscribeSystemThemeChanges(), [])
 
   // iCloud Sync controller (macOS and iOS only). Boots AFTER first paint via a
   // zero-delay timer and a dynamic import, so nothing on the launch path waits

@@ -1,5 +1,5 @@
 import { invoke } from '@tauri-apps/api/core'
-import { isTauri, isWindows, isIOS } from './platform'
+import { isTauri, isWindows, isIOS, isAndroid } from './platform'
 
 export interface Location {
   lat: number
@@ -44,6 +44,20 @@ export function describeLocationError(err: LocationError): string {
 //   and returns PERMISSION_DENIED immediately without showing a dialog.
 export async function getCurrentLocation(): Promise<Location> {
   if (isTauri()) {
+    // Android: the location path is ON HOLD (android-release, 2026-10-03
+    // direction change). tauri-plugin-geolocation's Android side depends on
+    // Google Play services (play-services-location), which the F-Droid
+    // distribution cannot ship, and the revised schema will decide between a
+    // Google-free mechanism and hiding location on Android in v1. Until then
+    // every location control on Android gets the honest generic 'unavailable'
+    // sentence, and this returns BEFORE the desktop branch below, because
+    // `get_location` is registered only on macOS and Windows (lib.rs), so the
+    // Android binary does not carry it (FR-22: no control may invoke a command
+    // the binary lacks).
+    if (isAndroid()) {
+      const err: LocationError = { code: 'unavailable', platform: 'tauri' }
+      throw err
+    }
     // iOS/iPadOS: tauri-plugin-geolocation (mobile-only Cargo dep +
     // cfg(mobile) registration — mobile-app schema §2.7, FR-16). Branches
     // BEFORE the dev-mode guard: the guard is desktop-only (the macOS native

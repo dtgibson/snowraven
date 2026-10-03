@@ -3,22 +3,28 @@ import { createRoot } from 'react-dom/client'
 import './globals.css'
 import App from './App.tsx'
 import { RootErrorBoundary } from './components/RootErrorBoundary'
-import { isIOS } from './lib/platform'
+import { applyPlatformRootMarkers } from './lib/rootMarkers'
+import { reportPaintedTheme } from './lib/theme'
 
-// iOS-APP root marker (mobile-app, QA round-1 fix). The safe-area inset rules
-// in globals.css hang off `.sr-ios-app` so they apply ONLY in the Tauri iOS
-// app — NOT in the web build viewed in iOS Safari, where viewport-fit=cover
-// also yields nonzero env() values and ungated rules would have changed the
-// shipped web rendering (byte-parity contract). Synchronous, before render,
-// so the first paint is already inset-padded on iOS.
-if (isIOS()) {
-  document.documentElement.classList.add('sr-ios-app')
+// Platform root markers (`sr-ios-app`, `sr-android-app`; lib/rootMarkers.ts).
+// Synchronous, before render, so the first paint is already inset-padded.
+applyPlatformRootMarkers(document.documentElement)
+
+// Below the Android System WebView floor the index.html launch script has
+// already put the floor message in the launch frame (android-release FR-33);
+// mounting React there would only replace an honest sentence with a broken
+// screen, so nothing below runs.
+if (!window.__SR_WEBVIEW_BELOW_FLOOR__) {
+  // Android: tell native which theme the anti-flash script painted, so the
+  // status and navigation bar glyphs match from the first frame. A no-op
+  // everywhere else (lib/theme.ts).
+  reportPaintedTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light')
+
+  createRoot(document.getElementById('root')!).render(
+    <StrictMode>
+      <RootErrorBoundary>
+        <App />
+      </RootErrorBoundary>
+    </StrictMode>,
+  )
 }
-
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <RootErrorBoundary>
-      <App />
-    </RootErrorBoundary>
-  </StrictMode>,
-)

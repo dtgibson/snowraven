@@ -223,7 +223,7 @@ describe('globals.css skip link safe-area inset', () => {
     expect(topLevel.has('.sr-ios-app .sr-skip-link:focus')).toBe(true)
   })
 
-  it('has exactly three top-level rules naming it, and no fourth', () => {
+  it('has exactly four top-level rules naming it (one per platform gate), and no fifth', () => {
     // The cascade check with teeth. The gated rule wins on specificity alone
     // ((0,3,0) vs the base focus rule's (0,2,0)), so source order is irrelevant
     // here — unlike the equal-specificity pinned-header case. What could still
@@ -234,7 +234,13 @@ describe('globals.css skip link safe-area inset', () => {
     // matches the link, but sets only outline and box-shadow, so it cannot
     // compete for top/left; the other shipped stylesheet (maplibre-gl.css) is
     // entirely .maplibregl-*-scoped.
+    // android-release added the fourth on purpose: the Android twin, at the
+    // same (0,3,0) specificity, reading the injected --sr-inset-* instead of
+    // env(). It cannot compete with the iOS rule because <html> carries
+    // `sr-ios-app` or `sr-android-app`, never both (lib/rootMarkers.ts), and
+    // androidInsetsCss.test.ts pins its body against the iOS rule's.
     expect([...topLevel.keys()].filter(s => s.includes('.sr-skip-link')).sort()).toEqual([
+      '.sr-android-app .sr-skip-link:focus',
       '.sr-ios-app .sr-skip-link:focus',
       '.sr-skip-link',
       '.sr-skip-link:focus',

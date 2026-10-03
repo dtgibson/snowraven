@@ -45,18 +45,26 @@ const storageMock = vi.hoisted(() => ({
   deleteSetting: vi.fn(),
 }))
 vi.mock('../lib/storage', () => ({ storage: storageMock }))
-vi.mock('../lib/platform', () => ({
-  isTauri: vi.fn(() => false),
-  isIOS: vi.fn(() => false),
-  isWindows: vi.fn(() => false),
-  isMacOS: vi.fn(() => false),
-}))
+vi.mock('../lib/platform', () => {
+  // isMobileApp is derived from the two mocked OS probes, so a row that sets
+  // isIOS (or isAndroid) true sees the mobile gates follow, as in the app.
+  const isIOS = vi.fn(() => false)
+  const isAndroid = vi.fn(() => false)
+  return {
+    isTauri: vi.fn(() => false),
+    isIOS,
+    isWindows: vi.fn(() => false),
+    isMacOS: vi.fn(() => false),
+    isAndroid,
+    isMobileApp: vi.fn(() => isIOS() || isAndroid()),
+  }
+})
 const caches = vi.hoisted(() => ({ clearEbird: vi.fn(), clearML: vi.fn(), invalidateHotspotSet: vi.fn() }))
 vi.mock('../lib/observationsCache', () => ({ clearEbirdObservationsCache: caches.clearEbird }))
 vi.mock('../lib/mlExportCache', () => ({ clearMLExportCache: caches.clearML }))
 vi.mock('../lib/useHotspotSet', () => ({ invalidateHotspotSet: caches.invalidateHotspotSet }))
 vi.mock('../lib/networkCache', () => ({ clearNetworkCache: vi.fn() }))
-vi.mock('../lib/iosImport', () => ({ IOS_IMPORT_MECHANISM: 'input', pickCsvViaDialog: vi.fn() }))
+vi.mock('../lib/importMechanism', () => ({ activeImportMechanism: () => 'input', pickCsvViaDialog: vi.fn() }))
 
 import { Settings } from './Settings'
 import { DEFAULT_TAB_ORDER } from '../lib/tabLayout'

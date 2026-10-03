@@ -402,7 +402,7 @@ describe('entry-chunk exclusion (NFR-03 / QA-30)', () => {
   })
 
   it('the mobile-only plugins are dynamic-only — never static on the entry graph (mobile-app NFR-06)', () => {
-    // location.ts (geolocation) and iosImport.ts (dialog) ARE statically
+    // location.ts (geolocation) and importMechanism.ts (dialog) ARE statically
     // reachable from App.tsx, so this assertion is live: their plugin loads
     // must stay `await import(...)` so desktop/web bundles never execute them
     // and the entry chunk never grows. plugin-os is deliberately static (a

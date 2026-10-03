@@ -964,6 +964,25 @@ body {
   padding-right: env(safe-area-inset-right, 0px);
 }
 
+/* Android app twin (android-release, design-spec section 2). The Android
+   WebView reports 0px for env(safe-area-inset-*) below Chromium 140 and this
+   app's floor is 111, so the insets arrive as four custom properties that
+   MainActivity.kt sets on <html> from the native window insets
+   (systemBars | displayCutout, in CSS px), and every Android rule reads ONLY
+   those, never env(), so a WebView that later reports env() cannot double-pad.
+   `.sr-android-app` is set on <html> by main.tsx only when isAndroid(), so
+   iOS, desktop and web never carry it. Each twin below sits directly after its
+   `.sr-ios-app` rule, same selectors, `var(--sr-inset-X, 0px)` for
+   `env(safe-area-inset-X, 0px)`; the 0px fallback makes the first paint before
+   the first inset callback the un-inset layout. The keyboard (ime) inset is NOT
+   one of these: native code pads the webview itself so Chromium scrolls a
+   focused field into view, and sets `sr-ime-open` on <html> while it is up. */
+.sr-android-app body {
+  padding-top: var(--sr-inset-top, 0px);
+  padding-left: var(--sr-inset-left, 0px);
+  padding-right: var(--sr-inset-right, 0px);
+}
+
 /* App footer — padding lifted from the inline style (values identical to the
    pre-mobile-app inline '0 24px 20px', so desktop/web render byte-identically)
    so the iOS home-indicator inset can extend it below. The ≤640 .sr-pad-x-trim
@@ -974,6 +993,9 @@ body {
 
 .sr-ios-app .sr-app-footer {
   padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+}
+.sr-android-app .sr-app-footer {
+  padding-bottom: calc(20px + var(--sr-inset-bottom, 0px));
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -1646,6 +1668,14 @@ h1, h2, h3, h4, h5, h6 {
 .sr-ios-app .sr-bc-matrix--pinned tbody td * {
   scroll-margin-top: calc(3rem + env(safe-area-inset-top, 0px));
 }
+/* Android twins of the two rules above (the injected inset, never env()). */
+.sr-android-app .sr-bc-matrix--pinned thead th { top: var(--sr-inset-top, 0px); }
+.sr-android-app .sr-bc-matrix--pinned tbody th,
+.sr-android-app .sr-bc-matrix--pinned tbody td,
+.sr-android-app .sr-bc-matrix--pinned tbody th *,
+.sr-android-app .sr-bc-matrix--pinned tbody td * {
+  scroll-margin-top: calc(3rem + var(--sr-inset-top, 0px));
+}
 
 /* Multimedia table — PINNED header band (feature: freezable-label-rows).
    Deliberately mirrors the .sr-bc-matrix--pinned block above, declaration for
@@ -1716,6 +1746,14 @@ h1, h2, h3, h4, h5, h6 {
 .sr-ios-app .sr-ll-table--pinned tbody th *,
 .sr-ios-app .sr-ll-table--pinned tbody td * {
   scroll-margin-top: calc(3rem + env(safe-area-inset-top, 0px));
+}
+/* Android twins of the two rules above (the injected inset, never env()). */
+.sr-android-app .sr-ll-table--pinned thead th { top: var(--sr-inset-top, 0px); }
+.sr-android-app .sr-ll-table--pinned tbody th,
+.sr-android-app .sr-ll-table--pinned tbody td,
+.sr-android-app .sr-ll-table--pinned tbody th *,
+.sr-android-app .sr-ll-table--pinned tbody td * {
+  scroll-margin-top: calc(3rem + var(--sr-inset-top, 0px));
 }
 
 /* The pinned-state note, SHARED by both pinnable tables (Breeding Codes and
@@ -1858,6 +1896,11 @@ h1, h2, h3, h4, h5, h6 {
   padding-left: env(safe-area-inset-left, 0px);
   padding-right: env(safe-area-inset-right, 0px);
 }
+.sr-android-app .sr-map-fullscreen-panel {
+  padding-top: var(--sr-inset-top, 0px);
+  padding-left: var(--sr-inset-left, 0px);
+  padding-right: var(--sr-inset-right, 0px);
+}
 
 /* ── EMBEDDED-map fullscreen panel (feature: map-fullscreen-toggle) ──────────
    The expanded state of Species Detail's Sighting Locations map (both its Pins
@@ -1913,6 +1956,11 @@ h1, h2, h3, h4, h5, h6 {
   padding-left: env(safe-area-inset-left, 0px);
   padding-right: env(safe-area-inset-right, 0px);
 }
+.sr-android-app .sr-map-fs-panel {
+  padding-top: var(--sr-inset-top, 0px);
+  padding-left: var(--sr-inset-left, 0px);
+  padding-right: var(--sr-inset-right, 0px);
+}
 
 /* Help overlay panel. Same lift as the fullscreen map panel above, for the same
    reason: the positioning used to be inline in HelpDocs.tsx, and an inline
@@ -1955,6 +2003,11 @@ h1, h2, h3, h4, h5, h6 {
   padding-left: env(safe-area-inset-left, 0px);
   padding-right: env(safe-area-inset-right, 0px);
 }
+.sr-android-app .sr-help-panel {
+  padding-top: var(--sr-inset-top, 0px);
+  padding-left: var(--sr-inset-left, 0px);
+  padding-right: var(--sr-inset-right, 0px);
+}
 
 /* Help overlay TOC height cap — lifted out of HelpDocs.tsx's inline style (same
    value, so desktop and web are unchanged) so the iOS rule below can reach it.
@@ -1971,6 +2024,9 @@ h1, h2, h3, h4, h5, h6 {
 
 .sr-ios-app .sr-help-toc {
   max-height: calc(100vh - 52px - env(safe-area-inset-top, 0px));
+}
+.sr-android-app .sr-help-toc {
+  max-height: calc(100vh - 52px - var(--sr-inset-top, 0px));
 }
 
 /* Help overlay content column ABOVE the phone tier — the wrap allowance only
@@ -2192,6 +2248,10 @@ h1, h2, h3, h4, h5, h6 {
 .sr-ios-app .sr-map-fab-cluster {
   bottom: calc(20px + env(safe-area-inset-bottom, 0px));
   right: calc(16px + env(safe-area-inset-right, 0px));
+}
+.sr-android-app .sr-map-fab-cluster {
+  bottom: calc(20px + var(--sr-inset-bottom, 0px));
+  right: calc(16px + var(--sr-inset-right, 0px));
 }
 
 /* ── The circular map FAB family ──────────────────────────────────────────────
@@ -2712,6 +2772,12 @@ h1, h2, h3, h4, h5, h6 {
 }
 .sr-ios-app .sr-map-fs-panel .sr-map-corner-row--compact {
   bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+}
+.sr-android-app .sr-map-fs-panel .sr-map-corner-row {
+  bottom: calc(20px + var(--sr-inset-bottom, 0px));
+}
+.sr-android-app .sr-map-fs-panel .sr-map-corner-row--compact {
+  bottom: calc(12px + var(--sr-inset-bottom, 0px));
 }
 
 /* The drop button — the keyboard route (FR-38) and, deliberately, the primary
@@ -3491,6 +3557,7 @@ h1, h2, h3, h4, h5, h6 {
    Dynamic Island. Pad the top edge only (the panel is centred; the scrim
    itself may cover the inset). Gated on .sr-ios-app, never a bare env(). */
 .sr-ios-app .sr-dlg-root { padding-top: calc(16px + env(safe-area-inset-top, 0px)); }
+.sr-android-app .sr-dlg-root { padding-top: calc(16px + var(--sr-inset-top, 0px)); }
 .sr-dlg-root--open { opacity: 1; }
 .sr-dlg-root--closing { transition-duration: 0.12s; }
 .sr-dlg {
@@ -3627,6 +3694,10 @@ select:focus-visible {
 .sr-ios-app .sr-skip-link:focus {
   top: calc(16px + env(safe-area-inset-top, 0px));
   left: calc(16px + env(safe-area-inset-left, 0px));
+}
+.sr-android-app .sr-skip-link:focus {
+  top: calc(16px + var(--sr-inset-top, 0px));
+  left: calc(16px + var(--sr-inset-left, 0px));
 }
 
 /* ── MapLibre popups — theme to the app surface (default chrome is hardcoded white,
@@ -7466,6 +7537,23 @@ select:focus-visible {
 }
 .sr-ios-app .sr-navbar { padding-bottom: calc(6px + env(safe-area-inset-bottom, 0px)); }
 .sr-ios-app .sr-nav-sheet { padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px)); }
+/* Android twins (the injected inset, never env()). The Alerts inbox never
+   renders on Android (alertsSupported() is false), so it has no twin. */
+.sr-android-app .sr-nav-col {
+  top: var(--sr-inset-top, 0px);
+  height: calc(100dvh - var(--sr-inset-top, 0px));
+}
+.sr-android-app .sr-navbar {
+  padding-bottom: calc(6px + var(--sr-inset-bottom, 0px));
+  transition: transform 160ms ease-out;
+}
+.sr-android-app .sr-nav-sheet { padding-bottom: calc(14px + var(--sr-inset-bottom, 0px)); }
+/* While the Android keyboard is up (MainActivity.kt sets `sr-ime-open` on
+   <html> from the ime() inset, and pads the webview itself so the viewport
+   shrinks), the phone bar slides out rather than sitting on the keys. It is
+   hidden, not removed: the body keeps its bar padding, which the keyboard
+   covers anyway. Reduced motion: the global block makes the slide instant. */
+.sr-android-app.sr-ime-open .sr-navbar { transform: translateY(100%); }
 /* The Alerts inbox sheet (ios-alerts): its footer pads the bottom edge like the
    More sheet; at 641px and up the centred panel's root pads the top like the
    dialog's, so a tall panel never sits under the status bar. */
@@ -7564,6 +7652,7 @@ select:focus-visible {
    viewport-fit=cover to browsers too, so an ungated rule would change shipped
    WEB rendering on every notched phone. */
 .sr-ios-app .sr-palette-root { padding-top: calc(11vh + env(safe-area-inset-top, 0px)); }
+.sr-android-app .sr-palette-root { padding-top: calc(11vh + var(--sr-inset-top, 0px)); }
 
 .sr-palette-panel {
   display: flex; flex-direction: column;
@@ -7728,6 +7817,7 @@ select:focus-visible {
 @media (max-width: 640px) {
   .sr-palette-root { padding: 0; align-items: stretch; }
   .sr-ios-app .sr-palette-root { padding-top: env(safe-area-inset-top, 0px); }
+  .sr-android-app .sr-palette-root { padding-top: var(--sr-inset-top, 0px); }
   .sr-palette-panel {
     width: 100%; height: 100%; max-height: 100%;
     border: 0; border-radius: 0;
@@ -7738,6 +7828,7 @@ select:focus-visible {
   /* The panel reaches the bottom edge here, so the footer strip needs the home
      indicator's inset of its own; the root's top inset is handled above. */
   .sr-ios-app .sr-palette-foot { padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px)); }
+  .sr-android-app .sr-palette-foot { padding-bottom: calc(8px + var(--sr-inset-bottom, 0px)); }
 }
 
 /* The global prefers-reduced-motion block already collapses every animation and

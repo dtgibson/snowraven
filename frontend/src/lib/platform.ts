@@ -42,6 +42,31 @@ export function isMacOS(): boolean {
   }
 }
 
+// Android check (android-release schema 5.1), the same synchronous platform()
+// probe as isIOS() and isMacOS(): false outside Tauri, and false when the os
+// plugin internals are absent (a throw), so a caller never crashes on it.
+// CAPABILITY branching only, never layout. It is NOT a user-agent read:
+// isWindows() below is the one UA sniff in this file and is not the pattern.
+// isIOS() keeps returning false on Android, so every gate whose argument is
+// Apple-specific (iCloud, widgets, Alerts) stays false here by construction.
+export function isAndroid(): boolean {
+  if (!isTauri()) return false;
+  try {
+    return platform() === 'android';
+  } catch {
+    return false;
+  }
+}
+
+// The two mobile apps, iPhone/iPad and Android. Exists so a gate whose argument
+// is "mobile" (no updater, no self-relaunch, compact chrome, native import
+// wording, the fullscreen map rule) says so once. A gate whose argument is
+// Apple-specific keeps naming isIOS() / isMacOS(); never rename isIOS() into
+// this (android-release FR-11: each call site is classified one at a time).
+export function isMobileApp(): boolean {
+  return isIOS() || isAndroid();
+}
+
 // OS-within-platform check. In the WebView2 used by the Windows desktop build,
 // navigator.userAgent contains "Windows". Used to degrade platform-specific
 // features (e.g. native geolocation) that aren't implemented on Windows yet.

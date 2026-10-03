@@ -2,9 +2,22 @@
 // components (UpdateFooter, Settings) consume these predicates.
 import { describe, it, expect, vi, afterEach } from 'vitest'
 
-vi.mock('./platform', () => ({ isIOS: vi.fn(), isTauri: vi.fn(), isWindows: vi.fn(), isMacOS: vi.fn() }))
+vi.mock('./platform', () => {
+  // isMobileApp is derived from the two mocked OS probes, so a row that sets
+  // isIOS (or isAndroid) true sees the mobile gates follow, as in the app.
+  const isIOS = vi.fn()
+  const isAndroid = vi.fn(() => false)
+  return {
+    isIOS,
+    isTauri: vi.fn(),
+    isWindows: vi.fn(),
+    isMacOS: vi.fn(),
+    isAndroid,
+    isMobileApp: vi.fn(() => isIOS() || isAndroid()),
+  }
+})
 
-import { isIOS, isTauri, isMacOS } from './platform'
+import { isIOS, isTauri, isMacOS, isAndroid } from './platform'
 import {
   showUpdaterFooter,
   compactChrome,
@@ -16,6 +29,8 @@ afterEach(() => {
   vi.mocked(isIOS).mockReset()
   vi.mocked(isTauri).mockReset()
   vi.mocked(isMacOS).mockReset()
+  vi.mocked(isAndroid).mockReset()
+  vi.mocked(isAndroid).mockReturnValue(false)
 })
 
 // icloud-sync FR-01/FR-02 (QA-01): the ONE predicate that decides whether any
@@ -77,5 +92,38 @@ describe('supportsAppRelaunch (QA round-1 — RebuildCaches gating)', () => {
   it('is true on desktop — Rebuild caches keeps its restart step', () => {
     vi.mocked(isIOS).mockReturnValue(false)
     expect(supportsAppRelaunch()).toBe(true)
+  })
+})
+
+// android-release FR-11 / QA-11: the Android world is isTauri true, isIOS
+// false, isAndroid true (the mock derives isMobileApp from the two probes, as
+// platform.ts does). Each row goes red if its gate is reverted to the isIOS()
+// form, because isIOS() is false here.
+describe('Android readings of the four gates (android-release FR-11)', () => {
+  function android() {
+    vi.mocked(isTauri).mockReturnValue(true)
+    vi.mocked(isIOS).mockReturnValue(false)
+    vi.mocked(isMacOS).mockReturnValue(false)
+    vi.mocked(isAndroid).mockReturnValue(true)
+  }
+
+  it('showUpdaterFooter is false: no update control and no GitHub request (FR-12)', () => {
+    android()
+    expect(showUpdaterFooter()).toBe(false)
+  })
+
+  it('supportsAppRelaunch is false: Rebuild caches skips the relaunch (FR-13)', () => {
+    android()
+    expect(supportsAppRelaunch()).toBe(false)
+  })
+
+  it('compactChrome is true: the slim header and the above-the-fold map panel (FR-14)', () => {
+    android()
+    expect(compactChrome()).toBe(true)
+  })
+
+  it('showICloudSync stays false: iCloud is Apple-specific (FR-15)', () => {
+    android()
+    expect(showICloudSync()).toBe(false)
   })
 })

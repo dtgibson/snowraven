@@ -251,12 +251,13 @@ describe('extra 8: the privacy page\'s summary band', () => {
 // ── ACCESSIBILITY.md ────────────────────────────────────────────────────────
 
 describe('H-A1: the opening names every platform the statement goes on to describe', () => {
-  it('names the browser, the Mac and Windows apps, and the iPhone and iPad app', () => {
+  it('names the browser, the Mac and Windows apps, and the iPhone, iPad and Android app', () => {
     const opening = A11Y.split('\n\n')[1] ?? ''
-    expect(opening).toContain('It runs in the browser, as a desktop app on Mac and Windows, and as an app on iPhone and iPad')
-    // The capabilities the app ships with are the platform list.
+    expect(opening).toContain('It runs in the browser, as a desktop app on Mac and Windows, and as an app on iPhone, iPad and Android')
+    // The capabilities the app ships with are the platform list (android-release
+    // added Android to the mobile capability, so the statement names it).
     expect(read('src-tauri/capabilities/desktop.json')).toMatch(/"platforms": \[[^\]]*"macOS"[^\]]*"windows"/)
-    expect(read('src-tauri/capabilities/mobile.json')).toContain('"platforms": ["iOS"]')
+    expect(read('src-tauri/capabilities/mobile.json')).toContain('"platforms": ["iOS", "android"]')
   })
 })
 

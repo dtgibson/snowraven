@@ -4,12 +4,20 @@ import type { LocationError } from './location'
 
 // isWindows() reads navigator.userAgent and isIOS() the plugin-os probe; mock
 // the platform module so every branch is deterministic per test.
-vi.mock('./platform', () => ({
-  isTauri: vi.fn(() => false),
-  isWindows: vi.fn(() => false),
-  isMacOS: vi.fn(() => false),
-  isIOS: vi.fn(() => false),
-}))
+vi.mock('./platform', () => {
+  // isMobileApp is derived from the two mocked OS probes, so a row that sets
+  // isIOS (or isAndroid) true sees the mobile gates follow, as in the app.
+  const isIOS = vi.fn(() => false)
+  const isAndroid = vi.fn(() => false)
+  return {
+    isTauri: vi.fn(() => false),
+    isWindows: vi.fn(() => false),
+    isMacOS: vi.fn(() => false),
+    isIOS,
+    isAndroid,
+    isMobileApp: vi.fn(() => isIOS() || isAndroid()),
+  }
+})
 // The geolocation plugin is dynamically imported inside getCurrentLocationIOS;
 // vitest intercepts the dynamic import too, so these mocks let the tests feed
 // the plugin's REAL iOS reject strings through the catch-arm mapping.

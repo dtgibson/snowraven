@@ -70,7 +70,15 @@ describe('tokens only, in both themes (NFR-05, QA-60)', () => {
     // before the block it names, which would silently cut the light block short.
     const light = rule(':root')
     const dark = rule('[data-theme="dark"]')
-    const used = new Set([...PALETTE_CSS.matchAll(/var\((--sr-[a-z0-9-]+)/g)].map(m => m[1]))
+    // The four --sr-inset-* properties are layout plumbing that the Android
+    // app's MainActivity.kt sets on <html> (android-release design-spec,
+    // "Design Tokens Applied"), not theme tokens, so they are outside this
+    // colour rule by construction. Excluded by their exact names, so any
+    // other --sr-* reference still has to be a token in both themes.
+    const INJECTED = new Set(['--sr-inset-top', '--sr-inset-right', '--sr-inset-bottom', '--sr-inset-left'])
+    const used = new Set(
+      [...PALETTE_CSS.matchAll(/var\((--sr-[a-z0-9-]+)/g)].map(m => m[1]).filter(t => !INJECTED.has(t)),
+    )
     // Non-vacuity: the scan found real tokens rather than an empty set.
     expect(used.size).toBeGreaterThan(8)
     for (const token of used) {

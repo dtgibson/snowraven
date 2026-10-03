@@ -145,14 +145,18 @@ describe('globals.css .sr-map-ios-fullscreen rules (mirror the ≤640 phone tier
 describe('MapExplorer wiring', () => {
   const executable = stripCommentLines(mapExplorer)
 
-  it('defines the iOS fullscreen tier once through the isIOS() seam', () => {
-    expect(executable).toMatch(/const iosFullscreen = isIOS\(\) && !!isFullscreen/)
-    expect(executable.match(/isIOS\(\)\s*&&\s*!!isFullscreen/g)).toHaveLength(1)
+  it('defines the mobile fullscreen tier once through the mobileMapFullscreen() seam', () => {
+    // android-release: the tier is iPhone, iPad AND Android (FR-19); the gate
+    // lives in lib/mapFullscreen.ts so its Android reading is pinned as a pure
+    // function (androidReadings.test.ts) rather than by rendering the map.
+    expect(executable).toMatch(/const mobileFullscreen = mobileMapFullscreen\(isFullscreen\)/)
+    expect(executable.match(/mobileMapFullscreen\(/g)).toHaveLength(1)
+    expect(executable).not.toMatch(/isIOS\(\)/)
   })
 
   it('feeds that one value to both the class and sidebar overlay condition', () => {
-    expect(executable).toMatch(/const sidebarIsOverlay = isPhoneWidth \|\| iosFullscreen/)
-    expect(executable).toMatch(/mapContentClass\(iosFullscreen\)/)
+    expect(executable).toMatch(/const sidebarIsOverlay = isPhoneWidth \|\| mobileFullscreen/)
+    expect(executable).toMatch(/mapContentClass\(mobileFullscreen\)/)
   })
 })
 

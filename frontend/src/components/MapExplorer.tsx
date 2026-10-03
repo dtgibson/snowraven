@@ -31,9 +31,8 @@ import { transport, TransportError } from '../lib/transport'
 import { classifyLiveError, formatLoadedTime, OFFLINE_MESSAGE_SHORT, type LiveErrorKind } from '../lib/offlineMessage'
 import { OfflineMessage } from './OfflineMessage'
 import { storage } from '../lib/storage'
-import { isIOS } from '../lib/platform'
 import { useIsPhone } from '../lib/useIsPhone'
-import { mapContentClass } from '../lib/mapFullscreen'
+import { mapContentClass, mobileMapFullscreen } from '../lib/mapFullscreen'
 import { focusablesIn, useFocusTrap } from '../lib/useFocusTrap'
 import { getCurrentLocation, describeLocationError } from '../lib/location'
 import type { LocationError } from '../lib/location'
@@ -574,11 +573,11 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
   // `useIsPhone` is the sanctioned render-safe width read (useSyncExternalStore
   // over the `(max-width:640px)` MQL) — never window.innerWidth and never a
   // resize handler, which `.claude/rules/ui.md` forbids.
-  // `iosFullscreen` is the single source for both the layout class and sidebar
-  // containment, so their iOS fullscreen tier cannot drift apart.
+  // `mobileFullscreen` is the single source for both the layout class and
+  // sidebar containment, so their mobile fullscreen tier cannot drift apart.
   const isPhoneWidth = useIsPhone()
-  const iosFullscreen = isIOS() && !!isFullscreen
-  const sidebarIsOverlay = isPhoneWidth || iosFullscreen
+  const mobileFullscreen = mobileMapFullscreen(isFullscreen)
+  const sidebarIsOverlay = isPhoneWidth || mobileFullscreen
 
   // `sidebarOpen` MUST NOT OUTLIVE THE TIER, and this is the line that says so.
   // It is plain state with no width awareness, so without this it survives a
@@ -3214,7 +3213,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
           phone-tier overlay and the Filters FAB appears at ANY width — the
           user-approved mobile-app design-review rule. Desktop/web fullscreen
           keeps the sidebar visible beside the map, unchanged. */}
-      <div className={mapContentClass(iosFullscreen)} style={{ display: 'flex', flex: 1, minHeight: 0 }}>
+      <div className={mapContentClass(mobileFullscreen)} style={{ display: 'flex', flex: 1, minHeight: 0 }}>
         {/* Backdrop — mobile only, shown when sidebar open */}
         {sidebarOpen && (
           <div

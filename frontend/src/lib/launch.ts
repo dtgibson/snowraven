@@ -1,6 +1,9 @@
 declare global {
   interface Window {
     srLaunch?: { release(): void; fail(): void }
+    // Set by the index.html launch script when the Android System WebView is
+    // below the floor (lib/webviewFloor.ts); main.tsx then never mounts React.
+    __SR_WEBVIEW_BELOW_FLOOR__?: boolean
   }
 }
 

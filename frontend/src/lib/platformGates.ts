@@ -2,14 +2,17 @@
 // (schema §2.5's conditional-surfaces list). Kept as named predicates in one
 // module so the FR they implement is greppable and unit-testable with
 // isIOS() mocked both ways — components consume the gate, not raw isIOS().
-import { isIOS, isMacOS, isTauri } from './platform';
+import { isIOS, isMacOS, isMobileApp, isTauri } from './platform';
 
-// FR-14 — the in-app update affordance is ABSENT on iOS/iPadOS: updates flow
-// through TestFlight / the App Store, and the updater/process plugins are not
-// even compiled into the mobile binary (#[cfg(desktop)] in src-tauri). This
-// gate hides the UI half; desktop and web/Pi keep their existing affordances.
+// FR-14 — the in-app update affordance is ABSENT on iOS/iPadOS and Android:
+// updates flow through the platform's store, and the updater/process plugins
+// are not even compiled into a mobile binary (the
+// cfg(not(any(android, ios))) block in src-tauri/Cargo.toml). This gate hides
+// the UI half, so on Android no update control renders and the GitHub-reaching
+// modules are never imported (android-release FR-12). Desktop and web/Pi keep
+// their existing affordances.
 export function showUpdaterFooter(): boolean {
-  return !isIOS();
+  return !isMobileApp();
 }
 
 // iOS cannot programmatically relaunch itself — the process plugin is not
@@ -17,9 +20,10 @@ export function showUpdaterFooter(): boolean {
 // self-restart. The Troubleshooting "Rebuild caches" control stays PRESENT on
 // iOS (the cache delete is the valuable half) but skips the relaunch step and
 // tells the user to close and reopen the app instead (QA round-1 finding:
-// the ungated relaunch() rejected on iOS and stranded the button).
+// the ungated relaunch() rejected on iOS and stranded the button). Android is
+// the same case: no process plugin in the binary (android-release FR-13).
 export function supportsAppRelaunch(): boolean {
-  return !isIOS();
+  return !isMobileApp();
 }
 
 // Preview-driven composition fix (user-requested at the live simulator
@@ -30,8 +34,10 @@ export function supportsAppRelaunch(): boolean {
 // are above the fold on tab open. One predicate drives BOTH (the map-panel
 // height constant assumes the compact header), via the `sr-header-compact` /
 // `sr-map-panel-ios` classes in globals.css. Desktop and web are untouched.
+// Android takes the same compact chrome (android-release FR-14, confirmed by
+// The Designer: the reason is the phone, not the vendor).
 export function compactChrome(): boolean {
-  return isIOS();
+  return isMobileApp();
 }
 
 // icloud-sync FR-01/FR-02: the iCloud Sync section, its toggle, its notes and

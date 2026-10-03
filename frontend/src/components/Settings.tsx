@@ -12,7 +12,7 @@ import { type ConfigurableTab, TAB_LABELS, DEFAULT_TAB_ORDER } from '../lib/tabL
 import { storage } from '../lib/storage'
 import { formatDate, formatUploadDate, setDateFormatPref, asDateFormatPref } from '../lib/formatDate'
 import type { DateFormatPref } from '../lib/formatDate'
-import { isTauri, isIOS } from '../lib/platform'
+import { isTauri, isMobileApp } from '../lib/platform'
 import { supportsAppRelaunch, showICloudSync } from '../lib/platformGates'
 import { useFilesEpoch } from '../lib/useFilesEpoch'
 import { useKeysEpoch } from '../lib/useKeysEpoch'
@@ -39,7 +39,7 @@ import { copyText } from '../lib/clipboard'
 import { ModalDialog } from './ui/ModalDialog'
 import { SyncContent, SyncLine } from './ui/SyncLine'
 import { fileRowButtonLabel } from '../lib/fileRowCopy'
-import { IOS_IMPORT_MECHANISM, pickCsvViaDialog } from '../lib/iosImport'
+import { activeImportMechanism, pickCsvViaDialog } from '../lib/importMechanism'
 import { refuseByFilename, refuseByContent } from '../lib/uploadGuard'
 import { getCurrentLocation, describeLocationError } from '../lib/location'
 import type { LocationError } from '../lib/location'
@@ -240,9 +240,9 @@ interface FileRowProps {
   error: FileRowError | null
   onUpload: (file: File) => void
   // Mechanism B (mobile-app schema §2.6): the plugin-dialog document picker
-  // path, used on iOS only when IOS_IMPORT_MECHANISM === 'dialog'. The row's
-  // default iOS path (Mechanism A) is the file input below — WebKit presents
-  // the native document picker for it.
+  // path, used on a mobile app only when its platform's measured mechanism is
+  // 'dialog' (lib/importMechanism.ts). The default mobile path (Mechanism A) is
+  // the file input below: the webview presents the native document picker.
   onNativePick?: () => void
   // The Clear button hands its own element to the parent, so the sync-on
   // confirmation can scale in from it and return focus to it afterwards (or
@@ -274,7 +274,7 @@ function FileRow({
   }
 
   const handlePickClick = () => {
-    if (isIOS() && IOS_IMPORT_MECHANISM === 'dialog' && onNativePick) {
+    if (activeImportMechanism() === 'dialog' && onNativePick) {
       onNativePick()
       return
     }
@@ -346,9 +346,10 @@ function FileRow({
               whiteSpace: 'nowrap',
             }}
           >
-            {/* iOS uses the approved "Import" wording (decisions.md 2026-07-05);
+            {/* The mobile apps (iPhone, iPad, Android) use the approved "Import"
+                wording (decisions.md 2026-07-05; android-release FR-16);
                 desktop/web keep "Upload" — same seam as the picker itself. */}
-            {fileRowButtonLabel(uploading, !!info, isIOS())}
+            {fileRowButtonLabel(uploading, !!info, isMobileApp())}
           </Button>
 
           <Button
@@ -1970,9 +1971,10 @@ export function Settings({
   // error, and metadata semantics stay one code path (FR-10/11/12/13).
   //
   // THIS IS THE ONE PLACE AN UPLOAD IS REFUSED, on every platform. The file input
-  // serves desktop, web, Pi, iPhone and iPad alike (`IOS_IMPORT_MECHANISM` is
-  // 'input'), and the native picker path calls straight into here, so the guards
-  // below are not one platform's opinion of a file. They live in lib/uploadGuard
+  // serves desktop, web, Pi, iPhone, iPad and Android alike (both mobile
+  // constants in lib/importMechanism.ts are 'input'), and the native picker
+  // path calls straight into here, so the guards below are not one platform's
+  // opinion of a file. They live in lib/uploadGuard
   // as a pair rather than as three inline conditions, so an import path added
   // later gets all of them or visibly none.
   const importFileContent = async (
@@ -2031,7 +2033,7 @@ export function Settings({
   const handleUpload = (slot: 'ebird' | 'ml', file: File) =>
     importFileContent(slot, file.name, () => file.text())
 
-  // Mechanism B only (IOS_IMPORT_MECHANISM === 'dialog'): native document
+  // Mechanism B only (activeImportMechanism() === 'dialog'): native document
   // picker via plugin-dialog, then the same shared tail. Cancel resolves null
   // → clean no-op with prior data intact (FR-13).
   const handleNativePick = async (slot: 'ebird' | 'ml') => {

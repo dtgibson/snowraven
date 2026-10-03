@@ -12,8 +12,9 @@ import type { BarChartParseOutcome } from './barChart/parseBarChart'
  *
  * ONE MODULE, TWO FUNCTIONS, BECAUSE THE RULE IS A REGISTRY AND NOT A DISCIPLINE.
  * `Settings.importFileContent` is the single chokepoint every platform's import
- * reaches (`IOS_IMPORT_MECHANISM` is `'input'`, so the file input serves desktop,
- * web, Pi, iPhone and iPad alike; the native picker path shares the same tail).
+ * reaches (both mobile constants in `lib/importMechanism.ts` are `'input'`, so the
+ * file input serves desktop, web, Pi, iPhone, iPad and Android alike; the native
+ * picker path shares the same tail).
  * A future third import path that calls the chokepoint gets both guards; one that
  * does not gets neither, visibly, rather than getting half of them.
  *

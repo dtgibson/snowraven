@@ -21,12 +21,20 @@ vi.mock('../lib/storage', () => ({
 // finding F8: a hardwired `() => false` left the iOS wirings in Settings.tsx —
 // fileRowButtonLabel and the IOS_IMPORT_MECHANISM branch — with zero wiring
 // coverage).
-vi.mock('../lib/platform', () => ({
-  isTauri: vi.fn(() => false),
-  isIOS: vi.fn(() => false),
-  isWindows: vi.fn(() => false),
-  isMacOS: vi.fn(() => false),
-}))
+vi.mock('../lib/platform', () => {
+  // isMobileApp is derived from the two mocked OS probes, so a row that sets
+  // isIOS (or isAndroid) true sees the mobile gates follow, as in the app.
+  const isIOS = vi.fn(() => false)
+  const isAndroid = vi.fn(() => false)
+  return {
+    isTauri: vi.fn(() => false),
+    isIOS,
+    isWindows: vi.fn(() => false),
+    isMacOS: vi.fn(() => false),
+    isAndroid,
+    isMobileApp: vi.fn(() => isIOS() || isAndroid()),
+  }
+})
 vi.mock('../lib/observationsCache', () => ({ clearEbirdObservationsCache: vi.fn() }))
 vi.mock('../lib/mlExportCache', () => ({ clearMLExportCache: vi.fn() }))
 vi.mock('../lib/networkCache', () => ({ clearNetworkCache: vi.fn() }))
@@ -36,8 +44,8 @@ const iosImportState = vi.hoisted(() => ({
   mechanism: 'input' as 'input' | 'dialog',
   pickCsvViaDialog: vi.fn<() => Promise<{ filename: string; content: string } | null>>(),
 }))
-vi.mock('../lib/iosImport', () => ({
-  get IOS_IMPORT_MECHANISM() { return iosImportState.mechanism },
+vi.mock('../lib/importMechanism', () => ({
+  activeImportMechanism: () => iosImportState.mechanism,
   pickCsvViaDialog: iosImportState.pickCsvViaDialog,
 }))
 // Spy on the desktop-only process plugin so the iOS RebuildCaches test can
