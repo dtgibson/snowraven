@@ -2,6 +2,15 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [1.0.49] - 2026-10-03
+
+### Changed
+- The Mac, Windows, iPhone and iPad apps now run under a content security policy: the app's window runs only SnowRaven's own code, and loads map tiles, the eBird and Birds of the World link icons and Macaulay Library players only from the services it already used. Nothing you see or do in the app changes.
+- In the Mac, Windows, iPhone and iPad apps, every link that opens a page in your browser now sends its own address when you click it, rather than leaving the app to look the link up again afterward. A link in a list you have just sorted, such as the Targets table or the Multimedia table, always opens the row you clicked. Nothing looks different, and the web and Raspberry Pi versions are unchanged.
+
+### Fixed
+- When eBird is limiting requests just as the app asks which of your places are public hotspots, those place names no longer stay plain text for the rest of the session. The app now asks eBird again about only the states or provinces it could not get, after eBird's pause has ended, up to three more times over about seven minutes, and the hotspot links appear on every tab as soon as eBird answers. Until now they came back only after you saved your eBird key or backup again, or restarted the app; if eBird is still limiting requests after the third try, the names stay plain until then, as before.
+
 ## [1.0.48] - 2026-10-02
 
 ### Fixed
