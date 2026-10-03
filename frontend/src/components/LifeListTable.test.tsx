@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 
 import { describe, it, expect, afterEach, vi } from 'vitest'
-import { render, screen, cleanup, within } from '@testing-library/react'
+import { render, screen, cleanup, within, fireEvent } from '@testing-library/react'
 import { LifeListTable } from './LifeListTable'
+import { installTauriOpener } from '../test/tauriOpener'
 import type { LifeListEntry } from '../lib/parseLifeList'
 import type { MediaFilterState, SortState } from '../types'
 import { MEDIA_FILTER_CLEAR } from '../types'
@@ -131,6 +132,62 @@ describe('LifeListTable accessibility', () => {
     const href = screen.getByRole('link', { name: /1 photo on Macaulay Library/ }).getAttribute('href') || ''
     expect(href).not.toContain('age=')
     expect(href).not.toContain('sex=')
+  })
+})
+
+// sortable-list-links-own-dispatch: the Multimedia table re-sorts, and in the
+// Tauri apps each of a row's new-tab links (its four Macaulay counts and the
+// name's two site marks) sends its OWN URL to the opener, so a click after a
+// re-sort opens the row it was made for. The gate rows (modifier keys, other
+// buttons, a cancelled click, web and Pi) are OutboundLink.test.tsx's.
+describe('LifeListTable links own their dispatch in a re-sorted table', () => {
+  it('Tauri: every new-tab link in a row opens that row\'s page, before and after a re-sort', () => {
+    const opener = installTauriOpener()
+    try {
+      const props = {
+        entries: [
+          entry({ commonName: 'Mallard', catalogIds: ['m1', 'm2', 'm3'] }),
+          entry({ commonName: 'Wood Duck', catalogIds: ['w1', 'w2', 'w3'] }),
+        ],
+        mediaMap: { m1: 'Photo', m2: 'Audio', m3: 'Video', w1: 'Photo', w2: 'Audio', w3: 'Video' },
+        filter: noFilter,
+        onSortChange: vi.fn(),
+        userId: 'USER1',
+        taxonMap: { Mallard: 'mallar3', 'Wood Duck': 'wooduc' },
+        taxonOrders: {},
+        wideMode: false,
+      }
+      const view = render(<LifeListTable {...props} sort={{ column: 'name', dir: 'asc', nameSortMode: 'az' }} />)
+      const order = () => screen.getAllByRole('rowheader')
+        .map(th => ['Mallard', 'Wood Duck'].find(name => th.textContent?.startsWith(name)))
+      /** Click every new-tab link in one species' row; returns its hrefs and what was sent. */
+      const openRow = (name: string) => {
+        const row = screen.getAllByRole('row').find(r => within(r).queryByRole('rowheader')?.textContent?.startsWith(name))!
+        const links = [...row.querySelectorAll<HTMLAnchorElement>('a[target="_blank"]')]
+        const before = opener.calls().length
+        for (const link of links) expect(fireEvent.click(link)).toBe(false)
+        return { hrefs: links.map(a => a.href), sent: opener.calls().slice(before) }
+      }
+
+      const firstOrder = order()
+      expect(firstOrder).toEqual(['Mallard', 'Wood Duck'])
+      const mallard = openRow('Mallard')
+      const woodDuck = openRow('Wood Duck')
+      // Four Macaulay counts and two site marks per row, each sent once, by the link itself.
+      expect(mallard.hrefs).toHaveLength(6)
+      expect(mallard.sent).toEqual(mallard.hrefs.map(url => ({ url, via: 'own' })))
+      expect(woodDuck.sent).toEqual(woodDuck.hrefs.map(url => ({ url, via: 'own' })))
+      expect(mallard.hrefs.filter(h => h.startsWith('https://media.ebird.org/catalog')).every(h => h.includes('taxonCode=mallar3'))).toBe(true)
+      expect(woodDuck.hrefs.filter(h => h.startsWith('https://media.ebird.org/catalog')).every(h => h.includes('taxonCode=wooduc'))).toBe(true)
+
+      view.rerender(<LifeListTable {...props} sort={{ column: 'name', dir: 'desc', nameSortMode: 'az' }} />)
+      expect(order()).toEqual(['Wood Duck', 'Mallard'])
+      // After the re-sort each row still opens its own pages, in the new positions.
+      expect(openRow('Wood Duck').sent).toEqual(woodDuck.sent)
+      expect(openRow('Mallard').sent).toEqual(mallard.sent)
+    } finally {
+      opener.uninstall()
+    }
   })
 })
 

@@ -19,6 +19,7 @@
 
 import { Link } from './ui/Link'
 import type { AnchorHTMLAttributes, ReactNode } from 'react'
+import { openNewTabLink } from '../lib/openExternal'
 
 const NEW_TAB_CUE = ' (opens in a new tab)'
 
@@ -27,7 +28,7 @@ export interface OutboundLinkProps extends AnchorHTMLAttributes<HTMLAnchorElemen
   children: ReactNode
 }
 
-export function OutboundLink({ href, children, 'aria-label': ariaLabel, ...rest }: OutboundLinkProps) {
+export function OutboundLink({ href, children, 'aria-label': ariaLabel, onClick, ...rest }: OutboundLinkProps) {
   // Build a clean accessible name when we have text to build from (an explicit
   // aria-label, or plain string children). For rich children, fall back to an
   // .sr-only cue node so the announcement still reaches assistive tech.
@@ -39,9 +40,18 @@ export function OutboundLink({ href, children, 'aria-label': ariaLabel, ...rest 
   return (
     // Link owns the WebKit-safe tabIndex default. `rest` still reaches that seam,
     // so OutboundLink callers retain their native override path along with every
-    // other anchor prop; this wrapper continues to own only its new-tab semantics
-    // and accessible-name cue.
-    <Link href={href} target="_blank" rel="noreferrer" {...rest} aria-label={fullAria}>
+    // other anchor prop; this wrapper owns its new-tab semantics, its
+    // accessible-name cue, and its own dispatch: in the Tauri apps a click sends
+    // this link's own `href` to the opener (lib/openExternal.ts). A caller's
+    // onClick runs first, and a click it cancels is left alone.
+    <Link
+      href={href}
+      target="_blank"
+      rel="noreferrer"
+      {...rest}
+      aria-label={fullAria}
+      onClick={event => { onClick?.(event); openNewTabLink(event, href) }}
+    >
       {children}
       {!fullAria && <span className="sr-only">{NEW_TAB_CUE}</span>}
     </Link>

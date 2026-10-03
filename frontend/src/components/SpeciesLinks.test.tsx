@@ -2,6 +2,7 @@
 import { describe, it, expect, afterEach } from 'vitest'
 import { render, screen, cleanup, fireEvent } from '@testing-library/react'
 import { SpeciesLinks } from './SpeciesLinks'
+import { installTauriOpener } from '../test/tauriOpener'
 
 afterEach(cleanup)
 
@@ -36,6 +37,22 @@ describe('SpeciesLinks', () => {
     expect(bow.getAttribute('target')).toBe('_blank')
     // The visible title stays free of the parenthetical so the tooltip is terse.
     expect(ebird.getAttribute('title')).toBe("View Anna's Hummingbird on eBird")
+  })
+
+  it('Tauri: each mark sends its own URL to the opener once and cancels the click (sortable-list-links-own-dispatch)', () => {
+    const opener = installTauriOpener()
+    try {
+      render(<SpeciesLinks speciesCode="annhum" commonName="Anna's Hummingbird" />)
+      // Birds of the World first, so the order sent proves each mark sends its own.
+      expect(fireEvent.click(screen.getByRole('link', { name: /on Birds of the World/ }))).toBe(false)
+      expect(fireEvent.click(screen.getByRole('link', { name: /on eBird/ }))).toBe(false)
+      expect(opener.calls()).toEqual([
+        { url: 'https://birdsoftheworld.org/bow/species/annhum/cur/introduction', via: 'own' },
+        { url: 'https://ebird.org/species/annhum', via: 'own' },
+      ])
+    } finally {
+      opener.uninstall()
+    }
   })
 
   it('falls back to a generic accessible name when no common name is given', () => {

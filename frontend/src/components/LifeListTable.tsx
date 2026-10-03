@@ -9,6 +9,7 @@ import { BirdName } from './BirdName'
 import { normalizeSpeciesName } from '../lib/speciesUtils'
 import { ML_CATALOG_BASE } from '../lib/statsFormat'
 import { resolveMediaLinkTaxonCode } from '../lib/mlCatalog'
+import { openNewTabLink } from '../lib/openExternal'
 
 interface Props {
   entries: LifeListEntry[]
@@ -308,6 +309,13 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
             const videoCount = countMedia(entry, mediaMap, 'Video')
             const totalCount = photoCount + audioCount + videoCount
             const taxonCode = linkTaxonCode(entry.commonName)
+            // Each count link carries its own URL to the opener in the Tauri apps
+            // (lib/openExternal.ts), so a click in this sortable table opens the
+            // row it was made for. Built once, used for the href and the click.
+            const photoHref = mlUrl('Photo', userId, taxonCode, sexFilter, ageFilter)
+            const audioHref = mlUrl('Audio', userId, taxonCode, sexFilter, ageFilter)
+            const videoHref = mlUrl('Video', userId, taxonCode, sexFilter, ageFilter)
+            const allHref = mlUrlAll(userId, taxonCode, sexFilter, ageFilter)
             return (
               <tr
                 key={entry.commonName}
@@ -336,9 +344,10 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
                   <div style={iconCell}>
                     {photoCount > 0
                       ? <Link
-                          href={mlUrl('Photo', userId, taxonCode, sexFilter, ageFilter)}
+                          href={photoHref}
                           target="_blank"
                           rel="noreferrer"
+                          onClick={e => openNewTabLink(e, photoHref)}
                           aria-label={`${photoCount} ${photoCount === 1 ? 'photo' : 'photos'} on Macaulay Library (opens in a new tab)`}
                           style={countLinkStyle}
                           onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
@@ -351,9 +360,10 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
                   <div style={iconCell}>
                     {audioCount > 0
                       ? <Link
-                          href={mlUrl('Audio', userId, taxonCode, sexFilter, ageFilter)}
+                          href={audioHref}
                           target="_blank"
                           rel="noreferrer"
+                          onClick={e => openNewTabLink(e, audioHref)}
                           aria-label={`${audioCount} audio ${audioCount === 1 ? 'recording' : 'recordings'} on Macaulay Library (opens in a new tab)`}
                           style={countLinkStyle}
                           onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
@@ -366,9 +376,10 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
                   <div style={iconCell}>
                     {videoCount > 0
                       ? <Link
-                          href={mlUrl('Video', userId, taxonCode, sexFilter, ageFilter)}
+                          href={videoHref}
                           target="_blank"
                           rel="noreferrer"
+                          onClick={e => openNewTabLink(e, videoHref)}
                           aria-label={`${videoCount} ${videoCount === 1 ? 'video' : 'videos'} on Macaulay Library (opens in a new tab)`}
                           style={countLinkStyle}
                           onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
@@ -381,9 +392,10 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
                   <div style={{ display: 'flex', justifyContent: 'center' }}>
                     {totalCount > 0
                       ? <Link
-                          href={mlUrlAll(userId, taxonCode, sexFilter, ageFilter)}
+                          href={allHref}
                           target="_blank"
                           rel="noreferrer"
+                          onClick={e => openNewTabLink(e, allHref)}
                           title="All media on Macaulay Library"
                           aria-label={`${totalCount} total media items on Macaulay Library (opens in a new tab)`}
                           style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--sr-accent)', fontVariantNumeric: 'tabular-nums', textDecoration: 'none' }}

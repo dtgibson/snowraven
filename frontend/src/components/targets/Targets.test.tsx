@@ -67,7 +67,13 @@ vi.mock('../../lib/transport', () => ({
   transport: { get: H.tGet, post: H.tPost },
   TransportError: class extends Error {},
 }))
-vi.mock('../../lib/openExternal', () => ({ openExternalUrl: H.open }))
+// Only the programmatic open is faked. The link handler (`openNewTabLink`) is the
+// real one, so the hotspot links below reach the Tauri seam the test installs
+// (sortable-list-links-own-dispatch).
+vi.mock('../../lib/openExternal', async importOriginal => ({
+  ...(await importOriginal<typeof import('../../lib/openExternal')>()),
+  openExternalUrl: H.open,
+}))
 vi.mock('../../lib/location', async importOriginal => ({
   ...(await importOriginal<typeof import('../../lib/location')>()),
   getCurrentLocation: () => H.locate(),
@@ -90,6 +96,7 @@ import { _resetCountyDayObsCacheForTests } from '../../lib/countyDayObsCache'
 import { invalidateHotspotSet } from '../../lib/hotspotSet'
 import { EBIRD_BACKUP_LOAD_ERROR } from '../setupCopy'
 import { CHIPS_GROUP_LABEL, THRESHOLD_GROUP_LABEL } from '../../lib/targets/targetsCopy'
+import { installTauriOpener } from '../../test/tauriOpener'
 
 function obs(commonName: string, over: Partial<ObservationEntry> = {}): ObservationEntry {
   return {
@@ -751,5 +758,44 @@ describe('the Last report place links a public hotspot (targets-hotspot-link)', 
     release([...HOTSPOT_IDS])
     const link = await screen.findByRole('link', { name: 'Open Lake Merritt on eBird (opens in a new tab)' })
     expect(placeOf('Song Sparrow').contains(link)).toBe(true)
+  })
+
+  it('a re-sort between clicks: each Last report link opens its own row\'s hotspot (sortable-list-links-own-dispatch)', async () => {
+    // Both sparrows' places are public hotspots here, so the table holds two
+    // hotspot links in rows the sort can swap. Measuring from Oakland makes
+    // Distance a sort that orders them opposite to Alphabetical.
+    H.settings.set('map-defaults', OAKLAND)
+    liveTransport(undefined, { locIds: { 'Arrowhead Marsh': 'L999' } })
+    await liveReady()
+    breedingOn()
+    await screen.findByRole('link', { name: 'Open Arrowhead Marsh on eBird (opens in a new tab)' })
+    const sparrows = () => within(screen.getByRole('table')).getAllByRole('row')
+      .map(r => ['Song Sparrow', "Lincoln's Sparrow"].find(name => r.textContent!.startsWith(name)))
+      .filter(Boolean)
+    const openPlace = (species: string) => {
+      const link = placeOf(species).querySelector('a')!
+      expect(fireEvent.click(link)).toBe(false)
+    }
+    // Installed after the render settles, so nothing else in the tab sees a
+    // Tauri platform; only the clicks below do.
+    const opener = installTauriOpener()
+    try {
+      fireEvent.click(screen.getByRole('button', { name: 'Sort by Alphabetical' }))
+      expect(sparrows()).toEqual(["Lincoln's Sparrow", 'Song Sparrow'])
+      openPlace("Lincoln's Sparrow")
+      openPlace('Song Sparrow')
+      fireEvent.click(screen.getByRole('button', { name: 'Sort by Distance to last report' }))
+      expect(sparrows()).toEqual(['Song Sparrow', "Lincoln's Sparrow"])
+      openPlace("Lincoln's Sparrow")
+      openPlace('Song Sparrow')
+      expect(opener.calls()).toEqual([
+        { url: 'https://ebird.org/hotspot/L999', via: 'own' },
+        { url: 'https://ebird.org/hotspot/L100', via: 'own' },
+        { url: 'https://ebird.org/hotspot/L999', via: 'own' },
+        { url: 'https://ebird.org/hotspot/L100', via: 'own' },
+      ])
+    } finally {
+      opener.uninstall()
+    }
   })
 })

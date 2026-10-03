@@ -20,11 +20,17 @@
 //
 // Standing security check: only a shape-valid eBird submission id (SUBMISSION_ID_RE)
 // becomes a link; a junk id renders as plain text, never a styled 404 link.
+//
+// Own dispatch (sortable-list-links-own-dispatch): in the Tauri apps a click sends
+// this link's own URL, built from the validated id, to the opener
+// (lib/openExternal.ts), so a checklist link in a sorted or paged list opens the
+// row the user clicked. Web and Pi keep the ordinary anchor.
 
 import { Link } from './ui/Link'
 import { ExternalLink } from 'lucide-react'
-import type { CSSProperties, MouseEventHandler } from 'react'
+import type { CSSProperties } from 'react'
 import { SUBMISSION_ID_RE } from './speciesDetail/ui'
+import { openNewTabLink } from '../lib/openExternal'
 
 export interface ChecklistLinkProps {
   /** The eBird submission id (e.g. "S12345678"). Shape-validated before linking. */
@@ -39,8 +45,6 @@ export interface ChecklistLinkProps {
   title?: string
   /** Extra style merged onto the link/fallback (e.g. fontWeight, whiteSpace). */
   style?: CSSProperties
-  /** Optional row-owned dispatch hook; ignored when the id fails validation. */
-  onClick?: MouseEventHandler<HTMLAnchorElement>
 }
 
 // The one accessible name for this function, everywhere it appears. Pass the visible
@@ -53,7 +57,7 @@ export function checklistLinkAriaLabel(submissionId: string, label?: string): st
   return `Open checklist ${submissionId} on eBird (opens in a new tab)`
 }
 
-export function ChecklistLink({ submissionId, label, size = 'sm', compact = false, title, style, onClick }: ChecklistLinkProps) {
+export function ChecklistLink({ submissionId, label, size = 'sm', compact = false, title, style }: ChecklistLinkProps) {
   const text = label ?? submissionId
   const iconSize = size === 'md' ? 11 : 10
 
@@ -63,16 +67,17 @@ export function ChecklistLink({ submissionId, label, size = 'sm', compact = fals
     return compact ? null : <span title={title} style={{ display: 'inline-block', color: 'var(--sr-text)', ...style }}>{text}</span>
   }
 
+  const href = `https://ebird.org/checklist/${submissionId}`
   return (
     <Link
       // The base Link supplies the WebKit-safe tab stop. ChecklistLink keeps the
       // existing URL validation, visual signature, and accessible-name formula.
-      href={`https://ebird.org/checklist/${submissionId}`}
+      href={href}
       target="_blank"
       rel="noreferrer"
       aria-label={checklistLinkAriaLabel(submissionId, compact ? undefined : label)}
       title={title}
-      onClick={onClick}
+      onClick={event => openNewTabLink(event, href)}
       style={{
         display: 'inline-flex',
         alignItems: 'center',

@@ -11,6 +11,8 @@ paths:
   - "frontend/src/components/ChecklistLink*.tsx"
   - "frontend/src/components/HotspotLink*.tsx"
   - "frontend/src/components/OutboundLink*.tsx"
+  - "frontend/src/components/WeatherTabLinks*.tsx"
+  - "frontend/src/lib/openExternal.ts"
   - "frontend/src/lib/helpLinks*.ts"
   - "frontend/src/lib/commentBlocks*.ts"
   - "frontend/src/lib/commentText*.ts"
