@@ -1,0 +1,12 @@
+09:43:44.3N NOTE image google_apis API36; APK throwaway-signed e953b8ed...; branch A scratch build; geo fix 42.4440,-76.5019
+09:43:59.3N shot step0-map-explorer-open
+09:44:31.3N shot step0-hotspots-view
+09:44:53.3N step1 press locate
+09:44:55.3N shot step1-system-permission-dialog
+09:45:24.3N step2 grant precise while-using
+09:45:28.3N shot step2-after-3s
+09:45:32.3N shot step2-after-7s
+09:46:13.3N step3 press again
+09:46:17.3N shot step3-second-press-after-3s
+09:48:43.3N shot control-map-no-locate
+09:48:58.3N shot control-before-locate
