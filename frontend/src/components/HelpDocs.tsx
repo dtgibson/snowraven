@@ -8,11 +8,13 @@ import { useFocusTrap } from '../lib/useFocusTrap'
 
 // ── TOC definition ────────────────────────────────────────────────────────────
 
-// One entry per `##` section in docs/HELP.md, IN THE SAME ORDER as the document —
-// all 16. (The `sub: true` rows are a deliberately selective handful of `###`
-// headings, not every one; HELP.md has 30+ and listing them all would bury the
-// sections.) The ids must match textToId() of the heading text, since that is what
-// the renderer stamps on each h2 and what the jump links target.
+// One entry per `##` section in docs/HELP.md, IN THE SAME ORDER as the document,
+// every one of them. (The `sub: true` rows are a deliberately selective handful
+// of `###` headings, not every one; listing them all would bury the sections.)
+// The ids must match textToId() of the heading text, since that is what the
+// renderer stamps on each h2 and what the jump links target. The tab sections
+// run in DEFAULT_TAB_ORDER (lib/tabLayout.ts), the order the app's own
+// navigation uses; lib/helpToc.test.ts holds both this list and HELP.md to it.
 //
 // Keep this in step with HELP.md: Calendar, Using SnowRaven offline, and Updating
 // SnowRaven each shipped as content but were never added here, so for several
@@ -27,21 +29,27 @@ const TOC: { id: string; label: string; sub: boolean }[] = [
   { id: 'ebird-backup',         label: 'eBird backup',           sub: true  },
   { id: 'ml-export',            label: 'ML export',              sub: true  },
   { id: 'weather',              label: 'Weather',                sub: false },
-  { id: 'species-detail',       label: 'Species Detail',         sub: false },
   { id: 'statistics',           label: 'Statistics',             sub: false },
   // The one Statistics sub-entry the TOC carries. Projects is the tab's only
   // user-initiated network section, so it is the one heading a reader is likely
   // to go looking for by name rather than by scrolling.
   { id: 'projects',             label: 'Projects',               sub: true  },
+  { id: 'map-explorer',         label: 'Map Explorer',           sub: false },
+  // help-docs-refresh: the iPhone and iPad home-screen widgets live outside the
+  // app, so a reader looks for them by name rather than by scrolling the tab.
+  { id: 'widgets',              label: 'Widgets',                sub: true  },
+  { id: 'species-detail',       label: 'Species Detail',         sub: false },
   { id: 'calendar',             label: 'Calendar',               sub: false },
   { id: 'targets',              label: 'Targets',                sub: false },
-  { id: 'map-explorer',         label: 'Map Explorer',           sub: false },
   { id: 'multimedia',           label: 'Multimedia',             sub: false },
   { id: 'breeding-codes',       label: 'Breeding Codes',         sub: false },
-  { id: 'named-birds',          label: 'Named Birds',            sub: false },
   { id: 'checklists',           label: 'Checklists',             sub: false },
   { id: 'list-comparer',        label: 'List Comparer',          sub: false },
+  { id: 'named-birds',          label: 'Named Birds',            sub: false },
   { id: 'settings',             label: 'Settings',               sub: false },
+  // help-docs-refresh: Alerts is a feature of its own that happens to be set up
+  // in Settings, so it is a heading a reader will look for by name.
+  { id: 'alerts-iphone-and-ipad', label: 'Alerts',               sub: true  },
   // icloud-bar-chart-sync: the one Settings control that removes a whole family
   // of files at once, so it is a heading a reader will look for by name.
   { id: 'bar-chart-files',      label: 'Bar-chart files',        sub: true  },

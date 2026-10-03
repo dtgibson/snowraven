@@ -48,6 +48,7 @@ import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { serveDist } from './serveDist.mjs'
 import { requirePlaywright } from './playwright.mjs'
+import { dismissWelcome } from './dismissWelcome.mjs'
 
 const { chromium, webkit } = requirePlaywright()
 
@@ -156,17 +157,15 @@ const MEASURE = ({ scale }) => {
 async function openPlan(page, base) {
   await page.goto(base)
   // With no stored file this is a COLD START and the first-run WelcomeScreen
-  // is up; Escape dismisses it (the palette harness does the same). The
+  // is up; Escape dismisses it (the palette harness does the same), through
+  // `dismissWelcome`, which waits for the key's listener to be armed first. The
   // dialog mounts only after the settings request answers, so a bare count()
   // right after navigation can precede it (measured in WebKit): wait for it
   // to appear, and treat its absence after that wait as "not a cold start".
   const welcome = page.getByRole('dialog', { name: 'Welcome to SnowRaven' })
   await page.getByRole('button', { name: 'Plan weather and tide for a place' }).waitFor({ timeout: 60_000 })
   const up = await welcome.waitFor({ state: 'visible', timeout: 4000 }).then(() => true, () => false)
-  if (up) {
-    await page.keyboard.press('Escape')
-    await welcome.waitFor({ state: 'detached', timeout: 5000 })
-  }
+  if (up) await dismissWelcome(welcome)
   await page.getByRole('button', { name: 'Plan weather and tide for a place' }).click()
   await page.getByLabel('Latitude (-90 to 90)').fill('36.603')
   await page.getByLabel('Longitude (-180 to 180)').fill('-121.876')
@@ -301,8 +300,7 @@ async function chunkLanding(ctx, base, engine, scale) {
     const welcome = page.getByRole('dialog', { name: 'Welcome to SnowRaven' })
     await page.getByRole('button', { name: 'Plan weather and tide for a place' }).waitFor({ timeout: 60_000 })
     if (await welcome.waitFor({ state: 'visible', timeout: 4000 }).then(() => true, () => false)) {
-      await page.keyboard.press('Escape')
-      await welcome.waitFor({ state: 'detached', timeout: 5000 })
+      await dismissWelcome(welcome)
     }
     await page.getByRole('button', { name: 'Plan weather and tide for a place' }).click()
     await page.getByLabel('Latitude (-90 to 90)').fill('36.603')

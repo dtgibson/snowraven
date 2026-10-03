@@ -3197,7 +3197,10 @@ h1, h2, h3, h4, h5, h6 {
    button by aria-describedby. */
 .sr-ics-key-label { margin: 0 0 2px; font-size: 0.8125rem; font-weight: 600; color: var(--sr-text); line-height: 1.4; }
 .sr-ics-remove-actions { display: flex; flex-wrap: wrap; gap: 8px; }
-.sr-ics-pending { margin: 8px 0 0; font-size: 0.75rem; color: var(--sr-text-muted); line-height: 1.5; }
+/* icloud-remove-synced-failure: the line after a Remove synced files that did
+   not finish takes the pending line's register and place, wired to its button
+   the same way. Plain text; the status region announces it. */
+.sr-ics-pending, .sr-ics-remove-failed { margin: 8px 0 0; font-size: 0.75rem; color: var(--sr-text-muted); line-height: 1.5; }
 
 /* Settings -> Alerts (ios-alerts, design-spec.md), iPhone and iPad only. The
    Settings card and the iCloud row register (.sr-ics-desc / -note / -key-label

@@ -183,6 +183,8 @@ describe('icloud-api-key-sync classes', () => {
     ['.sr-ics-key-label', /font-size:\s*0\.8125rem/, /font-weight:\s*600/],
     ['.sr-ics-remove-actions', /display:\s*flex/, /flex-wrap:\s*wrap/],
     ['.sr-ics-pending', /font-size:\s*0\.75rem/, /color:\s*var\(--sr-text-muted\)/],
+    // icloud-remove-synced-failure: the Remove failure line, in the same register.
+    ['.sr-ics-remove-failed', /font-size:\s*0\.75rem/, /color:\s*var\(--sr-text-muted\)/],
     ['.sr-dlg-fine', /border-top:\s*1px solid var\(--sr-border-subtle\)/, /font-size:\s*0\.75rem/],
     ['.sr-key-line', /flex-wrap:\s*wrap/, /min-width:\s*0/],
   ] as const)('%s exists once, top-level, with its register', (sel, a, b) => {

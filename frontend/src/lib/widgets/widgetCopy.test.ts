@@ -31,7 +31,9 @@ function passage(md: string, from: string, to: string): string {
   return i < 0 || j < 0 ? '' : md.slice(i, j)
 }
 const CHANGED_PROSE: [string, () => string][] = [
-  ['HELP.md Widgets', () => passage(repo('docs/HELP.md'), '### Widgets', '## Multimedia')],
+  // To the next `##`, whichever tab follows Map Explorer (help-docs-refresh put
+  // the tab sections in DEFAULT_TAB_ORDER, so a named end would widen the scan).
+  ['HELP.md Widgets', () => passage(repo('docs/HELP.md'), '### Widgets', '\n## ')],
   ['PRIVACY_POLICY.md Your Location', () => passage(repo('PRIVACY_POLICY.md'), '## Your Location', '## Map Tiles')],
   ['PRIVACY_POLICY.md iOS App', () => passage(repo('PRIVACY_POLICY.md'), '## iOS App', '## iCloud Sync')],
   ['PRIVACY_POLICY.md Connections', () => passage(repo('PRIVACY_POLICY.md'), '## Connections to Bird and Weather Services', '## Your Location')],

@@ -39,6 +39,7 @@ import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { serveDist } from './serveDist.mjs'
 import { requirePlaywright } from './playwright.mjs'
+import { dismissWelcome } from './dismissWelcome.mjs'
 
 const { chromium, webkit } = requirePlaywright()
 
@@ -69,10 +70,11 @@ async function run(engine, launcher, url) {
   // two jobs: it clears an unrelated overlay out of the way, and it is FR-50 in
   // a real engine -- with the palette CLOSED, Escape still reaches the shipped
   // layer that was listening for it before this feature existed.
+  // `dismissWelcome` presses that same real Escape, but only once the layer's
+  // listener is armed, which happens a few ms after the dialog paints.
   const welcome = page.getByRole('dialog', { name: 'Welcome to SnowRaven' })
   if (await welcome.count()) {
-    await page.keyboard.press('Escape')
-    await welcome.waitFor({ state: 'detached', timeout: 5000 })
+    await dismissWelcome(welcome)
     record(engine, 'Escape still dismisses a shipped overlay while the palette is closed (FR-50)', true)
   }
 

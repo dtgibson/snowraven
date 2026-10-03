@@ -412,9 +412,17 @@ describe('the privacy policy covers the plan\'s NOAA request (FR-57 / QA-52)', (
     expect(line).toContain('the current or predicted tide for a location and time you choose')
   })
 
-  it('the OpenWeather sentence is unchanged: the plan sends the request the single-moment action already sends', () => {
+  // The plan sends the request the single-moment action already sends; since
+  // help-docs-refresh (2026-10-02, the user's approval) the OpenWeather bullet
+  // names its forecast window the way the NOAA bullet above does.
+  it('the OpenWeather sentence names the forecast across the days ahead for a place you choose', () => {
     const line = policy().split('\n').find(l => l.startsWith('- **OpenWeather**'))
-    expect(line).toBe('- **OpenWeather**: to fetch weather, either the historical weather for a checklist, or the current and forecast weather for a location and time you choose. Uses your own OpenWeather API key. See [OpenWeather\'s privacy policy](https://openweather.co.uk/privacy-policy).')
+    expect(line, 'PRIVACY_POLICY.md has the OpenWeather bullet').toBeTruthy()
+    expect(line).toContain('or the forecast across the days ahead for a place you choose')
+    // The clauses it already carried are still there.
+    expect(line).toContain('the historical weather for a checklist')
+    expect(line).toContain('the current or forecast weather for a location and time you choose')
+    expect(line).toContain('Uses your own OpenWeather API key.')
   })
 
   it('carries no em dash', () => {
