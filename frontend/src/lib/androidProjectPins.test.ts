@@ -399,6 +399,68 @@ describe('the CI build (FR-34, QA-34, NFR-07)', () => {
   })
 })
 
+// THE RELEASE MAC'S SCRIPTS (schema 6.2, FR-35, FR-36, FR-38, QA-35, QA-36).
+// What is pinned is what no dry run on a key-less CI runner can show: no code
+// path creates a keystore (the keytool command exists only inside the printed
+// user step), no password is passed on a command line, nothing creates or
+// overwrites a GitHub release, and the attach waits on the device check. Shell
+// comments and the user-step heredoc are stripped before the code is scanned.
+const USER_STEP = /<<'USER_STEP'\n([\s\S]*?)\nUSER_STEP\n/
+function shellCode(text: string): string {
+  return text.replace(new RegExp(USER_STEP.source, 'g'), '\n').split('\n').filter(l => !/^\s*#/.test(l)).join('\n')
+}
+function createsKeystore(text: string): boolean { return /genkeypair|genkey\b/.test(shellCode(text)) }
+
+describe('the release Mac\'s preflight, sign and attach scripts (schema 6.2)', () => {
+  const NAMES = ['preflight.sh', 'sign.sh', 'attach.sh']
+  const lib = readRepo('scripts/android/release-lib.sh')
+  const scripts = Object.fromEntries(NAMES.map(n => [n, readRepo(`scripts/android/${n}`)]))
+  const allCode = [lib, ...Object.values(scripts)].map(shellCode).join('\n')
+
+  it('are bash scripts that source the one helper file', () => {
+    for (const n of NAMES) {
+      expect(scripts[n].split('\n')[0], n).toBe('#!/usr/bin/env bash')
+      expect(shellCode(scripts[n]), n).toContain('. "$(dirname "$0")/release-lib.sh"')
+    }
+  })
+
+  it('never create a keystore: the keytool command is the printed user step, the skill\'s command exactly', () => {
+    expect(allCode.length).toBeGreaterThan(2000)
+    for (const t of [lib, ...Object.values(scripts)]) expect(createsKeystore(t)).toBe(false)
+    const step = lib.match(USER_STEP)?.[1] ?? ''
+    const cmd = 'keytool -genkeypair -v -storetype PKCS12 -keystore ~/.tauri/snowraven-android.p12 -alias snowraven -keyalg RSA -keysize 4096 -validity 10000 -dname "CN=SnowRaven, O=Dave Gibson"'
+    expect(step).toContain(cmd)
+    expect(readRepo('.claude/skills/snowraven-release/SKILL.md')).toContain(cmd)
+  })
+
+  it('hand passwords over by file, never on a command line', () => {
+    expect(shellCode(scripts['sign.sh'])).toContain('--ks-pass "file:$KS_PASS_FILE" --key-pass "file:$KEY_PASS_FILE"')
+    expect(shellCode(scripts['preflight.sh'])).toContain('-storepass:file "$KS_PASS_FILE"')
+    expect(allCode).not.toMatch(/pass:\$|pass:"|-storepass "|-storepass \$|--ks-pass pass/)
+  })
+
+  it('attach uploads to an existing release only after the device check, and never creates or overwrites one', () => {
+    const attach = shellCode(scripts['attach.sh'])
+    expect(attach).toContain('case "${ANDROID_DEVICE_CHECK:-}" in')
+    expect(attach.indexOf('case "${ANDROID_DEVICE_CHECK:-}" in')).toBeLessThan(attach.indexOf('gh release upload'))
+    expect(attach).toContain('gh release upload "$TAG" "$APK" --repo "$SR_REPO"')
+    expect(allCode).not.toMatch(/gh release create|--clobber/)
+  })
+
+  it('pin the CI run to the tag\'s commit and use the asset names the workflow and the skill state', () => {
+    expect(shellCode(scripts['preflight.sh'])).toContain('--workflow android-build.yml --status success --commit "$TAG_SHA"')
+    expect(lib).toContain('SR_UNSIGNED_NAME="SnowRaven_${VERSION}_android_universal_unsigned.apk"')
+    expect(lib).toContain('SR_SIGNED_NAME="SnowRaven_${VERSION}_android_universal.apk"')
+  })
+
+  it('guard the guard: a keytool call outside the user step is caught, the same text inside it is not', () => {
+    const inStep = 'cat <<\'USER_STEP\'\n  keytool -genkeypair -alias x\nUSER_STEP\n'
+    expect(createsKeystore(inStep)).toBe(false)
+    expect(createsKeystore(`${inStep}keytool -genkeypair -alias x\n`)).toBe(true)
+    expect(createsKeystore('# keytool -genkeypair in a comment\n')).toBe(false)
+  })
+})
+
 // GUARD THE GUARD: the same pin functions, driven against scratch strings in
 // the shapes the defect would return in.
 describe('the pins reject the shapes a regeneration or a slip would produce', () => {
