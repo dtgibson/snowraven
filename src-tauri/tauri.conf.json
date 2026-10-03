@@ -22,7 +22,39 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": {
+        "default-src": ["'self'"],
+        "script-src": ["'self'"],
+        "style-src": ["'self'", "'unsafe-inline'"],
+        "img-src": [
+          "'self'",
+          "data:",
+          "blob:",
+          "https://ebird.org",
+          "https://is-ebird-web-static-content-prod.s3.amazonaws.com",
+          "https://birdsoftheworld.org",
+          "https://tiles.openfreemap.org",
+          "https://server.arcgisonline.com",
+          "https://basemap.nationalmap.gov",
+          "https://tile.waymarkedtrails.org"
+        ],
+        "connect-src": [
+          "'self'",
+          "ipc:",
+          "http://ipc.localhost",
+          "https://tiles.openfreemap.org",
+          "https://server.arcgisonline.com",
+          "https://basemap.nationalmap.gov",
+          "https://tile.waymarkedtrails.org"
+        ],
+        "worker-src": ["'self'", "blob:"],
+        "frame-src": ["https://macaulaylibrary.org"],
+        "object-src": ["'none'"],
+        "base-uri": ["'self'"],
+        "form-action": ["'none'"],
+        "frame-ancestors": ["'none'"]
+      },
+      "dangerousDisableAssetCspModification": ["style-src"]
     }
   },
   "plugins": {

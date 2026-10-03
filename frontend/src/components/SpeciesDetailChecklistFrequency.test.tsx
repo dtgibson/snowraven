@@ -56,6 +56,9 @@ vi.mock('../lib/transport', () => ({
 }))
 
 import { SpeciesDetail } from './SpeciesDetail'
+import { storage } from '../lib/storage'
+import { loadMLExport } from '../lib/mlExportCache'
+import { installTauriOpener, type TauriOpener } from '../test/tauriOpener'
 
 const props = {
   onGoToSettings: () => {},
@@ -197,5 +200,39 @@ describe('Species Detail checklist frequency basis', () => {
 
     expect(statValue('Checklists')).toBe('2')
     expect(statValue('Frequency')).toBe('50%')
+  })
+})
+
+// sortable-list-links-own-dispatch: the Media card's Macaulay count links are
+// hand-written new-tab anchors. In the Tauri apps a click must send the link's
+// own URL to the opener and cancel itself, so the plugin's listener (replicated
+// by installTauriOpener) opens nothing more. The gate rows (modifier keys, other
+// buttons, a cancelled click, web and Pi) are OutboundLink.test.tsx's.
+describe('Species Detail Macaulay count link owns its dispatch', () => {
+  it('Tauri: a count link sends its own URL to the opener once and cancels the click', async () => {
+    const files = vi.mocked(storage.getFilesStatus)
+    const ml = vi.mocked(loadMLExport)
+    const filesImpl = files.getMockImplementation()!
+    const mlImpl = ml.getMockImplementation()!
+    files.mockImplementation(async () => ({
+      ebird: { filename: 'ebird.csv', uploadedAt: '2024-04-01' },
+      ml: { filename: 'ML__export_MYUSER.csv', uploadedAt: '2024-04-01' },
+    }))
+    ml.mockImplementation(async () => ({ entries: [], mediaMap: { 111: 'Photo' }, rows: [] }))
+    let opener: TauriOpener | null = null
+    try {
+      await renderReady([{ ...obs('S1', 'American Robin'), catalogIds: ['111'] }])
+      chooseSpecies('American Robin')
+      const link = await screen.findByRole<HTMLAnchorElement>('link', { name: '1 photo on the Macaulay Library (opens in a new tab)' })
+      expect(link.getAttribute('href')).toBe('https://media.ebird.org/catalog?mediaType=photo&userId=MYUSER')
+      // Installed after the tab settles, so only the click sees a Tauri platform.
+      opener = installTauriOpener()
+      expect(fireEvent.click(link)).toBe(false)
+      expect(opener.calls()).toEqual([{ url: 'https://media.ebird.org/catalog?mediaType=photo&userId=MYUSER', via: 'own' }])
+    } finally {
+      opener?.uninstall()
+      files.mockImplementation(filesImpl)
+      ml.mockImplementation(mlImpl)
+    }
   })
 })

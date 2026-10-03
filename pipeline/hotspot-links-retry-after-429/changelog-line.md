@@ -1,0 +1,3 @@
+# Proposed CHANGELOG line (under ### Fixed)
+
+- When eBird is limiting requests just as the app asks which of your places are public hotspots, those place names no longer stay plain text for the rest of the session. The app now asks eBird again about only the states or provinces it could not get, after eBird's pause has ended, up to three more times over about seven minutes, and the hotspot links appear on every tab as soon as eBird answers. Until now they came back only after you saved your eBird key or backup again, or restarted the app; if eBird is still limiting requests after the third try, the names stay plain until then, as before.

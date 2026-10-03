@@ -37,7 +37,7 @@ import { classifyLiveError, type LiveErrorKind } from '../lib/offlineMessage'
 import { protocolName, formatDuration, formatDistance } from '../lib/checklistMeta'
 import { formatDate } from '../lib/formatDate'
 import { SUBMISSION_ID_RE } from './speciesDetail/ui'
-import { openExternalLink, openExternalUrl } from '../lib/openExternal'
+import { openExternalUrl } from '../lib/openExternal'
 
 // ── Props ────────────────────────────────────────────────────────────────────
 
@@ -108,26 +108,18 @@ function BacklogRowView({
 }) {
   const c = entry.row.checklist
   // Capture the row identity once and derive every target from that same,
-  // validated primitive. The native click handlers below close over these URL
-  // strings, so a rerender or reorder cannot ask a delegated document listener
-  // to rediscover which row was pressed.
+  // validated primitive. Actions #1 and #2 are ChecklistLink and OutboundLink,
+  // which send their own href to the opener in the Tauri apps
+  // (lib/openExternal.ts); action #3 closes over `editUrl` below, so a rerender
+  // or reorder cannot change which row's page it opens.
   const submissionId = c.submissionId
   const [state, setState] = useState<RowState>({ kind: 'idle' })
 
   const validId = SUBMISSION_ID_RE.test(submissionId)
-  const checklistUrl = validId ? `https://ebird.org/checklist/${submissionId}` : null
   const editUrl = validId ? EDIT_URL(submissionId) : null
   const busy = state.kind === 'looking-up' || state.kind === 'copying'
 
   const dateLabel = formatDate(c.date)
-
-  const openChecklist = useCallback((event: React.MouseEvent<HTMLAnchorElement>) => {
-    if (checklistUrl) openExternalLink(event.nativeEvent, checklistUrl)
-  }, [checklistUrl])
-
-  const openEdit = useCallback((event: React.MouseEvent<HTMLAnchorElement>) => {
-    if (editUrl) openExternalLink(event.nativeEvent, editUrl)
-  }, [editUrl])
 
   const runAction3 = useCallback(async () => {
     // In-flight guard: a re-click while looking-up/copying is ignored, so there
@@ -191,7 +183,6 @@ function BacklogRowView({
         <ChecklistLink
           submissionId={submissionId}
           label={dateLabel}
-          onClick={openChecklist}
           style={{ fontSize: '0.8125rem', fontWeight: 600, whiteSpace: 'nowrap', flexShrink: 0 }}
         />
         <span style={{ fontSize: '0.75rem', color: 'var(--sr-text-disabled)' }}>·</span>
@@ -250,7 +241,6 @@ function BacklogRowView({
         {/* #1 open checklist */}
         <span className="sr-touch-target" style={{ borderRadius: 8 }}>
           <ChecklistLink submissionId={submissionId} label={dateLabel} compact size="md"
-            onClick={openChecklist}
             title="Open checklist on eBird"
             style={{ justifyContent: 'center', width: 32, height: 32, border: '1px solid var(--sr-border-medium)', borderRadius: 8, color: 'var(--sr-text)' }}
           />
@@ -259,7 +249,6 @@ function BacklogRowView({
         {editUrl ? (
           <OutboundLink
             href={editUrl}
-            onClick={openEdit}
             aria-label="Open this checklist's comment and edit page on eBird"
             title="Open comment/edit page on eBird"
             className="sr-touch-target"

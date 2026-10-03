@@ -17,6 +17,8 @@ paths:
   - "frontend/src/lib/alerts/alertsInboxHost.ts"
   - "frontend/src/lib/tabLayout.ts"
   - "frontend/src/lib/icloud/icloudCopy.ts"
+  - "frontend/src/lib/openExternal.ts"
+  - "frontend/src/lib/newTabLinkDispatch.test.ts"
 ---
 
 # SnowRaven UI construction conventions (colors, responsive layout, accessibility, display copy)

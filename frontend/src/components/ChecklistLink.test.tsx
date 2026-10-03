@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach } from 'vitest'
-import { render, screen, cleanup } from '@testing-library/react'
+import { render, screen, cleanup, fireEvent } from '@testing-library/react'
 import { ChecklistLink, checklistLinkAriaLabel } from './ChecklistLink'
+import { installTauriOpener } from '../test/tauriOpener'
 
 afterEach(cleanup)
 
@@ -49,6 +50,19 @@ describe('ChecklistLink', () => {
     expect(checklistLinkAriaLabel('S1', '12 species')).toBe('12 species: open checklist on eBird (opens in a new tab)')
     // A label equal to the id collapses to the id-based form (no redundancy).
     expect(checklistLinkAriaLabel('S1', 'S1')).toBe('Open checklist S1 on eBird (opens in a new tab)')
+  })
+
+  it('Tauri: a click sends this checklist\'s own URL to the opener once and cancels it (sortable-list-links-own-dispatch)', () => {
+    // The gate rows (modifier keys, other buttons, a cancelled click, web and
+    // Pi) are OutboundLink.test.tsx's; both components call the same handler.
+    const opener = installTauriOpener()
+    try {
+      render(<ChecklistLink submissionId="S12345" label="Jun 5" />)
+      expect(fireEvent.click(screen.getByRole('link'))).toBe(false)
+      expect(opener.calls()).toEqual([{ url: 'https://ebird.org/checklist/S12345', via: 'own' }])
+    } finally {
+      opener.uninstall()
+    }
   })
 
   it('passes a native title tooltip through to the link', () => {

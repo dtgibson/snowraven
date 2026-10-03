@@ -67,6 +67,7 @@ import {
 } from '../lib/countyShadingUi'
 import type { CountyFC } from '../lib/countyBoundaries'
 import { extractUserId, mlCatalogLink, resolveMediaLinkTaxonCode } from '../lib/mlCatalog'
+import { openNewTabLink } from '../lib/openExternal'
 import { RecentMediaEmbed } from './RecentMediaEmbed'
 import { SectionCard, SectionHead, StatLabel, StatValueLink } from './speciesDetail/ui'
 import { SightingsGraph } from './speciesDetail/SightingsGraph'
@@ -1159,6 +1160,7 @@ export function SpeciesDetail({ onGoToSettings, onGoToWeather, filesVersion, req
                               href={link}
                               target="_blank"
                               rel="noreferrer"
+                              onClick={e => openNewTabLink(e, link)}
                               aria-label={`${count} ${type.toLowerCase()} on the Macaulay Library (opens in a new tab)`}
                               style={{
                                 fontSize: '0.84375rem', fontWeight: 600, color: 'var(--sr-accent)',

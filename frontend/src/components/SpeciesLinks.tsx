@@ -20,10 +20,13 @@
 // Entry-chunk safety: this file imports `react` and `lucide-react`, both of
 // which App.tsx already carries (`BirdName` -> `SpeciesLinks` is on its static
 // graph, and `lib/tabIcons.tsx` already pulls lucide), plus the dependency-free
-// `lib/speciesCode.ts`. `entryChunk.test.ts` is the live guard.
+// `lib/speciesCode.ts`, and `lib/openExternal.ts`, which App.tsx already carries
+// through `OutboundLink` and `WeatherBacklog`. `entryChunk.test.ts` is the live
+// guard.
 import { Link } from './ui/Link'
 import { useState } from 'react'
 import { Globe, SquareLibrary } from 'lucide-react'
+import { openNewTabLink } from '../lib/openExternal'
 // The shape of an eBird species code as this app resolves one (`/taxonomy/codes`,
 // or the bundled taxonomy snapshot offline). It lives in `lib/speciesCode.ts`
 // because the widget deep link accepts a bird by the same definition. A code
@@ -47,7 +50,8 @@ interface SpeciesLinkMarkProps {
 }
 
 /**
- * One mark. Both anchors are this component so the fallback lives in one place
+ * One mark. Both anchors are this component so the fallback, and the Tauri apps'
+ * own dispatch of this mark's `href` (lib/openExternal.ts), live in one place
  * rather than being inlined twice.
  */
 function SpeciesLinkMark({ href, destination, who, faviconSrc, Glyph }: SpeciesLinkMarkProps) {
@@ -59,6 +63,7 @@ function SpeciesLinkMark({ href, destination, who, faviconSrc, Glyph }: SpeciesL
       rel="noreferrer"
       aria-label={`View ${who}on ${destination} (opens in a new tab)`}
       title={`View ${who}on ${destination}`}
+      onClick={event => openNewTabLink(event, href)}
       // padding + matching negative margin: a ≥24×24 hit target (WCAG 2.5.8,
       // F098/F099) while the visible 14px favicon stays put in dense rows.
       style={{ opacity: 0.75, display: 'inline-flex', alignItems: 'center', padding: 5, margin: -5 }}
