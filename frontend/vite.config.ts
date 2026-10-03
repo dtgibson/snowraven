@@ -24,6 +24,14 @@ export default defineConfig({
   server: {
     host: host || false,
     hmr: host ? { protocol: 'ws', host, port: 5183 } : undefined,
+    // OFF, so a CORS preflight to a proxied backend route reaches the backend's
+    // own CORS, which refuses every foreign origin. Vite's default answers it
+    // itself for ANY localhost or 127.0.0.1 origin and echoes the requested
+    // headers, which would let a page from another local port add the app's
+    // write header (lib/appRequestHeader.ts) and write through the proxy. The
+    // app's dev page is always same-origin with this server, Tauri dev
+    // included, so it never sends a preflight here.
+    cors: false,
     fs: {
       allow: ['..'],
     },

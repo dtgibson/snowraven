@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { clearNetworkCache } from './networkCache';
 import { noteEbirdRateLimit, _resetEbirdGateForTests } from './ebirdGate';
+import { APP_REQUEST_HEADER, APP_REQUEST_HEADER_VALUE } from './appRequestHeader';
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -333,7 +334,9 @@ describe('WebTransport.post', () => {
     await transport.post('/taxonomy/codes', [{ commonName: 'Robin' }]);
     expect(vi.mocked(fetch)).toHaveBeenCalledWith('/taxonomy/codes', expect.objectContaining({
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      // The app's header rides every web/Pi write; the backend refuses a
+      // browser's POST without it (upload-origin-table-wrap-copy).
+      headers: { 'Content-Type': 'application/json', [APP_REQUEST_HEADER]: APP_REQUEST_HEADER_VALUE },
       body: JSON.stringify([{ commonName: 'Robin' }]),
     }));
   });

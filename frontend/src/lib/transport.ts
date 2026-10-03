@@ -4,6 +4,7 @@ import { gatedEbirdCall } from './ebirdGate';
 import { isOfflineError } from './offlineDetect';
 import { parseRetryAfterSeconds } from './rateLimit';
 import * as replayStore from './replayStore';
+import { APP_REQUEST_HEADERS } from './appRequestHeader';
 
 // A GET that may fall back to a last-loaded ("replayed") copy when the device is
 // offline. `replayedAt` is null for a fresh/live result and the entry's loadedAt
@@ -64,7 +65,8 @@ class WebTransport implements TransportAdapter {
   async post<T>(path: string, body: unknown): Promise<T> {
     const res = await fetch(path, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      // The backend refuses a browser's POST without it (lib/appRequestHeader.ts).
+      headers: { 'Content-Type': 'application/json', ...APP_REQUEST_HEADERS },
       body: JSON.stringify(body),
     });
     if (!res.ok) {

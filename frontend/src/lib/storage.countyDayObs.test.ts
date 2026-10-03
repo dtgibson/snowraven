@@ -19,6 +19,7 @@
 /// <reference types="node" />
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { readFileSync } from 'node:fs'
+import { APP_REQUEST_HEADERS } from './appRequestHeader'
 
 const plat = vi.hoisted(() => ({ tauri: true }))
 vi.mock('./platform', () => ({
@@ -186,7 +187,7 @@ describe('web/Pi: the generic /settings/county-day-obs-v2 route', () => {
     const fetchMock = vi.fn(async () => ({ ok: true, status: 200 }))
     vi.stubGlobal('fetch', fetchMock)
     await web.deleteCountyDayObsStore()
-    expect(fetchMock).toHaveBeenCalledWith('/settings/county-day-obs-v2', { method: 'DELETE' })
+    expect(fetchMock).toHaveBeenCalledWith('/settings/county-day-obs-v2', { method: 'DELETE', headers: APP_REQUEST_HEADERS })
     vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, status: 500 })))
     await expect(web.deleteCountyDayObsStore()).rejects.toThrow(/500/)
   })

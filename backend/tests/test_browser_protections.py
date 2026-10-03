@@ -1,8 +1,9 @@
 """The web/Pi backend's browser-facing protections (upload-origin-table-wrap-copy).
 
-1. ``CrossSiteWriteGuard`` (main.py): a state-changing request that a browser
-   sent from another site is refused with 403 before routing, and nothing is
-   written. Measured before the fix: a multipart or ``text/plain`` POST from
+1. ``CrossSiteWriteGuard`` (main.py): a state-changing request a browser sent
+   (it carries ``Origin`` or ``Sec-Fetch-Site``) without the app's request
+   header is refused with 403 before routing, and nothing is written. Measured
+   before the fix: a multipart or ``text/plain`` POST from
    ``Origin: https://evil.example`` replaced the eBird backup, the ML export, a
    bar-chart file and any ``/settings/{key}`` value (ROADMAP v1.0.39, finding 1).
 2. ``SecurityHeaders`` (main.py): every response carries the four headers, the
@@ -12,14 +13,17 @@
 test_settingskv_router.py beside the route's other body rows.
 
 WHAT THESE ROWS CANNOT SEE: what a real browser sends. The TestClient sends no
-Origin and no Sec-Fetch-Site, so each shape below states the headers a browser
-sends in that deployment (bug-brief.md, "Deployment shapes that must keep
-working"), and a live check against ``./start.sh`` and the Vite dev server is
-the Tester's.
+Origin and no Sec-Fetch-*, so each deployment shape below states the headers a
+current browser sends there, as measured at QA (decisions.md 4): Chromium and
+WebKit send ``Sec-Fetch-*`` to loopback and to an HTTPS origin, and NOTHING of
+it to a plain-HTTP address that is not loopback. A row that sends
+``Sec-Fetch-Site`` for a LAN address describes no browser and passed while the
+real setup was refused; do not add one back.
 """
 
 import mimetypes
 import os
+import re
 from pathlib import Path
 
 import pytest
@@ -101,53 +105,71 @@ def _seed():
             assert _send(write).status_code == 200, name
 
 
-# A browser on another site. Old Safari sends Origin and no Sec-Fetch-Site; every
-# current browser sends both.
+APP_HEADER = {main.APP_REQUEST_HEADER: main.APP_REQUEST_HEADER_VALUE}
+
+# A browser on another site. None of these can carry the app's header: adding a
+# custom header needs a CORS preflight, which CORS refuses for every one of them
+# (test_a_foreign_preflight_for_the_app_header_is_refused).
 FOREIGN = {
-    "foreign Origin, no Sec-Fetch-Site (Safari before 16.4)": {"Origin": "https://evil.example"},
+    "foreign Origin, no Sec-Fetch-* (plain-HTTP target)": {"Origin": "https://evil.example"},
     "Origin: null (a sandboxed frame or file: page)": {"Origin": "null"},
     "Sec-Fetch-Site: cross-site": {"Sec-Fetch-Site": "cross-site", "Origin": "https://evil.example"},
-    "Sec-Fetch-Site: same-site (another port on this host)": {"Sec-Fetch-Site": "same-site", "Origin": "http://testserver:8080"},
-    "Sec-Fetch-Site: none (never a write)": {"Sec-Fetch-Site": "none"},
-    "Sec-Fetch-Site decides over a matching Origin": {"Sec-Fetch-Site": "cross-site", "Origin": "http://testserver"},
-    "another port, no Sec-Fetch-Site": {"Origin": "http://testserver:8080"},
-    "a host that merely starts with this one": {"Origin": "http://testserver.evil.example"},
-    "an Origin carrying credentials": {"Origin": "http://evil.example@testserver"},
-    "the dev port on another host, no Sec-Fetch-Site": {"Host": "localhost:1620", "Origin": "http://evil.example:5173"},
+    "Sec-Fetch-Site: same-site (another port on this host)": {
+        "Sec-Fetch-Site": "same-site", "Origin": "http://testserver:8080",
+    },
+    "Sec-Fetch-Site with no Origin": {"Sec-Fetch-Site": "none"},
 }
 
-# SnowRaven's own page, in each deployment shape the brief names, plus non-browser tooling.
-OWN_PAGE = {
-    "no Origin, no Sec-Fetch-Site (curl, TestClient, Node fetch)": {},
-    "Node fetch sends sec-fetch-mode only": {"Sec-Fetch-Mode": "cors"},
-    "./start.sh, current browser": {"Sec-Fetch-Site": "same-origin", "Origin": "http://testserver"},
-    "./start.sh, Safari before 16.4": {"Origin": "http://testserver"},
-    "Vite dev proxy (Host rewritten), current browser on a LAN host": {
-        "Host": "localhost:1620", "Origin": "http://hephaestus.local:5173", "Sec-Fetch-Site": "same-origin",
+# SnowRaven's own page in each deployment shape the brief names, with the
+# headers a current browser actually sends there. Each passes WITH the app
+# header and is refused WITHOUT it.
+DEPLOYMENTS = {
+    "./start.sh on localhost (loopback, so Sec-Fetch-* is sent)": {
+        "Host": "localhost:1620", "Origin": "http://localhost:1620",
+        "Sec-Fetch-Site": "same-origin", "Sec-Fetch-Mode": "cors", "Sec-Fetch-Dest": "empty",
     },
-    "Vite dev proxy (Host rewritten), Safari before 16.4": {"Host": "localhost:1620", "Origin": "http://localhost:5173"},
-    "Pi by LAN IP and port": {"Host": "192.168.1.20:1620", "Origin": "http://192.168.1.20:1620"},
-    "Pi by IPv6 literal": {"Host": "[::1]:1620", "Origin": "http://[::1]:1620"},
-    "nginx rewriting Host, with X-Forwarded-Host": {
-        "Host": "127.0.0.1:1620", "X-Forwarded-Host": "pi.local", "Origin": "http://pi.local",
+    "Pi by LAN hostname over plain HTTP (no Sec-Fetch-*)": {
+        "Host": "pi.local:1620", "Origin": "http://pi.local:1620",
     },
-    "tailscale serve: https outside, Host kept": {"Host": "pi.tail1234.ts.net", "Origin": "https://pi.tail1234.ts.net"},
-    "a proxy forwarding Host with the default port spelled out": {"Host": "pi.local:443", "Origin": "https://pi.local"},
-    "Host and Origin differ only in case": {"Host": "Pi.Local:1620", "Origin": "http://pi.local:1620"},
+    "Pi by LAN IP over plain HTTP (no Sec-Fetch-*)": {
+        "Host": "192.168.1.20:1620", "Origin": "http://192.168.1.20:1620",
+    },
+    "Vite dev proxy on localhost (Host rewritten)": {
+        "Host": "localhost:1620", "Origin": "http://localhost:5173",
+        "Sec-Fetch-Site": "same-origin", "Sec-Fetch-Mode": "cors", "Sec-Fetch-Dest": "empty",
+    },
+    "Vite dev proxy on a LAN address (Host rewritten, no Sec-Fetch-*)": {
+        "Host": "localhost:1620", "Origin": "http://192.168.1.20:5173",
+    },
+    "nginx default: Host rewritten, no X-Forwarded-Host, no Sec-Fetch-*": {
+        "Host": "127.0.0.1:1620", "Origin": "http://pi.local",
+    },
+    "tailscale serve: https outside, Host kept": {
+        "Host": "pi.tail1234.ts.net", "Origin": "https://pi.tail1234.ts.net",
+        "Sec-Fetch-Site": "same-origin", "Sec-Fetch-Mode": "cors", "Sec-Fetch-Dest": "empty",
+    },
 }
+
+# Not a browser: no Origin and no Sec-Fetch-Site. These pass without the header.
+NON_BROWSER = {
+    "no Origin, no Sec-Fetch-* (curl, TestClient)": {},
+    "Node fetch sends Sec-Fetch-Mode only (website/tools)": {"Sec-Fetch-Mode": "cors"},
+}
+
+REFUSED = {"detail": "Request refused: not sent by SnowRaven's own page."}
 
 
 @pytest.mark.parametrize("shape", [
     {"Origin": "https://evil.example"},
     {"Sec-Fetch-Site": "cross-site", "Origin": "https://evil.example"},
-], ids=["old-browser", "current-browser"])
+], ids=["plain-http-target", "trustworthy-target"])
 @pytest.mark.parametrize("name", list(WRITES))
 def test_every_write_route_refuses_a_cross_site_request_and_writes_nothing(tmp_path, name, shape):
     _seed()
     before = _snapshot(tmp_path)
     resp = _send(WRITES[name], shape)
     assert resp.status_code == 403, resp.text
-    assert resp.json() == {"detail": "Cross-site request refused."}
+    assert resp.json() == REFUSED
     assert _snapshot(tmp_path) == before
 
 
@@ -158,8 +180,36 @@ def test_foreign_shapes_are_refused(tmp_path, shape):
     assert _snapshot(tmp_path)["files"] == {".env": b""}
 
 
-@pytest.mark.parametrize("shape", list(OWN_PAGE.values()), ids=list(OWN_PAGE))
-def test_own_page_shapes_still_write_and_delete(tmp_path, shape):
+@pytest.mark.parametrize("shape", list(DEPLOYMENTS.values()), ids=list(DEPLOYMENTS))
+def test_every_deployment_writes_and_deletes_with_the_app_header(tmp_path, shape):
+    headers = {**shape, **APP_HEADER}
+    assert _send(WRITES["POST /settings/files/ebird"], headers).status_code == 200
+    assert (tmp_path / "data" / "ebird-backup.csv").read_bytes() == CSV[1]
+    assert _send(WRITES["POST /settings/{key}"], headers).status_code == 200
+    assert _send(WRITES["DELETE /settings/files/ebird"], headers).status_code == 200
+    assert not (tmp_path / "data" / "ebird-backup.csv").exists()
+
+
+@pytest.mark.parametrize("shape", list(DEPLOYMENTS.values()), ids=list(DEPLOYMENTS))
+def test_every_deployment_is_refused_without_the_app_header(tmp_path, shape):
+    _seed()
+    before = _snapshot(tmp_path)
+    for name in ("POST /settings/files/ebird", "POST /settings/{key}", "DELETE /settings/files/ebird"):
+        resp = _send(WRITES[name], shape)
+        assert resp.status_code == 403, name
+        assert resp.json() == REFUSED
+    assert _snapshot(tmp_path) == before
+
+
+@pytest.mark.parametrize("value", ["", "0", "true", "11", " 1x"])
+def test_the_app_header_must_carry_its_value(tmp_path, value):
+    shape = {**DEPLOYMENTS["Pi by LAN hostname over plain HTTP (no Sec-Fetch-*)"], main.APP_REQUEST_HEADER: value}
+    assert _send(WRITES["POST /settings/files/ebird"], shape).status_code == 403
+    assert _snapshot(tmp_path)["files"] == {".env": b""}
+
+
+@pytest.mark.parametrize("shape", list(NON_BROWSER.values()), ids=list(NON_BROWSER))
+def test_non_browser_callers_write_and_delete_without_the_header(tmp_path, shape):
     assert _send(WRITES["POST /settings/files/ebird"], shape).status_code == 200
     assert (tmp_path / "data" / "ebird-backup.csv").read_bytes() == CSV[1]
     assert _send(WRITES["DELETE /settings/files/ebird"], shape).status_code == 200
@@ -179,6 +229,66 @@ def test_reads_and_preflights_are_not_the_guards_business():
     assert ok.headers["access-control-allow-origin"] == "http://localhost:5173"
     bad = client.options("/settings/theme", headers={**pre, "Origin": "https://evil.example"})
     assert bad.status_code == 400
+
+
+@pytest.mark.parametrize("origin", [
+    "https://evil.example",
+    "null",
+    "http://testserver:8080",
+    "http://192.168.1.20:5173",
+])
+@pytest.mark.parametrize("method", ["POST", "DELETE"])
+def test_a_foreign_preflight_for_the_app_header_is_refused(origin, method):
+    """What makes the header unforgeable: a page on another origin must preflight
+    to add it, and CORS refuses that preflight, so the browser never sends the
+    write. The app's own page never preflights (every call is same-origin, the
+    Vite proxy included), so a LAN dev origin being refused here costs nothing."""
+    resp = client.options("/settings/files/ebird", headers={
+        "Origin": origin,
+        "Access-Control-Request-Method": method,
+        "Access-Control-Request-Headers": main.APP_REQUEST_HEADER.lower(),
+    })
+    # Starlette's refusal still lists the methods and headers it would allow; a
+    # browser fails the preflight on the missing Access-Control-Allow-Origin.
+    assert resp.status_code == 400
+    assert resp.text == "Disallowed CORS origin"
+    assert "access-control-allow-origin" not in resp.headers
+
+
+def test_cors_admits_only_the_dev_origin():
+    # The header's guarantee rests on this list (main.is_refused_browser_write):
+    # a wildcard or a regex here would let every admitted origin send it.
+    cors = next(m for m in app.user_middleware if m.cls.__name__ == "CORSMiddleware")
+    assert cors.kwargs["allow_origins"] == list(main.DEV_ORIGINS) == ["http://localhost:5173"]
+    assert "allow_origin_regex" not in cors.kwargs
+
+
+_FRONTEND = Path(__file__).resolve().parents[2] / "frontend"
+_FRONTEND_HEADER = _FRONTEND / "src" / "lib" / "appRequestHeader.ts"
+
+
+def test_the_vite_dev_server_leaves_preflights_to_this_backend():
+    # Vite's default CORS answers a preflight itself for ANY localhost origin
+    # and echoes the requested headers, so a page on another local port could
+    # add the app header and write through the dev proxy (measured in Chromium
+    # and WebKit at QA attempt 1). `cors: false` hands the preflight to the
+    # CORS checked above. Comments are stripped, so the explanation beside the
+    # setting cannot satisfy this row on its own.
+    config = "\n".join(
+        line.split("//", 1)[0] for line in (_FRONTEND / "vite.config.ts").read_text(encoding="utf-8").splitlines()
+    )
+    server = config[config.index("server: {"):config.index("build: {")]
+    assert re.search(r"^\s*cors:\s*false,?\s*$", server, re.M), "vite.config.ts server.cors must be false"
+
+
+def test_the_frontend_sends_the_header_the_backend_requires():
+    # Two declarations of one contract, compared to each other: a name or value
+    # changed on one side alone would refuse every web/Pi write.
+    source = _FRONTEND_HEADER.read_text(encoding="utf-8")
+    name = re.findall(r"export const APP_REQUEST_HEADER = '([^']*)'", source)
+    value = re.findall(r"export const APP_REQUEST_HEADER_VALUE = '([^']*)'", source)
+    assert name == [main.APP_REQUEST_HEADER]
+    assert value == [main.APP_REQUEST_HEADER_VALUE]
 
 
 # ── The four security headers ────────────────────────────────────────────────

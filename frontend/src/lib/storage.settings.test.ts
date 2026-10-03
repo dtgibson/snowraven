@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { storage } from './storage'
+import { APP_REQUEST_HEADER, APP_REQUEST_HEADER_VALUE, APP_REQUEST_HEADERS } from './appRequestHeader'
 
 afterEach(() => vi.unstubAllGlobals())
 
@@ -13,7 +14,7 @@ describe('WebStorage generic settings writes', () => {
 
     expect(fetchMock).toHaveBeenCalledWith('/settings/disableEmbeddedMedia', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', [APP_REQUEST_HEADER]: APP_REQUEST_HEADER_VALUE },
       body: 'true',
     })
   })
@@ -29,7 +30,7 @@ describe('WebStorage generic settings writes', () => {
 
     await storage.deleteSetting('exotic-provenance-v1')
 
-    expect(fetchMock).toHaveBeenCalledWith('/settings/exotic-provenance-v1', { method: 'DELETE' })
+    expect(fetchMock).toHaveBeenCalledWith('/settings/exotic-provenance-v1', { method: 'DELETE', headers: APP_REQUEST_HEADERS })
   })
 
   it('rejects a non-2xx DELETE, so a clear cannot report a document it did not remove', async () => {
@@ -104,7 +105,7 @@ describe('WebStorage file writes report what the backend actually did', () => {
 
     await storage.deleteFile('ml')
 
-    expect(fetchMock).toHaveBeenCalledWith('/settings/files/ml', { method: 'DELETE' })
+    expect(fetchMock).toHaveBeenCalledWith('/settings/files/ml', { method: 'DELETE', headers: APP_REQUEST_HEADERS })
   })
 
   it.each([500, 503])('rejects a %i DELETE, so a clear cannot report a file it did not remove', async (status) => {
@@ -119,5 +120,37 @@ describe('WebStorage file writes report what the backend actually did', () => {
     // message v1.0.14 removed from the clear path one method above this one.
     vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, status: 404 })))
     await expect(storage.deleteFile('ebird')).resolves.toBeUndefined()
+  })
+})
+
+// upload-origin-table-wrap-copy (decisions.md 4). The backend refuses a POST or
+// DELETE that a browser sends without the app's header, before routing, so a
+// WebStorage write that leaves it off fails in EVERY browser. One row per
+// write method, every one the class has; the reads need no header.
+describe('every WebStorage write carries the app request header', () => {
+  const WRITES: Array<[string, () => Promise<unknown>]> = [
+    ['setApiKey', () => storage.setApiKey('ebird', 'k')],
+    ['deleteApiKey', () => storage.deleteApiKey('ebird')],
+    ['setSetting', () => storage.setSetting('theme', 'dark')],
+    ['deleteSetting', () => storage.deleteSetting('theme')],
+    ['writeFile', () => storage.writeFile('ebird', 'a,b\n', 'MyEBirdData.csv')],
+    ['deleteFile', () => storage.deleteFile('ml')],
+    ['writeBarChartFile', () => storage.writeBarChartFile('US-CA-001', 'x', 'a.txt')],
+    ['deleteBarChartFile', () => storage.deleteBarChartFile('US-CA-001')],
+    ['deleteAllBarChartFiles', () => storage.deleteAllBarChartFiles()],
+    ['setStyleBlob (through setSetting)', () => storage.setStyleBlob('light', {} as never)],
+    ['setReplayStore (through setSetting)', () => storage.setReplayStore({} as never)],
+    ['setCountyDayObsStore (through setSetting)', () => storage.setCountyDayObsStore({})],
+    ['deleteCountyDayObsStore (through deleteSetting)', () => storage.deleteCountyDayObsStore()],
+  ]
+
+  it.each(WRITES)('%s', async (_name, write) => {
+    const fetchMock = vi.fn(async () => ({ ok: true, status: 200, json: async () => ({}) }))
+    vi.stubGlobal('fetch', fetchMock)
+    await write()
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit]
+    expect(init.method).toMatch(/^(POST|DELETE)$/)
+    expect(new Headers(init.headers).get(APP_REQUEST_HEADER)).toBe(APP_REQUEST_HEADER_VALUE)
   })
 })

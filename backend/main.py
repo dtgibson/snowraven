@@ -1,6 +1,5 @@
 import os
 from contextlib import asynccontextmanager
-from urllib.parse import urlsplit
 
 from dotenv import load_dotenv
 from fastapi import FastAPI
@@ -46,10 +45,15 @@ app = FastAPI(title="SnowRaven", lifespan=lifespan)
 # apps never call this backend: `storage.ts` and `transport.ts` pick their Tauri
 # halves whenever `isTauri()`.
 
-# The Vite dev server's page origin. Its proxy (frontend/vite.config.ts, the
-# string shorthand, which sets changeOrigin) rewrites Host to localhost:1620, so
-# the Origin fallback below must name the page's origin itself. CORS names the
-# same page, from the same tuple.
+# The request header every web/Pi write from SnowRaven's own page carries. The
+# frontend's one declaration is `frontend/src/lib/appRequestHeader.ts`, and
+# tests/test_browser_protections.py compares the two rather than restating them.
+APP_REQUEST_HEADER = "X-SnowRaven-Request"
+APP_REQUEST_HEADER_VALUE = "1"
+
+# The Vite dev server's page origin, the only origin CORS answers. The app's own
+# dev page never needs it (the Vite proxy makes every call same-origin); it is
+# kept as it was before this fix.
 DEV_ORIGINS = ("http://localhost:5173",)
 
 # Every method that can change state. POST is the one a browser sends cross-site
@@ -59,93 +63,52 @@ DEV_ORIGINS = ("http://localhost:5173",)
 # foreign origin; they are listed so that refusal does not rest on CORS alone.
 _UNSAFE_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
 
-_DEFAULT_PORTS = {"http": 80, "https": 443}
 
+def is_refused_browser_write(method: str, headers: Headers) -> bool:
+    """True when a browser sent this state-changing request without the app's header.
 
-def _authority(value: str, default_port: int) -> tuple[str, int] | None:
-    """(host, port) from a Host-style ``host[:port]``, or None when it is not one.
+    A request comes from a browser when it carries ``Origin`` or
+    ``Sec-Fetch-Site``. Every current browser sends ``Origin`` on a POST, PUT,
+    PATCH or DELETE, same-origin or cross-site (as ``null`` from a sandboxed
+    frame or a ``file:`` page, which is still present), so ``Origin`` is the
+    marker that holds everywhere. ``Sec-Fetch-Site`` cannot be relied on alone:
+    Chromium and WebKit send no ``Sec-Fetch-*`` header at all to a plain-HTTP
+    address that is not loopback (measured at QA, decisions.md 1 and 4), which
+    is every LAN Pi and every dev page opened by LAN address. Never key on
+    ``Sec-Fetch-Mode``: Node's ``fetch`` sends ``cors`` with no Origin, and the
+    Node tooling in website/tools posts here.
 
-    A missing port takes the Origin's scheme default, so ``pi.local`` (Host)
-    equals ``https://pi.local`` (Origin) behind a TLS-terminating proxy that
-    keeps Host. Anything carrying a path, query, credentials or whitespace is
-    not an authority and matches nothing.
-    """
-    value = value.strip()
-    if not value or any(c in value for c in "/?#@\\ \t"):
-        return None
-    try:
-        parts = urlsplit("//" + value)
-        port = parts.port
-    except ValueError:
-        return None
-    if not parts.hostname:
-        return None
-    return parts.hostname, port if port is not None else default_port
+    Such a request passes only with ``APP_REQUEST_HEADER: APP_REQUEST_HEADER_VALUE``.
+    A page on another site cannot add a custom header without a CORS preflight,
+    and CORSMiddleware below refuses the preflight for every origin except
+    ``DEV_ORIGINS``, so the header proves the request came from a page this
+    server (or the dev proxy in front of it) served. No Host, Origin or proxy
+    header is compared, so it works the same on ``./start.sh``, a LAN hostname or
+    IP, the Vite dev proxy, nginx with or without ``X-Forwarded-Host``, and
+    ``tailscale serve``.
 
+    THE GUARANTEE RESTS ON CORS, here AND in front of here. Widening
+    ``allow_origins`` (a ``*``, or a regex) lets every origin it admits send the
+    header, and so write; so does a proxy that answers a preflight itself
+    instead of passing it on. Vite's dev server does that by default for any
+    localhost origin, which is why frontend/vite.config.ts sets ``cors: false``
+    (measured: with the default, a page on another local port wrote through the
+    dev proxy in Chromium and WebKit).
 
-def _origin_is_this_server(origin: str, headers: Headers) -> bool:
-    """Does a serialized Origin name the server this request reached?
-
-    "This server" is the Host header, any X-Forwarded-Host a reverse proxy added
-    (nginx rewrites Host to the upstream by default), or the dev page origin.
-    A browser cannot set X-Forwarded-Host on a cross-site request without a
-    preflight, so trusting it opens nothing. ``Origin: null`` (a sandboxed frame,
-    a ``file:`` page, some redirects) has no scheme and matches nothing.
-    """
-    if origin in DEV_ORIGINS:
-        return True
-    try:
-        parts = urlsplit(origin)
-    except ValueError:
-        return False
-    if parts.scheme not in _DEFAULT_PORTS or parts.path or parts.query or parts.fragment:
-        return False
-    default_port = _DEFAULT_PORTS[parts.scheme]
-    mine = _authority(parts.netloc, default_port)
-    if mine is None:
-        return False
-    hosts = [headers.get("host", "")]
-    for forwarded in headers.getlist("x-forwarded-host"):
-        hosts.extend(forwarded.split(","))
-    return any(_authority(h, default_port) == mine for h in hosts if h.strip())
-
-
-def is_cross_site_write(method: str, headers: Headers) -> bool:
-    """True when a browser sent this state-changing request from another site.
-
-    ``Sec-Fetch-Site`` decides whenever it is present, and only ``same-origin``
-    passes. Every current browser sends it, and it reads ``same-origin`` through
-    the Vite dev proxy, ``./start.sh``, a LAN hostname or IP, nginx and
-    ``tailscale serve`` alike, because the browser judges the origin before any
-    proxy rewrites Host. ``same-site`` is refused because another port on the
-    same host is another origin; ``none`` is refused because it means a
-    user-initiated navigation, which is never a write, while SnowRaven's own
-    writes are fetches from its own page and so always ``same-origin``.
-
-    Without ``Sec-Fetch-Site`` (Safari before 16.4) the Origin decides: present
-    and not this server refuses. Neither header (curl, the TestClient, Node
-    ``fetch`` in website/tools) passes, because none of those is a browser
-    carrying a page from another site. Never key on ``Sec-Fetch-Mode``: Node's
-    ``fetch`` sends ``cors`` with no Origin at all.
-
-    KNOWN LIMIT of the fallback: an old Safari reaching the app through a proxy
-    that rewrites Host and adds no X-Forwarded-Host, or a dev page opened on a
-    LAN host rather than localhost, is refused. Both are browsers without
-    ``Sec-Fetch-Site``, and the refusal is a failed save, never a silent one.
+    A request carrying neither ``Origin`` nor ``Sec-Fetch-Site`` (curl, the
+    TestClient, Node ``fetch`` in website/tools) passes without the header:
+    none of those is a browser carrying another site's page. A tab still running a bundle from
+    before this fix sends no header and is refused until it is reloaded.
     """
     if method not in _UNSAFE_METHODS:
         return False
-    site = headers.get("sec-fetch-site")
-    if site is not None:
-        return site.strip().lower() != "same-origin"
-    origin = headers.get("origin")
-    if origin is None:
+    if "origin" not in headers and "sec-fetch-site" not in headers:
         return False
-    return not _origin_is_this_server(origin.strip(), headers)
+    return headers.get(APP_REQUEST_HEADER, "").strip() != APP_REQUEST_HEADER_VALUE
 
 
 class CrossSiteWriteGuard:
-    """Refuse (403) a state-changing request a browser sent from another site.
+    """Refuse (403) a state-changing browser request that lacks the app's header.
 
     The refusal happens before routing, so the request body is never read and
     nothing is written. Safe methods (GET, HEAD, OPTIONS) pass untouched; CORS
@@ -156,8 +119,11 @@ class CrossSiteWriteGuard:
         self.app = app
 
     async def __call__(self, scope, receive, send):
-        if scope["type"] == "http" and is_cross_site_write(scope["method"], Headers(scope=scope)):
-            response = JSONResponse({"detail": "Cross-site request refused."}, status_code=403)
+        if scope["type"] == "http" and is_refused_browser_write(scope["method"], Headers(scope=scope)):
+            response = JSONResponse(
+                {"detail": "Request refused: not sent by SnowRaven's own page."},
+                status_code=403,
+            )
             await response(scope, receive, send)
             return
         await self.app(scope, receive, send)
@@ -208,7 +174,8 @@ class SecurityHeaders:
 
 # Order is load-bearing: the LAST added is the OUTERMOST. The headers wrap
 # everything (a CORS preflight answer and a 403 refusal included); the guard
-# refuses before CORS or any route sees the request.
+# refuses before CORS or any route sees the request. `allow_origins` is what
+# makes APP_REQUEST_HEADER unforgeable (is_refused_browser_write): never widen it.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=list(DEV_ORIGINS),

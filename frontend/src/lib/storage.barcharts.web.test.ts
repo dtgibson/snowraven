@@ -6,6 +6,7 @@
 // reports; a region code that fails the shape never leaves the page.
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { storage } from './storage'
+import { APP_REQUEST_HEADERS } from './appRequestHeader'
 
 afterEach(() => vi.unstubAllGlobals())
 
@@ -42,7 +43,7 @@ describe('WebStorage bar-chart files', () => {
     const fetchMock = vi.fn(async () => ({ ok: true, status: 200 }))
     vi.stubGlobal('fetch', fetchMock)
     await storage.deleteBarChartFile('US-CA-013')
-    expect(fetchMock).toHaveBeenCalledWith('/settings/barcharts/US-CA-013', { method: 'DELETE' })
+    expect(fetchMock).toHaveBeenCalledWith('/settings/barcharts/US-CA-013', { method: 'DELETE', headers: APP_REQUEST_HEADERS })
     vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, status: 500 })))
     await expect(storage.deleteBarChartFile('US-CA-013')).rejects.toThrow(/500/)
   })

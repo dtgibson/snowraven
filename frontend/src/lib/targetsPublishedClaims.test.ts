@@ -163,7 +163,7 @@ describe('what the help says is true of the shipped logic', () => {
     expect([...SLOTS]).toEqual(['ebird', 'ml'])
     const code = (rel: string) => readFileSync(fileURLToPath(new URL(rel, import.meta.url)), 'utf8')
     // ...and the web/Pi seam saves the file to the server's bar-chart route.
-    expect(code('./storage.ts')).toContain("const res = await fetch(`/settings/barcharts/${encodeURIComponent(regionCode)}`, { method: 'POST', body: form });")
+    expect(code('./storage.ts')).toContain("const res = await fetch(`/settings/barcharts/${encodeURIComponent(regionCode)}`, { method: 'POST', headers: APP_REQUEST_HEADERS, body: form });")
     expect(code('./icloud/icloudSync.ts')).toContain('await runCountyPass(countyCtx(), remaining)')
     const section = code('../components/targets/TargetsBarChartFile.tsx')
     expect(section).toContain('if (syncOn) setConfirmOpen(true)')

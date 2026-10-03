@@ -1,6 +1,7 @@
 import { isTauri } from './platform';
 import { REGION_CODE_RE } from './regionCode';
 import { BARCHART_FILENAME_MAX } from './uploadGuard';
+import { APP_REQUEST_HEADERS } from './appRequestHeader';
 
 // Which device uploaded a data file (icloud-sync FR-11/FR-13). `deviceId` is
 // a random per-install id (32 lowercase hex), never a hardware or account
@@ -413,6 +414,8 @@ async function readWebFile(url: string): Promise<string | null> {
   }
 }
 
+// Every write below (POST or DELETE) carries APP_REQUEST_HEADERS: the backend
+// refuses a browser's write without it, before routing (lib/appRequestHeader.ts).
 class WebStorage implements StorageAdapter {
   async getApiKey(service: KeySlot): Promise<string | null> {
     const res = await fetch('/settings/keys');
@@ -424,13 +427,13 @@ class WebStorage implements StorageAdapter {
   async setApiKey(service: KeySlot, value: string): Promise<void> {
     await fetch(`/settings/keys/${service}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...APP_REQUEST_HEADERS },
       body: JSON.stringify({ value }),
     });
   }
 
   async deleteApiKey(service: KeySlot): Promise<void> {
-    await fetch(`/settings/keys/${service}`, { method: 'DELETE' });
+    await fetch(`/settings/keys/${service}`, { method: 'DELETE', headers: APP_REQUEST_HEADERS });
   }
 
   // iCloud API key sync never runs on web/Pi (the platform gate is false
@@ -465,7 +468,7 @@ class WebStorage implements StorageAdapter {
   async setSetting<T>(key: string, value: T): Promise<void> {
     const res = await fetch(`/settings/${key}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...APP_REQUEST_HEADERS },
       body: JSON.stringify(value),
     });
     // A resolved fetch is not necessarily a saved setting. Propagate non-2xx
@@ -474,7 +477,7 @@ class WebStorage implements StorageAdapter {
   }
 
   async deleteSetting(key: string): Promise<void> {
-    const res = await fetch(`/settings/${key}`, { method: 'DELETE' });
+    const res = await fetch(`/settings/${key}`, { method: 'DELETE', headers: APP_REQUEST_HEADERS });
     // Same reasoning as setSetting above: a resolved fetch is not a deleted
     // setting. It matters most on the clear path, where a swallowed non-2xx
     // left a derived document on disk while the UI reported a completed Clear.
@@ -497,7 +500,7 @@ class WebStorage implements StorageAdapter {
   async writeFile(name: 'ebird' | 'ml', content: string, filename: string): Promise<void> {
     const form = new FormData();
     form.append('file', new Blob([content], { type: 'text/csv' }), filename);
-    const res = await fetch(`/settings/files/${name}`, { method: 'POST', body: form });
+    const res = await fetch(`/settings/files/${name}`, { method: 'POST', headers: APP_REQUEST_HEADERS, body: form });
     // The same reasoning as setSetting and deleteSetting above, on the path where
     // it was doing the most damage. A resolved fetch is not a saved file: the
     // backend answers 413 over its 50 MB cap and 400 on a non-.csv name, and with
@@ -509,7 +512,7 @@ class WebStorage implements StorageAdapter {
   }
 
   async deleteFile(name: 'ebird' | 'ml'): Promise<void> {
-    const res = await fetch(`/settings/files/${name}`, { method: 'DELETE' });
+    const res = await fetch(`/settings/files/${name}`, { method: 'DELETE', headers: APP_REQUEST_HEADERS });
     // 404 is NOT a failure here. The backend answers it when no file is stored,
     // which is the state the caller asked for, and reporting it would put "Delete
     // failed. Please try again." over a row that is already empty and a button the
@@ -592,7 +595,7 @@ class WebStorage implements StorageAdapter {
     assertRegionCode(regionCode);
     const form = new FormData();
     form.append('file', new Blob([content], { type: 'text/plain' }), filename);
-    const res = await fetch(`/settings/barcharts/${encodeURIComponent(regionCode)}`, { method: 'POST', body: form });
+    const res = await fetch(`/settings/barcharts/${encodeURIComponent(regionCode)}`, { method: 'POST', headers: APP_REQUEST_HEADERS, body: form });
     // A resolved fetch is not a saved file (the writeFile reasoning above): the
     // route answers 413 over the cap and 400 on a name it does not accept.
     if (!res.ok) throw new Error(`File save failed (${res.status})`);
@@ -600,7 +603,7 @@ class WebStorage implements StorageAdapter {
 
   async deleteBarChartFile(regionCode: string): Promise<void> {
     assertRegionCode(regionCode);
-    const res = await fetch(`/settings/barcharts/${encodeURIComponent(regionCode)}`, { method: 'DELETE' });
+    const res = await fetch(`/settings/barcharts/${encodeURIComponent(regionCode)}`, { method: 'DELETE', headers: APP_REQUEST_HEADERS });
     // The route answers 200 whether or not a file was stored, so every non-OK
     // answer here is a real failure and is raised.
     if (!res.ok) throw new Error(`File delete failed (${res.status})`);
@@ -611,7 +614,7 @@ class WebStorage implements StorageAdapter {
   // a real failure and is raised; the answer is read through the region-code
   // shape, so a code that is not a county never reaches the caller's copy.
   async deleteAllBarChartFiles(): Promise<{ removed: string[]; failed: string[] }> {
-    const res = await fetch('/settings/barcharts', { method: 'DELETE' });
+    const res = await fetch('/settings/barcharts', { method: 'DELETE', headers: APP_REQUEST_HEADERS });
     if (!res.ok) throw new Error(`File delete failed (${res.status})`);
     const body = await res.json() as { removed?: unknown; failed?: unknown };
     const codes = (v: unknown): string[] => (Array.isArray(v) ? v.filter((c): c is string => typeof c === 'string' && REGION_CODE_RE.test(c)) : []);
