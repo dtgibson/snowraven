@@ -5,7 +5,7 @@ All notable changes to SnowRaven are documented here.
 ## [1.0.49] - unreleased
 
 ### Added
-- **SnowRaven for Android phones and tablets (in progress).** The same app now builds for Android 8.0 and later from the same project: every tab, your own eBird backup and Macaulay Library export opened through the phone's file picker and kept in the app's private storage, the compact header and bottom bar of the iPhone app, the app's colors under the status and navigation bars in light and dark, and the keyboard kept clear of the field you are typing in. iCloud Sync, the home-screen widgets and Alerts stay Mac, iPhone and iPad features and do not appear on Android. Finding your location is not available on Android yet, and so this release does not ship it.
+- **SnowRaven for Android phones and tablets (in progress).** The same app now builds for Android 8.0 and later from the same project: every tab, your own eBird backup and Macaulay Library export opened through the phone's file picker and kept in the app's private storage, the compact header and bottom bar of the iPhone app, the app's colors under the status and navigation bars in light and dark, and the keyboard kept clear of the field you are typing in. iCloud Sync, the home-screen widgets and Alerts stay Mac, iPhone and iPad features and do not appear on Android. On Android the app does not offer to find your location: you move the map by searching for a place or by setting a Default Location.
 - On Android, if the phone's Android System WebView is too old to run SnowRaven, the opening screen says so and how to update it, instead of showing a blank page.
 
 ### Changed
@@ -13,7 +13,7 @@ All notable changes to SnowRaven are documented here.
 - The accessibility statement and the in-app Help name the Android app where they list where SnowRaven runs, where files and keys are kept, and which Settings rows read Import.
 
 ### Internal
-- A committed Android project under `src-tauri/gen/android` (application id `com.dtgibson.snowraven`), a tag-triggered CI job that builds the unsigned Android App Bundle and universal APK, and guards that keep the project's application id, version source, permissions, launch state, icons and native calls as decided. The license is now declared as AGPL-3.0-only in `Cargo.toml` and both `package.json` files, matching `LICENSE`.
+- A committed Android project under `src-tauri/gen/android` (application id `com.dtgibson.snowraven`), one build script that CI and the F-Droid recipe both run (the unsigned universal APK, built with `cargo tauri` and Gradle 8.14.3, with no wrapper jar committed), the Android version code committed beside the version in `tauri.conf.json`, and guards that keep the project's application id, version source, permissions, launch state, icons and native calls as decided. The location plugin is now iOS-only, so nothing from Google Play services is in the Android build. The license is now declared as AGPL-3.0-only in `Cargo.toml` and both `package.json` files, matching `LICENSE`.
 
 ## [1.0.48] - 2026-10-02
 
