@@ -33,6 +33,7 @@ import { OfflineMessage } from './OfflineMessage'
 import { storage } from '../lib/storage'
 import { useIsPhone } from '../lib/useIsPhone'
 import { mapContentClass, mobileMapFullscreen } from '../lib/mapFullscreen'
+import { showLocationControls } from '../lib/platformGates'
 import { focusablesIn, useFocusTrap } from '../lib/useFocusTrap'
 import { getCurrentLocation, describeLocationError } from '../lib/location'
 import type { LocationError } from '../lib/location'
@@ -1865,7 +1866,9 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
 
   const CenterPointControl = (
     <div style={{ marginBottom: 16 }}>
-      <Button
+      {/* Absent on Android under location branch B (FR-56): the place search
+          below is then the way to move the map, and nothing names location. */}
+      {showLocationControls() && <Button
         onClick={handleUseMyLocation}
         disabled={isLocating}
         style={{
@@ -1885,7 +1888,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
           : <LocateFixed size={13} strokeWidth={2} style={{ color: 'var(--sr-accent)', flexShrink: 0 }} />
         }
         {isLocating ? 'Locating…' : 'Use my location'}
-      </Button>
+      </Button>}
       {/* Visible text only — no role="alert". The on-map .sr-map-geo-error region
           is the app's single announcer for this value (FR-15): on a desktop
           centre view this block and that region are both on screen at once, and
@@ -3534,7 +3537,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                   location prompt for no benefit. The gate is "is there a map",
                   not "is there data" — on the three centre views the map and the
                   button both render with isSetupRequired true (FR-02). */}
-              {mapMounted && (
+              {mapMounted && showLocationControls() && (
                 <Button
                   type="button"
                   /* The same inherited WebKit-safe tab stop as the disc above. */

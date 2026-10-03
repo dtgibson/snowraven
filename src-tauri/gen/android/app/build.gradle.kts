@@ -50,8 +50,9 @@ android {
         // app crashes at launch on API 24 and 25 (pipeline/android-release/decisions.md).
         minSdk = 26
         // targetSdk 36 (Android 16), read 2026-10-03: the tauri-cli 2.11.2 template
-        // value, and Google Play's requirement for new apps and updates from
-        // 2026-08-31. Re-read the current requirement before a store submission.
+        // value and the current stable level. F-Droid imposes no target level; 36 is
+        // chosen for the permission, storage and edge-to-edge behavior it brings, and
+        // is re-read at the next major Android release.
         targetSdk = 36
         versionCode = tauriProperties.getProperty("tauri.android.versionCode", "1").toInt()
         versionName = tauriProperties.getProperty("tauri.android.versionName", "1.0")

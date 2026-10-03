@@ -13,7 +13,7 @@ import { storage } from '../lib/storage'
 import { formatDate, formatUploadDate, setDateFormatPref, asDateFormatPref } from '../lib/formatDate'
 import type { DateFormatPref } from '../lib/formatDate'
 import { isTauri, isMobileApp } from '../lib/platform'
-import { supportsAppRelaunch, showICloudSync } from '../lib/platformGates'
+import { supportsAppRelaunch, showICloudSync, showLocationControls } from '../lib/platformGates'
 import { useFilesEpoch } from '../lib/useFilesEpoch'
 import { useKeysEpoch } from '../lib/useKeysEpoch'
 import { useBarChartFilesEpoch } from '../lib/useBarChartFilesEpoch'
@@ -2438,6 +2438,9 @@ export function Settings({
           <p style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)', marginBottom: 12, lineHeight: 1.5 }}>
             Set a home location for the Map Explorer. These coordinates load automatically every time you open the map tab.
           </p>
+          {/* Absent on Android under location branch B (FR-56): the card is then
+              description, fields, Save, at the same 12px rhythm. */}
+          {showLocationControls() && <>
           <Button
             onClick={handleDetectMapLocation}
             disabled={mapLocating}
@@ -2457,6 +2460,7 @@ export function Settings({
             {mapLocating ? 'Locating…' : 'Use my location'}
           </Button>
           {mapLocError && <div role="alert" style={{ fontSize: '0.6875rem', color: 'var(--sr-error)', marginBottom: 12 }}>{mapLocError}</div>}
+          </>}
           {/* Self-collapsing 3->2->1: the narrow radius field sizes with its
               siblings (no half-width orphan, never balloons to a full row). */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(7rem, 100%), 1fr))', gap: 8, marginBottom: 12 }}>

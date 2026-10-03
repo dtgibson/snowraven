@@ -13,6 +13,7 @@ import { OfflineMessage, StalenessCue } from './OfflineMessage'
 import { PlanResult } from './PlanResult'
 import { copyText } from '../lib/clipboard'
 import { getCurrentLocation, describeLocationError, type LocationError } from '../lib/location'
+import { showLocationControls } from '../lib/platformGates'
 import { buildCombined } from '../lib/tideFormatter'
 import { tideTooFarNotice, tideOverrideLabel } from '../lib/tideNotice'
 import { formatDate } from '../lib/formatDate'
@@ -317,7 +318,9 @@ export function WeatherForecastPanel({ onPlanVisible }: WeatherForecastPanelProp
     setSearchErr(null)
     setLocError(presetError ?? null)
     setPhase({ kind: 'predict' })
-    if (!presetError && !coordRef.current) {
+    // Under Android location branch B Plan keeps its no-place state and never
+    // asks for a position (FR-56).
+    if (!presetError && !coordRef.current && showLocationControls()) {
       try { const c = await getCurrentLocation(); setCoord(c); setPlace('Your location') } catch { /* leave unset — user searches or taps */ }
     }
   }, [setCoord])
@@ -491,9 +494,12 @@ export function WeatherForecastPanel({ onPlanVisible }: WeatherForecastPanelProp
       </p>
 
       <div className="sr-grid-2" style={{ ['--sr-grid-gap' as string]: '10px' }}>
-        <Button type="button" onClick={onCurrent} style={primaryBtn} aria-label="Get current weather and tide for my location">
-          <Navigation size={16} strokeWidth={2.2} aria-hidden="true" /> Current
-        </Button>
+        {/* Absent on Android under location branch B (FR-56); the Planner stays. */}
+        {showLocationControls() && (
+          <Button type="button" onClick={onCurrent} style={primaryBtn} aria-label="Get current weather and tide for my location">
+            <Navigation size={16} strokeWidth={2.2} aria-hidden="true" /> Current
+          </Button>
+        )}
         <Button type="button" onClick={() => void openPredict()} style={outlineBtn} aria-label={PLAN_COPY.entryAria}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /><path d="M12 14v3l2 1" /></svg>
           {PLAN_COPY.entryLabel}

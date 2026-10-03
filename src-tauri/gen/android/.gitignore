@@ -18,3 +18,7 @@ keystore.properties
 
 /.tauri
 /tauri.settings.gradle
+# android-release schema 3.8: no wrapper jar and no Windows wrapper are committed;
+# gradlew is a shim that runs the Gradle on PATH (pinned in gradle-wrapper.properties).
+gradle/wrapper/gradle-wrapper.jar
+gradlew.bat

@@ -1,0 +1,12 @@
+{
+  "$schema": "../gen/schemas/mobile-schema.json",
+  "identifier": "ios",
+  "description": "iOS-only: geolocation for 'Use my location' (when-in-use only, mobile-app schema §2.7 / FR-16). The geolocation plugin is not in the Android build because its Android module links Google Play services (android-release schema 4.1 and 4.3); an inactive capability is skipped before its permissions are validated, so this file cannot affect the Android build.",
+  "platforms": ["iOS"],
+  "windows": ["main"],
+  "permissions": [
+    "geolocation:allow-check-permissions",
+    "geolocation:allow-request-permissions",
+    "geolocation:allow-get-current-position"
+  ]
+}

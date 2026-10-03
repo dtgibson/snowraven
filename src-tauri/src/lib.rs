@@ -201,21 +201,22 @@ pub fn run() {
             Ok(())
         });
 
-    // Mobile-only: geolocation ("Use my location", schema §2.7) and dialog
-    // (the Mechanism B document-picker fallback, schema §2.6). Grants live in
-    // capabilities/mobile.json; desktop binaries are byte-unaffected.
+    // Mobile-only (iOS and Android): dialog, the Mechanism B document-picker
+    // fallback (schema §2.6). Its grant lives in capabilities/mobile.json;
+    // desktop binaries are byte-unaffected.
     #[cfg(mobile)]
-    let builder = builder
-        .plugin(tauri_plugin_geolocation::init())
-        .plugin(tauri_plugin_dialog::init());
+    let builder = builder.plugin(tauri_plugin_dialog::init());
 
+    // iOS-only: geolocation ("Use my location", mobile-app schema §2.7; its
+    // grants live in capabilities/ios.json). Not on Android: the plugin's
+    // Android module links Google Play services (android-release schema 4.1).
     // iOS-only: the widget deep-link hook (src/widgets.rs). A plugin
     // `on_event` on RunEvent::Opened, NOT a custom run callback, so the
     // single-webview keeper below is untouched.
     // iOS-only: the alert engine's plugin (src/alerts.rs), `setup` only and no
     // `on_event`, so the single-webview keeper below is untouched as well.
     #[cfg(target_os = "ios")]
-    let builder = builder.plugin(widgets::plugin()).plugin(alerts::plugin()).setup(|app| {
+    let builder = builder.plugin(tauri_plugin_geolocation::init()).plugin(widgets::plugin()).plugin(alerts::plugin()).setup(|app| {
         launch_backdrop::install(app);
         Ok(())
     });

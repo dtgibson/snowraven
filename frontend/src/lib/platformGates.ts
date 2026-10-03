@@ -2,7 +2,8 @@
 // (schema §2.5's conditional-surfaces list). Kept as named predicates in one
 // module so the FR they implement is greppable and unit-testable with
 // isIOS() mocked both ways — components consume the gate, not raw isIOS().
-import { isIOS, isMacOS, isMobileApp, isTauri } from './platform';
+import { isAndroid, isIOS, isMacOS, isMobileApp, isTauri } from './platform';
+import { ANDROID_LOCATION_BRANCH } from './androidLocation';
 
 // FR-14 — the in-app update affordance is ABSENT on iOS/iPadOS and Android:
 // updates flow through the platform's store, and the updater/process plugins
@@ -49,4 +50,14 @@ export function compactChrome(): boolean {
 // iCloud markup exists on those builds (gated markup, never hidden markup).
 export function showICloudSync(): boolean {
   return isTauri() && (isIOS() || isMacOS());
+}
+
+// android-release FR-56: under branch B every location control is ABSENT on
+// Android (the Map Explorer locate disc and its filters' Use my location, the
+// Settings Default Location button, Targets' My location, Weather's Current
+// lookup), not disabled and not explained; Plan with no place chosen keeps its
+// no-place state without asking. Everywhere else, and on Android under branch
+// A, the controls render as they always have (lib/androidLocation.ts).
+export function showLocationControls(): boolean {
+  return !(isAndroid() && ANDROID_LOCATION_BRANCH === 'B');
 }

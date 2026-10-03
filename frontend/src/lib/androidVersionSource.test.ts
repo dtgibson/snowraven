@@ -16,7 +16,7 @@
 // attributes, and the overlay config. Pure JS, comments stripped first, and
 // it fails closed on a defaultConfig shape it does not recognise.
 import { describe, it, expect } from 'vitest'
-import { readdirSync, statSync } from 'node:fs'
+import { existsSync, readdirSync, statSync } from 'node:fs'
 import { resolve, relative } from 'node:path'
 import {
   ANDROID, REPO, readRepo, stripKotlinComments, kotlinBlock, kotlinStatements, stripXmlComments,
@@ -132,5 +132,61 @@ describe('the version guard rejects a hand-set version', () => {
   it('a commented-out hand-set version is not a finding', () => {
     const commented = gradle.replace('minSdk = 26', 'minSdk = 26\n        // versionName = "9.9.9"')
     expect(versionFindings(commented).defaultConfig).toEqual(EXPECTED_DEFAULT_CONFIG)
+  })
+})
+
+// Revised FR-05 (schema 3.3): F-Droid's update checker reads the version name
+// AND code from a committed file at each tag, so the code is written into
+// tauri.conf.json beside the string it derives from, and moved with it at every
+// bump. The formula is the Tauri CLI's own (major * 1000000 + minor * 1000 +
+// patch), so the committed code and the CLI's derivation can never disagree.
+const formula = (v: string) => {
+  const m = /^(\d+)\.(\d+)\.(\d+)$/.exec(v)
+  if (!m) throw new Error(`version not understood: ${v}`)
+  return Number(m[1]) * 1_000_000 + Number(m[2]) * 1000 + Number(m[3])
+}
+
+function committedPairProblems(conf: { version?: string; bundle?: { android?: { versionCode?: unknown } } }, pkgVersion: string): string[] {
+  const out: string[] = []
+  const v = conf.version
+  const code = conf.bundle?.android?.versionCode
+  if (typeof v !== 'string') return ['tauri.conf.json has no version']
+  if (typeof code !== 'number') return ['tauri.conf.json has no bundle.android.versionCode']
+  if (code !== formula(v)) out.push(`versionCode ${code} is not the formula of ${v} (${formula(v)})`)
+  if (v !== pkgVersion) out.push(`tauri.conf.json ${v} differs from frontend/package.json ${pkgVersion}`)
+  return out
+}
+
+describe('the committed version code (revised FR-05, schema 3.3)', () => {
+  const conf = JSON.parse(readRepo('src-tauri/tauri.conf.json')) as { version: string; bundle: { android?: { versionCode?: number } } }
+  const pkg = JSON.parse(readRepo('frontend/package.json')) as { version: string }
+
+  it('bundle.android.versionCode equals the formula of the version, and the version equals package.json', () => {
+    expect(committedPairProblems(conf, pkg.version)).toEqual([])
+  })
+
+  it('neither the version string nor the code literal appears in a committed file under gen/android', () => {
+    for (const f of androidTextFiles()) {
+      const raw = readRepo(f)
+      expect(raw.includes(conf.version), `${f} names ${conf.version}`).toBe(false)
+      expect(raw.includes(String(conf.bundle.android!.versionCode)), `${f} names the code`).toBe(false)
+    }
+  })
+
+  it('where the per-build app/tauri.properties exists, its pair never leads package.json (absent in CI)', () => {
+    const rel = `${APP}/tauri.properties`
+    if (!existsSync(resolve(REPO, rel))) return
+    const props = Object.fromEntries(readRepo(rel).split('\n').filter(l => l.includes('=')).map(l => l.split('=').map(x => x.trim())))
+    const name = props['tauri.android.versionName']
+    const code = Number(props['tauri.android.versionCode'])
+    if (name) expect(formula(name)).toBeLessThanOrEqual(formula(pkg.version))
+    if (!Number.isNaN(code)) expect(code).toBeLessThanOrEqual(formula(pkg.version))
+  })
+
+  it('guard the guard: a version one patch ahead with the old code, or a code one off, is reported', () => {
+    expect(committedPairProblems({ version: '1.0.49', bundle: { android: { versionCode: 1_000_048 } } }, '1.0.49')).toHaveLength(1)
+    expect(committedPairProblems({ version: '1.0.48', bundle: { android: { versionCode: 1_000_047 } } }, '1.0.48')).toHaveLength(1)
+    expect(committedPairProblems({ version: '1.0.48', bundle: {} }, '1.0.48')).toEqual(['tauri.conf.json has no bundle.android.versionCode'])
+    expect(committedPairProblems({ version: '1.0.48', bundle: { android: { versionCode: 1_000_048 } } }, '1.0.48')).toEqual([])
   })
 })

@@ -16,9 +16,12 @@
 // That is read with `aapt2 dump permissions` on the built APK and recorded in
 // pipeline/android-release/decisions.md.
 import { describe, it, expect } from 'vitest'
+import { existsSync } from 'node:fs'
+import { resolve } from 'node:path'
 import {
-  readRepo, stripKotlinComments, kotlinBlock, kotlinStatements, stripXmlComments, xmlTags,
+  REPO, readRepo, stripKotlinComments, kotlinBlock, kotlinStatements, stripXmlComments, xmlTags,
 } from '../test/androidProject'
+import { ANDROID_LOCATION_BRANCH } from './androidLocation'
 
 const APP = 'src-tauri/gen/android/app'
 const RES = `${APP}/src/main/res`
@@ -98,6 +101,9 @@ describe('API levels (FR-07, QA-07)', () => {
   it('the target level carries the date it was read, in the one place it is recorded', () => {
     const raw = readRepo(`${APP}/build.gradle.kts`)
     expect(raw).toMatch(/targetSdk 36 \(Android 16\), read 2026-10-03/)
+    // revised FR-07: the comment names no store
+    const comment = raw.slice(raw.indexOf('// targetSdk 36'), raw.indexOf('targetSdk = 36'))
+    expect(comment).not.toMatch(/Google|Play/)
   })
 
   it('the overlay sets no versionCode and no auto-increment (FR-05)', () => {
@@ -139,13 +145,16 @@ describe('cleartext and signing (FR-24, NFR-05, NFR-07)', () => {
   })
 })
 
+/** The permission set each location branch requires (schema 3.4). */
+function expectedPermissions(branch: 'A' | 'B'): string[] {
+  return branch === 'A'
+    ? ['android.permission.ACCESS_COARSE_LOCATION', 'android.permission.ACCESS_FINE_LOCATION', 'android.permission.INTERNET']
+    : ['android.permission.INTERNET']
+}
+
 describe('the manifest (FR-24, NFR-05, QA-24, QA-56)', () => {
-  it('declares exactly INTERNET and the two location permissions', () => {
-    expect(permissions(manifest)).toEqual([
-      'android.permission.ACCESS_COARSE_LOCATION',
-      'android.permission.ACCESS_FINE_LOCATION',
-      'android.permission.INTERNET',
-    ])
+  it('declares exactly the permission set of the location branch in force (INTERNET only under B)', () => {
+    expect(permissions(manifest)).toEqual(expectedPermissions(ANDROID_LOCATION_BRANCH))
   })
 
   it('one Activity, MainActivity, single-task, the launcher entry; no Android TV leanback', () => {
@@ -242,13 +251,23 @@ describe('capabilities (FR-23, NFR-05, QA-23)', () => {
     platforms?: string[]; windows: string[]; permissions: unknown[]
   }
 
-  it('mobile.json applies to iOS and Android; desktop.json does not name Android', () => {
+  it('mobile.json applies to iOS and Android and grants only the dialog; desktop.json names no mobile platform', () => {
     expect(cap('mobile').platforms).toEqual(['iOS', 'android'])
+    expect(cap('mobile').permissions).toEqual(['dialog:allow-open'])
     expect(cap('desktop').platforms).not.toContain('android')
+    expect(cap('desktop').platforms).not.toContain('iOS')
   })
 
-  it('all three stay scoped to the one main window', () => {
-    for (const c of ['default', 'desktop', 'mobile']) expect(cap(c).windows, c).toEqual(['main'])
+  it('ios.json alone carries the three geolocation grants, for iOS only (schema 4.3)', () => {
+    expect(cap('ios').platforms).toEqual(['iOS'])
+    expect(cap('ios').permissions).toEqual([
+      'geolocation:allow-check-permissions', 'geolocation:allow-request-permissions', 'geolocation:allow-get-current-position',
+    ])
+    expect(geolocationGrantsOffIos(cap('mobile'))).toEqual([])
+  })
+
+  it('all four stay scoped to the one main window', () => {
+    for (const c of ['default', 'desktop', 'mobile', 'ios']) expect(cap(c).windows, c).toEqual(['main'])
   })
 
   it('the default file scope is unchanged: the five fs grants on $APPLOCALDATA/** only', () => {
@@ -260,6 +279,74 @@ describe('capabilities (FR-23, NFR-05, QA-23)', () => {
         identifier, allow: [{ path: '$APPLOCALDATA/**' }],
       })),
     )
+  })
+})
+
+/** Geolocation grants in a capability that is not iOS-only (must be none). */
+function geolocationGrantsOffIos(c: { platforms?: string[]; permissions: unknown[] }): unknown[] {
+  if (c.platforms && c.platforms.length === 1 && c.platforms[0] === 'iOS') return []
+  return c.permissions.filter(p => String(typeof p === 'string' ? p : (p as { identifier: string }).identifier).startsWith('geolocation:'))
+}
+
+describe('nothing from Google in the Android build: the geolocation plugin is iOS-only (FR-54, schema 4.1)', () => {
+  const cargo = readRepo('src-tauri/Cargo.toml').split('\n').filter(l => !/^\s*#/.test(l)).join('\n')
+  const libRs = readRepo('src-tauri/src/lib.rs').replace(/\/\/[^\n]*/g, '')
+
+  it('Cargo.toml names tauri-plugin-geolocation only inside the cfg(target_os = "ios") block', () => {
+    const blocks = cargo.split(/^(?=\[)/m)
+    const holders = blocks.filter(b => /^tauri-plugin-geolocation\s*=/m.test(b)).map(b => b.split('\n')[0])
+    expect(holders).toEqual([`[target.'cfg(target_os = "ios")'.dependencies]`])
+  })
+
+  it('lib.rs registers the geolocation plugin only under #[cfg(target_os = "ios")]', () => {
+    const inits = [...libRs.matchAll(/tauri_plugin_geolocation::init\(\)/g)]
+    expect(inits).toHaveLength(1)
+    const before = libRs.slice(0, inits[0]!.index)
+    const lastCfg = before.lastIndexOf('#[cfg(')
+    expect(before.slice(lastCfg, before.indexOf(']', lastCfg) + 1)).toBe('#[cfg(target_os = "ios")]')
+    // and the cfg(mobile) chain carries the dialog alone
+    expect(libRs).toMatch(/#\[cfg\(mobile\)\]\s*let builder = builder\.plugin\(tauri_plugin_dialog::init\(\)\);/)
+  })
+})
+
+describe('the Gradle build has no wrapper jar and runs cargo tauri (schema 3.8, 6.0, FR-61)', () => {
+  const env = Object.fromEntries(
+    readRepo('scripts/android/toolchain.env').split('\n').filter(l => /^[A-Z_]+=/.test(l)).map(l => {
+      const i = l.indexOf('=')
+      return [l.slice(0, i), l.slice(i + 1).replace(/\s+#.*$/, '').replace(/^"|"$/g, '').trim()]
+    }),
+  )
+
+  it('BuildTask.kt calls `cargo tauri android android-studio-script`, never npm', () => {
+    const task = stripKotlinComments(readRepo('src-tauri/gen/android/buildSrc/src/main/java/com/dtgibson/snowraven/kotlin/BuildTask.kt'))
+    expect(task).toContain('val executable = """cargo""";')
+    expect(task).toContain('val args = listOf("tauri", "android", "android-studio-script");')
+    expect(task).not.toContain('"""npm"""')
+  })
+
+  it('gradlew is the four-line shim; the wrapper jar and gradlew.bat are absent and ignored', () => {
+    expect(readRepo('src-tauri/gen/android/gradlew')).toBe(
+      '#!/bin/sh\n'
+      + "# Not Gradle's wrapper. SnowRaven commits no wrapper jar (android-release schema 3.8, FR-61):\n"
+      + '# Gradle 8.14.3 is pinned in gradle/wrapper/gradle-wrapper.properties, and CI, the release\n'
+      + "# machine and F-Droid's build server each put that Gradle on PATH as `gradle`.\n"
+      + 'cd "$(dirname "$0")" && exec gradle "$@"\n',
+    )
+    expect(existsSync(resolve(REPO, 'src-tauri/gen/android/gradle/wrapper/gradle-wrapper.jar'))).toBe(false)
+    expect(existsSync(resolve(REPO, 'src-tauri/gen/android/gradlew.bat'))).toBe(false)
+    const ignore = readRepo('src-tauri/gen/android/.gitignore').split('\n').map(l => l.trim())
+    expect(ignore).toEqual(expect.arrayContaining(['gradle/wrapper/gradle-wrapper.jar', 'gradlew.bat']))
+  })
+
+  it('gradle-wrapper.properties pins the same Gradle as toolchain.env', () => {
+    const props = readRepo('src-tauri/gen/android/gradle/wrapper/gradle-wrapper.properties')
+    expect(props).toContain(`distributionUrl=https\\://services.gradle.org/distributions/gradle-${env.GRADLE_VERSION}-bin.zip`)
+    expect(env.GRADLE_VERSION).toBe('8.14.3')
+  })
+
+  it('toolchain.env names the tauri-cli version the npm lockfile carries', () => {
+    const lock = JSON.parse(readRepo('package-lock.json')) as { packages: Record<string, { version?: string }> }
+    expect(lock.packages['node_modules/@tauri-apps/cli']?.version).toBe(env.TAURI_CLI_VERSION)
   })
 })
 
@@ -277,22 +364,37 @@ describe('the CI build (FR-34, QA-34, NFR-07)', () => {
     expect(wf).not.toMatch(/secrets\./)
   })
 
-  it('builds unsigned, for all four Android targets, and fails if a keystore is present', () => {
-    expect(wf).toContain('npx tauri android build --ci --aab --apk --target aarch64 armv7 i686 x86_64')
+  it('builds the frontend, then runs the one build script, unsigned, and fails if a keystore is present', () => {
+    expect(wf).toContain('run: npm --prefix frontend ci && npm --prefix frontend run build')
+    expect(wf).toContain('sh scripts/android/build-apk.sh')
     expect(wf).toContain('test -z "${SNOWRAVEN_ANDROID_KEYSTORE_PROPERTIES:-}"')
     expect(wf).toContain('test ! -e src-tauri/gen/android/keystore.properties')
+    expect(wf).not.toMatch(/--aab|\.aab/)
   })
 
-  it('collects exactly one AAB and one universal APK under the names the release skill states', () => {
-    expect(wf).toContain('[ "${#AABS[@]}" -eq 1 ]')
+  it('takes its pins from toolchain.env, builds tauri-cli from crates.io and puts the pinned Gradle on PATH', () => {
+    expect(wf).toContain('. scripts/android/toolchain.env')
+    expect(wf).toContain('toolchain: ${{ env.RUST_TOOLCHAIN }}')
+    expect(wf).toContain('tool: tauri-cli@${{ env.TAURI_CLI_VERSION }}')
+    expect(wf).toContain('gradle-version: ${{ env.GRADLE_VERSION }}')
+    expect(wf).toContain('"ndk;$NDK_VERSION"')
+  })
+
+  it('build-apk.sh is the cargo tauri universal APK build for the three targets, with no AAB', () => {
+    const sh = readRepo('scripts/android/build-apk.sh').split('\n').filter(l => !/^\s*#/.test(l)).join('\n')
+    expect(sh).toContain("cargo tauri android build --ci --apk --target aarch64 armv7 x86_64 \\\n  --config '{\"build\":{\"beforeBuildCommand\":null}}'")
+    expect(sh).not.toMatch(/--aab/)
+    expect(sh).toContain('test "$(ls "$OUT"/*.apk | wc -l)" -eq 1')
+  })
+
+  it('collects exactly one universal APK under the name the release skill states', () => {
     expect(wf).toContain('[ "${#APKS[@]}" -eq 1 ]')
-    expect(wf).toContain('dist-android/SnowRaven_${VERSION}_android.aab')
-    expect(wf).toContain('dist-android/SnowRaven_${VERSION}_android_universal.apk')
+    expect(wf).toContain('dist-android/SnowRaven_${VERSION}_android_universal_unsigned.apk')
     expect(wf).toMatch(/name: android-build\s*\n\s+path: dist-android\/\*\s*\n\s+if-no-files-found: error/)
   })
 
   it('pins the NDK the local toolchain uses', () => {
-    expect(wf).toContain("ANDROID_NDK_VERSION: '27.2.12479018'")
+    expect(readRepo('scripts/android/toolchain.env')).toContain('NDK_VERSION=27.2.12479018')
     expect(readRepo('pipeline/android-release/toolchain.md')).toContain('ndk;27.2.12479018')
   })
 })
@@ -314,7 +416,7 @@ describe('the pins reject the shapes a regeneration or a slip would produce', ()
 
   it('a commented-out permission is not counted; an extra real one is', () => {
     const commented = manifest.replace('<application', '<!-- <uses-permission android:name="android.permission.CAMERA" /> -->\n    <application')
-    expect(permissions(commented)).toHaveLength(3)
+    expect(permissions(commented)).toEqual(permissions(manifest))
     const extra = manifest.replace('<application', '<uses-permission android:name="android.permission.CAMERA" />\n    <application')
     expect(permissions(extra)).toContain('android.permission.CAMERA')
   })
@@ -323,6 +425,15 @@ describe('the pins reject the shapes a regeneration or a slip would produce', ()
     expect(stripKotlinComments('// targetSdk = 36\nval u = "https://x"')).toBe('\nval u = "https://x"')
     expect(stripKotlinComments('/* a /* nested */ b */c')).toBe('c')
     expect(() => stripKotlinComments('val s = "open')).toThrow()
+  })
+
+  it('a mobile.json carrying a geolocation grant is seen; the iOS-only file is exempt', () => {
+    expect(geolocationGrantsOffIos({ platforms: ['iOS', 'android'], permissions: ['dialog:allow-open', 'geolocation:allow-get-current-position'] })).toHaveLength(1)
+    expect(geolocationGrantsOffIos({ platforms: ['iOS'], permissions: ['geolocation:allow-get-current-position'] })).toEqual([])
+  })
+
+  it('the branch-A permission set differs from branch B, so a manifest left on the wrong set goes red', () => {
+    expect(expectedPermissions('A')).not.toEqual(expectedPermissions('B'))
   })
 
   it('a manifest with two activities is seen as two', () => {

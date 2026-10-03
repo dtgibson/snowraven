@@ -1,13 +1,10 @@
 {
   "$schema": "../gen/schemas/mobile-schema.json",
   "identifier": "mobile",
-  "description": "Mobile-only permissions for the iOS and Android apps: geolocation for 'Use my location' (when-in-use only, mobile-app schema §2.7 / FR-16; on Android the location path is on hold pending the F-Droid revision and the webview never calls the plugin), and dialog:allow-open for the Mechanism B document-picker fallback (lib/importMechanism.ts; both mobile platforms measure Mechanism A today).",
+  "description": "What both mobile binaries (iOS and Android) carry: dialog:allow-open for the Mechanism B document-picker fallback (lib/importMechanism.ts; both mobile platforms measure Mechanism A today). Geolocation is iOS-only and lives in ios.json.",
   "platforms": ["iOS", "android"],
   "windows": ["main"],
   "permissions": [
-    "geolocation:allow-check-permissions",
-    "geolocation:allow-request-permissions",
-    "geolocation:allow-get-current-position",
     "dialog:allow-open"
   ]
 }

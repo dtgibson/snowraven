@@ -23,6 +23,7 @@ import {
   compactChrome,
   supportsAppRelaunch,
   showICloudSync,
+  showLocationControls,
 } from './platformGates'
 
 afterEach(() => {
@@ -125,5 +126,23 @@ describe('Android readings of the four gates (android-release FR-11)', () => {
   it('showICloudSync stays false: iCloud is Apple-specific (FR-15)', () => {
     android()
     expect(showICloudSync()).toBe(false)
+  })
+})
+
+// android-release FR-56: showLocationControls() is false only for Android under
+// location branch B (the shipped constant; location.android.test.ts mocks the
+// switch both ways against the real platform module).
+describe('showLocationControls (FR-56)', () => {
+  it('is false on Android under branch B', () => {
+    vi.mocked(isTauri).mockReturnValue(true)
+    vi.mocked(isAndroid).mockReturnValue(true)
+    expect(showLocationControls()).toBe(false)
+  })
+
+  it('is true on iOS, desktop and web', () => {
+    vi.mocked(isIOS).mockReturnValue(true)
+    expect(showLocationControls()).toBe(true)
+    vi.mocked(isIOS).mockReturnValue(false)
+    expect(showLocationControls()).toBe(true)
   })
 })

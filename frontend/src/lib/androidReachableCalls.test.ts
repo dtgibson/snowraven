@@ -24,7 +24,7 @@ import ts from 'typescript'
 
 vi.mock('@tauri-apps/plugin-os', () => ({ platform: vi.fn(() => 'android') }))
 
-import { isAndroid } from './platform'
+import { isAndroid, isIOS } from './platform'
 import { showICloudSync, showUpdaterFooter, supportsAppRelaunch } from './platformGates'
 import { alertsSupported } from './alerts/alertsState'
 import { widgetsSupported } from './widgets/widgetHandover'
@@ -168,9 +168,12 @@ const GATES = {
   widgetsSupported: () => widgetsSupported(),
   showUpdaterFooter: () => showUpdaterFooter(),
   supportsAppRelaunch: () => supportsAppRelaunch(),
-  // lib/location.ts returns 'unavailable' on isAndroid() before either the
-  // desktop get_location branch or the geolocation plugin (on hold, 2026-10-03)
+  // lib/location.ts answers Android before the desktop get_location branch
+  // (branch B: 'unavailable'; branch A: the WebView's own geolocation)
   'location: the Android early return': () => !isAndroid(),
+  // the geolocation plugin is imported only inside the isIOS() arm, and is
+  // registered only for iOS (Cargo.toml, lib.rs; android-release schema 4.1)
+  'location: the iOS arm': () => isIOS(),
 } as const
 
 const ICLOUD = [
@@ -194,7 +197,7 @@ const TABLE: Record<string, { count: number; android: Reading }> = {
   'plugin:http|lib/tauri/http.ts': { count: 1, android: 'reachable' },
   'plugin:clipboard-manager|lib/clipboard.ts': { count: 1, android: 'reachable' },
   'plugin:dialog|lib/importMechanism.ts': { count: 1, android: 'reachable' },
-  'plugin:geolocation|lib/location.ts': { count: 1, android: { gate: 'location: the Android early return' } },
+  'plugin:geolocation|lib/location.ts': { count: 1, android: { gate: 'location: the iOS arm' } },
   'plugin:process|components/Settings.tsx': { count: 1, android: { gate: 'supportsAppRelaunch' } },
   'plugin:process|lib/tauri/updateManager.ts': { count: 1, android: { gate: 'showUpdaterFooter' } },
   'plugin:updater|lib/tauri/updateManager.ts': { count: 1, android: { gate: 'showUpdaterFooter' } },
@@ -211,7 +214,7 @@ describe('the Rust half reads the registration', () => {
     expect(COMMANDS.get('icloud_status')).toBe(false)
     expect(COMMANDS.get('widgets_write_handover')).toBe(false)
     expect(PLUGINS.get('opener')).toBe(true)
-    expect(PLUGINS.get('geolocation')).toBe(true) // cfg(mobile), kept while location is on hold
+    expect(PLUGINS.get('geolocation')).toBe(false) // cfg(target_os = "ios") only: nothing of Google's on Android
     expect(PLUGINS.get('dialog')).toBe(true)
     expect(PLUGINS.get('updater')).toBe(false)
     expect(PLUGINS.get('process')).toBe(false)
@@ -251,6 +254,13 @@ describe('every native call site in shipped src has an Android reading (FR-22)',
     } else {
       expect(GATES[row.android.gate](), `gate ${row.android.gate} is open on Android`).toBe(false)
     }
+  })
+})
+
+describe('no geolocation registration reaches Android (schema 6.4)', () => {
+  it('the plugin is registered for iOS and not for Android', () => {
+    expect(PLUGINS.has('geolocation')).toBe(true)
+    expect(PLUGINS.get('geolocation')).toBe(false)
   })
 })
 

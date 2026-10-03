@@ -108,13 +108,11 @@ describe('FR-11, one row per call site, on Android', () => {
     expect(settings).not.toMatch(/isIOS\(\)/)
   })
 
-  // ON HOLD (2026-10-03 direction change): the Android location path waits on
-  // the F-Droid revision. The interim reading is the honest generic
+  // Branch B, the shipped switch (lib/androidLocation.ts): the honest generic
   // 'unavailable', reached WITHOUT invoking the desktop-only get_location
-  // command and without the Play-services-backed geolocation plugin. The
-  // permission-denied branch of describeLocationError (FR-18) is therefore
-  // unreachable on Android until the revised schema wires a path.
-  it('location.getCurrentLocation: rejects unavailable and invokes nothing (interim, on hold)', async () => {
+  // command and without the geolocation plugin, which is iOS-only. Branch A's
+  // reading is pinned in location.android.test.ts with the switch mocked.
+  it('location.getCurrentLocation: rejects unavailable and invokes nothing (branch B)', async () => {
     await expect(getCurrentLocation()).rejects.toEqual({ code: 'unavailable', platform: 'tauri' })
     expect(invokeMock).not.toHaveBeenCalled()
     expect(geo.checkPermissions).not.toHaveBeenCalled()

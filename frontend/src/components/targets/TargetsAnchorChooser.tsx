@@ -19,6 +19,7 @@ import { LocateFixed, MapPin } from 'lucide-react'
 import { Button } from '../ui/Button'
 import { AddressSearch } from '../AddressSearch'
 import { useFocusTrap } from '../../lib/useFocusTrap'
+import { showLocationControls } from '../../lib/platformGates'
 import { placeDistance, type ListPlace } from '../../lib/targets/targetsAnchor'
 import type { AnchorState } from '../../lib/targets/useDistanceAnchor'
 import {
@@ -47,8 +48,17 @@ export function TargetsAnchorChooser({ id, anchor, places, triggerRef, onClose }
   useFocusTrap(true, rootRef, { containOutsideFocus: false })
 
   // Focus the first item on open. My location is always enabled (aria-disabled,
-  // never native-disabled, while it locates), so it is always the first.
-  useEffect(() => { firstRef.current?.focus() }, [])
+  // never native-disabled, while it locates), so it is the first wherever it
+  // renders. On Android under location branch B it is absent (FR-56) and the
+  // list opens on Default Location, which can be native-disabled when no
+  // default is saved; then the place search's field takes focus instead.
+  const locationShown = showLocationControls()
+  const defaultRef = useRef<HTMLButtonElement>(null)
+  useEffect(() => {
+    const first = locationShown ? firstRef.current : defaultRef.current
+    if (first && !first.disabled) { first.focus(); return }
+    rootRef.current?.querySelector<HTMLElement>('input')?.focus()
+  }, [locationShown])
 
   // Escape and a click outside, through the caller's one close path.
   useEffect(() => {
@@ -75,6 +85,7 @@ export function TargetsAnchorChooser({ id, anchor, places, triggerRef, onClose }
   return (
     <div className="sr-tg-apop" id={id} role="dialog" aria-label={CHOOSER_TITLE} ref={rootRef}>
       <div className="sr-tg-apop-head" aria-hidden="true">{CHOOSER_TITLE}</div>
+      {locationShown && <>
       <Button
         ref={firstRef}
         type="button"
@@ -97,7 +108,9 @@ export function TargetsAnchorChooser({ id, anchor, places, triggerRef, onClose }
       <div className="sr-tg-apop-err" role="alert">
         {anchor.error ? <span key={anchor.errorSeq}>{anchor.error}</span> : null}
       </div>
+      </>}
       <Button
+        ref={defaultRef}
         type="button"
         className="sr-tg-apop-item"
         aria-current={current === 'default' ? 'true' : undefined}

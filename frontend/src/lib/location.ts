@@ -1,5 +1,6 @@
 import { invoke } from '@tauri-apps/api/core'
 import { isTauri, isWindows, isIOS, isAndroid } from './platform'
+import { ANDROID_LOCATION_BRANCH } from './androidLocation'
 
 export interface Location {
   lat: number
@@ -20,6 +21,8 @@ export function describeLocationError(err: LocationError): string {
       return err.platform === 'tauri'
         ? (isIOS()
             ? 'Allow location for SnowRaven in Settings → Privacy & Security → Location Services, then try again.'
+            : isAndroid()
+            ? 'Allow location for SnowRaven in Settings → Apps → SnowRaven → Permissions → Location, and make sure Location is turned on, then try again.'
             : isWindows()
             ? 'Turn on location in Windows Settings → Privacy & security → Location, then try again.'
             : 'Location access was denied. Grant permission in System Settings → Privacy & Security → Location Services.')
@@ -44,17 +47,15 @@ export function describeLocationError(err: LocationError): string {
 //   and returns PERMISSION_DENIED immediately without showing a dialog.
 export async function getCurrentLocation(): Promise<Location> {
   if (isTauri()) {
-    // Android: the location path is ON HOLD (android-release, 2026-10-03
-    // direction change). tauri-plugin-geolocation's Android side depends on
-    // Google Play services (play-services-location), which the F-Droid
-    // distribution cannot ship, and the revised schema will decide between a
-    // Google-free mechanism and hiding location on Android in v1. Until then
-    // every location control on Android gets the honest generic 'unavailable'
-    // sentence, and this returns BEFORE the desktop branch below, because
-    // `get_location` is registered only on macOS and Windows (lib.rs), so the
-    // Android binary does not carry it (FR-22: no control may invoke a command
-    // the binary lacks).
+    // Android (android-release schema 4.6 and 5.3), placed BEFORE the iOS arm
+    // and the desktop branch, so neither the geolocation plugin (iOS-only: its
+    // Android module links Google Play services) nor the `get_location`
+    // command (registered only on macOS and Windows) is ever named on Android
+    // (FR-22). Branch A asks the Android System WebView's own geolocation;
+    // branch B, where every location control is absent (showLocationControls),
+    // answers the honest 'unavailable' to any caller that still asks.
     if (isAndroid()) {
+      if (ANDROID_LOCATION_BRANCH === 'A') return getCurrentLocationAndroid()
       const err: LocationError = { code: 'unavailable', platform: 'tauri' }
       throw err
     }
@@ -157,4 +158,35 @@ async function getCurrentLocationIOS(): Promise<Location> {
       : { code: 'unavailable', platform: 'tauri' }
     throw err
   }
+}
+
+// Android, branch A: the Android System WebView's own geolocation, served by
+// wry's RustWebChromeClient (onGeolocationPermissionsShowPrompt requests the two
+// manifest permissions and grants the callback) and answered by the platform
+// LocationManager through Chromium's LocationProviderAndroid (schema 4.6). No
+// plugin, no native command, nothing of Google's. enableHighAccuracy is true on
+// purpose: a WebView carrying Chromium's approximate-geolocation feature refuses
+// a low-accuracy request from an app that holds the precise permission, and with
+// only the approximate permission the provider forces low accuracy itself. The
+// ten-second timeout is Chromium's own and starts after permission is granted.
+// `platform: 'tauri'` on the denied error routes describeLocationError to the
+// Android sentence rather than the browser one.
+async function getCurrentLocationAndroid(): Promise<Location> {
+  if (!('geolocation' in navigator)) {
+    const err: LocationError = { code: 'unavailable', platform: 'tauri' }
+    throw err
+  }
+  return new Promise((resolve, reject) => {
+    navigator.geolocation.getCurrentPosition(
+      pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      err => {
+        const locErr: LocationError =
+          err.code === 1 ? { code: 'permission-denied', platform: 'tauri' }
+          : err.code === 3 ? { code: 'timeout' }
+          : { code: 'unavailable', platform: 'tauri' }
+        reject(locErr)
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 },
+    )
+  })
 }

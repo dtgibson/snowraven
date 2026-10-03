@@ -1,16 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- The permission set, stated in full (android-release FR-24; pinned by
-         androidProjectPins.test.ts and checked against the MERGED manifest of
-         the release build). INTERNET for the provider requests the user asks
-         for. The two location permissions are the ones tauri-plugin-geolocation's
-         own manifest merges in while the plugin is linked (cfg(mobile)); the
-         Android location path is on hold pending the F-Droid revision, so they
-         are declared here to keep the committed set equal to the merged one.
-         No background location, storage, media, camera or notifications. -->
+    <!-- The permission set follows the location branch (android-release schema
+         3.4 and 4.6; frontend/src/lib/androidLocation.ts), and
+         androidProjectPins.test.ts pins it to ANDROID_LOCATION_BRANCH. Branch B
+         (in force): INTERNET only, for the provider requests the user asks for.
+         With the geolocation plugin out of the Android build, nothing merges a
+         location permission in. Branch A would add ACCESS_COARSE_LOCATION and
+         ACCESS_FINE_LOCATION here, explicitly, because wry's chrome client
+         requests both at runtime and Android refuses an undeclared one. Never
+         background location, storage, media, camera or notifications. -->
     <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 
     <application
         android:icon="@mipmap/ic_launcher"
