@@ -222,19 +222,22 @@ def test_reads_and_preflights_are_not_the_guards_business():
     resp = client.get("/settings/files", headers=cross)
     assert resp.status_code == 200
     assert "access-control-allow-origin" not in resp.headers
-    # CORS still answers preflights exactly as before: the dev origin allowed, a foreign one refused.
+    # CORS answers every preflight with a refusal, Vite's default dev origin
+    # included: the app's own page never preflights, so no origin is admitted,
+    # and no origin is told it may read an answer (the stored keys included).
     pre = {"Access-Control-Request-Method": "DELETE"}
-    ok = client.options("/settings/theme", headers={**pre, "Origin": "http://localhost:5173"})
-    assert ok.status_code == 200
-    assert ok.headers["access-control-allow-origin"] == "http://localhost:5173"
-    bad = client.options("/settings/theme", headers={**pre, "Origin": "https://evil.example"})
-    assert bad.status_code == 400
+    for origin in ("http://localhost:5173", "https://evil.example"):
+        bad = client.options("/settings/theme", headers={**pre, "Origin": origin})
+        assert bad.status_code == 400, origin
+        assert "access-control-allow-origin" not in bad.headers, origin
+        assert "access-control-allow-origin" not in client.get("/settings/keys", headers={"Origin": origin}).headers
 
 
 @pytest.mark.parametrize("origin", [
     "https://evil.example",
     "null",
     "http://testserver:8080",
+    "http://localhost:5173",  # Vite's default port: any project served there, not only SnowRaven
     "http://192.168.1.20:5173",
 ])
 @pytest.mark.parametrize("method", ["POST", "DELETE"])
@@ -242,7 +245,7 @@ def test_a_foreign_preflight_for_the_app_header_is_refused(origin, method):
     """What makes the header unforgeable: a page on another origin must preflight
     to add it, and CORS refuses that preflight, so the browser never sends the
     write. The app's own page never preflights (every call is same-origin, the
-    Vite proxy included), so a LAN dev origin being refused here costs nothing."""
+    Vite proxy included), so a dev origin being refused here costs nothing."""
     resp = client.options("/settings/files/ebird", headers={
         "Origin": origin,
         "Access-Control-Request-Method": method,
@@ -255,11 +258,13 @@ def test_a_foreign_preflight_for_the_app_header_is_refused(origin, method):
     assert "access-control-allow-origin" not in resp.headers
 
 
-def test_cors_admits_only_the_dev_origin():
+def test_cors_admits_no_origin():
     # The header's guarantee rests on this list (main.is_refused_browser_write):
-    # a wildcard or a regex here would let every admitted origin send it.
+    # any origin here, a single one, a wildcard or a regex, lets every page it
+    # admits send the header, write and read the keys. `http://localhost:5173`
+    # was once listed and admitted any project on Vite's default port.
     cors = next(m for m in app.user_middleware if m.cls.__name__ == "CORSMiddleware")
-    assert cors.kwargs["allow_origins"] == list(main.DEV_ORIGINS) == ["http://localhost:5173"]
+    assert cors.kwargs["allow_origins"] == list(main.DEV_ORIGINS) == []
     assert "allow_origin_regex" not in cors.kwargs
 
 

@@ -51,10 +51,14 @@ app = FastAPI(title="SnowRaven", lifespan=lifespan)
 APP_REQUEST_HEADER = "X-SnowRaven-Request"
 APP_REQUEST_HEADER_VALUE = "1"
 
-# The Vite dev server's page origin, the only origin CORS answers. The app's own
-# dev page never needs it (the Vite proxy makes every call same-origin); it is
-# kept as it was before this fix.
-DEV_ORIGINS = ("http://localhost:5173",)
+# The origins CORS admits: none. The app's own page is always same-origin with
+# this server (`./start.sh`, a Pi, nginx, `tailscale serve`) or with the Vite dev
+# server whose proxy forwards to it, so it never sends a preflight and needs no
+# entry. `http://localhost:5173` used to be listed, and it let ANY page served on
+# Vite's default port (another project's dev server) pass the preflight, add
+# APP_REQUEST_HEADER, write here and read the stored API keys. Every origin added
+# here gets the same power (is_refused_browser_write).
+DEV_ORIGINS: tuple[str, ...] = ()
 
 # Every method that can change state. POST is the one a browser sends cross-site
 # with no preflight (a form post, a `no-cors` fetch), which CORS cannot stop:
@@ -79,21 +83,25 @@ def is_refused_browser_write(method: str, headers: Headers) -> bool:
     Node tooling in website/tools posts here.
 
     Such a request passes only with ``APP_REQUEST_HEADER: APP_REQUEST_HEADER_VALUE``.
-    A page on another site cannot add a custom header without a CORS preflight,
-    and CORSMiddleware below refuses the preflight for every origin except
-    ``DEV_ORIGINS``, so the header proves the request came from a page this
-    server (or the dev proxy in front of it) served. No Host, Origin or proxy
-    header is compared, so it works the same on ``./start.sh``, a LAN hostname or
-    IP, the Vite dev proxy, nginx with or without ``X-Forwarded-Host``, and
-    ``tailscale serve``.
+    A page on another origin cannot add a custom header without a CORS
+    preflight, and CORSMiddleware below admits no origin (``DEV_ORIGINS`` is
+    empty), so it refuses every such preflight and the header proves the request
+    came from a page this server (or the Vite dev proxy in front of it) served.
+    No Host, Origin or proxy header is compared, so it works the same on
+    ``./start.sh``, a LAN hostname or IP, the Vite dev proxy, nginx with or
+    without ``X-Forwarded-Host``, and ``tailscale serve``. It does not cover DNS
+    rebinding: an attacker's hostname re-pointed at this server's address makes
+    the attacker's page same-origin, so it adds the header with no preflight,
+    and nothing here checks Host (equally open before this guard existed).
 
-    THE GUARANTEE RESTS ON CORS, here AND in front of here. Widening
-    ``allow_origins`` (a ``*``, or a regex) lets every origin it admits send the
-    header, and so write; so does a proxy that answers a preflight itself
-    instead of passing it on. Vite's dev server does that by default for any
-    localhost origin, which is why frontend/vite.config.ts sets ``cors: false``
-    (measured: with the default, a page on another local port wrote through the
-    dev proxy in Chromium and WebKit).
+    THE GUARANTEE RESTS ON CORS, here AND in front of here. Adding any origin to
+    ``allow_origins`` (a single origin, a ``*``, or a regex) lets every page
+    served from what it admits send the header, and so write, and read the API
+    keys; so does a proxy that answers a preflight itself instead of passing it
+    on. Vite's dev server does that by default for any localhost origin, which
+    is why frontend/vite.config.ts sets ``cors: false`` (measured: with the
+    default, a page on another local port wrote through the dev proxy in
+    Chromium and WebKit).
 
     A request carrying neither ``Origin`` nor ``Sec-Fetch-Site`` (curl, the
     TestClient, Node ``fetch`` in website/tools) passes without the header:
@@ -174,8 +182,9 @@ class SecurityHeaders:
 
 # Order is load-bearing: the LAST added is the OUTERMOST. The headers wrap
 # everything (a CORS preflight answer and a 403 refusal included); the guard
-# refuses before CORS or any route sees the request. `allow_origins` is what
-# makes APP_REQUEST_HEADER unforgeable (is_refused_browser_write): never widen it.
+# refuses before CORS or any route sees the request. An empty `allow_origins` is
+# what makes APP_REQUEST_HEADER unforgeable (is_refused_browser_write): add no
+# origin to it. CORSMiddleware stays so a foreign preflight gets an explicit 400.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=list(DEV_ORIGINS),

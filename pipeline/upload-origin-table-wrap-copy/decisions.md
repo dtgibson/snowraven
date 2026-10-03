@@ -45,6 +45,21 @@ have broken writes for self-hosters behind a default nginx. The narrower Vite `x
 nginx documentation route was not taken either, because it still relies on a header a
 proxy may or may not forward.
 
+## 5. Audit findings (Stage 4, Guide, hands-off)
+
+- **M1 (Medium), fixed before ship:** the backend's CORS still trusted
+  `http://localhost:5173`, Vite's default port, so any other project served there could
+  send the app's header, write to any reachable SnowRaven web/Pi server and read both
+  stored API keys. Nothing needs the entry now that the dev page is same-origin through
+  the Vite proxy, and the changelog's "only SnowRaven's own page" promise depends on its
+  removal. `allow_origins` becomes empty; CORSMiddleware stays so foreign preflights keep
+  their 400.
+- **L1 (Low), accepted and recorded:** DNS rebinding passes the guard, as it passed the
+  server before this fix; nothing checks Host. One sentence at the guard says so, and the
+  Chronicler records an opt-in Host allowlist in ROADMAP.
+- **I1 (Informational), accepted:** an unhandled-exception 500 carries none of the four
+  headers; its body is a fixed "Internal Server Error".
+
 **Vite's dev CORS turned off (QA attempt 1, Engineer, hands-off).** The header is
 unforgeable only if nothing in front of the backend answers a preflight itself. Vite 8's
 dev server does, for any `localhost` or `127.0.0.1` origin, echoing the requested headers;
