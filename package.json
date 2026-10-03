@@ -1,6 +1,7 @@
 {
   "name": "snowraven",
   "private": true,
+  "license": "AGPL-3.0-only",
   "scripts": {
     "desktop:dev": "tauri dev",
     "desktop:build": "tauri build",
