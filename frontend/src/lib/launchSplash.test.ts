@@ -192,6 +192,43 @@ describe('launch splash: the Android WebView floor', () => {
     page.dom.window.close()
   })
 
+  // Measured on the API 26 emulator (Android 8.0, WebView 58.0.3029.125): with
+  // `inset: 0` the frame had no offsets in that engine, collapsed to a zero box
+  // under its own overflow: hidden, and the floor message never showed; the
+  // screen was the bare green field. The frame must draw in the WebViews it
+  // exists to turn away, so its stylesheet uses nothing such an engine drops.
+  it('the launch frame draws in a WebView below the floor: no inset shorthand, a plain fallback before every max()/min()/clamp()/env()', () => {
+    const style = html.match(/<style>([\s\S]*?)<\/style>/)?.[1]
+    expect(style, 'index.html has its launch <style>').toBeTruthy()
+    const css = style!.replace(/\/\*[\s\S]*?\*\//g, '')
+    const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m) => ({
+      selector: m[1].trim(),
+      decls: m[2].split(';').map((d) => d.trim()).filter(Boolean).map((d) => {
+        const i = d.indexOf(':')
+        return { prop: d.slice(0, i).trim(), value: d.slice(i + 1).trim() }
+      }),
+    }))
+    // non-vacuity: the frame's own rule is found and carries its four offsets
+    const frame = rules.find((r) => r.selector === '.sr-launch')
+    expect(frame, 'the .sr-launch rule').toBeTruthy()
+    for (const side of ['top', 'right', 'bottom', 'left']) {
+      expect(frame!.decls.some((d) => d.prop === side && d.value === '0'), `.sr-launch ${side}: 0`).toBe(true)
+    }
+    const modern = /\b(?:max|min|clamp|env)\(/
+    let guarded = 0
+    for (const r of rules) {
+      for (const [i, d] of r.decls.entries()) {
+        expect(d.prop, `${r.selector} uses the inset shorthand`).not.toMatch(/^inset(?:-block|-inline)?$/)
+        if (!modern.test(d.value)) continue
+        guarded++
+        const fallback = r.decls.slice(0, i).some((p) => p.prop === d.prop && !modern.test(p.value))
+        expect(fallback, `${r.selector} { ${d.prop}: ${d.value} } has no plain fallback before it`).toBe(true)
+      }
+    }
+    // non-vacuity: the copy block's safe-area bottom is one such declaration
+    expect(guarded).toBeGreaterThan(0)
+  })
+
   it('main.tsx refuses to mount React when the script set the flag', () => {
     const main = readFileSync(resolve(import.meta.dirname, '../main.tsx'), 'utf8')
     expect(main).toMatch(/if \(!window\.__SR_WEBVIEW_BELOW_FLOOR__\) \{[\s\S]*createRoot\(/)

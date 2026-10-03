@@ -7,10 +7,15 @@
     <title>SnowRaven</title>
     <style>
       /* First paint precedes the CSS bundle. Keep this saved brand field
-         in step with LaunchScreen.storyboard and the native window. */
+         in step with LaunchScreen.storyboard and the native window.
+         This frame also carries the Android WebView floor message, so it
+         must draw in a WebView far below the floor (Android 8.0 ships
+         Chromium 58): no inset shorthand (Chromium 87), and a plain
+         fallback before every max() (79) or env() (69) declaration, which
+         an old engine drops whole. */
       html.sr-launching, html.sr-launching body { background: #2D8653; }
       body { margin: 0; }
-      .sr-launch { position: fixed; inset: 0; z-index: 9999; overflow: hidden;
+      .sr-launch { position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 9999; overflow: hidden;
         background: #2D8653; color: #FFFFFF;
         font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
       .sr-launch-mark { position: absolute; width: 88px; height: 88px;
@@ -18,7 +23,7 @@
       .sr-launch-mark img { display: block; width: 100%; height: 100%;
         filter: brightness(0) invert(1); }
       .sr-launch-copy { position: absolute; top: calc(50% + 56px);
-        bottom: max(12px, env(safe-area-inset-bottom)); left: 24px; right: 24px;
+        bottom: 12px; bottom: max(12px, env(safe-area-inset-bottom)); left: 24px; right: 24px;
         display: flex; flex-direction: column; align-items: center; gap: 12px;
         overflow-y: auto; text-align: center; }
       .sr-launch-status { max-width: 20rem; margin: 0; color: #FFFFFF;
