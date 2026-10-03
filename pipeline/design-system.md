@@ -284,6 +284,9 @@ italic at 0.71875rem `--sr-text-gray`.
   (`/^S\d+$/`); a species code only behind `SPECIES_CODE_RE`
   (`/^[a-z0-9-]{2,16}$/`), rendering nothing on a miss exactly as a missing code
   already does; `target="_blank" rel="noreferrer"`; accent + ExternalLink glyph.
+  On a full (untruncated) name that wraps, the glyph follows the last word,
+  never the column's far edge (`HotspotLink`'s full-name link; a cell with spare
+  padding may hang it there, as Targets' Last report does).
   **A raster mark that can fail gets a bundled glyph fallback in its own reserved
   slot, never an empty one.** The `<img>` stays mounted and hidden, a lucide glyph
   is revealed in the same fixed slot, and `onLoad` restores the raster in place —
