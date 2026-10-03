@@ -32,6 +32,9 @@
 //
 // F4. The Last report hotspot glyph hangs into the cell's spare padding so it
 // never starts a line alone (targets-hotspot-link), described at its own block.
+//
+// F5. The Species cell's BirdName wraps inside the cell on a phone, so a long
+// scientific name no longer widens the table (upload-origin-table-wrap-copy).
 /// <reference types="node" />
 import { describe, expect, it } from 'vitest'
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
@@ -39,6 +42,7 @@ import { fileURLToPath } from 'node:url'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { HotspotLink } from '../components/HotspotLink'
+import { BirdName } from '../components/BirdName'
 
 const SRC = fileURLToPath(new URL('../', import.meta.url))
 const css = readFileSync(`${SRC}globals.css`, 'utf8')
@@ -627,6 +631,75 @@ describe('F4: the Last report glyph hangs into the cell\'s spare padding (target
   })
 })
 
+// ── F5: the Species cell's BirdName wraps inside the cell on a phone ─────────
+// (upload-origin-table-wrap-copy.) The shared scientific-name rule does not
+// wrap, and BirdName is a shrink-to-fit inline column, so in the phone tier,
+// where the cell may shrink, the box was as wide as the whole scientific name
+// on one line: 74px past the cell at 320px / 200% ("Xanthocephalus
+// xanthocephalus"), 34px at 360px. The repair is the Breeding Codes / Rainbow
+// Connection one, scoped to this cell: the box fills the cell, the name row
+// wraps, and the scientific name wraps rather than ending in an ellipsis.
+// Pinned as resolved values at the phone tier, and as a shared rule left alone
+// (another surface's BirdName, and this cell on desktop, still resolve the
+// shared values). WHAT THIS CANNOT SEE: that no row widens the table in a real
+// engine; that is the built-app sweep recorded with the fix.
+
+const NAME_TD: El[] = [{ tag: 'td', classes: ['sr-tg-name'] }, ...LAST_TD.slice(1)]
+
+/** BirdName's own classes, read off its server-rendered markup with the scientific name shown, never restated. */
+const birdNameClasses = (() => {
+  const html = renderToStaticMarkup(createElement(BirdName, { commonName: 'Yellow-headed Blackbird', scientificName: 'Xanthocephalus xanthocephalus', showSci: true }))
+  const cls = [...html.matchAll(/class="([^"]+)"/g)].map(m => m[1].split(' '))
+  return { box: cls[0], row: cls[1], sci: cls[cls.length - 1] }
+})()
+
+const birdName = (cell: El[]) => {
+  const box: El[] = [{ tag: 'span', classes: birdNameClasses.box }, ...cell]
+  return {
+    box,
+    row: [{ tag: 'span', classes: birdNameClasses.row }, ...box] as El[],
+    sci: [{ tag: 'span', classes: birdNameClasses.sci }, ...box] as El[],
+  }
+}
+const TG = birdName(NAME_TD)
+// Another table's name cell, which the repair must not reach.
+const ELSEWHERE = birdName([{ tag: 'td', classes: [] }, { tag: 'tr', classes: [] }, { tag: 'tbody', classes: [] }, { tag: 'table', classes: [] }])
+
+describe('F5: the Species cell\'s name wraps inside the cell on a phone (upload-origin-table-wrap-copy)', () => {
+  it('the chain is BirdName\'s real markup, and the Targets row passes it a scientific name to show', () => {
+    expect(birdNameClasses.box).toContain('sr-birdname')
+    expect(birdNameClasses.box).not.toContain('sr-birdname-inline')
+    expect(birdNameClasses.row).toEqual(['sr-birdname-row'])
+    expect(birdNameClasses.sci).toEqual(['sr-birdname-sci'])
+    const list = readFileSync(`${SRC}components/targets/TargetsList.tsx`, 'utf8')
+    expect(list).toMatch(/<td role="cell" className="sr-tg-name">\s*<BirdName\b[\s\S]*?showSci=\{!!row\.sciName\}/)
+  })
+
+  it('never vacuous: both the shared rule and this cell\'s rule reach the scientific name', () => {
+    expect(resolve('white-space', TG.sci, 'phone').candidates).toBeGreaterThan(1)
+    expect(at('white-space', ELSEWHERE.sci, 'phone'), 'the shared rule must still be found').toBe('nowrap')
+  })
+
+  it('phone: the box fills the cell, the name row wraps, and the scientific name wraps anywhere', () => {
+    expect(at('width', TG.box, 'phone'), where('width', TG.box, 'phone')).toBe('100%')
+    expect(at('max-width', TG.box, 'phone'), where('max-width', TG.box, 'phone')).toBe('100%')
+    expect(at('flex-wrap', TG.row, 'phone'), where('flex-wrap', TG.row, 'phone')).toBe('wrap')
+    expect(at('white-space', TG.sci, 'phone'), where('white-space', TG.sci, 'phone')).toBe('normal')
+    expect(at('overflow-wrap', TG.sci, 'phone'), where('overflow-wrap', TG.sci, 'phone')).toBe('anywhere')
+    // The cell itself may still shrink to its grid track, which is what bounds the box.
+    expect(at('min-width', NAME_TD, 'phone')).toMatch(ZERO)
+  })
+
+  it('the shared BirdName is unchanged: another surface, and this cell on desktop, keep the shared values', () => {
+    for (const [chain, tier] of [[ELSEWHERE, 'phone'], [TG, 'desktop']] as const) {
+      expect(at('white-space', chain.sci, tier)).toBe('nowrap')
+      expect(at('overflow-wrap', chain.sci, tier)).toBeNull()
+      expect(at('width', chain.box, tier)).toBeNull()
+      expect(at('flex-wrap', chain.row, tier)).toBeNull()
+    }
+  })
+})
+
 // The built bundle is where preflight lives. Its `svg { display: block }` sits in
 // `@layer base`; an unlayered rule beats any layered one whatever its
 // specificity, so the Targets rules must be emitted OUTSIDE every @layer.
@@ -651,6 +724,9 @@ describe.skipIf(built.length === 0)('the emitted bundle: our rules are unlayered
     ['.sr-tg-place>a', 'margin-inline-end', 'calc(-1 * var(--sr-tg-glyph-hang))'],
     ['.sr-tg-place>a', 'padding-inline-end', 'var(--sr-tg-glyph-hang)'],
     ['.sr-tg-place>a>span:last-child>svg', 'margin-inline-end', 'calc(-1 * var(--sr-tg-glyph-hang))'],
+    // F5: the scientific name's wrap survives minification, outside every layer.
+    ['.sr-tg-name .sr-birdname-sci', 'white-space', 'normal'],
+    ['.sr-tg-name .sr-birdname-sci', 'overflow-wrap', 'anywhere'],
   ])('%s is emitted unlayered with %s: %s', (sel, prop, value) => {
     const hits = find(sel)
     expect(hits.length, `${sel} must be emitted`).toBeGreaterThan(0)

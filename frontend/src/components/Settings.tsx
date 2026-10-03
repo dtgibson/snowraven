@@ -30,7 +30,7 @@ import {
   fromChangedText, keyReplacedText, keyClearedText, CLEAR_PENDING_TEXT, KEY_REMOVAL_PENDING_TEXT,
   ENABLE_KEYS_TITLE, enableKeysNoteItems, ENABLE_KEYS_FINE, keyClearTitle, keyClearBody,
   REMOVE_KEYS_TITLE, removeKeysBody, REMOVE_KEYS_OUTRO,
-  removeCountiesLine, REMOVE_DAY_OBS_LINE, BAR_CHART_FILES_HEADER, BAR_CHART_FILES_DESCRIPTION,
+  removeCountiesLine, REMOVE_DAY_OBS_LINE, SERVER_HERE, BAR_CHART_FILES_HEADER, BAR_CHART_FILES_DESCRIPTION,
   REMOVE_ALL_BAR_CHARTS, barChartsSavedText, barChartsNoneText, barChartsUnknownText,
   REMOVE_ALL_BAR_CHARTS_TITLE, REMOVE_ALL_CONFIRM, removeAllBarChartsBody, removeAllPartialText, removeAllDoneText,
   DETAILS_COPIED_TEXT, REMOVE_FAILED_TEXT,
@@ -178,7 +178,13 @@ function AppearanceRow() {
             margin: '0 0 10px',
             lineHeight: 1.55,
           }}>
-            Your preference will be saved in this browser's local storage, on this device only. Nothing is sent to the server.
+            {/* Where persistThemePreference really saves it (lib/theme.ts): the
+                storage seam, which is this app's settings file on Tauri and
+                the server on web/Pi, where App.tsx applies it in every
+                browser that opens the install. */}
+            {isTauri()
+              ? 'Your preference will be saved in this app\'s settings on this device.'
+              : 'Your preference will be saved on this server and used by every browser that opens SnowRaven here.'}
           </p>
           <div style={{ display: 'flex', gap: 8 }}>
             <Button
@@ -1647,7 +1653,9 @@ function RebuildCachesButton() {
 // `icloudActions.barChartsCleared`, which writes their cleared markers.
 function BarChartFilesSection() {
   const ics = useICloudState()
-  const here = hereWord(ics.platform)
+  // Web/Pi saves these files on the server; hereWord says "this device"
+  // whenever no Apple platform is known, which is true only on Windows.
+  const here = isTauri() ? hereWord(ics.platform) : SERVER_HERE
   const epoch = useBarChartFilesEpoch()
   const statusId = useId()
   const buttonRef = useRef<HTMLButtonElement>(null)

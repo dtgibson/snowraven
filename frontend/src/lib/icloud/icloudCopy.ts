@@ -315,6 +315,14 @@ export function removeCountyBody(county: string, here: string): string {
   return `The file for ${county} will be removed from ${here} and from iCloud. Every Mac, iPhone and iPad with iCloud Sync on removes its copy at its next check. Devices with sync off keep theirs.`
 }
 
+/**
+ * The Bar-chart files section's `here` on web/Pi. There the files live on the
+ * server (backend/routers/barcharts.py, `data/barcharts/`), not on the device,
+ * matching Settings' "Files are stored on this server"; every other platform
+ * keeps `hereWord(platform)`.
+ */
+export const SERVER_HERE = 'this server'
+
 /** Settings: the Bar-chart files section (items 12, 13 and 17). */
 export const BAR_CHART_FILES_HEADER = 'Bar-chart files'
 export const BAR_CHART_FILES_DESCRIPTION = 'County bar-chart files added on the Targets tab, for sorting by eBird frequency.'

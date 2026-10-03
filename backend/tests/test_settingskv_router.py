@@ -240,11 +240,35 @@ def test_reserved_key_keys_not_owned_by_generic_store():
 
 # --- Body validation -------------------------------------------------------
 
-def test_non_json_body_rejected_422():
+@pytest.mark.parametrize(
+    "content_type",
+    ["text/plain", "application/x-www-form-urlencoded", "multipart/form-data; boundary=x", None],
+)
+def test_non_json_content_type_rejected_415_and_writes_nothing(tmp_path, content_type):
+    # The three types a browser may send cross-site with no preflight, plus no
+    # type at all, each carrying a body that IS valid JSON: the route used to
+    # json.loads any of them and write (ROADMAP v1.0.39, finding 1).
+    headers = {"content-type": content_type} if content_type else {}
+    resp = client.post("/settings/theme", content=b'"dark"', headers=headers)
+    assert resp.status_code == 415
+    assert not (tmp_path / "settings" / "theme.json").exists()
+
+
+def test_json_content_type_with_parameters_accepted():
+    resp = client.post(
+        "/settings/theme",
+        content=b'"dark"',
+        headers={"content-type": "application/json; charset=utf-8"},
+    )
+    assert resp.status_code == 200
+    assert client.get("/settings/theme").json() == "dark"
+
+
+def test_invalid_json_body_rejected_422():
     resp = client.post(
         "/settings/somekey",
         content=b"not json at all",
-        headers={"content-type": "text/plain"},
+        headers={"content-type": "application/json"},
     )
     assert resp.status_code == 422
 

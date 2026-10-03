@@ -5,6 +5,11 @@
 // copy builders (design-spec Copy table, items 3 and 12 to 23), and the
 // always-mounted live regions are asserted present, empty, from first paint.
 //
+// WHERE: rows run as web/Pi unless they say otherwise (`isTauri` false), where
+// the files live on the server, so the section says "this server"
+// (upload-origin-table-wrap-copy). Windows keeps "this device" and the Apple
+// apps their platform word; one row each.
+//
 // WHAT THIS CANNOT SEE: layout (jsdom has none), the accessibility tree, and
 // WebKit's tab order; the 320px / 200% claims belong to the browser-verified
 // stage. The section's position among the others is settingsSectionOrder.test.tsx's.
@@ -101,16 +106,16 @@ afterEach(() => {
 const button = () => screen.getByRole('button', { name: copy.REMOVE_ALL_BAR_CHARTS })
 
 describe('the control and its status (FR-19, FR-21, QA-18)', () => {
-  it('names how many counties have a file on this device, as the button\'s description, and the live regions are mounted empty', async () => {
+  it('web/Pi: names how many counties have a file on this server, where web/Pi keeps them, as the button\'s description, and the live regions are mounted empty', async () => {
     H.counties = { ...THREE }
     renderSettings()
-    await screen.findByText(copy.barChartsSavedText(3, 'this device'))
+    await screen.findByText(copy.barChartsSavedText(3, 'this server'))
     expect(screen.getByText(copy.BAR_CHART_FILES_HEADER)).toBeTruthy()
     expect(screen.getByText(copy.BAR_CHART_FILES_DESCRIPTION)).toBeTruthy()
     const b = button()
     expect(b.getAttribute('aria-disabled')).toBeNull()
     expect(b.hasAttribute('disabled')).toBe(false)
-    expect(document.getElementById(b.getAttribute('aria-describedby')!)!.textContent).toBe('Saved for 3 counties on this device.')
+    expect(document.getElementById(b.getAttribute('aria-describedby')!)!.textContent).toBe('Saved for 3 counties on this server.')
     const alert = document.querySelector('.sr-chartfiles-alert')!
     const done = document.querySelector('.sr-chartfiles-done')!
     expect(alert.getAttribute('role')).toBe('alert')
@@ -119,14 +124,27 @@ describe('the control and its status (FR-19, FR-21, QA-18)', () => {
     expect(done.textContent).toBe('')
   })
 
+  it('Windows: the files are on the device, so the status and the confirmation keep "this device"', async () => {
+    // A Tauri app off Apple: no iCloud, so no platform word, and hereWord's
+    // "this device" is true there (AppLocalData/data/barcharts/).
+    vi.mocked(isTauri).mockReturnValue(true)
+    H.counties = { ...THREE }
+    renderSettings()
+    await screen.findByText('Saved for 3 counties on this device.')
+    fireEvent.click(button())
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByText('Bar-chart files for 3 counties will be removed from this device. Your eBird backup, ML export and API keys are not touched.')).toBeTruthy()
+    expect(screen.queryByText(/this server/)).toBeNull()
+  })
+
   it('with no saved files the button stays focusable, is aria-disabled with its reason, and cannot be activated by click or key', async () => {
     renderSettings()
-    await screen.findByText(copy.barChartsNoneText('this device'))
+    await screen.findByText(copy.barChartsNoneText('this server'))
     const b = button()
     expect(b.getAttribute('aria-disabled')).toBe('true')
     expect(b.hasAttribute('disabled')).toBe(false)
     expect(b.getAttribute('tabindex')).toBe('0')
-    expect(document.getElementById(b.getAttribute('aria-describedby')!)!.textContent).toBe('No bar-chart files are saved on this device.')
+    expect(document.getElementById(b.getAttribute('aria-describedby')!)!.textContent).toBe('No bar-chart files are saved on this server.')
     fireEvent.click(b)
     fireEvent.keyDown(b, { key: 'Enter' })
     expect(screen.queryByRole('dialog')).toBeNull()
@@ -135,26 +153,26 @@ describe('the control and its status (FR-19, FR-21, QA-18)', () => {
   it('a manifest the seam cannot read is UNKNOWN, never "none saved": the reason and Retry, and the button cannot act', async () => {
     H.reject = true
     renderSettings()
-    await screen.findByText(copy.barChartsUnknownText('this device'))
-    expect(screen.queryByText(copy.barChartsNoneText('this device'))).toBeNull()
+    await screen.findByText(copy.barChartsUnknownText('this server'))
+    expect(screen.queryByText(copy.barChartsNoneText('this server'))).toBeNull()
     expect(button().getAttribute('aria-disabled')).toBe('true')
     H.reject = false
     H.counties = { 'US-CA-001': THREE['US-CA-001'] }
     fireEvent.click(screen.getByRole('button', { name: copy.BUTTONS.retry }))
-    await screen.findByText(copy.barChartsSavedText(1, 'this device'))
-    expect(screen.getByText('Saved for 1 county on this device.')).toBeTruthy()
+    await screen.findByText(copy.barChartsSavedText(1, 'this server'))
+    expect(screen.getByText('Saved for 1 county on this server.')).toBeTruthy()
   })
 })
 
 describe('it always confirms, and says what goes and from where (FR-20, D2, QA-17)', () => {
-  it('sync off (every non-Apple platform): the local body, "Remove all", and Cancel removes nothing', async () => {
+  it('sync off (web/Pi here): the server body, "Remove all", and Cancel removes nothing', async () => {
     H.counties = { ...THREE }
     renderSettings()
-    await screen.findByText(copy.barChartsSavedText(3, 'this device'))
+    await screen.findByText(copy.barChartsSavedText(3, 'this server'))
     fireEvent.click(button())
     const dialog = await screen.findByRole('dialog')
     expect(within(dialog).getByText(copy.REMOVE_ALL_BAR_CHARTS_TITLE)).toBeTruthy()
-    expect(within(dialog).getByText('Bar-chart files for 3 counties will be removed from this device. Your eBird backup, ML export and API keys are not touched.')).toBeTruthy()
+    expect(within(dialog).getByText('Bar-chart files for 3 counties will be removed from this server. Your eBird backup, ML export and API keys are not touched.')).toBeTruthy()
     expect(within(dialog).getByRole('button', { name: copy.REMOVE_ALL_CONFIRM })).toBeTruthy()
     fireEvent.click(within(dialog).getByRole('button', { name: copy.BUTTONS.cancel }))
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
@@ -164,7 +182,7 @@ describe('it always confirms, and says what goes and from where (FR-20, D2, QA-1
   it('Escape closes it with nothing removed', async () => {
     H.counties = { ...THREE }
     renderSettings()
-    await screen.findByText(copy.barChartsSavedText(3, 'this device'))
+    await screen.findByText(copy.barChartsSavedText(3, 'this server'))
     fireEvent.click(button())
     const dialog = await screen.findByRole('dialog')
     // Wait for FOCUS inside the dialog, not for its node (testing.md v1.0.25).
@@ -182,10 +200,10 @@ describe('it always confirms, and says what goes and from where (FR-20, D2, QA-1
   it('one county takes the singular subject', async () => {
     H.counties = { 'US-CA-001': THREE['US-CA-001'] }
     renderSettings()
-    await screen.findByText('Saved for 1 county on this device.')
+    await screen.findByText('Saved for 1 county on this server.')
     fireEvent.click(button())
     const dialog = await screen.findByRole('dialog')
-    expect(within(dialog).getByText('The bar-chart file for 1 county will be removed from this device. Your eBird backup, ML export and API keys are not touched.')).toBeTruthy()
+    expect(within(dialog).getByText('The bar-chart file for 1 county will be removed from this server. Your eBird backup, ML export and API keys are not touched.')).toBeTruthy()
   })
 
   it('sync on and available: the body names iCloud and the other devices, and the button says so', async () => {
@@ -213,14 +231,14 @@ describe('the effect (FR-21, FR-22, FR-23, QA-18, QA-19, QA-34)', () => {
       return { removed: Object.keys(THREE), failed: [] }
     })
     renderSettings()
-    await screen.findByText(copy.barChartsSavedText(3, 'this device'))
+    await screen.findByText(copy.barChartsSavedText(3, 'this server'))
     fireEvent.click(button())
     const dialog = await screen.findByRole('dialog')
     fireEvent.click(within(dialog).getByRole('button', { name: copy.REMOVE_ALL_CONFIRM }))
     await screen.findByText(copy.removeAllDoneText(3))
     expect(copy.removeAllDoneText(3)).toBe('Removed bar-chart files for 3 counties.')
     expect(document.querySelector('.sr-chartfiles-done')!.textContent).toBe('Removed bar-chart files for 3 counties.')
-    await screen.findByText(copy.barChartsNoneText('this device'))
+    await screen.findByText(copy.barChartsNoneText('this server'))
     expect(button().getAttribute('aria-disabled')).toBe('true')
     await waitFor(() => expect(document.activeElement).toBe(button()))
     // Sync off: no marker is asked for.
@@ -250,25 +268,25 @@ describe('the effect (FR-21, FR-22, FR-23, QA-18, QA-19, QA-34)', () => {
       return { removed: ['US-CA-001', 'US-NY-005'], failed: ['US-CA-013'] }
     })
     renderSettings()
-    await screen.findByText(copy.barChartsSavedText(3, 'this device'))
+    await screen.findByText(copy.barChartsSavedText(3, 'this server'))
     fireEvent.click(button())
     fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: copy.REMOVE_ALL_CONFIRM }))
-    await screen.findByText('The bar-chart file for 1 county could not be removed and remains on this device. Try again.')
-    expect(document.querySelector('.sr-chartfiles-alert')!.textContent).toBe('The bar-chart file for 1 county could not be removed and remains on this device. Try again.')
+    await screen.findByText('The bar-chart file for 1 county could not be removed and remains on this server. Try again.')
+    expect(document.querySelector('.sr-chartfiles-alert')!.textContent).toBe('The bar-chart file for 1 county could not be removed and remains on this server. Try again.')
     // The status re-read describes exactly the survivor, and the button can act again.
-    await screen.findByText('Saved for 1 county on this device.')
+    await screen.findByText('Saved for 1 county on this server.')
     expect(button().getAttribute('aria-disabled')).toBeNull()
-    expect(copy.removeAllPartialText(2, 'this device')).toBe('Bar-chart files for 2 counties could not be removed and remain on this device. Try again.')
+    expect(copy.removeAllPartialText(2, 'this server')).toBe('Bar-chart files for 2 counties could not be removed and remain on this server. Try again.')
   })
 
   it('a refused removal reports what the manifest still lists, never a success', async () => {
     H.counties = { ...THREE }
     H.clearAll.mockImplementation(async () => { throw new Error('File delete failed (500)') })
     renderSettings()
-    await screen.findByText(copy.barChartsSavedText(3, 'this device'))
+    await screen.findByText(copy.barChartsSavedText(3, 'this server'))
     fireEvent.click(button())
     fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: copy.REMOVE_ALL_CONFIRM }))
-    await screen.findByText(copy.removeAllPartialText(3, 'this device'))
+    await screen.findByText(copy.removeAllPartialText(3, 'this server'))
     expect(document.querySelector('.sr-chartfiles-done')!.textContent).toBe('')
   })
 
@@ -276,7 +294,7 @@ describe('the effect (FR-21, FR-22, FR-23, QA-18, QA-19, QA-34)', () => {
     H.counties = { ...THREE }
     H.clearAll.mockImplementation(async () => ({ removed: Object.keys(THREE), failed: [] }))
     renderSettings()
-    await screen.findByText(copy.barChartsSavedText(3, 'this device'))
+    await screen.findByText(copy.barChartsSavedText(3, 'this server'))
     fireEvent.click(button())
     fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: copy.REMOVE_ALL_CONFIRM }))
     await screen.findByText(copy.removeAllDoneText(3))

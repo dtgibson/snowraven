@@ -87,6 +87,17 @@ def get_setting(key: str):
 async def save_setting(key: str, request: Request):
     path = _key_path(key)
 
+    # JSON only, by its declared type, BEFORE the body is read. This route parses
+    # the raw body itself, so FastAPI's JSON content-type check never ran here,
+    # and a `text/plain`, form or untyped body is what a browser may send
+    # cross-site with no preflight (the ROADMAP v1.0.39 finding). `WebStorage.
+    # setSetting` always sends `application/json`. The cross-site refusal in
+    # main.py is the primary guard; this keeps the route from being a simple-
+    # request target on its own. Parameters (`; charset=utf-8`) are allowed.
+    media_type = request.headers.get("content-type", "").split(";", 1)[0].strip().lower()
+    if media_type != "application/json":
+        raise HTTPException(status_code=415, detail="Body must be sent as application/json.")
+
     raw = await request.body()
     if len(raw) > _MAX_BYTES:
         raise HTTPException(status_code=413, detail="Payload too large.")

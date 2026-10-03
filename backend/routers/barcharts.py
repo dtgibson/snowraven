@@ -234,6 +234,7 @@ def delete_barchart(regionCode: str = Path(..., pattern=_REGION_PATTERN)) -> dic
 
 @router.delete("/settings/barcharts")
 def delete_all_barcharts() -> dict:
-    # A DELETE needs a CORS preflight, so this route does not widen the
-    # cross-site simple-request finding recorded for the POST routes (ROADMAP).
+    # A DELETE needs a CORS preflight, which CORS refuses for a foreign origin,
+    # and main.py's CrossSiteWriteGuard refuses any cross-site write before it
+    # reaches a route, this one and the multipart POSTs above included.
     return _remove_all()

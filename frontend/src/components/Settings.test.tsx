@@ -144,6 +144,30 @@ describe('Settings — radiogroup arrow keys + roving tabindex (F053/F092)', () 
   })
 })
 
+describe('Settings — the Appearance save prompt says where the choice is really saved', () => {
+  // persistThemePreference writes the storage seam as well as localStorage:
+  // the app's settings file on Tauri, the server on web/Pi (POST
+  // /settings/theme), which App.tsx then applies in every browser that opens
+  // the install. The old sentence ("this browser's local storage, on this
+  // device only. Nothing is sent to the server.") was false on every platform.
+  beforeEach(() => { try { localStorage.removeItem('sr-theme') } catch { /* private browsing */ } })
+
+  it('web/Pi: on this server, for every browser that opens the install', () => {
+    renderSettings()
+    fireEvent.click(screen.getByRole('radio', { name: 'Dark' }))
+    expect(screen.getByText('Your preference will be saved on this server and used by every browser that opens SnowRaven here.')).toBeTruthy()
+    expect(screen.queryByText(/local storage|device only|Nothing is sent/)).toBeNull()
+  })
+
+  it('Mac, Windows, iPhone and iPad: in the app\'s settings on this device', () => {
+    vi.mocked(isTauri).mockReturnValue(true)
+    renderSettings()
+    fireEvent.click(screen.getByRole('radio', { name: 'Light' }))
+    expect(screen.getByText('Your preference will be saved in this app\'s settings on this device.')).toBeTruthy()
+    expect(screen.queryByText(/local storage|server/)).toBeNull()
+  })
+})
+
 describe('Settings — form labels and error roles (F007/F048/F010)', () => {
   it('associates Latitude/Longitude/Radius labels with their inputs', () => {
     renderSettings()

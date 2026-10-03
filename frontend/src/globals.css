@@ -6492,6 +6492,21 @@ select:focus-visible {
   .sr-tg-table tbody td { padding: 0; border: 0; min-width: 0; }
   .sr-tg-table tbody tr:hover td { background: transparent; }
   .sr-tg-table .sr-tg-name { grid-column: 1 / -1; min-width: 0; }
+  /* The Species cell's BirdName fits the cell and never widens the row
+     (upload-origin-table-wrap-copy). The shared scientific-name rule does not
+     wrap, and BirdName is a shrink-to-fit inline column, so its narrowest size
+     was the whole scientific name on one line: with the cell free to shrink
+     and nothing capping the box, it ran up to 74px past the cell at 320px and
+     200% text, and the table scrolled sideways. The same repair as the
+     Breeding Codes name column and Rainbow Connection rows: the box fills the
+     cell, the name row may wrap (the favicon pair drops intact below a long
+     name), and the scientific name WRAPS rather than ending in an ellipsis,
+     which at 200% would cut off content. `anywhere` breaks a single word
+     longer than the cell too; the cell is bounded by its grid track, so it
+     cannot collapse. The shared BirdName rules stay unchanged. */
+  .sr-tg-name .sr-birdname { width: 100%; max-width: 100%; }
+  .sr-tg-name .sr-birdname-row { flex-wrap: wrap; }
+  .sr-tg-name .sr-birdname-sci { white-space: normal; overflow-wrap: anywhere; }
   .sr-tg-table .sr-tg-month, .sr-tg-table .sr-tg-year { grid-column: 1 / -1; display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; }
   .sr-tg-table .sr-tg-month .sr-tg-cell-k, .sr-tg-table .sr-tg-year .sr-tg-cell-k { flex: 1 1 auto; margin: 0; }
   .sr-tg-table .sr-tg-month .sr-tg-share, .sr-tg-table .sr-tg-year .sr-tg-share { width: 3.75rem; margin-top: 0; flex-shrink: 0; }

@@ -368,6 +368,21 @@ describe('rows (QA-58, QA-59, QA-60)', () => {
     expect(within(table).getByText(HOSTILE_SPECIES)).toBeTruthy()
   })
 
+  it('a scientific name renders as BirdName\'s own line directly inside the Species cell (the markup the phone-tier wrap rule selects)', async () => {
+    // targetsSortSelectCss.test.ts F5 resolves the wrap at td.sr-tg-name >
+    // .sr-birdname > .sr-birdname-sci; this is the rendered half of that chain.
+    seedPool()
+    await ready()
+    await screen.findByRole('table')
+    breedingOn()
+    const sci = within(screen.getByRole('table')).getByText('Song Sparrow sci')
+    expect(sci.className).toBe('sr-birdname-sci')
+    const box = sci.parentElement!
+    expect(box.classList.contains('sr-birdname')).toBe(true)
+    expect(box.querySelector(':scope > .sr-birdname-row')).not.toBeNull()
+    expect(box.parentElement!.matches('td.sr-tg-name')).toBe(true)
+  })
+
   it('no cell is ever blank', async () => {
     seedPool()
     await ready()

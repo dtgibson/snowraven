@@ -11,6 +11,11 @@
 // (gated markup, never hidden markup) and the lift of `SectionHeader` and
 // `RadioGroup` into `components/settingsSections/`.
 //
+// ONE STRING HAS MOVED SINCE CAPTURE, ON PURPOSE (upload-origin-table-wrap-copy):
+// web/Pi's Bar-chart files status now names the server, where web/Pi keeps
+// those files ("No bar-chart files are saved on this server."). The web entry
+// was edited for that string alone; Windows and Mac are as captured.
+//
 // On these three platforms the gate is false, so the section and its lazy
 // chunk are never reached; the section's own iOS rendering is covered by
 // AlertsSection.test.tsx and settingsSectionOrder.test.tsx.
