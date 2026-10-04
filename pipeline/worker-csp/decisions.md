@@ -1,0 +1,14 @@
+# worker-csp decisions
+
+## 2026-10-04: security errand, F1 and F2 (both Low)
+
+**F1. The setup-closure wording states both directions.** `Builder::setup` keeps only its last closure (`tauri-2.11.2/src/app.rs:1765-1771`), so the last `.setup` wins: a second one chained AFTER the shared closure replaces it and that platform opens with no window, and one placed BEFORE it, on a platform `let builder` line, is silently ignored and its step never runs. The records had stated only the first direction, which made "a launch that opens a window" read as proof of a correct merge resolution, when the likeliest bad resolution with the `android-release` branch (its `.setup` kept on the iOS line, before the shared closure) opens one. Reworded in `src-tauri/src/lib.rs` (comment only), `.claude/rules/security.md` item (4), the one-setup row's comment in `frontend/src/lib/tauriCsp.test.ts`, and the merge-hazard paragraph in `pr-description.md`. No code changed: the one-setup row already refuses both shapes, since it requires exactly one `.setup` in `lib.rs`, on the unconditional builder.
+
+**F2. The one-window row covers the `::builder(` constructors, and says exactly what it covers.** Its pattern now also matches `WebviewWindow::builder(`, `Window::builder(` and `Webview::builder(` (Tauri 2.11.2's other public window and webview constructors); the failure message names only the spellings the pattern matches, following CLAUDE.md's guard-quality rule (3) by widening the assertion rather than narrowing the message. Red-first on a scratch mirror: each of the three inserted calls turned the row red under the new pattern and left it green under the previous one, and a `WebviewWindowBuilder::new(` control was red under both.
+
+Stated, deliberately not done, each with what would reverse it:
+- **`#[cfg(test)]` modules are not dropped from this row's scan** (commented-out lines are). That is the stricter direction: a test module that builds a window also turns the row red. Drop them only if a Rust test ever needs to build a window, and then add a guard-the-guard row for the stripper.
+- **A turbofish (`WebviewWindow::<Wry>::builder(`), a renamed import, a macro and a file in a subdirectory of `src-tauri/src` are outside the pattern**, and the row's comment says so. A turbofish group is a one-line widening if a turbofish call ever appears in native source.
+- **The one-setup row counts `.setup(` in `lib.rs` only** (F2's second note), so an app-builder `.setup` applied by a helper in another file would pass it. The iOS case is still caught by `widgetPaths.parity.test.ts`.
+
+- 2026-10-04, orchestrator (Case 1 after the F1 errand): reworded the fifth half-true setup comment in `frontend/src/lib/widgetPaths.parity.test.ts` (the line the errand left out) to the last-setup-wins form. Comment only; the three guard files re-run green.

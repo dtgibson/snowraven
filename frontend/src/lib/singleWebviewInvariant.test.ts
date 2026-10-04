@@ -18,7 +18,7 @@
 // taken at the keeper, turns it red.
 /// <reference types="node" />
 import { describe, expect, it } from 'vitest'
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 
 /** The one mechanical cross-link. Prose decays; this does not. */
@@ -113,6 +113,45 @@ describe('single-webview invariant is stated at each definition site', () => {
       `src-tauri/src/lib.rs now handles RunEvent:: in code. That is exactly the change ` +
         `the ${MARKER} notes exist to intercept. See ${REVERSAL}.`,
     ).not.toContain('RunEvent::')
+  })
+
+  it('exactly one window is created, on every platform, and only in lib.rs', () => {
+    // worker-csp moved the window from config creation to code, so "one
+    // webview" is now a claim about the Rust as well as the config: config
+    // creates none, and the one `from_config` in lib.rs is the only window or
+    // webview constructor call this scan finds. Its reach, stated so it is not
+    // over-read: the top-level `.rs` files of src-tauri/src only (there are no
+    // subdirectories today), with commented-out lines dropped and `#[cfg(test)]`
+    // modules kept (a test module that builds a window goes red too), and Tauri
+    // 2's public constructors by these spellings only: `WebviewWindowBuilder`,
+    // `WindowBuilder` and `WebviewBuilder` with `::new(`, `WebviewWindow`,
+    // `Window` and `Webview` with `::builder(`, and `.add_child(`. A turbofish
+    // between the type and the call, a renamed import, a macro or a file in a
+    // subdirectory is outside it. A webview created from JS has no `create`
+    // grant in any capability file, so that path is closed elsewhere.
+    const conf = JSON.parse(raw('../../../src-tauri/tauri.conf.json')) as {
+      app: { windows: Array<{ create?: boolean }> }
+    }
+    expect(conf.app.windows).toHaveLength(1)
+    expect(conf.app.windows[0]!.create).toBe(false)
+    const dir = '../../../src-tauri/src/'
+    const files = readdirSync(abs(dir)).filter(f => f.endsWith('.rs'))
+    expect(files, 'the scan read the wrong directory').toContain('lib.rs')
+    let built = 0
+    for (const f of files) {
+      const text = code(`${dir}${f}`)
+      built += text.split('WebviewWindowBuilder::from_config(').length - 1
+      expect(
+        text,
+        `${f} calls a window or webview constructor this scan recognizes ` +
+          '(WebviewWindowBuilder, WindowBuilder or WebviewBuilder ::new(; ' +
+          'WebviewWindow, Window or Webview ::builder(; or .add_child()',
+      ).not.toMatch(
+        /\b(?:WebviewWindowBuilder|WindowBuilder|WebviewBuilder)::new\(|\b(?:WebviewWindow|Window|Webview)::builder\(|\.add_child\(/,
+      )
+    }
+    expect(built, 'the top-level src-tauri/src files must call WebviewWindowBuilder::from_config exactly once').toBe(1)
+    expect(code(KEEPER)).toContain('WebviewWindowBuilder::from_config(')
   })
 
   // ── Guard the guard ────────────────────────────────────────────────────────

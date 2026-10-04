@@ -148,7 +148,15 @@ describe('the deep link: one scheme, one length bound, one event', () => {
     expect(libRs).toContain('#[cfg(target_os = "ios")]\nmod launch_backdrop;')
     // ios-alerts: the alert plugin (`setup` only, no `on_event`) joins the
     // widget plugin on the same iOS-only builder line.
-    expect(libRs).toMatch(/#\[cfg\(target_os = "ios"\)\]\s*let builder = builder\s*\.plugin\(widgets::plugin\(\)\)\s*\.plugin\(alerts::plugin\(\)\)\s*\.setup\(\|app\| \{\s*launch_backdrop::install\(app\);\s*Ok\(\(\)\)\s*\}\);/)
+    expect(libRs).toMatch(/#\[cfg\(target_os = "ios"\)\]\s*let builder = builder\s*\.plugin\(widgets::plugin\(\)\)\s*\.plugin\(alerts::plugin\(\)\);/)
+    // worker-csp: the launch backdrop still runs in setup on iOS, now in the ONE
+    // setup closure every target shares (the last `.setup` wins: a second one
+    // after it replaces it, one before it is ignored; tauriCsp.test.ts refuses
+    // both), iOS-gated, and after the main window is built, since it needs
+    // that window.
+    // Read with commented-out lines dropped, so a commented call cannot pass.
+    const libRsCode = libRs.split('\n').filter(l => !l.trimStart().startsWith('//')).join('\n')
+    expect(libRsCode).toMatch(/\.setup\(\|app\| \{[\s\S]*?\.build\(\)\?;[\s\S]*?#\[cfg\(target_os = "ios"\)\]\s*launch_backdrop::install\(app\);\s*Ok\(\(\)\)\s*\}\)/)
     // The single-webview keeper is untouched: still Builder::run with Tauri's own callback.
     expect(libRs).toContain('.run(tauri::generate_context!())')
     expect(rustCode).not.toContain('SceneRequested')

@@ -24,6 +24,10 @@ mod launch_backdrop;
 // spelled with tauri's `desktop` cfg here because Cargo has no such cfg.
 #[cfg(desktop)]
 mod window_geometry;
+// The content security policy on every non-HTML response, so a worker loaded
+// by URL runs under it too. Every target: the main window is built with its
+// hook in the setup closure below.
+mod worker_csp;
 
 use keyring::Entry;
 use std::sync::OnceLock;
@@ -191,15 +195,7 @@ pub fn run() {
                 // call that panics when the plugin is absent.
                 .with_filename(window_geometry::STATE_FILENAME)
                 .build(),
-        )
-        // Runs after the plugin's own restore (which happens while the config
-        // window is created, strictly before this closure), so it corrects a
-        // restored rect that no longer fits the displays actually attached.
-        // See src/window_geometry.rs for why the plugin's guard is not enough.
-        .setup(|app| {
-            window_geometry::keep_window_on_screen(app.handle());
-            Ok(())
-        });
+        );
 
     // Mobile-only: geolocation ("Use my location", schema §2.7) and dialog
     // (the Mechanism B document-picker fallback, schema §2.6). Grants live in
@@ -215,12 +211,49 @@ pub fn run() {
     // iOS-only: the alert engine's plugin (src/alerts.rs), `setup` only and no
     // `on_event`, so the single-webview keeper below is untouched as well.
     #[cfg(target_os = "ios")]
-    let builder = builder.plugin(widgets::plugin()).plugin(alerts::plugin()).setup(|app| {
-        launch_backdrop::install(app);
-        Ok(())
-    });
+    let builder = builder.plugin(widgets::plugin()).plugin(alerts::plugin());
 
     builder
+        // ONE setup closure on every target, Android included. Builder::setup
+        // keeps only its last closure, so the last `.setup` wins: a second one
+        // chained AFTER this one replaces it and that platform opens with no
+        // window, and one placed BEFORE it (on a platform `let builder` line
+        // above) is silently ignored and its step never runs. tauriCsp.test.ts
+        // refuses both shapes.
+        .setup(|app| {
+            // The main window is built here, first, rather than from the config
+            // (its `create` is false in tauri.conf.json), because only a window
+            // built in code can carry the web-resource hook that puts the
+            // policy on worker scripts (src/worker_csp.rs). Its label and every
+            // other setting still come from the config, so the capabilities'
+            // `windows: ["main"]` still name it.
+            let window = app
+                .config()
+                .app
+                .windows
+                .first()
+                .cloned()
+                .ok_or("tauri.conf.json declares no window")?;
+            let worker_policy = worker_csp::policy_header(app.config().app.security.csp.as_ref());
+            tauri::WebviewWindowBuilder::from_config(app.handle(), &window)?
+                .on_web_resource_request(move |_request, response| {
+                    worker_csp::attach(tauri::is_dev(), response, worker_policy.as_ref());
+                })
+                .build()?;
+
+            // Runs after the window-state plugin's own restore, which happens
+            // while the window above is built, so it corrects a restored rect
+            // that no longer fits the displays actually attached. See
+            // src/window_geometry.rs for why the plugin's guard is not enough.
+            #[cfg(desktop)]
+            window_geometry::keep_window_on_screen(app.handle());
+
+            // The raven behind the webview needs the window, so it follows it.
+            #[cfg(target_os = "ios")]
+            launch_backdrop::install(app);
+
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             get_api_key,
             set_api_key,
