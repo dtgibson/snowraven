@@ -1,0 +1,19 @@
+=== gapis-afoff-pcap-1
+start 20:38:25
+TotalTime: 121
+ESTAB 0 0 10.0.2.16:36990 172.217.115.4:443 users:(("ibson.snowraven",pid=18599,fd=236)) uid:10257 ino:104259 sk:34b4 fwmark:0x64 <->
+/data/local/tmp/gapis-afoff-pcap-1.pcap: 1 file pulled, 0 skipped. 6.3 MB/s (22643 bytes in 0.003s)
+-rw-r--r--@ 1 developer  wheel  22643 Oct  3 20:38 /private/tmp/claude-502/-Users-developer-devwork-snowraven/1890b5dd-4eff-4f7c-a0b4-9ae2413dac4b/scratchpad/sb/out/gapis-afoff-pcap-1.pcap
+=== gapis-afoff-pcap-2
+start 20:38:52
+TotalTime: 104
+ESTAB 0 0 10.0.2.16:57504 172.217.115.4:443 users:(("ibson.snowraven",pid=18811,fd=234)) uid:10257 ino:103209 sk:141a fwmark:0x64 <->
+/data/local/tmp/gapis-afoff-pcap-2.pcap: 1 file pulled, 0 skipped. 7.8 MB/s (13029 bytes in 0.002s)
+-rw-r--r--@ 1 developer  wheel  13029 Oct  3 20:39 /private/tmp/claude-502/-Users-developer-devwork-snowraven/1890b5dd-4eff-4f7c-a0b4-9ae2413dac4b/scratchpad/sb/out/gapis-afoff-pcap-2.pcap
+=== gapis-afoff-pcap-3
+start 20:39:19
+TotalTime: 110
+ESTAB 0 0 10.0.2.16:36466 172.217.115.4:443 users:(("ibson.snowraven",pid=18962,fd=240)) uid:10257 ino:109785 sk:575 fwmark:0x64 <->
+/data/local/tmp/gapis-afoff-pcap-3.pcap: 1 file pulled, 0 skipped. 3.2 MB/s (12910 bytes in 0.004s)
+-rw-r--r--@ 1 developer  wheel  12910 Oct  3 20:39 /private/tmp/claude-502/-Users-developer-devwork-snowraven/1890b5dd-4eff-4f7c-a0b4-9ae2413dac4b/scratchpad/sb/out/gapis-afoff-pcap-3.pcap
+done 20:39:41

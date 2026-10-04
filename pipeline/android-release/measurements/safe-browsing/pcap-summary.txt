@@ -27,3 +27,46 @@ TCP SYNs (IPv4):
    1   10.0.2.17.43136 > 172.217.112.4.443:
 TCP SYNs (IPv6, unreachable on the emulator):
        8
+== gapis-afoff-pcap-1.pcap
+DNS queries:
+   1   A clientservices.googleapis.com
+   1   A content-autofill.googleapis.com
+   1   AAAA clientservices.googleapis.com
+   1   AAAA content-autofill.googleapis.com
+TCP SYNs (IPv4):
+   1   10.0.2.16.35170 > 172.253.115.139.443:
+   1   10.0.2.16.36990 > 172.217.115.4.443:
+TCP SYNs (IPv6, unreachable on the emulator):
+       8
+== gapis-afoff-pcap-2.pcap
+DNS queries:
+TCP SYNs (IPv4):
+   1   10.0.2.16.57504 > 172.217.115.4.443:
+TCP SYNs (IPv6, unreachable on the emulator):
+       8
+== gapis-afoff-pcap-3.pcap
+DNS queries:
+TCP SYNs (IPv4):
+   1   10.0.2.16.36466 > 172.217.115.4.443:
+TCP SYNs (IPv6, unreachable on the emulator):
+       8
+== aosp-afoff-pcap-1.pcap
+DNS queries:
+   1   A content-autofill.googleapis.com
+   1   AAAA content-autofill.googleapis.com
+TCP SYNs (IPv4):
+   1   10.0.2.17.54544 > 172.217.119.4.443:
+TCP SYNs (IPv6, unreachable on the emulator):
+       8
+== aosp-afoff-pcap-2.pcap
+DNS queries:
+TCP SYNs (IPv4):
+   1   10.0.2.17.48928 > 172.217.119.4.443:
+TCP SYNs (IPv6, unreachable on the emulator):
+       8
+== aosp-afoff-pcap-3.pcap
+DNS queries:
+TCP SYNs (IPv4):
+   1   10.0.2.17.44168 > 172.217.119.4.443:
+TCP SYNs (IPv6, unreachable on the emulator):
+       8

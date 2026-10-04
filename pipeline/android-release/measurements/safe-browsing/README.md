@@ -35,7 +35,22 @@ Other processes seen talking to Google in the same windows, for the record and n
 
 In every capture the only name asked for between launch and the connection is `content-autofill.googleapis.com`, and the one IPv4 connection follows it (eight IPv6 attempts to `2001:4860:48xx::` precede it and fail, the emulator having no IPv6 route). No `safebrowsing.googleapis.com`, no `clientservices.googleapis.com` (the variations seed), no `update.googleapis.com` (the component updater), on either image, with either APK.
 
-What it is: Chromium's autofill crowdsourcing query. The WebView creates its autofill provider for every WebView unconditionally (`AwContents.initializeAutofillProvider`, gated only by the WebView's own Safe Mode), `AndroidAutofillManager::ShouldParseForms()` returns `true`, and `AutofillManager::OnFormsParsed` sends `AutofillCrowdsourcingManager::StartQueryRequest` for every parsed form with a queryable field (Chromium 133 sources, `components/android_autofill` and `components/autofill`). SnowRaven's first tab has form fields, so the query is sent on every load. There is no manifest key, `WebSettings` call or view attribute that turns the query off; `importantForAutofill` governs the platform autofill service, not this request.
+What it is: Chromium's autofill crowdsourcing query. The WebView creates its autofill provider for every WebView unconditionally (`AwContents.initializeAutofillProvider`, gated only by the WebView's own Safe Mode), `AndroidAutofillManager::ShouldParseForms()` returns `true`, and `AutofillManager::OnFormsParsed` sends `AutofillCrowdsourcingManager::StartQueryRequest` for every parsed form with a queryable field (Chromium 133 sources, `components/android_autofill` and `components/autofill`). SnowRaven's first tab has form fields, so the query is sent on every load. There is no manifest key, `WebSettings` call or view attribute that turns the query off; `importantForAutofill` governs the platform autofill service, not this request, and that last clause was measured rather than taken from the source (the next section).
+
+## Not important for autofill: measured, no change (part C, 2026-10-03)
+
+The one thing part B had not tried: `webView.importantForAutofill = View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS` in `onWebViewCreate`, before the two listeners. A release APK with that line (built 20:37 from the working tree, throwaway key; its dex carries `setImportantForAutofill`) was installed on both images and cold-launched three times each under the same DNS-and-TLS capture (`pcap-launch.sh`; captures `*-afoff-pcap-N.pcap` and the run logs `*-afoff-run.log` beside the earlier ones).
+
+| Image | Launch | App pid | App uid | DNS in the window | TCP connection from the app's socket (`ss`) |
+|---|---|---|---|---|---|
+| Google APIs | 1 | 18599 | 10257 | `A` and `AAAA content-autofill.googleapis.com` | `172.217.115.4:443`, `ESTAB`, `com.dtgibson.snowraven` |
+| Google APIs | 2 | 18811 | 10257 | none (resolver cache) | `172.217.115.4:443`, `ESTAB`, `com.dtgibson.snowraven` |
+| Google APIs | 3 | 18962 | 10257 | none (resolver cache) | `172.217.115.4:443`, `ESTAB`, `com.dtgibson.snowraven` |
+| Plain (AOSP) | 1 | 2234 | 10151 | `A` and `AAAA content-autofill.googleapis.com` | `172.217.119.4:443`, `ESTAB`, `com.dtgibson.snowraven` |
+| Plain (AOSP) | 2 | 2389 | 10151 | none (resolver cache) | `172.217.119.4:443`, `ESTAB`, `com.dtgibson.snowraven` |
+| Plain (AOSP) | 3 | 2540 | 10151 | none (resolver cache) | `172.217.119.4:443`, `ESTAB`, `com.dtgibson.snowraven` |
+
+Verdict: the query continues, six launches of six, so the line was reverted and nothing in `MainActivity.kt` changed. The only other name in any of the six captures is one `clientservices.googleapis.com` lookup on the Google APIs image a minute before launch 1, from a socket `ss` never attributed to the app (the WebView package's variations seed after the reinstall), the same bystander part B recorded on the plain image. The held copy stays as part B wrote it: the app turns off Safe Browsing, and the WebView it does not control still makes this one query.
 
 ## The Safe Browsing half
 
@@ -45,4 +60,4 @@ What it is: Chromium's autofill crowdsourcing query. The WebView creates its aut
 
 ## What remains, and whose it is
 
-One TLS connection per cold launch, from SnowRaven's own process and uid, to `content-autofill.googleapis.com`, made by the Android System WebView's autofill component for the page's form fields, on both images, before and after the Safe Browsing change. Nothing in the app's own code names a Google host that is fetched (the bundle names `maps.google.com` only as a link target). Open idea, not done here: whether a page shape without a queryable form at load, or a later WebView, removes it.
+One TLS connection per cold launch, from SnowRaven's own process and uid, to `content-autofill.googleapis.com`, made by the Android System WebView's autofill component for the page's form fields, on both images, before and after the Safe Browsing change. Nothing in the app's own code names a Google host that is fetched (the bundle names `maps.google.com` only as a link target). Marking the WebView not important for autofill does not remove it (measured above). Open idea, not done here: whether a page shape without a queryable form at load, or a later WebView, removes it.

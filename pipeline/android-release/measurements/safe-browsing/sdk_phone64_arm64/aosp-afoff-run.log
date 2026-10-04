@@ -1,0 +1,19 @@
+=== aosp-afoff-pcap-1
+start 20:38:31
+TotalTime: 102
+ESTAB 0 0 10.0.2.17:54544 172.217.119.4:443 users:(("ibson.snowraven",pid=2234,fd=235)) uid:10151 ino:15792 sk:7b fwmark:0x65 <->
+/data/local/tmp/aosp-afoff-pcap-1.pcap: 1 file pulled, 0 skipped. 6.8 MB/s (14029 bytes in 0.002s)
+-rw-r--r--@ 1 developer  wheel  14029 Oct  3 20:38 /private/tmp/claude-502/-Users-developer-devwork-snowraven/1890b5dd-4eff-4f7c-a0b4-9ae2413dac4b/scratchpad/sb/out/aosp-afoff-pcap-1.pcap
+=== aosp-afoff-pcap-2
+start 20:38:58
+TotalTime: 151
+ESTAB 0 0 10.0.2.17:48928 172.217.119.4:443 users:(("ibson.snowraven",pid=2389,fd=225)) uid:10151 ino:25067 sk:308f fwmark:0x65 <->
+/data/local/tmp/aosp-afoff-pcap-2.pcap: 1 file pulled, 0 skipped. 4.8 MB/s (14212 bytes in 0.003s)
+-rw-r--r--@ 1 developer  wheel  14212 Oct  3 20:39 /private/tmp/claude-502/-Users-developer-devwork-snowraven/1890b5dd-4eff-4f7c-a0b4-9ae2413dac4b/scratchpad/sb/out/aosp-afoff-pcap-2.pcap
+=== aosp-afoff-pcap-3
+start 20:39:25
+TotalTime: 110
+ESTAB 0 0 10.0.2.17:44168 172.217.119.4:443 users:(("ibson.snowraven",pid=2540,fd=227)) uid:10151 ino:17793 sk:20d1 fwmark:0x65 <->
+/data/local/tmp/aosp-afoff-pcap-3.pcap: 1 file pulled, 0 skipped. 2.4 MB/s (13157 bytes in 0.005s)
+-rw-r--r--@ 1 developer  wheel  13157 Oct  3 20:39 /private/tmp/claude-502/-Users-developer-devwork-snowraven/1890b5dd-4eff-4f7c-a0b4-9ae2413dac4b/scratchpad/sb/out/aosp-afoff-pcap-3.pcap
+done 20:39:47
