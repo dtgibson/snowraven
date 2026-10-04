@@ -2,6 +2,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach, afterAll } from 'vitest'
 import { act, render, screen, cleanup, waitFor, within } from '@testing-library/react'
 import type { ObservationEntry } from '../types'
+import { MILESTONE_THRESHOLDS } from '../lib/birdingStats'
+import { fmt } from '../lib/statsFormat'
 
 // ── Deterministic rAF / rIC control ───────────────────────────────────────────
 // The progressive-render gates schedule via a double requestAnimationFrame (the
@@ -68,8 +70,12 @@ const FIXTURE_OBS: ObservationEntry[] = [
   },
 ]
 
+// A test that needs a different backup sets this before rendering; afterEach
+// puts it back, so every other test in the file keeps FIXTURE_OBS.
+let observationsOverride: ObservationEntry[] | null = null
+
 vi.mock('../lib/observationsCache', () => ({
-  loadEbirdObservations: vi.fn(async () => ({ headerLine: '', observations: FIXTURE_OBS })),
+  loadEbirdObservations: vi.fn(async () => ({ headerLine: '', observations: observationsOverride ?? FIXTURE_OBS })),
 }))
 
 // Shared ML-export cache (perf batch D): BirdingStats loads media via loadMLExport()
@@ -127,6 +133,7 @@ afterEach(() => {
   cleanup()
   vi.unstubAllGlobals()
   vi.clearAllMocks()
+  observationsOverride = null
 })
 
 // recharts bundles @reduxjs/toolkit, whose autoBatch enhancer arms a 100 ms
@@ -320,5 +327,64 @@ describe('BirdingStats checklist duration block', () => {
     expect(screen.queryByText('1h-1h 15m')).toBeNull() // no bin beyond the longest
     expect(screen.getByText('30 min avg')).toBeTruthy()
     expect(screen.queryByText(/have a usable duration/)).toBeNull()
+  })
+})
+
+describe('BirdingStats milestone badges (stats-badges-uniform)', () => {
+  // 1,010 species, each a lifer on its own checklist on its own day, so the Nth
+  // species is the Nth lifer: every threshold from 10 to 1,000 is reached, which
+  // spans all four tiers, and 1,250 onward is not. Built through the real
+  // accumulation, not a hand-made milestone map, so the test reads what the
+  // tab actually derives.
+  const SPECIES_COUNT = 1010
+  const nameOf = (n: number) => `Fixture Bird ${String(n).padStart(4, '0')}`
+  const MILESTONE_OBS: ObservationEntry[] = Array.from({ length: SPECIES_COUNT }, (_, i) => ({
+    submissionId: `S${700000 + i}`, commonName: nameOf(i + 1), scientificName: `Avis fixtura ${i + 1}`,
+    date: new Date(Date.UTC(2014, 0, 1) + i * 86_400_000).toISOString().slice(0, 10),
+    location: 'Park', locationId: 'L1', latitude: 44.9, longitude: -93.1,
+    county: 'Hennepin', count: 1, breedingCode: null, speciesComments: '', catalogIds: [],
+    stateProvince: 'US-MN', duration: 30, distance: 1, protocol: 'Traveling', numObservers: 1,
+  }))
+  const tierOf = (t: number) => (t < 100 ? 1 : t < 500 ? 2 : t < 1000 ? 3 : 4)
+
+  it('renders one badge per reached threshold, in a labelled list, with nothing inline', async () => {
+    observationsOverride = MILESTONE_OBS
+    await renderComputed()
+
+    // The visible sub-label and the list's accessible name are the same words.
+    expect(screen.getByText('Life list milestones', { selector: 'p' })).toBeTruthy()
+    const list = screen.getByRole('list', { name: 'Life list milestones' })
+    expect(list.tagName).toBe('UL')
+    expect(list.className).toBe('sr-ms-grid')
+
+    const reached = MILESTONE_THRESHOLDS.filter(t => t <= SPECIES_COUNT)
+    const badges = within(list).getAllByRole('listitem')
+    expect(badges).toHaveLength(reached.length)
+    // Non-vacuity: the fixture really does reach every tier.
+    expect(new Set(badges.map(b => b.dataset.tier))).toEqual(new Set(['1', '2', '3', '4']))
+
+    badges.forEach((li, i) => {
+      const t = reached[i]
+      expect(li.className, `badge ${t}`).toBe('sr-ms-badge')
+      expect(li.dataset.tier, `badge ${t}`).toBe(String(tierOf(t)))
+      // Emphasis order is DOM order: threshold, species, date.
+      const [num, name, date] = [...li.children]
+      expect([...li.children].map(c => c.className), `badge ${t}`).toEqual(['sr-ms-num', 'sr-ms-name', 'sr-ms-date'])
+      expect(num.textContent).toBe(fmt(t))
+      expect(name.textContent).toBe(nameOf(t))
+      const link = within(date as HTMLElement).getByRole('link', { name: /open checklist on eBird/ })
+      expect(link.getAttribute('href')).toBe(`https://ebird.org/checklist/S${700000 + t - 1}`)
+      // The tier's date color arrives through the badge-local property.
+      expect(link.getAttribute('style')).toContain('var(--sr-ms-date)')
+      // Layout lives in the stylesheet, and the redundant check glyph is gone.
+      expect(li.getAttribute('style'), `badge ${t}`).toBeNull()
+      expect(li.textContent).not.toContain('✓')
+    })
+
+    // The thousands separator, as a literal rather than through fmt.
+    expect(badges.at(-1)!.querySelector('.sr-ms-num')!.textContent).toBe('1,000')
+    // An unreached threshold renders nothing at all.
+    expect(within(list).queryByText('1,250')).toBeNull()
+    expect(list.getAttribute('style')).toBeNull()
   })
 })
