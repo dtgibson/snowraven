@@ -26,6 +26,7 @@ paths:
   - "frontend/src/lib/planSun.ts"
   - "frontend/src/lib/planChartGeometry.ts"
   - "frontend/src/components/PlanChart.tsx"
+  - "frontend/src/lib/firstOfYear*.ts"
   - "frontend/src/lib/tide*.ts"
   - "frontend/src/lib/wallClock*.ts"
   - "frontend/src/lib/transport.ts"

@@ -71,6 +71,8 @@ import { openNewTabLink } from '../lib/openExternal'
 import { RecentMediaEmbed } from './RecentMediaEmbed'
 import { SectionCard, SectionHead, StatLabel, StatValueLink } from './speciesDetail/ui'
 import { SightingsGraph } from './speciesDetail/SightingsGraph'
+import { FirstOfYearSection } from './speciesDetail/FirstOfYearSection'
+import { computeFirstOfYear } from '../lib/firstOfYear'
 import { ChartViewTip } from './ChartViewTip'
 import { HeatmapLayer } from './speciesDetail/HeatmapLayer'
 import { MapBoundsFitter } from './speciesDetail/MapBoundsFitter'
@@ -462,6 +464,12 @@ export function SpeciesDetail({ onGoToSettings, onGoToWeather, filesVersion, req
 
   // Sightings stats
   const sightingsStats = useMemo(() => computeSightingsStats(speciesObs), [speciesObs])
+
+  // First of Year (species-first-of-year): one row per calendar year, from the
+  // same in-scope set as First seen, so it follows the species, Show subspecies
+  // and the county and date filters with no filtering of its own, and re-runs
+  // only when that set changes.
+  const firstOfYear = useMemo(() => computeFirstOfYear(speciesObs), [speciesObs])
 
   // ── Subspecies Explorer (subspecies-explorer) ──────────────────────────
   // Contract A: the full-backup tally, ONCE per loaded backup. `phase` is a
@@ -1183,6 +1191,12 @@ export function SpeciesDetail({ onGoToSettings, onGoToWeather, filesVersion, req
               </div>
             </SectionCard>
           </div>
+
+          {/* First of Year, full width after the Sightings and Media row and
+              before Subspecies and Forms (design-spec.md, OQ-03). Inside this
+              fragment, so it renders in every body state the Sightings card
+              does; it returns nothing when no in-scope date is well formed. */}
+          <FirstOfYearSection rows={firstOfYear} dateRangeActive={!!dateRange.from || !!dateRange.to} />
 
           </>)}
 

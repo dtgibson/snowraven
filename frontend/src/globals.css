@@ -989,6 +989,114 @@ h1, h2, h3, h4, h5, h6 {
   gap: 14px;
 }
 
+/* Species Detail's First of Year card (species-first-of-year, design-spec.md).
+   Wide tier: the chart first, the dated rows beside it, in one flex row; the
+   phone tier (the established 640px block below) stacks them, chart then rows.
+   DOM order is visual order in both tiers, with no `order`.
+
+   No positive min-width anywhere in this pattern: the list sizes to its own
+   rows and is capped, never floored (a floor leaked page scroll at 320px /
+   200% in the design pass). A long date wraps under its year instead of
+   widening the row (`flex-wrap` on the row). */
+.sr-foy-note {
+  font-size: 0.75rem;
+  color: var(--sr-text-muted);
+  line-height: 1.45;
+  margin: -4px 0 12px;
+}
+.sr-foy-grid {
+  display: flex;
+  align-items: flex-start;
+  gap: 22px;
+}
+/* The chart box. Its height and max width are inline, from
+   lib/firstOfYearChartGeometry.ts, on the chart and on its Suspense fallback
+   alike, so the box is the same before and after the chunk lands. */
+.sr-foy-chart { flex: 1 1 0; min-width: 0; }
+.sr-foy-chart .recharts-surface { overflow: visible; }
+.sr-foy-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  flex: 0 1 auto;
+  max-width: 16rem;
+  min-width: 0;
+}
+/* One year: no chart, so the single row takes a readable measure rather than
+   a hairline-wide column. */
+.sr-foy-grid--rows-only .sr-foy-list { flex: 1 1 auto; max-width: 22rem; }
+/* The negative side margin lets the hover tint bleed 8px past the text
+   column, the way list rows do elsewhere in the app. */
+.sr-foy-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  min-width: 0;
+  min-height: 2rem;
+  padding: 0.3125rem 8px;
+  margin: 0 -8px;
+  border-radius: 6px;
+  transition: background-color 120ms ease-out;
+}
+/* A hairline between rows, inset so it never crosses the tint, and hidden on
+   a tinted row and on the row below it. */
+.sr-foy-row + .sr-foy-row { position: relative; }
+.sr-foy-row + .sr-foy-row::before {
+  content: "";
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  top: 0;
+  border-top: 1px solid var(--sr-border-subtle);
+}
+.sr-foy-row:hover, .sr-foy-row:focus-within { background: var(--sr-surface-subtle); }
+.sr-foy-row:hover::before,
+.sr-foy-row:focus-within::before,
+.sr-foy-row:hover + .sr-foy-row::before,
+.sr-foy-row:focus-within + .sr-foy-row::before { opacity: 0; }
+.sr-foy-year {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--sr-text);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+}
+/* The chart's marks. The highlight is driven by the ROW's hover or focus,
+   passed in as a prop; the chart subtree itself stays inert. `r` is a CSS
+   property on an SVG circle in Chromium and WebKit, which is what lets a point
+   grow with a transition; it overrides the circle's own `r` attribute, which
+   is only the fallback geometry. The app's reduced-motion block collapses all
+   four transitions. */
+.sr-foy-dot {
+  fill: var(--sr-graph-individuals);
+  stroke: var(--sr-surface);
+  stroke-width: 1.5;
+  r: 4px;
+  transition: r 140ms cubic-bezier(0.2, 0, 0, 1);
+}
+.sr-foy-dot.is-lone { r: 5px; }
+.sr-foy-dot.is-active { r: 6px; }
+.sr-foy-halo {
+  fill: none;
+  stroke: var(--sr-graph-individuals);
+  stroke-width: 2;
+  stroke-opacity: 0;
+  r: 10px;
+  transition: stroke-opacity 140ms cubic-bezier(0.2, 0, 0, 1);
+}
+.sr-foy-halo.is-active { stroke-opacity: 0.28; }
+/* Chart text is px on fixed-px lanes and does not follow the in-app text
+   scale; the rows are the rem-sized record of every date the chart draws. */
+.sr-foy-tick {
+  font-size: 11px;
+  font-family: inherit;
+  fill: var(--sr-text-muted);
+  transition: fill 140ms ease-out;
+}
+.sr-foy-tick.is-active { fill: var(--sr-text); font-weight: 600; }
+
 /* List Comparer results panels (ResultsView) — 3-up on desktop, stacked under
    640px (inline grid styles can't be overridden by a media query, so the grid
    definition lives here). */
@@ -6248,6 +6356,14 @@ select:focus-visible {
 
   .sr-two-col { grid-template-columns: 1fr; }
   .sr-compare-panels { grid-template-columns: 1fr; }
+  /* First of Year stacks: the chart, then the rows, each full width. The chart
+     box stops flexing (`flex: none`): in a column its 0 basis would otherwise
+     size the EMPTY Suspense fallback by its content, to nothing, and the page
+     would move when the chart arrived. Rows grow a comfortable tap target. */
+  .sr-foy-grid { flex-direction: column; align-items: stretch; gap: 10px; }
+  .sr-foy-chart { flex: none; }
+  .sr-foy-list, .sr-foy-grid--rows-only .sr-foy-list { max-width: none; }
+  .sr-foy-row { min-height: 2.5rem; }
   /* `:not(.sr-map-fs-panel)` is load-bearing, not tidiness. This rule and
      `.sr-map-fs-panel { height: 100dvh }` are both one class deep, and this
      media block sits at the END of the file, so an unscoped selector wins on
