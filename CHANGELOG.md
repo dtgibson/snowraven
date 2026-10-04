@@ -2,6 +2,20 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [1.0.51] - 2026-10-04
+
+### Changed
+- In the Mac, Windows, iPhone and iPad apps, the permission the app uses to reach web services now admits only the services SnowRaven already uses (eBird, OpenWeather, NOAA tides, OpenStreetMap's place search, Macaulay Library and the GitHub update check), each at the addresses the app calls, instead of any secure web address. Nothing you see or do in the app changes.
+- In the Mac, Windows, iPhone and iPad apps, the content security policy added in 1.0.49 now also covers the scripts the app runs in the background, such as the one that draws the map; until now they ran without it. Nothing you see or do in the app changes.
+
+### Fixed
+- On the Map Explorer, Media Targets and Nearby Lifers reports now take the right recency color in the weeks after clocks spring forward for daylight saving time. For 8 days after the change, a report 8 days old took the past-7-days color, and for 16 days a report 16 days old took the 8 to 15 days color. Screen readers in the Targets in view and Nearby lifers in view lists now hear 8 to 15 and 16 to 30 days, the same ranges as the map's popups and Help.
+- In Settings' iCloud Sync section (Mac, iPhone and iPad), **Remove synced files from iCloud** no longer stops at the first file iCloud will not delete: it tries every synced file once and removes everything it can. If anything stays, the line "Some synced files may still be in iCloud. Try again." still shows, and Copy iCloud details now names each file that stayed.
+- In the List Comparer's Checklists mode, a breeding code the app does not recognize now always shows as the code itself. Before, a code spelled like one of JavaScript's built-in names, which eBird does not send, drew a blank badge, and one of them stopped the app with "Something went wrong".
+
+### Internal
+- The app's one window is now created in code at startup, on every platform, rather than from the configuration file, so that the policy can be attached to the background scripts. A new test derives the services the app calls from its source and fails when the permission and the code disagree.
+
 ## [1.0.50] - 2026-10-03
 
 ### Changed
