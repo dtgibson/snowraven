@@ -1145,31 +1145,55 @@ fn coordinated_write<T>(
     out.into_inner().unwrap_or_else(|| Err("unavailable".to_string()))
 }
 
-/// Remove staging entries in `Documents/.tmp/`: every entry when `device_id`
-/// is None, else only this device's (`<deviceId>-*`). Regular files and
-/// symlinks are removed as such; nothing is followed. Returns the count.
-fn clear_staging(tmp_dir: &Path, device_id: Option<&str>) -> u32 {
-    let mut removed = 0u32;
+/// What one staging sweep did: the entries it removed, and the entries it
+/// matched and could not remove (icloud-remove-all-continues), so a Remove
+/// that leaves a staging copy in iCloud does not report success.
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+struct Sweep {
+    removed: u32,
+    failed: u32,
+}
+
+/// The one loop the three staging sweeps share: every entry in `tmp_dir`
+/// whose raw name `matches` is removed as itself (a regular file or a
+/// symlink as such, a directory with what it holds; nothing is followed). An
+/// absent or unreadable directory is an empty sweep, as it always was.
+fn sweep_staging(tmp_dir: &Path, matches: impl Fn(&std::ffi::OsStr) -> bool) -> Sweep {
+    let mut out = Sweep::default();
     let entries = match fs::read_dir(tmp_dir) {
         Ok(e) => e,
-        Err(_) => return 0,
+        Err(_) => return out,
     };
     for entry in entries.flatten() {
-        let name = entry.file_name();
-        let name = name.to_string_lossy();
-        if let Some(id) = device_id {
-            if !name.starts_with(&format!("{}-", id)) {
-                continue;
-            }
+        if !matches(&entry.file_name()) {
+            continue;
         }
         let path = entry.path();
         let is_dir = fs::symlink_metadata(&path).map(|m| m.file_type().is_dir()).unwrap_or(false);
         let ok = if is_dir { fs::remove_dir_all(&path).is_ok() } else { fs::remove_file(&path).is_ok() };
         if ok {
-            removed += 1;
+            out.removed += 1;
+        } else {
+            out.failed += 1;
         }
     }
-    removed
+    out
+}
+
+/// Remove staging entries in `Documents/.tmp/`: every entry when `device_id`
+/// is None, else only this device's (`<deviceId>-*`). Regular files and
+/// symlinks are removed as such; nothing is followed. Returns the count.
+fn clear_staging(tmp_dir: &Path, device_id: Option<&str>) -> u32 {
+    clear_staging_sweep(tmp_dir, device_id).removed
+}
+
+/// `clear_staging`, with the entries it could not remove counted as well.
+fn clear_staging_sweep(tmp_dir: &Path, device_id: Option<&str>) -> Sweep {
+    let prefix = device_id.map(|id| format!("{}-", id));
+    sweep_staging(tmp_dir, |raw| match &prefix {
+        Some(p) => raw.to_string_lossy().starts_with(p.as_str()),
+        None => true,
+    })
 }
 
 /// Remove every staging entry for ONE target name (`<anyDeviceId>-<target>`)
@@ -1178,26 +1202,8 @@ fn clear_staging(tmp_dir: &Path, device_id: Option<&str>) -> u32 {
 /// gone" must be exact (icloud-api-key-sync FR-32). Never touches a csv or a
 /// file-record staging entry. Regular files and symlinks are removed as such.
 fn clear_staging_for(tmp_dir: &Path, target_name: &str) -> u32 {
-    let mut removed = 0u32;
-    let entries = match fs::read_dir(tmp_dir) {
-        Ok(e) => e,
-        Err(_) => return 0,
-    };
     let suffix = format!("-{}", target_name);
-    for entry in entries.flatten() {
-        let name = entry.file_name();
-        let name = name.to_string_lossy();
-        if !name.ends_with(&suffix) {
-            continue;
-        }
-        let path = entry.path();
-        let is_dir = fs::symlink_metadata(&path).map(|m| m.file_type().is_dir()).unwrap_or(false);
-        let ok = if is_dir { fs::remove_dir_all(&path).is_ok() } else { fs::remove_file(&path).is_ok() };
-        if ok {
-            removed += 1;
-        }
-    }
-    removed
+    sweep_staging(tmp_dir, |raw| raw.to_string_lossy().ends_with(&suffix)).removed
 }
 
 /// Rename the staged file onto its target. A directory planted at a fixed
@@ -1770,35 +1776,58 @@ pub async fn icloud_start_download(slot: Slot) -> Result<(), String> {
     .await
 }
 
+/// The removal's name in the operation log (Copy iCloud details).
+const REMOVE_ALL_TARGET: &str = "all synced files";
+
 #[tauri::command]
 pub async fn icloud_remove_all() -> Result<RemoveResult, String> {
     let r = blocking(move || {
         let docs = container_documents().ok_or_else(|| "unavailable".to_string())?;
-        let mut removed = 0u32;
-        for slot in [Slot::Ebird, Slot::Ml] {
-            if coordinated_delete(&docs, slot.csv_name())? {
-                removed += 1;
-            }
-            if coordinated_delete(&docs, &slot.record_name())? {
-                removed += 1;
-            }
-        }
-        // icloud-bar-chart-sync (FR-13, FR-27): every county file and record,
-        // then every device's day-obs snapshot and record. Still never the key
-        // record (FR-35 of icloud-api-key-sync).
-        removed += remove_items_in(&docs, ItemKind::Barchart)?;
-        removed += remove_items_in(&docs, ItemKind::DayObs)?;
-        // Security round, Finding 5: a crash between a staging write and its
-        // rename leaves a complete copy under .tmp/; Remove clears every
-        // entry there too, so "the copies in your iCloud account" is exact.
-        let tmp_dir = docs.join(".tmp");
-        removed += clear_staging(&tmp_dir, None);
-        let _ = fs::remove_dir(&tmp_dir);
-        Ok(RemoveResult { removed })
+        let pass = remove_all_with(&Foundation, &docs);
+        // On the helper thread, so a pass that outlives the 8 s budget still
+        // names what it left once it finishes.
+        pass.note_left(&Foundation, REMOVE_ALL_TARGET);
+        pass.into_result()
     })
     .await;
-    note_removal(&r, "all synced files");
+    note_removal(&r, REMOVE_ALL_TARGET);
     r
+}
+
+/// Remove synced files from iCloud, over any container `Documents/` (a
+/// temporary one in the tests) and any `ContainerIo` (`Foundation` in the
+/// command), following the `push_items_cleared_at` / `_with` precedent.
+/// Today's order: the eBird backup's csv and record, the Macaulay Library
+/// export's, every bar-chart item, every day-obs item, then every staging
+/// entry. Every item is tried once and a failure never ends the pass
+/// (icloud-remove-all-continues, `RemovePass`): one file iCloud will not
+/// delete no longer leaves everything after it in iCloud. Still never the
+/// key record (FR-35 of icloud-api-key-sync). It sits between the command
+/// and the key-record section on purpose: `icloudPaths.parity.test.ts`
+/// reads that span for the FR-35 check.
+fn remove_all_with<I: ContainerIo>(io: &I, docs: &Path) -> RemovePass {
+    let mut pass = RemovePass::default();
+    for slot in [Slot::Ebird, Slot::Ml] {
+        // Within one slot, today's order and its stop: the csv, then its
+        // record, and the record is never deleted after its csv stayed.
+        let record = slot.record_name();
+        if pass.attempt(slot.csv_name(), || io.delete(docs, slot.csv_name()).map(u32::from)) {
+            pass.attempt(&record, || io.delete(docs, &record).map(u32::from));
+        } else {
+            pass.keep(something_at(docs, &record), &record, "kept with its file");
+        }
+    }
+    // icloud-bar-chart-sync (FR-13, FR-27): every county file and record,
+    // then every device's day-obs snapshot and record.
+    remove_kind_with(io, docs, ItemKind::Barchart, &mut pass);
+    remove_kind_with(io, docs, ItemKind::DayObs, &mut pass);
+    // Security round, Finding 5: a crash between a staging write and its
+    // rename leaves a complete copy under .tmp/; Remove clears every
+    // entry there too, so "the copies in your iCloud account" is exact.
+    let tmp_dir = docs.join(".tmp");
+    pass.sweep(clear_staging_sweep(&tmp_dir, None));
+    let _ = fs::remove_dir(&tmp_dir);
+    pass
 }
 
 // ── icloud-api-key-sync: the key record commands ────────────────────────────
@@ -2250,13 +2279,22 @@ trait ContainerIo: Clone + Send + 'static {
     /// The coordinated delete of the item at `dir/name`, through its LOGICAL
     /// URL, so a placeholder is deleted as the iCloud item it stands for.
     fn delete(&self, dir: &Path, name: &str) -> Result<bool, String>;
+    /// The coordinated delete of a whole directory at `dir/name` (a duplicate
+    /// kind directory, `barcharts 2`) through its logical URL; a link or a
+    /// file at the name is removed as such. The default is the production
+    /// delete, which `Foundation` uses too, so a test double that does not
+    /// override it deletes exactly as the shipped build does.
+    fn delete_dir(&self, dir: &Path, name: &str) -> Result<bool, String> {
+        coordinated_delete_dir(dir, name)
+    }
     /// Create one directory inside a coordinated write (an item iCloud must be
     /// told about, like any other change to the container).
     fn create_dir(&self, path: &Path) -> Result<(), String>;
     /// Diagnostics (decisions.md entry 20): record one bar-chart operation in
     /// the in-memory log the "Copy iCloud details" report reads. `target` is
     /// always a name derived from a validated county code (or the fixed folder
-    /// name), never raw input. A no-op by default, so a test's fake records
+    /// name), or what a removal left behind (`LeftItem::name`, built the same
+    /// way), never raw input. A no-op by default, so a test's fake records
     /// nothing into the process-wide log; `Foundation` records.
     fn note(&self, _op: &'static str, _target: &str, _result: &str, _detail: Option<String>) {}
 }
@@ -2869,35 +2907,21 @@ fn remove_item_at(docs: &Path, item: &SyncItem) -> Result<u32, String> {
 }
 
 /// Staging entries of one kind, from any device: `<32 hex>-<subdir>-...`.
-/// Regular files and symlinks are removed as such; nothing is followed.
-fn clear_staging_kind(tmp_dir: &Path, kind: ItemKind) -> u32 {
-    let mut removed = 0u32;
-    let entries = match fs::read_dir(tmp_dir) {
-        Ok(e) => e,
-        Err(_) => return 0,
-    };
+/// Regular files and symlinks are removed as such; nothing is followed. The
+/// entries it could not remove are counted, not dropped.
+fn clear_staging_kind(tmp_dir: &Path, kind: ItemKind) -> Sweep {
     let marker = format!("{}-", kind.subdir());
-    for entry in entries.flatten() {
-        let raw = entry.file_name();
+    sweep_staging(tmp_dir, |raw| {
         let name = match raw.to_str() {
             Some(n) => n,
-            None => continue,
+            None => return false,
         };
         let b = name.as_bytes();
         if b.len() <= 33 || b[32] != b'-' || !name.is_char_boundary(32) || !valid_device_id(&name[..32]) {
-            continue;
+            return false;
         }
-        if !name[33..].starts_with(&marker) {
-            continue;
-        }
-        let path = entry.path();
-        let is_dir = fs::symlink_metadata(&path).map(|m| m.file_type().is_dir()).unwrap_or(false);
-        let ok = if is_dir { fs::remove_dir_all(&path).is_ok() } else { fs::remove_file(&path).is_ok() };
-        if ok {
-            removed += 1;
-        }
-    }
-    removed
+        name[33..].starts_with(&marker)
+    })
 }
 
 /// The remainder of `s` after `" <1 to 4 ASCII digits>"`, or None: the copy
@@ -2978,13 +3002,137 @@ fn coordinated_delete_dir(docs: &Path, name: &str) -> Result<bool, String> {
     })
 }
 
+/// What one Remove pass did (icloud-remove-all-continues). A pass tries every
+/// item once, in order, and never stops at a failure: an item iCloud will not
+/// delete is kept, and the pass moves on to the next item, kind and sweep. No
+/// retries. This is CLAUDE.md's best-effort teardown rule in Rust: keep going,
+/// and still return what could not be done.
+///
+/// `failure` is the FIRST failure the pass met, and it is what the command
+/// returns when several items fail. Every delete reports the closed union's
+/// `unavailable` today, so which one wins changes no word the user reads; the
+/// rule is stated so a second reason added later cannot reorder silently.
+/// `removed` counts what did go, whether or not the pass failed.
+///
+/// `left` names what stayed, for Copy iCloud details, under admission
+/// control: at most `DIAG_LEFT_MAX` entries, the rest only counted in
+/// `left_more`, so a planted container of any size costs a bounded list.
+/// `staging_left` is the last staging sweep's count (`sweep`).
+#[derive(Debug, Default)]
+struct RemovePass {
+    removed: u32,
+    failure: Option<String>,
+    left: Vec<LeftItem>,
+    left_more: u32,
+    staging_left: u32,
+}
+
+/// One thing a Remove pass left in iCloud.
+#[derive(Debug, Clone, PartialEq)]
+struct LeftItem {
+    /// Relative to `Documents/`, and only ever a fixed name
+    /// (`ebird-backup.csv`, `barcharts`) or one rebuilt from a validated
+    /// county code or device id (`SyncItem`), a validated twin shape
+    /// (`twin_name`) or a duplicate-folder shape (`is_duplicate_subdir`):
+    /// never a raw directory entry.
+    name: String,
+    /// The delete's error, or `not tried` for the second half of a pair whose
+    /// first half stayed.
+    result: String,
+    /// The Apple or POSIX codes a failed delete met, or why a name was kept.
+    detail: Option<String>,
+}
+
+impl RemovePass {
+    /// One delete, whose `Ok` is how many items went (0 when nothing was
+    /// there). A failure is kept, with the codes it met, and the pass goes on.
+    /// Returns whether the delete went through.
+    fn attempt(&mut self, name: &str, delete: impl FnOnce() -> Result<u32, String>) -> bool {
+        let _ = take_last_error();
+        match delete() {
+            Ok(n) => {
+                self.removed = self.removed.saturating_add(n);
+                true
+            }
+            Err(e) => {
+                let detail = take_last_error();
+                self.leave(name, &e, detail);
+                self.failure.get_or_insert(e);
+                false
+            }
+        }
+    }
+
+    /// The second half of a pair whose first half stayed. It is never tried,
+    /// so a failure makes no new half-pair (a record whose file is gone), and
+    /// it is named only when something is there.
+    fn keep(&mut self, present: bool, name: &str, why: &str) {
+        if present {
+            self.leave(name, "not tried", Some(why.to_string()));
+        }
+    }
+
+    /// A staging sweep. Its count of entries that stayed REPLACES the last
+    /// one: the sweep that runs last in a pass covers every entry an earlier
+    /// sweep matched (Remove synced files ends with the sweep of all of
+    /// `.tmp/`, after each kind's), so an entry a kind's sweep could not take
+    /// is tried again there, as it always was, and counted once.
+    fn sweep(&mut self, s: Sweep) {
+        self.removed = self.removed.saturating_add(s.removed);
+        self.staging_left = s.failed;
+        if s.failed > 0 {
+            self.failure.get_or_insert_with(|| "unavailable".to_string());
+        }
+    }
+
+    fn leave(&mut self, name: &str, result: &str, detail: Option<String>) {
+        if self.left.len() < DIAG_LEFT_MAX {
+            self.left.push(LeftItem { name: name.to_string(), result: result.to_string(), detail });
+        } else {
+            self.left_more = self.left_more.saturating_add(1);
+        }
+    }
+
+    /// Copy iCloud details: one operation-log entry per item left, a count of
+    /// any past the bound under `target`, and the staging entries that stayed.
+    /// Nothing at all when everything went.
+    fn note_left<I: ContainerIo>(&self, io: &I, target: &str) {
+        for l in &self.left {
+            io.note("remove", &l.name, &l.result, l.detail.clone());
+        }
+        if self.left_more > 0 {
+            io.note("remove", target, "unavailable", Some(format!("{} more left in iCloud, not listed", self.left_more)));
+        }
+        if self.staging_left > 0 {
+            let entries = if self.staging_left == 1 { "entry" } else { "entries" };
+            io.note("remove", ".tmp", "unavailable", Some(format!("{} staging {} could not be removed", self.staging_left, entries)));
+        }
+    }
+
+    /// The command's result: the first failure if anything stayed, never a
+    /// success over copies left in iCloud.
+    fn into_result(self) -> Result<RemoveResult, String> {
+        match self.failure {
+            Some(e) => Err(e),
+            None => Ok(RemoveResult { removed: self.removed }),
+        }
+    }
+}
+
+/// Whether anything is at `dir/name` for a Remove to name: an entry of any
+/// type (never followed) or iCloud's placeholder for one.
+fn something_at(dir: &Path, name: &str) -> bool {
+    fs::symlink_metadata(dir.join(name)).is_ok() || is_regular_file(&placeholder_path(dir, name))
+}
+
 /// Every valid-named item of a kind (records, companion files, and their
 /// placeholders), every iCloud conflict twin of one (`twin_name`), and every
 /// duplicate of the kind's directory with all it holds, plus that kind's
 /// staging entries from any device. Other unknown names are left alone,
 /// stated: a name this app would never write is not a copy it made. A link or
 /// file planted at the subdirectory's own name is removed as such, never
-/// followed.
+/// followed. Every item is tried once and one that will not go never stops
+/// the rest (`RemovePass`); the result is still the failure.
 fn remove_items_in(docs: &Path, kind: ItemKind) -> Result<u32, String> {
     remove_items_in_with(&Foundation, docs, kind)
 }
@@ -3008,15 +3156,31 @@ fn remove_placeholder_dir<I: ContainerIo>(io: &I, docs: &Path, logical: &str) ->
 }
 
 fn remove_items_in_with<I: ContainerIo>(io: &I, docs: &Path, kind: ItemKind) -> Result<u32, String> {
-    let mut removed = 0u32;
+    let mut pass = RemovePass::default();
+    remove_kind_with(io, docs, kind, &mut pass);
+    pass.into_result().map(|r| r.removed)
+}
+
+/// One kind's share of a Remove pass (`remove_items_in`), in today's order:
+/// the kind's directory or its placeholder, each item's record then its file
+/// in sorted id order, each twin, each duplicate directory and duplicate
+/// placeholder, then the kind's staging entries. Each goes through `io`, which
+/// is `coordinated_delete` / `coordinated_delete_dir` in production.
+fn remove_kind_with<I: ContainerIo>(io: &I, docs: &Path, kind: ItemKind, pass: &mut RemovePass) {
     let sub = docs.join(kind.subdir());
     match fs::symlink_metadata(&sub) {
         // Not here as a directory: iCloud may still hold it (only its
         // placeholder is on this device), and Remove must take it too.
-        Err(_) => removed += remove_placeholder_dir(io, docs, kind.subdir())?,
+        Err(_) => {
+            pass.attempt(kind.subdir(), || remove_placeholder_dir(io, docs, kind.subdir()));
+        }
         Ok(meta) if !meta.file_type().is_dir() => {
-            fs::remove_file(&sub).map_err(|_| "unavailable".to_string())?;
-            removed += 1;
+            pass.attempt(kind.subdir(), || {
+                fs::remove_file(&sub).map(|()| 1).map_err(|e| {
+                    remember_io_error("remove planted item", &e);
+                    "unavailable".to_string()
+                })
+            });
         }
         Ok(_) => {
             let mut ids: BTreeSet<String> = BTreeSet::new();
@@ -3035,18 +3199,20 @@ fn remove_items_in_with<I: ContainerIo>(io: &I, docs: &Path, kind: ItemKind) -> 
             }
             for id in ids {
                 if let Some(item) = kind.item_from_id(&id) {
-                    if coordinated_delete(&sub, &item.record_name())? {
-                        removed += 1;
-                    }
-                    if coordinated_delete(&sub, &item.file_name())? {
-                        removed += 1;
+                    // Within one item, today's order and its stop: the record,
+                    // then the file, and the file is never deleted after its
+                    // record stayed, so a peer never reads a record whose file
+                    // is gone.
+                    let (record, file) = (item.record_name(), item.file_name());
+                    if pass.attempt(&item.container_record(), || io.delete(&sub, &record).map(u32::from)) {
+                        pass.attempt(&item.container_file(), || io.delete(&sub, &file).map(u32::from));
+                    } else {
+                        pass.keep(something_at(&sub, &file), &item.container_file(), "kept with its record");
                     }
                 }
             }
             for twin in twins {
-                if coordinated_delete(&sub, &twin)? {
-                    removed += 1;
-                }
+                pass.attempt(&format!("{}/{}", kind.subdir(), twin), || io.delete(&sub, &twin).map(u32::from));
             }
         }
     }
@@ -3066,15 +3232,12 @@ fn remove_items_in_with<I: ContainerIo>(io: &I, docs: &Path, kind: ItemKind) -> 
         }
     }
     for name in duplicates {
-        if coordinated_delete_dir(docs, &name)? {
-            removed += 1;
-        }
+        pass.attempt(&name, || io.delete_dir(docs, &name).map(u32::from));
     }
     for logical in duplicate_placeholders {
-        removed += remove_placeholder_dir(io, docs, &logical)?;
+        pass.attempt(&logical, || remove_placeholder_dir(io, docs, &logical));
     }
-    removed += clear_staging_kind(&docs.join(".tmp"), kind);
-    Ok(removed)
+    pass.sweep(clear_staging_kind(&docs.join(".tmp"), kind));
 }
 
 #[tauri::command]
@@ -3266,7 +3429,8 @@ pub async fn icloud_remove_items(kind: ItemKind) -> Result<RemoveResult, String>
 // - An in-memory log of the last `DIAG_OPS_MAX` native bar-chart operations
 //   (each listing, each record read that had to be fetched, each write,
 //   delete and folder creation, each push, pull, removal marker, download
-//   request and removal) with what it returned and the Apple or POSIX codes it
+//   request and removal, and each item a removal left in iCloud, by the name
+//   this app writes) with what it returned and the Apple or POSIX codes it
 //   met, a repeat of the newest entry folded into a count; plus, per county,
 //   the last push, pull and removal marker. Process memory only: never
 //   persisted, never synced, gone at relaunch.
@@ -3294,7 +3458,8 @@ pub async fn icloud_remove_items(kind: ItemKind) -> Result<RemoveResult, String>
 // Bounds: `MAX_LISTED_ITEMS` entries scanned per folder, `DIAG_ITEMS_MAX`
 // items reported per folder and `DIAG_OTHER_MAX` unrecognized names (the rest
 // counted), `DIAG_STAGING_MAX` staging entries, `DIAG_DUPLICATES_MAX`
-// duplicate folders, `DIAG_OPS_MAX` operations, `DIAG_LAST_MAX` counties in
+// duplicate folders, `DIAG_OPS_MAX` operations, `DIAG_LEFT_MAX` items one
+// removal names, `DIAG_LAST_MAX` counties in
 // the last-operation table, and every string at most `DIAG_TEXT_MAX` UTF-16
 // units. The scan runs inside the 8 s command budget and a timeout comes back
 // as `scanError`, never as a failed command, so the log always arrives. The
@@ -3314,6 +3479,10 @@ const DIAG_OTHER_MAX: usize = 8;
 const DIAG_STAGING_MAX: usize = 16;
 /// Duplicate kind folders reported.
 const DIAG_DUPLICATES_MAX: usize = 8;
+/// Items one Remove pass names in the operation log; the rest are counted in
+/// one entry. Below `DIAG_OPS_MAX`, so a failed pass never pushes all of the
+/// log's earlier history out.
+const DIAG_LEFT_MAX: usize = 8;
 /// Any string in the payload, in UTF-16 code units.
 const DIAG_TEXT_MAX: usize = 160;
 /// A name, a domain, a result, in UTF-16 code units.
@@ -4882,6 +5051,18 @@ mod tests {
             }
             Ok(false)
         }
+        /// The duplicate-directory delete, logged with the item deletes so a
+        /// test counts every attempt in one list: the directory and all it
+        /// holds, a file or link at the name as such.
+        fn delete_dir(&self, dir: &Path, name: &str) -> Result<bool, String> {
+            let path = dir.join(name);
+            self.deletes.lock().unwrap().push(path.clone());
+            match fs::symlink_metadata(&path) {
+                Err(_) => Ok(false),
+                Ok(m) if m.file_type().is_dir() => fs::remove_dir_all(&path).map(|()| true).map_err(|_| "unavailable".to_string()),
+                Ok(_) => fs::remove_file(&path).map(|()| true).map_err(|_| "unavailable".to_string()),
+            }
+        }
         fn create_dir(&self, path: &Path) -> Result<(), String> {
             self.dirs.lock().unwrap().push(path.to_path_buf());
             match fs::create_dir(path) {
@@ -5573,6 +5754,314 @@ mod tests {
             assert!(docs.join(name).exists());
             let _ = fs::remove_dir_all(&docs);
         }
+    }
+
+    // ── icloud-remove-all-continues ──
+    //
+    // One item iCloud will not delete used to end the whole Remove pass (every
+    // delete ended in `?`), leaving everything after it in iCloud. These rows
+    // pin what is LEFT, not only that the pass failed.
+
+    /// A double over the fake whose deletes refuse ONE path (an item iCloud
+    /// will not delete), and whose directory deletes go through the fake too,
+    /// so every attempt, refused or not, is counted in `deletes` once.
+    #[derive(Clone)]
+    struct RefusesOne(FakeIo, Option<PathBuf>);
+    impl ContainerIo for RefusesOne {
+        fn flags(&self, p: &Path) -> UbiquityFlags { self.0.flags(p) }
+        fn start_download(&self, p: &Path) { self.0.start_download(p) }
+        fn read(&self, d: &Path, n: &str) -> Result<Option<String>, String> { self.0.read(d, n) }
+        fn delete(&self, d: &Path, n: &str) -> Result<bool, String> {
+            if self.1.as_deref() == Some(d.join(n).as_path()) {
+                self.0.deletes.lock().unwrap().push(d.join(n));
+                return Err("unavailable".to_string());
+            }
+            self.0.delete(d, n)
+        }
+        fn delete_dir(&self, d: &Path, n: &str) -> Result<bool, String> {
+            if self.1.as_deref() == Some(d.join(n).as_path()) {
+                self.0.deletes.lock().unwrap().push(d.join(n));
+                return Err("unavailable".to_string());
+            }
+            self.0.delete_dir(d, n)
+        }
+        fn create_dir(&self, p: &Path) -> Result<(), String> { self.0.create_dir(p) }
+    }
+
+    /// The day-obs snapshot's device id in `remove_all_fixture`.
+    fn remove_all_dev() -> String {
+        "f".repeat(32)
+    }
+
+    /// A container holding one of everything Remove synced files takes (both
+    /// data files with their records, four counties in sorted order with one
+    /// record held only as a placeholder, a conflict twin, a duplicate folder,
+    /// a day-obs snapshot with its record, and three staging entries), plus
+    /// two names it must never touch: the key record and an unknown file.
+    fn remove_all_fixture(tag: &str) -> PathBuf {
+        let docs = tmp_dir(tag);
+        for n in ["ebird-backup.csv", "ebird.record.json", "ml-export.csv", "ml.record.json", KEYS_RECORD_NAME] {
+            fs::write(docs.join(n), b"x").unwrap();
+        }
+        let sub = docs.join("barcharts");
+        fs::create_dir_all(&sub).unwrap();
+        for n in [
+            "US-AK-001.txt", "US-AK-001.record.json", "US-CA-001.txt", "US-CA-001.record.json", "US-NY-005.txt",
+            ".US-NY-005.record.json.icloud", "US-WY-001.txt", "US-WY-001.record.json", "US-CA-001 2.txt", "notes.txt",
+        ] {
+            fs::write(sub.join(n), b"x").unwrap();
+        }
+        fs::create_dir_all(docs.join("barcharts 2")).unwrap();
+        fs::write(docs.join("barcharts 2/US-NY-005.txt"), b"x").unwrap();
+        let dev = remove_all_dev();
+        fs::create_dir_all(docs.join("day-obs")).unwrap();
+        fs::write(docs.join(format!("day-obs/{}.json", dev)), b"x").unwrap();
+        fs::write(docs.join(format!("day-obs/{}.record.json", dev)), b"x").unwrap();
+        let tmp = docs.join(".tmp");
+        fs::create_dir_all(&tmp).unwrap();
+        let me = "a".repeat(32);
+        for n in [format!("{}-barcharts-US-CA-001.txt", me), format!("{}-day-obs-{}.json", me, dev), format!("{}-ebird-backup.csv", me)] {
+            fs::write(tmp.join(n), b"s").unwrap();
+        }
+        docs
+    }
+
+    /// Every delete Remove synced files makes over `remove_all_fixture` when
+    /// nothing is stuck, relative to `Documents/`, in today's order.
+    fn remove_all_targets() -> Vec<String> {
+        let dev = remove_all_dev();
+        let mut t: Vec<String> = ["ebird-backup.csv", "ebird.record.json", "ml-export.csv", "ml.record.json"].iter().map(|s| s.to_string()).collect();
+        for c in ["US-AK-001", "US-CA-001", "US-NY-005", "US-WY-001"] {
+            t.push(format!("barcharts/{}.record.json", c));
+            t.push(format!("barcharts/{}.txt", c));
+        }
+        t.push("barcharts/US-CA-001 2.txt".to_string());
+        t.push("barcharts 2".to_string());
+        t.push(format!("day-obs/{}.record.json", dev));
+        t.push(format!("day-obs/{}.json", dev));
+        t
+    }
+
+    /// Whether anything (an entry or its placeholder) is still at `rel`.
+    fn still_there(docs: &Path, rel: &str) -> bool {
+        let p = docs.join(rel);
+        something_at(p.parent().unwrap(), p.file_name().unwrap().to_str().unwrap())
+    }
+
+    /// One Remove synced files pass over `remove_all_fixture` with `stuck`
+    /// refused, and what every row shares: each target was attempted exactly
+    /// once and in today's order, except `untried` (the second half of a pair
+    /// whose first half stayed); what is still there is exactly what the pass
+    /// names; the key record and the unknown name never moved.
+    fn remove_all_row(tag: &str, stuck: Option<&str>, untried: Option<&str>) -> (PathBuf, RemovePass) {
+        let docs = remove_all_fixture(tag);
+        let fake = FakeIo::new(Duration::ZERO);
+        let pass = remove_all_with(&RefusesOne(fake.clone(), stuck.map(|s| docs.join(s))), &docs);
+        let want: Vec<PathBuf> = remove_all_targets().iter().filter(|t| Some(t.as_str()) != untried).map(|t| docs.join(t)).collect();
+        assert_eq!(*fake.deletes.lock().unwrap(), want, "{}: every item tried once, in order", tag);
+        let present: Vec<String> = remove_all_targets().into_iter().filter(|t| still_there(&docs, t)).collect();
+        let named: Vec<String> = pass.left.iter().map(|l| l.name.clone()).collect();
+        assert_eq!(named, present, "{}: what stayed is what the pass names", tag);
+        assert_eq!(pass.left_more, 0, "{}", tag);
+        assert!(docs.join(KEYS_RECORD_NAME).exists(), "{}: the key record was touched (FR-35)", tag);
+        assert!(docs.join("barcharts/notes.txt").exists(), "{}", tag);
+        assert!(!docs.join(".tmp").exists(), "{}: a staging entry stayed", tag);
+        (docs, pass)
+    }
+
+    /// Row C, the control: nothing stuck, everything goes, and the count is
+    /// exact (4 data files, 8 county names, the twin, the duplicate folder, 2
+    /// day-obs names and 3 staging entries).
+    #[test]
+    fn remove_all_takes_everything_when_nothing_is_stuck() {
+        let (docs, pass) = remove_all_row("w-remove-all-clean", None, None);
+        assert!(pass.left.is_empty() && pass.staging_left == 0);
+        assert_eq!(pass.into_result().ok().map(|r| r.removed), Some(19));
+        let _ = fs::remove_dir_all(&docs);
+    }
+
+    /// Row A: a stuck eBird backup. Its record stays with it (the csv-then-
+    /// record stop), and the Macaulay Library export, every county, the twin,
+    /// the duplicate folder, the day-obs snapshot and every staging entry
+    /// still go. The result is still the failure.
+    #[test]
+    fn remove_all_with_a_stuck_ebird_backup_still_takes_everything_else() {
+        let (docs, pass) = remove_all_row("w-remove-all-stuck-csv", Some("ebird-backup.csv"), Some("ebird.record.json"));
+        assert_eq!(
+            pass.left,
+            vec![
+                LeftItem { name: "ebird-backup.csv".to_string(), result: "unavailable".to_string(), detail: None },
+                LeftItem { name: "ebird.record.json".to_string(), result: "not tried".to_string(), detail: Some("kept with its file".to_string()) },
+            ]
+        );
+        assert_eq!(pass.removed, 17);
+        assert_eq!(pass.into_result().err().as_deref(), Some("unavailable"));
+        let _ = fs::remove_dir_all(&docs);
+    }
+
+    /// Row B: a stuck county in the middle of the sorted list. Every county
+    /// after it, the twin, the duplicate folder, the day-obs snapshot and the
+    /// staging entries still go, and the record-then-file stop holds: its file
+    /// is never tried, so no record is left without its file and no file was
+    /// deleted from under a record that stayed.
+    #[test]
+    fn remove_all_with_a_stuck_county_takes_everything_after_it_and_leaves_no_half_pair() {
+        let (docs, pass) = remove_all_row("w-remove-all-stuck-county", Some("barcharts/US-CA-001.record.json"), Some("barcharts/US-CA-001.txt"));
+        assert_eq!(
+            pass.left,
+            vec![
+                LeftItem { name: "barcharts/US-CA-001.record.json".to_string(), result: "unavailable".to_string(), detail: None },
+                LeftItem { name: "barcharts/US-CA-001.txt".to_string(), result: "not tried".to_string(), detail: Some("kept with its record".to_string()) },
+            ]
+        );
+        assert!(docs.join("barcharts/US-CA-001.record.json").exists() && docs.join("barcharts/US-CA-001.txt").exists());
+        assert_eq!(pass.removed, 17);
+        assert_eq!(pass.into_result().err().as_deref(), Some("unavailable"));
+        let _ = fs::remove_dir_all(&docs);
+    }
+
+    /// Copy iCloud details names what stayed, by the names this app writes,
+    /// and names nothing when everything went.
+    #[test]
+    fn remove_all_names_in_copy_icloud_details_only_what_stayed() {
+        let noted = |pass: &RemovePass| {
+            let notes = std::sync::Arc::new(Mutex::new(Vec::new()));
+            pass.note_left(&NotingIo(FakeIo::new(Duration::ZERO), notes.clone()), REMOVE_ALL_TARGET);
+            let got = notes.lock().unwrap().clone();
+            got
+        };
+        let (docs, pass) = remove_all_row("w-remove-all-notes", Some("barcharts/US-CA-001.record.json"), Some("barcharts/US-CA-001.txt"));
+        let want: Vec<Note> = vec![
+            ("remove".to_string(), "barcharts/US-CA-001.record.json".to_string(), "unavailable".to_string(), None),
+            ("remove".to_string(), "barcharts/US-CA-001.txt".to_string(), "not tried".to_string(), Some("kept with its record".to_string())),
+        ];
+        assert_eq!(noted(&pass), want);
+        let _ = fs::remove_dir_all(&docs);
+        let (docs, pass) = remove_all_row("w-remove-all-notes-none", None, None);
+        assert!(noted(&pass).is_empty(), "a pass that left nothing named something");
+        let _ = fs::remove_dir_all(&docs);
+    }
+
+    /// A staging entry that cannot be removed is counted, not dropped: the
+    /// pass fails rather than reporting success over a copy still in iCloud,
+    /// and Copy iCloud details says how many stayed (never their raw names).
+    #[test]
+    fn remove_all_counts_a_staging_entry_it_could_not_remove() {
+        use std::os::unix::fs::PermissionsExt;
+        let docs = remove_all_fixture("w-remove-all-stuck-staging");
+        // A directory under a staging name whose child cannot be unlinked.
+        let stuck = docs.join(format!(".tmp/{}-ml-export.csv", "a".repeat(32)));
+        fs::create_dir_all(&stuck).unwrap();
+        fs::write(stuck.join("x"), b"s").unwrap();
+        fs::set_permissions(&stuck, fs::Permissions::from_mode(0o555)).unwrap();
+        let fake = FakeIo::new(Duration::ZERO);
+        let pass = remove_all_with(&RefusesOne(fake.clone(), None), &docs);
+        fs::set_permissions(&stuck, fs::Permissions::from_mode(0o755)).unwrap();
+        let want: Vec<PathBuf> = remove_all_targets().iter().map(|t| docs.join(t)).collect();
+        assert_eq!(*fake.deletes.lock().unwrap(), want);
+        assert!(pass.left.is_empty());
+        assert_eq!((pass.staging_left, pass.removed), (1, 19));
+        assert!(stuck.exists());
+        assert_eq!(fs::read_dir(docs.join(".tmp")).unwrap().count(), 1, "another staging entry stayed");
+        let notes = std::sync::Arc::new(Mutex::new(Vec::new()));
+        pass.note_left(&NotingIo(FakeIo::new(Duration::ZERO), notes.clone()), REMOVE_ALL_TARGET);
+        let want_notes: Vec<Note> = vec![("remove".to_string(), ".tmp".to_string(), "unavailable".to_string(), Some("1 staging entry could not be removed".to_string()))];
+        assert_eq!(*notes.lock().unwrap(), want_notes);
+        assert_eq!(pass.into_result().err().as_deref(), Some("unavailable"));
+        let _ = fs::remove_dir_all(&docs);
+    }
+
+    /// The bounds and the order rule on their own: the FIRST failure is the
+    /// one returned, `removed` counts what went either way, and past
+    /// `DIAG_LEFT_MAX` the rest are counted in one entry, never listed. Every
+    /// error string here is a member of the closed union, because
+    /// `icloudPaths.parity.test.ts` reads every `Err` literal in this file;
+    /// three different members are what tell first from last.
+    #[test]
+    fn a_remove_pass_returns_its_first_failure_and_bounds_what_it_names() {
+        let mut pass = RemovePass::default();
+        assert!(pass.attempt("a", || Ok(1)));
+        assert!(!pass.attempt("b", || Err("unknown".to_string())));
+        assert!(!pass.attempt("c", || Err("unavailable".to_string())));
+        assert!(pass.attempt("d", || Ok(0)));
+        assert!(pass.attempt("e", || Ok(1)));
+        for n in 0..DIAG_LEFT_MAX {
+            pass.attempt(&format!("f{}", n), || Err("mismatch".to_string()));
+        }
+        assert_eq!(pass.left.len(), DIAG_LEFT_MAX);
+        assert_eq!(pass.left_more, 2);
+        assert_eq!((pass.left[0].name.as_str(), pass.left[1].name.as_str()), ("b", "c"));
+        let notes = std::sync::Arc::new(Mutex::new(Vec::new()));
+        pass.note_left(&NotingIo(FakeIo::new(Duration::ZERO), notes.clone()), REMOVE_ALL_TARGET);
+        let got = notes.lock().unwrap().clone();
+        assert_eq!(got.len(), DIAG_LEFT_MAX + 1);
+        assert_eq!(
+            got.last().cloned().unwrap(),
+            ("remove".to_string(), REMOVE_ALL_TARGET.to_string(), "unavailable".to_string(), Some("2 more left in iCloud, not listed".to_string()))
+        );
+        assert_eq!(pass.removed, 2);
+        assert_eq!(pass.into_result().err().as_deref(), Some("unknown"));
+        assert!(DIAG_LEFT_MAX < DIAG_OPS_MAX);
+    }
+
+    /// The real-Foundation row: a per-item placeholder Foundation cannot
+    /// delete in a temporary directory (the mechanism the placeholder-folder
+    /// row above relies on) stays, named; every other item, the duplicate
+    /// folder, the day-obs snapshot and the staging entry still go.
+    #[test]
+    fn remove_all_over_foundation_takes_everything_past_a_placeholder_it_cannot_delete() {
+        let docs = tmp_dir("w-remove-all-foundation");
+        for n in ["ebird-backup.csv", "ebird.record.json", "ml-export.csv", "ml.record.json", KEYS_RECORD_NAME] {
+            fs::write(docs.join(n), b"x").unwrap();
+        }
+        let sub = docs.join("barcharts");
+        fs::create_dir_all(&sub).unwrap();
+        fs::write(sub.join(".US-AK-001.txt.icloud"), b"bplist-stub").unwrap();
+        fs::write(sub.join("US-WY-001.txt"), b"x").unwrap();
+        fs::write(sub.join("US-WY-001.record.json"), b"x").unwrap();
+        fs::create_dir_all(docs.join("barcharts 2")).unwrap();
+        fs::write(docs.join("barcharts 2/US-NY-005.txt"), b"x").unwrap();
+        fs::create_dir_all(docs.join(".tmp")).unwrap();
+        fs::write(docs.join(format!(".tmp/{}-barcharts-US-WY-001.txt", "a".repeat(32))), b"s").unwrap();
+        let dev = remove_all_dev();
+        fs::create_dir_all(docs.join("day-obs")).unwrap();
+        fs::write(docs.join(format!("day-obs/{}.json", dev)), b"x").unwrap();
+        fs::write(docs.join(format!("day-obs/{}.record.json", dev)), b"x").unwrap();
+        let pass = remove_all_with(&Foundation, &docs);
+        assert_eq!(pass.failure.as_deref(), Some("unavailable"));
+        assert_eq!(pass.left.iter().map(|l| (l.name.as_str(), l.result.as_str())).collect::<Vec<_>>(), vec![("barcharts/US-AK-001.txt", "unavailable")]);
+        assert_eq!(pass.removed, 10);
+        assert!(is_regular_file(&placeholder_path(&sub, "US-AK-001.txt")));
+        for gone in ["ebird-backup.csv", "ml.record.json", "barcharts/US-WY-001.txt", "barcharts/US-WY-001.record.json", "barcharts 2", ".tmp", "day-obs/ffffffffffffffffffffffffffffffff.json"] {
+            assert!(!docs.join(gone).exists(), "{} left behind", gone);
+        }
+        assert!(docs.join(KEYS_RECORD_NAME).exists());
+        let _ = fs::remove_dir_all(&docs);
+    }
+
+    /// The kind teardown (`icloud_remove_items`) continues the same way, over
+    /// Foundation: a county it cannot take no longer leaves every county
+    /// after it, the twin, the duplicate folder and the staging entry behind.
+    #[test]
+    fn remove_items_takes_every_county_after_one_it_cannot_take() {
+        let docs = tmp_dir("w-remove-items-continues");
+        let sub = docs.join("barcharts");
+        fs::create_dir_all(&sub).unwrap();
+        fs::write(sub.join(".US-AK-001.txt.icloud"), b"bplist-stub").unwrap();
+        for n in ["US-WY-001.txt", "US-WY-001.record.json", "US-CA-001 2.txt"] {
+            fs::write(sub.join(n), b"x").unwrap();
+        }
+        fs::create_dir_all(docs.join("barcharts 2")).unwrap();
+        fs::write(docs.join("barcharts 2/US-NY-005.txt"), b"x").unwrap();
+        let staged = docs.join(format!(".tmp/{}-barcharts-US-WY-001.txt", "a".repeat(32)));
+        fs::create_dir_all(staged.parent().unwrap()).unwrap();
+        fs::write(&staged, b"s").unwrap();
+        assert_eq!(remove_items_in(&docs, ItemKind::Barchart).err().as_deref(), Some("unavailable"));
+        assert!(is_regular_file(&placeholder_path(&sub, "US-AK-001.txt")));
+        for gone in [sub.join("US-WY-001.txt"), sub.join("US-WY-001.record.json"), sub.join("US-CA-001 2.txt"), docs.join("barcharts 2"), staged] {
+            assert!(!gone.exists(), "{:?} left behind", gone);
+        }
+        let _ = fs::remove_dir_all(&docs);
     }
 
     /// The twin and duplicate-directory predicates accept only iCloud's own
