@@ -2,6 +2,11 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [1.0.50] - 2026-10-03
+
+### Changed
+- **The milestone badges on the Statistics tab are now one uniform size.** In Firsts & Milestones, every badge is the same width and height, on an even grid whose columns line up from row to row, the last row included, and each reads the milestone, then the species that reached it, then the date. A long species name wraps inside its badge, with its eBird and Birds of the World marks kept together beneath it, instead of making the badge wider. Milestones of 1,000 and above now print with a thousands separator, the label above the set reads Life list milestones, and the check mark on each badge and the line above the set are gone. Screen readers hear the badges as a list, with how many there are.
+
 ## [1.0.49] - 2026-10-03
 
 ### Changed
