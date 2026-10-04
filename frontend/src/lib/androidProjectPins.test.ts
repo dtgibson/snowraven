@@ -270,6 +270,29 @@ describe('MainActivity.kt: the native half of the inset and theme contracts (des
     expect(channel[1]).toMatch(/^WebViewCompat\.addWebMessageListener\(/)
   })
 
+  // The direct form of the row above (QA retry 1, part C): between each
+  // method's opening brace and the registration call it exists to reach, no
+  // `return` token at all, whatever the statement shape. onWebViewCreate's
+  // registration calls are the two install calls; installThemeChannel's one
+  // permitted return is the feature check, so its scan starts after that line.
+  it('no return stands between an opening brace and the registration it reaches', () => {
+    const before = (block: string, call: RegExp) => {
+      const at = block.search(call)
+      expect(at, `${call} is in the block`).toBeGreaterThanOrEqual(0)
+      return block.slice(0, at)
+    }
+    const hook = kotlinBlock(mainActivity, 'override fun onWebViewCreate(webView: WebView)')
+    expect(before(hook, /installInsets\(webView\)/)).not.toMatch(/\breturn\b/)
+    expect(before(hook, /installThemeChannel\(webView\)/)).not.toMatch(/\breturn\b/)
+    const insets = kotlinBlock(mainActivity, 'private fun installInsets(webView: WebView)')
+    expect(before(insets, /ViewCompat\.setOnApplyWindowInsetsListener\(webView\)/)).not.toMatch(/\breturn\b/)
+    const channel = kotlinBlock(mainActivity, 'private fun installThemeChannel(webView: WebView)')
+    const featureCheck = 'if (!WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) return'
+    expect(channel).toContain(featureCheck)
+    const afterCheck = channel.slice(channel.indexOf(featureCheck) + featureCheck.length)
+    expect(before(afterCheck, /WebViewCompat\.addWebMessageListener\(/)).not.toMatch(/\breturn\b/)
+  })
+
   it('sets exactly the four inset properties the stylesheet reads, and the keyboard class it reads', () => {
     const set = [...mainActivity.matchAll(/setProperty\('(--sr-inset-[a-z]+)'/g)].map(m => m[1]).sort()
     const read = [...new Set([...css.matchAll(/var\((--sr-inset-[a-z]+)/g)].map(m => m[1]))].sort()
