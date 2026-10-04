@@ -54,12 +54,31 @@ export function escHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 }
 
+/**
+ * The Map Explorer recency tier for a report date ("YYYY-MM-DD", or with a
+ * trailing " HH:MM"; the leading date is used), counted in CALENDAR days back
+ * from today: 0 to 7 days 'fresh', 8 to 15 'mid', 16 and older 'old'. Help, the
+ * Media Targets popup and the in-view list labels name the same ranges.
+ *
+ * The day count is the ROUNDED number of 24-hour spans between the two local
+ * midnights, the same count `isWithinWindow` (lib/nearbyLifers.ts) takes. Across
+ * a DST change the span is a whole number of days give or take the shift (the
+ * spring-forward day is usually 23 hours long and the fall-back day 25), and the
+ * shift is far under twelve hours in every real zone, so rounding recovers the
+ * calendar-day count; on every span with no change in it (a whole multiple of
+ * 24 hours) rounding and flooring agree exactly. It used to FLOOR, which lost a
+ * day whenever the span held a spring-forward day: for the 8 days after the
+ * change an 8-day-old report read as 7 ('fresh'), and for 16 days a 16-day-old
+ * one read as 15 ('mid').
+ * A malformed date still yields NaN, which fails both comparisons and falls to
+ * 'old'.
+ */
 export function recencyTier(recentDate: string): RecencyTier {
   const dateStr = recentDate.split(' ')[0]
   const [y, m, d] = dateStr.split('-').map(Number)
   const obsDate = new Date(y, m - 1, d)
   const today = new Date(); today.setHours(0, 0, 0, 0)
-  const days = Math.floor((today.getTime() - obsDate.getTime()) / 86400000)
+  const days = Math.round((today.getTime() - obsDate.getTime()) / 86400000)
   if (days <= 7) return 'fresh'
   if (days <= 15) return 'mid'
   return 'old'

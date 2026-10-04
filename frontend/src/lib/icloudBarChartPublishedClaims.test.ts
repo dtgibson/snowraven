@@ -226,10 +226,21 @@ describe('items 37 to 39 are true of the shipped code', () => {
   })
 
   it('"deletes ... the bar-chart files and the day-by-day lists included": the native Remove clears both kinds', () => {
-    const all = RUST.slice(RUST.indexOf('pub async fn icloud_remove_all('))
-    const body = all.slice(0, all.indexOf('\n}\n'))
-    expect(body).toContain('remove_items_in(&docs, ItemKind::Barchart)?')
-    expect(body).toContain('remove_items_in(&docs, ItemKind::DayObs)?')
+    // The command runs `remove_all_with`, which takes both kinds and, since
+    // icloud-remove-all-continues, no longer stops at the first item iCloud
+    // refuses. Rust line comments are stripped: a mention is not a call.
+    const fnBody = (decl: string) => {
+      const from = RUST.slice(RUST.indexOf(decl))
+      return from.slice(0, from.indexOf('\n}\n')).replace(/(^|[^:])\/\/[^\n]*/g, '$1')
+    }
+    const command = fnBody('pub async fn icloud_remove_all(')
+    expect(command).toContain('remove_all_with(&Foundation, &docs)')
+    // What stayed is named in Copy iCloud details; only the command's body
+    // can write that line, so a test over the helper cannot see it go.
+    expect(command).toContain('pass.note_left(&Foundation, REMOVE_ALL_TARGET)')
+    const body = fnBody('fn remove_all_with<')
+    expect(body).toContain('remove_kind_with(io, docs, ItemKind::Barchart, &mut pass)')
+    expect(body).toContain('remove_kind_with(io, docs, ItemKind::DayObs, &mut pass)')
   })
 })
 

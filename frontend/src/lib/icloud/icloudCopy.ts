@@ -167,11 +167,12 @@ export function removeOutro(here: string): string {
  * after a removal that did not finish, also announced once per failure through
  * the section's status region. Deliberately NOT `CHECK_FAILED_SUFFIX`: "Could
  * not reach iCloud." is not true of every way this fails. The native removal
- * (`icloud_remove_all`) stops at the first item iCloud will not delete, with
- * everything before it already gone, while iCloud was plainly reachable; and
+ * (`icloud_remove_all`) tries every item once and removes all it can, but an
+ * item iCloud will not delete stays, while iCloud was plainly reachable; and
  * after its 8 s timeout the work keeps running in the background and may yet
  * finish. "May still be" holds in all three cases. It names no file because
- * the app cannot know which remain; the button staying is the retry.
+ * the result carries no list (Copy iCloud details names what stayed); the
+ * button staying is the retry.
  */
 export const REMOVE_FAILED_TEXT = 'Some synced files may still be in iCloud. Try again.'
 

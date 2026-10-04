@@ -284,9 +284,15 @@ describe('the bar-chart files and the day cache sync as ITEMS, never as slots (i
       expect(native).toContain(`${w}:`)
     }
     // Remove all widens to both kinds and still never names the key record (FR-13, FR-35).
+    // The span holds the command and `remove_all_with`, which runs both kinds
+    // and no longer stops at the first item iCloud refuses
+    // (icloud-remove-all-continues), so the old `?` form is gone.
     const removeAll = rust.slice(rust.indexOf('pub async fn icloud_remove_all('), rust.indexOf('// ── icloud-api-key-sync: the key record commands'))
-    expect(removeAll).toContain('remove_items_in(&docs, ItemKind::Barchart)?')
-    expect(removeAll).toContain('remove_items_in(&docs, ItemKind::DayObs)?')
+    const removeAllCode = removeAll.replace(/(^|[^:])\/\/[^\n]*/g, '$1')
+    expect(removeAllCode).toContain('remove_all_with(&Foundation, &docs)')
+    expect(removeAllCode).toContain('fn remove_all_with<')
+    expect(removeAllCode).toContain('remove_kind_with(io, docs, ItemKind::Barchart, &mut pass)')
+    expect(removeAllCode).toContain('remove_kind_with(io, docs, ItemKind::DayObs, &mut pass)')
     expect(removeAll).not.toContain('KEYS_RECORD_NAME')
   })
 

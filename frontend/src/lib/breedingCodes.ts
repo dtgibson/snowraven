@@ -56,7 +56,11 @@ export const API_BREEDING_TO_DISPLAY: Record<string, string> = {
 
 /** Translate an eBird API breeding code to its display code (passthrough if unknown). */
 export function apiBreedingToDisplay(apiCode: string): string {
-  return API_BREEDING_TO_DISPLAY[apiCode] ?? apiCode
+  // Object.hasOwn, never a bare index: the code is the eBird API's, and on this
+  // ordinary literal `__proto__`, `constructor` and the other inherited names
+  // would return a member, not the code (security.md, lookup tables keyed by an
+  // unvalidated string). breedingCodes.test.ts carries all twelve.
+  return Object.hasOwn(API_BREEDING_TO_DISPLAY, apiCode) ? API_BREEDING_TO_DISPLAY[apiCode] : apiCode
 }
 
 /**

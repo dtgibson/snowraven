@@ -105,3 +105,44 @@ describe('ChecklistComparer — per-species cell a11y', () => {
     expect(tags.map(t => t.textContent)).toEqual(['A', 'B'])
   })
 })
+
+// breeding-code-lookup-hasown: the API breeding code is an unvalidated string.
+// These twelve are the names a bare index on an ordinary object literal resolves
+// to an inherited member: `__proto__` took the whole app down, and the other
+// eleven drew an empty pill named after JavaScript source. Each must render as
+// an unknown code does, the pill reading the raw code and named `<code>: <code>`.
+const PROTOTYPE_CHAIN = [
+  'constructor', '__proto__', 'toString', 'valueOf', 'hasOwnProperty',
+  'isPrototypeOf', 'toLocaleString', 'propertyIsEnumerable',
+  '__defineGetter__', '__defineSetter__', '__lookupGetter__', '__lookupSetter__',
+]
+
+// Side A's checklist carrying `code`, put through JSON.parse the way it arrives.
+function serveSideABreedingCode(code: string) {
+  const wire = JSON.parse(JSON.stringify({
+    ...dataA, species: [{ ...dataA.species[0], breedingCode: code }],
+  })) as ChecklistData
+  getMock.mockImplementation((path: string) =>
+    path.includes('S111') ? Promise.resolve(wire) : Promise.resolve(dataB),
+  )
+}
+
+describe('ChecklistComparer: inherited member names as breeding codes', () => {
+  it.each(PROTOTYPE_CHAIN)('renders %s as an unknown code, named "<code>: <code>"', async name => {
+    serveSideABreedingCode(name)
+    await compare()
+    const badge = screen.getByRole('img', { name: `${name}: ${name}` })
+    expect(badge.textContent).toBe(name)
+    expect(badge.getAttribute('title')).toBe(`${name}: ${name}`)
+    expect(badge.getAttribute('style')).toContain('var(--sr-tier-1-text)')
+  })
+
+  it('control: a known API code through the same parsed payload renders its display def', async () => {
+    // API FY is display CF (Carrying Food), so the helper really reaches the badge.
+    serveSideABreedingCode('FY')
+    await compare()
+    const badge = screen.getByRole('img', { name: 'CF: Carrying Food' })
+    expect(badge.textContent).toBe('CF')
+    expect(badge.getAttribute('style')).toContain('var(--sr-tier-4-text)')
+  })
+})
