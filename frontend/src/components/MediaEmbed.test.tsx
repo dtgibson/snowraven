@@ -209,6 +209,13 @@ describe('MediaFrame — Android mounts no third-party frame (security M1)', () 
     expect(screen.getByText('Media opens on Macaulay Library')).toBeTruthy()
     expect(screen.getByRole('link', { name: /View Photo on Macaulay Library/i }).getAttribute('href'))
       .toBe('https://macaulaylibrary.org/asset/662004247')
+    // The card's glyph says "opens elsewhere", not "offline": the crossed-out
+    // cloud the offline / failed / gated cards wear reads as an outage on a
+    // phone that is online. Read off lucide's own icon class on the decorative
+    // (aria-hidden) svg; the component adds no id or test id of its own.
+    const glyph = document.querySelector('svg[aria-hidden]')
+    expect(glyph?.classList.contains('lucide-external-link')).toBe(true)
+    expect(document.querySelector('svg.lucide-cloud-off')).toBeNull()
   })
 
   it('never probes the embed endpoint for a frame it will not mount', async () => {
@@ -244,6 +251,10 @@ describe('MediaFallback — offline / failed / safe ids', () => {
     expect(screen.getByText('Media unavailable offline')).toBeTruthy()
     expect(screen.getByRole('link', { name: /View Photo on Macaulay Library/i }).getAttribute('href'))
       .toBe('https://macaulaylibrary.org/asset/77')
+    // The offline card keeps the crossed-out cloud; only the Android `platform`
+    // card (above) swaps it for the external-link glyph.
+    expect(document.querySelector('svg.lucide-cloud-off')).toBeTruthy()
+    expect(document.querySelector('svg.lucide-external-link')).toBeNull()
   })
 
   it('load-failed reason shows the failed message', () => {

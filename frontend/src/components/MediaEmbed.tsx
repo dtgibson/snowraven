@@ -13,7 +13,7 @@
 // MEDIA_FORMAT_META) live in lib/mediaEmbed.ts so this file stays component-only.
 
 import { useEffect, useState } from 'react'
-import { CloudOff, ImageOff } from 'lucide-react'
+import { CloudOff, ExternalLink, ImageOff } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import type { MediaType } from '../types'
 import { mlAssetUrl } from '../lib/mlCatalog'
@@ -62,13 +62,18 @@ export function MediaFallback({ catalogId, format, compact, reason = 'offline' }
     ? "Media can't play here right now"
     : reason === 'platform' ? 'Media opens on Macaulay Library'
       : reason === 'load-failed' ? "Media couldn't load" : 'Media unavailable offline'
+  // The `platform` card is not an outage, so it does not wear the crossed-out
+  // cloud the offline / failed / gated cards share: on a phone that is online
+  // that glyph reads as a connection problem. It takes the same external-link
+  // glyph ChecklistLink and HotspotLink draw, which says "opens elsewhere".
+  const Glyph = reason === 'platform' ? ExternalLink : CloudOff
   return (
     <div style={{
       height: '100%', width: '100%', display: 'flex', flexDirection: 'column',
       alignItems: 'center', justifyContent: 'center', gap: compact ? 6 : 8,
       padding: '10px 12px', textAlign: 'center', background: 'var(--sr-surface-subtle)',
     }}>
-      <CloudOff size={compact ? 16 : 20} strokeWidth={2} style={{ color: 'var(--sr-text-muted)' }} aria-hidden />
+      <Glyph size={compact ? 16 : 20} strokeWidth={2} style={{ color: 'var(--sr-text-muted)' }} aria-hidden />
       {!compact && (
         <span style={{ fontSize: '0.72rem', color: 'var(--sr-text-muted)', lineHeight: 1.4 }}>
           {message}
