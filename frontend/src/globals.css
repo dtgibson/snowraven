@@ -321,9 +321,12 @@
   --sr-search-area-rgb: 180, 52, 31;
   --sr-search-area-scrim-rgb: 15, 17, 23;
 
-  /* Firsts & Milestones chips (Statistics) — light tinted chips, deliberately
-     identical in both themes. -date values darkened to ≥4.5:1 on the darker
-     gradient stop; -num/-check verified (tier-1 num is 20px bold = large text). */
+  /* Firsts & Milestones badges (Statistics): the light-theme tiles. The dark
+     theme declares its own deep tiles further down, so these values are NOT
+     shared across themes. -date values darkened to ≥4.5:1 on the darker
+     gradient stop; -num/-check verified (tier-1 num is 20px bold = large
+     text). The milestone badges draw no check; -check is read by the
+     Frivolous Lists tier-1 badge only, and tiers 2 to 4 are unread. */
   --sr-milestone-1-bg: linear-gradient(160deg,#F2FAF5,#E8F5EE);
   --sr-milestone-1-border: rgba(45,134,83,0.28);
   --sr-milestone-1-num: #2D8653;    /* 4.03:1 on #E8F5EE — large text, ≥3:1 */
