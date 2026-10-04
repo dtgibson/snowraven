@@ -12,7 +12,7 @@ import { type ConfigurableTab, TAB_LABELS, DEFAULT_TAB_ORDER } from '../lib/tabL
 import { storage } from '../lib/storage'
 import { formatDate, formatUploadDate, setDateFormatPref, asDateFormatPref } from '../lib/formatDate'
 import type { DateFormatPref } from '../lib/formatDate'
-import { isTauri, isMobileApp } from '../lib/platform'
+import { isTauri, isMobileApp, isAndroid } from '../lib/platform'
 import { supportsAppRelaunch, showICloudSync, showLocationControls } from '../lib/platformGates'
 import { useFilesEpoch } from '../lib/useFilesEpoch'
 import { useKeysEpoch } from '../lib/useKeysEpoch'
@@ -40,7 +40,10 @@ import { ModalDialog } from './ui/ModalDialog'
 import { SyncContent, SyncLine } from './ui/SyncLine'
 import { fileRowButtonLabel } from '../lib/fileRowCopy'
 import { activeImportMechanism, pickCsvViaDialog } from '../lib/importMechanism'
-import { refuseByFilename, refuseByContent } from '../lib/uploadGuard'
+import {
+  refuseByFilename, refuseByContent, csvInputAccept,
+  unreadableFileMessage, fileNotSavedMessage, PICKER_FAILED_MESSAGE,
+} from '../lib/uploadGuard'
 import { getCurrentLocation, describeLocationError } from '../lib/location'
 import type { LocationError } from '../lib/location'
 import { clearEbirdObservationsCache } from '../lib/observationsCache'
@@ -373,7 +376,7 @@ function FileRow({
         <input
           ref={inputRef}
           type="file"
-          accept=".csv"
+          accept={csvInputAccept(isAndroid())}
           style={{ display: 'none' }}
           onChange={handleFileInput}
         />
@@ -388,7 +391,9 @@ function FileRow({
         background: 'var(--sr-error-bg)', borderRadius: 6,
         fontSize: '0.75rem', color: 'var(--sr-error)',
       } : undefined}>
-        {error ? <Fragment key={error.sequence}>{error.message}</Fragment> : null}
+        {/* A message can carry the chosen file's name, an unbreakable run that
+            would otherwise run past the card at 320px and 200% text. */}
+        {error ? <span key={error.sequence} className="sr-wrap-anywhere">{error.message}</span> : null}
       </div>
     </div>
   )
@@ -1993,8 +1998,13 @@ export function Settings({
     }
     setUploading(true)
     setError(null)
+    // Which step failed decides the line (android-release FR-29): a read that
+    // fails names the file and says it could not be read, which is not the
+    // same event as a save that failed after the file was read.
+    let reading = true
     try {
       const content = await getContent()
+      reading = false
       // Size, then content. Both refusals render in this row's existing error
       // line, and both leave whatever was already stored exactly as it was: a
       // refused upload is not a replace. Without them an oversized file was
@@ -2024,7 +2034,7 @@ export function Settings({
       if (origin) icloudActions.fileSaved(slot)
       onFilesSaved?.()
     } catch {
-      setError('Upload failed. Please try again.')
+      setError(reading ? unreadableFileMessage(filename) : fileNotSavedMessage(filename))
     } finally {
       setUploading(false)
     }
@@ -2041,8 +2051,11 @@ export function Settings({
     let picked: Awaited<ReturnType<typeof pickCsvViaDialog>>
     try {
       picked = await pickCsvViaDialog()
-    } catch {
-      setError('Upload failed. Please try again.')
+    } catch (err) {
+      // A read that failed after the pick carries the file's name
+      // (pickCsvViaDialog); a picker that failed to open has none.
+      const name = (err as { filename?: unknown } | null)?.filename
+      setError(typeof name === 'string' && name ? unreadableFileMessage(name) : PICKER_FAILED_MESSAGE)
       return
     }
     if (!picked) return // cancelled

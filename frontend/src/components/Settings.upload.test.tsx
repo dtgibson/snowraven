@@ -69,8 +69,10 @@ vi.mock('../lib/importMechanism', () => ({ activeImportMechanism: () => 'input',
 import { Settings } from './Settings'
 import { DEFAULT_TAB_ORDER } from '../lib/tabLayout'
 import type { ConfigurableTab } from '../lib/tabLayout'
+import { isAndroid } from '../lib/platform'
 import {
   MAX_UPLOAD_BYTES, CSV_ONLY_MESSAGE, TOO_LARGE_MESSAGE, wrongExportMessage,
+  csvInputAccept, unreadableFileMessage, fileNotSavedMessage,
 } from '../lib/uploadGuard'
 
 // The two headers, in the real column order both services emit. Written out here
@@ -150,7 +152,26 @@ beforeEach(() => {
   caches.invalidateHotspotSet.mockReset()
 })
 
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  vi.mocked(isAndroid).mockReturnValue(false)
+})
+
+// android-release QA-26: the two rows' picker filter. Android's own picker greys
+// out every local CSV under `.csv` alone (measured), so the Android build spells
+// out the CSV MIME types; every other platform keeps the extension.
+describe('the file inputs\' accept value', () => {
+  it.each([[false, '.csv'], [true, csvInputAccept(true)]] as const)(
+    'isAndroid() %s: both rows carry %s',
+    async (android, accept) => {
+      vi.mocked(isAndroid).mockReturnValue(android)
+      const { container } = renderSettings()
+      await waitFor(() => expect(container.querySelectorAll('input[type="file"]').length).toBe(2))
+      const values = [...container.querySelectorAll('input[type="file"]')].map(i => i.getAttribute('accept'))
+      expect(values).toEqual([accept, accept])
+    },
+  )
+})
 
 describe('FileRow alert announcements', () => {
   it.each(SLOTS.map(r => [r.label, r] as const))(
@@ -278,6 +299,45 @@ describe('the accepted upload is unchanged', () => {
       expect(alerts()).toEqual([])
     },
   )
+
+  // android-release FR-29, QA-29: a chosen file whose read fails (a cloud
+  // placeholder that never downloads) lands in the row's error line naming the
+  // file, stores nothing, and leaves the file the slot already held on show,
+  // never the "No file saved" state.
+  it.each(SLOTS.map(r => [r.label, r] as const))(
+    '%s: a read that fails names the file and leaves the saved file in place',
+    async (_l, row) => {
+      const saved = { filename: 'Earlier.csv', uploadedAt: '2026-09-20T12:05:00.000Z' }
+      storageMock.getFilesStatus.mockResolvedValue({ ebird: null, ml: null, [row.slot]: saved })
+      const { container, onFilesSaved } = renderSettings()
+      await waitFor(() => expect(container.querySelectorAll('input[type="file"]').length).toBe(2))
+      await waitFor(() => expect(container.querySelector('[title="Earlier.csv"]')).not.toBeNull())
+
+      const input = container.querySelectorAll('input[type="file"]')[row.index] as HTMLInputElement
+      const file = new File([''], 'MyEBirdData (2).csv', { type: 'text/csv' })
+      Object.defineProperty(file, 'text', { value: () => Promise.reject(new DOMException('gone', 'NotReadableError')) })
+      Object.defineProperty(input, 'files', { value: [file], configurable: true })
+      fireEvent.change(input)
+
+      await waitFor(() => expect(alerts()).toEqual([unreadableFileMessage('MyEBirdData (2).csv')]))
+      expect(fileAlert(container, row.index).textContent).toBe(unreadableFileMessage('MyEBirdData (2).csv'))
+      expect(storageMock.writeFile).not.toHaveBeenCalled()
+      expect(row.clears).not.toHaveBeenCalled()
+      expect(onFilesSaved).not.toHaveBeenCalled()
+      expect(container.querySelector('[title="Earlier.csv"]')).not.toBeNull()
+    },
+  )
+
+  it('a save that fails after the read names the file as not saved, not as unreadable', async () => {
+    storageMock.writeFile.mockRejectedValue(new Error('disk full'))
+    const { container, onFilesSaved } = renderSettings()
+    await waitFor(() => expect(container.querySelectorAll('input[type="file"]').length).toBe(2))
+
+    upload(container, 0, 'MyEBirdData.csv', DEMO_EBIRD)
+
+    await waitFor(() => expect(alerts()).toEqual([fileNotSavedMessage('MyEBirdData.csv')]))
+    expect(onFilesSaved).not.toHaveBeenCalled()
+  })
 
   it('a refusal clears once a good file follows it, so the row is not stuck', async () => {
     const { container } = renderSettings()

@@ -41,8 +41,10 @@ export interface PickedCsv {
 }
 
 // Present the native document picker (Mechanism B) and read the chosen CSV.
-// Resolves null when the user cancels (FR-13: clean no-op). Throws on read
-// failure — the caller routes that into the existing error state.
+// Resolves null when the user cancels (FR-13: clean no-op). Throws on failure
+// and the caller routes that into the existing error state; a read that fails
+// after the pick throws an error carrying `filename`, so the row's line can
+// name the file (android-release FR-29).
 export async function pickCsvViaDialog(): Promise<PickedCsv | null> {
   const { open } = await import('@tauri-apps/plugin-dialog');
   const path = await open({
@@ -51,8 +53,13 @@ export async function pickCsvViaDialog(): Promise<PickedCsv | null> {
     filters: [{ name: 'CSV', extensions: ['csv'] }],
   });
   if (typeof path !== 'string' || path === '') return null; // cancelled
-  const { readTextFile } = await import('@tauri-apps/plugin-fs');
-  const content = await readTextFile(path);
   const filename = path.split('/').pop() || 'import.csv';
+  const { readTextFile } = await import('@tauri-apps/plugin-fs');
+  let content: string;
+  try {
+    content = await readTextFile(path);
+  } catch {
+    throw Object.assign(new Error('The picked file could not be read'), { filename });
+  }
   return { filename, content };
 }

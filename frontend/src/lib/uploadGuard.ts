@@ -42,6 +42,49 @@ export const MAX_UPLOAD_BYTES = 50 * BYTES_PER_MEGABYTE
 /** Unchanged, and moved here so all three refusals for this row live together. */
 export const CSV_ONLY_MESSAGE = 'Only .csv files are accepted.'
 
+/**
+ * The `accept` value for the CSV file inputs (Settings' two rows, the List
+ * Comparer's drop zone). It only filters what the picker lets the user tap;
+ * this registry still decides what is stored, by name and by content.
+ *
+ * Android needs the MIME types spelled out (android-release QA-26, measured on
+ * the API 36 emulator, DocumentsUI): the WebView turns `.csv` into
+ * `GET_CONTENT` for `text/csv`, while Android's MediaStore types every local
+ * `.csv` as `text/comma-separated-values`, so every CSV on the phone was greyed
+ * out. With more than one accept type, wry passes them all to the picker
+ * (EXTRA_MIME_TYPES). The list adds the types other providers give a CSV
+ * (`application/vnd.ms-excel` from files saved by Windows browsers, `text/plain`
+ * on some phones); anything else those types enable, a `.txt` or an `.xls`, is
+ * refused here by name with `CSV_ONLY_MESSAGE`. Every other platform keeps the
+ * plain extension, whose browser and WebKit pickers filter it correctly.
+ */
+export const CSV_INPUT_ACCEPT = '.csv'
+export const ANDROID_CSV_INPUT_ACCEPT =
+  '.csv,text/csv,text/comma-separated-values,application/csv,application/vnd.ms-excel,text/plain'
+export function csvInputAccept(android: boolean): string {
+  return android ? ANDROID_CSV_INPUT_ACCEPT : CSV_INPUT_ACCEPT
+}
+
+/**
+ * The row's load-error line when a chosen file's contents cannot be read (a
+ * cloud provider's placeholder that fails to download, a document the provider
+ * revoked): android-release FR-29. It names the file and says nothing about
+ * uploading, because the same line serves "Upload" on desktop and "Import" on
+ * the phone. Whatever the slot held before is left as it was.
+ */
+export function unreadableFileMessage(filename: string): string {
+  return `Could not read ${filename}, so it was not saved. Try choosing it again.`
+}
+
+/** The same line when the file was read but storing it failed. */
+export function fileNotSavedMessage(filename: string): string {
+  return `Could not save ${filename}. Try choosing it again.`
+}
+
+/** The dialog import path (Mechanism B) when the picker itself fails, so no
+ *  file is known to name. */
+export const PICKER_FAILED_MESSAGE = 'The file picker did not open. Try again.'
+
 /** Refusal 1: over the cap. One sentence, because there is no repair to offer —
  *  an export is the size it is, and the user cannot shrink it. */
 export const TOO_LARGE_MESSAGE =

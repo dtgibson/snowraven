@@ -43,6 +43,10 @@ import {
   BARCHART_UNREADABLE_CODE_MESSAGE,
   BARCHART_FILENAME_MAX,
   BARCHART_NAME_TOO_LONG_MESSAGE,
+  csvInputAccept,
+  unreadableFileMessage,
+  fileNotSavedMessage,
+  PICKER_FAILED_MESSAGE,
 } from './uploadGuard'
 import { parseBarChart, type BarChartParseOutcome } from './barChart/parseBarChart'
 import { detectExportType } from './detectExportType'
@@ -243,6 +247,37 @@ describe('the refusal copy', () => {
     expect(TOO_LARGE_MESSAGE).toContain('it was not saved')
     expect(wrongExportMessage('ml')).toContain('it was not saved')
     expect(wrongExportMessage('ebird')).toContain('it was not saved')
+  })
+
+  // android-release FR-29, QA-16, QA-29: the CONTENT of the failure lines, as
+  // literals (Settings.upload.test.tsx proves their delivery). Each names the
+  // file and none says "Upload", which the phone's Import row would contradict.
+  it('the read and save failure lines name the file, say nothing of uploading, and the picker line names none', () => {
+    expect(unreadableFileMessage('MyEBirdData.csv'))
+      .toBe('Could not read MyEBirdData.csv, so it was not saved. Try choosing it again.')
+    expect(fileNotSavedMessage('MyEBirdData.csv')).toBe('Could not save MyEBirdData.csv. Try choosing it again.')
+    expect(PICKER_FAILED_MESSAGE).toBe('The file picker did not open. Try again.')
+    for (const s of [unreadableFileMessage('a.csv'), fileNotSavedMessage('a.csv'), PICKER_FAILED_MESSAGE]) {
+      expect(s).not.toMatch(/upload/i)
+      expect(s).not.toContain('—')
+    }
+  })
+})
+
+// android-release QA-26: measured on the API 36 emulator, `.csv` alone becomes
+// GET_CONTENT for text/csv and DocumentsUI greys out every local CSV (typed
+// text/comma-separated-values); the Android list enabled them. The filter is a
+// convenience: whatever extra it enables is refused by name above.
+describe('the CSV inputs\' accept value', () => {
+  it('Android spells out the CSV MIME types beside the extension; every other platform keeps the extension', () => {
+    expect(csvInputAccept(false)).toBe('.csv')
+    expect(csvInputAccept(true)).toBe(
+      '.csv,text/csv,text/comma-separated-values,application/csv,application/vnd.ms-excel,text/plain')
+  })
+
+  it('anything else the Android list lets the picker enable is refused by name, before it is read', () => {
+    expect(refuseByFilename('field-notes.txt')).toBe(CSV_ONLY_MESSAGE)
+    expect(refuseByFilename('Export.xls')).toBe(CSV_ONLY_MESSAGE)
   })
 })
 

@@ -55,6 +55,7 @@ vi.mock('@tauri-apps/plugin-process', () => ({ relaunch: relaunchMock }))
 
 import { Settings } from './Settings'
 import { isTauri, isIOS } from '../lib/platform'
+import { unreadableFileMessage, PICKER_FAILED_MESSAGE } from '../lib/uploadGuard'
 import { DEFAULT_TAB_ORDER, TAB_LABELS } from '../lib/tabLayout'
 import type { ConfigurableTab } from '../lib/tabLayout'
 
@@ -261,6 +262,19 @@ describe('Settings — iOS wirings (FR-12/FR-13, supportsAppRelaunch)', () => {
     // button returns to its idle label.
     expect(screen.queryAllByRole('alert').every(node => node.textContent === '')).toBe(true)
     expect(screen.getAllByRole('button', { name: 'Import file…' })).toHaveLength(2)
+  })
+
+  // android-release FR-29: a pick whose read fails names the file it carries; a
+  // picker that fails to open has no file to name. Neither says "Upload".
+  it.each([
+    [Object.assign(new Error('read failed'), { filename: 'MyEBirdData.csv' }), unreadableFileMessage('MyEBirdData.csv')],
+    [new Error('picker failed'), PICKER_FAILED_MESSAGE],
+  ])("Mechanism B ('dialog'): a failed pick shows its own line (%s)", async (err, line) => {
+    iosImportState.mechanism = 'dialog'
+    iosImportState.pickCsvViaDialog.mockRejectedValue(err)
+    renderSettings()
+    fireEvent.click(screen.getAllByRole('button', { name: 'Import file…' })[0])
+    await waitFor(() => expect(screen.queryAllByRole('alert').map(n => n.textContent).filter(Boolean)).toEqual([line]))
   })
 
   it("Mechanism A ('input') never calls the dialog picker", () => {

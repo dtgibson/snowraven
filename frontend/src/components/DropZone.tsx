@@ -1,6 +1,8 @@
 import { useState, useRef } from 'react'
 import type { DragEvent, KeyboardEvent, ChangeEvent } from 'react'
 import type { FileData } from '../types'
+import { isAndroid } from '../lib/platform'
+import { csvInputAccept } from '../lib/uploadGuard'
 
 interface DropZoneProps {
   label: string
@@ -82,7 +84,7 @@ export function DropZone({ label, file, error, onFile }: DropZoneProps) {
       <input
         ref={inputRef}
         type="file"
-        accept=".csv"
+        accept={csvInputAccept(isAndroid())}
         style={{ display: 'none' }}
         onChange={handleInputChange}
         aria-hidden="true"
