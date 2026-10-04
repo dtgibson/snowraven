@@ -2,6 +2,12 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [1.0.52] - 2026-10-04
+
+### Added
+- **First of Year on Species Detail.** A new First of Year card, right after the Sightings and Media cards, lists the first date you reported the selected species in each year, newest year first, and each date opens its checklist on eBird. Once you have reported the species in two or more years, a small chart beside the list (above it on a phone) plots each year's first date by day of the year, so a steady arrival reads as a flat line, an early or late year stands out, and a year you missed the bird shows as a break in the line. The oldest row always matches the Sightings card's First seen, and the card follows Show subspecies and the county and date filters with the rest of the tab; while a date range is set, a short note says these are the first dates within that range. Everything comes from the eBird backup you have loaded.
+- Help's Species Detail section describes the new First of Year card.
+
 ## [1.0.51] - 2026-10-04
 
 ### Changed
