@@ -2891,7 +2891,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                               conveyed by a low-contrast fill alone. */}
                           <div style={{ width: 8, height: 8, borderRadius: '50%', background: bg, border: `1px solid ${tier === 'old' ? 'var(--sr-accent-strong)' : 'transparent'}`, flexShrink: 0 }}>
                             <span className="sr-only">
-                              {tier === 'fresh' ? 'Recent (≤7 days)' : tier === 'mid' ? 'Seen 8–14 days ago' : 'Seen 15–30 days ago'}
+                              {tier === 'fresh' ? 'Recent (≤7 days)' : tier === 'mid' ? 'Seen 8–15 days ago' : 'Seen 16–30 days ago'}
                             </span>
                           </div>
                           <div style={{ flex: 1, minWidth: 0 }}>
@@ -3020,7 +3020,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
               getPrimary={l => l.locName}
               getSecondary={l => `${l.count} lifer${l.count !== 1 ? 's' : ''} · ${l.lifers.map(s => s.comName).join(', ')}`}
               getDotColor={l => tierColors(l.tier).bg}
-              getDotLabel={l => l.tier === 'fresh' ? 'Seen in last 7 days' : l.tier === 'mid' ? 'Seen 8–14 days ago' : 'Seen 15–30 days ago'}
+              getDotLabel={l => l.tier === 'fresh' ? 'Seen in last 7 days' : l.tier === 'mid' ? 'Seen 8–15 days ago' : 'Seen 16–30 days ago'}
               onActivate={openLiferFromList}
               collapsed={!!inviewCollapsed['lifers']}
               onToggleCollapsed={() => toggleInview('lifers')}
