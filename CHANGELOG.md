@@ -2,10 +2,10 @@
 
 All notable changes to SnowRaven are documented here.
 
-## [Unreleased]
+## [1.0.51] - 2026-10-04
 
 ### Added
-- **SnowRaven for Android phones and tablets (in progress).** The same app now builds for Android 8.0 and later from the same project: every tab, your own eBird backup and Macaulay Library export opened through the phone's file picker and kept in the app's private storage, the compact header and bottom bar of the iPhone app, the app's colors under the status and navigation bars in light and dark, and the keyboard kept clear of the field you are typing in. iCloud Sync, the home-screen widgets and Alerts stay Mac, iPhone and iPad features and do not appear on Android. On Android the app does not offer to find your location: you move the map by searching for a place or by setting a Default Location.
+- **SnowRaven for Android phones and tablets.** The same app now runs on Android 8.0 and later: every tab, your own eBird backup and Macaulay Library export opened through the phone's file picker and kept in the app's private storage, the compact header and bottom bar of the iPhone app, the app's colors under the status and navigation bars in light and dark, and the keyboard kept clear of the field you are typing in. iCloud Sync, the home-screen widgets and Alerts stay Mac, iPhone and iPad features and do not appear on Android. On Android the app does not offer to find your location: you move the map by searching for a place or by setting a Default Location. Macaulay Library photos, sounds and videos open in your browser on Android instead of playing inside the app.
 - On Android, if the phone's Android System WebView is too old to run SnowRaven, the opening screen says so and how to update it, instead of showing a blank page.
 
 ### Changed
@@ -14,6 +14,7 @@ All notable changes to SnowRaven are documented here.
 
 ### Internal
 - A committed Android project under `src-tauri/gen/android` (application id `com.dtgibson.snowraven`), one build script that CI and the F-Droid recipe both run (the unsigned universal APK, built with `cargo tauri` and Gradle 8.14.3, with no wrapper jar committed), the Android version code committed beside the version in `tauri.conf.json`, and guards that keep the project's application id, version source, permissions, launch state, icons and native calls as decided. The location plugin is now iOS-only, so nothing from Google Play services is in the Android build. The license is now declared as AGPL-3.0-only in `Cargo.toml` and both `package.json` files, matching `LICENSE`.
+- On Android, the manifest switches off the system WebView's Safe Browsing check and its usage statistics, and removes the font request AndroidX's emoji initializer made to Google Play services at launch; the content security policy added in 1.0.49 governs the Android webview as it does the Mac, Windows, iPhone and iPad apps. The release Mac signs the CI-built APK with `scripts/android/sign.sh`, which binds the signer to the keystore's own certificate, and the Android CI job pins every action to a commit SHA.
 
 ## [1.0.50] - 2026-10-03
 

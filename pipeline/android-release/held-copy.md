@@ -115,7 +115,9 @@ Bird records, weather and tide data come from eBird, OpenWeather and NOAA, which
 
 Why the revision: (1) "not free services" reads to a birder as "costs money", and all three are free to use; F-Droid's sense is "not free software". (2) NOAA's tide data is a keyless, public-domain U.S. government service, so naming it as non-free invites a correction. (3) "unusable without an eBird key" is not true: Statistics, Calendar, Species Detail, Multimedia, Breeding Codes, Checklists and Named Birds read only your own exports, and Help's offline section says so. "Chiefly" keeps the sentence honest about the smaller ones (Esri's satellite tiles, the Macaulay Library embeds) without listing them. If you prefer to leave the tag for F-Droid's reviewer to add, the "Network services" block is still worth keeping as plain description.
 
-### Changelog for versionCode 1000049 (`changelogs/1000049.txt`)
+### Changelog for versionCode 1000051 (`changelogs/1000051.txt`)
+
+Staged as `1000049.txt` while 1.0.49 was the expected version; renamed at the release bump (2026-10-04), when 1.0.49 and 1.0.50 had shipped from other builds and this release became 1.0.51. The text is unchanged.
 
 Staged text (Branch B), 357 characters (limit 500):
 
@@ -129,7 +131,7 @@ First release for Android phones and tablets: every tab, with your own eBird bac
 Location controls use the phone's own location service, and Android asks your permission the first time.
 ```
 
-Drawn from the CHANGELOG's 1.0.49 entry with the Apple-only lines dropped (iCloud Sync, widgets and Alerts) and the "Finding your location is not available" sentence left out, so nothing in the listing names location as unavailable. The Appearance line ("System now follows a light or dark change...") is also left out: for a first Android release it describes no change an Android user could have noticed. This departs from the brief's "the same sentences as What's New", because the App Store text cannot name Android at all (section e).
+Drawn from the CHANGELOG's Android entry (drafted under 1.0.49, released as 1.0.51) with the Apple-only lines dropped (iCloud Sync, widgets and Alerts) and the "Finding your location is not available" sentence left out, so nothing in the listing names location as unavailable. The Appearance line ("System now follows a light or dark change...") is also left out: for a first Android release it describes no change an Android user could have noticed. This departs from the brief's "the same sentences as What's New", because the App Store text cannot name Android at all (section e).
 
 ### Categories (the recipe's `Categories:`)
 
@@ -383,7 +385,7 @@ On Android, SnowRaven installed from F-Droid is updated through the F-Droid clie
 Choosing System under Appearance now follows a light or dark change you make on your device while SnowRaven is open.
 ```
 
-This is the only change in 1.0.49 so far that reaches the iPhone and iPad app (the CHANGELOG's "In every app" line). It does not mention Android: App Review Guideline 2.3.10 bars naming other mobile platforms in an app's metadata. If 1.0.48 is rolled up into this release at the gate, its approved two sentences (`pipeline/upload-origin-table-wrap-copy/whats-new.md`) come first.
+This is the only change in 1.0.51 that reaches the iPhone and iPad app (the CHANGELOG's "In every app" line; 1.0.49 and 1.0.50, merged in at the release bump, shipped from other builds with What's New text of their own). It does not mention Android: App Review Guideline 2.3.10 bars naming other mobile platforms in an app's metadata. If 1.0.50 is still in review at the gate (record `99e3f9ff`, which already carries 1.0.48 and 1.0.49 by rollup) and the user rolls it into this release, its approved four paragraphs (`pipeline/stats-badges-uniform/whats-new.md`) come first, word for word, then this line. If it has reached `READY_FOR_SALE`, this line stands alone on a new record.
 
 ---
 
