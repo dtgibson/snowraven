@@ -188,7 +188,48 @@ describe('the manifest (FR-24, NFR-05, QA-24, QA-56)', () => {
       'android:value': 'false',
     })
   })
+
+  // Security M3: the documented application-level opt-out from the WebView's
+  // per-app usage statistics upload, beside the Safe Browsing one and read by
+  // the WebView from the same place.
+  it('opts the app out of the WebView\'s usage statistics with application-level meta-data', () => {
+    expect(appLevelMetaData(manifest)).toContainEqual({
+      'android:name': 'android.webkit.WebView.MetricsOptOut',
+      'android:value': 'true',
+    })
+  })
+
+  // Security M2: appcompat merges AndroidX's startup provider in, and its emoji2
+  // initializer asks Play services' font provider for a font at every launch
+  // (measured in pipeline/android-release/measurements/emoji-initializer/).
+  // The committed manifest removes that one initializer from the merged
+  // manifest through the manifest merger's tools:node="remove", which needs the
+  // tools namespace and the provider declared with tools:node="merge" under the
+  // same authority; the lifecycle and profile-installer initializers stay.
+  it('removes the emoji2 initializer from the merged startup provider (FR-02 keep list)', () => {
+    expect(startupProviderRemovals(manifest)).toEqual(['androidx.emoji2.text.EmojiCompatInitializer'])
+    expect(xmlTags(manifest, 'manifest')[0]!['xmlns:tools']).toBe('http://schemas.android.com/tools')
+  })
 })
+
+/** The tools:node="remove" meta-data names inside the androidx.startup provider
+ *  element, which must itself be declared tools:node="merge" with the
+ *  ${applicationId}.androidx-startup authority (else the merger adds a second
+ *  provider rather than editing the library's). Throws when the provider is
+ *  absent or mis-declared, so a regeneration that drops it goes red. */
+function startupProviderRemovals(xml: string): string[] {
+  const src = stripXmlComments(xml)
+  const blocks = [...src.matchAll(/<provider\b([^>]*)>([\s\S]*?)<\/provider>/g)]
+    .filter(m => /android:name="androidx\.startup\.InitializationProvider"/.test(m[1]!))
+  if (blocks.length !== 1) throw new Error(`manifest: expected one androidx.startup provider, found ${blocks.length}`)
+  const attrs = xmlTags(`<provider${blocks[0]![1]}>`, 'provider')[0]!
+  if (attrs['tools:node'] !== 'merge') throw new Error('manifest: the startup provider must carry tools:node="merge"')
+  if (attrs['android:authorities'] !== '${applicationId}.androidx-startup') throw new Error('manifest: the startup provider authority is not ${applicationId}.androidx-startup')
+  return xmlTags(blocks[0]![2]!, 'meta-data')
+    .filter(a => a['tools:node'] === 'remove')
+    .map(a => a['android:name']!)
+    .sort()
+}
 
 function appLevelMetaData(xml: string): Array<Record<string, string>> {
   const body = stripXmlComments(xml).match(/<application\b[^>]*>([\s\S]*)<\/application>/)?.[1]
@@ -461,6 +502,19 @@ describe('the CI build (FR-34, QA-34, NFR-07)', () => {
     expect(wf).toMatch(/name: android-build\s*\n\s+path: dist-android\/\*\s*\n\s+if-no-files-found: error/)
   })
 
+  // Security L3: the APK this job builds is signed with the user's key and
+  // published, so every action is pinned to a full commit SHA, with the release
+  // it stands for in a trailing comment (the one place a comment is required
+  // rather than stripped: the SHA alone says nothing to a reader).
+  it('pins every action to a full commit SHA with its release in a trailing comment (no mutable ref)', () => {
+    const uses = [...readRepo('.github/workflows/android-build.yml').matchAll(/^\s*(?:- )?uses:\s*(\S+)(.*)$/gm)]
+    expect(uses.length).toBeGreaterThanOrEqual(8)
+    for (const [line, ref, rest] of uses) {
+      expect(ref, line).toMatch(/^[\w.-]+\/[\w.-]+(?:\/[\w.-]+)*@[0-9a-f]{40}$/)
+      expect(rest.trim(), line).toMatch(/^# v\d+(?:\.\d+)*\b/)
+    }
+  })
+
   it('pins the NDK the local toolchain uses', () => {
     expect(readRepo('scripts/android/toolchain.env')).toContain('NDK_VERSION=27.2.12479018')
     expect(readRepo('pipeline/android-release/toolchain.md')).toContain('ndk;27.2.12479018')
@@ -521,6 +575,38 @@ describe('the release Mac\'s preflight, sign and attach scripts (schema 6.2)', (
     expect(lib).toContain('SR_SIGNED_NAME="SnowRaven_${VERSION}_android_universal.apk"')
   })
 
+  // Security L2: the first published signer becomes the permanent install-over
+  // identity, so the APK's signer is bound to the configured keystore's OWN
+  // certificate on every run (keytool reads it), not only to a value recorded at
+  // the previous release; the checked-file digest is required, not a warning;
+  // and no script writes an APK under a fixed shared /tmp path.
+  it('bind the signer to the keystore certificate in sign and attach, on every run', () => {
+    const lib = shellCode(readRepo('scripts/android/release-lib.sh'))
+    expect(lib).toMatch(/^sr_keystore_cert_sha256\(\) \{/m)
+    expect(lib).toContain('keytool -list -v -storetype PKCS12 -keystore "$KS_FILE" -storepass:file "$KS_PASS_FILE" -alias "$KS_ALIAS"')
+    for (const n of ['sign.sh', 'attach.sh']) {
+      const code = shellCode(scripts[n])
+      expect(code, n).toContain('sr_keystore_cert_sha256 || sr_die')
+      expect(code, n).toMatch(/\[ "\$SIGNER_SHA256" = "\$KS_CERT_SHA256" \] \\\n\s+\|\| sr_die/)
+    }
+    // attach reads the keystore BEFORE the DN deny-list and the upload
+    const attach = shellCode(scripts['attach.sh'])
+    expect(attach.indexOf('"$KS_CERT_SHA256"')).toBeLessThan(attach.indexOf('case "$SIGNER_DN" in'))
+    expect(attach.indexOf('"$KS_CERT_SHA256"')).toBeLessThan(attach.indexOf('gh release upload'))
+  })
+
+  it('attach requires the checked file\'s digest and an explicit input path; nothing uses a fixed /tmp work directory', () => {
+    const attach = shellCode(scripts['attach.sh'])
+    expect(attach).toContain('[ -n "${ANDROID_CHECKED_SHA256:-}" ] \\\n  || sr_die')
+    expect(attach).not.toMatch(/warning: ANDROID_CHECKED_SHA256 not set/)
+    expect(attach).toContain('[ -n "$APK" ] || sr_die "usage:')
+    expect(allCode).not.toMatch(/SR_WORK_DIR|\/tmp\/snowraven/)
+    expect(allCode).toMatch(/^sr_work_dir\(\) \{/m)
+    expect(allCode).toContain('mktemp -d "${TMPDIR:-/tmp}/sr-android-$1.XXXXXX"')
+    expect(shellCode(scripts['preflight.sh'])).toContain('DL="$(sr_work_dir ci)"')
+    expect(shellCode(scripts['sign.sh'])).toContain('OUT="$(sr_work_dir signed)/$SR_SIGNED_NAME"')
+  })
+
   it('guard the guard: a keytool call outside the user step is caught, the same text inside it is not', () => {
     const inStep = 'cat <<\'USER_STEP\'\n  keytool -genkeypair -alias x\nUSER_STEP\n'
     expect(createsKeystore(inStep)).toBe(false)
@@ -564,6 +650,20 @@ describe('the pins reject the shapes a regeneration or a slip would produce', ()
 
   it('the branch-A permission set differs from branch B, so a manifest left on the wrong set goes red', () => {
     expect(expectedPermissions('A')).not.toEqual(expectedPermissions('B'))
+  })
+
+  it('the startup-provider pin fails closed on a manifest without the removal (the HEAD shape before M2)', () => {
+    const without = manifest.replace(/\n\s*<!-- AndroidX's startup provider[\s\S]*?<\/provider>\n/, '\n')
+    expect(without).not.toContain('androidx.startup.InitializationProvider')
+    expect(() => startupProviderRemovals(without)).toThrow(/expected one androidx\.startup provider/)
+    // the removal attribute dropped: the provider is there, nothing is removed
+    const kept = manifest.replace('tools:node="remove"', '')
+    expect(startupProviderRemovals(kept)).toEqual([])
+    // the provider declared without merge would ADD a second provider, not edit the library's
+    const added = manifest.replace('tools:node="merge"', '')
+    expect(() => startupProviderRemovals(added)).toThrow(/tools:node="merge"/)
+    // a meta-data inside a provider is not application-level meta-data
+    expect(appLevelMetaData(manifest).map(a => a['android:name'])).not.toContain('androidx.emoji2.text.EmojiCompatInitializer')
   })
 
   it('a manifest with two activities is seen as two', () => {
