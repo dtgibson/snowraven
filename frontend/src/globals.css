@@ -1204,6 +1204,75 @@ h1, h2, h3, h4, h5, h6 {
    override can actually reach it. */
 .sr-fl-name { min-width: 0; }
 
+/* Statistics · Firsts & Milestones: the milestone badges, one tile repeated
+   (stats-badges-uniform). Every size is rem so the set tracks the Text size
+   control, and every color is a --sr-* token. No phone-tier rule: the grid
+   self-collapses.
+   - auto-fill, not auto-fit: a short last row keeps its empty tracks, so its
+     badges sit in the same columns as the rows above, left-aligned.
+   - 1fr columns give every badge one width; grid-auto-rows: 1fr gives every
+     row the height of the tallest badge in the whole set, so a wrapped name or
+     a species with no marks never makes a short or tall tile.
+   - minmax(min(7.25rem, 100%), 1fr) is the house self-collapse form
+     (.sr-grid-auto). 7.25rem (116px) gives two columns on a 320px phone at
+     100% and one at 200%: the card's content box there measures 242px in the
+     built app (Chromium and WebKit), and two tracks need 2 x 116 + 8 = 240.
+     The design's 7.5rem assumed 258px and gave one 242px column. At 320px the
+     widest one-line item, a month-first date with its glyph, measured 9.7px
+     of room in both engines; "1,000" at 1.25rem bold keeps more. */
+.sr-ms-grid {
+  list-style: none; margin: 0; padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(7.25rem, 100%), 1fr));
+  grid-auto-rows: 1fr;
+  gap: 0.5rem;
+}
+/* min-width: 0 releases the grid item's automatic minimum, so a long name can
+   never widen a track. The tier sets four badge-local properties from the
+   --sr-milestone-N-* family, so the rules below name one property per role and
+   no tier is special. The four --sr-ms-* names are never declared on a theme
+   block; the tokens they read carry both themes. */
+.sr-ms-badge {
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+  min-width: 0;
+  gap: 0.25rem;
+  padding: 0.625rem 0.625rem 0.5625rem;
+  border-radius: 10px;
+  border: 1.5px solid var(--sr-ms-border);
+  background: var(--sr-ms-bg);
+}
+.sr-ms-badge[data-tier="1"] { --sr-ms-bg: var(--sr-milestone-1-bg); --sr-ms-border: var(--sr-milestone-1-border); --sr-ms-num: var(--sr-milestone-1-num); --sr-ms-date: var(--sr-milestone-1-date); }
+.sr-ms-badge[data-tier="2"] { --sr-ms-bg: var(--sr-milestone-2-bg); --sr-ms-border: var(--sr-milestone-2-border); --sr-ms-num: var(--sr-milestone-2-num); --sr-ms-date: var(--sr-milestone-2-date); }
+.sr-ms-badge[data-tier="3"] { --sr-ms-bg: var(--sr-milestone-3-bg); --sr-ms-border: var(--sr-milestone-3-border); --sr-ms-num: var(--sr-milestone-3-num); --sr-ms-date: var(--sr-milestone-3-date); }
+.sr-ms-badge[data-tier="4"] { --sr-ms-bg: var(--sr-milestone-4-bg); --sr-ms-border: var(--sr-milestone-4-border); --sr-ms-num: var(--sr-milestone-4-num); --sr-ms-date: var(--sr-milestone-4-date); }
+/* 1. The threshold, the display role. Light tier 1's number (#2D8653 on
+   #E8F5EE, 4.03:1) passes AA only as large bold text, so this stays at least
+   about 1.17rem and 700: do not shrink it. */
+.sr-ms-num {
+  font-size: 1.25rem; font-weight: 700; line-height: 1; letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+  color: var(--sr-ms-num);
+}
+/* 2. The species fills the band between number and date, centered in it, so a
+   one-line name sits level with its neighbors and a two-line name fills the
+   band. The v1.0.48 BirdName wrap (.sr-bc-name-col, .sr-fl-name, .sr-tg-name)
+   applied at every width, because the badge is narrow at every width: the box
+   is forced to the badge width and its row wraps, so a long name breaks inside
+   the badge and the two marks drop beneath it as one unit. overflow-wrap:
+   anywhere is the backstop for an unbreakable run, so it cannot leak page
+   scroll. The shared .sr-birdname-* rules are untouched. */
+.sr-ms-name { flex: 1 1 auto; display: flex; align-items: center; justify-content: center; width: 100%; min-width: 0; }
+.sr-ms-name .sr-birdname { width: 100%; max-width: 100%; }
+.sr-ms-name .sr-birdname-row { flex-wrap: wrap; justify-content: center; row-gap: 2px; }
+.sr-ms-name .sr-birdname-link,
+.sr-ms-name .sr-birdname-text { text-align: center; line-height: 1.3; overflow-wrap: anywhere; min-width: 0; }
+/* Name hover and focus ease to --sr-accent; the global reduced-motion block
+   collapses it. */
+.sr-ms-name .sr-birdname-link { transition: color 120ms cubic-bezier(0.2, 0, 0, 1); }
+/* 3. The date, the caption role and the link to the checklist. Its color is
+   passed to ChecklistLink as var(--sr-ms-date). */
+.sr-ms-date { font-size: 0.6875rem; font-weight: 500; line-height: 1.3; }
+
 /* Year-Overview thumbnail in-cell day-of-month label (v0.5.63 — the big MonthGrid cells
    are count-only at EVERY width; the date lives only on the Large thumbnails, which are
    reachable on the phone via the View toggle, v0.5.68). Its sole use is the mini-month

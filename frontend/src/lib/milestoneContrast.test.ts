@@ -5,6 +5,13 @@
 // --sr-text) rendered near-white-on-near-white (~1:1). We parse the REAL tokens out of
 // globals.css, so any future edit that reintroduces light tiles or under-contrast text fails
 // here, not in a dark-mode user's eyes. Both gradient stops are checked (worst case).
+//
+// THE CHECK ROWS NO LONGER GUARD THE MILESTONE BADGES (stats-badges-uniform). The badges
+// stopped drawing a check glyph: only reached milestones are ever shown, so it said
+// nothing. The --sr-milestone-N-check tokens are still shipped, and tier 1's is still
+// read by the Frivolous Lists badges, which paint a white check on it, so the two check
+// rows stay: for tier 1 they guard that surface, and for tiers 2 to 4 they keep the
+// unused tokens honest until someone retires them. Do not delete the rows to tidy up.
 /// <reference types="node" />
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
@@ -54,7 +61,7 @@ const onTier = (fg: string, tier: number): number => Math.min(...bgStops(tier).m
 const NAME = hexOf('sr-text')      // the badge species name inherits --sr-text
 const ACCENT = hexOf('sr-accent')  // link hover/focus colour
 const CARD = hexOf('sr-surface')   // the milestones section card surface
-const WHITE = '#FFFFFF'            // the hardcoded check (✓) glyph
+const WHITE = '#FFFFFF'            // the white check glyph Frivolous Lists paints on --sr-milestone-1-check (the milestone badges draw none)
 
 describe('dark-mode milestone badge contrast (WCAG 2.1 AA)', () => {
   for (const tier of [1, 2, 3, 4]) {

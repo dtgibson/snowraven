@@ -1,0 +1,417 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Milestone badges</title>
+<style>
+/* ── SnowRaven tokens, copied verbatim from frontend/src/globals.css ─────────
+   Only the tokens this surface touches. Values are the app's own; nothing here
+   is re-tuned. --font-sans is the app's declared face (design-system.md: Type). */
+:root {
+  --sr-text-scale: 1;
+  --font-sans: 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
+
+  --sr-bg: #F9FAFB;
+  --sr-surface: #FFFFFF;
+  --sr-surface-subtle: #F4F4F5;
+  --sr-surface-faint: #FAFAFA;
+  --sr-text: #0F1117;
+  --sr-text-muted: #6B6B74;
+  --sr-text-gray: #6B7280;
+  --sr-border: #E4E4E7;
+  --sr-border-subtle: #F4F4F5;
+  --sr-border-medium: #C4C4CE;
+  --sr-accent: #277448;
+  --sr-accent-strong: #1A5C38;
+  --sr-accent-bg: #E8F5EE;
+  --sr-accent-border: rgba(39,116,72,0.25);
+  --sr-on-accent: #FFFFFF;
+  --sr-card-shadow: 0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+
+  --sr-milestone-1-bg: linear-gradient(160deg,#F2FAF5,#E8F5EE);
+  --sr-milestone-1-border: rgba(45,134,83,0.28);
+  --sr-milestone-1-num: #2D8653;
+  --sr-milestone-1-date: #43755C;
+  --sr-milestone-1-check: #2D8653;
+  --sr-milestone-2-bg: linear-gradient(160deg,#E5F3EC,#D8EDE4);
+  --sr-milestone-2-border: rgba(28,100,60,0.32);
+  --sr-milestone-2-num: #1C6443;
+  --sr-milestone-2-date: #386E4E;
+  --sr-milestone-2-check: #2D8653;
+  --sr-milestone-3-bg: linear-gradient(160deg,#D6EAE0,#C6E2D5);
+  --sr-milestone-3-border: rgba(18,74,44,0.38);
+  --sr-milestone-3-num: #14502E;
+  --sr-milestone-3-date: #2D6644;
+  --sr-milestone-3-check: #2D8653;
+  --sr-milestone-4-bg: linear-gradient(160deg,#FEFAEC,#FEF3C7);
+  --sr-milestone-4-border: rgba(146,64,14,0.32);
+  --sr-milestone-4-num: #92400E;
+  --sr-milestone-4-date: #B45309;
+  --sr-milestone-4-check: #B45309;
+}
+[data-theme="dark"] {
+  --sr-bg: #09090B;
+  --sr-surface: #18181B;
+  --sr-surface-subtle: #27272A;
+  --sr-surface-faint: #1C1C1F;
+  --sr-text: #F4F4F5;
+  --sr-text-muted: #A1A1AA;
+  --sr-text-gray: #8A8A92;
+  --sr-border: #27272A;
+  --sr-border-subtle: #1F1F23;
+  --sr-border-medium: #3F3F46;
+  --sr-accent: #34D399;
+  --sr-accent-strong: #34D399;
+  --sr-accent-bg: #052E16;
+  --sr-accent-border: rgba(52,211,153,0.2);
+  --sr-on-accent: #052E16;
+  --sr-card-shadow: 0 1px 4px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.25);
+
+  --sr-milestone-1-bg: linear-gradient(160deg,#16331F,#102617);
+  --sr-milestone-1-border: rgba(74,222,128,0.35);
+  --sr-milestone-1-num: #4ADE80;
+  --sr-milestone-1-date: #8FD3A8;
+  --sr-milestone-1-check: #2F9E63;
+  --sr-milestone-2-bg: linear-gradient(160deg,#163A20,#0F2C18);
+  --sr-milestone-2-border: rgba(52,211,153,0.40);
+  --sr-milestone-2-num: #34D399;
+  --sr-milestone-2-date: #7FCB9D;
+  --sr-milestone-2-check: #2F9E63;
+  --sr-milestone-3-bg: linear-gradient(160deg,#17451F,#123317);
+  --sr-milestone-3-border: rgba(110,231,183,0.40);
+  --sr-milestone-3-num: #6EE7B7;
+  --sr-milestone-3-date: #79CB9A;
+  --sr-milestone-3-check: #2F9E63;
+  --sr-milestone-4-bg: linear-gradient(160deg,#3E2B0A,#2C1E05);
+  --sr-milestone-4-border: rgba(251,191,36,0.38);
+  --sr-milestone-4-num: #FBBF24;
+  --sr-milestone-4-date: #E8B05A;
+  --sr-milestone-4-check: #C76A12;
+}
+
+/* ── App base, as globals.css sets it ─────────────────────────────────────── */
+html { background-color: var(--sr-bg); font-size: calc(100% * var(--sr-text-scale, 1)); }
+body { margin: 0; font-family: var(--font-sans); color: var(--sr-text); background: var(--sr-bg); line-height: 1.5; -webkit-font-smoothing: antialiased; }
+*, *::before, *::after { box-sizing: border-box; }
+svg { display: block; }
+button { font: inherit; }
+
+/* Global focus ring (globals.css) */
+button:focus-visible, a:focus-visible, [tabindex]:focus-visible {
+  outline: 3px solid var(--sr-accent); outline-offset: 3px;
+  box-shadow: 0 0 0 6px rgba(45, 134, 83, 0.12);
+}
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+
+/* Shared BirdName rules (globals.css lines 842 to 858) */
+.sr-birdname { display: inline-flex; flex-direction: column; gap: 1px; min-width: 0; vertical-align: top; }
+.sr-birdname-inline { flex-direction: row; align-items: center; }
+.sr-birdname-row { display: flex; align-items: center; min-width: 0; }
+.sr-birdname-link { font: inherit; font-weight: 500; color: var(--sr-text); background: none; border: 0; padding: 0; margin: 0; cursor: pointer; text-decoration: none; text-align: left; }
+.sr-birdname-link:hover, .sr-birdname-link:focus-visible { color: var(--sr-accent); text-decoration: underline; }
+.sr-birdname-text { font-weight: 500; color: var(--sr-text); }
+.sr-birdname-sm .sr-birdname-link, .sr-birdname-sm .sr-birdname-text { font-size: 0.78125rem; }
+.sr-favicon-slot { display: inline-flex; width: 14px; height: 14px; align-items: center; justify-content: center; flex-shrink: 0; }
+.sr-marks { display: inline-flex; align-items: center; gap: 5px; margin-left: 6px; vertical-align: middle; }
+.sr-mark { opacity: 0.75; display: inline-flex; align-items: center; padding: 5px; margin: -5px; color: var(--sr-text); transition: opacity 120ms cubic-bezier(0.2, 0, 0, 1); }
+.sr-mark:hover { opacity: 1; }
+.sr-cl { display: inline-flex; align-items: center; gap: 3px; color: var(--sr-accent); text-decoration: none; }
+.sr-cl:hover, .sr-cl:focus-visible { text-decoration: underline; }
+
+/* SectionCard (statsPrimitives.tsx) */
+.sr-card { background: var(--sr-surface); border: 1px solid var(--sr-border); border-radius: 12px; padding: clamp(14px, 4vw, 24px); box-shadow: var(--sr-card-shadow); }
+.sr-card-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--sr-border-subtle); }
+.sr-card-head svg { color: var(--sr-accent); }
+.sr-card-head h3 { font-size: 0.9375rem; font-weight: 600; margin: 0; }
+.sr-sublabel { font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--sr-text-muted); margin: 0 0 10px; }
+.sr-divider { height: 1px; background: var(--sr-border-subtle); margin: 16px 0; }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   BEFORE: the badges exactly as BirdingStats.tsx lines 1017 to 1049 render them
+   today (inline styles transcribed to classes for the mockup only).
+   ════════════════════════════════════════════════════════════════════════════ */
+.old-wrap { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-start; }
+.old-badge { display: flex; flex-direction: column; align-items: center; padding: 10px 14px; border-radius: 10px; min-width: 70px; gap: 3px; position: relative; border: 1.5px solid var(--t-border); background: var(--t-bg); }
+.old-check { position: absolute; top: 5px; right: 6px; width: 13px; height: 13px; border-radius: 50%; background: var(--t-check); color: #fff; font-size: 0.5rem; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.old-num { font-size: 1.25rem; font-weight: 700; line-height: 1; color: var(--t-num); }
+.old-date { font-size: 0.625rem; color: var(--t-date); }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   AFTER: the refined badge set. These are the classes the Engineer adds to
+   globals.css (names .sr-ms-*). Every size is rem; every color is a token.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* The grid. auto-fill (not auto-fit) keeps the empty tracks on a short last
+   row, so its badges sit in the same columns, left-aligned. 1fr columns make
+   every badge the same width; grid-auto-rows: 1fr makes every ROW the height of
+   the tallest badge in the whole set, so a badge whose name wraps, or whose
+   species has no marks, is the same size as its neighbours. min(7.5rem, 100%)
+   is the house self-collapse form: two columns at 320px / 100%, one at 200%. */
+.sr-ms-grid {
+  list-style: none; margin: 0; padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(7.5rem, 100%), 1fr));
+  grid-auto-rows: 1fr;
+  gap: 0.5rem;
+}
+
+/* One badge. The tier sets four custom properties from the --sr-milestone-*
+   family, so the badge rule reads one name per role and no tier is special. */
+.sr-ms-badge {
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+  min-width: 0;
+  gap: 0.25rem;
+  padding: 0.625rem 0.625rem 0.5625rem;
+  border-radius: 10px;
+  border: 1.5px solid var(--sr-ms-border);
+  background: var(--sr-ms-bg);
+}
+.sr-ms-badge[data-tier="1"] { --sr-ms-bg: var(--sr-milestone-1-bg); --sr-ms-border: var(--sr-milestone-1-border); --sr-ms-num: var(--sr-milestone-1-num); --sr-ms-date: var(--sr-milestone-1-date); }
+.sr-ms-badge[data-tier="2"] { --sr-ms-bg: var(--sr-milestone-2-bg); --sr-ms-border: var(--sr-milestone-2-border); --sr-ms-num: var(--sr-milestone-2-num); --sr-ms-date: var(--sr-milestone-2-date); }
+.sr-ms-badge[data-tier="3"] { --sr-ms-bg: var(--sr-milestone-3-bg); --sr-ms-border: var(--sr-milestone-3-border); --sr-ms-num: var(--sr-milestone-3-num); --sr-ms-date: var(--sr-milestone-3-date); }
+.sr-ms-badge[data-tier="4"] { --sr-ms-bg: var(--sr-milestone-4-bg); --sr-ms-border: var(--sr-milestone-4-border); --sr-ms-num: var(--sr-milestone-4-num); --sr-ms-date: var(--sr-milestone-4-date); }
+
+/* 1. The threshold: the display role. 1.25rem bold holds the light tier 1
+   number (#2D8653, 4.03:1) at large-text AA; do not go below ~1.17rem. */
+.sr-ms-num {
+  font-size: 1.25rem; font-weight: 700; line-height: 1; letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+  color: var(--sr-ms-num);
+}
+
+/* 2. The species: fills the band between number and date, centred in it, so a
+   one-line name floats level with its neighbours and a two-line name fills the
+   band. The BirdName box is forced to the badge's width and its row is allowed
+   to wrap, so a long name breaks inside the badge and the two marks drop
+   beneath it as one unit; the badge never widens. */
+.sr-ms-name { flex: 1 1 auto; display: flex; align-items: center; justify-content: center; width: 100%; min-width: 0; }
+.sr-ms-name .sr-birdname { width: 100%; max-width: 100%; }
+.sr-ms-name .sr-birdname-row { flex-wrap: wrap; justify-content: center; row-gap: 2px; }
+.sr-ms-name .sr-birdname-link,
+.sr-ms-name .sr-birdname-text { text-align: center; line-height: 1.3; overflow-wrap: anywhere; min-width: 0; }
+.sr-ms-name .sr-birdname-link { transition: color 120ms cubic-bezier(0.2, 0, 0, 1); }
+
+/* 3. The date: the caption role, a link to the checklist. */
+.sr-ms-date { font-size: 0.6875rem; font-weight: 500; line-height: 1.3; }
+.sr-ms-date .sr-cl { color: var(--sr-ms-date); }
+.sr-ms-date .sr-cl svg { width: 10px; height: 10px; }
+
+/* Reduced motion: the app's global block, verbatim in effect. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ── Mockup chrome (not part of the design) ───────────────────────────────── */
+.page { max-width: 1280px; margin: 0 auto; padding: 1.5rem 16px 4rem; }
+.hdr { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 0.75rem 1.5rem; margin-bottom: 1.5rem; }
+.hdr h1 { font-size: 1.125rem; font-weight: 700; letter-spacing: -0.01em; margin: 0 0 0.25rem; }
+.hdr p { margin: 0; font-size: 0.8125rem; color: var(--sr-text-muted); max-width: 44rem; }
+.ctl { display: flex; flex-wrap: wrap; gap: 0.75rem 1rem; align-items: center; }
+.ctl-group { display: flex; align-items: center; gap: 0.5rem; }
+.ctl-label { font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--sr-text-muted); }
+.sr-segbar { display: inline-flex; border: 1.5px solid var(--sr-accent-border); border-radius: 15px; overflow: hidden; background: var(--sr-surface); }
+.sr-segbar-btn { min-height: 30px; padding: 0 12px; font-size: 0.75rem; font-weight: 500; border: 0; border-left: 1.5px solid var(--sr-accent-border); background: transparent; color: var(--sr-text-muted); cursor: pointer; transition: background-color 120ms cubic-bezier(0.2,0,0,1), color 120ms cubic-bezier(0.2,0,0,1); }
+.sr-segbar-btn:first-child { border-left: 0; }
+.sr-segbar-btn:hover { color: var(--sr-text); }
+.sr-segbar-btn[aria-pressed="true"] { background: var(--sr-accent-bg); color: var(--sr-accent); font-weight: 600; }
+.sr-segbar-btn:focus-visible { outline-offset: -3px; box-shadow: none; }
+.sec { margin-top: 2rem; }
+.sec-h { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.25rem 0.75rem; margin: 0 0 0.75rem; }
+.sec-h h2 { font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--sr-text-muted); margin: 0; }
+.sec-h span { font-size: 0.8125rem; color: var(--sr-text-muted); }
+.frames { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 1.5rem; align-items: start; }
+@media (max-width: 760px) { .frames { grid-template-columns: minmax(0, 1fr); } .frame-320 { justify-self: start; } }
+.frame-320 { width: 320px; max-width: 100%; border: 1px dashed var(--sr-border-medium); border-radius: 14px; padding: 16px; background: var(--sr-bg); }
+/* At a real 320px viewport the card's clamp(14px, 4vw, 24px) resolves to 14px;
+   the frame is inside a wide window, so it is pinned to the same value. */
+.frame-320 .sr-card { padding: 14px; }
+/* The "before" cards reproduce today's overflow faithfully; contain it so the
+   mockup page itself never scrolls sideways. */
+.before-scroll { overflow-x: auto; }
+.frame-cap { font-size: 0.6875rem; color: var(--sr-text-muted); margin: 0 0 0.5rem; }
+.notes { margin: 1rem 0 0; padding: 0; list-style: none; display: grid; gap: 0.35rem; font-size: 0.8125rem; color: var(--sr-text-muted); max-width: 52rem; }
+.notes li::before { content: "·"; margin-right: 0.5rem; color: var(--sr-border-medium); }
+</style>
+</head>
+<body>
+<div class="page">
+  <header class="hdr">
+    <div>
+      <h1>Milestone badges</h1>
+      <p>Statistics, Firsts &amp; Milestones. A birder with 1,042 species, so every threshold through 1,000 has been reached: 36 badges in the four tiers. Toggle the theme and the text size; the 320px frame on the right is a phone.</p>
+    </div>
+    <div class="ctl">
+      <div class="ctl-group"><span class="ctl-label" id="theme-l">Theme</span>
+        <div class="sr-segbar" role="group" aria-labelledby="theme-l">
+          <button class="sr-segbar-btn" type="button" data-theme-pick="light" aria-pressed="true">Light</button>
+          <button class="sr-segbar-btn" type="button" data-theme-pick="dark" aria-pressed="false">Dark</button>
+        </div>
+      </div>
+      <div class="ctl-group"><span class="ctl-label" id="size-l">Text size</span>
+        <div class="sr-segbar" role="group" aria-labelledby="size-l">
+          <button class="sr-segbar-btn" type="button" data-scale="1" aria-pressed="true">100%</button>
+          <button class="sr-segbar-btn" type="button" data-scale="2" aria-pressed="false">200%</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <section class="sec" aria-labelledby="h-after">
+    <div class="sec-h"><h2 id="h-after">After</h2><span>One badge size, one grid, columns aligned row to row.</span></div>
+    <div class="frames">
+      <div>
+        <p class="frame-cap">Wide window</p>
+        <div class="sr-card" id="after-wide"></div>
+      </div>
+      <div class="frame-320">
+        <p class="frame-cap">320px phone</p>
+        <div class="sr-card" id="after-narrow"></div>
+      </div>
+    </div>
+    <ul class="notes">
+      <li>Every badge is the same width and height as every other, in every row, at every width and text size.</li>
+      <li>Emphasis runs threshold, species, date. The threshold carries the tier color and a thousands separator (1,000), matching the rest of the tab.</li>
+      <li>A long name wraps inside its badge. The eBird and Birds of the World marks stay together and drop beneath the name when the line is full. A species with no marks (Rufous Hummingbird, 450) keeps the same badge.</li>
+      <li>The check mark is gone: only reached milestones are ever shown, so it said nothing, and it was the one hardcoded color on the tab.</li>
+      <li>The stray rule above the set is gone; the sub-label now says what the number counts.</li>
+      <li>Marks are shown as their bundled glyph fallbacks. In the app the two site favicons load into the same 14px slots.</li>
+    </ul>
+  </section>
+
+  <section class="sec" aria-labelledby="h-before">
+    <div class="sec-h"><h2 id="h-before">Before</h2><span>As the badges render today.</span></div>
+    <div class="frames">
+      <div>
+        <p class="frame-cap">Wide window</p>
+        <div class="before-scroll"><div class="sr-card" id="before-wide"></div></div>
+      </div>
+      <div class="frame-320">
+        <p class="frame-cap">320px phone</p>
+        <div class="before-scroll"><div class="sr-card" id="before-narrow"></div></div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+(function () {
+  // Lucide paths (24 viewBox). Globe and SquareLibrary are the app's own
+  // favicon fallbacks (SpeciesLinks.tsx); ExternalLink is ChecklistLink's glyph;
+  // Trophy is the section's icon.
+  var P = {
+    globe: '<circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/>',
+    lib: '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M7 7v10"/><path d="M11 7v10"/><path d="m15 7 2 10"/>',
+    ext: '<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>',
+    trophy: '<path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/>'
+  };
+  function svg(path, size, stroke) {
+    return '<svg xmlns="http://www.w3.org/2000/svg" width="' + size + '" height="' + size + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="' + stroke + '" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">' + path + '</svg>';
+  }
+
+  // MILESTONE_THRESHOLDS (lib/birdingStats.ts), with the species that reached
+  // each one and the checklist date. A Bay Area list with some travel in it.
+  var M = [
+    [10, 'American Crow', '2014-03-02'], [20, "Anna's Hummingbird", '2014-03-09'], [30, 'Black Phoebe', '2014-03-22'],
+    [40, 'Red-tailed Hawk', '2014-04-05'], [50, 'Chestnut-backed Chickadee', '2014-04-19'], [60, 'Western Gull', '2014-05-10'],
+    [70, 'Snowy Egret', '2014-06-01'], [80, 'Black-crowned Night Heron', '2014-07-12'], [90, 'Great Horned Owl', '2014-09-20'],
+    [100, 'Cedar Waxwing', '2014-11-15'], [125, 'Golden-crowned Kinglet', '2015-02-07'], [150, 'Northern Rough-winged Swallow', '2015-04-25'],
+    [175, "Wilson's Phalarope", '2015-08-29'], [200, 'Varied Thrush', '2015-12-12'], [225, 'Red-breasted Nuthatch', '2016-03-19'],
+    [250, 'Yellow-bellied Sapsucker', '2016-10-08'], [275, 'Lapland Longspur', '2017-01-14'], [300, "Clark's Nutcracker", '2017-07-22'],
+    [325, 'Tricolored Blackbird', '2018-02-03'], [350, 'Black Oystercatcher', '2018-06-16'], [375, 'Ferruginous Hawk', '2018-11-24'],
+    [400, 'Pacific Golden-Plover', '2019-04-13'], [425, 'Elegant Tern', '2019-08-31'], [450, 'Rufous Hummingbird', '2020-03-07', false],
+    [475, 'Lesser Yellowlegs', '2020-09-12'], [500, 'Blue-footed Booby', '2021-01-23'], [550, 'Painted Redstart', '2021-06-05'],
+    [600, 'Elegant Trogon', '2021-11-20'], [650, 'Roseate Spoonbill', '2022-04-02'], [700, 'Scissor-tailed Flycatcher', '2022-09-17'],
+    [750, 'Prothonotary Warbler', '2023-05-06'], [800, "Bicknell's Thrush", '2023-06-10'], [850, 'Rusty Blackbird', '2023-11-11'],
+    [900, 'Resplendent Quetzal', '2024-03-16'], [950, 'Long-tailed Jaeger', '2024-09-07'], [1000, 'Harlequin Duck', '2025-01-18']
+  ];
+  var MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  function fmtDate(iso) { var p = iso.split('-'); return MONTHS[+p[1] - 1] + ' ' + (+p[2]) + ', ' + p[0]; }
+  function tierOf(t) { return t < 100 ? 1 : t < 500 ? 2 : t < 1000 ? 3 : 4; }
+  function esc(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/'/g, '&#39;'); }
+
+  function marks(name) {
+    return '<span class="sr-marks">' +
+      '<a class="sr-mark" href="#" aria-label="View ' + esc(name) + ' on eBird (opens in a new tab)" title="View ' + esc(name) + ' on eBird"><span class="sr-favicon-slot">' + svg(P.globe, 14, 2.2) + '</span></a>' +
+      '<a class="sr-mark" href="#" aria-label="View ' + esc(name) + ' on Birds of the World (opens in a new tab)" title="View ' + esc(name) + ' on Birds of the World"><span class="sr-favicon-slot">' + svg(P.lib, 14, 2.2) + '</span></a>' +
+      '</span>';
+  }
+  function birdName(name, hasMarks) {
+    return '<span class="sr-birdname sr-birdname-sm sr-birdname-inline"><span class="sr-birdname-row">' +
+      '<button type="button" class="sr-birdname-link">' + esc(name) + '</button>' +
+      (hasMarks ? marks(name) : '') + '</span></span>';
+  }
+  function checklistLink(date, cls) {
+    var label = fmtDate(date);
+    return '<a class="sr-cl ' + (cls || '') + '" href="#" target="_blank" rel="noreferrer" aria-label="' + label + ', open checklist on eBird (opens in a new tab)">' + label + svg(P.ext, 10, 2.5) + '</a>';
+  }
+  function head() {
+    return '<div class="sr-card-head">' + svg(P.trophy, 16, 2) + '<h3>Firsts &amp; Milestones</h3></div>';
+  }
+
+  // AFTER: a list, one item per reached milestone.
+  function renderAfter(el) {
+    var h = head() + '<p class="sr-sublabel" id="ms-label-' + el.id + '">Life list milestones</p>' +
+      '<ul class="sr-ms-grid" role="list" aria-labelledby="ms-label-' + el.id + '">';
+    M.forEach(function (m) {
+      var tier = tierOf(m[0]);
+      h += '<li class="sr-ms-badge" data-tier="' + tier + '">' +
+        '<span class="sr-ms-num">' + m[0].toLocaleString('en-US') + '</span>' +
+        '<span class="sr-ms-name">' + birdName(m[1], m[3] !== false) + '</span>' +
+        '<span class="sr-ms-date">' + checklistLink(m[2]) + '</span>' +
+        '</li>';
+    });
+    el.innerHTML = h + '</ul>';
+  }
+
+  // BEFORE: transcribed from BirdingStats.tsx (inline styles, check mark, divider).
+  function renderBefore(el) {
+    var h = head() + '<div class="sr-divider"></div><p class="sr-sublabel">Milestones</p><div class="old-wrap">';
+    M.forEach(function (m) {
+      var t = tierOf(m[0]);
+      var vars = '--t-bg:var(--sr-milestone-' + t + '-bg);--t-border:var(--sr-milestone-' + t + '-border);--t-num:var(--sr-milestone-' + t + '-num);--t-date:var(--sr-milestone-' + t + '-date);--t-check:var(--sr-milestone-' + t + '-check)';
+      h += '<div class="old-badge" style="' + vars + '">' +
+        '<div class="old-check">✓</div>' +
+        '<span class="old-num">' + m[0] + '</span>' +
+        birdName(m[1], m[3] !== false) +
+        checklistLink(m[2], 'old-date') +
+        '</div>';
+    });
+    el.innerHTML = h + '</div>';
+  }
+
+  renderAfter(document.getElementById('after-wide'));
+  renderAfter(document.getElementById('after-narrow'));
+  renderBefore(document.getElementById('before-wide'));
+  renderBefore(document.getElementById('before-narrow'));
+
+  // Mockup links go nowhere.
+  document.addEventListener('click', function (e) {
+    var a = e.target.closest('a[href="#"]'); if (a) e.preventDefault();
+  });
+
+  // Controls
+  function press(group, btn) {
+    group.querySelectorAll('button').forEach(function (b) { b.setAttribute('aria-pressed', String(b === btn)); });
+  }
+  document.querySelectorAll('[data-theme-pick]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      document.documentElement.setAttribute('data-theme', b.getAttribute('data-theme-pick'));
+      press(b.parentNode, b);
+    });
+  });
+  document.querySelectorAll('[data-scale]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      document.documentElement.style.setProperty('--sr-text-scale', b.getAttribute('data-scale'));
+      press(b.parentNode, b);
+    });
+  });
+})();
+</script>
+</body>
+</html>
