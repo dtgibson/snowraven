@@ -5,8 +5,8 @@
 // policy the Mac, Windows, iPhone and iPad apps share: one webview, one config.
 // It replaced `"csp": null`. The page may run only its own bundled scripts,
 // talk only to the hosts it already uses, and frame only the Macaulay Library
-// embed. API calls (eBird, OpenWeather, NOAA, Nominatim, GitHub) go through the
-// http plugin over IPC, so they need no host here; only the IPC origins do.
+// embed. API calls (every `lib/tauri/` service) go through the http plugin
+// over IPC, so they need no host here; only the IPC origins do.
 //
 // WHY THE HOSTS ARE DERIVED, NEVER RESTATED. A missed host fails quietly: a
 // blank map base, an empty embed, a favicon replaced by its fallback glyph. A
@@ -26,9 +26,11 @@
 // `img-src` by policy and nowhere in source; if it moves, the mark shows its
 // bundled glyph (the favicon's own failure state), never a broken link.
 //
-// WHAT IT CANNOT SEE. The http plugin's `https://**` fetch scope is outside the
-// page's CSP (Rust makes that request), and an iframe or image added at a call
-// site other than these three is not read here (`.claude/rules/security.md`).
+// WHAT IT CANNOT SEE. A request the http plugin sends is outside the page's CSP
+// (Rust makes it); where such a request may go is the http permit's job, held
+// to the services' call sites by `lib/tauriHttpScope.test.ts`. An iframe or
+// image added at a call site other than these three is not read here
+// (`.claude/rules/security.md`).
 import { describe, it, expect } from 'vitest'
 import { readFileSync, readdirSync } from 'node:fs'
 import ts from 'typescript'
