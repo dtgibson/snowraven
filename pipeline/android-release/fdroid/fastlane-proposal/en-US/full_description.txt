@@ -34,12 +34,12 @@ Named Birds
 Tag an individual bird by name in a species comment and SnowRaven gathers everything you have on it: sightings, places, a timeline, its own media. With several named birds, one strip puts them all on a shared time axis.
 
 Privacy
-Private by default, and in your control: no account, no analytics, no telemetry, no server we run. Your eBird backup, Macaulay Library export and API keys are stored only on your device. The Android app contains no Google services, no Firebase and no analytics or crash-reporting library, and it makes no request to Google. Privacy policy: https://snowraven.dtgibson.com/privacy.html
+Private by default, and in your control: no account, no analytics, no telemetry, no server we run. Your eBird backup, Macaulay Library export and API keys are stored only on your device. The Android app contains no Google services, no Firebase and no analytics or crash-reporting library, and its own code makes no request to Google. Its screens are drawn by your phone's Android System WebView, a system component that contacts Google on its own from inside the app (at launch its form autofill asks Google about the fields on screen); SnowRaven turns off the WebView's Safe Browsing check and cannot turn off the rest. Privacy policy: https://snowraven.dtgibson.com/privacy.html
 
 What you'll need
 A free eBird API key and a free OpenWeather API key subscribed to its One Call by Call plan (activating it needs a payment card on file; set a usage cap to avoid charges), entered once in Settings. Most tabs also read your eBird backup and, for the media features, an optional Macaulay Library export.
 
 Network services
-SnowRaven relies on network services that are not free software, chiefly eBird for checklist details, hotspots and recent sightings, and OpenWeather for weather, each used with your own API key.
+SnowRaven relies on network services that are not free software, chiefly eBird for checklist details, hotspots and recent sightings, and OpenWeather for weather, each used with your own API key; the Android System WebView that draws its screens also contacts Google on its own.
 
 Weather by OpenWeather. Checklist and media data from eBird and the Macaulay Library. Tides from NOAA Tides & Currents.

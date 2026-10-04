@@ -1,0 +1,88 @@
+# image sdk_phone64_arm64  app uid 10151    Current WebView package (name, version): (com.android.webview, 133.0.6943.137)
+# 2026-10-03 20:01:17 force-stop, clear
+# 20:01:18 am start
+Status: ok TotalTime: 109 
+== sample 1 20:01:19 app pid 2243
+SYN-SENT    0      1      10.0.2.17:43788              10.0.2.3:853                 users:(("binder:449_4",pid=449,fd=47)) timer:(on,22sec,9) uid:1051 ino:13865 sk:1051 fwmark:0xf0065 <->
+SYN-SENT    0      1      10.0.2.17:41092              10.0.2.4:853                 users:(("binder:449_4",pid=449,fd=50)) timer:(on,22sec,9) uid:1051 ino:15207 sk:7d fwmark:0xf0065 <->
+LISTEN      0      4            *:5555                     *:*                   users:(("adbd",pid=2123,fd=11)) ino:15352 sk:308f v6only:0 <->
+TIME-WAIT   0      0       [::ffff:10.0.2.17]:55926              [::ffff:142.251.163.94]:80                  timer:(timewait,14sec,0) ino:0 sk:8c fwmark:0xf0065
+== sample 2 20:01:21 app pid 2243
+ESTAB       0      0      10.0.2.17:43644              172.217.115.4:443                 users:(("ibson.snowraven",pid=2243,fd=229)) uid:10151 ino:18967 sk:20b2 fwmark:0x65 <->
+SYN-SENT    0      1      10.0.2.17:43788              10.0.2.3:853                 users:(("binder:449_4",pid=449,fd=47)) timer:(on,20sec,9) uid:1051 ino:13865 sk:1051 fwmark:0xf0065 <->
+SYN-SENT    0      1      10.0.2.17:41092              10.0.2.4:853                 users:(("binder:449_4",pid=449,fd=50)) timer:(on,20sec,9) uid:1051 ino:15207 sk:7d fwmark:0xf0065 <->
+LISTEN      0      4            *:5555                     *:*                   users:(("adbd",pid=2123,fd=11)) ino:15352 sk:308f v6only:0 <->
+TIME-WAIT   0      0       [::ffff:10.0.2.17]:55926              [::ffff:142.251.163.94]:80                  timer:(timewait,12sec,0) ino:0 sk:8c fwmark:0xf0065
+ESTAB       0      0       [::ffff:10.0.2.17]:51106                 [::ffff:172.253.115.100]:443                 users:(("iew:webview_apk",pid=2326,fd=84)) uid:10103 ino:18889 sk:2098 fwmark:0x65 <->
+== sample 3 20:01:23 app pid 2243
+ESTAB       0      0      10.0.2.17:43644              172.217.115.4:443                 users:(("ibson.snowraven",pid=2243,fd=229)) uid:10151 ino:18967 sk:20b2 fwmark:0x65 <->
+SYN-SENT    0      1      10.0.2.17:43788              10.0.2.3:853                 users:(("binder:449_4",pid=449,fd=47)) timer:(on,17sec,9) uid:1051 ino:13865 sk:1051 fwmark:0xf0065 <->
+SYN-SENT    0      1      10.0.2.17:41092              10.0.2.4:853                 users:(("binder:449_4",pid=449,fd=50)) timer:(on,17sec,9) uid:1051 ino:15207 sk:7d fwmark:0xf0065 <->
+LISTEN      0      4            *:5555                     *:*                   users:(("adbd",pid=2123,fd=11)) ino:15352 sk:308f v6only:0 <->
+TIME-WAIT   0      0       [::ffff:10.0.2.17]:55926              [::ffff:142.251.163.94]:80                  timer:(timewait,10sec,0) ino:0 sk:8c fwmark:0xf0065
+ESTAB       0      0       [::ffff:10.0.2.17]:51106                 [::ffff:172.253.115.100]:443                 users:(("iew:webview_apk",pid=2326,fd=84)) uid:10103 ino:18889 sk:2098 fwmark:0x65 <->
+== sample 4 20:01:25 app pid 2243
+ESTAB       0      0      10.0.2.17:43644              172.217.115.4:443                 users:(("ibson.snowraven",pid=2243,fd=229)) uid:10151 ino:18967 sk:20b2 fwmark:0x65 <->
+SYN-SENT    0      1      10.0.2.17:43788              10.0.2.3:853                 users:(("binder:449_4",pid=449,fd=47)) timer:(on,15sec,9) uid:1051 ino:13865 sk:1051 fwmark:0xf0065 <->
+SYN-SENT    0      1      10.0.2.17:41092              10.0.2.4:853                 users:(("binder:449_4",pid=449,fd=50)) timer:(on,15sec,9) uid:1051 ino:15207 sk:7d fwmark:0xf0065 <->
+LISTEN      0      4            *:5555                     *:*                   users:(("adbd",pid=2123,fd=11)) ino:15352 sk:308f v6only:0 <->
+TIME-WAIT   0      0       [::ffff:10.0.2.17]:55926              [::ffff:142.251.163.94]:80                  timer:(timewait,8.192ms,0) ino:0 sk:8c fwmark:0xf0065
+== sample 5 20:01:27 app pid 2243
+ESTAB       0      0      10.0.2.17:43644              172.217.115.4:443                 users:(("ibson.snowraven",pid=2243,fd=229)) uid:10151 ino:18967 sk:20b2 fwmark:0x65 <->
+SYN-SENT    0      1      10.0.2.17:43788              10.0.2.3:853                 users:(("binder:449_4",pid=449,fd=47)) timer:(on,13sec,9) uid:1051 ino:13865 sk:1051 fwmark:0xf0065 <->
+SYN-SENT    0      1      10.0.2.17:41092              10.0.2.4:853                 users:(("binder:449_4",pid=449,fd=50)) timer:(on,13sec,9) uid:1051 ino:15207 sk:7d fwmark:0xf0065 <->
+LISTEN      0      4            *:5555                     *:*                   users:(("adbd",pid=2123,fd=11)) ino:15352 sk:308f v6only:0 <->
+TIME-WAIT   0      0       [::ffff:10.0.2.17]:55926              [::ffff:142.251.163.94]:80                  timer:(timewait,6.040ms,0) ino:0 sk:8c fwmark:0xf0065
+== sample 6 20:01:29 app pid 2243
+ESTAB       0      0      10.0.2.17:43644              172.217.115.4:443                 users:(("ibson.snowraven",pid=2243,fd=229)) uid:10151 ino:18967 sk:20b2 fwmark:0x65 <->
+SYN-SENT    0      1      10.0.2.17:43788              10.0.2.3:853                 users:(("binder:449_4",pid=449,fd=47)) timer:(on,11sec,9) uid:1051 ino:13865 sk:1051 fwmark:0xf0065 <->
+SYN-SENT    0      1      10.0.2.17:41092              10.0.2.4:853                 users:(("binder:449_4",pid=449,fd=50)) timer:(on,11sec,9) uid:1051 ino:15207 sk:7d fwmark:0xf0065 <->
+LISTEN      0      4            *:5555                     *:*                   users:(("adbd",pid=2123,fd=11)) ino:15352 sk:308f v6only:0 <->
+TIME-WAIT   0      0       [::ffff:10.0.2.17]:55926              [::ffff:142.251.163.94]:80                  timer:(timewait,3.904ms,0) ino:0 sk:8c fwmark:0xf0065
+== sample 7 20:01:32 app pid 2243
+ESTAB       0      0      10.0.2.17:43644              172.217.115.4:443                 users:(("ibson.snowraven",pid=2243,fd=229)) uid:10151 ino:18967 sk:20b2 fwmark:0x65 <->
+SYN-SENT    0      1      10.0.2.17:43788              10.0.2.3:853                 users:(("binder:449_4",pid=449,fd=47)) timer:(on,9.296ms,9) uid:1051 ino:13865 sk:1051 fwmark:0xf0065 <->
+SYN-SENT    0      1      10.0.2.17:41092              10.0.2.4:853                 users:(("binder:449_4",pid=449,fd=50)) timer:(on,9.296ms,9) uid:1051 ino:15207 sk:7d fwmark:0xf0065 <->
+LISTEN      0      4            *:5555                     *:*                   users:(("adbd",pid=2123,fd=11)) ino:15352 sk:308f v6only:0 <->
+TIME-WAIT   0      0       [::ffff:10.0.2.17]:55926              [::ffff:142.251.163.94]:80                  timer:(timewait,1.784ms,0) ino:0 sk:8c fwmark:0xf0065
+== sample 8 20:01:34 app pid 2243
+ESTAB       0      0      10.0.2.17:43644              172.217.115.4:443                 users:(("ibson.snowraven",pid=2243,fd=229)) uid:10151 ino:18967 sk:20b2 fwmark:0x65 <->
+SYN-SENT    0      1      10.0.2.17:43788              10.0.2.3:853                 users:(("binder:449_4",pid=449,fd=47)) timer:(on,7.180ms,9) uid:1051 ino:13865 sk:1051 fwmark:0xf0065 <->
+SYN-SENT    0      1      10.0.2.17:41092              10.0.2.4:853                 users:(("binder:449_4",pid=449,fd=50)) timer:(on,7.180ms,9) uid:1051 ino:15207 sk:7d fwmark:0xf0065 <->
+LISTEN      0      4            *:5555                     *:*                   users:(("adbd",pid=2123,fd=11)) ino:15352 sk:308f v6only:0 <->
+TIME-WAIT   0      0       [::ffff:10.0.2.17]:55926              [::ffff:142.251.163.94]:80                  timer:(timewait,,0) ino:0 sk:8c fwmark:0xf0065
+== sample 9 20:01:36 app pid 2243
+ESTAB       0      0      10.0.2.17:43644              172.217.115.4:443                 users:(("ibson.snowraven",pid=2243,fd=229)) uid:10151 ino:18967 sk:20b2 fwmark:0x65 <->
+SYN-SENT    0      1      10.0.2.17:43788              10.0.2.3:853                 users:(("binder:449_4",pid=449,fd=47)) timer:(on,5.044ms,9) uid:1051 ino:13865 sk:1051 fwmark:0xf0065 <->
+SYN-SENT    0      1      10.0.2.17:41092              10.0.2.4:853                 users:(("binder:449_4",pid=449,fd=50)) timer:(on,5.044ms,9) uid:1051 ino:15207 sk:7d fwmark:0xf0065 <->
+LISTEN      0      4            *:5555                     *:*                   users:(("adbd",pid=2123,fd=11)) ino:15352 sk:308f v6only:0 <->
+== sample 10 20:01:38 app pid 2243
+ESTAB       0      0      10.0.2.17:43644              172.217.115.4:443                 users:(("ibson.snowraven",pid=2243,fd=229)) uid:10151 ino:18967 sk:20b2 fwmark:0x65 <->
+SYN-SENT    0      1      10.0.2.17:43788              10.0.2.3:853                 users:(("binder:449_4",pid=449,fd=47)) timer:(on,2.888ms,9) uid:1051 ino:13865 sk:1051 fwmark:0xf0065 <->
+SYN-SENT    0      1      10.0.2.17:41092              10.0.2.4:853                 users:(("binder:449_4",pid=449,fd=50)) timer:(on,2.888ms,9) uid:1051 ino:15207 sk:7d fwmark:0xf0065 <->
+LISTEN      0      4            *:5555                     *:*                   users:(("adbd",pid=2123,fd=11)) ino:15352 sk:308f v6only:0 <->
+== sample 11 20:01:40 app pid 2243
+ESTAB       0      0      10.0.2.17:43644              172.217.115.4:443                 users:(("ibson.snowraven",pid=2243,fd=229)) uid:10151 ino:18967 sk:20b2 fwmark:0x65 <->
+SYN-SENT    0      1      10.0.2.17:43788              10.0.2.3:853                 users:(("binder:449_4",pid=449,fd=47)) timer:(on,748ms,9) uid:1051 ino:13865 sk:1051 fwmark:0xf0065 <->
+SYN-SENT    0      1      10.0.2.17:41092              10.0.2.4:853                 users:(("binder:449_4",pid=449,fd=50)) timer:(on,748ms,9) uid:1051 ino:15207 sk:7d fwmark:0xf0065 <->
+LISTEN      0      4            *:5555                     *:*                   users:(("adbd",pid=2123,fd=11)) ino:15352 sk:308f v6only:0 <->
+== sample 12 20:01:42 app pid 2243
+ESTAB       0      0      10.0.2.17:43644              172.217.115.4:443                 users:(("ibson.snowraven",pid=2243,fd=229)) uid:10151 ino:18967 sk:20b2 fwmark:0x65 <->
+SYN-SENT    0      1      10.0.2.17:43788              10.0.2.3:853                 users:(("binder:449_4",pid=449,fd=47)) timer:(on,1min3sec,10) uid:1051 ino:13865 sk:1051 fwmark:0xf0065 <->
+SYN-SENT    0      1      10.0.2.17:41092              10.0.2.4:853                 users:(("binder:449_4",pid=449,fd=50)) timer:(on,1min3sec,10) uid:1051 ino:15207 sk:7d fwmark:0xf0065 <->
+LISTEN      0      4            *:5555                     *:*                   users:(("adbd",pid=2123,fd=11)) ino:15352 sk:308f v6only:0 <->
+== sample 13 20:01:44 app pid 2243
+ESTAB       0      0      10.0.2.17:43644              172.217.115.4:443                 users:(("ibson.snowraven",pid=2243,fd=229)) uid:10151 ino:18967 sk:20b2 fwmark:0x65 <->
+SYN-SENT    0      1      10.0.2.17:43788              10.0.2.3:853                 users:(("binder:449_4",pid=449,fd=47)) timer:(on,1min,10) uid:1051 ino:13865 sk:1051 fwmark:0xf0065 <->
+SYN-SENT    0      1      10.0.2.17:41092              10.0.2.4:853                 users:(("binder:449_4",pid=449,fd=50)) timer:(on,1min,10) uid:1051 ino:15207 sk:7d fwmark:0xf0065 <->
+LISTEN      0      4            *:5555                     *:*                   users:(("adbd",pid=2123,fd=11)) ino:15352 sk:308f v6only:0 <->
+== sample 14 20:01:46 app pid 2243
+ESTAB       0      0      10.0.2.17:43644              172.217.115.4:443                 users:(("ibson.snowraven",pid=2243,fd=229)) uid:10151 ino:18967 sk:20b2 fwmark:0x65 <->
+SYN-SENT    0      1      10.0.2.17:43788              10.0.2.3:853                 users:(("binder:449_4",pid=449,fd=47)) timer:(on,58sec,10) uid:1051 ino:13865 sk:1051 fwmark:0xf0065 <->
+SYN-SENT    0      1      10.0.2.17:41092              10.0.2.4:853                 users:(("binder:449_4",pid=449,fd=50)) timer:(on,58sec,10) uid:1051 ino:15207 sk:7d fwmark:0xf0065 <->
+LISTEN      0      4            *:5555                     *:*                   users:(("adbd",pid=2123,fd=11)) ino:15352 sk:308f v6only:0 <->
+== sample 15 20:01:49 app pid 2243
+ESTAB       0      0      10.0.2.17:43644              172.217.115.4:443                 users:(("ibson.snowraven",pid=2243,fd=229)) uid:10151 ino:18967 sk:20b2 fwmark:0x65 <->
+SYN-SENT    0      1      10.0.2.17:43788              10.0.2.3:853                 users:(("binder:449_4",pid=449,fd=47)) timer:(on,56sec,10) uid:1051 ino:13865 sk:1051 fwmark:0xf0065 <->
+SYN-SENT    0      1      10.0.2.17:41092              10.0.2.4:853                 users:(("binder:449_4",pid=449,fd=50)) timer:(on,56sec,10) uid:1051 ino:15207 sk:7d fwmark:0xf0065 <->
+LISTEN      0      4            *:5555                     *:*                   users:(("adbd",pid=2123,fd=11)) ino:15352 sk:308f v6only:0 <->

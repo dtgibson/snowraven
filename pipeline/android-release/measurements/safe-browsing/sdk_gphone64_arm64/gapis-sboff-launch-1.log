@@ -1,0 +1,138 @@
+# image sdk_gphone64_arm64  app uid 10242    Current WebView package (name, version): (com.google.android.webview, 133.0.6943.137)
+# 2026-10-03 20:00:59 force-stop, clear
+# 20:01:01 am start
+Status: ok TotalTime: 109 
+== sample 1 20:01:01 app pid 12136
+CLOSE-WAIT  130    0      10.0.2.16:55590              172.217.116.4:443                 users:(("gle.android.gms",pid=1466,fd=148)) uid:10144 ino:14859 sk:1038 fwmark:0xc0064 -->
+CLOSE-WAIT  0      0      10.0.2.16:44956              142.251.154.119:443                 users:(("earchbox:search",pid=1609,fd=146)) uid:10147 ino:17973 sk:126 fwmark:0x40064 -->
+CLOSE-WAIT  130    0      10.0.2.16:55576              172.217.116.4:443                 users:(("id.gms.unstable",pid=3117,fd=115)) uid:10144 ino:14766 sk:2088 fwmark:0xc0064 -->
+CLOSE-WAIT  130    0      10.0.2.16:47552              172.217.114.4:443                 users:((".gms.persistent",pid=1238,fd=108)) uid:10144 ino:59587 sk:126e fwmark:0xc0064 -->
+CLOSE-WAIT  130    0      10.0.2.16:36188              172.217.114.4:443                 users:((".apps.messaging",pid=2429,fd=134)) uid:10146 ino:59482 sk:22ba fwmark:0xc0064 -->
+LISTEN      0      4            *:5555                     *:*                   users:(("adbd",pid=12051,fd=7)) ino:69573 sk:46c v6only:0 <->
+ESTAB       0      0       [::ffff:10.0.2.16]:36540              [::ffff:192.179.24.188]:5228                users:((".gms.persistent",pid=1238,fd=109)) uid:10144 ino:59326 sk:333f fwmark:0xf0064 <->
+== sample 2 20:01:03 app pid 12136
+ESTAB       0      0      10.0.2.16:38474              172.217.116.4:443                 users:(("ibson.snowraven",pid=12136,fd=223)) uid:10242 ino:80915 sk:337e fwmark:0x64 <->
+CLOSE-WAIT  130    0      10.0.2.16:55590              172.217.116.4:443                 users:(("gle.android.gms",pid=1466,fd=148)) uid:10144 ino:14859 sk:1038 fwmark:0xc0064 -->
+CLOSE-WAIT  0      0      10.0.2.16:44956              142.251.154.119:443                 users:(("earchbox:search",pid=1609,fd=146)) uid:10147 ino:17973 sk:126 fwmark:0x40064 -->
+CLOSE-WAIT  130    0      10.0.2.16:55576              172.217.116.4:443                 users:(("id.gms.unstable",pid=3117,fd=115)) uid:10144 ino:14766 sk:2088 fwmark:0xc0064 -->
+CLOSE-WAIT  130    0      10.0.2.16:47552              172.217.114.4:443                 users:((".gms.persistent",pid=1238,fd=108)) uid:10144 ino:59587 sk:126e fwmark:0xc0064 -->
+CLOSE-WAIT  130    0      10.0.2.16:36188              172.217.114.4:443                 users:((".apps.messaging",pid=2429,fd=134)) uid:10146 ino:59482 sk:22ba fwmark:0xc0064 -->
+LISTEN      0      4            *:5555                     *:*                   users:(("adbd",pid=12051,fd=7)) ino:69573 sk:46c v6only:0 <->
+ESTAB       0      0       [::ffff:10.0.2.16]:36540              [::ffff:192.179.24.188]:5228                users:((".gms.persistent",pid=1238,fd=109)) uid:10144 ino:59326 sk:333f fwmark:0xf0064 <->
+== sample 3 20:01:05 app pid 12136
+ESTAB       0      0      10.0.2.16:38474              172.217.116.4:443                 users:(("ibson.snowraven",pid=12136,fd=223)) uid:10242 ino:80915 sk:337e fwmark:0x64 <->
+CLOSE-WAIT  130    0      10.0.2.16:55590              172.217.116.4:443                 users:(("gle.android.gms",pid=1466,fd=148)) uid:10144 ino:14859 sk:1038 fwmark:0xc0064 -->
+CLOSE-WAIT  0      0      10.0.2.16:44956              142.251.154.119:443                 users:(("earchbox:search",pid=1609,fd=146)) uid:10147 ino:17973 sk:126 fwmark:0x40064 -->
+CLOSE-WAIT  130    0      10.0.2.16:55576              172.217.116.4:443                 users:(("id.gms.unstable",pid=3117,fd=115)) uid:10144 ino:14766 sk:2088 fwmark:0xc0064 -->
+CLOSE-WAIT  130    0      10.0.2.16:47552              172.217.114.4:443                 users:((".gms.persistent",pid=1238,fd=108)) uid:10144 ino:59587 sk:126e fwmark:0xc0064 -->
+CLOSE-WAIT  130    0      10.0.2.16:36188              172.217.114.4:443                 users:((".apps.messaging",pid=2429,fd=134)) uid:10146 ino:59482 sk:22ba fwmark:0xc0064 -->
+LISTEN      0      4            *:5555                     *:*                   users:(("adbd",pid=12051,fd=7)) ino:69573 sk:46c v6only:0 <->
+ESTAB       0      0       [::ffff:10.0.2.16]:36540              [::ffff:192.179.24.188]:5228                users:((".gms.persistent",pid=1238,fd=109)) uid:10144 ino:59326 sk:333f fwmark:0xf0064 <->
+== sample 4 20:01:07 app pid 12136
+ESTAB       0      0      10.0.2.16:38474              172.217.116.4:443                 users:(("ibson.snowraven",pid=12136,fd=223)) uid:10242 ino:80915 sk:337e fwmark:0x64 <->
+CLOSE-WAIT  130    0      10.0.2.16:55590              172.217.116.4:443                 users:(("gle.android.gms",pid=1466,fd=148)) uid:10144 ino:14859 sk:1038 fwmark:0xc0064 -->
+CLOSE-WAIT  0      0      10.0.2.16:44956              142.251.154.119:443                 users:(("earchbox:search",pid=1609,fd=146)) uid:10147 ino:17973 sk:126 fwmark:0x40064 -->
+CLOSE-WAIT  130    0      10.0.2.16:55576              172.217.116.4:443                 users:(("id.gms.unstable",pid=3117,fd=115)) uid:10144 ino:14766 sk:2088 fwmark:0xc0064 -->
+CLOSE-WAIT  130    0      10.0.2.16:47552              172.217.114.4:443                 users:((".gms.persistent",pid=1238,fd=108)) uid:10144 ino:59587 sk:126e fwmark:0xc0064 -->
+CLOSE-WAIT  130    0      10.0.2.16:36188              172.217.114.4:443                 users:((".apps.messaging",pid=2429,fd=134)) uid:10146 ino:59482 sk:22ba fwmark:0xc0064 -->
+LISTEN      0      4            *:5555                     *:*                   users:(("adbd",pid=12051,fd=7)) ino:69573 sk:46c v6only:0 <->
+ESTAB       0      0       [::ffff:10.0.2.16]:36540              [::ffff:192.179.24.188]:5228                users:((".gms.persistent",pid=1238,fd=109)) uid:10144 ino:59326 sk:333f fwmark:0xf0064 <->
+== sample 5 20:01:10 app pid 12136
+ESTAB       0      0      10.0.2.16:38474              172.217.116.4:443                 users:(("ibson.snowraven",pid=12136,fd=223)) uid:10242 ino:80915 sk:337e fwmark:0x64 <->
+CLOSE-WAIT  130    0      10.0.2.16:55590              172.217.116.4:443                 users:(("gle.android.gms",pid=1466,fd=148)) uid:10144 ino:14859 sk:1038 fwmark:0xc0064 -->
+CLOSE-WAIT  0      0      10.0.2.16:44956              142.251.154.119:443                 users:(("earchbox:search",pid=1609,fd=146)) uid:10147 ino:17973 sk:126 fwmark:0x40064 -->
+CLOSE-WAIT  130    0      10.0.2.16:55576              172.217.116.4:443                 users:(("id.gms.unstable",pid=3117,fd=115)) uid:10144 ino:14766 sk:2088 fwmark:0xc0064 -->
+CLOSE-WAIT  130    0      10.0.2.16:47552              172.217.114.4:443                 users:((".gms.persistent",pid=1238,fd=108)) uid:10144 ino:59587 sk:126e fwmark:0xc0064 -->
+CLOSE-WAIT  130    0      10.0.2.16:36188              172.217.114.4:443                 users:((".apps.messaging",pid=2429,fd=134)) uid:10146 ino:59482 sk:22ba fwmark:0xc0064 -->
+LISTEN      0      4            *:5555                     *:*                   users:(("adbd",pid=12051,fd=7)) ino:69573 sk:46c v6only:0 <->
+ESTAB       0      0       [::ffff:10.0.2.16]:36540              [::ffff:192.179.24.188]:5228                users:((".gms.persistent",pid=1238,fd=109)) uid:10144 ino:59326 sk:333f fwmark:0xf0064 <->
+== sample 6 20:01:12 app pid 12136
+ESTAB       0      0      10.0.2.16:38474              172.217.116.4:443                 users:(("ibson.snowraven",pid=12136,fd=223)) uid:10242 ino:80915 sk:337e fwmark:0x64 <->
+CLOSE-WAIT  130    0      10.0.2.16:55590              172.217.116.4:443                 users:(("gle.android.gms",pid=1466,fd=148)) uid:10144 ino:14859 sk:1038 fwmark:0xc0064 -->
+CLOSE-WAIT  0      0      10.0.2.16:44956              142.251.154.119:443                 users:(("earchbox:search",pid=1609,fd=146)) uid:10147 ino:17973 sk:126 fwmark:0x40064 -->
+CLOSE-WAIT  130    0      10.0.2.16:55576              172.217.116.4:443                 users:(("id.gms.unstable",pid=3117,fd=115)) uid:10144 ino:14766 sk:2088 fwmark:0xc0064 -->
+CLOSE-WAIT  130    0      10.0.2.16:47552              172.217.114.4:443                 users:((".gms.persistent",pid=1238,fd=108)) uid:10144 ino:59587 sk:126e fwmark:0xc0064 -->
+CLOSE-WAIT  130    0      10.0.2.16:36188              172.217.114.4:443                 users:((".apps.messaging",pid=2429,fd=134)) uid:10146 ino:59482 sk:22ba fwmark:0xc0064 -->
+LISTEN      0      4            *:5555                     *:*                   users:(("adbd",pid=12051,fd=7)) ino:69573 sk:46c v6only:0 <->
+ESTAB       0      0       [::ffff:10.0.2.16]:36540              [::ffff:192.179.24.188]:5228                users:((".gms.persistent",pid=1238,fd=109)) uid:10144 ino:59326 sk:333f fwmark:0xf0064 <->
+== sample 7 20:01:14 app pid 12136
+ESTAB       0      0      10.0.2.16:38474              172.217.116.4:443                 users:(("ibson.snowraven",pid=12136,fd=223)) uid:10242 ino:80915 sk:337e fwmark:0x64 <->
+CLOSE-WAIT  130    0      10.0.2.16:55590              172.217.116.4:443                 users:(("gle.android.gms",pid=1466,fd=148)) uid:10144 ino:14859 sk:1038 fwmark:0xc0064 -->
+CLOSE-WAIT  0      0      10.0.2.16:44956              142.251.154.119:443                 users:(("earchbox:search",pid=1609,fd=146)) uid:10147 ino:17973 sk:126 fwmark:0x40064 -->
+CLOSE-WAIT  130    0      10.0.2.16:55576              172.217.116.4:443                 users:(("id.gms.unstable",pid=3117,fd=115)) uid:10144 ino:14766 sk:2088 fwmark:0xc0064 -->
+CLOSE-WAIT  130    0      10.0.2.16:47552              172.217.114.4:443                 users:((".gms.persistent",pid=1238,fd=108)) uid:10144 ino:59587 sk:126e fwmark:0xc0064 -->
+CLOSE-WAIT  130    0      10.0.2.16:36188              172.217.114.4:443                 users:((".apps.messaging",pid=2429,fd=134)) uid:10146 ino:59482 sk:22ba fwmark:0xc0064 -->
+LISTEN      0      4            *:5555                     *:*                   users:(("adbd",pid=12051,fd=7)) ino:69573 sk:46c v6only:0 <->
+ESTAB       0      0       [::ffff:10.0.2.16]:36540              [::ffff:192.179.24.188]:5228                users:((".gms.persistent",pid=1238,fd=109)) uid:10144 ino:59326 sk:333f fwmark:0xf0064 <->
+== sample 8 20:01:16 app pid 12136
+ESTAB       0      0      10.0.2.16:38474              172.217.116.4:443                 users:(("ibson.snowraven",pid=12136,fd=223)) uid:10242 ino:80915 sk:337e fwmark:0x64 <->
+CLOSE-WAIT  130    0      10.0.2.16:55590              172.217.116.4:443                 users:(("gle.android.gms",pid=1466,fd=148)) uid:10144 ino:14859 sk:1038 fwmark:0xc0064 -->
+CLOSE-WAIT  0      0      10.0.2.16:44956              142.251.154.119:443                 users:(("earchbox:search",pid=1609,fd=146)) uid:10147 ino:17973 sk:126 fwmark:0x40064 -->
+CLOSE-WAIT  130    0      10.0.2.16:55576              172.217.116.4:443                 users:(("id.gms.unstable",pid=3117,fd=115)) uid:10144 ino:14766 sk:2088 fwmark:0xc0064 -->
+CLOSE-WAIT  130    0      10.0.2.16:47552              172.217.114.4:443                 users:((".gms.persistent",pid=1238,fd=108)) uid:10144 ino:59587 sk:126e fwmark:0xc0064 -->
+CLOSE-WAIT  130    0      10.0.2.16:36188              172.217.114.4:443                 users:((".apps.messaging",pid=2429,fd=134)) uid:10146 ino:59482 sk:22ba fwmark:0xc0064 -->
+LISTEN      0      4            *:5555                     *:*                   users:(("adbd",pid=12051,fd=7)) ino:69573 sk:46c v6only:0 <->
+ESTAB       0      0       [::ffff:10.0.2.16]:36540              [::ffff:192.179.24.188]:5228                users:((".gms.persistent",pid=1238,fd=109)) uid:10144 ino:59326 sk:333f fwmark:0xf0064 <->
+== sample 9 20:01:18 app pid 12136
+ESTAB       0      0      10.0.2.16:38474              172.217.116.4:443                 users:(("ibson.snowraven",pid=12136,fd=223)) uid:10242 ino:80915 sk:337e fwmark:0x64 <->
+CLOSE-WAIT  130    0      10.0.2.16:55590              172.217.116.4:443                 users:(("gle.android.gms",pid=1466,fd=148)) uid:10144 ino:14859 sk:1038 fwmark:0xc0064 -->
+CLOSE-WAIT  0      0      10.0.2.16:44956              142.251.154.119:443                 users:(("earchbox:search",pid=1609,fd=146)) uid:10147 ino:17973 sk:126 fwmark:0x40064 -->
+CLOSE-WAIT  130    0      10.0.2.16:55576              172.217.116.4:443                 users:(("id.gms.unstable",pid=3117,fd=115)) uid:10144 ino:14766 sk:2088 fwmark:0xc0064 -->
+CLOSE-WAIT  130    0      10.0.2.16:47552              172.217.114.4:443                 users:((".gms.persistent",pid=1238,fd=108)) uid:10144 ino:59587 sk:126e fwmark:0xc0064 -->
+CLOSE-WAIT  130    0      10.0.2.16:36188              172.217.114.4:443                 users:((".apps.messaging",pid=2429,fd=134)) uid:10146 ino:59482 sk:22ba fwmark:0xc0064 -->
+LISTEN      0      4            *:5555                     *:*                   users:(("adbd",pid=12051,fd=7)) ino:69573 sk:46c v6only:0 <->
+ESTAB       0      0       [::ffff:10.0.2.16]:36540              [::ffff:192.179.24.188]:5228                users:((".gms.persistent",pid=1238,fd=109)) uid:10144 ino:59326 sk:333f fwmark:0xf0064 <->
+== sample 10 20:01:20 app pid 12136
+ESTAB       0      0      10.0.2.16:38474              172.217.116.4:443                 users:(("ibson.snowraven",pid=12136,fd=223)) uid:10242 ino:80915 sk:337e fwmark:0x64 <->
+CLOSE-WAIT  130    0      10.0.2.16:55590              172.217.116.4:443                 users:(("gle.android.gms",pid=1466,fd=148)) uid:10144 ino:14859 sk:1038 fwmark:0xc0064 -->
+CLOSE-WAIT  0      0      10.0.2.16:44956              142.251.154.119:443                 users:(("earchbox:search",pid=1609,fd=146)) uid:10147 ino:17973 sk:126 fwmark:0x40064 -->
+CLOSE-WAIT  130    0      10.0.2.16:55576              172.217.116.4:443                 users:(("id.gms.unstable",pid=3117,fd=115)) uid:10144 ino:14766 sk:2088 fwmark:0xc0064 -->
+CLOSE-WAIT  130    0      10.0.2.16:47552              172.217.114.4:443                 users:((".gms.persistent",pid=1238,fd=108)) uid:10144 ino:59587 sk:126e fwmark:0xc0064 -->
+CLOSE-WAIT  130    0      10.0.2.16:36188              172.217.114.4:443                 users:((".apps.messaging",pid=2429,fd=134)) uid:10146 ino:59482 sk:22ba fwmark:0xc0064 -->
+LISTEN      0      4            *:5555                     *:*                   users:(("adbd",pid=12051,fd=7)) ino:69573 sk:46c v6only:0 <->
+ESTAB       0      0       [::ffff:10.0.2.16]:36540              [::ffff:192.179.24.188]:5228                users:((".gms.persistent",pid=1238,fd=109)) uid:10144 ino:59326 sk:333f fwmark:0xf0064 <->
+== sample 11 20:01:23 app pid 12136
+ESTAB       0      0      10.0.2.16:38474              172.217.116.4:443                 users:(("ibson.snowraven",pid=12136,fd=223)) uid:10242 ino:80915 sk:337e fwmark:0x64 <->
+CLOSE-WAIT  130    0      10.0.2.16:55590              172.217.116.4:443                 users:(("gle.android.gms",pid=1466,fd=148)) uid:10144 ino:14859 sk:1038 fwmark:0xc0064 -->
+CLOSE-WAIT  0      0      10.0.2.16:44956              142.251.154.119:443                 users:(("earchbox:search",pid=1609,fd=146)) uid:10147 ino:17973 sk:126 fwmark:0x40064 -->
+CLOSE-WAIT  130    0      10.0.2.16:55576              172.217.116.4:443                 users:(("id.gms.unstable",pid=3117,fd=115)) uid:10144 ino:14766 sk:2088 fwmark:0xc0064 -->
+CLOSE-WAIT  130    0      10.0.2.16:47552              172.217.114.4:443                 users:((".gms.persistent",pid=1238,fd=108)) uid:10144 ino:59587 sk:126e fwmark:0xc0064 -->
+CLOSE-WAIT  130    0      10.0.2.16:36188              172.217.114.4:443                 users:((".apps.messaging",pid=2429,fd=134)) uid:10146 ino:59482 sk:22ba fwmark:0xc0064 -->
+LISTEN      0      4            *:5555                     *:*                   users:(("adbd",pid=12051,fd=7)) ino:69573 sk:46c v6only:0 <->
+ESTAB       0      0       [::ffff:10.0.2.16]:36540              [::ffff:192.179.24.188]:5228                users:((".gms.persistent",pid=1238,fd=109)) uid:10144 ino:59326 sk:333f fwmark:0xf0064 <->
+== sample 12 20:01:25 app pid 12136
+ESTAB       0      0      10.0.2.16:38474              172.217.116.4:443                 users:(("ibson.snowraven",pid=12136,fd=223)) uid:10242 ino:80915 sk:337e fwmark:0x64 <->
+CLOSE-WAIT  130    0      10.0.2.16:55590              172.217.116.4:443                 users:(("gle.android.gms",pid=1466,fd=148)) uid:10144 ino:14859 sk:1038 fwmark:0xc0064 -->
+CLOSE-WAIT  0      0      10.0.2.16:44956              142.251.154.119:443                 users:(("earchbox:search",pid=1609,fd=146)) uid:10147 ino:17973 sk:126 fwmark:0x40064 -->
+CLOSE-WAIT  130    0      10.0.2.16:55576              172.217.116.4:443                 users:(("id.gms.unstable",pid=3117,fd=115)) uid:10144 ino:14766 sk:2088 fwmark:0xc0064 -->
+CLOSE-WAIT  130    0      10.0.2.16:47552              172.217.114.4:443                 users:((".gms.persistent",pid=1238,fd=108)) uid:10144 ino:59587 sk:126e fwmark:0xc0064 -->
+CLOSE-WAIT  130    0      10.0.2.16:36188              172.217.114.4:443                 users:((".apps.messaging",pid=2429,fd=134)) uid:10146 ino:59482 sk:22ba fwmark:0xc0064 -->
+LISTEN      0      4            *:5555                     *:*                   users:(("adbd",pid=12051,fd=7)) ino:69573 sk:46c v6only:0 <->
+ESTAB       0      0       [::ffff:10.0.2.16]:36540              [::ffff:192.179.24.188]:5228                users:((".gms.persistent",pid=1238,fd=109)) uid:10144 ino:59326 sk:333f fwmark:0xf0064 <->
+== sample 13 20:01:27 app pid 12136
+ESTAB       0      0      10.0.2.16:38474              172.217.116.4:443                 users:(("ibson.snowraven",pid=12136,fd=223)) uid:10242 ino:80915 sk:337e fwmark:0x64 <->
+CLOSE-WAIT  130    0      10.0.2.16:55590              172.217.116.4:443                 users:(("gle.android.gms",pid=1466,fd=148)) uid:10144 ino:14859 sk:1038 fwmark:0xc0064 -->
+CLOSE-WAIT  0      0      10.0.2.16:44956              142.251.154.119:443                 users:(("earchbox:search",pid=1609,fd=146)) uid:10147 ino:17973 sk:126 fwmark:0x40064 -->
+CLOSE-WAIT  130    0      10.0.2.16:55576              172.217.116.4:443                 users:(("id.gms.unstable",pid=3117,fd=115)) uid:10144 ino:14766 sk:2088 fwmark:0xc0064 -->
+CLOSE-WAIT  130    0      10.0.2.16:47552              172.217.114.4:443                 users:((".gms.persistent",pid=1238,fd=108)) uid:10144 ino:59587 sk:126e fwmark:0xc0064 -->
+CLOSE-WAIT  130    0      10.0.2.16:36188              172.217.114.4:443                 users:((".apps.messaging",pid=2429,fd=134)) uid:10146 ino:59482 sk:22ba fwmark:0xc0064 -->
+LISTEN      0      4            *:5555                     *:*                   users:(("adbd",pid=12051,fd=7)) ino:69573 sk:46c v6only:0 <->
+ESTAB       0      0       [::ffff:10.0.2.16]:36540              [::ffff:192.179.24.188]:5228                users:((".gms.persistent",pid=1238,fd=109)) uid:10144 ino:59326 sk:333f fwmark:0xf0064 <->
+== sample 14 20:01:29 app pid 12136
+ESTAB       0      0      10.0.2.16:38474              172.217.116.4:443                 users:(("ibson.snowraven",pid=12136,fd=223)) uid:10242 ino:80915 sk:337e fwmark:0x64 <->
+CLOSE-WAIT  130    0      10.0.2.16:55590              172.217.116.4:443                 users:(("gle.android.gms",pid=1466,fd=148)) uid:10144 ino:14859 sk:1038 fwmark:0xc0064 -->
+CLOSE-WAIT  0      0      10.0.2.16:44956              142.251.154.119:443                 users:(("earchbox:search",pid=1609,fd=146)) uid:10147 ino:17973 sk:126 fwmark:0x40064 -->
+CLOSE-WAIT  130    0      10.0.2.16:55576              172.217.116.4:443                 users:(("id.gms.unstable",pid=3117,fd=115)) uid:10144 ino:14766 sk:2088 fwmark:0xc0064 -->
+CLOSE-WAIT  130    0      10.0.2.16:47552              172.217.114.4:443                 users:((".gms.persistent",pid=1238,fd=108)) uid:10144 ino:59587 sk:126e fwmark:0xc0064 -->
+CLOSE-WAIT  130    0      10.0.2.16:36188              172.217.114.4:443                 users:((".apps.messaging",pid=2429,fd=134)) uid:10146 ino:59482 sk:22ba fwmark:0xc0064 -->
+LISTEN      0      4            *:5555                     *:*                   users:(("adbd",pid=12051,fd=7)) ino:69573 sk:46c v6only:0 <->
+ESTAB       0      0       [::ffff:10.0.2.16]:36540              [::ffff:192.179.24.188]:5228                users:((".gms.persistent",pid=1238,fd=109)) uid:10144 ino:59326 sk:333f fwmark:0xf0064 <->
+== sample 15 20:01:31 app pid 12136
+ESTAB       0      0      10.0.2.16:38474              172.217.116.4:443                 users:(("ibson.snowraven",pid=12136,fd=223)) uid:10242 ino:80915 sk:337e fwmark:0x64 <->
+CLOSE-WAIT  130    0      10.0.2.16:55590              172.217.116.4:443                 users:(("gle.android.gms",pid=1466,fd=148)) uid:10144 ino:14859 sk:1038 fwmark:0xc0064 -->
+CLOSE-WAIT  0      0      10.0.2.16:44956              142.251.154.119:443                 users:(("earchbox:search",pid=1609,fd=146)) uid:10147 ino:17973 sk:126 fwmark:0x40064 -->
+CLOSE-WAIT  130    0      10.0.2.16:55576              172.217.116.4:443                 users:(("id.gms.unstable",pid=3117,fd=115)) uid:10144 ino:14766 sk:2088 fwmark:0xc0064 -->
+CLOSE-WAIT  130    0      10.0.2.16:47552              172.217.114.4:443                 users:((".gms.persistent",pid=1238,fd=108)) uid:10144 ino:59587 sk:126e fwmark:0xc0064 -->
+CLOSE-WAIT  130    0      10.0.2.16:36188              172.217.114.4:443                 users:((".apps.messaging",pid=2429,fd=134)) uid:10146 ino:59482 sk:22ba fwmark:0xc0064 -->
+LISTEN      0      4            *:5555                     *:*                   users:(("adbd",pid=12051,fd=7)) ino:69573 sk:46c v6only:0 <->
+ESTAB       0      0       [::ffff:10.0.2.16]:36540              [::ffff:192.179.24.188]:5228                users:((".gms.persistent",pid=1238,fd=109)) uid:10144 ino:59326 sk:333f fwmark:0xf0064 <->

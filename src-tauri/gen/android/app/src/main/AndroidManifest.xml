@@ -16,6 +16,14 @@
         android:label="@string/app_name"
         android:theme="@style/Theme.snowraven"
         android:usesCleartextTraffic="${usesCleartextTraffic}">
+        <!-- Android System WebView's Safe Browsing is on by default and runs in
+             the app's own process: it checks the URLs the page loads with
+             Google's service (android-release QA-52, NFR-01). SnowRaven loads
+             only its own bundled page and the provider APIs it names, so the
+             check is turned off for this app's WebView. -->
+        <meta-data
+            android:name="android.webkit.WebView.EnableSafeBrowsing"
+            android:value="false" />
         <activity
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode"
             android:launchMode="singleTask"

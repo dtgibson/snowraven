@@ -1,0 +1,29 @@
+== gapis-sbon-pcap-1.pcap
+DNS queries:
+TCP SYNs (IPv4):
+   1   10.0.2.16.40434 > 172.217.116.4.443:
+TCP SYNs (IPv6, unreachable on the emulator):
+       8
+== gapis-sboff-pcap-1.pcap
+DNS queries:
+   1   A content-autofill.googleapis.com
+   1   AAAA content-autofill.googleapis.com
+TCP SYNs (IPv4):
+   1   10.0.2.16.33704 > 172.217.116.4.443:
+TCP SYNs (IPv6, unreachable on the emulator):
+       8
+== aosp-sbon-pcap-1.pcap
+DNS queries:
+   1   AAAA content-autofill.googleapis.com
+TCP SYNs (IPv4):
+   1   10.0.2.17.58022 > 172.217.112.4.443:
+TCP SYNs (IPv6, unreachable on the emulator):
+       8
+== aosp-sboff-pcap-1.pcap
+DNS queries:
+   1   A content-autofill.googleapis.com
+   1   AAAA content-autofill.googleapis.com
+TCP SYNs (IPv4):
+   1   10.0.2.17.43136 > 172.217.112.4.443:
+TCP SYNs (IPv6, unreachable on the emulator):
+       8
