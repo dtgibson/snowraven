@@ -1,6 +1,6 @@
 # FR-55 measurement: Android location, branch A or B (2026-10-03)
 
-The recording schema 4.6 asks for, run by The Engineer before any location-path commit. Result: **branch B stands** (step 9 failed on the Google APIs image).
+The recording schema 4.6 asks for, run by The Engineer at 09:43 to 09:49 on 2026-10-03, six minutes after `458127c` committed both location branches behind the switch with B in force (the branch-A plumbing it exercised was in the working tree only; see decisions.md, QA-62). Result: **branch B stands** (step 9 failed on the Google APIs image).
 
 ## Setup
 

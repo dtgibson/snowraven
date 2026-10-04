@@ -160,7 +160,7 @@ Twelve screenshots are staged under `pipeline/android-release/fdroid/fastlane-pr
 | `5.png` | Breeding Codes: the species-by-code matrix with its counts. |
 | `6.png` | Multimedia: the filter pills over the media checklist, photo and audio counts per species. |
 
-**Ten-inch tablet** (`images/tenInchScreenshots/`, API 36 Pixel Tablet emulator, landscape, 2560 by 1600, with the labelled navigation sidebar):
+**Ten-inch tablet** (`images/tenInchScreenshots/`, API 36 Pixel Tablet emulator, landscape, 2560 by 1600, with the labeled navigation sidebar):
 
 | File | What it shows |
 |---|---|
