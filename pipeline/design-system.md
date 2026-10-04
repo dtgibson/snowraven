@@ -600,6 +600,23 @@ italic at 0.71875rem `--sr-text-gray`.
   resetKey, so the animation replays exactly when the data changed (reduced-motion
   renders final width instantly); bars are reinforcement only — every value is
   present as text. The Species Detail Subspecies and Forms section is the exemplar.
+- **Uniform badge set (Statistics milestones):** a set of equal tiles is a
+  `ul role="list"` on `repeat(auto-fill, minmax(min(7.25rem, 100%), 1fr))` with
+  `grid-auto-rows: 1fr`, so every tile is one width and one height and a short
+  last row keeps its columns (`auto-fill`, never `auto-fit`). Each tile is a
+  column: the display figure (1.25rem / 700, its tier token), the name through
+  `BirdName` centered in a band that grows, the caption link at the foot. A long
+  name wraps inside the tile with its marks dropping beneath as one unit
+  (`.sr-ms-name` applies the shared BirdName wrap of `.sr-bc-name-col` and
+  `.sr-tg-name` at every width, not only the phone tier); the tile never
+  widens. The track minimum is sized from the built app, not a mockup: 7.25rem is
+  what gives two columns in the 242px card content box at 320px / 100%. Tier
+  colors map onto badge-local properties through `data-tier`, so no tier is
+  special; where a shared component writes an inline color no class can
+  override (`ChecklistLink`), pass it the badge-local property
+  (`var(--sr-ms-date)`) so the tier mapping stays in the stylesheet. No
+  decorative affirmations: a check on a set that only shows achieved items says
+  nothing. `.sr-ms-*` is the exemplar.
 - **Distribution rows (a set of named bands, each with a count and a bar):** one row
   per band, always every band, in a fixed domain order that does not re-sort with the
   data. Desktop is a four-column grid `auto minmax(0, 8.5rem) minmax(0, 1fr) auto` --

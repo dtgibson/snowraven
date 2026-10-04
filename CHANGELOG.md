@@ -2,7 +2,7 @@
 
 All notable changes to SnowRaven are documented here.
 
-## [1.0.49] - unreleased
+## [Unreleased]
 
 ### Added
 - **SnowRaven for Android phones and tablets (in progress).** The same app now builds for Android 8.0 and later from the same project: every tab, your own eBird backup and Macaulay Library export opened through the phone's file picker and kept in the app's private storage, the compact header and bottom bar of the iPhone app, the app's colors under the status and navigation bars in light and dark, and the keyboard kept clear of the field you are typing in. iCloud Sync, the home-screen widgets and Alerts stay Mac, iPhone and iPad features and do not appear on Android. On Android the app does not offer to find your location: you move the map by searching for a place or by setting a Default Location.
@@ -14,6 +14,20 @@ All notable changes to SnowRaven are documented here.
 
 ### Internal
 - A committed Android project under `src-tauri/gen/android` (application id `com.dtgibson.snowraven`), one build script that CI and the F-Droid recipe both run (the unsigned universal APK, built with `cargo tauri` and Gradle 8.14.3, with no wrapper jar committed), the Android version code committed beside the version in `tauri.conf.json`, and guards that keep the project's application id, version source, permissions, launch state, icons and native calls as decided. The location plugin is now iOS-only, so nothing from Google Play services is in the Android build. The license is now declared as AGPL-3.0-only in `Cargo.toml` and both `package.json` files, matching `LICENSE`.
+
+## [1.0.50] - 2026-10-03
+
+### Changed
+- **The milestone badges on the Statistics tab are now one uniform size.** In Firsts & Milestones, every badge is the same width and height, on an even grid whose columns line up from row to row, the last row included, and each reads the milestone, then the species that reached it, then the date. A long species name wraps inside its badge, with its eBird and Birds of the World marks kept together beneath it, instead of making the badge wider. Milestones of 1,000 and above now print with a thousands separator, the label above the set reads Life list milestones, and the check mark on each badge and the line above the set are gone. Screen readers hear the badges as a list, with how many there are.
+
+## [1.0.49] - 2026-10-03
+
+### Changed
+- The Mac, Windows, iPhone and iPad apps now run under a content security policy: the app's window runs only SnowRaven's own code, and loads map tiles, the eBird and Birds of the World link icons and Macaulay Library players only from the services it already used. Nothing you see or do in the app changes.
+- In the Mac, Windows, iPhone and iPad apps, every link that opens a page in your browser now sends its own address when you click it, rather than leaving the app to look the link up again afterward. A link in a list you have just sorted, such as the Targets table or the Multimedia table, always opens the row you clicked. Nothing looks different, and the web and Raspberry Pi versions are unchanged.
+
+### Fixed
+- When eBird is limiting requests just as the app asks which of your places are public hotspots, those place names no longer stay plain text for the rest of the session. The app now asks eBird again about only the states or provinces it could not get, after eBird's pause has ended, up to three more times over about seven minutes, and the hotspot links appear on every tab as soon as eBird answers. Until now they came back only after you saved your eBird key or backup again, or restarted the app; if eBird is still limiting requests after the third try, the names stay plain until then, as before.
 
 ## [1.0.48] - 2026-10-02
 

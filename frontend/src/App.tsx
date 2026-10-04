@@ -1,7 +1,7 @@
 import { Button } from './components/ui/Button'
 import { Link } from './components/ui/Link'
 import { useState, useCallback, useRef, useEffect, useLayoutEffect, useMemo, useSyncExternalStore, lazy, Suspense, createContext, useContext } from 'react'
-import { Search, Loader2, ClipboardCopy, Check, AlertCircle, ExternalLink } from 'lucide-react'
+import { Search, Loader2, ClipboardCopy, Check, AlertCircle } from 'lucide-react'
 import { transport, TransportError } from './lib/transport'
 import { classifyLiveError, OFFLINE_MESSAGE, NO_KEY_MESSAGE, type LiveErrorKind } from './lib/offlineMessage'
 import { isOfflineError } from './lib/offlineDetect'
@@ -42,6 +42,7 @@ import { useIsPhone } from './lib/useIsPhone'
 import type { ContentReserve } from './lib/navDensity'
 import { RavenGlyph } from './components/RavenGlyph'
 import { OutboundLink } from './components/OutboundLink'
+import { EditCommentLink, SnowRavenMiniLink } from './components/WeatherTabLinks'
 // Footer update affordance — renders null on iOS/iPadOS (FR-14, mobile-app).
 import { UpdateFooter, type UpdateStatus } from './components/UpdateFooter'
 import { WeatherForecastPanel } from './components/WeatherForecastPanel'
@@ -1197,27 +1198,7 @@ export default function App() {
               {/* Edit link on its own line above the checklist info so neither
                   truncates the other. */}
               {state.status === 'success' && (
-                <Link
-                  href={`https://ebird.org/edit/effort?subID=${state.checklistId}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  aria-label="Edit checklist comment on eBird (opens in a new tab)"
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 4,
-                    fontSize: '0.75rem',
-                    fontWeight: 500,
-                    color: 'var(--sr-accent)',
-                    textDecoration: 'none',
-                    marginBottom: 6,
-                  }}
-                  onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
-                  onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
-                >
-                  Edit checklist comment on eBird
-                  <ExternalLink size={11} strokeWidth={2.5} />
-                </Link>
+                <EditCommentLink checklistId={state.checklistId} />
               )}
               <div style={{ marginBottom: 14 }}>
                 <span className="sr-wrap-anywhere" style={{
@@ -1385,7 +1366,7 @@ export default function App() {
         </div>
         <p style={{ width: '100%', maxWidth: 540, margin: '14px 0 0', textAlign: 'center', fontSize: '0.75rem', color: 'var(--sr-text-footer)' }}>
           Also for your browser:{' '}
-          <Link href="https://github.com/dtgibson/snowraven-mini" target="_blank" rel="noreferrer" aria-label="SnowRaven Mini on GitHub (opens in a new tab)" style={{ color: 'inherit', textDecoration: 'underline' }}>SnowRaven Mini</Link>
+          <SnowRavenMiniLink />
           , a Chrome/Firefox extension with this same weather and tide lookup.
         </p>
       </div>

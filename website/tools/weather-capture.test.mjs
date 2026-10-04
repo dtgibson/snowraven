@@ -189,15 +189,58 @@ test('capture.mjs keeps every fail-closed Weather call site wired in order', asy
   assert.equal(source.match(/CAPTURE DONE/g)?.length, 1, 'there must be one success banner, only in the no-failure branch');
 });
 
-test('the published Weather asset and its scoped markup agree on 1080x2021', async () => {
-  const asset = fileURLToPath(new URL('../assets/shots/weather.webp', import.meta.url));
-  const metadata = await sharp(asset).metadata();
+// THE SIZE IS DERIVED FROM BOTH SIDES, NEVER TYPED IN. The Weather figure in
+// ../index.html declares a width and a height so the browser reserves its box
+// before the image arrives, and the asset must be exactly that size. This row
+// reads the asset's real size with sharp and compares it to the size the markup
+// declares: two declarations of one number, held to each other. It used to
+// restate the size as a literal, and when the approved 1.0.33 reframe
+// (website-screenshot-sizing, `bbb2c6b`) recaptured the shot at 16:9 and
+// updated the markup with it, the literal stayed behind and the row sat red. A
+// recapture that lands with its markup now keeps it green; an asset and a
+// declaration that disagree turn it red, whichever of the two moved.
+//
+// THE ALT IS CHECKED FOR PRESENCE, NOT WORDING. The figure's alt is approved
+// published copy: the user approved the current one at the 1.0.33 sign-off,
+// when the reframed shot stopped showing the tide (DECISIONS.md, v1.0.33). Its
+// words belong to that approval, not to this file, and a phrase pinned here is
+// one more copy of published prose to go stale unseen, which is what "a tide
+// block" did. So the row asks only that the figure's image carries a non-empty
+// alt, which no approved wording can turn red.
+//
+// OVERLAP, ON PURPOSE. frontend/src/lib/websiteFigureDimensions.test.ts holds
+// every figure's declared size to its file in CI, by parsing WebP headers in
+// pure JS. This row is the independent sharp-side read of the same claim for
+// the Weather figure, through the library that writes the asset
+// (process-img.mjs), kept beside the capture code it belongs to. Neither suite
+// pins the alt's wording.
+test('the published Weather asset and its scoped markup declare the same size', async () => {
+  const ASSET = 'assets/shots/weather.webp';
+  const metadata = await sharp(fileURLToPath(new URL(`../${ASSET}`, import.meta.url))).metadata();
   const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
   const figure = html.match(/<figure class="feature-media shot-slot" data-shot="weather">([\s\S]*?)<\/figure>/)?.[1];
 
   assert.ok(figure, 'the Weather screenshot figure must exist');
-  assert.equal(metadata.width, 1080);
-  assert.equal(metadata.height, 2021);
-  assert.match(figure, /<img src="assets\/shots\/weather\.webp" width="1080" height="2021"/);
-  assert.match(figure, /formatted weather summary and a tide block/);
+  const img = figure.match(/<img\b[^>]*>/)?.[0];
+  assert.ok(img, 'the Weather figure must carry an <img>');
+  assert.equal(img.match(/\bsrc="([^"]*)"/)?.[1], ASSET, 'the Weather figure must show the asset this row reads');
+
+  const declared = {
+    width: Number(img.match(/\bwidth="(\d+)"/)?.[1]),
+    height: Number(img.match(/\bheight="(\d+)"/)?.[1]),
+  };
+  assert.ok(
+    Number.isInteger(declared.width) && declared.width > 0 && Number.isInteger(declared.height) && declared.height > 0,
+    `the Weather <img> must declare a positive integer width and height, read ${JSON.stringify(declared)}`,
+  );
+  assert.ok(metadata.width > 0 && metadata.height > 0, 'sharp must read a real size from the Weather asset');
+  assert.deepEqual(
+    { width: metadata.width, height: metadata.height },
+    declared,
+    `${ASSET} is ${metadata.width}x${metadata.height} but index.html declares ${declared.width}x${declared.height}`,
+  );
+  // Capture the value and test it, rather than matching `alt="...\S..."` in
+  // place: `\S` also matches the closing quote, so an empty alt followed by any
+  // other attribute would satisfy an in-place match.
+  assert.ok(img.match(/\balt="([^"]*)"/)?.[1].trim(), 'the Weather <img> must carry a non-empty alt');
 });

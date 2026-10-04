@@ -1012,44 +1012,34 @@ export function BirdingStats({ onGoToSettings, onGoToWeather, onOpenSpecies }: {
       <SectionCard title="Firsts & Milestones" icon={<Trophy size={16} />}>
         {accumulation.milestones.size > 0 && (
           <>
-            <Divider />
-            <SubLabel>Milestones</SubLabel>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'flex-start' }}>
+            <SubLabel>Life list milestones</SubLabel>
+            {/* One uniform badge per reached threshold (stats-badges-uniform).
+                Every layout and color declaration lives in globals.css
+                (.sr-ms-*): the grid gives every badge one width and one height,
+                and `data-tier` maps the --sr-milestone-N-* tokens onto the
+                badge-local --sr-ms-* properties. The date link takes its color
+                from --sr-ms-date because ChecklistLink writes an inline accent
+                color no class can out-rank; only the value is passed, its size
+                is inherited from .sr-ms-date. An explicit role="list" because
+                WebKit drops list semantics from a `list-style: none` list. */}
+            <ul className="sr-ms-grid" role="list" aria-label="Life list milestones">
               {MILESTONE_THRESHOLDS.map(threshold => {
                 const m = accumulation.milestones.get(threshold)
                 if (!m) return null
                 const tier = threshold < 100 ? 1 : threshold < 500 ? 2 : threshold < 1000 ? 3 : 4
-                // Tokenized milestone palette (--sr-milestone-N-*): replaces the
-                // old hardcoded hexes (CLAUDE.md tokens-only rule); the failing
-                // date colors were darkened to ≥AA in globals.css.
-                const ts = {
-                  bg: `var(--sr-milestone-${tier}-bg)`,
-                  border: `var(--sr-milestone-${tier}-border)`,
-                  num: `var(--sr-milestone-${tier}-num)`,
-                  date: `var(--sr-milestone-${tier}-date)`,
-                  check: `var(--sr-milestone-${tier}-check)`,
-                }
                 return (
-                  <div key={threshold} style={{
-                    display: 'flex', flexDirection: 'column', alignItems: 'center',
-                    padding: '10px 14px', borderRadius: 10,
-                    background: ts.bg, border: `1.5px solid ${ts.border}`,
-                    minWidth: 70, gap: 3, position: 'relative',
-                  }}>
-                    <div style={{
-                      position: 'absolute', top: 5, right: 6,
-                      width: 13, height: 13, borderRadius: '50%',
-                      background: ts.check, color: '#fff',
-                      fontSize: '0.5rem', fontWeight: 700,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    }}>✓</div>
-                    <span style={{ fontSize: '1.25rem', fontWeight: 700, lineHeight: 1, color: ts.num }}>{threshold}</span>
-                    <BirdName commonName={m.species} taxonCode={codeFor(m.species)} hasEntry={hasEntryFor(m.species)} onOpenSpecies={onOpenSpecies} size="sm" />
-                    <ChecklistLink submissionId={m.submissionId} label={fmtDate(m.date)} style={{ fontSize: '0.625rem', color: ts.date }} />
-                  </div>
+                  <li key={threshold} className="sr-ms-badge" data-tier={tier}>
+                    <span className="sr-ms-num">{fmt(threshold)}</span>
+                    <span className="sr-ms-name">
+                      <BirdName commonName={m.species} taxonCode={codeFor(m.species)} hasEntry={hasEntryFor(m.species)} onOpenSpecies={onOpenSpecies} size="sm" breakAfterSlash />
+                    </span>
+                    <span className="sr-ms-date">
+                      <ChecklistLink submissionId={m.submissionId} label={fmtDate(m.date)} style={{ color: 'var(--sr-ms-date)' }} />
+                    </span>
+                  </li>
                 )
               })}
-            </div>
+            </ul>
           </>
         )}
       </SectionCard>

@@ -383,7 +383,7 @@ The out-of-the-box ordering defaults were refreshed to match day-to-day use. Def
 
 A location NAME becomes a link to `ebird.org/hotspot/{locId}` only when the location is a PUBLIC eBird hotspot; personal locations stay plain text. Applied app-wide wherever a location name appears: Species Detail (top locations + comments), Statistics (geo top-locations, notable-outings, biggest-counts, first/most-recent cards), Checklists (the list + both comment-search boxes), Named Birds reports, and Frivolous Rainbow first-sightings. Built on eBird data the app already uses; no new providers; privacy unchanged. Also fixes a latent bug where a few spots linked personal locations to dead (404) eBird hotspot pages (id-format-only gating).
 
-- **Determination:** the CSV carries no hotspot flag, so classify by membership in a region-scoped Set (`lib/hotspotSet.ts`) built from eBird's `ref/hotspot/{regionCode}` — one cached fetch per distinct `stateProvince` region (typically 1–3), unioned → O(1) `isPublicHotspot`. New backend route `GET /map/hotspot-region` + `lib/tauri/mapService.ts` `getHotspotRegion` (dual-transport parity); `/map/hotspot-region` is in `CACHED_GET_PATHS`. No key / a failed fetch → empty Set → plain text (graceful).
+- **Determination:** the CSV carries no hotspot flag, so classify by membership in a region-scoped Set (`lib/hotspotSet.ts`) built from eBird's `ref/hotspot/{regionCode}` — one cached fetch per distinct `stateProvince` region (typically 1–3), unioned → O(1) `isPublicHotspot`. New backend route `GET /map/hotspot-region` + `lib/tauri/mapService.ts` `getHotspotRegion` (dual-transport parity); `/map/hotspot-region` is in `CACHED_GET_PATHS`. No key or a failed fetch leaves that region's names plain (graceful); a region eBird refused for rate limiting is asked again up to three more times over about seven minutes, and its names become links on every tab once eBird answers.
 - **Component + hook:** `components/HotspotLink.tsx` (wraps `OutboundLink`, reuses the `Open {name} on eBird (opens in a new tab)` name formula, `compact` + `truncate` modes, link color forced `--sr-accent`, `LOCATION_ID_RE` shape guard so a junk/personal id is plain — never a 404 link). Parameterless `useHotspotSet()` loads the backup via `observationsCache` and builds through the region-keyed `getHotspotSet` cache; lists call it once in the parent and pass `isHotspot` down. MapExplorer keeps its own `pin.kind` (authoritative from `ref/hotspot/geo`), not the Set.
 - **Staleness fix (two HIGH review findings):** a Set built empty (no key yet / transient outage) or a backup swap to a new region wouldn't refresh on a persistent tab. Fixed with a module-level invalidation signal — `invalidateHotspotSet()` (drops cache, bumps an epoch, notifies subscribers) fired from Settings' four eBird file/key save/delete points; `useHotspotSet` subscribes via `useSyncExternalStore`. No per-tab version threading.
 - **Verification:** frontend 967 / backend 133 tests (new: `hotspotSet.test.ts` incl. invalidation/refetch, `HotspotLink.test.tsx`, `useHotspotSet.test.tsx`, transport cache, backend route). A 4-dimension adversarial review (security / correctness / a11y / parity-tests) ran; 10 findings confirmed, 2 HIGH fixed, the rest low/nit (one — `computeLocationsSorted` name-keying — deferred as a Set-gated, never-404 known minor; see DECISIONS).
@@ -1078,7 +1078,7 @@ A Statistics tab (between Map Explorer and Settings in the tab bar) that derives
 
 **Life List Totals** — Headline counts (species, checklists, locations, years active, states/provinces, countries). First and last observation cards show date (linked to eBird checklist when submissionId matches `/^S\d+$/`) and location name. First species ever recorded. Life list accumulation chart with four-mode toggle: Weekly · Monthly · Yearly · Total. Total mode plots one step-line point per new lifer in chronological order; tooltip shows species name at each point.
 
-**Firsts & Milestones** — Biggest single day (species count links to eBird checklist); longest consecutive streak; longest dry spell; Shannon diversity index (H′ from numeric counts). Milestone pills at 43 thresholds (every 10 below 100, every 25 from 100–475, every 50 from 500–950, sparse from 1,000–3,000) show the species that hit the threshold and link to the checklist. Four color tiers: sage green (10–90), medium green (100–475), deep green (500–950), amber/gold (1,000+).
+**Firsts & Milestones** -- Life list milestone badges, one per threshold reached on a fixed ladder (every 10 below 100, every 25 from 100–475, every 50 from 500–950, sparse from 1,000–3,000), each showing the threshold, the species that reached it and the date, linked to its checklist; every badge is one size on an even grid, and a long name wraps inside its badge. Four color tiers: sage green (10–90), medium green (100–475), deep green (500–950), amber/gold (1,000+). The biggest single day, longest streak, longest dry spell and Shannon diversity index live in Highlights & Records.
 
 **Temporal Stats** — Checklists by year (bar + species count + best single-day species count [linked to checklist]); checklists by month (bar + donut pie with percentage labels); checklists by day-of-week (bars then pie chart + legend below, grouped Sat/Sun/Weekdays, percentage labels); checklists by start hour (bar, excludes no-time checklists, percentage labels). All bar rows show both count and percentage of total.
 
@@ -1621,14 +1621,14 @@ The architectural foundation for a signed, distributable Mac and Windows desktop
 **Migration phases (future pipeline sessions):**
 - Phase 1: Weather formatter golden tests — TypeScript formatter that matches Python output
 - Phase 2: `TauriStorage` → OS keychain (Mac Keychain / Windows Credential Manager via stronghold plugin) — **abandoned**: keychain requires `com.apple.security.keychain-access-groups` macOS entitlement (not configured) and fails silently; API keys moved to `tauri-plugin-fs` + `AppLocalData` in Phase 4
-- Phase 3: `TauriTransport` → direct external API calls (eBird, OpenWeather, Nominatim); API keys travel as HTTP headers, not URL params; CSP must be explicitly set before this ships
+- Phase 3: `TauriTransport` → direct external API calls (eBird, OpenWeather, Nominatim); API keys travel as HTTP headers, not URL params; the webview runs under an explicit content security policy
 - Phase 4: `TauriStorage` → app data directory via `tauri-plugin-fs` + `AppLocalData`; all persistent data (API keys, settings, file metadata, CSV files) stored in `AppLocalData/data/`; `mkdir` must be called before every write (directory may not pre-exist on fresh install). On Apple builds a file's metadata entry also carries an origin (which device uploaded it, and when a synced copy replaced the local one), `api-keys.json` carries a validated per-key `meta` entry (change time and origin, or a cleared marker) beside the values so every earlier reader of the document stays compatible, and the iCloud Sync preference, device id, the key-sync switch, a pending key removal and the last-known shared state per file and per key slot live under one `icloud-sync` key in the settings document.
 - Phase 5: Tauri updater plugin; in-app auto-update replaces the current GitHub releases check
 - Phase 6: backend decommission; fully standalone distribution
 
 **Tauri project files:**
 - `src-tauri/Cargo.toml` — package name "snowraven", identifier `com.snowraven.app`, Rust 1.77.2+
-- `src-tauri/tauri.conf.json` — window 1100×720 (min 800×600); `csp: null` (Phase 0 only — must be set before Phase 3); `devUrl: http://localhost:5173`
+- `src-tauri/tauri.conf.json` — window 1100×720 (min 800×600); an explicit content security policy (`app.security.csp`); `devUrl: http://localhost:5173`
 - `src-tauri/capabilities/default.json` — minimal permissions: `core:default` + `opener:default`
 - `package.json` (repo root) — `desktop:dev` and `desktop:build` scripts via `@tauri-apps/cli`
 - `frontend/vite.config.ts` — `clearScreen: false` for Tauri terminal compatibility
@@ -1659,7 +1659,7 @@ A pure TypeScript port of `backend/formatters/weather.py` with a golden test sui
 - NFR-01: No Node.js-only imports — `weatherFormatter.ts` must run in the browser and in Tauri (uses only `Intl` APIs)
 - NFR-02: No new npm packages — zero dependencies added
 
-**Phase 3 note:** The `ATTRIBUTION` constant in `weatherFormatter.ts` contains HTML. When Phase 3 (TauriTransport direct API calls) ships, the Tauri `csp: null` placeholder must be replaced with an explicit CSP before the attribution HTML is injected into the DOM.
+**Phase 3 note:** The `ATTRIBUTION` constant in `weatherFormatter.ts` contains HTML; the Tauri webview runs under an explicit CSP whose `script-src` refuses any script such markup could carry.
 
 ### In-App Help Documentation (complete -- May 2026)
 
@@ -1811,6 +1811,16 @@ separate static file server is needed for local/Pi deployment. For
 internet-facing installs, add a reverse proxy for HTTPS.
 The server accepts a browser write only from SnowRaven's own page and tells
 browsers never to show it inside another site's frame.
+
+**The Mac, Windows, iPhone and iPad apps run under a content security policy**
+Their one window runs only SnowRaven's own scripts and loads map tiles, link
+icons and Macaulay Library players only from the services it already used,
+while API calls go through the native http plugin, outside the page's policy.
+
+**Links that open a page in the browser send their own address**
+In the Mac, Windows, iPhone and iPad apps every link the app draws that opens a
+page in the browser sends the address it rendered when clicked, so a link in a
+re-sorted list always opens the row that was clicked.
 
 **Location name is not in the eBird checklist view response**
 The `/v2/product/checklist/view/{id}` endpoint does not return `locName` as a top-level field. Location name is sourced from the `result` field of the `ref/region/info` response (primary coordinate path), or from `loc.name` in the `product/lists` response (fallback path), or falls back to `locId`. Use `.get()` with fallbacks — never `data["locName"]` directly.

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { openExternalLink, openExternalUrl } from './openExternal'
+import { openExternalLink, openExternalUrl, openNewTabLink } from './openExternal'
 
 afterEach(() => {
   delete (window as Window & { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__
@@ -61,6 +61,22 @@ describe('openExternalUrl', () => {
     const preventDefault = vi.fn()
 
     openExternalLink({ ...eventShape, preventDefault }, 'https://ebird.org/checklist/S101')
+
+    expect(preventDefault).not.toHaveBeenCalled()
+    expect(invoke).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['a URL that does not parse', 'https://[bad'],
+    ['a scheme other than http(s)', 'javascript:alert(1)'],
+  ])('openNewTabLink leaves %s alone: no cancel and no dispatch (sortable-list-links-own-dispatch)', (_label, href) => {
+    // Whatever happened to such a link before still happens: it is not this
+    // handler's to open. The component rows cover the ordinary shapes.
+    const invoke = vi.fn().mockResolvedValue(undefined)
+    ;(window as Window & { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ = { invoke }
+    const preventDefault = vi.fn()
+
+    openNewTabLink({ nativeEvent: { preventDefault, defaultPrevented: false, button: 0, metaKey: false, altKey: false } }, href)
 
     expect(preventDefault).not.toHaveBeenCalled()
     expect(invoke).not.toHaveBeenCalled()
