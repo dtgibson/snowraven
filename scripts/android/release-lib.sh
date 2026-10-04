@@ -17,7 +17,11 @@
 SR_REPO="dtgibson/snowraven"
 SR_DEFAULT_PROPS="$HOME/.tauri/snowraven-android-keystore.properties"
 SR_DEFAULT_KEYSTORE="$HOME/.tauri/snowraven-android.p12"
-SR_WORK_DIR="/tmp/snowraven-android"
+# There is deliberately NO fixed work directory (security L2): a fixed path under
+# the shared /tmp is world-writable at the directory level, so a file could be
+# swapped between sign and attach. Each script that writes an APK makes its own
+# private directory with sr_work_dir (mktemp -d, mode 0700, under the per-user
+# $TMPDIR) and prints the path; the next script takes that path as an argument.
 
 sr_die() { echo "ERROR: $*" >&2; exit 1; }
 
@@ -25,6 +29,17 @@ sr_die() { echo "ERROR: $*" >&2; exit 1; }
 sr_cleanup() {
   if [ -n "${SR_SECRETS:-}" ]; then rm -rf "$SR_SECRETS"; fi
   if [ -n "${SR_TMP:-}" ]; then rm -rf "$SR_TMP"; fi
+}
+
+# A fresh private work directory for an output that outlives the script (the
+# downloaded CI artifact, the signed APK): mktemp -d under the per-user $TMPDIR,
+# mode 0700, NOT removed on exit. Prints the path; the caller echoes it in its
+# last line so the next step is given it explicitly.
+sr_work_dir() {
+  local d
+  d="$(mktemp -d "${TMPDIR:-/tmp}/sr-android-$1.XXXXXX")" || sr_die "mktemp failed"
+  chmod 700 "$d"
+  printf '%s\n' "$d"
 }
 
 # Repository root, the toolchain pins, and the version pair from tauri.conf.json.
@@ -149,6 +164,19 @@ sr_badging() {
   APK_VCODE="$(printf '%s\n' "$out" | sed -n "s/^package: .* versionCode='\([^']*\)'.*/\1/p")"
   APK_VNAME="$(printf '%s\n' "$out" | sed -n "s/^package: .* versionName='\([^']*\)'.*/\1/p")"
   if printf '%s\n' "$out" | grep -q '^application-debuggable'; then APK_DEBUGGABLE=yes; else APK_DEBUGGABLE=no; fi
+}
+
+# The configured keystore's own certificate, as the lowercase hex SHA-256 the
+# APK signer digest is compared against (security L2). Read from the keystore
+# itself with keytool on every run, so the first release is bound to the user's
+# key exactly as every later one, with no previously recorded value needed.
+# Needs sr_resolve_keystore first. Sets KS_CERT_SHA256; returns 1 on failure.
+sr_keystore_cert_sha256() {
+  local out
+  out="$(keytool -list -v -storetype PKCS12 -keystore "$KS_FILE" -storepass:file "$KS_PASS_FILE" -alias "$KS_ALIAS" 2>&1)" \
+    || { printf '%s\n' "$out" | head -3 >&2; return 1; }
+  KS_CERT_SHA256="$(printf '%s\n' "$out" | sed -n 's/^[[:space:]]*SHA256: //p' | head -1 | tr 'A-F' 'a-f' | tr -d ': \r')"
+  [ "${#KS_CERT_SHA256}" -eq 64 ]
 }
 
 # The APK's first signer: SIGNER_SHA256 and SIGNER_DN. Returns 1 when it does not verify.

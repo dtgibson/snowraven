@@ -5,31 +5,34 @@
 # release and creates it; this script only ever runs `gh release upload`, and
 # stops when the release does not exist yet.
 #
-# Usage:  ANDROID_DEVICE_CHECK=passed scripts/android/attach.sh [<signed.apk>]
-#   <signed.apk> defaults to /tmp/snowraven-android/<version>/SnowRaven_<version>_android_universal.apk
-#   (sign.sh's default output)
-#   and must carry exactly that file name, which becomes the asset name.
+# Usage:  ANDROID_DEVICE_CHECK=passed ANDROID_CHECKED_SHA256=<hex> scripts/android/attach.sh <signed.apk>
+#   <signed.apk> is the path sign.sh printed as SIGNED_APK= (there is no default
+#   and no fixed work directory, security L2) and must carry exactly the file
+#   name SnowRaven_<version>_android_universal.apk, which becomes the asset name.
 #
 # Required:
 #   ANDROID_DEVICE_CHECK=passed    the user reported the device check passed, or
 #   ANDROID_DEVICE_CHECK=partial   no device was available and attaching anyway is
 #                                  a written decision (CLAUDE.md's Android record)
-# Optional, and set at every real ship:
-#   ANDROID_CHECKED_SHA256=<hex>        SHA-256 of the file the user checked; must equal this file's
+#   ANDROID_CHECKED_SHA256=<hex>   SHA-256 of the file the user checked; must equal this file's
+# Optional:
 #   SNOWRAVEN_ANDROID_SIGNER_SHA256=<hex>  the signer digest recorded at the previous release
 #   DRY_RUN=1                           every check, then print the upload instead of running it
 #
 # Refuses: a missing release, an asset of that name already on it, an APK that
-# does not verify or does not match tauri.conf.json, and an APK signed by the
-# Android debug key or by a certificate whose subject says it is not for release
-# (the throwaway emulator key). After the upload it downloads the asset back and
-# compares SHA-256 with the local file.
+# does not verify or does not match tauri.conf.json, an APK whose signer is not
+# the configured keystore's own certificate (read with keytool on every run, so
+# the first release is bound to the user's key like every later one), and, as a
+# second line, an APK signed by the Android debug key or by a certificate whose
+# subject says it is not for release (the throwaway emulator key). After the
+# upload it downloads the asset back and compares SHA-256 with the local file.
 set -euo pipefail
 . "$(dirname "$0")/release-lib.sh"
 CALLER_PWD="$PWD"
 sr_init
 sr_build_tools
-APK="${1:-$SR_WORK_DIR/$VERSION/$SR_SIGNED_NAME}"
+APK="${1:-}"
+[ -n "$APK" ] || sr_die "usage: ANDROID_DEVICE_CHECK=passed ANDROID_CHECKED_SHA256=<hex> scripts/android/attach.sh <signed.apk> (the SIGNED_APK= path sign.sh printed)"
 case "$APK" in /*) ;; *) APK="$CALLER_PWD/$APK" ;; esac
 
 case "${ANDROID_DEVICE_CHECK:-}" in
@@ -37,6 +40,8 @@ case "${ANDROID_DEVICE_CHECK:-}" in
   partial) echo "warning: ANDROID_DEVICE_CHECK=partial: attaching without a device check; the decision and its reason belong in CLAUDE.md's Android record" >&2 ;;
   *) sr_die "the user's device check of this exact APK comes first (the release skill's Android section). Set ANDROID_DEVICE_CHECK=passed once they report it, or =partial with the written decision" ;;
 esac
+[ -n "${ANDROID_CHECKED_SHA256:-}" ] \
+  || sr_die "ANDROID_CHECKED_SHA256 is not set: the attach needs the SHA-256 of the exact file the user checked on their device (sign.sh printed it as SIGNED_APK_SHA256=)"
 
 [ -f "$APK" ] || sr_die "$APK does not exist; run sign.sh"
 [ "$(basename "$APK")" = "$SR_SIGNED_NAME" ] || sr_die "the file is named $(basename "$APK"); the asset must be $SR_SIGNED_NAME"
@@ -49,6 +54,11 @@ sr_badging "$APK" || sr_die "aapt2 could not read $APK"
   || sr_die "the APK is $APK_VNAME ($APK_VCODE); tauri.conf.json says $VERSION ($VERSION_CODE)"
 [ "$APK_DEBUGGABLE" = "no" ] || sr_die "the APK is debuggable"
 sr_signer "$APK" || sr_die "the APK does not verify; run sign.sh"
+sr_resolve_keystore || exit 1
+sr_keystore_cert_sha256 || sr_die "keytool could not read the certificate of alias '$KS_ALIAS' in $KS_FILE"
+[ "$SIGNER_SHA256" = "$KS_CERT_SHA256" ] \
+  || sr_die "the APK's signer is $SIGNER_SHA256 but the keystore's certificate is $KS_CERT_SHA256 (alias '$KS_ALIAS' in $KS_FILE); this file was not signed with the configured key"
+echo "  ok  signer equals the keystore's certificate"
 case "$SIGNER_DN" in
   *"Android Debug"*|*THROWAWAY*|*"not for release"*) sr_die "the APK is signed by '$SIGNER_DN', which is not the release key" ;;
 esac
@@ -57,13 +67,9 @@ if [ -n "${SNOWRAVEN_ANDROID_SIGNER_SHA256:-}" ]; then
   [ "$SIGNER_SHA256" = "$want" ] || sr_die "the signer is $SIGNER_SHA256, not the recorded $want"
 fi
 HAVE_SHA="$(sr_sha256 "$APK")"
-if [ -n "${ANDROID_CHECKED_SHA256:-}" ]; then
-  [ "$HAVE_SHA" = "$(printf '%s' "$ANDROID_CHECKED_SHA256" | tr 'A-F' 'a-f')" ] \
-    || sr_die "this file ($HAVE_SHA) is not the file the user checked ($ANDROID_CHECKED_SHA256)"
-  echo "  ok  byte-identical to the checked file"
-else
-  echo "warning: ANDROID_CHECKED_SHA256 not set; the file is not compared with the one the user checked" >&2
-fi
+[ "$HAVE_SHA" = "$(printf '%s' "$ANDROID_CHECKED_SHA256" | tr 'A-F' 'a-f')" ] \
+  || sr_die "this file ($HAVE_SHA) is not the file the user checked ($ANDROID_CHECKED_SHA256)"
+echo "  ok  byte-identical to the checked file"
 echo "  ok  $APK_PKG $APK_VNAME ($APK_VCODE), signer $SIGNER_SHA256"
 
 command -v gh >/dev/null 2>&1 || sr_die "gh is not on PATH"

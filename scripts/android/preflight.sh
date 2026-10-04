@@ -14,8 +14,9 @@
 # whose package, versionName and versionCode match and which is not debuggable.
 #
 # Usage:  scripts/android/preflight.sh
-# The verified unsigned APK lands in /tmp/snowraven-android/<version>/ci/; its
-# path is the last line printed (UNSIGNED_APK=...), which is sign.sh's first argument.
+# The verified unsigned APK lands in a fresh private directory (mktemp -d under
+# $TMPDIR, mode 0700; never a fixed /tmp path, security L2); its path is the last
+# line printed (UNSIGNED_APK=...), which is sign.sh's first argument.
 #
 # Toggles (dry runs only; a real ship sets neither):
 #   ANDROID_APK=<path>   check this local APK instead of downloading the CI artifact
@@ -99,8 +100,7 @@ else
   if [ -z "$RUN_ID" ]; then
     fail "no successful Android Build run for $TAG's commit ${TAG_SHA:0:12}; wait for it, or re-run it"
   else
-    DL="$SR_WORK_DIR/$VERSION/ci"
-    rm -rf "$DL" && mkdir -p "$DL"
+    DL="$(sr_work_dir ci)"
     gh run download "$RUN_ID" --repo "$SR_REPO" -n android-build -D "$DL"
     COUNT="$(find "$DL" -name '*.apk' | wc -l | tr -d ' ')"
     if [ "$COUNT" != "1" ]; then fail "the android-build artifact of run $RUN_ID holds $COUNT APKs, not exactly one"
