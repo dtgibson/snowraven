@@ -190,8 +190,9 @@ changes to readme or website without my okay". Nothing in `README.md` or
   into a `ModalDialog` waits for focus inside the dialog); whether this row
   waits for that is worth a look, and it is noted for the roadmap rather
   than fixed here.
-- **App Store leg: deliberately pending.** No 1.0.50 version record was
-  created and no What's New was written. Live query after the upload: record
+- **App Store leg: deliberately pending at this point** (resolved in
+  section 7, below). No 1.0.50 version record was created and no What's New
+  was written. Live query after the upload: record
   `99e3f9ff` (1.0.49) is still `WAITING_FOR_REVIEW` as submission
   `f8156470`; 1.0.47 and earlier are `READY_FOR_SALE`. The next step is the
   user's own device check of TestFlight build 1.0.50.1, then their choice
@@ -199,3 +200,86 @@ changes to readme or website without my okay". Nothing in `README.md` or
   with a 1.0.50 What's New line shown to them for approval first. Until that
   choice is made and written into CLAUDE.md's App Store list, 1.0.50 is a
   VALID build with no record of its own pending a decision, not a skip.
+
+## 7. App Store: 1.0.49 rolled into 1.0.50 (2026-10-03, Pacific)
+
+**The user's decisions**, relayed by the orchestrator: they checked
+TestFlight build 1.0.50.1 on their own device ("app looks good"), chose to
+roll 1.0.49 into 1.0.50, and approved the What's New word for word ("looks
+good"). The approved text and the route are in `whats-new.md` beside this
+file. No agent touched a physical device.
+
+All App Store Connect calls used the metadata key, from one script, one step
+per run. Every write came only after the read-only check before it.
+
+- **Precheck (read-only).**
+  - Record `99e3f9ff-4e90-4df0-88c4-a9fe13827b01` was 1.0.49,
+    `WAITING_FOR_REVIEW`, `AFTER_APPROVAL`, on build 1.0.49.1, as submission
+    `f8156470-27cf-4865-9d55-c50e7495f4e6` (`WAITING_FOR_REVIEW`).
+  - Build 1.0.50.1 (`2cac6344-8762-4d25-9edb-96c817bc8abb`) was `VALID`,
+    `usesNonExemptEncryption` false.
+  - The record's one localization is en-US. Its live What's New was
+    byte-identical to the first three approved paragraphs, which confirms
+    those are 1.0.49's approved text unchanged.
+  - A baseline read-back matched every listing field except What's New, which
+    proves the comparison can tell a difference.
+- **Withdrawn.** `DELETE /v1/appStoreVersionSubmissions/99e3f9ff...`: HTTP
+  204. The record read `DEVELOPER_REJECTED`, and submission `f8156470` went
+  `CANCELING`, then `COMPLETE`.
+- **Retargeted and repointed.** `versionString` 1.0.49 to 1.0.50 (HTTP 200),
+  build relationship to 1.0.50.1 (`2cac6344`, HTTP 204). The record read 1.0.50,
+  `PREPARE_FOR_SUBMISSION`, on build 1.0.50.1.
+- **What's New.** Written by script from `whats-new.md`, never retyped: four
+  paragraphs separated by single blank lines, 963 characters (HTTP 200).
+  Read back byte-identical.
+- **Read back against `appstore/LISTING.md` and `appstore/REVIEW_NOTES.md`,
+  after the writes and again after submitting.** Everything matched, and
+  nothing was restored or changed:
+  - copyright (16);
+  - description (3,233), keywords (97) and promotional text (137, which
+    carried over on this retargeted record);
+  - marketing and support URLs;
+  - on both app-info records (the live `READY_FOR_SALE` one and the editable
+    one): name, subtitle, privacy policy URL, and categories Reference
+    (primary) and Weather (secondary);
+  - the App Review notes: byte-identical to the "Notes for the reviewer"
+    block of `REVIEW_NOTES.md` as committed, 3,898 characters, with the
+    contact details present;
+  - `releaseType` `AFTER_APPROVAL`, no earliest release date, no phased
+    release.
+- **Screenshots unchanged.** Both sets (`APP_IPHONE_67`,
+  `APP_IPAD_PRO_3GEN_129`, six each) match `appstore/screenshots/iphone-6.9/`
+  and `ipad-13/` by md5: 12 of 12, in order, all `COMPLETE`. No published
+  screenshot shows the milestone badges (section 4).
+- **Submitted.** `POST /v1/reviewSubmissions`, then
+  `POST /v1/reviewSubmissionItems`, then `PATCH submitted: true`: review
+  submission **`7118f6a7-5518-4e9c-8092-fab447bbdcc3`**, submitted
+  2026-10-04T05:53:58Z (22:53 Pacific on 2026-10-03), `WAITING_FOR_REVIEW`.
+  The record reads 1.0.50, `WAITING_FOR_REVIEW`, on build 1.0.50.1,
+  `AFTER_APPROVAL`, no phased release.
+
+**So 1.0.49 holds VALID build 1.0.49.1 (delivery `3eddc6b9`) and no version
+record of its own, by rollup, not by skip.** Record `99e3f9ff` was withdrawn
+from submission `f8156470` while `WAITING_FOR_REVIEW`, retargeted, repointed
+at build 1.0.50.1 and resubmitted as `7118f6a7`. It carries 1.0.48 and
+1.0.49 by rollup, and 1.0.50.
+
+**Reconciliation (live query after submitting).**
+- There are 21 version records. 1.0.50 (`99e3f9ff`) is `WAITING_FOR_REVIEW`;
+  every other record is `READY_FOR_SALE`.
+- Of the 38 TestFlight trains from 1.0.13 to 1.0.50, 18 have no record of
+  their own:
+  - 1.0.15, 1.0.16, 1.0.18 (skips);
+  - 1.0.20, 1.0.22, 1.0.26, 1.0.29, 1.0.33, 1.0.39, 1.0.41, 1.0.42, 1.0.43,
+    1.0.44, 1.0.46, 1.0.48 (rollups);
+  - 1.0.25 (deferral) and 1.0.37 (TestFlight-only);
+  - 1.0.49, now by rollup into 1.0.50.
+- Each of the first 17 is already in CLAUDE.md's App Store list, and 1.0.49
+  is the entry this ship adds. The live query leaves no unaccounted gap
+  between 1.0.13 and 1.0.50.
+
+**For the Chronicler (CLAUDE.md's App Store list).** Two entries are owed,
+not written here:
+- add 1.0.49 into 1.0.50 to the inline rollup list;
+- add an "ENTRY FROM THE 1.0.50 SHIP" at the end of the bullet, from this
+  section.
