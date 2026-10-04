@@ -177,7 +177,24 @@ describe('the manifest (FR-24, NFR-05, QA-24, QA-56)', () => {
   it('the launcher icon is the committed adaptive icon', () => {
     expect(xmlTags(manifest, 'application')[0]!['android:icon']).toBe('@mipmap/ic_launcher')
   })
+
+  // QA-52, NFR-01: Android System WebView's Safe Browsing is on by default and
+  // checks the page's URLs with Google. The opt-out is application-level
+  // meta-data, so it must sit directly in <application>: inside the activity or
+  // the provider the WebView never reads it.
+  it('turns off the WebView\'s Safe Browsing with application-level meta-data', () => {
+    expect(appLevelMetaData(manifest)).toContainEqual({
+      'android:name': 'android.webkit.WebView.EnableSafeBrowsing',
+      'android:value': 'false',
+    })
+  })
 })
+
+function appLevelMetaData(xml: string): Array<Record<string, string>> {
+  const body = stripXmlComments(xml).match(/<application\b[^>]*>([\s\S]*)<\/application>/)?.[1]
+  if (body === undefined) throw new Error('manifest: no <application> element')
+  return xmlTags(body.replace(/<(activity|provider)\b[\s\S]*?<\/\1>/g, ''), 'meta-data')
+}
 
 describe('the launch state (FR-31, FR-32, design-spec section 1)', () => {
   const style = (rel: string) => {
@@ -186,24 +203,37 @@ describe('the launch state (FR-31, FR-32, design-spec section 1)', () => {
     return items
   }
 
-  it('API 26 to 30, light and dark alike: the green layer-list and light status glyphs', () => {
+  // Both bars are named explicitly (QA-31): left to the MaterialComponents
+  // parent, the API 26 launch frames drew its purple status bar and a black
+  // navigation bar before edge-to-edge applied.
+  it('API 26 to 30, light and dark alike: the green layer-list, green bars, windowLightStatusBar off', () => {
     for (const dir of ['values', 'values-night']) {
       expect(style(`${RES}/${dir}/themes.xml`), dir).toEqual({
         'android:windowBackground': '@drawable/sr_launch_background',
         'android:windowLightStatusBar': 'false',
+        'android:statusBarColor': '@color/ic_launcher_background',
+        'android:navigationBarColor': '@color/ic_launcher_background',
       })
     }
   })
 
-  it('API 31 and later, light and dark alike: the platform splash on the green', () => {
+  it('API 31 and later, light and dark alike: the platform splash on the green, green bars', () => {
     for (const dir of ['values-v31', 'values-night-v31']) {
       expect(style(`${RES}/${dir}/themes.xml`), dir).toEqual({
         'android:windowBackground': '@color/ic_launcher_background',
         'android:windowLightStatusBar': 'false',
+        'android:statusBarColor': '@color/ic_launcher_background',
+        'android:navigationBarColor': '@color/ic_launcher_background',
         'android:windowSplashScreenBackground': '@color/ic_launcher_background',
         'android:windowSplashScreenAnimatedIcon': '@mipmap/ic_launcher_foreground',
       })
     }
+  })
+
+  it('no template color survives in the launch resources: colors.xml defines none, the launcher green is #2D8653', () => {
+    expect(xmlTags(readRepo(`${RES}/values/colors.xml`), 'color')).toEqual([])
+    expect(stripXmlComments(readRepo(`${RES}/values/ic_launcher_background.xml`)))
+      .toMatch(/<color name="ic_launcher_background">#2D8653<\/color>/)
   })
 
   it('the layer-list centers the 108dp foreground on the launcher green', () => {
@@ -223,6 +253,21 @@ describe('MainActivity.kt: the native half of the inset and theme contracts (des
     expect(mainActivity).toMatch(/enableEdgeToEdge\(\)\s*\n\s*super\.onCreate/)
     const hook = kotlinBlock(mainActivity, 'override fun onWebViewCreate(webView: WebView)')
     expect(kotlinStatements(hook)).toEqual(['installInsets(webView)', 'installThemeChannel(webView)'])
+  })
+
+  // The token rows below cannot see a registration that is present but never
+  // reached: an early `return` at the top of installInsets compiles and leaves
+  // the listener dead (QA-03 residual). So each install method's statements are
+  // pinned: installInsets is the registration and nothing else, and
+  // installThemeChannel returns early only on the feature check.
+  it('both registrations are reached: no statement runs before the inset listener, only the feature check before the theme listener', () => {
+    const insets = kotlinStatements(kotlinBlock(mainActivity, 'private fun installInsets(webView: WebView)'))
+    expect(insets).toHaveLength(1)
+    expect(insets[0]).toMatch(/^ViewCompat\.setOnApplyWindowInsetsListener\(webView\) \{/)
+    const channel = kotlinStatements(kotlinBlock(mainActivity, 'private fun installThemeChannel(webView: WebView)'))
+    expect(channel).toHaveLength(2)
+    expect(channel[0]).toBe('if (!WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) return')
+    expect(channel[1]).toMatch(/^WebViewCompat\.addWebMessageListener\(/)
   })
 
   it('sets exactly the four inset properties the stylesheet reads, and the keyboard class it reads', () => {
