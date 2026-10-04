@@ -26,9 +26,19 @@
 // Session-scoped and single-flight: the first tile to mount probes once, every
 // other tile shares the result. This is why /media/embed-status is NOT in
 // transport's CACHED_GET_PATHS (one caching layer per call).
+//
+// A SECOND reading joins the same gate (android-release security M1): on
+// Android the Tauri IPC bridge reaches every frame, so no third-party iframe
+// may mount there at all. `inlineFrameBlockedHere()` is that platform reading,
+// and `useMlEmbedGate` folds it in: on Android it reports blocked without ever
+// probing (no network call for a frame that will not be mounted), and
+// `MediaFrame` renders the same local-metadata-plus-link fallback it renders
+// while Cornell's gate is up. The platform predicate itself lives in
+// lib/platformGates.ts (`allowInlineMediaFrame`) beside the other Android gates.
 
 import { useEffect, useSyncExternalStore } from 'react'
 import { transport } from './transport'
+import { allowInlineMediaFrame } from './platformGates'
 
 export type EmbedGateState = 'unknown' | 'open' | 'gated'
 
@@ -75,18 +85,31 @@ export function probeEmbedGate(catalogId: string): Promise<void> {
 }
 
 /**
- * True when the embed endpoint is gated and an inline player would show
- * Cornell's error card. Pass an empty id to skip the probe (e.g. when embedded
- * media is switched off, so a disabled surface makes no network call).
+ * True where this platform may not host a third-party iframe at all (Android,
+ * see the header). Read at render time, like the other platform gates; false
+ * outside Tauri and on every Apple target.
+ */
+export function inlineFrameBlockedHere(): boolean {
+  return !allowInlineMediaFrame()
+}
+
+/**
+ * True when no inline player may mount: the embed endpoint is gated and a
+ * player would show Cornell's error card, or this platform blocks third-party
+ * frames outright (Android, which also skips the probe). Pass an empty id to
+ * skip the probe (e.g. when embedded media is switched off, so a disabled
+ * surface makes no network call).
  */
 export function useMlEmbedGate(catalogId: string): boolean {
   const current = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot)
+  const blockedHere = inlineFrameBlockedHere()
 
   useEffect(() => {
+    if (blockedHere) return
     void probeEmbedGate(catalogId)
-  }, [catalogId])
+  }, [catalogId, blockedHere])
 
-  return current === 'gated'
+  return blockedHere || current === 'gated'
 }
 
 /** Test seam only — resets the session-scoped probe. */

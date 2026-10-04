@@ -15,8 +15,18 @@ vi.mock('../lib/transport', () => ({
   transport: { get: (...args: unknown[]) => transportGet(...args) },
 }))
 
+// The platform probe, mocked so the Android block below can flip it. Every
+// other block runs with it false (web/desktop/iOS all read false here).
+const isAndroidMock = vi.fn(() => false)
+vi.mock('../lib/platform', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../lib/platform')>()
+  return { ...actual, isAndroid: () => isAndroidMock() }
+})
+
 beforeEach(() => {
   resetEmbedGateForTests()
+  isAndroidMock.mockReset()
+  isAndroidMock.mockReturnValue(false)
   transportGet.mockReset()
   // Default: the gate probe never settles, so these tests see the pre-probe
   // state (not gated → the real frame mounts) with no stray async re-render.
@@ -170,6 +180,61 @@ describe('MediaFrame — Cornell bot gate', () => {
 
     await act(async () => { await Promise.resolve() })
     expect(transportGet).not.toHaveBeenCalled()
+  })
+})
+
+// android-release security M1: on Android, wry hands every iframe the Tauri IPC
+// bridge and attributes its calls to the main frame, so a third-party frame
+// would run with the app's own file, clipboard, opener and fetch grants. The
+// platform reading joins the same gate the Cornell probe uses, so the frame
+// component needs no branch of its own: with the probe answering OPEN (the
+// case that would mount a player everywhere else), Android still mounts none.
+describe('MediaFrame — Android mounts no third-party frame (security M1)', () => {
+  const frameProps = {
+    format: 'Photo' as const,
+    title: 't',
+    Icon: ImageIcon,
+    heightClass: 'sr-media-iframe--photo',
+    compact: false,
+  }
+
+  it('renders the fallback link and NO iframe, even with the embed endpoint open', async () => {
+    isAndroidMock.mockReturnValue(true)
+    transportGet.mockResolvedValue({ gated: false })
+    render(<MediaFrame embedAllowed catalogId="662004247" {...frameProps} />)
+
+    await act(async () => { await Promise.resolve() })
+    expect(document.querySelector('iframe')).toBeNull()
+    expect(document.querySelector('.sr-media-shimmer')).toBeNull()
+    expect(screen.getByText('Media opens on Macaulay Library')).toBeTruthy()
+    expect(screen.getByRole('link', { name: /View Photo on Macaulay Library/i }).getAttribute('href'))
+      .toBe('https://macaulaylibrary.org/asset/662004247')
+  })
+
+  it('never probes the embed endpoint for a frame it will not mount', async () => {
+    isAndroidMock.mockReturnValue(true)
+    transportGet.mockResolvedValue({ gated: false })
+    render(<MediaFrame embedAllowed catalogId="662004247" {...frameProps} />)
+
+    await act(async () => { await Promise.resolve() })
+    expect(transportGet).not.toHaveBeenCalled()
+  })
+
+  it('still constructs no iframe when the eligibility gate is closed as well', () => {
+    isAndroidMock.mockReturnValue(true)
+    const { container } = render(<MediaFrame embedAllowed={false} catalogId="662004247" {...frameProps} />)
+    expect(container.querySelector('iframe')).toBeNull()
+    expect(container.textContent).toBe('')
+  })
+
+  // The control leg: the identical render with the probe false mounts the frame,
+  // so the three rows above are reading the platform gate and not a stuck probe.
+  it('control: off Android the same render mounts the real frame', async () => {
+    transportGet.mockResolvedValue({ gated: false })
+    render(<MediaFrame embedAllowed catalogId="662004247" {...frameProps} />)
+    await waitFor(() => expect(transportGet).toHaveBeenCalled())
+    expect(document.querySelector('iframe')).toBeTruthy()
+    expect(screen.queryByText('Media opens on Macaulay Library')).toBeNull()
   })
 })
 

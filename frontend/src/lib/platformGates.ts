@@ -61,3 +61,23 @@ export function showICloudSync(): boolean {
 export function showLocationControls(): boolean {
   return !(isAndroid() && ANDROID_LOCATION_BRANCH === 'B');
 }
+
+// android-release security M1: on Android, wry 0.55.1 injects every Tauri
+// initialization script into EVERY frame (`addDocumentStartJavaScript(...,
+// setOf("*"))`, ignoring `for_main_frame_only`), exposes the `ipc` bridge
+// through `addJavascriptInterface`, which Android hands to every frame, and
+// stamps each message with the MAIN frame's URL, so a cross-origin iframe's
+// calls pass `is_local_url` and run with the main window's capabilities (the
+// fs grants under $APPLOCALDATA, clipboard write, opener, http fetch). The
+// Macaulay Library embed is the app's only third-party frame, so on Android no
+// inline player is mounted and each item renders as its local metadata plus
+// the View on Macaulay Library link, opened in the browser. iOS and macOS honor
+// main-frame-only scripts and attribute IPC by the frame's real origin, and
+// web/Pi has no IPC at all, so every other target keeps the player. Consumed by
+// lib/mlEmbedGate.ts, the one gate every inline-media surface already passes
+// through, never by a component directly. Reversal condition: a locked wry
+// that restricts main-frame-only scripts to the app origin on Android and
+// attributes IPC by frame, then a re-review (pipeline/android-release/decisions.md).
+export function allowInlineMediaFrame(): boolean {
+  return !isAndroid();
+}

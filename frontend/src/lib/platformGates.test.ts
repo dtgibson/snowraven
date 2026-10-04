@@ -24,6 +24,7 @@ import {
   supportsAppRelaunch,
   showICloudSync,
   showLocationControls,
+  allowInlineMediaFrame,
 } from './platformGates'
 
 afterEach(() => {
@@ -144,5 +145,31 @@ describe('showLocationControls (FR-56)', () => {
     expect(showLocationControls()).toBe(true)
     vi.mocked(isIOS).mockReturnValue(false)
     expect(showLocationControls()).toBe(true)
+  })
+})
+
+// android-release security M1: on Android wry hands every iframe the Tauri IPC
+// bridge and attributes its calls to the main frame, so the one third-party
+// frame (the Macaulay Library embed) is never mounted there. Every other
+// target keeps the player: iOS and macOS attribute IPC by frame, web/Pi has
+// no IPC. The gate is consumed by lib/mlEmbedGate.ts, not by a component.
+describe('allowInlineMediaFrame (security M1)', () => {
+  it('is false on Android', () => {
+    vi.mocked(isTauri).mockReturnValue(true)
+    vi.mocked(isAndroid).mockReturnValue(true)
+    expect(allowInlineMediaFrame()).toBe(false)
+  })
+
+  it('is true on iOS, macOS, Windows desktop and web', () => {
+    vi.mocked(isTauri).mockReturnValue(true)
+    vi.mocked(isIOS).mockReturnValue(true)
+    expect(allowInlineMediaFrame()).toBe(true)
+    vi.mocked(isIOS).mockReturnValue(false)
+    vi.mocked(isMacOS).mockReturnValue(true)
+    expect(allowInlineMediaFrame()).toBe(true)
+    vi.mocked(isMacOS).mockReturnValue(false)
+    expect(allowInlineMediaFrame()).toBe(true)
+    vi.mocked(isTauri).mockReturnValue(false)
+    expect(allowInlineMediaFrame()).toBe(true)
   })
 })

@@ -6,12 +6,19 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 
 const get = vi.fn()
 vi.mock('./transport', () => ({ transport: { get: (...args: unknown[]) => get(...args) } }))
+const isAndroidMock = vi.fn(() => false)
+vi.mock('./platform', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./platform')>()
+  return { ...actual, isAndroid: () => isAndroidMock() }
+})
 
-import { probeEmbedGate, getEmbedGateState, resetEmbedGateForTests } from './mlEmbedGate'
+import { probeEmbedGate, getEmbedGateState, resetEmbedGateForTests, inlineFrameBlockedHere } from './mlEmbedGate'
 
 beforeEach(() => {
   resetEmbedGateForTests()
   get.mockReset()
+  isAndroidMock.mockReset()
+  isAndroidMock.mockReturnValue(false)
 })
 
 describe('probeEmbedGate', () => {
@@ -68,6 +75,23 @@ describe('probeEmbedGate', () => {
   it('fails OPEN when the probe errors, so the real embed still mounts', async () => {
     get.mockRejectedValue(new Error('offline'))
     await expect(probeEmbedGate('123')).resolves.toBeUndefined()
+    expect(getEmbedGateState()).toBe('open')
+  })
+})
+
+// android-release security M1: the platform reading joins this gate. The hook's
+// own behaviour (blocked without a probe) is asserted through MediaFrame in
+// components/MediaEmbed.test.tsx; this pins the predicate the hook reads.
+describe('inlineFrameBlockedHere (security M1)', () => {
+  it('is true on Android and false elsewhere', () => {
+    expect(inlineFrameBlockedHere()).toBe(false)
+    isAndroidMock.mockReturnValue(true)
+    expect(inlineFrameBlockedHere()).toBe(true)
+  })
+
+  it('the probe itself is unchanged by the platform: it still fails open off Android', async () => {
+    get.mockRejectedValue(new Error('offline'))
+    await probeEmbedGate('123')
     expect(getEmbedGateState()).toBe('open')
   })
 })

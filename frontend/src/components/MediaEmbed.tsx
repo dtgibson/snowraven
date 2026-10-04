@@ -19,7 +19,7 @@ import type { MediaType } from '../types'
 import { mlAssetUrl } from '../lib/mlCatalog'
 import { OutboundLink } from './OutboundLink'
 import { MEDIA_CATALOG_ID_RE, EMBED_GIVE_UP_MS } from '../lib/mediaEmbed'
-import { useMlEmbedGate } from '../lib/mlEmbedGate'
+import { inlineFrameBlockedHere, useMlEmbedGate } from '../lib/mlEmbedGate'
 
 export const EMBEDDED_MEDIA_DISABLED_MESSAGE = 'Embedded media is disabled in Settings.'
 
@@ -51,13 +51,17 @@ export function MediaFallback({ catalogId, format, compact, reason = 'offline' }
   catalogId: string
   format: MediaType
   compact: boolean
-  /** Why the embed isn't showing — drives the placeholder message. */
-  reason?: 'offline' | 'load-failed' | 'blocked'
+  /** Why the embed isn't showing — drives the placeholder message. `platform`
+   *  is the permanent Android case (no third-party frame may mount there, see
+   *  lib/mlEmbedGate.ts), so its sentence says where the media opens rather
+   *  than "right now". */
+  reason?: 'offline' | 'load-failed' | 'blocked' | 'platform'
 }) {
   const canLink = MEDIA_CATALOG_ID_RE.test(catalogId)
   const message = reason === 'blocked'
     ? "Media can't play here right now"
-    : reason === 'load-failed' ? "Media couldn't load" : 'Media unavailable offline'
+    : reason === 'platform' ? 'Media opens on Macaulay Library'
+      : reason === 'load-failed' ? "Media couldn't load" : 'Media unavailable offline'
   return (
     <div style={{
       height: '100%', width: '100%', display: 'flex', flexDirection: 'column',
@@ -141,9 +145,19 @@ export function MediaFrame({ catalogId, format, title, Icon, heightClass, embedA
   if (!embedAllowed) return null
 
   // Gated: our own card instead of Cornell's. No iframe is mounted at all, so we
-  // are not hammering a gate they put up deliberately.
+  // are not hammering a gate they put up deliberately. The same branch carries
+  // the Android reading (the gate folds it in; android-release security M1):
+  // there the Tauri IPC bridge reaches every frame, so no third-party iframe
+  // is ever constructed and the card says where the media opens instead.
   if (gated) {
-    return <MediaFallback catalogId={catalogId} format={format} compact={compact} reason="blocked" />
+    return (
+      <MediaFallback
+        catalogId={catalogId}
+        format={format}
+        compact={compact}
+        reason={inlineFrameBlockedHere() ? 'platform' : 'blocked'}
+      />
+    )
   }
 
   return (
