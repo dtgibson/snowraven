@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
     <!-- The permission set follows the location branch (android-release schema
          3.4 and 4.6; frontend/src/lib/androidLocation.ts), and
          androidProjectPins.test.ts pins it to ANDROID_LOCATION_BRANCH. Branch B
@@ -24,6 +25,13 @@
         <meta-data
             android:name="android.webkit.WebView.EnableSafeBrowsing"
             android:value="false" />
+        <!-- The WebView uploads usage statistics for this app on phones whose
+             owner consented to usage and diagnostics reporting. This is the
+             documented application-level opt-out for every user of this app;
+             it does not touch crash reports (android-release security M3). -->
+        <meta-data
+            android:name="android.webkit.WebView.MetricsOptOut"
+            android:value="true" />
         <activity
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode"
             android:launchMode="singleTask"
@@ -44,6 +52,25 @@
           <meta-data
             android:name="android.support.FILE_PROVIDER_PATHS"
             android:resource="@xml/file_paths" />
+        </provider>
+
+        <!-- AndroidX's startup provider (merged in by appcompat) runs the
+             emoji2 initializer at every launch, which asks the phone's font
+             provider for "Noto Color Emoji Compat"; on a phone with Play
+             services that provider is com.google.android.gms.fonts, an IPC
+             from this app's process to a Google service (android-release
+             security M2, measured in measurements/emoji-initializer/). The
+             WebView draws its own text and emoji and no native text view shows
+             content, so the initializer is removed from the merged manifest.
+             The lifecycle and profile-installer initializers stay. -->
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            android:exported="false"
+            tools:node="merge">
+            <meta-data
+                android:name="androidx.emoji2.text.EmojiCompatInitializer"
+                tools:node="remove" />
         </provider>
     </application>
 </manifest>

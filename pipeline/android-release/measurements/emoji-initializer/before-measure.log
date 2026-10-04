@@ -1,0 +1,50 @@
+== before  2026-10-03 21:50:03
+APK sha256: 4c0ddd068a3930e5fc332030410768a141fc72a79ddf13ef1295f5627e1cea96
+google/sdk_gphone64_arm64/emu64a:16/BE2A.250530.026.F3/13894323:userdebug/dev-keys
+  Current WebView package (name, version): (com.google.android.webview, 133.0.6943.137)
+Install command complete in 1781 ms
+CONTROL (20 s idle, app stopped): emoji-compat font queries = 0
+CONTROL FontsProvider connections from the app:
+  none
+Status: ok
+TotalTime: 221
+  providers sample ~1s:  Connections:  -> 3932:com.dtgibson.snowraven/u0a214 s0/7 u1/8 +538ms 
+  providers sample ~2s:  Connections:  -> 3932:com.dtgibson.snowraven/u0a214 s0/7 u1/8 +1s609ms 
+  providers sample ~3s:  Connections:  -> 3932:com.dtgibson.snowraven/u0a214 s0/7 u1/8 +2s669ms 
+  providers sample ~5s:  Connections:  -> 3932:com.dtgibson.snowraven/u0a214 s0/7 u1/8 +4s733ms 
+  providers sample ~8s: no Connections line
+APP pid 3932
+LAUNCH (12 s after cold start): logcat lines naming Noto Color Emoji Compat = 6
+LAUNCH: androidx emoji2's own query string [emojicompat-emoji-font] = 1
+logcat lines naming emoji or the font provider:
+10-03 21:50:30.371  1373  1373 I EmojiCompatManager: EmojiCompatManager.getEmojiCompatIfLoaded():343 EmojiCompat.init() was never called.
+10-03 21:50:30.371  1373  1373 I EmojiCompatManager: java.lang.IllegalStateException: EmojiCompat is not initialized. Please call EmojiCompat.init() first
+10-03 21:50:30.371  1373  1373 I EmojiCompatManager: 	at asx.p(PG:6)
+10-03 21:50:30.371  1373  1373 I EmojiCompatManager: 	at axb.b(PG:13)
+10-03 21:50:30.371  1373  1373 I EmojiCompatManager: 	at jnr.b(PG:2)
+10-03 21:50:30.371  1373  1373 I EmojiCompatManager: 	at jnr.c(PG:4)
+10-03 21:50:30.371  1373  1373 I EmojiCompatManager: 	at jnr.f(PG:3)
+10-03 21:50:30.371  1373  1373 I EmojiCompatManager: 	at jnx.c(PG:3)
+10-03 21:50:30.371  1373  1373 I EmojiCompatManager: 	at kif.cz(PG:47)
+10-03 21:50:30.371  1373  1373 I EmojiCompatManager: 	at lhl.run(PG:1025)
+10-03 21:50:30.371  1373  1373 I EmojiCompatManager: 	at jaf.execute(PG:12)
+10-03 21:50:30.371  1373  1373 I EmojiCompatManager: 	at nco.v(PG:13)
+dumpsys activity providers, the FontsProvider block:
+  * ContentProviderRecord{c938a15 u0 com.google.android.gms/.fonts.provider.FontsProvider}
+    package=com.google.android.gms process=com.google.android.gms.persistent
+    proc=ProcessRecord{52e2f0d 1248:com.google.android.gms.persistent/u0a144}
+    launchingApp=ProcessRecord{52e2f0d 1248:com.google.android.gms.persistent/u0a144}
+    uid=10144 provider=android.content.ContentProviderProxy@f736206
+    authority=com.google.android.gms.fonts
+  * ContentProviderRecord{2a2c0c7 u0 com.google.android.dialer/com.android.dialer.callscreen.impl.speechrecognition.SodaAudioProvider}
+    package=com.google.android.dialer process=com.google.android.dialer
+    proc=ProcessRecord{61793ef 2222:com.google.android.dialer/u0a140}
+    uid=10140 provider=android.content.ContentProviderProxy@6f2e6f4
+    authority=com.android.dialer.callscreen.impl.speechrecognition.provider
+--
+  com.google.android.gms.fonts: c938a15/com.google.android.gms/.fonts.provider.FontsProvider
+  com.google.android.googlequicksearchbox.provider.OneSearchImageProvider: da94c6f/com.google.android.googlequicksearchbox/com.google.android.apps.search.googleapp.search.suggest.plugins.onesearch.provider.images.OneSearchImageProvider$OneSearchFileProvider
+FontsProvider connections from the app after launch:
+  none
+screenshot: /private/tmp/claude-502/-Users-developer-devwork-snowraven/1890b5dd-4eff-4f7c-a0b4-9ae2413dac4b/scratchpad/m2/before/after-launch.png
+== end before
