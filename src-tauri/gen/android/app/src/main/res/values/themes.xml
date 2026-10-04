@@ -3,11 +3,23 @@
          section 1) is the same green in light and dark, so a dark system theme
          cannot flash a light frame: on API 26 to 30 the window background is
          the green with the raven mark (drawable/sr_launch_background.xml), and
-         the status bar starts with light glyphs over it. After the first frame
-         enableEdgeToEdge() and the page's theme report own the glyphs. The
-         values-night copy is identical on purpose. -->
+         both system bars are the green too, so no frame shows the theme
+         parent's purple status bar or black navigation bar (QA-31, measured
+         frame by frame on the API 26 emulator, light and dark). The status
+         glyphs are NOT light throughout: windowLightStatusBar=false asks the
+         starting window for light glyphs, and from the Activity's first frame
+         enableEdgeToEdge() sets them from the SYSTEM theme, so under a light
+         system theme they are dark over the green (the reading the design
+         accepted for the floor message), and the navigation bar takes the
+         platform's light scrim; under a dark system theme both stay light on
+         green. The page's theme report then sets the glyphs from the theme it
+         painted; below the WebView floor no report is sent, so they stay as
+         enableEdgeToEdge() set them. The values-night copy is identical on
+         purpose. -->
     <style name="Theme.snowraven" parent="Theme.MaterialComponents.DayNight.NoActionBar">
         <item name="android:windowBackground">@drawable/sr_launch_background</item>
         <item name="android:windowLightStatusBar">false</item>
+        <item name="android:statusBarColor">@color/ic_launcher_background</item>
+        <item name="android:navigationBarColor">@color/ic_launcher_background</item>
     </style>
 </resources>

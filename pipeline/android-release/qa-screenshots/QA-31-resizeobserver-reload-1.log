@@ -1,0 +1,13 @@
+reload 1 ignoreCache=false splash=false errors=0
+reload 2 ignoreCache=true splash=false errors=1 [{"t":59,"msg":"ResizeObserver loop completed with undelivered notifications.","file":"http://tauri.localhost/","line":0,"col":0,"stack":"","target":"window","splash":true,"state":"first"}]
+reload 3 ignoreCache=false splash=false errors=0
+reload 4 ignoreCache=true splash=false errors=1 [{"t":56,"msg":"ResizeObserver loop completed with undelivered notifications.","file":"http://tauri.localhost/","line":0,"col":0,"stack":"","target":"window","splash":true,"state":"first"}]
+reload 5 ignoreCache=false splash=false errors=0
+reload 6 ignoreCache=true splash=false errors=1 [{"t":62,"msg":"ResizeObserver loop completed with undelivered notifications.","file":"http://tauri.localhost/","line":0,"col":0,"stack":"","target":"window","splash":true,"state":"first"}]
+reload 7 ignoreCache=false splash=false errors=0
+reload 8 ignoreCache=true splash=false errors=0
+reload 9 ignoreCache=false splash=false errors=0
+reload 10 ignoreCache=true splash=false errors=1 [{"t":53,"msg":"ResizeObserver loop completed with undelivered notifications.","file":"http://tauri.localhost/","line":0,"col":0,"stack":"","target":"window","splash":true,"state":"first"}]
+reload 11 ignoreCache=false splash=false errors=0
+reload 12 ignoreCache=true splash=false errors=0
+SUMMARY reloads=12 withErrors=4 errorWhileLaunchFrameUp=4

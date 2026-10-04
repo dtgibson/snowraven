@@ -1,0 +1,113 @@
+reload 1 ignoreCache=false splash=false errors=0
+reload 2 ignoreCache=true splash=false errors=0
+reload 3 ignoreCache=false splash=false errors=0
+reload 4 ignoreCache=true splash=false errors=1 [
+ {
+  "t": 51,
+  "msg": "ResizeObserver loop completed with undelivered notifications.",
+  "file": "http://tauri.localhost/",
+  "line": 0,
+  "col": 0,
+  "stack": "",
+  "target": "window",
+  "splash": true,
+  "state": "first",
+  "ros": [
+   {
+    "t": 40,
+    "stack": "    at http://tauri.localhost/assets/index-BxFKRzXb.js:7:74000 |     at Gc (http://tauri.localhost/assets/vendor-react-YF_fs8kM.js:8:91683) |     at cl (http://tauri.localhost/assets/vendor-react-YF_fs8kM.js:8:96143)",
+    "targets": [
+     "NAV#.sr-navbar"
+    ],
+    "calls": 1,
+    "last": 49
+   },
+   {
+    "t": 41,
+    "stack": "    at http://tauri.localhost/assets/index-BxFKRzXb.js:10:18391 |     at Gc (http://tauri.localhost/assets/vendor-react-YF_fs8kM.js:8:91683) |     at cl (http://tauri.localhost/assets/vendor-react-YF_fs8kM.js:8:96143)",
+    "targets": [
+     "HEADER#.sr-header sr-header-compact",
+     "P#.sr-app-footer sr-pad-x-trim"
+    ],
+    "calls": 0
+   },
+   {
+    "t": 44,
+    "stack": "    at http://tauri.localhost/assets/index-BxFKRzXb.js:7:67430 |     at Gc (http://tauri.localhost/assets/vendor-react-YF_fs8kM.js:8:91683) |     at cl (http://tauri.localhost/assets/vendor-react-YF_fs8kM.js:8:96143)",
+    "targets": [
+     "DIV#.sr-shell sr-shell--phone"
+    ],
+    "calls": 1,
+    "last": 49
+   },
+   {
+    "t": 44,
+    "stack": "    at http://tauri.localhost/assets/index-BxFKRzXb.js:10:18391 |     at Gc (http://tauri.localhost/assets/vendor-react-YF_fs8kM.js:8:91683) |     at cl (http://tauri.localhost/assets/vendor-react-YF_fs8kM.js:8:96143)",
+    "targets": [
+     "HEADER#.sr-header sr-header-compact",
+     "P#.sr-app-footer sr-pad-x-trim",
+     "NAV#.sr-navbar"
+    ],
+    "calls": 1,
+    "last": 50
+   }
+  ]
+ }
+]
+reload 5 ignoreCache=false splash=false errors=1 [
+ {
+  "t": 59,
+  "msg": "ResizeObserver loop completed with undelivered notifications.",
+  "file": "http://tauri.localhost/",
+  "line": 0,
+  "col": 0,
+  "stack": "",
+  "target": "window",
+  "splash": true,
+  "state": "first",
+  "ros": [
+   {
+    "t": 45,
+    "stack": "    at http://tauri.localhost/assets/index-BxFKRzXb.js:7:74000 |     at Gc (http://tauri.localhost/assets/vendor-react-YF_fs8kM.js:8:91683) |     at cl (http://tauri.localhost/assets/vendor-react-YF_fs8kM.js:8:96143)",
+    "targets": [
+     "NAV#.sr-navbar"
+    ],
+    "calls": 1,
+    "last": 57
+   },
+   {
+    "t": 46,
+    "stack": "    at http://tauri.localhost/assets/index-BxFKRzXb.js:10:18391 |     at Gc (http://tauri.localhost/assets/vendor-react-YF_fs8kM.js:8:91683) |     at cl (http://tauri.localhost/assets/vendor-react-YF_fs8kM.js:8:96143)",
+    "targets": [
+     "HEADER#.sr-header sr-header-compact",
+     "P#.sr-app-footer sr-pad-x-trim"
+    ],
+    "calls": 0
+   },
+   {
+    "t": 48,
+    "stack": "    at http://tauri.localhost/assets/index-BxFKRzXb.js:7:67430 |     at Gc (http://tauri.localhost/assets/vendor-react-YF_fs8kM.js:8:91683) |     at cl (http://tauri.localhost/assets/vendor-react-YF_fs8kM.js:8:96143)",
+    "targets": [
+     "DIV#.sr-shell sr-shell--phone"
+    ],
+    "calls": 1,
+    "last": 57
+   },
+   {
+    "t": 48,
+    "stack": "    at http://tauri.localhost/assets/index-BxFKRzXb.js:10:18391 |     at Gc (http://tauri.localhost/assets/vendor-react-YF_fs8kM.js:8:91683) |     at cl (http://tauri.localhost/assets/vendor-react-YF_fs8kM.js:8:96143)",
+    "targets": [
+     "HEADER#.sr-header sr-header-compact",
+     "P#.sr-app-footer sr-pad-x-trim",
+     "NAV#.sr-navbar"
+    ],
+    "calls": 1,
+    "last": 58
+   }
+  ]
+ }
+]
+reload 6 ignoreCache=true splash=false errors=0
+reload 7 ignoreCache=false splash=false errors=0
+reload 8 ignoreCache=true splash=false errors=0
+SUMMARY reloads=8 withErrors=2 errorWhileLaunchFrameUp=2

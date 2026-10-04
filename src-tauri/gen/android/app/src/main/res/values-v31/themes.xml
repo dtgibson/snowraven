@@ -3,13 +3,18 @@
          splash shows the adaptive icon's foreground on SnowRaven green, with no
          icon background, no branding image, no splash library and no fixed
          wait; it yields when the Activity first draws. The window background
-         behind it is the plain green, the same in light and dark. The
-         values-night-v31 copy is identical and exists because night mode
-         outranks the API level in resource selection: without it a dark
-         system theme would fall back to values-night and lose these. -->
+         behind it and both system bars are the plain green, the same in light
+         and dark, so no frame takes the theme parent's purple status bar
+         (QA-31; on API 35 and later the platform draws the app edge to edge and
+         the bar colors no longer apply). The values-night-v31 copy is identical
+         and exists because night mode outranks the API level in resource
+         selection: without it a dark system theme would fall back to
+         values-night and lose these. -->
     <style name="Theme.snowraven" parent="Theme.MaterialComponents.DayNight.NoActionBar">
         <item name="android:windowBackground">@color/ic_launcher_background</item>
         <item name="android:windowLightStatusBar">false</item>
+        <item name="android:statusBarColor">@color/ic_launcher_background</item>
+        <item name="android:navigationBarColor">@color/ic_launcher_background</item>
         <item name="android:windowSplashScreenBackground">@color/ic_launcher_background</item>
         <item name="android:windowSplashScreenAnimatedIcon">@mipmap/ic_launcher_foreground</item>
     </style>

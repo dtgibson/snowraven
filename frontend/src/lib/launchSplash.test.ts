@@ -130,6 +130,29 @@ describe('launch splash', () => {
     expect(page.timers.size).toBe(0)
     page.dom.window.close()
   })
+
+  // android-release QA-31: measured through the WebView inspector on the API 36
+  // emulator, a cold load raises the engine's ResizeObserver loop notice from the
+  // app's layout observers about 55 ms in, while this frame is still up. It is a
+  // window error event with nothing thrown, and it put "couldn't open" over a
+  // launch that then succeeded. Both spellings: Chromium and WebKit today, and the
+  // older Chromium wording.
+  it.each([
+    'ResizeObserver loop completed with undelivered notifications.',
+    'ResizeObserver loop limit exceeded',
+  ])('the ResizeObserver loop notice (%s) does not fail the launch; a real error still does', (message) => {
+    const page = start()
+    page.firstPaint()
+    page.dom.window.dispatchEvent(new page.dom.window.ErrorEvent('error', { message }))
+    expect(page.splash.dataset.state).toBe('first')
+    expect(page.status.textContent).toBe('Opening SnowRaven…')
+    expect(page.reload.hidden).toBe(true)
+    expect(page.timers.size).toBe(2)
+    page.dom.window.dispatchEvent(new page.dom.window.ErrorEvent('error', { message: 'TypeError: x is undefined' }))
+    expect(page.splash.dataset.state).toBe('error')
+    expect(page.reload.hidden).toBe(false)
+    page.dom.window.close()
+  })
 })
 
 // android-release FR-33 / QA-33: the Android System WebView floor, decided by

@@ -144,6 +144,14 @@
         }
         reload.addEventListener('click', function () { window.location.reload(); });
         window.addEventListener('error', function (event) {
+          // The engine's ResizeObserver loop notice is not a failure: it reports
+          // that some resize notifications move to the next frame, and nothing
+          // threw. The app's layout observers raise it on a cold load while this
+          // frame is still up (android-release QA-31, measured through the
+          // WebView inspector on the API 36 emulator), so it must not turn a
+          // launch that is succeeding into "couldn't open".
+          if (event.target === window && typeof event.message === 'string' &&
+              event.message.indexOf('ResizeObserver loop') === 0) return;
           if (event.target === window ||
               (event.target instanceof HTMLScriptElement && event.target.type === 'module')) fail();
         }, true);
