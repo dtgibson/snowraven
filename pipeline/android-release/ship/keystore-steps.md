@@ -1,5 +1,7 @@
 # Your Android signing key: one-time setup
 
+**Status: created 2026-10-04; backup pending.** At the user's direction the Orchestrator generated the key exactly as step 4 below describes (`~/.tauri/snowraven-android.p12`, alias `snowraven`, PKCS12, 4096-bit RSA, 10,000 days) and wrote the properties file beside it, both mode 0600; certificate SHA-256 `42:A3:57:6E:44:5B:DA:4A:99:47:93:F2:FF:A0:56:66:31:13:27:5C:98:05:EB:2F:6C:FF:DC:25:23:75:99:6A`. Steps 1 to 11 are therefore done; **steps 12 and 13, the backup, are still yours.** The steps stay below as the record of how the key was made and as the recipe if it ever has to be made again for a new app id.
+
 **For:** the user, on the release Mac (Hephaestus), in your own terminal. **Why:** the APK attached to each GitHub release is signed with your own key, and every later APK must be signed with the same key or it will not install over the earlier one. No agent creates, copies or backs up this key (release skill, Android section). Relay one step at a time; each step is one line to run or one thing to do.
 
 **Never paste the password into chat, a commit or a file inside the repository.** The release scripts read it only from the properties file below and hand it to `keytool` and `apksigner` by file, never on a command line.

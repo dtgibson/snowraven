@@ -2,7 +2,7 @@
 
 All notable changes to SnowRaven are documented here.
 
-## [Unreleased]
+## [1.0.53] - 2026-10-04
 
 ### Added
 - **SnowRaven for Android phones and tablets.** The same app now runs on Android 8.0 and later: every tab, your own eBird backup and Macaulay Library export opened through the phone's file picker and kept in the app's private storage, the compact header and bottom bar of the iPhone app, the app's colors under the status and navigation bars in light and dark, and the keyboard kept clear of the field you are typing in. iCloud Sync, the home-screen widgets and Alerts stay Mac, iPhone and iPad features and do not appear on Android. On Android the app does not offer to find your location: you move the map by searching for a place or by setting a Default Location. Macaulay Library photos, sounds and videos open in your browser on Android instead of playing inside the app.

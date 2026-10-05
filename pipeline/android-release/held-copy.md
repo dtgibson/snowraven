@@ -116,9 +116,9 @@ Bird records, weather and tide data come from eBird, OpenWeather and NOAA, which
 
 Why the revision: (1) "not free services" reads to a birder as "costs money", and all three are free to use; F-Droid's sense is "not free software". (2) NOAA's tide data is a keyless, public-domain U.S. government service, so naming it as non-free invites a correction. (3) "unusable without an eBird key" is not true: Statistics, Calendar, Species Detail, Multimedia, Breeding Codes, Checklists and Named Birds read only your own exports, and Help's offline section says so. "Chiefly" keeps the sentence honest about the smaller ones (Esri's satellite tiles, the Macaulay Library embeds) without listing them. If you prefer to leave the tag for F-Droid's reviewer to add, the "Network services" block is still worth keeping as plain description.
 
-### Changelog for versionCode 1000051 (`changelogs/1000051.txt`)
+### Changelog for versionCode 1000053 (`changelogs/1000053.txt`)
 
-Staged as `1000049.txt` while 1.0.49 was the expected version; renamed at the release bump (2026-10-04), when 1.0.49 and 1.0.50 had shipped from other builds and this release became 1.0.51. The text is unchanged.
+Staged as `1000049.txt` while 1.0.49 was the expected version; renamed `1000051.txt` at the first release bump (2026-10-04), when 1.0.49 and 1.0.50 had shipped from other builds, and `1000053.txt` at the second, when 1.0.51 and 1.0.52 had too. The text is unchanged.
 
 Staged text (Branch B), 357 characters (limit 500):
 
@@ -132,7 +132,7 @@ First release for Android phones and tablets: every tab, with your own eBird bac
 Location controls use the phone's own location service, and Android asks your permission the first time.
 ```
 
-Drawn from the CHANGELOG's Android entry (drafted under 1.0.49, released as 1.0.51) with the Apple-only lines dropped (iCloud Sync, widgets and Alerts) and the "Finding your location is not available" sentence left out, so nothing in the listing names location as unavailable. The Appearance line ("System now follows a light or dark change...") is also left out: for a first Android release it describes no change an Android user could have noticed. This departs from the brief's "the same sentences as What's New", because the App Store text cannot name Android at all (section e).
+Drawn from the CHANGELOG's Android entry (drafted under 1.0.49, released as 1.0.53) with the Apple-only lines dropped (iCloud Sync, widgets and Alerts) and the "Finding your location is not available" sentence left out, so nothing in the listing names location as unavailable. The Appearance line ("System now follows a light or dark change...") is also left out: for a first Android release it describes no change an Android user could have noticed. This departs from the brief's "the same sentences as What's New", because the App Store text cannot name Android at all (section e).
 
 ### Categories (the recipe's `Categories:`)
 
@@ -386,7 +386,7 @@ On Android, SnowRaven installed from F-Droid is updated through the F-Droid clie
 Choosing System under Appearance now follows a light or dark change you make on your device while SnowRaven is open.
 ```
 
-This is the only change in 1.0.51 that reaches the iPhone and iPad app (the CHANGELOG's "In every app" line; 1.0.49 and 1.0.50, merged in at the release bump, shipped from other builds with What's New text of their own). It does not mention Android: App Review Guideline 2.3.10 bars naming other mobile platforms in an app's metadata. If 1.0.50 is still in review at the gate (record `99e3f9ff`, which already carries 1.0.48 and 1.0.49 by rollup) and the user rolls it into this release, its approved four paragraphs (`pipeline/stats-badges-uniform/whats-new.md`) come first, word for word, then this line. If it has reached `READY_FOR_SALE`, this line stands alone on a new record.
+This is the only change in 1.0.53 that reaches the iPhone and iPad app (the CHANGELOG's "In every app" line; 1.0.49 to 1.0.52, merged in at the release bumps, shipped from other builds with What's New text of their own). It does not mention Android: App Review Guideline 2.3.10 bars naming other mobile platforms in an app's metadata. **What comes before this line depends on the live App Store query at the ship** (state at the 1.0.52 ship: 1.0.51's record `c98d6dc5` `WAITING_FOR_REVIEW` as submission `ba562487`; 1.0.52 deferred behind it, VALID build 1.0.52.1, no record). If `c98d6dc5` is still in review and the user rolls 1.0.51 and 1.0.52 into this release, the text is 1.0.51's approved three paragraphs (`pipeline/spool-bundle-20261004/whats-new.md`, text (a)), then 1.0.52's approved sentence (`pipeline/species-first-of-year/whats-new.md`), then this line, each word for word. If it is `READY_FOR_SALE` and the user rolls the deferred 1.0.52 into this release, the text is 1.0.52's sentence, then this line. If the user defers 1.0.53 behind a record still in review, this line waits for its own record.
 
 ---
 
