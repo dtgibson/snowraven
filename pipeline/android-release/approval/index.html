@@ -61,9 +61,9 @@ code{font:13px ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--code
 <body>
 <div class="wrap">
 <header class="top">
-<h1>SnowRaven 1.0.51: the first Android release, the copy that needs your yes</h1>
+<h1>SnowRaven 1.0.53: the first Android release, the copy that needs your yes</h1>
 <p class="sub">Nothing on this page is published yet. Each block shows the exact text as it stands today beside the exact text proposed, with removals in red and additions in green. Say yes, no, or what to change, item by item.</p>
-<div class="warn"><b>Version 1.0.51 is provisional.</b> It is the next number after the newest release on GitHub (1.0.50). Another build (first-of-year dates on Species Detail) has a 1.0.51 bump ready but not pushed; whichever ships first takes 1.0.51, and the other moves to the next number. Only the version number and the F-Droid changelog file name (<code>changelogs/1000051.txt</code>) would change, not any text you approve here.</div>
+<div class="warn"><b>Version 1.0.53.</b> It is the next number after the newest release on GitHub (1.0.52); 1.0.51 and 1.0.52 shipped from other builds while this one was being prepared, so the version moved twice. If another release lands first it moves again; only the version number and the F-Droid changelog file name (<code>changelogs/1000053.txt</code>) would change, not any text you approve here.</div>
 <nav class="toc" aria-label="Sections">
 <a href="#decisions">Your decisions</a><a href="#nfr01">The Google question</a><a href="#fdroid">F-Droid listing</a><a href="#shots">Screenshots</a><a href="#website">Website</a><a href="#readme">README</a><a href="#policy">Privacy policy</a><a href="#a11y">Accessibility statement</a><a href="#appstore">App Store</a>
 </nav>
@@ -81,7 +81,7 @@ code{font:13px ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--code
 <li><b>Optional companion edits C1 to C7,</b> other places that list platforms: yes or no to each. <a href="#companions">C1 to C7</a></li>
 <li><b>Privacy policy</b> (PRIVACY_POLICY.md and its identical website copy): six passages, with the Google wording in your two sentences. <span class="opt rec">Yes</span> <span class="opt">Changes</span> <a href="#policy">Passages</a></li>
 <li><b>Accessibility statement:</b> one clause already in this build ("iPhone, iPad and Android"). <span class="opt rec">Keep</span> <span class="opt">Take it out</span> <a href="#a11y">Clause</a></li>
-<li><b>App Store "What's New":</b> one line for iPhone and iPad, plus 1.0.50's text first if you roll 1.0.50 into this release. <span class="opt rec">Yes</span> <span class="opt">Changes</span> <a href="#appstore">Text</a></li>
+<li><b>App Store "What's New":</b> one line for iPhone and iPad, after the already-approved 1.0.51 and 1.0.52 text if you roll those releases into this one. <span class="opt rec">Yes</span> <span class="opt">Changes</span> <a href="#appstore">Text</a></li>
 </ol>
 
 <h2 id="nfr01">The Google question <span class="badge">decided by you</span></h2>
@@ -196,7 +196,7 @@ Weather by OpenWeather. Checklist and media data from eBird and the Macaulay Lib
 <h3 id="cats">Category</h3>
 <table class="kv"><tr><th>Default</th><td>Science &amp; Education</td></tr><tr><th>Named alternative</th><td>Navigation, as a second category (for Map Explorer) or instead</td></tr><tr><th>Also on F-Droid's list</th><td>Weather</td></tr></table>
 
-<h3 id="chlog">Changelog for this release <span class="count">(changelogs/1000051.txt, 357 characters, limit 500)</span></h3>
+<h3 id="chlog">Changelog for this release <span class="count">(changelogs/1000053.txt, 357 characters, limit 500)</span></h3>
 <div class="single"><div class="lab lab-a">New</div><pre class="txt">First release for Android phones and tablets: every tab, with your own eBird backup and Macaulay Library export opened through the phone&#x27;s file picker and kept in the app&#x27;s private storage, and your own eBird and OpenWeather keys. If the phone&#x27;s Android System WebView is too old to run SnowRaven, the opening screen says so instead of showing a blank page.</pre></div>
 <p class="note">Drawn from the release notes with the Mac, iPhone and iPad lines left out. It does not mention location.</p>
 
@@ -241,9 +241,9 @@ Weather by OpenWeather. Checklist and media data from eBird and the Macaulay Lib
           &lt;/p&gt;</pre></div></div>
 <p class="reader"><b>As a reader sees it:</b> A native app on a Mac or Windows PC, on the App Store for iPhone and iPad, or self-hosted on a Raspberry Pi (or any computer on your network) and opened from any browser. On Android phones and tablets it comes from F-Droid, or as an APK with each release on GitHub. One universal Mac build covers Apple Silicon and Intel, and the self-hosted version works in a phone or tablet browser too.</p>
 <h3>The version pill and footer <span class="badge">moved by the version stamp, shown for completeness</span></h3>
-<div class="pair"><div class="col"><div class="lab lab-b">Before</div><pre class="txt">&lt;span class=&quot;version-pill&quot; aria-label=&quot;Version 1.0.<del>50</del>&quot;&gt;v1.0.<del>50</del>&lt;/span&gt;
-&lt;p class=&quot;footer-version&quot;&gt;SnowRaven v1.0.<del>50</del> · Free &amp;amp; open source&lt;/p&gt;</pre></div><div class="col"><div class="lab lab-a">After</div><pre class="txt">&lt;span class=&quot;version-pill&quot; aria-label=&quot;Version 1.0.<ins>51</ins>&quot;&gt;v1.0.<ins>51</ins>&lt;/span&gt;
-&lt;p class=&quot;footer-version&quot;&gt;SnowRaven v1.0.<ins>51</ins> · Free &amp;amp; open source&lt;/p&gt;</pre></div></div>
+<div class="pair"><div class="col"><div class="lab lab-b">Before</div><pre class="txt">&lt;span class=&quot;version-pill&quot; aria-label=&quot;Version 1.0.<del>52</del>&quot;&gt;v1.0.<del>52</del>&lt;/span&gt;
+&lt;p class=&quot;footer-version&quot;&gt;SnowRaven v1.0.<del>52</del> · Free &amp;amp; open source&lt;/p&gt;</pre></div><div class="col"><div class="lab lab-a">After</div><pre class="txt">&lt;span class=&quot;version-pill&quot; aria-label=&quot;Version 1.0.<ins>53</ins>&quot;&gt;v1.0.<ins>53</ins>&lt;/span&gt;
+&lt;p class=&quot;footer-version&quot;&gt;SnowRaven v1.0.<ins>53</ins> · Free &amp;amp; open source&lt;/p&gt;</pre></div></div>
 
 <h2 id="readme">README: the Installation list</h2>
 <p class="note">README.md, one new bullet after iPhone / iPad. The one-time "allow installs from this source" step and the two-signers fact stay in the in-app Help.</p>
@@ -297,20 +297,19 @@ The Android app is the same local-first application, built from the same publish
 <div class="pair"><div class="col"><div class="lab lab-b">Before</div><pre class="txt">SnowRaven is built to be usable by everyone. It runs in the browser, as a desktop app on Mac and Windows, and as an app on iPhone and <del>iPad</del>, and it follows standard web accessibility practices so it works with keyboards and screen readers. This describes what is in place today. Accessibility is treated as ongoing work, not a finished checkbox, and the few known gaps are listed honestly at the end.</pre></div><div class="col"><div class="lab lab-a">After</div><pre class="txt">SnowRaven is built to be usable by everyone. It runs in the browser, as a desktop app on Mac and Windows, and as an app on iPhone<ins>, iPad</ins> and <ins>Android</ins>, and it follows standard web accessibility practices so it works with keyboards and screen readers. This describes what is in place today. Accessibility is treated as ongoing work, not a finished checkbox, and the few known gaps are listed honestly at the end.</pre></div></div>
 
 <h2 id="appstore">App Store "What's New"</h2>
-<p class="note">The one change in 1.0.51 that reaches iPhone and iPad. It cannot mention Android: App Review Guideline 2.3.10 bars naming other mobile platforms. No change to the App Store description is proposed.</p>
-<div class="single"><div class="lab lab-a">What's New for 1.0.51</div><pre class="txt">Choosing System under Appearance now follows a light or dark change you make on your device while SnowRaven is open.</pre></div>
-<p class="note"><b>If 1.0.50 is still in review at the release and you roll it into 1.0.51,</b> its approved text (already yours, word for word) comes first, then the line above:</p>
-<div class="single"><div class="lab lab-a">1.0.50's approved What's New (unchanged)</div><pre class="txt">On the Targets tab, long species names now wrap within their row instead of making the table scroll sideways. In Settings, Appearance now says correctly where your color scheme is saved.
+<p class="note">The one change in 1.0.53 that reaches iPhone and iPad. It cannot mention Android: App Review Guideline 2.3.10 bars naming other mobile platforms. No change to the App Store description is proposed.</p>
+<div class="single"><div class="lab lab-a">What's New for 1.0.53</div><pre class="txt">Choosing System under Appearance now follows a light or dark change you make on your device while SnowRaven is open.</pre></div>
+<p class="note"><b>What comes before this line depends on the App Store's state at the release.</b> When this page was made, 1.0.51 was in review and 1.0.52 was waiting behind it with no record of its own. If 1.0.51 is still in review and you roll 1.0.51 and 1.0.52 into 1.0.53, their approved text (already yours, word for word) comes first, then the line above. If 1.0.51 has gone live and you roll the waiting 1.0.52 into 1.0.53, only 1.0.52's sentence comes first.</p>
+<div class="single"><div class="lab lab-a">1.0.51's approved What's New (unchanged)</div><pre class="txt">On the Map Explorer, reports now take the right recency color in the weeks after clocks spring forward for daylight saving time, and in the List Comparer a breeding code the app does not recognize now always shows as the code itself.
 
-If eBird is limiting requests when the app looks up which of your places are public hotspots, it now asks eBird again, up to three more times over about seven minutes, so those place names become hotspot links as soon as eBird answers instead of staying plain text until you restart the app.
+In Settings, Remove synced files from iCloud no longer stops at the first file iCloud will not delete. It removes everything it can, and Copy iCloud details names any file that stayed.
 
-The app now runs under a content security policy: its window runs only SnowRaven&#x27;s own code, and loads map tiles, link icons and Macaulay Library players only from the services it already used. Nothing you see or do changes.
-
-On the Statistics tab, the milestone badges in Firsts &amp; Milestones are now one uniform size on an even grid, and a long species name wraps inside its badge. Milestones of 1,000 and above show a thousands separator, and the check mark on each badge is gone.</pre></div>
+The app now reaches only the web services it already used, each at the addresses it calls, and its content security policy now also covers the scripts it runs in the background, such as the one that draws the map. Neither changes anything you see or do.</pre></div>
+<div class="single"><div class="lab lab-a">1.0.52's approved What's New (unchanged)</div><pre class="txt">First of Year on Species Detail. A new card lists the first date you reported the species in each year, each date opening its checklist on eBird, with a small chart of those first dates across the years once you have reported the species in two or more.</pre></div>
 <div class="warn"><b>One App Store risk to know about, not copy to approve:</b> the in-app Help built into the iPhone and iPad app now names Android in a few places (where SnowRaven runs, where files are kept). Guideline 2.3.10 covers the app as well as its listing, so a reviewer could ask about it.</div>
 
 <footer>
-<p>Built from the worktree at the 1.0.51 bump. Sources: <code>pipeline/android-release/held-copy.md</code> (every proposal and its reasons), <code>fdroid/fastlane-proposal/en-US/</code> (the staged listing files), <code>security-report.md</code> (N1), and the current README.md, website/index.html, PRIVACY_POLICY.md and ACCESSIBILITY.md. Every "before" was checked against the file it edits when this page was generated.</p>
+<p>Built from the worktree at the 1.0.53 bump. Sources: <code>pipeline/android-release/held-copy.md</code> (every proposal and its reasons), <code>fdroid/fastlane-proposal/en-US/</code> (the staged listing files), <code>security-report.md</code> (N1), and the current README.md, website/index.html, PRIVACY_POLICY.md and ACCESSIBILITY.md. Every "before" was checked against the file it edits when this page was generated.</p>
 </footer>
 </div>
 </body>
