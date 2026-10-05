@@ -972,7 +972,7 @@ A Settings tab (rightmost in the tab bar) where users upload and persistently st
 - On app mount, Breeding Codes, Media List, and Species Detail tabs start in `loading-saved` phase (spinner), auto-fetch their stored file, parse it, and enter the ready state automatically
 - `onKeysSaved` callback prop on `<Settings>` triggers a re-fetch of key status in App.tsx when a key is saved or deleted
 - **Rebuild Caches (Tauri only):** A "Troubleshooting" section (visible only when `isTauri()` is true) contains a "Rebuild Caches" button that deletes the `snowraven-taxonomy` IndexedDB database (key: `taxonomy-v2025`) and calls `relaunch()` to restart the app with a fresh taxonomy fetch on next load
-- **iCloud Sync (macOS and iOS only):** a section directly below Default Files with two off-by-default switches, each with a plain-language note before it turns on: iCloud Sync for the files, and Sync API keys beneath it, greyed with the one-line reason "Turn on iCloud Sync first." until file sync is on (still focusable, so the reason is read in place) and turned off with it. With a switch on, each Default Files row and each API Keys row shows where its file or key came from and its sync state (a key row also says when another device replaced or cleared the key), Clear asks first because it reaches every synced device, and the separate "Remove synced files from iCloud" and "Remove synced keys from iCloud" controls delete the copies in the user's account without touching any device; a file removal that cannot finish says so beside its control, which stays for a retry, and a key removal that cannot reach iCloud stays pending, with its control visible, until it goes. Windows, web and Pi render nothing.
+- **iCloud Sync (macOS and iOS only):** a section directly below Default Files with two off-by-default switches, each with a plain-language note before it turns on: iCloud Sync for the files, and Sync API keys beneath it, greyed with the one-line reason "Turn on iCloud Sync first." until file sync is on (still focusable, so the reason is read in place) and turned off with it. With a switch on, each Default Files row and each API Keys row shows where its file or key came from and its sync state (a key row also says when another device replaced or cleared the key), Clear asks first because it reaches every synced device, and the separate "Remove synced files from iCloud" and "Remove synced keys from iCloud" controls delete the copies in the user's account without touching any device; a file removal takes everything it can, and when anything stays it says so beside its control, which stays for a retry, while Copy iCloud details names what stayed; and a key removal that cannot reach iCloud stays pending, with its control visible, until it goes. Windows, web and Pi render nothing.
 
 **Key files:**
 - `backend/routers/settings.py` — 7 endpoints: `GET /settings/files`, `POST/GET/DELETE /settings/files/ebird`, `POST/GET/DELETE /settings/files/ml`; writes to fixed paths in `data/`
@@ -1629,7 +1629,7 @@ The architectural foundation for a signed, distributable Mac and Windows desktop
 **Tauri project files:**
 - `src-tauri/Cargo.toml` — package name "snowraven", identifier `com.snowraven.app`, Rust 1.77.2+
 - `src-tauri/tauri.conf.json` — window 1100×720 (min 800×600); an explicit content security policy (`app.security.csp`); `devUrl: http://localhost:5173`
-- `src-tauri/capabilities/default.json` — minimal permissions: `core:default` + `opener:default`
+- `src-tauri/capabilities/default.json`: the shared permissions for the one `main` window, including an http fetch scope held to the API addresses the app calls; desktop-only and mobile-only permissions in `desktop.json` and `mobile.json`
 - `package.json` (repo root) — `desktop:dev` and `desktop:build` scripts via `@tauri-apps/cli`
 - `frontend/vite.config.ts` — `clearScreen: false` for Tauri terminal compatibility
 
@@ -1813,9 +1813,11 @@ The server accepts a browser write only from SnowRaven's own page and tells
 browsers never to show it inside another site's frame.
 
 **The Mac, Windows, iPhone and iPad apps run under a content security policy**
-Their one window runs only SnowRaven's own scripts and loads map tiles, link
-icons and Macaulay Library players only from the services it already used,
-while API calls go through the native http plugin, outside the page's policy.
+Their one window, including the scripts it runs in the background, runs only
+SnowRaven's own scripts and loads map tiles, link icons and Macaulay Library
+players only from the services it already used, while API calls go through the
+native http plugin, outside the page's policy but held to the services the app
+calls, at the addresses it calls.
 
 **Links that open a page in the browser send their own address**
 In the Mac, Windows, iPhone and iPad apps every link the app draws that opens a
