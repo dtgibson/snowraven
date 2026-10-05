@@ -246,6 +246,56 @@ describe('entry-chunk exclusion (NFR-03 / QA-30)', () => {
     expect(loader).toMatch(/import\(\s*'\.\.\/assets\/ebird-taxonomy-history\.json'\s*\)/)
   })
 
+  // ── First of Year (species-first-of-year, NFR-07 / QA-25). Paired, per this
+  // file's convention. Stated as schema.md section 8 asks: SightingsGraph is a
+  // STATIC import of Species Detail and carries recharts, so the chart library
+  // is already loaded whenever the tab is mounted. The chart's laziness keeps
+  // the SECTION's graph free of recharts (its rows, heading and note render
+  // without the chart chunk) and keeps PlanChart's house shape; it does not
+  // make recharts load later on this tab.
+  it('the First of Year chart is off the entry graph and off Species Detail\'s static graph, reached only through import()', () => {
+    expect(has('components/speciesDetail/FirstOfYearChart.tsx')).toBe(false)
+    expect(has('components/speciesDetail/FirstOfYearSection.tsx')).toBe(false)
+    expect(has('lib/firstOfYear.ts')).toBe(false)
+    expect(has('lib/firstOfYearChartGeometry.ts')).toBe(false)
+    const sd = closureFrom(resolve(SRC, 'components/SpeciesDetail.tsx'))
+    expect(hasIn(sd.files, 'components/speciesDetail/FirstOfYearChart.tsx')).toBe(false)
+    // The negative is about a real edge: the section spells the dynamic import
+    // in the one form this walker deliberately cannot see.
+    const sectionSrc = stripComments(readFileSync(resolve(SRC, 'components/speciesDetail/FirstOfYearSection.tsx'), 'utf8'))
+    expect(sectionSrc).toContain("import('./FirstOfYearChart')")
+    // And the chart is the module that carries the chart library.
+    const chart = closureFrom(resolve(SRC, 'components/speciesDetail/FirstOfYearChart.tsx'))
+    expect([...chart.externals]).toContain('recharts')
+  })
+
+  it('and the First of Year section, derivation and geometry ARE on Species Detail\'s graph, with no recharts edge of their own', () => {
+    // Non-vacuity first: the tab really reaches all three, so the negatives
+    // below are about modules that exist under these names.
+    const sd = closureFrom(resolve(SRC, 'components/SpeciesDetail.tsx'))
+    expect(hasIn(sd.files, 'components/speciesDetail/FirstOfYearSection.tsx')).toBe(true)
+    expect(hasIn(sd.files, 'lib/firstOfYear.ts')).toBe(true)
+    expect(hasIn(sd.files, 'lib/firstOfYearChartGeometry.ts')).toBe(true)
+    const section = closureFrom(resolve(SRC, 'components/speciesDetail/FirstOfYearSection.tsx'))
+    expect(hasIn(section.files, 'lib/firstOfYearChartGeometry.ts')).toBe(true)
+    expect([...section.externals].filter(s => s === 'recharts' || s.startsWith('recharts/'))).toEqual([])
+    expect(maplibreIn(section.externals)).toEqual([])
+    expect(hasIn(section.files, 'components/speciesDetail/FirstOfYearChart.tsx')).toBe(false)
+    for (const forbidden of ['lib/transport.ts', 'lib/storage.ts', 'lib/replayStore.ts', 'lib/clearDerived.ts']) {
+      expect(hasIn(section.files, forbidden), forbidden).toBe(false)
+    }
+    // The derivation is dependency-free (its one import is a type); the
+    // geometry reaches only the month abbreviations' module, whose own runtime
+    // imports are type-only.
+    const derivation = closureFrom(resolve(SRC, 'lib/firstOfYear.ts'))
+    expect(derivation.files.size).toBe(1)
+    expect([...derivation.externals]).toEqual([])
+    const geom = closureFrom(resolve(SRC, 'lib/firstOfYearChartGeometry.ts'))
+    expect(geom.files.size).toBe(2)
+    expect(hasIn(geom.files, 'lib/sightingsGraph.ts')).toBe(true)
+    expect([...geom.externals]).toEqual([])
+  })
+
   it('the county-completeness code is only reachable through the lazy Map Explorer (NFR-02)', () => {
     expect(has('lib/countyCompleteness.ts')).toBe(false)
     expect(has('lib/countyCompletenessCache.ts')).toBe(false)

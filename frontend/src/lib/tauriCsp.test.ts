@@ -5,8 +5,8 @@
 // policy the Mac, Windows, iPhone and iPad apps share: one webview, one config.
 // It replaced `"csp": null`. The page may run only its own bundled scripts,
 // talk only to the hosts it already uses, and frame only the Macaulay Library
-// embed. API calls (eBird, OpenWeather, NOAA, Nominatim, GitHub) go through the
-// http plugin over IPC, so they need no host here; only the IPC origins do.
+// embed. API calls (every `lib/tauri/` service) go through the http plugin
+// over IPC, so they need no host here; only the IPC origins do.
 //
 // WHY THE HOSTS ARE DERIVED, NEVER RESTATED. A missed host fails quietly: a
 // blank map base, an empty embed, a favicon replaced by its fallback glyph. A
@@ -26,9 +26,22 @@
 // `img-src` by policy and nowhere in source; if it moves, the mark shows its
 // bundled glyph (the favicon's own failure state), never a broken link.
 //
-// WHAT IT CANNOT SEE. The http plugin's `https://**` fetch scope is outside the
-// page's CSP (Rust makes that request), and an iframe or image added at a call
-// site other than these three is not read here (`.claude/rules/security.md`).
+// WHAT IT CANNOT SEE. A request the http plugin sends is outside the page's CSP
+// (Rust makes it); where such a request may go is the http permit's job, held
+// to the services' call sites by `lib/tauriHttpScope.test.ts`. An iframe or
+// image added at a call site other than these three is not read here
+// (`.claude/rules/security.md`).
+//
+// WORKERS (worker-csp). Tauri sends the policy only with `.html`, and a worker
+// loaded by URL takes its policy from its own script response, so the app
+// builds its one window in code (`app.windows[0].create` is false) with a
+// web-resource hook that puts the same directive map on every non-HTML file
+// (`src-tauri/src/worker_csp.rs`). The last block below holds that pairing and
+// the hook's shape: config creates no window and code creates exactly one, one
+// setup closure on every target, the policy read from config with no directive
+// or host typed in Rust, nothing attached in a dev build, and HTML untouched.
+// The predicate's behaviour is the Rust tests' business (`cargo test`); these
+// rows hold the source shape those tests cannot see from inside the module.
 import { describe, it, expect } from 'vitest'
 import { readFileSync, readdirSync } from 'node:fs'
 import ts from 'typescript'
@@ -275,5 +288,188 @@ describe('the CSP source readers', () => {
     expect(() => attributeOrigins('f.tsx', variable, 'iframe', 'src')).toThrow(/not a literal URL/)
     expect(() => attributeOrigins('f.tsx', dynamicHost, 'iframe', 'src')).toThrow(/fixed https origin/)
     expect(() => attributeOrigins('f.tsx', openHost, 'iframe', 'src')).toThrow(/fixed https origin/)
+  })
+})
+
+// ── The worker policy: the window built in code, and the hook ────────────────
+
+const LIB_RS = 'src-tauri/src/lib.rs'
+const WORKER_CSP_RS = 'src-tauri/src/worker_csp.rs'
+
+/** Rust with commented-out lines dropped: whole-line `//` (doc comments
+ *  included) and a `/*` block that opens a line. Line-based, as in
+ *  `singleWebviewInvariant.test.ts`, so it never damages a `//` inside a string
+ *  on a code line, and a line wrongly dropped turns a `toContain` red, which is
+ *  loud. These rows must never be satisfied by a call that is commented out. */
+function rustCode(text: string): string {
+  const kept: string[] = []
+  let inBlock = false
+  for (const line of text.split('\n')) {
+    const t = line.trimStart()
+    if (inBlock) {
+      if (t.includes('*/')) inBlock = false
+      continue
+    }
+    if (t.startsWith('//')) continue
+    if (t.startsWith('/*')) {
+      if (!t.includes('*/')) inBlock = true
+      continue
+    }
+    kept.push(line)
+  }
+  return kept.join('\n')
+}
+
+/** Code with every `#[cfg(test)] mod name { ... }` removed, by brace depth. */
+function withoutTestModules(code: string): string {
+  let out = code
+  for (;;) {
+    const m = /#\[cfg\(test\)\]\s*mod \w+ \{/.exec(out)
+    if (m === null) return out
+    let depth = 0
+    let i = m.index + m[0].length - 1
+    for (; i < out.length; i++) {
+      if (out[i] === '{') depth++
+      else if (out[i] === '}' && --depth === 0) break
+    }
+    if (depth !== 0) throw new Error('a test module never closes')
+    out = out.slice(0, m.index) + out.slice(i + 1)
+  }
+}
+
+const count = (text: string, needle: string) => text.split(needle).length - 1
+
+const libCode = rustCode(read(LIB_RS))
+const libShipped = withoutTestModules(libCode)
+const workerCode = rustCode(read(WORKER_CSP_RS))
+const workerShipped = withoutTestModules(workerCode)
+
+/** The text of the one setup closure, from `.setup(|app| {` to its `Ok(())`. */
+function setupBody(code: string): string {
+  const start = code.indexOf('.setup(|app| {')
+  expect(start, 'lib.rs has no `.setup(|app| {` closure').toBeGreaterThanOrEqual(0)
+  const end = code.indexOf('Ok(())', start)
+  expect(end, 'the setup closure has no `Ok(())`').toBeGreaterThan(start)
+  return code.slice(start, end)
+}
+
+// Every CSP directive name: the configured ones, plus the rest of CSP Level 3,
+// so a directive typed in Rust that the config does not carry is caught too.
+const DIRECTIVE_NAMES = new Set([
+  ...Object.keys(policy),
+  'script-src-elem', 'script-src-attr', 'style-src-elem', 'style-src-attr', 'font-src', 'media-src',
+  'child-src', 'manifest-src', 'sandbox', 'upgrade-insecure-requests', 'report-uri', 'report-to',
+  'require-trusted-types-for', 'trusted-types',
+])
+
+describe('the worker policy (the main window built in code, with its hook)', () => {
+  const windows = (conf as unknown as { app: { windows: Array<Record<string, unknown>> } }).app.windows
+
+  it('config creates no window and code creates exactly one, from that config entry, labelled main', () => {
+    // The two halves of one change: `create: false` with no window built in
+    // code opens the app with no window; a window built in code while config
+    // still creates one fails setup() on a duplicate label and aborts launch.
+    expect(windows, 'tauri.conf.json must declare exactly one window').toHaveLength(1)
+    expect(windows[0]!.create, 'app.windows[0].create must be false: lib.rs builds the window').toBe(false)
+    // The label comes from config (absent means Tauri's default, main), and it
+    // is what every capability names, or the window gets no permissions.
+    expect(windows[0]!.label ?? 'main').toBe('main')
+    for (const name of readdirSync(at('src-tauri/capabilities/'))) {
+      if (!name.endsWith('.json')) continue
+      const cap = JSON.parse(read(`src-tauri/capabilities/${name}`)) as { windows?: unknown }
+      expect(cap.windows, `${name} names a window other than main`).toEqual(['main'])
+    }
+    expect(count(libShipped, 'WebviewWindowBuilder::from_config('), 'lib.rs must build exactly one window').toBe(1)
+    // Built from the config entry, so its label is read, never typed again.
+    const built = /WebviewWindowBuilder::from_config\(\s*app\.handle\(\),\s*&(\w+)\s*\)/.exec(libShipped)
+    expect(built, 'from_config is not handed the config window').not.toBeNull()
+    expect(libShipped).toMatch(new RegExp(
+      `let ${built![1]} = app\\s*\\.config\\(\\)\\s*\\.app\\s*\\.windows\\s*\\.first\\(\\)`))
+    expect(libShipped, 'lib.rs types the window label again').not.toMatch(/"main"/)
+  })
+
+  it('the hook is attached before the window is built, and the window is built first', () => {
+    const body = setupBody(libShipped)
+    const from = body.indexOf('from_config(')
+    const hook = body.indexOf('.on_web_resource_request(')
+    const build = body.indexOf('.build()?;')
+    expect(from, 'the window is not built in the setup closure').toBeGreaterThan(0)
+    expect(count(body, '.on_web_resource_request('), 'exactly one hook').toBe(1)
+    expect(hook, 'the hook must be attached to the builder, before build()').toBeGreaterThan(from)
+    expect(build, 'the window is never built').toBeGreaterThan(hook)
+    // Nothing runs before the window, and nothing gates it: window_geometry and
+    // the launch backdrop both need it, and every platform needs a window.
+    expect(body.slice(0, from), 'something gated or ran before the window').not.toMatch(/#\[cfg|::install\(|keep_window_on_screen/)
+  })
+
+  it('lib.rs has exactly one setup closure, on the builder every target shares', () => {
+    // Builder::setup keeps only its last closure, so the last `.setup` wins: a
+    // second one chained AFTER the shared closure replaces it and that platform
+    // (Android included, once it lands) opens with no window, and one placed
+    // BEFORE it, on a platform `let builder` line, is silently ignored and its
+    // step never runs. This row refuses both shapes.
+    expect(count(libShipped, '.setup('), 'lib.rs must call Builder::setup exactly once').toBe(1)
+    // Directly on the final `builder` expression, with no cfg attribute between
+    // the previous statement and it.
+    expect(libShipped, 'the setup closure is not on the unconditional builder').toMatch(/;\s*builder\s*\.setup\(\|app\| \{/)
+  })
+
+  it('the Rust reads the policy from config: no host and no directive name is typed outside tests', () => {
+    expect(libShipped).toContain('worker_csp::policy_header(app.config().app.security.csp.as_ref())')
+    expect(workerShipped).toMatch(/pub fn policy_header\(csp: Option<&Csp>\)/)
+    for (const [file, code] of [[LIB_RS, libShipped], [WORKER_CSP_RS, workerShipped]] as const) {
+      expect(code, `${file} types a URL`).not.toMatch(/https?:\/\//)
+      for (const name of DIRECTIVE_NAMES) {
+        expect(new RegExp(`(?<![\\w-])${name}(?![\\w-])`).test(code), `${file} types the directive ${name}`).toBe(false)
+      }
+      expect(code, `${file} types a directive name`).not.toMatch(/[a-z]-src(?![\w-])/)
+    }
+  })
+
+  it('a dev build attaches nothing: the hook passes is_dev, and the predicate refuses it first', () => {
+    const hook = setupBody(libShipped).slice(setupBody(libShipped).indexOf('.on_web_resource_request('))
+    expect(hook).toMatch(/^\.on_web_resource_request\(move \|_request, response\| \{\s*worker_csp::attach\(tauri::is_dev\(\), response,/)
+    expect(workerShipped).toMatch(/pub fn should_attach\(is_dev: bool, content_type: Option<&str>\) -> bool \{\s*if is_dev \{\s*return false;/)
+    expect(workerCode, 'the Rust row for the dev gate is gone').toMatch(/#\[test\]\s*fn a_dev_build_attaches_nothing\(\)/)
+  })
+
+  it('an HTML response is never touched: the one header write sits behind the content-type check', () => {
+    expect(count(workerShipped, '.insert('), 'worker_csp.rs writes a header in more than one place').toBe(1)
+    expect(workerShipped).toMatch(/\.get\(CONTENT_TYPE\)/)
+    expect(workerShipped).toMatch(/if should_attach\(is_dev, content_type\) \{\s*response\s*\.headers_mut\(\)\s*\.insert\(CONTENT_SECURITY_POLICY,/)
+    expect(workerShipped).toContain('!essence.eq_ignore_ascii_case("text/html")')
+    expect(workerCode, 'the Rust row for HTML is gone').toMatch(/#\[test\]\s*fn an_html_response_is_never_touched\(\)/)
+    expect(workerCode, 'the Rust row for the real config is gone').toMatch(/#\[test\]\s*fn the_header_carries_exactly_the_configured_directive_map\(\)/)
+  })
+
+  it('no platform overlay sets app.windows, so every platform builds this one window', () => {
+    // An overlay is a JSON merge patch, and a `windows` array in one replaces the
+    // whole list: `create` back to true there means a duplicate label on that
+    // platform, a missing `create` the same.
+    const overlays = readdirSync(at('src-tauri/'), { withFileTypes: true })
+      .filter(d => d.isFile() && /^tauri\..+\.conf\.json$/.test(d.name))
+      .map(d => d.name)
+    expect(overlays.length, 'no overlays found: the scan read the wrong directory').toBeGreaterThan(0)
+    for (const name of overlays) {
+      const o = JSON.parse(read(`src-tauri/${name}`)) as { app?: { windows?: unknown } }
+      expect(o.app?.windows, `${name} overrides app.windows`).toBeUndefined()
+    }
+  })
+
+  // Guard the guard: each reader is shown to strip what it claims to strip and
+  // keep what it claims to keep, so no row above passes over an empty string.
+  it('the Rust readers drop comments and test modules, and keep the shipped code', () => {
+    expect(read(WORKER_CSP_RS)).toMatch(/\/\/!.*script-src/)
+    expect(workerCode).not.toMatch(/\/\/!/)
+    expect(workerCode).toContain('fn the_header_carries_exactly_the_configured_directive_map()')
+    expect(workerShipped).not.toContain('fn the_header_carries_exactly_the_configured_directive_map()')
+    expect(workerShipped).toContain('pub fn should_attach(')
+    expect(workerShipped).toContain('pub fn attach(')
+    expect(libCode).toContain('fn an_empty_name_becomes_the_fallback_zone()')
+    expect(libShipped).not.toContain('fn an_empty_name_becomes_the_fallback_zone()')
+    expect(libShipped).toContain('pub fn run()')
+    expect(libShipped).toContain('.run(tauri::generate_context!())')
+    expect(withoutTestModules('a\n#[cfg(test)]\nmod t {\n fn x() { let s = "{y}"; }\n}\nb')).toBe('a\n\nb')
+    expect(() => withoutTestModules('#[cfg(test)]\nmod t {\n fn x() {\n')).toThrow(/never closes/)
   })
 })

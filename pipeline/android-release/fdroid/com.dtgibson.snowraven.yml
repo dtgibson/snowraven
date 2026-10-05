@@ -15,9 +15,9 @@ RepoType: git
 Repo: https://github.com/dtgibson/snowraven.git
 
 Builds:
-  - versionName: 1.0.51
-    versionCode: 1000051
-    commit: v1.0.51
+  - versionName: 1.0.52
+    versionCode: 1000052
+    commit: v1.0.52
     timeout: 10800
     sudo:
       - apt-get update
@@ -43,5 +43,5 @@ Builds:
 AutoUpdateMode: Version
 UpdateCheckMode: Tags ^v[0-9.]+$
 UpdateCheckData: src-tauri/tauri.conf.json|"versionCode":\s*(\d+)|.|"version":\s*"([\d.]+)"
-CurrentVersion: 1.0.51
-CurrentVersionCode: 1000051
+CurrentVersion: 1.0.52
+CurrentVersionCode: 1000052

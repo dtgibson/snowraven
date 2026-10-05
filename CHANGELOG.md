@@ -2,7 +2,7 @@
 
 All notable changes to SnowRaven are documented here.
 
-## [1.0.51] - 2026-10-04
+## [Unreleased]
 
 ### Added
 - **SnowRaven for Android phones and tablets.** The same app now runs on Android 8.0 and later: every tab, your own eBird backup and Macaulay Library export opened through the phone's file picker and kept in the app's private storage, the compact header and bottom bar of the iPhone app, the app's colors under the status and navigation bars in light and dark, and the keyboard kept clear of the field you are typing in. iCloud Sync, the home-screen widgets and Alerts stay Mac, iPhone and iPad features and do not appear on Android. On Android the app does not offer to find your location: you move the map by searching for a place or by setting a Default Location. Macaulay Library photos, sounds and videos open in your browser on Android instead of playing inside the app.
@@ -15,6 +15,26 @@ All notable changes to SnowRaven are documented here.
 ### Internal
 - A committed Android project under `src-tauri/gen/android` (application id `com.dtgibson.snowraven`), one build script that CI and the F-Droid recipe both run (the unsigned universal APK, built with `cargo tauri` and Gradle 8.14.3, with no wrapper jar committed), the Android version code committed beside the version in `tauri.conf.json`, and guards that keep the project's application id, version source, permissions, launch state, icons and native calls as decided. The location plugin is now iOS-only, so nothing from Google Play services is in the Android build. The license is now declared as AGPL-3.0-only in `Cargo.toml` and both `package.json` files, matching `LICENSE`.
 - On Android, the manifest switches off the system WebView's Safe Browsing check and its usage statistics, and the content security policy added in 1.0.49 governs the Android webview as it does the Mac, Windows, iPhone and iPad apps. The release Mac signs the CI-built APK with `scripts/android/sign.sh`, which binds the signer to the keystore's own certificate, and the Android CI job pins every action to a commit SHA.
+
+## [1.0.52] - 2026-10-04
+
+### Added
+- **First of Year on Species Detail.** A new First of Year card, right after the Sightings and Media cards, lists the first date you reported the selected species in each year, newest year first, and each date opens its checklist on eBird. Once you have reported the species in two or more years, a small chart beside the list (above it on a phone) plots each year's first date by day of the year, so a steady arrival reads as a flat line, an early or late year stands out, and a year you missed the bird shows as a break in the line. The oldest row always matches the Sightings card's First seen, and the card follows Show subspecies and the county and date filters with the rest of the tab; while a date range is set, a short note says these are the first dates within that range. Everything comes from the eBird backup you have loaded.
+- Help's Species Detail section describes the new First of Year card.
+
+## [1.0.51] - 2026-10-04
+
+### Changed
+- In the Mac, Windows, iPhone and iPad apps, the permission the app uses to reach web services now admits only the services SnowRaven already uses (eBird, OpenWeather, NOAA tides, OpenStreetMap's place search, Macaulay Library and the GitHub update check), each at the addresses the app calls, instead of any secure web address. Nothing you see or do in the app changes.
+- In the Mac, Windows, iPhone and iPad apps, the content security policy added in 1.0.49 now also covers the scripts the app runs in the background, such as the one that draws the map; until now they ran without it. Nothing you see or do in the app changes.
+
+### Fixed
+- On the Map Explorer, Media Targets and Nearby Lifers reports now take the right recency color in the weeks after clocks spring forward for daylight saving time. For 8 days after the change, a report 8 days old took the past-7-days color, and for 16 days a report 16 days old took the 8 to 15 days color. Screen readers in the Targets in view and Nearby lifers in view lists now hear 8 to 15 and 16 to 30 days, the same ranges as the map's popups and Help.
+- In Settings' iCloud Sync section (Mac, iPhone and iPad), **Remove synced files from iCloud** no longer stops at the first file iCloud will not delete: it tries every synced file once and removes everything it can. If anything stays, the line "Some synced files may still be in iCloud. Try again." still shows, and Copy iCloud details now names each file that stayed.
+- In the List Comparer's Checklists mode, a breeding code the app does not recognize now always shows as the code itself. Before, a code spelled like one of JavaScript's built-in names, which eBird does not send, drew a blank badge, and one of them stopped the app with "Something went wrong".
+
+### Internal
+- The app's one window is now created in code at startup, on every platform, rather than from the configuration file, so that the policy can be attached to the background scripts. A new test derives the services the app calls from its source and fails when the permission and the code disagree.
 
 ## [1.0.50] - 2026-10-03
 

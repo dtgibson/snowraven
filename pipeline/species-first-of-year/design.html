@@ -1,0 +1,716 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>First of Year: Species Detail design</title>
+<style>
+/* ──────────────────────────────────────────────────────────────────────────
+   SnowRaven tokens (mirrors frontend/src/globals.css, both themes). Only the
+   tokens this surface touches are carried. The shipped component reads these
+   through var(--sr-*) exactly as written here; the values live in globals.css.
+   ────────────────────────────────────────────────────────────────────────── */
+:root {
+  --sr-text-scale: 1;
+  --sr-bg: #F9FAFB;
+  --sr-surface: #FFFFFF;
+  --sr-surface-subtle: #F4F4F5;
+  --sr-surface-faint: #FAFAFA;
+  --sr-text: #0F1117;
+  --sr-text-muted: #6B6B74;
+  --sr-text-gray: #6B7280;
+  --sr-border: #E4E4E7;
+  --sr-border-subtle: #F4F4F5;
+  --sr-border-medium: #C4C4CE;
+  --sr-accent: #277448;
+  --sr-accent-strong: #1A5C38;
+  --sr-accent-bg: #E8F5EE;
+  --sr-accent-border: rgba(39,116,72,0.25);
+  --sr-accent-border-strong: rgba(39,116,72,0.7);
+  --sr-on-accent: #FFFFFF;
+  --sr-graph-individuals: #2D8653;
+  /* Mockup-only: the app's --sr-card-shadow is read from globals.css by SectionCard;
+     written here with the app's ink rather than pure black so the mockup lints clean. */
+  --sr-card-shadow: 0 1px 4px rgba(15,17,23,0.06), 0 4px 16px rgba(15,17,23,0.04);
+  --sr-focus-halo: rgba(45,134,83,0.12);
+  --font-sans: 'Inter', system-ui, 'Segoe UI', sans-serif;
+}
+[data-theme="dark"] {
+  --sr-bg: #09090B;
+  --sr-surface: #18181B;
+  --sr-surface-subtle: #27272A;
+  --sr-surface-faint: #1C1C1F;
+  --sr-text: #F4F4F5;
+  --sr-text-muted: #A1A1AA;
+  --sr-text-gray: #8A8A92;
+  --sr-border: #27272A;
+  --sr-border-subtle: #1F1F23;
+  --sr-border-medium: #3F3F46;
+  --sr-accent: #34D399;
+  --sr-accent-strong: #34D399;
+  --sr-accent-bg: #052E16;
+  --sr-accent-border: rgba(52,211,153,0.2);
+  --sr-accent-border-strong: rgba(52,211,153,0.5);
+  --sr-on-accent: #052E16;
+  --sr-graph-individuals: #34D399;
+  --sr-card-shadow: 0 1px 4px rgba(9,9,11,0.4), 0 4px 16px rgba(9,9,11,0.25);
+  --sr-focus-halo: rgba(52,211,153,0.16);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html {
+  background: var(--sr-bg);
+  font-size: calc(100% * var(--sr-text-scale, 1));
+}
+body {
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--sr-text);
+  background: var(--sr-bg);
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+svg { display: block; }
+a { color: inherit; }
+
+/* Global focus ring, as globals.css draws it. */
+a:focus-visible, button:focus-visible, [tabindex]:focus-visible {
+  outline: 3px solid var(--sr-accent);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 6px var(--sr-focus-halo);
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+   Mockup chrome (not part of the design): theme / width / text size / state.
+   Sized in px so the in-frame text-size toggle does not move it.
+   ────────────────────────────────────────────────────────────────────────── */
+.mk-bar {
+  position: sticky; top: 0; z-index: 10;
+  display: flex; flex-wrap: wrap; gap: 14px 22px; align-items: center;
+  padding: 10px 16px;
+  background: var(--sr-surface);
+  border-bottom: 1px solid var(--sr-border);
+  font-size: 12px; line-height: 1.3;
+}
+.mk-bar h1 { font-size: 13px; font-weight: 700; letter-spacing: -0.01em; margin-right: 6px; }
+.mk-bar h1 span { color: var(--sr-text-muted); font-weight: 500; }
+.mk-group { display: flex; align-items: center; gap: 6px; }
+.mk-group > span { color: var(--sr-text-muted); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; margin-right: 2px; }
+.mk-seg { display: inline-flex; border: 1.5px solid var(--sr-accent-border); border-radius: 15px; overflow: hidden; background: var(--sr-surface); }
+.mk-seg button {
+  font: inherit; font-size: 12px; font-weight: 500; color: var(--sr-text-muted);
+  background: transparent; border: 0; border-left: 1.5px solid var(--sr-accent-border);
+  min-height: 28px; padding: 0 11px; cursor: pointer;
+  transition: background-color 120ms ease-out, color 120ms ease-out;
+}
+.mk-seg button:first-child { border-left: 0; }
+.mk-seg button:hover { color: var(--sr-text); }
+.mk-seg button[aria-pressed="true"] { background: var(--sr-accent-bg); color: var(--sr-accent); font-weight: 600; }
+.mk-seg button:focus-visible { outline-offset: -3px; box-shadow: none; }
+.mk-note { font-size: 11px; color: var(--sr-text-muted); max-width: 44ch; }
+
+.mk-stage { padding: 28px 16px 64px; display: flex; justify-content: center; }
+.mk-frame {
+  width: 900px; max-width: 100%;
+  background: var(--sr-bg);
+  border: 1px solid var(--sr-border);
+  border-radius: 14px;
+  overflow: hidden;
+  transition: width 220ms cubic-bezier(0.2, 0, 0, 1);
+}
+.mk-frame-cap {
+  font-size: 11px; color: var(--sr-text-muted); padding: 6px 12px;
+  border-bottom: 1px dashed var(--sr-border); background: var(--sr-surface-faint);
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+   Species Detail page register (abbreviated: tab header, Summary, the
+   Sightings and Media row), so the new card is judged in its real company.
+   ────────────────────────────────────────────────────────────────────────── */
+.sr-page { padding: 18px 18px 8px; display: flex; flex-direction: column; gap: 14px; }
+.sr-tab-head { display: flex; align-items: center; gap: 10px; margin-bottom: 2px; }
+.sr-tab-tile {
+  width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0;
+  background: var(--sr-accent-bg); color: var(--sr-accent);
+  display: flex; align-items: center; justify-content: center;
+}
+.sr-tab-head h2 { font-size: 1.125rem; font-weight: 700; letter-spacing: -0.01em; line-height: 1.2; }
+.sr-tab-head p { font-size: 0.8125rem; color: var(--sr-text-muted); line-height: 1.4; }
+
+.sr-card {
+  background: var(--sr-surface);
+  border: 1px solid var(--sr-border);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: var(--sr-card-shadow);
+}
+.sr-card-head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 14px 18px 12px;
+  border-bottom: 1px solid var(--sr-border-subtle);
+}
+.sr-card-tile {
+  width: 28px; height: 28px; border-radius: 7px; flex-shrink: 0;
+  background: var(--sr-accent-bg); color: var(--sr-accent);
+  display: flex; align-items: center; justify-content: center;
+}
+.sr-card-title { font-size: 0.8125rem; font-weight: 600; color: var(--sr-text); }
+.sr-card-body { padding: 16px 18px; }
+
+.sr-summary { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.sr-summary .name { font-size: 1.25rem; font-weight: 700; letter-spacing: -0.02em; line-height: 1.15; }
+.sr-summary .sci { font-size: 0.71875rem; font-style: italic; color: var(--sr-text-gray); }
+
+.sr-two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.sr-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.sr-stat-label {
+  font-size: 0.6875rem; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.07em; color: var(--sr-text-muted); margin-bottom: 4px;
+}
+.sr-stat-big { font-size: 1.25rem; font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; color: var(--sr-text); }
+.sr-stat-big.accent { color: var(--sr-accent); }
+.sr-stat-sub { font-size: 0.6875rem; color: var(--sr-text-muted); margin-top: 2px; }
+.sr-bar { height: 3px; border-radius: 2px; margin-top: 6px; background: var(--sr-border); overflow: hidden; }
+.sr-bar > div { height: 100%; border-radius: 2px; background: var(--sr-accent); }
+.sr-media-row { display: flex; align-items: center; gap: 10px; }
+.sr-media-row + .sr-media-row { margin-top: 10px; }
+.sr-media-tile {
+  width: 22px; height: 22px; border-radius: 5px; flex-shrink: 0;
+  background: var(--sr-surface-subtle); color: var(--sr-text-muted);
+  display: flex; align-items: center; justify-content: center;
+}
+.sr-media-row .kind { font-size: 0.8125rem; font-weight: 500; flex: 1; }
+.sr-media-row .n { font-size: 0.84375rem; font-weight: 600; color: var(--sr-accent); display: inline-flex; align-items: center; gap: 3px; text-decoration: none; }
+.sr-media-row .n:hover { text-decoration: underline; }
+
+/* The shared ChecklistLink signature: accent text, 10px external-link glyph,
+   underline on hover, label-led accessible name. */
+.sr-cl {
+  display: inline-flex; align-items: center; gap: 3px;
+  color: var(--sr-accent); text-decoration: none;
+}
+.sr-cl:hover { text-decoration: underline; }
+.sr-cl--stat { font-size: 0.875rem; font-weight: 700; letter-spacing: -0.01em; line-height: 1.1; }
+
+.sr-next { opacity: 0.55; pointer-events: none; }
+.sr-next .sr-card { box-shadow: none; }
+.sr-next p { font-size: 0.8125rem; color: var(--sr-text-muted); }
+
+/* ──────────────────────────────────────────────────────────────────────────
+   THE DESIGN: First of Year (.sr-foy-*)
+   ────────────────────────────────────────────────────────────────────────── */
+.sr-foy-note {
+  font-size: 0.75rem; color: var(--sr-text-muted); line-height: 1.45;
+  margin: -4px 0 12px;
+}
+/* Wide tier: chart first (the focal point), the dated record beside it.
+   Phone tier (≤640, the app's established boundary): one column, chart then
+   rows. DOM order is visual order in both tiers. */
+.sr-foy-grid {
+  display: flex;
+  align-items: flex-start;
+  gap: 22px;
+}
+.sr-foy-chart { flex: 1 1 0; min-width: 0; }
+.sr-foy-chart svg { width: 100%; overflow: visible; }
+
+/* No positive min-width anywhere in this pattern (it would leak page scroll at
+   320px / 200%): the column sizes to its own rows and is capped, never floored. */
+.sr-foy-list {
+  list-style: none;
+  flex: 0 1 auto;
+  max-width: 16rem;
+  min-width: 0;
+}
+.sr-foy-grid--rows-only .sr-foy-list { max-width: 22rem; flex: 1 1 auto; }
+.sr-foy-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 6px 14px;
+  flex-wrap: wrap;
+  min-width: 0;
+  min-height: 2rem;
+  padding: 0.3125rem 8px;
+  margin: 0 -8px;
+  border-radius: 6px;
+  transition: background-color 120ms ease-out;
+}
+.sr-foy-row + .sr-foy-row { position: relative; }
+.sr-foy-row + .sr-foy-row::before {
+  content: ""; position: absolute; left: 8px; right: 8px; top: 0;
+  border-top: 1px solid var(--sr-border-subtle);
+}
+.sr-foy-row:hover, .sr-foy-row:focus-within { background: var(--sr-surface-subtle); }
+.sr-foy-row:hover::before, .sr-foy-row:focus-within::before,
+.sr-foy-row:hover + .sr-foy-row::before, .sr-foy-row:focus-within + .sr-foy-row::before { border-top-color: transparent; }
+.sr-foy-year {
+  font-size: 0.8125rem; font-weight: 600; color: var(--sr-text);
+  font-variant-numeric: tabular-nums; letter-spacing: 0.01em;
+}
+.sr-foy-date {
+  font-size: 0.8125rem; font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.sr-foy-date.is-plain { color: var(--sr-text); display: inline-block; }
+
+/* Chart marks. The highlight is driven by the ROW (hover / focus-within); the
+   chart subtree stays inert. r is a CSS property on SVG circles in Chromium
+   and WebKit, which is what lets the point grow with a transition. */
+.sr-foy-grid-line { stroke: var(--sr-border-subtle); stroke-dasharray: 3 3; }
+.sr-foy-seg { fill: none; stroke: var(--sr-graph-individuals); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.sr-foy-dot {
+  fill: var(--sr-graph-individuals);
+  stroke: var(--sr-surface); stroke-width: 1.5;
+  r: 4;
+  transition: r 140ms cubic-bezier(0.2, 0, 0, 1);
+}
+.sr-foy-dot.is-lone { r: 5; }
+.sr-foy-dot.is-active, .sr-foy-dot.is-lone.is-active { r: 6; }
+.sr-foy-halo {
+  fill: none; stroke: var(--sr-graph-individuals); stroke-width: 2;
+  r: 10; stroke-opacity: 0;
+  transition: stroke-opacity 140ms cubic-bezier(0.2, 0, 0, 1);
+}
+.sr-foy-halo.is-active { stroke-opacity: 0.28; }
+.sr-foy-tick {
+  font-size: 11px; font-family: var(--font-sans);
+  fill: var(--sr-text-muted);
+  transition: fill 140ms ease-out;
+}
+.sr-foy-tick.is-active { fill: var(--sr-text); font-weight: 600; }
+
+/* Phone tier. In the shipped stylesheet these declarations live inside the
+   established ≤640 @media block; the mockup keys them off the frame width. */
+.is-phone .sr-two-col { grid-template-columns: 1fr; }
+.is-phone .sr-grid-2 { grid-template-columns: 1fr; }
+.is-phone .sr-foy-grid { flex-direction: column; align-items: stretch; gap: 10px; }
+.is-phone .sr-foy-list { max-width: none; }
+.is-phone .sr-foy-row { min-height: 2.5rem; }
+
+@media (prefers-reduced-motion: reduce) {
+  .sr-foy-row, .sr-foy-dot, .sr-foy-halo, .sr-foy-tick, .mk-frame, .mk-seg button { transition: none; }
+}
+</style>
+</head>
+<body>
+
+<div class="mk-bar" aria-label="Mockup controls">
+  <h1>First of Year <span>· Species Detail · design mockup</span></h1>
+  <div class="mk-group"><span>Theme</span>
+    <div class="mk-seg" role="group" aria-label="Theme">
+      <button type="button" data-set="theme" data-val="light" aria-pressed="true">Light</button>
+      <button type="button" data-set="theme" data-val="dark" aria-pressed="false">Dark</button>
+    </div>
+  </div>
+  <div class="mk-group"><span>Width</span>
+    <div class="mk-seg" role="group" aria-label="Frame width">
+      <button type="button" data-set="width" data-val="900" aria-pressed="true">Mac 900</button>
+      <button type="button" data-set="width" data-val="744" aria-pressed="false">iPad 744</button>
+      <button type="button" data-set="width" data-val="390" aria-pressed="false">iPhone 390</button>
+      <button type="button" data-set="width" data-val="320" aria-pressed="false">iPhone 320</button>
+    </div>
+  </div>
+  <div class="mk-group"><span>Text</span>
+    <div class="mk-seg" role="group" aria-label="Text size">
+      <button type="button" data-set="scale" data-val="1" aria-pressed="true">100%</button>
+      <button type="button" data-set="scale" data-val="1.5" aria-pressed="false">150%</button>
+      <button type="button" data-set="scale" data-val="2" aria-pressed="false">200%</button>
+    </div>
+  </div>
+  <div class="mk-group"><span>Data</span>
+    <div class="mk-seg" role="group" aria-label="Data state">
+      <button type="button" data-set="data" data-val="eight" aria-pressed="true">Eight years</button>
+      <button type="button" data-set="data" data-val="two" aria-pressed="false">Two years</button>
+      <button type="button" data-set="data" data-val="one" aria-pressed="false">One year</button>
+    </div>
+  </div>
+  <div class="mk-group"><span>Date filter</span>
+    <div class="mk-seg" role="group" aria-label="Date range filter">
+      <button type="button" data-set="filter" data-val="off" aria-pressed="true">Off</button>
+      <button type="button" data-set="filter" data-val="on" aria-pressed="false">On</button>
+    </div>
+  </div>
+  <p class="mk-note">Hover or Tab to a year row: its point grows in the chart. The chart itself has no hover.</p>
+</div>
+
+<div class="mk-stage">
+  <div class="mk-frame" id="frame">
+    <div class="mk-frame-cap" id="frameCap">Species Detail, Mac window · the two cards above are shipped today; First of Year is new</div>
+    <div class="sr-page">
+
+      <div class="sr-tab-head">
+        <div class="sr-tab-tile">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.67 19a2 2 0 0 0 1.416-.588l6.154-6.172a6 6 0 0 0-8.49-8.49L5.586 9.914A2 2 0 0 0 5 11.328V18a1 1 0 0 0 1 1z"/><path d="M16 8 2 22"/><path d="M17.5 15H9"/></svg>
+        </div>
+        <div>
+          <h2>Species Detail</h2>
+          <p>Everything your eBird data holds about one bird.</p>
+        </div>
+      </div>
+
+      <div class="sr-card">
+        <div class="sr-card-body sr-summary">
+          <span class="name">Swainson's Thrush</span>
+          <span class="sci">Catharus ustulatus</span>
+        </div>
+      </div>
+
+      <div class="sr-two-col">
+        <div class="sr-card">
+          <div class="sr-card-head">
+            <div class="sr-card-tile"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg></div>
+            <span class="sr-card-title">Sightings</span>
+          </div>
+          <div class="sr-card-body">
+            <div class="sr-grid-2">
+              <div><div class="sr-stat-label">Checklists</div><div class="sr-stat-big">143</div></div>
+              <div><div class="sr-stat-label">Individuals</div><div class="sr-stat-big">212</div></div>
+              <div style="border-left: 1.5px solid var(--sr-border-subtle); padding-left: 12px;">
+                <div class="sr-stat-label">Frequency</div>
+                <div class="sr-stat-big accent">4%</div>
+                <div class="sr-stat-sub">of your checklists</div>
+                <div class="sr-bar"><div style="width: 4%"></div></div>
+              </div>
+              <div style="grid-column: 1 / -1;">
+                <div class="sr-stat-label">Personal best</div>
+                <a class="sr-cl sr-cl--stat" style="font-size: 1.25rem; letter-spacing: -0.02em;" href="https://ebird.org/checklist/S168245901" target="_blank" rel="noreferrer" aria-label="6: open checklist on eBird (opens in a new tab)">6 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></a>
+              </div>
+              <div><div class="sr-stat-label">First seen</div>
+                <a class="sr-cl sr-cl--stat" href="https://ebird.org/checklist/S36012345" target="_blank" rel="noreferrer" aria-label="Apr 22, 2017: open checklist on eBird (opens in a new tab)">Apr 22, 2017 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></a>
+              </div>
+              <div><div class="sr-stat-label">Last seen</div>
+                <a class="sr-cl sr-cl--stat" href="https://ebird.org/checklist/S279114502" target="_blank" rel="noreferrer" aria-label="Sep 14, 2026: open checklist on eBird (opens in a new tab)">Sep 14, 2026 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></a>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="sr-card">
+          <div class="sr-card-head">
+            <div class="sr-card-tile"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg></div>
+            <span class="sr-card-title">Media</span>
+          </div>
+          <div class="sr-card-body">
+            <div class="sr-media-row">
+              <div class="sr-media-tile"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg></div>
+              <span class="kind">Photos</span>
+              <a class="n" href="#" aria-label="9 photo on the Macaulay Library (opens in a new tab)">9 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></a>
+            </div>
+            <div class="sr-media-row">
+              <div class="sr-media-tile"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg></div>
+              <span class="kind">Audios</span>
+              <a class="n" href="#" aria-label="14 audio on the Macaulay Library (opens in a new tab)">14 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></a>
+            </div>
+            <div class="sr-media-row">
+              <div class="sr-media-tile"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.87a.5.5 0 0 0-.752-.432L16 10.5"/><rect x="2" y="6" width="14" height="12" rx="2"/></svg></div>
+              <span class="kind">Videos</span>
+              <span style="font-size: 0.84375rem; font-weight: 500; color: var(--sr-text-muted);">0</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════════ First of Year (new) ═══════════════ -->
+      <section class="sr-card" id="foySection" aria-labelledby="foyTitle">
+        <div class="sr-card-head">
+          <div class="sr-card-tile"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/><path d="M16 18h.01"/></svg></div>
+          <span class="sr-card-title" id="foyTitle">First of Year</span>
+        </div>
+        <div class="sr-card-body">
+          <p class="sr-foy-note" id="foyNote" hidden>First dates within the selected date range.</p>
+          <div class="sr-foy-grid" id="foyGrid">
+            <div class="sr-foy-chart" id="foyChartWrap" role="img" aria-label="First of year, one point per year by day of year. The dates are listed in this section.">
+              <div aria-hidden="true" inert id="foyChartInner"></div>
+            </div>
+            <ul class="sr-foy-list" id="foyList"></ul>
+          </div>
+        </div>
+      </section>
+
+      <div class="sr-next">
+        <div class="sr-card">
+          <div class="sr-card-head">
+            <div class="sr-card-tile"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z"/><path d="M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12"/><path d="M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17"/></svg></div>
+            <span class="sr-card-title">Subspecies and Forms</span>
+          </div>
+          <div class="sr-card-body"><p>The page continues with the sections that ship today.</p></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ── Data: Swainson's Thrush, a spring arrival in the Bay Area, 2017 to 2026,
+     with two gap years (2020 and 2022). Dates are the export's YYYY-MM-DD
+     strings; dayOfYear is leap-aware (FR-05). Ascending, as the lib returns. */
+  const ROWS = {
+    eight: [
+      { year: 2017, date: '2017-04-22', submissionId: 'S36012345' },
+      { year: 2018, date: '2018-04-18', submissionId: 'S44598210' },
+      { year: 2019, date: '2019-04-27', submissionId: 'S55310877' },
+      { year: 2021, date: '2021-04-15', submissionId: 'S85120933' },
+      { year: 2023, date: '2023-04-29', submissionId: 'S134872210' },
+      { year: 2024, date: '2024-04-13', submissionId: 'S168245901' },
+      { year: 2025, date: '2025-04-21', submissionId: 'S221098347' },
+      { year: 2026, date: '2026-05-02', submissionId: 'S275530184' },
+    ],
+    two: [
+      { year: 2025, date: '2025-04-21', submissionId: 'S221098347' },
+      { year: 2026, date: '2026-05-02', submissionId: 'S275530184' },
+    ],
+    one: [
+      { year: 2026, date: '2026-05-02', submissionId: 'S275530184' },
+    ],
+  };
+
+  const MONTH_ABBR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const CUM = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334];
+  function isLeap(y) { return y % 4 === 0 && (y % 100 !== 0 || y % 400 === 0); }
+  function dayOfYear(date) {
+    const y = Number(date.slice(0, 4)), m = Number(date.slice(5, 7)), d = Number(date.slice(8, 10));
+    return CUM[m - 1] + d + (m > 2 && isLeap(y) ? 1 : 0);
+  }
+  function formatDate(date) { // the app's month-first default
+    const y = date.slice(0, 4), m = Number(date.slice(5, 7)), d = Number(date.slice(8, 10));
+    return `${MONTH_ABBR[m - 1]} ${d}, ${y}`;
+  }
+
+  /* ── Geometry (the pure lib the Engineer writes; constants are the spec). */
+  const FOY_TOP_PX = 8;
+  const FOY_PLOT_PX = 150;        // phone tier (182 total)
+  const FOY_WIDE_PLOT_PX = 200;   // wide tier (232 total)
+  const FOY_AXIS_LANE_PX = 24;
+  const FOY_GUTTER_PX = 34;       // month labels, left of the plot
+  const FOY_RIGHT_PX = 14;        // room for the last year label's right half
+  const FOY_X_PAD_PX = 10;        // keeps an end point's dot inside the plot
+  const FOY_LABEL_MIN_GAP_PX = 18;
+  const FOY_YEAR_LABEL_PX = 28;   // "2026" at 11px, plus a little air
+  const FOY_MAX_YEAR_PITCH_PX = 120; // a short span stays a compact strip, never a card-wide line
+  const FOY_MIN_CHART_PX = 260;   // the floor the month and year labels need
+  const Y_DOMAIN = [1, 366];
+  const MONTH_STARTS_LEAP = [1, 32, 61, 92, 122, 153, 183, 214, 245, 275, 306, 336];
+
+  function plotHeight(wide) { return wide ? FOY_WIDE_PLOT_PX : FOY_PLOT_PX; }
+  function chartHeight(wide) { return FOY_TOP_PX + plotHeight(wide) + FOY_AXIS_LANE_PX; }
+  function chartMaxWidth(yearCount) {
+    return Math.max(FOY_MIN_CHART_PX, FOY_GUTTER_PX + FOY_RIGHT_PX + 2 * FOY_X_PAD_PX + Math.max(1, yearCount - 1) * FOY_MAX_YEAR_PITCH_PX);
+  }
+
+  function buildChartData(rows) {
+    const y0 = rows[0].year, y1 = rows[rows.length - 1].year;
+    const byYear = new Map(rows.map(r => [r.year, r]));
+    const points = [], yearTicks = [];
+    for (let y = y0; y <= y1; y++) {
+      const r = byYear.get(y);
+      points.push({ year: y, dayOfYear: r ? dayOfYear(r.date) : null });
+      yearTicks.push(y);
+    }
+    return { points, yearDomain: [y0, y1], yearTicks };
+  }
+  function segmentsOf(points) {
+    const out = [];
+    for (let i = 1; i < points.length; i++) {
+      if (points[i - 1].dayOfYear !== null && points[i].dayOfYear !== null) out.push([points[i - 1].year, points[i].year]);
+    }
+    return out;
+  }
+  /* Jan and Dec always; intermediate months at the densest step k in {1,2,3,6}
+     whose every adjacent pair clears the minimum gap; Jan+Dec alone as the floor. */
+  function monthTicks(plotPx) {
+    const pxPerDay = plotPx / (Y_DOMAIN[1] - Y_DOMAIN[0]);
+    for (const k of [1, 2, 3, 6]) {
+      const idx = [];
+      for (let m = 0; m < 11; m += k) idx.push(m);
+      if (idx[idx.length - 1] !== 11) idx.push(11);
+      let ok = true;
+      for (let i = 1; i < idx.length; i++) {
+        if ((MONTH_STARTS_LEAP[idx[i]] - MONTH_STARTS_LEAP[idx[i - 1]]) * pxPerDay < FOY_LABEL_MIN_GAP_PX) { ok = false; break; }
+      }
+      if (ok) return idx.map(m => ({ dayOfYear: MONTH_STARTS_LEAP[m], label: MONTH_ABBR[m] }));
+    }
+    return [{ dayOfYear: 1, label: 'Jan' }, { dayOfYear: 336, label: 'Dec' }];
+  }
+  /* preserveStartEnd: thin year labels to a step the pitch can carry; the first
+     and last are always kept, and a neighbour that would collide with the last
+     yields to it. */
+  function yearLabelSet(yearTicks, pitchPx) {
+    const n = yearTicks.length;
+    if (n <= 1) return new Set(yearTicks);
+    const step = Math.max(1, Math.ceil(FOY_YEAR_LABEL_PX / pitchPx));
+    const shown = [];
+    for (let i = 0; i < n; i += step) shown.push(i);
+    const last = n - 1;
+    if (shown[shown.length - 1] !== last) {
+      if ((last - shown[shown.length - 1]) * pitchPx < FOY_YEAR_LABEL_PX) shown.pop();
+      shown.push(last);
+    }
+    return new Set(shown.map(i => yearTicks[i]));
+  }
+
+  /* ── Render */
+  const NS = 'http://www.w3.org/2000/svg';
+  function el(name, attrs, text) {
+    const n = document.createElementNS(NS, name);
+    for (const k in attrs) n.setAttribute(k, attrs[k]);
+    if (text != null) n.textContent = text;
+    return n;
+  }
+
+  function renderChart(inner, rows, wide, widthPx) {
+    inner.textContent = '';
+    const H = chartHeight(wide), P = plotHeight(wide);
+    const W = Math.max(120, Math.floor(widthPx));
+    const svg = el('svg', { width: W, height: H, viewBox: `0 0 ${W} ${H}`, focusable: 'false' });
+    const data = buildChartData(rows);
+    const [y0, y1] = data.yearDomain;
+    const xL = FOY_GUTTER_PX + FOY_X_PAD_PX, xR = W - FOY_RIGHT_PX - FOY_X_PAD_PX;
+    const x = yr => y1 === y0 ? (xL + xR) / 2 : xL + (yr - y0) / (y1 - y0) * (xR - xL);
+    const y = d => FOY_TOP_PX + P - (d - Y_DOMAIN[0]) / (Y_DOMAIN[1] - Y_DOMAIN[0]) * P;
+
+    // month gridlines + labels
+    const g = el('g', {});
+    for (const t of monthTicks(P)) {
+      const yy = y(t.dayOfYear);
+      g.appendChild(el('line', { class: 'sr-foy-grid-line', x1: FOY_GUTTER_PX, x2: W - FOY_RIGHT_PX, y1: yy, y2: yy }));
+      g.appendChild(el('text', { class: 'sr-foy-tick', x: FOY_GUTTER_PX - 8, y: yy, 'text-anchor': 'end', 'dominant-baseline': 'middle' }, t.label));
+    }
+    svg.appendChild(g);
+
+    // year labels
+    const pitch = data.yearTicks.length > 1 ? (xR - xL) / (data.yearTicks.length - 1) : xR - xL;
+    const show = yearLabelSet(data.yearTicks, pitch);
+    const yl = el('g', {});
+    for (const yr of data.yearTicks) {
+      if (!show.has(yr)) continue;
+      yl.appendChild(el('text', { class: 'sr-foy-tick', 'data-year': yr, x: x(yr), y: FOY_TOP_PX + P + 16, 'text-anchor': 'middle' }, String(yr)));
+    }
+    svg.appendChild(yl);
+
+    // segments between consecutive years that both have a point
+    const segs = segmentsOf(data.points);
+    const byYear = new Map(data.points.map(p => [p.year, p]));
+    const sg = el('g', {});
+    for (const [a, b] of segs) {
+      sg.appendChild(el('line', { class: 'sr-foy-seg', x1: x(a), y1: y(byYear.get(a).dayOfYear), x2: x(b), y2: y(byYear.get(b).dayOfYear) }));
+    }
+    svg.appendChild(sg);
+
+    // points (halo under dot); a lone point reads larger
+    const connected = new Set(segs.flat());
+    const pg = el('g', {});
+    for (const p of data.points) {
+      if (p.dayOfYear === null) continue;
+      const cx = x(p.year), cy = y(p.dayOfYear);
+      pg.appendChild(el('circle', { class: 'sr-foy-halo', 'data-year': p.year, cx, cy }));
+      pg.appendChild(el('circle', { class: 'sr-foy-dot' + (connected.has(p.year) ? '' : ' is-lone'), 'data-year': p.year, cx, cy }));
+    }
+    svg.appendChild(pg);
+    inner.appendChild(svg);
+  }
+
+  const EXT = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>';
+  const SUBMISSION_ID_RE = /^S\d{1,15}$/;
+
+  function renderRows(list, rows) {
+    list.textContent = '';
+    for (const r of [...rows].reverse()) {
+      const li = document.createElement('li');
+      li.className = 'sr-foy-row';
+      li.dataset.year = String(r.year);
+      const yr = document.createElement('span');
+      yr.className = 'sr-foy-year';
+      yr.textContent = String(r.year);
+      li.appendChild(yr);
+      const label = formatDate(r.date);
+      if (SUBMISSION_ID_RE.test(r.submissionId)) {
+        const a = document.createElement('a');
+        a.className = 'sr-cl sr-foy-date';
+        a.href = `https://ebird.org/checklist/${r.submissionId}`;
+        a.target = '_blank'; a.rel = 'noreferrer';
+        a.setAttribute('aria-label', `${label}: open checklist on eBird (opens in a new tab)`);
+        a.innerHTML = label + ' ' + EXT;
+        li.appendChild(a);
+      } else {
+        const s = document.createElement('span');
+        s.className = 'sr-foy-date is-plain';
+        s.textContent = label;
+        li.appendChild(s);
+      }
+      list.appendChild(li);
+    }
+  }
+
+  /* Row hover / focus → highlight that year's marks. The chart stays inert. */
+  function setActive(year) {
+    document.querySelectorAll('#foyChartInner [data-year]').forEach(n => {
+      n.classList.toggle('is-active', year !== null && n.getAttribute('data-year') === String(year));
+    });
+  }
+
+  /* ── Mockup state */
+  const state = { theme: 'light', width: 900, scale: 1, data: 'eight', filter: 'off' };
+  const frame = document.getElementById('frame');
+  const cap = document.getElementById('frameCap');
+  const grid = document.getElementById('foyGrid');
+  const chartWrap = document.getElementById('foyChartWrap');
+  const chartInner = document.getElementById('foyChartInner');
+  const list = document.getElementById('foyList');
+  const note = document.getElementById('foyNote');
+  const section = document.getElementById('foySection');
+
+  function apply() {
+    document.documentElement.setAttribute('data-theme', state.theme);
+    document.documentElement.style.setProperty('--sr-text-scale', String(state.scale));
+    frame.style.width = state.width + 'px';
+    const phone = state.width <= 640;
+    frame.classList.toggle('is-phone', phone);
+    cap.textContent = (phone ? `Species Detail, iPhone at ${state.width}px` : state.width < 800 ? 'Species Detail, iPad' : 'Species Detail, Mac window')
+      + (state.scale !== 1 ? ` · in-app text size ${Math.round(state.scale * 100)}%` : '')
+      + ' · the two cards above are shipped today; First of Year is new';
+
+    const rows = ROWS[state.data];
+    note.hidden = state.filter !== 'on';
+    section.hidden = rows.length === 0;
+    renderRows(list, rows);
+    const showChart = rows.length >= 2;
+    chartWrap.hidden = !showChart;
+    grid.classList.toggle('sr-foy-grid--rows-only', !showChart);
+    if (showChart) {
+      const wide = !phone;
+      chartWrap.style.height = chartHeight(wide) + 'px';
+      chartWrap.style.maxWidth = chartMaxWidth(rows[rows.length - 1].year - rows[0].year + 1) + 'px';
+      requestAnimationFrame(() => renderChart(chartInner, rows, wide, chartWrap.getBoundingClientRect().width));
+    } else {
+      chartInner.textContent = '';
+      chartWrap.style.height = '';
+      chartWrap.style.maxWidth = '';
+    }
+  }
+
+  document.querySelectorAll('.mk-seg button').forEach(b => {
+    b.addEventListener('click', () => {
+      const set = b.dataset.set, val = b.dataset.val;
+      state[set] = set === 'width' || set === 'scale' ? Number(val) : val;
+      b.parentElement.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+      apply();
+    });
+  });
+
+  list.addEventListener('mouseover', e => { const li = e.target.closest('.sr-foy-row'); if (li) setActive(li.dataset.year); });
+  list.addEventListener('mouseout', e => { const li = e.target.closest('.sr-foy-row'); if (li && !li.contains(e.relatedTarget)) setActive(null); });
+  list.addEventListener('focusin', e => { const li = e.target.closest('.sr-foy-row'); if (li) setActive(li.dataset.year); });
+  list.addEventListener('focusout', e => { const li = e.target.closest('.sr-foy-row'); if (li && !li.contains(e.relatedTarget)) setActive(null); });
+
+  if (window.ResizeObserver) {
+    new ResizeObserver(() => { if (!chartWrap.hidden) renderChart(chartInner, ROWS[state.data], !frame.classList.contains('is-phone'), chartWrap.getBoundingClientRect().width); }).observe(chartWrap);
+  }
+  apply();
+})();
+</script>
+</body>
+</html>

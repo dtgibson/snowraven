@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Shared capability for the main SnowRaven window, all platforms. Desktop-only permissions (updater/process) live in desktop.json; mobile-only (geolocation/dialog) in mobile.json.",
+  "description": "Shared capability for the main SnowRaven window, all platforms. Desktop-only permissions (updater/process) live in desktop.json; mobile-only (dialog, iOS and Android) in mobile.json; iOS-only geolocation in ios.json. The http fetch scope lists exactly the API origins the frontend/src/lib/tauri services call, each held to the path its call site fixes; frontend/src/lib/tauriHttpScope.test.ts derives that list from source.",
   "windows": ["main"],
   "permissions": [
     "core:default",
@@ -11,7 +11,15 @@
     "http:default",
     {
       "identifier": "http:allow-fetch",
-      "allow": [{ "url": "https://**" }]
+      "allow": [
+        { "url": "https://api.ebird.org/v2/*" },
+        { "url": "https://api.openweathermap.org/data/3.0/*" },
+        { "url": "https://api.tidesandcurrents.noaa.gov/api/prod/datagetter" },
+        { "url": "https://nominatim.openstreetmap.org/search" },
+        { "url": "https://nominatim.openstreetmap.org/reverse" },
+        { "url": "https://macaulaylibrary.org/asset/*/embed" },
+        { "url": "https://api.github.com/repos/dtgibson/snowraven/releases/latest" }
+      ]
     },
     "os:allow-platform",
     "clipboard-manager:allow-write-text",

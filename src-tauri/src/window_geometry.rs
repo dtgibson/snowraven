@@ -1,11 +1,12 @@
 //! Post-restore on-screen clamp for the app's window (macOS + Windows only).
 //!
 //! `tauri-plugin-window-state` reapplies the saved geometry in its
-//! `on_window_ready` hook, which runs while the config windows are being
-//! created inside tauri's `setup()` — i.e. strictly BEFORE the app's own
-//! `.setup()` closure. That ordering is what makes this module possible: by the
-//! time `keep_window_on_screen` runs, the restore has already happened and the
-//! live window carries whatever geometry came off disk.
+//! `on_window_ready` hook, which runs while the main window is being built:
+//! the first step of the app's own `.setup()` closure in `lib.rs`, which builds
+//! that window in code (its `create` is false in tauri.conf.json) and calls
+//! this module only after `build()` returns. That ordering is what makes this
+//! module possible: by the time `keep_window_on_screen` runs, the restore has
+//! already happened and the live window carries whatever geometry came off disk.
 //!
 //! The plugin's own off-screen guard is not enough on its own. It checks
 //! POSITION only, and its `Monitor::intersects` passes when ANY ONE of the

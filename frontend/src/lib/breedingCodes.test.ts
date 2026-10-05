@@ -98,6 +98,48 @@ describe('apiBreedingToDisplay', () => {
   })
 })
 
+// breeding-code-lookup-hasown: the API code is an unvalidated string from eBird
+// and the table is an ordinary object literal. These twelve are the names a bare
+// index resolves to an inherited member; each must take the unknown-code
+// fallback exactly as `ZZ` does (security.md, lookup tables keyed by an
+// unvalidated string).
+const PROTOTYPE_CHAIN = [
+  'constructor', '__proto__', 'toString', 'valueOf', 'hasOwnProperty',
+  'isPrototypeOf', 'toLocaleString', 'propertyIsEnumerable',
+  '__defineGetter__', '__defineSetter__', '__lookupGetter__', '__lookupSetter__',
+]
+
+describe('inherited member names are unknown codes (breeding-code-lookup-hasown)', () => {
+  it.each(PROTOTYPE_CHAIN)('apiBreedingToDisplay(%s) returns the raw code, as a string', name => {
+    const out: unknown = apiBreedingToDisplay(name)
+    expect(typeof out).toBe('string')
+    expect(out).toBe(name)
+  })
+
+  it.each(PROTOTYPE_CHAIN)('resolveApiBreedingCode(%s) is the tier-1 fallback def', name => {
+    const def = resolveApiBreedingCode(name)
+    expect(typeof def.code).toBe('string')
+    expect(typeof def.label).toBe('string')
+    expect(def).toEqual({ code: name, label: name, tier: 1 })
+  })
+
+  it('a JSON.parse payload carrying an own __proto__ changes no lookup', () => {
+    // JSON.parse, never an object literal: a literal `{ __proto__: ... }` sets
+    // the prototype and makes no own key, a shape the wire cannot deliver.
+    const payload = JSON.parse('{"breedingCode":"__proto__","__proto__":{"XX":"NY"}}') as Record<string, unknown>
+    expect(Object.hasOwn(payload, '__proto__')).toBe(true)
+    expect(Object.hasOwn(Object.prototype, 'XX')).toBe(false)
+    // The code read off the parsed payload, and the key the payload smuggled in.
+    expect(apiBreedingToDisplay(payload.breedingCode as string)).toBe('__proto__')
+    expect(apiBreedingToDisplay('XX')).toBe('XX')
+    expect(resolveApiBreedingCode('XX')).toEqual({ code: 'XX', label: 'XX', tier: 1 })
+    // Known codes still translate through the guarded read.
+    expect(resolveApiBreedingCode('S1')).toMatchObject({ code: 'S', tier: 1 })
+    expect(resolveApiBreedingCode('FY')).toMatchObject({ code: 'CF', tier: 4 })
+    expect(resolveApiBreedingCode('S7')).toMatchObject({ code: 'S7', tier: 2 })
+  })
+})
+
 describe('resolveApiBreedingCode', () => {
   it('resolves API code to display def with correct label + tier', () => {
     expect(resolveApiBreedingCode('S1')).toMatchObject({ code: 'S', label: 'Singing Bird', tier: 1 })
