@@ -14,7 +14,7 @@ All notable changes to SnowRaven are documented here.
 
 ### Internal
 - A committed Android project under `src-tauri/gen/android` (application id `com.dtgibson.snowraven`), one build script that CI and the F-Droid recipe both run (the unsigned universal APK, built with `cargo tauri` and Gradle 8.14.3, with no wrapper jar committed), the Android version code committed beside the version in `tauri.conf.json`, and guards that keep the project's application id, version source, permissions, launch state, icons and native calls as decided. The location plugin is now iOS-only, so nothing from Google Play services is in the Android build. The license is now declared as AGPL-3.0-only in `Cargo.toml` and both `package.json` files, matching `LICENSE`.
-- On Android, the manifest switches off the system WebView's Safe Browsing check and its usage statistics, and removes the font request AndroidX's emoji initializer made to Google Play services at launch; the content security policy added in 1.0.49 governs the Android webview as it does the Mac, Windows, iPhone and iPad apps. The release Mac signs the CI-built APK with `scripts/android/sign.sh`, which binds the signer to the keystore's own certificate, and the Android CI job pins every action to a commit SHA.
+- On Android, the manifest switches off the system WebView's Safe Browsing check and its usage statistics, and the content security policy added in 1.0.49 governs the Android webview as it does the Mac, Windows, iPhone and iPad apps. The release Mac signs the CI-built APK with `scripts/android/sign.sh`, which binds the signer to the keystore's own certificate, and the Android CI job pins every action to a commit SHA.
 
 ## [1.0.50] - 2026-10-03
 

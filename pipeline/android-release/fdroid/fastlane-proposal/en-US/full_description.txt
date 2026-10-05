@@ -34,12 +34,12 @@ Named Birds
 Tag an individual bird by name in a species comment and SnowRaven gathers everything you have on it: sightings, places, a timeline, its own media. With several named birds, one strip puts them all on a shared time axis.
 
 Privacy
-Private by default, and in your control: no account, no analytics, no telemetry, no server we run. Your eBird backup, Macaulay Library export and API keys stay on your device, and in your phone's own backup if you use one. The Android app has no Google services, no Firebase and no crash reporter; its own code makes no request to Google, and a font request by one of its libraries is removed. The Android System WebView, which draws its screens, contacts Google on its own: SnowRaven turns off its Safe Browsing and usage statistics; its font lookup at launch and autofill query when form fields first appear have no setting that stops them. Privacy policy: https://snowraven.dtgibson.com/privacy.html
+Private by default, and in your control: no account, no analytics, no telemetry, no server we run. Your eBird backup, Macaulay Library export and API keys stay on your device, and in your phone's own backup if you use one. The Android app has no Google services, no Firebase and no crash reporter. SnowRaven's own code makes no request to Google. Its screens are drawn by your phone's Android System WebView, a system component that may contact Google on its own; SnowRaven turns off the WebView's Safe Browsing and usage statistics, and has no setting for the rest. Privacy policy: https://snowraven.dtgibson.com/privacy.html
 
 What you'll need
 A free eBird API key and a free OpenWeather API key subscribed to its One Call by Call plan (activating it needs a payment card on file; set a usage cap to avoid charges), entered once in Settings. Most tabs also read your eBird backup and, for the media features, an optional Macaulay Library export.
 
 Network services
-SnowRaven relies on network services that are not free software, chiefly eBird for checklist details, hotspots and recent sightings, and OpenWeather for weather, each used with your own API key; the Android System WebView also contacts Google on its own.
+SnowRaven relies on network services that are not free software, chiefly eBird for checklist details, hotspots and recent sightings, and OpenWeather for weather, each used with your own API key.
 
 Weather by OpenWeather. Checklist and media data from eBird and the Macaulay Library. Tides from NOAA Tides & Currents.
