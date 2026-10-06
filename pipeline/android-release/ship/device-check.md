@@ -42,7 +42,7 @@ If you have no Android device, say so: the Android check is then recorded Partia
 
 ## B. iPhone and iPad: the TestFlight build
 
-**Status for 1.0.53: ready for your check.** Build 1.0.53 (1) is VALID in TestFlight and available to internal testers (uploaded 2026-10-05 21:28 Pacific, delivery `9e69034b-cb3b-4c75-99c8-7727763c3e7f`). No App Store record has been created or changed.
+**Status for 1.0.53: PASSED (reported by the user on 2026-10-05, relayed by the Orchestrator before the App Store step began at about 22:35 Pacific).** Build 1.0.53 (1) (delivery `9e69034b-cb3b-4c75-99c8-7727763c3e7f`) installed from TestFlight and opened with no crash and no blank screen; with Appearance set to System, the app followed the phone's light and dark switch while open; Map Explorer's locate went straight to the user's location (permission was already granted, so there was no new prompt). Then the App Store record was created on this build and submitted (`decisions.md`, deployment record).
 
 **What you are checking:** TestFlight build 1.0.53 (1), the exact build the App Store record will point at. A green suite, green CI and a simulator screenshot are not evidence that an iOS release build launches (the 1.0.31 crash), so this comes before the submission.
 
