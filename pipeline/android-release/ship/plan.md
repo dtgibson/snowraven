@@ -139,9 +139,9 @@ export PATH="$HOME/.tauri/gradle-8.14.3/bin:$HOME/.cargo/bin:/opt/homebrew/opt/o
 
 ## W. After the APK is attached: website and README (on the user's yes)
 
-- **W1.** The approved day-one forms of `held-copy.md` section (c), exactly as approved: in `website/index.html` the platforms paragraph's Android clause (c1), the platform-list item (c2), the Android install card after iPhone / iPad (c3), the hero line (c4) and the meta description (c5); in `README.md` line 3 (c7), the Android install bullet after iPhone / iPad (c8) and the Updating clause (c9). Nothing else in either file. The website's markup for c2 and c3 copies the neighboring item and card exactly (icon, classes, button).
+- **W1.** The approved forms of `held-copy.md` section (c), exactly as approved: in `website/index.html` the platforms paragraph's first sentence (c1), the platform-list item (c2, day one), the Android install card after iPhone / iPad (c3, day one), the hero line (c4) and the meta description (c5); in `README.md` line 3 (c7), the Android install bullet after iPhone / iPad (c8, day one) and the Updating clause (c9, day one). Nothing else in either file. The website's markup for c2 and c3 copies the neighboring item and card exactly (icon, classes, button).
 - **W2.** Commit, push to `main` (Pages redeploys `website/**`), then fetch the live site and confirm the sentence and the pill.
-- **W3.** When `https://f-droid.org/packages/com.dtgibson.snowraven/` is live (weeks later), the after-inclusion swap of c1, c2, c3, c8 and c9, plus the footer's F-Droid link (c6), is shown to the user again and written as one small follow-up commit.
+- **W3.** When `https://f-droid.org/packages/com.dtgibson.snowraven/` is live (weeks later), the after-inclusion forms of c2, c3, c8 and c9 are shown to the user again and written as one small follow-up commit.
 
 ## R. The record (part 2's close, before The Chronicler)
 

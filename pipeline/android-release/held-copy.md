@@ -9,8 +9,8 @@
 1. **Location branch:** set by the measurement, not by you: Branch B. Nothing to choose; the Branch A forms are kept only for the recorded reversal.
 2. **The `NonFreeNet` reason sentence:** a revised sentence (proposed) or the schema's original. Section (a), "NonFreeNet".
 3. **F-Droid category:** `Science & Education` (the schema's default), with `Navigation` the schema's named alternative. F-Droid's current list also has `Weather`, which the schema did not consider.
-4. **Website and README: woven in, two forms (revised 2026-10-05).** Android joins each existing platform sentence and list in its natural place. Recommended: the day-one form (the GitHub `.apk`) at this ship, the after-inclusion form (F-Droid first) as a follow-up when the listing is live. Section (c).
-5. **Companion edits:** withdrawn as a separate table; the hero line, the meta description, the footer links, README line 3 and the Updating line are now items c4 to c9 of the one revision. Section (c).
+4. **Website and README: a plain platform sentence and Android in each per-platform item (revised twice, 2026-10-05).** Two forms only where a link differs. Recommended: the day-one forms (the GitHub `.apk`) at this ship, the after-inclusion forms (F-Droid first) as a follow-up when the listing is live. Section (c).
+5. **Companion edits:** withdrawn as a separate table; the hero line, the meta description, README line 3 and the Updating line are items of the one revision, and the footer link is dropped. Section (c).
 6. **Privacy policy:** a new `## Android App` section placed after `## iCloud Sync`. Section (d).
 7. **NFR-01, the system WebView carve-out: decided by the user (2026-10-04), ACCEPTED on a shorter basis.** The published Google-contacts wording is two sentences everywhere it appears (the listing's Privacy block and policy d5): "SnowRaven's own code makes no request to Google. Its screens are drawn by your phone's Android System WebView, a system component that may contact Google on its own; SnowRaven turns off the WebView's Safe Browsing and usage statistics, and has no setting for the rest." The measured detail (the autofill query, the font lookup, the WebView's crash reports, the emoji initializer's removed font request) stays in `decisions.md`, `measurements/` and the notes below, not in published copy. The long forms quoted in the notes under (a) and (d5) are the history of the wording, superseded by this decision.
 
@@ -190,36 +190,30 @@ How they were made, none of it copy:
 
 ## (c) Website and README: Android woven into the existing sentences and lists
 
-**Revised at the user's direction (2026-10-05, one round).** The earlier proposal added a separate Android sentence after the other platforms, which read as bolted on. Android is now simply one of the platforms SnowRaven is on: each existing sentence and list gains it in its natural place, in the same register as its neighbors, with no separate sentence, no emphasis and no "now also". Each Android item mirrors its iPhone and iPad neighbor and varies only where Android differs (the store, the version floor, how updates arrive), the principle the user approved in the listing and the policy. The earlier standalone sentence and the C1 to C7 table are withdrawn; what was worth keeping from them is folded in below.
+**Revised at the user's direction (2026-10-05, two rounds).** The first proposal added a separate Android sentence after the other platforms, which read as bolted on; the second still gave Android its own store clause inside the platform sentence. Simple is better: the website and README are short and informative and the details live in Help. So the platform sentence is now a plain statement of the platforms with no store-by-store clauses, and the per-platform items (the platform list, the install cards, the hero line, the meta description, the README's list, install bullets and Updating line) each gain Android in its natural place, mirroring its iPhone and iPad neighbor and varying only where Android differs (the store, the version floor, how updates arrive), the principle the user approved in the listing and the policy. No separate sentence, no emphasis, no "now also", and nothing else on either surface. The earlier standalone sentence, the C1 to C7 table and the footer link are withdrawn.
 
-**Two forms, because of timing.** On the day of the first ship the only Android download is the APK on the GitHub release; the F-Droid listing appears weeks later, after F-Droid's review and first build, so an F-Droid link on day one would point at a page that does not exist. Each item therefore has a **day-one** form (the GitHub `.apk` only) and an **after-inclusion** form (F-Droid first, the `.apk` second where the item carries two links). **Recommended:** write the day-one form at this ship, and the after-inclusion swap as a small follow-up edit when `https://f-droid.org/packages/com.dtgibson.snowraven/` is live, shown to the user again before it is written.
+**Two forms only where a link differs.** On the day of the first ship the only Android download is the APK on the GitHub release; the F-Droid listing appears weeks later, after F-Droid's review and first build, so an F-Droid link on day one would point at a page that does not exist. Items c2, c3, c8 and c9 therefore have a **day-one** form (the GitHub `.apk`) and an **after-inclusion** form (F-Droid first, the `.apk` second where the item carries two links); c1, c4, c5 and c7 are the same in both. **Recommended:** write the day-one forms at this ship, and the after-inclusion swap as a small follow-up edit when `https://f-droid.org/packages/com.dtgibson.snowraven/` is live, shown to the user again before it is written.
 
 ### `website/index.html`
 
-**c1. The platforms paragraph ("One app, everywhere you bird").** One clause inside the existing first sentence, after "for iPhone and iPad"; the sentence keeps its shape.
+**c1. The platforms paragraph ("One app, everywhere you bird"), first sentence** (the same in both forms). A plain statement of the platforms: the App Store link leaves this sentence, because the platform list and the cards below carry every link. The second sentence is unchanged.
 
 Before:
 
 ```html
             A native app on a Mac or Windows PC, on the <a href="https://apps.apple.com/app/id6787719977" target="_blank" rel="noopener">App Store</a>
             for iPhone and iPad, or self-hosted on a Raspberry Pi (or any computer on your
+            network) and opened from any browser. One universal Mac build covers Apple Silicon
 ```
 
-Day one:
+After:
 
 ```html
-            A native app on a Mac or Windows PC, on the <a href="https://apps.apple.com/app/id6787719977" target="_blank" rel="noopener">App Store</a>
-            for iPhone and iPad, on <a href="https://github.com/dtgibson/snowraven/releases/latest" target="_blank" rel="noopener">GitHub</a> for Android, or self-hosted on a Raspberry Pi (or any computer on your
+            A native app for Mac, Windows, iPhone, iPad and Android, or self-hosted on a Raspberry Pi
+            (or any computer on your network) and opened from any browser. One universal Mac build covers Apple Silicon
 ```
 
-After inclusion:
-
-```html
-            A native app on a Mac or Windows PC, on the <a href="https://apps.apple.com/app/id6787719977" target="_blank" rel="noopener">App Store</a>
-            for iPhone and iPad, on <a href="https://f-droid.org/packages/com.dtgibson.snowraven/" target="_blank" rel="noopener">F-Droid</a> for Android, or self-hosted on a Raspberry Pi (or any computer on your
-```
-
-As a reader sees it (after inclusion): "A native app on a Mac or Windows PC, on the App Store for iPhone and iPad, on F-Droid for Android, or self-hosted on a Raspberry Pi (or any computer on your network) and opened from any browser." The paragraph's second sentence is unchanged.
+As a reader sees it: "A native app for Mac, Windows, iPhone, iPad and Android, or self-hosted on a Raspberry Pi (or any computer on your network) and opened from any browser. One universal Mac build covers Apple Silicon and Intel, and the self-hosted version works in a phone or tablet browser too."
 
 **c2. The platform list.** A new item after "iPhone and iPad", in the same form as its neighbors (an icon, the platform, then the link), reusing the phone icon.
 
@@ -275,8 +269,6 @@ Before: Free and open, for macOS, Windows, iPhone, iPad, and Raspberry Pi.
 After:  Free and open, for macOS, Windows, iPhone, iPad, Android, and Raspberry Pi.
 ```
 
-**c6. The footer links** (after inclusion only): an `F-Droid` link after `App Store`, to the F-Droid page. Day one adds nothing; the footer's `Releases` link already reaches the `.apk`.
-
 ### `README.md`
 
 **c7. Line 3, the platform list** (both forms):
@@ -286,7 +278,7 @@ Before: a native Mac, Windows, iPhone or iPad app, or self-hosted on a Raspberry
 After:  a native Mac, Windows, iPhone, iPad or Android app, or self-hosted on a Raspberry Pi (or any computer on your network).
 ```
 
-**c8. The Installation list.** A new bullet after iPhone / iPad, in that bullet's shape: where it comes from, free, the version floor, how updates arrive, on one line.
+**c8. The Installation list.** A new bullet after iPhone / iPad, short and in its neighbors' cadence: where it comes from, free, the version floor, on one line (how Android updates is c9's clause).
 
 The bullet it mirrors (unchanged):
 
@@ -297,13 +289,13 @@ The bullet it mirrors (unchanged):
 Day one:
 
 ```markdown
-- **Android**: get SnowRaven as an `.apk` from the [latest release](https://github.com/dtgibson/snowraven/releases/latest). Free, Android 8.0 or later. Updates arrive as a new `.apk` with each release.
+- **Android**: download the `.apk` from the [latest release](https://github.com/dtgibson/snowraven/releases/latest). Free, Android 8.0 or later.
 ```
 
 After inclusion:
 
 ```markdown
-- **Android**: get SnowRaven from [F-Droid](https://f-droid.org/packages/com.dtgibson.snowraven/). Free, Android 8.0 or later. Updates arrive through F-Droid like any other app.
+- **Android**: get SnowRaven from [F-Droid](https://f-droid.org/packages/com.dtgibson.snowraven/). Free, Android 8.0 or later.
 ```
 
 **c9. The Updating line.** One clause inside the existing sentence, after the iPhone and iPad clause.
@@ -317,16 +309,16 @@ Before:
 Day one:
 
 ```markdown
-**Updating**: desktop apps update in place from **Check For Updates** in the footer; iPhone and iPad update through the [App Store](https://apps.apple.com/app/id6787719977); Android updates with each release's `.apk`; self-hosted installs run `./update.sh`.
+**Updating**: desktop apps update in place from **Check For Updates** in the footer; iPhone and iPad update through the [App Store](https://apps.apple.com/app/id6787719977); Android installs the next release's `.apk` over the old one; self-hosted installs run `./update.sh`.
 ```
 
 After inclusion:
 
 ```markdown
-**Updating**: desktop apps update in place from **Check For Updates** in the footer; iPhone and iPad update through the [App Store](https://apps.apple.com/app/id6787719977); Android updates through [F-Droid](https://f-droid.org/packages/com.dtgibson.snowraven/); self-hosted installs run `./update.sh`.
+**Updating**: desktop apps update in place from **Check For Updates** in the footer; iPhone and iPad update through the [App Store](https://apps.apple.com/app/id6787719977); Android updates through F-Droid; self-hosted installs run `./update.sh`.
 ```
 
-Notes, none of them copy: the one-time "allow installs from this source" step, the file name and the two-signers fact stay in Help, where the rule puts operating detail. After inclusion the website's platform list still carries the `.apk` as its second link, and every GitHub release still carries the file, so a reader who prefers the APK is never left without it. C2's earlier "or by installing the next release's APK over the old one" is now its own one-clause day-one form.
+Notes, none of them copy: the one-time "allow installs from this source" step, the file name and the two-signers fact stay in Help, where the rule puts operating detail. After inclusion the website's platform list still carries the `.apk` as its second link, and every GitHub release still carries the file, so a reader who prefers the APK is never left without it. The after-inclusion Updating clause is written as the user gave it, without a link (the iPhone and iPad clause beside it links the App Store).
 
 ---
 
