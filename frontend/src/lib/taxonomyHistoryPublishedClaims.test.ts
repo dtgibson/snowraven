@@ -115,7 +115,7 @@ function siteSpeciesDetail(): string {
 describe('README.md and website/index.html: the Species Detail paragraph', () => {
   it('names splits and lumps as one item, identically on both surfaces', () => {
     const readme = readmeSpeciesDetail()
-    expect(readme).toMatch(/a map of every observation and any splits or lumps along the way\./)
+    expect(readme).toMatch(/a map of every observation, and any splits or lumps along the way\./)
     expect(siteSpeciesDetail()).toBe(readme)
   })
 

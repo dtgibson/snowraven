@@ -82,25 +82,25 @@ describe.each([
   ['website/privacy.html', HTML],
 ])('%s: the iCloud Sync section (items 37 to 39)', (_file, section) => {
   it('the section is found and is the one being read (non-vacuity)', () => {
-    expect(section.startsWith('On the Mac, iPhone and iPad apps, SnowRaven can keep'), section.slice(0, 60)).toBe(true)
+    expect(section.startsWith('On the Mac, iPhone, and iPad apps, SnowRaven can keep'), section.slice(0, 60)).toBe(true)
     expect(section.length).toBeGreaterThan(2000)
     expect(section).toContain('Whose account.')
   })
 
   it('37: the opening paragraph names the data files it keeps the same, the bar-chart files included', () => {
-    expect(section).toContain('SnowRaven can keep your data files (your eBird backup, your Macaulay Library export and any eBird bar-chart files you have added on the Targets tab) the same across your own devices through iCloud.')
+    expect(section).toContain('SnowRaven can keep your data files (your eBird backup, your Macaulay Library export, and any eBird bar-chart files you have added on the Targets tab) the same across your own devices through iCloud.')
     expect(section).not.toContain('your two data files')
   })
 
   it('38: what is written names each county\'s bar-chart file', () => {
-    expect(section).toContain("SnowRaven writes your eBird backup, your Macaulay Library export and each county's eBird bar-chart file into an iCloud container that belongs to your Apple ID")
+    expect(section).toContain("SnowRaven writes your eBird backup, your Macaulay Library export, and each county's eBird bar-chart file into an iCloud container that belongs to your Apple ID")
   })
 
   it('38: "never synced" survives, with the one exception stated as what is in it and whose it is', () => {
-    const s = sentenceWith(section, 'Your app settings, map preferences and cached lookups stay on each device')
+    const s = sentenceWith(section, 'Your app settings, map preferences, and cached lookups stay on each device')
     expect(s, 'the never-synced sentence is present').not.toBe('')
     expect(s).toContain('are never synced, with one exception: the day-by-day lists of species that eBird reported in a county, which the Targets tab fetches with your key, are written into the same container as one copy per device')
-    expect(s).toContain("each holding the day lists that device has, whether it fetched them from eBird or took them from your other devices' copies (the county, the day, when the list was asked for and whether the day was over by then, the list's size, and each species eBird listed with the time and place of that report as eBird gives them), along with the same small record each file has")
+    expect(s).toContain("each holding the day lists that device has, whether it fetched them from eBird or took them from your other devices' copies (the county, the day, when the list was asked for, whether the day was over by then, the list's size, and each species eBird listed with the time and place of that report as eBird gives them), along with the same small record each file has")
     expect(s).toContain('so your other devices do not repeat those requests.')
     expect(section).toContain('They hold nothing from your own files.')
   })
@@ -113,8 +113,8 @@ describe.each([
   // synced files can reach the developer, and only by the user's own paste.
   it('Copy iCloud details: what the report holds, what it never holds, and that it leaves only by your own paste', () => {
     expect(section).toContain('Copy iCloud details. If sync is not working, Copy iCloud details at the foot of the iCloud Sync section in Settings puts a plain-text report on your clipboard')
-    expect(section).toContain("your devices' names and the random identifier the app made up for each, whether iCloud is available, county codes, file sizes and dates, sync states, and Apple's error codes and messages")
-    expect(section).toContain('It holds no file contents, no file names you chose and no API keys.')
+    expect(section).toContain("your devices' names, and the random identifier the app made up for each, whether iCloud is available, county codes, file sizes, and dates, sync states, and Apple's error codes and messages")
+    expect(section).toContain('It holds no file contents, no file names you chose, and no API keys.')
     expect(section).toContain('SnowRaven never sends it anywhere itself: it reaches the developer only if you paste it into a message.')
   })
 })
@@ -124,7 +124,7 @@ describe('the two policy files state items 37 to 39 identically', () => {
     for (const needle of [
       'SnowRaven can keep your data files',
       'SnowRaven writes your eBird backup',
-      'Your app settings, map preferences and cached lookups',
+      'Your app settings, map preferences, and cached lookups',
       'Remove synced files from iCloud in the same section',
       // help-docs-refresh H-P3
       'If sync is not working, Copy iCloud details',
@@ -151,7 +151,7 @@ describe('the Copy iCloud details sentences are true of the shipped code (help-d
     expect(builder).not.toMatch(/\btransport\b|\bfetch\(|\binvoke\(|\bstorage\./)
   })
 
-  it('"no file contents, no file names you chose and no API keys": the builder reads only its allowed fields', () => {
+  it('"no file contents, no file names you chose, and no API keys": the builder reads only its allowed fields', () => {
     // The module's own contract, stated where the fields are read.
     const header = src('lib/icloud/icloudDiagnostics.ts')
     expect(header).toContain('ALLOWED FIELDS ONLY.')
@@ -203,7 +203,7 @@ describe('items 37 to 39 are true of the shipped code', () => {
     expect(ITEM_SUBDIRS['day-obs']).toBe('day-obs')
   })
 
-  it('"the county, the day, when the list was asked for and whether the day was over by then, the list\'s size, and each species eBird listed with the time and place": the snapshot entry carries exactly those fields', () => {
+  it('"the county, the day, when the list was asked for, whether the day was over by then, the list\'s size, and each species eBird listed with the time and place": the snapshot entry carries exactly those fields', () => {
     const reduce = src('lib/countyDayObsReduce.ts')
     const decl = reduce.slice(reduce.indexOf('export interface DayRecord {'))
     const fields = [...decl.slice(0, decl.indexOf('\n}')).matchAll(/^\s+(\w+):/gm)].map(m => m[1])
@@ -256,17 +256,21 @@ describe('items 37 to 39 are true of the shipped code', () => {
 // here unless it is the user's personal data, and any edit to these three files
 // still needs the user's approval first (CLAUDE.md, published copy).
 
-const POSTURE = 'Your eBird backup, Macaulay Library export and API keys are stored only on your device unless you turn on iCloud syncing between your devices, and anything you sync goes to your own iCloud account and nowhere else.'
+const POSTURE = 'Your eBird backup, Macaulay Library export, and API keys are stored only on your device unless you turn on iCloud syncing between your devices, and anything you sync goes to your own iCloud account and nowhere else.'
+// appstore/LISTING.md keeps the sentence as approved, without the serial comma the user asked for on the
+// README and the website (2026-10-05); App Store copy changes only on the user's own yes, so until then the
+// two forms differ by that one comma and nothing else (the agreement row below says so).
+const POSTURE_APP_STORE = POSTURE.replace('Macaulay Library export, and API keys', 'Macaulay Library export and API keys')
 
 describe.each([
   ['README.md', plain(README)],
   ['website/index.html', htmlText(INDEX)],
   ['appstore/LISTING.md', plain(LISTING.slice(LISTING.indexOf('\nPRIVACY\n'), LISTING.indexOf("\nWHAT YOU'LL NEED\n")))],
-])('%s: the privacy sentence (items 41 to 43, declined)', (_file, text) => {
+])('%s: the privacy sentence (items 41 to 43, declined)', (file, text) => {
   it('carries the unchanged sentence, which does not name the bar-chart files', () => {
     const s = sentenceWith(text, 'Your eBird backup, Macaulay Library export')
     expect(s, 'the privacy sentence is present').not.toBe('')
-    expect(s).toBe(POSTURE)
+    expect(s).toBe(file === 'appstore/LISTING.md' ? POSTURE_APP_STORE : POSTURE)
     expect(s).not.toMatch(/bar-chart/i)
   })
 })
@@ -274,8 +278,11 @@ describe.each([
 describe('items 41 to 43: the three files agree with each other', () => {
   it('the three files state the sentence identically', () => {
     const got = [plain(README), htmlText(INDEX), plain(LISTING)].map(t => sentenceWith(t, 'Your eBird backup, Macaulay Library export'))
-    expect(new Set(got).size).toBe(1)
     expect(got[0]).toBe(POSTURE)
+    expect(got[1]).toBe(POSTURE)
+    // The App Store listing differs from them by the one serial comma, and by nothing else.
+    expect(got[2]).toBe(POSTURE_APP_STORE)
+    expect(got[2]!.replace(/,/g, '')).toBe(got[0]!.replace(/,/g, ''))
   })
 })
 

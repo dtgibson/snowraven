@@ -305,7 +305,7 @@ describe.each([
     const clause = clauseWith(ebird, 'An eBird bar-chart file you add on the Targets tab')
     expect(clause, 'the bar-chart sub-bullet is present').not.toBe('')
     expect(clause).toContain("is read only to show eBird's frequencies for its county.")
-    const kept = clauseWith(ebird, 'It is stored on your device, and on a Mac, iPhone or iPad with iCloud Sync on')
+    const kept = clauseWith(ebird, 'It is stored on your device, and on a Mac, iPhone, or iPad with iCloud Sync on')
     expect(kept, 'the where-it-is-kept sentence is present').not.toBe('')
     expect(kept).toContain('it is copied to your own iCloud account along with your other synced files')
     expect(ebird).not.toContain('is not part of iCloud Sync')
@@ -348,7 +348,7 @@ describe('the privacy claims are true of the shipped code', () => {
     const ctrl = sources.find(f => f.name === 'lib/icloud/icloudSync.ts')!.text
     expect(ctrl).toContain('runCountyPass(')
     expect(ctrl).toContain('runDayObsPass(')
-    // "on a Mac, iPhone or iPad": the only gate the Settings and Targets surfaces use.
+    // "on a Mac, iPhone, or iPad": the only gate the Settings and Targets surfaces use.
     const gates = sources.find(f => f.name === 'lib/platformGates.ts')!.text
     expect(gates).toMatch(/export function showICloudSync\(\): boolean \{\s*return isTauri\(\) && \(isIOS\(\) \|\| isMacOS\(\)\);/)
     expect(sources.find(f => f.name === 'components/targets/TargetsBarChartFile.tsx')!.text).toContain('showICloudSync()')
@@ -418,7 +418,7 @@ describe.each([
   })
 
   it('G: the iCloud clause names the data files it copies, the bar-chart files included (item 34)', () => {
-    expect(files).toContain('which copies your data files (your eBird backup, your Macaulay Library export and any eBird bar-chart files you have added), and your API keys only if')
+    expect(files).toContain('which copies your data files (your eBird backup, your Macaulay Library export, and any eBird bar-chart files you have added), and your API keys only if')
     expect(files).not.toContain('the two data files')
   })
 
@@ -529,7 +529,7 @@ describe('README.md: the Targets section', () => {
     expect(section).toContain('the lifers there')
     // photograph / record / film: one verb for each of Photo, Audio, Video.
     expect([...MEDIA_TYPES]).toEqual(['Photo', 'Audio', 'Video'])
-    expect(section).toContain('yet to photograph, record or film')
+    expect(section).toContain('yet to photograph, record, or film')
     expect(section).toContain('never given a breeding code')
   })
 

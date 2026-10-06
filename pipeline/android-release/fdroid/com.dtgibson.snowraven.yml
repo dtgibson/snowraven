@@ -1,7 +1,7 @@
 AntiFeatures:
   NonFreeNet:
     en-US: SnowRaven relies on network services that are not free software, chiefly
-      eBird for checklist details, hotspots and recent sightings, and OpenWeather
+      eBird for checklist details, hotspots, and recent sightings, and OpenWeather
       for weather, each used with your own API key.
 Categories:
   - Science & Education

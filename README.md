@@ -2,7 +2,7 @@
 
 Self-hosted birding tools and data explorer for your eBird workflow: a native Mac, Windows, iPhone, iPad, or Android app, or self-hosted on a Raspberry Pi (or any computer on your network).
 
-SnowRaven reads your eBird and Macaulay Library exports and gives you weather and tides for your checklists, your history with every species, life-list statistics and an interactive map, on your own device.
+SnowRaven reads your eBird and Macaulay Library exports and gives you weather and tides for your checklists, your history with every species, life-list statistics, and an interactive map, on your own device.
 
 **See it in action:** the [SnowRaven website](https://snowraven.dtgibson.com/) shows each tab with screenshots. [docs/HELP.md](docs/HELP.md), also the in-app Help on every tab, covers each tab in detail.
 
@@ -24,7 +24,7 @@ Your sightings on an interactive map, with nearby eBird hotspots and where speci
 
 ### Species Detail
 
-Your whole history with one bird: sightings, field notes, breeding codes, a map of every observation and any splits or lumps along the way. A weather card shows the skies and temperatures you found it in, from SnowRaven and RainCrow weather blocks.
+Your whole history with one bird: sightings, field notes, breeding codes, a map of every observation, and any splits or lumps along the way. A weather card shows the skies and temperatures you found it in, from SnowRaven and RainCrow weather blocks.
 
 ### Calendar
 
@@ -32,11 +32,11 @@ A year of your birding as twelve month grids, each day shaded by how many specie
 
 ### Targets
 
-A county's targets over your own record: the lifers there, the birds you have yet to photograph, record or film, and the ones you have never given a breeding code. Rank them by eBird's frequencies or by what has been reported lately.
+A county's targets over your own record: the lifers there, the birds you have yet to photograph, record, or film, and the ones you have never given a breeding code. Rank them by eBird's frequencies or by what has been reported lately.
 
 ### Multimedia
 
-Your life list as a media checklist: which species you have photographed, recorded and filmed, and which you still need. Narrow it by sex and age.
+Your life list as a media checklist: which species you have photographed, recorded, and filmed, and which you still need. Narrow it by sex and age.
 
 ### Breeding Codes
 
@@ -56,7 +56,7 @@ Tag an individual bird by name in a species comment and SnowRaven gathers everyt
 
 ## Privacy
 
-Private by default, and in your control: no account, no analytics, no telemetry, no server we run. Your eBird backup, Macaulay Library export and API keys are stored only on your device unless you turn on iCloud syncing between your devices, and anything you sync goes to your own iCloud account and nowhere else. Details: [Privacy Policy](PRIVACY_POLICY.md) · [Accessibility statement](ACCESSIBILITY.md).
+Private by default, and in your control: no account, no analytics, no telemetry, no server we run. Your eBird backup, Macaulay Library export, and API keys are stored only on your device unless you turn on iCloud syncing between your devices, and anything you sync goes to your own iCloud account and nowhere else. Details: [Privacy Policy](PRIVACY_POLICY.md) · [Accessibility statement](ACCESSIBILITY.md).
 
 ## What you'll need
 

@@ -149,7 +149,7 @@ describe('PRIVACY_POLICY.md: Your Location and iOS App', () => {
   it('describes the shared container: what it holds, backups, deletion, never synced', () => {
     expect(ios).toMatch(/only SnowRaven and its widgets can read/)
     expect(ios).toMatch(/your eBird key, the species names in your eBird backup/)
-    expect(ios).toMatch(/It holds none of your sightings, checklist details or media/)
+    expect(ios).toMatch(/It holds none of your sightings, checklist details, or media/)
     expect(ios).toMatch(/neither is ever synced through iCloud Sync/)
   })
 

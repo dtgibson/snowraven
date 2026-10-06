@@ -137,8 +137,8 @@ describe('FR-48 / QA-36: the policy and its mirror carry the key storage, protec
     expect(text).toMatch(/developer has no way to see/) // invisible to the developer
     expect(text).toMatch(/Remove synced keys from iCloud/) // how to remove it
     expect(text).toMatch(/written only while the separate/) // keys written only with the key switch on
-    expect(text).toMatch(/settings, map preferences and cached lookups stay on each device and are never synced/) // still true of the rest
-    expect(text).not.toMatch(/your API keys, app settings, map preferences and cached lookups stay/)
+    expect(text).toMatch(/settings, map preferences, and cached lookups stay on each device and are never synced/) // still true of the rest
+    expect(text).not.toMatch(/your API keys, app settings, map preferences,? and cached lookups stay/)
   })
 
   it('the two carry the same sentences (the hand-kept mirror has not drifted at sentence scale)', () => {
