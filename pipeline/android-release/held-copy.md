@@ -9,8 +9,8 @@
 1. **Location branch:** set by the measurement, not by you: Branch B. Nothing to choose; the Branch A forms are kept only for the recorded reversal.
 2. **The `NonFreeNet` reason sentence:** a revised sentence (proposed) or the schema's original. Section (a), "NonFreeNet".
 3. **F-Droid category:** `Science & Education` (the schema's default), with `Navigation` the schema's named alternative. F-Droid's current list also has `Weather`, which the schema did not consider.
-4. **Website and README timing:** the APK-only form at the first ship, then the F-Droid form once the listing is live; or hold both sentences until the listing is live. Section (c).
-5. **Optional companion edits:** other places on the website and README that list platforms would omit Android once it ships. Each is shown exactly; say yes or no to each. Section (c).
+4. **Website and README: woven in, two forms (revised 2026-10-05).** Android joins each existing platform sentence and list in its natural place. Recommended: the day-one form (the GitHub `.apk`) at this ship, the after-inclusion form (F-Droid first) as a follow-up when the listing is live. Section (c).
+5. **Companion edits:** withdrawn as a separate table; the hero line, the meta description, the footer links, README line 3 and the Updating line are now items c4 to c9 of the one revision. Section (c).
 6. **Privacy policy:** a new `## Android App` section placed after `## iCloud Sync`. Section (d).
 7. **NFR-01, the system WebView carve-out: decided by the user (2026-10-04), ACCEPTED on a shorter basis.** The published Google-contacts wording is two sentences everywhere it appears (the listing's Privacy block and policy d5): "SnowRaven's own code makes no request to Google. Its screens are drawn by your phone's Android System WebView, a system component that may contact Google on its own; SnowRaven turns off the WebView's Safe Browsing and usage statistics, and has no setting for the rest." The measured detail (the autofill query, the font lookup, the WebView's crash reports, the emoji initializer's removed font request) stays in `decisions.md`, `measurements/` and the notes below, not in published copy. The long forms quoted in the notes under (a) and (d5) are the history of the wording, superseded by this decision.
 
@@ -188,92 +188,145 @@ How they were made, none of it copy:
 
 ---
 
-## (c) Website and README: one sentence each
+## (c) Website and README: Android woven into the existing sentences and lists
 
-Register: one or two sentences, what it is and where a birder gets it, no operating detail, no reassurance. Neither sentence says "weather".
+**Revised at the user's direction (2026-10-05, one round).** The earlier proposal added a separate Android sentence after the other platforms, which read as bolted on. Android is now simply one of the platforms SnowRaven is on: each existing sentence and list gains it in its natural place, in the same register as its neighbors, with no separate sentence, no emphasis and no "now also". Each Android item mirrors its iPhone and iPad neighbor and varies only where Android differs (the store, the version floor, how updates arrive), the principle the user approved in the listing and the policy. The earlier standalone sentence and the C1 to C7 table are withdrawn; what was worth keeping from them is folded in below.
 
-**Timing, which is the decision here.** On the day of the first ship the only Android download is the APK on the GitHub release; the F-Droid listing arrives weeks later, when F-Droid's review and build cycle allows (FR-59). A sentence naming F-Droid on day one would be false, and an F-Droid link would point at a page that does not exist yet. So each sentence has two forms: **day one** (APK only) and **once the F-Droid listing is live**. Suggested: approve both now, write the day-one form at the ship and the F-Droid form when the listing appears (each still shown to you before it is written); or hold both until the listing is live.
+**Two forms, because of timing.** On the day of the first ship the only Android download is the APK on the GitHub release; the F-Droid listing appears weeks later, after F-Droid's review and first build, so an F-Droid link on day one would point at a page that does not exist. Each item therefore has a **day-one** form (the GitHub `.apk` only) and an **after-inclusion** form (F-Droid first, the `.apk` second where the item carries two links). **Recommended:** write the day-one form at this ship, and the after-inclusion swap as a small follow-up edit when `https://f-droid.org/packages/com.dtgibson.snowraven/` is live, shown to the user again before it is written.
 
-### `website/index.html`: the Platforms paragraph ("One app, everywhere you bird")
+### `website/index.html`
 
-Placement: a new sentence after "...and opened from any browser.", before "One universal Mac build...".
+**c1. The platforms paragraph ("One app, everywhere you bird").** One clause inside the existing first sentence, after "for iPhone and iPad"; the sentence keeps its shape.
 
-**Before:**
+Before:
 
 ```html
-          <p>
             A native app on a Mac or Windows PC, on the <a href="https://apps.apple.com/app/id6787719977" target="_blank" rel="noopener">App Store</a>
             for iPhone and iPad, or self-hosted on a Raspberry Pi (or any computer on your
-            network) and opened from any browser. One universal Mac build covers Apple Silicon
-            and Intel, and the self-hosted version works in a phone or tablet browser too.
-          </p>
 ```
 
-**After (once the F-Droid listing is live):**
+Day one:
 
 ```html
-          <p>
             A native app on a Mac or Windows PC, on the <a href="https://apps.apple.com/app/id6787719977" target="_blank" rel="noopener">App Store</a>
-            for iPhone and iPad, or self-hosted on a Raspberry Pi (or any computer on your
-            network) and opened from any browser. On Android phones and tablets it comes from
-            <a href="https://f-droid.org/packages/com.dtgibson.snowraven/" target="_blank" rel="noopener">F-Droid</a>,
-            or as an APK with each <a href="https://github.com/dtgibson/snowraven/releases/latest" target="_blank" rel="noopener">release on GitHub</a>.
-            One universal Mac build covers Apple Silicon
-            and Intel, and the self-hosted version works in a phone or tablet browser too.
-          </p>
+            for iPhone and iPad, on <a href="https://github.com/dtgibson/snowraven/releases/latest" target="_blank" rel="noopener">GitHub</a> for Android, or self-hosted on a Raspberry Pi (or any computer on your
 ```
 
-**After (day one, APK only):** the same, with the new sentence reading:
+After inclusion:
 
 ```html
-            network) and opened from any browser. On Android phones and tablets it comes as an
-            APK with each <a href="https://github.com/dtgibson/snowraven/releases/latest" target="_blank" rel="noopener">release on GitHub</a>.
+            A native app on a Mac or Windows PC, on the <a href="https://apps.apple.com/app/id6787719977" target="_blank" rel="noopener">App Store</a>
+            for iPhone and iPad, on <a href="https://f-droid.org/packages/com.dtgibson.snowraven/" target="_blank" rel="noopener">F-Droid</a> for Android, or self-hosted on a Raspberry Pi (or any computer on your
 ```
 
-As a reader sees it (F-Droid form): "A native app on a Mac or Windows PC, on the App Store for iPhone and iPad, or self-hosted on a Raspberry Pi (or any computer on your network) and opened from any browser. On Android phones and tablets it comes from F-Droid, or as an APK with each release on GitHub. One universal Mac build covers Apple Silicon and Intel, and the self-hosted version works in a phone or tablet browser too."
+As a reader sees it (after inclusion): "A native app on a Mac or Windows PC, on the App Store for iPhone and iPad, on F-Droid for Android, or self-hosted on a Raspberry Pi (or any computer on your network) and opened from any browser." The paragraph's second sentence is unchanged.
 
-### `README.md`: the Installation list
+**c2. The platform list.** A new item after "iPhone and iPad", in the same form as its neighbors (an icon, the platform, then the link), reusing the phone icon.
 
-Placement: a new bullet after the iPhone / iPad bullet, before Windows. It follows the house shape of the neighboring bullets (where to get it, one step).
+Before (the neighbor it follows):
 
-**Before:**
+```html
+              <span>iPhone and iPad: <a href="https://apps.apple.com/app/id6787719977" target="_blank" rel="noopener">App Store</a></span>
+```
+
+Day one (the new item's text):
+
+```html
+              <span>Android: <a href="https://github.com/dtgibson/snowraven/releases/latest" target="_blank" rel="noopener">.apk</a></span>
+```
+
+After inclusion:
+
+```html
+              <span>Android: <a href="https://f-droid.org/packages/com.dtgibson.snowraven/" target="_blank" rel="noopener">F-Droid</a> or <a href="https://github.com/dtgibson/snowraven/releases/latest" target="_blank" rel="noopener">.apk</a></span>
+```
+
+**c3. The install cards.** A new "Android" card after "iPhone / iPad", in that card's shape and length: three short sentences (where it comes from; free and the version floor; how updates arrive) and one button.
+
+The card it mirrors (unchanged):
+
+```html
+              <p>Get SnowRaven from the <a href="https://apps.apple.com/app/id6787719977" target="_blank" rel="noopener">App Store</a>. It is free and runs on iOS 16 or later. Updates arrive through the App Store like any other app.</p>
+```
+
+Day one (heading `Android`, button `Download for Android` to the latest release):
+
+```html
+              <p>Get SnowRaven as an <a href="https://github.com/dtgibson/snowraven/releases/latest" target="_blank" rel="noopener"><code>.apk</code></a> from the latest release. It is free and runs on Android 8.0 or later. Updates arrive as a new <code>.apk</code> with each release.</p>
+```
+
+After inclusion (heading `Android`, button `Download for Android` to the F-Droid page):
+
+```html
+              <p>Get SnowRaven from <a href="https://f-droid.org/packages/com.dtgibson.snowraven/" target="_blank" rel="noopener">F-Droid</a>. It is free and runs on Android 8.0 or later. Updates arrive through F-Droid like any other app.</p>
+```
+
+**c4. The hero line** (both forms):
+
+```text
+Before: macOS · Windows · iPhone · iPad · Raspberry Pi
+After:  macOS · Windows · iPhone · iPad · Android · Raspberry Pi
+```
+
+**c5. The meta description's last sentence** (both forms):
+
+```text
+Before: Free and open, for macOS, Windows, iPhone, iPad, and Raspberry Pi.
+After:  Free and open, for macOS, Windows, iPhone, iPad, Android, and Raspberry Pi.
+```
+
+**c6. The footer links** (after inclusion only): an `F-Droid` link after `App Store`, to the F-Droid page. Day one adds nothing; the footer's `Releases` link already reaches the `.apk`.
+
+### `README.md`
+
+**c7. Line 3, the platform list** (both forms):
+
+```text
+Before: a native Mac, Windows, iPhone or iPad app, or self-hosted on a Raspberry Pi (or any computer on your network).
+After:  a native Mac, Windows, iPhone, iPad or Android app, or self-hosted on a Raspberry Pi (or any computer on your network).
+```
+
+**c8. The Installation list.** A new bullet after iPhone / iPad, in that bullet's shape: where it comes from, free, the version floor, how updates arrive, on one line.
+
+The bullet it mirrors (unchanged):
 
 ```markdown
 - **iPhone / iPad**: get SnowRaven from the [App Store](https://apps.apple.com/app/id6787719977). Free, iOS 16 or later. Updates arrive through the App Store like any other app.
-- **Windows**: download `SnowRaven_x.x.x_x64-setup.exe` from the [latest release](https://github.com/dtgibson/snowraven/releases/latest) and run it. The app isn't code-signed yet, so SmartScreen may warn "unknown publisher": click **More info**, then **Run anyway**. In-app updates are cryptographically verified regardless.
 ```
 
-**After (once the F-Droid listing is live):**
+Day one:
 
 ```markdown
-- **iPhone / iPad**: get SnowRaven from the [App Store](https://apps.apple.com/app/id6787719977). Free, iOS 16 or later. Updates arrive through the App Store like any other app.
-- **Android** (8.0 or later): get SnowRaven from [F-Droid](https://f-droid.org/packages/com.dtgibson.snowraven/), or download `SnowRaven_x.x.x_android_universal.apk` from the [latest release](https://github.com/dtgibson/snowraven/releases/latest) and open it on your phone.
-- **Windows**: download `SnowRaven_x.x.x_x64-setup.exe` from the [latest release](https://github.com/dtgibson/snowraven/releases/latest) and run it. The app isn't code-signed yet, so SmartScreen may warn "unknown publisher": click **More info**, then **Run anyway**. In-app updates are cryptographically verified regardless.
+- **Android**: get SnowRaven as an `.apk` from the [latest release](https://github.com/dtgibson/snowraven/releases/latest). Free, Android 8.0 or later. Updates arrive as a new `.apk` with each release.
 ```
 
-**After (day one, APK only):** the new bullet reads:
+After inclusion:
 
 ```markdown
-- **Android** (8.0 or later): download `SnowRaven_x.x.x_android_universal.apk` from the [latest release](https://github.com/dtgibson/snowraven/releases/latest) and open it on your phone.
+- **Android**: get SnowRaven from [F-Droid](https://f-droid.org/packages/com.dtgibson.snowraven/). Free, Android 8.0 or later. Updates arrive through F-Droid like any other app.
 ```
 
-The file name is the one schema 6.2's `attach.sh` uploads (`SnowRaven_<version>_android_universal.apk`). The one-time "allow installs from this source" step and the two-signers fact stay in Help, where the rule puts operating detail.
+**c9. The Updating line.** One clause inside the existing sentence, after the iPhone and iPad clause.
 
-### Also out of date once Android ships (not proposed; yes or no to each)
+Before:
 
-Each of these lists platforms and would omit Android. The rule allows a feature build to propose one sentence, so these are shown for your decision rather than proposed; where a line names F-Droid, it has the same day-one caveat as above.
+```markdown
+**Updating**: desktop apps update in place from **Check For Updates** in the footer; iPhone and iPad update through the [App Store](https://apps.apple.com/app/id6787719977); self-hosted installs run `./update.sh`.
+```
 
-| # | Where | Before | After |
-|---|---|---|---|
-| C1 | `README.md` line 3 | `a native Mac, Windows, iPhone or iPad app, or self-hosted on a Raspberry Pi` | `a native Mac, Windows, iPhone, iPad or Android app, or self-hosted on a Raspberry Pi` |
-| C2 | `README.md` "Updating" line | `iPhone and iPad update through the [App Store](https://apps.apple.com/app/id6787719977); self-hosted installs run` | `iPhone and iPad update through the [App Store](https://apps.apple.com/app/id6787719977); Android updates through F-Droid, or by installing the next release's APK over the old one; self-hosted installs run` |
-| C3 | `website/index.html` meta description | `Free and open, for macOS, Windows, iPhone, iPad, and Raspberry Pi.` | `Free and open, for macOS, Windows, iPhone, iPad, Android, and Raspberry Pi.` |
-| C4 | `website/index.html` hero line | `macOS · Windows · iPhone · iPad · Raspberry Pi` | `macOS · Windows · iPhone · iPad · Android · Raspberry Pi` |
-| C5 | `website/index.html` platform list | (no Android item) | a new item after "iPhone and iPad", reusing the phone icon: `<span>Android: <a href="https://f-droid.org/packages/com.dtgibson.snowraven/" target="_blank" rel="noopener">F-Droid</a> or <a href="https://github.com/dtgibson/snowraven/releases/latest" target="_blank" rel="noopener">.apk</a></span>` (day one: `<span>Android: <a href="https://github.com/dtgibson/snowraven/releases/latest" target="_blank" rel="noopener">.apk</a></span>`) |
-| C6 | `website/index.html` install cards | (no Android card) | a new card after "iPhone / iPad": heading `Android`, text `Get SnowRaven from F-Droid, or download the universal .apk from the latest release and open it on your phone. It runs on Android 8.0 or later, and updates arrive through F-Droid or by installing a newer release's APK over the old one.` (day one: `Download the universal .apk from the latest release and open it on your phone. It runs on Android 8.0 or later, and updates arrive by installing a newer release's APK over the old one.`), button `Download for Android` to the latest release |
-| C7 | `website/index.html` footer links | `App Store` link only | an `F-Droid` link after it, once the listing is live |
+Day one:
 
-C5 to C7 are structure changes (a new list item, card and link), shown as text so you can judge the wording; the markup follows the neighboring items exactly.
+```markdown
+**Updating**: desktop apps update in place from **Check For Updates** in the footer; iPhone and iPad update through the [App Store](https://apps.apple.com/app/id6787719977); Android updates with each release's `.apk`; self-hosted installs run `./update.sh`.
+```
+
+After inclusion:
+
+```markdown
+**Updating**: desktop apps update in place from **Check For Updates** in the footer; iPhone and iPad update through the [App Store](https://apps.apple.com/app/id6787719977); Android updates through [F-Droid](https://f-droid.org/packages/com.dtgibson.snowraven/); self-hosted installs run `./update.sh`.
+```
+
+Notes, none of them copy: the one-time "allow installs from this source" step, the file name and the two-signers fact stay in Help, where the rule puts operating detail. After inclusion the website's platform list still carries the `.apk` as its second link, and every GitHub release still carries the file, so a reader who prefers the APK is never left without it. C2's earlier "or by installing the next release's APK over the old one" is now its own one-clause day-one form.
 
 ---
 
@@ -397,5 +450,5 @@ This is the only change in 1.0.53 that reaches the iPhone and iPad app (the CHAN
 3. **`CHANGELOG.md`'s 1.0.49 entry disagreed with the revised plan in two places; both are resolved** by The Engineer: the Internal line now names the one build script and the unsigned universal APK (no App Bundle), and the Added line now reads "On Android the app does not offer to find your location: you move the map by searching for a place or by setting a Default Location.", which is the Branch B fact.
 4. **The Weather screenshot** cannot repeat the App Store set's checklist lookup on the emulator, and the Planner stand-in needs an OpenWeather key the capture did not enter; the staged sets carry Multimedia in its place (section b).
 5. **Schema 7.4's "typically nothing in a cloud backup"** is not adopted (d5).
-6. **Not decided here:** the category, the `NonFreeNet` wording, the website and README timing, and each of C1 to C7. (The location branch is decided: B.)
+6. **Not decided here:** the category, the `NonFreeNet` wording, and the website and README revision of section (c) with its timing. (The location branch is decided: B; NFR-01 is decided: the carve-out, accepted.)
 7. **The Google sentences were revised on 2026-10-03 after QA-52**, in (a), the `NonFreeNet` reason and (d5), and in the staged `fdroid/fastlane-proposal/en-US/full_description.txt` (3,996 characters; 3,993 after the security M3 and L1 revision of 2026-10-03), to say what `measurements/safe-browsing/README.md` supports; the committed recipe still carries the schema's original `NonFreeNet` sentence and takes whichever you approve.
