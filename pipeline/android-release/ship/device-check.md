@@ -11,7 +11,7 @@ If you have no Android device, say so: the Android check is then recorded Partia
 
 ## A. Android: the signed APK
 
-**Status for 1.0.53: not performed.** The user owns no Android device and chose, in writing, to publish the APK on emulator evidence (`decisions.md`, part 1b); FR-44 is Partial. These steps stay for a future device.
+**Status for 1.0.53: not performed.** The user owns no Android device and chose, in writing, to publish the APK on emulator evidence (`decisions.md`, part 1b); FR-44 is Partial. These steps stay for a future device. The attached file (SHA-256 `d8cb38a9478aab914a24e58ed19ebd1c5acb2a059640d790ef5965722813f126`, signer `42a3576e445bda4a994793f2ffa056663113275c9805eb2f6cffdc252375996a`) was installed and opened to the Welcome screen on the local API 36 emulator before it was attached on 2026-10-05. That is emulator evidence, not this check.
 
 **What you are checking:** the file the Deployer will attach, byte for byte. Its SHA-256 is recorded when it is handed to you, and `attach.sh` refuses to upload any file whose SHA-256 differs.
 
@@ -41,6 +41,8 @@ If you have no Android device, say so: the Android check is then recorded Partia
 ---
 
 ## B. iPhone and iPad: the TestFlight build
+
+**Status for 1.0.53: ready for your check.** Build 1.0.53 (1) is VALID in TestFlight and available to internal testers (uploaded 2026-10-05 21:28 Pacific, delivery `9e69034b-cb3b-4c75-99c8-7727763c3e7f`). No App Store record has been created or changed.
 
 **What you are checking:** TestFlight build 1.0.53 (1), the exact build the App Store record will point at. A green suite, green CI and a simulator screenshot are not evidence that an iOS release build launches (the 1.0.31 crash), so this comes before the submission.
 
