@@ -467,6 +467,13 @@ describe('the CI build (FR-34, QA-34, NFR-07)', () => {
     .filter(l => !/^\s*#/.test(l))
     .join('\n')
 
+  // The v1.0.53 tag run failed here: under the runner's bash -e -o pipefail, `yes | sdkmanager --licenses`
+  // exits 141 once sdkmanager stops reading, because `yes` dies of SIGPIPE. Its status must be dropped.
+  it('accepts the SDK licenses with a pipeline that survives pipefail (yes dies of SIGPIPE)', () => {
+    expect(wf).toContain('{ yes || true; } | "$SDKMANAGER" --licenses > /dev/null')
+    expect(wf).not.toMatch(/^\s*yes \|/m)
+  })
+
   it('runs on the version tag and by hand, read-only, referencing no secret', () => {
     expect(wf).toMatch(/on:\s*\n\s+push:\s*\n\s+tags: \['v\*'\]\s*\n\s+workflow_dispatch:/)
     expect(wf).toMatch(/^permissions:\s*\n\s+contents: read\s*$/m)

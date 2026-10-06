@@ -67,7 +67,10 @@ jobs:
           # The runner image ships the Android command-line tools at $ANDROID_HOME.
           SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
           test -x "$SDKMANAGER" || { echo "sdkmanager not found under \$ANDROID_HOME ($ANDROID_HOME)"; exit 1; }
-          yes | "$SDKMANAGER" --licenses > /dev/null
+          # Steps run under bash -e -o pipefail: once sdkmanager has read its answers and exits, `yes` dies of
+          # SIGPIPE (exit 141) and pipefail would fail the step (the v1.0.53 tag run), so its status is dropped
+          # while sdkmanager's own status still decides the step.
+          { yes || true; } | "$SDKMANAGER" --licenses > /dev/null
           "$SDKMANAGER" "platform-tools" "platforms;android-$SDK_PLATFORM" "build-tools;$BUILD_TOOLS" "ndk;$NDK_VERSION"
           echo "NDK_HOME=$ANDROID_HOME/ndk/$NDK_VERSION" >> "$GITHUB_ENV"
 
