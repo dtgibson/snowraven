@@ -50,7 +50,7 @@ follow the website and README register (one or two sentences per tab, in tab
 order, no operating detail, no reassurance, no offline claim), so a copy change
 to those surfaces is a copy change here in the same release.
 
-## Description (3,233 / 4,000)
+## Description (3,234 / 4,000)
 
 ```
 SnowRaven is a birding data explorer for the records you already keep. It reads your eBird and Macaulay Library exports and gives you weather and tides for your checklists, your history with every species, life-list statistics and an interactive map, on your own device.
@@ -70,7 +70,7 @@ WHAT'S INSIDE
 
 PRIVACY
 
-Private by default, and in your control: no account, no analytics, no telemetry, no server we run. Your eBird backup, Macaulay Library export and API keys are stored only on your device unless you turn on iCloud syncing between your devices, and anything you sync goes to your own iCloud account and nowhere else. When you ask for live data, the app talks directly to the service that has it, using your own free API keys where one is needed. The full privacy policy is at snowraven.dtgibson.com/privacy.html.
+Private by default, and in your control: no account, no analytics, no telemetry, no server we run. Your eBird backup, Macaulay Library export, and API keys are stored only on your device unless you turn on iCloud syncing between your devices, and anything you sync goes to your own iCloud account and nowhere else. When you ask for live data, the app talks directly to the service that has it, using your own free API keys where one is needed. The full privacy policy is at snowraven.dtgibson.com/privacy.html.
 
 WHAT YOU'LL NEED
 

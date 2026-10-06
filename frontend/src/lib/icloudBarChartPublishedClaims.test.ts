@@ -257,20 +257,16 @@ describe('items 37 to 39 are true of the shipped code', () => {
 // still needs the user's approval first (CLAUDE.md, published copy).
 
 const POSTURE = 'Your eBird backup, Macaulay Library export, and API keys are stored only on your device unless you turn on iCloud syncing between your devices, and anything you sync goes to your own iCloud account and nowhere else.'
-// appstore/LISTING.md keeps the sentence as approved, without the serial comma the user asked for on the
-// README and the website (2026-10-05); App Store copy changes only on the user's own yes, so until then the
-// two forms differ by that one comma and nothing else (the agreement row below says so).
-const POSTURE_APP_STORE = POSTURE.replace('Macaulay Library export, and API keys', 'Macaulay Library export and API keys')
 
 describe.each([
   ['README.md', plain(README)],
   ['website/index.html', htmlText(INDEX)],
   ['appstore/LISTING.md', plain(LISTING.slice(LISTING.indexOf('\nPRIVACY\n'), LISTING.indexOf("\nWHAT YOU'LL NEED\n")))],
-])('%s: the privacy sentence (items 41 to 43, declined)', (file, text) => {
+])('%s: the privacy sentence (items 41 to 43, declined)', (_file, text) => {
   it('carries the unchanged sentence, which does not name the bar-chart files', () => {
     const s = sentenceWith(text, 'Your eBird backup, Macaulay Library export')
     expect(s, 'the privacy sentence is present').not.toBe('')
-    expect(s).toBe(file === 'appstore/LISTING.md' ? POSTURE_APP_STORE : POSTURE)
+    expect(s).toBe(POSTURE)
     expect(s).not.toMatch(/bar-chart/i)
   })
 })
@@ -278,11 +274,8 @@ describe.each([
 describe('items 41 to 43: the three files agree with each other', () => {
   it('the three files state the sentence identically', () => {
     const got = [plain(README), htmlText(INDEX), plain(LISTING)].map(t => sentenceWith(t, 'Your eBird backup, Macaulay Library export'))
+    expect(new Set(got).size).toBe(1)
     expect(got[0]).toBe(POSTURE)
-    expect(got[1]).toBe(POSTURE)
-    // The App Store listing differs from them by the one serial comma, and by nothing else.
-    expect(got[2]).toBe(POSTURE_APP_STORE)
-    expect(got[2]!.replace(/,/g, '')).toBe(got[0]!.replace(/,/g, ''))
   })
 })
 
