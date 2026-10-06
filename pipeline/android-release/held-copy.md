@@ -1,6 +1,6 @@
 # Held copy: Android release (the F-Droid leg)
 
-**Status: HELD. Nothing here is published.** Each surface below is written only after the user reads the exact text and says yes (CLAUDE.md, "Published copy needs the user's approval first"). The staged Fastlane files are under `pipeline/android-release/fdroid/fastlane-proposal/en-US/` and hold exactly the listing text in section (a) and the screenshots in section (b); on the yes they move to `fastlane/metadata/android/en-US/` in the same commit that adds `fastlaneMetadata.test.ts`, before the tag (schema 6.5).
+**Status: APPROVED and WRITTEN (2026-10-05), in the day-one forms.** The user approved the copy page as it stood after three rounds, with two standing requirements for the README and website: the serial (Oxford) comma in every list, and American spelling. Written: `website/index.html` and `README.md` (section (c), day-one forms), `PRIVACY_POLICY.md` and `website/privacy.html` (section (d)), `ACCESSIBILITY.md`, the Fastlane folder at `fastlane/metadata/android/en-US/` (sections (a) and (b); it was staged under `pipeline/android-release/fdroid/fastlane-proposal/en-US/`), and the recipe's `NonFreeNet` reason and category. Still held: the after-inclusion forms of section (c), shown to the user again when the F-Droid listing is live, and the App Store What's New (section (e)), written at the App Store step. The history below is kept as written; the original status line read "HELD. Nothing here is published."
 
 **Location branch: B, decided by the measurement (2026-10-03).** The FR-55 measurement is recorded in `decisions.md` ("FR-55 measurement ... branch B stands") and `pipeline/android-release/measurements/`: its step 9 failed (during a fix the app's own UID held a connection to a Google address). So Android has no location controls and a place is typed or searched for. Every location-dependent passage below is still given in both forms, labeled **Branch A** and **Branch B**, because the decision has a reversal condition; **only the Branch B forms apply**, and the staged files carry them. (The branch-A edit seen in the working tree while this was drafted was the measurement build's scratch edit, reverted after the run.)
 
@@ -209,11 +209,11 @@ Before:
 After:
 
 ```html
-            A native app for Mac, Windows, iPhone, iPad and Android, or self-hosted on a Raspberry Pi
+            A native app for Mac, Windows, iPhone, iPad, and Android, or self-hosted on a Raspberry Pi
             (or any computer on your network) and opened from any browser. One universal Mac build covers Apple Silicon
 ```
 
-As a reader sees it: "A native app for Mac, Windows, iPhone, iPad and Android, or self-hosted on a Raspberry Pi (or any computer on your network) and opened from any browser. One universal Mac build covers Apple Silicon and Intel, and the self-hosted version works in a phone or tablet browser too."
+As a reader sees it: "A native app for Mac, Windows, iPhone, iPad, and Android, or self-hosted on a Raspberry Pi (or any computer on your network) and opened from any browser. One universal Mac build covers Apple Silicon and Intel, and the self-hosted version works in a phone or tablet browser too."
 
 **c2. The platform list.** A new item after "iPhone and iPad", in the same form as its neighbors (an icon, the platform, then the link), reusing the phone icon.
 
@@ -275,7 +275,7 @@ After:  Free and open, for macOS, Windows, iPhone, iPad, Android, and Raspberry 
 
 ```text
 Before: a native Mac, Windows, iPhone or iPad app, or self-hosted on a Raspberry Pi (or any computer on your network).
-After:  a native Mac, Windows, iPhone, iPad or Android app, or self-hosted on a Raspberry Pi (or any computer on your network).
+After:  a native Mac, Windows, iPhone, iPad, or Android app, or self-hosted on a Raspberry Pi (or any computer on your network).
 ```
 
 **c8. The Installation list.** A new bullet after iPhone / iPad, short and in its neighbors' cadence: where it comes from, free, the version floor, on one line (how Android updates is c9's clause).
@@ -346,10 +346,10 @@ SnowRaven is a self-hosted birding tools app. It runs as a standalone desktop ap
 **After:**
 
 ```markdown
-SnowRaven is a self-hosted birding tools app. It runs as a standalone desktop app (macOS and Windows), as an app on iPhone, iPad and Android, or on your own machine such as a Raspberry Pi. This policy describes what happens to your data. The short version: it stays with you.
+SnowRaven is a self-hosted birding tools app. It runs as a standalone desktop app (macOS and Windows), as an app on iPhone, iPad, and Android, or on your own machine such as a Raspberry Pi. This policy describes what happens to your data. The short version: it stays with you.
 ```
 
-"as an app on iPhone, iPad and Android" is the phrase `ACCESSIBILITY.md` already uses, so the two statements agree.
+"as an app on iPhone, iPad, and Android" is the phrase `ACCESSIBILITY.md` uses (both with the serial comma the user asked for on 2026-10-05), so the two statements agree.
 
 ### d3. Your Data Stays on Your Device, first bullet (one clause)
 

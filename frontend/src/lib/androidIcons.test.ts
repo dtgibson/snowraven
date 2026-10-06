@@ -49,7 +49,7 @@ function bucketProblems(bytes: Buffer, file: string, bucket: Bucket): string[] {
 const FILES = ['ic_launcher.png', 'ic_launcher_round.png', 'ic_launcher_foreground.png'] as const
 
 /** The staged F-Droid listing icon (held-copy.md, "Listing icon"). */
-const STORE_ICON = 'pipeline/android-release/fdroid/fastlane-proposal/en-US/images/icon.png'
+const STORE_ICON = 'fastlane/metadata/android/en-US/images/icon.png'
 const STORE_ICON_SIZE = 512
 
 /** The PNG chunk types in file order, so a tRNS chunk (transparency on an RGB or palette image) is seen. */

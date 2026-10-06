@@ -1,6 +1,6 @@
 # SnowRaven Accessibility
 
-SnowRaven is built to be usable by everyone. It runs in the browser, as a desktop app on Mac and Windows, and as an app on iPhone, iPad and Android, and it follows standard web accessibility practices so it works with keyboards and screen readers. This describes what is in place today. Accessibility is treated as ongoing work, not a finished checkbox, and the few known gaps are listed honestly at the end.
+SnowRaven is built to be usable by everyone. It runs in the browser, as a desktop app on Mac and Windows, and as an app on iPhone, iPad, and Android, and it follows standard web accessibility practices so it works with keyboards and screen readers. This describes what is in place today. Accessibility is treated as ongoing work, not a finished checkbox, and the few known gaps are listed honestly at the end.
 
 ---
 

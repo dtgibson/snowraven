@@ -69,9 +69,9 @@ describe('website/privacy.html ↔ PRIVACY_POLICY.md parity', () => {
     expect(pageH2s.map(h => h.id)).toEqual(policySections.map(textToId))
   })
 
-  it('covers all 13 sections, including iOS App (App Store launch) and iCloud Sync (v1.0.11)', () => {
-    expect(policySections).toHaveLength(13)
-    for (const label of ['Overview', 'iOS App', 'iCloud Sync', 'Software Updates', 'Contact']) {
+  it('covers all 14 sections, including iOS App (App Store launch), iCloud Sync (v1.0.11) and Android App (android-release)', () => {
+    expect(policySections).toHaveLength(14)
+    for (const label of ['Overview', 'iOS App', 'iCloud Sync', 'Android App', 'Software Updates', 'Contact']) {
       expect(policySections).toContain(label)
     }
     // The iOS App section sits between Map Tiles and the embedded-media
@@ -79,6 +79,10 @@ describe('website/privacy.html ↔ PRIVACY_POLICY.md parity', () => {
     // deliberately distinct from the iOS backup sentence (icloud-sync NFR-08).
     expect(policySections.indexOf('iOS App')).toBe(policySections.indexOf('Map Tiles') + 1)
     expect(policySections.indexOf('iCloud Sync')).toBe(policySections.indexOf('iOS App') + 1)
+    // Android App follows iCloud Sync rather than iOS App, so the iOS App
+    // passage (read up to `## iCloud Sync` by the widget guards) and the
+    // iCloud Sync adjacency above both stay exactly as they were.
+    expect(policySections.indexOf('Android App')).toBe(policySections.indexOf('iCloud Sync') + 1)
   })
 
   it('the iCloud Sync section states the four required things on both sides (NFR-08)', () => {

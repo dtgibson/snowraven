@@ -1,7 +1,8 @@
 AntiFeatures:
   NonFreeNet:
-    en-US: Bird records, weather and tide data come from eBird, OpenWeather and NOAA,
-      which are not free services; the app is unusable without an eBird key.
+    en-US: SnowRaven relies on network services that are not free software, chiefly
+      eBird for checklist details, hotspots and recent sightings, and OpenWeather
+      for weather, each used with your own API key.
 Categories:
   - Science & Education
 License: AGPL-3.0-only
