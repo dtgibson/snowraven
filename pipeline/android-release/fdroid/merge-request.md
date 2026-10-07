@@ -1,14 +1,14 @@
 # The fdroiddata merge request (first Android release only)
 
-**Status: prepared for 1.0.53, not opened. Only your GitLab account is needed now (2026-10-05).** This is the one-time request that asks F-Droid to include SnowRaven (android-release FR-59, schema 6.5). It is opened under your own GitLab account, by you, or by the Deployer on your explicit word. After it is merged, F-Droid's update checker finds every later `vX.Y.Z` tag by itself, so nothing goes to fdroiddata per release unless the recipe itself changes (a toolchain pin, in the release skill's Android section).
+**Status: OPEN since 2026-10-06: https://gitlab.com/fdroid/fdroiddata/-/merge_requests/51451.** The Deployer opened it on the user's word, from the user's fork `snowraven/fdroiddata` (private: GitLab refuses public visibility for a project in a private group). Its pipelines stop before any job runs: GitLab says "The pipeline failed due to the user not being verified." As F-Droid's checklist asks, no phone number or card was given; a note on the request asks a maintainer to trigger the CI. "Opened" below records how it was done. This is the one-time request that asks F-Droid to include SnowRaven (android-release FR-59, schema 6.5). It is opened under your own GitLab account, by you, or by the Deployer on your explicit word. After it is merged, F-Droid's update checker finds every later `vX.Y.Z` tag by itself, so nothing goes to fdroiddata per release unless the recipe itself changes (a toolchain pin, in the release skill's Android section).
 
 Review usually takes weeks. On the day of the first ship, the Android download is the signed APK on the GitHub release; the F-Droid listing follows when the request is merged and F-Droid has built the app.
 
 ## Ready for 1.0.53 (filled in at the ship)
 
 - **The file to paste:** https://github.com/dtgibson/snowraven/blob/v1.0.53/pipeline/android-release/fdroid/com.dtgibson.snowraven.yml, then **Raw** (direct: https://raw.githubusercontent.com/dtgibson/snowraven/v1.0.53/pipeline/android-release/fdroid/com.dtgibson.snowraven.yml).
-- **Its SHA-256**, so you can check the pasted file: `2391a9296e44c2b472a98be4a0f2be990b38f3862e795155ed8bb5958bb1342d`. The raw URL above serves exactly these bytes, and they equal the recipe in the repository today.
-- **Its first build entry:** `versionName: 1.0.53`, `versionCode: 1000053`, `commit: v1.0.53`.
+- **Its SHA-256**, so you can check the pasted file: `2391a9296e44c2b472a98be4a0f2be990b38f3862e795155ed8bb5958bb1342d`. The raw URL above serves exactly these bytes, which equalled the repository's recipe on 2026-10-05; the next item says what changed when the request was opened.
+- **Its first build entry:** `versionName: 1.0.53`, `versionCode: 1000053`, `commit: v1.0.53`. **Superseded when the request was opened:** F-Droid's checklist asks for the full commit hash, never a tag, so the entry now reads `commit: c4c15a9624c299f62bf3f82af7f111750666b579` (the commit `v1.0.53` names), in the fork's branch and in the repository's recipe alike (SHA-256 `3496c0f8c8cac9b1f94730607c75c5f2345abb3a0cc1005de99b1440b623209e`).
 - **Branch:** `com.dtgibson.snowraven`. **Commit message and merge request title:** `New app: SnowRaven (com.dtgibson.snowraven)`.
 - **The five checks below are all done for 1.0.53:** (1) the recipe names 1.0.53 / 1000053 / `v1.0.53`; (2) your approved `NonFreeNet` sentence and category are in it; (3) the Fastlane folder is at the tag; (4) `v1.0.53` is pushed and its Android CI run (`37412478083`) is green; (5) on the tagged recipe, `fdroid lint -f --force-yamllint` found nothing, `rewritemeta -l` listed nothing, `scanner -e` found 0 problems, `build -v -l` printed `Successfully built version 1.0.53 of com.dtgibson.snowraven from c4c15a96...` (an unsigned APK with the same package, version, ABIs and permissions as the GitHub APK), and `checkupdates` found 1.0.53 (1000053) from the tag. All of these ran with fdroidserver 2.4.5 on 2026-10-05. The `sudo:` block was not among them: it cannot run on this Mac, so the description's last paragraph says the merge request's pipeline is its first run.
 - **The GitHub APK is already out** on the v1.0.53 release, signed with your key. F-Droid will sign its own build with its own key, so the two do not update each other (Help says so).
@@ -17,7 +17,7 @@ Review usually takes weeks. On the day of the first ship, the Android download i
 
 Each of these happens in the SnowRaven repository, before the tag, because F-Droid reads the tagged commit:
 
-1. The version bump has set the recipe's `versionName`, `versionCode`, `commit`, `CurrentVersion` and `CurrentVersionCode` to the shipping version (`fdroidRecipe.test.ts` goes red if they disagree with `tauri.conf.json`).
+1. The version bump has set the recipe's `versionName`, `versionCode`, `CurrentVersion` and `CurrentVersionCode` to the shipping version (`fdroidRecipe.test.ts` goes red if they disagree with `tauri.conf.json`), and `commit` is the FULL 40-character hash of the commit the tag names (`git rev-parse vX.Y.Z^{commit}`), never the tag itself. A commit cannot carry its own hash, so the hash goes in after the tag is pushed (the guard checks the shape only).
 2. The `NonFreeNet` sentence and the category you approved in `held-copy.md` are in the recipe (it is listing copy, so it takes your yes like the rest).
 3. The Fastlane folder you approved is at `fastlane/metadata/android/en-US/` (without it the listing has no description until the next tag).
 4. The tag `vX.Y.Z` is pushed, and the Android CI run on it is green.
@@ -79,6 +79,14 @@ Three things in the recipe that look unusual, and why:
 
 `fdroid lint`, `fdroid rewritemeta`, `fdroid scanner` and `fdroid build -l` pass locally with fdroidserver 2.4.5 on macOS. The `sudo:` block could not be run locally (the buildserver image does not run on Apple silicon), so this merge request's build job is its first run; I will fix anything it finds in this branch.
 ```
+
+## F-Droid's checklist, as answered on the request (2026-10-06)
+
+The request's description is F-Droid's own "App inclusion" template (`.gitlab/merge_request_templates/App inclusion.md` in fdroiddata), with the description above appended under "About this app". Each item, and why it is ticked or not:
+
+- **Ticked, true as written:** the inclusion criteria; the author notified (with "I am the author."); the Fastlane folder in this repository (en-US, title, both descriptions, icon, phone and ten-inch screenshots, a changelog per version code); the four Docs items; the "New app: app name" title; the Git guide; related issues referenced (none exist: no RFP or fdroiddata issue names SnowRaven); one app per request; the metadata at `metadata/com.dtgibson.snowraven.yml`, valid YAML, LF line endings; no unrelated files (the only file in the request is the recipe); tagged releases with auto update; an issue tracker and contact (`IssueTracker`, `WebSite`, `SourceCode`); `AuthorName`; only the latest version; no disabled versions; and `commit` as the full hash.
+- **Not ticked, each with its reason on the request:** the fork public (GitLab refused it, "public is not allowed in a private namespace", because the `snowraven` group is private; the branch itself is not protected); external repos as submodules (not applicable: none, and no srclibs); reproducible builds (not enabled for this first release, with the user's sentence: F-Droid signs its own build, and the author-signed APK stays on GitHub for sideloading); ABI split (one universal APK, as on GitHub); and the three pipeline items, because no pipeline has run.
+- **A consequence of not enabling reproducible builds, worth knowing before it is merged:** F-Droid's note on that item says that once its build is signed with F-Droid's key, reproducible builds cannot be enabled later for this app id.
 
 ## The pipeline to watch
 
