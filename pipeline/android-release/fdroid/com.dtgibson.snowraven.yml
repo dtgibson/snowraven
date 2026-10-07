@@ -18,7 +18,7 @@ Repo: https://github.com/dtgibson/snowraven.git
 Builds:
   - versionName: 1.0.53
     versionCode: 1000053
-    commit: v1.0.53
+    commit: c4c15a9624c299f62bf3f82af7f111750666b579
     timeout: 10800
     sudo:
       - apt-get update

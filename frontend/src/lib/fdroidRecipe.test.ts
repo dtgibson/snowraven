@@ -14,8 +14,14 @@
 // script CI runs.
 //
 // The Builds entry and CurrentVersion/CurrentVersionCode carry tauri.conf.json's
-// pair (1.0.48 / 1000048 / v1.0.48 when this was written): the Deployer moves
-// them with the version bump, and these rows go red until they move together.
+// pair (1.0.48 / 1000048 when this was written): the Deployer moves them with
+// the version bump, and these rows go red until they move together. The
+// entry's commit is the FULL 40-character hash of the release tag's commit,
+// never the tag name: F-Droid's app-inclusion checklist asks for the hash (a
+// tag can be moved, as v1.0.53's was before anything was built from it). This
+// guard checks its shape only. Which commit it names cannot be checked here,
+// because CI clones without tags; the ship checks it against
+// `git rev-parse vX.Y.Z^{commit}` (release skill, Android section).
 //
 // What it cannot see: whether the sudo: block provisions a working toolchain on
 // F-Droid's Debian build server (only the fdroiddata merge request's pipeline
@@ -134,7 +140,8 @@ function versionProblems(recipeSrc: string, confSrc: string): string[] {
   const b = buildEntry(recipe)
   if (yamlText(b, 'versionName') !== cv) problems.push(`Builds[0].versionName ${yamlText(b, 'versionName')} != CurrentVersion ${cv}`)
   if (yamlText(b, 'versionCode') !== cvc) problems.push(`Builds[0].versionCode ${yamlText(b, 'versionCode')} != CurrentVersionCode ${cvc}`)
-  if (yamlText(b, 'commit') !== `v${cv}`) problems.push(`Builds[0].commit ${yamlText(b, 'commit')} != v${cv}`)
+  const commit = yamlText(b, 'commit')
+  if (!/^[0-9a-f]{40}$/.test(commit)) problems.push(`Builds[0].commit ${commit} is not a full 40-character commit hash`)
   return problems
 }
 
@@ -346,9 +353,16 @@ describe('the recipe checks reject the shapes a slip would produce', () => {
     expect(versionProblems(recipeText, confAhead)).toContain(`CurrentVersion ${conf.version} != tauri.conf.json version ${ahead}`)
     const recipeAhead = recipeText.replace(`CurrentVersion: ${conf.version}`, `CurrentVersion: ${ahead}`)
     expect(versionProblems(recipeAhead, confAhead).some(x => x.includes('!= the formula'))).toBe(true)
-    expect(versionProblems(recipeText.replace(/commit: v\S+/, 'commit: main'), tauriConfText)).toEqual([
-      `Builds[0].commit main != v${conf.version}`,
-    ])
+  })
+
+  it('a commit that is a tag, a branch, a short or long hash, or a hash in capitals is seen', () => {
+    const current = yamlText(buildEntry(recipe), 'commit')
+    expect(current).toMatch(/^[0-9a-f]{40}$/)
+    for (const bad of [`v${tauriConf.version}`, 'main', current.slice(0, 39), current.slice(0, 12), current.toUpperCase(), `${current}0`]) {
+      const src = recipeText.replace(`commit: ${current}`, `commit: ${bad}`)
+      expect(src, bad).not.toBe(recipeText)
+      expect(versionProblems(src, tauriConfText), bad).toEqual([`Builds[0].commit ${bad} is not a full 40-character commit hash`])
+    }
   })
 
   it('a second "version" or a missing versionCode in tauri.conf.json fails the update check closed', () => {
