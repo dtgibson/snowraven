@@ -95,7 +95,15 @@ export function parseFlatYaml(src: string): YamlMap {
       }
       throw new Error(`yaml line ${parent.n}: "${key}" has no value`)
     }
-    return isSeqItem(next.text) ? seq(next.indent) : map(next.indent)
+    if (isSeqItem(next.text)) return seq(next.indent)
+    // A plain scalar may open on the line after its key, which is how
+    // rewritemeta writes a value too long for one line (`output:` in the
+    // recipe). A line with no "key:" shape is that scalar, not a mapping.
+    if (!next.text.includes(': ') && !next.text.endsWith(':')) {
+      pos += 1
+      return plain(next.text, parent.indent, next)
+    }
+    return map(next.indent)
   }
 
   function map(indent: number): YamlMap {

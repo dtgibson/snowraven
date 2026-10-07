@@ -12,6 +12,8 @@ SourceCode: https://github.com/dtgibson/snowraven
 IssueTracker: https://github.com/dtgibson/snowraven/issues
 Changelog: https://github.com/dtgibson/snowraven/blob/HEAD/CHANGELOG.md
 
+AutoName: SnowRaven
+
 RepoType: git
 Repo: https://github.com/dtgibson/snowraven.git
 
@@ -31,7 +33,8 @@ Builds:
       - ln -s /opt/rustup/toolchains/1.96.1-x86_64-unknown-linux-gnu/bin/* /usr/local/bin/
       - ln -s /opt/cargo/bin/cargo-tauri /usr/local/bin/cargo-tauri
       - chmod -R a+rX /opt/rustup /opt/cargo
-    output: src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release-unsigned.apk
+    output: 
+      src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release-unsigned.apk
     prebuild:
       - npm --prefix frontend ci
       - npm --prefix frontend run build

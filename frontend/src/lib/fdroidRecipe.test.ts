@@ -49,9 +49,12 @@ const OUTPUT_APK = 'src-tauri/gen/android/app/build/outputs/apk/universal/releas
 // `fdroid rewritemeta`, which fdroiddata's CI runs on every merge request, so
 // these rows hold the same in the schema's layout and in rewritemeta's. No
 // Name, Summary or Description: F-Droid reads those from the Fastlane folder
-// at the tag, and `fdroid lint` warns when both exist.
+// at the tag, and `fdroid lint` warns when both exist. AutoName is not a
+// listing name: `fdroid checkupdates` reads it from the manifest's app label
+// and fails the merge request's pipeline until the recipe carries it (MR 51451,
+// first pipeline, 2026-10-07).
 const TOP_LEVEL = [
-  'AntiFeatures', 'AuthorName', 'AutoUpdateMode', 'Builds', 'Categories', 'Changelog', 'CurrentVersion',
+  'AntiFeatures', 'AuthorName', 'AutoName', 'AutoUpdateMode', 'Builds', 'Categories', 'Changelog', 'CurrentVersion',
   'CurrentVersionCode', 'IssueTracker', 'License', 'Repo', 'RepoType', 'SourceCode', 'UpdateCheckData',
   'UpdateCheckMode', 'WebSite',
 ]
@@ -408,6 +411,8 @@ describe('the recipe checks reject the shapes a slip would produce', () => {
   it('the YAML reader folds continuation lines the way rewritemeta writes them, and a one-line script reads as one line', () => {
     const folded = 'k: one two\n  three\nl:\n  - a b\n    --c d\n  - e\nm:\n  - n: x\n      y\n    o: p\n'
     expect(parseFlatYaml(folded)).toEqual({ k: 'one two three', l: ['a b --c d', 'e'], m: [{ n: 'x y', o: 'p' }] })
+    // A value too long for its key's line opens on the next line (rewritemeta's `output:`).
+    expect(parseFlatYaml('o: \n  a/b/c.apk\np:\n  one\n  two\n')).toEqual({ o: 'a/b/c.apk', p: 'one two' })
     expect(yamlScript(parseFlatYaml('build: sh x.sh\n'), 'build')).toEqual(['sh x.sh'])
     expect(yamlScript(parseFlatYaml('build:\n  - sh x.sh\n'), 'build')).toEqual(['sh x.sh'])
     expect(() => yamlScript(parseFlatYaml('build:\n  k: v\n'), 'build')).toThrow(/not a sequence/)
