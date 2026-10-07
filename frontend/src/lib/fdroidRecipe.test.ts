@@ -23,9 +23,12 @@
 // because CI clones without tags; the ship checks it against
 // `git rev-parse vX.Y.Z^{commit}` (release skill, Android section).
 //
-// What it cannot see: whether the sudo: block provisions a working toolchain on
-// F-Droid's Debian build server (only the fdroiddata merge request's pipeline
-// runs it), and whether each scandelete path exists at scan time (that needs
+// The sudo: block installs Debian packages and nothing else: F-Droid's review
+// of the merge request asked for every step that does not need root to run in
+// prebuild as the build user (MR 51451, 2026-10-07), so Rust and the Tauri CLI
+// are provisioned there. What it cannot see: whether that provisioning works on
+// F-Droid's Debian build server (only the merge request's pipeline runs it),
+// and whether each scandelete path exists at scan time (that needs
 // the prebuild to have run; pipeline/android-release/fdroid-verification.md
 // records the local fdroidserver run that checks it).
 import { describe, it, expect } from 'vitest'
@@ -86,6 +89,26 @@ function buildEntry(recipe: YamlMap): YamlMap {
 // ── The checks, as functions over file text that return their findings, so
 // the guard-the-guard rows below drive the SAME code against scratch text. ──
 
+/** The root step: Debian packages only. */
+const SUDO = ['apt-get update', 'apt-get install -y nodejs npm rustup build-essential pkg-config libssl-dev cmake']
+
+/**
+ * The opening of prebuild, as the build user: the pinned Rust with the three
+ * Android targets made the default (Debian's rustup package puts the cargo and
+ * rustc launchers on PATH, so the build step needs no PATH of its own), then the
+ * Tauri CLI from crates.io into the user's cargo home, where `cargo tauri` finds it.
+ */
+function rustProvisioning(envSrc: string): string[] {
+  const env = parseShellEnv(envSrc)
+  const rust = env.RUST_TOOLCHAIN
+  const targets = (env.RUST_TARGETS ?? '').split(' ')
+  return [
+    `rustup toolchain install ${rust} --profile minimal ${targets.map(t => `--target ${t}`).join(' ')}`,
+    `rustup default ${rust}`,
+    `cargo install tauri-cli --version ${env.TAURI_CLI_VERSION} --locked`,
+  ]
+}
+
 /** Where the recipe's toolchain literals differ from toolchain.env. */
 function toolchainProblems(recipeSrc: string, envSrc: string): string[] {
   const env = parseShellEnv(envSrc)
@@ -94,30 +117,26 @@ function toolchainProblems(recipeSrc: string, envSrc: string): string[] {
     return env[k]!
   }
   const rust = need('RUST_TOOLCHAIN')
-  const targets = need('RUST_TARGETS').split(' ')
+  need('RUST_TARGETS') // fails closed when absent; rustProvisioning reads it
   const cli = need('TAURI_CLI_VERSION')
   const ndk = need('NDK_VERSION')
   const b = buildEntry(parseFlatYaml(recipeSrc))
   const problems: string[] = []
-  const expectedSudo = [
-    'apt-get update',
-    'apt-get install -y nodejs npm rustup build-essential pkg-config libssl-dev cmake',
-    'export RUSTUP_HOME=/opt/rustup CARGO_HOME=/opt/cargo',
-    `rustup toolchain install ${rust} --profile minimal ${targets.map(t => `--target ${t}`).join(' ')}`,
-    `cargo +${rust} install tauri-cli --version ${cli} --locked --root /opt/cargo`,
-    `ln -s /opt/rustup/toolchains/${rust}-x86_64-unknown-linux-gnu/bin/* /usr/local/bin/`,
-    'ln -s /opt/cargo/bin/cargo-tauri /usr/local/bin/cargo-tauri',
-    'chmod -R a+rX /opt/rustup /opt/cargo',
-  ]
   const sudo = yamlScript(b, 'sudo')
-  if (JSON.stringify(sudo) !== JSON.stringify(expectedSudo)) {
-    problems.push(`sudo differs from toolchain.env:\n  recipe: ${JSON.stringify(sudo)}\n  expect: ${JSON.stringify(expectedSudo)}`)
+  if (JSON.stringify(sudo) !== JSON.stringify(SUDO)) {
+    problems.push(`sudo differs:\n  recipe: ${JSON.stringify(sudo)}\n  expect: ${JSON.stringify(SUDO)}`)
+  }
+  const expectedRust = rustProvisioning(envSrc)
+  const prebuild = yamlScript(b, 'prebuild')
+  const rustLines = prebuild.slice(0, expectedRust.length)
+  if (JSON.stringify(rustLines) !== JSON.stringify(expectedRust)) {
+    problems.push(`prebuild's Rust provisioning differs from toolchain.env:\n  recipe: ${JSON.stringify(rustLines)}\n  expect: ${JSON.stringify(expectedRust)}`)
   }
   // Every x.y.z in the provisioning is one of the two pins, whatever line it
   // sits on, so a stray version cannot hide behind an edited expectation.
-  for (const line of sudo) {
+  for (const line of [...sudo, ...prebuild]) {
     for (const [v] of line.matchAll(/\b\d+\.\d+\.\d+\b/g)) {
-      if (v !== rust && v !== cli) problems.push(`sudo carries ${v}, which is neither RUST_TOOLCHAIN nor TAURI_CLI_VERSION`)
+      if (v !== rust && v !== cli) problems.push(`provisioning carries ${v}, which is neither RUST_TOOLCHAIN nor TAURI_CLI_VERSION`)
     }
   }
   const ndkName = Object.hasOwn(NDK_RELEASE_NAME, ndk) ? NDK_RELEASE_NAME[ndk] : undefined
@@ -267,7 +286,7 @@ describe('the update check, run here as checkupdates runs it at a tag (QA-67)', 
 })
 
 describe('the toolchain the recipe installs is toolchain.env (QA-34)', () => {
-  it('the sudo provisioning and the ndk carry exactly the pinned versions', () => {
+  it('sudo installs packages only, and prebuild provisions exactly the pinned Rust, CLI and ndk', () => {
     expect(toolchainProblems(recipeText, envText)).toEqual([])
   })
 
@@ -289,8 +308,8 @@ describe('the build steps are the ones CI runs (QA-34)', () => {
   const FRONTEND_BUILD = ['npm --prefix frontend ci', 'npm --prefix frontend run build']
   const TOOLCHAIN_REMOVAL = 'rm -rf frontend/node_modules'
 
-  it('prebuild builds the frontend and then removes its toolchain; build runs the shared script', () => {
-    expect(yamlScript(b, 'prebuild')).toEqual([...FRONTEND_BUILD, TOOLCHAIN_REMOVAL])
+  it('prebuild provisions Rust, builds the frontend and then removes its toolchain; build runs the shared script', () => {
+    expect(yamlScript(b, 'prebuild')).toEqual([...rustProvisioning(envText), ...FRONTEND_BUILD, TOOLCHAIN_REMOVAL])
     expect(yamlScript(b, 'build')).toEqual(['sh scripts/android/build-apk.sh'])
     expect(readRepo('scripts/android/build-apk.sh').split('\n')[0]).toBe('#!/bin/sh')
     const scriptCode = readRepo('scripts/android/build-apk.sh').split('\n').filter(l => !/^\s*#/.test(l)).join('\n')
@@ -300,7 +319,7 @@ describe('the build steps are the ones CI runs (QA-34)', () => {
   it('the workflow runs the same frontend build and then the same script', () => {
     // YAML comments dropped line by line, so the workflow's prose cannot satisfy the row.
     const wf = readRepo('.github/workflows/android-build.yml').split('\n').filter(l => !/^\s*#/.test(l)).join('\n')
-    const front = yamlScript(b, 'prebuild').slice(0, FRONTEND_BUILD.length).join(' && ')
+    const front = FRONTEND_BUILD.join(' && ')
     const script = yamlScript(b, 'build')[0]!
     expect(wf).toContain(front)
     expect(wf).toContain(script)
@@ -330,8 +349,14 @@ describe('the recipe checks reject the shapes a slip would produce', () => {
     const bad = recipeText.replace('rustup toolchain install 1.96.1', 'rustup toolchain install 1.95.0')
     expect(bad).not.toBe(recipeText)
     const p = toolchainProblems(bad, envText)
-    expect(p.some(x => x.startsWith('sudo differs'))).toBe(true)
-    expect(p).toContain('sudo carries 1.95.0, which is neither RUST_TOOLCHAIN nor TAURI_CLI_VERSION')
+    expect(p.some(x => x.startsWith("prebuild's Rust provisioning differs"))).toBe(true)
+    expect(p).toContain('provisioning carries 1.95.0, which is neither RUST_TOOLCHAIN nor TAURI_CLI_VERSION')
+  })
+
+  it('a provisioning step moved back into sudo is seen', () => {
+    const bad = recipeText.replace('        cmake\n', '        cmake\n      - rustup default 1.96.1\n')
+    expect(bad).not.toBe(recipeText)
+    expect(toolchainProblems(bad, envText).some(x => x.startsWith('sudo differs'))).toBe(true)
   })
 
   it('a different tauri-cli version, a dropped Android target and a different ndk are each seen', () => {
