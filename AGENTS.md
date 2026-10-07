@@ -46,7 +46,10 @@ in, and the reasons for the rule, are in `.claude/rules/docs-and-website.md`.
 
 The same holds in every run, hands-off Spool spins included (user direction,
 2026-09-27, narrowed 2026-09-28), and extends to `PRIVACY_POLICY.md` (kept
-identical to `website/privacy.html`) and the App Store "What's New" text. A
+identical to `website/privacy.html`), the App Store "What's New" text, and,
+since 1.0.53, the F-Droid listing (`fastlane/metadata/android/en-US/`, each
+release's changelog file included) with the F-Droid recipe's `NonFreeNet`
+sentence. A
 spin runs ungated until its bundle sign-off, so a build prepares those edits as
 a held patch in its pipeline folder instead of writing them; they are shown to
 the user rendered and applied only on an explicit yes, before the bundle ships.

@@ -505,7 +505,8 @@ italic at 0.71875rem `--sr-text-gray`.
   `<thead>`/`<tr>` (WKWebView honors sticky on cells only), `border-collapse:
   separate` is required, and the pinned CSS must live in the stylesheet rather than
   inline so the iOS variant can re-point `top` to `env(safe-area-inset-top)` under
-  the `.sr-ios-app` gate. Guard keyboard focus from the band with `scroll-margin-top`
+  the `.sr-ios-app` gate (and its `.sr-android-app` twin to `var(--sr-inset-top)`,
+  see Accessibility commitments). Guard keyboard focus from the band with `scroll-margin-top`
   on the focusable DESCENDANTS of the cells, not on the cells. To make the
   phone column widths AUTHORITATIVE — so the narrowing holds even in an uncapped /
   "unbounded" wide view (under the default `table-layout: auto` a cell width is
@@ -763,10 +764,15 @@ Every app-owned button and href link renders through `components/ui/Button` or
 required by WKWebView; native props, styles, refs, and button type semantics pass
 through unchanged. Toggles are `role="switch"`; live counts `aria-live="polite"`; visible focus states;
 WCAG resize via in-app Text Size; reduced-motion honored for scrolls. A full-screen
-overlay (or any pinned band) needs its own iOS safe-area inset — it does not inherit
-the body's, so design it expecting a top inset that the status bar, Dynamic Island,
-and landscape sensor housing occupy, and expect any viewport-height cap inside it to
-be short by exactly that inset. Where a sticky band can cover a focused control, the
+overlay (or any pinned band) needs its own safe-area inset on iPhone, iPad and
+Android — it does not inherit the body's, so design it expecting a top inset that the
+status bar, Dynamic Island, camera cutout and landscape sensor housing occupy, and
+expect any viewport-height cap inside it to be short by exactly that inset. On
+Android the inset is a `.sr-android-app` twin of the `.sr-ios-app` rule, same
+selectors, reading `var(--sr-inset-X, 0px)` where iOS reads
+`env(safe-area-inset-X, 0px)`: the Android WebView reports 0 for `env()`, so the
+app injects the system-bar and cutout insets as those variables, while the keyboard
+pads the webview's host natively and is never a variable. Where a sticky band can cover a focused control, the
 focus guard belongs on the focusable itself, not on its container. A live region belongs
 OUTSIDE any `inert`-able disclosure that consumes it; where the collapsing content
 IS what would be announced (a legend, a ramp, a table), it carries no live semantics

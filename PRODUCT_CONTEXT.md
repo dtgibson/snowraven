@@ -5,6 +5,10 @@ It records what has been built and key decisions made during development.
 
 ## Features Built
 
+### Android app (phones and tablets, Android 8.0 and later)
+
+SnowRaven runs on Android phones and tablets as the same app as on every other platform, installed from a universal APK signed with the developer's key on each GitHub release or, once F-Droid includes it, from F-Droid, with nothing from Google in the build, no in-app updater, none of the Apple-only features (iCloud Sync, widgets, Alerts), no location controls (typed coordinates and place search instead), and Macaulay Library media shown as a card that opens in the browser.
+
 ### Alerts (iPhone and iPad)
 
 An off-by-default **Alerts** section in Settings checks about hourly or about daily, in the background and when the app is opened, for eBird reports within a chosen radius (up to 25 miles) of a fixed place or the device's most recent position of countable species not in the user's eBird backup, sends one summary notification that waits out the user's quiet hours and opens Nearby Lifers at the sighting, alerts a species again only after seven days, and keeps 30 days of alerts in an inbox reached from Settings, a header bell or sidebar item that counts what is new until the inbox is viewed or marked read, and Search.
@@ -1335,7 +1339,7 @@ An interactive map tab with three view modes for exploring birding locations: si
 - **Tauri desktop path:** calls `invoke('get_location')` — a native Rust command in `src-tauri/src/location.rs` that uses `CLLocationManager` directly via `objc2-core-location`. `navigator.geolocation` cannot work in Tauri because wry's `WKWebView` UIDelegate does not implement `webView:requestGeolocationPermissionFor:`, the method macOS 12+ requires to show the system permission dialog. `com.apple.security.personal-information.location` entitlement is required under hardened runtime and is embedded via `src-tauri/entitlements.plist`.
 - **Tauri dev mode:** `invoke` is skipped; `dev-mode` error shown immediately (CLLocationManager requires a signed production build with the entitlement embedded).
 - **Web path:** checks `!window.isSecureContext` first — on HTTP origins (e.g. Pi on LAN), browsers silently deny geolocation without prompting; shows "requires HTTPS" message. On secure origins, uses `navigator.geolocation`.
-- `tauri-plugin-geolocation` remains registered for future iOS/Android use; its macOS desktop implementation is a no-op stub and is not used.
+- `tauri-plugin-geolocation` is registered on iOS only (its Android module links Google Play services, which the Android build may not carry); desktop never uses it.
 - `src-tauri/Info.plist` contains `NSLocationWhenInUseUsageDescription` — required for the macOS system permission dialog.
 
 **Key files:**
@@ -1353,7 +1357,7 @@ An interactive map tab with three view modes for exploring birding locations: si
 - `src-tauri/src/location.rs` — `get_location` Tauri command; `CLLocationManager` + `LocationDelegate` via `objc2-core-location`; `thread_local` `LOCATION_SESSION` keeps manager/delegate alive during async callback
 - `src-tauri/entitlements.plist` — `com.apple.security.personal-information.location` for hardened runtime; this committed default carries no iCloud entitlement. The shipped Mac release adds the restricted iCloud entitlements paired with an embedded Developer ID provisioning profile through a release-time overlay, so a plain build has neither and lands in Settings' "This build cannot use iCloud" state; the iOS build's entitlements carry the same iCloud container keys.
 - `src-tauri/Info.plist` — `NSLocationWhenInUseUsageDescription` for macOS location permission dialog
-- `src-tauri/capabilities/default.json` — `geolocation:allow-check-permissions`, `geolocation:allow-request-permissions`, `geolocation:allow-get-current-position` (for future iOS/Android)
+- `src-tauri/capabilities/ios.json` — `geolocation:allow-check-permissions`, `geolocation:allow-request-permissions`, `geolocation:allow-get-current-position` (iOS only)
 
 ### Map Explorer — Atlas Blocks + Nearest Unvisited Hotspots (complete — June 2026, v0.5.0)
 
@@ -1770,6 +1774,10 @@ Native "Use my location" on Windows, completing parity with macOS and Pi/web.
 The idea remains saved for later. The strategy pass found no verified permission for SnowRaven to fetch a contributor's media directly from Cornell's CDN, and the user declined sending the drafted permission request. No direct-media setting or copy was built. The brief and unsent request remain in `pipeline/ml-direct-media/`; revisit the idea only with explicit Cornell guidance and a way to verify ownership, or with a new user-approved scope.
 
 ## Considered and Rejected
+
+### Google Play (2026-10-03)
+
+The user will not pay Google to distribute a free app, so SnowRaven is not on Google Play in any form; Android ships through F-Droid and a signed APK on each GitHub release (DECISIONS.md, 1.0.53).
 
 ### Shared Button/Link primitives — DECLINED TWICE, THEN BUILT (v1.0.24)
 
