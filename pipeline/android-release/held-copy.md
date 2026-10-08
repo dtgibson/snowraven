@@ -85,9 +85,7 @@ What you'll need
 A free eBird API key and a free OpenWeather API key subscribed to its One Call by Call plan (activating it needs a payment card on file; set a usage cap to avoid charges), entered once in Settings. Most tabs also read your eBird backup and, for the media features, an optional Macaulay Library export.
 
 Network services
-SnowRaven relies on network services that are not free software, chiefly eBird for checklist details, hotspots, and recent sightings, and OpenWeather for weather, each used with your own API key.
-
-Weather by OpenWeather. Checklist and media data from eBird and the Macaulay Library. Tides from NOAA Tides & Currents.
+SnowRaven relies on network services that are not free software: eBird for checklist details, hotspots, and recent sightings, and OpenWeather for weather, each used with your own API key, plus Esri's World Imagery for the optional Satellite map. Maps come from OpenFreeMap, with optional USGS topographic and Waymarked Trails layers, place search uses OpenStreetMap's Nominatim, and tides come from NOAA.
 ```
 
 **Branch A swap (the Weather block's first sentence, which is the README's sentence unchanged):**
@@ -105,7 +103,7 @@ F-Droid asks that the reason be in the description; the staged description carri
 **Proposed:**
 
 ```text
-SnowRaven relies on network services that are not free software, chiefly eBird for checklist details, hotspots, and recent sightings, and OpenWeather for weather, each used with your own API key.
+SnowRaven relies on network services that are not free software, namely eBird for checklist details, hotspots, and recent sightings, and OpenWeather for weather, each used with your own API key, plus Esri's World Imagery for the optional Satellite map.
 ```
 
 **The schema's original, for comparison:**
