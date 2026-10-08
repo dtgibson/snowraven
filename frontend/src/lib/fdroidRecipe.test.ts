@@ -13,10 +13,18 @@
 // unable to see a release. And it holds the recipe's build steps to the one
 // script CI runs.
 //
-// The Builds entry and CurrentVersion/CurrentVersionCode carry tauri.conf.json's
-// pair (1.0.48 / 1000048 when this was written): the Deployer moves them with
-// the version bump, and these rows go red until they move together. The
-// entry's commit is the FULL 40-character hash of the release tag's commit,
+// F-Droid builds one APK per processor type, so Builds holds one entry per type
+// (the review on MR 51451 asked for the split: the universal APK was 78.7 MB,
+// nearly all of it three copies of the Rust library). The entries are identical
+// but for two things: each narrows build-apk.sh to one Rust target, and each
+// sets its own version code, F-Droid's usual numbering of the app's code times
+// ten plus 1 (32-bit ARM), 2 (64-bit ARM) or 4 (x86_64), with VercodeOperation
+// telling checkupdates the same. Both edits are made in prebuild on F-Droid's
+// copy of the tagged source, so CI and the GitHub APK stay universal and need no
+// change. The entries' versionName and CurrentVersion carry tauri.conf.json's
+// version, and their codes and CurrentVersionCode (the last type's) follow its
+// versionCode: the Deployer moves them with the version bump, and these rows go
+// red until they move together. Each entry's commit is the FULL 40-character hash of the release tag's commit,
 // never the tag name: F-Droid's app-inclusion checklist asks for the hash (a
 // tag can be moved, as v1.0.53's was before anything was built from it). This
 // guard checks its shape only. Which commit it names cannot be checked here,
@@ -59,7 +67,7 @@ const OUTPUT_APK = 'src-tauri/gen/android/app/build/outputs/apk/universal/releas
 const TOP_LEVEL = [
   'AntiFeatures', 'AuthorName', 'AutoName', 'AutoUpdateMode', 'Builds', 'Categories', 'Changelog', 'CurrentVersion',
   'CurrentVersionCode', 'IssueTracker', 'License', 'Repo', 'RepoType', 'SourceCode', 'UpdateCheckData',
-  'UpdateCheckMode', 'WebSite',
+  'UpdateCheckMode', 'VercodeOperation', 'WebSite',
 ]
 // No gradle: (a bare Gradle run cannot build this app, schema 6.0), no
 // scanignore, no subdir, no srclibs.
@@ -80,10 +88,58 @@ const versionCode = (v: string) => {
   return Number(m[1]) * 1_000_000 + Number(m[2]) * 1000 + Number(m[3])
 }
 
-function buildEntry(recipe: YamlMap): YamlMap {
+/** The processor types, in Builds order: the version-code offset and the Rust target. */
+const ABIS = [
+  { offset: 1, target: 'armv7' },
+  { offset: 2, target: 'aarch64' },
+  { offset: 4, target: 'x86_64' },
+] as const
+const LAST_OFFSET = ABIS[ABIS.length - 1]!.offset
+/** The target list build-apk.sh passes, which each entry narrows to one. */
+const SCRIPT_TARGETS = '--target aarch64 armv7 x86_64'
+const targetEdit = (t: string) => `sed -i -e 's/${SCRIPT_TARGETS}/--target ${t}/' scripts/android/build-apk.sh`
+// F-Droid replaces $$VERCODE$$ with the entry's own versionCode before it runs the line.
+const CODE_EDIT = `sed -i -e 's/"versionCode":[^,]*/"versionCode":$$VERCODE$$/' src-tauri/tauri.conf.json`
+
+function buildEntries(recipe: YamlMap): YamlMap[] {
   const builds = yamlList(recipe, 'Builds')
-  if (builds.length !== 1) throw new Error(`Builds: expected the one seed entry, found ${builds.length}`)
-  return yamlMap(builds[0], 'Builds[0]')
+  if (builds.length !== ABIS.length) {
+    throw new Error(`Builds: expected one entry per processor type (${ABIS.length}), found ${builds.length}`)
+  }
+  return builds.map((b, i) => yamlMap(b, `Builds[${i}]`))
+}
+/** The first entry, for the fields every entry shares (checked equal below). */
+function buildEntry(recipe: YamlMap): YamlMap {
+  return buildEntries(recipe)[0]!
+}
+
+/**
+ * Where the two per-entry edits would not do what they say on the files at
+ * hand: the script's target list must occur exactly once and the version code
+ * on exactly one line (sed works line by line, so [^,]* never crosses one), and
+ * the edited tauri.conf.json must still parse with the entry's code in place.
+ */
+function abiEditProblems(scriptSrc: string, confSrc: string): string[] {
+  const problems: string[] = []
+  const code = scriptSrc.split('\n').filter(l => !/^\s*#/.test(l)).join('\n')
+  const n = code.split(SCRIPT_TARGETS).length - 1
+  if (n !== 1) problems.push(`build-apk.sh carries "${SCRIPT_TARGETS}" ${n} times, not once`)
+  const lines = confSrc.split('\n')
+  const hits = lines.filter(l => /"versionCode":[^,]*/.test(l)).length
+  if (hits !== 1) problems.push(`tauri.conf.json has ${hits} versionCode lines, not one`)
+  const conf = JSON.parse(confSrc) as { bundle?: { android?: { versionCode?: unknown } } }
+  for (const { offset } of ABIS) {
+    const want = Number(conf.bundle?.android?.versionCode) * 10 + offset
+    const edited = lines.map(l => l.replace(/"versionCode":[^,]*/, `"versionCode":${want}`)).join('\n')
+    let got: unknown
+    try {
+      got = (JSON.parse(edited) as { bundle?: { android?: { versionCode?: unknown } } }).bundle?.android?.versionCode
+    } catch {
+      got = 'unparseable JSON'
+    }
+    if (got !== want) problems.push(`the version-code edit gives ${String(got)}, not ${want}`)
+  }
+  return problems
 }
 
 // ── The checks, as functions over file text that return their findings, so
@@ -120,28 +176,29 @@ function toolchainProblems(recipeSrc: string, envSrc: string): string[] {
   need('RUST_TARGETS') // fails closed when absent; rustProvisioning reads it
   const cli = need('TAURI_CLI_VERSION')
   const ndk = need('NDK_VERSION')
-  const b = buildEntry(parseFlatYaml(recipeSrc))
   const problems: string[] = []
-  const sudo = yamlScript(b, 'sudo')
-  if (JSON.stringify(sudo) !== JSON.stringify(SUDO)) {
-    problems.push(`sudo differs:\n  recipe: ${JSON.stringify(sudo)}\n  expect: ${JSON.stringify(SUDO)}`)
-  }
   const expectedRust = rustProvisioning(envSrc)
-  const prebuild = yamlScript(b, 'prebuild')
-  const rustLines = prebuild.slice(0, expectedRust.length)
-  if (JSON.stringify(rustLines) !== JSON.stringify(expectedRust)) {
-    problems.push(`prebuild's Rust provisioning differs from toolchain.env:\n  recipe: ${JSON.stringify(rustLines)}\n  expect: ${JSON.stringify(expectedRust)}`)
-  }
-  // Every x.y.z in the provisioning is one of the two pins, whatever line it
-  // sits on, so a stray version cannot hide behind an edited expectation.
-  for (const line of [...sudo, ...prebuild]) {
-    for (const [v] of line.matchAll(/\b\d+\.\d+\.\d+\b/g)) {
-      if (v !== rust && v !== cli) problems.push(`provisioning carries ${v}, which is neither RUST_TOOLCHAIN nor TAURI_CLI_VERSION`)
-    }
-  }
   const ndkName = Object.hasOwn(NDK_RELEASE_NAME, ndk) ? NDK_RELEASE_NAME[ndk] : undefined
   if (ndkName === undefined) problems.push(`NDK_VERSION ${ndk} has no F-Droid release name in this guard`)
-  else if (yamlText(b, 'ndk') !== ndkName) problems.push(`ndk is ${yamlText(b, 'ndk')}, toolchain.env pins ${ndkName}`)
+  for (const b of buildEntries(parseFlatYaml(recipeSrc))) {
+    const sudo = yamlScript(b, 'sudo')
+    if (JSON.stringify(sudo) !== JSON.stringify(SUDO)) {
+      problems.push(`sudo differs:\n  recipe: ${JSON.stringify(sudo)}\n  expect: ${JSON.stringify(SUDO)}`)
+    }
+    const prebuild = yamlScript(b, 'prebuild')
+    const rustLines = prebuild.slice(0, expectedRust.length)
+    if (JSON.stringify(rustLines) !== JSON.stringify(expectedRust)) {
+      problems.push(`prebuild's Rust provisioning differs from toolchain.env:\n  recipe: ${JSON.stringify(rustLines)}\n  expect: ${JSON.stringify(expectedRust)}`)
+    }
+    // Every x.y.z in the provisioning is one of the two pins, whatever line it
+    // sits on, so a stray version cannot hide behind an edited expectation.
+    for (const line of [...sudo, ...prebuild]) {
+      for (const [v] of line.matchAll(/\b\d+\.\d+\.\d+\b/g)) {
+        if (v !== rust && v !== cli) problems.push(`provisioning carries ${v}, which is neither RUST_TOOLCHAIN nor TAURI_CLI_VERSION`)
+      }
+    }
+    if (ndkName !== undefined && yamlText(b, 'ndk') !== ndkName) problems.push(`ndk is ${yamlText(b, 'ndk')}, toolchain.env pins ${ndkName}`)
+  }
   return problems
 }
 
@@ -157,13 +214,23 @@ function versionProblems(recipeSrc: string, confSrc: string): string[] {
   if (!/^\d+\.\d+\.\d+$/.test(cv)) problems.push(`CurrentVersion ${cv} is not major.minor.patch`)
   if (!/^[1-9]\d*$/.test(cvc)) problems.push(`CurrentVersionCode ${cvc} is not a positive integer`)
   if (cv !== conf.version) problems.push(`CurrentVersion ${cv} != tauri.conf.json version ${conf.version}`)
-  if (cvc !== String(code)) problems.push(`CurrentVersionCode ${cvc} != tauri.conf.json bundle.android.versionCode ${String(code)}`)
-  if (/^\d+\.\d+\.\d+$/.test(cv) && Number(cvc) !== versionCode(cv)) problems.push(`CurrentVersionCode ${cvc} != the formula of ${cv}`)
-  const b = buildEntry(recipe)
-  if (yamlText(b, 'versionName') !== cv) problems.push(`Builds[0].versionName ${yamlText(b, 'versionName')} != CurrentVersion ${cv}`)
-  if (yamlText(b, 'versionCode') !== cvc) problems.push(`Builds[0].versionCode ${yamlText(b, 'versionCode')} != CurrentVersionCode ${cvc}`)
-  const commit = yamlText(b, 'commit')
-  if (!/^[0-9a-f]{40}$/.test(commit)) problems.push(`Builds[0].commit ${commit} is not a full 40-character commit hash`)
+  if (Number(cvc) !== Number(code) * 10 + LAST_OFFSET) {
+    problems.push(`CurrentVersionCode ${cvc} != tauri.conf.json bundle.android.versionCode ${String(code)} x 10 + ${LAST_OFFSET}`)
+  }
+  if (/^\d+\.\d+\.\d+$/.test(cv) && Number(cvc) !== versionCode(cv) * 10 + LAST_OFFSET) problems.push(`CurrentVersionCode ${cvc} != the formula of ${cv}`)
+  const ops = yamlTextList(recipe, 'VercodeOperation')
+  const wantOps = ABIS.map(a => `10 * %c + ${a.offset}`)
+  if (JSON.stringify(ops) !== JSON.stringify(wantOps)) problems.push(`VercodeOperation ${JSON.stringify(ops)} != ${JSON.stringify(wantOps)}`)
+  const commits = new Set<string>()
+  buildEntries(recipe).forEach((b, i) => {
+    const want = String(Number(code) * 10 + ABIS[i]!.offset)
+    if (yamlText(b, 'versionName') !== cv) problems.push(`Builds[${i}].versionName ${yamlText(b, 'versionName')} != CurrentVersion ${cv}`)
+    if (yamlText(b, 'versionCode') !== want) problems.push(`Builds[${i}].versionCode ${yamlText(b, 'versionCode')} != ${want}`)
+    const commit = yamlText(b, 'commit')
+    commits.add(commit)
+    if (!/^[0-9a-f]{40}$/.test(commit)) problems.push(`Builds[${i}].commit ${commit} is not a full 40-character commit hash`)
+  })
+  if (commits.size !== 1) problems.push(`the Builds entries name ${commits.size} different commits`)
   return problems
 }
 
@@ -188,8 +255,19 @@ describe('the recipe parses, with exactly the fields fdroiddata reads from it', 
     expect(sorted(Object.keys(recipe))).toEqual(TOP_LEVEL)
   })
 
-  it('one seed Builds entry, with exactly the build keys', () => {
-    expect(sorted(Object.keys(buildEntry(recipe)))).toEqual(BUILD_KEYS)
+  it('one Builds entry per processor type, each with exactly the build keys', () => {
+    for (const b of buildEntries(recipe)) expect(sorted(Object.keys(b))).toEqual(BUILD_KEYS)
+  })
+
+  it('the entries are identical but for the version code and the one target edit', () => {
+    const bare = (b: YamlMap, i: number) => {
+      const rest: YamlMap = { ...b }
+      delete rest.versionCode
+      const prebuild = yamlScript(b, 'prebuild').map(l => (l === targetEdit(ABIS[i]!.target) ? 'TARGET' : l))
+      return JSON.stringify({ ...rest, prebuild })
+    }
+    const entries = buildEntries(recipe)
+    for (let i = 1; i < entries.length; i++) expect(bare(entries[i]!, i)).toBe(bare(entries[0]!, 0))
   })
 })
 
@@ -308,8 +386,13 @@ describe('the build steps are the ones CI runs (QA-34)', () => {
   const FRONTEND_BUILD = ['npm --prefix frontend ci', 'npm --prefix frontend run build']
   const TOOLCHAIN_REMOVAL = 'rm -rf frontend/node_modules'
 
-  it('prebuild provisions Rust, builds the frontend and then removes its toolchain; build runs the shared script', () => {
-    expect(yamlScript(b, 'prebuild')).toEqual([...rustProvisioning(envText), ...FRONTEND_BUILD, TOOLCHAIN_REMOVAL])
+  it('prebuild provisions Rust, builds the frontend, removes its toolchain and makes the two per-type edits; build runs the shared script', () => {
+    buildEntries(recipe).forEach((e, i) => {
+      expect(yamlScript(e, 'prebuild')).toEqual([
+        ...rustProvisioning(envText), ...FRONTEND_BUILD, TOOLCHAIN_REMOVAL, targetEdit(ABIS[i]!.target), CODE_EDIT,
+      ])
+      expect(yamlScript(e, 'build')).toEqual(['sh scripts/android/build-apk.sh'])
+    })
     expect(yamlScript(b, 'build')).toEqual(['sh scripts/android/build-apk.sh'])
     expect(readRepo('scripts/android/build-apk.sh').split('\n')[0]).toBe('#!/bin/sh')
     const scriptCode = readRepo('scripts/android/build-apk.sh').split('\n').filter(l => !/^\s*#/.test(l)).join('\n')
@@ -324,6 +407,10 @@ describe('the build steps are the ones CI runs (QA-34)', () => {
     expect(wf).toContain(front)
     expect(wf).toContain(script)
     expect(wf.indexOf(front)).toBeLessThan(wf.indexOf(script))
+  })
+
+  it('each per-type edit does what it says on the committed script and tauri.conf.json', () => {
+    expect(abiEditProblems(readRepo('scripts/android/build-apk.sh'), tauriConfText)).toEqual([])
   })
 
   it('output is the one unsigned universal release APK, in the directory build-apk.sh checks', () => {
@@ -387,10 +474,32 @@ describe('the recipe checks reject the shapes a slip would produce', () => {
     const current = yamlText(buildEntry(recipe), 'commit')
     expect(current).toMatch(/^[0-9a-f]{40}$/)
     for (const bad of [`v${tauriConf.version}`, 'main', current.slice(0, 39), current.slice(0, 12), current.toUpperCase(), `${current}0`]) {
-      const src = recipeText.replace(`commit: ${current}`, `commit: ${bad}`)
+      const src = recipeText.replaceAll(`commit: ${current}`, `commit: ${bad}`)
       expect(src, bad).not.toBe(recipeText)
-      expect(versionProblems(src, tauriConfText), bad).toEqual([`Builds[0].commit ${bad} is not a full 40-character commit hash`])
+      expect(versionProblems(src, tauriConfText), bad).toEqual(
+        ABIS.map((_, i) => `Builds[${i}].commit ${bad} is not a full 40-character commit hash`),
+      )
     }
+  })
+
+  it('one entry with another commit, a code off its type, or a changed VercodeOperation is seen', () => {
+    const current = yamlText(buildEntry(recipe), 'commit')
+    const other = 'a'.repeat(40)
+    expect(versionProblems(recipeText.replace(`commit: ${current}`, `commit: ${other}`), tauriConfText))
+      .toEqual(['the Builds entries name 2 different commits'])
+    const code = tauriConf.bundle.android.versionCode
+    expect(versionProblems(recipeText.replace(`versionCode: ${code * 10 + 2}`, `versionCode: ${code * 10 + 3}`), tauriConfText))
+      .toEqual([`Builds[1].versionCode ${code * 10 + 3} != ${code * 10 + 2}`])
+    expect(versionProblems(recipeText.replace('  - 10 * %c + 4\n', '  - 10 * %c + 3\n'), tauriConfText).some(x => x.startsWith('VercodeOperation'))).toBe(true)
+  })
+
+  it('a script whose target list moved, or a config whose version code the edit cannot reach, is seen', () => {
+    const script = readRepo('scripts/android/build-apk.sh')
+    expect(abiEditProblems(script.replace(SCRIPT_TARGETS, '--target armv7 aarch64 x86_64'), tauriConfText))
+      .toEqual([`build-apk.sh carries "${SCRIPT_TARGETS}" 0 times, not once`])
+    const twoLines = tauriConfText.replace('"android": {', '"android": {\n      "versionCode": 1,')
+    expect(twoLines).not.toBe(tauriConfText)
+    expect(abiEditProblems(script, twoLines)[0]).toBe('tauri.conf.json has 2 versionCode lines, not one')
   })
 
   it('a second "version" or a missing versionCode in tauri.conf.json fails the update check closed', () => {
