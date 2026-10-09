@@ -31,3 +31,9 @@ Recorded so the Engineer, QA and the Chronicler inherit the reasons, not only th
 - **Species Detail is unchanged and nothing uses the contributor id** (D2). The list's hrefs are exactly `mlAssetUrl(catalogId)`, the tile's own builder: no catalog-search link, no new host.
 - **Rule-file gating:** the suggested file name `components/NamedBirdMediaLinks.tsx` falls inside `.claude/rules/media-embeds.md`'s existing `NamedBirdMedia*.tsx` glob. The build adds `frontend/src/components/NamedBirdMedia*.tsx` to `.claude/rules/security.md`'s `paths`, because the file renders hrefs.
 - **Measured on the mockup before hand-back**, in Chromium and WebKit: 48 list configurations per engine (320, 390, 744 and 900px; 100%, 150% and 200% text; four birds with media) with no text ink or link box outside the section and no page scroll. A control with wrapping disabled overflowed by 1,827px, so the measurement can fail. `weft-design-lint` reported nothing to fix. QA re-measures this in the built app, since the mockup's ancestors above the section are not the app's.
+
+## D4. Live look, copy approval and production sign-off (2026-10-09)
+
+- **Live look:** the user viewed the built app (rebased onto 1.0.53) over the tailnet with their real data and ML export, a named bird expanded showing the numbered list, and said "looks good".
+- **Copy approved:** the same "looks good" answered the question about the App Store What's New text and the F-Droid changelog shown in full (`whats-new.md`); both ship verbatim.
+- **Production sign-off:** confirmed for 1.0.54 on every platform: Mac and Windows with the in-app update, iPhone and iPad to TestFlight, and the Android APK on GitHub checked on the emulator only (as at 1.0.53, no Android device). The App Store record waits for the user's own device check of the TestFlight build. The fdroiddata merge request 51451 is left to the android-release session that is handling it.
