@@ -11,6 +11,8 @@ paths:
   - "frontend/src/components/ChecklistLink*.tsx"
   - "frontend/src/components/HotspotLink*.tsx"
   - "frontend/src/components/OutboundLink*.tsx"
+  - "frontend/src/components/NamedBirdMedia*.tsx"
+  - "frontend/src/lib/mediaEmbed*.ts"
   - "frontend/src/components/WeatherTabLinks*.tsx"
   - "frontend/src/lib/openExternal.ts"
   - "frontend/src/lib/helpLinks*.ts"

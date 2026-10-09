@@ -58,6 +58,7 @@ const ORDER = [
   'verify-palette.mjs',
   'verify-backlog-alert.mjs',
   'verify-named-birds-header.mjs',
+  'verify-named-bird-media-links.mjs',
   'verify-weather-species-rows.mjs',
   'verify-plan-daylabels.mjs',
   'verify-plan-readout.mjs',
