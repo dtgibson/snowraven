@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "SnowRaven",
-  "version": "1.0.53",
+  "version": "1.0.54",
   "identifier": "com.snowraven",
   "build": {
     "frontendDist": "../frontend/dist",
@@ -77,7 +77,7 @@
       "minimumSystemVersion": "16.0"
     },
     "android": {
-      "versionCode": 1000053
+      "versionCode": 1000054
     },
     "icon": [
       "icons/32x32.png",
