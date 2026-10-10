@@ -37,3 +37,7 @@ Recorded so the Engineer, QA and the Chronicler inherit the reasons, not only th
 - **Live look:** the user viewed the built app (rebased onto 1.0.53) over the tailnet with their real data and ML export, a named bird expanded showing the numbered list, and said "looks good".
 - **Copy approved:** the same "looks good" answered the question about the App Store What's New text and the F-Droid changelog shown in full (`whats-new.md`); both ship verbatim.
 - **Production sign-off:** confirmed for 1.0.54 on every platform: Mac and Windows with the in-app update, iPhone and iPad to TestFlight, and the Android APK on GitHub checked on the emulator only (as at 1.0.53, no Android device). The App Store record waits for the user's own device check of the TestFlight build. The fdroiddata merge request 51451 is left to the android-release session that is handling it.
+
+## D5. The user's device check of TestFlight 1.0.54.1 (2026-10-09)
+
+The user installed TestFlight build 1.0.54.1 on their own device, opened it and expanded a named bird with media, and reported "Worked great". Recorded as the user's result per the device boundary (no agent touched a device). The App Store record is created and submitted on that build.

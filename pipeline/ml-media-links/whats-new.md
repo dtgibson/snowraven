@@ -1,6 +1,6 @@
 # What's New: Macaulay Library links on Named Birds (1.0.54)
 
-**Status: APPROVED by the user on 2026-10-09, both texts verbatim (`decisions.md`, D4).** (b) is written at the 1.0.54 version bump; (a) is written to the 1.0.54 App Store record after the user's own device check of the TestFlight build. The status line originally read "HELD. Not approved, not written anywhere." (Phase A, 2026-10-08).
+**Status: APPROVED by the user on 2026-10-09, both texts verbatim (`decisions.md`, D4).** (b) was written at the 1.0.54 version bump (`50984f65`, as `10000541/2/4.txt`); (a) was written to the 1.0.54 App Store record `e4affc7f` on 2026-10-09, after the user's own device check of TestFlight build 1.0.54.1 (D5), and read back byte for byte. The status line originally read "HELD. Not approved, not written anywhere." (Phase A, 2026-10-08).
 
 ## Which record carries it
 
