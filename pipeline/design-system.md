@@ -442,6 +442,35 @@ italic at 0.71875rem `--sr-text-gray`.
   where embed-backed content is absent. Keep the surrounding date, format,
   checklist, and direct-asset links. Settings uses the existing trailing
   `ToggleSwitch` row with explanatory copy; no modal, Save button, or new token.
+- **Compact numbered link list (an index where every item is its own link):**
+  when a set of items each needs an outbound link and a row of full links would
+  swamp the surface, a muted lead line names the set and ends in a colon
+  (`Winky on Macaulay Library, newest first:`, the name in `--sr-text` 600), then
+  one grid row per kind in a fixed order (Photos, Audio, Video): the label in the
+  tile format-marker voice (12px lucide icon, uppercase 0.6875rem/700
+  `--sr-text-muted`) in a `max-content` column, beside a `<ul>` of bare ordinals in
+  a `minmax(0, 1fr)` column that wraps under itself, never under the label. Each
+  ordinal is an `OutboundLink` in `--sr-accent` 0.75rem/600 tabular figures, in a
+  `1.5rem` box (24px, WCAG 2.5.8 size) that is transparent at rest and fills
+  `--sr-accent-bg` and underlines only on hover and focus (120ms ease-out,
+  instant under reduced motion), so dozens of items still read as a compact
+  index. At ≤640 the grid is one column, each label above its numbers, and the
+  boxes are `2.75rem` squares with no gap, so the 44px targets abut; nothing pulls
+  the list into the section's padding, because a rem-based negative margin grows
+  past fixed px padding at 150% and 200% text. In a run of 24px boxes the house
+  ring's 3px offset and halo cover the neighbors, so the link carries a local
+  override, `outline-offset: 1px; box-shadow: none`, keeping the 3px `--sr-accent`
+  outline plus the box fill, written after the global ring block so it wins the
+  cascade. The accessible name leads with the kind and contains the visible number
+  (WCAG 2.5.3): `Photo 3 of 24 of Winky, Jan 18, 2026, on Macaulay Library` plus
+  `OutboundLink`'s ` (opens in a new tab)`; with no date, the date and its commas
+  drop out, and the date is repeated as a `title` tooltip. Each `<ul>` is
+  `aria-labelledby` its label, ids from `useId()` plus the kind index only.
+  Numbering follows the gallery's own order and counts only linkable items, so it
+  stays contiguous; every item is listed, including those behind Show more, at one
+  Tab stop each, with no cap. It reads no embed state, so it is identical whether
+  the players load or not. The Named Birds "Media of {name}" section (`.sr-mli-*`)
+  is the exemplar.
 - **Switches:** the shared `ToggleSwitch` is a boxed pill-button when it carries
   its own visible label (the app-wide default): chrome on the `.sr-toggle` class
   (`--sr-border` 1.5px, `--sr-surface` fill, radius 6, height 30) with a hover
