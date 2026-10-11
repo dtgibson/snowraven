@@ -1,0 +1,1 @@
+Four-letter codes in Search. Typing a bird's four-letter code, such as YRWA or AMRO, in Search or any species picker now finds that bird. When a code names several of your birds, all of them are listed first, ahead of the name matches.

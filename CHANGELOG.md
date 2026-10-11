@@ -2,6 +2,17 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [1.0.55] - 2026-10-10
+
+### Added
+- **Four-letter codes in Search and the species pickers.** Typing a bird's four-letter code, such as `yrwa`, `amro` or `cago`, in Search (Cmd-K / Ctrl-K) or in any type-to-find species picker (Species Detail's Select species, the Calendar's Species filter, Map Explorer's Species filter on My Sightings, and the Filter by species picker in Statistics' weather section) now finds the bird. A query that is exactly one of a bird's codes lists every bird in your backup that carries it, ahead of the ordinary name matches, so Enter opens or picks the first of them; any other query matches and orders exactly as before. The codes are eBird's own: each name's banding codes plus the codes formed from the name SnowRaven shows, so codes eBird forms from British, international or former names are left out. A form answers to its own code and to its species' code: `auwa` finds Yellow-rumped Warbler (Audubon's), and `yrwa` lists the species and its forms.
+- Help's Search section and the four picker passages describe codes.
+
+### Internal
+- `frontend/src/assets/ebird-alpha-codes.json` is generated from eBird's taxonomy (version 2027) by `scripts/build-ebird-taxonomy.mjs`, whose pure core moved to `scripts/lib/ebirdTaxonomyDerive.mjs`; the generator refuses a live taxonomy newer than the shipped snapshot and writes nothing until every guard passes. The asset is its own lazy chunk (588.9 kB raw, 143.3 kB gzip), loaded once per session on the first Search or picker open and never modulepreloaded, so the entry chunk is unchanged; a failed load leaves name matching as it was, with no message and no retry.
+- One ranking rule, `rankSpeciesMatches` in `lib/speciesMatch.ts`, serves Search and `SpeciesCombobox`, and the existing name predicates are byte-identical. New asset, generator, loader, join, ranking, component and Help-claims suites. `.claude/rules/security.md` now loads on `speciesMatch.ts`, `paletteRows.ts` and `lib/alphaCodes*.ts`, and `.claude/rules/bird-names.md` on the asset, its modules and the generator core.
+- The F-Droid changelog for this release is three identical files, one per processor-type build (`10000551.txt`, `10000552.txt`, `10000554.txt`), and the in-repo F-Droid recipe names 1.0.55.
+
 ## [1.0.54] - 2026-10-09
 
 ### Added
