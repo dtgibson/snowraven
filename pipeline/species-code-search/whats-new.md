@@ -1,6 +1,6 @@
 # What's New: four-letter codes in Search and the species pickers (1.0.55)
 
-**Status: (a) and (c) APPROVED by the user at the production sign-off, 2026-10-11 06:21 UTC, word for word (`decisions.md`, entry 22). (b), the rollup text, is still HELD** and is decided at the App Store step, after the user's own iPhone check of TestFlight build 1.0.55.1. (c) is written in the 1.0.55 version-bump commit as `10000551/2/4.txt`. (a) goes to an App Store record only after that check, by the route the user picks. The status line originally read "HELD. Not approved, not written anywhere" (The Deployer, preparation, 2026-10-10).
+**Status: ALL THREE APPROVED, word for word.** (a) and (c) were approved at the production sign-off, 2026-10-11 06:21 UTC (`decisions.md`, entry 22); (c) was written in the 1.0.55 version-bump commit (`1cad7995`) as `10000551/2/4.txt`. (b), the rollup text, was approved at the App Store step, 2026-10-11 23:13 UTC, when the user chose to roll 1.0.54 into 1.0.55 after their own iPhone check of build 1.0.55.1 and answered "Send it" (`decisions.md`, entry 24). (b) is the text on record `e4affc7f`, written by script and read back byte for byte after the write and again after submitting; (a) on its own was not used, because the rollup carries it. The status line originally read "HELD. Not approved, not written anywhere" (The Deployer, preparation, 2026-10-10).
 
 ## Which record carries it
 
