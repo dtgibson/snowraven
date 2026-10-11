@@ -1,0 +1,1 @@
+First release for Android phones and tablets: every tab, with your own eBird backup and Macaulay Library export opened through the phone's file picker and kept in the app's private storage, and your own eBird and OpenWeather keys. If the phone's Android System WebView is too old to run SnowRaven, the opening screen says so instead of showing a blank page.

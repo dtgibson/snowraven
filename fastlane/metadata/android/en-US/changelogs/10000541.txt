@@ -1,0 +1,1 @@
+Media links on Named Birds. Each named bird's media section now opens with a numbered list of links to every photo, recording, and video of that bird, grouped by type and newest first, and each number opens that item on the Macaulay Library in your browser.

@@ -2,6 +2,16 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [1.0.54] - 2026-10-09
+
+### Added
+- **Numbered Macaulay Library links for each named bird's media.** On the Named Birds tab, each bird's "Media of {name}" section now opens with a compact list of numbered links, one for every photo, audio recording, and video of that bird, grouped Photos, Audio, Video and numbered newest first. Each number opens that item's page on the Macaulay Library, the same page as its tile's own link, in your browser (a new tab on web/Pi). The list covers every item, including the ones behind **Show more**, and stays the same whether the players are working, blocked by the Cornell Lab's bot check, turned off in Settings, or offline, so every item can still be reached while the players cannot load. On a phone-width screen each number is a full-size tap target.
+- Help's Named Birds section describes the new list.
+
+### Internal
+- `mediaItemLinkGroups` in `lib/mediaEmbed.ts` groups a bird's items by format, reusing the tiles' own catalog-number gate, and the list renders through `OutboundLink`, so a click opens the system browser in the desktop and mobile apps. New component, library and Help-claims suites, and a real-engine check (`website/tools/verify/verify-named-bird-media-links.mjs`) that measures the list across widths and text sizes and its focus ring after a real Tab, in Chromium and WebKit. `.claude/rules/security.md` now loads on `NamedBirdMedia*.tsx` and `lib/mediaEmbed*.ts`.
+- The F-Droid changelog for this release is three identical files, one per processor-type build (`10000541.txt`, `10000542.txt`, `10000544.txt`), and the in-repo F-Droid recipe names 1.0.54.
+
 ## [1.0.53] - 2026-10-04
 
 ### Added

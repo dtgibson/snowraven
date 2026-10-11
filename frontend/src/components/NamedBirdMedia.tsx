@@ -13,18 +13,28 @@
 // date + ChecklistLink and adds an OutboundLink to the single-asset ML URL — never
 // a broken frame. The date + checklist are local, so they always show. The resilient
 // frame/fallback/shimmer primitives are shared with Species Detail (see MediaEmbed).
+//
+// Item list (ml-media-links): above the gallery, one numbered link per item of the
+// bird, grouped Photo, Audio, Video and numbered newest first within each format,
+// covering every item including those "Show more" has not revealed. Each href is
+// mlAssetUrl(catalogId), the tile's own builder behind the tile's own gate, so a
+// number opens exactly the page that item's tile links to. It reads only `assets`
+// and `birdName`: never the embed preference, the bot-check gate, the online
+// status, the reveal count, storage or transport, so it is identical in every
+// embed state.
 
 import { Button } from './ui/Button'
-import { useEffect, useRef, useState } from 'react'
+import { Fragment, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { Play, ChevronDown } from 'lucide-react'
 import { formatDate } from '../lib/formatDate'
 import { useOnline } from '../lib/useOnline'
 import { ChecklistLink } from './ChecklistLink'
 import { EmbeddedMediaDisabled, MediaFrame, MediaFallback, MediaShimmer } from './MediaEmbed'
-import { MEDIA_FORMAT_META, MEDIA_CATALOG_ID_RE } from '../lib/mediaEmbed'
+import { MEDIA_FORMAT_META, MEDIA_CATALOG_ID_RE, mediaItemLinkGroups, type MediaItemLinkGroup } from '../lib/mediaEmbed'
 import { mlAssetUrl } from '../lib/mlCatalog'
 import { OutboundLink } from './OutboundLink'
 import type { NamedBirdAsset } from '../lib/namedBirdMedia'
+import type { MediaType } from '../types'
 
 interface NamedBirdMediaProps {
   birdName: string
@@ -71,6 +81,12 @@ export function NamedBirdMedia({
     const el = gridRef.current?.querySelector<HTMLElement>(`[data-media-index="${idx}"]`)
     el?.focus()
   })
+
+  // The item list's groups, derived once per `assets` array. `assets` is
+  // identity-stable per ML load (the tab memoizes the join), so a "Show more"
+  // reveal, an embed-state change or a re-render for any other reason does not
+  // re-run it. Above the early return with the other hooks.
+  const linkGroups = useMemo(() => mediaItemLinkGroups(assets), [assets])
 
   // No ML loaded, or a collapsed parent row → the section is absent entirely.
   if (!hasML || !open) return null
@@ -123,6 +139,11 @@ export function NamedBirdMedia({
         </p>
       ) : (
         <>
+          {/* First in the branch, so it holds one slot in every embed state: the
+              disabled status below is `cond && x`, which keeps its placeholder, so
+              toggling it neither moves nor remounts the list. */}
+          <NamedBirdMediaLinks groups={linkGroups} birdName={birdName} />
+
           {!embedAllowed && (
             <div className="sr-media-frame sr-media-iframe--recent">
               <EmbeddedMediaDisabled />
@@ -166,6 +187,69 @@ export function NamedBirdMedia({
           )}
         </>
       )}
+    </div>
+  )
+}
+
+// ── The item list (ml-media-links) ──────────────────────────────────────────
+
+/** A format group's visible label. Its accessible list name is this label. */
+const LIST_LABEL: Record<MediaType, string> = { Photo: 'Photos', Audio: 'Audio', Video: 'Video' }
+
+function NamedBirdMediaLinks({ groups, birdName }: {
+  groups: MediaItemLinkGroup[]
+  birdName: string
+}) {
+  // The only DOM ids in the list: framework-generated plus the format index,
+  // never the bird's name or any other file text (.claude/rules/ui.md, v1.0.21).
+  const baseId = useId()
+  if (groups.length === 0) return null
+
+  return (
+    <div className="sr-ml-items">
+      <p className="sr-mli-lead">
+        <span className="sr-mli-name">{birdName}</span> on Macaulay Library, newest first:
+      </p>
+      <div className="sr-mli-grid">
+        {groups.map((group, gi) => {
+          const { icon: Icon } = MEDIA_FORMAT_META[group.format]
+          const labelId = `${baseId}-f${gi}`
+          const total = group.items.length
+          return (
+            <Fragment key={group.format}>
+              <span className="sr-mli-fmt" id={labelId}>
+                <Icon size={12} strokeWidth={2.2} aria-hidden />
+                {LIST_LABEL[group.format]}
+              </span>
+              {/* role="list" is explicit: WebKit drops list semantics from a
+                  `list-style: none` <ul>, and aria-labelledby needs the role to name. */}
+              <ul className="sr-mli-list" role="list" aria-labelledby={labelId}>
+                {group.items.map((item, i) => {
+                  // Formatted at render, as the tile's date label is, so a change
+                  // to the date-format preference reaches both alike.
+                  const dateLabel = formatDate(item.date)
+                  return (
+                    <li key={item.catalogId}>
+                      {/* OutboundLink appends " (opens in a new tab)" and owns the
+                          new-tab attributes, the tabIndex default and the Tauri
+                          dispatch. The name leads with the format (the number counts
+                          within it) and contains the visible number (WCAG 2.5.3). */}
+                      <OutboundLink
+                        className="sr-mli-link"
+                        href={mlAssetUrl(item.catalogId)}
+                        title={dateLabel || undefined}
+                        aria-label={`${group.format} ${i + 1} of ${total} of ${birdName}${dateLabel ? `, ${dateLabel},` : ''} on Macaulay Library`}
+                      >
+                        {i + 1}
+                      </OutboundLink>
+                    </li>
+                  )
+                })}
+              </ul>
+            </Fragment>
+          )
+        })}
+      </div>
     </div>
   )
 }

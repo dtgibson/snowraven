@@ -1266,6 +1266,77 @@ h1, h2, h3, h4, h5, h6 {
   background: var(--sr-surface);
 }
 
+/* Named Birds: the compact item list above a named bird's gallery
+   (ml-media-links). One numbered link per item, grouped Photo, Audio, Video and
+   numbered newest first within its format. Every value is one the section
+   already uses: the lead in the meta-row voice, the labels in the tile
+   format-marker voice, the numbers in the accent link voice. Desktop: each
+   number is a 24px target (WCAG 2.5.8) whose box shows only on hover and focus,
+   so at rest the list reads as a quiet run of green numbers. The phone tier
+   (in the 640px block) moves each label above its numbers and grows the boxes
+   to 44px with no gap between them. Every size is rem, so it grows with text
+   size; the lead carries `overflow-wrap: anywhere` so a long spaceless name
+   wraps inside the card, and nothing here is `white-space: nowrap`. */
+.sr-ml-items {
+  margin: 0 0 12px;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: var(--sr-text-muted);
+}
+.sr-mli-lead { margin: 0 0 2px; overflow-wrap: anywhere; }
+.sr-mli-name { font-weight: 600; color: var(--sr-text); }
+.sr-mli-grid {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  column-gap: 8px;
+  row-gap: 2px;
+  align-items: start;
+}
+.sr-mli-fmt {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 1.5rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--sr-text-muted);
+}
+.sr-mli-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.sr-mli-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.5rem;
+  height: 1.5rem;
+  padding: 0 4px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--sr-accent);
+  text-decoration: none;
+  transition: background-color 120ms ease-out;
+}
+.sr-mli-link:hover {
+  background: var(--sr-accent-bg);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+/* The list's focus rule (ring 1px off the box, no halo, box fill) sits below
+   the global focus ring, beside .sr-segbar-btn:focus-visible: see there. */
+@media (prefers-reduced-motion: reduce) {
+  .sr-mli-link { transition: none; }
+}
+
 /* Loading / lazy placeholder — same footprint, a subtle surface sweep honoring
    prefers-reduced-motion (the shimmer animation is killed by the global
    reduced-motion block; the static surface remains). */
@@ -4233,6 +4304,18 @@ select:focus-visible {
    -local focus declaration; `.sr-pill` deliberately has none and rides the
    global `button:focus-visible` ring unchanged. */
 .sr-segbar-btn:focus-visible { outline-offset: -3px; }
+/* The named-bird item list (ml-media-links): the house ring (3px accent
+   outline) drawn 1px off the box with no halo, because in a run of boxes 2px
+   apart the global 3px offset and 6px halo sit over the neighboring numbers;
+   the box fill shows on focus as on hover. SOURCE ORDER IS LOAD-BEARING: this
+   (0,2,0) ties the global `[tabindex]:focus-visible` (every list link carries
+   tabindex="0"), so it must stay after that block, as this segbar rule does.
+   Placed beside the base rules it lost the tie and the global ring won. */
+.sr-mli-link:focus-visible {
+  background: var(--sr-accent-bg);
+  outline-offset: 1px;
+  box-shadow: none;
+}
 
 /* ── The in-<th> sort button (`.sr-th-sort`) ─────────────────────────────────
    (control-style-registers, v1.0.33)
@@ -6459,6 +6542,16 @@ select:focus-visible {
   .sr-media-iframe--video { height: 280px; }
   .sr-media-iframe--audio { height: 280px; }
   .sr-media-iframe--recent { height: 280px; }
+
+  /* Named Birds item list (ml-media-links): one column, so each format label
+     sits above its numbers, and 44px targets (2.75rem, so they grow with text
+     size) that abut with no gap. No negative margin: a rem-based pull-left grew
+     past the section's fixed 14px padding at 150% and 200% text. */
+  .sr-ml-items { margin-bottom: 8px; }
+  .sr-mli-grid { grid-template-columns: minmax(0, 1fr); row-gap: 0; }
+  .sr-mli-fmt { height: auto; margin-top: 6px; }
+  .sr-mli-list { gap: 0; }
+  .sr-mli-link { min-width: 2.75rem; height: 2.75rem; }
 
   /* New layout hooks collapse to a single column on phones. */
   .sr-grid-2, .sr-grid-3, .sr-grid-4 { grid-template-columns: 1fr; }

@@ -81,9 +81,13 @@ else
   [ "$TAG_PAIR" = "$VERSION $VERSION_CODE" ] && ok "tauri.conf.json at $TAG carries $TAG_PAIR" \
     || fail "tauri.conf.json at $TAG carries '$TAG_PAIR', not '$VERSION $VERSION_CODE'"
   [ "$(git rev-parse HEAD)" = "$TAG_SHA" ] || echo "warning: HEAD is not $TAG's commit; the artifact is checked against $TAG" >&2
-  git cat-file -e "$TAG:fastlane/metadata/android/en-US/changelogs/$VERSION_CODE.txt" 2>/dev/null \
-    && ok "Fastlane changelog $VERSION_CODE.txt exists at $TAG" \
-    || echo "warning: fastlane/metadata/android/en-US/changelogs/$VERSION_CODE.txt is absent at $TAG, so F-Droid shows no changelog for this version (it does not block the GitHub APK)" >&2
+  # F-Droid looks the changelog up by each per-processor code (code x 10 + 1, 2, 4).
+  for OFFSET in 1 2 4; do
+    ABI_CODE=$((VERSION_CODE * 10 + OFFSET))
+    git cat-file -e "$TAG:fastlane/metadata/android/en-US/changelogs/$ABI_CODE.txt" 2>/dev/null \
+      && ok "Fastlane changelog $ABI_CODE.txt exists at $TAG" \
+      || echo "warning: fastlane/metadata/android/en-US/changelogs/$ABI_CODE.txt is absent at $TAG, so F-Droid shows no changelog for that build (it does not block the GitHub APK)" >&2
+  done
 fi
 
 # ── The CI artifact ─────────────────────────────────────────────────────────

@@ -31,3 +31,4 @@ settings-tab-hidden-iphone/evidence/
 targets-hotspot-link/*.png
 # android-release working files: emulator screenshots for the Tester's matrix. Reference only, kept on disk; each is listed with what it shows in the Engineer's hand-back and in android-release/decisions.md.
 android-release/screenshots/
+.weft-host-deploy.json

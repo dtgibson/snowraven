@@ -24,3 +24,37 @@ export const MEDIA_FORMAT_META: Record<MediaType, { icon: LucideIcon; heightClas
   Video: { icon: Video, heightClass: 'sr-media-iframe--video' },
   Audio: { icon: Mic, heightClass: 'sr-media-iframe--audio' },
 }
+
+/** The fixed display order of the three ML formats. */
+export const MEDIA_FORMAT_ORDER: readonly MediaType[] = ['Photo', 'Audio', 'Video']
+
+export interface MediaItemLinkGroup {
+  format: MediaType
+  /** This format's linkable items, in input order (the gallery's newest-first). */
+  items: { catalogId: string; date: string }[]
+}
+
+/** The named-bird per-item list (ml-media-links): one group per format present,
+ *  in MEDIA_FORMAT_ORDER, holding only items whose catalogId passes
+ *  MEDIA_CATALOG_ID_RE (the tile's own gate before it draws its Macaulay Library
+ *  link). An item that fails it gets no entry, so it neither takes a number nor
+ *  counts toward its group's total. Empty groups are omitted; returns [] when no
+ *  item is linkable. One pass over `items`, keeping their order, with one
+ *  anchored digits-only test per item. The format lookup is a Map over the three
+ *  known formats, so an unexpected value is skipped rather than reaching an
+ *  object's prototype. */
+export function mediaItemLinkGroups(
+  items: Iterable<{ catalogId: string; format: MediaType; date: string }>,
+): MediaItemLinkGroup[] {
+  const buckets = new Map<MediaType, MediaItemLinkGroup['items']>(MEDIA_FORMAT_ORDER.map(f => [f, []]))
+  for (const item of items) {
+    if (!MEDIA_CATALOG_ID_RE.test(item.catalogId)) continue
+    buckets.get(item.format)?.push({ catalogId: item.catalogId, date: item.date })
+  }
+  const groups: MediaItemLinkGroup[] = []
+  for (const format of MEDIA_FORMAT_ORDER) {
+    const bucket = buckets.get(format)!
+    if (bucket.length > 0) groups.push({ format, items: bucket })
+  }
+  return groups
+}

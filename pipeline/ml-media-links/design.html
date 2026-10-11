@@ -1,0 +1,759 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Macaulay Library links: design mockup</title>
+<style>
+/* ──────────────────────────────────────────────────────────────────────────
+   SnowRaven tokens (mirrors frontend/src/globals.css, both themes). Only the
+   tokens these surfaces touch are carried; the shipped components read them
+   through var(--sr-*) exactly as written here.
+   ────────────────────────────────────────────────────────────────────────── */
+:root {
+  --sr-text-scale: 1;
+  --sr-bg: #F9FAFB;
+  --sr-surface: #FFFFFF;
+  --sr-surface-subtle: #F4F4F5;
+  --sr-surface-faint: #FAFAFA;
+  --sr-text: #0F1117;
+  --sr-text-muted: #6B6B74;
+  --sr-text-disabled: #A1A1AA;
+  --sr-text-gray: #6B7280;
+  --sr-border: #E4E4E7;
+  --sr-border-subtle: #F4F4F5;
+  --sr-border-medium: #C4C4CE;
+  --sr-border-input: #8A8A91;
+  --sr-accent: #277448;
+  --sr-accent-strong: #1A5C38;
+  --sr-accent-bg: #E8F5EE;
+  --sr-accent-border: rgba(39,116,72,0.25);
+  --sr-accent-border-strong: rgba(39,116,72,0.7);
+  --sr-quote-bg: #EFF1F3;
+  --sr-quote-border: #E0E2E6;
+  /* Mockup-only: written with the app's ink rather than pure black so the
+     mockup lints clean; the shipped cards read var(--sr-card-shadow). */
+  --sr-card-shadow: 0 1px 4px rgba(15,17,23,0.06), 0 4px 16px rgba(15,17,23,0.04);
+  --sr-focus-halo: rgba(45,134,83,0.12);
+  --font-sans: 'Inter', system-ui, 'Segoe UI', sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', Menlo, monospace;
+}
+[data-theme="dark"] {
+  --sr-bg: #09090B;
+  --sr-surface: #18181B;
+  --sr-surface-subtle: #27272A;
+  --sr-surface-faint: #1C1C1F;
+  --sr-text: #F4F4F5;
+  --sr-text-muted: #A1A1AA;
+  --sr-text-disabled: #52525B;
+  --sr-text-gray: #8A8A92;
+  --sr-border: #27272A;
+  --sr-border-subtle: #1F1F23;
+  --sr-border-medium: #3F3F46;
+  --sr-border-input: #707078;
+  --sr-accent: #34D399;
+  --sr-accent-strong: #34D399;
+  --sr-accent-bg: #052E16;
+  --sr-accent-border: rgba(52,211,153,0.2);
+  --sr-accent-border-strong: rgba(52,211,153,0.5);
+  --sr-quote-bg: #2E2E33;
+  --sr-quote-border: #3A3A40;
+  --sr-card-shadow: 0 1px 4px rgba(9,9,11,0.4), 0 4px 16px rgba(9,9,11,0.25);
+  --sr-focus-halo: rgba(52,211,153,0.16);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { background: var(--sr-bg); font-size: calc(100% * var(--sr-text-scale, 1)); }
+body {
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--sr-text);
+  background: var(--sr-bg);
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+svg { display: block; }
+a { color: inherit; }
+button { font: inherit; }
+.ico { width: 1em; height: 1em; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+
+/* Global focus ring, as globals.css draws it. */
+a:focus-visible, button:focus-visible, [tabindex]:focus-visible {
+  outline: 3px solid var(--sr-accent);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 6px var(--sr-focus-halo);
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+   Mockup chrome (not part of the design). Sized in px so the in-frame text
+   size control does not move it.
+   ────────────────────────────────────────────────────────────────────────── */
+.mk-bar {
+  position: sticky; top: 0;
+  z-index: 20;
+  display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center;
+  padding: 8px 16px;
+  background: var(--sr-surface);
+  border-bottom: 1px solid var(--sr-border);
+  box-shadow: 0 2px 10px rgba(15,17,23,0.06);
+  font-size: 12px; line-height: 1.3;
+}
+/* On a narrow screen the bar stays ONE row and scrolls sideways, so it never
+   grows tall enough to cover what it is changing. */
+@media (max-width: 759px) {
+  .mk-bar { flex-wrap: nowrap; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: thin; }
+  .mk-bar > * { flex-shrink: 0; }
+  .mk-group { flex-wrap: nowrap; }
+}
+.mk-bar h1 { font-size: 13px; font-weight: 700; letter-spacing: -0.01em; margin-right: 2px; white-space: nowrap; }
+.mk-bar h1 span { color: var(--sr-text-muted); font-weight: 500; }
+.mk-group { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.mk-group > span { color: var(--sr-text-muted); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; margin-right: 2px; white-space: nowrap; }
+.mk-seg { display: inline-flex; border: 1.5px solid var(--sr-accent-border); border-radius: 15px; overflow: hidden; background: var(--sr-surface); }
+.mk-seg button, .mk-seg a {
+  font-size: 12px; font-weight: 500; color: var(--sr-text-muted); white-space: nowrap; text-decoration: none;
+  display: inline-flex; align-items: center;
+  background: transparent; border: 0; border-left: 1.5px solid var(--sr-accent-border);
+  min-height: 28px; padding: 0 10px; cursor: pointer;
+  transition: background-color 120ms ease-out, color 120ms ease-out;
+}
+.mk-seg > :first-child { border-left: 0; }
+.mk-seg button:hover, .mk-seg a:hover { color: var(--sr-text); }
+.mk-seg button[aria-pressed="true"] { background: var(--sr-accent-bg); color: var(--sr-accent); font-weight: 600; }
+.mk-seg button:focus-visible, .mk-seg a:focus-visible { outline-offset: -3px; box-shadow: none; }
+
+.mk-stage {
+  padding: 22px 16px 120px;
+  display: flex; flex-direction: column; align-items: center; gap: 30px;
+  background: linear-gradient(180deg, var(--sr-bg) 0%, var(--sr-surface-faint) 100%);
+}
+.mk-status {
+  width: 900px; max-width: 100%;
+  font-size: 12.5px; line-height: 1.5; color: var(--sr-text-muted);
+  background: var(--sr-surface);
+  border: 1px solid var(--sr-border);
+  border-radius: 12px;
+  padding: 12px 16px;
+}
+.mk-status b { color: var(--sr-text); font-weight: 600; }
+.mk-status p + p { margin-top: 6px; }
+.mk-block { scroll-margin-top: 112px; }
+
+.mk-block { width: 900px; max-width: 100%; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.mk-cap {
+  width: 100%;
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 14px;
+  font-size: 12px; color: var(--sr-text-muted);
+}
+.mk-cap b { color: var(--sr-text); font-weight: 700; font-size: 13px; letter-spacing: -0.01em; }
+.mk-frame {
+  width: 900px; max-width: 100%;
+  background: var(--sr-bg);
+  border: 1px solid var(--sr-border);
+  border-radius: 14px;
+  overflow: hidden;
+  transition: width 220ms cubic-bezier(0.2, 0, 0, 1);
+}
+.mk-elide {
+  margin: 4px 14px;
+  padding: 7px 10px;
+  border: 1px dashed var(--sr-border-medium);
+  border-radius: 8px;
+  font-size: 11px; line-height: 1.4; color: var(--sr-text-muted);
+  font-family: var(--font-sans);
+}
+.mk-elide.is-page { margin: 0; }
+.mk-new {
+  position: relative;
+}
+.mk-flag .mk-new::before {
+  content: "";
+  position: absolute; left: -9px; top: 2px; bottom: 2px; width: 3px; border-radius: 2px;
+  background: var(--sr-accent-border-strong);
+}
+
+.mk-readout {
+  position: fixed; left: 50%; bottom: 14px; transform: translateX(-50%);
+  z-index: 30;
+  width: min(760px, calc(100% - 24px));
+  display: grid; grid-template-columns: auto 1fr auto; gap: 3px 10px; align-items: baseline;
+  padding: 10px 12px 11px;
+  background: var(--sr-surface);
+  border: 1px solid var(--sr-border-medium);
+  border-radius: 12px;
+  box-shadow: var(--sr-card-shadow);
+  font-size: 12px; line-height: 1.4;
+  opacity: 1; transition: opacity 160ms ease-out, transform 160ms ease-out;
+}
+.mk-readout[hidden] { display: grid; opacity: 0; transform: translate(-50%, 8px); pointer-events: none; }
+.mk-readout dt { grid-column: 1; }
+.mk-readout dd { grid-column: 2; }
+.mk-readout dt { color: var(--sr-text-muted); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; }
+.mk-readout dd { min-width: 0; overflow-wrap: anywhere; }
+.mk-readout dd.url { font-family: var(--font-mono); font-size: 11.5px; }
+.mk-readout .x {
+  grid-column: 3; grid-row: 1; align-self: start;
+  border: 0; background: transparent; color: var(--sr-text-muted);
+  width: 26px; height: 26px; border-radius: 6px; cursor: pointer; font-size: 15px; line-height: 1;
+}
+.mk-readout .x:hover { background: var(--sr-surface-subtle); color: var(--sr-text); }
+
+/* ──────────────────────────────────────────────────────────────────────────
+   App register (abbreviated where marked), so the new row is judged in its
+   real company. Inline styles in the shipped components are written as
+   classes here; values are the shipped ones.
+   ────────────────────────────────────────────────────────────────────────── */
+.sr-page { padding: 18px 18px 22px; display: flex; flex-direction: column; }
+.is-phone .sr-page { padding: 14px 16px 18px; }
+.sr-tab-head { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 16px; }
+.sr-tab-tile {
+  width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0;
+  background: var(--sr-accent-bg); color: var(--sr-accent);
+  display: flex; align-items: center; justify-content: center; font-size: 15px;
+}
+.sr-tab-head h2 { font-size: 1.125rem; font-weight: 700; margin: 0 0 2px; line-height: 1.3; }
+.sr-tab-head p { font-size: 0.8125rem; color: var(--sr-text-muted); line-height: 1.5; max-width: 68ch; }
+.sr-tab-head code, .sr-code { font-family: var(--font-mono); font-size: 0.78125rem; color: var(--sr-text); }
+
+.sr-pill {
+  display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+  min-height: 30px; padding: 0 12px; border-radius: 15px;
+  border: 1.5px solid var(--sr-border); background: var(--sr-surface); color: var(--sr-text-muted);
+  font-size: 0.75rem; font-weight: 500; white-space: nowrap; cursor: pointer;
+  transition: background-color 120ms ease-out, border-color 120ms ease-out, color 120ms ease-out;
+}
+.sr-pill:hover { border-color: var(--sr-border-medium); background: var(--sr-surface-subtle); color: var(--sr-text); }
+.sr-pill[aria-pressed="true"] { background: var(--sr-accent-bg); border-color: var(--sr-accent-border-strong); color: var(--sr-accent); font-weight: 600; }
+.sr-ctl { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.sr-ctl-label { font-size: 0.75rem; color: var(--sr-text-muted); font-weight: 600; }
+.sr-wrap-flex { display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; max-width: 100%; }
+.nb-sort { margin-bottom: 8px; }
+.nb-sort .count { font-size: 0.75rem; color: var(--sr-text-disabled); margin-left: auto; white-space: nowrap; }
+.nb-range-tab { margin-bottom: 14px; }
+.nb-list { display: flex; flex-direction: column; gap: 8px; }
+
+.nb-card { border: 1px solid var(--sr-border); border-radius: 10px; overflow: hidden; background: var(--sr-surface); box-shadow: var(--sr-card-shadow); }
+.nb-head {
+  display: flex; align-items: baseline; gap: 8px; row-gap: 4px; flex-wrap: wrap; width: 100%;
+  padding: 11px 13px; border: 0; background: transparent; cursor: pointer; text-align: left; color: inherit;
+}
+.nb-chev { color: var(--sr-text-muted); display: inline-flex; align-self: center; font-size: 15px; }
+.nb-chev .ico { stroke-width: 2.4; }
+.nb-name { font-size: 0.9375rem; font-weight: 700; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; letter-spacing: -0.01em; }
+.nb-species { min-width: 0; display: inline-flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+.sr-birdname { font-size: 0.8125rem; font-weight: 500; color: var(--sr-text); }
+.sr-marks { display: inline-flex; gap: 4px; align-items: center; color: var(--sr-text); opacity: 0.75; font-size: 13px; }
+.sr-marks .ico { stroke-width: 2; }
+.nb-right { margin-left: auto; display: flex; align-items: baseline; flex-wrap: wrap; gap: 13px; flex-shrink: 0; max-width: 100%; min-width: 0; }
+.nb-dates { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; min-width: 0; }
+.nb-dates .range { font-size: 0.75rem; color: var(--sr-text-gray); white-space: nowrap; }
+.nb-dates .dur { font-size: 0.6875rem; color: var(--sr-text-muted); text-align: right; }
+.nb-dates .dur b { font-weight: 600; }
+.nb-count { font-size: 0.75rem; font-weight: 700; color: var(--sr-accent); white-space: nowrap; }
+
+.nb-body { border-top: 1px solid var(--sr-border-subtle); background: var(--sr-surface-faint); }
+.nb-range-card { padding: 12px 14px 8px; }
+.sr-nbt-scope { margin: 0.375rem 0 0; font-size: 0.6875rem; line-height: 1.45; color: var(--sr-text-muted); }
+.nb-rep { padding: 10px 14px 11px 36px; border-bottom: 1px solid var(--sr-border-subtle); }
+.nb-rep-line { display: flex; align-items: center; min-width: 0; margin-bottom: 4px; font-size: 0.75rem; }
+.nb-rep-line .d { font-weight: 600; flex-shrink: 0; }
+.nb-rep-line .dot { color: var(--sr-text-disabled); flex-shrink: 0; padding: 0 7px; }
+.nb-rep-line .loc { color: var(--sr-text-muted); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nb-quote {
+  font-size: 0.8125rem; line-height: 1.55; overflow-wrap: anywhere;
+  background: var(--sr-quote-bg); border: 1px solid var(--sr-quote-border);
+  border-left: 3px solid var(--sr-accent-border); border-radius: 7px; padding: 8px 11px; margin-top: 5px;
+}
+
+/* ChecklistLink signature: accent text, 10px external-link glyph, underline on hover. */
+.sr-cl { display: inline-flex; align-items: center; gap: 3px; color: var(--sr-accent); text-decoration: none; font-weight: 600; flex-shrink: 0; }
+.sr-cl:hover { text-decoration: underline; }
+.sr-cl .ico { font-size: 10px; stroke-width: 2.5; }
+.sr-ol { color: var(--sr-accent); font-weight: 600; text-decoration: none; white-space: nowrap; }
+.sr-ol:hover { text-decoration: underline; }
+
+/* Named Birds media section (NamedBirdMedia.tsx) */
+.nb-media { padding: 12px 14px 14px; border-top: 1px solid var(--sr-border-subtle); }
+.sr-action-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 12px; min-width: 0; }
+.nb-media-head { margin-bottom: 8px; }
+.nb-micro {
+  display: flex; align-items: center; gap: 6px; min-width: 0;
+  font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--sr-text-muted);
+}
+.nb-micro .ico { font-size: 12px; stroke-width: 2.2; }
+.nb-showing { font-size: 0.6875rem; color: var(--sr-text-gray); white-space: nowrap; }
+.nb-empty { font-size: 0.78rem; font-style: italic; color: var(--sr-text-muted); }
+
+.sr-media-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; align-items: start; }
+.sr-media-item { min-width: 0; }
+.sr-media-frame { position: relative; width: 100%; height: 230px; border: 1px solid var(--sr-border); border-radius: 9px; background: var(--sr-surface); overflow: hidden; }
+.is-phone .sr-media-grid { grid-template-columns: 1fr; }
+.is-phone .sr-media-frame { height: 280px; }
+.sr-fallback {
+  height: 100%; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 8px; padding: 10px 12px; text-align: center; background: var(--sr-surface-subtle);
+}
+.sr-fallback > .ico { font-size: 20px; stroke-width: 2; color: var(--sr-text-muted); }
+.sr-fallback .msg { font-size: 0.72rem; color: var(--sr-text-muted); line-height: 1.4; }
+.sr-fallback .pill {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 0.72rem; font-weight: 600; color: var(--sr-accent); text-decoration: none;
+  border: 1.5px solid var(--sr-accent-border); border-radius: 7px; padding: 5px 10px; background: var(--sr-accent-bg);
+}
+.sr-media-disabled {
+  width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 10px; padding: 24px; text-align: center; color: var(--sr-text-muted); background: var(--sr-surface-faint);
+  font-size: 0.8125rem; font-weight: 600; line-height: 1.45;
+  animation: sr-media-disabled-settle 180ms ease-out both;
+}
+.sr-media-disabled__icon {
+  width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center;
+  color: var(--sr-text-muted); background: var(--sr-surface); border: 1px solid var(--sr-border-medium); border-radius: 50%;
+  font-size: 18px;
+}
+@keyframes sr-media-disabled-settle { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+.sr-media-disabled-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 12px; }
+.sr-media-disabled-list .sr-media-item { padding: 10px 12px; border: 1px solid var(--sr-border-subtle); border-radius: 8px; background: var(--sr-surface); }
+.is-phone .sr-media-disabled-list { grid-template-columns: 1fr; }
+.sr-meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 8px; min-width: 0; font-size: 0.75rem; }
+.sr-media-disabled-list .sr-meta { margin-top: 0; }
+.sr-meta .fmt {
+  display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0;
+  font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--sr-text-muted);
+}
+.sr-meta .fmt .ico { font-size: 12px; stroke-width: 2.2; }
+.sr-meta .date { font-weight: 600; white-space: nowrap; }
+.sr-meta .dot { color: var(--sr-text-disabled); flex-shrink: 0; }
+.nb-more { margin-top: 12px; }
+.nb-more button {
+  display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 14px; border-radius: 8px;
+  border: 1.5px solid var(--sr-border-medium); background: transparent; color: var(--sr-accent);
+  font-size: 0.75rem; font-weight: 600; cursor: pointer;
+}
+.nb-more button .ico { font-size: 13px; stroke-width: 2.4; }
+.is-phone .nb-more button { min-height: 2.75rem; height: auto; }
+
+/* ──────────────────────────────────────────────────────────────────────────
+   THE DESIGN: Named Birds, the compact item list (.sr-ml-items)
+   One numbered link per media item of THIS bird, grouped by format in Photo,
+   Audio, Video order, numbered newest first within each format (the
+   gallery's own order). Every number opens that item's Macaulay Library page,
+   the same URL as the tile's own "Macaulay Library" link (mlAssetUrl). All of
+   the bird's items are listed, including any "Show more" has not revealed.
+   Desktop: each number sits in a 24px box (a 24px target, WCAG 2.5.8), the
+   box visible only on hover and focus, so at rest the list reads as a quiet
+   run of green numbers. Phone tier: the label moves above its numbers and
+   the boxes grow to the app's 44px posture with no gap between them, so the
+   tap areas abut while the numbers keep an even rhythm.
+   ────────────────────────────────────────────────────────────────────────── */
+.sr-ml-items {
+  margin: 0 0 12px;
+  font-size: 0.75rem; line-height: 1.45;
+  color: var(--sr-text-muted);
+}
+.sr-mli-lead { margin-bottom: 2px; overflow-wrap: anywhere; }
+.sr-mli-lead b { font-weight: 600; color: var(--sr-text); }
+.sr-mli-grid {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  column-gap: 8px; row-gap: 2px;
+  align-items: start;
+}
+.sr-mli-fmt {
+  display: inline-flex; align-items: center; gap: 4px;
+  height: 1.5rem;
+  font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+  color: var(--sr-text-muted);
+}
+.sr-mli-fmt .ico { font-size: 12px; stroke-width: 2.2; }
+.sr-mli-list { list-style: none; display: flex; flex-wrap: wrap; gap: 2px; min-width: 0; }
+.sr-mli-link {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 1.5rem; height: 1.5rem; padding: 0 4px;
+  border-radius: 6px;
+  font-weight: 600; font-variant-numeric: tabular-nums;
+  color: var(--sr-accent); text-decoration: none;
+  transition: background-color 120ms ease-out;
+}
+.sr-mli-link:hover { background: var(--sr-accent-bg); text-decoration: underline; text-underline-offset: 2px; }
+/* The house ring, drawn 1px off the box with no halo: in a dense run the
+   default 3px offset and 6px halo would sit over the neighboring numbers. */
+.sr-mli-link:focus-visible { background: var(--sr-accent-bg); outline-offset: 1px; box-shadow: none; }
+.is-phone .sr-ml-items { margin-bottom: 8px; }
+.is-phone .sr-mli-grid { grid-template-columns: minmax(0, 1fr); row-gap: 0; }
+.is-phone .sr-mli-fmt { height: auto; margin-top: 6px; }
+.is-phone .sr-mli-list { gap: 0; }
+.is-phone .sr-mli-link { min-width: 2.75rem; height: 2.75rem; }
+
+@media (prefers-reduced-motion: reduce) {
+  .sr-mli-link, .sr-pill, .mk-frame, .mk-seg button, .mk-seg a, .mk-readout { transition: none; }
+  .sr-media-disabled { animation: none; }
+}
+</style>
+</head>
+<body>
+
+<!-- Lucide icon sprite (MIT), the glyphs the shipped components import. -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-ext" viewBox="0 0 24 24"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+  <symbol id="i-right" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><polygon points="6 3 20 12 6 21 6 3"/></symbol>
+  <symbol id="i-photo" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></symbol>
+  <symbol id="i-audio" viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></symbol>
+  <symbol id="i-video" viewBox="0 0 24 24"><path d="m16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.87a.5.5 0 0 0-.752-.432L16 10.5"/><rect x="2" y="6" width="14" height="12" rx="2"/></symbol>
+  <symbol id="i-cloudoff" viewBox="0 0 24 24"><path d="m2 2 20 20"/><path d="M5.782 5.782A7 7 0 0 0 9 19h8.5a4.5 4.5 0 0 0 1.307-.193"/><path d="M21.532 16.5A4.5 4.5 0 0 0 17.5 10h-1.79A7.008 7.008 0 0 0 10 5.07"/></symbol>
+  <symbol id="i-imageoff" viewBox="0 0 24 24"><line x1="2" x2="22" y1="2" y2="22"/><path d="M10.41 10.41a2 2 0 1 1-2.83-2.83"/><line x1="13.5" x2="6" y1="13.5" y2="21"/><line x1="18" x2="21" y1="12" y2="15"/><path d="M3.59 3.59A1.99 1.99 0 0 0 3 5v14a2 2 0 0 0 2 2h14c.55 0 1.052-.22 1.41-.59"/><path d="M21 15V5a2 2 0 0 0-2-2H9"/></symbol>
+  <symbol id="i-tag" viewBox="0 0 24 24"><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r=".5"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></symbol>
+  <symbol id="i-library" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M7 7v10"/><path d="M11 7v10"/><path d="m15 7 2 10"/></symbol>
+</svg>
+
+<div class="mk-bar" aria-label="Mockup controls">
+  <h1>Macaulay Library links <span>· approved design</span></h1>
+  <div class="mk-group"><span>Theme</span>
+    <div class="mk-seg" role="group" aria-label="Theme">
+      <button type="button" data-set="theme" data-val="light" aria-pressed="true">Light</button>
+      <button type="button" data-set="theme" data-val="dark" aria-pressed="false">Dark</button>
+    </div>
+  </div>
+  <div class="mk-group"><span>Width</span>
+    <div class="mk-seg" role="group" aria-label="Frame width">
+      <button type="button" data-set="width" data-val="900" aria-pressed="true">Mac 900</button>
+      <button type="button" data-set="width" data-val="744" aria-pressed="false">iPad 744</button>
+      <button type="button" data-set="width" data-val="390" aria-pressed="false">iPhone 390</button>
+      <button type="button" data-set="width" data-val="320" aria-pressed="false">320</button>
+    </div>
+  </div>
+  <div class="mk-group"><span>Text</span>
+    <div class="mk-seg" role="group" aria-label="In-app text size">
+      <button type="button" data-set="scale" data-val="1" aria-pressed="true">100%</button>
+      <button type="button" data-set="scale" data-val="1.5" aria-pressed="false">150%</button>
+      <button type="button" data-set="scale" data-val="2" aria-pressed="false">200%</button>
+    </div>
+  </div>
+  <div class="mk-group"><span>Players</span>
+    <div class="mk-seg" role="group" aria-label="Embedded player state">
+      <button type="button" data-set="embed" data-val="blocked" aria-pressed="true">Bot check up</button>
+      <button type="button" data-set="embed" data-val="disabled" aria-pressed="false">Turned off</button>
+      <button type="button" data-set="embed" data-val="offline" aria-pressed="false">Offline</button>
+    </div>
+  </div>
+  <div class="mk-group"><span>Mark new</span>
+    <div class="mk-seg" role="group" aria-label="Mark what is new">
+      <button type="button" data-set="flag" data-val="on" aria-pressed="true">On</button>
+      <button type="button" data-set="flag" data-val="off" aria-pressed="false">Off</button>
+    </div>
+  </div>
+</div>
+
+<main class="mk-stage">
+
+  <section class="mk-status" aria-label="The approved design">
+    <p><b>Named Birds</b> gets the compact list: one numbered link per item of the bird, grouped by format and numbered newest first, each opening that item's Macaulay Library page, the same page as the tile's own link. It covers every item, including the ones behind "Show more", and needs nothing from the export's filename.</p>
+    <p><b>Species Detail is unchanged.</b> Its Media card already links each format's count to the same catalog view a Recent Media row would have opened, so that row was dropped as redundant. Hover or Tab to any number to see what a screen reader hears and where it goes.</p>
+  </section>
+
+  <!-- ───────────────────────── Surface 1: Named Birds ───────────────────────── -->
+  <section class="mk-block" aria-label="Named Birds mockup">
+    <div class="mk-cap">
+      <span><b>Named Birds</b> &nbsp;Open any bird. Winky has 27 items, One-leg Pete has two, Big Blue has a video, Tico has three formats, Notch has none.</span>
+    </div>
+    <div class="mk-frame" id="frameNB">
+      <div class="sr-page">
+        <div class="sr-tab-head">
+          <div class="sr-tab-tile"><svg class="ico" style="stroke-width:2.2"><use href="#i-tag"/></svg></div>
+          <div>
+            <h2>Named Birds</h2>
+            <p>Individual birds you've named in your eBird species comments with a <code>[name:…]</code> tag (for example <code>[name:Winky]</code> or <code>[name:one-leg-pete]</code>), tracked across every checklist.</p>
+          </div>
+        </div>
+        <div class="sr-ctl nb-sort" role="group" aria-label="Sort named birds">
+          <span class="sr-ctl-label">Sort</span>
+          <div class="sr-wrap-flex">
+            <button type="button" class="sr-pill" aria-pressed="false" tabindex="0">Name (Individual)</button>
+            <button type="button" class="sr-pill" aria-pressed="false" tabindex="0">Alphabetical</button>
+            <button type="button" class="sr-pill" aria-pressed="false" tabindex="0">Taxonomic</button>
+            <button type="button" class="sr-pill" aria-pressed="true" tabindex="0">Last Seen</button>
+          </div>
+          <span class="count">5 named birds</span>
+        </div>
+        <div class="sr-ctl nb-range-tab" role="group" aria-label="Measure every span to">
+          <span class="sr-ctl-label">Measure to</span>
+          <div class="sr-wrap-flex">
+            <button type="button" class="sr-pill" aria-pressed="true" tabindex="0">Last sighting</button>
+            <button type="button" class="sr-pill" aria-pressed="false" tabindex="0">Today</button>
+          </div>
+        </div>
+        <div class="nb-list" id="nbList"></div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<dl class="mk-readout" id="readout" hidden aria-live="polite">
+  <dt>Visible</dt><dd id="roVis"></dd>
+  <dt>Hears</dt><dd id="roAria"></dd>
+  <dt>Opens</dt><dd class="url" id="roUrl"></dd>
+  <button type="button" class="x" id="roClose" aria-label="Close readout">×</button>
+</dl>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ── Data (realistic, shaped like the user's own exports) ───────────────── */
+  const FORMATS = ['Photo', 'Audio', 'Video'];
+  const ICON = { Photo: 'i-photo', Audio: 'i-audio', Video: 'i-video' };
+
+  /* Winky: 27 items (24 photos, 3 audio), newest first, as the gallery sorts. */
+  const WINKY_DATES = ['Mar 2, 2026', 'Feb 11, 2026', 'Jan 18, 2026', 'Dec 7, 2025', 'Nov 22, 2025', 'Oct 30, 2025',
+    'Sep 14, 2025', 'Aug 2, 2025', 'Jul 12, 2025', 'Jun 3, 2025', 'May 18, 2025', 'Apr 20, 2025', 'Mar 29, 2025',
+    'Mar 8, 2025', 'Feb 15, 2025', 'Jan 25, 2025', 'Dec 28, 2024', 'Dec 1, 2024', 'Nov 3, 2024', 'Oct 6, 2024',
+    'Sep 8, 2024', 'Aug 11, 2024', 'Jul 14, 2024', 'Jun 9, 2024', 'May 12, 2024', 'Apr 14, 2024', 'Mar 17, 2024'];
+  const WINKY_AUDIO = new Set([1, 4, 13]);
+  const WINKY_MEDIA = WINKY_DATES.map((d, i) => [
+    WINKY_AUDIO.has(i) ? 'Audio' : 'Photo', d,
+    String(624118305 - i * 1386247 - (i % 3) * 5113),
+    'S' + String(218840211 - i * 1290417 - (i % 4) * 731),
+  ]);
+
+  const BIRDS = [
+    { key: 'winky', name: 'Winky', species: "Anna's Hummingbird", code: 'annhum',
+      range: 'Nov 14, 2022 – Mar 2, 2026', dur: '3 yrs. 4 mos.', count: 41,
+      reports: [
+        { d: 'Mar 2, 2026', loc: 'Tilden Regional Park--Botanic Garden', cl: 'S218840211', c: '[name:Winky] Same male, the notch in the left gorget is still there. Displaying over the manzanita by the pond.' },
+        { d: 'Feb 11, 2026', loc: 'Tilden Regional Park--Botanic Garden', cl: 'S216372905', c: '' },
+      ],
+      media: WINKY_MEDIA },
+    { key: 'pete', name: 'One-leg Pete', species: 'Western Gull', code: 'wesgul',
+      range: 'Jan 3, 2020 – Jan 28, 2026', dur: '6 yrs. 1 mo.', count: 23,
+      reports: [
+        { d: 'Jan 28, 2026', loc: 'Berkeley Marina--Pier', cl: 'S215009318', c: '[name:one-leg-pete] Back on his post at the end of the pier.' },
+        { d: 'Nov 9, 2025', loc: 'Berkeley Marina--Pier', cl: 'S207566102', c: '' },
+      ],
+      media: [
+        ['Photo', 'Jan 28, 2026', '617902266', 'S215009318'],
+        ['Photo', 'Feb 2, 2024', '541880734', 'S160221905'],
+      ] },
+    { key: 'blue', name: 'Big Blue', species: 'Great Blue Heron', code: 'grbher3',
+      range: 'May 2, 2023 – Dec 30, 2025', dur: '2 yrs. 8 mos.', count: 17,
+      reports: [
+        { d: 'Dec 30, 2025', loc: 'Arrowhead Marsh', cl: 'S211870044', c: '[name:Big Blue] Fishing the channel at low tide, same pale wing patch.' },
+        { d: 'Oct 4, 2025', loc: 'Arrowhead Marsh', cl: 'S204302761', c: '' },
+      ],
+      media: [
+        ['Photo', 'Dec 30, 2025', '614330518', 'S211870044'],
+        ['Video', 'Oct 4, 2025', '605118937', 'S204302761'],
+        ['Photo', 'Jul 19, 2024', '563774102', 'S179040258'],
+        ['Photo', 'May 2, 2023', '492017556', 'S136688104'],
+      ] },
+    { key: 'notch', name: 'Notch', species: 'Black Phoebe', code: 'blkpho',
+      range: 'Aug 19, 2024 – Nov 2, 2025', dur: '1 yr. 2 mos.', count: 12,
+      reports: [
+        { d: 'Nov 2, 2025', loc: 'Home', cl: 'S206981237', c: '[name:Notch] On the fence again, tail notch obvious.' },
+        { d: 'Sep 27, 2025', loc: 'Home', cl: 'S203880914', c: '' },
+      ],
+      media: [] },
+    { key: 'tico', name: 'Tico', species: 'Yellow-throated Nightingale-Thrush', code: 'ytnthr1',
+      range: 'Feb 9, 2025 – Feb 15, 2025', dur: '6 days', count: 7,
+      reports: [
+        { d: 'Feb 15, 2025', loc: 'Parque Nacional Cusuco--Base Camp Trails', cl: 'S183302517', c: '[name:Tico] The bold one at the trail feeder, missing two tail feathers.' },
+        { d: 'Feb 12, 2025', loc: 'Parque Nacional Cusuco--Base Camp Trails', cl: 'S183104498', c: '' },
+      ],
+      media: [
+        ['Photo', 'Feb 15, 2025', '582905113', 'S183302517'],
+        ['Photo', 'Feb 15, 2025', '582905114', 'S183302517'],
+        ['Audio', 'Feb 14, 2025', '582740682', 'S183255390'],
+        ['Photo', 'Feb 13, 2025', '582611047', 'S183190362'],
+        ['Photo', 'Feb 12, 2025', '582497335', 'S183104498'],
+        ['Photo', 'Feb 11, 2025', '582388219', 'S183022817'],
+        ['Photo', 'Feb 10, 2025', '582270640', 'S182960555'],
+        ['Video', 'Feb 9, 2025', '582115903', 'S182899734'],
+      ] },
+  ];
+
+  /* ── Mockup state ───────────────────────────────────────────────────────── */
+  const state = {
+    theme: 'light', width: 900, scale: 1, embed: 'blocked', flag: 'on',
+    open: 'winky', reveal: 6,
+  };
+
+  /* ── Helpers ────────────────────────────────────────────────────────────── */
+  const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  const ico = (id, extra) => `<svg class="ico"${extra ? ' ' + extra : ''} aria-hidden="true"><use href="#${id}"/></svg>`;
+  const assetUrl = id => `https://macaulaylibrary.org/asset/${encodeURIComponent(id)}`;
+  const checklist = id => `<a class="sr-cl" href="https://ebird.org/checklist/${esc(id)}" tabindex="0" target="_blank" rel="noreferrer" aria-label="Open checklist ${esc(id)} on eBird (opens in a new tab)">${esc(id)}${ico('i-ext')}</a>`;
+  const marks = () => `<span class="sr-marks" aria-hidden="true">${ico('i-globe')}${ico('i-library')}</span>`;
+
+  /* ── THE DESIGN: Named Birds' compact item list ─────────────────────────
+     One link per item of THIS bird, grouped Photo, Audio, Video, numbered
+     newest first within its format (the gallery's order). Every href is the
+     tile's own per-item URL (mlAssetUrl). Rendered whenever the gallery has an
+     item with a valid catalog id; it reads no contributor id, no embed state
+     and no taxon code. DOM ids are keyed on indexes only (React: useId plus
+     the format index), never on the bird's name. */
+  const LABEL = { Photo: 'Photos', Audio: 'Audio', Video: 'Video' };
+  function itemsHtml(b, rowIdx) {
+    const valid = b.media.filter(m => /^\d+$/.test(m[2]));
+    const groups = FORMATS.map(f => valid.filter(m => m[0] === f)).filter(g => g.length);
+    if (!groups.length) return '';
+    let h = `<div class="sr-ml-items mk-new"><p class="sr-mli-lead"><b>${esc(b.name)}</b> on Macaulay Library, newest first:</p><div class="sr-mli-grid">`;
+    groups.forEach((g, gi) => {
+      const fmt = g[0][0];
+      const id = `mli-${rowIdx}-f${gi}`;
+      h += `<span class="sr-mli-fmt" id="${id}">${ico(ICON[fmt])}${LABEL[fmt]}</span><ul class="sr-mli-list" aria-labelledby="${id}">`;
+      g.forEach(([, date, cat], n) => {
+        const name = `${fmt} ${n + 1} of ${g.length} of ${b.name}${date ? ', ' + date + ',' : ''} on Macaulay Library${NEW_TAB}`;
+        h += `<li><a class="sr-mli-link" href="${esc(assetUrl(cat))}" tabindex="0" target="_blank" rel="noreferrer" title="${esc(date)}" aria-label="${esc(name)}" data-row-link>${n + 1}</a></li>`;
+      });
+      h += `</ul>`;
+    });
+    return h + `</div></div>`;
+  }
+
+  const NEW_TAB = ' (opens in a new tab)';
+
+  /* ── Shared tile pieces (MediaEmbed / NamedBirdMedia / RecentMediaEmbed) ── */
+  function fallbackHtml(fmt, id) {
+    const msg = state.embed === 'offline' ? 'Media unavailable offline' : "Media can't play here right now";
+    return `<div class="sr-fallback">${ico('i-cloudoff')}<span class="msg">${msg}</span>` +
+      `<a class="pill" href="${esc(assetUrl(id))}" tabindex="0" target="_blank" rel="noreferrer" aria-label="View ${fmt} on Macaulay Library (opens in a new tab)">View on Macaulay Library</a></div>`;
+  }
+  function disabledHtml() {
+    return `<div class="sr-media-disabled" role="status"><span class="sr-media-disabled__icon" aria-hidden="true">${ico('i-imageoff')}</span><span>Embedded media is disabled in Settings.</span></div>`;
+  }
+  function assetLink(fmt, id) {
+    return `<a class="sr-ol" href="${esc(assetUrl(id))}" tabindex="0" target="_blank" rel="noreferrer" aria-label="View this ${fmt.toLowerCase()} on the Macaulay Library (ML${esc(id)}) (opens in a new tab)">Macaulay Library</a>`;
+  }
+
+  /* ── Named Birds ────────────────────────────────────────────────────────── */
+  function nbMediaHtml(b) {
+    const total = b.media.length;
+    let h = `<div class="nb-media">`;
+    const shown = Math.min(state.reveal, total);
+    const remaining = total - shown;
+    h += `<div class="sr-action-row nb-media-head"><div class="nb-micro">${ico('i-play')}Media of ${esc(b.name)}</div>` +
+      (remaining > 0 ? `<span class="nb-showing">Showing ${shown} of ${total}</span>` : '') + `</div>`;
+    if (total === 0) {
+      return h + `<p class="nb-empty">No media matched to this bird.</p></div>`;
+    }
+    h += itemsHtml(b, BIRDS.indexOf(b));
+    const disabled = state.embed === 'disabled';
+    if (disabled) h += `<div class="sr-media-frame">${disabledHtml()}</div>`;
+    h += `<div class="${disabled ? 'sr-media-disabled-list' : 'sr-media-grid'}">`;
+    b.media.slice(0, shown).forEach(([fmt, date, id, cl]) => {
+      h += `<div class="sr-media-item">`;
+      if (!disabled) h += `<div class="sr-media-frame">${fallbackHtml(fmt, id)}</div>`;
+      h += `<div class="sr-meta"><span class="fmt">${ico(ICON[fmt])}${fmt}</span><span class="date">${esc(date)}</span>` +
+        `<span class="dot" aria-hidden="true">·</span>${assetLink(fmt, id)}<span class="dot" aria-hidden="true">·</span>${checklist(cl)}</div></div>`;
+    });
+    h += `</div>`;
+    if (remaining > 0) {
+      const n = Math.min(6, remaining);
+      const label = `Show ${n} more (of ${total})`;
+      h += `<div class="nb-more"><button type="button" tabindex="0" data-more aria-label="${esc(label)}: media of ${esc(b.name)}">${ico('i-down')}${esc(label)}</button></div>`;
+    }
+    return h + `</div>`;
+  }
+
+  function nbCardHtml(b) {
+    const open = state.open === b.key;
+    let h = `<div class="nb-card"><button type="button" class="nb-head" tabindex="0" aria-expanded="${open}" data-bird="${b.key}">` +
+      `<span class="nb-chev">${ico(open ? 'i-down' : 'i-right')}</span>` +
+      `<span class="nb-name">${esc(b.name)}</span>` +
+      `<span class="nb-species"><span class="sr-birdname">${esc(b.species)}</span>${marks()}</span>` +
+      `<span class="nb-right"><span class="nb-dates"><span class="range">${esc(b.range)}</span>` +
+      `<span class="dur"><b>${esc(b.dur)}</b> · first to last sighting</span></span>` +
+      `<span class="nb-count">${b.count} sightings</span></span></button>`;
+    if (open) {
+      h += `<div class="nb-body">` +
+        `<div class="nb-range-card"><div class="sr-ctl" role="group" aria-label="Measure every span to, repeated in the open card"><span class="sr-ctl-label">Measure to</span>` +
+        `<div class="sr-wrap-flex"><button type="button" class="sr-pill" aria-pressed="true" tabindex="0">Last sighting</button><button type="button" class="sr-pill" aria-pressed="false" tabindex="0">Today</button></div></div>` +
+        `<p class="sr-nbt-scope">Applies to every named bird on this tab.</p></div>`;
+      b.reports.forEach(r => {
+        h += `<div class="nb-rep"><div class="nb-rep-line"><span class="d">${esc(r.d)}</span><span class="dot" aria-hidden="true">·</span>` +
+          `<span class="loc">${esc(r.loc)}</span><span class="dot" aria-hidden="true">·</span>${checklist(r.cl)}</div>` +
+          (r.c ? `<div class="nb-quote">${esc(r.c)}</div>` : '') + `</div>`;
+      });
+      h += `<div class="mk-elide">Mockup: the timeline, ${b.count - 2} earlier reports, places and the map sit here, unchanged.</div>`;
+      h += nbMediaHtml(b);
+      h += `</div>`;
+    }
+    return h + `</div>`;
+  }
+
+  function renderNB() {
+    document.getElementById('nbList').innerHTML = BIRDS.map(nbCardHtml).join('');
+  }
+
+  /* ── Apply ──────────────────────────────────────────────────────────────── */
+  const frames = [document.getElementById('frameNB')];
+  function sizeTier() {
+    /* The phone tier keys off the frame's real width, so a narrow viewport
+       renders it too, whatever Width says. */
+    frames.forEach(f => f.classList.toggle('is-phone', f.getBoundingClientRect().width <= 640));
+  }
+  function apply() {
+    document.documentElement.setAttribute('data-theme', state.theme);
+    document.documentElement.style.setProperty('--sr-text-scale', String(state.scale));
+    document.body.classList.toggle('mk-flag', state.flag === 'on');
+    frames.forEach(f => { f.style.width = state.width + 'px'; });
+    sizeTier();
+    renderNB();
+  }
+
+  document.querySelectorAll('[data-set]').forEach(b => {
+    b.addEventListener('click', () => {
+      const set = b.dataset.set, val = b.dataset.val;
+      state[set] = set === 'width' || set === 'scale' ? Number(val) : val;
+      b.parentElement.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+      apply();
+    });
+  });
+
+  document.getElementById('nbList').addEventListener('click', e => {
+    const head = e.target.closest('[data-bird]');
+    if (head) {
+      const key = head.dataset.bird;
+      state.open = state.open === key ? null : key;
+      state.reveal = 6;
+      renderNB();
+      const again = document.querySelector(`[data-bird="${key}"]`);
+      if (again) again.focus();
+      return;
+    }
+    if (e.target.closest('[data-more]')) {
+      state.reveal = 99;
+      renderNB();
+    }
+  });
+
+  /* Links in the mockup do not navigate. A row link reports what it would do. */
+  const ro = document.getElementById('readout');
+  function show(a) {
+    document.getElementById('roVis').textContent = a.textContent.trim();
+    document.getElementById('roAria').textContent = a.getAttribute('aria-label');
+    document.getElementById('roUrl').textContent = a.getAttribute('href');
+    ro.hidden = false;
+  }
+  document.addEventListener('click', e => {
+    const a = e.target.closest('.mk-frame a');
+    if (!a) return;
+    e.preventDefault();
+    if (a.hasAttribute('data-row-link')) show(a);
+  });
+  document.addEventListener('mouseover', e => { const a = e.target.closest('[data-row-link]'); if (a) show(a); });
+  document.addEventListener('focusin', e => { const a = e.target.closest('[data-row-link]'); if (a) show(a); });
+  document.getElementById('roClose').addEventListener('click', () => { ro.hidden = true; });
+
+  if (window.ResizeObserver) frames.forEach(f => new ResizeObserver(() => requestAnimationFrame(sizeTier)).observe(f));
+  apply();
+})();
+</script>
+</body>
+</html>

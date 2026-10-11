@@ -4,6 +4,23 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 ---
 
+## Named Birds item links: a named bird's media section opens with one numbered Macaulay Library link per item, because the catalog URL cannot filter to an individual; no Species Detail row, because it would repeat the Media card's count links; and nothing depends on the contributor id -- 2026-10-09 (ml-media-links, v1.0.54)
+
+**Decision: shipped** as 1.0.54 (feature `7c0a4f4f`, release `50984f65`, tag `v1.0.54`, iOS stamp `2a04cd54`) to every platform: Mac (notarized) and Windows with the in-app update, the Android APK on the GitHub release on emulator evidence only by the user's decision (D4), and TestFlight build 1.0.54.1, which passed the user's own device check (D5). App Store: its own record `e4affc7f`, `WAITING_FOR_REVIEW` as `5f4aabb3` (CLAUDE.md's list). F-Droid merge request 51451 was not updated for 1.0.54; that is left to the android-release session.
+
+**Per-item links, not a species-level catalog link (D1).** The brief planned one link per format to `media.ebird.org/catalog`, filtered by contributor, species and format. Macaulay Library's catalog URL has no filter for a named individual (nothing matches the `[name:…]` tag), so such a link from a named bird could only open all of the user's own media of that species, a superset of the bird's gallery. At the mockup review the user chose a compact list of per-item links instead: each number opens that item's `macaulaylibrary.org/asset/<id>` page, the URL its gallery tile already uses, so the list reaches exactly the bird's items, including those behind Show more, and stays usable while Cornell's bot check blocks every player.
+
+**No Species Detail row (D2).** A Recent Media row would have repeated the Media card's count links URL for URL, so the user dropped it as redundant, and Species Detail is unchanged.
+
+**Nothing uses the contributor id.** Each link is built from the item's own catalog number behind the tile's own `^\d+$` gate, so the list does not depend on the export's filename, never falls back to everyone's media, and adds no host, request or permit entry.
+
+**Implications:**
+- A named-individual surface that links to "these items" on Macaulay Library links per item. A catalog search link is a species-level claim and belongs where the species counts are (Multimedia, Statistics, Species Detail's Media card).
+- The card's pre-existing overflow at 320px / 200% text (the "Media of {name}" header with a long spaceless name, the tiles' links at 641px, the sighting rows' checklist links) was measured, is unchanged by this build, and is tracked for its own fix (ROADMAP).
+- Three conventions: a local focus-ring override sits after the global ring block (`.claude/rules/ui.md`); a probe for an element added to an existing section measures what the element adds (`.claude/rules/testing.md`); and the `security.md` glob for a declared scan gates the module holding the scan, a miss that recurred here (CLAUDE.md).
+
+---
+
 ## Android release: F-Droid and a signed GitHub APK, never Google Play; nothing from Google in the build, with the system WebView's own requests carved out by the user; no location controls because a measurement could not clear the position lookup; Android 8.0 because Tauri's Jackson cannot launch below it; no third-party iframe because wry hands every frame the IPC bridge; and the first Android ship made on emulator evidence alone -- 2026-10-05 (android-release, v1.0.53)
 
 **Decision: shipped** as 1.0.53, the first release with an Android leg (release commit `0b13d745`; tag `v1.0.53` on `c4c15a96`, moved once, below; iOS stamp `4f013b44`). Windows Build `37412478274` and Android Build `37412478083` green on the tag's commit; `release.sh` published https://github.com/dtgibson/snowraven/releases/tag/v1.0.53, notarized and stapled, `latest.json` at 1.0.53; the website live at v1.0.53 with Android in its platform list and install cards. `SnowRaven_1.0.53_android_universal.apk` is attached, signer certificate SHA-256 `42a3576e445bda4a994793f2ffa056663113275c9805eb2f6cffdc252375996a`. TestFlight build 1.0.53.1 (delivery `9e69034b`) passed the user's iPhone check; **App Store: `WAITING_FOR_REVIEW` on its own record `ecbac251` (submission `b62a9121`), carrying 1.0.52 by rollup** (CLAUDE.md's list). **F-Droid: merge request open** (https://gitlab.com/fdroid/fdroiddata/-/merge_requests/51451), its pipeline not yet run; `fdroid build -l` built 1.0.53 from source on the Mac from the recipe as committed. The full record is `pipeline/android-release/decisions.md`.
