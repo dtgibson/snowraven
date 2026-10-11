@@ -229,3 +229,18 @@ describe('the Alerts inbox row (ios-alerts design-spec 7.2)', () => {
     expect(none.destinationCount).toBe(ITEMS.length)
   })
 })
+
+describe('no code data gives exactly the rows this function always gave (species-code-search, FR-18)', () => {
+  it('alphaCodes absent and alphaCodes null agree on every query over these fixtures', () => {
+    for (const query of ['', 'a', 'warb', 'calypte', 'stat', 'amro', 'zzzz', '   ']) {
+      for (const cap of [undefined, 1]) {
+        const absent = buildPaletteRows({ items: ITEMS, index: INDEX, query, cap })
+        const none = buildPaletteRows({ items: ITEMS, index: INDEX, query, cap, alphaCodes: null })
+        expect(none, query).toEqual(absent)
+      }
+    }
+    // The pre-change order, stated as values: alphabetical by common name.
+    expect(names(buildPaletteRows({ items: ITEMS, index: [...INDEX].reverse(), query: 'warb', alphaCodes: null })))
+      .toEqual(['Bay-breasted Warbler', 'Warbling Vireo', "Wilson's Warbler"])
+  })
+})

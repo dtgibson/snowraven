@@ -62,6 +62,9 @@ paths:
   - "frontend/src/lib/regionCode.fixture.json"
   - "frontend/src/lib/taxonomyHistory.ts"
   - "frontend/src/lib/taxonomyHistoryAsset.ts"
+  - "frontend/src/lib/speciesMatch.ts"
+  - "frontend/src/lib/paletteRows.ts"
+  - "frontend/src/lib/alphaCodes*.ts"
   - "frontend/src/lib/placeSearch*.ts"
   - "src-tauri/src/widgets.rs"
   - "src-tauri/gen/apple/snowraven_widgets/**"
@@ -147,6 +150,14 @@ the config holds it and the guard holds it to the call sites that load hosts.
 Both are named in the Tauri CSP rule below. The call sites themselves are gated
 by their own rule files (`mapStyle.ts` by `maps.md`, which carries the
 tile-provider line); a host change at any of them turns the guard red.
+
+The `speciesMatch.ts` / `paletteRows.ts` / `alphaCodes*.ts` entries were added
+by species-code-search, in the change that made the shared species matcher rank
+by four-letter code: the matcher (gated nowhere until then, though every species
+picker and Search run typed text through it), Search's row builder, and the join
+of backup names to codes and its lazy loader. Its declared scans are a hash
+lookup of the typed query and one pass over the listed names, with lookups
+keyed by backup names and queries read through `Object.hasOwn` and `Map`.
 
 `src-tauri/capabilities/**` was added at the 1.0.49 closeout, on that build's
 security review: the Tauri CSP rule below names the http plugin's `https://**`

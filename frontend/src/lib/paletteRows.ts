@@ -12,13 +12,15 @@
 // not reachable by the arrow keys (FR-41, QA-40), so putting them in the array
 // that `activeIdx` walks is exactly the mistake to avoid.
 //
-// Off the entry graph. Its only value import is `speciesMatch`, which is also
-// off it; the rest are type imports and are erased.
+// Off the entry graph. Its value imports are `speciesMatch` and `alphaCodes`,
+// both also off it (`alphaCodes` reaches only `speciesUtils`, which is already
+// on it); the rest are type imports and are erased.
 
 import type { Tab } from './tabLayout'
 import type { TabIcon } from './tabIcons'
 import { compareSpeciesName, type SpeciesIndexEntry } from './speciesIndex'
-import { matchesSpeciesQuery, normalizeSpeciesQuery } from './speciesMatch'
+import { matchesSpeciesQuery, normalizeSpeciesQuery, rankSpeciesMatches } from './speciesMatch'
+import { alphaCodeHits, type AlphaCodeTable } from './alphaCodes'
 
 /**
  * A destination, in the shape `App.tsx` already builds for the navigation.
@@ -55,6 +57,10 @@ export interface PaletteRowsInput {
   query: string
   /** The Alerts inbox row, or null/absent where its gate is false. */
   inbox?: { label: string; count: number } | null
+  /** The four-letter code table (species-code-search), or null/absent while it
+   *  has not loaded or after a failed load. Absent or null gives exactly the
+   *  rows this function returned before code search existed. */
+  alphaCodes?: AlphaCodeTable | null
   /** Overridable for tests; production always uses `SPECIES_CAP`. */
   cap?: number
 }
@@ -83,6 +89,12 @@ export interface PaletteRowsResult {
  * sorted, so the ordering guarantee (FR-25, QA-24) is a property of this
  * function over any input rather than of whoever built the index. It uses the
  * same `compareSpeciesName` the index build uses, so the two cannot disagree.
+ *
+ * Species code search (FR-13, FR-14): with the code table loaded, a query that
+ * is a code of a listed bird puts those birds first, each group alphabetical,
+ * through the shared `rankSpeciesMatches`. The cap applies to the RANKED list,
+ * so name matches never push a code match past it; code matches are cut only
+ * when they alone exceed it. Destinations are untouched (FR-15).
  */
 export function buildPaletteRows(input: PaletteRowsInput): PaletteRowsResult {
   const { items, index, query } = input
@@ -103,8 +115,8 @@ export function buildPaletteRows(input: PaletteRowsInput): PaletteRowsResult {
 
   let speciesTruncated = false
   if (q && index) {
-    const matched = index.filter(s => matchesSpeciesQuery(s, q))
-    matched.sort(compareSpeciesName)
+    const hits = alphaCodeHits(input.alphaCodes ?? null, index, q)
+    const matched = rankSpeciesMatches(index, q, hits, matchesSpeciesQuery, compareSpeciesName)
     if (matched.length > cap) {
       speciesTruncated = true
       matched.length = cap

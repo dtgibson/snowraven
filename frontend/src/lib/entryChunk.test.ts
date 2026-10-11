@@ -246,6 +246,33 @@ describe('entry-chunk exclusion (NFR-03 / QA-30)', () => {
     expect(loader).toMatch(/import\(\s*'\.\.\/assets\/ebird-taxonomy-history\.json'\s*\)/)
   })
 
+  // ── Species code search (species-code-search NFR-01 / QA-43). Paired, per
+  // this file's convention: each negative has the positive that makes it live.
+  it('the alpha-code asset and its modules are off the entry graph', () => {
+    expect(has('assets/ebird-alpha-codes.json')).toBe(false)
+    expect(has('lib/alphaCodes.ts')).toBe(false)
+    expect(has('lib/alphaCodesAsset.ts')).toBe(false)
+    expect(has('lib/useAlphaCodes.ts')).toBe(false)
+  })
+
+  it('Search and the shared picker reach the three modules but never the asset statically', () => {
+    for (const root of ['components/CommandPalette.tsx', 'components/SpeciesCombobox.tsx']) {
+      const sub = closureFrom(resolve(SRC, root))
+      expect(hasIn(sub.files, 'assets/ebird-alpha-codes.json'), root).toBe(false)
+      // Guards the guard: without these the negative passes on a build that
+      // never wired codes into either surface.
+      expect(hasIn(sub.files, 'lib/alphaCodes.ts'), root).toBe(true)
+      expect(hasIn(sub.files, 'lib/alphaCodesAsset.ts'), root).toBe(true)
+      expect(hasIn(sub.files, 'lib/useAlphaCodes.ts'), root).toBe(true)
+    }
+  })
+
+  it('the loader names the alpha-code asset exactly once, inside import()', () => {
+    const loader = stripComments(readFileSync(resolve(SRC, 'lib/alphaCodesAsset.ts'), 'utf8'))
+    expect(loader.match(/ebird-alpha-codes\.json/g) ?? []).toHaveLength(1)
+    expect(loader).toMatch(/import\(\s*'\.\.\/assets\/ebird-alpha-codes\.json'\s*\)/)
+  })
+
   // ── First of Year (species-first-of-year, NFR-07 / QA-25). Paired, per this
   // file's convention. Stated as schema.md section 8 asks: SightingsGraph is a
   // STATIC import of Species Detail and carries recharts, so the chart library
@@ -1069,7 +1096,12 @@ describe.skipIf(!existsSync(DIST_INDEX))('dist/index.html modulepreload (post-bu
   const html = existsSync(DIST_INDEX) ? readFileSync(DIST_INDEX, 'utf8') : ''
   it('does not modulepreload the county geometry chunk, completeness code, MapLibre, its worker, or the chart library', () => {
     const preloads = [...html.matchAll(/<link[^>]+rel="modulepreload"[^>]+href="([^"]+)"/g)].map(m => m[1])
-    expect(preloads.some(h => /us-counties|CountyLayer|countyCompleteness|vendor-maplibre|maplibre-gl-worker|vendor-recharts|PlanChart|ebird-taxonomy-history/i.test(h))).toBe(false)
+    expect(preloads.some(h => /us-counties|CountyLayer|countyCompleteness|vendor-maplibre|maplibre-gl-worker|vendor-recharts|PlanChart|ebird-taxonomy-history|ebird-alpha-codes/i.test(h))).toBe(false)
+  })
+
+  it('emits the alpha-code asset as its own lazy chunk (species-code-search, guards the guard above)', () => {
+    const assets = existsSync(DIST_ASSETS) ? readdirSync(DIST_ASSETS) : []
+    expect(assets.filter(name => /^ebird-alpha-codes-[^.]+\.js$/.test(name))).toHaveLength(1)
   })
 
   it('emits the splits-and-lumps history as its own lazy chunk (taxonomic-splits-lumps, guards the guard above)', () => {

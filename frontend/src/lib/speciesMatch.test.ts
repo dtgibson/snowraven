@@ -20,6 +20,8 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { matchesSpeciesQuery, normalizeSpeciesQuery } from './speciesMatch'
+import { highlightOnCodeArrival, rankSpeciesMatches } from './speciesMatch'
+import { compareSpeciesName } from './speciesIndex'
 
 const OPTIONS = [
   { name: 'American Robin', sciName: 'Turdus migratorius' },
@@ -167,5 +169,75 @@ describe('the predicate has exactly one implementation', () => {
     const own = read('./speciesMatch.ts')
     expect(own).not.toContain('new RegExp')
     expect(own).not.toMatch(/\.match\(|\.replace\(|\.search\(/)
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// species-code-search: the ranking rule and FR-25's highlight rule, each
+// defined once in this module (FR-12, FR-13, FR-18, FR-25)
+// ─────────────────────────────────────────────────────────────────────────────
+
+type Row = { name: string; sciName?: string }
+const bySurfaceOrder = compareSpeciesName as unknown as (a: Row, b: Row) => number
+
+describe('rankSpeciesMatches', () => {
+  const ROWS: Row[] = [
+    { name: 'Warbling Vireo', sciName: 'Vireo gilvus' },
+    { name: "Wilson's Warbler", sciName: 'Cardellina pusilla' },
+    { name: 'Bay-breasted Warbler', sciName: 'Setophaga castanea' },
+    { name: 'American Robin', sciName: 'Turdus migratorius' },
+    { name: 'Mystery Bird' },
+  ]
+  const names = (rows: Row[]) => rows.map(r => r.name)
+
+  it('with no hits it IS the old path: filter, then sort when an order is given (FR-18)', () => {
+    for (const q of ['warb', 'a', 'zz', 'vireo']) {
+      const filtered = ROWS.filter(o => matchesSpeciesQuery(o, q))
+      expect(rankSpeciesMatches(ROWS, q, undefined, matchesSpeciesQuery)).toEqual(filtered)
+      expect(rankSpeciesMatches(ROWS, q, new Set(), matchesSpeciesQuery)).toEqual(filtered)
+      const sorted = [...filtered].sort(bySurfaceOrder)
+      expect(rankSpeciesMatches(ROWS, q, undefined, matchesSpeciesQuery, bySurfaceOrder)).toEqual(sorted)
+    }
+  })
+
+  it('puts the code group first, each group in the surface order, every row once (FR-12, FR-13, QA-03)', () => {
+    // American Robin is a code hit AND a name match for "a": listed once, in the code group.
+    const hits = new Set(['American Robin', 'Warbling Vireo'])
+    expect(names(rankSpeciesMatches(ROWS, 'a', hits, matchesSpeciesQuery)))
+      .toEqual(['Warbling Vireo', 'American Robin', "Wilson's Warbler", 'Bay-breasted Warbler'])
+    expect(names(rankSpeciesMatches(ROWS, 'a', hits, matchesSpeciesQuery, bySurfaceOrder)))
+      .toEqual(['American Robin', 'Warbling Vireo', 'Bay-breasted Warbler', "Wilson's Warbler"])
+  })
+
+  it('a code row is listed though its name lacks the query, and is never tested by name', () => {
+    const tested: string[] = []
+    const spy = (o: Row, q: string) => { tested.push(o.name); return matchesSpeciesQuery(o, q) }
+    expect(names(rankSpeciesMatches(ROWS, 'amro', new Set(['American Robin']), spy))).toEqual(['American Robin'])
+    expect(tested).not.toContain('American Robin')
+    expect(tested).toHaveLength(ROWS.length - 1)
+  })
+})
+
+describe('highlightOnCodeArrival (FR-25, OQ-03)', () => {
+  const BEFORE = ['Northern Yellow Warbler']
+  const AFTER = ['Yellow-rumped Warbler', 'Northern Yellow Warbler']
+
+  it('nothing highlighted stays nothing highlighted', () => {
+    expect(highlightOnCodeArrival(-1, 0, BEFORE, AFTER)).toBe(-1)
+  })
+
+  it('a destination, inbox or All species highlight is kept', () => {
+    expect(highlightOnCodeArrival(1, 3, BEFORE, AFTER)).toBe(1)
+    expect(highlightOnCodeArrival(0, 1, BEFORE, AFTER)).toBe(0)
+  })
+
+  it('a species highlight is cleared when the rows changed, so it never moves to another bird', () => {
+    expect(highlightOnCodeArrival(0, 0, BEFORE, AFTER)).toBe(-1)
+    expect(highlightOnCodeArrival(1, 1, BEFORE, AFTER)).toBe(-1)
+  })
+
+  it('a species highlight is kept when the rows are unchanged element by element', () => {
+    expect(highlightOnCodeArrival(0, 0, AFTER, [...AFTER])).toBe(0)
+    expect(highlightOnCodeArrival(0, 0, AFTER, [...AFTER].reverse())).toBe(-1)
   })
 })

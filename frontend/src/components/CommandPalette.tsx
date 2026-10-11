@@ -43,6 +43,15 @@
 //    returns before touching the event, leaving every other Escape layer in the
 //    app exactly as it shipped (FR-49, FR-50).
 //
+// ── SPECIES CODES (species-code-search). Typing a bird's four-letter code puts
+//    the birds carrying it first among species, the rest following
+//    alphabetically, through `buildPaletteRows` and the shared ranking rule in
+//    lib/speciesMatch.ts. Opening Search starts the one lazy load of the code
+//    data (lib/alphaCodesAsset.ts) and never waits for it: destinations and
+//    name matches render at once, and the species rows re-rank for the query
+//    already typed when it lands. A failed load leaves name matching exactly as
+//    it was, with no new message. Rows look exactly as before.
+//
 // ── `<BirdName>` IS DELIBERATELY NOT RENDERED IN THE ROWS (FR-27). It composes
 //    a button and two anchors, which would nest interactive controls inside
 //    `role="option"` and add tab stops inside the overlay -- the standing
@@ -60,11 +69,15 @@ import { useFocusTrap } from '../lib/useFocusTrap'
 import { storage } from '../lib/storage'
 import { loadEbirdObservations } from '../lib/observationsCache'
 import { speciesIndexFor } from '../lib/speciesIndex'
+import { highlightOnCodeArrival } from '../lib/speciesMatch'
+import { loadAlphaCodes } from '../lib/alphaCodesAsset'
+import { useAlphaCodes } from '../lib/useAlphaCodes'
 import {
   buildPaletteRows,
   SPECIES_CAP,
   type PaletteNavItem,
   type PaletteRow,
+  type PaletteRowsResult,
 } from '../lib/paletteRows'
 import {
   PALETTE_SPECIES_SUPERSEDED,
@@ -136,6 +149,12 @@ export function CommandPalette({ items, onSelectTab, onOpenSpecies, onClose, onO
   // every open because this component mounts fresh each time.
   useEffect(() => { inputRef.current?.focus() }, [])
 
+  // Species codes (FR-24): this component mounts fresh on every open, so this
+  // starts the code data's one lazy load on the first Search open of a session
+  // and is a settled-promise check on every open after it. Never awaited.
+  useEffect(() => { void loadAlphaCodes() }, [])
+  const alphaCodes = useAlphaCodes()
+
   // ── The species half ──────────────────────────────────────────────────────
   //
   // FR-31: the effect carries `useFilesEpoch()` in its deps, so replacing or
@@ -187,16 +206,36 @@ export function CommandPalette({ items, onSelectTab, onOpenSpecies, onClose, onO
   // ── The rows ──────────────────────────────────────────────────────────────
 
   const index = Array.isArray(species) ? species : null
-  const { rows, destinationCount, speciesTruncated } = useMemo(
-    () => buildPaletteRows({ items, index, query, inbox }),
-    [items, index, query, inbox],
+  const current = useMemo(
+    () => buildPaletteRows({ items, index, query, inbox, alphaCodes }),
+    [items, index, query, inbox, alphaCodes],
   )
+  const { rows, destinationCount, speciesTruncated } = current
   const speciesCount = rows.length - destinationCount
 
   // Clamped rather than trusted: `rows` shrinks as the user types and grows when
   // the index lands mid-session, and an index left pointing past the end would
   // make `aria-activedescendant` name an element that is not there.
   const active = activeIdx >= 0 && activeIdx < rows.length ? activeIdx : -1
+
+  // FR-25, adjusted DURING RENDER for the same reason `statusSeq` below is: an
+  // effect would let one commit show the highlight, and
+  // `aria-activedescendant`, on a different bird before clearing it. When the
+  // code data arrives, a highlighted species row is cleared only if the species
+  // rows changed; a highlighted destination or inbox row keeps its highlight.
+  // The rule is `highlightOnCodeArrival`; the extra row build runs once per
+  // session per open Search.
+  const [alphaSeen, setAlphaSeen] = useState(alphaCodes)
+  if (alphaSeen !== alphaCodes) {
+    setAlphaSeen(alphaCodes)
+    const before = buildPaletteRows({ items, index, query, inbox, alphaCodes: alphaSeen })
+    const next = highlightOnCodeArrival(
+      active, destinationCount, speciesRowNames(before), speciesRowNames(current),
+    )
+    // Against the raw index, so a stale one the clamp is hiding is cleared too
+    // rather than left to point at a row the arrival may have added.
+    if (next !== activeIdx) setActiveIdx(next)
+  }
 
   useEffect(() => {
     if (active < 0) return
@@ -425,6 +464,11 @@ export function CommandPalette({ items, onSelectTab, onOpenSpecies, onClose, onO
       </div>
     </div>
   )
+}
+
+/** The species rows' names, in order: what FR-25 compares across the code data's arrival. */
+function speciesRowNames(r: PaletteRowsResult): string[] {
+  return r.rows.slice(r.destinationCount).map(row => (row.kind === 'species' ? row.name : ''))
 }
 
 /** A React key that is unique across both groups without leaning on the index. */

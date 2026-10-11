@@ -1,0 +1,1039 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Species Code Search</title>
+<meta name="description" content="SnowRaven design review: what Search and the species pickers list when you type a bird's eBird code, ranked with the code birds first.">
+<style>
+/* ===================================================================
+   TOKENS
+   --sr-*  the app's own tokens, copied from frontend/src/globals.css
+           (both themes). The replicas use nothing else.
+   --rv-*  this review page's chrome only, kept visibly apart from the
+           app so a note is never mistaken for app UI.
+   =================================================================== */
+:root {
+  --sr-text-scale: 1;
+  --sr-bg: #F9FAFB;
+  --sr-surface: #FFFFFF;
+  --sr-surface-subtle: #F4F4F5;
+  --sr-surface-faint: #FAFAFA;
+  --sr-text: #0F1117;
+  --sr-text-muted: #6B6B74;
+  --sr-text-gray: #6B7280;
+  --sr-border: #E4E4E7;
+  --sr-border-subtle: #F4F4F5;
+  --sr-border-medium: #C4C4CE;
+  --sr-border-input: #8A8A91;
+  --sr-accent: #277448;
+  --sr-accent-strong: #1A5C38;
+  --sr-accent-bg: #E8F5EE;
+  --sr-accent-bg-hover: #F0FAF4;
+  --sr-accent-ring: rgba(45, 134, 83, 0.12);
+  --sr-gray-400: #8E8E96;
+  --sr-switch-thumb: #FFFFFF;
+  --sr-switch-thumb-shadow: 0 1px 2px rgba(15, 17, 23, 0.25);
+  --sr-scrim: rgba(15, 17, 23, 0.36);
+  --sr-card-shadow: 0 1px 4px rgba(15, 17, 23, 0.06), 0 4px 16px rgba(15, 17, 23, 0.04);
+  --sr-list-shadow: 0 8px 24px rgba(15, 17, 23, 0.1);
+  --font-sans: 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
+
+  --rv-paper: #EDEFEA;
+  --rv-paper-deep: #E2E6DE;
+  --rv-dot: rgba(39, 64, 48, 0.09);
+  --rv-sheet: #F8F9F6;
+  --rv-ink: #161A18;
+  --rv-ink-muted: #545B57;
+  --rv-rule: #CDD3CB;
+  --rv-mark: #9A4F06;
+  --rv-mark-bg: rgba(217, 119, 6, 0.13);
+  --rv-mark-line: rgba(154, 79, 6, 0.45);
+  --rv-shadow: 0 1px 2px rgba(22, 26, 24, 0.06), 0 12px 32px -12px rgba(22, 26, 24, 0.22);
+  --rv-display: "Iowan Old Style", "Palatino Linotype", Palatino, Charter, "Book Antiqua", Georgia, serif;
+  --rv-sans: "Avenir Next", Avenir, "Segoe UI Variable Text", "Helvetica Neue", Helvetica, sans-serif;
+  --rv-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --sr-bg: #09090B; --sr-surface: #18181B; --sr-surface-subtle: #27272A; --sr-surface-faint: #1C1C1F;
+    --sr-text: #F4F4F5; --sr-text-muted: #A1A1AA; --sr-text-gray: #8A8A92;
+    --sr-border: #27272A; --sr-border-subtle: #1F1F23; --sr-border-medium: #3F3F46; --sr-border-input: #707078;
+    --sr-accent: #34D399; --sr-accent-strong: #34D399; --sr-accent-bg: #052E16; --sr-accent-bg-hover: #064E3B;
+    --sr-accent-ring: rgba(52, 211, 153, 0.16);
+    --sr-gray-400: #6E6E78; --sr-switch-thumb: #FFFFFF;
+    --sr-scrim: rgba(9, 9, 11, 0.6);
+    --sr-card-shadow: 0 1px 4px rgba(9, 9, 11, 0.4), 0 4px 16px rgba(9, 9, 11, 0.25);
+    --sr-list-shadow: 0 8px 24px rgba(9, 9, 11, 0.45);
+    --rv-paper: #0D100F; --rv-paper-deep: #131715; --rv-dot: rgba(200, 230, 210, 0.05); --rv-sheet: #121614;
+    --rv-ink: #E9EDE8; --rv-ink-muted: #A0A9A3; --rv-rule: #2A312D;
+    --rv-mark: #F2B45A; --rv-mark-bg: rgba(242, 180, 90, 0.12); --rv-mark-line: rgba(242, 180, 90, 0.4);
+    --rv-shadow: 0 1px 2px rgba(0, 3, 2, 0.5), 0 12px 32px -12px rgba(0, 3, 2, 0.7);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --sr-bg: #09090B; --sr-surface: #18181B; --sr-surface-subtle: #27272A; --sr-surface-faint: #1C1C1F;
+  --sr-text: #F4F4F5; --sr-text-muted: #A1A1AA; --sr-text-gray: #8A8A92;
+  --sr-border: #27272A; --sr-border-subtle: #1F1F23; --sr-border-medium: #3F3F46; --sr-border-input: #707078;
+  --sr-accent: #34D399; --sr-accent-strong: #34D399; --sr-accent-bg: #052E16; --sr-accent-bg-hover: #064E3B;
+  --sr-accent-ring: rgba(52, 211, 153, 0.16);
+  --sr-gray-400: #6E6E78; --sr-switch-thumb: #FFFFFF;
+  --sr-scrim: rgba(9, 9, 11, 0.6);
+  --sr-card-shadow: 0 1px 4px rgba(9, 9, 11, 0.4), 0 4px 16px rgba(9, 9, 11, 0.25);
+  --sr-list-shadow: 0 8px 24px rgba(9, 9, 11, 0.45);
+  --rv-paper: #0D100F; --rv-paper-deep: #131715; --rv-dot: rgba(200, 230, 210, 0.05); --rv-sheet: #121614;
+  --rv-ink: #E9EDE8; --rv-ink-muted: #A0A9A3; --rv-rule: #2A312D;
+  --rv-mark: #F2B45A; --rv-mark-bg: rgba(242, 180, 90, 0.12); --rv-mark-line: rgba(242, 180, 90, 0.4);
+  --rv-shadow: 0 1px 2px rgba(0, 3, 2, 0.5), 0 12px 32px -12px rgba(0, 3, 2, 0.7);
+  color-scheme: dark;
+}
+
+/* The app's in-app text scale reaches the replicas only: inside a frame every app
+   rem is written calc(n * var(--r)), and --r is the app's root size at that scale. */
+html { -webkit-text-size-adjust: 100%; }
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  margin: 0; min-height: 100vh;
+  font-family: var(--rv-sans); font-size: 0.9375rem; line-height: 1.55; color: var(--rv-ink);
+  background-color: var(--rv-paper);
+  background-image:
+    radial-gradient(120% 60% at 15% -10%, var(--rv-paper-deep) 0%, transparent 60%),
+    radial-gradient(circle at 1px 1px, var(--rv-dot) 1px, transparent 1.2px);
+  background-size: auto, 22px 22px;
+  -webkit-font-smoothing: antialiased;
+}
+button { font: inherit; color: inherit; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+
+/* ===================================================================
+   REVIEW CHROME
+   =================================================================== */
+.rv-top {
+  position: sticky; top: 0; z-index: 50;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px 20px;
+  padding: 10px 24px;
+  background: color-mix(in srgb, var(--rv-paper) 88%, transparent);
+  backdrop-filter: saturate(1.2) blur(8px); -webkit-backdrop-filter: saturate(1.2) blur(8px);
+  border-bottom: 1px solid var(--rv-rule);
+}
+.rv-brand { display: flex; align-items: baseline; gap: 10px; margin-right: auto; }
+.rv-brand b { font-family: var(--rv-display); font-size: 1.0625rem; font-weight: 600; letter-spacing: -0.005em; }
+.rv-brand span { font-size: 0.75rem; color: var(--rv-ink-muted); letter-spacing: 0.02em; }
+.rv-toggles { display: flex; flex-wrap: wrap; gap: 8px 14px; }
+.rv-toggle { display: inline-flex; align-items: center; gap: 7px; }
+.rv-toggle-label { font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--rv-ink-muted); }
+.rv-seg { display: inline-flex; padding: 2px; border-radius: 8px; background: var(--rv-paper-deep); border: 1px solid var(--rv-rule); }
+.rv-seg button {
+  border: 0; background: none; cursor: pointer;
+  padding: 3px 9px; border-radius: 6px; min-height: 26px;
+  font-size: 0.75rem; font-weight: 600; color: var(--rv-ink-muted);
+  transition: background-color 120ms ease-out, color 120ms ease-out;
+}
+.rv-seg button:hover { color: var(--rv-ink); }
+.rv-seg button[aria-pressed="true"] { background: var(--rv-sheet); color: var(--rv-ink); box-shadow: 0 1px 2px rgba(22, 26, 24, 0.12); }
+.rv-seg button:focus-visible, .rv-chip:focus-visible { outline: 2px solid var(--rv-mark); outline-offset: 2px; }
+
+.rv-main { max-width: 1240px; margin: 0 auto; padding: 36px 24px 72px; }
+.rv-intro { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 20px 48px; align-items: end; margin-bottom: 28px; }
+.rv-eyebrow { margin: 0 0 10px; font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--rv-mark); }
+.rv-intro h1 {
+  margin: 0; font-family: var(--rv-display); font-weight: 600;
+  font-size: 2.5rem; line-height: 1.06; letter-spacing: -0.02em; text-wrap: balance;
+}
+.rv-lede { margin: 0; font-size: 0.9375rem; color: var(--rv-ink-muted); max-width: 34rem; }
+.rv-lede strong { color: var(--rv-ink); font-weight: 600; }
+
+/* The two decisions, set as the page's focal block. */
+.rv-decided {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0;
+  margin-bottom: 22px; border-radius: 0 10px 10px 0;
+  border-left: 3px solid var(--rv-mark); background: var(--rv-mark-bg);
+}
+.rv-decided > div { padding: 16px 20px; }
+.rv-decided > div + div { border-left: 1px solid var(--rv-mark-line); }
+.rv-decided p { margin: 0; font-size: 0.875rem; color: var(--rv-ink-muted); }
+.rv-decided .rv-decided-k { font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--rv-mark); margin-bottom: 2px; }
+.rv-decided .rv-decided-h { font-family: var(--rv-display); font-size: 1.25rem; line-height: 1.3; font-weight: 600; color: var(--rv-ink); margin-bottom: 4px; }
+.rv-code { font-family: var(--rv-mono); font-size: 0.86em; letter-spacing: 0.01em; padding: 0 0.25em; border-radius: 4px; background: var(--rv-paper-deep); color: var(--rv-ink); white-space: nowrap; }
+
+.rv-bar { display: grid; gap: 12px; margin-bottom: 18px; }
+.rv-chips { display: grid; grid-template-columns: repeat(3, minmax(0, auto)); justify-content: start; gap: 10px 28px; }
+.rv-chip-group { display: flex; flex-wrap: wrap; align-items: center; align-content: flex-start; gap: 6px; }
+.rv-chip-group > span { width: 100%; font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--rv-ink-muted); }
+.rv-chip {
+  font-family: var(--rv-mono); font-size: 0.8125rem; font-weight: 500;
+  padding: 4px 10px; min-height: 30px; border-radius: 7px; cursor: pointer;
+  border: 1px solid var(--rv-rule); background: var(--rv-sheet); color: var(--rv-ink);
+  transition: background-color 120ms ease-out, border-color 120ms ease-out, transform 120ms ease-out;
+}
+.rv-chip:hover { border-color: var(--rv-ink-muted); }
+.rv-chip:active { transform: translateY(1px); }
+.rv-chip[aria-pressed="true"] { background: var(--rv-ink); border-color: var(--rv-ink); color: var(--rv-paper); }
+.rv-chip--key { border-color: var(--rv-mark-line); }
+
+/* The stage: one live replica set, one query. Search on the left, the two
+   pickers stacked on the right; in phone windows, three phones in a row. */
+.rv-stage {
+  display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  grid-template-areas: "search sd" "search cal"; gap: 18px 20px; align-items: start;
+}
+.rv-slot { min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.rv-slot--search { grid-area: search; align-self: stretch; }
+.rv-slot--sd { grid-area: sd; }
+.rv-slot--cal { grid-area: cal; }
+.rv-slot-label { margin: 0; font-size: 0.8125rem; font-weight: 600; color: var(--rv-ink); }
+.rv-slot-label small { font-size: 0.75rem; font-weight: 500; color: var(--rv-ink-muted); margin-left: 6px; }
+[data-window="phone"] .rv-stage { grid-template-columns: repeat(auto-fit, minmax(min(332px, 100%), 1fr)); grid-template-areas: none; }
+[data-window="phone"] .rv-slot { grid-area: auto; align-self: start; }
+
+/* The window a replica lives in. Not app UI: a stand-in for the screen. */
+.rv-frame-wrap { display: flex; justify-content: center; }
+.rv-slot--search .rv-frame-wrap { flex: 1; }
+.rv-frame {
+  position: relative; width: 100%; overflow: hidden;
+  border-radius: 12px; border: 1px solid var(--rv-rule);
+  background: var(--sr-bg); box-shadow: var(--rv-shadow);
+  --r: calc(16px * var(--sr-text-scale, 1));
+  font-family: var(--font-sans); font-size: var(--r); line-height: 1.5; color: var(--sr-text);
+}
+.rv-slot--search .rv-frame { min-height: 600px; }
+.rv-slot--sd .rv-frame { height: 450px; }
+.rv-slot--cal .rv-frame { height: 400px; }
+[data-window="phone"] .rv-frame { box-sizing: content-box; width: 320px; max-width: calc(100% - 12px); height: 600px; min-height: 0; border-radius: 22px; border-width: 6px; border-color: var(--rv-ink); }
+
+/* Notes under the replicas: the review's voice, never the app's. */
+.rv-notes {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 6px 28px; align-content: start;
+  margin-top: 16px; padding: 14px 16px; border-radius: 10px;
+  background: var(--rv-sheet); border: 1px dashed var(--rv-mark-line);
+  font-size: 0.8125rem; color: var(--rv-ink-muted);
+}
+.rv-notes p { margin: 0; }
+.rv-notes-enter, .rv-notes-why { display: grid; gap: 6px; align-content: start; }
+.rv-enter { color: var(--rv-ink); font-size: 0.875rem; }
+.rv-enter strong { font-weight: 650; }
+.rv-enter-where { display: inline-block; min-width: 7.5em; font-size: 0.75rem; font-weight: 600; color: var(--rv-ink-muted); }
+.rv-enter .rv-k { display: inline-grid; place-items: center; min-width: 1.4em; height: 1.35em; padding: 0 4px; margin-right: 6px; border: 1px solid var(--rv-rule); border-radius: 4px; font-family: var(--rv-mono); font-size: 0.75rem; background: var(--rv-paper-deep); color: var(--rv-ink); vertical-align: 1px; }
+.rv-tag { font-family: var(--rv-mono); font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.04em; padding: 1px 6px; border-radius: 4px; background: var(--rv-mark-bg); color: var(--rv-mark); }
+.rv-today { color: var(--rv-ink-muted); }
+.rv-flash { color: var(--rv-mark); font-weight: 600; animation: rv-flash-in 180ms ease-out; }
+@keyframes rv-flash-in { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: none; } }
+
+/* The four-letter table. */
+.rv-section { margin-top: 44px; }
+.rv-section h3 { margin: 0 0 4px; font-family: var(--rv-display); font-size: 1.375rem; font-weight: 600; letter-spacing: -0.01em; }
+.rv-section > p { margin: 0 0 14px; font-size: 0.875rem; color: var(--rv-ink-muted); max-width: 46rem; }
+.rv-table-wrap { overflow-x: auto; border: 1px solid var(--rv-rule); border-radius: 12px; background: var(--rv-sheet); box-shadow: var(--rv-shadow); }
+.rv-table { width: 100%; border-collapse: collapse; font-size: 0.8125rem; min-width: 640px; }
+.rv-table th, .rv-table td { text-align: left; padding: 9px 14px; border-bottom: 1px solid var(--rv-rule); vertical-align: top; }
+.rv-table thead th { font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--rv-ink-muted); background: var(--rv-paper-deep); }
+.rv-table tbody tr:last-child td { border-bottom: 0; }
+.rv-table tbody tr.rv-row-split td { border-top: 2px solid var(--rv-rule); }
+.rv-table td:first-child { font-family: var(--rv-mono); font-weight: 600; color: var(--rv-ink); white-space: nowrap; }
+.rv-table .rv-same { color: var(--rv-ink-muted); }
+.rv-table .rv-diff { color: var(--rv-ink); font-weight: 600; }
+.rv-table .rv-diff::before { content: ""; display: inline-block; width: 7px; height: 7px; margin-right: 7px; border-radius: 50%; background: var(--rv-mark); vertical-align: 1px; }
+.rv-table td small { display: block; font-weight: 400; color: var(--rv-ink-muted); }
+.rv-table tbody tr { cursor: pointer; transition: background-color 120ms ease-out; }
+.rv-table tbody tr:hover { background: var(--rv-mark-bg); }
+.rv-table tbody tr:focus-visible { outline: 2px solid var(--rv-mark); outline-offset: -2px; }
+
+.rv-foot { margin-top: 44px; padding-top: 16px; border-top: 1px solid var(--rv-rule); font-size: 0.8125rem; color: var(--rv-ink-muted); display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 40px; }
+.rv-foot p { margin: 0; }
+
+/* ===================================================================
+   THE APP SHELL behind the Search scrim (decorative, aria-hidden)
+   =================================================================== */
+.sh { position: absolute; inset: 0; display: flex; background: var(--sr-bg); }
+.sh-rail { width: calc(3.75 * var(--r)); flex: none; border-right: 1px solid var(--sr-border); background: var(--sr-surface); display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 16px 0; color: var(--sr-text-muted); }
+.sh-rail svg { opacity: 0.85; }
+.sh-rail .sh-on { color: var(--sr-accent); }
+.sh-body { flex: 1; min-width: 0; padding: 20px 22px; display: flex; flex-direction: column; gap: 14px; }
+.sh-title { font-size: calc(1.125 * var(--r)); font-weight: 700; letter-spacing: -0.01em; }
+.sh-card { border: 1px solid var(--sr-border); background: var(--sr-surface); border-radius: 12px; box-shadow: var(--sr-card-shadow); padding: 16px; display: grid; gap: 10px; }
+.sh-line { height: 10px; border-radius: 5px; background: var(--sr-surface-subtle); }
+[data-window="phone"] .sh-rail { display: none; }
+
+/* ===================================================================
+   SEARCH: the shipped .sr-palette-* rules, verbatim where they matter.
+   The overlay is absolute inside the frame instead of fixed.
+   =================================================================== */
+.sr-palette-root {
+  position: absolute; inset: 0; z-index: 2;
+  background: var(--sr-scrim);
+  display: flex; align-items: flex-start; justify-content: center;
+  padding: 56px 16px 16px;
+}
+.sr-palette-panel {
+  display: flex; flex-direction: column;
+  width: min(100%, calc(36 * var(--r)));
+  max-height: min(calc(34 * var(--r)), 100%);
+  background: var(--sr-surface); color: var(--sr-text);
+  border: 1px solid var(--sr-border); border-radius: 14px;
+  box-shadow: var(--sr-card-shadow);
+  overflow: hidden;
+  transform-origin: top center;
+  animation: sr-palette-in 140ms cubic-bezier(0.2, 0, 0, 1);
+}
+@keyframes sr-palette-in { from { opacity: 0; transform: scaleY(0.98); } to { opacity: 1; transform: scaleY(1); } }
+.sr-palette-head { display: flex; align-items: center; gap: 8px; padding: 12px; flex-shrink: 0; border-bottom: 1px solid var(--sr-border-subtle); }
+.sr-palette-field { position: relative; flex: 1; min-width: 0; display: flex; }
+.sr-palette-field > svg { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--sr-text-muted); pointer-events: none; }
+.sr-palette-input {
+  width: 100%; height: calc(2.5 * var(--r)); min-width: 0;
+  padding: 0 12px 0 34px;
+  border: 1.5px solid var(--sr-border-input); border-radius: 8px;
+  background: var(--sr-surface); color: var(--sr-text);
+  font-family: inherit; font-size: calc(1 * var(--r)); font-weight: 500;
+  transition: border-color 120ms ease-out;
+}
+.sr-palette-input::placeholder { color: var(--sr-text-muted); font-weight: 400; }
+.rv-frame input:focus-visible { outline: 2px solid var(--sr-accent); outline-offset: 0; border-color: var(--sr-accent) !important; box-shadow: 0 0 0 4px var(--sr-accent-ring); }
+.rv-frame input:focus { outline: 2px solid var(--sr-accent); outline-offset: 0; border-color: var(--sr-accent) !important; }
+.sr-palette-close {
+  flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;
+  width: calc(2.5 * var(--r)); height: calc(2.5 * var(--r)); padding: 0; border: 0; border-radius: 8px; background: none;
+  color: var(--sr-text-muted); cursor: pointer;
+  transition: background-color 120ms ease-out, color 120ms ease-out;
+}
+.sr-palette-close:hover { background: var(--sr-surface-subtle); color: var(--sr-text); }
+.sr-palette-results { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding-bottom: 4px; }
+.sr-palette-group { padding: 11px 14px 5px; font-size: calc(0.6875 * var(--r)); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--sr-text-muted); }
+.sr-palette-results > [role="listbox"] > [role="group"]:first-child > .sr-palette-group { padding-top: 8px; }
+.sr-palette-row { display: flex; align-items: center; gap: 10px; min-height: calc(2.25 * var(--r)); padding: 9px 14px; cursor: pointer; color: var(--sr-text-muted); transition: background-color 120ms ease-out; }
+.sr-palette-row:hover { background: var(--sr-surface-subtle); }
+.sr-palette-row--active { background: var(--sr-accent-bg-hover); outline: 2px solid var(--sr-accent); outline-offset: -2px; transition: none; }
+.sr-palette-row--active .sr-palette-row-icon { color: var(--sr-accent); }
+.sr-palette-row-icon { flex-shrink: 0; display: flex; color: var(--sr-text-muted); }
+.sr-palette-row-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: calc(0.875 * var(--r)); font-weight: 500; color: var(--sr-text); }
+.sr-palette-row-sci { flex: 0 1 auto; max-width: 40%; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: right; font-size: calc(0.71875 * var(--r)); font-style: italic; color: var(--sr-text-muted); }
+.sr-palette-note { margin: 4px 14px 0; padding: 9px 0 4px; border-top: 1px solid var(--sr-border-subtle); font-size: calc(0.75 * var(--r)); line-height: 1.5; color: var(--sr-text-muted); }
+.sr-palette-status-line { display: flex; align-items: flex-start; gap: 8px; padding: 10px 14px 12px; font-size: calc(0.8125 * var(--r)); line-height: 1.55; color: var(--sr-text-muted); overflow-wrap: anywhere; }
+.sr-palette-foot { flex-shrink: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; padding: 8px 14px; background: var(--sr-surface-faint); border-top: 1px solid var(--sr-border-subtle); font-size: calc(0.6875 * var(--r)); color: var(--sr-text-muted); }
+.sr-palette-legend { display: inline-flex; align-items: center; gap: 5px; }
+.sr-palette-kbd { display: inline-flex; align-items: center; justify-content: center; min-width: calc(1.25 * var(--r)); height: calc(1.125 * var(--r)); padding: 0 4px; border: 1px solid var(--sr-border-medium); border-radius: 4px; background: var(--sr-surface-subtle); color: var(--sr-text-muted); font-family: inherit; font-size: calc(0.625 * var(--r)); font-weight: 700; line-height: 1; }
+/* Phone tier (the shipped <=640px block), keyed on the frame instead of the viewport. */
+[data-window="phone"] .sr-palette-root { padding: 0; align-items: stretch; animation: none; }
+[data-window="phone"] .sr-palette-panel { width: 100%; height: 100%; max-height: 100%; border: 0; border-radius: 0; }
+[data-window="phone"] .sr-palette-head { padding: 10px 12px; }
+[data-window="phone"] .sr-palette-row { min-height: calc(2.75 * var(--r)); }
+[data-window="phone"] .sr-palette-close { width: calc(2.75 * var(--r)); height: calc(2.75 * var(--r)); }
+[data-window="phone"] .sr-palette-foot { display: none; }
+[data-window="phone"] .sr-palette-input { font-size: max(calc(1 * var(--r)), 16px); }
+
+/* ===================================================================
+   SPECIES PICKERS: the shipped SpeciesCombobox, its inline styles
+   lifted to classes here with the same values.
+   =================================================================== */
+.pg { position: absolute; inset: 0; overflow: hidden; padding: 20px 22px; display: flex; flex-direction: column; gap: 0; background: var(--sr-bg); }
+[data-window="phone"] .pg { padding: 16px; }
+.pg-title { font-size: calc(1.125 * var(--r)); font-weight: 700; letter-spacing: -0.01em; margin: 0 0 12px; }
+.pg-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 14px; }
+.pg-count { margin-left: auto; font-size: calc(0.75 * var(--r)); color: var(--sr-text-muted); }
+.sw { display: inline-flex; align-items: center; gap: 7px; height: 30px; padding: 0 10px 0 8px; border-radius: 6px; border: 1.5px solid var(--sr-border); background: var(--sr-surface); font-size: calc(0.75 * var(--r)); font-weight: 500; color: var(--sr-text-muted); white-space: nowrap; }
+.sw-track { width: 28px; height: 16px; border-radius: 8px; position: relative; background: var(--sr-gray-400); flex: none; }
+.sw-knob { width: 12px; height: 12px; border-radius: 50%; background: var(--sr-switch-thumb); position: absolute; top: 2px; left: 2px; box-shadow: var(--sr-switch-thumb-shadow); }
+.pg-hero { margin-top: 16px; border: 1px solid var(--sr-border); background: var(--sr-surface); border-radius: 12px; box-shadow: var(--sr-card-shadow); padding: 18px; display: grid; gap: 10px; }
+.pg-hero-name { font-size: calc(1.375 * var(--r)); font-weight: 700; letter-spacing: -0.015em; }
+.pg-hero-sci { font-size: calc(0.8125 * var(--r)); font-style: italic; color: var(--sr-text-gray); margin-top: -6px; }
+.cal-strip { display: flex; flex-wrap: wrap; align-items: center; gap: 16px 14px; padding: 12px 16px; background: var(--sr-surface-faint); border: 1px solid var(--sr-border-subtle); border-radius: 10px; margin-bottom: 18px; }
+.cal-label { font-size: calc(0.6875 * var(--r)); font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--sr-text-muted); }
+.cal-seg { display: inline-flex; border: 1.5px solid var(--sr-border); border-radius: 6px; overflow: hidden; background: var(--sr-surface); }
+.cal-seg span { padding: 0 10px; height: 27px; display: inline-flex; align-items: center; font-size: calc(0.75 * var(--r)); font-weight: 500; color: var(--sr-text-muted); }
+.cal-seg span + span { border-left: 1px solid var(--sr-border); }
+.cal-seg .on { background: var(--sr-accent-bg); color: var(--sr-accent); font-weight: 600; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; max-width: 280px; opacity: 0.9; }
+.cal-grid i { aspect-ratio: 1; border-radius: 4px; background: var(--sr-surface-subtle); }
+.cal-grid i.d1 { background: color-mix(in srgb, var(--sr-accent) 22%, var(--sr-surface)); }
+.cal-grid i.d2 { background: color-mix(in srgb, var(--sr-accent) 45%, var(--sr-surface)); }
+
+.cb { position: relative; min-width: 0; z-index: 20; }
+.cb--sm { max-width: 220px; flex: 1 1 180px; }
+.cb-field { position: relative; }
+.cb-icon { position: absolute; top: 50%; transform: translateY(-50%); color: var(--sr-text-muted); pointer-events: none; display: flex; }
+.cb-input {
+  width: 100%; border: 1.5px solid var(--sr-border-input); color: var(--sr-text); background: var(--sr-surface);
+  font-family: inherit; font-weight: 400; min-width: 0; transition: border-color 0.15s;
+}
+.cb--md .cb-input { height: 40px; padding: 0 34px 0 38px; border-radius: 8px; font-size: calc(0.875 * var(--r)); }
+.cb--sm .cb-input { height: 30px; padding: 0 34px 0 28px; border-radius: 8px; font-size: calc(0.75 * var(--r)); }
+[data-window="phone"] .cb-input { font-size: max(16px, calc(1 * var(--r))); }
+.cb--md .cb-icon { left: 11px; }
+.cb--sm .cb-icon { left: 8px; }
+.cb-input--chosen { font-weight: 500; }
+.cb--open .cb-input { border-color: var(--sr-accent) var(--sr-accent) transparent; }
+.cb--md.cb--open .cb-input { border-radius: 8px 8px 0 0; }
+.cb--sm.cb--open .cb-input { border-radius: 8px 8px 0 0; }
+.cb-toggle { position: absolute; right: 7px; top: 50%; transform: translateY(-50%); transition: transform 0.15s; cursor: pointer; color: var(--sr-text-muted); display: flex; background: transparent; border: 0; padding: 4px; }
+.cb--open .cb-toggle { transform: translateY(-50%) rotate(180deg); }
+.cb-list {
+  position: absolute; top: 100%; left: 0; right: 0;
+  background: var(--sr-surface); border: 1.5px solid var(--sr-accent); border-top: none;
+  border-radius: 0 0 8px 8px; box-shadow: var(--sr-list-shadow);
+  max-height: 260px; overflow-y: auto; z-index: 1200;
+  transform-origin: top center; animation: sr-combobox-list-in 140ms cubic-bezier(0.2, 0, 0, 1);
+}
+@keyframes sr-combobox-list-in { from { opacity: 0; transform: scaleY(0.96); } to { opacity: 1; transform: scaleY(1); } }
+.cb-row { display: flex; align-items: center; gap: 10px; padding: 9px 14px; cursor: pointer; }
+.cb-row:hover { background: var(--sr-surface-subtle); }
+.cb-row--sel { background: var(--sr-accent-bg); }
+.cb-row--active, .cb-row--active:hover { background: var(--sr-accent-bg-hover); outline: 2px solid var(--sr-accent); outline-offset: -2px; }
+.cb-check { width: 16px; flex-shrink: 0; color: var(--sr-accent); display: flex; }
+.cb-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: calc(0.84375 * var(--r)); font-weight: 500; color: var(--sr-text); }
+.cb-row--sel .cb-name { color: var(--sr-accent); }
+.cb-name--all { font-style: italic; }
+.cb-sci { flex: 0 1 auto; max-width: 40%; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: right; font-size: calc(0.6875 * var(--r)); font-style: italic; color: var(--sr-text-muted); }
+.cb-empty { padding: 12px 14px; font-size: calc(0.8125 * var(--r)); color: var(--sr-text-muted); }
+
+/* ===================================================================
+   RESPONSIVE (the review page itself, at the viewer's width)
+   =================================================================== */
+@media (max-width: 980px) {
+  .rv-intro { grid-template-columns: 1fr; }
+  .rv-chips { grid-template-columns: 1fr; }
+  .rv-foot { grid-template-columns: 1fr; }
+  .rv-stage { grid-template-columns: minmax(0, 1fr); grid-template-areas: "search" "sd" "cal"; }
+  .rv-notes { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 640px) {
+  .rv-decided { grid-template-columns: minmax(0, 1fr); }
+  .rv-decided > div + div { border-left: 0; border-top: 1px solid var(--rv-mark-line); }
+}
+@media (max-width: 560px) {
+  .rv-top { padding: 10px 16px; }
+  .rv-main { padding: 24px 16px 56px; }
+  .rv-intro h1 { font-size: 1.875rem; }
+}
+
+/* Every animation and transition is ease-out and at most 180ms; reduced motion
+   makes each one instant, and each one's end state is its resting state. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; scroll-behavior: auto !important; }
+}
+</style>
+</head>
+<body>
+<header class="rv-top">
+  <div class="rv-brand"><b>SnowRaven</b><span>Species code search · design review</span></div>
+  <div class="rv-toggles" role="group" aria-label="View options">
+    <div class="rv-toggle"><span class="rv-toggle-label" id="lbl-theme">Theme</span>
+      <div class="rv-seg" role="group" aria-labelledby="lbl-theme" data-ctl="theme">
+        <button type="button" data-v="light">Light</button><button type="button" data-v="dark">Dark</button>
+      </div></div>
+    <div class="rv-toggle"><span class="rv-toggle-label" id="lbl-win">Window</span>
+      <div class="rv-seg" role="group" aria-labelledby="lbl-win" data-ctl="window">
+        <button type="button" data-v="wide">Wide</button><button type="button" data-v="phone">Phone 320 px</button>
+      </div></div>
+    <div class="rv-toggle"><span class="rv-toggle-label" id="lbl-scale">Text</span>
+      <div class="rv-seg" role="group" aria-labelledby="lbl-scale" data-ctl="scale">
+        <button type="button" data-v="1">100%</button><button type="button" data-v="2">200%</button>
+      </div></div>
+    <div class="rv-toggle"><span class="rv-toggle-label" id="lbl-codes">Code data</span>
+      <div class="rv-seg" role="group" aria-labelledby="lbl-codes" data-ctl="codes">
+        <button type="button" data-v="on">Loaded</button><button type="button" data-v="off">Not loaded yet</button>
+      </div></div>
+  </div>
+</header>
+
+<main class="rv-main">
+  <section class="rv-intro">
+    <div>
+      <p class="rv-eyebrow">Stage 4 design · second direction</p>
+      <h1>Type a bird's code, get the bird.</h1>
+    </div>
+    <p class="rv-lede">Search and the four species pickers will also match a bird's four-letter code, so <span class="rv-code">yrwa</span> finds Yellow-rumped Warbler. <strong>Rows look exactly as they do today.</strong> What changes is which birds are listed and in what order, so that is all this page shows: the real rows, ranked live, for a 319-entry California list.</p>
+  </section>
+
+  <div class="rv-decided">
+    <div>
+      <p class="rv-decided-k">Decided</p>
+      <p class="rv-decided-h">Codes first</p>
+      <p>A bird whose code you typed leads. Every other match follows in the surface's usual order: alphabetical in Search, the list's own order in a picker.</p>
+    </div>
+    <div>
+      <p class="rv-decided-k">Decided</p>
+      <p class="rv-decided-h">American codes only</p>
+      <p>A bird matches its North American banding codes and the code formed from the name SnowRaven shows. Codes eBird lists from a bird's other names are left out, so <span class="rv-code">goos</span> (Goosander) no longer finds Common Merganser.</p>
+    </div>
+  </div>
+
+  <div class="rv-bar">
+    <div class="rv-chips" id="chips"></div>
+  </div>
+
+  <section class="rv-stage" id="stage" aria-label="Search and two species pickers, ranked live">
+    <div class="rv-slot rv-slot--search" data-slot="search">
+      <p class="rv-slot-label">Search <small>alphabetical, up to 50</small></p>
+      <div class="rv-frame-wrap"><div class="rv-frame" data-frame></div></div>
+    </div>
+    <div class="rv-slot rv-slot--sd" data-slot="sd">
+      <p class="rv-slot-label">Species Detail: Select species <small>taxonomic, forms folded in</small></p>
+      <div class="rv-frame-wrap"><div class="rv-frame" data-frame></div></div>
+    </div>
+    <div class="rv-slot rv-slot--cal" data-slot="cal">
+      <p class="rv-slot-label">Calendar: species filter <small>A to Z, All species first</small></p>
+      <div class="rv-frame-wrap"><div class="rv-frame" data-frame></div></div>
+    </div>
+  </section>
+  <div class="rv-notes" id="notes" aria-live="polite"></div>
+
+  <section class="rv-section">
+    <h3>Stop at four letters and press Enter</h3>
+    <p>What Search opens for each query on this list, today and with codes. A dot marks a result that changes. Codes eBird takes from a bird's other names match nothing, so those queries stay exactly as they are today.</p>
+    <div class="rv-table-wrap"><table class="rv-table">
+      <thead><tr><th scope="col">You type</th><th scope="col">That code is</th><th scope="col">Today</th><th scope="col">New</th></tr></thead>
+      <tbody id="table-body"></tbody>
+    </table></div>
+  </section>
+
+  <footer class="rv-foot">
+    <p>The replicas use the app's own row markup, tokens, sizes and truncation. Nothing on a row says why it is there; the dashed notes are for this review only. Arrow keys, Enter and clicks work in each replica; the real Search closes after Enter, and the real picker closes after a pick.</p>
+    <p>The list is 319 entries a Bay Area birder might hold after trips to Arizona and Massachusetts, forms and a slash included. Codes are eBird's own (taxonomy 2027, fetched 2026-10-08), kept when they are a banding code or are formed from the name SnowRaven shows. Calendar and Species Detail show the species-level lists those surfaces show at their defaults.</p>
+  </footer>
+</main>
+
+<script>
+const BACKUP = [["Snow Goose","Anser caerulescens","SNGO",267.0,"species"],["Ross's Goose","Anser rossii","ROGO",272.0,"species"],["Greater White-fronted Goose","Anser albifrons","GWFG",287.0,"species"],["Brant","Branta bernicla","BRAN",314.0,"species"],["Cackling Goose","Branta hutchinsii","CACG CAGO",331.0,"species"],["Canada Goose","Branta canadensis","CANG CAGO",342.0,"species"],["Cackling/Canada Goose","Branta hutchinsii/canadensis","CCGO",363.0,"slash"],["Trumpeter Swan","Cygnus buccinator","TRUS TRSW",382.0,"species"],["Tundra Swan","Cygnus columbianus","TUSW",384.0,"species"],["Wood Duck","Aix sponsa","WODU",455.0,"species"],["Blue-winged Teal","Spatula discors","BWTE",485.0,"species"],["Cinnamon Teal","Spatula cyanoptera","CITE",487.0,"species"],["Northern Shoveler","Spatula clypeata","NSHO NOSH",501.0,"species"],["Gadwall","Mareca strepera","GADW",505.0,"species"],["Eurasian Wigeon","Mareca penelope","EUWI",512.0,"species"],["American Wigeon","Mareca americana","AMWI",517.0,"species"],["Mallard","Anas platyrhynchos","MALL",545.0,"species"],["Northern Pintail","Anas acuta","NOPI",594.0,"species"],["Green-winged Teal","Anas crecca","GWTE",612.0,"species"],["Canvasback","Aythya valisineria","CANV",666.0,"species"],["Redhead","Aythya americana","REDH",667.0,"species"],["Ring-necked Duck","Aythya collaris","RNDU",673.0,"species"],["Greater Scaup","Aythya marila","GRSC",694.0,"species"],["Lesser Scaup","Aythya affinis","LESC",700.0,"species"],["Harlequin Duck","Histrionicus histrionicus","HADU",727.0,"species"],["Surf Scoter","Melanitta perspicillata","SUSC",728.0,"species"],["White-winged Scoter","Melanitta deglandi","WWSC",730.0,"species"],["Black Scoter","Melanitta americana","BLSC",737.0,"species"],["Long-tailed Duck","Clangula hyemalis","LTDU",741.0,"species"],["Bufflehead","Bucephala albeola","BUFF",742.0,"species"],["Common Goldeneye","Bucephala clangula","COGO",743.0,"species"],["Barrow's Goldeneye","Bucephala islandica","BAGO",748.0,"species"],["Hooded Merganser","Lophodytes cucullatus","HOME",754.0,"species"],["Common Merganser","Mergus merganser","COME",762.0,"species"],["Red-breasted Merganser","Mergus serrator","RBME",770.0,"species"],["Ruddy Duck","Oxyura jamaicensis","RUDU",778.0,"species"],["California Quail","Callipepla californica","CAQU",1094.0,"species"],["Gambel's Quail","Callipepla gambelii","GAQU",1105.0,"species"],["Wild Turkey","Meleagris gallopavo","WITU",1274.0,"species"],["Pied-billed Grebe","Podilymbus podiceps","PBGR",6855.0,"species"],["Horned Grebe","Podiceps auritus","HOGR",6866.0,"species"],["Eared Grebe","Podiceps nigricollis","EAGR",6876.0,"species"],["Western Grebe","Aechmophorus occidentalis","WEGR",6888.0,"species"],["Clark's Grebe","Aechmophorus clarkii","CLGR",6891.0,"species"],["Rock Pigeon","Columba livia","ROPI",1853.0,"species"],["Band-tailed Pigeon","Patagioenas fasciata","BTPI",1966.0,"species"],["Eurasian Collared-Dove","Streptopelia decaocto","EUCD ECDO",2031.0,"species"],["Inca Dove","Columbina inca","INDO",2242.0,"species"],["Common Ground Dove","Columbina passerina","CGDO",2243.0,"species"],["White-winged Dove","Zenaida asiatica","WWDO",2389.0,"species"],["Mourning Dove","Zenaida macroura","MODO",2412.0,"species"],["Greater Roadrunner","Geococcyx californianus","GRRO",3038.0,"species"],["Lesser Nighthawk","Chordeiles acutipennis","LENI",3484.0,"species"],["Common Poorwill","Phalaenoptilus nuttallii","COPO",3588.0,"species"],["Vaux's Swift","Chaetura vauxi","VASW",3897.0,"species"],["White-throated Swift","Aeronautes saxatalis","WTSW",4158.0,"species"],["Black-chinned Hummingbird","Archilochus alexandri","BCHU",4803.0,"species"],["Anna's Hummingbird","Calypte anna","ANHU",4814.0,"species"],["Costa's Hummingbird","Calypte costae","COHU",4818.0,"species"],["Rufous Hummingbird","Selasphorus rufus","RUHU",4826.0,"species"],["Allen's Hummingbird","Selasphorus sasin","ALHU",4831.0,"species"],["Broad-billed Hummingbird","Cynanthus latirostris","BBIH BBHU",4867.0,"species"],["Ridgway's Rail","Rallus obsoletus","RIRA",5256.0,"species"],["Virginia Rail","Rallus limicola","VIRA",5297.0,"species"],["Sora","Porzana carolina","SORA",5455.0,"species"],["Common Gallinule","Gallinula galeata","COGA",5468.0,"species"],["American Coot","Fulica americana","AMCO",5500.0,"species"],["Sandhill Crane","Antigone canadensis","SACR",5697.0,"species"],["Black-necked Stilt","Himantopus mexicanus","BNST",5770.0,"species"],["American Avocet","Recurvirostra americana","AMAV",5780.0,"species"],["Black Oystercatcher","Haematopus bachmani","BLOY",5806.0,"species"],["Black-bellied Plover","Pluvialis squatarola","BBPL",5811.0,"species"],["Snowy Plover","Anarhynchus nivosus","SNPL",5941.0,"species"],["Semipalmated Plover","Charadrius semipalmatus","SEPL",5834.0,"species"],["Killdeer","Charadrius vociferus","KILL",5827.0,"species"],["Hudsonian Whimbrel","Numenius hudsonicus","WHIM HUWH",6011.0,"species"],["Long-billed Curlew","Numenius americanus","LBCU",6021.0,"species"],["Marbled Godwit","Limosa fedoa","MAGO",6051.0,"species"],["Ruddy Turnstone","Arenaria interpres","RUTU",6161.0,"species"],["Black Turnstone","Arenaria melanocephala","BLTU",6164.0,"species"],["Red Knot","Calidris canutus","REKN",6166.0,"species"],["Surfbird","Calidris virgata","SURF",6174.0,"species"],["Sanderling","Calidris alba","SAND",6189.0,"species"],["Dunlin","Calidris alpina","DUNL",6192.0,"species"],["Least Sandpiper","Calidris minutilla","LESA",6226.0,"species"],["Western Sandpiper","Calidris mauri","WESA",6231.0,"species"],["Short-billed Dowitcher","Limnodromus griseus","SBDO",6057.0,"species"],["Long-billed Dowitcher","Limnodromus scolopaceus","LBDO",6061.0,"species"],["Wilson's Snipe","Gallinago delicata","WISN",6104.0,"species"],["Spotted Sandpiper","Actitis macularius","SPSA",6126.0,"species"],["Wandering Tattler","Tringa incana","WATA",6134.0,"species"],["Greater Yellowlegs","Tringa melanoleuca","GRYE",6154.0,"species"],["Willet","Tringa semipalmata","WILL",6147.0,"species"],["Lesser Yellowlegs","Tringa flavipes","LEYE",6145.0,"species"],["Red-necked Phalarope","Phalaropus lobatus","RNPH",6121.0,"species"],["Dovekie","Alle alle","DOVE",6416.0,"species"],["Common Murre","Uria aalge","COMU",6424.0,"species"],["Pigeon Guillemot","Cepphus columba","PIGU",6404.0,"species"],["Marbled Murrelet","Brachyramphus marmoratus","MAMU",6395.0,"species"],["Rhinoceros Auklet","Cerorhinca monocerata","RHAU",6377.0,"species"],["Tufted Puffin","Fratercula cirrhata","TUPU",6378.0,"species"],["Atlantic Puffin","Fratercula arctica","ATPU",6379.0,"species"],["Bonaparte's Gull","Chroicocephalus philadelphia","BOGU",6462.0,"species"],["Heermann's Gull","Larus heermanni","HEGU",6512.0,"species"],["Short-billed Gull","Larus brachyrhynchus","SBIG SBGU",6519.0,"species"],["Ring-billed Gull","Larus delawarensis","RBGU",6521.0,"species"],["Western Gull","Larus occidentalis","WEGU",6528.0,"species"],["California Gull","Larus californicus","CAGU",6591.0,"species"],["American Herring Gull","Larus smithsonianus","AHGU",6539.0,"species"],["Glaucous-winged Gull","Larus glaucescens","GWGU",6596.0,"species"],["Western x Glaucous-winged Gull (hybrid)","Larus occidentalis x glaucescens","WGWH",6597.0,"hybrid"],["gull sp.","Larinae sp.","",6619.0,"spuh"],["Caspian Tern","Hydroprogne caspia","CATE",6718.0,"species"],["Forster's Tern","Sterna forsteri","FOTE",6731.0,"species"],["Royal Tern","Thalasseus maximus","ROYT ROTE",6789.0,"species"],["Elegant Tern","Thalasseus elegans","ELTE",6780.0,"species"],["Black Skimmer","Rynchops niger","BLSK",6622.0,"species"],["Red-throated Loon","Gavia stellata","RTLO",6927.0,"species"],["Pacific Loon","Gavia pacifica","PALO",6931.0,"species"],["Common Loon","Gavia immer","COLO",6933.0,"species"],["Black-footed Albatross","Phoebastria nigripes","BFAL",6988.0,"species"],["Northern Fulmar","Fulmarus glacialis","NOFU",7090.0,"species"],["Ashy Storm-Petrel","Hydrobates homochroa","ASSP ASPE",7063.0,"species"],["Pink-footed Shearwater","Ardenna creatopus","PFSH",7205.0,"species"],["Sooty Shearwater","Ardenna grisea","SOSH",7213.0,"species"],["Brandt's Cormorant","Urile penicillatus","BRAC BRCO",7389.0,"species"],["Pelagic Cormorant","Urile pelagicus","PECO",7391.0,"species"],["Double-crested Cormorant","Nannopterum auritum","DCCO",7424.0,"species"],["American White Pelican","Pelecanus erythrorhynchos","AWPE",7791.0,"species"],["Brown Pelican","Pelecanus occidentalis","BRPE",7792.0,"species"],["American Bittern","Botaurus lentiginosus","AMBI",7560.0,"species"],["Great Blue Heron","Ardea herodias","GBHE",7753.0,"species"],["Great Egret","Ardea alba","GREG",7729.0,"species"],["Snowy Egret","Egretta thula","SNEG",7645.0,"species"],["Little Blue Heron","Egretta caerulea","LBHE",7629.0,"species"],["Western Cattle-Egret","Ardea ibis","WECE WCEG",7724.0,"species"],["Green Heron","Butorides virescens","GRHE",7704.0,"species"],["Black-crowned Night Heron","Nycticorax nycticorax","BCNH",7600.0,"species"],["White-faced Ibis","Plegadis chihi","WFIB",7468.0,"species"],["California Condor","Gymnogyps californianus","CACO",7808.0,"species"],["Turkey Vulture","Cathartes aura","TUVU",7815.0,"species"],["Osprey","Pandion haliaetus","OSPR",7832.0,"species"],["White-tailed Kite","Elanus leucurus","WTKI",7843.0,"species"],["Golden Eagle","Aquila chrysaetos","GOEA",8064.0,"species"],["Northern Harrier","Circus hudsonius","NOHA",8324.0,"species"],["Sharp-shinned Hawk","Accipiter striatus","SSHA",8256.0,"species"],["Cooper's Hawk","Astur cooperii","COHA",8278.0,"species"],["Bald Eagle","Haliaeetus leucocephalus","BAEA",8367.0,"species"],["Red-shouldered Hawk","Buteo lineatus","RSHA",8487.0,"species"],["Swainson's Hawk","Buteo swainsoni","SWHA",8504.0,"species"],["Red-tailed Hawk","Buteo jamaicensis","RTHA",8506.0,"species"],["Red-tailed Hawk (Harlan's)","Buteo jamaicensis harlani","HRLH RTHA",8507.0,"issf"],["Ferruginous Hawk","Buteo regalis","FEHA",8535.0,"species"],["Rough-legged Hawk","Buteo lagopus","RLHA",8528.0,"species"],["Harris's Hawk","Parabuteo unicinctus","HAHA",8445.0,"species"],["American Barn Owl","Tyto furcata","ABOW",8633.0,"species"],["Western Screech-Owl","Megascops kennicottii","WESO WSOW",8855.0,"species"],["Great Horned Owl","Bubo virginianus","GHOW",8910.0,"species"],["Snowy Owl","Bubo scandiacus","SNOW",8909.0,"species"],["Burrowing Owl","Athene cunicularia","BUOW",9133.0,"species"],["Northern Pygmy-Owl","Glaucidium gnoma","NOPO NPOW",9011.0,"species"],["Spotted Owl","Strix occidentalis","SPOW",9215.0,"species"],["Short-eared Owl","Asio flammeus","SEOW",9276.0,"species"],["Belted Kingfisher","Megaceryle alcyon","BEKI",10306.0,"species"],["Lewis's Woodpecker","Melanerpes lewis","LEWO",11142.0,"species"],["Acorn Woodpecker","Melanerpes formicivorus","ACWO",11146.0,"species"],["Gila Woodpecker","Melanerpes uropygialis","GIWO",11176.0,"species"],["Williamson's Sapsucker","Sphyrapicus thyroideus","WISA",11123.0,"species"],["Red-breasted Sapsucker","Sphyrapicus ruber","RBSA",11130.0,"species"],["Downy Woodpecker","Dryobates pubescens","DOWO",11400.0,"species"],["Nuttall's Woodpecker","Dryobates nuttallii","NUWO",11410.0,"species"],["Hairy Woodpecker","Leuconotopicus villosus","HAWO",11427.0,"species"],["White-headed Woodpecker","Leuconotopicus albolarvatus","WHWO",11451.0,"species"],["Pileated Woodpecker","Dryocopus pileatus","PIWO",11762.0,"species"],["Northern Flicker","Colaptes auratus","NOFL",11900.0,"species"],["Northern Flicker (Red-shafted)","Colaptes auratus [cafer Group]","RSFL NOFL",11906.0,"issf"],["American Kestrel","Falco sparverius","AMKE",12028.0,"species"],["Merlin","Falco columbarius","MERL",12062.0,"species"],["Peregrine Falcon","Falco peregrinus","PEFA",12114.0,"species"],["Prairie Falcon","Falco mexicanus","PRFA",12136.0,"species"],["Olive-sided Flycatcher","Contopus cooperi","OSFL",16890.0,"species"],["Western Wood-Pewee","Contopus sordidulus","WEWP WWPE",16912.0,"species"],["Willow Flycatcher","Empidonax traillii","WIFL",16952.0,"species"],["Hammond's Flycatcher","Empidonax hammondii","HAFL",16964.0,"species"],["Western Flycatcher","Empidonax difficilis","WEFL",16975.0,"species"],["Black Phoebe","Sayornis nigricans","BLPH",16998.0,"species"],["Say's Phoebe","Sayornis saya","SAPH",17010.0,"species"],["Vermilion Flycatcher","Pyrocephalus rubinus","VEFL",17029.0,"species"],["Ash-throated Flycatcher","Myiarchus cinerascens","ATFL",17323.0,"species"],["Cassin's Kingbird","Tyrannus vociferans","CAKI",17461.0,"species"],["Western Kingbird","Tyrannus verticalis","WEKI",17467.0,"species"],["Loggerhead Shrike","Lanius ludovicianus","LOSH",21091.0,"species"],["Northern Shrike","Lanius borealis","NSHR NOSH",21103.0,"species"],["Bell's Vireo","Vireo bellii","BEVI",19197.0,"species"],["Hutton's Vireo","Vireo huttoni","HUVI",19204.0,"species"],["Cassin's Vireo","Vireo cassinii","CAVI",19223.0,"species"],["Western Warbling Vireo","Vireo swainsoni","WEWV WWVI",19247.0,"species"],["Canada Jay","Perisoreus canadensis","CAJA",21181.0,"species"],["Steller's Jay","Cyanocitta stelleri","STJA",21274.0,"species"],["California Scrub-Jay","Aphelocoma californica","CASJ CSJA",21303.0,"species"],["Woodhouse's Scrub-Jay","Aphelocoma woodhouseii","WOSJ WSJA",21309.0,"species"],["Clark's Nutcracker","Nucifraga columbiana","CLNU",21484.0,"species"],["Yellow-billed Magpie","Pica nuttalli","YBMA",21477.0,"species"],["American Crow","Corvus brachyrhynchos","AMCR",21557.0,"species"],["Common Raven","Corvus corax","CORA",21624.0,"species"],["Oak Titmouse","Baeolophus inornatus","OATI",22150.0,"species"],["Chestnut-backed Chickadee","Poecile rufescens","CBCH",22094.0,"species"],["Mountain Chickadee","Poecile gambeli","MOCH",22077.0,"species"],["Black-capped Chickadee","Poecile atricapillus","BCCH",22065.0,"species"],["Horned Lark","Eremophila alpestris","HOLA",22710.0,"species"],["Bank Swallow","Riparia riparia","BANS BASW",24051.0,"species"],["Tree Swallow","Tachycineta bicolor","TRES TRSW",24064.0,"species"],["Violet-green Swallow","Tachycineta thalassina","VGSW",24074.0,"species"],["Northern Rough-winged Swallow","Stelgidopteryx serripennis","NRWS",24106.0,"species"],["Purple Martin","Progne subis","PUMA",24081.0,"species"],["Barn Swallow","Hirundo rustica","BARS BASW",24187.0,"species"],["Cliff Swallow","Petrochelidon pyrrhonota","CLSW",24281.0,"species"],["Bushtit","Psaltriparus minimus","BUSH",25253.0,"species"],["Wrentit","Chamaea fasciata","WREN",25431.0,"species"],["Verdin","Auriparus flaviceps","VERD",22269.0,"species"],["Ruby-crowned Kinglet","Corthylio calendula","RCKI",26844.0,"species"],["Golden-crowned Kinglet","Regulus satrapa","GCKI",26848.0,"species"],["Red-breasted Nuthatch","Sitta canadensis","RBNU",26937.0,"species"],["White-breasted Nuthatch","Sitta carolinensis","WBNU",26889.0,"species"],["Pygmy Nuthatch","Sitta pygmaea","PYNU",26924.0,"species"],["Brown Creeper","Certhia americana","BRCR",27026.0,"species"],["Blue-gray Gnatcatcher","Polioptila caerulea","BGGN",27123.0,"species"],["California Gnatcatcher","Polioptila californica","CAGN",27137.0,"species"],["Rock Wren","Salpinctes obsoletus","ROWR",27150.0,"species"],["Canyon Wren","Catherpes mexicanus","CANW CAWR",27184.0,"species"],["Northern House Wren","Troglodytes aedon","NHWR",27191.0,"species"],["Pacific Wren","Troglodytes pacificus","PAWR",27288.0,"species"],["Winter Wren","Troglodytes hiemalis","WIWR",27295.0,"species"],["Marsh Wren","Cistothorus palustris","MAWR",27329.0,"species"],["Bewick's Wren","Thryomanes bewickii","BEWR",27362.0,"species"],["Cactus Wren","Campylorhynchus brunneicapillus","CACW CAWR",27412.0,"species"],["American Dipper","Cinclus mexicanus","AMDI",27668.0,"species"],["European Starling","Sturnus vulgaris","EUST",27813.0,"species"],["California Thrasher","Toxostoma redivivum","CATH",28054.0,"species"],["Curve-billed Thrasher","Toxostoma curvirostre","CBTH",28024.0,"species"],["Sage Thrasher","Oreoscoptes montanus","SATH",28069.0,"species"],["Northern Mockingbird","Mimus polyglottos","NOMO",28114.0,"species"],["Western Bluebird","Sialia mexicana","WEBL",28136.0,"species"],["Mountain Bluebird","Sialia currucoides","MOBL",28144.0,"species"],["Townsend's Solitaire","Myadestes townsendi","TOSO",28163.0,"species"],["Swainson's Thrush","Catharus ustulatus","SWTH",28324.0,"species"],["Hermit Thrush","Catharus guttatus","HETH",28333.0,"species"],["American Robin","Turdus migratorius","AMRO",28633.0,"species"],["Varied Thrush","Ixoreus naevius","VATH",28249.0,"species"],["Cedar Waxwing","Bombycilla cedrorum","CEDW CEWA",29888.0,"species"],["Phainopepla","Phainopepla nitens","PHAI",29909.0,"species"],["House Sparrow","Passer domesticus","HOSP",31534.0,"species"],["American Pipit","Anthus rubescens","AMPI",31883.0,"species"],["Evening Grosbeak","Hesperiphona vespertina","EVGR",32085.0,"species"],["House Finch","Haemorhous mexicanus","HOFI",32310.0,"species"],["Purple Finch","Haemorhous purpureus","PUFI",32324.0,"species"],["Cassin's Finch","Haemorhous cassinii","CAFI",32329.0,"species"],["Red Crossbill","Loxia curvirostra","RECR",32498.0,"species"],["Pine Siskin","Spinus pinus","PISI",32595.0,"species"],["Lesser Goldfinch","Spinus psaltria","LEGO",32609.0,"species"],["Lawrence's Goldfinch","Spinus lawrencei","LAGO",32616.0,"species"],["American Goldfinch","Spinus tristis","AGOL AMGO",32617.0,"species"],["Snow Bunting","Plectrophenax nivalis","SNBU",32674.0,"species"],["Grasshopper Sparrow","Ammodramus savannarum","GRSP",32943.0,"species"],["Black-throated Sparrow","Amphispiza bilineata","BTSP",33018.0,"species"],["Lark Sparrow","Chondestes grammacus","LASP",33029.0,"species"],["Chipping Sparrow","Spizella passerina","CHSP",32990.0,"species"],["Brewer's Sparrow","Spizella breweri","BRSP",33007.0,"species"],["Fox Sparrow","Passerella iliaca","FOSP",33099.0,"species"],["Fox Sparrow (Sooty)","Passerella iliaca [unalaschcensis Group]","FOSP",33100.0,"issf"],["Dark-eyed Junco","Junco hyemalis","DEJU",33124.0,"species"],["Dark-eyed Junco (Oregon)","Junco hyemalis [oreganus Group]","ORJU DEJU",33130.0,"issf"],["Dark-eyed Junco (Slate-colored)","Junco hyemalis hyemalis/carolinensis","SCJU DEJU",33126.0,"issf"],["White-crowned Sparrow","Zonotrichia leucophrys","WCSP",33187.0,"species"],["White-crowned Sparrow (Gambel's)","Zonotrichia leucophrys gambelii","GWCS WCSP",33191.0,"issf"],["Golden-crowned Sparrow","Zonotrichia atricapilla","GCSP",33196.0,"species"],["White-throated Sparrow","Zonotrichia albicollis","WTSP",33201.0,"species"],["Bell's Sparrow","Artemisiospiza belli","BESP",33208.0,"species"],["Savannah Sparrow","Passerculus sandwichensis","SAVS SASP",33244.0,"species"],["Song Sparrow","Melospiza melodia","SOSP",33277.0,"species"],["Lincoln's Sparrow","Melospiza lincolnii","LISP",33310.0,"species"],["California Towhee","Melozone crissalis","CALT CATO",33350.0,"species"],["Rufous-crowned Sparrow","Aimophila ruficeps","RCSP",33371.0,"species"],["Green-tailed Towhee","Pipilo chlorurus","GTTO",33385.0,"species"],["Spotted Towhee","Pipilo maculatus","SPTO",33386.0,"species"],["Abert's Towhee","Melozone aberti","ABTO",33344.0,"species"],["Yellow-breasted Chat","Icteria virens","YBCH",33559.0,"species"],["Yellow-headed Blackbird","Xanthocephalus xanthocephalus","YHBL",33563.0,"species"],["Western Meadowlark","Sturnella neglecta","WEME",33565.0,"species"],["Hooded Oriole","Icterus cucullatus","HOOR",33682.0,"species"],["Bullock's Oriole","Icterus bullockii","BUOR",33736.0,"species"],["Red-winged Blackbird","Agelaius phoeniceus","RWBL",33779.0,"species"],["Tricolored Blackbird","Agelaius tricolor","TRBL",33807.0,"species"],["Brown-headed Cowbird","Molothrus ater","BHCO",33833.0,"species"],["Brewer's Blackbird","Euphagus cyanocephalus","BRBL",33851.0,"species"],["Great-tailed Grackle","Quiscalus mexicanus","GTGR",33864.0,"species"],["Orange-crowned Warbler","Leiothlypis celata","OCWA",33973.0,"species"],["Lucy's Warbler","Leiothlypis luciae","LUWA",33980.0,"species"],["Nashville Warbler","Leiothlypis ruficapilla","NAWA",33981.0,"species"],["MacGillivray's Warbler","Geothlypis tolmiei","MGWA MAWA",34005.0,"species"],["Common Yellowthroat","Geothlypis trichas","COYE",34028.0,"species"],["American Redstart","Setophaga ruticilla","AMRE",34058.0,"species"],["Cape May Warbler","Setophaga tigrina","CMWA",34060.0,"species"],["Northern Yellow Warbler","Setophaga aestiva","NYWA",34087.0,"species"],["Palm Warbler","Setophaga palmarum","PAWA",34148.0,"species"],["Yellow-rumped Warbler","Setophaga coronata","YRWA",34159.0,"species"],["Yellow-rumped Warbler (Myrtle)","Setophaga coronata coronata","MYWA YRWA",34160.0,"issf"],["Yellow-rumped Warbler (Audubon's)","Setophaga coronata auduboni","AUWA YRWA",34161.0,"issf"],["Black-throated Gray Warbler","Setophaga nigrescens","BTYW BTGW",34200.0,"species"],["Townsend's Warbler","Setophaga townsendi","TOWA",34206.0,"species"],["Hermit Warbler","Setophaga occidentalis","HEWA",34210.0,"species"],["Wilson's Warbler","Cardellina pusilla","WIWA",34346.0,"species"],["Summer Tanager","Piranga rubra","SUTA",34432.0,"species"],["Western Tanager","Piranga ludoviciana","WETA",34439.0,"species"],["Northern Cardinal","Cardinalis cardinalis","NOCA",34515.0,"species"],["Pyrrhuloxia","Cardinalis sinuatus","PYRR",34535.0,"species"],["Black-headed Grosbeak","Pheucticus melanocephalus","BHGR",34559.0,"species"],["Blue Grosbeak","Passerina caerulea","BLGR",34598.0,"species"],["Lazuli Bunting","Passerina amoena","LAZB LABU",34606.0,"species"]];
+const CODE_TABLE = {"snow goose":"SNGO","ross's goose":"ROGO","greater white-fronted goose":"GWFG","brant":"BRAN","cackling goose":"CACG CAGO","canada goose":"CANG CAGO","cackling/canada goose":"CCGO","trumpeter swan":"TRUS TRSW","tundra swan":"TUSW","wood duck":"WODU","blue-winged teal":"BWTE","cinnamon teal":"CITE","northern shoveler":"NSHO NOSH","gadwall":"GADW","eurasian wigeon":"EUWI","american wigeon":"AMWI","mallard":"MALL","northern pintail":"NOPI","green-winged teal":"GWTE","canvasback":"CANV","redhead":"REDH","ring-necked duck":"RNDU","greater scaup":"GRSC","lesser scaup":"LESC","harlequin duck":"HADU","surf scoter":"SUSC","white-winged scoter":"WWSC","black scoter":"BLSC","long-tailed duck":"LTDU","bufflehead":"BUFF","common goldeneye":"COGO","barrow's goldeneye":"BAGO","hooded merganser":"HOME","common merganser":"COME","red-breasted merganser":"RBME","ruddy duck":"RUDU","california quail":"CAQU","gambel's quail":"GAQU","wild turkey":"WITU","pied-billed grebe":"PBGR","horned grebe":"HOGR","eared grebe":"EAGR","western grebe":"WEGR","clark's grebe":"CLGR","rock pigeon":"ROPI","band-tailed pigeon":"BTPI","eurasian collared-dove":"EUCD ECDO","inca dove":"INDO","common ground dove":"CGDO","white-winged dove":"WWDO","mourning dove":"MODO","greater roadrunner":"GRRO","lesser nighthawk":"LENI","common poorwill":"COPO","vaux's swift":"VASW","white-throated swift":"WTSW","black-chinned hummingbird":"BCHU","anna's hummingbird":"ANHU","costa's hummingbird":"COHU","rufous hummingbird":"RUHU","allen's hummingbird":"ALHU","broad-billed hummingbird":"BBIH BBHU","ridgway's rail":"RIRA","virginia rail":"VIRA","sora":"SORA","common gallinule":"COGA","american coot":"AMCO","sandhill crane":"SACR","black-necked stilt":"BNST","american avocet":"AMAV","black oystercatcher":"BLOY","black-bellied plover":"BBPL","snowy plover":"SNPL","semipalmated plover":"SEPL","killdeer":"KILL","hudsonian whimbrel":"WHIM HUWH","long-billed curlew":"LBCU","marbled godwit":"MAGO","ruddy turnstone":"RUTU","black turnstone":"BLTU","red knot":"REKN","surfbird":"SURF","sanderling":"SAND","dunlin":"DUNL","least sandpiper":"LESA","western sandpiper":"WESA","short-billed dowitcher":"SBDO","long-billed dowitcher":"LBDO","wilson's snipe":"WISN","spotted sandpiper":"SPSA","wandering tattler":"WATA","greater yellowlegs":"GRYE","willet":"WILL","lesser yellowlegs":"LEYE","red-necked phalarope":"RNPH","dovekie":"DOVE","common murre":"COMU","pigeon guillemot":"PIGU","marbled murrelet":"MAMU","rhinoceros auklet":"RHAU","tufted puffin":"TUPU","atlantic puffin":"ATPU","bonaparte's gull":"BOGU","heermann's gull":"HEGU","short-billed gull":"SBIG SBGU","ring-billed gull":"RBGU","western gull":"WEGU","california gull":"CAGU","american herring gull":"AHGU","glaucous-winged gull":"GWGU","western x glaucous-winged gull (hybrid)":"WGWH","gull sp.":"","caspian tern":"CATE","forster's tern":"FOTE","royal tern":"ROYT ROTE","elegant tern":"ELTE","black skimmer":"BLSK","red-throated loon":"RTLO","pacific loon":"PALO","common loon":"COLO","black-footed albatross":"BFAL","northern fulmar":"NOFU","ashy storm-petrel":"ASSP ASPE","pink-footed shearwater":"PFSH","sooty shearwater":"SOSH","brandt's cormorant":"BRAC BRCO","pelagic cormorant":"PECO","double-crested cormorant":"DCCO","american white pelican":"AWPE","brown pelican":"BRPE","american bittern":"AMBI","great blue heron":"GBHE","great egret":"GREG","snowy egret":"SNEG","little blue heron":"LBHE","western cattle-egret":"WECE WCEG","green heron":"GRHE","black-crowned night heron":"BCNH","white-faced ibis":"WFIB","california condor":"CACO","turkey vulture":"TUVU","osprey":"OSPR","white-tailed kite":"WTKI","golden eagle":"GOEA","northern harrier":"NOHA","sharp-shinned hawk":"SSHA","cooper's hawk":"COHA","bald eagle":"BAEA","red-shouldered hawk":"RSHA","swainson's hawk":"SWHA","red-tailed hawk":"RTHA","red-tailed hawk (harlan's)":"HRLH RTHA","ferruginous hawk":"FEHA","rough-legged hawk":"RLHA","harris's hawk":"HAHA","american barn owl":"ABOW","western screech-owl":"WESO WSOW","great horned owl":"GHOW","snowy owl":"SNOW","burrowing owl":"BUOW","northern pygmy-owl":"NOPO NPOW","spotted owl":"SPOW","short-eared owl":"SEOW","belted kingfisher":"BEKI","lewis's woodpecker":"LEWO","acorn woodpecker":"ACWO","gila woodpecker":"GIWO","williamson's sapsucker":"WISA","red-breasted sapsucker":"RBSA","downy woodpecker":"DOWO","nuttall's woodpecker":"NUWO","hairy woodpecker":"HAWO","white-headed woodpecker":"WHWO","pileated woodpecker":"PIWO","northern flicker":"NOFL","northern flicker (red-shafted)":"RSFL NOFL","american kestrel":"AMKE","merlin":"MERL","peregrine falcon":"PEFA","prairie falcon":"PRFA","olive-sided flycatcher":"OSFL","western wood-pewee":"WEWP WWPE","willow flycatcher":"WIFL","hammond's flycatcher":"HAFL","western flycatcher":"WEFL","black phoebe":"BLPH","say's phoebe":"SAPH","vermilion flycatcher":"VEFL","ash-throated flycatcher":"ATFL","cassin's kingbird":"CAKI","western kingbird":"WEKI","loggerhead shrike":"LOSH","northern shrike":"NSHR NOSH","bell's vireo":"BEVI","hutton's vireo":"HUVI","cassin's vireo":"CAVI","western warbling vireo":"WEWV WWVI","canada jay":"CAJA","steller's jay":"STJA","california scrub-jay":"CASJ CSJA","woodhouse's scrub-jay":"WOSJ WSJA","clark's nutcracker":"CLNU","yellow-billed magpie":"YBMA","american crow":"AMCR","common raven":"CORA","oak titmouse":"OATI","chestnut-backed chickadee":"CBCH","mountain chickadee":"MOCH","black-capped chickadee":"BCCH","horned lark":"HOLA","bank swallow":"BANS BASW","tree swallow":"TRES TRSW","violet-green swallow":"VGSW","northern rough-winged swallow":"NRWS","purple martin":"PUMA","barn swallow":"BARS BASW","cliff swallow":"CLSW","bushtit":"BUSH","wrentit":"WREN","verdin":"VERD","ruby-crowned kinglet":"RCKI","golden-crowned kinglet":"GCKI","red-breasted nuthatch":"RBNU","white-breasted nuthatch":"WBNU","pygmy nuthatch":"PYNU","brown creeper":"BRCR","blue-gray gnatcatcher":"BGGN","california gnatcatcher":"CAGN","rock wren":"ROWR","canyon wren":"CANW CAWR","northern house wren":"NHWR","pacific wren":"PAWR","winter wren":"WIWR","marsh wren":"MAWR","bewick's wren":"BEWR","cactus wren":"CACW CAWR","american dipper":"AMDI","european starling":"EUST","california thrasher":"CATH","curve-billed thrasher":"CBTH","sage thrasher":"SATH","northern mockingbird":"NOMO","western bluebird":"WEBL","mountain bluebird":"MOBL","townsend's solitaire":"TOSO","swainson's thrush":"SWTH","hermit thrush":"HETH","american robin":"AMRO","varied thrush":"VATH","cedar waxwing":"CEDW CEWA","phainopepla":"PHAI","house sparrow":"HOSP","american pipit":"AMPI","evening grosbeak":"EVGR","house finch":"HOFI","purple finch":"PUFI","cassin's finch":"CAFI","red crossbill":"RECR","pine siskin":"PISI","lesser goldfinch":"LEGO","lawrence's goldfinch":"LAGO","american goldfinch":"AGOL AMGO","snow bunting":"SNBU","grasshopper sparrow":"GRSP","black-throated sparrow":"BTSP","lark sparrow":"LASP","chipping sparrow":"CHSP","brewer's sparrow":"BRSP","fox sparrow":"FOSP","fox sparrow (sooty)":"FOSP","dark-eyed junco":"DEJU","dark-eyed junco (oregon)":"ORJU DEJU","dark-eyed junco (slate-colored)":"SCJU DEJU","white-crowned sparrow":"WCSP","white-crowned sparrow (gambel's)":"GWCS WCSP","golden-crowned sparrow":"GCSP","white-throated sparrow":"WTSP","bell's sparrow":"BESP","savannah sparrow":"SAVS SASP","song sparrow":"SOSP","lincoln's sparrow":"LISP","california towhee":"CALT CATO","rufous-crowned sparrow":"RCSP","green-tailed towhee":"GTTO","spotted towhee":"SPTO","abert's towhee":"ABTO","yellow-breasted chat":"YBCH","yellow-headed blackbird":"YHBL","western meadowlark":"WEME","hooded oriole":"HOOR","bullock's oriole":"BUOR","red-winged blackbird":"RWBL","tricolored blackbird":"TRBL","brown-headed cowbird":"BHCO","brewer's blackbird":"BRBL","great-tailed grackle":"GTGR","orange-crowned warbler":"OCWA","lucy's warbler":"LUWA","nashville warbler":"NAWA","macgillivray's warbler":"MGWA MAWA","common yellowthroat":"COYE","american redstart":"AMRE","cape may warbler":"CMWA","northern yellow warbler":"NYWA","palm warbler":"PAWA","yellow-rumped warbler":"YRWA","yellow-rumped warbler (myrtle)":"MYWA YRWA","yellow-rumped warbler (audubon's)":"AUWA YRWA","black-throated gray warbler":"BTYW BTGW","townsend's warbler":"TOWA","hermit warbler":"HEWA","wilson's warbler":"WIWA","summer tanager":"SUTA","western tanager":"WETA","northern cardinal":"NOCA","pyrrhuloxia":"PYRR","black-headed grosbeak":"BHGR","blue grosbeak":"BLGR","lazuli bunting":"LAZB LABU"};
+const DROPPED = {"brgo":["Brant"],"cang":["Cackling/Canada Goose"],"cacg":["Cackling/Canada Goose"],"cago":["Cackling/Canada Goose"],"besw":["Tundra Swan"],"awdu":["Wood Duck"],"cwdu":["Wood Duck"],"eute":["Green-winged Teal"],"cwte":["Green-winged Teal"],"ewte":["Green-winged Teal"],"goos":["Common Merganser"],"slgr":["Horned Grebe"],"bngr":["Eared Grebe"],"rodo":["Rock Pigeon"],"nbtp":["Band-tailed Pigeon"],"codo":["Eurasian Collared-Dove"],"ammo":["Common Gallinule"],"bwst":["Black-necked Stilt"],"bnbs":["Black-necked Stilt"],"grpl":["Black-bellied Plover"],"liau":["Dovekie"],"cogu":["Common Murre"],"megu":["Short-billed Gull"],"wegu":["Western x Glaucous-winged Gull (hybrid)"],"gwgu":["Western x Glaucous-winged Gull (hybrid)"],"rtdi":["Red-throated Loon"],"padi":["Pacific Loon"],"gndi":["Common Loon"],"gbwh":["Great Blue Heron"],"whhe":["Great Egret"],"gweg":["Great Egret"],"caeg":["Western Cattle-Egret"],"nagh":["Green Heron"],"gbhe":["Green Heron"],"ssbb":["Sharp-shinned Hawk"],"rlbu":["Rough-legged Hawk"],"webo":["American Barn Owl"],"wbow":["American Barn Owl"],"yssf":["Northern Flicker","Northern Flicker (Red-shafted)"],"psfl":["Western Flycatcher"],"vfsp":["Vermilion Flycatcher"],"cvfl":["Vermilion Flycatcher"],"ngsh":["Northern Shrike"],"wavi":["Western Warbling Vireo"],"wsja":["California Scrub-Jay"],"nora":["Common Raven"],"shla":["Horned Lark"],"sama":["Bank Swallow"],"csma":["Bank Swallow"],"acsw":["Cliff Swallow"],"ambu":["Bushtit"],"amtr":["Brown Creeper"],"abcr":["Brown Creeper"],"arwr":["Rock Wren"],"howr":["Northern House Wren"],"awwr":["Winter Wren"],"cost":["European Starling"],"rbth":["Swainson's Thrush"],"alro":["American Robin"],"bbpi":["American Pipit"],"cocr":["Red Crossbill"],"fssp":["Fox Sparrow","Fox Sparrow (Sooty)"],"sfsp":["Fox Sparrow (Sooty)"],"sbbs":["Savannah Sparrow"],"aywa":["Northern Yellow Warbler"],"yewa":["Northern Yellow Warbler"],"mywa":["Yellow-rumped Warbler","Yellow-rumped Warbler (Audubon's)"]};
+
+/* ===================================================================
+   ICONS (Lucide paths, inline)
+   =================================================================== */
+const ICON = {
+  search: '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+  x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+  chevron: '<path d="m6 9 6 6 6-6"/>',
+  check: '<path d="M20 6 9 17l-5-5"/>',
+  weather: '<path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/>',
+  book: '<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>',
+  bars: '<line x1="18" x2="18" y1="20" y2="10"/><line x1="12" x2="12" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="14"/>',
+  map: '<polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" y1="3" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="21"/>',
+  calendar: '<path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/><path d="M16 18h.01"/>',
+  target: '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>',
+  images: '<path d="M18 22H4a2 2 0 0 1-2-2V6"/><path d="m22 13-1.296-1.296a2.41 2.41 0 0 0-3.408 0L11 18"/><circle cx="12" cy="8" r="2"/><rect width="16" height="16" x="6" y="2" rx="2"/>',
+  dna: '<path d="m10 16 1.5 1.5"/><path d="m14 8-1.5-1.5"/><path d="M15 2c-1.798 1.998-2.518 3.995-2.807 5.993"/><path d="m16.5 10.5 1 1"/><path d="m17 6-2.891-2.891"/><path d="M2 15c6.667-6 13.333 0 20-6"/><path d="m20 9 .891.891"/><path d="M3.109 14.109 4 15"/><path d="m6.5 12.5 1 1"/><path d="m7 18 2.891 2.891"/><path d="M9 22c1.798-1.998 2.518-3.995 2.807-5.993"/>',
+  clipboard: '<rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/>',
+  comparer: '<path d="M21 6H3"/><path d="M10 12H3"/><path d="M10 18H3"/><polyline points="15 12 18 15 21 12"/><path d="M18 6v9"/>',
+  tag: '<path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/>',
+  settings: '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
+}
+const svg = (name, size, sw) => `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[name]}</svg>`
+
+/* Destinations: App's navItems at the default layout (TAB_LABELS order, Settings last). */
+const DESTINATIONS = [
+  ['Weather', 'weather'], ['Statistics', 'bars'], ['Map Explorer', 'map'], ['Species Detail', 'book'],
+  ['Calendar', 'calendar'], ['Targets', 'target'], ['Multimedia', 'images'], ['Breeding Codes', 'dna'],
+  ['Checklists', 'clipboard'], ['List Comparer', 'comparer'], ['Named Birds', 'tag'], ['Settings', 'settings'],
+]
+
+/* The other names eBird derives a left-out code from, for the four examples this page names. */
+const OTHER_NAME = { goos: 'Goosander', cost: 'Common Starling', rodo: 'Rock Dove', gbhe: 'Green-backed Heron' }
+
+/* ===================================================================
+   DATA: the user's list, the three surface lists
+   =================================================================== */
+const ALL = BACKUP.map(([name, sciName, codes, order, cat]) => ({ name, sciName, order, cat }))
+const hasOwn = (o, k) => Object.prototype.hasOwnProperty.call(o, k)
+const normalizeSpeciesName = n => n.replace(/\s*\([^()]*\)\s*$/, '')
+const NON_COUNTABLE = new Set(['spuh', 'slash', 'hybrid'])
+
+function compareSpeciesName(a, b) {
+  const x = a.name.toLowerCase(), y = b.name.toLowerCase()
+  if (x < y) return -1; if (x > y) return 1
+  if (a.name < b.name) return -1; if (a.name > b.name) return 1
+  return 0
+}
+const byName = (a, b) => compareSpeciesName({ name: a }, { name: b })
+
+/* Search: every distinct name, sorted (lib/speciesIndex.ts). */
+const SEARCH_LIST = ALL.map(r => ({ name: r.name, sciName: r.sciName })).sort(compareSpeciesName)
+
+/* Species Detail at its defaults: forms merged into their species, forms
+   and hybrids hidden, taxonomic order (SpeciesDetail.tsx). */
+const SD_LIST = (() => {
+  const keys = new Map()
+  for (const r of ALL) {
+    const key = normalizeSpeciesName(r.name)
+    const k = keys.get(key) || { name: key, sciName: null, order: Infinity, countable: false }
+    if (r.name === key) k.sciName = r.sciName
+    else if (k.sciName == null) k.sciName = r.sciName
+    if (!NON_COUNTABLE.has(r.cat)) k.countable = true
+    k.order = Math.min(k.order, r.order)
+    keys.set(key, k)
+  }
+  return [...keys.values()].filter(k => k.countable).sort((a, b) => a.order - b.order || a.name.localeCompare(b.name))
+    .map(k => ({ name: k.name, sciName: k.sciName }))
+})()
+
+/* Calendar: normalized names, A to Z by localeCompare, names only (Calendar.tsx). */
+const CAL_LIST = [...new Set(ALL.map(r => normalizeSpeciesName(r.name)))].sort((a, b) => a.localeCompare(b)).map(name => ({ name }))
+
+/* ===================================================================
+   MATCHING AND RANKING (rule A: code matches first, then name matches)
+   =================================================================== */
+const normalizeQuery = raw => raw.trim().toLowerCase()
+const matchesName = (r, q) => r.name.toLowerCase().includes(q) || (r.sciName ?? '').toLowerCase().includes(q)
+
+function codesOf(name) {
+  const k = name.toLowerCase()
+  if (hasOwn(CODE_TABLE, k)) return CODE_TABLE[k]
+  const p = normalizeSpeciesName(name).toLowerCase()
+  if (p !== k && hasOwn(CODE_TABLE, p)) return CODE_TABLE[p]
+  return ''
+}
+const codeIndexMemo = new WeakMap()
+function codeIndex(list) {
+  let m = codeIndexMemo.get(list)
+  if (m) return m
+  m = new Map()
+  for (const r of list) for (const c of codesOf(r.name).split(' ')) {
+    if (!c) continue
+    const k = c.toLowerCase()
+    if (!m.has(k)) m.set(k, new Set())
+    m.get(k).add(r.name)
+  }
+  codeIndexMemo.set(list, m)
+  return m
+}
+
+/** rule: 'today' | 'new'. Returns [{ row, why }] with why in 'code' | 'name'. */
+function rank(list, q, rule, order, codesOn) {
+  const hits = codesOn && rule === 'new' ? codeIndex(list).get(q) : undefined
+  const sorted = arr => (order ? arr.sort(order) : arr)
+  if (!hits || hits.size === 0) return sorted(list.filter(r => matchesName(r, q))).map(row => ({ row, why: 'name' }))
+  const code = [], rest = []
+  for (const r of list) {
+    if (hits.has(r.name)) code.push(r)
+    else if (matchesName(r, q)) rest.push(r)
+  }
+  return [...sorted(code).map(row => ({ row, why: 'code' })), ...sorted(rest).map(row => ({ row, why: 'name' }))]
+}
+
+const CAP = 50
+function searchRows(query, rule, codesOn) {
+  const q = normalizeQuery(query)
+  const dest = (q ? DESTINATIONS.filter(([label]) => label.toLowerCase().includes(q)) : DESTINATIONS)
+    .map(([label, icon]) => ({ kind: 'tab', label, icon }))
+  let species = [], truncated = false
+  if (q) {
+    const ranked = rank(SEARCH_LIST, q, rule, compareSpeciesName, codesOn)
+    if (ranked.length > CAP) { truncated = true; ranked.length = CAP }
+    species = ranked.map(({ row, why }) => ({ kind: 'species', name: row.name, sciName: row.sciName, why }))
+  }
+  return { rows: [...dest, ...species], destinationCount: dest.length, truncated }
+}
+function pickerRows(list, allLabel, query, rule, codesOn) {
+  const q = normalizeQuery(query)
+  const filtered = q ? rank(list, q, rule, null, codesOn) : list.map(row => ({ row, why: 'name' }))
+  const sp = filtered.map(({ row, why }) => ({ kind: 'species', name: row.name, sciName: row.sciName, why }))
+  return allLabel ? [{ kind: 'all', label: allLabel }, ...sp] : sp
+}
+
+/* ===================================================================
+   STATE
+   =================================================================== */
+const prefersDark = () => window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+const SURFACE = {
+  search: { label: 'Search', list: SEARCH_LIST },
+  sd: { label: 'Species Detail', list: SD_LIST, allLabel: null, size: 'md', sci: true, aria: 'Select species', placeholder: 'Choose a species…' },
+  cal: { label: 'Calendar', list: CAL_LIST, allLabel: 'All species', size: 'sm', sci: false, aria: 'Filter the calendar to one species', placeholder: 'Filter to one species…' },
+}
+const state = {
+  query: 'yrwa',
+  window: 'wide',
+  scale: '1',
+  codes: 'on',
+  theme: prefersDark() ? 'dark' : 'light',
+  slot: {
+    search: { active: -1, flash: null },
+    sd: { active: -1, closed: false, value: "Anna's Hummingbird", flash: null },
+    cal: { active: -1, closed: false, value: '', flash: null },
+  },
+}
+
+const CHIPS = [
+  { label: 'Codes that lead', key: true, qs: ['yrwa', 'mywa', 'auwa', 'amro', 'gbhe', 'cago', 'nosh', 'trsw', 'snow', 'wren', 'dove'] },
+  { label: 'Codes from other names no longer match', qs: ['goos', 'cost', 'rodo'] },
+  { label: 'Not codes: exactly as today', qs: ['goose', 'warb', 'yr', 'heron', 'er'] },
+]
+const TABLE_QS = ['yrwa', 'mywa', 'auwa', 'amro', 'cago', 'nosh', 'trsw', 'gbhe', null, 'snow', 'wren', 'dove', 'colo', 'surf', 'sand', 'will', 'bran', null, 'goos', 'cost', 'rodo']
+
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
+const ordinal = n => n + (n % 10 === 1 && n % 100 !== 11 ? 'st' : n % 10 === 2 && n % 100 !== 12 ? 'nd' : n % 10 === 3 && n % 100 !== 13 ? 'rd' : 'th')
+const joinNames = arr => arr.length <= 1 ? arr.join('') : arr.slice(0, -1).join(', ') + (arr.length > 2 ? ',' : '') + ' and ' + arr[arr.length - 1]
+
+/* ===================================================================
+   RENDER: frames
+   =================================================================== */
+const slots = [...document.querySelectorAll('[data-slot]')].map(el => ({ id: el.dataset.slot, el, frame: el.querySelector('[data-frame]') }))
+
+function shellHtml() {
+  const rail = DESTINATIONS.slice(0, 7).map(([, ic], i) => `<span class="${i === 3 ? 'sh-on' : ''}">${svg(ic, 18, 2)}</span>`).join('')
+  return `<div class="sh" aria-hidden="true"><div class="sh-rail">${rail}</div>
+    <div class="sh-body"><div class="sh-title">Species Detail</div>
+    <div class="sh-card"><div class="sh-line" style="width:46%"></div><div class="sh-line" style="width:72%"></div><div class="sh-line" style="width:58%"></div></div>
+    <div class="sh-card"><div class="sh-line" style="width:64%"></div><div class="sh-line" style="width:38%"></div></div></div></div>`
+}
+
+function buildFrame(p) {
+  const f = p.frame
+  if (p.id === 'search') {
+    const foot = `<div class="sr-palette-foot"><span class="sr-palette-legend"><kbd class="sr-palette-kbd">↑</kbd><kbd class="sr-palette-kbd">↓</kbd>Move</span><span class="sr-palette-legend"><kbd class="sr-palette-kbd">↵</kbd>Open</span><span class="sr-palette-legend"><kbd class="sr-palette-kbd">Esc</kbd>Close</span></div>`
+    f.innerHTML = `${shellHtml()}<div class="sr-palette-root"><div class="sr-palette-panel" role="region" aria-label="Search">
+      <div class="sr-palette-head"><div class="sr-palette-field">${svg('search', 17, 2.1)}
+        <input type="text" class="sr-palette-input" role="combobox" aria-label="Search destinations and species" aria-expanded="true" aria-controls="lb-search" aria-autocomplete="list" aria-haspopup="listbox" placeholder="Search destinations and species" autocomplete="off" spellcheck="false"></div>
+        <button type="button" class="sr-palette-close" aria-label="Close search" tabindex="-1">${svg('x', 17, 2.2)}</button></div>
+      <div class="sr-palette-results" data-results></div>${foot}</div></div>`
+  } else {
+    const s = SURFACE[p.id]
+    const inner = p.id === 'sd'
+      ? `<div class="pg-title">Species Detail</div>
+         <div class="pg-toolbar"><span class="sw"><span class="sw-track"><span class="sw-knob"></span></span>Show subspecies</span><span class="sw"><span class="sw-track"><span class="sw-knob"></span></span>Show all forms</span><span class="sw"><span class="sw-track"><span class="sw-knob"></span></span>Show escapees</span><span class="pg-count">${SD_LIST.length} species</span></div>
+         ${comboHtml(p, s)}
+         <div class="pg-hero" aria-hidden="true"><div class="pg-hero-name" data-hero></div><div class="pg-hero-sci" data-hero-sci></div><div class="sh-line" style="width:70%"></div><div class="sh-line" style="width:52%"></div></div>`
+      : `<div class="pg-title">Calendar</div>
+         <div class="cal-strip"><span style="display:flex;align-items:center;gap:8px"><span class="cal-label">Show</span><span class="cal-seg"><span class="on">Species</span><span>Checklists</span><span>Total count</span></span></span>
+         <span style="display:flex;align-items:center;gap:8px;min-width:0;flex:1 1 220px"><span class="cal-label">Species</span>${comboHtml(p, s)}</span></div>
+         <div class="cal-grid" aria-hidden="true">${calGrid()}</div>`
+    f.innerHTML = `<div class="pg">${inner}</div>`
+  }
+  wireFrame(p)
+}
+function comboHtml(p, s) {
+  return `<div class="cb cb--${s.size}" data-cb><div class="cb-field"><span class="cb-icon">${svg('search', s.size === 'md' ? 15 : 13, 2)}</span>
+    <input type="text" class="cb-input" role="combobox" aria-label="${s.aria}" aria-autocomplete="list" aria-controls="lb-${p.id}" aria-haspopup="listbox" placeholder="${s.placeholder}" autocomplete="off" spellcheck="false">
+    <button type="button" class="cb-toggle" tabindex="-1" aria-label="Toggle species list">${svg('chevron', 16, 2)}</button></div><div data-list></div></div>`
+}
+function calGrid() {
+  let h = ''
+  const pattern = [0, 1, 0, 2, 0, 0, 1, 1, 0, 0, 2, 1, 0, 0, 0, 1, 0, 0, 2, 0, 1, 0, 1, 0, 0, 1, 0, 2, 1, 0, 0, 0, 1, 0, 0]
+  for (const d of pattern) h += `<i class="${d === 1 ? 'd1' : d === 2 ? 'd2' : ''}"></i>`
+  return h
+}
+
+/* ===================================================================
+   RENDER: rows
+   =================================================================== */
+function currentRows(p, rule = 'new') {
+  const codesOn = state.codes === 'on'
+  if (p.id === 'search') return searchRows(state.query, rule, codesOn)
+  const s = SURFACE[p.id]
+  return { rows: pickerRows(s.list, s.allLabel, state.query, rule, codesOn) }
+}
+
+function renderSlot(p) {
+  const ps = state.slot[p.id]
+  const input = p.frame.querySelector('input')
+  if (input && document.activeElement !== input) {
+    input.value = p.id === 'search' ? state.query : (ps.closed ? ps.value : state.query)
+  }
+  if (p.id === 'search') renderSearch(p, ps, input)
+  else renderPicker(p, ps, input)
+}
+
+function renderSearch(p, ps, input) {
+  const { rows, destinationCount, truncated } = currentRows(p)
+  const active = ps.active >= 0 && ps.active < rows.length ? ps.active : -1
+  const opt = (row, i) => {
+    const cls = 'sr-palette-row' + (active === i ? ' sr-palette-row--active' : '')
+    if (row.kind === 'tab') return `<div id="opt-search-${i}" role="option" aria-selected="${active === i}" class="${cls}" data-i="${i}"><span class="sr-palette-row-icon">${svg(row.icon, 17, 2.1)}</span><span class="sr-palette-row-name">${esc(row.label)}</span></div>`
+    return `<div id="opt-search-${i}" role="option" aria-selected="${active === i}" class="${cls}" data-i="${i}"><span class="sr-palette-row-name">${esc(row.name)}</span>${row.sciName ? `<span class="sr-palette-row-sci">${esc(row.sciName)}</span>` : ''}</div>`
+  }
+  let h = '<div id="lb-search" role="listbox" aria-label="Search destinations and species">'
+  if (destinationCount > 0) h += `<div role="group" aria-label="Destinations"><div class="sr-palette-group" role="presentation">Destinations</div>${rows.slice(0, destinationCount).map((r, i) => opt(r, i)).join('')}</div>`
+  if (rows.length > destinationCount) h += `<div role="group" aria-label="Species"><div class="sr-palette-group" role="presentation">Species</div>${rows.slice(destinationCount).map((r, i) => opt(r, destinationCount + i)).join('')}</div>`
+  h += '</div>'
+  if (truncated) h += `<p class="sr-palette-note">Showing the first ${CAP} matches. Keep typing to narrow them.</p>`
+  if (state.query.trim() !== '' && rows.length === 0) h += '<div class="sr-palette-status" role="status"><span class="sr-palette-status-line">Nothing matches that search.</span></div>'
+  p.frame.querySelector('[data-results]').innerHTML = h
+  if (input) input.setAttribute('aria-activedescendant', active >= 0 ? `opt-search-${active}` : '')
+  scrollActive(p, active)
+}
+
+function renderPicker(p, ps, input) {
+  const s = SURFACE[p.id]
+  const cb = p.frame.querySelector('[data-cb]')
+  const list = p.frame.querySelector('[data-list]')
+  const value = ps.value || null
+  const open = !ps.closed
+  cb.classList.toggle('cb--open', open)
+  if (input) {
+    input.setAttribute('aria-expanded', String(open))
+    input.classList.toggle('cb-input--chosen', !open && !!value)
+  }
+  const hero = p.frame.querySelector('[data-hero]')
+  if (hero) {
+    const sel = SD_LIST.find(r => r.name === value)
+    hero.textContent = value || ''
+    p.frame.querySelector('[data-hero-sci]').textContent = sel ? sel.sciName : ''
+  }
+  if (!open) { list.innerHTML = ''; return }
+  const rows = currentRows(p).rows
+  const active = ps.active >= 0 && ps.active < rows.length ? ps.active : -1
+  let h = `<div class="cb-list" role="listbox" id="lb-${p.id}" aria-label="${s.aria}">`
+  if (rows.length === 0) h += '<div class="cb-empty">No species match this search.</div>'
+  rows.forEach((row, i) => {
+    const sel = row.kind === 'all' ? !value : row.name === value
+    const cls = 'cb-row' + (sel ? ' cb-row--sel' : '') + (active === i ? ' cb-row--active' : '')
+    h += `<div class="${cls}" id="opt-${p.id}-${i}" role="option" aria-selected="${sel}" data-i="${i}"><span class="cb-check">${sel ? svg('check', 13, 3) : ''}</span>`
+    h += row.kind === 'all'
+      ? `<span class="cb-name cb-name--all">${esc(row.label)}</span>`
+      : `<span class="cb-name">${esc(row.name)}</span>${s.sci && row.sciName ? `<span class="cb-sci">${esc(row.sciName)}</span>` : ''}`
+    h += '</div>'
+  })
+  h += '</div>'
+  const wasOpen = !!list.firstElementChild
+  list.innerHTML = h
+  if (wasOpen) list.firstElementChild.style.animation = 'none'
+  if (input) input.setAttribute('aria-activedescendant', active >= 0 ? `opt-${p.id}-${active}` : '')
+  scrollActive(p, active)
+}
+
+function scrollActive(p, active) {
+  if (active < 0) return
+  const el = p.frame.querySelector(`#opt-${p.id}-${active}`)
+  if (el) el.scrollIntoView({ block: 'nearest' })
+}
+
+/* ===================================================================
+   NOTES (review voice, one block under the replicas)
+   =================================================================== */
+function enterTarget(p, rows, active) {
+  if (p.id === 'search') return active >= 0 ? rows[active] : rows[0]
+  if (active >= 0) return rows[active]
+  return state.query.trim() === '' ? rows[0] : rows.find(r => r.kind === 'species')
+}
+function describeTarget(p, t) {
+  const verb = p.id === 'search' ? 'opens' : 'picks'
+  if (!t) return 'Enter does nothing: nothing matches.'
+  if (t.kind === 'tab') return `Enter opens the <strong>${esc(t.label)}</strong> tab.`
+  if (t.kind === 'all') return 'Enter picks <strong>All species</strong>.'
+  return p.id === 'search' ? `Enter opens <strong>${esc(t.name)}</strong> on Species Detail.` : `Enter ${verb} <strong>${esc(t.name)}</strong>.`
+}
+function renderNotes() {
+  const q = normalizeQuery(state.query)
+  let h = '<div class="rv-notes-enter">'
+  for (const p of slots) {
+    const ps = state.slot[p.id]
+    let line
+    if (ps.flash) line = `<span class="rv-flash">${ps.flash}</span>`
+    else if (p.id !== 'search' && ps.closed) line = `Picked <strong>${esc(ps.value || 'All species')}</strong>. Click the field or a query to reopen.`
+    else {
+      const { rows } = currentRows(p)
+      const active = ps.active >= 0 && ps.active < rows.length ? ps.active : -1
+      line = describeTarget(p, enterTarget(p, rows, active))
+    }
+    h += `<p class="rv-enter"><span class="rv-enter-where">${SURFACE[p.id].label}</span><span class="rv-k">↵</span>${line}</p>`
+  }
+  h += '</div><div class="rv-notes-why">'
+  if (!q) {
+    h += '<p>Type in any replica or pick a query above. All three share one query.</p></div>'
+    document.getElementById('notes').innerHTML = h
+    return
+  }
+  if (state.codes !== 'on') {
+    h += '<p>Code data has not arrived yet, so every surface shows exactly today\'s list. Search and the pickers never wait for it.</p></div>'
+    document.getElementById('notes').innerHTML = h
+    return
+  }
+  const hits = codeIndex(SEARCH_LIST).get(q)
+  const dropped = hasOwn(DROPPED, q) ? DROPPED[q].filter(n => !(hits && hits.has(n))) : []
+  const CODE = `<span class="rv-tag">${esc(q.toUpperCase())}</span>`
+  if (hits && hits.size) {
+    const names = [...hits].sort(byName)
+    h += `<p>${CODE} is the code for ${joinNames(names.map(esc))}.</p>`
+  }
+  if (dropped.length) {
+    const who = joinNames(dropped.map(esc))
+    const why = hasOwn(OTHER_NAME, q)
+      ? `from another name, ${OTHER_NAME[q]}`
+      : `but it is not formed from ${dropped.length === 1 ? 'that name' : 'their names'}`
+    h += hits && hits.size
+      ? `<p>eBird also lists ${esc(q.toUpperCase())} for ${who}, ${why}, so it is left out there.</p>`
+      : `<p>${CODE} is not used. eBird lists it for ${who}, ${why}, so <span class="rv-code">${esc(q)}</span> is an ordinary name query here, exactly as today.</p>`
+  }
+  if (hits && hits.size) {
+    const folded = ['sd', 'cal'].filter(id => !codeIndex(SURFACE[id].list).get(q))
+    if (folded.length) h += `<p>${folded.map(id => SURFACE[id].label).join(' and ')} ${folded.length === 1 ? 'lists' : 'list'} species with their forms folded in, and no species there carries ${esc(q.toUpperCase())}, so ${folded.length === 1 ? 'it shows' : 'they show'} today's result.</p>`
+    const now = searchRows(state.query, 'new', true).rows.filter(r => r.kind === 'species')
+    const before = searchRows(state.query, 'today', true).rows.filter(r => r.kind === 'species')
+    const missing = names => names.filter(n => !before.some(r => r.name === n))
+    const same = now.length === before.length && now.every((r, i) => r.name === before[i].name)
+    if (same) h += '<p class="rv-today">In Search: same rows, same order as today.</p>'
+    else {
+      const miss = missing([...hits].sort(byName))
+      h += before[0]
+        ? `<p class="rv-today">In Search today: Enter opens ${esc(before[0].name)}${miss.length ? `, and ${joinNames(miss.map(esc))} ${miss.length === 1 ? 'is' : 'are'} not listed` : ''}.</p>`
+        : '<p class="rv-today">In Search today: nothing matches.</p>'
+    }
+  } else if (!dropped.length) {
+    h += '<p>Not a code of any bird in this list, so every surface shows exactly today\'s rows and order.</p>'
+  }
+  h += '</div>'
+  document.getElementById('notes').innerHTML = h
+}
+
+/* ===================================================================
+   INTERACTION
+   =================================================================== */
+function resetSlots() {
+  for (const k of Object.keys(state.slot)) { const s = state.slot[k]; s.active = -1; s.flash = null; if ('closed' in s) s.closed = false }
+}
+function wireFrame(p) {
+  const input = p.frame.querySelector('input')
+  const ps = state.slot[p.id]
+  input.addEventListener('input', () => { state.query = input.value; resetSlots(); renderAll() })
+  input.addEventListener('focus', () => {
+    if (p.id === 'search') return
+    if (ps.closed) { ps.closed = false; ps.active = -1; input.value = state.query; renderSlot(p); renderNotes() }
+    input.select()
+  })
+  input.addEventListener('keydown', e => {
+    const rows = currentRows(p).rows
+    const active = ps.active >= 0 && ps.active < rows.length ? ps.active : -1
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      if (p.id !== 'search' && ps.closed) { ps.closed = false; input.value = state.query }
+      ps.active = Math.min(active + 1, rows.length - 1); renderSlot(p); renderNotes()
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault(); ps.active = Math.max(active - 1, -1); renderSlot(p); renderNotes()
+    } else if (e.key === 'Enter') {
+      e.preventDefault()
+      if (p.id !== 'search' && ps.closed) return
+      const t = enterTarget(p, rows, active)
+      if (t) choose(p, t)
+    } else if (e.key === 'Escape') {
+      if (p.id !== 'search') { ps.closed = true; ps.active = -1; input.value = ps.value; renderSlot(p); renderNotes() }
+      input.blur()
+    }
+  })
+  p.frame.addEventListener('mousedown', e => {
+    const row = e.target.closest('[data-i]')
+    if (!row) return
+    e.preventDefault()
+    const t = currentRows(p).rows[Number(row.dataset.i)]
+    if (t) choose(p, t)
+  })
+  const tog = p.frame.querySelector('.cb-toggle')
+  if (tog) tog.addEventListener('click', () => {
+    ps.closed = !ps.closed; ps.active = -1
+    input.value = ps.closed ? ps.value : state.query
+    renderSlot(p); renderNotes()
+  })
+}
+
+const flashTimers = {}
+function choose(p, t) {
+  const ps = state.slot[p.id]
+  if (p.id === 'search') {
+    ps.flash = t.kind === 'tab' ? `Opened the ${esc(t.label)} tab.` : `Opened ${esc(t.name)} on Species Detail.`
+  } else {
+    ps.value = t.kind === 'all' ? '' : t.name
+    ps.closed = true; ps.active = -1
+    p.frame.querySelector('input').value = ps.value
+    ps.flash = t.kind === 'all' ? 'Picked All species.' : `Picked ${esc(t.name)}.`
+  }
+  clearTimeout(flashTimers[p.id])
+  flashTimers[p.id] = setTimeout(() => { ps.flash = null; renderNotes() }, 1800)
+  renderSlot(p); renderNotes()
+}
+
+function renderAll() {
+  for (const p of slots) renderSlot(p)
+  renderNotes()
+  renderChips()
+}
+function rebuild() {
+  resetSlots()
+  for (const p of slots) buildFrame(p)
+  renderAll()
+}
+
+/* Chips */
+const chipsEl = document.getElementById('chips')
+chipsEl.innerHTML = CHIPS.map(g => `<div class="rv-chip-group"><span>${g.label}</span>${g.qs.map(q => `<button type="button" class="rv-chip${g.key ? ' rv-chip--key' : ''}" data-q="${q}" aria-pressed="false">${q}</button>`).join('')}</div>`).join('')
+chipsEl.addEventListener('click', e => {
+  const b = e.target.closest('[data-q]')
+  if (b) setQuery(b.dataset.q)
+})
+function setQuery(q) {
+  state.query = q
+  resetSlots()
+  for (const p of slots) { const i = p.frame.querySelector('input'); if (i) i.value = q }
+  renderAll()
+}
+function renderChips() {
+  const q = normalizeQuery(state.query)
+  for (const b of chipsEl.querySelectorAll('[data-q]')) b.setAttribute('aria-pressed', String(b.dataset.q === q))
+}
+
+/* View toggles */
+for (const seg of document.querySelectorAll('[data-ctl]')) {
+  seg.addEventListener('click', e => {
+    const b = e.target.closest('button[data-v]')
+    if (!b) return
+    state[seg.dataset.ctl] = b.dataset.v
+    applyView()
+    if (seg.dataset.ctl === 'window') rebuild()
+    else { renderAll(); renderTable() }
+  })
+}
+function applyView() {
+  const root = document.documentElement
+  root.dataset.theme = state.theme
+  root.style.setProperty('--sr-text-scale', state.scale)
+  document.body.dataset.window = state.window
+  for (const seg of document.querySelectorAll('[data-ctl]')) {
+    for (const b of seg.querySelectorAll('button')) b.setAttribute('aria-pressed', String(b.dataset.v === state[seg.dataset.ctl]))
+  }
+}
+
+/* The four-letter table (Search, this list): today against the new rule. */
+function renderTable() {
+  const body = document.getElementById('table-body')
+  const codesOn = state.codes === 'on'
+  let h = '', split = false
+  for (const q of TABLE_QS) {
+    if (q === null) { split = true; continue }
+    const hits = codeIndex(SEARCH_LIST).get(q)
+    const owners = hits ? [...hits].sort(byName) : []
+    const dropped = hasOwn(DROPPED, q) ? DROPPED[q].filter(n => !owners.includes(n)) : []
+    const res = rule => {
+      const r = searchRows(q, rule, codesOn).rows.filter(x => x.kind === 'species')
+      return { first: r[0] ? r[0].name : 'nothing', rows: r }
+    }
+    const today = res('today'), now = res('new')
+    const cell = (x, isToday) => {
+      const cls = isToday ? '' : (x.first === today.first ? 'rv-same' : 'rv-diff')
+      const own = owners.length === 1 && owners[0] !== x.first
+        ? (() => { const i = x.rows.findIndex(r => r.name === owners[0]); return `<small>${esc(owners[0])} ${i >= 0 ? 'is ' + ordinal(i + 1) : 'not listed'}</small>` })()
+        : ''
+      return `<td class="${cls}">${esc(x.first)}${own}</td>`
+    }
+    let is = owners.map(esc).join(', ')
+    if (!owners.length && dropped.length) is = `<span class="rv-same">Not used</span><small>eBird lists it for ${dropped.map(esc).join(', ')}${hasOwn(OTHER_NAME, q) ? ', from ' + OTHER_NAME[q] : ''}</small>`
+    else if (dropped.length) is += `<small>Not ${dropped.map(esc).join(', ')}${hasOwn(OTHER_NAME, q) ? ' (' + OTHER_NAME[q] + ')' : ''}</small>`
+    h += `<tr class="${split ? 'rv-row-split' : ''}" data-q="${q}" tabindex="0"><td>${q}</td><td>${is}</td>${cell(today, true)}${cell(now, false)}</tr>`
+    split = false
+  }
+  body.innerHTML = h
+}
+document.getElementById('table-body').addEventListener('click', e => {
+  const tr = e.target.closest('tr[data-q]')
+  if (!tr) return
+  setQuery(tr.dataset.q)
+  document.getElementById('stage').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' })
+})
+document.getElementById('table-body').addEventListener('keydown', e => {
+  if (e.key === 'Enter' || e.key === ' ') { const tr = e.target.closest('tr[data-q]'); if (tr) { e.preventDefault(); tr.click() } }
+})
+
+applyView()
+rebuild()
+renderTable()
+</script>
+</body>
+</html>

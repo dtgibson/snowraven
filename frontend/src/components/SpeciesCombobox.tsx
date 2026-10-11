@@ -11,11 +11,25 @@
 // selectSpecies reset, the Calendar's setPopup(null)) live in the parent's
 // onChange. listbox/option ids are useId()-namespaced so two instances on one page
 // can't collide.
+//
+// SPECIES CODE SEARCH (species-code-search). Typing a bird's four-letter code
+// (`yrwa`, `cago`) also finds it, and code matches lead the list, after the "All
+// species" row where there is one, each group in the order the options were
+// handed in. The ranking rule and the highlight rule live in
+// lib/speciesMatch.ts, shared with Search; the code data loads lazily the first
+// time any picker opens (lib/alphaCodesAsset.ts) and is never waited for. So
+// every call site gets codes with no wiring of its own, and a future call site
+// gets them by construction. Rows look exactly as before: no badge, no label.
 
 import { Button } from './ui/Button'
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { Search, ChevronDown, Check } from 'lucide-react'
-import { matchesSpeciesQuery, normalizeSpeciesQuery } from '../lib/speciesMatch'
+import {
+  highlightOnCodeArrival, matchesSpeciesQuery, normalizeSpeciesQuery, rankSpeciesMatches,
+} from '../lib/speciesMatch'
+import { alphaCodeHits } from '../lib/alphaCodes'
+import { loadAlphaCodes } from '../lib/alphaCodesAsset'
+import { useAlphaCodes } from '../lib/useAlphaCodes'
 
 export interface SpeciesComboboxOption {
   name: string
@@ -62,11 +76,43 @@ export function SpeciesCombobox({
   // change to that module, the change is wrong, not the tests. The query is
   // normalized ONCE per keystroke rather than once per row, which is why
   // normalization and matching are two functions there.
+  //
+  // Code matches first (species-code-search): `rankSpeciesMatches` is handed
+  // the imported `matchesSpeciesQuery` binding rather than calling it itself,
+  // and no `order`, so each group keeps the order the call site handed in.
+  // With no code data, or a query that is no listed bird's code, this is the
+  // plain filter it always was.
+  const alphaCodes = useAlphaCodes()
   const filtered = useMemo<SpeciesComboboxOption[]>(() => {
     const q = normalizeSpeciesQuery(query)
     if (!q) return options
-    return options.filter(o => matchesSpeciesQuery(o, q))
-  }, [options, query])
+    return rankSpeciesMatches(options, q, alphaCodeHits(alphaCodes, options, q), matchesSpeciesQuery)
+  }, [options, query, alphaCodes])
+
+  // FR-24: the code data starts loading the first time ANY picker opens in a
+  // session (focus, typing, ArrowDown and the toggle all set `open`). Memoized,
+  // so every later open is a settled-promise check. Never awaited (FR-23).
+  useEffect(() => {
+    if (open) void loadAlphaCodes()
+  }, [open])
+
+  // FR-25, adjusted DURING RENDER rather than in an effect, so no commit ever
+  // shows the highlight (and `aria-activedescendant`) on a different bird. When
+  // the code data arrives with a query typed and a species row highlighted, the
+  // highlight is cleared if the rows changed and kept if they did not; "All
+  // species" keeps its highlight. The rule itself is `highlightOnCodeArrival`.
+  const [alphaSeen, setAlphaSeen] = useState(alphaCodes)
+  if (alphaSeen !== alphaCodes) {
+    setAlphaSeen(alphaCodes)
+    const q = normalizeSpeciesQuery(query)
+    if (q && activeIdx >= 0) {
+      const before = rankSpeciesMatches(options, q, alphaCodeHits(alphaSeen, options, q), matchesSpeciesQuery)
+      const next = highlightOnCodeArrival(
+        activeIdx, allLabel != null ? 1 : 0, before.map(o => o.name), filtered.map(o => o.name),
+      )
+      if (next !== activeIdx) setActiveIdx(next)
+    }
+  }
 
   // The rendered rows: the synthetic "all/clear" row (when allLabel is set) always
   // sits first and is NOT filtered out, so the user can always clear.

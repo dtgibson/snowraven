@@ -8,10 +8,24 @@
 //   - frontend/src/assets/ebird-taxonomy.json   (desktop/web bundled floor, dynamic-imported)
 //   - backend/staticdata/ebird_taxonomy.json     (read by the FastAPI taxonomy route;
 //       NOT backend/data/, which is gitignored user-upload storage)
+// plus, from the same fetch, two frontend-only derived assets:
+//   - frontend/src/assets/ebird-countability.json (see build-countability.mjs)
+//   - frontend/src/assets/ebird-alpha-codes.json  (species-code-search: every
+//       published common name, lowercased, to the four-letter codes Search and
+//       the species pickers match; its rule, the American-name filter, is in
+//       scripts/lib/ebirdTaxonomyDerive.mjs, the pure core of this script)
+//
+// THE REVISION CHECK. With VERSION unchanged, this script refuses a live
+// taxonomy whose five maps differ from the committed snapshot (codes are never
+// generated from a newer revision than the snapshot), and when they are equal it
+// writes ONLY the alpha-code asset, so every other asset stays byte-identical.
+// So at the annual revision, bump VERSION and CACHE_KEY FIRST; the run then
+// writes every asset together. Nothing is written until every check has passed.
 //
 // The derivation is the SINGLE SOURCE OF TRUTH shared with:
 //   - frontend/src/lib/tauri/taxonomyService.ts  (loadTaxonomy, ~lines 113-133)
 //   - backend/routers/taxonomy.py                (_derive_from_taxonomy)
+// (the five maps are derived in scripts/lib/ebirdTaxonomyDerive.mjs, deriveSnapshotMaps)
 // Keep all three in lockstep:
 //   bySci    = sciName.lower() -> speciesCode   (species category only)
 //   byCom    = comName.lower() -> speciesCode   (species category only)
@@ -47,10 +61,11 @@
 // The history records the snapshot version it was built against, and
 // taxonomyHistoryAsset.test.ts fails while the two disagree.
 
-import { writeFile, mkdir } from 'node:fs/promises'
+import { readFile, writeFile, mkdir } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 import { deriveCountability, guard as guardCountability } from './build-countability.mjs'
+import { planTaxonomyRun } from './lib/ebirdTaxonomyDerive.mjs'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const REPO = join(HERE, '..')
@@ -65,6 +80,11 @@ const VERSION = '2027'
 const GENERATED = new Date().toISOString().slice(0, 10)
 
 const EBIRD_TAXONOMY_URL = 'https://api.ebird.org/v2/ref/taxonomy/ebird?fmt=json'
+
+const SNAPSHOT_TARGET = join(REPO, 'frontend/src/assets/ebird-taxonomy.json')
+const SNAPSHOT_TWIN_TARGET = join(REPO, 'backend/staticdata/ebird_taxonomy.json')
+const COUNTABILITY_TARGET = join(REPO, 'frontend/src/assets/ebird-countability.json')
+const ALPHA_CODES_TARGET = join(REPO, 'frontend/src/assets/ebird-alpha-codes.json')
 
 // Plausibility floors — a truncated/partial fetch must HARD-FAIL the build, never
 // silently ship a degraded snapshot (a truncated floor blanks favicons for ALL
@@ -98,32 +118,14 @@ async function fetchTaxonomy() {
   return taxonomy
 }
 
-// Mirror of taxonomyService.ts loadTaxonomy() / taxonomy.py _derive_from_taxonomy().
-function deriveBundle(taxonomy) {
-  const bySci = {}
-  const byCom = {}
-  const byOrder = {}
-  const byCode = {}
-  const reportAs = {}
-
-  for (const taxon of taxonomy) {
-    const code = taxon.speciesCode ?? ''
-    if (!code) continue
-    byCode[code] = taxon.comName ?? ''
-    if (taxon.reportAs) reportAs[code] = taxon.reportAs
-    // Name -> code maps stay species-level (preserves /taxonomy/codes behavior).
-    if (taxon.category !== 'species') continue
-    const sci = (taxon.sciName ?? '').toLowerCase()
-    const com = (taxon.comName ?? '').toLowerCase()
-    if (sci) bySci[sci] = code
-    if (com) {
-      byCom[com] = code
-      // INTEGER (matches backend int(order)); a straight copy is then value-identical.
-      if (taxon.taxonOrder != null) byOrder[com] = Math.trunc(Number(taxon.taxonOrder))
-    }
+/** The committed snapshot's file text, or null when it does not exist yet. */
+async function readCommittedSnapshot() {
+  try {
+    return await readFile(SNAPSHOT_TARGET, 'utf8')
+  } catch (e) {
+    if (e && e.code === 'ENOENT') return null
+    throw e
   }
-
-  return { version: VERSION, generated: GENERATED, bySci, byCom, byOrder, byCode, reportAs }
 }
 
 function guard(bundle, rawLen) {
@@ -158,42 +160,61 @@ function guard(bundle, rawLen) {
 }
 
 async function run() {
+  // 1-3. Fetch, read the committed snapshot, and plan. The plan runs the
+  // revision check and every alpha-code invariant; a refusal is part of it.
   const taxonomy = await fetchTaxonomy()
-  const bundle = deriveBundle(taxonomy)
-  const counts = guard(bundle, taxonomy.length)
-
-  const json = JSON.stringify(bundle)
-  const bytes = Buffer.byteLength(json)
-  const mb = (bytes / (1024 * 1024)).toFixed(2)
-
-  const targets = [
-    join(REPO, 'frontend/src/assets/ebird-taxonomy.json'),
-    join(REPO, 'backend/staticdata/ebird_taxonomy.json'),
-  ]
-  for (const t of targets) {
-    await mkdir(dirname(t), { recursive: true })
-    await writeFile(t, json)
-    console.log(`wrote ${mb} MB -> ${t}`)
+  const committed = await readCommittedSnapshot()
+  const plan = planTaxonomyRun({ live: taxonomy, committed, version: VERSION, generated: GENERATED })
+  if (plan.mode === 'stop') {
+    for (const m of plan.messages) console.error(m)
+    console.error('Nothing was written.')
+    process.exit(1)
   }
+
+  // 4. The snapshot floors, in both modes (the alpha-code asset is derived from
+  // the same fetch, so a truncated fetch must stop it too).
+  const counts = guard(plan.bundle, taxonomy.length)
+
+  // 5-6. Everything to write, decided before the first write. The countability
+  // artifact is derived from the bundle in the SAME run, so the two can never
+  // drift across an annual Clements revision. It is what `lib/speciesUtils.ts`
+  // reads to decide what counts toward a species list; see
+  // `build-countability.mjs` for what it contains and why it is only the 169
+  // corrections rather than all 17,891 verdicts.
+  const writes = []
+  if (plan.mode === 'all') {
+    const json = JSON.stringify(plan.bundle)
+    const countability = deriveCountability(plan.bundle)
+    guardCountability(countability)
+    writes.push({ target: SNAPSHOT_TARGET, json })
+    writes.push({ target: SNAPSHOT_TWIN_TARGET, json })
+    writes.push({ target: COUNTABILITY_TARGET, json: JSON.stringify(countability) })
+    console.log(
+      `  version=${plan.bundle.version} generated=${plan.bundle.generated} | ` +
+      `raw=${counts.raw} byCode=${counts.byCode} bySci=${counts.bySci} ` +
+      `byCom=${counts.byCom} byOrder=${counts.byOrder} reportAs=${counts.reportAs}\n` +
+      `  countable=${countability.countable.length} ` +
+      `nonCountable=${countability.nonCountable.length} (over ${countability.names} published names)`
+    )
+  } else {
+    console.log(
+      `codes-only: the live taxonomy equals the committed snapshot (version ${VERSION}), ` +
+      'so only the alpha-code asset is written and every other asset stays byte-identical.'
+    )
+  }
+  writes.push({ target: ALPHA_CODES_TARGET, json: plan.alphaCodesJson })
+  const codeValues = Object.values(plan.alphaCodes.codes)
   console.log(
-    `  version=${bundle.version} generated=${bundle.generated} | ` +
-    `raw=${counts.raw} byCode=${counts.byCode} bySci=${counts.bySci} ` +
-    `byCom=${counts.byCom} byOrder=${counts.byOrder} reportAs=${counts.reportAs}`
+    `  alpha codes: ${codeValues.filter((v) => v !== '').length} of ${codeValues.length} ` +
+    'published names carry a code'
   )
 
-  // The countability artifact is derived from the bundle we just built, in the
-  // SAME run, so the two can never drift across an annual Clements revision. It
-  // is what `lib/speciesUtils.ts` reads to decide what counts toward a species
-  // list; see `build-countability.mjs` for what it contains and why it is only
-  // the 169 corrections rather than all 17,891 verdicts.
-  const countability = deriveCountability(bundle)
-  guardCountability(countability)
-  const countabilityTarget = join(REPO, 'frontend/src/assets/ebird-countability.json')
-  await writeFile(countabilityTarget, JSON.stringify(countability))
-  console.log(
-    `wrote ${countabilityTarget}\n  countable=${countability.countable.length} ` +
-    `nonCountable=${countability.nonCountable.length} (over ${countability.names} published names)`
-  )
+  // 7. The only write in this file. No guard runs after the first write.
+  for (const { target, json } of writes) {
+    await mkdir(dirname(target), { recursive: true })
+    await writeFile(target, json)
+    console.log(`wrote ${(Buffer.byteLength(json) / (1024 * 1024)).toFixed(2)} MB -> ${target}`)
+  }
 }
 
 run().catch((e) => { console.error(e); process.exit(1) })

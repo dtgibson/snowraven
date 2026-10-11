@@ -42,7 +42,8 @@
 /// <reference types="node" />
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
-import { SPECIES_CAP } from './paletteRows'
+import { SPECIES_CAP, buildPaletteRows } from './paletteRows'
+import type { AlphaCodeTable } from './alphaCodes'
 
 const read = (p: string) => readFileSync(new URL(`../../../${p}`, import.meta.url), 'utf8')
 
@@ -219,5 +220,113 @@ describe('docs/HELP.md says the navigation shape follows the space available, an
       }
     }
     expect(read('frontend/src/lib/useIsPhone.ts')).toContain('(max-width:640px)')
+  })
+})
+
+// ── species-code-search: the code claims, held to the shipped asset ──────────
+//
+// FR-28 to FR-30, QA-52 to QA-54. Each passage is extracted by its own heading
+// (never the whole file), each claim is asserted to EXIST before it is checked,
+// and every code HELP publishes as an example is run through the real asset
+// and the real row builder on a fixture of exactly the bird(s) HELP names.
+
+/** A HELP passage: from the heading line to the next heading of level 2 or 3. */
+function helpPassage(heading: string): string {
+  const src = read('docs/HELP.md')
+  const start = src.indexOf(`\n${heading}\n`)
+  expect(start, `docs/HELP.md has \`${heading}\``).toBeGreaterThan(-1)
+  const rest = src.slice(start + 1)
+  const end = rest.slice(heading.length).search(/\n#{2,3} /)
+  return end === -1 ? rest : rest.slice(0, heading.length + end)
+}
+
+/** The sentence that says how species results are ordered must carry the code-first qualifier. */
+const ORDER_CLAIM = /\balphabetical(?:ly)?\b/i
+const CODE_FIRST = /\bcode\b[^.]*\bfirst\b|\bfirst\b[^.]*\bcode\b/i
+
+describe('HELP\'s Search section states code search as shipped (QA-52, FR-28)', () => {
+  const search = helpSearchSection()
+
+  it('states that a typed code finds a bird, both kinds of code, and that a shared code lists all its birds', () => {
+    expect(search).toMatch(/Typing a bird's code in full finds it/)
+    expect(search).toMatch(/banding code/)
+    expect(search).toMatch(/code formed from its name as SnowRaven shows it/)
+    expect(search).toMatch(/A code shared by several of your birds lists all of them/)
+  })
+
+  it('every sentence about alphabetical order carries the code-first qualifier', () => {
+    const claims = sentences(search).filter(s => ORDER_CLAIM.test(s))
+    expect(claims.length, 'HELP still states the order of species results').toBeGreaterThan(0)
+    for (const claim of claims) expect(claim, 'code matches come first').toMatch(CODE_FIRST)
+  })
+
+  it('GUARD THE GUARD: the sentence HELP carried before code search trips that check', () => {
+    const shipped = 'Species results are listed alphabetically by common name, and the list stops after a fixed number of them.'
+    expect(ORDER_CLAIM.test(shipped)).toBe(true)
+    expect(CODE_FIRST.test(shipped)).toBe(false)
+  })
+
+  it('never promises every code eBird publishes', () => {
+    expect(search).not.toMatch(/\b(?:every|all|any) (?:of eBird's )?codes?\b/i)
+  })
+})
+
+describe('HELP\'s four picker passages say a bird can be found by its code (QA-53, FR-29)', () => {
+  const PICKERS: [string, string][] = [
+    ['Map Explorer, My Sightings', '### My Sightings'],
+    ['Species Detail', '## Species Detail'],
+    ['Calendar, Focusing on one species', '### Focusing on one species'],
+    ['Statistics, Weather', '### Weather'],
+  ]
+  const FINDS_BY_CODE = /\b(?:a bird's code|typing its code|by its code)\b/
+
+  it.each(PICKERS)('%s', (_surface, heading) => {
+    const passage = helpPassage(heading)
+    expect(passage.length).toBeGreaterThan(100)   // non-vacuity: the passage was found
+    expect(passage).toMatch(FINDS_BY_CODE)
+  })
+
+  it('the Calendar passage does not promise a form\'s own code (its forms are folded)', () => {
+    expect(helpPassage('### Focusing on one species')).not.toMatch(/form's own code/)
+  })
+})
+
+describe('every code HELP publishes as an example finds the bird HELP names (QA-54, FR-30)', () => {
+  const TABLE = JSON.parse(read('frontend/src/assets/ebird-alpha-codes.json')) as AlphaCodeTable
+  const NAME = String.raw`[A-Z][\w'-]*(?: [A-Z][\w'-]*)*`
+  const passages = [
+    helpSearchSection(),
+    helpPassage('### My Sightings'),
+    helpPassage('## Species Detail'),
+    helpPassage('### Focusing on one species'),
+    helpPassage('### Weather'),
+  ].join('\n')
+  /** Every backticked token shaped like a code, wherever it appears in these passages. */
+  const codeTokens = [...passages.matchAll(/`([a-z\u00FC\u00F6]{2,4})`/g)].map(m => m[1])
+  const species = (names: string[], query: string) => {
+    const r = buildPaletteRows({ items: [], index: names.map(name => ({ name, sciName: '' })), query, alphaCodes: TABLE })
+    return r.rows.map(row => (row.kind === 'species' ? row.name : ''))
+  }
+
+  it('publishes at least three, so the rows below are not vacuous', () => {
+    expect(new Set(codeTokens).size).toBeGreaterThanOrEqual(3)
+  })
+
+  it('each one names its bird, and the real matcher returns that bird first', () => {
+    for (const code of new Set(codeTokens)) {
+      const single = passages.match(new RegExp(`\`${code}\` for (${NAME})`))
+      const pair = passages.match(new RegExp(`\`${code}\` finds both (${NAME}) and (${NAME})`))
+      expect(single ?? pair, `HELP names the bird \`${code}\` finds`).toBeTruthy()
+      if (pair) {
+        expect(species([pair[1], pair[2]], code).sort(), code).toEqual([pair[1], pair[2]].sort())
+      } else {
+        expect(species([single![1]], code)[0], code).toBe(single![1])
+      }
+    }
+  })
+
+  it('GUARD THE GUARD: a code from another name, published as an example, would fail', () => {
+    // `goos` is eBird's code from Goosander, a name SnowRaven never shows.
+    expect(species(['Common Merganser'], 'goos')).toEqual([])
   })
 })
