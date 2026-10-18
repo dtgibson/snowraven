@@ -342,6 +342,11 @@
   --sr-milestone-3-num: #14502E;
   --sr-milestone-3-date: #2D6644;   /* 4.92:1 */
   --sr-milestone-3-check: #2D8653;
+  /* The species name's hover and focus color on a tier-3 badge. The accent
+     (#277448) measures 4.14:1 on this tile's darker stop; this is the same hue
+     darkened only until it clears AA on both stops: 5.20 on #D6EAE0, 4.75 on
+     #C6E2D5. Read through the badge-local --sr-ms-link (code-search-and-a11y-polish). */
+  --sr-milestone-3-link: #236A41;
   --sr-milestone-4-bg: linear-gradient(160deg,#FEFAEC,#FEF3C7);
   --sr-milestone-4-border: rgba(146,64,14,0.32);
   --sr-milestone-4-num: #92400E;    /* 6.37:1 */
@@ -623,6 +628,8 @@
   --sr-milestone-3-num: #6EE7B7;
   --sr-milestone-3-date: #79CB9A;
   --sr-milestone-3-check: #2F9E63;
+  /* Dark keeps the accent exactly (#34D399, 5.73 and 7.23 on the two stops). */
+  --sr-milestone-3-link: #34D399;
   --sr-milestone-4-bg: linear-gradient(160deg,#3E2B0A,#2C1E05);
   --sr-milestone-4-border: rgba(251,191,36,0.38);
   --sr-milestone-4-num: #FBBF24;
@@ -1434,8 +1441,10 @@ h1, h2, h3, h4, h5, h6 {
 /* min-width: 0 releases the grid item's automatic minimum, so a long name can
    never widen a track. The tier sets four badge-local properties from the
    --sr-milestone-N-* family, so the rules below name one property per role and
-   no tier is special. The four --sr-ms-* names are never declared on a theme
-   block; the tokens they read carry both themes. */
+   no tier is special. The --sr-ms-* names are never declared on a theme block;
+   the tokens they read carry both themes. A fifth, --sr-ms-link (the species
+   name's hover and focus color), is declared on the badge itself as the
+   accent, and only tier 3 overrides it (see the name rules below). */
 .sr-ms-badge {
   display: flex; flex-direction: column; align-items: center; text-align: center;
   min-width: 0;
@@ -1470,9 +1479,17 @@ h1, h2, h3, h4, h5, h6 {
 .sr-ms-name .sr-birdname-row { flex-wrap: wrap; justify-content: center; row-gap: 2px; }
 .sr-ms-name .sr-birdname-link,
 .sr-ms-name .sr-birdname-text { text-align: center; line-height: 1.3; overflow-wrap: anywhere; min-width: 0; }
-/* Name hover and focus ease to --sr-accent; the global reduced-motion block
-   collapses it. */
+/* Name hover and focus ease to the badge's --sr-ms-link; the global
+   reduced-motion block collapses it. The color is badge-scoped, (0,3,0) over
+   the shared (0,2,0) `.sr-birdname-link:hover, :focus-visible` rule, so the
+   shared rule and --sr-accent stay as they are everywhere else. Every tier
+   reads the accent except light tier 3, whose darker stop holds the accent at
+   4.14:1; milestoneContrast.test.ts resolves this chain in both themes. */
 .sr-ms-name .sr-birdname-link { transition: color 120ms cubic-bezier(0.2, 0, 0, 1); }
+.sr-ms-badge { --sr-ms-link: var(--sr-accent); }
+.sr-ms-badge[data-tier="3"] { --sr-ms-link: var(--sr-milestone-3-link); }
+.sr-ms-name .sr-birdname-link:hover,
+.sr-ms-name .sr-birdname-link:focus-visible { color: var(--sr-ms-link); }
 /* 3. The date, the caption role and the link to the checklist. Its color is
    passed to ChecklistLink as var(--sr-ms-date). */
 .sr-ms-date { font-size: 0.6875rem; font-weight: 500; line-height: 1.3; }
