@@ -71,7 +71,7 @@ Most tabs also read your **eBird backup** (`MyEBirdData.csv`, from [ebird.org/do
 
 - **Mac**: download `SnowRaven_x.x.x_universal.dmg` from the [latest release](https://github.com/dtgibson/snowraven/releases/latest) (one universal build for Apple Silicon and Intel), drag SnowRaven to Applications, and right-click the app and choose **Open** on first launch.
 - **iPhone / iPad**: get SnowRaven from the [App Store](https://apps.apple.com/app/id6787719977). Free, iOS 16 or later. Updates arrive through the App Store like any other app.
-- **Android**: download the `.apk` from the [latest release](https://github.com/dtgibson/snowraven/releases/latest). Free, Android 8.0 or later.
+- **Android**: get SnowRaven from [F-Droid](https://f-droid.org/packages/com.dtgibson.snowraven/). Free, Android 8.0 or later. Updates arrive through the F-Droid app.
 - **Windows**: download `SnowRaven_x.x.x_x64-setup.exe` from the [latest release](https://github.com/dtgibson/snowraven/releases/latest) and run it. The app isn't code-signed yet, so SmartScreen may warn "unknown publisher": click **More info**, then **Run anyway**. In-app updates are cryptographically verified regardless.
 - **Raspberry Pi / Linux**: one command on your Pi (or any Debian/Ubuntu machine) handles packages, the build, API keys, and an optional auto-start service:
 
@@ -79,7 +79,7 @@ Most tabs also read your **eBird backup** (`MyEBirdData.csv`, from [ebird.org/do
   curl -fsSL https://raw.githubusercontent.com/dtgibson/snowraven/main/install.sh | bash
   ```
 
-**Updating**: desktop apps update in place from **Check For Updates** in the footer; iPhone and iPad update through the [App Store](https://apps.apple.com/app/id6787719977); Android installs the next release's `.apk` over the old one; self-hosted installs run `./update.sh`.
+**Updating**: desktop apps update in place from **Check For Updates** in the footer; iPhone and iPad update through the [App Store](https://apps.apple.com/app/id6787719977); Android updates through [F-Droid](https://f-droid.org/packages/com.dtgibson.snowraven/); self-hosted installs run `./update.sh`.
 
 ## Build from source
 
