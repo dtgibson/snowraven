@@ -271,9 +271,12 @@ describe('HELP\'s Search section states code search as shipped (QA-52, FR-28)', 
   })
 })
 
-describe('HELP\'s four picker passages say a bird can be found by its code (QA-53, FR-29)', () => {
+describe('HELP\'s picker passages say a bird can be found by its code (QA-53, FR-29)', () => {
+  // The Media Targets row joined with code-search-and-a11y-polish, when its
+  // Target Species box moved onto the shared matcher.
   const PICKERS: [string, string][] = [
     ['Map Explorer, My Sightings', '### My Sightings'],
+    ['Map Explorer, Media Targets', '### Media Targets'],
     ['Species Detail', '## Species Detail'],
     ['Calendar, Focusing on one species', '### Focusing on one species'],
     ['Statistics, Weather', '### Weather'],
@@ -297,6 +300,7 @@ describe('every code HELP publishes as an example finds the bird HELP names (QA-
   const passages = [
     helpSearchSection(),
     helpPassage('### My Sightings'),
+    helpPassage('### Media Targets'),
     helpPassage('## Species Detail'),
     helpPassage('### Focusing on one species'),
     helpPassage('### Weather'),

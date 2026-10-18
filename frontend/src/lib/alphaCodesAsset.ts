@@ -2,11 +2,13 @@
 // schema.md section 6). A dynamic `import()`, so the asset rides its own chunk
 // and stays off the entry graph (`entryChunk.test.ts`).
 //
-// WHO STARTS THE LOAD, AND WHEN (FR-24, OQ-07). Exactly two lines do: Search's
-// mount effect and a species picker's effect on opening. Nothing calls
-// `loadAlphaCodes` at module evaluation or at app start, so the code data
-// starts loading no later than the first Search open or the first picker open
-// in a session and never delays first paint. The load is memoized for the
+// WHO STARTS THE LOAD, AND WHEN (FR-24, OQ-07). Exactly three lines do:
+// Search's mount effect, a species picker's effect on opening, and the Media
+// Targets search box's focus handler (`components/map/TargetSpeciesList.tsx`,
+// code-search-and-a11y-polish). Nothing calls `loadAlphaCodes` at module
+// evaluation or at app start, so the code data starts loading no later than
+// the first Search open, picker open or focus of that box in a session and
+// never delays first paint. The load is memoized for the
 // session, so it runs at most once and is shared by every surface.
 //
 // NEVER WAIT (FR-23). Nothing awaits this. Surfaces read the store through

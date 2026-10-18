@@ -24,12 +24,22 @@ const NEW_MODULES = [
   'frontend/src/lib/alphaCodesAsset.ts',
   'frontend/src/lib/useAlphaCodes.ts',
 ]
+// The three surfaces that rank through the shared rule and start the code load:
+// Search, the shared picker, and (code-search-and-a11y-polish) the Media Targets
+// view's Target Species list, which is its own component so MapExplorer.tsx can
+// keep its call-site row below.
+const CONSUMERS = [
+  'frontend/src/components/SpeciesCombobox.tsx',
+  'frontend/src/lib/paletteRows.ts',
+  'frontend/src/components/map/TargetSpeciesList.tsx',
+]
 const CHANGED_MATCHING = [
   ...NEW_MODULES,
   'frontend/src/lib/speciesMatch.ts',
   'frontend/src/lib/paletteRows.ts',
   'frontend/src/components/SpeciesCombobox.tsx',
   'frontend/src/components/CommandPalette.tsx',
+  'frontend/src/components/map/TargetSpeciesList.tsx',
 ]
 const CALL_SITES = [
   'frontend/src/components/SpeciesDetail.tsx',
@@ -37,8 +47,10 @@ const CALL_SITES = [
   'frontend/src/components/MapExplorer.tsx',
   'frontend/src/components/WeatherStatsSection.tsx',
 ]
+// The Media Targets target-species box left this list on purpose
+// (code-search-and-a11y-polish retired the 1.0.55 FR-21 / QA-29 pin): it now
+// ranks through the shared rule in `map/TargetSpeciesList.tsx`, a CONSUMER above.
 const OUT_OF_SCOPE = [
-  'frontend/src/components/MapExplorer.tsx',              // Media Targets target-species box
   'frontend/src/components/Checklists.tsx',               // the comment search
   'frontend/src/components/targets/TargetsCountyPicker.tsx',
   'frontend/src/components/NamedBirdTickList.tsx',
@@ -55,18 +67,22 @@ describe('the call sites wire nothing, and out-of-scope surfaces are untouched (
     expect(code(path)).not.toMatch(CODE_MODULE_IMPORT)
   })
 
-  it('the two consumers DO import it (guards the negatives above)', () => {
-    for (const path of ['frontend/src/components/SpeciesCombobox.tsx', 'frontend/src/lib/paletteRows.ts']) {
+  it('the three consumers DO import it (guards the negatives above)', () => {
+    for (const path of CONSUMERS) {
       expect(code(path), path).toMatch(CODE_MODULE_IMPORT)
     }
   })
+
+  it('MapExplorer hands the Media Targets list the same array as its species picker', () => {
+    // So the code index, memoized per array identity, is built once for both.
+    const src = code('frontend/src/components/MapExplorer.tsx')
+    expect(src).toMatch(/<TargetSpeciesList\b[^>]*\brows=\{speciesOptions\}/)
+    expect(src).toMatch(/<SpeciesCombobox\b[^>]*\boptions=\{speciesOptions\}/)
+  })
 })
 
-describe('both consumers rank through the shared rule with the imported predicate (schema.md 2.5, FR-13)', () => {
-  it.each([
-    ['frontend/src/components/SpeciesCombobox.tsx'],
-    ['frontend/src/lib/paletteRows.ts'],
-  ])('%s passes matchesSpeciesQuery to rankSpeciesMatches', (path) => {
+describe('every consumer ranks through the shared rule with the imported predicate (schema.md 2.5, FR-13)', () => {
+  it.each(CONSUMERS.map(p => [p]))('%s passes matchesSpeciesQuery to rankSpeciesMatches', (path) => {
     expect(code(path)).toMatch(/rankSpeciesMatches\([^;]*?\bmatchesSpeciesQuery\b/)
   })
 })
@@ -96,6 +112,7 @@ describe('no new user-facing text (QA-30, FR-22)', () => {
     ['frontend/src/components/SpeciesCombobox.tsx'],
     ['frontend/src/components/CommandPalette.tsx'],
     ['frontend/src/lib/paletteCopy.ts'],
+    ['frontend/src/components/map/TargetSpeciesList.tsx'],
   ])('%s has no string that mentions a code', (path) => {
     expect(code(path)).not.toMatch(/['"`][^'"`\n]*\bcodes?\b[^'"`\n]*['"`]/i)
   })

@@ -82,6 +82,7 @@ import {
 import { MAP_VIEW_MODE_ORDER } from '../lib/mapViewModes'
 import { SegControl, SidebarLabel, InViewMarkerList, KeyNotice, TierHatchSwatch, CountyDensitySwatch, CountyCompletenessLegend, HotspotModeMiniPin, HotspotModeDot, HotspotTierBadge, type HotspotModeMiniVariant } from './map/MapSidebarUI'
 import { SpeciesCombobox, type SpeciesComboboxOption } from './SpeciesCombobox'
+import { TargetSpeciesList } from './map/TargetSpeciesList'
 import { MapEffects, BoundsTracker, DetectedLocationPin, CenterPinDropper, CenterPin } from './map/MapControls'
 import { SharePin } from './map/SharePin'
 import { SharePopup } from './map/SharePopup'
@@ -386,6 +387,13 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
   const [targetsError, setTargetsError]       = useState<OverlayError | null>(null)
   const [manualTargets, setManualTargets]     = useState<Set<string>>(new Set())
   const [targetSearch, setTargetSearch]       = useState('')
+  const toggleManualTarget = useCallback((name: string, checked: boolean) => {
+    setManualTargets(prev => {
+      const next = new Set(prev)
+      if (checked) next.add(name); else next.delete(name)
+      return next
+    })
+  }, [])
   const [targetViewMode, setTargetViewMode]   = useState<TimeWindow>('all')
   // Selected target LOCATION (locId) — shared between the "Nearest Targets"
   // sidebar list and the TargetMarkers popup, so a sidebar row opens the same
@@ -889,7 +897,9 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
 
   // Options for the Species filter picker: each distinct species with the
   // scientific name from its first observation, so typing narrows by common OR
-  // scientific name (the shared combobox's contract).
+  // scientific name (the shared combobox's contract). The Media Targets view's
+  // Target Species list is handed the SAME array, so the code index both rank
+  // through (memoized per array identity) is built once.
   const speciesOptions = useMemo((): SpeciesComboboxOption[] => {
     if (phase.tag !== 'ready') return []
     const sci = new Map<string, string>()
@@ -945,12 +955,6 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
     }
     return map
   }, [phase])
-
-  const filteredManualSpecies = useMemo(() => {
-    if (!targetSearch) return allSpecies
-    const q = targetSearch.toLowerCase()
-    return allSpecies.filter(s => s.toLowerCase().includes(q))
-  }, [allSpecies, targetSearch])
 
   const filteredTargetPins = useMemo((): DisplayTargetPin[] => {
     if (!targetPins) return []
@@ -2740,27 +2744,17 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
           <div style={{ fontSize: '0.71875rem', color: 'var(--sr-text-muted)', marginBottom: 8, lineHeight: 1.45 }}>
             Upload an ML export in Settings to auto-derive targets, or select species manually.
           </div>
-          <input className="sr-input-16" type="text" placeholder="Search species…" value={targetSearch}
-            onChange={e => setTargetSearch(e.target.value)}
-            style={{ width: '100%', height: 32, padding: '0 10px', border: '1.5px solid var(--sr-border)', borderRadius: 6, fontSize: '0.75rem', fontFamily: 'inherit', color: 'var(--sr-text)', background: 'var(--sr-surface)', outline: 'none', boxSizing: 'border-box', marginBottom: 6 }}
+          {/* The search box and its list live in TargetSpeciesList, which ranks
+              through the shared species matcher (code matches first, scientific
+              names too) over the same `speciesOptions` array the My Sightings
+              picker is handed, so this file still wires no code search itself. */}
+          <TargetSpeciesList
+            rows={speciesOptions}
+            query={targetSearch}
+            onQueryChange={setTargetSearch}
+            selected={manualTargets}
+            onToggle={toggleManualTarget}
           />
-          <div style={{ maxHeight: 130, overflowY: 'auto', border: '1.5px solid var(--sr-border)', borderRadius: 6, background: 'var(--sr-surface)' }}>
-            {filteredManualSpecies.slice(0, 60).map(s => (
-              <label key={s} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '5px 10px', cursor: 'pointer', fontSize: '0.75rem', minWidth: 0 }}>
-                <input
-                  type="checkbox"
-                  checked={manualTargets.has(s)}
-                  onChange={e => setManualTargets(prev => {
-                    const next = new Set(prev)
-                    if (e.target.checked) next.add(s); else next.delete(s)
-                    return next
-                  })}
-                  style={{ flexShrink: 0 }}
-                />
-                <span style={{ color: 'var(--sr-text)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s}</span>
-              </label>
-            ))}
-          </div>
           {manualTargets.size > 0 && (
             <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginTop: 5 }}>{manualTargets.size} selected</div>
           )}
