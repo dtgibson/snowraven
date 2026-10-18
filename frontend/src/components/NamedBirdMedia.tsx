@@ -110,20 +110,26 @@ export function NamedBirdMedia({
   }
 
   return (
-    <div style={{ padding: '12px 14px 14px', borderTop: '1px solid var(--sr-border-subtle)' }}>
+    // `.sr-nb-media` makes the section a named size container: the gallery's
+    // column count follows the section's own width in em (globals.css, C), so
+    // a narrow window at large text gives two columns, then one, where three
+    // tiles could not hold their meta rows. Named, so Species Detail's Recent
+    // Media, which shares `.sr-media-grid`, is untouched.
+    <div className="sr-nb-media" style={{ padding: '12px 14px 14px', borderTop: '1px solid var(--sr-border-subtle)' }}>
       {/* Header — mirrors the map block's micro-label voice ("Where {name} has been
-          seen"), plus a quiet right-aligned count when more than shown. */}
+          seen"), plus a quiet right-aligned count when more than shown. Layout in
+          `.sr-nb-head`: the name may be one unbroken run of up to 120 characters,
+          so the text wraps anywhere and the glyph stays on its first line. */}
       <div className="sr-action-row" style={{ marginBottom: 8 }}>
         <div
-          className="sr-min0"
+          className="sr-nb-head sr-min0"
           style={{
-            display: 'flex', alignItems: 'center', gap: 6,
             fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.04em',
             textTransform: 'uppercase', color: 'var(--sr-text-muted)',
           }}
         >
-          <Play size={12} strokeWidth={2.2} aria-hidden />
-          Media of {birdName}
+          <span className="sr-nb-head-glyph"><Play size={12} strokeWidth={2.2} aria-hidden /></span>
+          <span className="sr-nb-head-text">Media of {birdName}</span>
         </div>
         {remaining > 0 && (
           <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-gray)', whiteSpace: 'nowrap' }}>
@@ -273,6 +279,10 @@ function NamedBirdMediaItem({ asset, birdName, open, embedAllowed, index }: {
   const validId = MEDIA_CATALOG_ID_RE.test(asset.catalogId)
   const dateLabel = formatDate(asset.date)
   const title = `${asset.format} of ${birdName}${dateLabel ? ` (${dateLabel})` : ''}`
+  // ChecklistLink renders even an empty id (as empty plain text), so the old
+  // row's last child was always present; a dot before it appeared only for a
+  // non-empty id. The pair below renders on the same condition the dot did.
+  const hasChecklist = !!asset.checklistId
 
   // Lazy-mount: reveal the iframe only after the item scrolls into view. Combined
   // with the open-gate and the reveal cap, this bounds live players even within a
@@ -332,42 +342,55 @@ function NamedBirdMediaItem({ asset, birdName, open, embedAllowed, index }: {
         </div>
       )}
 
-      {/* Meta row — format marker + date + checklist link. Always shown, in both
-          embed and fallback states (the date + checklist are local). */}
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap',
-        marginTop: 8, minWidth: 0,
-      }}>
-        <span style={{
-          display: 'inline-flex', alignItems: 'center', gap: 4,
+      {/* Meta row — format marker + date + Macaulay Library + checklist link.
+          Always shown, in both embed and fallback states (the date + checklist
+          are local). Layout in `.sr-nbm-*`: nothing is nowrap, and each
+          separator rides in a pair with the item BEFORE it, so a row that wraps
+          in a narrow tile ends a line with its dot, as the desktop row does,
+          and never starts one with it (decisions.md D5). The dots appear under
+          the same conditions as before: after the date when a Macaulay Library
+          link or a checklist follows, after Macaulay Library when a checklist
+          follows. */}
+      <div className="sr-nbm-meta">
+        <span className="sr-nbm-fmt" style={{
           fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.04em',
-          textTransform: 'uppercase', color: 'var(--sr-text-muted)', flexShrink: 0,
+          textTransform: 'uppercase', color: 'var(--sr-text-muted)',
         }}>
           <Icon size={12} strokeWidth={2.2} aria-hidden />
           {asset.format}
         </span>
         {dateLabel && (
-          <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--sr-text)', whiteSpace: 'nowrap' }}>
-            {dateLabel}
+          <span className="sr-nbm-pair">
+            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--sr-text)' }}>
+              {dateLabel}
+            </span>
+            {(validId || hasChecklist) && <MetaSep />}
           </span>
         )}
-        {dateLabel && validId && (
-          <span style={{ fontSize: '0.75rem', color: 'var(--sr-text-disabled)', flexShrink: 0 }} aria-hidden>·</span>
-        )}
         {validId && (
-          <OutboundLink
-            href={mlAssetUrl(asset.catalogId)}
-            aria-label={`View this ${asset.format.toLowerCase()} on the Macaulay Library (ML${asset.catalogId})`}
-            style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--sr-accent)', whiteSpace: 'nowrap' }}
-          >
-            Macaulay Library
-          </OutboundLink>
+          <span className="sr-nbm-pair">
+            <OutboundLink
+              className="sr-nbm-ml"
+              href={mlAssetUrl(asset.catalogId)}
+              aria-label={`View this ${asset.format.toLowerCase()} on the Macaulay Library (ML${asset.catalogId})`}
+              style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--sr-accent)' }}
+            >
+              Macaulay Library
+            </OutboundLink>
+            {hasChecklist && <MetaSep />}
+          </span>
         )}
-        {(dateLabel || validId) && asset.checklistId && (
-          <span style={{ fontSize: '0.75rem', color: 'var(--sr-text-disabled)', flexShrink: 0 }} aria-hidden>·</span>
+        {hasChecklist && (
+          <span className="sr-nbm-pair">
+            <ChecklistLink submissionId={asset.checklistId} style={{ fontSize: '0.75rem', fontWeight: 600 }} />
+          </span>
         )}
-        <ChecklistLink submissionId={asset.checklistId} style={{ flexShrink: 0, fontSize: '0.75rem', fontWeight: 600 }} />
       </div>
     </div>
   )
+}
+
+/** The meta row's middle dot, carried in the pair of the item before it. */
+function MetaSep() {
+  return <span className="sr-nbm-sep" style={{ fontSize: '0.75rem', color: 'var(--sr-text-disabled)' }} aria-hidden>·</span>
 }

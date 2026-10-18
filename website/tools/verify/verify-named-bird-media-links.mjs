@@ -1,6 +1,7 @@
-// Real-engine verification of the named-bird item list (feature ml-media-links,
-// QA-25 and QA-26): the compact list of numbered Macaulay Library links above a
-// named bird's gallery on the Named Birds tab.
+// Real-engine verification of the named-bird card on the Named Birds tab: the
+// compact list of numbered Macaulay Library links above a named bird's gallery
+// (feature ml-media-links, QA-25 and QA-26), and since
+// code-search-and-a11y-polish the whole card around it.
 //
 // WHAT IT MEASURES, per configuration, in Chromium and WebKit against the built
 // dist:
@@ -33,32 +34,76 @@
 //     it TIED the global `[tabindex]:focus-visible` ring on specificity and lost
 //     on source order: the focused number kept the 3px offset and the 6px halo.
 //
-// THE SECTION'S OWN SCROLL IS NOT THIS LIST'S CLAIM. Measured with the list
-// hidden, the section still scrolls by up to 730px for the 120-character name
-// (its "Media of {name}" header does not wrap) and by 36px at 641px / 200% (the
-// tiles' nowrap links), both shipped before this feature and outside it (FR-10).
-// So the harness checks what the list ADDS, and prints the rest as allowed.
+// THE WHOLE CARD (code-search-and-a11y-polish, item 2). The first version of
+// this harness checked only what the list ADDED to its section and printed the
+// rest as an allowed residual, all of it clipped by the card's
+// `overflow: hidden` so the page never scrolled: the "Media of {name}" header
+// ran up to 1,595px past the card for the 120-character name, the tiles'
+// nowrap links up to 49.5px past a 137px tile at 641px / 200%, each sighting
+// row's checklist link 109px past the card at 320px / 200% with the place name
+// squeezed to a 0px box, and the collapsed header's date range 28px past the
+// card's LEFT edge. Those are now checked as passes, in light at every width
+// and scale and in dark at 320, 390, 641 and 1024px at 100% and 200%:
+//
+//   * CARD. Every text node's visible INK, and every link, button, input and
+//     icon box, sits inside the card's padding box, read CLIP-AWARE: ink that an
+//     element inside the card clips on purpose (an ellipsized place, the
+//     ellipsized name in the header, the map's own frame) counts only where it
+//     shows, and the card's own clip is never honoured, since it is what hid
+//     every defect above. The card does not scroll sideways, the media section
+//     carries no sideways scroll even with the list hidden, and neither does
+//     the page.
+//   * TILE. Inside each gallery tile, ink and boxes stay inside the tile, and no
+//     tile overlaps another (a grid row sized from a stale line count reads as
+//     an overlap). Above the phone tier at 100% text the gallery keeps its three
+//     columns, so desktop is unchanged.
+//   * PLACE. Every sighting row shows at least 20px of its place name's ink,
+//     and the date, the place and the checklist link never overlap. Where the
+//     link has a line of its own, it is at least 44px tall in the phone tier and
+//     32px above it.
+//
+// The card is found STRUCTURALLY (the disclosure button's parent, a sighting
+// row by its 36px indent, its place by the `title` HotspotLink sets), never by a
+// class this build added, so the same harness run against a pre-fix dist reads
+// the same nodes and goes red there.
 //
 // THE CSV IS THE SCENARIO. Winky has 140 photos, 3 recordings and 2 videos, so
 // the photo row runs to three-digit numbers over many wrapped lines; the long-
-// named Mallard has 30 photos. Nothing here is real data.
+// named Mallard has 30 photos. The sightings carry coordinates and a region,
+// so the card draws its map block ("Where {name} has been seen") and both
+// HotspotLink branches: a long hotspot name, a short one and a personal
+// location. Nothing here is real data.
 //
-// HERMETIC: the bot-check probe answers "gated", so no player is mounted, and
-// every request to a host other than the loopback server is aborted, so the run
-// never reaches Macaulay Library or any tile host.
+// HERMETIC: the bot-check probe answers "gated", so no player is mounted, the
+// region's hotspot list is answered by the stub, and every request to a host
+// other than the loopback server is aborted, so the run never reaches Macaulay
+// Library, eBird or any tile host (the card map draws no tiles).
 //
 //   node verify-named-bird-media-links.mjs <distDir>                  # expect all green
 //   node verify-named-bird-media-links.mjs <distDir> --expect-broken  # expect red
+//   node verify-named-bird-media-links.mjs <preFixDist>               # exits 1
 //
-// `--expect-broken` injects a mutation into the built page instead of needing a
-// pre-fix dist (this is a new surface; there is none): every list is forced onto
-// one line, every link loses its size floor, and the list's own focus rule is
-// DELETED from the live stylesheet through the CSSOM, so the global ring is what
-// a focused number gets (the shipped defect, without retyping its values). At
-// 320px the one-line photo row overflows by thousands of pixels and the boxes
-// shrink to about the width of their digits, far past anything a font
-// difference can produce, so the leg discriminates on any machine (testing.md,
-// v1.0.30). It passes only if the reflow, target AND focus checks all go red.
+// `--expect-broken` runs two mutated legs per engine on the fixed build, each
+// of which must go red in its own kinds:
+//
+//   * LIST. Every list is forced onto one line, every link loses its size
+//     floor, and the list's own focus rule is DELETED from the live stylesheet
+//     through the CSSOM, so the global ring is what a focused number gets (the
+//     shipped defect, without retyping its values). At 320px the one-line
+//     photo row overflows by thousands of pixels and the boxes shrink to about
+//     the width of their digits, far past anything a font difference can
+//     produce, so the leg discriminates on any machine (testing.md, v1.0.30).
+//     It must turn the reflow, target AND focus checks red.
+//   * CARD. The card fix is reversed in place: the header text may not break,
+//     the sighting line may not wrap and its link takes no line of its own,
+//     the tile meta row is nowrap in three columns, and the date range is
+//     nowrap. The 120-character name alone then runs over a thousand pixels
+//     past the card whatever the font, and at 320px / 200% the place is
+//     clipped to nothing. It must turn the card, tile AND place checks red.
+//
+// The real pre-fix build goes red too, in the default mode, in the card, tile
+// and place kinds; pipeline/code-search-and-a11y-polish/pr-description.md has
+// the readings.
 //
 // Exit code is 0 when the run matched the mode, 1 otherwise.
 
@@ -81,22 +126,29 @@ const WIDTHS = [320, 360, 390, 430, 480, 560, 640, 641, 720, 820, 1024, 1280]
 const FOCUS_WIDTHS = [1024, 390]
 /** Changed in place on a laid-out card, up then down. */
 const SCALES = [1, 2, 1.5, 1.25]
+/** The card is also read in the dark theme at the brief's configurations. */
+const DARK_WIDTHS = new Set([320, 390, 641, 1024])
+const DARK_SCALES = new Set([1, 2])
 
 const LONG_NAME = 'Pondsidegreenheadwhocircleseveryautumnwiththesamescarredleftwingandneverleavesthenorthshoreoftheoldmillpondatdusk'
   .padEnd(120, 'x')
 if (LONG_NAME.length !== 120 || /\s/.test(LONG_NAME)) throw new Error('fixture: the long name must be 120 characters with no spaces')
 
 const BIRDS = [
-  { name: 'Winky', species: "Anna's Hummingbird", sci: 'Calypte anna', photos: 140, audio: 3, video: 2 },
-  { name: LONG_NAME, species: 'Mallard', sci: 'Anas platyrhynchos', photos: 30, audio: 0, video: 0 },
+  { name: 'Winky', species: "Anna's Hummingbird", sci: 'Calypte anna', photos: 140, audio: 3, video: 2, sightings: 3 },
+  { name: LONG_NAME, species: 'Mallard', sci: 'Anas platyrhynchos', photos: 30, audio: 0, video: 0, sightings: 2 },
 ]
 
+/** Public hotspots in the fixture's region; L100001 (Back Garden) is a personal location. */
+const HOTSPOTS = ['L100002', 'L100003', 'L100004']
+
 const EBIRD_CSV = [
-  'Submission ID,Common Name,Scientific Name,Date,Location,Count,Breeding Code,Species Comments,ML Catalog Numbers,Location ID,Latitude,Longitude',
-  "S910000001,Anna's Hummingbird,Calypte anna,2025-03-02,Back Garden,1,,[name:Winky] at the feeder,,L100001,,",
-  "S910000002,Anna's Hummingbird,Calypte anna,2026-02-10,Back Garden,1,,[name:Winky] still here,,L100001,,",
-  `S910000003,Mallard,Anas platyrhynchos,2025-10-18,Mill Pond,2,,[name:${LONG_NAME}] scarred wing,,L100002,,`,
-  `S910000004,Mallard,Anas platyrhynchos,2026-01-05,Mill Pond,1,,[name:${LONG_NAME}] again,,L100002,,`,
+  'Submission ID,Common Name,Scientific Name,State/Province,Date,Location,Count,Breeding Code,Species Comments,ML Catalog Numbers,Location ID,Latitude,Longitude',
+  "S910000001,Anna's Hummingbird,Calypte anna,US-CA,2025-03-02,Back Garden,1,,[name:Winky] at the feeder,,L100001,37.8044,-122.2712",
+  "S910000002,Anna's Hummingbird,Calypte anna,US-CA,2026-02-10,Lake Merritt--Rotary Nature Center,1,,[name:Winky] still here,,L100004,37.8085,-122.2565",
+  "S910000005,Anna's Hummingbird,Calypte anna,US-CA,2025-11-03,Arrowhead Marsh--Martin Luther King Jr. Regional Shoreline,1,,[name:Winky] by the marsh,,L100003,37.7489,-122.2108",
+  `S910000003,Mallard,Anas platyrhynchos,US-CA,2025-10-18,Mill Pond,2,,[name:${LONG_NAME}] scarred wing,,L100002,37.9001,-122.3011`,
+  `S910000004,Mallard,Anas platyrhynchos,US-CA,2026-01-05,Mill Pond,1,,[name:${LONG_NAME}] again,,L100002,37.9001,-122.3011`,
 ].join('\n')
 
 function mlRows() {
@@ -134,6 +186,8 @@ function stubBackend(p, _req, res) {
   if (p === '/settings/keys') { json({ ebird: null, openweather: null }); return true }
   // The bot check "up": no player mounts, so nothing reaches for macaulaylibrary.org.
   if (p === '/media/embed-status') { json({ gated: true }); return true }
+  // The fixture's one region: which of its locations are public hotspots.
+  if (p === '/map/hotspot-region') { json(HOTSPOTS); return true }
   if (p.startsWith('/settings/') || p.startsWith('/weather') || p.startsWith('/tide') || p.startsWith('/media')
       || p.startsWith('/map') || p.startsWith('/taxonomy') || p.startsWith('/version') || p.startsWith('/nominatim')) {
     res.writeHead(404); res.end('not found'); return true
@@ -141,20 +195,33 @@ function stubBackend(p, _req, res) {
   return false
 }
 
-const BROKEN_CSS = `
+const LIST_BROKEN_CSS = `
   .sr-mli-list { flex-wrap: nowrap !important; }
   .sr-mli-lead { overflow-wrap: normal !important; }
   .sr-mli-link { min-width: 0 !important; height: auto !important; padding: 0 !important; }
 `
+/** The card fix reversed in place: today's shapes, through the new hooks. */
+const CARD_BROKEN_CSS = `
+  .sr-nb-head-text { overflow-wrap: normal !important; }
+  .sr-nbs-line { flex-wrap: nowrap !important; }
+  .sr-nbs-place { flex: 0 1 auto !important; overflow: hidden !important; }
+  .sr-nbs-sep--link { display: inline !important; }
+  .sr-nbs-link { flex-basis: auto !important; min-height: 0 !important; }
+  .sr-nbm-pair, .sr-nbm-ml { white-space: nowrap !important; }
+  .sr-nb-media .sr-media-grid, .sr-nb-media .sr-media-disabled-list { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+  .sr-nbh-dates { white-space: nowrap !important; }
+`
+/** Which check kinds each mutated leg must turn red. */
+const LEG_KINDS = { list: ['reflow', 'target', 'focus'], card: ['card', 'tile', 'place'] }
 
 const failures = []
-const failedKinds = new Set()
+let failedKinds = new Set()
 function check(name, ok, detail, kind) {
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? `  ${detail}` : ''}`)
   if (!ok) { failures.push(name); if (kind) failedKinds.add(kind) }
 }
 
-/** Read one configuration, in the page. */
+/** Read the list in one configuration, in the page. */
 const READ = () => {
   const rootPx = parseFloat(getComputedStyle(document.documentElement).fontSize)
   const lists = [...document.querySelectorAll('.sr-ml-items')].filter(el => el.getClientRects().length > 0)
@@ -234,13 +301,173 @@ const READ = () => {
     ...(() => {
       // What the LIST adds to the section's horizontal scroll: the section with
       // the list, then without it. Taken last, after every other reading, so the
-      // relayout cannot hide a stale wrap from the checks above.
+      // relayout cannot hide a stale wrap from the checks above. The section's
+      // scroll WITHOUT the list is the card's own content and is a check of its
+      // own since code-search-and-a11y-polish (it was printed as allowed).
       const withList = section.scrollWidth - section.clientWidth
       root.style.display = 'none'
       const withoutList = section.scrollWidth - section.clientWidth
       root.style.display = ''
       return { sectionScroll: withList, sectionScrollWithout: withoutList }
     })(),
+  }
+}
+
+/**
+ * Read the open card in one configuration, in the page (code-search-and-a11y-polish).
+ *
+ * Everything is located structurally so a pre-fix build is read the same way.
+ * "Visible" means clip-aware: a rect is intersected with the padding box of
+ * every clipping ancestor BELOW the boundary it is measured against (the card,
+ * or a tile), never with the boundary's own clip.
+ */
+const READ_CARD = () => {
+  const lists = [...document.querySelectorAll('.sr-ml-items')].filter(el => el.getClientRects().length > 0)
+  if (lists.length !== 1) return { ok: false, why: `${lists.length} visible lists` }
+  let card = lists[0]
+  while (card && !(card.firstElementChild && card.firstElementChild.matches('button[aria-expanded]'))) card = card.parentElement
+  if (!card) return { ok: false, why: 'no card around the list' }
+  const section = lists[0].parentElement
+
+  const paddingBox = el => {
+    const r = el.getBoundingClientRect()
+    const s = getComputedStyle(el)
+    return {
+      left: r.left + parseFloat(s.borderLeftWidth), right: r.right - parseFloat(s.borderRightWidth),
+      top: r.top + parseFloat(s.borderTopWidth), bottom: r.bottom - parseFloat(s.borderBottomWidth),
+    }
+  }
+  const contentWidthEm = el => {
+    const s = getComputedStyle(el)
+    return (el.clientWidth - parseFloat(s.paddingLeft) - parseFloat(s.paddingRight)) / parseFloat(s.fontSize)
+  }
+  /** `r` as the user sees it inside `stop`: intersected with every clipping ancestor of `el` below `stop`. */
+  const visible = (r, el, stop) => {
+    let x1 = r.left, x2 = r.right, y1 = r.top, y2 = r.bottom
+    for (let a = el; a && a !== stop; a = a.parentElement) {
+      const s = getComputedStyle(a)
+      if (s.overflowX === 'visible' && s.overflowY === 'visible') continue
+      const b = paddingBox(a)
+      if (s.overflowX !== 'visible') { x1 = Math.max(x1, b.left); x2 = Math.min(x2, b.right) }
+      if (s.overflowY !== 'visible') { y1 = Math.max(y1, b.top); y2 = Math.min(y2, b.bottom) }
+    }
+    return x2 - x1 > 0.5 && y2 - y1 > 0.5 ? { left: x1, right: x2, top: y1, bottom: y2 } : null
+  }
+  const hidden = el => !!el.closest('.sr-only') || getComputedStyle(el).visibility === 'hidden'
+  const inkRects = (node, stop) => {
+    const range = document.createRange()
+    range.selectNodeContents(node)
+    return [...range.getClientRects()].filter(r => r.width > 0 || r.height > 0)
+      .map(r => visible(r, node.parentElement, stop)).filter(Boolean)
+  }
+
+  const cardBox = paddingBox(card)
+  const tiles = [...section.querySelectorAll('.sr-media-item')].filter(t => t.getClientRects().length > 0)
+  const tileOf = el => tiles.find(t => t.contains(el)) ?? null
+
+  let cardOver = -Infinity, cardWhat = ''
+  let tileOver = -Infinity, tileWhat = ''
+  const note = (o, what, which) => {
+    if (which === 'card' && o > cardOver) { cardOver = o; cardWhat = what }
+    if (which === 'tile' && o > tileOver) { tileOver = o; tileWhat = what }
+  }
+  const overX = (v, box) => Math.max(box.left - v.left, v.right - box.right)
+
+  const walker = document.createTreeWalker(card, NodeFilter.SHOW_TEXT)
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    if (!node.nodeValue || !node.nodeValue.trim() || hidden(node.parentElement)) continue
+    const what = `"${node.nodeValue.trim().slice(0, 28)}"`
+    for (const v of inkRects(node, card)) note(overX(v, cardBox), what, 'card')
+    const tile = tileOf(node.parentElement)
+    if (tile) {
+      const tb = paddingBox(tile)
+      for (const v of inkRects(node, tile)) note(overX(v, tb), what, 'tile')
+    }
+  }
+  for (const el of card.querySelectorAll('a, button, input, select, svg')) {
+    if (el.getClientRects().length === 0 || hidden(el)) continue
+    const what = `<${el.tagName.toLowerCase()}> ${(el.getAttribute('aria-label') || el.textContent || '').trim().slice(0, 28)}`
+    const r = el.getBoundingClientRect()
+    if (r.width === 0 && r.height === 0) continue
+    const v = visible(r, el.parentElement, card)
+    if (v) note(overX(v, cardBox), what, 'card')
+    const tile = tileOf(el)
+    if (tile) {
+      const vt = visible(r, el.parentElement, tile)
+      if (vt) note(overX(vt, paddingBox(tile)), what, 'tile')
+    }
+  }
+
+  // Tiles: none overlaps another; the gallery's column count.
+  let tileOverlap = 0
+  const rects = tiles.map(t => t.getBoundingClientRect())
+  for (let i = 0; i < rects.length; i++) {
+    for (let j = i + 1; j < rects.length; j++) {
+      const a = rects[i], b = rects[j]
+      const w = Math.min(a.right, b.right) - Math.max(a.left, b.left)
+      const h = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top)
+      if (w > 0.5 && h > 0.5) tileOverlap = Math.max(tileOverlap, Math.min(w, h))
+    }
+  }
+  const grid = section.querySelector('.sr-media-grid, .sr-media-disabled-list')
+  const columns = grid ? getComputedStyle(grid).gridTemplateColumns.trim().split(/\s+/).length : 0
+
+  // Sighting rows: indented 36px, the place carries a title.
+  const phone = window.matchMedia('(max-width: 640px)').matches
+  const rows = [...card.querySelectorAll('div')].filter(d => d.style.paddingLeft === '36px')
+  let placeMin = Infinity, placeWhat = '', rowOverlap = 0, stackedMinH = Infinity, stacked = 0
+  const inkIn = el => {
+    const out = []
+    const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT)
+    for (let n = w.nextNode(); n; n = w.nextNode()) {
+      if (!n.nodeValue || !n.nodeValue.trim()) continue
+      for (const v of inkRects(n, card)) {
+        const x1 = Math.max(v.left, cardBox.left), x2 = Math.min(v.right, cardBox.right)
+        if (x2 - x1 > 0.5) out.push({ ...v, left: x1, right: x2 })
+      }
+    }
+    return out
+  }
+  for (const row of rows) {
+    const line = row.firstElementChild
+    const date = line && line.firstElementChild
+    const place = line && line.querySelector('[title]')
+    const link = line && line.querySelector('a[href^="https://ebird.org/checklist/"]')
+    if (!date || !place || !link) { placeMin = 0; placeWhat = 'a row without date, place or link'; continue }
+    const parts = [inkIn(date), inkIn(place), inkIn(link)]
+    const placeInk = parts[1].reduce((s, r) => s + (r.right - r.left), 0)
+    if (placeInk < placeMin) { placeMin = placeInk; placeWhat = place.getAttribute('title').slice(0, 28) }
+    for (let i = 0; i < 3; i++) {
+      for (let j = i + 1; j < 3; j++) {
+        for (const a of parts[i]) {
+          for (const b of parts[j]) {
+            const w = Math.min(a.right, b.right) - Math.max(a.left, b.left)
+            const h = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top)
+            if (w > 0.5 && h > 1) rowOverlap = Math.max(rowOverlap, w)
+          }
+        }
+      }
+    }
+    const dr = date.getBoundingClientRect()
+    const lr = link.getBoundingClientRect()
+    if (lr.top >= dr.bottom - 1) { stacked += 1; stackedMinH = Math.min(stackedMinH, lr.height) }
+  }
+
+  return {
+    ok: true,
+    // Both name-bearing section headers are on screen, so the 120-character
+    // name is measured in each (the map block draws only with coordinates).
+    heads: card.textContent.includes('Media of') && card.textContent.includes('has been seen'),
+    phone,
+    cardOver: +cardOver.toFixed(2), cardWhat,
+    tileOver: tiles.length ? +tileOver.toFixed(2) : 0, tileWhat,
+    tiles: tiles.length, tileOverlap: +tileOverlap.toFixed(2), columns,
+    rows: rows.length, placeMin: +placeMin.toFixed(2), placeWhat, rowOverlap: +rowOverlap.toFixed(2),
+    stacked, stackedMinH: +stackedMinH.toFixed(2),
+    cardScroll: card.scrollWidth - card.clientWidth,
+    pageScroll: document.documentElement.scrollWidth - window.innerWidth,
+    sectionEm: +contentWidthEm(section).toFixed(2),
+    rowEm: rows.length ? +Math.min(...rows.map(contentWidthEm)).toFixed(2) : 0,
   }
 }
 
@@ -271,8 +498,12 @@ const FOCUS_READ = () => {
 }
 
 const settle = page => page.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))))
+const setTheme = (page, t) => page.evaluate(theme => { document.documentElement.dataset.theme = theme }, t)
 
-async function run(browserType, label, base) {
+/** Container widths in em, the smallest seen at 100% text above the phone tier (the thresholds' evidence). */
+const containerEm = { section: Infinity, row: Infinity }
+
+async function run(browserType, label, base, leg) {
   const browser = await browserType.launch()
   const ctx = await browser.newContext({ viewport: { width: WIDTHS[0], height: 900 }, deviceScaleFactor: 1 })
   // Hermetic: anything not served by the loopback server is aborted.
@@ -294,8 +525,8 @@ async function run(browserType, label, base) {
     await page.getByRole('button', { name: /^More\b/ }).first().click()
     await page.getByRole('button', { name: 'Named Birds', exact: true }).first().click()
   }
-  if (MODE === 'broken') {
-    await page.addStyleTag({ content: BROKEN_CSS })
+  if (leg === 'list') {
+    await page.addStyleTag({ content: LIST_BROKEN_CSS })
     const removed = await page.evaluate(() => {
       let n = 0
       for (const sheet of document.styleSheets) {
@@ -309,10 +540,11 @@ async function run(browserType, label, base) {
     })
     // A mutation that removed nothing would leave the focus checks green for
     // the wrong reason, so it is a harness error, not a reading.
-    if (removed === 0) throw new Error('broken leg: no .sr-mli-link:focus-visible rule found to remove')
+    if (removed === 0) throw new Error('list leg: no .sr-mli-link:focus-visible rule found to remove')
   }
+  if (leg === 'card') await page.addStyleTag({ content: CARD_BROKEN_CSS })
 
-  const expected = { measured: 0 }
+  const expected = { measured: 0, cards: 0 }
   for (const bird of BIRDS) {
     const total = bird.photos + bird.audio + bird.video
     const short = bird.name.length > 20 ? `${bird.name.slice(0, 12)}...(${bird.name.length})` : bird.name
@@ -320,13 +552,25 @@ async function run(browserType, label, base) {
     const header = page.locator('button[aria-expanded]:visible', { hasText: bird.name.slice(0, 40) }).first()
     await header.waitFor()
     if ((await header.getAttribute('aria-expanded')) !== 'true') await header.click()
-    // Wait for the list itself with every link, not for the section (CLAUDE.md, v1.0.25).
+    // Wait for the list itself with every link, not for the section (CLAUDE.md,
+    // v1.0.25), and for the hotspot links the region answer turns the place
+    // names into, so no reading is taken over the plain-text interim.
     await page.waitForFunction(n => {
       const l = [...document.querySelectorAll('.sr-ml-items')].find(el => el.getClientRects().length > 0)
       return !!l && l.querySelectorAll('a').length === n
     }, total)
+    await page.waitForFunction(rows => {
+      const l = [...document.querySelectorAll('.sr-ml-items')].find(el => el.getClientRects().length > 0)
+      let card = l
+      while (card && !(card.firstElementChild && card.firstElementChild.matches('button[aria-expanded]'))) card = card.parentElement
+      if (!card) return false
+      const indented = [...card.querySelectorAll('div')].filter(d => d.style.paddingLeft === '36px')
+      return indented.length === rows.n
+        && indented.filter(d => d.querySelector('a[href^="https://ebird.org/hotspot/"]')).length === rows.hot
+    }, { n: bird.sightings, hot: 2 })   // Winky: two hotspots and Back Garden; Mallard: Mill Pond twice
 
-    const agg = { configs: 0, inkWorst: -Infinity, boxWorst: -Infinity, minDesk: Infinity, minPhone: Infinity, maxGap: 0, chrome: 0 }
+    const agg = { configs: 0, inkWorst: -Infinity, boxWorst: -Infinity, minDesk: Infinity, minPhone: Infinity, maxGap: 0 }
+    const cagg = { configs: 0, cardWorst: -Infinity, tileWorst: -Infinity, placeMin: Infinity, stacked: 0 }
     for (const width of WIDTHS) {
       await page.setViewportSize({ width, height: 900 })
       for (const scale of SCALES) {
@@ -353,7 +597,9 @@ async function run(browserType, label, base) {
           check(`${at}: the list adds no horizontal scroll to the section`, false,
             `${r.sectionScroll}px with it, ${r.sectionScrollWithout}px without`, 'reflow')
         }
-        agg.chrome = Math.max(agg.chrome, r.sectionScrollWithout)
+        if (r.sectionScrollWithout > 0) {
+          check(`${at}: the media section carries no horizontal scroll of its own`, false, `${r.sectionScrollWithout}px`, 'card')
+        }
         if (r.stale > 0) check(`${at}: every link sits inside its list (no stale wrap)`, false, `${r.stale} outside`, 'reflow')
         if (width === 320 && scale === 1 && bird.name === LONG_NAME && r.nameLines < 2) {
           check(`${at}: the 120-character name wraps in the lead`, false, `${r.nameLines} line(s)`, 'reflow')
@@ -371,20 +617,58 @@ async function run(browserType, label, base) {
           agg.minDesk = Math.min(agg.minDesk, r.minW, r.minH)
           if (r.minW < 24 - 0.01 || r.minH < 24 - 0.01) check(`${at}: every target is at least 24 x 24`, false, `smallest ${r.minW} x ${r.minH}`, 'target')
         }
+
+        // ── The whole card, in light, then in dark at the brief's configurations.
+        const themes = DARK_WIDTHS.has(width) && DARK_SCALES.has(scale) ? ['light', 'dark'] : ['light']
+        for (const theme of themes) {
+          if (theme === 'dark') { await setTheme(page, 'dark'); await settle(page) }
+          const c = await page.evaluate(READ_CARD)
+          if (theme === 'dark') { await setTheme(page, 'light'); await settle(page) }
+          const cat = `${at} ${theme}`
+          expected.cards += 1
+          if (!c.ok) { check(`${cat}: the open card was found`, false, c.why); continue }
+          if (c.rows !== bird.sightings || c.tiles === 0 || !c.heads) {
+            check(`${cat}: every sighting row, the gallery and both section headers were found`, false,
+              `rows=${c.rows} tiles=${c.tiles} headers=${c.heads}`)
+            continue
+          }
+          cagg.configs += 1
+          cagg.cardWorst = Math.max(cagg.cardWorst, c.cardOver)
+          cagg.tileWorst = Math.max(cagg.tileWorst, c.tileOver)
+          cagg.placeMin = Math.min(cagg.placeMin, c.placeMin)
+          cagg.stacked += c.stacked
+          if (scale === 1 && width > 640) {
+            containerEm.section = Math.min(containerEm.section, c.sectionEm)
+            containerEm.row = Math.min(containerEm.row, c.rowEm)
+          }
+          if (c.cardOver > 0.5) check(`${cat}: nothing shows outside the card`, false, `${c.cardOver}px past it (${c.cardWhat})`, 'card')
+          if (c.cardScroll > 0) check(`${cat}: the card does not scroll sideways`, false, `${c.cardScroll}px`, 'card')
+          if (c.pageScroll > 0) check(`${cat}: no page horizontal scroll`, false, `${c.pageScroll}px`, 'card')
+          if (c.tileOver > 0.5) check(`${cat}: nothing shows outside its tile`, false, `${c.tileOver}px past it (${c.tileWhat})`, 'tile')
+          if (c.tileOverlap > 0.5) check(`${cat}: no tile overlaps another (no stale row)`, false, `${c.tileOverlap}px`, 'tile')
+          if (scale === 1 && width > 640 && c.columns !== 3) {
+            check(`${cat}: desktop at 100% text keeps three gallery columns`, false, `${c.columns} columns`, 'layout')
+          }
+          if (c.placeMin < 20) check(`${cat}: every sighting row shows its place name`, false, `${c.placeMin}px of "${c.placeWhat}"`, 'place')
+          if (c.rowOverlap > 0.5) check(`${cat}: date, place and link never overlap`, false, `${c.rowOverlap}px`, 'place')
+          const floor = c.phone ? 44 : 32
+          if (c.stacked > 0 && c.stackedMinH < floor - 0.01) {
+            check(`${cat}: a checklist link on its own line is at least ${floor}px tall`, false, `${c.stackedMinH}px`, 'target')
+          }
+        }
       }
-    }
-    // The section's OTHER content is shipped chrome this feature does not touch
-    // (FR-10): the "Media of {name}" header does not wrap a long spaceless name,
-    // and the tiles' nowrap links can pass a narrow three-column tile at 200%.
-    // Its scroll is printed, never filtered away, and the check above holds the
-    // list to adding none of it.
-    if (agg.chrome > 0) {
-      console.log(`      allowed: up to ${agg.chrome}px of section scroll from the header and tiles, identical with the list hidden [${short}]`)
     }
     // Printed on every run, so a green run still reports its numbers.
     check(`${label} [${short}]: ${agg.configs} of ${WIDTHS.length * SCALES.length} configurations measured with every link`,
       agg.configs === WIDTHS.length * SCALES.length,
       `worst ink ${agg.inkWorst}px, worst box ${agg.boxWorst}px (<= 0 is inside), smallest target ${agg.minDesk}px desktop / ${agg.minPhone}px phone, largest phone gap ${agg.maxGap}px`)
+    const cardConfigs = WIDTHS.length * SCALES.length + [...DARK_WIDTHS].length * [...DARK_SCALES].length
+    check(`${label} [${short}]: ${cagg.configs} of ${cardConfigs} card readings taken`,
+      cagg.configs === cardConfigs,
+      `worst card ${cagg.cardWorst}px, worst tile ${cagg.tileWorst}px (<= 0 is inside), least place ink ${cagg.placeMin}px, ${cagg.stacked} stacked row readings`)
+    // Non-vacuity: some configuration must actually stack a row, or the
+    // stacked-link checks above never ran.
+    if (leg !== 'card') check(`${label} [${short}]: some configuration stacks a sighting row`, cagg.stacked > 0, `${cagg.stacked}`)
   }
   check(`${label}: the configuration count is what the sweep declares`,
     expected.measured === BIRDS.length * WIDTHS.length * SCALES.length, `measured=${expected.measured}`)
@@ -395,7 +679,7 @@ async function run(browserType, label, base) {
   for (const width of FOCUS_WIDTHS) {
     await page.setViewportSize({ width, height: 900 })
     for (const theme of ['light', 'dark']) {
-      await page.evaluate(t => { document.documentElement.dataset.theme = t }, theme)
+      await setTheme(page, theme)
       await settle(page)
       // Number 1 by script, then Tab to number 2: the keypress is what makes
       // `:focus-visible` match in WebKit.
@@ -429,22 +713,36 @@ const { base, close } = await serveDist(DIST, { routes: stubBackend, fallback: '
 console.log(`serving ${DIST} at ${base} (mode: expect-${MODE})`)
 console.log(`${WIDTHS.length} widths x ${SCALES.length} in-app text scales x ${BIRDS.length} birds, per engine\n`)
 
+const legOutcomes = []
 try {
-  await run(chromium, 'chromium', base)
-  console.log('')
-  await run(webkit, 'webkit', base)
+  for (const leg of MODE === 'fixed' ? ['fixed'] : ['list', 'card']) {
+    failedKinds = new Set()
+    if (MODE === 'broken') console.log(`── leg: ${leg} mutation\n`)
+    await run(chromium, 'chromium', base, leg)
+    console.log('')
+    await run(webkit, 'webkit', base, leg)
+    console.log('')
+    if (leg !== 'fixed') legOutcomes.push({ leg, kinds: [...failedKinds] })
+  }
 } finally {
   await close()
 }
 
-console.log('')
+if (Number.isFinite(containerEm.section)) {
+  console.log(`containers at 100% text above 640px: media section >= ${containerEm.section}em (three columns down to 30em), sighting row >= ${containerEm.row}em (one line down to 22em)`)
+}
 if (MODE === 'fixed') {
   console.log(failures.length === 0 ? 'ALL CHECKS PASSED' : `FAILURES (${failures.length}): ${failures.slice(0, 20).join(' | ')}`)
   process.exit(failures.length === 0 ? 0 : 1)
 } else {
-  const all = ['reflow', 'target', 'focus'].every(k => failedKinds.has(k))
-  console.log(all
-    ? `HARNESS DISCRIMINATES: ${failures.length} check(s) failed on the mutated page, reflow, targets and focus ring all`
-    : `HARNESS IS VACUOUS: failed kinds were [${[...failedKinds].join(', ')}], expected reflow, target and focus`)
+  let all = true
+  for (const { leg, kinds } of legOutcomes) {
+    const want = LEG_KINDS[leg]
+    const ok = want.every(k => kinds.includes(k))
+    all = all && ok
+    console.log(ok
+      ? `HARNESS DISCRIMINATES (${leg} leg): ${want.join(', ')} all went red`
+      : `HARNESS IS VACUOUS (${leg} leg): failed kinds were [${kinds.join(', ')}], expected ${want.join(', ')}`)
+  }
   process.exit(all ? 0 : 1)
 }

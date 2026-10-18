@@ -1344,6 +1344,102 @@ h1, h2, h3, h4, h5, h6 {
   .sr-mli-link { transition: none; }
 }
 
+/* ── Named Birds card: fit at phone widths and large text ─────────────────────
+   (code-search-and-a11y-polish; design-refinement.md, decisions.md D1 to D6)
+
+   Desktop at 100% text renders exactly as before: every rule below either
+   restates a value the markup carried inline or sits behind a query that does
+   not fire there. Colors, font sizes and weights stay inline at the call sites.
+
+   A. A section micro-label carrying the bird's name ("Media of {name}",
+      "Where {name} has been seen"). The name can be one unbroken token of up to
+      120 characters, so the text span releases its automatic minimum and may
+      break anywhere; the glyph keeps the position centering gave it on a
+      one-line label (half the difference between the 1.5 line box and the
+      12px glyph) and stays on the first line when the label wraps. */
+.sr-nb-head { display: flex; align-items: flex-start; gap: 6px; min-width: 0; }
+.sr-nb-head-glyph { flex: none; margin-top: calc((1.5em - 12px) / 2); }
+.sr-nb-head-text { min-width: 0; overflow-wrap: anywhere; }
+
+/* B. A sighting row: date, place, checklist link. The padded row is a size
+      container, so the line beneath it decides by its OWN width, in em of the
+      row's text, whether the three can share a line. Below 22em the checklist
+      link takes a line of its own, the second separator goes, and the place
+      takes the rest of the first line when it fits there and a line of its own
+      when it does not. It truncates where NamedBirdRow renders the `truncate`
+      HotspotLink (every width above 640px) and wraps as prose on a phone, where
+      it renders the full name (useIsPhone, decisions.md D2).
+      22em: date (about 5em) + two separators (2.5em) + link (about 5.7em) =
+      13em, leaving the place 9em, about 18 characters, before the row stacks.
+      Measured in the built app, the narrowest width above the phone tier
+      (641px) gives the row 30em at 100% text, so desktop keeps one line.
+      CONTAINMENT, BOTH HALVES (ui.md, v1.0.23): besides the query anchor,
+      `container-type` makes the row a containing block for absolute and fixed
+      descendants and a stacking context. Nothing in the row's subtree is
+      positioned or carries a z-index (date, separators, HotspotLink,
+      ChecklistLink, the comment quote), and the row never contains the card
+      map, whose fullscreen panel is `position: fixed`. */
+.sr-nbs { container-type: inline-size; container-name: sr-nbs; }
+.sr-nbs-line { display: flex; align-items: center; min-width: 0; margin-bottom: 4px; }
+.sr-nbs-date { flex-shrink: 0; }
+.sr-nbs-sep { flex-shrink: 0; padding: 0 7px; }
+.sr-nbs-place { min-width: 0; }
+/* ChecklistLink takes no className, so this wrapper is what lets its anchor
+   stretch to the line's full height as its hit box in the stacked form. */
+.sr-nbs-link { display: flex; align-items: stretch; flex-shrink: 0; }
+@container sr-nbs (max-width: 22em) {
+  .sr-nbs-line { flex-wrap: wrap; align-items: baseline; row-gap: 2px; }
+  .sr-nbs-place { flex: 1 1 auto; }
+  .sr-nbs-sep--link { display: none; }
+  .sr-nbs-link { flex-basis: 100%; min-height: 2rem; }
+}
+
+/* C. The media section is a size container too, so the gallery's column count
+      follows the section's own width in em: three columns down to 30em, two
+      below that, one below 19em. Measured in the built app, 641px at 100% text
+      gives the section 31.44em with overlay scrollbars and 30.5em with a 15px
+      classic one (Windows, or a Mac set to always show scroll bars), so the
+      threshold is 30em, not the mockup's 31em, which dropped that window to
+      two columns: desktop at 100% keeps three columns at every width. 641px
+      at 200% gave three 137px tiles that no meta row survives; it now gives
+      one. The container is NAMED, so Species Detail's Recent
+      Media, which shares .sr-media-grid, is untouched until its own section
+      opts in (decisions.md D3). These rules are (0,1,0) like the phone tier's
+      `.sr-media-grid { grid-template-columns: 1fr }`, and that tier comes
+      later in the file, so it still wins at 640px and below: SOURCE ORDER IS
+      LOAD-BEARING here, and `namedBirdCardCss.test.ts` pins it.
+      Containment: the tiles' frames are `position: relative` and hold every
+      absolutely positioned child in the section, nothing carries a z-index,
+      and nothing in it is `position: fixed`, so the new containing block and
+      stacking context change nothing the subtree resolves against. */
+.sr-nb-media { container-type: inline-size; container-name: sr-nb-media; }
+@container sr-nb-media (max-width: 30em) {
+  .sr-media-grid, .sr-media-disabled-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@container sr-nb-media (max-width: 19em) {
+  .sr-media-grid, .sr-media-disabled-list { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* D. A tile's meta row. Nothing in it is `white-space: nowrap` any more. Each
+      separator rides with the item BEFORE it (the date, Macaulay Library), so
+      a wrapped row ends its lines with the separator exactly as the desktop row
+      does today and never starts a line with one (decisions.md D5). A pair may
+      break inside itself only as a backstop (overflow-wrap: anywhere) for an
+      id or a word wider than its tile. */
+.sr-nbm-meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 8px; min-width: 0; }
+.sr-nbm-fmt { display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0; }
+.sr-nbm-pair { display: inline-flex; align-items: center; gap: 6px; min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
+.sr-nbm-sep { flex-shrink: 0; }
+.sr-nbm-ml { min-width: 0; }
+
+/* E. The collapsed header's date-range line. Its `nowrap` is deliberate (the
+      two dates never break on a desktop), but its column is end-aligned, so at
+      320px and 200% text the line ran 28px past the card's LEFT edge and the
+      card clipped the first date (decisions.md D4). The phone tier lets it
+      break at a space, right-aligned, so it reads "Mar 2, 2025 -" over
+      "Feb 10, 2026". */
+.sr-nbh-dates { white-space: nowrap; }
+
 /* Loading / lazy placeholder — same footprint, a subtle surface sweep honoring
    prefers-reduced-motion (the shimmer animation is killed by the global
    reduced-motion block; the static surface remains). */
@@ -6569,6 +6665,18 @@ select:focus-visible {
   .sr-mli-fmt { height: auto; margin-top: 6px; }
   .sr-mli-list { gap: 0; }
   .sr-mli-link { min-width: 2.75rem; height: 2.75rem; }
+
+  /* Named Birds card (code-search-and-a11y-polish). The header's date range
+     breaks at a space, right-aligned, instead of running past the card's left
+     edge (decisions.md D4). The sighting line aligns on the baseline, so a
+     place that wraps keeps the date beside its first line; in the stacked
+     state the checklist link takes the 44px posture the item-list boxes in the
+     same card have (2.75rem, so it grows with text size; decisions.md D6). */
+  .sr-nbh-dates { white-space: normal; text-align: right; overflow-wrap: anywhere; }
+  .sr-nbs-line { align-items: baseline; }
+  @container sr-nbs (max-width: 22em) {
+    .sr-nbs-link { min-height: 2.75rem; }
+  }
 
   /* New layout hooks collapse to a single column on phones. */
   .sr-grid-2, .sr-grid-3, .sr-grid-4 { grid-template-columns: 1fr; }

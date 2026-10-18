@@ -20,6 +20,7 @@ import { NamedBirdLocations } from './NamedBirdLocations'
 import { NamedBirdRangeControl } from './NamedBirdRangeControl'
 import { NamedBirdTimeline } from './NamedBirdTimeline'
 import { birdAxis, buildLanes, type SpanRange } from '../lib/namedBirdTimeline'
+import { useIsPhone } from '../lib/useIsPhone'
 import { endpoints, rangeGroupCard, scopeNote } from '../lib/namedBirdTimelineCopy'
 import type { NamedBird } from '../lib/namedBirds'
 import type { NamedBirdAsset } from '../lib/namedBirdMedia'
@@ -95,6 +96,12 @@ export function NamedBirdRow({ bird, open, onToggle, showSpecies, showMap, rende
   // MapBoundsFitter — which does not apply to a strip of plain divs.)
   const lane = buildLanes([bird], axis)[0]
 
+  // A sighting row's place is a render branch by breakpoint (`truncate` changes
+  // the markup), so it follows the sanctioned phone hook rather than the row's
+  // container query: the full name, wrapping as prose, on a phone; the
+  // ellipsized one-line link above 640px (decisions.md D2).
+  const isPhone = useIsPhone()
+
   return (
     <div style={{ border: '1px solid var(--sr-border)', borderRadius: 10, overflow: 'hidden', background: 'var(--sr-surface)', boxShadow: 'var(--sr-card-shadow)' }}>
       <Button
@@ -144,16 +151,20 @@ export function NamedBirdRow({ bird, open, onToggle, showSpecies, showMap, rende
             EVERY nested automatic minimum on the overflow path is released
             (v0.5.86). Both this group and the date column below are flex items,
             and a flex item's `min-width: auto` floors it at its own min-content
-            regardless of the space available, so both take `minWidth: 0`. The
-            date-range line keeps its own `nowrap`, so the column's min-content
-            stays that line's width and the two dates never break. */}
+            regardless of the space available, so both take `minWidth: 0`. Above
+            640px the date-range line keeps its `nowrap` (now the
+            `.sr-nbh-dates` class), so the column's min-content stays that
+            line's width and the two dates never break there. */}
         <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'baseline', flexWrap: 'wrap', gap: 13, flexShrink: 0, maxWidth: '100%', minWidth: 0 }}>
           {/* The date-range line, then the elapsed span on a subtle second line
               beneath it; the column keeps the two dates + duration together as a
               unit when the header wraps on phones (parent already flexWraps).
               The two dates above are facts about SIGHTINGS and do not move when
-              the range moves: this line is byte-identical in both range states
-              and keeps its nowrap.
+              the range moves: this line is byte-identical in both range states.
+              Its nowrap lives in `.sr-nbh-dates`, not inline, because at 320px
+              and 200% text the end-aligned line ran 28px past the card's LEFT
+              edge and clipped the first date: the phone tier releases it so the
+              range breaks at a space, right-aligned (decisions.md D4).
 
               The duration line is the true number of calendar days between the
               two endpoints of the active range, rendered in the bands
@@ -164,7 +175,7 @@ export function NamedBirdRow({ bird, open, onToggle, showSpecies, showMap, rende
               That phrase is why this line LOSES its `white-space: nowrap`: it has
               to be allowed to wrap. */}
           <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 1, minWidth: 0 }}>
-            <span style={{ fontSize: '0.75rem', color: 'var(--sr-text-gray)', whiteSpace: 'nowrap' }}>
+            <span className="sr-nbh-dates" style={{ fontSize: '0.75rem', color: 'var(--sr-text-gray)' }}>
               {formatDate(bird.firstSeen)} – {formatDate(bird.lastSeen)}
             </span>
             {duration && (
@@ -210,29 +221,38 @@ export function NamedBirdRow({ bird, open, onToggle, showSpecies, showMap, rende
           {bird.sightings.map((s, i) => (
             <div
               key={`${s.submissionId}-${i}`}
+              className="sr-nbs"
               style={{ padding: '10px 14px 11px 36px', borderBottom: i < bird.sightings.length - 1 ? '1px solid var(--sr-border-subtle)' : 'none' }}
             >
-              {/* date · location · checklist on one line; location ellipsizes */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 0, minWidth: 0, marginBottom: 4 }}>
-                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--sr-text)', flexShrink: 0 }}>{formatDate(s.date)}</span>
-                <span style={{ fontSize: '0.75rem', color: 'var(--sr-text-disabled)', flexShrink: 0, padding: '0 7px' }} aria-hidden>·</span>
+              {/* date · location · checklist. Its layout is the `.sr-nbs-*`
+                  classes in globals.css: one line where the row is 22em or
+                  wider, the place ellipsizing; below that the checklist link
+                  takes a line of its own (a container query on this row), so
+                  the place is never squeezed to nothing and the link never
+                  runs past the card. */}
+              <div className="sr-nbs-line">
+                <span className="sr-nbs-date" style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--sr-text)' }}>{formatDate(s.date)}</span>
+                <span className="sr-nbs-sep" style={{ fontSize: '0.75rem', color: 'var(--sr-text-disabled)' }} aria-hidden>·</span>
                 {s.location && (
                   <>
                     <HotspotLink
                       locId={s.locationId}
                       name={s.location}
                       isHotspot={isHotspot(s.locationId)}
-                      truncate
+                      truncate={!isPhone}
                       title={s.location}
-                      style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)', minWidth: 0 }}
+                      className="sr-nbs-place"
+                      style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)' }}
                     />
-                    <span style={{ fontSize: '0.75rem', color: 'var(--sr-text-disabled)', flexShrink: 0, padding: '0 7px' }} aria-hidden>·</span>
+                    <span className="sr-nbs-sep sr-nbs-sep--link" style={{ fontSize: '0.75rem', color: 'var(--sr-text-disabled)' }} aria-hidden>·</span>
                   </>
                 )}
-                <ChecklistLink
-                  submissionId={s.submissionId}
-                  style={{ flexShrink: 0, fontSize: '0.75rem', fontWeight: 600 }}
-                />
+                <span className="sr-nbs-link">
+                  <ChecklistLink
+                    submissionId={s.submissionId}
+                    style={{ fontSize: '0.75rem', fontWeight: 600 }}
+                  />
+                </span>
               </div>
               {s.comment && (
                 <div className="sr-wrap-anywhere" style={{
@@ -265,13 +285,16 @@ export function NamedBirdRow({ bird, open, onToggle, showSpecies, showMap, rende
               from mounting for a no-coordinate individual (FR-23). */}
           {showMap && cardMarkers.length > 0 && (
             <div style={{ padding: '12px 14px 14px' }}>
-              <div style={{
-                display: 'flex', alignItems: 'center', gap: 6, marginBottom: 7,
+              {/* Layout in `.sr-nb-head`: the name may be one unbroken run of
+                  up to 120 characters, so the text wraps anywhere and the glyph
+                  stays on its first line. */}
+              <div className="sr-nb-head" style={{
+                marginBottom: 7,
                 fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.04em',
                 textTransform: 'uppercase', color: 'var(--sr-text-muted)',
               }}>
-                <MapIcon size={12} strokeWidth={2.2} aria-hidden />
-                Where {bird.name} has been seen
+                <span className="sr-nb-head-glyph"><MapIcon size={12} strokeWidth={2.2} aria-hidden /></span>
+                <span className="sr-nb-head-text">Where {bird.name} has been seen</span>
               </div>
               {/* The border, radius and clip moved into the .sr-named-map rule in
                   globals.css: an inline declaration is specificity 1,0,0, so the

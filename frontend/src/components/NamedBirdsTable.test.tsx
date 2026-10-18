@@ -448,13 +448,19 @@ describe('the card header stays inside the card at 320px (QA-56)', () => {
     expect(dateColumn().style.minWidth, 'the date column is a flex item too').toBe('0px')
   })
 
-  it('the date-range line KEEPS its nowrap, so the two dates never break mid-range', () => {
-    // Releasing the column's minimum must not cost the shipped line its nowrap:
-    // the column's min-content stays this line's width, which is what bounds how
-    // far the release can go.
+  it('the date-range line keeps its nowrap through a CLASS the phone tier can release', () => {
+    // Releasing the column's minimum must not cost the line its nowrap above the
+    // phone tier: the column's min-content stays this line's width, which is
+    // what bounds how far the release can go. Since code-search-and-a11y-polish
+    // (decisions.md D4) the nowrap is `.sr-nbh-dates` rather than inline,
+    // because at 320px and 200% text the end-aligned line ran past the card's
+    // left edge and the phone tier must be able to let it break. An inline
+    // `white-space` would beat that class rule, so none may be present.
+    // `namedBirdCardCss.test.ts` pins the class's two declarations.
     renderTab()
-    const dateLine = screen.getByText('Mar 1, 2024 – May 1, 2024')
-    expect((dateLine as HTMLElement).style.whiteSpace).toBe('nowrap')
+    const dateLine = screen.getByText('Mar 1, 2024 – May 1, 2024') as HTMLElement
+    expect(dateLine.classList.contains('sr-nbh-dates')).toBe(true)
+    expect(dateLine.style.whiteSpace).toBe('')
   })
 
   it('the DURATION line carries no nowrap, in both range states (FR-64)', () => {

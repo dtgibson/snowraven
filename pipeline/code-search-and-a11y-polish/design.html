@@ -1,0 +1,692 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Named Birds card fit</title>
+<meta name="description" content="Design mockup: the Named Birds card at 320px and 200% text, today against the proposed fix, plus the tier-3 milestone badge hover color.">
+
+<!-- ════════════════════════════════════════════════════════════════════════
+     1. SnowRaven tokens, copied from frontend/src/globals.css (values only; the
+        app is the source of truth). Both themes. One NEW token at the end of
+        each block: the tier-3 badge's name hover and focus color.
+     ════════════════════════════════════════════════════════════════════════ -->
+<style id="sr-tokens">
+:root {
+  --sr-text-scale: 1;
+  --sr-bg: #F9FAFB;
+  --sr-surface: #FFFFFF;
+  --sr-surface-subtle: #F4F4F5;
+  --sr-surface-faint: #FAFAFA;
+  --sr-text: #0F1117;
+  --sr-text-muted: #6B6B74;
+  --sr-text-disabled: #A1A1AA;
+  --sr-text-gray: #6B7280;
+  --sr-border: #E4E4E7;
+  --sr-border-subtle: #F4F4F5;
+  --sr-border-medium: #C4C4CE;
+  --sr-accent: #277448;
+  --sr-accent-strong: #1A5C38;
+  --sr-accent-bg: #E8F5EE;
+  --sr-accent-border: rgba(39,116,72,0.25);
+  --sr-accent-border-strong: rgba(39,116,72,0.7);
+  --sr-on-accent: #FFFFFF;
+  --sr-quote-bg: #EFF1F3;
+  --sr-quote-border: #E0E2E6;
+  --sr-card-shadow: 0 1px 4px rgba(15,17,23,0.06), 0 4px 16px rgba(15,17,23,0.04);
+  --sr-milestone-3-bg: linear-gradient(160deg,#D6EAE0,#C6E2D5);
+  --sr-milestone-3-border: rgba(18,74,44,0.38);
+  --sr-milestone-3-num: #14502E;
+  --sr-milestone-3-date: #2D6644;
+  /* NEW (item 3): the species name's hover and focus color on the light tier-3
+     tile. --sr-accent (#277448) reads 4.54:1 on the tile's first stop and 4.14:1
+     on its second; this value reads 5.20:1 and 4.75:1. Same hue, darkened only
+     until both stops clear 4.5:1 with margin. Dark mode keeps the accent. */
+  --sr-milestone-3-link: #236A41;
+  --font-sans: 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
+}
+[data-theme="dark"] {
+  --sr-bg: #09090B;
+  --sr-surface: #18181B;
+  --sr-surface-subtle: #27272A;
+  --sr-surface-faint: #1C1C1F;
+  --sr-text: #F4F4F5;
+  --sr-text-muted: #A1A1AA;
+  --sr-text-disabled: #52525B;
+  --sr-text-gray: #8A8A92;
+  --sr-border: #27272A;
+  --sr-border-subtle: #1F1F23;
+  --sr-border-medium: #3F3F46;
+  --sr-accent: #34D399;
+  --sr-accent-strong: #34D399;
+  --sr-accent-bg: #052E16;
+  --sr-accent-border: rgba(52,211,153,0.2);
+  --sr-accent-border-strong: rgba(52,211,153,0.5);
+  --sr-on-accent: #052E16;
+  --sr-quote-bg: #2E2E33;
+  --sr-quote-border: #3A3A40;
+  --sr-card-shadow: 0 1px 4px rgba(9,9,11,0.4), 0 4px 16px rgba(9,9,11,0.25);
+  --sr-milestone-3-bg: linear-gradient(160deg,#17451F,#123317);
+  --sr-milestone-3-border: rgba(110,231,183,0.40);
+  --sr-milestone-3-num: #6EE7B7;
+  --sr-milestone-3-date: #79CB9A;
+  /* Dark tier 3: --sr-accent already reads 5.73:1 and 7.23:1 on the two stops,
+     so the token is the accent and nothing changes on screen. */
+  --sr-milestone-3-link: #34D399;
+}
+</style>
+
+<!-- ════════════════════════════════════════════════════════════════════════
+     2. The app rules the card uses TODAY, copied from globals.css: the media
+        grid and tiles, the item list, the pills, the focus ring, the milestone
+        badge, the phone tier. These are what every frame on this page gets.
+     ════════════════════════════════════════════════════════════════════════ -->
+<style id="sr-app">
+html { font-size: calc(100% * var(--sr-text-scale, 1)); background: var(--sr-bg); }
+body { margin: 0; font-family: var(--font-sans); font-size: 1rem; line-height: 1.5; color: var(--sr-text); background: var(--sr-bg); -webkit-font-smoothing: antialiased; }
+*, *::before, *::after { box-sizing: border-box; }
+svg { display: block; }
+button { font: inherit; }
+a { color: inherit; }
+
+.sr-action-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 12px; min-width: 0; }
+.sr-min0 { min-width: 0; }
+.sr-truncate { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sr-wrap-anywhere { overflow-wrap: anywhere; word-break: break-word; }
+.sr-wrap-flex { display: flex; flex-wrap: wrap; gap: var(--sr-wrap-gap, 8px); align-items: center; }
+
+.sr-pill {
+  display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+  min-height: 30px; padding: 0 12px; border-radius: 15px;
+  border: 1.5px solid var(--sr-border); background: var(--sr-surface);
+  color: var(--sr-text-muted); font-family: inherit; font-size: 0.75rem; font-weight: 500;
+  white-space: nowrap; cursor: pointer; transition: color 120ms ease-out, background-color 120ms ease-out, border-color 120ms ease-out;
+}
+.sr-pill:hover { color: var(--sr-text); border-color: var(--sr-border-medium); }
+.sr-pill[aria-pressed="true"] { border-color: var(--sr-accent-border); background: var(--sr-accent-bg); color: var(--sr-accent); font-weight: 600; }
+.sr-nbt-ctlrow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.sr-nbt-scope { margin: 0.375rem 0 0; font-size: 0.6875rem; line-height: 1.45; color: var(--sr-text-muted); }
+
+.sr-media-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; align-items: start; }
+.sr-media-item { min-width: 0; }
+.sr-media-frame { position: relative; width: 100%; border: 1px solid var(--sr-border); border-radius: 9px; background: var(--sr-surface); overflow: hidden; }
+.sr-media-iframe--photo, .sr-media-iframe--video { height: 230px; }
+.sr-media-iframe--audio { height: 230px; }
+/* Stand-in for a player that has not loaded: the app's shimmer surface, held
+   still. No embed can load in a mockup; the tile FOOTPRINT is what matters. */
+.sr-media-shimmer { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: linear-gradient(100deg, var(--sr-surface-subtle) 30%, var(--sr-surface-faint) 50%, var(--sr-surface-subtle) 70%); background-size: 200% 100%; }
+
+.sr-ml-items { margin: 0 0 12px; font-size: 0.75rem; line-height: 1.45; color: var(--sr-text-muted); }
+.sr-mli-lead { margin: 0 0 2px; overflow-wrap: anywhere; }
+.sr-mli-name { font-weight: 600; color: var(--sr-text); }
+.sr-mli-grid { display: grid; grid-template-columns: max-content minmax(0, 1fr); column-gap: 8px; row-gap: 2px; align-items: start; }
+.sr-mli-fmt { display: inline-flex; align-items: center; gap: 4px; height: 1.5rem; font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--sr-text-muted); }
+.sr-mli-list { display: flex; flex-wrap: wrap; gap: 2px; min-width: 0; margin: 0; padding: 0; list-style: none; }
+.sr-mli-link { display: inline-flex; align-items: center; justify-content: center; min-width: 1.5rem; height: 1.5rem; padding: 0 4px; border-radius: 6px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--sr-accent); text-decoration: none; transition: background-color 120ms ease-out; }
+.sr-mli-link:hover { background: var(--sr-accent-bg); text-decoration: underline; text-underline-offset: 2px; }
+
+.sr-touch-target {}
+
+/* BirdName (the badge's species name) */
+.sr-birdname { display: inline-flex; flex-direction: column; gap: 1px; min-width: 0; vertical-align: top; }
+.sr-birdname-row { display: flex; align-items: center; min-width: 0; }
+.sr-birdname-link { font: inherit; font-weight: 500; color: var(--sr-text); background: none; border: 0; padding: 0; margin: 0; cursor: pointer; text-decoration: none; text-align: left; }
+.sr-birdname-link:hover, .sr-birdname-link:focus-visible { color: var(--sr-accent); text-decoration: underline; }
+.sr-birdname-md .sr-birdname-link { font-size: 0.84375rem; }
+
+/* Milestone badge (Statistics), tier 3 only on this page */
+.sr-ms-badge { display: flex; flex-direction: column; align-items: center; text-align: center; min-width: 0; gap: 0.25rem; padding: 0.625rem 0.625rem 0.5625rem; border-radius: 10px; border: 1.5px solid var(--sr-ms-border); background: var(--sr-ms-bg); width: 8.5rem; }
+.sr-ms-badge[data-tier="3"] { --sr-ms-bg: var(--sr-milestone-3-bg); --sr-ms-border: var(--sr-milestone-3-border); --sr-ms-num: var(--sr-milestone-3-num); --sr-ms-date: var(--sr-milestone-3-date); }
+.sr-ms-num { font-size: 1.25rem; font-weight: 700; line-height: 1; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; color: var(--sr-ms-num); }
+.sr-ms-name { flex: 1 1 auto; display: flex; align-items: center; justify-content: center; width: 100%; min-width: 0; }
+.sr-ms-name .sr-birdname { width: 100%; max-width: 100%; }
+.sr-ms-name .sr-birdname-row { flex-wrap: wrap; justify-content: center; row-gap: 2px; }
+.sr-ms-name .sr-birdname-link { text-align: center; line-height: 1.3; overflow-wrap: anywhere; min-width: 0; transition: color 120ms cubic-bezier(0.2, 0, 0, 1); }
+.sr-ms-date { font-size: 0.6875rem; font-weight: 500; line-height: 1.3; }
+
+/* Global focus ring */
+button:focus-visible, a:focus-visible, [tabindex]:focus-visible { outline: 3px solid var(--sr-accent); outline-offset: 3px; box-shadow: 0 0 0 6px rgba(45, 134, 83, 0.12); }
+.sr-mli-link:focus-visible { background: var(--sr-accent-bg); outline-offset: 1px; box-shadow: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
+}
+</style>
+
+<!-- ════════════════════════════════════════════════════════════════════════
+     3. THE PROPOSAL. Only the "Proposed" frames get this block. Written so the
+        Engineer can lift it into globals.css: layout in classes, colors and
+        type kept inline at the call sites (the ui.md rule), phone tier rules
+        in the established 640px block, container queries beside their rules.
+     ════════════════════════════════════════════════════════════════════════ -->
+<style id="sr-proposed">
+/* ── Named Birds card: fit at phone widths and large text ──────────────────
+
+   A. Section micro-label carrying the bird's name ("Media of {name}", "Where
+      {name} has been seen"). The name may be one unbroken token of up to 120
+      characters, so the text span releases its automatic minimum and may break
+      anywhere; the glyph keeps the position centering gave it on a one-line
+      label and stays on the first line when the label wraps. */
+.sr-nb-head { display: flex; align-items: flex-start; gap: 6px; min-width: 0; }
+.sr-nb-head-glyph { flex: none; margin-top: calc((1.5em - 12px) / 2); }
+.sr-nb-head-text { min-width: 0; overflow-wrap: anywhere; }
+
+/* B. The sighting row: date, place, checklist link. The padded row is a size
+      container, so the line beneath it decides by its OWN width, in em of the
+      row's text, whether the three can share a line. Below 22em the checklist
+      link takes a line of its own (the house answer to an incompressible
+      trailing figure), the second separator goes, and the place takes the rest
+      of the first line: it truncates where the row is the one-line kind
+      (HotspotLink `truncate`, every width above 640px) and wraps as prose on a
+      phone, where NamedBirdRow renders the full-name HotspotLink (useIsPhone).
+      22em: date (about 5em) + two separators (2.5em) + link (about 5.7em) =
+      13em, leaving the place 9em of ink, about 18 characters, before the row
+      stacks. Every width 640px and up at 100% text keeps the one-line form
+      (the narrowest, 641px, measures 30em in the built app). */
+.sr-nbs { container-type: inline-size; container-name: sr-nbs; }
+.sr-nbs-line { display: flex; align-items: center; min-width: 0; margin-bottom: 4px; }
+.sr-nbs-date { flex-shrink: 0; }
+.sr-nbs-sep { flex-shrink: 0; padding: 0 7px; }
+.sr-nbs-place { min-width: 0; }
+.sr-nbs-link { display: flex; align-items: stretch; flex-shrink: 0; }
+@container sr-nbs (max-width: 22em) {
+  .sr-nbs-line { flex-wrap: wrap; align-items: baseline; row-gap: 2px; }
+  .sr-nbs-place { flex: 1 1 auto; }
+  .sr-nbs-sep--link { display: none; }
+  .sr-nbs-link { flex-basis: 100%; min-height: 2rem; }
+}
+
+/* C. The media section is a size container too, so the gallery's column
+      count follows the section's own width in em: three columns down to 31em
+      (641px at 100% text measures 31.4em, so desktop at 100% is unchanged),
+      two below that, one below 19em. A 641px window at 200% text today gives
+      three 137px tiles, which no meta row survives; it now gives one. The
+      container is NAMED, so Species Detail's Recent Media, which shares
+      .sr-media-grid, is untouched until its own section opts in. */
+.sr-nb-media { container-type: inline-size; container-name: sr-nb-media; }
+@container sr-nb-media (max-width: 31em) {
+  .sr-media-grid, .sr-media-disabled-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@container sr-nb-media (max-width: 19em) {
+  .sr-media-grid, .sr-media-disabled-list { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* D. The tile meta row. Nothing in it is `white-space: nowrap` any more. Each
+      separator rides with the item BEFORE it (date, Macaulay Library), so a
+      wrapped row ends its lines with the separator exactly as the desktop row
+      does today and never starts a line with one. A pair may break inside
+      itself only as a backstop (overflow-wrap: anywhere) for an id or a name
+      wider than its tile. */
+.sr-nbm-meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 8px; min-width: 0; }
+.sr-nbm-fmt { display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0; }
+.sr-nbm-pair { display: inline-flex; align-items: center; gap: 6px; min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
+.sr-nbm-sep { flex-shrink: 0; }
+.sr-nbm-ml { min-width: 0; }
+
+/* F. The collapsed header's date-range line. Its `nowrap` is deliberate (the
+      two dates never break on a desktop), but its column is end-aligned, so at
+      320px and 200% text the line runs 30px past the card's LEFT edge and the
+      card clips the first date. The phone tier lets it break at a space,
+      right-aligned, so it reads "Mar 2, 2025 -" over "Feb 10, 2026". */
+.sr-nbh-dates { white-space: nowrap; }
+
+/* E. Tier-3 milestone badge: a fifth badge-local property beside the four the
+      tier already sets. Only light tier 3 reads a value other than the accent. */
+.sr-ms-badge { --sr-ms-link: var(--sr-accent); }
+.sr-ms-badge[data-tier="3"] { --sr-ms-link: var(--sr-milestone-3-link); }
+.sr-ms-name .sr-birdname-link:hover,
+.sr-ms-name .sr-birdname-link:focus-visible { color: var(--sr-ms-link); }
+
+</style>
+
+<!-- ════════════════════════════════════════════════════════════════════════
+     3b. The established 640px phone tier, LAST, as it sits at the end of
+         globals.css. Today's rules, then (Proposed frames only) the additions
+         that go inside that same block.
+     ════════════════════════════════════════════════════════════════════════ -->
+<style id="sr-tier">
+/* The established phone tier */
+@media (max-width: 640px) {
+  .sr-media-grid { grid-template-columns: 1fr; }
+  .sr-media-iframe--photo, .sr-media-iframe--video { height: 280px; }
+  .sr-media-iframe--audio { height: 280px; }
+  .sr-ml-items { margin-bottom: 8px; }
+  .sr-mli-grid { grid-template-columns: minmax(0, 1fr); row-gap: 0; }
+  .sr-mli-fmt { height: auto; margin-top: 6px; }
+  .sr-mli-list { gap: 0; }
+  .sr-mli-link { min-width: 2.75rem; height: 2.75rem; }
+  .sr-touch-target { min-height: 44px; }
+  .sr-pill { font-size: max(16px, 0.75rem); }
+}
+</style>
+<style id="sr-tier-proposed">
+/* Phone tier additions (go inside the established 640px block in globals.css).
+   The sighting line aligns on the baseline so a wrapped place keeps the date
+   and the link on its first line; in the stacked state the checklist link
+   takes the 44px posture the item-list boxes in the same card already have. */
+@media (max-width: 640px) {
+  .sr-nbh-dates { white-space: normal; text-align: right; overflow-wrap: anywhere; }
+  .sr-nbs-line { align-items: baseline; }
+  @container sr-nbs (max-width: 22em) {
+    .sr-nbs-link { min-height: 2.75rem; }
+  }
+}
+</style>
+
+<!-- ════════════════════════════════════════════════════════════════════════
+     4. This page's own chrome (not part of the proposal).
+     ════════════════════════════════════════════════════════════════════════ -->
+<style id="page">
+body { padding: 0 16px 64px; max-width: 1360px; margin: 0 auto; }
+.pg-head { padding: 28px 0 10px; display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 14px 24px; }
+.pg-title { margin: 0; font-size: 1.5rem; font-weight: 700; letter-spacing: -0.015em; line-height: 1.2; }
+.pg-sub { margin: 6px 0 0; font-size: 0.875rem; color: var(--sr-text-muted); max-width: 62ch; line-height: 1.55; }
+.pg-ctl { display: inline-flex; border: 1.5px solid var(--sr-accent-border); border-radius: 15px; overflow: hidden; background: var(--sr-surface); }
+.pg-ctl button { min-height: 30px; padding: 0 14px; border: 0; background: transparent; color: var(--sr-text-muted); font-size: 0.75rem; font-weight: 500; cursor: pointer; transition: color 120ms ease-out, background-color 120ms ease-out; }
+.pg-ctl button + button { border-left: 1.5px solid var(--sr-accent-border); }
+.pg-ctl button:hover { color: var(--sr-text); }
+.pg-ctl button[aria-pressed="true"] { background: var(--sr-accent-bg); color: var(--sr-accent); font-weight: 600; }
+.pg-ctl button:focus-visible { outline-offset: -3px; box-shadow: none; }
+.pg-note { margin: 10px 0 0; padding: 12px 14px; border: 1px solid var(--sr-border); border-radius: 10px; background: var(--sr-surface); font-size: 0.8125rem; line-height: 1.55; color: var(--sr-text); }
+.pg-note b { font-weight: 600; }
+.pg-note ul { margin: 6px 0 0; padding-left: 1.2em; }
+.pg-note li + li { margin-top: 4px; }
+.pg-sec { margin-top: 34px; }
+.pg-sec h2 { margin: 0 0 2px; font-size: 1.0625rem; font-weight: 700; letter-spacing: -0.01em; }
+.pg-sec .pg-why { margin: 0 0 12px; font-size: 0.8125rem; color: var(--sr-text-muted); max-width: 72ch; line-height: 1.5; }
+.pg-pair { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--pair-min, 320px)), 1fr)); align-items: start; }
+.pg-fig { margin: 0; min-width: 0; }
+.pg-cap { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin: 0 0 6px; font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--sr-text-muted); }
+.pg-cap .pg-cap-note { font-weight: 500; letter-spacing: 0; text-transform: none; font-size: 0.75rem; }
+.pg-fig--proposed .pg-cap { color: var(--sr-accent); }
+.pg-frame { display: block; box-sizing: content-box; border: 1px solid var(--sr-border-medium); border-radius: 12px; background: var(--sr-bg); }
+.pg-frame--fit { flex: none; }
+.pg-frame-wrap { overflow-x: auto; }
+.pg-swatches { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr)); }
+.pg-swatch { padding: 14px; border: 1px solid var(--sr-border); border-radius: 10px; background: var(--sr-surface); }
+.pg-swatch h3 { margin: 0 0 10px; font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--sr-text-muted); }
+.pg-swatch .sr-ms-badge { margin: 0 auto; }
+.pg-ratios { margin: 10px 0 0; font-size: 0.75rem; line-height: 1.5; color: var(--sr-text-muted); font-variant-numeric: tabular-nums; }
+.pg-ratios code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.6875rem; color: var(--sr-text); }
+.pg-ok { color: var(--sr-accent); font-weight: 600; }
+.pg-miss { color: #B4341F; font-weight: 600; }
+[data-theme="dark"] .pg-miss { color: #FB923C; }
+/* Simulated hover, so the hovered color is visible without a pointer. */
+.is-hover .sr-birdname-link { text-decoration: underline; }
+.is-hover.sw-today .sr-birdname-link { color: var(--sr-accent); }
+.is-hover.sw-proposed .sr-birdname-link { color: var(--sr-milestone-3-link); }
+</style>
+</head>
+<body>
+
+<header class="pg-head">
+  <div>
+    <h1 class="pg-title">Named Birds card at phone widths and large text</h1>
+    <p class="pg-sub">The open card as it ships today beside the proposed fix, at each configuration the brief names, for a typical named bird and for a 120-character name with no spaces. Every "Proposed" frame runs the real stylesheet rules written for the Engineer to lift. Players are stand-ins; nothing loads from the network.</p>
+  </div>
+  <div class="pg-ctl" role="group" aria-label="Color theme">
+    <button type="button" data-theme-pick="light" aria-pressed="true">Light</button>
+    <button type="button" data-theme-pick="dark" aria-pressed="false">Dark</button>
+  </div>
+</header>
+
+<div class="pg-note">
+  <b>What changes, in four lines.</b>
+  <ul>
+    <li><b>Sighting row.</b> When date, place and checklist link cannot share a line, the checklist link takes a line of its own under the date and the place keeps the first line. Date first, nothing clipped, the link alone on its line and 44px tall on a phone. Decided by the row's own width in em, so it also catches a desktop window at 200% text; desktop at 100% is unchanged.</li>
+    <li><b>Tile meta row.</b> Nothing in it stays <code>nowrap</code>, separators ride with the item before them, and the gallery drops to two columns, then one, as the section narrows in em. Three columns everywhere desktop shows three today.</li>
+    <li><b>Header.</b> "Media of {name}" and "Where {name} has been seen" wrap a long spaceless name inside the card; the glyph stays on the first line.</li>
+    <li><b>Header date range (new, measured here).</b> The collapsed header's "Mar 2, 2025 &ndash; Feb 10, 2026" line is end-aligned and <code>nowrap</code>, so at 320px and 200% text it runs 30px past the card's left edge and the first date is cut. On a phone it may break at a space, right-aligned.</li>
+    <li><b>Tier-3 badge (light).</b> The species name's hover and focus color becomes #236A41, 5.20:1 and 4.75:1 on the tile's two stops, up from 4.54:1 and 4.14:1. Swatches at the bottom.</li>
+  </ul>
+</div>
+
+<main id="frames"></main>
+
+<section class="pg-sec" id="tier3">
+  <h2>Tier-3 milestone badge, species name on hover and focus</h2>
+  <p class="pg-why">Light tier 3 is the one tile where the shared hover color, <code>--sr-accent</code>, falls under 4.5:1 on a gradient stop. The fix is one badge-local property that only tier 3 reads differently. Resting colors, every other tier and dark mode are untouched; the dark swatch is here to show that.</p>
+  <div class="pg-swatches" id="swatches"></div>
+</section>
+
+<section class="pg-sec">
+  <h2>Measured, not assumed</h2>
+  <p class="pg-why">The "Today" frames reproduce the built app's numbers: at 320px and 200% text the place box collapses to 0px wide and the checklist link runs 109px past the card; at 641px and 200% the three 137px tiles put "Macaulay Library" 49.5px past the tile edge; the 120-character header runs 1,595px past the card. The "Proposed" frames were measured in Chromium and WebKit at every configuration on this page: no text ink, link or icon outside the card or its tile, and no card scroll. The timeline strip and the real players are omitted; neither changes.</p>
+</section>
+
+<script>
+(() => {
+  'use strict'
+
+  // ── Icons (lucide paths, 24 grid) ──────────────────────────────────────
+  const ICON = {
+    chevronDown: '<path d="m6 9 6 6 6-6"/>',
+    play: '<polygon points="6 3 20 12 6 21 6 3"/>',
+    map: '<path d="M14.106 5.553a2 2 0 0 0 1.788 0l3.659-1.83A1 1 0 0 1 21 4.619v12.764a1 1 0 0 1-.553.894l-4.553 2.277a2 2 0 0 1-1.788 0l-4.212-2.106a2 2 0 0 0-1.788 0l-3.659 1.83A1 1 0 0 1 3 19.381V6.618a1 1 0 0 1 .553-.894l4.553-2.277a2 2 0 0 1 1.788 0z"/><path d="M15 5.764v15"/><path d="M9 3.236v15"/>',
+    mapPin: '<path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/>',
+    image: '<rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>',
+    mic: '<path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/>',
+    video: '<path d="m16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.87a.5.5 0 0 0-.752-.432L16 10.5"/><rect x="2" y="6" width="14" height="12" rx="2"/>',
+    external: '<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>',
+  }
+  const svg = (name, size, stroke, style = '') =>
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${stroke}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"${style ? ` style="${style}"` : ''}>${ICON[name]}</svg>`
+  const FMT_ICON = { Photo: 'image', Audio: 'mic', Video: 'video' }
+
+  const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+
+  // ── Content: two named birds, realistic throughout ─────────────────────
+  const LONG = 'Pondsidegreenheadwhocircleseveryautumnwiththesamescarredleftwingandneverleavesthenorthshoreoftheoldmillpondatdusk'.padEnd(120, 'x')
+  const BIRDS = {
+    winky: {
+      name: 'Winky', common: "Anna's Hummingbird", sci: 'Calypte anna',
+      first: 'Mar 2, 2025', last: 'Feb 10, 2026', span: '11 months', count: 3,
+      sightings: [
+        { date: 'Feb 10, 2026', place: 'Back Garden', hotspot: false, id: 'S231498765', comment: 'Same scarred bill, working the sage by the back fence again. [name:Winky]' },
+        { date: 'Nov 3, 2025', place: 'Arrowhead Marsh--Martin Luther King Jr. Regional Shoreline', hotspot: true, loc: 'L123456', id: 'S212377406' },
+        { date: 'Mar 2, 2025', place: 'Lake Merritt--Rotary Nature Center', hotspot: true, loc: 'L109876', id: 'S175012229', comment: 'First seen. Notch in the left wing, gorget a little ragged. [name:Winky]' },
+      ],
+      locations: [
+        { place: 'Arrowhead Marsh--Martin Luther King Jr. Regional Shoreline', hotspot: true, loc: 'L123456', n: 1 },
+        { place: 'Back Garden', hotspot: false, n: 1 },
+        { place: 'Lake Merritt--Rotary Nature Center', hotspot: true, loc: 'L109876', n: 1 },
+      ],
+      assets: [
+        { fmt: 'Photo', date: 'Feb 10, 2026', ml: '640182331', id: 'S231498765' },
+        { fmt: 'Photo', date: 'Feb 10, 2026', ml: '640182330', id: 'S231498765' },
+        { fmt: 'Audio', date: 'Nov 3, 2025', ml: '628840117', id: 'S212377406' },
+        { fmt: 'Photo', date: 'Nov 3, 2025', ml: '628840099', id: 'S212377406' },
+        { fmt: 'Video', date: 'Mar 2, 2025', ml: '601233874', id: 'S175012229' },
+        { fmt: 'Photo', date: 'Mar 2, 2025', ml: '601233860', id: 'S175012229' },
+        { fmt: 'Photo', date: 'Mar 2, 2025', ml: '601233859', id: 'S175012229' },
+      ],
+    },
+    long: {
+      name: LONG, common: 'Mallard', sci: 'Anas platyrhynchos',
+      first: 'Oct 18, 2025', last: 'Jan 5, 2026', span: '2 months, 18 days', count: 2,
+      sightings: [
+        { date: 'Jan 5, 2026', place: 'Mill Pond', hotspot: true, loc: 'L222111', id: 'S229010442', comment: `Still favoring the north shore at dusk. [name:${LONG}]` },
+        { date: 'Oct 18, 2025', place: 'Mill Pond', hotspot: true, loc: 'L222111', id: 'S219987301' },
+      ],
+      locations: [{ place: 'Mill Pond', hotspot: true, loc: 'L222111', n: 2 }],
+      assets: [
+        { fmt: 'Photo', date: 'Jan 5, 2026', ml: '636501220', id: 'S229010442' },
+        { fmt: 'Photo', date: 'Oct 18, 2025', ml: '622710983', id: 'S219987301' },
+        { fmt: 'Photo', date: 'Oct 18, 2025', ml: '622710981', id: 'S219987301' },
+      ],
+    },
+  }
+
+  // ── Shared pieces (identical in both modes) ────────────────────────────
+  const checklistLink = (id, extraStyle) =>
+    `<a href="https://ebird.org/checklist/${id}" target="_blank" rel="noreferrer" tabindex="0" aria-label="Open checklist ${id} on eBird (opens in a new tab)" style="display:inline-flex;align-items:center;gap:3px;color:var(--sr-accent);text-decoration:none;${extraStyle}">${id}${svg('external', 10, 2.5)}</a>`
+
+  // HotspotLink, `truncate` branch (the one-line desktop row) and the plain-text twin.
+  const placeTruncate = (s, cls = '') => s.hotspot
+    ? `<a class="${cls}" href="https://ebird.org/hotspot/${s.loc}" target="_blank" rel="noreferrer" tabindex="0" aria-label="Open ${esc(s.place)} on eBird (opens in a new tab)" title="${esc(s.place)}" style="display:inline-flex;align-items:center;gap:3px;min-width:0;max-width:100%;text-decoration:none;font-size:0.75rem;color:var(--sr-accent)"><span class="sr-truncate">${esc(s.place)}</span>${svg('external', 10, 2.5, 'flex-shrink:0')}</a>`
+    : `<span class="${cls}" title="${esc(s.place)}" style="display:inline-flex;align-items:center;min-width:0;max-width:100%;font-size:0.75rem;color:var(--sr-text-muted)"><span class="sr-truncate">${esc(s.place)}</span></span>`
+  // HotspotLink, full-name branch (inline flow; the last word and the glyph share one inline-block).
+  const placeFull = (s, cls = '') => {
+    if (!s.hotspot) return `<span class="${cls}" title="${esc(s.place)}" style="font-size:0.75rem;color:var(--sr-text-muted)">${esc(s.place)}</span>`
+    const cut = s.place.lastIndexOf(' ')
+    const lead = cut === -1 ? '' : s.place.slice(0, cut + 1)
+    const last = cut === -1 ? s.place : s.place.slice(cut + 1)
+    return `<a class="${cls}" href="https://ebird.org/hotspot/${s.loc}" target="_blank" rel="noreferrer" tabindex="0" aria-label="Open ${esc(s.place)} on eBird (opens in a new tab)" title="${esc(s.place)}" style="text-decoration:none;font-size:0.75rem;color:var(--sr-accent)">${lead ? `<span>${esc(lead)}</span>` : ''}<span style="display:inline-block;max-width:100%;overflow-wrap:anywhere">${esc(last)}${svg('external', 10, 2.5, 'display:inline-block;margin-left:3px;vertical-align:baseline')}</span></a>`
+  }
+
+  const comment = text => text ? `<div class="sr-wrap-anywhere" style="font-size:0.8125rem;color:var(--sr-text);line-height:1.55;background:var(--sr-quote-bg);border:1px solid var(--sr-quote-border);border-left:3px solid var(--sr-accent-border);border-radius:7px;padding:8px 11px;margin-top:5px">${esc(text)}</div>` : ''
+
+  const cardHeader = (b, mode) => `
+    <button type="button" aria-expanded="true" tabindex="0" style="display:flex;align-items:baseline;gap:8px;row-gap:4px;flex-wrap:wrap;width:100%;padding:11px 13px;border:none;background:transparent;cursor:pointer;font-family:inherit;text-align:left;color:inherit">
+      <span style="color:var(--sr-text-muted);flex-shrink:0;display:inline-flex;align-self:center">${svg('chevronDown', 15, 2.4)}</span>
+      <span style="font-size:0.9375rem;font-weight:700;color:var(--sr-text);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;letter-spacing:-0.01em">${esc(b.name)}</span>
+      <span style="min-width:0;overflow:hidden;display:inline-flex;align-items:baseline;gap:5px"><span style="font-size:0.84375rem;font-weight:500;color:var(--sr-text)">${esc(b.common)}</span><span style="font-size:0.71875rem;font-style:italic;color:var(--sr-text-gray);white-space:nowrap">${esc(b.sci)}</span></span>
+      <span style="margin-left:auto;display:flex;align-items:baseline;flex-wrap:wrap;gap:13px;flex-shrink:0;max-width:100%;min-width:0">
+        <span style="display:flex;flex-direction:column;align-items:flex-end;gap:1px;min-width:0">
+          ${mode === 'today'
+            ? `<span style="font-size:0.75rem;color:var(--sr-text-gray);white-space:nowrap">${b.first} &ndash; ${b.last}</span>`
+            : `<span class="sr-nbh-dates" style="font-size:0.75rem;color:var(--sr-text-gray)">${b.first} &ndash; ${b.last}</span>`}
+          <span style="font-size:0.6875rem;color:var(--sr-text-muted);text-align:right"><b style="font-weight:600">${b.span}</b><span style="font-weight:400"> &middot; to last sighting</span></span>
+        </span>
+        <span style="font-size:0.75rem;font-weight:700;color:var(--sr-accent);white-space:nowrap">${b.count} sightings</span>
+      </span>
+    </button>`
+
+  const rangeBlock = () => `
+    <div style="padding:12px 14px 8px">
+      <div class="sr-nbt-ctlrow sr-ctl-row" role="group" aria-label="Measure every span to, repeated in the open card">
+        <span class="sr-ctl-label" style="font-size:0.75rem;color:var(--sr-text-muted);font-weight:600">Measure to</span>
+        <div class="sr-wrap-flex" style="--sr-wrap-gap:6px">
+          <button type="button" class="sr-pill sr-touch-target" aria-pressed="true" tabindex="0">Last sighting</button>
+          <button type="button" class="sr-pill sr-touch-target" aria-pressed="false" tabindex="0">Today</button>
+        </div>
+      </div>
+      <p class="sr-nbt-scope">Applies to every named bird on this tab.</p>
+    </div>`
+
+  const locationsBlock = b => {
+    if (b.locations.length === 1) {
+      const o = b.locations[0]
+      return `<div style="padding:12px 14px 2px">${microLabelToday('mapPin', 'Top locations')}<div class="sr-wrap-anywhere" style="padding:3px 0 1px;font-size:0.75rem;line-height:1.6;color:var(--sr-text-muted)">Every sighting at ${placeFull({ place: o.place, hotspot: o.hotspot, loc: o.loc }).replace('font-size:0.75rem;', 'font-size:0.75rem;font-weight:600;')}.</div></div>`
+    }
+    return `<div style="padding:12px 14px 2px">${microLabelToday('mapPin', 'Top locations')}${b.locations.map((o, i) => `
+      <div style="display:flex;align-items:center;gap:10px;padding:7px 0;${i < b.locations.length - 1 ? 'border-bottom:1px solid var(--sr-border-subtle)' : ''}">
+        <span style="font-size:0.6875rem;color:var(--sr-text-muted);min-width:16px;flex-shrink:0;text-align:right;font-variant-numeric:tabular-nums">${i + 1}.</span>
+        ${placeTruncate({ place: o.place, hotspot: o.hotspot, loc: o.loc }).replace('min-width:0;max-width:100%', 'flex:1;min-width:0;max-width:100%')}
+        <span style="font-size:0.6875rem;color:var(--sr-text-muted);white-space:nowrap;flex-shrink:0;font-variant-numeric:tabular-nums">${o.n} sighting${o.n === 1 ? '' : 's'}</span>
+      </div>`).join('')}</div>`
+  }
+
+  // Today's micro-label: one flex row with the text as a bare text node.
+  const microLabelToday = (icon, text, mb = 7) =>
+    `<div style="display:flex;align-items:center;gap:6px;margin-bottom:${mb}px;font-size:0.6875rem;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:var(--sr-text-muted)">${svg(icon, 12, 2.2)}${esc(text)}</div>`
+  // Proposed: layout lifted to .sr-nb-head, the name in a span that may break anywhere.
+  const microLabelProposed = (icon, text, cls = '', mb = 7) =>
+    `<div class="sr-nb-head ${cls}" style="margin-bottom:${mb}px;font-size:0.6875rem;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:var(--sr-text-muted)"><span class="sr-nb-head-glyph">${svg(icon, 12, 2.2)}</span><span class="sr-nb-head-text">${esc(text)}</span></div>`
+
+  const mapBlock = (b, mode) => `
+    <div style="padding:12px 14px 14px">
+      ${mode === 'today' ? microLabelToday('map', `Where ${b.name} has been seen`) : microLabelProposed('map', `Where ${b.name} has been seen`)}
+      <div style="height:220px;border:1px solid var(--sr-border);border-radius:8px;overflow:hidden;background:
+        radial-gradient(ellipse at 30% 40%, rgba(39,116,72,0.18), transparent 45%),
+        radial-gradient(ellipse at 70% 65%, rgba(39,116,72,0.14), transparent 40%),
+        linear-gradient(180deg, var(--sr-surface-subtle), var(--sr-surface-faint));position:relative">
+        <span style="position:absolute;left:38%;top:44%;width:14px;height:14px;border-radius:50%;background:var(--sr-accent);border:2px solid var(--sr-surface);box-shadow:var(--sr-card-shadow)"></span>
+        <span style="position:absolute;left:62%;top:58%;width:14px;height:14px;border-radius:50%;background:var(--sr-accent);border:2px solid var(--sr-surface);box-shadow:var(--sr-card-shadow)"></span>
+        <span style="position:absolute;right:10px;bottom:10px;font-size:0.625rem;color:var(--sr-text-muted);background:var(--sr-surface);padding:2px 6px;border-radius:4px;border:1px solid var(--sr-border)">map</span>
+      </div>
+    </div>`
+
+  const itemList = b => {
+    const groups = ['Photo', 'Audio', 'Video'].map(f => ({ f, items: b.assets.filter(a => a.fmt === f) })).filter(g => g.items.length)
+    const LABEL = { Photo: 'Photos', Audio: 'Audio', Video: 'Video' }
+    return `<div class="sr-ml-items"><p class="sr-mli-lead"><span class="sr-mli-name">${esc(b.name)}</span> on Macaulay Library, newest first:</p><div class="sr-mli-grid">${groups.map((g, gi) => `
+      <span class="sr-mli-fmt" id="f${gi}">${svg(FMT_ICON[g.f], 12, 2.2)}${LABEL[g.f]}</span>
+      <ul class="sr-mli-list" role="list" aria-labelledby="f${gi}">${g.items.map((a, i) => `<li><a class="sr-mli-link" href="https://macaulaylibrary.org/asset/${a.ml}" target="_blank" rel="noreferrer" tabindex="0" title="${a.date}" aria-label="${g.f} ${i + 1} of ${g.items.length} of ${esc(b.name)}, ${a.date}, on Macaulay Library (opens in a new tab)">${i + 1}</a></li>`).join('')}</ul>`).join('')}</div></div>`
+  }
+
+  const tileFrame = a => `<div class="sr-media-frame sr-media-iframe--${a.fmt.toLowerCase()}"><div class="sr-media-shimmer" aria-hidden="true">${svg(FMT_ICON[a.fmt], 20, 2, 'color:var(--sr-text-disabled)')}</div></div>`
+  const fmtMarkerStyle = 'font-size:0.6875rem;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:var(--sr-text-muted)'
+  const mlLink = (a, cls = '', extra = '') => `<a class="${cls}" href="https://macaulaylibrary.org/asset/${a.ml}" target="_blank" rel="noreferrer" tabindex="0" aria-label="View this ${a.fmt.toLowerCase()} on the Macaulay Library (ML${a.ml}) (opens in a new tab)" style="font-size:0.75rem;font-weight:600;color:var(--sr-accent);text-decoration:none;${extra}">Macaulay Library</a>`
+
+  const tileToday = a => `
+    <div class="sr-media-item" tabindex="-1" style="outline:none">${tileFrame(a)}
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:8px;min-width:0">
+        <span style="display:inline-flex;align-items:center;gap:4px;${fmtMarkerStyle};flex-shrink:0">${svg(FMT_ICON[a.fmt], 12, 2.2)}${a.fmt}</span>
+        <span style="font-size:0.75rem;font-weight:600;color:var(--sr-text);white-space:nowrap">${a.date}</span>
+        <span style="font-size:0.75rem;color:var(--sr-text-disabled);flex-shrink:0" aria-hidden="true">&middot;</span>
+        ${mlLink(a, '', 'white-space:nowrap')}
+        <span style="font-size:0.75rem;color:var(--sr-text-disabled);flex-shrink:0" aria-hidden="true">&middot;</span>
+        ${checklistLink(a.id, 'flex-shrink:0;font-size:0.75rem;font-weight:600')}
+      </div>
+    </div>`
+  const tileProposed = a => `
+    <div class="sr-media-item" tabindex="-1" style="outline:none">${tileFrame(a)}
+      <div class="sr-nbm-meta">
+        <span class="sr-nbm-fmt" style="${fmtMarkerStyle}">${svg(FMT_ICON[a.fmt], 12, 2.2)}${a.fmt}</span>
+        <span class="sr-nbm-pair"><span style="font-size:0.75rem;font-weight:600;color:var(--sr-text)">${a.date}</span><span class="sr-nbm-sep" style="font-size:0.75rem;color:var(--sr-text-disabled)" aria-hidden="true">&middot;</span></span>
+        <span class="sr-nbm-pair">${mlLink(a, 'sr-nbm-ml')}<span class="sr-nbm-sep" style="font-size:0.75rem;color:var(--sr-text-disabled)" aria-hidden="true">&middot;</span></span>
+        <span class="sr-nbm-pair">${checklistLink(a.id, 'font-size:0.75rem;font-weight:600')}</span>
+      </div>
+    </div>`
+
+  const showMore = b => b.assets.length > 6 ? `
+    <div style="margin-top:12px"><button type="button" class="sr-touch-target" tabindex="0" aria-label="Show ${b.assets.length - 6} more (of ${b.assets.length}): media of ${esc(b.name)}" style="display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 14px;border-radius:8px;border:1.5px solid var(--sr-border-medium);background:transparent;color:var(--sr-accent);font-size:0.75rem;font-weight:600;font-family:inherit;cursor:pointer">${svg('chevronDown', 13, 2.4)}Show ${b.assets.length - 6} more (of ${b.assets.length})</button></div>` : ''
+
+  const mediaSection = (b, mode) => {
+    const visible = b.assets.slice(0, 6)
+    const remaining = b.assets.length - visible.length
+    const count = remaining > 0 ? `<span style="font-size:0.6875rem;color:var(--sr-text-gray);white-space:nowrap">Showing ${visible.length} of ${b.assets.length}</span>` : ''
+    const head = mode === 'today'
+      ? `<div class="sr-action-row" style="margin-bottom:8px"><div class="sr-min0" style="display:flex;align-items:center;gap:6px;font-size:0.6875rem;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:var(--sr-text-muted)">${svg('play', 12, 2.2)}Media of ${esc(b.name)}</div>${count}</div>`
+      : `<div class="sr-action-row" style="margin-bottom:8px">${microLabelProposed('play', `Media of ${b.name}`, 'sr-min0', 0)}${count}</div>`
+    const tiles = visible.map(mode === 'today' ? tileToday : tileProposed).join('')
+    return `<div class="${mode === 'today' ? '' : 'sr-nb-media'}" style="padding:12px 14px 14px;border-top:1px solid var(--sr-border-subtle)">${head}${itemList(b)}<div class="sr-media-grid">${tiles}</div>${showMore(b)}</div>`
+  }
+
+  const sightingRows = (b, mode, phone) => b.sightings.map((s, i) => {
+    const border = i < b.sightings.length - 1 ? 'border-bottom:1px solid var(--sr-border-subtle)' : ''
+    const sep = (cls, extra = '') => `<span class="${cls}" style="font-size:0.75rem;color:var(--sr-text-disabled);${extra}" aria-hidden="true">&middot;</span>`
+    if (mode === 'today') {
+      return `<div style="padding:10px 14px 11px 36px;${border}">
+        <div style="display:flex;align-items:center;gap:0;min-width:0;margin-bottom:4px">
+          <span style="font-size:0.75rem;font-weight:600;color:var(--sr-text);flex-shrink:0">${s.date}</span>
+          ${sep('', 'flex-shrink:0;padding:0 7px')}
+          ${placeTruncate(s)}
+          ${sep('', 'flex-shrink:0;padding:0 7px')}
+          ${checklistLink(s.id, 'flex-shrink:0;font-size:0.75rem;font-weight:600')}
+        </div>${comment(s.comment)}</div>`
+    }
+    // Proposed: layout in classes. The place is the full-name HotspotLink on a
+    // phone (useIsPhone) and the `truncate` one everywhere else.
+    return `<div class="sr-nbs" style="padding:10px 14px 11px 36px;${border}">
+      <div class="sr-nbs-line">
+        <span class="sr-nbs-date" style="font-size:0.75rem;font-weight:600;color:var(--sr-text)">${s.date}</span>
+        ${sep('sr-nbs-sep')}
+        ${phone ? placeFull(s, 'sr-nbs-place') : placeTruncate(s, 'sr-nbs-place')}
+        ${sep('sr-nbs-sep sr-nbs-sep--link')}
+        <span class="sr-nbs-link">${checklistLink(s.id, 'flex-shrink:0;font-size:0.75rem;font-weight:600')}</span>
+      </div>${comment(s.comment)}</div>`
+  }).join('')
+
+  const card = (b, mode, phone) => `
+    <div class="nb-card" data-mode="${mode}" style="border:1px solid var(--sr-border);border-radius:10px;overflow:hidden;background:var(--sr-surface);box-shadow:var(--sr-card-shadow)">
+      ${cardHeader(b, mode)}
+      <div style="border-top:1px solid var(--sr-border-subtle);background:var(--sr-surface-faint)">
+        ${rangeBlock()}
+        ${sightingRows(b, mode, phone)}
+        ${locationsBlock(b)}
+        ${mapBlock(b, mode)}
+        ${mediaSection(b, mode)}
+      </div>
+    </div>`
+
+  // ── Frames ─────────────────────────────────────────────────────────────
+  // Viewport width, text scale, and the card width the built app gives at
+  // that configuration (measured in Chromium and WebKit, HEAD): 320px gives a
+  // 272px card, 390px 342px, 641px 533px at 100% and 473px at 200%, 1024px
+  // 760px (the main area beside the 216px sidebar is 808px wide).
+  const CONFIGS = [
+    { id: '320-200', title: '320px, 200% text', why: 'The brief\'s first configuration. Today the place name collapses to a 0px box and the checklist link is clipped 109px past the card; the three tile links run past nothing only because the tile is already one column here. Proposed: the checklist link takes its own 44px line, the place wraps, the header wraps.', vw: 320, scale: 2, card: 272, birds: ['winky', 'long'] },
+    { id: '390-100', title: '390px, 100% text', why: 'The everyday phone. The row is 18em wide here, so it stacks at 100% too; today the long hotspot name truncates to "Arrowhead M..." beside the link.', vw: 390, scale: 1, card: 342, birds: ['winky'] },
+    { id: '641-200', title: '641px, 200% text', why: 'Just above the phone tier, at large text. Today: three 137px tiles with "Macaulay Library" 49.5px past each tile edge and a six-line meta row; the place truncates to three or four characters. Proposed: one column of tiles (the section is 13.8em wide), the row stacked, the place on the first line with an ellipsis (this is the one-line HotspotLink; the full name is in Top locations below the rows).', vw: 641, scale: 2, card: 473, birds: ['winky', 'long'] },
+    { id: '1024-100', title: 'Desktop, 1024px, 100% text', why: 'Should look unchanged, and does: the row is 44em wide and the section 45.6em, so neither query fires. The only difference is the header, which now wraps the 120-character name instead of running 242px past the card.', vw: 808, scale: 1, card: 760, birds: ['winky', 'long'], stack: true },
+  ]
+
+  const tokens = document.getElementById('sr-tokens').textContent
+  const appCss = document.getElementById('sr-app').textContent
+  const proposedCss = document.getElementById('sr-proposed').textContent
+  const tierCss = document.getElementById('sr-tier').textContent
+  const tierProposedCss = document.getElementById('sr-tier-proposed').textContent
+
+  function frameDoc(cfg, bird, mode) {
+    const phone = cfg.vw <= 640
+    const pad = Math.round((cfg.vw - cfg.card) / 2)
+    // The scale goes on the root as an INLINE style: the app declares it on
+    // :root, which outranks an injected `html {}` rule (testing.md, v1.0.6).
+    return `<!doctype html><html lang="en" data-theme="${document.documentElement.dataset.theme}" style="--sr-text-scale:${cfg.scale}"><head><meta charset="utf-8"><title>${mode}</title>
+<style>${tokens}</style><style>${appCss}</style>${mode === 'proposed' ? `<style>${proposedCss}</style>` : ''}<style>${tierCss}</style>${mode === 'proposed' ? `<style>${tierProposedCss}</style>` : ''}
+<style>body{padding:16px ${pad}px 20px}.frame-inner{max-width:${cfg.card}px}</style>
+</head><body><div class="frame-inner" data-config="${cfg.id}" data-bird="${bird}" data-mode="${mode}">${card(BIRDS[bird], mode, phone)}</div></body></html>`
+  }
+
+  const main = document.getElementById('frames')
+  const frames = []
+  for (const cfg of CONFIGS) {
+    const sec = document.createElement('section')
+    sec.className = 'pg-sec'
+    sec.id = `cfg-${cfg.id}`
+    sec.innerHTML = `<h2>${cfg.title}</h2><p class="pg-why">${cfg.why}</p>`
+    for (const bird of cfg.birds) {
+      const pair = document.createElement('div')
+      pair.className = 'pg-pair'
+      pair.style.setProperty('--pair-min', `${cfg.stack ? 2000 : cfg.vw + 2}px`)
+      pair.style.marginTop = '14px'
+      for (const mode of ['today', 'proposed']) {
+        const fig = document.createElement('figure')
+        fig.className = `pg-fig pg-fig--${mode}`
+        const cap = document.createElement('figcaption')
+        cap.className = 'pg-cap'
+        cap.innerHTML = `<span>${mode === 'today' ? 'Today' : 'Proposed'}</span><span class="pg-cap-note">${bird === 'long' ? '120-character name, no spaces' : 'Winky, a named Anna\'s Hummingbird'}</span>`
+        const wrap = document.createElement('div')
+        wrap.className = 'pg-frame-wrap'
+        const f = document.createElement('iframe')
+        f.className = 'pg-frame pg-frame--fit'
+        f.title = `${cfg.title}: ${mode}, ${bird === 'long' ? 'long name' : 'Winky'}`
+        f.setAttribute('scrolling', 'no')
+        f.style.width = `${cfg.vw}px`
+        f.style.height = '400px'
+        f.dataset.config = cfg.id; f.dataset.bird = bird; f.dataset.mode = mode
+        wrap.appendChild(f)
+        fig.append(cap, wrap)
+        pair.appendChild(fig)
+        frames.push({ f, cfg, bird, mode })
+      }
+      sec.appendChild(pair)
+    }
+    main.appendChild(sec)
+  }
+
+  function fill(fr) {
+    const d = fr.f.contentDocument
+    d.open(); d.write(frameDoc(fr.cfg, fr.bird, fr.mode)); d.close()
+    const size = () => { fr.f.style.height = `${d.documentElement.scrollHeight}px` }
+    size()
+    if (d.fonts && d.fonts.ready) d.fonts.ready.then(size)
+    setTimeout(size, 50); setTimeout(size, 400)
+  }
+  frames.forEach(fill)
+
+  // ── Tier-3 swatches ────────────────────────────────────────────────────
+  const badge = (hoverClass) => `
+    <li class="sr-ms-badge ${hoverClass}" data-tier="3">
+      <span class="sr-ms-num">250</span>
+      <span class="sr-ms-name"><span class="sr-birdname sr-birdname-md"><span class="sr-birdname-row"><button type="button" class="sr-birdname-link" tabindex="0">Yellow-rumped Warbler</button></span></span></span>
+      <span class="sr-ms-date">${checklistLink('S198244617', 'color:var(--sr-ms-date);font-weight:500').replace('S198244617<', 'Apr 22, 2024<')}</span>
+    </li>`
+  const sw = document.getElementById('swatches')
+  sw.innerHTML = `
+    <div class="pg-swatch"><h3>Resting (unchanged)</h3><ul style="list-style:none;margin:0;padding:0">${badge('')}</ul>
+      <p class="pg-ratios">Name <code>--sr-text</code> on the two stops: <span class="pg-ok">15.01 and 13.69</span> (light), <span class="pg-ok">10.02 and 12.64</span> (dark).</p></div>
+    <div class="pg-swatch"><h3>Hover and focus, today</h3><ul style="list-style:none;margin:0;padding:0">${badge('is-hover sw-today')}</ul>
+      <p class="pg-ratios">Light: <code>--sr-accent #277448</code> on <code>#D6EAE0</code> 4.54, on <code>#C6E2D5</code> <span class="pg-miss">4.14</span>. Dark: <code>#34D399</code> on <code>#17451F</code> 5.73, on <code>#123317</code> 7.23.</p></div>
+    <div class="pg-swatch"><h3>Hover and focus, proposed</h3><ul style="list-style:none;margin:0;padding:0">${badge('is-hover sw-proposed')}</ul>
+      <p class="pg-ratios">Light: <code>--sr-milestone-3-link #236A41</code> on <code>#D6EAE0</code> <span class="pg-ok">5.20</span>, on <code>#C6E2D5</code> <span class="pg-ok">4.75</span>. Dark: the token is <code>#34D399</code>, so 5.73 and 7.23, unchanged. Tiers 1, 2 and 4 keep <code>--sr-accent</code> (5.09, 4.66 and 5.13 on their darker stops).</p></div>`
+  // The proposed swatch hover color is the proposed rule itself.
+  const swStyle = document.createElement('style')
+  swStyle.textContent = proposedCss.split('/* E. Tier-3')[1]
+  document.head.appendChild(swStyle)
+
+  // ── Theme toggle ───────────────────────────────────────────────────────
+  for (const btn of document.querySelectorAll('[data-theme-pick]')) {
+    btn.addEventListener('click', () => {
+      const t = btn.dataset.themePick
+      document.documentElement.dataset.theme = t
+      for (const b of document.querySelectorAll('[data-theme-pick]')) b.setAttribute('aria-pressed', String(b === btn))
+      for (const fr of frames) fr.f.contentDocument.documentElement.dataset.theme = t
+    })
+  }
+})()
+</script>
+</body>
+</html>
