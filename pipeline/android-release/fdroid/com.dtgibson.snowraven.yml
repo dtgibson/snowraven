@@ -19,8 +19,8 @@ RepoType: git
 Repo: https://github.com/dtgibson/snowraven.git
 
 Builds:
-  - versionName: 1.0.55
-    versionCode: 10000551
+  - versionName: 1.0.56
+    versionCode: 10000561
     commit: 1cad79954fbd96a899faf83e9604696a2e811405
     timeout: 10800
     sudo:
@@ -44,8 +44,8 @@ Builds:
     build: sh scripts/android/build-apk.sh
     ndk: r27c
 
-  - versionName: 1.0.55
-    versionCode: 10000552
+  - versionName: 1.0.56
+    versionCode: 10000562
     commit: 1cad79954fbd96a899faf83e9604696a2e811405
     timeout: 10800
     sudo:
@@ -69,8 +69,8 @@ Builds:
     build: sh scripts/android/build-apk.sh
     ndk: r27c
 
-  - versionName: 1.0.55
-    versionCode: 10000554
+  - versionName: 1.0.56
+    versionCode: 10000564
     commit: 1cad79954fbd96a899faf83e9604696a2e811405
     timeout: 10800
     sudo:
@@ -101,5 +101,5 @@ VercodeOperation:
   - 10 * %c + 2
   - 10 * %c + 4
 UpdateCheckData: src-tauri/tauri.conf.json|"versionCode":\s*(\d+)|.|"version":\s*"([\d.]+)"
-CurrentVersion: 1.0.55
-CurrentVersionCode: 10000554
+CurrentVersion: 1.0.56
+CurrentVersionCode: 10000564

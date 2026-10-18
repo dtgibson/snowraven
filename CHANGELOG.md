@@ -2,6 +2,22 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [1.0.56] - 2026-10-18
+
+### Added
+- **Four-letter codes in Map Explorer's Media Targets list.** With no Macaulay Library export loaded, the Target Species search on Map Explorer's Media Targets view now finds birds the way Search and the species pickers do: typing a bird's four-letter code, such as `yrwa`, lists that bird and its forms in your backup first, a scientific name matches too, and every other match keeps the list's own order. Like the pickers, the search now ignores spaces before and after what you type.
+- Help's Media Targets passage says codes work there.
+
+### Fixed
+- **The Named Birds card fits at phone widths and large text.** A long name in "Media of {name}" and "Where {name} has been seen" now wraps instead of running off the card. Each sighting row keeps its date and place, puts the checklist link on its own line when the row is too narrow, and shows the full place name on a phone. The photos, recordings, and videos drop to two columns, then one, as the section narrows, with each tile's Macaulay Library and checklist links inside the tile, and the date range at the top of a collapsed card breaks onto two lines on a phone instead of being cut off. The same sighting rows on Species Detail's Named Individuals cards fit too. At a desktop width and the default text size the card looks as before.
+- **In light mode, the species name on a 500 to 999 milestone badge is easier to read on hover and keyboard focus.** On Statistics, that name now turns a darker green on hover and focus, which meets the WCAG AA contrast ratio on both of the badge's colors (it measured 4.14:1 before). Every resting color, dark mode, and the other badges are unchanged.
+
+### Internal
+- `components/map/TargetSpeciesList.tsx` holds the Media Targets list and makes `SpeciesCombobox`'s ranking call (`rankSpeciesMatches` with `matchesSpeciesQuery`, no `order`) over the same species array the My Sightings picker ranks, so the code index is built once; focusing the box is the third code-load trigger. `MapExplorer.tsx` still imports no code module, and `lib/alphaCodeWiring.test.ts` counts the new file as a consumer.
+- The Named Birds card's layout lives in `.sr-nb-*`, `.sr-nbs-*`, `.sr-nbm-*` and `.sr-nbh-dates` classes. The sighting row stacks by a named container query on its own width (22em) and the gallery's columns follow the media section's width (30em), so Species Detail's Recent Media grid is unchanged. `lib/namedBirdCardCss.test.ts` pins the rule order, and `website/tools/verify/verify-named-bird-media-links.mjs` now checks the whole card as passes in Chromium and WebKit.
+- A badge-local `--sr-ms-link` and a new token, `--sr-milestone-3-link` (`#236A41` in light, the dark accent in dark), set the tier-3 hover and focus color; `lib/milestoneContrast.test.ts` gains light-mode rows that resolve that color through the cascade.
+- The F-Droid changelog for this release is three identical files, one per processor-type build (`10000561.txt`, `10000562.txt`, `10000564.txt`), and the in-repo F-Droid recipe names 1.0.56.
+
 ## [1.0.55] - 2026-10-10
 
 ### Added
