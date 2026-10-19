@@ -273,6 +273,59 @@ def test_invalid_json_body_rejected_422():
     assert resp.status_code == 422
 
 
+# --- Body size limit (big-old-life-lists, security review I6) -------------
+# `_MAX_BYTES` is the twin bound of the two checklist-keyed stores' caps, and
+# frontend/src/lib/settingsRouteBudget.test.ts reads it from this module's
+# source. That pins the CONSTANT. These rows pin the ENFORCEMENT, which is a
+# separate thing (.claude/rules/security.md, a limit single-sourced across two
+# languages): with the 413 check made unreachable and its text left intact, all
+# 30 tests in this file and the 7 frontend guard rows stayed green. The limit is
+# monkeypatched down so a row posts kilobytes, not 16 MiB, which also proves the
+# handler reads the module attribute at call time.
+#
+# Red-first, in a scratch copy of backend/ (never the working tree): the check
+# indented under `if False:`, its text intact, turns the over-limit row red
+# (200 where 413 is expected) and leaves the at-limit row and the canary green.
+TEST_LIMIT = 4096
+
+
+def _json_string_body(total_bytes: int) -> bytes:
+    """A valid JSON string body of exactly `total_bytes` bytes."""
+    return b'"' + b"x" * (total_bytes - 2) + b'"'
+
+
+def test_body_over_the_limit_rejected_413_and_writes_nothing(tmp_path, monkeypatch):
+    monkeypatch.setattr(settingskv_module, "_MAX_BYTES", TEST_LIMIT)
+    body = _json_string_body(TEST_LIMIT + 1)
+    assert len(body) == TEST_LIMIT + 1
+
+    resp = client.post("/settings/somekey", content=body, headers={"content-type": "application/json"})
+
+    assert resp.status_code == 413
+    assert resp.json()["detail"] == "Payload too large."
+    assert not (tmp_path / "settings" / "somekey.json").exists()
+
+
+def test_body_exactly_at_the_limit_accepted(monkeypatch):
+    """The other edge, so the row above cannot pass by refusing everything."""
+    monkeypatch.setattr(settingskv_module, "_MAX_BYTES", TEST_LIMIT)
+    body = _json_string_body(TEST_LIMIT)
+    assert len(body) == TEST_LIMIT
+
+    resp = client.post("/settings/somekey", content=body, headers={"content-type": "application/json"})
+
+    assert resp.status_code == 200
+    assert client.get("/settings/somekey").json() == "x" * (TEST_LIMIT - 2)
+
+
+def test_limit_patch_does_not_leak_past_the_rows_above():
+    """Canary, after the patched rows: the same over-limit body is accepted at
+    the shipped limit, so the monkeypatch was undone rather than trusted to be."""
+    body = _json_string_body(TEST_LIMIT + 1)
+    resp = client.post("/settings/somekey", content=body, headers={"content-type": "application/json"})
+    assert resp.status_code == 200
+
+
 # --- Route-resolution regression (QA-31 / QA-34) --------------------------
 # After settingskv is registered as the final router, the specific /settings/*
 # routes must STILL reach their dedicated handlers (a generic {key} registered

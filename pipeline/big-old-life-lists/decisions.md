@@ -405,7 +405,8 @@ simulator shut down and nothing else of mine compiling:
 - `npm run typecheck` (tsc -b): clean. `npm run lint` (eslint): clean.
 - `npm run build`: built; the one warning (a chunk over 1,100 kB) is the base
   commit's too.
-- `cd backend && .venv/bin/python -m pytest tests/ -q`: **2,063 passed**.
+- `cd backend && .venv/bin/python -m pytest tests/ -q`: **2,063 passed**
+  (2,066 with the three I6 rows, added after the re-checks).
 - Literal non-ASCII in the change: none added to source. The em dashes in
   `parseBudget.ts` and `observationsCache.ts` are comment text that moved with
   its block. The harness's weather-block emoji, written as `\u` escapes, had
@@ -504,6 +505,20 @@ v0.5.85). The provenance load path does not clamp its ledger or species COUNTS;
 its merge path does (FIFO, admission), so a document hand-grown past the caps is
 outside this bound, as before this build.
 
+**At the new caps, capacity+1 still holds, counted as work done:** at
+65,536 + 1 the projects store refuses the new checklist and drops nothing
+(`checklistProjectsCache.test.ts`), and at 131,072 + 1 the escapee ledger drops
+exactly one entry, the oldest (`exoticProvenanceCache.test.ts`).
+
+**The Python half is pinned too (security re-check I6).** The guard above pins
+the constant, not its enforcement: with the 413 check made unreachable and its
+text intact, all 30 settingskv tests and the 7 guard rows stayed green. Three rows in
+`backend/tests/test_settingskv_router.py` lower `_MAX_BYTES` by monkeypatch and
+expect 413 (nothing written) at the limit plus one, 200 at exactly the limit, and
+200 again in a canary after them. Red-first in a scratch copy of `backend/`: the
+check indented under `if False:` turns the over-limit row red and leaves the
+other two green.
+
 Also in the commit: the two capacity+1 rows no longer assert the raise's old
 reason (`>= 152,000`) and point at the guard; `settingskv.py`'s comment names
 its twins. No in-app text or `docs/HELP.md` names either cap, so no copy
@@ -592,7 +607,8 @@ turns two rows red.
   rows are this entry's.
 - `npm run typecheck`, `npm run lint`: clean. `npm run build`: built, the same
   chunk-size warning as the base commit.
-- `cd backend && .venv/bin/python -m pytest tests/ -q`: **2,063 passed**.
+- `cd backend && .venv/bin/python -m pytest tests/ -q`: **2,063 passed**
+  (2,066 with the three I6 rows, added after the re-checks).
 - The built stylesheets are byte-identical to a build of `6acb0201` made from
   `git archive` in the scratchpad (`index-Bs1UxUHB.css`,
   `vendor-maplibre-CKRTiAqP.css`, same content hashes), so no word in the new
