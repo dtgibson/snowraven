@@ -16,6 +16,14 @@
 // The row cap applies AFTER ranking, so a code match is never cut off by
 // alphabetical position.
 //
+// LINEAR PER KEYSTROKE (the scan declaration `.claude/rules/security.md`
+// asks for). One pass over `rows`, a `toLowerCase` and `includes` on each
+// common and scientific name, with no sort because no `order` is passed, plus
+// one `Map.get` for the code; the code index is built once per array identity
+// and shared with the My Sightings picker. The security review measured it
+// through this component at about 2x per doubling (1.8 to 2.4x) up to 160,000
+// names and 32M characters, with never more than 60 rows drawn.
+//
 // LOAD ON FOCUS, NEVER WAIT. Focusing the search box is this surface's
 // `loadAlphaCodes()` trigger, beside Search's and the shared picker's. Nothing
 // awaits it: until the table arrives `useAlphaCodes()` is null and the list

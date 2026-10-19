@@ -421,14 +421,21 @@ italic at 0.71875rem `--sr-text-gray`.
   top-center slot instead (`{name} was not found within 25 miles. Showing all
   lifers.`): never an empty map and never a filter with nothing in it.
 - **Inline media (ML embeds):** Macaulay Library `.../asset/<id>/embed` iframe in
-  a `.sr-media-grid` (3-up → 1 col ≤640), `.sr-media-iframe` footprint. Height is a
+  a `.sr-media-grid` (3-up → 1 col ≤640), `.sr-media-iframe` footprint. A surface
+  that needs fewer columns at large text names a size container on its own media
+  section and queries THAT name, so other users of the shared grid are untouched:
+  Named Birds' `.sr-nb-media` gives two columns below 30em and one below 19em, one
+  class deep and above the ≤640 block so the phone rule still wins; Species Detail
+  Recent Media has not opted in. Height is a
   modifier class per surface, and each surface keeps its own classes so the two can
   be tuned independently: Named Birds uses per-format `--photo`/`--video`/`--audio`,
   Species Detail Recent Media one uniform `--recent`. **Audio is never a short tile
   anywhere** — the Macaulay audio player needs the full height (currently 230px, 280px
   ≤640, matching photo and video) or its transport controls clip under the frame's
   `overflow:hidden` and the embed is visible but unplayable. Each
-  item labels its capture date + a `ChecklistLink`; the media-type marker follows
+  item labels its capture date + a `ChecklistLink` in a meta row that wraps, nothing
+  `nowrap`, each middle-dot separator paired with the item BEFORE it so a wrapped
+  line ends with the dot and never starts with one; the media-type marker follows
   the app's own convention (uppercase muted micro-label + Lucide icon, NOT a
   colored chip — the green stays reserved for the actionable link). A bounded
   initial batch (~6) + a keyboard-operable "Show more" (`.sr-touch-target`), lazy-
@@ -442,6 +449,18 @@ italic at 0.71875rem `--sr-text-gray`.
   where embed-backed content is absent. Keep the surrounding date, format,
   checklist, and direct-asset links. Settings uses the existing trailing
   `ToggleSwitch` row with explanatory copy; no modal, Save button, or new token.
+- **A one-line `date · place · link` row that must keep every item:** the row's
+  padded wrapper is a size container and the line stacks by its OWN width in em
+  (`@container (max-width: 22em)`, derived from the fixed items' widths plus room
+  for about 18 characters of place), not by the viewport tier alone, so a wide
+  window at 200% text stacks too. Stacked, the line wraps on the baseline, the
+  place takes the rest of the first line, the separator before the link hides,
+  and the link's wrapper takes its own line at 2rem (2.75rem in the ≤640 tier),
+  so the date still leads and the one control stays easy to tap. On a phone the
+  place renders as the full-name `HotspotLink` (a `useIsPhone()` render branch);
+  above 640px it keeps its ellipsis and `title`. The Named Birds sighting row
+  (`.sr-nbs-*`) is the exemplar, shared with Species Detail's Named Individuals
+  cards.
 - **Compact numbered link list (an index where every item is its own link):**
   when a set of items each needs an outbound link and a row of full links would
   swamp the surface, a muted lead line names the set and ends in a colon
@@ -642,7 +661,10 @@ italic at 0.71875rem `--sr-text-gray`.
   widens. The track minimum is sized from the built app, not a mockup: 7.25rem is
   what gives two columns in the 242px card content box at 320px / 100%. Tier
   colors map onto badge-local properties through `data-tier`, so no tier is
-  special; where a shared component writes an inline color no class can
+  special. The name's hover and focus color is one of them (`--sr-ms-link`, the
+  accent on every tier), so a tile whose fill defeats the accent gets its own
+  link token (light tier 3's `--sr-milestone-3-link`, #236A41) without touching
+  the shared `.sr-birdname-link` rule; where a shared component writes an inline color no class can
   override (`ChecklistLink`), pass it the badge-local property
   (`var(--sr-ms-date)`) so the tier mapping stays in the stylesheet. No
   decorative affirmations: a check on a set that only shows achieved items says
