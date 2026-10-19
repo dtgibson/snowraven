@@ -2,6 +2,19 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [1.0.57] - 2026-10-19
+
+### Changed
+- SnowRaven holds a large, old eBird life list with less memory: each loaded copy of your observations now takes about a third of the memory it did, so the app accepts a bigger eBird backup on every platform: 64 MB on the Mac, iPhone, and iPad; 80 MB on Android; and 100 MB on Windows and on web or a Pi (it was 50 MB everywhere). A backup over the limit is turned away the moment you choose it, before it is read, with the limit named under the row. The Macaulay Library export keeps its 50 MB limit. Life list milestones now run past 3,000, every 500 species up to 10,000. Nothing else on screen changes.
+- Help's Settings passage names each platform's backup limit, and its Statistics passage gives the milestone range as 10 to 10,000 species.
+
+### Internal
+- The observations parse produces a packed form (a string table plus flat arrays, `lib/observationsPacked.ts`) that crosses each worker boundary with its buffers transferred, and each thread builds its own entries from it. The parse budget has its own module (`lib/parseBudget.ts`), and the stats budget's ceiling is derived from it at each platform's cap.
+- `EBIRD_MAX_UPLOAD_BYTES_BY_PLATFORM` in `lib/uploadGuard.ts` sets the backup's cap per platform, and `refuseBySize` checks the size the file picker reports before Settings or the Targets bar-chart import reads the file. The web/Pi backend twins the backup's cap as `EBIRD_MAX_BYTES` (100 MB) in `routers/settings.py`.
+- The escapee provenance ledger's checklist cap rises to 131,072, and the projects cap stays at 65,536; `settingsRouteBudget.test.ts` holds each store's worst-case document under the web/Pi settings route's 16 MiB limit.
+- The taxonomy-history generator excludes renames filed as lumps, requires each year's announced tally, and names what a refused input lacks. The shipped splits-and-lumps data is unchanged.
+- The F-Droid changelog for this release is three identical files, one per processor-type build (`10000571.txt`, `10000572.txt`, `10000574.txt`), and the in-repo F-Droid recipe names 1.0.57.
+
 ## [1.0.56] - 2026-10-18
 
 ### Added

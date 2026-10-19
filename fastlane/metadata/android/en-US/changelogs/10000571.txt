@@ -1,0 +1,1 @@
+Larger eBird backups now load, up to 80 MB on Android, using less memory, and life list milestones continue past 3,000 species to 10,000.
