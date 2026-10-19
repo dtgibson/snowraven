@@ -619,6 +619,67 @@ turns two rows red.
   5.5`), matching the build's other commits, not the `Fable 5.1` line the
   errand named.
 
+## 13. Deployment record: the production sign-off (2026-10-19)
+
+Written by The Deployer at stage 5. The pre-deploy check is
+`pre-deploy-check.md` (all checks Pass or N/A; CI on the unpushed HEAD pending
+by design until the push).
+
+**The gate.** The user answered the production sign-off firsthand, in this
+session's question UI: **"Confirm — deploy to production now"** (quoted as
+given). That answer authorizes the whole ship: the version bump, the push of
+`main` and the `v1.0.57` tag, `release.sh` (Mac, Windows, `latest.json`), the
+Android APK sign and attach, and the iOS TestFlight build and upload. It does
+not cover the App Store version record or its submission, which wait for the
+user's own iPhone check of build 1.0.57.1 (CLAUDE.md).
+
+**App Store state at the gate** (live read, metadata key `QJA25M7XHM`,
+2026-10-19 22:21 UTC): 1.0.56's record `f0e1fb0f-cb23-43e2-8218-9a1a684e3f4c` is
+`READY_FOR_SALE` on build 1.0.56.1, and 1.0.55's record `e4affc7f` is
+`READY_FOR_SALE` on build 1.0.55.1. Nothing is in review, so neither a rollup
+nor a deferral is available: **1.0.57 gets its own record**, and its What's New
+is the approved sentence alone. The state is read again at the iOS leg before
+the record is created.
+
+**Approved copy, word for word** (the user's yes at the gate):
+- App Store What's New for 1.0.57:
+  "Larger eBird backups now load on iPhone and iPad (up to 64 MB), using less memory, and life list milestones continue past 3,000 species to 10,000."
+- F-Droid changelog, the same text in `fastlane/metadata/android/en-US/changelogs/10000571.txt`, `10000572.txt` and `10000574.txt`:
+  "Larger eBird backups now load, up to 80 MB on Android, using less memory, and life list milestones continue past 3,000 species to 10,000."
+
+The CHANGELOG.md entry is `held-copy.md` (a), which is not published copy. No
+other published surface changes: `website/index.html` moves only its version
+pill, the pill's `aria-label` and the footer version.
+
+**Four decisions at the gate, with their reasons** (the user delegated the three
+residuals to the Orchestrator, who decided them as below):
+1. **Android device check: emulator only (Partial), by the user's decision**, as
+   at 1.0.53 to 1.0.56. The user owns no Android device. The exact signed bytes
+   are installed fresh on the local API 36 emulator before they are attached.
+2. **L3, iCloud version skew: accepted as a written residual.** A 50 to 64 MB
+   backup saved on a Mac that has updated to 1.0.57 can sync to an iPhone or
+   iPad still on 1.0.56, which parses it the old way, past the 50 MB it was
+   measured at (about 1.3 to 1.5 GB peak by the Auditor's extrapolation). Only
+   backups between 50 and 64 MB are exposed, only on the user's own devices,
+   and only for the days until the 1.0.57 store build lands and the device
+   updates. Holding the Mac at 50 MB for one release was the alternative; it
+   would delay the larger cap for every Mac user to protect a short window.
+3. **L4, the List Comparer's unchecked file read: deferred to a follow-up**
+   (saved idea 8cd26387; a ROADMAP item for The Chronicler beside Android item
+   (6)). It predates this build, stores nothing, and the fix adds a sentence to
+   that screen, which belongs in its own run.
+4. **The projects cap stays at 65,536** (entry 12, L1), bounded by the web/Pi
+   settings route's 16 MiB limit. Moving the store to its own document, the
+   day-obs v1.0.39 move, is the follow-up (saved idea 35be2564). Until then a
+   backup of about 139 MB or more (only an iCloud arrival can deliver one) or an
+   export of unusually short checklists reaches the cap and stays at capacity.
+
+Carried without a decision: criterion 4 stays Partial (splits and lumps cover
+2023 to 2025 until the user supplies Cornell's per-year files and tallies), and
+the iPhone and iPad 64 MB cap's margin on real hardware is unmeasured (the
+simulator enforces no memory limit), which the user's own device check of build
+1.0.57.1 covers before any submission.
+
 ## Convention Flags
 
 - **A structured clone does not keep string sharing in V8, so data whose memory
