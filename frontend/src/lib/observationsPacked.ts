@@ -213,6 +213,39 @@ function malformed(): never {
 }
 
 /**
+ * One check per field of the packed form, run by iterating this table's keys:
+ * a field added to `PackedObservations` without a check here is a build error
+ * (the house payload rule; `BUNDLE_FIELDS` in statsBundle.ts is the
+ * precedent). Each check is the field's own shape. The array lengths against
+ * `rows` follow in `checkedPacked`; the checks that need the data itself
+ * (catalog offsets against the id pool, string indices against the table, the
+ * optional-key mask) run row by row in `materializeObservations`.
+ */
+const PACKED_FIELD_CHECKS: Record<keyof PackedObservations, (v: unknown) => boolean> = {
+  rows: v => Number.isInteger(v) && (v as number) >= 0,
+  strings: v => Array.isArray(v),
+  str: v => v instanceof Uint32Array,
+  num: v => v instanceof Float64Array,
+  opt: v => v instanceof Uint16Array,
+  catStart: v => v instanceof Uint32Array,
+  catIds: v => v instanceof Uint32Array,
+}
+
+function checkedPacked(value: unknown): PackedObservations {
+  if (!value || typeof value !== 'object') malformed()
+  const fields = value as Record<string, unknown>
+  for (const field of Object.keys(PACKED_FIELD_CHECKS) as Array<keyof PackedObservations>) {
+    if (!PACKED_FIELD_CHECKS[field](fields[field])) malformed()
+  }
+  const p = value as PackedObservations
+  if (p.str.length < p.rows * STR_SLOTS || p.num.length < p.rows * NUM_SLOTS || p.opt.length < p.rows
+    || p.catStart.length < p.rows + 1) {
+    malformed()
+  }
+  return p
+}
+
+/**
  * Build entries from the packed form: plain objects, keys in the shipped parse's
  * order (the thirteen it always carries, then each optional key the row has, in
  * `OPTIONAL_KEYS` order), every string the table's one instance of it.
@@ -227,15 +260,7 @@ function malformed(): never {
  * the array is the same packed-elements array the shipped parse returned.
  */
 export function materializeObservations(p: PackedObservations): ObservationEntry[] {
-  if (!p || typeof p !== 'object') malformed()
-  const { rows, strings, str, num, opt, catStart, catIds } = p
-  if (!Number.isInteger(rows) || rows < 0 || !Array.isArray(strings)
-    || !(str instanceof Uint32Array) || !(num instanceof Float64Array) || !(opt instanceof Uint16Array)
-    || !(catStart instanceof Uint32Array) || !(catIds instanceof Uint32Array)
-    || str.length < rows * STR_SLOTS || num.length < rows * NUM_SLOTS || opt.length < rows
-    || catStart.length < rows + 1) {
-    malformed()
-  }
+  const { rows, strings, str, num, opt, catStart, catIds } = checkedPacked(p)
   const n = strings.length
   const s = (i: number): string => {
     if (i >= n) malformed()

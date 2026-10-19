@@ -125,6 +125,18 @@ describe('a malformed payload throws, never builds entries from it', () => {
     expect(NULL_INDEX).toBe(0xffffffff)
   })
 
+  // Every field the builder produces is checked: the validator iterates a field
+  // table typed on the interface (I5), so a field without a check does not
+  // build, and a check that stopped checking turns its own row red here.
+  const FIELDS = Object.keys(good())
+  it('the payload these rows remove fields from has fields', () => {
+    expect(FIELDS.length).toBeGreaterThan(0)
+  })
+  it.each(FIELDS)('a payload missing %s', (field) => {
+    const p = { ...good() } as Record<string, unknown>
+    delete p[field]
+    expect(() => materializeObservations(p as never)).toThrow('PACKED_OBSERVATIONS_MALFORMED')
+  })
 })
 
 describe('the parse reserves no more than the file can fill (security review L2)', () => {
