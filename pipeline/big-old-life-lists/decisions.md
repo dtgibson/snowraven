@@ -680,6 +680,121 @@ the iPhone and iPad 64 MB cap's margin on real hardware is unmeasured (the
 simulator enforces no memory limit), which the user's own device check of build
 1.0.57.1 covers before any submission.
 
+## 14. Deployment record: 1.0.57 on Mac, Windows, Android and TestFlight (2026-10-19)
+
+Run by The Deployer on entry 13's sign-off, with the `snowraven-release` skill.
+
+- **Parallel-ship check, immediately before the push:** after `git fetch origin
+  --tags`, `origin/main` was still `5bc136d2`, no `v1.0.57` tag existed, and no
+  run was in progress. This checkout is the only worktree.
+- **Gate before the release commit:** the full vitest suite on the bumped tree:
+  473 files passed, 5 skipped; 10,277 tests passed, 6 skipped, 0 failed (every
+  version guard included: `icloudKeysPublishedClaims`, `fastlaneMetadata`,
+  `fdroidRecipe`, `androidVersionSource`, `iosSceneManifest`). `tsc -b` and
+  `eslint .` clean; `npm run build` passed (its one chunk-size warning predates
+  this run).
+- **F-Droid changelogs:** the approved Android sentence (entry 13) in
+  `10000571.txt`, `10000572.txt` and `10000574.txt`: 137 characters plus one
+  newline each, ASCII only; nothing under the unsplit code `1000057`.
+- **Commits pushed to `main`** as fast-forwards: this run's 13 commits, `11322d56`
+  (entry 13 and the pre-deploy note), `c4adad39` (`chore(release): bump to
+  1.0.57`, the six-file version set), `02895bb3` (`fix(fdroid): the recipe
+  names v1.0.57's commit`; the recipe, Fastlane and version-source guards, 57 of
+  57, green before the commit), `7a96eaed` (`chore(ios): stamp iOS 1.0.57 build
+  1`, the two Info.plist files only; `iosSceneManifest` and `iosWidgetManifest`,
+  55 of 55, green before the commit).
+- **Tag `v1.0.57`** (lightweight, like `v1.0.56`) on
+  `c4adad39d559c3220a8eb736690f60fe6efe9bbd`. Pages deployed the version pill from
+  it (run `39334906867`, success); the live site shows v1.0.57 in the pill, its
+  `aria-label` and the footer.
+- **iOS (built during the CI wait):** the stale 1.0.56.1 archive moved aside to
+  `snowraven_iOS-1.0.56.1-stale-before-1.0.57.xcarchive`; the three
+  `/tmp/xcshim` shims recreated. Widget extension Swift tests on the local iPhone
+  18 Pro simulator: 143 tests, 0 failures, `TEST SUCCEEDED`. `tauri ios build
+  --export-method app-store-connect --build-number 1`, outside the Bash sandbox:
+  `BUILD SUCCEEDED`; Tauri's own export refused with "No Account for Team" and
+  "No profiles" (expected). The fresh archive reads 1.0.57 (1.0.57.1), created
+  15:30 local; its executable reports `platform IOS` (minos 16.0) and all nine
+  swift-rs libraries `platform 2`. Tauri re-quoted `PRODUCT_NAME` in
+  `project.pbxproj` (a no-op), and that file was restored. The archived
+  `snowraven_widgets.appex` (`not signed at all`) was ad-hoc signed with its
+  entitlements and then lists the App Group. The manual export
+  (`~/.tauri/snowraven-ios-export-options.plist`) succeeded;
+  `DistributionSummary.plist` lists the appex with the App Group alone (profile
+  "SnowRaven Widgets App Store") and the app with the App Group, the three iCloud
+  keys and `Production` (profile "SnowRaven iOS App Store iCloud AppGroup
+  20260924"), both 1.0.57 (1.0.57.1). IPA SHA-256
+  `39c5c94b23baedaf6485cbff3d4875ecf2884ad18fc46e4beb9675a3db9f8f83`.
+  `altool --validate-app`: VERIFY SUCCEEDED with no errors; `--upload-app`: UPLOAD
+  SUCCEEDED, **Delivery UUID `49d19aa9-d3c1-4da8-9cba-e79de45afec6`**.
+- **TestFlight:** App Store Connect lists build 1.0.57.1 (`49d19aa9`) `VALID`,
+  uploaded 15:35 local.
+- **CI on the tag:** Windows Build `39334908111` and Android Build `39334908039`
+  both succeeded, and the lookups pinned to the tag (`gh run list --workflow <wf>
+  --commit c4adad39...`) return exactly those runs. The Pipeline runs on
+  `c4adad39` and `02895bb3` were cancelled by the next push
+  (`cancel-in-progress`); the run of record is `39336000812` on `7a96eaed`.
+- **Desktop:** `CI=true zsh -lc ./release.sh` exit 0 on a clean tree. iCloud
+  profile preflight OK; bundle version verified 1.0.57; iCloud entitlements and
+  embedded profile verified; DMG styled, signed and verified; notarization
+  submission `5669c066-e1cb-4cca-80f9-b7837d339865` `Accepted`, stapled; Windows
+  installer fetched from the tag's run and signed locally; release published
+  2026-10-19 22:51 UTC, not a draft or pre-release:
+  https://github.com/dtgibson/snowraven/releases/tag/v1.0.57. The DMG downloaded
+  back from the release (SHA-256
+  `4ecbf1cd5567b2c6912457c5b72293108804b283e7e5935b52977fdfe7b2905b`) passes
+  `codesign --verify` (valid on disk, satisfies its Designated Requirement),
+  `stapler validate`, `spctl -a -t open --context context:primary-signature`
+  (accepted, Notarized Developer ID, `DAVID THOMAS GIBSON (8QKC3L2FKP)`) and
+  `hdiutil verify`, and mounts read-only to SnowRaven.app 1.0.57 (x86_64 and
+  arm64). `latest.json` (resolved through `releases/latest/download`): version
+  1.0.57; `darwin-aarch64` and `darwin-x86_64` both on
+  `SnowRaven-updater.app.tar.gz` with the same signature; `windows-x86_64` on
+  `SnowRaven_1.0.57_x64-setup.exe`. The published installer is byte-identical to
+  run `39334908111`'s artifact (SHA-256
+  `53a5585e4afbdd585eb4412f68fcf9a51358bfe430d018c4ff4ecf3f4b51be24`).
+- **Android:** `preflight.sh` passed every check (JDK 17, build-tools 36.0.0,
+  Gradle 8.14.3, cargo-tauri 2.11.2, the keystore opens, the version pair, the tag
+  pushed at `c4adad39`, the three changelogs at the tag, run `39334908039`'s
+  artifact `com.dtgibson.snowraven` 1.0.57 / 1000057, not debuggable). `sign.sh`
+  with the recorded digest pinned: v2 and v3, signer `CN=SnowRaven, O=Dave
+  Gibson`, SHA-256
+  `42a3576e445bda4a994793f2ffa056663113275c9805eb2f6cffdc252375996a`, equal to the
+  keystore's certificate and to the recorded digest; signed APK SHA-256
+  `92cb72a13b279b7a5619a61f76a90af73a383626d66be4b1c59bb0f5cce2368e`. Emulator
+  evidence on the local API 36 Google APIs image only (`sr-api36-phone`,
+  `emulator-5554`, headless, `-gpu host`, no snapshot saved; every `adb` call
+  addressed to it by serial): those exact bytes installed fresh (a plain
+  `install` succeeded, so nothing was installed before; `versionName` 1.0.57,
+  `versionCode` 1000057), cold start in 798 ms to the Welcome screen with the
+  app's one window focused and an empty crash buffer
+  (`evidence/deploy-1.0.57-api36-first-launch.png`). Then, with
+  `evidence/harness/gen-milestone-export.mjs`'s fictional 10,050-species export
+  and its `metadata.json` seeded into `/data/user/0/com.dtgibson.snowraven/data/`
+  with root (owner `u0_a264`, mode 0600, the app directory's own SELinux
+  context), Statistics, Firsts & Milestones showed every badge from 10 up, and the
+  new ones past 3,000 through 8,500, 9,000, 9,500 and 10,000 (White-browed
+  Wagtail, May 19, 1917), the five-digit label fitting its badge
+  (`evidence/deploy-1.0.57-api36-milestones-10000.png`); the yearly table's 1890s
+  and 1900s rows rendered too. The crash buffer stayed empty, with one app window,
+  and the app was still running when the emulator was stopped. WebView
+  133.0.6943.137: **WebView 133, unchanged since the last measurement.**
+  `attach.sh` with `ANDROID_DEVICE_CHECK=partial` (entry 13, emulator only):
+  byte-identical to the checked file, uploaded to v1.0.57 as
+  `SnowRaven_1.0.57_android_universal.apk` and downloaded back, asset SHA-256
+  `92cb72a13b279b7a5619a61f76a90af73a383626d66be4b1c59bb0f5cce2368e`.
+- **F-Droid, read at the ship (public reads):** f-droid.org publishes 1.0.55
+  (10000551, 10000552, 10000554) and 1.0.53. fdroiddata `master` now has 1.0.56's
+  three entries (the bot added them after the pre-deploy read) and `CurrentVersion`
+  1.0.56, nothing for 1.0.57 yet. State: 1.0.56 **included and this tag not yet
+  built**; 1.0.57 **included and this tag not yet built**. This tag changes nothing
+  under `scripts/android/` or `src-tauri/gen/android/`, and the recipe differs from
+  1.0.56's only in versions, codes and the commit, so nothing goes to fdroiddata.
+- **Not done in this pass, by entry 13:** no App Store version record was created
+  and nothing was submitted. That waits for the user's own check of TestFlight
+  build 1.0.57.1 on their iPhone. CLAUDE.md's per-version App Store and Android
+  lists are not yet edited; they are written once the App Store leg is done.
+
 ## Convention Flags
 
 - **A structured clone does not keep string sharing in V8, so data whose memory
