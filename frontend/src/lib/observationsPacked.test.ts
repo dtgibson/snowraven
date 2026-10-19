@@ -16,13 +16,18 @@
 //   3. A MALFORMED PAYLOAD THROWS rather than building entries that read
 //      `undefined` as a name.
 //   4. THE SHARED EMPTY CATALOG LIST IS NEVER GROWN IN PLACE, by any shipped file.
+//   5. THE PARSE RESERVES NO MORE THAN THE FILE CAN FILL (security review L2):
+//      line feeds that make no row cannot size the arrays past the file's own
+//      length, while a real export is still sized once.
 import { describe, it, expect } from 'vitest'
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import type { ObservationEntry } from '../types'
 import {
   materializeObservations, packObservationEntries, packedTransferables, NULL_INDEX, STR_SLOTS,
+  PACKED_BYTES_PER_ROW,
 } from './observationsPacked'
+import type { PackedObservations } from './observationsPacked'
 import { packEbirdObservations, parseEbirdObservations } from './parseEbirdObservations'
 
 const base: ObservationEntry = {
@@ -118,6 +123,62 @@ describe('a malformed payload throws, never builds entries from it', () => {
   it('and the unmutated payload materializes (the rows above are not vacuous)', () => {
     expect(materializeObservations(good())).toHaveLength(2)
     expect(NULL_INDEX).toBe(0xffffffff)
+  })
+
+})
+
+describe('the parse reserves no more than the file can fill (security review L2)', () => {
+  const HEADER = 'Submission ID,Common Name,Scientific Name,Date\n'
+  const reservedBytes = (p: PackedObservations) =>
+    p.str.byteLength + p.num.byteLength + p.opt.byteLength + p.catStart.byteLength + p.catIds.byteLength
+  const lineFeeds = (text: string) => {
+    let n = 0
+    for (let i = text.indexOf('\n'); i !== -1; i = text.indexOf('\n', i + 1)) n++
+    return n
+  }
+  // Fixed overhead beside the rows: one catalog offset past the last row and
+  // the id pool's starting size.
+  const SLACK = 2 * PACKED_BYTES_PER_ROW + 256
+
+  const N = 1 << 18
+  const hostile: Array<[string, string]> = [
+    ['a line-feed flood', HEADER + '\n'.repeat(N)],
+    ['a CRLF flood', HEADER + '\r\n'.repeat(N)],
+    ['line feeds inside one quoted field', HEADER + '"' + '\n'.repeat(N) + '"\n'],
+    ['rows with no common name', HEADER + ',\n'.repeat(N)],
+  ]
+  it.each(hostile)('%s: an empty backup, with the reservation under one byte per character', (_label, csv) => {
+    // The shape is hostile: sized from its line-feed count, it would reserve
+    // more than fifty bytes of typed array per character of the file.
+    expect((lineFeeds(csv) + 1) * PACKED_BYTES_PER_ROW).toBeGreaterThan(50 * csv.length)
+    const p = packEbirdObservations(csv)
+    expect(p.rows).toBe(0)
+    expect(reservedBytes(p)).toBeLessThanOrEqual(csv.length + SLACK)
+    expect(parseEbirdObservations(csv)).toEqual([])
+  })
+
+  it('a real export is still sized once, from its line-feed count', () => {
+    const demo = readFileSync(new URL('../../../website/demo/snowraven-demo-ebird-backup.csv', import.meta.url), 'utf8')
+    const p = packEbirdObservations(demo)
+    expect(p.rows).toBeGreaterThan(7000)
+    // Capacity equal to the line-feed count plus one means the length bound did
+    // not decide and the arrays never doubled.
+    expect(p.opt.length).toBe(lineFeeds(demo) + 1)
+    expect(p.rows).toBeLessThanOrEqual(p.opt.length)
+  })
+
+  it('rows shorter than the bound double the arrays as they arrive, stay exact, and keep under twice the rows', () => {
+    const rows = 5000
+    const csv = HEADER + Array.from({ length: rows }, (_, i) => `S${i},Sora,Porzana carolina,2024-04-09\n`).join('')
+    // Rows of about 36 characters: here the length bound is the smaller one.
+    expect(Math.ceil(csv.length / PACKED_BYTES_PER_ROW)).toBeLessThan(lineFeeds(csv))
+    const p = packEbirdObservations(csv)
+    expect(p.rows).toBe(rows)
+    expect(p.opt.length).toBeGreaterThan(Math.ceil(csv.length / PACKED_BYTES_PER_ROW))
+    expect(p.opt.length).toBeLessThan(2 * rows)
+    const entries = materializeObservations(p)
+    expect(entries).toHaveLength(rows)
+    expect(entries.every((e, i) => e.submissionId === `S${i}` && e.commonName === 'Sora' && e.date === '2024-04-09')).toBe(true)
   })
 })
 

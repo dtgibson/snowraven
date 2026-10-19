@@ -1,0 +1,9 @@
+{"shape":"line-feed flood","chars":8388608,"rows":0,"reservedBytes":8388980,"reservedPerChar":1,"ms":556}
+{"shape":"line-feed flood","chars":16777216,"rows":0,"reservedBytes":16777578,"reservedPerChar":1,"ms":1129}
+{"shape":"line-feed flood","chars":33554432,"rows":0,"reservedBytes":33554774,"reservedPerChar":1,"ms":2230.3}
+{"shape":"line-feed flood","chars":67108864,"rows":0,"reservedBytes":67109166,"reservedPerChar":1,"ms":4623}
+{"shape":"line-feed flood","chars":104857600,"rows":0,"reservedBytes":104857918,"reservedPerChar":1,"ms":7037.1}
+{"shape":"demo export repeated","chars":9532413,"rows":55083,"capacity":55085,"lineFeedsPlusOne":55085,"reservedBytes":6736758,"ms":135.3}
+{"shape":"demo export repeated","chars":17702787,"rows":102297,"capacity":102299,"lineFeedsPlusOne":102299,"reservedBytes":12513250,"ms":249.3}
+{"shape":"demo export repeated","chars":34043535,"rows":196725,"capacity":196727,"lineFeedsPlusOne":196727,"reservedBytes":24066234,"ms":504.1}
+{"shape":"demo export repeated","chars":68086760,"rows":393450,"capacity":393452,"lineFeedsPlusOne":393452,"reservedBytes":48132220,"ms":1060.6}

@@ -29,7 +29,8 @@ import type { ObservationEntry } from '../types'
  */
 export interface PackedObservations {
   /** Number of entries. Authoritative: the arrays may be longer (a parse
-   *  sizes them from an upper bound and transfers them without trimming). */
+   *  sizes them from an estimate, doubles them past it, and transfers them
+   *  without trimming). */
   rows: number
   /** Distinct strings; every string slot is an index into this table. */
   strings: string[]
@@ -59,6 +60,18 @@ const N_LAT = 0, N_LNG = 1, N_COUNT = 2, N_DURATION = 3, N_DISTANCE = 4, N_AREA 
   N_OBSERVERS = 6, N_ALL_OBS = 7
 export const NUM_SLOTS = 8
 
+/**
+ * Bytes of typed array the builder reserves per row of capacity: the string
+ * slots, the number slots, one optional-key mask and one catalog offset. A
+ * parse bounds its capacity hint by the file's length over this, so the
+ * reservation can never exceed one byte per character of the file
+ * (`rowCapacity` in parseEbirdObservations.ts, security review L2).
+ */
+export const PACKED_BYTES_PER_ROW = STR_SLOTS * Uint32Array.BYTES_PER_ELEMENT
+  + NUM_SLOTS * Float64Array.BYTES_PER_ELEMENT
+  + Uint16Array.BYTES_PER_ELEMENT
+  + Uint32Array.BYTES_PER_ELEMENT
+
 /** The optional keys, in the order an entry carries them. Bit i of `opt` is key i. */
 export const OPTIONAL_KEYS = [
   'time', 'duration', 'distance', 'area', 'protocol', 'numObservers', 'allObsReported',
@@ -76,7 +89,8 @@ const NO_CATALOG_IDS: string[] = Object.freeze([]) as unknown as string[]
 /**
  * Accumulates entries into the packed form, interning every string through one
  * Map for the life of the builder. `capacityHint` sizes the arrays once; past
- * it they grow by doubling.
+ * it they double, so a hint that is too small costs copies and never a wrong
+ * result, and the capacity then stays under twice the rows added.
  */
 export class PackedObservationsBuilder {
   private rows = 0

@@ -1,5 +1,5 @@
 import type { ObservationEntry } from '../types'
-import { PackedObservationsBuilder, materializeObservations } from './observationsPacked'
+import { PACKED_BYTES_PER_ROW, PackedObservationsBuilder, materializeObservations } from './observationsPacked'
 import type { PackedObservations } from './observationsPacked'
 
 // Row-at-a-time CSV reader handling quoted fields with embedded newlines.
@@ -227,15 +227,35 @@ function entryFromRow(cols: readonly string[], idx: ColumnIndex): ObservationEnt
 }
 
 /**
- * An upper bound on the export's data rows: its line-feed count. Counted with
- * `indexOf` (no regex, no slice: nothing here may keep the source alive), so the
- * pack can size its arrays once instead of doubling them through a large file.
- * A line feed inside a quoted field over-counts, which only leaves a little
- * unused room.
+ * The pack's starting capacity: the export's line-feed count, bounded by its
+ * length over `PACKED_BYTES_PER_ROW`.
+ *
+ * For a real export the line-feed count is the row count (1.00 line feeds a row
+ * on the reference export, whose weather blocks sit on one line), so the arrays
+ * are sized once and never doubled. But a line feed that makes no row still
+ * counts: a blank line, one inside a quoted field, a row with no common name.
+ * Unbounded, each reserved `PACKED_BYTES_PER_ROW` (122) bytes, so an eBird
+ * header followed by 64 MB of line feeds reserved 8.2 GB and an empty backup
+ * could fail to load on a device with less to give (security review L2). The
+ * length bound is one the file cannot inflate: the reservation stays under one
+ * byte per character of the text it was counted from, which is itself held as a
+ * string at least that large. Real rows are far longer than 122 characters (173
+ * a row on the demo export, 277 on the synthetic one, 323 on the reference), so
+ * for them the line-feed count is the smaller bound and decides. A file of
+ * shorter rows starts short and the builder doubles as rows arrive, so its
+ * capacity stays under twice the rows it actually makes.
+ *
+ * Cost: one forward pass of `indexOf('\n')`, each search starting just past the
+ * previous line feed and ending at the next one, or at the end of the string
+ * when there is none, which ends the loop (the absence case is one search). The
+ * loop also stops once the count reaches the length bound, so a line-feed flood
+ * is counted only that far. O(n) in the file. No regex and no slice, so nothing
+ * here keeps the source alive.
  */
 function rowCapacity(content: string): number {
+  const bound = Math.ceil(content.length / PACKED_BYTES_PER_ROW)
   let n = 1
-  for (let i = content.indexOf('\n'); i !== -1; i = content.indexOf('\n', i + 1)) n++
+  for (let i = content.indexOf('\n'); i !== -1 && n < bound; i = content.indexOf('\n', i + 1)) n++
   return n
 }
 
