@@ -72,7 +72,7 @@ vi.mock('./statsBundle', async (importOriginal) => {
 
 import { computeStatsWithFallback, createStatsSession, statsBudgetMs, statsBudgetCeilingMs, STATS_WORKER_IDLE_MS } from './statsOffThread'
 import { materializeObservations } from './observationsPacked'
-import { parseBudgetMs } from './observationsCache'
+import { parseBudgetMs } from './parseBudget'
 import { maxUploadBytes, EBIRD_MAX_UPLOAD_BYTES_BY_PLATFORM } from './uploadGuard'
 import { isStatsBundle } from './statsBundle'
 

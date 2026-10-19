@@ -116,10 +116,15 @@ class FailingWorker {
   terminations = 0
   held: unknown = null
   constructor() { workersMade += 1; workers.push(this) }
-  postMessage(message: { id: number; observations?: unknown; request: unknown }): void {
+  postMessage(message: { id: number; packed?: unknown; request: unknown }): void {
     if (behavior === 'silent') return
-    if (message.observations) this.held = message.observations
     void Promise.resolve().then(async () => {
+      // The hand-over arrives packed (big-old-life-lists); hold what
+      // statsWorker.ts holds, the entries materialized from it.
+      if (message.packed) {
+        const { materializeObservations } = await import('../lib/observationsPacked')
+        this.held = materializeObservations(message.packed as never)
+      }
       if (behavior === 'error') { this.onerror?.({ type: 'error' }); return }
       if (behavior === 'messageerror') { this.onmessageerror?.({ type: 'messageerror' }); return }
       // 'healthy': answer the way statsWorker.ts does, over the HELD copy, so the

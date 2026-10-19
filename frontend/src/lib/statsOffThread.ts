@@ -3,7 +3,7 @@ import { computeStatsBundle, isStatsBundle } from './statsBundle'
 import type { StatsBundle, StatsRequest } from './statsBundle'
 import { packObservationEntries, packedTransferables } from './observationsPacked'
 import type { PackedObservations } from './observationsPacked'
-import { parseBudgetMs } from './observationsCache'
+import { parseBudgetMs } from './parseBudget'
 import { maxUploadBytes } from './uploadGuard'
 
 /**
@@ -122,7 +122,7 @@ export type StatsWorkerReply =
 // RE-ANCHORED PER PLATFORM, NOT RESTATED (big-old-life-lists). The ceiling was
 // the literal 240 s, chosen as the analogue of the parse budget's ~230 s at the
 // 50 MB cap. With a cap per platform that anchor moves, so the ceiling is now
-// DERIVED: the parse budget (`parseBudgetMs`, observationsCache.ts) at this
+// DERIVED: the parse budget (`parseBudgetMs`, parseBudget.ts) at this
 // platform's upload cap. Characters never exceed UTF-8 bytes, so no export this
 // platform accepts gets a parse budget past it, and the invariant holds by
 // construction: anything that survived its parse has at least as long to
