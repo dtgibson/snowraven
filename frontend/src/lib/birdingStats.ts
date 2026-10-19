@@ -15,11 +15,17 @@ export const DOW_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 export const KM_TO_MI = 0.621371
 export const HA_TO_ACRE = 2.471054
 
+// Past 3,000 (big-old-life-lists) the steps stay at 500 up to 10,000, a world
+// list's reach: eBird's taxonomy holds about 11,000 species. Every threshold
+// from 1,000 up renders in tier 4 (BirdingStats.tsx), so the new ones add no
+// tier, token or class; the five-digit label was re-measured in the built grid
+// at 320px, 100% and 200% text, in Chromium and WebKit (decisions.md entry 8).
 export const MILESTONE_THRESHOLDS = [
   10, 20, 30, 40, 50, 60, 70, 80, 90,
   100, 125, 150, 175, 200, 225, 250, 275, 300, 325, 350, 375, 400, 425, 450, 475,
   500, 550, 600, 650, 700, 750, 800, 850, 900, 950,
-  1000, 1250, 1500, 1750, 2000, 2500, 3000,
+  1000, 1250, 1500, 1750, 2000, 2500, 3000, 3500, 4000, 4500, 5000,
+  5500, 6000, 6500, 7000, 7500, 8000, 8500, 9000, 9500, 10000,
 ]
 
 export type Granularity = 'total' | 'weekly' | 'monthly' | 'yearly'

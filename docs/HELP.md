@@ -196,7 +196,7 @@ Two ranked top-10 lists: the species you've counted the most total **individuals
 
 ### Firsts and Milestones
 
-Milestone pills mark every threshold from 10 to 3,000 species, showing the species that hit each milestone and linking to the checklist where it was recorded. Records like your biggest day and longest streak are in Highlights & Records, below.
+Milestone pills mark every threshold from 10 to 10,000 species, showing the species that hit each milestone and linking to the checklist where it was recorded. Records like your biggest day and longest streak are in Highlights & Records, below.
 
 ### Temporal Stats
 

@@ -4,6 +4,7 @@ import {
   filterObservations, computeChecklists, computeLifeList, computeTopSpecies,
   computeTotals, computeEffort, computeBreedingStats, computeTemporal, computeFunStats,
   computeQuality, computeGeo, computeDurationBins, KM_TO_MI, HA_TO_ACRE,
+  computeAccumulation, MILESTONE_THRESHOLDS,
 } from './birdingStats'
 
 // Concise fixture builder — fills required ObservationEntry fields with sensible
@@ -452,5 +453,22 @@ describe('computeQuality — weather/tide block coverage', () => {
     expect(q2.anyWeatherCount).toBe(0)      // not attributed to either app
     expect(q2.raincrowWeatherCount).toBe(0) // no raincrow.app credit
     expect(q2.snowravenWeatherCount).toBe(0)
+  })
+})
+
+describe('milestones run past 3,000 (big-old-life-lists)', () => {
+  it('a 10,050-species world list reaches every threshold to 10,000, each on the species that reached it', () => {
+    const n = 10_050
+    // One species a day from 1890, so the list also crosses 1900 and 1970.
+    const day = (i: number) => new Date(Date.UTC(1890, 0, 1) + i * 86_400_000).toISOString().slice(0, 10)
+    const rows = Array.from({ length: n }, (_, i) =>
+      obs({ submissionId: `S${i + 1}`, commonName: `World Bird ${i + 1}`, date: day(i) }))
+    const { milestones } = computeAccumulation(rows, 'total')
+    const past3000 = MILESTONE_THRESHOLDS.filter(t => t > 3000)
+    expect(past3000).toEqual([3500, 4000, 4500, 5000, 5500, 6000, 6500, 7000, 7500, 8000, 8500, 9000, 9500, 10000])
+    expect([...milestones.keys()]).toEqual(MILESTONE_THRESHOLDS)
+    for (const t of past3000) {
+      expect(milestones.get(t), String(t)).toEqual({ date: day(t - 1), species: `World Bird ${t}`, submissionId: `S${t}` })
+    }
   })
 })
