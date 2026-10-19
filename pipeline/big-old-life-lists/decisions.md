@@ -288,6 +288,11 @@ not.
 | `DAY_OBS_MAX_ENTRIES` / `_BYTES` | 3,000 / 10 M | unchanged | keyed on the counties opened in Targets; so the main-thread peer merge (DECISIONS ~442) keeps its standing |
 | replay (300), hotspot activity (2,000), name memo (32,768) | | unchanged | keyed on responses, hotspots in view and published names (17,891), none of them export-sized |
 
+**Superseded for both raised caps by entry 12:** the security review (L1) found
+that neither 262,144 fits under the web/Pi settings route, and they shipped as
+65,536 (projects, back to OQ-02's value) and 131,072 (ledger). The rest of this
+entry is the record of what was measured at 262,144.
+
 Both raised caps keep their policy and are now `*_DEFAULT` constants the test
 seams reset to, so a reset can no longer restate a stale literal. Each is
 measured at the SHIPPED cap plus one as work done (`checklistProjectsCache.test.ts`,
@@ -422,6 +427,182 @@ simulator shut down and nothing else of mine compiling:
 - Splits and lumps coverage before 2023 waits for the user's files and tallies
   (entry 10).
 
+## 12. Three security review findings fixed before the ship (2026-10-19)
+
+The Auditor passed the build with notes (`security-report.md`). Three findings
+are defects this build introduced or left, and are fixed here, one commit each.
+Not touched, by direction: L3 (iCloud version skew, for the user at the deploy
+gate), L4 (the List Comparer's read, the user's call) and I1 to I4.
+
+### L1. The checklist-keyed caps are bounded by the web/Pi settings route (`ea1d0c07`)
+
+**The finding.** On web/Pi each store is posted whole to `/settings/{key}`,
+which refuses a body over `_MAX_BYTES` (16 MiB, `backend/routers/settingskv.py`)
+with 413, and both stores' writes are best-effort and swallow it. At entry 7's
+262,144 the projects document outgrew the limit somewhere between about 89,000
+and 227,000 entries; past that it stopped being saved, every session re-asked
+eBird for each checklist beyond it, and each refused flush uploaded 16 to 50 MB.
+
+**Chosen: the bounded cap, not the store's own document.** The move needs a new
+Tauri file with its own ordered writer, a new web/Pi route with a limit made for
+it, a migration out of `settings.json`, and the clear-path registration redone:
+not small. And the raise bought a typical account nothing: a typical export at
+the largest upload cap (100 MB) holds 38,000 to 57,000 checklists, under 65,536.
+The move stays the recorded follow-up for anyone who needs a larger cap.
+
+**The rule: each cap is the largest power of two whose WORST-CASE document fits
+under the route's limit.** Worst case means every dimension at the store's load
+validator's bound, measured as the UTF-8 size of `JSON.stringify` of the
+document, which is what `WebStorage.setSetting` posts.
+
+| store | worst case per entry | worst document at the cap | at twice the cap |
+|---|---|---|---|
+| projects, **65,536** | 201 B (16-char key, 32-char `proj`, eight 9-digit ids, a 25-char number, its order slot) | 13,172,771 B | about 26.3 MB |
+| ledger, **131,072** | 64 B (16-char key, a 25-char number, its order slot), plus 7,057,493 B for the species index (16,384 records at their bounds) and the published names (4,096 of 128 six-byte units) | 15,446,101 B | about 23.8 MB |
+| route limit | | 16,777,216 B | |
+
+**The ledger has the same exposure, and is treated the same way.** With real
+10-digit ids and epochs its 262,144-entry ledger is about 11 M characters, which
+fits, as the Auditor measured; but the document the validator admits does not
+(about 23.8 MB). It is now 131,072, still four times the 32,768 it was before
+this build. Its policy (FIFO) is unchanged, so its cap binding costs one
+redundant request per eviction and loses no answer.
+
+**The guard, `frontend/src/lib/settingsRouteBudget.test.ts` (7 rows), compares
+the two declarations and restates neither.** It reads `_MAX_BYTES` from the
+Python (exactly one assignment, a product of integer literals, tied to its
+enforcement line `if len(raw) > _MAX_BYTES:`). It measures the two JSON facts the
+worst cases rest on rather than asserting them: the longest JSON of a finite
+double is 25 characters (`-0.0000012345678901234567`: a sign, `0.`, five zeros,
+17 digits); my first draft said 24, and the row's sample of 200,000 random bit
+patterns found a 25 at once. And no UTF-16 code unit costs more than 6 bytes in a
+JSON string (all 65,536 swept). For each store, each dimension of the worst entry
+is shown to be the validator's largest admitted value (admitted, and one past it
+refused), except the published names, whose length and count the guard finds by
+asking the load path. Then the document is built at the cap THROUGH
+`sanitizeStore` (the projects load path's own cap clamp included, fed one entry
+over) and its size compared with the Python constant.
+
+Mutations (each restored by hash, suite re-run green):
+
+| mutation | result |
+|---|---|
+| projects cap back to 262,144 | red |
+| ledger cap back to 262,144 | red |
+| `proj` bound widened to 33 | red (the one-past row) |
+| species cap doubled to 32,768 | red (the document no longer fits) |
+| `_MAX_BYTES` lowered to 12 MiB | red, both stores |
+| published-name length bound 129 | GREEN, and correctly: the guard finds that bound by asking, so the measured document grows by 4,096 six-byte units and still fits |
+
+**Scope, stated.** The bounds are the LOAD validators'. Each store's write path
+writes values inside them: keys are refused before any request by
+`fetchProjects` and `fetchProvenance`, times are `Date.now()`, project answers
+pass `isValidEntry` at the write chokepoint, provenance tokens come from the
+seam's bounded normalizer, and published names are names that resolved to a
+species code through the taxonomy (eBird's longest is 63 characters, DECISIONS
+v0.5.85). The provenance load path does not clamp its ledger or species COUNTS;
+its merge path does (FIFO, admission), so a document hand-grown past the caps is
+outside this bound, as before this build.
+
+Also in the commit: the two capacity+1 rows no longer assert the raise's old
+reason (`>= 152,000`) and point at the guard; `settingskv.py`'s comment names
+its twins. No in-app text or `docs/HELP.md` names either cap, so no copy
+changed. Residual, as before this build: an account with more than 65,536 swept
+checklists reaches the at-capacity state.
+
+### L2. The pack's capacity hint is bounded by the file's length (`8b443359`)
+
+**The finding.** `rowCapacity` counted every line feed, and the builder
+reserved 122 bytes of typed array per counted line, so an eBird header followed
+by line feeds (blank lines, line feeds in a quoted field and rows with no common
+name behave the same) reserved 8.2 GB at 64 MB and 12.8 GB at 100 MB. macOS
+reserved it without filling it; a device with a tighter allocation limit would
+show "couldn't load your backup" where the shipped parse loaded an empty backup.
+
+**The fix.** `rowCapacity` also stops at `ceil(content.length /
+PACKED_BYTES_PER_ROW)`. `PACKED_BYTES_PER_ROW` (122) is derived in
+`observationsPacked.ts` from the typed arrays' element sizes, so a slot added
+there moves the bound with it. The file cannot inflate this bound: the
+reservation stays under one byte per character of the text it was counted from,
+plus at most 381 bytes of fixed overhead, and that text is already held as a
+string at least that large. Real rows are longer than 122 characters (173 on the
+demo export, 277 on the synthetic one, 323 on the reference), so for a real
+export the line-feed count is the smaller bound and the arrays are sized once,
+exactly as when entry 3's peaks were measured; those caps stand. A file of
+shorter rows starts short and the builder doubles as rows arrive, so its
+capacity stays under twice the rows it makes.
+
+**Declaration of the scan (`.claude/rules/security.md`, v1.0.47).**
+- The read: one forward pass of `indexOf('\n')` over the export's text. Each
+  search begins one past the previous line feed and ends at the next one or at
+  the end of the string; a -1 ends the loop, so the delimiter-absent case is a
+  single search. The loop also ends once the count reaches the length bound.
+  Each character is visited at most once by the native searches: O(n). No regex
+  and no slice, so the retention rule is unchanged.
+- The number it produces drives one allocation, now bounded by the file's
+  length; growth past it is driven by rows actually added, one per
+  `entryFromRow` result.
+- Measured through `packEbirdObservations` (Node 24, best of 3, load average 6
+  to 9 on this Mac; `evidence/harness/run-pack-reservation.sh`,
+  `evidence/measurements/pack-reservation-after-l2.jsonl`; no user data read):
+
+| shape | size | rows | reserved | time |
+|---|---|---|---|---|
+| line-feed flood | 8 MB | 0 | 1.000 B/char | 556 ms |
+| | 16 MB | 0 | 1.000 | 1,129 |
+| | 32 MB | 0 | 1.000 | 2,230 |
+| | 64 MB | 0 | 1.000 (67 MB; was 8.2 GB) | 4,623 |
+| | 100 MB | 0 | 1.000 (105 MB; was 12.8 GB) | 7,037 |
+| demo export repeated | 9.5 M chars | 55,083 | capacity = line feeds + 1 | 135 |
+| | 17.7 M | 102,297 | same | 249 |
+| | 34.0 M | 196,725 | same | 504 |
+| | 68.1 M | 393,450 | same | 1,061 |
+
+  About 2x per doubling on both shapes. The flood's 4.6 s at 64 MB is the CSV
+  reader's own pass over 67 million empty lines, unchanged by this fix and well
+  inside the parse budget (30 s plus 4 s a MB).
+
+**Tests** (`observationsPacked.test.ts`, 6 rows): four hostile shapes at 2^18
+line feeds (a flood, a CRLF flood, line feeds inside one quoted field, rows with
+no common name), each an empty backup with its reservation under its length plus
+the fixed slack, and each first shown to be hostile (its line-feed count would
+reserve over 50 bytes a character); the demo export still sized once (capacity
+equals line feeds plus one); 5,000 rows of 36 characters doubling past the bound,
+every entry exact, capacity under twice the rows. Mutations: the unbounded hint
+(the shipped shape) turns the four hostile rows red; a divisor of 512 turns the
+demo row red.
+
+### I5. The packed-form validator iterates a field table (`d2accc78`)
+
+`PACKED_FIELD_CHECKS` is a `Record<keyof PackedObservations, (v: unknown) =>
+boolean>`, run by iterating its keys in `checkedPacked`, the `BUNDLE_FIELDS`
+precedent, so a field added to the interface without a check does not build. It
+holds a check per field rather than `true`, so the check sits beside its field.
+The length checks against `rows` follow in `checkedPacked`; the per-row index,
+offset and mask checks in `materializeObservations` are unchanged, and the nine
+existing malformed rows still go red-first. New rows remove each field of a real
+payload in turn (7, plus one asserting the list is not empty). Mutations: the
+`opt` check made always true turns its row red; the `rows` check made always true
+turns two rows red.
+
+### Verification after the last change (`d2accc78`)
+
+- `cd frontend && npx vitest run`: **473 files passed, 5 skipped; 10,277 tests
+  passed, 6 skipped, 0 failed** (89 s; load average 15 at the start). The 21 new
+  rows are this entry's.
+- `npm run typecheck`, `npm run lint`: clean. `npm run build`: built, the same
+  chunk-size warning as the base commit.
+- `cd backend && .venv/bin/python -m pytest tests/ -q`: **2,063 passed**.
+- The built stylesheets are byte-identical to a build of `6acb0201` made from
+  `git archive` in the scratchpad (`index-Bs1UxUHB.css`,
+  `vendor-maplibre-CKRTiAqP.css`, same content hashes), so no word in the new
+  comments became a utility rule.
+- No literal non-ASCII character added (the guard file's section dividers are
+  ASCII).
+- Commit trailer: the system's attribution line for this session (`Claude Opus
+  5.5`), matching the build's other commits, not the `Fable 5.1` line the
+  errand named.
+
 ## Convention Flags
 
 - **A structured clone does not keep string sharing in V8, so data whose memory
@@ -444,3 +625,14 @@ simulator shut down and nothing else of mine compiling:
   filling through the merge path**, when each merge does work proportional to the
   store (both snapshot rebuilds here are; filling 262,144 that way did not finish
   in five minutes).
+- **A client cap on a document web/Pi saves through `/settings/{key}` is bounded
+  by `settingskv.py`'s `_MAX_BYTES` at its WORST-CASE entry, and a test holds the
+  two together.** That limit is the unwritten twin of every such cap, and a
+  store whose writes are best-effort fails silently past it.
+  `settingsRouteBudget.test.ts` is the reference: it reads the Python constant
+  and builds the worst-case document through the store's own load validator.
+- **An allocation sized from a count read off user-file content gets a second
+  bound the content cannot inflate**, such as the file's length over the bytes
+  reserved per unit, so the reservation can never exceed the input it was
+  counted from. The hostile set for any such hint includes a delimiter flood,
+  and a row proving a real file is still sized once (entry 12, L2).

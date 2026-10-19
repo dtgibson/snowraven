@@ -7,9 +7,10 @@ memory per parsed copy, refuses an oversized backup as soon as it is chosen
 (before reading it), and takes a bigger backup on every platform: 64 MB on the
 Mac, iPhone and iPad, 80 MB on Android, and 100 MB on Windows and web/Pi, each
 set so the load asks a device for no more memory than 50 MB did. Life list
-milestones run to 10,000 species, two checklist-keyed caches hold a million-row
-export's checklists, and the splits-and-lumps generator is ready to take
-coverage back to 2019 once Cornell's files are supplied.
+milestones run to 10,000 species, the escapee checklist ledger holds four times
+the checklists it did (the largest size the web/Pi settings route can save),
+and the splits-and-lumps generator is ready to take coverage back to 2019 once
+Cornell's files are supplied.
 
 Measured first, on V8, JavaScriptCore, Chromium (1x, 4x, 6x), WebKit, the iOS
 27 simulator and the API 36 emulator, with synthetic 300k, 600k and 1M-row
@@ -17,7 +18,7 @@ exports; the numbers and the harness are in `decisions.md` and `evidence/`.
 
 ### How to test
 
-1. `cd frontend && npx vitest run`: everything green (10,256 passed).
+1. `cd frontend && npx vitest run`: everything green (10,277 passed).
 2. `cd backend && .venv/bin/python -m pytest tests/ -q`: 2,063 passed.
 3. Identical output: build the base commit (`5bc136d2`) and this one, serve both
    against one data folder holding a real export
@@ -52,10 +53,23 @@ exports; the numbers and the harness are in `decisions.md` and `evidence/`.
 - **The stats budget's ceiling is derived** from the parse budget at the
   platform's cap; at the old 50 MiB it reproduces the shipped 240 s. The parse
   budget moved unchanged into `parseBudget.ts`.
-- **Raised caps carry a measured cost** (decisions entry 7): at 262,144 the
-  projects store adds about 250 ms (V8) to each settings save and 47 ms to each
-  sweep answer, for accounts past the old cap only. Moving that store into its
-  own document is the follow-up.
+- **Three security review findings are fixed** (decisions entry 12, one commit
+  each). L1: on web/Pi the two checklist-keyed stores are saved whole through
+  `/settings/{key}`, whose 16 MiB limit the first raise (262,144) outgrew, and
+  the refusal was silent. Each cap is now the largest power of two whose
+  worst-case document fits: the projects store back at 65,536 and the escapee
+  ledger at 131,072. `settingsRouteBudget.test.ts` reads `_MAX_BYTES` from
+  `settingskv.py` and builds each worst-case document through the store's own
+  validator. L2: the parse sized its arrays from the file's line-feed count, so
+  64 MB of line feeds reserved 8.2 GB; the hint is now also bounded by the
+  file's length over the 122 bytes a row reserves (67 MB for the same file),
+  and a real export is still sized once. I5: the packed-form validator runs
+  through a field table typed on the interface. L3 (iCloud version skew) and
+  L4 (the List Comparer) are left for the user, as directed.
+- **The cap's other cost** (decisions entry 7): both stores live in the shared
+  settings document, which every preference save rewrites whole, about 55 ms
+  (V8) per save at the projects cap. Moving the projects store into its own
+  document is the follow-up for anyone who needs a larger cap.
 - **Splits and lumps**: the generator now excludes a rename filed as a lump (the
   2022 Pink Pigeon shape) under a now-required announced tally, and names what a
   refused input lacks. The asset is NOT regenerated: Cornell's files and the
@@ -64,7 +78,7 @@ exports; the numbers and the harness are in `decisions.md` and `evidence/`.
   device (decisions entry 11). `.claude/rules/security.md` now gates
   `parseEbirdObservations.ts` and `observationsPacked.ts`, the modules that hold
   the new scans over export text (a line-feed count and the interning Map, both
-  linear).
+  linear, declared with their measured cost in decisions entry 12).
 - Docs: `docs/HELP.md`'s passages that named 50 MB (the brief's line 92 and a
   restatement in the Settings walkthrough the guard found) and "10 to 3,000"
   follow the new numbers, held by `bigListsHelpClaims.test.ts`. No published
