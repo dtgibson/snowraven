@@ -69,15 +69,23 @@ export const PROVENANCE_STORE_KEY = 'exotic-provenance-v1'
 // PROVENANCE_MAX_CHECKLISTS: a pass is bounded at MAX_REQUESTS_PER_PASS (500),
 // so reaching the cap takes many full-budget passes, and the ledger is bounded
 // by the export's checklists. The reference export has 3,252, so its ledger
-// cannot exceed 3,252 however many run; a 1M-row export holds 118,809 to about
-// 152,000 (decisions.md entry 7), past the 32,768 this was until
-// big-old-life-lists, so it is now 262,144 (2^18). FIFO, unchanged: an
-// eviction here costs one redundant request and loses no answer. The ledger
-// lives in the shared settings document and grows only as passes consult
-// checklists: at this cap it is 10.5 M characters, about 220 ms of parse plus
-// stringify per settings save in V8 and 70 ms in JavaScriptCore.
+// cannot exceed 3,252 however many run. It was 32,768 until big-old-life-lists,
+// which raised it for large exports, and is now 131,072 (2^17): the largest
+// power of two whose WORST-CASE document fits under the web/Pi settings route,
+// which saves this whole document through `/settings/{key}` and refuses a body
+// over `_MAX_BYTES` in `backend/routers/settingskv.py` (16 MiB) with 413, a
+// refusal the best-effort write below swallows. The 262,144 the raise first
+// chose does not fit (security review L1). At the validator's bounds a ledger
+// entry costs 64 bytes, and the species index (16,384 records) and published
+// names (4,096 of 128 characters) about 7.1 MB together, so the worst case at
+// this cap is 15.4 MB against the route's 16.8 MB; `settingsRouteBudget.test.ts`
+// builds it through `sanitizeStore` and compares it with the Python constant.
+// FIFO, unchanged: an eviction here costs one redundant request and loses no
+// answer. The ledger lives in the shared settings document and grows only as
+// passes consult checklists: at this cap with real ids it is about 5.5 M
+// characters.
 export const PROVENANCE_MAX_SPECIES_DEFAULT = 16_384
-export const PROVENANCE_MAX_CHECKLISTS_DEFAULT = 262_144
+export const PROVENANCE_MAX_CHECKLISTS_DEFAULT = 131_072
 export let PROVENANCE_MAX_SPECIES = PROVENANCE_MAX_SPECIES_DEFAULT
 export let PROVENANCE_MAX_CHECKLISTS = PROVENANCE_MAX_CHECKLISTS_DEFAULT
 

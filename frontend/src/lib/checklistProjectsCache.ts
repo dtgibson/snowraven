@@ -62,26 +62,39 @@ export const PROJECTS_TTL_MS = 365 * 24 * 60 * 60 * 1000
 export const PROJECTS_STORE_KEY = 'checklist-projects-v1'
 
 /**
- * 262,144 (2^18; OQ-02's 65,536 until big-old-life-lists). Fill-and-stop never
- * evicts, so hitting the cap is PERMANENT for this document, which argues for a
- * cap above any real birder. The reference account holds 3,252 checklists; a
- * 1M-row export holds 118,809 at the synthetic export's 8.4 rows a checklist
- * and about 152,000 at the reference export's 6.6, both past the old cap and
- * under this one. The at-capacity display state ships regardless of the number
- * chosen.
+ * OQ-02's default: 65,536 (2^16). Fill-and-stop never evicts, so hitting the
+ * cap is PERMANENT for this document, which argues for a cap above any real
+ * birder. The reference account holds 3,252 checklists, and a typical export at
+ * the largest upload cap (100 MB) about 38,000 to 57,000. The at-capacity
+ * display state ships regardless of the number chosen.
  *
- * THE COST, measured rather than assumed (decisions.md entry 7): the store
- * lives in the shared settings document, which every preference save parses
- * and rewrites whole, and it grows only as the sweep admits checklists. At this
- * cap with typical entries it is 18.8 M characters, about 250 ms of
- * JSON.parse plus JSON.stringify per save in V8 and 140 ms in JavaScriptCore;
- * at the old cap, 4.7 M and about 55 ms. Only an account that has swept past
- * 65,536 checklists pays any of it. Moving the store into its own document,
- * the day-obs store's v1.0.39 precedent, is the fix if that cost is felt.
+ * THE CAP IS BOUNDED BY THE WEB/Pi ROUTE THAT SAVES IT. On web/Pi this whole
+ * document is posted to `/settings/{key}`, which refuses a body over `_MAX_BYTES`
+ * in `backend/routers/settingskv.py` (16 MiB) with 413, and the write below is
+ * best-effort, so a refusal is silent: the saved document stops growing and
+ * every later session asks eBird again about each checklist past it.
+ * big-old-life-lists raised this cap to 262,144, where the document reaches
+ * about 19 M characters with typical entries and up to 53 M with the largest
+ * entries the validator admits, and its security review (L1) found exactly that
+ * failure past about 89,000 entries. So the cap is the largest power of two
+ * whose WORST-CASE document fits under the route's limit: at the validator's
+ * bounds (a 16-character key, a 32-character `proj`, eight 9-digit ids, and a
+ * time that may be any finite number, at most 25 characters of JSON) an entry
+ * costs 201 bytes, 13.2 MB at this cap against the route's 16.8 MB.
+ * `settingsRouteBudget.test.ts` builds that document through `sanitizeStore`
+ * and compares its size with the Python constant, so raising this cap, widening
+ * an entry bound or lowering the route's limit goes red there. A larger cap
+ * needs this store in its own document with a limit made for it (the day-obs
+ * store's v1.0.39 move).
+ *
+ * The other cost is on every platform: the store lives in the shared settings
+ * document, which every preference save parses and rewrites whole. At this cap
+ * with typical entries it is 4.7 M characters, about 55 ms per save in V8
+ * (decisions.md entry 7).
  *
  * Mutable binding + test seam, mirroring PROVENANCE_MAX_CHECKLISTS.
  */
-export const PROJECTS_MAX_CHECKLISTS_DEFAULT = 262_144
+export const PROJECTS_MAX_CHECKLISTS_DEFAULT = 65_536
 export let PROJECTS_MAX_CHECKLISTS = PROJECTS_MAX_CHECKLISTS_DEFAULT
 
 /** Test seam: override the admission limit. */

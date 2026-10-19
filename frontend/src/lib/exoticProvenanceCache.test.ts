@@ -278,10 +278,10 @@ describe('capacity+1, measured as WORK DONE, on BOTH ledgers', () => {
 
   it('at the SHIPPED ledger cap plus one (big-old-life-lists): one eviction, one shift of the cap, nothing grows', async () => {
     // The production constants, not seams. Loaded full from the document so the
-    // row measures the decision at the cap, as work done.
+    // row measures the decision at the cap, as work done. What bounds the cap
+    // from above, the web/Pi settings route's body limit, is held in
+    // settingsRouteBudget.test.ts.
     expect(cache.PROVENANCE_MAX_CHECKLISTS).toBe(cache.PROVENANCE_MAX_CHECKLISTS_DEFAULT)
-    // Its reason: a 1M-row export's checklists at the reference density.
-    expect(cache.PROVENANCE_MAX_CHECKLISTS_DEFAULT).toBeGreaterThanOrEqual(152_000)
     // And the species cap stays where it cannot bind: above the whole world list.
     expect(cache.PROVENANCE_MAX_SPECIES).toBe(cache.PROVENANCE_MAX_SPECIES_DEFAULT)
     const N = cache.PROVENANCE_MAX_CHECKLISTS_DEFAULT

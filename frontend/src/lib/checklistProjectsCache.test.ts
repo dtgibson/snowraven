@@ -367,14 +367,13 @@ describe('admission is FILL-AND-STOP, never FIFO (FR-35, NFR-03)', () => {
   })
 
   it('at the SHIPPED cap plus one (big-old-life-lists): a full document refuses the next key and evicts nothing', async () => {
-    // The production constant, not a seam: the raise is measured where it
-    // binds, as work done. The store is loaded full from disk rather than
-    // filled through 262,144 merges, because each merge rebuilds the snapshot
+    // The production constant, not a seam: the cap is measured where it binds,
+    // as work done. The store is loaded full from disk rather than filled
+    // through one merge per entry, because each merge rebuilds the snapshot
     // (decisions.md entry 7 records that cost); the admission decision is the
-    // same either way.
+    // same either way. What bounds the cap from above, the web/Pi settings
+    // route's body limit, is held in settingsRouteBudget.test.ts.
     expect(PROJECTS_MAX_CHECKLISTS).toBe(PROJECTS_MAX_CHECKLISTS_DEFAULT)
-    // Its reason, a 1M-row export's checklists at the reference density.
-    expect(PROJECTS_MAX_CHECKLISTS_DEFAULT).toBeGreaterThanOrEqual(152_000)
     const N = PROJECTS_MAX_CHECKLISTS_DEFAULT
     const entries: Record<string, unknown> = {}
     const order: string[] = []
