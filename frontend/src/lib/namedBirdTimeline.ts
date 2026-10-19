@@ -155,8 +155,9 @@ export function distinctDates(sightings: NamedSighting[]): Array<{ date: string;
     // that ran before it would fix the wrong occurrence in place.
     if (entries.length > 1) entries.sort((a, b) => compareSubmissionIds(a.id, b.id))
     // MEMBERSHIP THROUGH A SET, NEVER `Array.includes`. This runs on the main
-    // thread over untrusted export text, and an export is bounded only by the
-    // 50 MB upload cap -- roughly 660,000 rows, every one of which may carry the
+    // thread over untrusted export text, and an export is bounded only by its
+    // upload cap (at most 100 MB since big-old-life-lists) -- over a million
+    // short rows, every one of which may carry the
     // same name tag on the same date, which is one `entries` array that long.
     // The `includes` form is O(k^2) and was measured at 115 / 360 / 1,698 ms for
     // 10k / 20k / 40k rows while everything upstream stayed linear and summed to

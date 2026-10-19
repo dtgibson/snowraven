@@ -28,7 +28,7 @@
  * thread, which makes it worth removing on that ground alone. And it was reachable
  * through the guarded path: a 40 MB single line that BEGINS with a real ML header is
  * classified `ml`, accepted, stored, and then re-read on every Multimedia and
- * Statistics load. On the stored-file path it is not bounded by the 50 MB upload cap
+ * Statistics load. On the stored-file path it is not bounded by the upload cap
  * at all, because an iCloud pull is not an upload (`src-tauri/src/icloud.rs` caps at
  * 200 MB), which measured 10.6 s.
  *

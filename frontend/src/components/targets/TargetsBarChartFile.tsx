@@ -86,7 +86,7 @@ export function TargetsBarChartFile({ regionCode, county, state, join, onRetry }
       // With sync on, this device is the file's origin (FR-07); the county's
       // line reads "Syncing, uploading" at once and the check pushes it.
       const origin = gate ? syncOrigin(ics) ?? undefined : undefined
-      const res = await importBarChartFile(regionCode, county, file.name, () => file.text(), origin)
+      const res = await importBarChartFile(regionCode, county, file.name, () => file.text(), origin, file.size)
       if (res.ok) { setAlert(null); setShowUnmatched(false) } else say(res.reason)
     } finally {
       setBusy(false)

@@ -503,7 +503,7 @@ class WebStorage implements StorageAdapter {
     const res = await fetch(`/settings/files/${name}`, { method: 'POST', headers: APP_REQUEST_HEADERS, body: form });
     // The same reasoning as setSetting and deleteSetting above, on the path where
     // it was doing the most damage. A resolved fetch is not a saved file: the
-    // backend answers 413 over its 50 MB cap and 400 on a non-.csv name, and with
+    // backend answers 413 over its cap (per slot) and 400 on a non-.csv name, and with
     // the response discarded BOTH landed in Settings as a completed upload, over a
     // slot whose stored file was still the old one (or still nothing). Web and Pi
     // were the only platforms the cap ever ran on, and the only ones that could not

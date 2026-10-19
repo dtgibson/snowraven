@@ -1,5 +1,6 @@
 import { detectExportType } from './detectExportType'
 import { REGION_CODE_RE } from './regionCode'
+import { isAndroid, isIOS, isMacOS, isTauri } from './platform'
 // TYPE ONLY, and that is load-bearing: this module is on App.tsx's static graph
 // (Settings.tsx imports it), and the bar-chart parser must stay off the entry
 // chunk (entryChunk.test.ts). `import type` is erased at build, so the parse
@@ -23,21 +24,85 @@ import type { BarChartParseOutcome } from './barChart/parseBarChart'
  */
 
 /**
- * The size cap, in UTF-8 bytes. This is the FRONT half of a cap the backend has
- * enforced all along: `MAX_BYTES` in `backend/routers/settings.py` is the same
- * literal and answers `413` above it. Keep the two in step — the parity is checked
- * by `uploadGuard.test.ts`, which reads the Python constant.
+ * The size caps, in UTF-8 bytes. Two of them since big-old-life-lists.
  *
- * Enforcing it here as well is not belt-and-braces. Web and Pi are the only
- * platforms that ever saw the backend's 413, and until this build `WebStorage`
- * discarded the response, so an over-cap upload reported success; desktop and iOS
- * write straight to `AppLocalData` and have never had a cap at all. The guard at
- * the chokepoint is what makes the refusal true on every platform, and the response
+ * THE eBIRD BACKUP'S CAP IS PER PLATFORM (decisions.md entry 3). Each is a round
+ * size at which the measured peak memory of a load, with the packed parse
+ * (`observationsPacked.ts`), is no more than what the shipped parse already
+ * needed at the old 50 MB cap on the same engine, read over three or four runs of
+ * each. So a raise buys room the memory work freed, and asks a device for no more
+ * memory than 50 MB already asked of it. The peak is mostly the export's TEXT, a
+ * two-byte string held once by the parse worker (and, until this build, once more
+ * on the main thread), which is why the raise is per engine and modest:
+ *
+ *   - iPhone and iPad (WebKit): 64 MB peaked at 948 and 1,268 MB in the iOS 27
+ *     simulator, against 1,043 to 1,189 MB for the shipped parse at 50 MB. The
+ *     Mac takes the same number so a backup the Mac accepts never syncs to an
+ *     iPhone or iPad that would refuse it (iCloud's own per-file bound, `MAX_BYTES`
+ *     in `icloud/icloudRecord.ts`, is 200 MB and is unchanged); its own WebKit
+ *     measured 13% above its 50 MB figure there, about 160 MB on a desktop;
+ *   - Android (Chromium, Chrome 133 on the API 36 emulator, the same Chromium as
+ *     the System WebView 133 this app ships against): 100 MB measured 8% over
+ *     the shipped 50 MB peak, so the cap is 80 MB, which the measured slope puts
+ *     below it;
+ *   - Windows and web/Pi (Chromium: WebView2, and the browser a Pi is opened in):
+ *     100 MB measured level with the shipped 50 MB peak in Chromium on this Mac.
+ *
+ * THE ML EXPORT AND A BAR-CHART FILE KEEP 50 MB on every platform. Neither parse
+ * was made compact (the ML parse still retains its cell grid, which
+ * `parseMLExportOffThread.ts` says the 50 MB cap is what keeps safe), so the
+ * measurement that licenses the backup's raise says nothing about them.
+ *
+ * Web/Pi's figures are the FRONT half of caps the backend enforces too:
+ * `EBIRD_MAX_BYTES` and `MAX_BYTES` in `backend/routers/settings.py` are the same
+ * numbers and answer `413` above them. Keep them in step: `uploadGuard.test.ts`
+ * reads both Python constants.
+ *
+ * Enforcing them here as well is not belt-and-braces. Web and Pi are the only
+ * platforms that ever saw the backend's 413, and `WebStorage` once discarded the
+ * response, so an over-cap upload reported success; the desktop and mobile apps
+ * write straight to `AppLocalData` and have no other cap at all. The guard at the
+ * chokepoint is what makes the refusal true on every platform, and the response
  * check in `storage.ts` is what makes the backend's own answer audible on the one
  * platform that gives it.
  */
 const BYTES_PER_MEGABYTE = 1024 * 1024
+
+/** The ML export's and a bar-chart file's cap, every platform. */
 export const MAX_UPLOAD_BYTES = 50 * BYTES_PER_MEGABYTE
+
+export type UploadPlatform = 'web' | 'mac' | 'ios' | 'windows' | 'android'
+
+/** The eBird backup's cap, per platform. */
+export const EBIRD_MAX_UPLOAD_BYTES_BY_PLATFORM: Readonly<Record<UploadPlatform, number>> = Object.freeze({
+  web: 100 * BYTES_PER_MEGABYTE,
+  mac: 64 * BYTES_PER_MEGABYTE,
+  ios: 64 * BYTES_PER_MEGABYTE,
+  windows: 100 * BYTES_PER_MEGABYTE,
+  android: 80 * BYTES_PER_MEGABYTE,
+})
+
+/**
+ * Which cap applies here. Web and Pi are everything outside Tauri; inside it the
+ * os plugin's synchronous probes name the platform, and a Tauri desktop that is
+ * not macOS is the Windows app (the shipped desktop targets are macOS and
+ * Windows). A capability reading, never layout.
+ */
+export function uploadPlatform(): UploadPlatform {
+  if (!isTauri()) return 'web'
+  if (isIOS()) return 'ios'
+  if (isAndroid()) return 'android'
+  if (isMacOS()) return 'mac'
+  return 'windows'
+}
+
+/** What a file is for, which decides its cap. */
+export type SizedUpload = 'ebird' | 'ml' | 'barchart'
+
+/** The cap for this kind of file on this platform, in UTF-8 bytes. */
+export function maxUploadBytes(kind: SizedUpload, platform: UploadPlatform = uploadPlatform()): number {
+  return kind === 'ebird' ? EBIRD_MAX_UPLOAD_BYTES_BY_PLATFORM[platform] : MAX_UPLOAD_BYTES
+}
 
 /** Unchanged, and moved here so all three refusals for this row live together. */
 export const CSV_ONLY_MESSAGE = 'Only .csv files are accepted.'
@@ -86,9 +151,29 @@ export function fileNotSavedMessage(filename: string): string {
 export const PICKER_FAILED_MESSAGE = 'The file picker did not open. Try again.'
 
 /** Refusal 1: over the cap. One sentence, because there is no repair to offer —
- *  an export is the size it is, and the user cannot shrink it. */
-export const TOO_LARGE_MESSAGE =
-  `That file is larger than ${MAX_UPLOAD_BYTES / BYTES_PER_MEGABYTE} MB, so it was not saved.`
+ *  an export is the size it is, and the user cannot shrink it. The number is
+ *  formatted from the cap it names (DECISIONS.md, v1.0.24), so the line follows
+ *  the platform's constant and can never promise a different one. */
+export function tooLargeMessage(limitBytes: number): string {
+  return `That file is larger than ${limitBytes / BYTES_PER_MEGABYTE} MB, so it was not saved.`
+}
+
+/** The line for the ML export and bar-chart cap, which every platform shares. */
+export const TOO_LARGE_MESSAGE = tooLargeMessage(MAX_UPLOAD_BYTES)
+
+/**
+ * The size refusal, from the size the picker REPORTS (`File.size`), applied
+ * before a byte is read: an export over the cap is never pulled into memory to be
+ * refused afterwards, which on Android's WebView could end the page before the
+ * line ever showed (saved idea 22aa2e97; ROADMAP, Android item 6). Returns the
+ * message, or null to continue. `refuseByContent` keeps its own size check as the
+ * backstop for a path that has no size until it has read the file (the dialog
+ * import, `importMechanism.ts`).
+ */
+export function refuseBySize(byteLength: number, kind: SizedUpload): string | null {
+  const limit = maxUploadBytes(kind)
+  return byteLength > limit ? tooLargeMessage(limit) : null
+}
 
 /**
  * Refusal 2: the right kind of file, in the wrong slot (or a CSV that is neither).
@@ -180,7 +265,7 @@ export function refuseByFilename(filename: string, kind: UploadKind = 'csv'): st
 
 // ── eBird bar-chart files (targets-tab, schema.md section 2.3) ────────────────
 // The same registry, so the Targets import gets every refusal the CSV imports
-// get or visibly none: size (the same 50 MB cap), then the filename's region
+// get or visibly none: size (the ML export's 50 MB cap), then the filename's region
 // code, then the layout. A refusal stores nothing, clears nothing and bumps no
 // epoch (FR-27); that half lives in lib/barChart/barChartImport.ts.
 
@@ -301,7 +386,8 @@ export function refuseBarChartByContent(
  * meaningful.
  */
 export function refuseByContent(slot: 'ebird' | 'ml', content: string): string | null {
-  if (exceedsUtf8ByteLimit(content, MAX_UPLOAD_BYTES)) return TOO_LARGE_MESSAGE
+  const limit = maxUploadBytes(slot)
+  if (exceedsUtf8ByteLimit(content, limit)) return tooLargeMessage(limit)
   if (detectExportType(content) !== slot) return wrongExportMessage(slot)
   return null
 }

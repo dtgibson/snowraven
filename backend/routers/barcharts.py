@@ -221,7 +221,7 @@ async def upload_barchart(
     if len(content) > max_bytes:
         raise HTTPException(
             status_code=413,
-            detail=f"File exceeds the {settings_module._max_bytes_label()} limit.",
+            detail=f"File exceeds the {settings_module._max_bytes_label(max_bytes)} limit.",
         )
     return await run_in_threadpool(_store, regionCode, content, filename)
 

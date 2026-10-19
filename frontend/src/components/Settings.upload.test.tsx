@@ -71,7 +71,7 @@ import { DEFAULT_TAB_ORDER } from '../lib/tabLayout'
 import type { ConfigurableTab } from '../lib/tabLayout'
 import { isAndroid } from '../lib/platform'
 import {
-  MAX_UPLOAD_BYTES, CSV_ONLY_MESSAGE, TOO_LARGE_MESSAGE, wrongExportMessage,
+  maxUploadBytes, tooLargeMessage, CSV_ONLY_MESSAGE, wrongExportMessage,
   csvInputAccept, unreadableFileMessage, fileNotSavedMessage,
 } from '../lib/uploadGuard'
 
@@ -116,15 +116,19 @@ function renderSettings(onFilesSaved = vi.fn()) {
 }
 
 /** Drive the file input for one slot with a File carrying `content`. */
-function upload(container: HTMLElement, index: number, name: string, content: string) {
+function upload(container: HTMLElement, index: number, name: string, content: string, reportedSize?: number) {
   const inputs = container.querySelectorAll('input[type="file"]')
   expect(inputs.length).toBe(2)          // the roster is complete
   const input = inputs[index] as HTMLInputElement
   const file = new File([content], name, { type: 'text/csv' })
   // jsdom's File.text() is present but the component only needs the string.
-  Object.defineProperty(file, 'text', { value: () => Promise.resolve(content) })
+  const text = vi.fn(() => Promise.resolve(content))
+  Object.defineProperty(file, 'text', { value: text })
+  // The size a picker reports, when a row needs one other than the content's.
+  if (reportedSize !== undefined) Object.defineProperty(file, 'size', { value: reportedSize })
   Object.defineProperty(input, 'files', { value: [file], configurable: true })
   fireEvent.change(input)
+  return text
 }
 
 const alerts = () => screen.queryAllByRole('alert')
@@ -249,17 +253,37 @@ describe('a refused upload shows a reason and stores nothing', () => {
   )
 
   it.each(SLOTS.map(r => [r.label, r] as const))(
-    '%s refuses a file over the 50 MB cap, and says so rather than blaming the file type',
+    '%s refuses a file over the cap on its reported size, before reading it, and says so rather than blaming the file type',
     async (_l, row) => {
       const { container } = renderSettings()
       await waitFor(() => expect(container.querySelectorAll('input[type="file"]').length).toBe(2))
 
-      // The RIGHT export for this slot, past the cap: the message must be about
-      // size, or the user goes looking for a different download.
-      upload(container, row.index, row.ownName, row.own + 'x'.repeat(MAX_UPLOAD_BYTES))
+      // The RIGHT export for this slot, reported one byte past the cap: the
+      // message must be about size, or the user goes looking for a different
+      // download. And the file is never read (big-old-life-lists): on Android's
+      // WebView reading an oversized export could end the page before the line
+      // ever showed.
+      // Each slot's own cap: the backup's is per platform, the ML export's 50 MB.
+      const cap = maxUploadBytes(row.slot)
+      const read = upload(container, row.index, row.ownName, row.own, cap + 1)
 
-      await waitFor(() => expect(alerts()).toEqual([TOO_LARGE_MESSAGE]))
+      await waitFor(() => expect(alerts()).toEqual([tooLargeMessage(cap)]))
+      expect(read).not.toHaveBeenCalled()
       expect(storageMock.writeFile).not.toHaveBeenCalled()
+    },
+  )
+
+  it.each(SLOTS.map(r => [r.label, r] as const))(
+    '%s reads and stores a file whose reported size is exactly the cap',
+    async (_l, row) => {
+      const { container } = renderSettings()
+      await waitFor(() => expect(container.querySelectorAll('input[type="file"]').length).toBe(2))
+
+      const read = upload(container, row.index, row.ownName, row.own, maxUploadBytes(row.slot))
+
+      await waitFor(() => expect(storageMock.writeFile).toHaveBeenCalledTimes(1))
+      expect(read).toHaveBeenCalledTimes(1)
+      expect(alerts()).toEqual([])
     },
   )
 

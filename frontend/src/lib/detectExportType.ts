@@ -24,7 +24,7 @@ export type ExportType = 'ml' | 'ebird' | 'unknown'
  * which is not an interchangeable spelling at this call site: the old one splits
  * the WHOLE file into an array of every line to keep the first, and runs a regex
  * over it, which leaves the subject in the engine's last-match state. Either is
- * cheap on a header and neither is cheap on the 50 MB the upload guard has to
+ * cheap on a header and neither is cheap on the up to 100 MB the upload guard has to
  * classify before it is written.
  *
  * The ONE deliberate divergence from that oracle is an input whose first line runs

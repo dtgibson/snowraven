@@ -27,10 +27,20 @@
 //      what the offered file appeared to be.
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { readFileSync } from 'node:fs'
+
+// The os plugin's probe, steerable per row (the platform rows below); outside
+// Tauri it is never consulted, so every other row reads web/Pi.
+const os = vi.hoisted(() => ({ name: 'macos' }))
+vi.mock('@tauri-apps/plugin-os', () => ({ platform: () => os.name }))
 import {
   MAX_UPLOAD_BYTES,
-  CSV_ONLY_MESSAGE,
   TOO_LARGE_MESSAGE,
+  EBIRD_MAX_UPLOAD_BYTES_BY_PLATFORM,
+  maxUploadBytes,
+  tooLargeMessage,
+  refuseBySize,
+  uploadPlatform,
+  CSV_ONLY_MESSAGE,
   wrongExportMessage,
   exceedsUtf8ByteLimit,
   refuseByFilename,
@@ -58,27 +68,85 @@ import { MAX_HEADER_CHARS } from './firstLine'
  *  itself is enforced on the resulting line's LENGTH, not on this window. */
 const MAX_SCAN_READS = MAX_HEADER_CHARS + 2
 
+// This suite runs in node, outside Tauri, so the backup's cap in force is
+// web/Pi's. The per-platform rows below name each platform explicitly.
+const EBIRD_CAP = maxUploadBytes('ebird')
+/** The rows that build and count a file past a cap: up to 100 MB of characters,
+ *  counted one by one, measured at 2 to 5 s here. Stated explicitly rather than
+ *  left on vitest's 5 s default, which they would otherwise sit against
+ *  (.claude/rules/testing.md, a deliberately expensive guard states its own). */
+const OVER_CAP_TIMEOUT_MS = 30_000
+
 const DEMO_ML = readFileSync(
   new URL('../../../website/demo/snowraven-demo-ml-export.csv', import.meta.url), 'utf8')
 const DEMO_EBIRD = readFileSync(
   new URL('../../../website/demo/snowraven-demo-ebird-backup.csv', import.meta.url), 'utf8')
 
-describe('the cap is the backend cap', () => {
-  it('equals MAX_BYTES in backend/routers/settings.py', () => {
-    // Read from the Python, not retyped: the frontend now refuses over-cap files on
+describe('the caps are the backend caps', () => {
+  const py = readFileSync(new URL('../../../backend/routers/settings.py', import.meta.url), 'utf8')
+  const pyBytes = (name: string) => {
+    const m = py.match(new RegExp(`^${name}\\s*=\\s*(\\d+)\\s*\\*\\s*(\\d+)\\s*\\*\\s*(\\d+)\\s*$`, 'm'))
+    expect(m, name).not.toBeNull()
+    return Number(m![1]) * Number(m![2]) * Number(m![3])
+  }
+
+  it('web/Pi\'s backup cap equals EBIRD_MAX_BYTES, and the shared cap MAX_BYTES, in backend/routers/settings.py', () => {
+    // Read from the Python, not retyped: the frontend refuses over-cap files on
     // every platform, and the backend still answers 413 on the one platform that
     // reaches it. If the two ever disagree, web/Pi gets a refusal message quoting a
     // limit that is not the one being enforced.
-    const py = readFileSync(new URL('../../../backend/routers/settings.py', import.meta.url), 'utf8')
-    const m = py.match(/^MAX_BYTES\s*=\s*(\d+)\s*\*\s*(\d+)\s*\*\s*(\d+)\s*$/m)
-    expect(m).not.toBeNull()
-    const backendBytes = Number(m![1]) * Number(m![2]) * Number(m![3])
-    expect(backendBytes).toBe(52_428_800)          // pins the read, so a bad regex cannot pass
-    expect(MAX_UPLOAD_BYTES).toBe(backendBytes)
+    expect(pyBytes('EBIRD_MAX_BYTES')).toBe(104_857_600)   // pins the read, so a bad regex cannot pass
+    expect(pyBytes('MAX_BYTES')).toBe(52_428_800)
+    expect(maxUploadBytes('ebird', 'web')).toBe(pyBytes('EBIRD_MAX_BYTES'))
+    expect(MAX_UPLOAD_BYTES).toBe(pyBytes('MAX_BYTES'))
+    // Outside Tauri the web/Pi cap is the one in force.
+    expect(uploadPlatform()).toBe('web')
+    expect(EBIRD_CAP).toBe(pyBytes('EBIRD_MAX_BYTES'))
   })
 
-  it('the message quotes the limit the code enforces', () => {
+  it('the message quotes the limit the code enforces, on every platform and for every kind', () => {
     expect(TOO_LARGE_MESSAGE).toContain(`${MAX_UPLOAD_BYTES / (1024 * 1024)} MB`)
+    for (const [platform, bytes] of Object.entries(EBIRD_MAX_UPLOAD_BYTES_BY_PLATFORM)) {
+      expect(tooLargeMessage(maxUploadBytes('ebird', platform as keyof typeof EBIRD_MAX_UPLOAD_BYTES_BY_PLATFORM)), platform)
+        .toContain(`${bytes / (1024 * 1024)} MB`)
+      expect(maxUploadBytes('ml', platform as keyof typeof EBIRD_MAX_UPLOAD_BYTES_BY_PLATFORM)).toBe(MAX_UPLOAD_BYTES)
+      expect(maxUploadBytes('barchart', platform as keyof typeof EBIRD_MAX_UPLOAD_BYTES_BY_PLATFORM)).toBe(MAX_UPLOAD_BYTES)
+    }
+    // Derived, not restated: a cap that moves carries its sentence with it.
+    expect(tooLargeMessage(7 * 1024 * 1024)).toBe('That file is larger than 7 MB, so it was not saved.')
+  })
+})
+
+describe('the size refusal reads the picker\'s size, before any read (big-old-life-lists)', () => {
+  it('refuses one byte over each kind\'s cap and accepts the cap itself', () => {
+    for (const kind of ['ebird', 'ml', 'barchart'] as const) {
+      const cap = maxUploadBytes(kind)
+      expect(refuseBySize(cap, kind)).toBeNull()
+      expect(refuseBySize(cap + 1, kind)).toBe(tooLargeMessage(cap))
+    }
+    // The backup's raise is the backup's alone.
+    expect(refuseBySize(MAX_UPLOAD_BYTES + 1, 'ebird')).toBeNull()
+    expect(refuseBySize(MAX_UPLOAD_BYTES + 1, 'ml')).toBe(TOO_LARGE_MESSAGE)
+  })
+
+  it.each([
+    ['macos', 'mac'], ['ios', 'ios'], ['android', 'android'], ['windows', 'windows'],
+  ] as const)('inside Tauri, os plugin "%s" reads the %s backup cap', (osName, expected) => {
+    vi.stubGlobal('window', { __TAURI_INTERNALS__: {} })
+    try {
+      os.name = osName
+      expect(uploadPlatform()).toBe(expected)
+      const cap = EBIRD_MAX_UPLOAD_BYTES_BY_PLATFORM[expected]
+      expect(maxUploadBytes('ebird')).toBe(cap)
+      expect(refuseBySize(cap + 1, 'ebird')).toBe(tooLargeMessage(cap))
+      expect(refuseBySize(cap, 'ebird')).toBeNull()
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('the three WebKit apps share one backup cap, so a file the Mac accepts never syncs to an iPhone that would refuse it', () => {
+    expect(EBIRD_MAX_UPLOAD_BYTES_BY_PLATFORM.mac).toBe(EBIRD_MAX_UPLOAD_BYTES_BY_PLATFORM.ios)
   })
 })
 
@@ -177,9 +245,11 @@ describe('refuseByContent, on both slots', () => {
     (_s, row) => {
       // The right export for the slot, past the cap. Reporting it as the wrong file
       // would send the user looking for a different download.
-      const over = row.own + 'x'.repeat(MAX_UPLOAD_BYTES)
-      expect(refuseByContent(row.slot, over)).toBe(TOO_LARGE_MESSAGE)
+      const cap = maxUploadBytes(row.slot)
+      const over = row.own + 'x'.repeat(cap)
+      expect(refuseByContent(row.slot, over)).toBe(tooLargeMessage(cap))
     },
+    OVER_CAP_TIMEOUT_MS,
   )
 
   it('a file exactly at the cap is accepted, one byte over is refused', () => {
@@ -188,7 +258,7 @@ describe('refuseByContent, on both slots', () => {
     expect(new TextEncoder().encode(atCap).byteLength).toBe(MAX_UPLOAD_BYTES)
     expect(refuseByContent('ml', atCap)).toBeNull()
     expect(refuseByContent('ml', atCap + 'x')).toBe(TOO_LARGE_MESSAGE)
-  })
+  }, OVER_CAP_TIMEOUT_MS)
 })
 
 describe('a hostile single-line file is refused at the chokepoint', () => {
@@ -350,7 +420,7 @@ describe('refuseBarChartByContent, branch by branch, in order', () => {
     const over = BARCHART_SAMPLE + 'x'.repeat(MAX_UPLOAD_BYTES)
     expect(refuseBarChartByContent(over, { ...ALAMEDA_CTX, filename: 'ebird_CA-ON__x.txt' }, parse)).toBe(TOO_LARGE_MESSAGE)
     expect(parse).not.toHaveBeenCalled()
-  })
+  }, OVER_CAP_TIMEOUT_MS)
 
   it('2. an unreadable eBird-shaped name refuses before the mismatch and the parse', () => {
     expect(refuseBarChartByContent(BARCHART_SAMPLE, { ...ALAMEDA_CTX, filename: 'ebird_CA-ON__1900_2026_1_12_barchart.txt' }, parse))

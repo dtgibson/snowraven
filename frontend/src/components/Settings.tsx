@@ -41,7 +41,7 @@ import { SyncContent, SyncLine } from './ui/SyncLine'
 import { fileRowButtonLabel } from '../lib/fileRowCopy'
 import { activeImportMechanism, pickCsvViaDialog } from '../lib/importMechanism'
 import {
-  refuseByFilename, refuseByContent, csvInputAccept,
+  refuseByFilename, refuseBySize, refuseByContent, csvInputAccept,
   unreadableFileMessage, fileNotSavedMessage, PICKER_FAILED_MESSAGE,
 } from '../lib/uploadGuard'
 import { getCurrentLocation, describeLocationError } from '../lib/location'
@@ -1986,14 +1986,24 @@ export function Settings({
     slot: 'ebird' | 'ml',
     filename: string,
     getContent: () => Promise<string>,
+    // The size the picker reports, when the path has one before reading (the
+    // file input's `File.size`). The dialog path has none; its answer is the
+    // content check below (lib/importMechanism.ts says why).
+    byteSize?: number,
   ) => {
     const setUploading = slot === 'ebird' ? setEbirdUploading : setMlUploading
     const setError = (message: string | null) => setFileError(slot, message)
-    // The name check runs BEFORE the read, so a huge non-CSV is never pulled into
-    // memory to be refused afterwards.
+    // The name and size checks run BEFORE the read, so a huge non-CSV, or an
+    // export over this platform's cap, is never pulled into memory to be refused
+    // afterwards.
     const nameRefusal = refuseByFilename(filename)
     if (nameRefusal) {
       setError(nameRefusal)
+      return
+    }
+    const sizeRefusal = byteSize === undefined ? null : refuseBySize(byteSize, slot)
+    if (sizeRefusal) {
+      setError(sizeRefusal)
       return
     }
     setUploading(true)
@@ -2007,7 +2017,9 @@ export function Settings({
       reading = false
       // Size, then content. Both refusals render in this row's existing error
       // line, and both leave whatever was already stored exactly as it was: a
-      // refused upload is not a replace. Without them an oversized file was
+      // refused upload is not a replace. The size check here is the backstop for
+      // a path with no size before the read; it counts UTF-8 bytes of what was
+      // read, which is what the pre-read check above counts on disk. Without them an oversized file was
       // written straight to disk on desktop and iOS, and an eBird backup dropped
       // into the ML Export slot stored happily and failed on the Multimedia tab
       // later, where nothing could say which file was wrong.
@@ -2041,7 +2053,7 @@ export function Settings({
   }
 
   const handleUpload = (slot: 'ebird' | 'ml', file: File) =>
-    importFileContent(slot, file.name, () => file.text())
+    importFileContent(slot, file.name, () => file.text(), file.size)
 
   // Mechanism B only (activeImportMechanism() === 'dialog'): native document
   // picker via plugin-dialog, then the same shared tail. Cancel resolves null

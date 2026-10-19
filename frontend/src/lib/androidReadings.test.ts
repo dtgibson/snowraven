@@ -31,6 +31,7 @@ import { alertsSupported } from './alerts/alertsState'
 import { widgetsSupported } from './widgets/widgetHandover'
 import { fileRowButtonLabel } from './fileRowCopy'
 import { activeImportMechanism, ANDROID_IMPORT_MECHANISM } from './importMechanism'
+import { maxUploadBytes, EBIRD_MAX_UPLOAD_BYTES_BY_PLATFORM, MAX_UPLOAD_BYTES, uploadPlatform } from './uploadGuard'
 import { getCurrentLocation } from './location'
 import { mobileMapFullscreen, mapContentClass } from './mapFullscreen'
 import { applyPlatformRootMarkers } from './rootMarkers'
@@ -106,6 +107,16 @@ describe('FR-11, one row per call site, on Android', () => {
     const settings = code('../components/Settings.tsx')
     expect(settings).toContain("if (activeImportMechanism() === 'dialog' && onNativePick)")
     expect(settings).not.toMatch(/isIOS\(\)/)
+  })
+
+  it('uploadGuard.maxUploadBytes: the Android cap, measured on its own engine (big-old-life-lists)', () => {
+    expect(uploadPlatform()).toBe('android')
+    expect(maxUploadBytes('ebird')).toBe(EBIRD_MAX_UPLOAD_BYTES_BY_PLATFORM.android)
+    // Never the Apple apps' WebKit figure or web/Pi's backend twin by accident.
+    expect(EBIRD_MAX_UPLOAD_BYTES_BY_PLATFORM.android).not.toBe(EBIRD_MAX_UPLOAD_BYTES_BY_PLATFORM.ios)
+    expect(EBIRD_MAX_UPLOAD_BYTES_BY_PLATFORM.android).not.toBe(EBIRD_MAX_UPLOAD_BYTES_BY_PLATFORM.web)
+    // The ML export keeps the shared 50 MB.
+    expect(maxUploadBytes('ml')).toBe(MAX_UPLOAD_BYTES)
   })
 
   // Branch B, the shipped switch (lib/androidLocation.ts): the honest generic

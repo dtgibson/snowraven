@@ -92,10 +92,18 @@ describe('refusals store nothing and bump nothing (FR-27, QA-29)', () => {
     expectNoSideEffects()
   })
 
-  it('an over-cap file is refused as too large', async () => {
-    const big = SAMPLE + 'x'.repeat(MAX_UPLOAD_BYTES)
-    expect(await importBarChartFile(ALAMEDA, LABEL, NAME, async () => big)).toEqual({ ok: false, reason: TOO_LARGE_MESSAGE })
+  it('an over-cap file is refused as too large on its reported size, before it is read', async () => {
+    // big-old-life-lists: the picker's `File.size` decides, so the bytes are
+    // never pulled into memory. The content count stays as the backstop and is
+    // pinned in uploadGuard.test.ts (refuseBarChartByContent, branch 1).
+    const getContent = vi.fn(async () => SAMPLE)
+    expect(await importBarChartFile(ALAMEDA, LABEL, NAME, getContent, undefined, MAX_UPLOAD_BYTES + 1))
+      .toEqual({ ok: false, reason: TOO_LARGE_MESSAGE })
+    expect(getContent).not.toHaveBeenCalled()
     expectNoSideEffects()
+    // At the cap itself the read goes ahead.
+    expect(await importBarChartFile(ALAMEDA, LABEL, NAME, getContent, undefined, MAX_UPLOAD_BYTES)).toEqual({ ok: true })
+    expect(getContent).toHaveBeenCalledTimes(1)
   })
 
   it('a read that fails is a refusal too, with nothing written', async () => {

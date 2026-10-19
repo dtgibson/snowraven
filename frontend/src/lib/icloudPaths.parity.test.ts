@@ -367,7 +367,11 @@ describe('the bar-chart files and the day cache sync as ITEMS, never as slots (i
 
   it('FR-30 (QA-26): the sync-path bound for a county file is no smaller than the add-time cap', async () => {
     const { MAX_BYTES } = await import('./icloud/icloudRecord')
-    const { MAX_UPLOAD_BYTES } = await import('./uploadGuard')
+    // Per platform since big-old-life-lists: every platform iCloud Sync runs on
+    // (the Mac, iPhone and iPad apps) adds no file the sync path would refuse.
+    const { EBIRD_MAX_UPLOAD_BYTES_BY_PLATFORM, MAX_UPLOAD_BYTES } = await import('./uploadGuard')
+    expect(MAX_BYTES).toBeGreaterThanOrEqual(EBIRD_MAX_UPLOAD_BYTES_BY_PLATFORM.mac)
+    expect(MAX_BYTES).toBeGreaterThanOrEqual(EBIRD_MAX_UPLOAD_BYTES_BY_PLATFORM.ios)
     expect(MAX_BYTES).toBeGreaterThanOrEqual(MAX_UPLOAD_BYTES)
     // The Rust side uses the same MAX_BYTES for a county item.
     expect(rust).toContain('SyncItem::County(_) => MAX_BYTES,')

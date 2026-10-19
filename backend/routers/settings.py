@@ -16,16 +16,30 @@ EBIRD_FILE = DATA_DIR / "ebird-backup.csv"
 ML_FILE = DATA_DIR / "ml-export.csv"
 META_FILE = DATA_DIR / "metadata.json"
 
-# 50 MB. TWINNED with MAX_UPLOAD_BYTES in frontend/src/lib/uploadGuard.ts, which
-# refuses an over-cap file at the import chokepoint on every platform — desktop and
-# iOS write straight to AppLocalData and never reach this router at all. Keep the two
-# literals equal; frontend/src/lib/uploadGuard.test.ts reads this line and asserts it.
+# 50 MB, for the ML export (and, read from here, a bar-chart file:
+# routers/barcharts.py). TWINNED with MAX_UPLOAD_BYTES in
+# frontend/src/lib/uploadGuard.ts, which refuses an over-cap file at the import
+# chokepoint on every platform; the desktop and mobile apps write straight to
+# AppLocalData and never reach this router at all. Keep the two equal;
+# frontend/src/lib/uploadGuard.test.ts reads this line and asserts it.
 MAX_BYTES = 50 * 1024 * 1024
 
+# 100 MB, for the eBird backup alone (big-old-life-lists; 50 MB before, when one
+# cap served both slots). TWINNED with the web/Pi entry of
+# EBIRD_MAX_UPLOAD_BYTES_BY_PLATFORM in frontend/src/lib/uploadGuard.ts, read and
+# asserted by the same test. The backup's parse was made compact, which is what
+# licensed the raise; the ML export's was not, so it keeps MAX_BYTES.
+EBIRD_MAX_BYTES = 100 * 1024 * 1024
 
-def _max_bytes_label() -> str:
+
+def _slot_max_bytes(slot: str) -> int:
+    """The cap for a slot, read at CALL time so a test can patch either down."""
+    return EBIRD_MAX_BYTES if slot == "ebird" else MAX_BYTES
+
+
+def _max_bytes_label(max_bytes: int) -> str:
     """Format the limit users are told from the bytes the router enforces."""
-    return f"{MAX_BYTES / (1024 * 1024):g} MB"
+    return f"{max_bytes / (1024 * 1024):g} MB"
 
 
 def _read_meta() -> dict:
@@ -47,16 +61,17 @@ async def _upload(upload: UploadFile, target: Path, slot: str) -> dict:
     if not filename.lower().endswith(".csv"):
         raise HTTPException(status_code=400, detail="Only .csv files are accepted.")
 
-    # Read up to MAX_BYTES + 1 to detect oversized files without loading everything
-    content = await upload.read(MAX_BYTES + 1)
-    if len(content) > MAX_BYTES:
+    # Read up to the cap + 1 to detect oversized files without loading everything
+    max_bytes = _slot_max_bytes(slot)
+    content = await upload.read(max_bytes + 1)
+    if len(content) > max_bytes:
         raise HTTPException(
             status_code=413,
-            detail=f"File exceeds the {_max_bytes_label()} limit.",
+            detail=f"File exceeds the {_max_bytes_label(max_bytes)} limit.",
         )
 
     DATA_DIR.mkdir(parents=True, exist_ok=True)
-    # Offload the (up to 50 MB) write off the event loop so a slow disk can't
+    # Offload the (up to the slot's cap) write off the event loop so a slow disk can't
     # block other requests; the on-disk result is identical.
     await run_in_threadpool(target.write_bytes, content)
 

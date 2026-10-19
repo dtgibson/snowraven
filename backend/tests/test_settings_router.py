@@ -47,8 +47,9 @@ def test_upload_non_csv_rejected():
     assert resp.status_code == 400
 
 
-# MAX_BYTES is twinned with MAX_UPLOAD_BYTES in frontend/src/lib/uploadGuard.ts, and
-# frontend/src/lib/uploadGuard.test.ts reads this module's literal and pins it. That
+# MAX_BYTES (the ML export) and EBIRD_MAX_BYTES (the eBird backup, since
+# big-old-life-lists) are twinned with frontend/src/lib/uploadGuard.ts, and
+# frontend/src/lib/uploadGuard.test.ts reads both of this module's literals. That
 # pins the CONSTANT. These two pin the ENFORCEMENT, which is a separate thing:
 # single-sourcing a guard prevents the copies DRIFTING, and does nothing to prevent
 # one being DROPPED (.claude/rules/security.md). Deleting the `len(content) >
@@ -56,9 +57,12 @@ def test_upload_non_csv_rejected():
 # these rows go red on it. MAX_BYTES is monkeypatched down to 1 MB so the test does
 # not have to post 50 MB, which also proves the 413 detail reads the module
 # attribute at call time rather than repeating the production label.
-@pytest.mark.parametrize("slot, stored", [("ebird", "ebird-backup.csv"), ("ml", "ml-export.csv")])
-def test_upload_over_cap_rejected(tmp_path, monkeypatch, slot, stored):
-    monkeypatch.setattr(settings_module, "MAX_BYTES", TEST_MAX_BYTES)
+SLOT_CAPS = [("ebird", "ebird-backup.csv", "EBIRD_MAX_BYTES"), ("ml", "ml-export.csv", "MAX_BYTES")]
+
+
+@pytest.mark.parametrize("slot, stored, cap", SLOT_CAPS)
+def test_upload_over_cap_rejected(tmp_path, monkeypatch, slot, stored, cap):
+    monkeypatch.setattr(settings_module, cap, TEST_MAX_BYTES)
 
     resp = client.post(
         f"/settings/files/{slot}",
@@ -72,10 +76,10 @@ def test_upload_over_cap_rejected(tmp_path, monkeypatch, slot, stored):
     assert client.get("/settings/files").json()[slot] is None
 
 
-@pytest.mark.parametrize("slot, stored", [("ebird", "ebird-backup.csv"), ("ml", "ml-export.csv")])
-def test_upload_exactly_at_cap_accepted(tmp_path, monkeypatch, slot, stored):
+@pytest.mark.parametrize("slot, stored, cap", SLOT_CAPS)
+def test_upload_exactly_at_cap_accepted(tmp_path, monkeypatch, slot, stored, cap):
     """The other edge, so the rows above cannot pass by refusing everything."""
-    monkeypatch.setattr(settings_module, "MAX_BYTES", TEST_MAX_BYTES)
+    monkeypatch.setattr(settings_module, cap, TEST_MAX_BYTES)
     body = b"x" * TEST_MAX_BYTES
 
     resp = client.post(
@@ -96,7 +100,7 @@ def test_upload_over_cap_does_not_replace_a_stored_file(tmp_path, monkeypatch):
     )
     assert (tmp_path / "ebird-backup.csv").read_bytes() == good
 
-    monkeypatch.setattr(settings_module, "MAX_BYTES", TEST_MAX_BYTES)
+    monkeypatch.setattr(settings_module, "EBIRD_MAX_BYTES", TEST_MAX_BYTES)
     resp = client.post(
         "/settings/files/ebird",
         files={"file": ("Huge.csv", b"y" * (TEST_MAX_BYTES + 1), "text/csv")},
@@ -105,6 +109,23 @@ def test_upload_over_cap_does_not_replace_a_stored_file(tmp_path, monkeypatch):
     assert resp.status_code == 413
     assert (tmp_path / "ebird-backup.csv").read_bytes() == good
     assert client.get("/settings/files").json()["ebird"]["filename"] == "MyEBirdData.csv"
+
+
+@pytest.mark.parametrize("slot, stored, cap", SLOT_CAPS)
+def test_each_slot_reads_only_its_own_cap(tmp_path, monkeypatch, slot, stored, cap):
+    """The backup's raise is the backup's alone: lowering the OTHER slot's cap
+    leaves this slot accepting a body over it."""
+    other = "MAX_BYTES" if cap == "EBIRD_MAX_BYTES" else "EBIRD_MAX_BYTES"
+    monkeypatch.setattr(settings_module, other, TEST_MAX_BYTES)
+    body = b"z" * (TEST_MAX_BYTES + 1)
+
+    resp = client.post(
+        f"/settings/files/{slot}",
+        files={"file": ("MyEBirdData.csv", body, "text/csv")},
+    )
+
+    assert resp.status_code == 200
+    assert (tmp_path / stored).read_bytes() == body
 
 
 def test_get_ebird_when_stored(tmp_path):

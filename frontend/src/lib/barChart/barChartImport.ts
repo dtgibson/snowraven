@@ -19,7 +19,7 @@
 import { storage, type FileOrigin } from '../storage'
 import { notifyBarChartFilesChanged } from '../barChartFilesChanged'
 import { icloudActions } from '../icloud/icloudState'
-import { refuseBarChartByContent, refuseByFilename } from '../uploadGuard'
+import { refuseBarChartByContent, refuseByFilename, refuseBySize } from '../uploadGuard'
 import { parseBarChart } from './parseBarChart'
 
 /** The file could not be read from the picker (a revoked handle, an I/O error). */
@@ -36,9 +36,13 @@ export async function importBarChartFile(
   filename: string,
   getContent: () => Promise<string>,
   origin?: FileOrigin,
+  /** The size the picker reports (`File.size`), checked before the read. */
+  byteSize?: number,
 ): Promise<BarChartImportResult> {
   const nameRefusal = refuseByFilename(filename, 'barchart')
   if (nameRefusal) return { ok: false, reason: nameRefusal }
+  const sizeRefusal = byteSize === undefined ? null : refuseBySize(byteSize, 'barchart')
+  if (sizeRefusal) return { ok: false, reason: sizeRefusal }
 
   let content: string
   try {

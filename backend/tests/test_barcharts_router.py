@@ -131,7 +131,7 @@ def test_the_shared_cap_is_enforced_here_too(tmp_path, monkeypatch, size, expect
     assert resp.status_code == expected
     if expected == 413:
         # The label is derived from the constant the route read, not repeated.
-        assert resp.json()["detail"] == f"File exceeds the {settings_module._max_bytes_label()} limit."
+        assert resp.json()["detail"] == f"File exceeds the {settings_module._max_bytes_label(settings_module.MAX_BYTES)} limit."
         assert not (tmp_path / "barcharts" / "US-CA-001.txt").exists()
         assert "US-CA-001" not in client.get("/settings/barcharts").json()["counties"]
 

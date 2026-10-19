@@ -40,6 +40,18 @@ export interface PickedCsv {
   content: string;
 }
 
+// THE SIZE REFUSAL ON THIS PATH, stated because it differs from Mechanism A's
+// (big-old-life-lists, decisions.md entry 4). The file input reports `File.size`
+// before a byte is read, and Settings refuses an export over the platform's cap on
+// that number. This path cannot: `open()` returns a path and nothing else, and the
+// file's size before the read would need plugin-fs `stat`, which no capability in
+// src-tauri/capabilities grants. So here the size is checked only after
+// `readTextFile` has returned, by `refuseByContent`'s UTF-8 count, the backstop
+// both paths keep. That is acceptable while this path is a fallback no platform
+// uses (both constants above are 'input'). Flipping either constant to 'dialog'
+// owes the pre-read check first: grant `fs:allow-stat` for the picked path in
+// capabilities/mobile.json, `stat()` it here, and refuse before `readTextFile`.
+
 // Present the native document picker (Mechanism B) and read the chosen CSV.
 // Resolves null when the user cancels (FR-13: clean no-op). Throws on failure
 // and the caller routes that into the existing error state; a read that fails
