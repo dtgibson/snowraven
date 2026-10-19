@@ -1,0 +1,200 @@
+[
+  {
+    "engine": "chromium",
+    "tab": "Weather",
+    "identical": true,
+    "lines": 17,
+    "hashBefore": "b4710ebbc568a7ce",
+    "hashAfter": "b4710ebbc568a7ce",
+    "differingLines": 0
+  },
+  {
+    "engine": "chromium",
+    "tab": "Species Detail",
+    "identical": true,
+    "lines": 51,
+    "hashBefore": "f5d9bbc4ecfa3b9a",
+    "hashAfter": "f5d9bbc4ecfa3b9a",
+    "differingLines": 0
+  },
+  {
+    "engine": "chromium",
+    "tab": "Statistics",
+    "identical": true,
+    "lines": 1618,
+    "hashBefore": "94de9daa210b665f",
+    "hashAfter": "94de9daa210b665f",
+    "differingLines": 0
+  },
+  {
+    "engine": "chromium",
+    "tab": "Calendar",
+    "identical": true,
+    "lines": 310,
+    "hashBefore": "87041c6c85abfeda",
+    "hashAfter": "87041c6c85abfeda",
+    "differingLines": 0
+  },
+  {
+    "engine": "chromium",
+    "tab": "Map Explorer",
+    "identical": true,
+    "lines": 484,
+    "hashBefore": "6dcb497499209e7d",
+    "hashAfter": "6dcb497499209e7d",
+    "differingLines": 0
+  },
+  {
+    "engine": "chromium",
+    "tab": "Multimedia",
+    "identical": true,
+    "lines": 2698,
+    "hashBefore": "c9223d6f3bbd1345",
+    "hashAfter": "c9223d6f3bbd1345",
+    "differingLines": 0
+  },
+  {
+    "engine": "chromium",
+    "tab": "Breeding Codes",
+    "identical": true,
+    "lines": 928,
+    "hashBefore": "e7f3f6fba0c1e472",
+    "hashAfter": "e7f3f6fba0c1e472",
+    "differingLines": 0
+  },
+  {
+    "engine": "chromium",
+    "tab": "Named Birds",
+    "identical": true,
+    "lines": 39,
+    "hashBefore": "9cc898909a20b559",
+    "hashAfter": "9cc898909a20b559",
+    "differingLines": 0
+  },
+  {
+    "engine": "chromium",
+    "tab": "Checklists",
+    "identical": true,
+    "lines": 325,
+    "hashBefore": "4129190cf5bddd9c",
+    "hashAfter": "4129190cf5bddd9c",
+    "differingLines": 0
+  },
+  {
+    "engine": "chromium",
+    "tab": "List Comparer",
+    "identical": true,
+    "lines": 9,
+    "hashBefore": "6f77498099cf9da4",
+    "hashAfter": "6f77498099cf9da4",
+    "differingLines": 0
+  },
+  {
+    "engine": "chromium",
+    "tab": "Targets",
+    "identical": true,
+    "lines": 38,
+    "hashBefore": "778173e29c68291f",
+    "hashAfter": "778173e29c68291f",
+    "differingLines": 0
+  },
+  {
+    "engine": "webkit",
+    "tab": "Weather",
+    "identical": true,
+    "lines": 17,
+    "hashBefore": "b4710ebbc568a7ce",
+    "hashAfter": "b4710ebbc568a7ce",
+    "differingLines": 0
+  },
+  {
+    "engine": "webkit",
+    "tab": "Species Detail",
+    "identical": true,
+    "lines": 15,
+    "hashBefore": "7536cabf02cf596f",
+    "hashAfter": "7536cabf02cf596f",
+    "differingLines": 0
+  },
+  {
+    "engine": "webkit",
+    "tab": "Statistics",
+    "identical": true,
+    "lines": 1561,
+    "hashBefore": "ae019707bbbe9dab",
+    "hashAfter": "ae019707bbbe9dab",
+    "differingLines": 0
+  },
+  {
+    "engine": "webkit",
+    "tab": "Calendar",
+    "identical": true,
+    "lines": 311,
+    "hashBefore": "9775317f9114b9a6",
+    "hashAfter": "9775317f9114b9a6",
+    "differingLines": 0
+  },
+  {
+    "engine": "webkit",
+    "tab": "Map Explorer",
+    "identical": true,
+    "lines": 485,
+    "hashBefore": "671631d3cb75429f",
+    "hashAfter": "671631d3cb75429f",
+    "differingLines": 0
+  },
+  {
+    "engine": "webkit",
+    "tab": "Multimedia",
+    "identical": true,
+    "lines": 1343,
+    "hashBefore": "fcf4fca63c620b6e",
+    "hashAfter": "fcf4fca63c620b6e",
+    "differingLines": 0
+  },
+  {
+    "engine": "webkit",
+    "tab": "Breeding Codes",
+    "identical": true,
+    "lines": 367,
+    "hashBefore": "892861a9f0b88eb4",
+    "hashAfter": "892861a9f0b88eb4",
+    "differingLines": 0
+  },
+  {
+    "engine": "webkit",
+    "tab": "Named Birds",
+    "identical": true,
+    "lines": 39,
+    "hashBefore": "9cc898909a20b559",
+    "hashAfter": "9cc898909a20b559",
+    "differingLines": 0
+  },
+  {
+    "engine": "webkit",
+    "tab": "Checklists",
+    "identical": true,
+    "lines": 284,
+    "hashBefore": "7e0b915094e9d1dc",
+    "hashAfter": "7e0b915094e9d1dc",
+    "differingLines": 0
+  },
+  {
+    "engine": "webkit",
+    "tab": "List Comparer",
+    "identical": true,
+    "lines": 11,
+    "hashBefore": "c2fceab7620064b0",
+    "hashAfter": "c2fceab7620064b0",
+    "differingLines": 0
+  },
+  {
+    "engine": "webkit",
+    "tab": "Targets",
+    "identical": true,
+    "lines": 26,
+    "hashBefore": "ace8d920bb70855e",
+    "hashAfter": "ace8d920bb70855e",
+    "differingLines": 0
+  }
+]

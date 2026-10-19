@@ -1,0 +1,258 @@
+[
+  {
+    "engine": "chromium",
+    "tab": "Weather",
+    "reached": true,
+    "newErrors": [],
+    "suspectLines": [],
+    "chars": 603
+  },
+  {
+    "engine": "chromium",
+    "tab": "Species Detail",
+    "reached": true,
+    "newErrors": [],
+    "suspectLines": [],
+    "chars": 250
+  },
+  {
+    "engine": "chromium",
+    "tab": "Statistics",
+    "reached": true,
+    "newErrors": [],
+    "suspectLines": [],
+    "chars": 10139
+  },
+  {
+    "engine": "chromium",
+    "tab": "Calendar",
+    "reached": true,
+    "newErrors": [],
+    "suspectLines": [],
+    "chars": 788
+  },
+  {
+    "engine": "chromium",
+    "tab": "Map Explorer",
+    "reached": true,
+    "newErrors": [],
+    "suspectLines": [],
+    "chars": 685
+  },
+  {
+    "engine": "chromium",
+    "tab": "Multimedia",
+    "reached": true,
+    "newErrors": [],
+    "suspectLines": [],
+    "chars": 0
+  },
+  {
+    "engine": "chromium",
+    "tab": "Breeding Codes",
+    "reached": true,
+    "newErrors": [],
+    "suspectLines": [],
+    "chars": 782
+  },
+  {
+    "engine": "chromium",
+    "tab": "Named Birds",
+    "reached": true,
+    "newErrors": [],
+    "suspectLines": [],
+    "chars": 383
+  },
+  {
+    "engine": "chromium",
+    "tab": "Checklists",
+    "reached": true,
+    "newErrors": [],
+    "suspectLines": [],
+    "chars": 2106
+  },
+  {
+    "engine": "chromium",
+    "tab": "List Comparer",
+    "reached": true,
+    "newErrors": [],
+    "suspectLines": [],
+    "chars": 266
+  },
+  {
+    "engine": "chromium",
+    "tab": "Targets",
+    "reached": true,
+    "newErrors": [],
+    "suspectLines": [],
+    "chars": 1139
+  },
+  {
+    "engine": "chromium",
+    "tab": "Statistics (boundary years printed)",
+    "found": {
+      "1850": true,
+      "1855": true,
+      "1871": true,
+      "1883": true,
+      "1899": true,
+      "1900": true,
+      "1912": true,
+      "1935": true,
+      "1969": true,
+      "1970": true,
+      "1999": true,
+      "2000": true,
+      "2024": true,
+      "2026": true
+    }
+  },
+  {
+    "engine": "chromium",
+    "tab": "Calendar (boundary years printed)",
+    "found": {
+      "1850": false,
+      "1855": false,
+      "1871": false,
+      "1883": false,
+      "1899": false,
+      "1900": false,
+      "1912": false,
+      "1935": false,
+      "1969": false,
+      "1970": false,
+      "1999": false,
+      "2000": false,
+      "2024": false,
+      "2026": true
+    }
+  },
+  {
+    "engine": "webkit",
+    "tab": "Weather",
+    "reached": true,
+    "newErrors": [],
+    "suspectLines": [],
+    "chars": 603
+  },
+  {
+    "engine": "webkit",
+    "tab": "Species Detail",
+    "reached": true,
+    "newErrors": [],
+    "suspectLines": [],
+    "chars": 216
+  },
+  {
+    "engine": "webkit",
+    "tab": "Statistics",
+    "reached": true,
+    "newErrors": [],
+    "suspectLines": [],
+    "chars": 9815
+  },
+  {
+    "engine": "webkit",
+    "tab": "Calendar",
+    "reached": true,
+    "newErrors": [],
+    "suspectLines": [],
+    "chars": 789
+  },
+  {
+    "engine": "webkit",
+    "tab": "Map Explorer",
+    "reached": true,
+    "newErrors": [],
+    "suspectLines": [],
+    "chars": 737
+  },
+  {
+    "engine": "webkit",
+    "tab": "Multimedia",
+    "reached": true,
+    "newErrors": [],
+    "suspectLines": [],
+    "chars": 402
+  },
+  {
+    "engine": "webkit",
+    "tab": "Breeding Codes",
+    "reached": true,
+    "newErrors": [],
+    "suspectLines": [],
+    "chars": 701
+  },
+  {
+    "engine": "webkit",
+    "tab": "Named Birds",
+    "reached": true,
+    "newErrors": [],
+    "suspectLines": [],
+    "chars": 383
+  },
+  {
+    "engine": "webkit",
+    "tab": "Checklists",
+    "reached": true,
+    "newErrors": [],
+    "suspectLines": [],
+    "chars": 2036
+  },
+  {
+    "engine": "webkit",
+    "tab": "List Comparer",
+    "reached": true,
+    "newErrors": [],
+    "suspectLines": [],
+    "chars": 268
+  },
+  {
+    "engine": "webkit",
+    "tab": "Targets",
+    "reached": true,
+    "newErrors": [],
+    "suspectLines": [],
+    "chars": 878
+  },
+  {
+    "engine": "webkit",
+    "tab": "Statistics (boundary years printed)",
+    "found": {
+      "1850": true,
+      "1855": true,
+      "1871": true,
+      "1883": true,
+      "1899": true,
+      "1900": true,
+      "1912": true,
+      "1935": true,
+      "1969": true,
+      "1970": true,
+      "1999": true,
+      "2000": true,
+      "2024": true,
+      "2026": true
+    }
+  },
+  {
+    "engine": "webkit",
+    "tab": "Calendar (boundary years printed)",
+    "found": {
+      "1850": false,
+      "1855": false,
+      "1871": false,
+      "1883": false,
+      "1899": false,
+      "1900": false,
+      "1912": false,
+      "1935": false,
+      "1969": false,
+      "1970": false,
+      "1999": false,
+      "2000": false,
+      "2024": false,
+      "2026": true
+    }
+  }
+]

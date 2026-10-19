@@ -64,7 +64,7 @@ worker's is another, so the clone column is the figure for both.
 | reference 21,369 | 19.0 MB (931 B/row) | 18.3 MB | 14 MB (697) | 20.3 MB (998) |
 | 21,856 | 17.3 (832) | 16.7 | 13 (603) | 18.8 (902) |
 | 300,000 | 238 (832) | 232 | 175 (611) | 260 (908) |
-| 600,000 | 477 (833) | 465 | — | 518 (906) |
+| 600,000 | 477 (833) | 465 | not run | 518 (906) |
 | 1,000,000 | 793 (831) | 776 | 584 (612) | 868 (910) |
 
 Linear, so the brief's guess of about 0.9 GB a copy at 1M rows was right for
@@ -116,8 +116,18 @@ table):
 | V8 Node (no pointer compression), 1M | 831 | 271 + 34 = 305 | 2.7x |
 
 At 1M rows a held copy falls from 868 MB to about 272 MB in JavaScriptCore.
-Every tab's output on the reference export is identical (the per-tab outputs
-serialized and compared, `measure-tabs-node.mjs ... check`: all ten true), the
+At the small end the factor depends on how many rows share a checklist: the
+reference export (6.6 rows a checklist, long weather blocks) is 3.5x in JSC and
+about 3.9x in Chromium, the synthetic 21,856 (comments unique per checklist) 2.6x
+in JSC; Node's no-pointer-compression V8 reads 2.3x to 2.9x.
+
+Every tab's output on the reference export is identical, checked twice: the
+per-tab derivations serialized and compared (`measure-tabs-node.mjs ... check`,
+all ten true), and every tab's PAGE TEXT in the built app, the base commit's
+build against this one over one copy of the reference data, in Chromium and
+WebKit at 1440px with the clock pinned (`compare-builds.mjs`,
+`identical-output-reference.json`: 11 of 11 tabs identical in both engines;
+the file records hashes only, never the user's text). The
 1M-row packed parse equals the shipped parse slice by slice, and the parser
 oracle (`parseEbirdObservationsStreaming.test.ts`, which carries the pre-change
 parser verbatim) passes over the demo export, the real export on this Mac, the
@@ -238,8 +248,9 @@ than added.
 ## 5. The stats budget's ceiling is derived from the parse budget at each platform's cap (2026-10-19)
 
 `STATS_BUDGET_CEILING_MS` (the literal 240 s) is now `statsBudgetCeilingMs()`,
-the parse budget (`parseBudgetMs`, unchanged and now exported from
-`observationsCache.ts`) at this platform's upload cap. Characters never exceed
+the parse budget (`parseBudgetMs`, unchanged and moved into its own module,
+`parseBudget.ts`, so suites that mock `observationsCache` wholesale keep it) at
+this platform's upload cap. Characters never exceed
 UTF-8 bytes, so no accepted export's parse budget passes it, and "anything that
 survived its parse has at least as long to compute" holds by construction. At
 the old 50 MiB cap the derivation gives 239.7 s, the shipped 240 s within a
@@ -260,3 +271,176 @@ parse (the same null answer, without parsing a file that would be refused after)
 In the harness page the same release (`release=1`) is part of every "packed" peak
 above; it is half of why the packed peaks fall at all, since the copies are the
 smaller part of a peak.
+
+## 7. Caps a 1M-row export reaches: two raised, the rest examined and kept (2026-10-19)
+
+A 1M-row export holds 118,809 checklists at the synthetic export's 8.4 rows a
+checklist and about 152,000 at the reference export's 6.6. So a cap keyed on
+CHECKLISTS is reached; a cap keyed on something export size does not drive is
+not.
+
+| cap | was | now | why |
+|---|---|---|---|
+| `PROJECTS_MAX_CHECKLISTS` (fill-and-stop) | 65,536 | **262,144** | one entry per swept checklist |
+| `PROVENANCE_MAX_CHECKLISTS` (FIFO ledger) | 32,768 | **262,144** | one entry per consulted checklist |
+| `PROVENANCE_MAX_SPECIES` (admission) | 16,384 | 16,384 | above the world list (11,167); cannot bind |
+| `COMPLETENESS_MAX_ENTRIES` / `_BYTES` (FIFO) | 250 / 4 M | unchanged | keyed on birded counties in view, which a map pan drives, not export size; an eviction costs one re-fetch |
+| `DAY_OBS_MAX_ENTRIES` / `_BYTES` | 3,000 / 10 M | unchanged | keyed on the counties opened in Targets; so the main-thread peer merge (DECISIONS ~442) keeps its standing |
+| replay (300), hotspot activity (2,000), name memo (32,768) | | unchanged | keyed on responses, hotspots in view and published names (17,891), none of them export-sized |
+
+Both raised caps keep their policy and are now `*_DEFAULT` constants the test
+seams reset to, so a reset can no longer restate a stale literal. Each is
+measured at the SHIPPED cap plus one as work done (`checklistProjectsCache.test.ts`,
+`exoticProvenanceCache.test.ts`): a full projects document refuses the next key
+with zero evictions; a full ledger evicts exactly one and shifts exactly the cap.
+
+**The measured costs** (`measure-settings-docs.js`, `measure-snapshot-rebuild.js`):
+- Both stores live inside the shared settings document, which every preference
+  save parses and rewrites whole. At 262,144 the projects store is 18.8 M
+  characters typical (46 M worst admitted) and the ledger 10.5 M: one save's
+  parse plus stringify is about 250 ms (V8) and 140 ms (JSC) for the projects
+  store, 220 and 70 ms for the ledger, against about 55 and 30 ms at the old caps.
+  A store grows only as its sweep or passes admit checklists, so only an account
+  past the old cap pays any of this.
+- Each admitted answer rebuilds the store's snapshot over every key: 47 ms (V8)
+  and 46 ms (JSC) per answer at 262,144 for the projects Map, 16 ms for the
+  ledger Set, against 5 ms at the old projects cap. Filling 262,144 entries
+  through the merge path in a test is therefore quadratic (it did not finish in
+  five minutes), which is why the capacity rows load a full document instead.
+  In the app the sweep is paced at 150 ms or more per request, so late in a
+  sweep of that size about a third of the main thread goes to rebuilds.
+- Both are recorded as follow-ups rather than fixed here: the projects store
+  belongs in its own document with its own writer (the day-obs store's v1.0.39
+  move), and both snapshots could update in place. Neither is in the brief, and
+  each changes a shipped store's shape or contract.
+
+## 8. Milestones run to 10,000, and the five-digit label fits the grid (2026-10-19)
+
+`MILESTONE_THRESHOLDS` gains every 500 from 3,500 to 10,000 (eBird's taxonomy
+holds about 11,000 species), rendered in the existing tier 4. No token, class,
+tier or grid rule changed. `birdingStats.test.ts` proves a 10,050-species list
+reaches each new threshold on the species that reached it.
+
+**Re-measured in the BUILT app** (`measure-milestone-grid.mjs` over the backend
+serving `gen-milestone-export.mjs`'s 10,050 species; `evidence/milestone-grid/`):
+
+| engine, text | columns | badge | `10,000` slack | any overflow or wrap | page scroll |
+|---|---|---|---|---|---|
+| Chromium 100% | 2 | 117 px | 26 px | none | 0 |
+| Chromium 200% | 1 | 242 px | 61 px | none | 0 |
+| WebKit 100% | 2 | 117 px | 25 px | none | 0 |
+| WebKit 200% | 1 | 242 px | 60 px | none | 0 |
+
+The grid is the v1.0.50 shape exactly (two 117 px columns at 100%, one at 200%),
+and the widest label keeps 25 px. So the v1.0.50 reversal condition is not met
+and nothing routes to The Designer. The screenshots are the last eight badges at
+320 px in each engine and scale. One pre-existing behavior shows in them and is
+not this change's: a long single-word name ("Laughingthrush") breaks mid-word
+under the grid's `overflow-wrap: anywhere`.
+
+## 9. Pre-1970 and pre-1900 dates: driven through every tab, no defect found (2026-10-19)
+
+`gen-eras-export.mjs` writes 44 checklists from 1850 to 2026, including the
+boundary days where date code goes wrong: 1883-11-17 to 19 (US time zones
+replaced local mean time on the 18th), 1899-12-31 and 1900-01-01, 1969-12-31 and
+1970-01-01, and 2000-02-29. `sweep-eras.mjs` drove every tab of the built app
+over it in Chromium and WebKit with the zone pinned to America/New_York
+(`evidence/eras/sweep-eras.json`): every tab reached, no page error, no console
+error, no "Invalid Date", "NaN", "undefined" or "Infinity" in any tab's text, and
+Statistics' per-year rows printed all fourteen boundary years in both engines.
+Under the same zone in Node, `buildDayCells` puts each boundary checklist on its
+own day (1883-11-17, 18 and 19 in their own cells). The two places that count
+days between dates (the streak, the weekly period key) anchor at local noon and
+round or floor with twelve hours of margin, which the 1883 offset change
+(3 min 58 s) cannot cross. The 10,050-species milestone fixture runs 1890 to 1917
+and renders its dates ("May 19, 1917") in both engines.
+
+## 10. Splits and lumps back to 2019: the generator is ready, the inputs are owed (2026-10-19)
+
+Fixed from what the derive core and its tests show; the asset is NOT
+regenerated, because Cornell's files are not on this Mac (the input folder
+holds only its README; birds.cornell.edu refuses scripts) and the run fetches
+nothing.
+- **The 2022 Pink Pigeon shape.** A candidate lump whose whole before side is
+  ONE species that is the survivor's own previous identity lost no species: a
+  re-code, a rename, or a subspecies moved in under a "lump" annotation. It is
+  now excluded like any other rename. It is not a guess, because:
+- **eBird's announced tally is now REQUIRED for every covered year.** A real lump
+  excluded by the rule above leaves the derived "lost" short, and the run fails
+  closed naming what it excluded. 2023 to 2025 carry their tallies; 2019, 2021
+  and 2022 need theirs added (the user, from eBird's announcements).
+- The rule cannot change the committed 2023 to 2025 asset: under the old code
+  any such candidate failed closed, and that asset was generated, so none exists
+  in those years.
+- **Failure messages name what was wanted:** a missing column lists the header
+  the file has; an unused input names, for every uncovered year, the exact file
+  or column that year lacks; a year whose change cells use another vocabulary
+  (the 2021 and 2022 files' "colon-style" vocabulary the v1.0.41 schema
+  recorded) shows the cells it saw, beside the tally failure it causes; and
+  integrated headers written with underscores are read.
+- **No 2020 row, deliberately.** eBird released no 2020 update, which
+  `YEARS_WITHOUT_UPDATE` already records, so 2021's previous update is 2019.
+  Reversal: a v2020 file on Cornell's download page means adding the row and
+  taking 2020 out of that list.
+- `taxonomyHistoryGenerator.test.ts` holds each of these on the in-memory
+  fixture, and the README lists the fourteen files and three tallies the
+  follow-up needs.
+
+## 11. Verification record (2026-10-19)
+
+Run after the last code change (`7ea28392`), on this Mac with the emulator and
+simulator shut down and nothing else of mine compiling:
+- `cd frontend && npx vitest run`: **472 files passed, 5 skipped; 10,256 tests
+  passed, 6 skipped, 0 failed** (95 s). The first full run had 8 failures: 7 in
+  `statsWorkerFallback.test.tsx` (its wholesale `observationsCache` mock had no
+  `parseBudgetMs`, fixed by entry 5's module move, and its fake worker took the
+  old hand-over) and 1 timing quotient in `alphaCodes.test.ts` (3.26 against a
+  3.2 ceiling, a file this run does not touch; 15 of 15 green alone and in the
+  second full run).
+- `npm run typecheck` (tsc -b): clean. `npm run lint` (eslint): clean.
+- `npm run build`: built; the one warning (a chunk over 1,100 kB) is the base
+  commit's too.
+- `cd backend && .venv/bin/python -m pytest tests/ -q`: **2,063 passed**.
+- Literal non-ASCII in the change: none added to source. The em dashes in
+  `parseBudget.ts` and `observationsCache.ts` are comment text that moved with
+  its block. The harness's weather-block emoji, written as `\u` escapes, had
+  been turned into literal characters by an edit; they are escapes again and the
+  generator's output is byte-identical (`cmp`).
+- The settle contracts: a reply that does not materialize settles the parse as a
+  failed load (new row in `observationsCacheSettle.test.ts`); the stats
+  hand-over materializes in the worker inside its `try`, so a bad one answers
+  `{ ok: false }` and the caller falls back.
+
+**What is Partial, and why.**
+- The built Mac, iPhone and Android apps were not loaded with a large export
+  (entry 1): the engines were measured in pages instead. The apps read the file
+  over IPC, which adds a copy these pages do not have.
+- Physical devices were not used (CLAUDE.md). The iPhone and Android caps rest on
+  the simulator's and emulator's memory readings against the shipped 50 MB
+  peak, not on a device's kill limit.
+- The CPU-throttled Pi stand-in throttles the main thread only (entry 1).
+- Splits and lumps coverage before 2023 waits for the user's files and tallies
+  (entry 10).
+
+## Convention Flags
+
+- **A structured clone does not keep string sharing in V8, so data whose memory
+  depends on shared strings crosses a worker boundary as a string table plus
+  transferred buffers, and each side builds its own objects.** Measured here:
+  interned entries were 315 B/row before one V8 clone and 782 after; JSC keeps
+  the sharing. `observationsPacked.ts` is the reference.
+- **A suspended async function keeps its locals alive across later awaits, so a
+  large value that must be released mid-flow is handled in a plain function or a
+  promise chain, never in an async function's local.** Measured in the harness
+  (the packed reply's buffers stayed alive for the whole run) and applied in
+  `observationsCache.ts` (`loadFresh`, `startParse`, `awaitParseReply`).
+- **An upload cap is set per platform from that engine's measured peak memory
+  against the cap it replaces (memory-neutral), and a raise applies only to the
+  file whose parse was made smaller.** `uploadGuard.ts`, decisions entry 3.
+- **A cap's test seam resets to a named `*_DEFAULT` constant, never to a
+  restated literal.** `PROJECTS_MAX_CHECKLISTS_DEFAULT`,
+  `PROVENANCE_MAX_CHECKLISTS_DEFAULT`, `PROVENANCE_MAX_SPECIES_DEFAULT`.
+- **A capacity+1 row at a large shipped cap loads a full document rather than
+  filling through the merge path**, when each merge does work proportional to the
+  store (both snapshot rebuilds here are; filling 262,144 that way did not finish
+  in five minutes).

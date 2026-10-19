@@ -18,7 +18,7 @@ const transfers = (p: PackedObservations) => [p.str.buffer, p.num.buffer]
 declare const self: { onmessage: ((e: MessageEvent) => void) | null; postMessage: (m: unknown, t?: Transferable[]) => void }
 
 if (typeof document === 'undefined') {
-  // ── worker ──
+  // -- worker --
   let held: ObservationEntry[] | null = null
   self.onmessage = (e: MessageEvent) => {
     const m = e.data
@@ -43,7 +43,7 @@ if (typeof document === 'undefined') {
     }
   }
 } else {
-  // ── page ──
+  // -- page --
   const q = new URLSearchParams(location.search)
   const csv = q.get('csv') ?? 'big-21856.csv'
   const shape = q.get('shape') ?? 'packed'
