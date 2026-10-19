@@ -81,6 +81,16 @@ const fail = (msg) => { throw new HistoryInputError(msg) }
 // Sources: https://ebird.org/news/2024-taxonomy-update (2024) and eBird's
 // taxonomy update announcements for 2023 and 2025, linked from
 // https://science.ebird.org/en/use-ebird-data/the-ebird-taxonomy.
+//
+// REQUIRED FOR EVERY COVERED YEAR since big-old-life-lists: a covered year with
+// no `announced` fails closed, because the tally is the independent check the
+// rename rule in deriveYear rests on. 2019, 2021 and 2022 (the years that take
+// coverage back to 2019) need theirs added from eBird's announcements before
+// they can ship; this run could not read them (the generator never fetches).
+// There is no 2020 row because eBird released no 2020 update
+// (YEARS_WITHOUT_UPDATE): the 2021 update's previous update is 2019. If
+// Cornell's download page ever lists a v2020 file, that is the reversal: add
+// the row and take 2020 out of YEARS_WITHOUT_UPDATE.
 export const UPDATE_PUBLISHED = Object.freeze({
   2013: { published: '2013-10-14', mark: 'measured' },
   2014: { published: '2014-08-01', mark: 'assumed' },
@@ -157,7 +167,7 @@ const joinKey = (s) => lower(s).replace(/\u2019/g, "'")
 
 function columnIndex(header, file, test, label) {
   const idx = header.findIndex(h => test(norm(h)))
-  if (idx < 0) fail(`${file}: missing required column ${label}`)
+  if (idx < 0) fail(`${file}: missing required column ${label} (its header row has: ${header.map(h => JSON.stringify(h.trim())).join(', ')})`)
   return idx
 }
 
@@ -210,7 +220,10 @@ const INFRASPECIFIC = /^(group|subspecies|form|intergrade|domestic|issf)/
 export function readIntegrated(file, text, year) {
   const rows = parseCsv(text)
   if (rows.length < 2) fail(`${file}: no data rows`)
-  const header = rows[0]
+  // Cornell has written these headers with spaces ("sort v2023") and with
+  // underscores ("sort_v2023"); both are read as spaces, here only (the
+  // taxonomy file's SPECIES_CODE-style names keep their underscores).
+  const header = rows[0].map(h => h.replace(/_/g, ' '))
   const iCat = columnIndex(header, file, h => h === 'category', 'category')
   const iEng = columnIndex(header, file, h => h === 'english name', 'English name')
   const iSci = columnIndex(header, file, h => h === 'scientific name', 'scientific name')
@@ -220,7 +233,7 @@ export function readIntegrated(file, text, year) {
     if (m) sorts.push({ i, year: Number(m[1]) })
   })
   const own = sorts.find(s => s.year === year)
-  if (!own) fail(`${file}: missing required column sort v${year}`)
+  if (!own) fail(`${file}: missing required column sort v${year} (its header row has: ${rows[0].map(h => JSON.stringify(h.trim())).join(', ')})`)
   const prev = sorts.find(s => s.year !== year) ?? null
   const iChange = header.findIndex(h => /^clements v\d{4}[a-z]? change$/.test(norm(h)))
   const iText = header.findIndex(h => /^text for website v\d{4}[a-z]?$/.test(norm(h)))
@@ -249,7 +262,17 @@ export function readIntegrated(file, text, year) {
       text: iText >= 0 ? (r[iText] ?? '').trim() : '',
     })
   }
-  return { file, year, rows: out, hasChangeColumns: iChange >= 0 && iText >= 0 && prev !== null }
+  return {
+    file, year, rows: out,
+    hasChangeColumns: iChange >= 0 && iText >= 0 && prev !== null,
+    // What a year needs to be COVERED by this file, named for the failure that
+    // explains why a supplied file was not used.
+    missingForCoverage: [
+      iChange < 0 ? `Clements v${year} change` : null,
+      iText < 0 ? `text for website v${year}` : null,
+      prev === null ? `the previous update's sort column (sort vYYYY)` : null,
+    ].filter(Boolean),
+  }
 }
 
 /** The change cell's tokens: "split; range" -> ["split", "range"]. A token must
@@ -342,7 +365,25 @@ export function deriveHistory(input) {
     used.add(`clements-integrated-v${y}.csv`).add(`clements-integrated-v${p}.csv`)
     used.add(`ebird-taxonomy-v${y}.csv`).add(`ebird-taxonomy-v${p}.csv`)
   }
-  for (const f of input.files) if (!used.has(f.name)) fail(`input ${f.name} is not needed by any covered year (remove it, or supply the files that would make its year covered)`)
+  // Why a year with an integrated file is not covered, by name, so a refused
+  // input says exactly which file or column would make it count.
+  const whyNotCovered = (y) => {
+    const p = previousUpdate(y, withoutUpdate)
+    const reasons = []
+    const int = integrated.get(y)
+    if (int && int.missingForCoverage.length > 0) reasons.push(`${int.file} has no ${int.missingForCoverage.join(', no ')} column`)
+    if (!taxonomy.has(y)) reasons.push(`ebird-taxonomy-v${y}.csv is missing`)
+    if (!taxonomy.has(p)) reasons.push(`ebird-taxonomy-v${p}.csv (the ${p} update before it) is missing`)
+    if (!integrated.has(p)) reasons.push(`clements-integrated-v${p}.csv (the ${p} update before it) is missing`)
+    return reasons
+  }
+  const uncovered = [...integrated.keys()].sort((a, b) => a - b).filter(y => !covered.includes(y))
+    .map(y => ({ y, why: whyNotCovered(y) })).filter(u => u.why.length > 0)
+  for (const f of input.files) {
+    if (used.has(f.name)) continue
+    const why = uncovered.map(u => `${u.y} is not covered because ${u.why.join('; ')}`).join('. ')
+    fail(`input ${f.name} is not needed by any covered year (remove it, or supply the files that would make its year covered${why ? `: ${why}` : ''})`)
+  }
 
   // Snapshot views: current species by code, and current sci by code.
   const snapSpecies = new Set(Object.values(snapshot.byCom))
@@ -355,18 +396,29 @@ export function deriveHistory(input) {
     const rec = published[year]
     if (!rec) fail(`no published date for the ${year} update in UPDATE_PUBLISHED`)
     if (rec.mark !== 'measured') fail(`the published date for ${year} is marked "${rec.mark}"; verify it and mark it measured before this year can ship`)
+    // eBird's announced tally is REQUIRED for every covered year (big-old-life-
+    // lists): it is the independent check that a resolver misplaced nothing,
+    // and the rename rule in deriveYear leans on it.
+    if (!rec.announced) {
+      fail(`no announced tally for the ${year} update in UPDATE_PUBLISHED: add announced: { gained, lost } (species eBird gained through splits and lost through lumps that year, from its announcement) before this year can ship`)
+    }
+    const diag = { excluded: [], vocabulary: null }
     const yearEvents = deriveYear(year, previousUpdate(year, withoutUpdate), {
       intY: integrated.get(year), intP: integrated.get(previousUpdate(year, withoutUpdate)),
       taxY: taxonomy.get(year), taxP: taxonomy.get(previousUpdate(year, withoutUpdate)),
       published: rec.published,
+      diag,
     })
-    if (yearEvents.length === 0) fail(`the ${year} update produced no events; remove its inputs rather than claim coverage`)
-    if (rec.announced) {
-      const got = tally(yearEvents)
-      if (got.gained !== rec.announced.gained || got.lost !== rec.announced.lost) {
-        fail(`the ${year} events tally ${got.gained} gained through splits and ${got.lost} lost through lumps, but eBird announced ${rec.announced.gained} and ${rec.announced.lost}`)
-      }
+    const notes = [
+      diag.excluded.length ? `excluded as renames, not lumps: ${diag.excluded.join('; ')}` : null,
+      diag.vocabulary,
+    ].filter(Boolean)
+    const note = notes.length ? ` (${notes.join('. ')})` : ''
+    const got = tally(yearEvents)
+    if (got.gained !== rec.announced.gained || got.lost !== rec.announced.lost) {
+      fail(`the ${year} events tally ${got.gained} gained through splits and ${got.lost} lost through lumps, but eBird announced ${rec.announced.gained} and ${rec.announced.lost}${note}`)
     }
+    if (yearEvents.length === 0) fail(`the ${year} update produced no events; remove its inputs rather than claim coverage${note}`)
     updates.push({ year, published: rec.published })
     events.push(...yearEvents)
   }
@@ -413,7 +465,8 @@ function entryOf(t) {
   return { code: t.code, sci: t.sci, com: t.com }
 }
 
-function deriveYear(year, prevYear, { intY, intP, taxY, taxP, published }) {
+function deriveYear(year, prevYear, { intY, intP, taxY, taxP, published, diag = { excluded: [], vocabulary: null } }) {
+  const excluded = diag.excluded
   const label = `${intY.file}`
   const speciesY = (sci) => taxY.speciesBySci.get(joinKey(sci))
   const speciesP = (sci) => taxP.speciesBySci.get(joinKey(sci))
@@ -434,6 +487,13 @@ function deriveYear(year, prevYear, { intY, intP, taxY, taxP, published }) {
   const species = intY.rows.filter(r => r.category === 'species')
   const daughterRows = species.filter(r => changeTokens(r.change).includes('split'))
   const survivorRows = species.filter(r => changeTokens(r.change).includes('lump'))
+  if (daughterRows.length === 0 && survivorRows.length === 0) {
+    // Not one species row carries the token, which in a real update means the
+    // year's change cells use another vocabulary, not that nothing happened.
+    // Reported with the tally or no-events failure this almost always causes.
+    const seen = [...new Set(species.map(r => r.change).filter(Boolean))].slice(0, 12)
+    diag.vocabulary = `no species row of ${label} carries the change token "split" or "lump"; its change cells include ${seen.length ? seen.map(v => JSON.stringify(v)).join(', ') : 'nothing at all'}`
+  }
 
   const joinY = (r) => speciesY(r.sci) ?? fail(`${label}: species row "${r.english}" (${r.sci}) joins no ${year} taxonomy species`)
 
@@ -632,6 +692,21 @@ function deriveYear(year, prevYear, { intY, intP, taxY, taxP, published }) {
     if (!annotated.has(s)) {
       // An unannotated lump: add the survivor's own previous identity.
       for (const own of previousIdentity(taxY.byCode.get(s), null)) set.add(own)
+    }
+    // A RENAME, NOT A LUMP (big-old-life-lists). A candidate whose whole before
+    // side is ONE species that is the survivor's own previous identity lost no
+    // species: eBird re-coded or renamed it, or moved a subspecies into it
+    // under a "lump" annotation. Renames are excluded like every other
+    // non-split, non-lump change. This is never a silent guess: the year's
+    // announced tally is required, so a real lump excluded here leaves the
+    // derived "lost" short and the run fails closed, naming it.
+    if (set.size === 1) {
+      const [only] = set
+      const ownRow = survivorRows.find(r => joinY(r).code === s) ?? null
+      if (previousIdentity(taxY.byCode.get(s), ownRow).has(only)) {
+        excluded.push(`"${taxY.byCode.get(s).com}" (${s}) from ${only}`)
+        continue
+      }
     }
     if (set.size < 2) {
       fail(`${label}: lump into "${taxY.byCode.get(s).com}" (${s}) has ${set.size} before-side species (${[...set].join(', ')}); a lump needs two or more`)

@@ -72,9 +72,12 @@ const SNAPSHOT: SnapshotLike = {
   bySci: { 'genus beta': 'vvv', 'genus gamma': 'zzz' },
 }
 
+// eBird's announced tally is required for every covered year (big-old-life-
+// lists), so the fixture carries the fixture's own: one species gained in 2023,
+// one lost in 2024.
 const PUBLISHED: Record<number, PublishedRow> = {
-  2023: { published: '2023-10-24', mark: 'measured' },
-  2024: { published: '2024-10-22', mark: 'measured' },
+  2023: { published: '2023-10-24', mark: 'measured', announced: { gained: 1, lost: 0 } },
+  2024: { published: '2024-10-22', mark: 'measured', announced: { gained: 0, lost: 1 } },
 }
 
 type Files = Record<string, string>
@@ -218,9 +221,43 @@ describe('the generator fails closed and returns nothing (QA-04, schema.md 4.3)'
     expectFailsClosed({ ...BASE, 'eBird_taxonomy_v2024.csv': TAX_2024 }, /unrecognised input file name/)
   })
 
-  it('a missing required header', () => {
-    expectFailsClosed(replace('ebird-taxonomy-v2023.csv', 'REPORT_AS', 'REPORTED_AS'), /missing required column REPORT_AS/)
-    expectFailsClosed(replace('clements-integrated-v2023.csv', 'English name', 'Common name'), /missing required column English name/)
+  it('a missing required header, naming the columns the file does have', () => {
+    expectFailsClosed(replace('ebird-taxonomy-v2023.csv', 'REPORT_AS', 'REPORTED_AS'), /missing required column REPORT_AS \(its header row has: .*"REPORTED_AS"\)/)
+    expectFailsClosed(replace('clements-integrated-v2023.csv', 'English name', 'Common name'), /missing required column English name \(its header row has: .*"Common name"/)
+  })
+
+  it('an input no covered year uses says which file or column its year lacks', () => {
+    // 2023's checklist without its change columns: 2023 is not covered, and the
+    // refusal names the two columns rather than only "not needed".
+    const files = {
+      'ebird-taxonomy-v2022.csv': TAX_2022, 'ebird-taxonomy-v2023.csv': TAX_2023,
+      'clements-integrated-v2022.csv': INT_2022,
+      'clements-integrated-v2023.csv': INT_2022.replace('sort v2022', 'sort v2023'),
+    }
+    expectFailsClosed(files, /2023 is not covered because clements-integrated-v2023.csv has no Clements v2023 change, no text for website v2023, no the previous update's sort column/)
+    // And a missing previous-year file is named by its exact name.
+    const noPrevTax = { ...BASE }
+    delete (noPrevTax as Record<string, string>)['ebird-taxonomy-v2022.csv']
+    expectFailsClosed(noPrevTax, /2023 is not covered because ebird-taxonomy-v2022.csv \(the 2022 update before it\) is missing/)
+  })
+
+  it('a year whose change cells use another vocabulary says so, with the cells it saw', () => {
+    // Without the issf rows the taxonomy offers no promotion link either, so
+    // nothing finds the split and the tally fails, carrying the vocabulary.
+    const files = {
+      ...BASE,
+      'ebird-taxonomy-v2022.csv': TAX_2022.replace('3,issf,yyy,Alpha Bird (Beta),Genus alpha beta,xxx\r\n', '').replace('\r\n4,issf,zzz,Alpha Bird (Gamma),Genus alpha gamma,xxx', ''),
+      'clements-integrated-v2023.csv': INT_2023.replace(',split,', ',new species (from split),').replace(',split; range,', ',new species (from split),'),
+    }
+    expectFailsClosed(files, /no species row of clements-integrated-v2023.csv carries the change token "split" or "lump"; its change cells include "new species \(from split\)"/)
+  })
+
+  it('reads integrated headers written with underscores', () => {
+    const files = {
+      ...BASE,
+      'clements-integrated-v2023.csv': INT_2023.replace('Clements v2023 change,text for website v2023,category,English name', 'Clements_v2023_change,text_for_website_v2023,category,English_name'),
+    }
+    expect(run(files).events.map(e => e.kind)).toEqual(['split', 'lump'])
   })
 
   it('a U+FFFD in a name cell (a non-UTF-8 file read as UTF-8)', () => {
@@ -272,13 +309,24 @@ describe('the generator fails closed and returns nothing (QA-04, schema.md 4.3)'
     expectFailsClosed(files, /split of "Alpha Bird" \(xxx\) has 1 daughter/)
   })
 
-  it('a lump with fewer than two before-side species', () => {
-    // Delta Bird stays a species in 2024, so the lump has only Beta Bird.
+  it('a "lump" whose one before-side species is the survivor itself is a rename: excluded, and the announced tally fails it closed when eBird counted it', () => {
+    // Delta Bird stays a species in 2024, so the "lump" has only Beta Bird,
+    // which is Vee Bird's own previous identity: Beta Bird re-coded and renamed.
+    // big-old-life-lists: that is excluded as a rename (the 2022 Pink Pigeon
+    // shape the v1.0.41 run could not get past), and because the tally is
+    // required, a year that counted it as a lump still refuses to ship, and the
+    // message names what was excluded.
     const files = {
       ...BASE,
       'ebird-taxonomy-v2024.csv': TAX_2024.replace('2,issf,www,Vee Bird (Delta),Genus beta delta,vvv', '2,species,www,Delta Bird,Genus delta,'),
     }
-    expectFailsClosed(files, /lump into "Vee Bird" \(vvv\) has 1 before-side species/)
+    expectFailsClosed(files, /tally 0 gained .* and 0 lost .* announced 0 and 1 \(excluded as renames, not lumps: "Vee Bird" \(vvv\) from yyy\)/)
+  })
+
+  it('a covered year without eBird\'s announced tally', () => {
+    expectFailsClosed(BASE, /no announced tally for the 2024 update in UPDATE_PUBLISHED: add announced: \{ gained, lost \}/, {
+      ...PUBLISHED, 2024: { published: '2024-10-22', mark: 'measured' },
+    })
   })
 
   it('a covered year with no published date, or with an assumed one', () => {

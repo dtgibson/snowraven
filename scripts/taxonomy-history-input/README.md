@@ -41,6 +41,31 @@ carries, which only the year's own file has.
 | `clements-integrated-v2025.csv` | `eBird-Clements_v2025-integrated-checklist-October-2025.csv` |
 | `ebird-taxonomy-v2022.csv` to `ebird-taxonomy-v2025.csv` | Cornell's `eBird_taxonomy_v2022.csv` to `eBird_taxonomy_v2025.csv` |
 
+## Extending coverage back to 2019 (big-old-life-lists)
+
+Covering the 2019, 2021 and 2022 updates (eBird released no 2020 update, so
+2021's previous update is 2019) needs, beside the 2022 to 2025 files above:
+
+| File | From Cornell's download for |
+|---|---|
+| `clements-integrated-v2018.csv` | the 2018 update (August 2018), previous-year file only |
+| `ebird-taxonomy-v2018.csv` | the 2018 update |
+| `clements-integrated-v2019.csv` | the 2019 update (August 2019) |
+| `ebird-taxonomy-v2019.csv` | the 2019 update |
+| `clements-integrated-v2021.csv` | the 2021 update (August 2021) |
+| `ebird-taxonomy-v2021.csv` | the 2021 update |
+
+`clements-integrated-v2022.csv` and `ebird-taxonomy-v2022.csv` are the files
+already listed above. Each integrated file must carry its year's `Clements vY
+change` and `text for website vY` columns and the previous update's `sort vP`
+column (spaces or underscores both read); the generator names any it cannot
+find.
+
+Each of 2019, 2021 and 2022 also needs eBird's **announced tally** (species
+gained through splits, species lost through lumps) as `announced: { gained,
+lost }` on its row in `UPDATE_PUBLISHED`: a covered year without one fails
+closed, because the tally is what proves no event was misplaced.
+
 ## The annual refresh
 
 After `scripts/build-ebird-taxonomy.mjs` writes the new snapshot, add the new
