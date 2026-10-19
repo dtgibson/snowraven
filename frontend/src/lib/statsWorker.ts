@@ -17,6 +17,7 @@
 // DIED, and this worker is meant to answer again. Catching it keeps "that compute
 // failed" and "the worker is gone" as two different events on the wire.
 import { computeStatsBundle } from './statsBundle'
+import { materializeObservations } from './observationsPacked'
 import type { StatsWorkerMessage, StatsWorkerReply } from './statsOffThread'
 import type { ObservationEntry } from '../types'
 
@@ -25,10 +26,14 @@ const ctx = self as unknown as Worker
 let held: readonly ObservationEntry[] | null = null
 
 ctx.onmessage = (e: MessageEvent<StatsWorkerMessage>) => {
-  const { id, observations, request } = e.data
-  if (observations) held = observations
+  const { id, packed, request } = e.data
   let reply: StatsWorkerReply
   try {
+    // The hand-over arrives PACKED (big-old-life-lists): the entries held here
+    // are built from it, so they share their strings the way the main thread's
+    // do. A hand-over that does not materialize throws here and is answered
+    // `{ ok: false }`, which sends the caller to its fallback.
+    if (packed) held = materializeObservations(packed)
     // A compute with nothing to compute over means the hand-over was lost — a
     // request built as a follow-up for a worker that never received the first
     // message. Answering `{ ok: false }` sends the caller to its fallback, which

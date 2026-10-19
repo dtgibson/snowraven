@@ -1,6 +1,10 @@
 import type { ObservationEntry } from '../types'
 import { computeStatsBundle, isStatsBundle } from './statsBundle'
 import type { StatsBundle, StatsRequest } from './statsBundle'
+import { packObservationEntries, packedTransferables } from './observationsPacked'
+import type { PackedObservations } from './observationsPacked'
+import { parseBudgetMs } from './observationsCache'
+import { maxUploadBytes } from './uploadGuard'
 
 /**
  * The worker protocol.
@@ -17,8 +21,11 @@ import type { StatsBundle, StatsRequest } from './statsBundle'
 export interface StatsWorkerMessage {
   id: number
   /** Present only on the first message to a given worker (and again after a
-   *  respawn). Absent means "use the observations you are already holding". */
-  observations?: readonly ObservationEntry[]
+   *  respawn), as the PACKED form with its buffers transferred: the worker
+   *  materializes its own entries, whose strings are shared the way the main
+   *  thread's are (big-old-life-lists). Absent means "use the observations you
+   *  are already holding". */
+  packed?: PackedObservations
   request: StatsRequest
 }
 
@@ -81,10 +88,11 @@ export type StatsWorkerReply =
 // request's structured clone on a busy device, none of which scale with the export.
 //
 // AND IT IS CAPPED, because rows are not bounded the way characters are. The two
-// parse budgets scale on the size of the file they were handed, so the 50 MB
-// upload cap (`MAX_UPLOAD_BYTES`, twinned with the backend's `MAX_BYTES`) bounds
-// them arithmetically: the eBird parse cannot hand out more than 30 s + 50 MB x
-// 4 s/MB, about 230 s. This budget scales on ROWS, and the byte cap bounds rows
+// parse budgets scale on the size of the file they were handed, so the upload
+// cap (`maxUploadBytes('ebird')`, per platform since big-old-life-lists; web/Pi's
+// is twinned with the backend's `EBIRD_MAX_BYTES`) bounds them arithmetically: at the
+// 50 MB cap this was written for, the eBird parse could not hand out more than
+// 30 s + 50 MB x 4 s/MB, about 230 s. This budget scales on ROWS, and the byte cap bounds rows
 // only through a rows-per-byte ratio nothing enforces. The reference export runs
 // ~329 characters per row, which at the cap is ~152,000 rows and lands near the
 // parse's own ceiling by coincidence rather than by construction; an export of
@@ -92,8 +100,8 @@ export type StatsWorkerReply =
 // formula would hand out hours. A budget of hours is not a bounded failure, it
 // is the hang with extra steps.
 //
-// The ceiling is 4 MINUTES, chosen as the analogue of the parse's ~230 s rather
-// than as a new number: this budget covers a structured-clone leg the parse does
+// The ceiling was 4 MINUTES, chosen as the analogue of the parse's ~230 s rather
+// than as a new number (re-anchored below): this budget covers a structured-clone leg the parse does
 // not, so a little above it is right. It binds only past ~140,000 rows, where
 // the measured compute-plus-clone cost is about 0.6 s, so the ceiling is still
 // some 400x the measured work at the point it starts to apply. The stated cost:
@@ -110,12 +118,27 @@ export type StatsWorkerReply =
 // UNCHANGED, which is a conclusion rather than an omission: the margin is still
 // wide enough to clear the slowest device this app ships to, and the added cost
 // is bounded by the BLOCK count rather than the row count in any case.
+//
+// RE-ANCHORED PER PLATFORM, NOT RESTATED (big-old-life-lists). The ceiling was
+// the literal 240 s, chosen as the analogue of the parse budget's ~230 s at the
+// 50 MB cap. With a cap per platform that anchor moves, so the ceiling is now
+// DERIVED: the parse budget (`parseBudgetMs`, observationsCache.ts) at this
+// platform's upload cap. Characters never exceed UTF-8 bytes, so no export this
+// platform accepts gets a parse budget past it, and the invariant holds by
+// construction: anything that survived its parse has at least as long to
+// compute. At the old 50 MiB cap the derivation gives 239.7 s, which is the
+// shipped 240 s to within a third of a second.
 const STATS_BUDGET_FLOOR_MS = 30_000
 const STATS_BUDGET_MS_PER_ROW = 1.5
-const STATS_BUDGET_CEILING_MS = 240_000
 
-export function statsBudgetMs(rows: number): number {
-  return Math.min(STATS_BUDGET_FLOOR_MS + rows * STATS_BUDGET_MS_PER_ROW, STATS_BUDGET_CEILING_MS)
+/** The ceiling: the parse budget at the eBird backup's upload cap (`capBytes`,
+ *  this platform's by default), never below the floor. */
+export function statsBudgetCeilingMs(capBytes: number = maxUploadBytes('ebird')): number {
+  return Math.max(STATS_BUDGET_FLOOR_MS, Math.ceil(parseBudgetMs(capBytes)))
+}
+
+export function statsBudgetMs(rows: number, capBytes: number = maxUploadBytes('ebird')): number {
+  return Math.min(STATS_BUDGET_FLOOR_MS + rows * STATS_BUDGET_MS_PER_ROW, statsBudgetCeilingMs(capBytes))
 }
 
 /**
@@ -138,6 +161,15 @@ export function statsBudgetMs(rows: number): number {
  * again — still well inside the ~48 ms of compute it saves, so a toggle after a long
  * pause is a smaller win, never a loss. Thirty seconds comfortably covers a burst of
  * toggles while returning the memory promptly once the user has read their numbers.
+ *
+ * RE-ARGUED FROM THE MEASUREMENT FOR THE PACKED HAND-OVER (big-old-life-lists),
+ * and the bound stays. The held copy is now materialized from the packed form,
+ * so its strings are shared: on the reference export 6.6 MB in V8 (Node) and
+ * 5.8 MB in JavaScriptCore against the 19.2 MB above, about a third. The
+ * hand-over is a pack on this thread (7 ms on the reference export) plus a
+ * transfer, against the 17 ms clone. Both changes make holding the copy cheaper,
+ * neither makes it free (about 300 MB at a million rows), and the tab still
+ * stays mounted, so the thirty-second release is still what returns the memory.
  */
 export const STATS_WORKER_IDLE_MS = 30_000
 
@@ -379,10 +411,17 @@ export function createStatsSession(observations: readonly ObservationEntry[]): S
       // leak and the watchdog would keep a timer armed for a minute; route it
       // through `die`, which does both.
       try {
-        const message: StatsWorkerMessage = loaded
-          ? { id, request }
-          : { id, observations, request }
-        w.postMessage(message)
+        if (loaded) {
+          w.postMessage({ id, request } satisfies StatsWorkerMessage)
+        } else {
+          // Packed here, per hand-over, rather than kept beside the entries for
+          // the export's life: the main thread holds one copy, not two. Measured
+          // at 1M rows, the pack is 0.5 s (V8) to 0.9 s (JavaScriptCore) on this
+          // thread, against 1.3 s to 2.1 s for the structured clone of entries it
+          // replaces, and the buffers are then moved, not copied.
+          const packed = packObservationEntries(observations)
+          w.postMessage({ id, packed, request } satisfies StatsWorkerMessage, packedTransferables(packed))
+        }
         loaded = true
       } catch {
         die('STATS_POST_FAILED')

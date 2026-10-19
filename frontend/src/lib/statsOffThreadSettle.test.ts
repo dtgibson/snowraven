@@ -70,7 +70,10 @@ vi.mock('./statsBundle', async (importOriginal) => {
   }
 })
 
-import { computeStatsWithFallback, createStatsSession, statsBudgetMs, STATS_WORKER_IDLE_MS } from './statsOffThread'
+import { computeStatsWithFallback, createStatsSession, statsBudgetMs, statsBudgetCeilingMs, STATS_WORKER_IDLE_MS } from './statsOffThread'
+import { materializeObservations } from './observationsPacked'
+import { parseBudgetMs } from './observationsCache'
+import { maxUploadBytes, EBIRD_MAX_UPLOAD_BYTES_BY_PLATFORM } from './uploadGuard'
 import { isStatsBundle } from './statsBundle'
 
 /** The UNwrapped chain, for building the expected answer and for the fake worker's
@@ -185,7 +188,8 @@ class FakeWorker {
   postMessage(message: StatsWorkerMessage): void {
     this.posted.push(message)
     if (behavior === 'post-throws') throw new Error('DataCloneError')
-    if (message.observations) this.held = message.observations
+    // The hand-over arrives packed; hold what statsWorker.ts would hold.
+    if (message.packed) this.held = materializeObservations(message.packed)
     this.captured = { onmessage: this.onmessage, onerror: this.onerror, onmessageerror: this.onmessageerror }
     // Per MESSAGE, captured in the closure -- never read back off the instance.
     // With two requests in flight the field holds the SECOND reply by the time
@@ -519,11 +523,13 @@ describe('the export is handed over once, and every later request is small', () 
 
     const posted = only().posted
     expect(posted).toHaveLength(3)
-    expect(posted[0].observations).toBe(OBSERVATIONS)
+    // Packed (big-old-life-lists), and it materializes to exactly the entries
+    // the session was made with.
+    expect(materializeObservations(posted[0].packed!)).toEqual(OBSERVATIONS)
     // The whole reason this session holds a worker: a toggle costs three values,
     // not a clone of the export.
-    expect(posted[1].observations).toBeUndefined()
-    expect(posted[2].observations).toBeUndefined()
+    expect(posted[1].packed).toBeUndefined()
+    expect(posted[2].packed).toBeUndefined()
     expect(posted.map(m => m.id)).toEqual([1, 2, 3])
     session!.dispose()
   })
@@ -573,7 +579,7 @@ describe('the held copy of the export is bounded', () => {
     const again = await computeStatsWithFallback(session, OBSERVATIONS, OTHER_REQUEST)
     expect(again).toEqual(expectedFor(OTHER_REQUEST))
     expect(FakeWorker.made).toHaveLength(2)
-    expect(FakeWorker.made[1].posted[0].observations).toBe(OBSERVATIONS)
+    expect(materializeObservations(FakeWorker.made[1].posted[0].packed!)).toEqual(OBSERVATIONS)
     expect(mocks.mainThreadComputes.count).toBe(0)
     session!.dispose()
   })
@@ -645,19 +651,34 @@ describe('the budget scales with the export, so a slow-but-healthy compute is no
   })
 
   it('and a CEILING, so an export of very short rows cannot buy hours', () => {
-    // Rows are not bounded by the 50 MB upload cap the way characters are: at the
-    // reference export's ~329 characters per row the cap is ~152,000 rows, but an
-    // export of 60-character rows reaches the same 50 MB with several times as
-    // many, and an uncapped formula hands out hours. Hours is not a bounded
-    // failure.
-    expect(statsBudgetMs(10_000_000)).toBe(240_000)
-    expect(statsBudgetMs(1_000_000)).toBe(240_000)
-    // It binds only past ~140,000 rows, so every realistic export is still on the
-    // linear part and nothing healthy is cut short.
-    expect(statsBudgetMs(139_000)).toBeLessThan(240_000)
-    expect(statsBudgetMs(21_856)).toBeLessThan(240_000)
+    // Rows are not bounded by the upload cap the way characters are: at the
+    // reference export's ~329 characters per row a 50 MB cap is ~152,000 rows,
+    // but an export of 60-character rows reaches the same size with several
+    // times as many, and an uncapped formula hands out hours. Hours is not a
+    // bounded failure.
+    const ceiling = statsBudgetCeilingMs()
+    expect(statsBudgetMs(10_000_000)).toBe(ceiling)
+    expect(statsBudgetMs(1_000_000_000)).toBe(ceiling)
+    // Every realistic export is still on the linear part, so nothing healthy is
+    // cut short.
+    expect(statsBudgetMs(21_856)).toBeLessThan(ceiling)
     // Monotone up to the ceiling, so a bigger export never gets a smaller budget.
     expect(statsBudgetMs(50_000)).toBeGreaterThan(statsBudgetMs(21_856))
+  })
+
+  it('the ceiling is the parse budget at each platform\'s upload cap, so anything that survived its parse has at least as long to compute', () => {
+    // big-old-life-lists: derived per platform rather than restated, because a
+    // cap per platform moves the anchor the old 240 s literal was chosen against.
+    for (const cap of Object.values(EBIRD_MAX_UPLOAD_BYTES_BY_PLATFORM)) {
+      // Characters never exceed UTF-8 bytes, so no accepted export's parse
+      // budget passes parseBudgetMs(cap).
+      expect(statsBudgetCeilingMs(cap)).toBeGreaterThanOrEqual(parseBudgetMs(cap))
+      expect(statsBudgetCeilingMs(cap)).toBeLessThan(parseBudgetMs(cap) + 1)
+    }
+    expect(statsBudgetCeilingMs()).toBe(statsBudgetCeilingMs(maxUploadBytes('ebird')))
+    // At the old 50 MiB cap the derivation reproduces the shipped 240 s to
+    // within a second, which is what makes it the same rule rather than a new one.
+    expect(Math.abs(statsBudgetCeilingMs(50 * 1024 * 1024) - 240_000)).toBeLessThan(1_000)
   })
 })
 

@@ -1,4 +1,6 @@
 import type { ObservationEntry } from '../types'
+import { PackedObservationsBuilder, materializeObservations } from './observationsPacked'
+import type { PackedObservations } from './observationsPacked'
 
 // Row-at-a-time CSV reader handling quoted fields with embedded newlines.
 // Follows the same character-level approach required by all eBird CSV parsers
@@ -225,27 +227,54 @@ function entryFromRow(cols: readonly string[], idx: ColumnIndex): ObservationEnt
 }
 
 /**
- * Parse an eBird "MyEBirdData" export into observation entries.
- *
- * Streams the CSV a row at a time (`streamCsvRows`): the source string and the
- * growing entry array are the only whole-file structures alive, never a
- * `string[][]` of every cell. Output is byte-identical to the pre-streaming
- * parser — `parseEbirdObservationsStreaming.test.ts` carries that parser verbatim
- * as a differential oracle and sweeps both over the repo's demo export plus
- * malformed probes.
+ * An upper bound on the export's data rows: its line-feed count. Counted with
+ * `indexOf` (no regex, no slice: nothing here may keep the source alive), so the
+ * pack can size its arrays once instead of doubling them through a large file.
+ * A line feed inside a quoted field over-counts, which only leaves a little
+ * unused room.
  */
-export function parseEbirdObservations(content: string): ObservationEntry[] {
+function rowCapacity(content: string): number {
+  let n = 1
+  for (let i = content.indexOf('\n'); i !== -1; i = content.indexOf('\n', i + 1)) n++
+  return n
+}
+
+/**
+ * Parse an eBird "MyEBirdData" export into the PACKED form (`observationsPacked.ts`):
+ * the parse worker's reply, posted with its buffers transferred.
+ *
+ * Streams the CSV a row at a time (`streamCsvRows`): the source string, the one
+ * reused row array and the packed form are the only whole-file structures alive,
+ * never a `string[][]` of every cell and never an array of per-row objects. Each
+ * row is still built by `entryFromRow`, unchanged, so what is packed is exactly
+ * the entry the shipped parse returned.
+ */
+export function packEbirdObservations(content: string): PackedObservations {
   const rows = streamCsvRows(content)
 
   const header = rows.next()
   if (header.done) throw new Error('INVALID_EBIRD')
   const idx = columnIndex(header.value)
 
-  const entries: ObservationEntry[] = []
+  const packed = new PackedObservationsBuilder(rowCapacity(content))
   for (const cols of rows) {
     const entry = entryFromRow(cols, idx)
-    if (entry !== null) entries.push(entry)
+    if (entry !== null) packed.add(entry)
   }
+  return packed.finish()
+}
 
-  return entries
+/**
+ * Parse an eBird "MyEBirdData" export into observation entries: the packed parse,
+ * materialized on this thread. This is the parse wherever no worker runs it (an
+ * older browser, jsdom under vitest), and its entries share their strings exactly
+ * as the worker path's do.
+ *
+ * Output is byte-identical to the pre-streaming parser —
+ * `parseEbirdObservationsStreaming.test.ts` carries that parser verbatim as a
+ * differential oracle and sweeps both over the repo's demo export plus malformed
+ * probes, which now proves the pack-and-materialize round trip as well.
+ */
+export function parseEbirdObservations(content: string): ObservationEntry[] {
+  return materializeObservations(packEbirdObservations(content))
 }

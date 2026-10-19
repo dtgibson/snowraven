@@ -57,6 +57,8 @@ paths:
   - "frontend/src/lib/recentObsReduce.ts"
   - "frontend/src/lib/barChart/**"
   - "frontend/src/lib/uploadGuard.ts"
+  - "frontend/src/lib/parseEbirdObservations.ts"
+  - "frontend/src/lib/observationsPacked.ts"
   - "frontend/src/lib/targets/**"
   - "frontend/src/lib/countyDayObs*.ts"
   - "frontend/src/lib/barChartFilesChanged.ts"

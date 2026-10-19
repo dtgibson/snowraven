@@ -26,6 +26,8 @@
 //      settles, so the next caller re-reads and re-parses from scratch.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import type { ObservationEntry } from '../types'
+import { packObservationEntries } from './observationsPacked'
+import type { PackedObservations } from './observationsPacked'
 
 const mocks = vi.hoisted(() => ({
   readFile: vi.fn(),
@@ -53,7 +55,9 @@ import { clearEbirdObservationsCache, loadEbirdObservations } from './observatio
 
 const CSV = 'Submission ID,Common Name,Scientific Name,Date\nS1,Sora,Porzana carolina,2024-04-09\n'
 
-/** What a healthy worker posts back. Hand-built, so a reply never runs the parser. */
+/** The entries a healthy worker's reply carries. Hand-built, so a reply never
+ *  runs the parser; the worker posts them PACKED (observationsPacked.ts), and
+ *  this module materializes them. */
 const REPLY: ObservationEntry[] = [{
   submissionId: 'S1', commonName: 'Sora', scientificName: 'Porzana carolina',
   date: '2024-04-09', location: '', locationId: '', latitude: null, longitude: null,
@@ -63,13 +67,13 @@ const REPLY: ObservationEntry[] = [{
 // The budget in observationsCache.ts: 30 s floor + 4 ms per 1,000 characters.
 const budgetFor = (chars: number) => 30_000 + chars * 0.004
 
-type Behavior = 'reply' | 'silent' | 'error' | 'messageerror' | 'post-throws' | 'late-reply'
+type Behavior = 'reply' | 'silent' | 'error' | 'messageerror' | 'post-throws' | 'late-reply' | 'malformed-reply'
 
 let behavior: Behavior = 'reply'
 
 class FakeWorker {
   static made: FakeWorker[] = []
-  onmessage: ((e: MessageEvent<ObservationEntry[]>) => void) | null = null
+  onmessage: ((e: MessageEvent<PackedObservations>) => void) | null = null
   onerror: ((e: unknown) => void) | null = null
   onmessageerror: ((e: unknown) => void) | null = null
   terminations = 0
@@ -84,7 +88,14 @@ class FakeWorker {
     // Reply on a microtask, the way a real worker replies on a later task: never
     // synchronously inside postMessage, so the handlers are already attached.
     void Promise.resolve().then(() => {
-      if (behavior === 'reply') this.onmessage?.({ data: REPLY } as MessageEvent<ObservationEntry[]>)
+      if (behavior === 'reply') this.onmessage?.({ data: packObservationEntries(REPLY) } as MessageEvent<PackedObservations>)
+      // A reply whose string index runs past its table: entries built from it
+      // would carry `undefined` as names, so it must be a failed parse instead.
+      else if (behavior === 'malformed-reply') {
+        const bad = packObservationEntries(REPLY)
+        bad.strings = []
+        this.onmessage?.({ data: bad } as MessageEvent<PackedObservations>)
+      }
       // Plain event stand-ins: the tests run under the node environment, and the
       // module only ever asks THAT the handler fired, never what it carried.
       else if (behavior === 'error') this.onerror?.({ type: 'error' })
@@ -170,6 +181,14 @@ describe('the parse settles on every path, and the worker is always torn down', 
     expect(loaded!.headerLine).toBe('Submission ID,Common Name,Scientific Name,Date')
     expect(only().terminations).toBe(1)
     expect(only().posted).toEqual([CSV])
+    expect(mocks.mainThreadParses.count).toBe(0)
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it('a reply that does not materialize settles as a failed load, never as entries built from it', async () => {
+    behavior = 'malformed-reply'
+    expect(await loadEbirdObservations()).toBeNull()
+    expect(only().terminations).toBe(1)
     expect(mocks.mainThreadParses.count).toBe(0)
     expect(vi.getTimerCount()).toBe(0)
   })
