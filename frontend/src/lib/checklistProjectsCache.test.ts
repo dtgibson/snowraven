@@ -21,7 +21,7 @@ vi.mock('./storage', () => ({
 
 import {
   sanitizeStore, dedupedFetchProjects, loadSnapshot, getSnapshot, getRevision,
-  setProjectsMaxChecklists, remainingCapacity,
+  setProjectsMaxChecklists, remainingCapacity, PROJECTS_MAX_CHECKLISTS, PROJECTS_MAX_CHECKLISTS_DEFAULT,
   _getProjectsCacheWorkStatsForTests, _resetProjectsCacheForTests,
   PROJECTS_TTL_MS, PROJECTS_STORE_KEY,
 } from './checklistProjectsCache'
@@ -365,6 +365,36 @@ describe('admission is FILL-AND-STOP, never FIFO (FR-35, NFR-03)', () => {
     expect(overflow.entry.ids).toEqual([1050])
     expect(overflow.fromNetwork).toBe(true)
   })
+
+  it('at the SHIPPED cap plus one (big-old-life-lists): a full document refuses the next key and evicts nothing', async () => {
+    // The production constant, not a seam: the raise is measured where it
+    // binds, as work done. The store is loaded full from disk rather than
+    // filled through 262,144 merges, because each merge rebuilds the snapshot
+    // (decisions.md entry 7 records that cost); the admission decision is the
+    // same either way.
+    expect(PROJECTS_MAX_CHECKLISTS).toBe(PROJECTS_MAX_CHECKLISTS_DEFAULT)
+    // Its reason, a 1M-row export's checklists at the reference density.
+    expect(PROJECTS_MAX_CHECKLISTS_DEFAULT).toBeGreaterThanOrEqual(152_000)
+    const N = PROJECTS_MAX_CHECKLISTS_DEFAULT
+    const entries: Record<string, unknown> = {}
+    const order: string[] = []
+    for (let i = 1; i <= N; i += 1) { entries[`S${i}`] = { proj: 'EBIRD', ids: [], at: Date.now() }; order.push(`S${i}`) }
+    disk.doc = { version: 1, entries, order }
+    await loadSnapshot()
+    expect(getSnapshot().size).toBe(N)
+    expect(remainingCapacity()).toBe(0)
+
+    const before = _getProjectsCacheWorkStatsForTests()
+    const overflow = await dedupedFetchProjects(`S${N + 1}`, answer('EBIRD_ATL_CA', [1050]))
+    const after = _getProjectsCacheWorkStatsForTests()
+    expect(after.admissionsRefused - before.admissionsRefused).toBe(1)
+    expect(after.admissions - before.admissions).toBe(0)
+    expect(after.evictions).toBe(0)
+    expect(getSnapshot().size).toBe(N)
+    expect(getSnapshot().has('S1')).toBe(true)
+    expect(overflow.refused).toBe(true)
+    expect(overflow.entry.ids).toEqual([1050])
+  }, 60_000)
 
   it('QA-37: re-merging ONE existing id fifty times consumes no admission capacity', async () => {
     // The test that would have caught the v0.5.85 defect: a bound enforced by a

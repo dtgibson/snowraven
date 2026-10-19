@@ -62,11 +62,24 @@ export const PROVENANCE_STORE_KEY = 'exotic-provenance-v1'
 // the birder's life list, which is bounded by the world species list. This cap
 // sits above the entire world taxonomy and cannot bind on real data.
 //
+// It STAYS at 16,384 through big-old-life-lists, which raised caps a 1M-row
+// export reaches: this one cannot bind however large the export, because the
+// world list is the bound.
+//
 // PROVENANCE_MAX_CHECKLISTS: a pass is bounded at MAX_REQUESTS_PER_PASS (500),
-// so reaching 32,768 takes 66 full-budget passes. The reference export has 3,252
-// checklists in total, so its ledger cannot exceed 3,252 however many run.
-export let PROVENANCE_MAX_SPECIES = 16_384
-export let PROVENANCE_MAX_CHECKLISTS = 32_768
+// so reaching the cap takes many full-budget passes, and the ledger is bounded
+// by the export's checklists. The reference export has 3,252, so its ledger
+// cannot exceed 3,252 however many run; a 1M-row export holds 118,809 to about
+// 152,000 (decisions.md entry 7), past the 32,768 this was until
+// big-old-life-lists, so it is now 262,144 (2^18). FIFO, unchanged: an
+// eviction here costs one redundant request and loses no answer. The ledger
+// lives in the shared settings document and grows only as passes consult
+// checklists: at this cap it is 10.5 M characters, about 220 ms of parse plus
+// stringify per settings save in V8 and 70 ms in JavaScriptCore.
+export const PROVENANCE_MAX_SPECIES_DEFAULT = 16_384
+export const PROVENANCE_MAX_CHECKLISTS_DEFAULT = 262_144
+export let PROVENANCE_MAX_SPECIES = PROVENANCE_MAX_SPECIES_DEFAULT
+export let PROVENANCE_MAX_CHECKLISTS = PROVENANCE_MAX_CHECKLISTS_DEFAULT
 
 /** Test seam: override the species admission limit. */
 export function setProvenanceMaxSpecies(n: number): void { PROVENANCE_MAX_SPECIES = n }
@@ -628,6 +641,6 @@ export function _resetProvenanceCacheForTests(): void {
   _revision = 0
   _workStats = EMPTY_WORK_STATS()
   _inflight.clear()
-  PROVENANCE_MAX_SPECIES = 16_384
-  PROVENANCE_MAX_CHECKLISTS = 32_768
+  PROVENANCE_MAX_SPECIES = PROVENANCE_MAX_SPECIES_DEFAULT
+  PROVENANCE_MAX_CHECKLISTS = PROVENANCE_MAX_CHECKLISTS_DEFAULT
 }

@@ -62,15 +62,27 @@ export const PROJECTS_TTL_MS = 365 * 24 * 60 * 60 * 1000
 export const PROJECTS_STORE_KEY = 'checklist-projects-v1'
 
 /**
- * OQ-02's default: 65,536. Fill-and-stop never evicts, so hitting the cap is
- * PERMANENT for this document, which argues for a cap above any real birder
- * rather than the escapee ledger's 32,768 (that ledger is FIFO, so its cap is
- * cheap to hit). The reference account holds 3,252 checklists. The at-capacity
- * display state ships regardless of the number chosen.
+ * 262,144 (2^18; OQ-02's 65,536 until big-old-life-lists). Fill-and-stop never
+ * evicts, so hitting the cap is PERMANENT for this document, which argues for a
+ * cap above any real birder. The reference account holds 3,252 checklists; a
+ * 1M-row export holds 118,809 at the synthetic export's 8.4 rows a checklist
+ * and about 152,000 at the reference export's 6.6, both past the old cap and
+ * under this one. The at-capacity display state ships regardless of the number
+ * chosen.
+ *
+ * THE COST, measured rather than assumed (decisions.md entry 7): the store
+ * lives in the shared settings document, which every preference save parses
+ * and rewrites whole, and it grows only as the sweep admits checklists. At this
+ * cap with typical entries it is 18.8 M characters, about 250 ms of
+ * JSON.parse plus JSON.stringify per save in V8 and 140 ms in JavaScriptCore;
+ * at the old cap, 4.7 M and about 55 ms. Only an account that has swept past
+ * 65,536 checklists pays any of it. Moving the store into its own document,
+ * the day-obs store's v1.0.39 precedent, is the fix if that cost is felt.
  *
  * Mutable binding + test seam, mirroring PROVENANCE_MAX_CHECKLISTS.
  */
-export let PROJECTS_MAX_CHECKLISTS = 65_536
+export const PROJECTS_MAX_CHECKLISTS_DEFAULT = 262_144
+export let PROJECTS_MAX_CHECKLISTS = PROJECTS_MAX_CHECKLISTS_DEFAULT
 
 /** Test seam: override the admission limit. */
 export function setProjectsMaxChecklists(n: number): void { PROJECTS_MAX_CHECKLISTS = n }
@@ -462,5 +474,5 @@ export function _resetProjectsCacheForTests(): void {
   _revision = 0
   _workStats = EMPTY_WORK_STATS()
   _inflight.clear()
-  PROJECTS_MAX_CHECKLISTS = 65_536
+  PROJECTS_MAX_CHECKLISTS = PROJECTS_MAX_CHECKLISTS_DEFAULT
 }

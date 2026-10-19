@@ -276,6 +276,32 @@ describe('capacity+1, measured as WORK DONE, on BOTH ledgers', () => {
     expect(cache.getSnapshot().checklists.size).toBe(8)
   })
 
+  it('at the SHIPPED ledger cap plus one (big-old-life-lists): one eviction, one shift of the cap, nothing grows', async () => {
+    // The production constants, not seams. Loaded full from the document so the
+    // row measures the decision at the cap, as work done.
+    expect(cache.PROVENANCE_MAX_CHECKLISTS).toBe(cache.PROVENANCE_MAX_CHECKLISTS_DEFAULT)
+    // Its reason: a 1M-row export's checklists at the reference density.
+    expect(cache.PROVENANCE_MAX_CHECKLISTS_DEFAULT).toBeGreaterThanOrEqual(152_000)
+    // And the species cap stays where it cannot bind: above the whole world list.
+    expect(cache.PROVENANCE_MAX_SPECIES).toBe(cache.PROVENANCE_MAX_SPECIES_DEFAULT)
+    const N = cache.PROVENANCE_MAX_CHECKLISTS_DEFAULT
+    const checklists: Record<string, number> = {}
+    const order: string[] = []
+    for (let i = 0; i < N; i += 1) { checklists[`S${i}`] = 1_750_000_000_000; order.push(`S${i}`) }
+    seamDoc.value = { version: 1, checklists, order, species: {}, speciesOrder: [], excludedNames: [] }
+    await cache.loadSnapshot()
+    expect(cache.getSnapshot().checklists.size).toBe(N)
+
+    const before = cache._getProvenanceCacheWorkStatsForTests()
+    await cache.mergeChecklist(`S${N}`, [o('musduc', 'N')], ALL, Date.now())
+    const after = cache._getProvenanceCacheWorkStatsForTests()
+    expect(after.evictions - before.evictions).toBe(1)
+    expect(after.shiftedSlots - before.shiftedSlots).toBe(N)   // bounded by the cap
+    expect(cache.getSnapshot().checklists.size).toBe(N)
+    expect(cache.getSnapshot().checklists.has('S0')).toBe(false)  // oldest out
+    expect(cache.getSnapshot().checklists.has(`S${N}`)).toBe(true)
+  }, 60_000)
+
   it('re-merging a checklist already in the ledger moves it without growing it', async () => {
     cache.setProvenanceMaxChecklists(4)
     for (const id of ['S1', 'S2', 'S3']) await cache.mergeChecklist(id, [o('musduc', 'N')], ALL, Date.now())
