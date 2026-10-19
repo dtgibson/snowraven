@@ -795,6 +795,78 @@ Run by The Deployer on entry 13's sign-off, with the `snowraven-release` skill.
   build 1.0.57.1 on their iPhone. CLAUDE.md's per-version App Store and Android
   lists are not yet edited; they are written once the App Store leg is done.
 
+## 15. The App Store leg: 1.0.57 submitted on its own record (2026-10-19, from 16:47 local)
+
+Run by The Deployer on entry 13's sign-off and the device check below, through
+the App Store Connect API with the metadata key `QJA25M7XHM`, from scripts in the
+session scratchpad. Every listing value compared or written was extracted by
+script from the committed files as they stand; none of them was edited.
+
+- **The user's device check:** the user checked TestFlight build 1.0.57.1 on their
+  own iPhone and answered the gate firsthand, **"Works, submit it"** (2026-10-19).
+  That answer reached The Deployer before this leg began (first live read 16:47:20
+  local), and the submission followed at 16:48:23 local, so the check precedes the
+  submission. It is the device check CLAUDE.md requires and the authorization to
+  create the 1.0.57 record on build 1.0.57.1 and submit it.
+- **Live state first:** 25 version records, every one `READY_FOR_SALE`, newest
+  1.0.56 `f0e1fb0f` on build 1.0.56.1 (submission `c0508d3a` `COMPLETE`); no
+  review submission open; no 1.0.57 record; build 1.0.57.1
+  (`49d19aa9-d3c1-4da8-9cba-e79de45afec6`) `VALID`, not expired,
+  `usesNonExemptEncryption` false. The extraction from `appstore/LISTING.md` and
+  `appstore/REVIEW_NOTES.md` was first checked against the live 1.0.56 record and
+  reproduced it field for field, screenshots included, which checks the
+  extraction itself. The create script re-checked the state immediately before
+  writing.
+- **The record:** `POST /v1/appStoreVersions` (201):
+  **`d5b968b4-22ed-4ed9-9663-7d897b2df7ff`**, 1.0.57 on build 1.0.57.1,
+  `AFTER_APPROVAL`, copyright `2026 Dave Gibson` from `LISTING.md`, created
+  16:47:49 local. A new editable app info, `0cacb9c4`, appeared beside the live
+  `af8f4e67`. It arrived with the description, keywords, both URLs, the review
+  notes and both screenshot sets carried over, and with the promotional text and
+  What's New empty.
+- **Writes:** What's New (entry 13's approved sentence) and the promotional text
+  from `LISTING.md`, in one PATCH to the en-US localization (200); both read back
+  byte-identical (146 and 137 characters).
+- **Read-back against the committed files, before submitting and again after,
+  every field identical:** version 1.0.57 on build 1.0.57.1, `AFTER_APPROVAL`, no
+  phased release; one localization, en-US; What's New equal to the approved
+  sentence; description, keywords, promotional text, marketing and support URLs,
+  and copyright equal to `LISTING.md`; on both app infos, name `SnowRaven`,
+  subtitle `Your birding data, explored`, privacy policy URL, and categories
+  Reference and Weather; App Review notes byte-identical to `REVIEW_NOTES.md`'s
+  "Notes for the reviewer" section, 3,898 characters, no demo account.
+- **Screenshots:** `APP_IPHONE_67` and `APP_IPAD_PRO_3GEN_129`, six each, all
+  `COMPLETE`, file names and md5 checksums matching
+  `appstore/screenshots/iphone-6.9` and `ipad-13` in order, all twelve. Nothing
+  was uploaded: no shot shows Settings, where the new limits are named, or a
+  milestone badge past 3,000.
+- **Age rating** on `0cacb9c4`: already answered, every content question `NONE`
+  or false. Its only empty fields are `gracRatingClassificationNumber` (the
+  Korean game-rating number) and `kidsAgeBand` and `developerAgeRatingInfoUrl`,
+  which read null on a non-Kids app. Nothing was changed.
+- **Submit:** a new review submission (`POST /v1/reviewSubmissions`, 201), the
+  version added as its item (`POST /v1/reviewSubmissionItems`, 201), and
+  `submitted: true` (200): **`79869197-6338-4e6a-b900-bd48356e5d47`,
+  `WAITING_FOR_REVIEW`, submitted 2026-10-19 23:48:23 UTC (16:48 local)**. The
+  record reads 1.0.57 `WAITING_FOR_REVIEW`, `AFTER_APPROVAL`, no phased release,
+  and app info `0cacb9c4` `WAITING_FOR_REVIEW`. What's New read back after
+  submitting: "Larger eBird backups now load on iPhone and iPad (up to 64 MB),
+  using less memory, and life list milestones continue past 3,000 species to
+  10,000."
+- **Reconciliation** (read only, after submitting): 26 version records, 81
+  TestFlight trains, 89 builds, every build `VALID`; 1.0.57 in review and the
+  other 25 records `READY_FOR_SALE`. Of the versions from 1.0.13 to 1.0.57 that
+  hold a train or a record, the twenty with no record of their own each have a
+  written disposition in CLAUDE.md: the genuine skips 1.0.15, 1.0.16 and 1.0.18;
+  1.0.25 deferred; 1.0.37 TestFlight-only; and the rollups 1.0.20, 1.0.22, 1.0.26,
+  1.0.29, 1.0.33, 1.0.39, 1.0.41, 1.0.42, 1.0.43, 1.0.44, 1.0.46, 1.0.48, 1.0.49,
+  1.0.52 and 1.0.54. No unaccounted gap.
+- **F-Droid, read again after submitting:** unchanged since entry 14. f-droid.org
+  publishes 1.0.55 and 1.0.53; fdroiddata `master` has 1.0.56's entries and none
+  for 1.0.57. State for 1.0.57: included and this tag not yet built.
+- **Records:** CLAUDE.md's Versioning section gains the 1.0.57 App Store entry and
+  the 1.0.57 Android entry. There was no rollup, so the rollup list is unchanged.
+
 ## Convention Flags
 
 - **A structured clone does not keep string sharing in V8, so data whose memory
