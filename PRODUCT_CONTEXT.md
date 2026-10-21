@@ -15,7 +15,7 @@ An off-by-default **Alerts** section in Settings checks about hourly or about da
 
 ### Splits and lumps on Species Detail
 
-A **Splits and lumps** control beside Subspecies and forms lists every species in the user's eBird backup that eBird split or lumped in a covered annual taxonomy update, and for the selected species a section charts what it was, what it became and which update did it, marks the user's own species, and counts the user's reports under each name, split between those eBird reassigned in the update and those recorded since, all offline from a bundled record of eBird's updates that states the years it covers.
+A **Splits and lumps** control beside Subspecies and forms lists every species in the user's eBird backup that eBird split or lumped in a covered annual taxonomy update, and for the selected species a section charts what it was, what it became and which update did it, marks the user's own species, and counts the user's reports under each name, split between those eBird reassigned in the update and those recorded since, all offline from a bundled record of eBird's 2019 to 2025 updates (eBird made none in 2020) that states the years it covers.
 
 ### Targets
 
