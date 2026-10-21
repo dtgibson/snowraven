@@ -2,6 +2,20 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [1.0.59] - 2026-10-21
+
+### Changed
+- **SnowRaven fills the iPhone Duo's inner screen.** The iPhone and iPad app is built with Xcode 27.1 and the iOS 27.1 SDK, as it has been since 1.0.58's iPhone and iPad build, which is what lets it fill the Duo's inner screen instead of stopping short of the status bar and camera.
+- **No button sits under a camera at the side of the screen.** On a screen with the camera at its side, such as the iPhone Duo's outer screen, the bottom bar, the More sheet, and the Alerts inbox now pad their sides so their buttons stay clear of it. On an Android phone small enough to show the bottom bar when turned sideways, the bar and the More sheet keep clear of a camera cutout the same way. Where no camera sits at the side, as on every other iPhone held upright, nothing moves.
+- **Tapping a filter field on a wide iPhone screen no longer zooms the page.** On an iPhone screen wider than 640 points, such as the Duo's inner screen or an iPhone turned sideways, filter fields and their labels now show at 16 points, as they already did on a narrower iPhone screen, so tapping one no longer zooms in. Some filter rows wrap onto one more line there, and Map Explorer's date range stacks its two dates so the year shows in full. iPad, the Mac, Windows, and the web are unchanged.
+
+### Internal
+- `.sr-navbar`, `.sr-nav-sheet` and `.sr-inbox-sheet` pad `env(safe-area-inset-left)` and `env(safe-area-inset-right)` in `.sr-ios-app` rules, with `.sr-android-app` twins reading `--sr-inset-left` and `--sr-inset-right` for the bar and the More sheet (the inbox has no Android twin). `bottomSurfaceSideInsets.test.ts` pins them, including the resolved cascade.
+- The 16px focus-zoom floor gains an iPhone-only block above 640px, gated on `.sr-ios-app` and the shortest screen side (`max-device-width` or `max-device-height` 700px), so an iPad never matches. It carries the phone tier's two Map Explorer date-pair stacking rules. `filterControlSizeCss.test.ts` pins the gate and its threshold table.
+- `iosMonitorLookups.test.ts` keeps tao's monitor lookups off iOS (tao issue 1373: on the Duo's inner screen `current_monitor()` and `available_monitors()` abort), deriving the desktop-only modules from `lib.rs`'s cfg attributes. Comments at `mod window_geometry;` and in that module's doc name the hazard; no code changed.
+- iOS builds need Xcode 27.1 from this release on, and the release skill describes the iPhone Duo simulator check and the user's real-device check.
+- The F-Droid changelog for this release is three identical files, one per processor-type build (`10000591.txt`, `10000592.txt`, `10000594.txt`), and the in-repo F-Droid recipe names 1.0.59.
+
 ## [1.0.58] - 2026-10-21
 
 ### Changed

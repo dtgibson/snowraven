@@ -1,0 +1,1 @@
+On a phone small enough to show the bottom bar when turned sideways, the bar and the More sheet now keep their buttons clear of a camera cutout at the side of the screen. Nothing else changes on Android.
