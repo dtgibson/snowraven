@@ -657,6 +657,6 @@ Run by The Deployer on section 16's sign-off, with the `snowraven-release` skill
   these commits carry `Claude Opus 5.5`, the model that made them, per the
   session's attribution rule.
 
-## 18. 1.0.58 is ROLLED UP into 1.0.59 for the App Store (2026-10-21)
+## 19. 1.0.58 is ROLLED UP into 1.0.59 for the App Store (2026-10-21)
 
 Decided by the user ("Fold 1.0.58 into 1.0.59") before any 1.0.58 version record existed, so nothing was withdrawn. The reason: the parallel build 1.0.59 (ios27-iphone-duo, in its own worktree) carries two iPhone Duo fixes, the Duo goes on sale 2026-10-23, and 1.0.58.1 is the first build on Xcode 27.1 and lacks them. 1.0.58 therefore holds VALID build 1.0.58.1 (user's iPhone check passed) and no record of its own by rollup, not by skip; the 1.0.59 record carries it, and its What's New must carry held-copy.md (a) word for word, which was sent to the 1.0.59 session verbatim along with the note that both 05 screenshots changed in 507eb48e. The macOS, Windows, Android and TestFlight legs of 1.0.58 are unaffected. CLAUDE.md's version-record list gets the rollup sentence naming both versions (The Chronicler).
