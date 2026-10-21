@@ -15,6 +15,7 @@
 /// <reference types="node" />
 import { describe, it, expect } from 'vitest'
 import { readdirSync, readFileSync } from 'node:fs'
+import { parseRulesAtAnyDepth } from './cssTopLevelRules'
 
 // Vitest stubs `.css` imports (`?raw` included), so read the file directly. Node
 // types are pulled in for this one file by the reference above, matching how
@@ -40,8 +41,13 @@ function rules(): Rule[] {
 
 /** Offset range of the `@media (max-width: 640px)` phone tier, by brace matching. */
 function phoneTierRange(): [number, number] {
-  const at = masked.indexOf('@media (max-width: 640px) {\n')
-  if (at < 0) throw new Error('the ≤640 phone tier block was not found')
+  return blockRange('@media (max-width: 640px) {\n', 'the <=640 phone tier block')
+}
+
+/** Offset range of the block a prelude opens, by brace matching. */
+function blockRange(prelude: string, what: string): [number, number] {
+  const at = masked.indexOf(prelude)
+  if (at < 0) throw new Error(`${what} was not found`)
   const open = masked.indexOf('{', at)
   let depth = 0
   for (let i = open; i < masked.length; i++) {
@@ -50,6 +56,9 @@ function phoneTierRange(): [number, number] {
   }
   throw new Error('unbalanced braces in globals.css')
 }
+
+/** The iPhone-only floor above the phone tier (ios27-iphone-duo), by its opening line. */
+const IPHONE_BLOCK_OPENS = '@media (min-width: 641px) and (max-device-width: 700px),\n'
 
 // ── Exact selector matching ──────────────────────────────────────────────────
 //
@@ -448,6 +457,11 @@ describe('the Map Explorer Date Range pair adapts to the guard (fix: map-explore
     // .sr-field-row inside a fixed 282px overlay, and its fix belongs in its own
     // subtree.
     const [open, close] = phoneTierRange()
+    // The one other place the sidebar's pair stacks: the iPhone-only floor above
+    // the phone tier carries the same rule, gated, because that floor raises the
+    // same two inputs to 16px in a sidebar narrower than this tier's 282px
+    // (ios27-iphone-duo). It is admitted there and nowhere else, and only gated.
+    const [iOpen, iClose] = blockRange(IPHONE_BLOCK_OPENS, 'the iPhone-only floor block')
     for (const r of stackingRules()) {
       // Exact ancestor compound: `.sr-map-sidebar-overlay-x .sr-field-row` is a
       // scope that does not exist, and would leave the pair unstacked while
@@ -455,6 +469,9 @@ describe('the Map Explorer Date Range pair adapts to the guard (fix: map-explore
       const scoped = scopedToSidebar(r)
       if (r.offset > open && r.offset < close) {
         expect(scoped, `${r.selector} in the ≤640 tier must be scoped to the map sidebar`).toBe(true)
+      } else if (r.offset > iOpen && r.offset < iClose) {
+        expect(splitList(r.selector), `${r.selector} in the iPhone block must be the gated sidebar rule`)
+          .toEqual(['.sr-ios-app .sr-map-sidebar-overlay .sr-field-row'])
       } else {
         // The general stacking rule stays where it was, at ≤480.
         expect(scoped, `${r.selector} outside the ≤640 tier must stay unscoped`).toBe(false)
@@ -755,6 +772,98 @@ describe('the premise the formula rests on', () => {
     // 200% with nothing else failing.
     const html = rules().find(r => r.selector === 'html')!
     expect(html.body).toMatch(/font-size:\s*calc\(100%\s*\*\s*var\(--sr-text-scale/)
+  })
+})
+
+describe('the iPhone-only floor above the phone tier (ios27-iphone-duo)', () => {
+  // WebKit zooms a focused field under 16px on the PHONE idiom at any width, so
+  // an iPhone in landscape and the iPhone Duo's inner screen (669x951) need the
+  // phone tier's floor above 640px too; iPad never zooms and must not get it.
+  // Measured on the Duo simulator before the block was added: a 13px field
+  // zoomed the page to 1.231, a 16px one stayed at 1.000
+  // (pipeline/ios27-iphone-duo/decisions.md).
+  //
+  // These rows read the stylesheet through the shared ANY-DEPTH parser, which
+  // keeps each rule's at-rule context (unlike parseTopLevelRules, which skips
+  // at-rule blocks and so could not see either block at all).
+  const ALL = parseRulesAtAnyDepth(css)
+  const PHONE_TIER = '@media (max-width: 640px)'
+  const IPHONE_GATE =
+    '@media (min-width: 641px) and (max-device-width: 700px), (min-width: 641px) and (max-device-height: 700px)'
+  const gated = ALL.filter(r => r.atRules.some(a => /device-(?:width|height)/.test(a)))
+  const phone = (selector: string) => {
+    const hits = ALL.filter(r => r.atRules.length === 1 && r.atRules[0] === PHONE_TIER
+      && r.selector.replace(/\s+/g, ' ') === selector)
+    expect(hits, `${selector} must be declared once in the phone tier`).toHaveLength(1)
+    return hits[0]
+  }
+  const rawFontSize = (body: string) => /font-size:\s*([\s\S]*?);/.exec(body)![1].trim()
+
+  /**
+   * The shortest side, in points, of the two devices the threshold sits between.
+   * A future iPhone wider than the first or iPad narrower than the second moves
+   * these numbers, and the row below then moves the threshold with them.
+   */
+  const SHORTEST_SIDE_PT = {
+    widestIphoneScreen: { device: 'iPhone Duo, inner screen', pt: 669 },
+    smallestIpad: { device: 'iPad mini', pt: 744 },
+  }
+
+  it('is ONE block, in exactly the two-clause device gate, and every rule in it is gated on the iOS app', () => {
+    expect(gated.length, 'never vacuous: the block must exist').toBeGreaterThan(0)
+    for (const r of gated) expect(r.atRules, r.selector).toEqual([IPHONE_GATE])
+    expect(gated.map(r => r.selector.replace(/\s+/g, ' '))).toEqual([
+      '.sr-ios-app .sr-input-16',
+      '.sr-ios-app .sr-ctl-row :is(button, select, input)',
+      '.sr-ios-app .sr-ctl-label',
+      '.sr-ios-app .sr-map-sidebar-overlay .sr-field-row',
+      '.sr-ios-app .sr-map-sidebar-overlay .sr-field-row > *:not(.sr-only)',
+    ])
+    // The width clause starts exactly where the phone tier ends.
+    const phoneMax = Number(/max-width: (\d+)px/.exec(PHONE_TIER)![1])
+    expect([...IPHONE_GATE.matchAll(/min-width: (\d+)px/g)].map(m => Number(m[1]))).toEqual([phoneMax + 1, phoneMax + 1])
+  })
+
+  it('the control and label declarations are the phone tier\'s, byte for byte', () => {
+    const ctl = gated.filter(r => /font-size/.test(r.body) && !/sr-ctl-label/.test(r.selector))
+    expect(ctl).toHaveLength(2)
+    for (const r of ctl) {
+      expect(rawFontSize(r.body)).toBe(rawFontSize(phone('.sr-input-16').body))
+      expect(rawFontSize(r.body)).toBe(rawFontSize(phone('.sr-ctl-row :is(button, select, input)').body))
+    }
+    const label = gated.filter(r => /sr-ctl-label/.test(r.selector))
+    expect(label).toHaveLength(1)
+    expect(rawFontSize(label[0].body)).toBe(rawFontSize(phone('.sr-ctl-label').body))
+  })
+
+  it('its one companion is the phone tier\'s sidebar date-pair stacking, verbatim', () => {
+    // Measured with the floor on: side by side in a 240px sidebar the year was
+    // cut off at 16px, so the pair stacks exactly as it does on a phone.
+    const norm = (body: string) => body.replace(/\s+/g, ' ').trim()
+    const rows = gated.filter(g => /sr-field-row/.test(g.selector))
+    expect(rows, 'never vacuous: both stacking rules must be in the block').toHaveLength(2)
+    for (const r of rows) {
+      const unprefixed = r.selector.replace(/\s+/g, ' ').replace(/^\.sr-ios-app /, '')
+      expect(norm(r.body), r.selector).toBe(norm(phone(unprefixed).body))
+    }
+  })
+
+  it('700 sits between the widest iPhone screen and the smallest iPad, on both device dimensions', () => {
+    // Read off the STYLESHEET's gate, never the spelling pinned above, so a
+    // threshold moved in globals.css is held against the table here.
+    const shipped = new Set(gated.flatMap(r => r.atRules))
+    expect(shipped.size, 'one gate').toBe(1)
+    const bounds = [...[...shipped][0].matchAll(/max-device-(?:width|height): (\d+)px/g)].map(m => Number(m[1]))
+    expect(bounds).toHaveLength(2)
+    expect(new Set(bounds).size, 'both device dimensions carry the same bound').toBe(1)
+    expect(bounds[0]).toBeGreaterThan(SHORTEST_SIDE_PT.widestIphoneScreen.pt)
+    expect(bounds[0]).toBeLessThan(SHORTEST_SIDE_PT.smallestIpad.pt)
+  })
+
+  it('the stylesheet text opens the block with exactly that gate (the offset rows above find it by it)', () => {
+    const [open, close] = blockRange(IPHONE_BLOCK_OPENS, 'the iPhone-only floor block')
+    expect(close).toBeGreaterThan(open)
+    expect(masked.slice(masked.lastIndexOf('@media', open), open).replace(/\s+/g, ' ').trim()).toBe(IPHONE_GATE)
   })
 })
 

@@ -7011,6 +7011,40 @@ select:focus-visible {
   .sr-tg-table .sr-tg-last { padding-inline-end: calc(var(--sr-tg-glyph-hang) - 12px); }
 }
 
+/* iPhone only, above the phone tier (ios27-iphone-duo). WebKit zooms a focused
+   field under 16px on the PHONE idiom at any width, so an iPhone in landscape
+   and the Duo's inner screen need the same floor the phone tier carries; iPad
+   never zooms and is excluded by its shortest side (744pt on the smallest
+   iPad, against 669pt on the widest iPhone screen). Both device dimensions are
+   tested so the gate holds whichever one is reported in landscape. The
+   declarations are the phone tier's, verbatim, and must stay identical to it
+   (filterControlSizeCss.test.ts). Measured before it was added: a 13px field
+   focused on the iPhone Duo simulator's outer screen zoomed the page to 1.231,
+   a 16px field stayed at 1.000 (pipeline/ios27-iphone-duo/decisions.md).
+
+   ONE companion comes with it, and only one, each measured with the floor on
+   in WebKit and Chromium at 669x951, 951x669 and 874x402. The Map Explorer
+   sidebar is clamp(240px, 28vw, 300px) here, never wider than 268px on any
+   iPhone, and side by side its two date fields get 99.5px to 112.6px: at 16px
+   the year was cut off at 240px and 245px ("10/21/202"), so the pair stacks,
+   with the phone tier's declarations verbatim. The Checklists row labels need
+   nothing: at 16px every one still fits its 72px box ("Contains", the widest
+   word, with 4.6px to spare) and "Where & when" wraps to two lines as it does
+   without the floor. The Breeding Codes pill allowance is a 320px repair. */
+@media (min-width: 641px) and (max-device-width: 700px),
+       (min-width: 641px) and (max-device-height: 700px) {
+  .sr-ios-app .sr-input-16,
+  .sr-ios-app .sr-ctl-row :is(button, select, input) {
+    font-size: max(var(--sr-ctl-floor), var(--sr-ctl-rem, 0.75rem)) !important;
+  }
+  .sr-ios-app .sr-ctl-label {
+    font-size: max(calc(var(--sr-ctl-floor)        * var(--sr-label-ratio, 1)),
+                   calc(var(--sr-ctl-rem, 0.75rem) * var(--sr-label-ratio, 1))) !important;
+  }
+  .sr-ios-app .sr-map-sidebar-overlay .sr-field-row { flex-direction: column; align-items: stretch; }
+  .sr-ios-app .sr-map-sidebar-overlay .sr-field-row > *:not(.sr-only) { width: 100%; }
+}
+
 /* ── REPAIR 2: the per-species row's stacked tier, keyed on its own column ────
    (species-detail-weather, FR-35)
 
@@ -7933,16 +7967,30 @@ select:focus-visible {
    viewport-height cap subtracts the same inset, or the column over-extends by
    exactly the inset, which is invisible on a phone and live on iPad.
 
-   The bar and the sheet are full-width boxes at the BOTTOM edge, so they PAD
-   rather than move; `box-sizing: border-box` is global here, so the sheet's cap
-   is unchanged and only its content box moves inward. Top/left/right are not
-   touched on either: neither declares them in a way an inset would help. */
+   The bar and the two sheets are full-width boxes at the BOTTOM edge, so they
+   PAD rather than move, on the bottom and on both sides (ios27-iphone-duo: a
+   side inset, the iPhone Duo's camera or an Android cutout in landscape, would
+   otherwise cover the bar's end cell and the sheets' first rows).
+   `box-sizing: border-box` is global here, so the sheet's cap is unchanged and
+   only its content box moves inward; the bar is the label container query's
+   subject, and a container query reads the content box, so labels drop out
+   only when the cells really cannot hold them. Each edge reads its OWN side's
+   inset, never the opposite one (safeAreaPerSide.test.ts). Top is not touched:
+   neither surface declares it. */
 .sr-ios-app .sr-nav-col {
   top: env(safe-area-inset-top, 0px);
   height: calc(100dvh - env(safe-area-inset-top, 0px));
 }
-.sr-ios-app .sr-navbar { padding-bottom: calc(6px + env(safe-area-inset-bottom, 0px)); }
-.sr-ios-app .sr-nav-sheet { padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px)); }
+.sr-ios-app .sr-navbar {
+  padding-bottom: calc(6px + env(safe-area-inset-bottom, 0px));
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+}
+.sr-ios-app .sr-nav-sheet {
+  padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+}
 /* Android twins (the injected inset, never env()). The Alerts inbox never
    renders on Android (alertsSupported() is false), so it has no twin. */
 .sr-android-app .sr-nav-col {
@@ -7951,9 +7999,15 @@ select:focus-visible {
 }
 .sr-android-app .sr-navbar {
   padding-bottom: calc(6px + var(--sr-inset-bottom, 0px));
+  padding-left: var(--sr-inset-left, 0px);
+  padding-right: var(--sr-inset-right, 0px);
   transition: transform 160ms ease-out;
 }
-.sr-android-app .sr-nav-sheet { padding-bottom: calc(14px + var(--sr-inset-bottom, 0px)); }
+.sr-android-app .sr-nav-sheet {
+  padding-bottom: calc(14px + var(--sr-inset-bottom, 0px));
+  padding-left: var(--sr-inset-left, 0px);
+  padding-right: var(--sr-inset-right, 0px);
+}
 /* While the Android keyboard is up (MainActivity.kt sets `sr-ime-open` on
    <html> from the ime() inset, and pads the webview itself so the viewport
    shrinks), the phone bar slides out rather than sitting on the keys. It is
@@ -7961,13 +8015,26 @@ select:focus-visible {
    covers anyway. Reduced motion: the global block makes the slide instant. */
 .sr-android-app.sr-ime-open .sr-navbar { transform: translateY(100%); }
 /* The Alerts inbox sheet (ios-alerts): its footer pads the bottom edge like the
-   More sheet; at 641px and up the centred panel's root pads the top like the
-   dialog's, so a tall panel never sits under the status bar. */
+   More sheet, and the sheet pads both sides at the phone tier like the More
+   sheet (ios27-iphone-duo), so its head, rows and foot all start inside a side
+   inset. At 641px and up the panel is centred and touches no edge, so there the
+   ROOT pads, the top like the dialog's (a tall panel never sits under the
+   status bar) and both sides with the same 24px breathing room, and the sheet's
+   side padding resets to 0 rather than narrowing the panel's content. */
+.sr-ios-app .sr-inbox-sheet {
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+}
 .sr-ios-app .sr-inbox-foot { padding-bottom: calc(18px + env(safe-area-inset-bottom, 0px)); }
 .sr-ios-app .sr-inbox-root { padding-top: env(safe-area-inset-top, 0px); }
 @media (min-width: 641px) {
-  .sr-ios-app .sr-inbox-root { padding-top: calc(24px + env(safe-area-inset-top, 0px)); }
+  .sr-ios-app .sr-inbox-root {
+    padding-top: calc(24px + env(safe-area-inset-top, 0px));
+    padding-left: calc(24px + env(safe-area-inset-left, 0px));
+    padding-right: calc(24px + env(safe-area-inset-right, 0px));
+  }
   .sr-ios-app .sr-inbox-foot { padding-bottom: 18px; }
+  .sr-ios-app .sr-inbox-sheet { padding-left: 0; padding-right: 0; }
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
