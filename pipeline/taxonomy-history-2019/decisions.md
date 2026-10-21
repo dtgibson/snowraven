@@ -506,3 +506,157 @@ The net row's title in `taxonomyHistoryGenerator.test.ts` still read "never add 
 ## 16. Production sign-off (2026-10-21)
 
 The user confirmed "Confirm, ship 1.0.58 with this copy" at the Deployer's sign-off gate, after reading the held copy inside the gate itself and on a tailnet page (the What's New text, the three F-Droid changelogs carrying it word for word, and both recaptured 05 screenshots beside the ones they replace). That yes approves held-copy.md sections (a) and (b) and the ship to Mac, Windows, the Android APK on emulator evidence (as at 1.0.53 to 1.0.57, the user owns no Android device), and TestFlight. The App Store submission waits for the user's own iPhone check of build 1.0.58.1, as at every ship. The gate's first two renderings did not reach the user with the copy visible (the chat text above the question was not shown to them); the copy was put inside the question text and the option preview on the third, which is the form to use from now on.
+
+## 17. The user's device check of TestFlight 1.0.58.1 (2026-10-21)
+
+Build 1.0.58.1 reads VALID in App Store Connect (uploaded 2026-10-21 15:25 PDT, train 1.0.58). The user's own iPhone check: "It was processed on TestFlight and works on my iPhone", after an earlier "Works, submit it" that arrived before the build existed and was not counted. The App Store submission proceeds on build 1.0.58.1 on its own new record (1.0.57's record d5b968b4 is READY_FOR_SALE, nothing in review), with the approved What's New (held-copy.md (a)).
+
+## 18. Deployment record: 1.0.58 on Mac, Windows, Android and TestFlight (2026-10-21)
+
+Run by The Deployer on section 16's sign-off, with the `snowraven-release` skill.
+
+- **Parallel-ship check, immediately before the push:** after `git fetch origin
+  --tags`, `origin/main` was still `e22a9dc6`, the newest tag was `v1.0.57`, and no
+  `v1.0.58` tag existed on the remote. The login keychain read `no-timeout`.
+- **F-Droid changelogs:** held-copy.md (b) written to `10000581.txt`,
+  `10000582.txt` and `10000584.txt`: 283 bytes each (the text and one newline),
+  SHA-256 `d579aaaef2487c537c697d1e3f9671e28c24c032b416119d006dd90155d11548` each,
+  ASCII only; nothing under the unsplit code `1000058`.
+- **Gates on the final tree, before the release commit:** `npm run typecheck`
+  and `npm run lint` exit 0; the full vitest suite exit 0, 473 files passed and 5
+  skipped, 10,303 tests passed, 6 skipped, 0 failed; `npm run build` exit 0 (its
+  one chunk-size warning predates this run); the backend suite exit 0, 2,066
+  passed.
+- **Commits pushed to `main`** as fast-forwards: `507eb48e` (`chore(release):
+  1.0.58, Splits and lumps back to eBird's 2019 update`: the build's code, the
+  regenerated asset and its tests, the input README, ROADMAP.md,
+  `.claude/rules/bird-names.md`, the six-file version set, the three Fastlane
+  changelogs, both recaptured 05 screenshots, and this run's change brief,
+  decisions, PR description and held copy), `7de62264` (`fix(fdroid): the recipe
+  names v1.0.58's commit`; the recipe, Fastlane and version-source guards, 57 of
+  57, green before the commit), `10d3cf65` (`chore(ios): stamp iOS 1.0.58 build
+  1`, the two Info.plist files only; `iosSceneManifest` and `iosWidgetManifest`,
+  55 of 55, green before the commit), and the docs commit carrying this section
+  and `evidence/`.
+- **Tag `v1.0.58`** (lightweight, like `v1.0.57`) on
+  `507eb48e7d68662fb43b886a2c2d50441a40a841`. Pages deployed the version pill from
+  it (run `39685219667`, success).
+- **iOS (built during the CI wait):** the stale 1.0.57.1 archive moved aside to
+  `snowraven_iOS-1.0.57.1-stale-before-1.0.58.xcarchive`; the three
+  `/tmp/xcshim` shims recreated. Widget extension Swift tests on the local iPhone
+  18 Pro (iOS 27.0) simulator, which the test run booted and which was then shut
+  down: 143 tests, 0 failures, `TEST SUCCEEDED`. `tauri ios build
+  --export-method app-store-connect --build-number 1`, outside the Bash sandbox,
+  against the iPhoneOS 27.1 SDK: `BUILD SUCCEEDED`; Tauri's own export refused
+  with "No Account for Team" and "No profiles" (expected). The fresh archive
+  reads 1.0.58 (1.0.58.1), created 15:21 local; its executable reports
+  `platform IOS` (minos 16.0) and all nine swift-rs libraries `platform 2`. Tauri
+  re-quoted `PRODUCT_NAME` in `project.pbxproj` (a no-op), and that file was
+  restored. The archived `snowraven_widgets.appex` (`not signed at all`) was
+  ad-hoc signed with its entitlements and then lists the App Group. The manual
+  export (`~/.tauri/snowraven-ios-export-options.plist`) succeeded;
+  `DistributionSummary.plist` lists the appex with the App Group alone (profile
+  "SnowRaven Widgets App Store") and the app with the App Group, the three iCloud
+  keys and `Production` (profile "SnowRaven iOS App Store iCloud AppGroup
+  20260924"), both 1.0.58 (1.0.58.1). IPA SHA-256
+  `5149f39f9012ea9d0676cd818d5a2617d24094bcd6fa05a3be1ab9e16bc4bea2`.
+  `altool --validate-app`: VERIFY SUCCEEDED with no errors; `--upload-app`: UPLOAD
+  SUCCEEDED, **Delivery UUID `ba21125d-2552-4dee-bca3-1303f54a697b`**.
+- **TestFlight:** App Store Connect lists build 1.0.58.1 (`ba21125d`) `VALID`,
+  uploaded 15:25 local, on train 1.0.58.
+- **CI on the tag:** Windows Build `39685230527` and Android Build `39685230598`
+  both succeeded, and the lookups pinned to the tag (`gh run list --workflow <wf>
+  --commit 507eb48e...`) return exactly those runs. The Pipeline runs on
+  `507eb48e` (`39685219580`) and `7de62264` (`39685265344`) were cancelled by the
+  next push (`cancel-in-progress`); the run of record is `39685933259` on
+  `10d3cf65`: success (Frontend lint, test, build; Backend lint, test).
+- **Desktop:** `CI=true zsh -lc ./release.sh` exit 0 on a clean tree. Bundle
+  version verified 1.0.58; iCloud entitlements and embedded profile verified; DMG
+  styled, signed and verified; notarization submission
+  `c8644130-2c75-4199-bdbf-64a5f3d69073` `Accepted`, stapled; Windows installer
+  fetched from the tag's run and signed locally; release published 2026-10-21
+  22:35 UTC, not a draft or pre-release:
+  https://github.com/dtgibson/snowraven/releases/tag/v1.0.58. The DMG downloaded
+  back from the release (SHA-256
+  `464207e059263920ce508d75a0975a0213159903529cc62a8c068a59c1d0ec3f`) passes
+  `codesign --verify` (valid on disk, satisfies its Designated Requirement),
+  `stapler validate`, `spctl -a -t open --context context:primary-signature`
+  (accepted, Notarized Developer ID, `DAVID THOMAS GIBSON (8QKC3L2FKP)`) and
+  `hdiutil verify`, and mounts read-only to SnowRaven.app 1.0.58 (x86_64 and
+  arm64). `latest.json` (resolved through `releases/latest/download`): version
+  1.0.58; `darwin-aarch64` and `darwin-x86_64` identical, both on
+  `SnowRaven-updater.app.tar.gz`; `windows-x86_64` on
+  `SnowRaven_1.0.58_x64-setup.exe`. The published installer is byte-identical to
+  run `39685230527`'s artifact (SHA-256
+  `7e9fc3d5324d62645dc214abc4686a65b77bfb17d0e5f357efd63243b52bf09a`).
+- **Android:** `preflight.sh` passed every check (JDK 17, build-tools 36.0.0,
+  Gradle 8.14.3, cargo-tauri 2.11.2, the keystore opens, the version pair, the tag
+  pushed at `507eb48e`, the three changelogs at the tag, run `39685230598`'s
+  artifact `com.dtgibson.snowraven` 1.0.58 / 1000058, not debuggable). `sign.sh`
+  with the recorded digest pinned: v2 and v3, signer `CN=SnowRaven, O=Dave
+  Gibson`, SHA-256
+  `42a3576e445bda4a994793f2ffa056663113275c9805eb2f6cffdc252375996a`, equal to the
+  keystore's certificate and to the recorded digest; signed APK SHA-256
+  `738a5bca1816a69af4607d548bbdc06502483cd84f2d7de4aa9a1a11a79dd164`. Emulator
+  evidence on the local API 36 Google APIs image only (`sr-api36-phone`, started
+  on port 5554 so it is `emulator-5554`, headless, `-gpu host`, no snapshot
+  saved; every `adb` call addressed to it by serial, and no device listing was
+  taken): those exact bytes installed fresh (`pm list packages` showed no
+  SnowRaven before; `versionName` 1.0.58, `versionCode` 1000058), cold start in
+  680 ms to the Welcome screen with the app's one window focused and an empty
+  crash buffer (`evidence/deploy-1.0.58-api36-first-launch.png`). Then, with the
+  website's synthetic demo eBird backup, its Macaulay Library export and its
+  `metadata.json` seeded into `/data/user/0/com.dtgibson.snowraven/data/` with
+  root (the folder created owner `u0_a264`, mode 0700; files 0600; `restorecon`
+  to the app data directory's own SELinux context), Species Detail showed the
+  "Splits and lumps 10 species" control
+  (`evidence/deploy-1.0.58-api36-splits-lumps-control.png`, the count the
+  recaptured store shots show); its list opened with "Every species in your
+  loaded data that eBird split or lumped in its 2019 to 2025 taxonomy updates" and
+  listed American Crow (Lump 2021), Barred Owl (Split 2021), Eastern Meadowlark
+  and Great Horned Owl (Split 2022) beside the 2024 and 2025 entries
+  (`evidence/deploy-1.0.58-api36-splits-lumps-list.png`); picking American Crow
+  showed the September 2021 lump of American Crow and Northwestern Crow
+  (`evidence/deploy-1.0.58-api36-american-crow-2021-lump.png`); and the section
+  ended with "Covers eBird's 2019 to 2025 taxonomy updates. A change made before
+  2019 is not recorded here."
+  (`evidence/deploy-1.0.58-api36-splits-lumps-coverage.png`). The crash buffer
+  stayed empty, with one app window, and the app was still running when the
+  emulator was stopped. WebView 133.0.6943.137: **WebView 133, unchanged since
+  the last measurement.** `attach.sh` with `ANDROID_DEVICE_CHECK=partial`
+  (section 16, emulator only): byte-identical to the checked file, uploaded to
+  v1.0.58 as `SnowRaven_1.0.58_android_universal.apk` and downloaded back, asset
+  SHA-256 `738a5bca1816a69af4607d548bbdc06502483cd84f2d7de4aa9a1a11a79dd164`.
+- **F-Droid, read at the ship (public reads):** f-droid.org publishes 1.0.55
+  (10000551, 10000552, 10000554) and 1.0.53. fdroiddata `master` has 1.0.56's and
+  1.0.57's three entries each and `CurrentVersion` 1.0.57, nothing for 1.0.58 yet.
+  State: 1.0.56 **included and this tag not yet built**; 1.0.57 **included and
+  this tag not yet built**; 1.0.58 **included and this tag not yet built**. This
+  tag changes nothing under `scripts/android/` or `src-tauri/gen/android/`, and
+  the recipe differs from 1.0.57's only in versions, codes and the commit, so
+  nothing goes to fdroiddata.
+- **App Store Connect, read only, after the TestFlight build went VALID:** 26
+  version records, 1.0.57 (`d5b968b4`) and every other `READY_FOR_SALE`, nothing
+  in review, no 1.0.58 record; TestFlight's newest builds 1.0.58.1, 1.0.57.1,
+  1.0.56.1 and 1.0.55.1, all `VALID`; no 1.0.59 build.
+- **The App Store leg: 1.0.58 is ROLLED UP into 1.0.59 by the user's decision
+  on 2026-10-21, before any record existed, so nothing was withdrawn.** Build
+  1.0.58.1 (delivery `ba21125d`) is `VALID` and the user's iPhone check of it
+  passed (section 17). After that check the coordinator first passed on the
+  instruction to submit, then held it while the user chose, and the user picked
+  "Fold 1.0.58 into 1.0.59": no 1.0.58 version record was created and nothing
+  was submitted, so section 17's "the App Store submission proceeds" is
+  superseded. The 1.0.59 record (another session's ship) carries 1.0.58, its
+  What's New including held-copy.md (a), the approved paragraph, word for word.
+  So 1.0.58 ends with VALID build 1.0.58.1 and no version record of its own by
+  rollup, not by skip; the 1.0.59 ship adds it to CLAUDE.md's rollup list with
+  the record id it is submitted on. Both 05 screenshots recaptured for this
+  release (held-copy.md) go up with the 1.0.59 record, each set replaced whole
+  and in order, unless that ship recaptures them again.
+- **Commit trailer:** the brief asked for a `Claude Fable 5.1` co-author line;
+  these commits carry `Claude Opus 5.5`, the model that made them, per the
+  session's attribution rule.
+
+## 19. 1.0.58 is ROLLED UP into 1.0.59 for the App Store (2026-10-21)
+
+Decided by the user ("Fold 1.0.58 into 1.0.59") before any 1.0.58 version record existed, so nothing was withdrawn. The reason: the parallel build 1.0.59 (ios27-iphone-duo, in its own worktree) carries two iPhone Duo fixes, the Duo goes on sale 2026-10-23, and 1.0.58.1 is the first build on Xcode 27.1 and lacks them. 1.0.58 therefore holds VALID build 1.0.58.1 (user's iPhone check passed) and no record of its own by rollup, not by skip; the 1.0.59 record carries it, and its What's New must carry held-copy.md (a) word for word, which was sent to the 1.0.59 session verbatim along with the note that both 05 screenshots changed in 507eb48e. The macOS, Windows, Android and TestFlight legs of 1.0.58 are unaffected. CLAUDE.md's version-record list gets the rollup sentence naming both versions (The Chronicler).
