@@ -225,6 +225,23 @@ export function buildTaxonomyHistoryIndex(
   const byCom = new Map<string, number[]>()          // tier 2, com alone
   const slashByRawName = new Map<string, number[]>() // FR-08's exact-name exception
 
+  // When each code was last created on an after side. A before code that a
+  // LATER event creates again was re-used by eBird (a lumped species split back
+  // out under its old code: Pilbara Grasswren, lumped 2021 and split 2024; a
+  // split parent's code given to a later lump of its daughters: Chestnut-naped
+  // Spurfowl, 2022). A current export's code is that later species, so such a
+  // before entry is not indexed by code: a 2025 "Pilbara Grasswren" row lands
+  // on the 2024 split's after side and the 2021 lump stays on its line through
+  // the chain, never as a before-side row that would read "Your backup
+  // predates the 2021 update". Asset invariant I6 admits exactly these codes.
+  const lastAfterAt = new Map<string, string>()
+  for (const ev of history.events) {
+    for (const a of ev.after) {
+      const at = lastAfterAt.get(a.code)
+      if (at === undefined || ev.published > at) lastAfterAt.set(a.code, ev.published)
+    }
+  }
+
   history.events.forEach((ev, e) => {
     const mk = (entry: HistoryEntry, side: Side): number => {
       slots.push({ event: e, side, entry, count: 0, onOrBefore: 0, speciesKey: null })
@@ -239,7 +256,8 @@ export function buildTaxonomyHistoryIndex(
     before.forEach((id, i) => {
       const b = ev.before[i]
       if (b.retired) pushTo(retiredByCom, lower(b.com), id)
-      if (!afterCodes.has(b.code)) pushTo(beforeByCode, b.code, id)
+      const reusedLater = (lastAfterAt.get(b.code) ?? '') > ev.published
+      if (!afterCodes.has(b.code) && !reusedLater) pushTo(beforeByCode, b.code, id)
     })
     for (const id of after) pushTo(afterByCode, slots[id].entry.code, id)
     for (const id of [...before, ...after]) {
@@ -350,8 +368,9 @@ export function buildTaxonomyHistoryIndex(
    * invariant I5 admits an after code that is no longer a species when a LATER
    * covered update carries it on its before side (the chain), and I6 requires a
    * before code that IS still a species to be kept on its own event's after
-   * side. So a code is current exactly when the latest update that carries it
-   * has it on an after side. Retired: Macquarie Parakeet (`recpar23`), after in
+   * side or created again on a later one's (a re-used code, above). So a code
+   * is current exactly when the latest update that carries it has it on an
+   * after side. Retired: Macquarie Parakeet (`recpar23`), after in
    * 2023, before only in 2024. Kept: Red-crowned Parakeet (`refpar4`), after in
    * 2023, before AND after in 2024. The shorter test "never on a later before
    * side" would wrongly drop the kept code's links, so it is not used.

@@ -11,6 +11,18 @@ export interface PublishedRow {
 }
 
 export const UPDATE_PUBLISHED: Readonly<Record<number, PublishedRow>>
+
+/** One event a recount names: its kind and each side's codes. */
+export interface RecountEvent { kind: 'split' | 'lump'; before: readonly string[]; after: readonly string[] }
+/** A reorganization eBird's announced tally counts by its net change. */
+export interface Recount {
+  what: string
+  events: readonly RecountEvent[]
+  counted: { gained: number; lost: number }
+}
+export const ANNOUNCED_RECOUNTS: Readonly<Record<number, readonly Recount[]>>
+/** Slash codes eBird dropped with no later event, each with its cited reason. */
+export const SLASHES_DROPPED: Readonly<Record<string, string>>
 export const YEARS_WITHOUT_UPDATE: readonly number[]
 export const INTEGRATED_NAME_RE: RegExp
 export const TAXONOMY_NAME_RE: RegExp
@@ -46,12 +58,15 @@ export function parseCsv(text: string): string[][]
 export function changeTokens(cell: string): string[]
 export function splitSubject(text: string): string | null
 export function binomials(text: string): Set<string>
+export function sentenceNaming(text: string, sci: string): string | null
 export function tally(events: readonly EventLike[]): { gained: number; lost: number }
+export function recountedTally(events: readonly EventLike[], recounts?: readonly Recount[], label?: string): { gained: number; lost: number }
 export function deriveHistory(input: {
   files: { name: string; text: string }[]
   snapshot: SnapshotLike
   generated: string
   published?: Record<number, PublishedRow>
   withoutUpdate?: readonly number[]
+  recounts?: Readonly<Record<number, readonly Recount[]>>
 }): { history: HistoryLike }
 export function checkHistory(history: HistoryLike, snapshot: SnapshotLike): true

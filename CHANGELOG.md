@@ -2,6 +2,16 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [1.0.58] - 2026-10-21
+
+### Changed
+- **Splits and lumps now goes back to 2019.** The record of eBird's taxonomy updates that ships with the app now covers the 2019, 2021, and 2022 updates as well as 2023 to 2025 (eBird released no update in 2020). Species eBird split or lumped in those years now appear in Species Detail's Splits and lumps list, with what each was, what it became, and how many of your reports eBird reassigned, and a species changed more than once since 2019 shows each change. The coverage line in the section now reads "Covers eBird's 2019 to 2025 taxonomy updates. A change made before 2019 is not recorded here." Nothing else on screen changes.
+
+### Internal
+- The taxonomy-history generator (`scripts/build-taxonomy-history.mjs` over `scripts/lib/taxonomyHistoryDerive.mjs`) reads eBird's 2019, 2021 and 2022 files, the 2019 Clements checklist standing in for that year's integrated file, with new resolver rules each pinned by a fixture row, and writes nothing unless each year reproduces eBird's announced tally (2019 106 gained and 20 lost, 2021 94 and 8, 2022 118 and 41). Two cited tables sit under that check: `ANNOUNCED_RECOUNTS`, for a three-into-two reorganization eBird counted by its net change (2019's white-eyes and 2022's hill mynas), which may relabel only within the events it names and never changes the net, and `SLASHES_DROPPED`, for two drongo slashes eBird dropped once their species were lumped back. The 2023 to 2025 events are identical to 1.0.57's. The asset is 213,276 bytes (93,936 before), still its own lazy chunk and under `historyMaxBytes(6)`.
+- `buildTaxonomyHistoryIndex` in `lib/taxonomyHistory.ts` no longer indexes a before-side code that a later covered update creates again, because eBird re-uses codes (Pilbara Grasswren, lumped in 2021 and split back out in 2024 under its old code), so a current backup is never read as predating the earlier update.
+- The F-Droid changelog for this release is three identical files, one per processor-type build (`10000581.txt`, `10000582.txt`, `10000584.txt`), and the in-repo F-Droid recipe names 1.0.58.
+
 ## [1.0.57] - 2026-10-19
 
 ### Changed
