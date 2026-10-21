@@ -639,15 +639,24 @@ Run by The Deployer on section 16's sign-off, with the `snowraven-release` skill
   version records, 1.0.57 (`d5b968b4`) and every other `READY_FOR_SALE`, nothing
   in review, no 1.0.58 record; TestFlight's newest builds 1.0.58.1, 1.0.57.1,
   1.0.56.1 and 1.0.55.1, all `VALID`; no 1.0.59 build.
-- **The App Store leg is HELD, pending the user's rollup decision.** After
-  section 17's device check, the coordinator first passed on the instruction to
-  submit, then held it: the user is deciding whether 1.0.58 takes its own record
-  or is folded into 1.0.59, another build at its deploy gate. So section 17's
-  "the App Store submission proceeds" is superseded for now: no 1.0.58 version
-  record was created and nothing was submitted. Until one of the two happens,
-  1.0.58 holds VALID build 1.0.58.1 (delivery `ba21125d`) and no version record,
-  which must be written into CLAUDE.md's list as a deferral or a rollup in the
-  ship that resolves it, never left silent.
+- **The App Store leg: 1.0.58 is ROLLED UP into 1.0.59 by the user's decision
+  on 2026-10-21, before any record existed, so nothing was withdrawn.** Build
+  1.0.58.1 (delivery `ba21125d`) is `VALID` and the user's iPhone check of it
+  passed (section 17). After that check the coordinator first passed on the
+  instruction to submit, then held it while the user chose, and the user picked
+  "Fold 1.0.58 into 1.0.59": no 1.0.58 version record was created and nothing
+  was submitted, so section 17's "the App Store submission proceeds" is
+  superseded. The 1.0.59 record (another session's ship) carries 1.0.58, its
+  What's New including held-copy.md (a), the approved paragraph, word for word.
+  So 1.0.58 ends with VALID build 1.0.58.1 and no version record of its own by
+  rollup, not by skip; the 1.0.59 ship adds it to CLAUDE.md's rollup list with
+  the record id it is submitted on. Both 05 screenshots recaptured for this
+  release (held-copy.md) go up with the 1.0.59 record, each set replaced whole
+  and in order, unless that ship recaptures them again.
 - **Commit trailer:** the brief asked for a `Claude Fable 5.1` co-author line;
   these commits carry `Claude Opus 5.5`, the model that made them, per the
   session's attribution rule.
+
+## 18. 1.0.58 is ROLLED UP into 1.0.59 for the App Store (2026-10-21)
+
+Decided by the user ("Fold 1.0.58 into 1.0.59") before any 1.0.58 version record existed, so nothing was withdrawn. The reason: the parallel build 1.0.59 (ios27-iphone-duo, in its own worktree) carries two iPhone Duo fixes, the Duo goes on sale 2026-10-23, and 1.0.58.1 is the first build on Xcode 27.1 and lacks them. 1.0.58 therefore holds VALID build 1.0.58.1 (user's iPhone check passed) and no record of its own by rollup, not by skip; the 1.0.59 record carries it, and its What's New must carry held-copy.md (a) word for word, which was sent to the 1.0.59 session verbatim along with the note that both 05 screenshots changed in 507eb48e. The macOS, Windows, Android and TestFlight legs of 1.0.58 are unaffected. CLAUDE.md's version-record list gets the rollup sentence naming both versions (The Chronicler).
