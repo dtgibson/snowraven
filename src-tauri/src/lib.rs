@@ -22,6 +22,10 @@ mod launch_backdrop;
 // Post-restore on-screen clamp for the remembered window geometry (macOS +
 // Windows). Same platform set as the tauri-plugin-window-state dependency,
 // spelled with tauri's `desktop` cfg here because Cargo has no such cfg.
+// It is the one module that looks up monitors, and this cfg is also what keeps
+// those lookups off iOS, where tao aborts on the iPhone Duo's inner screen (tao
+// issue 1373: the window's screen is nil there). A lookup outside a
+// desktop-only module fails frontend/src/lib/iosMonitorLookups.test.ts.
 #[cfg(desktop)]
 mod window_geometry;
 // The content security policy on every non-HTML response, so a worker loaded

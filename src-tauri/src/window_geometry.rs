@@ -1,5 +1,12 @@
 //! Post-restore on-screen clamp for the app's window (macOS + Windows only).
 //!
+//! Desktop only, and it must stay so: this is the one module that looks up
+//! monitors, and on iOS tao's `current_monitor()` and `available_monitors()`
+//! abort on the iPhone Duo's inner screen (tao issue 1373). Its `mod` line in
+//! lib.rs carries `#[cfg(desktop)]`, and
+//! `frontend/src/lib/iosMonitorLookups.test.ts` fails a lookup in any module
+//! that compiles for iOS.
+//!
 //! `tauri-plugin-window-state` reapplies the saved geometry in its
 //! `on_window_ready` hook, which runs while the main window is being built:
 //! the first step of the app's own `.setup()` closure in `lib.rs`, which builds
