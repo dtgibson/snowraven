@@ -1,0 +1,76 @@
+--- UNMUTATED baseline: vitest exit 0
+   Test Files  5 passed (5)
+   Tests  130 passed (130)
+--- Q1 inbox sheet loses its left pad (top level): vitest exit 1
+   x every rule that insets one horizontal edge insets the other, or is rostered 10ms
+   x .sr-ios-app .sr-inbox-sheet [] 6ms
+   x a left camera: .sr-inbox-sheet on ios at 390px 3ms
+   x the removal takes out exactly the side reads and keeps every other declaration 5ms
+   Test Files  2 failed | 3 passed (5)
+   Tests  4 failed | 126 passed (130)
+   ------- Failed Tests 4 -------
+   FAIL  src/lib/bottomSurfaceSideInsets.test.ts > the gated rules declare the two side insets and nothing else changed > .sr-ios-app .sr-inbox-sheet []
+   FAIL  src/lib/bottomSurfaceSideInsets.test.ts > the resolved padding, per surface, platform class and width > a left camera: .sr-inbox-sheet on ios at 390px
+   FAIL  src/lib/bottomSurfaceSideInsets.test.ts > the cascade model and the removal are not vacuous > the removal takes out exactly the side reads and keeps every other declaration
+   FAIL  src/lib/safeAreaPerSide.test.ts > safe-area insets are per-side > every rule that insets one horizontal edge insets the other, or is rostered
+restored ok (sha1 matches intended for every snapshot file)
+--- Q2 iPhone block label rule ungated: vitest exit 1
+   x exists, is phone-tier only, and out-ranks the inline size it must beat 69ms
+   x states the DERIVATION, both terms carrying the same factor 65ms
+   x COMPUTES the invariant rather than restating it, over the whole scale domain 192ms
+   x never reaches a label through an ELEMENT selector 66ms
+   x is ONE block, in exactly the two-clause device gate, and every rule in it is gated on the iOS app 2ms
+   Test Files  1 failed | 4 passed (5)
+   Tests  5 failed | 125 passed (130)
+   ------- Failed Tests 5 -------
+   FAIL  src/lib/filterControlSizeCss.test.ts > labels beside a floored control, sized in relation to it > exists, is phone-tier only, and out-ranks the inline size it must beat
+   FAIL  src/lib/filterControlSizeCss.test.ts > labels beside a floored control, sized in relation to it > states the DERIVATION, both terms carrying the same factor
+   FAIL  src/lib/filterControlSizeCss.test.ts > labels beside a floored control, sized in relation to it > COMPUTES the invariant rather than restating it, over the whole scale domain
+   FAIL  src/lib/filterControlSizeCss.test.ts > labels beside a floored control, sized in relation to it > never reaches a label through an ELEMENT selector
+   FAIL  src/lib/filterControlSizeCss.test.ts > the iPhone-only floor above the phone tier (ios27-iphone-duo) > is ONE block, in exactly the two-clause device gate, and every rule in it is gated on the iOS app
+restored ok (sha1 matches intended for every snapshot file)
+--- Q3 641px inbox root loses its right inset: vitest exit 1
+   x every rule that insets one horizontal edge insets the other, or is rostered 4ms
+   x .sr-ios-app .sr-inbox-root ["@media (min-width: 641px)"] 8ms
+   x the removal takes out exactly the side reads and keeps every other declaration 7ms
+   Test Files  2 failed | 3 passed (5)
+   Tests  3 failed | 127 passed (130)
+   ------- Failed Tests 3 -------
+   FAIL  src/lib/bottomSurfaceSideInsets.test.ts > the gated rules declare the two side insets and nothing else changed > .sr-ios-app .sr-inbox-root ["@media (min-width: 641px)"]
+   FAIL  src/lib/bottomSurfaceSideInsets.test.ts > the cascade model and the removal are not vacuous > the removal takes out exactly the side reads and keeps every other declaration
+   FAIL  src/lib/safeAreaPerSide.test.ts > safe-area insets are per-side > every rule that insets one horizontal edge insets the other, or is rostered
+restored ok (sha1 matches intended for every snapshot file)
+--- Q4 More sheet right pad hard-coded 0 (iOS): vitest exit 1
+   x every rule that insets one horizontal edge insets the other, or is rostered 4ms
+   x .sr-ios-app .sr-nav-sheet 4ms
+   x .sr-ios-app .sr-nav-sheet [] 6ms
+   x the removal takes out exactly the side reads and keeps every other declaration 4ms
+   Test Files  3 failed | 2 passed (5)
+   Tests  4 failed | 126 passed (130)
+   ------- Failed Tests 4 -------
+   FAIL  src/lib/androidInsetsCss.test.ts > every iOS safe-area rule has an Android twin > .sr-ios-app .sr-nav-sheet
+   FAIL  src/lib/bottomSurfaceSideInsets.test.ts > the gated rules declare the two side insets and nothing else changed > .sr-ios-app .sr-nav-sheet []
+   FAIL  src/lib/bottomSurfaceSideInsets.test.ts > the cascade model and the removal are not vacuous > the removal takes out exactly the side reads and keeps every other declaration
+   FAIL  src/lib/safeAreaPerSide.test.ts > safe-area insets are per-side > every rule that insets one horizontal edge insets the other, or is rostered
+restored ok (sha1 matches intended for every snapshot file)
+--- Q5 a monitor lookup in icloud.rs (Apple-shared, compiles for iOS): vitest exit 1
+   x Rust: a lookup appears only in a module lib.rs compiles for desktop alone 10ms
+   Test Files  1 failed | 4 passed (5)
+   Tests  1 failed | 129 passed (130)
+   ------- Failed Tests 1 -------
+   FAIL  src/lib/iosMonitorLookups.test.ts > no monitor lookup can run on iOS > Rust: a lookup appears only in a module lib.rs compiles for desktop alone
+restored ok (sha1 matches intended for every snapshot file)
+--- Q6 a monitor command name in shipped frontend (platform.ts): vitest exit 1
+   x frontend: no shipped file calls the JS window API's monitor functions 58ms
+   Test Files  1 failed | 4 passed (5)
+   Tests  1 failed | 129 passed (130)
+   ------- Failed Tests 1 -------
+   FAIL  src/lib/iosMonitorLookups.test.ts > no monitor lookup can run on iOS > frontend: no shipped file calls the JS window API's monitor functions
+restored ok (sha1 matches intended for every snapshot file)
+--- Q7 GREEN control: comment naming a lookup in icloud.rs: vitest exit 0
+   Test Files  5 passed (5)
+   Tests  130 passed (130)
+restored ok (sha1 matches intended for every snapshot file)
+--- RESTORED tree: vitest exit 0
+   Test Files  5 passed (5)
+   Tests  130 passed (130)

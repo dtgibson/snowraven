@@ -1,0 +1,20 @@
+# QA reproduction of the focus-zoom measurement, iPhone Duo simulator outer display, Safari, iOS 27.1 (24A94425), Xcode 27.1.
+# Probe: pipeline/ios27-iphone-duo/evidence/zoom-probe.html (the Engineer's), served on 127.0.0.1, opened with xcrun simctl openurl.
+# Each line is one reading the page sent to its server as a GET.
+# qa13a: reused Safari, 13px field; keyboard stayed DOWN (screenshot), so no input session: not counted (the Engineer's recorded failure mode).
+# qa13erased: after simctl shutdown + erase + boot, 13px field; keyboard UP (screenshot duo-outer-zoom-13px-erased.png): scale 1.230.
+# qa16erased: after a second shutdown + erase + boot, 16px field; keyboard UP (screenshot duo-outer-zoom-16px-erased.png): scale 1.000.
+label=load&tag=qa13a&fs=13&scale=1.000&screen=466x678&inner=382x580&dpr=3&focused=false&insT=0px&insR=0px&insB=0px&insL=0px&phoneTier=true&gateW=false&gateH=false&devW700=true&devH700=true&platform=iPhone
+label=vv-resize&tag=qa13a&fs=13&scale=1.000&screen=466x678&inner=382x580&dpr=3&focused=true&insT=0px&insR=0px&insB=0px&insL=0px&phoneTier=true&gateW=false&gateH=false&devW700=true&devH700=true&platform=iPhone
+label=after-focus&tag=qa13a&fs=13&scale=1.000&screen=466x678&inner=382x580&dpr=3&focused=true&insT=0px&insR=0px&insB=0px&insL=0px&phoneTier=true&gateW=false&gateH=false&devW700=true&devH700=true&platform=iPhone
+label=t%2B4s&tag=qa13a&fs=13&scale=1.000&screen=466x678&inner=382x580&dpr=3&focused=true&insT=0px&insR=0px&insB=0px&insL=0px&phoneTier=true&gateW=false&gateH=false&devW700=true&devH700=true&platform=iPhone
+label=load&tag=qa13erased&fs=13&scale=1.000&screen=466x678&inner=382x580&dpr=3&focused=false&insT=0px&insR=0px&insB=0px&insL=0px&phoneTier=true&gateW=false&gateH=false&devW700=true&devH700=true&platform=iPhone
+label=vv-resize&tag=qa13erased&fs=13&scale=1.000&screen=466x678&inner=382x580&dpr=3&focused=true&insT=0px&insR=0px&insB=0px&insL=0px&phoneTier=true&gateW=false&gateH=false&devW700=true&devH700=true&platform=iPhone
+label=vv-resize&tag=qa13erased&fs=13&scale=1.230&screen=466x678&inner=310x471&dpr=3&focused=true&insT=0px&insR=0px&insB=0px&insL=0px&phoneTier=true&gateW=false&gateH=false&devW700=true&devH700=true&platform=iPhone
+label=after-focus&tag=qa13erased&fs=13&scale=1.230&screen=466x678&inner=310x471&dpr=3&focused=true&insT=0px&insR=0px&insB=0px&insL=0px&phoneTier=true&gateW=false&gateH=false&devW700=true&devH700=true&platform=iPhone
+label=t%2B4s&tag=qa13erased&fs=13&scale=1.230&screen=466x678&inner=310x471&dpr=3&focused=true&insT=0px&insR=0px&insB=0px&insL=0px&phoneTier=true&gateW=false&gateH=false&devW700=true&devH700=true&platform=iPhone
+label=load&tag=qa16erased&fs=16&scale=1.000&screen=466x678&inner=382x580&dpr=3&focused=false&insT=0px&insR=0px&insB=0px&insL=0px&phoneTier=true&gateW=false&gateH=false&devW700=true&devH700=true&platform=iPhone
+label=vv-resize&tag=qa16erased&fs=16&scale=1.000&screen=466x678&inner=382x580&dpr=3&focused=true&insT=0px&insR=0px&insB=0px&insL=0px&phoneTier=true&gateW=false&gateH=false&devW700=true&devH700=true&platform=iPhone
+label=vv-resize&tag=qa16erased&fs=16&scale=1.000&screen=466x678&inner=382x580&dpr=3&focused=true&insT=0px&insR=0px&insB=0px&insL=0px&phoneTier=true&gateW=false&gateH=false&devW700=true&devH700=true&platform=iPhone
+label=after-focus&tag=qa16erased&fs=16&scale=1.000&screen=466x678&inner=382x580&dpr=3&focused=true&insT=0px&insR=0px&insB=0px&insL=0px&phoneTier=true&gateW=false&gateH=false&devW700=true&devH700=true&platform=iPhone
+label=t%2B4s&tag=qa16erased&fs=16&scale=1.000&screen=466x678&inner=382x580&dpr=3&focused=true&insT=0px&insR=0px&insB=0px&insL=0px&phoneTier=true&gateW=false&gateH=false&devW700=true&devH700=true&platform=iPhone

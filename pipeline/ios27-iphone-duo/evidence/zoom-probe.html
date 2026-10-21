@@ -1,0 +1,53 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>zoom probe</title>
+<style>
+  body { margin: 0; font: 15px/1.35 -apple-system, sans-serif; background: #f4f1ea; color: #1d2a24; }
+  #ins { position: fixed; inset: 0; pointer-events: none;
+    padding-top: env(safe-area-inset-top, 0px); padding-right: env(safe-area-inset-right, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px); padding-left: env(safe-area-inset-left, 0px); }
+  #out { padding: 12px; white-space: pre-wrap; font-size: 15px; }
+  input { display: block; margin: 8px 12px; width: 70%; padding: 6px; }
+</style>
+</head>
+<body>
+<div id="ins"></div>
+<input id="f" type="text" autofocus placeholder="probe field">
+<div id="out">loading</div>
+<script>
+  const params = new URLSearchParams(location.search);
+  const fs = params.get('fs') || '13';
+  const tag = params.get('tag') || 'x';
+  const f = document.getElementById('f');
+  f.style.fontSize = fs + 'px';
+  const mq = q => matchMedia(q).matches;
+  function read(label) {
+    const cs = getComputedStyle(document.getElementById('ins'));
+    const r = {
+      label, tag, fs,
+      scale: window.visualViewport ? visualViewport.scale.toFixed(3) : 'n/a',
+      screen: screen.width + 'x' + screen.height,
+      inner: innerWidth + 'x' + innerHeight,
+      dpr: devicePixelRatio,
+      focused: document.activeElement === f,
+      insT: cs.paddingTop, insR: cs.paddingRight, insB: cs.paddingBottom, insL: cs.paddingLeft,
+      phoneTier: mq('(max-width: 640px)'),
+      gateW: mq('(min-width: 641px) and (max-device-width: 700px)'),
+      gateH: mq('(min-width: 641px) and (max-device-height: 700px)'),
+      devW700: mq('(max-device-width: 700px)'),
+      devH700: mq('(max-device-height: 700px)'),
+      platform: navigator.platform,
+    };
+    document.getElementById('out').textContent = Object.entries(r).map(([k, v]) => k + ': ' + v).join('\n');
+    fetch('/log?' + new URLSearchParams(Object.entries(r).map(([k, v]) => [k, String(v)])).toString()).catch(() => {});
+  }
+  read('load');
+  setTimeout(() => { f.focus(); setTimeout(() => read('after-focus'), 1200); }, 600);
+  setTimeout(() => read('t+4s'), 4000);
+  if (window.visualViewport) visualViewport.addEventListener('resize', () => read('vv-resize'));
+</script>
+</body>
+</html>

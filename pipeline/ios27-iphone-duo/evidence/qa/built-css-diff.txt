@@ -1,0 +1,49 @@
+# Built stylesheet, rule-level diff: HEAD (e22a9dc6) against this worktree (QA, ios27-iphone-duo)
+#
+# HEAD: the HEAD tree's frontend and docs exported to a scratch folder, built twice with
+# `npx vite build`: both builds index-Bs1UxUHB.css, sha1 8e9e920d22f2f63cb74044a07e9090b176dc777f
+# (the determinism control; a rule diff of the two HEAD builds is empty).
+# Worktree: `npm run build` in frontend/, index-Du3iJ9Dg.css, sha1 593be0897b6d98f69ff47bd4f6edcaf91863c1b6.
+# MapLibre stylesheet vendor-maplibre-CKRTiAqP.css identical on both sides (sha1 1d40418795f1f1f0e34fb2872277eeea6ef3e292).
+# Parser: qa-cssdiff.py beside this file (QA's own, not the Engineer's script).
+#
+# Reading: 5 rules changed (the bar and More sheet on iOS and Android, the 641px inbox root),
+# 2 new inbox-sheet rules, 4 rules in the iPhone-only block. Nothing else moved; the Tailwind
+# utilities layer is identical.
+
+rules in A: 1702, rules in B: 1708
+only in A (HEAD): 5
+  - [] .sr-android-app .sr-nav-sheet {padding-bottom:calc(14px + var(--sr-inset-bottom,0px))}
+  - [] .sr-android-app .sr-navbar {padding-bottom:calc(6px + var(--sr-inset-bottom,0px));transition:transform .16s ease-out}
+  - [] .sr-ios-app .sr-nav-sheet {padding-bottom:calc(14px + env(safe-area-inset-bottom,0px))}
+  - [] .sr-ios-app .sr-navbar {padding-bottom:calc(6px + env(safe-area-inset-bottom,0px))}
+  - [@media (width>=641px)] .sr-ios-app .sr-inbox-root {padding-top:calc(24px + env(safe-area-inset-top,0px))}
+only in B (worktree): 11
+  + [] .sr-android-app .sr-nav-sheet {padding-bottom:calc(14px + var(--sr-inset-bottom,0px));padding-left:var(--sr-inset-left,0px);padding-right:var(--sr-inset-right,0px)}
+  + [] .sr-android-app .sr-navbar {padding-bottom:calc(6px + var(--sr-inset-bottom,0px));padding-left:var(--sr-inset-left,0px);padding-right:var(--sr-inset-right,0px);transition:transform .16s ease-out}
+  + [] .sr-ios-app .sr-inbox-sheet {padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px)}
+  + [] .sr-ios-app .sr-nav-sheet {padding-bottom:calc(14px + env(safe-area-inset-bottom,0px));padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px)}
+  + [] .sr-ios-app .sr-navbar {padding-bottom:calc(6px + env(safe-area-inset-bottom,0px));padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px)}
+  + [@media (width>=641px)] .sr-ios-app .sr-inbox-root {padding-top:calc(24px + env(safe-area-inset-top,0px));padding-left:calc(24px + env(safe-area-inset-left,0px));padding-right:calc(24px + env(safe-area-inset-right,0px))}
+  + [@media (width>=641px)] .sr-ios-app .sr-inbox-sheet {padding-left:0;padding-right:0}
+  + [@media (width>=641px) and (device-width<=700px),(width>=641px) and (device-height<=700px)] .sr-ios-app .sr-ctl-label {font-size:max(calc(var(--sr-ctl-floor) * var(--sr-label-ratio,1)), calc(var(--sr-ctl-rem,.75rem) * var(--sr-label-ratio,1)))!important}
+  + [@media (width>=641px) and (device-width<=700px),(width>=641px) and (device-height<=700px)] .sr-ios-app .sr-input-16,.sr-ios-app .sr-ctl-row :is(button,select,input) {font-size:max(var(--sr-ctl-floor), var(--sr-ctl-rem,.75rem))!important}
+  + [@media (width>=641px) and (device-width<=700px),(width>=641px) and (device-height<=700px)] .sr-ios-app .sr-map-sidebar-overlay .sr-field-row {flex-direction:column;align-items:stretch}
+  + [@media (width>=641px) and (device-width<=700px),(width>=641px) and (device-height<=700px)] .sr-ios-app .sr-map-sidebar-overlay .sr-field-row>:not(.sr-only) {width:100%}
+utilities layer: A 82 rules, B 82 rules, identical: True
+
+# Every built rule (worktree) that pads the four surfaces. The ungated base rules declare no
+# side padding (the bar none, the More sheet padding 0 0 14px, the inbox sheet none, the 641px
+# root 24px all round), so with both side insets at 0 each surface renders as before.
+[] .sr-inbox-root {z-index:1270;background:var(--sr-scrim);opacity:0;justify-content:center;align-items:flex-end;transition:opacity .16s ease-out;display:flex;position:fixed;inset:0}
+[@media (width>=641px)] .sr-inbox-root {align-items:center;padding:24px}
+[] .sr-navbar {z-index:1200;grid-template-columns:repeat(var(--sr-navbar-cells,5), minmax(0, 1fr));background:var(--sr-surface);border-top:1px solid var(--sr-border);box-shadow:var(--sr-nav-bar-shadow);display:grid;position:fixed;bottom:0;left:0;right:0;container-type:inline-size}
+[] .sr-nav-sheet {background:var(--sr-surface);border-top:1px solid var(--sr-border);width:100%;max-height:min(70dvh,528px);box-shadow:var(--sr-card-shadow);border-radius:16px 16px 0 0;flex-direction:column;padding:0 0 14px;transition:transform .22s cubic-bezier(.2,0,0,1);display:flex;overflow:auto;transform:translateY(100%)}
+[] .sr-ios-app .sr-navbar {padding-bottom:calc(6px + env(safe-area-inset-bottom,0px));padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px)}
+[] .sr-ios-app .sr-nav-sheet {padding-bottom:calc(14px + env(safe-area-inset-bottom,0px));padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px)}
+[] .sr-android-app .sr-navbar {padding-bottom:calc(6px + var(--sr-inset-bottom,0px));padding-left:var(--sr-inset-left,0px);padding-right:var(--sr-inset-right,0px);transition:transform .16s ease-out}
+[] .sr-android-app .sr-nav-sheet {padding-bottom:calc(14px + var(--sr-inset-bottom,0px));padding-left:var(--sr-inset-left,0px);padding-right:var(--sr-inset-right,0px)}
+[] .sr-ios-app .sr-inbox-sheet {padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px)}
+[] .sr-ios-app .sr-inbox-root {padding-top:env(safe-area-inset-top,0px)}
+[@media (width>=641px)] .sr-ios-app .sr-inbox-root {padding-top:calc(24px + env(safe-area-inset-top,0px));padding-left:calc(24px + env(safe-area-inset-left,0px));padding-right:calc(24px + env(safe-area-inset-right,0px))}
+[@media (width>=641px)] .sr-ios-app .sr-inbox-sheet {padding-left:0;padding-right:0}

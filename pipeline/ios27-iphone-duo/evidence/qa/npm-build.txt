@@ -1,0 +1,134 @@
+
+> frontend@1.0.57 build
+> tsc -b && vite build
+
+vite v8.0.16 building client environment for production...
+
+transforming...ok 2710 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/assets/observationsWorker-CAm0cPLi.js            6.29 kB
+dist/assets/mlExportWorker-DSj4b9r8.js                9.97 kB
+dist/index.html                                      15.22 kB | gzip:     5.64 kB
+dist/assets/statsWorker-BJxSDl6Z.js                  33.98 kB
+dist/assets/maplibre-gl-worker-CWkdAhOP.js          486.77 kB
+dist/assets/vendor-maplibre-CKRTiAqP.css             82.86 kB | gzip:    10.71 kB
+dist/assets/index-Du3iJ9Dg.css                      177.26 kB | gzip:    31.00 kB
+dist/assets/regionCode-CIQusJ1Y.js                    0.10 kB | gzip:     0.11 kB
+dist/assets/dist-js-DBv86zX7.js                       0.11 kB | gzip:     0.12 kB
+dist/assets/egg-CGajMlaX.js                           0.15 kB | gzip:     0.15 kB
+dist/assets/x-CLZfYjaq.js                             0.15 kB | gzip:     0.15 kB
+dist/assets/dist-js-kW61TxGK.js                       0.16 kB | gzip:     0.15 kB
+dist/assets/dist-js-CHN7rKkt.js                       0.18 kB | gzip:     0.16 kB
+dist/assets/heat--dRj5ftN.js                          0.19 kB | gzip:     0.14 kB
+dist/assets/info-DU7IE0yA.js                          0.20 kB | gzip:     0.17 kB
+dist/assets/app-D9opijig.js                           0.24 kB | gzip:     0.20 kB
+dist/assets/checklistId-BkTRTwEU.js                   0.27 kB | gzip:     0.21 kB
+dist/assets/countyGeometry--3bT0XAb.js                0.28 kB | gzip:     0.23 kB
+dist/assets/filesChanged-Cy5ACi19.js                  0.28 kB | gzip:     0.21 kB
+dist/assets/useProvenanceLookup-Bhn7fyM5.js           0.32 kB | gzip:     0.24 kB
+dist/assets/icloudNativeTypes-CdmdURu_.js             0.36 kB | gzip:     0.26 kB
+dist/assets/ebirdErrors-C42z2oLS.js                   0.37 kB | gzip:     0.25 kB
+dist/assets/cloud-sun-C5UbKd_W.js                     0.39 kB | gzip:     0.25 kB
+dist/assets/locate-fixed-CrUfj78y.js                  0.40 kB | gzip:     0.23 kB
+dist/assets/versionService-CwEX5Mef.js                0.45 kB | gzip:     0.33 kB
+dist/assets/sparkles-lW6r-Z87.js                      0.49 kB | gzip:     0.28 kB
+dist/assets/hotspotActivity-ClJ-pyJh.js               0.50 kB | gzip:     0.34 kB
+dist/assets/platform-BqDsZ35Y.js                      0.51 kB | gzip:     0.26 kB
+dist/assets/widgetNative-C1aNH6hn.js                  0.52 kB | gzip:     0.32 kB
+dist/assets/regionInfo-BBpbuXfe.js                    0.52 kB | gzip:     0.37 kB
+dist/assets/offlineDetect-hNavT37U.js                 0.55 kB | gzip:     0.32 kB
+dist/assets/recentObsReduce-D_nSeT5P.js               0.59 kB | gzip:     0.36 kB
+dist/assets/image-BgRhyC9B.js                         0.61 kB | gzip:     0.31 kB
+dist/assets/dist-js-BgYb6odN.js                       0.63 kB | gzip:     0.31 kB
+dist/assets/rolldown-runtime-QTnfLwEv.js              0.69 kB | gzip:     0.42 kB
+dist/assets/mediaService-LgiOp9ki.js                  0.73 kB | gzip:     0.51 kB
+dist/assets/rateLimit-C3F3irq7.js                     0.73 kB | gzip:     0.41 kB
+dist/assets/linkController-BmWfLhAT.js                0.79 kB | gzip:     0.45 kB
+dist/assets/openExternal-Bk0-deV9.js                  0.81 kB | gzip:     0.52 kB
+dist/assets/CommentText-C9ilWtNl.js                   0.83 kB | gzip:     0.51 kB
+dist/assets/alertRules-CGLUvbCw.js                    0.86 kB | gzip:     0.52 kB
+dist/assets/widgetRows-DIXm-tZq.js                    0.91 kB | gzip:     0.56 kB
+dist/assets/networkCache-DtgRZQfX.js                  1.03 kB | gzip:     0.61 kB
+dist/assets/preload-helper-zJ_50EbN.js                1.19 kB | gzip:     0.68 kB
+dist/assets/alertsPurge-B43fJLuD.js                   1.20 kB | gzip:     0.66 kB
+dist/assets/nearbyLifers-q7GN6MOC.js                  1.26 kB | gzip:     0.65 kB
+dist/assets/event-4LsLnn72.js                         1.30 kB | gzip:     0.61 kB
+dist/assets/nominatimService-CF5f5Z0g.js              1.31 kB | gzip:     0.74 kB
+dist/assets/PredictMap-D9TVy_aL.js                    1.33 kB | gzip:     0.77 kB
+dist/assets/createLucideIcon-Cq1vaVq6.js              1.43 kB | gzip:     0.80 kB
+dist/assets/firstOfYearChartGeometry-D57FCsFO.js      1.56 kB | gzip:     0.80 kB
+dist/assets/useAlphaCodes-D1P73532.js                 1.81 kB | gzip:     0.92 kB
+dist/assets/hotspotSet-QbIAo8CZ.js                    1.85 kB | gzip:     0.94 kB
+dist/assets/countyDayObsReduce-BEKp8O0u.js            1.88 kB | gzip:     0.95 kB
+dist/assets/core-CiawnDjp.js                          1.94 kB | gzip:     0.81 kB
+dist/assets/updateManager-Ca1mgnOi.js                 1.97 kB | gzip:     0.91 kB
+dist/assets/countyShadingUi-BB_AaE5c.js               2.04 kB | gzip:     0.97 kB
+dist/assets/http-jrGMn0nh.js                          2.18 kB | gzip:     1.00 kB
+dist/assets/alertsNative-CIIGLLq7.js                  2.23 kB | gzip:     1.01 kB
+dist/assets/icloudNative-HU1wLb-O.js                  2.24 kB | gzip:     1.02 kB
+dist/assets/deepLink-CsnsIS9a.js                      2.40 kB | gzip:     1.11 kB
+dist/assets/countyBoundaries-BkF_E1ov.js              2.45 kB | gzip:     1.35 kB
+dist/assets/checklistService-R_2L-Il0.js              2.49 kB | gzip:     1.23 kB
+dist/assets/ChecklistLink-DjmmToZj.js                 2.66 kB | gzip:     1.23 kB
+dist/assets/FirstOfYearChart-CXlPIzSK.js              2.74 kB | gzip:     1.38 kB
+dist/assets/replayStore-BbmiNznr.js                   2.75 kB | gzip:     1.29 kB
+dist/assets/widgetHandoverController-BhmiIHD8.js      2.98 kB | gzip:     1.41 kB
+dist/assets/checklistProjectsCache-D11cJTWK.js        3.00 kB | gzip:     1.39 kB
+dist/assets/mapExplorerFormat-DPKfaUyE.js             3.03 kB | gzip:     1.29 kB
+dist/assets/countyCompletenessCache-8LqKyUw6.js       3.12 kB | gzip:     1.31 kB
+dist/assets/mapService-BMt0BHoW.js                    3.14 kB | gzip:     1.23 kB
+dist/assets/AddressSearch-DdP3YWCn.js                 3.19 kB | gzip:     1.41 kB
+dist/assets/SightingsMap-0ow-PRZz.js                  3.21 kB | gzip:     1.74 kB
+dist/assets/formatDate-C9XD1Uw7.js                    3.29 kB | gzip:     1.47 kB
+dist/assets/alertsController-C2YRIylX.js              3.39 kB | gzip:     1.52 kB
+dist/assets/SpeciesWeatherCard-eCTKtTtT.js            3.50 kB | gzip:     1.36 kB
+dist/assets/taxonomyService-5rdQl-kr.js               3.72 kB | gzip:     1.62 kB
+dist/assets/mapPins-DtGtJfsr.js                       4.66 kB | gzip:     2.05 kB
+dist/assets/barChartImport-CE2wGZvN.js                4.71 kB | gzip:     2.01 kB
+dist/assets/exoticCopy-CfxHyzf5.js                    4.71 kB | gzip:     1.90 kB
+dist/assets/SpeciesCombobox-Br9UKWml.js               5.10 kB | gzip:     2.20 kB
+dist/assets/AlertsInboxSheet-3OQVKqvW.js              6.10 kB | gzip:     2.21 kB
+dist/assets/weatherDisplay-D_Yua93b.js                6.18 kB | gzip:     2.47 kB
+dist/assets/alertsCopy-B0dEvarM.js                    6.21 kB | gzip:     2.91 kB
+dist/assets/dist-js-DIsnpM78.js                       7.25 kB | gzip:     1.93 kB
+dist/assets/countyDayObsCache-BbBjzLm4.js             7.78 kB | gzip:     3.21 kB
+dist/assets/CommandPalette-XN2KgzzO.js                7.87 kB | gzip:     2.87 kB
+dist/assets/exoticProvenanceCache-BEYX3ylf.js         8.14 kB | gzip:     3.17 kB
+dist/assets/transport-DkQXqzCX.js                     9.02 kB | gzip:     2.61 kB
+dist/assets/weatherService-CdN10UAi.js                9.70 kB | gzip:     3.78 kB
+dist/assets/observationsCache-Bihjf0pM.js             9.78 kB | gzip:     3.56 kB
+dist/assets/AlertsSection-De-_f6qK.js                10.35 kB | gzip:     3.19 kB
+dist/assets/window-CQ1uOqR_.js                       12.44 kB | gzip:     2.95 kB
+dist/assets/PlanChart-CujDZ7xs.js                    13.80 kB | gzip:     4.86 kB
+dist/assets/weatherStats-BYpgtkTW.js                 14.96 kB | gzip:     5.65 kB
+dist/assets/Checklists-DEp6Upy1.js                   20.05 kB | gzip:     5.89 kB
+dist/assets/storage-ozP_K9mE.js                      20.49 kB | gzip:     5.77 kB
+dist/assets/SnowMap-DN6SYAcY.js                      24.36 kB | gzip:     9.21 kB
+dist/assets/BasemapDesaturation-CsrnRcvb.js          43.97 kB | gzip:    13.58 kB
+dist/assets/ListComparer-Bhr551mQ.js                 44.18 kB | gzip:    10.92 kB
+dist/assets/Calendar-C-tGKcqE.js                     44.58 kB | gzip:    12.36 kB
+dist/assets/icloudSync-CBSsXuyX.js                   51.97 kB | gzip:    15.63 kB
+dist/assets/Targets-BYxacA97.js                      55.37 kB | gzip:    17.14 kB
+dist/assets/SpeciesDetail-DDkCbmFY.js                71.75 kB | gzip:    19.79 kB
+dist/assets/ebird-taxonomy-history-BnZCxG7K.js       84.48 kB | gzip:    16.39 kB
+dist/assets/MapExplorer-DBvhaWs6.js                 125.48 kB | gzip:    34.57 kB
+dist/assets/BirdingStats-Kyno6__9.js                135.05 kB | gzip:    32.89 kB
+dist/assets/ca-atlas-blocks-Cjs0hgUO.js             160.41 kB | gzip:    34.33 kB
+dist/assets/HelpDocs-DFJ53bMH.js                    185.39 kB | gzip:    61.94 kB
+dist/assets/vendor-react-YF_fs8kM.js                189.64 kB | gzip:    59.65 kB
+dist/assets/tideService-9T66rEwz.js                 304.21 kB | gzip:    77.61 kB
+dist/assets/vendor-recharts-B1aqxOuP.js             406.48 kB | gzip:   114.92 kB
+dist/assets/index-DsF7fFYk.js                       413.01 kB | gzip:   118.17 kB
+dist/assets/ebird-alpha-codes-cvoIDjn5.js           588.92 kB | gzip:   143.28 kB
+dist/assets/vendor-maplibre-CFIch1p2.js           1,036.87 kB | gzip:   274.50 kB
+dist/assets/ebird-taxonomy-CziHVVEX.js            1,737.68 kB | gzip:   472.14 kB
+dist/assets/us-counties-D-oO-LWa.js               3,786.28 kB | gzip: 1,039.77 kB
+
+ok built in 972ms
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 1100 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+npm run build  26.36s user 1.44s system 148% cpu 18.748 total

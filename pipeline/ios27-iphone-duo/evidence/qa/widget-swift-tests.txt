@@ -1,0 +1,42 @@
+# Widget extension Swift tests, Xcode 27.1 (27A9275), destination: iPhone Duo simulator D0CBEB76-7F70-4CDC-AB71-2A1F989317B7, iOS 27.1 (24A94425)
+# xcodebuild test -project snowraven.xcodeproj -scheme snowraven_widgetsTests -destination 'platform=iOS Simulator,id=<Duo>' -test-timeouts-enabled YES (no-op npm and /tmp/xcshim first on PATH, DEVELOPER_DIR exported)
+# failing test cases: 0
+# passing test cases: 143
+Test Suite 'AccessibilityLabelTests' passed at 2026-10-21 14:55:46.836.
+	 Executed 7 tests, with 0 failures (0 unexpected) in 0.032 (0.039) seconds
+Test Suite 'AlertDocumentsTests' passed at 2026-10-21 14:55:47.263.
+	 Executed 6 tests, with 0 failures (0 unexpected) in 0.419 (0.424) seconds
+Test Suite 'AlertLinkTests' passed at 2026-10-21 14:55:47.270.
+	 Executed 4 tests, with 0 failures (0 unexpected) in 0.004 (0.007) seconds
+Test Suite 'AlertRulesParityTests' passed at 2026-10-21 14:55:47.333.
+	 Executed 10 tests, with 0 failures (0 unexpected) in 0.057 (0.063) seconds
+Test Suite 'AlertsEngineTests' passed at 2026-10-21 14:55:48.123.
+	 Executed 35 tests, with 0 failures (0 unexpected) in 0.768 (0.790) seconds
+Test Suite 'CountabilityTests' passed at 2026-10-21 14:55:50.086.
+	 Executed 4 tests, with 0 failures (0 unexpected) in 1.959 (1.962) seconds
+Test Suite 'DeepLinkTests' passed at 2026-10-21 14:55:50.115.
+	 Executed 7 tests, with 0 failures (0 unexpected) in 0.025 (0.029) seconds
+Test Suite 'DenseBodyTests' passed at 2026-10-21 14:55:52.320.
+	 Executed 6 tests, with 0 failures (0 unexpected) in 2.202 (2.205) seconds
+Test Suite 'HandoverDecodingTests' passed at 2026-10-21 14:55:52.390.
+	 Executed 6 tests, with 0 failures (0 unexpected) in 0.066 (0.070) seconds
+Test Suite 'InboxEvictTests' passed at 2026-10-21 14:55:52.834.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.441 (0.443) seconds
+Test Suite 'NotificationTextTests' passed at 2026-10-21 14:55:52.838.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.003 (0.004) seconds
+Test Suite 'QuietHoursTests' passed at 2026-10-21 14:55:52.968.
+	 Executed 5 tests, with 0 failures (0 unexpected) in 0.126 (0.129) seconds
+Test Suite 'ResolvePointTests' passed at 2026-10-21 14:55:52.978.
+Test Suite 'SideTableTests' passed at 2026-10-21 14:55:52.997.
+	 Executed 11 tests, with 0 failures (0 unexpected) in 0.011 (0.018) seconds
+Test Suite 'WidgetCacheTests' passed at 2026-10-21 14:55:53.440.
+	 Executed 19 tests, with 0 failures (0 unexpected) in 0.429 (0.443) seconds
+Test Suite 'WidgetRowsParityTests' passed at 2026-10-21 14:55:53.470.
+	 Executed 8 tests, with 0 failures (0 unexpected) in 0.026 (0.030) seconds
+Test Suite 'WidgetStateTests' passed at 2026-10-21 14:55:53.510.
+	 Executed 8 tests, with 0 failures (0 unexpected) in 0.034 (0.039) seconds
+Test Suite 'snowraven_widgetsTests.xctest' passed at 2026-10-21 14:55:53.510.
+	 Executed 143 tests, with 0 failures (0 unexpected) in 6.613 (6.713) seconds
+Test Suite 'All tests' passed at 2026-10-21 14:55:53.510.
+	 Executed 143 tests, with 0 failures (0 unexpected) in 6.613 (6.715) seconds
+** TEST SUCCEEDED **

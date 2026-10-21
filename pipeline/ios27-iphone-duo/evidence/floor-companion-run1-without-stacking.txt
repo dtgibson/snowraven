@@ -1,0 +1,36 @@
+
+== webkit duo-inner-portrait gate={"ios":true,"legacy":true,"range":true,"screen":"669x951"} deleted=1
+  labels floor: Contains(16px, w72, 1L, ink+-4.63, row66) | Effort(16px, w72, 1L, ink+-28.81, row30) | Where & when(16px, w72, 2L, ink+-7.02, row72)
+  labels nofloor: Contains(11.5px, w72, 1L, ink+-21.51, row66) | Effort(11.5px, w72, 1L, ink+-39.41, row30) | Where & when(11.5px, w72, 2L, ink+-23.49, row34.5)
+  dates floor: {"sidebarW":240,"dir":"row","inputs":[{"font":"16px","w":99.5,"top":211},{"font":"16px","w":99.5,"top":211}]}
+  dates nofloor: {"sidebarW":240,"dir":"row","inputs":[{"font":"12px","w":99.5,"top":200},{"font":"12px","w":99.5,"top":200}]}
+
+== webkit duo-inner-landscape gate={"ios":true,"legacy":true,"range":true,"screen":"951x669"} deleted=1
+  labels floor: Contains(16px, w72, 1L, ink+-4.63, row66) | Effort(16px, w72, 1L, ink+-28.81, row30) | Where & when(16px, w72, 2L, ink+-7.02, row48)
+  labels nofloor: Contains(11.5px, w72, 1L, ink+-21.51, row66) | Effort(11.5px, w72, 1L, ink+-39.41, row30) | Where & when(11.5px, w72, 2L, ink+-23.49, row34.5)
+  dates floor: {"sidebarW":266.27,"dir":"row","inputs":[{"font":"16px","w":112.64,"top":211},{"font":"16px","w":112.64,"top":211}]}
+  dates nofloor: {"sidebarW":266.27,"dir":"row","inputs":[{"font":"12px","w":112.64,"top":200},{"font":"12px","w":112.64,"top":200}]}
+
+== webkit iphone17pro-landscape gate={"ios":true,"legacy":true,"range":true,"screen":"874x402"} deleted=1
+  labels floor: Contains(16px, w72, 1L, ink+-4.63, row66) | Effort(16px, w72, 1L, ink+-28.81, row30) | Where & when(16px, w72, 2L, ink+-7.02, row48)
+  labels nofloor: Contains(11.5px, w72, 1L, ink+-21.51, row66) | Effort(11.5px, w72, 1L, ink+-39.41, row30) | Where & when(11.5px, w72, 2L, ink+-23.49, row34.5)
+  dates floor: {"sidebarW":244.72,"dir":"row","inputs":[{"font":"16px","w":101.86,"top":211},{"font":"16px","w":101.86,"top":211}]}
+  dates nofloor: {"sidebarW":244.72,"dir":"row","inputs":[{"font":"12px","w":101.86,"top":200},{"font":"12px","w":101.86,"top":200}]}
+
+== chromium duo-inner-portrait gate={"ios":true,"legacy":true,"range":true,"screen":"669x951"} deleted=1
+  labels floor: Contains(16px, w72, 1L, ink+-4.61, row66) | Effort(16px, w72, 1L, ink+-28.81, row30) | Where & when(16px, w72, 2L, ink+-7.02, row82)
+  labels nofloor: Contains(11.5px, w72, 1L, ink+-21.5, row66) | Effort(11.5px, w72, 1L, ink+-39.41, row30) | Where & when(11.5px, w72, 2L, ink+-23.48, row58.5)
+  dates floor: {"sidebarW":240,"dir":"row","inputs":[{"font":"16px","w":99.5,"top":210},{"font":"16px","w":99.5,"top":210}]}
+  dates nofloor: {"sidebarW":240,"dir":"row","inputs":[{"font":"12px","w":99.5,"top":199},{"font":"12px","w":99.5,"top":199}]}
+
+== chromium duo-inner-landscape gate={"ios":true,"legacy":true,"range":true,"screen":"951x669"} deleted=1
+  labels floor: Contains(16px, w72, 1L, ink+-4.61, row66) | Effort(16px, w72, 1L, ink+-28.81, row30) | Where & when(16px, w72, 2L, ink+-7.02, row48)
+  labels nofloor: Contains(11.5px, w72, 1L, ink+-21.5, row66) | Effort(11.5px, w72, 1L, ink+-39.41, row30) | Where & when(11.5px, w72, 2L, ink+-23.48, row34.5)
+  dates floor: {"sidebarW":266.27,"dir":"row","inputs":[{"font":"16px","w":112.63,"top":210},{"font":"16px","w":112.64,"top":210}]}
+  dates nofloor: {"sidebarW":266.27,"dir":"row","inputs":[{"font":"12px","w":112.63,"top":199},{"font":"12px","w":112.64,"top":199}]}
+
+== chromium iphone17pro-landscape gate={"ios":true,"legacy":true,"range":true,"screen":"874x402"} deleted=1
+  labels floor: Contains(16px, w72, 1L, ink+-4.61, row66) | Effort(16px, w72, 1L, ink+-28.81, row30) | Where & when(16px, w72, 2L, ink+-7.02, row72)
+  labels nofloor: Contains(11.5px, w72, 1L, ink+-21.5, row66) | Effort(11.5px, w72, 1L, ink+-39.41, row30) | Where & when(11.5px, w72, 2L, ink+-23.48, row34.5)
+  dates floor: {"sidebarW":244.72,"dir":"row","inputs":[{"font":"16px","w":101.86,"top":210},{"font":"16px","w":101.86,"top":210}]}
+  dates nofloor: {"sidebarW":244.72,"dir":"row","inputs":[{"font":"12px","w":101.86,"top":199},{"font":"12px","w":101.86,"top":199}]}

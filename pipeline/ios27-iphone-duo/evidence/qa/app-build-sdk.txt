@@ -1,0 +1,18 @@
+$ xcrun vtool -show-build SnowRaven.app/SnowRaven
+SnowRaven.app/SnowRaven:
+Load command 11
+      cmd LC_BUILD_VERSION
+  cmdsize 32
+ platform IOSSIMULATOR
+    minos 16.0
+      sdk 27.1
+   ntools 1
+     tool LD
+  version 27037.1
+$ PlistBuddy SnowRaven.app/Info.plist: CFBundleShortVersionString, CFBundleVersion, DTSDKName, DTXcode, DTXcodeBuild, CFBundleIdentifier
+1.0.57
+1.0.57.1
+iphonesimulator27.1
+2710
+27A9275
+com.dtgibson.snowraven

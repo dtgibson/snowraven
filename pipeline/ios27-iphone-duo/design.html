@@ -1,0 +1,545 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SnowRaven on iPhone Duo</title>
+<style>
+/* ==========================================================================
+   MOCKUP PRESENTATION CHROME (.mk-*). Same register as the nav-rework mockup:
+   a serif display face from the system stack so the annotation never reads
+   as the app, and zero external dependencies. Everything inside a .sr-app
+   frame uses the shipped tokens, copied verbatim from frontend/src/globals.css.
+   ========================================================================== */
+:root {
+  --mk-display: 'Iowan Old Style', 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, serif;
+  --mk-body: -apple-system, 'Segoe UI', Helvetica, sans-serif;
+  --mk-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace;
+  --mk-ease: cubic-bezier(0.2, 0, 0, 1);
+  --mk-bg: #F3F1EC;
+  --mk-bg-deep: #E9E6DF;
+  --mk-ink: #1C1A17;
+  --mk-ink-muted: #5F5B54;
+  --mk-rule: #D9D4CB;
+  --mk-paper: #FBFAF7;
+  --mk-accent: #277448;
+  --mk-cutout: rgba(211, 31, 31, 0.16);
+  --mk-cutout-line: rgba(211, 31, 31, 0.55);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --mk-bg: #15140F; --mk-bg-deep: #0E0D0A; --mk-ink: #ECE8DF; --mk-ink-muted: #A49E92;
+    --mk-rule: #302D26; --mk-paper: #1D1B16; --mk-accent: #34D399;
+    --mk-cutout: rgba(248, 113, 113, 0.18); --mk-cutout-line: rgba(248, 113, 113, 0.6);
+  }
+}
+:root[data-theme="dark"] {
+  --mk-bg: #15140F; --mk-bg-deep: #0E0D0A; --mk-ink: #ECE8DF; --mk-ink-muted: #A49E92;
+  --mk-rule: #302D26; --mk-paper: #1D1B16; --mk-accent: #34D399;
+  --mk-cutout: rgba(248, 113, 113, 0.18); --mk-cutout-line: rgba(248, 113, 113, 0.6);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  font-family: var(--mk-body); color: var(--mk-ink);
+  background:
+    radial-gradient(1200px 600px at 10% -10%, rgba(39,116,72,0.10), transparent 60%),
+    linear-gradient(180deg, var(--mk-bg) 0%, var(--mk-bg-deep) 100%);
+  min-height: 100vh; line-height: 1.5; font-size: 15px;
+}
+.mk-wrap { max-width: 1120px; margin: 0 auto; padding: 40px 16px 80px; }
+.mk-kicker { font: 600 12px/1.2 var(--mk-body); letter-spacing: 0.14em; text-transform: uppercase; color: var(--mk-accent); margin: 0 0 10px; }
+h1 { font: 400 clamp(32px, 4.5vw, 46px)/1.08 var(--mk-display); letter-spacing: -0.02em; margin: 0 0 14px; }
+h2 { font: 400 clamp(22px, 2.6vw, 28px)/1.15 var(--mk-display); letter-spacing: -0.015em; margin: 56px 0 8px; }
+h3 { font: 600 13px/1.3 var(--mk-body); letter-spacing: 0.08em; text-transform: uppercase; color: var(--mk-ink-muted); margin: 22px 0 8px; }
+p { margin: 0 0 12px; max-width: 68ch; color: var(--mk-ink); }
+p.mk-lede { font-size: 17px; color: var(--mk-ink-muted); }
+code, .mk-code { font: 500 12.5px/1.6 var(--mk-mono); }
+code { background: var(--mk-paper); border: 1px solid var(--mk-rule); border-radius: 4px; padding: 0 5px; }
+pre.mk-code { background: var(--mk-paper); border: 1px solid var(--mk-rule); border-radius: 10px; padding: 14px 16px; overflow: auto; margin: 10px 0 18px; max-width: 760px; }
+pre.mk-code b { color: var(--mk-accent); font-weight: 600; }
+.mk-note { font-size: 13px; color: var(--mk-ink-muted); max-width: 72ch; }
+.mk-note b { color: var(--mk-ink); font-weight: 600; }
+ul.mk-list { padding-left: 18px; margin: 6px 0 14px; max-width: 72ch; }
+ul.mk-list li { margin: 0 0 6px; }
+
+/* ---- controls --------------------------------------------------------- */
+.mk-controls { display: flex; flex-wrap: wrap; gap: 14px 24px; align-items: flex-end; margin: 26px 0 22px; padding: 16px 18px; background: var(--mk-paper); border: 1px solid var(--mk-rule); border-radius: 14px; }
+.mk-ctl { display: flex; flex-direction: column; gap: 6px; }
+.mk-ctl > span { font: 600 11px/1 var(--mk-body); letter-spacing: 0.1em; text-transform: uppercase; color: var(--mk-ink-muted); }
+.mk-seg { display: inline-flex; padding: 2px; gap: 2px; background: var(--mk-bg-deep); border-radius: 8px; }
+.mk-seg button {
+  font: 500 13px/1 var(--mk-body); color: var(--mk-ink-muted); background: transparent;
+  border: 1px solid transparent; border-radius: 6px; padding: 8px 12px; cursor: pointer;
+  transition: background-color 120ms ease-out, color 120ms ease-out, border-color 120ms ease-out;
+}
+.mk-seg button:hover { color: var(--mk-ink); }
+.mk-seg button[aria-pressed="true"] { background: var(--mk-paper); color: var(--mk-ink); border-color: var(--mk-rule); font-weight: 600; }
+.mk-seg button:focus-visible { outline: 2px solid var(--mk-accent); outline-offset: 1px; }
+
+/* ---- the stage: two Duo outer-screen frames ----------------------------- */
+.mk-stage { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(466px, 100%), 1fr)); gap: 28px 32px; align-items: start; }
+.mk-col > h3 { margin-top: 0; }
+.mk-cap { font-size: 13px; color: var(--mk-ink-muted); margin: 10px 0 0; max-width: 466px; }
+.mk-cap b { color: var(--mk-ink); font-weight: 600; }
+
+/* The frame is the Duo's OUTER display at 1x: 466 x 678 pt. The simulated side
+   inset is one custom property; `.duo` carries it as --cut-l / --cut-r and the
+   frame's "proposed" rules read it exactly as the app's rules read env(). The
+   TODAY frame has the proposed rules turned off, nothing else. */
+.duo {
+  position: relative; width: 466px; height: 678px; max-width: 100%;
+  border-radius: 44px; overflow: hidden;
+  border: 1px solid var(--mk-rule);
+  box-shadow: 0 2px 6px rgba(28,26,23,0.08), 0 24px 48px -18px rgba(28,26,23,0.28);
+  --cut-l: 0px; --cut-r: 0px; --cut: 34px;
+}
+.duo[data-cut="left"]  { --cut-l: var(--cut); }
+.duo[data-cut="right"] { --cut-r: var(--cut); }
+/* The OS-reported inset strip and the camera, drawn ABOVE everything, pointer
+   events off: it is a physical thing the page sits under. */
+.duo-cut { position: absolute; top: 0; bottom: 0; width: var(--cut); z-index: 50; pointer-events: none;
+  background: repeating-linear-gradient(135deg, var(--mk-cutout) 0 6px, transparent 6px 12px);
+  border-color: var(--mk-cutout-line); border-style: solid; border-width: 0; display: none; }
+.duo[data-cut="left"]  .duo-cut--l { display: block; left: 0; border-right-width: 1px; }
+.duo[data-cut="right"] .duo-cut--r { display: block; right: 0; border-left-width: 1px; }
+.duo-cam { position: absolute; top: 50%; width: 18px; height: 18px; border-radius: 50%; transform: translateY(-50%);
+  background: radial-gradient(circle at 40% 40%, #2A2E36, #0F1117 65%); box-shadow: 0 0 0 3px #0F1117; }
+.duo-cut--l .duo-cam { left: 8px; } .duo-cut--r .duo-cam { right: 8px; }
+.duo-island { position: absolute; top: 11px; left: 50%; transform: translateX(-50%); width: 112px; height: 32px; border-radius: 16px; background: #0F1117; z-index: 50; pointer-events: none; }
+.duo-home { position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); width: 134px; height: 5px; border-radius: 3px; background: var(--mk-ink); opacity: 0.6; z-index: 51; pointer-events: none; }
+
+/* ---- SnowRaven tokens, verbatim from globals.css (the subset painted) ------ */
+.sr-app {
+  --sr-bg: #F9FAFB; --sr-surface: #FFFFFF; --sr-surface-subtle: #F4F4F5; --sr-surface-faint: #FAFAFA;
+  --sr-text: #0F1117; --sr-text-muted: #6B6B74; --sr-text-gray: #6B7280; --sr-text-disabled: #A1A1AA;
+  --sr-border: #E4E4E7; --sr-border-subtle: #F4F4F5; --sr-border-medium: #C4C4CE; --sr-border-input: #8A8A91;
+  --sr-accent: #277448; --sr-accent-strong: #1A5C38; --sr-accent-bg: #E8F5EE; --sr-on-accent: #FFFFFF;
+  --sr-card-shadow: 0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+  --sr-nav-bar-shadow: 0 -3px 6px -2px rgba(15,17,23,0.12);
+  --sr-scrim: rgba(15,17,23,0.36);
+  --font-sans: 'Inter', -apple-system, 'Segoe UI', Roboto, sans-serif;
+  /* The app's safe-area readings. On the real device these are env() values;
+     here they are the frame's simulated cutout, and the bottom is the Duo's
+     home-indicator inset. */
+  --sai-top: 54px; --sai-bottom: 34px; --sai-left: var(--cut-l); --sai-right: var(--cut-r);
+  position: absolute; inset: 0; font-family: var(--font-sans); font-size: 16px; line-height: 1.5;
+  background: var(--sr-bg); color: var(--sr-text);
+}
+.sr-app[data-theme="dark"] {
+  --sr-bg: #09090B; --sr-surface: #18181B; --sr-surface-subtle: #27272A; --sr-surface-faint: #1C1C1F;
+  --sr-text: #F4F4F5; --sr-text-muted: #A1A1AA; --sr-text-gray: #A1A1AA; --sr-text-disabled: #52525B;
+  --sr-border: #27272A; --sr-border-subtle: #1F1F23; --sr-border-medium: #3F3F46; --sr-border-input: #707078;
+  --sr-accent: #34D399; --sr-accent-strong: #34D399; --sr-accent-bg: #052E16; --sr-on-accent: #052E16;
+  --sr-card-shadow: 0 1px 4px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.25);
+  --sr-nav-bar-shadow: 0 -3px 8px -2px rgba(2,2,4,0.60);
+  --sr-scrim: rgba(9,9,11,0.6);
+}
+
+/* `.sr-ios-app body` pads the in-flow page on all three non-bottom edges today.
+   That is why the header and the content are already clear of the cutout in
+   BOTH frames: only the three FIXED surfaces escape it. */
+.sr-page { position: absolute; inset: 0; overflow: hidden; padding: var(--sai-top) var(--sai-right) 0 var(--sai-left); display: flex; flex-direction: column; }
+.sr-header { position: relative; display: flex; align-items: center; justify-content: center; height: 44px; border-bottom: 1px solid var(--sr-border); background: var(--sr-surface); flex: none; }
+.sr-brand { font-size: 17px; font-weight: 700; letter-spacing: -0.4px; }
+.sr-brand b { color: var(--sr-accent); font-weight: 700; }
+.sr-hdr-inbox { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); width: 36px; height: 36px; border-radius: 8px; border: 0; background: none; color: var(--sr-text-muted); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: background-color 120ms ease-out, color 120ms ease-out; }
+.sr-hdr-inbox:hover { background: var(--sr-surface-subtle); color: var(--sr-text); }
+.sr-badge { position: absolute; top: 2px; right: 2px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: var(--sr-accent); color: var(--sr-on-accent); font-size: 10px; font-weight: 700; line-height: 16px; text-align: center; font-variant-numeric: tabular-nums; }
+.sr-main { flex: 1; min-height: 0; padding: 16px 16px 0; overflow: hidden; }
+.sr-h { font-size: 15px; font-weight: 700; margin: 0 0 2px; letter-spacing: -0.01em; }
+.sr-sub { font-size: 12px; color: var(--sr-text-muted); margin: 0 0 14px; }
+.sr-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.sr-tile { background: var(--sr-surface); border: 1px solid var(--sr-border); border-radius: 10px; padding: 12px 14px; }
+.sr-tile-k { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--sr-text-muted); }
+.sr-tile-v { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.15; font-variant-numeric: tabular-nums; }
+.sr-tile-v small { font-size: 12px; font-weight: 500; color: var(--sr-text-muted); margin-left: 4px; letter-spacing: 0; }
+.sr-rows { margin-top: 14px; background: var(--sr-surface); border: 1px solid var(--sr-border); border-radius: 10px; overflow: hidden; }
+.sr-row { display: flex; justify-content: space-between; align-items: baseline; padding: 10px 14px; font-size: 13px; }
+.sr-row + .sr-row { border-top: 1px solid var(--sr-border-subtle); }
+.sr-row span:last-child { font-variant-numeric: tabular-nums; color: var(--sr-text-muted); }
+
+/* ---- the phone bar, verbatim anatomy ----------------------------------- */
+.sr-navbar {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 20;
+  display: grid; grid-template-columns: repeat(5, minmax(0, 1fr));
+  background: var(--sr-surface); border-top: 1px solid var(--sr-border); box-shadow: var(--sr-nav-bar-shadow);
+  padding-bottom: calc(6px + var(--sai-bottom));
+}
+.sr-navbar-cell { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; min-height: 52px; padding: 7px 3px 8px; border: 0; background: none; cursor: pointer; color: var(--sr-text-muted); font-family: inherit; transition: background-color 120ms ease-out, color 120ms ease-out; }
+.sr-navbar-cell:hover { background: var(--sr-surface-subtle); }
+.sr-navbar-cell--active { color: var(--sr-accent); }
+.sr-navbar-cell--active .sr-navbar-glyph { background: var(--sr-accent-bg); }
+.sr-navbar-glyph { display: flex; align-items: center; justify-content: center; width: 40px; height: 26px; border-radius: 13px; transition: background-color 140ms ease-out; }
+.sr-navbar-label { font-size: 10px; font-weight: 600; line-height: 1.15; text-align: center; }
+.sr-navbar-cell--active .sr-navbar-label { font-weight: 700; }
+
+/* ---- the More sheet ------------------------------------------------------ */
+.sr-nav-sheet-root { position: absolute; inset: 0; z-index: 30; background: var(--sr-scrim); display: flex; align-items: flex-end; opacity: 0; pointer-events: none; transition: opacity 160ms ease-out; }
+.sr-nav-sheet-root--open { opacity: 1; pointer-events: auto; }
+.sr-nav-sheet { width: 100%; max-height: min(70%, 528px); display: flex; flex-direction: column; background: var(--sr-surface); border-top: 1px solid var(--sr-border); border-radius: 16px 16px 0 0; box-shadow: var(--sr-card-shadow); padding: 0 0 calc(14px + var(--sai-bottom)); transform: translateY(100%); transition: transform 220ms var(--mk-ease); }
+.sr-nav-sheet-root--open .sr-nav-sheet { transform: translateY(0); }
+.sr-nav-sheet-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 8px 10px 0; }
+.sr-nav-sheet-foot { flex: none; padding: 0 10px; }
+.sr-nav-sheet-handle { width: 36px; height: 4px; border-radius: 2px; background: var(--sr-border-medium); margin: 4px auto 8px; }
+.sr-nav-sheet h2 { font: 700 16px/1.3 var(--font-sans); margin: 0 0 8px; padding: 0 6px; letter-spacing: -0.01em; color: var(--sr-text); }
+.sr-nav-search { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 32px; margin: 0 0 10px; padding: 0 8px 0 9px; border: 1px solid var(--sr-border-input); border-radius: 8px; background: var(--sr-surface-faint); color: var(--sr-text-muted); font-family: inherit; font-size: 13.5px; font-weight: 500; text-align: left; cursor: pointer; transition: background-color 120ms ease-out, border-color 120ms ease-out, color 120ms ease-out; }
+.sr-nav-search:hover { background: var(--sr-surface-subtle); border-color: var(--sr-text-muted); color: var(--sr-text); }
+.sr-nav-search span { flex: 1; }
+.sr-nav-item { position: relative; display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 7px 10px; border: 0; border-radius: 8px; background: none; color: var(--sr-text-muted); font-family: inherit; font-size: 15px; font-weight: 500; text-align: left; cursor: pointer; transition: background-color 120ms ease-out, color 120ms ease-out; }
+.sr-nav-item:hover { background: var(--sr-surface-subtle); color: var(--sr-text); }
+.sr-nav-item--active, .sr-nav-item--active:hover { background: var(--sr-accent-bg); color: var(--sr-accent); font-weight: 600; }
+.sr-nav-item--active::before { content: ""; position: absolute; left: 0; top: 50%; width: 3px; height: 60%; border-radius: 0 2px 2px 0; background: var(--sr-accent); transform: translateY(-50%); }
+.sr-nav-sep { height: 1px; background: var(--sr-border); margin: 8px 4px; border: 0; }
+
+/* ---- the Alerts inbox sheet --------------------------------------------- */
+.sr-inbox-root { position: absolute; inset: 0; z-index: 31; background: var(--sr-scrim); display: flex; align-items: flex-end; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 160ms ease-out; }
+.sr-inbox-root--open { opacity: 1; pointer-events: auto; }
+.sr-inbox-sheet { width: 100%; max-height: 92%; display: flex; flex-direction: column; background: var(--sr-surface); color: var(--sr-text); border-top: 1px solid var(--sr-border); border-radius: 16px 16px 0 0; box-shadow: var(--sr-card-shadow); transform: translateY(100%); transition: transform 220ms var(--mk-ease); }
+.sr-inbox-root--open .sr-inbox-sheet { transform: none; }
+.sr-inbox-grab { flex: none; padding: 8px 0 2px; }
+.sr-inbox-handle { width: 36px; height: 4px; border-radius: 2px; background: var(--sr-border-medium); margin: 0 auto; }
+.sr-inbox-head { flex: none; display: flex; align-items: center; gap: 10px; padding: 10px 12px 10px 18px; border-bottom: 1px solid var(--sr-border); }
+.sr-inbox-glyph { flex: none; color: var(--sr-accent); }
+.sr-inbox-title { flex: 1; min-width: 0; margin: 0; font: 700 15px/1.3 var(--font-sans); letter-spacing: -0.01em; color: var(--sr-text); }
+.sr-inbox-title small { margin-left: 6px; font-size: 12px; font-weight: 500; letter-spacing: 0; color: var(--sr-text-muted); }
+.sr-inbox-close { flex: none; width: 32px; height: 32px; border-radius: 6px; border: 0; background: none; color: var(--sr-text-muted); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: background-color 120ms ease-out, color 120ms ease-out; }
+.sr-inbox-close:hover { background: var(--sr-surface-subtle); color: var(--sr-text); }
+.sr-inbox-body { flex: 1; min-height: 0; overflow: auto; }
+.sr-alerts-inbox { list-style: none; margin: 0; padding: 0; }
+.sr-alerts-inbox > li + li { border-top: 1px solid var(--sr-border-subtle); }
+.sr-alert { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "name dist" "place chev" "when chev"; column-gap: 12px; row-gap: 2px; width: 100%; padding: 11px 16px; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; transition: background-color 120ms ease-out; }
+.sr-alert:hover { background: var(--sr-surface-subtle); }
+.sr-alert-name { grid-area: name; font-size: 13.5px; font-weight: 500; color: var(--sr-text); display: flex; align-items: center; gap: 6px; }
+.sr-alert-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--sr-accent); }
+.sr-alert-new { font-size: 11px; font-weight: 600; color: var(--sr-accent); }
+.sr-alert-dist { grid-area: dist; font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.sr-alert-place { grid-area: place; font-size: 12px; color: var(--sr-text-muted); }
+.sr-alert-when { grid-area: when; font-size: 11.5px; color: var(--sr-text-muted); }
+.sr-alert-when b { font-weight: 600; }
+.sr-alert-chev { grid-area: chev; align-self: center; justify-self: end; color: var(--sr-text-muted); }
+.sr-inbox-foot { flex: none; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 12px; padding: 10px 16px calc(18px + var(--sai-bottom)); border-top: 1px solid var(--sr-border-subtle); }
+.sr-inbox-fine { flex: 1 1 12rem; min-width: 0; margin: 0; font-size: 12px; color: var(--sr-text-muted); line-height: 1.5; }
+.sr-inbox-actions { display: flex; gap: 8px; margin-left: auto; }
+.sr-btn-quiet { font: 500 12px/1 var(--font-sans); color: var(--sr-text); background: var(--sr-surface); border: 1px solid var(--sr-border); border-radius: 6px; padding: 9px 12px; cursor: pointer; transition: border-color 120ms ease-out, background 120ms ease-out; }
+.sr-btn-quiet:hover { border-color: var(--sr-border-medium); background: var(--sr-surface-subtle); }
+
+/* ---- THE PROPOSED RULES. These three blocks are the whole change. --------
+   In the app they are `.sr-ios-app`-gated and read env(); the Android twins
+   read var(--sr-inset-X, 0px). The TODAY frame simply does not carry
+   [data-proposed], so the only difference between the two frames is these
+   declarations. */
+.duo[data-proposed] .sr-navbar     { padding-left: var(--sai-left); padding-right: var(--sai-right); }
+.duo[data-proposed] .sr-nav-sheet  { padding-left: var(--sai-left); padding-right: var(--sai-right); }
+.duo[data-proposed] .sr-inbox-sheet{ padding-left: var(--sai-left); padding-right: var(--sai-right); }
+
+/* ---- tier map ---------------------------------------------------------- */
+.mk-tiers { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 22px; margin-top: 18px; }
+.mk-tier { background: var(--mk-paper); border: 1px solid var(--mk-rule); border-radius: 14px; padding: 16px; }
+.mk-tier h4 { font: 600 14px/1.3 var(--mk-body); margin: 0 0 2px; }
+.mk-tier .mk-dim { font: 500 12px/1.4 var(--mk-mono); color: var(--mk-ink-muted); margin: 0 0 12px; }
+.mk-tier p { font-size: 13px; color: var(--mk-ink-muted); margin: 12px 0 0; }
+.mk-tier p b { color: var(--mk-ink); }
+.mini { --s: 0.26; position: relative; margin: 0 auto; border-radius: 10px; overflow: hidden; border: 1px solid var(--mk-rule); background: #F9FAFB; color: #0F1117; display: flex; }
+.mini.port { width: calc(466px * var(--s)); height: calc(678px * var(--s)); }
+.mini.inner-port { width: calc(669px * var(--s)); height: calc(951px * var(--s)); }
+.mini.outer-land { width: calc(678px * var(--s)); height: calc(466px * var(--s)); }
+.mini.inner-land { width: calc(951px * var(--s)); height: calc(669px * var(--s)); }
+.mini-nav { flex: none; background: #FFFFFF; border-right: 1px solid #E4E4E7; display: flex; flex-direction: column; gap: 4px; padding: 8px 4px; }
+.mini-nav.rail { width: calc(60px * var(--s)); align-items: center; }
+.mini-nav.side { width: calc(216px * var(--s)); }
+.mini-nav i { display: block; height: 7px; border-radius: 2px; background: #C4C4CE; width: 100%; }
+.mini-nav.rail i { width: 8px; height: 8px; }
+.mini-nav i.on { background: #277448; }
+.mini-content { flex: 1; min-width: 0; padding: 8px; display: flex; flex-direction: column; gap: 5px; }
+.mini-content i { display: block; height: 6px; border-radius: 2px; background: #E4E4E7; }
+.mini-content i:first-child { width: 55%; background: #C4C4CE; }
+.mini-bar { position: absolute; left: 0; right: 0; bottom: 0; height: calc(92px * var(--s)); background: #FFFFFF; border-top: 1px solid #E4E4E7; display: grid; grid-template-columns: repeat(5, 1fr); padding: 4px 2px 10px; }
+.mini-bar i { display: block; width: 10px; height: 7px; border-radius: 4px; background: #C4C4CE; margin: 0 auto; }
+.mini-bar i.on { background: #277448; }
+.mini-island { position: absolute; top: 3px; left: 50%; transform: translateX(-50%); width: 30px; height: 9px; border-radius: 5px; background: #0F1117; }
+.mini-island.side { top: 50%; left: 3px; transform: translateY(-50%); width: 9px; height: 30px; }
+
+/* ---- focus zoom panel --------------------------------------------------- */
+.mk-zoom { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(360px, 100%), 1fr)); gap: 22px; margin-top: 16px; }
+.mk-zoom-card { background: var(--mk-paper); border: 1px solid var(--mk-rule); border-radius: 14px; padding: 16px; }
+.mk-zoom-card h4 { font: 600 14px/1.3 var(--mk-body); margin: 0 0 10px; }
+.mk-zoom-card p { font-size: 13px; color: var(--mk-ink-muted); margin: 10px 0 0; }
+.zoomframe { --font-sans: 'Inter', -apple-system, 'Segoe UI', Roboto, sans-serif; position: relative; height: 150px; border-radius: 10px; overflow: hidden; border: 1px solid var(--mk-rule); background: #F9FAFB; color: #0F1117; font-family: var(--font-sans); }
+.zoomframe .inner { position: absolute; inset: 0; padding: 14px 16px; transform-origin: 0 0; }
+.zoomframe[data-zoomed] .inner { transform: scale(1.231); }
+.zf-label { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #6B6B74; margin-bottom: 6px; }
+.zf-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.zf-row select, .zf-row input { font-family: inherit; font-size: 13px; height: 30px; padding: 0 8px; border: 1px solid #8A8A91; border-radius: 6px; background: #FFFFFF; color: #0F1117; }
+.zoomframe[data-floor] .zf-row select, .zoomframe[data-floor] .zf-row input { font-size: 16px; }
+.zf-tag { position: absolute; right: 10px; bottom: 10px; font: 600 11px/1 var(--mk-mono); padding: 5px 7px; border-radius: 5px; background: #0F1117; color: #F4F4F5; }
+.zoomframe[data-zoomed] .zf-tag { background: #D31F1F; }
+
+/* Reduced motion: every transition above ends in its resting state, so each is
+   simply switched off, the same posture as the shipped global block. */
+@media (prefers-reduced-motion: reduce) {
+  .sr-nav-sheet, .sr-nav-sheet-root, .sr-inbox-sheet, .sr-inbox-root,
+  .sr-navbar-cell, .sr-navbar-glyph, .sr-nav-item, .sr-nav-search, .sr-alert,
+  .sr-hdr-inbox, .sr-inbox-close, .sr-btn-quiet, .mk-seg button { transition: none; }
+}
+@media (max-width: 520px) {
+  .duo { height: auto; aspect-ratio: 466 / 678; }
+  .mk-wrap { padding: 28px 16px 60px; }
+}
+</style>
+</head>
+<body>
+<div class="mk-wrap">
+  <p class="mk-kicker">Improve lane · design pass · ios27-iphone-duo</p>
+  <h1>Nothing under the camera, on either screen.</h1>
+  <p class="mk-lede">Three surfaces in the app are pinned to the bottom edge and escape the page's safe-area padding: the phone bar, the More sheet and the Alerts inbox. Each pads the bottom inset today and neither side. This refinement gives them left and right padding that reads the OS inset for its own side, and nothing else changes anywhere.</p>
+
+  <div class="mk-controls" role="group" aria-label="Mockup controls">
+    <div class="mk-ctl"><span>Surface</span>
+      <div class="mk-seg" id="surface">
+        <button type="button" data-v="bar" aria-pressed="true">Phone bar</button>
+        <button type="button" data-v="sheet" aria-pressed="false">More sheet</button>
+        <button type="button" data-v="inbox" aria-pressed="false">Alerts inbox</button>
+      </div>
+    </div>
+    <div class="mk-ctl"><span>Simulated side inset</span>
+      <div class="mk-seg" id="cut">
+        <button type="button" data-v="left" aria-pressed="true">Left, 34 pt</button>
+        <button type="button" data-v="right" aria-pressed="false">Right, 34 pt</button>
+        <button type="button" data-v="none" aria-pressed="false">None (every shipped iPhone in portrait)</button>
+      </div>
+    </div>
+    <div class="mk-ctl"><span>Theme</span>
+      <div class="mk-seg" id="theme">
+        <button type="button" data-v="light" aria-pressed="true">Light</button>
+        <button type="button" data-v="dark" aria-pressed="false">Dark</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="mk-stage">
+    <div class="mk-col">
+      <h3>Today</h3>
+      <div class="duo" id="frameToday" data-cut="left"></div>
+      <p class="mk-cap"><b>The end cell, the sheet's rows and the inbox's rows sit under the inset.</b> The page above them is already clear, because <code>.sr-ios-app body</code> pads that edge; the three fixed surfaces are viewport-relative and never saw the padding.</p>
+    </div>
+    <div class="mk-col">
+      <h3>Proposed</h3>
+      <div class="duo" id="frameNew" data-cut="left" data-proposed></div>
+      <p class="mk-cap"><b>Each surface pads, it does not move.</b> Its fill, hairline and rounded corners still run edge to edge under the camera; the five cells divide what is left, and the sheets' rows, search field and scrollbar start inside the inset. With the inset at 0 the two frames are byte-identical.</p>
+    </div>
+  </div>
+  <p class="mk-note" style="margin-top:14px">Tap <b>More</b> or the <b>bell</b> in either frame to see the sheets rise with the shipped 220 ms ease-out. The frame is the Duo's outer display at 1x, 466 by 678 points. The hatched strip is a simulated OS inset with the camera in it; the simulator's screen masks do not place the inner camera, so the real values come from the Engineer's measurement, and the rules read whatever the OS reports.</p>
+
+  <h2>The rules, exactly</h2>
+  <p>Three iOS rules gain two declarations each, and the two Android twins gain the same pair reading the injected variable. Each edge reads its own side's inset only; <code>safeAreaPerSide.test.ts</code> pairs them and <code>androidInsetsCss.test.ts</code> derives the twins.</p>
+<pre class="mk-code">.sr-ios-app .sr-navbar {
+  padding-bottom: calc(6px + env(safe-area-inset-bottom, 0px));
+  <b>padding-left: env(safe-area-inset-left, 0px);</b>
+  <b>padding-right: env(safe-area-inset-right, 0px);</b>
+}
+.sr-ios-app .sr-nav-sheet {
+  padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+  <b>padding-left: env(safe-area-inset-left, 0px);</b>
+  <b>padding-right: env(safe-area-inset-right, 0px);</b>
+}
+<b>.sr-ios-app .sr-inbox-sheet {
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+}</b>
+/* 641px and up the inbox is a centred panel, so the ROOT pads and the sheet resets */
+@media (min-width: 641px) {
+  .sr-ios-app .sr-inbox-root {
+    padding-top: calc(24px + env(safe-area-inset-top, 0px));
+    <b>padding-left: calc(24px + env(safe-area-inset-left, 0px));</b>
+    <b>padding-right: calc(24px + env(safe-area-inset-right, 0px));</b>
+  }
+  <b>.sr-ios-app .sr-inbox-sheet { padding-left: 0; padding-right: 0; }</b>
+}</pre>
+
+  <h2>Where the four Duo sizes land</h2>
+  <p>The density is chosen from measured width (<code>lib/navDensity.ts</code>), not from a device check, so every Duo size lands in a tier the app already ships. Nothing here is new; it is the arithmetic made visible.</p>
+  <div class="mk-tiers">
+    <div class="mk-tier">
+      <h4>Outer, portrait</h4><p class="mk-dim">466 x 678 pt · phone tier</p>
+      <div class="mini port"><div class="mini-island"></div><div class="mini-content"><i></i><i></i><i></i><i></i><i></i></div><div class="mini-bar"><i></i><i></i><i class="on"></i><i></i><i></i></div></div>
+      <p><b>Phone bar.</b> The only Duo size that shows the bar. Five cells of 93 pt, so labels stay (the container query drops them under 17 rem). The More sheet's 70dvh binds first at 678 pt, so it scrolls with Settings pinned, as expected.</p>
+    </div>
+    <div class="mk-tier">
+      <h4>Outer, landscape</h4><p class="mk-dim">678 x 466 pt · rail</p>
+      <div class="mini outer-land"><div class="mini-island side"></div><div class="mini-nav rail"><i></i><i></i><i class="on"></i><i></i><i></i><i></i></div><div class="mini-content"><i></i><i></i><i></i><i></i></div></div>
+      <p><b>Icon rail,</b> 618 pt of content. 678 minus the 216 pt sidebar is under 640, so the derivation refuses the sidebar. Every iPhone in landscape gets this today; the rail column scrolls on a short screen.</p>
+    </div>
+    <div class="mk-tier">
+      <h4>Inner, portrait</h4><p class="mk-dim">669 x 951 pt · rail</p>
+      <div class="mini inner-port"><div class="mini-nav rail"><i></i><i></i><i class="on"></i><i></i><i></i><i></i></div><div class="mini-content"><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
+      <p><b>Icon rail,</b> 609 pt of content. Above the phone tier by 29 pt, so the bar never shows here and the focus-zoom guard does not apply. This is the open call below.</p>
+    </div>
+    <div class="mk-tier">
+      <h4>Inner, landscape</h4><p class="mk-dim">951 x 669 pt · sidebar</p>
+      <div class="mini inner-land"><div class="mini-nav side"><i></i><i></i><i class="on"></i><i></i><i></i><i></i></div><div class="mini-content"><i></i><i></i><i></i><i></i></div></div>
+      <p><b>Sidebar,</b> 735 pt of content. The first iPhone screen wide enough for it. The Map Explorer reserves its own 266 pt sidebar and drops to the rail, exactly as a landscape iPad does.</p>
+    </div>
+  </div>
+
+  <h2>The open call: focus zoom above 640 px</h2>
+  <p>WebKit zooms the page when a field under 16 px takes focus, and it does so for the phone idiom at any width. The app floors its controls at 16 px only inside the 640 px phone tier, so an iPhone in landscape, and the Duo's inner screen in both orientations, tap a 13 px filter and watch the page jump. iPads do not zoom, which is why extending the floor to every iOS width would be pure cost there.</p>
+  <div class="mk-zoom">
+    <div class="mk-zoom-card">
+      <h4>Today, inner screen: the page zooms to 1.23x</h4>
+      <div class="zoomframe" data-zoomed><div class="inner"><div class="zf-label">Filters</div><div class="zf-row"><select><option>All counties</option></select><select><option>Any year</option></select><input value="Species" aria-label="Species"></div></div><span class="zf-tag">visualViewport.scale 1.231</span></div>
+      <p>Controls at 13 px. The tap brings the keyboard and a zoom the user has to pinch back out of.</p>
+    </div>
+    <div class="mk-zoom-card">
+      <h4>Proposed, inner screen: floored, no zoom</h4>
+      <div class="zoomframe" data-floor><div class="inner"><div class="zf-label">Filters</div><div class="zf-row"><select><option>All counties</option></select><select><option>Any year</option></select><input value="Species" aria-label="Species"></div></div><span class="zf-tag">visualViewport.scale 1.000</span></div>
+      <p>The same <code>max(16px, rem)</code> floor the phone tier uses, gated so it reaches iPhones only.</p>
+    </div>
+  </div>
+  <h3>Recommended gate</h3>
+  <p>Gate on the screen's shortest side rather than on <code>isIOS()</code>, which cannot tell the two families apart. Every iPhone's shortest side is at most 669 pt (the Duo's inner screen); every iPad's is at least 744 pt (iPad mini). Both device dimensions are tested so the gate holds whichever one WebKit reports in landscape.</p>
+<pre class="mk-code">@media (min-width: 641px) and (max-device-width: 700px),
+       (min-width: 641px) and (max-device-height: 700px) {
+  .sr-ios-app .sr-input-16,
+  .sr-ios-app .sr-ctl-row :is(button, select, input) {
+    font-size: max(var(--sr-ctl-floor), var(--sr-ctl-rem, 0.75rem)) !important;
+  }
+  .sr-ios-app .sr-ctl-label {
+    font-size: max(calc(var(--sr-ctl-floor) * var(--sr-label-ratio, 1)),
+                   calc(var(--sr-ctl-rem, 0.75rem) * var(--sr-label-ratio, 1))) !important;
+  }
+}</pre>
+  <p class="mk-note">Measured on the Duo simulator's outer screen (iOS 27.1, Safari): <b>screen 466 x 678</b>, <b>navigator.platform iPhone</b>, <b>(max-device-width: 700px) matches</b>. The inner screen's reading, and the tap that settles whether it zooms, need the Simulator app, which this Xcode 27.1 install does not include; that is the Engineer's first step. <b>If the tap reads scale 1.000, this block is not added and the null result is recorded.</b></p>
+
+  <h2>What feels better, and what does not change</h2>
+  <ul class="mk-list">
+    <li><b>Nothing sits under the camera or the Dynamic Island</b> on either display: the three bottom surfaces now pad every edge the OS reports, the page already did.</li>
+    <li><b>Tapping a filter on the inner screen does not zoom the page</b>, if the measurement says it does today.</li>
+    <li><b>Every shipped iPhone in portrait is byte-identical</b>: both side insets are 0 there, and 0 px of padding is no padding.</li>
+    <li><b>iPad, Mac, Windows, web and Pi are untouched</b>: every rule is gated on <code>.sr-ios-app</code> or <code>.sr-android-app</code>, and the focus-zoom gate excludes every iPad by its shortest side.</li>
+    <li><b>Could shift, on purpose:</b> an Android phone narrow enough to show the bar in landscape moves its end cells clear of a display cutout, which is the same fix on the other platform.</li>
+  </ul>
+</div>
+
+<script>
+(function () {
+  const ICON = {
+    weather: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="M20 12h2"/><path d="m19.07 4.93-1.41 1.41"/><path d="M15.947 12.65a4 4 0 0 0-5.925-4.128"/><path d="M13 22H7a5 5 0 1 1 4.9-6H13a3 3 0 0 1 0 6Z"/></svg>',
+    species: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 7h.01"/><path d="M3.4 18H12a8 8 0 0 0 8-8V7a4 4 0 0 0-7.28-2.3L2 20"/><path d="m20 7 2 .5-2 .5"/><path d="M10 18v3"/><path d="M14 17.75V21"/><path d="M7 18a6 6 0 0 0 3.84-10.61"/></svg>',
+    stats: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>',
+    calendar: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg>',
+    more: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>',
+    search: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>',
+    bell: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.268 21a2 2 0 0 0 3.464 0"/><path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326"/></svg>',
+    x: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>',
+    chev: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>',
+    row: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 12h8"/></svg>',
+    map: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.106 5.553a2 2 0 0 0 1.788 0l3.659-1.83A1 1 0 0 1 21 4.619v12.764a1 1 0 0 1-.553.894l-4.553 2.277a2 2 0 0 1-1.788 0l-4.212-2.106a2 2 0 0 0-1.788 0l-3.659 1.83A1 1 0 0 1 3 19.381V6.618a1 1 0 0 1 .553-.894l4.553-2.277a2 2 0 0 1 1.788 0z"/><path d="M15 5.764v15"/><path d="M9 3.236v15"/></svg>',
+    settings: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>',
+  };
+  const favourites = [['weather', 'Weather'], ['species', 'Species Detail'], ['stats', 'Statistics'], ['calendar', 'Calendar']];
+  const overflow = [['map', 'Map Explorer'], ['row', 'Multimedia'], ['row', 'Breeding Codes'], ['row', 'Named Birds'], ['row', 'Checklists'], ['row', 'List Comparer'], ['row', 'Targets']];
+  const alerts = [
+    ['Yellow-billed Loon', '4.8 mi', 'Lake Merritt', 'Tue', '12 min ago', true],
+    ['Tropical Kingbird', '11.2 mi', 'Coyote Hills Regional Park', 'Mon', '3 h ago', true],
+    ['Lapland Longspur', '17.0 mi', 'Hayward Regional Shoreline', 'Sun', 'yesterday', false],
+    ['Brant', '6.1 mi', 'Emeryville Marina', 'Sat', '2 days ago', false],
+  ];
+
+  function frameHtml() {
+    const cells = favourites.map(([ic, label], i) =>
+      `<button type="button" class="sr-navbar-cell${i === 2 ? ' sr-navbar-cell--active' : ''}"${i === 2 ? ' aria-current="true"' : ''}><span class="sr-navbar-glyph">${ICON[ic]}</span><span class="sr-navbar-label">${label}</span></button>`).join('');
+    const rows = overflow.map(([ic, label]) => `<button type="button" class="sr-nav-item">${ICON[ic]}<span>${label}</span></button>`).join('');
+    const alertRows = alerts.map(([name, dist, place, day, when, isNew]) =>
+      `<li><button type="button" class="sr-alert"><span class="sr-alert-name">${isNew ? '<span class="sr-alert-dot"></span>' : ''}${name}${isNew ? '<span class="sr-alert-new">New</span>' : ''}</span><span class="sr-alert-dist">${dist}</span><span class="sr-alert-place">${place}</span><span class="sr-alert-when">Reported <b>${day}</b> · Alerted ${when}</span>${ICON.chev.replace('<svg', '<svg class="sr-alert-chev"')}</button></li>`).join('');
+    return `
+      <div class="sr-app">
+        <div class="sr-page">
+          <header class="sr-header"><span class="sr-brand">Snow<b>Raven</b></span>
+            <button type="button" class="sr-hdr-inbox" aria-label="Alerts inbox, 2 new" data-open="inbox">${ICON.bell}<span class="sr-badge">2</span></button>
+          </header>
+          <main class="sr-main">
+            <p class="sr-h">Statistics</p>
+            <p class="sr-sub">Alameda County · 2026 so far</p>
+            <div class="sr-tiles">
+              <div class="sr-tile"><div class="sr-tile-k">Life list</div><div class="sr-tile-v">412<small>species</small></div></div>
+              <div class="sr-tile"><div class="sr-tile-k">This year</div><div class="sr-tile-v">238<small>species</small></div></div>
+              <div class="sr-tile"><div class="sr-tile-k">Checklists</div><div class="sr-tile-v">1,247</div></div>
+              <div class="sr-tile"><div class="sr-tile-k">First of year</div><div class="sr-tile-v">31<small>in Oct</small></div></div>
+            </div>
+            <div class="sr-rows">
+              <div class="sr-row"><span>Most visited hotspot</span><span>Lake Merritt</span></div>
+              <div class="sr-row"><span>Longest checklist</span><span>84 species</span></div>
+              <div class="sr-row"><span>Biggest day</span><span>Apr 26, 112</span></div>
+            </div>
+          </main>
+        </div>
+        <nav class="sr-navbar" aria-label="Main navigation">${cells}
+          <button type="button" class="sr-navbar-cell" aria-haspopup="dialog" aria-label="More destinations" data-open="sheet"><span class="sr-navbar-glyph">${ICON.more}</span><span class="sr-navbar-label">More</span></button>
+        </nav>
+        <div class="sr-nav-sheet-root" data-close="sheet"><div class="sr-nav-sheet" role="dialog" aria-label="More destinations">
+          <div class="sr-nav-sheet-body"><div class="sr-nav-sheet-handle" aria-hidden="true"></div>
+            <button type="button" class="sr-nav-search">${ICON.search}<span>Search</span></button>
+            <h2>More</h2>${rows}
+          </div>
+          <div class="sr-nav-sheet-foot"><hr class="sr-nav-sep" aria-hidden="true"><button type="button" class="sr-nav-item">${ICON.settings}<span>Settings</span></button></div>
+        </div></div>
+        <div class="sr-inbox-root" data-close="inbox"><div class="sr-inbox-sheet" role="dialog" aria-label="Alerts inbox">
+          <div class="sr-inbox-grab"><div class="sr-inbox-handle"></div></div>
+          <div class="sr-inbox-head"><span class="sr-inbox-glyph">${ICON.bell}</span><h2 class="sr-inbox-title">Alerts inbox<small>4 alerts</small></h2><button type="button" class="sr-inbox-close" aria-label="Close the inbox" data-close="inbox">${ICON.x}</button></div>
+          <div class="sr-inbox-body"><ul class="sr-alerts-inbox" aria-label="Past alerts, newest first">${alertRows}</ul></div>
+          <div class="sr-inbox-foot"><p class="sr-inbox-fine">Kept on this device for 30 days, up to 200 alerts, and never synced. Cleared with your eBird backup. Tap an alert to see it on the map.</p>
+            <div class="sr-inbox-actions"><button type="button" class="sr-btn-quiet">Mark read</button><button type="button" class="sr-btn-quiet">Clear</button></div></div>
+        </div></div>
+      </div>
+      <div class="duo-island" aria-hidden="true"></div>
+      <div class="duo-cut duo-cut--l" aria-hidden="true"><span class="duo-cam"></span></div>
+      <div class="duo-cut duo-cut--r" aria-hidden="true"><span class="duo-cam"></span></div>
+      <div class="duo-home" aria-hidden="true"></div>`;
+  }
+
+  const frames = [document.getElementById('frameToday'), document.getElementById('frameNew')];
+  frames.forEach(f => { f.innerHTML = frameHtml(); });
+
+  function setSurface(v) {
+    frames.forEach(f => {
+      f.querySelector('.sr-nav-sheet-root').classList.toggle('sr-nav-sheet-root--open', v === 'sheet');
+      f.querySelector('.sr-inbox-root').classList.toggle('sr-inbox-root--open', v === 'inbox');
+    });
+  }
+  document.querySelectorAll('.duo').forEach(f => {
+    f.addEventListener('click', e => {
+      const open = e.target.closest('[data-open]');
+      const close = e.target.closest('[data-close]');
+      if (open) { setSurface(open.dataset.open); press('surface', open.dataset.open); return; }
+      if (close && (e.target === close || close.classList.contains('sr-inbox-close'))) { setSurface('bar'); press('surface', 'bar'); }
+    });
+  });
+
+  function press(groupId, v) {
+    document.querySelectorAll('#' + groupId + ' button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === v)));
+  }
+  document.getElementById('surface').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return; press('surface', b.dataset.v); setSurface(b.dataset.v);
+  });
+  document.getElementById('cut').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return; press('cut', b.dataset.v);
+    frames.forEach(f => f.setAttribute('data-cut', b.dataset.v));
+  });
+  document.getElementById('theme').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return; press('theme', b.dataset.v);
+    document.querySelectorAll('.sr-app').forEach(a => a.setAttribute('data-theme', b.dataset.v));
+    document.documentElement.setAttribute('data-theme', b.dataset.v);
+  });
+
+  // Presets from the query string, so a state can be linked or captured:
+  // ?surface=sheet|inbox|bar&cut=left|right|none&theme=light|dark
+  const q = new URLSearchParams(location.search);
+  for (const [group, allowed] of [['surface', ['bar', 'sheet', 'inbox']], ['cut', ['left', 'right', 'none']], ['theme', ['light', 'dark']]]) {
+    const v = q.get(group);
+    if (v && allowed.includes(v)) document.querySelector('#' + group + ' button[data-v="' + v + '"]').click();
+  }
+})();
+</script>
+</body>
+</html>

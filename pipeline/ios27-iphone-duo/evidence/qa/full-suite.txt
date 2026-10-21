@@ -1,0 +1,8 @@
+$ npx vitest run --maxWorkers=2   (frontend/, 2026-10-21 15:04, load averages 39 to 525 from other sessions)
+ Test Files  475 passed | 5 skipped (480)
+      Tests  10331 passed | 7 skipped (10338)
+   Start at  15:04:58
+   Duration  186.68s (transform 7.72s, setup 1.21s, import 35.73s, tests 243.38s, environment 54.19s)
+vitest exit 0
+$ printf "" | weft-scope baseline check
+RESULT new=0 known=0 resolved=0 baseline=2026-10-03T19:29:41Z

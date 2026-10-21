@@ -1,0 +1,60 @@
+webkit duo-inner-portrait Multimedia: no filter rows ([])
+webkit duo-inner-portrait Breeding Codes: no filter rows ([])
+webkit duo-inner-portrait Species Detail: floor[1r/3c@16px 1r/1c@16px 1r/1c@16px 1r/3c@16px] nofloor[1r/3c@12px 1r/1c@12px 1r/1c@12px 1r/3c@12px] deleted=1
+webkit duo-inner-portrait Calendar: floor[9r/16c@16px] nofloor[8r/16c@11.5px] deleted=1
+webkit duo-inner-portrait Checklists: floor[4r/12c@16px] nofloor[4r/12c@12px] deleted=1
+webkit duo-inner-portrait Map Explorer: no filter rows ([])
+webkit duo-inner-portrait Statistics: no filter rows ([])
+webkit duo-inner-portrait Named Birds: no filter rows ([])
+webkit duo-inner-portrait Targets: no filter rows ([])
+webkit duo-inner-portrait List Comparer: no filter rows ([])
+webkit duo-inner-landscape Multimedia: no filter rows ([])
+webkit duo-inner-landscape Breeding Codes: no filter rows ([])
+webkit duo-inner-landscape Species Detail: floor[1r/3c@16px 1r/1c@16px 1r/1c@16px 1r/3c@16px] nofloor[1r/3c@12px 1r/1c@12px 1r/1c@12px 1r/3c@12px] deleted=1
+webkit duo-inner-landscape Calendar: floor[8r/16c@16px] nofloor[7r/16c@11.5px] deleted=1
+webkit duo-inner-landscape Checklists: floor[4r/12c@16px] nofloor[4r/12c@12px] deleted=1
+webkit duo-inner-landscape Map Explorer: no filter rows ([])
+webkit duo-inner-landscape Statistics: no filter rows ([])
+webkit duo-inner-landscape Named Birds: no filter rows ([])
+webkit duo-inner-landscape Targets: no filter rows ([])
+webkit duo-inner-landscape List Comparer: no filter rows ([])
+webkit iphone17pro-landscape Multimedia: no filter rows ([])
+webkit iphone17pro-landscape Breeding Codes: no filter rows ([])
+webkit iphone17pro-landscape Species Detail: floor[1r/3c@16px 1r/1c@16px 1r/1c@16px 1r/3c@16px] nofloor[1r/3c@12px 1r/1c@12px 1r/1c@12px 1r/3c@12px] deleted=1
+webkit iphone17pro-landscape Calendar: floor[9r/16c@16px] nofloor[7r/16c@11.5px] deleted=1
+webkit iphone17pro-landscape Checklists: floor[4r/12c@16px] nofloor[4r/12c@12px] deleted=1
+webkit iphone17pro-landscape Map Explorer: no filter rows ([])
+webkit iphone17pro-landscape Statistics: no filter rows ([])
+webkit iphone17pro-landscape Named Birds: no filter rows ([])
+webkit iphone17pro-landscape Targets: no filter rows ([])
+webkit iphone17pro-landscape List Comparer: no filter rows ([])
+chromium duo-inner-portrait Multimedia: no filter rows ([])
+chromium duo-inner-portrait Breeding Codes: no filter rows ([])
+chromium duo-inner-portrait Species Detail: floor[1r/3c@16px 1r/1c@16px 1r/1c@16px 1r/3c@16px] nofloor[1r/3c@12px 1r/1c@12px 1r/1c@12px 1r/3c@12px] deleted=1
+chromium duo-inner-portrait Calendar: floor[9r/16c@16px] nofloor[8r/16c@11.5px] deleted=1
+chromium duo-inner-portrait Checklists: floor[5r/12c@16px] nofloor[4r/12c@12px] deleted=1
+chromium duo-inner-portrait Map Explorer: no filter rows ([])
+chromium duo-inner-portrait Statistics: no filter rows ([])
+chromium duo-inner-portrait Named Birds: no filter rows ([])
+chromium duo-inner-portrait Targets: floor[5r/11c@16px] nofloor[6r/11c@13px] deleted=1
+chromium duo-inner-portrait List Comparer: no filter rows ([])
+chromium duo-inner-landscape Multimedia: no filter rows ([])
+chromium duo-inner-landscape Breeding Codes: no filter rows ([])
+chromium duo-inner-landscape Species Detail: floor[1r/3c@16px 1r/1c@16px 1r/1c@16px 1r/3c@16px] nofloor[1r/3c@12px 1r/1c@12px 1r/1c@12px 1r/3c@12px] deleted=1
+chromium duo-inner-landscape Calendar: floor[8r/16c@16px] nofloor[7r/16c@11.5px] deleted=1
+chromium duo-inner-landscape Checklists: floor[4r/12c@16px] nofloor[4r/12c@12px] deleted=1
+chromium duo-inner-landscape Map Explorer: no filter rows ([])
+chromium duo-inner-landscape Statistics: no filter rows ([])
+chromium duo-inner-landscape Named Birds: no filter rows ([])
+chromium duo-inner-landscape Targets: floor[5r/11c@16px] nofloor[5r/11c@13px] deleted=1
+chromium duo-inner-landscape List Comparer: no filter rows ([])
+chromium iphone17pro-landscape Multimedia: no filter rows ([])
+chromium iphone17pro-landscape Breeding Codes: no filter rows ([])
+chromium iphone17pro-landscape Species Detail: floor[1r/3c@16px 1r/1c@16px 1r/1c@16px 1r/3c@16px] nofloor[1r/3c@12px 1r/1c@12px 1r/1c@12px 1r/3c@12px] deleted=1
+chromium iphone17pro-landscape Calendar: floor[9r/16c@16px] nofloor[7r/16c@11.5px] deleted=1
+chromium iphone17pro-landscape Checklists: floor[4r/12c@16px] nofloor[4r/12c@12px] deleted=1
+chromium iphone17pro-landscape Map Explorer: no filter rows ([])
+chromium iphone17pro-landscape Statistics: no filter rows ([])
+chromium iphone17pro-landscape Named Birds: no filter rows ([])
+chromium iphone17pro-landscape Targets: floor[4r/11c@16px] nofloor[5r/11c@13px] deleted=1
+chromium iphone17pro-landscape List Comparer: no filter rows ([])
