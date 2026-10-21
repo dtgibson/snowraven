@@ -8,7 +8,9 @@
 // the eBird taxonomy prints them, so the rules are stated independently of
 // whichever years the committed asset happens to cover.
 
+/// <reference types="node" />
 import { describe, it, expect } from 'vitest'
+import { readFileSync } from 'node:fs'
 import type { ObservationEntry } from '../types'
 import {
   buildTaxonomyHistoryIndex, historyListEntries, lineageFor,
@@ -477,6 +479,70 @@ describe('a name current after one update and retired at the next (QA fix errand
     expect(idx.events[0].predates).toBe(false)
     expect(idx.events[1].before.map(b => [b.code, b.count, b.onOrBefore])).toEqual([['pappit2', 1, 1], ['pappit1', 1, 1]])
     expect(idx.events[1].predates).toBe(true)
+  })
+
+  it('a code eBird re-used is the later species: a current "Pilbara Grasswren" lands on the re-split, never as a pre-lump row (taxonomy-history-2019)', () => {
+    // eBird lumped Pilbara and Sandhill Grasswren into Rufous Grasswren (2021)
+    // and split them back out under their OLD codes (2024). The current code
+    // strgra4 is the 2024 species; the 2021 before entry carries the same code.
+    const grasswrens = history([
+      {
+        kind: 'lump', ...U2023b,
+        before: [
+          { code: 'strgra4', sci: 'Amytornis whitei', com: 'Pilbara Grasswren', retired: false },
+          { code: 'sangra1', sci: 'Amytornis oweni', com: 'Sandhill Grasswren', retired: false },
+        ],
+        after: [{ code: 'rufgra1', sci: 'Amytornis whitei', com: 'Rufous Grasswren' }],
+        slashes: [],
+      },
+      {
+        kind: 'split', ...U2024,
+        before: [{ code: 'rufgra1', sci: 'Amytornis whitei', com: 'Rufous Grasswren', retired: true }],
+        after: [
+          { code: 'strgra4', sci: 'Amytornis whitei', com: 'Pilbara Grasswren' },
+          { code: 'sangra1', sci: 'Amytornis oweni', com: 'Sandhill Grasswren' },
+        ],
+        slashes: [],
+      },
+    ])
+    const idx = buildTaxonomyHistoryIndex([obs('Pilbara Grasswren', '2025-06-01', 'Amytornis whitei')], grasswrens, { codes: { 'Pilbara Grasswren': 'strgra4' } })
+    const [lump, split] = idx.events
+    expect(split.after[0]).toMatchObject({ code: 'strgra4', count: 1, onOrBefore: 0, current: true })
+    // Not a pre-lump row: the 2021 lump is no reassignment of this report and
+    // does not say the backup predates it.
+    expect(lump.before[0].count).toBe(0)
+    expect(lump.predates).toBe(false)
+    expect(split.predates).toBe(false)
+    // The lump stays on the species' line, through Rufous Grasswren.
+    expect(lineageFor(idx, 'Pilbara Grasswren')?.events.map(e => [e.eventIndex, e.direct])).toEqual([[0, false], [1, true]])
+  })
+
+  it('over the REAL asset, a backup holding every current species predates no update and puts no report on a before side (taxonomy-history-2019)', () => {
+    // Every species in the bundled snapshot (tracked), as a December 2025
+    // export carries it, with the codes the page's /taxonomy/codes batch
+    // returns. Without the re-used-code skip above this reads two false
+    // "predates" (2019's Chestnut-naped Francolin split, 2021's grasswren lump)
+    // and four before entries with reports (chnfra2, strgra4, sangra1, beelar1).
+    const snap = JSON.parse(readFileSync(new URL('../assets/ebird-taxonomy.json', import.meta.url), 'utf8')) as {
+      byCom: Record<string, string>; byCode: Record<string, string>; bySci: Record<string, string>
+    }
+    const sciOf = new Map(Object.entries(snap.bySci).map(([sci, code]) => [code, sci]))
+    const codes: Record<string, string> = {}
+    const rows = Object.values(snap.byCom).map(code => {
+      const com = snap.byCode[code]
+      const sci = sciOf.get(code) ?? ''
+      codes[com] = code
+      return obs(com, '2025-12-01', sci.charAt(0).toUpperCase() + sci.slice(1))
+    })
+    expect(rows.length, 'every species in the snapshot').toBe(Object.keys(snap.byCom).length)
+    expect(rows.length).toBeGreaterThan(10_000)
+    const asset = ASSET_JSON as unknown as TaxonomyHistory
+    const idx = buildTaxonomyHistoryIndex(rows, asset, { codes })
+    // Non-vacuity: the backup does reach the asset's after sides.
+    expect(idx.events.some(e => e.after.some(a => a.count > 0))).toBe(true)
+    const predates = idx.events.flatMap((e, i) => e.predates ? [`${e.kind} ${e.year} #${i}`] : [])
+    const beforeHits = idx.events.flatMap(e => e.before.filter(b => b.count > 0).map(b => `${e.year} ${b.code}`))
+    expect({ predates, beforeHits }).toEqual({ predates: [], beforeHits: [] })
   })
 })
 

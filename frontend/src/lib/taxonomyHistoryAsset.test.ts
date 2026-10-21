@@ -20,7 +20,9 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { historyMaxBytes } from './taxonomyHistoryAsset'
 import { buildTaxonomyHistoryIndex, type TaxonomyHistory } from './taxonomyHistory'
-import { checkHistory, UPDATE_PUBLISHED, type HistoryLike } from '../../../scripts/lib/taxonomyHistoryDerive.mjs'
+import {
+  checkHistory, previousUpdate, ANNOUNCED_RECOUNTS, UPDATE_PUBLISHED, type HistoryLike,
+} from '../../../scripts/lib/taxonomyHistoryDerive.mjs'
 
 interface Snapshot {
   version: string
@@ -76,15 +78,34 @@ function independentViolations(h: TaxonomyHistory, raw: string): string[] {
   }
   // I10: the committed file's byte length, against the loader's own bound.
   if (Buffer.byteLength(raw) > historyMaxBytes(h.updates.length)) out.push('size')
-  // eBird's announced tallies, per covered year.
+  // eBird's announced tallies, per covered year, with each cited reorganization
+  // eBird counts by its net change (ANNOUNCED_RECOUNTS) taken at eBird's count.
+  // Re-implemented here, not imported: each named event must be in the asset
+  // exactly once, and a recount may relabel but never change the net.
+  const key = (kind: string, before: readonly string[], after: readonly string[]) =>
+    `${kind}|${[...before].sort().join(',')}|${[...after].sort().join(',')}`
   for (const u of h.updates) {
     const announced = UPDATE_PUBLISHED[u.year]?.announced
     if (!announced) { out.push(`no announced tally for ${u.year}`); continue }
-    let gained = 0
-    let lost = 0
-    for (const e of h.events.filter(x => x.year === u.year)) {
-      if (e.kind === 'split') gained += e.after.length - 1
-      else lost += e.before.length - 1
+    const yearEvents = h.events.filter(x => x.year === u.year)
+    const own = (evs: readonly typeof yearEvents[number][]) => {
+      let gained = 0
+      let lost = 0
+      for (const e of evs) {
+        if (e.kind === 'split') gained += e.after.length - 1
+        else lost += e.before.length - 1
+      }
+      return { gained, lost }
+    }
+    let { gained, lost } = own(yearEvents)
+    for (const rc of ANNOUNCED_RECOUNTS[u.year] ?? []) {
+      const hits = rc.events.map(n => yearEvents.filter(e =>
+        key(e.kind, e.before.map(b => b.code), e.after.map(a => a.code)) === key(n.kind, n.before, n.after)))
+      if (hits.some(m => m.length !== 1)) { out.push(`recount ${u.year}`); continue }
+      const t = own(hits.map(m => m[0]))
+      if (t.gained - t.lost !== rc.counted.gained - rc.counted.lost) out.push(`recount ${u.year}`)
+      gained += rc.counted.gained - t.gained
+      lost += rc.counted.lost - t.lost
     }
     if (gained !== announced.gained || lost !== announced.lost) out.push(`tally ${u.year}`)
   }
@@ -141,6 +162,30 @@ describe('the committed asset (QA-01, QA-05)', () => {
     expect(Buffer.byteLength(RAW)).toBeLessThanOrEqual(historyMaxBytes(ASSET.updates.length))
     expect(historyMaxBytes(0)).toBeLessThan(historyMaxBytes(1))
     expect(historyMaxBytes(1_000)).toBe(historyMaxBytes(10_000)) // the absolute ceiling holds
+  })
+
+  it('covers eBird\'s 2019 to 2025 updates, which take no 2020 one, as consecutive updates (taxonomy-history-2019)', () => {
+    // The first six covered years, so a later annual refresh appends without
+    // editing this row. eBird released no 2020 update: 2021's previous update
+    // is 2019, and no event or update is dated 2020.
+    const years = ASSET.updates.map(u => u.year)
+    expect(years.slice(0, 6)).toEqual([2019, 2021, 2022, 2023, 2024, 2025])
+    expect(ASSET.coverage!.earliest.year).toBe(2019)
+    expect(years).not.toContain(2020)
+    expect(ASSET.events.some(e => e.year === 2020)).toBe(false)
+    for (let i = 1; i < years.length; i += 1) expect(previousUpdate(years[i])).toBe(years[i - 1])
+    // Every covered year holds both kinds of event.
+    for (const y of years) {
+      expect(ASSET.events.some(e => e.year === y && e.kind === 'split'), `${y} has a split`).toBe(true)
+      expect(ASSET.events.some(e => e.year === y && e.kind === 'lump'), `${y} has a lump`).toBe(true)
+    }
+  })
+
+  it('fits the six-update bound with its six covered updates (taxonomy-history-2019)', () => {
+    // Measured 213,276 bytes at this coverage (pipeline/taxonomy-history-2019/
+    // decisions.md); the bound is read from the loader, never re-spelled.
+    expect(ASSET.updates.slice(0, 6)).toHaveLength(6)
+    expect(Buffer.byteLength(RAW)).toBeLessThanOrEqual(historyMaxBytes(6))
   })
 
   it('the derivation marks an after-side entry current exactly when its code is a snapshot species (security review L1)', () => {
@@ -203,6 +248,16 @@ describe('each mutation of the asset is rejected (QA-05)', () => {
   it('a file padded past the bound is rejected by the size assertion', () => {
     const padded = RAW + ' '.repeat(historyMaxBytes(ASSET.updates.length))
     expect(independentViolations(ASSET, padded)).toContain('size')
+  })
+
+  it('a reorganization eBird recounts, with one of its events missing, is rejected (taxonomy-history-2019)', () => {
+    const h = structuredClone(ASSET)
+    const [rc] = ANNOUNCED_RECOUNTS[2019]
+    const split = rc.events.find(n => n.kind === 'split')!
+    const at = h.events.findIndex(e => e.year === 2019 && e.kind === 'split' && e.before[0].code === split.before[0])
+    expect(at).toBeGreaterThan(-1)
+    h.events.splice(at, 1)
+    expect(independentViolations(h, RAW)).toContain('recount 2019')
   })
 
   it('a year whose tally drifts from eBird\'s announcement is rejected', () => {
