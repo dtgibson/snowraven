@@ -286,3 +286,67 @@ invocation re-reads the parallel-ship state before touching anything. The
 reconcile merge brings 1.0.58's version set into this branch, so the bump
 starts there. The App Store record logic for 1.0.59 and the version set are in
 `pre-deploy-check.md` and `held-copy.md`.
+
+## D3. Deployment record: 1.0.59 (2026-10-21)
+
+Run by The Deployer on the user's production sign-off: "Confirm, ship 1.0.59"
+to every platform, with the held App Store and F-Droid copy exactly as written
+in `held-copy.md` (b) and (c), the Android device check emulator only as at
+every ship since 1.0.53, and "Roll 1.0.58 into 1.0.59" for the App Store: no
+1.0.58 version record exists, so 1.0.59's record carries 1.0.58 by rollup,
+decided before any 1.0.58 record existed (the 1.0.39 into 1.0.40 shape), its
+What's New being 1.0.58's approved paragraph followed by (b). The 1.0.58
+session confirmed the rollup on its side (`pipeline/taxonomy-history-2019/decisions.md`,
+entry 19) and creates no 1.0.58 record.
+
+- **Parallel-ship check (15:50 PDT):** after `git fetch origin --tags`,
+  `origin/main` was `2a176e72` (1.0.58's records), the newest tag `v1.0.58`, no
+  `v1.0.59`; the v1.0.58 GitHub release was published (22:35 UTC) and marked
+  Latest; no `release.sh`, `notarytool`, `altool` upload, `exportArchive` or
+  `tauri build` process was running. App Store Connect (read only, key
+  `QJA25M7XHM`): 26 version records, 1.0.57 (`d5b968b4`) and every other
+  `READY_FOR_SALE`, no 1.0.58 record, the three newest review submissions
+  `COMPLETE`; newest builds 1.0.58.1 (`ba21125d`) and 1.0.57.1 VALID. The login
+  keychain read `no-timeout`; `xcrun --sdk iphoneos --show-sdk-version` 27.1
+  (SDK build `24A94232`) with `DEVELOPER_DIR` exported.
+- **Order, adjusted by the coordinator:** the 1.0.58 session has one closeout
+  push to `main` still to make, so the bump is committed on this branch, only
+  the tag `v1.0.59` is pushed at first (starting Windows and Android CI), and
+  the branch goes to `main` as a fast-forward after that closeout lands and a
+  second reconcile merges it.
+- **Reconcile:** `weft-worktree reconcile`: `RECONCILED clean`, merge
+  `229904d7` (1.0.58's three record commits, `d264199b`, `e4c46846`,
+  `2a176e72`; record files and evidence only).
+- **The six-file version set**, from `held-copy.md` (d): `frontend/package.json`
+  and the two root entries in `package-lock.json`; `src-tauri/tauri.conf.json`
+  `version` 1.0.59 and `bundle.android.versionCode` 1000059; CHANGELOG.md
+  `## [1.0.59] - 2026-10-21` with (a) verbatim; `website/index.html` the
+  version pill's text and `aria-label` and the `footer-version` line, nothing
+  else; the three Fastlane changelogs `10000591.txt`, `10000592.txt` and
+  `10000594.txt`, (c) as approved, 204 bytes each, SHA-256
+  `b9b0a93b51bcac9272b36897b6777497204f0c6f8123117a0fcc025c687097fc` each,
+  equal to the held figure, nothing under `1000059`; and the in-repo F-Droid
+  recipe's three `versionName` 1.0.59, codes `10000591`, `10000592`,
+  `10000594`, `CurrentVersion` 1.0.59 and `CurrentVersionCode` 10000594 (the
+  three `commit:` lines move after the tag). The version-set guards
+  (`androidVersionSource`, `fdroidRecipe`, `fastlaneMetadata`,
+  `icloudKeysPublishedClaims`, `iosSceneManifest`): 5 files, 118 tests passed.
+- **Gates on the bumped tree, before the bump commit** (from `frontend/`):
+  `npm run typecheck`, `npm run lint` and `npm run build` exit 0 (the build's
+  one chunk-size notice predates this run); the full vitest suite
+  (`--maxWorkers=2`) exit 0, 480 files (475 passed, 5 skipped), 10,364 tests
+  (10,357 passed, 7 skipped, 0 failed).
+- **Bump commit** `a654a9b0` (`chore(release): 1.0.59, iPhone Duo screens and
+  side cameras`), the six-file set only. **Tag `v1.0.59`** (lightweight, like
+  `v1.0.58`) on `a654a9b0fb63297d182d3f3da3e4c3d9cbc1d9a1`, pushed alone at
+  15:57 PDT, which started Windows Build `39690152423` and Android Build
+  `39690152534`.
+- **Recipe hash** `4d5657c8` (`fix(fdroid): the recipe names v1.0.59's
+  commit`): the three `commit:` lines name
+  `a654a9b0fb63297d182d3f3da3e4c3d9cbc1d9a1`; the recipe, Fastlane and
+  version-source guards, 57 of 57, green before the commit. The tag stays on the
+  bump commit.
+- **Widget extension Swift tests** on the local iPhone 18 Pro (iOS 27.0)
+  simulator, addressed by udid and shut down after: 143 tests, 0 failures,
+  `TEST SUCCEEDED`. The one simulator that was already booted (another
+  session's) was not touched.
