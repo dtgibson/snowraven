@@ -13,7 +13,7 @@
 # Required:
 #   ANDROID_DEVICE_CHECK=passed    the user reported the device check passed, or
 #   ANDROID_DEVICE_CHECK=partial   no device was available and attaching anyway is
-#                                  a written decision (CLAUDE.md's Android record)
+#                                  a written decision (RELEASE_LEDGER.md, Android)
 #   ANDROID_CHECKED_SHA256=<hex>   SHA-256 of the file the user checked; must equal this file's
 # Optional:
 #   SNOWRAVEN_ANDROID_SIGNER_SHA256=<hex>  the signer digest recorded at the previous release
@@ -37,7 +37,7 @@ case "$APK" in /*) ;; *) APK="$CALLER_PWD/$APK" ;; esac
 
 case "${ANDROID_DEVICE_CHECK:-}" in
   passed) ;;
-  partial) echo "warning: ANDROID_DEVICE_CHECK=partial: attaching without a device check; the decision and its reason belong in CLAUDE.md's Android record" >&2 ;;
+  partial) echo "warning: ANDROID_DEVICE_CHECK=partial: attaching without a device check; the decision and its reason belong in RELEASE_LEDGER.md's Android section" >&2 ;;
   *) sr_die "the user's device check of this exact APK comes first (the release skill's Android section). Set ANDROID_DEVICE_CHECK=passed once they report it, or =partial with the written decision" ;;
 esac
 [ -n "${ANDROID_CHECKED_SHA256:-}" ] \
