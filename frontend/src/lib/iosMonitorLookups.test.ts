@@ -26,6 +26,11 @@
 //     `monitorFromPoint`) or their `plugin:window|...` command names fails,
 //     because the bundle ships to the iPhone too.
 //   - Cargo: tauri-plugin-window-state stays in the non-mobile target table.
+//   - Capabilities: src-tauri/capabilities/ios.json denies the four window
+//     commands, which core:default otherwise grants on iOS through
+//     core:window:default. Tauri checks a deny before any allow, so a lookup
+//     that reached the webview's IPC is refused there (defense in depth; the
+//     identifiers themselves are validated by tauri-build at compile time).
 //   - OUTSIDE IT: tao, tauri and every plugin's own code (vendored or not), a
 //     call reached through a renamed import or a macro, and Swift in the
 //     extensions. The vendored tao is deliberately not patched (brief).
@@ -44,6 +49,7 @@ const RUST_DIR = abs('../../../src-tauri/src/')
 const FRONTEND_DIR = abs('../')
 const CARGO = abs('../../../src-tauri/Cargo.toml')
 const LIB_RS = join(RUST_DIR, 'lib.rs')
+const IOS_CAPABILITY = abs('../../../src-tauri/capabilities/ios.json')
 const WINDOW_API_TYPES = abs('../../node_modules/@tauri-apps/api/window.d.ts')
 
 const RUST_LOOKUP = /\b(?:current_monitor|available_monitors|primary_monitor|monitor_from_point)\s*\(/g
@@ -175,6 +181,18 @@ describe('no monitor lookup can run on iOS', () => {
     }
     const holding = tables.filter(t => /^\s*tauri-plugin-window-state\s*=/m.test(t.body)).map(t => t.header)
     expect(holding).toEqual([`[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]`])
+  })
+
+  it('capabilities: ios.json denies the four monitor commands core:default grants, on iOS only', () => {
+    const ios = JSON.parse(readFileSync(IOS_CAPABILITY, 'utf8')) as { platforms?: string[]; permissions: unknown[] }
+    expect(ios.platforms).toEqual(['iOS'])
+    const denies = ios.permissions.filter(p => typeof p === 'string' && p.startsWith('core:window:deny-'))
+    expect(denies).toEqual([
+      'core:window:deny-current-monitor',
+      'core:window:deny-available-monitors',
+      'core:window:deny-primary-monitor',
+      'core:window:deny-monitor-from-point',
+    ])
   })
 })
 

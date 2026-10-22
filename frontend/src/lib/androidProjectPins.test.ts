@@ -367,10 +367,13 @@ describe('capabilities (FR-23, NFR-05, QA-23)', () => {
     expect(cap('desktop').platforms).not.toContain('iOS')
   })
 
-  it('ios.json alone carries the three geolocation grants, for iOS only (schema 4.3)', () => {
+  it('ios.json alone carries the three geolocation grants, for iOS only (schema 4.3), plus the four monitor denies', () => {
     expect(cap('ios').platforms).toEqual(['iOS'])
+    // The denies are duo-welcome-and-audit-fixes' (iosMonitorLookups.test.ts says why).
     expect(cap('ios').permissions).toEqual([
       'geolocation:allow-check-permissions', 'geolocation:allow-request-permissions', 'geolocation:allow-get-current-position',
+      'core:window:deny-current-monitor', 'core:window:deny-available-monitors',
+      'core:window:deny-primary-monitor', 'core:window:deny-monitor-from-point',
     ])
     expect(geolocationGrantsOffIos(cap('mobile'))).toEqual([])
   })

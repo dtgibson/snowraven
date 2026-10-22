@@ -1,12 +1,16 @@
 {
   "$schema": "../gen/schemas/mobile-schema.json",
   "identifier": "ios",
-  "description": "iOS-only: geolocation for 'Use my location' (when-in-use only, mobile-app schema §2.7 / FR-16). The geolocation plugin is not in the Android build because its Android module links Google Play services (android-release schema 4.1 and 4.3); an inactive capability is skipped before its permissions are validated, so this file cannot affect the Android build.",
+  "description": "iOS-only: geolocation for 'Use my location' (when-in-use only, mobile-app schema §2.7 / FR-16), and denies of the four monitor commands that core:default grants through core:window:default, because tao's iOS monitor lookups abort on the iPhone Duo's inner screen (tao issue 1373) and a deny beats an allow; no app code calls them (frontend/src/lib/iosMonitorLookups.test.ts). The geolocation plugin is not in the Android build because its Android module links Google Play services (android-release schema 4.1 and 4.3); an inactive capability is skipped before its permissions are validated, so this file cannot affect the Android build.",
   "platforms": ["iOS"],
   "windows": ["main"],
   "permissions": [
     "geolocation:allow-check-permissions",
     "geolocation:allow-request-permissions",
-    "geolocation:allow-get-current-position"
+    "geolocation:allow-get-current-position",
+    "core:window:deny-current-monitor",
+    "core:window:deny-available-monitors",
+    "core:window:deny-primary-monitor",
+    "core:window:deny-monitor-from-point"
   ]
 }

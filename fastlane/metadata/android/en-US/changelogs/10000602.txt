@@ -1,0 +1,1 @@
+The Welcome screen that greets a new user now keeps its text and buttons clear of a camera cutout at the side of the screen when the phone is turned sideways, and leaves room for the status bar at the top. Nothing else changes on Android.

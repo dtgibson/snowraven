@@ -2,6 +2,17 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [1.0.60] - 2026-10-22
+
+### Fixed
+- **The Welcome screen keeps clear of a camera at the side of the screen.** The screen that greets a new user now pads its sides on a screen with the camera at its side, such as the iPhone Duo's outer screen, where its card ran under the camera, so its text and buttons stay clear, as the bottom bar and the More sheet do since 1.0.59. On an Android phone turned sideways it keeps clear of a camera cutout the same way. It also keeps clear of the status bar at the top, so on a phone or an iPad its content sits a little lower than before. The Mac, Windows, and the web are unchanged.
+
+### Internal
+- `WelcomeScreen.tsx`'s root takes its position and padding from `.sr-welcome-panel` in `globals.css` instead of an inline style, which no class rule could override. A `.sr-ios-app` rule pads the top and both sides by `calc(32px + env(safe-area-inset-top, 0px))` and `calc(24px + env(safe-area-inset-left|right, 0px))`, with an `.sr-android-app` twin reading `--sr-inset-*`; with every inset at 0 the screen is unchanged. `iosChrome.test.ts` pins the rules and the component's wiring.
+- `src-tauri/capabilities/ios.json` denies the four monitor commands (`core:window:deny-current-monitor`, `deny-available-monitors`, `deny-primary-monitor` and `deny-monitor-from-point`), which `core:default` otherwise grants on iOS; tao's iOS monitor lookups abort on the iPhone Duo's inner screen (tao issue 1373), and a deny beats an allow. No app code calls them. `iosMonitorLookups.test.ts` and `androidProjectPins.test.ts` pin the list.
+- `npm audit` in `frontend/` reads 0 again: the lockfile moves Vite from 8.0.16 to 8.1.6, Vitest from 4.1.11 to 4.1.12, and `source-map-js` from 1.2.1 to 1.2.2, inside the ranges `package.json` already declares. All of these are build and test tools that never ship in the app. The built stylesheet is byte-identical, and every platform keeps its native build packages.
+- The F-Droid changelog for this release is three identical files, one per processor-type build (`10000601.txt`, `10000602.txt`, `10000604.txt`), and the in-repo F-Droid recipe names 1.0.60.
+
 ## [1.0.59] - 2026-10-21
 
 ### Changed

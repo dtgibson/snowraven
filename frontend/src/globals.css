@@ -2393,6 +2393,48 @@ h1, h2, h3, h4, h5, h6 {
   max-height: calc(100vh - 52px - var(--sr-inset-top, 0px));
 }
 
+/* Welcome screen (the first-run takeover in WelcomeScreen.tsx). The same lift as
+   the Help panel above, for the same reason, plus its padding: the root used to
+   set position:fixed, inset:0, z-index 1200 AND padding 32px 24px inline, and an
+   inline style is specificity 1,0,0, so no class rule could inset it. On the
+   iPhone Duo's outer screen (inset 84 pt on the right inside the app) the card
+   ran 60 pt into the camera column. The base values are byte-identical to the
+   old inline ones, so desktop, web and every device with zero insets render as
+   before. The background, colors, flex column and overflow stay inline.
+
+   Revisited at this third overlay, as the Help panel's note asks, and still its
+   own rule: the two panels pad the bare inset, while this one anchors each side
+   to its shipped literal (calc(24px + inset), as the Alerts inbox root does at
+   641px and up), so the three would share no declaration.
+
+   GATED on .sr-ios-app, never a bare env(): index.html ships viewport-fit=cover
+   to browsers too, so env() is non-zero in iOS Safari on the web build. The top
+   is padded as well, the family's shape (the body rule, the Help panel): the
+   root is its own scroller with the card centered, and at 200% text WebKit lets
+   the column scroll up to rest at this padding, so without the top inset the
+   logo row would rest 32px from the top edge, inside the status bar. On an
+   iPhone held upright at the default text size it moves the centered card down
+   by half the top inset, still inside the screen (measured in WebKit,
+   pipeline/duo-welcome-and-audit-fixes/decisions.md). Bottom is omitted, as in
+   the body rule and the Help panel: nothing is pinned to the bottom edge, and
+   the 32px bottom padding already clears the home indicator. */
+.sr-welcome-panel {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  padding: 32px 24px;
+}
+.sr-ios-app .sr-welcome-panel {
+  padding-top: calc(32px + env(safe-area-inset-top, 0px));
+  padding-left: calc(24px + env(safe-area-inset-left, 0px));
+  padding-right: calc(24px + env(safe-area-inset-right, 0px));
+}
+.sr-android-app .sr-welcome-panel {
+  padding-top: calc(32px + var(--sr-inset-top, 0px));
+  padding-left: calc(24px + var(--sr-inset-left, 0px));
+  padding-right: calc(24px + var(--sr-inset-right, 0px));
+}
+
 /* Help overlay content column ABOVE the phone tier — the wrap allowance only
    (fix: help-overlay-641-leak).
 

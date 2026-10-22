@@ -53,11 +53,14 @@ export function WelcomeScreen({ onGetStarted, onOpenHelp, onDismiss }: WelcomeSc
       role="dialog"
       aria-modal="true"
       aria-label="Welcome to SnowRaven"
+      // Positioning and padding live in .sr-welcome-panel (globals.css), so the
+      // platform-gated safe-area rules can reach them; an inline style cannot be
+      // overridden by a class.
+      className="sr-welcome-panel"
       style={{
-        position: 'fixed', inset: 0, zIndex: 1200,
         background: 'var(--sr-bg)', color: 'var(--sr-text)',
         display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-        padding: '32px 24px', overflowY: 'auto', fontFamily: 'var(--font-sans)',
+        overflowY: 'auto', fontFamily: 'var(--font-sans)',
       }}
     >
       <div style={{ maxWidth: 540, width: '100%', textAlign: 'center' }}>

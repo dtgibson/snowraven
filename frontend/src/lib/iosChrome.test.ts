@@ -21,6 +21,10 @@ const helpDocs = readFileSync(
   fileURLToPath(new URL('../components/HelpDocs.tsx', import.meta.url)),
   'utf8',
 )
+const welcome = readFileSync(
+  fileURLToPath(new URL('../components/WelcomeScreen.tsx', import.meta.url)),
+  'utf8',
+)
 
 function rule(selector: string): string {
   const re = new RegExp(selector.replace(/[.\\]/g, '\\$&') + String.raw`\s*\{([^}]*)\}`)
@@ -61,6 +65,16 @@ function helpOverlayJsx(): string {
   const end = helpDocs.indexOf('{/* Header */}', at)
   expect(end, 'the Help overlay opening tag was not found in HelpDocs.tsx').toBeGreaterThan(at)
   return helpDocs.slice(at, end)
+}
+
+// The Welcome screen root's opening tag (attributes + style), bounded by its
+// first child so the assertions cannot drift onto the card's own inline styles.
+function welcomeRootJsx(): string {
+  const at = welcome.indexOf('ref={rootRef}')
+  expect(at, 'the Welcome root was not found in WelcomeScreen.tsx').toBeGreaterThan(-1)
+  const end = welcome.indexOf('maxWidth: 540', at)
+  expect(end, 'the Welcome root opening tag was not found in WelcomeScreen.tsx').toBeGreaterThan(at)
+  return welcome.slice(at, end)
 }
 
 describe('globals.css iOS compact chrome', () => {
@@ -274,6 +288,51 @@ describe('HelpDocs.tsx wiring', () => {
     // Colors stay inline per the lift-layout-only convention; dropping it would
     // leave the documentation floating over whatever is behind the overlay.
     expect(helpOverlayJsx()).toMatch(/background:\s*['"`]var\(--sr-surface\)['"`]/)
+  })
+})
+
+// ── The Welcome screen's safe-area insets (duo-welcome-and-audit-fixes) ─────
+// The bug: the first-run takeover set position:fixed, inset:0 and its 32px 24px
+// padding INLINE, so no platform rule could reach it, and on the iPhone Duo's
+// outer screen (84 pt inset on the right) the card ran into the camera column.
+// The Help panel's lift, with each side anchored to the shipped literal.
+describe('globals.css Welcome screen panel positioning + safe-area insets', () => {
+  it('carries the positioning and padding that used to be inline in WelcomeScreen.tsx', () => {
+    const body = topLevelRule('.sr-welcome-panel')
+    expect(body).toMatch(/position:\s*fixed/)
+    expect(body).toMatch(/inset:\s*0/)
+    expect(body).toMatch(/z-index:\s*1200/)
+    expect(body).toMatch(/padding:\s*32px 24px;/)
+  })
+
+  it('never puts a safe-area inset on the UNGATED base rule', () => {
+    expect(findUngatedSafeAreaRules(css, 'sr-welcome-panel')).toEqual([])
+  })
+
+  it('pads top, left and right by the shipped literal plus that side\'s inset, gated, with an Android twin', () => {
+    const ios = topLevelRule('.sr-ios-app .sr-welcome-panel')
+    const android = topLevelRule('.sr-android-app .sr-welcome-panel')
+    const base = { top: '32px', left: '24px', right: '24px' }
+    for (const [side, literal] of Object.entries(base)) {
+      expect(ios).toMatch(new RegExp(`padding-${side}:\\s*calc\\(${literal} \\+ env\\(safe-area-inset-${side}, 0px\\)\\);`))
+      expect(android).toMatch(new RegExp(`padding-${side}:\\s*calc\\(${literal} \\+ var\\(--sr-inset-${side}, 0px\\)\\);`))
+    }
+    // Nothing is pinned to the bottom edge; the base rule's 32px stays there.
+    expect(ios).not.toMatch(/padding-bottom/)
+    expect(android).not.toMatch(/padding-bottom/)
+  })
+})
+
+describe('WelcomeScreen.tsx wiring', () => {
+  it('applies the panel class and no longer positions or pads the root inline', () => {
+    const jsx = stripCommentLines(welcomeRootJsx())
+    expect(jsx).toMatch(/className="sr-welcome-panel"/)
+    expect(jsx).not.toMatch(/position:\s*['"`]fixed['"`]/)
+    expect(jsx).not.toMatch(/inset:\s*0/)
+    expect(jsx).not.toMatch(/zIndex:/)
+    expect(jsx).not.toMatch(/\bpadding\w*:/)
+    // The token background stays inline (lift-layout-only convention).
+    expect(jsx).toMatch(/background:\s*['"`]var\(--sr-bg\)['"`]/)
   })
 })
 

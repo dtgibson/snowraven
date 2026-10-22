@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Shared capability for the main SnowRaven window, all platforms. Desktop-only permissions (updater/process) live in desktop.json; mobile-only (dialog, iOS and Android) in mobile.json; iOS-only geolocation in ios.json. The http fetch scope lists exactly the API origins the frontend/src/lib/tauri services call, each held to the path its call site fixes; frontend/src/lib/tauriHttpScope.test.ts derives that list from source.",
+  "description": "Shared capability for the main SnowRaven window, all platforms. Desktop-only permissions (updater/process) live in desktop.json; mobile-only (dialog, iOS and Android) in mobile.json; iOS-only geolocation, and the iOS denies of the four monitor commands core:default grants, in ios.json. The http fetch scope lists exactly the API origins the frontend/src/lib/tauri services call, each held to the path its call site fixes; frontend/src/lib/tauriHttpScope.test.ts derives that list from source.",
   "windows": ["main"],
   "permissions": [
     "core:default",
