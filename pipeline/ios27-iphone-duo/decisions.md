@@ -480,7 +480,7 @@ entry 19) and creates no 1.0.58 record.
   tree: success (Frontend lint, test, build; Backend lint, test). The commit
   carrying this record follows it to `main` and starts its own run.
 
-### Stopped here: the user's iPhone check of TestFlight 1.0.59.1
+### The stop for the user's iPhone check of TestFlight 1.0.59.1 (resolved: the check passed and the App Store leg below followed)
 
 Live now: the v1.0.59 GitHub release (Mac, Windows, `latest.json` and the
 signed Android APK), the website's version pill, and TestFlight build 1.0.59.1
@@ -534,3 +534,130 @@ SnowRaven now fills the iPhone Duo's inner screen. On the Duo's outer screen, th
   `42a3576e...996a`, asset SHA-256 `38c90ebd...9688`, device check Partial by
   the user's decision, F-Droid included and this tag not yet built, WebView 133
   unchanged).
+
+### The App Store leg: 1.0.59 submitted on its own record, carrying 1.0.58 (2026-10-21, from 17:30 local)
+
+Run by The Deployer through the App Store Connect API with the metadata key
+`QJA25M7XHM`, from scripts in the session scratchpad. Every listing value
+compared or written was extracted by script from the committed files as they
+stand; none of them was edited.
+
+- **The user's device check:** the user checked TestFlight build 1.0.59.1 on
+  their own iPhone and answered **"Works, submit it"** (2026-10-21, relayed by
+  the coordinator before this leg began). It is the device check CLAUDE.md
+  requires and, with the production sign-off's "Roll 1.0.58 into 1.0.59", the
+  authorization to create the 1.0.59 record on build 1.0.59.1 and submit it.
+- **The extraction, checked first:** the values extracted from
+  `appstore/LISTING.md` and `appstore/REVIEW_NOTES.md` reproduced the live
+  1.0.57 record field for field (description 3,234 characters, keywords 97,
+  promotional text 137, both URLs, copyright, review notes 3,898, and on the
+  app info name, subtitle, privacy policy URL, Reference and Weather). Its
+  screenshots matched `appstore/screenshots/` in order except the two 05
+  Species Detail shots, which 1.0.58 recaptured (iPhone live `407737c9...`
+  against `32caacde...` in the tree, iPad live `db15c9e3...` against
+  `1862eb4a...`), so both sets had to be replaced.
+- **Live state immediately before writing:** 26 version records, every one
+  `READY_FOR_SALE`, newest 1.0.57 `d5b968b4`; no 1.0.58 or 1.0.59 record; no
+  review submission open; build 1.0.59.1 (`cff347b8`) `VALID`, not expired,
+  `usesNonExemptEncryption` false.
+- **The record:** `POST /v1/appStoreVersions` (201):
+  **`a0511485-1fc2-4f35-acf3-d4d4f5846a4c`**, 1.0.59 on build 1.0.59.1,
+  `AFTER_APPROVAL`, copyright `2026 Dave Gibson` from `LISTING.md`, created
+  17:30:49 local. A new editable app info, `4a0a90ec`, appeared beside the live
+  `0cacb9c4`. The record arrived with the description, keywords, both URLs and
+  the review notes carried over and matching, with both screenshot sets carried
+  over from 1.0.57, and with the promotional text and What's New EMPTY (the
+  tenth new record to arrive without its promotional text).
+- **Writes:** What's New and the promotional text from `LISTING.md`, in one
+  PATCH to the en-US localization `b5de9c41` (200); both read back
+  byte-identical (593 and 137 characters). What's New as written:
+
+```text
+Splits and lumps on Species Detail now covers eBird's taxonomy updates from 2019 to 2025, adding the 2019, 2021, and 2022 updates. Species eBird split or lumped in those years now appear in the list, with what each was, what it became, and how many of your reports eBird reassigned.
+
+SnowRaven now fills the iPhone Duo's inner screen. On the Duo's outer screen, the bottom bar, the More sheet, and the Alerts inbox keep their buttons clear of the camera, and on a wide iPhone screen, such as the Duo's inner screen or an iPhone turned sideways, tapping a filter field no longer zooms the page.
+```
+
+- **Screenshots, both sets replaced whole and in order:** on the new
+  localization only (the script refused any set that was not on `b5de9c41` or
+  that carried the live 1.0.57 set ids), `APP_IPHONE_67` (`abfba0b1`) and
+  `APP_IPAD_PRO_3GEN_129` (`4f0c674e`) each had its six carried-over images
+  deleted (204 each) and checked empty, then 01 to 06 reserved, uploaded,
+  committed with their md5 and polled to `COMPLETE`. The final order and
+  checksums, equal to `appstore/screenshots/` at this tree:
+
+| Set | File | Bytes | md5 |
+|---|---|---|---|
+| iPhone 6.9 | 01-map-explorer.png | 766,145 | `bb0c1578db1e27f821a0fde964e29e9b` |
+| iPhone 6.9 | 02-statistics.png | 234,869 | `d642ba3f255badcaaa4a820a37953203` |
+| iPhone 6.9 | 03-weather-tide.png | 266,691 | `a4d53cca9af02e9b7ebf180c76f41234` |
+| iPhone 6.9 | 04-calendar.png | 137,183 | `b1375fa29d44d9b965bcba25b274c8d8` |
+| iPhone 6.9 | 05-species-detail.png | 233,427 | `32caacde2c65697ece27a85cbc9f08b3` |
+| iPhone 6.9 | 06-breeding-codes.png | 283,419 | `bb2719be5cc12cacbc0d34df8e73c3ce` |
+| iPad 13 | 01-map-explorer.png | 1,423,707 | `03456c9f88108d6ddc02100efec5c7a6` |
+| iPad 13 | 02-statistics.png | 410,809 | `911b119415cf388a868c52a84f4a2bb4` |
+| iPad 13 | 03-weather-tide.png | 379,004 | `1db06c6025c2db3ec57d069da0a0d25c` |
+| iPad 13 | 04-calendar.png | 399,878 | `68c3b33b2b7483f569a74448c1447770` |
+| iPad 13 | 05-species-detail.png | 310,577 | `1862eb4a7a4f3abc13fa57d4022fde1b` |
+| iPad 13 | 06-breeding-codes.png | 441,657 | `00f8b67d5fc0e849133388367833de14` |
+
+  The iPhone 05 was viewed before the upload and shows Species Detail with
+  "Splits and lumps 10 species". The live 1.0.57 record's sets (`ff2a7972`,
+  `5df58f37`) were read afterwards and still hold their own images, 05s
+  included: nothing outside the new record was touched.
+- **Read-back against the committed files, before submitting and again after,
+  every field identical:** 1.0.59 on build 1.0.59.1, `AFTER_APPROVAL`, no phased
+  release; one localization, en-US; What's New equal to the text above;
+  description, keywords, promotional text, marketing and support URLs, and
+  copyright equal to `LISTING.md`; on both app infos, name `SnowRaven`, subtitle
+  `Your birding data, explored`, privacy policy URL, and categories Reference
+  and Weather; App Review notes byte-identical to `REVIEW_NOTES.md`'s "Notes for
+  the reviewer" section, 3,898 characters, contact details present, no demo
+  account; all twelve screenshots as in the table, all `COMPLETE`.
+- **Age rating** on `4a0a90ec`: already answered, all 30 fields `NONE` or false
+  except three that read null (`gracRatingClassificationNumber`, the Korean
+  game-rating number, and `kidsAgeBand` and `developerAgeRatingInfoUrl`, which
+  are null on a non-Kids app). Nothing was changed. The privacy label ("Data Not
+  Collected") can be checked only in the App Store Connect UI and was not
+  touched.
+- **Submit:** a new review submission (`POST /v1/reviewSubmissions`, 201,
+  `READY_FOR_REVIEW`), the record added as its item (`POST
+  /v1/reviewSubmissionItems`, 201), and `submitted: true` (200):
+  **`a1defa32-0889-43ed-8068-be2f2db37d4d`, `WAITING_FOR_REVIEW`, submitted
+  2026-10-22 00:33:58 UTC (17:33 local, 2026-10-21)**. The record reads 1.0.59
+  `WAITING_FOR_REVIEW`, `AFTER_APPROVAL`, no phased release, and app info
+  `4a0a90ec` `WAITING_FOR_REVIEW`.
+- **Reconciliation** (read only, after submitting): 27 version records, 83
+  TestFlight trains, 91 builds, every build `VALID`; 1.0.59 in review and the
+  other 26 records `READY_FOR_SALE`. Of the 47 versions from 1.0.13 to 1.0.59
+  that hold a train or a record, the 21 with no record of their own each have a
+  written disposition in CLAUDE.md: the genuine skips 1.0.15, 1.0.16 and
+  1.0.18; 1.0.25 deferred; 1.0.37 TestFlight-only; and the rollups 1.0.20,
+  1.0.22, 1.0.26, 1.0.29, 1.0.33, 1.0.39, 1.0.41, 1.0.42, 1.0.43, 1.0.44,
+  1.0.46, 1.0.48, 1.0.49, 1.0.52, 1.0.54 and 1.0.58. No unaccounted gap between
+  1.0.13 and 1.0.59.
+- **F-Droid, read again after submitting (17:34 local):** unchanged.
+  f-droid.org publishes 1.0.55 and 1.0.53; fdroiddata `master` has
+  `CurrentVersion` 1.0.57. 1.0.58 and 1.0.59 are each included and this tag not
+  yet built.
+
+### For CLAUDE.md: the two entries the Chronicler adds verbatim
+
+The 1.0.58 closeout (`eb21e85a`) already wrote "1.0.58 into 1.0.59" into the
+rollup list and an entry recording 1.0.57 as resolved and 1.0.58's rollup, so
+neither is restated. The App Store entry goes after the 1.0.58 ship's entry, at
+the end of the App Store list and before "The full runbook lives in the
+`snowraven-release` skill (below)."; the Android entry goes at the end of the
+Android record line, after the 1.0.58 ship's entry.
+
+App Store list:
+
+```markdown
+**ENTRY FROM THE 1.0.59 SHIP (2026-10-21).** **1.0.59 is on its own record `a0511485-1fc2-4f35-acf3-d4d4f5846a4c`, submitted on build 1.0.59.1 (delivery `cff347b8`, linked against the iOS 27.1 SDK) as `a1defa32-0889-43ed-8068-be2f2db37d4d` (`WAITING_FOR_REVIEW`, `AFTER_APPROVAL`, no phased release)**, after the user's own iPhone check of that build ("Works, submit it", `pipeline/ios27-iphone-duo/decisions.md`, D3), so it carries 1.0.58 by rollup and 1.0.59. Its What's New is 1.0.58's approved paragraph (`pipeline/taxonomy-history-2019/held-copy.md`, text (a)) followed by the approved 1.0.59 paragraph (`pipeline/ios27-iphone-duo/held-copy.md`, text (b)), written by script and read back byte for byte, after the write and again after submitting. The new record's promotional text arrived EMPTY a tenth time (after 1.0.35, 1.0.42, 1.0.46, 1.0.49, 1.0.51, 1.0.53, 1.0.54, 1.0.56 and 1.0.57) and was restored from `appstore/LISTING.md`; the copyright was set from `appstore/LISTING.md` when the record was created; the description, keywords, both URLs, name, subtitle, privacy policy URL and both categories carried over and were read back against `appstore/LISTING.md`, after the writes and again after submitting; the App Review notes carried over byte-identical to `appstore/REVIEW_NOTES.md` at 3,898 characters; **both screenshot sets were replaced whole and in order**, because they had carried over 1.0.57's images and both 05 Species Detail shots were recaptured at `507eb48e`, and all twelve are `COMPLETE` with checksums matching `appstore/screenshots/` in order, while the live 1.0.57 record's sets were left untouched; and the age-rating declaration was already answered (its empty fields are the Korean game-rating number and `kidsAgeBand` and `developerAgeRatingInfoUrl`, which read null on a non-Kids app), so nothing was changed. The live query at this ship, over all 27 version records and every TestFlight train (1.0.59 in review, every other record `READY_FOR_SALE`, builds through 1.0.59.1 VALID), leaves no unaccounted gap between 1.0.13 and 1.0.59.
+```
+
+Android record line:
+
+```markdown
+**ENTRY FROM THE 1.0.59 SHIP (2026-10-21): APK attached; F-Droid included and this tag not yet built.** `SnowRaven_1.0.59_android_universal.apk` is on the v1.0.59 GitHub release (SHA-256 `38c90ebd9cc6f76d3358e11f6d9b9790de9d3063536e0f714c907dde56749688`), signed from the CI artifact of the tag's run `39690152534`; its signer certificate SHA-256 is `42a3576e445bda4a994793f2ffa056663113275c9805eb2f6cffdc252375996a`, the same as 1.0.53 to 1.0.58. **Its device check is Partial, by the user's decision at the production gate (`pipeline/ios27-iphone-duo/decisions.md`, D3): emulator only, as at 1.0.53 to 1.0.58.** The exact attached bytes installed fresh on the local API 36 emulator and opened to the Welcome screen with one window and no crash, and with the emulator's tall-notch cutout turned on, a 360 by 640 dp logical size and the screen turned sideways, the bottom bar and the More sheet showed padded clear of the 88 px cutout (`pipeline/ios27-iphone-duo/evidence/ship/`). F-Droid: **included and this tag not yet built**, read at the ship and again after the App Store submission: f-droid.org publishes 1.0.55 and 1.0.53, and fdroiddata `master` has 1.0.56's and 1.0.57's three entries each and none for 1.0.58 or 1.0.59 yet, so 1.0.58 and 1.0.59 are each included and this tag not yet built. This tag changes no toolchain pin and no recipe build step, so nothing was sent to fdroiddata and the update bot is expected to add the entries on its own; the in-repo recipe names 1.0.59 (codes 10000591, 10000592 and 10000594) and the tag's full commit `a654a9b0fb63297d182d3f3da3e4c3d9cbc1d9a1`, and the three per-processor changelogs are in the tag. WebView 133, unchanged since the last measurement.
+```
