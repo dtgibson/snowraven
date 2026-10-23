@@ -1,0 +1,6 @@
+# Vite dev server preflight from a foreign localhost origin to a proxied route (backend not running, so a forwarded preflight is 502)
+vite 8.1.6 preflight from http://localhost:9999:
+HTTP/1.1 502 Bad Gateway
+vite 8.0.16 preflight from http://localhost:9999:
+HTTP/1.1 502 Bad Gateway
+control: vite 8.1.6 with --cors answers it itself: HTTP/1.1 204, Access-Control-Allow-Origin: *, Access-Control-Allow-Headers: x-snowraven-request,content-type

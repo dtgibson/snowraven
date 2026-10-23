@@ -1,0 +1,40 @@
+# Lockfile packages whose version moved (control lockfile -> working tree)
+node_modules/@emnapi/core 1.10.0 -> 1.11.1
+node_modules/@emnapi/runtime 1.10.0 -> 1.11.1
+node_modules/@emnapi/wasi-threads 1.2.1 -> 1.2.2
+node_modules/@napi-rs/wasm-runtime 1.1.4 -> 1.2.5
+node_modules/@oxc-project/types 0.133.0 -> 0.139.0
+node_modules/@rolldown/binding-android-arm64 1.0.3 -> 1.1.5
+node_modules/@rolldown/binding-darwin-arm64 1.0.3 -> 1.1.5
+node_modules/@rolldown/binding-darwin-x64 1.0.3 -> 1.1.5
+node_modules/@rolldown/binding-freebsd-x64 1.0.3 -> 1.1.5
+node_modules/@rolldown/binding-linux-arm-gnueabihf 1.0.3 -> 1.1.5
+node_modules/@rolldown/binding-linux-arm64-gnu 1.0.3 -> 1.1.5
+node_modules/@rolldown/binding-linux-arm64-musl 1.0.3 -> 1.1.5
+node_modules/@rolldown/binding-linux-ppc64-gnu 1.0.3 -> 1.1.5
+node_modules/@rolldown/binding-linux-s390x-gnu 1.0.3 -> 1.1.5
+node_modules/@rolldown/binding-linux-x64-gnu 1.0.3 -> 1.1.5
+node_modules/@rolldown/binding-linux-x64-musl 1.0.3 -> 1.1.5
+node_modules/@rolldown/binding-openharmony-arm64 1.0.3 -> 1.1.5
+node_modules/@rolldown/binding-wasm32-wasi 1.0.3 -> 1.1.5
+node_modules/@rolldown/binding-win32-arm64-msvc 1.0.3 -> 1.1.5
+node_modules/@rolldown/binding-win32-x64-msvc 1.0.3 -> 1.1.5
+node_modules/@tybys/wasm-util 0.10.2 -> 0.10.4
+node_modules/@vitest/expect 4.1.11 -> 4.1.12
+node_modules/@vitest/mocker 4.1.11 -> 4.1.12
+node_modules/@vitest/pretty-format 4.1.11 -> 4.1.12
+node_modules/@vitest/runner 4.1.11 -> 4.1.12
+node_modules/@vitest/snapshot 4.1.11 -> 4.1.12
+node_modules/@vitest/spy 4.1.11 -> 4.1.12
+node_modules/@vitest/utils 4.1.11 -> 4.1.12
+node_modules/chai 6.2.2 -> 6.3.0
+node_modules/picomatch 4.0.4 -> 4.0.7
+node_modules/rolldown 1.0.3 -> 1.1.5
+node_modules/source-map-js 1.2.1 -> 1.2.2
+node_modules/tinyrainbow 3.1.1 -> 3.2.0
+node_modules/vite 8.0.16 -> 8.1.6
+node_modules/vitest 4.1.11 -> 4.1.12
+flag changes: []
+
+# Native binding entries (rolldown, lightningcss, tailwind oxide): key set before vs after
+identical: 38 entries, and 0 differences in os/cpu/libc/optional/dev fields

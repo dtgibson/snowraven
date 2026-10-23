@@ -1,0 +1,33 @@
+# Run 1 (after the code changes, nothing else compiling)
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+ Test Files  1 failed | 474 passed | 5 skipped (480)
+      Tests  2 failed | 10363 passed | 6 skipped (10371)
+   Duration  80.43s (transform 23.28s, setup 4.59s, import 77.24s, tests 342.94s, environment 79.66s)
+ FAIL  src/lib/fastlaneMetadata.test.ts > the F-Droid listing (fastlane/metadata/android/en-US) > has the same changelog under each per-processor code of the current version, and every file is within F-Droid's limits
+ FAIL  src/lib/fastlaneMetadata.test.ts > guard-the-guard > removing one per-processor changelog, changing one, or adding the unsplit one in a scratch copy is each caught
+
+# Run 2 (after a comment-only edit to globals.css; load average 62 / 113 / 130 from other work on this Mac: mds_stores, an app in the booted iPhone 17 Pro simulator)
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+ Test Files  2 failed | 473 passed | 5 skipped (480)
+      Tests  3 failed | 10362 passed | 6 skipped (10371)
+ FAIL  src/lib/fastlaneMetadata.test.ts > the F-Droid listing (fastlane/metadata/android/en-US) > has the same changelog under each per-processor code of the current version, and every file is within F-Droid's limits
+ FAIL  src/lib/fastlaneMetadata.test.ts > guard-the-guard > removing one per-processor changelog, changing one, or adding the unsplit one in a scratch copy is each caught
+ FAIL  src/lib/weatherStatsShared.test.ts > the one new scan over export text is linear by construction > grows about 2x per doubling on hostile input built to FAIL after consuming the run
+AssertionError: expected 3.46800509630989 to be less than 3
+
+# weatherStatsShared.test.ts alone, three runs: 24 passed, 24 passed, 24 passed
+
+# The expected Fastlane failure, run 1:
+ FAIL  src/lib/fastlaneMetadata.test.ts > the F-Droid listing (fastlane/metadata/android/en-US) > has the same changelog under each per-processor code of the current version, and every file is within F-Droid's limits
+AssertionError: expected [ …(3) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "changelogs/10000601.txt is missing",
++   "changelogs/10000602.txt is missing",
++   "changelogs/10000604.txt is missing",
++ ]
+

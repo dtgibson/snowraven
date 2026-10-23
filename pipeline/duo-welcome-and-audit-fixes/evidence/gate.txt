@@ -1,0 +1,5 @@
+typecheck: exit 0
+eslint .: exit 0, no output
+npm run build: exit 0
+(!) Some chunks are larger than 1100 kB after minification. Consider:
+✓ built in 1.14s

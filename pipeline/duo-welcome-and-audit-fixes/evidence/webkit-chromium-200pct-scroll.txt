@@ -1,0 +1,8 @@
+webkit   iPhone 17 Pro upright  1.0.59 inline  scroll 1462/874 | at top: logo -234 col -262 | at max (scrollTop 294): logo -528 last button bottom 842 | scrollTop after -1e6: -294
+webkit   iPhone 17 Pro upright  1.0.60         scroll 1524/874 | at top: logo -203 col -231 | at max (scrollTop 325): logo -528 last button bottom 842 | scrollTop after -1e6: -325
+webkit   iPhone Duo outer       1.0.59 inline  scroll 1261/678 | at top: logo -231 col -259 | at max (scrollTop 292): logo -523 last button bottom 645 | scrollTop after -1e6: -291
+webkit   iPhone Duo outer       1.0.60         scroll 1538/678 | at top: logo -370 col -398 | at max (scrollTop 430): logo -800 last button bottom 646 | scrollTop after -1e6: -430
+chromium iPhone 17 Pro upright  1.0.59 inline  scroll 1168/874 | at top: logo -234 col -262 | at max (scrollTop 294): logo -528 last button bottom 842 | scrollTop after -1e6: 0
+chromium iPhone 17 Pro upright  1.0.60         scroll 1199/874 | at top: logo -203 col -231 | at max (scrollTop 325): logo -528 last button bottom 842 | scrollTop after -1e6: 0
+chromium iPhone Duo outer       1.0.59 inline  scroll 969/678 | at top: logo -231 col -259 | at max (scrollTop 291): logo -522 last button bottom 646 | scrollTop after -1e6: 0
+chromium iPhone Duo outer       1.0.60         scroll 1108/678 | at top: logo -370 col -398 | at max (scrollTop 430): logo -800 last button bottom 646 | scrollTop after -1e6: 0

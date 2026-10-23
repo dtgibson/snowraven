@@ -1,0 +1,40 @@
+
+## iPhone 17 Pro upright 402x874, insets t/r/b/l 62/0/34/0, text 100%
+1.0.59 inline          pad 32px 24px 32px 24px | column x 24..378 y 168.6..705.4 | card x 24..378 | logo top 174.1 | last button bottom 705.4 | scroll 874/874
+1.0.60 (top padded)    pad 94px 24px 32px 24px | column x 24..378 y 199.6..736.4 | card x 24..378 | logo top 205.1 | last button bottom 736.4 | scroll 874/874
+1.0.60 without top     pad 32px 24px 32px 24px | column x 24..378 y 168.6..705.4 | card x 24..378 | logo top 174.1 | last button bottom 705.4 | scroll 874/874
+
+## iPhone 17 Pro upright 402x874, insets t/r/b/l 62/0/34/0, text 200%
+1.0.59 inline          pad 32px 24px 32px 24px | column x 24..378 y -261.8..1135.8 | card x 24..378 | logo top -233.8 | last button bottom 1135.8 | scroll 1462/874
+1.0.60 (top padded)    pad 94px 24px 32px 24px | column x 24..378 y -230.8..1166.8 | card x 24..378 | logo top -202.8 | last button bottom 1166.8 | scroll 1524/874
+1.0.60 without top     pad 32px 24px 32px 24px | column x 24..378 y -261.8..1135.8 | card x 24..378 | logo top -233.8 | last button bottom 1135.8 | scroll 1462/874
+
+## iPhone Duo outer 466x678, insets t/r/b/l 0/84/34/0, text 100%
+1.0.59 inline          pad 32px 24px 32px 24px | column x 24..442 y 91.2..586.8 | card x 24..442 | logo top 96.7 | last button bottom 586.8 | scroll 678/678
+1.0.60 (top padded)    pad 32px 108px 32px 24px | column x 24..358 y 70.6..607.4 | card x 24..358 | logo top 76.1 | last button bottom 607.4 | scroll 678/678
+1.0.60 without top     pad 32px 108px 32px 24px | column x 24..358 y 70.6..607.4 | card x 24..358 | logo top 76.1 | last button bottom 607.4 | scroll 678/678
+
+## iPhone Duo outer 466x678, insets t/r/b/l 0/84/34/0, text 200%
+1.0.59 inline          pad 32px 24px 32px 24px | column x 24..442 y -259.4..937.4 | card x 24..442 | logo top -231.4 | last button bottom 937.4 | scroll 1261/678
+1.0.60 (top padded)    pad 32px 108px 32px 24px | column x 24..358 y -398..1076 | card x 24..358 | logo top -370 | last button bottom 1076 | scroll 1538/678
+1.0.60 without top     pad 32px 108px 32px 24px | column x 24..358 y -398..1076 | card x 24..358 | logo top -370 | last button bottom 1076 | scroll 1538/678
+
+## all insets zero, phone 402x874, insets t/r/b/l 0/0/0/0, text 100%
+1.0.59 inline          pad 32px 24px 32px 24px | column x 24..378 y 168.6..705.4 | card x 24..378 | logo top 174.1 | last button bottom 705.4 | scroll 874/874
+1.0.60 (top padded)    pad 32px 24px 32px 24px | column x 24..378 y 168.6..705.4 | card x 24..378 | logo top 174.1 | last button bottom 705.4 | scroll 874/874
+1.0.60 without top     pad 32px 24px 32px 24px | column x 24..378 y 168.6..705.4 | card x 24..378 | logo top 174.1 | last button bottom 705.4 | scroll 874/874
+
+## all insets zero, phone 402x874, insets t/r/b/l 0/0/0/0, text 200%
+1.0.59 inline          pad 32px 24px 32px 24px | column x 24..378 y -261.8..1135.8 | card x 24..378 | logo top -233.8 | last button bottom 1135.8 | scroll 1462/874
+1.0.60 (top padded)    pad 32px 24px 32px 24px | column x 24..378 y -261.8..1135.8 | card x 24..378 | logo top -233.8 | last button bottom 1135.8 | scroll 1462/874
+1.0.60 without top     pad 32px 24px 32px 24px | column x 24..378 y -261.8..1135.8 | card x 24..378 | logo top -233.8 | last button bottom 1135.8 | scroll 1462/874
+
+## all insets zero, desktop 1280x800, insets t/r/b/l 0/0/0/0, text 100%
+1.0.59 inline          pad 32px 24px 32px 24px | column x 370..910 y 161.5..638.5 | card x 370..910 | logo top 167 | last button bottom 638.5 | scroll 800/800
+1.0.60 (top padded)    pad 32px 24px 32px 24px | column x 370..910 y 161.5..638.5 | card x 370..910 | logo top 167 | last button bottom 638.5 | scroll 800/800
+1.0.60 without top     pad 32px 24px 32px 24px | column x 370..910 y 161.5..638.5 | card x 370..910 | logo top 167 | last button bottom 638.5 | scroll 800/800
+
+## all insets zero, desktop 1280x800, insets t/r/b/l 0/0/0/0, text 200%
+1.0.59 inline          pad 32px 24px 32px 24px | column x 370..910 y -89.7..889.8 | card x 370..910 | logo top -61.7 | last button bottom 889.8 | scroll 1043/800
+1.0.60 (top padded)    pad 32px 24px 32px 24px | column x 370..910 y -89.7..889.8 | card x 370..910 | logo top -61.7 | last button bottom 889.8 | scroll 1043/800
+1.0.60 without top     pad 32px 24px 32px 24px | column x 370..910 y -89.7..889.8 | card x 370..910 | logo top -61.7 | last button bottom 889.8 | scroll 1043/800
