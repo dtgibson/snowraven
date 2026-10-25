@@ -33,6 +33,9 @@ def isolate_taxonomy_disk(tmp_path, monkeypatch):
     monkeypatch.setattr(taxonomy_module, "DATA_DIR", tmp_path / "data")
     monkeypatch.setattr(taxonomy_module, "_DISK", tmp_path / "data" / "taxonomy.json")
     monkeypatch.setattr(taxonomy_module, "_STATIC", tmp_path / "staticdata" / "ebird_taxonomy.json")
+    # The fake taxonomy is far under the live-fetch floor of 100; patch it down
+    # to refusing only an empty list (test_taxonomy_router.py holds the real one).
+    monkeypatch.setattr(taxonomy_module, "_MIN_ENTRIES", 1)
 
 
 _FAKE_TAXONOMY = [

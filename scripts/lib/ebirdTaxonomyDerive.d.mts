@@ -39,6 +39,7 @@ export const ALPHA_CODE_RE: RegExp
 export const PROTOTYPE_MEMBER_NAMES: readonly string[]
 export const MIN_ALPHA_CODE_ENTRIES: number
 export const MAX_HYPHENATED_TOKENS: number
+export const SPECIES_CODE_SHAPE_RE: RegExp
 export const ALPHA_CODES_GZIP_MAX_BYTES: number
 export const REVISION_MESSAGE: string
 
@@ -64,6 +65,7 @@ export function checkAlphaCodes(
   },
 ): string[]
 export function sizeViolations(json: string): string[]
+export function codeShapeViolations(maps: SnapshotMaps): string[]
 export function snapshotDrift(liveMaps: SnapshotMaps, committed: unknown): string[]
 
 export type TaxonomyRunPlan =

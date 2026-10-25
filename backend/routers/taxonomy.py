@@ -1,6 +1,8 @@
 import asyncio
 import json
+import math
 import os
+import time
 from pathlib import Path
 
 from fastapi import APIRouter
@@ -11,16 +13,35 @@ from http_client import get_client
 
 router = APIRouter()
 
-# Module-level cache: populated on first request, reused for the lifetime of
-# the process. The eBird taxonomy updates ~once a year with the Clements
-# checklist revision; restarting the app is sufficient to pick up changes.
+# Module-level cache: populated on first request and refreshed from eBird once
+# it is seven days old, so a server left running across eBird's annual taxonomy
+# update picks the new names up without a restart.
 _by_sci: dict[str, str] = {}    # sciName.lower() -> speciesCode (species only)
 _by_com: dict[str, str] = {}    # comName.lower() -> speciesCode (species only)
 _by_order: dict[str, int] = {}  # comName.lower() -> taxonOrder (species only)
 _by_code: dict[str, str] = {}   # speciesCode -> comName (ALL categories, original case)
 _report_as: dict[str, str] = {} # sub-form code -> parent species code (eBird reportAs)
-_version: str = ""              # taxonomy version stamp (Clements year), provenance for refresh-gating
+# The `version` of the loaded maps: the bundled snapshot's version, or the one a
+# live fetch was saved under (below). It is a cache counter kept in lockstep with
+# CACHE_KEY in frontend/src/lib/tauri/taxonomyService.ts, not a taxonomy year:
+# "2027" holds eBird's 2025 taxonomy.
+_version: str = ""
 _loaded = False
+
+# Refresh age (the desktop's SEVEN_DAYS_MS in taxonomyService.ts, the age at
+# which it stops trusting its saved copy). Measured on the monotonic clock, so a
+# wall-clock jump (a Pi setting its clock from the network after boot) neither
+# triggers nor postpones a refresh. `_fresh_until` is set by every load below;
+# its starting value of infinity means maps injected by setting `_loaded`
+# directly, as the parity tests do, never trigger a network call.
+_MAX_AGE_S = 7 * 24 * 60 * 60
+_clock = time.monotonic
+_fresh_until: float = math.inf
+
+# The bundled snapshot's `version`, read by the first floor load ("" when the
+# snapshot is absent). Every live fetch is saved under it, which is what lets
+# the floor tell a copy saved under this build's snapshot from an older one.
+_bundled_version: str = ""
 
 # Additive reverse map (media-catalog-taxon-links fix): comName.lower() -> code for
 # ALL categories, derived by inverting _by_code. This is what lets a FORM name (e.g.
@@ -32,26 +53,29 @@ _loaded = False
 _by_com_all: dict[str, str] = {}
 
 
-def _rebuild_by_com_all() -> None:
-    """(Re)derive the all-category name->code reverse map from _by_code. Cheap
-    (~18k entries) and only runs when the snapshot maps are (re)applied."""
-    _by_com_all.clear()
-    for code, name in _by_code.items():
-        if name:
-            _by_com_all[name.lower()] = code
+def _by_com_all_for(by_code: dict) -> dict[str, str]:
+    """The all-category name->code reverse map of a byCode map (desktop twin:
+    byComAllFor in taxonomyService.ts). Cheap (~18k entries) and only runs when
+    a bundle is applied. Raises on a name that is not a string, which is why
+    _apply_snapshot calls it before it clears any map."""
+    return {name.lower(): code for code, name in by_code.items() if name}
 
 # Coalescing lock (FR-27): concurrent first-callers share one serial load instead
 # of each re-running it. Lazily bound to the running event loop on first acquire
 # (single uvicorn process / one loop — see start.sh; requires Python >= 3.10).
 _load_lock = asyncio.Lock()
 
-# Offline floor (FR-24): disk twin under the repo-root data/ dir (the
-# mapdefaults.py convention), else the committed bundled snapshot under
-# backend/staticdata/ (the tide_stations.py convention). The snapshot carries the
-# already-derived 5-map bundle — copied in directly, NOT re-derived.
+# Offline floor (FR-24): the disk twin under the repo-root data/ dir (the
+# mapdefaults.py convention), which is the last live fetch, or the committed
+# bundled snapshot under backend/staticdata/ (the tide_stations.py convention).
+# The disk twin is used only when it was saved under the snapshot version this
+# build ships, so a newer bundled snapshot beats an older saved copy; the desktop
+# gets the same result by changing CACHE_KEY. Both files carry the
+# already-derived 5-map bundle, copied in directly, NOT re-derived.
 # DATA_DIR (imported above) honors the SR_DATA_DIR override — see datadir.py.
 _DISK = DATA_DIR / "taxonomy.json"
 _STATIC = Path(__file__).resolve().parent.parent / "staticdata" / "ebird_taxonomy.json"
+_MAP_KEYS = ("bySci", "byCom", "byOrder", "byCode", "reportAs")
 
 
 def _apply_snapshot(snap: dict) -> None:
@@ -60,8 +84,13 @@ def _apply_snapshot(snap: dict) -> None:
     Shape: {version, bySci, byCom, byOrder, byCode, reportAs}. byOrder values are
     already integers in the snapshot (coerced at build time, matching int(order)),
     so NO consume-time int() here. Clear-then-update so a refresh fully replaces a
-    stale floor rather than merging."""
+    stale floor rather than merging.
+
+    Everything here that can raise on a malformed bundle (the reverse map, which
+    reads every name) runs BEFORE the first map is cleared, so a bundle that
+    cannot be applied leaves the loaded maps exactly as they were."""
     global _version
+    by_com_all = _by_com_all_for(snap.get("byCode", {}))
     _by_sci.clear()
     _by_sci.update(snap.get("bySci", {}))
     _by_com.clear()
@@ -74,21 +103,48 @@ def _apply_snapshot(snap: dict) -> None:
     _report_as.update(snap.get("reportAs", {}))
     _version = str(snap.get("version", ""))
     # Keep the additive all-category reverse map in sync with _by_code.
-    _rebuild_by_com_all()
+    _by_com_all.clear()
+    _by_com_all.update(by_com_all)
+
+
+def _read_bundle(path: Path) -> dict | None:
+    """A 5-map bundle file parsed, or None when it is absent, unreadable or not a
+    JSON object. Never raises."""
+    try:
+        if path.exists():
+            doc = json.loads(path.read_text(encoding="utf-8"))
+            if isinstance(doc, dict):
+                return doc
+    except Exception:
+        pass
+    return None
 
 
 def _load_floor() -> bool:
-    """Populate the module dicts from the disk twin if present, else the bundled
-    snapshot. Returns True if a floor was loaded. Never raises — a corrupt/absent
-    disk file silently falls through to the bundled snapshot, and a missing
-    snapshot returns False so the caller falls through to the network path."""
-    for path in (_DISK, _STATIC):
+    """Populate the module dicts from the disk twin when it was saved under the
+    bundled snapshot's version, else from the bundled snapshot. Returns True if a
+    floor was loaded. Never raises: an absent or corrupt preferred source falls
+    through to the other one, and with neither it returns False so the caller
+    falls through to the network path.
+
+    A disk twin written before saved copies carried the snapshot's version
+    (`version: ""`) never equals it, so the bundled snapshot serves until the
+    next live fetch rewrites the twin."""
+    global _bundled_version
+    disk = _read_bundle(_DISK)
+    bundled = _read_bundle(_STATIC)
+    _bundled_version = str(bundled.get("version", "")) if bundled is not None else ""
+    prefer_disk = disk is not None and (
+        bundled is None or disk.get("version") == bundled.get("version")
+    )
+    for snap in ((disk, bundled) if prefer_disk else (bundled, disk)):
+        if snap is None:
+            continue
         try:
-            if path.exists():
-                _apply_snapshot(json.loads(path.read_text(encoding="utf-8")))
-                return True
+            _apply_snapshot(snap)
+            return True
         except Exception:
-            # Corrupt file (e.g. partial disk write) — try the next source.
+            # Malformed maps (e.g. a hand-edited file): try the other source.
             continue
     return False
 
@@ -133,14 +189,15 @@ def _derive_from_taxonomy(taxonomy: list) -> dict:
     }
 
 
-def _disk_version() -> str:
-    """The version stamp of the on-disk twin, or '' if absent/unreadable."""
-    try:
-        if _DISK.exists():
-            return str(json.loads(_DISK.read_text(encoding="utf-8")).get("version", ""))
-    except Exception:
-        pass
-    return ""
+def _saved_copy_differs(bundle: dict) -> bool:
+    """True when the disk twin is absent or unreadable, was saved under another
+    version, or holds any map that differs from `bundle`. One comparison of two
+    parsed documents, so it is linear in their size; it runs once per load, at
+    start and then at most once every seven days."""
+    saved = _read_bundle(_DISK)
+    if saved is None or saved.get("version") != bundle["version"]:
+        return True
+    return any(saved.get(key) != bundle[key] for key in _MAP_KEYS)
 
 
 def _persist(bundle: dict) -> None:
@@ -152,19 +209,29 @@ def _persist(bundle: dict) -> None:
     tmp.replace(_DISK)
 
 
+# Plausibility floor for a live fetch: a 200 whose body is not a list, or holds
+# fewer entries than this, is a failed refresh (keep the maps, never save it,
+# wait another seven days), never applied. eBird publishes some 17,900 entries.
+# Desktop twin: fetchTaxonomyOnline in frontend/src/lib/tauri/taxonomyService.ts
+# refuses the same response (`taxonomy.length < 100`); the backend tests compare
+# the two declarations. Read at call time, so tests can patch it down.
+_MIN_ENTRIES = 100
+
+
 async def _ensure_loaded() -> None:
-    global _loaded
-    if _loaded:
+    global _loaded, _fresh_until
+    if _loaded and _clock() < _fresh_until:
         return
     async with _load_lock:
         # MANDATORY second check — else every waiter that queued behind the lock
         # re-runs the whole load (FR-27).
-        if _loaded:
+        if _loaded and _clock() < _fresh_until:
             return
 
         # Offline floor first (FR-24): populated maps with NO eBird call when the
-        # disk twin or bundled snapshot is present.
-        had_floor = _load_floor()
+        # disk twin or bundled snapshot is present. A refresh of maps that are
+        # seven days old keeps those maps as its floor.
+        had_floor = True if _loaded else _load_floor()
 
         # Refresh: keep the eBird fetch as a REFRESH on top of the floor. Always
         # attempted (it is the ONLY source when neither floor exists — graceful
@@ -183,33 +250,41 @@ async def _ensure_loaded() -> None:
             )
             resp.raise_for_status()
             taxonomy = resp.json()
+            if not isinstance(taxonomy, list) or len(taxonomy) < _MIN_ENTRIES:
+                raise ValueError("implausible taxonomy response")
+            # The builder and the apply sit inside this try, not only the fetch
+            # (.claude/rules/security.md, v1.0.29): a 200 the router cannot turn
+            # into maps takes the same path as a failed fetch, and
+            # _apply_snapshot raises before it clears any map.
+            # Saved under the bundled snapshot's version, so the floor can tell
+            # this copy from one saved under an older snapshot (see _load_floor).
+            bundle = {**_derive_from_taxonomy(taxonomy), "version": _bundled_version}
+            _apply_snapshot(bundle)
         except Exception:
             if had_floor:
-                # Online refresh failed but the floor is good — serve it (FR-24).
+                # The refresh failed (no answer, an error status, or a 200 that
+                # is implausible or cannot be turned into maps) but the floor is
+                # good, so serve it (FR-24). The next attempt waits another seven
+                # days rather than running on every request, each of which could
+                # take 30 s or longer (the timeout is per phase).
                 _loaded = True
+                _fresh_until = _clock() + _MAX_AGE_S
                 return
-            # No floor AND no network — leave _loaded False so a later call
+            # No floor and no usable answer: leave _loaded False so a later call
             # retries; resolve_species/get_species_codes degrade to empty maps.
             raise
 
-        bundle = _derive_from_taxonomy(taxonomy)
-        _apply_snapshot(bundle)
-
-        # Persist the refresh ONLY when it advances the disk version (don't
-        # rewrite the ~1.7 MB file every load). A floor with no version stamp
-        # (the fetched bundle carries version "") still writes once so the next
-        # start reads the fresher disk copy; thereafter it's gated by equality.
+        # Rewrite the disk twin whenever the fetch differs from it, and only
+        # then (don't rewrite the ~1.7 MB file on every load).
         try:
-            if _DISK.exists():
-                if bundle["version"] != _disk_version():
-                    _persist(bundle)
-            else:
+            if _saved_copy_differs(bundle):
                 _persist(bundle)
         except Exception:
             # A failed persist must not fail the load — the maps are in memory.
             pass
 
         _loaded = True
+        _fresh_until = _clock() + _MAX_AGE_S
 
 
 async def collapse_to_species_list(codes: list[str]) -> list[dict]:

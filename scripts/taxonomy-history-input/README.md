@@ -83,29 +83,155 @@ species lost through lumps): 2019 106 / 20 (Cornell's "Overview August 2019"),
 2024 141 / 16 and 2025 40 / 18. They are on the `announced` field of each
 year's `UPDATE_PUBLISHED` row.
 
-## The annual refresh
+## The annual refresh, in order
 
-After `scripts/build-ebird-taxonomy.mjs` writes the new snapshot, add the new
-year's two files here, add the year's published date and eBird's announced
-tally (species gained through splits, species lost through lumps) to
-`UPDATE_PUBLISHED` in `scripts/lib/taxonomyHistoryDerive.mjs`, and run:
+eBird publishes one taxonomy update a year (between August and November in the
+years covered so far). The two generators, `scripts/build-ebird-taxonomy.mjs`
+(the snapshot, countability and species-code assets) and
+`scripts/build-taxonomy-history.mjs` (the splits-and-lumps history, built from
+this directory's files), refresh together and land in one commit: the history
+holds every after-side code and name to the snapshot, and records the snapshot
+version it was built against. Start only once the live API, Cornell's two files
+and eBird's announcement all exist; they do not always land on the same day.
 
-```
-node scripts/build-taxonomy-history.mjs
-```
+1. **Confirm the update is out.** `ref/taxonomy/versions` needs no key:
 
-The generator fails closed, and writes nothing, on anything it cannot resolve:
-an unreadable file, a split daughter with no single parent, a lump with fewer
-than two species, a year whose events do not reproduce eBird's announced tally,
-or an output that breaks any of the asset's invariants.
+   ```
+   curl -s https://api.ebird.org/v2/ref/taxonomy/versions
+   ```
 
-If a year's events differ from eBird's tally only because eBird counts one
-reorganization by its net change (three species became two: one lost, none
-gained, where the events count a split's daughter and two lumps), add that
-reorganization to `ANNOUNCED_RECOUNTS` beside `UPDATE_PUBLISHED`, citing the
-announcement that shows it, as for 2019's white-eyes and 2022's hill mynas. A
-recount may only relabel within the events it names: its events must each be
-derived exactly once, each of its two figures must lie between zero and its
-events' own, and its net must equal theirs, so it never changes the net and
-can lower the compared tally only by what its own events count. Any other
-difference is a resolver to fix.
+   The new year must be the entry marked `"latest":true`. Find eBird's
+   announcement of the update and record three things from it, with its URL:
+   the date it was published, the number of species gained through splits and
+   the number lost through lumps. A year without its announced tally cannot
+   ship, because that tally is the check the history generator rests on.
+
+2. **Download Cornell's two files in a browser** (the site refuses scripts with
+   a 403): the eBird taxonomy CSV and the integrated checklist for the year.
+   Save them here under the generator's fixed names, `ebird-taxonomy-vY.csv`
+   and `clements-integrated-vY.csv` (for 2026: `ebird-taxonomy-v2026.csv` and
+   `clements-integrated-v2026.csv`), whatever Cornell called them. Convert
+   either to UTF-8 if it is not already (see "Legacy encodings" above), check
+   an accented name by eye, and keep the original bytes of any file you changed
+   in `originals/`, with a line in `originals/SOURCES.md`. Add both files to the
+   table of files above.
+
+3. **Bump the two cache counters together, by one:** `VERSION` in
+   `scripts/build-ebird-taxonomy.mjs` and `CACHE_KEY` in
+   `frontend/src/lib/tauri/taxonomyService.ts` (for the 2026 update, "2027" to
+   "2028" and `taxonomy-v2027` to `taxonomy-v2028`). They are cache counters,
+   not taxonomy years: the snapshot stamped "2027" holds eBird's 2025 taxonomy.
+   The web/Pi backend needs no edit; it reads the version from its bundled
+   snapshot, and stops using a copy saved under the old version offline once
+   the new snapshot ships. Skipping this step makes step 4 stop with the
+   revision message and write nothing.
+
+4. **Run the snapshot generator with the eBird key in its environment only.**
+   On the Mac, the key is the `ebird` entry of the app's own key store. Read it
+   straight into the generator's environment, so it is never printed, never in
+   a command line or the shell history, and never written to a file:
+
+   ```
+   EBIRD_API_KEY="$(node -e 'try { const p = require("os").homedir() + "/Library/Application Support/com.snowraven/data/api-keys.json"; process.stdout.write(JSON.parse(require("fs").readFileSync(p, "utf8")).ebird ?? "") } catch { process.stderr.write("api-keys.json could not be read; nothing was printed\n"); process.exit(1) }')" node scripts/build-ebird-taxonomy.mjs
+   ```
+
+   If the key file is missing or does not parse, the command prints only
+   `api-keys.json could not be read; nothing was printed`, and the generator
+   then stops for want of a key. Node's own error would quote the failing line,
+   and the app writes the key file as one line, so that line holds every stored
+   key.
+
+   On a web/Pi install the key is in `backend/.env`, and
+   `node --env-file=backend/.env scripts/build-ebird-taxonomy.mjs` does the
+   same. Do not echo the variable, paste the key anywhere, or add it to
+   `backend/.env` for this. The generator writes both snapshot twins
+   (`frontend/src/assets/ebird-taxonomy.json` and
+   `backend/staticdata/ebird_taxonomy.json`), the countability asset and the
+   species-code asset, or nothing: it stops on a truncated fetch, a dangling
+   `reportAs`, a species code outside the shape the app's code guards accept,
+   or a failed check on the countability or four-letter-code assets.
+
+5. **Add the year to `UPDATE_PUBLISHED`** in
+   `scripts/lib/taxonomyHistoryDerive.mjs`: its published date,
+   `mark: 'measured'` and the announced tally, with the announcement cited in
+   the comment block above the table, as for every earlier year. Then run:
+
+   ```
+   node scripts/build-taxonomy-history.mjs
+   ```
+
+   It writes `frontend/src/assets/ebird-taxonomy-history.json`, or nothing. It
+   fails closed on an unreadable file, a split daughter with no single parent,
+   a lump with fewer than two species, a year whose events do not reproduce
+   eBird's announced tally, or an output that breaks any of the asset's
+   invariants.
+
+   If a year's events differ from eBird's tally only because eBird counts one
+   reorganization by its net change (three species became two: one lost, none
+   gained, where the events count a split's daughter and two lumps), add that
+   reorganization to `ANNOUNCED_RECOUNTS` beside `UPDATE_PUBLISHED`, citing the
+   announcement that shows it, as for 2019's white-eyes and 2022's hill mynas.
+   A recount may only relabel within the events it names: its events must each
+   be derived exactly once, each of its two figures must lie between zero and
+   its events' own, and its net must equal theirs, so it never changes the net
+   and can lower the compared tally only by what its own events count. Any
+   other difference is a resolver to fix, never a loosened check.
+
+6. **Re-derive every figure measured on the old snapshot.** Until the commit,
+   the old snapshot is still in git; print its code and species counts:
+
+   ```
+   git show HEAD:frontend/src/assets/ebird-taxonomy.json | node -e 'let t = ""; process.stdin.on("data", (d) => { t += d }).on("end", () => { const s = JSON.parse(t); console.log(Object.keys(s.byCode).length, Object.keys(s.byCom).length) })'
+   ```
+
+   Search the tree for both numbers, with and without a thousands
+   separator, and re-derive each one from the new snapshot together with the
+   claim beside it; never change a number alone. The known sites are the
+   counts in `countableForms.test.ts`, `csvParserIntergradeFilter.test.ts`,
+   `speciesUtilsMemoBound.test.ts` (and its longest-name figure) and
+   `truncateAtFirstParen.test.ts` (its count of snapshot strings), and the
+   comments in `exoticProvenanceCache.ts` (species, codes and the code shape),
+   `speciesCode.ts` (the longest code), `speciesUtils.ts` and
+   `build-countability.mjs` (the published names and the countability
+   corrections), `ebirdTaxonomyDerive.mjs` (`MIN_ALPHA_CODE_ENTRIES` and
+   `MAX_HYPHENATED_TOKENS`) and the plausibility floors in
+   `build-ebird-taxonomy.mjs`. If `frivolousLists.test.ts` turns red, a listed
+   species was renamed or split: change the list to eBird's current name.
+
+7. **Run every check:** the full frontend suite (`cd frontend && npx vitest
+   run`, because pinned text was edited), the backend suite
+   (`cd backend && .venv/bin/python -m pytest tests/ -v`), `npm run build` and
+   `npx eslint .` in `frontend/`. `entryChunk.test.ts` confirms the snapshot
+   stays off the entry chunk and the countability asset stays small, and
+   `cmp` on the two snapshot twins confirms they are identical.
+
+8. **Ship it as a patch release on every platform**, through the release
+   skill. The F-Droid changelogs and the App Store "What's New" are published
+   copy and wait for the user's yes.
+
+### If Cornell changed the files
+
+2026 is the first update since Cornell began aligning its checklist with
+AviList, so the file names, the header row or the change annotations may not
+match earlier years. A renamed file is simply saved under the fixed name
+(step 2). The history generator reads these columns, and fails closed with a
+message naming any it cannot find:
+
+- the taxonomy file: `SPECIES_CODE`, `CATEGORY`, `PRIMARY_COM_NAME` (or
+  `common_name`), `SCI_NAME` and `REPORT_AS`;
+- the integrated checklist: `category`, `English name`, `scientific name`, the
+  year's own `sort vY`, the previous update's sort column, `Clements vY change`
+  and `text for website vY`. Header case does not matter, an underscore reads
+  as a space, and the change and website columns may carry a letter after the
+  year.
+
+A missing column reads like
+`clements-integrated-v2026.csv: missing required column sort v2026 (its header
+row has: "...", "...")`, listing the header the file does have. A file with no
+change annotation or no "text for website" column is not refused outright: its
+year is not covered, and the run stops saying which file lacks which column
+(`... has no Clements v2026 change column`). Widen a matcher in
+`scripts/lib/taxonomyHistoryDerive.mjs` only against the real file, with a row
+in `frontend/src/lib/taxonomyHistoryGenerator.test.ts` for the new spelling.
+The tally in step 5 is the check that a widened matcher still reads the year
+correctly.

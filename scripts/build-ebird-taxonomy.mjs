@@ -20,7 +20,9 @@
 // generated from a newer revision than the snapshot), and when they are equal it
 // writes ONLY the alpha-code asset, so every other asset stays byte-identical.
 // So at the annual revision, bump VERSION and CACHE_KEY FIRST; the run then
-// writes every asset together. Nothing is written until every check has passed.
+// writes every asset together. Every code in the five maps must also fit the
+// species-code shape the app's code guards accept (codeShapeViolations in the
+// pure core), or the run stops. Nothing is written until every check has passed.
 //
 // The derivation is the SINGLE SOURCE OF TRUTH shared with:
 //   - frontend/src/lib/tauri/taxonomyService.ts  (loadTaxonomy, ~lines 113-133)
@@ -43,14 +45,22 @@
 // CI, and the snapshot is a committed artifact). The frontend/backend loaders both
 // degrade gracefully when this asset is absent.
 //
-// Requires EBIRD_API_KEY in the environment (e.g. loaded from backend/.env).
+// Requires EBIRD_API_KEY in the environment (e.g. loaded from backend/.env; the
+// annual runbook in scripts/taxonomy-history-input/README.md says how to load
+// it from the app's own key store without printing it).
 // Run:
 //   node --env-file=backend/.env scripts/build-ebird-taxonomy.mjs
 //   # or, if your node is <20.6 (no --env-file): export EBIRD_API_KEY=... first.
 //
-// VERSION: hand-bumped to the Clements/eBird year, aligned with the desktop
-// CACHE_KEY suffix in taxonomyService.ts (taxonomy-v2027 => "2027"). Bump this AND
-// CACHE_KEY together on the annual revision (see CLAUDE.md / DECISIONS.md).
+// VERSION: a cache counter, not a taxonomy year. It is the desktop CACHE_KEY
+// suffix in taxonomyService.ts (taxonomy-v2027 => "2027"), and the two move
+// together, by one, at each annual revision. The key went from taxonomy-v2025 to
+// taxonomy-v2027 at 0.5.14 for a change of cache shape, before any snapshot
+// existed, and the snapshot arrived at 0.5.45 stamped "2027" to match; it holds
+// eBird's 2025 taxonomy. The 2026 ingest bumps both to "2028". The web/Pi backend
+// saves each live fetch under this version, so its offline floor can tell a
+// saved copy from an older snapshot's (backend/routers/taxonomy.py). The steps
+// are in scripts/taxonomy-history-input/README.md and .claude/rules/bird-names.md.
 //
 // THE ANNUAL REVISION ALSO RE-RUNS THE SPLITS-AND-LUMPS HISTORY
 // (taxonomic-splits-lumps): after this writes the new snapshot, add the new
@@ -70,8 +80,8 @@ import { planTaxonomyRun } from './lib/ebirdTaxonomyDerive.mjs'
 const HERE = dirname(fileURLToPath(import.meta.url))
 const REPO = join(HERE, '..')
 
-// Hand-bumped Clements/eBird year; MUST match the CACHE_KEY suffix in
-// taxonomyService.ts (currently "taxonomy-v2027").
+// The snapshot's cache counter (see VERSION above, not a taxonomy year); MUST
+// match the CACHE_KEY suffix in taxonomyService.ts (currently "taxonomy-v2027").
 const VERSION = '2027'
 
 // `generated` provenance stamp. This is a build SCRIPT (node), not app render code,
@@ -88,8 +98,9 @@ const ALPHA_CODES_TARGET = join(REPO, 'frontend/src/assets/ebird-alpha-codes.jso
 
 // Plausibility floors — a truncated/partial fetch must HARD-FAIL the build, never
 // silently ship a degraded snapshot (a truncated floor blanks favicons for ALL
-// users until the next release). Real 2026 numbers: ~17.9k byCode, ~11.2k each
-// bySci/byCom/byOrder, ~4.1k reportAs. These floors sit well below the real values.
+// users until the next release). Real numbers on eBird's 2025 taxonomy (snapshot
+// "2027"): ~17.9k byCode, ~11.2k each bySci/byCom/byOrder, ~4.1k reportAs. These
+// floors sit well below the real values.
 const MIN_BY_CODE = 10_000
 const MIN_REPORT_AS = 1_000
 const MIN_NAME_MAPS = 5_000

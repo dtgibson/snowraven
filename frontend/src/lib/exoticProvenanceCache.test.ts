@@ -15,9 +15,12 @@
 //    and an elapsed-time form has already been measured getting WORSE with more
 //    rounds.
 
+/// <reference types="node" />
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { readFileSync } from 'node:fs'
 import * as cache from './exoticProvenanceCache'
 import type { ProvenanceObservation } from './exoticProvenanceCache'
+import { SPECIES_CODE_RE } from './speciesCode'
 
 const seamDoc: { value: unknown } = { value: null }
 
@@ -415,6 +418,47 @@ describe('sanitizeStore (schema.md §5, FR-22, NFR-08)', () => {
     expect(snap.species.size).toBe(0)
     expect(snap.checklists.size).toBe(0)
     expect(snap.excludedNames).toEqual([])
+  })
+})
+
+describe('every code in the bundled taxonomy snapshot fits the app\'s code guards', () => {
+  // A regenerated snapshot is a build input, guarded here in CI rather than at
+  // runtime (taxonomy-2026-readiness). A code outside SPECIES_CODE_RE gets no
+  // favicon or species-page link (SpeciesLinks) and no widget deep link, and
+  // one outside this module's SPECIES_CODE_KEY_RE loses its escapee record on
+  // every load. The generator refuses such a code too (codeShapeViolations in
+  // scripts/lib/ebirdTaxonomyDerive.mjs; alphaCodesGenerator.test.ts).
+  const SNAPSHOT = JSON.parse(
+    readFileSync(new URL('../assets/ebird-taxonomy.json', import.meta.url), 'utf8'),
+  ) as Record<'bySci' | 'byCom' | 'byCode' | 'reportAs', Record<string, string>>
+  const SOURCES: Record<string, string[]> = {
+    'byCode keys': Object.keys(SNAPSHOT.byCode),
+    'reportAs keys': Object.keys(SNAPSHOT.reportAs),
+    'reportAs values': Object.values(SNAPSHOT.reportAs),
+    'bySci values': Object.values(SNAPSHOT.bySci),
+    'byCom values': Object.values(SNAPSHOT.byCom),
+  }
+  const CODES = [...new Set(Object.values(SOURCES).flat())]
+
+  it('reads codes from each of the snapshot\'s code-bearing fields', () => {
+    for (const [field, codes] of Object.entries(SOURCES)) expect(codes.length, field).toBeGreaterThan(0)
+  })
+
+  it('SPECIES_CODE_RE (lib/speciesCode.ts) accepts every snapshot code', () => {
+    expect(CODES.filter(c => !SPECIES_CODE_RE.test(c)), 'snapshot codes SPECIES_CODE_RE refuses').toEqual([])
+  })
+
+  it('the store keeps a record under every snapshot code on load (its SPECIES_CODE_KEY_RE gate)', () => {
+    // Read through sanitizeStore, the gate's one call site, so the constant
+    // stays private. Each record is valid and each key distinct, so the key
+    // gate is the only check here that can drop one.
+    const record = { seen: ['N|'], n: 1, at: 1 }
+    const s = cache.sanitizeStore({
+      version: 1, checklists: {}, order: [], excludedNames: [],
+      species: Object.fromEntries(CODES.map(c => [c, record])),
+      speciesOrder: CODES,
+    })
+    expect(CODES.filter(c => !Object.hasOwn(s.species, c)), 'snapshot codes the provenance store drops on load').toEqual([])
   })
 })
 

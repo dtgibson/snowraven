@@ -1,5 +1,8 @@
+/// <reference types="node" />
 import { describe, it, expect } from 'vitest'
+import { readFileSync } from 'node:fs'
 import { computeFrivolousLists, AVIAN_AMERICAN, CALIFORNIA_DREAMER, PHOEBE_PHANATIC, BEST_OF_THE_CREST, RAINBOW_COLORS } from './frivolousLists'
+import type { FrivolousListsData } from './frivolousLists'
 import type { ObservationEntry } from '../types'
 
 let _sub = 1
@@ -303,5 +306,40 @@ describe('computeFrivolousLists — Rainbow Connection', () => {
     ])
     expect(data.rainbowConnection.rows.find(r => r.color === 'green')!.bird).toBeNull()
     expect(data.rainbowConnection.rows.find(r => r.color === 'blue')!.bird).toBeNull()
+  })
+})
+
+describe('every listed species is a species name in the bundled eBird taxonomy snapshot', () => {
+  // A list ticks by exact name (normalizeSpeciesName folds no case), so a name
+  // eBird no longer publishes, or spells differently, can never tick. v0.5.39
+  // checked the names by hand against the live taxonomy; this holds them to the
+  // bundled snapshot in CI, so regenerating the snapshot after a rename or a
+  // split goes red here (taxonomy-2026-readiness). The names are read from what
+  // computeFrivolousLists returns, so a new list is checked by being shown.
+  const SNAPSHOT = JSON.parse(
+    readFileSync(new URL('../assets/ebird-taxonomy.json', import.meta.url), 'utf8'),
+  ) as { byCom: Record<string, string>; byCode: Record<string, string> }
+
+  const perList = new Map<string, string[]>()
+  type AnyList = FrivolousListsData[keyof FrivolousListsData]
+  for (const [key, list] of Object.entries(computeFrivolousLists([])) as [string, AnyList][]) {
+    if ('items' in list) perList.set(key, list.items.map(i => i.commonName))
+    else if ('groups' in list) perList.set(key, list.groups.flatMap(g => g.items.map(i => i.commonName)))
+    else if (!('rows' in list)) throw new Error(`no rule for reading the names of list "${key}"`)
+    // `rows` is Rainbow Connection, which lists colors rather than species.
+  }
+  const names = [...perList.values()].flat()
+
+  it('reads a name from every list that has species', () => {
+    expect(perList.size).toBeGreaterThan(0)
+    for (const [key, listed] of perList) expect(listed.length, key).toBeGreaterThan(0)
+  })
+
+  it('each listed name is a byCom species name, spelled exactly as the snapshot publishes it', () => {
+    const missing = names.filter((name) => {
+      const key = name.toLowerCase()
+      return !Object.hasOwn(SNAPSHOT.byCom, key) || SNAPSHOT.byCode[SNAPSHOT.byCom[key]] !== name
+    })
+    expect(missing, 'listed names with no exact species-name match in the bundled snapshot').toEqual([])
   })
 })

@@ -74,6 +74,16 @@ export const MIN_ALPHA_CODE_ENTRIES = 13_000
 /** Most hyphenated tokens one displayed name may carry (I11; measured 3). */
 export const MAX_HYPHENATED_TOKENS = 4
 
+/**
+ * The species-code shape the app's code guards accept (taxonomy-2026-readiness):
+ * SPECIES_CODE_RE in frontend/src/lib/speciesCode.ts, which gates every favicon,
+ * species-page link and widget deep link, and SPECIES_CODE_KEY_RE in
+ * frontend/src/lib/exoticProvenanceCache.ts, which drops an escapee record on
+ * load. Spelled here because this module takes no app imports;
+ * alphaCodesGenerator.test.ts holds it equal to SPECIES_CODE_RE.
+ */
+export const SPECIES_CODE_SHAPE_RE = /^[a-z0-9-]{2,16}$/
+
 /** The ONE spelling of the NFR-02 size bound: 200 KiB gzipped. */
 export const ALPHA_CODES_GZIP_MAX_BYTES = 204_800
 
@@ -394,6 +404,25 @@ export function sizeViolations(json) {
 }
 
 /**
+ * Codes in the snapshot maps outside SPECIES_CODE_SHAPE_RE: every byCode and
+ * reportAs key and every reportAs, bySci and byCom value. A snapshot carrying
+ * one would ship a bird the app cannot link or keep, so the run stops.
+ */
+export function codeShapeViolations(maps) {
+  const codes = new Set([
+    ...Object.keys(maps.byCode), ...Object.keys(maps.reportAs),
+    ...Object.values(maps.reportAs), ...Object.values(maps.bySci), ...Object.values(maps.byCom),
+  ])
+  const out = []
+  for (const c of codes) {
+    if (typeof c !== 'string' || !SPECIES_CODE_SHAPE_RE.test(c)) {
+      out.push(`Code shape: ${JSON.stringify(c)} is outside the species-code shape ${SPECIES_CODE_SHAPE_RE} the app's code guards accept`)
+    }
+  }
+  return out
+}
+
+/**
  * The five snapshot maps that differ between the live derivation and the
  * committed snapshot, each with counts. Order-insensitive on purpose: a
  * reorder with the same content is not a revision.
@@ -452,6 +481,8 @@ export function planTaxonomyRun({ live, committed, version, generated, minEntrie
   if (collisions.length > 0 || shapes.length > 0) return stop([...collisions.map((c) => `I4: ${c}`), ...shapes])
 
   const bundle = deriveBundle(live, { version, generated })
+  const offShape = codeShapeViolations(bundle)
+  if (offShape.length > 0) return stop(offShape)
   const alphaCodes = deriveAlphaCodes(live, { version, generated, entryCodes })
   const speciesNames = Object.keys(bundle.byCom)
   const publishedNames = Object.values(bundle.byCode).map((n) => n.toLowerCase())

@@ -15,11 +15,12 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import {
-  ALPHA_CODES_GZIP_MAX_BYTES, MIN_ALPHA_CODE_ENTRIES, REVISION_MESSAGE,
+  ALPHA_CODES_GZIP_MAX_BYTES, MIN_ALPHA_CODE_ENTRIES, REVISION_MESSAGE, SPECIES_CODE_SHAPE_RE,
   checkAlphaCodes, deriveAlphaCodes, deriveBundle, deriveSnapshotMaps, entryAlphaCodes,
   nameFormedCodes, planTaxonomyRun, sizeViolations,
   type TaxonLike,
 } from '../../../scripts/lib/ebirdTaxonomyDerive.mjs'
+import { SPECIES_CODE_RE } from './speciesCode'
 
 // ── Fixture: real shapes ─────────────────────────────────────────────────────
 
@@ -242,6 +243,18 @@ describe('the generator refuses, writing nothing', () => {
   it('a filter mutated to drop banding codes (I10)', () => {
     const noBanding = (t: TaxonLike) => entryAlphaCodes({ ...t, bandingCodes: [] })
     expect(messages(plan(FIXTURE, { entryCodes: noBanding }))).toMatch(/I10: "Common Merganser" drops its banding code COME/)
+  })
+
+  it('a code outside the app\'s species-code shape, as a code or as a reportAs parent', () => {
+    const asCode = [...FIXTURE, taxon('Odd Bird1', 'Odd Bird', 'species', { band: ['ODBI'] })]
+    expect(messages(plan(asCode))).toMatch(/Code shape: "Odd Bird1" is outside the species-code shape/)
+    const asParent = [...FIXTURE, taxon('oddbir1', 'Odd Bird (Form)', 'issf', { reportAs: 'x' })]
+    expect(messages(plan(asParent))).toMatch(/Code shape: "x" is outside the species-code shape/)
+  })
+
+  it('the code-shape check spells SPECIES_CODE_RE (lib/speciesCode.ts)', () => {
+    expect(SPECIES_CODE_SHAPE_RE.source).toBe(SPECIES_CODE_RE.source)
+    expect(SPECIES_CODE_SHAPE_RE.flags).toBe(SPECIES_CODE_RE.flags)
   })
 
   it('a name with five hyphenated tokens (I11)', () => {
