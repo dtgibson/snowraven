@@ -45,7 +45,7 @@
 +2853) or the outer (1398 x 2034); a submitted Duo set shows the "Made for
 +iPhone Duo" badge for an app built with the iOS 27.1 SDK or later, and the set
 +is required from April 2027. A set is replaced whole and in order, because a
-+re-upload appends, and read back by checksum.
++re-upload appends, and read back against the committed files.
  
  ## Categories
  

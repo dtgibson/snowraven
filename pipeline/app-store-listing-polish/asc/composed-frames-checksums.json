@@ -1,0 +1,146 @@
+[
+  {
+    "family": "iphone-6.9",
+    "position": 1,
+    "file": "appstore/screenshots/iphone-6.9/01-map-explorer.png",
+    "bytes": 885320,
+    "md5": "757e5a9075f3339a9cd847e5d455671f",
+    "sha256": "c8a5c8f1be49b3a15b3279f831c69b4690f128115f7a21186b478ab8288389a6"
+  },
+  {
+    "family": "iphone-6.9",
+    "position": 2,
+    "file": "appstore/screenshots/iphone-6.9/02-statistics.png",
+    "bytes": 354403,
+    "md5": "a5afbe9c7fda271a5d3ece08ad99c880",
+    "sha256": "d89f17d3a644b0e886e5880d7d3d8728aeb881add451600e7f9e3e3a7e7c8fe0"
+  },
+  {
+    "family": "iphone-6.9",
+    "position": 3,
+    "file": "appstore/screenshots/iphone-6.9/04-calendar.png",
+    "bytes": 227816,
+    "md5": "6a0ffb275b7baceb657044cf1f95464c",
+    "sha256": "027c185be3ac83b2be75d5a11adb6419563d4e2bcebc03dd04450167acc1f512"
+  },
+  {
+    "family": "iphone-6.9",
+    "position": 4,
+    "file": "appstore/screenshots/iphone-6.9/05-species-detail.png",
+    "bytes": 348427,
+    "md5": "6c40343dc7dee0c04bdfdf7d07e28166",
+    "sha256": "5cbdb09a8113c9addfd0c2cc08fa754d621836a136d73c6fa0ce82c4904353d4"
+  },
+  {
+    "family": "iphone-6.9",
+    "position": 5,
+    "file": "appstore/screenshots/iphone-6.9/03-weather-tide.png",
+    "bytes": 374898,
+    "md5": "f21d2a0f21c6680ba6db1e0113df38f3",
+    "sha256": "0307c33466584657c873fb45ca67bbadead7b2d325c3e135c185eccb9d27256d"
+  },
+  {
+    "family": "iphone-6.9",
+    "position": 6,
+    "file": "appstore/screenshots/iphone-6.9/06-breeding-codes.png",
+    "bytes": 421815,
+    "md5": "f023ba4de17f145b6d00e9291ed0f6a5",
+    "sha256": "19f599fb0678221e6dd97f3f2e3f00dede9aabcf281d9c074a8a567c412cf71c"
+  },
+  {
+    "family": "ipad-13",
+    "position": 1,
+    "file": "appstore/screenshots/ipad-13/01-map-explorer.png",
+    "bytes": 1497876,
+    "md5": "3679659851db1d29d0abfb04844759c5",
+    "sha256": "e04e57cb5ed5ed9ac199a3f058d846f93d1213ed62db3e3c4a7fb1331d978831"
+  },
+  {
+    "family": "ipad-13",
+    "position": 2,
+    "file": "appstore/screenshots/ipad-13/02-statistics.png",
+    "bytes": 571428,
+    "md5": "758eb32d260dcb654c3ed455666121d0",
+    "sha256": "0964ef75d90ecdf1ea1007e657e82ad7d15325f75f81d21f9144c8390f9aa5ab"
+  },
+  {
+    "family": "ipad-13",
+    "position": 3,
+    "file": "appstore/screenshots/ipad-13/04-calendar.png",
+    "bytes": 579076,
+    "md5": "b7c85ec62ed63c1330897388f67e08da",
+    "sha256": "3275d4945906e927f789215131f416903bacad2c7cd19fd115a2b4b3755fe230"
+  },
+  {
+    "family": "ipad-13",
+    "position": 4,
+    "file": "appstore/screenshots/ipad-13/05-species-detail.png",
+    "bytes": 414239,
+    "md5": "08241a618e8f0ff53f3cd75aef7017dc",
+    "sha256": "92c07ae9e1f379cee63c7ee9a5d331c4c1314315a742585559489558775672ce"
+  },
+  {
+    "family": "ipad-13",
+    "position": 5,
+    "file": "appstore/screenshots/ipad-13/03-weather-tide.png",
+    "bytes": 499801,
+    "md5": "61de272cd8bd2c4553af22ece364e352",
+    "sha256": "15351f18fb226036bebfea6437e650a3952af09e5bb097e0fb9e2c23c8283944"
+  },
+  {
+    "family": "ipad-13",
+    "position": 6,
+    "file": "appstore/screenshots/ipad-13/06-breeding-codes.png",
+    "bytes": 621214,
+    "md5": "4fb891b1e0314135014203e59f2f1f64",
+    "sha256": "340ca513fdae818f2fc3a29cf26e34477b7164429e19095c1c01dc04cef80741"
+  },
+  {
+    "family": "iphone-duo",
+    "position": 1,
+    "file": "appstore/screenshots/iphone-duo/01-map-explorer.png",
+    "bytes": 930754,
+    "md5": "f988e933ce7ab932a6f72f5d5a54e95f",
+    "sha256": "be64d0966864030d7448264266d402ebf65ca194873576ef78766365f1452e04"
+  },
+  {
+    "family": "iphone-duo",
+    "position": 2,
+    "file": "appstore/screenshots/iphone-duo/02-statistics.png",
+    "bytes": 465013,
+    "md5": "fc472861d68db171f04291051dee2750",
+    "sha256": "8253f4eac407d98377c93c3e5d0ee688f144a9464c8ed76633dc2cc7bc5492ed"
+  },
+  {
+    "family": "iphone-duo",
+    "position": 3,
+    "file": "appstore/screenshots/iphone-duo/04-calendar.png",
+    "bytes": 403740,
+    "md5": "f38afa5e42d90df955abb3535c521746",
+    "sha256": "65a3be6d7034d786e1bc6c934e4215802aaab534a804554fca028e6cdf912afe"
+  },
+  {
+    "family": "iphone-duo",
+    "position": 4,
+    "file": "appstore/screenshots/iphone-duo/05-species-detail.png",
+    "bytes": 419108,
+    "md5": "10b13aa0413f20b3ede0e79577a34c8d",
+    "sha256": "9a9ea27b71fdccf6bd1235b3515df18c8ebd6a6b4712da387c659fb5a9ec54ae"
+  },
+  {
+    "family": "iphone-duo",
+    "position": 5,
+    "file": "appstore/screenshots/iphone-duo/03-weather-tide.png",
+    "bytes": 475548,
+    "md5": "6f1c68738ce6588394bfe29f8603e73e",
+    "sha256": "50b9789c7017165df01e056c5fd17a392b82e03b432d516d64317e0f8ac69a70"
+  },
+  {
+    "family": "iphone-duo",
+    "position": 6,
+    "file": "appstore/screenshots/iphone-duo/06-breeding-codes.png",
+    "bytes": 578773,
+    "md5": "113b309ef14501e72b1eac2f73e8cbef",
+    "sha256": "6bbaa5166722dc71e2b68fb47cf58804d9e3bab6f6499b0c33d5ee2206894213"
+  }
+]
