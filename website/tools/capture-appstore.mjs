@@ -6,7 +6,12 @@
 //   BASE      app origin (default http://localhost:1620)
 //   CHECKLIST a real PUBLIC coastal eBird checklist id for the live weather+tide
 //             shot (so a tide shows). Override via env if the default has aged out.
-//   FAMILY    optional: capture only "iphone" or "ipad" (default: both)
+//   FAMILY    optional: capture only "iphone", "ipad" or "duo" (default: all three)
+//   SHOT      optional: capture only the shot whose file name starts with this
+//             (e.g. SHOT=03 for 03-weather-tide.png). A recapture touches only
+//             the frames it names: the iPad 05-species-detail.png on disk is
+//             not reproducible by this script (DECISIONS.md, v1.0.52). A SHOT
+//             that names no shot fails the run rather than capturing nothing.
 //   WEATHER_REPLAY=1  capture the weather shot from the app's own offline-replay
 //             path instead of a live OpenWeather call. For rigs whose
 //             backend/.env deliberately carries no real OpenWeather key (this
@@ -15,9 +20,11 @@
 //             to a live success (the offline cue sits above the framed region).
 //             With a real key in .env, omit this and the shot is fully live.
 //
-// Output: ../../appstore/screenshots/{iphone-6.9,ipad-13}/*.png — committed.
-// PNG is the deliverable format (App Store Connect accepts PNG/JPEG), so
-// process-img.mjs (WebP, website-only) is NOT part of this path.
+// Output: ../../appstore/screenshots/raw/{iphone-6.9,ipad-13,iphone-duo}/*.png,
+// committed. These are the RAW captures; compose-appstore.mjs frames them into
+// the upload sets one folder up. PNG is the deliverable format (App Store
+// Connect accepts PNG/JPEG), so process-img.mjs (WebP, website-only) is NOT
+// part of this path.
 //
 // Device dimensions (portrait). Re-verified against App Store Connect's
 // accepted-size list on 2026-08-25: as of 2025+ ASC requires only ONE size per
@@ -26,6 +33,11 @@
 // smaller devices from it. The viewport math is exact:
 //   iPhone 6.9"  1320 x 2868 = viewport 440 x 956  @ deviceScaleFactor 3
 //   iPad 13"     2064 x 2752 = viewport 1032 x 1376 @ deviceScaleFactor 2
+//   iPhone Duo   2007 x 2853 = viewport 669 x 951   @ deviceScaleFactor 3
+// The iPhone Duo has its own App Store Connect slot (inner display 2007x2853 or
+// outer 1398x2034, nothing scaled into it; verified 2026-10-30). This is the
+// inner screen upright (DECISIONS.md, v1.0.59), which at 669pt draws the icon
+// rail, so it takes the non-phone branches below (phone: false).
 // If Apple moves the accepted list, adjust these constants (and re-verify the
 // note in appstore/LISTING.md's record).
 //
@@ -73,18 +85,21 @@ import { GL, makePage, selectTab, buildProvenanceStub, installProvenanceRoutes, 
 const BASE = process.env.BASE || 'http://localhost:1620';
 const CHECKLIST = process.env.CHECKLIST || 'S354229002'; // coastal -> shows tide
 const ONLY = process.env.FAMILY || '';
+const ONLY_SHOT = process.env.SHOT || '';
 const WEATHER_REPLAY = process.env.WEATHER_REPLAY === '1';
 
 const FAMILIES = [
   { key: 'iphone', dir: 'iphone-6.9', vp: { width: 440, height: 956 }, dsf: 3, px: { w: 1320, h: 2868 }, phone: true },
   { key: 'ipad', dir: 'ipad-13', vp: { width: 1032, height: 1376 }, dsf: 2, px: { w: 2064, h: 2752 }, phone: false },
+  { key: 'duo', dir: 'iphone-duo', vp: { width: 669, height: 951 }, dsf: 3, px: { w: 2007, h: 2853 }, phone: false },
 ].filter(f => !ONLY || f.key === ONLY);
+if (!FAMILIES.length) throw new Error(`FAMILY=${ONLY} names no family (iphone, ipad, duo)`);
 
 // The one location whose popup opens in shot 1. Must exist in the demo dataset
 // (gen-demo-data.mjs LOCS) — QA-05: every visible name comes from the demo data.
 const POPUP_LOCATION = 'Jamaica Bay Wildlife Refuge';
 
-const OUT_ROOT = new URL('../../appstore/screenshots/', import.meta.url).pathname;
+const OUT_ROOT = new URL('../../appstore/screenshots/raw/', import.meta.url).pathname;
 const log = (...a) => console.log(...a);
 
 // The demo-dataset guard now lives in capture-lib.mjs, so capture.mjs gets it
@@ -218,11 +233,16 @@ function statsRoutes(ctx) {
   })();
 }
 
-// 3 · Weather & Tide — the founding lookup on a real PUBLIC coastal checklist,
-// scrolled so the formatted weather block, the tide, and the copy actions fill
-// the frame. The attribution lines are NOT trimmed (unlike the website
-// capture): an App Store screenshot shows the app's real output, untouched.
-async function shotWeather(p) {
+// 3 · Weather & Tide: the founding lookup on a real PUBLIC coastal checklist.
+// The phone frame is taken at the PAGE TOP (app-store-listing-polish): the
+// lockup, the tab header, the checklist field, the whole weather block, and the
+// tide block opening at the bottom edge. Scrolled to the checklist's own header
+// instead, as it was until then, it opened mid-page with no tab header and two
+// tide lines running off the right edge at 440pt. The iPad and the Duo inner
+// screen keep that anchor: nothing clips there. The attribution lines are NOT
+// trimmed (unlike the website capture): an App Store screenshot shows the
+// app's real output, untouched.
+async function shotWeather(p, fam) {
   await selectTab(p, 'Weather');
   await p.waitForTimeout(600);
   const inp = await p.$('main input');
@@ -246,12 +266,17 @@ async function shotWeather(p) {
   // backlog itself stays below the fold; it computes offline from the backup).
   await p.locator('button').filter({ hasText: 'List checklists with no weather blocks' }).first().click().catch(() => {});
   await p.waitForTimeout(1200);
-  // Frame from the looked-up checklist's own header (the edit link + id/place
-  // line) down through the weather block, the tide, and the copy actions.
-  await p.evaluate(() => {
-    const link = [...document.querySelectorAll('a')].find(a => /Edit checklist comment/i.test(a.textContent || ''));
-    if (link) { link.scrollIntoView({ block: 'start' }); window.scrollBy(0, -14); }
-  });
+  // Phone: the page top. Otherwise frame from the looked-up checklist's own
+  // header (the edit link + id/place line) down through the weather block, the
+  // tide, and the copy actions.
+  if (fam.phone) {
+    await p.evaluate(() => window.scrollTo(0, 0));
+  } else {
+    await p.evaluate(() => {
+      const link = [...document.querySelectorAll('a')].find(a => /Edit checklist comment/i.test(a.textContent || ''));
+      if (link) { link.scrollIntoView({ block: 'start' }); window.scrollBy(0, -14); }
+    });
+  }
   await p.waitForTimeout(500);
 }
 function weatherRoutes(ctx) {
@@ -325,9 +350,12 @@ const SHOTS = [
   ['06-breeding-codes.png', shotBreeding, null],
 ];
 
+const RUN_SHOTS = SHOTS.filter(([file]) => !ONLY_SHOT || file.startsWith(ONLY_SHOT));
+if (!RUN_SHOTS.length) throw new Error(`SHOT=${ONLY_SHOT} names no shot (${SHOTS.map(([f]) => f).join(', ')})`);
+
 for (const fam of FAMILIES) {
   mkdirSync(`${OUT_ROOT}${fam.dir}`, { recursive: true });
-  for (const [file, run, routes] of SHOTS) await capture(fam, file, run, routes);
+  for (const [file, run, routes] of RUN_SHOTS) await capture(fam, file, run, routes);
 }
 
 await browser.close();

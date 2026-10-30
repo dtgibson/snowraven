@@ -1,0 +1,105 @@
+# Decisions: app-store-listing-polish
+
+## Design stage (2026-10-30)
+
+### D1. The frame palette is the website's band, not the app's dark theme
+
+`pipeline/design-system.md` lists the app's tokens; it does not list the
+website's band values (`#0c1f17`, `#59d499`, `#9fb3a7`, `#e8efe9`,
+`--band-border`). The composed frames use the band. Reason: the band is
+already SnowRaven's published treatment for a light screenshot on a dark
+ground (every feature shot on the website sits on it), so a visitor who
+has seen the site recognizes the store page; and the app's own dark
+surface `#09090B` is a near-black that would vanish on the black App Store
+page, which is the one surface the design has to hold on. The change brief
+named the band as part of the starting palette. Not a new token: the
+values are read from `website/styles.css` and recorded by hex in the spec.
+
+### D2. Two derived values, neither minted as a token
+
+- `#132c20`: the band lifted one step for the top of the frame gradient.
+  Derived from `#0c1f17`, used only in the composer.
+- `#293A33`: `--band-border` (`rgba(255,255,255,.12)`) pre-flattened over
+  `#0c1f17`, so the composer draws a flat hairline rather than an alpha
+  stroke. Derived, used only in the composer.
+
+Both live in the composer beside the band values they derive from, with
+this note as their reason. If the website's band ever changes, these two
+change with it.
+
+### D3. The caption face is SF Pro, the system font
+
+The Weft design doctrine says not to default to `system-ui` for a display
+face. The frames do. Reason, in order: the caption sits 72px above a
+screenshot of the app set in SF (the app's `system-ui` on iPhone and iPad,
+per the design system's type rule), and a second face would make one frame
+read as two products; `pipeline/design-system.md` names Inter / system-ui
+as the type and wins on specifics; and the brief forbids a CDN font and
+prefers a font already in use over a new asset, and no font file is
+committed in the repo. The doctrine's rule is for product chrome; here the
+product's own face is the right one. `weft-design-lint` is clean because
+the stack is written as `-apple-system, BlinkMacSystemFont, "SF Pro
+Display", ...`, which is the same font by its platform names, not an
+evasion of the rule: the choice is deliberate and recorded here.
+
+### D4. The raven mark's fill on the band is `#59d499`, not the icon's `#2D8653`
+
+The icon's green on `#0c1f17` measures 2.8:1 and fails the 3:1 non-text
+bar; the website's `--band-accent` `#59d499` measures 9.2:1 on the same
+ground and is the color the site already draws its accents in on this
+band. The icon is unchanged. The mockup's icon section shows both side by
+side as the consistency check.
+
+### D6. iPhone Duo family added, inner display (user request, 2026-10-30)
+
+After approving the first direction the user asked for an iPhone Duo set
+in the same look, so the product page carries the "Made for iPhone Duo"
+badge. App Store Connect has one Duo slot per language and accepts either
+the outer display (1398 x 2034) or the inner (2007 x 2853); nothing scales
+into it. **Inner, portrait.** Reasons: it is the device's signature screen;
+at 669pt the app ships its icon-rail layout, so each frame shows more of
+its tab than the 6.9-inch set, whereas the outer display at 466pt would
+photograph the same phone-bar layout the 6.9-inch set already shows; and a
+7:10 frame beside the 6.9-inch set is visibly a different device on the
+product page, which is what the badge promises. The recipe is re-derived
+for the squarer canvas (card 80.9% of the width, type 120/50) rather than
+scaled from the phone. The six captures are new and are taken at build
+(viewport 669 x 951 at 3x, the rail tier, `phone: false`), so they come
+back for approval before upload; the mockup shows the Duo geometry over the
+6.9-inch captures, letterboxed and labelled as a preview, and fakes no Duo
+layout. Same six tabs, same order, same captions.
+
+### D5. Scope held: no new screens, no app change
+
+The design pass found one app behavior (the Weather tab's tide block does
+not wrap at 440pt, so two lines run off the right edge of the phone
+capture) and left it alone: it is flagged in the spec as a follow-up, and
+the recommended remedy inside this run is a capture position, not a code
+change. The Statistics key-state question (ROADMAP v1.0.17) is left open on
+purpose, with the store's state recorded in `LISTING.md` so the next
+website regeneration has a target.
+
+
+## Scope addition at the design review (2026-10-30, Case 1 cascade by The Guide)
+
+The user approved the design direction as presented and asked that the store page also become "Made for iPhone Duo" by adding an iPhone Duo screenshot set in the same look. Verified against Apple's App Store Connect screenshot specifications (one iPhone Duo slot: inner 2007 x 2853 or outer 1398 x 2034; nothing scales into it; required from April 2027 for apps on the iOS 27.1 SDK; submitting the set earns the badge) and the repo's own Duo measurements (DECISIONS.md v1.0.59: inner 669 x 951 pt, outer 466 x 678 pt, both at 3x), so the addition is a device-table row in `website/tools/capture-appstore.mjs` plus six new captures. The change brief's out-of-scope line was edited accordingly; the Designer is adding the family to the spec and mockup. Still on the Improve lane: a third frame family for an existing published surface, no app change.
+
+
+## Orientation (2026-10-30, the user at the design review)
+
+All three sets stay portrait. A landscape frame in a portrait set is scaled to the row height on the store page and breaks the three-up rhythm; the one landscape shot with a story (the Duo inner screen sideways, where the app earns its sidebar) is deferred, and if it ever comes it goes last, never in the first three.
+
+
+## Approval of the composed sets and the published copy (2026-10-30, the user, in chat)
+
+The user approved all three composed sets, the six captions, the held `appstore/LISTING.md` Screenshots section and the `website/tools/README.md` paragraph from the review page, and kept the page-top iPhone Weather frame (the half-height checklist field at phone width is an app quirk outside this brief; the mid-page frame clipped two tide lines). One caption change, applied as a Case 1 cascade to the composer, its test, the held section and patch, the review page, the mockup and the spec, then recomposed: Calendar reads "Each day shaded by species, checklists, media, etc." (51 characters; the composer measured it inside its box on all three families). Nothing is written to App Store Connect until the Deployer.
+
+
+## After QA (2026-10-30, The Guide, Case 1)
+
+The Tester flagged the Calendar caption measurements left behind by the caption change (the review page row and two spec sentences still read 43 characters and the old widths). Corrected to 51 characters and the composer-measured widths (978 of 1080, 1065 of 1680, 1108 of 1623). Convention noted for the Chronicler: when a caption changes, sweep its recorded measurements with the text.
+
+
+## Security dispositions (2026-10-30, The Guide, at the Auditor hand-back)
+
+F1 (Low, pre-existing): sharp 0.35.4 in website/tools carries an SVG-decoder advisory this toolchain cannot reach (sharp never receives an SVG; the raven glyph is read as text). DEFERRED to the idea inbox: bump to 0.35.5 as a dev-only change after this upload, re-checking the frames stay byte-identical. F2 (Informational): the Weather frames show the real public checklist S354229002 (Jamaica Bay, East Pond, 2026-06-07), as the website Weather shot has since v1.0.4; no observer name or key appears. ACCEPTED, with one line to the user at the deploy sign-off so they can say if it is not theirs to publish.

@@ -1,0 +1,51 @@
+--- a/appstore/LISTING.md
++++ b/appstore/LISTING.md
+@@ -92,6 +92,48 @@
+ Comma-separated, no spaces after commas. Skips words already indexed from the
+ name and subtitle (birding, data). "ebird" and "macaulay" ride as
+ compatibility terms, which the voice rules allow in keywords.
++
++## Screenshots
++
++Three sets, one per App Store Connect slot, each in this order. All three use
++the same six frames and captions:
++
++| # | Raw capture | Display line | Second line |
++|---|---|---|---|
++| 1 | `01-map-explorer.png` | Map Explorer | Your sightings and nearby hotspots on a map |
++| 2 | `02-statistics.png` | Statistics | Life list totals, growth, and milestones |
++| 3 | `04-calendar.png` | Calendar | Each day shaded by species, checklists, media, etc. |
++| 4 | `05-species-detail.png` | Species Detail | Your whole history with one bird |
++| 5 | `03-weather-tide.png` | Weather | A weather and tide summary for a checklist |
++| 6 | `06-breeding-codes.png` | Breeding Codes | Breeding evidence by species and code |
++
++Each frame is the committed capture on SnowRaven's dark green band with the
++raven mark, the tab's name and one line saying what it shows; composed by
++`website/tools/compose-appstore.mjs` from `appstore/screenshots/raw/`. The
++display line is the tab's name exactly as the app spells it. The order leads
++with three different shapes (a map, a dashboard, a year grid), the frames a
++search result shows first.
++
++| Set | Slot | Size | Folder |
++|---|---|---|---|
++| iPhone | iPhone 6.9-inch | 1320 x 2868 | `appstore/screenshots/iphone-6.9/` |
++| iPad | iPad 13-inch | 2064 x 2752 | `appstore/screenshots/ipad-13/` |
++| iPhone Duo | iPhone Duo, inner display, portrait | 2007 x 2853 | `appstore/screenshots/iphone-duo/` |
++
++The iPhone Duo set shows the inner display, where the app draws its icon rail,
++so each frame shows more of its tab than the 6.9-inch set does.
++
++The Statistics frames standardize on the keyed, checked state (an eBird key
++saved and the escapee check complete): the iPad and iPhone Duo frames show its
++"Exotic status checked" line, and the iPhone frame ends above it.
++
++Store facts, verified 2026-10-30: one set per slot, 1 to 10 images, PNG with
++no transparency. Apple scales the 6.9-inch set for smaller iPhones. Nothing is
++scaled into the iPhone Duo slot, which takes either the inner display (2007 x
++2853) or the outer (1398 x 2034); a submitted Duo set shows the "Made for
++iPhone Duo" badge for an app built with the iOS 27.1 SDK or later, and the set
++is required from April 2027. A set is replaced whole and in order, because a
++re-upload appends, and read back by checksum.
+ 
+ ## Categories
+ 

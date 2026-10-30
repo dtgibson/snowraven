@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SnowRaven App Store screenshots: the composed sets, for review</title>
+<style>
+  :root {
+    --ink: #0F1117; --muted: #6B6B74; --gray: #6B7280; --page: #F9FAFB; --surface: #FFFFFF; --subtle: #F4F4F5;
+    --border: #E4E4E7; --accent: #277448; --accent-bg: #E8F5EE; --warn-bg: #FEF3C7; --warn-ink: #78350F;
+    --store-light: #FFFFFF; --store-dark: #050506;
+    --font: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Helvetica, sans-serif;
+    --mono: ui-monospace, "SF Mono", Menlo, monospace;
+    --ease: cubic-bezier(0.2, 0, 0, 1);
+  }
+  * { box-sizing: border-box; }
+  html { background: var(--page); color: var(--ink); font-family: var(--font); -webkit-text-size-adjust: 100%; }
+  body { margin: 0; font-size: 14px; line-height: 1.55; }
+  main { max-width: 1320px; margin: 0 auto; padding: 32px 24px 96px; }
+  h1 { font-size: 28px; line-height: 1.15; font-weight: 700; letter-spacing: -0.02em; margin: 0 0 8px; }
+  h2 { font-size: 20px; line-height: 1.2; font-weight: 700; letter-spacing: -0.015em; margin: 0 0 6px; }
+  p { margin: 0; max-width: 72ch; }
+  .lede { color: var(--muted); font-size: 15px; }
+  .sec { margin-top: 56px; }
+  .sec > p { color: var(--muted); margin-top: 4px; }
+  .dim { color: var(--muted); font-weight: 500; }
+  .hl { color: var(--accent); font-weight: 600; }
+  .lbl { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px; }
+  .big-lbl { margin-top: 28px; }
+  .row { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; margin-top: 18px; }
+  .facts { margin-top: 10px !important; font-size: 13px; padding: 8px 12px; border-radius: 8px; max-width: none !important; }
+  .facts.ok { background: var(--accent-bg); color: #14532D; }
+  .facts.bad { background: #FEE2E2; color: #7F1D1D; }
+  .note { margin-top: 14px; padding: 12px 14px; border-radius: 8px; background: var(--warn-bg); color: var(--warn-ink); max-width: 80ch; }
+  code { font-family: var(--mono); font-size: 0.92em; background: var(--subtle); padding: 1px 5px; border-radius: 4px; }
+  pre { font-family: var(--mono); font-size: 12px; line-height: 1.5; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; overflow-x: auto; max-height: 560px; white-space: pre; }
+  pre.wrap { white-space: pre-wrap; max-height: none; }
+  .store { border-radius: 14px; padding: 18px; border: 1px solid var(--border); background: var(--store-light); color: var(--ink); min-width: 0; max-width: 100%; }
+  .store--dark { background: var(--store-dark); color: #F4F4F5; border-color: #27272A; }
+  .store--dark .lbl { color: #A1A1AA; }
+  .store-app { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+  .store-app img { width: 62px; height: 62px; border-radius: 14px; display: block; }
+  .store-app b { display: block; font-size: 16px; font-weight: 600; letter-spacing: -0.01em; }
+  .store-app span { display: block; font-size: 13px; color: var(--muted); }
+  .store--dark .store-app span { color: #A1A1AA; }
+  .store-get { margin-left: auto; font-size: 14px; font-weight: 700; color: var(--accent) !important; background: var(--accent-bg); border-radius: 999px; padding: 5px 16px; }
+  .store--dark .store-get { color: #34D399 !important; background: #052E16; }
+  .strip { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
+  .phone { width: 390px; max-width: 100%; }
+  .wide { flex: 1 1 100%; }
+  .fr { flex: 0 0 auto; display: block; padding: 0; margin: 0; border: 0; background: none; cursor: pointer; border-radius: 9px; overflow: hidden; line-height: 0; }
+  .fr img { display: block; width: 100%; height: auto; }
+  .fr:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .large-pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-top: 10px; }
+  .large-pair .store { display: grid; place-items: center; }
+  .large { display: block; height: auto; border-radius: 14px; transition: opacity 160ms var(--ease); }
+  .large--phone { width: min(100%, 440px); }
+  .large--ipad { width: min(100%, 560px); }
+  .large.is-swapping { opacity: 0; }
+  .pair2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-top: 14px; }
+  .pair2 figure { margin: 0; }
+  .pair2 img { width: min(100%, 420px); display: block; border-radius: 14px; }
+  .pair2 figcaption { font-size: 13px; color: var(--muted); margin-top: 8px; max-width: 46ch; }
+  .crop { width: min(100%, 570px); display: block; border: 1px solid var(--border); border-radius: 8px; margin-top: 12px; }
+  table { border-collapse: collapse; width: 100%; margin-top: 14px; font-size: 13.5px; }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+  td.n { color: var(--gray); font-variant-numeric: tabular-nums; width: 2.5em; }
+  td.t { font-weight: 600; white-space: nowrap; }
+  td.c { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .tablewrap { overflow-x: auto; }
+  @media (prefers-reduced-motion: reduce) { .large { transition: none; } }
+  @media (max-width: 640px) { main { padding: 20px 14px 72px; } h1 { font-size: 24px; } .phone { width: 100%; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>App Store screenshots: the composed sets</h1>
+  <p class="lede">The final frames, read straight from <code>appstore/screenshots/</code>: three sets in upload order, each on a light and a dark store page. Tap any frame to see it large. Nothing here has been uploaded; App Store Connect is written only after your yes.</p>
+
+  <p class="note"><b>One decision for you, on the iPhone Weather frame.</b> The recapture at the page top (as approved) shows the checklist field, and that field draws only 20px tall at phone widths of 480 and under, in Chromium and in WebKit, the engine the iPhone app runs on. It is how the app ships today, not a capture fault, and it is out of this change's scope (no app code changes here). The committed frame avoided it by opening mid-page, at the cost of two tide lines running off the right edge. Both are shown <a href="#weather">below</a>; the set currently uses the page-top frame.</p>
+
+  
+  <section class="sec" aria-labelledby="h-iphone-6.9">
+    <h2 id="h-iphone-6.9">iPhone 6.9-inch <span class="dim">1320 x 2868</span></h2>
+    <p>The six committed captures, with Weather recaptured at the page top.</p>
+    <p class="facts ok">Read from the files: 6 frames, every one 1320 x 2868 px, 3 channels (RGB), no frame has an alpha channel. Recomposed for this page: byte-identical to the committed frames.</p>
+    <div class="row">
+      <div class="store phone"><p class="lbl">Search result · light</p><div class="store-app"><img src="../../src-tauri/icons/icon.png" alt=""><div><b>SnowRaven</b><span>Your birding data, explored</span></div><span class="store-get">Get</span></div><div class="strip"><button type="button" class="fr" style="width:113px" data-fam="iphone-6.9" data-i="0" aria-label="Show Map Explorer large"><img src="../../appstore/screenshots/iphone-6.9/01-map-explorer.png" alt="" loading="lazy" decoding="async"></button><button type="button" class="fr" style="width:113px" data-fam="iphone-6.9" data-i="1" aria-label="Show Statistics large"><img src="../../appstore/screenshots/iphone-6.9/02-statistics.png" alt="" loading="lazy" decoding="async"></button><button type="button" class="fr" style="width:113px" data-fam="iphone-6.9" data-i="2" aria-label="Show Calendar large"><img src="../../appstore/screenshots/iphone-6.9/04-calendar.png" alt="" loading="lazy" decoding="async"></button></div></div>
+      <div class="store store--dark phone"><p class="lbl">Search result · dark</p><div class="store-app"><img src="../../src-tauri/icons/icon.png" alt=""><div><b>SnowRaven</b><span>Your birding data, explored</span></div><span class="store-get">Get</span></div><div class="strip"><button type="button" class="fr" style="width:113px" data-fam="iphone-6.9" data-i="0" aria-label="Show Map Explorer large"><img src="../../appstore/screenshots/iphone-6.9/01-map-explorer.png" alt="" loading="lazy" decoding="async"></button><button type="button" class="fr" style="width:113px" data-fam="iphone-6.9" data-i="1" aria-label="Show Statistics large"><img src="../../appstore/screenshots/iphone-6.9/02-statistics.png" alt="" loading="lazy" decoding="async"></button><button type="button" class="fr" style="width:113px" data-fam="iphone-6.9" data-i="2" aria-label="Show Calendar large"><img src="../../appstore/screenshots/iphone-6.9/04-calendar.png" alt="" loading="lazy" decoding="async"></button></div></div>
+    </div>
+    <div class="row">
+      <div class="store wide"><p class="lbl">Product page · light · all six, upload order</p><div class="strip"><button type="button" class="fr" style="width:196px" data-fam="iphone-6.9" data-i="0" aria-label="Show Map Explorer large"><img src="../../appstore/screenshots/iphone-6.9/01-map-explorer.png" alt="" loading="lazy" decoding="async"></button><button type="button" class="fr" style="width:196px" data-fam="iphone-6.9" data-i="1" aria-label="Show Statistics large"><img src="../../appstore/screenshots/iphone-6.9/02-statistics.png" alt="" loading="lazy" decoding="async"></button><button type="button" class="fr" style="width:196px" data-fam="iphone-6.9" data-i="2" aria-label="Show Calendar large"><img src="../../appstore/screenshots/iphone-6.9/04-calendar.png" alt="" loading="lazy" decoding="async"></button><button type="button" class="fr" style="width:196px" data-fam="iphone-6.9" data-i="3" aria-label="Show Species Detail large"><img src="../../appstore/screenshots/iphone-6.9/05-species-detail.png" alt="" loading="lazy" decoding="async"></button><button type="button" class="fr" style="width:196px" data-fam="iphone-6.9" data-i="4" aria-label="Show Weather large"><img src="../../appstore/screenshots/iphone-6.9/03-weather-tide.png" alt="" loading="lazy" decoding="async"></button><button type="button" class="fr" style="width:196px" data-fam="iphone-6.9" data-i="5" aria-label="Show Breeding Codes large"><img src="../../appstore/screenshots/iphone-6.9/06-breeding-codes.png" alt="" loading="lazy" decoding="async"></button></div></div>
+      <div class="store store--dark wide"><p class="lbl">Product page · dark · all six, upload order</p><div class="strip"><button type="button" class="fr" style="width:196px" data-fam="iphone-6.9" data-i="0" aria-label="Show Map Explorer large"><img src="../../appstore/screenshots/iphone-6.9/01-map-explorer.png" alt="" loading="lazy" decoding="async"></button><button type="button" class="fr" style="width:196px" data-fam="iphone-6.9" data-i="1" aria-label="Show Statistics large"><img src="../../appstore/screenshots/iphone-6.9/02-statistics.png" alt="" loading="lazy" decoding="async"></button><button type="button" class="fr" style="width:196px" data-fam="iphone-6.9" data-i="2" aria-label="Show Calendar large"><img src="../../appstore/screenshots/iphone-6.9/04-calendar.png" alt="" loading="lazy" decoding="async"></button><button type="button" class="fr" style="width:196px" data-fam="iphone-6.9" data-i="3" aria-label="Show Species Detail large"><img src="../../appstore/screenshots/iphone-6.9/05-species-detail.png" alt="" loading="lazy" decoding="async"></button><button type="button" class="fr" style="width:196px" data-fam="iphone-6.9" data-i="4" aria-label="Show Weather large"><img src="../../appstore/screenshots/iphone-6.9/03-weather-tide.png" alt="" loading="lazy" decoding="async"></button><button type="button" class="fr" style="width:196px" data-fam="iphone-6.9" data-i="5" aria-label="Show Breeding Codes large"><img src="../../appstore/screenshots/iphone-6.9/06-breeding-codes.png" alt="" loading="lazy" decoding="async"></button></div></div>
+    </div>
+    <p class="lbl big-lbl">Large · <span id="name-iphone-6.9">Map Explorer</span> <span class="dim">(tap any frame above)</span></p>
+    <div class="large-pair">
+      <div class="store"><img class="large large--phone" id="large-iphone-6.9-light" src="../../appstore/screenshots/iphone-6.9/01-map-explorer.png" alt="Map Explorer frame, iPhone 6.9-inch, on the light store page"></div>
+      <div class="store store--dark"><img class="large large--phone" id="large-iphone-6.9-dark" src="../../appstore/screenshots/iphone-6.9/01-map-explorer.png" alt="Map Explorer frame, iPhone 6.9-inch, on the dark store page"></div>
+    </div>
+  </section>
+  
+  <section class="sec" aria-labelledby="h-iphone-duo">
+    <h2 id="h-iphone-duo">iPhone Duo, inner display <span class="dim">2007 x 2853</span></h2>
+    <p>These are the real Duo captures at 669 by 951 points (2007 x 2853 at 3x), taken for this set. They fill the viewport edge to edge in the app's icon-rail layout: no letterboxing, no empty side bands, demo data only.</p>
+    <p class="facts ok">Read from the files: 6 frames, every one 2007 x 2853 px, 3 channels (RGB), no frame has an alpha channel. Recomposed for this page: byte-identical to the committed frames.</p>
+    <div class="row">
+      <div class="store phone"><p class="lbl">Search result · light</p><div class="store-app"><img src="../../src-tauri/icons/icon.png" alt=""><div><b>SnowRaven</b><span>Your birding data, explored</span></div><span class="store-get">Get</span></div><div class="strip"><button type="button" class="fr" style="width:113px" data-fam="iphone-duo" data-i="0" aria-label="Show Map Explorer large"><img src="../../appstore/screenshots/iphone-duo/01-map-explorer.png" alt="" loading="lazy" decoding="async"></button><button type="button" class="fr" style="width:113px" data-fam="iphone-duo" data-i="1" aria-label="Show Statistics large"><img src="../../appstore/screenshots/iphone-duo/02-statistics.png" alt="" loading="lazy" decoding="async"></button><button type="button" class="fr" style="width:113px" data-fam="iphone-duo" data-i="2" aria-label="Show Calendar large"><img src="../../appstore/screenshots/iphone-duo/04-calendar.png" alt="" loading="lazy" decoding="async"></button></div></div>
+      <div class="store store--dark phone"><p class="lbl">Search result · dark</p><div class="store-app"><img src="../../src-tauri/icons/icon.png" alt=""><div><b>SnowRaven</b><span>Your birding data, explored</span></div><span class="store-get">Get</span></div><div class="strip"><button type="button" class="fr" style="width:113px" data-fam="iphone-duo" data-i="0" aria-label="Show Map Explorer large"><img src="../../appstore/screenshots/iphone-duo/01-map-explorer.png" alt="" loading="lazy" decoding="async"></button><button type="button" class="fr" style="width:113px" data-fam="iphone-duo" data-i="1" aria-label="Show Statistics large"><img src="../../appstore/screenshots/iphone-duo/02-statistics.png" alt="" loading="lazy" decoding="async"></button><button type="button" class="fr" style="width:113px" data-fam="iphone-duo" data-i="2" aria-label="Show Calendar large"><img src="../../appstore/screenshots/iphone-duo/04-calendar.png" alt="" loading="lazy" decoding="async"></button></div></div>
+    </div>
+    <div class="row">
+      <div class="store wide"><p class="lbl">Product page · light · all six, upload order</p><div class="strip"><button type="button" class="fr" style="width:196px" data-fam="iphone-duo" data-i="0" aria-label="Show Map Explorer large"><img src="../../appstore/screenshots/iphone-duo/01-map-explorer.png" alt="" loading="lazy" decoding="async"></button><button type="button" class="fr" style="width:196px" data-fam="iphone-duo" data-i="1" aria-label="Show Statistics large"><img src="../../appstore/screenshots/iphone-duo/02-statistics.png" alt="" loading="lazy" decoding="async"></button><button type="button" class="fr" style="width:196px" data-fam="iphone-duo" data-i="2" aria-label="Show Calendar large"><img src="../../appstore/screenshots/iphone-duo/04-calendar.png" alt="" loading="lazy" decoding="async"></button><button type="button" class="fr" style="width:196px" data-fam="iphone-duo" data-i="3" aria-label="Show Species Detail large"><img src="../../appstore/screenshots/iphone-duo/05-species-detail.png" alt="" loading="lazy" decoding="async"></button><button type="button" class="fr" style="width:196px" data-fam="iphone-duo" data-i="4" aria-label="Show Weather large"><img src="../../appstore/screenshots/iphone-duo/03-weather-tide.png" alt="" loading="lazy" decoding="async"></button><button type="button" class="fr" style="width:196px" data-fam="iphone-duo" data-i="5" aria-label="Show Breeding Codes large"><img src="../../appstore/screenshots/iphone-duo/06-breeding-codes.png" alt="" loading="lazy" decoding="async"></button></div></div>
+      <div class="store store--dark wide"><p class="lbl">Product page · dark · all six, upload order</p><div class="strip"><button type="button" class="fr" style="width:196px" data-fam="iphone-duo" data-i="0" aria-label="Show Map Explorer large"><img src="../../appstore/screenshots/iphone-duo/01-map-explorer.png" alt="" loading="lazy" decoding="async"></button><button type="button" class="fr" style="width:196px" data-fam="iphone-duo" data-i="1" aria-label="Show Statistics large"><img src="../../appstore/screenshots/iphone-duo/02-statistics.png" alt="" loading="lazy" decoding="async"></button><button type="button" class="fr" style="width:196px" data-fam="iphone-duo" data-i="2" aria-label="Show Calendar large"><img src="../../appstore/screenshots/iphone-duo/04-calendar.png" alt="" loading="lazy" decoding="async"></button><button type="button" class="fr" style="width:196px" data-fam="iphone-duo" data-i="3" aria-label="Show Species Detail large"><img src="../../appstore/screenshots/iphone-duo/05-species-detail.png" alt="" loading="lazy" decoding="async"></button><button type="button" class="fr" style="width:196px" data-fam="iphone-duo" data-i="4" aria-label="Show Weather large"><img src="../../appstore/screenshots/iphone-duo/03-weather-tide.png" alt="" loading="lazy" decoding="async"></button><button type="button" class="fr" style="width:196px" data-fam="iphone-duo" data-i="5" aria-label="Show Breeding Codes large"><img src="../../appstore/screenshots/iphone-duo/06-breeding-codes.png" alt="" loading="lazy" decoding="async"></button></div></div>
+    </div>
+    <p class="lbl big-lbl">Large · <span id="name-iphone-duo">Map Explorer</span> <span class="dim">(tap any frame above)</span></p>
+    <div class="large-pair">
+      <div class="store"><img class="large large--phone" id="large-iphone-duo-light" src="../../appstore/screenshots/iphone-duo/01-map-explorer.png" alt="Map Explorer frame, iPhone Duo, inner display, on the light store page"></div>
+      <div class="store store--dark"><img class="large large--phone" id="large-iphone-duo-dark" src="../../appstore/screenshots/iphone-duo/01-map-explorer.png" alt="Map Explorer frame, iPhone Duo, inner display, on the dark store page"></div>
+    </div>
+  </section>
+  
+  <section class="sec" aria-labelledby="h-ipad-13">
+    <h2 id="h-ipad-13">iPad 13-inch <span class="dim">2064 x 2752</span></h2>
+    <p>The six committed captures, unchanged. Species Detail is the approved Wood Thrush frame.</p>
+    <p class="facts ok">Read from the files: 6 frames, every one 2064 x 2752 px, 3 channels (RGB), no frame has an alpha channel. Recomposed for this page: byte-identical to the committed frames.</p>
+    <div class="row">
+      <div class="store phone"><p class="lbl">Search result · light</p><div class="store-app"><img src="../../src-tauri/icons/icon.png" alt=""><div><b>SnowRaven</b><span>Your birding data, explored</span></div><span class="store-get">Get</span></div><div class="strip"><button type="button" class="fr" style="width:150px" data-fam="ipad-13" data-i="0" aria-label="Show Map Explorer large"><img src="../../appstore/screenshots/ipad-13/01-map-explorer.png" alt="" loading="lazy" decoding="async"></button><button type="button" class="fr" style="width:150px" data-fam="ipad-13" data-i="1" aria-label="Show Statistics large"><img src="../../appstore/screenshots/ipad-13/02-statistics.png" alt="" loading="lazy" decoding="async"></button><button type="button" class="fr" style="width:150px" data-fam="ipad-13" data-i="2" aria-label="Show Calendar large"><img src="../../appstore/screenshots/ipad-13/04-calendar.png" alt="" loading="lazy" decoding="async"></button></div></div>
+      <div class="store store--dark phone"><p class="lbl">Search result · dark</p><div class="store-app"><img src="../../src-tauri/icons/icon.png" alt=""><div><b>SnowRaven</b><span>Your birding data, explored</span></div><span class="store-get">Get</span></div><div class="strip"><button type="button" class="fr" style="width:150px" data-fam="ipad-13" data-i="0" aria-label="Show Map Explorer large"><img src="../../appstore/screenshots/ipad-13/01-map-explorer.png" alt="" loading="lazy" decoding="async"></button><button type="button" class="fr" style="width:150px" data-fam="ipad-13" data-i="1" aria-label="Show Statistics large"><img src="../../appstore/screenshots/ipad-13/02-statistics.png" alt="" loading="lazy" decoding="async"></button><button type="button" class="fr" style="width:150px" data-fam="ipad-13" data-i="2" aria-label="Show Calendar large"><img src="../../appstore/screenshots/ipad-13/04-calendar.png" alt="" loading="lazy" decoding="async"></button></div></div>
+    </div>
+    <div class="row">
+      <div class="store wide"><p class="lbl">Product page · light · all six, upload order</p><div class="strip"><button type="button" class="fr" style="width:210px" data-fam="ipad-13" data-i="0" aria-label="Show Map Explorer large"><img src="../../appstore/screenshots/ipad-13/01-map-explorer.png" alt="" loading="lazy" decoding="async"></button><button type="button" class="fr" style="width:210px" data-fam="ipad-13" data-i="1" aria-label="Show Statistics large"><img src="../../appstore/screenshots/ipad-13/02-statistics.png" alt="" loading="lazy" decoding="async"></button><button type="button" class="fr" style="width:210px" data-fam="ipad-13" data-i="2" aria-label="Show Calendar large"><img src="../../appstore/screenshots/ipad-13/04-calendar.png" alt="" loading="lazy" decoding="async"></button><button type="button" class="fr" style="width:210px" data-fam="ipad-13" data-i="3" aria-label="Show Species Detail large"><img src="../../appstore/screenshots/ipad-13/05-species-detail.png" alt="" loading="lazy" decoding="async"></button><button type="button" class="fr" style="width:210px" data-fam="ipad-13" data-i="4" aria-label="Show Weather large"><img src="../../appstore/screenshots/ipad-13/03-weather-tide.png" alt="" loading="lazy" decoding="async"></button><button type="button" class="fr" style="width:210px" data-fam="ipad-13" data-i="5" aria-label="Show Breeding Codes large"><img src="../../appstore/screenshots/ipad-13/06-breeding-codes.png" alt="" loading="lazy" decoding="async"></button></div></div>
+      <div class="store store--dark wide"><p class="lbl">Product page · dark · all six, upload order</p><div class="strip"><button type="button" class="fr" style="width:210px" data-fam="ipad-13" data-i="0" aria-label="Show Map Explorer large"><img src="../../appstore/screenshots/ipad-13/01-map-explorer.png" alt="" loading="lazy" decoding="async"></button><button type="button" class="fr" style="width:210px" data-fam="ipad-13" data-i="1" aria-label="Show Statistics large"><img src="../../appstore/screenshots/ipad-13/02-statistics.png" alt="" loading="lazy" decoding="async"></button><button type="button" class="fr" style="width:210px" data-fam="ipad-13" data-i="2" aria-label="Show Calendar large"><img src="../../appstore/screenshots/ipad-13/04-calendar.png" alt="" loading="lazy" decoding="async"></button><button type="button" class="fr" style="width:210px" data-fam="ipad-13" data-i="3" aria-label="Show Species Detail large"><img src="../../appstore/screenshots/ipad-13/05-species-detail.png" alt="" loading="lazy" decoding="async"></button><button type="button" class="fr" style="width:210px" data-fam="ipad-13" data-i="4" aria-label="Show Weather large"><img src="../../appstore/screenshots/ipad-13/03-weather-tide.png" alt="" loading="lazy" decoding="async"></button><button type="button" class="fr" style="width:210px" data-fam="ipad-13" data-i="5" aria-label="Show Breeding Codes large"><img src="../../appstore/screenshots/ipad-13/06-breeding-codes.png" alt="" loading="lazy" decoding="async"></button></div></div>
+    </div>
+    <p class="lbl big-lbl">Large · <span id="name-ipad-13">Map Explorer</span> <span class="dim">(tap any frame above)</span></p>
+    <div class="large-pair">
+      <div class="store"><img class="large large--ipad" id="large-ipad-13-light" src="../../appstore/screenshots/ipad-13/01-map-explorer.png" alt="Map Explorer frame, iPad 13-inch, on the light store page"></div>
+      <div class="store store--dark"><img class="large large--ipad" id="large-ipad-13-dark" src="../../appstore/screenshots/ipad-13/01-map-explorer.png" alt="Map Explorer frame, iPad 13-inch, on the dark store page"></div>
+    </div>
+  </section>
+
+  <section class="sec" aria-labelledby="weather">
+    <h2 id="weather">The iPhone Weather frame: page top or committed</h2>
+    <p>Left is in the set now: the page top, the whole weather block in frame and the tide block opening at the bottom edge. Right is the committed capture composed the same way: it opens mid-page with no tab header, and the <code>Station:</code> and <code>Tide data from</code> lines run off the right edge. Either composes with the same caption.</p>
+    <div class="pair2">
+      <figure><img src="../../appstore/screenshots/iphone-6.9/03-weather-tide.png" alt="Weather frame recaptured at the page top"><figcaption>In the set: page top (recaptured this run).</figcaption></figure>
+      <figure><img src="review-assets/weather-alternative/iphone-6.9/03-weather-tide.png" alt="Weather frame from the committed mid-page capture"><figcaption>Alternative: the committed capture, mid-page.</figcaption></figure>
+    </div>
+    <p class="lbl big-lbl">The checklist field, full resolution</p>
+    <img class="crop" src="review-assets/weather-field.png" alt="The checklist field drawn 20 pixels tall with the checklist number sitting low in it">
+  </section>
+
+  <section class="sec" aria-labelledby="captions">
+    <h2 id="captions">Captions, in upload order</h2>
+    <p>The display line is the tab's name exactly as the app spells it; the second line is new store copy. Widths are the rendered text against its box, in output pixels, measured by the composer in the renderer (tab name, then second line). Captions are set in .SF NS, the system SF Pro.</p>
+    <div class="tablewrap"><table>
+      <thead><tr><th>#</th><th>Raw capture</th><th>Display line</th><th>Second line</th><th>Chars</th><th>iPhone 6.9-inch<br>px used / box</th><th>iPad 13-inch<br>px used / box</th><th>iPhone Duo, inner display<br>px used / box</th></tr></thead>
+      <tbody>
+<tr><td class="n">1</td><td><code>01-map-explorer.png</code></td><td class="t">Map Explorer</td><td>Your sightings and nearby hotspots on a map</td><td class="c">43</td><td class="c">549 / 936<br>862 / 1080</td><td class="c">595 / 1528<br>938 / 1680</td><td class="c">687 / 1459<br>976 / 1623</td></tr>
+<tr><td class="n">2</td><td><code>02-statistics.png</code></td><td class="t">Statistics</td><td>Life list totals, growth, and milestones</td><td class="c">40</td><td class="c">393 / 936<br>712 / 1080</td><td class="c">426 / 1528<br>775 / 1680</td><td class="c">492 / 1459<br>806 / 1623</td></tr>
+<tr><td class="n">3</td><td><code>04-calendar.png</code></td><td class="t">Calendar</td><td>Each day shaded by species, checklists, media, etc.</td><td class="c">51</td><td class="c">382 / 936<br>978 / 1080</td><td class="c">414 / 1528<br>1065 / 1680</td><td class="c">477 / 1459<br>1108 / 1623</td></tr>
+<tr><td class="n">4</td><td><code>05-species-detail.png</code></td><td class="t">Species Detail</td><td>Your whole history with one bird</td><td class="c">32</td><td class="c">594 / 936<br>610 / 1080</td><td class="c">644 / 1528<br>664 / 1680</td><td class="c">743 / 1459<br>691 / 1623</td></tr>
+<tr><td class="n">5</td><td><code>03-weather-tide.png</code></td><td class="t">Weather</td><td>A weather and tide summary for a checklist</td><td class="c">42</td><td class="c">358 / 936<br>825 / 1080</td><td class="c">388 / 1528<br>898 / 1680</td><td class="c">447 / 1459<br>934 / 1623</td></tr>
+<tr><td class="n">6</td><td><code>06-breeding-codes.png</code></td><td class="t">Breeding Codes</td><td>Breeding evidence by species and code</td><td class="c">37</td><td class="c">669 / 936<br>759 / 1080</td><td class="c">725 / 1528<br>826 / 1680</td><td class="c">837 / 1459<br>859 / 1623</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section class="sec" aria-labelledby="listing">
+    <h2 id="listing">The held Screenshots section for <code>appstore/LISTING.md</code></h2>
+    <p>Verbatim. It goes between Keywords and Categories once you approve it; the patch is <code>pipeline/app-store-listing-polish/listing-screenshots.patch</code>.</p>
+    <pre class="wrap">## Screenshots
+
+Three sets, one per App Store Connect slot, each in this order. All three use
+the same six frames and captions:
+
+| # | Raw capture | Display line | Second line |
+|---|---|---|---|
+| 1 | `01-map-explorer.png` | Map Explorer | Your sightings and nearby hotspots on a map |
+| 2 | `02-statistics.png` | Statistics | Life list totals, growth, and milestones |
+| 3 | `04-calendar.png` | Calendar | Each day shaded by species, checklists, media, etc. |
+| 4 | `05-species-detail.png` | Species Detail | Your whole history with one bird |
+| 5 | `03-weather-tide.png` | Weather | A weather and tide summary for a checklist |
+| 6 | `06-breeding-codes.png` | Breeding Codes | Breeding evidence by species and code |
+
+Each frame is the committed capture on SnowRaven's dark green band with the
+raven mark, the tab's name and one line saying what it shows; composed by
+`website/tools/compose-appstore.mjs` from `appstore/screenshots/raw/`. The
+display line is the tab's name exactly as the app spells it. The order leads
+with three different shapes (a map, a dashboard, a year grid), the frames a
+search result shows first.
+
+| Set | Slot | Size | Folder |
+|---|---|---|---|
+| iPhone | iPhone 6.9-inch | 1320 x 2868 | `appstore/screenshots/iphone-6.9/` |
+| iPad | iPad 13-inch | 2064 x 2752 | `appstore/screenshots/ipad-13/` |
+| iPhone Duo | iPhone Duo, inner display, portrait | 2007 x 2853 | `appstore/screenshots/iphone-duo/` |
+
+The iPhone Duo set shows the inner display, where the app draws its icon rail,
+so each frame shows more of its tab than the 6.9-inch set does.
+
+The Statistics frames standardize on the keyed, checked state (an eBird key
+saved and the escapee check complete): the iPad and iPhone Duo frames show its
+&quot;Exotic status checked&quot; line, and the iPhone frame ends above it.
+
+Store facts, verified 2026-10-30: one set per slot, 1 to 10 images, PNG with
+no transparency. Apple scales the 6.9-inch set for smaller iPhones. Nothing is
+scaled into the iPhone Duo slot, which takes either the inner display (2007 x
+2853) or the outer (1398 x 2034); a submitted Duo set shows the &quot;Made for
+iPhone Duo&quot; badge for an app built with the iOS 27.1 SDK or later, and the set
+is required from April 2027. A set is replaced whole and in order, because a
+re-upload appends, and read back by checksum.
+</pre>
+  </section>
+
+  <section class="sec" aria-labelledby="tools">
+    <h2 id="tools">The <code>website/tools</code> changes</h2>
+    <p>The capture script's Duo row, the raw output folder, the <code>SHOT</code> filter and the page-top Weather framing, plus the README paragraphs. Everything under <code>website/</code> is published with the site. The composer itself is new: <code>website/tools/compose-appstore.mjs</code> and its test <code>compose-appstore.test.mjs</code>.</p>
+    <pre>diff --git a/website/tools/README.md b/website/tools/README.md
+index 93e9cb27..385e9f02 100644
+--- a/website/tools/README.md
++++ b/website/tools/README.md
+@@ -90,11 +90,12 @@ npx playwright install chromium webkit    # webkit is for verify/, below
+    was defending a different line entirely, the old tab strip's ~1,457px collapse
+    into a dropdown; that threshold no longer exists.)
+ 
+-   The App Store captures inherit the same rule and land on both sides of it by
+-   design: the iPhone viewport (440px) gets the bottom bar, and the iPad one
++   The App Store captures inherit the same rule and land on all three densities
++   by design: the iPhone viewport (440px) gets the bottom bar, the iPad one
+    (1032px) gets the sidebar on every tab except the Map Explorer, where the map's
+-   own sidebar puts it into the rail. `selectTab` reads a control's `aria-label`
+-   when it has no visible text, which is what makes it work in the rail.
++   own sidebar puts it into the rail, and the iPhone Duo's (669px) gets the rail
++   on every tab. `selectTab` reads a control's `aria-label` when it has no
++   visible text, which is what makes it work in the rail.
+ 
+    The Statistics escapee pass is answered from the demo dataset itself (a shared
+    stub in `capture-lib.mjs`, also used by the App Store capture). The demo's
+@@ -133,24 +134,32 @@ sets from the same demo-data-backed instance — steps 1 and 2 above are
+ identical, then:
+ 
+ ```
+-BASE=http://localhost:1620 node capture-appstore.mjs   # -&gt; ../../appstore/screenshots/{iphone-6.9,ipad-13}/*.png
++BASE=http://localhost:1620 node capture-appstore.mjs   # -&gt; ../../appstore/screenshots/raw/{iphone-6.9,ipad-13,iphone-duo}/*.png
+ ```
+ 
+-- Six shots per device family, in the listing order (Map Explorer with the
+-  Jamaica Bay popup open, Statistics, Weather &amp; Tide, Calendar, Species
+-  Detail, Breeding Codes), light theme.
++- Six shots per device family (Map Explorer with the Jamaica Bay popup open,
++  Statistics, Weather &amp; Tide, Calendar, Species Detail, Breeding Codes), light
++  theme. The upload order is the composer's, below.
+ - Sizes: iPhone 6.9-inch `1320x2868` (viewport 440x956 at scale 3) and iPad
+   13-inch `2064x2752` (viewport 1032x1376 at scale 2) — the one required size
+   per family App Store Connect accepts and scales down (re-verify the
+   accepted-size list at submission time; the constants and their reasoning
+   live at the top of `capture-appstore.mjs`).
++- The iPhone Duo has a slot of its own that nothing is scaled into. The set is
++  its inner screen upright, `2007x2853` (viewport 669x951 at scale 3), which
++  draws the icon rail, so it takes the same per-shot steps as the iPad.
++- `FAMILY=iphone|ipad|duo` and `SHOT=&lt;file name prefix&gt;` limit a run to the
++  frames being replaced. Never recapture the whole iPad family: its
++  `05-species-detail.png` shows a bird this script cannot select (DECISIONS.md,
++  v1.0.52).
+ - Output is PNG (what ASC accepts); `process-img.mjs` is not part of this
+   path. Every image is dimension-verified after capture and any failed shot
+   fails the run.
+-- The PNGs are **committed** under `appstore/screenshots/` (unlike this
++- The PNGs are **committed** under `appstore/screenshots/raw/` (unlike this
+   directory's git-ignored `shots/`), so the listing set is reviewable and
+   regenerable. Re-run when the photographed UI changes, review every image by
+-  eye (demo-data names only), and commit the new set.
++  eye (demo-data names only), compose (below), and commit the raws and the
++  frames together.
+ - The weather shot performs a live lookup (real public coastal checklist via
+   `CHECKLIST`). Unlike `capture.mjs` it does **not** strip the attribution
+   lines, but as of v1.0.4 it does **unwrap their anchor markup**:
+@@ -163,6 +172,25 @@ BASE=http://localhost:1620 node capture-appstore.mjs   # -&gt; ../../appstore/scree
+   still strips those lines outright for the website shot, which is why the two
+   scripts differ here.
+ 
++#### Composing the upload frames
++
++The raw captures are not uploaded as they are. `compose-appstore.mjs` frames
++each one as a rounded card on the website's dark green band, under the tab's
++name, one line saying what the frame shows, and the raven mark, and writes the
++upload sets one folder above `raw/`, keeping the file names:
++
++```
++node compose-appstore.mjs     # -&gt; ../../appstore/screenshots/{iphone-6.9,ipad-13,iphone-duo}/*.png
++```
++
++Its `FRAMES` table holds the captions and the upload order, which is published
++copy recorded in `appstore/LISTING.md`. It renders in Playwright Chromium in
++the system font and needs no backend. It writes nothing for a family when a raw
++is missing or the wrong size, a caption is wider than its box, the set falls
++outside 1 to 10 frames, or a frame comes out at the wrong size or with
++transparency; `compose-appstore.test.mjs` holds the committed frames to the
++same rules. Re-run it after any recapture.
++
+ The reviewer demo dataset hosted at `../demo/` (see `appstore/REVIEW_NOTES.md`)
+ is the same generator's output: after changing `gen-demo-data.mjs`, re-run it
+ and copy `demo-data/ebird-backup.csv` and `demo-data/ml-export.csv` over
+diff --git a/website/tools/capture-appstore.mjs b/website/tools/capture-appstore.mjs
+index d80990ea..4c3ac687 100644
+--- a/website/tools/capture-appstore.mjs
++++ b/website/tools/capture-appstore.mjs
+@@ -6,7 +6,12 @@
+ //   BASE      app origin (default http://localhost:1620)
+ //   CHECKLIST a real PUBLIC coastal eBird checklist id for the live weather+tide
+ //             shot (so a tide shows). Override via env if the default has aged out.
+-//   FAMILY    optional: capture only &quot;iphone&quot; or &quot;ipad&quot; (default: both)
++//   FAMILY    optional: capture only &quot;iphone&quot;, &quot;ipad&quot; or &quot;duo&quot; (default: all three)
++//   SHOT      optional: capture only the shot whose file name starts with this
++//             (e.g. SHOT=03 for 03-weather-tide.png). A recapture touches only
++//             the frames it names: the iPad 05-species-detail.png on disk is
++//             not reproducible by this script (DECISIONS.md, v1.0.52). A SHOT
++//             that names no shot fails the run rather than capturing nothing.
+ //   WEATHER_REPLAY=1  capture the weather shot from the app's own offline-replay
+ //             path instead of a live OpenWeather call. For rigs whose
+ //             backend/.env deliberately carries no real OpenWeather key (this
+@@ -15,9 +20,11 @@
+ //             to a live success (the offline cue sits above the framed region).
+ //             With a real key in .env, omit this and the shot is fully live.
+ //
+-// Output: ../../appstore/screenshots/{iphone-6.9,ipad-13}/*.png — committed.
+-// PNG is the deliverable format (App Store Connect accepts PNG/JPEG), so
+-// process-img.mjs (WebP, website-only) is NOT part of this path.
++// Output: ../../appstore/screenshots/raw/{iphone-6.9,ipad-13,iphone-duo}/*.png,
++// committed. These are the RAW captures; compose-appstore.mjs frames them into
++// the upload sets one folder up. PNG is the deliverable format (App Store
++// Connect accepts PNG/JPEG), so process-img.mjs (WebP, website-only) is NOT
++// part of this path.
+ //
+ // Device dimensions (portrait). Re-verified against App Store Connect's
+ // accepted-size list on 2026-08-25: as of 2025+ ASC requires only ONE size per
+@@ -26,6 +33,11 @@
+ // smaller devices from it. The viewport math is exact:
+ //   iPhone 6.9&quot;  1320 x 2868 = viewport 440 x 956  @ deviceScaleFactor 3
+ //   iPad 13&quot;     2064 x 2752 = viewport 1032 x 1376 @ deviceScaleFactor 2
++//   iPhone Duo   2007 x 2853 = viewport 669 x 951   @ deviceScaleFactor 3
++// The iPhone Duo has its own App Store Connect slot (inner display 2007x2853 or
++// outer 1398x2034, nothing scaled into it; verified 2026-10-30). This is the
++// inner screen upright (DECISIONS.md, v1.0.59), which at 669pt draws the icon
++// rail, so it takes the non-phone branches below (phone: false).
+ // If Apple moves the accepted list, adjust these constants (and re-verify the
+ // note in appstore/LISTING.md's record).
+ //
+@@ -73,18 +85,21 @@ import { GL, makePage, selectTab, buildProvenanceStub, installProvenanceRoutes,
+ const BASE = process.env.BASE || 'http://localhost:1620';
+ const CHECKLIST = process.env.CHECKLIST || 'S354229002'; // coastal -&gt; shows tide
+ const ONLY = process.env.FAMILY || '';
++const ONLY_SHOT = process.env.SHOT || '';
+ const WEATHER_REPLAY = process.env.WEATHER_REPLAY === '1';
+ 
+ const FAMILIES = [
+   { key: 'iphone', dir: 'iphone-6.9', vp: { width: 440, height: 956 }, dsf: 3, px: { w: 1320, h: 2868 }, phone: true },
+   { key: 'ipad', dir: 'ipad-13', vp: { width: 1032, height: 1376 }, dsf: 2, px: { w: 2064, h: 2752 }, phone: false },
++  { key: 'duo', dir: 'iphone-duo', vp: { width: 669, height: 951 }, dsf: 3, px: { w: 2007, h: 2853 }, phone: false },
+ ].filter(f =&gt; !ONLY || f.key === ONLY);
++if (!FAMILIES.length) throw new Error(`FAMILY=${ONLY} names no family (iphone, ipad, duo)`);
+ 
+ // The one location whose popup opens in shot 1. Must exist in the demo dataset
+ // (gen-demo-data.mjs LOCS) — QA-05: every visible name comes from the demo data.
+ const POPUP_LOCATION = 'Jamaica Bay Wildlife Refuge';
+ 
+-const OUT_ROOT = new URL('../../appstore/screenshots/', import.meta.url).pathname;
++const OUT_ROOT = new URL('../../appstore/screenshots/raw/', import.meta.url).pathname;
+ const log = (...a) =&gt; console.log(...a);
+ 
+ // The demo-dataset guard now lives in capture-lib.mjs, so capture.mjs gets it
+@@ -218,11 +233,16 @@ function statsRoutes(ctx) {
+   })();
+ }
+ 
+-// 3 · Weather &amp; Tide — the founding lookup on a real PUBLIC coastal checklist,
+-// scrolled so the formatted weather block, the tide, and the copy actions fill
+-// the frame. The attribution lines are NOT trimmed (unlike the website
+-// capture): an App Store screenshot shows the app's real output, untouched.
+-async function shotWeather(p) {
++// 3 · Weather &amp; Tide: the founding lookup on a real PUBLIC coastal checklist.
++// The phone frame is taken at the PAGE TOP (app-store-listing-polish): the
++// lockup, the tab header, the checklist field, the whole weather block, and the
++// tide block opening at the bottom edge. Scrolled to the checklist's own header
++// instead, as it was until then, it opened mid-page with no tab header and two
++// tide lines running off the right edge at 440pt. The iPad and the Duo inner
++// screen keep that anchor: nothing clips there. The attribution lines are NOT
++// trimmed (unlike the website capture): an App Store screenshot shows the
++// app's real output, untouched.
++async function shotWeather(p, fam) {
+   await selectTab(p, 'Weather');
+   await p.waitForTimeout(600);
+   const inp = await p.$('main input');
+@@ -246,12 +266,17 @@ async function shotWeather(p) {
+   // backlog itself stays below the fold; it computes offline from the backup).
+   await p.locator('button').filter({ hasText: 'List checklists with no weather blocks' }).first().click().catch(() =&gt; {});
+   await p.waitForTimeout(1200);
+-  // Frame from the looked-up checklist's own header (the edit link + id/place
+-  // line) down through the weather block, the tide, and the copy actions.
+-  await p.evaluate(() =&gt; {
+-    const link = [...document.querySelectorAll('a')].find(a =&gt; /Edit checklist comment/i.test(a.textContent || ''));
+-    if (link) { link.scrollIntoView({ block: 'start' }); window.scrollBy(0, -14); }
+-  });
++  // Phone: the page top. Otherwise frame from the looked-up checklist's own
++  // header (the edit link + id/place line) down through the weather block, the
++  // tide, and the copy actions.
++  if (fam.phone) {
++    await p.evaluate(() =&gt; window.scrollTo(0, 0));
++  } else {
++    await p.evaluate(() =&gt; {
++      const link = [...document.querySelectorAll('a')].find(a =&gt; /Edit checklist comment/i.test(a.textContent || ''));
++      if (link) { link.scrollIntoView({ block: 'start' }); window.scrollBy(0, -14); }
++    });
++  }
+   await p.waitForTimeout(500);
+ }
+ function weatherRoutes(ctx) {
+@@ -325,9 +350,12 @@ const SHOTS = [
+   ['06-breeding-codes.png', shotBreeding, null],
+ ];
+ 
++const RUN_SHOTS = SHOTS.filter(([file]) =&gt; !ONLY_SHOT || file.startsWith(ONLY_SHOT));
++if (!RUN_SHOTS.length) throw new Error(`SHOT=${ONLY_SHOT} names no shot (${SHOTS.map(([f]) =&gt; f).join(', ')})`);
++
+ for (const fam of FAMILIES) {
+   mkdirSync(`${OUT_ROOT}${fam.dir}`, { recursive: true });
+-  for (const [file, run, routes] of SHOTS) await capture(fam, file, run, routes);
++  for (const [file, run, routes] of RUN_SHOTS) await capture(fam, file, run, routes);
+ }
+ 
+ await browser.close();
+diff --git a/website/tools/package.json b/website/tools/package.json
+index 3c518ac4..ffd64d87 100644
+--- a/website/tools/package.json
++++ b/website/tools/package.json
+@@ -4,7 +4,7 @@
+   &quot;description&quot;: &quot;The screenshots on the site (`../assets/shots/*.webp`) are generated from the running SnowRaven app driven against **synthetic demo data — never real eBird data**. The published site must never contain anyone's personal sighting locations, which is the whole point of the demo dataset. Regenerate the shots when the UI changes.&quot;,
+   &quot;main&quot;: &quot;index.js&quot;,
+   &quot;scripts&quot;: {
+-    &quot;test&quot;: &quot;node --test weather-capture.test.mjs capture-marks.test.mjs&quot;,
++    &quot;test&quot;: &quot;node --test weather-capture.test.mjs capture-marks.test.mjs compose-appstore.test.mjs&quot;,
+     &quot;verify&quot;: &quot;node verify/run.mjs&quot;
+   },
+   &quot;keywords&quot;: [],
+</pre>
+  </section>
+
+  <section class="sec" aria-labelledby="raws">
+    <h2 id="raws">Raw captures</h2>
+    <p>Compared with the committed captures by checksum when this page was built.</p>
+    <div class="tablewrap"><table><thead><tr><th>Raw</th><th>State</th></tr></thead><tbody>
+<tr><td><code>raw/iphone-6.9/01-map-explorer.png</code></td><td class="dim">byte-identical to the committed capture</td></tr>
+<tr><td><code>raw/iphone-6.9/02-statistics.png</code></td><td class="dim">byte-identical to the committed capture</td></tr>
+<tr><td><code>raw/iphone-6.9/04-calendar.png</code></td><td class="dim">byte-identical to the committed capture</td></tr>
+<tr><td><code>raw/iphone-6.9/05-species-detail.png</code></td><td class="dim">byte-identical to the committed capture</td></tr>
+<tr><td><code>raw/iphone-6.9/03-weather-tide.png</code></td><td class="hl">recaptured (page top)</td></tr>
+<tr><td><code>raw/iphone-6.9/06-breeding-codes.png</code></td><td class="dim">byte-identical to the committed capture</td></tr>
+<tr><td><code>raw/ipad-13/01-map-explorer.png</code></td><td class="dim">byte-identical to the committed capture</td></tr>
+<tr><td><code>raw/ipad-13/02-statistics.png</code></td><td class="dim">byte-identical to the committed capture</td></tr>
+<tr><td><code>raw/ipad-13/04-calendar.png</code></td><td class="dim">byte-identical to the committed capture</td></tr>
+<tr><td><code>raw/ipad-13/05-species-detail.png</code></td><td class="dim">byte-identical to the committed capture</td></tr>
+<tr><td><code>raw/ipad-13/03-weather-tide.png</code></td><td class="dim">byte-identical to the committed capture</td></tr>
+<tr><td><code>raw/ipad-13/06-breeding-codes.png</code></td><td class="dim">byte-identical to the committed capture</td></tr>
+<tr><td><code>raw/iphone-duo/01-map-explorer.png</code></td><td class="hl">new capture</td></tr>
+<tr><td><code>raw/iphone-duo/02-statistics.png</code></td><td class="hl">new capture</td></tr>
+<tr><td><code>raw/iphone-duo/04-calendar.png</code></td><td class="hl">new capture</td></tr>
+<tr><td><code>raw/iphone-duo/05-species-detail.png</code></td><td class="hl">new capture</td></tr>
+<tr><td><code>raw/iphone-duo/03-weather-tide.png</code></td><td class="hl">new capture</td></tr>
+<tr><td><code>raw/iphone-duo/06-breeding-codes.png</code></td><td class="hl">new capture</td></tr>
+    </tbody></table></div>
+  </section>
+</main>
+<script>
+(function () {
+  var FRAMES = [{"file":"01-map-explorer.png","tab":"Map Explorer"},{"file":"02-statistics.png","tab":"Statistics"},{"file":"04-calendar.png","tab":"Calendar"},{"file":"05-species-detail.png","tab":"Species Detail"},{"file":"03-weather-tide.png","tab":"Weather"},{"file":"06-breeding-codes.png","tab":"Breeding Codes"}];
+  var TITLES = {"iphone-6.9":"iPhone 6.9-inch","ipad-13":"iPad 13-inch","iphone-duo":"iPhone Duo, inner display"};
+  function show(dir, i) {
+    var f = FRAMES[i];
+    var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    ['light', 'dark'].forEach(function (mode) {
+      var img = document.getElementById('large-' + dir + '-' + mode);
+      var swap = function () {
+        img.src = '../../appstore/screenshots/' + dir + '/' + f.file;
+        img.alt = f.tab + ' frame, ' + TITLES[dir] + ', on the ' + mode + ' store page';
+        img.classList.remove('is-swapping');
+      };
+      if (reduce) { swap(); return; }
+      img.classList.add('is-swapping');
+      setTimeout(swap, 160);
+    });
+    document.getElementById('name-' + dir).textContent = f.tab;
+  }
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest('button.fr'); if (!b) return;
+    show(b.getAttribute('data-fam'), +b.getAttribute('data-i'));
+  });
+})();
+</script>
+</body>
+</html>

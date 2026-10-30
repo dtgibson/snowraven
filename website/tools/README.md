@@ -90,11 +90,12 @@ npx playwright install chromium webkit    # webkit is for verify/, below
    was defending a different line entirely, the old tab strip's ~1,457px collapse
    into a dropdown; that threshold no longer exists.)
 
-   The App Store captures inherit the same rule and land on both sides of it by
-   design: the iPhone viewport (440px) gets the bottom bar, and the iPad one
+   The App Store captures inherit the same rule and land on all three densities
+   by design: the iPhone viewport (440px) gets the bottom bar, the iPad one
    (1032px) gets the sidebar on every tab except the Map Explorer, where the map's
-   own sidebar puts it into the rail. `selectTab` reads a control's `aria-label`
-   when it has no visible text, which is what makes it work in the rail.
+   own sidebar puts it into the rail, and the iPhone Duo's (669px) gets the rail
+   on every tab. `selectTab` reads a control's `aria-label` when it has no
+   visible text, which is what makes it work in the rail.
 
    The Statistics escapee pass is answered from the demo dataset itself (a shared
    stub in `capture-lib.mjs`, also used by the App Store capture). The demo's
@@ -133,24 +134,32 @@ sets from the same demo-data-backed instance — steps 1 and 2 above are
 identical, then:
 
 ```
-BASE=http://localhost:1620 node capture-appstore.mjs   # -> ../../appstore/screenshots/{iphone-6.9,ipad-13}/*.png
+BASE=http://localhost:1620 node capture-appstore.mjs   # -> ../../appstore/screenshots/raw/{iphone-6.9,ipad-13,iphone-duo}/*.png
 ```
 
-- Six shots per device family, in the listing order (Map Explorer with the
-  Jamaica Bay popup open, Statistics, Weather & Tide, Calendar, Species
-  Detail, Breeding Codes), light theme.
+- Six shots per device family (Map Explorer with the Jamaica Bay popup open,
+  Statistics, Weather & Tide, Calendar, Species Detail, Breeding Codes), light
+  theme. The upload order is the composer's, below.
 - Sizes: iPhone 6.9-inch `1320x2868` (viewport 440x956 at scale 3) and iPad
   13-inch `2064x2752` (viewport 1032x1376 at scale 2) — the one required size
   per family App Store Connect accepts and scales down (re-verify the
   accepted-size list at submission time; the constants and their reasoning
   live at the top of `capture-appstore.mjs`).
+- The iPhone Duo has a slot of its own that nothing is scaled into. The set is
+  its inner screen upright, `2007x2853` (viewport 669x951 at scale 3), which
+  draws the icon rail, so it takes the same per-shot steps as the iPad.
+- `FAMILY=iphone|ipad|duo` and `SHOT=<file name prefix>` limit a run to the
+  frames being replaced. Never recapture the whole iPad family: its
+  `05-species-detail.png` shows a bird this script cannot select (DECISIONS.md,
+  v1.0.52).
 - Output is PNG (what ASC accepts); `process-img.mjs` is not part of this
   path. Every image is dimension-verified after capture and any failed shot
   fails the run.
-- The PNGs are **committed** under `appstore/screenshots/` (unlike this
+- The PNGs are **committed** under `appstore/screenshots/raw/` (unlike this
   directory's git-ignored `shots/`), so the listing set is reviewable and
   regenerable. Re-run when the photographed UI changes, review every image by
-  eye (demo-data names only), and commit the new set.
+  eye (demo-data names only), compose (below), and commit the raws and the
+  frames together.
 - The weather shot performs a live lookup (real public coastal checklist via
   `CHECKLIST`). Unlike `capture.mjs` it does **not** strip the attribution
   lines, but as of v1.0.4 it does **unwrap their anchor markup**:
@@ -162,6 +171,25 @@ BASE=http://localhost:1620 node capture-appstore.mjs   # -> ../../appstore/scree
   ends up with once the block is pasted. Nothing is removed. `capture.mjs`
   still strips those lines outright for the website shot, which is why the two
   scripts differ here.
+
+#### Composing the upload frames
+
+The raw captures are not uploaded as they are. `compose-appstore.mjs` frames
+each one as a rounded card on the website's dark green band, under the tab's
+name, one line saying what the frame shows, and the raven mark, and writes the
+upload sets one folder above `raw/`, keeping the file names:
+
+```
+node compose-appstore.mjs     # -> ../../appstore/screenshots/{iphone-6.9,ipad-13,iphone-duo}/*.png
+```
+
+Its `FRAMES` table holds the captions and the upload order, which is published
+copy recorded in `appstore/LISTING.md`. It renders in Playwright Chromium in
+the system font and needs no backend. It writes nothing for a family when a raw
+is missing or the wrong size, a caption is wider than its box, the set falls
+outside 1 to 10 frames, or a frame comes out at the wrong size or with
+transparency; `compose-appstore.test.mjs` holds the committed frames to the
+same rules. Re-run it after any recapture.
 
 The reviewer demo dataset hosted at `../demo/` (see `appstore/REVIEW_NOTES.md`)
 is the same generator's output: after changing `gen-demo-data.mjs`, re-run it

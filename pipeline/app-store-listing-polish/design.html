@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en" data-dir="a">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SnowRaven App Store screenshots: composed frames</title>
+<style>
+  /* Page tokens (the review page's own chrome). Values are SnowRaven's
+     --sr-* light tokens from frontend/src/globals.css. */
+  :root {
+    --ink: #0F1117;          /* --sr-text */
+    --muted: #6B6B74;        /* --sr-text-muted */
+    --gray: #6B7280;         /* --sr-text-gray */
+    --page: #F9FAFB;         /* --sr-bg */
+    --surface: #FFFFFF;      /* --sr-surface */
+    --subtle: #F4F4F5;       /* --sr-surface-subtle */
+    --border: #E4E4E7;       /* --sr-border */
+    --border-med: #C4C4CE;   /* --sr-border-medium */
+    --accent: #277448;       /* --sr-accent */
+    --accent-strong: #1A5C38;/* --sr-accent-strong */
+    --accent-bg: #E8F5EE;    /* --sr-accent-bg */
+    --brand: #2D8653;        /* brand.md primary; the icon's green */
+    /* Frame tokens (what the composed PNGs use). */
+    --band: #0c1f17;         /* website --band-bg */
+    --band-top: #132c20;     /* band lifted one step at the top edge */
+    --band-text: #FFFFFF;    /* website .band h2 */
+    --band-muted: #9fb3a7;   /* website --band-muted */
+    --band-accent: #59d499;  /* website --band-accent */
+    --band-border: #293A33;  /* website --band-border (12% white) flattened over #0c1f17 */
+    /* Simulated App Store page surfaces (Apple's, not ours). */
+    --store-light: #FFFFFF;
+    --store-dark: #050506;
+    --font: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Helvetica, sans-serif;
+    --ease: cubic-bezier(0.2, 0, 0, 1);
+  }
+  * { box-sizing: border-box; }
+  html { background: var(--page); color: var(--ink); font-family: var(--font); -webkit-text-size-adjust: 100%; }
+  body { margin: 0; font-size: 14px; line-height: 1.55; }
+  main { max-width: 1320px; margin: 0 auto; padding: 32px 24px 96px; }
+  h1 { font-size: 28px; line-height: 1.15; font-weight: 700; letter-spacing: -0.02em; margin: 0 0 8px; }
+  h2 { font-size: 20px; line-height: 1.2; font-weight: 700; letter-spacing: -0.015em; margin: 0 0 4px; }
+  p { margin: 0; max-width: 68ch; }
+  .lede { color: var(--muted); font-size: 15px; }
+  .sec { margin-top: 56px; }
+  .sec > p { color: var(--muted); margin-top: 4px; }
+  .lbl { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px; }
+  .row { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; margin-top: 18px; }
+  .note { font-size: 13px; color: var(--muted); margin-top: 10px; }
+  .pill { display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--accent); background: var(--accent-bg); border-radius: 999px; padding: 3px 9px; vertical-align: 2px; }
+  code { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.92em; background: var(--subtle); padding: 1px 5px; border-radius: 4px; }
+
+  /* Direction toggle: a SegControl in the app's register (surface-subtle pill, radius 6). */
+  .seg-wrap { position: sticky; top: 0; z-index: 5; background: color-mix(in srgb, var(--page) 90%, transparent); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); padding: 12px 0; margin-top: 28px; display: flex; gap: 16px; align-items: center; flex-wrap: wrap; border-bottom: 1px solid var(--border); }
+  .seg { display: inline-flex; gap: 2px; padding: 2px; background: var(--subtle); border-radius: 6px; }
+  .seg button { font: inherit; font-size: 13px; font-weight: 500; color: var(--muted); background: transparent; border: 1px solid transparent; border-radius: 5px; padding: 6px 14px; cursor: pointer; transition: background-color 120ms var(--ease), color 120ms var(--ease); }
+  .seg button:hover { color: var(--ink); }
+  .seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); font-weight: 600; border-color: var(--border); }
+  .seg button:focus-visible { outline: 3px solid var(--accent); outline-offset: 1px; }
+  .seg-hint { font-size: 13px; color: var(--muted); max-width: 68ch; }
+
+  /* Simulated store surfaces. */
+  .store { border-radius: 14px; padding: 18px; border: 1px solid var(--border); background: var(--store-light); color: var(--ink); }
+  .store--dark { background: var(--store-dark); color: #F4F4F5; border-color: #27272A; }
+  .store .lbl { margin-bottom: 12px; }
+  .store--dark .lbl { color: #A1A1AA; }
+  .store-app { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+  .store-app img { width: 62px; height: 62px; border-radius: 14px; display: block; }
+  .store-app b { display: block; font-size: 16px; font-weight: 600; letter-spacing: -0.01em; }
+  .store-app span { display: block; font-size: 13px; color: var(--muted); }
+  .store--dark .store-app span { color: #A1A1AA; }
+  .store-get { margin-left: auto; font-size: 14px; font-weight: 700; color: var(--accent); background: var(--accent-bg); border-radius: 999px; padding: 5px 16px; }
+  .store--dark .store-get { color: #34D399; background: #052E16; }
+  .strip { display: flex; gap: 8px; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 4px; }
+  .strip > * { flex: 0 0 auto; scroll-snap-align: start; }
+  .phone { width: 390px; max-width: 100%; }
+  .wide { flex: 1 1 100%; }
+
+  /* ---- The composed frame ----------------------------------------------
+     Every measurement is written in the frame's own pixels (the --fw x --fh
+     output canvas) and scaled with --u, so what you see at any size is the
+     final PNG's geometry. Values per family are in the spec. */
+  .fr { position: relative; container-type: inline-size; aspect-ratio: var(--fw) / var(--fh); overflow: hidden; border-radius: 2.4%; background: linear-gradient(180deg, var(--band-top) 0%, var(--band) 55%, var(--band) 100%); --u: calc(100cqw / var(--fw)); cursor: pointer; margin: 0; }
+  .fr.is-large { cursor: default; }
+  .fr:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .fr--iphone { --fw: 1320; --fh: 2868; --inset: 120; --top: 128; --d: 96; --dlh: 112; --s: 44; --slh: 58; --g1: 12; --g2: 72; --gl: 104; --r: 36; --b: 2; }
+  .fr--ipad   { --fw: 2064; --fh: 2752; --inset: 192; --top: 124; --d: 104; --dlh: 120; --s: 48; --slh: 62; --g1: 12; --g2: 68; --gl: 112; --r: 40; --b: 2; }
+  .fr--duo    { --fw: 2007; --fh: 2853; --inset: 192; --top: 128; --d: 120; --dlh: 136; --s: 50; --slh: 64; --g1: 12; --g2: 72; --gl: 124; --r: 40; --b: 2; }
+  /* Geometry preview only: no Duo captures exist yet, so the Duo card holds
+     the phone capture of the same tab, letterboxed, never stretched. */
+  .fr--duo .fr-card { aspect-ratio: var(--fw) / var(--fh); }
+  .fr--duo .fr-card img { height: 100%; object-fit: contain; object-position: center; }
+  .fr-cap { position: absolute; left: calc(var(--inset) * var(--u)); top: calc(var(--top) * var(--u)); width: calc((var(--fw) - 2 * var(--inset)) * var(--u)); }
+  .fr-tab { font-size: calc(var(--d) * var(--u)); line-height: calc(var(--dlh) * var(--u)); font-weight: 700; letter-spacing: -0.02em; color: var(--band-text); white-space: nowrap; padding-right: calc((var(--gl) + 40) * var(--u)); }
+  .fr-desc { font-size: calc(var(--s) * var(--u)); line-height: calc(var(--slh) * var(--u)); font-weight: 500; color: var(--band-muted); white-space: nowrap; margin-top: calc(var(--g1) * var(--u)); }
+  .fr-glyph { position: absolute; top: calc((var(--top) + 6) * var(--u)); right: calc(var(--inset) * var(--u)); width: calc(var(--gl) * var(--u)); height: calc(var(--gl) * var(--u)); color: var(--band-accent); fill: currentColor; }
+  .fr-card { position: absolute; left: calc(var(--inset) * var(--u)); top: calc((var(--top) + var(--dlh) + var(--g1) + var(--slh) + var(--g2)) * var(--u)); width: calc((var(--fw) - 2 * var(--inset)) * var(--u)); border-radius: calc(var(--r) * var(--u)); overflow: hidden; box-shadow: 0 0 0 calc(var(--b) * var(--u)) var(--band-border); background: var(--page); }
+  .fr-card img { display: block; width: 100%; height: auto; }
+
+  /* Direction B: the light tint alternate. */
+  html[data-dir="b"] .fr { background: var(--accent-bg); }
+  html[data-dir="b"] .fr-tab { color: var(--ink); }
+  html[data-dir="b"] .fr-desc { color: var(--muted); }
+  html[data-dir="b"] .fr-glyph { color: var(--accent); }
+  html[data-dir="b"] .fr-card { box-shadow: 0 0 0 calc(var(--b) * var(--u)) var(--border-med); }
+  .only-a, .only-b { display: none; }
+  html[data-dir="a"] .only-a { display: inline; }
+  html[data-dir="b"] .only-b { display: inline; }
+  html[data-dir="a"] .chip.only-a, html[data-dir="b"] .chip.only-b { display: block; }
+
+  /* Bare "today" frames. */
+  .bare { width: 104px; border-radius: 6px; overflow: hidden; border: 1px solid var(--border); background: var(--surface); }
+  .bare img { display: block; width: 100%; height: auto; }
+  .bare-wrap { width: 104px; font-size: 11px; color: var(--muted); text-align: center; }
+  .bare-wrap small { display: block; margin-top: 6px; line-height: 1.3; }
+
+  /* Large preview pair. */
+  .large-pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-top: 10px; }
+  .large-pair .fr { transition: opacity 160ms var(--ease); }
+  .large-pair .fr.is-swapping { opacity: 0; }
+  .large-pair .store { display: grid; place-items: center; }
+  .large-pair .fr--iphone { width: min(100%, 420px); }
+  .large-pair .fr--ipad { width: min(100%, 560px); }
+  .large-pair .fr--duo { width: min(100%, 460px); }
+
+  /* Icon consistency swatches. */
+  .sw { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+  .sw img { width: 120px; height: 120px; border-radius: 27px; display: block; }
+  .chip { width: 96px; border-radius: 10px; overflow: hidden; border: 1px solid var(--border); font-size: 11px; }
+  .store--dark .chip { border-color: #27272A; }
+  .chip i { display: block; height: 56px; }
+  .chip b { display: block; padding: 6px 8px 2px; font-weight: 600; }
+  .chip span { display: block; padding: 0 8px 7px; color: var(--muted); font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+  .store--dark .chip span { color: #A1A1AA; }
+  .glyph-chip { width: 120px; height: 120px; border-radius: 27px; display: grid; place-items: center; background: var(--band); }
+  .glyph-chip svg { width: 52px; height: 52px; fill: var(--band-accent); }
+  html[data-dir="b"] .glyph-chip { background: var(--accent-bg); }
+  html[data-dir="b"] .glyph-chip svg { fill: var(--accent); }
+
+  /* Captions table. */
+  table { border-collapse: collapse; width: 100%; max-width: 980px; margin-top: 14px; font-size: 13.5px; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+  td.n { color: var(--gray); font-variant-numeric: tabular-nums; width: 2.5em; }
+  td.t { font-weight: 600; white-space: nowrap; }
+  td.c { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  /* Weather clip detail. */
+  .clip { width: 580px; max-width: 100%; height: 120px; overflow: hidden; border-radius: 8px; border: 1px solid var(--border); position: relative; background: var(--surface); }
+  .clip img { position: absolute; width: 660px; height: auto; left: -96px; top: -1066px; }
+  .clip::after { content: ""; position: absolute; inset: 0; box-shadow: inset -2px 0 0 #B4341F; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .seg button, .large-pair .fr { transition: none; }
+  }
+  @media (max-width: 640px) {
+    main { padding: 20px 14px 72px; }
+    h1 { font-size: 24px; }
+    .phone { width: 100%; }
+  }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <symbol id="raven" viewBox="0 0 512 512"><path fill-rule="evenodd" clip-rule="evenodd" d="M 150.79 440.77 L 176.47 435.39 L 197.48 429.33 L 213.04 423.88 L 245.73 409.97 L 270.63 397.28 L 296.30 381.80 L 318.09 366.18 L 336.57 350.44 L 352.33 334.58 L 367.31 316.20 L 379.08 297.53 L 385.19 285.08 L 389.91 273.41 L 395.34 253.95 L 396.99 244.61 L 398.12 232.16 L 397.64 214.27 L 393.73 194.04 L 386.46 169.91 L 384.84 159.02 L 385.60 149.68 L 388.70 139.57 L 394.35 130.77 L 399.02 125.85 L 405.25 120.87 L 417.70 113.66 L 430.15 109.05 L 445.71 105.74 L 451.93 105.05 L 464.38 105.06 L 473.72 106.67 L 484.62 111.08 L 485.38 110.77 L 485.11 101.44 L 483.21 95.21 L 479.17 87.44 L 473.72 81.39 L 464.38 74.65 L 449.60 68.35 L 437.93 65.33 L 410.69 60.66 L 402.71 53.19 L 392.02 45.17 L 381.12 38.75 L 373.34 35.08 L 354.67 28.85 L 339.10 26.17 L 322.76 25.37 L 311.09 26.27 L 297.08 28.66 L 288.52 31.10 L 273.74 37.43 L 262.07 44.46 L 253.51 51.19 L 244.65 60.19 L 234.69 73.42 L 226.06 88.21 L 215.97 110.77 L 198.93 152.79 L 199.81 153.14 L 210.71 148.11 L 230.16 141.75 L 241.83 139.37 L 254.28 138.31 L 267.51 138.63 L 281.50 141.12 L 293.19 144.94 L 303.31 150.17 L 311.57 155.91 L 321.42 166.02 L 327.70 175.36 L 332.88 187.08 L 335.35 196.37 L 336.92 208.82 L 336.90 218.94 L 334.38 236.06 L 328.50 255.51 L 319.29 274.96 L 307.20 294.01 L 289.43 316.20 L 271.40 335.03 L 248.84 355.96 L 146.83 440.71 L 147.68 441.18 Z M 361.37 83.54 L 355.44 83.04 L 349.39 79.65 L 345.70 75.76 L 340.28 67.20 L 335.99 63.61 L 331.05 60.97 L 331.32 60.45 L 343.77 60.10 L 354.67 61.50 L 367.12 66.26 L 376.07 72.64 L 374.90 74.46 L 367.89 80.74 Z M 384.80 96.77 L 381.12 97.22 L 379.95 96.77 L 389.68 89.61 L 398.24 84.87 L 409.14 81.06 L 423.14 79.17 L 436.37 79.99 L 446.49 82.49 L 458.16 88.01 L 465.16 93.23 L 467.68 95.99 L 466.72 96.57 L 440.26 94.09 L 416.92 93.78 L 399.02 94.86 Z M 27.07 486.63 L 42.63 480.11 L 57.41 472.78 L 83.87 457.96 L 111.11 441.03 L 146.90 416.35 L 188.78 384.68 L 227.05 353.61 L 252.69 330.99 L 266.74 317.42 L 278.01 305.31 L 291.95 288.19 L 298.64 278.72 L 306.04 266.40 L 311.49 255.51 L 315.26 246.17 L 317.53 239.17 L 319.92 228.27 L 321.08 218.94 L 321.06 210.38 L 320.04 201.82 L 318.42 194.81 L 315.25 187.03 L 311.19 180.03 L 307.72 175.36 L 302.53 170.13 L 295.53 164.95 L 286.97 160.39 L 276.07 156.55 L 269.07 154.98 L 260.51 153.84 L 248.84 153.69 L 231.72 155.87 L 220.82 158.88 L 212.26 162.07 L 203.81 166.02 L 195.15 171.24 L 186.59 177.15 L 176.64 185.48 L 162.41 200.26 L 153.88 211.15 L 143.79 226.74 L 136.73 239.17 L 125.74 261.73 L 109.38 300.64 L 78.90 379.23 L 79.98 379.55 L 90.87 375.49 L 106.44 367.80 L 123.56 357.64 L 148.46 339.41 L 149.24 339.06 L 149.37 339.55 L 133.67 359.67 L 120.96 373.01 L 107.66 384.68 L 87.69 397.91 L 62.88 436.82 L 44.33 463.27 L 26.62 485.84 Z"/></symbol>
+</svg>
+<main>
+  <h1>App Store screenshots, composed</h1>
+  <p class="lede">Both sets go from bare captures to framed, captioned frames: the SnowRaven band, the raven mark, the tab's exact name, and one line saying what the frame shows. Three families: iPhone 6.9-inch and iPad 13-inch from the committed captures in a new order, and a new iPhone Duo set in the same look, whose six captures are taken at build. Everything below is drawn over the real PNGs at the final geometry.</p>
+
+  <section class="sec" aria-labelledby="today">
+    <h2 id="today">Today</h2>
+    <p>The six iPhone frames as they are on the store now: the app at full bleed, nothing naming the tab.</p>
+    <div class="row" id="today-row"></div>
+  </section>
+
+  <div class="seg-wrap">
+    <div class="seg" role="group" aria-label="Background direction">
+      <button type="button" id="dir-a" aria-pressed="true">A · Dark green band <span class="pill">Recommended</span></button>
+      <button type="button" id="dir-b" aria-pressed="false">B · Light tint</button>
+    </div>
+    <span class="seg-hint"><span class="only-a">A is the website's band (#0c1f17) under a white tab name, a muted line, and the raven in #59d499. It separates the light app from both store pages.</span><span class="only-b">B is the app's accent tint (#E8F5EE) with the app's ink and accent. On the white store page its edge all but vanishes; on the black page it is a bright slab.</span></span>
+  </div>
+
+  <section class="sec" aria-labelledby="iphone">
+    <h2 id="iphone">iPhone 6.9-inch · 1320 × 2868</h2>
+    <p>Each frame in the two places the store shows it: the three-up search result, then the product page. Left is the light App Store, right the dark one. Tap any frame to see it large below.</p>
+
+    <div class="row">
+      <div class="store phone">
+        <p class="lbl">Search result · light</p>
+        <div class="store-app"><img src="../../src-tauri/icons/icon.png" alt=""><div><b>SnowRaven</b><span>Your birding data, explored</span></div><span class="store-get">Get</span></div>
+        <div class="strip" data-fill="iphone" data-from="1" data-to="3" data-w="113"></div>
+      </div>
+      <div class="store store--dark phone">
+        <p class="lbl">Search result · dark</p>
+        <div class="store-app"><img src="../../src-tauri/icons/icon.png" alt=""><div><b>SnowRaven</b><span>Your birding data, explored</span></div><span class="store-get">Get</span></div>
+        <div class="strip" data-fill="iphone" data-from="1" data-to="3" data-w="113"></div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="store wide">
+        <p class="lbl">Product page · light · all six</p>
+        <div class="strip" data-fill="iphone" data-from="1" data-to="6" data-w="196"></div>
+      </div>
+      <div class="store store--dark wide">
+        <p class="lbl">Product page · dark · all six</p>
+        <div class="strip" data-fill="iphone" data-from="1" data-to="6" data-w="196"></div>
+      </div>
+    </div>
+
+    <p class="lbl" style="margin-top:28px">Large · <span id="large-iphone-name">Map Explorer</span></p>
+    <div class="large-pair">
+      <div class="store"><div id="large-iphone-light"></div></div>
+      <div class="store store--dark"><div id="large-iphone-dark"></div></div>
+    </div>
+  </section>
+
+  <section class="sec" aria-labelledby="duo">
+    <h2 id="duo">iPhone Duo, inner display · 2007 × 2853</h2>
+    <p>The new set that earns the "Made for iPhone Duo" badge. The inner display is the device's signature screen, and at 669pt wide the app shows its icon-rail layout, so each frame shows more of its tab than the 6.9-inch set does. Same six tabs, same order, same captions.</p>
+    <p class="note" style="max-width:68ch"><b>Geometry preview over the phone captures.</b> The Duo captures are taken at build and come back for approval. Until then each card below holds the 6.9-inch capture of the same tab, letterboxed inside the card, so what you are judging here is the frame: the band, the type, the mark, and the card's size and position. The capture inside will be wider and show the icon rail.</p>
+
+    <div class="row">
+      <div class="store phone">
+        <p class="lbl">Search result · light</p>
+        <div class="store-app"><img src="../../src-tauri/icons/icon.png" alt=""><div><b>SnowRaven</b><span>Your birding data, explored</span></div><span class="store-get">Get</span></div>
+        <div class="strip" data-fill="duo" data-from="1" data-to="3" data-w="113"></div>
+      </div>
+      <div class="store store--dark phone">
+        <p class="lbl">Search result · dark</p>
+        <div class="store-app"><img src="../../src-tauri/icons/icon.png" alt=""><div><b>SnowRaven</b><span>Your birding data, explored</span></div><span class="store-get">Get</span></div>
+        <div class="strip" data-fill="duo" data-from="1" data-to="3" data-w="113"></div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="store wide">
+        <p class="lbl">Product page · light · all six</p>
+        <div class="strip" data-fill="duo" data-from="1" data-to="6" data-w="196"></div>
+      </div>
+      <div class="store store--dark wide">
+        <p class="lbl">Product page · dark · all six</p>
+        <div class="strip" data-fill="duo" data-from="1" data-to="6" data-w="196"></div>
+      </div>
+    </div>
+
+    <p class="lbl" style="margin-top:28px">Large · <span id="large-duo-name">Map Explorer</span></p>
+    <div class="large-pair">
+      <div class="store"><div id="large-duo-light"></div></div>
+      <div class="store store--dark"><div id="large-duo-dark"></div></div>
+    </div>
+  </section>
+
+  <section class="sec" aria-labelledby="ipad">
+    <h2 id="ipad">iPad 13-inch · 2064 × 2752</h2>
+    <p>Same recipe, wider canvas: the card keeps the same share of the width and the type steps up one size.</p>
+    <div class="row">
+      <div class="store wide">
+        <p class="lbl">Product page · light · all six</p>
+        <div class="strip" data-fill="ipad" data-from="1" data-to="6" data-w="200"></div>
+      </div>
+      <div class="store store--dark wide">
+        <p class="lbl">Product page · dark · all six</p>
+        <div class="strip" data-fill="ipad" data-from="1" data-to="6" data-w="200"></div>
+      </div>
+    </div>
+    <p class="lbl" style="margin-top:28px">Large · <span id="large-ipad-name">Map Explorer</span></p>
+    <div class="large-pair">
+      <div class="store"><div id="large-ipad-light"></div></div>
+      <div class="store store--dark"><div id="large-ipad-dark"></div></div>
+    </div>
+  </section>
+
+  <section class="sec" aria-labelledby="icon">
+    <h2 id="icon">Icon beside the frame</h2>
+    <p>A consistency check, not a change. The shipped icon next to the frame's greens and the raven as the frame draws it.</p>
+    <div class="row">
+      <div class="store"><p class="lbl">Light</p><div class="sw">
+        <img src="../../src-tauri/icons/icon.png" alt="SnowRaven app icon">
+        <div class="glyph-chip"><svg aria-hidden="true"><use href="#raven"/></svg></div>
+        <div class="chip"><i style="background:#2D8653"></i><b>Icon green</b><span>#2D8653</span></div>
+        <div class="chip only-a"><i style="background:#0c1f17"></i><b>Band</b><span>#0c1f17</span></div>
+        <div class="chip only-a"><i style="background:#59d499"></i><b>Mark</b><span>#59d499</span></div>
+        <div class="chip only-b"><i style="background:#E8F5EE"></i><b>Tint</b><span>#E8F5EE</span></div>
+        <div class="chip only-b"><i style="background:#277448"></i><b>Mark</b><span>#277448</span></div>
+      </div></div>
+      <div class="store store--dark"><p class="lbl">Dark</p><div class="sw">
+        <img src="../../src-tauri/icons/icon.png" alt="SnowRaven app icon">
+        <div class="glyph-chip"><svg aria-hidden="true"><use href="#raven"/></svg></div>
+        <div class="chip"><i style="background:#2D8653"></i><b>Icon green</b><span>#2D8653</span></div>
+        <div class="chip only-a"><i style="background:#0c1f17"></i><b>Band</b><span>#0c1f17</span></div>
+        <div class="chip only-a"><i style="background:#59d499"></i><b>Mark</b><span>#59d499</span></div>
+        <div class="chip only-b"><i style="background:#E8F5EE"></i><b>Tint</b><span>#E8F5EE</span></div>
+        <div class="chip only-b"><i style="background:#277448"></i><b>Mark</b><span>#277448</span></div>
+      </div></div>
+    </div>
+    <p class="note">The icon keeps its deeper #2D8653. The frame's mark is the website's brightened #59d499, which clears 3:1 on the band with room (9.2:1 measured). At arm's length the two read as one green, which is the check.</p>
+  </section>
+
+  <section class="sec" aria-labelledby="captions">
+    <h2 id="captions">Captions</h2>
+    <p>The tab name is the big line, exactly as the app names it. The small line says what the frame shows, in the listing's register. These are the only new words.</p>
+    <table>
+      <thead><tr><th>#</th><th>Tab (display line)</th><th>What it shows (second line)</th><th>Chars</th></tr></thead>
+      <tbody id="cap-rows"></tbody>
+    </table>
+    <p class="note">Order changed from today: Calendar moves up to third so the three frames a search result shows are three different shapes (a map, a dashboard, a year grid); Weather moves to fifth. Nothing is recaptured for the order.</p>
+  </section>
+
+  <section class="sec" aria-labelledby="weather">
+    <h2 id="weather">The iPhone Weather frame</h2>
+    <p>The committed capture opens mid-scroll and two tide lines run off the right edge. Under a caption that reads as a defect in a framed image, so the recommendation is one recapture of this frame, phone family only, at the page top: the tab header and the whole weather block in frame, the tide block opening at the bottom edge, the two long lines below the fold.</p>
+    <div class="row">
+      <div><p class="lbl">Today, at the clip (iPhone 03, right edge)</p><div class="clip"><img src="../../appstore/screenshots/iphone-6.9/03-weather-tide.png" alt="Detail of the tide block's right edge, where two lines are cut off"></div></div>
+    </div>
+  </section>
+</main>
+
+<script>
+(function () {
+  var FAM = {
+    iphone: { dir: 'iphone-6.9', cls: 'fr--iphone' },
+    ipad:   { dir: 'ipad-13',    cls: 'fr--ipad' },
+    // No Duo captures yet: the preview draws the Duo frame geometry over the
+    // 6.9-inch capture of the same tab (letterboxed by CSS, never stretched).
+    duo:    { dir: 'iphone-6.9', cls: 'fr--duo' }
+  };
+  // Proposed order and captions. Files keep their committed names.
+  var FRAMES = [
+    { file: '01-map-explorer.png',   tab: 'Map Explorer',   desc: 'Your sightings and nearby hotspots on a map' },
+    { file: '02-statistics.png',     tab: 'Statistics',     desc: 'Life list totals, growth, and milestones' },
+    { file: '04-calendar.png',       tab: 'Calendar',       desc: 'Each day shaded by species, checklists, media, etc.' },
+    { file: '05-species-detail.png', tab: 'Species Detail', desc: 'Your whole history with one bird' },
+    { file: '03-weather-tide.png',   tab: 'Weather',        desc: 'A weather and tide summary for a checklist' },
+    { file: '06-breeding-codes.png', tab: 'Breeding Codes', desc: 'Breeding evidence by species and code' }
+  ];
+  var TODAY = ['01-map-explorer.png','02-statistics.png','03-weather-tide.png','04-calendar.png','05-species-detail.png','06-breeding-codes.png'];
+
+  function src(fam, file) { return '../../appstore/screenshots/' + FAM[fam].dir + '/' + file; }
+
+  function frame(fam, i, width, large) {
+    var f = FRAMES[i];
+    var el = document.createElement('figure');
+    el.className = 'fr ' + FAM[fam].cls + (large ? ' is-large' : '');
+    el.style.width = width + 'px';
+    el.setAttribute('data-fam', fam);
+    el.setAttribute('data-i', String(i));
+    if (!large) { el.setAttribute('role', 'button'); el.setAttribute('tabindex', '0'); el.setAttribute('aria-label', 'Show ' + f.tab + ' large'); }
+    el.innerHTML =
+      '<div class="fr-cap"><div class="fr-tab">' + f.tab + '</div><div class="fr-desc">' + f.desc + '</div></div>' +
+      '<svg class="fr-glyph" aria-hidden="true"><use href="#raven"/></svg>' +
+      '<div class="fr-card"><img src="' + src(fam, f.file) + '" alt="" loading="lazy"></div>';
+    return el;
+  }
+
+  // Fill strips.
+  document.querySelectorAll('[data-fill]').forEach(function (strip) {
+    var fam = strip.getAttribute('data-fill');
+    var from = +strip.getAttribute('data-from'), to = +strip.getAttribute('data-to'), w = +strip.getAttribute('data-w');
+    for (var i = from - 1; i < to; i++) strip.appendChild(frame(fam, i, w, false));
+  });
+
+  // Today row.
+  var today = document.getElementById('today-row');
+  TODAY.forEach(function (file) {
+    var wrap = document.createElement('div'); wrap.className = 'bare-wrap';
+    wrap.innerHTML = '<div class="bare"><img src="' + src('iphone', file) + '" alt="" loading="lazy"></div><small>' + file + '</small>';
+    today.appendChild(wrap);
+  });
+
+  // Large previews.
+  var LARGE_W = { iphone: 420, ipad: 560, duo: 460 };
+  function setLarge(fam, i) {
+    ['light', 'dark'].forEach(function (mode) {
+      var host = document.getElementById('large-' + fam + '-' + mode);
+      var old = host.firstElementChild;
+      var next = frame(fam, i, LARGE_W[fam], true);
+      if (old) {
+        old.classList.add('is-swapping');
+        var reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+        setTimeout(function () { host.replaceChildren(next); }, reduce ? 0 : 160);
+      } else host.appendChild(next);
+    });
+    document.getElementById('large-' + fam + '-name').textContent = FRAMES[i].tab;
+  }
+  setLarge('iphone', 0); setLarge('duo', 0); setLarge('ipad', 0);
+  function pick(e) {
+    var el = e.target.closest('.fr[role="button"]'); if (!el) return;
+    if (e.type === 'keydown' && e.key !== 'Enter' && e.key !== ' ') return;
+    e.preventDefault();
+    setLarge(el.getAttribute('data-fam'), +el.getAttribute('data-i'));
+  }
+  document.addEventListener('click', pick);
+  document.addEventListener('keydown', pick);
+
+  // Caption table.
+  var rows = document.getElementById('cap-rows');
+  FRAMES.forEach(function (f, i) {
+    var tr = document.createElement('tr');
+    tr.innerHTML = '<td class="n">' + (i + 1) + '</td><td class="t">' + f.tab + '</td><td>' + f.desc + '</td><td class="c">' + f.desc.length + '</td>';
+    rows.appendChild(tr);
+  });
+
+  // Direction toggle.
+  var a = document.getElementById('dir-a'), b = document.getElementById('dir-b');
+  function setDir(d) {
+    document.documentElement.setAttribute('data-dir', d);
+    a.setAttribute('aria-pressed', String(d === 'a')); b.setAttribute('aria-pressed', String(d === 'b'));
+  }
+  a.addEventListener('click', function () { setDir('a'); });
+  b.addEventListener('click', function () { setDir('b'); });
+})();
+</script>
+</body>
+</html>
