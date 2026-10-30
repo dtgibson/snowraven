@@ -103,3 +103,18 @@ The Tester flagged the Calendar caption measurements left behind by the caption 
 ## Security dispositions (2026-10-30, The Guide, at the Auditor hand-back)
 
 F1 (Low, pre-existing): sharp 0.35.4 in website/tools carries an SVG-decoder advisory this toolchain cannot reach (sharp never receives an SVG; the raven glyph is read as text). DEFERRED to the idea inbox: bump to 0.35.5 as a dev-only change after this upload, re-checking the frames stay byte-identical. F2 (Informational): the Weather frames show the real public checklist S354229002 (Jamaica Bay, East Pond, 2026-06-07), as the website Weather shot has since v1.0.4; no observer name or key appears. ACCEPTED, with one line to the user at the deploy sign-off so they can say if it is not theirs to publish.
+
+
+## Deployment (2026-10-30, The Deployer, after the production sign-off)
+
+The user answered the sign-off gate "Confirm: prepare for 1.0.61", because App Store Connect, read on 2026-10-30, showed 1.0.60 already approved and on sale (record `c8841bbd` READY_FOR_SALE on build 1.0.60.1, submission `5e9ba5d3` COMPLETE with its item APPROVED), and an approved record takes no new screenshots. The user also approved the held Screenshots section's closing words changing from "and read back by checksum" to "and read back against the committed files", since the iPhone Duo set can only be read back by pixels.
+
+**Pushed to `origin/main` as fast-forwards from `2eb88ed9`:** `d1470f2e` (the twelve raw captures moved under `appstore/screenshots/raw/`), `c3bdcd7b` (the composer, the iPhone Duo capture row, the eighteen composed frames and this run's records), and `7fee7d4e` (the approved Screenshots section in `appstore/LISTING.md`, the `RELEASE_LEDGER.md` entry, and the upload tooling in `asc/`). The full frontend suite passed before the third push, which edits text the published-claims suites read. The Pages deploy for `c3bdcd7b` succeeded; no site page changed.
+
+**Ledger disposition:** `RELEASE_LEDGER.md`, "App Store screenshot sets (app-store-listing-polish), 2026-10-30": 1.0.60 RESOLVED (READY_FOR_SALE), no record in review, no 1.0.61 record yet, and the three composed sets ship on the next record, 1.0.61, which the paused taxonomy run owns.
+
+**Nothing was written to App Store Connect.** The upload is deferred to 1.0.61, and this run stays open at the Deployer to perform it after the 1.0.61 record exists and before it is submitted, by the sequence in `asc/README.md`: the iPhone 6.9-inch and iPad 13-inch sets replaced whole and in order through the legacy `appScreenshots` API with an md5 read-back, and the iPhone Duo set created through the App Asset Library (`IPHONE_DUO_PROFILE`, spec `i2007x2853a0`), with every frame also read back by the decoded pixels of Apple's processed image.
+
+**App Store Connect API 4.5.1 changes the release skill's screenshot recipe.** It deprecated `appScreenshotSets` and `appScreenshots` in favor of the App Asset Library, and the iPhone Duo slot exists only there. The library path carries no `sourceFileChecksum`, so the pixel read-back stands in for it; it was measured exact against 1.0.60's twelve live shots, and a negative control with the new frames failed every check. The `snowraven-release` skill's screenshot bullet should gain this at closeout.
+
+**Follow-ups this decision moves:** security F1 (sharp 0.35.5) now waits until after the 1.0.61 upload, or re-proves the eighteen frames byte-identical first, or the read-back fails. The paused taxonomy run must fast-forward its local `main` past `7fee7d4e` before its own push; this run's third commit edits `appstore/LISTING.md` and `RELEASE_LEDGER.md`, which that run's release also edits.
