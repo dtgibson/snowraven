@@ -11,6 +11,7 @@ These scripts put the three composed screenshot sets onto an App Store version r
 | `asc-library-read.mjs` | Read-only. Prints the App Asset Library's placement groups and image specs for our three sizes and the app's library id. With `--loc <id>` it also lists that localization's screenshot placements in order. |
 | `asc-screens.mjs` | `plan` (a dry run that prints every request `replace` would send), `replace` (writes only with `--execute`, and only to an editable version) and `readback` (read-only). |
 | `composed-frames-checksums.txt`, `.json` | md5, sha256 and byte size of the eighteen composed frames, in upload order per family, as committed. |
+| `readback-1.0.61.txt` | The `readback` log from the 1.0.61 upload on 2026-11-03: ALL MATCH, eighteen of eighteen. |
 
 ## The token
 
@@ -23,7 +24,7 @@ App Store Connect API 4.5.1 deprecated `appScreenshotSets` and `appScreenshots` 
 - `iphone-6.9` (`APP_IPHONE_67`) and `ipad-13` (`APP_IPAD_PRO_3GEN_129`) use the legacy route by default. It still works, and it keeps the md5 `sourceFileChecksum` read-back. If Apple has turned off legacy writes, `--via library` sends them to `IPHONE_DYNAMIC_ISLAND_LARGE_PROFILE` and `IPAD_13_PROFILE`.
 - `iphone-duo` always uses the library. The library route carries no checksum, so `readback` fetches Apple's processed PNG and compares its decoded pixels with the committed file. On 1.0.60's iPhone 01 the match was exact (0 of 11,357,280 values differ). `readback` makes this pixel comparison for every frame, plus the md5 check wherever a legacy set exists.
 
-Each set is replaced whole and in order (a re-upload appends). The upload order is `FRAMES` in `website/tools/compose-appstore.mjs`: 01 Map Explorer, 02 Statistics, 04 Calendar, 05 Species Detail, 03 Weather, 06 Breeding Codes.
+Each set is replaced whole and in order (a re-upload appends). Three behaviors come from the 1.0.61 upload: the per-frame wait for Apple's processing is fifteen minutes (that evening took three to six minutes a frame); on the library route the wait ends only once Apple has filled in the matched image spec, which arrives a little after the state leaves processing; and a re-run of the library route reuses an image an earlier run already put in the library under the same reference name (matched spec, same byte size, past processing), because reference names are unique per library and the images outlive their placements. The upload order is `FRAMES` in `website/tools/compose-appstore.mjs`: 01 Map Explorer, 02 Statistics, 04 Calendar, 05 Species Detail, 03 Weather, 06 Breeding Codes.
 
 ## The 1.0.61 sequence
 
@@ -38,3 +39,5 @@ Run this after the 1.0.61 record exists and before it is submitted. Use one comm
 7. `node asc-library-read.mjs --loc <en-US id>`: a second view of the three groups in order.
 
 Then the release continues as the `snowraven-release` skill describes, and its `RELEASE_LEDGER.md` entry names this upload.
+
+The sequence ran on 2026-11-03 against record `1ff37081` (localization `4ea321c5`): `readback-1.0.61.txt`.

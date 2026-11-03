@@ -90,14 +90,14 @@ async function putParts(ops, buf) {
 }
 
 async function poll(path, done, failed, label) {
-  for (let i = 0; i < 90; i++) {
+  for (let i = 0; i < 225; i++) {
     const j = await get(path);
     const s = done.state(j);
     if (done.ok(s)) return j;
     if (failed(s)) throw new Error(`${label}: ${s} ${JSON.stringify(j.data.attributes.assetDeliveryState?.errors ?? j.data.attributes.stateDetails ?? '')}`);
     await new Promise((r) => setTimeout(r, 4000));
   }
-  throw new Error(`${label}: still processing after 6 minutes`);
+  throw new Error(`${label}: still processing after 15 minutes`);
 }
 
 // ---------- legacy (appScreenshotSets / appScreenshots) ----------
@@ -170,29 +170,46 @@ async function replaceLibrary(loc, fam) {
   const existing = await placements(loc, F.group);
   console.log(`  ${existing.length} existing placement(s) in ${F.group} to delete (assets stay in the library)`);
   for (const p of existing) await must('DELETE', `/v1/appAssetLibraryPlacements/${p.id}`);
+  // Library images outlive their placements and reference names are unique per library, so a
+  // re-run reuses an image a previous run already uploaded (same reference name, matched spec,
+  // same byte size, past processing); the pixel read-back checks every placed image regardless.
+  const libImages = await getAll(`/v1/appAssetLibraries/${lib}/images?limit=200&filter[category]=APP_SCREENSHOTS_AND_PREVIEWS`);
+  const byRef = new Map(libImages.map((i) => [i.attributes.referenceName, i]));
+  const pending = (s) => ['AWAITING_UPLOAD', 'UPLOAD_COMPLETE', 'FAILED'].includes(s);
   const placed = [];
   for (const f of local) {
     console.log(`  [${f.position}] ${f.name} ${f.size}B md5=${f.md5}`);
+    const ref = `${fam} ${f.name}`;
+    const prior = byRef.get(ref);
+    const reusable = prior && prior.attributes.specId === spec.specId && prior.attributes.fileSize === f.size && !pending(prior.attributes.state);
+    let id;
+    if (reusable) {
+      id = prior.id;
+      console.log(`      reuse ${prior.attributes.state} ${short(id)} (already in the library under this reference name)`);
+    } else {
+    const referenceName = prior ? `${ref} ${new Date().toISOString().slice(0, 19)}` : ref;
     const r = await must('POST', '/v1/appAssetLibraryImages', {
       data: {
         type: 'appAssetLibraryImages',
-        attributes: { category: 'APP_SCREENSHOTS_AND_PREVIEWS', fileName: f.name, fileSize: f.size, referenceName: `${fam} ${f.name}` },
+        attributes: { category: 'APP_SCREENSHOTS_AND_PREVIEWS', fileName: f.name, fileSize: f.size, referenceName },
         relationships: { assetLibrary: { data: { type: 'appAssetLibraries', id: lib } } },
       },
     });
-    const id = r.json.data.id;
+    id = r.json.data.id;
     if (EXECUTE) await putParts(r.json.data.attributes.uploadOperations ?? [], f.buf);
     else console.log(`  DRY-RUN PUT ${f.size} bytes over the returned uploadOperations`);
     await must('PATCH', `/v1/appAssetLibraryImages/${id}`, { data: { type: 'appAssetLibraryImages', id, attributes: { uploaded: true } } });
     if (EXECUTE) {
       const j = await poll(
         `/v1/appAssetLibraryImages/${id}`,
-        { state: (x) => x.data.attributes.state, ok: (s) => !['AWAITING_UPLOAD', 'UPLOAD_COMPLETE', 'FAILED'].includes(s) },
+        // Apple fills specId a little after the state leaves processing, so wait for both.
+        { state: (x) => (x.data.attributes.state === 'FAILED' || x.data.attributes.specId ? x.data.attributes.state : 'UPLOAD_COMPLETE'), ok: (s) => !['AWAITING_UPLOAD', 'UPLOAD_COMPLETE', 'FAILED'].includes(s) },
         (s) => s === 'FAILED',
         f.name,
       );
-      if (j.data.attributes.specId !== spec.specId) throw new Error(`${f.name}: matched spec ${j.data.attributes.specId}, expected ${spec.specId}`);
+      if (j.data.attributes.specId !== spec.specId) throw new Error(`${f.name}: state ${j.data.attributes.state} matched spec ${j.data.attributes.specId}, expected ${spec.specId}`);
       console.log(`      ${j.data.attributes.state} spec ok ${short(id)}`);
+    }
     }
     const p = await must('POST', '/v1/appAssetLibraryPlacements', {
       data: {
