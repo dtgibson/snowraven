@@ -114,6 +114,10 @@ and eBird's announcement all exist; they do not always land on the same day.
    the date it was published, the number of species gained through splits and
    the number lost through lumps. A year without its announced tally cannot
    ship, because that tally is the check the history generator rests on.
+   The published date is the "Updated DD Mon YYYY eBird Taxonomy vYYYY" line
+   on https://science.ebird.org/en/use-ebird-data/the-ebird-taxonomy (for 2026,
+   "Updated 29 Oct 2026"), read by a person in a browser: eBird's and Cornell's
+   pages refuse scripts.
 
 2. **Download Cornell's two files in a browser** (the site refuses scripts with
    a 403): the eBird taxonomy CSV and the integrated checklist for the year.
