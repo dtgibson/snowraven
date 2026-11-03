@@ -1,0 +1,1 @@
+SnowRaven now carries eBird's October 2026 taxonomy update in its bird names, species codes, countability rules, and the Splits and lumps record, which now covers 2019 to 2026. A bird recorded under one of the subspecies-group names eBird renamed this year counts again once you download a fresh backup from eBird. Nothing else changes on Android.
