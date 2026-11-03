@@ -193,7 +193,14 @@ and eBird's announcement all exist; they do not always land on the same day.
    git show HEAD:frontend/src/assets/ebird-taxonomy.json | node -e 'let t = ""; process.stdin.on("data", (d) => { t += d }).on("end", () => { const s = JSON.parse(t); console.log(Object.keys(s.byCode).length, Object.keys(s.byCom).length) })'
    ```
 
-   Search the tree for both numbers, with and without a thousands
+   Those two seed the search but do not finish it (in 2026 they missed four
+   figures). Measure the other figures on the old assets too: the count of
+   snapshot strings (keys and values), the longest name's length and the
+   mean name length, the number of groups by normalized name, the
+   countability corrections in `ebird-countability.json` and their countable
+   and non-countable split, the hybrid and intergrade counts, the entries in
+   `ebird-alpha-codes.json` that carry a code, and the longest code. Search
+   the tree for every one of these numbers, with and without a thousands
    separator, and re-derive each one from the new snapshot together with the
    claim beside it; never change a number alone. The known sites are the
    counts in `countableForms.test.ts`, `csvParserIntergradeFilter.test.ts`,

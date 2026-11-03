@@ -630,7 +630,7 @@ describe('every bounded structure survives CAPACITY PLUS ONE', () => {
   }
 
   it('structure 1: the entry-capped short cache, at capacity+1', () => {
-    // 24 characters is a realistic name length (snapshot mean is 22.9), and one name past
+    // 24 characters is a realistic name length (snapshot mean is 23.3), and one name past
     // the cap is all it takes. Measured: shipped 16.4 ms, evicting 2,544.9 ms - a 155x
     // spread against a threshold of 5, so the guard sits ~31x clear of anything a shared
     // runner can do to it.

@@ -53,7 +53,7 @@ const OBSERVATIONS = [
   // the plain name is.
   //
   // Deliberately synthetic, and that is stated rather than hidden: measured over
-  // the snapshot, NONE of the 13,758 merged groups mixes a countable and a
+  // the snapshot, NONE of the 13,901 merged groups mixes a countable and a
   // non-countable raw name, so no real eBird name can discriminate this. The
   // property is still worth pinning, because a user's CSV is uncapped and can
   // carry a name from a retired revision, and because a future Clements revision

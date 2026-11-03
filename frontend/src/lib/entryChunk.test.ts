@@ -374,7 +374,7 @@ describe('entry-chunk exclusion (NFR-03 / QA-30)', () => {
   it('the countability artifact IS on the entry graph, and is the small one', () => {
     // Guards the guard above: the rule really is statically resolved (no load
     // order, no flicker, no async predicate), and the file carrying it is the
-    // 169-name corrections list rather than a full verdict table. If this ever
+    // 147-name corrections list rather than a full verdict table. If this ever
     // grows past a few tens of KB, the compression has been abandoned.
     expect(has('assets/ebird-countability.json')).toBe(true)
     const artifact = readFileSync(resolve(SRC, 'assets/ebird-countability.json'), 'utf8')

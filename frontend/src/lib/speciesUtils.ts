@@ -183,9 +183,10 @@ const _normCache = new Map<string, string>()
 //
 // The budget is 2^20 characters. Unlike the two limits above it is NOT sized off real
 // data, because no real name reaches this path at all (the longest name of any category in
-// the bundled snapshot is 63 characters, under half the length limit). It is sized to
-// bound damage: 26 names of 40,000 characters, 524 of 2,000, or 8,128 at the minimum
-// over-threshold length, while costing at most ~2 MiB of characters.
+// the bundled snapshot, eBird's 2026 taxonomy, is 66 characters, so the length limit is
+// 1.94 times it; `speciesUtilsMemoBound.test.ts` pins that multiple at 1.9 or more). It is
+// sized to bound damage: 26 names of 40,000 characters, 524 of 2,000, or 8,128 at the
+// minimum over-threshold length, while costing at most ~2 MiB of characters.
 //
 // Accepted trade, and the reason it is acceptable: admission is first-come, so long names
 // from a later file may go uncached while an earlier file's stay. Only malformed data
