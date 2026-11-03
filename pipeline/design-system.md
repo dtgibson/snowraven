@@ -850,6 +850,13 @@ a lucide bird, never a second inlined copy of the path. Its master SVG is
 committed separately at `frontend/src/assets/snowraven-bird-glyph.svg`;
 the archival master keeps its baked hex and `<title>`/`<desc>`, which the
 component strips.
+Outside the app, the App Store screenshot frames set the app's light
+screens as a card on the website's dark green band (`#0c1f17`, lifted to
+`#132c20` at the top), the tab's name in white over one muted line, and the
+raven in the band's accent `#59d499`: the icon's `#2D8653` reads 2.8:1 on
+the band and fails the 3:1 non-text bar. The values live in
+`website/tools/compose-appstore.mjs` and the recipe in
+`pipeline/app-store-listing-polish/design-refinement.md`.
 
 ## Rationale
 The green stays grounded and natural, not corporate; restraint is the brand.
