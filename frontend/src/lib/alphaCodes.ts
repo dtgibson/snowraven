@@ -45,7 +45,7 @@ import { normalizeSpeciesName } from './speciesUtils'
 export interface AlphaCodeTable {
   /** Asset schema version. Any other value is a load failure (FR-26), never a migration. */
   v: 1
-  /** The taxonomy snapshot `version` generated in the same run ("2027"). CI asserts equality. */
+  /** The taxonomy snapshot `version` generated in the same run ("2028"). CI asserts equality. */
   version: string
   /** ISO date the generator ran. Provenance only. */
   generated: string

@@ -11,7 +11,7 @@
 //   2. an exhaustively enumerated malformed probe set, because real names CANNOT
 //      discriminate. Every eBird name is well formed (at most one "(", always closed,
 //      always trailing), so even the looser `indexOf('(')` variant the CSV parsers use
-//      locally scores zero divergences on all 58,104 of them. A snapshot-only sweep would
+//      locally scores zero divergences on all 59,652 of them. A snapshot-only sweep would
 //      pass on the wrong implementation. The `rejects the local parser variant` test below
 //      is the guard-the-guard proving this probe set does not.
 /// <reference types="node" />
@@ -239,7 +239,7 @@ describe('normalizeSpeciesName honours each piece of the pattern it replaced', (
 
 describe('the countable-name asymmetry is unmoved', () => {
   // `isNonCountableNameShape` calls `normalizeSpeciesName` on a RAW exported name, and
-  // its deliberate asymmetry decides whether 36 countable intergrades survive. A shift in
+  // its deliberate asymmetry decides whether 38 countable intergrades survive. A shift in
   // normalization would silently move life-list totals, so sweep rather than spot-check.
   //
   // This tests the SHAPE rule, not `isNonCountableForm`. The countability build made the
@@ -275,11 +275,12 @@ describe('the countable-name asymmetry is unmoved', () => {
     expect(split(normalizeSpeciesName)).toEqual(split(shippedRegexNormalize))
   })
 
-  // Deliberately pins today's figures, which CLAUDE.md and DECISIONS.md both quote. A
-  // failure here means the bundled taxonomy snapshot moved, not that this code broke:
-  // re-measure, then update the recorded numbers in both places.
-  it('pins the recorded 818 / 782 / 36 figures for the current snapshot', () => {
-    expect(split(normalizeSpeciesName)).toEqual({ raw: 818, normalized: 782, intergradesKept: 36 })
+  // Deliberately pins today's figures, measured on eBird's 2026 taxonomy (snapshot "2028");
+  // DECISIONS.md and .claude/rules/bird-names.md also quote the 2025 taxonomy's 818 / 782 /
+  // 36. A failure here means the bundled taxonomy snapshot moved, not that this code broke:
+  // re-measure, then update the current figures in .claude/rules/bird-names.md.
+  it('pins the 892 / 854 / 38 figures for the current snapshot', () => {
+    expect(split(normalizeSpeciesName)).toEqual({ raw: 892, normalized: 854, intergradesKept: 38 })
   })
 
   it('keeps the named intergrades and still drops the named hybrids', () => {

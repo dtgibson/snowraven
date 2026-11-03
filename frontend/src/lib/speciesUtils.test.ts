@@ -101,10 +101,10 @@ describe('isNonCountableForm (the rule)', () => {
     // `isNonCountableNameShape`, so reverting the rule to the convention alone turns
     // this red. Ordinary birds for a North American birder.
     for (const name of [
-      'Canada Goose (moffitti/maxima)',
+      'Red-tailed Hawk (Western/Northern)',
       'Redpoll (Common/Hoary)',
-      'Dark-eyed Junco (Slate-colored/cismontanus)',
-      'Iceland Gull (thayeri/kumlieni)',
+      'Dark-eyed Junco (Slate-colored/cismontanus/Slate-colored x Oregon)',
+      "Iceland Gull (Thayer's/Kumlien's)",
     ]) {
       expect(isNonCountableNameShape(name)).toBe(true)   // the convention rejects it
       expect(isNonCountableForm(name)).toBe(false)       // eBird counts it

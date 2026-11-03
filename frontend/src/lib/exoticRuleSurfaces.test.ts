@@ -229,7 +229,7 @@ describe('the countable-form predicate the rule composes with (FR-05, QA-09)', (
 
     // The two names where they DISAGREE, stated on their own so they cannot be lost
     // in an array. These are what make the rule more than a rename.
-    const admitted = 'Canada Goose (moffitti/maxima)'
+    const admitted = 'Red-tailed Hawk (Western/Northern)'
     expect(isNonCountableNameShape(admitted)).toBe(true)   // shape rejects it
     expect(isNonCountableForm(admitted)).toBe(false)       // eBird counts it
 

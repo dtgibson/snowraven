@@ -56,8 +56,9 @@ export const PROVENANCE_STORE_KEY = 'exotic-provenance-v1'
 // 208 and 173 B/entry, so a byte figure encodes one engine's heap accounting and
 // can go false without ever failing.
 //
-// PROVENANCE_MAX_SPECIES: the bundled v2027 taxonomy snapshot carries 11,167
-// species names in `byCom` (17,891 codes including forms). Provenance is
+// PROVENANCE_MAX_SPECIES: the bundled taxonomy snapshot ("2028", eBird's 2026
+// taxonomy) carries 11,201 species names in `byCom` (18,631 codes including
+// forms). Provenance is
 // admitted only for codes in the current cover index, so the index is bounded by
 // the birder's life list, which is bounded by the world species list. This cap
 // sits above the entire world taxonomy and cannot bind on real data.
@@ -132,8 +133,8 @@ const EMPTY_STORE = (): ProvenanceStore => ({
 // DROPPED, never thrown on: a corrupt document degrades to "not cached", which
 // degrades to today's numbers (FR-26), never to a render-time crash (FR-22).
 
-// Measured against the bundled v2027 snapshot: 17,891 codes, length 2 to 8,
-// charset [a-z0-9-]. Exactly one real code carries a hyphen ('bird-o1'), so the
+// Measured against the bundled "2028" snapshot (eBird's 2026 taxonomy): 18,631
+// codes, length 2 to 8, charset [a-z0-9-]. Exactly one real code carries a hyphen ('bird-o1'), so the
 // hyphen is REQUIRED in the class; omitting it silently drops that species.
 // Upper bound 16 gives headroom for a future eBird code while keeping the key
 // structurally bounded.

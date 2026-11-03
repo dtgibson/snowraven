@@ -43,7 +43,7 @@ const OBSERVATIONS = [
     stateProvince: 'US-MN', duration: 30, distance: 1, protocol: 'Traveling', numObservers: 1,
   },
   {
-    submissionId: 'S2', commonName: 'Canada Goose (moffitti/maxima)', scientificName: 'Branta canadensis',
+    submissionId: 'S2', commonName: 'Red-tailed Hawk (Western/Northern)', scientificName: 'Buteo jamaicensis',
     date: '2023-02-15', location: 'Woods', locationId: 'L2', latitude: null, longitude: null,
     county: 'Ramsey', count: 1, breedingCode: null, speciesComments: '', catalogIds: [],
     stateProvince: 'US-MN', duration: 45, distance: 2, protocol: 'Traveling', numObservers: 1,
@@ -146,7 +146,7 @@ describe('Species Detail: Show all forms governs the selector AND the counter', 
     expect(options.some(o => /Brewster/.test(o))).toBe(false)
     // Non-vacuity: the two eBird counts really are there.
     expect(hasOption(options, 'American Robin')).toBe(true)
-    expect(hasOption(options, 'Canada Goose')).toBe(true)
+    expect(hasOption(options, 'Red-tailed Hawk')).toBe(true)
   })
 
   it('with the toggle ON, includes it in both', async () => {
@@ -158,14 +158,14 @@ describe('Species Detail: Show all forms governs the selector AND the counter', 
   })
 
   it('a subspecies-group slash counts as its parent either way (direction A)', async () => {
-    // eBird counts "Canada Goose (moffitti/maxima)" as Canada Goose. The rule this
+    // eBird counts "Red-tailed Hawk (Western/Northern)" as Red-tailed Hawk. The rule this
     // replaced saw the "/" and dropped it from the selector with the toggle off.
     await renderReady()
-    expect(hasOption(selectorOptions(), 'Canada Goose')).toBe(true)
+    expect(hasOption(selectorOptions(), 'Red-tailed Hawk')).toBe(true)
 
     fireEvent.click(screen.getByRole('switch', { name: /Show all forms/ }))
     await waitFor(() => expect(speciesFigure()).toBe('3 species'))
-    expect(hasOption(selectorOptions(), 'Canada Goose')).toBe(true)
+    expect(hasOption(selectorOptions(), 'Red-tailed Hawk')).toBe(true)
   })
 
   it('the toggle sits after Show subspecies, which governs a different axis', async () => {

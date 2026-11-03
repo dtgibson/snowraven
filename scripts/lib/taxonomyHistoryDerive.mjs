@@ -87,19 +87,24 @@ const fail = (msg) => { throw new HistoryInputError(msg) }
 // single daughter cannot ship. Figures as eBird announced them (gained /
 // lost), each reproduced exactly by the committed asset (2023 to 2025 measured
 // 2026-09-30; 2019, 2021 and 2022 on 2026-10-21, 2019 and 2022 with their
-// recount):
+// recount; 2026 on 2026-11-03):
 //   2019: 106 / 20    2021: 94 / 8      2022: 118 / 41
 //   2023: 124 / 16    2024: 141 / 16    2025: 40 / 18
+//   2026: 39 / 7
 // Sources: Cornell's "Overview August 2019" (2019: "Another 106 species are
 // newly recognized ... due to 'splits', while there is a loss of 20 species
 // due to 'lumps'"); eBird's "2021 eBird Taxonomy Update, COMPLETE", 8 Sep 2021
 // (94 from splits, 8 lumps); eBird's "2022 Taxonomy Update" (118 gained
 // through splits, 41 lost through lumps);
-// https://ebird.org/news/2024-taxonomy-update (2024) and eBird's taxonomy
+// https://ebird.org/news/2024-taxonomy-update (2024); eBird's "2026 Taxonomy
+// Update", https://ebird.org/news/2026-taxonomy-update (2026: 39 species
+// gained through splits, 7 lost through lumps, 2 newly described, net 34, new
+// total 11,201; its published date is the "Updated 29 Oct 2026 eBird Taxonomy
+// v2026" line of the page below, read 2026-11-03); and eBird's taxonomy
 // update announcements for 2023 and 2025, linked from
 // https://science.ebird.org/en/use-ebird-data/the-ebird-taxonomy. Each year's
 // net (gained minus lost, plus its newly described species) also equals the
-// change in its taxonomy file's species count, which the 2021 to 2025 figures
+// change in its taxonomy file's species count, which the 2021 to 2026 figures
 // reproduce exactly.
 //
 // REQUIRED FOR EVERY COVERED YEAR since big-old-life-lists: a covered year with
@@ -124,6 +129,7 @@ export const UPDATE_PUBLISHED = Object.freeze({
   2023: { published: '2023-10-24', mark: 'measured', announced: { gained: 124, lost: 16 } },
   2024: { published: '2024-10-22', mark: 'measured', announced: { gained: 141, lost: 16 } },
   2025: { published: '2025-10-31', mark: 'measured', announced: { gained: 40, lost: 18 } },
+  2026: { published: '2026-10-29', mark: 'measured', announced: { gained: 39, lost: 7 } },
 })
 
 // ── Recounted reorganizations (cited) ────────────────────────────────────────

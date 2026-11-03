@@ -152,7 +152,7 @@ describe('computeMediaStats', () => {
   // THE TWO CORRECTIONS ARE ASSERTED SEPARATELY, and that is load-bearing rather
   // than tidiness. Measured: with both in ONE set, stubbing `isNonCountableForm`
   // down to the bare shape rule leaves this suite GREEN, because the two errors
-  // cancel exactly. Dropping the artifact removes Canada Goose (moffitti/maxima)
+  // cancel exactly. Dropping the artifact removes Red-tailed Hawk (Western/Northern)
   // from the denominator (the shape rule rejects it on the "/") and adds
   // Brewster's Warbler (hybrid) to it (the shape rule sees no " sp.", no "/" and
   // no " x "), for the same total. Split apart, each one goes red on its own.
@@ -170,10 +170,10 @@ describe('computeMediaStats', () => {
   })
 
   it('keeps a name eBird counts that the name shape alone would reject', () => {
-    // `Canada Goose (moffitti/maxima)` is in the artifact's `countable` list: a
+    // `Red-tailed Hawk (Western/Northern)` is in the artifact's `countable` list: a
     // subspecies-group slash inside a trailing parenthetical, which leaves the
     // subspecies in doubt but not the species. It belongs in the denominator.
-    const life = new Set([...PLAIN, 'Canada Goose (moffitti/maxima)'])
+    const life = new Set([...PLAIN, 'Red-tailed Hawk (Western/Northern)'])
     const s = computeMediaStats(rows, life)
     expect(s.coverage!.lifeListTotal).toBe(5)
     expect(s.coverage!.documented).toBe(3)

@@ -64,14 +64,14 @@ export const PROTOTYPE_MEMBER_NAMES = Object.freeze([
 ])
 
 /**
- * Plausibility floor for entries carrying a code (I3). Measured 15,471 after
- * the American-name filter; deliberately ABOVE the 11,167 species, so a
- * derivation that dropped every non-species entry (and with them every form's
- * own code) is refused.
+ * Plausibility floor for entries carrying a code (I3). Measured 16,107 after
+ * the American-name filter on eBird's 2026 taxonomy (15,471 on the 2025 one);
+ * deliberately ABOVE the 11,201 species, so a derivation that dropped every
+ * non-species entry (and with them every form's own code) is refused.
  */
 export const MIN_ALPHA_CODE_ENTRIES = 13_000
 
-/** Most hyphenated tokens one displayed name may carry (I11; measured 3). */
+/** Most hyphenated tokens one displayed name may carry (I11; measured 3 on eBird's 2025 and 2026 taxonomies). */
 export const MAX_HYPHENATED_TOKENS = 4
 
 /**

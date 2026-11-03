@@ -7,11 +7,11 @@
 // Countability fixtures are REAL published names wherever the verdict comes
 // from eBird's data (the bundled countability artifact), so these tests pin the
 // wiring to the shared predicate rather than re-deriving a rule:
-//   - "Canada Goose (moffitti/maxima)"    eBird COUNTS despite the raw "/"
+//   - "Red-tailed Hawk (Western/Northern)" eBird COUNTS despite the raw "/"
 //     (direction-A correction — a shape rule reading the name would reject it)
-//   - "Brewster's Warbler (hybrid)"       eBird REJECTS though no shape rule
+//   - "Brewster's Warbler (hybrid)"        eBird REJECTS though no shape rule
 //     can (no " sp.", no "/", no base " x ") — the discriminating name
-//   - "Azuero Warbler (undescribed form)" eBird REJECTS (undescribed form)
+//   - "Uluguru Thrush (undescribed form)"  eBird REJECTS (undescribed form)
 // The synthetic "Dark-eyed Junco (fake/mystery)" is deliberately unpublished:
 // it exercises the shape FALLBACK's raw-name "/" test on a name that folds to
 // a real selected species (the PRD's own FR-02 example shape).
@@ -56,12 +56,12 @@ describe('buildSubspeciesIndex: the shared classification (FR-01, FR-02, QA-01)'
     obs('Dark-eyed Junco (Oregon)'),                    // ISSF group → form
     obs('Dark-eyed Junco (Oregon x Slate-colored)'),    // intergrade → form
     obs('Mallard (Domestic type)'),                     // domestic type → form
-    obs('Canada Goose (moffitti/maxima)'),              // eBird counts (correction) → form
+    obs('Red-tailed Hawk (Western/Northern)'),          // eBird counts (correction) → form
     obs('Mallard x American Black Duck (hybrid)'),      // hybrid (base " x ") → never
     obs("Brewster's Warbler (hybrid)"),                 // hybrid (published reject) → never
     obs('Gull sp.'),                                    // spuh → never
     obs('Greater/Lesser Scaup'),                        // slash → never
-    obs('Azuero Warbler (undescribed form)'),           // undescribed form → never
+    obs('Uluguru Thrush (undescribed form)'),           // undescribed form → never
     obs('Dark-eyed Junco'),                             // plain species-level row
     obs('American Robin'),                              // plain-only species
   ]
@@ -75,7 +75,7 @@ describe('buildSubspeciesIndex: the shared classification (FR-01, FR-02, QA-01)'
     ])
     expect([...index.get('Mallard')!.formCounts.keys()]).toEqual(['Mallard (Domestic type)'])
     // Direction A: the raw "/" does not disqualify a name eBird counts.
-    expect([...index.get('Canada Goose')!.formCounts.keys()]).toEqual(['Canada Goose (moffitti/maxima)'])
+    expect([...index.get('Red-tailed Hawk')!.formCounts.keys()]).toEqual(['Red-tailed Hawk (Western/Northern)'])
   })
 
   it('hybrids, spuhs, slashes, and undescribed forms never qualify, anywhere', () => {
@@ -87,7 +87,7 @@ describe('buildSubspeciesIndex: the shared classification (FR-01, FR-02, QA-01)'
     // They land in the ledger under their folded parent instead.
     expect(index.get("Brewster's Warbler")!.nonCountableCount).toBe(1)
     expect(index.get("Brewster's Warbler")!.formCounts.size).toBe(0)
-    expect(index.get('Azuero Warbler')!.nonCountableCount).toBe(1)
+    expect(index.get('Uluguru Thrush')!.nonCountableCount).toBe(1)
     expect(index.get('Gull sp.')!.nonCountableCount).toBe(1)
     expect(index.get('Greater/Lesser Scaup')!.nonCountableCount).toBe(1)
   })

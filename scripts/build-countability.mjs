@@ -11,30 +11,32 @@
 // distinction: ambiguity about WHICH SPECIES does not count, ambiguity about WHICH
 // SUBSPECIES counts as the parent.
 //
-// Shipping that verdict for all 17,891 published names would cost ~105 KB gzipped
+// Shipping that verdict for all 18,631 published names would cost ~108 KB gzipped
 // on the entry chunk (`lib/speciesUtils.ts` is statically reachable from App.tsx,
 // so this rides first paint). It does not have to. eBird's own NAMING CONVENTION
 // already encodes the verdict: a form whose name leaves the species in doubt
 // carries " sp.", a "/", or an " x ". Measured against the snapshot, that
-// convention reproduces eBird's verdict on 17,722 of the 17,891 published names.
+// convention reproduces eBird's verdict on 18,484 of the 18,631 published names
+// (eBird's 2026 taxonomy, snapshot "2028"; every figure below is that taxonomy's).
 //
 // So we ship the convention (`isNonCountableNameShape`, in speciesUtils.ts) plus
-// the 169 names where eBird disagrees with it. The pair is EXACTLY eBird's verdict
+// the 147 names where eBird disagrees with it. The pair is EXACTLY eBird's verdict
 // over every name eBird publishes, and `countableForms.test.ts` asserts that
 // equivalence name by name rather than leaving it as reasoning.
 //
-//   countable    88 names eBird counts that the convention would reject
+//   countable    66 names eBird counts that the convention would reject
 //                (subspecies-group slashes inside a trailing parenthetical:
-//                "Canada Goose (moffitti/maxima)", "Redpoll (Common/Hoary)")
+//                "Red-tailed Hawk (Western/Northern)", "Redpoll (Common/Hoary)")
 //   nonCountable 81 names eBird rejects that the convention would count
 //                (3 named hybrids carrying no " x " such as "Brewster's Warbler
 //                (hybrid)", 25 spuhs with a parenthetical after the " sp.", and
 //                53 undescribed or unrecognized forms, which are not two tidy
-//                suffixes but 48 "(undescribed form)", 4 "(unrecognized
-//                species)" and one "(undescribed Panay form)")
+//                suffixes but 47 "(undescribed form)", 4 "(unrecognized
+//                species)", one "(undescribed Panay form)" and one
+//                "(undescribed Buru form)")
 //
-// The 2,523 remaining non-countable names are NOT shipped: the convention already
-// rejects every one of them, so listing them would add ~19 KB gzipped to first
+// The 2,631 remaining non-countable names are NOT shipped: the convention already
+// rejects every one of them, so listing them would add ~20 KB gzipped to first
 // paint and change no answer. That is a size choice, not a semantic one, and the
 // equivalence test is what makes it safe.
 //
@@ -132,8 +134,8 @@ export function deriveCountability(bundle) {
 // Plausibility floors. A snapshot that lost its `reportAs` map would derive an
 // empty `countable` list and silently ship today's behaviour under a new name, so
 // an empty or near-empty derivation must HARD-FAIL rather than write the file.
-// Sized well below the real 88 / 81 so an ordinary annual revision never trips
-// them.
+// Sized well below the real 66 / 81 (eBird's 2026 taxonomy; 88 / 81 on the 2025
+// one) so an ordinary annual revision never trips them.
 const MIN_COUNTABLE = 20
 const MIN_NON_COUNTABLE = 20
 

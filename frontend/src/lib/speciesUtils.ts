@@ -92,7 +92,7 @@ function stripTrailingParenthetical(name: string): string {
 //   non-Latin1 keys at the length limit ~300 B/entry   ~9.4 MiB at the cap
 //
 // Both are small fixed ceilings, and neither is the guarantee. Today's real ceiling is far
-// below either: the entire bundled taxonomy is 17,891 distinct names of any category, so a
+// below either: the entire bundled taxonomy is 18,631 distinct names of any category, so a
 // user who had recorded every taxon on earth fills roughly half the entry limit, so no
 // real name is ever turned away.
 //
@@ -117,7 +117,7 @@ function stripTrailingParenthetical(name: string): string {
 // Accepted trade, the same one the over-length cache carries: admission is first-come, so
 // a later file's names can go uncached behind an earlier file's. It is cheap here because
 // an unadmitted name recomputes a scan bounded at MEMO_MAX_KEY_LENGTH characters, and no
-// real dataset reaches the limit at all — the entire bundled taxonomy is 17,891 names
+// real dataset reaches the limit at all: the entire bundled taxonomy is 18,631 names
 // against a 32,768 cap.
 //
 // Interleaved on the realistic hot path (240,000 calls over 500 distinct real names,
@@ -255,7 +255,7 @@ export function normalizeSpeciesName(name: string): string {
 //
 // Converging them onto `normalizeSpeciesName` was measured, and rejected. It changes
 // output on 10,300 of 11,111 exhaustively enumerated malformed strings (92.7%) while
-// changing 0 across the 58,104 strings in the bundled taxonomy snapshot — real names
+// changing 0 across the 59,652 strings in the bundled taxonomy snapshot: real names
 // cannot discriminate the two at all, because every eBird name is well formed (at most one
 // '(', always closed, always trailing). The direction is what settles it: this rule cuts
 // MORE, so converging makes a malformed name LESS normalized ("Mallard (" stays "Mallard ("
@@ -356,32 +356,34 @@ export const __MEMO_LIMITS_FOR_TESTS = {
 //
 // This replaced three string-shape predicates (`isSpuhOrSlash`,
 // `isNonCountableSpecies`, `isNonCountableObservedName`) that inferred the answer
-// from the name and were wrong in BOTH directions against eBird's own data:
+// from the name and were wrong in BOTH directions against eBird's own data
+// (figures for eBird's 2026 taxonomy; the 2025 taxonomy this build was measured on
+// had 88 in 59 parents in the first group, and the same 81 in the second):
 //
-//   88 names eBird counts and shape rejected, folding into 59 parent species.
+//   66 names eBird counts and shape rejected, folding into 47 parent species.
 //      Subspecies-group slashes inside a trailing parenthetical, and ordinary for
-//      a North American birder: "Canada Goose (moffitti/maxima)", "Redpoll
-//      (Common/Hoary)", "Dark-eyed Junco (Slate-colored/cismontanus)".
+//      a North American birder: "Red-tailed Hawk (Western/Northern)", "Redpoll
+//      (Common/Hoary)", "Iceland Gull (Thayer's/Kumlien's)".
 //   81 names eBird rejects and shape counted. 3 named hybrids carrying no " x "
 //      ("Brewster's Warbler (hybrid)", "Lawrence's Warbler (hybrid)", "Bogota
 //      Sunangel (hybrid)"), 25 spuhs with a parenthetical after the " sp.", and
 //      53 undescribed or unrecognized forms. That last group is not two tidy
-//      suffixes: 48 "(undescribed form)", 4 "(unrecognized species)", and one
-//      "(undescribed Panay form)".
+//      suffixes: 47 "(undescribed form)", 4 "(unrecognized species)", one
+//      "(undescribed Panay form)" and one "(undescribed Buru form)".
 //
 // The second direction had not been recorded anywhere before this build: a birder
 // holding Brewster's Warbler had it counting as a species.
 //
 // WHY THE SHAPE RULE IS STILL HERE, AND WHAT IT IS NOW FOR. It is no longer an
 // inference; it is eBird's own naming convention, and it is the FALLBACK for a
-// name eBird does not publish. Shipping a verdict for all 17,891 published names
-// costs ~105 KB gzipped, and this module is statically reachable from `App.tsx`,
-// so that rides first paint. The convention reproduces eBird's verdict on 17,722
-// of those names, so we ship the convention plus the 169 corrections (2.6 KB
+// name eBird does not publish. Shipping a verdict for all 18,631 published names
+// costs ~108 KB gzipped, and this module is statically reachable from `App.tsx`,
+// so that rides first paint. The convention reproduces eBird's verdict on 18,484
+// of those names, so we ship the convention plus the 147 corrections (2.3 KB
 // gzipped) instead. `countableForms.test.ts` asserts the pair equals the full
 // `reportAs` lookup NAME BY NAME over the whole snapshot, so the compression is
-// verified rather than argued. Listing the other 2,523 non-countable names would
-// add ~19 KB gzipped to first paint and change no answer.
+// verified rather than argued. Listing the other 2,631 non-countable names would
+// add ~20 KB gzipped to first paint and change no answer.
 //
 // The fallback is deliberately NOT "an unknown name counts". A name can arrive
 // from an older taxonomy revision or a since-renamed species, and the convention
@@ -422,9 +424,9 @@ export const EBIRD_NONCOUNTABLE_EXCEPTIONS: readonly string[] = countabilityArti
  *   "Yellow-rumped Warbler (Myrtle x Audubon's)" base does not   -> countable
  *
  * What v0.5.83 could NOT do from the name alone was tell a subspecies-group
- * slash inside a parenthetical ("Canada Goose (moffitti/maxima)", countable)
+ * slash inside a parenthetical ("Red-tailed Hawk (Western/Northern)", countable)
  * from a species-level slash ("Greater/Lesser Scaup", not countable). It said so,
- * and left the 88 names excluded pending a product decision. That decision is
+ * and left the 88 names of that taxonomy excluded pending a product decision. That decision is
  * this build, and it is answered from eBird's data rather than from the string.
  *
  * Exported for the guards only. Production code calls `isNonCountableForm`.

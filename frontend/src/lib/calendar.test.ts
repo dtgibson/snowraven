@@ -114,10 +114,10 @@ describe('buildDayCells — year view (QA-08/09/10/11)', () => {
 
   it('counts a subspecies-group slash as its parent species (report-as direction A)', () => {
     // The other direction, and the one most birders will actually notice: eBird
-    // counts "Canada Goose (moffitti/maxima)" as Canada Goose. The old string rule
+    // counts "Red-tailed Hawk (Western/Northern)" as Red-tailed Hawk. The old string rule
     // saw the "/" and excluded it.
     const cells = buildDayCells([
-      obs({ date: '2024-03-14', submissionId: 'S1', commonName: 'Canada Goose (moffitti/maxima)' }),
+      obs({ date: '2024-03-14', submissionId: 'S1', commonName: 'Red-tailed Hawk (Western/Northern)' }),
     ], view)
     expect(cells.get('2024-03-14')!.speciesCount).toBe(1)
   })

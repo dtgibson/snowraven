@@ -114,10 +114,10 @@ describe('buildCountyCompletenessLocal — X + recent-new from the backup', () =
     const local = buildCountyCompletenessLocal([
       obs({ commonName: 'American Robin', scientificName: 'Turdus migratorius' }),
       obs({ commonName: "Brewster's Warbler (hybrid)" }),        // eBird does not count it
-      obs({ commonName: 'Canada Goose (moffitti/maxima)' }),     // eBird counts it as Canada Goose
+      obs({ commonName: 'Red-tailed Hawk (Western/Northern)' }), // eBird counts it as Red-tailed Hawk
     ])
     const entry = local.get(countyKey('CA', 'Santa Clara'))!
-    expect(new Set(entry.countableNames)).toEqual(new Set(['American Robin', 'Canada Goose']))
+    expect(new Set(entry.countableNames)).toEqual(new Set(['American Robin', 'Red-tailed Hawk']))
     expect(entry.countableCount).toBe(2)
   })
 

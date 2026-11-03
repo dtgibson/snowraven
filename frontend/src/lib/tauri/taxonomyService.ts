@@ -37,7 +37,7 @@ const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 
 const DB_NAME = 'snowraven-taxonomy';
 const STORE_NAME = 'cache';
-const CACHE_KEY = 'taxonomy-v2027';   // bumped: full taxonomy + reportAs (sub-form normalization)
+const CACHE_KEY = 'taxonomy-v2028';   // bumped: full taxonomy + reportAs (sub-form normalization)
 
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {

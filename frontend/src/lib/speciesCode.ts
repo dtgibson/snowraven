@@ -10,8 +10,9 @@
 //     pattern, and `widgetPaths.parity.test.ts` compares the two as text.
 //
 // Lowercase letters, digits and a hyphen, 2 to 16 characters: every code in the
-// eBird taxonomy fits (the longest is 10), and the class cannot express a URL
-// separator, a quote or a path. Dependency-free, so it is safe on the entry
-// chunk (SpeciesLinks is statically reachable) and inside the link parser.
+// eBird taxonomy fits (the longest is 8 in eBird's 2026 taxonomy), and the class
+// cannot express a URL separator, a quote or a path. Dependency-free, so it is
+// safe on the entry chunk (SpeciesLinks is statically reachable) and inside the
+// link parser.
 
 export const SPECIES_CODE_RE = /^[a-z0-9-]{2,16}$/

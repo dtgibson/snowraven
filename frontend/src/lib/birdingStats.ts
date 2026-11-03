@@ -75,7 +75,7 @@ export function formatPeriodLabel(key: string, granularity: PeriodGranularity): 
  *
  *  `commonName` here is the RAW exported name, which is what `isNonCountableForm`
  *  wants: the form is what eBird is judging and the form only exists in the raw
- *  name. That keeps "Canada Goose (moffitti/maxima)" counting as Canada Goose and
+ *  name. That keeps "Red-tailed Hawk (Western/Northern)" counting as Red-tailed Hawk and
  *  "Brewster's Warbler (hybrid)" not counting at all. */
 export function filterObservations(rawObs: ObservationEntry[], includeSpuh: boolean): ObservationEntry[] {
   return includeSpuh ? rawObs : rawObs.filter(o => !isNonCountableForm(o.commonName))

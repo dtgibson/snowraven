@@ -36,19 +36,23 @@ beforeEach(() => {
 
 describe('the memo limits are sized off measurement, not guessed', () => {
   it('admits every real name with room to spare', () => {
-    // The longest string of ANY category in the bundled taxonomy snapshot is 63
-    // characters ("American Herring/Vega/European Herring x Glaucous Gull (hybrid)"),
-    // p99 47, p50 21. The key limit is a multiple of that measured maximum rather than
-    // the maximum itself, so a taxonomy revision that lengthens names cannot quietly
-    // push a real species onto the uncached path.
+    // The longest string of ANY category in the bundled taxonomy snapshot (eBird's 2026
+    // taxonomy) is 66 characters ("Dark-eyed Junco (Slate-colored/cismontanus/Slate-colored
+    // x Oregon)"), p99 47, p50 22. The key limit is a multiple of that measured maximum
+    // rather than the maximum itself, so a taxonomy revision that lengthens names cannot
+    // quietly push a real species onto the uncached path. The 2026 update moved the
+    // maximum from 63 to 66 and the multiple from 2.03 to 1.94; the floor below is that
+    // multiple rounded down, and if a later revision narrows it again, the limit
+    // (MEMO_MAX_KEY_LENGTH in speciesUtils.ts) is what moves, not this floor.
     expect(LIMITS.maxKeyLength).toBe(128)
-    expect(LIMITS.maxKeyLength / 63).toBeGreaterThanOrEqual(2)
+    expect(LIMITS.maxKeyLength / 66).toBeGreaterThanOrEqual(1.9)
 
-    // The snapshot holds 17,891 distinct names across all categories, so the entry
+    // The snapshot holds 18,631 distinct names across all categories, so the entry
     // limit clears the entire eBird taxonomy: a user who had recorded every taxon on
-    // earth would still evict nothing.
+    // earth would still evict nothing. The 2026 update moved the multiple from 1.83 to
+    // 1.76, and the floor below is that multiple rounded down, on the same terms.
     expect(LIMITS.maxEntries).toBe(32768)
-    expect(LIMITS.maxEntries / 17891).toBeGreaterThanOrEqual(1.8)
+    expect(LIMITS.maxEntries / 18631).toBeGreaterThanOrEqual(1.75)
   })
 
   it('bounds retention structurally, all four facts at once', () => {
@@ -530,7 +534,7 @@ describe('the guards above are not vacuous', () => {
     // state in which the design fails. It is kept for the sizing claim it does make; the
     // state it cannot reach is covered by `every bounded structure survives CAPACITY PLUS
     // ONE` below.
-    const distinct = 17891
+    const distinct = 18631
     for (let i = 0; i < distinct; i++) normalizeSpeciesName(`Gull ${i} (Domestic type)`)
     expect(__normCacheForTests().size).toBe(distinct)
     expect(distinct).toBeLessThan(LIMITS.maxEntries)

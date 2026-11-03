@@ -42,7 +42,7 @@ const OBSERVATIONS = [
     stateProvince: 'US-MN', duration: 30, distance: 1, protocol: 'Traveling', numObservers: 1,
   },
   {
-    submissionId: 'S2', commonName: 'Canada Goose (moffitti/maxima)', scientificName: 'Branta canadensis',
+    submissionId: 'S2', commonName: 'Red-tailed Hawk (Western/Northern)', scientificName: 'Buteo jamaicensis',
     date: '2023-02-15', location: 'Woods', locationId: 'L2', latitude: null, longitude: null,
     county: 'Ramsey', count: 1, breedingCode: null, speciesComments: '', catalogIds: [],
     stateProvince: 'US-MN', duration: 45, distance: 2, protocol: 'Traveling', numObservers: 1,
@@ -133,7 +133,7 @@ describe('Multimedia: Show all forms governs the rows AND the count', () => {
     // The controls: the two birds eBird counts are both present, so the absence
     // above is about countability and not about the tab failing to render.
     expect(screen.getByText('American Robin')).toBeTruthy()
-    expect(screen.getByText('Canada Goose')).toBeTruthy()
+    expect(screen.getByText('Red-tailed Hawk')).toBeTruthy()
 
     // The figure agrees with the rows. This is the number that used to disagree.
     expect(speciesFigure()).toBe('3 species')
@@ -149,14 +149,14 @@ describe('Multimedia: Show all forms governs the rows AND the count', () => {
 
   it('a subspecies-group slash counts as its parent either way (direction A)', async () => {
     // The other direction, and the one most birders notice. eBird counts
-    // "Canada Goose (moffitti/maxima)" as Canada Goose; the rule this replaced saw
+    // "Red-tailed Hawk (Western/Northern)" as Red-tailed Hawk; the rule this replaced saw
     // the "/" and dropped the row entirely with the toggle off.
     await renderReady()
-    expect(screen.getByText('Canada Goose')).toBeTruthy()
+    expect(screen.getByText('Red-tailed Hawk')).toBeTruthy()
 
     fireEvent.click(screen.getByRole('switch', { name: /Show all forms/ }))
     await waitFor(() => expect(speciesFigure()).toBe('4 species'))
-    expect(screen.getByText('Canada Goose')).toBeTruthy()
+    expect(screen.getByText('Red-tailed Hawk')).toBeTruthy()
   })
 
   it('a merged entry counts when AT LEAST ONE of its raw names counts', async () => {

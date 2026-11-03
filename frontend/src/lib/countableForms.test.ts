@@ -1,9 +1,10 @@
 // THE PROOF FOR report-as-countability.
 //
 // `isNonCountableForm` ships eBird's countability verdict in a COMPRESSED form:
-// eBird's own naming convention (`isNonCountableNameShape`) plus 169 corrections
-// in `assets/ebird-countability.json`. Shipping all 17,891 verdicts would cost
-// ~105 KB gzipped on the entry chunk; the compression costs 2.6 KB.
+// eBird's own naming convention (`isNonCountableNameShape`) plus 147 corrections
+// in `assets/ebird-countability.json`. Shipping all 18,631 verdicts would cost
+// ~108 KB gzipped on the entry chunk; the compression costs 2.3 KB (both measured
+// on eBird's 2026 taxonomy, snapshot "2028").
 //
 // A compression is only safe if it is verified rather than argued, so this file
 // re-derives eBird's verdict INDEPENDENTLY from the taxonomy snapshot (it does not
@@ -74,16 +75,16 @@ describe('the inversion the whole design rests on', () => {
   it('is lossless: every published name maps to exactly one code', () => {
     // If two codes shared a name, a name could not decide a verdict at all and the
     // predicate would have to be keyed by something else.
-    expect(Object.keys(snapshot.byCode)).toHaveLength(17_891)
-    expect(nameToCode.size).toBe(17_891)
+    expect(Object.keys(snapshot.byCode)).toHaveLength(18_631)
+    expect(nameToCode.size).toBe(18_631)
     const lowered = new Set(publishedNames.map(n => n.toLowerCase()))
-    expect(lowered.size).toBe(17_891)   // no case-only collisions either
+    expect(lowered.size).toBe(18_631)   // no case-only collisions either
   })
 
-  it('splits the published names into 15,287 countable and 2,604 not', () => {
+  it('splits the published names into 15,919 countable and 2,712 not', () => {
     const nonCountable = publishedNames.filter(n => !eBirdCounts(nameToCode.get(n)!))
-    expect(nonCountable).toHaveLength(2_604)
-    expect(publishedNames.length - nonCountable.length).toBe(15_287)
+    expect(nonCountable).toHaveLength(2_712)
+    expect(publishedNames.length - nonCountable.length).toBe(15_919)
   })
 })
 
@@ -119,54 +120,54 @@ describe('the shipped artifact matches the shipped snapshot', () => {
 // ── 2. The compression is exact ───────────────────────────────────────────────
 
 describe('the shipped predicate IS eBird\'s verdict over every published name', () => {
-  it('agrees with the full reportAs lookup on all 17,891 names', () => {
+  it('agrees with the full reportAs lookup on all 18,631 names', () => {
     // THE load-bearing assertion of this build. Everything else is detail.
     const divergences = publishedNames.filter(
       name => isNonCountableForm(name) === eBirdCounts(nameToCode.get(name)!),
     )
     expect(divergences).toEqual([])
-    expect(publishedNames).toHaveLength(17_891)   // never vacuous
+    expect(publishedNames).toHaveLength(18_631)   // never vacuous
   })
 
   it('the sweep DETECTS a compression that drops the admissions', () => {
     // Guard the guard. A sweep that reported zero divergences for everything would
     // pass the assertion above while proving nothing, so point it at a named wrong
-    // compression: one that ships only the rejections and forgets the 88 names
-    // eBird counts. It must report exactly those 88.
+    // compression: one that ships only the rejections and forgets the 66 names
+    // eBird counts. It must report exactly those 66.
     const rejects = new Set(artifact.nonCountable)
     const halfCompressed = (name: string): boolean =>
       rejects.has(name) ? true : isNonCountableNameShape(name)
     const divergences = publishedNames.filter(
       name => halfCompressed(name) === eBirdCounts(nameToCode.get(name)!),
     )
-    expect(divergences).toHaveLength(88)
+    expect(divergences).toHaveLength(66)
   })
 })
 
 // ── 3. Both directions of the delta ───────────────────────────────────────────
 
-describe('direction A: 88 names eBird counts that the shape rule rejected', () => {
+describe('direction A: 66 names eBird counts that the shape rule rejected', () => {
   const admitted = artifact.countable
 
-  it('admits 88 names folding into 59 parent species', () => {
-    expect(admitted).toHaveLength(88)
+  it('admits 66 names folding into 47 parent species', () => {
+    expect(admitted).toHaveLength(66)
     const parents = new Set(
       admitted.map(n => {
         const code = nameToCode.get(n)!
         return snapshot.reportAs[code] ?? code
       }),
     )
-    expect(parents.size).toBe(59)
+    expect(parents.size).toBe(47)
   })
 
   it('is bread-and-butter North American birding, not an edge case', () => {
     for (const name of [
-      'Canada Goose (moffitti/maxima)',
+      'Red-tailed Hawk (Western/Northern)',
       'Redpoll (Common/Hoary)',
-      'Dark-eyed Junco (Slate-colored/cismontanus)',
-      'Iceland Gull (thayeri/kumlieni)',
-      'Red-tailed Hawk (calurus/abieticola)',
-      'Song Sparrow (melodia/atlantica)',
+      'Dark-eyed Junco (Slate-colored/cismontanus/Slate-colored x Oregon)',
+      "Iceland Gull (Thayer's/Kumlien's)",
+      'Common Grackle (Florida/Purple)',
+      'Dunlin (pacifica/arcticola)',
     ]) {
       expect(admitted).toContain(name)
       expect(isNonCountableNameShape(name)).toBe(true)   // the old rule excluded it
@@ -228,14 +229,18 @@ describe('direction B: 81 names the shape rule counted that eBird does not', () 
   })
 })
 
-// ── 4. The 37-versus-36 loose end ─────────────────────────────────────────────
+// ── 4. The 39-versus-38 loose end ─────────────────────────────────────────────
 
-describe('the 37-versus-36 reconciliation', () => {
-  // Two numbers in the record that look like they disagree and do not. 37 is the
-  // count of published names containing " x " that eBird counts. 36 is what
-  // v0.5.86's parser convergence actually rescued, into 26 parent species. This
+describe('the 39-versus-38 reconciliation', () => {
+  // Two numbers that look like they disagree and do not. 39 is the count of
+  // published names containing " x " that eBird counts. 38 is what v0.5.86's
+  // parser convergence rescues on the same snapshot, into 27 parent species. This
   // pins the gap to the single name that explains it, so neither figure has to be
-  // corrected and the discrepancy cannot be rediscovered as a defect.
+  // corrected and the discrepancy cannot be rediscovered as a defect. The record
+  // quotes 37, 36 and 26, measured on eBird's 2025 taxonomy, whose gap was
+  // "Common Tern (hirundo/tibetana x longipennis)"; the 2026 update renamed it
+  // "Common Tern (Common x Siberian)", which carries no slash and so joined the
+  // rescued names.
   const withX = publishedNames.filter(n => n.includes(' x '))
   const countableWithX = withX.filter(n => eBirdCounts(nameToCode.get(n)!))
   // v0.5.86 relaxed the " x " half ONLY: a parenthetical " x " whose raw name is
@@ -245,26 +250,26 @@ describe('the 37-versus-36 reconciliation', () => {
   )
 
   it('reconciles to exactly one name, and names it', () => {
-    expect(countableWithX).toHaveLength(37)
-    expect(rescuedByV0586).toHaveLength(36)
+    expect(countableWithX).toHaveLength(39)
+    expect(rescuedByV0586).toHaveLength(38)
     const gap = countableWithX.filter(n => !rescuedByV0586.includes(n))
-    expect(gap).toEqual(['Common Tern (hirundo/tibetana x longipennis)'])
+    expect(gap).toEqual(['Dark-eyed Junco (Slate-colored/cismontanus/Slate-colored x Oregon)'])
   })
 
-  it('explains the gap: a slash inside the parenthetical kept it out of the 36', () => {
-    const gap = 'Common Tern (hirundo/tibetana x longipennis)'
+  it('explains the gap: a slash inside the parenthetical kept it out of the 38', () => {
+    const gap = 'Dark-eyed Junco (Slate-colored/cismontanus/Slate-colored x Oregon)'
     expect(gap.includes('/')).toBe(true)              // the slash half still excluded it
     expect(isNonCountableNameShape(gap)).toBe(true)   // so v0.5.86 never rescued it
     expect(isNonCountableForm(gap)).toBe(false)       // and THIS build is what admits it
     expect(artifact.countable).toContain(gap)         // i.e. it sits inside direction A
   })
 
-  it('keeps all 36 of the v0.5.86 intergrades countable', () => {
+  it('keeps all 38 of the v0.5.86 intergrades countable', () => {
     // v0.5.83 warned that collapsing the raw/normalized predicate pair is a silent
     // data-loss bug. This is what discharges the warning: the names it protected
     // are still counted after the collapse, swept rather than spot-checked.
     for (const name of rescuedByV0586) expect(isNonCountableForm(name)).toBe(false)
-    expect(new Set(rescuedByV0586.map(truncateAtFirstParen)).size).toBe(26)
+    expect(new Set(rescuedByV0586.map(truncateAtFirstParen)).size).toBe(27)
   })
 })
 
@@ -290,8 +295,8 @@ describe('a name eBird does not publish falls back to the naming convention', ()
   })
 
   it('behaves EXACTLY as the pre-change rule did for every unpublished name', () => {
-    // The bounded-delta promise: this build changes nothing outside the 17,891
-    // names eBird publishes. `isNonCountableNameShape` is byte-identical to the
+    // The bounded-delta promise: this build changes nothing outside the names
+    // eBird publishes. `isNonCountableNameShape` is byte-identical to the
     // predicate that shipped before it, so agreement here is that promise.
     for (const name of ['Fakebird sp.', 'Cattle Egret', "Fake Warbler (Myrtle x Audubon's)"]) {
       expect(isNonCountableForm(name)).toBe(isNonCountableNameShape(name))
@@ -337,7 +342,7 @@ describe('the question real data structurally cannot answer (the probe set)', ()
   it('scores ZERO divergences across every real published name', () => {
     const divergences = publishedNames.filter(n => isNonCountableNameShape(n) !== wrongShapeRule(n))
     expect(divergences).toEqual([])
-    expect(publishedNames).toHaveLength(17_891)
+    expect(publishedNames).toHaveLength(18_631)
   })
 
   it('and the probes DO discriminate, so the guard above is not the whole story', () => {

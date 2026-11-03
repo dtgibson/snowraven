@@ -23,11 +23,12 @@ const commonNames = [...new Set(Object.values(snapshot.byCode))]
 // assertions below red, not merely change an implementation-detail assertion.
 //
 // The figures moved with report-as-countability and the reason is worth stating, since a
-// reader arriving at 124 will look for the 36 this file was built around. 124 = the 36
-// parenthetical intergrades v0.5.86 rescued, PLUS the 88 subspecies-group slashes eBird
-// counts that no string rule could admit ("Canada Goose (moffitti/maxima)"). The second
-// group is new; the first is unchanged, and `rescuesTheV0586Intergrades` below pins it
-// separately so the two cannot be conflated by a future edit.
+// reader arriving at 104 will look for the 36 this file was built around. 104 = the 38
+// parenthetical intergrades the v0.5.86 rule rescues, PLUS the 66 subspecies-group slashes
+// eBird counts that no string rule could admit ("Red-tailed Hawk (Western/Northern)"). The
+// second group is new; the first is the v0.5.86 set, and `v0586Intergrades` below pins it
+// separately so the two cannot be conflated by a future edit. Measured on eBird's 2026
+// taxonomy; on the 2025 taxonomy, which the record quotes, they were 124 = 36 + 88.
 //
 // `newlyExcluded` moved from 0 to 81, and that is a real behaviour change rather than
 // drift: those are names eBird does not count and the old string rule did.
@@ -77,7 +78,7 @@ describe('CSV parser countable-intergrade filter', () => {
     //    name carries no " x " at all, so no shape rule can see it).
     const kept = [
       "Yellow-rumped Warbler (Myrtle x Audubon's)",   // v0.5.86 intergrade, still countable
-      'Canada Goose (moffitti/maxima)',               // direction A: eBird counts it
+      'Red-tailed Hawk (Western/Northern)',           // direction A: eBird counts it
     ]
     const excluded = [
       'Mallard x American Black Duck (hybrid)',       // a true interspecies hybrid
@@ -85,7 +86,7 @@ describe('CSV parser countable-intergrade filter', () => {
       "Brewster's Warbler (hybrid)",                  // direction B: eBird does not count it
     ]
     const names = [...kept, ...excluded]
-    const keptBases = ['Yellow-rumped Warbler', 'Canada Goose']
+    const keptBases = ['Yellow-rumped Warbler', 'Red-tailed Hawk']
 
     const ebird = [
       'Submission ID,Common Name',
@@ -119,12 +120,12 @@ describe('CSV parser countable-intergrade filter', () => {
     expect(deriveBreedingData(breeding.observations, breeding.csv)).toEqual(direct)
   })
 
-  it('pins 124 rescued rows, 81 newly excluded names, and 79 parser entries', () => {
-    expect(commonNames).toHaveLength(17_891)
-    expect(rescuedIntergrades).toHaveLength(124)
-    expect(v0586Intergrades).toHaveLength(36)
+  it('pins 104 rescued rows, 81 newly excluded names, and 68 parser entries', () => {
+    expect(commonNames).toHaveLength(18_631)
+    expect(rescuedIntergrades).toHaveLength(104)
+    expect(v0586Intergrades).toHaveLength(38)
     expect(newlyExcluded).toHaveLength(81)
-    expect(rescuedBaseNames.size).toBe(79)
+    expect(rescuedBaseNames.size).toBe(68)
 
     const ebird = [
       'Submission ID,Common Name',
@@ -140,7 +141,7 @@ describe('CSV parser countable-intergrade filter', () => {
     ].join('\n')
     const lifeEntries = parseLifeList(lifeList)
     expect(new Set(lifeEntries.map(entry => entry.commonName))).toEqual(rescuedBaseNames)
-    expect(lifeEntries.flatMap(entry => entry.catalogIds)).toHaveLength(124)
+    expect(lifeEntries.flatMap(entry => entry.catalogIds)).toHaveLength(104)
 
     const ml = [
       'Catalog Number,Common Name,Scientific Name,Format',
@@ -150,16 +151,16 @@ describe('CSV parser countable-intergrade filter', () => {
     ].join('\n')
     const mlResult = parseMLExport(ml)
     expect(new Set(mlResult.entries.map(entry => entry.commonName))).toEqual(rescuedBaseNames)
-    expect(mlResult.entries).toHaveLength(79)
-    expect(mlResult.rows).toHaveLength(124)
-    expect(Object.keys(mlResult.mediaMap)).toHaveLength(124)
+    expect(mlResult.entries).toHaveLength(68)
+    expect(mlResult.rows).toHaveLength(104)
+    expect(Object.keys(mlResult.mediaMap)).toHaveLength(104)
 
     const breeding = breedingFixture(rescuedIntergrades)
     const direct = parseBreedingCodes(breeding.csv)
     const derived = deriveBreedingData(breeding.observations, breeding.csv)
     expect(new Set(direct.entries.map(entry => entry.commonName))).toEqual(rescuedBaseNames)
-    expect(direct.entries).toHaveLength(79)
-    expect(direct.rows).toHaveLength(124)
+    expect(direct.entries).toHaveLength(68)
+    expect(direct.rows).toHaveLength(104)
     expect(derived).toEqual(direct)
   })
 })

@@ -143,7 +143,7 @@ describe('the shared probe alphabet survived being written down', () => {
   it('enumerates the expected universe', () => {
     expect(probes.length).toBe(probeCount(SPECIES_NAME_ALPHABET.length, SPECIES_NAME_PROBE_LEN))
     expect(probes.length).toBe(11111)
-    expect(snapshotStrings.length).toBe(58104)
+    expect(snapshotStrings.length).toBe(59652)
   })
 
   // BEHAVIOURAL BACKSTOPS. The code-point assertion above inspects the constant, and for a

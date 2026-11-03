@@ -53,13 +53,14 @@
 //   # or, if your node is <20.6 (no --env-file): export EBIRD_API_KEY=... first.
 //
 // VERSION: a cache counter, not a taxonomy year. It is the desktop CACHE_KEY
-// suffix in taxonomyService.ts (taxonomy-v2027 => "2027"), and the two move
+// suffix in taxonomyService.ts (taxonomy-v2028 => "2028"), and the two move
 // together, by one, at each annual revision. The key went from taxonomy-v2025 to
 // taxonomy-v2027 at 0.5.14 for a change of cache shape, before any snapshot
-// existed, and the snapshot arrived at 0.5.45 stamped "2027" to match; it holds
-// eBird's 2025 taxonomy. The 2026 ingest bumps both to "2028". The web/Pi backend
-// saves each live fetch under this version, so its offline floor can tell a
-// saved copy from an older snapshot's (backend/routers/taxonomy.py). The steps
+// existed, and the snapshot arrived at 0.5.45 stamped "2027" to match; it held
+// eBird's 2025 taxonomy. The 2026 ingest bumped both to "2028", which holds
+// eBird's 2026 taxonomy, and the 2027 ingest bumps both to "2029". The web/Pi
+// backend saves each live fetch under this version, so its offline floor can
+// tell a saved copy from an older snapshot's (backend/routers/taxonomy.py). The steps
 // are in scripts/taxonomy-history-input/README.md and .claude/rules/bird-names.md.
 //
 // THE ANNUAL REVISION ALSO RE-RUNS THE SPLITS-AND-LUMPS HISTORY
@@ -81,8 +82,8 @@ const HERE = dirname(fileURLToPath(import.meta.url))
 const REPO = join(HERE, '..')
 
 // The snapshot's cache counter (see VERSION above, not a taxonomy year); MUST
-// match the CACHE_KEY suffix in taxonomyService.ts (currently "taxonomy-v2027").
-const VERSION = '2027'
+// match the CACHE_KEY suffix in taxonomyService.ts (currently "taxonomy-v2028").
+const VERSION = '2028'
 
 // `generated` provenance stamp. This is a build SCRIPT (node), not app render code,
 // so a plain new Date() is fine here (the eslint react-hooks/purity rule is for the
@@ -98,8 +99,8 @@ const ALPHA_CODES_TARGET = join(REPO, 'frontend/src/assets/ebird-alpha-codes.jso
 
 // Plausibility floors — a truncated/partial fetch must HARD-FAIL the build, never
 // silently ship a degraded snapshot (a truncated floor blanks favicons for ALL
-// users until the next release). Real numbers on eBird's 2025 taxonomy (snapshot
-// "2027"): ~17.9k byCode, ~11.2k each bySci/byCom/byOrder, ~4.1k reportAs. These
+// users until the next release). Real numbers on eBird's 2026 taxonomy (snapshot
+// "2028"): ~18.6k byCode, ~11.2k each bySci/byCom/byOrder, ~4.7k reportAs. These
 // floors sit well below the real values.
 const MIN_BY_CODE = 10_000
 const MIN_REPORT_AS = 1_000
@@ -190,8 +191,8 @@ async function run() {
   // artifact is derived from the bundle in the SAME run, so the two can never
   // drift across an annual Clements revision. It is what `lib/speciesUtils.ts`
   // reads to decide what counts toward a species list; see
-  // `build-countability.mjs` for what it contains and why it is only the 169
-  // corrections rather than all 17,891 verdicts.
+  // `build-countability.mjs` for what it contains and why it is only the 147
+  // corrections rather than all 18,631 verdicts.
   const writes = []
   if (plan.mode === 'all') {
     const json = JSON.stringify(plan.bundle)

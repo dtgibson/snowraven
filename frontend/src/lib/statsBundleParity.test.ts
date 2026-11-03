@@ -58,7 +58,7 @@ const FIXTURE: ObservationEntry[] = [
 
   // consecutive day, so there is a streak to find
   obs({ submissionId: 'S2', commonName: 'American Robin', date: '2023-04-03', count: null, duration: 200, distance: 6, numObservers: 3, location: 'Two', locationId: 'L2', latitude: 45.1, longitude: -93.9 }),
-  obs({ submissionId: 'S2', commonName: 'Canada Goose (moffitti/maxima)', date: '2023-04-03', count: 30, location: 'Two', locationId: 'L2' }),
+  obs({ submissionId: 'S2', commonName: 'Red-tailed Hawk (Western/Northern)', date: '2023-04-03', count: 30, location: 'Two', locationId: 'L2' }),
 
   // a same-named county in ANOTHER state, which must stay a distinct row
   obs({ submissionId: 'S3', commonName: 'Northern Cardinal', date: '2023-07-14', county: 'Hennepin', stateProvince: 'US-ND', location: 'Three', locationId: 'L3', duration: 1500, protocol: 'Stationary', allObsReported: false }),

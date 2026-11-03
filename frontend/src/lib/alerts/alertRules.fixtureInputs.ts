@@ -376,7 +376,7 @@ export const RESOLVE_CASES: { name: string; inputs: {
 export const COUNTABILITY_SHAPES: string[] = [
   'gull sp.', 'Greater/Lesser Scaup', 'Mallard x American Black Duck (hybrid)',
   "Yellow-rumped Warbler (Myrtle x Audubon's)", 'Domestic goose sp. (Domestic type)', 'Ruff', "Rüppell's Warbler",
-  'Canada Goose (moffitti/maxima)', 'Brewster\'s Warbler (hybrid)', 'sp.', ' sp.', 'x', ' x ', 'a x b', 'a x b (c)', '(a x b)',
+  'Red-tailed Hawk (Western/Northern)', 'Brewster\'s Warbler (hybrid)', 'sp.', ' sp.', 'x', ' x ', 'a x b', 'a x b (c)', '(a x b)',
   'Gull sp. ', 'gull sp.\n', 'Accipitrine hawk sp. (former Accipiter sp.)', '',
 ]
 

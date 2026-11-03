@@ -161,7 +161,7 @@ export const HOSTILE_LEN = 40000
  * Shared rather than copied for one specific reason. Real eBird names cannot
  * discriminate a correct implementation from a wrong one here - every one is
  * well formed (at most one "(", always closed, always trailing), so the wrong
- * implementations score ZERO divergences across all 58,104 snapshot strings.
+ * implementations score ZERO divergences across all 59,652 snapshot strings.
  * The probe set is the entire discriminating power of both suites, and a
  * second copy is a second thing that can silently weaken. The exotic members
  * are written as `\uXXXX` escapes because during improve:

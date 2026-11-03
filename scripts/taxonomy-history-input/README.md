@@ -31,12 +31,12 @@ TODAY's common names (measured 2026-09-30: 813 names differ for 2023 and 229 for
 2024). A before-side entry must carry the name an export made before the update
 carries, which only the year's own file has.
 
-## The files behind the committed asset (coverage 2019 to 2025)
+## The files behind the committed asset (coverage 2019 to 2026)
 
-The asset covers eBird's 2019, 2021, 2022, 2023, 2024 and 2025 updates (eBird
-released no 2020 update, so 2021's previous update is 2019), which takes 14
-files: the integrated checklist and the taxonomy for each of 2018 (the update
-before 2019, read as the previous year only) and 2019 to 2025.
+The asset covers eBird's 2019, 2021, 2022, 2023, 2024, 2025 and 2026 updates
+(eBird released no 2020 update, so 2021's previous update is 2019), which takes
+16 files: the integrated checklist and the taxonomy for each of 2018 (the update
+before 2019, read as the previous year only) and 2019 to 2026.
 
 | File | Source | Changed before use |
 |---|---|---|
@@ -47,9 +47,11 @@ before 2019, read as the previous year only) and 2019 to 2025.
 | `clements-integrated-v2023.csv` | `eBird-Clements-v2023-integrated-checklist-October-2023.csv` | none |
 | `clements-integrated-v2024.csv` | `eBird-Clements-v2024-integrated-checklist-October-2024-rev.csv` | none |
 | `clements-integrated-v2025.csv` | `eBird-Clements_v2025-integrated-checklist-October-2025.csv` | none |
+| `clements-integrated-v2026.csv` | `eBird-Clements_v2026_integrated-checklist-October-2026.csv` | none (UTF-8 with a byte-order mark, as Cornell ships it). |
 | `ebird-taxonomy-v2018.csv` | `eBird_Taxonomy_v2018_14Aug2018.csv` | Mac Roman to UTF-8; its CR line endings are kept, because the generator's parser reads them. |
 | `ebird-taxonomy-v2019.csv` to `ebird-taxonomy-v2024.csv` | Cornell's `eBird_Taxonomy_v2019.csv`, `eBird_Taxonomy_v2021.csv`, `ebird_taxonomy_v2022.csv`, `ebird_taxonomy_v2023.csv` and `eBird_taxonomy_v2024.csv` | none |
 | `ebird-taxonomy-v2025.csv` | `eBird_taxonomy_v2025.csv` | Gunzipped: the archived capture was stored gzip-compressed. |
+| `ebird-taxonomy-v2026.csv` | `eBird_Taxonomy_v2026-october-2026.csv` | none (UTF-8 with a byte-order mark and CRLF line endings, as Cornell ships it; its header row is lowercase, which the column matching reads as is). |
 
 **The 2019 integrated file cannot stand in for itself.** Cornell's 2019
 integrated CSV and XLSX carry only the code, taxon order, category, names,
@@ -67,9 +69,15 @@ capture is gunzipped. Check a conversion by eye on an accented name before
 running the generator: a wrong code page yields plausible wrong letters, which
 no U+FFFD check can see.
 
-**Where they came from.** Every file above is a Wayback Machine capture of
-Cornell's own upload, fetched raw with
-`https://web.archive.org/web/<timestamp>id_/<Cornell upload URL>`. The
+**Where they came from.** Every file for 2018 to 2025 is a Wayback Machine
+capture of Cornell's own upload, fetched raw with
+`https://web.archive.org/web/<timestamp>id_/<Cornell upload URL>`. The two 2026
+files were downloaded from Cornell's site in a browser for the 2026 refresh and
+used unchanged, so `originals/` holds nothing for them. Their sha256:
+`ebird-taxonomy-v2026.csv`
+`dcabf48e85abb2494e80780258a21da0c6ec0425fbe0577a7cbb5e0e61b9c4ab`,
+`clements-integrated-v2026.csv`
+`ca63a4c93fe20f1ea6d073e6ff929c3d1f0b0ed7592839ecfce1ef296237a331`. The
 `originals/` subfolder (ignored by the generator) keeps the captured bytes of
 each file that was changed before use, with `SOURCES.md` giving each file's
 capture timestamp and the change applied, and the sources of the three
@@ -80,8 +88,9 @@ section is the tracked record of where each file came from.
 eBird's announced tallies for these years (species gained through splits,
 species lost through lumps): 2019 106 / 20 (Cornell's "Overview August 2019"),
 2021 94 / 8 and 2022 118 / 41 (eBird's announcements), beside 2023 124 / 16,
-2024 141 / 16 and 2025 40 / 18. They are on the `announced` field of each
-year's `UPDATE_PUBLISHED` row.
+2024 141 / 16, 2025 40 / 18 and 2026 39 / 7 (eBird's "2026 Taxonomy Update",
+https://ebird.org/news/2026-taxonomy-update). They are on the `announced`
+field of each year's `UPDATE_PUBLISHED` row.
 
 ## The annual refresh, in order
 
@@ -235,3 +244,16 @@ year is not covered, and the run stops saying which file lacks which column
 in `frontend/src/lib/taxonomyHistoryGenerator.test.ts` for the new spelling.
 The tally in step 5 is the check that a widened matcher still reads the year
 correctly.
+
+What 2026 actually changed (measured 2026-11-03): the eBird taxonomy file's
+header became lowercase (`species_code`, `primary_com_name`, ...), which the
+case-insensitive matching reads as is, and the integrated checklist kept every
+column the generator needs. Its two newly described species carry `species
+ratified` rather than `new species`; neither carries `split`, so neither can be
+read as a split daughter and the tally reproduced with no matcher change. A
+future row carrying both `split` and `species ratified` would be counted as a
+daughter, and the tally check would then stop the run. Separately, eBird renamed
+most Latin-epithet subspecies-group slash names to English group names
+(`Red-tailed Hawk (calurus/abieticola)` is now `Red-tailed Hawk
+(Western/Northern)`, same code), which moves the countability figures in step
+6 and the test fixtures that used a renamed name as their example.
