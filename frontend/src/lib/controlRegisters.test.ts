@@ -399,7 +399,7 @@ describe('the clamp repair and the label floor reached their call sites', () => 
     }
   })
 
-  it('opts each of the 30 paired labels in, and no unpaired one', () => {
+  it('opts each of the 31 paired labels in, and no unpaired one', () => {
     // The boundary the spec draws, and the reason it is a boundary: a label with
     // no floored control beside it is not broken, it renders exactly as designed,
     // so flooring its register globally would enlarge labels across two dozen
@@ -417,6 +417,9 @@ describe('the clamp repair and the label floor reached their call sites', () => 
     // 25 -> 30 at targets-tab: the Targets controls card is a `.sr-ctl-row`
     // filter block, and its five uppercase row labels (County, Show, Sort, Last
     // report, Distance) each sit beside a floored control.
+    //
+    // 30 -> 31 at life-lists-tab: the Life Lists control strip is a `.sr-ctl-row`
+    // block, and its uppercase MEDIA label sits beside the three floored pills.
     const counts = new Map<string, number>()
     for (const file of sources) {
       // Counted as a class TOKEN anywhere in the file's code, not through one
@@ -437,6 +440,7 @@ describe('the clamp repair and the label floor reached their call sites', () => 
       'components/ui/DateRangeFields.tsx': 2,           // the From and To words inside the date pair
       'components/targets/Targets.tsx': 1,              // County, beside the county picker
       'components/targets/TargetsControls.tsx': 4,      // Show, Sort, Last report, Distance
+      'components/lifeLists/LifeListsControls.tsx': 1,  // MEDIA, beside the three media pills
     })
     // The opt-in prop, counted where it is PASSED rather than where it is read.
     const mapExplorer = sources.find(f => f.name === 'components/MapExplorer.tsx')!

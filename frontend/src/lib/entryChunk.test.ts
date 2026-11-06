@@ -1002,6 +1002,43 @@ describe('entry-chunk exclusion (NFR-03 / QA-30)', () => {
     expect(appSrc).toContain('void importTargets()')
   })
 
+  // ── The Life Lists tab (life-lists-tab NFR-06, QA-50). Lazy like every tab:
+  // only its registry entries in lib/tabLayout.ts and lib/tabIcons.tsx ride the
+  // entry chunk. The negatives, then the positive leg proving the tab's own
+  // subtree really does reach what they exclude (testing.md v1.0.23).
+  const LIFE_LISTS_OFF_ENTRY = [
+    'components/lifeLists/LifeListsTab.tsx',
+    'components/lifeLists/LifeListsControls.tsx',
+    'components/lifeLists/LifeListsRows.tsx',
+    'lib/lifeLists.ts',
+    'lib/lifeListsCopy.ts',
+    'lib/lifeListsProvenance.ts',
+  ]
+
+  it.each(LIFE_LISTS_OFF_ENTRY)('%s is off the App static closure (life-lists-tab)', file => {
+    expect(has(file)).toBe(false)
+  })
+
+  it('the Life Lists subtree reaches its derivation, copy and passive reader, and no map or chart library', () => {
+    const sub = closureFrom(resolve(SRC, 'components/lifeLists/LifeListsTab.tsx'))
+    for (const file of LIFE_LISTS_OFF_ENTRY) {
+      expect(hasIn(sub.files, file), `Life Lists must reach ${file}`).toBe(true)
+    }
+    expect(maplibreIn(sub.externals)).toEqual([])
+    expect([...sub.externals].filter(s => s === 'recharts' || s.startsWith('recharts/'))).toEqual([])
+    // The pager is shared, not new weight: its body was extracted from
+    // weatherBacklog.ts, which the Weather tab already puts on the entry graph,
+    // so it is reached both ways and the entry chunk carries it as before.
+    expect(hasIn(sub.files, 'lib/pageList.ts')).toBe(true)
+    expect(has('lib/weatherBacklog.ts')).toBe(true)
+    expect(has('lib/pageList.ts')).toBe(true)
+    // The registry entries are the tab's only entry-chunk footprint.
+    expect(has('lib/tabLayout.ts')).toBe(true)
+    expect(has('lib/tabIcons.tsx')).toBe(true)
+    const appSrc = readFileSync(APP, 'utf8')
+    expect(appSrc).toContain("import('./components/lifeLists/LifeListsTab')")
+  })
+
   it('the refusal registry stays on the entry graph without dragging the bar-chart parser onto it', () => {
     // uploadGuard.ts is on App's graph through Settings.tsx, and it now owns the
     // bar-chart filename rules too. It takes the parser's outcome TYPE only

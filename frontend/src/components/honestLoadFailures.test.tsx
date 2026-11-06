@@ -178,6 +178,7 @@ import { ListComparer } from './ListComparer'
 import { WeatherBacklog } from './WeatherBacklog'
 import { CommandPalette } from './CommandPalette'
 import { Targets } from './targets/Targets'
+import { LifeListsTab } from './lifeLists/LifeListsTab'
 import { PALETTE_COPY } from '../lib/paletteCopy'
 import type { PaletteNavItem } from '../lib/paletteRows'
 import {
@@ -308,6 +309,7 @@ const EBIRD_MESSAGE_TABS: {
     ),
   },
   { name: 'Targets',       files: EBIRD_ONLY, element: <Targets {...settingsProps} filesVersion={0} />,              setupTitle: /eBird Backup Required/, stepsMarker: EBIRD_STEPS_MARKER },
+  { name: 'Life Lists',    files: EBIRD_ONLY, element: <LifeListsTab {...settingsProps} />,                         setupTitle: /eBird Backup Required/, stepsMarker: EBIRD_STEPS_MARKER },
   // Multimedia gates on the ML export, so it needs BOTH files stored before a
   // failed eBird load can reach its error phase.
   { name: 'Multimedia',    files: BOTH_FILES, element: <LifeList {...settingsProps} filesVersion={0} />, setupTitle: /Macaulay Library Export Required/, stepsMarker: ML_STEPS_MARKER },

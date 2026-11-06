@@ -16,6 +16,12 @@
 // those files ("No bar-chart files are saved on this server."). The web entry
 // was edited for that string alone; Windows and Mac are as captured.
 //
+// AND ONE TAB-LAYOUT ROW HAS JOINED, ON PURPOSE (life-lists-tab): the Settings
+// tab-layout list draws every tab in DEFAULT_TAB_ORDER, so each platform's
+// markup gained exactly the Life Lists row, after Checklists. The entries were
+// re-captured and diffed against the previous fixture first: one insertion per
+// platform, naming Life Lists and no other tab, everything else byte-identical.
+//
 // On these three platforms the gate is false, so the section and its lazy
 // chunk are never reached; the section's own iOS rendering is covered by
 // AlertsSection.test.tsx and settingsSectionOrder.test.tsx.

@@ -10,6 +10,7 @@ export type ConfigurableTab =
   | 'checklists'
   | 'comparer'
   | 'targets'
+  | 'life-lists'
 
 export const DEFAULT_TAB_ORDER: ConfigurableTab[] = [
   'weather',
@@ -21,20 +22,21 @@ export const DEFAULT_TAB_ORDER: ConfigurableTab[] = [
   'life-list',
   'breeding-codes',
   'checklists',
+  'life-lists',
   'comparer',
   'named-birds',
 ]
 
 /**
- * The default order as it shipped from 1.0.19 until Targets arrived (Map
- * Explorer third, Calendar fifth, no Targets). It exists for ONE equality in
- * parseLayout: a saved order that is this list element-for-element was never
- * reordered by the user (Restore defaults, or a hide/show with no drag, writes
- * the default back verbatim), so it carries no order preference and reads as
- * the current default, which puts Targets after Calendar rather than last. The
+ * The default order as it shipped from 1.0.38 until Life Lists arrived (Targets
+ * after Calendar, no Life Lists). It exists for ONE equality in parseLayout: a
+ * saved order that is this list element-for-element was never reordered by the
+ * user (Restore defaults, or a hide/show with no drag, writes the default back
+ * verbatim), so it carries no order preference and reads as the current
+ * default, which puts Life Lists directly after Checklists rather than last. The
  * tab layout is device-local and never synced, so without this step the new
  * default would reach fresh installs only. Exactly ONE generation migrates
- * (CLAUDE.md, v1.0.19): the 1.0.18 order this constant used to hold is retired,
+ * (CLAUDE.md, v1.0.19): the 1.0.19 order this constant used to hold is retired,
  * because chaining generations turns the one equality back into a heuristic.
  * Not a default for anything; do not read it as one.
  */
@@ -44,6 +46,7 @@ export const PREVIOUS_DEFAULT_TAB_ORDER: readonly ConfigurableTab[] = [
   'map-explorer',
   'species-detail',
   'calendar',
+  'targets',
   'life-list',
   'breeding-codes',
   'checklists',
@@ -63,6 +66,7 @@ export const TAB_LABELS: Record<ConfigurableTab, string> = {
   'checklists':     'Checklists',
   'comparer':       'List Comparer',
   'targets':        'Targets',
+  'life-lists':     'Life Lists',
 }
 
 export type Tab = ConfigurableTab | 'settings'

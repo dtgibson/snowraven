@@ -68,9 +68,9 @@ describe('the cap applies after ranking (FR-14)', () => {
 })
 
 describe('destinations still lead (FR-15, QA-22)', () => {
-  it('`list` lists Checklists and List Comparer first, in the saved order, then Little Stint', () => {
+  it('`list` lists Checklists, Life Lists and List Comparer first, in the saved order, then Little Stint', () => {
     const r = searchRows(TABLE, ['Least Sandpiper', 'Little Stint'], 'list')
-    expect(r.rows.slice(0, r.destinationCount).map(row => (row.kind === 'tab' ? row.label : ''))).toEqual(['Checklists', 'List Comparer'])
+    expect(r.rows.slice(0, r.destinationCount).map(row => (row.kind === 'tab' ? row.label : ''))).toEqual(['Checklists', 'Life Lists', 'List Comparer'])
     expect(speciesOf(r)).toEqual(['Little Stint'])
     // Enter with nothing highlighted takes rows[0], the first destination.
     expect(r.rows[0]).toMatchObject({ kind: 'tab', id: 'checklists' })

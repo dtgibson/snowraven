@@ -60,14 +60,14 @@ describe('in-app Help TOC ↔ docs/HELP.md parity', () => {
     expect(tocTopLevel.map(t => t.id)).toEqual(mdSections.map(textToId))
   })
 
-  it('covers all 18 sections, including the three that were unreachable before v0.5.75', () => {
+  it('covers all 19 sections, including the three that were unreachable before v0.5.75', () => {
     // 16 until the command palette added Search after Getting Started, 17 until
     // targets-tab added Targets between Calendar and Map Explorer. The count
     // is asserted rather than derived so that ADDING a section is a deliberate,
     // reviewable act: the parity test above would happily accept a section that
     // was added to both sides by accident.
-    expect(mdSections).toHaveLength(18)
-    expect(tocTopLevel).toHaveLength(18)
+    expect(mdSections).toHaveLength(19)
+    expect(tocTopLevel).toHaveLength(19)
     for (const label of ['Calendar', 'Using SnowRaven offline', 'Updating SnowRaven', 'Search', 'Targets']) {
       expect(tocTopLevel.map(t => t.label)).toContain(label)
     }

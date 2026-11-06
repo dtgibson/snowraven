@@ -24,7 +24,7 @@
 // Entry-chunk safety: this file imports `react` types and `lucide-react` only,
 // both of which App.tsx already carries. entryChunk.test.ts is the live guard.
 
-import { BookOpen, BarChart2, Images, Dna, Tag, ClipboardList, CalendarDays, Target } from 'lucide-react'
+import { BookOpen, BarChart2, Images, Dna, Tag, ClipboardList, CalendarDays, Target, ListChecks } from 'lucide-react'
 import type { Tab } from './tabLayout'
 
 export interface TabIconProps {
@@ -88,6 +88,12 @@ export const TAB_ICONS: Record<Tab, TabIcon> = {
   // and distinct in the rail from the Map Explorer's LocateFixed reticle.
   'targets': ({ size, strokeWidth }) => (
     <Target size={size} strokeWidth={strokeWidth} aria-hidden="true" />
+  ),
+  // Life Lists. lucide `ListChecks` (a list with check marks): used nowhere
+  // else in the app, distinct in the rail from Checklists' `ClipboardList` and
+  // Multimedia's `Images`.
+  'life-lists': ({ size, strokeWidth }) => (
+    <ListChecks size={size} strokeWidth={strokeWidth} aria-hidden="true" />
   ),
   'comparer': ({ size, strokeWidth }) => (
     <svg {...svgProps(size, strokeWidth)}>

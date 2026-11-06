@@ -72,6 +72,9 @@ const importCalendar = () => import('./components/Calendar')
 // The Targets tab (targets-tab): lazy like the tabs above, so its parser, its
 // day cache and its county picker ride their own chunk (entryChunk.test.ts).
 const importTargets = () => import('./components/targets/Targets')
+// The Life Lists tab (life-lists-tab): lazy, so its derivation, copy and
+// provenance reader ride their own chunk (entryChunk.test.ts, NFR-06).
+const importLifeLists = () => import('./components/lifeLists/LifeListsTab')
 // The per-row Named Birds map chunk (maplibre). The component is lazy-rendered
 // inside NamedBirdRow; this is just the idle prefetch (same module → same chunk),
 // so opening a row stays instant for returning users.
@@ -88,6 +91,7 @@ const ListComparer = lazy(() => importListComparer().then(m => ({ default: m.Lis
 const Checklists = lazy(() => importChecklists().then(m => ({ default: m.Checklists })))
 const Calendar = lazy(() => importCalendar().then(m => ({ default: m.Calendar })))
 const Targets = lazy(() => importTargets().then(m => ({ default: m.Targets })))
+const LifeListsTab = lazy(() => importLifeLists().then(m => ({ default: m.LifeListsTab })))
 const CommandPalette = lazy(() => importCommandPalette().then(m => ({ default: m.CommandPalette })))
 // The Alerts inbox sheet (ios-alerts design-spec 7.3, the revision after the
 // live look). Lazy like Help and the palette, and reachable only on iPhone and
@@ -138,7 +142,7 @@ type TideState =
 // the tab is first opened, instead of running it all on first paint.
 const DEFERRED_TABS: Tab[] = [
   'map-explorer', 'species-detail', 'birding-stats', 'calendar', 'targets',
-  'comparer', 'life-list', 'breeding-codes', 'named-birds', 'checklists', 'settings',
+  'comparer', 'life-list', 'breeding-codes', 'named-birds', 'checklists', 'life-lists', 'settings',
 ]
 
 // Setter for the persistent loading-status region (mounted once in App, OUTSIDE
@@ -1476,6 +1480,27 @@ export default function App() {
         {mountedTabs.has('checklists') && (
           <Suspense fallback={<TabLoading label="Loading checklists…" />}>
             <Checklists onGoToSettings={() => setActiveTab('settings')} filesVersion={filesVersion} onOpenSpecies={navigateToSpeciesDetail} />
+          </Suspense>
+        )}
+      </div>
+
+      {/* Life Lists tab content. The tab reads the files epoch itself
+          (useFilesEpoch), so it takes no filesVersion prop. */}
+      <div
+        role="tabpanel"
+        id="panel-life-lists"
+        aria-labelledby="tab-life-lists"
+        aria-label="Life Lists"
+        className="sr-panel"
+        style={{
+          display: activeTab === 'life-lists' ? 'flex' : 'none',
+          flexDirection: 'column',
+          padding: '40px 24px 24px',
+        }}
+      >
+        {mountedTabs.has('life-lists') && (
+          <Suspense fallback={<TabLoading label="Loading life lists…" />}>
+            <LifeListsTab onGoToSettings={() => setActiveTab('settings')} onOpenSpecies={navigateToSpeciesDetail} />
           </Suspense>
         )}
       </div>

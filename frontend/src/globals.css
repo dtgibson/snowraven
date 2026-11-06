@@ -4471,6 +4471,15 @@ select:focus-visible {
   outline-offset: 1px;
   box-shadow: none;
 }
+/* The Life Lists checklist mark (life-lists-tab): the same 1px-off ring with
+   no halo inside its 1.5rem box. (0,2,1) out-ranks the global
+   `[tabindex]:focus-visible`, and it stays after that block regardless, as the
+   two rules above do. */
+.sr-lfl-cl > a:focus-visible {
+  background: var(--sr-accent-bg);
+  outline-offset: 1px;
+  box-shadow: none;
+}
 
 /* ── The in-<th> sort button (`.sr-th-sort`) ─────────────────────────────────
    (control-style-registers, v1.0.33)
@@ -6160,6 +6169,112 @@ select:focus-visible {
 .sr-tg-empty b { color: var(--sr-text); font-weight: 600; }
 .sr-tg-retry { display: flex; justify-content: center; margin-top: 12px; }
 
+/* ── The Life Lists tab (life-lists-tab, `.sr-lfl-*`) ──────────────────────
+   `.sr-ll-*` belongs to the Multimedia tab, so this tab takes its own prefix.
+   A chronological ledger in one card: a faint control strip, a lead block
+   (the count sentence, the status line), then one row per species on a
+   seven-track grid whose fixed tracks keep the columns aligned down the list
+   at every text scale (each row is its own grid). The list stacks to one card
+   per row below 40em of its OWN width (the container query below) and in the
+   established <=640 tier, two routes that must agree (design-spec, the date-
+   place-link row rule). Colour is tokens only, both themes; the only motion
+   is the added-row entrance and the registers' colour fades, all collapsed by
+   the global prefers-reduced-motion block. Glyphs are sized by their own
+   classes, never by a bare `svg` selector (ui.md v1.0.42). */
+.sr-lfl-tab { display: flex; flex-direction: column; min-width: 0; }
+.sr-lfl-head { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 16px; }
+.sr-lfl-head-tile { width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0; background: var(--sr-accent-bg); color: var(--sr-accent); display: flex; align-items: center; justify-content: center; }
+.sr-lfl-head h2 { font-size: 1.125rem; font-weight: 700; margin: 0 0 2px; color: var(--sr-text); letter-spacing: -0.01em; }
+.sr-lfl-head p { font-size: 0.8125rem; color: var(--sr-text-muted); margin: 0; line-height: 1.5; }
+.sr-lfl-controls { display: flex; flex-direction: column; gap: 9px; padding: 12px 18px; border-bottom: 1px solid var(--sr-border-subtle); background: var(--sr-surface-faint); }
+.sr-lfl-ctl-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; min-width: 0; }
+.sr-lfl-label { font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--sr-text-muted); margin-right: 2px; --sr-label-ratio: var(--sr-label-optical); }
+.sr-lfl-glyph { flex-shrink: 0; }
+.sr-lfl-media-group { display: contents; }
+.sr-lfl-ml-note { font-size: 0.75rem; line-height: 1.5; color: var(--sr-text-muted); margin: 0; max-width: 60ch; overflow-wrap: anywhere; }
+.sr-lfl-lead { padding: 13px 18px 11px; border-bottom: 1px solid var(--sr-border-subtle); display: flex; flex-direction: column; gap: 3px; }
+.sr-lfl-count { font-size: 0.8125rem; line-height: 1.5; color: var(--sr-text-muted); margin: 0; }
+.sr-lfl-count b { font-weight: 700; color: var(--sr-text); font-variant-numeric: tabular-nums; }
+.sr-lfl-status { font-size: 0.71875rem; line-height: 1.5; color: var(--sr-text-gray); margin: 0; }
+/* `container-type` is containment as well as a query anchor (ui.md v1.0.23):
+   the list becomes the containing block for its absolutely positioned
+   descendants, which here are only the `.sr-only` position prefixes and the
+   SpeciesLinks fallback glyphs (whose own `position: relative` slot already
+   contains them), and it sets no z-index, so nothing in the subtree is moved
+   by it. */
+.sr-lfl-list { container-type: inline-size; list-style: none; margin: 0; padding: 0; }
+.sr-lfl-row {
+  display: grid;
+  grid-template-columns: 2.5rem minmax(0, 1fr) 5.4rem 4rem 1.5rem minmax(0, 32%) max(46px, 2.5rem);
+  grid-template-areas: "num name date time link place media";
+  column-gap: 14px; row-gap: 2px;
+  align-items: start;
+  padding: 11px 18px 12px;
+  border-bottom: 1px solid var(--sr-border-subtle);
+}
+.sr-lfl-row:last-child { border-bottom: 0; }
+/* No readable ML export: the media cell is omitted and its track dropped. */
+.sr-lfl-tab[data-media="off"] .sr-lfl-row { grid-template-columns: 2.5rem minmax(0, 1fr) 5.4rem 4rem 1.5rem minmax(0, 32%); grid-template-areas: "num name date time link place"; }
+.sr-lfl-num { grid-area: num; font-size: 0.75rem; color: var(--sr-text-muted); text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; padding-top: 2px; }
+.sr-lfl-name { grid-area: name; min-width: 0; padding-top: 1px; }
+/* The phone-tier BirdName wrap (ui.md v1.0.48) applied at every width, scoped
+   to this cell; the shared BirdName rules stay as they are. */
+.sr-lfl-name .sr-birdname { width: 100%; max-width: 100%; }
+.sr-lfl-name .sr-birdname-row { flex-wrap: wrap; }
+.sr-lfl-name .sr-birdname-sci { white-space: normal; overflow-wrap: anywhere; }
+.sr-lfl-meta { display: contents; }
+.sr-lfl-date { grid-area: date; font-size: 0.75rem; font-weight: 600; color: var(--sr-text); white-space: nowrap; font-variant-numeric: tabular-nums; padding-top: 2px; }
+.sr-lfl-time { grid-area: time; font-size: 0.75rem; color: var(--sr-text-muted); white-space: nowrap; font-variant-numeric: tabular-nums; padding-top: 2px; }
+.sr-lfl-link { grid-area: link; display: flex; justify-content: center; }
+/* The checklist mark: the shared ChecklistLink (compact) in a 1.5rem box. The
+   anchor is reached as this box's child because ChecklistLink takes no class;
+   its inline display and colour are left alone, and only geometry and the
+   hover fill are added here. */
+.sr-lfl-cl { display: inline-flex; width: 1.5rem; height: 1.5rem; }
+.sr-lfl-cl > a { width: 100%; height: 100%; justify-content: center; border-radius: 6px; transition: background-color 120ms ease-out; }
+.sr-lfl-cl > a:hover { background: var(--sr-accent-bg); }
+.sr-lfl-dash { color: var(--sr-text-muted); }
+.sr-lfl-link .sr-lfl-dash { display: inline-flex; align-items: center; justify-content: center; width: 1.5rem; height: 1.5rem; font-size: 0.75rem; }
+.sr-lfl-place { grid-area: place; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.sr-lfl-locname { font-size: 0.75rem; font-weight: 500; color: var(--sr-text-muted); line-height: 1.4; overflow-wrap: anywhere; padding-top: 2px; }
+.sr-lfl-county { font-size: 0.71875rem; color: var(--sr-text-gray); line-height: 1.4; overflow-wrap: anywhere; }
+/* Media presence (FR-44, the Quiet treatment): a passive cell, never a target.
+   Three fixed slots in the filter's own order; a format the species has in the
+   text ink, one it lacks as a faint placeholder that keeps its slot. */
+.sr-lfl-media { grid-area: media; display: inline-flex; align-items: center; gap: 5px; padding-top: 3px; justify-self: end; }
+.sr-lfl-media-glyph { flex-shrink: 0; }
+.sr-lfl-media-glyph.is-has { color: var(--sr-text); }
+.sr-lfl-media-glyph.is-lacks { color: var(--sr-border-medium); }
+/* Rows a switch or a media press ADDS enter from above; a re-sort, first paint
+   and paging are instant (design-spec Motion Spec, D-08). */
+.sr-lfl-row.is-new { animation: sr-lfl-row-in 180ms cubic-bezier(0.2, 0, 0, 1) both; transform-origin: top center; }
+@keyframes sr-lfl-row-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.sr-lfl-empty { padding: 28px 18px; font-size: 0.8125rem; color: var(--sr-text-muted); text-align: center; margin: 0; }
+.sr-lfl-loading { flex: 1; display: flex; align-items: center; justify-content: center; padding: 60px 0; color: var(--sr-accent); }
+/* Paging: the Weather backlog's row. */
+.sr-lfl-paging { display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; padding: 14px 18px; border-top: 1px solid var(--sr-border-subtle); }
+.sr-lfl-next { height: 36px; padding: 0 15px; border-radius: 8px; font-family: inherit; font-size: 0.8125rem; font-weight: 600; cursor: pointer; border: 1px solid var(--sr-border-medium); background: var(--sr-surface); color: var(--sr-text); transition: background-color 120ms ease-out, border-color 120ms ease-out; }
+.sr-lfl-next:hover { background: var(--sr-surface-subtle); }
+.sr-lfl-all { height: 36px; padding: 0 15px; border-radius: 8px; font-family: inherit; font-size: 0.8125rem; font-weight: 600; cursor: pointer; border: 1px solid transparent; background: none; color: var(--sr-accent); transition: background-color 120ms ease-out; }
+.sr-lfl-all:hover { background: var(--sr-accent-bg); }
+.sr-lfl-showing { font-size: 0.71875rem; color: var(--sr-text-muted); font-variant-numeric: tabular-nums; }
+/* The stacked card by the list's OWN width, so a wide window at 200% text
+   stacks too. The `[data-media="off"]` rule is restated with both properties
+   because its base form out-ranks a bare `.sr-lfl-row` here. */
+@container (max-width: 40em) {
+  .sr-lfl-tab .sr-lfl-row { grid-template-columns: 1.9rem minmax(0, 1fr) max(44px, 1.5rem); grid-template-areas: "num name link" "num meta link" "num place media"; column-gap: 8px; }
+  .sr-lfl-tab[data-media="off"] .sr-lfl-row { grid-template-columns: 1.9rem minmax(0, 1fr) max(44px, 1.5rem); grid-template-areas: "num name link" "num meta link" "num place place"; }
+  .sr-lfl-media { gap: 4px; padding-top: 0; align-self: center; justify-self: end; }
+  .sr-lfl-date, .sr-lfl-time { padding-top: 0; min-width: 0; }
+  .sr-lfl-meta { grid-area: meta; display: flex; align-items: center; flex-wrap: wrap; gap: 2px 8px; min-width: 0; }
+  .sr-lfl-link { align-self: center; }
+  .sr-lfl-cl, .sr-lfl-link .sr-lfl-dash { width: max(44px, 1.5rem); height: max(44px, 1.5rem); }
+  .sr-lfl-place { margin-top: 2px; }
+}
+
 @media (max-width: 640px) {
   .sr-header { padding-top: 24px !important; }
   /* The county panel's rows stack on a phone, and the action slot takes its own
@@ -7073,6 +7188,29 @@ select:focus-visible {
   .sr-tg-strip .sr-pill, .sr-tg-chip, .sr-tg-strip .sr-segbar-btn { min-height: 34px; }
   .sr-tg-sel { height: 34px; }
   .sr-tg-file-card { padding: 12px; }
+
+  /* ── The Life Lists tab on a phone (life-lists-tab) ───────────────────────
+     Side padding to 12px; the switches' inline 30px height and nowrap are
+     released (the Breeding Codes pill precedent, hence !important against an
+     inline style) so a label can take a second line, and they reach the touch
+     floor; the stacked card restates the container-query block so the two
+     routes agree. */
+  .sr-lfl-controls { padding: 12px; }
+  .sr-lfl-controls .sr-toggle { height: auto !important; min-height: 2.75rem; white-space: normal !important; }
+  .sr-lfl-controls .sr-pill { white-space: normal; }
+  .sr-lfl-lead { padding: 12px 12px 10px; }
+  .sr-lfl-empty { padding: 24px 12px; }
+  .sr-lfl-paging { padding: 12px; }
+  .sr-lfl-next, .sr-lfl-all { min-height: 2.75rem; height: auto; }
+  .sr-lfl-row { padding: 11px 12px 12px; }
+  .sr-lfl-tab .sr-lfl-row { grid-template-columns: 1.9rem minmax(0, 1fr) max(44px, 1.5rem); grid-template-areas: "num name link" "num meta link" "num place media"; column-gap: 8px; }
+  .sr-lfl-tab[data-media="off"] .sr-lfl-row { grid-template-columns: 1.9rem minmax(0, 1fr) max(44px, 1.5rem); grid-template-areas: "num name link" "num meta link" "num place place"; }
+  .sr-lfl-media { gap: 4px; padding-top: 0; align-self: center; justify-self: end; }
+  .sr-lfl-date, .sr-lfl-time { padding-top: 0; min-width: 0; }
+  .sr-lfl-meta { grid-area: meta; display: flex; align-items: center; flex-wrap: wrap; gap: 2px 8px; min-width: 0; }
+  .sr-lfl-link { align-self: center; }
+  .sr-lfl-cl, .sr-lfl-link .sr-lfl-dash { width: max(44px, 1.5rem); height: max(44px, 1.5rem); }
+  .sr-lfl-place { margin-top: 2px; }
 
   .sr-tg-table, .sr-tg-table tbody, .sr-tg-table tr, .sr-tg-table td { display: block; }
   .sr-tg-table thead { display: none; }
