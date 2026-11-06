@@ -121,3 +121,54 @@ FR-25 breaks a tie "by format name as a stable tiebreak"; the schema says `MEDIA
 ## D-24 Route budget, measured after the change
 
 The guard's worst-case document, built through the shipped `sanitizeStore` with the guard's own constructions (131,072 ledger keys, 16,384 species at eight full-width tokens, two lists of 2,048 names of 128 `'\u0001'` units): **15,446,117 B against the route's 16,777,216 B**, 1.33 MB of headroom. The same construction with the two lists merged back into one list of 4,096 and no `exoticNames` field reads 15,446,101 B, so the new field costs exactly 16 bytes (its name and brackets) and the cap change keeps the document byte-for-byte what it was, as schema 3.2 intended. The schema quotes 15,118,421 B for the pre-change worst case; that figure does not reproduce through the guard's construction (15,446,101 B does, which also matches the store comment's existing "15.4 MB"), so the store comment keeps 15.4 MB. The conclusion the schema drew from it is unaffected: at 4,096 per list the document would exceed the route, at 2,048 it fits.
+
+## QA round 1 fixes (Stage 5 re-entry, 2026-11-06)
+
+## D-25 The exotic rule and the status sentence realigned to the strategic brief (the Orchestrator's decision)
+
+**Taken by the Orchestrator at QA round 1, realigning the PRD to the brief.** The Tester measured that after a COMPLETE Statistics pass the PRD's FR-16 and FR-20 almost never applied: the pass consults a greedy set cover, not every checklist (15 of 368 checklists on the tracked demo export; 73 on the reference export per bird-names.md), and it stops seeking a species once it finds a counting token. FR-16's "every carrying checklist has been consulted" therefore failed for any introduced bird on more than one checklist, so Rock Pigeon or House Sparrow stayed native and Include Exotics added little (US-05 largely undelivered); FR-20's "every checklist in the ledger" kept the tab saying the check "has not finished" while Statistics said it was complete, a false statement about Statistics. In a five-checklist fixture, a species marked N on both of its checklists was not exotic after a complete pass and `exoticNames` published as `[]`.
+
+What changed:
+- **FR-16:** exotic = not an escapee, at least one observation consulted, and every CONSULTED observation carries an exotic category. The every-carrier clause and its "any unconsulted carrier is native" arm are gone; this is the brief's rule and mirrors the escapee rule. `isExoticOnly` lost its carrier loop. The published exotic list is read AS PUBLISHED by the tab (an unconsulted checklist cannot change a rule about consulted observations); the escapee list keeps its carrier confirmation (FR-14 now says which list takes it).
+- **FR-20:** the first sentence shows while the exotic list is unpublished on this build OR Statistics' own completion signal is not met for the loaded export. That signal is the predicate Statistics' controller ends a pass on and settles at rest by, `remainingSpecies(snapshot, index, parked)` returning empty: every species in the export's cover index has an answer (counting or escapee-only). Statistics persists no completion flag (its status is controller state), so the tab computes the same predicate with the shared model functions (`buildCoverIndex`, `remainingSpecies`), from its own `/taxonomy/codes` batch for the CURRENT roster. That batch sends the roster's normalized names, which is the bird-names.md rule for a batch that feeds a cover consumer (the normalized parent is requested, so a form-only species resolves). The check is false while the codes are pending or failed, with an empty snapshot, or on a vacuous index, so it never reads finished by accident; it never tests "every checklist in the ledger". `ledgerCoversExport` was removed.
+- **Consequence for QA-15:** the codes now feed the status check as well as the marks, never classification. `buildCoverIndex` is named in `lifeListsProvenance.ts` alone (the graph guard's symbol scan pins that, with a positive leg), never in the derivation or the components.
+- **Edited in place:** PRD FR-14, FR-16, FR-20, QA-15, QA-17, QA-21 (IDs kept); schema 3.1, 3.5 and 3.6; `docs/HELP.md`'s exotic clause ("wherever the check looked them up").
+- **Tests:** QA-17's model rows (one consulted carrier is enough; an all-X species awaiting a carrier is not exotic; no record is native), the reader's suite rewritten around `statisticsCheckComplete` (complete with most checklists never consulted, incomplete with one species unanswered, never complete without this roster's codes, `__proto__`-safe code table), and the component rows (the resolved sentence after the codes resolve with only the escapee's carrier consulted; the unresolved sentence for an unanswered species and for a failed batch).
+
+Reversal: a product decision to require every carrier (which would need Statistics to make more requests), or a Statistics change that persists its completion per export, at which point the tab should read that instead of recomputing it.
+
+## D-26 Help heading ids are unique; the first occurrence keeps the bare id
+
+The renderer stamped `id` from the heading text alone, so four `###` headings duplicated a `##` id: the new `## Life Lists` with List Comparer's `### Life Lists`, and three that predate this feature (`Weather`, `API Keys`, `Default Files`). `parseBlocks` in `HelpDocs.tsx` now gives a repeated id the first free numeric suffix (`life-lists-2`); the first occurrence keeps the bare id. Every TOC entry is top-level and every `##` precedes its `###` twin, so every TOC target and every `getElementById` resolves exactly where it did. No visible heading changed. `helpToc.test.ts` asserts every generated id is unique and that each TOC id is the `##` section's own; `HelpDocs.test.tsx` checks the real generator through the DOM.
+
+## D-27 QA-50: the entry-chunk growth was a file-boundary change, not first-paint weight; no bundler change made
+
+QA-50 reported the entry chunk growing 3,403 B (603 gzipped) because a "previously lazy" shared chunk (`ChecklistLink`, `speciesDetail/ui`, `charClasses`, lucide's `external-link`) folded into it. Rebuilt and diffed against the Tester's `a1823622` build in the scratchpad: at `a1823622` that chunk was NOT lazy. `index.html` lists `ChecklistLink-DjmmToZj.js` as a `modulepreload` and the entry statically imports it, because the Weather tab draws checklist links (`WeatherTabLinks`, `WeatherBacklog`, `WeatherTidePanel` all import `ChecklistLink`); the string `open checklist on eBird` was in that preloaded chunk before the feature. Measured over the entry plus every `modulepreload` (all JS loaded at first paint):
+
+| Build | Entry chunk | First-paint JS files | First-paint JS bytes | Sum of gzipped files |
+|---|---|---|---|---|
+| `a1823622` (pre-feature) | 412,239 B (117,231 gz) | 21 | 661,813 B | 199,047 B |
+| HEAD (the feature) | 415,642 B (117,825 gz) | 21 | 662,726 B | 198,541 B |
+| Manual chunk hint (experiment, rejected) | 412,901 B (117,287 gz) | 18 | 661,783 B | 198,910 B |
+| After the QA round 1 fixes (what ships) | 415,642 B (117,821 gz) | 21 | 662,726 B | 198,529 B |
+
+So the feature added 913 B of first-paint JS (the registration and the lazy import thunk), and the gzipped total fell 506 B because the bundler merged an already-loaded 2,713 B chunk into the entry file. The 3,403 B is where the bytes sit, not how many load. Two fixes were tried and measured. Dropping `SectionCard` (so the tab imports only `ChecklistLink`) changed nothing. A `manualChunks` hint naming the two modules restored the separate file and kept the string out of the entry, but rolldown's group captured their dependencies and moved React's core out of `vendor-react` into a chunk named `ChecklistLink`. That restructures vendor splitting for a cosmetic file boundary that makes first paint slightly worse (one more request, a larger gzipped sum), so it was rejected and `vite.config.ts` is unchanged.
+
+The guard added is the premise that makes the import benign: a row in `entryChunk.test.ts` asserting the Life Lists subtree reaches `ChecklistLink.tsx` and `speciesDetail/ui.tsx` AND that both are already on App's static graph. If either ever leaves App's graph, the row goes red and the build A/B must be re-taken before NFR-06 is re-claimed. A test that reads `dist` is not the house pattern, so the first-paint A/B lives here as a recorded measurement (tool: `entrydiff3.mjs` and `firstpaint.mjs` in the session scratchpad). Reversal: the user or Orchestrator preferring the separate file anyway; the clean route would be a rolldown chunk group with dependency capture disabled, a bundler-wide change to be measured on every vendor chunk.
+
+## D-28 Pass 3's linearity legs are 500 / 5,000 species
+
+The Tester read pass 3 at 19.51 against its derived limit of about 26 (1.33x headroom), and D-19 recorded 20.23 under full-suite load. Per testing.md the margin comes from the legs, not the limit. Measured in CPU time with another worktree's full suite running alongside (load average 150 to 176 on 8 cores), three readings per size, Photo selected:
+
+| Species (small / large) | Node 24 | Node 20 | Derived limit | Worst headroom |
+|---|---|---|---|---|
+| 500 / 5,000 | 10.30 to 10.88 | 10.62 to 11.12 | 28.9 | 2.60x |
+| 1,000 / 10,000 | 13.94 to 15.22 | 12.85 to 15.12 | 27.9 | 1.83x |
+| 2,000 / 20,000 | 13.15 to 13.67 | 14.43 to 15.40 | 27.1 | 1.76x |
+| 5,000 / 50,000 (before) | 17.40 to 18.41 | 18.61 to 21.03 | 26.2 | 1.25x |
+
+The quotient climbs with size (the same live-set residual as D-19), so pass 3's legs are now 500 / 5,000 species; passes 1 and 2 keep 5k / 50k rows and the limit of 20, and the pass-1 mutant is unchanged (106.71 at QA). At the new legs a pass-3 quadratic (a nested duplicate check over the output) read 96.6 against the limit of 28.9, and the shipped pass 10.03, so the row still goes red on the defect it exists for.
+
+## D-29 QA-07's stale-load row is committed as the Tester wrote it
+
+`frontend/src/components/lifeLists/qa07Stale.test.tsx`: park the first load past its early checks, supersede it with an epoch bump, release it, and assert the stale load never paints over the newer one; plus an unmount-mid-load row. Green, and red with both post-load `cancelled` checks removed (the Tester's mutant). Only its header comment changed from "scratch".
