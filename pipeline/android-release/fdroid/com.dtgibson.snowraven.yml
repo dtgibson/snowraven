@@ -21,7 +21,7 @@ Repo: https://github.com/dtgibson/snowraven.git
 Builds:
   - versionName: 1.0.62
     versionCode: 10000621
-    commit: 3be276520c41697ed95eed672f0b7c6fb0095ca5
+    commit: c16526a7baf1e8435032f8daafd4d8022df32324
     timeout: 10800
     sudo:
       - apt-get update
@@ -46,7 +46,7 @@ Builds:
 
   - versionName: 1.0.62
     versionCode: 10000622
-    commit: 3be276520c41697ed95eed672f0b7c6fb0095ca5
+    commit: c16526a7baf1e8435032f8daafd4d8022df32324
     timeout: 10800
     sudo:
       - apt-get update
@@ -71,7 +71,7 @@ Builds:
 
   - versionName: 1.0.62
     versionCode: 10000624
-    commit: 3be276520c41697ed95eed672f0b7c6fb0095ca5
+    commit: c16526a7baf1e8435032f8daafd4d8022df32324
     timeout: 10800
     sudo:
       - apt-get update
