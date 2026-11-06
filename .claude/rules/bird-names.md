@@ -15,6 +15,8 @@ paths:
   - "frontend/src/lib/countab*.ts"
   - "frontend/src/lib/countableForms*.ts"
   - "frontend/src/lib/exotic*.ts"
+  - "frontend/src/lib/lifeLists*.ts"
+  - "frontend/src/components/lifeLists/**"
   - "frontend/src/lib/statsFormat*.ts"
   - "frontend/src/assets/ebird-taxonomy.json"
   - "backend/routers/taxonomy.py"

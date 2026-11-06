@@ -12,14 +12,16 @@
 
 import type { ChecklistRowData } from './checklistsTab'
 import type { ChecklistEntry } from '../types'
+import { pageList, PAGE_SIZE } from './pageList'
 
 /** eBird "Incidental" protocol code. VERIFIED: checklistMeta.ts PROTOCOL_NAMES
  *  maps P20 → 'Incidental' (P22 is Traveling), and ChecklistEntry.protocol stores
  *  the RAW eBird code (e.g. "P20"), not a mapped display name. FR-07. */
 export const INCIDENTAL_PROTOCOL = 'P20' as const
 
-/** How many rows are revealed per page / initially (FR-20a). */
-export const PAGE_SIZE = 100
+/** How many rows are revealed per page / initially (FR-20a). Re-exported from
+ *  `pageList.ts` so its consumers do not move. */
+export { PAGE_SIZE }
 
 export interface BacklogOptions {
   /** FR-21: off = complete & non-incidental only; on = widen to include
@@ -104,14 +106,8 @@ export interface PagedBacklog {
   nextCount: number
 }
 
-/** Pure slice helper (FR-20). `shown` is the count currently revealed. */
+/** Pure slice helper (FR-20). `shown` is the count currently revealed. The body
+ *  lives in `pageList.ts` since life-lists-tab; outputs are byte-identical. */
 export function pageBacklog(all: BacklogRow[], shown: number): PagedBacklog {
-  const total = all.length
-  const clampedShown = Math.max(0, Math.min(shown, total))
-  return {
-    visible: all.slice(0, clampedShown),
-    total,
-    hasMore: total > clampedShown,
-    nextCount: Math.min(clampedShown + PAGE_SIZE, total),
-  }
+  return pageList(all, shown)
 }

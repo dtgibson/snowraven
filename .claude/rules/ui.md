@@ -16,6 +16,8 @@ paths:
   - "frontend/src/lib/calendarTextures.ts"
   - "frontend/src/lib/alerts/alertsInboxHost.ts"
   - "frontend/src/lib/tabLayout.ts"
+  - "frontend/src/lib/lifeListsCopy.ts"
+  - "frontend/src/lib/pageList.ts"
   - "frontend/src/lib/icloud/icloudCopy.ts"
   - "frontend/src/lib/rootMarkers.ts"
   - "frontend/src/lib/webviewFloor.ts"
