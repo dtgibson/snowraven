@@ -172,3 +172,29 @@ The quotient climbs with size (the same live-set residual as D-19), so pass 3's 
 ## D-29 QA-07's stale-load row is committed as the Tester wrote it
 
 `frontend/src/components/lifeLists/qa07Stale.test.tsx`: park the first load past its early checks, supersede it with an epoch bump, release it, and assert the stale load never paints over the newer one; plus an unmount-mid-load row. Green, and red with both post-load `cancelled` checks removed (the Tester's mutant). Only its header comment changed from "scratch".
+
+## Security review fixes (PASSED WITH NOTES; all five fixed in this build, the Orchestrator's decision)
+
+## D-30 The status check's per-row index is memoized on its inputs (security L2), and its cost joins D-20
+
+D-25's `statisticsCheckComplete` built Statistics' cover index over every row inside a memo keyed on `[snapshot, observations, codes]`. The store replaces its snapshot on every merged checklist, and tabs stay mounted once opened, so while a Statistics pass ran with Life Lists opened earlier in the session, every merge rebuilt the whole index. The reader is now split: `rosterCoverIndex(obs, codes)` (the per-row half, `buildCoverIndex`) is memoized on the rows and the codes alone, and `checkCompleteFor(snapshot, index)` (the per-species half, `remainingSpecies`) is the only part a merge re-runs. `statisticsCheckComplete` remains as the composition for callers without a memo. Declared as S9 in schema section 7; S7 no longer names the removed `ledgerCoversExport`.
+
+Measured through the real module in CPU time (`src/test/cpuTiming.ts`, Node 24.18, this Mac), at the Auditor's shape (150,000 rows, 3,000 species, 20,000 checklists, every species answered):
+
+| | First call | Best |
+|---|---|---|
+| `rosterCoverIndex` (once per load, or when this roster's codes arrive) | 114.9 ms | 79.0 ms |
+| `checkCompleteFor` (per snapshot change, that is per merged checklist) | 1.92 ms | 0.12 ms |
+| The old combined memo (what every merge used to pay) | | 72.1 ms |
+
+The Auditor's own probe read 111 ms once and 0.23 ms per snapshot change. Added to D-20: at the 150k-row cap a load now costs about 110 to 125 ms for the two passes and the classification, plus about 80 to 115 ms for this index once the codes arrive, all inside effects and memos after the awaited loads; a merge during a Statistics pass costs the tab about 0.1 to 2 ms. `LifeListsTab.test.tsx` counts index builds across two snapshot changes with unchanged rows and expects one; with the old combined memo put back it reads three.
+
+## D-31 A publisher goes through its validator's own admission function (security L1)
+
+`publishClassifiedNames` capped each list's count but not each name's length, so a name the load path drops (over 128 code units) could be published, held in the in-memory snapshot and written, and only disappear on the next reload. The Auditor showed such a name can arrive: a hand-edited export with a huge common name beside a real binomial resolves through the scientific-name match. Both lists now go through `admitNames`, the load path's own admission (the same count cap, the same length bound, malformed entries dropped), after sorting, so the kept set is deterministic whatever order the lookup produced. Rows: a 4,011-character name is absent from the snapshot straight after the publish, and a 2,100-name list keeps the same first 2,048 names in either input order. **Convention:** a writer to a validated store routes its values through the validator's own admission function rather than re-stating part of it (the write-chokepoint rule in security.md, applied to the publisher).
+
+## D-32 Smaller notes from the review (I1 to I3)
+
+- **I1:** `confirmPublishedNames`'s docstring said the tab confirms the exotic list through it; since D-25 only the escapee list is confirmed, and the docstring says so.
+- **I2:** FR-39 and schema 5.4 now state that the `/taxonomy/codes` POST is NOT cached (it passes straight through the transport's caching wrapper; the once-per-roster effect is its only dedupe), and that in the native apps the codes service may start the existing taxonomy refresh from api.ebird.org, a request carrying only the API key and no user data, already disclosed in the privacy policy. Wording only.
+- **I3:** a tab row renders species named `constructor` and `__proto__`: neither gets a mark, no anchor's href carries an inherited member, and, because SpeciesLinks' own shape gate would also contain a bare-index read, the row also pins `codeFor`'s two `Object.hasOwn` reads at the call site.
