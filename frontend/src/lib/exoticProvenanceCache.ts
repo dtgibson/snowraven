@@ -83,7 +83,8 @@ export const PROVENANCE_STORE_KEY = 'exotic-provenance-v1'
 // entry costs 64 bytes, and the species index (16,384 records) and the two
 // published name lists (2,048 of 128 characters EACH since life-lists-tab, so
 // the two together cost what the one list of 4,096 did) about 7.1 MB together,
-// so the worst case at this cap is 15.1 MB against the route's 16.8 MB;
+// so the worst case at this cap is 15.4 MB against the route's 16.8 MB (the
+// second list adds 16 bytes, its field name and brackets);
 // `settingsRouteBudget.test.ts` builds it through `sanitizeStore` and compares
 // it with the Python constant.
 // FIFO, unchanged: an eviction here costs one redundant request and loses no
