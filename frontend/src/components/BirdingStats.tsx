@@ -75,7 +75,10 @@ import { AVIAN_AMERICAN, CALIFORNIA_DREAMER, PHOEBE_PHANATIC, SCRUB_JAY_ALL_DAY,
 import { ChecklistLink } from './ChecklistLink'
 import { OutboundLink } from './OutboundLink'
 import { HotspotLink } from './HotspotLink'
-import { useHotspotSet } from '../lib/useHotspotSet'
+import { useHotspotSet, useHotspotResolution } from '../lib/useHotspotSet'
+import { computeHotspotShare, hotspotShareView } from '../lib/hotspotShare'
+import { HOTSPOT_SHARE_SUBLABEL } from '../lib/hotspotShareCopy'
+import { HotspotShareBlock } from './HotspotShareBlock'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -163,6 +166,9 @@ export function BirdingStats({ onGoToSettings, onGoToWeather, onOpenSpecies }: {
   const [countyData, setCountyData] = useState<CountyFC | null>(null)
   const [countyLoading, setCountyLoading] = useState(false)
   const { isHotspot } = useHotspotSet()
+  // Passive: read beside useHotspotSet(), which drives the build and re-renders this
+  // component when the build settles (hotspot-share-stat, schema.md 4.4).
+  const hotspotResolution = useHotspotResolution()
   const [mediaInterval, setMediaInterval] = useState<MediaGraphInterval>('monthly')
   const [mediaViewMode, setMediaViewMode] = useState<'per-period' | 'cumulative'>('per-period')
   // Progressive-render gates (perf): `computed` flips on after first paint so the
@@ -545,6 +551,20 @@ export function BirdingStats({ onGoToSettings, onGoToWeather, onOpenSpecies }: {
   // memo over `effectiveObs` it is stable for the life of the export, and it costs
   // one 5.8 ms pass per loaded file rather than one per request.
   const projectChecklists = useMemo(() => computeChecklists(effectiveObs), [effectiveObs])
+
+  // Checklists at hotspots (hotspot-share-stat). The SAME per-checklist rows as the
+  // Projects section, so the denominator counts checklists whatever "Count all forms"
+  // says, classified against the same Set the HotspotLinks below read. One linear
+  // pass per change of the rows or the resolution snapshot (schema.md 5.5, 7.1); it
+  // does not run on a display toggle, a key-status read or an online flip.
+  const hotspotShare = useMemo(
+    () => computeHotspotShare(projectChecklists, hotspotResolution),
+    [projectChecklists, hotspotResolution],
+  )
+  const hotspotView = useMemo(
+    () => hotspotShareView(hotspotShare, { hasEbirdKey, online }),
+    [hotspotShare, hasEbirdKey, online],
+  )
 
   // The projects sweep. Mounted HERE and nowhere else, so "no other surface can
   // initiate a projects request" is an import-graph fact rather than a
@@ -1361,6 +1381,17 @@ export function BirdingStats({ onGoToSettings, onGoToWeather, onOpenSpecies }: {
             </div>
           )
         })()}
+
+        {/* Checklists at hotspots (FR-01): above the top-location lists whose
+            links it explains. Gated on the CHECKLIST count (FR-02), which is
+            independent of whether any top location exists. */}
+        {hotspotView.kind !== 'hidden' && (
+          <>
+            <SubLabel>{HOTSPOT_SHARE_SUBLABEL}</SubLabel>
+            <HotspotShareBlock view={hotspotView} onGoToSettings={onGoToSettings} />
+            <Divider />
+          </>
+        )}
 
         {geo.topLocations.length > 0 && (
           <>
