@@ -61,6 +61,8 @@ paths:
   - "frontend/src/lib/observationsPacked.ts"
   - "frontend/src/lib/targets/**"
   - "frontend/src/lib/countyDayObs*.ts"
+  - "frontend/src/lib/hotspotShare*.ts"
+  - "frontend/src/lib/hotspotRegionCache*.ts"
   - "frontend/src/lib/barChartFilesChanged.ts"
   - "frontend/src/lib/regionCode.ts"
   - "frontend/src/lib/regionCode.fixture.json"
