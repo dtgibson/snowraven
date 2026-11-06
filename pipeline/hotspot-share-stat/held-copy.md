@@ -28,3 +28,37 @@ Statistics now shows what share of your checklists you submitted at public eBird
 ## README.md and website/index.html
 
 No sentence is proposed for either. The register is one or two sentences per tab saying what the tab does, and the Statistics line already covers where you bird; a sub-statistic inside Geographic Stats does not earn a sentence there (the strategic brief and PRD NFR-08 say the same).
+
+## Proposed privacy policy sentences (held)
+
+Security review finding L1 (`security-report.md`): the policy's list of what Clear removes, and its per-store retention statements, do not name the new 30-day hotspot store. No existing sentence becomes false; the policy under-describes what is kept. `PRIVACY_POLICY.md` and `website/privacy.html` are published copy, so nothing below has been written into either file. Both insertions go into both files identically, at the release commit, and only on the user's yes. If the user declines, record it as a follow-up with that reason.
+
+`frontend/src/lib/hotspotSharePublishedClaims.test.ts` is the guard the docs rule asks for. It is skipped until either sentence lands in either file, and builds the "30 days" from `HOTSPOT_REGION_TTL_MS` once it runs; one always-on row holds the two files' Clear passages equal to each other meanwhile.
+
+### Insertion 1: the Clear list
+
+Where: `PRIVACY_POLICY.md`, the bullet beginning "You can delete your stored files and keys" under "Your Data Stays on Your Device" (line 16 at this commit), and `website/privacy.html`, the same bullet's `<li>` (line 124 at this commit). Insert, directly after "the county species lists behind the map's Completeness shading,":
+
+> the lists of public hotspots for the regions you have birded,
+
+Anchor sentence, identical in both files today:
+
+> Clearing your eBird backup also removes what was worked out from it and saved on your device: the escapee and Projects answers for your checklists, the county species lists behind the map's Completeness shading, the day-by-day eBird reports behind the Targets tab's live counts (and, with iCloud Sync on, every device's copy of them in iCloud), the saved weather and tide readings for your checklists, and, on iPhone and iPad, the list of your species that the home-screen widgets compare against, and the Alerts inbox together with any alert waiting for the end of your quiet hours and the position the app read for Alerts.
+
+After:
+
+> Clearing your eBird backup also removes what was worked out from it and saved on your device: the escapee and Projects answers for your checklists, the county species lists behind the map's Completeness shading, the lists of public hotspots for the regions you have birded, the day-by-day eBird reports behind the Targets tab's live counts (and, with iCloud Sync on, every device's copy of them in iCloud), the saved weather and tide readings for your checklists, and, on iPhone and iPad, the list of your species that the home-screen widgets compare against, and the Alerts inbox together with any alert waiting for the end of your quiet hours and the position the app read for Alerts.
+
+### Insertion 2: how long each region's answer is kept
+
+Where: `PRIVACY_POLICY.md`, the sub-bullet beginning "The Statistics tab also asks eBird about a set of your own checklists" under eBird in "Connections to Bird and Weather Services" (line 33 at this commit), and `website/privacy.html`, the same sub-bullet's `<li>` (line 142 at this commit). Insert, as a new sentence directly after the anchor sentence:
+
+> Each region's answer is stored on your device for 30 days, so a later launch asks again only about a region your export newly names or whose stored answer is older than that.
+
+Anchor sentence, identical in both files today:
+
+> The tab itself has always made requests, which is a different thing, and worth stating plainly on this page: it matches your species names against the bird taxonomy, and it asks eBird which locations in the regions you have birded are public hotspots.
+
+After:
+
+> The tab itself has always made requests, which is a different thing, and worth stating plainly on this page: it matches your species names against the bird taxonomy, and it asks eBird which locations in the regions you have birded are public hotspots. Each region's answer is stored on your device for 30 days, so a later launch asks again only about a region your export newly names or whose stored answer is older than that.

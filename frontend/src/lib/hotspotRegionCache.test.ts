@@ -5,14 +5,24 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { readFileSync } from 'node:fs'
 
-const disk = vi.hoisted(() => ({ settings: new Map<string, unknown>(), raw: new Map<string, unknown>() }))
+const disk = vi.hoisted(() => ({
+  settings: new Map<string, unknown>(),
+  raw: new Map<string, unknown>(),
+  /** When set, a read takes its value FIRST and then waits on this before
+   *  answering, the order a Tauri `settings.json` chain link queued ahead of a
+   *  purge's delete has (security L2). Null in every other row. */
+  afterRead: null as (() => Promise<void>) | null,
+}))
 vi.mock('./storage', () => ({
   storage: {
     // `raw` holds a value handed back exactly as stored (an unparseable or hostile
     // shape a JSON round trip would not reproduce); `settings` round-trips.
     getSetting: async (k: string) => {
-      if (disk.raw.has(k)) return disk.raw.get(k)
-      return disk.settings.has(k) ? JSON.parse(JSON.stringify(disk.settings.get(k))) as unknown : null
+      const value = disk.raw.has(k)
+        ? disk.raw.get(k)
+        : disk.settings.has(k) ? JSON.parse(JSON.stringify(disk.settings.get(k))) as unknown : null
+      if (disk.afterRead) await disk.afterRead()
+      return value
     },
     setSetting: async (k: string, v: unknown) => { disk.settings.set(k, JSON.parse(JSON.stringify(v)) as unknown) },
     deleteSetting: async (k: string) => { disk.settings.delete(k); disk.raw.delete(k) },
@@ -36,6 +46,7 @@ beforeEach(() => {
   store._resetHotspotRegionCacheForTests()
   disk.settings.clear()
   disk.raw.clear()
+  disk.afterRead = null
 })
 
 describe('the derived payload length', () => {
@@ -245,14 +256,66 @@ describe('the purge (QA-45, QA-46)', () => {
     expect(doc()).toBeUndefined()
     expect(store.peekRegion('US-MN')).toBeNull()
   })
+
+  it('QA-46: a load that read the document BEFORE the purge and answers after it adopts nothing, and nothing is written back (security L2)', async () => {
+    // Read first, then park: the parked read hands back the PRE-purge document, as
+    // a Tauri chain link queued ahead of the purge's delete does. A mock that parks
+    // first and reads after hands back the post-purge disk and cannot see the
+    // parked-load guard at all (the shared `clearDerived.test.ts` roster's shape).
+    disk.settings.set(KEY, { version: 1, entries: { 'US-WI': { ids: ['L7'], fetchedAt: NOW } }, order: ['US-WI'] })
+    const park = deferred<void>()
+    let read = false
+    disk.afterRead = async () => { read = true; await park.promise }
+    const loading = store.ensureLoaded()
+    await vi.waitFor(() => expect(read).toBe(true))
+    disk.afterRead = null
+    await store.purgeHotspotRegionStore()
+    expect(doc()).toBeUndefined()
+    park.resolve()
+    await loading
+    expect(store.peekRegion('US-WI')).toBeNull()
+    expect(store._hotspotRegionBytesForTests()).toBe(0)
+    store._flushHotspotRegionWriteForTests()
+    expect(doc()).toBeUndefined()
+    // The next answer writes only itself: an adopted pre-purge mirror would carry
+    // the cleared region back to disk with it.
+    await store.dedupedFetch('US-MN', async () => ['L1'], { refresh: false })
+    store._flushHotspotRegionWriteForTests()
+    expect(doc()!.order).toEqual(['US-MN'])
+  })
+
+  it('a Clear landing after the chokepoint read the old mirror, before its request registered, persists nothing (security I1)', async () => {
+    // `putEntry`'s identity check is the ONLY guard here: the purge's synchronous
+    // part runs while `dedupedFetch` is suspended on `await loadStore()` holding the
+    // old mirror, so the request registers in `_inflight` AFTER the purge cleared it
+    // and the in-flight check passes.
+    await store.ensureLoaded()
+    const pending = store.dedupedFetch('US-MN', async () => ['L1'], { refresh: false })
+    const purge = store.purgeHotspotRegionStore()
+    expect((await pending).ids).toEqual(['L1']) // still served to its caller
+    await purge
+    store._flushHotspotRegionWriteForTests()
+    const w = store._getHotspotRegionCacheWorkStatsForTests()
+    expect(w.loaderCalls).toBe(1) // the request really ran, past the in-flight check
+    expect(w.puts).toBe(0)
+    expect(store._hotspotRegionBytesForTests()).toBe(0)
+    expect(store.peekRegion('US-MN')).toBeNull()
+    expect(doc()).toBeUndefined()
+  })
 })
 
-describe('the two write guards are each pinned (security.md: redundant guards, one pin per guard)', () => {
-  // A request begun before a Clear is refused twice over: the purge clears the
-  // in-flight map (so `_inflight.get(region) === p` fails at the write) AND replaces
-  // the mirror (so `putEntry`'s identity check fails). Either alone keeps every
-  // purge row green, so each is pinned at its source; the abandon row above is the
-  // behavioural guard the in-flight check carries on its own.
+describe('the write guards are each pinned at the source (security.md: one pin per guard)', () => {
+  // A request begun before a Clear can meet two write guards: the purge clears the
+  // in-flight map (so `_inflight.get(region) === p` fails at the write) and replaces
+  // the mirror (so `putEntry`'s identity check fails). They are NOT redundant. When a
+  // Clear's synchronous part runs after `dedupedFetch`'s `await loadStore()` has
+  // settled with the old mirror but before its request registers in `_inflight`, the
+  // in-flight check passes and the identity check is the only guard: without it the
+  // put lands in the detached mirror and the live byte total over-counts (security
+  // I1). Each is pinned here at its source; the abandon row is the in-flight check's
+  // behavioural guard and the interleaving row in the purge block is the identity
+  // check's. `flushWrite`'s own identity check is what keeps the disk clean in that
+  // interleaving even with `putEntry`'s removed, so it is pinned too.
   const src = readFileSync('src/lib/hotspotRegionCache.ts', 'utf8')
     .split('\n').filter(l => !l.trimStart().startsWith('//')).join('\n')
   const body = (fn: string) => { const at = src.slice(src.indexOf(fn)); return at.slice(0, at.indexOf('\n}')) }

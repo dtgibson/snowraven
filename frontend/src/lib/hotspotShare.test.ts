@@ -170,9 +170,12 @@ describe('the declared scan is linear (schema.md 7.1, QA-32)', () => {
   // Every row its own region key, so the per-distinct-region path runs at volume.
   const distinct = (n: number): ShareChecklist[] =>
     Array.from({ length: n }, (_, i) => cl(`L${i}`, `XX-${i.toString(36).toUpperCase()}`))
-  // Hostile cells that fail each pattern only after consuming a long run.
+  // Hostile cells that fail each pattern only after consuming a long run. The region
+  // cell opens with 'AA-' so REGION_RE's group takes the run before the lowercase
+  // letter fails it; a bare run of 'A's fails at its third character, because the
+  // group needs a literal '-', and measured neither scan (security I2). Built flat.
   const hostile = (len: number): ShareChecklist[] =>
-    Array.from({ length: 200 }, () => cl(`L${'9'.repeat(len)}x`, `${'A'.repeat(len)}a`))
+    Array.from({ length: 200 }, () => cl(`L${'9'.repeat(len)}x`, ['AA-', 'A'.repeat(len), 'a'].join('')))
 
   it('doubling the rows (75k to 150k), and doubling every row\'s own region key, each cost about twice the CPU time', () => {
     const r75 = realistic(75_000), r150 = realistic(150_000)
