@@ -169,17 +169,31 @@ function parseBlocks(md: string): Block[] {
   const lines = md.split('\n')
   const blocks: Block[] = []
   let i = 0
+  // Heading ids are unique in the rendered document: a heading whose id is
+  // already taken gets the first free numeric suffix ("life-lists-2"). The
+  // FIRST occurrence keeps the bare id, which is the one every TOC entry and
+  // getElementById already resolved to, so no jump target moves. Before this,
+  // a `###` sharing its text with a `##` (Weather, API Keys, Default Files,
+  // and List Comparer's Life Lists mode) stamped a duplicate id.
+  const usedIds = new Set<string>()
+  const uniqueId = (text: string): string => {
+    const base = textToId(text)
+    let id = base
+    for (let n = 2; usedIds.has(id); n++) id = `${base}-${n}`
+    usedIds.add(id)
+    return id
+  }
 
   while (i < lines.length) {
     const line = lines[i]
 
     if (line.startsWith('### ')) {
       const text = line.slice(4)
-      blocks.push({ kind: 'h3', id: textToId(text), text })
+      blocks.push({ kind: 'h3', id: uniqueId(text), text })
       i++
     } else if (line.startsWith('## ')) {
       const text = line.slice(3)
-      blocks.push({ kind: 'h2', id: textToId(text), text })
+      blocks.push({ kind: 'h2', id: uniqueId(text), text })
       i++
     } else if (line.startsWith('# ')) {
       blocks.push({ kind: 'h1', text: line.slice(2) })

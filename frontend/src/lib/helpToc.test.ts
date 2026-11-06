@@ -44,6 +44,26 @@ const tocTopLevel = (() => {
   return out
 })()
 
+/** Every `##` and `###` heading's id as the renderer assigns it: the formula
+ *  above, then the first free numeric suffix for a repeat, the first occurrence
+ *  keeping the bare id (HelpDocs.tsx parseBlocks). Mirrored here like the
+ *  formula; HelpDocs.test.tsx pins the real generator through the DOM. */
+const headingIds = (() => {
+  const used = new Set<string>()
+  const out: { level: '##' | '###'; text: string; id: string }[] = []
+  for (const line of helpMd.split('\n')) {
+    const level = line.startsWith('### ') ? '###' : line.startsWith('## ') ? '##' : null
+    if (!level) continue
+    const text = line.slice(level.length + 1)
+    const base = textToId(text)
+    let id = base
+    for (let n = 2; used.has(id); n++) id = `${base}-${n}`
+    used.add(id)
+    out.push({ level, text, id })
+  }
+  return out
+})()
+
 /** Every `##` (h2) section heading in HELP.md, in document order. */
 const mdSections = helpMd
   .split('\n')
@@ -58,6 +78,19 @@ describe('in-app Help TOC ↔ docs/HELP.md parity', () => {
   it('every TOC id matches the id the renderer stamps on that heading', () => {
     // A mismatched id renders a jump link that silently goes nowhere.
     expect(tocTopLevel.map(t => t.id)).toEqual(mdSections.map(textToId))
+    // And it is the id of the `##` section itself, never of a `###` that
+    // shares its text (List Comparer's Life Lists mode, Settings' API Keys).
+    const h2Ids = headingIds.filter(h => h.level === '##').map(h => h.id)
+    expect(tocTopLevel.map(t => t.id)).toEqual(h2Ids)
+  })
+
+  it('every generated heading id is unique in the rendered document (life-lists-tab)', () => {
+    const ids = headingIds.map(h => h.id)
+    expect(ids.length).toBeGreaterThan(40)
+    expect(new Set(ids).size).toBe(ids.length)
+    // Non-vacuity: the document really does repeat heading text, so the
+    // suffix rule is exercised, and the nested repeat is the one suffixed.
+    expect(headingIds.find(h => h.level === '###' && h.text === 'Life Lists')!.id).toBe('life-lists-2')
   })
 
   it('covers all 19 sections, including the three that were unreachable before v0.5.75', () => {

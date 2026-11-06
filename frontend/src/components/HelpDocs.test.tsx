@@ -18,6 +18,15 @@ vi.mock('../lib/storage', () => ({
 afterEach(cleanup)
 
 describe('HelpDocs accessibility (F006/F039/F040/F060/F078)', () => {
+  it('stamps a unique id on every heading, the section keeping the bare id (life-lists-tab)', () => {
+    const { container } = render(<HelpDocs onClose={vi.fn()} />)
+    const ids = [...container.querySelectorAll('h2[id], h3[id]')].map(h => h.id)
+    expect(ids.length).toBeGreaterThan(40)
+    expect(new Set(ids).size).toBe(ids.length)
+    expect(container.querySelector('#life-lists')!.tagName).toBe('H2')
+    expect(container.querySelector('#life-lists-2')!.tagName).toBe('H3')
+  })
+
   it('labels the TOC navigation landmark (F060)', () => {
     render(<HelpDocs onClose={vi.fn()} />)
     expect(screen.getByRole('navigation', { name: 'Documentation contents' })).toBeTruthy()
