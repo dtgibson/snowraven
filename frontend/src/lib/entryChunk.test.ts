@@ -1032,6 +1032,19 @@ describe('entry-chunk exclusion (NFR-03 / QA-30)', () => {
     expect(hasIn(sub.files, 'lib/pageList.ts')).toBe(true)
     expect(has('lib/weatherBacklog.ts')).toBe(true)
     expect(has('lib/pageList.ts')).toBe(true)
+    // QA round 1 (QA-50, decisions.md D-27): the tab also imports the shared
+    // checklist-link group (ChecklistLink, speciesDetail/ui). Those modules are
+    // ALREADY on App's static graph, through the Weather tab's checklist links,
+    // so the import adds no first-paint code: measured, first-paint JS (the
+    // entry plus every modulepreload) grew 913 B over a1823622, the
+    // registration, while the bundler merged that already-preloaded 2,713 B
+    // chunk into the entry FILE. This row pins the premise. If either module
+    // ever leaves App's static graph, the tab importing it would make it a lazy
+    // chunk again, and the build A/B must be re-taken before NFR-06 is re-claimed.
+    for (const shared of ['components/ChecklistLink.tsx', 'components/speciesDetail/ui.tsx']) {
+      expect(hasIn(sub.files, shared), `Life Lists reaches ${shared}`).toBe(true)
+      expect(has(shared), `${shared} is already first-paint (App's static graph)`).toBe(true)
+    }
     // The registry entries are the tab's only entry-chunk footprint.
     expect(has('lib/tabLayout.ts')).toBe(true)
     expect(has('lib/tabIcons.tsx')).toBe(true)

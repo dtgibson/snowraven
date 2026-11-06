@@ -5,9 +5,10 @@
 // timed at N and 10N through the shared CPU-time helper (src/test/cpuTiming.ts),
 // interleaved with a rotating start, and the per-call quotient t(10N) / t(N)
 // must stay at or under 20: linear is 10, and the margin is the house 2x. Pass 3
-// sorts SPECIES, so its distinct-species leg is S log S, about 13 at these sizes,
-// and its limit is the same 2x over that expectation (about 26), derived in the
-// row rather than typed in (decisions.md D-19). Both legs are measured in the same process, so
+// sorts SPECIES, so its distinct-species leg is S log S, and its limit is the
+// same 2x over that expectation (about 29 at its legs), derived in the row
+// rather than typed in (decisions.md D-19). Its legs are 500 / 5,000 species,
+// where the margin comes from the legs, not the limit (decisions.md D-28). Both legs are measured in the same process, so
 // the machine cancels; an absolute wall-clock budget is never asserted here.
 //
 // TWO SPECIES SHAPES per pass: every row its own species (the per-key path at
@@ -44,6 +45,11 @@ import {
 } from './lifeLists'
 
 const N = 5_000
+/** Pass 3's own legs: 500 and 5,000 species (decisions.md D-28). It sorts its
+ *  output, so its residual grows faster with size than the passes' do; at these
+ *  legs it read 10.3 to 11.1 under heavy load on Node 24 and Node 20, about 2.6x
+ *  under its derived limit, where 5k / 50k read up to 21 (1.2x). */
+const PASS3_N = 500
 /** The mutant's own sizes: 2k and 20k, where it still finishes. */
 const MUTANT_N = 2_000
 const LIMIT = 20
@@ -126,13 +132,14 @@ describe('the Life Lists derivation is linear in rows (NFR-01, QA-44)', { timeou
     })
 
     it(`pass 3 (the shown list, a media selection), ${leg}`, () => {
-      const fs = deriveFirstSightings(backup(N, distinct)), fl = deriveFirstSightings(backup(10 * N, distinct))
-      const as = deriveFirstAssets(mlExport(N, distinct)), al = deriveFirstAssets(mlExport(10 * N, distinct))
+      const fs = deriveFirstSightings(backup(PASS3_N, distinct)), fl = deriveFirstSightings(backup(10 * PASS3_N, distinct))
+      const as = deriveFirstAssets(mlExport(PASS3_N, distinct)), al = deriveFirstAssets(mlExport(10 * PASS3_N, distinct))
       const c = { includeEscapees: false, includeExotics: false, formats: new Set<MediaFormat>(['Photo']) }
       // Pass 3 sorts its output, so its expectation is S log S, not linear: the
       // limit is the house 2x over THAT, derived from the rows each leg actually
-      // sorts (about 26 on the distinct leg, 2 on the repeated one, where S does
-      // not grow). A nested loop or a quadratic sort reads about 100 and fails it.
+      // sorts (about 29 on the distinct leg; the repeated leg, where S does not
+      // grow, keeps the flat 20). A nested loop or a quadratic sort reads about
+      // 100 and fails it.
       const ns = selectRows(fs, as, NONE, c).length, nl = selectRows(fl, al, NONE, c).length
       const limit = distinct ? 2 * (nl / ns) * (Math.log2(nl) / Math.log2(ns)) : LIMIT
       expect(limit).toBeLessThanOrEqual(30)
