@@ -35,7 +35,7 @@ import {
 } from './exoticProvenance'
 import {
   consultedSet, getSnapshot, isFreshFor, lastConsultedAt, loadSnapshot,
-  publishExcludedNames, subscribe, dedupedFetchChecklist,
+  publishClassifiedNames, subscribe, dedupedFetchChecklist,
   type ProvenanceObservation,
 } from './exoticProvenanceCache'
 
@@ -204,12 +204,14 @@ export function useExoticProvenance(
 
   // Publish the classification for passive readers (the Calendar holds no
   // name-to-code join and is zero-network by guarantee). Statistics is the only
-  // place that holds the join, so it is the only publisher. `publishExcludedNames`
-  // no-ops on an unchanged list, so this settles after one round rather than
-  // looping on its own revision bump.
+  // place that holds the join, so it is the only publisher, of both the escapee
+  // list and (life-lists-tab FR-17) the exotic list, in one write. The store's
+  // publisher no-ops when both lists are unchanged, so this settles after one
+  // round rather than looping on its own revision bump. The guard condition is
+  // unchanged, and the effect touches the store only: no request (QA-18).
   useEffect(() => {
     if (snapshot.species.size === 0 || index.bySpecies.size === 0) return
-    void publishExcludedNames([...lookup.excludedNames])
+    void publishClassifiedNames({ excludedNames: [...lookup.excludedNames], exoticNames: [...lookup.exoticNames] })
   }, [lookup, snapshot, index])
 
   const runPass = useCallback(async (): Promise<void> => {

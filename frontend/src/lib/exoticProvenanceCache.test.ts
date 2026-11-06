@@ -467,7 +467,7 @@ describe('every code in the bundled taxonomy snapshot fits the app\'s code guard
 describe('persistence through the storage seam (NFR-10)', () => {
   it('writes the whole document, debounced, and reads it back next session', async () => {
     await cache.mergeChecklist('S1', [o('musduc', 'X', 'DNC')], ALL, Date.now())
-    await cache.publishExcludedNames(['Muscovy Duck'])
+    await cache.publishClassifiedNames({ excludedNames: ['Muscovy Duck'], exoticNames: ['Rock Pigeon'] })
     await vi.advanceTimersByTimeAsync(300)
     expect(setSettingSpy).toHaveBeenCalled()
 
@@ -476,14 +476,24 @@ describe('persistence through the storage seam (NFR-10)', () => {
     expect(snap.checklists.has('S1')).toBe(true)
     expect(snap.species.get('musduc')!.seen).toEqual(['X|DNC'])
     expect(snap.excludedNames).toEqual(['Muscovy Duck'])
+    expect(snap.exoticNames).toEqual(['Rock Pigeon'])
   })
 
-  it('publishing an UNCHANGED list schedules no write', async () => {
+  it('publishing UNCHANGED lists schedules no write', async () => {
     await cache.mergeChecklist('S1', [o('musduc', 'X', 'DNC')], ALL, Date.now())
-    await cache.publishExcludedNames(['Muscovy Duck'])
+    await cache.publishClassifiedNames({ excludedNames: ['Muscovy Duck'], exoticNames: [] })
     const before = cache._getProvenanceCacheWorkStatsForTests().writeSchedules
-    await cache.publishExcludedNames(['Muscovy Duck'])
+    await cache.publishClassifiedNames({ excludedNames: ['Muscovy Duck'], exoticNames: [] })
     expect(cache._getProvenanceCacheWorkStatsForTests().writeSchedules).toBe(before)
+  })
+
+  it('an empty exotic list against a never-published (null) store is a change, so [] is published', async () => {
+    await cache.mergeChecklist('S1', [o('musduc', 'X', 'DNC')], ALL, Date.now())
+    expect((await cache.loadSnapshot()).exoticNames).toBe(null)
+    const before = cache._getProvenanceCacheWorkStatsForTests().writeSchedules
+    await cache.publishClassifiedNames({ excludedNames: [], exoticNames: [] })
+    expect(cache._getProvenanceCacheWorkStatsForTests().writeSchedules).toBe(before + 1)
+    expect((await cache.loadSnapshot()).exoticNames).toEqual([])
   })
 
   it('a seam read failure degrades to "not cached" rather than rejecting', async () => {
@@ -498,4 +508,43 @@ describe('persistence through the storage seam (NFR-10)', () => {
     await cache.mergeChecklist('S1', [o('musduc', 'N')], ALL, 1_700_000_000_000)
     expect(cache.lastConsultedAt()).toBe(1_700_000_000_000)
   })
+})
+
+// ── The exotic publication (life-lists-tab schema 3.2) ───────────────────────
+
+describe('exoticNames: an optional field whose absence is UNRESOLVED', () => {
+  const base = { version: 1, checklists: {}, order: [], species: {}, speciesOrder: [], excludedNames: [] }
+
+  it('an absent, null or non-array field reads as null (never published), the safe direction', () => {
+    expect(cache.sanitizeStore(base).exoticNames).toBe(null)
+    expect(cache.sanitizeStore({ ...base, exoticNames: null }).exoticNames).toBe(null)
+    expect(cache.sanitizeStore({ ...base, exoticNames: 'Rock Pigeon' }).exoticNames).toBe(null)
+    expect(cache.sanitizeStore(JSON.parse('{"version":1,"checklists":{},"order":[],"species":{},"speciesOrder":[],"excludedNames":[],"exoticNames":{"0":"x"}}')).exoticNames).toBe(null)
+  })
+
+  it('admits names under the SAME bounds as excludedNames, dropping malformed entries', () => {
+    const long = 'x'.repeat(129)
+    const s = cache.sanitizeStore({ ...base, exoticNames: ['Rock Pigeon', '', long, 7, 'House Sparrow'], excludedNames: ['', long, 'Muscovy Duck'] })
+    expect(s.exoticNames).toEqual(['Rock Pigeon', 'House Sparrow'])
+    expect(s.excludedNames).toEqual(['Muscovy Duck'])
+  })
+
+  it('caps BOTH lists at the same count, and the cap is 2,048', () => {
+    const many = Array.from({ length: 3000 }, (_, i) => `Name ${i}`)
+    const s = cache.sanitizeStore({ ...base, excludedNames: many, exoticNames: many })
+    expect(s.excludedNames.length).toBe(2048)
+    expect(s.exoticNames!.length).toBe(2048)
+  })
+
+  it('the write chokepoint round trip is idempotent on BOTH the null and the [] shapes, which mean different things', () => {
+    for (const exoticNames of [null, [], ['Rock Pigeon']] as const) {
+      const once = cache.sanitizeStore({ ...base, exoticNames })
+      const twice = cache.sanitizeStore(JSON.parse(JSON.stringify(once)))
+      expect(twice).toEqual(once)
+      expect(twice.exoticNames).toEqual(exoticNames)
+    }
+  })
+
+  // The purge resetting the field to null is asserted in clearDerived.test.ts,
+  // beside the in-flight publish race, through the real teardown.
 })

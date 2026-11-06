@@ -54,6 +54,12 @@ export function tokenCounts(token: string): boolean {
   return categoryOfToken(token) !== ESCAPEE_CATEGORY
 }
 
+/** life-lists-tab FR-16: a category that is present. 'X|', 'N|', 'P|' and any
+ *  future value qualify; '|' does not. */
+export function isExoticToken(token: string): boolean {
+  return categoryOfToken(token) !== ''
+}
+
 // ── The persisted shapes (schema.md §3) ───────────────────────────────────────
 
 export interface SpeciesProvenanceRecord {
@@ -88,12 +94,21 @@ export interface ProvenanceSnapshot {
    * a newly added checklist re-opens a species offline too (FR-25).
    */
   readonly excludedNames: readonly string[]
+  /**
+   * The exotic-only classification as last published by a Statistics pass
+   * (life-lists-tab FR-16, FR-17), same names, same bounds, same passive
+   * confirmation as `excludedNames`. `null` means "never published on this
+   * document" and `[]` means "published, and no species is exotic-only"; the
+   * two mean different things and a reader must not conflate them.
+   */
+  readonly exoticNames: readonly string[] | null
 }
 
 export const EMPTY_SNAPSHOT: ProvenanceSnapshot = {
   checklists: new Set<string>(),
   species: new Map<string, SpeciesProvenanceRecord>(),
   excludedNames: [],
+  exoticNames: null,
 }
 
 // ── The cover input, derived from loaded observations (schema.md §7) ───────────
@@ -203,6 +218,25 @@ export function classifySpecies(
   return 'escapee-only'
 }
 
+/**
+ * life-lists-tab FR-16: not an escapee, every seen token carries a category, and
+ * every carrier in the current export has been consulted. A species with no
+ * record, an unconsulted carrier, or one categoryless observation is native.
+ *
+ * A separate predicate, never a fifth `ProvenanceClass`, so every Statistics
+ * count is provably untouched. An escapee-only species is never exotic (the
+ * `counting` test refuses it), so the two published lists are disjoint.
+ */
+export function isExoticOnly(snapshot: ProvenanceSnapshot, index: CoverIndex, code: string): boolean {
+  const rec = snapshot.species.get(code)
+  if (!rec) return false
+  if (classifySpecies(snapshot, index, code) !== 'counting') return false
+  for (const t of rec.seen) if (!isExoticToken(t)) return false
+  const carriers = index.bySpecies.get(code)
+  if (carriers) for (const sub of carriers) if (!snapshot.checklists.has(sub)) return false
+  return true
+}
+
 /** FR-04, stated once: a species is removed from a life-list total ONLY when it
  *  is `escapee-only`. Everything else counts, so the total converges DOWNWARD as
  *  resolution completes and never wrongly erases a lifer. */
@@ -226,6 +260,9 @@ export interface ProvenanceLookup {
   /** Normalized common names classified escapee-only. The set every in-scope
    *  surface composes with its existing countable-name predicate. */
   readonly excludedNames: ReadonlySet<string>
+  /** Normalized common names classified exotic-only (life-lists-tab FR-16).
+   *  Published for the Life Lists tab; no Statistics count reads it. */
+  readonly exoticNames: ReadonlySet<string>
   /** The disclosure payload (FR-32). Available whatever the toggle says. */
   readonly excluded: readonly ExcludedSpecies[]
   readonly counts: {
@@ -240,6 +277,7 @@ export interface ProvenanceLookup {
 
 export const EMPTY_LOOKUP: ProvenanceLookup = {
   excludedNames: new Set<string>(),
+  exoticNames: new Set<string>(),
   excluded: [],
   counts: { resolved: 0, unresolved: 0, unknown: 0 },
 }
@@ -260,6 +298,7 @@ export function buildProvenanceLookup(
   index: CoverIndex,
 ): ProvenanceLookup {
   const excludedNames = new Set<string>()
+  const exoticNames = new Set<string>()
   const excluded: ExcludedSpecies[] = []
   let resolved = 0, unresolved = 0, unknown = 0
 
@@ -268,6 +307,7 @@ export function buildProvenanceLookup(
     if (cls === 'unknown') { unknown += 1; continue }
     if (cls === 'unresolved') { unresolved += 1; continue }
     resolved += 1
+    if (isExoticOnly(snapshot, index, code)) exoticNames.add(name)
     if (cls === 'escapee-only') {
       const rec = snapshot.species.get(code)
       excludedNames.add(name)
@@ -281,7 +321,7 @@ export function buildProvenanceLookup(
   }
 
   excluded.sort((a, b) => a.name.localeCompare(b.name))
-  return { excludedNames, excluded, counts: { resolved, unresolved, unknown } }
+  return { excludedNames, exoticNames, excluded, counts: { resolved, unresolved, unknown } }
 }
 
 /**
@@ -302,7 +342,19 @@ export function confirmExcludedNames(
   snapshot: ProvenanceSnapshot,
   obs: readonly ObservationEntry[],
 ): ReadonlySet<string> {
-  const published = snapshot.excludedNames
+  return confirmPublishedNames(snapshot.excludedNames, snapshot, obs)
+}
+
+/**
+ * The body of `confirmExcludedNames` with the published list as a parameter, so
+ * the Life Lists tab confirms the exotic list by the SAME mechanism as the
+ * escapee list and the two switches cannot drift apart. One `Set.has` per row.
+ */
+export function confirmPublishedNames(
+  published: readonly string[],
+  snapshot: ProvenanceSnapshot,
+  obs: readonly ObservationEntry[],
+): ReadonlySet<string> {
   if (published.length === 0) return EMPTY_LOOKUP.excludedNames
   const candidates = new Set(published)
   const open = new Set<string>()

@@ -168,6 +168,9 @@ describe('the provenance store\'s worst-case document fits under the route\'s li
   const admitsSpecies = (code: string, rec: unknown) =>
     sanitizeProvenance(doc({ species: { [code]: rec }, speciesOrder: [code] })).speciesOrder.length === 1
   const admittedNames = (names: string[]) => sanitizeProvenance(doc({ excludedNames: names })).excludedNames.length
+  // The exotic list (life-lists-tab) is a second published list on the same
+  // document, read through its own field so its bounds are asked, not assumed.
+  const admittedExoticNames = (names: string[]) => sanitizeProvenance(doc({ exoticNames: names })).exoticNames?.length ?? 0
 
   const KEY_DIGITS = 15
   const checklistKey = (i: number) => `S${String(10 ** (KEY_DIGITS - 1) + i)}`
@@ -194,6 +197,17 @@ describe('the provenance store\'s worst-case document fits under the route\'s li
     expect(kept, 'a name count bound exists').toBeLessThan(20_000)
     return kept
   }
+  function mostExoticNames(): number {
+    const kept = admittedExoticNames(Array.from({ length: 20_000 }, () => 'X'))
+    expect(kept, 'an exotic name count bound exists').toBeLessThan(20_000)
+    return kept
+  }
+  function longestExoticName(): number {
+    let longest = 0
+    for (let len = 1; len <= 1024; len += 1) if (admittedExoticNames([NAME_UNIT.repeat(len)]) === 1) longest = len
+    expect(longest, 'an exotic name length bound exists').toBeLessThan(1024)
+    return longest
+  }
 
   it('each dimension of the worst ledger entry, record and name is the validator\'s largest admitted value', () => {
     expect(admitsChecklist(checklistKey(0), LONGEST_FINITE)).toBe(true)
@@ -209,6 +223,13 @@ describe('the provenance store\'s worst-case document fits under the route\'s li
 
     expect(admittedNames([NAME_UNIT.repeat(longestName())])).toBe(1)
     expect(admittedNames([NAME_UNIT.repeat(longestName() + 1)])).toBe(0)
+    expect(admittedExoticNames([NAME_UNIT.repeat(longestExoticName())])).toBe(1)
+    expect(admittedExoticNames([NAME_UNIT.repeat(longestExoticName() + 1)])).toBe(0)
+  })
+
+  it('the two published lists share one bound, compared to each other rather than restated', () => {
+    expect(mostExoticNames()).toBe(mostNames())
+    expect(longestExoticName()).toBe(longestName())
   })
 
   it('at the shipped caps, built through sanitizeStore', () => {
@@ -226,11 +247,14 @@ describe('the provenance store\'s worst-case document fits under the route\'s li
     }
     const name = NAME_UNIT.repeat(longestName())
     const excludedNames = Array.from({ length: mostNames() + 1 }, () => name)
+    const exoticName = NAME_UNIT.repeat(longestExoticName())
+    const exoticNames = Array.from({ length: mostExoticNames() + 1 }, () => exoticName)
 
-    const store = sanitizeProvenance({ version: 1, checklists, order, species, speciesOrder, excludedNames })
+    const store = sanitizeProvenance({ version: 1, checklists, order, species, speciesOrder, excludedNames, exoticNames })
     expect(store.order).toHaveLength(PROVENANCE_MAX_CHECKLISTS_DEFAULT)
     expect(store.speciesOrder).toHaveLength(PROVENANCE_MAX_SPECIES_DEFAULT)
     expect(store.excludedNames).toHaveLength(mostNames())
+    expect(store.exoticNames).toHaveLength(mostExoticNames())
 
     const bytes = utf8Bytes(JSON.stringify(store))
     const limit = routeLimitBytes()

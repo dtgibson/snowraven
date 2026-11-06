@@ -583,7 +583,7 @@ describe('a purge supersedes work already in flight', () => {
   })
 
   it('an escapee-name publish already in flight does not re-write the names', async () => {
-    // publishExcludedNames carries species COMMON NAMES verbatim from the
+    // publishClassifiedNames carries species COMMON NAMES verbatim from the
     // export, so a publish that lands after a Clear is the same leak by another
     // door.
     vi.useFakeTimers()
@@ -592,7 +592,7 @@ describe('a purge supersedes work already in flight', () => {
     const gate = deferred<void>()
     disk.holdSettingRead = gate.promise
     provenance._resetProvenanceCacheForTests()
-    const pending = provenance.publishExcludedNames(['Mute Swan', 'Egyptian Goose'])
+    const pending = provenance.publishClassifiedNames({ excludedNames: ['Mute Swan', 'Egyptian Goose'], exoticNames: ['Rock Pigeon'] })
     await Promise.resolve()
 
     await purgeDerivedOnClear('ebird')
@@ -603,6 +603,7 @@ describe('a purge supersedes work already in flight', () => {
 
     expect(disk.settings[provenance.PROVENANCE_STORE_KEY]).toBeUndefined()
     expect(provenance.getSnapshot().excludedNames).toEqual([])
+    expect(provenance.getSnapshot().exoticNames).toBe(null)
   })
 
   // Typed explicitly: an inline tuple whose members are arrow functions returning

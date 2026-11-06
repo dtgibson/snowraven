@@ -17,8 +17,8 @@ import type { ObservationEntry } from '../types'
 import {
   EMPTY_SNAPSHOT, ESCAPEE_CATEGORY,
   buildCoverIndex, buildProvenanceLookup, carriersNeedingRefetch, categoryOfToken, classCounts,
-  classifySpecies, confirmExcludedNames, greedyCover, remainingSpecies,
-  seenToken, tokenCounts,
+  classifySpecies, confirmExcludedNames, confirmPublishedNames, greedyCover, isExoticOnly, isExoticToken,
+  remainingSpecies, seenToken, tokenCounts,
   type ProvenanceSnapshot, type SpeciesProvenanceRecord,
 } from './exoticProvenance'
 
@@ -45,11 +45,13 @@ function snapshot(
   species: Record<string, SpeciesProvenanceRecord>,
   checklists: string[],
   excludedNames: string[] = [],
+  exoticNames: string[] | null = null,
 ): ProvenanceSnapshot {
   return {
     checklists: new Set(checklists),
     species: new Map(Object.entries(species)),
     excludedNames,
+    exoticNames,
   }
 }
 
@@ -505,6 +507,98 @@ describe('carriersNeedingRefetch (recordless cover species re-open their ledger 
     const snap = snapshot({ mallar3: rec(['|']) }, ['S1', 'S2'])
     const stale = carriersNeedingRefetch(snap, index, remainingSpecies(snap, index, new Set()))
     expect(stale).toEqual(new Set(['S1']))
+  })
+})
+
+// ── The exotic classification (life-lists-tab FR-16, QA-17) ────────────────
+
+describe('isExoticOnly: every consulted token carries a category, not an escapee, every carrier consulted', () => {
+  const index = buildCoverIndex(
+    [obs('Muscovy Duck', 'S1'), obs('Muscovy Duck', 'S2'), obs('Mallard', 'S1')],
+    codeFor,
+  )
+
+  it("tokens 'N|' and 'P|' with every carrier consulted are exotic", () => {
+    const snap = snapshot({ musduc: rec(['N|', 'P|']) }, ['S1', 'S2'])
+    expect(isExoticOnly(snap, index, 'musduc')).toBe(true)
+  })
+
+  it("one categoryless observation ('|') makes the species native", () => {
+    const snap = snapshot({ musduc: rec(['N|', '|']) }, ['S1', 'S2'])
+    expect(isExoticOnly(snap, index, 'musduc')).toBe(false)
+  })
+
+  it("'X|' beside 'N|' with every carrier consulted is exotic, not escapee", () => {
+    const snap = snapshot({ musduc: rec(['X|', 'N|']) }, ['S1', 'S2'])
+    expect(classifySpecies(snap, index, 'musduc')).toBe('counting')
+    expect(isExoticOnly(snap, index, 'musduc')).toBe(true)
+  })
+
+  it('an unconsulted carrier, or no record at all, is native', () => {
+    expect(isExoticOnly(snapshot({ musduc: rec(['N|']) }, ['S1']), index, 'musduc')).toBe(false)
+    expect(isExoticOnly(snapshot({}, ['S1', 'S2']), index, 'musduc')).toBe(false)
+  })
+
+  it('an escapee-only species is never exotic', () => {
+    const snap = snapshot({ musduc: rec(['X|', 'X|DNC']) }, ['S1', 'S2'])
+    expect(classifySpecies(snap, index, 'musduc')).toBe('escapee-only')
+    expect(isExoticOnly(snap, index, 'musduc')).toBe(false)
+  })
+
+  it('isExoticToken: any present category qualifies, an empty one does not', () => {
+    for (const t of ['X|', 'N|', 'P|', 'Q|', 'N|DNC']) expect(isExoticToken(t), t).toBe(true)
+    for (const t of ['|', '|DNC', '']) expect(isExoticToken(t), t).toBe(false)
+  })
+
+  it('the escapee and exotic lists are disjoint over a generated token corpus', () => {
+    const ALPHABET = ['X|', 'N|', 'P|', '|', 'X|DNC', '|DNC']
+    const both: string[] = []
+    let exotic = 0, escapee = 0
+    // Every non-empty token multiset of size 1 to 3, under both ledger states.
+    for (let a = 0; a < ALPHABET.length; a++) {
+      for (let b = -1; b < ALPHABET.length; b++) {
+        for (let c = -1; c < ALPHABET.length; c++) {
+          const seen = [ALPHABET[a], ...(b >= 0 ? [ALPHABET[b]] : []), ...(c >= 0 ? [ALPHABET[c]] : [])]
+          for (const consulted of [['S1', 'S2'], ['S1']]) {
+            const snap = snapshot({ musduc: rec(seen) }, consulted)
+            const lookup = buildProvenanceLookup(snap, index)
+            if (lookup.exoticNames.has('Muscovy Duck')) exotic += 1
+            if (lookup.excludedNames.has('Muscovy Duck')) escapee += 1
+            if (lookup.exoticNames.has('Muscovy Duck') && lookup.excludedNames.has('Muscovy Duck')) both.push(seen.join(','))
+          }
+        }
+      }
+    }
+    expect(both).toEqual([])
+    // Non-vacuity: both classes are reached by the corpus.
+    expect(exotic).toBeGreaterThan(0)
+    expect(escapee).toBeGreaterThan(0)
+  })
+
+  it('buildProvenanceLookup publishes exotic names by the export\'s own normalized name', () => {
+    const snap = snapshot({ musduc: rec(['N|']), mallar3: rec(['|']) }, ['S1', 'S2'])
+    const lookup = buildProvenanceLookup(snap, index)
+    expect([...lookup.exoticNames]).toEqual(['Muscovy Duck'])
+    expect([...lookup.excludedNames]).toEqual([])
+  })
+})
+
+describe('confirmPublishedNames: one confirmation for both published lists', () => {
+  it('confirms an exotic list by the same carrier rule as the escapee list', () => {
+    const rows = [obs('Rock Pigeon', 'S1'), obs('Rock Pigeon', 'S2'), obs('House Sparrow', 'S1')]
+    const all = snapshot({}, ['S1', 'S2'])
+    const partial = snapshot({}, ['S1'])
+    expect([...confirmPublishedNames(['Rock Pigeon', 'House Sparrow'], all, rows)].sort()).toEqual(['House Sparrow', 'Rock Pigeon'])
+    expect([...confirmPublishedNames(['Rock Pigeon', 'House Sparrow'], partial, rows)]).toEqual(['House Sparrow'])
+    expect(confirmPublishedNames([], all, rows).size).toBe(0)
+  })
+
+  it('confirmExcludedNames is a one-line delegation (comments stripped)', () => {
+    const code = stripComments(readFileSync(fileURLToPath(new URL('./exoticProvenance.ts', import.meta.url)), 'utf8'))
+    const at = code.indexOf('export function confirmExcludedNames(')
+    expect(at).toBeGreaterThan(-1)
+    const body = code.slice(code.indexOf('{', at), code.indexOf('\n}', at) + 2)
+    expect(body.replace(/\s+/g, ' ').trim()).toBe('{ return confirmPublishedNames(snapshot.excludedNames, snapshot, obs) }')
   })
 })
 

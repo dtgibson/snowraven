@@ -48,7 +48,10 @@ import { SUBMISSION_KEY_RE } from './checklistId'
 export const PROVENANCE_TTL_MS = 30 * 24 * 60 * 60 * 1000
 
 /** Storage-seam document key. Bump the suffix AND `version` together on any
- *  shape change; a mismatch yields an empty store, never a migration. */
+ *  shape change that would make an old document MISREAD; a mismatch yields an
+ *  empty store, never a migration. An added OPTIONAL field whose absence is a
+ *  defined state is not such a change (life-lists-tab's `exoticNames`, absent
+ *  meaning "not yet published"), so it rode the same key and version. */
 export const PROVENANCE_STORE_KEY = 'exotic-provenance-v1'
 
 // Caps. Both are stated STRUCTURALLY (entry count, key length, member count),
@@ -77,10 +80,12 @@ export const PROVENANCE_STORE_KEY = 'exotic-provenance-v1'
 // over `_MAX_BYTES` in `backend/routers/settingskv.py` (16 MiB) with 413, a
 // refusal the best-effort write below swallows. The 262,144 the raise first
 // chose does not fit (security review L1). At the validator's bounds a ledger
-// entry costs 64 bytes, and the species index (16,384 records) and published
-// names (4,096 of 128 characters) about 7.1 MB together, so the worst case at
-// this cap is 15.4 MB against the route's 16.8 MB; `settingsRouteBudget.test.ts`
-// builds it through `sanitizeStore` and compares it with the Python constant.
+// entry costs 64 bytes, and the species index (16,384 records) and the two
+// published name lists (2,048 of 128 characters EACH since life-lists-tab, so
+// the two together cost what the one list of 4,096 did) about 7.1 MB together,
+// so the worst case at this cap is 15.1 MB against the route's 16.8 MB;
+// `settingsRouteBudget.test.ts` builds it through `sanitizeStore` and compares
+// it with the Python constant.
 // FIFO, unchanged: an eviction here costs one redundant request and loses no
 // answer. The ledger lives in the shared settings document and grows only as
 // passes consult checklists: at this cap with real ids it is about 5.5 M
@@ -100,8 +105,14 @@ export function setProvenanceMaxChecklists(n: number): void { PROVENANCE_MAX_CHE
  *  a hostile document grow an entry without bound. */
 export const MAX_SEEN_PER_SPECIES = 8
 
-/** Structural bound on the published escapee-name list (schema.md §3 note). */
-const MAX_PUBLISHED_NAMES = 4096
+/** Structural bound on EACH published name list, escapee and exotic
+ *  (schema.md §3 note). 2,048 since life-lists-tab: two lists at 4,096 put the
+ *  worst-case document 1.5 MB over the web/Pi route, two at 2,048 cost exactly
+ *  what one at 4,096 did, and no real list approaches it (the escapee list on
+ *  the reference export is single digits; the exotic list for a world lister is
+ *  at most a few hundred). A longer list from an earlier build is truncated on
+ *  load, the safe direction: a dropped name is unconfirmed and counts. */
+const MAX_PUBLISHED_NAMES = 2048
 const MAX_PUBLISHED_NAME_LENGTH = 128
 
 export interface ProvenanceStore {
@@ -121,10 +132,14 @@ export interface ProvenanceStore {
   speciesOrder: string[]
   /** Published escapee-only names (see ProvenanceSnapshot.excludedNames). */
   excludedNames: string[]
+  /** Published exotic-only names (life-lists-tab). `null` = never published on
+   *  this document, which every document written before 1.0.62 is. Absence is
+   *  UNRESOLVED, never "no exotics". */
+  exoticNames: string[] | null
 }
 
 const EMPTY_STORE = (): ProvenanceStore => ({
-  version: 1, checklists: {}, order: [], species: {}, speciesOrder: [], excludedNames: [],
+  version: 1, checklists: {}, order: [], species: {}, speciesOrder: [], excludedNames: [], exoticNames: null,
 })
 
 // ── Load-path shape validation (schema.md §5, NFR-08) ──────────────────────────
@@ -192,6 +207,7 @@ export function sanitizeStore(loaded: unknown): ProvenanceStore {
   const doc = loaded as {
     version?: unknown; checklists?: unknown; order?: unknown
     species?: unknown; speciesOrder?: unknown; excludedNames?: unknown
+    exoticNames?: unknown
   }
   if (doc.version !== 1) return EMPTY_STORE()
   if (typeof doc.checklists !== 'object' || doc.checklists === null || !Array.isArray(doc.order)) return EMPTY_STORE()
@@ -221,15 +237,26 @@ export function sanitizeStore(loaded: unknown): ProvenanceStore {
     store.speciesOrder.push(key)
   }
 
-  if (Array.isArray(doc.excludedNames)) {
-    for (const n of doc.excludedNames) {
-      if (store.excludedNames.length >= MAX_PUBLISHED_NAMES) break
-      if (typeof n !== 'string' || n.length === 0 || n.length > MAX_PUBLISHED_NAME_LENGTH) continue
-      store.excludedNames.push(n)
-    }
+  if (Array.isArray(doc.excludedNames)) admitNames(doc.excludedNames, store.excludedNames)
+  // Anything but an array (absent, null, a hostile non-array) is UNRESOLVED,
+  // the safe direction: every species is listed (life-lists-tab FR-19).
+  if (Array.isArray(doc.exoticNames)) {
+    const exoticNames: string[] = []
+    admitNames(doc.exoticNames, exoticNames)
+    store.exoticNames = exoticNames
   }
 
   return store
+}
+
+/** The two published lists share one admission rule: the same count cap and
+ *  the same per-name length bound, malformed entries dropped. */
+function admitNames(raw: readonly unknown[], into: string[]): void {
+  for (const n of raw) {
+    if (into.length >= MAX_PUBLISHED_NAMES) break
+    if (typeof n !== 'string' || n.length === 0 || n.length > MAX_PUBLISHED_NAME_LENGTH) continue
+    into.push(n)
+  }
 }
 
 // ── Coalesced in-memory mirror (one disk read per session) ─────────────────────
@@ -288,7 +315,11 @@ function rebuildSnapshot(store: ProvenanceStore): void {
   for (const code of store.speciesOrder) {
     if (Object.hasOwn(store.species, code)) species.set(code, store.species[code])
   }
-  _snapshot = { checklists, species, excludedNames: [...store.excludedNames] }
+  _snapshot = {
+    checklists, species,
+    excludedNames: [...store.excludedNames],
+    exoticNames: store.exoticNames ? [...store.exoticNames] : null,
+  }
   _revision += 1
   for (const l of _listeners) l()
 }
@@ -431,23 +462,34 @@ export async function mergeChecklist(
 }
 
 /**
- * Publish the escapee-only classification for passive readers (see
- * `ProvenanceSnapshot.excludedNames`). Called ONLY by the Statistics pass, which
- * is the only place that holds the name-to-code join (FR-17).
+ * Publish the escapee-only and exotic-only classifications for passive readers
+ * (see `ProvenanceSnapshot.excludedNames` / `.exoticNames`). Called ONLY by the
+ * Statistics pass, which is the only place that holds the name-to-code join
+ * (FR-17; life-lists-tab FR-17).
  *
- * No-ops when the list is unchanged, so a re-render never schedules a write.
+ * No-ops when BOTH lists are unchanged, so a re-render never schedules a write.
+ * An `exoticNames` compared against a `null` store value is always a change,
+ * which is what first publishes `[]`.
  */
-export async function publishExcludedNames(names: readonly string[]): Promise<void> {
+export async function publishClassifiedNames(
+  lists: { excludedNames: readonly string[]; exoticNames: readonly string[] },
+): Promise<void> {
   const gen = _purgeGeneration
   const store = await ensureLoaded()
   // Same guard as mergeChecklist, and it matters at least as much here: these
-  // are escapee COMMON NAMES carried verbatim from the user's export.
+  // are COMMON NAMES carried verbatim from the user's export.
   if (gen !== _purgeGeneration || store !== _store) return
-  const next = [...names].slice(0, MAX_PUBLISHED_NAMES).sort()
-  if (next.length === store.excludedNames.length && next.every((n, i) => n === store.excludedNames[i])) return
-  store.excludedNames = next
+  const nextExcluded = [...lists.excludedNames].slice(0, MAX_PUBLISHED_NAMES).sort()
+  const nextExotic = [...lists.exoticNames].slice(0, MAX_PUBLISHED_NAMES).sort()
+  if (sameNames(nextExcluded, store.excludedNames) && store.exoticNames !== null && sameNames(nextExotic, store.exoticNames)) return
+  store.excludedNames = nextExcluded
+  store.exoticNames = nextExotic
   rebuildSnapshot(store)
   scheduleWrite(store)
+}
+
+function sameNames(a: readonly string[], b: readonly string[]): boolean {
+  return a.length === b.length && a.every((n, i) => n === b[i])
 }
 
 /** True when every checklist in `submissionIds` has been consulted within the
@@ -594,6 +636,7 @@ function scheduleWrite(store: ProvenanceStore): void {
       species: { ...store.species },
       speciesOrder: [...store.speciesOrder],
       excludedNames: [...store.excludedNames],
+      exoticNames: store.exoticNames ? [...store.exoticNames] : null,
     }
     if (_workStats) {
       _workStats.writeFlushes += 1

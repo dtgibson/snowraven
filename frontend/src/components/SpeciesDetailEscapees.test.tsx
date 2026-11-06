@@ -63,7 +63,7 @@ const OBSERVATIONS = [
 ]
 
 function snapshot(checklists: string[], excludedNames: string[]): ProvenanceSnapshot {
-  return { checklists: new Set(checklists), species: new Map(), excludedNames }
+  return { checklists: new Set(checklists), species: new Map(), excludedNames, exoticNames: null }
 }
 
 const EMPTY = snapshot([], [])

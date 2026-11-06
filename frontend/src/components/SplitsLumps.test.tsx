@@ -102,7 +102,7 @@ const UNAFFECTED: ObservationEntry[] = [
 let currentObs: ObservationEntry[] = CURRENT
 let historyResult: TaxonomyHistory | null = HISTORY
 const published: { current: ProvenanceSnapshot } = {
-  current: { checklists: new Set(), species: new Map(), excludedNames: [] },
+  current: { checklists: new Set(), species: new Map(), excludedNames: [], exoticNames: null },
 }
 
 vi.mock('../lib/taxonomyHistoryAsset', () => ({
@@ -154,7 +154,7 @@ beforeAll(() => { Element.prototype.scrollIntoView = vi.fn() })
 beforeEach(() => {
   currentObs = CURRENT
   historyResult = HISTORY
-  published.current = { checklists: new Set(), species: new Map(), excludedNames: [] }
+  published.current = { checklists: new Set(), species: new Map(), excludedNames: [], exoticNames: null }
   vi.clearAllMocks()
 })
 afterEach(cleanup)
@@ -269,7 +269,7 @@ describe('pick-to-select (FR-12, FR-25; QA-12, QA-25)', () => {
   })
 
   it('a species "Show escapees" is hiding is revealed and selected, never dropped', async () => {
-    published.current = { checklists: new Set(['S7']), species: new Map(), excludedNames: ['Western Warbling Vireo'] }
+    published.current = { checklists: new Set(['S7']), species: new Map(), excludedNames: ['Western Warbling Vireo'], exoticNames: null }
     await renderReady()
     const escapees = screen.getByRole('switch', { name: SHOW_ESCAPEES_TOGGLE_LABEL })
     expect(escapees.getAttribute('aria-checked')).toBe('false')
