@@ -208,11 +208,13 @@ describe('Life Lists reads the rule passively (life-lists-tab FR-14, QA-15)', ()
     expect(closure('components/lifeLists/LifeListsTab.tsx')).toContain('lib/lifeListsProvenance.ts')
   })
 
-  it('a SYMBOL scan, not a graph edge: no Life Lists module names buildCoverIndex or useExoticProvenance', () => {
+  it('a SYMBOL scan, not a graph edge: buildCoverIndex only in the status reader, useExoticProvenance nowhere', () => {
     // `buildCoverIndex` is exported by exoticProvenance.ts, which every passive
-    // reader reaches by design, so "does not reach buildCoverIndex" cannot be a
-    // module-graph assertion (schema 3.6). The tab's own modules are scanned,
-    // comments stripped, for either identifier.
+    // reader reaches by design, so this cannot be a module-graph assertion
+    // (schema 3.6). Since the FR-20 realignment (decisions.md D-25) the reader
+    // builds Statistics' own cover index to read its completion for the
+    // current export; it must never reach the derivation or the components,
+    // where it would mean the codes had started to feed classification.
     const files = [
       'lib/lifeLists.ts', 'lib/lifeListsCopy.ts', 'lib/lifeListsProvenance.ts',
       'components/lifeLists/LifeListsTab.tsx', 'components/lifeLists/LifeListsControls.tsx', 'components/lifeLists/LifeListsRows.tsx',
@@ -220,8 +222,13 @@ describe('Life Lists reads the rule passively (life-lists-tab FR-14, QA-15)', ()
     for (const f of files) {
       const code = stripComments(readFileSync(resolve(SRC, f), 'utf8'))
       expect(code.length, `${f} was read`).toBeGreaterThan(200)
-      expect(code, `${f} names buildCoverIndex (symbol scan)`).not.toContain('buildCoverIndex')
       expect(code, `${f} names useExoticProvenance (symbol scan)`).not.toContain('useExoticProvenance')
+      if (f === 'lib/lifeListsProvenance.ts') {
+        // Positive leg: the status reader does use it, so the negatives below are live.
+        expect(code, `${f} reads Statistics' completion (symbol scan)`).toContain('buildCoverIndex(')
+      } else {
+        expect(code, `${f} names buildCoverIndex (symbol scan)`).not.toContain('buildCoverIndex')
+      }
     }
   })
 })

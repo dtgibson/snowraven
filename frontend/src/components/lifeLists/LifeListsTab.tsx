@@ -8,8 +8,9 @@
 // provenance record is read passively (lifeListsProvenance.ts) and the tab
 // never initiates a provenance request. The one request the tab makes is the
 // batched `/taxonomy/codes` post that feeds BirdName's eBird and Birds of the
-// World marks, once per distinct roster (section 5.4); it never blocks, delays
-// or re-orders the list. The switches and the media selection are session-only
+// World marks and the status line's completion check (FR-20), once per distinct
+// roster (section 5.4); it never blocks, delays or re-orders the list, and it
+// never reaches the classification. The switches and the media selection are session-only
 // `useState` (FR-36): nothing here touches the storage seam.
 
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -79,6 +80,10 @@ export function LifeListsTab({ onGoToSettings, onOpenSpecies }: LifeListsTabProp
   const [phase, setPhase] = useState<Phase>({ tag: 'loading' })
   const [codeRequest, setCodeRequest] = useState<CodeRequest | null>(null)
   const [taxonMap, setTaxonMap] = useState<Record<string, string>>({})
+  // The roster key the current `taxonMap` was resolved for. The status line
+  // (FR-20) reads the codes only when they belong to THIS roster; BirdName's
+  // marks may keep an older roster's codes, which are still valid codes.
+  const [codesKey, setCodesKey] = useState<string | null>(null)
 
   const [includeEscapees, setIncludeEscapees] = useState(false)
   const [includeExotics, setIncludeExotics] = useState(false)
@@ -140,7 +145,11 @@ export function LifeListsTab({ onGoToSettings, onOpenSpecies }: LifeListsTabProp
     if (codeRequest === null || codeRequest.species.length === 0) return
     let cancelled = false
     transport.post<{ codes: Record<string, string> }>('/taxonomy/codes', { species: codeRequest.species })
-      .then(data => { if (!cancelled) setTaxonMap(data.codes ?? {}) })
+      .then(data => {
+        if (cancelled) return
+        setTaxonMap(data.codes ?? {})
+        setCodesKey(codeRequest.key)
+      })
       .catch(() => { /* marks absent until the next roster change; names render and link without them */ })
     return () => { cancelled = true }
   }, [codeRequest])
@@ -152,7 +161,8 @@ export function LifeListsTab({ onGoToSettings, onOpenSpecies }: LifeListsTabProp
   }, [focusSeq])
 
   const ready = phase.tag === 'ready' ? phase : null
-  const provenance = useLifeListsProvenance(ready ? ready.observations : EMPTY_OBS)
+  const rosterCodes = codeRequest !== null && codesKey === codeRequest.key ? taxonMap : null
+  const provenance = useLifeListsProvenance(ready ? ready.observations : EMPTY_OBS, rosterCodes)
   const mlAvailability: MlAvailability = ready ? ready.ml.tag : 'none'
   const effectiveFormats = mlAvailability === 'ready' ? formats : EMPTY_FORMATS
 
@@ -244,7 +254,7 @@ export function LifeListsTab({ onGoToSettings, onOpenSpecies }: LifeListsTabProp
             <span key={announceSeq}>{count}{rest}</span>
           </span>
           <p className="sr-lfl-status">
-            {!provenance.exoticsPublished || !provenance.ledgerCoversExport ? STATUS_UNRESOLVED : STATUS_RESOLVED}
+            {!provenance.exoticsPublished || !provenance.checkComplete ? STATUS_UNRESOLVED : STATUS_RESOLVED}
           </p>
         </div>
         {rows.length === 0 ? (

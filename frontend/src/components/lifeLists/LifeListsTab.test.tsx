@@ -71,6 +71,7 @@ function ml(commonName: string, format: MLExportRow['format'], date: string, tim
     time, year: null, month: null, avgRating: null, numRatings: 0, checklistId: 'S90',
   }
 }
+const rec = (seen: string[]) => ({ seen, n: seen.length, at: 0 })
 const snapshot = (over: Partial<ProvenanceSnapshot> = {}): ProvenanceSnapshot =>
   ({ checklists: new Set(), species: new Map(), excludedNames: [], exoticNames: null, ...over })
 
@@ -210,7 +211,13 @@ describe('the codes batch is the one request (FR-39, FR-43, QA-41, QA-55)', () =
 
 describe('the switches and the status line (FR-18 to FR-20, FR-35)', () => {
   it('start off, expose their state, and add exactly their species (QA-19, QA-37)', async () => {
-    H.snapshot = snapshot({ checklists: new Set(['S1', 'S2', 'junk']), excludedNames: ['Mandarin Duck'], exoticNames: ['Rock Pigeon'] })
+    // Only S2 (the escapee's one carrier) and junk were consulted: the exotic
+    // list is read as published, and S1 never being asked does not stop the
+    // check from being complete, because every species has an answer.
+    H.snapshot = snapshot({
+      checklists: new Set(['S2', 'junk']), excludedNames: ['Mandarin Duck'], exoticNames: ['Rock Pigeon'],
+      species: new Map([['amerob', rec(['|'])], ['mandar', rec(['X|'])], ['rocpig', rec(['N|'])]]),
+    })
     await ready()
     const esc = screen.getByRole('switch', { name: 'Include Escapees' })
     const exo = screen.getByRole('switch', { name: 'Include Exotics' })
@@ -224,15 +231,34 @@ describe('the switches and the status line (FR-18 to FR-20, FR-35)', () => {
     expect(rowNames()).toEqual(['Mandarin Duck', 'Rock Pigeon', 'American Robin'])
     fireEvent.click(esc)
     expect(rowNames()).toEqual(['Rock Pigeon', 'American Robin'])
-    // Every carrier consulted and the list published: the second sentence.
-    expect(screen.getByText(STATUS_RESOLVED)).toBeTruthy()
+    // Statistics' own completion (every species answered) and the list
+    // published: the second sentence, once this roster's codes resolve.
+    expect(await screen.findByText(STATUS_RESOLVED)).toBeTruthy()
   })
 
   it('an unpublished exotic list lists everything and says the check has not finished (QA-20, QA-21)', async () => {
+    H.snapshot = snapshot({ checklists: new Set(['S1', 'S2', 'junk']), species: new Map([['amerob', rec(['|'])], ['mandar', rec(['X|'])], ['rocpig', rec(['N|'])]]) })
     await ready()
+    await waitFor(() => expect(H.post).toHaveBeenCalledTimes(1))
     expect(rowNames()).toHaveLength(3)
     const status = screen.getByText(STATUS_UNRESOLVED)
     expect(status.querySelector('a, button')).toBeNull()
+  })
+
+  it('a published list with a species still unanswered says the check has not finished (FR-20)', async () => {
+    H.snapshot = snapshot({ checklists: new Set(['S2']), excludedNames: [], exoticNames: [], species: new Map([['amerob', rec(['|'])], ['mandar', rec(['X|'])]]) })
+    await ready()
+    await waitFor(() => expect(H.post).toHaveBeenCalledTimes(1))
+    // Rock Pigeon has no record yet: Statistics would not say complete either.
+    expect(screen.getByText(STATUS_UNRESOLVED)).toBeTruthy()
+  })
+
+  it('a failed codes batch never claims the check is finished', async () => {
+    H.post.mockImplementation(async () => { throw new Error('offline') })
+    H.snapshot = snapshot({ checklists: new Set(['S1', 'S2', 'junk']), exoticNames: [], species: new Map([['amerob', rec(['|'])], ['mandar', rec(['X|'])], ['rocpig', rec(['N|'])]]) })
+    await ready()
+    await waitFor(() => expect(H.post).toHaveBeenCalledTimes(1))
+    expect(screen.getByText(STATUS_UNRESOLVED)).toBeTruthy()
   })
 })
 

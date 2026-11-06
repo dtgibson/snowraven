@@ -96,10 +96,13 @@ export interface ProvenanceSnapshot {
   readonly excludedNames: readonly string[]
   /**
    * The exotic-only classification as last published by a Statistics pass
-   * (life-lists-tab FR-16, FR-17), same names, same bounds, same passive
-   * confirmation as `excludedNames`. `null` means "never published on this
-   * document" and `[]` means "published, and no species is exotic-only"; the
-   * two mean different things and a reader must not conflate them.
+   * (life-lists-tab FR-16, FR-17), same names and same bounds as
+   * `excludedNames`. Read AS PUBLISHED, without the carrier confirmation the
+   * escapee list takes: the exotic rule is about the observations the pass
+   * consulted, so an unconsulted checklist cannot change it. `null` means
+   * "never published on this document" and `[]` means "published, and no
+   * species is exotic-only"; the two mean different things and a reader must
+   * not conflate them.
    */
   readonly exoticNames: readonly string[] | null
 }
@@ -219,21 +222,26 @@ export function classifySpecies(
 }
 
 /**
- * life-lists-tab FR-16: not an escapee, every seen token carries a category, and
- * every carrier in the current export has been consulted. A species with no
- * record, an unconsulted carrier, or one categoryless observation is native.
+ * life-lists-tab FR-16, the strategic brief's rule: the species is not an
+ * escapee, at least one of its observations was consulted, and EVERY CONSULTED
+ * observation carries an exotic category. This mirrors the escapee rule, which
+ * also judges the consulted tokens. It deliberately does NOT require every
+ * carrier to be consulted: the Statistics cover consults one checklist per
+ * species and stops seeking once a counting token is found, so that clause
+ * could almost never hold after a complete pass (decisions.md D-25). A species
+ * with no record, or one consulted observation with no category, is native.
  *
  * A separate predicate, never a fifth `ProvenanceClass`, so every Statistics
- * count is provably untouched. An escapee-only species is never exotic (the
- * `counting` test refuses it), so the two published lists are disjoint.
+ * count is provably untouched. "Not an escapee" is the `counting` test (some
+ * consulted token is not X), so an escapee-only species, and an all-X species
+ * still awaiting carriers, are never exotic, and the two published lists are
+ * disjoint.
  */
 export function isExoticOnly(snapshot: ProvenanceSnapshot, index: CoverIndex, code: string): boolean {
   const rec = snapshot.species.get(code)
-  if (!rec) return false
+  if (!rec || rec.seen.length === 0) return false
   if (classifySpecies(snapshot, index, code) !== 'counting') return false
   for (const t of rec.seen) if (!isExoticToken(t)) return false
-  const carriers = index.bySpecies.get(code)
-  if (carriers) for (const sub of carriers) if (!snapshot.checklists.has(sub)) return false
   return true
 }
 

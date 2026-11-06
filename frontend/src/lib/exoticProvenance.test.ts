@@ -512,15 +512,17 @@ describe('carriersNeedingRefetch (recordless cover species re-open their ledger 
 
 // ── The exotic classification (life-lists-tab FR-16, QA-17) ────────────────
 
-describe('isExoticOnly: every consulted token carries a category, not an escapee, every carrier consulted', () => {
+describe('isExoticOnly: not an escapee, and every CONSULTED observation carries a category (the brief rule)', () => {
   const index = buildCoverIndex(
     [obs('Muscovy Duck', 'S1'), obs('Muscovy Duck', 'S2'), obs('Mallard', 'S1')],
     codeFor,
   )
 
-  it("tokens 'N|' and 'P|' with every carrier consulted are exotic", () => {
-    const snap = snapshot({ musduc: rec(['N|', 'P|']) }, ['S1', 'S2'])
-    expect(isExoticOnly(snap, index, 'musduc')).toBe(true)
+  it("tokens 'N|' and 'P|' are exotic, with every carrier consulted or with only one (QA-17)", () => {
+    expect(isExoticOnly(snapshot({ musduc: rec(['N|', 'P|']) }, ['S1', 'S2']), index, 'musduc')).toBe(true)
+    // The cover consults one carrier per species: the unconsulted one does
+    // not make it native (decisions.md D-25).
+    expect(isExoticOnly(snapshot({ musduc: rec(['N|']) }, ['S1']), index, 'musduc')).toBe(true)
   })
 
   it("one categoryless observation ('|') makes the species native", () => {
@@ -534,9 +536,15 @@ describe('isExoticOnly: every consulted token carries a category, not an escapee
     expect(isExoticOnly(snap, index, 'musduc')).toBe(true)
   })
 
-  it('an unconsulted carrier, or no record at all, is native', () => {
-    expect(isExoticOnly(snapshot({ musduc: rec(['N|']) }, ['S1']), index, 'musduc')).toBe(false)
+  it('no consulted observation (no record, or an empty one) is native', () => {
     expect(isExoticOnly(snapshot({}, ['S1', 'S2']), index, 'musduc')).toBe(false)
+    expect(isExoticOnly(snapshot({ musduc: rec([]) }, ['S1', 'S2']), index, 'musduc')).toBe(false)
+  })
+
+  it('an all-X species still awaiting a carrier is not exotic: it is an unresolved escapee', () => {
+    const snap = snapshot({ musduc: rec(['X|']) }, ['S1'])
+    expect(classifySpecies(snap, index, 'musduc')).toBe('unresolved')
+    expect(isExoticOnly(snap, index, 'musduc')).toBe(false)
   })
 
   it('an escapee-only species is never exotic', () => {
