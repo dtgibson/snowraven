@@ -1,3 +1,4 @@
+/// <reference types="node" />
 // The pure exotic-provenance model: the countability rule, the three-state (plus
 // `unknown`) classification, the greedy cover, and the passive confirmation.
 //
@@ -10,6 +11,8 @@
 // parity it does not have.
 
 import { describe, it, expect } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import type { ObservationEntry } from '../types'
 import {
   EMPTY_SNAPSHOT, ESCAPEE_CATEGORY,
@@ -502,5 +505,70 @@ describe('carriersNeedingRefetch (recordless cover species re-open their ledger 
     const snap = snapshot({ mallar3: rec(['|']) }, ['S1', 'S2'])
     const stale = carriersNeedingRefetch(snap, index, remainingSpecies(snap, index, new Set()))
     expect(stale).toEqual(new Set(['S1']))
+  })
+})
+
+// ── Source hygiene (testing.md v1.0.22, life-lists-tab schema 3.7) ───────────
+
+/** Drop line and block comments, line-wise (the weatherStats.test.ts shape). */
+function stripComments(src: string): string {
+  const BLOCK_OPEN = '/' + '*'
+  const BLOCK_CLOSE = '*' + '/'
+  const out: string[] = []
+  let inBlock = false
+  for (const line of src.split('\n')) {
+    let l = line
+    if (inBlock) {
+      const close = l.indexOf(BLOCK_CLOSE)
+      if (close === -1) continue
+      inBlock = false
+      l = l.slice(close + 2)
+    }
+    const open = l.indexOf(BLOCK_OPEN)
+    if (open !== -1) {
+      const close = l.indexOf(BLOCK_CLOSE, open + 2)
+      if (close === -1) { inBlock = true; l = l.slice(0, open) }
+      else l = l.slice(0, open) + l.slice(close + 2)
+    }
+    const lineComment = l.indexOf('//')
+    if (lineComment !== -1) l = l.slice(0, lineComment)
+    out.push(l)
+  }
+  return out.join('\n')
+}
+
+describe('exoticProvenance.ts source hygiene', () => {
+  // A literal U+0000 made git treat this module as binary, so no diff to it was
+  // reviewable. The pair key now writes the escape, which a template literal
+  // resolves to the same character, so behaviour is byte-identical.
+  const raw = readFileSync(fileURLToPath(new URL('./exoticProvenance.ts', import.meta.url)), 'utf8')
+  const code = stripComments(raw)
+
+  it('holds no literal control or non-ASCII character outside comments', () => {
+    const bad: string[] = []
+    for (let i = 0; i < code.length; i++) {
+      const c = code.charCodeAt(i)
+      if ((c < 0x20 && c !== 0x0a && c !== 0x0d && c !== 0x09) || c > 0x7e) {
+        bad.push(`U+${c.toString(16).toUpperCase().padStart(4, '0')} at ${i}`)
+      }
+    }
+    expect(bad).toEqual([])
+  })
+
+  it('the strip is proven: the raw file has comment-only non-ASCII, the code keeps the escape', () => {
+    let rawNonAscii = 0
+    for (let i = 0; i < raw.length; i++) if (raw.charCodeAt(i) > 0x7e) rawNonAscii += 1
+    expect(rawNonAscii).toBeGreaterThan(0)
+    expect(raw.includes('\u0000')).toBe(false)
+    expect(code).toContain('${sub}\\u0000${code}')
+  })
+
+  it('the pair key still separates the two halves with U+0000', () => {
+    const index = buildCoverIndex(
+      [obs('Dark-eyed Junco', 'S1'), obs('Dark-eyed Junco (Oregon)', 'S1'), obs('Dark-eyed Junco', 'S2')],
+      n => (n === 'Dark-eyed Junco' ? 'daejun' : undefined),
+    )
+    // Two rows of one species on one checklist dedupe to one carrier.
+    expect(index.bySpecies.get('daejun')).toEqual(['S1', 'S2'])
   })
 })
