@@ -6,16 +6,13 @@
 // statement is unguarded prose. The security review (finding L1) proposed two:
 // the Clear list in "Your Data Stays on Your Device" gains "the lists of public
 // hotspots for the regions you have birded", and the Statistics sub-bullet under
-// eBird gains how long each region's answer is kept. Both are published copy, so
-// they wait in `pipeline/hotspot-share-stat/held-copy.md` for the user's yes and
-// are NOT in either file at this commit.
+// eBird gains how long each region's answer is kept. Both are published copy; the
+// user approved them as written, and they were applied to both files at the
+// 1.0.62 release commit.
 //
-// SO THE CLAIM ROWS ARE SKIPPED UNTIL THE COPY LANDS. The skip lifts when the held
-// copy is applied at the release commit: the gate below opens as soon as EITHER
-// sentence is in EITHER file, so a half-applied patch (one file edited, or one
-// sentence of two) runs every row and goes red rather than staying skipped. When
-// the copy lands, delete the `skipIf`: a gate on presence cannot see both
-// sentences being removed again, and an unconditional existence row can.
+// SO THE CLAIM ROWS RUN UNCONDITIONALLY. Until the copy landed they were skipped
+// behind a gate on presence, and that gate is deleted: a gate on presence cannot
+// see both sentences being removed again, and an unconditional existence row can.
 //
 // THE SHAPE IS `weatherStatsPublishedClaims.test.ts`'s, for the same reasons.
 // It scopes to the policy's own passages (the Clear bullet and the Statistics
@@ -27,9 +24,9 @@
 // files against each other as well as each against the code, because the policy
 // is hand-kept in Markdown and in HTML.
 //
-// ONE ROW RUNS NOW: the two files already say the same thing about Clear, and
-// the held patch is applied to both identically, so that row is what keeps the
-// two copies from drifting apart before it lands.
+// THE FIRST BLOCK holds the two files' Clear passages equal to each other; the
+// second holds each claim against the code and the two files' passages against
+// each other.
 /// <reference types="node" />
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
@@ -98,10 +95,6 @@ function sentenceFrom(text: string, start: string): string {
   return text.slice(i, end + 1)
 }
 
-// Open the claim rows once either held sentence is in either file.
-const LANDED = [HOTSPOT_CLEAR_ITEM, RETENTION_LEAD].some(s =>
-  mdProse(POLICY_MD).includes(s) || htmlProse(POLICY_HTML).includes(s))
-
 describe('the two copies of the policy agree about Clear (always on)', () => {
   it('PRIVACY_POLICY.md and website/privacy.html say the same thing about what Clear removes', () => {
     const md = mdItem(CLEAR_LEAD)
@@ -112,7 +105,7 @@ describe('the two copies of the policy agree about Clear (always on)', () => {
   })
 })
 
-describe.skipIf(!LANDED)('the hotspot store\'s policy sentences, once the held copy is applied', () => {
+describe('the hotspot store\'s policy sentences', () => {
   it('the TTL is a whole number of days, so a sentence in days can state it exactly', () => {
     expect(Number.isInteger(HOTSPOT_REGION_TTL_MS / DAY_MS)).toBe(true)
   })

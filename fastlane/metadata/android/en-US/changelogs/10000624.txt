@@ -1,0 +1,1 @@
+Statistics now shows what share of your checklists you submitted at public eBird hotspots and what share at personal locations, in Geographic Stats above your top locations.

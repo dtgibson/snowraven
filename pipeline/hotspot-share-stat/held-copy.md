@@ -1,6 +1,19 @@
 # Held copy: hotspot-share-stat
 
-`CHANGELOG.md` entries are written at the release commit, so the proposed entry waits here for the release that carries this feature (the next patch, 1.0.62). The CHANGELOG entry itself is not published copy, but the F-Droid changelogs (three identical files under `fastlane/metadata/android/en-US/changelogs/`, codes 10000621, 10000622 and 10000624) and the App Store "What's New" are, and both wait for the user's yes. Nothing below has been written into any of those files.
+## Approved at the deploy sign-off (2026-11-06)
+
+The user answered at the Deployer's production sign-off gate (`decisions.md`, section 3).
+
+- **The F-Droid changelog (the three identical files) and the App Store "What's New" are this one sentence, and only this sentence:**
+
+  > Statistics now shows what share of your checklists you submitted at public eBird hotspots and what share at personal locations, in Geographic Stats above your top locations.
+
+  The user's words were "For what's new, only the first sentence"; the two surfaces were presented as one text, so the cut applies to both. The proposals below that carry more sentences are kept as the record of what was proposed; they are not the approved text. Written into `10000621.txt`, `10000622.txt` and `10000624.txt` at the 1.0.62 release commit (173 characters plus a newline, 174 bytes, ASCII, no em dash). The What's New goes onto the 1.0.62 App Store record after the user's TestFlight check.
+- **Both privacy-policy insertions below are approved as written** and were applied verbatim and identically to `PRIVACY_POLICY.md` and `website/privacy.html` at the 1.0.62 release commit; `hotspotSharePublishedClaims.test.ts` now runs all 8 rows with no skip. Security finding L1 closes with them.
+
+## As proposed (kept for the record)
+
+`CHANGELOG.md` entries are written at the release commit, so the proposed entry waits here for the release that carries this feature (the next patch, 1.0.62). The CHANGELOG entry itself is not published copy, but the F-Droid changelogs (three identical files under `fastlane/metadata/android/en-US/changelogs/`, codes 10000621, 10000622 and 10000624) and the App Store "What's New" are, and both waited for the user's yes. When this section was written, nothing below had been written into any of those files.
 
 ## Proposed CHANGELOG.md entry
 
