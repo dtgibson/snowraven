@@ -479,6 +479,26 @@ describe('persistence through the storage seam (NFR-10)', () => {
     expect(snap.exoticNames).toEqual(['Rock Pigeon'])
   })
 
+  it('publish admits through the load path: a 4,011-character name is dropped at publish, not only on reload (security L1)', async () => {
+    await cache.mergeChecklist('S1', [o('musduc', 'X', 'DNC')], ALL, Date.now())
+    const huge = ['Rock Pigeon ', 'x'.repeat(3_999)].join('')
+    expect(huge).toHaveLength(4_011)
+    await cache.publishClassifiedNames({ excludedNames: [huge, 'Muscovy Duck'], exoticNames: ['Rock Pigeon', huge, ''] })
+    // The in-memory snapshot, before any write or reload.
+    expect(cache.getSnapshot().excludedNames).toEqual(['Muscovy Duck'])
+    expect(cache.getSnapshot().exoticNames).toEqual(['Rock Pigeon'])
+  })
+
+  it('publish sorts BEFORE it caps, so the kept set does not depend on the input order', async () => {
+    await cache.mergeChecklist('S1', [o('musduc', 'X', 'DNC')], ALL, Date.now())
+    const names = Array.from({ length: 2_100 }, (_, i) => `Name ${String(i).padStart(4, '0')}`)
+    await cache.publishClassifiedNames({ excludedNames: [...names].reverse(), exoticNames: names })
+    const snap = cache.getSnapshot()
+    expect(snap.excludedNames).toHaveLength(2_048)
+    expect(snap.excludedNames).toEqual(names.slice(0, 2_048))
+    expect(snap.exoticNames).toEqual(names.slice(0, 2_048))
+  })
+
   it('publishing UNCHANGED lists schedules no write', async () => {
     await cache.mergeChecklist('S1', [o('musduc', 'X', 'DNC')], ALL, Date.now())
     await cache.publishClassifiedNames({ excludedNames: ['Muscovy Duck'], exoticNames: [] })

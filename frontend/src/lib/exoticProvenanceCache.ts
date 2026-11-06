@@ -480,8 +480,14 @@ export async function publishClassifiedNames(
   // Same guard as mergeChecklist, and it matters at least as much here: these
   // are COMMON NAMES carried verbatim from the user's export.
   if (gen !== _purgeGeneration || store !== _store) return
-  const nextExcluded = [...lists.excludedNames].slice(0, MAX_PUBLISHED_NAMES).sort()
-  const nextExotic = [...lists.exoticNames].slice(0, MAX_PUBLISHED_NAMES).sort()
+  // Through the load path's own admission (security L1): the same count cap
+  // AND the same per-name length bound, so a name the reader would drop on
+  // reload is never published in the first place. Sorted BEFORE admission, so
+  // the kept set is deterministic whatever order the lookup produced.
+  const nextExcluded: string[] = []
+  admitNames([...lists.excludedNames].sort(), nextExcluded)
+  const nextExotic: string[] = []
+  admitNames([...lists.exoticNames].sort(), nextExotic)
   if (sameNames(nextExcluded, store.excludedNames) && store.exoticNames !== null && sameNames(nextExotic, store.exoticNames)) return
   store.excludedNames = nextExcluded
   store.exoticNames = nextExotic

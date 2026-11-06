@@ -354,9 +354,10 @@ export function confirmExcludedNames(
 }
 
 /**
- * The body of `confirmExcludedNames` with the published list as a parameter, so
- * the Life Lists tab confirms the exotic list by the SAME mechanism as the
- * escapee list and the two switches cannot drift apart. One `Set.has` per row.
+ * The body of `confirmExcludedNames` with the published list as a parameter.
+ * The Life Lists tab confirms the ESCAPEE list through it; the exotic list is
+ * read as published since D-25 (its rule judges the consulted observations, so
+ * an unconsulted carrier cannot change it). One `Set.has` per row.
  */
 export function confirmPublishedNames(
   published: readonly string[],
