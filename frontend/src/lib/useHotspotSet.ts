@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from 'react'
-import { loadHotspotSet, isPublicHotspot, subscribeHotspotSet, getHotspotSetEpoch } from './hotspotSet'
+import {
+  loadHotspotSet, isPublicHotspot, subscribeHotspotSet, getHotspotSetEpoch, getHotspotResolution,
+  type HotspotResolution,
+} from './hotspotSet'
 
 const EMPTY: Set<string> = new Set()
 
@@ -29,4 +32,15 @@ export function useHotspotSet(): {
   }, [epoch])
   const isHotspot = useCallback((locId: string | null | undefined) => isPublicHotspot(locId, set), [set])
   return { set, isHotspot }
+}
+
+/** The current resolution snapshot (each region's pending / answered / unanswered
+ *  state and the Set it was computed with), re-read on every hotspot-set change and on
+ *  every render of the calling component. PASSIVE: it starts no build and issues no
+ *  request, so call it beside useHotspotSet(), which does. The build's own settle
+ *  replaces the snapshot without announcing; the component re-renders then because
+ *  useHotspotSet's load resolves, and useSyncExternalStore adopts the changed
+ *  reference on that render (hotspot-share-stat, schema.md 4.4 and 4.5). */
+export function useHotspotResolution(): HotspotResolution {
+  return useSyncExternalStore(subscribeHotspotSet, getHotspotResolution, getHotspotResolution)
 }

@@ -87,6 +87,15 @@ const TEARDOWNS: ReadonlyArray<{
     purge: async () => (await import('./countyCompletenessCache')).purgeCountyCompletenessStore(),
   },
   {
+    // hotspot-share-stat. eBird's public hotspot lists, but keyed on the regions
+    // read off the user's export (`regionsFromObservations` over the backup), so
+    // the key set is the user's own, as the completeness store's is. Accepted
+    // cost: each region is asked once more after a Clear and a re-upload.
+    slot: 'ebird',
+    store: 'hotspot-regions-v1',
+    purge: async () => (await import('./hotspotRegionCache')).purgeHotspotRegionStore(),
+  },
+  {
     // targets-tab. eBird's public per-day answers, but keyed on counties the
     // user has birded (the Targets tab offers only counties in the backup), so
     // the key set is the user's own. Registered on its keys, as the completeness

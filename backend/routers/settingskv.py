@@ -45,8 +45,9 @@ _KEY_RE = re.compile(r"^[A-Za-z0-9._-]{1,128}$")
 _RESERVED_KEYS = {"keys", "files", "map-defaults", "barcharts"}
 
 # Server-side payload backstop (the client caps replay/style well below this).
-# It is also the TWIN BOUND of the two checklist-keyed stores' caps
-# (`checklistProjectsCache.ts`, `exoticProvenanceCache.ts`), which web/Pi saves
+# It is also the TWIN BOUND of three settings-document stores' caps: the two
+# checklist-keyed stores (`checklistProjectsCache.ts`, `exoticProvenanceCache.ts`)
+# and the per-region hotspot store (`hotspotRegionCache.ts`), which web/Pi saves
 # whole through this route and whose writes swallow a 413: past this limit such
 # a store silently stops being saved. `frontend/src/lib/settingsRouteBudget.test.ts`
 # reads this constant and holds each store's worst-case document under it, so

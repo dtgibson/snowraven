@@ -196,6 +196,10 @@ class TauriTransport implements TransportAdapter {
       return getHotspots(lat, lng, dist) as Promise<T>;
     }
 
+    // NOT in CACHED_GET_PATHS: lib/hotspotRegionCache.ts is the one caching layer
+    // for a region's hotspot list (30 days, persisted, in-flight dedupe), so a
+    // 90 s layer would only shadow it (one caching layer per call). IN
+    // EBIRD_GATED_PATHS (below), so the gate keeps owning its pacing.
     if (path === '/map/hotspot-region') {
       const { getHotspotRegion } = await import('./tauri/mapService');
       return getHotspotRegion(params?.regionCode ?? '') as Promise<T>;
@@ -279,7 +283,9 @@ class TauriTransport implements TransportAdapter {
 // Exported for the path-set hygiene guard (FR-28/QA-29): a source-text
 // assertion cannot see a member added through a variable, so the test reads the
 // real Sets. Nothing in the app imports them.
-export const CACHED_GET_PATHS = new Set(['/map/hotspots', '/map/recent-obs', '/map/hotspot-region']);
+// /map/hotspot-region is deliberately absent (hotspot-share-stat): the persisted
+// per-region store, lib/hotspotRegionCache.ts, is that path's one caching layer.
+export const CACHED_GET_PATHS = new Set(['/map/hotspots', '/map/recent-obs']);
 
 // The eBird-backed single-shot lookups governed by the shared key-global
 // pacing gate (lib/ebirdGate.ts): spaced starts + the one 429 cooldown +

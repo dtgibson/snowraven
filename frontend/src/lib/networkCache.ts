@@ -31,9 +31,10 @@
 //
 // The cap is stated STRUCTURALLY as an entry count, never as a byte product: entries
 // are whole eBird payloads whose size is not ours to predict. 64 entries is roughly
-// 10 distinct search centers, since one center populates several keys (/map/hotspots,
-// /map/recent-obs, /map/hotspot-region, /map/county-species, plus the desktop raw
-// recent-obs key) — comfortably more than a 90 s TTL window can make useful. Region
+// 20 distinct search centers, since one center populates several keys (/map/hotspots,
+// /map/recent-obs, plus the desktop raw recent-obs key; /map/hotspot-region and
+// /map/county-species each have a durable store of their own and are not held here),
+// comfortably more than a 90 s TTL window can make useful. Region
 // -info keys (below) share the same 64 slots, so heavy hotspot browsing trims that
 // figure; it costs a redundant request inside one TTL window, never a wrong answer.
 //
