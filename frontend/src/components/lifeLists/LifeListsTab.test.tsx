@@ -23,6 +23,7 @@ const H = vi.hoisted(() => ({
   setSetting: vi.fn(async () => {}),
   snapshot: null as unknown,
   getFilesStatus: vi.fn(),
+  listeners: new Set<() => void>(),
 }))
 
 vi.mock('../../lib/storage', () => ({
@@ -40,18 +41,25 @@ vi.mock('../../lib/mlExportCache', () => ({
 }))
 vi.mock('../../lib/transport', () => ({ transport: { post: H.post, get: vi.fn() } }))
 // The two file passes, wrapped so QA-45 can count them; behaviour unchanged.
+// The status reader's per-row index, wrapped so the L2 row can count builds.
+vi.mock('../../lib/exoticProvenance', async importOriginal => {
+  const m = await importOriginal<typeof import('../../lib/exoticProvenance')>()
+  return { ...m, buildCoverIndex: vi.fn(m.buildCoverIndex) }
+})
 vi.mock('../../lib/lifeLists', async importOriginal => {
   const m = await importOriginal<typeof import('../../lib/lifeLists')>()
   return { ...m, deriveFirstSightings: vi.fn(m.deriveFirstSightings), deriveFirstAssets: vi.fn(m.deriveFirstAssets) }
 })
 vi.mock('../../lib/exoticProvenanceCache', () => ({
   getSnapshot: () => H.snapshot,
-  subscribe: () => () => {},
+  subscribe: (l: () => void) => { H.listeners.add(l); return () => { H.listeners.delete(l) } },
   loadSnapshot: vi.fn(async () => H.snapshot),
 }))
 
 import { LifeListsTab } from './LifeListsTab'
 import { deriveFirstAssets, deriveFirstSightings } from '../../lib/lifeLists'
+import { buildCoverIndex } from '../../lib/exoticProvenance'
+import { readFileSync } from 'node:fs'
 import { notifyFilesChanged } from '../../lib/filesChanged'
 import { formatDate } from '../../lib/formatDate'
 import { EBIRD_BACKUP_LOAD_ERROR } from '../setupCopy'
@@ -87,6 +95,7 @@ beforeEach(() => {
   H.mlRows = null
   H.ebirdNull = false
   H.snapshot = snapshot()
+  H.listeners.clear()
   H.getFilesStatus.mockImplementation(async () => H.files)
   H.post.mockImplementation(async () => ({ codes: { 'American Robin': 'amerob', 'Mandarin Duck': 'mandar', 'Rock Pigeon': 'rocpig' } }))
 })
@@ -379,6 +388,51 @@ describe('a control change re-runs no file pass (NFR-02, QA-45)', () => {
     await act(async () => { notifyFilesChanged() })
     await waitFor(() => expect(vi.mocked(deriveFirstSightings)).toHaveBeenCalledTimes(2))
     expect(vi.mocked(deriveFirstAssets)).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('security review rows (security L2, I3)', () => {
+  /** A Statistics merge: the store replaces its snapshot and notifies. */
+  async function merge(next: ProvenanceSnapshot) {
+    await act(async () => {
+      H.snapshot = next
+      for (const l of [...H.listeners]) l()
+    })
+  }
+
+  it('a provenance merge re-runs the per-species check, never the per-row index (L2)', async () => {
+    const base = { checklists: new Set(['S2']), exoticNames: [] as string[] }
+    H.snapshot = snapshot({ ...base, species: new Map([['amerob', rec(['|'])]]) })
+    await ready()
+    await waitFor(() => expect(vi.mocked(buildCoverIndex)).toHaveBeenCalledTimes(1))
+    expect(screen.getByText(STATUS_UNRESOLVED)).toBeTruthy()
+    // Two merges with the rows unchanged; the second answers the last species.
+    await merge(snapshot({ ...base, species: new Map([['amerob', rec(['|'])], ['mandar', rec(['X|'])]]) }))
+    expect(screen.getByText(STATUS_UNRESOLVED)).toBeTruthy()
+    await merge(snapshot({ ...base, species: new Map([['amerob', rec(['|'])], ['mandar', rec(['X|'])], ['rocpig', rec(['N|'])]]) }))
+    // The cheap half re-ran (the sentence moved); the index was built once.
+    expect(await screen.findByText(STATUS_RESOLVED)).toBeTruthy()
+    expect(vi.mocked(buildCoverIndex)).toHaveBeenCalledTimes(1)
+  })
+
+  it('species named constructor and __proto__ get no code and no mark (I3)', async () => {
+    H.observations = [...BASE, obs('constructor', '2022-01-01', null, 'S7'), obs('__proto__', '2022-02-02', null, 'S8')]
+    await ready()
+    await waitFor(() => expect(screen.getAllByRole('link', { name: /^View American Robin on eBird/ })).toHaveLength(1))
+    expect(rowNames()).toEqual(expect.arrayContaining(['constructor', '__proto__']))
+    for (const name of ['constructor', '__proto__']) {
+      const li = screen.getAllByRole('listitem').find(l => within(l).getAllByRole('button')[0].textContent === name)!
+      expect(within(li).queryByRole('link', { name: /^View / }), name).toBeNull()
+    }
+    for (const a of Array.from(document.querySelectorAll('a[href]'))) {
+      expect(a.getAttribute('href')).not.toMatch(/object|function|undefined|__proto__|constructor/i)
+    }
+    // SpeciesLinks' own shape gate would also contain an inherited member, so
+    // the outcome alone cannot tell the read guard is there: pin the call site
+    // too (testing.md v0.5.88, a pattern test cannot see a weakened call site).
+    const src = readFileSync(process.cwd() + '/src/components/lifeLists/LifeListsTab.tsx', 'utf8')
+    expect(src).toContain('Object.hasOwn(taxonMap, name)')
+    expect(src).toContain('Object.hasOwn(taxonMap, norm)')
   })
 })
 

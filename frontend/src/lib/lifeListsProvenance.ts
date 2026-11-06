@@ -23,7 +23,7 @@
 
 import { useEffect, useMemo, useSyncExternalStore } from 'react'
 import type { ObservationEntry } from '../types'
-import { buildCoverIndex, confirmPublishedNames, remainingSpecies, type ProvenanceSnapshot } from './exoticProvenance'
+import { buildCoverIndex, confirmPublishedNames, remainingSpecies, type CoverIndex, type ProvenanceSnapshot } from './exoticProvenance'
 import { getSnapshot, loadSnapshot, subscribe } from './exoticProvenanceCache'
 import type { LifeListClassification } from './lifeLists'
 
@@ -50,17 +50,32 @@ export function lifeListsClassification(snapshot: ProvenanceSnapshot, obs: reado
 }
 
 /**
- * Statistics' completion for this export: every species in its cover index has
- * an answer (counting, or escapee-only). False while the codes are unknown, when
- * nothing has been consulted, or when no species resolves to a code, so a
- * vacuous index never reads as finished. O(rows) to build the index, then one
- * classification per species.
+ * The export's cover index under this roster's codes (schema S9): the one
+ * per-ROW part of the completion check, so the hook memoizes it on the rows and
+ * the codes alone and a provenance merge never rebuilds it (security L2). Null
+ * while the codes are unknown. O(rows): `buildCoverIndex`, the linear function
+ * Statistics itself runs, with the code table read through `Object.hasOwn`.
  */
-export function statisticsCheckComplete(snapshot: ProvenanceSnapshot, obs: readonly ObservationEntry[], codes: RosterCodes): boolean {
-  if (codes === null || snapshot.species.size === 0) return false
-  const index = buildCoverIndex(obs, norm => (Object.hasOwn(codes, norm) ? codes[norm] : undefined))
-  if (index.bySpecies.size === 0) return false
+export function rosterCoverIndex(obs: readonly ObservationEntry[], codes: RosterCodes): CoverIndex | null {
+  if (codes === null) return null
+  return buildCoverIndex(obs, norm => (Object.hasOwn(codes, norm) ? codes[norm] : undefined))
+}
+
+/**
+ * Statistics' completion for this export: every species in its cover index has
+ * an answer (counting, or escapee-only). False without an index, when nothing
+ * has been consulted, or when no species resolves to a code, so a vacuous index
+ * never reads as finished. One classification per SPECIES, no row scan: this
+ * is the half that re-runs on every snapshot change.
+ */
+export function checkCompleteFor(snapshot: ProvenanceSnapshot, index: CoverIndex | null): boolean {
+  if (index === null || snapshot.species.size === 0 || index.bySpecies.size === 0) return false
   return remainingSpecies(snapshot, index, NO_PARKED).length === 0
+}
+
+/** The two halves composed, for a caller without a memo. */
+export function statisticsCheckComplete(snapshot: ProvenanceSnapshot, obs: readonly ObservationEntry[], codes: RosterCodes): boolean {
+  return checkCompleteFor(snapshot, rosterCoverIndex(obs, codes))
 }
 
 /**
@@ -75,7 +90,11 @@ export function useLifeListsProvenance(observations: readonly ObservationEntry[]
   useEffect(() => { void loadSnapshot() }, [])
 
   const classification = useMemo(() => lifeListsClassification(snapshot, observations), [snapshot, observations])
-  const checkComplete = useMemo(() => statisticsCheckComplete(snapshot, observations, codes), [snapshot, observations, codes])
+  // Split on purpose (security L2): the per-row index is keyed on its inputs,
+  // never on the snapshot, which is replaced on every merged checklist while a
+  // Statistics pass runs; only the per-species check re-runs then.
+  const index = useMemo(() => rosterCoverIndex(observations, codes), [observations, codes])
+  const checkComplete = useMemo(() => checkCompleteFor(snapshot, index), [snapshot, index])
   return useMemo(
     () => ({ ...classification, exoticsPublished: snapshot.exoticNames !== null, checkComplete }),
     [classification, snapshot, checkComplete],
