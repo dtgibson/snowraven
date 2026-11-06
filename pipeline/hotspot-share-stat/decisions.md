@@ -1,0 +1,70 @@
+# Decisions: hotspot-share-stat
+
+## 1. Re-entry at Stage 1 from the Designer review (2026-11-06)
+
+At the first design review the user asked whether an online lookup was necessary and, told that the export carries no hotspot flag, directed: cache the hotspot classification once it has been looked up, then look up only what is new, as the other statistics do, to avoid burdening eBird's servers.
+
+This reaches the strategic brief (Key Decisions: "reuse the existing in-memory Set, nothing persists"), the PRD (the pending and offline states, the no-persistence NFR), the schema (frontend-only becomes a durable document with the project's cache rules) and the design (the unresolved states become rarer and a stale-served state appears). Re-entered at Stage 1 and cascaded forward through Stages 2, 3 and 4 as scoped errands: each builder amends its artifact for the new direction and leaves the rest standing.
+
+Direction, as given: the first lookup for a region is persisted; a later launch reads the persisted answer with no request; a region the export newly introduces is the only new request; a refresh of an already-answered region follows the project's long-TTL durable cache pattern (`lib/countyCompletenessCache.ts` as the reference, with `hotspotActivityCache` and `checklistProjectsCache` as the later instances), never a per-launch re-fetch.
+
+## 2. Engineer (Stage 5), 2026-11-06
+
+Built against the approved schema, design spec and mockup. Every judgment call, deviation, changed assertion and measurement is below.
+
+### 2.1 The live US-TX count (schema.md 9.3)
+
+One request, no retry, the dev key read into the request's own process only and never printed or written: `GET https://api.ebird.org/v2/ref/hotspot/US-TX?fmt=json` answered **200 with 7,494 hotspots** on 2026-11-06 (ids 4 to 9 characters, `L` plus up to 8 digits; `JSON.stringify` of the id list 83,037 code units). The Architect recalled "the low tens of thousands" for Texas and California; the measured figure is about a third of that, so `HOTSPOT_IDS_PER_REGION_MAX = 65,536` sits about **8.7 times** above the largest subnational1 region measured. The bound stands; its comment in `hotspotRegionCache.ts` cites this count.
+
+### 2.2 Judgment calls and deviations
+
+1. **A superseded build still asks its missing regions (deviation from schema.md 10.1).** 10.1 says a build whose generation moved during phase 1 returns `EMPTY` at once. That turns `getHotspotSet caching > rebuilds (new promise, refetch) when the region list changes` red (the first build no longer asks, so `getMock` reads 1, not 2), and 11.1 lists that row as standing unchanged. The build now behaves as the pre-persistence build always did when superseded: it asks, returns its own union, touches no module state and arms nothing. This costs no request beyond what shipped before, and two builds' asks of one region share one in-flight request.
+2. **The refresh round starts after phase 2 settles, not beside it (schema.md 10.3 reads either way).** Started concurrently, a refresh landing before phase 2 would replace `_promise` with a union missing phase 2's answers. Starting it right after the build resolves keeps the cached promise coherent and changes no request count; on a warm launch (nothing missing) it still starts straight after phase 1.
+3. **The re-ask rounds are one queue** (`_retryQueue`, `_retryRound`, `_roundInFlight`), so a 429 on a refresh joins the pending round rather than arming a second timer. Edge: a refresh 429 that lands while the FINAL round is already asking is dropped; that region keeps its stored list and is tried at the next build. A failure in a round of a never-answered region now marks it unanswered and announces once (schema.md 4.2, 4.3); before, a round's failure contributed nothing.
+4. **The store refuses to persist a region key its own load validator would refuse.** `REGION_RE` admits a 13-character code that `HOTSPOT_REGION_KEY_MAX_CHARS` refuses; persisting it would make the region read as never answered on every launch and re-ask forever (the v1.0.11 writer-sanitizes-to-the-validator rule). Such an answer is served for the session only. Unreachable from a real export (State/Province codes are at most 6 characters); tested.
+5. **The load walk charges every id it examines, admitted or dropped, against `floor(MAX_BYTES / 5) + HOTSPOT_IDS_PER_REGION_MAX`, and stops before an entry that would pass it.** schema.md 7.2's work bound was stated over admitted entries; a document of malformed entries (each one id short of the per-region maximum, one bad id last) would have bought unbounded validation. With the charge the declared bound is true for any document. A document that reaches it is far outside anything the app writes; its older entries are dropped and asked again.
+6. **The loader starts one microtask late** (`Promise.resolve().then(loader)`), so a loader that throws synchronously still rejects after its in-flight entry is registered, and its `finally` removes it. Without this a synchronous throw left a settled promise in the map for every later caller to join. Tested.
+7. **A body that is not an array is a failure (a `TypeError`), never an answer**, so a malformed provider body reads unanswered rather than as an empty, persisted region.
+8. **`HOTSPOT_REGION_CODE_RE` is single-sourced in the store** and `hotspotSet.ts` imports it (the store is the leaf, so there is no cycle): "a key the store admits" and "a code the module asks" agree by construction. `isAskableRegionCode` wraps it.
+9. **The cap pin in `cacheInventory.test.ts` names the `_DEFAULT` constants** (`HOTSPOT_REGIONS_MAX_ENTRIES_DEFAULT = 512 ... HOTSPOT_REGIONS_MAX_BYTES_DEFAULT = 8_388_608`). The schema's literal pin could not match the mutable-binding shape its own 9.1 prescribes; `settingsRouteBudget.test.ts` asserts the live bindings equal the defaults.
+10. **The block is its own component, `components/HotspotShareBlock.tsx`**, presentational and fed the view; `BirdingStats.tsx` owns the two memos and the placement (schema.md 8). It is testable without mounting the tab.
+11. **`isPublicHotspot` takes a `ReadonlySet`** (widened from `Set`), so the snapshot's Set can be passed; every caller compiles unchanged.
+12. **With the key status still unknown the block reads pending even when every checklist is classified** (schema.md 5.4's precedence), so during the key read it can say "0 of m checklists not yet classified". The read is local and sub-frame; left as specified.
+13. **Help gains two sentences, not one**: FR-18's default, plus "SnowRaven remembers each region's answer and asks eBird about it again only after 30 days, so later launches show the share and the hotspot links straight away." It is worded without "on this device", because on web/Pi the document is the server's. A row in `hotspotShareCopy.test.ts` builds the "30 days" from `HOTSPOT_REGION_TTL_MS`.
+14. **`networkCache.ts`'s header comment listed `/map/hotspot-region` and `/map/county-species` as cached**; neither is now (the second never was). Corrected, with "roughly 10 distinct search centers" now "roughly 20".
+15. **No synchronous phase-1 shortcut and no "hold the previous content" during the local read**, per the design spec's Interaction Notes.
+
+### 2.3 Named assertions that changed, and why
+
+- `hotspotSet.test.ts > invalidateHotspotSet > forces a refetch for the SAME regions after invalidation (the key-added / outage-recovery case)`: **replaced** by the two rows schema.md 11.1 names: (a) the same scenario with the first build rejecting 401, which still forces the refetch and now also asserts nothing was persisted (QA-47); (b) a first build resolving `[]`, which is persisted, so the rebuild asks nothing and reads answered (QA-08, QA-53).
+- `transport.test.ts > a repeated /map/hotspot-region GET with the same regionCode hits fetch only once`: it pinned the `CACHED_GET_PATHS` membership this feature removes; **rewritten** to assert the transport no longer holds the route (two fetches), the gated-only expectation schema.md 9.11 asks for.
+- `transport.test.ts > a different regionCode misses the cache`: **deleted**. With the path uncached it asserted nothing about any cache, and the sibling row `different params miss the cache` already covers misses for a cached path.
+- `transportPathSets.test.ts > both sets are the real populated sets...`: the non-vacuity floor for `CACHED_GET_PATHS` moves from 3 to 2 and `/map/hotspot-region` leaves its expected members; a new row asserts it is absent from the cache and present in the gate.
+- `Targets.test.tsx > the choice survives a county change, is never written to storage, and a reload measures from the Default Location`: the exact set of settings keys written now includes `hotspot-regions-v1` (the Last report links' persisted region lookup). Its purpose, that the measuring point is never written, is held by the loop beside it that checks every write for the coordinates; the set is still an exact equality.
+- `clearDerived.test.ts > the registry > names every eBird-derived durable store`: gains `hotspot-regions-v1`; the WRITE_RACES and LOAD_RACES rosters gain a row each (QA-46), and the all-documents purge row seeds and checks the new document.
+- `cacheInventory.test.ts > the three durable cache caps...`: renamed "four" and gains the store's pin; its roster gains the store as a `setting` row.
+- **Setup only, no assertion changed:** `hotspotSet.test.ts` and `hotspotSetRetry.test.tsx` mock `./storage` with an in-memory document and reset the store between rows (schema.md 11), and the composed suite's row-1 comment about the 90 s cache is rewritten; `Targets.test.tsx` resets the store beside the other stores' resets (its mirror otherwise outlives the cleared settings); four suites that mock `useHotspotSet` wholesale (`TabLoadErrorAlert`, `honestLoadFailures`, `speciesComboboxAlphaCodes.callSites`, `speciesComboboxOptionsIdentity`) gained a stable `useHotspotResolution` stub, since the tab now reads it.
+- `useHotspotSet.test.tsx` and `HotspotLink.test.tsx` pass unmodified (QA-11).
+
+### 2.4 Measurements (Node 24.18 on this Mac, CPU time through `cpuTiming.ts`, load average 12 to 37 while measured)
+
+- **`computeHotspotShare`** (schema.md 7.1), best of 9: 15,000 checklists 1.58 ms, 30,000 3.17 ms, 75,000 7.94 ms, 150,000 15.98 ms, 300,000 31.9 ms; 2.0x per doubling, linear. The suite holds 75k against 150k, every-row-its-own-region 75k against 150k, and two hostile-cell legs (20,000 against 40,000 characters, each failing its pattern after the run), each under a quotient of 3.
+- **`sanitizeStore`** (schema.md 7.2): the worst admitted document (6 maximum entries plus 506 one-id entries) 15.8 ms; a heavy realistic document (60 regions of 4,000 ids) 7.2 ms. The repeated-invalid-key leg is held as work done (one validation at 5,000 and at 10,000 repeats).
+- **Worst-case document** (schema.md 9.3, rebuilt in a scratch script): 512 entries, payload 7,481,230 code units, **7,520,689 UTF-8 bytes** against the route's 16,777,216; `JSON.stringify` 15.9 ms, `JSON.parse` 16.5 ms. The same document is built through `sanitizeStore` in `settingsRouteBudget.test.ts`.
+- **First-paint JavaScript** (a HEAD build from `git archive`, same toolchain, against this build): 21 files, 660,890 B raw and 197,561 B gzip at HEAD; 22 files, 666,876 B and 200,070 B now, **+5,986 B raw, +2,509 B gzip** (under the schema's 3 KB). The store is its own modulepreloaded chunk (3,536 B, 1,642 gzip), `hotspotSet`'s chunk grows from 1,855 to 3,830 B, and `index-*.js` grows 421 B (the registry row and the resolution hook).
+- **Built stylesheet**, rule-level diff against the HEAD build: exactly the 15 intended `.sr-hs-*` rules and their two keyframes added, nothing removed or changed, so no comment or string in a test file emitted a utility.
+- **`weft-design-lint check frontend/src`**: 0 warn, 47 notes, the same 47 as HEAD (the one on `BirdingStats.tsx:1` is the pre-existing `DimmablePin` transition). None on the new files.
+
+### 2.5 Mutation table
+
+18 mutations, each applied to a snapshot taken once, run against the ten feature suites, restored and verified by sha256: the in-flight write check, `putEntry`'s identity check, the dedupe key recorded after validation, the TTL ignored, an error persisted as an empty answer, `abandonInflight` dropped from the invalidation, the build settle announcing, a failed first lookup reading answered, the refresh not gated on the offline hint, an identical refresh announcing, pending folded into personal, settled ahead of no-key, the pair losing its `>99%` row, the caption's plural, a rounded bar width, the bar not `aria-hidden`, the denominator from the filtered checklists, and the route back in `CACHED_GET_PATHS`. **All 18 go red.** `putEntry`'s identity check is red only by its source pin: the purge clears the in-flight map as well, so behaviourally the two write guards are a deliberately redundant pair, and each carries its own source row (`.claude/rules/security.md`, one pin per redundant guard).
+
+### 2.6 Verification run
+
+Full frontend suite at HEAD before the change: 10,350 passed, 27 skipped. After: **10,473 passed, 27 skipped, 0 failed** (`pipeline/baseline-failures.json` is empty, so there is nothing pre-existing to discount). `npm run build` and `npm run lint` clean; `entryChunk.test.ts` 107 passed against the built `dist/`, which is left built for the live look.
+
+### 2.7 For the live look and the Tester
+
+- Re-measure the block at 320px and 200% text in both themes and both engines in the BUILT app (the mockup's container is not the real card; v1.0.50).
+- On a Tauri target with a large stored document, watch for settings-write latency (schema.md 9.13's reversal condition: move the store to its own document if it shows).
+- The block is not a live region (PRD open question 2), so a screen reader hears a state change only on re-reading.

@@ -1,0 +1,659 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Checklists at hotspots: Statistics tab design</title>
+<style>
+/* ──────────────────────────────────────────────────────────────────────────
+   SnowRaven tokens (mirrors frontend/src/globals.css, both themes). Only the
+   tokens this surface touches are carried. The shipped component reads these
+   through var(--sr-*) exactly as written here; the values live in globals.css.
+   ────────────────────────────────────────────────────────────────────────── */
+:root {
+  --sr-text-scale: 1;
+  --sr-bg: #F9FAFB;
+  --sr-surface: #FFFFFF;
+  --sr-surface-subtle: #F4F4F5;
+  --sr-surface-faint: #FAFAFA;
+  --sr-text: #0F1117;
+  --sr-text-muted: #6B6B74;
+  --sr-text-gray: #6B7280;
+  --sr-border: #E4E4E7;
+  --sr-border-subtle: #F4F4F5;
+  --sr-border-medium: #C4C4CE;
+  --sr-accent: #277448;
+  --sr-accent-strong: #1A5C38;
+  --sr-accent-bg: #E8F5EE;
+  --sr-accent-border: rgba(39,116,72,0.25);
+  --sr-on-accent: #FFFFFF;
+  --sr-chart-blue-dark: #1D4ED8;
+  --sr-gray-400: #8E8E96;
+  --sr-rank-pin-circle: #277448;
+  --sr-rank-pin-square: #1D4ED8;
+  --sr-switch-thumb: #FFFFFF;
+  --sr-switch-thumb-shadow: 0 1px 2px rgba(15,17,23,0.25);
+  /* Mockup-only: the shipped RankIcon writes its numeral as literal white. */
+  --mk-rank-pin-num: #FFFFFF;
+  /* Mockup-only: the app's --sr-card-shadow is read from globals.css by SectionCard;
+     written here with the app's ink rather than pure black so the mockup lints clean. */
+  --sr-card-shadow: 0 1px 4px rgba(15,17,23,0.06), 0 4px 16px rgba(15,17,23,0.04);
+  --sr-focus-halo: rgba(45,134,83,0.12);
+  --font-sans: 'Inter', system-ui, 'Segoe UI', sans-serif;
+  /* Mockup-only stand-ins for the Positron basemap raster (the map canvas is
+     always light in both themes; these are not app tokens). */
+  --mk-map-land: #EEF0EA;
+  --mk-map-water: #CFE3EF;
+  --mk-map-road: #DCDED6;
+}
+[data-theme="dark"] {
+  --sr-bg: #09090B;
+  --sr-surface: #18181B;
+  --sr-surface-subtle: #27272A;
+  --sr-surface-faint: #1C1C1F;
+  --sr-text: #F4F4F5;
+  --sr-text-muted: #A1A1AA;
+  --sr-text-gray: #8A8A92;
+  --sr-border: #27272A;
+  --sr-border-subtle: #1F1F23;
+  --sr-border-medium: #3F3F46;
+  --sr-accent: #34D399;
+  --sr-accent-strong: #34D399;
+  --sr-accent-bg: #052E16;
+  --sr-accent-border: rgba(52,211,153,0.2);
+  --sr-on-accent: #052E16;
+  --sr-chart-blue-dark: #3B82F6;
+  --sr-gray-400: #6E6E78;
+  --sr-card-shadow: 0 1px 4px rgba(9,9,11,0.4), 0 4px 16px rgba(9,9,11,0.25);
+  --sr-focus-halo: rgba(52,211,153,0.16);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html {
+  background: var(--sr-bg);
+  font-size: calc(100% * var(--sr-text-scale, 1));
+}
+body {
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--sr-text);
+  background: var(--sr-bg);
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+svg { display: block; }
+a { color: inherit; }
+button { font-family: inherit; }
+
+/* Global focus ring, as globals.css draws it. */
+a:focus-visible, button:focus-visible, [tabindex]:focus-visible {
+  outline: 3px solid var(--sr-accent);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 6px var(--sr-focus-halo);
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+   Mockup chrome (not part of the design): theme / width / text size / state.
+   Sized in px so the in-frame text-size toggle does not move it.
+   ────────────────────────────────────────────────────────────────────────── */
+.mk-bar {
+  position: sticky; top: 0; z-index: 10;
+  display: flex; flex-wrap: wrap; gap: 12px 22px; align-items: center;
+  padding: 10px 16px;
+  background: var(--sr-surface);
+  border-bottom: 1px solid var(--sr-border);
+  font-size: 12px; line-height: 1.3;
+}
+.mk-bar h1 { font-size: 13px; font-weight: 700; letter-spacing: -0.01em; margin-right: 6px; }
+.mk-bar h1 span { color: var(--sr-text-muted); font-weight: 500; }
+.mk-group { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.mk-group > span { color: var(--sr-text-muted); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; margin-right: 2px; }
+.mk-seg { display: inline-flex; flex-wrap: wrap; border: 1.5px solid var(--sr-accent-border); border-radius: 15px; overflow: hidden; background: var(--sr-surface); }
+.mk-seg button {
+  font: inherit; font-size: 12px; font-weight: 500; color: var(--sr-text-muted);
+  background: transparent; border: 0; border-left: 1.5px solid var(--sr-accent-border);
+  min-height: 28px; padding: 0 11px; cursor: pointer;
+  transition: background-color 120ms ease-out, color 120ms ease-out;
+}
+.mk-seg button:first-child { border-left: 0; }
+.mk-seg button:hover { color: var(--sr-text); }
+.mk-seg button[aria-pressed="true"] { background: var(--sr-accent-bg); color: var(--sr-accent); font-weight: 600; }
+.mk-seg button:focus-visible { outline-offset: -3px; box-shadow: none; }
+
+.mk-stage { padding: 28px 16px 64px; display: flex; justify-content: center; }
+.mk-frame {
+  width: 900px; max-width: 100%;
+  background: var(--sr-bg);
+  border: 1px solid var(--sr-border);
+  border-radius: 14px;
+  overflow: hidden;
+  transition: width 220ms cubic-bezier(0.2, 0, 0, 1);
+}
+.mk-frame-cap {
+  font-size: 11px; color: var(--sr-text-muted); padding: 6px 12px;
+  border-bottom: 1px dashed var(--sr-border); background: var(--sr-surface-faint);
+  line-height: 1.45;
+}
+.mk-frame-cap b { color: var(--sr-text); font-weight: 600; }
+
+/* ──────────────────────────────────────────────────────────────────────────
+   Statistics tab register (abbreviated): the tab header, the tail of Temporal
+   Stats above and the head of Effort & Outings below, so the new block is
+   judged inside the Geographic Stats card in its real company.
+   ────────────────────────────────────────────────────────────────────────── */
+.sr-page { padding: 18px 18px 8px; display: flex; flex-direction: column; gap: 16px; }
+.sr-tab-head { display: flex; align-items: center; gap: 10px; margin-bottom: 2px; }
+.sr-tab-tile {
+  width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0;
+  background: var(--sr-accent-bg); color: var(--sr-accent);
+  display: flex; align-items: center; justify-content: center;
+}
+.sr-tab-head h2 { font-size: 1.125rem; font-weight: 700; letter-spacing: -0.01em; line-height: 1.2; }
+.sr-tab-head p { font-size: 0.8125rem; color: var(--sr-text-muted); line-height: 1.4; }
+
+/* SectionCard, as statsPrimitives.tsx draws it. */
+.sr-card {
+  background: var(--sr-surface);
+  border: 1px solid var(--sr-border);
+  border-radius: 12px;
+  padding: clamp(14px, 4vw, 24px);
+  box-shadow: var(--sr-card-shadow);
+}
+.sr-card-head {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
+  margin-bottom: 20px; padding-bottom: 16px;
+  border-bottom: 1px solid var(--sr-border-subtle);
+}
+.sr-card-head > svg { color: var(--sr-accent); }
+.sr-card-head h3 { font-size: 0.9375rem; font-weight: 600; }
+.sr-card-head-action { margin-left: auto; }
+/* The boxed ToggleSwitch (label-bearing default). */
+.sr-toggle {
+  display: inline-flex; align-items: center; gap: 8px;
+  min-height: 30px; padding: 0 10px; border-radius: 6px;
+  border: 1.5px solid var(--sr-border); background: var(--sr-surface);
+  font-size: 0.75rem; font-weight: 600; color: var(--sr-text); cursor: pointer;
+  transition: border-color 120ms ease-out, background-color 120ms ease-out;
+}
+.sr-toggle:hover { border-color: var(--sr-border-medium); background: var(--sr-surface-subtle); }
+.sr-toggle-track { width: 26px; height: 14px; border-radius: 7px; background: var(--sr-gray-400); position: relative; }
+.sr-toggle-track::after { content: ""; position: absolute; top: 2px; left: 2px; width: 10px; height: 10px; border-radius: 50%; background: var(--sr-switch-thumb); box-shadow: var(--sr-switch-thumb-shadow); }
+
+.sr-ghost { opacity: 0.55; pointer-events: none; }
+.sr-ghost .sr-card { box-shadow: none; }
+.sr-ghost-tail { max-height: 84px; overflow: hidden; }
+
+/* SubLabel and Divider, as statsPrimitives.tsx draws them. */
+.sr-sublabel {
+  font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--sr-text-muted); margin: 0 0 10px;
+}
+.sr-divider { height: 1px; background: var(--sr-border-subtle); margin: 16px 0; }
+
+/* The Geographic Stats map (stand-in for the SnowMap canvas; same box). */
+.sr-geo-map {
+  height: 320px; width: 100%;
+  border: 1px solid var(--sr-border); border-radius: 8px; overflow: hidden;
+  background: var(--mk-map-land); position: relative;
+}
+.sr-geo-map svg { width: 100%; height: 100%; }
+.sr-rank-pin-num { font-family: var(--font-sans); font-size: 11px; font-weight: 700; fill: var(--mk-rank-pin-num); }
+.sr-map-fab-row { position: absolute; right: 10px; bottom: 10px; display: flex; gap: 8px; }
+.sr-map-fab {
+  width: 30px; height: 30px; border-radius: 50%;
+  background: var(--sr-surface); border: 1px solid var(--sr-border); color: var(--sr-text);
+  display: flex; align-items: center; justify-content: center;
+}
+.sr-map-switcher { position: absolute; right: 10px; top: 10px; width: 30px; height: 30px; border-radius: 6px; background: var(--sr-surface); border: 1px solid var(--sr-border); color: var(--sr-text); display: flex; align-items: center; justify-content: center; }
+.sr-geo-legend { display: flex; gap: 16px; margin-top: 8px; flex-wrap: wrap; margin-bottom: 20px; }
+.sr-geo-legend > div { display: flex; align-items: center; gap: 6px; font-size: 0.6875rem; color: var(--sr-text-muted); }
+
+/* Top-location rows, as BirdingStats.tsx draws them. */
+.sr-loc-list { display: flex; flex-direction: column; gap: 4px; margin-bottom: 20px; }
+.sr-loc-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; flex-wrap: wrap; row-gap: 2px; }
+.sr-loc-rank { font-size: 0.6875rem; color: var(--sr-text-muted); width: 16px; text-align: right; flex-shrink: 0; }
+.sr-loc-name { font-size: 0.8125rem; flex: 1 1 140px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sr-loc-name.is-hotspot { color: var(--sr-accent); text-decoration: none; display: inline-flex; align-items: center; gap: 3px; }
+.sr-loc-name.is-hotspot:hover { text-decoration: underline; }
+.sr-loc-name.is-hotspot svg { flex-shrink: 0; }
+.sr-loc-name.is-plain { color: var(--sr-text); }
+.sr-loc-meta { font-size: 0.6875rem; color: var(--sr-text-muted); flex-shrink: 0; margin-left: auto; }
+
+/* Counties grid (abbreviated BarRow idiom). */
+.sr-county-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; align-items: start; }
+.sr-barrow { display: flex; align-items: center; gap: 8px; min-height: 22px; min-width: 0; }
+.sr-barrow-label { font-size: 0.6875rem; color: var(--sr-text-muted); text-align: right; flex: 0 1 6.5rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sr-barrow-track { flex: 1; min-width: 0; height: 8px; border-radius: 4px; background: var(--sr-surface-subtle); overflow: hidden; }
+.sr-barrow-track > div { height: 100%; border-radius: 4px; background: var(--sr-accent); }
+.sr-barrow-val { font-size: 0.6875rem; color: var(--sr-text-muted); flex-shrink: 0; width: 2.5rem; text-align: right; }
+
+/* ──────────────────────────────────────────────────────────────────────────
+   THE DESIGN: Checklists at hotspots (.sr-hs-*)
+   One block inside Geographic Stats, between the map legend and "Top
+   locations by checklists". Three renderings: the settled share (figures over
+   an aria-hidden two-segment bar, counts beneath), a status sentence for the
+   unresolved states (the Projects status-row register), and the no-key
+   sentence with its inline Settings control (the Projects no-key idiom).
+   Each region's hotspot answer is stored after its first lookup (decisions.md
+   section 1), so the unresolved states belong to a region's FIRST-EVER lookup
+   only; every later launch, online or offline, shows the settled share at once
+   from the stored answer.
+   ────────────────────────────────────────────────────────────────────────── */
+/* Settled: the two percentages sit ABOVE the bar, each over the segment it
+   describes (hotspot over the leading edge, personal over the trailing edge);
+   never inside a fill (the F032 pattern the Complete-checklists bar follows).
+   The row wraps at 320px / 200% text; the trailing figure keeps its right edge
+   so it still sits over the end of the bar when it drops to its own line, and
+   a label that cannot sit beside its figure drops under it, same alignment. */
+.sr-hs-figs { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 2px 16px; margin-bottom: 8px; }
+.sr-hs-fig { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0 6px; min-width: 0; }
+.sr-hs-fig--end { margin-left: auto; justify-content: flex-end; text-align: right; }
+.sr-hs-pct {
+  font-size: 1rem; font-weight: 700; letter-spacing: -0.01em; line-height: 1.1;
+  color: var(--sr-text); font-variant-numeric: tabular-nums;
+}
+.sr-hs-figlab { font-size: 0.6875rem; color: var(--sr-text-muted); }
+
+/* The bar: 20px, radius 4, the Statistics tab's own share-bar pair (the
+   Complete-checklists fill on the hotspot segment, the track tone on the
+   personal segment). aria-hidden; no text inside it. The hotspot segment's
+   width is the UNROUNDED fraction. It grows from the leading edge when the
+   settled state lands (the share-breakdown mount animation, 240ms ease-out). */
+.sr-hs-bar { height: 20px; border-radius: 4px; overflow: hidden; display: flex; background: var(--sr-surface-subtle); }
+.sr-hs-seg--hot { background: var(--sr-chart-blue-dark); height: 100%; transform-origin: left center; animation: sr-hs-fill 240ms cubic-bezier(0.2, 0, 0, 1); }
+.sr-hs-seg--pers { flex: 1; height: 100%; background: var(--sr-surface-subtle); }
+@keyframes sr-hs-fill { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+/* The counts beneath, in the tab's caption register. */
+.sr-hs-caption { font-size: 0.71875rem; color: var(--sr-text-muted); margin: 8px 0 0; line-height: 1.5; }
+
+/* Unresolved and no-key: the Projects status-row register (.sr-proj-status),
+   a 14px muted glyph beside 0.8125rem body text; the counts-so-far line in the
+   caption register beneath it. */
+.sr-hs-status { display: flex; align-items: flex-start; gap: 0.5rem; font-size: 0.8125rem; line-height: 1.5; color: var(--sr-text); min-width: 0; overflow-wrap: break-word; }
+.sr-hs-status > svg { flex-shrink: 0; margin-top: 0.1875rem; color: var(--sr-text-muted); }
+.sr-hs-lines { min-width: 0; }
+.sr-hs-sofar { font-size: 0.75rem; color: var(--sr-text-muted); margin-top: 2px; }
+.spin { animation: spin 0.7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* The no-key control: .sr-proj-link, the Projects section's inline Settings
+   button. A button, not an anchor: it changes tab within the app. */
+.sr-proj-link {
+  background: none; border: none; padding: 0; font: inherit;
+  color: var(--sr-accent); text-decoration: underline; cursor: pointer;
+}
+.sr-proj-link:focus-visible { outline: 2px solid var(--sr-accent); outline-offset: 2px; border-radius: 3px; box-shadow: none; }
+
+/* Entrance on a state change: the Projects message entrance (160ms ease-out,
+   3px rise). Motion explains the change from "checking" to the settled share;
+   a static block never animates. */
+.sr-hs-body > * { animation: sr-hs-in 160ms cubic-bezier(0.16, 1, 0.3, 1); }
+@keyframes sr-hs-in { from { opacity: 0; transform: translateY(0.1875rem); } to { opacity: 1; transform: translateY(0); } }
+
+/* Phone tier. In the shipped stylesheet these live inside the established
+   ≤640 @media block; the mockup keys them off the frame width. */
+.is-phone .sr-county-grid { grid-template-columns: 1fr; }
+.is-phone .sr-card { padding: 14px; }
+.is-phone .sr-barrow-label { flex-basis: 4.5rem; }
+
+@media (prefers-reduced-motion: reduce) {
+  .sr-hs-body > *, .sr-hs-seg--hot, .spin, .mk-frame, .mk-seg button, .sr-toggle { animation: none; transition: none; }
+}
+</style>
+</head>
+<body>
+
+<div class="mk-bar" aria-label="Mockup controls">
+  <h1>Checklists at hotspots <span>· Statistics · Geographic Stats · design mockup</span></h1>
+  <div class="mk-group"><span>Theme</span>
+    <div class="mk-seg" role="group" aria-label="Theme">
+      <button type="button" data-set="theme" data-val="light" aria-pressed="true">Light</button>
+      <button type="button" data-set="theme" data-val="dark" aria-pressed="false">Dark</button>
+    </div>
+  </div>
+  <div class="mk-group"><span>Width</span>
+    <div class="mk-seg" role="group" aria-label="Frame width">
+      <button type="button" data-set="width" data-val="900" aria-pressed="true">Mac</button>
+      <button type="button" data-set="width" data-val="640" aria-pressed="false">640</button>
+      <button type="button" data-set="width" data-val="390" aria-pressed="false">iPhone 390</button>
+      <button type="button" data-set="width" data-val="320" aria-pressed="false">320</button>
+    </div>
+  </div>
+  <div class="mk-group"><span>Text size</span>
+    <div class="mk-seg" role="group" aria-label="In-app text size">
+      <button type="button" data-set="scale" data-val="1" aria-pressed="true">100%</button>
+      <button type="button" data-set="scale" data-val="1.5" aria-pressed="false">150%</button>
+      <button type="button" data-set="scale" data-val="2" aria-pressed="false">200%</button>
+    </div>
+  </div>
+  <div class="mk-group"><span>State</span>
+    <div class="mk-seg" role="group" aria-label="Block state">
+      <button type="button" data-set="state" data-val="mixed" aria-pressed="true">Mixed</button>
+      <button type="button" data-set="state" data-val="all" aria-pressed="false">All at hotspots</button>
+      <button type="button" data-set="state" data-val="none" aria-pressed="false">None</button>
+      <button type="button" data-set="state" data-val="sliver" aria-pressed="false">Under 1%</button>
+      <button type="button" data-set="state" data-val="pending" aria-pressed="false">First lookup</button>
+      <button type="button" data-set="state" data-val="pendingPart" aria-pressed="false">First lookup, partial</button>
+      <button type="button" data-set="state" data-val="offlineFirst" aria-pressed="false">Offline, no answer yet</button>
+      <button type="button" data-set="state" data-val="offline" aria-pressed="false">Offline, after an answer</button>
+      <button type="button" data-set="state" data-val="warmOffline" aria-pressed="false">Later launch, offline</button>
+      <button type="button" data-set="state" data-val="unanswered" aria-pressed="false">First lookup failed</button>
+      <button type="button" data-set="state" data-val="noregion" aria-pressed="false">No region code</button>
+      <button type="button" data-set="state" data-val="nokey" aria-pressed="false">No key</button>
+      <button type="button" data-set="state" data-val="empty" aria-pressed="false">Empty export</button>
+    </div>
+  </div>
+</div>
+
+<div class="mk-stage">
+  <div class="mk-frame" id="frame">
+    <div class="mk-frame-cap" id="frameCap"></div>
+    <div class="sr-page">
+
+      <div class="sr-tab-head">
+        <div class="sr-tab-tile"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg></div>
+        <div>
+          <h2>Statistics</h2>
+          <p>Patterns across your checklists, species, and locations.</p>
+        </div>
+      </div>
+
+      <!-- Shipped today: the tail of Temporal Stats, dimmed. -->
+      <div class="sr-ghost sr-ghost-tail" aria-hidden="true">
+        <div class="sr-card">
+          <p class="sr-sublabel">Checklist duration</p>
+          <div class="sr-barrow"><span class="sr-barrow-label">0-15m</span><div class="sr-barrow-track"><div style="width:22%"></div></div><span class="sr-barrow-val">418</span></div>
+          <div class="sr-barrow"><span class="sr-barrow-label">15-30m</span><div class="sr-barrow-track"><div style="width:48%"></div></div><span class="sr-barrow-val">911</span></div>
+          <div class="sr-barrow"><span class="sr-barrow-label">30-45m</span><div class="sr-barrow-track"><div style="width:100%"></div></div><span class="sr-barrow-val">1,206</span></div>
+        </div>
+      </div>
+
+      <!-- Geographic Stats: shipped, with the new block in place. -->
+      <section class="sr-card" aria-labelledby="geoTitle">
+        <div class="sr-card-head">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></svg>
+          <h3 id="geoTitle">Geographic Stats</h3>
+          <div class="sr-card-head-action">
+            <button type="button" class="sr-toggle" role="switch" aria-checked="false"><span>Counties</span><span class="sr-toggle-track" aria-hidden="true"></span></button>
+          </div>
+        </div>
+
+        <div id="geoMapBlock">
+          <div class="sr-geo-map" role="img" aria-label="Map of the top locations, with rank pins">
+            <svg viewBox="0 0 900 320" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+              <rect width="900" height="320" fill="var(--mk-map-land)"/>
+              <path d="M0 120 C120 100 180 180 300 150 S520 60 640 110 S820 210 900 170 V320 H0 Z" fill="var(--mk-map-land)"/>
+              <path d="M110 40 C170 30 230 70 240 120 C250 170 160 200 120 170 C80 140 60 60 110 40 Z" fill="var(--mk-map-water)"/>
+              <path d="M520 190 C600 170 680 200 700 250 C720 300 620 330 560 300 C500 270 470 210 520 190 Z" fill="var(--mk-map-water)"/>
+              <path d="M760 40 C820 30 880 60 900 100 V0 H740 Z" fill="var(--mk-map-water)"/>
+              <path d="M0 230 C140 200 260 260 380 230 S600 180 760 230 S880 270 900 260" fill="none" stroke="var(--mk-map-water)" stroke-width="7" stroke-linecap="round"/>
+              <path d="M40 0 V320 M300 0 V320 M560 0 V320 M0 90 H900 M0 290 H900" stroke="var(--mk-map-road)" stroke-width="2"/>
+              <path d="M180 0 C200 90 260 160 420 190 S620 160 900 150" fill="none" stroke="var(--mk-map-road)" stroke-width="3"/>
+              <!-- Rank pins: circles are top by checklists, squares top by species. -->
+              <g>
+                <circle cx="410" cy="200" r="11" fill="var(--sr-rank-pin-circle)"/><text x="410" y="204" text-anchor="middle" class="sr-rank-pin-num">1</text>
+                <circle cx="372" cy="214" r="11" fill="var(--sr-rank-pin-circle)"/><text x="372" y="218" text-anchor="middle" class="sr-rank-pin-num">2</text>
+                <circle cx="352" cy="120" r="11" fill="var(--sr-rank-pin-circle)"/><text x="352" y="124" text-anchor="middle" class="sr-rank-pin-num">3</text>
+                <circle cx="466" cy="72" r="11" fill="var(--sr-rank-pin-circle)"/><text x="466" y="76" text-anchor="middle" class="sr-rank-pin-num">4</text>
+                <circle cx="388" cy="240" r="11" fill="var(--sr-rank-pin-circle)"/><text x="388" y="244" text-anchor="middle" class="sr-rank-pin-num">5</text>
+                <rect x="428" y="188" width="22" height="22" rx="4" fill="var(--sr-rank-pin-square)"/><text x="439" y="203" text-anchor="middle" class="sr-rank-pin-num">1</text>
+                <rect x="776" y="26" width="22" height="22" rx="4" fill="var(--sr-rank-pin-square)"/><text x="787" y="41" text-anchor="middle" class="sr-rank-pin-num">2</text>
+                <rect x="610" y="236" width="22" height="22" rx="4" fill="var(--sr-rank-pin-square)"/><text x="621" y="251" text-anchor="middle" class="sr-rank-pin-num">3</text>
+              </g>
+            </svg>
+            <div class="sr-map-switcher" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/></svg></div>
+            <div class="sr-map-fab-row" aria-hidden="true">
+              <div class="sr-map-fab"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></svg></div>
+              <div class="sr-map-fab"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="M21 3l-7 7"/><path d="M3 21l7-7"/></svg></div>
+            </div>
+          </div>
+          <div class="sr-geo-legend" aria-hidden="true">
+            <div><svg width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="6" fill="var(--sr-rank-pin-circle)"/></svg><span>Top by checklists</span></div>
+            <div><svg width="14" height="14" viewBox="0 0 14 14"><rect x="1" y="1" width="12" height="12" rx="2" fill="var(--sr-rank-pin-square)"/></svg><span>Top by species</span></div>
+          </div>
+        </div>
+
+        <!-- NEW: Checklists at hotspots -->
+        <div class="sr-hs" id="hs">
+          <p class="sr-sublabel">Checklists at hotspots</p>
+          <div class="sr-hs-body" id="hsBody"></div>
+          <div class="sr-divider"></div>
+        </div>
+
+        <p class="sr-sublabel">Top locations by checklists</p>
+        <div class="sr-loc-list" id="locByChecklists"></div>
+
+        <p class="sr-sublabel">Top locations by species</p>
+        <div class="sr-loc-list" id="locBySpecies"></div>
+
+        <div class="sr-divider"></div>
+        <div class="sr-county-grid">
+          <div>
+            <p class="sr-sublabel">Counties by checklists</p>
+            <div class="sr-barrow"><span class="sr-barrow-label">Dakota, MN</span><div class="sr-barrow-track"><div style="width:100%"></div></div><span class="sr-barrow-val">1,402</span></div>
+            <div class="sr-barrow"><span class="sr-barrow-label">Hennepin, MN</span><div class="sr-barrow-track"><div style="width:44%"></div></div><span class="sr-barrow-val">611</span></div>
+            <div class="sr-barrow"><span class="sr-barrow-label">St. Louis, MN</span><div class="sr-barrow-track"><div style="width:23%"></div></div><span class="sr-barrow-val">318</span></div>
+            <div class="sr-barrow"><span class="sr-barrow-label">Anoka, MN</span><div class="sr-barrow-track"><div style="width:21%"></div></div><span class="sr-barrow-val">290</span></div>
+            <div class="sr-barrow"><span class="sr-barrow-label">Burnett, WI</span><div class="sr-barrow-track"><div style="width:7%"></div></div><span class="sr-barrow-val">97</span></div>
+          </div>
+          <div>
+            <p class="sr-sublabel">Counties by species</p>
+            <div class="sr-barrow"><span class="sr-barrow-label">Dakota, MN</span><div class="sr-barrow-track"><div style="width:100%"></div></div><span class="sr-barrow-val">268</span></div>
+            <div class="sr-barrow"><span class="sr-barrow-label">St. Louis, MN</span><div class="sr-barrow-track"><div style="width:86%"></div></div><span class="sr-barrow-val">231</span></div>
+            <div class="sr-barrow"><span class="sr-barrow-label">Hennepin, MN</span><div class="sr-barrow-track"><div style="width:80%"></div></div><span class="sr-barrow-val">214</span></div>
+            <div class="sr-barrow"><span class="sr-barrow-label">Anoka, MN</span><div class="sr-barrow-track"><div style="width:68%"></div></div><span class="sr-barrow-val">182</span></div>
+            <div class="sr-barrow"><span class="sr-barrow-label">Burnett, WI</span><div class="sr-barrow-track"><div style="width:59%"></div></div><span class="sr-barrow-val">158</span></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Shipped today: the head of Effort & Outings, dimmed. -->
+      <div class="sr-ghost sr-ghost-tail" aria-hidden="true">
+        <div class="sr-card">
+          <div class="sr-card-head">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            <h3>Effort &amp; Outings</h3>
+          </div>
+          <p class="sr-sublabel">Totals</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  /* ── Fixture: one export of 3,300 checklists across US-MN and US-WI. The
+     region a location sits in decides whether its name links when that region
+     has answered; the block's counts and the links read ONE Set (FR-05). */
+  const M = 3300;
+  const LOCS = [
+    { name: 'Minnesota Valley NWR--Bass Ponds', region: 'US-MN', hotspot: true,  lists: 412, sp: 211 },
+    { name: 'Home yard, Eagan',                 region: 'US-MN', hotspot: false, lists: 388, sp: 96 },
+    { name: 'Carlos Avery WMA--Pool 9',         region: 'US-MN', hotspot: true,  lists: 161, sp: 174 },
+    { name: 'Crex Meadows WA--Phantom Lake',    region: 'US-WI', hotspot: true,  lists: 97,  sp: 158 },
+    { name: 'Thompson Lake walk',               region: 'US-MN', hotspot: false, lists: 84,  sp: 71 },
+    { name: 'Wood Lake Nature Center',          region: 'US-MN', hotspot: true,  lists: 79,  sp: 142 },
+    { name: 'Park Point Recreation Area',       region: 'US-MN', hotspot: true,  lists: 61,  sp: 186 },
+    { name: 'Office pond, Mendota Heights',     region: 'US-MN', hotspot: false, lists: 58,  sp: 44 },
+  ];
+
+  /* Each state is a HotspotShareView (schema.md section 5.4) plus which regions
+     have answered (a stored entry, or a successful lookup in this session), so
+     the top-location links beneath agree with the block. The four unresolved
+     views (pending, offline, unanswered, no-region) are reachable only while a
+     region has never answered: its first-ever lookup, on a fresh install, a
+     cleared store, or a region the export newly introduces (FR-04). */
+  const STATES = {
+    mixed:       { kind: 'settled',    h: 1234, p: 2066, m: M, answered: ['US-MN', 'US-WI'] },
+    all:         { kind: 'settled',    h: M,    p: 0,    m: M, answered: ['US-MN', 'US-WI'], allHotspot: true },
+    none:        { kind: 'settled',    h: 0,    p: M,    m: M, answered: ['US-MN', 'US-WI'], noneHotspot: true },
+    sliver:      { kind: 'settled',    h: 3,    p: 3297, m: M, answered: ['US-MN', 'US-WI'], noneHotspot: true },
+    pending:     { kind: 'pending',    u: M,    m: M, h: 0,    p: 0,    answered: [] },
+    pendingPart: { kind: 'pending',    u: 412,  m: M, h: 1102, p: 1786, answered: ['US-MN'] },
+    offlineFirst:{ kind: 'offline',    u: M,    m: M, h: 0,    p: 0,    answered: [] },
+    offline:     { kind: 'offline',    u: 412,  m: M, h: 1102, p: 1786, answered: ['US-MN'] },
+    warmOffline: { kind: 'settled',    h: 1234, p: 2066, m: M, answered: ['US-MN', 'US-WI'] },
+    unanswered:  { kind: 'unanswered', k: 1, r: 2, u: 412, m: M, h: 1102, p: 1786, answered: ['US-MN'] },
+    noregion:    { kind: 'no-region',  u: 6,    m: M, h: 1230, p: 2064, answered: ['US-MN', 'US-WI'] },
+    nokey:       { kind: 'no-key',     answered: [] },
+    empty:       { kind: 'hidden',     answered: ['US-MN', 'US-WI'] },
+  };
+
+  const CAPTIONS = {
+    mixed: '<b>Settled, mixed (FR-13).</b> 1,234 of 3,300 at hotspots: the percentages sit over the segments they describe, the bar is aria-hidden, the counts are the sentence beneath. The linked names under it are the same Set. Once a region has answered, its answer is stored, and this is what every later launch shows at once.',
+    all: '<b>Settled, every checklist at a hotspot (FR-13).</b> A full bar and "0 at personal locations", a real rendering rather than an empty state. Every top location links.',
+    none: '<b>Settled, none at hotspots (FR-13).</b> An empty hotspot segment with "0%" and "100%": the regions answered and nothing matched. An empty answer is stored like any other, so this stays settled on later launches. Every top location is plain.',
+    sliver: '<b>Settled, a share that rounds to zero (FR-15).</b> 3 of 3,300 reads "<1%" and ">99%", never "0%" for a nonzero count. The bar still shows the sliver.',
+    pending: '<b>First lookup, pending (FR-10).</b> A fresh install, a cleared store, or a region the export newly introduces: no region has a stored answer yet, so there is no bar and no percentage, only the sentence. The names beneath are plain until the Set lands. On a later launch this sentence shows only for the local read of the stored document, with no request.',
+    pendingPart: '<b>First lookup, partial (FR-10).</b> Minnesota has answered, and its answer is now stored; Wisconsin\'s first lookup is in a re-ask round after a 429. The counts so far are given as counts, never a percentage; Crex Meadows stays plain.',
+    offlineFirst: '<b>Offline before any answer (FR-11).</b> A fresh install or a cleared store opened with no signal: nothing is stored, every checklist is unclassified, and there is no counts-so-far line. The first lookup runs when the app is next online.',
+    offline: '<b>Offline after an answer (FR-11).</b> Minnesota\'s stored answer classifies its checklists with no request; Wisconsin has never answered, so its 412 checklists wait for a first lookup. Offline, only a never-answered region is unclassified.',
+    warmOffline: '<b>Later launch, offline (FR-11, FR-13, FR-23).</b> Every region holds a stored answer, so the full bar and the links render from the document with zero requests, online or offline. No offline sentence and no staleness marker, even past the TTL.',
+    unanswered: '<b>First lookup failed (FR-12).</b> Online, but Wisconsin\'s first-ever lookup failed past its re-ask rounds, so nothing is stored for it; the sentence names how many regions and how many checklists. A region whose stored answer merely failed to refresh is not counted here: it stays answered.',
+    noregion: '<b>Rows with no region code (FR-12, k = 0).</b> Six checklists carry no askable region code; everything else is classified, so the counts so far nearly complete the picture.',
+    nokey: '<b>No eBird API key (FR-09).</b> The Projects section\'s no-key idiom: the key glyph, one sentence, and the inline "Add a key in Settings" button. No bar, no counts, no percentage. This state wins over every other, including one where every region holds a stored answer.',
+    empty: '<b>Empty export (FR-02).</b> With zero checklists the block, its sub-label and its divider are omitted entirely; no empty-state box. (The rest of the section would not render for an empty export either; it is kept here only to show the absence.)',
+  };
+
+  /* ── Copy (mirrors the shape of lib/hotspotShareCopy.ts). Every count goes
+     through fmt; every count-bearing fragment agrees in number; no em dash. */
+  const fmt = n => n.toLocaleString('en-US');
+  const plural = (n, one, many) => (n === 1 ? one : many);
+  const checklists = n => `${fmt(n)} ${plural(n, 'checklist', 'checklists')}`;
+
+  function sharePctPair(h, m) {
+    const pct = Math.round(h / m * 100);
+    if (h === 0) return { hotspot: '0%', personal: '100%' };
+    if (h === m) return { hotspot: '100%', personal: '0%' };
+    if (pct === 0) return { hotspot: '<1%', personal: '>99%' };
+    if (pct === 100) return { hotspot: '>99%', personal: '<1%' };
+    return { hotspot: `${pct}%`, personal: `${100 - pct}%` };
+  }
+
+  const SUBLABEL = 'Checklists at hotspots';
+  const NO_KEY = 'Checklists at hotspots cannot be counted without an eBird API key.';
+  const ADD_KEY = 'Add a key in Settings';
+  const soFar = v => (v.h + v.p > 0 ? `So far ${fmt(v.h)} at hotspots and ${fmt(v.p)} at personal locations.` : null);
+
+  function sentences(v) {
+    switch (v.kind) {
+      case 'pending':
+        return [`Checking which locations are public hotspots. ${fmt(v.u)} of ${checklists(v.m)} not yet classified.`, soFar(v)];
+      case 'offline':
+        return [`Offline, so ${fmt(v.u)} of ${checklists(v.m)} could not be classified yet.`, soFar(v)];
+      case 'unanswered':
+        return [`eBird did not answer for ${fmt(v.k)} of your ${fmt(v.r)} ${plural(v.r, 'region', 'regions')}, so ${fmt(v.u)} of ${checklists(v.m)} could not be classified.`, soFar(v)];
+      case 'no-region':
+        return [`${fmt(v.u)} of ${checklists(v.m)} ${plural(v.u, 'carries', 'carry')} no region code and could not be classified.`, soFar(v)];
+      case 'settled':
+        return [`${fmt(v.h)} of ${checklists(v.m)} at hotspots, ${fmt(v.p)} at personal locations.`];
+      default:
+        return [];
+    }
+  }
+
+  /* ── Lucide glyphs (14px, stroke 2.2), the Projects status vocabulary. */
+  const L = (inner, extra) => `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"${extra || ''}>${inner}</svg>`;
+  const GLYPH = {
+    loader: L('<path d="M21 12a9 9 0 1 1-6.219-8.56"/>', ' class="spin"'),
+    wifi: L('<path d="M12 20h.01"/><path d="M8.5 16.429a5 5 0 0 1 7 0"/><path d="M5 12.859a10 10 0 0 1 5.17-2.69"/><path d="M19 12.859a10 10 0 0 0-2.007-1.523"/><path d="M2 8.82a15 15 0 0 1 4.177-2.643"/><path d="M22 8.82a15 15 0 0 0-11.288-3.764"/><path d="m2 2 20 20"/>'),
+    alert: L('<circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/>'),
+    dashed: L('<circle cx="12" cy="12" r="10" stroke-dasharray="3 3"/>'),
+    key: L('<path d="M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z"/><circle cx="16.5" cy="7.5" r=".5" fill="currentColor"/>'),
+  };
+  const EXT = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>';
+  const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+  /* ── Render the block for one view. */
+  function renderBlock(v) {
+    const hs = document.getElementById('hs');
+    const body = document.getElementById('hsBody');
+    if (v.kind === 'hidden') { hs.hidden = true; body.textContent = ''; return; }
+    hs.hidden = false;
+
+    if (v.kind === 'settled') {
+      const pct = sharePctPair(v.h, v.m);
+      const width = (v.h / v.m * 100);
+      body.innerHTML =
+        `<div>` +
+          `<div class="sr-hs-figs">` +
+            `<div class="sr-hs-fig"><span class="sr-hs-pct">${esc(pct.hotspot)}</span><span class="sr-hs-figlab">at hotspots</span></div>` +
+            `<div class="sr-hs-fig sr-hs-fig--end"><span class="sr-hs-pct">${esc(pct.personal)}</span><span class="sr-hs-figlab">at personal locations</span></div>` +
+          `</div>` +
+          `<div class="sr-hs-bar" aria-hidden="true"><div class="sr-hs-seg--hot" style="width:${width}%;min-width:${v.h > 0 ? 3 : 0}px"></div><div class="sr-hs-seg--pers"></div></div>` +
+          `<p class="sr-hs-caption">${esc(sentences(v)[0])}</p>` +
+        `</div>`;
+      return;
+    }
+
+    if (v.kind === 'no-key') {
+      body.innerHTML =
+        `<div class="sr-hs-status">${GLYPH.key}<div class="sr-hs-lines"><p>${esc(NO_KEY)} <button type="button" class="sr-proj-link">${esc(ADD_KEY)}</button></p></div></div>`;
+      return;
+    }
+
+    const glyph = { pending: GLYPH.loader, offline: GLYPH.wifi, unanswered: GLYPH.alert, 'no-region': GLYPH.dashed }[v.kind];
+    const [first, more] = sentences(v);
+    body.innerHTML =
+      `<div class="sr-hs-status">${glyph}<div class="sr-hs-lines"><p>${esc(first)}</p>${more ? `<p class="sr-hs-sofar">${esc(more)}</p>` : ''}</div></div>`;
+  }
+
+  /* ── The top-location lists beneath: a name links only when its region has
+     answered AND it is in the Set (the shipped HotspotLink rule). */
+  function renderLocs(v) {
+    const answered = new Set(v.answered);
+    const isHotspot = loc => {
+      if (v.kind === 'no-key') return false;
+      if (v.allHotspot) return answered.has(loc.region);
+      if (v.noneHotspot) return false;
+      return loc.hotspot && answered.has(loc.region);
+    };
+    const row = (loc, i, meta) => {
+      const hot = isHotspot(loc);
+      const name = hot
+        ? `<a class="sr-loc-name is-hotspot" href="https://ebird.org/hotspot/L0" target="_blank" rel="noreferrer" aria-label="Open ${esc(loc.name)} on eBird (opens in a new tab)"><span style="overflow:hidden;text-overflow:ellipsis">${esc(loc.name)}</span>${EXT}</a>`
+        : `<span class="sr-loc-name is-plain" title="${esc(loc.name)}">${esc(loc.name)}</span>`;
+      return `<div class="sr-loc-row"><span class="sr-loc-rank">${i + 1}</span>${name}<span class="sr-loc-meta">${meta}</span></div>`;
+    };
+    const byLists = [...LOCS].sort((a, b) => b.lists - a.lists);
+    const bySp = [...LOCS].sort((a, b) => b.sp - a.sp).slice(0, 5);
+    document.getElementById('locByChecklists').innerHTML = byLists.map((l, i) => row(l, i, `${fmt(l.lists)} lists · ${fmt(l.sp)} sp.`)).join('');
+    document.getElementById('locBySpecies').innerHTML = bySp.map((l, i) => row(l, i, `${fmt(l.sp)} sp. · ${fmt(l.lists)} lists`)).join('');
+  }
+
+  /* ── Mockup state */
+  const state = { theme: 'light', width: 900, scale: 1, state: 'mixed' };
+  const frame = document.getElementById('frame');
+  const cap = document.getElementById('frameCap');
+
+  function apply() {
+    document.documentElement.setAttribute('data-theme', state.theme);
+    document.documentElement.style.setProperty('--sr-text-scale', String(state.scale));
+    frame.style.width = state.width + 'px';
+    const phone = state.width <= 640;
+    frame.classList.toggle('is-phone', phone);
+    const where = phone ? `Statistics tab, iPhone at ${state.width}px` : 'Statistics tab, Mac window';
+    cap.innerHTML = `${esc(where)}${state.scale !== 1 ? ` · in-app text size ${Math.round(state.scale * 100)}%` : ''} · ${CAPTIONS[state.state]}`;
+    const v = STATES[state.state];
+    renderBlock(v);
+    renderLocs(v);
+  }
+
+  document.querySelectorAll('.mk-seg button').forEach(b => {
+    b.addEventListener('click', () => {
+      const set = b.dataset.set, val = b.dataset.val;
+      state[set] = set === 'width' || set === 'scale' ? Number(val) : val;
+      b.parentElement.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+      apply();
+    });
+  });
+
+  apply();
+})();
+</script>
+</body>
+</html>

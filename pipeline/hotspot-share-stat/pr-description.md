@@ -1,0 +1,28 @@
+## Hotspot Share Stat (hotspot-share-stat)
+
+### What this does
+Adds a "Checklists at hotspots" block to the Statistics tab's Geographic Stats section, directly above "Top locations by checklists": a two-segment share bar with both percentages above it and the counts beneath ("1,234 of 3,300 checklists at hotspots, 2,066 at personal locations."). It classifies every checklist in the export against the same region-scoped hotspot Set the location links beneath it already use, so the number and the links agree. That per-region hotspot answer is now persisted after its first lookup (`lib/hotspotRegionCache.ts`, 30 days), so a later launch shows the share and the links with no request to eBird, and a replaced backup asks only about a region it adds.
+
+### How to test
+1. With an eBird key entered and a backup loaded, open Statistics and scroll to Geographic Stats. The block sits above "Top locations by checklists" with a divider beneath it.
+2. Check that every top location drawn as a link is a public hotspot and the plain ones are personal; the counts in the caption add up to the checklist total.
+3. Toggle "Count all forms" in Life List Totals: the block does not change.
+4. Relaunch the app (or reload the web page). The block shows the bar at once, and the network panel shows no `/map/hotspot-region` request.
+5. Remove the eBird key in Settings: the block says it needs the key and offers "Add a key in Settings", which goes to Settings. Put the key back.
+6. In Settings, Clear the eBird backup, then upload it again: each region is asked once more (one request each).
+7. At 320px and 200% text, in both themes, the block wraps inside its card.
+
+### Notes for reviewer
+- **Data layer.** One new settings document, `hotspot-regions-v1` (512 regions, a 2^23 code-unit payload budget, oldest-fetched-first eviction applied on every put and again at load, newest first). Validated on every load; nothing is written for an error, a 429, or a body that is not a list. Registered in `lib/clearDerived.ts` (purge on clear, never on replace). Not synced, not exported. Worst case 7,520,689 bytes against the web/Pi route's 16,777,216, proven through `sanitizeStore` in `settingsRouteBudget.test.ts`.
+- **One caching layer.** `/map/hotspot-region` leaves `CACHED_GET_PATHS` and stays in `EBIRD_GATED_PATHS`; the gate still owns pacing. No new endpoint, host, CSP or `http:allow-fetch` entry.
+- **Build lifecycle** (`lib/hotspotSet.ts`): phase 1 reads the stored answers (no request), phase 2 asks only the regions with none, then one refresh per region past its TTL (skipped when `navigator.onLine` is false). The build's own settle still announces nothing, so `hotspotSetRetry.test.tsx`'s pinned announce count holds; a round that settles a region, and a refresh that changes a list, announce once.
+- **The resolution snapshot** (`getHotspotResolution`, `useHotspotResolution`) is a passive reader beside `useHotspotSet`; it distinguishes pending, answered and unanswered so the block never shows a percentage over a region eBird has not answered for.
+- **Live US-TX count:** `ref/hotspot/US-TX` answered 7,494 ids on 2026-11-06 (one request), so the per-region bound of 65,536 sits about 8.7 times above the largest subnational1 region.
+- **Entry chunk:** the store rides the entry chunk through `hotspotSet.ts` (a static import, schema.md 9.10); `entryChunk.test.ts` gains a positive row. Built `index-*.js` before and after: see `decisions.md`, Engineer section.
+- **Assertions changed** (each named, with its reason, in `decisions.md`): the one `hotspotSet.test.ts` row the schema named, two `transport.test.ts` rows and the `transportPathSets.test.ts` non-vacuity row that pinned the old cache membership, the registry and cap rows that gained the new store, and one `Targets.test.tsx` write-key set that now includes the persisted hotspot document. Four suites that mock `useHotspotSet` wholesale gained the new hook (setup only).
+- **Deviations from the schema**, each in `decisions.md`: a superseded build still asks its missing regions (as builds always did), because 10.1's early return turns a row 11.1 lists as standing red; the refresh round starts after phase 2 settles rather than beside it; a key the load validator would refuse is not persisted; the load walk charges dropped entries' ids against the declared work bound so that bound is true for a malformed document too.
+- **Mutation table:** 18 mutations across the store, the build, the classification, the copy, the block, the tab wiring and the transport; all 18 go red, the putEntry identity guard by its source pin only (the purge's in-flight clear covers it behaviourally, recorded as a deliberately redundant pair).
+- **Published copy is held.** The CHANGELOG entry, the F-Droid changelog and the App Store "What's New" are proposals in `held-copy.md`; no README or website sentence is proposed. Help gains two sentences in Geographic Stats.
+- **Known limitation:** the live look should confirm the block's wrapping and the settings-write cost on Tauri with a large document (schema.md 9.13's reversal condition), which no jsdom test can see.
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
