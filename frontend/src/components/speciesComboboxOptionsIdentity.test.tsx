@@ -214,9 +214,14 @@ vi.mock('react-map-gl/maplibre', () => ({
 // The real hook returns `{ set, isHotspot }`; both Species Detail and
 // Statistics destructure `isHotspot` and call it while rendering location rows,
 // so a stub offering only the module-level `isPublicHotspot` name crashes both.
-vi.mock('../lib/useHotspotSet', () => ({
-  useHotspotSet: () => ({ set: new Set<string>(), isHotspot: () => false }),
-}))
+vi.mock('../lib/useHotspotSet', () => {
+  // Statistics also reads the passive resolution snapshot (hotspot-share-stat).
+  const EMPTY_RESOLUTION = { regions: [], byRegion: new Map(), set: new Set<string>(), pending: 0, answered: 0, unanswered: 0 }
+  return {
+    useHotspotSet: () => ({ set: new Set<string>(), isHotspot: () => false }),
+    useHotspotResolution: () => EMPTY_RESOLUTION,
+  }
+})
 vi.mock('../lib/useCountyCompleteness', () => ({
   useCountyCompleteness: () => ({
     summaryFor: () => null, resultFor: () => null,

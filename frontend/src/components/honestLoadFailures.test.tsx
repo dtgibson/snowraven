@@ -144,7 +144,14 @@ vi.mock('./map/MapControls', () => ({
   MapEffects: () => null, BoundsTracker: () => null, DetectedLocationPin: () => null,
   CenterPinDropper: () => null, CenterPin: () => null,
 }))
-vi.mock('../lib/useHotspotSet', () => ({ useHotspotSet: () => ({ set: new Set<string>(), isHotspot: () => false }) }))
+vi.mock('../lib/useHotspotSet', () => {
+  // Statistics also reads the passive resolution snapshot (hotspot-share-stat).
+  const EMPTY_RESOLUTION = { regions: [], byRegion: new Map(), set: new Set<string>(), pending: 0, answered: 0, unanswered: 0 }
+  return {
+    useHotspotSet: () => ({ set: new Set<string>(), isHotspot: () => false }),
+    useHotspotResolution: () => EMPTY_RESOLUTION,
+  }
+})
 // The Targets tab loads the county geometry once ready; irrelevant to these rows.
 vi.mock('../lib/countyGeometry', () => ({
   loadCountyGeometry: async () => ({ type: 'FeatureCollection', features: [] }),

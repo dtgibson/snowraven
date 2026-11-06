@@ -1,6 +1,7 @@
 /// <reference types="node" />
 // Twin guard for big-old-life-lists security review L1: on web/Pi each of the
-// two checklist-keyed stores below is saved WHOLE through the backend's generic
+// settings-document stores below (the two checklist-keyed stores, and since
+// hotspot-share-stat the per-region hotspot store) is saved WHOLE through the backend's generic
 // `/settings/{key}` route (`WebStorage.setSetting` posts `JSON.stringify(doc)`),
 // and that route refuses a body over `_MAX_BYTES` in
 // `backend/routers/settingskv.py` with 413. Both stores write best-effort and
@@ -38,6 +39,12 @@ import {
   sanitizeStore as sanitizeProvenance, PROVENANCE_MAX_CHECKLISTS, PROVENANCE_MAX_CHECKLISTS_DEFAULT,
   PROVENANCE_MAX_SPECIES, PROVENANCE_MAX_SPECIES_DEFAULT, MAX_SEEN_PER_SPECIES,
 } from './exoticProvenanceCache'
+import {
+  sanitizeStore as sanitizeHotspots, storePayloadLength as hotspotPayload, idsPayloadLength,
+  HOTSPOT_REGIONS_MAX_ENTRIES, HOTSPOT_REGIONS_MAX_ENTRIES_DEFAULT,
+  HOTSPOT_REGIONS_MAX_BYTES, HOTSPOT_REGIONS_MAX_BYTES_DEFAULT,
+  HOTSPOT_IDS_PER_REGION_MAX, HOTSPOT_REGION_KEY_MAX_CHARS, HOTSPOT_ID_MAX_CHARS,
+} from './hotspotRegionCache'
 
 const utf8Bytes = (s: string): number => new TextEncoder().encode(s).length
 
@@ -228,5 +235,95 @@ describe('the provenance store\'s worst-case document fits under the route\'s li
     const bytes = utf8Bytes(JSON.stringify(store))
     const limit = routeLimitBytes()
     expect(bytes, `worst-case provenance document ${bytes} B against the route's ${limit} B`).toBeLessThanOrEqual(limit)
+  }, 60_000)
+})
+
+// -- The hotspot-regions store (hotspot-share-stat, schema.md 9.3, 9.12) --------
+
+describe('the hotspot-regions store\'s worst-case document fits under the route\'s limit', () => {
+  const admits = (key: string, entry: unknown) =>
+    sanitizeHotspots({ version: 1, entries: { [key]: entry }, order: [key] }).order.length === 1
+
+  // The validator's largest admitted value in each dimension, shown admitted here
+  // and the next value up refused below, never typed in as a figure.
+  const key = (i: number) => `ZZ-ZZZZ-${String(i).padStart(4, '0')}`
+  const MAX_ID = `L${'9'.repeat(HOTSPOT_ID_MAX_CHARS - 1)}`
+  const maxIds = (n: number) => Array.from({ length: n }, (_, i) => `L${String(10 ** (HOTSPOT_ID_MAX_CHARS - 2) + i)}`)
+  const MAX_ENTRY = { ids: maxIds(HOTSPOT_IDS_PER_REGION_MAX), fetchedAt: LONGEST_FINITE }
+
+  it('each dimension of the worst entry is the validator\'s largest admitted value', () => {
+    expect(key(0)).toHaveLength(HOTSPOT_REGION_KEY_MAX_CHARS)
+    expect(admits(key(0), { ids: ['L1'], fetchedAt: 1 })).toBe(true)
+    expect(admits(`${key(0)}0`, { ids: ['L1'], fetchedAt: 1 })).toBe(false)
+
+    expect(MAX_ID).toHaveLength(HOTSPOT_ID_MAX_CHARS)
+    expect(admits(key(0), { ids: [MAX_ID], fetchedAt: 1 })).toBe(true)
+    for (const bad of [`${MAX_ID}9`, 'L', 'S1', 'L1a', 'L\u0661']) {
+      expect(admits(key(0), { ids: [bad], fetchedAt: 1 }), bad).toBe(false)
+    }
+
+    expect(MAX_ENTRY.ids.every(id => id.length === HOTSPOT_ID_MAX_CHARS)).toBe(true)
+    expect(new Set(MAX_ENTRY.ids).size).toBe(HOTSPOT_IDS_PER_REGION_MAX)
+    expect(admits(key(0), MAX_ENTRY)).toBe(true)
+    expect(admits(key(0), { ...MAX_ENTRY, ids: [...MAX_ENTRY.ids, 'L1'] })).toBe(false)
+
+    expect(admits(key(0), { ids: ['L1'], fetchedAt: LONGEST_FINITE })).toBe(true)
+    expect(admits(key(0), { ids: ['L1'], fetchedAt: Number.NaN })).toBe(false)
+    expect(admits(key(0), { ids: ['L1'], fetchedAt: '1' })).toBe(false)
+  }, 60_000)
+
+  it('at the shipped caps, built through sanitizeStore', () => {
+    expect(HOTSPOT_REGIONS_MAX_ENTRIES).toBe(HOTSPOT_REGIONS_MAX_ENTRIES_DEFAULT)
+    expect(HOTSPOT_REGIONS_MAX_BYTES).toBe(HOTSPOT_REGIONS_MAX_BYTES_DEFAULT)
+    const maxEntryBytes = idsPayloadLength(MAX_ENTRY.ids)
+    const big = Math.floor(HOTSPOT_REGIONS_MAX_BYTES_DEFAULT / maxEntryBytes) // as many maximum entries as fit
+    const small = HOTSPOT_REGIONS_MAX_ENTRIES_DEFAULT - big
+    const entries: Record<string, unknown> = {}
+    const order: string[] = []
+    let i = 0
+    // Oldest first: one entry past the cap (the one the load walk drops), then the
+    // maximum entries, then one-id entries filling the cap with the newest.
+    const put = (entry: unknown) => { const k = key(i); i += 1; entries[k] = entry; order.push(k) }
+    put({ ids: [MAX_ID], fetchedAt: LONGEST_FINITE })
+    for (let b = 0; b < big; b += 1) put(MAX_ENTRY)
+    for (let s1 = 0; s1 < small; s1 += 1) put({ ids: [MAX_ID], fetchedAt: LONGEST_FINITE })
+    const store = sanitizeHotspots({ version: 1, entries, order })
+    expect(store.order).toHaveLength(HOTSPOT_REGIONS_MAX_ENTRIES_DEFAULT)
+    expect(store.order[0]).toBe(key(1)) // the entry past the cap was the one shed
+    expect(hotspotPayload(store)).toBeLessThanOrEqual(HOTSPOT_REGIONS_MAX_BYTES_DEFAULT)
+
+    const bytes = utf8Bytes(JSON.stringify(store))
+    const limit = routeLimitBytes()
+    expect(bytes, `worst-case hotspot-regions document ${bytes} B against the route's ${limit} B`).toBeLessThanOrEqual(limit)
+  }, 60_000)
+
+  it('a document at exactly the payload budget is admitted whole, and one id more sheds its oldest entry', () => {
+    const maxEntryBytes = idsPayloadLength(MAX_ENTRY.ids)
+    const big = Math.floor(HOTSPOT_REGIONS_MAX_BYTES_DEFAULT / maxEntryBytes)
+    // A filler entry whose payload brings the total to exactly the budget.
+    let rem = HOTSPOT_REGIONS_MAX_BYTES_DEFAULT - big * maxEntryBytes - 1 // its opening bracket
+    const filler: string[] = []
+    let next = 10 ** (HOTSPOT_ID_MAX_CHARS - 2)
+    while (rem > 0) {
+      const room = rem - 3 // its two quotes and its comma or closing bracket
+      const len = room - (HOTSPOT_ID_MAX_CHARS + 3) >= 2 ? HOTSPOT_ID_MAX_CHARS : room
+      expect(len, 'a filler id length the validator admits').toBeGreaterThanOrEqual(2)
+      filler.push(len === HOTSPOT_ID_MAX_CHARS ? `L${next++}` : `L${'1'.repeat(len - 1)}`)
+      rem -= len + 3
+    }
+    expect(rem).toBe(0)
+    const build = (fill: string[]) => {
+      const entries: Record<string, unknown> = {}
+      const order: string[] = []
+      for (let b = 0; b < big; b += 1) { entries[key(b)] = MAX_ENTRY; order.push(key(b)) }
+      entries[key(big)] = { ids: fill, fetchedAt: 1 }
+      order.push(key(big))
+      return sanitizeHotspots({ version: 1, entries, order })
+    }
+    const whole = build(filler)
+    expect(whole.order).toHaveLength(big + 1)
+    expect(hotspotPayload(whole)).toBe(HOTSPOT_REGIONS_MAX_BYTES_DEFAULT)
+    const over = build([...filler, 'L1'])
+    expect(over.order).toEqual(whole.order.slice(1)) // the OLDEST maximum entry went
   }, 60_000)
 })

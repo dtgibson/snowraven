@@ -7,8 +7,10 @@
 // escapee common names), `checklist-projects-v1` (submission ids as keys),
 // `county-completeness-v1` (public payloads under a KEY SET that says which
 // counties the user has birded), the `/weather/S…` / `/tide/S…` entries in
-// `replay.json`, and (targets-tab) `county-day-obs.json`, the Targets sweep's
-// per-day answers keyed on counties the user has birded.
+// `replay.json`, (targets-tab) `county-day-obs.json`, the Targets sweep's
+// per-day answers keyed on counties the user has birded, and (hotspot-share-stat)
+// `hotspot-regions-v1`, eBird's public hotspot lists keyed on the regions the
+// user has birded.
 //
 // The negative half matters as much as the positive: a REPLACE must purge
 // nothing (PRIVACY_POLICY.md publishes that a newer export asks only about
@@ -83,6 +85,7 @@ import * as projects from './checklistProjectsCache'
 import * as county from './countyCompletenessCache'
 import * as dayObs from './countyDayObsCache'
 import * as replay from './replayStore'
+import * as hotspots from './hotspotRegionCache'
 
 const T = Date.parse('2026-09-01T12:00:00.000Z')
 
@@ -128,6 +131,14 @@ const DAY_OBS_DOC = {
   order: ['US-CA-001|2026-08-31'],
 }
 
+// hotspot-share-stat: one region's stored hotspot list. Public payload, KEY read
+// off the export.
+const HOTSPOT_DOC = {
+  version: 1,
+  entries: { 'US-CA': { ids: ['L1', 'L2'], fetchedAt: T } },
+  order: ['US-CA'],
+}
+
 const CHECKLIST_REPLAY_KEYS = ['/weather/S1000001?', '/tide/S1000001?']
 const COORD_REPLAY_KEYS = ['/weather/at?lat=37.00000&lng=-122.00000', '/tide/at?lat=37.00000&lng=-122.00000']
 // A checklist-derived key NOT in the seeded document: what an in-flight lookup
@@ -147,6 +158,7 @@ function seedDisk(): void {
     [provenance.PROVENANCE_STORE_KEY]: JSON.parse(JSON.stringify(PROVENANCE_DOC)) as unknown,
     [projects.PROJECTS_STORE_KEY]: JSON.parse(JSON.stringify(PROJECTS_DOC)) as unknown,
     [county.COMPLETENESS_STORE_KEY]: JSON.parse(JSON.stringify(COUNTY_DOC)) as unknown,
+    [hotspots.HOTSPOT_REGIONS_STORE_KEY]: JSON.parse(JSON.stringify(HOTSPOT_DOC)) as unknown,
     'map-defaults': { lat: 37, lng: -122, dist: 5 },
   }
   disk.replay = replayDoc()
@@ -159,6 +171,7 @@ async function hydrateAll(): Promise<void> {
   await projects.loadSnapshot()
   await county.loadAll()
   await dayObs.loadAll()
+  await hotspots.ensureLoaded()
   await replay.get(CHECKLIST_REPLAY_KEYS[0])
 }
 
@@ -170,6 +183,7 @@ beforeEach(() => {
   county._resetCountyCompletenessCacheForTests()
   dayObs._resetCountyDayObsCacheForTests()
   replay._resetReplayStoreForTests()
+  hotspots._resetHotspotRegionCacheForTests()
   disk.failNextDelete.clear()
   disk.holdSettingRead = null
   disk.holdReplayWrite = null
@@ -197,6 +211,7 @@ describe('the registry (clear-means-clear)', () => {
       'county-completeness-v1',
       'county-day-obs.json',
       'exotic-provenance-v1',
+      'hotspot-regions-v1',
       'replay.json (checklist-keyed entries)',
     ])
     // Nothing durable is keyed to ml-export.csv. Asserted rather than assumed,
@@ -213,6 +228,8 @@ describe('a Clear of the eBird backup purges every derived store', () => {
     expect(disk.settings[provenance.PROVENANCE_STORE_KEY]).toBeUndefined()
     expect(disk.settings[projects.PROJECTS_STORE_KEY]).toBeUndefined()
     expect(disk.settings[county.COMPLETENESS_STORE_KEY]).toBeUndefined()
+    expect(disk.settings[hotspots.HOTSPOT_REGIONS_STORE_KEY]).toBeUndefined()
+    expect(hotspots.peekRegion('US-CA')).toBeNull()
     expect(disk.dayObs).toBeNull()
     expect(replayKeysOnDisk()).toEqual([...COORD_REPLAY_KEYS].sort())
     // A purge is not a settings wipe: everything else in the document stands.
@@ -512,6 +529,20 @@ describe('a purge supersedes work already in flight', () => {
       expect(dayObs._getCountyDayObsCacheWorkStatsForTests().puts).toBe(0)
     }],
 
+    ['hotspot regions', () => {
+      // hotspot-share-stat: a region's first lookup, keyed on a region read off
+      // the backup. The generation is the mirror identity, captured inside the
+      // store's own chokepoint before the loader runs.
+      const gate = deferred<string[]>()
+      const settled = hotspots.dedupedFetch('US-WI', () => gate.promise, { refresh: false })
+      return { land: () => gate.resolve(['L7']), settled }
+    }, async (result) => {
+      expect((result as hotspots.HotspotRegionFetchResult).ids).toEqual(['L7']) // served, never persisted
+      expect(disk.settings[hotspots.HOTSPOT_REGIONS_STORE_KEY]).toBeUndefined()
+      expect(hotspots.peekRegion('US-WI')).toBeNull()
+      expect(hotspots._getHotspotRegionCacheWorkStatsForTests().puts).toBe(0)
+    }],
+
     ['replay', () => {
       // transport.getReplayable's exact shape: capture the generation, await
       // the live GET, then put. The Weather Backlog fires a run of these for
@@ -582,6 +613,7 @@ describe('a purge supersedes work already in flight', () => {
     ['county completeness', () => county.loadAll(), () => disk.settings[county.COMPLETENESS_STORE_KEY]],
     // Its own document since 2026-09-27: absent reads null there, not undefined.
     ['county day', () => dayObs.loadAll(), () => disk.dayObs ?? undefined],
+    ['hotspot regions', () => hotspots.ensureLoaded(), () => disk.settings[hotspots.HOTSPOT_REGIONS_STORE_KEY]],
   ]
 
   it.each(LOAD_RACES)('a %s disk read in flight cannot restore the pre-purge document', async (_label, load, onDisk) => {
@@ -604,6 +636,7 @@ describe('a purge supersedes work already in flight', () => {
     expect(projects.getSnapshot().size).toBe(0)
     expect(await county.loadAll()).toEqual(new Map())
     expect(await dayObs.loadAll()).toEqual(new Map())
+    expect(hotspots.peekRegion('US-CA')).toBeNull()
   })
 })
 

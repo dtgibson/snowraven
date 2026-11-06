@@ -86,7 +86,14 @@ vi.mock('react-map-gl/maplibre', () => ({
   Layer: () => null,
   useMap: () => ({ current: undefined }),
 }))
-vi.mock('../lib/useHotspotSet', () => ({ useHotspotSet: () => ({ set: new Set<string>(), isHotspot: () => false }) }))
+vi.mock('../lib/useHotspotSet', () => {
+  // Statistics also reads the passive resolution snapshot (hotspot-share-stat).
+  const EMPTY_RESOLUTION = { regions: [], byRegion: new Map(), set: new Set<string>(), pending: 0, answered: 0, unanswered: 0 }
+  return {
+    useHotspotSet: () => ({ set: new Set<string>(), isHotspot: () => false }),
+    useHotspotResolution: () => EMPTY_RESOLUTION,
+  }
+})
 vi.mock('../lib/useCountyCompleteness', () => ({
   useCountyCompleteness: () => ({ summaryFor: () => null, resultFor: () => null, onViewportCounties: () => {}, requestCounty: () => {} }),
   EBIRD_NO_KEY_MESSAGE: 'no key',

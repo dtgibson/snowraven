@@ -84,9 +84,14 @@ vi.mock('./map/MapControls', () => ({
   MapEffects: () => null, BoundsTracker: () => null, DetectedLocationPin: () => null,
   CenterPinDropper: () => null, CenterPin: () => null,
 }))
-vi.mock('../lib/useHotspotSet', () => ({
-  useHotspotSet: () => ({ isPublicHotspot: () => false, isHotspot: () => false }),
-}))
+vi.mock('../lib/useHotspotSet', () => {
+  // Statistics also reads the passive resolution snapshot (hotspot-share-stat).
+  const EMPTY_RESOLUTION = { regions: [], byRegion: new Map(), set: new Set<string>(), pending: 0, answered: 0, unanswered: 0 }
+  return {
+    useHotspotSet: () => ({ isPublicHotspot: () => false, isHotspot: () => false }),
+    useHotspotResolution: () => EMPTY_RESOLUTION,
+  }
+})
 vi.mock('../lib/useCountyCompleteness', () => ({
   useCountyCompleteness: () => ({
     summaryFor: () => null, resultFor: () => null,

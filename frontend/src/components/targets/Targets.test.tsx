@@ -93,6 +93,7 @@ import { Targets } from './Targets'
 import { COMPLETENESS_STORE_KEY } from '../../lib/countyCompletenessCache'
 import { _resetCountyCompletenessCacheForTests } from '../../lib/countyCompletenessCache'
 import { _resetCountyDayObsCacheForTests } from '../../lib/countyDayObsCache'
+import { _resetHotspotRegionCacheForTests } from '../../lib/hotspotRegionCache'
 import { invalidateHotspotSet } from '../../lib/hotspotSet'
 import { EBIRD_BACKUP_LOAD_ERROR } from '../setupCopy'
 import { CHIPS_GROUP_LABEL, THRESHOLD_GROUP_LABEL } from '../../lib/targets/targetsCopy'
@@ -150,6 +151,10 @@ beforeEach(() => {
   // the same in every test here, so without this one test's answer (or its
   // rejected, empty one) would decide the next test's links.
   invalidateHotspotSet()
+  // ...and since hotspot-share-stat an answered region is persisted, in a store
+  // whose mirror outlives the cleared settings above: an invalidation keeps it by
+  // design (a key or file save is a replace), so the store is reset as well.
+  _resetHotspotRegionCacheForTests()
 })
 afterEach(cleanup)
 
@@ -685,7 +690,11 @@ describe('the measuring-point chooser (FR-51a, QA-53a)', () => {
       expect(w.json, `${w.method} ${w.key}`).not.toContain('37.123456')
       expect(w.json, `${w.method} ${w.key}`).not.toContain('122.654321')
     }
-    expect(new Set(H.writes.filter(w => w.method === 'setSetting').map(w => w.key))).toEqual(new Set(['targetsCounty']))
+    // The settings keys written are exactly these. Since hotspot-share-stat the
+    // Last report links' region lookup is persisted ('hotspot-regions-v1': eBird's
+    // public hotspot ids keyed on a region code, no coordinate), so it joins the
+    // county choice; the loop above still holds every write free of the point.
+    expect(new Set(H.writes.filter(w => w.method === 'setSetting').map(w => w.key))).toEqual(new Set(['targetsCounty', 'hotspot-regions-v1']))
     // A relaunch (a fresh mount of the tab) measures from the Default Location.
     cleanup()
     _resetCountyDayObsCacheForTests()

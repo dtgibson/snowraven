@@ -344,6 +344,27 @@ describe('entry-chunk exclusion (NFR-03 / QA-30)', () => {
     expect([...registry.externals]).toEqual([])
   })
 
+  it('the persisted hotspot store IS on the entry chunk (through hotspotSet) and reaches only the storage seam (hotspot-share-stat)', () => {
+    // A STATIC import from hotspotSet.ts, deliberately (schema.md 9.10): a lazy edge
+    // would put a chunk round trip ahead of every build, the warm launch included.
+    // Non-vacuity first: hotspotSet itself rides the entry chunk, so the store does.
+    expect(has('lib/hotspotSet.ts')).toBe(true)
+    expect(has('lib/hotspotRegionCache.ts')).toBe(true)
+    const store = closureFrom(resolve(SRC, 'lib/hotspotRegionCache.ts'))
+    expect(hasIn(store.files, 'lib/storage.ts')).toBe(true)
+    expect([...store.files].filter(f => /lib\/tauri\/[^/]*Service\.ts$/.test(f.replace(/\\/g, '/')))).toEqual([])
+    expect(hasIn(store.files, 'lib/transport.ts')).toBe(false)
+    expect(maplibreIn(store.externals)).toEqual([])
+    expect([...store.externals].filter(s => s === 'recharts' || s.startsWith('recharts/'))).toEqual([])
+    // The share derivation and its copy ride only the lazy Statistics tab.
+    expect(has('lib/hotspotShare.ts')).toBe(false)
+    expect(has('lib/hotspotShareCopy.ts')).toBe(false)
+    expect(has('components/HotspotShareBlock.tsx')).toBe(false)
+    const stats = closureFrom(resolve(SRC, 'components/BirdingStats.tsx'))
+    expect(hasIn(stats.files, 'lib/hotspotShare.ts')).toBe(true)
+    expect(hasIn(stats.files, 'components/HotspotShareBlock.tsx')).toBe(true)
+  })
+
   it('the Pin Share map-coupled files are only reachable through a lazy map tab (NFR-10)', () => {
     // Settings.tsx IS on App.tsx's static graph and imports lib/shareCopyPreference,
     // which re-exports ShareCopySelection from lib/shareLocation — so BOTH of those

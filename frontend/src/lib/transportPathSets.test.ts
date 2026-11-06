@@ -45,9 +45,9 @@ describe('transport path sets exclude the checklist path (FR-28)', () => {
   // These pin that the sets are the real, populated ones, so the absences are
   // evidence rather than an absence of evidence.
   it('both sets are the real populated sets, so the absences above mean something', () => {
-    expect(CACHED_GET_PATHS.size).toBeGreaterThanOrEqual(3)
+    expect(CACHED_GET_PATHS.size).toBeGreaterThanOrEqual(2)
     expect(EBIRD_GATED_PATHS.size).toBeGreaterThanOrEqual(5)
-    for (const p of ['/map/hotspots', '/map/recent-obs', '/map/hotspot-region']) {
+    for (const p of ['/map/hotspots', '/map/recent-obs']) {
       expect(CACHED_GET_PATHS.has(p)).toBe(true)
     }
     for (const p of ['/map/hotspots', '/map/recent-obs', '/map/hotspot-region', '/map/county-species', '/map/county-day-obs']) {
@@ -76,5 +76,13 @@ describe('transport path sets exclude the checklist path (FR-28)', () => {
 
   it('/map/county-species stays out of the short-TTL cache (its durable store owns it)', () => {
     expect(CACHED_GET_PATHS.has('/map/county-species')).toBe(false)
+  })
+
+  it('/map/hotspot-region is gated and stays out of the short-TTL cache (hotspot-share-stat, FR-28, QA-30)', () => {
+    // lib/hotspotRegionCache.ts is this path's one caching layer (persisted, 30
+    // days, in-flight dedupe); the gate still owns its pacing.
+    expect(CACHED_GET_PATHS.has('/map/hotspot-region')).toBe(false)
+    expect(EBIRD_GATED_PATHS.has('/map/hotspot-region')).toBe(true)
+    expect([...CACHED_GET_PATHS].filter(p => p.startsWith('/map/hotspot-region'))).toEqual([])
   })
 })

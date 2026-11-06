@@ -10,14 +10,25 @@ import { render, screen, cleanup, act } from '@testing-library/react'
 import { useHotspotSet } from './useHotspotSet'
 import { HotspotLink, hotspotLinkAriaLabel } from '../components/HotspotLink'
 import {
-  loadHotspotSet, invalidateHotspotSet, subscribeHotspotSet,
+  loadHotspotSet, invalidateHotspotSet, subscribeHotspotSet, getHotspotResolution,
   HOTSPOT_RETRY_ROUNDS, hotspotRetryDelayMs,
 } from './hotspotSet'
+import { _resetHotspotRegionCacheForTests, _flushHotspotRegionWriteForTests, HOTSPOT_REGIONS_STORE_KEY } from './hotspotRegionCache'
 import { _resetEbirdGateForTests, ebirdGateState } from './ebirdGate'
 import { clearNetworkCache } from './networkCache'
 import { ACTIVITY_RATE_LIMIT_RETRIES } from './rateLimit'
 
-const H = vi.hoisted(() => ({ regions: ['US-CA'] as string[] }))
+const H = vi.hoisted(() => ({ regions: ['US-CA'] as string[], settings: new Map<string, unknown>() }))
+// The persisted per-region store (hotspot-share-stat) reads and writes a settings
+// document. An in-memory seam, so persistence rows can read it back and no row
+// depends on the fetch stub rejecting the settings route by accident.
+vi.mock('./storage', () => ({
+  storage: {
+    getSetting: async (k: string) => (H.settings.has(k) ? JSON.parse(JSON.stringify(H.settings.get(k))) as unknown : null),
+    setSetting: async (k: string, v: unknown) => { H.settings.set(k, JSON.parse(JSON.stringify(v)) as unknown) },
+    deleteSetting: async (k: string) => { H.settings.delete(k) },
+  },
+}))
 vi.mock('./observationsCache', () => ({
   loadEbirdObservations: async () => ({
     headerLine: '',
@@ -63,6 +74,10 @@ beforeEach(() => {
   _resetEbirdGateForTests()
   clearNetworkCache()
   invalidateHotspotSet() // drop any Set (and any pending re-ask) an earlier row left
+  // ...and the persisted answers: without this a region one row stored would answer
+  // the next row with no request.
+  _resetHotspotRegionCacheForTests()
+  H.settings.clear()
   calls = []
   installFetch()
 })
@@ -102,8 +117,9 @@ describe('a region that ran out of 429 retries (hotspot-links-retry-after-429)',
     await advance(1_000)
     expect(callsFor('US-CA')).toBe(PER_ATTEMPT + 1) // round 1: one request, answered
     expect(calls[calls.length - 1].at).toBeGreaterThanOrEqual(cooldownEnd)
-    // No extra request for the region that answered. Which regions a round asks is
-    // pinned in hotspotSet.test.ts: here its reply is still in the 90 s network cache.
+    // No extra request for the region that answered: a round asks only the
+    // still-limited regions (pinned in hotspotSet.test.ts), and US-MN's answer is
+    // in the persisted store besides (the route left the 90 s network cache).
     expect(callsFor('US-MN')).toBe(1)
     expect(notified).toHaveBeenCalledTimes(1)
     expect(link()).not.toBeNull()
@@ -128,5 +144,82 @@ describe('a region that ran out of 429 retries (hotspot-links-retry-after-429)',
     await vi.advanceTimersByTimeAsync(hotspotRetryDelayMs(HOTSPOT_RETRY_ROUNDS + 1) * 4)
     expect(callsFor('US-CA')).toBe(PER_ATTEMPT * (1 + HOTSPOT_RETRY_ROUNDS))
     expect((await loadHotspotSet()).size).toBe(0) // the bound spent, the region stays plain
+  })
+})
+
+// hotspot-share-stat: the epoch events persistence adds, and the request counts it
+// changes, through the same real transport, gate and hook. A round that settles a
+// region WITHOUT adding ids is an event the rows above cannot see, and a stored
+// answer is a request that never happens.
+describe('the persisted per-region answer, through the real transport and gate', () => {
+  const doc = () => H.settings.get(HOTSPOT_REGIONS_STORE_KEY) as
+    { entries: Record<string, { ids: string[]; fetchedAt: number }>; order: string[] } | undefined
+  const seed = (entries: Record<string, { ids: string[]; fetchedAt: number }>) =>
+    H.settings.set(HOTSPOT_REGIONS_STORE_KEY, { version: 1, entries, order: Object.keys(entries) })
+
+  it('a round that answers with an EMPTY list announces once and persists the empty entry', async () => {
+    H.regions = ['US-CA']
+    answer = (_region, nth) => (nth <= PER_ATTEMPT ? 'limited' : [])
+    const notified = vi.fn()
+    const unsubscribe = subscribeHotspotSet(notified)
+    const first = loadHotspotSet()
+    await vi.advanceTimersByTimeAsync(5_000)
+    await first
+    expect(getHotspotResolution().byRegion.get('US-CA')).toBe('pending')
+    expect(notified).not.toHaveBeenCalled()
+    await vi.advanceTimersByTimeAsync(hotspotRetryDelayMs(1) + 5_000)
+    expect(callsFor('US-CA')).toBe(PER_ATTEMPT + 1)
+    expect(getHotspotResolution().byRegion.get('US-CA')).toBe('answered')
+    expect(notified).toHaveBeenCalledTimes(1)
+    _flushHotspotRegionWriteForTests()
+    expect(doc()?.entries['US-CA'].ids).toEqual([])
+    unsubscribe()
+  })
+
+  it('the final round still refused announces once (the region becomes unanswered) and persists nothing', async () => {
+    H.regions = ['US-CA']
+    answer = () => 'limited'
+    const notified = vi.fn()
+    const unsubscribe = subscribeHotspotSet(notified)
+    const first = loadHotspotSet()
+    await vi.advanceTimersByTimeAsync(5_000)
+    await first
+    for (let round = 1; round <= HOTSPOT_RETRY_ROUNDS; round++) {
+      await vi.advanceTimersByTimeAsync(hotspotRetryDelayMs(round) + 5_000)
+      expect(notified, `after round ${round}`).toHaveBeenCalledTimes(round < HOTSPOT_RETRY_ROUNDS ? 0 : 1)
+    }
+    expect(getHotspotResolution().byRegion.get('US-CA')).toBe('unanswered')
+    _flushHotspotRegionWriteForTests()
+    expect(doc()).toBeUndefined()
+    unsubscribe()
+  })
+
+  it('a warm launch issues ZERO requests and the link renders from the stored answer (QA-36)', async () => {
+    H.regions = ['US-CA', 'US-MN']
+    seed({ 'US-CA': { ids: ['L1'], fetchedAt: Date.now() }, 'US-MN': { ids: ['L7'], fetchedAt: Date.now() } })
+    render(<Probe />)
+    await advance(5_000)
+    expect(calls).toHaveLength(0)
+    expect(screen.queryByRole('link', { name: hotspotLinkAriaLabel('Arrowhead Marsh') })).not.toBeNull()
+  })
+
+  it('a due region is refreshed with one attempt, its stored link shows before it lands, and a 429 on it joins the rounds while it reads answered (QA-40, QA-42)', async () => {
+    H.regions = ['US-CA']
+    seed({ 'US-CA': { ids: ['L1'], fetchedAt: Date.now() - 31 * 24 * 60 * 60 * 1000 } })
+    answer = (_region, nth) => (nth <= PER_ATTEMPT ? 'limited' : ['L1', 'L2'])
+    const link = () => screen.queryByRole('link', { name: hotspotLinkAriaLabel('Arrowhead Marsh') })
+    render(<Probe />)
+    await advance(0)
+    expect(link()).not.toBeNull() // from the stored list, before the refresh answers
+    await advance(5_000)
+    expect(callsFor('US-CA')).toBe(PER_ATTEMPT) // the refresh: one attempt, its retries spent
+    expect(getHotspotResolution().byRegion.get('US-CA')).toBe('answered')
+    expect(link()).not.toBeNull()
+    await advance(hotspotRetryDelayMs(1) + 5_000)
+    expect(callsFor('US-CA')).toBe(PER_ATTEMPT + 1) // round 1 asked the refresh again
+    _flushHotspotRegionWriteForTests()
+    expect(doc()?.entries['US-CA'].ids).toEqual(['L1', 'L2'])
+    await advance(hotspotRetryDelayMs(HOTSPOT_RETRY_ROUNDS + 1) * 2)
+    expect(callsFor('US-CA')).toBe(PER_ATTEMPT + 1) // nothing further
   })
 })

@@ -135,6 +135,8 @@ describe('capacity-plus-one cache inventory', () => {
       ['./exoticProvenanceCache.ts', 'purgeProvenanceStore', 'setting'],
       ['./checklistProjectsCache.ts', 'purgeProjectsStore', 'setting'],
       ['./countyCompletenessCache.ts', 'purgeCountyCompletenessStore', 'setting'],
+      // hotspot-share-stat: keyed on the regions read off the backup.
+      ['./hotspotRegionCache.ts', 'purgeHotspotRegionStore', 'setting'],
       ['./countyDayObsCache.ts', 'purgeCountyDayObsStore', 'ordered-writer'],
       ['./replayStore.ts', 'purgeChecklistReplay', 'ordered-writer'],
       ['./alerts/alertsPurge.ts', 'purgeAlertsInbox', 'native'],
@@ -283,9 +285,14 @@ describe('capacity-plus-one cache inventory', () => {
     expect(controller).toContain('purgeDerived: (slot) => cd.purgeDerivedOnClear(slot)')
   })
 
-  it('the three durable cache caps and Nominatim admission caps stay explicit', () => {
+  it('the four durable cache caps and Nominatim admission caps stay explicit', () => {
     expect(source('./countyCompletenessCache.ts')).toMatch(
       /COMPLETENESS_MAX_ENTRIES = 250[\s\S]*COMPLETENESS_MAX_BYTES = 4_000_000/,
+    )
+    // The live bindings start at these defaults (asserted equal in
+    // settingsRouteBudget.test.ts, which holds the worst case under the route).
+    expect(source('./hotspotRegionCache.ts')).toMatch(
+      /HOTSPOT_REGIONS_MAX_ENTRIES_DEFAULT = 512[\s\S]*HOTSPOT_REGIONS_MAX_BYTES_DEFAULT = 8_388_608/,
     )
     expect(source('./replayStore.ts')).toMatch(
       /REPLAY_MAX_ENTRIES = 300[\s\S]*REPLAY_MAX_BYTES = 3_000_000/,
