@@ -39,6 +39,11 @@ vi.mock('../../lib/mlExportCache', () => ({
   loadMLExport: vi.fn(async () => (H.mlRows ? { entries: [], mediaMap: {}, rows: H.mlRows } : null)),
 }))
 vi.mock('../../lib/transport', () => ({ transport: { post: H.post, get: vi.fn() } }))
+// The two file passes, wrapped so QA-45 can count them; behaviour unchanged.
+vi.mock('../../lib/lifeLists', async importOriginal => {
+  const m = await importOriginal<typeof import('../../lib/lifeLists')>()
+  return { ...m, deriveFirstSightings: vi.fn(m.deriveFirstSightings), deriveFirstAssets: vi.fn(m.deriveFirstAssets) }
+})
 vi.mock('../../lib/exoticProvenanceCache', () => ({
   getSnapshot: () => H.snapshot,
   subscribe: () => () => {},
@@ -46,6 +51,7 @@ vi.mock('../../lib/exoticProvenanceCache', () => ({
 }))
 
 import { LifeListsTab } from './LifeListsTab'
+import { deriveFirstAssets, deriveFirstSightings } from '../../lib/lifeLists'
 import { notifyFilesChanged } from '../../lib/filesChanged'
 import { formatDate } from '../../lib/formatDate'
 import { EBIRD_BACKUP_LOAD_ERROR } from '../setupCopy'
@@ -329,6 +335,24 @@ describe('paging, focus and the live region (FR-37, NFR-04; QA-39, QA-48)', () =
     fireEvent.click(screen.getByRole('switch', { name: 'Include Escapees' }))
     expect(region.textContent).toBe('3 species, newest first by the date of your first sighting.')
     expect(region.firstChild).not.toBe(before)
+  })
+})
+
+describe('a control change re-runs no file pass (NFR-02, QA-45)', () => {
+  it('runs each file pass once per files epoch, never for a switch, a media press or a page', async () => {
+    H.files = { ebird: { filename: 'x.csv' }, ml: { filename: 'ml.csv' } }
+    H.mlRows = [ml('American Robin', 'Photo', '2022-04-01', '0905')]
+    await ready()
+    expect(vi.mocked(deriveFirstSightings)).toHaveBeenCalledTimes(1)
+    expect(vi.mocked(deriveFirstAssets)).toHaveBeenCalledTimes(1)
+    fireEvent.click(screen.getByRole('switch', { name: 'Include Escapees' }))
+    fireEvent.click(screen.getByRole('button', { name: /Photo/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Photo/ }))
+    expect(vi.mocked(deriveFirstSightings)).toHaveBeenCalledTimes(1)
+    expect(vi.mocked(deriveFirstAssets)).toHaveBeenCalledTimes(1)
+    await act(async () => { notifyFilesChanged() })
+    await waitFor(() => expect(vi.mocked(deriveFirstSightings)).toHaveBeenCalledTimes(2))
+    expect(vi.mocked(deriveFirstAssets)).toHaveBeenCalledTimes(2)
   })
 })
 
