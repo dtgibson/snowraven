@@ -1,0 +1,1064 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Life Lists: design direction (SnowRaven)</title>
+<style>
+/* ============================================================================
+   TOKENS. Copied verbatim from frontend/src/globals.css (:root and
+   [data-theme="dark"]), the subset this surface touches. Every colour below
+   this block is a var(--sr-*) reference; nothing is minted for this feature.
+   ========================================================================== */
+:root {
+  --sr-text-scale: 1;
+  --sr-ctl-floor: 16px;
+  --sr-label-optical: calc(11 / 12);
+
+  --sr-bg: #F9FAFB;
+  --sr-surface: #FFFFFF;
+  --sr-surface-subtle: #F4F4F5;
+  --sr-surface-faint: #FAFAFA;
+
+  --sr-text: #0F1117;
+  --sr-text-muted: #6B6B74;
+  --sr-text-disabled: #A1A1AA;
+  --sr-text-gray: #6B7280;
+
+  --sr-border: #E4E4E7;
+  --sr-border-subtle: #F4F4F5;
+  --sr-border-medium: #C4C4CE;
+  --sr-border-input: #8A8A91;
+
+  --sr-accent: #277448;
+  --sr-accent-strong: #1A5C38;
+  --sr-accent-bg: #E8F5EE;
+  --sr-accent-bg-hover: #F0FAF4;
+  --sr-accent-border: rgba(39,116,72,0.25);
+  --sr-accent-border-strong: rgba(39,116,72,0.7);
+  --sr-on-accent: #FFFFFF;
+
+  --sr-error: #D31F1F;
+  --sr-error-bg: #FEF2F2;
+  --sr-error-border: #FECACA;
+
+  --sr-gray-400: #8E8E96;
+
+  --sr-card-shadow: 0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+  --sr-sticky-shadow: 0 3px 6px -2px rgba(15,17,23,0.12);
+  --sr-nav-bar-shadow: 0 -3px 6px -2px rgba(15,17,23,0.12);
+  --sr-navbar-h: 0px;
+  --sr-switch-thumb: #FFFFFF;
+  --sr-switch-thumb-shadow: 0 1px 2px rgba(0,0,0,0.25);
+  --sr-scrim: rgba(15,17,23,0.36);
+
+  --font-sans: 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
+}
+[data-theme="dark"] {
+  --sr-bg: #09090B;
+  --sr-surface: #18181B;
+  --sr-surface-subtle: #27272A;
+  --sr-surface-faint: #1C1C1F;
+
+  --sr-text: #F4F4F5;
+  --sr-text-muted: #A1A1AA;
+  --sr-text-disabled: #52525B;
+  --sr-text-gray: #8A8A92;
+
+  --sr-border: #27272A;
+  --sr-border-subtle: #1F1F23;
+  --sr-border-medium: #3F3F46;
+  --sr-border-input: #707078;
+
+  --sr-accent: #34D399;
+  --sr-accent-strong: #34D399;
+  --sr-accent-bg: #052E16;
+  --sr-accent-bg-hover: #064E3B;
+  --sr-accent-border: rgba(52,211,153,0.2);
+  --sr-accent-border-strong: rgba(52,211,153,0.5);
+  --sr-on-accent: #052E16;
+
+  --sr-error: #F87171;
+  --sr-error-bg: #1C0505;
+  --sr-error-border: #7F1D1D;
+
+  --sr-gray-400: #6E6E78;
+
+  --sr-card-shadow: 0 1px 4px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.25);
+  --sr-sticky-shadow: 0 3px 8px -2px rgba(2,2,4,0.60);
+  --sr-nav-bar-shadow: 0 -3px 8px -2px rgba(2,2,4,0.60);
+  --sr-switch-thumb: #FFFFFF;
+  --sr-switch-thumb-shadow: 0 1px 2px rgba(0,0,0,0.25);
+  --sr-scrim: rgba(9,9,11,0.6);
+}
+
+/* ============================================================================
+   BASE. The app's html/body rules, the global focus ring, .sr-only.
+   ========================================================================== */
+*, *::before, *::after { box-sizing: border-box; }
+html {
+  background-color: var(--sr-bg);
+  font-size: calc(100% * var(--sr-text-scale, 1));
+}
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--sr-text);
+  background-color: var(--sr-bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+button { font: inherit; color: inherit; }
+svg { display: block; }
+h1, h2, h3, p { margin: 0; }
+ol, ul { margin: 0; padding: 0; list-style: none; }
+
+button:focus-visible,
+a:focus-visible,
+[role="tab"]:focus-visible,
+[role="button"]:focus-visible,
+[role="switch"]:focus-visible,
+[tabindex]:focus-visible {
+  outline: 3px solid var(--sr-accent);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 6px rgba(45, 134, 83, 0.12);
+}
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border-width: 0;
+}
+.spin { animation: spin 0.7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ============================================================================
+   SHELL. The responsive nav at sidebar density and at phone density, copied
+   from globals.css so Life Lists is seen sitting where it will sit.
+   ========================================================================== */
+.sr-shell { display: flex; flex: 1; min-width: 0; min-height: 100vh; }
+.sr-shell--phone { flex-direction: column; min-height: 0; }
+.sr-content { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+
+.sr-nav-col {
+  flex-shrink: 0; align-self: flex-start;
+  position: sticky; top: 0; height: 100vh;
+  display: flex; flex-direction: column;
+  background: var(--sr-surface);
+  border-right: 1px solid var(--sr-border);
+  width: 13.5rem;
+  padding: 14px 10px 10px;
+  overflow-y: auto;
+}
+.sr-nav-brand { display: flex; align-items: center; gap: 9px; padding: 2px 6px 0; margin-bottom: 2px; }
+.sr-nav-brand svg { flex-shrink: 0; }
+.sr-nav-word { font-size: 1.0625rem; font-weight: 700; letter-spacing: -0.4px; margin: 0; white-space: nowrap; }
+.sr-nav-word span { color: var(--sr-accent); }
+.sr-nav-tagline { font-size: 0.6875rem; line-height: 1.45; color: var(--sr-text-muted); margin: 5px 6px 14px; padding: 0; }
+.sr-nav-search {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%; min-height: 32px; margin: 0 0 10px;
+  padding: 0 8px 0 9px;
+  border: 1px solid var(--sr-border-input);
+  border-radius: 8px;
+  background: var(--sr-surface-faint);
+  color: var(--sr-text-muted);
+  font-family: inherit; font-size: 0.84375rem; font-weight: 500; text-align: left;
+  cursor: pointer;
+  transition: background-color 120ms ease-out, border-color 120ms ease-out, color 120ms ease-out;
+}
+.sr-nav-search:hover { background: var(--sr-surface-subtle); border-color: var(--sr-text-muted); color: var(--sr-text); }
+.sr-nav-search > svg { flex-shrink: 0; }
+.sr-nav-search-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sr-nav-search-hint {
+  flex-shrink: 0; display: inline-flex; align-items: center; gap: 2px;
+  padding: 1px 5px; border-radius: 4px;
+  border: 1px solid var(--sr-border-medium); background: var(--sr-surface-subtle);
+  color: var(--sr-text-muted); font-size: 0.625rem; font-weight: 700; letter-spacing: 0.02em;
+}
+.sr-nav-list { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.sr-nav-group { display: flex; flex-direction: column; gap: 2px; }
+.sr-nav-item {
+  position: relative;
+  display: flex; align-items: center; gap: 10px;
+  width: 100%; min-height: 34px;
+  padding: 7px 10px;
+  border: 0; border-radius: 8px;
+  background: none;
+  color: var(--sr-text-muted);
+  font-family: inherit; font-size: 0.84375rem; font-weight: 500; text-align: left;
+  cursor: pointer;
+  transition: background-color 120ms ease-out, color 120ms ease-out;
+}
+.sr-nav-item > svg { flex-shrink: 0; }
+.sr-nav-item span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sr-nav-item:hover { background: var(--sr-surface-subtle); color: var(--sr-text); }
+.sr-nav-item--active, .sr-nav-item--active:hover { background: var(--sr-accent-bg); color: var(--sr-accent); font-weight: 600; }
+.sr-nav-item--active::before {
+  content: ""; position: absolute; left: 0; top: 50%;
+  width: 3px; height: 60%; border-radius: 0 2px 2px 0;
+  background: var(--sr-accent);
+  transform: translateY(-50%) scaleY(1);
+  transform-origin: center;
+  animation: sr-nav-bar-in 140ms cubic-bezier(0.2, 0, 0, 1) both;
+}
+@keyframes sr-nav-bar-in {
+  from { transform: translateY(-50%) scaleY(0.35); opacity: 0; }
+  to   { transform: translateY(-50%) scaleY(1); opacity: 1; }
+}
+.sr-nav-sep { height: 1px; background: var(--sr-border); margin: 8px 4px; border: 0; flex-shrink: 0; }
+.sr-nav-spacer { flex: 1; min-height: 18px; }
+.sr-nav-collapse {
+  display: flex; align-items: center; gap: 10px;
+  width: 100%; min-height: 32px; padding: 6px 10px;
+  border: 0; border-radius: 8px; background: none;
+  color: var(--sr-text-muted);
+  font-family: inherit; font-size: 0.75rem; font-weight: 600;
+  cursor: pointer;
+  transition: background-color 120ms ease-out, color 120ms ease-out;
+}
+.sr-nav-collapse:hover { background: var(--sr-surface-subtle); color: var(--sr-text); }
+
+/* Phone header and bottom bar. */
+.sr-header { display: flex; flex-direction: column; align-items: center; padding: 48px 24px 0; flex-shrink: 0; }
+.mk-phone .sr-header { padding-top: 24px; }
+.sr-header-brand { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 6px; width: 100%; max-width: 100%; min-width: 0; }
+.sr-header-brand > svg { flex-shrink: 0; }
+.sr-header-title { display: flex; flex: 0 1 auto; flex-wrap: wrap; justify-content: center; max-width: 100%; min-width: 0; font-size: 1.625rem; font-weight: 700; letter-spacing: -0.6px; margin: 0; }
+.sr-header-title > span { white-space: nowrap; }
+.sr-header-title .ac { color: var(--sr-accent); }
+.sr-header-tag { font-size: 0.875rem; color: var(--sr-text-muted); margin-bottom: 28px; text-align: center; }
+.sr-navbar {
+  position: sticky; left: 0; right: 0; bottom: 0; z-index: 1200;
+  display: grid; grid-template-columns: repeat(5, minmax(0, 1fr));
+  background: var(--sr-surface);
+  border-top: 1px solid var(--sr-border);
+  box-shadow: var(--sr-nav-bar-shadow);
+  container-type: inline-size;
+}
+.sr-navbar-cell {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  min-height: 52px; padding: 7px 3px 8px;
+  border: 0; background: none; cursor: pointer;
+  color: var(--sr-text-muted);
+  font-family: inherit;
+  transition: background-color 120ms ease-out, color 120ms ease-out;
+}
+.sr-navbar-cell:hover { background: var(--sr-surface-subtle); }
+.sr-navbar-cell--active { color: var(--sr-accent); }
+.sr-navbar-cell--active .sr-navbar-glyph { background: var(--sr-accent-bg); }
+.sr-navbar-glyph { display: flex; align-items: center; justify-content: center; width: 40px; height: 26px; border-radius: 13px; transition: background-color 140ms ease-out; }
+.sr-navbar-label {
+  font-size: 0.625rem; font-weight: 600; line-height: 1.15; text-align: center;
+  white-space: normal; overflow-wrap: break-word;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.sr-navbar-cell--active .sr-navbar-label { font-weight: 700; }
+@container (max-width: 17rem) { .sr-navbar-label { display: none; } }
+
+main { outline: none; flex: 1; display: flex; flex-direction: column; }
+.sr-panel { max-width: 1280px; margin-inline: auto; width: 100%; display: flex; flex-direction: column; align-items: center; padding: 40px 24px 24px; }
+.sr-panel > * { width: 100%; max-width: 1100px; }
+.mk-phone .sr-panel { padding: 20px 12px 16px; }
+
+/* ============================================================================
+   CONTROL REGISTERS. Verbatim from globals.css: .sr-toggle (the boxed
+   ToggleSwitch chrome), .sr-pill, .sr-btn-quiet, .sr-touch-target, the
+   .sr-ctl-row phone floor and the .sr-ctl-label pairing, .sr-pill-sep.
+   ========================================================================== */
+.sr-toggle {
+  border: 1.5px solid var(--sr-border);
+  background: var(--sr-surface);
+  transition: opacity 150ms ease-out, border-color 120ms ease-out, background-color 120ms ease-out;
+}
+.sr-toggle:not(:disabled):not([aria-disabled="true"]):hover { border-color: var(--sr-border-medium); background: var(--sr-surface-subtle); }
+/* The rest of the boxed switch is the component's inline style, restated here. */
+.sr-toggle {
+  display: inline-flex; align-items: center; gap: 7px;
+  height: 30px; padding: 0 10px 0 8px; border-radius: 6px;
+  cursor: pointer; font-family: inherit; font-size: 0.75rem; font-weight: 500;
+  color: var(--sr-text-muted); white-space: nowrap;
+}
+.sr-toggle-track { width: 28px; height: 16px; border-radius: 8px; flex-shrink: 0; position: relative; background: var(--sr-gray-400); transition: background 180ms ease-out; }
+.sr-toggle[aria-checked="true"] .sr-toggle-track { background: var(--sr-accent); }
+.sr-toggle-knob { width: 12px; height: 12px; border-radius: 50%; background: var(--sr-switch-thumb); position: absolute; top: 2px; left: 2px; transition: left 180ms ease-out; box-shadow: var(--sr-switch-thumb-shadow); }
+.sr-toggle[aria-checked="true"] .sr-toggle-knob { left: 14px; }
+
+.sr-pill {
+  display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+  min-height: 30px; padding: 0 12px;
+  border-radius: 15px;
+  border: 1.5px solid var(--sr-border);
+  background: var(--sr-surface);
+  color: var(--sr-text-muted);
+  font-family: inherit; font-size: 0.75rem; font-weight: 500;
+  white-space: nowrap; cursor: pointer;
+  transition: background-color 120ms ease-out, border-color 120ms ease-out, color 120ms ease-out;
+}
+.sr-pill:not(:disabled):not([aria-disabled="true"]):hover { border-color: var(--sr-border-medium); background: var(--sr-surface-subtle); color: var(--sr-text); }
+.sr-pill[aria-pressed="true"] { border-color: var(--sr-accent-border); background: var(--sr-accent-bg); color: var(--sr-accent); font-weight: 600; }
+.sr-pill:disabled, .sr-pill[aria-disabled="true"] { border-color: var(--sr-border); background: var(--sr-surface-subtle); color: var(--sr-text-disabled); cursor: not-allowed; }
+.sr-pill-sep { width: 1px; height: 20px; background: var(--sr-border); flex-shrink: 0; align-self: center; }
+.sr-pill-sep--spaced { margin: 0 3px; }
+
+.sr-btn-quiet {
+  height: 32px; padding: 0 12px;
+  border: 1.5px solid var(--sr-border); background: var(--sr-surface); color: var(--sr-text);
+  border-radius: 6px; font-size: 0.75rem; font-weight: 500; font-family: inherit;
+  cursor: pointer; white-space: nowrap;
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: border-color 0.12s ease-out, background 0.12s ease-out, color 0.12s ease-out, opacity 0.12s ease-out;
+}
+.sr-btn-quiet:hover { border-color: var(--sr-border-medium); background: var(--sr-surface-subtle); }
+.sr-touch-target { display: inline-flex; align-items: center; justify-content: center; }
+
+/* BirdName: the name link exactly as the shared component draws it. */
+.sr-birdname { display: inline-flex; flex-direction: column; gap: 1px; min-width: 0; vertical-align: top; }
+.sr-birdname-row { display: flex; align-items: center; min-width: 0; }
+.sr-birdname-link { font: inherit; font-weight: 500; color: var(--sr-text); background: none; border: 0; padding: 0; margin: 0; cursor: pointer; text-decoration: none; text-align: left; }
+.sr-birdname-link:hover, .sr-birdname-link:focus-visible { color: var(--sr-accent); text-decoration: underline; }
+.sr-birdname-md .sr-birdname-link { font-size: 0.84375rem; }
+.sr-birdname-sci { font-style: italic; color: var(--sr-text-gray); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sr-birdname-md .sr-birdname-sci { font-size: 0.71875rem; }
+.sr-species-links { display: inline-flex; align-items: center; gap: 5px; margin-left: 6px; vertical-align: middle; }
+.sr-species-link { opacity: 0.75; display: inline-flex; align-items: center; padding: 5px; margin: -5px; transition: opacity 120ms ease-out; }
+.sr-species-link:hover, .sr-species-link:focus-visible { opacity: 1; }
+.sr-favicon-slot { display: inline-flex; width: 14px; height: 14px; align-items: center; justify-content: center; flex-shrink: 0; position: relative; }
+.sr-favicon { display: block; width: 14px; height: 14px; }
+[data-theme="dark"] img.sr-favicon { filter: brightness(0) invert(1); opacity: 0.65; }
+.sr-favicon-slot .sr-favicon-fallback { position: absolute; top: 0; left: 0; color: var(--sr-text); display: none; }
+.sr-favicon-slot.is-failed .sr-favicon { visibility: hidden; }
+.sr-favicon-slot.is-failed .sr-favicon-fallback { display: block; }
+
+/* ============================================================================
+   LIFE LISTS (.sr-lfl-*). The feature's own classes. The prefix is new;
+   `.sr-ll-*` already belongs to the Multimedia tab.
+   ========================================================================== */
+.sr-lfl-tab { display: flex; flex-direction: column; gap: 0; }
+
+/* House tab header: 30px accent-bg icon tile, h2, one-line muted description. */
+.sr-lfl-head { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 16px; }
+.sr-lfl-head-tile { width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0; background: var(--sr-accent-bg); color: var(--sr-accent); display: flex; align-items: center; justify-content: center; }
+.sr-lfl-head h2 { font-size: 1.125rem; font-weight: 700; margin: 0 0 2px; color: var(--sr-text); letter-spacing: -0.01em; }
+.sr-lfl-head p { font-size: 0.8125rem; color: var(--sr-text-muted); margin: 0; line-height: 1.5; }
+
+/* SectionCard. */
+.sr-lfl-card { background: var(--sr-surface); border: 1px solid var(--sr-border); border-radius: 12px; overflow: hidden; box-shadow: var(--sr-card-shadow); }
+
+/* Controls strip on the faint surface (the Checklists filter strip). */
+.sr-lfl-controls { display: flex; flex-direction: column; gap: 9px; padding: 12px 18px; border-bottom: 1px solid var(--sr-border-subtle); background: var(--sr-surface-faint); }
+.sr-lfl-ctl-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; min-width: 0; }
+.sr-lfl-label { font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--sr-text-muted); margin-right: 2px; --sr-label-ratio: var(--sr-label-optical); }
+.sr-lfl-pill svg { flex-shrink: 0; }
+.sr-lfl-media-group { display: contents; }
+/* The ML-absent sentence sits beside the inert buttons, in the strip. */
+.sr-lfl-ml-note { font-size: 0.75rem; line-height: 1.5; color: var(--sr-text-muted); margin: 0; max-width: 60ch; overflow-wrap: anywhere; }
+
+/* Lead block: the count sentence (the list's caption) over the status line. */
+.sr-lfl-lead { padding: 13px 18px 11px; border-bottom: 1px solid var(--sr-border-subtle); display: flex; flex-direction: column; gap: 3px; }
+.sr-lfl-count { font-size: 0.8125rem; line-height: 1.5; color: var(--sr-text-muted); margin: 0; outline: none; }
+.sr-lfl-count b { font-weight: 700; color: var(--sr-text); font-variant-numeric: tabular-nums; }
+.sr-lfl-status { font-size: 0.71875rem; line-height: 1.5; color: var(--sr-text-gray); margin: 0; }
+
+/* Rows. Desktop is a five-track ledger whose date and time tracks are fixed
+   rem widths so the columns align down the list (each row is its own grid);
+   stacked below 40em of the list's own
+   width (fires at 640px / 100% and, at 200% text, on any window under 1280px). */
+.sr-lfl-list { container-type: inline-size; }
+.sr-lfl-row {
+  display: grid;
+  grid-template-columns: 2.5rem minmax(0, 1fr) 5.4rem 4rem 1.5rem minmax(0, 32%) max(46px, 2.5rem);
+  grid-template-areas: "num name date time link place media";
+  column-gap: 14px; row-gap: 2px;
+  align-items: start;
+  padding: 11px 18px 12px;
+  border-bottom: 1px solid var(--sr-border-subtle);
+}
+.sr-lfl-row:last-child { border-bottom: 0; }
+.sr-lfl-num { grid-area: num; font-size: 0.75rem; color: var(--sr-text-muted); text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; padding-top: 2px; }
+.sr-lfl-name { grid-area: name; min-width: 0; padding-top: 1px; }
+.sr-lfl-name .sr-birdname { width: 100%; max-width: 100%; }
+.sr-lfl-name .sr-birdname-sci { white-space: normal; overflow-wrap: anywhere; }
+/* Media presence: a passive cell, never a target. Three fixed slots in the
+   filter's own order and glyphs; a format the species has is drawn in the ink,
+   one it lacks as a faint outline (hidden when the review bar says Off). */
+.sr-lfl-media { grid-area: media; display: inline-flex; align-items: center; gap: 5px; padding-top: 3px; justify-self: end; }
+.sr-lfl-media svg { flex-shrink: 0; }
+.sr-lfl-media .has { color: var(--sr-text); }
+.sr-lfl-media .lacks { color: var(--sr-border-medium); }
+.sr-lfl-media-count { font-size: 0.6875rem; color: var(--sr-text-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+[data-media="off"] .sr-lfl-media { display: none; }
+[data-media="off"] .sr-lfl-row { grid-template-columns: 2.5rem minmax(0, 1fr) 5.4rem 4rem 1.5rem minmax(0, 32%); grid-template-areas: "num name date time link place"; }
+.sr-lfl-date { grid-area: date; font-size: 0.75rem; font-weight: 600; color: var(--sr-text); white-space: nowrap; font-variant-numeric: tabular-nums; padding-top: 2px; }
+.sr-lfl-time { grid-area: time; font-size: 0.75rem; color: var(--sr-text-muted); white-space: nowrap; font-variant-numeric: tabular-nums; padding-top: 2px; }
+.sr-lfl-meta { display: contents; }
+.sr-lfl-media { grid-area: media; }
+.sr-lfl-link { grid-area: link; display: flex; justify-content: center; }
+.sr-lfl-place { grid-area: place; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.sr-lfl-locname { font-size: 0.75rem; font-weight: 500; color: var(--sr-text-muted); line-height: 1.4; overflow-wrap: anywhere; padding-top: 2px; }
+.sr-lfl-county { font-size: 0.71875rem; color: var(--sr-text-gray); line-height: 1.4; }
+.sr-lfl-dash { color: var(--sr-text-disabled); }
+
+/* The checklist mark: the shared ChecklistLink in compact (glyph-only) form,
+   given a 1.5rem box (the named-bird item-list treatment): transparent at
+   rest, accent-bg fill on hover and focus, 120ms ease-out. */
+.sr-lfl-cl {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 1.5rem; height: 1.5rem; border-radius: 6px;
+  color: var(--sr-accent); text-decoration: none;
+  transition: background-color 120ms ease-out;
+}
+.sr-lfl-cl:hover, .sr-lfl-cl:focus-visible { background: var(--sr-accent-bg); }
+.sr-lfl-cl:focus-visible { outline-offset: 1px; box-shadow: none; }
+.sr-lfl-link .sr-lfl-dash { display: inline-flex; align-items: center; justify-content: center; width: 1.5rem; height: 1.5rem; font-size: 0.75rem; }
+
+/* Rows a switch or a media button just ADDED enter from above, 180ms ease-out.
+   Nothing animates on first paint; a re-sort of existing rows is instant. */
+.sr-lfl-row.is-new { animation: sr-lfl-row-in 180ms cubic-bezier(0.2, 0, 0, 1) both; transform-origin: top center; }
+@keyframes sr-lfl-row-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Empty state: one sentence in place of the rows. */
+.sr-lfl-empty { padding: 28px 18px; font-size: 0.8125rem; color: var(--sr-text-muted); text-align: center; }
+
+/* Paging: the Weather backlog's row, verbatim values. */
+.sr-lfl-paging { display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; padding: 14px 18px; border-top: 1px solid var(--sr-border-subtle); }
+.sr-lfl-next { height: 36px; padding: 0 15px; border-radius: 8px; font-family: inherit; font-size: 0.8125rem; font-weight: 600; cursor: pointer; border: 1px solid var(--sr-border-medium); background: var(--sr-surface); color: var(--sr-text); transition: background-color 120ms ease-out, border-color 120ms ease-out; }
+.sr-lfl-next:hover { background: var(--sr-surface-subtle); }
+.sr-lfl-all { height: 36px; padding: 0 15px; border-radius: 8px; font-family: inherit; font-size: 0.8125rem; font-weight: 600; cursor: pointer; border: 1px solid transparent; background: none; color: var(--sr-accent); transition: background-color 120ms ease-out; }
+.sr-lfl-all:hover { background: var(--sr-accent-bg); }
+.sr-lfl-showing { font-size: 0.71875rem; color: var(--sr-text-muted); font-variant-numeric: tabular-nums; }
+
+/* Setup, error and loading states (shared components, restated). */
+.sr-setup { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 52px 32px 48px; }
+.sr-setup-disc { width: 64px; height: 64px; border-radius: 50%; background: var(--sr-surface); border: 1px solid var(--sr-border); display: flex; align-items: center; justify-content: center; margin-bottom: 20px; flex-shrink: 0; color: var(--sr-text-muted); }
+.sr-setup-title { font-size: 1.0625rem; font-weight: 600; letter-spacing: -0.2px; color: var(--sr-text); margin-bottom: 10px; }
+.sr-setup-body { font-size: 0.875rem; color: var(--sr-text-muted); max-width: 420px; line-height: 1.6; margin-bottom: 24px; }
+.sr-setup-steps { background: var(--sr-surface); border: 1px solid var(--sr-border); border-radius: 8px; padding: 14px 18px; text-align: left; max-width: 440px; width: 100%; margin-bottom: 28px; }
+.sr-setup-steps-h { font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--sr-text-disabled); margin-bottom: 10px; }
+.sr-setup-step { display: flex; gap: 10px; align-items: flex-start; font-size: 0.8125rem; color: var(--sr-text); margin-bottom: 7px; line-height: 1.45; }
+.sr-setup-step:last-child { margin-bottom: 0; }
+.sr-setup-num { width: 18px; height: 18px; border-radius: 50%; background: var(--sr-border); color: var(--sr-text-muted); font-size: 0.6875rem; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
+.sr-setup-code { font-family: ui-monospace, monospace; font-size: 0.75rem; background: var(--sr-border); padding: 1px 5px; border-radius: 3px; }
+.sr-setup-go { display: inline-flex; align-items: center; gap: 7px; padding: 8px 16px; background: var(--sr-accent); color: var(--sr-on-accent); border: none; border-radius: 8px; font-size: 0.84375rem; font-weight: 500; font-family: inherit; cursor: pointer; transition: background-color 120ms ease-out; }
+.sr-setup-go:hover { background: var(--sr-accent-strong); }
+.sr-err-frame { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 40px; }
+.sr-err-box { display: flex; align-items: center; gap: 8px; padding: 9px 13px; background: var(--sr-error-bg); border-radius: 8px; font-size: 0.8125rem; color: var(--sr-error); max-width: 480px; overflow-wrap: anywhere; }
+.sr-err-btn { height: 32px; padding: 0 14px; border-radius: 6px; border: 1.5px solid var(--sr-border); background: var(--sr-surface); color: var(--sr-text-muted); font-size: 0.75rem; font-weight: 500; font-family: inherit; cursor: pointer; }
+.sr-loading { flex: 1; display: flex; align-items: center; justify-content: center; padding: 60px; color: var(--sr-accent); }
+
+/* ============================================================================
+   PHONE TIER. In the shipped stylesheet every rule below lives inside the
+   established <=640px block. In this mockup it is scoped to `.mk-phone` so the
+   320px frame renders it on a wide window too; a script duplicates the block
+   under @media (max-width: 640px) for a real phone.
+   ========================================================================== */
+.mk-phone .sr-ctl-row :is(button, select, input) { font-size: max(var(--sr-ctl-floor), var(--sr-ctl-rem, 0.75rem)) !important; }
+.mk-phone .sr-ctl-label { font-size: max(calc(var(--sr-ctl-floor) * var(--sr-label-ratio, 1)), calc(var(--sr-ctl-rem, 0.75rem) * var(--sr-label-ratio, 1))) !important; }
+.mk-phone .sr-pill-sep { display: none; }
+.mk-phone .sr-touch-target { min-height: 2.75rem; }
+.mk-phone .sr-lfl-controls { padding: 12px 12px; }
+.mk-phone .sr-lfl-controls .sr-toggle { height: auto; white-space: normal; }
+.mk-phone .sr-lfl-controls .sr-pill { white-space: normal; }
+.mk-phone .sr-lfl-lead { padding: 12px 12px 10px; }
+.mk-phone .sr-lfl-empty { padding: 24px 12px; }
+.mk-phone .sr-lfl-paging { padding: 12px; }
+.mk-phone .sr-lfl-paging .sr-lfl-next, .mk-phone .sr-lfl-paging .sr-lfl-all { min-height: 2.75rem; height: auto; }
+.mk-phone .sr-lfl-row { padding: 11px 12px 12px; }
+
+/* The stacked card: name over the date and time line, the link mark in a
+   2.75rem box at the right spanning both, the place on two lines below. */
+.mk-phone .sr-lfl-row {
+  grid-template-columns: 1.9rem minmax(0, 1fr) max(44px, 1.5rem);
+  grid-template-areas: "num name link" "num meta link" "num place media";
+  column-gap: 8px; row-gap: 2px;
+}
+.mk-phone[data-media="off"] .sr-lfl-row { grid-template-areas: "num name link" "num meta link" "num place place"; }
+.mk-phone .sr-lfl-num { padding-top: 2px; }
+.mk-phone .sr-lfl-media { gap: 4px; padding-top: 0; align-self: center; justify-self: end; }
+.mk-phone .sr-lfl-date, .mk-phone .sr-lfl-time { padding-top: 0; min-width: 0; }
+.mk-phone .sr-lfl-meta { grid-area: meta; display: flex; align-items: center; flex-wrap: wrap; gap: 2px 8px; min-width: 0; }
+.mk-phone .sr-lfl-link { align-self: center; }
+.mk-phone .sr-lfl-cl, .mk-phone .sr-lfl-link .sr-lfl-dash { width: max(44px, 1.5rem); height: max(44px, 1.5rem); }
+.mk-phone .sr-lfl-place { margin-top: 2px; }
+.mk-phone .sr-setup { padding: 36px 12px 32px; }
+.mk-phone .sr-err-frame { padding: 28px 12px; }
+
+/* The same stacked form by the list's OWN width, so a wide window at 200% text
+   stacks too (the design system's date-place-link row rule). */
+@container (max-width: 40em) {
+  .sr-lfl-row { grid-template-columns: 1.9rem minmax(0, 1fr) max(44px, 1.5rem); grid-template-areas: "num name link" "num meta link" "num place media"; column-gap: 8px; }
+  [data-media="off"] .sr-lfl-row { grid-template-areas: "num name link" "num meta link" "num place place"; }
+  .sr-lfl-media { gap: 4px; padding-top: 0; align-self: center; justify-self: end; }
+  .sr-lfl-date, .sr-lfl-time { padding-top: 0; min-width: 0; }
+  .sr-lfl-meta { grid-area: meta; display: flex; align-items: center; flex-wrap: wrap; gap: 2px 8px; min-width: 0; }
+  .sr-lfl-link { align-self: center; }
+  .sr-lfl-cl, .sr-lfl-link .sr-lfl-dash { width: max(44px, 1.5rem); height: max(44px, 1.5rem); }
+  .sr-lfl-place { margin-top: 2px; }
+}
+
+/* ============================================================================
+   REDUCED MOTION. The app's global block, verbatim.
+   ========================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ============================================================================
+   MOCKUP CHROME (.mk-*). Not part of the app: the review bar and the frames.
+   ========================================================================== */
+.mk-bar { position: sticky; top: 0; z-index: 2000; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; padding: 8px 14px; background: var(--sr-surface); border-bottom: 1px solid var(--sr-border); box-shadow: var(--sr-sticky-shadow); font-size: 0.71875rem; color: var(--sr-text-muted); }
+.mk-bar-title { font-weight: 700; color: var(--sr-text); letter-spacing: 0.02em; text-transform: uppercase; font-size: 0.625rem; margin-right: 4px; }
+.mk-group { display: inline-flex; align-items: center; gap: 4px; }
+.mk-group > span { margin-right: 2px; }
+.mk-seg { display: inline-flex; border: 1px solid var(--sr-border-medium); border-radius: 6px; overflow: hidden; background: var(--sr-surface); }
+.mk-seg button { border: 0; background: none; padding: 3px 8px; font-size: 0.6875rem; font-weight: 500; color: var(--sr-text-muted); cursor: pointer; }
+.mk-seg button + button { border-left: 1px solid var(--sr-border-medium); }
+.mk-seg button[aria-pressed="true"] { background: var(--sr-accent-bg); color: var(--sr-accent); font-weight: 600; }
+.mk-seg button:focus-visible { outline-offset: -3px; }
+.mk-stage { padding: 0; }
+.mk-phoneframe { display: flex; justify-content: center; padding: 28px 12px 40px; }
+.mk-phone { flex: 0 0 320px; width: 320px; max-width: 100%; height: 680px; overflow-y: auto; overflow-x: hidden; border: 1px solid var(--sr-border-medium); border-radius: 22px; background: var(--sr-bg); box-shadow: var(--sr-card-shadow); display: flex; flex-direction: column; position: relative; }
+.mk-phone main { flex: 1 0 auto; }
+.mk-states { max-width: 1100px; margin: 0 auto; padding: 32px 24px 64px; display: flex; flex-direction: column; gap: 18px; }
+.mk-states h2 { font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--sr-text-muted); }
+.mk-states h3 { font-size: 0.75rem; font-weight: 600; color: var(--sr-text-muted); margin-bottom: 6px; }
+.mk-states .sr-lfl-card { display: flex; flex-direction: column; }
+.mk-note { font-size: 0.75rem; color: var(--sr-text-muted); line-height: 1.5; max-width: 70ch; }
+.mk-hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<!-- ======================================================================
+     Review bar. Not part of the app.
+     ====================================================================== -->
+<div class="mk-bar" role="region" aria-label="Mockup controls">
+  <span class="mk-bar-title">Mockup</span>
+  <span class="mk-group"><span>Theme</span><span class="mk-seg" role="group" aria-label="Theme" data-opt="theme"><button aria-pressed="true" data-v="light">Light</button><button aria-pressed="false" data-v="dark">Dark</button></span></span>
+  <span class="mk-group"><span>Viewport</span><span class="mk-seg" role="group" aria-label="Viewport" data-opt="view"><button aria-pressed="true" data-v="desktop">Desktop</button><button aria-pressed="false" data-v="phone">Phone 320px</button></span></span>
+  <span class="mk-group"><span>Text size</span><span class="mk-seg" role="group" aria-label="Text size" data-opt="scale"><button aria-pressed="true" data-v="1">100%</button><button aria-pressed="false" data-v="1.5">150%</button><button aria-pressed="false" data-v="2">200%</button></span></span>
+  <span class="mk-group"><span>eBird backup</span><span class="mk-seg" role="group" aria-label="eBird backup" data-opt="backup"><button aria-pressed="true" data-v="ready">Saved</button><button aria-pressed="false" data-v="none">None</button><button aria-pressed="false" data-v="bad">Unreadable</button><button aria-pressed="false" data-v="loading">Loading</button></span></span>
+  <span class="mk-group"><span>ML export</span><span class="mk-seg" role="group" aria-label="ML export" data-opt="ml"><button aria-pressed="true" data-v="ready">Saved</button><button aria-pressed="false" data-v="none">None</button><button aria-pressed="false" data-v="bad">Unreadable</button></span></span>
+  <span class="mk-group"><span>Media glyphs</span><span class="mk-seg" role="group" aria-label="Media glyphs on rows" data-opt="media"><button aria-pressed="false" data-v="off">Off</button><button aria-pressed="true" data-v="quiet">Quiet</button><button aria-pressed="false" data-v="count">Count</button></span></span>
+  <span class="mk-group"><span>Statistics check</span><span class="mk-seg" role="group" aria-label="Exotic status check" data-opt="prov"><button aria-pressed="true" data-v="resolved">Finished</button><button aria-pressed="false" data-v="unresolved">Not finished</button></span></span>
+</div>
+
+<!-- ======================================================================
+     Desktop shell: sidebar nav + content. Life Lists sits directly after
+     Checklists and is selected.
+     ====================================================================== -->
+<div id="stageDesktop" class="mk-stage">
+  <div class="sr-shell">
+    <div class="sr-nav-col">
+      <div class="sr-nav-brand">
+        <svg class="raven" width="22" height="22" viewBox="0 0 512 512" aria-hidden="true" focusable="false" style="color: var(--sr-accent)"><path fill="currentColor" fill-rule="evenodd" clip-rule="evenodd" d="M 150.79 440.77 L 176.47 435.39 L 197.48 429.33 L 213.04 423.88 L 245.73 409.97 L 270.63 397.28 L 296.30 381.80 L 318.09 366.18 L 336.57 350.44 L 352.33 334.58 L 367.31 316.20 L 379.08 297.53 L 385.19 285.08 L 389.91 273.41 L 395.34 253.95 L 396.99 244.61 L 398.12 232.16 L 397.64 214.27 L 393.73 194.04 L 386.46 169.91 L 384.84 159.02 L 385.60 149.68 L 388.70 139.57 L 394.35 130.77 L 399.02 125.85 L 405.25 120.87 L 417.70 113.66 L 430.15 109.05 L 445.71 105.74 L 451.93 105.05 L 464.38 105.06 L 473.72 106.67 L 484.62 111.08 L 485.38 110.77 L 485.11 101.44 L 483.21 95.21 L 479.17 87.44 L 473.72 81.39 L 464.38 74.65 L 449.60 68.35 L 437.93 65.33 L 410.69 60.66 L 402.71 53.19 L 392.02 45.17 L 381.12 38.75 L 373.34 35.08 L 354.67 28.85 L 339.10 26.17 L 322.76 25.37 L 311.09 26.27 L 297.08 28.66 L 288.52 31.10 L 273.74 37.43 L 262.07 44.46 L 253.51 51.19 L 244.65 60.19 L 234.69 73.42 L 226.06 88.21 L 215.97 110.77 L 198.93 152.79 L 199.81 153.14 L 210.71 148.11 L 230.16 141.75 L 241.83 139.37 L 254.28 138.31 L 267.51 138.63 L 281.50 141.12 L 293.19 144.94 L 303.31 150.17 L 311.57 155.91 L 321.42 166.02 L 327.70 175.36 L 332.88 187.08 L 335.35 196.37 L 336.92 208.82 L 336.90 218.94 L 334.38 236.06 L 328.50 255.51 L 319.29 274.96 L 307.20 294.01 L 289.43 316.20 L 271.40 335.03 L 248.84 355.96 L 146.83 440.71 L 147.68 441.18 Z M 361.37 83.54 L 355.44 83.04 L 349.39 79.65 L 345.70 75.76 L 340.28 67.20 L 335.99 63.61 L 331.05 60.97 L 331.32 60.45 L 343.77 60.10 L 354.67 61.50 L 367.12 66.26 L 376.07 72.64 L 374.90 74.46 L 367.89 80.74 Z M 384.80 96.77 L 381.12 97.22 L 379.95 96.77 L 389.68 89.61 L 398.24 84.87 L 409.14 81.06 L 423.14 79.17 L 436.37 79.99 L 446.49 82.49 L 458.16 88.01 L 465.16 93.23 L 467.68 95.99 L 466.72 96.57 L 440.26 94.09 L 416.92 93.78 L 399.02 94.86 Z M 27.07 486.63 L 42.63 480.11 L 57.41 472.78 L 83.87 457.96 L 111.11 441.03 L 146.90 416.35 L 188.78 384.68 L 227.05 353.61 L 252.69 330.99 L 266.74 317.42 L 278.01 305.31 L 291.95 288.19 L 298.64 278.72 L 306.04 266.40 L 311.49 255.51 L 315.26 246.17 L 317.53 239.17 L 319.92 228.27 L 321.08 218.94 L 321.06 210.38 L 320.04 201.82 L 318.42 194.81 L 315.25 187.03 L 311.19 180.03 L 307.72 175.36 L 302.53 170.13 L 295.53 164.95 L 286.97 160.39 L 276.07 156.55 L 269.07 154.98 L 260.51 153.84 L 248.84 153.69 L 231.72 155.87 L 220.82 158.88 L 212.26 162.07 L 203.81 166.02 L 195.15 171.24 L 186.59 177.15 L 176.64 185.48 L 162.41 200.26 L 153.88 211.15 L 143.79 226.74 L 136.73 239.17 L 125.74 261.73 L 109.38 300.64 L 78.90 379.23 L 79.98 379.55 L 90.87 375.49 L 106.44 367.80 L 123.56 357.64 L 148.46 339.41 L 149.24 339.06 L 149.37 339.55 L 133.67 359.67 L 120.96 373.01 L 107.66 384.68 L 87.69 397.91 L 62.88 436.82 L 44.33 463.27 L 26.62 485.84 Z"/></svg>
+        <h1 class="sr-nav-word">Snow<span>Raven</span></h1>
+      </div>
+      <p class="sr-nav-tagline">Self-hosted birding tools and data explorer</p>
+      <button type="button" class="sr-nav-search" aria-keyshortcuts="Meta+K Control+K"><span data-icon="search" data-size="15" data-sw="2.25"></span><span class="sr-nav-search-label">Search</span><span class="sr-nav-search-hint" aria-hidden="true">&#8984;K</span></button>
+      <nav aria-label="Main navigation" class="sr-nav-list">
+        <div role="tablist" aria-orientation="vertical" class="sr-nav-group" id="navDesktop"></div>
+      </nav>
+      <div class="sr-nav-spacer"></div>
+      <button type="button" class="sr-nav-collapse" aria-expanded="true" aria-label="Collapse navigation"><span data-icon="panelleft" data-size="16" data-sw="2"></span><span>Collapse</span></button>
+    </div>
+    <div class="sr-content">
+      <main id="sr-main-desktop" tabindex="-1">
+        <div role="tabpanel" id="panel-life-lists" aria-labelledby="tab-life-lists" aria-label="Life Lists" class="sr-panel">
+          <div class="sr-lfl-tab" data-tab-root></div>
+        </div>
+      </main>
+    </div>
+  </div>
+</div>
+
+<!-- ======================================================================
+     Phone shell at 320px: brand header, content, bottom bar of four
+     favourites plus More (Life Lists lives under More, so More is active).
+     ====================================================================== -->
+<div id="stagePhone" class="mk-phoneframe mk-hidden">
+  <div class="sr-shell sr-shell--phone mk-phone">
+    <header class="sr-header">
+      <div class="sr-header-brand">
+        <svg class="raven" width="30" height="30" viewBox="0 0 512 512" aria-hidden="true" focusable="false" style="color: var(--sr-accent)"><path fill="currentColor" fill-rule="evenodd" clip-rule="evenodd" d="M 150.79 440.77 L 176.47 435.39 L 197.48 429.33 L 213.04 423.88 L 245.73 409.97 L 270.63 397.28 L 296.30 381.80 L 318.09 366.18 L 336.57 350.44 L 352.33 334.58 L 367.31 316.20 L 379.08 297.53 L 385.19 285.08 L 389.91 273.41 L 395.34 253.95 L 396.99 244.61 L 398.12 232.16 L 397.64 214.27 L 393.73 194.04 L 386.46 169.91 L 384.84 159.02 L 385.60 149.68 L 388.70 139.57 L 394.35 130.77 L 399.02 125.85 L 405.25 120.87 L 417.70 113.66 L 430.15 109.05 L 445.71 105.74 L 451.93 105.05 L 464.38 105.06 L 473.72 106.67 L 484.62 111.08 L 485.38 110.77 L 485.11 101.44 L 483.21 95.21 L 479.17 87.44 L 473.72 81.39 L 464.38 74.65 L 449.60 68.35 L 437.93 65.33 L 410.69 60.66 L 402.71 53.19 L 392.02 45.17 L 381.12 38.75 L 373.34 35.08 L 354.67 28.85 L 339.10 26.17 L 322.76 25.37 L 311.09 26.27 L 297.08 28.66 L 288.52 31.10 L 273.74 37.43 L 262.07 44.46 L 253.51 51.19 L 244.65 60.19 L 234.69 73.42 L 226.06 88.21 L 215.97 110.77 L 198.93 152.79 L 199.81 153.14 L 210.71 148.11 L 230.16 141.75 L 241.83 139.37 L 254.28 138.31 L 267.51 138.63 L 281.50 141.12 L 293.19 144.94 L 303.31 150.17 L 311.57 155.91 L 321.42 166.02 L 327.70 175.36 L 332.88 187.08 L 335.35 196.37 L 336.92 208.82 L 336.90 218.94 L 334.38 236.06 L 328.50 255.51 L 319.29 274.96 L 307.20 294.01 L 289.43 316.20 L 271.40 335.03 L 248.84 355.96 L 146.83 440.71 L 147.68 441.18 Z M 361.37 83.54 L 355.44 83.04 L 349.39 79.65 L 345.70 75.76 L 340.28 67.20 L 335.99 63.61 L 331.05 60.97 L 331.32 60.45 L 343.77 60.10 L 354.67 61.50 L 367.12 66.26 L 376.07 72.64 L 374.90 74.46 L 367.89 80.74 Z M 384.80 96.77 L 381.12 97.22 L 379.95 96.77 L 389.68 89.61 L 398.24 84.87 L 409.14 81.06 L 423.14 79.17 L 436.37 79.99 L 446.49 82.49 L 458.16 88.01 L 465.16 93.23 L 467.68 95.99 L 466.72 96.57 L 440.26 94.09 L 416.92 93.78 L 399.02 94.86 Z M 27.07 486.63 L 42.63 480.11 L 57.41 472.78 L 83.87 457.96 L 111.11 441.03 L 146.90 416.35 L 188.78 384.68 L 227.05 353.61 L 252.69 330.99 L 266.74 317.42 L 278.01 305.31 L 291.95 288.19 L 298.64 278.72 L 306.04 266.40 L 311.49 255.51 L 315.26 246.17 L 317.53 239.17 L 319.92 228.27 L 321.08 218.94 L 321.06 210.38 L 320.04 201.82 L 318.42 194.81 L 315.25 187.03 L 311.19 180.03 L 307.72 175.36 L 302.53 170.13 L 295.53 164.95 L 286.97 160.39 L 276.07 156.55 L 269.07 154.98 L 260.51 153.84 L 248.84 153.69 L 231.72 155.87 L 220.82 158.88 L 212.26 162.07 L 203.81 166.02 L 195.15 171.24 L 186.59 177.15 L 176.64 185.48 L 162.41 200.26 L 153.88 211.15 L 143.79 226.74 L 136.73 239.17 L 125.74 261.73 L 109.38 300.64 L 78.90 379.23 L 79.98 379.55 L 90.87 375.49 L 106.44 367.80 L 123.56 357.64 L 148.46 339.41 L 149.24 339.06 L 149.37 339.55 L 133.67 359.67 L 120.96 373.01 L 107.66 384.68 L 87.69 397.91 L 62.88 436.82 L 44.33 463.27 L 26.62 485.84 Z"/></svg>
+        <h1 class="sr-header-title"><span>Snow</span><span class="ac">Raven</span></h1>
+      </div>
+      <p class="sr-header-tag">Self-hosted birding tools and data explorer</p>
+    </header>
+    <main id="sr-main-phone" tabindex="-1">
+      <div role="tabpanel" id="panel-life-lists-phone" aria-label="Life Lists" class="sr-panel">
+        <div class="sr-lfl-tab" data-tab-root></div>
+      </div>
+    </main>
+    <div class="sr-navbar" id="navPhone"></div>
+  </div>
+</div>
+
+<!-- ======================================================================
+     Secondary states that the live controls above cannot reach, shown
+     stacked: the two FR-34 empty sentences in place.
+     ====================================================================== -->
+<section class="mk-states" aria-label="Secondary states">
+  <h2>Secondary states, stacked</h2>
+  <p class="mk-note">Everything else is reachable from the bar at the top: the no-backup setup panel, the unreadable-backup error, the loading indicator, the two disabled-media sentences (ML export None and Unreadable), and the two status sentences (Statistics check Finished and Not finished). The "No species matches this selection yet." sentence is also live: press Audio and Video together. Below are the two empty-list sentences as they sit in the card.</p>
+  <div>
+    <h3>Empty list, no media button selected (FR-34)</h3>
+    <div class="sr-lfl-card">
+      <div class="sr-lfl-lead"><p class="sr-lfl-count"><b>0</b> species, newest first by the date of your first sighting.</p><p class="sr-lfl-status">Escapee and exotic status comes from the exotic status check on Statistics, so with both switches off this list can be shorter than the Statistics species figure.</p></div>
+      <p class="sr-lfl-empty">No countable species in your eBird backup yet.</p>
+    </div>
+  </div>
+  <div>
+    <h3>Empty list, a media selection that matches nothing (FR-34)</h3>
+    <div class="sr-lfl-card">
+      <div class="sr-lfl-lead"><p class="sr-lfl-count"><b>0</b> species with audio and video, newest first by the date each had both.</p><p class="sr-lfl-status">Escapee and exotic status comes from the exotic status check on Statistics, so with both switches off this list can be shorter than the Statistics species figure.</p></div>
+      <p class="sr-lfl-empty">No species matches this selection yet.</p>
+    </div>
+  </div>
+</section>
+
+<script>
+/* ============================================================================
+   Icons: lucide paths (24 viewBox, stroke 2, round caps), inlined so the file
+   has no dependency.
+   ========================================================================== */
+const ICONS = {
+  listchecks: '<path d="m3 17 2 2 4-4"/><path d="m3 7 2 2 4-4"/><path d="M13 6h8"/><path d="M13 12h8"/><path d="M13 18h8"/>',
+  clipboard: '<rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/>',
+  camera: '<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/>',
+  mic: '<path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/>',
+  video: '<path d="m16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.87a.5.5 0 0 0-.752-.432L16 10.5"/><rect x="2" y="6" width="14" height="12" rx="2"/>',
+  external: '<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>',
+  weather: '<path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/>',
+  stats: '<line x1="18" x2="18" y1="20" y2="10"/><line x1="12" x2="12" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="14"/>',
+  map: '<polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" y1="3" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="21"/>',
+  book: '<path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/>',
+  calendar: '<path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/><path d="M16 18h.01"/>',
+  target: '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>',
+  images: '<path d="M18 22H4a2 2 0 0 1-2-2V6"/><path d="m22 13-1.296-1.296a2.41 2.41 0 0 0-3.408 0L11 18"/><circle cx="12" cy="8" r="2"/><rect width="16" height="16" x="6" y="2" rx="2"/>',
+  dna: '<path d="m10 16 1.5 1.5"/><path d="m14 8-1.5-1.5"/><path d="M15 2c-1.798 1.998-2.518 3.995-2.807 5.993"/><path d="m16.5 10.5 1 1"/><path d="m17 6-2.891-2.891"/><path d="M2 15c6.667-6 13.333 0 20-6"/><path d="m20 9 .891.891"/><path d="M3.109 14.109 4 15"/><path d="m6.5 12.5 1 1"/><path d="m7 18 2.891 2.891"/><path d="M9 22c1.798-1.998 2.518-3.995 2.807-5.993"/>',
+  comparer: '<path d="M21 6H3"/><path d="M10 12H3"/><path d="M10 18H3"/><polyline points="15 12 18 15 21 12"/><path d="M18 6v9"/>',
+  tag: '<path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/>',
+  settings: '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
+  search: '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+  panelleft: '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/><path d="m16 15-3-3 3-3"/>',
+  more: '<circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>',
+  upload: '<path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M12 12v9"/><path d="m16 16-4-4-4 4"/>',
+  alert: '<circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/>',
+  loader: '<path d="M21 12a9 9 0 1 1-6.219-8.56"/>',
+  globe: '<circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/>',
+  library: '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M7 7v10"/><path d="M11 7v10"/><path d="m15 7 2 10"/>',
+  gear: '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
+};
+function icon(name, size, sw, cls) {
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"${cls ? ` class="${cls}"` : ''}>${ICONS[name]}</svg>`;
+}
+document.querySelectorAll('[data-icon]').forEach(el => { el.outerHTML = icon(el.dataset.icon, el.dataset.size, el.dataset.sw); });
+
+/* ============================================================================
+   Navigation roster: the default order with Life Lists at index 9, directly
+   after Checklists; Settings appended after the structural hairline.
+   ========================================================================== */
+const TABS = [
+  ['weather', 'Weather', 'weather'], ['birding-stats', 'Statistics', 'stats'], ['map-explorer', 'Map Explorer', 'map'],
+  ['species-detail', 'Species Detail', 'book'], ['calendar', 'Calendar', 'calendar'], ['targets', 'Targets', 'target'],
+  ['life-list', 'Multimedia', 'images'], ['breeding-codes', 'Breeding Codes', 'dna'], ['checklists', 'Checklists', 'clipboard'],
+  ['life-lists', 'Life Lists', 'listchecks'], ['comparer', 'List Comparer', 'comparer'], ['named-birds', 'Named Birds', 'tag'],
+];
+const ACTIVE = 'life-lists';
+(function renderNav() {
+  const host = document.getElementById('navDesktop');
+  let html = '';
+  for (const [id, label, ic] of TABS) {
+    const a = id === ACTIVE;
+    html += `<button type="button" role="tab" id="tab-${id}" aria-selected="${a}" aria-controls="panel-${id}" tabindex="${a ? 0 : -1}" class="sr-nav-item${a ? ' sr-nav-item--active' : ''}">${icon(ic, 15, 2.25)}<span>${label}</span></button>`;
+  }
+  html += `<hr class="sr-nav-sep" aria-hidden="true"><button type="button" role="tab" id="tab-settings" aria-selected="false" tabindex="-1" class="sr-nav-item">${icon('settings', 15, 2.25)}<span>Settings</span></button>`;
+  host.innerHTML = html;
+
+  const bar = document.getElementById('navPhone');
+  let b = '';
+  for (const [id, label, ic] of TABS.slice(0, 4)) {
+    b += `<button type="button" class="sr-navbar-cell" aria-label="${label}"><span class="sr-navbar-glyph">${icon(ic, 20, 2)}</span><span class="sr-navbar-label" aria-hidden="true">${label}</span></button>`;
+  }
+  b += `<button type="button" class="sr-navbar-cell sr-navbar-cell--active" aria-label="More destinations" aria-haspopup="dialog" aria-expanded="false"><span class="sr-navbar-glyph">${icon('more', 20, 2)}</span><span class="sr-navbar-label" aria-hidden="true">More</span></button>`;
+  bar.innerHTML = b;
+})();
+
+/* ============================================================================
+   Fixture: a Bay Area birder's eBird backup and Macaulay export, folded to
+   countable species with each species's first sighting and first photo, audio
+   and video. Hand-written at the top where the eye lands; generated below it
+   from a seeded sequence so the list is long enough to page.
+   ========================================================================== */
+const SCI = Object.fromEntries(`Rustic Bunting=Emberiza rustica;Sharp-tailed Sandpiper=Calidris acuminata;Brown Booby=Sula leucogaster;Blackpoll Warbler=Setophaga striata;Baird's Sandpiper=Calidris bairdii;Vaux's Swift=Chaetura vauxi;Lucy's Warbler=Leiothlypis luciae;Five-striped Sparrow=Amphispizopsis quinquestriata;Elegant Trogon=Trogon elegans;Varied Bunting=Passerina versicolor;Thick-billed Kingbird=Tyrannus crassirostris;Violet-crowned Hummingbird=Ramosomyia violiceps;Montezuma Quail=Cyrtonyx montezumae;Tufted Puffin=Fratercula cirrhata;Black-footed Albatross=Phoebastria nigripes;Scaly-breasted Munia=Lonchura punctulata;Great Gray Owl=Strix nebulosa;Mandarin Duck=Aix galericulata;Bar-tailed Godwit=Limosa lapponica;Northern Hawk Owl=Surnia ulula;Boreal Chickadee=Poecile hudsonicus;Pine Grosbeak=Pinicola enucleator;Black-backed Woodpecker=Picoides arcticus;Pin-tailed Whydah=Vidua macroura;Black Swan=Cygnus atratus;Rock Pigeon=Columba livia;Eurasian Collared-Dove=Streptopelia decaocto;European Starling=Sturnus vulgaris;House Sparrow=Passer domesticus;Egyptian Goose=Alopochen aegyptiaca;Red-whiskered Bulbul=Pycnonotus jocosus;Indian Peafowl=Pavo cristatus;Ringed Teal=Callonetta leucophrys;Canada Goose=Branta canadensis;Cackling Goose=Branta hutchinsii;Greater White-fronted Goose=Anser albifrons;Snow Goose=Anser caerulescens;Ross's Goose=Anser rossii;Brant=Branta bernicla;Tundra Swan=Cygnus columbianus;Wood Duck=Aix sponsa;Blue-winged Teal=Spatula discors;Cinnamon Teal=Spatula cyanoptera;Northern Shoveler=Spatula clypeata;Gadwall=Mareca strepera;Eurasian Wigeon=Mareca penelope;American Wigeon=Mareca americana;Mallard=Anas platyrhynchos;Northern Pintail=Anas acuta;Green-winged Teal=Anas crecca;Canvasback=Aythya valisineria;Redhead=Aythya americana;Ring-necked Duck=Aythya collaris;Greater Scaup=Aythya marila;Lesser Scaup=Aythya affinis;Surf Scoter=Melanitta perspicillata;White-winged Scoter=Melanitta deglandi;Black Scoter=Melanitta americana;Long-tailed Duck=Clangula hyemalis;Bufflehead=Bucephala albeola;Common Goldeneye=Bucephala clangula;Barrow's Goldeneye=Bucephala islandica;Hooded Merganser=Lophodytes cucullatus;Common Merganser=Mergus merganser;Red-breasted Merganser=Mergus serrator;Ruddy Duck=Oxyura jamaicensis;California Quail=Callipepla californica;Mountain Quail=Oreortyx pictus;Wild Turkey=Meleagris gallopavo;Pied-billed Grebe=Podilymbus podiceps;Horned Grebe=Podiceps auritus;Red-necked Grebe=Podiceps grisegena;Eared Grebe=Podiceps nigricollis;Western Grebe=Aechmophorus occidentalis;Clark's Grebe=Aechmophorus clarkii;Band-tailed Pigeon=Patagioenas fasciata;Mourning Dove=Zenaida macroura;Lesser Nighthawk=Chordeiles acutipennis;Common Poorwill=Phalaenoptilus nuttallii;Black Swift=Cypseloides niger;White-throated Swift=Aeronautes saxatalis;Black-chinned Hummingbird=Archilochus alexandri;Anna's Hummingbird=Calypte anna;Costa's Hummingbird=Calypte costae;Rufous Hummingbird=Selasphorus rufus;Allen's Hummingbird=Selasphorus sasin;Calliope Hummingbird=Selasphorus calliope;Virginia Rail=Rallus limicola;Sora=Porzana carolina;Common Gallinule=Gallinula galeata;American Coot=Fulica americana;Sandhill Crane=Antigone canadensis;Black-necked Stilt=Himantopus mexicanus;American Avocet=Recurvirostra americana;Black Oystercatcher=Haematopus bachmani;Black-bellied Plover=Pluvialis squatarola;American Golden-Plover=Pluvialis dominica;Pacific Golden-Plover=Pluvialis fulva;Killdeer=Charadrius vociferus;Semipalmated Plover=Charadrius semipalmatus;Snowy Plover=Anarhynchus nivosus;Whimbrel=Numenius phaeopus;Long-billed Curlew=Numenius americanus;Marbled Godwit=Limosa fedoa;Ruddy Turnstone=Arenaria interpres;Black Turnstone=Arenaria melanocephala;Surfbird=Calidris virgata;Red Knot=Calidris canutus;Sanderling=Calidris alba;Dunlin=Calidris alpina;Rock Sandpiper=Calidris ptilocnemis;Least Sandpiper=Calidris minutilla;Western Sandpiper=Calidris mauri;Pectoral Sandpiper=Calidris melanotos;Short-billed Dowitcher=Limnodromus griseus;Long-billed Dowitcher=Limnodromus scolopaceus;Wilson's Snipe=Gallinago delicata;Wilson's Phalarope=Phalaropus tricolor;Red-necked Phalarope=Phalaropus lobatus;Red Phalarope=Phalaropus fulicarius;Spotted Sandpiper=Actitis macularius;Solitary Sandpiper=Tringa solitaria;Wandering Tattler=Tringa incana;Greater Yellowlegs=Tringa melanoleuca;Lesser Yellowlegs=Tringa flavipes;Willet=Tringa semipalmata;Parasitic Jaeger=Stercorarius parasiticus;Pomarine Jaeger=Stercorarius pomarinus;Common Murre=Uria aalge;Pigeon Guillemot=Cepphus columba;Marbled Murrelet=Brachyramphus marmoratus;Ancient Murrelet=Synthliboramphus antiquus;Cassin's Auklet=Ptychoramphus aleuticus;Rhinoceros Auklet=Cerorhinca monocerata;Sabine's Gull=Xema sabini;Bonaparte's Gull=Chroicocephalus philadelphia;Heermann's Gull=Larus heermanni;Short-billed Gull=Larus brachyrhynchus;Ring-billed Gull=Larus delawarensis;Western Gull=Larus occidentalis;California Gull=Larus californicus;Herring Gull=Larus argentatus;Iceland Gull=Larus glaucoides;Glaucous-winged Gull=Larus glaucescens;Least Tern=Sternula antillarum;Caspian Tern=Hydroprogne caspia;Black Tern=Chlidonias niger;Common Tern=Sterna hirundo;Forster's Tern=Sterna forsteri;Elegant Tern=Thalasseus elegans;Black Skimmer=Rynchops niger;Red-throated Loon=Gavia stellata;Pacific Loon=Gavia pacifica;Common Loon=Gavia immer;Northern Fulmar=Fulmarus glacialis;Pink-footed Shearwater=Ardenna creatopus;Sooty Shearwater=Ardenna grisea;Black-vented Shearwater=Puffinus opisthomelas;Ashy Storm-Petrel=Hydrobates homochroa;Brandt's Cormorant=Urile penicillatus;Double-crested Cormorant=Nannopterum auritum;Pelagic Cormorant=Urile pelagicus;American White Pelican=Pelecanus erythrorhynchos;Brown Pelican=Pelecanus occidentalis;American Bittern=Botaurus lentiginosus;Least Bittern=Botaurus exilis;Great Blue Heron=Ardea herodias;Great Egret=Ardea alba;Snowy Egret=Egretta thula;Cattle Egret=Ardea ibis;Green Heron=Butorides virescens;Black-crowned Night Heron=Nycticorax nycticorax;White-faced Ibis=Plegadis chihi;Turkey Vulture=Cathartes aura;Osprey=Pandion haliaetus;White-tailed Kite=Elanus leucurus;Golden Eagle=Aquila chrysaetos;Northern Harrier=Circus hudsonius;Sharp-shinned Hawk=Accipiter striatus;Cooper's Hawk=Astur cooperii;Bald Eagle=Haliaeetus leucocephalus;Red-shouldered Hawk=Buteo lineatus;Swainson's Hawk=Buteo swainsoni;Red-tailed Hawk=Buteo jamaicensis;Ferruginous Hawk=Buteo regalis;Rough-legged Hawk=Buteo lagopus;Barn Owl=Tyto alba;Western Screech-Owl=Megascops kennicottii;Great Horned Owl=Bubo virginianus;Northern Pygmy-Owl=Glaucidium californicum;Burrowing Owl=Athene cunicularia;Spotted Owl=Strix occidentalis;Long-eared Owl=Asio otus;Short-eared Owl=Asio flammeus;Northern Saw-whet Owl=Aegolius acadicus;Belted Kingfisher=Megaceryle alcyon;Lewis's Woodpecker=Melanerpes lewis;Acorn Woodpecker=Melanerpes formicivorus;Williamson's Sapsucker=Sphyrapicus thyroideus;Red-breasted Sapsucker=Sphyrapicus ruber;Downy Woodpecker=Dryobates pubescens;Nuttall's Woodpecker=Dryobates nuttallii;Hairy Woodpecker=Dryobates villosus;White-headed Woodpecker=Dryobates albolarvatus;Northern Flicker=Colaptes auratus;Pileated Woodpecker=Dryocopus pileatus;American Kestrel=Falco sparverius;Merlin=Falco columbarius;Peregrine Falcon=Falco peregrinus;Prairie Falcon=Falco mexicanus;Olive-sided Flycatcher=Contopus cooperi;Western Wood-Pewee=Contopus sordidulus;Willow Flycatcher=Empidonax traillii;Hammond's Flycatcher=Empidonax hammondii;Gray Flycatcher=Empidonax wrightii;Dusky Flycatcher=Empidonax oberholseri;Pacific-slope Flycatcher=Empidonax difficilis;Black Phoebe=Sayornis nigricans;Say's Phoebe=Sayornis saya;Ash-throated Flycatcher=Myiarchus cinerascens;Tropical Kingbird=Tyrannus melancholicus;Cassin's Kingbird=Tyrannus vociferans;Western Kingbird=Tyrannus verticalis;Loggerhead Shrike=Lanius ludovicianus;Hutton's Vireo=Vireo huttoni;Cassin's Vireo=Vireo cassinii;Warbling Vireo=Vireo gilvus;Canada Jay=Perisoreus canadensis;Pinyon Jay=Gymnorhinus cyanocephalus;Steller's Jay=Cyanocitta stelleri;California Scrub-Jay=Aphelocoma californica;Black-billed Magpie=Pica hudsonia;Yellow-billed Magpie=Pica nuttalli;Clark's Nutcracker=Nucifraga columbiana;American Crow=Corvus brachyrhynchos;Common Raven=Corvus corax;Horned Lark=Eremophila alpestris;Tree Swallow=Tachycineta bicolor;Violet-green Swallow=Tachycineta thalassina;Northern Rough-winged Swallow=Stelgidopteryx serripennis;Purple Martin=Progne subis;Bank Swallow=Riparia riparia;Barn Swallow=Hirundo rustica;Cliff Swallow=Petrochelidon pyrrhonota;Mountain Chickadee=Poecile gambeli;Chestnut-backed Chickadee=Poecile rufescens;Oak Titmouse=Baeolophus inornatus;Bushtit=Psaltriparus minimus;Wrentit=Chamaea fasciata;Ruby-crowned Kinglet=Corthylio calendula;Golden-crowned Kinglet=Regulus satrapa;Red-breasted Nuthatch=Sitta canadensis;White-breasted Nuthatch=Sitta carolinensis;Pygmy Nuthatch=Sitta pygmaea;Brown Creeper=Certhia americana;Rock Wren=Salpinctes obsoletus;Canyon Wren=Catherpes mexicanus;House Wren=Troglodytes aedon;Pacific Wren=Troglodytes pacificus;Marsh Wren=Cistothorus palustris;Bewick's Wren=Thryomanes bewickii;Blue-gray Gnatcatcher=Polioptila caerulea;California Gnatcatcher=Polioptila californica;American Dipper=Cinclus mexicanus;Western Bluebird=Sialia mexicana;Mountain Bluebird=Sialia currucoides;Townsend's Solitaire=Myadestes townsendi;Swainson's Thrush=Catharus ustulatus;Hermit Thrush=Catharus guttatus;American Robin=Turdus migratorius;Varied Thrush=Ixoreus naevius;California Thrasher=Toxostoma redivivum;Sage Thrasher=Oreoscoptes montanus;Northern Mockingbird=Mimus polyglottos;Cedar Waxwing=Bombycilla cedrorum;Phainopepla=Phainopepla nitens;American Pipit=Anthus rubescens;Evening Grosbeak=Coccothraustes vespertinus;House Finch=Haemorhous mexicanus;Purple Finch=Haemorhous purpureus;Cassin's Finch=Haemorhous cassinii;Red Crossbill=Loxia curvirostra;Pine Siskin=Spinus pinus;Lesser Goldfinch=Spinus psaltria;Lawrence's Goldfinch=Spinus lawrencei;American Goldfinch=Spinus tristis;Grasshopper Sparrow=Ammodramus savannarum;Lark Sparrow=Chondestes grammacus;Chipping Sparrow=Spizella passerina;Clay-colored Sparrow=Spizella pallida;Black-chinned Sparrow=Spizella atrogularis;Brewer's Sparrow=Spizella breweri;Fox Sparrow=Passerella iliaca;American Tree Sparrow=Spizelloides arborea;Dark-eyed Junco=Junco hyemalis;White-crowned Sparrow=Zonotrichia leucophrys;Golden-crowned Sparrow=Zonotrichia atricapilla;Harris's Sparrow=Zonotrichia querula;White-throated Sparrow=Zonotrichia albicollis;Sagebrush Sparrow=Artemisiospiza nevadensis;Bell's Sparrow=Artemisiospiza belli;Vesper Sparrow=Pooecetes gramineus;Savannah Sparrow=Passerculus sandwichensis;Song Sparrow=Melospiza melodia;Lincoln's Sparrow=Melospiza lincolnii;Swamp Sparrow=Melospiza georgiana;Green-tailed Towhee=Pipilo chlorurus;Spotted Towhee=Pipilo maculatus;California Towhee=Melozone crissalis;Rufous-crowned Sparrow=Aimophila ruficeps;Yellow-breasted Chat=Icteria virens;Yellow-headed Blackbird=Xanthocephalus xanthocephalus;Western Meadowlark=Sturnella neglecta;Bullock's Oriole=Icterus bullockii;Hooded Oriole=Icterus cucullatus;Scott's Oriole=Icterus parisorum;Red-winged Blackbird=Agelaius phoeniceus;Tricolored Blackbird=Agelaius tricolor;Brown-headed Cowbird=Molothrus ater;Brewer's Blackbird=Euphagus cyanocephalus;Great-tailed Grackle=Quiscalus mexicanus;Ovenbird=Seiurus aurocapilla;Northern Waterthrush=Parkesia noveboracensis;Black-and-white Warbler=Mniotilta varia;Tennessee Warbler=Leiothlypis peregrina;Orange-crowned Warbler=Leiothlypis celata;Nashville Warbler=Leiothlypis ruficapilla;MacGillivray's Warbler=Geothlypis tolmiei;Common Yellowthroat=Geothlypis trichas;American Redstart=Setophaga ruticilla;Northern Parula=Setophaga americana;Magnolia Warbler=Setophaga magnolia;Yellow Warbler=Setophaga petechia;Chestnut-sided Warbler=Setophaga pensylvanica;Palm Warbler=Setophaga palmarum;Yellow-rumped Warbler=Setophaga coronata;Black-throated Gray Warbler=Setophaga nigrescens;Townsend's Warbler=Setophaga townsendi;Hermit Warbler=Setophaga occidentalis;Wilson's Warbler=Cardellina pusilla;Summer Tanager=Piranga rubra;Western Tanager=Piranga ludoviciana;Rose-breasted Grosbeak=Pheucticus ludovicianus;Black-headed Grosbeak=Pheucticus melanocephalus;Blue Grosbeak=Passerina caerulea;Lazuli Bunting=Passerina amoena;Indigo Bunting=Passerina cyanea`.split(';').map(p => p.split('=')));
+function taxonCode(name) { return name.toLowerCase().replace(/[^a-z ]/g, '').split(' ').map((w, i, a) => a.length === 1 ? w.slice(0, 6) : i < a.length - 1 ? w.slice(0, 3) : w.slice(0, 3)).join('').slice(0, 6); }
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+function fmtDate(iso) { const [y, m, d] = iso.split('-').map(Number); return `${MONTHS[m - 1]} ${d}, ${y}`; }
+function clockToTime(c) { if (!c || !/^\d{3,4}$/.test(c)) return null; const n = c.padStart(4, '0'); let h = +n.slice(0, 2); const mm = n.slice(2); if (h > 23) return null; const ap = h >= 12 ? 'PM' : 'AM'; h = h % 12; if (h === 0) h = 12; return `${h}:${mm} ${ap}`; }
+function timeMinutes(t) { if (!t) return null; const m = /^(\d{1,2}):(\d{2}) (AM|PM)$/.exec(t); if (!m) return null; let h = +m[1] % 12; if (m[3] === 'PM') h += 12; return h * 60 + +m[2]; }
+function addDays(iso, n) { const d = new Date(Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10))); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); }
+
+// [name, class, date, time, submissionId, location, county, state]
+const HAND = [
+  ['Rustic Bunting', 'native', '2026-10-31', '8:12 AM', 'S258117734', 'Point Reyes Lighthouse', 'Marin', 'CA'],
+  ['Sharp-tailed Sandpiper', 'native', '2026-10-12', '3:40 PM', 'S256820019', 'Hayward Regional Shoreline', 'Alameda', 'CA'],
+  ['Brown Booby', 'native', '2026-09-20', '11:05 AM', 'S255301188', 'Pigeon Point Lighthouse', 'San Mateo', 'CA'],
+  ['Blackpoll Warbler', 'native', '2026-09-14', '9:27 AM', 'S254873320', 'Coyote Hills Regional Park', 'Alameda', 'CA'],
+  ['Baird\'s Sandpiper', 'native', '2026-08-30', '7:48 AM', 'S253910045', 'Arrowhead Marsh', 'Alameda', 'CA'],
+  ['Vaux\'s Swift', 'native', '2026-08-22', null, 'S253402210', 'Rio Lindo Academy chimney', 'Sonoma', 'CA'],
+  ['Lucy\'s Warbler', 'native', '2026-07-05', '6:50 AM', 'S250118806', 'Patagonia Lake State Park', 'Santa Cruz', 'AZ'],
+  ['Five-striped Sparrow', 'native', '2026-07-04', '10:20 AM', 'S250061391', 'California Gulch', 'Santa Cruz', 'AZ'],
+  ['Elegant Trogon', 'native', '2026-07-04', '7:15 AM', 'S250048872', 'Madera Canyon', 'Santa Cruz', 'AZ'],
+  ['Varied Bunting', 'native', '2026-07-03', '8:05 AM', 'S249990117', 'Patagonia-Sonoita Creek Preserve', 'Santa Cruz', 'AZ'],
+  ['Thick-billed Kingbird', 'native', '2026-07-03', '7:30 AM', 'S249988450', 'Patagonia Roadside Rest Area', 'Santa Cruz', 'AZ'],
+  ['Violet-crowned Hummingbird', 'native', '2026-07-02', '4:10 PM', 'S249942208', 'Paton Center for Hummingbirds', 'Santa Cruz', 'AZ'],
+  ['Montezuma Quail', 'native', '2026-07-02', '7:55 AM', 'S249930661', 'Harshaw Road', 'Santa Cruz', 'AZ'],
+  ['Tufted Puffin', 'native', '2026-06-14', '9:30 AM', 'S248701922', 'Southeast Farallon Island', 'San Francisco', 'CA'],
+  ['Black-footed Albatross', 'native', '2026-06-14', '8:05 AM', 'S248701922', 'Half Moon Bay pelagic', 'San Mateo', 'CA'],
+  ['Scaly-breasted Munia', 'exotic', '2025-11-02', '2:15 PM', 'S232558104', 'Lake Merritt', 'Alameda', 'CA'],
+  ['Great Gray Owl', 'native', '2025-06-21', '5:52 AM', 'S224807719', 'Yosemite National Park--Crane Flat', 'Mariposa', 'CA'],
+  ['Mandarin Duck', 'escapee', '2025-03-09', '10:40 AM', 'S218009463', 'Lake Merritt', 'Alameda', 'CA'],
+  ['Bar-tailed Godwit', 'native', '2024-09-07', '1:25 PM', 'S194300571', 'Abbotts Lagoon', 'Marin', 'CA'],
+  ['Northern Hawk Owl', 'native', '2024-02-17', '9:10 AM', 'S162250980', 'Sax-Zim Bog', 'St. Louis', 'MN'],
+  ['Boreal Chickadee', 'native', '2024-02-17', '8:35 AM', 'S162250980', 'Sax-Zim Bog', 'St. Louis', 'MN'],
+  ['Pine Grosbeak', 'native', '2024-02-16', '11:20 AM', 'S162190222', 'Sax-Zim Bog', 'St. Louis', 'MN'],
+  ['Black-backed Woodpecker', 'native', '2024-02-16', '11:20 AM', 'S162190222', 'Sax-Zim Bog', 'St. Louis', 'MN'],
+  ['Pin-tailed Whydah', 'exotic', '2023-08-19', '3:05 PM', 'S147552012', 'Irvine Regional Park', 'Orange', 'CA'],
+  ['Black Swan', 'escapee', '2023-05-06', null, 'S136410887', 'Lake Merritt', 'Alameda', 'CA'],
+];
+
+const POOL = `Canada Goose|Cackling Goose|Greater White-fronted Goose|Snow Goose|Ross's Goose|Brant|Tundra Swan|Wood Duck|Blue-winged Teal|Cinnamon Teal|Northern Shoveler|Gadwall|Eurasian Wigeon|American Wigeon|Mallard|Northern Pintail|Green-winged Teal|Canvasback|Redhead|Ring-necked Duck|Greater Scaup|Lesser Scaup|Surf Scoter|White-winged Scoter|Black Scoter|Long-tailed Duck|Bufflehead|Common Goldeneye|Barrow's Goldeneye|Hooded Merganser|Common Merganser|Red-breasted Merganser|Ruddy Duck|California Quail|Mountain Quail|Wild Turkey|Pied-billed Grebe|Horned Grebe|Red-necked Grebe|Eared Grebe|Western Grebe|Clark's Grebe|Band-tailed Pigeon|Mourning Dove|Lesser Nighthawk|Common Poorwill|Black Swift|White-throated Swift|Black-chinned Hummingbird|Anna's Hummingbird|Costa's Hummingbird|Rufous Hummingbird|Allen's Hummingbird|Calliope Hummingbird|Virginia Rail|Sora|Common Gallinule|American Coot|Sandhill Crane|Black-necked Stilt|American Avocet|Black Oystercatcher|Black-bellied Plover|American Golden-Plover|Pacific Golden-Plover|Killdeer|Semipalmated Plover|Snowy Plover|Whimbrel|Long-billed Curlew|Marbled Godwit|Ruddy Turnstone|Black Turnstone|Surfbird|Red Knot|Sanderling|Dunlin|Rock Sandpiper|Least Sandpiper|Western Sandpiper|Pectoral Sandpiper|Short-billed Dowitcher|Long-billed Dowitcher|Wilson's Snipe|Wilson's Phalarope|Red-necked Phalarope|Red Phalarope|Spotted Sandpiper|Solitary Sandpiper|Wandering Tattler|Greater Yellowlegs|Lesser Yellowlegs|Willet|Parasitic Jaeger|Pomarine Jaeger|Common Murre|Pigeon Guillemot|Marbled Murrelet|Ancient Murrelet|Cassin's Auklet|Rhinoceros Auklet|Sabine's Gull|Bonaparte's Gull|Heermann's Gull|Short-billed Gull|Ring-billed Gull|Western Gull|California Gull|Herring Gull|Iceland Gull|Glaucous-winged Gull|Least Tern|Caspian Tern|Black Tern|Common Tern|Forster's Tern|Elegant Tern|Black Skimmer|Red-throated Loon|Pacific Loon|Common Loon|Northern Fulmar|Pink-footed Shearwater|Sooty Shearwater|Black-vented Shearwater|Ashy Storm-Petrel|Brandt's Cormorant|Double-crested Cormorant|Pelagic Cormorant|American White Pelican|Brown Pelican|American Bittern|Least Bittern|Great Blue Heron|Great Egret|Snowy Egret|Cattle Egret|Green Heron|Black-crowned Night Heron|White-faced Ibis|Turkey Vulture|Osprey|White-tailed Kite|Golden Eagle|Northern Harrier|Sharp-shinned Hawk|Cooper's Hawk|Bald Eagle|Red-shouldered Hawk|Swainson's Hawk|Red-tailed Hawk|Ferruginous Hawk|Rough-legged Hawk|Barn Owl|Western Screech-Owl|Great Horned Owl|Northern Pygmy-Owl|Burrowing Owl|Spotted Owl|Long-eared Owl|Short-eared Owl|Northern Saw-whet Owl|Belted Kingfisher|Lewis's Woodpecker|Acorn Woodpecker|Williamson's Sapsucker|Red-breasted Sapsucker|Downy Woodpecker|Nuttall's Woodpecker|Hairy Woodpecker|White-headed Woodpecker|Northern Flicker|Pileated Woodpecker|American Kestrel|Merlin|Peregrine Falcon|Prairie Falcon|Olive-sided Flycatcher|Western Wood-Pewee|Willow Flycatcher|Hammond's Flycatcher|Gray Flycatcher|Dusky Flycatcher|Pacific-slope Flycatcher|Black Phoebe|Say's Phoebe|Ash-throated Flycatcher|Tropical Kingbird|Cassin's Kingbird|Western Kingbird|Loggerhead Shrike|Hutton's Vireo|Cassin's Vireo|Warbling Vireo|Canada Jay|Pinyon Jay|Steller's Jay|California Scrub-Jay|Black-billed Magpie|Yellow-billed Magpie|Clark's Nutcracker|American Crow|Common Raven|Horned Lark|Tree Swallow|Violet-green Swallow|Northern Rough-winged Swallow|Purple Martin|Bank Swallow|Barn Swallow|Cliff Swallow|Mountain Chickadee|Chestnut-backed Chickadee|Oak Titmouse|Bushtit|Wrentit|Ruby-crowned Kinglet|Golden-crowned Kinglet|Red-breasted Nuthatch|White-breasted Nuthatch|Pygmy Nuthatch|Brown Creeper|Rock Wren|Canyon Wren|House Wren|Pacific Wren|Marsh Wren|Bewick's Wren|Blue-gray Gnatcatcher|California Gnatcatcher|American Dipper|Western Bluebird|Mountain Bluebird|Townsend's Solitaire|Swainson's Thrush|Hermit Thrush|American Robin|Varied Thrush|California Thrasher|Sage Thrasher|Northern Mockingbird|Cedar Waxwing|Phainopepla|American Pipit|Evening Grosbeak|House Finch|Purple Finch|Cassin's Finch|Red Crossbill|Pine Siskin|Lesser Goldfinch|Lawrence's Goldfinch|American Goldfinch|Grasshopper Sparrow|Lark Sparrow|Chipping Sparrow|Clay-colored Sparrow|Black-chinned Sparrow|Brewer's Sparrow|Fox Sparrow|American Tree Sparrow|Dark-eyed Junco|White-crowned Sparrow|Golden-crowned Sparrow|Harris's Sparrow|White-throated Sparrow|Sagebrush Sparrow|Bell's Sparrow|Vesper Sparrow|Savannah Sparrow|Song Sparrow|Lincoln's Sparrow|Swamp Sparrow|Green-tailed Towhee|Spotted Towhee|California Towhee|Rufous-crowned Sparrow|Yellow-breasted Chat|Yellow-headed Blackbird|Western Meadowlark|Bullock's Oriole|Hooded Oriole|Scott's Oriole|Red-winged Blackbird|Tricolored Blackbird|Brown-headed Cowbird|Brewer's Blackbird|Great-tailed Grackle|Ovenbird|Northern Waterthrush|Black-and-white Warbler|Tennessee Warbler|Orange-crowned Warbler|Nashville Warbler|MacGillivray's Warbler|Common Yellowthroat|American Redstart|Northern Parula|Magnolia Warbler|Yellow Warbler|Chestnut-sided Warbler|Palm Warbler|Yellow-rumped Warbler|Black-throated Gray Warbler|Townsend's Warbler|Hermit Warbler|Wilson's Warbler|Summer Tanager|Western Tanager|Rose-breasted Grosbeak|Black-headed Grosbeak|Blue Grosbeak|Lazuli Bunting|Indigo Bunting`.split('|');
+const EXOTIC_POOL = ['Rock Pigeon', 'Eurasian Collared-Dove', 'European Starling', 'House Sparrow', 'Egyptian Goose', 'Red-whiskered Bulbul'];
+const ESCAPEE_POOL = ['Indian Peafowl', 'Ringed Teal'];
+
+const PLACES = [
+  ['Arrowhead Marsh', 'Alameda', 'CA'], ['Lake Merritt', 'Alameda', 'CA'], ['Coyote Hills Regional Park', 'Alameda', 'CA'],
+  ['Hayward Regional Shoreline', 'Alameda', 'CA'], ['Sunol Regional Wilderness', 'Alameda', 'CA'], ['Mines Road', 'Alameda', 'CA'],
+  ['Don Edwards NWR--Alviso', 'Santa Clara', 'CA'], ['Point Reyes National Seashore--Outer Point', 'Marin', 'CA'],
+  ['Abbotts Lagoon', 'Marin', 'CA'], ['Bodega Bay', 'Sonoma', 'CA'], ['Mount Diablo State Park', 'Contra Costa', 'CA'],
+  ['Tilden Regional Park', 'Contra Costa', 'CA'], ['Pescadero Marsh', 'San Mateo', 'CA'], ['Golden Gate Park', 'San Francisco', 'CA'],
+  ['Sacramento NWR', 'Glenn', 'CA'], ['Colusa NWR', 'Colusa', 'CA'], ['Mono Lake County Park', 'Mono', 'CA'],
+  ['Yosemite National Park--Crane Flat', 'Mariposa', 'CA'], ['Salton Sea--Sonny Bono NWR', 'Imperial', 'CA'],
+  ['Big Morongo Canyon Preserve', 'San Bernardino', 'CA'], ['Malheur NWR', 'Harney', 'OR'], ['Skagit Flats', 'Skagit', 'WA'],
+  ['Magee Marsh Wildlife Area', 'Lucas', 'OH'], ['Cape May Point State Park', 'Cape May', 'NJ'], ['Santa Ana NWR', 'Hidalgo', 'TX'],
+  ['Bosque del Apache NWR', 'Socorro', 'NM'], ['Anhinga Trail', 'Miami-Dade', 'FL'],
+];
+
+// Deterministic sequence so every reload shows the same list.
+let seed = 20261106;
+function rnd() { seed = (seed * 1664525 + 1013904223) % 4294967296; return seed / 4294967296; }
+function pick(a) { return a[Math.floor(rnd() * a.length)]; }
+
+const SPECIES = [];
+let idCounter = 136000000;
+for (const h of HAND) {
+  if (h[1] === 'skip') continue;
+  SPECIES.push({ name: h[0], cls: h[1], first: { d: h[2], t: h[3], id: h[4], loc: h[5], county: h[6], st: h[7] }, media: {} });
+}
+// Generated history: 2023-04 back to the first checklist in 2009. Common species
+// pile up in the first two years, as a real life list does.
+let cursor = '2023-04-20';
+const gen = [];
+const localPool = POOL.slice();
+for (let i = 0; i < 300 && localPool.length; i++) {
+  const idx = Math.floor(rnd() * localPool.length);
+  const name = localPool.splice(idx, 1)[0];
+  gen.push(name);
+}
+const allGen = gen.map(n => ({ name: n, cls: 'native' }))
+  .concat(EXOTIC_POOL.map(n => ({ name: n, cls: 'exotic' })))
+  .concat(ESCAPEE_POOL.map(n => ({ name: n, cls: 'escapee' })));
+// Shuffle the exotics and escapees into the stream.
+for (let i = allGen.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [allGen[i], allGen[j]] = [allGen[j], allGen[i]]; }
+const total = allGen.length;
+allGen.forEach((s, i) => {
+  // Early years step back by hours; later years by weeks.
+  const frac = i / total;
+  const stepDays = frac < 0.5 ? Math.floor(rnd() * 28) + 1 : frac < 0.8 ? Math.floor(rnd() * 6) : Math.floor(rnd() * 2);
+  cursor = addDays(cursor, -stepDays);
+  idCounter -= Math.floor(rnd() * 400000) + 20000;
+  const p = pick(PLACES);
+  const blank = rnd() < 0.12;
+  const h = 6 + Math.floor(rnd() * 11), m = Math.floor(rnd() * 60);
+  const t = blank ? null : `${h > 12 ? h - 12 : h}:${String(m).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`;
+  const junk = rnd() < 0.015;
+  SPECIES.push({ name: s.name, cls: s.cls, first: { d: cursor, t, id: junk ? 'junk' : `S${idCounter}`, loc: p[0], county: p[1], st: p[2] }, media: {} });
+});
+
+// Media firsts. A species with video never has audio, so Audio + Video is a
+// selection that matches nothing and FR-34's second sentence is reachable.
+let mlId = 640000000;
+for (const s of SPECIES) {
+  const hasPhoto = rnd() < 0.62, hasVideo = rnd() < 0.1, hasAudio = !hasVideo && rnd() < 0.3;
+  const mk = () => {
+    const d = addDays(s.first.d, Math.floor(rnd() * rnd() * 2400));
+    const dd = d > '2026-11-01' ? s.first.d : d;
+    const p = pick(PLACES);
+    const clock = rnd() < 0.15 ? '' : String(6 + Math.floor(rnd() * 11)).padStart(2, '0') + String(Math.floor(rnd() * 60)).padStart(2, '0');
+    mlId += Math.floor(rnd() * 90000) + 1000;
+    return { d: dd, clock, id: rnd() < 0.9 ? `S${Math.floor(100000000 + rnd() * 150000000)}` : '', loc: p[0], county: p[1], catalog: mlId };
+  };
+  if (hasPhoto) s.media.photo = mk();
+  if (hasAudio) s.media.audio = mk();
+  if (hasVideo) s.media.video = mk();
+}
+// The showcase rows, set by hand so the first screen tells the story.
+function setMedia(name, fmt, d, clock, id, loc, county) { const s = SPECIES.find(x => x.name === name); if (s) s.media[fmt] = { d, clock, id, loc, county, catalog: 600000000 + SPECIES.indexOf(s) }; }
+function clearMedia(name) { const s = SPECIES.find(x => x.name === name); if (s) s.media = {}; }
+['Rustic Bunting', 'Sharp-tailed Sandpiper', 'Brown Booby', 'Blackpoll Warbler', 'Baird\'s Sandpiper', 'Vaux\'s Swift', 'Five-striped Sparrow', 'Elegant Trogon', 'Tufted Puffin', 'Black-footed Albatross', 'Pacific Wren', 'Great Gray Owl', 'Scaly-breasted Munia', 'Mandarin Duck', 'Black Swan', 'Montezuma Quail', 'Bar-tailed Godwit'].forEach(clearMedia);
+setMedia('Rustic Bunting', 'photo', '2026-10-31', '0831', 'S258117734', 'Point Reyes Lighthouse', 'Marin');
+setMedia('Sharp-tailed Sandpiper', 'photo', '2026-10-12', '1552', 'S256820019', 'Hayward Regional Shoreline', 'Alameda');
+setMedia('Sharp-tailed Sandpiper', 'video', '2026-10-13', '0908', 'S256901334', 'Hayward Regional Shoreline', 'Alameda');
+setMedia('Brown Booby', 'photo', '2026-09-20', '1109', 'S255301188', 'Pigeon Point Lighthouse', 'San Mateo');
+setMedia('Blackpoll Warbler', 'photo', '2026-09-14', '0940', 'S254873320', 'Coyote Hills Regional Park', 'Alameda');
+setMedia('Blackpoll Warbler', 'audio', '2026-09-16', '0802', 'S254961107', 'Coyote Hills Regional Park', 'Alameda');
+setMedia('Vaux\'s Swift', 'video', '2026-08-22', '', 'S253402210', 'Rio Lindo Academy chimney', 'Sonoma');
+setMedia('Elegant Trogon', 'photo', '2026-07-04', '0722', 'S250048872', 'Madera Canyon', 'Santa Cruz');
+setMedia('Elegant Trogon', 'audio', '2026-07-04', '0719', 'S250048872', 'Madera Canyon', 'Santa Cruz');
+setMedia('Five-striped Sparrow', 'audio', '2026-07-04', '1031', 'S250061391', 'California Gulch', 'Santa Cruz');
+setMedia('Tufted Puffin', 'photo', '2026-06-14', '0934', 'S248701922', 'Half Moon Bay pelagic', 'San Mateo');
+setMedia('Black-footed Albatross', 'photo', '2026-06-14', '0810', 'S248701922', 'Half Moon Bay pelagic', 'San Mateo');
+setMedia('Pacific Wren', 'photo', '2014-05-10', '0845', 'S18204411', 'Muir Woods National Monument', 'Marin');
+setMedia('Pacific Wren', 'audio', '2026-04-19', '0712', 'S244150377', 'Muir Woods National Monument', 'Marin');
+setMedia('Great Gray Owl', 'photo', '2025-06-21', '0602', 'S224807719', 'Yosemite National Park--Crane Flat', 'Mariposa');
+setMedia('Scaly-breasted Munia', 'photo', '2025-11-02', '1420', 'S232558104', 'Lake Merritt', 'Alameda');
+setMedia('Mandarin Duck', 'photo', '2025-03-09', '1047', 'S218009463', 'Lake Merritt', 'Alameda');
+setMedia('Bar-tailed Godwit', 'photo', '2024-09-07', '1331', 'S194300571', 'Abbotts Lagoon', 'Marin');
+setMedia('Montezuma Quail', 'audio', '2026-07-02', '0801', 'S249930661', 'Harshaw Road', 'Santa Cruz');
+
+/* ============================================================================
+   Copy, verbatim from the PRD (FR-20, FR-27, FR-33, FR-34).
+   ========================================================================== */
+const FORMATS = [
+  { key: 'photo', label: 'Photo', icon: 'camera', withNoun: 'a photo', firstNoun: 'your first photo' },
+  { key: 'audio', label: 'Audio', icon: 'mic', withNoun: 'audio', firstNoun: 'your first audio recording' },
+  { key: 'video', label: 'Video', icon: 'video', withNoun: 'video', firstNoun: 'your first video' },
+];
+const STATUS_UNRESOLVED = 'Escapee and exotic status comes from the exotic status check on Statistics, which has not finished for this export, so species it has not settled are listed.';
+const STATUS_RESOLVED = 'Escapee and exotic status comes from the exotic status check on Statistics, so with both switches off this list can be shorter than the Statistics species figure.';
+const ML_NONE = 'Photo, audio, and video life lists need your Macaulay Library export, saved in Settings under Default Files.';
+const ML_UNREADABLE = 'SnowRaven couldn\'t read your Macaulay Library export, so photo, audio, and video life lists are unavailable; re-upload it in Settings under Default Files.';
+const EBIRD_LOAD_ERROR = 'Couldn\'t load your eBird backup. Re-upload MyEBirdData.csv in Settings → Default Files → eBird Backup.';
+function countSentence(n, sel) {
+  const N = n.toLocaleString('en-US');
+  const on = FORMATS.filter(f => sel.has(f.key));
+  if (on.length === 0) return [N, ' species, newest first by the date of your first sighting.'];
+  if (on.length === 1) return [N, ` species with ${on[0].withNoun}, newest first by the date of ${on[0].firstNoun}.`];
+  if (on.length === 2) return [N, ` species with ${on[0].withNoun} and ${on[1].withNoun}, newest first by the date each had both.`];
+  return [N, ' species with a photo, audio, and video, newest first by the date each had all three.'];
+}
+function emptySentence(sel) { return sel.size === 0 ? 'No countable species in your eBird backup yet.' : 'No species matches this selection yet.'; }
+
+/* ============================================================================
+   Derivation (pass 3 of the schema: filter by switches, narrow and date by
+   media, sort newest first).
+   ========================================================================== */
+const PAGE_SIZE = 100;
+const state = { escapees: false, exotics: false, sel: new Set(), shown: PAGE_SIZE, backup: 'ready', ml: 'ready', prov: 'resolved', media: 'quiet' };
+let prevNames = null;
+
+function deriveRows() {
+  const out = [];
+  for (const s of SPECIES) {
+    const cls = state.prov === 'resolved' ? s.cls : 'native';
+    if (cls === 'escapee' && !state.escapees) continue;
+    if (cls === 'exotic' && !state.exotics) continue;
+    let row;
+    if (state.sel.size === 0 || state.ml !== 'ready') {
+      if (state.sel.size > 0) continue; // media buttons are inert without a readable export
+      row = { name: s.name, d: s.first.d, t: s.first.t, id: s.first.id, loc: s.first.loc, county: s.first.county, st: s.first.st, src: 'ebird', has: s.media };
+    } else {
+      let latest = null;
+      let ok = true;
+      for (const f of FORMATS) {
+        if (!state.sel.has(f.key)) continue;
+        const a = s.media[f.key];
+        if (!a) { ok = false; break; }
+        const t = clockToTime(a.clock);
+        const cand = { name: s.name, d: a.d, t, id: a.id, loc: a.loc, county: a.county, st: null, src: 'ml', fmt: f.key, has: s.media };
+        if (!latest || later(cand, latest)) latest = cand;
+      }
+      if (!ok) continue;
+      row = latest;
+    }
+    out.push(row);
+  }
+  out.sort((a, b) => {
+    if (a.d !== b.d) return a.d < b.d ? 1 : -1;
+    const ta = timeMinutes(a.t), tb = timeMinutes(b.t);
+    if (ta !== tb) { if (ta === null) return 1; if (tb === null) return -1; return tb - ta; }
+    return a.name.localeCompare(b.name);
+  });
+  return out;
+}
+function later(a, b) {
+  if (a.d !== b.d) return a.d > b.d;
+  const ta = timeMinutes(a.t), tb = timeMinutes(b.t);
+  if (ta !== tb) { if (ta === null) return true; if (tb === null) return false; return ta > tb; }
+  return a.fmt > b.fmt;
+}
+function isValidChecklistId(id) { return /^S\d+$/.test(id || ''); }
+function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+
+/* ============================================================================
+   Render. One template, drawn into both shells.
+   ========================================================================== */
+function renderTab(root, prefix, focusTarget) {
+  if (state.backup === 'none') { root.innerHTML = setupPanel(); return; }
+  if (state.backup === 'bad') { root.innerHTML = `<div class="sr-err-frame"><div role="alert" class="sr-tab-load-alert sr-err-box">${icon('alert', 14, 2.5)}<span>${esc(EBIRD_LOAD_ERROR)}</span></div><button type="button" class="sr-err-btn">Go to Settings</button></div>`; return; }
+  if (state.backup === 'loading') { root.innerHTML = `<div role="status" aria-label="Loading your life list" class="sr-loading">${icon('loader', 24, 2, 'spin')}</div>`; return; }
+
+  const rows = deriveRows();
+  const names = new Set(rows.map(r => r.name));
+  const newNames = prevNames ? new Set([...names].filter(n => !prevNames.has(n))) : new Set();
+  const visible = rows.slice(0, Math.min(state.shown, rows.length));
+  const hasMore = rows.length > visible.length;
+  const [N, rest] = countSentence(rows.length, state.sel);
+  const mlInert = state.ml !== 'ready';
+  const noteId = `${prefix}-ml-note`;
+
+  let h = '';
+  h += `<div class="sr-lfl-head"><div class="sr-lfl-head-tile">${icon('listchecks', 15, 2.2)}</div><div><h2>Life Lists</h2><p>Every species you've recorded, newest first, with the checklist and place of your first sighting, or of your first photo, audio, or video.</p></div></div>`;
+  h += `<div class="sr-lfl-card">`;
+  h += `<div class="sr-lfl-controls sr-ctl-row"><div class="sr-lfl-ctl-row">`;
+  h += toggle(`${prefix}-esc`, 'Include Escapees', state.escapees, 'escapees');
+  h += toggle(`${prefix}-exo`, 'Include Exotics', state.exotics, 'exotics');
+  h += `<span class="sr-pill-sep sr-pill-sep--spaced" aria-hidden="true"></span>`;
+  h += `<span class="sr-ctl-label sr-lfl-label" id="${prefix}-media-label">Media</span>`;
+  h += `<span role="group" aria-labelledby="${prefix}-media-label" class="sr-lfl-media-group">`;
+  for (const f of FORMATS) {
+    h += `<button type="button" class="sr-pill sr-lfl-pill sr-touch-target" data-fmt="${f.key}" aria-pressed="${state.sel.has(f.key)}"${mlInert ? ` aria-disabled="true" aria-describedby="${noteId}"` : ''}>${icon(f.icon, 12, 2.2)}${f.label}</button>`;
+  }
+  h += `</span></div>`;
+  if (mlInert) h += `<p class="sr-lfl-ml-note" id="${noteId}">${esc(state.ml === 'none' ? ML_NONE : ML_UNREADABLE)}</p>`;
+  h += `</div>`;
+
+  h += `<div class="sr-lfl-lead"><p class="sr-lfl-count" id="${prefix}-count" tabindex="-1"><b>${N}</b>${esc(rest)}</p><span class="sr-only" role="status" aria-live="polite"><span>${N}${esc(rest)}</span></span>`;
+  h += `<p class="sr-lfl-status">${esc(state.prov === 'resolved' ? STATUS_RESOLVED : STATUS_UNRESOLVED)}</p></div>`;
+
+  if (rows.length === 0) {
+    h += `<p class="sr-lfl-empty">${esc(emptySentence(state.sel))}</p>`;
+  } else {
+    h += `<ol class="sr-lfl-list">`;
+    visible.forEach((r, i) => {
+      const valid = isValidChecklistId(r.id);
+      h += `<li class="sr-lfl-row${newNames.has(r.name) ? ' is-new' : ''}">`;
+      h += `<div class="sr-lfl-num" aria-hidden="true">${rows.length - i}</div>`;
+      h += `<div class="sr-lfl-name"><span class="sr-only">${rows.length - i} of ${rows.length}. </span>${birdName(r.name)}</div>`;
+      h += `<div class="sr-lfl-meta"><span class="sr-lfl-date">${fmtDate(r.d)}</span><span class="sr-lfl-time">${r.t ? esc(r.t) : '<span class="sr-lfl-dash">-</span>'}</span></div>`;
+      h += `<div class="sr-lfl-link">` + (valid
+        ? `<a class="sr-lfl-cl" href="https://ebird.org/checklist/${esc(r.id)}" target="_blank" rel="noreferrer" aria-label="Open checklist ${esc(r.id)} on eBird (opens in a new tab)">${icon('external', 11, 2.5)}</a>`
+        : `<span class="sr-lfl-dash" aria-hidden="true">-</span><span class="sr-only">No checklist</span>`) + `</div>`;
+      const county = [r.county, r.st].filter(Boolean).join(', ');
+      h += `<div class="sr-lfl-place"><span class="sr-lfl-locname">${esc(r.loc)}</span>${county ? `<span class="sr-lfl-county">${esc(county)}</span>` : ''}</div>${mediaCell(r.has)}`;
+      h += `</li>`;
+    });
+    h += `</ol>`;
+    if (hasMore) {
+      h += `<div class="sr-lfl-paging"><button type="button" class="sr-lfl-next sr-touch-target" data-act="next">Show next ${PAGE_SIZE}</button><button type="button" class="sr-lfl-all sr-touch-target" data-act="all">Show all (${rows.length.toLocaleString('en-US')})</button><span class="sr-lfl-showing">Showing 1&ndash;${visible.length.toLocaleString('en-US')}</span></div>`;
+    }
+  }
+  h += `</div>`;
+  root.innerHTML = h;
+
+  if (focusTarget === 'next') { const b = root.querySelector('[data-act="next"]'); if (b) b.focus(); else root.querySelector(`#${prefix}-count`).focus(); }
+  if (focusTarget === 'count') root.querySelector(`#${prefix}-count`).focus();
+}
+function birdName(name) {
+  const sci = SCI[name] || '';
+  const code = taxonCode(name);
+  const mark = (href, dest, src, glyph) => `<a class="sr-species-link" href="${href}" target="_blank" rel="noreferrer" aria-label="View ${esc(name)} on ${dest} (opens in a new tab)" title="View ${esc(name)} on ${dest}"><span class="sr-favicon-slot"><img class="sr-favicon" src="${src}" alt="" aria-hidden="true" loading="lazy" decoding="async" width="14" height="14" onerror="this.parentNode.classList.add('is-failed')">${icon(glyph, 14, 2.2, 'sr-favicon-fallback')}</span></a>`;
+  return `<span class="sr-birdname sr-birdname-md"><span class="sr-birdname-row"><button type="button" class="sr-birdname-link">${esc(name)}</button><span class="sr-species-links">${mark(`https://ebird.org/species/${code}`, 'eBird', 'https://ebird.org/favicon.ico', 'globe')}${mark(`https://birdsoftheworld.org/bow/species/${code}/cur/introduction`, 'Birds of the World', 'https://birdsoftheworld.org/favicon.ico', 'library')}</span></span>${sci ? `<span class="sr-birdname-sci">${esc(sci)}</span>` : ''}</span>`;
+}
+function mediaCell(has) {
+  if (state.media === 'off') return '';
+  const present = FORMATS.filter(f => has && has[f.key]);
+  const label = present.length ? 'Media: ' + present.map(f => f.label.toLowerCase()).join(', ') : 'No media';
+  if (state.media === 'count') {
+    return `<span class="sr-lfl-media" role="img" aria-label="${label}">${present.length ? `<span class="sr-lfl-media-count" aria-hidden="true">${present.length} of 3</span>` : ''}</span>`;
+  }
+  return `<span class="sr-lfl-media" role="img" aria-label="${label}">${FORMATS.map(f => icon(f.icon, 12, 2.2, has && has[f.key] ? 'has' : 'lacks')).join('')}</span>`;
+}
+function toggle(id, label, on, key) {
+  return `<button type="button" role="switch" aria-checked="${on}" class="sr-toggle sr-touch-target" data-switch="${key}" id="${id}"><span class="sr-toggle-track" aria-hidden="true"><span class="sr-toggle-knob"></span></span><span>${label}</span></button>`;
+}
+function setupPanel() {
+  return `<div class="sr-lfl-head"><div class="sr-lfl-head-tile">${icon('listchecks', 15, 2.2)}</div><div><h2>Life Lists</h2><p>Every species you've recorded, newest first, with the checklist and place of your first sighting, or of your first photo, audio, or video.</p></div></div>` +
+  `<div class="sr-setup"><div class="sr-setup-disc">${icon('upload', 28, 1.75)}</div><div class="sr-setup-title">eBird Backup Required</div><div class="sr-setup-body">The Life Lists tab loads automatically from your stored eBird backup. You haven't saved one yet.</div>` +
+  `<div class="sr-setup-steps"><div class="sr-setup-steps-h">How to set this up</div>` +
+  `<div class="sr-setup-step"><div class="sr-setup-num">1</div><div>Go to <strong>ebird.org</strong> → My eBird → <strong>Download My Data</strong></div></div>` +
+  `<div class="sr-setup-step"><div class="sr-setup-num">2</div><div>Save the download, and if it's a <code class="sr-setup-code">.zip</code> unzip it to get <code class="sr-setup-code">MyEBirdData.csv</code></div></div>` +
+  `<div class="sr-setup-step"><div class="sr-setup-num">3</div><div>Upload that file in <strong>Settings → Default Files → eBird Backup</strong></div></div>` +
+  `<div class="sr-setup-step"><div class="sr-setup-num">4</div><div>This tab then loads automatically on every visit</div></div>` +
+  `</div><button type="button" class="sr-setup-go">${icon('gear', 15, 2)}Go to Settings</button></div>`;
+}
+
+const roots = [
+  { el: document.querySelector('#stageDesktop [data-tab-root]'), prefix: 'd' },
+  { el: document.querySelector('#stagePhone [data-tab-root]'), prefix: 'p' },
+];
+function renderAll(focusTarget, fromPrefix) {
+  document.querySelector('#stageDesktop .sr-shell').setAttribute('data-media', state.media);
+  document.querySelector('#stagePhone .mk-phone').setAttribute('data-media', state.media);
+  for (const r of roots) renderTab(r.el, r.prefix, r.prefix === fromPrefix ? focusTarget : null);
+  prevNames = state.backup === 'ready' ? new Set(deriveRows().map(r => r.name)) : null;
+}
+renderAll();
+
+// Interaction: switches, media buttons, paging. Event delegation so a
+// re-render never loses a handler.
+document.addEventListener('click', e => {
+  const tabRoot = e.target.closest('[data-tab-root]');
+  const sw = e.target.closest('[data-switch]');
+  if (sw) { state[sw.dataset.switch] = !state[sw.dataset.switch]; state.shown = PAGE_SIZE; renderAll(); tabRoot.querySelector(`[data-switch="${sw.dataset.switch}"]`).focus(); return; }
+  const pill = e.target.closest('[data-fmt]');
+  if (pill) {
+    if (pill.getAttribute('aria-disabled') === 'true') return;
+    const k = pill.dataset.fmt; if (state.sel.has(k)) state.sel.delete(k); else state.sel.add(k);
+    state.shown = PAGE_SIZE; renderAll(); tabRoot.querySelector(`[data-fmt="${k}"]`).focus(); return;
+  }
+  const act = e.target.closest('[data-act]');
+  if (act) {
+    const prefix = roots.find(r => r.el === tabRoot).prefix;
+    const n = deriveRows().length;
+    if (act.dataset.act === 'next') { state.shown = Math.min(state.shown + PAGE_SIZE, n); renderAll('next', prefix); }
+    else { state.shown = n; renderAll('count', prefix); }
+    return;
+  }
+  const seg = e.target.closest('.mk-seg button');
+  if (seg) {
+    const group = seg.parentElement; group.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b === seg)));
+    const opt = group.dataset.opt, v = seg.dataset.v;
+    if (opt === 'theme') document.documentElement.setAttribute('data-theme', v);
+    if (opt === 'scale') document.documentElement.style.setProperty('--sr-text-scale', v);
+    if (opt === 'view') { document.getElementById('stageDesktop').classList.toggle('mk-hidden', v !== 'desktop'); document.getElementById('stagePhone').classList.toggle('mk-hidden', v !== 'phone'); }
+    if (opt === 'backup') { state.backup = v; renderAll(); }
+    if (opt === 'ml') { state.ml = v; if (v !== 'ready') state.sel.clear(); state.shown = PAGE_SIZE; renderAll(); }
+    if (opt === 'prov') { state.prov = v; state.shown = PAGE_SIZE; renderAll(); }
+    if (opt === 'media') { state.media = v; renderAll(); }
+  }
+});
+
+// On a real phone the .mk-phone rules must fire from the viewport as well:
+// duplicate the scoped block under the app's <=640px tier.
+(function phoneTier() {
+  const rules = [];
+  for (const sheet of document.styleSheets) for (const r of sheet.cssRules) {
+    if (r.selectorText && r.selectorText.startsWith('.mk-phone ')) rules.push(r.cssText.replace(/\.mk-phone\b ?/g, ''));
+  }
+  const s = document.createElement('style');
+  s.textContent = `@media (max-width: 640px) { ${rules.join('\n')} .sr-nav-col { display: none; } }`;
+  document.head.appendChild(s);
+})();
+</script>
+</body>
+</html>
