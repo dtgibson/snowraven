@@ -1,0 +1,26 @@
+record e48a104b-0542-4c8c-b304-26059fa3bc61 {"versionString":"1.0.63","appStoreState":"PREPARE_FOR_SUBMISSION","appVersionState":"PREPARE_FOR_SUBMISSION","copyright":"2026 Dave Gibson","releaseType":"AFTER_APPROVAL","earliestReleaseDate":null}
+  build 1.0.63.1 52b1e76d-c4ca-4d57-88d1-27b093f11740 VALID expired=false usesNonExemptEncryption=false
+  phased release: none
+  SAME copyright (16 chars)
+  localizations: en-US 6e149a48-0c8c-4116-8739-e0ead744a69c
+  SAME description (3407 chars)
+  SAME keywords (97 chars)
+  SAME promotionalText (137 chars)
+  SAME marketingUrl (30 chars)
+  SAME supportUrl (37 chars)
+  SAME whatsNew (398 chars)
+  SAME notes (3898 chars)
+  review contact present: first=true last=true phone=true email=true; demoAccountRequired=false
+app info 8c34f889 state=READY_FOR_SALE
+  SAME name (9 chars)
+  SAME subtitle (27 chars)
+  SAME privacyPolicyUrl (43 chars)
+  SAME categories primary=REFERENCE secondary=WEATHER
+  age rating: 30 fields, NONE 16, false 11, true 0, null 3 (kidsAgeBand, gracRatingClassificationNumber, developerAgeRatingInfoUrl)
+app info 2618e95e state=PREPARE_FOR_SUBMISSION
+  SAME name (9 chars)
+  SAME subtitle (27 chars)
+  SAME privacyPolicyUrl (43 chars)
+  SAME categories primary=REFERENCE secondary=WEATHER
+  age rating: 30 fields, NONE 16, false 11, true 0, null 3 (kidsAgeBand, gracRatingClassificationNumber, developerAgeRatingInfoUrl)
+READBACK ALL SAME
