@@ -649,6 +649,30 @@ italic at 0.71875rem `--sr-text-gray`.
   resetKey, so the animation replays exactly when the data changed (reduced-motion
   renders final width instantly); bars are reinforcement only — every value is
   present as text. The Species Detail Subspecies and Forms section is the exemplar.
+- **Two-part partition (one whole split into two complementary parts):** a
+  sub-section inside the host card, `SubLabel`, the block, then `Divider`. A
+  figures row sits over one bar: each part's percentage at 1rem / 700 in tabular
+  numerals (`--sr-text`) with its label in `--sr-text-muted`, the first part at
+  the row's start and the second at its end (`margin-left: auto`, right-aligned),
+  so each figure sits over its own segment and the row can wrap at 320px / 200%
+  (the end figure drops to its own line and keeps its right edge). The bar is
+  20px, radius 4, `overflow: hidden`, `aria-hidden`, with NO text inside it: the
+  first segment in `--sr-chart-blue-dark` at the unrounded share, with
+  `min-width: 3px` when nonzero so a "<1%" share stays visible, and the rest in
+  `--sr-surface-subtle`, which is also the bar's own background, so "all one part"
+  and "none" are full renderings, never an empty state. A caption beneath states
+  both counts and the denominator in one sentence ("1,234 of 3,300 checklists at
+  hotspots, 2,066 at personal locations."). The two percentages come from ONE
+  rounding so they read as a partition of 100%. **A member the app has not yet
+  classified is a third state, never folded into either part:** while any member's
+  answer is outstanding the block draws no bar and no percentage, only a status
+  row (a 14px muted glyph beside the state sentence, then a muted counts-so-far
+  line), because a percentage over an unanswered set reads as settled. The settled
+  stack enters with a 160ms fade and rise, and the first segment grows from the
+  left (`scaleX`, 240ms) only when the data changed; reduced motion shows the final
+  state. Every string comes from a copy module generated from the view state, so
+  the plural and em-dash sweeps cover it. Statistics' Checklists at hotspots block
+  (`.sr-hs-*`) is the exemplar. No new tokens.
 - **Uniform badge set (Statistics milestones):** a set of equal tiles is a
   `ul role="list"` on `repeat(auto-fill, minmax(min(7.25rem, 100%), 1fr))` with
   `grid-auto-rows: 1fr`, so every tile is one width and one height and a short

@@ -7,6 +7,8 @@ paths:
   - "ACCESSIBILITY.md"
   - "appstore/**"
   - "frontend/src/components/HelpDocs*.tsx"
+  - "frontend/src/lib/*PublishedClaims.test.ts"
+  - "frontend/src/lib/clearDerived.ts"
   - ".github/workflows/pages.yml"
 ---
 
@@ -54,3 +56,4 @@ Moved verbatim from CLAUDE.md (2026-08-26 context restructure). This file auto-l
   - **The README carries NO screenshots** -- it links to the website. Any instruction to "regenerate the README set" is describing something that does not exist; the sets are `website/assets/shots/` and `appstore/screenshots/`.
   - **Voice:** informative, not promotional. The site exists so a birder can learn what SnowRaven does and decide for themselves; it is a personal project shared as a free public good, and it does not try to sell or push downloads. Frame SnowRaven as working *alongside* eBird and the Macaulay Library and letting you explore your own exported data in new ways. Never imply it replaces, fixes, or improves on eBird, and keep the gratitude toward those free services intact (no "finally working for you" framing, no star-begging).
 - **`PRIVACY_POLICY.md` and `ACCESSIBILITY.md` (repo root) are published, user-facing statements — keep them true.** The privacy policy asserts SnowRaven collects nothing and runs no server: if any feature ever adds analytics, telemetry, crash reporting, an account, or a new third-party service, update `PRIVACY_POLICY.md` in the same change (a stale privacy policy is a liability, not just a doc bug). Update `ACCESSIBILITY.md` when accessibility behavior changes. Neither is bundled into the app, so they don't require a version bump on their own.
+  - **A list in the policy that reads as complete is a claim of completeness, so a new member of the set it lists owes a sentence there even when no existing sentence becomes false (v1.0.62).** The bullet beginning "You can delete your stored files and keys" names what Clear removes, and the eBird sub-bullet under "Connections to Bird and Weather Services" states each Statistics lookup's retention. hotspot-share-stat's schema declared "no `PRIVACY_POLICY.md` change" for a new 30-day store registered in `lib/clearDerived.ts`, on the reasoning that its posture matched `county-completeness-v1`; that store is named in the Clear list, so the new one under-described what is kept, in the direction that flatters the product (security L1). A new `clearDerived.ts` row, or a new stored lookup beside ones whose retention is stated, is a HELD sentence for both `PRIVACY_POLICY.md` and `website/privacy.html`, with a guard that builds any duration from the store's own constant (`hotspotSharePublishedClaims.test.ts` is the shape).

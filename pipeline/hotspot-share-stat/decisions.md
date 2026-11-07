@@ -86,3 +86,7 @@ The user confirmed the ship of 1.0.62 to every platform at the Deployer's sign-o
 - The F-Droid changelog (three identical files) and the App Store "What's New" are the FIRST sentence of the held text only: "Statistics now shows what share of your checklists you submitted at public eBird hotspots and what share at personal locations, in Geographic Stats above your top locations." The user's words were "For what's new, only the first sentence"; the two surfaces were presented as one text, so the cut applies to both.
 - Both privacy-policy insertions (the Clear list, and the 30-day retention sentence) are approved as written, in `PRIVACY_POLICY.md` and `website/privacy.html` identically. Security finding L1 closes with them.
 - Ship order with the parallel `life-lists-tab` build (the user's other session): this build takes 1.0.62 and pushes first; that build takes 1.0.63 and rebases at its own deploy step, by agreement over the session channel.
+
+## 4. The user's iPhone check of TestFlight 1.0.62.1 (2026-11-06)
+
+The user installed TestFlight build 1.0.62.1 (ASC build `8c02a421-b312-4c5c-ad4d-511b307690e5`) on their own iPhone and reported that it launches and that the "Checklists at hotspots" bar shows in Statistics, Geographic Stats, with both percentages and the counts. Recorded as their reported result; no agent touched the device. This is the launch check CLAUDE.md requires before an App Store submission, so part three creates the 1.0.62 record and submits this exact build.
