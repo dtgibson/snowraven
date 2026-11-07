@@ -46,6 +46,10 @@ Every species you have recorded breeding evidence for, as a matrix against eBird
 
 Your checklists as whole outings: search every comment you have written, and filter by what an outing has.
 
+### Life Lists
+
+Lists every species you have recorded along with its first checklist and place, and turns into a photo, audio, or video life list, or any combination of them.
+
 ### List Comparer
 
 Two life lists side by side, or any two public checklists: what they share and what only one has.

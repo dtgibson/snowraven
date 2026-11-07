@@ -43,7 +43,7 @@ Written by script with exact-once replacements: `frontend/package.json` and its 
 - **Held:** the README section, the website row (sentence, figure, alt text) and the listing bullet, each in the plainer sentence; ten website images; the iPad and iPhone Duo App Store sets. All in `held-copy.md`, with the patch `held/held-copy.patch` and its guard (D-36).
 - **Guard in the release commit:** `frontend/src/lib/lifeListsPublishedClaims.test.ts` holds Help's Life Lists section and the F-Droid files to `TAB_LABELS`, `DEFAULT_TAB_ORDER`, `MEDIA_FORMATS` and `SWITCH_LABELS`; 8 rows, mutation-checked eight ways (D-35).
 
-### Review pages (tailnet only; loopback servers detached so they outlive this session's turn)
+### Review pages (tailnet only; taken down after the approval, see below)
 
 | Page | URL | Serves |
 |---|---|---|
@@ -51,7 +51,7 @@ Written by script with exact-once replacements: `frontend/package.json` and its 
 | README | https://hephaestus-developer.giraffe-chuckwalla.ts.net:18952/ | `README.md` rendered through GitHub's own Markdown endpoint, the new section highlighted, loopback 18952 |
 | App Store sets | https://hephaestus-developer.giraffe-chuckwalla.ts.net:18953/ | for each device, the current set above the regenerated one, in upload order, each frame linked to its full PNG, loopback 18953 |
 
-All three answered HTTP 200 over the tailnet (`curl -sk`). No existing `tailscale serve` mapping was changed and the :443 root was not used. To take them down after the review: `tailscale serve --https=<port> off` for 18951, 18952 and 18953, and stop the three `python3 -m http.server` processes.
+All three answered HTTP 200 over the tailnet (`curl -sk`) while the user reviewed them. No existing `tailscale serve` mapping was changed and the :443 root was not used.
 
 ### Screenshots (held), and how they were taken
 
@@ -71,6 +71,17 @@ Captured from the synthetic demo data (a scratch copy of `website/tools/demo-dat
 
 If the scratch output is lost before the follow-up, regenerate with the committed tools plus `held/capture-tools.diff` (`FAMILY=ipad`, `FAMILY=duo`, `WEATHER_REPLAY=1`) and show the user the new frames again before uploading anything.
 
+### The user's approval, and the copy commit (2026-11-06)
+
+The user approved the three review pages with one wording change (relayed by the coordinator): the README section and the website row read "Lists every species you have recorded along with its first checklist and place, and turns into a photo, audio, or video life list, or any combination of them.", and the listing bullet "• Life Lists: lists every species you have recorded along with its first checklist and place, and turns into a photo, audio, or video life list, or any combination of them." Everything else was approved as shown: the website row's figure and alt text, the website shots, and the App Store sets (iPad and iPhone Duo replaced, iPhone kept). The App Store What's New stays the sentence approved at the copy gate.
+
+- `git apply pipeline/life-lists-tab/held/held-copy.patch` on `a54d21a8`, then the approved sentence substituted by script, exact-once, in `README.md`, the website row and the listing bullet, and in `lifeListsSurfacesPublishedClaims.test.ts`'s sentence constant; no copy of the proposal wording remains in those four files. The listing's recorded description length re-measured from its block: 3,407 / 4,000. The alt text describes the figure rather than quoting the sentence, so it stands as approved.
+- The website images written by the patch are byte-identical to the reviewed ones (12 of 12 by SHA-256, the two kept images included).
+- Guards: `lifeListsSurfacesPublishedClaims.test.ts` 7 of 7 (and red with the proposal wording put back in the README, restored byte-identical), `lifeListsPublishedClaims.test.ts` 8 of 8, `websiteFigureDimensions.test.ts` 6 of 6; with the fourteen other guards that read README, LISTING or the website, 16 files and 321 tests, all green. The em-dash grep over `README.md`, `website/index.html`, `website/privacy.html`, `PRIVACY_POLICY.md`, `ACCESSIBILITY.md`, `appstore/LISTING.md`, `appstore/REVIEW_NOTES.md` and `docs/HELP.md` reads 0 in each, as at HEAD (control: the same grep reads 868 in `DECISIONS.md`).
+- The three review pages were taken down after the approval: `tailscale serve --https=18951 off`, `18952` and `18953`, and their three loopback `http.server` processes stopped; each port then had no listener and no mapping, and every other mapping, the :443 root included, was unchanged.
+- On the copy tree: `npm run typecheck` 0, `npm run lint` 0, `npm run build` 0 (built CSS byte-identical to the release commit's), and the full vitest suite **exit 0: 490 files passed, 5 skipped; 10,660 tests passed, 6 skipped, 0 failed** (95.7 s).
+- The approved App Store frames are not in this commit: they are copied into `appstore/screenshots/` with the upload, in follow-up step 0.
+
 ### The release commit
 
 One commit on the rebased `main`, `chore(release): 1.0.63, Life Lists`: the six-file bump, `lifeListsPublishedClaims.test.ts`, this record, `held-copy.md`, `decisions.md` (D-33 to D-38), `held/held-copy.patch` and `held/capture-tools.diff`. It carries no README, LISTING or website content change beyond the version pill. The untracked `pipeline/life-lists-tab/evidence/` folder that appeared during the prep is not this stage's and is left out.
@@ -81,7 +92,7 @@ One commit on the rebased `main`, `chore(release): 1.0.63, Life Lists`: the six-
 
 ### Plan for the ship follow-up (after the gate; not done here)
 
-0. **The held copy and screenshots, on the user's yes, before anything is pushed.** `git apply pipeline/life-lists-tab/held/held-copy.patch` (or only the approved hunks; the guard file asserts all three surfaces, so on a partial yes drop or narrow it to what was approved). Copy the approved App Store frames into `appstore/screenshots/{ipad-13,iphone-duo}/` and `appstore/screenshots/raw/{ipad-13,iphone-duo}/`, checking them against the hashes above, and refresh `pipeline/app-store-listing-polish/asc/composed-frames-checksums.{txt,json}` for the replaced families. Run the full vitest suite, `npm run build`, and `npm test` in `website/tools` (`compose-appstore.test.mjs` holds the committed frames to the composer's rules), then commit (`docs: Life Lists published copy and regenerated screenshots`). Delete nothing from scratch until the upload is read back.
+0. **The approved App Store frames, before anything is pushed.** The README, website and listing copy and the website shots are already in the copy commit. Copy the approved App Store frames into `appstore/screenshots/{ipad-13,iphone-duo}/` and `appstore/screenshots/raw/{ipad-13,iphone-duo}/`, checking them against the hashes above, and refresh `pipeline/app-store-listing-polish/asc/composed-frames-checksums.{txt,json}` for the replaced families. Run the full vitest suite, `npm run build`, and `npm test` in `website/tools` (`compose-appstore.test.mjs` holds the committed frames to the composer's rules), then commit (`docs(appstore): the iPad and iPhone Duo sets with Life Lists in the navigation`). Delete nothing from scratch until the upload is read back.
 1. `security show-keychain-info` (the login keychain locks after a reboot; the user unlocks it in their own terminal). `git fetch`; if `origin/main` moved, rebase and re-run the suite.
 2. Push `main` (fast-forward).
 3. Annotated tag `v1.0.63` on that tip ("SnowRaven 1.0.63"), pushed alone. It starts Windows Build and Android Build; F-Droid builds from it, and it carries the three changelogs.
