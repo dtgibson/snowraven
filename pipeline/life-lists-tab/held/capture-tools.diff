@@ -1,0 +1,245 @@
+--- website/tools/capture.mjs (committed)
++++ scratch copy used for the 1.0.63 captures
+@@ -27,7 +27,7 @@
+ // live success. Ported from capture-appstore.mjs, which has had it since 1.0.0
+ // — without it this shot silently published an error state (v1.0.4).
+ const WEATHER_REPLAY = process.env.WEATHER_REPLAY === '1';
+-const OUT = new URL('./shots/', import.meta.url).pathname;
++const OUT = '/private/tmp/claude-502/-Users-developer-devwork-snowraven/82ec1f99-3f97-43b3-aa99-49558e1ed073/scratchpad/out/web-shots/';
+ mkdirSync(OUT, { recursive: true });
+ 
+ // FAIL CLOSED BEFORE THE FIRST FRAME. Every image on the public website is
+@@ -117,11 +117,14 @@
+ const statsRoutes = (ctx) => installProvenanceRoutes(ctx, provenanceStub);
+ 
+ // --- generic data tab ---
+-async function tab(name, file, { theme = 'light', vp = DESKTOP_VP, settle = 4000, clipH = 900, prep = null, routes = null } = {}) {
++const ONLY = (process.env.ONLY || '').split(',').filter(Boolean);
++async function tab(name, file, { theme = 'light', vp = DESKTOP_VP, settle = 4000, clipH = 900, prep = null, routes = null, pre = null } = {}) {
++  if (ONLY.length && !ONLY.includes(file)) return;
+   const { ctx, p } = await page(theme, vp);
+   try {
+     if (routes) await routes(ctx);
+     await p.goto(BASE, { waitUntil: 'domcontentloaded' });
++    if (pre) await pre(p);
+     await selectTab(p, name);
+     await p.waitForLoadState('networkidle').catch(() => {});
+     await p.waitForTimeout(settle);
+@@ -140,8 +143,8 @@
+   await ctx.close();
+ }
+ 
+-await tab('Statistics', 'stats-light.png', { clipH: 900, routes: statsRoutes });
+-await tab('Statistics', 'stats-dark.png', { theme: 'dark', clipH: 900, routes: statsRoutes });
++await tab('Statistics', 'stats-light.png', { clipH: 900, routes: statsRoutes, prep: async (p) => { await p.waitForFunction(() => /Exotic status checked across/i.test(document.querySelector('main')?.innerText || ''), undefined, { timeout: 120000 }); await p.waitForTimeout(1500); } });
++await tab('Statistics', 'stats-dark.png', { theme: 'dark', clipH: 900, routes: statsRoutes, prep: async (p) => { await p.waitForFunction(() => /Exotic status checked across/i.test(document.querySelector('main')?.innerText || ''), undefined, { timeout: 120000 }); await p.waitForTimeout(1500); } });
+ // RAISED FROM 860 at website-screenshot-sizing: the website renders every
+ // feature figure in a 16:9 box, and an asset that is not 16:9 would be cropped
+ // by object-fit. 860 of a 1600 viewport is 1.86:1, so a 4% crop would have
+@@ -175,15 +178,24 @@
+ // 100px of empty app page under the strip card is DELIBERATE: it is what makes
+ // the frame 16:9, and it is page tone, not lost content.
+ await tab('Named Birds', 'named-birds-light.png', { settle: 4200, clipH: 900 });
++
++// SCRATCH (life-lists-tab 1.0.63 proposal): Life Lists, after the stubbed
++// Statistics escapee pass has finished in the same page, so the tab reads a
++// settled check rather than its not-finished line.
++await tab('Life Lists', 'life-lists-light.png', { settle: 4200, clipH: 900, routes: statsRoutes, prep: null, pre: async (p) => {
++  await selectTab(p, 'Statistics');
++  await p.waitForFunction(() => /Exotic status checked across/i.test(document.querySelector('main')?.innerText || ''), undefined, { timeout: 120000 });
++  await p.waitForTimeout(1500);
++} });
+ 
+ // Species Detail — select a common species
+-await tab('Species Detail', 'species-light.png', { settle: 4200, clipH: 980, prep: async (p) => {
++await tab('Species Detail', 'species-light.png', { settle: 4200, clipH: 900, prep: async (p) => {
+   const inp = await p.$('input[role="combobox"]') || await p.$('main input');
+   if (!inp) return;
+-  await inp.click(); await inp.fill('Northern Cardinal'); await p.waitForTimeout(900);
++  await inp.click(); await inp.fill('Wood Thrush'); await p.waitForTimeout(900);
+   for (const o of await p.$$('[role="option"], li, button')) {
+     const t = (await o.textContent() || '').trim();
+-    if (/^Northern Cardinal/i.test(t) && t.length < 60) { await o.click().catch(() => {}); break; }
++    if (/^Wood Thrush/i.test(t) && t.length < 60) { await o.click().catch(() => {}); break; }
+   }
+   await p.waitForTimeout(800); await p.keyboard.press('Escape').catch(() => {});
+ } });
+@@ -192,12 +204,14 @@
+ // and Statistics is a favourite, so selectTab finds it in the bar itself. The
+ // shot deliberately includes the bar: it is the phone navigation.
+ await (async () => {
++  if (ONLY.length && !ONLY.includes('stats-mobile.png')) return;
+   const { ctx, p } = await page('light', { width: 402, height: 880 });
+   try {
+     await statsRoutes(ctx); // the third and last Statistics context
+     await p.goto(BASE, { waitUntil: 'domcontentloaded' });
+     await selectTab(p, 'Statistics');
+     await p.waitForLoadState('networkidle').catch(() => {}); await p.waitForTimeout(4000);
++    await p.waitForFunction(() => /Exotic status checked across/i.test(document.querySelector('main')?.innerText || ''), undefined, { timeout: 120000 }); await p.waitForTimeout(1500);
+     // FULL viewport height, not the old 860 of 880. The phone navigation is a
+     // FIXED bar at the bottom of the screen now, measured at 56.5px on this
+     // viewport, so a clip 20px short of the bottom cut it in half: the icons
+@@ -216,7 +230,7 @@
+ })();
+ 
+ // Weather + Tide — live lookup on a real PUBLIC coastal checklist; trim HTML attribution for a clean shot
+-const weatherFailure = await runRequiredCapture('weather-light.png', async () => {
++const weatherFailure = process.env.SKIP_WEATHER === '1' ? null : await runRequiredCapture('weather-light.png', async () => {
+   const { ctx, p } = await page('light', { width: 900, height: 1320 });
+   try {
+     // Fail the live weather call at the connection level so the app serves its
+--- website/tools/capture-appstore.mjs (committed)
++++ scratch copy used for the 1.0.63 captures
+@@ -80,7 +80,7 @@
+ import { chromium } from 'playwright';
+ import { mkdirSync } from 'node:fs';
+ import sharp from 'sharp';
+-import { GL, makePage, selectTab, buildProvenanceStub, installProvenanceRoutes, assertBackendServesDemoData, loadSiteMarks, assertMarksInFrame } from './capture-lib.mjs';
++import { GL, makePage, selectTab, buildProvenanceStub, installProvenanceRoutes, installKeyPresenceMock, assertBackendServesDemoData, loadSiteMarks, assertMarksInFrame } from './capture-lib.mjs';
+ 
+ const BASE = process.env.BASE || 'http://localhost:1620';
+ const CHECKLIST = process.env.CHECKLIST || 'S354229002'; // coastal -> shows tide
+@@ -99,7 +99,7 @@
+ // (gen-demo-data.mjs LOCS) — QA-05: every visible name comes from the demo data.
+ const POPUP_LOCATION = 'Jamaica Bay Wildlife Refuge';
+ 
+-const OUT_ROOT = new URL('../../appstore/screenshots/raw/', import.meta.url).pathname;
++const OUT_ROOT = '/private/tmp/claude-502/-Users-developer-devwork-snowraven/82ec1f99-3f97-43b3-aa99-49558e1ed073/scratchpad/out/appstore-raw/';
+ const log = (...a) => console.log(...a);
+ 
+ // The demo-dataset guard now lives in capture-lib.mjs, so capture.mjs gets it
+@@ -261,6 +261,26 @@
+   await p.waitForTimeout(2500);
+   const errored = await p.evaluate(() => /Weather data unavailable/i.test(document.querySelector('main')?.innerText || ''));
+   if (errored) throw new Error('weather lookup errored (no usable OpenWeather key?) — fix the key or use WEATHER_REPLAY=1');
++  // SCRATCH (1.0.63 shots): both lookups were served from the demo store's
++  // replay entries (no eBird key on this rig), so the app shows its honest
++  // "Offline: showing the last loaded result" line above each block. A live
++  // lookup by a user with a key renders this same result without that line,
++  // which is what the committed frames show, so the line is trimmed here
++  // (website/tools/README.md: a replay capture is suitable once the cue is
++  // framed or trimmed out). Nothing is added and no result text changes.
++  if (WEATHER_REPLAY) {
++    const removed = await p.evaluate(() => {
++      const re = /^Offline: showing the last loaded result/;
++      const hits = [...document.querySelectorAll('main *')].filter(e => re.test((e.textContent || '').trim()));
++      const tops = hits.filter(e => !(e.parentElement && (e.parentElement.textContent || '').trim() === (e.textContent || '').trim()));
++      tops.forEach(e => e.remove());
++      return tops.length;
++    });
++    if (removed < 1) throw new Error('replay capture: no offline cue found to trim (has its wording changed?)');
++    await p.waitForTimeout(400);
++    const left = await p.evaluate(() => /Offline: showing the last loaded result/.test(document.querySelector('main')?.innerText || ''));
++    if (left) throw new Error('replay capture: an offline cue is still in the frame');
++  }
+   // Expand the weather-backlog disclosure so the page is tall enough to scroll
+   // the result block to the top of the frame on the tall iPad viewport (the
+   // backlog itself stays below the fold; it computes offline from the backup).
+@@ -281,10 +301,14 @@
+ }
+ function weatherRoutes(ctx) {
+   if (!WEATHER_REPLAY) return Promise.resolve();
+-  // Fail the live weather call at the connection level so the app serves its
+-  // stored replay result (the same code path as offline reuse); the tide and
+-  // everything else stay live.
+-  return ctx.route(`**/weather/${CHECKLIST}*`, (route) => route.abort());
++  // SCRATCH: no eBird key on this rig, so the tide lookup cannot run live
++  // either; both are served from the demo store's replay entries, and the key
++  // presence is mocked so the lookup button is offered at all.
++  return (async () => {
++    await installKeyPresenceMock(ctx);
++    await ctx.route(`**/weather/${CHECKLIST}*`, (route) => route.abort());
++    await ctx.route(`**/tide/${CHECKLIST}*`, (route) => route.abort());
++  })();
+ }
+ 
+ // 4 · Calendar — the previous (complete) year, in the year-overview ("Large")
+@@ -308,17 +332,19 @@
+ }
+ 
+ // 5 · Species Detail — Northern Cardinal (in the demo dataset).
+-async function shotSpecies(p) {
++async function shotSpecies(p, fam) {
++  // SCRATCH: the approved iPad 05 shows Wood Thrush (DECISIONS.md v1.0.52); iPhone and Duo show Northern Cardinal.
++  const SPECIES = fam.key === 'ipad' ? 'Wood Thrush' : 'Northern Cardinal';
+   await selectTab(p, 'Species Detail');
+   await p.waitForTimeout(4200);
+   const inp = await p.$('input[role="combobox"]') || await p.$('main input');
+   if (!inp) throw new Error('species search input not found');
+   await inp.click();
+-  await inp.fill('Northern Cardinal');
++  await inp.fill(SPECIES);
+   await p.waitForTimeout(900);
+   for (const o of await p.$$('[role="option"], li, button')) {
+     const t = (await o.textContent() || '').trim();
+-    if (/^Northern Cardinal/i.test(t) && t.length < 60) { await o.click().catch(() => {}); break; }
++    if (t.toLowerCase().startsWith(SPECIES.toLowerCase()) && t.length < 60) { await o.click().catch(() => {}); break; }
+   }
+   await p.waitForTimeout(1200);
+   await p.keyboard.press('Escape').catch(() => {});
+--- website/tools/capture-lib.mjs (committed)
++++ scratch copy used for the 1.0.63 captures
+@@ -397,7 +397,26 @@
+  *  `statsRoutes`). The one other route either script registers is the per-shot
+  *  WEATHER_REPLAY abort on the weather context, whose frame has no mark; that
+  *  one is intentional. */
++// SCRATCH (life-lists-tab 1.0.63 shots): backend/.env on this rig carries no
++// eBird key, so the app reports "No eBird key" and never starts the stubbed
++// pass. Per .claude/rules/testing.md (v1.0.39), a harness driving the web/Pi
++// build mocks GET /settings/keys in the browser rather than posting a key to
++// the backend (whose key route writes backend/.env). The placeholder is a
++// presence signal only: on the web transport the frontend sends no key anywhere,
++// the checklist lookups are answered by the stub below, and the backend keeps
++// using its own (absent) key. No value from the real response is printed.
++export async function installKeyPresenceMock(ctx) {
++  await ctx.route('**/settings/keys', async (route) => {
++    if (route.request().method() !== 'GET') return route.continue();
++    const res = await route.fetch();
++    const body = await res.json().catch(() => ({}));
++    if (!body.ebird) body.ebird = 'capture-presence-placeholder';
++    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
++  });
++}
++
+ export async function installProvenanceRoutes(ctx, stub) {
++  await installKeyPresenceMock(ctx);
+   await ctx.route('**/checklists/**', async (route) => {
+     const m = route.request().url().match(/\/checklists\/(S\d+)/);
+     const species = (m && stub.get(m[1])) || [];
+--- website/tools/compose-appstore.mjs (committed)
++++ scratch copy used for the 1.0.63 captures
+@@ -45,9 +45,9 @@
+ import { chromium } from 'playwright';
+ import sharp from 'sharp';
+ 
+-export const RAW_ROOT = fileURLToPath(new URL('../../appstore/screenshots/raw/', import.meta.url));
+-export const OUT_ROOT = fileURLToPath(new URL('../../appstore/screenshots/', import.meta.url));
+-const GLYPH_SVG = fileURLToPath(new URL('../../frontend/src/assets/snowraven-bird-glyph.svg', import.meta.url));
++export const RAW_ROOT = '/private/tmp/claude-502/-Users-developer-devwork-snowraven/82ec1f99-3f97-43b3-aa99-49558e1ed073/scratchpad/out/appstore-raw/';
++export const OUT_ROOT = '/private/tmp/claude-502/-Users-developer-devwork-snowraven/82ec1f99-3f97-43b3-aa99-49558e1ed073/scratchpad/out/appstore-sets/';
++const GLYPH_SVG = '/Users/developer/devwork/snowraven/frontend/src/assets/snowraven-bird-glyph.svg';
+ 
+ // App Store Connect takes 1 to 10 screenshots per set.
+ export const MAX_FRAMES = 10;
+--- website/tools/process-img.mjs (committed)
++++ scratch copy used for the 1.0.63 captures
+@@ -1,8 +1,8 @@
+ // Resize + compress the raw captures in ./shots/*.png into the WebP assets the
+ // site serves (../assets/shots/*.webp). Run after capture.mjs.
+ import sharp from 'sharp';
+-const IN = new URL('./shots/', import.meta.url).pathname;
+-const OUT = new URL('../assets/shots/', import.meta.url).pathname;
++const IN = '/private/tmp/claude-502/-Users-developer-devwork-snowraven/82ec1f99-3f97-43b3-aa99-49558e1ed073/scratchpad/out/web-shots/';
++const OUT = '/private/tmp/claude-502/-Users-developer-devwork-snowraven/82ec1f99-3f97-43b3-aa99-49558e1ed073/scratchpad/site/assets/shots/';
+ 
+ // [src, outName, maxWidth, quality]
+ const jobs = [
+@@ -16,7 +16,7 @@
+   ['media-light.png', 'multimedia.webp', 1600, 84],
+   ['calendar-light.png', 'calendar.webp', 1600, 84],
+   ['named-birds-light.png', 'named-birds.webp', 1600, 84],
+-  ['weather-light.png', 'weather.webp', 1080, 86],
++  ['life-lists-light.png', 'life-lists.webp', 1600, 84],
+ ];
+ for (const [src, out, w, q] of jobs) {
+   const m = await sharp(`${IN}${src}`).resize({ width: w, withoutEnlargement: true }).webp({ quality: q }).toFile(`${OUT}${out}`);

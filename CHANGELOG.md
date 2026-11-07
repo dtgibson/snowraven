@@ -2,6 +2,18 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [1.0.63] - 2026-11-06
+
+### Added
+- **A Life Lists tab, after Checklists.** It lists every species on your life list newest first by the date you first recorded it, with the date, time, checklist, and place of that first sighting; click a name to open the species on Species Detail. With your ML export saved, the Photo, Audio, and Video buttons turn it into a photo, audio, or video life list, each species dated to your first item of that type, and pressing more than one lists only the species that have every selected type, dated to the day each first had them all. Include Escapees and Include Exotics, both off by default, add the species the Statistics tab's escapee check has classified; the tab only reads that check's result, and a line says so while the check has not finished for your current export. If you never rearranged your tabs, Life Lists appears directly after Checklists; a rearranged layout gets it as its last tab, with your hidden tabs left as they were.
+
+### Internal
+- Statistics publishes its exotic-only classification beside the escapee list in the `exotic-provenance-v1` document, which Life Lists reads without running the check itself. The publisher now admits both lists through the load path's own validator (`admitNames`), sorting before it truncates, so a name the reader would refuse is never written.
+- Help gives every rendered heading a unique id: a repeated one takes the first free numeric suffix (`life-lists-2`), so List Comparer's `### Life Lists` no longer shares an id with the new `## Life Lists`. No visible heading and no contents link moved.
+- `lib/exoticProvenance.ts` writes its U+0000 as an escape instead of the literal character, so git diffs the file as text again.
+- New `lib/lifeLists.ts` (the derivation), `lib/lifeListsCopy.ts`, `lib/lifeListsProvenance.ts` (the passive reader) and `lib/pageList.ts` (the pager, which the Weather backlog now shares), with the tab under `components/lifeLists/`. `lifeListsPublishedClaims.test.ts` holds Help's Life Lists section and the F-Droid changelog to `TAB_LABELS`, `DEFAULT_TAB_ORDER` and `MEDIA_FORMATS`.
+- The F-Droid changelog for this release is three identical files, one per processor-type build (`10000631.txt`, `10000632.txt`, `10000634.txt`), and the in-repo F-Droid recipe names 1.0.63.
+
 ## [1.0.62] - 2026-11-06
 
 ### Added
