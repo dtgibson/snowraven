@@ -490,6 +490,45 @@ italic at 0.71875rem `--sr-text-gray`.
   Tab stop each, with no cap. It reads no embed state, so it is identical whether
   the players load or not. The Named Birds "Media of {name}" section (`.sr-mli-*`)
   is the exemplar.
+- **Chronological ledger rows with a position number (a whole list in fixed
+  tracks):** each row is its own grid, so every track except the free-text ones
+  (name, place) is a fixed width and the columns align down the list at every
+  text scale: `2.5rem` position, `minmax(0, 1fr)` name, `5.4rem` date, `4rem`
+  time, a `1.5rem` link box, `minmax(0, 32%)` place, and an optional trailing
+  cell, `column-gap: 14px`, rows divided by `--sr-border-subtle`. Every cell
+  aligns to the row's FIRST line; a scientific name hangs beneath the common
+  name alone. No column header: the count sentence above the list names what the
+  date is. The position is the row's place on the list currently shown, counted
+  from the oldest (1, at the bottom) to the newest (N, the count sentence's
+  figure, at the top) across the WHOLE list, so a second page continues where
+  the first stopped and a narrowed list renumbers; it is derived at render, never
+  stored, drawn right-aligned in tabular 0.75rem `--sr-text-muted` and
+  `aria-hidden`, with an `.sr-only` "N of M." prefix in the name cell carrying it
+  to a screen reader. The row stacks into a card under `@container (max-width:
+  40em)` on the list AND in the ≤640 tier: the number at the card's leading edge
+  (`1.9rem`), date and time on one wrapping line, place below, and the link and
+  the trailing cell sharing one right rail sized `max(44px, 1.5rem)`, whose px
+  term keeps the touch floor while a rem width (2.75rem) would double at 200%
+  and starve the name. A missing value is a hyphen-minus in `--sr-text-muted`
+  (content, not a disabled control), with an `.sr-only` word where it stands for
+  a link. Paging is the Weather backlog's row, and when the last rows appear it
+  unmounts and focus moves to the count sentence (`tabIndex={-1}`). Rows a
+  control ADDS fade in from 4px above (180ms); a re-sort, first paint and paging
+  are instant. The Life Lists tab (`.sr-lfl-*`) is the exemplar.
+- **Media presence on a row (which formats an item has, at a glance):** a
+  passive cell at the row's trailing edge, never a link, a button or a tab stop:
+  three fixed slots in the media filter's own order and glyphs (lucide `Camera`,
+  `Mic`, `Video`, 12px, stroke 2.2, gap 5px), a format the item has in
+  `--sr-text` and one it lacks as a faint `--sr-border-medium` placeholder that
+  keeps its slot, so position carries identity and ink carries presence; no
+  label, no accent. The cell is `role="img"`, named for the formats present in
+  that order ("Media: photo, audio") or "No media". Its track is a fixed width,
+  `max(46px, 2.5rem)`, because an empty cell collapses an `auto` track and shifts
+  the row's other columns, and the track is dropped when the media source is
+  absent. It reports what the item HAS, whatever the current selection. Chosen
+  over an "N of 3" count, which says how many but never which. The Life Lists
+  rows (`.sr-lfl-media`) are the exemplar; the native widgets' missing-media
+  glyphs (below) are the inverse register.
 - **Switches:** the shared `ToggleSwitch` is a boxed pill-button when it carries
   its own visible label (the app-wide default): chrome on the `.sr-toggle` class
   (`--sr-border` 1.5px, `--sr-surface` fill, radius 6, height 30) with a hover

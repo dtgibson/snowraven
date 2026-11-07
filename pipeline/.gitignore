@@ -32,3 +32,5 @@ targets-hotspot-link/*.png
 # android-release working files: emulator screenshots for the Tester's matrix. Reference only, kept on disk; each is listed with what it shows in the Engineer's hand-back and in android-release/decisions.md.
 android-release/screenshots/
 .weft-host-deploy.json
+# life-lists-tab live-look captures: the built tab on the user's own data (their sightings, places and a personal-location coordinate). Reference only, kept on disk, because this repo is public.
+life-lists-tab/evidence/live-look/
