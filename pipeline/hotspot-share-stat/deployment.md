@@ -153,7 +153,7 @@ Run by The Deployer, hands-off, on the user's production sign-off (`decisions.md
 
 - **F-Droid changelogs:** `10000621.txt`, `10000622.txt` and `10000624.txt`, each the one approved sentence plus a newline (174 bytes, ASCII, SHA-256 `ea174eb0e250214e41224b6b7fb53afde5b0faf84f2eb1b43c35c84fe13137a0`, identical). No `1000062.txt`. Part one's pre-computed 368-byte hash was for the full three-sentence proposal and no longer applies, because the user approved the first sentence only.
 - **Privacy policy:** both insertions from `held-copy.md`, applied by script to `PRIVACY_POLICY.md` and `website/privacy.html` with each anchor required to occur exactly once. The HTML's two target lines use literal apostrophes, as the whole file does (no `&#39;` or `&rsquo;` anywhere), so the inserted "region's" is literal too. A word diff shows exactly the two insertions in each file. U+2014: 0 in both.
-- **Guard:** `describe.skipIf(!LANDED)` and the `LANDED` constant removed from `hotspotSharePublishedClaims.test.ts`, and its header reworded to say the copy has landed. **8 of 8 rows pass, 0 skipped.** The `—` escape in its em-dash row is intact (no literal U+2014 in the file).
+- **Guard:** `describe.skipIf(!LANDED)` and the `LANDED` constant removed from `hotspotSharePublishedClaims.test.ts`, and its header reworded to say the copy has landed. **8 of 8 rows pass, 0 skipped.** The `\u2014` escape in its em-dash row is intact (no literal U+2014 in the file).
 - **`held-copy.md`** opens with the approved text and the user's words; the proposals stay below as the record.
 - **`RELEASE_LEDGER.md`**, two corrections re-read live before writing: 1.0.61 App Store RESOLVED (record `1ff37081` `READY_FOR_SALE` / `READY_FOR_DISTRIBUTION`, submission `c956722b` `COMPLETE`; 29 records all `READY_FOR_SALE`, 10 submissions all `COMPLETE`, no 1.0.62 record or build); 1.0.61 Android included and this tag picked up (`754c9f1f` on 2026-11-04 06:32 UTC; all three logs end `Successfully built ... from 3be276520c41697ed95eed672f0b7c6fb0095ca5`; f-droid.org publishes 10000611, 10000612 and 10000614, suggested 10000614).
 
@@ -169,3 +169,145 @@ Run by The Deployer, hands-off, on the user's production sign-off (`decisions.md
 | `eslint` on the edited guard | exit 0 |
 | Built stylesheet after the guard edit | `index-C-rfbzc4.css`, SHA-256 `c74f8b9e...34f6`, byte-identical to the build before the edit |
 | Backend `pytest tests/ -q` | **2,076 passed** |
+
+### 3. Commits, push and tag
+
+- **Release commit `c16526a7baf1e8435032f8daafd4d8022df32324`** (`chore(release): 1.0.62, Checklists at hotspots`, 16 files: the six-file set, the three Fastlane changelogs, both privacy files, the guard, `held-copy.md`, `decisions.md`, this record and `RELEASE_LEDGER.md`). `origin/main` re-fetched just before the push: still `3a1ee236`, an ancestor. Pushed `3a1ee236..c16526a7` with `git push origin HEAD:main`.
+- **Annotated tag `v1.0.62`** (tag object `582c0d0e1ed304abf9ca5587c454d928c5950dbf`, message "SnowRaven 1.0.62") on `c16526a7`, created locally first so the recipe could name its hash.
+- **Recipe hash `368569b4`** (`fix(fdroid): the recipe names v1.0.62's commit`, `d1df12dc`'s shape): the three `commit:` lines name `c16526a7baf1e8435032f8daafd4d8022df32324`; `fdroidRecipe`, `fastlaneMetadata`, `androidVersionSource` 57 of 57 green before the commit. Nothing goes to fdroiddata: no toolchain pin or recipe build step changed.
+- **iOS stamp `1e4d824a735b6570225a59daffc2f5dd31dbb622`** (`chore(ios): stamp iOS 1.0.62 build 1`, `193b7643`'s shape, the two Info.plist files only): `snowraven_iOS/Info.plist` 1.0.62 / 1.0.62.1 and `snowraven_widgets/Info.plist` `CFBundleVersion` 1.0.62.1. **Stamped by script ahead of the archive build, not by it**, so that `origin/main` settled once (release, recipe hash, stamp) before the tag push and the parallel session's rebase, as the brief orders; the values are exactly what `tauri ios build --build-number 1` writes, and the build afterwards is checked to leave both files unchanged. `iosSceneManifest`, `iosWidgetManifest` and `iosAlertsManifest` 67 of 67 green before the commit. The iOS plist equals `frontend/package.json` (1.0.62) and does not lead it.
+- Pushed `c16526a7..1e4d824a` (`origin/main` re-fetched first: `c16526a7`), then the tag alone: `git ls-remote` shows `v1.0.62` `582c0d0e` peeling to `c16526a7`.
+- **One line sent to the `snowraven-2b` session** (the `life-lists-tab` build) after the tag push, as the brief words it: the tag is on origin and `origin/main` carries the release commit, the recipe hash and the iOS stamp; release.sh, TestFlight and the App Store steps still running, another line to follow. Delivered to its inbox (msg `63765411`).
+
+### 4. CI and the website
+
+- Started on the tag `c16526a7`: **Windows Build `42304086204`** and **Android Build `42304086122`**. On `main`: Pages `42303874704` (on `c16526a7`) **succeeded**; Pipeline `42303874791` (on `c16526a7`) **cancelled** by the next push (`cancel-in-progress`, expected); the run of record is **Pipeline `42304071292` on the stamp commit `1e4d824a`**.
+- **Website live (about 22:23 UTC):** https://snowraven.dtgibson.com/ serves `aria-label="Version 1.0.62"`, pill `v1.0.62` and footer `SnowRaven v1.0.62 · Free &amp; open source`; `/privacy.html` is **byte-identical to the committed `website/privacy.html`** and carries both new sentences once each.
+
+### 5. iOS build and TestFlight upload (during the CI wait)
+
+- Root `npm ci` (Node 24.18.0): `found 0 vulnerabilities`; `node_modules/.bin/tauri` present. The three `/tmp/xcshim` shims recreated unconditionally (SHA-256 `fb229810...`, `9cb02667...`, `d1089cec...`); `swift` resolves to the shim; `xcrun --sdk iphoneos --show-sdk-version` **27.1**; Xcode 27.1 (27A9275).
+- **No archive to move aside:** this worktree had no `src-tauri/gen/apple/build/` at all (its first iOS build).
+- **Widget extension Swift tests** (`snowraven_widgetsTests`) on the local iPhone 18 Pro Max simulator, iOS 27.0, addressed by udid `2550EC7B-8328-42F6-B7F9-8FB2E6128163` (shut down before and after; the already-booted iPhone 18 Pro `54B95BBD` was left alone): **143 tests, 0 failures, `TEST SUCCEEDED`**.
+- `tauri ios build --export-method app-store-connect --build-number 1`, outside the Bash sandbox in a `zsh -l` shell with `APPLE_API_KEY`, `APPLE_API_ISSUER` and `APPLE_API_KEY_PATH` mapped from the login shell (values never printed) and the shims first on `PATH`, 22:24:49 to 22:28:51 UTC: **`** BUILD SUCCEEDED **`**; Tauri's own export refused with "No Account for Team" and "No profiles for 'com.dtgibson.snowraven' / '...widgets'" (expected; exit 1 from that step only).
+- **The fresh archive** (created 14:28:46 PST) reads 1.0.62 (1.0.62.1) in its `ApplicationProperties`, the app's and the appex's Info.plist; the app's `DTSDKName` `iphoneos27.1`, `DTSDKBuild` `24A94232`, `DTXcodeBuild` `27A9275`, `MinimumOSVersion` 16.0. `vtool -show-build`: the app `platform IOS`, minos 16.0, sdk 27.1; the appex `platform IOS`, minos 17.0, sdk 27.1. All nine swift-rs libraries report `LC_BUILD_VERSION` platform 2.
+- **The build left both Info.plist files unchanged**, so the pre-stamped `1e4d824a` holds exactly what the build writes. Its one tree change, Tauri's no-op `PRODUCT_NAME = "SnowRaven"` re-quote at two lines of `project.pbxproj`, was read and restored.
+- The archived `snowraven_widgets.appex` was `not signed at all`; ad-hoc signed with `snowraven_widgets.entitlements`, it then lists `com.apple.security.application-groups` = `group.com.dtgibson.snowraven`.
+- Manual `xcodebuild -exportArchive` with `~/.tauri/snowraven-ios-export-options.plist` to `src-tauri/gen/apple/build/export-1.0.62.1/`: **`EXPORT SUCCEEDED`**. `DistributionSummary.plist`: the appex with the App Group alone (profile "SnowRaven Widgets App Store", `50691228`), the app with the App Group, the three iCloud keys and `icloud-container-environment` `Production` (profile "SnowRaven iOS App Store iCloud AppGroup 20260924", `870fe004`), both 1.0.62 (1.0.62.1), certificate Apple Distribution SHA1 `1861F7A4...7697B`, expiring 2027-07-05. All 36 iOS icon PNGs (`src-tauri/icons/ios/` and the committed `AppIcon.appiconset/`) report `hasAlpha: no`. **IPA SHA-256 `e6ee355fd4cc257738d591dc25a9f242c56098f947a55f669f4f81181c979d7f`**.
+- `altool --validate-app` (22:31 UTC): **`VERIFY SUCCEEDED with no errors`**. `--upload-app` (22:32 to 22:33 UTC): **`UPLOAD SUCCEEDED with no errors`, Delivery UUID `8c02a421-b312-4c5c-ad4d-511b307690e5`**.
+- **Windows Build `42304086204` succeeded** on `c16526a7` (22:32:45 UTC); `gh run list --workflow windows-build.yml --status success --commit c16526a7...` returns exactly that run.
+- **TestFlight (read with the metadata key `QJA25M7XHM`, GET only, about 22:41 UTC):** build **1.0.62.1** (`8c02a421-b312-4c5c-ad4d-511b307690e5`, the Delivery UUID) **`VALID`**, uploaded 2026-11-06 14:34:30 PST, train 1.0.62, `minOsVersion` 16.0, not expired, **`usesNonExemptEncryption` false** (the export compliance answer, from `ITSAppUsesNonExemptEncryption` false in the plist, so the build needs no manual compliance step), beta detail `internalBuildState` **`IN_BETA_TESTING`** (testable by the internal group, as 1.0.61.1). **No 1.0.62 version record exists; it waits for the user's iPhone check (part three).**
+
+### 6. CI on the tag: all green, no re-run
+
+| Run | Commit | Result |
+|---|---|---|
+| Windows Build `42304086204` | tag `c16526a7` | **success** (22:32:45 UTC); the pinned lookup returns exactly this run |
+| Android Build `42304086122` | tag `c16526a7` | **success** (22:40:33 UTC); the pinned lookup returns exactly this run |
+| Pages `42303874704` | `c16526a7` | **success** |
+| Pipeline `42303874791` | `c16526a7` | cancelled by the next push (`cancel-in-progress`, expected) |
+| **Pipeline `42304071292` (run of record)** | stamp `1e4d824a` | **success** (22:45:51 UTC): Backend and Frontend (lint, test, build) both green; `AddressSearch.test.tsx` did not flake, so nothing was re-run |
+
+### 7. Android: preflight, sign, emulator check
+
+Build shell per the runbook: JDK 17.0.20.1, `ANDROID_HOME`, `NDK_HOME` (27.2.12479018), `~/.tauri/gradle-8.14.3/bin` first on `PATH`, `SNOWRAVEN_ANDROID_SIGNER_SHA256` set to the recorded digest. Both scripts write only to private temp directories.
+
+- `scripts/android/preflight.sh` **exit 0**, every check `ok`: JDK 17, keytool, apksigner/zipalign/aapt2 from build-tools 36.0.0, Gradle 8.14.3, cargo-tauri 2.11.2, the keystore opens (alias `snowraven`), the version pair 1.0.62 / 1000062, `v1.0.62` pushed at `c16526a7baf1` and carrying that pair, the three changelogs `10000621.txt`, `10000622.txt` and `10000624.txt` present at the tag, run `42304086122`'s artifact `SnowRaven_1.0.62_android_universal_unsigned.apk` (`com.dtgibson.snowraven`, 1.0.62, 1000062, not debuggable). Its one warning (HEAD is not the tag's commit) is the recipe-hash and stamp commits after the tag, as at every ship.
+- `scripts/android/sign.sh` **exit 0**: v2 and v3 (v1 off), signer `CN=SnowRaven, O=Dave Gibson`, **`Signer #1 certificate SHA-256 digest: 42a3576e445bda4a994793f2ffa056663113275c9805eb2f6cffdc252375996a`**, `ok signer equals the keystore's certificate`, `ok signer equals the recorded digest`. **Signed APK SHA-256 `81c9040613bb058c1a92351091492a290ead0a0af0296f629ddda6ef09fd51e8`**.
+- **Emulator opening check** on the local API 36 Google APIs image only (`sr-api36-phone`, `sdk_gphone64_arm64`, 1080x2400 at 420 dpi, port 5554, headless, `-gpu host`, `-no-snapshot-save`; every `adb` call addressed to `emulator-5554` by serial, no device listing taken; port 5554 and the process list checked free first). No SnowRaven installed before. The exact signed bytes (hash re-read equal, `81c90406...51e8`) installed fresh: `versionName` 1.0.62, `versionCode` 1000062, minSdk 26, targetSdk 36. Cold start `Status: ok`, `LaunchState: COLD`, `TotalTime` 445 ms, the app's `MainActivity` window focused, the Welcome screen drawn (`evidence/ship/api36-1.0.62-first-launch.png`); "Explore the app first" opened Weather (`...-weather-tab.png`), and the bottom bar opened **Statistics**, the tab this release changes, at its "Statistics require your eBird backup" state (`...-statistics-empty.png`). One process (pid 4721) throughout, crash buffer empty. The share block itself needs an imported backup and an eBird key and was not reached on the emulator; it is covered by the suite (QA). The app was uninstalled and the emulator stopped. (A first boot probe ran every `adb` call as one command name, zsh's no-word-splitting trap, and was stopped and rewritten with a function; nothing it ran reached the emulator.)
+- **WebView:** `com.google.android.webview` `versionName` 133.0.6943.137: **WebView 133, unchanged since the last measurement.**
+- The device check is **Partial on API 36 emulator evidence, under the standing decision** (CLAUDE.md, Versioning: the user owns no Android device), as at 1.0.53 to 1.0.61. The attach waits for `release.sh` to create the `v1.0.62` release.
+
+### 8. Desktop: `release.sh`
+
+- Before it: the dirty set was this record (modified) and `evidence/` (the emulator screenshots, untracked), both pipeline records no build step reads; no other SnowRaven release, `tauri build` or dev watcher running (one unrelated `vite preview` for another project); login keychain unlocked (`no-timeout`).
+- `CI=true ALLOW_DIRTY=1 zsh -lc ./release.sh`, **exit 0**: `Releasing v1.0.62: tag=c16526a7 HEAD=1e4d824a`; iCloud profile OK (`8QKC3L2FKP.com.snowraven`, expires 2044-08-27); root `npm ci` 0 vulnerabilities; bundle version verified 1.0.62; iCloud entitlements and embedded profile verified; DMG styled, signed and verified; **notarization submission `f088e1fc-d4b2-4cc5-80f1-4d1332e7ac75` `Accepted`**, stapled; Windows installer fetched from CI and signed locally; **release published 2026-11-06 22:53:00 UTC, not a draft or pre-release, now `Latest`: https://github.com/dtgibson/snowraven/releases/tag/v1.0.62 (release id `437142018`)**.
+- Assets: `latest.json`, `SnowRaven-updater.app.tar.gz` and `.sig`, `SnowRaven_1.0.62_universal.dmg`, `SnowRaven_1.0.62_x64-setup.exe` and `.sig` (and, after step 9, the Android APK).
+- **Download-back:** the DMG (SHA-256 `4963c8ac7dce448e1e98000cd50f137ca307bd037832acf49b44a9f829c13b37`) passes `codesign --verify --verbose=2` (valid on disk, satisfies its Designated Requirement), `xcrun stapler validate` (worked), `spctl -a -t open --context context:primary-signature -vv` (**accepted, source=Notarized Developer ID**, `DAVID THOMAS GIBSON (8QKC3L2FKP)`) and `hdiutil verify` (checksum VALID), and mounts read-only to SnowRaven.app 1.0.62 (x86_64 and arm64).
+- `latest.json` (SHA-256 `3977378d...104a`; also through `releases/latest/download`): version 1.0.62; `darwin-aarch64` and `darwin-x86_64` identical, both on `SnowRaven-updater.app.tar.gz`; `windows-x86_64` on `SnowRaven_1.0.62_x64-setup.exe`; both URLs answer HTTP 200. **The published installer is byte-identical to run `42304086204`'s artifact** (SHA-256 `52ffacb05478bc03a8f7f8559f39a00493bc3cce5b5f17312c9a5b73101a9066`).
+- **Follow-up, not a blocker (unchanged from 1.0.61):** `release.sh`'s frontend `npm ci` reports "12 vulnerabilities (10 moderate, 2 high)" (1.0.61 read 14). `npm audit --omit=dev` with network reads **0**; the full tree's 12 are all development tooling (`eslint`, `@eslint/js`, `@eslint/config-array`, `typescript-eslint` and its five `@typescript-eslint/*` packages, `minimatch`, and the two highs `undici` and `zod`). The 1.0.61 ship's dev-only audit refresh is still open.
+
+### 9. Android attach
+
+- `ANDROID_DEVICE_CHECK=partial ANDROID_CHECKED_SHA256=81c90406...51e8 SNOWRAVEN_ANDROID_SIGNER_SHA256=42a3576e...996a scripts/android/attach.sh <signed apk>` **exit 0** (Partial on emulator evidence by standing decision: the user owns no Android device, CLAUDE.md Versioning). Checks: signer equals the keystore's certificate, byte-identical to the checked file, `com.dtgibson.snowraven` 1.0.62 (1000062). Uploaded to v1.0.62 as **`SnowRaven_1.0.62_android_universal.apk`** and downloaded back: `ASSET_SHA256=81c9040613bb058c1a92351091492a290ead0a0af0296f629ddda6ef09fd51e8`, `SIGNER_SHA256=42a3576e445bda4a994793f2ffa056663113275c9805eb2f6cffdc252375996a`.
+- **F-Droid readout (public reads, 22:54 UTC):** fdroiddata `master` still has `CurrentVersion` 1.0.61 (`CurrentVersionCode` 10000614) and no 1.0.62 entry; the logs for 10000621, 10000622 and 10000624 answer 404. So 1.0.62 is **included and this tag not yet built**, the expected state half an hour after a tag (the bot adds the newest tag within a day or two). Nothing was sent to fdroiddata. Part three re-reads this for the ledger.
+
+### 10. Where part two stops (2026-11-06, about 22:55 UTC)
+
+**Live:** the website (pill 1.0.62, both privacy sentences); the GitHub release v1.0.62 (`Latest`) with the notarized universal Mac DMG, the Windows installer, `latest.json` (the in-app updater now offers 1.0.62 on Mac and Windows) and the signed Android APK; TestFlight build 1.0.62.1 `VALID` and testable. F-Droid takes the tag on its own schedule.
+
+**Not done, by design (part three, after the user's iPhone check):** no 1.0.62 App Store version record, no What's New written, no screenshot read-back, no submission, and no 1.0.62 sentence in `RELEASE_LEDGER.md` (App Store or Android). The second line to the `snowraven-2b` session ("another line follows when they are done") is owed when the App Store steps finish. This record and `evidence/ship/` (three PNGs) are uncommitted in the worktree for part three or the Chronicler to commit.
+
+**The user's check (device boundary: the user performs it, the result is recorded as they report it):** install TestFlight build **1.0.62 (1.0.62.1)** on their own iPhone, open it, and confirm it launches; then, with their eBird backup and eBird key already in the app, open Statistics, scroll to Geographic Stats, and confirm the "Checklists at hotspots" share bar renders above the top-location lists with a hotspot and a personal-location percentage and the counts behind them.
+
+## Part three: the App Store record, submission and ledger (2026-11-07, from about 00:15 UTC; 2026-11-06 PST)
+
+Run by The Deployer, hands-off, after the user's own iPhone check of TestFlight build 1.0.62.1 passed (`decisions.md`, section 4: it launches, and the "Checklists at hotspots" bar shows in Statistics, Geographic Stats, with both percentages and the counts). The production sign-off is section 3. Same worktree and branch; the push goes to `origin` with `git push origin HEAD:main`, so the local `main` ref is never moved. No physical device touched, no other worktree entered, no stash used.
+
+Driven through the App Store Connect API with the metadata key `QJA25M7XHM` (token minted in-process by `pipeline/app-store-listing-polish/asc/asc-lib.mjs`, never printed), from a script in the session scratchpad. Every expected value was extracted by script from `appstore/LISTING.md` and `appstore/REVIEW_NOTES.md` as committed; neither file was edited. Review contact details were compared, never printed.
+
+### 1. Before writing
+
+- **Live state (read only):** 29 version records, all `READY_FOR_SALE` (1.0.61 `1ff37081` `READY_FOR_DISTRIBUTION`); 10 review submissions, all `COMPLETE`; no 1.0.62 record and no record from the parallel session; build **1.0.62.1 `8c02a421` `VALID`**, not expired, `usesNonExemptEncryption` false; one app info, `8c34f889`.
+- **The extraction against the live 1.0.61 record: `ALL SAME`.** Description 3,234 characters, keywords 97, promotional text 137, marketing and support URLs, copyright `2026 Dave Gibson`, review notes 3,898; name, subtitle, privacy policy URL, Reference and Weather on the app info; age rating 30 fields (16 `NONE`, 11 false, 3 null). None of the extracted values contains U+2014.
+- **The What's New** checked equal to the approved sentence in `held-copy.md` and to the three F-Droid changelogs: 173 characters, ASCII, no em dash.
+
+### 2. The record
+
+- `POST /v1/appStoreVersions` (201) at 2026-11-07 00:17:17 UTC: **`e48a104b-0542-4c8c-b304-26059fa3bc61`**, 1.0.62 on build 1.0.62.1, `PREPARE_FOR_SUBMISSION`, `AFTER_APPROVAL`, copyright from `LISTING.md`. en-US localization **`6e149a48-0c8c-4116-8739-e0ead744a69c`**. A new editable app info, `2618e95e`, appeared beside the live `8c34f889`.
+- **What it carried:** the description, keywords, both URLs, the review notes (byte-identical, 3,898) and the contact details; the name, subtitle, privacy policy URL, both categories and the age rating on both app infos. **The promotional text and the What's New arrived EMPTY**, the promotional text for the thirteenth time on a new record.
+- **One write:** `PATCH` of the en-US localization with `whatsNew` (the approved sentence) and `promotionalText` (from `LISTING.md`), 200. Nothing else was written, because nothing else differed.
+
+### 3. Listing read-back: `READBACK 1.0.62: ALL SAME`
+
+Read after the write (`evidence/ship/listing-readback-1.0.62.txt`) and again after submitting, both times every field identical to the committed files:
+
+| Field | Result |
+|---|---|
+| Build | `8c02a421` 1.0.62.1 `VALID` attached |
+| Release | `AFTER_APPROVAL`, no earliest release date, no phased release; one localization, en-US |
+| What's New | 173, the approved sentence (restored) |
+| Promotional text | 137, from `LISTING.md` (restored) |
+| Description, keywords | 3,234 and 97 (carried) |
+| Marketing URL, support URL | `https://snowraven.dtgibson.com`, `https://github.com/dtgibson/snowraven` (carried) |
+| Copyright | `2026 Dave Gibson` (set at creation) |
+| App Review notes | byte-identical to `REVIEW_NOTES.md`, 3,898 (carried) |
+| Review contact | first and last name, phone and email present and equal to 1.0.61's (not printed); demo account not required |
+| Name, subtitle, privacy policy URL, categories | `SnowRaven`, `Your birding data, explored`, `https://snowraven.dtgibson.com/privacy.html`, Reference and Weather, on both app infos (carried) |
+| Age rating | on both app infos: 30 fields, 16 `NONE`, 11 false, 3 null (`kidsAgeBand`, `gracRatingClassificationNumber`, `developerAgeRatingInfoUrl`, null on a non-Kids app), identical across the two; consistent with `LISTING.md` (4+); nothing changed |
+
+The privacy label ("Data Not Collected") can be checked only in the App Store Connect UI and was not touched; this release sends nothing to the developer, so it stands.
+
+### 4. Screenshot read-back: `ALL MATCH`, 18 of 18
+
+- `npm ci` in `website/tools` (9 packages, `sharp` 0.35.4; `node_modules` is gitignored and the lockfile is unchanged).
+- `node asc-screens.mjs readback --loc 6e149a48-0c8c-4116-8739-e0ead744a69c` from `pipeline/app-store-listing-polish/asc/`, before submitting: **`read-back: ALL MATCH`** (`evidence/ship/screenshots-readback-1.0.62.txt`).
+  - iPhone 6.9-inch, `IPHONE_DYNAMIC_ISLAND_LARGE_PROFILE` / legacy `APP_IPHONE_67` set `1aceebe5`: six OK (name, size, dimensions, md5, delivery `COMPLETE`, decoded pixels).
+  - iPad 13-inch, `IPAD_13_PROFILE` / legacy `APP_IPAD_PRO_3GEN_129` set `ff4f2cb2`: six OK, the same checks.
+  - **iPhone Duo, `IPHONE_DUO_PROFILE`: six `ACTIVE` placements, images `APPROVED`, name, size, dimensions and decoded pixels OK.**
+- **Second view** (`asc-library-read.mjs --loc ...` and `asc-read.mjs --version 1.0.62`): 18 placements, all `ACTIVE` and `APPROVED`, each group in the order 01, 02, 04, 05, 03, 06 on its spec (`bd402f1a`, `1751a63a`, `5d458eef`); the legacy API also lists the Duo as `APP_IPHONE_DUO` set `7391c27c`, six `COMPLETE` with md5s equal to `appstore/screenshots/iphone-duo/` in upload order.
+- **Measured for the first time: a new record DOES carry the iPhone Duo placements from the previous record**, as it carries the two legacy sets. Nothing was re-uploaded. `appstore/screenshots/` is unchanged since 1.0.61, and no committed shot shows the new block (part one).
+
+### 5. Submission
+
+- Re-checked first: the record `PREPARE_FOR_SUBMISSION`, no open review submission.
+- `POST /v1/reviewSubmissions` (201, `READY_FOR_REVIEW`), `POST /v1/reviewSubmissionItems` with the record (201, `READY_FOR_REVIEW`), `PATCH submitted: true` (200): **submission `feeb4e41-91fe-41ba-b665-247e8d225feb`, `WAITING_FOR_REVIEW`, submitted 2026-11-07 00:18:34 UTC.**
+- **Read back:** the submission `WAITING_FOR_REVIEW` (platform IOS), its one item `READY_FOR_REVIEW`; the record **1.0.62 `WAITING_FOR_REVIEW` / `WAITING_FOR_REVIEW`**, `AFTER_APPROVAL`, no phased release, build `8c02a421`; every listing field still `ALL SAME`.
+- **Reconciliation (read only, after submitting):** 30 version records (1.0.62 `WAITING_FOR_REVIEW`, the other 29 `READY_FOR_SALE`); 11 review submissions (this one waiting, 10 `COMPLETE`); 86 TestFlight trains, 94 builds, every build `VALID`. The versions from 1.0.13 on with a train and no record of their own are the same 21 as at 1.0.59 to 1.0.61 (1.0.15, 1.0.16, 1.0.18, 1.0.20, 1.0.22, 1.0.25, 1.0.26, 1.0.29, 1.0.33, 1.0.37, 1.0.39, 1.0.41, 1.0.42, 1.0.43, 1.0.44, 1.0.46, 1.0.48, 1.0.49, 1.0.52, 1.0.54, 1.0.58), each with its written disposition. **No unaccounted gap between 1.0.13 and 1.0.62.**
+
+### 6. F-Droid, re-read for the ledger (public reads, 2026-11-07 00:19 UTC)
+
+- fdroiddata `master`: `CurrentVersion` 1.0.61, `CurrentVersionCode` 10000614, newest recipe commit still `754c9f1f` (2026-11-04 06:32 UTC, "bot: Update SnowRaven to 10000614"); no 1.0.62 entry.
+- Build logs for 10000621, 10000622 and 10000624: all **404** (not attempted).
+- f-droid.org publishes 1.0.61 (10000614, 10000612, 10000611), 1.0.60 and 1.0.59; `suggestedVersionCode` 10000614.
+- **State: 1.0.62 included and this tag not yet built**, the expected state about 90 minutes after the tag. Nothing is owed to fdroiddata (no toolchain pin or recipe build step changed).
+- GitHub APK re-read from the release's asset digest: `SnowRaven_1.0.62_android_universal.apk` `sha256:81c9040613bb058c1a92351091492a290ead0a0af0296f629ddda6ef09fd51e8`, equal to the signed and checked file (part two, section 9).
+
+### 7. `RELEASE_LEDGER.md`
+
+- **App Store, `### 1.0.62 SHIP (2026-11-06)`:** 1.0.61 resolved; the record `e48a104b`, submission `feeb4e41`, build 1.0.62.1, `WAITING_FOR_REVIEW`; What's New and promotional text restored; the carried fields; the age rating; the screenshot read-back with the first Duo carry-over measurement; the reconciliation.
+- **Android, `### 1.0.62 SHIP (2026-11-06)`:** APK attached with its SHA-256 and signer, Partial on emulator evidence by standing decision, F-Droid included and this tag not yet built (both reads), WebView 133 unchanged.
+
+### 8. Where 1.0.62 stands
+
+**Shipped on every platform:** Mac and Windows (GitHub release v1.0.62 with `latest.json`, the in-app updater offering it), the website (pill 1.0.62, both privacy sentences), the signed GitHub Android APK, TestFlight 1.0.62.1, and the App Store submission in review (`WAITING_FOR_REVIEW`, released automatically on approval). F-Droid will pick up the tag on its own. The 1.0.62 App Store disposition still reads `WAITING_FOR_REVIEW` in the ledger; the next ship's live query records its outcome.

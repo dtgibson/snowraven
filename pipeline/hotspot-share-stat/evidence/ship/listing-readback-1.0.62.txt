@@ -1,0 +1,51 @@
+
+== 1.0.62 record e48a104b-0542-4c8c-b304-26059fa3bc61 appStoreState=PREPARE_FOR_SUBMISSION appVersionState=PREPARE_FOR_SUBMISSION releaseType=AFTER_APPROVAL earliestReleaseDate=null
+  build 1.0.62.1 8c02a421-b312-4c5c-ad4d-511b307690e5 VALID expired=false usesNonExemptEncryption=false
+  phased release: none
+  SAME copyright ("2026 Dave Gibson")
+  localizations: en-US; en-US 6e149a48-0c8c-4116-8739-e0ead744a69c
+  SAME description (3234 chars)
+  SAME keywords (97 chars)
+  SAME promotionalText (137 chars)
+  SAME marketingUrl ("https://snowraven.dtgibson.com")
+  SAME supportUrl ("https://github.com/dtgibson/snowraven")
+  SAME whatsNew (173 chars)
+  SAME review notes (3898 chars)
+  review contact present: first=true last=true phone=true email=true; demoAccountRequired=false
+
+== 1.0.61 record 1ff37081-0999-4eb7-8dbd-d44771e04b1c appStoreState=READY_FOR_SALE appVersionState=READY_FOR_DISTRIBUTION releaseType=AFTER_APPROVAL earliestReleaseDate=null
+  build 1.0.61.1 c488b8e2-61d6-4533-8fae-c18f87562063 VALID expired=false usesNonExemptEncryption=false
+  phased release: none
+  SAME copyright ("2026 Dave Gibson")
+  localizations: en-US; en-US 4ea321c5-5568-45f0-bb73-72f19312e97e
+  SAME description (3234 chars)
+  SAME keywords (97 chars)
+  SAME promotionalText (137 chars)
+  SAME marketingUrl ("https://snowraven.dtgibson.com")
+  SAME supportUrl ("https://github.com/dtgibson/snowraven")
+  whatsNew present: 314 chars
+  SAME review notes (3898 chars)
+  review contact present: first=true last=true phone=true email=true; demoAccountRequired=false
+
+  review contact details equal to 1.0.61's: true
+
+== appInfo 8c34f889-5500-4d2b-8809-31dac10e5153 state=READY_FOR_SALE
+  SAME name ("SnowRaven")
+  SAME subtitle ("Your birding data, explored")
+  SAME privacyPolicyUrl (43 chars)
+  SAME primaryCategory ("REFERENCE")
+  SAME secondaryCategory ("WEATHER")
+  age rating: 30 fields, 16 NONE, 11 false, null: kidsAgeBand, gracRatingClassificationNumber, developerAgeRatingInfoUrl; other: []
+
+== appInfo 2618e95e-bd70-4ecd-b897-8f5cbbb00f1c state=PREPARE_FOR_SUBMISSION
+  SAME name ("SnowRaven")
+  SAME subtitle ("Your birding data, explored")
+  SAME privacyPolicyUrl (43 chars)
+  SAME primaryCategory ("REFERENCE")
+  SAME secondaryCategory ("WEATHER")
+  age rating: 30 fields, 16 NONE, 11 false, null: kidsAgeBand, gracRatingClassificationNumber, developerAgeRatingInfoUrl; other: []
+  age rating identical across the two app infos: true
+  build attached is 8c02a421-b312-4c5c-ad4d-511b307690e5 VALID: true
+  AFTER_APPROVAL, no earliest date, no phased release: true
+
+READBACK 1.0.62: ALL SAME
