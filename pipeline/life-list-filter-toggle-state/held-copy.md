@@ -1,12 +1,12 @@
 # Held copy: life-list-filter-toggle-state
 
-Nothing below has been written into `CHANGELOG.md`, `fastlane/`, App Store Connect, `website/`, `README.md` or `PRIVACY_POLICY.md`. Each item waits for the user's explicit yes at the ship. The version is assumed to be **1.0.64** (the next patch after 1.0.63); if another ship lands first, the ship step moves the number, the file names and the date, and the text stays as approved.
+Nothing below has been written into `CHANGELOG.md`, `fastlane/`, App Store Connect, `website/`, `README.md` or `PRIVACY_POLICY.md`. Each item waits for the user's explicit yes at the ship. The version is **1.0.65**: 1.0.64 is being shipped by another session from the main checkout (2026-11-07), and this fix ships after it. If yet another ship lands first, the ship step moves the number, the file names and the date, and the text stays as approved.
 
 ## Proposed CHANGELOG.md entry
 
 The CHANGELOG entry is not published copy, but it is written at the release commit with the rest of the version set, so it waits here.
 
-## [1.0.64] - (release date)
+## [1.0.65] - (release date)
 
 ### Fixed
 - **Filter buttons show their new state as soon as you tap them.** On a phone or tablet, tapping Photo, Audio, or Video on Life Lists left the button gray, whether it had just turned on or off, until you tapped somewhere else; the Include Escapees and Include Exotics switches beside them kept a gray frame the same way. Each tap now shows the button's real state at once, in both themes. The fix is in the shared style these controls use, so the filter buttons, option toggles and switches drawn the same way on other tabs (Multimedia's paired "No photo" buttons and Is Target, Breeding Codes, the sort and view toggles) are fixed too. With a mouse, a selected button now keeps its selected look while the pointer is over it, and an unselected one still lights up under the pointer.
@@ -15,11 +15,11 @@ The CHANGELOG entry is not published copy, but it is written at the release comm
 - `globals.css`: the hover rules of the `.sr-pill`, `.sr-segbar-btn` and `.sr-toggle` registers sit inside `@media (hover: hover)`, and the pill and segment hover rules carry their inert gates inside `:where()`, so they are (0,2,0) and every selected-state rule (0,2,0 or above, declared after) beats them. The register comment that called the old pair "equal specificity" is corrected.
 - `lib/controlRegisters.test.ts` guards both rules over the whole stylesheet, with mutation rows that put the old ungated or (0,4,0) rule back and go red; `components/ui/ToggleSwitch.test.tsx` reads the switch's hover rule inside the media block.
 - The selector-specificity helper moved from `lib/mapFabCascade.test.ts` to `test/cssSpecificity.ts`, shared by both guards, and now scores a class as (0,1,0); it used to score one as a type selector. None of the map control guard's verdicts changed.
-- The F-Droid changelog for this release is three identical files, one per processor-type build (`10000641.txt`, `10000642.txt`, `10000644.txt`), and the in-repo F-Droid recipe names 1.0.64.
+- The F-Droid changelog for this release is three identical files, one per processor-type build (`10000651.txt`, `10000652.txt`, `10000654.txt`), and the in-repo F-Droid recipe names 1.0.65.
 
 ## Proposed F-Droid changelog (the three files, identical)
 
-Files: `fastlane/metadata/android/en-US/changelogs/10000641.txt`, `10000642.txt` and `10000644.txt` (versionCode 1000064, times ten, plus 1, 2 and 4). Each file holds exactly this one line followed by a single newline:
+Files: `fastlane/metadata/android/en-US/changelogs/10000651.txt`, `10000652.txt` and `10000654.txt` (versionCode 1000065, times ten, plus 1, 2 and 4). Each file holds exactly this one line followed by a single newline:
 
 > On a phone or tablet, tapping Photo, Audio, or Video on Life Lists, or the switches beside them, now shows the new state at once instead of a gray look that stayed until your next tap. Filter buttons, option toggles, and switches drawn in the same style on other tabs are fixed too. With a mouse, a selected button now keeps its selected look while the pointer is over it.
 
