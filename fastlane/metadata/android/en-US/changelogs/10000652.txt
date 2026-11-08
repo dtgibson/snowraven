@@ -1,0 +1,1 @@
+On a phone or tablet, tapping Photo, Audio, or Video on Life Lists, or the switches beside them, now shows the new state at once instead of a gray look that stayed until your next tap. Filter buttons, option toggles, and switches drawn in the same style on other tabs are fixed too. With a mouse, a selected button now keeps its selected look while the pointer is over it.

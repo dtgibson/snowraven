@@ -2,6 +2,17 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [1.0.65] - 2026-11-07
+
+### Fixed
+- **Filter buttons show their new state as soon as you tap them.** On a phone or tablet, tapping Photo, Audio, or Video on Life Lists left the button gray, whether it had just turned on or off, until you tapped somewhere else; the Include Escapees and Include Exotics switches beside them kept a gray frame the same way. Each tap now shows the button's real state at once, in both themes. The fix is in the shared style these controls use, so the filter buttons, option toggles and switches drawn the same way on other tabs (Multimedia's paired "No photo" buttons and Is Target, Breeding Codes, the sort and view toggles) are fixed too. With a mouse, a selected button now keeps its selected look while the pointer is over it, and an unselected one still lights up under the pointer.
+
+### Internal
+- `globals.css`: the hover rules of the `.sr-pill`, `.sr-segbar-btn` and `.sr-toggle` registers sit inside `@media (hover: hover)`, and the pill and segment hover rules carry their inert gates inside `:where()`, so they are (0,2,0) and every selected-state rule (0,2,0 or above, declared after) beats them. The register comment that called the old pair "equal specificity" is corrected.
+- `lib/controlRegisters.test.ts` guards both rules over the whole stylesheet, with mutation rows that put the old ungated or (0,4,0) rule back and go red; `components/ui/ToggleSwitch.test.tsx` reads the switch's hover rule inside the media block.
+- The selector-specificity helper moved from `lib/mapFabCascade.test.ts` to `test/cssSpecificity.ts`, shared by both guards, and now scores a class as (0,1,0); it used to score one as a type selector. None of the map control guard's verdicts changed.
+- The F-Droid changelog for this release is three identical files, one per processor-type build (`10000651.txt`, `10000652.txt`, `10000654.txt`), and the in-repo F-Droid recipe names 1.0.65.
+
 ## [1.0.64] - 2026-11-07
 
 ### Fixed
