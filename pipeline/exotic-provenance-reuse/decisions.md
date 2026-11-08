@@ -105,3 +105,7 @@ The Auditor's report (`security-report.md`, on disk) passed with notes: no Criti
 - **I4, the test title at `exoticProvenanceCache.test.ts:689` claims the cap sits above the whole world list and nothing checks it:** ACCEPTED as a residual for the Chronicler's ROADMAP note; a title fix on its own is not worth a second commit in a release, and the next edit to that file owes it.
 
 The Auditor's convention flag (a store that keeps a "true at time T" stamp decides in a test row what a future-dated stamp means) goes to the Chronicler with the Tester's.
+
+## D-17 Pipeline red on the tagged commit, shipped anyway (Orchestrator, Stage 5)
+
+Pipeline run `42432568865` on `84122197` (the v1.0.64 release commit) failed twice on one file, `lifeListsLinearity.test.ts`, a CPU-time ratio check scoring 21.60 and then 25.11 against a limit of 20, on GitHub's shared runners. Decision: ship. Reasons: the same test was red on `1e24a50c` before this build touched anything; it passes locally alone and in the full suite (10,694 passed); Backend, lint and typecheck passed on both attempts; Windows Build, Android Build and Pages passed on the tag; and the two steps CI skipped after the failure (the build and the real-engine browser gate) were run locally on the same tree and passed (8 of 8 in Chromium and WebKit). The headroom question for timing-ratio checks on shared runners is already in the idea inbox (`f79a03a9`) and is not reopened here. What would reverse this: a failure in a test this release touches, or a non-timing failure.
