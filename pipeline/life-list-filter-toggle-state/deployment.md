@@ -283,3 +283,69 @@ Run by The Deployer on the same recorded sign-off answer, given firsthand by the
 1. **The user's own iPhone check of the exact uploaded build.** In TestFlight it shows as SnowRaven **1.0.65 (1.0.65.1)**. Steps: install or update SnowRaven from TestFlight; open it; open Life Lists; tap Photo on, then off, then Audio and Video the same way (each tap shows the green selected look or the plain look at once, never a dark gray); tap Include Escapees (the switch turns green and its frame stays plain). Record what they report, with the time.
 2. **The App Store record decision.** 1.0.64 was still `WAITING_FOR_REVIEW` when 1.0.65.1 went `VALID`, so, unless it is approved first, the user chooses among the part-one options: roll 1.0.64 into 1.0.65 (withdraw `740963c6`, retarget record `ab6360bc` to 1.0.65 on build `e1f3f6f9`, What's New with 1.0.64's approved text then 1.0.65's), defer 1.0.65 behind 1.0.64's review, or TestFlight-only for 1.0.65. Re-read 1.0.64's state at that moment, since review can start or finish at any time.
 3. **`RELEASE_LEDGER.md`**: the two 1.0.65 entries drafted in part two A, completed with the TestFlight build above and the record decision.
+
+## Part two C: the App Store record, the release ledger and the final state (2026-11-07 PST, 2026-11-08 UTC), hands-off
+
+Run by The Deployer on two answers the user gave firsthand in the orchestrator's session, relayed in this invocation's brief: the production sign-off, "Confirm: approve the text and ship 1.0.65", with the App Store plan "if 1.0.64 is still waiting for review at that point, I move its record to 1.0.65 with the new build (one review carries both); if it is already in review, 1.0.65 waits on TestFlight until 1.0.64 is approved, then gets its own record"; and the iPhone check of TestFlight build 1.0.65 (1.0.65.1), reported in the user's words as "Yes, the buttons look right." Those two answers authorize every App Store write below. The orchestrator had pushed part two B's commits meanwhile, so this branch's head `21e4a9e1` equalled `origin/main` at the start. Nothing was built, tagged, released or sent to fdroiddata in this part.
+
+### Steps
+
+1. **App Store Connect, re-read** (metadata key `QJA25M7XHM`, GET only, 03:57:47 and again at 04:00:51 UTC): record `ab6360bc-24b3-4816-bf84-88967df06507` 1.0.64 **`WAITING_FOR_REVIEW`** (`appVersionState` the same, `AFTER_APPROVAL`) on build 1.0.64.1 (`81d91d5e`); its submission `740963c6-7ca7-495b-96d2-d6fd769876b3` **`WAITING_FOR_REVIEW`**, not `IN_REVIEW`; build 1.0.65.1 (`e1f3f6f9-fea2-45f7-99d6-fa1126ab8713`) **`VALID`**, not expired; **no 1.0.65 record**. So the plan's first branch applied: roll 1.0.64 into 1.0.65.
+2. **The read-back script, proven before any write.** A scratchpad script on `asc-lib.mjs` compares every field with values taken from the committed `appstore/LISTING.md` and `appstore/REVIEW_NOTES.md` (the review contact is checked for presence and never printed). Run first on the untouched 1.0.64 record, it reproduced the 1.0.64 ship's `READBACK 1.0.64: ALL SAME` field for field. Its first draft unwrapped the reviewer notes and read 3,867 characters against the record's 3,898; the record holds that section exactly as committed, line wraps included, and the corrected extractor matches byte for byte.
+3. **The rollup** (each step a guarded script run that stops before writing when its precondition fails; every request and status in `evidence/ship/asc-rollup-1.0.65.txt`):
+   - **Withdraw:** precheck 1.0.64 and its submission both `WAITING_FOR_REVIEW`; `DELETE /v1/appStoreVersionSubmissions/ab6360bc...` **204** at 04:00:58 UTC; the record read `DEVELOPER_REJECTED` at 04:01:04 UTC and the submission `CANCELING`, then `COMPLETE` by 04:01:43 UTC.
+   - **Retarget, on the same record:** `PATCH` `versionString` 1.0.65 **200**; `PATCH relationships/build` to `e1f3f6f9` **204**. The record then read 1.0.65 `PREPARE_FOR_SUBMISSION` on build 1.0.65.1 `VALID`, `AFTER_APPROVAL`.
+   - **What's New, one write:** the record held 1.0.64's approved text (217 characters, equal to `pipeline/exotic-provenance-reuse/held/whats-new.txt`), and the promotional text equalled `LISTING.md` (137 characters), so only `whatsNew` was written: one `PATCH` of localization `114f46ce-b4e1-4d51-9870-cf10561f7fbf`, **200**, with 1.0.64's approved text, a blank line, then 1.0.65's approved text from `held-copy.md` (372 characters, checked against the F-Droid file's SHA-256 `6aaeb7c4...c77e` and the held App Store line before use), 591 characters, read back byte-equal. This is the house rollup form (1.0.47, 1.0.50, 1.0.55, 1.0.59, 1.0.63), and this run's own plan named it (part one; part two B, "What remains"). This invocation's brief named the 1.0.65 text alone, so the choice and its reversal are in `decisions.md` D-10.
+   - **Read-backs before submitting:** listing `READBACK 1.0.65: ALL SAME` (`evidence/ship/listing-readback-1.0.65.txt`); `asc-screens.mjs readback --loc 114f46ce...` **ALL MATCH, 18 of 18** (`evidence/ship/screenshots-readback-1.0.65.txt`).
+   - **Submit:** no other submission open (the old one already `COMPLETE`); `POST /v1/reviewSubmissions` **201** (`READY_FOR_REVIEW`), `POST /v1/reviewSubmissionItems` **201** (`READY_FOR_REVIEW`), `PATCH submitted: true` **200**: **submission `33624506-edfa-4d5c-9cc7-806b0d3a7866`, `WAITING_FOR_REVIEW`, submitted 2026-11-08 04:01:55 UTC** (2026-11-07 20:01 PST). Read back: the record **1.0.65 `WAITING_FOR_REVIEW` / `WAITING_FOR_REVIEW`**, `AFTER_APPROVAL`; every field still ALL SAME (`evidence/ship/listing-readback-1.0.65-after-submit.txt`); at 04:04:00 UTC the same, with `740963c6` `COMPLETE`.
+4. **Reconciliation after submitting** (GET only, 04:02 UTC): 31 version records, 30 `READY_FOR_SALE` and 1.0.65 `WAITING_FOR_REVIEW`, no record names 1.0.64 any more; the 11 review submissions the API lists (the newest eleven), `33624506` waiting and 10 `COMPLETE`, `740963c6` among them; 89 TestFlight trains and 97 builds, every build `VALID`. From 1.0.13 on, 53 trains, and the 23 with no record of their own are the 21 the 1.0.59 ship accounted for, 1.0.62 (rolled up at 1.0.63) and 1.0.64 (rolled up here). No unaccounted gap.
+5. **F-Droid, three public reads** (04:02 to 04:03 UTC), unchanged since part two A: fdroiddata `master` has `CurrentVersion` 1.0.63 / `CurrentVersionCode` 10000634 and `Builds` entries for 1.0.53, 1.0.55, 1.0.56, 1.0.60, 1.0.61 and 1.0.63, none for 1.0.64 or 1.0.65; its newest recipe commit is still `69401fd9` ("bot: Update SnowRaven to 10000634", 2026-11-07 09:03 UTC). f-droid.org publishes 1.0.61, 1.0.60 and 1.0.59 (`suggestedVersionCode` 10000614). The logs for 10000631/2/4, 10000641/2/4 and 10000651/2/4 all answer 404 (not attempted). **States: 1.0.63, 1.0.64 and 1.0.65 each included and this tag not yet built.** Nothing was sent to fdroiddata.
+6. **Pipeline on `21e4a9e1`** (the push of part two B's commits): run `42442083898` failed on `lifeListsLinearity.test.ts:126` alone (20.01 against 20), Backend green. That is the D-17 condition; `decisions.md` D-8 records the acceptance.
+7. **Records:** `RELEASE_LEDGER.md` (the rollup added to the rule paragraph's list; a dated correction in place at the end of the 1.0.64 App Store entry; the 1.0.65 App Store and Android entries), `decisions.md` D-8 to D-10, and this part.
+
+### Listing read-back on record `ab6360bc` (1.0.65), after the write and again after submitting
+
+| Field | Expected (source) | On the record | Result |
+|---|---|---|---|
+| Version | 1.0.65 | 1.0.65 | MATCH |
+| Build attached | 1.0.65.1 `e1f3f6f9`, `VALID` | 1.0.65.1 `e1f3f6f9`, `VALID`, not expired, `usesNonExemptEncryption` false | MATCH |
+| Release type | release on approval (`AFTER_APPROVAL`), no date, no phasing | `AFTER_APPROVAL`, `earliestReleaseDate` null, no phased release | MATCH |
+| Name | `LISTING.md` (9) | 9 characters, equal, on both app infos | MATCH |
+| Subtitle | `LISTING.md` (27) | 27, equal, on both app infos | MATCH |
+| Promotional text | `LISTING.md` (137) | 137, equal (carried; nothing restored) | MATCH |
+| Description | `LISTING.md` (3,407) | 3,407, equal | MATCH |
+| Keywords | `LISTING.md` (97) | 97, equal | MATCH |
+| What's New | 1.0.64's approved 217, a blank line, 1.0.65's approved 372 | 591, byte-equal | MATCH |
+| Support URL | `LISTING.md` | 37 characters, equal | MATCH |
+| Marketing URL | `LISTING.md` | 30 characters, equal | MATCH |
+| Privacy policy URL | `LISTING.md` | 43 characters, equal, on both app infos | MATCH |
+| Copyright | `LISTING.md` (16) | 16, equal | MATCH |
+| Categories | Reference, Weather | `REFERENCE`, `WEATHER` on both app infos | MATCH |
+| App Review notes | `REVIEW_NOTES.md` section (3,898) | 3,898, byte-identical | MATCH |
+| Review contact, demo account | present; not required | first, last, phone and email present (not printed); `demoAccountRequired` false | MATCH |
+| Age rating | answered | both app infos (`2618e95e` live, `8319b5dd` editable): 30 fields, 16 `NONE`, 11 false, 3 null (`kidsAgeBand`, `gracRatingClassificationNumber`, `developerAgeRatingInfoUrl`, null on a non-Kids app) | MATCH |
+| Screenshots, iPhone 6.9-inch | six frames of `appstore/screenshots/iphone-6.9/` in `FRAMES` order | legacy set `cf38685c`, six `COMPLETE`, md5 and pixels equal | MATCH |
+| Screenshots, iPad 13-inch | six frames of `ipad-13/` | legacy set `7ff1a6b2`, six `COMPLETE`, md5 and pixels equal | MATCH |
+| Screenshots, iPhone Duo | six frames of `iphone-duo/` | six `ACTIVE` placements in `IPHONE_DUO_PROFILE`, `APPROVED`, pixel-identical | MATCH |
+
+No field needed restoring and none differed, so no corrective write was made. The privacy label ("Data Not Collected") can be read only in the App Store Connect UI and was not touched; this release sends nothing anywhere new.
+
+### Final state of every leg (2026-11-08, about 04:05 UTC)
+
+| Leg | State |
+|---|---|
+| Mac | live: release `437986036` (Latest), `SnowRaven_1.0.65_universal.dmg`, notarization `6fba9921` Accepted, stapled, Gatekeeper accepted |
+| Windows | live: `SnowRaven_1.0.65_x64-setup.exe` on the same release, byte-identical to CI run `42437403549`'s artifact, signed |
+| In-app update | live: `latest.json` 1.0.65 for `darwin-aarch64`, `darwin-x86_64` and `windows-x86_64`, both signatures verified against the updater key |
+| Android APK | attached: `SnowRaven_1.0.65_android_universal.apk`, SHA-256 `7190fde1ca774a1b797c2d18f2d71e073d915c6b2e9c0130a6ddd17eb76c3d92`, signer `42a3576e445bda4a994793f2ffa056663113275c9805eb2f6cffdc252375996a`; device check Partial on API 36 emulator evidence (standing decision), the fix seen working on WebView 133 |
+| F-Droid | included and this tag not yet built (read 04:02 UTC); nothing sent; the bot is expected to add 1.0.65 from `d7444330fa4c4497511057239293419702b16cee` |
+| Website | live at 1.0.65 (Pages `42439739464`; pill and footer read v1.0.65) |
+| TestFlight | 1.0.65 (1.0.65.1), build `e1f3f6f9-fea2-45f7-99d6-fa1126ab8713`, `VALID`; the user's iPhone check passed: "Yes, the buttons look right." |
+| App Store | submitted: 1.0.65, carrying 1.0.64 by rollup, on record `ab6360bc-24b3-4816-bf84-88967df06507`, submission `33624506-edfa-4d5c-9cc7-806b0d3a7866`, `WAITING_FOR_REVIEW`, release on approval; 1.0.64's submission `740963c6` withdrawn (`COMPLETE`) |
+| Pipeline on `main` | red on the `lifeListsLinearity` timing ratio alone (`42439739481` twice, `42442083898`), accepted under D-17 (`decisions.md` D-8); this record's push starts one more run |
+
+### Left open
+
+- The App Store review itself. When 1.0.65 is approved and released, the next ship records it `READY_FOR_SALE` with `33624506` `COMPLETE`.
+- F-Droid picking up 1.0.65 (the bot, then F-Droid's build and publish, usually days); 1.0.64 is likely to end superseded on F-Droid by 1.0.65.
+- `DECISIONS.md`'s v1.0.64 entry still says 1.0.64 has "a record of its own, `ab6360bc` ... submitted as `740963c6`". That entry is The Chronicler's to annotate; the ledger, which a ship reads, already carries the correction.

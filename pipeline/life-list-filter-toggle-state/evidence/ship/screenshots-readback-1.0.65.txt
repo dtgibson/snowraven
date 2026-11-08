@@ -1,0 +1,28 @@
+localization 114f46ce en-US on version 1.0.65 (ab6360bc) appStoreState=PREPARE_FOR_SUBMISSION appVersionState=PREPARE_FOR_SUBMISSION
+editable: true  (dry run: no writes)
+
+iphone-6.9 (IPHONE_DYNAMIC_ISLAND_LARGE_PROFILE / APP_IPHONE_67): 6 placement(s), legacy set cf38685c with 6
+  [1] OK   01-map-explorer.png {"name":true,"size":true,"dims":true,"md5":true,"delivery":true,"pixels":true} placement=ACTIVE
+  [2] OK   02-statistics.png {"name":true,"size":true,"dims":true,"md5":true,"delivery":true,"pixels":true} placement=ACTIVE
+  [3] OK   04-calendar.png {"name":true,"size":true,"dims":true,"md5":true,"delivery":true,"pixels":true} placement=ACTIVE
+  [4] OK   05-species-detail.png {"name":true,"size":true,"dims":true,"md5":true,"delivery":true,"pixels":true} placement=ACTIVE
+  [5] OK   03-weather-tide.png {"name":true,"size":true,"dims":true,"md5":true,"delivery":true,"pixels":true} placement=ACTIVE
+  [6] OK   06-breeding-codes.png {"name":true,"size":true,"dims":true,"md5":true,"delivery":true,"pixels":true} placement=ACTIVE
+
+ipad-13 (IPAD_13_PROFILE / APP_IPAD_PRO_3GEN_129): 6 placement(s), legacy set 7ff1a6b2 with 6
+  [1] OK   01-map-explorer.png {"name":true,"size":true,"dims":true,"md5":true,"delivery":true,"pixels":true} placement=ACTIVE
+  [2] OK   02-statistics.png {"name":true,"size":true,"dims":true,"md5":true,"delivery":true,"pixels":true} placement=ACTIVE
+  [3] OK   04-calendar.png {"name":true,"size":true,"dims":true,"md5":true,"delivery":true,"pixels":true} placement=ACTIVE
+  [4] OK   05-species-detail.png {"name":true,"size":true,"dims":true,"md5":true,"delivery":true,"pixels":true} placement=ACTIVE
+  [5] OK   03-weather-tide.png {"name":true,"size":true,"dims":true,"md5":true,"delivery":true,"pixels":true} placement=ACTIVE
+  [6] OK   06-breeding-codes.png {"name":true,"size":true,"dims":true,"md5":true,"delivery":true,"pixels":true} placement=ACTIVE
+
+iphone-duo (IPHONE_DUO_PROFILE): 6 placement(s), legacy set none
+  [1] OK   01-map-explorer.png {"name":true,"size":true,"dims":true,"md5":"n/a","delivery":"APPROVED","pixels":true} placement=ACTIVE
+  [2] OK   02-statistics.png {"name":true,"size":true,"dims":true,"md5":"n/a","delivery":"APPROVED","pixels":true} placement=ACTIVE
+  [3] OK   04-calendar.png {"name":true,"size":true,"dims":true,"md5":"n/a","delivery":"APPROVED","pixels":true} placement=ACTIVE
+  [4] OK   05-species-detail.png {"name":true,"size":true,"dims":true,"md5":"n/a","delivery":"APPROVED","pixels":true} placement=ACTIVE
+  [5] OK   03-weather-tide.png {"name":true,"size":true,"dims":true,"md5":"n/a","delivery":"APPROVED","pixels":true} placement=ACTIVE
+  [6] OK   06-breeding-codes.png {"name":true,"size":true,"dims":true,"md5":"n/a","delivery":"APPROVED","pixels":true} placement=ACTIVE
+
+read-back: ALL MATCH

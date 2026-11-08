@@ -1,0 +1,55 @@
+# 1.0.64 into 1.0.65 rollup on record ab6360bc (metadata key, 2026-11-08 UTC)
+
+## state before
+2026-11-08T04:00:51Z record ab6360bc-24b3-4816-bf84-88967df06507 1.0.64 appStoreState=WAITING_FOR_REVIEW appVersionState=WAITING_FOR_REVIEW releaseType=AFTER_APPROVAL
+2026-11-08T04:00:51Z submission 740963c6-7ca7-495b-96d2-d6fd769876b3 state=WAITING_FOR_REVIEW submitted=2026-11-08T02:10:03.664Z
+  open submission 740963c6-7ca7-495b-96d2-d6fd769876b3 state=WAITING_FOR_REVIEW
+2026-11-08T04:00:51Z build e1f3f6f9-fea2-45f7-99d6-fa1126ab8713 1.0.65.1 VALID expired=false
+  records: 31; 1.0.65 records: none
+
+## withdraw
+2026-11-08T04:00:57Z precheck record 1.0.64 WAITING_FOR_REVIEW; submission 740963c6-7ca7-495b-96d2-d6fd769876b3 WAITING_FOR_REVIEW
+2026-11-08T04:00:58Z DELETE /v1/appStoreVersionSubmissions/ab6360bc-24b3-4816-bf84-88967df06507 -> 204
+2026-11-08T04:00:59Z record WAITING_FOR_REVIEW/WAITING_FOR_REVIEW; submission CANCELING
+2026-11-08T04:01:04Z record DEVELOPER_REJECTED/DEVELOPER_REJECTED; submission CANCELING
+
+## retarget
+2026-11-08T04:01:08Z precheck record 1.0.64 DEVELOPER_REJECTED
+2026-11-08T04:01:10Z PATCH /v1/appStoreVersions/ab6360bc-24b3-4816-bf84-88967df06507 -> 200
+2026-11-08T04:01:13Z PATCH /v1/appStoreVersions/ab6360bc-24b3-4816-bf84-88967df06507/relationships/build -> 204
+2026-11-08T04:01:14Z record now 1.0.65 PREPARE_FOR_SUBMISSION/PREPARE_FOR_SUBMISSION releaseType=AFTER_APPROVAL on build 1.0.65.1 e1f3f6f9-fea2-45f7-99d6-fa1126ab8713 VALID
+
+## What's New
+2026-11-08T04:01:18Z before: whatsNew 217 chars (equals 1.0.64's approved text: true); promotionalText 137 chars (equals LISTING: true)
+  writing: whatsNew (whatsNew 591 chars: 1.0.64's 217, a blank line, 1.0.65's 372)
+2026-11-08T04:01:18Z PATCH /v1/appStoreVersionLocalizations/114f46ce-b4e1-4d51-9870-cf10561f7fbf -> 200
+2026-11-08T04:01:18Z after: whatsNew byte-equal true; promotionalText equal true
+
+## submit
+2026-11-08T04:01:48Z precheck record 1.0.65 PREPARE_FOR_SUBMISSION
+2026-11-08T04:01:50Z POST /v1/reviewSubmissions -> 201
+  new submission 33624506-edfa-4d5c-9cc7-806b0d3a7866 state=READY_FOR_REVIEW
+2026-11-08T04:01:53Z POST /v1/reviewSubmissionItems -> 201
+  item MzM2MjQ1MDYtZWRmYS00ZDVjLTljYzctODA2YjBkM2E3ODY2fDZ8ODk0Nzk5NjY1 state=READY_FOR_REVIEW
+2026-11-08T04:01:56Z PATCH /v1/reviewSubmissions/33624506-edfa-4d5c-9cc7-806b0d3a7866 -> 200
+2026-11-08T04:01:57Z submission 33624506-edfa-4d5c-9cc7-806b0d3a7866 state=WAITING_FOR_REVIEW submitted=2026-11-08T04:01:55.492Z; items MzM2MjQ1MDYtZWRmYS00ZDVjLTljYzctODA2YjBkM2E3ODY2fDZ8ODk0Nzk5NjY1 READY_FOR_REVIEW
+2026-11-08T04:01:57Z record 1.0.65 WAITING_FOR_REVIEW/WAITING_FOR_REVIEW releaseType=AFTER_APPROVAL
+
+## reconciliation after submitting
+version records: 31; by state {"WAITING_FOR_REVIEW":1,"READY_FOR_SALE":30}
+  not READY_FOR_SALE: 1.0.65 ab6360bc-24b3-4816-bf84-88967df06507 WAITING_FOR_REVIEW
+review submissions: 11; by state {"WAITING_FOR_REVIEW":1,"COMPLETE":10}
+  open: 33624506-edfa-4d5c-9cc7-806b0d3a7866 WAITING_FOR_REVIEW submitted=2026-11-08T04:01:55.492Z
+TestFlight trains: 89; builds: 97; by processing state {"VALID":97}
+from 1.0.13 on: 53 trains; with no record of their own: 23: 1.0.15, 1.0.16, 1.0.18, 1.0.20, 1.0.22, 1.0.25, 1.0.26, 1.0.29, 1.0.33, 1.0.37, 1.0.39, 1.0.41, 1.0.42, 1.0.43, 1.0.44, 1.0.46, 1.0.48, 1.0.49, 1.0.52, 1.0.54, 1.0.58, 1.0.62, 1.0.64
+  build 1.0.65.1 e1f3f6f9-fea2-45f7-99d6-fa1126ab8713 VALID expired=false
+  build 1.0.64.1 81d91d5e-58f4-4cd6-b23d-1e8a0a8f02c3 VALID expired=false
+  build 1.0.63.1 52b1e76d-c4ca-4d57-88d1-27b093f11740 VALID expired=false
+  build 1.0.62.1 8c02a421-b312-4c5c-ad4d-511b307690e5 VALID expired=false
+
+## state after (the old submission and the record)
+2026-11-08T04:04:00Z record ab6360bc-24b3-4816-bf84-88967df06507 1.0.65 appStoreState=WAITING_FOR_REVIEW appVersionState=WAITING_FOR_REVIEW releaseType=AFTER_APPROVAL
+2026-11-08T04:04:00Z submission 740963c6-7ca7-495b-96d2-d6fd769876b3 state=COMPLETE submitted=2026-11-08T02:10:03.664Z
+  open submission 33624506-edfa-4d5c-9cc7-806b0d3a7866 state=WAITING_FOR_REVIEW
+2026-11-08T04:04:00Z build e1f3f6f9-fea2-45f7-99d6-fa1126ab8713 1.0.65.1 VALID expired=false
+  records: 31; 1.0.65 records: ab6360bc-24b3-4816-bf84-88967df06507
