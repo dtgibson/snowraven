@@ -19,6 +19,11 @@
 //      follow-ups evaporate, which makes FR-02's "stop seeking as soon as one
 //      counting observation is found" structural rather than a check.
 //   5. BOUND both axes and report the partial state honestly (FR-16).
+//   6. SETTLE. A species no successful answer carries is stamped by the store
+//      (exotic-provenance-reuse), so the next load does not re-open the
+//      checklists already asked about it; only Check again re-asks within the
+//      TTL. A check that ends with species still open is never `complete`
+//      (D-04): Life Lists' completion test reads the same open set.
 //
 // Every clock read lives in a handler or an effect. Nothing here is called
 // during render, and the objects render consumes are entirely time-free
@@ -35,7 +40,7 @@ import {
 } from './exoticProvenance'
 import {
   consultedSet, getSnapshot, isFreshFor, lastConsultedAt, loadSnapshot,
-  publishClassifiedNames, subscribe, dedupedFetchChecklist,
+  publishClassifiedNames, subscribe, dedupedFetchChecklist, unmatchedSet,
   type ProvenanceObservation,
 } from './exoticProvenanceCache'
 
@@ -82,7 +87,14 @@ const MAX_ROUNDS = 64
  */
 export const PROGRESS_ANNOUNCE_INTERVAL_MS = 2000
 
-export type PartialReason = 'cancelled' | 'pass-budget' | 'species-budget' | 'failures'
+/** `unmatched` (exotic-provenance-reuse D-04): the check has asked eBird about
+ *  every checklist it can within the TTL and species are still open, because
+ *  the answers had no row for them. Settled, but not complete. */
+export type PartialReason = 'cancelled' | 'pass-budget' | 'species-budget' | 'failures' | 'unmatched'
+
+/** Check again's view of the stamps: none, so the heal re-opens every
+ *  recordless species for that one run, bounded by the usual caps. */
+const NO_STAMPS: ReadonlySet<string> = new Set<string>()
 
 export type ProvenanceStatus =
   | { kind: 'not-checked' }
@@ -120,7 +132,12 @@ export interface ExoticProvenanceController {
   lookup: ProvenanceLookup
   /** FR-19: end the pass. Everything already resolved is kept and cached. */
   stop: () => void
-  /** The error state's "Try again" and the four partial states' "Check again". */
+  /** The error state's "Try again" and every partial state's "Check again".
+   *  From the `unmatched` state it is the one way to re-ask, within the TTL,
+   *  about a species eBird's answers did not include: that run ignores the
+   *  stamps. From every other state it keeps its meaning (retry the failed,
+   *  continue the stopped), so a retry after a run of 429s does not also
+   *  re-open every settled species on the same key (decisions.md D-13). */
   retry: () => void
 }
 
@@ -182,6 +199,8 @@ export function useExoticProvenance(
   const advanceRef = useRef(advance)
   advanceRef.current = advance
   const { status, seq } = state
+  const statusRef = useRef(status)
+  statusRef.current = status
   const [loaded, setLoaded] = useState(false)
 
   const runningRef = useRef(false)
@@ -214,7 +233,7 @@ export function useExoticProvenance(
     void publishClassifiedNames({ excludedNames: [...lookup.excludedNames], exoticNames: [...lookup.exoticNames] })
   }, [lookup, snapshot, index])
 
-  const runPass = useCallback(async (): Promise<void> => {
+  const runPass = useCallback(async (reask = false): Promise<void> => {
     const setStatus = (next: ProvenanceStatus): void => { advanceRef.current(next) }
     if (runningRef.current) return
     runningRef.current = true
@@ -261,8 +280,11 @@ export function useExoticProvenance(
         // fresh-ledger short-circuit would otherwise refuse the wave's pick)
         // is told the refetch is intended. `attempted` is re-added AFTER the
         // drop, so a checklist this pass already fetched is never fetched
-        // twice.
-        const staleLedger = carriersNeedingRefetch(getSnapshot(), idx, remaining)
+        // twice. A species a successful answer was seen to lack within the
+        // TTL is not re-opened, read fresh each round so a stamp written
+        // earlier in this pass already counts; Check again (`reask`) ignores
+        // the stamps for its whole run.
+        const staleLedger = carriersNeedingRefetch(getSnapshot(), idx, remaining, reask ? NO_STAMPS : unmatchedSet(nowMs))
         for (const id of staleLedger) consulted.delete(id)
         for (const id of attempted) consulted.add(id)
 
@@ -322,7 +344,10 @@ export function useExoticProvenance(
             attempted.add(id)
             issued += 1
             try {
-              await dedupedFetchChecklist(id, admissible, () => fetchProvenance(id), { refetch: staleLedger.has(id) })
+              await dedupedFetchChecklist(id, admissible, () => fetchProvenance(id), {
+                refetch: staleLedger.has(id),
+                carried: idx.byChecklist.get(id) ?? [],
+              })
               done += 1
             } catch {
               failed += 1
@@ -354,6 +379,10 @@ export function useExoticProvenance(
         return
       }
       if (reason === null && failed > 0) { reason = 'failures'; cap = 0 }
+      // D-04: never `complete` while species are open. Nothing failed and
+      // nothing stopped the pass, so every checklist it could ask is answered
+      // and the answers had no row for these.
+      if (reason === null && openSpecies > 0) { reason = 'unmatched'; cap = 0 }
       if (reason !== null) {
         setStatus({
           kind: 'partial', done, planned, failed, openSpecies, reason, cap,
@@ -393,17 +422,25 @@ export function useExoticProvenance(
     startedForRef.current = index
 
     // A fresh ledger is only a reason to skip the pass when every open species
-    // also HAS a record to classify from — a recordless cover species means the
+    // also HAS a record to classify from, or a successful answer within the
+    // TTL was seen to lack it. A recordless, unstamped cover species means the
     // ledger was written under a cover that could not admit it, and the pass
     // must run to heal the store (see carriersNeedingRefetch).
-    const stale = carriersNeedingRefetch(getSnapshot(), index, open)
-    if (open.length === 0 || (stale.size === 0 && isFreshFor(carriers, nowMs))) {
+    if (open.length === 0) {
       const resolved = buildProvenanceLookup(getSnapshot(), index)
       settle(
         getSnapshot().species.size === 0
           ? { kind: 'not-checked' }
           : { kind: 'complete', planned: 0, found: resolved.excluded.length },
       )
+      return
+    }
+    const stale = carriersNeedingRefetch(getSnapshot(), index, open, unmatchedSet(nowMs))
+    if (stale.size === 0 && isFreshFor(carriers, nowMs)) {
+      // Settled but open, and newly reachable with the stamps: every carrier
+      // is answered within the TTL, so each open species is a stamped one.
+      // No pass and no request; never `complete` (D-04).
+      settle({ kind: 'partial', done: 0, planned: 0, failed: 0, openSpecies: open.length, reason: 'unmatched', cap: 0 })
       return
     }
 
@@ -414,7 +451,8 @@ export function useExoticProvenance(
 
   const retry = useCallback(() => {
     if (runningRef.current) return
-    void runPass()
+    const current = statusRef.current
+    void runPass(current.kind === 'partial' && current.reason === 'unmatched')
   }, [runPass])
 
   return useMemo(

@@ -33,7 +33,11 @@ import { FORMAT_COPY, SWITCH_LABELS } from './lifeListsCopy'
 const read = (p: string) => readFileSync(new URL(`../../../${p}`, import.meta.url), 'utf8')
 
 const HELP = read('docs/HELP.md')
-const VERSION_CODE: number = JSON.parse(read('src-tauri/tauri.conf.json')).bundle.android.versionCode
+// Pinned to 1.0.63's version code: the Life Lists "What's new" is that
+// release's text, and its three files stay in the folder. Reading the CURRENT
+// code from tauri.conf.json made the next bump hold 1.0.64's changelog to the
+// Life Lists sentence (found at the 1.0.64 bump).
+const VERSION_CODE = 1000063
 const FASTLANE = [1, 2, 4].map(abi => `fastlane/metadata/android/en-US/changelogs/${10 * VERSION_CODE + abi}.txt`)
 
 const TAB = 'life-lists' as const
@@ -103,7 +107,7 @@ describe("Help's Life Lists section", () => {
   })
 })
 
-describe("the F-Droid What's new for this release", () => {
+describe("the F-Droid What's new for 1.0.63, the Life Lists release", () => {
   const texts = () => FASTLANE.map(p => [p, read(p)] as const)
 
   it('is three identical files, one per processor-type build (non-vacuity per file)', () => {

@@ -515,10 +515,11 @@ export function remainingSpecies(
 }
 
 /** Ledger entries that must be RE-consulted even though they are fresh: the
- *  carriers of a cover species that has NO species record at all.
+ *  carriers of a cover species that has NO species record at all, unless a
+ *  successful answer was seen to lack that species within the TTL.
  *
  *  A checklist can be in the ledger while a species it carries has no record
- *  only when the checklist was consulted under an EARLIER cover that failed to
+ *  when the checklist was consulted under an EARLIER cover that failed to
  *  admit the species — the shipped case being a bird recorded only as a
  *  "(Domestic type)" form, whose raw name missed the species-only taxonomy
  *  batch until v1.0.1, so its parent code never entered the cover and its
@@ -527,19 +528,34 @@ export function remainingSpecies(
  *  evidence a classification actually needs, so its absence wins and those
  *  checklists become fetchable again.
  *
- *  Bounded and self-healing: only the carriers of RECORDLESS cover species
- *  qualify (an `unresolved` species has a record and keeps the normal
- *  fresh-ledger behavior), and one refetch heals the store permanently, because
- *  the merge records every admissible row it sees. On a store with no such
- *  desync this returns the empty set and nothing about a pass changes. */
+ *  v1.0.1 called that the ONLY way the shape arises, and said one refetch heals
+ *  it for good. Measured false (exotic-provenance-reuse D-02): an export
+ *  downloaded before a taxonomy split names the nominate daughter while eBird
+ *  answers under the slash code, and an answer can simply lack the species.
+ *  Asked under a cover that DID admit the code, the answer still has no row, so
+ *  the heal re-opened the same checklists on every load, forever. `unmatched`
+ *  is the store's record of exactly that (`unmatchedSet`, written only by the
+ *  merge from a successful answer for a checklist the export says carries the
+ *  code): such a species is skipped here until its stamp passes the TTL, and is
+ *  then re-opened once. Its unconsulted carriers stay selectable by the cover
+ *  regardless. The domestic-form case is untouched, because a checklist asked
+ *  under a cover without the code never stamps it.
+ *
+ *  Bounded: only the carriers of RECORDLESS, UNSTAMPED cover species qualify
+ *  (an `unresolved` species has a record and keeps the normal fresh-ledger
+ *  behavior). On a store with no such desync this returns the empty set and
+ *  nothing about a pass changes. Pure: the caller reads the clock and builds
+ *  `unmatched`; an empty set is the previous behaviour. */
 export function carriersNeedingRefetch(
   snapshot: ProvenanceSnapshot,
   index: CoverIndex,
   remaining: Iterable<string>,
+  unmatched: ReadonlySet<string>,
 ): Set<string> {
   const stale = new Set<string>()
   for (const code of remaining) {
     if (snapshot.species.has(code)) continue
+    if (unmatched.has(code)) continue
     for (const sub of index.bySpecies.get(code) ?? []) {
       if (snapshot.checklists.has(sub)) stale.add(sub)
     }

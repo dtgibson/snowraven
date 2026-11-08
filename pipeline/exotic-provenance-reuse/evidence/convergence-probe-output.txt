@@ -1,0 +1,25 @@
+# node probe.mjs <data dir>, bundled with frontend/node_modules/.bin/rolldown (2026-11-07)
+## real export (data/), bundled 2026 taxonomy (what the 1.0.62 preview served)
+rows 21856 checklists 3299 species in cover 268 unresolvable names 0
+classes { 'escapee-only': 3, counting: 262, unknown: 3 }
+open species 3
+  willet2 "Willet" unknown carriers 34 consulted 6 rec -
+  skylar "Eurasian Skylark" unknown carriers 1 consulted 1 rec -
+  eamwre1 "Marsh Wren" unknown carriers 2 consulted 2 rec -
+carriersNeedingRefetch 9
+fresh ledger at 2026-11-06T12:00:00.000Z 0 of 79
+round-0 wave 3 of which in ledger 2
+unresolvable sample []
+SIM requests this load 29 { willet2: 26, skylar: 1, eamwre1: 2 }
+TODAY       requests per load [ 29, 29, 29, 29 ]
+WITH stamp  requests per load [ 29, 8, 0, 0 ]
+
+## real export (data/), the older taxonomy.json in data/
+rows 21856 checklists 3299 species in cover 268 unresolvable names 0
+classes { 'escapee-only': 3, counting: 264, unknown: 1 }
+open species 1
+  skylar "Eurasian Skylark" unknown carriers 1 consulted 1 rec -
+carriersNeedingRefetch 1
+fresh ledger at 2026-11-06T12:00:00.000Z 0 of 79
+round-0 wave 1 of which in ledger 1
+unresolvable sample []

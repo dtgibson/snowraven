@@ -1,0 +1,107 @@
+# Decisions — exotic-provenance-reuse (Improve lane, Stage 1)
+
+Evaluator's scoping record. The brief is `change-brief.md`; the measurement is `evidence/convergence-probe.ts` and `evidence/convergence-probe-output.txt` (offline, no network, run 2026-11-07 against the repo's `data/` folder, which is what the 1.0.62 preview served a copy of).
+
+## D-01 What is re-fetched per Statistics load, measured
+
+The saved idea's premise ("instead of keeping the answers it already has") is wrong, and the brief is built on the measured mechanism instead.
+
+- **What already persists.** `exotic-provenance-v1` (`lib/exoticProvenanceCache.ts`), a storage-seam settings document on both transports: the consulted-checklist ledger (id to fetch time, 30-day TTL `PROVENANCE_TTL_MS`, first-in-first-out at 131,072), the species index (raw tokens per code, fill-then-stop at 16,384), and the published escapee and exotic lists. `dedupedFetchChecklist` skips the request for any checklist answered within the TTL. This is the same long-TTL shape as `hotspot-regions-v1`, which the idea named as the model. Nothing about keeping answers is missing.
+- **What re-fetches.** The real export (21,856 rows, 3,299 checklists, 268 cover species) against the stored document (79 ledger entries, 267 species records), under the bundled 2026 taxonomy the preview's backend served (`backend/staticdata/ebird_taxonomy.json`, version 2028; `data/taxonomy.json` has version `""`, so `_load_floor` prefers the bundled copy). Exactly three cover species have no record: `willet2` (export "Willet", 34 carriers), `eamwre1` (export "Marsh Wren", 2 carriers), `skylar` (Eurasian Skylark, 1 carrier). `carriersNeedingRefetch` reopens their already-consulted carriers, and a simulation of `runPass` with the shipped `greedyCover`, `remainingSpecies` and follow-up bound gives **29 requests per load: Willet 26 (1 + `MAX_FOLLOWUP_PER_SPECIES` 25, then parked), Marsh Wren 2, Skylark 1**. That matches the 1.0.62 A/B figure exactly ("the same 29 per load", DECISIONS.md 1.0.62), and it repeats on every load forever: `[29, 29, 29, 29]`.
+- **What "a load" is.** Each new cover index: every web page load, every app launch on desktop or mobile, every file change. Tab switches do not re-run it (tabs stay mounted, and `startedForRef` keys on the index). The user's desktop store and export have the same shape (34 Willet and Marsh Wren rows), so the shipped apps re-ask on every launch too.
+- **The "18" in "18 to 29".** It most likely comes from the demo export (`website/tools/demo-data`), whose complete cover is 18 checklists (life-lists-tab D-25). The demo's checklist ids are synthetic, so eBird's answers never contain its species (28 consulted checklists, 4 species records) and it can never settle. That is a fixture property, not a user's. It is out of scope (D-06), though the fix bounds it as a side effect.
+
+## D-02 Root cause: the v1.0.1 heal's premise does not hold
+
+The v1.0.1 entry (DECISIONS.md, "a ledger entry never stands for a recordless species") says a fresh ledger entry beside a recordless cover species "can only mean the checklist was consulted under a cover that could not admit the species", and "one refetch heals a poisoned store permanently". Two other shapes produce the same evidence under a cover that did admit the code, and the refetch cannot heal either:
+
+1. **A taxonomy split since the export was downloaded.** The export (August, 2025 names) says "Willet" / *Tringa semipalmata* and "Marsh Wren" / *Cistothorus palustris*. Under the 2026 taxonomy the scientific-name-first lookup in `/taxonomy/codes` (both transports) gives the nominate daughters `willet2` (Saltmarsh Willet) and `eamwre1` (Eastern Marsh Wren). eBird's live answer for those observations carries the slash codes `willet1` (Saltmarsh/Prairie Willet) and `marwre` (Western/Eastern Marsh Wren), which have no `reportAs`. So the row lands on a code outside `admissible` and is dropped by `mergeChecklist`. The stored August records sit under the old codes (`willet1` n=6, `marwre` n=3). This is the known taxonomy-history limit ("the sciName-first bridge lands a pre-split export on the nominate daughter", `.claude/rules/bird-names.md`), meeting the escapee cover.
+2. **An answer that simply lacks the species.** The skylark's one checklist (a casual observation) was consulted under both taxonomies and still yields no `skylar` row. The cause can't be settled offline: an observation edited since the export, or one reported under another code. Settling it would cost a live request on the user's key, which was not needed to scope this.
+
+Classification is right in both cases: the species is `unknown`, so it counts (FR-04), and Life Lists reads the check as not complete. Only the re-asking is wrong. The repair stays, because the v1.0.1 domestic-form case is real and its rows must stay green. It is limited so that a species eBird answered without is reopened at most once per TTL.
+
+## D-03 Where the settled fact lives (the Engineer's mechanism, with constraints)
+
+**Default: one OPTIONAL field inside `exotic-provenance-v1`, keyed by species code, holding the fetch time at which a successful answer for a checklist the export says carries that code returned no row for it.** For example `unmatched: Record<code, ms>` plus an order array. The name and exact shape are the Engineer's choice.
+
+- **Same document, no key or version bump.** Absence is a defined state (no stamps), which is the precedent the module states for `exoticNames`. A new document would add a Clear-registry row, a held privacy sentence and a second write path for no gain.
+- **Written at the one chokepoint** (`dedupedFetchChecklist` and `mergeChecklist`), from a successful answer only: never on an error, a 429 or offline, and under the existing purge-generation guard, so a Clear supersedes it. The controller passes in which cover codes the checklist carries (`index.byChecklist`). The store does not re-derive them.
+- **A record wins.** Once a row for the code is admitted, the stamp is meaningless and may be dropped. The species is then classified from its tokens as today.
+- **Honoured only by the heal.** `carriersNeedingRefetch` skips a code stamped within `PROVENANCE_TTL_MS`. Unconsulted carriers stay selectable by the cover, and the follow-up and per-pass bounds are unchanged. This is what produces `[29, 8, 0, 0]` on the measured shape: load 2 asks the Willet carriers never asked before, which is what Help already promises. After the TTL a species reopens once. The current alternative is about 26 requests on every visit.
+- **Bounded and validated on load** like its neighbours: own-key reads (`Object.hasOwn`), `SPECIES_CODE_KEY_RE`, finite time, the first-sight dedupe set for a repeated invalid key (security, v1.0.40, asserted as work done), and an entry cap gated on the container's own size (fill-then-stop, or first-in-first-out with the cost of an eviction stated). The worst case goes through `sanitizeStore` in `settingsRouteBudget.test.ts` against the route's 16 MiB. Today it is about 15.4 MB, so the cap is chosen to fit, and the brief does not fix the number.
+- **Clear.** `purgeProvenanceStore` already deletes the whole document and resets the mirror, so `EMPTY_STORE`, the snapshot copy and the debounced write snapshot must all carry the new field. No `clearDerived.ts` row changes.
+- **Staleness argument.** A checklist's owner can edit it, and the 30-day TTL (OQ-04, the reference store's) is the accepted window for any answer in this document, the new fact included. A user who wants a re-ask sooner has Check again (D-04). A replaced export keeps the stamps (purge on Clear only, never on replace). That is the safe direction: an unmatched species still counts, and a newly added carrier is unconsulted, so it stays askable.
+
+## D-04 The status line agrees with Life Lists' completion test
+
+Once the check settles, a load either skips the pass (the auto-start branch: open species present, nothing reopenable, every carrier fresh) or runs and plans an empty wave. Both paths currently end in `complete` with `planned: 0`: "Exotic status checked across 0 checklists. N of your species are eBird escapees." That would be newly reachable on every visit for this export, while Life Lists says the check "has not finished for this export" (`STATUS_UNRESOLVED`, `checkCompleteFor` is `remainingSpecies` empty). **Decision: Statistics never reports `complete` while `remainingSpecies` (no parked set) is non-empty.** The settled-but-open state reports a partial status with a new reason and one in-app sentence in the existing partial voice, along the lines of "eBird's answers did not include N of your species, so they still count." (Ordinary agreement, no em dash. Exact words are the Engineer's call. In-app copy needs no review stop.) **Check again** in that state re-asks: it bypasses the stamps for that run, bounded by the existing caps. So re-asking happens only when the user asks for it, never on every load. `docs/HELP.md` line 185 lists the states generically ("partially resolved with a Check again button"). Update it in the same change only if the Engineer judges it needs a word. A pass that runs and parks a species (load 1) keeps today's `species-budget` sentence.
+
+## D-05 Published copy
+
+**No `PRIVACY_POLICY.md`, `website/privacy.html`, `website/` or `README.md` change, and no held sentence for the store.** The new field rides in a document already in the Clear list ("the escapee and Projects answers for your checklists") with the retention the policy already states ("stored on your device for 30 days, so returning to the tab does not repeat the requests"). The fix makes that sentence, and Help's "a later visit re-checks only checklists it has not seen before", true for this export shape. Both are false today. Network posture, in the durable form: no third-party request, no new endpoint or host, no request moved between components, and nothing a system component sends from the app's process. The change only removes repeat requests to `api.ebird.org/v2/product/checklist/view`. The only held copy is the release's: the App Store What's New and the three F-Droid changelog files, shown to the user at the deploy stage before writing.
+
+## D-06 Out of scope, recorded for the Orchestrator
+
+1. **`/checklists/` is outside the eBird pacing gate.** It is not in `EBIRD_GATED_PATHS`, and the pass calls `transport.get` from a 4-wide pool without `gatedEbirdCall`. That is the "neither" case CLAUDE.md's one-enforcement-point rule forbids (the Projects sweep, on the same route, wraps its own calls). It predates the gate and contributed to the 1.0.62 429s. Joining it changes the pass's timing and its failure accounting, so it is its own change. **Flag: capture as an idea.**
+2. A pre-split name joining to the nominate daughter in the escapee cover (D-02 cause 1). Fixing the join belongs to the taxonomy-history work and would change how a pre-split species classifies. This run leaves classification untouched.
+3. Within one pass, Willet still spends 26 requests that all come back without it. Stopping follow-ups early on repeated absence changes the budget semantics (FR-16). The species-budget bound stands.
+4. A debounced write (250 ms) lost when a page closes mid-pass. It is minor and only re-asks the last checklist or two.
+5. The demo export never settling (D-01). The fix bounds it as a side effect, and it is not a target.
+
+## D-07 Declared work (security, v1.0.47 rule for an Improve-lane build)
+
+The change adds no new scan over user-file text. Stamping reads `index.byChecklist.get(id)`, the cover codes the export says that checklist carries, which `buildCoverIndex` (a declared linear pass) already built, plus one `Set` or `hasOwn` lookup per code per answered checklist. That is O(codes on the checklist) per merge, and O(cover species) for the heal filter per round. The load path validates the new field in one walk over its order array, with the first-sight dedupe, so a document repeating one invalid key costs one validation per distinct key.
+
+## D-08 Release
+
+A shipped behaviour fix, so a **patch bump: 1.0.63 to 1.0.64** (unless a parallel ship has taken it by the deploy stage, per the check-parallel-ships practice), with the full six-file set and the all-platforms rhythm in the `snowraven-release` skill. The What's New and F-Droid text are held for approval (D-05). The website change is the version pill and footer only.
+
+---
+
+# Decisions, Engineer (Improve lane, Stage 2)
+
+## D-09 The stamps stay out of the passive readers' snapshot
+
+The settled fact lives in the store (`unmatched`, `unmatchedOrder`) and is read only through `unmatchedSet(nowMs)` in `lib/exoticProvenanceCache.ts`, shaped like `consultedSet`: the clock is the caller's, and the set is empty before the store loads. `carriersNeedingRefetch` takes it as a REQUIRED fourth argument, so both of the controller's call sites (the pass and the auto-start check) have to name it, and the v1.0.1 rows pass the empty set, which is exactly the old predicate. `ProvenanceSnapshot` is unchanged. Why: classification (`classifySpecies`, `isExoticOnly`, `remainingSpecies`) and the passive readers take the snapshot, so a stamp structurally cannot reach a count or a published list, which is what the brief's "unchanged" list needs; and six test files build that type by hand, none of which had to move.
+
+## D-10 Shape, cap and retention of the new field
+
+- `unmatched: Record<code, ms>` plus `unmatchedOrder: string[]`, first stamped first. Absent on every older document, which reads as no stamps, so it rides the same key and `version` (the `exoticNames` precedent the module states).
+- **FIFO, refreshed in place.** A stamp that is refreshed keeps its place, so stamping is O(1) per carried code with no search of the order array (D-07's O(codes on the checklist) per merge holds). An eviction costs one bounded re-ask of that species (at most 1 + `MAX_FOLLOWUP_PER_SPECIES` requests) and loses no record, which is the ledger's class, not the species index's.
+- **Cap `PROVENANCE_MAX_UNMATCHED` = 16,384**, equal to the species cap, so like it the cap sits above the world list and cannot bind on real data (a stamp is keyed by a code in the current cover). It is also the largest power of two that fits the web/Pi route: at the validator's bounds a stamp costs 64 bytes, and the worst-case document measured 16,494,726 bytes with the stamps against the route's 16,777,216 (15,446,152 without them, so 1 MiB added). 32,768 would add another 1 MiB and not fit. `settingsRouteBudget.test.ts` builds it through `sanitizeStore`.
+- **The load path clamps the count**, keeping the newest stamps, where the ledger and the species index are not clamped on load. Without it a hostile document holding many stamps would hand the first merge an eviction backlog of one `shift` each. The budget test asks the clamp rather than restating it.
+- **Validated on load and at the write with one predicate, `isValidStamp`** (the species index's `SPECIES_CODE_KEY_RE` plus a finite time), so a stamp the load path would drop is never held or written (the v1.0.63 publisher rule). The key class also keeps `__proto__` out of the plain-object map. The load walk records a key at first sight, before validation, so an order array repeating one key costs one validation (`stampValidations`, asserted as work done at 10,000 and 20,000 repeats).
+- **A record wins**, on load (a stamp beside a record is dropped) and at the merge (admitting a record drops that code's stamp, with an order search paid once per species, never per merge).
+
+## D-11 What "the answer had no row" means
+
+The merge stamps a code only when all four hold: the controller listed it as carried by this checklist (`index.byChecklist`), it is in the cover (`admissible`), the answer has no row with that code, and the code has no record. A row whose admission was refused because the species index is full is still a row, so it is not stamped; that case is the only one that separates the row check from the record check, and it has its own test (a mutation removing the row check left everything else green until it was added). A code outside the cover the checklist was asked under is never stamped, which is what keeps the v1.0.1 domestic-form heal intact: the shape it heals (a checklist consulted under a cover that could not admit the species) cannot produce a stamp, so its carriers still reopen.
+
+## D-12 Stamps count within the pass that writes them
+
+The pass reads `unmatchedSet` fresh each round, so a stamp written in round 0 already stops the heal in round 1. On the measured shape this changes nothing on load 1 (its saved ledger is past the TTL, so the carriers are reselectable by the TTL anyway, and load 1 stays 29, matching the Evaluator's probe). On a fresh ledger it stops the pass reopening the other consulted carriers of a species it has just seen eBird answer without (the TTL-expiry row: 1 request where the v1.0.1 heal alone sends 2).
+
+## D-13 Check again ignores the stamps only from the settled state
+
+`retry` serves the error state's Try again and every partial state's Check again. It ignores the stamps for its run only when the current status is the new `unmatched` partial, where nothing else is left to ask and the button would otherwise do nothing. From every other state it keeps its old meaning (retry the failed, continue the stopped or capped), so pressing Try again after a run of 429s does not also re-open every settled species on the same key. Either way the run is bounded by `MAX_FOLLOWUP_PER_SPECIES` and `MAX_REQUESTS_PER_PASS`.
+
+## D-14 The status line and Help
+
+- New `PartialReason` `'unmatched'`, reported in both places D-04 names: the auto-start skip (newly reachable: with every carrier fresh and no reopenable carrier, each open species must be a stamped one, so the sentence is accurate there) and the end of a pass that stopped for no other reason with species still open. Sentence (`lib/exoticCopy.ts`): "eBird's answers did not include N of your species, so they still count." ("so it still counts" at one). No em dash, straight apostrophe, in the existing partial voice; the existing Check again button and warning icon render for it unchanged, since the component handles every partial reason alike. A pass that parks a species keeps today's `species-budget` sentence.
+- `docs/HELP.md` is unchanged. Its status list is generic ("partially resolved with a Check again button") and covers the new state, and its line "a later visit re-checks only checklists it has not seen before" is now true for this export shape rather than needing a word.
+
+## D-15 Test placement
+
+The convergence claim is about what a later session reads back from disk, so it runs through the real `storage.ts` under both seams in one new file, `lib/exoticProvenanceConvergence.test.tsx` (TauriStorage over a mocked plugin-fs, WebStorage over a mocked `/settings/{key}` route, one module graph per seam via `vi.resetModules`). Every other controller suite mocks `./storage` whole, so this could not be an extension of one. Red first: against the unchanged code the same file measured `[29, 29, 29, 29]` under both seams; with the change, `[29, 8, 0, 0]`. The remaining rows extend the existing store, model, controller, copy and route-budget suites.
+
+## D-16 Security review residuals, dispositions (Orchestrator, Stage 4 closeout)
+
+The Auditor's report (`security-report.md`, on disk) passed with notes: no Critical or High. Dispositions, per the standing practice of settling Low findings at the gate with a reason:
+
+- **L1 (Low), future-dated stamp honoured until it passes plus 30 days:** DEFERRED to the idea inbox (captured). It errs safe (the species still counts, Check again re-asks), and it is the same class as the saved clock-skew idea for the hotspot and county answers (`ea73086e`), so one change should close all three stores together.
+- **I1, a Tauri 200 with no observation list would stamp every species on the checklist:** DEFERRED to the inbox (captured). Pre-existing shape in `useExoticProvenance.ts` and `tauri/checklistService.ts`; the web/Pi backend cannot produce it; the direction is safe.
+- **I2, `/checklists/` outside the eBird pacing gate:** already captured at Stage 1 (`810282fa`).
+- **I3, privacy policy "stored on your device for 30 days" describes the use window, not the retention:** DEFERRED to the inbox (captured); published copy, so it waits for the user's approval and is not folded into this release's held copy.
+- **I4, the test title at `exoticProvenanceCache.test.ts:689` claims the cap sits above the whole world list and nothing checks it:** ACCEPTED as a residual for the Chronicler's ROADMAP note; a title fix on its own is not worth a second commit in a release, and the next edit to that file owes it.
+
+The Auditor's convention flag (a store that keeps a "true at time T" stamp decides in a test row what a future-dated stamp means) goes to the Chronicler with the Tester's.

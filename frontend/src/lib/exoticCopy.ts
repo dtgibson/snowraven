@@ -135,7 +135,8 @@ export const ESCAPEE_TOGGLE_LABEL = 'Count escapees'
 export const SHOW_ESCAPEES_TOGGLE_LABEL = 'Show escapees'
 
 /**
- * The status sentence for each of the seven states. Pure and total.
+ * The status sentence for each of the seven states (and each partial reason).
+ * Pure and total.
  *
  * `checkedLabel` on the offline state is formatted where the status is SET (an
  * effect), never here, so no clock or `Date` construction can reach a render
@@ -166,6 +167,12 @@ export function statusSentence(status: ProvenanceStatus, found: number): string 
           // reads "Both still count." at exactly two species and "They all still
           // count." at every other count (design-spec.md, verbatim).
           return `Stopped following up on ${status.openSpecies} species after ${status.cap} checklists each. ${status.openSpecies === 2 ? 'Both still count.' : 'They all still count.'}`
+        case 'unmatched':
+          // exotic-provenance-reuse D-04: the check has settled with species
+          // still open, usually a name a taxonomy update has split since the
+          // export. Ordinary agreement; Check again beside it is the way to
+          // re-ask sooner than the 30 days.
+          return `eBird's answers did not include ${status.openSpecies} of your species, so ${status.openSpecies === 1 ? 'it still counts' : 'they still count'}.`
       }
       return ''
     case 'no-key':

@@ -26,7 +26,9 @@
 // seam's bounded normalizer, and published names are names that resolved to a
 // species code through the taxonomy. The provenance load path does not clamp
 // its ledger or species COUNTS (its merge path does, FIFO and admission), so its
-// document is built at exactly the caps the merge path enforces.
+// document is built at exactly the caps the merge path enforces. Its unmatched
+// stamps (exotic-provenance-reuse) it does clamp, so that count is asked of
+// the load path like every other bound.
 import { describe, it, expect, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 
@@ -38,6 +40,7 @@ import {
 import {
   sanitizeStore as sanitizeProvenance, PROVENANCE_MAX_CHECKLISTS, PROVENANCE_MAX_CHECKLISTS_DEFAULT,
   PROVENANCE_MAX_SPECIES, PROVENANCE_MAX_SPECIES_DEFAULT, MAX_SEEN_PER_SPECIES,
+  PROVENANCE_MAX_UNMATCHED, PROVENANCE_MAX_UNMATCHED_DEFAULT,
 } from './exoticProvenanceCache'
 import {
   sanitizeStore as sanitizeHotspots, storePayloadLength as hotspotPayload, idsPayloadLength,
@@ -171,11 +174,21 @@ describe('the provenance store\'s worst-case document fits under the route\'s li
   // The exotic list (life-lists-tab) is a second published list on the same
   // document, read through its own field so its bounds are asked, not assumed.
   const admittedExoticNames = (names: string[]) => sanitizeProvenance(doc({ exoticNames: names })).exoticNames?.length ?? 0
+  // The unmatched stamps (exotic-provenance-reuse). Unlike the ledger and the
+  // species index, the load path clamps their COUNT, so it is asked as well.
+  const admitsStamp = (code: string, at: unknown) =>
+    sanitizeProvenance(doc({ unmatched: { [code]: at }, unmatchedOrder: [code] })).unmatchedOrder.length === 1
+  const admittedStamps = (n: number) => {
+    const order = Array.from({ length: n }, (_, i) => stampCode(i))
+    return sanitizeProvenance(doc({ unmatched: Object.fromEntries(order.map(k => [k, 1])), unmatchedOrder: order })).unmatchedOrder.length
+  }
 
   const KEY_DIGITS = 15
   const checklistKey = (i: number) => `S${String(10 ** (KEY_DIGITS - 1) + i)}`
   const CODE_LENGTH = 16
   const speciesCode = (i: number) => `s${i.toString(36).padStart(CODE_LENGTH - 1, '0')}`
+  // Disjoint from the species codes: a stamp beside a record is dropped on load.
+  const stampCode = (i: number) => `u${i.toString(36).padStart(CODE_LENGTH - 1, '0')}`
   const TOKEN = 'AAAA|AAAAAAAA'
   const tokens = Array.from({ length: MAX_SEEN_PER_SPECIES }, (_, t) => TOKEN.slice(0, -1) + String.fromCharCode(65 + t))
   const worstRecord = { seen: tokens, n: LONGEST_FINITE, at: LONGEST_FINITE }
@@ -225,6 +238,16 @@ describe('the provenance store\'s worst-case document fits under the route\'s li
     expect(admittedNames([NAME_UNIT.repeat(longestName() + 1)])).toBe(0)
     expect(admittedExoticNames([NAME_UNIT.repeat(longestExoticName())])).toBe(1)
     expect(admittedExoticNames([NAME_UNIT.repeat(longestExoticName() + 1)])).toBe(0)
+
+    expect(stampCode(0)).toHaveLength(CODE_LENGTH)
+    expect(admitsStamp(stampCode(0), LONGEST_FINITE)).toBe(true)
+    expect(admitsStamp(stampCode(0) + 'a', LONGEST_FINITE)).toBe(false)
+  })
+
+  it('the stamp count the load path keeps is the shipped cap, and the next one up is refused', () => {
+    expect(PROVENANCE_MAX_UNMATCHED).toBe(PROVENANCE_MAX_UNMATCHED_DEFAULT)
+    expect(admittedStamps(PROVENANCE_MAX_UNMATCHED_DEFAULT)).toBe(PROVENANCE_MAX_UNMATCHED_DEFAULT)
+    expect(admittedStamps(PROVENANCE_MAX_UNMATCHED_DEFAULT + 1)).toBe(PROVENANCE_MAX_UNMATCHED_DEFAULT)
   })
 
   it('the two published lists share one bound, compared to each other rather than restated', () => {
@@ -249,12 +272,18 @@ describe('the provenance store\'s worst-case document fits under the route\'s li
     const excludedNames = Array.from({ length: mostNames() + 1 }, () => name)
     const exoticName = NAME_UNIT.repeat(longestExoticName())
     const exoticNames = Array.from({ length: mostExoticNames() + 1 }, () => exoticName)
+    const unmatched: Record<string, number> = {}
+    const unmatchedOrder: string[] = []
+    for (let i = 0; i <= PROVENANCE_MAX_UNMATCHED_DEFAULT; i += 1) {
+      const c = stampCode(i); unmatched[c] = LONGEST_FINITE; unmatchedOrder.push(c)
+    }
 
-    const store = sanitizeProvenance({ version: 1, checklists, order, species, speciesOrder, excludedNames, exoticNames })
+    const store = sanitizeProvenance({ version: 1, checklists, order, species, speciesOrder, excludedNames, exoticNames, unmatched, unmatchedOrder })
     expect(store.order).toHaveLength(PROVENANCE_MAX_CHECKLISTS_DEFAULT)
     expect(store.speciesOrder).toHaveLength(PROVENANCE_MAX_SPECIES_DEFAULT)
     expect(store.excludedNames).toHaveLength(mostNames())
     expect(store.exoticNames).toHaveLength(mostExoticNames())
+    expect(store.unmatchedOrder).toHaveLength(PROVENANCE_MAX_UNMATCHED_DEFAULT)
 
     const bytes = utf8Bytes(JSON.stringify(store))
     const limit = routeLimitBytes()
