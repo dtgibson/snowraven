@@ -20,8 +20,18 @@ import { storage } from './storage'
 import { isOfflineError } from './offlineDetect'
 import { REGION_CODE_RE } from './regionCode'
 import type { CountyEbirdData } from './countyCompleteness'
+import { isWithinTtl } from './ttlWindow'
 
-/** OQ-04: 30 days. */
+/** OQ-04: 30 days.
+ *
+ *  Every TTL read of this store goes through `isWithinTtl` (`lib/ttlWindow.ts`,
+ *  ebird-request-economy D-03): the chokepoint below, and the two readers that
+ *  skip a request on a fresh entry (`useCountyCompleteness`'s eager pass and
+ *  the Targets pool in `lib/targets/useTargetsPool.ts`). So an answer dated
+ *  more than 24 hours ahead of the reader's clock is asked for once more, and
+ *  the new answer rewrites its time. A stale or future-dated entry is still
+ *  SHOWN by every reader and still served offline (FR-30); the window decides
+ *  only when to ask again. */
 export const COMPLETENESS_TTL_MS = 30 * 24 * 60 * 60 * 1000
 
 /** Storage-seam document key (one settings document, replay-store style). */
@@ -258,7 +268,7 @@ export function dedupedFetch(
   const run = async (): Promise<CompletenessFetchResult> => {
     const store = await ensureLoaded()
     const hit = store.entries[regionCode]
-    if (hit && Date.now() - hit.fetchedAt < COMPLETENESS_TTL_MS) {
+    if (hit && isWithinTtl(hit.fetchedAt, Date.now(), COMPLETENESS_TTL_MS)) {
       return { data: hit.data, fetchedAt: hit.fetchedAt, fromNetwork: false }
     }
     const pending = _inflight.get(regionCode)

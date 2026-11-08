@@ -202,6 +202,35 @@ describe('the write chokepoint', () => {
     expect(store._getHotspotRegionCacheWorkStatsForTests().puts).toBe(1)
   })
 
+  // ebird-request-economy D-03: the plausibility window on `fetchedAt`. A due
+  // entry is still SERVED (the caller holds its list), so "absent" here means
+  // due: asked again once, with the stored list kept until the answer lands.
+  it('an answer exactly 24 h ahead is not due; one millisecond past it is due, and a refresh asks again', async () => {
+    const now = Date.now()
+    expect(store.isRegionEntryDue({ ids: ['L1'], fetchedAt: now + 86_400_000 }, now)).toBe(false)
+    expect(store.isRegionEntryDue({ ids: ['L1'], fetchedAt: now + 86_400_000 + 1 }, now)).toBe(true)
+    expect(store.isRegionEntryDue({ ids: ['L1'], fetchedAt: -1 }, now)).toBe(true)
+    expect(store.isRegionEntryDue({ ids: ['L1'], fetchedAt: now - store.HOTSPOT_REGION_TTL_MS }, now)).toBe(true)
+    // Through the chokepoint, which reads the clock itself.
+    disk.settings.set(KEY, {
+      version: 1,
+      entries: {
+        'US-MN': { ids: ['L1'], fetchedAt: Date.now() + 86_400_000 - 1_000 },
+        'US-WI': { ids: ['L7'], fetchedAt: Date.now() + 86_400_000 + 60_000 },
+      },
+      order: ['US-MN', 'US-WI'],
+    })
+    const loader = vi.fn(async () => ['L9'])
+    expect((await store.dedupedFetch('US-MN', loader, { refresh: true })).fromNetwork).toBe(false)
+    // Still served without a refresh: the window decides only when to ask.
+    expect((await store.dedupedFetch('US-WI', loader, { refresh: false })).ids).toEqual(['L7'])
+    expect(loader).not.toHaveBeenCalled()
+    const asked = await store.dedupedFetch('US-WI', loader, { refresh: true })
+    expect(asked.ids).toEqual(['L9'])
+    expect(loader).toHaveBeenCalledTimes(1)
+    expect(asked.fetchedAt).toBeLessThanOrEqual(Date.now())
+  })
+
   it('a region key the validator would refuse is answered and not persisted', async () => {
     const key = 'US-ABCDEFGHIJ' // 13 characters: REGION_RE admits it, the store does not
     expect((await store.dedupedFetch(key, async () => ['L1'], { refresh: false })).ids).toEqual(['L1'])

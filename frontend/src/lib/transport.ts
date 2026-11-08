@@ -158,11 +158,16 @@ class TauriTransport implements TransportAdapter {
     // and is fixture-locked against its Python twin. The id is sliced off the
     // PATH, so a query string can never contaminate it.
     //
-    // ALSO deliberately absent from EBIRD_GATED_PATHS below: the projects sweep
-    // is this path's own enforcement point over the same shared gate state (one
-    // request gets exactly one enforcement point), and both sets match with
-    // Set.has on the exact path string, which a prefix route carrying an id
-    // cannot satisfy anyway.
+    // ALSO deliberately absent from EBIRD_GATED_PATHS below: each caller of this
+    // path is its own enforcement point over the same shared gate state, by
+    // wrapping its call in gatedEbirdCall (one request gets exactly one
+    // enforcement point). They are the Projects sweep (useChecklistProjects.ts),
+    // the Statistics escapee check (useExoticProvenance.ts) and the List
+    // Comparer's two lookups (components/ChecklistComparer.tsx), the last two
+    // since ebird-request-economy (D-01). Both sets match with Set.has on the
+    // exact path string, which a prefix route carrying an id cannot satisfy
+    // anyway. A NEW caller of /checklists/ wraps its call the same way, or it
+    // sends outside the shared spacing and cooldown.
     if (path.startsWith('/checklists/')) {
       const { getChecklist } = await import('./tauri/checklistService');
       const checklistId = path.slice('/checklists/'.length);
@@ -297,6 +302,9 @@ export const CACHED_GET_PATHS = new Set(['/map/hotspots', '/map/recent-obs']);
 // /map/county-day-obs (targets-tab) is gated HERE, so the Targets sweep does not
 // wrap its calls in gatedEbirdCall itself: it layers only its pass-scale pacing
 // on top, over the same shared state (the projects-sweep precedent).
+// /checklists/{id} is absent for the reason given at its branch above: its three
+// callers (the Projects sweep, the escapee check, the List Comparer) each wrap
+// their own call (ebird-request-economy D-01).
 export const EBIRD_GATED_PATHS = new Set([
   '/map/hotspots', '/map/recent-obs', '/map/hotspot-region', '/map/county-species',
   '/map/county-day-obs',

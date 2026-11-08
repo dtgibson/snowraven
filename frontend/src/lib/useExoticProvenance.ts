@@ -11,7 +11,13 @@
 //      request one and is shown as a definite figure, never an indeterminate
 //      spinner (FR-11, QA-17).
 //   2. DISPATCH through a pool of exactly 4 (FR-14, QA-19), one request per
-//      checklist (FR-13, QA-18), all through `transport` (FR-12, QA-14).
+//      checklist (FR-13, QA-18), all through `transport` (FR-12, QA-14), each
+//      one through the shared eBird gate (ebird-request-economy D-01): this
+//      pass is its own enforcement point over the gate's key-global state, the
+//      Projects sweep's shape, so the gate's 150 ms start spacing (not the
+//      pool) is the governor, a 429 opens the one shared cooldown and is
+//      retried at most twice, and a call still waiting when Stop is pressed or
+//      a Clear lands is never sent.
 //   3. MERGE each response as it lands, which reclassifies species and shrinks
 //      the remaining work.
 //   4. FOLLOW UP with another greedy round rather than a precomputed list. A
@@ -31,6 +37,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { transport } from './transport'
+import { gatedEbirdCall } from './ebirdGate'
 import { isOfflineError } from './offlineDetect'
 import { formatDate } from './formatDate'
 import { SUBMISSION_ID_RE } from '../components/speciesDetail/ui'
@@ -41,10 +48,14 @@ import {
 import {
   consultedSet, getSnapshot, isFreshFor, lastConsultedAt, loadSnapshot,
   publishClassifiedNames, subscribe, dedupedFetchChecklist, unmatchedSet,
+  provenancePurgeGeneration,
   type ProvenanceObservation,
 } from './exoticProvenanceCache'
 
-/** FR-14: matches EAGER_FETCH_CONCURRENCY in useCountyCompleteness. */
+/** FR-14: matches EAGER_FETCH_CONCURRENCY in useCountyCompleteness. Since
+ *  ebird-request-economy a latency ceiling only: every request also waits for
+ *  its start slot at the shared eBird gate, whose spacing governs (the v0.5.92
+ *  activity-pass precedent). */
 export const PROVENANCE_CONCURRENCY = 4
 /** FR-16: one species may drive at most this many follow-up requests. */
 export const MAX_FOLLOWUP_PER_SPECIES = 25
@@ -154,7 +165,15 @@ async function fetchProvenance(submissionId: string): Promise<readonly Provenanc
   const res = await transport.get<{
     species?: Array<{ speciesCode?: string; exoticCategory?: string; userDoNotCount?: string }>
   }>(`/checklists/${encodeURIComponent(submissionId)}`, { fields: 'provenance' })
-  const rows = Array.isArray(res?.species) ? res.species : []
+  // An answer with no species list is a FAILED answer, never an empty one
+  // (ebird-request-economy D-02): read as empty it would stamp every species the
+  // checklist carries for 30 days. Both transports already refuse such a body
+  // with a 502; this is the same verdict once more, at the consumer, with a
+  // status so the offline test never reads it as no connection.
+  if (!Array.isArray(res?.species)) {
+    throw Object.assign(new Error('Could not fetch checklist (HTTP 502).'), { status: 502 })
+  }
+  const rows = res.species
   const out: ProvenanceObservation[] = []
   for (const s of rows) {
     if (typeof s?.speciesCode !== 'string' || s.speciesCode === '') continue
@@ -173,6 +192,89 @@ async function fetchProvenance(submissionId: string): Promise<readonly Provenanc
 function offlineStatus(): ProvenanceStatus {
   const at = lastConsultedAt()
   return { kind: 'offline', checkedLabel: at === null ? null : formatDate(new Date(at)) }
+}
+
+/** One pass's stop, owned by that pass alone (ebird-request-economy D-07). A
+ *  per-pass token rather than one shared flag, because a call from a stopped
+ *  pass can still be waiting at the gate when the next pass starts, and a
+ *  shared flag reset by that pass would let it send. */
+interface PassStop {
+  /** True once Stop was pressed or a Clear superseded the pass. */
+  stopped: boolean
+  /** Settles when `stopped` turns true. */
+  signal: Promise<void>
+  stop: () => void
+}
+
+function newPassStop(): PassStop {
+  let settle!: () => void
+  const signal = new Promise<void>(r => { settle = r })
+  const token: PassStop = {
+    stopped: false,
+    signal,
+    stop: () => { if (!token.stopped) { token.stopped = true; settle() } },
+  }
+  return token
+}
+
+/** Thrown inside a gated call that the pass decided, once its start slot came
+ *  up, not to send. Caught in `gatedProvenance` and never leaves it. A plain
+ *  object: the gate rethrows anything that is not a 429 unchanged and notes
+ *  nothing about it, and no other code ever sees it. */
+const NOT_SENT = { notSent: true } as const
+
+/**
+ * One checklist lookup through the shared eBird gate (ebird-request-economy
+ * D-01): spaced starts, the one key-global cooldown, bounded 429 retries, all
+ * from `gatedEbirdCall`; nothing is re-implemented here. This is the loader the
+ * store's chokepoint runs, so a saved answer never waits and an in-flight join
+ * never takes a second start slot.
+ *
+ * A call is checked again when its start slot comes up, retries included: if
+ * the pass has stopped (Stop, or a Clear), nothing is sent and this resolves
+ * `null`, which the chokepoint reports as `notSent`, neither done nor failed.
+ * Stop also ends a wait at once (the race below), so the pass can report
+ * itself stopped without sitting out a cooldown of up to 60 s. A request
+ * already on the wire is let finish, and only THAT attempt (D-18): an answer
+ * already paid for is kept; a non-429 error, or the final 429, is the gate's
+ * last word and `gated` rejects with it before the macrotask below, so it
+ * still counts as failed; and a 429 the gate would retry ends the stopped call
+ * as `null` at once, rather than after the cooldown, because that retry would
+ * find the pass stopped and send nothing. The 429 itself still reaches the
+ * gate, so the key-global cooldown opens as before. A start slot taken by a
+ * call that then sends nothing is spacing spent on no request, at most one per
+ * waiting call, once per Stop or Clear.
+ */
+function gatedProvenance(submissionId: string, pass: PassStop): Promise<readonly ProvenanceObservation[] | null> {
+  let onWire: Promise<readonly ProvenanceObservation[]> | null = null
+  const gated = gatedEbirdCall(async () => {
+    if (pass.stopped) throw NOT_SENT
+    const attempt = fetchProvenance(submissionId)
+    onWire = attempt
+    try {
+      return await attempt
+    } finally {
+      onWire = null
+    }
+  }).catch((err: unknown) => {
+    if (err === NOT_SENT) return null
+    throw err
+  })
+  const stopped = pass.signal.then(async () => {
+    const attempt = onWire
+    if (attempt === null) return null
+    try {
+      return await attempt
+    } catch {
+      // The gate decides in microtasks alone (`gatedEbirdCall` rethrows with
+      // no timer in between), so by the next macrotask `gated` has settled
+      // unless the gate is waiting to retry. Either way the race below is
+      // decided without waiting out a cooldown.
+      await new Promise<void>(r => { setTimeout(r, 0) })
+      return null
+    }
+  })
+  return Promise.race([gated, stopped])
 }
 
 export function useExoticProvenance(
@@ -204,7 +306,7 @@ export function useExoticProvenance(
   const [loaded, setLoaded] = useState(false)
 
   const runningRef = useRef(false)
-  const cancelRef = useRef(false)
+  const passRef = useRef<PassStop | null>(null)
   const startedForRef = useRef<CoverIndex | null>(null)
   const indexRef = useRef(index)
   indexRef.current = index
@@ -237,9 +339,18 @@ export function useExoticProvenance(
     const setStatus = (next: ProvenanceStatus): void => { advanceRef.current(next) }
     if (runningRef.current) return
     runningRef.current = true
-    cancelRef.current = false
+    const pass = newPassStop()
+    passRef.current = pass
+    let unsubscribe: (() => void) | null = null
     try {
       await loadSnapshot()
+      // A Clear supersedes the pass (ebird-request-economy D-08): the cover was
+      // planned from the export being deleted, so from the moment the store's
+      // purge counter moves no call of this pass is sent and nothing more is
+      // picked. The purge rebuilds the snapshot, which notifies this listener
+      // synchronously, before any waiting call can reach its start slot.
+      const passGeneration = provenancePurgeGeneration()
+      unsubscribe = subscribe(() => { if (provenancePurgeGeneration() !== passGeneration) pass.stop() })
       const idx = indexRef.current
       const admissible = new Set(idx.bySpecies.keys())
       // Checklists already answered this pass or attempted and failed. A failed
@@ -326,7 +437,7 @@ export function useExoticProvenance(
         let next = 0
         const worker = async (): Promise<void> => {
           for (;;) {
-            if (cancelRef.current) return
+            if (pass.stopped) return
             // Defence in depth, and deliberately NOT independently reachable:
             // `greedyCover` is handed `budget` above, so a wave can never be
             // larger than the requests still allowed, and `issued` therefore
@@ -344,10 +455,13 @@ export function useExoticProvenance(
             attempted.add(id)
             issued += 1
             try {
-              await dedupedFetchChecklist(id, admissible, () => fetchProvenance(id), {
+              const res = await dedupedFetchChecklist(id, admissible, () => gatedProvenance(id, pass), {
                 refetch: staleLedger.has(id),
                 carried: idx.byChecklist.get(id) ?? [],
               })
+              // Not sent (D-01): neither done nor failed. The pass has stopped,
+              // so the loop head returns next.
+              if (res.notSent) continue
               done += 1
             } catch {
               failed += 1
@@ -359,7 +473,7 @@ export function useExoticProvenance(
           Array.from({ length: PROVENANCE_CONCURRENCY }, () => worker()),
         )
 
-        if (cancelRef.current) { reason = 'cancelled'; break }
+        if (pass.stopped) { reason = 'cancelled'; break }
         // Deliberately NOT `if (issued >= MAX_REQUESTS_PER_PASS) reason = 'pass-budget'`
         // here. Reaching the cap is only a partial result if work REMAINS, and
         // an earlier revision reported `pass-budget` on a pass whose cover
@@ -393,6 +507,7 @@ export function useExoticProvenance(
     } catch (err) {
       setStatus(isOfflineError(err) ? offlineStatus() : { kind: 'error' })
     } finally {
+      unsubscribe?.()
       runningRef.current = false
     }
   }, [])
@@ -447,7 +562,9 @@ export function useExoticProvenance(
     void runPass()
   }, [active, loaded, index, hasEbirdKey, online, runPass])
 
-  const stop = useCallback(() => { cancelRef.current = true }, [])
+  // Stops the running pass only. A finished pass's token is already spent, and
+  // a press before any pass ran has nothing to stop, as before.
+  const stop = useCallback(() => { passRef.current?.stop() }, [])
 
   const retry = useCallback(() => {
     if (runningRef.current) return

@@ -250,6 +250,26 @@ def checklist_field_flags(fields: str | None) -> tuple[bool, bool]:
     return False, False
 
 
+class ChecklistAnswerError(Exception):
+    """eBird answered HTTP 200 with a body the species-reading modes cannot use.
+
+    Deliberately NOT a ValueError or LookupError, which the route maps to 400
+    and 404: it falls through to the route's generic clause, so the caller sees
+    a 502 with that clause's own wording ("Could not fetch checklist: {exc}"),
+    the same failed-answer shape every other unreadable answer already has
+    (ebird-request-economy D-02). The message names no eBird URL and no key."""
+
+
+def _has_observation_list(data) -> bool:
+    """True when a checklist/view body carries an observation LIST: the body is
+    a dict and its `obs` is a list (possibly empty). A TYPE test, never
+    truthiness: `data.get("obs") or []` used to turn an absent, null, empty
+    dict, empty string, 0 or False `obs` into an empty answer. The JS twin is
+    `hasObservationList` in frontend/src/lib/tauri/checklistService.ts; the
+    shared fixture's `answers` rows drive both."""
+    return isinstance(data, dict) and isinstance(data.get("obs"), list)
+
+
 async def fetch_checklist_species(
     checklist_id: str, skip_loc_name: bool = False, skip_species: bool = False,
 ) -> dict:
@@ -266,7 +286,15 @@ async def fetch_checklist_species(
     `skip_species` additionally suppresses the per-observation projection, so
     the route can skip its own species resolution and return `species: []`
     (FR-25). Under `fields=projects` both flags are set, which is what makes a
-    projects sweep cost exactly ONE outbound eBird request per checklist."""
+    projects sweep cost exactly ONE outbound eBird request per checklist.
+
+    In the two modes that read species (`skip_species` False: no `fields`, and
+    `provenance`), a 200 whose body carries no observation list raises
+    `ChecklistAnswerError` BEFORE the location-name request, so it is a failed
+    answer rather than an empty one (ebird-request-economy D-02). Read as empty,
+    it would have the escapee check stamp every species the checklist carries
+    for 30 days. `obs: []` is still an answer. Under `skip_species` the list is
+    not read, so the check does not apply."""
     api_key = os.getenv("EBIRD_API_KEY")
     if not api_key:
         raise ValueError("EBIRD_API_KEY not configured")
@@ -282,6 +310,8 @@ async def fetch_checklist_species(
         raise LookupError("Checklist not found. Check the ID and try again.")
     resp.raise_for_status()
     data = resp.json()
+    if not skip_species and not _has_observation_list(data):
+        raise ChecklistAnswerError("eBird's answer had no observation list")
 
     # checklist/view has no locName — only locId. Resolve a human-readable
     # location name so the two checklists are easy to tell apart.
@@ -301,7 +331,8 @@ async def fetch_checklist_species(
             pass  # Location name is a nicety; fall through to the locId.
 
     species = []
-    for o in ([] if skip_species else (data.get("obs") or [])):
+    # The list was checked above in every mode that reads it (D-02).
+    for o in ([] if skip_species else data["obs"]):
         code = o.get("speciesCode")
         if not code:
             continue

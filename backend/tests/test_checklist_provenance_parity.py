@@ -104,3 +104,110 @@ def test_a_rejected_value_normalizes_to_empty_which_counts():
     for case in _cases():
         out = _normalize(case["obs"])
         assert out["exoticCategory"] in ("", "X", "N", "P", "Q")
+
+
+# ── ebird-request-economy (decisions.md D-02): whole answer bodies ────────────
+#
+# The fixture's `answers` rows are whole checklist/view bodies eBird answered
+# with HTTP 200. Driven through the SHIPPED route (TestClient over the real
+# handler and service, the outbound client faked), so the verdict is exactly
+# what the escapee check and the List Comparer receive on web/Pi. The JS twin
+# drives the shipped desktop service over the same rows.
+
+from unittest.mock import AsyncMock, MagicMock, patch  # noqa: E402
+
+import pytest  # noqa: E402
+from fastapi.testclient import TestClient  # noqa: E402
+
+import routers.taxonomy as taxonomy_module  # noqa: E402
+from main import app  # noqa: E402
+
+_client = TestClient(app)
+
+_FAKE_TAXONOMY = [
+    {"speciesCode": "amerob", "comName": "American Robin", "sciName": "Turdus migratorius",
+     "taxonOrder": 27616, "category": "species"},
+]
+
+
+@pytest.fixture
+def isolated_taxonomy(tmp_path, monkeypatch):
+    """The same isolation as test_checklists_router.py: the taxonomy refresh
+    persists a disk twin, which must never land in the real repo data/ dir."""
+    monkeypatch.setattr(taxonomy_module, "DATA_DIR", tmp_path / "data")
+    monkeypatch.setattr(taxonomy_module, "_DISK", tmp_path / "data" / "taxonomy.json")
+    monkeypatch.setattr(taxonomy_module, "_STATIC", tmp_path / "staticdata" / "ebird_taxonomy.json")
+    monkeypatch.setattr(taxonomy_module, "_MIN_ENTRIES", 1)
+    monkeypatch.setenv("EBIRD_API_KEY", "test-key")
+    for d in (taxonomy_module._by_sci, taxonomy_module._by_com, taxonomy_module._by_order,
+              taxonomy_module._by_code, taxonomy_module._report_as):
+        d.clear()
+    taxonomy_module._loaded = False
+
+
+def _resp(payload, status=200):
+    resp = MagicMock()
+    resp.status_code = status
+    resp.raise_for_status = MagicMock()
+    resp.json = lambda: payload
+    resp.content = b"x"
+    return resp
+
+
+def _answer(body, fields, urls):
+    async def fake_get(url, *args, **kwargs):
+        urls.append(url)
+        if "/product/checklist/view/" in url:
+            return _resp(body)
+        if "/ref/region/info/" in url:
+            return _resp({"result": "Somewhere"})
+        if "/ref/taxonomy/ebird" in url:
+            return _resp(_FAKE_TAXONOMY)
+        return _resp({}, status=404)
+
+    shared = AsyncMock()
+    shared.get = AsyncMock(side_effect=fake_get)
+    path = "/checklists/S12345678" + (f"?fields={fields}" if fields else "")
+    with patch("services.ebird.get_client", return_value=shared), \
+         patch("routers.taxonomy.get_client", return_value=shared):
+        return _client.get(path)
+
+
+def _answers():
+    with _FIXTURE.open(encoding="utf-8") as fh:
+        return json.load(fh)["answers"]
+
+
+def test_every_answer_body_reaches_the_shared_verdict(isolated_taxonomy):
+    for row in _answers():
+        resp = _answer(row["body"], row["fields"], [])
+        got = {"status": resp.status_code}
+        if resp.status_code == 200:
+            got["species"] = len(resp.json()["species"])
+        assert got == row["expected"], row["why"]
+
+
+def test_a_refused_body_is_the_routes_own_502_and_costs_no_second_request(isolated_taxonomy):
+    for row in _answers():
+        if row["expected"]["status"] != 502:
+            continue
+        urls = []
+        resp = _answer(row["body"], row["fields"], urls)
+        assert resp.status_code == 502, row["why"]
+        assert resp.json()["detail"] == (
+            "Could not fetch checklist: eBird's answer had no observation list"
+        ), row["why"]
+        # The location-name lookup is never reached for a body the route refuses.
+        assert len(urls) == 1, row["why"]
+
+
+def test_the_answer_rows_still_discriminate():
+    failed = [r for r in _answers() if r["expected"]["status"] == 502]
+    answered = [r for r in _answers() if r["expected"]["status"] == 200]
+    assert len(failed) >= 8
+    failed_obs = [("NO BODY" if r["body"] is None else r["body"].get("obs", "ABSENT")) for r in failed]
+    # Each falsy non-list `data.get("obs") or []` used to turn into an empty answer.
+    for v in ("ABSENT", None, "", 0, False):
+        assert any(o == v and type(o) is type(v) for o in failed_obs), v
+    assert any(r["fields"] == "provenance" and r["body"].get("obs") == [] for r in answered)
+    assert any(r["fields"] == "projects" and not isinstance(r["body"].get("obs"), list) for r in answered)

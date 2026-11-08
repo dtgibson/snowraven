@@ -203,5 +203,212 @@
         "userDoNotCount": ""
       }
     }
+  ],
+  "_answersComment": [
+    "ebird-request-economy (decisions.md D-02). Whole checklist/view BODIES, not",
+    "observations: each row is what eBird answered with HTTP 200, the `fields`",
+    "flag the caller sent, and the verdict BOTH transports must reach for it:",
+    "`status` 502 (a failed answer, so the escapee check writes no ledger entry",
+    "and no stamp) or 200 with the number of species rows returned.",
+    "",
+    "In the species-reading modes (no flag, and `provenance`) an observation list",
+    "that is absent, null or anything but a JSON array is a FAILED answer. An",
+    "empty array is still an answer. `fields=projects` reads no species and is",
+    "untouched. Loaded by the same two parity suites as `cases` above, which",
+    "drive the SHIPPED desktop service and the SHIPPED route."
+  ],
+  "answers": [
+    {
+      "why": "the observation list is ABSENT: before this row's change both transports read it as an empty list, so the escapee check stamped every carried species for 30 days",
+      "fields": "provenance",
+      "body": {
+        "locId": "L99",
+        "obsDt": "2026-04-11 07:20"
+      },
+      "expected": {
+        "status": 502
+      }
+    },
+    {
+      "why": "absent, with no fields flag (the List Comparer's mode reads species too)",
+      "fields": null,
+      "body": {
+        "locId": "L99",
+        "obsDt": "2026-04-11 07:20"
+      },
+      "expected": {
+        "status": 502
+      }
+    },
+    {
+      "why": "null is not a list",
+      "fields": "provenance",
+      "body": {
+        "locId": "L99",
+        "obsDt": "2026-04-11 07:20",
+        "obs": null
+      },
+      "expected": {
+        "status": 502
+      }
+    },
+    {
+      "why": "an empty OBJECT is not a list, though Python's `or []` used to make it one",
+      "fields": "provenance",
+      "body": {
+        "locId": "L99",
+        "obsDt": "2026-04-11 07:20",
+        "obs": {}
+      },
+      "expected": {
+        "status": 502
+      }
+    },
+    {
+      "why": "an object carrying a species code is still not a list",
+      "fields": "provenance",
+      "body": {
+        "locId": "L99",
+        "obsDt": "2026-04-11 07:20",
+        "obs": {
+          "speciesCode": "amerob"
+        }
+      },
+      "expected": {
+        "status": 502
+      }
+    },
+    {
+      "why": "a string is not a list (iterating it used to raise a different error on each transport)",
+      "fields": "provenance",
+      "body": {
+        "locId": "L99",
+        "obsDt": "2026-04-11 07:20",
+        "obs": "amerob"
+      },
+      "expected": {
+        "status": 502
+      }
+    },
+    {
+      "why": "an empty string is not a list, though Python's `or []` used to make it one",
+      "fields": "provenance",
+      "body": {
+        "locId": "L99",
+        "obsDt": "2026-04-11 07:20",
+        "obs": ""
+      },
+      "expected": {
+        "status": 502
+      }
+    },
+    {
+      "why": "zero is not a list, though Python's `or []` used to make it one",
+      "fields": "provenance",
+      "body": {
+        "locId": "L99",
+        "obsDt": "2026-04-11 07:20",
+        "obs": 0
+      },
+      "expected": {
+        "status": 502
+      }
+    },
+    {
+      "why": "false is not a list, though Python's `or []` used to make it one",
+      "fields": "provenance",
+      "body": {
+        "locId": "L99",
+        "obsDt": "2026-04-11 07:20",
+        "obs": false
+      },
+      "expected": {
+        "status": 502
+      }
+    },
+    {
+      "why": "a body that is not an object has no observation list at all",
+      "fields": "provenance",
+      "body": null,
+      "expected": {
+        "status": 502
+      }
+    },
+    {
+      "why": "an EMPTY list is still an answer: eBird answered and the checklist carries nothing, which the escapee check records (the v1.0.64 rule)",
+      "fields": "provenance",
+      "body": {
+        "locId": "L99",
+        "obsDt": "2026-04-11 07:20",
+        "obs": []
+      },
+      "expected": {
+        "status": 200,
+        "species": 0
+      }
+    },
+    {
+      "why": "an ordinary list is an answer",
+      "fields": "provenance",
+      "body": {
+        "locId": "L99",
+        "obsDt": "2026-04-11 07:20",
+        "obs": [
+          {
+            "speciesCode": "amerob",
+            "howManyStr": "3"
+          }
+        ]
+      },
+      "expected": {
+        "status": 200,
+        "species": 1
+      }
+    },
+    {
+      "why": "an ordinary list with no fields flag is an answer",
+      "fields": null,
+      "body": {
+        "locId": "L99",
+        "obsDt": "2026-04-11 07:20",
+        "obs": [
+          {
+            "speciesCode": "amerob",
+            "howManyStr": "3"
+          }
+        ]
+      },
+      "expected": {
+        "status": 200,
+        "species": 1
+      }
+    },
+    {
+      "why": "fields=projects reads no species, so an absent list is not its business and the answer stands",
+      "fields": "projects",
+      "body": {
+        "locId": "L99",
+        "obsDt": "2026-04-11 07:20"
+      },
+      "expected": {
+        "status": 200,
+        "species": 0
+      }
+    },
+    {
+      "why": "fields=projects with a list that is not one: still untouched",
+      "fields": "projects",
+      "body": {
+        "locId": "L99",
+        "obsDt": "2026-04-11 07:20",
+        "obs": {
+          "speciesCode": "amerob"
+        }
+      },
+      "expected": {
+        "status": 200,
+        "species": 0
+      }
+    }
   ]
 }

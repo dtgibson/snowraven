@@ -254,6 +254,29 @@ describe('useCountyCompleteness — eager-fetch gating', () => {
     expect(dedupedCalls.length).toBe(2)
   })
 
+  // ebird-request-economy D-03: the eager skip reads the same window as the
+  // store's chokepoint, so an answer dated past it is not left standing here.
+  it.each([
+    ['exactly 24 h ahead is honoured: no re-fetch', 24 * 60 * 60 * 1000 - 60_000, 1],
+    ['more than 24 h ahead reads as absent: re-fetched', 24 * 60 * 60 * 1000 + 60_000, 2],
+  ])('TTL skip and a future-dated entry: %s', async (_label, aheadMs, calls) => {
+    const rc = deriveCountyRegionCode('06001', 'CA')!
+    const local = buildLocal([{ stusps: 'CA', name: 'Alameda', count: 9 }])
+    const { result } = renderHook(() => useCountyCompleteness(baseArgs(local, true)))
+    await flush()
+    act(() => { result.current!.onViewportCounties([vpRow('CA', 'Alameda', '06001')]) })
+    await act(async () => {
+      deferreds.get(rc)!.resolve({
+        data: { regionCode: rc, speciesCount: 20, species: [] },
+        fetchedAt: Date.now() + aheadMs,
+        fromNetwork: true,
+      })
+      await Promise.resolve(); await Promise.resolve()
+    })
+    act(() => { result.current!.onViewportCounties([vpRow('CA', 'Alameda', '06001')]) })
+    expect(dedupedCalls.length).toBe(calls)
+  })
+
   it('unresolvable geoid never fetches (FR-18)', async () => {
     const local = buildLocal([{ stusps: 'CA', name: 'Weird', count: 3 }])
     const { result } = renderHook(() => useCountyCompleteness(baseArgs(local, true)))

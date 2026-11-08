@@ -71,6 +71,39 @@ describe('countyCompletenessCache — TTL (FR-15)', () => {
   })
 })
 
+// ebird-request-economy D-03: an answer fetched while the clock ran ahead and
+// then read after it was corrected. Exactly 24 h ahead is honoured, one
+// millisecond past it is asked for again, and the answer rewrites its time.
+describe('countyCompletenessCache: the plausibility window on fetchedAt', () => {
+  it('an answer exactly 24 h ahead of the corrected clock is reused; one millisecond past it is asked for again', async () => {
+    const loader = vi.fn(async () => payload('US-CA-085'))
+    const ahead = Date.now()
+    await cache.dedupedFetch('US-CA-085', loader)
+    await cache.dedupedFetch('US-CA-001', loader)
+    expect(loader).toHaveBeenCalledTimes(2)
+
+    vi.setSystemTime(ahead - DAY)            // both answers are now exactly 24 h ahead
+    expect((await cache.dedupedFetch('US-CA-085', loader)).fromNetwork).toBe(false)
+    vi.setSystemTime(ahead - DAY - 1)        // ...and now one millisecond past the window
+    const asked = await cache.dedupedFetch('US-CA-001', loader)
+    expect(asked.fromNetwork).toBe(true)
+    expect(asked.fetchedAt).toBe(ahead - DAY - 1)
+    expect(loader).toHaveBeenCalledTimes(3)
+    // The rewritten time is honoured from here on.
+    expect((await cache.dedupedFetch('US-CA-001', loader)).fromNetwork).toBe(false)
+  })
+
+  it('offline, an answer dated past the window is still served stale rather than lost', async () => {
+    const first = await cache.dedupedFetch('US-CA-085', async () => payload('US-CA-085'))
+    vi.setSystemTime(first.fetchedAt - 2 * DAY)
+    const offline = vi.fn(async () => { throw new TypeError('Failed to fetch') })
+    const res = await cache.dedupedFetch('US-CA-085', offline)
+    expect(offline).toHaveBeenCalledTimes(1)
+    expect(res.fromNetwork).toBe(false)
+    expect(res.fetchedAt).toBe(first.fetchedAt)
+  })
+})
+
 describe('countyCompletenessCache — in-flight dedup (FR-16)', () => {
   it('two concurrent requests for the same county share ONE loader call', async () => {
     let resolveLoad!: (v: CountyEbirdData) => void

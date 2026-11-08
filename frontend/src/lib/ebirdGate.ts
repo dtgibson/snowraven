@@ -10,10 +10,24 @@
 //     and writes THIS state, so its 429s slow the single-shot lookups and
 //     vice versa;
 //   • gatedEbirdCall() below governs the single-shot lookups wired at the
-//     transport chokepoint (/map/hotspots, /map/recent-obs,
-//     /map/hotspot-region, /map/county-species): serialized starts (the
-//     v0.5.86 Nominatim request-start-queue precedent, at eBird's 150 ms
-//     rather than Nominatim's 1 s), cooldown wait-out, and bounded retries.
+//     transport chokepoint (EBIRD_GATED_PATHS: /map/hotspots, /map/recent-obs,
+//     /map/hotspot-region, /map/county-species, /map/county-day-obs):
+//     serialized starts (the v0.5.86 Nominatim request-start-queue precedent,
+//     at eBird's 150 ms rather than Nominatim's 1 s), cooldown wait-out, and
+//     bounded retries;
+//   • the callers of /checklists/{id}, which no exact-path set can match, call
+//     gatedEbirdCall() themselves around their own loader: the Projects sweep
+//     (useChecklistProjects, which layers its pass-scale pacing on top), the
+//     Statistics escapee check (useExoticProvenance) and the List Comparer's
+//     two lookups (ChecklistComparer), the last two since ebird-request-economy
+//     (D-01). The escapee check also re-checks Stop and Clear inside the call,
+//     when its start slot comes up, so a call that waited is not sent after
+//     either.
+//
+// Outside the gate, by recorded decision: the Weather and tide lookups by
+// checklist (/weather/{id}, /tide/{id}), deferred to their own change because
+// gating them first needs a 429 mapping on both transports
+// (ebird-request-economy, change-brief row C), and the taxonomy download.
 //
 // One enforcement point per request: /map/hotspot-activity is deliberately
 // NOT routed through gatedEbirdCall (the controller enforces for it), and the

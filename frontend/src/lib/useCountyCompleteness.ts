@@ -28,6 +28,7 @@ import {
   type CountyEbirdData, type CountyLocalCompleteness, type CompletenessStatus,
 } from './countyCompleteness'
 import * as completenessCache from './countyCompletenessCache'
+import { isWithinTtl } from './ttlWindow'
 import { withNormalizedParents } from './speciesUtils'
 
 /** OQ-07: fixed eager-fetch concurrency bound. */
@@ -179,7 +180,9 @@ export function useCountyCompleteness({ active, localByCounty, hasEbirdKey }: Us
       const rc = deriveCountyRegionCode(r.geoid, r.stusps)
       if (!rc) continue                                          // never unresolvable (FR-18)
       const entry = ebirdByRegion.get(rc)
-      if (entry && now - entry.fetchedAt < completenessCache.COMPLETENESS_TTL_MS) continue
+      // The store's own window (ebird-request-economy D-03): a future-dated
+      // answer is due here exactly when the chokepoint would ask for it.
+      if (entry && isWithinTtl(entry.fetchedAt, now, completenessCache.COMPLETENESS_TTL_MS)) continue
       if (transient.has(rc)) continue                            // in flight, or failed — retry is click-driven
       if (queuedRef.current.has(rc) || loadingRef.current.has(rc)) continue
       queuedRef.current.add(rc)

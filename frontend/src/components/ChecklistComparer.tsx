@@ -2,6 +2,7 @@ import { Button } from './ui/Button'
 import { useState, useCallback, useEffect } from 'react'
 import { Loader2, AlertCircle, Search, Camera, Mic, Video, MessageSquare, ChevronDown, ChevronRight } from 'lucide-react'
 import { transport, TransportError } from '../lib/transport'
+import { gatedEbirdCall } from '../lib/ebirdGate'
 import { storage } from '../lib/storage'
 import { parseEbirdCSV } from '../lib/parseEbird'
 import { normalizeSpeciesName } from '../lib/speciesUtils'
@@ -247,9 +248,15 @@ export function ChecklistComparer({ onOpenSpecies, keyStatus, onGoToSettings }: 
     setLoading(true)
     setError(null)
     try {
+      // Each lookup goes through the shared eBird gate (ebird-request-economy
+      // D-01): this tab is its own enforcement point over the gate's key-global
+      // state, the Projects sweep's shape, because `/checklists/` is not in the
+      // transport's EBIRD_GATED_PATHS. So the two starts are spaced, a 429 waits
+      // out the one shared cooldown and is retried at most twice, and the last
+      // 429 reaches the error display below with the shared rate-limit sentence.
       const [dataA, dataB] = await Promise.all([
-        transport.get<ChecklistData>(`/checklists/${encodeURIComponent(a)}`),
-        transport.get<ChecklistData>(`/checklists/${encodeURIComponent(b)}`),
+        gatedEbirdCall(() => transport.get<ChecklistData>(`/checklists/${encodeURIComponent(a)}`)),
+        gatedEbirdCall(() => transport.get<ChecklistData>(`/checklists/${encodeURIComponent(b)}`)),
       ])
       // Some checklists (incomplete, or with hidden/sensitive species) come back with
       // no observation detail. A comparison of an empty list would be meaningless.

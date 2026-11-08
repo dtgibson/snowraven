@@ -21,12 +21,21 @@ vi.mock('./storage', () => ({
   storage: {
     getSetting: vi.fn(async (key: string) => (key === 'exotic-provenance-v1' ? seamDoc.value : null)),
     setSetting: vi.fn(async (_k: string, v: unknown) => { seamDoc.value = JSON.parse(JSON.stringify(v)) }),
+    deleteSetting: vi.fn(async () => { seamDoc.value = null }),
   },
 }))
 
 interface Row { speciesCode: string; exoticCategory?: string; userDoNotCount?: string }
-const responses = new Map<string, Row[] | 'fail'>()
+const responses = new Map<string, Row[] | 'fail' | 'no-list'>()
 const requested: string[] = []
+/** Every request START, client-observed (ebird-request-economy D-01). */
+const starts: Array<{ id: string; at: number }> = []
+/** Checklist id -> how many 429s to answer before its body (Infinity: always). */
+const limited = new Map<string, number>()
+/** The bounded Retry-After both transports attach to a 429, in seconds. */
+let retryAfterSec: number | undefined
+/** How long each mocked request takes, in ms (the fake clock in the gate rows). */
+let latencyMs = 1
 let inFlight = 0
 let peakInFlight = 0
 /** When set, every mocked request awaits it, so a pass can be held mid-flight. */
@@ -37,15 +46,26 @@ vi.mock('./transport', () => ({
   transport: {
     get: vi.fn(async (path: string, params?: Record<string, string>) => {
       requested.push(`${path}?${params?.fields ?? ''}`)
+      const id = path.slice('/checklists/'.length)
+      starts.push({ id, at: Date.now() })
       inFlight += 1
       peakInFlight = Math.max(peakInFlight, inFlight)
       try {
         // A real await point, so the pool's concurrency is observable.
-        await new Promise<void>(r => { setTimeout(r, 1) })
+        await new Promise<void>(r => { setTimeout(r, latencyMs) })
         if (hold) await hold
-        const id = path.slice('/checklists/'.length)
+        const left = limited.get(id) ?? 0
+        if (left > 0) {
+          limited.set(id, left - 1)
+          // The shape both transports throw for an upstream 429.
+          throw Object.assign(new Error('eBird is limiting requests right now. Try again in a moment.'), {
+            status: 429, ...(retryAfterSec !== undefined ? { retryAfterSec } : {}),
+          })
+        }
         const body = responses.get(id)
         if (body === 'fail') throw Object.assign(new Error('eBird 502'), { status: 502 })
+        // A 200 whose body carries no species list (D-02's defence in depth).
+        if (body === 'no-list') return {}
         return { species: body ?? [] }
       } finally {
         inFlight -= 1
@@ -58,6 +78,8 @@ const provenanceModule = await import('./useExoticProvenance')
 const { useExoticProvenance, MAX_FOLLOWUP_PER_SPECIES, PROVENANCE_CONCURRENCY, setMaxRequestsPerPass } = provenanceModule
 const cacheModule = await import('./exoticProvenanceCache')
 const transportModule = await import('./transport')
+const gateModule = await import('./ebirdGate')
+const rateLimitModule = await import('./rateLimit')
 
 function o(commonName: string, submissionId: string): ObservationEntry {
   return {
@@ -111,9 +133,22 @@ beforeEach(() => {
   cacheModule._resetProvenanceCacheForTests()
   setMaxRequestsPerPass(500)
   announcements.length = 0
+  starts.length = 0
+  limited.clear()
+  retryAfterSec = undefined
+  latencyMs = 1
+  // The pass is an enforcement point over the shared eBird gate (D-01). Its
+  // state is module-scoped, so it is reset per test, and the spacing seam is
+  // zeroed so every row but the gate rows runs its own contract at full speed
+  // (the Projects suites' posture).
+  gateModule._resetEbirdGateForTests()
+  rateLimitModule._setActivityStartSpacingMsForTests(0)
 })
 
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  rateLimitModule._setActivityStartSpacingMsForTests(rateLimitModule.ACTIVITY_START_SPACING_DEFAULT_MS)
+})
 
 const kind = () => screen.getByTestId('kind').textContent
 
@@ -245,6 +280,19 @@ describe('failure and cancellation (FR-19, FR-20, QA-24, QA-25, QA-26)', () => {
     // retryable rather than remembered as an answer.
     expect(cacheModule.getSnapshot().checklists.has('S2')).toBe(false)
     expect(cacheModule.getSnapshot().checklists.size).toBe(5)
+  })
+
+  it('a 200 with no species list is a FAILED answer: no ledger entry and no stamp (D-02)', async () => {
+    const rows = [o('sp0', 'S0'), o('sp1', 'S1')]
+    responses.set('S0', 'no-list')
+    responses.set('S1', [{ speciesCode: 'c-sp1', exoticCategory: 'N' }])
+    render(<Harness index={buildCoverIndex(rows, codeFor)} />)
+    await waitFor(() => expect(kind()).toBe('partial'))
+    expect(screen.getByTestId('reason').textContent).toBe('failures')
+    expect(screen.getByTestId('failed').textContent).toBe('1')
+    expect(cacheModule.getSnapshot().checklists.has('S0')).toBe(false)
+    expect([...cacheModule.unmatchedSet(Date.now())]).toEqual([])
+    expect(cacheModule.getSnapshot().checklists.has('S1')).toBe(true)
   })
 
   it('every request failing is reported as `error`, not as a partial result', async () => {
@@ -670,4 +718,188 @@ describe('a species eBird answered without settles instead of re-opening every l
     await waitFor(() => expect(requested).toHaveLength(4))
     await waitFor(() => expect(kind()).toBe('error'))
   })
+})
+
+// ── The shared eBird gate (ebird-request-economy D-01) ───────────────────────
+//
+// The pass is a self-enforcing point over the shared gate state, the Projects
+// sweep's shape: the gate wraps the loader handed to the store's chokepoint.
+// Every claim is observed at the CLIENT, as request starts on a fake clock
+// (testing.md, the v0.5.92 pacing rows), never as elapsed wall time.
+describe('the shared eBird gate (ebird-request-economy D-01)', () => {
+  const SPACING = rateLimitModule.ACTIVITY_START_SPACING_DEFAULT_MS
+
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'] })
+    vi.setSystemTime(1_750_000_000_000)
+    rateLimitModule._setActivityStartSpacingMsForTests(SPACING)
+  })
+  afterEach(() => { vi.useRealTimers() })
+
+  async function advance(ms: number): Promise<void> {
+    await act(async () => { await vi.advanceTimersByTimeAsync(ms) })
+  }
+  /** Let the mount commit, the one disk read land and the auto-start effect
+   *  run, so the pass's first request starts at the fake clock's origin. */
+  async function mount(index: CoverIndex): Promise<number> {
+    render(<Harness index={index} />)
+    for (let i = 0; i < 5; i += 1) await advance(0)
+    return Date.now()
+  }
+
+  /** n checklists carrying one species each, all answered as counting. */
+  function spread(n: number): CoverIndex {
+    const rows: ObservationEntry[] = []
+    for (let i = 0; i < n; i += 1) {
+      rows.push(o(`sp${i}`, `S${i}`))
+      responses.set(`S${i}`, [{ speciesCode: `c-sp${i}`, exoticCategory: 'N' }])
+    }
+    return buildCoverIndex(rows, codeFor)
+  }
+
+  it('every checklist request starts at least the spacing floor after the previous gated start, shared with the other lookups', async () => {
+    await mount(spread(6))
+    // Another enforcement point on the same key (the Statistics tab's own
+    // hotspot-region lookups ride the transport's gate), started meanwhile.
+    const other: number[] = []
+    const otherCalls = [0, 1].map(() => gateModule.gatedEbirdCall(async () => { other.push(Date.now()) }))
+    await advance(8 * SPACING + 100)
+    await Promise.all(otherCalls)
+    expect(kind()).toBe('complete')
+    expect(starts).toHaveLength(6)
+    expect(other).toHaveLength(2)
+    const all = [...starts.map(s => s.at), ...other].sort((a, b) => a - b)
+    for (let i = 1; i < all.length; i += 1) {
+      expect(all[i] - all[i - 1], `start ${i} of ${all.length}`).toBeGreaterThanOrEqual(SPACING)
+    }
+  })
+
+  it('a 429 opens the shared cooldown: nothing on the key starts inside it, and the checklist is retried and kept', async () => {
+    const index = spread(3)
+    limited.set('S0', 1)
+    retryAfterSec = 2
+    await mount(index)
+    await advance(10)
+    const { cooldownUntil, waveCount } = gateModule.ebirdGateState()
+    expect(waveCount).toBe(1)
+    expect(cooldownUntil).toBeGreaterThanOrEqual(starts[0].at + 2000)
+    // The other direction: a lookup elsewhere in the app waits it out too.
+    let otherAt = 0
+    const other = gateModule.gatedEbirdCall(async () => { otherAt = Date.now() })
+    await advance(5_000)
+    await other
+    expect(kind()).toBe('complete')
+    expect(starts.map(s => s.id).filter(id => id === 'S0')).toHaveLength(2)
+    for (const s of starts.slice(1)) expect(s.at, s.id).toBeGreaterThanOrEqual(cooldownUntil)
+    expect(otherAt).toBeGreaterThanOrEqual(cooldownUntil)
+    expect(cacheModule.getSnapshot().checklists.has('S0')).toBe(true)
+  })
+
+  it('a checklist still rate limited after two retries is a failed checklist, and nothing is cached for it', async () => {
+    const index = spread(2)
+    limited.set('S0', Number.POSITIVE_INFINITY)
+    retryAfterSec = 1
+    await mount(index)
+    await advance(15_000)
+    expect(starts.filter(s => s.id === 'S0')).toHaveLength(1 + rateLimitModule.ACTIVITY_RATE_LIMIT_RETRIES)
+    expect(kind()).toBe('partial')
+    expect(screen.getByTestId('reason').textContent).toBe('failures')
+    expect(screen.getByTestId('failed').textContent).toBe('1')
+    expect(cacheModule.getSnapshot().checklists.has('S0')).toBe(false)
+    expect(cacheModule.getSnapshot().checklists.has('S1')).toBe(true)
+  })
+
+  it('Stop while calls wait in a cooldown: none of them is sent, none counts as failed, and the pass ends without waiting it out', async () => {
+    const index = spread(6)
+    limited.set('S0', 1)
+    retryAfterSec = 30
+    await mount(index)
+    await advance(200)
+    expect(starts).toHaveLength(1)                       // S0, then the 429
+    expect(kind()).toBe('in-progress')
+    await act(async () => { screen.getByText('stop').click() })
+    await advance(10)
+    expect(kind()).toBe('partial')
+    expect(screen.getByTestId('reason').textContent).toBe('cancelled')
+    expect(screen.getByTestId('failed').textContent).toBe('0')
+    // Past the cooldown, when the waiting turns come up: still nothing sent.
+    await advance(60_000)
+    expect(starts).toHaveLength(1)
+    expect(cacheModule.getSnapshot().checklists.size).toBe(0)
+  })
+
+  it('Stop while a request is on the wire keeps its answer (only calls still waiting are dropped)', async () => {
+    const index = spread(6)
+    latencyMs = 1_000
+    await mount(index)
+    await advance(SPACING * 3 + 10)                      // four on the wire
+    expect(starts).toHaveLength(4)
+    await act(async () => { screen.getByText('stop').click() })
+    await advance(2_000)
+    expect(kind()).toBe('partial')
+    expect(screen.getByTestId('reason').textContent).toBe('cancelled')
+    expect(starts).toHaveLength(4)
+    expect(cacheModule.getSnapshot().checklists.size).toBe(4)
+  })
+
+  it('Stop while a request is on the wire that then answers 429 ends the pass without waiting out the cooldown', async () => {
+    // QA's L1 (ebird-request-economy D-18): the on-wire call used to sit out
+    // the gate's cooldown and its retry after Stop, about 30 s here, though a
+    // stopped pass never sends that retry. Beside it, a 502 on the wire is the
+    // gate's last word and still counts as failed, and an answer is kept.
+    const index = spread(3)
+    limited.set('S0', 1)
+    retryAfterSec = 30
+    latencyMs = 1_000
+    responses.set('S1', 'fail')
+    await mount(index)
+    await advance(SPACING * 2 + 10)                      // S0, S1 and S2 on the wire
+    expect(starts).toHaveLength(3)
+    await act(async () => { screen.getByText('stop').click() })
+    await advance(1_010)                                 // all three answer: S0 a 429, S1 a 502
+    expect(kind()).toBe('partial')
+    expect(screen.getByTestId('reason').textContent).toBe('cancelled')
+    expect(screen.getByTestId('failed').textContent).toBe('1')
+    expect(cacheModule.getSnapshot().checklists.has('S2')).toBe(true)
+    // The 429 still reached the gate: the key-global cooldown is open.
+    expect(gateModule.ebirdGateState().waveCount).toBe(1)
+    await advance(60_000)
+    expect(starts).toHaveLength(3)
+  })
+
+  it('a Clear while calls wait at the spacing floor sends none of them, and no later pick goes out', async () => {
+    const index = spread(6)
+    await mount(index)
+    await advance(SPACING + 50)
+    expect(starts.map(s => s.id)).toEqual(['S0', 'S1'])
+    await act(async () => { await cacheModule.purgeProvenanceStore() })
+    await advance(10_000)
+    // S2 and S3 were waiting for their start slots, S4 and S5 not yet picked.
+    expect(starts.map(s => s.id)).toEqual(['S0', 'S1'])
+    expect(cacheModule.getSnapshot().checklists.size).toBe(0)
+    expect(seamDoc.value).toBeNull()
+    expect(kind()).toBe('partial')
+    expect(screen.getByTestId('failed').textContent).toBe('0')
+  })
+
+  it('the cold pass on the reference shape: 73 checklists, every start the floor apart, measured on the fake clock', async () => {
+    // v0.5.87's measured cover is 73 checklists, answered in about 531 ms each
+    // (9.7 s four-wide). The floor puts the last start at 72 x 150 ms.
+    const index = spread(73)
+    latencyMs = 531
+    const t0 = await mount(index)
+    let end = 0
+    for (let step = 0; step < 400 && end === 0; step += 1) {
+      await advance(100)
+      if (kind() === 'complete') end = Date.now() - t0
+    }
+    expect(starts).toHaveLength(73)
+    const span = starts[72].at - starts[0].at
+    expect(span, `last start ${span} ms after the first; terminal status at ${end} ms`).toBeGreaterThanOrEqual(72 * SPACING)
+    for (let i = 1; i < starts.length; i += 1) {
+      expect(starts[i].at - starts[i - 1].at, `start ${i}`).toBeGreaterThanOrEqual(SPACING)
+    }
+    expect(end).toBeGreaterThan(0)
+    expect(peakInFlight).toBeLessThanOrEqual(PROVENANCE_CONCURRENCY)
+  }, 20_000)
 })

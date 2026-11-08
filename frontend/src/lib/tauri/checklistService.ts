@@ -127,6 +127,16 @@ export interface ChecklistResult {
   projectIds: number[]
 }
 
+/** True when an eBird checklist/view body carries an observation LIST: the body
+ *  is a non-null object and its `obs` is an array (possibly empty). Its Python
+ *  twin is the `isinstance(data, dict) and isinstance(data.get("obs"), list)`
+ *  test in `services.ebird.fetch_checklist_species`; a twinned presence check
+ *  is a TYPE test on both sides, never truthiness, because the two languages
+ *  disagree about `{}`, `[]`, `0`, `false` and `""` (`.claude/rules/security.md`). */
+function hasObservationList(body: unknown): boolean {
+  return typeof body === 'object' && body !== null && Array.isArray((body as { obs?: unknown }).obs)
+}
+
 // Desktop counterpart of the backend /checklists/{id} endpoint: fetch a checklist's
 // observations directly from eBird, then resolve species codes → common names via the
 // cached taxonomy. eBird returns obs in taxonomic order, which we preserve.
@@ -166,7 +176,23 @@ export async function getChecklist(checklistId: string, fields?: string | null):
     throw Object.assign(new Error(`Could not fetch checklist (HTTP ${res.status}).`), { status: res.status })
   }
 
-  const data = await res.json() as {
+  const body: unknown = await res.json()
+  // A successful answer with no observation list is a FAILED answer in the two
+  // modes that read species (no `fields`, and `provenance`), never an empty one
+  // (ebird-request-economy D-02). Read as empty, it would have the escapee check
+  // stamp every species the checklist carries as "not in eBird's answer" for 30
+  // days, and the List Comparer show an empty checklist. So an `obs` that is
+  // absent, null, or anything but an array (a body that is not an object has
+  // none at all) is refused here, BEFORE either follow-up request, through the
+  // generic `!res.ok` clause's own shape and wording above. `obs: []` is still
+  // an answer: eBird answered, and the checklist carries nothing. Under
+  // `fields=projects` the list is not read at all, so this does not apply
+  // there. The Python twin is `services.ebird.fetch_checklist_species`, and
+  // the shared fixture's `answers` rows drive both.
+  if (!opts.skipSpecies && !hasObservationList(body)) {
+    throw Object.assign(new Error('Could not fetch checklist (HTTP 502).'), { status: 502 })
+  }
+  const data = body as {
     locId?: string
     locName?: string
     obsDt?: string

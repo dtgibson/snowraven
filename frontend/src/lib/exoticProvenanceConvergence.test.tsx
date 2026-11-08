@@ -157,6 +157,12 @@ describe.each(['tauri', 'web'] as const)('the measured shape settles under the %
     ctrl = await import('./useExoticProvenance')
     copy = await import('./exoticCopy')
     ;({ buildCoverIndex } = await import('./exoticProvenance'))
+    // The pass rides the shared eBird gate (ebird-request-economy D-01). The
+    // graph is fresh, so the gate's state is too; its 150 ms spacing seam is
+    // zeroed in this graph (the Projects suites' posture), so these rows count
+    // requests rather than wait out the floor, which the controller suite's
+    // gate rows pin on a fake clock.
+    ;(await import('./rateLimit'))._setActivityStartSpacingMsForTests(0)
   })
 
   afterEach(() => {

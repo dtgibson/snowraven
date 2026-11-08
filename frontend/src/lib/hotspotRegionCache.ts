@@ -4,11 +4,13 @@
 //
 // One region's answer is the list of public-hotspot location ids eBird returns
 // for `ref/hotspot/{region}`. It changes rarely, so after its first successful
-// lookup it is kept for 30 days across sessions and relaunches, and a later
-// launch whose regions all hold an entry asks eBird nothing. A region past its
-// TTL is still SERVED (the caller holds the stale list) and is asked again once
-// per build of the hotspot Set; a refresh that fails or is rate limited writes
-// nothing, so the stale answer outlives it.
+// lookup it is reused for 30 days across sessions and relaunches, and a later
+// launch whose regions all hold a fresh entry asks eBird nothing. The answer is
+// KEPT past that, until the region cap or the payload budget evicts it or a
+// Clear removes it: a region past its TTL (or dated more than 24 hours ahead of
+// the clock, ebird-request-economy D-03) is still SERVED (the caller holds the
+// stale list) and is asked again once per build of the hotspot Set; a refresh
+// that fails or is rate limited writes nothing, so the stale answer outlives it.
 //
 // Structure is the house durable-cache shape (`countyCompletenessCache.ts`): one
 // storage-seam document, a one-disk-read-per-session in-memory mirror, per-entry
@@ -49,6 +51,7 @@
 // per region (the reference store is excluded from iCloud Sync the same way).
 
 import { storage } from './storage'
+import { isWithinTtl } from './ttlWindow'
 
 /** Storage-seam document key. Bump the suffix AND `version` together on any
  *  shape change: a mismatch yields an empty store, never a migration. */
@@ -151,9 +154,13 @@ export function idsPayloadLength(ids: readonly string[]): number {
   return n
 }
 
-/** Due for a refresh: aged to or past the TTL. A due entry is still served. */
+/** Due for a refresh: aged to or past the TTL, or dated more than 24 hours
+ *  ahead of `now` (the plausibility window in `lib/ttlWindow.ts`,
+ *  ebird-request-economy D-03), so an answer stamped by a clock that ran fast
+ *  is asked for once more and rewritten at the corrected time rather than
+ *  honoured until the clock catches up. A due entry is still served. */
 export function isRegionEntryDue(entry: HotspotRegionEntry, now: number = Date.now()): boolean {
-  return now - entry.fetchedAt >= HOTSPOT_REGION_TTL_MS
+  return !isWithinTtl(entry.fetchedAt, now, HOTSPOT_REGION_TTL_MS)
 }
 
 const getOwn = (entries: Record<string, HotspotRegionEntry>, key: string): HotspotRegionEntry | null =>

@@ -15,7 +15,7 @@
 // the DOM's roles and names), and WebKit's tab order. The 320px / 200% claims
 // and the live look belong to the browser-verified stage (schema.md 9.3).
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, cleanup, waitFor, fireEvent, within } from '@testing-library/react'
+import { render, screen, cleanup, waitFor, fireEvent, within, act } from '@testing-library/react'
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { resolve } from 'node:path'
 import type { ObservationEntry } from '../../types'
@@ -119,10 +119,10 @@ const POOL = {
   ],
 }
 
-function seedPool(pool = POOL) {
+function seedPool(pool = POOL, fetchedAt = Date.now()) {
   H.settings.set(COMPLETENESS_STORE_KEY, {
     version: 1,
-    entries: { [pool.regionCode]: { data: pool, fetchedAt: Date.now(), bytes: 10 } },
+    entries: { [pool.regionCode]: { data: pool, fetchedAt, bytes: 10 } },
     order: [pool.regionCode],
   })
 }
@@ -206,6 +206,31 @@ describe('before any network call (QA-11, QA-12, FR-52)', () => {
     expect(opts.find(o => o.value === 'taxonomic')!.disabled).toBe(false)
     expect(opts.find(o => o.value === 'live-days')!.disabled).toBe(true)
     expect(opts.find(o => o.value === 'freq-month')!.textContent).toContain("needs Alameda, CA's bar-chart file")
+  })
+
+  // ebird-request-economy D-03: the pool's TTL read is the completeness
+  // store's, through the same window. Either way the stored list is shown.
+  it.each([
+    ['exactly 24 h ahead is honoured: no request for the list', 24 * 60 * 60 * 1000 - 60_000, false],
+    ['more than 24 h ahead reads as absent: the list is asked for again', 24 * 60 * 60 * 1000 + 60_000, true],
+  ])('a cached county dated ahead of the clock, with a key: %s', async (_label, aheadMs, asked) => {
+    seedPool(POOL, Date.now() + aheadMs)
+    H.key = 'test-key'
+    let poolAsks = 0
+    H.tGet.mockImplementation(async (path: string) => {
+      if (path === '/map/county-species') { poolAsks += 1; return POOL }
+      return new Promise(() => {})   // the day sweep and the hotspot lookup stay in flight
+    })
+    await ready()
+    expect(await screen.findByText('4 species all time in Alameda, CA, from eBird')).toBeTruthy()
+    if (asked) {
+      await waitFor(() => expect(poolAsks).toBe(1))
+    } else {
+      // The pool's effect has run its read and its TTL check once the list is on
+      // screen; give any request it would send a turn to start, then count.
+      await act(async () => { await new Promise(r => setTimeout(r, 20)) })
+      expect(poolAsks).toBe(0)
+    }
   })
 
   it('the sweep status region exists, empty, before the species list arrives, and is the same node after', async () => {

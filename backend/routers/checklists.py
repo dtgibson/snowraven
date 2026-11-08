@@ -90,6 +90,12 @@ async def get_checklist(checklist_id: str, fields: str | None = Query(None)) -> 
         # would change a shipped error surface for a different feature, which is
         # not something to do inside a provenance change; the provenance pass
         # itself never surfaces this text, it only counts the failure.
+        #
+        # It also carries `services.ebird.ChecklistAnswerError` on purpose
+        # (ebird-request-economy D-02): a 200 with no observation list, in a mode
+        # that reads species, is a failed answer, so it takes this clause's 502
+        # and wording ("Could not fetch checklist: eBird's answer had no
+        # observation list") rather than a status or detail of its own.
         raise HTTPException(status_code=502, detail=f"Could not fetch checklist: {exc}")
 
     # Under `fields=projects` the service already returned no observations, so

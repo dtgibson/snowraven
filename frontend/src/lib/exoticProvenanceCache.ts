@@ -54,9 +54,17 @@ import {
   type ProvenanceSnapshot, type SpeciesProvenanceRecord,
 } from './exoticProvenance'
 import { SUBMISSION_KEY_RE } from './checklistId'
+import { isWithinTtl } from './ttlWindow'
 
 /** OQ-04: 30 days, matching COMPLETENESS_TTL_MS. Governs RE-CONSULTATION, not
- *  display: a stale record still counts and still excludes (schema.md §9). */
+ *  display: a stale record still counts and still excludes (schema.md §9).
+ *
+ *  Every TTL read of this document (the ledger and the stamps, at the five
+ *  readers below) goes through `isWithinTtl` (`lib/ttlWindow.ts`), so a time
+ *  more than 24 hours ahead of the reader's clock reads as absent and is asked
+ *  for once more (ebird-request-economy D-03). Classification is NOT windowed:
+ *  `rebuildSnapshot` counts every ledger entry's answer however it is dated,
+ *  and `lastConsultedAt` reports the stored time as stored. */
 export const PROVENANCE_TTL_MS = 30 * 24 * 60 * 60 * 1000
 
 /** Storage-seam document key. Bump the suffix AND `version` together on any
@@ -361,6 +369,12 @@ let _loading: Promise<ProvenanceStore> | null = null
 // generation, and CLAUDE.md, Desktop storage (Tauri), the v1.0.9 entry.
 let _purgeGeneration = 0
 
+/** The purge counter, read-only: the Statistics pass captures it when it
+ *  starts and stops itself the moment a Clear moves it, so a checklist id the
+ *  user has just cleared is never sent from a call still waiting at the eBird
+ *  gate (ebird-request-economy D-01). Nothing else reads it. */
+export function provenancePurgeGeneration(): number { return _purgeGeneration }
+
 // Snapshot memo: rebuilt only when the mirror actually changes, so a render pass
 // that reads it repeatedly never re-materializes the Set and Map.
 let _snapshot: ProvenanceSnapshot = EMPTY_SNAPSHOT
@@ -647,7 +661,7 @@ export function isFreshFor(submissionIds: Iterable<string>, nowMs: number): bool
   if (!store) return false
   for (const id of submissionIds) {
     if (!Object.hasOwn(store.checklists, id)) return false
-    if (nowMs - store.checklists[id] >= PROVENANCE_TTL_MS) return false
+    if (!isWithinTtl(store.checklists[id], nowMs, PROVENANCE_TTL_MS)) return false
   }
   return true
 }
@@ -658,7 +672,7 @@ export function staleOrUnconsulted(submissionIds: Iterable<string>, nowMs: numbe
   const out = new Set<string>()
   const store = _store
   for (const id of submissionIds) {
-    if (!store || !Object.hasOwn(store.checklists, id) || nowMs - store.checklists[id] >= PROVENANCE_TTL_MS) {
+    if (!store || !Object.hasOwn(store.checklists, id) || !isWithinTtl(store.checklists[id], nowMs, PROVENANCE_TTL_MS)) {
       out.add(id)
     }
   }
@@ -667,7 +681,10 @@ export function staleOrUnconsulted(submissionIds: Iterable<string>, nowMs: numbe
 
 /** ms epoch of the most recent ledger entry, or null when nothing is consulted.
  *  Reads a PERSISTED number; it never calls the clock, so it is render-safe and
- *  is what the offline state's "Showing the check from {date}" is anchored to. */
+ *  is what the offline state's "Showing the check from {date}" is anchored to.
+ *  Deliberately NOT clamped by the plausibility window (ebird-request-economy
+ *  D-11): offline, no re-ask can correct the time, and the label states the
+ *  date the stored check carries rather than inventing one. */
 export function lastConsultedAt(): number | null {
   const store = _store
   if (!store || store.order.length === 0) return null
@@ -689,7 +706,7 @@ export function consultedSet(nowMs: number): ReadonlySet<string> {
     // literal a bare index returns a truthy INHERITED member for at least
     // twelve strings, and the invariant protecting this line is not local to it.
     if (!Object.hasOwn(store.checklists, id)) continue
-    if (nowMs - store.checklists[id] < PROVENANCE_TTL_MS) out.add(id)
+    if (isWithinTtl(store.checklists[id], nowMs, PROVENANCE_TTL_MS)) out.add(id)
   }
   return out
 }
@@ -704,7 +721,7 @@ export function unmatchedSet(nowMs: number): ReadonlySet<string> {
   if (!store) return out
   for (const code of store.unmatchedOrder) {
     if (!Object.hasOwn(store.unmatched, code)) continue
-    if (nowMs - store.unmatched[code] < PROVENANCE_TTL_MS) out.add(code)
+    if (isWithinTtl(store.unmatched[code], nowMs, PROVENANCE_TTL_MS)) out.add(code)
   }
   return out
 }
@@ -714,7 +731,7 @@ export function unmatchedSet(nowMs: number): ReadonlySet<string> {
 // the controller, so it holds across controller remounts: two effects racing at
 // tab mount, or a retry overlapping a running pass, share one eBird call.
 
-const _inflight = new Map<string, Promise<readonly ProvenanceObservation[]>>()
+const _inflight = new Map<string, Promise<readonly ProvenanceObservation[] | null>>()
 
 /**
  * The one fetch chokepoint. A checklist already consulted within the TTL
@@ -725,11 +742,17 @@ const _inflight = new Map<string, Promise<readonly ProvenanceObservation[]>>()
  * no-op success (the answer is already merged and stale reads are served,
  * NFR-05). Any other failure rethrows and caches NOTHING, so a retry issues a
  * fresh request (FR-20, QA-26).
+ *
+ * A loader that resolves `null` chose NOT TO SEND (ebird-request-economy D-01:
+ * the pass was stopped, or the store cleared, while the call waited at the
+ * eBird gate). That is neither an answer nor a failure: nothing is merged, no
+ * ledger entry or stamp is written, and the result says `notSent`, to a caller
+ * that joined the in-flight call too.
  */
 export function dedupedFetchChecklist(
   submissionId: string,
   admissible: ReadonlySet<string>,
-  loader: () => Promise<readonly ProvenanceObservation[]>,
+  loader: () => Promise<readonly ProvenanceObservation[] | null>,
   opts?: {
     /** Skip the fresh-ledger short-circuit for THIS call: the controller has
      *  determined the entry is a false positive — consulted under a cover that
@@ -744,17 +767,19 @@ export function dedupedFetchChecklist(
      *  nothing. */
     carried?: readonly string[]
   },
-): Promise<{ fromNetwork: boolean }> {
+): Promise<{ fromNetwork: boolean; notSent?: true }> {
   return (async () => {
     const gen = _purgeGeneration
     const store = await ensureLoaded()
     if (!opts?.refetch
       && Object.hasOwn(store.checklists, submissionId)
-      && Date.now() - store.checklists[submissionId] < PROVENANCE_TTL_MS) {
+      && isWithinTtl(store.checklists[submissionId], Date.now(), PROVENANCE_TTL_MS)) {
       return { fromNetwork: false }
     }
     const pending = _inflight.get(submissionId)
-    if (pending) { await pending; return { fromNetwork: false } }
+    if (pending) {
+      return (await pending) === null ? { fromNetwork: false, notSent: true } : { fromNetwork: false }
+    }
     const p = (async () => {
       if (_workStats) _workStats.loaderCalls += 1
       try {
@@ -766,6 +791,7 @@ export function dedupedFetchChecklist(
     _inflight.set(submissionId, p)
     try {
       const obs = await p
+      if (obs === null) return { fromNetwork: false, notSent: true }
       // A Clear landed while this request was in flight. `mergeChecklist` would
       // refuse it on its own generation guard; returning here as well keeps the
       // decision where a reader looks for it, and skips the pointless load.

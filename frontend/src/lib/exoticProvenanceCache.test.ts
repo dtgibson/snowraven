@@ -132,6 +132,77 @@ describe('TTL governs RE-CONSULTATION, not display (schema.md §9)', () => {
   })
 })
 
+// ── The plausibility window on every TTL read (ebird-request-economy D-03) ────
+//
+// A ledger entry or a stamp dated more than 24 hours ahead of the reader's clock
+// reads as ABSENT; exactly 24 hours ahead is honoured. One roster for the four
+// ledger readers, so a fifth reader with no row reads as a gap (testing.md,
+// v1.0.14), and a row each for the stamps and for classification, which the
+// window deliberately does not reach.
+
+const LEDGER_READERS: Array<[string, (id: string, now: number) => Promise<boolean>]> = [
+  ['isFreshFor', async (id, now) => cache.isFreshFor([id], now)],
+  ['consultedSet', async (id, now) => cache.consultedSet(now).has(id)],
+  ['staleOrUnconsulted', async (id, now) => !cache.staleOrUnconsulted([id], now).has(id)],
+  // The chokepoint reads the clock itself, so `now` is the faked system time.
+  ['dedupedFetchChecklist', async (id) => {
+    const loader = vi.fn(async () => [o('musduc', 'N')])
+    await cache.dedupedFetchChecklist(id, ALL, loader)
+    return loader.mock.calls.length === 0
+  }],
+]
+
+describe('the plausibility window on every TTL read (ebird-request-economy D-03)', () => {
+  for (const [name, honoured] of LEDGER_READERS) {
+    it(`${name}: a ledger entry exactly 24 h ahead is honoured, one millisecond past it is absent`, async () => {
+      const now = Date.now()
+      await cache.mergeChecklist('S1', [o('musduc', 'N')], ALL, now + DAY)
+      await cache.mergeChecklist('S2', [o('musduc', 'N')], ALL, now + DAY + 1)
+      expect(await honoured('S1', now), 'exactly 24 h ahead').toBe(true)
+      expect(await honoured('S2', now), 'one millisecond past it').toBe(false)
+    })
+
+    it(`${name}: a negative or ancient ledger time reads as expired, as before`, async () => {
+      for (const [id, at] of [['S3', -1], ['S4', 0], ['S5', Date.now() - 31 * DAY]] as const) {
+        await cache.mergeChecklist(id, [o('musduc', 'N')], ALL, at)
+        expect(await honoured(id, Date.now()), `${id} at ${at}`).toBe(false)
+      }
+    })
+  }
+
+  it('unmatchedSet: a stamp exactly 24 h ahead is honoured, one millisecond past it is absent, and an old one is expired', async () => {
+    const now = Date.now()
+    const wide = new Set(['sp1', 'sp2', 'sp3'])
+    await cache.mergeChecklist('S1', [], wide, now + DAY, ['sp1'])
+    await cache.mergeChecklist('S2', [], wide, now + DAY + 1, ['sp2'])
+    await cache.mergeChecklist('S3', [], wide, now - 31 * DAY, ['sp3'])
+    expect([...cache.unmatchedSet(now)]).toEqual(['sp1'])
+  })
+
+  it('a far-future entry is asked for once, and the answer rewrites its time at the corrected clock', async () => {
+    const now = Date.now()
+    await cache.mergeChecklist('S1', [o('musduc', 'N')], ALL, now + 365 * DAY)
+    const loader = vi.fn(async () => [o('musduc', 'N')])
+    expect((await cache.dedupedFetchChecklist('S1', ALL, loader)).fromNetwork).toBe(true)
+    expect(loader).toHaveBeenCalledTimes(1)
+    expect(cache.consultedSet(now).has('S1')).toBe(true)
+    expect((await cache.dedupedFetchChecklist('S1', ALL, loader)).fromNetwork).toBe(false)
+    expect(loader).toHaveBeenCalledTimes(1)
+  })
+
+  it('classification is not windowed: a far-future answer still counts in the snapshot, and nothing is written back on read', async () => {
+    await cache.mergeChecklist('S1', [o('musduc', 'X', 'DNC')], ALL, Date.now() + 365 * DAY)
+    await vi.advanceTimersByTimeAsync(300)
+    const writes = setSettingSpy.mock.calls.length
+    expect(cache.consultedSet(Date.now()).has('S1')).toBe(false)
+    expect(cache.isFreshFor(['S1'], Date.now())).toBe(false)
+    expect(cache.getSnapshot().checklists.has('S1')).toBe(true)
+    expect(cache.getSnapshot().species.get('musduc')!.seen).toEqual(['X|DNC'])
+    await vi.advanceTimersByTimeAsync(300)
+    expect(setSettingSpy.mock.calls.length).toBe(writes)
+  })
+})
+
 // ── In-flight dedupe and failure ──────────────────────────────────────────────
 
 describe('in-flight dedupe and failure (FR-20, FR-21, QA-26, QA-27)', () => {
@@ -161,6 +232,25 @@ describe('in-flight dedupe and failure (FR-20, FR-21, QA-26, QA-27)', () => {
     const offline = async (): Promise<ProvenanceObservation[]> => { throw new TypeError('Failed to fetch') }
     await expect(cache.dedupedFetchChecklist('S1', ALL, offline)).resolves.toEqual({ fromNetwork: false })
     expect(cache.getSnapshot().species.get('musduc')!.seen).toEqual(['X|DNC'])
+  })
+
+  it('a loader that chose not to send (null: stopped or cleared while it waited at the eBird gate) writes nothing and says so, to a joiner too', async () => {
+    // ebird-request-economy D-01: neither an answer nor a failure.
+    let release!: (v: null) => void
+    const loader = vi.fn(() => new Promise<null>(r => { release = r }))
+    const a = cache.dedupedFetchChecklist('S1', ALL, loader, { carried: ['musduc'] })
+    const b = cache.dedupedFetchChecklist('S1', ALL, loader, { carried: ['musduc'] })
+    await vi.advanceTimersByTimeAsync(0)
+    release(null)
+    expect(await a).toEqual({ fromNetwork: false, notSent: true })
+    expect(await b).toEqual({ fromNetwork: false, notSent: true })
+    expect(loader).toHaveBeenCalledTimes(1)
+    expect(cache.getSnapshot().checklists.has('S1')).toBe(false)
+    expect([...cache.unmatchedSet(Date.now())]).toEqual([])
+    expect(cache._getProvenanceCacheWorkStatsForTests().merges).toBe(0)
+    // Nothing was cached, so the next ask runs a fresh loader.
+    const ok = vi.fn(async () => [o('musduc', 'N')])
+    expect((await cache.dedupedFetchChecklist('S1', ALL, ok)).fromNetwork).toBe(true)
   })
 
   it('an offline failure with NO prior entry rethrows rather than inventing an answer', async () => {
@@ -286,7 +376,10 @@ describe('capacity+1, measured as WORK DONE, on BOTH ledgers', () => {
     // from above, the web/Pi settings route's body limit, is held in
     // settingsRouteBudget.test.ts.
     expect(cache.PROVENANCE_MAX_CHECKLISTS).toBe(cache.PROVENANCE_MAX_CHECKLISTS_DEFAULT)
-    // And the species cap stays where it cannot bind: above the whole world list.
+    // And the species cap is the shipped one. That it sits above every species
+    // code in the bundled taxonomy, so it cannot bind on real data, is asserted
+    // against the asset in 'the shipped cap equals the species cap, and both
+    // sit above...' below (v1.0.64 audit I4).
     expect(cache.PROVENANCE_MAX_SPECIES).toBe(cache.PROVENANCE_MAX_SPECIES_DEFAULT)
     const N = cache.PROVENANCE_MAX_CHECKLISTS_DEFAULT
     const checklists: Record<string, number> = {}
@@ -686,9 +779,19 @@ describe('unmatched stamps: what a successful answer did not include', () => {
     expect([...cache.unmatchedSet(Date.now())]).toEqual(['sp8', 'sp9', 'sp10', 'sp11'])
   })
 
-  it('the shipped cap equals the species cap, which sits above the whole world list', () => {
+  it('the shipped cap equals the species cap, and both sit above every species code in the bundled taxonomy', () => {
     expect(cache.PROVENANCE_MAX_UNMATCHED).toBe(cache.PROVENANCE_MAX_UNMATCHED_DEFAULT)
     expect(cache.PROVENANCE_MAX_UNMATCHED_DEFAULT).toBe(cache.PROVENANCE_MAX_SPECIES_DEFAULT)
+    // The title's second clause, checked rather than claimed (v1.0.64 audit
+    // I4): a stamp is keyed by a cover code, and the cover's codes are species
+    // codes, so the bound that makes the cap unable to bind is the snapshot's
+    // species-code count, read from the asset when the test runs (v1.0.61).
+    const snapshot = JSON.parse(
+      readFileSync(new URL('../assets/ebird-taxonomy.json', import.meta.url), 'utf8'),
+    ) as { byCom: Record<string, string> }
+    const speciesCodes = new Set(Object.values(snapshot.byCom)).size
+    expect(speciesCodes, 'the snapshot carries its species list').toBeGreaterThan(10_000)
+    expect(cache.PROVENANCE_MAX_UNMATCHED_DEFAULT).toBeGreaterThan(speciesCodes)
   })
 })
 

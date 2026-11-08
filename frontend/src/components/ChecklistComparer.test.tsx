@@ -9,8 +9,11 @@
 // itself is covered in lib/compareChecklists.test.ts.
 
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, cleanup, act } from '@testing-library/react'
 import type { ChecklistData } from '../lib/compareChecklists'
+import { TransportError } from '../lib/transport'
+import * as gate from '../lib/ebirdGate'
+import * as rateLimit from '../lib/rateLimit'
 
 const getMock = vi.fn()
 vi.mock('../lib/transport', async (orig) => {
@@ -52,8 +55,16 @@ beforeEach(() => {
   getMock.mockImplementation((path: string) =>
     path.includes('S111') ? Promise.resolve(dataA) : Promise.resolve(dataB),
   )
+  // The two lookups ride the shared eBird gate (ebird-request-economy D-01),
+  // whose state is module-scoped, so it is reset per test and its spacing
+  // zeroed for every row but the gate rows (the Projects suites' posture).
+  gate._resetEbirdGateForTests()
+  rateLimit._setActivityStartSpacingMsForTests(0)
 })
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  rateLimit._setActivityStartSpacingMsForTests(rateLimit.ACTIVITY_START_SPACING_DEFAULT_MS)
+})
 
 async function compare() {
   const utils = render(<ChecklistComparer {...props} />)
@@ -144,5 +155,89 @@ describe('ChecklistComparer: inherited member names as breeding codes', () => {
     const badge = screen.getByRole('img', { name: 'CF: Carrying Food' })
     expect(badge.textContent).toBe('CF')
     expect(badge.getAttribute('style')).toContain('var(--sr-tier-4-text)')
+  })
+})
+
+// ── The shared eBird gate (ebird-request-economy D-01) ───────────────────────
+//
+// The tab is a self-enforcing point over the gate's key-global state: each of
+// its two checklist lookups is wrapped in `gatedEbirdCall`, because
+// `/checklists/` is not in the transport's EBIRD_GATED_PATHS. Observed at the
+// CLIENT, as request starts on a fake clock (the v0.5.92 pacing rows).
+describe('ChecklistComparer: the shared eBird gate (ebird-request-economy D-01)', () => {
+  const SPACING = rateLimit.ACTIVITY_START_SPACING_DEFAULT_MS
+  const starts: Array<{ id: string; at: number }> = []
+
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'] })
+    vi.setSystemTime(1_750_000_000_000)
+    rateLimit._setActivityStartSpacingMsForTests(SPACING)
+    starts.length = 0
+  })
+  afterEach(() => { vi.useRealTimers() })
+
+  /** Serve both checklists, answering `S111` with `limitedA` 429s first. */
+  function serve(limitedA: number, retryAfterSec?: number): void {
+    let left = limitedA
+    getMock.mockImplementation(async (path: string) => {
+      const id = path.slice('/checklists/'.length)
+      starts.push({ id, at: Date.now() })
+      if (id === 'S111' && left > 0) {
+        left -= 1
+        throw new TransportError('HTTP 429', 429, rateLimit.EBIRD_RATE_LIMIT_DETAIL, retryAfterSec)
+      }
+      return id === 'S111' ? dataA : dataB
+    })
+  }
+
+  async function advance(ms: number): Promise<void> {
+    await act(async () => { await vi.advanceTimersByTimeAsync(ms) })
+  }
+
+  function press(): void {
+    render(<ChecklistComparer {...props} />)
+    const inputs = screen.getAllByPlaceholderText(/S12345678/)
+    fireEvent.change(inputs[0], { target: { value: 'S111' } })
+    fireEvent.change(inputs[1], { target: { value: 'S222' } })
+    fireEvent.click(screen.getByRole('button', { name: /compare checklists/i }))
+  }
+
+  it('the two lookups start at least the spacing floor apart, and share it with another lookup on the key', async () => {
+    serve(0)
+    // Another enforcement point on the same key, started first.
+    let otherAt = -1
+    const other = gate.gatedEbirdCall(async () => { otherAt = Date.now() })
+    press()
+    await advance(4 * SPACING)
+    await other
+    expect(screen.getByText('In Both')).toBeTruthy()
+    expect(starts.map(s => s.id)).toEqual(['S111', 'S222'])
+    const all = [otherAt, ...starts.map(s => s.at)].sort((x, y) => x - y)
+    expect(all).toHaveLength(3)
+    for (let i = 1; i < all.length; i += 1) {
+      expect(all[i] - all[i - 1], `start ${i}`).toBeGreaterThanOrEqual(SPACING)
+    }
+  })
+
+  it('a 429 opens the shared cooldown: nothing starts inside it, and the lookup is retried and the comparison shown', async () => {
+    serve(1, 2)
+    press()
+    await advance(10)
+    const { cooldownUntil, waveCount } = gate.ebirdGateState()
+    expect(waveCount).toBe(1)
+    expect(cooldownUntil).toBeGreaterThanOrEqual(starts[0].at + 2000)
+    await advance(5_000)
+    expect(screen.getByText('In Both')).toBeTruthy()
+    expect(starts.filter(s => s.id === 'S111')).toHaveLength(2)
+    for (const s of starts.slice(1)) expect(s.at, s.id).toBeGreaterThanOrEqual(cooldownUntil)
+  })
+
+  it('still rate limited after two retries: three requests in all, and the error display shows the shared sentence', async () => {
+    serve(Number.POSITIVE_INFINITY, 1)
+    press()
+    await advance(20_000)
+    expect(starts.filter(s => s.id === 'S111')).toHaveLength(1 + rateLimit.ACTIVITY_RATE_LIMIT_RETRIES)
+    expect(screen.getByText(rateLimit.EBIRD_RATE_LIMIT_DETAIL)).toBeTruthy()
+    expect(screen.queryByText('In Both')).toBeNull()
   })
 })

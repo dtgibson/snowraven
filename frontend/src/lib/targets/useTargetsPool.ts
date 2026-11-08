@@ -17,6 +17,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { transport, TransportError } from '../transport'
 import { classifyLiveError, OFFLINE_MESSAGE_SHORT } from '../offlineMessage'
 import { COMPLETENESS_TTL_MS, dedupedFetch, loadAll } from '../countyCompletenessCache'
+import { isWithinTtl } from '../ttlWindow'
 import type { CountyEbirdData } from '../countyCompleteness'
 
 export type PoolState =
@@ -59,7 +60,9 @@ export function useTargetsPool(
       }
       if (cancelled) return
       if (hit) put({ status: 'ready', data: hit.data, fetchedAt: hit.fetchedAt })
-      if (hit && Date.now() - hit.fetchedAt < COMPLETENESS_TTL_MS) return
+      // The store's window (ebird-request-economy D-03): a list dated more than
+      // 24 h ahead is shown above and asked for again here.
+      if (hit && isWithinTtl(hit.fetchedAt, Date.now(), COMPLETENESS_TTL_MS)) return
       if (hasEbirdKey === null) { if (!hit) put({ status: 'loading' }); return }
       if (hasEbirdKey === false) { if (!hit) put({ status: 'no-key' }); return }
       if (!online) { if (!hit) put({ status: 'offline' }); return }
