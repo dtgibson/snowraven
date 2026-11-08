@@ -203,3 +203,45 @@ Readouts: `evidence/ship/ship-1.0.66-part-two-a.txt`.
 
 - The user's iPhone check of TestFlight 1.0.66 (1), then App Store Connect per D-20 (re-read 1.0.65's state first), the listing and screenshot read-backs, and `RELEASE_LEDGER.md`: 1.0.66's App Store and Android entries, the 1.0.64 Android correction (superseded on F-Droid by 1.0.65), and, under the rollup, the 1.0.65 App Store correction and the rollup-list entry naming both versions, the record and both submission ids.
 - For the Chronicler: the release skill's "Xcode 27.1 is required" bullet can read "27.1 or later": 1.0.66 built, validated and processed on Xcode 27.2. The tailnet hostname is now `hephaestus.` (part one).
+
+## Part two B: the App Store record and the ledger (2026-11-08, 16:40 to 16:50 UTC, 08:40 to 08:50 PST), hands-off
+
+Run by The Deployer on two answers given in the orchestrator's session: the production sign-off (D-20) and the user's iPhone check of TestFlight 1.0.66 (1), which they reported in their words, "It seems to work, but the escapee check on this version still says "eBird's answers did not include 1 of your species, so it still counts."", then confirming the build passes and to go ahead with the App Store step. That sentence is the settled 1.0.64 wording for that device's one unresolved species (a per-device store difference; the species fix is the brief's deferred audit row D), recorded as D-21, not a defect.
+
+### App Store Connect: the rollup (plan (a))
+
+Every request and status is in `evidence/ship/asc-rollup-1.0.66.txt` (metadata key; the tool is a scratchpad script over `pipeline/app-store-listing-polish/asc/asc-lib.mjs`, one step per run, each with its own state precheck).
+
+1. **State before** (16:42:53 UTC): record `ab6360bc-24b3-4816-bf84-88967df06507` 1.0.65 `WAITING_FOR_REVIEW` (`AFTER_APPROVAL`), submission `33624506-edfa-4d5c-9cc7-806b0d3a7866` `WAITING_FOR_REVIEW` (the only open one), build 1.0.66.1 `32038a0c-057a-4753-bdb1-451e5dcf3acd` `VALID` with `usesNonExemptEncryption` false, 31 records and no 1.0.66 record. So the rollup applies.
+2. **Withdraw:** `DELETE /v1/appStoreVersionSubmissions/ab6360bc...` **204** at 16:43:02 UTC; the submission read `CANCELING` at 16:43:06 and the record **`DEVELOPER_REJECTED`** at 16:43:10; the submission read **`COMPLETE`** at 16:44:23.
+3. **Retarget:** `PATCH` `versionString` 1.0.66, **200** (16:43:18); `PATCH .../relationships/build` to `32038a0c...`, **204** (16:43:21). The record read **1.0.66 `PREPARE_FOR_SUBMISSION`, `AFTER_APPROVAL`, on build 1.0.66.1 `VALID`**.
+4. **What's New:** the localization `114f46ce-b4e1-4d51-9870-cf10561f7fbf` held 591 characters, byte-equal to 1.0.64's note (217), a blank line and 1.0.65's (372); the promotional text held 137 characters equal to `appstore/LISTING.md`, so it was not written. One `PATCH` (**200**, 16:43:28) wrote What's New as those 591 characters, a blank line, then `held/whats-new.txt` without its newline (289): **882 characters, read back byte-equal**.
+5. **Read-backs before submitting:**
+   - **Listing, `READBACK 1.0.66: ALL SAME`** (`evidence/ship/listing-readback-1.0.66.txt`, 26 checks): versionString 1.0.66, `AFTER_APPROVAL`, no earliest release date, copyright (16), build 1.0.66.1 VALID, no phased release, one localization (en-US); description (3,407), keywords (97), promotional text (137), marketing URL (30), support URL (37) and What's New (882) equal to `LISTING.md` and the composed text; review notes (3,898) equal to `appstore/REVIEW_NOTES.md`'s pasted section; review contact present and no demo account; on both app infos (`2618e95e` live, `8319b5dd` editable) the name (9), subtitle (27), privacy policy URL (43), categories REFERENCE and WEATHER, and the age rating answered (30 fields: 16 `NONE`, 11 false, 3 null, the null ones `kidsAgeBand`, `gracRatingClassificationNumber`, `developerAgeRatingInfoUrl`, null on a non-Kids app). The read-back script was first run against the record as it stood before any write and reproduced 1.0.65's figures exactly (`ALL SAME` at 591 characters of What's New), so its parsing of `LISTING.md` and `REVIEW_NOTES.md` is proven.
+   - **Screenshots, `asc-screens.mjs readback --loc 114f46ce...`: `ALL MATCH`, 18 of 18** (`evidence/ship/screenshots-readback-1.0.66.txt`): the iPhone 6.9-inch legacy set `cf38685c` and the iPad 13-inch legacy set `7ff1a6b2`, six each with name, size, dimensions, md5, delivery state and decoded pixels matching `appstore/screenshots/` in the order 01, 02, 04, 05, 03, 06, and the iPhone Duo set as six `ACTIVE` placements in `IPHONE_DUO_PROFILE`, images `APPROVED` and pixel-identical. Nothing was re-uploaded; nothing needed restoring.
+6. **Submit:** `POST /v1/reviewSubmissions` **201** (new submission `51af3019-9ba7-4db1-a4df-d390a7ce7901`, `READY_FOR_REVIEW`), `POST /v1/reviewSubmissionItems` **201**, `PATCH .../51af3019... submitted: true` **200**: **submission `51af3019-9ba7-4db1-a4df-d390a7ce7901` `WAITING_FOR_REVIEW`, submitted 2026-11-08 16:43:57 UTC (08:43 PST); record 1.0.66 `WAITING_FOR_REVIEW`, `AFTER_APPROVAL`, no phased release.**
+7. **Read-back after submitting:** listing **`READBACK 1.0.66: ALL SAME`** again (16:44:19 UTC; `evidence/ship/listing-readback-1.0.66-after-submit.txt`).
+8. **Reconciliation** (16:44:24 UTC): 31 version records (1.0.66 `WAITING_FOR_REVIEW`, 30 `READY_FOR_SALE`); the 11 review submissions the API lists (`51af3019` waiting, 10 `COMPLETE`, `33624506` and `740963c6` among them); 90 TestFlight trains and 98 builds, every build `VALID`. From 1.0.13 on, 54 trains, of which 24 have no record of their own: the 21 the 1.0.59 ship accounted for, 1.0.62 (rolled up at 1.0.63), 1.0.64 (rolled up at 1.0.65) and 1.0.65 (rolled up here). **No unaccounted gap.**
+
+### F-Droid (fresh read, 16:44:45 UTC)
+
+fdroiddata `master`: `CurrentVersion` 1.0.65 / 10000654, newest recipe commit `3302f014` (09:54 UTC), entries for 1.0.53, 1.0.55, 1.0.56, 1.0.60, 1.0.61, 1.0.63 and 1.0.65 (none for 1.0.64 or 1.0.66); f-droid.org publishes 1.0.61, 1.0.60 and 1.0.59; the logs for 10000631/2/4, 10000651/2/4 and 10000661/2/4 answer 404. States: **1.0.66 included and this tag not yet built**; 1.0.65 and 1.0.63 the same; **1.0.64 superseded on F-Droid by 1.0.65**.
+
+### `RELEASE_LEDGER.md`
+
+- The release-rhythm paragraph's rollup list gains "1.0.65 into 1.0.66 (2026-11-08 UTC -- record `ab6360bc` withdrawn from submission `33624506` while WAITING_FOR_REVIEW, retargeted, repointed at build 1.0.66.1, resubmitted as `51af3019`)".
+- The 1.0.65 App Store entry is corrected in place (the 1.0.64 entry's form): 1.0.65 holds VALID build 1.0.65.1 and no record of its own by rollup, not by skip, with the withdrawal time and both submission ids.
+- **A new `### 1.0.66 SHIP (2026-11-08)` App Store entry**: the user's words, the rollup's ids and times in UTC and PST, the 882-character What's New composition, the read-backs and the reconciliation sentence.
+- The 1.0.64 Android entry is corrected in place: superseded on F-Droid by 1.0.65, read at 10:49 and 16:44 UTC.
+- **A new `### 1.0.66 SHIP (2026-11-08)` Android entry**: the APK (`438363492`, SHA-256 `29b1c345...b7ec`, signer `42a3576e...996a`), Partial on API 36 emulator evidence, F-Droid included and this tag not yet built, WebView 133 unchanged.
+
+### State at the close
+
+| Leg | State |
+|---|---|
+| Mac, Windows, `latest.json` | live: release `438363492`, Latest |
+| Android | GitHub APK attached (Partial on emulator evidence); F-Droid included and this tag not yet built |
+| iOS | TestFlight 1.0.66.1 `VALID`, checked on the user's iPhone |
+| App Store | 1.0.66 on record `ab6360bc`, submitted as `51af3019`, `WAITING_FOR_REVIEW`; carries 1.0.64 and 1.0.65 by rollup |
+| Website | live at 1.0.66 with the approved privacy sentences |
+| Ledger | 1.0.66 entries written; the 1.0.65 App Store and 1.0.64 Android entries corrected in place |

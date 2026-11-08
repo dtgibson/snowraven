@@ -154,3 +154,8 @@ The brief's item 2 kept a closed list: "a later launch asks again only about a r
 - **What's New and the F-Droid line approved, both sentences as written** (289 characters, SHA-256 `b7b34859…4d74509e`).
 - **Xcode 27.2 first launch:** the user ran it before the iOS leg (the Deployer re-checks `xcodebuild -checkFirstLaunchStatus` before building).
 - CI's two timing-ratio failures on `main` are the same ones 1.0.64 and 1.0.65 shipped under and measure nothing this release changes; the build and the real-engine browser check run locally.
+
+## D-21 The user's iPhone check of TestFlight 1.0.66 (1) (2026-11-08)
+
+- The user's words: "It seems to work, but the escapee check on this version still says "eBird's answers did not include 1 of your species, so it still counts."" They then confirmed the build passes and said to go ahead with the App Store step.
+- The sentence is expected and unchanged by this release: that species is one eBird's checklist answers never list under the export's name (the pre-split name joining the nominate daughter, v1.0.64 D-06 item 2; the brief's audit row D deferred it to the taxonomy-history work). The 1.0.64 ledger recorded the same sentence on the same device with 1 species against 3 on the desktop export, a per-device store difference. What 1.0.66 changes is the pacing of those requests and that Stop ends the check at once.
