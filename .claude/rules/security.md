@@ -37,6 +37,7 @@ paths:
   - "frontend/src/lib/clearDerived.ts"
   - "frontend/src/lib/exoticProvenanceCache.ts"
   - "frontend/src/lib/exoticProvenance.ts"
+  - "frontend/src/lib/exoticTaxonomyJoin*.ts"
   - "frontend/src/lib/lifeLists*.ts"
   - "frontend/src/lib/pageList.ts"
   - "frontend/src/lib/calendar.ts"

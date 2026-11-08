@@ -1,0 +1,23 @@
+vitest full suite, live tree, 2026-11-08T23:20:10Z (run 23:10 UTC)
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  src/lib/fastlaneMetadata.test.ts > the F-Droid listing (fastlane/metadata/android/en-US) > has the same changelog under each per-processor code of the current version, and every file is within F-Droid's limits
+ FAIL  src/lib/fastlaneMetadata.test.ts > guard-the-guard > removing one per-processor changelog, changing one, or adding the unsplit one in a scratch copy is each caught
+ Test Files  1 failed | 494 passed | 5 skipped (500)
+      Tests  2 failed | 10783 passed | 6 skipped (10791)
+   Duration  74.16s (transform 18.12s, setup 3.31s, import 65.69s, tests 320.54s, environment 74.05s)
+
+version-set guards, scratch copy with the held note applied: Test Files 5 passed (5), Tests 119 passed (119)
+
+verify gate (CI=true, website/tools):
+
+========================================================================
+  PASS  verify-webkit-tab-premise.mjs
+  PASS  verify-palette.mjs
+  PASS  verify-backlog-alert.mjs
+  PASS  verify-named-birds-header.mjs
+  PASS  verify-named-bird-media-links.mjs
+  PASS  verify-weather-species-rows.mjs
+  PASS  verify-plan-daylabels.mjs
+  PASS  verify-plan-readout.mjs
+verification gate: 8/8 harnesses green
+========================================================================

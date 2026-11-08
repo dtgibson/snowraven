@@ -74,6 +74,19 @@ export const PROVENANCE_TTL_MS = 30 * 24 * 60 * 60 * 1000
  *  meaning "not yet published"), so it rode the same key and version. */
 export const PROVENANCE_STORE_KEY = 'exotic-provenance-v1'
 
+/** escapee-check-new-taxonomy. The taxonomy join the `unmatched` stamps were
+ *  written under, stored beside them as `unmatchedJoin`. A stamp says "the
+ *  answer had no row for this code", which is a claim about the join the merge
+ *  applied: under a wider join the same answer may have one. So on load, stamps
+ *  from a document whose marker is not this value (every document written
+ *  before this build has none) are dropped, which re-opens each such species
+ *  once, at one bounded re-ask, rather than holding it open for up to 30 days.
+ *  The ledger, the records and the published lists are kept, so this is NOT a
+ *  version bump: nothing already answered is asked again. Raise this whenever
+ *  the join changes what it admits, including the annual taxonomy refresh that
+ *  adds a new update's events. */
+export const UNMATCHED_JOIN_VERSION = 1
+
 // Caps. Both are stated STRUCTURALLY (entry count, key length, member count),
 // never as a byte product: three measurements of one design in v0.5.85 gave 172,
 // 208 and 173 B/entry, so a byte figure encodes one engine's heap accounting and
@@ -105,8 +118,9 @@ export const PROVENANCE_STORE_KEY = 'exotic-provenance-v1'
 // the two together cost what the one list of 4,096 did) about 7.1 MB together,
 // so the worst case at this cap is 15.4 MB against the route's 16.8 MB (the
 // second list adds 16 bytes, its field name and brackets), and 16.5 MB with
-// the unmatched stamps below at their cap (16,494,726 bytes, measured
-// 2026-11-07); `settingsRouteBudget.test.ts` builds it through `sanitizeStore`
+// the unmatched stamps below at their cap (16,494,744 bytes with the stamps'
+// join marker, measured 2026-11-08); `settingsRouteBudget.test.ts` builds it
+// through `sanitizeStore`
 // and compares it with the Python constant.
 // FIFO, unchanged: an eviction here costs one redundant request and loses no
 // answer. The ledger lives in the shared settings document and grows only as
@@ -184,11 +198,15 @@ export interface ProvenanceStore {
   unmatched: Record<string, number>
   /** Insertion order for `unmatched`, first-stamped first. FIFO eviction. */
   unmatchedOrder: string[]
+  /** The join the stamps were written under (`UNMATCHED_JOIN_VERSION`). Always
+   *  the current value in a held store, because the load path keeps stamps
+   *  only from a document that carries it. */
+  unmatchedJoin: number
 }
 
 const EMPTY_STORE = (): ProvenanceStore => ({
   version: 1, checklists: {}, order: [], species: {}, speciesOrder: [], excludedNames: [], exoticNames: null,
-  unmatched: {}, unmatchedOrder: [],
+  unmatched: {}, unmatchedOrder: [], unmatchedJoin: UNMATCHED_JOIN_VERSION,
 })
 
 // ── Load-path shape validation (schema.md §5, NFR-08) ──────────────────────────
@@ -265,6 +283,7 @@ export function sanitizeStore(loaded: unknown): ProvenanceStore {
     version?: unknown; checklists?: unknown; order?: unknown
     species?: unknown; speciesOrder?: unknown; excludedNames?: unknown
     exoticNames?: unknown; unmatched?: unknown; unmatchedOrder?: unknown
+    unmatchedJoin?: unknown
   }
   if (doc.version !== 1) return EMPTY_STORE()
   if (typeof doc.checklists !== 'object' || doc.checklists === null || !Array.isArray(doc.order)) return EMPTY_STORE()
@@ -302,8 +321,10 @@ export function sanitizeStore(loaded: unknown): ProvenanceStore {
     admitNames(doc.exoticNames, exoticNames)
     store.exoticNames = exoticNames
   }
-  // After the species loop, because a record wins over a stamp.
-  admitUnmatched(doc.unmatched, doc.unmatchedOrder, store)
+  // After the species loop, because a record wins over a stamp. Only stamps
+  // written under the current join (see UNMATCHED_JOIN_VERSION): any other
+  // document's are NO STAMPS, the heal's previous behaviour.
+  if (doc.unmatchedJoin === UNMATCHED_JOIN_VERSION) admitUnmatched(doc.unmatched, doc.unmatchedOrder, store)
 
   return store
 }
@@ -476,6 +497,9 @@ export function subscribe(listener: () => void): () => void {
 
 // ── Merge (schema.md §8.4) ─────────────────────────────────────────────────────
 
+/** No taxonomy join at the merge: the previous behaviour. */
+const NO_STAND_INS: ReadonlyMap<string, readonly string[]> = new Map()
+
 export interface ProvenanceObservation {
   /** Parent species code, already collapsed by the seam's reportAs resolution. */
   speciesCode: string
@@ -514,6 +538,18 @@ export interface ProvenanceObservation {
  * stamped, which is what keeps the v1.0.1 domestic-form heal intact: a
  * checklist consulted under a cover that could not admit a species says
  * nothing about it.
+ *
+ * `standIns` (escapee-check-new-taxonomy) is the cover index's taxonomy join
+ * (`CoverIndex.standIns`). A carried, admissible code that has NO row of its
+ * own in this answer takes, as its own, every row under one of its stand-ins:
+ * the same event's other daughters and slashes, or a lump's surviving species.
+ * Both conditions are what keep the join from crossing two real species: it
+ * reaches only a code the export puts on THIS checklist, and never one the
+ * answer already carries, so a current export holding a daughter and its slash
+ * on one checklist keeps the two apart (the daughter has its own row). A code
+ * joined this way is answered, so it is not stamped. The work is one pass over
+ * the answer to group its rows by code, built only when the cover has
+ * stand-ins, then one `Map.get` per stand-in of each carried joined code.
  */
 export async function mergeChecklist(
   submissionId: string,
@@ -521,6 +557,7 @@ export async function mergeChecklist(
   admissible: ReadonlySet<string>,
   nowMs: number,
   carried: readonly string[] = [],
+  standIns: ReadonlyMap<string, readonly string[]> = NO_STAND_INS,
 ): Promise<void> {
   const gen = _purgeGeneration
   const store = await ensureLoaded()
@@ -530,26 +567,22 @@ export async function mergeChecklist(
   if (gen !== _purgeGeneration || store !== _store) return
   if (_workStats) _workStats.merges += 1
 
-  // Every code this answer has a row for, admissible or not and admitted or
-  // not: a stamp says the answer had NO row, which a refused admission is not.
-  const answered = new Set<string>()
-  for (const o of observations) {
-    const code = o.speciesCode
-    if (code) answered.add(code)
-    if (!code || !admissible.has(code)) continue
+  // One observation's token under one cover code: merged into its record, or
+  // admitted as a new one.
+  const record = (code: string, o: ProvenanceObservation): void => {
     const token = seenToken(o.exoticCategory, o.userDoNotCount)
     if (Object.hasOwn(store.species, code)) {
       const rec = store.species[code]
       if (!rec.seen.includes(token) && rec.seen.length < MAX_SEEN_PER_SPECIES) rec.seen.push(token)
       rec.n += 1
       rec.at = nowMs
-      continue
+      return
     }
     // Admission control: fill to the limit, then stop admitting. Gated on the
     // container's own size, never a separate counter.
     if (store.speciesOrder.length >= PROVENANCE_MAX_SPECIES) {
       if (_workStats) _workStats.admissionsRefused += 1
-      continue
+      return
     }
     if (_workStats) _workStats.admissions += 1
     store.species[code] = { seen: [token], n: 1, at: nowMs }
@@ -559,8 +592,44 @@ export async function mergeChecklist(
     if (Object.hasOwn(store.unmatched, code)) dropStamp(store, code)
   }
 
+  // Every code this answer has a row for, admissible or not and admitted or
+  // not: a stamp says the answer had NO row, which a refused admission is not.
+  const answered = new Set<string>()
+  // The answer's rows by code, for the join below; only when it can be used.
+  const rowsByCode = standIns.size > 0 ? new Map<string, ProvenanceObservation[]>() : null
+  for (const o of observations) {
+    const code = o.speciesCode
+    if (code) answered.add(code)
+    if (code && rowsByCode) {
+      const rows = rowsByCode.get(code)
+      if (rows) rows.push(o)
+      else rowsByCode.set(code, [o])
+    }
+    if (!code || !admissible.has(code)) continue
+    record(code, o)
+  }
+
+  // The taxonomy join (see above). It reads only the ANSWER's own rows
+  // (`rowsByCode`), never a row another code took through the join, and
+  // `joined` is kept apart from `answered`, which records what the answer
+  // itself carried.
+  const joined = new Set<string>()
+  if (rowsByCode) {
+    for (const code of carried) {
+      if (answered.has(code) || joined.has(code) || !admissible.has(code)) continue
+      const alts = standIns.get(code)
+      if (!alts) continue
+      for (const alt of alts) {
+        const rows = rowsByCode.get(alt)
+        if (!rows) continue
+        joined.add(code)
+        for (const o of rows) record(code, o)
+      }
+    }
+  }
+
   for (const code of carried) {
-    if (answered.has(code) || !admissible.has(code)) continue
+    if (answered.has(code) || joined.has(code) || !admissible.has(code)) continue
     if (Object.hasOwn(store.species, code)) continue
     if (!isValidStamp(code, nowMs)) continue
     stamp(store, code, nowMs)
@@ -766,6 +835,9 @@ export function dedupedFetchChecklist(
      *  A failed, refused or offline answer reaches no merge and stamps
      *  nothing. */
     carried?: readonly string[]
+    /** The cover index's taxonomy join (`CoverIndex.standIns`), handed to the
+     *  merge with `carried` (escapee-check-new-taxonomy). Absent is no join. */
+    standIns?: ReadonlyMap<string, readonly string[]>
   },
 ): Promise<{ fromNetwork: boolean; notSent?: true }> {
   return (async () => {
@@ -796,7 +868,7 @@ export function dedupedFetchChecklist(
       // refuse it on its own generation guard; returning here as well keeps the
       // decision where a reader looks for it, and skips the pointless load.
       if (gen !== _purgeGeneration) return { fromNetwork: true }
-      await mergeChecklist(submissionId, obs, admissible, Date.now(), opts?.carried)
+      await mergeChecklist(submissionId, obs, admissible, Date.now(), opts?.carried, opts?.standIns)
       return { fromNetwork: true }
     } catch (err) {
       // NEVER cache a failure. Offline with a prior entry: the merged answer
@@ -831,6 +903,7 @@ function scheduleWrite(store: ProvenanceStore): void {
       exoticNames: store.exoticNames ? [...store.exoticNames] : null,
       unmatched: { ...store.unmatched },
       unmatchedOrder: [...store.unmatchedOrder],
+      unmatchedJoin: store.unmatchedJoin,
     }
     if (_workStats) {
       _workStats.writeFlushes += 1

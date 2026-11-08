@@ -30,11 +30,18 @@ import {
 import { BirdName } from './BirdName'
 import { Divider } from './statsPrimitives'
 import {
-  discloseLabel, evidenceLine, statusSentence,
+  discloseLabel, evidenceLine, orSeparator, statusSentence, unmatchedSentence,
   ESCAPEE_LEAD_OFF, ESCAPEE_LEAD_ON, ESCAPEE_RULE_OFF, ESCAPEE_RULE_ON,
 } from '../lib/exoticCopy'
 import type { ExcludedSpecies } from '../lib/exoticProvenance'
 import type { ProvenanceStatus } from '../lib/useExoticProvenance'
+
+/** The punctuation that opens `text` (everything before its first space) and
+ *  the rest. Over this module's own copy only, never user text. */
+function splitAtFirstSpace(text: string): [string, string] {
+  const cut = text.indexOf(' ')
+  return cut === -1 ? [text, ''] : [text.slice(0, cut), text.slice(cut)]
+}
 
 function StatusIcon({ kind }: { kind: ProvenanceStatus['kind'] }) {
   const muted = { color: 'var(--sr-text-muted)' }
@@ -81,6 +88,13 @@ export function ExoticProvenanceAccount({
   const running = status.kind === 'in-progress'
   const found = excluded.length
   const total = running ? status.planned + status.additional : 0
+  // The settled-but-open line names its species (escapee-check-new-taxonomy):
+  // the same parts `statusSentence` joins into text, with each name through
+  // BirdName, which links it to Species Detail and carries its two marks.
+  const unmatched = status.kind === 'partial' && status.reason === 'unmatched' && (status.openNames?.length ?? 0) > 0
+    ? unmatchedSentence(status.openSpecies, status.openNames ?? [])
+    : null
+  const unmatchedItems = unmatched ? unmatched.names.length + (unmatched.others ? 1 : 0) : 0
 
   return (
     <>
@@ -101,7 +115,33 @@ export function ExoticProvenanceAccount({
           <div className="sr-exotic-status" role="status" aria-live="polite">
             <StatusIcon kind={status.kind} />
             <span key={statusSeq} className="sr-exotic-msg">
-              {statusSentence(status, found)}
+              {unmatched ? (
+                <>
+                  {/* Each name carries the text that FOLLOWS it, and the
+                      punctuation opening that text (", " / ", or " / ", so
+                      ...") rides inside the name's row after its marks, so a
+                      comma never starts a line (D-01). The words after the
+                      comma stay outside, free to wrap. `breakAfterSlash` (a
+                      no-op without a "/") lets a slash name wrap after its
+                      slash instead of running past the card at 320px and 200%
+                      text, the Splits and lumps fix. */}
+                  {unmatched.lead}
+                  {unmatched.names.map((name, i) => {
+                    const [glue, rest] = splitAtFirstSpace(
+                      i < unmatched.names.length - 1 || unmatched.others
+                        ? orSeparator(i + 1, unmatchedItems)
+                        : unmatched.tail,
+                    )
+                    return (
+                      <span key={i}>
+                        <BirdName commonName={name} taxonCode={codeFor(name)} hasEntry onOpenSpecies={onOpenSpecies} size="sm" breakAfterSlash trailing={glue} />
+                        {rest}
+                      </span>
+                    )
+                  })}
+                  {(unmatched.others || unmatched.names.length === 0) && <>{unmatched.others}{unmatched.tail}</>}
+                </>
+              ) : statusSentence(status, found)}
               {status.kind === 'no-key' && (
                 <>
                   {' '}

@@ -19,7 +19,7 @@ import {
   buildCoverIndex, buildProvenanceLookup, carriersNeedingRefetch, categoryOfToken, classCounts,
   classifySpecies, confirmExcludedNames, confirmPublishedNames, greedyCover, isExoticOnly, isExoticToken,
   remainingSpecies, seenToken, tokenCounts,
-  type ProvenanceSnapshot, type SpeciesProvenanceRecord,
+  type EscapeeJoin, type ProvenanceSnapshot, type SpeciesProvenanceRecord,
 } from './exoticProvenance'
 
 // ── Fixture helpers ───────────────────────────────────────────────────────────
@@ -255,6 +255,26 @@ describe('buildCoverIndex (FR-05, FR-07, FR-10, QA-11, QA-15)', () => {
     )
     expect(index.nameForCode.get('mallar3')).toBe('Mallard')
     expect(index.bySpecies.get('mallar3')).toEqual(['S1', 'S2'])
+  })
+
+  it('resolves each distinct name once, with the taxonomy join, however many rows carry it (the declared work, as work done)', () => {
+    // escapee-check-new-taxonomy: the join runs inside the per-name memo, so
+    // its asset-bounded work is per DISTINCT name. One leg repeats one name;
+    // the other gives every row its own name (security.md v1.0.41), so a
+    // per-name cost growing with the rows would show in the second.
+    const join: EscapeeJoin = { byBeforeName: new Map([['willet', { code: 'willet1', family: ['willet2', 'willet3', 'willet1'] }]]) }
+    const resolutions = (rows: ObservationEntry[]) => {
+      let calls = 0
+      const index = buildCoverIndex(rows, norm => { calls += 1; return norm === 'Willet' ? 'willet2' : `c${norm.length}` }, join)
+      return { calls, index }
+    }
+    const repeated = resolutions(Array.from({ length: 20_000 }, (_, i) => obs(i % 2 ? 'Willet' : 'Willet (Western)', `S${i}`)))
+    expect(repeated.calls).toBe(1)
+    expect(repeated.index.bySpecies.get('willet2')).toHaveLength(20_000)
+    expect(repeated.index.standIns.get('willet2')).toEqual(['willet3', 'willet1'])
+    const distinct = resolutions(Array.from({ length: 20_000 }, (_, i) => obs(`Bird ${i}`, `S${i}`)))
+    expect(distinct.calls).toBe(20_000)
+    expect(distinct.index.standIns.size).toBe(0)
   })
 
   it('de-duplicates a (checklist, species) pair but never a species across checklists', () => {

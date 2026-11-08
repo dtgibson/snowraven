@@ -225,18 +225,32 @@ describe('entry-chunk exclusion (NFR-03 / QA-30)', () => {
     expect(hasIn(sd.files, 'components/WeatherSpeciesRow.tsx')).toBe(false)
   })
 
-  it('the splits-and-lumps history asset is off the entry graph AND off Species Detail\'s static graph (taxonomic-splits-lumps)', () => {
-    // Off App.tsx's closure, and off the tab's own static closure too: the tab
+  // Species Detail reads the asset for its splits-and-lumps section; Statistics
+  // and Life Lists read it for the escapee check's taxonomy join
+  // (escapee-check-new-taxonomy), all three through the one loader.
+  const HISTORY_READERS = ['components/SpeciesDetail.tsx', 'components/BirdingStats.tsx', 'components/lifeLists/LifeListsTab.tsx']
+
+  it('the splits-and-lumps history asset is off the entry graph AND off each reading tab\'s static graph (taxonomic-splits-lumps, escapee-check-new-taxonomy)', () => {
+    // Off App.tsx's closure, and off each tab's own static closure too: a tab
     // reaches it only through the loader's `import()`, so a static import
-    // anywhere in the tab's graph would put it on the tab chunk and show here.
+    // anywhere in its graph would put it on the tab chunk and show here.
     expect(has('assets/ebird-taxonomy-history.json')).toBe(false)
-    const sd = closureFrom(resolve(SRC, 'components/SpeciesDetail.tsx'))
-    expect(hasIn(sd.files, 'assets/ebird-taxonomy-history.json')).toBe(false)
+    for (const root of HISTORY_READERS) {
+      const tab = closureFrom(resolve(SRC, root))
+      expect(hasIn(tab.files, 'assets/ebird-taxonomy-history.json'), root).toBe(false)
+    }
   })
 
-  it('and Species Detail really does reach its loader and derivation, which is what makes that negative live', () => {
+  it('and each reading tab really does reach the loader, which is what makes that negative live', () => {
+    for (const root of HISTORY_READERS) {
+      expect(hasIn(closureFrom(resolve(SRC, root)).files, 'lib/taxonomyHistoryAsset.ts'), root).toBe(true)
+    }
+    // Statistics and Life Lists both reach it through the escapee join's one
+    // loader, so the two tabs load it the same way.
+    for (const root of HISTORY_READERS.slice(1)) {
+      expect(hasIn(closureFrom(resolve(SRC, root)).files, 'lib/exoticTaxonomyJoin.ts'), root).toBe(true)
+    }
     const sd = closureFrom(resolve(SRC, 'components/SpeciesDetail.tsx'))
-    expect(hasIn(sd.files, 'lib/taxonomyHistoryAsset.ts')).toBe(true)
     expect(hasIn(sd.files, 'lib/taxonomyHistory.ts')).toBe(true)
     // The loader names the asset exactly once, and that one reference is a
     // dynamic import.

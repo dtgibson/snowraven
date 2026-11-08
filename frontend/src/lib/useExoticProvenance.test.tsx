@@ -622,7 +622,9 @@ describe('a species eBird answered without settles instead of re-opening every l
       speciesOrder: ['mallar3'],
       excludedNames: [],
       exoticNames: [],
-      ...(stampAt === null ? {} : { unmatched: { musduc: stampAt }, unmatchedOrder: ['musduc'] }),
+      // Stamps written under the current join (escapee-check-new-taxonomy):
+      // a document without the marker loads with none.
+      ...(stampAt === null ? {} : { unmatched: { musduc: stampAt }, unmatchedOrder: ['musduc'], unmatchedJoin: cacheModule.UNMATCHED_JOIN_VERSION }),
     }
     // eBird's answers have no Muscovy Duck row.
     responses.set('S1', [{ speciesCode: 'mallar3' }])

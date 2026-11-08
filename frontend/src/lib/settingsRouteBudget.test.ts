@@ -40,7 +40,7 @@ import {
 import {
   sanitizeStore as sanitizeProvenance, PROVENANCE_MAX_CHECKLISTS, PROVENANCE_MAX_CHECKLISTS_DEFAULT,
   PROVENANCE_MAX_SPECIES, PROVENANCE_MAX_SPECIES_DEFAULT, MAX_SEEN_PER_SPECIES,
-  PROVENANCE_MAX_UNMATCHED, PROVENANCE_MAX_UNMATCHED_DEFAULT,
+  PROVENANCE_MAX_UNMATCHED, PROVENANCE_MAX_UNMATCHED_DEFAULT, UNMATCHED_JOIN_VERSION,
 } from './exoticProvenanceCache'
 import {
   sanitizeStore as sanitizeHotspots, storePayloadLength as hotspotPayload, idsPayloadLength,
@@ -163,8 +163,11 @@ describe('the projects store\'s worst-case document fits under the route\'s limi
 // -- The provenance store -----------------------------------------------------
 
 describe('the provenance store\'s worst-case document fits under the route\'s limit', () => {
+  // Under the current taxonomy join, so the load path keeps its stamps
+  // (escapee-check-new-taxonomy); the marker is part of the measured document.
   const doc = (over: Partial<Record<string, unknown>>) => ({
-    version: 1, checklists: {}, order: [], species: {}, speciesOrder: [], excludedNames: [], ...over,
+    version: 1, checklists: {}, order: [], species: {}, speciesOrder: [], excludedNames: [],
+    unmatchedJoin: UNMATCHED_JOIN_VERSION, ...over,
   })
   const admitsChecklist = (k: string, at: unknown) =>
     sanitizeProvenance(doc({ checklists: { [k]: at }, order: [k] })).order.length === 1
@@ -278,7 +281,7 @@ describe('the provenance store\'s worst-case document fits under the route\'s li
       const c = stampCode(i); unmatched[c] = LONGEST_FINITE; unmatchedOrder.push(c)
     }
 
-    const store = sanitizeProvenance({ version: 1, checklists, order, species, speciesOrder, excludedNames, exoticNames, unmatched, unmatchedOrder })
+    const store = sanitizeProvenance({ version: 1, checklists, order, species, speciesOrder, excludedNames, exoticNames, unmatched, unmatchedOrder, unmatchedJoin: UNMATCHED_JOIN_VERSION })
     expect(store.order).toHaveLength(PROVENANCE_MAX_CHECKLISTS_DEFAULT)
     expect(store.speciesOrder).toHaveLength(PROVENANCE_MAX_SPECIES_DEFAULT)
     expect(store.excludedNames).toHaveLength(mostNames())

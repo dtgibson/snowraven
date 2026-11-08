@@ -42,7 +42,7 @@ import { isOfflineError } from './offlineDetect'
 import { formatDate } from './formatDate'
 import { SUBMISSION_ID_RE } from '../components/speciesDetail/ui'
 import {
-  buildProvenanceLookup, carriersNeedingRefetch, greedyCover, remainingSpecies,
+  buildProvenanceLookup, carriersNeedingRefetch, greedyCover, openSpeciesNames, remainingSpecies,
   EMPTY_LOOKUP, type CoverIndex, type ProvenanceLookup,
 } from './exoticProvenance'
 import {
@@ -121,6 +121,10 @@ export type ProvenanceStatus =
       reason: PartialReason
       /** MAX_REQUESTS_PER_PASS / MAX_FOLLOWUP_PER_SPECIES, per reason. */
       cap: number
+      /** escapee-check-new-taxonomy: for `unmatched` only, the export's own
+       *  names for the open species, sorted, so the line can name them. Absent
+       *  for every other reason, where the open set is not settled. */
+      openNames?: readonly string[]
     }
   | { kind: 'no-key' }
   | { kind: 'offline'; /** Pre-formatted; see exoticCopy.statusSentence. */ checkedLabel: string | null }
@@ -458,6 +462,10 @@ export function useExoticProvenance(
               const res = await dedupedFetchChecklist(id, admissible, () => gatedProvenance(id, pass), {
                 refetch: staleLedger.has(id),
                 carried: idx.byChecklist.get(id) ?? [],
+                // The taxonomy join (escapee-check-new-taxonomy): an answer row
+                // under a sibling code from the same split or lump stands in
+                // for a carried species whose export name predates it.
+                standIns: idx.standIns,
               })
               // Not sent (D-01): neither done nor failed. The pass has stopped,
               // so the loop head returns next.
@@ -497,6 +505,14 @@ export function useExoticProvenance(
       // nothing stopped the pass, so every checklist it could ask is answered
       // and the answers had no row for these.
       if (reason === null && openSpecies > 0) { reason = 'unmatched'; cap = 0 }
+      if (reason === 'unmatched') {
+        // Settled but open: name the species, so the line says which bird
+        // eBird's answers left out (escapee-check-new-taxonomy).
+        const final = indexRef.current
+        const openNames = openSpeciesNames(final, remainingSpecies(getSnapshot(), final, new Set()))
+        setStatus({ kind: 'partial', done, planned, failed, openSpecies, reason, cap, openNames })
+        return
+      }
       if (reason !== null) {
         setStatus({
           kind: 'partial', done, planned, failed, openSpecies, reason, cap,
@@ -555,7 +571,10 @@ export function useExoticProvenance(
       // Settled but open, and newly reachable with the stamps: every carrier
       // is answered within the TTL, so each open species is a stamped one.
       // No pass and no request; never `complete` (D-04).
-      settle({ kind: 'partial', done: 0, planned: 0, failed: 0, openSpecies: open.length, reason: 'unmatched', cap: 0 })
+      settle({
+        kind: 'partial', done: 0, planned: 0, failed: 0, openSpecies: open.length, reason: 'unmatched', cap: 0,
+        openNames: openSpeciesNames(index, open),
+      })
       return
     }
 

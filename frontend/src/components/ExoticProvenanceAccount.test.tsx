@@ -119,6 +119,76 @@ describe('the seven states, one message each (FR-31, QA-36)', () => {
     expect(screen.getByRole('status').textContent).toBe("eBird's answers did not include 1 of your species, so it still counts.")
   })
 
+  it('the unmatched line names its open species, each through BirdName (escapee-check-new-taxonomy)', () => {
+    // The user's own case: one species left open for a reason that is not
+    // taxonomy. The name is a real BirdName: it opens Species Detail and
+    // carries its two marks, and the region's text is the plain sentence.
+    const onOpenSpecies = vi.fn()
+    render(
+      <ExoticProvenanceAccount
+        status={{ kind: 'partial', done: 3, planned: 3, failed: 0, openSpecies: 1, reason: 'unmatched', cap: 0, openNames: ['Eurasian Skylark'] }}
+        statusSeq={1} excluded={[]} includeEscapees={false}
+        onStop={vi.fn()} onRetry={vi.fn()} onGoToSettings={vi.fn()}
+        codeFor={n => (n === 'Eurasian Skylark' ? 'skylar' : undefined)} onOpenSpecies={onOpenSpecies}
+      />,
+    )
+    const region = screen.getByRole('status')
+    expect(region.textContent).toBe("eBird's answers did not include Eurasian Skylark, so it still counts.")
+    fireEvent.click(screen.getByRole('button', { name: 'Eurasian Skylark' }))
+    expect(onOpenSpecies).toHaveBeenCalledWith('Eurasian Skylark')
+    expect([...region.querySelectorAll('a')].map(a => a.getAttribute('href'))).toEqual([
+      'https://ebird.org/species/skylar', 'https://birdsoftheworld.org/bow/species/skylar/cur/introduction',
+    ])
+  })
+
+  it('the named line reads correctly for one species and for many, and cuts a long list to a count', () => {
+    const line = (names: string[], openSpecies = names.length) => {
+      cleanup()
+      renderAccount({ kind: 'partial', done: 1, planned: 1, failed: 0, openSpecies, reason: 'unmatched', cap: 0, openNames: names })
+      return screen.getByRole('status').textContent
+    }
+    expect(line(['Willet', 'Marsh Wren'])).toBe("eBird's answers did not include Willet or Marsh Wren, so they still count.")
+    expect(line(['A', 'B', 'C', 'D'])).toBe("eBird's answers did not include A, B, C, or D, so they still count.")
+    expect(line(['A', 'B', 'C', 'D', 'E', 'F'])).toBe("eBird's answers did not include A, B, C, or 3 other species, so they still count.")
+    // Each name shown is its own BirdName, and the counted rest is not.
+    expect(screen.getByRole('status').querySelectorAll('.sr-birdname')).toHaveLength(3)
+  })
+
+  it("the comma after each name rides in that name's row, after its marks, so it cannot start a line (D-01)", () => {
+    // jsdom has no line breaking, so this pins the STRUCTURE the real-engine
+    // probe measured at 320px and 200% text: the punctuation opening the text
+    // after a name is the last item of the name's own flex row, behind both
+    // marks, and the words after it sit outside BirdName, free to wrap.
+    const lines: Array<[string[], number, string]> = [
+      [['Eurasian Skylark'], 1, "eBird's answers did not include Eurasian Skylark, so it still counts."],
+      [['Eurasian Skylark', 'Great Black-backed Gull', 'Willet', 'Marsh Wren'], 6,
+        "eBird's answers did not include Eurasian Skylark, Great Black-backed Gull, Willet, or 3 other species, so they still count."],
+    ]
+    for (const [names, openSpecies, text] of lines) {
+      cleanup()
+      render(
+        <ExoticProvenanceAccount
+          status={{ kind: 'partial', done: 1, planned: 1, failed: 0, openSpecies, reason: 'unmatched', cap: 0, openNames: names }}
+          statusSeq={1} excluded={[]} includeEscapees={false}
+          onStop={vi.fn()} onRetry={vi.fn()} onGoToSettings={vi.fn()}
+          codeFor={n => `c${names.indexOf(n)}x`} onOpenSpecies={vi.fn()}
+        />,
+      )
+      const region = screen.getByRole('status')
+      expect(region.textContent).toBe(text)
+      const shown = [...region.querySelectorAll('.sr-birdname')]
+      expect(shown).toHaveLength(Math.min(openSpecies, 3))
+      for (const bn of shown) {
+        const row = bn.querySelector('.sr-birdname-row')!
+        const trail = row.lastElementChild!
+        expect(trail.className).toBe('sr-birdname-trail')
+        expect(trail.textContent).toBe(',')
+        expect(trail.previousElementSibling!.querySelectorAll('a')).toHaveLength(2)
+        expect(bn.nextSibling?.textContent?.startsWith(' ')).toBe(true)
+      }
+    }
+  })
+
   it("the species-budget clause reads 'They all still count.' when it is not exactly two", () => {
     renderAccount({ kind: 'partial', done: 9, planned: 73, failed: 0, openSpecies: 3, reason: 'species-budget', cap: 25 })
     expect(screen.getByRole('status').textContent).toMatch(/They all still count\./)
@@ -404,6 +474,34 @@ describe('the standing rule line', () => {
 
 // ── Copy hygiene ──────────────────────────────────────────────────────────────
 
+describe('the named unmatched sentence over a generated corpus (escapee-check-new-taxonomy)', () => {
+  // Rules, not samples: every open count from 1 to 40 with every species'
+  // name in hand, through the shipped builder.
+  it('names every species up to the cut, counts the rest as at least two, and agrees with its count', async () => {
+    const copy = await import('../lib/exoticCopy')
+    for (let n = 1; n <= 40; n += 1) {
+      const names = Array.from({ length: n }, (_, i) => `Bird ${String(i).padStart(2, '0')}`)
+      const text = copy.statusSentence({ kind: 'partial', done: 1, planned: 1, failed: 0, openSpecies: n, reason: 'unmatched', cap: 0, openNames: names }, 0)
+      const named = names.filter(name => text.includes(name)).length
+      expect(named, text).toBe(n <= copy.UNMATCHED_NAMED_MAX ? n : copy.UNMATCHED_NAMED_MAX - 1)
+      const rest = /or (\d+) other species,/.exec(text)
+      expect(rest === null, text).toBe(n <= copy.UNMATCHED_NAMED_MAX)
+      if (rest) expect(Number(rest[1]) + named, text).toBe(n)
+      if (rest) expect(Number(rest[1]), text).toBeGreaterThanOrEqual(2)
+      expect(text.endsWith(n === 1 ? ', so it still counts.' : ', so they still count.'), text).toBe(true)
+      expect(/\b1 [a-z]+s\b/.test(text), text).toBe(false)
+      expect(text.includes(',,') || text.includes('  ') || text.includes(' ,'), text).toBe(false)
+    }
+  })
+
+  it('without names in hand it is the count form the line read before', async () => {
+    const copy = await import('../lib/exoticCopy')
+    const status = { kind: 'partial', done: 0, planned: 0, failed: 0, openSpecies: 3, reason: 'unmatched', cap: 0 } as const
+    expect(copy.statusSentence(status, 0)).toBe("eBird's answers did not include 3 of your species, so they still count.")
+    expect(copy.statusSentence({ ...status, openNames: [] }, 0)).toBe("eBird's answers did not include 3 of your species, so they still count.")
+  })
+})
+
 describe('copy hygiene (FR-44, QA-50)', () => {
   it('no user-facing string in this feature contains an em dash', async () => {
     // The standing sweep. This asserts against the copy module itself rather
@@ -426,6 +524,11 @@ describe('copy hygiene (FR-44, QA-50)', () => {
       copy.statusSentence({ kind: 'error' }, 0),
       ...(['cancelled', 'failures', 'pass-budget', 'species-budget', 'unmatched'] as const).flatMap(reason => [1, 2].map(openSpecies =>
         copy.statusSentence({ kind: 'partial', done: 1, planned: 2, failed: 1, openSpecies, reason, cap: 25 }, 0))),
+      // The named unmatched line at every list length the cut can produce.
+      ...[1, 2, 3, 4, 5, 9].map(n => copy.statusSentence({
+        kind: 'partial', done: 1, planned: 1, failed: 0, openSpecies: n, reason: 'unmatched', cap: 0,
+        openNames: Array.from({ length: n }, (_, i) => `Bird ${i}`),
+      }, 0)),
       copy.discloseLabel(1, false, false),
       copy.evidenceLine(1),
     ]) {

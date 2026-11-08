@@ -20,11 +20,18 @@
 // cannot disagree with Statistics' rule, and it is computed against the CURRENT
 // export, never a flag persisted from an older one. The codes feed this status
 // and BirdName's marks only; never the classification above.
+//
+// The index takes the SAME taxonomy join Statistics' does
+// (escapee-check-new-taxonomy), from the same loader, so a pre-split name, and a
+// lumped-away name in particular (which resolves to no code without the join),
+// sits in both tabs' open set or in neither. `loadEscapeeJoin` reaches the
+// history asset only through its dynamic import, and no network module.
 
-import { useEffect, useMemo, useSyncExternalStore } from 'react'
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import type { ObservationEntry } from '../types'
-import { buildCoverIndex, confirmPublishedNames, remainingSpecies, type CoverIndex, type ProvenanceSnapshot } from './exoticProvenance'
+import { buildCoverIndex, confirmPublishedNames, remainingSpecies, type CoverIndex, type EscapeeJoin, type ProvenanceSnapshot } from './exoticProvenance'
 import { getSnapshot, loadSnapshot, subscribe } from './exoticProvenanceCache'
+import { loadEscapeeJoin } from './exoticTaxonomyJoin'
 import type { LifeListClassification } from './lifeLists'
 
 export interface LifeListsProvenance extends LifeListClassification {
@@ -51,14 +58,15 @@ export function lifeListsClassification(snapshot: ProvenanceSnapshot, obs: reado
 
 /**
  * The export's cover index under this roster's codes (schema S9): the one
- * per-ROW part of the completion check, so the hook memoizes it on the rows and
- * the codes alone and a provenance merge never rebuilds it (security L2). Null
- * while the codes are unknown. O(rows): `buildCoverIndex`, the linear function
- * Statistics itself runs, with the code table read through `Object.hasOwn`.
+ * per-ROW part of the completion check, so the hook memoizes it on the rows,
+ * the codes and the join alone and a provenance merge never rebuilds it
+ * (security L2). Null while the codes or the join are unknown. O(rows):
+ * `buildCoverIndex`, the linear function Statistics itself runs, with the code
+ * table read through `Object.hasOwn` and Statistics' taxonomy join.
  */
-export function rosterCoverIndex(obs: readonly ObservationEntry[], codes: RosterCodes): CoverIndex | null {
-  if (codes === null) return null
-  return buildCoverIndex(obs, norm => (Object.hasOwn(codes, norm) ? codes[norm] : undefined))
+export function rosterCoverIndex(obs: readonly ObservationEntry[], codes: RosterCodes, join: EscapeeJoin | null): CoverIndex | null {
+  if (codes === null || join === null) return null
+  return buildCoverIndex(obs, norm => (Object.hasOwn(codes, norm) ? codes[norm] : undefined), join)
 }
 
 /**
@@ -74,8 +82,10 @@ export function checkCompleteFor(snapshot: ProvenanceSnapshot, index: CoverIndex
 }
 
 /** The two halves composed, for a caller without a memo. */
-export function statisticsCheckComplete(snapshot: ProvenanceSnapshot, obs: readonly ObservationEntry[], codes: RosterCodes): boolean {
-  return checkCompleteFor(snapshot, rosterCoverIndex(obs, codes))
+export function statisticsCheckComplete(
+  snapshot: ProvenanceSnapshot, obs: readonly ObservationEntry[], codes: RosterCodes, join: EscapeeJoin | null,
+): boolean {
+  return checkCompleteFor(snapshot, rosterCoverIndex(obs, codes, join))
 }
 
 /**
@@ -89,11 +99,20 @@ export function useLifeListsProvenance(observations: readonly ObservationEntry[]
 
   useEffect(() => { void loadSnapshot() }, [])
 
+  // Statistics' taxonomy join, from the one loader both tabs use. Null until it
+  // lands, which reads as "not finished", the same as codes still pending.
+  const [join, setJoin] = useState<EscapeeJoin | null>(null)
+  useEffect(() => {
+    let cancelled = false
+    void loadEscapeeJoin().then(j => { if (!cancelled) setJoin(j) })
+    return () => { cancelled = true }
+  }, [])
+
   const classification = useMemo(() => lifeListsClassification(snapshot, observations), [snapshot, observations])
   // Split on purpose (security L2): the per-row index is keyed on its inputs,
   // never on the snapshot, which is replaced on every merged checklist while a
   // Statistics pass runs; only the per-species check re-runs then.
-  const index = useMemo(() => rosterCoverIndex(observations, codes), [observations, codes])
+  const index = useMemo(() => rosterCoverIndex(observations, codes, join), [observations, codes, join])
   const checkComplete = useMemo(() => checkCompleteFor(snapshot, index), [snapshot, index])
   return useMemo(
     () => ({ ...classification, exoticsPublished: snapshot.exoticNames !== null, checkComplete }),

@@ -29,6 +29,12 @@ export interface BirdNameProps {
    *  contributes no character, so the text content and accessible name are
    *  unchanged. Default off: every other surface renders byte-identically. */
   breakAfterSlash?: boolean
+  /** Punctuation that follows the name in running text (a comma), rendered in
+   *  the name's own row after the two marks, so a line can never start with it
+   *  (escapee-check-new-taxonomy D-01). Pass only the punctuation, up to the
+   *  first space: the words after it stay outside, where they wrap. Default
+   *  none: every other surface renders byte-identically. */
+  trailing?: string
 }
 
 /** The common name with a `<wbr>` after each "/". Keys are segment indexes. */
@@ -51,6 +57,7 @@ export const BirdName = memo(function BirdName({
   showSci = false,
   size = 'md',
   breakAfterSlash = false,
+  trailing,
 }: BirdNameProps) {
   const linkable = hasEntry && !!onOpenSpecies
   const shown = breakAfterSlash && commonName.includes('/') ? withSlashBreaks(commonName) : commonName
@@ -72,6 +79,7 @@ export const BirdName = memo(function BirdName({
           <span className="sr-birdname-text">{shown}</span>
         )}
         <SpeciesLinks speciesCode={taxonCode} commonName={commonName} />
+        {trailing && <span className="sr-birdname-trail">{trailing}</span>}
       </span>
       {sci && <span className="sr-birdname-sci">{sci}</span>}
     </span>

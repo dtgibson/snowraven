@@ -169,10 +169,11 @@ export function statusSentence(status: ProvenanceStatus, found: number): string 
           return `Stopped following up on ${status.openSpecies} species after ${status.cap} checklists each. ${status.openSpecies === 2 ? 'Both still count.' : 'They all still count.'}`
         case 'unmatched':
           // exotic-provenance-reuse D-04: the check has settled with species
-          // still open, usually a name a taxonomy update has split since the
-          // export. Ordinary agreement; Check again beside it is the way to
-          // re-ask sooner than the 30 days.
-          return `eBird's answers did not include ${status.openSpecies} of your species, so ${status.openSpecies === 1 ? 'it still counts' : 'they still count'}.`
+          // still open. Since escapee-check-new-taxonomy the line names them
+          // (the account renders the same parts with each name through
+          // BirdName); Check again beside it is the way to re-ask sooner than
+          // the 30 days.
+          return unmatchedSentenceText(unmatchedSentence(status.openSpecies, status.openNames ?? []))
       }
       return ''
     case 'no-key':
@@ -184,6 +185,60 @@ export function statusSentence(status: ProvenanceStatus, found: number): string 
     case 'error':
       return 'eBird could not be reached. Every species counts until the check succeeds.'
   }
+}
+
+/** The longest list of open species the unmatched line names in full. A longer
+ *  one names the first `UNMATCHED_NAMED_MAX - 1` and counts the rest, so with
+ *  every open species' name in hand the counted rest is at least two: a list
+ *  one longer than the cut names that last species rather than counting it. */
+export const UNMATCHED_NAMED_MAX = 4
+
+/**
+ * The settled-but-open sentence (exotic-provenance-reuse D-04), as parts: the
+ * `names` render one by one through BirdName with `orSeparator` between the
+ * list items, and `others` is the last item when the list is cut short. One
+ * shape for every count:
+ *
+ *   1 name   "eBird's answers did not include Eurasian Skylark, so it still counts."
+ *   2 names  "eBird's answers did not include A or B, so they still count."
+ *   4 names  "eBird's answers did not include A, B, C, or D, so they still count."
+ *   6 open   "eBird's answers did not include A, B, C, or 3 other species, so they still count."
+ *
+ * With no names in hand (a status built without them) it is the count form the
+ * line read before names were added: "did not include 3 of your species".
+ * Serial comma, "or" because the answers included none of them, no em dash.
+ */
+export interface UnmatchedSentence {
+  lead: string
+  names: readonly string[]
+  /** "N other species" when the list is cut short, else ''. */
+  others: string
+  tail: string
+}
+
+export function unmatchedSentence(openSpecies: number, openNames: readonly string[]): UnmatchedSentence {
+  const tail = `, so ${openSpecies === 1 ? 'it still counts' : 'they still count'}.`
+  const lead = "eBird's answers did not include "
+  if (openNames.length === 0) return { lead: `${lead}${openSpecies} of your species`, names: [], others: '', tail }
+  if (openSpecies <= UNMATCHED_NAMED_MAX && openNames.length >= openSpecies) {
+    return { lead, names: openNames.slice(0, openSpecies), others: '', tail }
+  }
+  const shown = openNames.slice(0, UNMATCHED_NAMED_MAX - 1)
+  return { lead, names: shown, others: `${openSpecies - shown.length} other species`, tail }
+}
+
+/** The separator before list item `i` of `n` in an "or" list, serial comma. */
+export function orSeparator(i: number, n: number): string {
+  if (i === 0) return ''
+  if (i === n - 1) return n === 2 ? ' or ' : ', or '
+  return ', '
+}
+
+/** The sentence as one plain string: the live region's text, and the form the
+ *  status takes wherever names are not rendered. */
+export function unmatchedSentenceText(s: UnmatchedSentence): string {
+  const items = s.others ? [...s.names, s.others] : [...s.names]
+  return `${s.lead}${items.map((item, i) => `${orSeparator(i, items.length)}${item}`).join('')}${s.tail}`
 }
 
 /** The disclosure expander's label. Singular at n = 1, plural otherwise; the

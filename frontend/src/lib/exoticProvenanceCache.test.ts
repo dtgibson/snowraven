@@ -796,7 +796,50 @@ describe('unmatched stamps: what a successful answer did not include', () => {
 })
 
 describe('unmatched stamps on the load path (sanitizeStore)', () => {
-  const base = { version: 1, checklists: {}, order: [], species: {}, speciesOrder: [], excludedNames: [] }
+  // Written under the current join, so its stamps are read (the rows below
+  // that drop them are about the marker).
+  const base = {
+    version: 1, checklists: {}, order: [], species: {}, speciesOrder: [], excludedNames: [],
+    unmatchedJoin: cache.UNMATCHED_JOIN_VERSION,
+  }
+
+  it('stamps written under an earlier join are dropped, and nothing else is (escapee-check-new-taxonomy)', () => {
+    // A document from before the taxonomy join has no marker. Its stamps say
+    // "the answer had no row" under the old join, which the new one can
+    // contradict (Willet answered under the slash code), so they re-open; the
+    // ledger, the records and both published lists are kept, so this is not a
+    // version bump and nothing already answered is asked again.
+    const old = {
+      ...base,
+      checklists: { S1: 5 }, order: ['S1'],
+      species: { mallar3: { seen: ['|'], n: 1, at: 5 } }, speciesOrder: ['mallar3'],
+      excludedNames: ['Swan Goose'], exoticNames: ['Rock Pigeon'],
+      unmatched: { willet2: 5, skylar: 5 }, unmatchedOrder: ['willet2', 'skylar'],
+    }
+    for (const marker of [undefined, 0, cache.UNMATCHED_JOIN_VERSION + 1, '1', null]) {
+      const s = cache.sanitizeStore({ ...old, unmatchedJoin: marker })
+      expect(s.unmatchedOrder, String(marker)).toEqual([])
+      expect(s.unmatched, String(marker)).toEqual({})
+      expect(s.order).toEqual(['S1'])
+      expect(Object.keys(s.species)).toEqual(['mallar3'])
+      expect(s.excludedNames).toEqual(['Swan Goose'])
+      expect(s.exoticNames).toEqual(['Rock Pigeon'])
+      // The held store is always under the current join.
+      expect(s.unmatchedJoin).toBe(cache.UNMATCHED_JOIN_VERSION)
+    }
+    // ...and the current marker keeps them: the drop above is the marker's.
+    expect(cache.sanitizeStore(old).unmatchedOrder).toEqual(['willet2', 'skylar'])
+  })
+
+  it('every write carries the current marker, so the stamps it writes are read back', async () => {
+    seamDoc.value = { ...base, unmatched: { willet2: 5 }, unmatchedOrder: ['willet2'], unmatchedJoin: undefined }
+    await cache.mergeChecklist('S1', [o('mallar3')], new Set(['mallar3', 'skylar']), Date.now(), ['mallar3', 'skylar'])
+    await vi.advanceTimersByTimeAsync(300)
+    expect(seamDoc.value).toMatchObject({ unmatchedJoin: cache.UNMATCHED_JOIN_VERSION, unmatchedOrder: ['skylar'] })
+    cache._resetProvenanceCacheForTests()
+    await cache.loadSnapshot()
+    expect([...cache.unmatchedSet(Date.now())]).toEqual(['skylar'])
+  })
 
   it('an absent or malformed field is NO STAMPS, the heal\'s previous behaviour', () => {
     for (const over of [{}, { unmatched: null, unmatchedOrder: [] }, { unmatched: {}, unmatchedOrder: 'willet2' }, { unmatched: 'x', unmatchedOrder: ['willet2'] }]) {
@@ -822,7 +865,7 @@ describe('unmatched stamps on the load path (sanitizeStore)', () => {
     const chain = cache.sanitizeStore({ ...base, unmatched: {}, unmatchedOrder: ['constructor', 'tostring', 'valueOf', '__proto__'] })
     expect(chain.unmatchedOrder).toEqual([])
     const hostile = cache.sanitizeStore(JSON.parse(
-      '{"version":1,"checklists":{},"order":[],"species":{},"speciesOrder":[],"excludedNames":[],'
+      `{"version":1,"checklists":{},"order":[],"species":{},"speciesOrder":[],"excludedNames":[],"unmatchedJoin":${cache.UNMATCHED_JOIN_VERSION},`
       + '"unmatched":{"__proto__":1,"constructor":2},"unmatchedOrder":["__proto__","constructor"]}',
     ))
     // `constructor` is in the key class and an own key here, so it is kept as

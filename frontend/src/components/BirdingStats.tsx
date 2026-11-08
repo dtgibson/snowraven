@@ -48,7 +48,8 @@ import {
 } from '../lib/birdingStats'
 import { EMPTY_STATS_BUNDLE } from '../lib/statsBundle'
 import { useStatsBundle } from '../lib/useStatsBundle'
-import { buildCoverIndex, EMPTY_LOOKUP } from '../lib/exoticProvenance'
+import { buildCoverIndex, EMPTY_LOOKUP, NO_ESCAPEE_JOIN, type EscapeeJoin } from '../lib/exoticProvenance'
+import { loadEscapeeJoin } from '../lib/exoticTaxonomyJoin'
 import { useExoticProvenance } from '../lib/useExoticProvenance'
 import { ExoticProvenanceAccount } from './ExoticProvenanceAccount'
 import { ProjectsSection } from './ProjectsSection'
@@ -153,6 +154,10 @@ export function BirdingStats({ onGoToSettings, onGoToWeather, onOpenSpecies }: {
   const [breedingFilter, setBreedingFilter] = useState<'all' | 'confirmed' | 'probable' | 'possible'>('all')
   const [mlUserId, setMlUserId] = useState<string | null>(null)
   const [mlTaxonMap, setMlTaxonMap] = useState<Record<string, string>>({})
+  // The escapee cover's taxonomy join (escapee-check-new-taxonomy), loaded with
+  // the backup so the first cover index already has it: a pass started before
+  // it landed would stamp a pre-split name "not in eBird's answer".
+  const [escapeeJoin, setEscapeeJoin] = useState<EscapeeJoin>(NO_ESCAPEE_JOIN)
   const [mlTaxonOrders, setMlTaxonOrders] = useState<Record<string, number>>({})
   const [geoPopup, setGeoPopup] = useState<{ lng: number; lat: number; title: string; sub: string } | null>(null)
   // Geographic Stats county shading (FR-13): both off/default on mount and
@@ -189,7 +194,7 @@ export function BirdingStats({ onGoToSettings, onGoToWeather, onOpenSpecies }: {
         if (cancelled) return
         if (!status.ebird) { setPhase({ tag: 'setup-required' }); return }
 
-        const [ebird, ml] = await Promise.all([
+        const [ebird, ml, join] = await Promise.all([
           loadEbirdObservations(),
           // .catch: defense in depth, and deliberately kept. Since v1.0.15 the read
           // sits INSIDE loadMLExport's own try, so it resolves null on a read or a
@@ -198,6 +203,8 @@ export function BirdingStats({ onGoToSettings, onGoToWeather, onOpenSpecies }: {
           // Promise.all and misattributes an optional ML failure to the required
           // eBird backup — over a shared seam four tabs read through.
           status.ml ? loadMLExport().catch(() => null) : Promise.resolve(null),
+          // Never rejects: a failed asset load is no join, the old behaviour.
+          loadEscapeeJoin(),
         ])
 
         if (cancelled) return   // a cancelled run writes no state at all
@@ -256,6 +263,7 @@ export function BirdingStats({ onGoToSettings, onGoToWeather, onOpenSpecies }: {
           } catch { /* taxonomy unavailable — ML links omit the taxon filter, favicons omitted */ }
         }
 
+        if (!cancelled) setEscapeeJoin(join)
         setPhase({ tag: 'ready', observations, mlRows, freshness: status.ebird.filename })
       } catch {
         if (!cancelled) setPhase({ tag: 'error', message: EBIRD_BACKUP_LOAD_ERROR })
@@ -452,13 +460,16 @@ export function BirdingStats({ onGoToSettings, onGoToWeather, onOpenSpecies }: {
   // so neither count-rule toggle is a memo input to it (NFR-02). Names are mapped
   // to codes ONCE, in one direction, through the batch this tab already fetches
   // for favicons and taxonomic sort; there is no code -> name -> code round trip
-  // anywhere in this feature (FR-07).
+  // anywhere in this feature (FR-07). The taxonomy join is the one Life Lists'
+  // completion check builds with too (escapee-check-new-taxonomy), so the two
+  // tabs read the same open set.
   const coverIndex = useMemo(
     () => buildCoverIndex(
       effectiveObs,
       norm => Object.hasOwn(normTaxon, norm) ? normTaxon[norm] : undefined,
+      escapeeJoin,
     ),
-    [effectiveObs, normTaxon],
+    [effectiveObs, normTaxon, escapeeJoin],
   )
   // Statistics is the ONLY surface allowed to initiate a provenance request
   // (FR-17). Every other surface reads the cached result through

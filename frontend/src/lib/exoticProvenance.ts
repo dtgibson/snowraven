@@ -126,6 +126,12 @@ export interface CoverIndex {
   /** Observed names that resolved to no taxon code. Always counting, never
    *  covered: asking eBird would produce an answer with nothing to join it to. */
   readonly unresolvableNames: ReadonlySet<string>
+  /** escapee-check-new-taxonomy. Cover code -> the codes from the same taxonomy
+   *  event whose answer row stands in for it, present only when the export's own
+   *  name for the code predates that event (see `EscapeeJoin`). Read only by the
+   *  merge, for a checklist the export says carries the code, and only when the
+   *  answer has no row under the code itself. */
+  readonly standIns: ReadonlyMap<string, readonly string[]>
 }
 
 export const EMPTY_COVER_INDEX: CoverIndex = {
@@ -133,6 +139,74 @@ export const EMPTY_COVER_INDEX: CoverIndex = {
   byChecklist: new Map(),
   nameForCode: new Map(),
   unresolvableNames: new Set(),
+  standIns: new Map(),
+}
+
+// ── The taxonomy join (escapee-check-new-taxonomy) ─────────────────────────────
+
+/**
+ * One before-side entry of a split or lump in the latest covered taxonomy
+ * update, derived from the bundled history asset by `buildEscapeeJoin`
+ * (`lib/exoticTaxonomyJoin.ts`). The table is data; the rule that reads it is
+ * `joinedCover` below, the ONE place a cover code gains stand-ins, so the two
+ * cover-index builders (Statistics and Life Lists) cannot apply it differently.
+ */
+export interface EscapeeJoinEntry {
+  /** The entry's own code, the one the export's taxonomy used for it. */
+  readonly code: string
+  /** Every code eBird can answer under for the same event now: the event's
+   *  after side and its slashes, in asset order, without duplicates. */
+  readonly family: readonly string[]
+}
+
+export interface EscapeeJoin {
+  /** Lower-cased before-side common name -> its entry. A name the latest update
+   *  lists on more than one before side is left out (no join, the old rule). */
+  readonly byBeforeName: ReadonlyMap<string, EscapeeJoinEntry>
+}
+
+/** No join at all: every name resolves exactly as it did before this build. */
+export const NO_ESCAPEE_JOIN: EscapeeJoin = { byBeforeName: new Map() }
+
+/**
+ * The join for one normalized export name, given the code `/taxonomy/codes`
+ * resolved for it (or none). Applies only when the name is a before-side name of
+ * the latest update, which is the export's evidence that it predates that
+ * update: a retired name ("Willet", "Marsh Wren", "House Swift") is such
+ * evidence on its own; a name the update KEPT ("Great Horned Owl") is evidence
+ * only together with the answer having no row under the name's own code, which
+ * the merge checks, because a current export's observation is always answered
+ * under its own code.
+ *
+ *  - The lookup missed (each 2026 lumped-away name, whose scientific name is no
+ *    longer a species): the cover code is the entry's own code, and every code
+ *    in the family stands in for it, so the name is checked.
+ *  - The lookup landed in the family (a split name on a daughter, a kept name,
+ *    a lump's surviving species): the cover code is unchanged, and the rest of
+ *    the family stands in for it.
+ *  - The lookup landed outside the family: not this event's species, so no join.
+ *
+ * Bounded by the asset: one lower-casing and one Map lookup, then one walk over
+ * the matched entry's family (at most seven codes in 2026). Called once per
+ * DISTINCT name by `buildCoverIndex`.
+ */
+function joinedCover(
+  norm: string,
+  looked: string | undefined,
+  join: EscapeeJoin,
+): { code: string | undefined; standIns: readonly string[] | null } {
+  if (join.byBeforeName.size === 0) return { code: looked, standIns: null }
+  const entry = join.byBeforeName.get(norm.toLowerCase())
+  if (entry === undefined) return { code: looked, standIns: null }
+  const code = looked ?? entry.code
+  let inFamily = code === entry.code
+  const others: string[] = []
+  for (const c of entry.family) {
+    if (c === code) inFamily = true
+    else others.push(c)
+  }
+  if (!inFamily) return { code: looked, standIns: null }
+  return { code, standIns: others.length > 0 ? others : null }
 }
 
 /**
@@ -153,16 +227,38 @@ export const EMPTY_COVER_INDEX: CoverIndex = {
  *
  *  - The name is mapped to a code ONCE, in ONE direction (FR-07). There is no
  *    code -> name -> code round trip anywhere in this feature; the reference
- *    probe produced 4 mismatches doing exactly that.
+ *    probe produced 4 mismatches doing exactly that. The taxonomy join keeps
+ *    that: it matches the EXPORT's own name against a before-side name of the
+ *    history asset (name to event, the same direction), and what it adds is a
+ *    code-to-code relation inside one event. No answer code is ever turned into
+ *    a name.
+ *
+ * `join` (escapee-check-new-taxonomy) is the latest taxonomy update's split and
+ * lump table; production callers pass the one `loadEscapeeJoin()` resolves, and
+ * the default is no join, the previous behaviour.
+ *
+ * DECLARED WORK OVER USER FILE CONTENT (the escapee-check-new-taxonomy
+ * addition, `.claude/rules/security.md` v1.0.23 and v1.0.47). Per row: one
+ * `Map.get` on a memo keyed by the normalized name. Once per DISTINCT name: the
+ * code lookup the row already made, and `joinedCover`, whose work is bounded by
+ * the asset (one `toLowerCase` of the name, one `Map.get`, one walk over at most
+ * the matched event's codes). No nested scan over rows and no regex, so the
+ * pass stays O(sum of row string lengths). The memo holds one entry per
+ * distinct name, the same order as `nameForCode`; `standIns` holds at most one
+ * entry per before-side name in the asset.
  */
 export function buildCoverIndex(
   obs: readonly ObservationEntry[],
   codeForNormalizedName: (norm: string) => string | undefined,
+  join: EscapeeJoin = NO_ESCAPEE_JOIN,
 ): CoverIndex {
   const bySpecies = new Map<string, string[]>()
   const byChecklist = new Map<string, string[]>()
   const nameForCode = new Map<string, string>()
   const unresolvableNames = new Set<string>()
+  const standIns = new Map<string, readonly string[]>()
+  // One resolution per distinct normalized name (the join's work is per name).
+  const resolved = new Map<string, { code: string | undefined; standIns: readonly string[] | null }>()
   // Per-checklist dedupe: two subspecies rows collapse to one normalized name,
   // and a submission id must appear once per species.
   const seenPair = new Set<string>()
@@ -172,9 +268,19 @@ export function buildCoverIndex(
     const sub = o.submissionId
     if (!sub) continue
     const norm = normalizeSpeciesName(o.commonName)
-    const code = codeForNormalizedName(norm)
+    let r = resolved.get(norm)
+    if (r === undefined) {
+      r = joinedCover(norm, codeForNormalizedName(norm), join)
+      resolved.set(norm, r)
+    }
+    const code = r.code
     if (!code) { unresolvableNames.add(norm); continue }
-    if (!nameForCode.has(code)) nameForCode.set(code, norm)
+    // The stand-ins belong to the name the index reports for the code (first
+    // seen wins, as for `nameForCode`).
+    if (!nameForCode.has(code)) {
+      nameForCode.set(code, norm)
+      if (r.standIns) standIns.set(code, r.standIns)
+    }
     const pair = `${sub}\u0000${code}`
     if (seenPair.has(pair)) continue
     seenPair.add(pair)
@@ -186,7 +292,7 @@ export function buildCoverIndex(
     codes.push(code)
   }
 
-  return { bySpecies, byChecklist, nameForCode, unresolvableNames }
+  return { bySpecies, byChecklist, nameForCode, unresolvableNames, standIns }
 }
 
 // ── Classification (schema.md §6) ──────────────────────────────────────────────
@@ -512,6 +618,18 @@ export function remainingSpecies(
     if (cls === 'unknown' || cls === 'unresolved') out.push(code)
   }
   return out
+}
+
+/** escapee-check-new-taxonomy: the export's own names for the given open
+ *  species codes, sorted, so the settled-but-open status line can name them.
+ *  One `Map.get` per code; a code with no name is skipped. */
+export function openSpeciesNames(index: CoverIndex, open: readonly string[]): string[] {
+  const names: string[] = []
+  for (const code of open) {
+    const name = index.nameForCode.get(code)
+    if (name !== undefined) names.push(name)
+  }
+  return names.sort((a, b) => a.localeCompare(b))
 }
 
 /** Ledger entries that must be RE-consulted even though they are fresh: the
