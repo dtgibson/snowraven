@@ -28,6 +28,7 @@ vi.mock('./storage', () => ({
   storage: {
     getSetting: vi.fn(async (key: string) => (key === 'exotic-provenance-v1' ? seamDoc.value : null)),
     setSetting: vi.fn(async (_key: string, value: unknown) => { seamDoc.value = JSON.parse(JSON.stringify(value)) }),
+    deleteSetting: vi.fn(async () => { seamDoc.value = null }),
   },
 }))
 
@@ -567,4 +568,213 @@ describe('exoticNames: an optional field whose absence is UNRESOLVED', () => {
 
   // The purge resetting the field to null is asserted in clearDerived.test.ts,
   // beside the in-flight publish race, through the real teardown.
+})
+
+// ── The unmatched stamps (exotic-provenance-reuse D-03, D-07) ────────────────
+
+describe('unmatched stamps: what a successful answer did not include', () => {
+  const COVER = new Set(['musduc', 'graygo', 'willet2', 'mallar3'])
+
+  it('stamps a carried code the answer has no row for, and nothing else', async () => {
+    // The answer carries Mallard and the slash code eBird uses since the split,
+    // which is outside the cover and dropped. Muscovy Duck has a row.
+    await cache.mergeChecklist('S1', [o('mallar3'), o('willet1'), o('musduc', 'N')], COVER, Date.now(), ['willet2', 'mallar3', 'musduc'])
+    expect([...cache.unmatchedSet(Date.now())]).toEqual(['willet2'])
+    expect(cache.getSnapshot().species.has('willet2')).toBe(false)
+    expect(cache._getProvenanceCacheWorkStatsForTests().stamps).toBe(1)
+  })
+
+  it('a row whose admission was refused is still a row: a full species index stamps nothing', async () => {
+    // The one case where "the answer had a row" and "a record exists" part:
+    // the species index is full, so the row is not admitted, and the answer
+    // still did not lack the species. Without this row the `answered` check is
+    // invisible behind the record check (mutation-measured).
+    cache.setProvenanceMaxSpecies(1)
+    const wide = new Set(['a1', 'b2'])
+    await cache.mergeChecklist('S1', [o('a1', 'N')], wide, Date.now(), ['a1'])
+    await cache.mergeChecklist('S2', [o('b2', 'X', 'DNC')], wide, Date.now(), ['b2'])
+    expect(cache.getSnapshot().species.has('b2')).toBe(false)
+    expect(cache._getProvenanceCacheWorkStatsForTests().admissionsRefused).toBe(1)
+    expect(cache.unmatchedSet(Date.now()).size).toBe(0)
+  })
+
+  it('a code with a record is never stamped: the record already answers it', async () => {
+    await cache.mergeChecklist('S1', [o('musduc', 'X', 'DNC')], COVER, Date.now())
+    await cache.mergeChecklist('S2', [o('mallar3')], COVER, Date.now(), ['musduc', 'mallar3'])
+    expect(cache.unmatchedSet(Date.now()).size).toBe(0)
+  })
+
+  it('a code outside the cover the checklist was asked under is never stamped, so the v1.0.1 heal stays reachable', async () => {
+    // The domestic-form shape: the checklist was asked under a cover without
+    // Swan Goose. The merge is told only what that cover put on it, and a code
+    // carried but not admissible is refused as well.
+    await cache.mergeChecklist('S1', [o('mallar3')], new Set(['mallar3']), Date.now(), ['mallar3', 'swagoo'])
+    expect(cache.unmatchedSet(Date.now()).size).toBe(0)
+    expect(cache.getSnapshot().checklists.has('S1')).toBe(true)
+  })
+
+  it('a carried code the load path would drop is never stamped (the write chokepoint shares the validator)', async () => {
+    const wide = new Set(['c-Muscovy Duck', 'graygo'])
+    await cache.mergeChecklist('S1', [], wide, Date.now(), ['c-Muscovy Duck', 'graygo'])
+    expect([...cache.unmatchedSet(Date.now())]).toEqual(['graygo'])
+  })
+
+  it('a record admitted later drops the stamp', async () => {
+    await cache.mergeChecklist('S1', [o('mallar3')], COVER, Date.now(), ['musduc', 'mallar3'])
+    expect([...cache.unmatchedSet(Date.now())]).toEqual(['musduc'])
+    await cache.mergeChecklist('S2', [o('musduc', 'X', 'DNC')], COVER, Date.now(), ['musduc'])
+    expect(cache.unmatchedSet(Date.now()).size).toBe(0)
+    expect(cache._getProvenanceCacheWorkStatsForTests().stampDrops).toBe(1)
+    await vi.advanceTimersByTimeAsync(300)
+    const doc = seamDoc.value as { unmatched: Record<string, number>; unmatchedOrder: string[] }
+    expect(doc.unmatched).toEqual({})
+    expect(doc.unmatchedOrder).toEqual([])
+  })
+
+  it('a failed, refused (429) or offline answer writes no stamp', async () => {
+    const carried = { carried: ['musduc'] }
+    const fail = (status: number) => async (): Promise<ProvenanceObservation[]> => { throw Object.assign(new Error(`eBird ${status}`), { status }) }
+    await expect(cache.dedupedFetchChecklist('S1', COVER, fail(502), carried)).rejects.toThrow('502')
+    await expect(cache.dedupedFetchChecklist('S1', COVER, fail(429), carried)).rejects.toThrow('429')
+    // Offline with a prior, stale ledger entry: the no-op success the pass
+    // counts as done. It reaches no merge, so it stamps nothing either.
+    await cache.mergeChecklist('S2', [o('mallar3')], COVER, Date.now())
+    vi.advanceTimersByTime(31 * DAY)
+    const offline = async (): Promise<ProvenanceObservation[]> => { throw new TypeError('Failed to fetch') }
+    await expect(cache.dedupedFetchChecklist('S2', COVER, offline, carried)).resolves.toEqual({ fromNetwork: false })
+    expect(cache.unmatchedSet(Date.now()).size).toBe(0)
+    expect(cache._getProvenanceCacheWorkStatsForTests().stamps).toBe(0)
+    // ...and the same call answered successfully does stamp: the rows above
+    // are not vacuous.
+    await cache.dedupedFetchChecklist('S1', COVER, async () => [o('mallar3')], carried)
+    expect([...cache.unmatchedSet(Date.now())]).toEqual(['musduc'])
+  })
+
+  it('honoured for the TTL and no longer: a stamp past it is out of the set, and an answer refreshes it', async () => {
+    await cache.mergeChecklist('S1', [], COVER, Date.now(), ['musduc'])
+    vi.advanceTimersByTime(29 * DAY)
+    expect([...cache.unmatchedSet(Date.now())]).toEqual(['musduc'])
+    vi.advanceTimersByTime(2 * DAY)
+    expect(cache.unmatchedSet(Date.now()).size).toBe(0)
+    await cache.mergeChecklist('S2', [], COVER, Date.now(), ['musduc'])
+    expect([...cache.unmatchedSet(Date.now())]).toEqual(['musduc'])
+  })
+
+  it('persists through the whole-document write and reads back next session', async () => {
+    const at = Date.now()
+    await cache.mergeChecklist('S1', [o('mallar3')], COVER, at, ['willet2', 'mallar3'])
+    await vi.advanceTimersByTimeAsync(300)
+    expect(seamDoc.value).toMatchObject({ unmatched: { willet2: at }, unmatchedOrder: ['willet2'] })
+    cache._resetProvenanceCacheForTests()
+    await cache.loadSnapshot()
+    expect([...cache.unmatchedSet(Date.now())]).toEqual(['willet2'])
+  })
+
+  it('a refreshed stamp keeps its place, and past the cap the first stamped goes, one per new stamp (capacity+1, as work done)', async () => {
+    cache.setProvenanceMaxUnmatched(4)
+    const wide = new Set(Array.from({ length: 12 }, (_, i) => `sp${i}`))
+    for (let i = 0; i < 4; i += 1) await cache.mergeChecklist(`S${i}`, [], wide, Date.now(), [`sp${i}`])
+    expect(cache._getProvenanceCacheWorkStatsForTests().stampEvictions).toBe(0)
+    // A refresh of the first stamp neither grows the map nor moves it.
+    await cache.mergeChecklist('S10', [], wide, Date.now(), ['sp0'])
+    await vi.advanceTimersByTimeAsync(300)
+    expect((seamDoc.value as { unmatchedOrder: string[] }).unmatchedOrder).toEqual(['sp0', 'sp1', 'sp2', 'sp3'])
+    for (let i = 4; i < 12; i += 1) await cache.mergeChecklist(`S${i}`, [], wide, Date.now(), [`sp${i}`])
+    const stats = cache._getProvenanceCacheWorkStatsForTests()
+    expect(stats.stampEvictions).toBe(8)                    // one per new stamp, exactly
+    expect(stats.stamps).toBe(13)
+    expect([...cache.unmatchedSet(Date.now())]).toEqual(['sp8', 'sp9', 'sp10', 'sp11'])
+  })
+
+  it('the shipped cap equals the species cap, which sits above the whole world list', () => {
+    expect(cache.PROVENANCE_MAX_UNMATCHED).toBe(cache.PROVENANCE_MAX_UNMATCHED_DEFAULT)
+    expect(cache.PROVENANCE_MAX_UNMATCHED_DEFAULT).toBe(cache.PROVENANCE_MAX_SPECIES_DEFAULT)
+  })
+})
+
+describe('unmatched stamps on the load path (sanitizeStore)', () => {
+  const base = { version: 1, checklists: {}, order: [], species: {}, speciesOrder: [], excludedNames: [] }
+
+  it('an absent or malformed field is NO STAMPS, the heal\'s previous behaviour', () => {
+    for (const over of [{}, { unmatched: null, unmatchedOrder: [] }, { unmatched: {}, unmatchedOrder: 'willet2' }, { unmatched: 'x', unmatchedOrder: ['willet2'] }]) {
+      const s = cache.sanitizeStore({ ...base, ...over })
+      expect(s.unmatched).toEqual({})
+      expect(s.unmatchedOrder).toEqual([])
+    }
+  })
+
+  it('DROPS a malformed stamp: a bad key, a non-finite time, a key with no entry, a duplicate, or one beside a record', () => {
+    const s = cache.sanitizeStore({
+      ...base,
+      species: { musduc: { seen: ['X|DNC'], n: 1, at: 1 } },
+      speciesOrder: ['musduc'],
+      unmatched: { willet2: 5, BADCODE: 1, eamwre1: 'soon', skylar: Infinity, musduc: 2, graygo: 3 },
+      unmatchedOrder: ['willet2', 'BADCODE', 'eamwre1', 'skylar', 'musduc', 'nokey', 7, 'graygo', 'willet2'],
+    })
+    expect(s.unmatchedOrder).toEqual(['willet2', 'graygo'])
+    expect(s.unmatched).toEqual({ willet2: 5, graygo: 3 })
+  })
+
+  it('reads through Object.hasOwn: neither a prototype-chain name nor a real own __proto__ key becomes a stamp', () => {
+    const chain = cache.sanitizeStore({ ...base, unmatched: {}, unmatchedOrder: ['constructor', 'tostring', 'valueOf', '__proto__'] })
+    expect(chain.unmatchedOrder).toEqual([])
+    const hostile = cache.sanitizeStore(JSON.parse(
+      '{"version":1,"checklists":{},"order":[],"species":{},"speciesOrder":[],"excludedNames":[],'
+      + '"unmatched":{"__proto__":1,"constructor":2},"unmatchedOrder":["__proto__","constructor"]}',
+    ))
+    // `constructor` is in the key class and an own key here, so it is kept as
+    // an ordinary stamp; `__proto__` fails the class.
+    expect(hostile.unmatchedOrder).toEqual(['constructor'])
+    expect(Object.getPrototypeOf(hostile.unmatched)).toBe(Object.prototype)
+  })
+
+  it('a key repeated n times costs ONE validation, valid or not (first-sight dedupe, as work done)', () => {
+    const validations = (order: unknown[]) => {
+      cache._resetProvenanceCacheForTests()
+      cache.sanitizeStore({ ...base, unmatched: { willet2: 1 }, unmatchedOrder: order })
+      return cache._getProvenanceCacheWorkStatsForTests().stampValidations
+    }
+    expect(validations(Array(10_000).fill('BAD KEY'))).toBe(1)
+    expect(validations(Array(20_000).fill('BAD KEY'))).toBe(1)
+    expect(validations(Array(20_000).fill('willet2'))).toBe(1)
+    // ...and distinct keys still cost one each: the counter is not vacuous.
+    expect(validations(Array.from({ length: 300 }, (_, i) => `k${i}`))).toBe(300)
+  })
+
+  it('keeps the NEWEST stamps when a document holds more than the cap', () => {
+    cache.setProvenanceMaxUnmatched(3)
+    const order = Array.from({ length: 10 }, (_, i) => `sp${i}`)
+    const s = cache.sanitizeStore({ ...base, unmatched: Object.fromEntries(order.map((k, i) => [k, i])), unmatchedOrder: order })
+    expect(s.unmatchedOrder).toEqual(['sp7', 'sp8', 'sp9'])
+  })
+
+  it('the write chokepoint round trip is idempotent', () => {
+    const once = cache.sanitizeStore({ ...base, unmatched: { willet2: 5, graygo: 3 }, unmatchedOrder: ['graygo', 'willet2'] })
+    expect(cache.sanitizeStore(JSON.parse(JSON.stringify(once)))).toEqual(once)
+  })
+})
+
+describe('unmatched stamps and Clear (clear-means-clear)', () => {
+  it('the purge drops every stamp from the mirror and the disk', async () => {
+    await cache.mergeChecklist('S1', [], ALL, Date.now(), ['musduc'])
+    await vi.advanceTimersByTimeAsync(300)
+    expect(seamDoc.value).toMatchObject({ unmatchedOrder: ['musduc'] })
+    await cache.purgeProvenanceStore()
+    expect(cache.unmatchedSet(Date.now()).size).toBe(0)
+    expect(seamDoc.value).toBe(null)
+  })
+
+  it('an answer in flight across a Clear stamps nothing', async () => {
+    await cache.loadSnapshot()
+    let release!: (v: ProvenanceObservation[]) => void
+    const settled = cache.dedupedFetchChecklist('S1', ALL, () => new Promise(r => { release = r }), { carried: ['musduc'] })
+    await vi.advanceTimersByTimeAsync(0)
+    await cache.purgeProvenanceStore()
+    release([o('mallar3')])
+    await settled
+    await vi.advanceTimersByTimeAsync(300)
+    expect(cache.unmatchedSet(Date.now()).size).toBe(0)
+    expect(cache._getProvenanceCacheWorkStatsForTests().stamps).toBe(0)
+    expect(seamDoc.value).toBe(null)
+  })
 })

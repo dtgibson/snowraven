@@ -552,3 +552,122 @@ describe('a recordless cover species re-opens its consulted checklist', () => {
     expect(screen.getByTestId('excluded').textContent).toBe('Muscovy Duck')
   })
 })
+
+// ── The unmatched stamp settles the heal (exotic-provenance-reuse) ───────────
+describe('a species eBird answered without settles instead of re-opening every load', () => {
+  // Real-shaped codes, because a stamp is written only under a key the load
+  // path keeps (the harness's `c-${norm}` codes are not).
+  const codeReal = (norm: string): string | undefined =>
+    norm === 'Muscovy Duck' ? 'musduc' : norm === 'Mallard' ? 'mallar3' : undefined
+  const DAY = 86_400_000
+  const index = buildCoverIndex(
+    [o('Muscovy Duck', 'S1'), o('Mallard', 'S1'), o('Muscovy Duck', 'S2')],
+    codeReal,
+  )
+  function seed(stampAt: number | null): void {
+    const now = Date.now()
+    seamDoc.value = {
+      version: 1,
+      checklists: { S1: now, S2: now },
+      order: ['S1', 'S2'],
+      species: { mallar3: { seen: ['|'], n: 1, at: now } },
+      speciesOrder: ['mallar3'],
+      excludedNames: [],
+      exoticNames: [],
+      ...(stampAt === null ? {} : { unmatched: { musduc: stampAt }, unmatchedOrder: ['musduc'] }),
+    }
+    // eBird's answers have no Muscovy Duck row.
+    responses.set('S1', [{ speciesCode: 'mallar3' }])
+    responses.set('S2', [])
+  }
+  const reason = () => screen.getByTestId('reason').textContent
+  /** The next session: the persisted stamp has caught up, then a fresh mirror. */
+  async function nextSession(stampAfter: number) {
+    await waitFor(() => expect((seamDoc.value as { unmatched?: Record<string, number> }).unmatched?.musduc).toBeGreaterThan(stampAfter))
+    cleanup()
+    cacheModule._resetProvenanceCacheForTests()
+    announcements.length = 0
+    render(<Harness index={index} />)
+  }
+
+  it('a stamp past its TTL re-opens the species ONCE, and the next load asks nothing and says why it still counts', async () => {
+    const expired = Date.now() - 31 * DAY
+    seed(expired)
+    render(<Harness index={index} />)
+    await waitFor(() => expect(reason()).toBe('unmatched'))
+    // One checklist re-asked, and its answer re-stamped the species, so the
+    // pass did not go on to re-open S2 as the v1.0.1 heal alone would (2).
+    expect(requested).toEqual(['/checklists/S1?provenance'])
+    expect(announcements.some(a => a.kind === 'complete')).toBe(false)
+    // Life Lists reads the same open set: not complete (D-04).
+    const { checkCompleteFor } = await import('./lifeListsProvenance')
+    expect(checkCompleteFor(cacheModule.getSnapshot(), index)).toBe(false)
+
+    await nextSession(expired)
+    await waitFor(() => expect(reason()).toBe('unmatched'))
+    expect(requested).toHaveLength(1)
+    expect(emissions().map(a => a.kind)).toEqual(['partial'])
+  })
+
+  it('with no stamp the heal re-opens as before, and the answer stamps it', async () => {
+    seed(null)
+    render(<Harness index={index} />)
+    await waitFor(() => expect(reason()).toBe('unmatched'))
+    expect(requested).toEqual(['/checklists/S1?provenance'])
+    expect([...cacheModule.unmatchedSet(Date.now())]).toEqual(['musduc'])
+  })
+
+  it('Check again re-asks a settled species, bounded by the caps, and the load after it is settled again', async () => {
+    const fresh = Date.now() - DAY
+    seed(fresh)
+    render(<Harness index={index} />)
+    await waitFor(() => expect(reason()).toBe('unmatched'))
+    expect(requested).toEqual([])
+
+    await act(async () => { screen.getByText('retry').click() })
+    await waitFor(() => expect(requested).toHaveLength(2))
+    await waitFor(() => expect(reason()).toBe('unmatched'))
+    // Both carriers re-asked, each once: the stamps were ignored for the run.
+    expect([...requested].sort()).toEqual(['/checklists/S1?provenance', '/checklists/S2?provenance'])
+
+    await nextSession(fresh)
+    await waitFor(() => expect(reason()).toBe('unmatched'))
+    expect(requested).toHaveLength(2)
+  })
+
+  it('Try again after an error keeps its meaning: it retries the failed checklist and leaves a settled species closed', async () => {
+    // Muscovy Duck is settled (stamped, both carriers fresh). Graylag Goose's
+    // one checklist was never asked, and its request fails.
+    const withGoose = buildCoverIndex(
+      [o('Muscovy Duck', 'S1'), o('Mallard', 'S1'), o('Muscovy Duck', 'S2'), o('Graylag Goose', 'S3')],
+      norm => (norm === 'Graylag Goose' ? 'graygo' : codeReal(norm)),
+    )
+    seed(Date.now() - DAY)
+    responses.set('S3', 'fail')
+    render(<Harness index={withGoose} />)
+    await waitFor(() => expect(kind()).toBe('error'))
+    expect(requested).toEqual(['/checklists/S3?provenance'])
+
+    responses.set('S3', [{ speciesCode: 'graygo', exoticCategory: 'N' }])
+    await act(async () => { screen.getByText('retry').click() })
+    await waitFor(() => expect(reason()).toBe('unmatched'))
+    // Only the failed checklist was asked again; the stamped species' carriers
+    // were not re-opened (they would be from the settled state's Check again).
+    expect(requested).toEqual(['/checklists/S3?provenance', '/checklists/S3?provenance'])
+  })
+
+  it('a failed answer stamps nothing, so the next load asks again', async () => {
+    seed(null)
+    responses.set('S1', 'fail')
+    responses.set('S2', 'fail')
+    render(<Harness index={index} />)
+    await waitFor(() => expect(kind()).toBe('error'))
+    expect(requested).toHaveLength(2)
+    expect(cacheModule.unmatchedSet(Date.now()).size).toBe(0)
+    cleanup()
+    cacheModule._resetProvenanceCacheForTests()
+    render(<Harness index={index} />)
+    await waitFor(() => expect(requested).toHaveLength(4))
+    await waitFor(() => expect(kind()).toBe('error'))
+  })
+})

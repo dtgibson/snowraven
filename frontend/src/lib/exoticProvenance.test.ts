@@ -478,7 +478,13 @@ describe('the escapee token is the one that does not count', () => {
 // the full ledger TTL. These pin the healing helper AND the harmless cases, so
 // the refetch can neither be dropped (first test red on a revert) nor widened
 // (the stay-green cases reject a helper that refetches everything).
+//
+// exotic-provenance-reuse narrowed it: a species a successful answer was seen
+// to lack within the TTL (`unmatched`, the fourth argument) is not re-opened.
+// The v1.0.1 rows pass NO_STAMPS, the set the store returns before it loads
+// and the one Check again uses, and must stay green unchanged.
 describe('carriersNeedingRefetch (recordless cover species re-open their ledger entries)', () => {
+  const NO_STAMPS: ReadonlySet<string> = new Set()
   const index = buildCoverIndex(
     [obs('Swan Goose (Domestic type)', 'S1'), obs('Mallard', 'S1'), obs('Mallard', 'S2')],
     codeFor,
@@ -488,25 +494,114 @@ describe('carriersNeedingRefetch (recordless cover species re-open their ledger 
     // S1 was consulted, Mallard got its token, Swan Goose got nothing: the
     // pre-fix store shape, byte-for-byte.
     const snap = snapshot({ mallar3: rec(['|']) }, ['S1'])
-    expect(carriersNeedingRefetch(snap, index, ['swagoo'])).toEqual(new Set(['S1']))
+    expect(carriersNeedingRefetch(snap, index, ['swagoo'], NO_STAMPS)).toEqual(new Set(['S1']))
   })
 
   it('returns nothing for a species that HAS a record, however classified', () => {
     const snap = snapshot({ swagoo: rec(['X|DNC']), mallar3: rec(['|']) }, ['S1'])
-    expect(carriersNeedingRefetch(snap, index, ['swagoo', 'mallar3'])).toEqual(new Set())
+    expect(carriersNeedingRefetch(snap, index, ['swagoo', 'mallar3'], NO_STAMPS)).toEqual(new Set())
   })
 
   it('returns nothing when the carriers were never consulted (plain unknown, no desync)', () => {
     const snap = snapshot({}, [])
-    expect(carriersNeedingRefetch(snap, index, ['swagoo'])).toEqual(new Set())
+    expect(carriersNeedingRefetch(snap, index, ['swagoo'], NO_STAMPS)).toEqual(new Set())
   })
 
   it('only the recordless species reopens a shared checklist, not its neighbors', () => {
     // S1 carries both; Mallard resolved. Only Swan Goose's absence reopens S1,
     // and S2 (Mallard-only) stays closed.
     const snap = snapshot({ mallar3: rec(['|']) }, ['S1', 'S2'])
-    const stale = carriersNeedingRefetch(snap, index, remainingSpecies(snap, index, new Set()))
+    const stale = carriersNeedingRefetch(snap, index, remainingSpecies(snap, index, new Set()), NO_STAMPS)
     expect(stale).toEqual(new Set(['S1']))
+  })
+
+  // ── The stamp (exotic-provenance-reuse D-03) ──────────────────────────────
+
+  it('a species stamped within the TTL is skipped, and only it: a recordless neighbour still re-opens its carriers', () => {
+    // S1 carries Swan Goose and Muscovy Duck, S3 only Muscovy Duck; all three
+    // consulted, Mallard the only record. Swan Goose is stamped (its answers had
+    // no row for it), Muscovy Duck is not.
+    const idx = buildCoverIndex(
+      [obs('Swan Goose', 'S1'), obs('Muscovy Duck', 'S1'), obs('Mallard', 'S2'), obs('Muscovy Duck', 'S3')],
+      codeFor,
+    )
+    const snap = snapshot({ mallar3: rec(['|']) }, ['S1', 'S2', 'S3'])
+    const remaining = remainingSpecies(snap, idx, new Set())
+    expect(carriersNeedingRefetch(snap, idx, remaining, NO_STAMPS)).toEqual(new Set(['S1', 'S3']))
+    expect(carriersNeedingRefetch(snap, idx, remaining, new Set(['swagoo']))).toEqual(new Set(['S1', 'S3']))
+    expect(carriersNeedingRefetch(snap, idx, remaining, new Set(['musduc']))).toEqual(new Set(['S1']))
+    expect(carriersNeedingRefetch(snap, idx, remaining, new Set(['swagoo', 'musduc']))).toEqual(new Set())
+  })
+
+  it('a stamp beside a record is moot: the record already closed the species', () => {
+    const snap = snapshot({ swagoo: rec(['X|DNC']), mallar3: rec(['|']) }, ['S1'])
+    expect(carriersNeedingRefetch(snap, index, ['swagoo'], new Set(['swagoo']))).toEqual(new Set())
+  })
+
+  it('the domestic-form v1.0.1 heal is untouched by a stamp on any OTHER code', () => {
+    // The store stamps only codes in the cover a checklist was asked under, so
+    // a checklist consulted before Swan Goose entered the cover carries no
+    // stamp for it (exoticProvenanceCache.test.ts pins that half). Stamps on
+    // other codes cannot close it.
+    const snap = snapshot({ mallar3: rec(['|']) }, ['S1'])
+    expect(carriersNeedingRefetch(snap, index, ['swagoo'], new Set(['mallar3', 'musduc', 'willet2']))).toEqual(new Set(['S1']))
+  })
+
+  it('over a generated corpus the stamp only REMOVES carriers, and exactly as removing the stamped codes from `remaining` would', () => {
+    // Every combination of: a record or none, 0, 1 or 2 of its 2 own carriers
+    // consulted, stamped or not, in `remaining` or not; and every species also
+    // on one shared checklist, consulted, so neighbours interact through it.
+    const rows: ObservationEntry[] = []
+    const codes: Record<string, string> = {}
+    const species: Record<string, SpeciesProvenanceRecord> = {}
+    const ledger = ['SHARED']
+    const stamps = new Set<string>()
+    const remaining: string[] = []
+    let i = 0
+    for (const hasRecord of [false, true]) for (const consulted of [0, 1, 2]) for (const stamped of [false, true]) for (const open of [false, true]) {
+      const name = `Generated ${i}`
+      const code = `gen${i}`
+      codes[name] = code
+      rows.push(obs(name, `A${i}`), obs(name, `B${i}`), obs(name, 'SHARED'))
+      if (consulted >= 1) ledger.push(`A${i}`)
+      if (consulted >= 2) ledger.push(`B${i}`)
+      if (hasRecord) species[code] = rec(['X|DNC'])
+      if (stamped) stamps.add(code)
+      if (open) remaining.push(code)
+      i += 1
+    }
+    const idx = buildCoverIndex(rows, n => (Object.hasOwn(codes, n) ? codes[n] : undefined))
+    const snap = snapshot(species, ledger)
+
+    // Row 1, the seam's own failure return: `unmatchedSet` before the store
+    // loads is the empty set, and with it the predicate is v1.0.1's exactly,
+    // derived here from its statement rather than from the implementation.
+    const v101 = new Set<string>()
+    for (const code of remaining) {
+      if (Object.hasOwn(species, code)) continue
+      for (const sub of idx.bySpecies.get(code) ?? []) if (ledger.includes(sub)) v101.add(sub)
+    }
+    const before = carriersNeedingRefetch(snap, idx, remaining, NO_STAMPS)
+    expect(before).toEqual(v101)
+
+    const after = carriersNeedingRefetch(snap, idx, remaining, stamps)
+    // Direction 1, nothing added: every carrier re-opened with stamps was
+    // re-opened without them.
+    expect([...after].filter(sub => !before.has(sub))).toEqual([])
+    // Direction 2, what is removed is exactly what the stamped codes alone
+    // contributed: structurally, the stamped input equals the input with the
+    // stamped codes taken out of `remaining`.
+    expect(after).toEqual(carriersNeedingRefetch(snap, idx, remaining.filter(c => !stamps.has(c)), NO_STAMPS))
+    // Non-vacuity: the corpus does remove own carriers, keeps the shared one
+    // (an unstamped recordless open species still carries it), and every
+    // removed id belongs to a recordless, stamped, open species.
+    const removed = [...before].filter(sub => !after.has(sub))
+    expect(removed.length).toBeGreaterThan(0)
+    expect(after.has('SHARED')).toBe(true)
+    for (const sub of removed) {
+      const owner = codes[`Generated ${sub.slice(1)}`]
+      expect(stamps.has(owner) && !Object.hasOwn(species, owner) && remaining.includes(owner), sub).toBe(true)
+    }
   })
 })
 

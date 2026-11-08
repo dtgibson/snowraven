@@ -93,12 +93,13 @@ describe('the seven states, one message each (FR-31, QA-36)', () => {
     expect(screen.getByRole('progressbar').getAttribute('aria-valuenow')).toBe('24')
   })
 
-  it('each partial reason gets its OWN sentence rather than one message four times', () => {
+  it('each partial reason gets its OWN sentence rather than one message five times', () => {
     const reasons: Array<[ProvenanceStatus, RegExp]> = [
       [{ kind: 'partial', done: 40, planned: 73, failed: 0, openSpecies: 5, reason: 'cancelled', cap: 0 }, /33 checklists were not checked/],
       [{ kind: 'partial', done: 63, planned: 73, failed: 10, openSpecies: 4, reason: 'failures', cap: 0 }, /10 requests failed/],
       [{ kind: 'partial', done: 500, planned: 500, failed: 0, openSpecies: 9, reason: 'pass-budget', cap: 500 }, /limit of 500 requests/],
       [{ kind: 'partial', done: 90, planned: 73, failed: 0, openSpecies: 2, reason: 'species-budget', cap: 25 }, /after 25 checklists each\. Both still count\./],
+      [{ kind: 'partial', done: 0, planned: 0, failed: 0, openSpecies: 3, reason: 'unmatched', cap: 0 }, /^eBird's answers did not include 3 of your species, so they still count\.$/],
     ]
     const seen = new Set<string>()
     for (const [status, message] of reasons) {
@@ -108,7 +109,14 @@ describe('the seven states, one message each (FR-31, QA-36)', () => {
       expect(text).toMatch(message)
       seen.add(text)
     }
-    expect(seen.size).toBe(4)
+    expect(seen.size).toBe(5)
+  })
+
+  it("the unmatched sentence agrees with one species: 'so it still counts.'", () => {
+    // exotic-provenance-reuse D-04: the settled-but-open state, never
+    // `complete`. Ordinary agreement, no em dash.
+    renderAccount({ kind: 'partial', done: 0, planned: 0, failed: 0, openSpecies: 1, reason: 'unmatched', cap: 0 })
+    expect(screen.getByRole('status').textContent).toBe("eBird's answers did not include 1 of your species, so it still counts.")
   })
 
   it("the species-budget clause reads 'They all still count.' when it is not exactly two", () => {
@@ -146,13 +154,15 @@ describe('controls per state (FR-31 and its approved deviation)', () => {
     expect(screen.queryByRole('button', { name: /again/ })).toBeNull()
   })
 
-  it('ALL FOUR partial reasons offer "Check again" (the approved FR-31 deviation)', () => {
+  it('EVERY partial reason offers "Check again" (the approved FR-31 deviation)', () => {
     // FR-31 as written gives only `error` a retry. The design gate raised and
     // the user approved giving the partial states one too: a birder who presses
     // Stop otherwise has no route back, and because a tab stays mounted once
     // opened, partial (cancelled) would persist for the rest of the session with
     // no way to resume. This is intended behaviour, not a defect against FR-31.
-    for (const reason of ['cancelled', 'failures', 'pass-budget', 'species-budget'] as const) {
+    // `unmatched` (exotic-provenance-reuse) needs it most: it is the only way
+    // to re-ask within the 30 days.
+    for (const reason of ['cancelled', 'failures', 'pass-budget', 'species-budget', 'unmatched'] as const) {
       cleanup()
       const onRetry = vi.fn()
       renderAccount({ kind: 'partial', done: 1, planned: 2, failed: 0, openSpecies: 1, reason, cap: 25 }, { onRetry })
@@ -414,8 +424,8 @@ describe('copy hygiene (FR-44, QA-50)', () => {
       copy.statusSentence({ kind: 'offline', checkedLabel: '1 Jan 2026' }, 0),
       copy.statusSentence({ kind: 'offline', checkedLabel: null }, 0),
       copy.statusSentence({ kind: 'error' }, 0),
-      ...(['cancelled', 'failures', 'pass-budget', 'species-budget'] as const).map(reason =>
-        copy.statusSentence({ kind: 'partial', done: 1, planned: 2, failed: 1, openSpecies: 2, reason, cap: 25 }, 0)),
+      ...(['cancelled', 'failures', 'pass-budget', 'species-budget', 'unmatched'] as const).flatMap(reason => [1, 2].map(openSpecies =>
+        copy.statusSentence({ kind: 'partial', done: 1, planned: 2, failed: 1, openSpecies, reason, cap: 25 }, 0))),
       copy.discloseLabel(1, false, false),
       copy.evidenceLine(1),
     ]) {
