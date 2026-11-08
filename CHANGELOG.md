@@ -2,6 +2,17 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [1.0.64] - 2026-11-07
+
+### Fixed
+- **The Statistics tab's escapee check stops asking eBird the same questions every time you open the app.** It already kept eBird's answers for 30 days, but when those answers left out one of your species, as they do for Willet and Marsh Wren in a backup downloaded before eBird's 2026 taxonomy update, the check asked eBird about that species' checklists again every time it loaded your export, which means at every launch (29 requests each time on one real export). SnowRaven now remembers that eBird answered those checklists without the species, and asks about it again only after 30 days or when you press Check again. The line under the Species figure then reads "eBird's answers did not include N of your species, so they still count." instead of saying it stopped following up on them. Those species still count, as before, and the Species figure, the escapee and exotic lists, Life Lists, Species Detail and the Calendar are unchanged.
+
+### Internal
+- `exotic-provenance-v1` gains one optional field, `unmatched` (a species code to the time a successful eBird answer, for a checklist the export says carries that species, had no row for it) with its `unmatchedOrder`: same key and version, capped at 16,384 (`PROVENANCE_MAX_UNMATCHED`, first in first out, refreshed in place), validated on load and at the write by one predicate, clamped to the newest stamps on load, and removed by Clear with the rest of the document. `settingsRouteBudget.test.ts` holds the worst-case document (16,494,726 bytes) under the route's 16 MiB.
+- `carriersNeedingRefetch` takes the stamp set as a required fourth argument, so the v1.0.1 repair reopens a species at most once per 30 days. The stamps stay out of `ProvenanceSnapshot`, so classification and the passive readers cannot see them. Statistics no longer reports the check complete while species are still open (a new `unmatched` partial reason), which agrees with Life Lists' completion test, and Check again from that state ignores the stamps for one run.
+- New `lib/exoticProvenanceConvergence.test.tsx` runs the measured shape through the real `storage.ts` under the Tauri and web/Pi seams: consecutive loads send 29, 8, 0 and 0 checklist requests, where they sent 29 every time.
+- The F-Droid changelog for this release is three identical files, one per processor-type build (`10000641.txt`, `10000642.txt`, `10000644.txt`), and the in-repo F-Droid recipe names 1.0.64.
+
 ## [1.0.63] - 2026-11-06
 
 ### Added

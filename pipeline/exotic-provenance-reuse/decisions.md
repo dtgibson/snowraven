@@ -93,3 +93,15 @@ The pass reads `unmatchedSet` fresh each round, so a stamp written in round 0 al
 ## D-15 Test placement
 
 The convergence claim is about what a later session reads back from disk, so it runs through the real `storage.ts` under both seams in one new file, `lib/exoticProvenanceConvergence.test.tsx` (TauriStorage over a mocked plugin-fs, WebStorage over a mocked `/settings/{key}` route, one module graph per seam via `vi.resetModules`). Every other controller suite mocks `./storage` whole, so this could not be an extension of one. Red first: against the unchanged code the same file measured `[29, 29, 29, 29]` under both seams; with the change, `[29, 8, 0, 0]`. The remaining rows extend the existing store, model, controller, copy and route-budget suites.
+
+## D-16 Security review residuals, dispositions (Orchestrator, Stage 4 closeout)
+
+The Auditor's report (`security-report.md`, on disk) passed with notes: no Critical or High. Dispositions, per the standing practice of settling Low findings at the gate with a reason:
+
+- **L1 (Low), future-dated stamp honoured until it passes plus 30 days:** DEFERRED to the idea inbox (captured). It errs safe (the species still counts, Check again re-asks), and it is the same class as the saved clock-skew idea for the hotspot and county answers (`ea73086e`), so one change should close all three stores together.
+- **I1, a Tauri 200 with no observation list would stamp every species on the checklist:** DEFERRED to the inbox (captured). Pre-existing shape in `useExoticProvenance.ts` and `tauri/checklistService.ts`; the web/Pi backend cannot produce it; the direction is safe.
+- **I2, `/checklists/` outside the eBird pacing gate:** already captured at Stage 1 (`810282fa`).
+- **I3, privacy policy "stored on your device for 30 days" describes the use window, not the retention:** DEFERRED to the inbox (captured); published copy, so it waits for the user's approval and is not folded into this release's held copy.
+- **I4, the test title at `exoticProvenanceCache.test.ts:689` claims the cap sits above the whole world list and nothing checks it:** ACCEPTED as a residual for the Chronicler's ROADMAP note; a title fix on its own is not worth a second commit in a release, and the next edit to that file owes it.
+
+The Auditor's convention flag (a store that keeps a "true at time T" stamp decides in a test row what a future-dated stamp means) goes to the Chronicler with the Tester's.

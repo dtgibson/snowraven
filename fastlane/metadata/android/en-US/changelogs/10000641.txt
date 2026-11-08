@@ -1,0 +1,1 @@
+The Statistics tab's escapee check no longer asks eBird about the same checklists every time you open the app. When eBird's answers leave out some of your species, the check now says so, and those species still count.
