@@ -1,0 +1,186 @@
+dist: fixed build, frontend/dist
+mode: fixed
+census: API paths asked of the stub: {"/settings/planDaysInView":1,"/settings/disableEmbeddedMedia":1,"/settings/keys":4,"/settings/welcomeSeen":1,"/settings/textScale":1,"/settings/files":2,"/settings/theme":1,"/settings/dateFormat":1,"/settings/exotic-provenance-v1":1,"/settings/files/ebird":1,"/settings/files/ml":1,"/taxonomy/codes":1}
+census: eBird-backed paths asked: 0; requests to other hosts (aborted): 0
+PASS  [census] one cold load reaches no eBird-backed path and no other host  ebird=0 external=0
+PASS  [config] chromium light touch 390: the context reports (hover: none)  {"none":true,"hover":false}
+PASS  [touch-pill] chromium light touch 390: Photo tap 1 shows its on look  bg=rgb(232, 245, 238) border=rgba(39, 116, 72, 0.25) fg=rgb(39, 116, 72) w=600 pressed=true hover=false fv=false
+PASS  [touch-pill] chromium light touch 390: Photo tap 2 shows its off look  bg=rgb(255, 255, 255) border=rgb(228, 228, 231) fg=rgb(107, 107, 116) w=500 pressed=false hover=false fv=false
+PASS  [touch-pill] chromium light touch 390: Audio tap 1 shows its on look  bg=rgb(232, 245, 238) border=rgba(39, 116, 72, 0.25) fg=rgb(39, 116, 72) w=600 pressed=true hover=false fv=false
+PASS  [touch-pill] chromium light touch 390: Audio tap 2 shows its off look  bg=rgb(255, 255, 255) border=rgb(228, 228, 231) fg=rgb(107, 107, 116) w=500 pressed=false hover=false fv=false
+PASS  [touch-pill] chromium light touch 390: Video tap 1 shows its on look  bg=rgb(232, 245, 238) border=rgba(39, 116, 72, 0.25) fg=rgb(39, 116, 72) w=600 pressed=true hover=false fv=false
+PASS  [touch-pill] chromium light touch 390: Video tap 2 shows its off look  bg=rgb(255, 255, 255) border=rgb(228, 228, 231) fg=rgb(107, 107, 116) w=500 pressed=false hover=false fv=false
+PASS  [touch-switch] chromium light touch 390: Include Escapees tap 1 keeps the resting frame  bg=rgb(255, 255, 255) border=rgb(228, 228, 231) fg=rgb(107, 107, 116) w=500 checked=true hover=false fv=false
+PASS  [touch-switch] chromium light touch 390: Include Escapees tap 2 keeps the resting frame  bg=rgb(255, 255, 255) border=rgb(228, 228, 231) fg=rgb(107, 107, 116) w=500 checked=false hover=false fv=false
+PASS  [touch-switch] chromium light touch 390: Include Exotics tap 1 keeps the resting frame  bg=rgb(255, 255, 255) border=rgb(228, 228, 231) fg=rgb(107, 107, 116) w=500 checked=true hover=false fv=false
+PASS  [touch-switch] chromium light touch 390: Include Exotics tap 2 keeps the resting frame  bg=rgb(255, 255, 255) border=rgb(228, 228, 231) fg=rgb(107, 107, 116) w=500 checked=false hover=false fv=false
+PASS  [touch-fixture] chromium light touch 390: fixture segment tapped shows on, its sibling off  on: bg=rgb(232, 245, 238) border=rgb(39, 116, 72) fg=rgb(39, 116, 72) w=600 pressed=true hover=false fv=false | off: bg=rgba(0, 0, 0, 0) border=rgb(107, 107, 116) fg=rgb(107, 107, 116) w=500 pressed=false hover=false fv=false
+PASS  [touch-fixture] chromium light touch 390: fixture segment tapped shows on, its sibling off  on: bg=rgb(232, 245, 238) border=rgb(39, 116, 72) fg=rgb(39, 116, 72) w=600 pressed=true hover=false fv=false | off: bg=rgba(0, 0, 0, 0) border=rgb(107, 107, 116) fg=rgb(107, 107, 116) w=500 pressed=false hover=false fv=false
+PASS  [touch-fixture] chromium light touch 390: fixture negative pill tapped keeps its state look  bg=rgb(254, 242, 242) border=rgba(239, 68, 68, 0.3) fg=rgb(211, 31, 31) w=600 hover=true fv=false
+PASS  [touch-fixture] chromium light touch 390: fixture target pill tapped keeps its state look  bg=rgb(255, 247, 237) border=rgba(194, 65, 12, 0.35) fg=rgb(194, 65, 12) w=600 hover=true fv=false
+PASS  [touch-fixture] chromium light touch 390: fixture tier1On pill tapped keeps its state look  bg=rgba(192, 132, 252, 0.15) border=rgba(192, 132, 252, 0.5) fg=rgb(124, 58, 237) w=600 pressed=true hover=true fv=false
+PASS  [touch-fixture] chromium light touch 390: fixture tier3On pill tapped keeps its state look  bg=rgba(107, 33, 168, 0.08) border=rgba(107, 33, 168, 0.3) fg=rgb(107, 33, 168) w=600 pressed=true hover=true fv=false
+PASS  [keyboard] chromium light touch 390: Tab lands on Photo and draws the focus ring  active=true fv=true outline=solid 3px
+PASS  [keyboard] chromium light touch 390: Space toggles Photo, the state look follows and the ring stays  bg=rgb(232, 245, 238) border=rgba(39, 116, 72, 0.25) fg=rgb(39, 116, 72) w=600 pressed=true hover=false fv=true outline=solid 3px
+PASS  [config] chromium light mouse 1280: the context reports (hover: hover)  {"none":false,"hover":true}
+PASS  [mouse-selected] chromium light mouse 1280: Photo clicked on keeps the on look under the pointer  bg=rgb(232, 245, 238) border=rgba(39, 116, 72, 0.25) fg=rgb(39, 116, 72) w=600 pressed=true hover=true fv=false
+PASS  [mouse-rest] chromium light mouse 1280: Photo with the pointer gone shows its on look  bg=rgb(232, 245, 238) border=rgba(39, 116, 72, 0.25) fg=rgb(39, 116, 72) w=600 pressed=true hover=false fv=false
+PASS  [mouse-hover] chromium light mouse 1280: Photo clicked off shows the hover look under the pointer  bg=rgb(244, 244, 245) border=rgb(196, 196, 206) fg=rgb(15, 17, 23) w=500 pressed=false hover=true fv=false
+PASS  [mouse-rest] chromium light mouse 1280: Photo with the pointer gone shows its off look  bg=rgb(255, 255, 255) border=rgb(228, 228, 231) fg=rgb(107, 107, 116) w=500 pressed=false hover=false fv=false
+PASS  [mouse-selected] chromium light mouse 1280: Audio clicked on keeps the on look under the pointer  bg=rgb(232, 245, 238) border=rgba(39, 116, 72, 0.25) fg=rgb(39, 116, 72) w=600 pressed=true hover=true fv=false
+PASS  [mouse-rest] chromium light mouse 1280: Audio with the pointer gone shows its on look  bg=rgb(232, 245, 238) border=rgba(39, 116, 72, 0.25) fg=rgb(39, 116, 72) w=600 pressed=true hover=false fv=false
+PASS  [mouse-hover] chromium light mouse 1280: Audio clicked off shows the hover look under the pointer  bg=rgb(244, 244, 245) border=rgb(196, 196, 206) fg=rgb(15, 17, 23) w=500 pressed=false hover=true fv=false
+PASS  [mouse-rest] chromium light mouse 1280: Audio with the pointer gone shows its off look  bg=rgb(255, 255, 255) border=rgb(228, 228, 231) fg=rgb(107, 107, 116) w=500 pressed=false hover=false fv=false
+PASS  [mouse-selected] chromium light mouse 1280: Video clicked on keeps the on look under the pointer  bg=rgb(232, 245, 238) border=rgba(39, 116, 72, 0.25) fg=rgb(39, 116, 72) w=600 pressed=true hover=true fv=false
+PASS  [mouse-rest] chromium light mouse 1280: Video with the pointer gone shows its on look  bg=rgb(232, 245, 238) border=rgba(39, 116, 72, 0.25) fg=rgb(39, 116, 72) w=600 pressed=true hover=false fv=false
+PASS  [mouse-hover] chromium light mouse 1280: Video clicked off shows the hover look under the pointer  bg=rgb(244, 244, 245) border=rgb(196, 196, 206) fg=rgb(15, 17, 23) w=500 pressed=false hover=true fv=false
+PASS  [mouse-rest] chromium light mouse 1280: Video with the pointer gone shows its off look  bg=rgb(255, 255, 255) border=rgb(228, 228, 231) fg=rgb(107, 107, 116) w=500 pressed=false hover=false fv=false
+PASS  [mouse-hover] chromium light mouse 1280: Include Escapees under the pointer shows the hover frame  bg=rgb(244, 244, 245) border=rgb(196, 196, 206) fg=rgb(107, 107, 116) w=500 checked=false hover=true fv=false
+PASS  [mouse-rest] chromium light mouse 1280: Include Escapees with the pointer gone shows the resting frame  bg=rgb(255, 255, 255) border=rgb(228, 228, 231) fg=rgb(107, 107, 116) w=500 checked=false hover=false fv=false
+PASS  [mouse-selected] chromium light mouse 1280: fixture selected segment keeps the on look under the pointer  bg=rgb(232, 245, 238) border=rgb(39, 116, 72) fg=rgb(39, 116, 72) w=600 pressed=true hover=true fv=false
+PASS  [mouse-hover] chromium light mouse 1280: fixture unselected segment shows the hover look under the pointer  bg=rgb(244, 244, 245) border=rgb(15, 17, 23) fg=rgb(15, 17, 23) w=500 pressed=false hover=true fv=false
+PASS  [mouse-selected] chromium light mouse 1280: fixture negative pill keeps its state look under the pointer  bg=rgb(254, 242, 242) border=rgba(239, 68, 68, 0.3) fg=rgb(211, 31, 31) w=600 hover=true fv=false
+PASS  [mouse-selected] chromium light mouse 1280: fixture target pill keeps its state look under the pointer  bg=rgb(255, 247, 237) border=rgba(194, 65, 12, 0.35) fg=rgb(194, 65, 12) w=600 hover=true fv=false
+PASS  [mouse-selected] chromium light mouse 1280: fixture tier1On pill keeps its state look under the pointer  bg=rgba(192, 132, 252, 0.15) border=rgba(192, 132, 252, 0.5) fg=rgb(124, 58, 237) w=600 pressed=true hover=true fv=false
+PASS  [mouse-selected] chromium light mouse 1280: fixture tier3On pill keeps its state look under the pointer  bg=rgba(107, 33, 168, 0.08) border=rgba(107, 33, 168, 0.3) fg=rgb(107, 33, 168) w=600 pressed=true hover=true fv=false
+PASS  [keyboard] chromium light mouse 1280: Tab lands on Photo and draws the focus ring  active=true fv=true outline=solid 3px
+PASS  [keyboard] chromium light mouse 1280: Space toggles Photo, the state look follows and the ring stays  bg=rgb(232, 245, 238) border=rgba(39, 116, 72, 0.25) fg=rgb(39, 116, 72) w=600 pressed=true hover=false fv=true outline=solid 3px
+PASS  [config] chromium dark touch 390: the context reports (hover: none)  {"none":true,"hover":false}
+PASS  [touch-pill] chromium dark touch 390: Photo tap 1 shows its on look  bg=rgb(5, 46, 22) border=rgba(52, 211, 153, 0.2) fg=rgb(52, 211, 153) w=600 pressed=true hover=false fv=false
+PASS  [touch-pill] chromium dark touch 390: Photo tap 2 shows its off look  bg=rgb(24, 24, 27) border=rgb(39, 39, 42) fg=rgb(161, 161, 170) w=500 pressed=false hover=false fv=false
+PASS  [touch-pill] chromium dark touch 390: Audio tap 1 shows its on look  bg=rgb(5, 46, 22) border=rgba(52, 211, 153, 0.2) fg=rgb(52, 211, 153) w=600 pressed=true hover=false fv=false
+PASS  [touch-pill] chromium dark touch 390: Audio tap 2 shows its off look  bg=rgb(24, 24, 27) border=rgb(39, 39, 42) fg=rgb(161, 161, 170) w=500 pressed=false hover=false fv=false
+PASS  [touch-pill] chromium dark touch 390: Video tap 1 shows its on look  bg=rgb(5, 46, 22) border=rgba(52, 211, 153, 0.2) fg=rgb(52, 211, 153) w=600 pressed=true hover=false fv=false
+PASS  [touch-pill] chromium dark touch 390: Video tap 2 shows its off look  bg=rgb(24, 24, 27) border=rgb(39, 39, 42) fg=rgb(161, 161, 170) w=500 pressed=false hover=false fv=false
+PASS  [touch-switch] chromium dark touch 390: Include Escapees tap 1 keeps the resting frame  bg=rgb(24, 24, 27) border=rgb(39, 39, 42) fg=rgb(161, 161, 170) w=500 checked=true hover=false fv=false
+PASS  [touch-switch] chromium dark touch 390: Include Escapees tap 2 keeps the resting frame  bg=rgb(24, 24, 27) border=rgb(39, 39, 42) fg=rgb(161, 161, 170) w=500 checked=false hover=false fv=false
+PASS  [touch-switch] chromium dark touch 390: Include Exotics tap 1 keeps the resting frame  bg=rgb(24, 24, 27) border=rgb(39, 39, 42) fg=rgb(161, 161, 170) w=500 checked=true hover=false fv=false
+PASS  [touch-switch] chromium dark touch 390: Include Exotics tap 2 keeps the resting frame  bg=rgb(24, 24, 27) border=rgb(39, 39, 42) fg=rgb(161, 161, 170) w=500 checked=false hover=false fv=false
+PASS  [touch-fixture] chromium dark touch 390: fixture segment tapped shows on, its sibling off  on: bg=rgb(5, 46, 22) border=rgb(52, 211, 153) fg=rgb(52, 211, 153) w=600 pressed=true hover=false fv=false | off: bg=rgba(0, 0, 0, 0) border=rgb(161, 161, 170) fg=rgb(161, 161, 170) w=500 pressed=false hover=false fv=false
+PASS  [touch-fixture] chromium dark touch 390: fixture segment tapped shows on, its sibling off  on: bg=rgb(5, 46, 22) border=rgb(52, 211, 153) fg=rgb(52, 211, 153) w=600 pressed=true hover=false fv=false | off: bg=rgba(0, 0, 0, 0) border=rgb(161, 161, 170) fg=rgb(161, 161, 170) w=500 pressed=false hover=false fv=false
+PASS  [touch-fixture] chromium dark touch 390: fixture negative pill tapped keeps its state look  bg=rgb(28, 5, 5) border=rgba(248, 113, 113, 0.2) fg=rgb(248, 113, 113) w=600 hover=true fv=false
+PASS  [touch-fixture] chromium dark touch 390: fixture target pill tapped keeps its state look  bg=rgb(28, 15, 0) border=rgba(251, 146, 60, 0.3) fg=rgb(251, 146, 60) w=600 hover=true fv=false
+PASS  [touch-fixture] chromium dark touch 390: fixture tier1On pill tapped keeps its state look  bg=rgba(192, 132, 252, 0.15) border=rgba(192, 132, 252, 0.5) fg=rgb(192, 132, 252) w=600 pressed=true hover=true fv=false
+PASS  [touch-fixture] chromium dark touch 390: fixture tier3On pill tapped keeps its state look  bg=rgba(124, 58, 237, 0.08) border=rgba(124, 58, 237, 0.3) fg=rgb(167, 139, 250) w=600 pressed=true hover=true fv=false
+PASS  [keyboard] chromium dark touch 390: Tab lands on Photo and draws the focus ring  active=true fv=true outline=solid 3px
+PASS  [keyboard] chromium dark touch 390: Space toggles Photo, the state look follows and the ring stays  bg=rgb(5, 46, 22) border=rgba(52, 211, 153, 0.2) fg=rgb(52, 211, 153) w=600 pressed=true hover=false fv=true outline=solid 3px
+PASS  [config] chromium dark mouse 1280: the context reports (hover: hover)  {"none":false,"hover":true}
+PASS  [mouse-selected] chromium dark mouse 1280: Photo clicked on keeps the on look under the pointer  bg=rgb(5, 46, 22) border=rgba(52, 211, 153, 0.2) fg=rgb(52, 211, 153) w=600 pressed=true hover=true fv=false
+PASS  [mouse-rest] chromium dark mouse 1280: Photo with the pointer gone shows its on look  bg=rgb(5, 46, 22) border=rgba(52, 211, 153, 0.2) fg=rgb(52, 211, 153) w=600 pressed=true hover=false fv=false
+PASS  [mouse-hover] chromium dark mouse 1280: Photo clicked off shows the hover look under the pointer  bg=rgb(39, 39, 42) border=rgb(63, 63, 70) fg=rgb(244, 244, 245) w=500 pressed=false hover=true fv=false
+PASS  [mouse-rest] chromium dark mouse 1280: Photo with the pointer gone shows its off look  bg=rgb(24, 24, 27) border=rgb(39, 39, 42) fg=rgb(161, 161, 170) w=500 pressed=false hover=false fv=false
+PASS  [mouse-selected] chromium dark mouse 1280: Audio clicked on keeps the on look under the pointer  bg=rgb(5, 46, 22) border=rgba(52, 211, 153, 0.2) fg=rgb(52, 211, 153) w=600 pressed=true hover=true fv=false
+PASS  [mouse-rest] chromium dark mouse 1280: Audio with the pointer gone shows its on look  bg=rgb(5, 46, 22) border=rgba(52, 211, 153, 0.2) fg=rgb(52, 211, 153) w=600 pressed=true hover=false fv=false
+PASS  [mouse-hover] chromium dark mouse 1280: Audio clicked off shows the hover look under the pointer  bg=rgb(39, 39, 42) border=rgb(63, 63, 70) fg=rgb(244, 244, 245) w=500 pressed=false hover=true fv=false
+PASS  [mouse-rest] chromium dark mouse 1280: Audio with the pointer gone shows its off look  bg=rgb(24, 24, 27) border=rgb(39, 39, 42) fg=rgb(161, 161, 170) w=500 pressed=false hover=false fv=false
+PASS  [mouse-selected] chromium dark mouse 1280: Video clicked on keeps the on look under the pointer  bg=rgb(5, 46, 22) border=rgba(52, 211, 153, 0.2) fg=rgb(52, 211, 153) w=600 pressed=true hover=true fv=false
+PASS  [mouse-rest] chromium dark mouse 1280: Video with the pointer gone shows its on look  bg=rgb(5, 46, 22) border=rgba(52, 211, 153, 0.2) fg=rgb(52, 211, 153) w=600 pressed=true hover=false fv=false
+PASS  [mouse-hover] chromium dark mouse 1280: Video clicked off shows the hover look under the pointer  bg=rgb(39, 39, 42) border=rgb(63, 63, 70) fg=rgb(244, 244, 245) w=500 pressed=false hover=true fv=false
+PASS  [mouse-rest] chromium dark mouse 1280: Video with the pointer gone shows its off look  bg=rgb(24, 24, 27) border=rgb(39, 39, 42) fg=rgb(161, 161, 170) w=500 pressed=false hover=false fv=false
+PASS  [mouse-hover] chromium dark mouse 1280: Include Escapees under the pointer shows the hover frame  bg=rgb(39, 39, 42) border=rgb(63, 63, 70) fg=rgb(161, 161, 170) w=500 checked=false hover=true fv=false
+PASS  [mouse-rest] chromium dark mouse 1280: Include Escapees with the pointer gone shows the resting frame  bg=rgb(24, 24, 27) border=rgb(39, 39, 42) fg=rgb(161, 161, 170) w=500 checked=false hover=false fv=false
+PASS  [mouse-selected] chromium dark mouse 1280: fixture selected segment keeps the on look under the pointer  bg=rgb(5, 46, 22) border=rgb(52, 211, 153) fg=rgb(52, 211, 153) w=600 pressed=true hover=true fv=false
+PASS  [mouse-hover] chromium dark mouse 1280: fixture unselected segment shows the hover look under the pointer  bg=rgb(39, 39, 42) border=rgb(244, 244, 245) fg=rgb(244, 244, 245) w=500 pressed=false hover=true fv=false
+PASS  [mouse-selected] chromium dark mouse 1280: fixture negative pill keeps its state look under the pointer  bg=rgb(28, 5, 5) border=rgba(248, 113, 113, 0.2) fg=rgb(248, 113, 113) w=600 hover=true fv=false
+PASS  [mouse-selected] chromium dark mouse 1280: fixture target pill keeps its state look under the pointer  bg=rgb(28, 15, 0) border=rgba(251, 146, 60, 0.3) fg=rgb(251, 146, 60) w=600 hover=true fv=false
+PASS  [mouse-selected] chromium dark mouse 1280: fixture tier1On pill keeps its state look under the pointer  bg=rgba(192, 132, 252, 0.15) border=rgba(192, 132, 252, 0.5) fg=rgb(192, 132, 252) w=600 pressed=true hover=true fv=false
+PASS  [mouse-selected] chromium dark mouse 1280: fixture tier3On pill keeps its state look under the pointer  bg=rgba(124, 58, 237, 0.08) border=rgba(124, 58, 237, 0.3) fg=rgb(167, 139, 250) w=600 pressed=true hover=true fv=false
+PASS  [keyboard] chromium dark mouse 1280: Tab lands on Photo and draws the focus ring  active=true fv=true outline=solid 3px
+PASS  [keyboard] chromium dark mouse 1280: Space toggles Photo, the state look follows and the ring stays  bg=rgb(5, 46, 22) border=rgba(52, 211, 153, 0.2) fg=rgb(52, 211, 153) w=600 pressed=true hover=false fv=true outline=solid 3px
+PASS  [config] webkit light touch 390: the context reports (hover: none)  {"none":true,"hover":false}
+PASS  [touch-pill] webkit light touch 390: Photo tap 1 shows its on look  bg=rgb(232, 245, 238) border=rgba(39, 116, 72, 0.25) fg=rgb(39, 116, 72) w=600 pressed=true hover=true fv=false
+PASS  [touch-pill] webkit light touch 390: Photo tap 2 shows its off look  bg=rgb(255, 255, 255) border=rgb(228, 228, 231) fg=rgb(107, 107, 116) w=500 pressed=false hover=true fv=false
+PASS  [touch-pill] webkit light touch 390: Audio tap 1 shows its on look  bg=rgb(232, 245, 238) border=rgba(39, 116, 72, 0.25) fg=rgb(39, 116, 72) w=600 pressed=true hover=true fv=false
+PASS  [touch-pill] webkit light touch 390: Audio tap 2 shows its off look  bg=rgb(255, 255, 255) border=rgb(228, 228, 231) fg=rgb(107, 107, 116) w=500 pressed=false hover=true fv=false
+PASS  [touch-pill] webkit light touch 390: Video tap 1 shows its on look  bg=rgb(232, 245, 238) border=rgba(39, 116, 72, 0.25) fg=rgb(39, 116, 72) w=600 pressed=true hover=true fv=false
+PASS  [touch-pill] webkit light touch 390: Video tap 2 shows its off look  bg=rgb(255, 255, 255) border=rgb(228, 228, 231) fg=rgb(107, 107, 116) w=500 pressed=false hover=true fv=false
+PASS  [touch-switch] webkit light touch 390: Include Escapees tap 1 keeps the resting frame  bg=rgb(255, 255, 255) border=rgb(228, 228, 231) fg=rgb(107, 107, 116) w=500 checked=true hover=true fv=false
+PASS  [touch-switch] webkit light touch 390: Include Escapees tap 2 keeps the resting frame  bg=rgb(255, 255, 255) border=rgb(228, 228, 231) fg=rgb(107, 107, 116) w=500 checked=false hover=true fv=false
+PASS  [touch-switch] webkit light touch 390: Include Exotics tap 1 keeps the resting frame  bg=rgb(255, 255, 255) border=rgb(228, 228, 231) fg=rgb(107, 107, 116) w=500 checked=true hover=true fv=false
+PASS  [touch-switch] webkit light touch 390: Include Exotics tap 2 keeps the resting frame  bg=rgb(255, 255, 255) border=rgb(228, 228, 231) fg=rgb(107, 107, 116) w=500 checked=false hover=true fv=false
+PASS  [touch-fixture] webkit light touch 390: fixture segment tapped shows on, its sibling off  on: bg=rgb(232, 245, 238) border=rgb(39, 116, 72) fg=rgb(39, 116, 72) w=600 pressed=true hover=true fv=false | off: bg=rgba(0, 0, 0, 0) border=rgb(107, 107, 116) fg=rgb(107, 107, 116) w=500 pressed=false hover=false fv=false
+PASS  [touch-fixture] webkit light touch 390: fixture segment tapped shows on, its sibling off  on: bg=rgb(232, 245, 238) border=rgb(39, 116, 72) fg=rgb(39, 116, 72) w=600 pressed=true hover=true fv=false | off: bg=rgba(0, 0, 0, 0) border=rgb(107, 107, 116) fg=rgb(107, 107, 116) w=500 pressed=false hover=false fv=false
+PASS  [touch-fixture] webkit light touch 390: fixture negative pill tapped keeps its state look  bg=rgb(254, 242, 242) border=rgba(239, 68, 68, 0.3) fg=rgb(211, 31, 31) w=600 hover=true fv=false
+PASS  [touch-fixture] webkit light touch 390: fixture target pill tapped keeps its state look  bg=rgb(255, 247, 237) border=rgba(194, 65, 12, 0.35) fg=rgb(194, 65, 12) w=600 hover=true fv=false
+PASS  [touch-fixture] webkit light touch 390: fixture tier1On pill tapped keeps its state look  bg=rgba(192, 132, 252, 0.15) border=rgba(192, 132, 252, 0.5) fg=rgb(124, 58, 237) w=600 pressed=true hover=true fv=false
+PASS  [touch-fixture] webkit light touch 390: fixture tier3On pill tapped keeps its state look  bg=rgba(107, 33, 168, 0.08) border=rgba(107, 33, 168, 0.3) fg=rgb(107, 33, 168) w=600 pressed=true hover=true fv=false
+PASS  [keyboard] webkit light touch 390: Tab lands on Photo and draws the focus ring  active=true fv=true outline=solid 3px
+PASS  [keyboard] webkit light touch 390: Space toggles Photo, the state look follows and the ring stays  bg=rgb(232, 245, 238) border=rgba(39, 116, 72, 0.25) fg=rgb(39, 116, 72) w=600 pressed=true hover=false fv=true outline=solid 3px
+PASS  [config] webkit light mouse 1280: the context reports (hover: hover)  {"none":false,"hover":true}
+PASS  [mouse-selected] webkit light mouse 1280: Photo clicked on keeps the on look under the pointer  bg=rgb(232, 245, 238) border=rgba(39, 116, 72, 0.25) fg=rgb(39, 116, 72) w=600 pressed=true hover=true fv=false
+PASS  [mouse-rest] webkit light mouse 1280: Photo with the pointer gone shows its on look  bg=rgb(232, 245, 238) border=rgba(39, 116, 72, 0.25) fg=rgb(39, 116, 72) w=600 pressed=true hover=false fv=false
+PASS  [mouse-hover] webkit light mouse 1280: Photo clicked off shows the hover look under the pointer  bg=rgb(244, 244, 245) border=rgb(196, 196, 206) fg=rgb(15, 17, 23) w=500 pressed=false hover=true fv=false
+PASS  [mouse-rest] webkit light mouse 1280: Photo with the pointer gone shows its off look  bg=rgb(255, 255, 255) border=rgb(228, 228, 231) fg=rgb(107, 107, 116) w=500 pressed=false hover=false fv=false
+PASS  [mouse-selected] webkit light mouse 1280: Audio clicked on keeps the on look under the pointer  bg=rgb(232, 245, 238) border=rgba(39, 116, 72, 0.25) fg=rgb(39, 116, 72) w=600 pressed=true hover=true fv=false
+PASS  [mouse-rest] webkit light mouse 1280: Audio with the pointer gone shows its on look  bg=rgb(232, 245, 238) border=rgba(39, 116, 72, 0.25) fg=rgb(39, 116, 72) w=600 pressed=true hover=false fv=false
+PASS  [mouse-hover] webkit light mouse 1280: Audio clicked off shows the hover look under the pointer  bg=rgb(244, 244, 245) border=rgb(196, 196, 206) fg=rgb(15, 17, 23) w=500 pressed=false hover=true fv=false
+PASS  [mouse-rest] webkit light mouse 1280: Audio with the pointer gone shows its off look  bg=rgb(255, 255, 255) border=rgb(228, 228, 231) fg=rgb(107, 107, 116) w=500 pressed=false hover=false fv=false
+PASS  [mouse-selected] webkit light mouse 1280: Video clicked on keeps the on look under the pointer  bg=rgb(232, 245, 238) border=rgba(39, 116, 72, 0.25) fg=rgb(39, 116, 72) w=600 pressed=true hover=true fv=false
+PASS  [mouse-rest] webkit light mouse 1280: Video with the pointer gone shows its on look  bg=rgb(232, 245, 238) border=rgba(39, 116, 72, 0.25) fg=rgb(39, 116, 72) w=600 pressed=true hover=false fv=false
+PASS  [mouse-hover] webkit light mouse 1280: Video clicked off shows the hover look under the pointer  bg=rgb(244, 244, 245) border=rgb(196, 196, 206) fg=rgb(15, 17, 23) w=500 pressed=false hover=true fv=false
+PASS  [mouse-rest] webkit light mouse 1280: Video with the pointer gone shows its off look  bg=rgb(255, 255, 255) border=rgb(228, 228, 231) fg=rgb(107, 107, 116) w=500 pressed=false hover=false fv=false
+PASS  [mouse-hover] webkit light mouse 1280: Include Escapees under the pointer shows the hover frame  bg=rgb(244, 244, 245) border=rgb(196, 196, 206) fg=rgb(107, 107, 116) w=500 checked=false hover=true fv=false
+PASS  [mouse-rest] webkit light mouse 1280: Include Escapees with the pointer gone shows the resting frame  bg=rgb(255, 255, 255) border=rgb(228, 228, 231) fg=rgb(107, 107, 116) w=500 checked=false hover=false fv=false
+PASS  [mouse-selected] webkit light mouse 1280: fixture selected segment keeps the on look under the pointer  bg=rgb(232, 245, 238) border=rgb(39, 116, 72) fg=rgb(39, 116, 72) w=600 pressed=true hover=true fv=false
+PASS  [mouse-hover] webkit light mouse 1280: fixture unselected segment shows the hover look under the pointer  bg=rgb(244, 244, 245) border=rgb(15, 17, 23) fg=rgb(15, 17, 23) w=500 pressed=false hover=true fv=false
+PASS  [mouse-selected] webkit light mouse 1280: fixture negative pill keeps its state look under the pointer  bg=rgb(254, 242, 242) border=rgba(239, 68, 68, 0.3) fg=rgb(211, 31, 31) w=600 hover=true fv=false
+PASS  [mouse-selected] webkit light mouse 1280: fixture target pill keeps its state look under the pointer  bg=rgb(255, 247, 237) border=rgba(194, 65, 12, 0.35) fg=rgb(194, 65, 12) w=600 hover=true fv=false
+PASS  [mouse-selected] webkit light mouse 1280: fixture tier1On pill keeps its state look under the pointer  bg=rgba(192, 132, 252, 0.15) border=rgba(192, 132, 252, 0.5) fg=rgb(124, 58, 237) w=600 pressed=true hover=true fv=false
+PASS  [mouse-selected] webkit light mouse 1280: fixture tier3On pill keeps its state look under the pointer  bg=rgba(107, 33, 168, 0.08) border=rgba(107, 33, 168, 0.3) fg=rgb(107, 33, 168) w=600 pressed=true hover=true fv=false
+PASS  [keyboard] webkit light mouse 1280: Tab lands on Photo and draws the focus ring  active=true fv=true outline=solid 3px
+PASS  [keyboard] webkit light mouse 1280: Space toggles Photo, the state look follows and the ring stays  bg=rgb(232, 245, 238) border=rgba(39, 116, 72, 0.25) fg=rgb(39, 116, 72) w=600 pressed=true hover=false fv=true outline=solid 3px
+PASS  [config] webkit dark touch 390: the context reports (hover: none)  {"none":true,"hover":false}
+PASS  [touch-pill] webkit dark touch 390: Photo tap 1 shows its on look  bg=rgb(5, 46, 22) border=rgba(52, 211, 153, 0.2) fg=rgb(52, 211, 153) w=600 pressed=true hover=true fv=false
+PASS  [touch-pill] webkit dark touch 390: Photo tap 2 shows its off look  bg=rgb(24, 24, 27) border=rgb(39, 39, 42) fg=rgb(161, 161, 170) w=500 pressed=false hover=true fv=false
+PASS  [touch-pill] webkit dark touch 390: Audio tap 1 shows its on look  bg=rgb(5, 46, 22) border=rgba(52, 211, 153, 0.2) fg=rgb(52, 211, 153) w=600 pressed=true hover=true fv=false
+PASS  [touch-pill] webkit dark touch 390: Audio tap 2 shows its off look  bg=rgb(24, 24, 27) border=rgb(39, 39, 42) fg=rgb(161, 161, 170) w=500 pressed=false hover=true fv=false
+PASS  [touch-pill] webkit dark touch 390: Video tap 1 shows its on look  bg=rgb(5, 46, 22) border=rgba(52, 211, 153, 0.2) fg=rgb(52, 211, 153) w=600 pressed=true hover=true fv=false
+PASS  [touch-pill] webkit dark touch 390: Video tap 2 shows its off look  bg=rgb(24, 24, 27) border=rgb(39, 39, 42) fg=rgb(161, 161, 170) w=500 pressed=false hover=true fv=false
+PASS  [touch-switch] webkit dark touch 390: Include Escapees tap 1 keeps the resting frame  bg=rgb(24, 24, 27) border=rgb(39, 39, 42) fg=rgb(161, 161, 170) w=500 checked=true hover=true fv=false
+PASS  [touch-switch] webkit dark touch 390: Include Escapees tap 2 keeps the resting frame  bg=rgb(24, 24, 27) border=rgb(39, 39, 42) fg=rgb(161, 161, 170) w=500 checked=false hover=true fv=false
+PASS  [touch-switch] webkit dark touch 390: Include Exotics tap 1 keeps the resting frame  bg=rgb(24, 24, 27) border=rgb(39, 39, 42) fg=rgb(161, 161, 170) w=500 checked=true hover=true fv=false
+PASS  [touch-switch] webkit dark touch 390: Include Exotics tap 2 keeps the resting frame  bg=rgb(24, 24, 27) border=rgb(39, 39, 42) fg=rgb(161, 161, 170) w=500 checked=false hover=true fv=false
+PASS  [touch-fixture] webkit dark touch 390: fixture segment tapped shows on, its sibling off  on: bg=rgb(5, 46, 22) border=rgb(52, 211, 153) fg=rgb(52, 211, 153) w=600 pressed=true hover=true fv=false | off: bg=rgba(0, 0, 0, 0) border=rgb(161, 161, 170) fg=rgb(161, 161, 170) w=500 pressed=false hover=false fv=false
+PASS  [touch-fixture] webkit dark touch 390: fixture segment tapped shows on, its sibling off  on: bg=rgb(5, 46, 22) border=rgb(52, 211, 153) fg=rgb(52, 211, 153) w=600 pressed=true hover=true fv=false | off: bg=rgba(0, 0, 0, 0) border=rgb(161, 161, 170) fg=rgb(161, 161, 170) w=500 pressed=false hover=false fv=false
+PASS  [touch-fixture] webkit dark touch 390: fixture negative pill tapped keeps its state look  bg=rgb(28, 5, 5) border=rgba(248, 113, 113, 0.2) fg=rgb(248, 113, 113) w=600 hover=true fv=false
+PASS  [touch-fixture] webkit dark touch 390: fixture target pill tapped keeps its state look  bg=rgb(28, 15, 0) border=rgba(251, 146, 60, 0.3) fg=rgb(251, 146, 60) w=600 hover=true fv=false
+PASS  [touch-fixture] webkit dark touch 390: fixture tier1On pill tapped keeps its state look  bg=rgba(192, 132, 252, 0.15) border=rgba(192, 132, 252, 0.5) fg=rgb(192, 132, 252) w=600 pressed=true hover=true fv=false
+PASS  [touch-fixture] webkit dark touch 390: fixture tier3On pill tapped keeps its state look  bg=rgba(124, 58, 237, 0.08) border=rgba(124, 58, 237, 0.3) fg=rgb(167, 139, 250) w=600 pressed=true hover=true fv=false
+PASS  [keyboard] webkit dark touch 390: Tab lands on Photo and draws the focus ring  active=true fv=true outline=solid 3px
+PASS  [keyboard] webkit dark touch 390: Space toggles Photo, the state look follows and the ring stays  bg=rgb(5, 46, 22) border=rgba(52, 211, 153, 0.2) fg=rgb(52, 211, 153) w=600 pressed=true hover=false fv=true outline=solid 3px
+PASS  [config] webkit dark mouse 1280: the context reports (hover: hover)  {"none":false,"hover":true}
+PASS  [mouse-selected] webkit dark mouse 1280: Photo clicked on keeps the on look under the pointer  bg=rgb(5, 46, 22) border=rgba(52, 211, 153, 0.2) fg=rgb(52, 211, 153) w=600 pressed=true hover=true fv=false
+PASS  [mouse-rest] webkit dark mouse 1280: Photo with the pointer gone shows its on look  bg=rgb(5, 46, 22) border=rgba(52, 211, 153, 0.2) fg=rgb(52, 211, 153) w=600 pressed=true hover=false fv=false
+PASS  [mouse-hover] webkit dark mouse 1280: Photo clicked off shows the hover look under the pointer  bg=rgb(39, 39, 42) border=rgb(63, 63, 70) fg=rgb(244, 244, 245) w=500 pressed=false hover=true fv=false
+PASS  [mouse-rest] webkit dark mouse 1280: Photo with the pointer gone shows its off look  bg=rgb(24, 24, 27) border=rgb(39, 39, 42) fg=rgb(161, 161, 170) w=500 pressed=false hover=false fv=false
+PASS  [mouse-selected] webkit dark mouse 1280: Audio clicked on keeps the on look under the pointer  bg=rgb(5, 46, 22) border=rgba(52, 211, 153, 0.2) fg=rgb(52, 211, 153) w=600 pressed=true hover=true fv=false
+PASS  [mouse-rest] webkit dark mouse 1280: Audio with the pointer gone shows its on look  bg=rgb(5, 46, 22) border=rgba(52, 211, 153, 0.2) fg=rgb(52, 211, 153) w=600 pressed=true hover=false fv=false
+PASS  [mouse-hover] webkit dark mouse 1280: Audio clicked off shows the hover look under the pointer  bg=rgb(39, 39, 42) border=rgb(63, 63, 70) fg=rgb(244, 244, 245) w=500 pressed=false hover=true fv=false
+PASS  [mouse-rest] webkit dark mouse 1280: Audio with the pointer gone shows its off look  bg=rgb(24, 24, 27) border=rgb(39, 39, 42) fg=rgb(161, 161, 170) w=500 pressed=false hover=false fv=false
+PASS  [mouse-selected] webkit dark mouse 1280: Video clicked on keeps the on look under the pointer  bg=rgb(5, 46, 22) border=rgba(52, 211, 153, 0.2) fg=rgb(52, 211, 153) w=600 pressed=true hover=true fv=false
+PASS  [mouse-rest] webkit dark mouse 1280: Video with the pointer gone shows its on look  bg=rgb(5, 46, 22) border=rgba(52, 211, 153, 0.2) fg=rgb(52, 211, 153) w=600 pressed=true hover=false fv=false
+PASS  [mouse-hover] webkit dark mouse 1280: Video clicked off shows the hover look under the pointer  bg=rgb(39, 39, 42) border=rgb(63, 63, 70) fg=rgb(244, 244, 245) w=500 pressed=false hover=true fv=false
+PASS  [mouse-rest] webkit dark mouse 1280: Video with the pointer gone shows its off look  bg=rgb(24, 24, 27) border=rgb(39, 39, 42) fg=rgb(161, 161, 170) w=500 pressed=false hover=false fv=false
+PASS  [mouse-hover] webkit dark mouse 1280: Include Escapees under the pointer shows the hover frame  bg=rgb(39, 39, 42) border=rgb(63, 63, 70) fg=rgb(161, 161, 170) w=500 checked=false hover=true fv=false
+PASS  [mouse-rest] webkit dark mouse 1280: Include Escapees with the pointer gone shows the resting frame  bg=rgb(24, 24, 27) border=rgb(39, 39, 42) fg=rgb(161, 161, 170) w=500 checked=false hover=false fv=false
+PASS  [mouse-selected] webkit dark mouse 1280: fixture selected segment keeps the on look under the pointer  bg=rgb(5, 46, 22) border=rgb(52, 211, 153) fg=rgb(52, 211, 153) w=600 pressed=true hover=true fv=false
+PASS  [mouse-hover] webkit dark mouse 1280: fixture unselected segment shows the hover look under the pointer  bg=rgb(39, 39, 42) border=rgb(244, 244, 245) fg=rgb(244, 244, 245) w=500 pressed=false hover=true fv=false
+PASS  [mouse-selected] webkit dark mouse 1280: fixture negative pill keeps its state look under the pointer  bg=rgb(28, 5, 5) border=rgba(248, 113, 113, 0.2) fg=rgb(248, 113, 113) w=600 hover=true fv=false
+PASS  [mouse-selected] webkit dark mouse 1280: fixture target pill keeps its state look under the pointer  bg=rgb(28, 15, 0) border=rgba(251, 146, 60, 0.3) fg=rgb(251, 146, 60) w=600 hover=true fv=false
+PASS  [mouse-selected] webkit dark mouse 1280: fixture tier1On pill keeps its state look under the pointer  bg=rgba(192, 132, 252, 0.15) border=rgba(192, 132, 252, 0.5) fg=rgb(192, 132, 252) w=600 pressed=true hover=true fv=false
+PASS  [mouse-selected] webkit dark mouse 1280: fixture tier3On pill keeps its state look under the pointer  bg=rgba(124, 58, 237, 0.08) border=rgba(124, 58, 237, 0.3) fg=rgb(167, 139, 250) w=600 pressed=true hover=true fv=false
+PASS  [keyboard] webkit dark mouse 1280: Tab lands on Photo and draws the focus ring  active=true fv=true outline=solid 3px
+PASS  [keyboard] webkit dark mouse 1280: Space toggles Photo, the state look follows and the ring stays  bg=rgb(5, 46, 22) border=rgba(52, 211, 153, 0.2) fg=rgb(52, 211, 153) w=600 pressed=true hover=false fv=true outline=solid 3px
+
+census after all legs: eBird-backed paths asked 0, other hosts 0
+  census: 1/1 pass
+  config: 8/8 pass
+  keyboard: 16/16 pass
+  mouse-hover: 20/20 pass
+  mouse-rest: 28/28 pass
+  mouse-selected: 32/32 pass
+  touch-fixture: 24/24 pass
+  touch-pill: 24/24 pass
+  touch-switch: 16/16 pass
+total: 169/169 pass
+RESULT: matched mode "fixed"

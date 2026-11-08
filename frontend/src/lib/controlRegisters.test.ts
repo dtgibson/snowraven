@@ -15,12 +15,18 @@
 /// <reference types="node" />
 import { describe, expect, it } from 'vitest'
 import { readdirSync, readFileSync } from 'node:fs'
+import { compoundsOf, simpleParts, specificity } from '../test/cssSpecificity'
 
 const css = readFileSync(new URL('../globals.css', import.meta.url), 'utf8')
 // Comments blanked to spaces of EQUAL LENGTH: this file's subjects are discussed
 // at length in the stylesheet's own prose, so a raw scan would be satisfied by a
 // comment describing a rule that is not there.
-const clean = css.replace(/\/\*[\s\S]*?\*\//g, m => ' '.repeat(m.length))
+const blankComments = (text: string) => text.replace(/\/\*[\s\S]*?\*\//g, m => ' '.repeat(m.length))
+const clean = blankComments(css)
+
+/** Specificity as one comparable number, and as the (a,b,c) the messages print. */
+const rank = ([a, b, c]: [number, number, number]) => a * 1e6 + b * 1e3 + c
+const show = (s: [number, number, number]) => `(${s.join(',')})`
 
 interface Rule { selectors: string[]; body: string; ancestors: string[] }
 
@@ -173,26 +179,34 @@ describe('Register A: the standalone filter pill', () => {
     // `.sr-toggle`'s rule, copied deliberately. A pill showing a not-allowed
     // cursor that still brightens under the pointer reads as operable, which is
     // the thing its disabled state exists to deny.
-    const hover = matching('.sr-pill:not(:disabled):not([aria-disabled="true"]):hover')
+    // The gates sit inside `:where()`, so they add no specificity (the cascade
+    // guard below says why that matters).
+    const hover = matching('.sr-pill:where(:not(:disabled):not([aria-disabled="true"])):hover')
     expect(hover, 'the hover rule must carry both inert gates').toHaveLength(1)
     const disabled = declarations(only('.sr-pill:disabled').body)
     expect(disabled.get('cursor')).toBe('not-allowed')
     expect(disabled.get('color')).toBe('var(--sr-text-disabled)')
   })
 
-  it('declares every selected state AFTER hover, so the selection wins', () => {
-    // Equal specificity, so source order decides. Declared before `:hover`, a
-    // pressed pill would revert to the hover colours under the pointer — visible
-    // only while hovering, which is why this is asserted rather than eyeballed.
-    // The `.sr-map-fab` / `.sr-hotspot-mode-pill` convention.
-    const hover = orderOf('.sr-pill:not(:disabled)')
+  it('declares every selected state AFTER hover, and never below its specificity', () => {
+    // The hover rule is (0,2,0) and the pressed, negative and target rules are
+    // (0,2,0) too, so for those source order decides; the tier rules are (0,3,0)
+    // and win on specificity. Until life-list-filter-toggle-state this test
+    // claimed "equal specificity" while the hover rule was (0,4,0), and it
+    // passed on the defect because it checked only the order. The roster-wide
+    // form, with its mutation rows, is the cascade guard below.
+    const hover = matching('.sr-pill:where(:not(:disabled):not([aria-disabled="true"])):hover')
+    expect(hover).toHaveLength(1)
+    const hoverAt = rules.indexOf(hover[0])
     for (const selected of [
       '.sr-pill[aria-pressed="true"]',
       '.sr-pill[data-state="negative"]',
       '.sr-pill[data-state="target"]',
       '.sr-pill[data-tier="1"][aria-pressed="true"]',
     ]) {
-      expect(orderOf(selected), `${selected} must follow the hover rule`).toBeGreaterThan(hover)
+      expect(rules.indexOf(only(selected)), `${selected} must follow the hover rule`).toBeGreaterThan(hoverAt)
+      expect(rank(specificity(selected)), `${selected} must not be below the hover rule's specificity`)
+        .toBeGreaterThanOrEqual(rank(specificity(hover[0].selectors[0])))
     }
   })
 
@@ -298,6 +312,176 @@ describe('Register B: the segmented group', () => {
         expect(selector, `${selector} must not also match SegControl`).not.toMatch(/\.sr-seg\b|\.sr-seg-btn\b/)
       }
     }
+  })
+})
+
+// ── Hover is a pointer look, and a selected state beats it ──────────────────
+//
+// life-list-filter-toggle-state. Two defects, one per assertion family:
+//  1. A touch screen reports `(hover: none)` and keeps `:hover` on the last
+//     button tapped until the next tap, so an ungated hover rule painted every
+//     tapped pill, segment and switch in the hover colours in place of its new
+//     state. So every `:hover` rule on the three registers sits inside
+//     `@media (hover: hover)`.
+//  2. The pill and segment hover rules were (0,4,0), because each bare `:not()`
+//     adds its argument's specificity, so they beat every selected-state rule
+//     at (0,2,0) and (0,3,0) whatever the source order, and a selected control
+//     under a mouse pointer showed the hover colours. So every selected-state
+//     rule has at least the hover rule's specificity AND comes after it.
+// jsdom cannot evaluate `:hover` or a media query; the real-engine evidence is
+// pipeline/life-list-filter-toggle-state/evidence/.
+
+const REGISTERS = ['sr-pill', 'sr-segbar-btn', 'sr-toggle'] as const
+const HOVER_GATE = '@media (hover: hover)'
+
+interface CascadeReading {
+  violations: string[]
+  hovers: Map<string, string[]>
+  selected: Map<string, string[]>
+}
+
+/**
+ * Read one stylesheet's text, comments blanked first, and return every breach
+ * of the two rules above, plus the rosters it judged, for the non-vacuity rows.
+ *
+ * A selector belongs to a register when the register's class is a top-level
+ * simple selector of its RIGHTMOST compound (so `.sr-pill-sep`, `.sr-pill svg`
+ * and `:not(.sr-pill)` do not). It is a hover rule when `:hover` appears
+ * anywhere in it, and a selected-state rule when its rightmost compound carries
+ * `[aria-pressed="true"]` or a `[data-state=...]` attribute.
+ */
+function readCascade(text: string): CascadeReading {
+  const all = collect(blankComments(text))
+  const hovers = new Map<string, string[]>()
+  const selected = new Map<string, string[]>()
+  const violations: string[] = []
+  const hoverAt: { register: string; selector: string; index: number }[] = []
+  const selectedAt: { register: string; selector: string; index: number }[] = []
+  all.forEach((rule, index) => {
+    for (const selector of rule.selectors) {
+      const parts = simpleParts(compoundsOf(selector).at(-1) ?? '')
+      const register = REGISTERS.find(r => parts.includes(`.${r}`))
+      if (!register) continue
+      if (/:hover\b/.test(selector)) {
+        hovers.set(register, [...(hovers.get(register) ?? []), selector])
+        hoverAt.push({ register, selector, index })
+        if (!rule.ancestors.includes(HOVER_GATE)) violations.push(`${selector} is a hover rule outside ${HOVER_GATE}`)
+      } else if (parts.some(p => p === '[aria-pressed="true"]' || p.startsWith('[data-state='))) {
+        selected.set(register, [...(selected.get(register) ?? []), selector])
+        selectedAt.push({ register, selector, index })
+      }
+    }
+  })
+  for (const s of selectedAt) {
+    for (const h of hoverAt.filter(x => x.register === s.register)) {
+      const ss = specificity(s.selector)
+      const hs = specificity(h.selector)
+      if (rank(ss) < rank(hs)) violations.push(`${s.selector} ${show(ss)} is below ${h.selector} ${show(hs)}`)
+      if (s.index < h.index) violations.push(`${s.selector} comes before ${h.selector}`)
+    }
+  }
+  return { violations, hovers, selected }
+}
+
+/** Apply one textual mutation to the REAL stylesheet, refusing a no-op or an ambiguous match. */
+function mutate(from: string, to: string, text: string = css): string {
+  expect(text.split(from).length - 1, `mutation target must occur exactly once: ${from}`).toBe(1)
+  const out = text.replace(from, to)
+  expect(out).not.toBe(text)
+  return out
+}
+
+/** Unwrap the `@media (hover: hover)` block that holds one register's hover rule. */
+function ungate(register: string): string {
+  const head = `${HOVER_GATE} {\n  .${register}`
+  const start = css.indexOf(head)
+  expect(start, `no gated hover block for .${register}`).toBeGreaterThan(-1)
+  expect(css.indexOf(head, start + 1), `more than one gated block for .${register}`).toBe(-1)
+  const open = start + HOVER_GATE.length + 1
+  let depth = 1
+  let end = open + 1
+  while (depth && end < css.length) {
+    if (css[end] === '{') depth++
+    else if (css[end] === '}') depth--
+    end++
+  }
+  return css.slice(0, start) + css.slice(open + 1, end - 1) + css.slice(end)
+}
+
+describe('hover is a pointer look, and a selected state beats it', () => {
+  it('scores the selectors this guard compares as the CSS cascade does', () => {
+    // The instrument first. Its predecessor in mapFabCascade.test.ts scored a
+    // class as a type selector, so `.sr-pill` read (0,0,1); a guard built on that
+    // compares the wrong numbers whenever two selectors differ in class count.
+    expect(specificity('.sr-pill')).toEqual([0, 1, 0])
+    expect(specificity('button')).toEqual([0, 0, 1])
+    expect(specificity('#a .b::before')).toEqual([1, 1, 1])
+    expect(specificity(':where(.a .b[x=y] > .c)')).toEqual([0, 0, 0])
+    expect(specificity('.sr-pill:not(:disabled):not([aria-disabled="true"]):hover')).toEqual([0, 4, 0])
+    expect(specificity('.sr-pill:where(:not(:disabled):not([aria-disabled="true"])):hover')).toEqual([0, 2, 0])
+    expect(specificity('.sr-pill[aria-pressed="true"]')).toEqual([0, 2, 0])
+    expect(specificity('.sr-pill[data-tier="1"][aria-pressed="true"]')).toEqual([0, 3, 0])
+  })
+
+  it('finds exactly one hover rule per register, and the selected states it must lose to', () => {
+    // Never vacuous: a reader that matched nothing would report no violations.
+    const { hovers, selected } = readCascade(css)
+    expect(Object.fromEntries([...hovers].map(([r, list]) => [r, list.length]))).toEqual({
+      'sr-pill': 1, 'sr-segbar-btn': 1, 'sr-toggle': 1,
+    })
+    for (const named of [
+      '.sr-pill[aria-pressed="true"]',
+      '.sr-pill[data-state="positive"]',
+      '.sr-pill[data-state="negative"]',
+      '.sr-pill[data-state="target"]',
+      '.sr-pill[data-tier="3"][aria-pressed="true"]',
+    ]) expect(selected.get('sr-pill'), named).toContain(named)
+    expect(selected.get('sr-segbar-btn')).toContain('.sr-segbar-btn[aria-pressed="true"]')
+  })
+
+  it('keeps every register hover rule inside the gate, and every selected state at or above it and after it', () => {
+    expect(readCascade(css).violations).toEqual([])
+  })
+
+  it('goes red when the gate is removed from any one register', () => {
+    for (const register of REGISTERS) {
+      const { violations } = readCascade(ungate(register))
+      expect(violations.some(v => v.startsWith(`.${register}`) && v.endsWith(`outside ${HOVER_GATE}`)), register).toBe(true)
+    }
+  })
+
+  it('goes red when a (0,4,0) hover selector is restored', () => {
+    for (const register of ['sr-pill', 'sr-segbar-btn']) {
+      const { violations } = readCascade(mutate(
+        `.${register}:where(:not(:disabled):not([aria-disabled="true"])):hover`,
+        `.${register}:not(:disabled):not([aria-disabled="true"]):hover`,
+      ))
+      expect(violations.some(v => v.includes('is below') && v.includes('(0,4,0)')), register).toBe(true)
+    }
+  })
+
+  it('goes red when a selected state is declared before the hover rule', () => {
+    const rule = '.sr-segbar-btn[aria-pressed="true"] {\n  background: var(--sr-accent-bg);\n  color: var(--sr-accent);\n  font-weight: 600;\n}\n'
+    const head = `${HOVER_GATE} {\n  .sr-segbar-btn`
+    const moved = mutate(head, rule + head, mutate(rule, ''))
+    expect(readCascade(moved).violations).toContain(
+      '.sr-segbar-btn[aria-pressed="true"] comes before .sr-segbar-btn:where(:not(:disabled):not([aria-disabled="true"])):hover',
+    )
+  })
+
+  it('stays green on an equivalent spelling, and reads no comment', () => {
+    // Must-stay-green: the same hover rule with its pseudo-classes reordered
+    // selects the same elements at the same specificity.
+    const reordered = mutate(
+      '.sr-pill:where(:not(:disabled):not([aria-disabled="true"])):hover',
+      '.sr-pill:hover:where(:not(:disabled):not([aria-disabled="true"]))',
+    )
+    expect(readCascade(reordered).violations).toEqual([])
+    // The strip, proved: an ungated hover rule inside a comment is not read,
+    // and the identical text outside one is.
+    const ungated = '.sr-pill:hover { color: var(--sr-text); }'
+    expect(readCascade(`${css}\n/* ${ungated} */\n`).violations).toEqual([])
+    expect(readCascade(`${css}\n${ungated}\n`).violations).toContain(`.sr-pill:hover is a hover rule outside ${HOVER_GATE}`)
   })
 })
 

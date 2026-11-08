@@ -4247,6 +4247,11 @@ select:focus-visible {
    resting state, so nothing is lost; per the standing note, no per-component
    reduced-motion query is added.
 
+   Hover is a pointer look, so it sits inside `@media (hover: hover)`. A touch
+   screen reports `(hover: none)` and keeps `:hover` on the last button tapped
+   until the next tap, so ungated, a tapped switch kept the hover frame. The
+   track still showed on or off; only the frame was wrong.
+
    Unlayered on purpose. Tailwind's preflight (`@layer base`) resets `border`
    and `background-color` on every button, and unlayered author CSS beats a
    layered rule regardless of specificity, so this rule must never move into a
@@ -4256,9 +4261,11 @@ select:focus-visible {
   background: var(--sr-surface);
   transition: opacity 150ms ease-out, border-color 120ms ease-out, background-color 120ms ease-out;
 }
-.sr-toggle:not(:disabled):not([aria-disabled="true"]):hover {
-  border-color: var(--sr-border-medium);
-  background: var(--sr-surface-subtle);
+@media (hover: hover) {
+  .sr-toggle:not(:disabled):not([aria-disabled="true"]):hover {
+    border-color: var(--sr-border-medium);
+    background: var(--sr-surface-subtle);
+  }
 }
 
 /* ── The control registers: `.sr-pill` and `.sr-segbar` / `.sr-segbar-btn` ────
@@ -4290,12 +4297,23 @@ select:focus-visible {
    would make these pills visibly heavier than the buttons beside them for a
    guarantee the label already carries. Do not re-derive this.
 
-   Two cascade rules that are easy to get wrong, both copied from shipped rules:
+   Three cascade rules that are easy to get wrong:
      - hover is gated `:not(:disabled):not([aria-disabled="true"])`, so an inert
-       control never lights up as operable (`.sr-toggle`'s rule, above);
-     - every selected-state rule is declared AFTER the `:hover` rule so it wins
-       at equal specificity (the `.sr-map-fab` / `.sr-hotspot-mode-pill` source
-       -order convention).
+       control never lights up as operable (`.sr-toggle`'s rule, above). Here
+       the gate sits inside `:where()`, which adds no specificity, so the hover
+       rule is (0,2,0): one class plus `:hover`. Written as two bare `:not()`s
+       it was (0,4,0), because each `:not()` adds its argument's specificity,
+       and it beat every selected-state rule below, at (0,2,0) and (0,3,0),
+       whatever their source order: a selected control under the pointer
+       showed the hover colours;
+     - every selected-state rule is declared AFTER the `:hover` rule. The
+       (0,2,0) ones tie it and win on source order (the `.sr-map-fab` /
+       `.sr-hotspot-mode-pill` convention); the (0,3,0) Breeding Codes tier
+       rules win on specificity;
+     - hover is a pointer look, inside `@media (hover: hover)`. A touch screen
+       reports `(hover: none)` and keeps `:hover` on the last button tapped
+       until the next tap, so ungated, every tap showed the hover colours in
+       place of the control's new state.
 
    Motion is one 120ms ease-out colour fade on both registers, matching the
    shipped `.sr-hotspot-mode-pill` and `.sr-toggle` values rather than inventing
@@ -4337,12 +4355,15 @@ select:focus-visible {
   cursor: pointer;
   transition: background-color 120ms ease-out, border-color 120ms ease-out, color 120ms ease-out;
 }
-.sr-pill:not(:disabled):not([aria-disabled="true"]):hover {
-  border-color: var(--sr-border-medium);
-  background: var(--sr-surface-subtle);
-  color: var(--sr-text);
+@media (hover: hover) {
+  .sr-pill:where(:not(:disabled):not([aria-disabled="true"])):hover {
+    border-color: var(--sr-border-medium);
+    background: var(--sr-surface-subtle);
+    color: var(--sr-text);
+  }
 }
-/* Source order: every selected-state rule below follows :hover on purpose.
+/* Source order: every selected-state rule below follows :hover on purpose,
+   and none is below the hover rule's (0,2,0) (the cascade notes above).
 
    TWO carriers, one declaration. `aria-pressed="true"` is the carrier wherever
    the control already exposes its state to assistive technology, which is most
@@ -4445,9 +4466,11 @@ select:focus-visible {
 /* The divider sits on the LEADING edge of each sibling, so a one-option group
    never draws a stray rule and the shell's own border is never doubled. */
 .sr-segbar-btn + .sr-segbar-btn { border-left: 1.5px solid var(--sr-accent-border); }
-.sr-segbar-btn:not(:disabled):not([aria-disabled="true"]):hover {
-  background: var(--sr-surface-subtle);
-  color: var(--sr-text);
+@media (hover: hover) {
+  .sr-segbar-btn:where(:not(:disabled):not([aria-disabled="true"])):hover {
+    background: var(--sr-surface-subtle);
+    color: var(--sr-text);
+  }
 }
 .sr-segbar-btn[aria-pressed="true"] {
   background: var(--sr-accent-bg);

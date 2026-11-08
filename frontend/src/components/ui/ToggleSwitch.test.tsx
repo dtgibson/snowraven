@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { ToggleSwitch } from './ToggleSwitch'
-import { parseTopLevelRules } from '../../lib/cssTopLevelRules'
+import { parseRulesAtAnyDepth, parseTopLevelRules } from '../../lib/cssTopLevelRules'
 
 afterEach(cleanup)
 
@@ -18,6 +18,9 @@ afterEach(cleanup)
 // global `URL` is jsdom's, which node's fs does not accept as a file URL.
 const css = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '../../globals.css'), 'utf8')
 const rules = parseTopLevelRules(css)
+// The hover rule sits inside `@media (hover: hover)`, which the top-level parser
+// skips whole, so it is read at any depth with its at-rule stack.
+const anyDepth = parseRulesAtAnyDepth(css)
 
 describe('ToggleSwitch', () => {
   it('default treatment keeps the boxed button chrome, byte-identical geometry', () => {
@@ -56,10 +59,15 @@ describe('ToggleSwitch', () => {
     expect(body).toMatch(/transition:[^;]*background-color 120ms ease-out/)
   })
 
-  it('hover steps the border and fill to the interactive tokens, and not on an inert switch', () => {
-    const hover = [...rules.keys()].find(sel => sel.startsWith('.sr-toggle') && /:hover$/.test(sel))
-    expect(hover, 'a .sr-toggle hover rule').toBeTruthy()
-    const body = rules.get(hover!)!
+  it('hover steps the border and fill to the interactive tokens, only where the pointer can hover, and not on an inert switch', () => {
+    const hovers = anyDepth.filter(r => r.selector.startsWith('.sr-toggle') && /:hover$/.test(r.selector))
+    expect(hovers, 'exactly one .sr-toggle hover rule').toHaveLength(1)
+    // A touch screen reports `(hover: none)` and keeps `:hover` on the last
+    // switch tapped, so outside this block a tapped switch kept the hover frame
+    // until the next tap (life-list-filter-toggle-state).
+    expect(hovers[0].atRules, 'the hover rule sits inside @media (hover: hover) and nothing else').toEqual(['@media (hover: hover)'])
+    const hover = hovers[0].selector
+    const body = hovers[0].body
     expect(body).toMatch(/border-color:\s*var\(--sr-border-medium\)/)
     expect(body).toMatch(/background:\s*var\(--sr-surface-subtle\)/)
     // Both inert modes keep the resting chrome: `disabled`, and the
