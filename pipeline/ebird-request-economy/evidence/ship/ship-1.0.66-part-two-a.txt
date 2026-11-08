@@ -1,0 +1,88 @@
+# 1.0.66 ship, part two A: readouts (2026-11-08 UTC)
+
+## Local gates on the release tree
+held guards + version-set guards: 8 files, 143 tests passed
+full vitest: Test Files  494 passed | 5 skipped (499)
+full vitest: Tests  10755 passed | 6 skipped (10761)
+lint exit 0; typecheck exit 0; build exit 0
+backend pytest: 2079 passed, 1 warning in 4.09s
+real-engine gate: verification gate: 8 harnesses against frontend/dist
+real-engine gate: verification gate: 8/8 harnesses green
+real-engine gate check lines: PASS 239, FAIL 0
+
+## release.sh
+==> Releasing v1.0.66: tag=d2901167 HEAD=b01fdecf
+==> iCloud profile OK: 8QKC3L2FKP.com.snowraven, container iCloud.com.dtgibson.snowraven, expires 2044-08-27T23:13:18Z
+==> SnowRaven v1.0.66 (universal macOS: aarch64 + x86_64)
+==> SKIP_NPM_INSTALL=1 — reusing the existing node_modules.
+==> Cleaning stale updater bundle artifacts...
+==> Building frontend...
+==> Building Tauri app (universal binary, compiles both arches, takes a while) with the iCloud overlay...
+==> Bundle version verified: 1.0.66
+==> iCloud entitlements and embedded profile verified in <build dir>
+==> Styling DMG (injecting Finder layout)...
+==> DMG styled (Finder layout injected).
+==> Signing final DMG...
+==> Notarizing (this takes a minute)...
+  id: caeb6023-d45b-4601-8948-4cc8c615ebb0
+  id: caeb6023-d45b-4601-8948-4cc8c615ebb0
+Current status: In Progress...Current status: In Progress....Current status: In Progress.....Current status: Accepted......Processing complete
+  id: caeb6023-d45b-4601-8948-4cc8c615ebb0
+  status: Accepted
+==> Stapling...
+The staple and validate action worked!
+==> Fetching Windows build artifacts from CI...
+==> Signing Windows installer locally...
+==> Publishing v1.0.66...
+
+## Android
+  ok  JDK 17 (openjdk version "17.0.20.1" 2026-08-18)
+  ok  keytool
+  ok  apksigner from build-tools 36.0.0
+  ok  zipalign from build-tools 36.0.0
+  ok  aapt2 from build-tools 36.0.0
+  ok  Gradle 8.14.3
+  ok  cargo-tauri 2.11.2
+  ok  keystore opens: <home path> (alias snowraven)
+  ok  tauri.conf.json version 1.0.66 equals frontend/package.json
+  ok  bundle.android.versionCode 1000066 follows the formula
+  ok  v1.0.66 is pushed to origin at d29011676840
+  ok  tauri.conf.json at v1.0.66 carries 1.0.66 1000066
+  ok  Fastlane changelog 10000661.txt exists at v1.0.66
+  ok  Fastlane changelog 10000662.txt exists at v1.0.66
+  ok  Fastlane changelog 10000664.txt exists at v1.0.66
+  ok  run 42498205945 artifact: SnowRaven_1.0.66_android_universal_unsigned.apk
+  ok  package com.dtgibson.snowraven
+  ok  versionName 1.0.66
+  ok  versionCode 1000066
+  ok  not debuggable
+UNSIGNED_APK=<private temp dir>/SnowRaven_1.0.66_android_universal_unsigned.apk
+Verified using v1 scheme (JAR signing): false
+Verified using v2 scheme (APK Signature Scheme v2): true
+Verified using v3 scheme (APK Signature Scheme v3): true
+Verified using v3.1 scheme (APK Signature Scheme v3.1): false
+Verified using v4 scheme (APK Signature Scheme v4): false
+  ok  signer equals the keystore's certificate
+  ok  signer equals the recorded digest
+Signer #1 certificate SHA-256 digest: 42a3576e445bda4a994793f2ffa056663113275c9805eb2f6cffdc252375996a
+SIGNED_APK_SHA256=29b1c34593475d223ddfa0817cfaf5cf4baed1616e987a8172e364239f9eb7ec
+warning: ANDROID_DEVICE_CHECK=partial: attaching without a device check; the decision and its reason belong in RELEASE_LEDGER.md's Android section
+  ok  signer equals the keystore's certificate
+  ok  byte-identical to the checked file
+  ok  com.dtgibson.snowraven 1.0.66 (1000066), signer 42a3576e445bda4a994793f2ffa056663113275c9805eb2f6cffdc252375996a
+ASSET_SHA256=29b1c34593475d223ddfa0817cfaf5cf4baed1616e987a8172e364239f9eb7ec
+SIGNER_SHA256=42a3576e445bda4a994793f2ffa056663113275c9805eb2f6cffdc252375996a
+
+## iOS
+widget tests: 	 Executed 143 tests, with 0 failures (0 unexpected) in 33.181 (33.706) seconds
+widget tests: ** TEST SUCCEEDED **
+tauri ios build, the archive: ** BUILD SUCCEEDED **
+tauri ios build, its own export (expected refusal, the skill's third wording): ** EXPORT FAILED **
+  tauri export: error: exportArchive No Account for Team "Tauri".
+  tauri export: error: exportArchive No profiles for 'com.dtgibson.snowraven' were found
+  tauri export: error: exportArchive No profiles for 'com.dtgibson.snowraven.widgets' were found
+manual xcodebuild -exportArchive (manual signing): ** EXPORT SUCCEEDED **
+altool --validate-app: VERIFY SUCCEEDED with no errors
+altool --upload-app: UPLOAD SUCCEEDED with no errors
+Delivery UUID: 32038a0c-057a-4753-bdb1-451e5dcf3acd
+IPA SHA-256 25fa2ba681eefd0eb57a537a932b4b067c81ab7f415f3905a97ce350e04b6616
