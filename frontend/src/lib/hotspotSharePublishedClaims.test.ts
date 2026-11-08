@@ -10,6 +10,15 @@
 // user approved them as written, and they were applied to both files at the
 // 1.0.62 release commit.
 //
+// THE RETENTION SENTENCE WAS CORRECTED AT 1.0.66 (ebird-request-economy, held
+// item 2, applied on the user's yes). "Stored on your device for 30 days" stated
+// the REUSE window as if it were the retention: a region's answer past its TTL
+// stays on disk and is still shown, until a Clear removes it (decisions.md D-04).
+// The sentence now says it is kept until you clear your eBird backup, which the
+// Clear registry is checked for below, and its list of what a later launch asks
+// about names a stored answer dated more than a day ahead, which 1.0.66's
+// plausibility window added (D-03, `lib/ttlWindow.ts`).
+//
 // SO THE CLAIM ROWS RUN UNCONDITIONALLY. Until the copy landed they were skipped
 // behind a gate on presence, and that gate is deleted: a gate on presence cannot
 // see both sentences being removed again, and an unconditional existence row can.
@@ -30,7 +39,9 @@
 /// <reference types="node" />
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
-import { HOTSPOT_REGION_TTL_MS } from './hotspotRegionCache'
+import { HOTSPOT_REGION_TTL_MS, HOTSPOT_REGIONS_STORE_KEY } from './hotspotRegionCache'
+import { STORED_TIME_MAX_FUTURE_MS } from './ttlWindow'
+import { registeredTeardowns } from './clearDerived'
 
 const read = (p: string) => readFileSync(new URL(`../../../${p}`, import.meta.url), 'utf8')
 
@@ -45,9 +56,14 @@ const STATS_LEAD = 'The Statistics tab also asks eBird about a set of your own c
 const CLEAR_SENTENCE = 'Clearing your eBird backup also removes what was worked out from it and saved on your device:'
 const LOOKUP_SENTENCE = 'it asks eBird which locations in the regions you have birded are public hotspots.'
 
-/** The two held insertions (held-copy.md, "Proposed privacy policy sentences"). */
+/** The 1.0.62 Clear-list insertion, and the 1.0.66 retention lead
+ *  (pipeline/ebird-request-economy/held-copy.md, privacy item 2). */
 const HOTSPOT_CLEAR_ITEM = 'the lists of public hotspots for the regions you have birded,'
-const RETENTION_LEAD = "Each region's answer is stored on your device for"
+const RETENTION_LEAD = "Each region's answer is kept on your device until you clear your eBird backup,"
+/** The 1.0.62 lead it replaced, which must not come back. */
+const RETIRED_RETENTION_LEAD = "Each region's answer is stored on your device for"
+/** The clause naming the plausibility window's member of the re-ask list. */
+const FUTURE_CLAUSE = "dated more than a day ahead of your device's clock"
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
@@ -110,6 +126,14 @@ describe('the hotspot store\'s policy sentences', () => {
     expect(Number.isInteger(HOTSPOT_REGION_TTL_MS / DAY_MS)).toBe(true)
   })
 
+  it('"until you clear your eBird backup" is what the code does: Clearing the backup purges the hotspot store', () => {
+    expect(registeredTeardowns('ebird')).toContain(HOTSPOT_REGIONS_STORE_KEY)
+  })
+
+  it('"more than a day ahead" is the window the store reads through', () => {
+    expect(STORED_TIME_MAX_FUTURE_MS).toBe(DAY_MS)
+  })
+
   for (const [name, passage] of SURFACES) {
     it(`${name}: what Clearing the eBird backup removes includes the hotspot answers`, () => {
       const sentence = sentenceFrom(passage(CLEAR_LEAD), CLEAR_SENTENCE)
@@ -120,10 +144,15 @@ describe('the hotspot store\'s policy sentences', () => {
       const text = passage(STATS_LEAD)
       // Exists, and directly after the sentence that says the tab asks eBird.
       expect(text).toContain(`${LOOKUP_SENTENCE} ${RETENTION_LEAD}`)
+      const sentence = sentenceFrom(text, RETENTION_LEAD)
       // Built FROM the constant, so moving the TTL turns this red instead of
       // leaving the policy quietly wrong.
       const days = HOTSPOT_REGION_TTL_MS / DAY_MS
-      expect(sentenceFrom(text, RETENTION_LEAD)).toMatch(new RegExp(`^${RETENTION_LEAD} ${days} days, `))
+      expect(sentence).toContain(` older than ${days} days `)
+      // The re-ask list names the plausibility window's member (D-03).
+      expect(sentence.endsWith(` ${FUTURE_CLAUSE}.`), sentence).toBe(true)
+      // The retired wording, which stated the reuse window as the retention, is gone.
+      expect(text.includes(RETIRED_RETENTION_LEAD)).toBe(false)
     })
   }
 

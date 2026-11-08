@@ -1,0 +1,1 @@
+The Statistics tab's escapee check and the List Comparer now pace their eBird requests with the rest of the app, and wait and try again when eBird asks the app to slow down. An eBird checklist answer with no list of observations now counts as a failed lookup instead of an empty checklist.
