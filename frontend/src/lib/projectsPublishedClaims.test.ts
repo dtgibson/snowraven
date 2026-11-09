@@ -33,6 +33,8 @@
 /// <reference types="node" />
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
+import { STORED_TIME_MAX_FUTURE_MS, isWithinTtl } from './ttlWindow'
+import { PROJECTS_TTL_MS } from './checklistProjectsCache'
 
 const read = (p: string) => readFileSync(new URL(`../../../${p}`, import.meta.url), 'utf8')
 
@@ -175,9 +177,24 @@ describe('the yearly re-check claim admits Check again (QA-76)', () => {
   it('the policy and its published mirror carry the same corrected sentence', () => {
     // The two are hand-maintained copies; a fix applied to one only is exactly
     // the drift `privacyPageParity.test.ts` exists for, at sentence scale.
-    const claim = 'an answer already given is not re-checked for a year unless you press Check again, which re-asks about all of them.'
+    // ebird-store-hygiene (1.0.69): the year claim names the re-ask cause the
+    // plausibility window added to this store (an answer dated more than a day
+    // ahead), so its closed list of exceptions stays true (docs-and-website.md,
+    // v1.0.66).
+    const claim = "an answer already given is not re-checked for a year unless it is dated more than a day ahead of your device's clock or you press Check again, which re-asks about all of them."
     expect(policy).toContain(claim)
     expect(privacyPage).toContain(claim)
+  })
+
+  it('"more than a day ahead" is the window the Projects store reads through', () => {
+    // Built against the store's own window rather than re-spelled: the
+    // sentence above says "a day", so the window must be exactly 24 hours.
+    expect(STORED_TIME_MAX_FUTURE_MS).toBe(24 * 60 * 60 * 1000)
+    // Non-vacuity: a stored answer exactly a day ahead is still honoured by
+    // the Projects window and one millisecond past it is not.
+    const now = 1_750_000_000_000
+    expect(isWithinTtl(now + STORED_TIME_MAX_FUTURE_MS, now, PROJECTS_TTL_MS)).toBe(true)
+    expect(isWithinTtl(now + STORED_TIME_MAX_FUTURE_MS + 1, now, PROJECTS_TTL_MS)).toBe(false)
   })
 })
 
