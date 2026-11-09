@@ -15,7 +15,9 @@
 //
 // The status sentence (FR-20) reads the SAME completion Statistics reports: no
 // species in this export's cover index is still unknown or unresolved
-// (`remainingSpecies`, the predicate its controller ends a pass on). It is
+// (`remainingSpecies`, the predicate its controller ends a pass on, with the
+// same input: the store's held stamps, so a species the answers settled by
+// their absence is finished on both tabs). It is
 // built from the tab's own taxon codes with the shared model functions, so it
 // cannot disagree with Statistics' rule, and it is computed against the CURRENT
 // export, never a flag persisted from an older one. The codes feed this status
@@ -29,7 +31,7 @@
 
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import type { ObservationEntry } from '../types'
-import { buildCoverIndex, confirmPublishedNames, remainingSpecies, type CoverIndex, type EscapeeJoin, type ProvenanceSnapshot } from './exoticProvenance'
+import { buildCoverIndex, confirmPublishedNames, heldStamps, remainingSpecies, type CoverIndex, type EscapeeJoin, type ProvenanceSnapshot } from './exoticProvenance'
 import { getSnapshot, loadSnapshot, subscribe } from './exoticProvenanceCache'
 import { loadEscapeeJoin } from './exoticTaxonomyJoin'
 import type { LifeListClassification } from './lifeLists'
@@ -71,14 +73,19 @@ export function rosterCoverIndex(obs: readonly ObservationEntry[], codes: Roster
 
 /**
  * Statistics' completion for this export: every species in its cover index has
- * an answer (counting, or escapee-only). False without an index, when nothing
- * has been consulted, or when no species resolves to a code, so a vacuous index
- * never reads as finished. One classification per SPECIES, no row scan: this
- * is the half that re-runs on every snapshot change.
+ * an answer (counting, or escapee-only) or is settled by the answers' absence
+ * (a held stamp with every carrier consulted; `isSettledAbsence`). False
+ * without an index, when nothing has been consulted, or when no species
+ * resolves to a code, so a vacuous index never reads as finished. "Nothing
+ * consulted" is no record AND no stamp: a store holding only stamps has
+ * answers, and reads as checked. One classification per SPECIES, no row scan:
+ * this is the half that re-runs on every snapshot change.
  */
 export function checkCompleteFor(snapshot: ProvenanceSnapshot, index: CoverIndex | null): boolean {
-  if (index === null || snapshot.species.size === 0 || index.bySpecies.size === 0) return false
-  return remainingSpecies(snapshot, index, NO_PARKED).length === 0
+  if (index === null || index.bySpecies.size === 0) return false
+  const held = heldStamps(snapshot)
+  if (snapshot.species.size === 0 && held.size === 0) return false
+  return remainingSpecies(snapshot, index, NO_PARKED, held).length === 0
 }
 
 /** The two halves composed, for a caller without a memo. */

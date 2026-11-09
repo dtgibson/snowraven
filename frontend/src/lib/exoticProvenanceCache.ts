@@ -34,12 +34,17 @@
 //
 //   unmatched   FIFO.       Species code -> the time a successful answer, for a
 //                           checklist the export says carries that code, came
-//                           back with no row for it. It only stops the
+//                           back with no row for it. It stops the
 //                           recordless-species heal from re-asking within the
 //                           TTL, so an evicted stamp costs one bounded re-ask
 //                           of that species and LOSES NO ANSWER. Never read by
 //                           classification: a stamped species is `unknown`
 //                           and COUNTS, exactly as it was before the stamp.
+//                           Since the escapee-check-new-taxonomy re-entry its
+//                           CODES (never its times) also reach the snapshot,
+//                           where completion alone reads them: a stamped
+//                           species whose carriers are all consulted is
+//                           settled, not open (`isSettledAbsence`).
 //
 // Per CLAUDE.md, any "never much worse than not caching" claim about EITHER
 // ledger is measured at CAPACITY PLUS ONE and asserted as WORK DONE (loader
@@ -442,10 +447,18 @@ function rebuildSnapshot(store: ProvenanceStore): void {
   for (const code of store.speciesOrder) {
     if (Object.hasOwn(store.species, code)) species.set(code, store.species[code])
   }
+  // The held stamps' CODES, any age (escapee-check-new-taxonomy re-entry): the
+  // completion readers' settled input. No times leave the store, so the stamp's
+  // one TTL read stays `unmatchedSet`, the heal's.
+  const unmatched = new Set<string>()
+  for (const code of store.unmatchedOrder) {
+    if (Object.hasOwn(store.unmatched, code)) unmatched.add(code)
+  }
   _snapshot = {
     checklists, species,
     excludedNames: [...store.excludedNames],
     exoticNames: store.exoticNames ? [...store.exoticNames] : null,
+    unmatched,
   }
   _revision += 1
   for (const l of _listeners) l()
@@ -783,7 +796,10 @@ export function consultedSet(nowMs: number): ReadonlySet<string> {
 /** The species codes a successful answer was seen to lack within the TTL
  *  (exotic-provenance-reuse D-03): the set `carriersNeedingRefetch` skips, and
  *  nothing else reads. Empty before the first load, which is the heal's
- *  previous behaviour. The clock is the CALLER'S, as for `consultedSet`. */
+ *  previous behaviour. The clock is the CALLER'S, as for `consultedSet`.
+ *  Completion reads the snapshot's `unmatched` instead, which holds the same
+ *  codes at any age: whether a species is settled never depends on the clock,
+ *  only when it is asked again does. */
 export function unmatchedSet(nowMs: number): ReadonlySet<string> {
   const store = _store
   const out = new Set<string>()

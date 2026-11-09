@@ -16,9 +16,11 @@
 // sent 29 requests, forever; with the stamp (1.0.64) the loads went 29, 8, 0,
 // 0 and three species stayed open; with the taxonomy join
 // (escapee-check-new-taxonomy) the loads go 3, 0, 0, 0, the slash answers
-// settle Willet and Marsh Wren on the first, and only the skylark stays open,
-// named on the line. Statistics and Life Lists are read side by side, each
-// through its own hook and the one join loader.
+// settle Willet and Marsh Wren on the first, and only the skylark was left
+// open, named on the line. Since that run's re-entry the skylark, stamped with
+// its one checklist answered, is SETTLED: Statistics reads complete and names
+// it, and Life Lists reads complete, on every load. Statistics and Life Lists
+// are read side by side, each through its own hook and the one join loader.
 
 import { useEffect } from 'react'
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
@@ -68,13 +70,17 @@ async function webFetch(url: string, init?: { method?: string; body?: string }):
 
 const requested: string[] = []
 const answers = new Map<string, Array<{ speciesCode: string; exoticCategory?: string }>>()
+/** Checklist ids whose request fails (an upstream 502). */
+const failing = new Set<string>()
 vi.mock('./transport', () => ({
   TransportError: class extends Error {},
   transport: {
     get: vi.fn(async (path: string) => {
       requested.push(path)
       await new Promise<void>(r => { setTimeout(r, 1) })
-      return { species: answers.get(path.slice('/checklists/'.length)) ?? [] }
+      const id = path.slice('/checklists/'.length)
+      if (failing.has(id)) throw Object.assign(new Error('eBird 502'), { status: 502 })
+      return { species: answers.get(id) ?? [] }
     }),
   },
 }))
@@ -198,6 +204,7 @@ describe.each(['tauri', 'web'] as const)('the measured shape settles under the %
     tauriFiles.clear()
     webSettings.clear()
     answers.clear()
+    failing.clear()
     requested.length = 0
     if (which === 'web') vi.stubGlobal('fetch', vi.fn(webFetch))
     // storage.ts picks its adapter when it is first evaluated, so each seam
@@ -230,6 +237,7 @@ describe.each(['tauri', 'web'] as const)('the measured shape settles under the %
     return (
       <div>
         <span data-testid="kind">{p.status.kind}</span>
+        <span data-testid="settled">{p.status.kind === 'complete' ? (p.status.settledNames ?? []).join(',') : ''}</span>
         <span data-testid="reason">{p.status.kind === 'partial' ? p.status.reason : ''}</span>
         <span data-testid="sentence">{copy.statusSentence(p.status, p.lookup.excluded.length)}</span>
       </div>
@@ -251,13 +259,14 @@ describe.each(['tauri', 'web'] as const)('the measured shape settles under the %
   async function load(
     index: import('./exoticProvenance').CoverIndex,
     rows?: readonly ObservationEntry[],
-  ): Promise<{ requests: number; reason: string; kind: string; sentence: string; lifeLists: string }> {
+  ): Promise<{ requests: number; reason: string; kind: string; settled: string; sentence: string; lifeLists: string }> {
     cache._resetProvenanceCacheForTests()
     const before = requested.length
     const view = render(<><Harness index={index} />{rows && <LifeListsHarness rows={rows} />}</>)
     await waitFor(() => expect(['partial', 'complete', 'error']).toContain(screen.getByTestId('kind').textContent), { timeout: 8000 })
     const reason = screen.getByTestId('reason').textContent ?? ''
     const kind = screen.getByTestId('kind').textContent ?? ''
+    const settled = screen.getByTestId('settled').textContent ?? ''
     const sentence = screen.getByTestId('sentence').textContent ?? ''
     // Life Lists agrees once its join and the merged snapshot are in.
     if (rows) await waitFor(() => expect(screen.getByTestId('lifelists').textContent).toBe(kind === 'complete' ? 'complete' : 'open'))
@@ -270,27 +279,36 @@ describe.each(['tauri', 'web'] as const)('the measured shape settles under the %
       }, { timeout: 4000 })
     }
     view.unmount()
-    return { requests: requested.length - before, reason, kind, sentence, lifeLists: lifeListsReads }
+    return { requests: requested.length - before, reason, kind, settled, sentence, lifeLists: lifeListsReads }
   }
 
-  it('consecutive loads send 3, 0, 0, 0 checklist requests, and a settled load names the one species left open', async () => {
+  /** The settled line, as the user's own case reads it. */
+  const SKYLARK_SETTLED = "Exotic status checked. eBird's public data has no answer for Eurasian Skylark, so it counts."
+
+  it('consecutive loads send 3, 0, 0, 0 checklist requests, and every load reads settled on Statistics and complete on Life Lists', async () => {
     // Was 29, 8, 0, 0 with three species open (1.0.64 to 1.0.66). The first
     // wave asks one checklist per open species; the slash answers settle
     // Willet and Marsh Wren through the join, the skylark's answer stamps it,
-    // and nothing is left to ask.
+    // and nothing is left to ask. Until the re-entry every load then read
+    // `unmatched` and Life Lists "not finished", for good.
     const rows = measuredShape()
     const index = statsIndex(rows)
     seed(savedDocument(Date.now()))
 
     const loads = [await load(index, rows), await load(index, rows), await load(index, rows), await load(index, rows)]
     expect(loads.map(l => l.requests)).toEqual([3, 0, 0, 0])
-    // Never `complete` while a species is open (D-04), from the first load on,
-    // and Life Lists reads the same: not finished.
-    expect(loads.map(l => l.reason)).toEqual(['unmatched', 'unmatched', 'unmatched', 'unmatched'])
-    expect(loads.map(l => l.lifeLists)).toEqual(['open', 'open', 'open', 'open'])
-    for (const l of loads) expect(l.sentence).toBe("eBird's answers did not include Eurasian Skylark, so it still counts.")
+    // Finished from the first load on, naming the species, and Life Lists
+    // reads the same (D-04 holds: nothing is open).
+    expect(loads.map(l => l.kind)).toEqual(['complete', 'complete', 'complete', 'complete'])
+    expect(loads.map(l => l.settled)).toEqual(['Eurasian Skylark', 'Eurasian Skylark', 'Eurasian Skylark', 'Eurasian Skylark'])
+    expect(loads.map(l => l.lifeLists)).toEqual(['complete', 'complete', 'complete', 'complete'])
+    for (const l of loads) expect(l.sentence).toBe(SKYLARK_SETTLED)
     expect(requested.filter(p => p.startsWith('/checklists/'))).toHaveLength(3)
-    expect(model.remainingSpecies(cache.getSnapshot(), index, new Set())).toEqual(['skylar'])
+    // Settled, not answered: the completion open set is empty with the held
+    // stamps, and the planning view (no stamp settles) still holds it, which
+    // is what keeps the 30-day re-ask.
+    expect(model.remainingSpecies(cache.getSnapshot(), index, new Set(), model.heldStamps(cache.getSnapshot()))).toEqual([])
+    expect(model.remainingSpecies(cache.getSnapshot(), index, new Set(), new Set())).toEqual(['skylar'])
   }, 30_000)
 
   it('without the join the same shape still settles with three open, the 1.0.66 figures (the control)', async () => {
@@ -298,7 +316,10 @@ describe.each(['tauri', 'web'] as const)('the measured shape settles under the %
     seed(savedDocument(Date.now()))
     const loads = [await load(index), await load(index), await load(index)]
     expect(loads.map(l => l.requests)).toEqual([29, 8, 0])
-    expect(loads[2].sentence).toBe("eBird's answers did not include Eurasian Skylark, Marsh Wren, or Willet, so they still count.")
+    // Without the join the two pre-split names are answered under codes the
+    // cover cannot read, so they settle by absence beside the skylark: the
+    // cause-neutral sentence is true of both causes (PR limitation 1).
+    expect(loads[2].sentence).toBe("Exotic status checked. eBird's public data has no answer for Eurasian Skylark, Marsh Wren, or Willet, so they count.")
   }, 30_000)
 
   it('stamps written under the old join do not hold the line: the first load re-asks once per species, then settles', async () => {
@@ -312,8 +333,8 @@ describe.each(['tauri', 'web'] as const)('the measured shape settles under the %
     const loads = [await load(index, rows), await load(index, rows), await load(index, rows)]
     expect(loads.map(l => l.requests)).toEqual([3, 0, 0])
     for (const l of loads) {
-      expect(l.sentence).toBe("eBird's answers did not include Eurasian Skylark, so it still counts.")
-      expect(l.lifeLists).toBe('open')
+      expect(l.sentence).toBe(SKYLARK_SETTLED)
+      expect(l.lifeLists).toBe('complete')
     }
     expect(persisted()?.unmatchedOrder).toEqual(['skylar'])
   }, 30_000)
@@ -323,7 +344,7 @@ describe.each(['tauri', 'web'] as const)('the measured shape settles under the %
     seed(settledUnderOldJoin(Date.now(), cache.UNMATCHED_JOIN_VERSION))
     const first = await load(index)
     expect(first.requests).toBe(0)
-    expect(first.sentence).toBe("eBird's answers did not include Eurasian Skylark, Marsh Wren, or Willet, so they still count.")
+    expect(first.sentence).toBe("Exotic status checked. eBird's public data has no answer for Eurasian Skylark, Marsh Wren, or Willet, so they count.")
   }, 30_000)
 
   it('Statistics and Life Lists report the same completion for every 2026 shape, and only the shared join makes them agree', async () => {
@@ -331,24 +352,39 @@ describe.each(['tauri', 'web'] as const)('the measured shape settles under the %
     const rows = everyShape(true)
     const done = await load(statsIndex(rows), rows)
     expect(done.kind).toBe('complete')
+    expect(done.settled).toBe('')
     expect(done.lifeLists).toBe('complete')
-    expect(model.remainingSpecies(cache.getSnapshot(), statsIndex(rows), new Set())).toEqual([])
+    expect(model.remainingSpecies(cache.getSnapshot(), statsIndex(rows), new Set(), new Set())).toEqual([])
     // The lumped-away name is checked: it has a record of its own.
     expect(cache.getSnapshot().species.has('houswi1')).toBe(true)
 
-    // Now the lumped-away name's answer lacks it: both tabs read open, and the
-    // line names it.
+    // Now the lumped-away name's answer lacks it: its one checklist answered,
+    // it is stamped and settled, so both tabs read complete and the line names
+    // it.
     await cache.purgeProvenanceStore()
     const lacking = everyShape(false)
-    const open = await load(statsIndex(lacking), lacking)
-    expect(open.reason).toBe('unmatched')
-    expect(open.sentence).toBe("eBird's answers did not include House Swift, so it still counts.")
-    expect(open.lifeLists).toBe('open')
-    // The discriminator: without the join on the Life Lists side, the name is
-    // not in its index at all and it would read complete beside Statistics'
-    // open line.
-    expect(lifeLists.checkCompleteFor(cache.getSnapshot(), lifeLists.rosterCoverIndex(lacking, CODES, model.NO_ESCAPEE_JOIN))).toBe(true)
-    expect(lifeLists.checkCompleteFor(cache.getSnapshot(), lifeLists.rosterCoverIndex(lacking, CODES, join))).toBe(false)
+    const settledLoad = await load(statsIndex(lacking), lacking)
+    expect(settledLoad.kind).toBe('complete')
+    expect(settledLoad.sentence).toBe("Exotic status checked. eBird's public data has no answer for House Swift, so it counts.")
+    expect(settledLoad.lifeLists).toBe('complete')
+
+    // The discriminator needs an OPEN lumped-away name, and settling by absence
+    // makes the stamped one read complete with or without the join. A newer
+    // backup adds a House Swift checklist (S5000005), and asking it fails, so
+    // it stays unconsulted: under the shared join the name is in both tabs'
+    // open set; without it on the Life Lists side the name is not in that
+    // index at all, and Life Lists would read complete beside Statistics' open
+    // species (the mounted hook turns this row red, through `load`).
+    const newer = [...lacking, row('House Swift', 'S5000005')]
+    failing.add('S5000005')
+    const stillOpen = await load(statsIndex(newer), newer)
+    expect(stillOpen.requests).toBe(1)
+    expect(stillOpen.kind).toBe('error')
+    expect(stillOpen.lifeLists).toBe('open')
+    const snap = cache.getSnapshot()
+    expect(model.remainingSpecies(snap, statsIndex(newer), new Set(), model.heldStamps(snap))).toEqual(['houswi1'])
+    expect(lifeLists.checkCompleteFor(snap, lifeLists.rosterCoverIndex(newer, CODES, join))).toBe(false)
+    expect(lifeLists.checkCompleteFor(snap, lifeLists.rosterCoverIndex(newer, CODES, model.NO_ESCAPEE_JOIN))).toBe(true)
   }, 30_000)
 
   it('after Clear the pass asks again', async () => {

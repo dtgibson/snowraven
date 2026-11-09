@@ -18,7 +18,7 @@ import {
   EMPTY_SNAPSHOT, ESCAPEE_CATEGORY,
   buildCoverIndex, buildProvenanceLookup, carriersNeedingRefetch, categoryOfToken, classCounts,
   classifySpecies, confirmExcludedNames, confirmPublishedNames, greedyCover, isExoticOnly, isExoticToken,
-  remainingSpecies, seenToken, tokenCounts,
+  heldStamps, isSettledAbsence, remainingSpecies, seenToken, settledSpecies, tokenCounts,
   type EscapeeJoin, type ProvenanceSnapshot, type SpeciesProvenanceRecord,
 } from './exoticProvenance'
 
@@ -196,7 +196,7 @@ describe('classification (FR-03, FR-04, QA-06, QA-07, QA-08)', () => {
     const lookup = buildProvenanceLookup(EMPTY_SNAPSHOT, index)
     expect(lookup.excludedNames.size).toBe(0)
     expect(lookup.excluded).toEqual([])
-    expect(lookup.counts).toEqual({ resolved: 0, unresolved: 0, unknown: 2 })
+    expect(lookup.counts).toEqual({ resolved: 0, unresolved: 0, unknown: 2, settled: 0 })
   })
 
   it('reports the disclosure payload with its evidence (FR-32, QA-37)', () => {
@@ -363,8 +363,8 @@ describe('greedyCover (FR-10, FR-24, QA-15, QA-16)', () => {
       ['S1'],
     )
     // A is counting (answered), B is escapee-only (answered), C is unknown.
-    expect(remainingSpecies(snap, index, new Set())).toEqual(['code-C'])
-    expect(remainingSpecies(snap, index, new Set(['code-C']))).toEqual([])
+    expect(remainingSpecies(snap, index, new Set(), new Set())).toEqual(['code-C'])
+    expect(remainingSpecies(snap, index, new Set(['code-C']), new Set())).toEqual([])
   })
 })
 
@@ -531,7 +531,7 @@ describe('carriersNeedingRefetch (recordless cover species re-open their ledger 
     // S1 carries both; Mallard resolved. Only Swan Goose's absence reopens S1,
     // and S2 (Mallard-only) stays closed.
     const snap = snapshot({ mallar3: rec(['|']) }, ['S1', 'S2'])
-    const stale = carriersNeedingRefetch(snap, index, remainingSpecies(snap, index, new Set()), NO_STAMPS)
+    const stale = carriersNeedingRefetch(snap, index, remainingSpecies(snap, index, new Set(), NO_STAMPS), NO_STAMPS)
     expect(stale).toEqual(new Set(['S1']))
   })
 
@@ -546,7 +546,7 @@ describe('carriersNeedingRefetch (recordless cover species re-open their ledger 
       codeFor,
     )
     const snap = snapshot({ mallar3: rec(['|']) }, ['S1', 'S2', 'S3'])
-    const remaining = remainingSpecies(snap, idx, new Set())
+    const remaining = remainingSpecies(snap, idx, new Set(), NO_STAMPS)
     expect(carriersNeedingRefetch(snap, idx, remaining, NO_STAMPS)).toEqual(new Set(['S1', 'S3']))
     expect(carriersNeedingRefetch(snap, idx, remaining, new Set(['swagoo']))).toEqual(new Set(['S1', 'S3']))
     expect(carriersNeedingRefetch(snap, idx, remaining, new Set(['musduc']))).toEqual(new Set(['S1']))
@@ -621,6 +621,119 @@ describe('carriersNeedingRefetch (recordless cover species re-open their ledger 
     for (const sub of removed) {
       const owner = codes[`Generated ${sub.slice(1)}`]
       expect(stamps.has(owner) && !Object.hasOwn(species, owner) && remaining.includes(owner), sub).toBe(true)
+    }
+  })
+})
+
+// ── Settled by absence (escapee-check-new-taxonomy re-entry) ─────────────────
+
+describe('a species the answers settle by their absence is not open, and nothing else moves', () => {
+  // The user's case, reproduced: checklist S1 carries Eurasian Skylark and
+  // Mallard, and eBird's answer has only the Mallard row (a Merlin record eBird
+  // has not confirmed is kept out of its public output). The merge stamps
+  // `skylar`; the snapshot carries the stamp's CODE, never its time.
+  const SKY: Record<string, string> = { 'Eurasian Skylark': 'skylar', Mallard: 'mallar3' }
+  const skyIndex = (rows: ObservationEntry[]) => buildCoverIndex(rows, n => (Object.hasOwn(SKY, n) ? SKY[n] : undefined))
+  const repro = skyIndex([obs('Eurasian Skylark', 'S1'), obs('Mallard', 'S1')])
+  const answered = (ledger: string[], stamps: string[]): ProvenanceSnapshot =>
+    ({ ...snapshot({ mallar3: rec(['|']) }, ledger), unmatched: new Set(stamps) })
+
+  it('stamped, recordless and every carrier consulted: settled, so completion has nothing open while it still counts', () => {
+    const snap = answered(['S1'], ['skylar'])
+    expect(isSettledAbsence(snap, repro, 'skylar', heldStamps(snap))).toBe(true)
+    expect(settledSpecies(snap, repro, heldStamps(snap))).toEqual(['skylar'])
+    expect(remainingSpecies(snap, repro, new Set(), heldStamps(snap))).toEqual([])
+    // The planning view (no stamp settles) still holds it, so the heal's own
+    // TTL read decides when it is asked again.
+    expect(remainingSpecies(snap, repro, new Set(), new Set())).toEqual(['skylar'])
+    // It counts and is native, exactly as before: classification never reads
+    // the stamp.
+    expect(classifySpecies(snap, repro, 'skylar')).toBe('unknown')
+    expect(classCounts(classifySpecies(snap, repro, 'skylar'))).toBe(true)
+    expect(isExoticOnly(snap, repro, 'skylar')).toBe(false)
+    // The lookup's open count agrees with the completion open set.
+    expect(buildProvenanceLookup(snap, repro).counts).toEqual({ resolved: 1, unresolved: 0, unknown: 0, settled: 1 })
+  })
+
+  it('an unstamped recordless species stays open (the v1.0.1 heal), and so does a stamped one with a carrier outside the ledger', () => {
+    const unstamped = answered(['S1'], [])
+    expect(remainingSpecies(unstamped, repro, new Set(), heldStamps(unstamped))).toEqual(['skylar'])
+    expect(buildProvenanceLookup(unstamped, repro).counts.unknown).toBe(1)
+    // A newer backup adds S2 for the Skylark: the pass has S2 left to ask.
+    const wider = skyIndex([obs('Eurasian Skylark', 'S1'), obs('Mallard', 'S1'), obs('Eurasian Skylark', 'S2')])
+    const stamped = answered(['S1'], ['skylar'])
+    expect(remainingSpecies(stamped, wider, new Set(), heldStamps(stamped))).toEqual(['skylar'])
+    expect(isSettledAbsence(stamped, wider, 'skylar', heldStamps(stamped))).toBe(false)
+    // A stamp beside a record is moot, and a snapshot without the field reads
+    // as no stamps, the safe direction.
+    const recorded = { ...snapshot({ mallar3: rec(['|']), skylar: rec(['|']) }, ['S1']), unmatched: new Set(['skylar']) }
+    expect(isSettledAbsence(recorded, repro, 'skylar', heldStamps(recorded))).toBe(false)
+    expect(heldStamps(snapshot({}, ['S1'])).size).toBe(0)
+  })
+
+  it('over a generated corpus the stamps only REMOVE species from the open set, exactly the settled ones, and move no classification or count', () => {
+    // Every combination of: a record (counting, or all-X) or none; 0, 1 or 2
+    // of its 2 carriers consulted; stamped or not; parked or not.
+    const rows: ObservationEntry[] = []
+    const codes: Record<string, string> = {}
+    const species: Record<string, SpeciesProvenanceRecord> = {}
+    const ledger: string[] = []
+    const stamps = new Set<string>()
+    const parked = new Set<string>()
+    let i = 0
+    for (const record of ['none', '|', 'X|DNC'] as const) for (const consulted of [0, 1, 2]) for (const stamped of [false, true]) for (const park of [false, true]) {
+      const name = `Generated ${i}`
+      const code = `gen${i}`
+      codes[name] = code
+      rows.push(obs(name, `A${i}`), obs(name, `B${i}`))
+      if (consulted >= 1) ledger.push(`A${i}`)
+      if (consulted >= 2) ledger.push(`B${i}`)
+      if (record !== 'none') species[code] = rec([record])
+      if (stamped) stamps.add(code)
+      if (park) parked.add(code)
+      i += 1
+    }
+    const idx = buildCoverIndex(rows, n => (Object.hasOwn(codes, n) ? codes[n] : undefined))
+    const bare = snapshot(species, ledger)
+    const withStamps: ProvenanceSnapshot = { ...bare, unmatched: stamps }
+
+    // Row 1, the seam's own failure return: no stamps (a snapshot without the
+    // field, or the store before it loads) is the v1.0.63 predicate exactly,
+    // derived from its statement: every unknown or unresolved, unparked code.
+    const v163 = [...idx.bySpecies.keys()].filter(code => {
+      if (parked.has(code)) return false
+      if (!Object.hasOwn(species, code)) return true
+      return species[code].seen.every(t => t.startsWith('X|')) && [`A${code.slice(3)}`, `B${code.slice(3)}`].some(sub => !ledger.includes(sub))
+    })
+    const before = remainingSpecies(bare, idx, parked, heldStamps(bare))
+    expect(before).toEqual(v163)
+    expect(remainingSpecies(withStamps, idx, parked, new Set())).toEqual(v163)
+
+    const after = remainingSpecies(withStamps, idx, parked, heldStamps(withStamps))
+    // Direction 1, nothing added.
+    expect(after.filter(code => !before.includes(code))).toEqual([])
+    // Direction 2, what is removed is exactly the recordless, stamped species
+    // with both carriers consulted, from the statement, not the implementation.
+    const removed = before.filter(code => !after.includes(code))
+    const expected = before.filter(code => !Object.hasOwn(species, code) && stamps.has(code)
+      && ledger.includes(`A${code.slice(3)}`) && ledger.includes(`B${code.slice(3)}`))
+    expect(removed).toEqual(expected)
+    expect(removed.length).toBeGreaterThan(0)
+
+    // The lookup: its open count is the completion open set (unparked), and
+    // nothing published or classified moves.
+    const lookBare = buildProvenanceLookup(bare, idx)
+    const lookStamped = buildProvenanceLookup(withStamps, idx)
+    expect(lookStamped.counts.unknown + lookStamped.counts.unresolved).toBe(remainingSpecies(withStamps, idx, new Set(), heldStamps(withStamps)).length)
+    expect(lookStamped.counts.unknown + lookStamped.counts.settled).toBe(lookBare.counts.unknown)
+    expect(lookStamped.counts.settled).toBe(settledSpecies(withStamps, idx, stamps).length)
+    expect([lookStamped.counts.resolved, lookStamped.counts.unresolved]).toEqual([lookBare.counts.resolved, lookBare.counts.unresolved])
+    expect([...lookStamped.excludedNames]).toEqual([...lookBare.excludedNames])
+    expect([...lookStamped.exoticNames]).toEqual([...lookBare.exoticNames])
+    expect(lookStamped.excluded).toEqual(lookBare.excluded)
+    for (const code of idx.bySpecies.keys()) {
+      expect(classifySpecies(withStamps, idx, code), code).toBe(classifySpecies(bare, idx, code))
+      expect(isExoticOnly(withStamps, idx, code), code).toBe(isExoticOnly(bare, idx, code))
     }
   })
 })

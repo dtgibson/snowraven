@@ -55,6 +55,10 @@ describe('the seven states, one message each (FR-31, QA-36)', () => {
     ['not-checked', { kind: 'not-checked' }, /Exotic status has not been checked yet\. Every species counts until it is\./],
     ['in-progress', { kind: 'in-progress', done: 24, planned: 73, additional: 0 }, /Checking exotic status: 24 of 73 checklists\./],
     ['complete', { kind: 'complete', planned: 73, found: 0 }, /Exotic status checked across 73 checklists\./],
+    // escapee-check-new-taxonomy re-entry: finished, naming a species eBird's
+    // public data had no answer for.
+    ['complete (settled)', { kind: 'complete', planned: 0, found: 0, settledNames: ['Eurasian Skylark'] },
+      /^Exotic status checked\. eBird's public data has no answer for Eurasian Skylark, so it counts\.$/],
     ['partial', { kind: 'partial', done: 40, planned: 73, failed: 0, openSpecies: 5, reason: 'cancelled', cap: 0 }, /Stopped at 40 of 73 checklists\./],
     ['no-key', { kind: 'no-key' }, /No eBird key, so exotic status cannot be checked\. Every species counts\./],
     ['offline', { kind: 'offline', checkedLabel: null }, /Offline, so exotic status cannot be checked\. Every species counts\./],
@@ -141,6 +145,44 @@ describe('the seven states, one message each (FR-31, QA-36)', () => {
     ])
   })
 
+  it('the settled line reads finished, names each species through BirdName, and carries the finished icon (escapee-check-new-taxonomy re-entry)', () => {
+    // The user's case once settled: eBird keeps an unconfirmed record out of
+    // its public output, the check has nothing left to ask, and the species
+    // counts. Same BirdName parts as the unmatched line, the check icon of a
+    // finished state, and Check again beside it.
+    const onOpenSpecies = vi.fn()
+    const onRetry = vi.fn()
+    render(
+      <ExoticProvenanceAccount
+        status={{ kind: 'complete', planned: 0, found: 0, settledNames: ['Eurasian Skylark'] }}
+        statusSeq={1} excluded={[]} includeEscapees={false}
+        onStop={vi.fn()} onRetry={onRetry} onGoToSettings={vi.fn()}
+        codeFor={n => (n === 'Eurasian Skylark' ? 'skylar' : undefined)} onOpenSpecies={onOpenSpecies}
+      />,
+    )
+    const region = screen.getByRole('status')
+    expect(region.textContent).toBe("Exotic status checked. eBird's public data has no answer for Eurasian Skylark, so it counts.")
+    fireEvent.click(screen.getByRole('button', { name: 'Eurasian Skylark' }))
+    expect(onOpenSpecies).toHaveBeenCalledWith('Eurasian Skylark')
+    expect([...region.querySelectorAll('a')].map(a => a.getAttribute('href'))).toEqual([
+      'https://ebird.org/species/skylar', 'https://birdsoftheworld.org/bow/species/skylar/cur/introduction',
+    ])
+    // The same icon as every complete check, never the partial warning.
+    const icon = region.querySelector('svg.sr-exotic-icon') as SVGElement
+    expect(icon.getAttribute('style')).toContain('var(--sr-accent)')
+    fireEvent.click(screen.getByRole('button', { name: 'Check again' }))
+    expect(onRetry).toHaveBeenCalledTimes(1)
+
+    const line = (names: string[]) => {
+      cleanup()
+      renderAccount({ kind: 'complete', planned: 3, found: 0, settledNames: names })
+      return screen.getByRole('status').textContent
+    }
+    expect(line(['Marsh Wren', 'Willet'])).toBe("Exotic status checked. eBird's public data has no answer for Marsh Wren or Willet, so they count.")
+    expect(line(['A', 'B', 'C', 'D', 'E', 'F'])).toBe("Exotic status checked. eBird's public data has no answer for A, B, C, or 3 other species, so they count.")
+    expect(screen.getByRole('status').querySelectorAll('.sr-birdname')).toHaveLength(3)
+  })
+
   it('the named line reads correctly for one species and for many, and cuts a long list to a count', () => {
     const line = (names: string[], openSpecies = names.length) => {
       cleanup()
@@ -159,16 +201,21 @@ describe('the seven states, one message each (FR-31, QA-36)', () => {
     // probe measured at 320px and 200% text: the punctuation opening the text
     // after a name is the last item of the name's own flex row, behind both
     // marks, and the words after it sit outside BirdName, free to wrap.
-    const lines: Array<[string[], number, string]> = [
-      [['Eurasian Skylark'], 1, "eBird's answers did not include Eurasian Skylark, so it still counts."],
+    const lines: Array<[string[], number, string, boolean]> = [
+      [['Eurasian Skylark'], 1, "eBird's answers did not include Eurasian Skylark, so it still counts.", false],
       [['Eurasian Skylark', 'Great Black-backed Gull', 'Willet', 'Marsh Wren'], 6,
-        "eBird's answers did not include Eurasian Skylark, Great Black-backed Gull, Willet, or 3 other species, so they still count."],
+        "eBird's answers did not include Eurasian Skylark, Great Black-backed Gull, Willet, or 3 other species, so they still count.", false],
+      // The settled line takes the same structure (escapee-check-new-taxonomy re-entry).
+      [['Eurasian Skylark'], 1, "Exotic status checked. eBird's public data has no answer for Eurasian Skylark, so it counts.", true],
+      [['A', 'B', 'C', 'D', 'E', 'F'], 6, "Exotic status checked. eBird's public data has no answer for A, B, C, or 3 other species, so they count.", true],
     ]
-    for (const [names, openSpecies, text] of lines) {
+    for (const [names, openSpecies, text, settled] of lines) {
       cleanup()
       render(
         <ExoticProvenanceAccount
-          status={{ kind: 'partial', done: 1, planned: 1, failed: 0, openSpecies, reason: 'unmatched', cap: 0, openNames: names }}
+          status={settled
+            ? { kind: 'complete', planned: 1, found: 0, settledNames: names }
+            : { kind: 'partial', done: 1, planned: 1, failed: 0, openSpecies, reason: 'unmatched', cap: 0, openNames: names }}
           statusSeq={1} excluded={[]} includeEscapees={false}
           onStop={vi.fn()} onRetry={vi.fn()} onGoToSettings={vi.fn()}
           codeFor={n => `c${names.indexOf(n)}x`} onOpenSpecies={vi.fn()}
@@ -257,6 +304,17 @@ describe('controls per state (FR-31 and its approved deviation)', () => {
     expect(onGoToSettings).toHaveBeenCalledTimes(1)
     expect(onRetry).not.toHaveBeenCalled()
     expect(screen.queryByRole('button', { name: /again/ })).toBeNull()
+  })
+
+  it('a complete check that names settled species offers "Check again", which re-asks them (escapee-check-new-taxonomy re-entry)', () => {
+    const onRetry = vi.fn()
+    renderAccount({ kind: 'complete', planned: 0, found: 0, settledNames: ['Eurasian Skylark'] }, { onRetry })
+    fireEvent.click(screen.getByRole('button', { name: 'Check again' }))
+    expect(onRetry).toHaveBeenCalledTimes(1)
+    // An empty list is the plain complete state, which offers nothing.
+    cleanup()
+    renderAccount({ kind: 'complete', planned: 3, found: 0, settledNames: [] })
+    expect(screen.queryByRole('button')).toBeNull()
   })
 
   it('not-checked, complete and offline offer no control at all', () => {
@@ -494,6 +552,26 @@ describe('the named unmatched sentence over a generated corpus (escapee-check-ne
     }
   })
 
+  it('the settled line over the same corpus: the same ladder, finished, and agreeing with its count (escapee-check-new-taxonomy re-entry)', async () => {
+    const copy = await import('../lib/exoticCopy')
+    for (let n = 1; n <= 40; n += 1) {
+      const names = Array.from({ length: n }, (_, i) => `Bird ${String(i).padStart(2, '0')}`)
+      const text = copy.statusSentence({ kind: 'complete', planned: 1, found: 0, settledNames: names }, 0)
+      expect(text.startsWith("Exotic status checked. eBird's public data has no answer for "), text).toBe(true)
+      const named = names.filter(name => text.includes(name)).length
+      expect(named, text).toBe(n <= copy.UNMATCHED_NAMED_MAX ? n : copy.UNMATCHED_NAMED_MAX - 1)
+      const rest = /or (\d+) other species,/.exec(text)
+      expect(rest === null, text).toBe(n <= copy.UNMATCHED_NAMED_MAX)
+      if (rest) expect(Number(rest[1]) + named, text).toBe(n)
+      if (rest) expect(Number(rest[1]), text).toBeGreaterThanOrEqual(2)
+      expect(text.endsWith(n === 1 ? ', so it counts.' : ', so they count.'), text).toBe(true)
+      // Finished, never pending.
+      expect(/still|not finished|unchecked|until/.test(text), text).toBe(false)
+      expect(/\b1 [a-z]+s\b/.test(text), text).toBe(false)
+      expect(text.includes(',,') || text.includes('  ') || text.includes(' ,'), text).toBe(false)
+    }
+  })
+
   it('without names in hand it is the count form the line read before', async () => {
     const copy = await import('../lib/exoticCopy')
     const status = { kind: 'partial', done: 0, planned: 0, failed: 0, openSpecies: 3, reason: 'unmatched', cap: 0 } as const
@@ -528,6 +606,10 @@ describe('copy hygiene (FR-44, QA-50)', () => {
       ...[1, 2, 3, 4, 5, 9].map(n => copy.statusSentence({
         kind: 'partial', done: 1, planned: 1, failed: 0, openSpecies: n, reason: 'unmatched', cap: 0,
         openNames: Array.from({ length: n }, (_, i) => `Bird ${i}`),
+      }, 0)),
+      // The settled line (escapee-check-new-taxonomy re-entry), the same lengths.
+      ...[1, 2, 3, 4, 5, 9].map(n => copy.statusSentence({
+        kind: 'complete', planned: 1, found: 0, settledNames: Array.from({ length: n }, (_, i) => `Bird ${i}`),
       }, 0)),
       copy.discloseLabel(1, false, false),
       copy.evidenceLine(1),

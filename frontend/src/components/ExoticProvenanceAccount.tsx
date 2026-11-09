@@ -30,7 +30,7 @@ import {
 import { BirdName } from './BirdName'
 import { Divider } from './statsPrimitives'
 import {
-  discloseLabel, evidenceLine, orSeparator, statusSentence, unmatchedSentence,
+  discloseLabel, evidenceLine, namedStatusSentence, orSeparator, statusSentence,
   ESCAPEE_LEAD_OFF, ESCAPEE_LEAD_ON, ESCAPEE_RULE_OFF, ESCAPEE_RULE_ON,
 } from '../lib/exoticCopy'
 import type { ExcludedSpecies } from '../lib/exoticProvenance'
@@ -88,13 +88,16 @@ export function ExoticProvenanceAccount({
   const running = status.kind === 'in-progress'
   const found = excluded.length
   const total = running ? status.planned + status.additional : 0
-  // The settled-but-open line names its species (escapee-check-new-taxonomy):
-  // the same parts `statusSentence` joins into text, with each name through
-  // BirdName, which links it to Species Detail and carries its two marks.
-  const unmatched = status.kind === 'partial' && status.reason === 'unmatched' && (status.openNames?.length ?? 0) > 0
-    ? unmatchedSentence(status.openSpecies, status.openNames ?? [])
-    : null
+  // A line that names species (escapee-check-new-taxonomy): the settled
+  // `complete` (its re-entry) and the `unmatched` partial. The same parts
+  // `statusSentence` joins into text, with each name through BirdName, which
+  // links it to Species Detail and carries its two marks.
+  const unmatched = namedStatusSentence(status)
   const unmatchedItems = unmatched ? unmatched.names.length + (unmatched.others ? 1 : 0) : 0
+  // Check again, in every partial state (the approved FR-31 deviation) and in
+  // a `complete` that names settled species, where it re-asks them (D-13).
+  const offersCheckAgain = status.kind === 'partial'
+    || (status.kind === 'complete' && (status.settledNames?.length ?? 0) > 0)
 
   return (
     <>
@@ -164,8 +167,11 @@ export function ExoticProvenanceAccount({
               gate, 2026-08-12): a birder who presses Stop otherwise has no route
               back, and because a tab stays mounted once opened, partial
               (cancelled) would persist for the rest of the session with no way
-              to resume. Do not remove it as an oversight. */}
-          {status.kind === 'partial' && (
+              to resume. Do not remove it as an oversight. A `complete` that
+              names settled species offers it too (escapee-check-new-taxonomy
+              re-entry): it is the one way to ask eBird about them again within
+              the 30 days. */}
+          {offersCheckAgain && (
             <Button type="button" className="sr-exotic-act" onClick={onRetry}>
               <RotateCw size={12} strokeWidth={2.2} aria-hidden="true" />
               Check again

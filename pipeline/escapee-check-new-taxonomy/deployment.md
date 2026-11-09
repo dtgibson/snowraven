@@ -173,3 +173,157 @@ Readouts: `evidence/ship/ship-1.0.67-part-two-a.txt`.
 - Then App Store Connect per part one (re-read the state first): a new 1.0.67 record on build 1.0.67.1, `AFTER_APPROVAL`, no phased release, What's New `held/whats-new.txt`; the promotional text restored from `appstore/LISTING.md` and every field read back; review notes byte-identical to `appstore/REVIEW_NOTES.md`; the age rating on the editable app info; `asc-screens.mjs readback` ending `ALL MATCH`; submit and read back.
 - F-Droid three-read state, and **`RELEASE_LEDGER.md`**: the 1.0.67 App Store and Android entries; the 1.0.66 App Store entry corrected (`READY_FOR_SALE`, submission `51af3019` `COMPLETE`); the 1.0.63 Android correction (superseded on F-Droid by 1.0.65); and 1.0.66's F-Droid state as read then (likely superseded by 1.0.67).
 - **Follow-up for the Chronicler (not this release):** `frontend/src/components/AlertsInboxSheet.test.tsx:171` presses Escape as soon as `findByRole` sees the Clear confirmation, without first waiting for focus inside it, the race CLAUDE.md's testing rule names; it failed once on CI (`42536522005`) and passed on the rerun of the tree. The fix is a `waitFor` on `dialog.contains(document.activeElement)` before each key press into the confirmation. Also still open from part one: `backend/.venv` needs rebuilding on `python@3.15` (the user's call).
+
+## Part three: preparation for 1.0.68 (2026-11-09, about 02:12 to 02:40 UTC; 2026-11-08, 18:12 to 18:40 PST), hands-off
+
+The Deployer ran this phase as a prep-only invocation, on `main` in the main checkout, after the re-entry (D-03). Nothing was committed, tagged, pushed, released, built for a store or uploaded, and no held copy was written into a live file. GitHub, App Store Connect (GET only, metadata key) and F-Droid were only read. Nothing was sent to eBird, and no device or emulator was touched. The production sign-off is the next gate, and part four runs on its recorded answer.
+
+### Preconditions
+
+- **The Tester PASSED the re-entry** on the first attempt (`qa-report.md` re-entry section, gitignored, on disk): 16 of 16 criteria; the full suite 10,795 passed, 0 failed; 512 rendered configurations in Chromium and WebKit.
+- **The Auditor PASSED WITH NOTES** (`security-report.md` re-entry section): nothing above Informational. I-4 was accepted with its comment corrected, and I-5 was applied as a `paths` line in `.claude/rules/security.md`, both under D-04.
+- No staging environment, as at every SnowRaven ship, so the production sign-off is the one gate. No key, environment variable, host or provider setting is needed, so there is no external setup to offer.
+- `PRIVACY_POLICY.md:33` and its `website/privacy.html` twin still hold. Check again on the settled line is a re-ask the user presses, the same control the `unmatched` line has carried since 1.0.64. The tab's own re-ask is unchanged at 30 days. No held policy sentence is owed.
+
+### Repository state (`git fetch origin --tags`, 02:12:59 UTC)
+
+- `origin/main` is `a554bce9` (`docs(pipeline): 1.0.67 deployment record, part two A`), equal to local `main`: nothing ahead, nothing behind.
+- Tags `v1.0.67` (tag object `d112bd01`, peeled to `7ea29a64`) exist locally and on origin. There is no `v1.0.68`. Release v1.0.67 is Latest (2026-11-09 00:22:20 UTC).
+- The other worktree (`.claude/worktrees/life-list-filter-toggle-state`) was read by `git worktree list` and `git log` only, never entered. It is at `481b9ee3`, 0 commits ahead of `main` and 13 behind, so no ship is in flight there.
+- Nothing of SnowRaven's was running: no `release.sh`, cargo, tauri, xcodebuild, vitest or emulator, and nothing held `~/.snowraven-build`. The one dev server running belongs to another project (`birdsim`'s Vite).
+- Keychain `no-timeout`, so it is unlocked; it was not touched. `gh` is signed in as `dtgibson`.
+
+### The version set (five of six written; the sixth held)
+
+| File | Change |
+|---|---|
+| `frontend/package.json`, `frontend/package-lock.json` (two lines) | 1.0.67 to 1.0.68 |
+| `src-tauri/tauri.conf.json` | `version` 1.0.68; `bundle.android.versionCode` 1000068 |
+| `CHANGELOG.md` | `## [1.0.68] - 2026-11-08` (PST, the 1.0.67 rule): one Fixed bullet and five Internal bullets. No em dash, ASCII only, American spelling. |
+| `website/index.html` | the version pill text, its `aria-label`, and the footer line; nothing else (a version stamp, no approval needed) |
+| `pipeline/android-release/fdroid/com.dtgibson.snowraven.yml` | three `Builds` entries at 1.0.68 (10000681, 10000682, 10000684); `CurrentVersion` 1.0.68, `CurrentVersionCode` 10000684. The three `commit:` lines stay on 1.0.67's `7ea29a64...` and move to `v1.0.68^{commit}` after the tag. |
+| **Held:** `fastlane/metadata/android/en-US/changelogs/10000681.txt`, `10000682.txt`, `10000684.txt` | Not written. The text is `held/whats-new-1.0.68.txt`: 216 characters, 217 bytes with the newline, SHA-256 `358bc780...8e142a`. `bump-1.0.68.sh held` writes all three on the yes. |
+
+The iOS plists stay at 1.0.67 / 1.0.67.1 until `tauri ios build` stamps them, under `iosSceneManifest.test.ts`'s "never leads" rule.
+
+`bump-1.0.68.sh` is `bump-1.0.67.sh` with the version constants and the held file's name changed (`diff` shows nothing else; ASCII only).
+- Check mode on the live tree: exit 0. The stamped set is consistently at 1.0.68, the recipe names one full commit, the three changelog files are absent, and the heading carries today's PST date.
+- Held mode against a scratch copy (`BUMP_ROOT`, an `rsync` of the tree with `frontend/node_modules` linked): it wrote the three files byte-equal to the held note, and none under 1000068. The five version-set guards then passed there, 5 files and 119 tests. A second `held` run refused with exit 3.
+
+### Gates on the live tree (nothing else of SnowRaven's running; `evidence/ship/gates-1.0.68-prep.txt`)
+
+- **The five version-set guards: 117 passed, 2 failed.** The two failures are the `fastlaneMetadata.test.ts` rows that wait for the held changelogs, and they turn green on the yes, as at 1.0.67.
+- **Full frontend suite, `npx vitest run`, alone:** 494 files passed, 1 failed, 5 skipped. 10,793 tests passed, 2 failed (the same two rows) and 6 skipped, of 10,801 (75.2 s). With the held files present that is QA's 10,795. No timing-ratio row failed locally.
+- `npm run lint`, `npm run typecheck` and `npm run build`: exit 0. The entry is `index-Cd8mL4ho.js`, and the large-chunk notice is pre-existing.
+- **The real-engine gate,** `CI=true npm run verify -- ../../frontend/dist` in `website/tools`: **8/8 harnesses green**, 253 PASS lines, 0 FAIL.
+- **Backend pytest cannot run:** `backend/.venv/bin/python3.11` points at `/opt/homebrew/opt/python@3.11`, which is gone (only `python@3.15` is installed). This release changes no file under `backend/`, and CI's Backend job runs on its own runner. Rebuilding the venv is the user's call.
+- **Em dashes and non-ASCII over every added line and new file (1,816 lines):** no em dash in shipped text. The two that appear are inside the verify harness's own log, captured in evidence before it was folded into the gates file. The other non-ASCII characters are:
+  - the website footer's existing middot;
+  - one box-drawing comment rule in `exoticProvenance.test.ts`, that file's existing style;
+  - an ellipsis in `pr-description.md`;
+  - tool output captured in evidence.
+
+### CI on `main`
+
+- **Pipeline `42537848526` on `b98884b1` succeeded** (1.0.67's stamp, the run of record for the shipped 1.0.67 tree).
+- **Pipeline `42540147018` on `a554bce9` failed**, and only on the known steady red: `lifeListsLinearity.test.ts` "pass 1 (first sightings), every row its own species", CPU-time ratio 26.11 against 20. The rest of the run was 10,762 passed, 1 failed; Backend, lint and typecheck were green. 1.0.67's record judged this row under D-17: ship on it, because a failure in a test this release touches, or any non-timing failure, reverses the acceptance. **1.0.68 touches nothing either timing row measures.** `lifeListsLinearity` imports `lifeLists.ts`, which imports only `types`, `parseMLExport` and `speciesUtils`. `alphaCodes.test.ts` imports `alphaCodes`, `speciesIndex`, `speciesMatch` and `speciesUtils`. None of them is in the diff. The `AlertsInboxSheet` Escape race (`42536522005`) did not recur here; its fix is still a follow-up.
+- The tree's first Pipeline run comes with the release push. The steps CI skips after the red test step, the build and the real-engine gate, passed locally above.
+
+### Rig readiness (read only)
+
+| Check | Result |
+|---|---|
+| Login keychain | `no-timeout`: unlocked |
+| `gh` | signed in as `dtgibson` (scopes `repo`, `workflow`) |
+| Login shell | Node v24.18.0; cargo 1.96.1; Rust targets for both Mac slices, iOS device and simulator, and the three Android ABIs; `APPLE_API_KEY_ID`, `APPLE_API_ISSUER_ID`, `APPLE_API_KEY_PATH`, `APPLE_SIGNING_IDENTITY` set |
+| Secrets (existence and mode only) | `~/.tauri/snowraven-signing.key` 600; ASC keys `QJA25M7XHM` and `BVVLBRRVL6` 600; the Android keystore and its properties file 600 |
+| Signing identities | Developer ID Application, Apple Distribution (`1861F7A4...`) and Apple Development, team `8QKC3L2FKP`: 3 valid |
+| Profiles | Developer ID "SnowRaven Mac Developer ID 20260901" to 2044. The export plist maps the app to "SnowRaven iOS App Store iCloud AppGroup 20260924" and the widgets to "SnowRaven Widgets App Store", both to 2027-07-05, with `iCloudContainerEnvironment` Production. |
+| Xcode | 27.2 (27B52), iOS SDK 27.2, Swift 6.4.2, so the swift shim still applies. `xcodebuild -checkFirstLaunchStatus` exits 0. No `simctl` call was made. `/tmp/xcshim` exists but is recreated anyway. |
+| Leftover iOS archive | `src-tauri/gen/apple/build/snowraven_iOS.xcarchive` is **1.0.67 (1.0.67.1)**, from 15:46 PST. Part four moves it aside first, as `...-1.0.67.1-stale-before-1.0.68.xcarchive`. |
+| Android | JDK 17.0.21.0.3; build-tools 36.0.0 (and 35.0.0); one NDK, 27.2.12479018; Gradle 8.14.3 at `~/.tauri/gradle-8.14.3`; `cargo tauri` 2.11.2; `toolchain.env` unchanged against HEAD. AVDs `sr-api24/26/30/36-phone`, `sr-api36-aosp` and `sr-api36-tablet` are listed by `emulator -list-avds`. No `adb` call was made. |
+
+### App Store Connect (read only, metadata key, GET only, 02:23:12 UTC; `evidence/ship/asc-read-1.0.68-prep.txt`)
+
+- **31 version records, all `READY_FOR_SALE`; nothing open.** The newest is **1.0.66 on record `ab6360bc-24b3-4816-bf84-88967df06507`** (`READY_FOR_DISTRIBUTION`, `AFTER_APPROVAL`), on build 1.0.66.1 (`32038a0c`). Its en-US What's New, localization `114f46ce`, is the 882-character 1.0.64 + 1.0.65 + 1.0.66 rollup, and its promotional text is 137 characters.
+- 10 review submissions, all `COMPLETE`.
+- 91 TestFlight trains and 99 builds, every build `VALID`. **Train 1.0.67 `fce1e625`, build 1.0.67.1 `6614dec9-8b21-4165-b870-d94ff330d05f` `VALID`**, not expired, min OS 16.0. There is no 1.0.67 record, and no 1.0.68 train or record.
+- From 1.0.13 on there are 55 trains, 25 without a record of their own. Those are the 24 accounted for through the 1.0.66 entry, plus **1.0.67, which rolls up into 1.0.68 at this ship** (D-03). There is no other gap.
+- **One app info now**, `8319b5dd` (`READY_FOR_DISTRIBUTION`, age rating `FOUR_PLUS`), where 1.0.66 saw two. Its declaration is answered: 30 fields, 16 `NONE`, 11 false, 3 null (`kidsAgeBand`, `gracRatingClassificationNumber`, `developerAgeRatingInfoUrl`, null on a non-Kids app). It is read-only until a version is in preparation. The new record's editable app info is read again then.
+
+**The disposition for 1.0.68.** No rollup into an existing record is possible: 1.0.66 is released, nothing is in review, and a released train takes no new build. So **1.0.68 gets a new record** on build 1.0.68.1, `AFTER_APPROVAL`, no phased release, and it carries 1.0.67 by rollup. Its What's New is the 571-character rollup in `held/gate-copy-1.0.68.md`: 1.0.67's approved text, a blank line, then 1.0.68's text. Store users on 1.0.66 never received 1.0.67's note.
+
+Before submitting:
+- Restore the promotional text from `appstore/LISTING.md` if it arrives empty, as it has on fourteen new records. Read every listing field back against `LISTING.md`.
+- Check the review notes byte for byte against `appstore/REVIEW_NOTES.md`.
+- Answer or confirm the age rating on the editable app info.
+- `asc-screens.mjs readback` on the new localization must end `ALL MATCH`. A new record has carried all three sets over since 1.0.62.
+
+The state is read again immediately before the App Store step.
+
+**Screenshots need no recapture.** The photographed UI does not change. `website/tools/capture-appstore.mjs:224` waits up to 120 s for "Exotic status checked across", which the settled line does not contain, but the capture stub answers every species, so the wait is never reached in this ship (QA probe (c)). It stays a note for the next capture.
+
+### F-Droid (public reads, 02:23 UTC; `evidence/ship/fdroid-read-1.0.68-prep.txt`)
+
+- f-droid.org publishes 1.0.61, 1.0.60 and 1.0.59 (`suggestedVersionCode` 10000614).
+- fdroiddata `master` has `CurrentVersion` 1.0.65 / 10000654, with `Builds` entries for 1.0.53, 1.0.55, 1.0.56, 1.0.60, 1.0.61 and 1.0.65. **There are none for 1.0.66 or 1.0.67.** The newest recipe commit is still `8970b26d` "keep latest" (2026-11-08 19:02 UTC); the bot's last run was `3302f014`, 09:54 UTC.
+- The build logs for 10000651/2/4, 10000661/2/4 and **10000671/2/4** all answer 404, meaning not attempted.
+- **States:** 1.0.65, 1.0.66 and 1.0.67 are each "included and this tag not yet built". The bot adds only the newest tag it finds, so a `v1.0.68` tag pushed before its next run (about 09:00 to 10:00 UTC) most likely leaves **1.0.66 and 1.0.67 superseded on F-Droid by 1.0.68**, which costs nothing.
+- **Nothing goes to fdroiddata at 1.0.68:** `toolchain.env` is unchanged, and the recipe diff moves only versions and codes.
+
+### Cargo for the production gate
+
+`git log origin/main..main` shows nothing. The release carries this run's working tree and nothing else:
+
+| Group | Files | Whose |
+|---|---|---|
+| App behavior | `lib/exoticProvenance.ts`, `exoticProvenanceCache.ts`, `useExoticProvenance.ts`, `lifeListsProvenance.ts`, `exoticCopy.ts`, `components/ExoticProvenanceAccount.tsx`; `docs/HELP.md` (bundled Help, one sentence) | this build (the re-entry) |
+| Tests | `exoticProvenance`, `exoticProvenanceCache`, `exoticProvenanceConvergence`, `exoticTaxonomyJoin`, `lifeListsProvenance`, `useExoticProvenance`, `ExoticProvenanceAccount` suites | this build |
+| Rule file | `.claude/rules/security.md` (one `paths` line, D-04 I-5) | this build |
+| Version set, five of six | above | this build |
+| Record-keeping | `pipeline/escapee-check-new-taxonomy/` (brief, decisions, PR description, `held/` including `bird-names-rule-amendment.md` for the Chronicler and `gate-copy-1.0.68.md`, `bump-1.0.68.sh`, this record, `evidence/ship/`). `qa-report.md`, `security-report.md` and `how-to-see.md` are gitignored and stay out. | pre-approved cargo |
+| Held, written only on the yes by `bump-1.0.68.sh held` | the three F-Droid changelogs | this build |
+
+No commit from another build or from manual work rides along.
+
+### Held copy for the gate (`held/gate-copy-1.0.68.md`)
+
+- (a) **F-Droid, 1.0.68's own text only** (the 1.0.65 precedent): `held/whats-new-1.0.68.txt`, 216 characters. **Not yet approved.**
+- (b) **App Store What's New on the new 1.0.68 record:** 1.0.67's approved text (353), a blank line, then 1.0.68's text (216). That is 571 characters, SHA-256 `c885c3f1...e593b`.
+- Wording check: no em dash, ASCII only, American spelling, and tab names from `TAB_LABELS`. There is no change I would make.
+
+### For part four (the ship, on the gate's answer)
+
+The order is the 1.0.67 part two sequence:
+
+1. `bump-1.0.68.sh held`, with `RELEASE_DATE=2026-11-09` if the ship runs past midnight PST.
+2. The gates again on the release tree.
+3. Commit the fix and the run folder, then the release commit, then the annotated `v1.0.68` tag, pushed alone.
+4. The recipe `commit:` lines go to `v1.0.68^{commit}`, then push `main`.
+5. Windows and Android CI pinned to the tag's commit, and Pages.
+6. iOS during the CI wait:
+   - recreate the three shims;
+   - move the 1.0.67.1 archive aside;
+   - run the widget Swift tests;
+   - `tauri ios build --build-number 1`, outside the sandbox;
+   - restore the `project.pbxproj` quoting;
+   - sign the appex ad hoc with its entitlements;
+   - manual export, then check `DistributionSummary.plist`;
+   - `--validate-app`, then `--upload-app`;
+   - commit the stamp.
+7. `release.sh`, alone, once Pipeline on the stamp is green or judged under D-17.
+8. Android:
+   - run `preflight.sh`, then `sign.sh`, with `SNOWRAVEN_ANDROID_SIGNER_SHA256` = `42a3576e...996a`;
+   - check the signed bytes on the API 36 emulator;
+   - read the WebView version;
+   - run `attach.sh` with `ANDROID_DEVICE_CHECK=partial` (the standing decision).
+9. TestFlight 1.0.68.1 `VALID`.
+10. **The user's iPhone check of TestFlight 1.0.68 (1) before any App Store record** (the v1.0.31 rule; the device boundary means they perform it). Then the App Store step above.
+11. **`RELEASE_LEDGER.md`, all owed at this ship.** Part two A held these, so they are written here:
+    - the 1.0.67 App Store sentence: **rolled up into 1.0.68**, naming VALID build 1.0.67.1 `6614dec9` and the new 1.0.68 record and submission ids;
+    - the 1.0.68 App Store entry;
+    - the 1.0.66 App Store entry corrected to `READY_FOR_SALE`, with submission `51af3019` `COMPLETE`;
+    - the 1.0.67 Android entry: APK `c234b057...46c1` attached, signer `42a3576e...996a`, Partial, plus its F-Droid state;
+    - the 1.0.68 Android entry;
+    - the 1.0.63 Android correction: superseded on F-Droid by 1.0.65 (`8970b26d` keep-latest);
+    - 1.0.66's and 1.0.67's F-Droid states as read then.

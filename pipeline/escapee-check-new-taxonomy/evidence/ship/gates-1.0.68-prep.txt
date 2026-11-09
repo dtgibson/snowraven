@@ -1,0 +1,30 @@
+Gates for the 1.0.68 prep, live tree (version set five of six written, the three F-Droid changelogs held), 2026-11-09 02:15 to 02:30 UTC
+
+version-set guards (fastlaneMetadata, fdroidRecipe, androidVersionSource, icloudKeysPublishedClaims, iosSceneManifest), live tree:
+  Test Files 1 failed | 4 passed (5); Tests 2 failed | 117 passed (119); the two failures are the held-changelog rows of fastlaneMetadata.test.ts
+version-set guards, scratch copy (BUMP_ROOT) after bump-1.0.68.sh held: Test Files 5 passed (5), Tests 119 passed (119); a second held run exits 3
+
+vitest full suite, live tree, alone on the machine:
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  src/lib/fastlaneMetadata.test.ts > the F-Droid listing (fastlane/metadata/android/en-US) > has the same changelog under each per-processor code of the current version, and every file is within F-Droid's limits
+ FAIL  src/lib/fastlaneMetadata.test.ts > guard-the-guard > removing one per-processor changelog, changing one, or adding the unsplit one in a scratch copy is each caught
+ Test Files  1 failed | 494 passed | 5 skipped (500)
+      Tests  2 failed | 10793 passed | 6 skipped (10801)
+   Duration  75.23s (transform 18.45s, setup 3.82s, import 66.17s, tests 324.84s, environment 74.63s)
+
+npm run lint: exit 0 (2 lines of output, the npm header only)
+npm run typecheck: exit 0
+npm run build: exit 0 (built in 849ms; entry dist/assets/index-Cd8mL4ho.js; the large-chunk notice is pre-existing)
+
+verify gate (CI=true npm run verify -- ../../frontend/dist, website/tools): PASS lines 253, FAIL lines 0
+========================================================================
+  PASS  verify-webkit-tab-premise.mjs
+  PASS  verify-palette.mjs
+  PASS  verify-backlog-alert.mjs
+  PASS  verify-named-birds-header.mjs
+  PASS  verify-named-bird-media-links.mjs
+  PASS  verify-weather-species-rows.mjs
+  PASS  verify-plan-daylabels.mjs
+  PASS  verify-plan-readout.mjs
+verification gate: 8/8 harnesses green
+========================================================================

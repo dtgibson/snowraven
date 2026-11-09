@@ -70,6 +70,7 @@ paths:
   - "frontend/src/lib/ttlWindow*.ts"
   - "frontend/src/lib/countyCompletenessCache*.ts"
   - "frontend/src/lib/useCountyCompleteness.ts"
+  - "frontend/src/lib/useExoticProvenance.ts"
   - "frontend/src/lib/checklistProjectsCache*.ts"
   - "frontend/src/lib/hotspotActivityCache*.ts"
   - "frontend/src/lib/barChartFilesChanged.ts"

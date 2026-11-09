@@ -8,7 +8,7 @@ import { NO_ESCAPEE_JOIN, type ProvenanceSnapshot, type SpeciesProvenanceRecord 
 import { buildEscapeeJoin } from './exoticTaxonomyJoin'
 import type { TaxonomyHistory } from './taxonomyHistory'
 import historyAsset from '../assets/ebird-taxonomy-history.json'
-import { lifeListsClassification, statisticsCheckComplete } from './lifeListsProvenance'
+import { checkCompleteFor, lifeListsClassification, rosterCoverIndex, statisticsCheckComplete } from './lifeListsProvenance'
 
 function obs(commonName: string, submissionId: string): ObservationEntry {
   return {
@@ -79,6 +79,27 @@ describe("the status reads Statistics' own completion for this export (FR-20, QA
     expect(statisticsCheckComplete(open, rows, CODES, J)).toBe(true)
     const answered = snap(['S1', 'S2', 'S3', 'S4'], [], [], { ...settled, houswi1: rec(['|']) })
     expect(statisticsCheckComplete(answered, rows, CODES, join)).toBe(true)
+  })
+
+  it('a species the answers settled by their absence is finished, on a held stamp of any age, and a store of stamps alone reads as checked (escapee-check-new-taxonomy re-entry)', () => {
+    // The user's case: Eurasian Skylark's one checklist was answered without
+    // it. The snapshot carries the stamp's code and no time, so its age cannot
+    // matter here; the controller rows pin a fresh and a 31-day-old stamp.
+    const rows = [obs('Eurasian Skylark', 'S1'), obs('Mallard', 'S1')]
+    const codes = { 'Eurasian Skylark': 'skylar', Mallard: 'mallar3' }
+    const index = rosterCoverIndex(rows, codes, J)
+    const answered = { ...snap(['S1'], [], [], { mallar3: rec(['|']) }), unmatched: new Set(['skylar']) }
+    expect(checkCompleteFor(answered, index)).toBe(true)
+    // Without the stamp the same store is unfinished, as before.
+    expect(checkCompleteFor(snap(['S1'], [], [], { mallar3: rec(['|']) }), index)).toBe(false)
+    // A Skylark-only checklist answered empty: no record anywhere, one stamp.
+    // The old `species.size === 0` guard read this as never checked.
+    const alone = rosterCoverIndex([obs('Eurasian Skylark', 'S1')], codes, J)
+    expect(checkCompleteFor({ ...snap(['S1'], [], []), unmatched: new Set(['skylar']) }, alone)).toBe(true)
+    expect(checkCompleteFor(snap(['S1'], [], []), alone)).toBe(false)
+    // A newer backup adds a Skylark checklist nobody has asked: open again.
+    const wider = rosterCoverIndex([...rows, obs('Eurasian Skylark', 'S2')], codes, J)
+    expect(checkCompleteFor(answered, wider)).toBe(false)
   })
 
   it('reads the code table through Object.hasOwn, so a __proto__ name is an ordinary key', () => {

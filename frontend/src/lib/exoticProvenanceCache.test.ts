@@ -715,8 +715,13 @@ describe('unmatched stamps: what a successful answer did not include', () => {
   it('a record admitted later drops the stamp', async () => {
     await cache.mergeChecklist('S1', [o('mallar3')], COVER, Date.now(), ['musduc', 'mallar3'])
     expect([...cache.unmatchedSet(Date.now())]).toEqual(['musduc'])
+    expect([...cache.getSnapshot().unmatched ?? []]).toEqual(['musduc'])
+    // eBird confirms the record: the next answer carries its row.
     await cache.mergeChecklist('S2', [o('musduc', 'X', 'DNC')], COVER, Date.now(), ['musduc'])
     expect(cache.unmatchedSet(Date.now()).size).toBe(0)
+    // ...and the completion readers see the record, not the stamp.
+    expect(cache.getSnapshot().unmatched?.size).toBe(0)
+    expect(cache.getSnapshot().species.get('musduc')?.seen).toEqual(['X|DNC'])
     expect(cache._getProvenanceCacheWorkStatsForTests().stampDrops).toBe(1)
     await vi.advanceTimersByTimeAsync(300)
     const doc = seamDoc.value as { unmatched: Record<string, number>; unmatchedOrder: string[] }
@@ -749,8 +754,13 @@ describe('unmatched stamps: what a successful answer did not include', () => {
     expect([...cache.unmatchedSet(Date.now())]).toEqual(['musduc'])
     vi.advanceTimersByTime(2 * DAY)
     expect(cache.unmatchedSet(Date.now()).size).toBe(0)
+    // The TTL governs the re-ask only. The snapshot serves the stamp's CODE at
+    // any age, as it serves every ledger entry, so completion never depends on
+    // the clock (escapee-check-new-taxonomy re-entry).
+    expect([...cache.getSnapshot().unmatched ?? []]).toEqual(['musduc'])
     await cache.mergeChecklist('S2', [], COVER, Date.now(), ['musduc'])
     expect([...cache.unmatchedSet(Date.now())]).toEqual(['musduc'])
+    expect([...cache.getSnapshot().unmatched ?? []]).toEqual(['musduc'])
   })
 
   it('persists through the whole-document write and reads back next session', async () => {
@@ -761,6 +771,8 @@ describe('unmatched stamps: what a successful answer did not include', () => {
     cache._resetProvenanceCacheForTests()
     await cache.loadSnapshot()
     expect([...cache.unmatchedSet(Date.now())]).toEqual(['willet2'])
+    // The next session's completion readers get the same code, and no time.
+    expect([...cache.getSnapshot().unmatched ?? []]).toEqual(['willet2'])
   })
 
   it('a refreshed stamp keeps its place, and past the cap the first stamped goes, one per new stamp (capacity+1, as work done)', async () => {
@@ -907,6 +919,7 @@ describe('unmatched stamps and Clear (clear-means-clear)', () => {
     expect(seamDoc.value).toMatchObject({ unmatchedOrder: ['musduc'] })
     await cache.purgeProvenanceStore()
     expect(cache.unmatchedSet(Date.now()).size).toBe(0)
+    expect(cache.getSnapshot().unmatched?.size).toBe(0)
     expect(seamDoc.value).toBe(null)
   })
 

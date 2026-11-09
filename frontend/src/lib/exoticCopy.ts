@@ -151,6 +151,10 @@ export function statusSentence(status: ProvenanceStatus, found: number): string 
         ? `Checking exotic status: ${status.done} of ${status.planned} checklists, plus ${status.additional} follow-up checks.`
         : `Checking exotic status: ${status.done} of ${status.planned} checklists.`
     case 'complete':
+      // escapee-check-new-taxonomy re-entry: finished, and naming the species
+      // eBird's public data had no answer for (the account renders the same
+      // parts with each name through BirdName, beside Check again).
+      if ((status.settledNames?.length ?? 0) > 0) return unmatchedSentenceText(settledSentence(status.settledNames ?? []))
       return found > 0
         ? `Exotic status checked across ${status.planned} checklists. ${found} of your species are eBird escapees.`
         : `Exotic status checked across ${status.planned} checklists. None of your species are eBird escapees.`
@@ -168,11 +172,11 @@ export function statusSentence(status: ProvenanceStatus, found: number): string 
           // count." at every other count (design-spec.md, verbatim).
           return `Stopped following up on ${status.openSpecies} species after ${status.cap} checklists each. ${status.openSpecies === 2 ? 'Both still count.' : 'They all still count.'}`
         case 'unmatched':
-          // exotic-provenance-reuse D-04: the check has settled with species
-          // still open. Since escapee-check-new-taxonomy the line names them
-          // (the account renders the same parts with each name through
-          // BirdName); Check again beside it is the way to re-ask sooner than
-          // the 30 days.
+          // exotic-provenance-reuse D-04: the check has nothing left to ask
+          // with species still open (since the re-entry, only those no stamp
+          // settles; see PartialReason). Since escapee-check-new-taxonomy the
+          // line names them (the account renders the same parts with each
+          // name through BirdName); Check again beside it re-asks.
           return unmatchedSentenceText(unmatchedSentence(status.openSpecies, status.openNames ?? []))
       }
       return ''
@@ -218,13 +222,52 @@ export interface UnmatchedSentence {
 
 export function unmatchedSentence(openSpecies: number, openNames: readonly string[]): UnmatchedSentence {
   const tail = `, so ${openSpecies === 1 ? 'it still counts' : 'they still count'}.`
-  const lead = "eBird's answers did not include "
-  if (openNames.length === 0) return { lead: `${lead}${openSpecies} of your species`, names: [], others: '', tail }
-  if (openSpecies <= UNMATCHED_NAMED_MAX && openNames.length >= openSpecies) {
-    return { lead, names: openNames.slice(0, openSpecies), others: '', tail }
+  return namedList("eBird's answers did not include ", openSpecies, openNames, tail)
+}
+
+/**
+ * The settled line (escapee-check-new-taxonomy re-entry): the check is
+ * finished, and eBird's public data had no answer for these species, so they
+ * count. The same parts and the same ladder as `unmatchedSentence`:
+ *
+ *   1 name   "Exotic status checked. eBird's public data has no answer for Eurasian Skylark, so it counts."
+ *   2 names  "Exotic status checked. eBird's public data has no answer for A or B, so they count."
+ *   6 names  "Exotic status checked. eBird's public data has no answer for A, B, C, or 3 other species, so they count."
+ *
+ * Cause-neutral on purpose: the stamp behind it cannot tell a record eBird
+ * keeps out of its public output (one it has not confirmed) from a name under
+ * an older taxonomy the join does not cover, and the sentence is true of both.
+ * "Exotic status checked." makes it read finished; "counts", never "still
+ * counts", because nothing is pending. Every species is named in hand, so the
+ * count form never applies here.
+ */
+export function settledSentence(settledNames: readonly string[]): UnmatchedSentence {
+  const n = settledNames.length
+  const tail = `, so ${n === 1 ? 'it counts' : 'they count'}.`
+  return namedList("Exotic status checked. eBird's public data has no answer for ", n, settledNames, tail)
+}
+
+/** The parts a status that names species renders, or null when it names none:
+ *  the settled `complete` and the `unmatched` partial with names in hand. The
+ *  one place that decides which statuses name birds, for the account. */
+export function namedStatusSentence(status: ProvenanceStatus): UnmatchedSentence | null {
+  if (status.kind === 'complete' && (status.settledNames?.length ?? 0) > 0) return settledSentence(status.settledNames ?? [])
+  if (status.kind === 'partial' && status.reason === 'unmatched' && (status.openNames?.length ?? 0) > 0) {
+    return unmatchedSentence(status.openSpecies, status.openNames ?? [])
   }
-  const shown = openNames.slice(0, UNMATCHED_NAMED_MAX - 1)
-  return { lead, names: shown, others: `${openSpecies - shown.length} other species`, tail }
+  return null
+}
+
+/** The one list ladder both named lines use: every name up to the cut, else the
+ *  first `UNMATCHED_NAMED_MAX - 1` and a count of the rest (at least two). With
+ *  no names in hand, the count form. */
+function namedList(lead: string, count: number, names: readonly string[], tail: string): UnmatchedSentence {
+  if (names.length === 0) return { lead: `${lead}${count} of your species`, names: [], others: '', tail }
+  if (count <= UNMATCHED_NAMED_MAX && names.length >= count) {
+    return { lead, names: names.slice(0, count), others: '', tail }
+  }
+  const shown = names.slice(0, UNMATCHED_NAMED_MAX - 1)
+  return { lead, names: shown, others: `${count - shown.length} other species`, tail }
 }
 
 /** The separator before list item `i` of `n` in an "or" list, serial comma. */

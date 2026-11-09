@@ -138,7 +138,9 @@ describe('every 2026 shape resolves from an answer under a sibling code', () => 
     await answerAll(idx, { S1: [{ speciesCode: 'soubet1' }], S2: [{ speciesCode: 'willet3' }] })
     expect(classifySpecies(cache.getSnapshot(), idx, 'soubet2')).toBe('counting')
     expect(classifySpecies(cache.getSnapshot(), idx, 'willet2')).toBe('counting')
-    expect(remainingSpecies(cache.getSnapshot(), idx, new Set())).toEqual([])
+    // No stamp settles anything (the empty fourth argument): the join must
+    // answer each species with a record of its own.
+    expect(remainingSpecies(cache.getSnapshot(), idx, new Set(), new Set())).toEqual([])
     expect(cache.unmatchedSet(Date.now()).size).toBe(0)
   })
 
@@ -147,7 +149,7 @@ describe('every 2026 shape resolves from an answer under a sibling code', () => 
     expect(codeOf(idx, 'Great Horned Owl')).toBe('grhowl')
     await answerAll(idx, { S1: [{ speciesCode: 'grhowl19', exoticCategory: 'X' }] })
     expect(cache.getSnapshot().species.get('grhowl')?.seen).toEqual(['X|'])
-    expect(remainingSpecies(cache.getSnapshot(), idx, new Set())).toEqual([])
+    expect(remainingSpecies(cache.getSnapshot(), idx, new Set(), new Set())).toEqual([])
   })
 
   it('the old code reused for the slash (Marsh Wren as marwre, Willet as willet1), the measured answer', async () => {
@@ -193,7 +195,7 @@ describe('every 2026 shape resolves from an answer under a sibling code', () => 
           cache._resetProvenanceCacheForTests()
           await answerAll(idx, { S1: [{ speciesCode: answer }] })
           expect(cache.getSnapshot().species.has(code), `${b.com} answered as ${answer}`).toBe(true)
-          expect(remainingSpecies(cache.getSnapshot(), idx, new Set()), `${b.com} answered as ${answer}`).toEqual([])
+          expect(remainingSpecies(cache.getSnapshot(), idx, new Set(), new Set()), `${b.com} answered as ${answer}`).toEqual([])
           rowsMeasured += 1
         }
       }

@@ -28,8 +28,12 @@
 //   6. SETTLE. A species no successful answer carries is stamped by the store
 //      (exotic-provenance-reuse), so the next load does not re-open the
 //      checklists already asked about it; only Check again re-asks within the
-//      TTL. A check that ends with species still open is never `complete`
-//      (D-04): Life Lists' completion test reads the same open set.
+//      TTL. Once every checklist carrying such a species is answered it is
+//      SETTLED (escapee-check-new-taxonomy re-entry): it counts, it is not
+//      open, and the check reports `complete` naming it, with Check again. A
+//      check that ends with species still open is never `complete` (D-04):
+//      Life Lists' completion test reads the same open set, with the same
+//      held stamps.
 //
 // Every clock read lives in a handler or an effect. Nothing here is called
 // during render, and the objects render consumes are entirely time-free
@@ -42,8 +46,8 @@ import { isOfflineError } from './offlineDetect'
 import { formatDate } from './formatDate'
 import { SUBMISSION_ID_RE } from '../components/speciesDetail/ui'
 import {
-  buildProvenanceLookup, carriersNeedingRefetch, greedyCover, openSpeciesNames, remainingSpecies,
-  EMPTY_LOOKUP, type CoverIndex, type ProvenanceLookup,
+  buildProvenanceLookup, carriersNeedingRefetch, greedyCover, heldStamps, openSpeciesNames, remainingSpecies,
+  settledSpecies, EMPTY_LOOKUP, type CoverIndex, type ProvenanceLookup, type ProvenanceSnapshot,
 } from './exoticProvenance'
 import {
   consultedSet, getSnapshot, isFreshFor, lastConsultedAt, loadSnapshot,
@@ -98,19 +102,41 @@ const MAX_ROUNDS = 64
  */
 export const PROGRESS_ANNOUNCE_INTERVAL_MS = 2000
 
-/** `unmatched` (exotic-provenance-reuse D-04): the check has asked eBird about
- *  every checklist it can within the TTL and species are still open, because
- *  the answers had no row for them. Settled, but not complete. */
+/** `unmatched` (exotic-provenance-reuse D-04): the check has nothing left to
+ *  ask and species are still open. Since the escapee-check-new-taxonomy
+ *  re-entry a species the answers lacked on every carrier is settled, not open
+ *  (the `complete` state's `settledNames`), so this reason remains only for an
+ *  open species no stamp settles once the pass is over: a refused row for a
+ *  species with no earlier stamp (a refused row for a STAMPED species leaves
+ *  the stamp, so that species reads settled; security report I-4), or a stamp
+ *  or ledger entry evicted at its cap. Still never `complete` (D-04). */
 export type PartialReason = 'cancelled' | 'pass-budget' | 'species-budget' | 'failures' | 'unmatched'
 
 /** Check again's view of the stamps: none, so the heal re-opens every
  *  recordless species for that one run, bounded by the usual caps. */
 const NO_STAMPS: ReadonlySet<string> = new Set<string>()
 
+/** The PLANNING view of the open set (`remainingSpecies`' stamp input): no
+ *  stamp settles anything here, so a stamped species stays in `remaining` and
+ *  the heal's TTL-gated read (`unmatchedSet`, or none for Check again) alone
+ *  decides whether its carriers are asked again. Planning is therefore exactly
+ *  what it was before the re-entry; only the reports read the held stamps. */
+const PLANNING_SETTLES_NONE: ReadonlySet<string> = new Set<string>()
+const NO_PARKED: ReadonlySet<string> = new Set<string>()
+
 export type ProvenanceStatus =
   | { kind: 'not-checked' }
   | { kind: 'in-progress'; done: number; planned: number; additional: number }
-  | { kind: 'complete'; planned: number; found: number }
+  | {
+      kind: 'complete'
+      planned: number
+      found: number
+      /** escapee-check-new-taxonomy re-entry: the export's own names, sorted,
+       *  for the species the answers settled by their absence (they count and
+       *  are not open). Absent or empty when there are none; when present the
+       *  line names them and offers Check again, which re-asks them. */
+      settledNames?: readonly string[]
+    }
   | {
       kind: 'partial'
       done: number
@@ -148,8 +174,9 @@ export interface ExoticProvenanceController {
   /** FR-19: end the pass. Everything already resolved is kept and cached. */
   stop: () => void
   /** The error state's "Try again" and every partial state's "Check again".
-   *  From the `unmatched` state it is the one way to re-ask, within the TTL,
-   *  about a species eBird's answers did not include: that run ignores the
+   *  From a state that names species eBird's answers did not include (the
+   *  `complete` state with `settledNames`, or the `unmatched` partial) it is
+   *  the one way to re-ask about them within the TTL: that run ignores the
    *  stamps. From every other state it keeps its meaning (retry the failed,
    *  continue the stopped), so a retry after a run of 429s does not also
    *  re-open every settled species on the same key (decisions.md D-13). */
@@ -196,6 +223,32 @@ async function fetchProvenance(submissionId: string): Promise<readonly Provenanc
 function offlineStatus(): ProvenanceStatus {
   const at = lastConsultedAt()
   return { kind: 'offline', checkedLabel: at === null ? null : formatDate(new Date(at)) }
+}
+
+/** The `complete` status, naming any species the answers settled by their
+ *  absence (read with the held stamps, the reading Life Lists takes). */
+function completeStatus(planned: number, snapshot: ProvenanceSnapshot, index: CoverIndex): ProvenanceStatus {
+  const found = buildProvenanceLookup(snapshot, index).excluded.length
+  const settledNames = openSpeciesNames(index, settledSpecies(snapshot, index, heldStamps(snapshot)))
+  return settledNames.length > 0 ? { kind: 'complete', planned, found, settledNames } : { kind: 'complete', planned, found }
+}
+
+/** What a load reports when it has nothing to ask (the auto-start skip). The
+ *  COMPLETION open set, with the held stamps: open species (none can be, on
+ *  the skip's own conditions, but D-04 is checked rather than assumed) read
+ *  `unmatched`; a store with no record and no stamp is not checked yet; else
+ *  `complete`, naming the settled species. */
+function reportWithoutPass(snapshot: ProvenanceSnapshot, index: CoverIndex): ProvenanceStatus {
+  const held = heldStamps(snapshot)
+  const open = remainingSpecies(snapshot, index, NO_PARKED, held)
+  if (open.length > 0) {
+    return {
+      kind: 'partial', done: 0, planned: 0, failed: 0, openSpecies: open.length, reason: 'unmatched', cap: 0,
+      openNames: openSpeciesNames(index, open),
+    }
+  }
+  if (snapshot.species.size === 0 && held.size === 0) return { kind: 'not-checked' }
+  return completeStatus(0, snapshot, index)
 }
 
 /** One pass's stop, owned by that pass alone (ebird-request-economy D-07). A
@@ -385,7 +438,9 @@ export function useExoticProvenance(
 
       for (let round = 0; round < MAX_ROUNDS; round += 1) {
         const nowMs = Date.now()
-        const remaining = remainingSpecies(getSnapshot(), idx, parked)
+        // The planning view: a stamped species stays here, and the heal below
+        // decides whether its carriers are asked again (PLANNING_SETTLES_NONE).
+        const remaining = remainingSpecies(getSnapshot(), idx, parked, PLANNING_SETTLES_NONE)
         if (remaining.length === 0) break
 
         const consulted = new Set(consultedSet(nowMs))
@@ -493,7 +548,11 @@ export function useExoticProvenance(
       }
 
       // ── Report ───────────────────────────────────────────────────────────────
-      const finalLookup = buildProvenanceLookup(getSnapshot(), indexRef.current)
+      // The COMPLETION reading, with the held stamps (Life Lists' own): a
+      // species the answers settled by their absence is not open.
+      const finalSnapshot = getSnapshot()
+      const finalIndex = indexRef.current
+      const finalLookup = buildProvenanceLookup(finalSnapshot, finalIndex)
       const openSpecies = finalLookup.counts.unresolved + finalLookup.counts.unknown
 
       if (done === 0 && failed > 0) {
@@ -502,14 +561,13 @@ export function useExoticProvenance(
       }
       if (reason === null && failed > 0) { reason = 'failures'; cap = 0 }
       // D-04: never `complete` while species are open. Nothing failed and
-      // nothing stopped the pass, so every checklist it could ask is answered
-      // and the answers had no row for these.
+      // nothing stopped the pass, yet a species no stamp settles is open (see
+      // PartialReason for the cases left).
       if (reason === null && openSpecies > 0) { reason = 'unmatched'; cap = 0 }
       if (reason === 'unmatched') {
-        // Settled but open: name the species, so the line says which bird
-        // eBird's answers left out (escapee-check-new-taxonomy).
-        const final = indexRef.current
-        const openNames = openSpeciesNames(final, remainingSpecies(getSnapshot(), final, new Set()))
+        // Name the species, so the line says which bird is left open
+        // (escapee-check-new-taxonomy).
+        const openNames = openSpeciesNames(finalIndex, remainingSpecies(finalSnapshot, finalIndex, NO_PARKED, heldStamps(finalSnapshot)))
         setStatus({ kind: 'partial', done, planned, failed, openSpecies, reason, cap, openNames })
         return
       }
@@ -519,7 +577,7 @@ export function useExoticProvenance(
         })
         return
       }
-      setStatus({ kind: 'complete', planned, found: finalLookup.excluded.length })
+      setStatus(completeStatus(planned, finalSnapshot, finalIndex))
     } catch (err) {
       setStatus(isOfflineError(err) ? offlineStatus() : { kind: 'error' })
     } finally {
@@ -545,7 +603,9 @@ export function useExoticProvenance(
     if (!online) { settle(offlineStatus()); return }
 
     const nowMs = Date.now()
-    const open = remainingSpecies(getSnapshot(), index, new Set())
+    // The PLANNING view (what a pass would still seek): a stamped species is
+    // in it, so the heal's TTL read below decides whether it is asked again.
+    const open = remainingSpecies(getSnapshot(), index, NO_PARKED, PLANNING_SETTLES_NONE)
     const carriers = new Set<string>()
     for (const code of open) {
       for (const sub of index.bySpecies.get(code) ?? []) carriers.add(sub)
@@ -556,25 +616,14 @@ export function useExoticProvenance(
     // also HAS a record to classify from, or a successful answer within the
     // TTL was seen to lack it. A recordless, unstamped cover species means the
     // ledger was written under a cover that could not admit it, and the pass
-    // must run to heal the store (see carriersNeedingRefetch).
-    if (open.length === 0) {
-      const resolved = buildProvenanceLookup(getSnapshot(), index)
-      settle(
-        getSnapshot().species.size === 0
-          ? { kind: 'not-checked' }
-          : { kind: 'complete', planned: 0, found: resolved.excluded.length },
-      )
-      return
-    }
-    const stale = carriersNeedingRefetch(getSnapshot(), index, open, unmatchedSet(nowMs))
-    if (stale.size === 0 && isFreshFor(carriers, nowMs)) {
-      // Settled but open, and newly reachable with the stamps: every carrier
-      // is answered within the TTL, so each open species is a stamped one.
-      // No pass and no request; never `complete` (D-04).
-      settle({
-        kind: 'partial', done: 0, planned: 0, failed: 0, openSpecies: open.length, reason: 'unmatched', cap: 0,
-        openNames: openSpeciesNames(index, open),
-      })
+    // must run to heal the store (see carriersNeedingRefetch). With nothing to
+    // ask, the load reports the COMPLETION reading, the held stamps included:
+    // each open species here is a stamped one with every carrier answered, so
+    // it is settled, and the line reads `complete` and names it. No pass and
+    // no request.
+    const stale = open.length === 0 ? null : carriersNeedingRefetch(getSnapshot(), index, open, unmatchedSet(nowMs))
+    if (stale === null || (stale.size === 0 && isFreshFor(carriers, nowMs))) {
+      settle(reportWithoutPass(getSnapshot(), index))
       return
     }
 
@@ -588,7 +637,11 @@ export function useExoticProvenance(
   const retry = useCallback(() => {
     if (runningRef.current) return
     const current = statusRef.current
-    void runPass(current.kind === 'partial' && current.reason === 'unmatched')
+    // Re-ask ignoring the stamps only from a state that names species the
+    // answers lacked (D-13): the settled `complete`, or the `unmatched` partial.
+    const reask = (current.kind === 'partial' && current.reason === 'unmatched')
+      || (current.kind === 'complete' && (current.settledNames?.length ?? 0) > 0)
+    void runPass(reask)
   }, [runPass])
 
   return useMemo(

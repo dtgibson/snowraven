@@ -105,6 +105,20 @@ export interface ProvenanceSnapshot {
    * not conflate them.
    */
   readonly exoticNames: readonly string[] | null
+  /**
+   * escapee-check-new-taxonomy re-entry. The codes the store holds an
+   * `unmatched` stamp for: a successful answer, for a checklist the export says
+   * carries the code, had no row for it. Codes only, at ANY age, the way
+   * `checklists` serves every ledger entry: the stamp's one TTL read is the
+   * heal's (`unmatchedSet` in the store), and this set never feeds it.
+   *
+   * Read by completion alone (`settledSpecies`, `remainingSpecies` through
+   * `heldStamps`), never by classification, a count or a published list, so a
+   * stamp still cannot move a number (exotic-provenance-reuse D-03, modified
+   * here only for completion). Absent reads as no stamps, the safe direction:
+   * a recordless species then stays open.
+   */
+  readonly unmatched?: ReadonlySet<string>
 }
 
 export const EMPTY_SNAPSHOT: ProvenanceSnapshot = {
@@ -112,6 +126,17 @@ export const EMPTY_SNAPSHOT: ProvenanceSnapshot = {
   species: new Map<string, SpeciesProvenanceRecord>(),
   excludedNames: [],
   exoticNames: null,
+  unmatched: new Set<string>(),
+}
+
+const NO_HELD_STAMPS: ReadonlySet<string> = new Set<string>()
+
+/** The stamp input every COMPLETION reader passes to `remainingSpecies`: the
+ *  snapshot's held stamps, any age. The controller's planning passes none
+ *  instead, so the heal's own TTL read decides when a stamped species is asked
+ *  again (see `remainingSpecies`). */
+export function heldStamps(snapshot: ProvenanceSnapshot): ReadonlySet<string> {
+  return snapshot.unmatched ?? NO_HELD_STAMPS
 }
 
 // ── The cover input, derived from loaded observations (schema.md §7) ───────────
@@ -384,8 +409,12 @@ export interface ProvenanceLookup {
     readonly resolved: number
     /** All tokens 'X' with an unconsulted carrier still outstanding. */
     readonly unresolved: number
-    /** Never consulted. */
+    /** No record, and not settled: still open. */
     readonly unknown: number
+    /** No record, settled by the answers' absence (`isSettledAbsence`): counts,
+     *  is native, and is not open. `unresolved + unknown` is the completion
+     *  open count, equal to `remainingSpecies` with the held stamps. */
+    readonly settled: number
   }
 }
 
@@ -393,7 +422,7 @@ export const EMPTY_LOOKUP: ProvenanceLookup = {
   excludedNames: new Set<string>(),
   exoticNames: new Set<string>(),
   excluded: [],
-  counts: { resolved: 0, unresolved: 0, unknown: 0 },
+  counts: { resolved: 0, unresolved: 0, unknown: 0, settled: 0 },
 }
 
 /**
@@ -414,11 +443,16 @@ export function buildProvenanceLookup(
   const excludedNames = new Set<string>()
   const exoticNames = new Set<string>()
   const excluded: ExcludedSpecies[] = []
-  let resolved = 0, unresolved = 0, unknown = 0
+  const held = heldStamps(snapshot)
+  let resolved = 0, unresolved = 0, unknown = 0, settled = 0
 
   for (const [code, name] of index.nameForCode) {
     const cls = classifySpecies(snapshot, index, code)
-    if (cls === 'unknown') { unknown += 1; continue }
+    if (cls === 'unknown') {
+      if (isSettledAbsence(snapshot, index, code, held)) settled += 1
+      else unknown += 1
+      continue
+    }
     if (cls === 'unresolved') { unresolved += 1; continue }
     resolved += 1
     if (isExoticOnly(snapshot, index, code)) exoticNames.add(name)
@@ -435,7 +469,7 @@ export function buildProvenanceLookup(
   }
 
   excluded.sort((a, b) => a.name.localeCompare(b.name))
-  return { excludedNames, exoticNames, excluded, counts: { resolved, unresolved, unknown } }
+  return { excludedNames, exoticNames, excluded, counts: { resolved, unresolved, unknown, settled } }
 }
 
 /**
@@ -601,28 +635,83 @@ export function greedyCover(
   return selected
 }
 
+/**
+ * escapee-check-new-taxonomy re-entry: a cover species the answers SETTLE by
+ * their absence. All three hold: it has no record, `stamped` holds it (a
+ * successful answer for a checklist the export says carries it had no row for
+ * it), and every checklist carrying it is in the ledger, so a pass has nothing
+ * left to ask about it. That is a statement over what Statistics consulted,
+ * never over "every checklist": the ledger is the pass's own record.
+ *
+ * Presence, never age: the caller's set decides that (`heldStamps`, any age,
+ * for completion). Such a species is `unknown` to `classifySpecies`, so it
+ * counts and is native exactly as before; only completion reads this. The
+ * stamp cannot tell a record eBird keeps out of its public output from an
+ * older-taxonomy name the join does not cover, and both settle (PR limitation
+ * 1). One `Map.get` and one walk over the species' carriers.
+ */
+export function isSettledAbsence(
+  snapshot: ProvenanceSnapshot,
+  index: CoverIndex,
+  code: string,
+  stamped: ReadonlySet<string>,
+): boolean {
+  if (snapshot.species.has(code) || !stamped.has(code)) return false
+  const carriers = index.bySpecies.get(code)
+  if (!carriers || carriers.length === 0) return false
+  for (const sub of carriers) if (!snapshot.checklists.has(sub)) return false
+  return true
+}
+
+/** The cover species settled by absence (`isSettledAbsence`), in index order. */
+export function settledSpecies(
+  snapshot: ProvenanceSnapshot,
+  index: CoverIndex,
+  stamped: ReadonlySet<string>,
+): string[] {
+  const out: string[] = []
+  for (const code of index.bySpecies.keys()) {
+    if (isSettledAbsence(snapshot, index, code, stamped)) out.push(code)
+  }
+  return out
+}
+
 /** The species that a pass still needs an answer for: everything not already
- *  `counting` or `escapee-only`, minus those parked at their follow-up bound.
- *  A species that flips to `counting` simply leaves this set and its queued
- *  follow-ups evaporate, which is how FR-02's "stop seeking as soon as one
- *  counting observation is found" becomes structural rather than a check. */
+ *  `counting` or `escapee-only`, minus those parked at their follow-up bound,
+ *  and minus those `stamped` settles (`isSettledAbsence`). A species that flips
+ *  to `counting` simply leaves this set and its queued follow-ups evaporate,
+ *  which is how FR-02's "stop seeking as soon as one counting observation is
+ *  found" becomes structural rather than a check.
+ *
+ *  `stamped` is required, so each caller says which reading it takes:
+ *   - COMPLETION (the end of a pass, the auto-start's report, Life Lists'
+ *     `checkCompleteFor`) passes `heldStamps(snapshot)`, so both tabs read one
+ *     open set (the v1.0.63 rule, refined by the escapee-check-new-taxonomy
+ *     re-entry).
+ *   - The controller's PLANNING passes the empty set: a stamped species stays
+ *     in its `remaining`, and the heal's TTL-gated stamp read
+ *     (`carriersNeedingRefetch` over `unmatchedSet`) alone decides when its
+ *     carriers are asked again, which keeps the 30-day re-ask exactly as it
+ *     was. The empty set is the predicate before the re-entry. */
 export function remainingSpecies(
   snapshot: ProvenanceSnapshot,
   index: CoverIndex,
   parked: ReadonlySet<string>,
+  stamped: ReadonlySet<string>,
 ): string[] {
   const out: string[] = []
   for (const code of index.bySpecies.keys()) {
     if (parked.has(code)) continue
     const cls = classifySpecies(snapshot, index, code)
-    if (cls === 'unknown' || cls === 'unresolved') out.push(code)
+    if (cls === 'unresolved') out.push(code)
+    else if (cls === 'unknown' && !isSettledAbsence(snapshot, index, code, stamped)) out.push(code)
   }
   return out
 }
 
-/** escapee-check-new-taxonomy: the export's own names for the given open
- *  species codes, sorted, so the settled-but-open status line can name them.
- *  One `Map.get` per code; a code with no name is skipped. */
+/** escapee-check-new-taxonomy: the export's own names for the given species
+ *  codes, sorted, so the status line can name the open species, or the settled
+ *  ones. One `Map.get` per code; a code with no name is skipped. */
 export function openSpeciesNames(index: CoverIndex, open: readonly string[]): string[] {
   const names: string[] = []
   for (const code of open) {

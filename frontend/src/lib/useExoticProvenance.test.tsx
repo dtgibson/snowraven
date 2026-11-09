@@ -14,6 +14,7 @@ import { useEffect } from 'react'
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { render, screen, cleanup, waitFor, act } from '@testing-library/react'
 import { buildCoverIndex, type CoverIndex } from './exoticProvenance'
+import { statusSentence } from './exoticCopy'
 import type { ObservationEntry } from '../types'
 
 const seamDoc: { value: unknown } = { value: null }
@@ -116,6 +117,8 @@ function Harness({ index, hasEbirdKey = true, online = true }: {
       <span data-testid="excluded">{[...p.lookup.excludedNames].sort().join(',')}</span>
       <span data-testid="reason">{p.status.kind === 'partial' ? p.status.reason : ''}</span>
       <span data-testid="failed">{p.status.kind === 'partial' ? String(p.status.failed) : ''}</span>
+      <span data-testid="settled">{p.status.kind === 'complete' ? (p.status.settledNames ?? []).join(',') : ''}</span>
+      <span data-testid="sentence">{statusSentence(p.status, p.lookup.excluded.length)}</span>
       <button type="button" onClick={p.stop}>stop</button>
       <button type="button" onClick={p.retry}>retry</button>
     </div>
@@ -602,6 +605,12 @@ describe('a recordless cover species re-opens its consulted checklist', () => {
 })
 
 // ── The unmatched stamp settles the heal (exotic-provenance-reuse) ───────────
+//
+// Since the escapee-check-new-taxonomy re-entry a stamped species whose every
+// carrier is answered is SETTLED: the check reads `complete`, names it, and
+// offers Check again (which re-asks it, D-13), and Life Lists reads complete
+// with it. Before, these rows ended on the `unmatched` partial and Life Lists
+// read the check as unfinished, for good.
 describe('a species eBird answered without settles instead of re-opening every load', () => {
   // Real-shaped codes, because a stamp is written only under a key the load
   // path keeps (the harness's `c-${norm}` codes are not).
@@ -630,7 +639,7 @@ describe('a species eBird answered without settles instead of re-opening every l
     responses.set('S1', [{ speciesCode: 'mallar3' }])
     responses.set('S2', [])
   }
-  const reason = () => screen.getByTestId('reason').textContent
+  const settledNames = () => screen.getByTestId('settled').textContent
   /** The next session: the persisted stamp has caught up, then a fresh mirror. */
   async function nextSession(stampAfter: number) {
     await waitFor(() => expect((seamDoc.value as { unmatched?: Record<string, number> }).unmatched?.musduc).toBeGreaterThan(stampAfter))
@@ -639,30 +648,45 @@ describe('a species eBird answered without settles instead of re-opening every l
     announcements.length = 0
     render(<Harness index={index} />)
   }
+  /** Life Lists' completion at every snapshot the store publishes from here on. */
+  async function watchLifeLists(idx: CoverIndex): Promise<{ readings: boolean[]; stop: () => void }> {
+    const { checkCompleteFor } = await import('./lifeListsProvenance')
+    const readings: boolean[] = []
+    const stop = cacheModule.subscribe(() => { readings.push(checkCompleteFor(cacheModule.getSnapshot(), idx)) })
+    return { readings, stop }
+  }
 
-  it('a stamp past its TTL re-opens the species ONCE, and the next load asks nothing and says why it still counts', async () => {
+  it('a stamp past its TTL re-opens the species ONCE, re-stamps it, and the reading never passes through unfinished', async () => {
     const expired = Date.now() - 31 * DAY
     seed(expired)
+    const { checkCompleteFor } = await import('./lifeListsProvenance')
+    const watch = await watchLifeLists(index)
     render(<Harness index={index} />)
-    await waitFor(() => expect(reason()).toBe('unmatched'))
+    await waitFor(() => expect(settledNames()).toBe('Muscovy Duck'))
+    watch.stop()
     // One checklist re-asked, and its answer re-stamped the species, so the
     // pass did not go on to re-open S2 as the v1.0.1 heal alone would (2).
     expect(requested).toEqual(['/checklists/S1?provenance'])
-    expect(announcements.some(a => a.kind === 'complete')).toBe(false)
-    // Life Lists reads the same open set: not complete (D-04).
-    const { checkCompleteFor } = await import('./lifeListsProvenance')
-    expect(checkCompleteFor(cacheModule.getSnapshot(), index)).toBe(false)
+    expect(kind()).toBe('complete')
+    // The paced re-ask shows its progress as any pass does, and the line
+    // never reads unfinished: no partial, no "not checked".
+    expect(emissions().map(a => a.kind)).toEqual(['in-progress', 'complete'])
+    // Life Lists read complete on the 31-day-old stamp before the re-ask, at
+    // every snapshot during it, and after it (D-04 holds: nothing is open).
+    expect(watch.readings.length).toBeGreaterThanOrEqual(2)
+    expect(watch.readings.every(Boolean)).toBe(true)
+    expect(checkCompleteFor(cacheModule.getSnapshot(), index)).toBe(true)
 
     await nextSession(expired)
-    await waitFor(() => expect(reason()).toBe('unmatched'))
+    await waitFor(() => expect(settledNames()).toBe('Muscovy Duck'))
     expect(requested).toHaveLength(1)
-    expect(emissions().map(a => a.kind)).toEqual(['partial'])
+    expect(emissions().map(a => a.kind)).toEqual(['complete'])
   })
 
-  it('with no stamp the heal re-opens as before, and the answer stamps it', async () => {
+  it('with no stamp the heal re-opens as before, and the answer stamps and settles it', async () => {
     seed(null)
     render(<Harness index={index} />)
-    await waitFor(() => expect(reason()).toBe('unmatched'))
+    await waitFor(() => expect(settledNames()).toBe('Muscovy Duck'))
     expect(requested).toEqual(['/checklists/S1?provenance'])
     expect([...cacheModule.unmatchedSet(Date.now())]).toEqual(['musduc'])
   })
@@ -671,17 +695,18 @@ describe('a species eBird answered without settles instead of re-opening every l
     const fresh = Date.now() - DAY
     seed(fresh)
     render(<Harness index={index} />)
-    await waitFor(() => expect(reason()).toBe('unmatched'))
+    await waitFor(() => expect(settledNames()).toBe('Muscovy Duck'))
+    expect(kind()).toBe('complete')
     expect(requested).toEqual([])
 
     await act(async () => { screen.getByText('retry').click() })
     await waitFor(() => expect(requested).toHaveLength(2))
-    await waitFor(() => expect(reason()).toBe('unmatched'))
+    await waitFor(() => expect(settledNames()).toBe('Muscovy Duck'))
     // Both carriers re-asked, each once: the stamps were ignored for the run.
     expect([...requested].sort()).toEqual(['/checklists/S1?provenance', '/checklists/S2?provenance'])
 
     await nextSession(fresh)
-    await waitFor(() => expect(reason()).toBe('unmatched'))
+    await waitFor(() => expect(settledNames()).toBe('Muscovy Duck'))
     expect(requested).toHaveLength(2)
   })
 
@@ -700,10 +725,86 @@ describe('a species eBird answered without settles instead of re-opening every l
 
     responses.set('S3', [{ speciesCode: 'graygo', exoticCategory: 'N' }])
     await act(async () => { screen.getByText('retry').click() })
-    await waitFor(() => expect(reason()).toBe('unmatched'))
+    await waitFor(() => expect(settledNames()).toBe('Muscovy Duck'))
     // Only the failed checklist was asked again; the stamped species' carriers
     // were not re-opened (they would be from the settled state's Check again).
     expect(requested).toEqual(['/checklists/S3?provenance', '/checklists/S3?provenance'])
+  })
+
+  it('the user\'s case (Eurasian Skylark): fresh and 31-day-old stamps read settled and named, Check again re-asks, a new carrier is asked, and a later answer with the row records it', async () => {
+    const copy = await import('./exoticCopy')
+    const { checkCompleteFor } = await import('./lifeListsProvenance')
+    const codeSky = (norm: string): string | undefined =>
+      norm === 'Eurasian Skylark' ? 'skylar' : norm === 'Mallard' ? 'mallar3' : undefined
+    const repro = buildCoverIndex([o('Eurasian Skylark', 'S1'), o('Mallard', 'S1')], codeSky)
+    const SENTENCE = "Exotic status checked. eBird's public data has no answer for Eurasian Skylark, so it counts."
+    const seedSky = (age: number) => {
+      const at = Date.now() - age
+      seamDoc.value = {
+        version: 1, checklists: { S1: at }, order: ['S1'],
+        species: { mallar3: { seen: ['|'], n: 1, at } }, speciesOrder: ['mallar3'],
+        excludedNames: [], exoticNames: [],
+        unmatched: { skylar: at }, unmatchedOrder: ['skylar'], unmatchedJoin: cacheModule.UNMATCHED_JOIN_VERSION,
+      }
+      responses.set('S1', [{ speciesCode: 'mallar3' }])
+    }
+    const sentence = () => screen.getByTestId('sentence').textContent
+
+    for (const [age, asked] of [[DAY, 0], [31 * DAY, 1]] as const) {
+      cleanup()
+      cacheModule._resetProvenanceCacheForTests()
+      requested.length = 0
+      announcements.length = 0
+      seedSky(age)
+      render(<Harness index={repro} />)
+      await waitFor(() => expect(sentence()).toBe(SENTENCE))
+      expect(requested, `stamp ${age / DAY} days old`).toHaveLength(asked)
+      expect(emissions().some(a => a.kind === 'partial' || a.kind === 'not-checked')).toBe(false)
+      expect(checkCompleteFor(cacheModule.getSnapshot(), repro)).toBe(true)
+      // Check again re-asks the checklist, ignoring the stamp (D-13).
+      await act(async () => { screen.getByText('retry').click() })
+      await waitFor(() => expect(requested).toHaveLength(asked + 1))
+      await waitFor(() => expect(sentence()).toBe(SENTENCE))
+    }
+    expect(copy.statusSentence({ kind: 'complete', planned: 0, found: 0, settledNames: ['Eurasian Skylark'] }, 0)).toBe(SENTENCE)
+
+    // A newer backup adds a Skylark checklist nobody has asked: it is open, so
+    // the load asks it, and its answer settles the species again.
+    const wider = buildCoverIndex([o('Eurasian Skylark', 'S1'), o('Mallard', 'S1'), o('Eurasian Skylark', 'S2')], codeSky)
+    expect(checkCompleteFor(cacheModule.getSnapshot(), wider)).toBe(false)
+    responses.set('S2', [])
+    cleanup()
+    const before = requested.length
+    render(<Harness index={wider} />)
+    await waitFor(() => expect(requested).toHaveLength(before + 1))
+    expect(requested[before]).toBe('/checklists/S2?provenance')
+    await waitFor(() => expect(sentence()).toBe(SENTENCE))
+
+    // eBird confirms the record: the next answer carries its row, so it is
+    // recorded, the stamp goes, and the species classifies from its token.
+    responses.set('S1', [{ speciesCode: 'mallar3' }, { speciesCode: 'skylar' }])
+    await act(async () => { screen.getByText('retry').click() })
+    await waitFor(() => expect(cacheModule.getSnapshot().species.has('skylar')).toBe(true))
+    await waitFor(() => expect(kind()).toBe('complete'))
+    await waitFor(() => expect(settledNames()).toBe(''))
+    expect(cacheModule.getSnapshot().unmatched?.has('skylar')).toBe(false)
+    expect(checkCompleteFor(cacheModule.getSnapshot(), wider)).toBe(true)
+  })
+
+  it('a store holding only a stamp (no record at all) reads settled, never "not checked yet"', async () => {
+    // A Skylark-only checklist answered empty: the old `species.size === 0`
+    // guard read this store as never checked.
+    const alone = buildCoverIndex([o('Eurasian Skylark', 'S1')], norm => (norm === 'Eurasian Skylark' ? 'skylar' : undefined))
+    const at = Date.now() - DAY
+    seamDoc.value = {
+      version: 1, checklists: { S1: at }, order: ['S1'], species: {}, speciesOrder: [],
+      excludedNames: [], exoticNames: [],
+      unmatched: { skylar: at }, unmatchedOrder: ['skylar'], unmatchedJoin: cacheModule.UNMATCHED_JOIN_VERSION,
+    }
+    render(<Harness index={alone} />)
+    await waitFor(() => expect(settledNames()).toBe('Eurasian Skylark'))
+    expect(requested).toEqual([])
+    expect(emissions().map(a => a.kind)).toEqual(['complete'])
   })
 
   it('a failed answer stamps nothing, so the next load asks again', async () => {
