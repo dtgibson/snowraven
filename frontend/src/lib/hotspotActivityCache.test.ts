@@ -73,6 +73,45 @@ describe('TTL and dedupe', () => {
     expect(loader).toHaveBeenCalledTimes(2)
   })
 
+  // ebird-store-hygiene (the ebird-request-economy D-03 window, extended to
+  // this store): answers fetched while the clock ran ahead, read after it was
+  // corrected. Exactly 24 h ahead is honoured, one millisecond past it is asked
+  // for again, and the new answer rewrites its time.
+  it('an answer exactly 24 h ahead is reused; one millisecond past it is asked for again', async () => {
+    vi.useFakeTimers()
+    const ahead = new Date('2026-08-24T08:00:00').getTime()
+    vi.setSystemTime(ahead)
+    const loader = vi.fn(async (locId: string) => payload(locId, 2))
+    await cache.dedupedFetch('L1', () => loader('L1'))
+    await cache.dedupedFetch('L2', () => loader('L2'))
+    expect(loader).toHaveBeenCalledTimes(2)
+
+    const DAY = 24 * 60 * 60 * 1000
+    vi.setSystemTime(ahead - DAY)            // both answers are now exactly 24 h ahead
+    expect((await cache.dedupedFetch('L1', () => loader('L1'))).fromNetwork).toBe(false)
+    vi.setSystemTime(ahead - DAY - 1)        // ...and now one millisecond past the window
+    const asked = await cache.dedupedFetch('L2', () => loader('L2'))
+    expect(asked.fromNetwork).toBe(true)
+    expect(asked.entry.fetchedAt).toBe(ahead - DAY - 1)
+    expect(loader).toHaveBeenCalledTimes(3)
+    // The rewritten time is honoured from here on.
+    expect((await cache.dedupedFetch('L2', () => loader('L2'))).fromNetwork).toBe(false)
+    expect(loader).toHaveBeenCalledTimes(3)
+  })
+
+  it('offline, an answer dated past the window is still served stale rather than lost', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-08-24T08:00:00'))
+    const first = await cache.dedupedFetch('L1', async () => payload('L1', 5))
+    vi.setSystemTime(first.entry.fetchedAt - 2 * 24 * 60 * 60 * 1000)
+    const offline = vi.fn(async (): Promise<HotspotActivityPayload> => { throw offlineError() })
+    const res = await cache.dedupedFetch('L1', offline)
+    // Due, so it was asked for; offline, so the stored answer is served.
+    expect(offline).toHaveBeenCalledTimes(1)
+    expect(res.fromNetwork).toBe(false)
+    expect(res.entry.count30).toBe(5)
+  })
+
   it('concurrent same-id requests share ONE loader call', async () => {
     let resolve!: (p: HotspotActivityPayload) => void
     const loader = vi.fn(() => new Promise<HotspotActivityPayload>(r => { resolve = r }))

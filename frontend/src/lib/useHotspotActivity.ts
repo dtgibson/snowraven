@@ -42,6 +42,7 @@ import {
   type ActivityAnswer, type ActivityStatusFields,
 } from './hotspotColorModes'
 import * as activityCache from './hotspotActivityCache'
+import { isWithinTtl } from './ttlWindow'
 // Namespace import so ACTIVITY_START_SPACING_MS is read as a LIVE binding at
 // each pump (it is a mutable test seam, the HOTSPOT_ACTIVITY_MAX_ENTRIES
 // pattern); the pure helpers ride the same namespace for one import site.
@@ -351,7 +352,10 @@ export function useHotspotActivity({ active, pins, mapBounds, searchCenter, hasE
 
       // Seed: cached answers (fresh AND stale) color immediately (FR-12/15b);
       // fresh ones are answered at zero cost (cache hits never consume the
-      // cap); stale ones join the fetch queue for a refresh.
+      // cap); stale ones join the fetch queue for a refresh. "Fresh" is the
+      // store chokepoint's own window (`isWithinTtl` with the store's TTL), so
+      // an answer dated more than 24 hours ahead joins the queue too, and is
+      // still shown until its refresh lands (ebird-store-hygiene).
       const seeded = new Map<string, ActivityAnswer>()
       const remainder: string[] = []
       let fresh = 0
@@ -366,7 +370,7 @@ export function useHotspotActivity({ active, pins, mapBounds, searchCenter, hasE
           })
           latestAnswerAt = Math.max(latestAnswerAt ?? 0, e.fetchedAt)
         }
-        if (e && now - e.fetchedAt < activityCache.HOTSPOT_ACTIVITY_TTL_MS) {
+        if (e && isWithinTtl(e.fetchedAt, now, activityCache.HOTSPOT_ACTIVITY_TTL_MS)) {
           fresh += 1
           latestCachedAt = Math.max(latestCachedAt ?? 0, e.fetchedAt)
         } else {

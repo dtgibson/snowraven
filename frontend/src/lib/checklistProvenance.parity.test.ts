@@ -17,12 +17,15 @@ import { describe, it, expect, vi } from 'vitest'
 // The answer-body rows below drive the SHIPPED `getChecklist` end to end, so
 // its outbound seams are faked: one 200 carrying the row's body, a key, and an
 // empty taxonomy and region lookup. The normalization rows above them never
-// touch these.
-const http = vi.hoisted(() => ({ body: null as unknown, urls: [] as string[], regionLookups: 0 }))
+// touch these. The 200 is a real `Response` over the row's BYTES, so
+// `res.json()` is the Fetch spec's decode (UTF-8 with replacement, one BOM
+// dropped, JSON.parse) rather than a stand-in. Node's undici drops a SECOND
+// leading BOM where the spec and the WebViews do not, so no row depends on one.
+const http = vi.hoisted(() => ({ bytes: new Uint8Array(), urls: [] as string[], regionLookups: 0 }))
 vi.mock('./tauri/http', () => ({
   tauriFetch: async (url: string) => {
     http.urls.push(url)
-    return { ok: true, status: 200, headers: { get: () => null }, json: async () => http.body }
+    return new Response(http.bytes, { status: 200 })
   },
 }))
 vi.mock('./storage', () => ({ storage: { getApiKey: async () => 'test-key' } }))
@@ -31,7 +34,7 @@ vi.mock('./tauri/regionInfo', () => ({
   getRegionInfo: async () => { http.regionLookups += 1; return { name: 'Somewhere' } },
 }))
 
-import { getChecklist, normalizeProvenancePair } from './tauri/checklistService'
+import { getChecklist, normalizeProvenancePair, MEDIA_COUNT_MAX } from './tauri/checklistService'
 import fixture from './checklistProvenance.fixture.json'
 
 interface Case {
@@ -107,34 +110,57 @@ describe('exotic-provenance seam normalization (desktop half of the parity pair)
   })
 })
 
+interface Verdict {
+  status: number
+  species?: number
+  first?: { breedingCode: string; media: { photo: number; audio: number; video: number } }
+}
+
 interface AnswerRow {
   why: string
   fields: string | null
-  body: unknown
-  expected: { status: number; species?: number }
+  /** Sent as JSON; or `text`, sent as UTF-8; or `hex`, sent as those bytes. */
+  body?: unknown
+  text?: string
+  hex?: string
+  expected: Verdict
 }
 
 const answers = (fixture as unknown as { answers: AnswerRow[] }).answers
 
+/** The exact bytes eBird answered with for one row. */
+function bytesOf(row: Pick<AnswerRow, 'body' | 'text' | 'hex'>): Uint8Array<ArrayBuffer> {
+  if (row.hex !== undefined) return new Uint8Array(Buffer.from(row.hex, 'hex'))
+  return new Uint8Array(new TextEncoder().encode(row.text !== undefined ? row.text : JSON.stringify(row.body)))
+}
+
 /** The verdict a caller of the desktop seam sees for one eBird body. */
-async function verdict(row: AnswerRow): Promise<{ status: number; species?: number }> {
-  http.body = row.body
+async function verdict(row: AnswerRow): Promise<Verdict> {
+  http.bytes = bytesOf(row)
   try {
     const res = await getChecklist('S12345678', row.fields ?? undefined)
-    return { status: 200, species: res.species.length }
+    const out: Verdict = { status: 200, species: res.species.length }
+    if (row.expected.first) {
+      out.first = { breedingCode: res.species[0]?.breedingCode, media: res.species[0]?.media }
+    }
+    return out
   } catch (err) {
     return { status: (err as { status?: number }).status ?? -1 }
   }
 }
 
-describe('a successful body with no observation list (desktop half, ebird-request-economy D-02)', () => {
+/** A row's body when it is a JSON object, else null. */
+const objectBody = (r: AnswerRow): Record<string, unknown> | null =>
+  (typeof r.body === 'object' && r.body !== null && !Array.isArray(r.body) ? r.body as Record<string, unknown> : null)
+
+describe('a successful body the app cannot read (desktop half, ebird-request-economy D-02, ebird-store-hygiene)', () => {
   it('reaches the shared fixture\'s verdict for every body', async () => {
     for (const row of answers) expect(await verdict(row), row.why).toEqual(row.expected)
   })
 
   it('a failed answer is a 502, never a status-less error the offline test would read as no connection', async () => {
     for (const row of answers.filter(r => r.expected.status === 502)) {
-      http.body = row.body
+      http.bytes = bytesOf(row)
       const err = await getChecklist('S12345678', row.fields ?? undefined).then(() => null, (e: unknown) => e)
       expect(err, row.why).toMatchObject({ status: 502 })
       expect((err as Error).message, row.why).toBe('Could not fetch checklist (HTTP 502).')
@@ -159,12 +185,34 @@ describe('a successful body with no observation list (desktop half, ebird-reques
     expect(failed.length).toBeGreaterThanOrEqual(8)
     // An empty list stays an answer in a species-reading mode, and the projects
     // mode is untouched by a body whose list is absent or not a list.
-    expect(answered.some(r => r.fields === 'provenance' && Array.isArray((r.body as { obs?: unknown }).obs)
-      && ((r.body as { obs: unknown[] }).obs).length === 0)).toBe(true)
-    expect(answered.some(r => r.fields === 'projects' && !Array.isArray((r.body as { obs?: unknown }).obs))).toBe(true)
+    expect(answered.some(r => r.fields === 'provenance' && Array.isArray(objectBody(r)?.obs)
+      && (objectBody(r)!.obs as unknown[]).length === 0)).toBe(true)
+    expect(answered.some(r => r.fields === 'projects' && objectBody(r) !== null && !Array.isArray(objectBody(r)!.obs))).toBe(true)
     // Each falsy non-list Python's `or []` used to turn into an empty answer.
-    const failedObs = failed.map(r => (r.body === null ? 'NO BODY' : (r.body as { obs?: unknown }).obs))
+    const failedObs = failed.filter(r => r.body !== undefined)
+      .map(r => (objectBody(r) === null ? 'NO OBJECT BODY' : objectBody(r)!.obs))
     for (const v of [undefined, null, '', 0, false]) expect(failedObs).toContain(v)
     expect(failedObs.some(v => typeof v === 'object' && v !== null && !Array.isArray(v))).toBe(true)
+    // ebird-store-hygiene: the rows that separate the twins. An observation
+    // list holding a list (`typeof [] === 'object'`), a list body under
+    // fields=projects, a NaN that Python's decoder accepts, bytes that are not
+    // UTF-8, and the breeding fallback that `??` and `or` read differently.
+    const items = failed.flatMap(r => (Array.isArray(objectBody(r)?.obs) ? objectBody(r)!.obs as unknown[] : []))
+    expect(items.some(Array.isArray)).toBe(true)
+    expect(items.some(o => o === null)).toBe(true)
+    expect(failed.some(r => r.fields === 'projects' && Array.isArray(r.body))).toBe(true)
+    expect(failed.some(r => r.text?.includes('NaN'))).toBe(true)
+    expect(failed.some(r => r.hex !== undefined)).toBe(true)
+    expect(answered.some(r => r.hex !== undefined)).toBe(true)
+    expect(answered.some(r => r.expected.first?.breedingCode === 'S')).toBe(true)
+  })
+
+  it('the media count bound is the fixture\'s boundary pair, compared with this side\'s declaration', () => {
+    // Python declares the same bound again (services.ebird.MEDIA_COUNT_MAX);
+    // the pair of rows at the bound and one past it is what compares the two.
+    const photos = answers.filter(r => r.expected.first)
+      .map(r => (objectBody(r)?.obs as Array<{ mediaCounts?: { P?: unknown } }> | undefined)?.[0]?.mediaCounts?.P)
+    expect(photos).toContain(MEDIA_COUNT_MAX)
+    expect(photos).toContain(MEDIA_COUNT_MAX + 1)
   })
 })

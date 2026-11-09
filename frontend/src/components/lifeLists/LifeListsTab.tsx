@@ -85,8 +85,13 @@ export function LifeListsTab({ onGoToSettings, onOpenSpecies }: LifeListsTabProp
   // marks may keep an older roster's codes, which are still valid codes.
   const [codesKey, setCodesKey] = useState<string | null>(null)
 
+  // Session-only, never persisted (QA-38). Include Exotics starts ON, so the
+  // list follows eBird's life-list rule as the Statistics headline does:
+  // naturalized and provisional exotics count, escapees do not (the user's
+  // direction at ebird-store-hygiene, the reversal DECISIONS.md v1.0.63
+  // recorded). Turning it off lasts the session and resets at relaunch.
   const [includeEscapees, setIncludeEscapees] = useState(false)
-  const [includeExotics, setIncludeExotics] = useState(false)
+  const [includeExotics, setIncludeExotics] = useState(true)
   const [formats, setFormats] = useState<ReadonlySet<MediaFormat>>(EMPTY_FORMATS)
   const [shown, setShown] = useState(PAGE_SIZE)
   // The live-region child's key: one per control press, so a repeated identical

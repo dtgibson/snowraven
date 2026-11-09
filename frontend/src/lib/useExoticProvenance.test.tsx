@@ -11,6 +11,8 @@
 // fail rather than silently pass.
 
 import { useEffect } from 'react'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { render, screen, cleanup, waitFor, act } from '@testing-library/react'
 import { buildCoverIndex, type CoverIndex } from './exoticProvenance'
@@ -18,9 +20,24 @@ import { statusSentence } from './exoticCopy'
 import type { ObservationEntry } from '../types'
 
 const seamDoc: { value: unknown } = { value: null }
+/** When set, the store's next disk read takes the document FIRST and only then
+ *  waits on `hold`: the order a Tauri chain link queued ahead of the purge's
+ *  delete has, so it hands back the PRE-purge document (testing.md, v1.0.62).
+ *  `taken` reports that the read is parked. */
+let parkNextRead: { hold: Promise<void>; taken: () => void } | null = null
 vi.mock('./storage', () => ({
   storage: {
-    getSetting: vi.fn(async (key: string) => (key === 'exotic-provenance-v1' ? seamDoc.value : null)),
+    getSetting: vi.fn(async (key: string) => {
+      if (key !== 'exotic-provenance-v1') return null
+      const value = seamDoc.value
+      const park = parkNextRead
+      if (park) {
+        parkNextRead = null
+        park.taken()
+        await park.hold
+      }
+      return value
+    }),
     setSetting: vi.fn(async (_k: string, v: unknown) => { seamDoc.value = JSON.parse(JSON.stringify(v)) }),
     deleteSetting: vi.fn(async () => { seamDoc.value = null }),
   },
@@ -127,6 +144,7 @@ function Harness({ index, hasEbirdKey = true, online = true }: {
 
 beforeEach(() => {
   seamDoc.value = null
+  parkNextRead = null
   responses.clear()
   requested.length = 0
   inFlight = 0
@@ -341,6 +359,90 @@ describe('failure and cancellation (FR-19, FR-20, QA-24, QA-25, QA-26)', () => {
     expect(cacheModule.getSnapshot().checklists.size).toBeGreaterThan(0)
     // ...and the pass really did stop short of the whole cover.
     expect(requested.length).toBeLessThan(20)
+  })
+})
+
+describe('a Clear while a pass is still loading the store (ebird-store-hygiene, security report I1)', () => {
+  it('a purge that lands while the pass\'s first load is parked sends nothing', async () => {
+    const index = buildCoverIndex([o('Muscovy Duck', 'S1'), o('Mute Swan', 'S2')], codeFor)
+    responses.set('S1', [{ speciesCode: 'c-Muscovy Duck', exoticCategory: 'N' }])
+    responses.set('S2', [{ speciesCode: 'c-Mute Swan', exoticCategory: 'N' }])
+    render(<Harness index={index} />)
+    await waitFor(() => expect(kind()).toBe('complete'))
+    // The debounced write has landed, so the disk holds a pre-purge document.
+    await waitFor(() => expect(seamDoc.value).not.toBeNull())
+    const before = requested.length
+    expect(before).toBe(2)
+    // A pass that starts with the store NOT loaded, the state I1 names: detach
+    // the mirror, park the next disk read, and start a pass (Check again).
+    cacheModule._resetProvenanceCacheForTests()
+    let release!: () => void
+    let taken = false
+    parkNextRead = { hold: new Promise<void>(r => { release = r }), taken: () => { taken = true } }
+    await act(async () => { screen.getByText('retry').click() })
+    await waitFor(() => expect(taken).toBe(true))
+    // Clear while the read is parked, then let it hand back the pre-purge document.
+    await act(async () => { await cacheModule.purgeProvenanceStore() })
+    await act(async () => { release() })
+    await waitFor(() => expect(kind()).toBe('partial'))
+    expect(screen.getByTestId('reason').textContent).toBe('cancelled')
+    expect(screen.getByTestId('failed').textContent).toBe('0')
+    expect(requested.length - before).toBe(0)
+    expect(cacheModule.getSnapshot().checklists.size).toBe(0)
+  })
+})
+
+describe('a finished pass releases its stop token (ebird-store-hygiene, security report I3)', () => {
+  // A SOURCE row: the token is private to the controller and what it holds is
+  // memory, which no hook output shows. Comments are stripped first, every
+  // form: block comments (one line or many), whole-line `//` comments, and a
+  // trailing `//` comment after code, so a commented-out call cannot satisfy it
+  // (testing.md, v1.0.14). The trailing strip leaves a `//` that follows a
+  // colon or a quote alone (a URL in a string); a line it wrongly shortens can
+  // only make the row go red, never green.
+  function stripComments(text: string): string {
+    return text
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .split('\n')
+      .filter(line => !line.trim().startsWith('//'))
+      .map(line => line.replace(/(^|[^:'"`\\])\/\/.*$/, '$1'))
+      .join('\n')
+  }
+
+  it('the comment strip removes every comment form and keeps code and URLs', () => {
+    const sample = [
+      'a()',
+      '  // pass.stop()',
+      'b() // pass.stop()',
+      '/* pass.stop() */ c()',
+      '/*',
+      ' * pass.stop()',
+      ' */',
+      "const u = 'https://example.org'",
+      '  pass.stop()',
+    ].join('\n')
+    const lines = stripComments(sample).split('\n').map(l => l.trim())
+    expect(lines.filter(l => l.includes('pass.stop()'))).toEqual(['pass.stop()'])
+    expect(lines).toContain('b()')
+    expect(lines).toContain('c()')
+    expect(lines).toContain("const u = 'https://example.org'")
+  })
+
+  it("runPass's finally settles the pass's own token", () => {
+    // Under jsdom import.meta.url is an http URL, so the path resolves from the
+    // frontend root vitest runs in (the sharePinReset.test.tsx shape).
+    const src = readFileSync(resolve(process.cwd(), 'src/lib/useExoticProvenance.ts'), 'utf8')
+    const code = stripComments(src)
+    // The strip is proved on the real source: the comment naming the call is
+    // gone, the call is not.
+    expect(src).toContain('// Release the finished pass\'s token')
+    expect(code).not.toContain('Release the finished pass')
+    const start = code.indexOf('const runPass = useCallback(')
+    expect(start).toBeGreaterThan(0)
+    const end = code.indexOf('runningRef.current = false', start)
+    const tail = code.slice(code.lastIndexOf('} finally {', end), end)
+    // A statement of its own: a line that is exactly the call once trimmed.
+    expect(tail.split('\n').map(l => l.trim())).toContain('pass.stop()')
   })
 })
 

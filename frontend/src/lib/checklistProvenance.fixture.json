@@ -205,17 +205,26 @@
     }
   ],
   "_answersComment": [
-    "ebird-request-economy (decisions.md D-02). Whole checklist/view BODIES, not",
-    "observations: each row is what eBird answered with HTTP 200, the `fields`",
-    "flag the caller sent, and the verdict BOTH transports must reach for it:",
-    "`status` 502 (a failed answer, so the escapee check writes no ledger entry",
-    "and no stamp) or 200 with the number of species rows returned.",
+    "ebird-request-economy (decisions.md D-02), extended by ebird-store-hygiene.",
+    "Whole checklist/view BODIES, not observations: each row is what eBird",
+    "answered with HTTP 200, the `fields` flag the caller sent, and the verdict",
+    "BOTH transports must reach for it: `status` 502 (a failed answer, so the",
+    "escapee check writes no ledger entry and no stamp) or 200 with the number of",
+    "species rows returned, and, where a row carries `first`, the first species",
+    "row's breeding code and media.",
     "",
-    "In the species-reading modes (no flag, and `provenance`) an observation list",
-    "that is absent, null or anything but a JSON array is a FAILED answer. An",
-    "empty array is still an answer. `fields=projects` reads no species and is",
-    "untouched. Loaded by the same two parity suites as `cases` above, which",
-    "drive the SHIPPED desktop service and the SHIPPED route."
+    "The body is sent as JSON when a row has `body`, as that text in UTF-8 when it",
+    "has `text`, and as those exact bytes when it has `hex` (byte-level rows are",
+    "hex so that no invisible character is ever written into this file).",
+    "",
+    "A body that is not JSON, or not a JSON object, is a FAILED answer in every",
+    "mode. In the species-reading modes (no flag, and `provenance`) so is an",
+    "observation list that is absent, null or anything but a JSON array, or an",
+    "array holding an item that is not an object whose species code is absent,",
+    "null or text. An empty array is still an answer. A breeding code or media",
+    "count of the wrong shape reads as absent, never as a failure. Loaded by the",
+    "same two parity suites as `cases` above, which drive the SHIPPED desktop",
+    "service and the SHIPPED route."
   ],
   "answers": [
     {
@@ -408,6 +417,785 @@
       "expected": {
         "status": 200,
         "species": 0
+      }
+    },
+    {
+      "why": "a null item is not an observation: the desktop service used to throw a status-less TypeError and web/Pi a 502 carrying Python's own message",
+      "fields": "provenance",
+      "body": {
+        "locId": "L99",
+        "obsDt": "2026-04-11 07:20",
+        "obs": [
+          null
+        ]
+      },
+      "expected": {
+        "status": 502
+      }
+    },
+    {
+      "why": "a number is not an observation (the desktop service used to read it as an empty answer, which the escapee check would stamp)",
+      "fields": "provenance",
+      "body": {
+        "locId": "L99",
+        "obsDt": "2026-04-11 07:20",
+        "obs": [
+          1
+        ]
+      },
+      "expected": {
+        "status": 502
+      }
+    },
+    {
+      "why": "a string is not an observation",
+      "fields": "provenance",
+      "body": {
+        "locId": "L99",
+        "obsDt": "2026-04-11 07:20",
+        "obs": [
+          "x"
+        ]
+      },
+      "expected": {
+        "status": 502
+      }
+    },
+    {
+      "why": "a LIST is not an observation, though `typeof [] === 'object'` in JavaScript: this row separates the twins",
+      "fields": "provenance",
+      "body": {
+        "locId": "L99",
+        "obsDt": "2026-04-11 07:20",
+        "obs": [
+          []
+        ]
+      },
+      "expected": {
+        "status": 502
+      }
+    },
+    {
+      "why": "one unreadable item after a good one still fails the answer: the check covers every item, not the first",
+      "fields": null,
+      "body": {
+        "locId": "L99",
+        "obsDt": "2026-04-11 07:20",
+        "obs": [
+          {
+            "speciesCode": "amerob",
+            "howManyStr": "3"
+          },
+          null
+        ]
+      },
+      "expected": {
+        "status": 502
+      }
+    },
+    {
+      "why": "a species code that is a number is not text, so the observation cannot be read (both transports used to pass the number through)",
+      "fields": "provenance",
+      "body": {
+        "locId": "L99",
+        "obsDt": "2026-04-11 07:20",
+        "obs": [
+          {
+            "speciesCode": 1
+          }
+        ]
+      },
+      "expected": {
+        "status": 502
+      }
+    },
+    {
+      "why": "a species code that is a list: web/Pi used to answer 500",
+      "fields": null,
+      "body": {
+        "locId": "L99",
+        "obsDt": "2026-04-11 07:20",
+        "obs": [
+          {
+            "speciesCode": [
+              "amerob"
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "status": 502
+      }
+    },
+    {
+      "why": "a species code that is an object: web/Pi used to skip it and the desktop service to pass it through",
+      "fields": "provenance",
+      "body": {
+        "locId": "L99",
+        "obsDt": "2026-04-11 07:20",
+        "obs": [
+          {
+            "speciesCode": {}
+          }
+        ]
+      },
+      "expected": {
+        "status": 502
+      }
+    },
+    {
+      "why": "a null species code is an absent one: the observation is skipped, as it always was, and the answer stands",
+      "fields": "provenance",
+      "body": {
+        "locId": "L99",
+        "obsDt": "2026-04-11 07:20",
+        "obs": [
+          {
+            "speciesCode": null
+          }
+        ]
+      },
+      "expected": {
+        "status": 200,
+        "species": 0
+      }
+    },
+    {
+      "why": "an observation with no species code at all is skipped too",
+      "fields": "provenance",
+      "body": {
+        "locId": "L99",
+        "obsDt": "2026-04-11 07:20",
+        "obs": [
+          {}
+        ]
+      },
+      "expected": {
+        "status": 200,
+        "species": 0
+      }
+    },
+    {
+      "why": "an HTML page is not JSON: the desktop service used to throw a status-less SyntaxError and web/Pi a 400 carrying the decoder's message",
+      "fields": "provenance",
+      "text": "<html>busy</html>",
+      "expected": {
+        "status": 502
+      }
+    },
+    {
+      "why": "an empty body is not JSON",
+      "fields": null,
+      "text": "",
+      "expected": {
+        "status": 502
+      }
+    },
+    {
+      "why": "not JSON under fields=projects either",
+      "fields": "projects",
+      "text": "<html>busy</html>",
+      "expected": {
+        "status": 502
+      }
+    },
+    {
+      "why": "NaN is not JSON: Python's decoder accepts it and JSON.parse refuses it, so this row separates the twins",
+      "fields": "provenance",
+      "text": "{\"locId\":\"L99\",\"obs\":[{\"speciesCode\":\"amerob\",\"mediaCounts\":{\"P\":NaN}}]}",
+      "expected": {
+        "status": 502
+      }
+    },
+    {
+      "why": "Infinity is not JSON either, even in a field nothing reads",
+      "fields": "projects",
+      "text": "{\"locId\":\"L99\",\"durationHrs\":Infinity,\"obs\":[]}",
+      "expected": {
+        "status": 502
+      }
+    },
+    {
+      "why": "a UTF-16 body: httpx decoded it and answered, the WebView reads UTF-8 only and cannot parse it",
+      "fields": "provenance",
+      "hex": "fffe7b0022006c006f0063004900640022003a0022004c003900390022002c0022006f00620073004400740022003a00220032003000320036002d00300034002d00310031002000300037003a003200300022002c0022006f006200730022003a005b007b002200730070006500630069006500730043006f006400650022003a00220061006d00650072006f00620022002c00220063006f006d006d0065006e007400730022003a0022006f006b0022007d005d007d00",
+      "expected": {
+        "status": 502
+      }
+    },
+    {
+      "why": "an invalid UTF-8 byte inside a string reads as U+FFFD in the WebView, so the answer stands; web/Pi used to answer 400",
+      "fields": "provenance",
+      "hex": "7b226c6f634964223a224c3939222c226f62734474223a22323032362d30342d31312030373a3230222c226f6273223a5b7b2273706563696573436f6465223a22616d65726f62222c22636f6d6d656e7473223a226fff6b227d5d7d",
+      "expected": {
+        "status": 200,
+        "species": 1
+      }
+    },
+    {
+      "why": "an invalid UTF-8 byte outside any string is not JSON on either",
+      "fields": "provenance",
+      "hex": "ff7b226c6f634964223a224c3939222c226f62734474223a22323032362d30342d31312030373a3230222c226f6273223a5b7b2273706563696573436f6465223a22616d65726f62222c22636f6d6d656e7473223a226f6b227d5d7d",
+      "expected": {
+        "status": 502
+      }
+    },
+    {
+      "why": "one leading byte-order mark is dropped on both, and the answer stands",
+      "fields": "provenance",
+      "hex": "efbbbf7b226c6f634964223a224c3939222c226f62734474223a22323032362d30342d31312030373a3230222c226f6273223a5b7b2273706563696573436f6465223a22616d65726f62222c22636f6d6d656e7473223a226f6b227d5d7d",
+      "expected": {
+        "status": 200,
+        "species": 1
+      }
+    },
+    {
+      "why": "fields=projects and a null body: the desktop service used to throw a status-less TypeError",
+      "fields": "projects",
+      "body": null,
+      "expected": {
+        "status": 502
+      }
+    },
+    {
+      "why": "fields=projects and a LIST body: the desktop service used to answer it as no projects, which the sweep would keep for a year; `typeof [] === 'object'`, so this row separates the twins",
+      "fields": "projects",
+      "body": [],
+      "expected": {
+        "status": 502
+      }
+    },
+    {
+      "why": "fields=projects and a string body",
+      "fields": "projects",
+      "body": "x",
+      "expected": {
+        "status": 502
+      }
+    },
+    {
+      "why": "obsAux that is an object reads as no breeding code (the desktop service used to throw a status-less TypeError)",
+      "fields": "provenance",
+      "body": {
+        "locId": "L99",
+        "obsDt": "2026-04-11 07:20",
+        "obs": [
+          {
+            "speciesCode": "amerob",
+            "howManyStr": "3",
+            "obsAux": {}
+          }
+        ]
+      },
+      "expected": {
+        "status": 200,
+        "species": 1,
+        "first": {
+          "breedingCode": "",
+          "media": {
+            "photo": 0,
+            "audio": 0,
+            "video": 0
+          }
+        }
+      }
+    },
+    {
+      "why": "obsAux that is a string reads as no breeding code (web/Pi used to answer 502)",
+      "fields": "provenance",
+      "body": {
+        "locId": "L99",
+        "obsDt": "2026-04-11 07:20",
+        "obs": [
+          {
+            "speciesCode": "amerob",
+            "howManyStr": "3",
+            "obsAux": "x"
+          }
+        ]
+      },
+      "expected": {
+        "status": 200,
+        "species": 1,
+        "first": {
+          "breedingCode": "",
+          "media": {
+            "photo": 0,
+            "audio": 0,
+            "video": 0
+          }
+        }
+      }
+    },
+    {
+      "why": "an obsAux entry that is not an object is skipped, and a later entry is still read",
+      "fields": "provenance",
+      "body": {
+        "locId": "L99",
+        "obsDt": "2026-04-11 07:20",
+        "obs": [
+          {
+            "speciesCode": "amerob",
+            "howManyStr": "3",
+            "obsAux": [
+              null,
+              {
+                "fieldName": "breeding_code",
+                "value": "C4"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "status": 200,
+        "species": 1,
+        "first": {
+          "breedingCode": "C4",
+          "media": {
+            "photo": 0,
+            "audio": 0,
+            "video": 0
+          }
+        }
+      }
+    },
+    {
+      "why": "an empty breeding value falls back to auxCode, as Python's `or` did and JavaScript's `??` did not: this row separates the twins",
+      "fields": "provenance",
+      "body": {
+        "locId": "L99",
+        "obsDt": "2026-04-11 07:20",
+        "obs": [
+          {
+            "speciesCode": "amerob",
+            "howManyStr": "3",
+            "obsAux": [
+              {
+                "fieldName": "breeding_code",
+                "value": "",
+                "auxCode": "S"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "status": 200,
+        "species": 1,
+        "first": {
+          "breedingCode": "S",
+          "media": {
+            "photo": 0,
+            "audio": 0,
+            "video": 0
+          }
+        }
+      }
+    },
+    {
+      "why": "a breeding value that is not text falls back to auxCode",
+      "fields": "provenance",
+      "body": {
+        "locId": "L99",
+        "obsDt": "2026-04-11 07:20",
+        "obs": [
+          {
+            "speciesCode": "amerob",
+            "howManyStr": "3",
+            "obsAux": [
+              {
+                "fieldName": "breeding_code",
+                "value": 0,
+                "auxCode": "S"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "status": 200,
+        "species": 1,
+        "first": {
+          "breedingCode": "S",
+          "media": {
+            "photo": 0,
+            "audio": 0,
+            "video": 0
+          }
+        }
+      }
+    },
+    {
+      "why": "a breeding value that is an object reads as no code",
+      "fields": "provenance",
+      "body": {
+        "locId": "L99",
+        "obsDt": "2026-04-11 07:20",
+        "obs": [
+          {
+            "speciesCode": "amerob",
+            "howManyStr": "3",
+            "obsAux": [
+              {
+                "fieldName": "breeding_code",
+                "value": {}
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "status": 200,
+        "species": 1,
+        "first": {
+          "breedingCode": "",
+          "media": {
+            "photo": 0,
+            "audio": 0,
+            "video": 0
+          }
+        }
+      }
+    },
+    {
+      "why": "an ordinary breeding entry",
+      "fields": null,
+      "body": {
+        "locId": "L99",
+        "obsDt": "2026-04-11 07:20",
+        "obs": [
+          {
+            "speciesCode": "amerob",
+            "howManyStr": "3",
+            "obsAux": [
+              {
+                "fieldName": "breeding_code",
+                "value": "C4",
+                "auxCode": "C"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "status": 200,
+        "species": 1,
+        "first": {
+          "breedingCode": "C4",
+          "media": {
+            "photo": 0,
+            "audio": 0,
+            "video": 0
+          }
+        }
+      }
+    },
+    {
+      "why": "mediaCounts that is a list reads as no media (web/Pi used to answer 502)",
+      "fields": "provenance",
+      "body": {
+        "locId": "L99",
+        "obsDt": "2026-04-11 07:20",
+        "obs": [
+          {
+            "speciesCode": "amerob",
+            "howManyStr": "3",
+            "mediaCounts": [
+              1
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "status": 200,
+        "species": 1,
+        "first": {
+          "breedingCode": "",
+          "media": {
+            "photo": 0,
+            "audio": 0,
+            "video": 0
+          }
+        }
+      }
+    },
+    {
+      "why": "mediaCounts that is a string reads as no media",
+      "fields": "provenance",
+      "body": {
+        "locId": "L99",
+        "obsDt": "2026-04-11 07:20",
+        "obs": [
+          {
+            "speciesCode": "amerob",
+            "howManyStr": "3",
+            "mediaCounts": "x"
+          }
+        ]
+      },
+      "expected": {
+        "status": 200,
+        "species": 1,
+        "first": {
+          "breedingCode": "",
+          "media": {
+            "photo": 0,
+            "audio": 0,
+            "video": 0
+          }
+        }
+      }
+    },
+    {
+      "why": "a count written as text is not a count: Python's int() used to read \"3\" as 3 and JavaScript passed the string through",
+      "fields": "provenance",
+      "body": {
+        "locId": "L99",
+        "obsDt": "2026-04-11 07:20",
+        "obs": [
+          {
+            "speciesCode": "amerob",
+            "howManyStr": "3",
+            "mediaCounts": {
+              "P": "3"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "status": 200,
+        "species": 1,
+        "first": {
+          "breedingCode": "",
+          "media": {
+            "photo": 0,
+            "audio": 0,
+            "video": 0
+          }
+        }
+      }
+    },
+    {
+      "why": "a count that is not a number: web/Pi used to answer 400 carrying int()'s message",
+      "fields": null,
+      "body": {
+        "locId": "L99",
+        "obsDt": "2026-04-11 07:20",
+        "obs": [
+          {
+            "speciesCode": "amerob",
+            "howManyStr": "3",
+            "mediaCounts": {
+              "P": "x"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "status": 200,
+        "species": 1,
+        "first": {
+          "breedingCode": "",
+          "media": {
+            "photo": 0,
+            "audio": 0,
+            "video": 0
+          }
+        }
+      }
+    },
+    {
+      "why": "a fractional count: Python's int() used to truncate it to 1",
+      "fields": "provenance",
+      "body": {
+        "locId": "L99",
+        "obsDt": "2026-04-11 07:20",
+        "obs": [
+          {
+            "speciesCode": "amerob",
+            "howManyStr": "3",
+            "mediaCounts": {
+              "P": 1.5
+            }
+          }
+        ]
+      },
+      "expected": {
+        "status": 200,
+        "species": 1,
+        "first": {
+          "breedingCode": "",
+          "media": {
+            "photo": 0,
+            "audio": 0,
+            "video": 0
+          }
+        }
+      }
+    },
+    {
+      "why": "true is not a count, though `isinstance(True, int)` in Python",
+      "fields": "provenance",
+      "body": {
+        "locId": "L99",
+        "obsDt": "2026-04-11 07:20",
+        "obs": [
+          {
+            "speciesCode": "amerob",
+            "howManyStr": "3",
+            "mediaCounts": {
+              "P": true
+            }
+          }
+        ]
+      },
+      "expected": {
+        "status": 200,
+        "species": 1,
+        "first": {
+          "breedingCode": "",
+          "media": {
+            "photo": 0,
+            "audio": 0,
+            "video": 0
+          }
+        }
+      }
+    },
+    {
+      "why": "a negative count",
+      "fields": "provenance",
+      "body": {
+        "locId": "L99",
+        "obsDt": "2026-04-11 07:20",
+        "obs": [
+          {
+            "speciesCode": "amerob",
+            "howManyStr": "3",
+            "mediaCounts": {
+              "P": -1
+            }
+          }
+        ]
+      },
+      "expected": {
+        "status": 200,
+        "species": 1,
+        "first": {
+          "breedingCode": "",
+          "media": {
+            "photo": 0,
+            "audio": 0,
+            "video": 0
+          }
+        }
+      }
+    },
+    {
+      "why": "the largest count either transport accepts (MEDIA_COUNT_MAX, declared on each side and compared by this pair of rows)",
+      "fields": "provenance",
+      "body": {
+        "locId": "L99",
+        "obsDt": "2026-04-11 07:20",
+        "obs": [
+          {
+            "speciesCode": "amerob",
+            "howManyStr": "3",
+            "mediaCounts": {
+              "P": 999999999
+            }
+          }
+        ]
+      },
+      "expected": {
+        "status": 200,
+        "species": 1,
+        "first": {
+          "breedingCode": "",
+          "media": {
+            "photo": 999999999,
+            "audio": 0,
+            "video": 0
+          }
+        }
+      }
+    },
+    {
+      "why": "one past it reads as 0 on both",
+      "fields": "provenance",
+      "body": {
+        "locId": "L99",
+        "obsDt": "2026-04-11 07:20",
+        "obs": [
+          {
+            "speciesCode": "amerob",
+            "howManyStr": "3",
+            "mediaCounts": {
+              "P": 1000000000
+            }
+          }
+        ]
+      },
+      "expected": {
+        "status": 200,
+        "species": 1,
+        "first": {
+          "breedingCode": "",
+          "media": {
+            "photo": 0,
+            "audio": 0,
+            "video": 0
+          }
+        }
+      }
+    },
+    {
+      "why": "3.0 is the count 3 on both, because JSON.parse cannot tell it from 3",
+      "fields": "provenance",
+      "text": "{\"locId\":\"L99\",\"obs\":[{\"speciesCode\":\"amerob\",\"mediaCounts\":{\"P\":3.0}}]}",
+      "expected": {
+        "status": 200,
+        "species": 1,
+        "first": {
+          "breedingCode": "",
+          "media": {
+            "photo": 3,
+            "audio": 0,
+            "video": 0
+          }
+        }
+      }
+    },
+    {
+      "why": "ordinary media counts",
+      "fields": null,
+      "body": {
+        "locId": "L99",
+        "obsDt": "2026-04-11 07:20",
+        "obs": [
+          {
+            "speciesCode": "amerob",
+            "howManyStr": "3",
+            "mediaCounts": {
+              "P": 2,
+              "A": 1,
+              "V": 0
+            }
+          }
+        ]
+      },
+      "expected": {
+        "status": 200,
+        "species": 1,
+        "first": {
+          "breedingCode": "",
+          "media": {
+            "photo": 2,
+            "audio": 1,
+            "video": 0
+          }
+        }
       }
     }
   ]

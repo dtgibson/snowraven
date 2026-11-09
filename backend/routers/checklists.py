@@ -92,10 +92,14 @@ async def get_checklist(checklist_id: str, fields: str | None = Query(None)) -> 
         # itself never surfaces this text, it only counts the failure.
         #
         # It also carries `services.ebird.ChecklistAnswerError` on purpose
-        # (ebird-request-economy D-02): a 200 with no observation list, in a mode
-        # that reads species, is a failed answer, so it takes this clause's 502
-        # and wording ("Could not fetch checklist: eBird's answer had no
-        # observation list") rather than a status or detail of its own.
+        # (ebird-request-economy D-02, extended by ebird-store-hygiene): a 200
+        # whose body is not JSON or not a JSON object, or, in a mode that reads
+        # species, has no readable observation list, is a failed answer, so it
+        # takes this clause's 502 and wording ("Could not fetch checklist:
+        # eBird's answer could not be read") rather than a status or detail of
+        # its own. Before ebird-store-hygiene a body that was not JSON raised
+        # the decoder's ValueError, which the clause above turned into a 400
+        # carrying the decoder's message.
         raise HTTPException(status_code=502, detail=f"Could not fetch checklist: {exc}")
 
     # Under `fields=projects` the service already returned no observations, so

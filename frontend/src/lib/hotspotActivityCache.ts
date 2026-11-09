@@ -32,9 +32,18 @@ import {
   HOTSPOT_ACTIVITY_LOC_ID_RE, computeActivityCounts,
   type HotspotActivityPayload,
 } from './hotspotActivity'
+import { isWithinTtl } from './ttlWindow'
 
 /** OQ-1 default: 6 hours (activity data is time-sensitive; the county 30-day
- *  TTL is the wrong precedent here). */
+ *  TTL is the wrong precedent here).
+ *
+ *  Every TTL read of this store goes through `isWithinTtl` (`lib/ttlWindow.ts`,
+ *  ebird-request-economy D-03, extended here by ebird-store-hygiene): the
+ *  chokepoint below, and the Recent activity controller's own fresh/remainder
+ *  split in `useHotspotActivity.ts`. So an answer dated more than 24 hours
+ *  ahead of the reader's clock is asked for once more, and the new answer
+ *  rewrites its time. A stale or future-dated entry still colors its pin and is
+ *  still served stale offline (FR-15b); the window decides only when to ask. */
 export const HOTSPOT_ACTIVITY_TTL_MS = 6 * 60 * 60 * 1000
 
 /** Storage-seam document key. */
@@ -230,7 +239,7 @@ export function dedupedFetch(
   const run = async (): Promise<ActivityFetchResult> => {
     const store = await ensureLoaded()
     const hit = store.entries[locId]
-    if (hit && Date.now() - hit.fetchedAt < HOTSPOT_ACTIVITY_TTL_MS) {
+    if (hit && isWithinTtl(hit.fetchedAt, Date.now(), HOTSPOT_ACTIVITY_TTL_MS)) {
       return { entry: hit, fromNetwork: false }
     }
     const pending = _inflight.get(locId)

@@ -1,0 +1,56 @@
+F-Droid public reads at the 1.0.69 prep (no token; read 2026-11-09 07:46 UTC, 2026-11-08 23:46 PST)
+
+1. f-droid.org published list: GET https://f-droid.org/api/v1/packages/com.dtgibson.snowraven (200)
+{"packageName":"com.dtgibson.snowraven","suggestedVersionCode":10000614,"packages":[{"versionName":"1.0.61","versionCode":10000614},{"versionName":"1.0.61","versionCode":10000612},{"versionName":"1.0.61","versionCode":10000611},{"versionName":"1.0.60","versionCode":10000604},{"versionName":"1.0.60","versionCode":10000602},{"versionName":"1.0.60","versionCode":10000601},{"versionName":"1.0.59","versionCode":10000594},{"versionName":"1.0.59","versionCode":10000592},{"versionName":"1.0.59","versionCode":10000591}]}
+   suggestedVersionCode 10000614 | published versionNames: ["1.0.61", "1.0.60", "1.0.59"]
+
+2. fdroiddata master recipe: GET https://gitlab.com/fdroid/fdroiddata/-/raw/master/metadata/com.dtgibson.snowraven.yml (200)
+   SHA-256 e85ab522a4aaa46779b57939e6bed2e631eed119847d0a519a7b5abd8a05ed1d, 19731 bytes
+   CurrentVersion: 1.0.65
+   CurrentVersionCode: 10000654
+   Builds entries (versionName versionCode commit):
+      1.0.53 10000531 c4c15a9624c299f62bf3f82af7f111750666b579
+      1.0.53 10000532 c4c15a9624c299f62bf3f82af7f111750666b579
+      1.0.53 10000534 c4c15a9624c299f62bf3f82af7f111750666b579
+      1.0.55 10000551 1cad79954fbd96a899faf83e9604696a2e811405
+      1.0.55 10000552 1cad79954fbd96a899faf83e9604696a2e811405
+      1.0.55 10000554 1cad79954fbd96a899faf83e9604696a2e811405
+      1.0.56 10000561 41caabf9a538087f0e6c44e86b6164e6d44abd91
+      1.0.56 10000562 41caabf9a538087f0e6c44e86b6164e6d44abd91
+      1.0.56 10000564 41caabf9a538087f0e6c44e86b6164e6d44abd91
+      1.0.60 10000601 231a3dba2f1480a3b1e9d5ba1df95d7ce6ff2b0a
+      1.0.60 10000602 231a3dba2f1480a3b1e9d5ba1df95d7ce6ff2b0a
+      1.0.60 10000604 231a3dba2f1480a3b1e9d5ba1df95d7ce6ff2b0a
+      1.0.61 10000611 3be276520c41697ed95eed672f0b7c6fb0095ca5
+      1.0.61 10000612 3be276520c41697ed95eed672f0b7c6fb0095ca5
+      1.0.61 10000614 3be276520c41697ed95eed672f0b7c6fb0095ca5
+      1.0.65 10000651 d7444330fa4c4497511057239293419702b16cee
+      1.0.65 10000652 d7444330fa4c4497511057239293419702b16cee
+      1.0.65 10000654 d7444330fa4c4497511057239293419702b16cee
+
+3. recipe commit history: GET gitlab api v4 repository/commits?path=metadata/com.dtgibson.snowraven.yml (200), newest first
+   8970b26d 2026-11-08T19:02:36.000+00:00 keep latest
+   3302f014 2026-11-08T09:54:39.000+00:00 bot: Update SnowRaven to 10000654
+   69401fd9 2026-11-07T09:03:52.000+00:00 bot: Update SnowRaven to 10000634
+   754c9f1f 2026-11-04T06:32:17.000+00:00 bot: Update SnowRaven to 10000614
+   fa2a1b5c 2026-10-23T09:21:10.000+00:00 keep latest
+   46b33bf9 2026-10-23T07:35:58.000+00:00 bot: Update SnowRaven to 10000604
+   0b6f7d2c 2026-10-22T11:10:05.000+03:00 keep latest
+   05d29c1f 2026-10-22T07:49:48.000+00:00 bot: Update SnowRaven to 10000594
+   392e8468 2026-10-20T08:02:06.000+00:00 bot: Update SnowRaven to 10000574
+   4d99f304 2026-10-19T07:52:52.000+00:00 bot: Update SnowRaven to 10000564
+
+4. build logs: GET https://monitor.f-droid.org/builds/log/com.dtgibson.snowraven/<code>
+   10000651 404
+   10000652 404
+   10000654 404
+   10000661 404
+   10000662 404
+   10000664 404
+   10000671 404
+   10000672 404
+   10000674 404
+   10000681 404
+   10000682 404
+   10000684 404
+   (404 = F-Droid has not attempted that build)

@@ -1,3 +1,4 @@
+import json
 import os
 import re
 
@@ -251,23 +252,134 @@ def checklist_field_flags(fields: str | None) -> tuple[bool, bool]:
 
 
 class ChecklistAnswerError(Exception):
-    """eBird answered HTTP 200 with a body the species-reading modes cannot use.
+    """eBird answered HTTP 200 with a body this route cannot use.
 
     Deliberately NOT a ValueError or LookupError, which the route maps to 400
     and 404: it falls through to the route's generic clause, so the caller sees
     a 502 with that clause's own wording ("Could not fetch checklist: {exc}"),
     the same failed-answer shape every other unreadable answer already has
-    (ebird-request-economy D-02). The message names no eBird URL and no key."""
+    (ebird-request-economy D-02). It is always raised with
+    CHECKLIST_UNREADABLE, fixed text that names no eBird URL, no key and
+    nothing from the body, never a decoder's or interpreter's message."""
 
 
-def _has_observation_list(data) -> bool:
-    """True when a checklist/view body carries an observation LIST: the body is
-    a dict and its `obs` is a list (possibly empty). A TYPE test, never
-    truthiness: `data.get("obs") or []` used to turn an absent, null, empty
-    dict, empty string, 0 or False `obs` into an empty answer. The JS twin is
-    `hasObservationList` in frontend/src/lib/tauri/checklistService.ts; the
-    shared fixture's `answers` rows drive both."""
-    return isinstance(data, dict) and isinstance(data.get("obs"), list)
+# The one wording for every refused body (ebird-store-hygiene): true for a body
+# that is not JSON, not a JSON object, or (in the species modes) has no readable
+# observation list. The List Comparer shows it after "Could not fetch
+# checklist: ".
+CHECKLIST_UNREADABLE = "eBird's answer could not be read"
+
+
+# ── What a 200 answer must be before anything reads it ─────────────────────────
+# Each check is a TYPE test, never truthiness, because Python and JavaScript
+# disagree about `{}`, `[]`, `0`, `False` and `""` (the twinned-builder rule,
+# .claude/rules/security.md, v1.0.29). The JS twins are in
+# frontend/src/lib/tauri/checklistService.ts, named on each function, and the
+# shared fixture (frontend/src/lib/checklistProvenance.fixture.json, `answers`)
+# drives both through the shipped code.
+#
+# COST. Each check reads every observation once with constant work per item,
+# and the obsAux search reads each entry of one observation's list once, so the
+# whole pass is linear in the size of the body and dominated by the decode that
+# precedes it. Nothing caps the body's size or read time (pre-existing, on both
+# transports): httpx's `timeout=10.0` limits each connect and each socket read,
+# not the whole body, so the bound is the decode's own. No regex runs over the
+# body here.
+
+
+def _refuse_constant(name):
+    raise ValueError(f"non-standard JSON constant {name}")
+
+
+def _decode_answer(content: bytes):
+    """Decode a checklist/view body the way the WebView's `Response.json()`
+    does, so both transports agree on what is JSON (ebird-store-hygiene).
+
+    The Fetch spec's "parse JSON from bytes" decodes UTF-8 with replacement
+    after dropping ONE leading byte-order mark, then runs JSON.parse. httpx's
+    `resp.json()` differs three ways, each measured: it decodes UTF-16 and
+    UTF-32 bodies, it fails outright on an invalid UTF-8 byte the WebView reads
+    as U+FFFD, and Python's json accepts NaN, Infinity and -Infinity, which
+    JSON.parse refuses. `decode("utf-8-sig", errors="replace")` matched the
+    WHATWG decoder on every one of 7,695 probed byte sequences, and with the
+    constants refused, `json.loads` accepted exactly what JSON.parse accepted
+    on 48 grammar cases. Any failure is a ChecklistAnswerError with the fixed
+    wording; RecursionError is caught too, though 100,000 nested levels decoded
+    on Python 3.15 without one."""
+    try:
+        return json.loads(content.decode("utf-8-sig", errors="replace"), parse_constant=_refuse_constant)
+    except (ValueError, RecursionError):
+        raise ChecklistAnswerError(CHECKLIST_UNREADABLE) from None
+
+
+def _is_readable_observation(o) -> bool:
+    """The species modes can read this observation: a dict whose `speciesCode`
+    is absent, None or a string. An absent, None or empty code is skipped below,
+    as it always was; any other code (a number, a bool, a list, a dict) makes
+    the observation unreadable. JS twin: `isReadableObservation`."""
+    if not isinstance(o, dict):
+        return False
+    code = o.get("speciesCode")
+    return code is None or isinstance(code, str)
+
+
+def _has_readable_observation_list(data: dict) -> bool:
+    """The body's `obs` is a list every item of which is a readable
+    observation (an empty list included). A TYPE test: `data.get("obs") or []`
+    used to turn an absent, null, empty dict, empty string, 0 or False `obs`
+    into an empty answer. JS twin: `hasReadableObservationList`."""
+    obs = data.get("obs")
+    return isinstance(obs, list) and all(_is_readable_observation(o) for o in obs)
+
+
+# The largest media count either transport accepts: 9 digits, below 2**53, so a
+# number's value is the same in both runtimes. JS twin: `MEDIA_COUNT_MAX` in
+# lib/tauri/checklistService.ts, compared by the fixture's boundary rows.
+MEDIA_COUNT_MAX = 999_999_999
+
+
+def _media_count(v) -> int:
+    """A non-negative whole number up to MEDIA_COUNT_MAX, else 0. bool is
+    excluded explicitly (`isinstance(True, int)`), and a float with a whole
+    value is accepted, because JSON.parse cannot tell 3.0 from 3."""
+    if isinstance(v, bool) or not isinstance(v, (int, float)):
+        return 0
+    if isinstance(v, float) and not v.is_integer():
+        return 0
+    if v < 0 or v > MEDIA_COUNT_MAX:
+        return 0
+    return int(v)
+
+
+def _breeding_code(obs_aux) -> str:
+    """The first dict entry of `obsAux` whose `fieldName` is `breeding_code`:
+    its `value` when that is a non-empty string, else its `auxCode` when that
+    is, else "". Anything else reads as no code. JS twin: the breeding half of
+    `normalizeDisplayFields`."""
+    if not isinstance(obs_aux, list):
+        return ""
+    for aux in obs_aux:
+        if not isinstance(aux, dict) or aux.get("fieldName") != "breeding_code":
+            continue
+        value, aux_code = aux.get("value"), aux.get("auxCode")
+        if isinstance(value, str) and value:
+            return value
+        if isinstance(aux_code, str) and aux_code:
+            return aux_code
+        return ""
+    return ""
+
+
+def _media_counts(media_counts) -> dict:
+    """{"photo", "audio", "video"} from eBird's `mediaCounts` {"P", "A", "V"};
+    anything but a dict reads as no media. JS twin: the media half of
+    `normalizeDisplayFields`."""
+    mc = media_counts if isinstance(media_counts, dict) else {}
+    return {
+        "photo": _media_count(mc.get("P")),
+        "audio": _media_count(mc.get("A")),
+        "video": _media_count(mc.get("V")),
+    }
 
 
 async def fetch_checklist_species(
@@ -288,13 +400,15 @@ async def fetch_checklist_species(
     (FR-25). Under `fields=projects` both flags are set, which is what makes a
     projects sweep cost exactly ONE outbound eBird request per checklist.
 
-    In the two modes that read species (`skip_species` False: no `fields`, and
-    `provenance`), a 200 whose body carries no observation list raises
-    `ChecklistAnswerError` BEFORE the location-name request, so it is a failed
-    answer rather than an empty one (ebird-request-economy D-02). Read as empty,
-    it would have the escapee check stamp every species the checklist carries
-    for 30 days. `obs: []` is still an answer. Under `skip_species` the list is
-    not read, so the check does not apply."""
+    A 200 whose body is not JSON (`_decode_answer`) or not a JSON object
+    raises `ChecklistAnswerError` in every mode. In the two modes that read
+    species (`skip_species` False: no `fields`, and `provenance`), so does a
+    body with no readable observation list, BEFORE the location-name request,
+    so it is a failed answer rather than an empty one (ebird-request-economy
+    D-02, extended by ebird-store-hygiene). Read as empty, it would have the
+    escapee check stamp every species the checklist carries for 30 days.
+    `obs: []` is still an answer. Under `skip_species` the list is not read, so
+    that check does not apply."""
     api_key = os.getenv("EBIRD_API_KEY")
     if not api_key:
         raise ValueError("EBIRD_API_KEY not configured")
@@ -309,9 +423,11 @@ async def fetch_checklist_species(
     if resp.status_code == 404:
         raise LookupError("Checklist not found. Check the ID and try again.")
     resp.raise_for_status()
-    data = resp.json()
-    if not skip_species and not _has_observation_list(data):
-        raise ChecklistAnswerError("eBird's answer had no observation list")
+    data = _decode_answer(resp.content)
+    if not isinstance(data, dict):
+        raise ChecklistAnswerError(CHECKLIST_UNREADABLE)
+    if not skip_species and not _has_readable_observation_list(data):
+        raise ChecklistAnswerError(CHECKLIST_UNREADABLE)
 
     # checklist/view has no locName — only locId. Resolve a human-readable
     # location name so the two checklists are easy to tell apart.
@@ -338,17 +454,12 @@ async def fetch_checklist_species(
             continue
         # Breeding code lives in obsAux (one per species per checklist). The value is
         # eBird's INTERNAL code (e.g. "S1") — the frontend translates it to the display
-        # code. Media presence is in mediaCounts: {"P": n, "A": n, "V": n}.
-        breeding = ""
-        for aux in (o.get("obsAux") or []):
-            if aux.get("fieldName") == "breeding_code":
-                breeding = aux.get("value") or aux.get("auxCode") or ""
-                break
-        mc = o.get("mediaCounts") or {}
+        # code. Media presence is in mediaCounts: {"P": n, "A": n, "V": n}. Both are
+        # normalized beside the JS twin (ebird-store-hygiene).
         species.append({
             "speciesCode": code,
             "count": o.get("howManyStr", "X"),
-            "breedingCode": breeding,
+            "breedingCode": _breeding_code(o.get("obsAux")),
             "comments": o.get("comments") or "",   # per-species note (HTML-entity encoded)
             # Exotic provenance rides on the OBSERVATION, so it lands on the
             # collapsed parent species code in the router below. Raw values,
@@ -356,11 +467,7 @@ async def fetch_checklist_species(
             # naturalized, 'P' provisional, "" absent.
             "exoticCategory": _norm_token(o.get("exoticCategory"), _EXOTIC_RE),
             "userDoNotCount": _norm_token(o.get("userDoNotCount"), _DNC_RE),
-            "media": {
-                "photo": int(mc.get("P", 0) or 0),
-                "audio": int(mc.get("A", 0) or 0),
-                "video": int(mc.get("V", 0) or 0),
-            },
+            "media": _media_counts(o.get("mediaCounts")),
         })
 
     proj_id, project_ids = _norm_project_fields(data.get("projId"), data.get("projectIds"))

@@ -1,3 +1,4 @@
+import json
 from unittest.mock import AsyncMock, MagicMock, patch
 from urllib.parse import unquote
 
@@ -65,7 +66,9 @@ def _make_resp(payload, status=200):
     resp.status_code = status
     resp.raise_for_status = MagicMock()
     resp.json = lambda: payload
-    resp.content = b"x"
+    # The service decodes the checklist body from its bytes (ebird-store-hygiene),
+    # so the fake carries the payload's real JSON bytes.
+    resp.content = json.dumps(payload).encode("utf-8")
     return resp
 
 

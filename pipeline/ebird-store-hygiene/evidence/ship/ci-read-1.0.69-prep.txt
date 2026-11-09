@@ -1,0 +1,13 @@
+Pipeline (main) failure readout at the 1.0.69 prep, read 2026-11-09 07:50 UTC with gh run view --log-failed
+42557718544 on 4bd29f97: Frontend - lint, test, build=failure;Backend - lint, test=success;
+   ##[error]AssertionError: expected 23.80341880341887 to be less than or equal to 20
+   FAIL  src/lib/lifeListsLinearity.test.ts > the Life Lists derivation is linear in rows (NFR-01, QA-44) > pass 1 (first sightings), every row its own species
+42555006962 on 5f0a27b4: Backend - lint, test=success;Frontend - lint, test, build=failure;
+   ##[error]AssertionError: expected 22.45929919137469 to be less than or equal to 20
+   FAIL  src/lib/lifeListsLinearity.test.ts > the Life Lists derivation is linear in rows (NFR-01, QA-44) > pass 1 (first sightings), every row its own species
+42552886222 on ae9260d8: Backend - lint, test=success;Frontend - lint, test, build=failure;
+   ##[error]AssertionError: expected 24.003832641328884 to be less than or equal to 20
+   FAIL  src/lib/lifeListsLinearity.test.ts > the Life Lists derivation is linear in rows (NFR-01, QA-44) > pass 1 (first sightings), every row its own species
+42540147018 on a554bce9: Frontend - lint, test, build=failure;Backend - lint, test=success;
+   ##[error]AssertionError: expected 26.10954356846466 to be less than or equal to 20
+   FAIL  src/lib/lifeListsLinearity.test.ts > the Life Lists derivation is linear in rows (NFR-01, QA-44) > pass 1 (first sightings), every row its own species

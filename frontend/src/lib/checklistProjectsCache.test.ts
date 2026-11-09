@@ -336,6 +336,40 @@ describe('TTL semantics: re-consultation only, never display (FR-37, QA-39)', ()
     expect(res.fromNetwork).toBe(false)
     expect(loader).not.toHaveBeenCalled()
   })
+
+  // ebird-store-hygiene (the ebird-request-economy D-03 window, extended to
+  // this store): answers stored while the clock ran ahead, read after it was
+  // corrected. Exactly 24 h ahead is honoured, one millisecond past it is asked
+  // for again, and the new answer rewrites its time.
+  it('an answer exactly 24 h ahead is not re-asked; one millisecond past it is, and the answer rewrites its time', async () => {
+    const NOW = 1_750_000_000_000
+    const DAY = 24 * 60 * 60 * 1000
+    disk.doc = {
+      version: 1,
+      entries: {
+        S1: { proj: 'EBIRD', ids: [], at: NOW + DAY },
+        S2: { proj: 'EBIRD', ids: [], at: NOW + DAY + 1 },
+      },
+      order: ['S1', 'S2'],
+    }
+    const clock = vi.spyOn(Date, 'now').mockReturnValue(NOW)
+    try {
+      const snap = await loadSnapshot()
+      // Both still count as checked and still display (FR-37).
+      expect(snap.has('S1') && snap.has('S2')).toBe(true)
+      const loader = vi.fn(answer('EBIRD_ATL_CA', [1050]))
+      expect((await dedupedFetchProjects('S1', loader)).fromNetwork).toBe(false)
+      const asked = await dedupedFetchProjects('S2', loader)
+      expect(asked.fromNetwork).toBe(true)
+      expect(asked.entry.at).toBe(NOW)
+      expect(loader).toHaveBeenCalledTimes(1)
+      // The rewritten time is honoured from here on.
+      expect((await dedupedFetchProjects('S2', loader)).fromNetwork).toBe(false)
+      expect(loader).toHaveBeenCalledTimes(1)
+    } finally {
+      clock.mockRestore()
+    }
+  })
 })
 
 describe('admission is FILL-AND-STOP, never FIFO (FR-35, NFR-03)', () => {

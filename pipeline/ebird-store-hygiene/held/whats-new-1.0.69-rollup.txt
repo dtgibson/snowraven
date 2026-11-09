@@ -1,0 +1,5 @@
+The Statistics tab's escapee check now settles the species a backup downloaded before eBird's 2026 taxonomy update still calls by their old names, such as Willet and Marsh Wren, by matching them with eBird's answers under the names that update gave them. When a species is still open, the line under the Species figure now names it, and it still counts.
+
+When eBird's public data has no answer for one of your species, such as a sighting eBird has not yet confirmed, the escapee check now reads as finished on both Statistics and Life Lists, and the species still counts.
+
+Life Lists now lists naturalized and provisional exotics by default, as eBird and the Statistics tab count them; turn off Include Exotics to leave them out. A saved Projects or Recent activity answer dated more than a day ahead of your device's clock is now asked for again, and a checklist answer from eBird that cannot be read now shows SnowRaven's own error message.

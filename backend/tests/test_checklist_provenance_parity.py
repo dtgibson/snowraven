@@ -106,16 +106,19 @@ def test_a_rejected_value_normalizes_to_empty_which_counts():
         assert out["exoticCategory"] in ("", "X", "N", "P", "Q")
 
 
-# ── ebird-request-economy (decisions.md D-02): whole answer bodies ────────────
+# ── ebird-request-economy (decisions.md D-02), extended by ebird-store-hygiene:
+# whole answer bodies ──────────────────────────────────────────────────────────
 #
 # The fixture's `answers` rows are whole checklist/view bodies eBird answered
 # with HTTP 200. Driven through the SHIPPED route (TestClient over the real
-# handler and service, the outbound client faked), so the verdict is exactly
-# what the escapee check and the List Comparer receive on web/Pi. The JS twin
-# drives the shipped desktop service over the same rows.
+# handler and service, the outbound client faked with REAL httpx responses over
+# each row's bytes), so the verdict is exactly what the escapee check and the
+# List Comparer receive on web/Pi. The JS twin drives the shipped desktop
+# service over the same rows.
 
-from unittest.mock import AsyncMock, MagicMock, patch  # noqa: E402
+from unittest.mock import AsyncMock, patch  # noqa: E402
 
+import httpx  # noqa: E402
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 
@@ -145,25 +148,30 @@ def isolated_taxonomy(tmp_path, monkeypatch):
     taxonomy_module._loaded = False
 
 
-def _resp(payload, status=200):
-    resp = MagicMock()
-    resp.status_code = status
-    resp.raise_for_status = MagicMock()
-    resp.json = lambda: payload
-    resp.content = b"x"
-    return resp
+def _resp(content: bytes, status=200):
+    return httpx.Response(status, content=content, request=httpx.Request("GET", "https://api.ebird.org/v2/x"))
 
 
-def _answer(body, fields, urls):
+def _bytes_of(row) -> bytes:
+    """The exact bytes eBird answered with: `hex` as given, `text` in UTF-8,
+    else `body` as JSON."""
+    if "hex" in row:
+        return bytes.fromhex(row["hex"])
+    if "text" in row:
+        return row["text"].encode("utf-8")
+    return json.dumps(row["body"]).encode("utf-8")
+
+
+def _answer(content, fields, urls):
     async def fake_get(url, *args, **kwargs):
         urls.append(url)
         if "/product/checklist/view/" in url:
-            return _resp(body)
+            return _resp(content)
         if "/ref/region/info/" in url:
-            return _resp({"result": "Somewhere"})
+            return _resp(json.dumps({"result": "Somewhere"}).encode())
         if "/ref/taxonomy/ebird" in url:
-            return _resp(_FAKE_TAXONOMY)
-        return _resp({}, status=404)
+            return _resp(json.dumps(_FAKE_TAXONOMY).encode())
+        return _resp(b"{}", status=404)
 
     shared = AsyncMock()
     shared.get = AsyncMock(side_effect=fake_get)
@@ -180,10 +188,13 @@ def _answers():
 
 def test_every_answer_body_reaches_the_shared_verdict(isolated_taxonomy):
     for row in _answers():
-        resp = _answer(row["body"], row["fields"], [])
+        resp = _answer(_bytes_of(row), row["fields"], [])
         got = {"status": resp.status_code}
         if resp.status_code == 200:
-            got["species"] = len(resp.json()["species"])
+            species = resp.json()["species"]
+            got["species"] = len(species)
+            if "first" in row["expected"]:
+                got["first"] = {"breedingCode": species[0]["breedingCode"], "media": species[0]["media"]}
         assert got == row["expected"], row["why"]
 
 
@@ -192,22 +203,67 @@ def test_a_refused_body_is_the_routes_own_502_and_costs_no_second_request(isolat
         if row["expected"]["status"] != 502:
             continue
         urls = []
-        resp = _answer(row["body"], row["fields"], urls)
+        resp = _answer(_bytes_of(row), row["fields"], urls)
         assert resp.status_code == 502, row["why"]
+        # ONE fixed wording for every refused shape, written here as a literal:
+        # never the decoder's, the interpreter's or the body's own text.
         assert resp.json()["detail"] == (
-            "Could not fetch checklist: eBird's answer had no observation list"
+            "Could not fetch checklist: eBird's answer could not be read"
         ), row["why"]
         # The location-name lookup is never reached for a body the route refuses.
         assert len(urls) == 1, row["why"]
+
+
+def _object_body(row):
+    body = row.get("body")
+    return body if isinstance(body, dict) else None
+
+
+def _first_photo(row):
+    """The raw `mediaCounts.P` of a row's first observation, or None when the
+    row has no such value (any other shape)."""
+    obs = (_object_body(row) or {}).get("obs")
+    first = obs[0] if isinstance(obs, list) and obs and isinstance(obs[0], dict) else {}
+    mc = first.get("mediaCounts")
+    return mc.get("P") if isinstance(mc, dict) else None
 
 
 def test_the_answer_rows_still_discriminate():
     failed = [r for r in _answers() if r["expected"]["status"] == 502]
     answered = [r for r in _answers() if r["expected"]["status"] == 200]
     assert len(failed) >= 8
-    failed_obs = [("NO BODY" if r["body"] is None else r["body"].get("obs", "ABSENT")) for r in failed]
+    failed_obs = [
+        ("NO OBJECT BODY" if _object_body(r) is None else r["body"].get("obs", "ABSENT"))
+        for r in failed if "body" in r
+    ]
     # Each falsy non-list `data.get("obs") or []` used to turn into an empty answer.
     for v in ("ABSENT", None, "", 0, False):
         assert any(o == v and type(o) is type(v) for o in failed_obs), v
-    assert any(r["fields"] == "provenance" and r["body"].get("obs") == [] for r in answered)
-    assert any(r["fields"] == "projects" and not isinstance(r["body"].get("obs"), list) for r in answered)
+    assert any(r["fields"] == "provenance" and (_object_body(r) or {}).get("obs") == [] for r in answered)
+    assert any(r["fields"] == "projects" and _object_body(r) is not None
+               and not isinstance(r["body"].get("obs"), list) for r in answered)
+    # ebird-store-hygiene: the rows that separate the twins. A list item in an
+    # observation list (`typeof [] === 'object'` in JS), a list body under
+    # fields=projects, NaN (which json.loads accepts), bytes that are not
+    # UTF-8, a dict in the breeding fallback `or` and `??` read differently,
+    # and a bool media count (`isinstance(True, int)`).
+    items = [o for r in failed for o in ((_object_body(r) or {}).get("obs") or [])
+             if isinstance((_object_body(r) or {}).get("obs"), list)]
+    assert any(isinstance(o, list) for o in items)
+    assert any(o is None for o in items)
+    assert any(r["fields"] == "projects" and isinstance(r.get("body"), list) for r in failed)
+    assert any("NaN" in r.get("text", "") for r in failed)
+    assert any("hex" in r for r in failed) and any("hex" in r for r in answered)
+    assert any(r["expected"].get("first", {}).get("breedingCode") == "S" for r in answered)
+    photos = [_first_photo(r) for r in answered if "first" in r["expected"]]
+    assert any(p is True for p in photos)
+
+
+def test_the_media_count_bound_is_the_fixtures_boundary_pair():
+    """The JS twin declares the same bound again (`MEDIA_COUNT_MAX` in
+    checklistService.ts); the pair of rows at the bound and one past it is what
+    compares the two declarations, through both shipped paths."""
+    from services.ebird import MEDIA_COUNT_MAX
+    photos = [_first_photo(r) for r in _answers() if "first" in r["expected"]]
+    assert MEDIA_COUNT_MAX in photos
+    assert MEDIA_COUNT_MAX + 1 in photos

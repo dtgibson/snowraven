@@ -399,15 +399,21 @@ export function useExoticProvenance(
     const pass = newPassStop()
     passRef.current = pass
     let unsubscribe: (() => void) | null = null
+    // A Clear supersedes the pass (ebird-request-economy D-08): the cover was
+    // planned from the export being deleted, so from the moment the store's
+    // purge counter moves no call of this pass is sent and nothing more is
+    // picked. The counter is read BEFORE the pass's first await, the house
+    // shape of the store's own fetch chokepoint (v1.0.40), so a Clear that lands
+    // while the load below is still pending is seen too (ebird-store-hygiene,
+    // security report I1). The purge rebuilds the snapshot, which notifies the
+    // listener synchronously, before any waiting call can reach its start slot;
+    // a purge that landed before the listener existed is caught by the one
+    // check right after subscribing.
+    const passGeneration = provenancePurgeGeneration()
     try {
       await loadSnapshot()
-      // A Clear supersedes the pass (ebird-request-economy D-08): the cover was
-      // planned from the export being deleted, so from the moment the store's
-      // purge counter moves no call of this pass is sent and nothing more is
-      // picked. The purge rebuilds the snapshot, which notifies this listener
-      // synchronously, before any waiting call can reach its start slot.
-      const passGeneration = provenancePurgeGeneration()
       unsubscribe = subscribe(() => { if (provenancePurgeGeneration() !== passGeneration) pass.stop() })
+      if (provenancePurgeGeneration() !== passGeneration) pass.stop()
       const idx = indexRef.current
       const admissible = new Set(idx.bySpecies.keys())
       // Checklists already answered this pass or attempted and failed. A failed
@@ -582,6 +588,13 @@ export function useExoticProvenance(
       setStatus(isOfflineError(err) ? offlineStatus() : { kind: 'error' })
     } finally {
       unsubscribe?.()
+      // Release the finished pass's token (ebird-store-hygiene, security report
+      // I3). Each gated call left a reaction on `pass.signal` that holds its
+      // checklist id, and the token sits in `passRef` until the next pass, so
+      // settling it here lets them go. Every gated call has settled by now and
+      // the status above is already reported, so this sends nothing and reports
+      // nothing; Stop after the pass stays a no-op.
+      pass.stop()
       runningRef.current = false
     }
   }, [])

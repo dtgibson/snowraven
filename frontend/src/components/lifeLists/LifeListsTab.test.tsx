@@ -219,7 +219,7 @@ describe('the codes batch is the one request (FR-39, FR-43, QA-41, QA-55)', () =
 })
 
 describe('the switches and the status line (FR-18 to FR-20, FR-35)', () => {
-  it('start off, expose their state, and add exactly their species (QA-19, QA-37)', async () => {
+  it('Include Escapees starts off and Include Exotics on, both expose their state, and each adds exactly its species (QA-19, QA-37)', async () => {
     // Only S2 (the escapee's one carrier) and junk were consulted: the exotic
     // list is read as published, and S1 never being asked does not stop the
     // check from being complete, because every species has an answer.
@@ -230,7 +230,12 @@ describe('the switches and the status line (FR-18 to FR-20, FR-35)', () => {
     await ready()
     const esc = screen.getByRole('switch', { name: 'Include Escapees' })
     const exo = screen.getByRole('switch', { name: 'Include Exotics' })
+    // ebird-store-hygiene: the defaults follow eBird's life-list rule, as the
+    // Statistics headline does: the exotic is listed, the escapee is not.
     expect(esc.getAttribute('aria-checked')).toBe('false')
+    expect(exo.getAttribute('aria-checked')).toBe('true')
+    expect(rowNames()).toEqual(['Rock Pigeon', 'American Robin'])
+    fireEvent.click(exo)
     expect(exo.getAttribute('aria-checked')).toBe('false')
     expect(rowNames()).toEqual(['American Robin'])
     fireEvent.click(esc)

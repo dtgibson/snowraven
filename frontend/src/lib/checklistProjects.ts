@@ -27,6 +27,7 @@ import type { ChecklistEntry } from '../types'
 import type { ChecklistProjectsEntry } from './checklistProjectsCache'
 import { canonicalProject, hasPublishedName, isGenericPortal } from './projectLabels'
 import { SUBMISSION_KEY_RE } from './checklistId'
+import { isWithinTtl } from './ttlWindow'
 
 export interface ProjectRow {
   /** Canonical key: both forms of one project collapse to it (QA-61). */
@@ -173,6 +174,9 @@ export function deriveProjectsView(
  *
  * `mode`:
  *   'pending' — minus ids already answered and still fresh (start / resume).
+ *               "Fresh" is `isWithinTtl` (`lib/ttlWindow.ts`), the store
+ *               chokepoint's own window, so an answer dated more than 24 hours
+ *               ahead of `nowMs` is pending again (ebird-store-hygiene).
  *   'all'     — every shape-valid id ("Check again", the force path).
  *   'ids'     — an explicit subset, re-ordered ("Try again" over the unanswered).
  *
@@ -201,7 +205,7 @@ export function buildTargetIds(
       if (!mode.only.has(id)) continue
     } else if (mode === 'pending') {
       const entry = snapshot.get(id)
-      if (entry && nowMs - entry.at < ttlMs) continue
+      if (entry && isWithinTtl(entry.at, nowMs, ttlMs)) continue
     }
     out.push(id)
   }

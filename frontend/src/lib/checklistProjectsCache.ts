@@ -45,6 +45,7 @@
 
 import { storage } from './storage'
 import { SUBMISSION_KEY_RE } from './checklistId'
+import { isWithinTtl } from './ttlWindow'
 
 /**
  * OQ-01's default: 365 days. A submitted checklist's project assignment does not
@@ -54,6 +55,14 @@ import { SUBMISSION_KEY_RE } from './checklistId'
  *
  * It governs RE-CONSULTATION ONLY, never display (FR-37): an expired entry still
  * counts as checked and still displays; the next sweep re-asks it.
+ *
+ * Every TTL read of this store goes through `isWithinTtl` (`lib/ttlWindow.ts`,
+ * ebird-request-economy D-03, extended here by ebird-store-hygiene): the fetch
+ * chokepoint below, and the sweep's pending-mode skip in `buildTargetIds`
+ * (`lib/checklistProjects.ts`), which reads the TTL itself. So an answer dated
+ * more than 24 hours ahead of the reader's clock is asked for once more, and
+ * the new answer rewrites its time. Such an answer still counts as checked and
+ * still displays until then; the window decides only when to ask again.
  */
 export const PROJECTS_TTL_MS = 365 * 24 * 60 * 60 * 1000
 
@@ -372,7 +381,7 @@ export function dedupedFetchProjects(
     const store = await ensureLoaded()
     if (!opts?.force && Object.hasOwn(store.entries, submissionId)) {
       const hit = store.entries[submissionId]
-      if (Date.now() - hit.at < PROJECTS_TTL_MS) {
+      if (isWithinTtl(hit.at, Date.now(), PROJECTS_TTL_MS)) {
         return { entry: hit, fromNetwork: false, refused: false }
       }
     }

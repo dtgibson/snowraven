@@ -209,6 +209,44 @@ describe('the pass: pool, ordering, cap (FR-19, NFR-05)', () => {
   }, 20000)
 })
 
+describe('the plausibility window on a cached answer (ebird-store-hygiene)', () => {
+  // The controller's own fresh/remainder split reads the store chokepoint's
+  // window, so an answer dated past it joins the fetch set, and both are shown
+  // meanwhile (the window decides only when to ask). The row reads the
+  // CONTROLLER's decision alone: with no eBird key the pass computes its split,
+  // reports it (`cacheServed` is its fresh count, and the no-key error appears
+  // only because something was left to fetch) and launches nothing, so the
+  // store chokepoint, whose own window has its own row in
+  // hotspotActivityCache.test.ts, is never consulted. Each reader's reversion
+  // therefore turns only its own row red.
+  it('an answer exactly 24 h ahead is served from the cache; one a millisecond past it joins the fetch set', async () => {
+    const NOW = 1_750_000_000_000
+    const DAY = 24 * 60 * 60 * 1000
+    disk.docs.set(activityCache.HOTSPOT_ACTIVITY_STORE_KEY, {
+      version: 1,
+      entries: {
+        L901: { count30: 3, count7: 1, fetchedAt: NOW + DAY },
+        L902: { count30: 4, count7: 2, fetchedAt: NOW + DAY + 1 },
+      },
+      order: ['L901', 'L902'],
+    })
+    const clock = vi.spyOn(Date, 'now').mockReturnValue(NOW)
+    try {
+      const { result } = renderController({ pins: [pin('L901'), pin('L902')], hasEbirdKey: false })
+      await waitFor(() => expect(result.current.status.phase).toBe('done'))
+      expect(result.current.status.cacheServed).toBe(1)
+      expect(result.current.status.target).toBe(2)
+      expect(result.current.status.error).toMatchObject({ kind: 'no-key' })
+      expect(net.calls).toHaveLength(0)
+      // Both stay shown.
+      expect(result.current.countFor('L901')?.count30).toBe(3)
+      expect(result.current.countFor('L902')?.count30).toBe(4)
+    } finally {
+      clock.mockRestore()
+    }
+  })
+})
+
 describe('degradation and retry (FR-14, QA-13/QA-14)', () => {
   it('hasEbirdKey false → zero requests, no-key error, cached answers still color', async () => {
     for (const id of ['L901']) {

@@ -52,7 +52,10 @@ describe('the fixed sentences (FR-20, FR-27, FR-34)', () => {
     expect(copy.ML_NONE_SENTENCE).toBe('Photo, audio, and video life lists need your Macaulay Library export, saved in Settings under Default Files.')
     expect(copy.ML_UNREADABLE_SENTENCE).toBe("SnowRaven couldn't read your Macaulay Library export, so photo, audio, and video life lists are unavailable; re-upload it in Settings under Default Files.")
     expect(copy.STATUS_UNRESOLVED).toBe('Escapee and exotic status comes from the exotic status check on Statistics, which has not finished for this export, so species it has not settled are listed.')
-    expect(copy.STATUS_RESOLVED).toBe('Escapee and exotic status comes from the exotic status check on Statistics, so with both switches off this list can be shorter than the Statistics species figure.')
+    // ebird-store-hygiene: Include Exotics now starts on, so the sentence names
+    // the one switch whose departure from its default makes the list shorter.
+    expect(copy.STATUS_RESOLVED).toBe('Escapee and exotic status comes from the exotic status check on Statistics, so with Include Exotics off this list can be shorter than the Statistics species figure.')
+    expect(copy.STATUS_RESOLVED).toContain(`with ${copy.SWITCH_LABELS.exotics} off`)
     expect(copy.emptySentence(new Set())).toBe('No countable species in your eBird backup yet.')
     expect(copy.emptySentence(new Set<MediaFormat>(['Audio', 'Video']))).toBe('No species matches this selection yet.')
     expect(copy.SETUP_BODY).toBe("The Life Lists tab loads automatically from your stored eBird backup. You haven't saved one yet.")

@@ -127,14 +127,91 @@ export interface ChecklistResult {
   projectIds: number[]
 }
 
-/** True when an eBird checklist/view body carries an observation LIST: the body
- *  is a non-null object and its `obs` is an array (possibly empty). Its Python
- *  twin is the `isinstance(data, dict) and isinstance(data.get("obs"), list)`
- *  test in `services.ebird.fetch_checklist_species`; a twinned presence check
- *  is a TYPE test on both sides, never truthiness, because the two languages
- *  disagree about `{}`, `[]`, `0`, `false` and `""` (`.claude/rules/security.md`). */
-function hasObservationList(body: unknown): boolean {
-  return typeof body === 'object' && body !== null && Array.isArray((body as { obs?: unknown }).obs)
+// ── What a 200 answer must be before anything reads it (ebird-request-economy
+// D-02 and D-10, extended by ebird-store-hygiene) ────────────────────────────
+//
+// Every shape below is a TYPE test, never truthiness, because Python and
+// JavaScript disagree about `{}`, `[]`, `0`, `false` and `""`
+// (`.claude/rules/security.md`, the twinned-builder rule, v1.0.29). The Python
+// twins are named on each function, and the shared fixture
+// (`lib/checklistProvenance.fixture.json`, its `answers` rows) drives both
+// through the shipped code. A body that fails any of them is a FAILED answer
+// with one fixed wording (`unreadableAnswer`), never the engine's text.
+//
+// COST. Each check reads every observation once with constant work per item
+// (a type test and at most a few own-property reads), and the obsAux search
+// reads each entry of one observation's list once, so the whole pass is linear
+// in the size of the body eBird sent and dominated by the platform's
+// `res.json()` that precedes it. Nothing caps the body's size or read time
+// (pre-existing, on both transports): `tauriFetch`'s 10 s timer is cleared once
+// the headers arrive, before the body is read, so the bound is the decode's
+// own. No regex runs over the body here.
+
+/** A plain JSON object: not null, not an array. `typeof [] === 'object'` in
+ *  JavaScript, so the array is excluded explicitly to agree with Python's
+ *  `isinstance(v, dict)`. */
+function isJsonObject(v: unknown): v is Record<string, unknown> {
+  return typeof v === 'object' && v !== null && !Array.isArray(v)
+}
+
+/** The species modes can read this observation: an object whose `speciesCode`
+ *  is absent, null or text. An absent, null or empty code is skipped below, as
+ *  it always was; any other code (a number, a boolean, a list, an object) makes
+ *  the observation unreadable. Python twin: `_is_readable_observation`. */
+function isReadableObservation(o: unknown): boolean {
+  if (!isJsonObject(o)) return false
+  const code = o.speciesCode
+  return code === undefined || code === null || typeof code === 'string'
+}
+
+/** The body carries an observation LIST every item of which is readable (an
+ *  empty list included). Python twin: `_has_readable_observation_list`. */
+function hasReadableObservationList(body: Record<string, unknown>): boolean {
+  const obs = body.obs
+  return Array.isArray(obs) && obs.every(isReadableObservation)
+}
+
+/** The one failed-answer error for a 200 the app cannot use: a body that is
+ *  not JSON, not a JSON object, or (in the species modes) has no readable
+ *  observation list. It keeps the generic `!res.ok` clause's shape and wording
+ *  (status 502), so `isOfflineError` never reads it as no connection and the
+ *  List Comparer shows this sentence, never an engine message. */
+function unreadableAnswer(): Error & { status: number } {
+  return Object.assign(new Error('Could not fetch checklist (HTTP 502).'), { status: 502 })
+}
+
+/** The largest media count either transport accepts: 9 digits, below 2^53, so
+ *  a number's value is the same in both runtimes. Python twin:
+ *  `services.ebird.MEDIA_COUNT_MAX`, compared by the fixture's boundary rows. */
+export const MEDIA_COUNT_MAX = 999_999_999
+
+function mediaCount(v: unknown): number {
+  if (typeof v !== 'number' || !Number.isInteger(v) || v < 0 || v > MEDIA_COUNT_MAX) return 0
+  return v === 0 ? 0 : v   // -0 reads as 0
+}
+
+/** The display fields an observation carries beside its species, normalized
+ *  the same way on both transports (ebird-store-hygiene). The breeding code is
+ *  the first object entry of `obsAux` whose `fieldName` is `breeding_code`: its
+ *  `value` when that is non-empty text, else its `auxCode` when that is, else
+ *  ''. A media count is a non-negative whole number up to MEDIA_COUNT_MAX, else
+ *  0. Anything else in either field reads as absent, never as an error: the
+ *  species and its provenance are still readable. Python twins:
+ *  `_breeding_code` and `_media_counts`. */
+function normalizeDisplayFields(
+  obsAux: unknown, mediaCounts: unknown,
+): { breedingCode: string; media: { photo: number; audio: number; video: number } } {
+  let breedingCode = ''
+  if (Array.isArray(obsAux)) {
+    for (const a of obsAux) {
+      if (!isJsonObject(a) || a.fieldName !== 'breeding_code') continue
+      if (typeof a.value === 'string' && a.value !== '') breedingCode = a.value
+      else if (typeof a.auxCode === 'string' && a.auxCode !== '') breedingCode = a.auxCode
+      break
+    }
+  }
+  const mc = isJsonObject(mediaCounts) ? mediaCounts : {}
+  return { breedingCode, media: { photo: mediaCount(mc.P), audio: mediaCount(mc.A), video: mediaCount(mc.V) } }
 }
 
 // Desktop counterpart of the backend /checklists/{id} endpoint: fetch a checklist's
@@ -176,22 +253,32 @@ export async function getChecklist(checklistId: string, fields?: string | null):
     throw Object.assign(new Error(`Could not fetch checklist (HTTP ${res.status}).`), { status: res.status })
   }
 
-  const body: unknown = await res.json()
-  // A successful answer with no observation list is a FAILED answer in the two
-  // modes that read species (no `fields`, and `provenance`), never an empty one
-  // (ebird-request-economy D-02). Read as empty, it would have the escapee check
-  // stamp every species the checklist carries as "not in eBird's answer" for 30
-  // days, and the List Comparer show an empty checklist. So an `obs` that is
-  // absent, null, or anything but an array (a body that is not an object has
-  // none at all) is refused here, BEFORE either follow-up request, through the
-  // generic `!res.ok` clause's own shape and wording above. `obs: []` is still
-  // an answer: eBird answered, and the checklist carries nothing. Under
-  // `fields=projects` the list is not read at all, so this does not apply
-  // there. The Python twin is `services.ebird.fetch_checklist_species`, and
-  // the shared fixture's `answers` rows drive both.
-  if (!opts.skipSpecies && !hasObservationList(body)) {
-    throw Object.assign(new Error('Could not fetch checklist (HTTP 502).'), { status: 502 })
+  // A 200 whose body is not JSON is a FAILED answer in every mode, never a
+  // status-less SyntaxError that `isOfflineError` could read as no connection
+  // (ebird-store-hygiene). The WebView's `Response.json()` is the Fetch spec's
+  // "parse JSON from bytes" (UTF-8 with replacement, one leading BOM dropped,
+  // then JSON.parse), which the Python twin's decode mirrors.
+  let body: unknown
+  try {
+    body = await res.json()
+  } catch {
+    throw unreadableAnswer()
   }
+  // A body that is not a JSON object answers nothing, in every mode: under
+  // `fields=projects` it has no project fields either, and storing it as "no
+  // projects" would keep that for a year.
+  if (!isJsonObject(body)) throw unreadableAnswer()
+  // A successful answer with no readable observation list is a FAILED answer in
+  // the two modes that read species (no `fields`, and `provenance`), never an
+  // empty one (ebird-request-economy D-02). Read as empty, it would have the
+  // escapee check stamp every species the checklist carries as "not in eBird's
+  // answer" for 30 days, and the List Comparer show an empty checklist. So an
+  // `obs` that is absent, null or not an array, or an array holding an item
+  // that is not a readable observation, is refused here, BEFORE either
+  // follow-up request. `obs: []` is still an answer: eBird answered, and the
+  // checklist carries nothing. Under `fields=projects` the list is not read at
+  // all, so this does not apply there.
+  if (!opts.skipSpecies && !hasReadableObservationList(body)) throw unreadableAnswer()
   const data = body as {
     locId?: string
     locName?: string
@@ -207,13 +294,13 @@ export async function getChecklist(checklistId: string, fields?: string | null):
     projId?: unknown
     projectIds?: unknown
     obs?: Array<{
-      speciesCode?: string
+      speciesCode?: string | null
       howManyStr?: string
       comments?: string
       exoticCategory?: string
       userDoNotCount?: string
-      obsAux?: Array<{ fieldName?: string; value?: string; auxCode?: string }>
-      mediaCounts?: { P?: number; A?: number; V?: number }
+      obsAux?: unknown
+      mediaCounts?: unknown
     }>
   }
   // Under `fields=projects` the caller wants neither the resolved species list
@@ -224,17 +311,16 @@ export async function getChecklist(checklistId: string, fields?: string | null):
   const resolved: Record<string, { speciesCode: string; commonName: string }> =
     opts.skipSpecies ? {} : await resolveSpecies(obs.map(o => o.speciesCode!))
   const species: ChecklistSpecies[] = obs.map(o => {
-    // Breeding code (internal API code; the UI translates to a display code).
-    const aux = (o.obsAux ?? []).find(a => a.fieldName === 'breeding_code')
-    const breedingCode = aux?.value ?? aux?.auxCode ?? ''
-    const mc = o.mediaCounts ?? {}
+    // Breeding code (internal API code; the UI translates to a display code)
+    // and media presence, normalized beside the Python twin.
+    const { breedingCode, media } = normalizeDisplayFields(o.obsAux, o.mediaCounts)
     return {
       speciesCode: resolved[o.speciesCode!]?.speciesCode ?? o.speciesCode!,
       commonName: resolved[o.speciesCode!]?.commonName ?? o.speciesCode!,
       count: o.howManyStr ?? 'X',
       breedingCode,
       comments: o.comments ?? '',
-      media: { photo: mc.P ?? 0, audio: mc.A ?? 0, video: mc.V ?? 0 },
+      media,
       // `exoticCategory` rides on the OBSERVATION, so it lands on the COLLAPSED
       // parent species code above — precisely the join key the provenance cache
       // wants. Two forms on one checklist ("Mallard" and "Mallard (Domestic

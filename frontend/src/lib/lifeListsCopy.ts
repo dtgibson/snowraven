@@ -74,7 +74,7 @@ export function emptySentence(formats: ReadonlySet<MediaFormat>): string {
 
 /** FR-20, verbatim. */
 export const STATUS_UNRESOLVED = 'Escapee and exotic status comes from the exotic status check on Statistics, which has not finished for this export, so species it has not settled are listed.'
-export const STATUS_RESOLVED = 'Escapee and exotic status comes from the exotic status check on Statistics, so with both switches off this list can be shorter than the Statistics species figure.'
+export const STATUS_RESOLVED = 'Escapee and exotic status comes from the exotic status check on Statistics, so with Include Exotics off this list can be shorter than the Statistics species figure.'
 
 /** FR-27, verbatim. */
 export const ML_NONE_SENTENCE = 'Photo, audio, and video life lists need your Macaulay Library export, saved in Settings under Default Files.'

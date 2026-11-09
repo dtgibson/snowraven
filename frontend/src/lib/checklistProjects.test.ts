@@ -211,6 +211,17 @@ describe('buildTargetIds (FR-41, FR-42; QA-43, QA-44)', () => {
     expect(buildTargetIds(backup, snap, NOW, TTL)).toContain('S1000')
   })
 
+  // ebird-store-hygiene: the store chokepoint's own window, so the sweep never
+  // skips an answer the chokepoint would ask for again.
+  it("'pending' honours an answer exactly 24 h ahead and re-includes one a millisecond past it", () => {
+    const DAY = 24 * 60 * 60 * 1000
+    const snap = new Map([
+      ['S1000', entry('EBIRD', [], NOW + DAY)],
+      ['S999', entry('EBIRD', [], NOW + DAY + 1)],
+    ])
+    expect(buildTargetIds(backup, snap, NOW, TTL)).toEqual(['S999', 'S300', 'S100'])
+  })
+
   it('QA-43: resuming after a simulated quit asks only about unanswered ids', () => {
     // There is no cursor anywhere. The set is recomputed from scratch, so a
     // resume after a relaunch is the SAME operation as a first start.

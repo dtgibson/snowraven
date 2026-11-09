@@ -13,9 +13,12 @@
 // that route), plus storage and the platform. A body with no observation list
 // is a failed checklist with no ledger entry and no stamp; the legitimate case
 // beside it, `obs: []`, is still an answer that stamps the carried species.
-// Added from the Tester's QA scratch (qa-report.md, L2).
+// Added from the Tester's QA scratch (qa-report.md, L2). ebird-store-hygiene
+// adds the List Comparer over the same composed seam: an observation list
+// holding an item that is not an observation shows the transport's fixed
+// wording, never an engine message.
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { render, screen, cleanup, waitFor } from '@testing-library/react'
+import { render, screen, cleanup, waitFor, fireEvent } from '@testing-library/react'
 import type { ObservationEntry } from '../types'
 
 const seam = { tauri: false }
@@ -30,6 +33,8 @@ vi.mock('./storage', () => ({
     getSetting: async (k: string) => (k === 'exotic-provenance-v1' ? doc.value : null),
     setSetting: async (_k: string, v: unknown) => { doc.value = JSON.parse(JSON.stringify(v)) },
     deleteSetting: async () => { doc.value = null },
+    // The List Comparer reads the stored export on mount; none is stored here.
+    readFile: async () => null,
   },
 }))
 // The eBird bodies, by checklist id.
@@ -37,6 +42,7 @@ const BODIES: Record<string, unknown> = {
   S1: { locId: 'L1', obsDt: '2026-04-11 07:20' },                       // no observation list
   S2: { locId: 'L1', obsDt: '2026-04-11 07:20', obs: [] },              // empty list: an answer
   S3: { locId: 'L1', obsDt: '2026-04-11 07:20', obs: [{ speciesCode: 'ccc', exoticCategory: 'N' }] },
+  S4: { locId: 'L1', obsDt: '2026-04-11 07:20', obs: [null] },           // an item that is not an observation
 }
 const ebirdUrls: string[] = []
 vi.mock('./tauri/http', () => ({
@@ -50,13 +56,14 @@ vi.mock('./tauri/taxonomyService', () => ({ resolveSpecies: async () => ({}) }))
 vi.mock('./tauri/regionInfo', () => ({ getRegionInfo: async () => ({ name: 'Somewhere' }) }))
 
 // What the shipped backend route answers for each body (its parity suite pins it).
+const isObservation = (o: unknown) => typeof o === 'object' && o !== null && !Array.isArray(o)
 async function webFetch(url: string): Promise<unknown> {
   ebirdUrls.push(url)
   const id = url.slice('/checklists/'.length).split('?')[0]
   const body = BODIES[id] as { obs?: unknown[] }
-  if (!Array.isArray(body.obs)) {
+  if (!Array.isArray(body.obs) || !body.obs.every(isObservation)) {
     return { ok: false, status: 502, headers: { get: () => null },
-      json: async () => ({ detail: "Could not fetch checklist: eBird's answer had no observation list" }) }
+      json: async () => ({ detail: "Could not fetch checklist: eBird's answer could not be read" }) }
   }
   return { ok: true, status: 200, headers: { get: () => null }, json: async () => ({
     locName: 'L1', obsDt: '2026-04-11 07:20',
@@ -116,5 +123,22 @@ describe.each(['tauri', 'web'] as const)('composed seam, %s transport', (which) 
     expect(ledger.has('S2')).toBe(true)
     expect(stamps.has('bbb')).toBe(true)
     expect(ledger.has('S3')).toBe(true)
+  })
+
+  it('the List Comparer shows the fixed wording for a reply it cannot read, never engine text (ebird-store-hygiene)', async () => {
+    const { ChecklistComparer } = await import('../components/ChecklistComparer')
+    render(<ChecklistComparer onOpenSpecies={undefined} keyStatus={null} onGoToSettings={() => {}} />)
+    const inputs = screen.getAllByPlaceholderText(/S12345678/)
+    fireEvent.change(inputs[0], { target: { value: 'S4' } })
+    fireEvent.change(inputs[1], { target: { value: 'S3' } })
+    fireEvent.click(screen.getByRole('button', { name: /compare checklists/i }))
+    // Written as literals: each transport's one wording for a refused body.
+    const fixed = which === 'tauri'
+      ? 'Could not fetch checklist (HTTP 502).'
+      : "Could not fetch checklist: eBird's answer could not be read"
+    expect(await screen.findByText(fixed)).toBeTruthy()
+    expect(document.body.textContent).not.toMatch(/Cannot read properties|NoneType|not valid JSON|TypeError/)
+    // Non-vacuity: both lookups reached the faked outermost seam.
+    expect(ebirdUrls.some(u => u.endsWith('/S4') || u.includes('/checklists/S4'))).toBe(true)
   })
 })

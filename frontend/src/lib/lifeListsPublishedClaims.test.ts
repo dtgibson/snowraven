@@ -98,8 +98,12 @@ describe("Help's Life Lists section", () => {
     expect(passage()).toContain(`adds ${serialList(lower, 'and')} life lists.`)
   })
 
-  it('names both switches exactly as the tab renders them', () => {
-    expect(passage()).toContain(`**${SWITCH_LABELS.escapees}** and **${SWITCH_LABELS.exotics}**, both off by default,`)
+  it('names both switches exactly as the tab renders them, with their defaults', () => {
+    // ebird-store-hygiene: Include Exotics starts on, Include Escapees off
+    // (LifeListsTab.test.tsx pins the rendered defaults).
+    expect(passage()).toContain(`**${SWITCH_LABELS.escapees}**, off by default, and **${SWITCH_LABELS.exotics}**, on by default,`)
+    expect(passage()).toContain(`With ${SWITCH_LABELS.exotics} off, the list can be shorter than that figure.`)
+    expect(passage()).not.toContain('both off by default')
   })
 
   it('carries no em dash', () => {
