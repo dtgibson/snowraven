@@ -1,0 +1,130 @@
+SnowRaven 1.0.68, part four readouts (2026-11-09 02:32 to 03:09 UTC; 2026-11-08 18:32 to 19:09 PST)
+
+## starting state (02:32:07 UTC)
+keychain: no-timeout (unlocked)
+git fetch origin --tags: origin/main a554bce9e35237d74a5a7433e64ba0fff43e1b2f == main; no v1.0.68 locally or on origin
+release v1.0.67 Latest; nothing of SnowRaven's running; nothing holding ~/.snowraven-build
+other worktree (read by git worktree list / git log only): worktree-life-list-filter-toggle-state at 481b9ee3, 0 ahead of main
+xcodebuild -checkFirstLaunchStatus (DEVELOPER_DIR=Xcode.app): exit 0; iOS SDK 27.2
+
+## bump and gates
+bump-1.0.68.sh held (no RELEASE_DATE; the ship stayed on 2026-11-08 PST): exit 0;
+  10000681.txt, 10000682.txt, 10000684.txt written, 217 bytes each,
+  SHA-256 358bc78007ec5db571daacaef328c8e3ead614ca654f58530047672b2a8e142a == held/whats-new-1.0.68.txt; no 1000068.txt
+five version-set guards: Test Files 5 passed (5); Tests 119 passed (119)
+full vitest: Test Files 495 passed | 5 skipped (500); Tests 10795 passed | 6 skipped (10801); 73.69 s
+lint, typecheck, build: exit 0 (entry index-Cd8mL4ho.js; the large-chunk notice is pre-existing)
+website/tools verify (CI=true): exit 0; verification gate: 8/8 harnesses green; 253 PASS lines, 0 FAIL
+added lines + new files (1,455 lines): 0 em dashes; non-ASCII only the website footer's middot, one box-drawing
+  comment rule in exoticProvenance.test.ts, an ellipsis in pr-description.md, and vitest output captured in
+  gates-1.0.68-prep.txt
+backend pytest: not run (backend/.venv points at the removed python@3.11; nothing under backend/ changed;
+  CI's Backend job passed on every run below)
+
+## git
+9953224cac0c2fa36f5cbc89e9dc602519e46ff3 fix(statistics): a species eBird's public data has no answer for reads as settled (26 files)
+93c107334316ac04228e336cdf62cda51b95244f chore(release): 1.0.68, the escapee check settles a withheld record (9 files)
+a8d9b82572db9afdf90635a7255461494298fe4f fix(fdroid): the recipe names v1.0.68's commit (fdroidRecipe, fastlaneMetadata,
+  androidVersionSource: 57 of 57 first)
+ae9260d8c8d87cb92847dfda3f5326e6a2bb1e78 chore(ios): stamp iOS 1.0.68 build 1 (iosSceneManifest, iosWidgetManifest,
+  iosAlertsManifest: 67 of 67 first)
+tag v1.0.68: object f17124f41f18a423ce2ec192e3f0e3d8ffa99ae1 -> 93c107334316ac04228e336cdf62cda51b95244f
+  ("SnowRaven 1.0.68: the escapee check settles a withheld record"); at the tag tauri.conf.json 1.0.68 / 1000068
+  and the three changelogs present; pushed alone 02:41:08 UTC; ls-remote: refs/tags/v1.0.68 f17124f4,
+  ^{} 93c10733, main still a554bce9
+main: a554bce9..a8d9b825 02:41:24 UTC; a8d9b825..ae9260d8 02:47:50 UTC
+
+## CI
+Windows Build 42552285696 success on 93c107334316ac04228e336cdf62cda51b95244f (02:51:54 UTC)
+Android Build 42552285714 success on 93c107334316ac04228e336cdf62cda51b95244f (02:56:33 UTC)
+Pages 42552307270 success on a8d9b825 (02:41:47 UTC); live site: aria-label="Version 1.0.68">v1.0.68,
+  footer SnowRaven v1.0.68, last-modified Mon, 09 Nov 2026 02:41:40 GMT
+Pipeline 42552307464 on a8d9b825: cancelled by the stamp push (cancel-in-progress), Backend success, expected
+Pipeline 42552886222 on ae9260d8 (run of record): failure, Backend success; Frontend lint and typecheck success;
+  test step: Test Files 1 failed | 494 passed | 5 skipped (500); Tests 1 failed | 10772 passed | 27 skipped (10800);
+  the one failure: src/lib/lifeListsLinearity.test.ts > the Life Lists derivation is linear in rows (NFR-01, QA-44)
+  > pass 1 (first sightings), every row its own species: expected 24.003832641328884 to be less than or equal to 20.
+  Build and the real-engine gate skipped after it (both green locally above).
+  D-17: the known timing row; 1.0.68's diff (a554bce9..ae9260d8) touches none of lifeLists.ts, parseMLExport,
+  speciesUtils, types.ts or the test itself. Ship.
+
+## iOS
+shims recreated (/tmp/xcshim xcodebuild, xcrun, swift); xcrun --sdk iphoneos --show-sdk-version: 27.2; Xcode 27.2 (27B52)
+widget tests (iPhone 17 simulator, -test-timeouts-enabled YES): Executed 143 tests, with 0 failures; ** TEST SUCCEEDED **;
+  no simulator left booted
+stale archive moved aside: snowraven_iOS-1.0.67.1-stale-before-1.0.68.xcarchive (it read 1.0.67 / 1.0.67.1)
+tauri ios build --export-method app-store-connect --build-number 1 (outside the sandbox, the three signing variables
+  mapped from the login shell; 02:42:45 to 02:44:40 UTC): ** BUILD SUCCEEDED **; own export ** EXPORT FAILED **
+  (No Account for Team "Tauri"; No profiles for 'com.dtgibson.snowraven' / 'com.dtgibson.snowraven.widgets'), expected
+archive: 1.0.68 (1.0.68.1), created Sun Nov 08 18:44:38 PST 2026; executable platform IOS, sdk 27.2, minos 16.0;
+  9 of 9 swift-rs libraries platform 2
+project.pbxproj: the two PRODUCT_NAME = "SnowRaven" quoting rewrites restored to HEAD
+widget appex: not signed at all -> ad hoc signed with snowraven_widgets.entitlements; lists group.com.dtgibson.snowraven
+manual export (~/.tauri/snowraven-ios-export-options.plist): ** EXPORT SUCCEEDED ** (export-1.0.68.1)
+DistributionSummary: both bundles 1.0.68 / 1.0.68.1, Apple Distribution 1861F7A472C9D10C86D3BB55BC3A5B902AC7697B to 7/5/27;
+  appex: application-groups group.com.dtgibson.snowraven only, profile "SnowRaven Widgets App Store";
+  app: that group + icloud-container-identifiers + icloud-services CloudDocuments + ubiquity-container-identifiers
+  + icloud-container-environment Production, profile "SnowRaven iOS App Store iCloud AppGroup 20260924"
+icons: 36 of 36 repo PNGs (AppIcon.appiconset + src-tauri/icons/ios) without alpha; both icon PNGs in the IPA without alpha
+IPA: 16,519,443 bytes, SHA-256 4c17ee462305806bea052140e6c7a9255f2f378208c70d944d05b4555dbdac8e; Info.plist 1.0.68 / 1.0.68.1
+altool --validate-app (02:46:30 UTC): VERIFY SUCCEEDED with no errors
+altool --upload-app (02:46:40 to 02:47:39 UTC): UPLOAD SUCCEEDED with no errors;
+  Delivery UUID fcb30cde-150e-42d8-8de9-0dd7848e79f9 (plus the routine CDUploaderStateInfoResumeFilePath log line)
+TestFlight (GET only, metadata key): 02:54:38 UTC and 03:03:10 UTC:
+  train 1.0.68 faf0f60b-b24c-4a4d-b645-bf3130fe11f4 | build 1.0.68.1 fcb30cde-150e-42d8-8de9-0dd7848e79f9 VALID
+  uploaded 2026-11-08T18:48:31-08:00 minOS 16.0 expired=false
+  (train 1.0.67 fce1e625 | build 1.0.67.1 6614dec9 VALID, unchanged)
+
+## release.sh (CI=true SKIP_NPM_INSTALL=1 zsh -lc ./release.sh), exit 0, 03:02:57 to 03:07:50 UTC
+started after Pipeline 42552886222 was judged under D-17; alone on the machine; tree clean (the three emulator
+  screenshots parked in the session scratchpad for the run and restored afterwards)
+Releasing v1.0.68: tag=93c10733 HEAD=ae9260d8
+iCloud profile OK (8QKC3L2FKP.com.snowraven, iCloud.com.dtgibson.snowraven, expires 2044-08-27)
+Bundle version verified: 1.0.68; iCloud entitlements and embedded profile verified
+DMG styled, signed; notarization aae4204d-84a0-416a-a5a4-83d2785a0766 status: Accepted; stapled
+Windows installer fetched from CI and signed locally; published
+release 438701895 v1.0.68, published 2026-11-09T03:07:49Z, draft=false, prerelease=false, Latest
+  latest.json                              1852  8e55316f3315e79b944253e84d3ee9ca73060610a61cb18adb3923b3657c8ca8
+  SnowRaven-updater.app.tar.gz         31288362  8ce8656ed493b7308f495c56619fc289b02dd466171a2ecc07957542768dc172
+  SnowRaven-updater.app.tar.gz.sig          408  36276703d3456bb830c4f00423b030565e9f53dff84c2d6e5fff024950aa95fc
+  SnowRaven_1.0.68_universal.dmg       31624061  c5d3afa2f051a42372ab619c78a680b9b69de09586e1bf1eaed3119d22298957
+  SnowRaven_1.0.68_x64-setup.exe       10239470  162f90ddaa71018399f076841be9cfdc441cee0819f0700e3ba162be42f506e5
+  SnowRaven_1.0.68_x64-setup.exe.sig        420  b8613f7338bbab314629ac53bfa0c9512373b60a9b3455e9269f4c0a2196a481
+  SnowRaven_1.0.68_android_universal.apk 79287938 6ac1e2ebb80a8db8e91b661ab4a55ba51e8707f640bb299d7759f47e33e9c052
+DMG (downloaded back): codesign valid on disk, satisfies its Designated Requirement; stapler: The validate action worked!;
+  spctl primary-signature: accepted, source=Notarized Developer ID, origin=Developer ID Application: DAVID THOMAS GIBSON (8QKC3L2FKP);
+  hdiutil verify: checksum VALID
+latest.json: version 1.0.68, pub_date 2026-11-09T03:07:46Z; darwin-aarch64 == darwin-x86_64 (updater bundle);
+  windows-x86_64 the -setup.exe; each signature equals its .sig asset
+updater signatures: VALID (alg ED, key id f80c63fb3b636306, file and trusted-comment signatures) for the updater
+  bundle and for the installer; negative control (latest.json against the bundle's signature): INVALID, exit 1
+updater bundle: CFBundleShortVersionString 1.0.68; x86_64 arm64; codesign --verify --deep --strict ok
+installer byte-identical to run 42552285696's artifact (162f90dd...06e5; cmp)
+releases/latest/download: latest.json (same bytes), DMG, updater bundle, installer, APK all 200
+
+## Android
+build shell: JDK 17.0.21.0.3, Gradle 8.14.3, NDK 27.2.12479018 (the only one), SNOWRAVEN_ANDROID_SIGNER_SHA256 set
+preflight.sh: exit 0, every check ok (JDK 17, keytool, apksigner/zipalign/aapt2 from build-tools 36.0.0,
+  Gradle 8.14.3, cargo-tauri 2.11.2, keystore opens (alias snowraven), 1.0.68 / 1000068, v1.0.68 pushed at
+  93c107334316 carrying that pair, 10000681/2/4.txt at the tag, run 42552285714 artifact
+  SnowRaven_1.0.68_android_universal_unsigned.apk, com.dtgibson.snowraven, 1.0.68, 1000068, not debuggable);
+  one warning: HEAD is not v1.0.68's commit (the recipe and stamp commits)
+sign.sh: exit 0; v2 true, v3 true (v1 false); signer equals the keystore's certificate and the recorded digest;
+  Signer #1 certificate DN: CN=SnowRaven, O=Dave Gibson
+  Signer #1 certificate SHA-256 digest: 42a3576e445bda4a994793f2ffa056663113275c9805eb2f6cffdc252375996a
+  SIGNED_APK_SHA256=6ac1e2ebb80a8db8e91b661ab4a55ba51e8707f640bb299d7759f47e33e9c052
+emulator sr-api36-phone (API 36, sdk_gphone64_arm64, port 5554, -gpu host, -no-snapshot-save, headless;
+  every adb call addressed to emulator-5554; no device listing taken; 02:57 to 02:58:46 UTC):
+  WebView com.google.android.webview versionName 133.0.6943.137 (WebView 133, unchanged since the last measurement)
+  SnowRaven not installed before; install of the exact signed bytes (hash re-read 6ac1e2eb...c052): Success;
+  versionName 1.0.68, versionCode 1000068, minSdk 26, targetSdk 36
+  am start -W: Status ok, LaunchState COLD, TotalTime 122 ms; the Welcome screen drew (api36-1.0.68-first-launch.png)
+  Explore the app first: Weather drew with both key notices (api36-1.0.68-explore.png)
+  Statistics: the no-backup state drew (api36-1.0.68-statistics.png)
+  one process throughout (pid 4562); 0 FATAL EXCEPTION or ANR lines; 0 SnowRaven lines in the crash buffer
+  no backup imported and no key entered: nothing sent to eBird or OpenWeather
+  afterwards: uninstalled (Success), emulator stopped (emu kill)
+attach.sh (ANDROID_DEVICE_CHECK=partial, ANDROID_CHECKED_SHA256=6ac1e2eb...c052): exit 0, 03:08:52 to 03:09:02 UTC;
+  signer equals the keystore's certificate; byte-identical to the checked file; com.dtgibson.snowraven 1.0.68 (1000068);
+  ASSET_SHA256=6ac1e2ebb80a8db8e91b661ab4a55ba51e8707f640bb299d7759f47e33e9c052
+  SIGNER_SHA256=42a3576e445bda4a994793f2ffa056663113275c9805eb2f6cffdc252375996a
