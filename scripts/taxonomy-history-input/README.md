@@ -190,6 +190,19 @@ and eBird's announcement all exist; they do not always land on the same day.
    and can lower the compared tally only by what its own events count. Any
    other difference is a resolver to fix, never a loosened check.
 
+   The Statistics escapee check's join (`buildEscapeeJoin` in
+   `frontend/src/lib/exoticTaxonomyJoin.ts`) is derived from the latest covered
+   update's events, so a new year changes what it admits. In the same commit,
+   raise `UNMATCHED_JOIN_VERSION` in `frontend/src/lib/exoticProvenanceCache.ts`
+   by one, so the "not in eBird's answer" stamps written under the old join
+   reopen once instead of holding a species open for 30 days; nothing checks
+   this for you. Then read the new year's split and lump events for
+   escape-prone birds (waterfowl, parrots, gamebirds): an answer that omits a
+   species looks like an old name, so a joined sibling's Escapee row could
+   reach a species that used to count (security report I-1 in
+   `pipeline/escapee-check-new-taxonomy/`). If one is joined, decide before
+   shipping whether its stand-ins need a second signal.
+
 6. **Re-derive every figure measured on the old snapshot.** Until the commit,
    the old snapshot is still in git; print its code and species counts:
 
