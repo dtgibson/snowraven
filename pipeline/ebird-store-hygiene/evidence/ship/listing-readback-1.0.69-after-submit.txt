@@ -1,0 +1,29 @@
+2026-11-09T20:12:57.975Z record ec491213-6cf7-4dd5-9d8b-51bdcfeb420c {"versionString":"1.0.69","appStoreState":"WAITING_FOR_REVIEW","appVersionState":"WAITING_FOR_REVIEW","releaseType":"AFTER_APPROVAL"}
+  OK   releaseType: AFTER_APPROVAL
+  OK   earliestReleaseDate: null
+  SAME copyright (16 chars)
+  OK   build: 1.0.69.1 f9d5df4a-a8ca-4f4d-bc53-7cba08686821 VALID expired=false usesNonExemptEncryption=false
+  OK   phased release: none (HTTP 200)
+  OK   localizations: en-US e06ffaab-9494-42cb-9cf4-cf0a2b04e79c
+  SAME description (3407 chars)
+  SAME keywords (97 chars)
+  SAME promotionalText (137 chars)
+  SAME marketingUrl (30 chars)
+  SAME supportUrl (37 chars)
+  SAME whatsNew (369 chars)
+  SAME review notes (3898 chars)
+  OK   review contact present: contactFirstName=true contactLastName=true contactPhone=true contactEmail=true
+  OK   demo account not required: demoAccountRequired=false
+app info 285bfbfe state=READY_FOR_DISTRIBUTION ageRating=FOUR_PLUS
+  SAME name (9 chars)
+  SAME subtitle (27 chars)
+  SAME privacyPolicyUrl (43 chars)
+  OK   categories: primary=REFERENCE secondary=WEATHER
+  OK   age rating 285bfbfe: 30 fields, NONE 16, false 11, true 0, other 0, null 3 (kidsAgeBand, gracRatingClassificationNumber, developerAgeRatingInfoUrl)
+app info 76d4c9e7 state=WAITING_FOR_REVIEW ageRating=FOUR_PLUS
+  SAME name (9 chars)
+  SAME subtitle (27 chars)
+  SAME privacyPolicyUrl (43 chars)
+  OK   categories: primary=REFERENCE secondary=WEATHER
+  OK   age rating 76d4c9e7: 30 fields, NONE 16, false 11, true 0, other 0, null 3 (kidsAgeBand, gracRatingClassificationNumber, developerAgeRatingInfoUrl)
+READBACK 1.0.69: ALL SAME

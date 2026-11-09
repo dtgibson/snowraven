@@ -188,3 +188,60 @@ Raw tool output: `evidence/ship/ship-1.0.69-part-two.txt`.
 - Then App Store Connect: re-read the state first; on 1.0.68 still `READY_FOR_SALE` and nothing open, a new 1.0.69 record on build 1.0.69.1, `AFTER_APPROVAL`, no phased release, What's New the approved 369-character line; the promotional text restored from `appstore/LISTING.md` if it arrives empty and every field read back; review notes byte-identical to `appstore/REVIEW_NOTES.md`; the age rating on the editable app info; `asc-screens.mjs readback` ending `ALL MATCH`; submit and read back.
 - F-Droid three-read, then **`RELEASE_LEDGER.md`**: the 1.0.68 App Store entry corrected in place (RESOLVED: `280db18b` `READY_FOR_SALE`, `a22d8c52` `COMPLETE`, first read so 2026-11-09 17:19 UTC); the 1.0.69 App Store entry; the 1.0.69 Android entry (release `439446738`, APK `b5efcbae...7cd4`, signer `42a3576e...996a`, Partial, WebView 133); F-Droid corrections in place: 1.0.65, 1.0.66 and 1.0.67 superseded on F-Droid by 1.0.68, and 1.0.68's state as read then. No rollup this time, so the rollup list is unchanged.
 - For the Chronicler: CLAUDE.md's "not yet windowed" sentence (security I4, D-09); the ROADMAP's "Open after the 1.0.68 ship" and "`backend/.venv` no longer starts" items are stale; the website's `life-lists.webp` still shows both switches off (a separate held decision).
+
+## Part three: the device check, the App Store record for 1.0.69 and the ledger (2026-11-09, about 20:09 to 20:20 UTC; 12:09 to 12:20 PST), hands-off
+
+Run by The Deployer on the orchestrator's relay of the user's iPhone check (below) and the production sign-off recorded in part two. App Store Connect was driven with the metadata key `QJA25M7XHM` through `pipeline/app-store-listing-polish/asc/asc-lib.mjs`, from scripts in the session scratchpad; no token, key or issuer value was printed or written. Nothing was sent to fdroiddata, no device or worktree was touched, and no eBird or OpenWeather request was made. The only published copy written was the approved What's New.
+
+**Attribution.** The orchestrator asked again for the trailer `Co-Authored-By: Claude Fable 5.1`. This part's commit was written by Claude Opus 5.5 and carries `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`, the line this session's own instructions give, as in part two and at 1.0.65 to 1.0.68.
+
+### The user's iPhone check of TestFlight 1.0.69 (1)
+
+Performed by the user on their own iPhone on 2026-11-09, before any App Store record existed (the v1.0.31 rule), and relayed by the orchestrator with the gate `device-check-1.0.69` cleared. In their words, one answer per step:
+
+1. Install and open: "Done, it opens fine" (the exact uploaded build, `f9d5df4a`, launches).
+2. Life Lists defaults and status line: "Yes, Include Exotics is on and the line reads right".
+3. The switch is session-only: "Exotics left the list and came back on after relaunch".
+4. Statistics unchanged: "Settled as it did on 1.0.68, no error".
+
+All four passed.
+
+### Steps
+
+1. **ASC re-read first** (GET only, 20:09:18 UTC, `evidence/ship/asc-1.0.69.txt` section 1): 32 version records, all `READY_FOR_SALE`; **1.0.68 on `280db18b` `READY_FOR_SALE`** on build 1.0.68.1, its submission `a22d8c52` `COMPLETE` with its item `APPROVED`; 10 review submissions, all `COMPLETE`; **no 1.0.69 record**; 93 trains and 101 builds, every build `VALID`, train 1.0.69 `aa4abcc0` with **build 1.0.69.1 `f9d5df4a` `VALID`**. Nothing was in review, so the own-record branch applied, as part two found.
+2. **Proving the read-back first.** The read-back script compares every field with `appstore/LISTING.md` and the review notes with `REVIEW_NOTES.md`'s pasted section, which the stored notes equal byte for byte (3,898 characters; an unwrapped variant would be 3,867 and does not match). Run against the released 1.0.68 record it read `ALL SAME`; run there with 1.0.69's What's New as the expected text it read `DIFF whatsNew` and exited 1 (the negative control).
+3. **The What's New text.** The approved 369-character line, taken from `fastlane/metadata/android/en-US/changelogs/10000691.txt` without its newline (SHA-256 `b91d5062ae3ee8b25f250086bd89b2d6d37f3cabe71af3b8b88552736c7a7646`; the create script refused any other text). Note: `held/whats-new-1.0.69-rollup.txt` holds the 942-character rollup prepared for the branch that did not apply, not this line.
+4. **The record.** `POST /v1/appStoreVersions` (201, 20:11:00 UTC), guarded on no open record, no 1.0.69 record, 1.0.68 `READY_FOR_SALE` and the build `VALID`: platform IOS, `versionString` 1.0.69, copyright `2026 Dave Gibson` from `appstore/LISTING.md`, `releaseType` `AFTER_APPROVAL`, build `f9d5df4a-a8ca-4f4d-bc53-7cba08686821` attached in the same request. **New record `ec491213-6cf7-4dd5-9d8b-51bdcfeb420c`**, created 20:10:56 UTC (12:10:56 PST), `PREPARE_FOR_SUBMISSION`; en-US localization `e06ffaab-9494-42cb-9cf4-cf0a2b04e79c`; a new editable app info `76d4c9e7-00f9-4346-bc4e-808004ade94d`.
+5. **What's New and promotional text.** Both arrived **null** (the promotional text a sixteenth time). One localization `PATCH` (200, 20:11:01 UTC) wrote the approved What's New and the promotional text from `LISTING.md` (137 characters). Read back: What's New byte-equal (369), promotional text equal.
+6. **Listing read-back before submitting** (20:11:10 UTC, `evidence/ship/listing-readback-1.0.69.txt`): **`READBACK 1.0.69: ALL SAME`**:
+   - version 1.0.69, `AFTER_APPROVAL`, no earliest release date, no phased release; copyright the same (16 characters); build 1.0.69.1 `VALID`, not expired, `usesNonExemptEncryption` false;
+   - one localization, en-US; description (3,407), keywords (97), promotional text (137), marketing URL (30), support URL (37) and What's New (369) the same as their sources;
+   - the review notes the same as `appstore/REVIEW_NOTES.md`'s pasted section at 3,898 characters, all four contact fields present, no demo account;
+   - on both app infos (`285bfbfe` live, `76d4c9e7` editable): name (9), subtitle (27) and privacy policy URL (43) the same; categories `REFERENCE` and `WEATHER`; **the age rating answered: 30 fields, 16 `NONE`, 11 false, 0 true, 3 null** (`kidsAgeBand`, `gracRatingClassificationNumber`, `developerAgeRatingInfoUrl`, null on a non-Kids app). Nothing needed changing.
+7. **Screenshots** (`asc-screens.mjs readback --loc e06ffaab...`, `evidence/ship/screenshots-readback-1.0.69.txt`): **`read-back: ALL MATCH`, 18 of 18.** iPhone 6.9-inch legacy set `0e5b4d19` and iPad 13-inch legacy set `c56eebca` (new ids on the new record), six each with name, size, dimensions, md5, delivery and decoded pixels matching, in the order 01, 02, 04, 05, 03, 06; the iPhone Duo set as six `ACTIVE` placements in `IPHONE_DUO_PROFILE`, images `APPROVED`, pixel-identical. Nothing was re-uploaded.
+8. **Submission** (submitted only after both read-backs were clean). `POST /v1/reviewSubmissions` (201) gave **`25b4b840-9414-4633-87b4-16f4faf4a674`**; `POST /v1/reviewSubmissionItems` (201); `PATCH` `submitted: true` (200). **`WAITING_FOR_REVIEW`, submitted 2026-11-09 20:12:44 UTC (12:12 PST)**; the record `WAITING_FOR_REVIEW`, `AFTER_APPROVAL`, no phased release.
+9. **After submitting.** The listing read-back again (`listing-readback-1.0.69-after-submit.txt`): `READBACK 1.0.69: ALL SAME`, no field different from the read-back before submitting. The full re-query (20:13:00 UTC): 33 version records, 1.0.69 `WAITING_FOR_REVIEW` and 32 `READY_FOR_SALE`; 11 review submissions, this one waiting and 10 `COMPLETE`; 93 trains, 101 builds, every build `VALID`. **Gap accounting:** from 1.0.13 on, 57 trains, 25 with no record of their own: the 21 the 1.0.59 ship accounted for, 1.0.62 (rolled up at 1.0.63), 1.0.64 (at 1.0.65), 1.0.65 (at 1.0.66) and 1.0.67 (at 1.0.68). No other gap. Every request and status: `evidence/ship/asc-1.0.69.txt`.
+10. **F-Droid three-read** (20:13 UTC, `evidence/ship/fdroid-read-1.0.69.txt`), unchanged since 17:20 UTC: f-droid.org publishes 1.0.61, 1.0.60 and 1.0.59 (`suggestedVersionCode` 10000614); fdroiddata `master` `CurrentVersion` 1.0.68 / 10000684, `Builds` for 1.0.53, 1.0.55, 1.0.56, 1.0.60, 1.0.61 and 1.0.68; newest recipe commit `34866f26` (linsui, "keep latest", 09:18 UTC), the bot's last run `5c48e123` (08:20 UTC); the logs for 10000651/2/4 to 10000691/2/4 all 404. **States:** 1.0.65, 1.0.66 and 1.0.67 superseded on F-Droid by 1.0.68; 1.0.68 and 1.0.69 included and this tag not yet built.
+11. **`RELEASE_LEDGER.md`**, in the house form, ASCII only, the file's em-dash count unchanged, and every changed line keeping its old text as a prefix (append-only):
+    - App Store: the 1.0.68 entry corrected in place (RESOLVED: `280db18b` `READY_FOR_SALE`, `a22d8c52` `COMPLETE`, item `APPROVED`, first read so 2026-11-09 17:19:43 UTC); a **1.0.69 SHIP** entry (steps 1 to 9 and the user's four answers). No rollup, so the rollup list is unchanged.
+    - Android: the 1.0.65, 1.0.66 and 1.0.67 entries corrected in place (each superseded on F-Droid by 1.0.68: 1.0.65 pruned by `34866f26`, 1.0.66 and 1.0.67 skipped by the bot's newest-tag run `5c48e123`); the 1.0.68 entry updated in place (still included and this tag not yet built); a **1.0.69 SHIP** entry (release `439446738`, APK `b5efcbae...7cd4`, signer `42a3576e...996a`, Partial on API 36 emulator evidence by the standing decision, F-Droid included and this tag not yet built, WebView 133).
+12. **Checks.** The only file outside this run folder that names `RELEASE_LEDGER.md` is `scripts/android/attach.sh` (a reminder), and no shipped file changed in this part.
+
+### State at the hand-back (2026-11-09, about 20:20 UTC)
+
+| Leg | State |
+|---|---|
+| App Store | 1.0.69 on new record `ec491213-6cf7-4dd5-9d8b-51bdcfeb420c`, build 1.0.69.1 `f9d5df4a`, submission `25b4b840-9414-4633-87b4-16f4faf4a674` `WAITING_FOR_REVIEW` (20:12:44 UTC), `AFTER_APPROVAL`, no phased release |
+| 1.0.68 on the store | `READY_FOR_SALE` on `280db18b`, submission `a22d8c52` `COMPLETE` |
+| TestFlight | 1.0.69.1 `f9d5df4a` `VALID`; the user's iPhone check passed on all four steps |
+| Mac, Windows, `latest.json` | live at 1.0.69 (release `439446738`, Latest) |
+| Android GitHub APK | 1.0.69 attached, signer `42a3576e...996a`; Partial (emulator) |
+| F-Droid | 1.0.65 to 1.0.67 superseded by 1.0.68; 1.0.68 and 1.0.69 included and this tag not yet built; nothing sent |
+| Website | live at 1.0.69 with the approved privacy sentence |
+| Ledger | every entry above written |
+
+### Still open
+
+- **App Review of 1.0.69.** The next ship re-reads its state and writes the outcome into the 1.0.69 entry; a rejection stalls only the App Store leg.
+- **F-Droid.** The bot's next run most likely adds 1.0.69; a keep-latest sweep may then leave 1.0.68 superseded by 1.0.69. The next ship's three-read records it.
+- For the Chronicler: CLAUDE.md's "not yet windowed" sentence (security I4, D-09); the ROADMAP's "Open after the 1.0.68 ship" paragraph (now resolved: 1.0.68 released, its F-Droid states written) and "`backend/.venv` no longer starts" item (rebuilt on Python 3.15.2) are stale; `website/assets/shots/life-lists.webp` still shows both switches off (a separate held decision); altool's orphaned `log stream` (pid 22902) is harmless.
