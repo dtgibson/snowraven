@@ -36,3 +36,7 @@ When eBird's public data has no answer for one of your species, such as a sighti
 ## Gate answer (2026-11-08 PST)
 
 The user answered the production sign-off for 1.0.68 with "Confirm: deploy 1.0.68 now", approving word for word the F-Droid changelog (held/whats-new-1.0.68.txt, 216 characters) and the App Store What's New rendering (1.0.67's approved text, a blank line, then the 1.0.68 sentence; 571 characters) in held/gate-copy-1.0.68.md.
+
+## iPhone check (2026-11-08 PST)
+
+The user checked TestFlight build 1.0.68 (1) on their own iPhone and answered the four-step gate "All four steps passed" (Statistics reads the settled Skylark sentence with no re-run, the name opens Species Detail, Life Lists reads the complete sentence, a relaunch shows no progress count). Earlier the same day they checked 1.0.67 (1): "This is good".

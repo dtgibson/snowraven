@@ -1,0 +1,80 @@
+# 1.0.68 App Store step: new record, What's New, readbacks, submission (metadata key QJA25M7XHM, escapee-check-new-taxonomy phase 2b)
+
+## state before
+read at 2026-11-09T03:22:47Z (GET only, metadata key QJA25M7XHM)
+version records: 31 {"READY_FOR_SALE":31}
+  1.0.66 READY_FOR_SALE/READY_FOR_DISTRIBUTION AFTER_APPROVAL created=2026-11-07T18:09:27-08:00 id=ab6360bc-24b3-4816-bf84-88967df06507
+  1.0.63 READY_FOR_SALE/READY_FOR_DISTRIBUTION AFTER_APPROVAL created=2026-11-06T16:17:15-08:00 id=e48a104b-0542-4c8c-b304-26059fa3bc61
+  1.0.61 READY_FOR_SALE/READY_FOR_DISTRIBUTION AFTER_APPROVAL created=2026-11-03T11:50:46-08:00 id=1ff37081-0999-4eb7-8dbd-d44771e04b1c
+  1.0.60 READY_FOR_SALE/READY_FOR_DISTRIBUTION AFTER_APPROVAL created=2026-10-22T18:14:50-07:00 id=c8841bbd-add8-48e5-82d8-614527e0b43f
+  not READY_FOR_SALE: none
+  record 1.0.66: ab6360bc-24b3-4816-bf84-88967df06507 READY_FOR_SALE/READY_FOR_DISTRIBUTION build=1.0.66.1 32038a0c-057a-4753-bdb1-451e5dcf3acd
+  record 1.0.67: none
+  record 1.0.68: none
+review submissions: 10 {"COMPLETE":10}
+  submission 51af3019-9ba7-4db1-a4df-d390a7ce7901: COMPLETE submitted=2026-11-08T16:43:57.93Z
+TestFlight trains: 92; builds: 100 {"VALID":100}
+  train 1.0.68 build 1.0.68.1 VALID expired=false uploaded=2026-11-08T18:48:31-08:00 id=fcb30cde-150e-42d8-8de9-0dd7848e79f9
+  train 1.0.67 build 1.0.67.1 VALID expired=false uploaded=2026-11-08T15:51:11-08:00 id=6614dec9-8b21-4165-b870-d94ff330d05f
+  train 1.0.66 build 1.0.66.1 VALID expired=false uploaded=2026-11-08T08:16:41-08:00 id=32038a0c-057a-4753-bdb1-451e5dcf3acd
+  train 1.0.65 build 1.0.65.1 VALID expired=false uploaded=2026-11-07T18:55:35-08:00 id=e1f3f6f9-fea2-45f7-99d6-fa1126ab8713
+  train 1.0.64 build 1.0.64.1 VALID expired=false uploaded=2026-11-07T17:52:48-08:00 id=81d91d5e-58f4-4cd6-b23d-1e8a0a8f02c3
+  train 1.0.68 id=faf0f60b-b24c-4a4d-b645-bf3130fe11f4
+  train 1.0.67 id=fce1e625-3dcf-4cbf-ab18-0a4f3b2a1e62
+trains from 1.0.13 on: 56; without a record of their own: 26
+   1.0.15, 1.0.16, 1.0.18, 1.0.20, 1.0.22, 1.0.25, 1.0.26, 1.0.29, 1.0.33, 1.0.37, 1.0.39, 1.0.41, 1.0.42, 1.0.43, 1.0.44, 1.0.46, 1.0.48, 1.0.49, 1.0.52, 1.0.54, 1.0.58, 1.0.62, 1.0.64, 1.0.65, 1.0.67, 1.0.68
+appInfo 8319b5dd-3c75-4656-9eb9-0413b356d15c state=READY_FOR_DISTRIBUTION appStoreState=READY_FOR_SALE ageRating=FOUR_PLUS
+
+## create (2026-11-09T03:23:00Z)
+2026-11-09T03:23:01Z precheck: 31 records, all READY_FOR_SALE; build 1.0.68.1 fcb30cde-150e-42d8-8de9-0dd7848e79f9 VALID expired=false usesNonExemptEncryption=false
+  body: {"data":{"type":"appStoreVersions","attributes":{"platform":"IOS","versionString":"1.0.68","copyright":"2026 Dave Gibson","releaseType":"AFTER_APPROVAL"},"relationships":{"app":{"data":{"type":"apps","id":"6787719977"}},"build":{"data":{"type":"builds","id":"fcb30cde-150e-42d8-8de9-0dd7848e79f9"}}}}}
+2026-11-09T03:23:04Z POST /v1/appStoreVersions -> 201
+  new record 280db18b-3dfa-4a8b-b8af-4b8332586bd5 1.0.68 PREPARE_FOR_SUBMISSION/PREPARE_FOR_SUBMISSION releaseType=AFTER_APPROVAL copyright="2026 Dave Gibson" created=2026-11-08T19:23:01.507766536-08:00
+
+## What's New (2026-11-09T03:23:11Z)
+  record 280db18b-3dfa-4a8b-b8af-4b8332586bd5; localizations: en-US e43cde44-4f92-49b6-98b7-a703f3de227d
+  before: whatsNew null; promotionalText null (equals LISTING: false)
+  writing: whatsNew (571 chars), promotionalText (137 chars)
+2026-11-09T03:23:12Z PATCH /v1/appStoreVersionLocalizations/e43cde44-4f92-49b6-98b7-a703f3de227d -> 200
+2026-11-09T03:23:12Z after: whatsNew byte-equal true (571 chars, sha256 c885c3f1697cc002b4021e444f1d9d599a426a09f3a3bf36f1188797b50e593b); promotionalText equal true (137 chars)
+
+## readbacks before submitting
+listing: listing-readback-1.0.68.txt (READBACK 1.0.68: ALL SAME, 03:23:24Z)
+screenshots: screenshots-readback-1.0.68.txt (localization e43cde44-4f92-49b6-98b7-a703f3de227d, read-back: ALL MATCH, 18 of 18)
+
+## submit (2026-11-09T03:23:45Z)
+2026-11-09T03:23:45Z precheck record 1.0.68 PREPARE_FOR_SUBMISSION
+2026-11-09T03:23:47Z POST /v1/reviewSubmissions -> 201
+  new submission a22d8c52-386e-46ab-9ac7-85fe40e88174 state=READY_FOR_REVIEW
+2026-11-09T03:23:51Z POST /v1/reviewSubmissionItems -> 201
+  item YTIyZDhjNTItMzg2ZS00NmFiLTlhYzctODVmZTQwZTg4MTc0fDZ8ODk0ODU2Nzg5 state=READY_FOR_REVIEW
+2026-11-09T03:23:54Z PATCH /v1/reviewSubmissions/a22d8c52-386e-46ab-9ac7-85fe40e88174 -> 200
+2026-11-09T03:23:54Z submission a22d8c52-386e-46ab-9ac7-85fe40e88174 state=WAITING_FOR_REVIEW submitted=2026-11-09T03:23:53.169Z
+2026-11-09T03:23:55Z record 1.0.68 280db18b-3dfa-4a8b-b8af-4b8332586bd5 WAITING_FOR_REVIEW/WAITING_FOR_REVIEW releaseType=AFTER_APPROVAL
+
+## state after submitting (reconciliation)
+read at 2026-11-09T03:24:06Z (GET only, metadata key QJA25M7XHM)
+version records: 32 {"WAITING_FOR_REVIEW":1,"READY_FOR_SALE":31}
+  1.0.68 WAITING_FOR_REVIEW/WAITING_FOR_REVIEW AFTER_APPROVAL created=2026-11-08T19:23:02-08:00 id=280db18b-3dfa-4a8b-b8af-4b8332586bd5
+  1.0.66 READY_FOR_SALE/READY_FOR_DISTRIBUTION AFTER_APPROVAL created=2026-11-07T18:09:27-08:00 id=ab6360bc-24b3-4816-bf84-88967df06507
+  1.0.63 READY_FOR_SALE/READY_FOR_DISTRIBUTION AFTER_APPROVAL created=2026-11-06T16:17:15-08:00 id=e48a104b-0542-4c8c-b304-26059fa3bc61
+  1.0.61 READY_FOR_SALE/READY_FOR_DISTRIBUTION AFTER_APPROVAL created=2026-11-03T11:50:46-08:00 id=1ff37081-0999-4eb7-8dbd-d44771e04b1c
+  not READY_FOR_SALE: 1.0.68 280db18b-3dfa-4a8b-b8af-4b8332586bd5 WAITING_FOR_REVIEW
+  record 1.0.66: ab6360bc-24b3-4816-bf84-88967df06507 READY_FOR_SALE/READY_FOR_DISTRIBUTION build=1.0.66.1 32038a0c-057a-4753-bdb1-451e5dcf3acd
+  record 1.0.67: none
+  record 1.0.68: 280db18b-3dfa-4a8b-b8af-4b8332586bd5 WAITING_FOR_REVIEW/WAITING_FOR_REVIEW build=1.0.68.1 fcb30cde-150e-42d8-8de9-0dd7848e79f9
+review submissions: 11 {"WAITING_FOR_REVIEW":1,"COMPLETE":10}
+  open: a22d8c52-386e-46ab-9ac7-85fe40e88174 WAITING_FOR_REVIEW submitted=2026-11-09T03:23:53.169Z
+  submission 51af3019-9ba7-4db1-a4df-d390a7ce7901: COMPLETE submitted=2026-11-08T16:43:57.93Z
+TestFlight trains: 92; builds: 100 {"VALID":100}
+  train 1.0.68 build 1.0.68.1 VALID expired=false uploaded=2026-11-08T18:48:31-08:00 id=fcb30cde-150e-42d8-8de9-0dd7848e79f9
+  train 1.0.67 build 1.0.67.1 VALID expired=false uploaded=2026-11-08T15:51:11-08:00 id=6614dec9-8b21-4165-b870-d94ff330d05f
+  train 1.0.66 build 1.0.66.1 VALID expired=false uploaded=2026-11-08T08:16:41-08:00 id=32038a0c-057a-4753-bdb1-451e5dcf3acd
+  train 1.0.65 build 1.0.65.1 VALID expired=false uploaded=2026-11-07T18:55:35-08:00 id=e1f3f6f9-fea2-45f7-99d6-fa1126ab8713
+  train 1.0.64 build 1.0.64.1 VALID expired=false uploaded=2026-11-07T17:52:48-08:00 id=81d91d5e-58f4-4cd6-b23d-1e8a0a8f02c3
+  train 1.0.68 id=faf0f60b-b24c-4a4d-b645-bf3130fe11f4
+  train 1.0.67 id=fce1e625-3dcf-4cbf-ab18-0a4f3b2a1e62
+trains from 1.0.13 on: 56; without a record of their own: 25
+   1.0.15, 1.0.16, 1.0.18, 1.0.20, 1.0.22, 1.0.25, 1.0.26, 1.0.29, 1.0.33, 1.0.37, 1.0.39, 1.0.41, 1.0.42, 1.0.43, 1.0.44, 1.0.46, 1.0.48, 1.0.49, 1.0.52, 1.0.54, 1.0.58, 1.0.62, 1.0.64, 1.0.65, 1.0.67
+appInfo 8319b5dd-3c75-4656-9eb9-0413b356d15c state=READY_FOR_DISTRIBUTION appStoreState=READY_FOR_SALE ageRating=FOUR_PLUS
+appInfo 285bfbfe-09d7-4efe-b0be-d2d9320876d2 state=WAITING_FOR_REVIEW appStoreState=WAITING_FOR_REVIEW ageRating=FOUR_PLUS
