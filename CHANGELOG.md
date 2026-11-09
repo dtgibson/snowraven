@@ -2,6 +2,18 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [1.0.68] - 2026-11-08
+
+### Fixed
+- **The Statistics tab's escapee check finishes when eBird's public data has no answer for one of your species.** A species whose only record eBird keeps out of its public data, such as a Merlin sighting eBird has not yet confirmed, held the check open for good: the line under the Species figure kept saying "eBird's answers did not include Eurasian Skylark, so it still counts.", and Life Lists said the check "has not finished for this export". Once every checklist that carries such a species has been asked and eBird's answers had no row for it, Statistics now reads as finished and names it, for example "Exotic status checked. eBird's public data has no answer for Eurasian Skylark, so it counts.", with Check again beside it to ask once more, and Life Lists reads as complete. The species still counts. SnowRaven still asks eBird about it once more on its own after 30 days, and if eBird's answer then includes the record, the species is checked like any other. No request is added.
+
+### Internal
+- `ProvenanceSnapshot` gains `unmatched`, the codes of the store's held `unmatched` stamps (codes only, no times), built in `rebuildSnapshot` in `exoticProvenanceCache.ts`, so every passive reader sees them on the same subscription. The stored `exotic-provenance-v1` document and the stamp's write path, cap, TTL and marker are unchanged, so the settings-route budget is too.
+- `remainingSpecies` in `lib/exoticProvenance.ts` takes a required fourth argument, the stamp input: every completion reader passes `heldStamps(snapshot)` and the controller's planning passes the empty set, so the 30-day re-ask stays the stamp's one TTL read (`unmatchedSet` through `isWithinTtl`). A cover species is settled (`isSettledAbsence`, `settledSpecies`) when it has no record, holds a stamp at any age, and every checklist that carries it is in the ledger. `buildProvenanceLookup` gains `counts.settled` and its `unknown` leaves settled species out, so its open count equals the completion open set. A generated-corpus row in `exoticProvenance.test.ts` pins the symmetric difference, its first row the empty stamp input, which equals the v1.0.63 predicate.
+- The `complete` status gains an optional `settledNames`. In `useExoticProvenance.ts` the end-of-pass report and the auto-start skip read the completion open set with the held stamps, the not-checked guards read records and stamps, and Check again (`retry`) re-asks ignoring the stamps from a settled `complete` as well. `lifeListsProvenance.ts`'s `checkCompleteFor` passes the held stamps, and its nothing-consulted guard reads no record and no stamp. `exoticCopy.ts` adds `settledSentence` and `namedStatusSentence`, sharing one `namedList` ladder with `unmatchedSentence`, and `ExoticProvenanceAccount` renders whichever named line it returns, each name through `BirdName`, with Check again on a settled `complete`. In `exoticProvenanceConvergence.test.tsx`, on both seams, the measured shape still sends 3, 0, 0 and 0 checklist requests and now reads settled on Statistics and complete on Life Lists on every load.
+- `docs/HELP.md`'s Statistics escapee paragraph gains one sentence on the settled line.
+- The F-Droid changelog for this release is three identical files, one per processor-type build (`10000681.txt`, `10000682.txt`, `10000684.txt`), and the in-repo F-Droid recipe names 1.0.68.
+
 ## [1.0.67] - 2026-11-08
 
 ### Fixed
