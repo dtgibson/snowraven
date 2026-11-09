@@ -1,0 +1,52 @@
+F-Droid public reads during the 1.0.69 ship (no token; read 2026-11-09 17:20 UTC, 2026-11-09 09:20 PST)
+
+1. f-droid.org published list (200)
+{"packageName":"com.dtgibson.snowraven","suggestedVersionCode":10000614,"packages":[{"versionName":"1.0.61","versionCode":10000614},{"versionName":"1.0.61","versionCode":10000612},{"versionName":"1.0.61","versionCode":10000611},{"versionName":"1.0.60","versionCode":10000604},{"versionName":"1.0.60","versionCode":10000602},{"versionName":"1.0.60","versionCode":10000601},{"versionName":"1.0.59","versionCode":10000594},{"versionName":"1.0.59","versionCode":10000592},{"versionName":"1.0.59","versionCode":10000591}]}
+   suggestedVersionCode 10000614 | published versionNames: ["1.0.61", "1.0.60", "1.0.59"]
+
+2. fdroiddata master recipe (200), SHA-256 57c662619a328ffa9a21baab3e921d68d39594fc920f19fd23638976955c406f, 19731 bytes
+   CurrentVersion: 1.0.68
+   CurrentVersionCode: 10000684
+      1.0.53 10000531 c4c15a9624c299f62bf3f82af7f111750666b579
+      1.0.53 10000532 c4c15a9624c299f62bf3f82af7f111750666b579
+      1.0.53 10000534 c4c15a9624c299f62bf3f82af7f111750666b579
+      1.0.55 10000551 1cad79954fbd96a899faf83e9604696a2e811405
+      1.0.55 10000552 1cad79954fbd96a899faf83e9604696a2e811405
+      1.0.55 10000554 1cad79954fbd96a899faf83e9604696a2e811405
+      1.0.56 10000561 41caabf9a538087f0e6c44e86b6164e6d44abd91
+      1.0.56 10000562 41caabf9a538087f0e6c44e86b6164e6d44abd91
+      1.0.56 10000564 41caabf9a538087f0e6c44e86b6164e6d44abd91
+      1.0.60 10000601 231a3dba2f1480a3b1e9d5ba1df95d7ce6ff2b0a
+      1.0.60 10000602 231a3dba2f1480a3b1e9d5ba1df95d7ce6ff2b0a
+      1.0.60 10000604 231a3dba2f1480a3b1e9d5ba1df95d7ce6ff2b0a
+      1.0.61 10000611 3be276520c41697ed95eed672f0b7c6fb0095ca5
+      1.0.61 10000612 3be276520c41697ed95eed672f0b7c6fb0095ca5
+      1.0.61 10000614 3be276520c41697ed95eed672f0b7c6fb0095ca5
+      1.0.68 10000681 93c107334316ac04228e336cdf62cda51b95244f
+      1.0.68 10000682 93c107334316ac04228e336cdf62cda51b95244f
+      1.0.68 10000684 93c107334316ac04228e336cdf62cda51b95244f
+
+3. recipe commit history (200), newest first
+   34866f26 2026-11-09T09:18:32.000+00:00 keep latest
+   5c48e123 2026-11-09T08:20:44.000+00:00 bot: Update SnowRaven to 10000684
+   8970b26d 2026-11-08T19:02:36.000+00:00 keep latest
+   3302f014 2026-11-08T09:54:39.000+00:00 bot: Update SnowRaven to 10000654
+   69401fd9 2026-11-07T09:03:52.000+00:00 bot: Update SnowRaven to 10000634
+   754c9f1f 2026-11-04T06:32:17.000+00:00 bot: Update SnowRaven to 10000614
+
+4. build logs (404 = not attempted)
+   10000651 404
+   10000652 404
+   10000654 404
+   10000661 404
+   10000662 404
+   10000664 404
+   10000671 404
+   10000672 404
+   10000674 404
+   10000681 404
+   10000682 404
+   10000684 404
+   10000691 404
+   10000692 404
+   10000694 404

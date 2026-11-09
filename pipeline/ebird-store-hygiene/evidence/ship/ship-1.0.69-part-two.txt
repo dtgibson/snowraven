@@ -1,0 +1,86 @@
+1.0.69 ship, part two: raw tool output (2026-11-09 UTC)
+
+## release.sh (CI=true SKIP_NPM_INSTALL=1 zsh -lc ./release.sh), 17:34:53 to 17:39:38 UTC, exit 0
+==> Releasing v1.0.69: tag=bdfef6a4 HEAD=2dac7cc7
+==> iCloud profile OK: 8QKC3L2FKP.com.snowraven, container iCloud.com.dtgibson.snowraven, expires 2044-08-27T23:13:18Z
+==> SnowRaven v1.0.69 (universal macOS: aarch64 + x86_64)
+==> SKIP_NPM_INSTALL=1 - reusing the existing node_modules.
+==> Cleaning stale updater bundle artifacts...
+==> Building frontend...
+==> Building Tauri app (universal binary, compiles both arches, takes a while) with the iCloud overlay...
+        Warn skipping app notarization, no APPLE_ID & APPLE_PASSWORD & APPLE_TEAM_ID or APPLE_API_KEY & APPLE_API_ISSUER & APPLE_API_KEY_PATH environment variables found
+==> Bundle version verified: 1.0.69
+==> iCloud entitlements and embedded profile verified in /Users/developer/.snowraven-build/universal-apple-darwin/release/bundle/macos/SnowRaven.app
+==> Styling DMG (injecting Finder layout)...
+==> DMG styled (Finder layout injected).
+==> Signing final DMG...
+==> Notarizing (this takes a minute)...
+  id: 740e9045-0946-450f-bd9c-61aeefe321fe
+  status: Accepted
+==> Stapling...
+==> Fetching Windows build artifacts from CI...
+==> Signing Windows installer locally...
+==> Publishing v1.0.69...
+
+## Android preflight.sh (exit 0)
+==> Android preflight for v1.0.69 (versionCode 1000069)
+  ok  JDK 17 (openjdk version "17.0.21.0.3" 2026-10-24)
+  ok  keytool
+  ok  apksigner from build-tools 36.0.0
+  ok  zipalign from build-tools 36.0.0
+  ok  aapt2 from build-tools 36.0.0
+  ok  Gradle 8.14.3
+  ok  cargo-tauri 2.11.2
+  ok  keystore opens: /Users/developer/.tauri/snowraven-android.p12 (alias snowraven)
+  ok  tauri.conf.json version 1.0.69 equals frontend/package.json
+  ok  bundle.android.versionCode 1000069 follows the formula
+  ok  v1.0.69 is pushed to origin at bdfef6a42401
+  ok  tauri.conf.json at v1.0.69 carries 1.0.69 1000069
+warning: HEAD is not v1.0.69's commit; the artifact is checked against v1.0.69
+  ok  Fastlane changelog 10000691.txt exists at v1.0.69
+  ok  Fastlane changelog 10000692.txt exists at v1.0.69
+  ok  Fastlane changelog 10000694.txt exists at v1.0.69
+  ok  run 42662342775 artifact: SnowRaven_1.0.69_android_universal_unsigned.apk
+  ok  package com.dtgibson.snowraven
+  ok  versionName 1.0.69
+  ok  versionCode 1000069
+  ok  not debuggable
+==> Android preflight passed.
+UNSIGNED_APK=<private tmp>/SnowRaven_1.0.69_android_universal_unsigned.apk
+
+## Android sign.sh (exit 0)
+==> Signing SnowRaven_1.0.69_android_universal_unsigned.apk as SnowRaven_1.0.69_android_universal.apk
+==> Verifying
+Verifies
+Verified using v1 scheme (JAR signing): false
+Verified using v2 scheme (APK Signature Scheme v2): true
+Verified using v3 scheme (APK Signature Scheme v3): true
+Verified using v3.1 scheme (APK Signature Scheme v3.1): false
+Verified using v4 scheme (APK Signature Scheme v4): false
+  ok  signer equals the keystore's certificate
+  ok  signer equals the recorded digest
+Signer #1 certificate DN: CN=SnowRaven, O=Dave Gibson
+Signer #1 certificate SHA-256 digest: 42a3576e445bda4a994793f2ffa056663113275c9805eb2f6cffdc252375996a
+SIGNED_APK=<private tmp>/SnowRaven_1.0.69_android_universal.apk
+SIGNED_APK_SHA256=b5efcbaef50c98801a082f51f59f59a3123b0c8bf9ba3e9509115a9c95ee7cd4
+
+## Android attach.sh (exit 0, 17:45:45 to 17:45:55 UTC)
+warning: ANDROID_DEVICE_CHECK=partial: attaching without a device check; the decision and its reason belong in RELEASE_LEDGER.md's Android section
+==> Checking SnowRaven_1.0.69_android_universal.apk
+  ok  signer equals the keystore's certificate
+  ok  byte-identical to the checked file
+  ok  com.dtgibson.snowraven 1.0.69 (1000069), signer 42a3576e445bda4a994793f2ffa056663113275c9805eb2f6cffdc252375996a
+==> Uploading to v1.0.69
+==> Downloading the asset back
+Attached SnowRaven_1.0.69_android_universal.apk to v1.0.69
+ASSET_SHA256=b5efcbaef50c98801a082f51f59f59a3123b0c8bf9ba3e9509115a9c95ee7cd4
+SIGNER_SHA256=42a3576e445bda4a994793f2ffa056663113275c9805eb2f6cffdc252375996a
+
+## altool
+altool-upload.txt:UPLOAD SUCCEEDED with no errors
+altool-upload.txt:Delivery UUID: f9d5df4a-a8ca-4f4d-bc53-7cba08686821
+altool-validate.txt:VERIFY SUCCEEDED with no errors
+
+## widget Swift tests
+	 Executed 143 tests, with 0 failures (0 unexpected) in 17.166 (17.811) seconds
+** TEST SUCCEEDED **

@@ -1,0 +1,31 @@
+read at 2026-11-09T17:20:03.053Z (GET only, metadata key QJA25M7XHM)
+version records: 32 {"READY_FOR_SALE":32}
+  1.0.68 READY_FOR_SALE/READY_FOR_DISTRIBUTION AFTER_APPROVAL created=2026-11-08T19:23:02-08:00 id=280db18b-3dfa-4a8b-b8af-4b8332586bd5
+  1.0.66 READY_FOR_SALE/READY_FOR_DISTRIBUTION AFTER_APPROVAL created=2026-11-07T18:09:27-08:00 id=ab6360bc-24b3-4816-bf84-88967df06507
+  1.0.63 READY_FOR_SALE/READY_FOR_DISTRIBUTION AFTER_APPROVAL created=2026-11-06T16:17:15-08:00 id=e48a104b-0542-4c8c-b304-26059fa3bc61
+  1.0.61 READY_FOR_SALE/READY_FOR_DISTRIBUTION AFTER_APPROVAL created=2026-11-03T11:50:46-08:00 id=1ff37081-0999-4eb7-8dbd-d44771e04b1c
+  1.0.60 READY_FOR_SALE/READY_FOR_DISTRIBUTION AFTER_APPROVAL created=2026-10-22T18:14:50-07:00 id=c8841bbd-add8-48e5-82d8-614527e0b43f
+records not READY_FOR_SALE: none
+record 1.0.68 id=280db18b-3dfa-4a8b-b8af-4b8332586bd5 appStoreState=READY_FOR_SALE appVersionState=READY_FOR_DISTRIBUTION releaseType=AFTER_APPROVAL build=1.0.68.1 fcb30cde-150e-42d8-8de9-0dd7848e79f9 VALID
+  phased release: none (status 200)
+  loc en-US id=e43cde44-4f92-49b6-98b7-a703f3de227d whatsNew=571 chars, promotionalText=137 chars
+  --- whatsNew begin ---
+The Statistics tab's escapee check now settles the species a backup downloaded before eBird's 2026 taxonomy update still calls by their old names, such as Willet and Marsh Wren, by matching them with eBird's answers under the names that update gave them. When a species is still open, the line under the Species figure now names it, and it still counts.
+
+When eBird's public data has no answer for one of your species, such as a sighting eBird has not yet confirmed, the escapee check now reads as finished on both Statistics and Life Lists, and the species still counts.
+  --- whatsNew end ---
+has 1.0.69 record: false
+review submissions: 10 {"COMPLETE":10}
+  a22d8c52-386e-46ab-9ac7-85fe40e88174 state=COMPLETE submitted=2026-11-09T03:23:53.169Z
+submission a22d8c52 direct read: status 200 {"platform":"IOS","submittedDate":"2026-11-09T03:23:53.169Z","state":"COMPLETE"}
+  item YTIyZDhjNTItMzg2ZS00NmFiLTlhYzctODVmZTQwZTg4MTc0fDZ8ODk0ODU2Nzg5 state=APPROVED
+TestFlight trains: 92; builds: 100 {"VALID":100}
+  newest trains: 1.0.68, 1.0.67, 1.0.66, 1.0.65, 1.0.64, 1.0.63
+  build 1.0.68.1 VALID expired=false uploaded 2026-11-08T18:48:31-08:00 minOS 16.0 id=fcb30cde-150e-42d8-8de9-0dd7848e79f9
+  build 1.0.67.1 VALID expired=false uploaded 2026-11-08T15:51:11-08:00 minOS 16.0 id=6614dec9-8b21-4165-b870-d94ff330d05f
+  build 1.0.66.1 VALID expired=false uploaded 2026-11-08T08:16:41-08:00 minOS 16.0 id=32038a0c-057a-4753-bdb1-451e5dcf3acd
+  build 1.0.65.1 VALID expired=false uploaded 2026-11-07T18:55:35-08:00 minOS 16.0 id=e1f3f6f9-fea2-45f7-99d6-fa1126ab8713
+trains from 1.0.13 on: 56; without a record of their own: 25
+   1.0.15, 1.0.16, 1.0.18, 1.0.20, 1.0.22, 1.0.25, 1.0.26, 1.0.29, 1.0.33, 1.0.37, 1.0.39, 1.0.41, 1.0.42, 1.0.43, 1.0.44, 1.0.46, 1.0.48, 1.0.49, 1.0.52, 1.0.54, 1.0.58, 1.0.62, 1.0.64, 1.0.65, 1.0.67
+has 1.0.69 train: false
+appInfo 285bfbfe-09d7-4efe-b0be-d2d9320876d2 state=READY_FOR_DISTRIBUTION appStoreState=READY_FOR_SALE ageRating=FOUR_PLUS: declaration 30 fields {"false":11,"NONE":16,"null":3}
