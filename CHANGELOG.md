@@ -2,6 +2,19 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [1.0.70] - 2026-11-10
+
+### Added
+- **A Region control on Life Lists.** Choose a country, state or province, or county from the places in your eBird backup to see that region's life list: each species you have recorded there, dated to your first sighting inside the region, with that sighting's time, checklist, and place. Countries are shown by their English names. With a media button pressed, a photo, audio recording, or video counts toward a region only when its checklist is in your eBird backup and lies inside the region; one with no checklist, or a checklist your backup does not hold, counts only under Everywhere. The region you choose is remembered; the switches and media buttons still reset on relaunch. Nothing new is looked up online.
+
+### Internal
+- New `lib/lifeListsRegion.ts` builds the region index once per load from the two files already loaded (pass 1R over the backup, pass 2R over the ML export joined to the backup's checklists by id) and derives a region's firsts and assets on a press; the choices come from the index's own keys, so a region is offered only where it holds a first sighting. A county is offered only beside a hyphenated State/Province cell, and a State/Province cell over 16 characters or a County cell over 96 is offered at no level. A country is named through `Intl.DisplayNames` only when its code is two capital letters, and labels as its code otherwise.
+- New `components/lifeLists/LifeListsRegionPicker.tsx`, the grouped type-to-find combobox, at the Life Lists strip's control size. `lib/lifeLists.ts` exports the two record constructors the region materializers share with passes 1 and 2, and `selectRows` takes an optional `presence` map, so the media marks under a region still say what the species has anywhere; every existing call is unchanged. `countSentenceParts` returns the count sentence in four parts around the region's label.
+- The chosen region is saved as `lifeListsRegion` in the settings document through the `storage` seam, validated on read, written one at a time in press order, and read with a 10-second bound that never holds the tab on its loading state. A saved region that the backup no longer holds reads as Everywhere. It is not in `clearDerived.ts`, following the Targets county.
+- `lifeListsLinearity.test.ts` gains rows for pass 1R, pass 2R, the region press and the choice build, and a linear-search mutant of pass 1R that must go red; `lifeListsRegionConvergence.test.ts` runs the save, read-back and region rows through the real `storage.ts` on both the Tauri and the web/Pi seams. `.claude/rules/security.md`'s path gate now covers `LifeListsRegionPicker*.tsx`. `docs/HELP.md` describes the control.
+- The Life Lists sentence in `README.md`, on the website and in the App Store listing now names the region, `lifeListsSurfacesPublishedClaims.test.ts` follows it, and the website's Life Lists screenshot is recaptured from the demo data with the Region control in the strip.
+- The F-Droid changelog for this release is three identical files, one per processor-type build (`10000701.txt`, `10000702.txt`, `10000704.txt`), and the in-repo F-Droid recipe names 1.0.70.
+
 ## [1.0.69] - 2026-11-09
 
 ### Changed
