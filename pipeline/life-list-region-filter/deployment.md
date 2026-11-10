@@ -167,3 +167,54 @@ Run by The Deployer on the user's firsthand answer at the production sign-off, r
 - The user's check of TestFlight 1.0.70 (1): the four steps in the hand-back.
 - The App Store record for 1.0.70 per step 13 (re-read the state first), with every listing field read back, the description PATCHed to the new block, the promotional text restored if it arrives empty, the review notes and age rating checked, `asc-screens.mjs readback` to `ALL MATCH`, then the submission.
 - The F-Droid three-read, then `RELEASE_LEDGER.md`: the 1.0.69 App Store entry corrected in place (RESOLVED: `ec491213` `READY_FOR_SALE`, `25b4b840` `COMPLETE`, item `APPROVED`, first read so 2026-11-10 18:46 UTC); a 1.0.70 App Store entry; a 1.0.70 Android entry (release `440762302`, asset `732546286`, APK `7f695587...ffdb1`, signer `42a3576e...996a`, Partial, WebView 133); the F-Droid corrections (1.0.68 included and built, not yet published; 1.0.69 as read then). No rollup this time, so the rollup list is unchanged.
+
+## Part three: the device check, the App Store record for 1.0.70 and the ledger (2026-11-10, about 19:30 to 19:40 UTC; 11:30 to 11:40 PST)
+
+Run by The Deployer on the orchestrator's relay of the user's iPhone check (below) and the production sign-off recorded in part two. App Store Connect was driven with the metadata key `QJA25M7XHM` through `pipeline/app-store-listing-polish/asc/asc-lib.mjs`, from a script in the session scratchpad; no token, key, issuer or review-contact value was printed or written. Nothing was sent to fdroiddata, no device or worktree was touched, and no eBird or OpenWeather request was made. The only published copy written was the approved What's New and the approved description block.
+
+### The user's iPhone check of TestFlight 1.0.70 (1)
+
+Performed by the user on their own iPhone on 2026-11-10, before any 1.0.70 App Store record existed (the v1.0.31 rule), and relayed by the orchestrator; recorded as the user reported it, not observed: **"Passed"**, for the four steps given in part two's hand-back:
+
+1. Install SnowRaven 1.0.70 (1) from TestFlight and open it: it opens normally, with no crash (the exact uploaded build, `7d4682f8`, launches).
+2. Life Lists: the control strip starts with Region reading Everywhere, and the list and count sentence look as on 1.0.69.
+3. Region, a home state or county: the list narrows, the count sentence names the place, and the dates are the first sightings there.
+4. Force-quit, reopen, Life Lists: the chosen region is still selected, and Everywhere restores the full list.
+
+### Steps
+
+1. **Proving the read-back first** (19:30:34 UTC). The read-back compares every listing field with `appstore/LISTING.md` and the review notes with `appstore/REVIEW_NOTES.md`'s pasted section, and prints only lengths and presence, never a contact value. Against the released 1.0.69 record, with the listing as it stood at `a767ce82` and 1.0.69's What's New, it read **`READBACK 1.0.69: ALL SAME`**; against today's listing it read **`DIFF description`** (3,407 against 3,471) and exited 1 (the negative control).
+2. **ASC re-read and the guarded create** (19:30:46 UTC): 33 version records, all `READY_FOR_SALE`, 1.0.69 `READY_FOR_SALE` on `ec491213`; 10 review submissions, all `COMPLETE`; no 1.0.70 record; build 1.0.70.1 `7d4682f8` `VALID` on train 1.0.70, not expired, `usesNonExemptEncryption` false. Every guard passed. `POST /v1/appStoreVersions` (201): platform IOS, `versionString` 1.0.70, copyright `2026 Dave Gibson` from `appstore/LISTING.md`, `releaseType` `AFTER_APPROVAL`, build `7d4682f8-0c5d-47cf-8223-20b6178c834d` attached in the same request. **New record `21fd36c0-c21b-4988-8b1b-7c43ba55dbb7`**, created 2026-11-10 19:30:55 UTC (11:30:55 PST), `PREPARE_FOR_SUBMISSION`; en-US localization `625ea1fc-4103-4c00-b775-998a00494002`; a new editable app info `01f24c09-089a-436e-b0f9-44b6cb56d982`.
+3. **What's New, promotional text and description.** What's New and the promotional text arrived **null** (the promotional text a seventeenth time); the description arrived as 1.0.69's 3,407-character block. One localization `PATCH` (200) wrote the approved What's New (`held/whats-new-1.0.70.txt` without its newline, 220 characters, SHA-256 `97e25fe1d8eab7ceb10168e5eecde6bdd06717915ade55052116aabad52ef6d4`; the script refused any text not equal to `10000701.txt`), the promotional text from `LISTING.md` (137 characters) and the description from `LISTING.md`'s new block (3,471 characters).
+4. **Age rating** (the step inside each release, ROADMAP item 1): on the new editable app info `01f24c09` and the live `76d4c9e7`, `socialMedia` false and `socialMediaAgeRestricted` false; 30 fields, 16 `NONE`, 11 false, 0 true, 3 null (`kidsAgeBand`, `gracRatingClassificationNumber`, `developerAgeRatingInfoUrl`, null on a non-Kids app). Already answered; nothing changed.
+5. **Listing read-back before submitting** (19:31:22 UTC, `evidence/ship/listing-readback-1.0.70.txt`): **`READBACK 1.0.70: ALL SAME`**: version 1.0.70, `AFTER_APPROVAL`, no earliest release date, no phased release; copyright the same (16 characters); build 1.0.70.1 `VALID`; one localization, en-US; description (3,471), keywords (97), promotional text (137), marketing URL (30), support URL (37) and What's New (220) the same as their sources; the review notes the same as `REVIEW_NOTES.md`'s pasted section at 3,898 characters, all four contact fields present, no demo account; on both app infos, name (9), subtitle (27) and privacy policy URL (43) the same, categories `REFERENCE` and `WEATHER`.
+6. **Screenshots** (`asc-screens.mjs readback --loc 625ea1fc...`, `evidence/ship/screenshots-readback-1.0.70.txt`): **`read-back: ALL MATCH`, 18 of 18.** iPhone 6.9-inch legacy set `a903fb81` and iPad 13-inch legacy set `b183012a` (new ids on the new record), six each with name, size, dimensions, md5, delivery and decoded pixels matching, in the order 01, 02, 04, 05, 03, 06; the iPhone Duo set as six `ACTIVE` placements in `IPHONE_DUO_PROFILE`, images `APPROVED`, pixel-identical. Nothing was re-uploaded.
+7. **Submission** (only after both read-backs were clean). `POST /v1/reviewSubmissions` (201) gave **`a3be255f-96f0-4ecb-be38-47b280079833`**; `POST /v1/reviewSubmissionItems` (201); `PATCH` `submitted: true` (200). **`WAITING_FOR_REVIEW`, submitted 2026-11-10 19:31:54 UTC (11:31 PST)**, its item `READY_FOR_REVIEW`; the record `WAITING_FOR_REVIEW`, `AFTER_APPROVAL`, no phased release.
+8. **After submitting.** The listing read-back again (19:32:09 UTC, `listing-readback-1.0.70-after-submit.txt`): `READBACK 1.0.70: ALL SAME`, no field different from the read-back before submitting. The full re-query (19:32:11 UTC, `asc-read-1.0.70-after-submit.txt`): 34 version records, 1.0.70 `WAITING_FOR_REVIEW` and 33 `READY_FOR_SALE`; 11 review submissions, this one waiting and 10 `COMPLETE`; 94 trains, 102 builds, every build `VALID`. **Gap accounting:** from 1.0.13 on, 58 trains, 25 with no record of their own, the 25 the 1.0.69 entry accounts for. No other gap. Every request and status: `evidence/ship/asc-1.0.70.txt`.
+9. **F-Droid three-read** (19:32 UTC, `evidence/ship/fdroid-read-1.0.70-ship.txt`), unchanged since 16:24 UTC: f-droid.org publishes 1.0.61, 1.0.60 and 1.0.59 (`suggestedVersionCode` 10000614); fdroiddata `master` `CurrentVersion` 1.0.69 / 10000694, `Builds` for 1.0.53, 1.0.55, 1.0.56, 1.0.60, 1.0.61, 1.0.68 and 1.0.69 (1.0.69's on `bdfef6a4`); newest recipe commit `c0ad7c8f` (the bot, "Update SnowRaven to 10000694", 05:25 UTC); the logs for 10000681/2/4 end `Successfully built ... from 93c10733`, and those for 10000691/2/4 and 10000701/2/4 answer 404. **States:** 1.0.68 included and built, not yet published; 1.0.69 included and this tag not yet built; 1.0.70 included and this tag not yet built (the bot has not added it yet).
+10. **`RELEASE_LEDGER.md`**, in the house form, ASCII only, the file's em-dash count unchanged (2), and every changed line keeping its old text as a prefix (append-only, three lines extended):
+    - App Store: the 1.0.69 entry corrected in place (RESOLVED: `ec491213` `READY_FOR_SALE`, `25b4b840` `COMPLETE`, item `APPROVED`, first read so 2026-11-10 18:46:10 UTC, no rollup); a **1.0.70 SHIP** entry (steps 1 to 8 and the user's answer). No rollup, so the rollup list is unchanged.
+    - Android: the 1.0.68 entry updated in place (included and built, not yet published); the 1.0.69 entry updated in place (still included and this tag not yet built, its entries added by `c0ad7c8f`); a **1.0.70 SHIP** entry (release `440762302`, asset `732546286`, APK `7f695587...ffdb1`, signer `42a3576e...996a`, Partial on API 36 emulator evidence by the standing decision, F-Droid included and this tag not yet built, WebView 133).
+
+### State at the hand-back (2026-11-10, about 19:40 UTC; 11:40 PST)
+
+| Leg | State |
+|---|---|
+| App Store | 1.0.70 on new record `21fd36c0-c21b-4988-8b1b-7c43ba55dbb7`, build 1.0.70.1 `7d4682f8`, submission `a3be255f-96f0-4ecb-be38-47b280079833` `WAITING_FOR_REVIEW` (19:31:54 UTC), `AFTER_APPROVAL`, no phased release |
+| 1.0.69 on the store | `READY_FOR_SALE` on `ec491213`, submission `25b4b840` `COMPLETE` |
+| TestFlight | 1.0.70.1 `7d4682f8` `VALID`; the user's iPhone check passed |
+| Mac, Windows, `latest.json` | live at 1.0.70 (release `440762302`, Latest) |
+| Android GitHub APK | 1.0.70 attached, signer `42a3576e...996a`; Partial (emulator) |
+| F-Droid | 1.0.68 included and built, not yet published; 1.0.69 and 1.0.70 included and this tag not yet built; nothing sent |
+| Website | live at 1.0.70 with the approved Life Lists sentence and the recaptured frame |
+| Ledger | every entry above written |
+
+### Still open
+
+- **App Review of 1.0.70.** The next ship re-reads its state and writes the outcome into the 1.0.70 entry; a rejection stalls only the App Store leg.
+- **F-Droid.** The bot's next run most likely adds 1.0.70; a keep-latest sweep may then leave 1.0.69 superseded by 1.0.70. The next ship's three-read records it.
+- **For the Chronicler:**
+  - The region linearity legs need CI-sized legs, plus the standing question of timing-ratio guards on shared runners (D-12, idea `f79a03a9`). `alphaCodes.test.ts`'s CPU-ratio row tripped again on `42872886461` (3.92 against 3.2), a run that was not the run of record.
+  - The committed capture tools still have no Life Lists job; this ship's frame came from a scratch script reusing the 1.0.63 job.
+  - The ROADMAP's 1.0.69 note that `life-lists.webp` shows both switches off is closed by the new frame.
+  - The QA probe for this run stays on disk, gitignored, because it names the user's own places.

@@ -1,0 +1,138 @@
+== positive control: 1.0.69 against the listing at a767ce82 and 1.0.69's What's New
+READBACK 1.0.69 at 2026-11-10T19:30:34.545Z: record ec491213-6cf7-4dd5-9d8b-51bdcfeb420c READY_FOR_SALE, releaseType AFTER_APPROVAL, earliestReleaseDate null
+  same copyright (16 / expected 16)
+  phased release: none
+  build: f9d5df4a-a8ca-4f4d-bc53-7cba08686821 1.0.69.1 VALID expired=false usesNonExemptEncryption=false
+  localizations: en-US e06ffaab-9494-42cb-9cf4-cf0a2b04e79c
+  same description (3407 / expected 3407)
+  same keywords (97 / expected 97)
+  same promotionalText (137 / expected 137)
+  same marketingUrl (30 / expected 30)
+  same supportUrl (37 / expected 37)
+  same whatsNew (369 / expected 369)
+  whatsNew sha256 b91d5062ae3ee8b25f250086bd89b2d6d37f3cabe71af3b8b88552736c7a7646
+  same review notes (3898 / expected 3898)
+  review contact: contactFirstName present, contactLastName present, contactPhone present, contactEmail present; demoAccountRequired false; demo name none
+  appInfo 76d4c9e7-00f9-4346-bc4e-808004ade94d READY_FOR_DISTRIBUTION: primary REFERENCE secondary WEATHER
+  same   name (76d4c9e7) (9 / expected 9)
+  same   subtitle (76d4c9e7) (27 / expected 27)
+  same   privacyPolicyUrl (76d4c9e7) (43 / expected 43)
+    age rating: 30 fields {"false":11,"NONE":16,"null":3}; null: kidsAgeBand, gracRatingClassificationNumber, developerAgeRatingInfoUrl; true: none; socialMedia false; socialMediaAgeRestricted false
+READBACK 1.0.69: ALL SAME
+== negative control: 1.0.69 against today's listing
+READBACK 1.0.69 at 2026-11-10T19:30:37.609Z: record ec491213-6cf7-4dd5-9d8b-51bdcfeb420c READY_FOR_SALE, releaseType AFTER_APPROVAL, earliestReleaseDate null
+  same copyright (16 / expected 16)
+  phased release: none
+  build: f9d5df4a-a8ca-4f4d-bc53-7cba08686821 1.0.69.1 VALID expired=false usesNonExemptEncryption=false
+  localizations: en-US e06ffaab-9494-42cb-9cf4-cf0a2b04e79c
+  DIFF description (3407 / expected 3471)
+  same keywords (97 / expected 97)
+  same promotionalText (137 / expected 137)
+  same marketingUrl (30 / expected 30)
+  same supportUrl (37 / expected 37)
+  same whatsNew (369 / expected 369)
+  whatsNew sha256 b91d5062ae3ee8b25f250086bd89b2d6d37f3cabe71af3b8b88552736c7a7646
+  same review notes (3898 / expected 3898)
+  review contact: contactFirstName present, contactLastName present, contactPhone present, contactEmail present; demoAccountRequired false; demo name none
+  appInfo 76d4c9e7-00f9-4346-bc4e-808004ade94d READY_FOR_DISTRIBUTION: primary REFERENCE secondary WEATHER
+  same   name (76d4c9e7) (9 / expected 9)
+  same   subtitle (76d4c9e7) (27 / expected 27)
+  same   privacyPolicyUrl (76d4c9e7) (43 / expected 43)
+    age rating: 30 fields {"false":11,"NONE":16,"null":3}; null: kidsAgeBand, gracRatingClassificationNumber, developerAgeRatingInfoUrl; true: none; socialMedia false; socialMediaAgeRestricted false
+READBACK 1.0.69: DIFF description
+== create (dry run)
+read at 2026-11-10T19:30:46.909Z (GET only)
+version records: 33 {"READY_FOR_SALE":33}
+record 1.0.69: ec491213-6cf7-4dd5-9d8b-51bdcfeb420c READY_FOR_SALE/READY_FOR_DISTRIBUTION AFTER_APPROVAL
+record 1.0.70: none
+review submissions: 10 {"COMPLETE":10}
+build 7d4682f8-0c5d-47cf-8223-20b6178c834d: train 1.0.70 build 1.0.70.1 VALID expired=false usesNonExemptEncryption=false
+  guard ok: no open version record
+  guard ok: no 1.0.70 record yet
+  guard ok: 1.0.69 READY_FOR_SALE
+  guard ok: build 1.0.70.1 VALID on train 1.0.70
+  guard ok: no review submission open
+  would POST /v1/appStoreVersions {"platform":"IOS","versionString":"1.0.70","copyright":"2026 Dave Gibson","releaseType":"AFTER_APPROVAL"} build 7d4682f8-0c5d-47cf-8223-20b6178c834d
+== create (execute)
+read at 2026-11-10T19:30:55.107Z (GET only)
+version records: 33 {"READY_FOR_SALE":33}
+record 1.0.69: ec491213-6cf7-4dd5-9d8b-51bdcfeb420c READY_FOR_SALE/READY_FOR_DISTRIBUTION AFTER_APPROVAL
+record 1.0.70: none
+review submissions: 10 {"COMPLETE":10}
+build 7d4682f8-0c5d-47cf-8223-20b6178c834d: train 1.0.70 build 1.0.70.1 VALID expired=false usesNonExemptEncryption=false
+  guard ok: no open version record
+  guard ok: no 1.0.70 record yet
+  guard ok: 1.0.69 READY_FOR_SALE
+  guard ok: build 1.0.70.1 VALID on train 1.0.70
+  guard ok: no review submission open
+  POST /v1/appStoreVersions -> 201
+  NEW RECORD 21fd36c0-c21b-4988-8b1b-7c43ba55dbb7 PREPARE_FOR_SUBMISSION createdDate 2026-11-10T11:30:55.739874694-08:00
+== patch (dry run)
+  arrived: whatsNew null, promotionalText null, description 3407, keywords 97
+  would PATCH localization 625ea1fc-4103-4c00-b775-998a00494002: whatsNew 220, promotionalText 137, description 3471
+== patch (execute)
+  arrived: whatsNew null, promotionalText null, description 3407, keywords 97
+  PATCH /v1/appStoreVersionLocalizations/625ea1fc-4103-4c00-b775-998a00494002 -> 200
+== age rating
+  appInfo 76d4c9e7-00f9-4346-bc4e-808004ade94d READY_FOR_DISTRIBUTION: declaration 76d4c9e7-00f9-4346-bc4e-808004ade94d; socialMedia false; socialMediaAgeRestricted false
+  appInfo 01f24c09-089a-436e-b0f9-44b6cb56d982 PREPARE_FOR_SUBMISSION: declaration 01f24c09-089a-436e-b0f9-44b6cb56d982; socialMedia false; socialMediaAgeRestricted false
+== listing read-back before submitting
+READBACK 1.0.70 at 2026-11-10T19:31:22.933Z: record 21fd36c0-c21b-4988-8b1b-7c43ba55dbb7 PREPARE_FOR_SUBMISSION, releaseType AFTER_APPROVAL, earliestReleaseDate null
+  same copyright (16 / expected 16)
+  phased release: none
+  build: 7d4682f8-0c5d-47cf-8223-20b6178c834d 1.0.70.1 VALID expired=false usesNonExemptEncryption=false
+  localizations: en-US 625ea1fc-4103-4c00-b775-998a00494002
+  same description (3471 / expected 3471)
+  same keywords (97 / expected 97)
+  same promotionalText (137 / expected 137)
+  same marketingUrl (30 / expected 30)
+  same supportUrl (37 / expected 37)
+  same whatsNew (220 / expected 220)
+  whatsNew sha256 97e25fe1d8eab7ceb10168e5eecde6bdd06717915ade55052116aabad52ef6d4
+  same review notes (3898 / expected 3898)
+  review contact: contactFirstName present, contactLastName present, contactPhone present, contactEmail present; demoAccountRequired false; demo name none
+  appInfo 76d4c9e7-00f9-4346-bc4e-808004ade94d READY_FOR_DISTRIBUTION: primary REFERENCE secondary WEATHER
+  same   name (76d4c9e7) (9 / expected 9)
+  same   subtitle (76d4c9e7) (27 / expected 27)
+  same   privacyPolicyUrl (76d4c9e7) (43 / expected 43)
+    age rating: 30 fields {"false":11,"NONE":16,"null":3}; null: kidsAgeBand, gracRatingClassificationNumber, developerAgeRatingInfoUrl; true: none; socialMedia false; socialMediaAgeRestricted false
+  appInfo 01f24c09-089a-436e-b0f9-44b6cb56d982 PREPARE_FOR_SUBMISSION: primary REFERENCE secondary WEATHER
+  same   name (01f24c09) (9 / expected 9)
+  same   subtitle (01f24c09) (27 / expected 27)
+  same   privacyPolicyUrl (01f24c09) (43 / expected 43)
+    age rating: 30 fields {"false":11,"NONE":16,"null":3}; null: kidsAgeBand, gracRatingClassificationNumber, developerAgeRatingInfoUrl; true: none; socialMedia false; socialMediaAgeRestricted false
+READBACK 1.0.70: ALL SAME
+== submit (execute)
+  POST /v1/reviewSubmissions -> 201
+  SUBMISSION a3be255f-96f0-4ecb-be38-47b280079833
+  POST /v1/reviewSubmissionItems -> 201
+  PATCH /v1/reviewSubmissions/a3be255f-96f0-4ecb-be38-47b280079833 -> 200
+  submission a3be255f-96f0-4ecb-be38-47b280079833: WAITING_FOR_REVIEW submitted 2026-11-10T19:31:54.377Z
+  item YTNiZTI1NWYtOTZmMC00ZWNiLWJlMzgtNDdiMjgwMDc5ODMzfDZ8ODk0OTkzNTA2 READY_FOR_REVIEW
+  record 21fd36c0-c21b-4988-8b1b-7c43ba55dbb7 WAITING_FOR_REVIEW/WAITING_FOR_REVIEW AFTER_APPROVAL
+== listing read-back after submitting
+READBACK 1.0.70 at 2026-11-10T19:32:09.440Z: record 21fd36c0-c21b-4988-8b1b-7c43ba55dbb7 WAITING_FOR_REVIEW, releaseType AFTER_APPROVAL, earliestReleaseDate null
+  same copyright (16 / expected 16)
+  phased release: none
+  build: 7d4682f8-0c5d-47cf-8223-20b6178c834d 1.0.70.1 VALID expired=false usesNonExemptEncryption=false
+  localizations: en-US 625ea1fc-4103-4c00-b775-998a00494002
+  same description (3471 / expected 3471)
+  same keywords (97 / expected 97)
+  same promotionalText (137 / expected 137)
+  same marketingUrl (30 / expected 30)
+  same supportUrl (37 / expected 37)
+  same whatsNew (220 / expected 220)
+  whatsNew sha256 97e25fe1d8eab7ceb10168e5eecde6bdd06717915ade55052116aabad52ef6d4
+  same review notes (3898 / expected 3898)
+  review contact: contactFirstName present, contactLastName present, contactPhone present, contactEmail present; demoAccountRequired false; demo name none
+  appInfo 76d4c9e7-00f9-4346-bc4e-808004ade94d READY_FOR_DISTRIBUTION: primary REFERENCE secondary WEATHER
+  same   name (76d4c9e7) (9 / expected 9)
+  same   subtitle (76d4c9e7) (27 / expected 27)
+  same   privacyPolicyUrl (76d4c9e7) (43 / expected 43)
+    age rating: 30 fields {"false":11,"NONE":16,"null":3}; null: kidsAgeBand, gracRatingClassificationNumber, developerAgeRatingInfoUrl; true: none; socialMedia false; socialMediaAgeRestricted false
+  appInfo 01f24c09-089a-436e-b0f9-44b6cb56d982 WAITING_FOR_REVIEW: primary REFERENCE secondary WEATHER
+  same   name (01f24c09) (9 / expected 9)
+  same   subtitle (01f24c09) (27 / expected 27)
+  same   privacyPolicyUrl (01f24c09) (43 / expected 43)
+    age rating: 30 fields {"false":11,"NONE":16,"null":3}; null: kidsAgeBand, gracRatingClassificationNumber, developerAgeRatingInfoUrl; true: none; socialMedia false; socialMediaAgeRestricted false
+READBACK 1.0.70: ALL SAME

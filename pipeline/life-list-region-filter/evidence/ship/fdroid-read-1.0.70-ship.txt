@@ -1,0 +1,30 @@
+read at 2026-11-10T19:32:31Z (public reads, no token)
+== f-droid.org published
+{"packageName":"com.dtgibson.snowraven","suggestedVersionCode":10000614,"packages":[{"versionName":"1.0.61","versionCode":10000614},{"versionName":"1.0.61","versionCode":10000612},{"versionName":"1.0.61","versionCode":10000611},{"versionName":"1.0.60","versionCode":10000604},{"versionName":"1.0.60","versionCode":10000602},{"versionName":"1.0.60","versionCode":10000601},{"versionName":"1.0.59","versionCode":10000594},{"versionName":"1.0.59","versionCode":10000592},{"versionName":"1.0.59","versionCode":10000591}]}
+== fdroiddata master recipe (sha256 ca8d116d016ebd22...)
+  - versionName: 1.0.53
+  - versionName: 1.0.55
+  - versionName: 1.0.56
+  - versionName: 1.0.60
+  - versionName: 1.0.61
+  - versionName: 1.0.68
+  - versionName: 1.0.69
+CurrentVersion: 1.0.69
+CurrentVersionCode: 10000694
+    commit: bdfef6a424014dbfe34d55120f3880e7e5bf7d3e
+== recipe commits
+c0ad7c8f 2026-11-10T05:25:42.000+00:00 bot: Update SnowRaven to 10000694
+34866f26 2026-11-09T09:18:32.000+00:00 keep latest
+5c48e123 2026-11-09T08:20:44.000+00:00 bot: Update SnowRaven to 10000684
+8970b26d 2026-11-08T19:02:36.000+00:00 keep latest
+3302f014 2026-11-08T09:54:39.000+00:00 bot: Update SnowRaven to 10000654
+== build logs
+10000681 200 Successfully built com.dtgibson.snowraven:10000681 from 93c107334316ac04228e336cdf62cda51b95244f
+10000682 200 Successfully built com.dtgibson.snowraven:10000682 from 93c107334316ac04228e336cdf62cda51b95244f
+10000684 200 Successfully built com.dtgibson.snowraven:10000684 from 93c107334316ac04228e336cdf62cda51b95244f
+10000691 404 
+10000692 404 
+10000694 404 
+10000701 404 
+10000702 404 
+10000704 404 

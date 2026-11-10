@@ -1,0 +1,25 @@
+READBACK 1.0.70 at 2026-11-10T19:31:22.933Z: record 21fd36c0-c21b-4988-8b1b-7c43ba55dbb7 PREPARE_FOR_SUBMISSION, releaseType AFTER_APPROVAL, earliestReleaseDate null
+  same copyright (16 / expected 16)
+  phased release: none
+  build: 7d4682f8-0c5d-47cf-8223-20b6178c834d 1.0.70.1 VALID expired=false usesNonExemptEncryption=false
+  localizations: en-US 625ea1fc-4103-4c00-b775-998a00494002
+  same description (3471 / expected 3471)
+  same keywords (97 / expected 97)
+  same promotionalText (137 / expected 137)
+  same marketingUrl (30 / expected 30)
+  same supportUrl (37 / expected 37)
+  same whatsNew (220 / expected 220)
+  whatsNew sha256 97e25fe1d8eab7ceb10168e5eecde6bdd06717915ade55052116aabad52ef6d4
+  same review notes (3898 / expected 3898)
+  review contact: contactFirstName present, contactLastName present, contactPhone present, contactEmail present; demoAccountRequired false; demo name none
+  appInfo 76d4c9e7-00f9-4346-bc4e-808004ade94d READY_FOR_DISTRIBUTION: primary REFERENCE secondary WEATHER
+  same   name (76d4c9e7) (9 / expected 9)
+  same   subtitle (76d4c9e7) (27 / expected 27)
+  same   privacyPolicyUrl (76d4c9e7) (43 / expected 43)
+    age rating: 30 fields {"false":11,"NONE":16,"null":3}; null: kidsAgeBand, gracRatingClassificationNumber, developerAgeRatingInfoUrl; true: none; socialMedia false; socialMediaAgeRestricted false
+  appInfo 01f24c09-089a-436e-b0f9-44b6cb56d982 PREPARE_FOR_SUBMISSION: primary REFERENCE secondary WEATHER
+  same   name (01f24c09) (9 / expected 9)
+  same   subtitle (01f24c09) (27 / expected 27)
+  same   privacyPolicyUrl (01f24c09) (43 / expected 43)
+    age rating: 30 fields {"false":11,"NONE":16,"null":3}; null: kidsAgeBand, gracRatingClassificationNumber, developerAgeRatingInfoUrl; true: none; socialMedia false; socialMediaAgeRestricted false
+READBACK 1.0.70: ALL SAME
