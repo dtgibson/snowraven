@@ -1,0 +1,13 @@
+v1.0.70 release checks (2026-11-10, 18:42 to 18:46 UTC), The Deployer. Release 440762302, https://github.com/dtgibson/snowraven/releases/tag/v1.0.70, published 2026-11-10T18:41:56Z, Latest, not a draft or pre-release. Assets downloaded back from the release into a fresh scratch folder:
+  latest.json                                      1852  113eece80d44f7948718294cbb75b3b37f3a925201a4144bd3fcdb3ed0b9f086
+  SnowRaven-updater.app.tar.gz                 31292094  63387ed9912244a75523f8c2f579db373e23eee27b4b251b2e7fcea914005d55
+  SnowRaven-updater.app.tar.gz.sig                  408  8ebbb71edbcc0a27c15f4c9adcb4e7872b4e8cea959c854378a1c7dffec18271
+  SnowRaven_1.0.70_universal.dmg               31632425  ed75592df04ecd71b7b76adec67415675fa9c3778f3aa2511207fffa5c6df4e6
+  SnowRaven_1.0.70_x64-setup.exe               10233145  e82699d5a5fa46d0237983e8d2ae3c65f9b2809246fbc0eb1e9041ac92ffb762
+  SnowRaven_1.0.70_x64-setup.exe.sig                420  64fcf7ad8cfcb68c972af5a6d3bc8dcf767120f60cb201c95b132de2b7aa0470
+  SnowRaven_1.0.70_android_universal.apk     79292034  7f695587252035e4cb3619f7235bf55a38fdf1ee53ec79e6b2b5a1aaf31ffdb1 (asset 732546286; attached 18:45:42Z, downloaded back byte-identical by attach.sh and again from the public URL)
+
+DMG: codesign --verify --verbose=2 valid on disk, satisfies its Designated Requirement; xcrun stapler validate worked; spctl -a -t open --context context:primary-signature -vv accepted, source=Notarized Developer ID, origin Developer ID Application: DAVID THOMAS GIBSON (8QKC3L2FKP); hdiutil verify checksum VALID.
+latest.json: version 1.0.70, pub_date 2026-11-10T18:41:52Z; darwin-aarch64 and darwin-x86_64 identical (url and signature) on .../v1.0.70/SnowRaven-updater.app.tar.gz; windows-x86_64 on .../v1.0.70/SnowRaven_1.0.70_x64-setup.exe; each signature equals its .sig asset; both verify VALID (file and trusted comment) against plugins.updater.pubkey in src-tauri/tauri.conf.json, key id f80c63fb3b636306 (stored byte order), with a scratch Node verifier (BLAKE2b-512 prehash, Ed25519); the same verifier reads a one-byte-changed installer INVALID.
+Updater bundle: unpacks to SnowRaven.app, CFBundleShortVersionString 1.0.70, executable x86_64 arm64, codesign --verify --deep --strict OK.
+Windows installer: byte-identical (cmp) to Windows Build 42872834267's artifact (tag commit 849506a2).

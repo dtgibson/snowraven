@@ -1,0 +1,19 @@
+CI reads for the 1.0.70 ship (2026-11-10 UTC), judged under decisions.md D-12: the run of record is accepted when every failure is a lifeListsLinearity row under twice its limit, Backend is green and nothing else fails.
+
+Tag builds, pinned to the tag's commit 849506a285d6e389849b3edbb2a23156856bbf84:
+  Windows Build 42872834267  success  18:21:47Z
+  Android Build 42872834385  success  18:28:31Z
+Pages 42872886665 on db582d9d  success  18:13:16Z
+
+Pipeline 42872886461 on db582d9d (the tag, recipe and D-12 commits; finished 18:22:07Z, before the iOS stamp was pushed, so not cancelled). NOT the run of record (the skill: the run on the iOS stamp commit is the run of record for the shipped tree). Backend success; Frontend failure, 5 failed:
+  alphaCodes.test.ts  linearity of the join plus one ranking pass (NFR-05, QA-46) > published names, a code query: per-doubling quotients 3.92, 1.22, 2.25 (CPU ms 0.312, 1.224, 1.494, 3.356), 3.92 > 3.2   <- OUTSIDE D-12's acceptance; this release does not touch alphaCodes*; the same row read 3.70 > 3.2 on 42668105703 (204fd9da, after 1.0.69 shipped), and DECISIONS.md records it as an intermittent CPU-ratio trip on GitHub's shared runner
+  lifeListsLinearity.test.ts  pass 1 (first sightings), every row its own species: 21.67 / 20 (1.08x)
+  lifeListsLinearity.test.ts  pass 2R, every row its own species, every row its own (state, county): 32.36 / 20 (1.62x)
+  lifeListsLinearity.test.ts  pass 1R, 200 species repeated, every row its own (state, county): 28.95 / 25.55 (1.13x)
+  lifeListsLinearity.test.ts  pass 2R, 200 species repeated, every row its own (state, county): 22.34 / 20 (1.12x)
+
+RUN OF RECORD: Pipeline 42874813363 on ccc36a7e (the iOS stamp commit; the shipped tree), finished 18:35:29Z. Backend success. Frontend failure at the test step: 1 file failed, 496 passed, 5 skipped; 3 tests failed, 10,874 passed, 27 skipped. Build and the real-engine gate skipped after the red test step (both green locally on this tree: build clean, verify 8/8).
+  lifeListsLinearity.test.ts  pass 1 (first sightings), every row its own species: 23.94 / 20 (1.20x)
+  lifeListsLinearity.test.ts  pass 1R, 200 species repeated, every row its own (state, county): 28.82 / 25.55 (1.13x)
+  lifeListsLinearity.test.ts  pass 1R, every row its own species, every row its own (state, county): 31.73 / 25.55 (1.24x)
+Every failure a lifeListsLinearity row under twice its limit, Backend green, nothing else failed: ACCEPTED under D-12. alphaCodes passed in this run.
