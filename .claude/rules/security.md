@@ -39,6 +39,7 @@ paths:
   - "frontend/src/lib/exoticProvenance.ts"
   - "frontend/src/lib/exoticTaxonomyJoin*.ts"
   - "frontend/src/lib/lifeLists*.ts"
+  - "frontend/src/components/lifeLists/LifeListsRegionPicker*.tsx"
   - "frontend/src/lib/pageList.ts"
   - "frontend/src/lib/calendar.ts"
   - "frontend/src/lib/calendarOverlays*.ts"

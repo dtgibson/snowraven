@@ -1,0 +1,3 @@
+Life Lists now lists naturalized and provisional exotics by default, as eBird and the Statistics tab count them; turn off Include Exotics to leave them out. A saved Projects or Recent activity answer dated more than a day ahead of your device's clock is now asked for again, and a checklist answer from eBird that cannot be read now shows SnowRaven's own error message.
+
+Life Lists has a Region control: choose a country, state or province, or county from your eBird backup to see that region's life list, each species dated to your first sighting there, and SnowRaven remembers your choice.

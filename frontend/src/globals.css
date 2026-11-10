@@ -6214,15 +6214,83 @@ select:focus-visible {
 .sr-lfl-head-tile { width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0; background: var(--sr-accent-bg); color: var(--sr-accent); display: flex; align-items: center; justify-content: center; }
 .sr-lfl-head h2 { font-size: 1.125rem; font-weight: 700; margin: 0 0 2px; color: var(--sr-text); letter-spacing: -0.01em; }
 .sr-lfl-head p { font-size: 0.8125rem; color: var(--sr-text-muted); margin: 0; line-height: 1.5; }
-.sr-lfl-controls { display: flex; flex-direction: column; gap: 9px; padding: 12px 18px; border-bottom: 1px solid var(--sr-border-subtle); background: var(--sr-surface-faint); }
+.sr-lfl-controls { display: flex; flex-direction: column; gap: 9px; padding: 12px 18px; border-bottom: 1px solid var(--sr-border-subtle); background: var(--sr-surface-faint); border-radius: 11px 11px 0 0; }
 .sr-lfl-ctl-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; min-width: 0; }
 .sr-lfl-label { font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--sr-text-muted); margin-right: 2px; --sr-label-ratio: var(--sr-label-optical); }
 .sr-lfl-glyph { flex-shrink: 0; }
 .sr-lfl-media-group { display: contents; }
 .sr-lfl-ml-note { font-size: 0.75rem; line-height: 1.5; color: var(--sr-text-muted); margin: 0; max-width: 60ch; overflow-wrap: anywhere; }
+/* The Region control (life-list-region-filter, design-spec D-02). The card
+   around the tab releases its clip so this listbox can hang below the strip,
+   and the strip above takes the card's top radius less its 1px border (11px),
+   so its fill meets the border's inner curve; nothing below the strip carries
+   a fill. An `aria-activedescendant` combobox in the Targets county picker's
+   family at the strip's own 30px register: the label and the field sit in the
+   strip's wrapping row through a `display: contents` wrapper on desktop and
+   take the first line whole on a phone (the 640 tier). Every id it mints is
+   index-keyed. Glyphs are sized by their own classes (ui.md v1.0.42). */
+.sr-lfl-region-row { display: contents; }
+.sr-lfl-region { position: relative; flex: 0 1 16rem; min-width: 11rem; z-index: 20; }
+.sr-lfl-region-field {
+  display: flex; align-items: center; gap: 7px; min-height: 30px; padding: 0 2px 0 9px;
+  border: 1.5px solid var(--sr-border-input); border-radius: 6px;
+  background: var(--sr-surface); color: var(--sr-text);
+  transition: border-color 120ms ease-out, box-shadow 120ms ease-out;
+}
+/* The field draws the focus ring, the global input ring's colour and halo, and
+   the input inside it draws none (its own rule is below the global ring). */
+.sr-lfl-region-field:focus-within { border-color: var(--sr-accent); box-shadow: 0 0 0 4px rgba(45, 134, 83, 0.12); }
+.sr-lfl-region-glyph { flex-shrink: 0; color: var(--sr-text-muted); }
+.sr-lfl-region-input {
+  flex: 1 1 auto; min-width: 0; border: 0; outline: 0; background: transparent; color: inherit;
+  font-family: inherit; font-size: 0.75rem; --sr-ctl-rem: 0.75rem; font-weight: 600; padding: 4px 0;
+  text-overflow: ellipsis;
+}
+.sr-lfl-region-input:focus-visible { outline: none; box-shadow: none; }
+.sr-lfl-region-input::placeholder { color: var(--sr-text-muted); font-weight: 500; }
+.sr-lfl-region-chev {
+  flex-shrink: 0; width: 26px; height: 26px; display: inline-flex; align-items: center; justify-content: center;
+  border: 0; background: none; padding: 0; color: var(--sr-text-muted); border-radius: 4px; cursor: pointer;
+  transition: background-color 120ms ease-out, color 120ms ease-out;
+}
+.sr-lfl-region-chev-glyph { flex-shrink: 0; transition: transform 140ms ease-out; }
+.sr-lfl-region-chev[aria-expanded="true"] .sr-lfl-region-chev-glyph { transform: rotate(180deg); }
+.sr-lfl-region-field.is-disabled { background: var(--sr-surface-subtle); border-color: var(--sr-border); color: var(--sr-text-disabled); }
+.sr-lfl-region-field.is-disabled .sr-lfl-region-glyph, .sr-lfl-region-field.is-disabled .sr-lfl-region-chev { color: var(--sr-text-disabled); cursor: not-allowed; }
+.sr-lfl-region-input:disabled { color: var(--sr-text-disabled); -webkit-text-fill-color: var(--sr-text-disabled); opacity: 1; cursor: not-allowed; }
+/* The listbox scales in from the field's own top left corner, 140ms ease-out;
+   close is instant; the global reduced-motion block makes the open instant. */
+.sr-lfl-region-list {
+  position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 1200; margin: 0; padding: 4px;
+  max-height: 21rem; overflow: auto; overscroll-behavior: contain;
+  background: var(--sr-surface); border: 1px solid var(--sr-border); border-radius: 8px; box-shadow: var(--sr-card-shadow);
+  transform-origin: top left;
+  animation: sr-lfl-list-in 140ms cubic-bezier(0.2, 0, 0, 1) both;
+}
+@keyframes sr-lfl-list-in { from { opacity: 0; transform: scaleY(0.92); } to { opacity: 1; transform: none; } }
+.sr-lfl-region-grp { padding: 9px 9px 3px; font-size: 0.625rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--sr-text-muted); }
+.sr-lfl-region-group + .sr-lfl-region-group { margin-top: 3px; border-top: 1px solid var(--sr-border-subtle); }
+.sr-lfl-region-opt {
+  display: flex; align-items: center; gap: 8px; min-height: 32px; padding: 5px 9px; border-radius: 6px;
+  font-size: 0.8125rem; color: var(--sr-text); cursor: pointer;
+  transition: background-color 120ms ease-out;
+}
+.sr-lfl-region-opt-name { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+.sr-lfl-region-opt--all { font-style: italic; }
+.sr-lfl-region-opt-check { flex-shrink: 0; color: var(--sr-accent); }
+.sr-lfl-region-opt[aria-selected="true"] { font-weight: 600; color: var(--sr-accent); }
+.sr-lfl-region-opt.is-active { background: var(--sr-surface-subtle); outline: 2px solid var(--sr-accent); outline-offset: -2px; }
+.sr-lfl-region-empty { padding: 8px 9px 10px; font-size: 0.75rem; color: var(--sr-text-muted); }
+@media (hover: hover) {
+  .sr-lfl-region-chev:where(:not(:disabled)):hover { background: var(--sr-surface-subtle); color: var(--sr-text); }
+  .sr-lfl-region-opt:hover { background: var(--sr-surface-subtle); }
+}
 .sr-lfl-lead { padding: 13px 18px 11px; border-bottom: 1px solid var(--sr-border-subtle); display: flex; flex-direction: column; gap: 3px; }
 .sr-lfl-count { font-size: 0.8125rem; line-height: 1.5; color: var(--sr-text-muted); margin: 0; }
 .sr-lfl-count b { font-weight: 700; color: var(--sr-text); font-variant-numeric: tabular-nums; }
+/* Under a region the place is what changed, so its label takes the text ink
+   at 600, one step under N's 700 (design-spec D-02). */
+.sr-lfl-count-region { font-weight: 600; color: var(--sr-text); }
 .sr-lfl-status { font-size: 0.71875rem; line-height: 1.5; color: var(--sr-text-gray); margin: 0; }
 /* `container-type` is containment as well as a query anchor (ui.md v1.0.23):
    the list becomes the containing block for its absolutely positioned
@@ -7224,6 +7292,17 @@ select:focus-visible {
      floor; the stacked card restates the container-query block so the two
      routes agree. */
   .sr-lfl-controls { padding: 12px; }
+  /* The Region row: the label and the field take the first line whole; the
+     field's 12rem basis keeps it beside the label at 100% text and drops it to
+     its own line at 200%, where 12rem no longer fits beside the label in 272px
+     (measured in the mockup); the field reaches the touch floor and the
+     chevron a 44px box. */
+  .sr-lfl-region-row { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; flex: 1 1 100%; min-width: 0; }
+  .sr-lfl-region { flex: 1 1 12rem; max-width: none; min-width: 0; }
+  .sr-lfl-region-field { min-height: 2.75rem; padding-right: 0; }
+  .sr-lfl-region-chev { width: 2.75rem; height: 2.75rem; }
+  .sr-lfl-region-opt { min-height: 2.75rem; }
+  .sr-lfl-region-list { max-height: 18rem; }
   .sr-lfl-controls .sr-toggle { height: auto !important; min-height: 2.75rem; white-space: normal !important; }
   .sr-lfl-controls .sr-pill { white-space: normal; }
   .sr-lfl-lead { padding: 12px 12px 10px; }

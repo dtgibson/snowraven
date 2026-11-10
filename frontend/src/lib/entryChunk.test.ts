@@ -1024,9 +1024,13 @@ describe('entry-chunk exclusion (NFR-03 / QA-30)', () => {
     'components/lifeLists/LifeListsTab.tsx',
     'components/lifeLists/LifeListsControls.tsx',
     'components/lifeLists/LifeListsRows.tsx',
+    'components/lifeLists/LifeListsRegionPicker.tsx',
     'lib/lifeLists.ts',
     'lib/lifeListsCopy.ts',
     'lib/lifeListsProvenance.ts',
+    // life-list-region-filter: the region passes, their memoized country
+    // names and the picker ride the tab's chunk, never first paint.
+    'lib/lifeListsRegion.ts',
   ]
 
   it.each(LIFE_LISTS_OFF_ENTRY)('%s is off the App static closure (life-lists-tab)', file => {

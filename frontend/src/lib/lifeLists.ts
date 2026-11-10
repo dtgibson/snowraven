@@ -7,6 +7,9 @@
 //   pass 2  deriveFirstAssets(mlRows)             O(mlRows)      at most one record per species per format
 //   pass 3  selectRows(firsts, assets, ...)       O(S log S)     S = species, never rows
 //
+// The region passes and their materializers live in lifeListsRegion.ts and
+// build their records through the two constructors exported here.
+//
 // Every field read is an already-parsed field of `ObservationEntry` or
 // `MLExportRow`. The bounded reads over those fields (schema section 7, S1, S2,
 // S3, S5, S8) are hand loops with their own length gates, so this module holds
@@ -312,17 +315,27 @@ export function deriveFirstSightings(obs: readonly ObservationEntry[]): Map<stri
       const c = compareInstant(day, minute, cur.day, cur.minute)
       if (c > 0 || (c === 0 && compareId(sub, cur.submissionId) >= 0)) continue
     }
-    map.set(name, {
-      name,
-      day,
-      minute,
-      scientificName: binomialOf(o.scientificName),
-      submissionId: sub,
-      location: o.location,
-      place: placeOf(o.county, o.stateProvince),
-    })
+    map.set(name, firstSightingRecord(o, name, day, minute))
   }
   return map
+}
+
+/**
+ * The one first-sighting record constructor, shared by pass 1 and the region
+ * materializer (lifeListsRegion.ts), so a regional record is built from its
+ * dating observation exactly as the world record is (life-list-region-filter
+ * schema 2.5). `o.submissionId` is the caller's already-gated, non-empty id.
+ */
+export function firstSightingRecord(o: ObservationEntry, name: string, day: number, minute: number | null): FirstSighting {
+  return {
+    name,
+    day,
+    minute,
+    scientificName: binomialOf(o.scientificName),
+    submissionId: o.submissionId,
+    location: o.location,
+    place: placeOf(o.county, o.stateProvince),
+  }
 }
 
 // ── Pass 2: first assets per format (FR-22) ──────────────────────────────────
@@ -349,16 +362,22 @@ export function deriveFirstAssets(rows: readonly MLExportRow[]): Map<string, Fir
       const c = compareInstant(day, minute, cur.day, cur.minute)
       if (c > 0 || (c === 0 && compareId(row.catalogId, cur.catalogId) >= 0)) continue
     }
-    rec[fmt] = {
-      day,
-      minute,
-      catalogId: row.catalogId,
-      checklistId: row.checklistId,
-      location: row.location,
-      place: row.county ?? '',
-    }
+    rec[fmt] = firstAssetRecord(row, day, minute)
   }
   return map
+}
+
+/** The one first-asset record constructor, shared by pass 2 and the region
+ *  materializer (life-list-region-filter schema 2.5). */
+export function firstAssetRecord(row: MLExportRow, day: number, minute: number | null): FirstAsset {
+  return {
+    day,
+    minute,
+    catalogId: row.catalogId,
+    checklistId: row.checklistId,
+    location: row.location,
+    place: row.county ?? '',
+  }
 }
 
 // ── Pass 3: the shown list (FR-13, FR-18, FR-23 to FR-28, FR-42, FR-44) ──────
@@ -367,11 +386,20 @@ type MutableRow = { -readonly [K in keyof LifeListRow]: LifeListRow[K] }
 
 const NO_MEDIA: MediaPresence = { photo: false, audio: false, video: false }
 
+/**
+ * `presence` is where the media presence cell (FR-44) is read; `assets` is what
+ * the selection dates from. They are the same map unless a caller says
+ * otherwise, so every call that omits it is today's call byte for byte. Under a
+ * region (life-list-region-filter FR-12, schema 2.6) the tab passes the
+ * regional firsts and regional assets with the WORLD asset map as `presence`,
+ * so the cell stays what the species has anywhere.
+ */
 export function selectRows(
   firsts: ReadonlyMap<string, FirstSighting>,
   assets: ReadonlyMap<string, FirstAssets>,
   classification: LifeListClassification,
   controls: LifeListControls,
+  presence: ReadonlyMap<string, FirstAssets> = assets,
 ): LifeListRow[] {
   const out: MutableRow[] = []
   for (const first of firsts.values()) {
@@ -379,9 +407,10 @@ export function selectRows(
     if (!controls.includeEscapees && classification.escapees.has(name)) continue
     if (!controls.includeExotics && classification.exotics.has(name)) continue
     const a = assets.get(name)
-    const media: MediaPresence = a === undefined
+    const p = presence === assets ? a : presence.get(name)
+    const media: MediaPresence = p === undefined
       ? NO_MEDIA
-      : { photo: a.Photo !== undefined, audio: a.Audio !== undefined, video: a.Video !== undefined }
+      : { photo: p.Photo !== undefined, audio: p.Audio !== undefined, video: p.Video !== undefined }
 
     if (controls.formats.size === 0) {
       out.push({

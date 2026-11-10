@@ -7,6 +7,12 @@
 // (QA-40), the files epoch (QA-09) and the request count at the transport seam
 // (QA-41). jsdom has no layout, so nothing here claims a geometric fact; the
 // 320px / 200% claims belong to the live look in a real engine.
+//
+// The Region control (life-list-region-filter) has its rows at the end: the
+// Everywhere golden (QA-05), one region build per epoch (QA-06), the control's
+// semantics and ids (QA-07, QA-08), a region change as a control press (QA-09,
+// QA-21), the composition and order (QA-17, QA-18), the setting's write, read
+// and validation (QA-22 to QA-26) and the request count (QA-28).
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, cleanup, fireEvent, waitFor, act, within } from '@testing-library/react'
@@ -20,7 +26,9 @@ const H = vi.hoisted(() => ({
   mlRows: null as unknown[] | null,
   ebirdNull: false,
   post: vi.fn(),
-  setSetting: vi.fn(async () => {}),
+  setSetting: vi.fn<(key: string, value: unknown) => Promise<void>>(async () => {}),
+  deleteSetting: vi.fn<(key: string) => Promise<void>>(async () => {}),
+  getSetting: vi.fn<(key: string) => Promise<unknown>>(async () => null),
   snapshot: null as unknown,
   getFilesStatus: vi.fn(),
   listeners: new Set<() => void>(),
@@ -29,8 +37,9 @@ const H = vi.hoisted(() => ({
 vi.mock('../../lib/storage', () => ({
   storage: {
     getFilesStatus: H.getFilesStatus,
-    getSetting: vi.fn(async () => null),
+    getSetting: H.getSetting,
     setSetting: H.setSetting,
+    deleteSetting: H.deleteSetting,
   },
 }))
 vi.mock('../../lib/observationsCache', () => ({
@@ -50,6 +59,10 @@ vi.mock('../../lib/lifeLists', async importOriginal => {
   const m = await importOriginal<typeof import('../../lib/lifeLists')>()
   return { ...m, deriveFirstSightings: vi.fn(m.deriveFirstSightings), deriveFirstAssets: vi.fn(m.deriveFirstAssets) }
 })
+vi.mock('../../lib/lifeListsRegion', async importOriginal => {
+  const m = await importOriginal<typeof import('../../lib/lifeListsRegion')>()
+  return { ...m, deriveRegionIndex: vi.fn(m.deriveRegionIndex), deriveRegionAssets: vi.fn(m.deriveRegionAssets) }
+})
 vi.mock('../../lib/exoticProvenanceCache', () => ({
   getSnapshot: () => H.snapshot,
   subscribe: (l: () => void) => { H.listeners.add(l); return () => { H.listeners.delete(l) } },
@@ -57,13 +70,14 @@ vi.mock('../../lib/exoticProvenanceCache', () => ({
 }))
 
 import { LifeListsTab } from './LifeListsTab'
-import { deriveFirstAssets, deriveFirstSightings } from '../../lib/lifeLists'
+import { deriveFirstAssets, deriveFirstSightings, selectRows, type MediaFormat } from '../../lib/lifeLists'
+import { deriveRegionAssets, deriveRegionIndex } from '../../lib/lifeListsRegion'
 import { buildCoverIndex } from '../../lib/exoticProvenance'
 import { readFileSync } from 'node:fs'
 import { notifyFilesChanged } from '../../lib/filesChanged'
 import { formatDate } from '../../lib/formatDate'
 import { EBIRD_BACKUP_LOAD_ERROR } from '../setupCopy'
-import { ML_NONE_SENTENCE, ML_UNREADABLE_SENTENCE, STATUS_RESOLVED, STATUS_UNRESOLVED } from '../../lib/lifeListsCopy'
+import { ML_NONE_SENTENCE, ML_UNREADABLE_SENTENCE, STATUS_RESOLVED, STATUS_UNRESOLVED, countSentence } from '../../lib/lifeListsCopy'
 
 function obs(commonName: string, date: string, time: string | null, submissionId: string, extra: Partial<ObservationEntry> = {}): ObservationEntry {
   return {
@@ -97,6 +111,9 @@ beforeEach(() => {
   H.snapshot = snapshot()
   H.listeners.clear()
   H.getFilesStatus.mockImplementation(async () => H.files)
+  H.getSetting.mockImplementation(async () => null)
+  H.setSetting.mockImplementation(async () => {})
+  H.deleteSetting.mockImplementation(async () => {})
   H.post.mockImplementation(async () => ({ codes: { 'American Robin': 'amerob', 'Mandarin Duck': 'mandar', 'Rock Pigeon': 'rocpig' } }))
 })
 afterEach(() => {
@@ -333,7 +350,7 @@ describe('the media buttons (FR-21 to FR-27, FR-44)', () => {
     fireEvent.click(screen.getByRole('button', { name: /Video/ }))
     expect(screen.getByText('No species matches this selection yet.')).toBeTruthy()
     expect(screen.queryByRole('listitem')).toBeNull()
-    expect(screen.queryByRole('button', { name: /Show/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: /^Show (next|all)/ })).toBeNull()
   })
 })
 
@@ -353,7 +370,7 @@ describe('paging, focus and the live region (FR-37, NFR-04; QA-39, QA-48)', () =
     expect(screen.getAllByRole('listitem')[100].querySelector('.sr-lfl-num')!.textContent).toBe('150')
     fireEvent.click(screen.getByRole('button', { name: 'Show all (250)' }))
     expect(screen.getAllByRole('listitem')).toHaveLength(250)
-    expect(screen.queryByRole('button', { name: /Show/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: /^Show (next|all)/ })).toBeNull()
     await waitFor(() => expect(document.activeElement).toBe(document.querySelector('.sr-lfl-count')))
     expect(document.querySelector('.sr-lfl-count')!.textContent).toBe('250 species, newest first by the date of your first sighting.')
   })
@@ -465,5 +482,369 @@ describe('ids and the files epoch (FR-09, FR-38; QA-09, QA-40)', () => {
     await act(async () => { notifyFilesChanged() })
     expect(await screen.findByText('eBird Backup Required')).toBeTruthy()
     expect(screen.queryByRole('listitem')).toBeNull()
+  })
+})
+
+// ── The Region control (life-list-region-filter) ─────────────────────────────
+
+const REGIONS = [
+  obs('American Robin', '2019-05-02', '6:30 AM', 'S1', { scientificName: 'Turdus migratorius' }),
+  obs('American Robin', '2022-06-01', '8:15 AM', 'S5', { scientificName: 'Turdus migratorius', county: 'Marin', stateProvince: 'US-CA', location: 'Point Reyes' }),
+  obs('Mandarin Duck', '2021-03-09', null, 'S2', { scientificName: 'Aix galericulata', county: 'Marin', stateProvince: 'US-CA' }),
+  obs('Rock Pigeon', '2020-01-01', '9:00 AM', 'junk', { scientificName: 'Columba livia', county: null, stateProvince: null }),
+  obs('Wrentit', '2023-04-04', '7:00 AM', 'S6', { scientificName: 'Chamaea fasciata', county: 'Marin', stateProvince: 'US-CA' }),
+]
+const MARIN = { level: 'county', code: 'US-CA', county: 'Marin' }
+
+const combo = () => screen.getByRole('combobox', { name: 'Region' }) as HTMLInputElement
+/** Open the list by focus, as a user does, and press an option by its name. */
+function chooseRegion(label: string) {
+  const input = combo()
+  if (input.getAttribute('aria-expanded') !== 'true') {
+    act(() => { input.blur() })
+    act(() => { input.focus() })
+  }
+  fireEvent.mouseDown(screen.getByRole('option', { name: label }))
+}
+const isoOf = (day: number) => `${String(day).slice(0, 4)}-${String(day).slice(4, 6)}-${String(day).slice(6)}`
+/** The rendered rows as the user reads them: name, position, date. */
+const rendered = () => screen.getAllByRole('listitem').map(li => [
+  within(li).getAllByRole('button')[0].textContent, li.querySelector('.sr-lfl-num')!.textContent, li.querySelector('.sr-lfl-date')!.textContent,
+])
+
+describe('the Region control (life-list-region-filter FR-07, FR-08; QA-07, QA-08)', () => {
+  it('offers Everywhere and the three groups from the backup, keyboard operable, with index-keyed ids', async () => {
+    H.observations = [...REGIONS, obs('Bushtit', '2020-02-02', null, 'S7', { county: 'Prince George\'s "x" <b>', stateProvince: 'US-MD' })]
+    await ready()
+    const input = combo()
+    expect(input.value).toBe('Everywhere')
+    expect(input.getAttribute('aria-expanded')).toBe('false')
+    expect(input.hasAttribute('aria-controls')).toBe(false)
+    act(() => { input.focus() })
+    expect(input.getAttribute('aria-expanded')).toBe('true')
+    const list = screen.getByRole('listbox', { name: 'Regions in your backup' })
+    expect(input.getAttribute('aria-controls')).toBe(list.id)
+    expect(within(list).getAllByRole('group').map(g => g.querySelector('.sr-lfl-region-grp')!.textContent)).toEqual(['Countries', 'States and provinces', 'Counties'])
+    expect(within(list).getAllByRole('option').map(o => o.textContent)).toEqual([
+      'Everywhere', 'United States', 'California', 'Maryland', 'Minnesota', 'Hennepin, MN', 'Marin, CA', 'Prince George\'s "x" <b>, MD',
+    ])
+    // Exactly one selected value is exposed, and the active option is the selection.
+    expect(within(list).getAllByRole('option').filter(o => o.getAttribute('aria-selected') === 'true').map(o => o.textContent)).toEqual(['Everywhere'])
+    expect(document.getElementById(input.getAttribute('aria-activedescendant')!)!.textContent).toBe('Everywhere')
+    // QA-07: every id and IDREF resolves and none carries a place name.
+    const refs: string[] = []
+    for (const el of Array.from(document.querySelectorAll('*'))) {
+      for (const attr of ['id', 'aria-labelledby', 'aria-controls', 'aria-activedescendant', 'aria-describedby']) {
+        const v = el.getAttribute(attr)
+        if (v) refs.push(v)
+      }
+    }
+    expect(refs.length).toBeGreaterThan(10)
+    for (const v of refs) {
+      expect(v).not.toMatch(/Marin|Hennepin|Prince|George|CA|MN|MD|United|<|"/)
+      for (const id of v.split(' ')) expect(document.getElementById(id), id).not.toBeNull()
+    }
+    // Keyboard alone: type to filter by label, move, commit, then close and reopen.
+    fireEvent.change(input, { target: { value: 'mar' } })
+    expect(within(screen.getByRole('listbox')).getAllByRole('option').map(o => o.textContent)).toEqual(['Everywhere', 'Maryland', 'Marin, CA'])
+    expect(document.getElementById(input.getAttribute('aria-activedescendant')!)!.textContent).toBe('Maryland')
+    fireEvent.keyDown(input, { key: 'ArrowDown' })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(input.getAttribute('aria-expanded')).toBe('false')
+    expect(input.value).toBe('Marin, CA')
+    expect(document.activeElement).toBe(input)
+    fireEvent.keyDown(input, { key: 'ArrowDown' })
+    expect(input.getAttribute('aria-expanded')).toBe('true')
+    fireEvent.change(input, { target: { value: 'zz' } })
+    expect(screen.getByText('No region matches this search.')).toBeTruthy()
+    fireEvent.keyDown(input, { key: 'Escape' })
+    expect(input.getAttribute('aria-expanded')).toBe('false')
+    expect(input.value).toBe('Marin, CA')
+  })
+
+  it('a hostile county, once chosen, is the input value and no attribute of the control carries it (security I3, v1.0.34)', async () => {
+    const hostile = 'Prince George\'s "x" <b>'
+    const label = `${hostile}, MD`
+    H.observations = [...REGIONS, obs('Bushtit', '2020-02-02', null, 'S7', { county: hostile, stateProvince: 'US-MD' })]
+    await ready()
+    chooseRegion(label)
+    const input = combo()
+    expect(input.value).toBe(label)
+    expect(countText()).toBe(`1 species in ${label}, newest first by the date of your first sighting there.`)
+    // Closed, then open again (options, the active descendant and the group
+    // ids minted): only the input's own value may hold the text.
+    const scan = (when: string) => {
+      const control = input.closest('.sr-lfl-region-row')!
+      const els = [control, ...Array.from(control.querySelectorAll('*'))]
+      let attrs = 0
+      for (const el of els) {
+        for (const a of Array.from(el.attributes)) {
+          if (el === input && a.name === 'value') { expect(a.value, when).toBe(input.value); continue }
+          attrs += 1
+          for (const needle of [label, hostile, 'Prince', 'George']) expect(a.value, `${when}: ${a.name}`).not.toContain(needle)
+        }
+      }
+      expect(attrs, when).toBeGreaterThan(15)
+    }
+    scan('closed')
+    fireEvent.keyDown(input, { key: 'ArrowDown' })
+    expect(input.getAttribute('aria-expanded')).toBe('true')
+    expect(document.getElementById(input.getAttribute('aria-activedescendant')!)!.textContent).toBe(label)
+    scan('open')
+  })
+
+  it('a backup with no State/Province anywhere offers only Everywhere, disabled (QA-08)', async () => {
+    H.observations = BASE.map(o => ({ ...o, stateProvince: '' }))
+    await ready()
+    const input = combo()
+    expect(input.disabled).toBe(true)
+    expect(input.value).toBe('Everywhere')
+    expect((screen.getByRole('button', { name: 'Show regions' }) as HTMLButtonElement).disabled).toBe(true)
+    expect(countText()).toBe('3 species, newest first by the date of your first sighting.')
+  })
+})
+
+describe('the Everywhere golden (FR-05, QA-05)', () => {
+  it('equals selectRows as shipped under all eight media states and all four switch states, before and after a region round trip', async () => {
+    H.files = { ebird: { filename: 'x.csv' }, ml: { filename: 'ml.csv' } }
+    H.observations = REGIONS
+    H.mlRows = [ml('American Robin', 'Photo', '2022-04-01', '0905'), ml('American Robin', 'Audio', '2023-01-01', '0650'), ml('Mandarin Duck', 'Photo', '2021-04-01', '1000'), ml('Wrentit', 'Video', '2023-05-01', '0700')]
+    H.snapshot = snapshot({
+      checklists: new Set(['S2', 'junk']), excludedNames: ['Mandarin Duck'], exoticNames: ['Rock Pigeon'],
+      species: new Map([['amerob', rec(['|'])], ['mandar', rec(['X|'])], ['rocpig', rec(['N|'])]]),
+    })
+    await ready()
+    const cls = { escapees: new Set(['Mandarin Duck']), exotics: new Set(['Rock Pigeon']) }
+    const firsts = deriveFirstSightings(REGIONS), assets = deriveFirstAssets(H.mlRows as MLExportRow[])
+    const SEL: MediaFormat[][] = [[], ['Photo'], ['Audio'], ['Video'], ['Photo', 'Audio'], ['Photo', 'Video'], ['Audio', 'Video'], ['Photo', 'Audio', 'Video']]
+    const state = { esc: false, exo: true, sel: new Set<MediaFormat>() }
+    const setTo = (esc: boolean, exo: boolean, sel: MediaFormat[]) => {
+      if (state.esc !== esc) { fireEvent.click(screen.getByRole('switch', { name: 'Include Escapees' })); state.esc = esc }
+      if (state.exo !== exo) { fireEvent.click(screen.getByRole('switch', { name: 'Include Exotics' })); state.exo = exo }
+      for (const f of ['Photo', 'Audio', 'Video'] as MediaFormat[]) {
+        if (state.sel.has(f) !== sel.includes(f)) {
+          fireEvent.click(screen.getByRole('button', { name: new RegExp(`^${f}$`) }))
+          if (sel.includes(f)) state.sel.add(f); else state.sel.delete(f)
+        }
+      }
+    }
+    const sweep = () => {
+      let seen = 0
+      for (const [esc, exo] of [[false, false], [false, true], [true, false], [true, true]] as const) for (const sel of SEL) {
+        setTo(esc, exo, sel)
+        const want = selectRows(firsts, assets, cls, { includeEscapees: esc, includeExotics: exo, formats: new Set(sel) })
+        const got = want.length === 0 ? [] : rendered()
+        expect(got, `${esc} ${exo} ${sel}`).toEqual(want.map(r => [r.name, String(r.position), formatDate(isoOf(r.day))]))
+        expect(countText()).toBe(countSentence(want.length, new Set(sel)))
+        seen += 1
+      }
+      expect(seen).toBe(32)
+    }
+    sweep()
+    chooseRegion('Marin, CA')
+    expect(countText()).toMatch(/ in Marin, CA, /)
+    chooseRegion('Everywhere')
+    sweep()
+  })
+})
+
+describe('a region change (FR-09 to FR-12, FR-17 to FR-21; QA-09, QA-10, QA-17 to QA-21)', () => {
+  it('lists the regional first sightings, renumbered, named in the sentence, with focus kept on the control', async () => {
+    H.observations = REGIONS
+    await ready()
+    const everywhere = rendered()
+    chooseRegion('Marin, CA')
+    expect(document.activeElement).toBe(combo())
+    expect(combo().getAttribute('aria-expanded')).toBe('false')
+    expect(rendered()).toEqual([
+      ['Wrentit', '3', formatDate('2023-04-04')], ['American Robin', '2', formatDate('2022-06-01')], ['Mandarin Duck', '1', formatDate('2021-03-09')],
+    ])
+    expect(everywhere.find(r => r[0] === 'American Robin')![1]).not.toBe('2')
+    const robin = screen.getAllByRole('listitem')[1]
+    expect(within(robin).getByText('8:15 AM')).toBeTruthy()
+    expect(within(robin).getByText('Point Reyes')).toBeTruthy()
+    expect(within(robin).getByRole('link', { name: /S5.*eBird/ })).toBeTruthy()
+    expect(robin.querySelector('.sr-lfl-name .sr-only')!.textContent).toBe('2 of 3. ')
+    expect(countText()).toBe('3 species in Marin, CA, newest first by the date of your first sighting there.')
+    expect(document.querySelector('.sr-lfl-count-region')!.textContent).toBe('Marin, CA')
+    // Rock Pigeon's row has no State/Province, so it is in no region (FR-03);
+    // Robin's US first is its world first, in Minnesota.
+    chooseRegion('United States')
+    expect(countText()).toBe('3 species in United States, newest first by the date of your first sighting there.')
+    expect(rowNames()).not.toContain('Rock Pigeon')
+    expect(rendered().find(r => r[0] === 'American Robin')![2]).toBe(formatDate('2019-05-02'))
+    chooseRegion('Everywhere')
+    expect(rendered()).toEqual(everywhere)
+    expect(document.querySelector('.sr-lfl-count-region')).toBeNull()
+  })
+
+  it('resets paging, re-keys the live region once, and animates only the rows it adds (QA-09, QA-21)', async () => {
+    const many = Array.from({ length: 250 }, (_, i) => obs(`Bird ${String(i).padStart(3, '0')}`, '2020-01-01', null, `S${i}`, i % 2 ? {} : { county: 'Marin', stateProvince: 'US-CA' }))
+    H.observations = [...many, obs('Wrentit', '2024-01-01', null, 'S900', { county: 'Marin', stateProvince: 'US-CA' })]
+    await ready()
+    fireEvent.click(screen.getByRole('button', { name: 'Show next 100' }))
+    expect(screen.getAllByRole('listitem')).toHaveLength(200)
+    chooseRegion('Minnesota')
+    expect(screen.getAllByRole('listitem')).toHaveLength(100)
+    const region = screen.getByRole('status')
+    const before = region.firstChild
+    chooseRegion('California')
+    expect(region.firstChild).not.toBe(before)
+    expect(region.childNodes).toHaveLength(1)
+    expect(region.textContent).toBe('126 species in California, newest first by the date of your first sighting there.')
+    // Nothing under Minnesota is under California, so every row shown enters.
+    const items = screen.getAllByRole('listitem')
+    expect(items.every(li => li.className === 'sr-lfl-row is-new')).toBe(true)
+    expect(document.activeElement).toBe(combo())
+    // A region sharing rows with the last one animates only the rows it adds.
+    chooseRegion('Marin, CA')
+    expect(screen.getAllByRole('listitem').filter(li => li.className.includes('is-new'))).toHaveLength(0)
+  })
+
+  it('the switches keep their meaning under a region, and the status line is unchanged (QA-17)', async () => {
+    H.observations = [...REGIONS, obs('Rock Pigeon', '2023-01-01', null, 'S8', { scientificName: 'Columba livia', county: 'Marin', stateProvince: 'US-CA' })]
+    H.snapshot = snapshot({
+      checklists: new Set(['S2', 'junk', 'S8']), excludedNames: ['Mandarin Duck'], exoticNames: ['Rock Pigeon'],
+      species: new Map([['amerob', rec(['|'])], ['mandar', rec(['X|'])], ['rocpig', rec(['N|'])]]),
+    })
+    await ready()
+    // The status line settles once this roster's codes resolve; read it then.
+    await waitFor(() => expect(screen.getAllByRole('link', { name: /^View .+ on eBird \(opens/ }).length).toBeGreaterThan(0))
+    const status = document.querySelector('.sr-lfl-status')!.textContent
+    chooseRegion('Marin, CA')
+    expect(document.querySelector('.sr-lfl-status')!.textContent).toBe(status)
+    expect(rowNames()).toEqual(['Wrentit', 'Rock Pigeon', 'American Robin'])
+    fireEvent.click(screen.getByRole('switch', { name: 'Include Exotics' }))
+    expect(rowNames()).toEqual(['Wrentit', 'American Robin'])
+    fireEvent.click(screen.getByRole('switch', { name: 'Include Escapees' }))
+    expect(rowNames()).toEqual(['Wrentit', 'American Robin', 'Mandarin Duck'])
+    expect(document.querySelector('.sr-lfl-status')!.textContent).toBe(status)
+  })
+
+  it('the empty state names the region, and the media cell stays global (QA-12, QA-14, QA-20)', async () => {
+    H.observations = REGIONS
+    H.files = { ebird: { filename: 'x.csv' }, ml: { filename: 'ml.csv' } }
+    H.mlRows = [ml('American Robin', 'Photo', '2022-04-01', '0905')]
+    await ready()
+    chooseRegion('Marin, CA')
+    // FR-12, at the tab's own composition: the photo's checklist is not in the
+    // backup, so it dates nothing here, yet the cell reports what Robin has.
+    const robin = screen.getAllByRole('listitem').find(li => within(li).getAllByRole('button')[0].textContent === 'American Robin')!
+    expect(within(robin).getByRole('img').getAttribute('aria-label')).toBe('Media: photo')
+    fireEvent.click(screen.getByRole('button', { name: /^Photo$/ }))
+    expect(screen.getByText('No species matches this selection in Marin, CA yet.')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: /^Photo$/ }))
+    fireEvent.click(screen.getByRole('button', { name: /^Video$/ }))
+    expect(screen.getByText('No species matches this selection in Marin, CA yet.')).toBeTruthy()
+  })
+})
+
+describe('the region passes run once per files epoch (FR-06, FR-28; QA-06)', () => {
+  it('a region, switch or media press re-runs no region pass; an epoch re-derives the choices', async () => {
+    H.files = { ebird: { filename: 'x.csv' }, ml: { filename: 'ml.csv' } }
+    H.observations = REGIONS
+    H.mlRows = [ml('American Robin', 'Photo', '2022-04-01', '0905')]
+    await ready()
+    expect(vi.mocked(deriveRegionIndex)).toHaveBeenCalledTimes(1)
+    expect(vi.mocked(deriveRegionAssets)).toHaveBeenCalledTimes(1)
+    chooseRegion('Marin, CA')
+    fireEvent.click(screen.getByRole('switch', { name: 'Include Escapees' }))
+    fireEvent.click(screen.getByRole('button', { name: /^Photo$/ }))
+    chooseRegion('Everywhere')
+    expect(vi.mocked(deriveRegionIndex)).toHaveBeenCalledTimes(1)
+    expect(vi.mocked(deriveRegionAssets)).toHaveBeenCalledTimes(1)
+    H.observations = [...REGIONS, obs('Wrentit', '2024-01-01', null, 'S9', { county: 'Sonoma', stateProvince: 'US-CA' })]
+    await act(async () => { notifyFilesChanged() })
+    await waitFor(() => expect(vi.mocked(deriveRegionIndex)).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(document.querySelector('.sr-lfl-count')).not.toBeNull())
+    act(() => { combo().focus() })
+    expect(screen.getByRole('option', { name: 'Sonoma, CA' })).toBeTruthy()
+  })
+})
+
+describe('the saved region (FR-22 to FR-27; QA-22 to QA-26, QA-28)', () => {
+  it('a region choice writes the one key once; Everywhere deletes it; switches and media write nothing; no request (QA-22, QA-26, QA-28)', async () => {
+    H.files = { ebird: { filename: 'x.csv' }, ml: { filename: 'ml.csv' } }
+    H.observations = REGIONS
+    H.mlRows = [ml('American Robin', 'Photo', '2022-04-01', '0905')]
+    await ready()
+    await waitFor(() => expect(H.post).toHaveBeenCalledTimes(1))
+    fireEvent.click(screen.getByRole('switch', { name: 'Include Escapees' }))
+    fireEvent.click(screen.getByRole('button', { name: /^Photo$/ }))
+    fireEvent.click(screen.getByRole('button', { name: /^Photo$/ }))
+    chooseRegion('Marin, CA')
+    await waitFor(() => expect(H.setSetting).toHaveBeenCalledTimes(1))
+    expect(H.setSetting).toHaveBeenCalledWith('lifeListsRegion', MARIN)
+    chooseRegion('Marin, CA')                        // the region already shown: a no-op
+    chooseRegion('Everywhere')
+    await waitFor(() => expect(H.deleteSetting).toHaveBeenCalledTimes(1))
+    expect(H.deleteSetting).toHaveBeenCalledWith('lifeListsRegion')
+    expect(H.setSetting).toHaveBeenCalledTimes(1)
+    expect(H.post).toHaveBeenCalledTimes(1)
+    expect(H.getSetting.mock.calls.map(c => c[0])).toEqual(['lifeListsRegion'])
+  })
+
+  it('a rejected write leaves the selection applied and shows nothing (FR-22)', async () => {
+    H.observations = REGIONS
+    H.setSetting.mockImplementation(async () => { throw new Error('disk full') })
+    await ready()
+    chooseRegion('Marin, CA')
+    await waitFor(() => expect(H.setSetting).toHaveBeenCalledTimes(1))
+    expect(countText()).toMatch(/^3 species in Marin, CA/)
+    expect(document.querySelector('[role="alert"]')?.textContent ?? '').toBe('')
+  })
+
+  it('a saved region present in the backup is the first list rendered, with no unfiltered render before it (QA-23)', async () => {
+    H.observations = REGIONS
+    H.getSetting.mockImplementation(async () => MARIN)
+    const seen: string[] = []
+    const mo = new MutationObserver(() => { const t = document.querySelector('.sr-lfl-count')?.textContent; if (t && seen[seen.length - 1] !== t) seen.push(t) })
+    mo.observe(document.body, { subtree: true, childList: true, characterData: true })
+    await ready()
+    mo.disconnect()
+    expect(seen).toEqual(['3 species in Marin, CA, newest first by the date of your first sighting there.'])
+    expect(combo().value).toBe('Marin, CA')
+    expect(H.setSetting).not.toHaveBeenCalled()
+  })
+
+  it('a saved region absent from the backup reads Everywhere silently, applies again when it returns, and yields to a session choice (QA-24)', async () => {
+    H.observations = BASE
+    H.getSetting.mockImplementation(async () => MARIN)
+    await ready()
+    expect(combo().value).toBe('Everywhere')
+    expect(countText()).toBe('3 species, newest first by the date of your first sighting.')
+    expect(document.querySelector('[role="alert"]')?.textContent ?? '').toBe('')
+    H.observations = REGIONS
+    await act(async () => { notifyFilesChanged() })
+    await waitFor(() => expect(countText()).toMatch(/^3 species in Marin, CA/))
+    chooseRegion('Minnesota')
+    await waitFor(() => expect(H.setSetting).toHaveBeenCalledTimes(1))
+    H.observations = [...REGIONS]
+    await act(async () => { notifyFilesChanged() })
+    await waitFor(() => expect(vi.mocked(deriveRegionIndex)).toHaveBeenCalledTimes(3))
+    await waitFor(() => expect(countText()).toMatch(/ in Minnesota, /))
+    expect(H.setSetting).toHaveBeenCalledTimes(1)
+    expect(H.deleteSetting).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['a string', 'US-CA'], ['an unknown level', { level: 'city', code: 'US' }], ['a long county', { ...MARIN, county: 'M'.repeat(97) }],
+    ['a long state', { level: 'state', code: 'US-' + 'C'.repeat(14) }], ['a prototype key', JSON.parse('{"__proto__": {"level": "country", "code": "US"}}')],
+    ['a rejected read', 'REJECT'],
+  ])('a stored value that is %s reads as Everywhere with no throw (QA-25)', async (_label, value) => {
+    H.observations = REGIONS
+    H.getSetting.mockImplementation(async () => { if (value === 'REJECT') throw new Error('seam down'); return value })
+    await ready()
+    expect(combo().value).toBe('Everywhere')
+    expect(countText()).toMatch(/^4 species, newest first/)
+  })
+
+  it('a valid stored region matching no choice never reaches the DOM (QA-25)', async () => {
+    H.observations = REGIONS
+    H.getSetting.mockImplementation(async () => ({ level: 'county', code: 'US-CA', county: 'Zzyzx Flats' }))
+    await ready()
+    act(() => { combo().focus() })
+    expect(document.body.innerHTML).not.toContain('Zzyzx')
+    expect(combo().value).toBe('')
   })
 })

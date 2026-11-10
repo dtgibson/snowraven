@@ -48,7 +48,7 @@ Your checklists as whole outings: search every comment you have written, and fil
 
 ### Life Lists
 
-Lists every species you have recorded along with its first checklist and place, and turns into a photo, audio, or video life list, or any combination of them.
+Lists every species you have recorded along with its first checklist and place, everywhere or in one country, state, or county you have birded, and turns into a photo, audio, or video life list, or any combination of them.
 
 ### List Comparer
 

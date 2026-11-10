@@ -28,7 +28,7 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { DEFAULT_TAB_ORDER, TAB_LABELS } from './tabLayout'
 import { MEDIA_FORMATS } from './lifeLists'
-import { FORMAT_COPY, SWITCH_LABELS } from './lifeListsCopy'
+import { EVERYWHERE_LABEL, FORMAT_COPY, REGION_CONTROL_LABEL, SWITCH_LABELS } from './lifeListsCopy'
 
 const read = (p: string) => readFileSync(new URL(`../../../${p}`, import.meta.url), 'utf8')
 
@@ -104,6 +104,19 @@ describe("Help's Life Lists section", () => {
     expect(passage()).toContain(`**${SWITCH_LABELS.escapees}**, off by default, and **${SWITCH_LABELS.exotics}**, on by default,`)
     expect(passage()).toContain(`With ${SWITCH_LABELS.exotics} off, the list can be shorter than that figure.`)
     expect(passage()).not.toContain('both off by default')
+  })
+
+  it('names the Region control and Everywhere as the tab renders them, with the in-region dating, the checklist rule and the remembered region (life-list-region-filter FR-30, QA-29)', () => {
+    const text = passage()
+    expect(text).toContain(`**${REGION_CONTROL_LABEL}** narrows the list to one country, state or province, or county, chosen from the places in your eBird backup and grouped in that order; **${EVERYWHERE_LABEL}** shows the whole list.`)
+    expect(text).toContain('dated to your first sighting inside the region, with that sighting\'s time, checklist, and place')
+    expect(text).toContain('counts toward a region only when its checklist is in your eBird backup and lies inside that region')
+    expect(text).toContain(`an item with no checklist, or with a checklist your backup does not hold, counts only under ${EVERYWHERE_LABEL}.`)
+    // security L2: on web/Pi the settings document is the server's, so the
+    // sentence says the choice is remembered, never that it is per device.
+    expect(text).toContain('SnowRaven remembers the region you choose; the switches and the media buttons are per-session, resetting on relaunch.')
+    expect(text).not.toContain('remembered on this device')
+    expect(text).not.toContain('The switches and the media buttons are per-session')
   })
 
   it('carries no em dash', () => {

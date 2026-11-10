@@ -15,7 +15,7 @@ import regionCodes from './regionCode.fixture.json'
 import {
   BINOMIAL_SCAN_CHARS, MEDIA_FORMATS, STATE_CODE_SCAN_CHARS,
   binomialOf, compareDisplay, compareInstant, dayKey, dayToIso, deriveFirstAssets, deriveFirstSightings,
-  formatClock12h, minuteOf12h, minuteOfMlClock, placeOf, selectRows,
+  firstAssetRecord, firstSightingRecord, formatClock12h, minuteOf12h, minuteOfMlClock, placeOf, selectRows,
   type LifeListClassification, type LifeListControls, type LifeListRow, type MediaFormat,
 } from './lifeLists'
 
@@ -368,6 +368,43 @@ describe('positions, counts and media presence (FR-13, FR-42, FR-44; QA-14, QA-5
     const a = deriveFirstAssets(many)
     expect(a.size).toBe(1)
     expect(Object.keys(a.get('American Robin')!).sort()).toEqual(['Audio', 'Photo', 'Video'])
+  })
+})
+
+// ── The region filter's two seams in this module (life-list-region-filter schema 2.5, 2.6) ──
+
+describe('the shared record constructors and the presence parameter (life-list-region-filter)', () => {
+  const o = [
+    obs('American Robin', '2019-05-02', '6:30 AM', 'S1', { scientificName: 'Turdus migratorius propinquus', county: 'Marin', stateProvince: 'US-CA' }),
+    obs('Wood Duck', '2020-01-01', null, 'S2', { county: null, stateProvince: 'GI' }),
+  ]
+  const m = [ml('American Robin', 'Photo', '2022-04-01', '0905', '7', { county: null }), ml('Wood Duck', 'Video', '2021-01-01', '1200', '8')]
+
+  it('pass 1 and pass 2 store exactly what the exported constructors build, field for field', () => {
+    const f = deriveFirstSightings(o)
+    expect(f.get('American Robin')).toEqual({
+      name: 'American Robin', day: 20190502, minute: 390, scientificName: 'Turdus migratorius',
+      submissionId: 'S1', location: 'Lake Park', place: 'Marin, CA',
+    })
+    expect(f.get('American Robin')).toEqual(firstSightingRecord(o[0], 'American Robin', 20190502, 390))
+    expect(Object.keys(f.get('Wood Duck')!)).toEqual(['name', 'day', 'minute', 'scientificName', 'submissionId', 'location', 'place'])
+    const a = deriveFirstAssets(m)
+    expect(a.get('American Robin')!.Photo).toEqual({ day: 20220401, minute: 545, catalogId: '7', checklistId: 'S90', location: 'River Trail', place: '' })
+    expect(a.get('Wood Duck')!.Video).toEqual(firstAssetRecord(m[1], 20210101, 720))
+  })
+
+  it('selectRows with presence omitted, or passed as the assets map, is the same call', () => {
+    const f = deriveFirstSightings(o), a = deriveFirstAssets(m)
+    for (const sel of SELECTIONS) expect(selectRows(f, a, NONE, controls(sel), a)).toEqual(selectRows(f, a, NONE, controls(sel)))
+  })
+
+  it('presence decides the media cell only; the selection still dates from assets', () => {
+    const f = deriveFirstSightings(o), a = deriveFirstAssets(m)
+    const none = new Map()
+    const rows = selectRows(f, a, NONE, controls(['Photo']), none)
+    expect(rows.map(r => [r.name, r.day, r.media])).toEqual([['American Robin', 20220401, { photo: false, audio: false, video: false }]])
+    const wider = selectRows(f, none, NONE, controls(), a)
+    expect(wider.find(r => r.name === 'Wood Duck')!.media).toEqual({ photo: false, audio: false, video: true })
   })
 })
 

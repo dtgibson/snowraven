@@ -6,6 +6,7 @@
 // `lifeListsCopy.test.ts` sweeps every builder over every reachable state.
 
 import { MEDIA_FORMATS, type MediaFormat, type MediaPresence } from './lifeLists'
+import type { RegionLevel } from './lifeListsRegion'
 
 export interface FormatCopy {
   /** The button's visible label. */
@@ -43,33 +44,52 @@ export function formatCount(n: number): string {
   return n.toLocaleString('en-US')
 }
 
+/** The count sentence in parts (FR-33; life-list-region-filter FR-19, D-02).
+ *  `count + before + (region ?? '') + after` is the sentence; `region` is the
+ *  region's label, kept apart so the tab can set it in its own weight, or null
+ *  for the unfiltered list, whose parts are then today's sentence verbatim. */
+export interface CountSentenceParts {
+  readonly count: string
+  readonly before: string
+  readonly region: string | null
+  readonly after: string
+}
+
 /**
- * FR-33, split so the tab can set N in its own weight: `count + rest` is the
- * sentence. `order` is a defaulted parameter so the suite can prove the builder
- * by adding a hypothetical fourth format.
+ * FR-33, split so the tab can set N, and under a region its label, in their own
+ * weight. `order` and `copy` are defaulted parameters so the suite can prove
+ * the builder by adding a hypothetical fourth format. The label is interpolated
+ * as text by React, never as markup.
  */
 export function countSentenceParts(
   n: number,
   formats: ReadonlySet<MediaFormat>,
+  region: string | null = null,
   order: readonly MediaFormat[] = MEDIA_FORMATS,
   copy: Readonly<Record<string, FormatCopy>> = FORMAT_COPY,
-): { count: string; rest: string } {
+): CountSentenceParts {
   const count = formatCount(n)
   const on = selectedInOrder(formats, order)
-  if (on.length === 0) return { count, rest: ' species, newest first by the date of your first sighting.' }
-  if (on.length === 1) return { count, rest: ` species with ${copy[on[0]].withNoun}, newest first by the date of ${copy[on[0]].firstNoun}.` }
   const tail = on.length === 2 ? 'each had both' : on.length === 3 ? 'each had all three' : `each had all ${on.length}`
-  return { count, rest: ` species with ${joinList(on.map(f => copy[f].withNoun))}, newest first by the date ${tail}.` }
+  if (region === null) {
+    if (on.length === 0) return { count, before: ' species, newest first by the date of your first sighting.', region, after: '' }
+    if (on.length === 1) return { count, before: ` species with ${copy[on[0]].withNoun}, newest first by the date of ${copy[on[0]].firstNoun}.`, region, after: '' }
+    return { count, before: ` species with ${joinList(on.map(f => copy[f].withNoun))}, newest first by the date ${tail}.`, region, after: '' }
+  }
+  if (on.length === 0) return { count, before: ' species in ', region, after: ', newest first by the date of your first sighting there.' }
+  if (on.length === 1) return { count, before: ` species with ${copy[on[0]].withNoun} in `, region, after: `, newest first by the date of ${copy[on[0]].firstNoun} there.` }
+  return { count, before: ` species with ${joinList(on.map(f => copy[f].withNoun))} in `, region, after: `, newest first by the date ${tail} there.` }
 }
 
-export function countSentence(n: number, formats: ReadonlySet<MediaFormat>): string {
-  const { count, rest } = countSentenceParts(n, formats)
-  return count + rest
+export function countSentence(n: number, formats: ReadonlySet<MediaFormat>, region: string | null = null): string {
+  const p = countSentenceParts(n, formats, region)
+  return p.count + p.before + (p.region ?? '') + p.after
 }
 
-/** FR-34. */
-export function emptySentence(formats: ReadonlySet<MediaFormat>): string {
-  return formats.size === 0 ? 'No countable species in your eBird backup yet.' : 'No species matches this selection yet.'
+/** FR-34; under a region, life-list-region-filter FR-20. */
+export function emptySentence(formats: ReadonlySet<MediaFormat>, region: string | null = null): string {
+  if (region === null) return formats.size === 0 ? 'No countable species in your eBird backup yet.' : 'No species matches this selection yet.'
+  return formats.size === 0 ? `No countable species in ${region} yet.` : `No species matches this selection in ${region} yet.`
 }
 
 /** FR-20, verbatim. */
@@ -92,6 +112,17 @@ export const SWITCH_LABELS = { escapees: 'Include Escapees', exotics: 'Include E
 
 /** The media group's visible label. */
 export const MEDIA_GROUP_LABEL = 'Media'
+
+/** The Region control (life-list-region-filter design-spec, Content Notes). */
+export const REGION_CONTROL_LABEL = 'Region'
+export const EVERYWHERE_LABEL = 'Everywhere'
+export const REGION_GROUP_LABELS: Readonly<Record<RegionLevel, string>> = {
+  country: 'Countries', state: 'States and provinces', county: 'Counties',
+}
+export const REGION_LIST_LABEL = 'Regions in your backup'
+export const REGION_CHEVRON_LABEL = 'Show regions'
+export const REGION_NO_MATCH = 'No region matches this search.'
+export const REGION_PLACEHOLDER = 'Type a country, state, or county'
 
 /** FR-37, the Weather backlog's labels. */
 export const SHOW_NEXT_LABEL = 'Show next 100'

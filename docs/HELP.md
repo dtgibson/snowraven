@@ -680,7 +680,9 @@ SnowRaven follows eBird's own rule for what counts as a species: a form that onl
 
 **Photo**, **Audio**, and **Video** turn the list into a photo, audio, or video life list: a species appears only if your ML export holds at least one item of that type, and it is dated to your first one, with that item's time, checklist, and place. Press more than one to combine them: a species then appears only if it has every selected type, dated to the day it first had all of them. Release every button to return to the first-sighting list.
 
-The list shows 100 species at a time, with **Show next 100** and **Show all**. The switches and the media buttons are per-session, resetting on relaunch.
+**Region** narrows the list to one country, state or province, or county, chosen from the places in your eBird backup and grouped in that order; **Everywhere** shows the whole list. Under a region the list is that region's life list: each species you have recorded there, dated to your first sighting inside the region, with that sighting's time, checklist, and place, so a species first seen somewhere else shows the date you first saw it in the region. With a media button pressed, a photo, audio recording, or video counts toward a region only when its checklist is in your eBird backup and lies inside that region; an item with no checklist, or with a checklist your backup does not hold, counts only under Everywhere.
+
+The list shows 100 species at a time, with **Show next 100** and **Show all**. SnowRaven remembers the region you choose; the switches and the media buttons are per-session, resetting on relaunch.
 
 ---
 

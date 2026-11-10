@@ -1,0 +1,10 @@
+Timing probe, 1.0.70 prep (2026-11-10, about 16:39 UTC), The Deployer. A temporary vitest file (deleted after the run; the tree's status hashed identical before and after) used lifeListsLinearity.test.ts's own generators and quotient procedure (bestPerCallCpuMs, 7 rounds, CPU time), Node v24.18.0 on the release Mac, nothing else compiling. Pass 1 at HEAD (git show HEAD:frontend/src/lib/lifeLists.ts) and in this tree, interleaved, six readings each; then one reading of each new region row.
+load before: 2.77 9.83 9.31
+pass 1, every row its own species, limit 20: HEAD   10.42 11.35 11.12 11.06 12.20 11.35
+pass 1, every row its own species, limit 20: branch 10.93 11.09 10.94 10.94 11.11 12.35
+every row its own species, pairs: pass 1R 13.90 (limit 25.5); pass 2R 13.82 (limit 20)
+every row its own species, counties20: pass 1R 14.02 (limit 20.0); pass 2R 15.03 (limit 20)
+200 species repeated, pairs: pass 1R 12.35 (limit 25.5); pass 2R 13.43 (limit 20)
+200 species repeated, counties20: pass 1R 10.43 (limit 20.0); pass 2R 12.10 (limit 20)
+
+CI (Node 20, GitHub shared runners) read the same pass 1 row at 22.40 (42693053650, a767ce82), 23.80, 22.46, 24.00 and 26.11 (the 1.0.69 prep's reads), about twice this Mac's ~11.

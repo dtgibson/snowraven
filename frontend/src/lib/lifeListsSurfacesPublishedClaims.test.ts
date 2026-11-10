@@ -40,7 +40,11 @@ function serialList(items: readonly string[], conj: 'and' | 'or'): string {
 
 /** The sentence's shape, with the formats built from the manifest. */
 const FORMATS_CLAUSE = `turns into a ${serialList(MEDIA_FORMATS.map(f => f.toLowerCase()), 'or')} life list, or any combination of them.`
-const LEAD = 'ists every species you have recorded along with its first checklist and place, and '
+/** The region clause (life-list-region-filter, 1.0.70, approved by the user on
+ *  2026-11-10): the Region control's three levels, in the order the control
+ *  groups them, and the Everywhere default. */
+const REGION_CLAUSE = 'everywhere or in one country, state, or county you have birded, '
+const LEAD = `ists every species you have recorded along with its first checklist and place, ${REGION_CLAUSE}and `
 
 const collapse = (t: string) => t.replace(/\s+/g, ' ').trim()
 

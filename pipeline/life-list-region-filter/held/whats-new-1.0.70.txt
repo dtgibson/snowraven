@@ -1,0 +1,1 @@
+Life Lists has a Region control: choose a country, state or province, or county from your eBird backup to see that region's life list, each species dated to your first sighting there, and SnowRaven remembers your choice.

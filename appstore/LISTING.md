@@ -50,7 +50,7 @@ follow the website and README register (one or two sentences per tab, in tab
 order, no operating detail, no reassurance, no offline claim), so a copy change
 to those surfaces is a copy change here in the same release.
 
-## Description (3,407 / 4,000)
+## Description (3,471 / 4,000)
 
 ```
 SnowRaven is a birding data explorer for the records you already keep. It reads your eBird and Macaulay Library exports and gives you weather and tides for your checklists, your history with every species, life-list statistics and an interactive map, on your own device.
@@ -65,7 +65,7 @@ WHAT'S INSIDE
 • Multimedia: your life list as a media checklist: which species you have photographed, recorded and filmed, and which you still need.
 • Breeding Codes: every species you have recorded breeding evidence for, as a matrix against eBird's breeding codes, colored by evidence tier.
 • Checklists: your checklists as whole outings: search every comment you have written, and filter by what an outing has.
-• Life Lists: lists every species you have recorded along with its first checklist and place, and turns into a photo, audio, or video life list, or any combination of them.
+• Life Lists: lists every species you have recorded along with its first checklist and place, everywhere or in one country, state, or county you have birded, and turns into a photo, audio, or video life list, or any combination of them.
 • List Comparer: two life lists side by side, or any two public checklists: what they share and what only one has.
 • Named Birds: tag an individual bird by name in a species comment and SnowRaven gathers everything you have on it: sightings, places, a timeline, its own media.
 

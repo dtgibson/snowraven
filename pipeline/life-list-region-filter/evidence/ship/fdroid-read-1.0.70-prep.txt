@@ -1,0 +1,64 @@
+read at 2026-11-10T16:24:10Z (public reads, no token)
+== f-droid.org published
+{"packageName":"com.dtgibson.snowraven","suggestedVersionCode":10000614,"packages":[{"versionName":"1.0.61","versionCode":10000614},{"versionName":"1.0.61","versionCode":10000612},{"versionName":"1.0.61","versionCode":10000611},{"versionName":"1.0.60","versionCode":10000604},{"versionName":"1.0.60","versionCode":10000602},{"versionName":"1.0.60","versionCode":10000601},{"versionName":"1.0.59","versionCode":10000594},{"versionName":"1.0.59","versionCode":10000592},{"versionName":"1.0.59","versionCode":10000591}]}
+== fdroiddata master recipe (sha256 ca8d116d016ebd22...)
+  - versionName: 1.0.53
+    versionCode: 10000531
+  - versionName: 1.0.53
+    versionCode: 10000532
+  - versionName: 1.0.53
+    versionCode: 10000534
+  - versionName: 1.0.55
+    versionCode: 10000551
+  - versionName: 1.0.55
+    versionCode: 10000552
+  - versionName: 1.0.55
+    versionCode: 10000554
+  - versionName: 1.0.56
+    versionCode: 10000561
+  - versionName: 1.0.56
+    versionCode: 10000562
+  - versionName: 1.0.56
+    versionCode: 10000564
+  - versionName: 1.0.60
+    versionCode: 10000601
+  - versionName: 1.0.60
+    versionCode: 10000602
+  - versionName: 1.0.60
+    versionCode: 10000604
+  - versionName: 1.0.61
+    versionCode: 10000611
+  - versionName: 1.0.61
+    versionCode: 10000612
+  - versionName: 1.0.61
+    versionCode: 10000614
+  - versionName: 1.0.68
+    versionCode: 10000681
+  - versionName: 1.0.68
+    versionCode: 10000682
+  - versionName: 1.0.68
+    versionCode: 10000684
+  - versionName: 1.0.69
+    versionCode: 10000691
+  - versionName: 1.0.69
+    versionCode: 10000692
+  - versionName: 1.0.69
+    versionCode: 10000694
+CurrentVersion: 1.0.69
+CurrentVersionCode: 10000694
+== recipe commits
+c0ad7c8f 2026-11-10T05:25:42.000+00:00 bot: Update SnowRaven to 10000694
+34866f26 2026-11-09T09:18:32.000+00:00 keep latest
+5c48e123 2026-11-09T08:20:44.000+00:00 bot: Update SnowRaven to 10000684
+8970b26d 2026-11-08T19:02:36.000+00:00 keep latest
+3302f014 2026-11-08T09:54:39.000+00:00 bot: Update SnowRaven to 10000654
+== build logs
+10000681 200
+10000682 200
+10000684 200
+10000691 404
+10000692 404
+10000694 404
+10000681:   584243 bytes; Successfully built com.dtgibson.snowraven:10000681 from 93c107334316ac04228e336cdf62cda51b95244f
+10000682:   584109 bytes; Successfully built com.dtgibson.snowraven:10000682 from 93c107334316ac04228e336cdf62cda51b95244f
+10000684:   584049 bytes; Successfully built com.dtgibson.snowraven:10000684 from 93c107334316ac04228e336cdf62cda51b95244f

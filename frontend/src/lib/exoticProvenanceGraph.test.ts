@@ -129,6 +129,9 @@ describe('the passive provenance path can never reach the network (FR-35, QA-40)
     'lib/lifeListsProvenance.ts',
     'lib/lifeLists.ts',
     'lib/lifeListsCopy.ts',
+    // life-list-region-filter: the region passes and their copy reach nothing
+    // that can make a request (QA-01, QA-28).
+    'lib/lifeListsRegion.ts',
   ]) {
     it(`${root} statically reaches no network module`, () => {
       expect(networkReach(root)).toEqual([])
@@ -204,8 +207,10 @@ describe('Life Lists reads the rule passively (life-lists-tab FR-14, QA-15)', ()
     const code = readFileSync(resolve(SRC, 'components/lifeLists/LifeListsTab.tsx'), 'utf8')
     expect(code).toContain("from '../../lib/lifeListsProvenance'")
     expect(closure('components/lifeLists/LifeListsTab.tsx')).not.toContain('lib/useExoticProvenance.ts')
-    // Positive leg: the tab's closure is real and reaches the reader.
+    // Positive leg: the tab's closure is real and reaches the reader, and the
+    // region module whose no-network row is above (life-list-region-filter).
     expect(closure('components/lifeLists/LifeListsTab.tsx')).toContain('lib/lifeListsProvenance.ts')
+    expect(closure('components/lifeLists/LifeListsTab.tsx')).toContain('lib/lifeListsRegion.ts')
   })
 
   it('a SYMBOL scan, not a graph edge: buildCoverIndex only in the status reader, useExoticProvenance nowhere', () => {
@@ -218,6 +223,7 @@ describe('Life Lists reads the rule passively (life-lists-tab FR-14, QA-15)', ()
     const files = [
       'lib/lifeLists.ts', 'lib/lifeListsCopy.ts', 'lib/lifeListsProvenance.ts',
       'components/lifeLists/LifeListsTab.tsx', 'components/lifeLists/LifeListsControls.tsx', 'components/lifeLists/LifeListsRows.tsx',
+      'lib/lifeListsRegion.ts', 'components/lifeLists/LifeListsRegionPicker.tsx',
     ]
     for (const f of files) {
       const code = stripComments(readFileSync(resolve(SRC, f), 'utf8'))

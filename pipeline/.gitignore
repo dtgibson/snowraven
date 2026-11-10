@@ -34,3 +34,5 @@ android-release/screenshots/
 .weft-host-deploy.json
 # life-lists-tab live-look captures: the built tab on the user's own data (their sightings, places and a personal-location coordinate). Reference only, kept on disk, because this repo is public.
 life-lists-tab/evidence/live-look/
+# life-list-region-filter QA probe and its readings: written against a scratch copy of the user's own backup (its countries, a county and per-region species counts). Reference only, kept on disk, because this repo is public.
+life-list-region-filter/evidence/qa-probe-*

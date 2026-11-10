@@ -30,20 +30,52 @@ describe('the count sentence (FR-33, QA-35)', () => {
   })
 
   it('splits as N plus the rest, and the parts are the sentence', () => {
-    for (const sel of SELECTIONS) for (const n of COUNTS) {
-      const { count, rest } = copy.countSentenceParts(n, new Set(sel))
-      expect(count).toBe(n.toLocaleString('en-US'))
-      expect(count + rest).toBe(copy.countSentence(n, new Set(sel)))
+    for (const sel of SELECTIONS) for (const n of COUNTS) for (const region of [null, 'Marin, CA']) {
+      const p = copy.countSentenceParts(n, new Set(sel), region)
+      expect(p.count).toBe(n.toLocaleString('en-US'))
+      expect(p.region).toBe(region)
+      expect(p.count + p.before + (p.region ?? '') + p.after).toBe(copy.countSentence(n, new Set(sel), region))
+      // Unfiltered, the sentence is all in `before`, so the tab renders today's nodes.
+      if (region === null) expect(p.after).toBe('')
     }
   })
 
   it('generates from the manifest: a hypothetical fourth format gets its own sentence with no new copy', () => {
     const order = [...MEDIA_FORMATS, 'Sketch'] as MediaFormat[]
     const table = { ...copy.FORMAT_COPY, Sketch: { label: 'Sketch', withNoun: 'a sketch', firstNoun: 'your first sketch', presenceNoun: 'sketch' } }
-    const one = copy.countSentenceParts(2, new Set(['Sketch'] as unknown as MediaFormat[]), order, table)
-    expect(one.count + one.rest).toBe('2 species with a sketch, newest first by the date of your first sketch.')
-    const all = copy.countSentenceParts(2, new Set(order), order, table)
-    expect(all.count + all.rest).toBe('2 species with a photo, audio, video, and a sketch, newest first by the date each had all 4.')
+    const one = copy.countSentenceParts(2, new Set(['Sketch'] as unknown as MediaFormat[]), null, order, table)
+    expect(one.count + one.before).toBe('2 species with a sketch, newest first by the date of your first sketch.')
+    const all = copy.countSentenceParts(2, new Set(order), null, order, table)
+    expect(all.count + all.before).toBe('2 species with a photo, audio, video, and a sketch, newest first by the date each had all 4.')
+  })
+})
+
+describe('the region sentences (life-list-region-filter FR-19, FR-20, QA-19, QA-20)', () => {
+  const R = 'Marin, CA'
+  it('renders the regional templates verbatim', () => {
+    const s = (sel: MediaFormat[]) => copy.countSentence(184, new Set(sel), R)
+    expect(s([])).toBe('184 species in Marin, CA, newest first by the date of your first sighting there.')
+    expect(s(['Photo'])).toBe('184 species with a photo in Marin, CA, newest first by the date of your first photo there.')
+    expect(s(['Audio'])).toBe('184 species with audio in Marin, CA, newest first by the date of your first audio recording there.')
+    expect(s(['Photo', 'Audio'])).toBe('184 species with a photo and audio in Marin, CA, newest first by the date each had both there.')
+    expect(s(['Photo', 'Audio', 'Video'])).toBe('184 species with a photo, audio, and video in Marin, CA, newest first by the date each had all three there.')
+    expect(copy.emptySentence(new Set(), R)).toBe('No countable species in Marin, CA yet.')
+    expect(copy.emptySentence(new Set<MediaFormat>(['Video']), R)).toBe('No species matches this selection in Marin, CA yet.')
+  })
+
+  it('names the region exactly once in each of the eight regional sentences, and says "there"', () => {
+    for (const sel of SELECTIONS) {
+      const t = copy.countSentence(3, new Set(sel), R)
+      expect(t.split(R).length - 1, t).toBe(1)
+      expect(t.endsWith(' there.'), t).toBe(true)
+      expect(copy.countSentence(3, new Set(sel))).not.toContain(' there.')
+    }
+  })
+
+  it('the Region control copy', () => {
+    expect([copy.REGION_CONTROL_LABEL, copy.EVERYWHERE_LABEL, copy.REGION_LIST_LABEL, copy.REGION_CHEVRON_LABEL, copy.REGION_NO_MATCH, copy.REGION_PLACEHOLDER])
+      .toEqual(['Region', 'Everywhere', 'Regions in your backup', 'Show regions', 'No region matches this search.', 'Type a country, state, or county'])
+    expect(copy.REGION_GROUP_LABELS).toEqual({ country: 'Countries', state: 'States and provinces', county: 'Counties' })
   })
 })
 
@@ -72,9 +104,9 @@ describe('the media cell label (FR-44)', () => {
 
 describe('copy hygiene over the generated corpus (NFR-09, QA-53)', () => {
   const corpus: string[] = []
-  for (const sel of SELECTIONS) {
-    for (const n of COUNTS) corpus.push(copy.countSentence(n, new Set(sel)))
-    corpus.push(copy.emptySentence(new Set(sel)))
+  for (const sel of SELECTIONS) for (const region of [null, 'Marin, CA']) {
+    for (const n of COUNTS) corpus.push(copy.countSentence(n, new Set(sel), region))
+    corpus.push(copy.emptySentence(new Set(sel), region))
   }
   for (const p of PRESENCE) corpus.push(copy.mediaLabel(p))
   for (const n of COUNTS) corpus.push(copy.showAllLabel(n), copy.showingLabel(n), copy.positionPrefix(n, 1204))
@@ -83,6 +115,8 @@ describe('copy hygiene over the generated corpus (NFR-09, QA-53)', () => {
     copy.TAB_TITLE, copy.TAB_DESCRIPTION, copy.SETUP_TITLE, copy.SETUP_BODY, copy.LOADING_LABEL,
     copy.SWITCH_LABELS.escapees, copy.SWITCH_LABELS.exotics, copy.MEDIA_GROUP_LABEL, copy.SHOW_NEXT_LABEL,
     copy.NO_CHECKLIST_LABEL, ...MEDIA_FORMATS.map(f => copy.FORMAT_COPY[f].label),
+    copy.REGION_CONTROL_LABEL, copy.EVERYWHERE_LABEL, copy.REGION_LIST_LABEL, copy.REGION_CHEVRON_LABEL,
+    copy.REGION_NO_MATCH, copy.REGION_PLACEHOLDER, ...Object.values(copy.REGION_GROUP_LABELS),
   )
 
   it('holds no em dash anywhere', () => {
