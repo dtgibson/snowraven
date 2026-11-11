@@ -1,0 +1,53 @@
+==> Android preflight for v1.0.71 (versionCode 1000071)
+  ok  JDK 17 (openjdk version "17.0.21.0.3" 2026-10-24)
+  ok  keytool
+  ok  apksigner from build-tools 36.0.0
+  ok  zipalign from build-tools 36.0.0
+  ok  aapt2 from build-tools 36.0.0
+  ok  Gradle 8.14.3
+  ok  cargo-tauri 2.11.2
+  ok  keystore opens: /Users/developer/.tauri/snowraven-android.p12 (alias snowraven)
+  ok  tauri.conf.json version 1.0.71 equals frontend/package.json
+  ok  bundle.android.versionCode 1000071 follows the formula
+  ok  v1.0.71 is pushed to origin at 2ac51b1ca1ba
+  ok  tauri.conf.json at v1.0.71 carries 1.0.71 1000071
+warning: HEAD is not v1.0.71's commit; the artifact is checked against v1.0.71
+  ok  Fastlane changelog 10000711.txt exists at v1.0.71
+  ok  Fastlane changelog 10000712.txt exists at v1.0.71
+  ok  Fastlane changelog 10000714.txt exists at v1.0.71
+  ok  run 43086622915 artifact: SnowRaven_1.0.71_android_universal_unsigned.apk
+  ok  package com.dtgibson.snowraven
+  ok  versionName 1.0.71
+  ok  versionCode 1000071
+  ok  not debuggable
+==> Android preflight passed.
+UNSIGNED_APK=/var/folders/qn/fzq2ymy1219bnchgrdvmcrdc0000gp/T//sr-android-ci.UuXcBk/SnowRaven_1.0.71_android_universal_unsigned.apk
+preflight rc=0
+
+==> Signing SnowRaven_1.0.71_android_universal_unsigned.apk as SnowRaven_1.0.71_android_universal.apk
+==> Verifying
+Verifies
+Verified using v1 scheme (JAR signing): false
+Verified using v2 scheme (APK Signature Scheme v2): true
+Verified using v3 scheme (APK Signature Scheme v3): true
+Verified using v3.1 scheme (APK Signature Scheme v3.1): false
+Verified using v4 scheme (APK Signature Scheme v4): false
+  ok  signer equals the keystore's certificate
+  ok  signer equals the recorded digest
+Signer #1 certificate DN: CN=SnowRaven, O=Dave Gibson
+Signer #1 certificate SHA-256 digest: 42a3576e445bda4a994793f2ffa056663113275c9805eb2f6cffdc252375996a
+SIGNED_APK=/var/folders/qn/fzq2ymy1219bnchgrdvmcrdc0000gp/T//sr-android-signed.jUUY5B/SnowRaven_1.0.71_android_universal.apk
+SIGNED_APK_SHA256=45c3f5c77fb514ff14f9ea243db44a0fdf099b22beabed9bd2ef8ad6de1f72ba
+sign rc=0
+
+warning: ANDROID_DEVICE_CHECK=partial: attaching without a device check; the decision and its reason belong in RELEASE_LEDGER.md's Android section
+==> Checking SnowRaven_1.0.71_android_universal.apk
+  ok  signer equals the keystore's certificate
+  ok  byte-identical to the checked file
+  ok  com.dtgibson.snowraven 1.0.71 (1000071), signer 42a3576e445bda4a994793f2ffa056663113275c9805eb2f6cffdc252375996a
+==> Uploading to v1.0.71
+==> Downloading the asset back
+Attached SnowRaven_1.0.71_android_universal.apk to v1.0.71
+ASSET_SHA256=45c3f5c77fb514ff14f9ea243db44a0fdf099b22beabed9bd2ef8ad6de1f72ba
+SIGNER_SHA256=42a3576e445bda4a994793f2ffa056663113275c9805eb2f6cffdc252375996a
+attach rc=0

@@ -1,0 +1,50 @@
+F-Droid three-read at the 1.0.71 ship, 2026-11-11 19:48:26 UTC (public, no token)
+
+fdroiddata master metadata/com.dtgibson.snowraven.yml:
+ - versionName: 1.0.53	 versionCode: 10000531	 commit: c4c15a9624c299f62bf3f82af7f111750666b579
+ - versionName: 1.0.53	 versionCode: 10000532	 commit: c4c15a9624c299f62bf3f82af7f111750666b579
+ - versionName: 1.0.53	 versionCode: 10000534	 commit: c4c15a9624c299f62bf3f82af7f111750666b579
+ - versionName: 1.0.55	 versionCode: 10000551	 commit: 1cad79954fbd96a899faf83e9604696a2e811405
+ - versionName: 1.0.55	 versionCode: 10000552	 commit: 1cad79954fbd96a899faf83e9604696a2e811405
+ - versionName: 1.0.55	 versionCode: 10000554	 commit: 1cad79954fbd96a899faf83e9604696a2e811405
+ - versionName: 1.0.56	 versionCode: 10000561	 commit: 41caabf9a538087f0e6c44e86b6164e6d44abd91
+ - versionName: 1.0.56	 versionCode: 10000562	 commit: 41caabf9a538087f0e6c44e86b6164e6d44abd91
+ - versionName: 1.0.56	 versionCode: 10000564	 commit: 41caabf9a538087f0e6c44e86b6164e6d44abd91
+ - versionName: 1.0.60	 versionCode: 10000601	 commit: 231a3dba2f1480a3b1e9d5ba1df95d7ce6ff2b0a
+ - versionName: 1.0.60	 versionCode: 10000602	 commit: 231a3dba2f1480a3b1e9d5ba1df95d7ce6ff2b0a
+ - versionName: 1.0.60	 versionCode: 10000604	 commit: 231a3dba2f1480a3b1e9d5ba1df95d7ce6ff2b0a
+ - versionName: 1.0.61	 versionCode: 10000611	 commit: 3be276520c41697ed95eed672f0b7c6fb0095ca5
+ - versionName: 1.0.61	 versionCode: 10000612	 commit: 3be276520c41697ed95eed672f0b7c6fb0095ca5
+ - versionName: 1.0.61	 versionCode: 10000614	 commit: 3be276520c41697ed95eed672f0b7c6fb0095ca5
+ - versionName: 1.0.68	 versionCode: 10000681	 commit: 93c107334316ac04228e336cdf62cda51b95244f
+ - versionName: 1.0.68	 versionCode: 10000682	 commit: 93c107334316ac04228e336cdf62cda51b95244f
+ - versionName: 1.0.68	 versionCode: 10000684	 commit: 93c107334316ac04228e336cdf62cda51b95244f
+ - versionName: 1.0.70	 versionCode: 10000701	 commit: 849506a285d6e389849b3edbb2a23156856bbf84
+ - versionName: 1.0.70	 versionCode: 10000702	 commit: 849506a285d6e389849b3edbb2a23156856bbf84
+ - versionName: 1.0.70	 versionCode: 10000704	 commit: 849506a285d6e389849b3edbb2a23156856bbf84
+CurrentVersion: 1.0.70	CurrentVersionCode: 10000704	
+CurrentVersion: 1.0.70
+CurrentVersionCode: 10000704
+
+recipe commit history (newest first):
+  2026-11-11T08:53 08a40a3d Licaon_Kter | keep latest
+  2026-11-11T07:50 d90773c9 checkupdates bot | bot: Update SnowRaven to 10000704
+  2026-11-10T05:25 c0ad7c8f checkupdates bot | bot: Update SnowRaven to 10000694
+  2026-11-09T09:18 34866f26 linsui | keep latest
+
+f-droid.org published:
+{"packageName":"com.dtgibson.snowraven","suggestedVersionCode":10000684,"packages":[{"versionName":"1.0.68","versionCode":10000684},{"versionName":"1.0.68","versionCode":10000682},{"versionName":"1.0.68","versionCode":10000681},{"versionName":"1.0.61","versionCode":10000614},{"versionName":"1.0.61","versionCode":10000612},{"versionName":"1.0.61","versionCode":10000611},{"versionName":"1.0.60","versionCode":10000604},{"versionName":"1.0.60","versionCode":10000602},{"versionName":"1.0.60","versionCode":10000601}]}
+
+build logs (monitor.f-droid.org):
+  10000681 HTTP 200 Successfully built com.dtgibson.snowraven:10000681 from 93c107334316ac04228e336cdf62cda51b95244f
+  10000682 HTTP 200 Successfully built com.dtgibson.snowraven:10000682 from 93c107334316ac04228e336cdf62cda51b95244f
+  10000684 HTTP 200 Successfully built com.dtgibson.snowraven:10000684 from 93c107334316ac04228e336cdf62cda51b95244f
+  10000691 HTTP 404 
+  10000692 HTTP 404 
+  10000694 HTTP 404 
+  10000701 HTTP 404 
+  10000702 HTTP 404 
+  10000704 HTTP 404 
+  10000711 HTTP 404 
+  10000712 HTTP 404 
+  10000714 HTTP 404 

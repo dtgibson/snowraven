@@ -1,0 +1,47 @@
+Pipeline 43088109516 on 9936b4fc (the iOS stamp commit, the run of record), read 2026-11-11 after it finished at 19:44:28 UTC
+Frontend — lint, test, build: failure
+  Set up job: success
+  Run actions/checkout@v4: success
+  Run actions/setup-node@v4: success
+  Run npm ci: success
+  Run npm run lint: success
+  Run npm run typecheck: success
+  Run npm run test -- --maxWorkers=1: failure
+  Run npm run build: skipped
+  Install the verification tooling: skipped
+  Isolate Playwright from the runner Chrome repository: skipped
+  Install Chromium and WebKit: skipped
+  Real-engine verification gate: skipped
+  Post Run actions/setup-node@v4: skipped
+  Post Run actions/checkout@v4: success
+  Complete job: success
+Backend — lint, test: success
+  Set up job: success
+  Run actions/checkout@v4: success
+  Run actions/setup-python@v5: success
+  Run pip install -r requirements.txt: success
+  Run pip install ruff==0.15.20 pytest==9.1.1: success
+  Run ruff check .: success
+  Run pytest: success
+  Post Run actions/setup-python@v5: success
+  Post Run actions/checkout@v4: success
+  Complete job: success
+     ✓ grows about 2x per doubling on hostile input built to FAIL after consuming the run  4130ms
+ FAIL  src/lib/lifeListsLinearity.test.ts > the Life Lists derivation is linear in rows (NFR-01, QA-44) > pass 1 (first sightings), every row its own species
+AssertionError: expected 23.15985130111529 to be less than or equal to 20
+ FAIL  src/lib/lifeListsLinearity.test.ts > the Life Lists derivation is linear in rows (NFR-01, QA-44) > pass 1R (the region index), every row its own species, every row its own (state, county)
+AssertionError: expected 25.992288413340816 to be less than or equal to 25.545920885094443
+ FAIL  src/lib/lifeListsLinearity.test.ts > the Life Lists derivation is linear in rows (NFR-01, QA-44) > pass 2R (the region assets), every row its own species, every row its own (state, county)
+AssertionError: expected 44.881761006298085 to be less than or equal to 20
+ FAIL  src/lib/lifeListsLinearity.test.ts > the Life Lists derivation is linear in rows (NFR-01, QA-44) > pass 2R (the region assets), every row its own species, 20 counties in 4 states
+AssertionError: expected 21.5606886031816 to be less than or equal to 20
+ FAIL  src/lib/lifeListsLinearity.test.ts > the Life Lists derivation is linear in rows (NFR-01, QA-44) > pass 2R (the region assets), 200 species repeated, every row its own (state, county)
+AssertionError: expected 40.287688442197584 to be less than or equal to 20
+ Test Files  1 failed | 513 passed | 5 skipped (519)
+##[error]AssertionError: expected 23.15985130111529 to be less than or equal to 20
+##[error]AssertionError: expected 25.992288413340816 to be less than or equal to 25.545920885094443
+##[error]AssertionError: expected 44.881761006298085 to be less than or equal to 20
+##[error]AssertionError: expected 21.5606886031816 to be less than or equal to 20
+##[error]AssertionError: expected 40.287688442197584 to be less than or equal to 20
+
+Pipeline 43086696374 on 101564e2: cancelled by the stamp push (cancel-in-progress)
