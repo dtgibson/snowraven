@@ -1,0 +1,1 @@
+A new Hotspot Reports tab, between Breeding Codes and Checklists, reports on any one place in your eBird backup, an eBird hotspot or one of your personal locations: your life list there, dated to your first record of each species at that place, a map, your checklists there by protocol and by month and year, and the weather from the weather blocks in your checklist comments.
