@@ -75,6 +75,11 @@ const importTargets = () => import('./components/targets/Targets')
 // The Life Lists tab (life-lists-tab): lazy, so its derivation, copy and
 // provenance reader ride their own chunk (entryChunk.test.ts, NFR-06).
 const importLifeLists = () => import('./components/lifeLists/LifeListsTab')
+// The Hotspot Reports tab (hotspot-reports): lazy, so its index, its picker,
+// its report sections and its copy ride their own chunk, and its map rides a
+// second lazy chunk inside it (entryChunk.test.ts, NFR-09). Not warmed at idle,
+// the Life Lists precedent.
+const importHotspotReports = () => import('./components/hotspotReports/HotspotReportsTab')
 // The per-row Named Birds map chunk (maplibre). The component is lazy-rendered
 // inside NamedBirdRow; this is just the idle prefetch (same module → same chunk),
 // so opening a row stays instant for returning users.
@@ -92,6 +97,7 @@ const Checklists = lazy(() => importChecklists().then(m => ({ default: m.Checkli
 const Calendar = lazy(() => importCalendar().then(m => ({ default: m.Calendar })))
 const Targets = lazy(() => importTargets().then(m => ({ default: m.Targets })))
 const LifeListsTab = lazy(() => importLifeLists().then(m => ({ default: m.LifeListsTab })))
+const HotspotReportsTab = lazy(() => importHotspotReports().then(m => ({ default: m.HotspotReportsTab })))
 const CommandPalette = lazy(() => importCommandPalette().then(m => ({ default: m.CommandPalette })))
 // The Alerts inbox sheet (ios-alerts design-spec 7.3, the revision after the
 // live look). Lazy like Help and the palette, and reachable only on iPhone and
@@ -142,7 +148,7 @@ type TideState =
 // the tab is first opened, instead of running it all on first paint.
 const DEFERRED_TABS: Tab[] = [
   'map-explorer', 'species-detail', 'birding-stats', 'calendar', 'targets',
-  'comparer', 'life-list', 'breeding-codes', 'named-birds', 'checklists', 'life-lists', 'settings',
+  'comparer', 'life-list', 'breeding-codes', 'named-birds', 'checklists', 'life-lists', 'hotspot-reports', 'settings',
 ]
 
 // Setter for the persistent loading-status region (mounted once in App, OUTSIDE
@@ -1480,6 +1486,27 @@ export default function App() {
         {mountedTabs.has('checklists') && (
           <Suspense fallback={<TabLoading label="Loading checklists…" />}>
             <Checklists onGoToSettings={() => setActiveTab('settings')} filesVersion={filesVersion} onOpenSpecies={navigateToSpeciesDetail} />
+          </Suspense>
+        )}
+      </div>
+
+      {/* Hotspot Reports tab content. The tab reads the files epoch itself
+          (useFilesEpoch), so it takes no filesVersion prop. */}
+      <div
+        role="tabpanel"
+        id="panel-hotspot-reports"
+        aria-labelledby="tab-hotspot-reports"
+        aria-label="Hotspot Reports"
+        className="sr-panel"
+        style={{
+          display: activeTab === 'hotspot-reports' ? 'flex' : 'none',
+          flexDirection: 'column',
+          padding: '40px 24px 24px',
+        }}
+      >
+        {mountedTabs.has('hotspot-reports') && (
+          <Suspense fallback={<TabLoading label="Loading hotspot reports…" />}>
+            <HotspotReportsTab onGoToSettings={() => setActiveTab('settings')} onOpenSpecies={navigateToSpeciesDetail} />
           </Suspense>
         )}
       </div>

@@ -5558,12 +5558,15 @@ select:focus-visible {
    (species-detail-weather, FR-35).
 
    SCOPED TO `.sr-wx-pair`'s OWN CHILDREN, and that scope is load-bearing rather
-   than tidy. `.sr-wx-rows` appears in three places: the distribution groups,
-   which serve all four whole-export axes, and the two per-species columns.
-   Putting the container on `.sr-wx-rows` wholesale would re-trigger the
-   DISTRIBUTION rows, which do not have this defect -- they run at full card
-   width and their rails measure healthily at 200% -- and would visibly change
-   the shipped Statistics distribution rows between roughly 480 and 640px. Only
+   than tidy. `.sr-wx-rows` appears in four places: the Statistics
+   distribution groups, which serve all four whole-export axes, the two
+   per-species columns, and the Hotspot Reports groups (protocols, sky,
+   temperature, wind, months and years), which render the same distribution
+   row (`WeatherDistRow.tsx`). Putting the container on `.sr-wx-rows` wholesale
+   would re-trigger the DISTRIBUTION rows, which do not have this defect -- they
+   run at full card width and their rails measure healthily at 200% -- and
+   would visibly change the shipped Statistics distribution rows between
+   roughly 480 and 640px. Only
    the per-species pair uses `.sr-wx-pair`, on both surfaces, so its children are
    exactly the columns in question and no markup changes to say so.
    `:not(.sr-only)` follows the standing rule for `> *` selectors.
@@ -6370,6 +6373,275 @@ select:focus-visible {
   .sr-lfl-cl, .sr-lfl-link .sr-lfl-dash { width: max(44px, 1.5rem); height: max(44px, 1.5rem); }
   .sr-lfl-place { margin-top: 2px; }
 }
+
+/* ── The Hotspot Reports tab (hotspot-reports, `.sr-hsr-*`) ────────────────
+   A quiet reading page: the house tab header, one picker that chooses the page,
+   then either the overview card (the count block and two ranked lists) or one
+   location's report (a header band, a jump row while one column, the life list
+   and a rail of four section cards). Built from registers the app already has:
+   the Region picker's combobox at the 40px hero register, the Statistics
+   hotspot partition (`.sr-hs-*`), the Life Lists ledger row and pager
+   (`.sr-lfl-paging`), and the shared distribution row (`.sr-wx-*`). Colour is
+   tokens only, both themes; a kind or a state is carried in words first and in
+   a glyph or a bar second, never in a hue. Every phone-tier rule is inside the
+   established <=640 block below; these rules sit ABOVE it so the phone tier's
+   own rule for a shared class still wins on source order. Glyphs are sized by
+   their own classes, never by a bare `svg` selector (ui.md v1.0.42). Motion:
+   the listbox and chevron below, the shared fills, and the view's entrance (run
+   through the Web Animations API in the tab, skipped under reduced motion);
+   the global prefers-reduced-motion block collapses the CSS ones. */
+.sr-hsr-tab { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.sr-hsr-head { display: flex; align-items: flex-start; gap: 10px; }
+.sr-hsr-head-tile { width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0; background: var(--sr-accent-bg); color: var(--sr-accent); display: flex; align-items: center; justify-content: center; }
+.sr-hsr-head h2 { font-size: 1.125rem; font-weight: 700; margin: 0 0 2px; color: var(--sr-text); letter-spacing: -0.01em; }
+.sr-hsr-head p { font-size: 0.8125rem; color: var(--sr-text-muted); margin: 0; line-height: 1.5; }
+.sr-hsr-loading { flex: 1; display: flex; align-items: center; justify-content: center; padding: 60px 0; color: var(--sr-accent); }
+/* The location picker: the Region picker's anatomy (search glyph, the input as
+   the combobox, a chevron Button, a flat listbox of plain role="option" rows
+   keyed on their index) at the 40px hero register, because here it chooses
+   the whole page. The field draws the focus ring; the input draws none (its
+   own rule is below the global ring block, so the order is load-bearing). */
+.sr-hsr-pickrow { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; min-width: 0; }
+/* An uppercase label beside a floored control: the optical ratio (ui.md, the
+   v1.0.33 label rule), with the control's own 0.875rem register. */
+.sr-hsr-label { font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--sr-text-muted); --sr-ctl-rem: 0.875rem; --sr-label-ratio: var(--sr-label-optical); }
+.sr-hsr-picker { position: relative; flex: 0 1 34rem; min-width: 0; z-index: 20; }
+.sr-hsr-field {
+  display: flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 4px 0 12px;
+  border: 1.5px solid var(--sr-border-input); border-radius: 8px;
+  background: var(--sr-surface); color: var(--sr-text);
+  transition: border-color 120ms ease-out, box-shadow 120ms ease-out;
+}
+.sr-hsr-field:focus-within { border-color: var(--sr-accent); box-shadow: 0 0 0 4px rgba(45, 134, 83, 0.12); }
+.sr-hsr-field-glyph { flex-shrink: 0; color: var(--sr-text-muted); }
+.sr-hsr-input {
+  flex: 1 1 auto; min-width: 0; border: 0; outline: 0; background: transparent; color: inherit;
+  font-family: inherit; font-size: 0.875rem; --sr-ctl-rem: 0.875rem; font-weight: 600; padding: 7px 0;
+  text-overflow: ellipsis;
+}
+.sr-hsr-input:focus-visible { outline: none; box-shadow: none; }
+.sr-hsr-input::placeholder { color: var(--sr-text-muted); font-weight: 500; }
+.sr-hsr-input:disabled { color: var(--sr-text-disabled); -webkit-text-fill-color: var(--sr-text-disabled); opacity: 1; cursor: not-allowed; }
+.sr-hsr-chev {
+  flex-shrink: 0; width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center;
+  border: 0; background: none; padding: 0; color: var(--sr-text-muted); border-radius: 6px; cursor: pointer;
+  transition: background-color 120ms ease-out, color 120ms ease-out;
+}
+.sr-hsr-chev-glyph { flex-shrink: 0; transition: transform 140ms ease-out; }
+.sr-hsr-chev[aria-expanded="true"] .sr-hsr-chev-glyph { transform: rotate(180deg); }
+.sr-hsr-field.is-disabled { background: var(--sr-surface-subtle); border-color: var(--sr-border); color: var(--sr-text-disabled); }
+.sr-hsr-field.is-disabled .sr-hsr-field-glyph, .sr-hsr-field.is-disabled .sr-hsr-chev { color: var(--sr-text-disabled); cursor: not-allowed; }
+/* The listbox scales in from the field's own top left corner, 140ms ease-out;
+   close is instant; the global reduced-motion block makes the open instant. */
+.sr-hsr-list {
+  position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 1200; margin: 0; padding: 4px;
+  max-height: 24rem; overflow: auto; overscroll-behavior: contain;
+  background: var(--sr-surface); border: 1px solid var(--sr-border); border-radius: 10px; box-shadow: var(--sr-card-shadow);
+  transform-origin: top left;
+  animation: sr-hsr-list-in 140ms cubic-bezier(0.2, 0, 0, 1) both;
+}
+@keyframes sr-hsr-list-in { from { opacity: 0; transform: scaleY(0.92); } to { opacity: 1; transform: none; } }
+.sr-hsr-opt { display: flex; align-items: flex-start; gap: 8px; min-height: 2.5rem; padding: 6px 10px; border-radius: 6px; cursor: pointer; transition: background-color 120ms ease-out; }
+.sr-hsr-opt-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.sr-hsr-opt-name { font-size: 0.8125rem; line-height: 1.4; color: var(--sr-text); overflow-wrap: anywhere; }
+.sr-hsr-opt--all .sr-hsr-opt-name, .sr-hsr-noname { font-style: italic; }
+.sr-hsr-opt-check { flex-shrink: 0; color: var(--sr-accent); margin-top: 3px; }
+.sr-hsr-opt[aria-selected="true"] .sr-hsr-opt-name { font-weight: 600; color: var(--sr-accent); }
+.sr-hsr-opt.is-active { background: var(--sr-surface-subtle); outline: 2px solid var(--sr-accent); outline-offset: -2px; }
+.sr-hsr-more, .sr-hsr-nomatch { padding: 8px 10px 9px; font-size: 0.75rem; line-height: 1.45; color: var(--sr-text-muted); }
+.sr-hsr-more { margin-top: 3px; border-top: 1px solid var(--sr-border-subtle); }
+/* The meta line shared by a picker row, a ranked row and the report header:
+   kind (a glyph AND its word, or nothing), place, the Location ID for a
+   namesake, a checklist count. Monochrome; the kind is never a hue. */
+.sr-hsr-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 0 6px; font-size: 0.71875rem; line-height: 1.45; color: var(--sr-text-muted); min-width: 0; }
+.sr-hsr-meta > span { display: inline-flex; align-items: center; gap: 6px; min-width: 0; overflow-wrap: anywhere; }
+.sr-hsr-dot { color: var(--sr-text-muted); }
+.sr-hsr-kind { display: inline-flex; align-items: center; gap: 4px; font-weight: 600; color: var(--sr-text-muted); min-width: 0; }
+.sr-hsr-kind-glyph { flex-shrink: 0; }
+.sr-hsr-locid { font-variant-numeric: tabular-nums; }
+/* Cards and their heads (the Species Detail section head). */
+.sr-hsr-card { background: var(--sr-surface); border: 1px solid var(--sr-border); border-radius: 12px; overflow: hidden; box-shadow: var(--sr-card-shadow); min-width: 0; }
+.sr-hsr-sechead { display: flex; align-items: center; gap: 8px; padding: 14px 18px 12px; border-bottom: 1px solid var(--sr-border-subtle); }
+.sr-hsr-sectile { width: 28px; height: 28px; border-radius: 7px; flex-shrink: 0; background: var(--sr-accent-bg); color: var(--sr-accent); display: flex; align-items: center; justify-content: center; }
+.sr-hsr-sechead h4 { font-size: 0.8125rem; font-weight: 600; color: var(--sr-text); margin: 0; outline: none; scroll-margin-top: 72px; }
+.sr-hsr-secbody { padding: 14px 18px 16px; }
+.sr-hsr-sub { font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--sr-text-muted); margin: 0; }
+.sr-hsr-divider { height: 1px; background: var(--sr-border-subtle); margin: 14px 0; }
+.sr-hsr-body-text { font-size: 0.8125rem; line-height: 1.55; color: var(--sr-text); margin: 0; overflow-wrap: break-word; }
+.sr-hsr-body-text b { font-weight: 600; font-variant-numeric: tabular-nums; }
+.sr-hsr-note { font-size: 0.71875rem; line-height: 1.5; color: var(--sr-text-muted); margin: 0; }
+.sr-hsr-note b { font-weight: 600; color: var(--sr-text); font-variant-numeric: tabular-nums; }
+.sr-hsr-grouphead { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 2px 12px; margin: 0 0 4px; min-width: 0; }
+.sr-hsr-den { font-size: 0.6875rem; color: var(--sr-text-muted); }
+.sr-hsr-den b { color: var(--sr-text); font-weight: 600; font-variant-numeric: tabular-nums; }
+.sr-hsr-typical { font-size: 0.75rem; line-height: 1.5; color: var(--sr-text-muted); margin: 0 0 8px; }
+.sr-hsr-typical b { color: var(--sr-text); font-weight: 600; }
+/* The shared distribution row on this tab: the most common band's label at 700
+   (with the "Most common" line above its group, two cues and neither a
+   colour), and a protocol label that wraps instead of taking the row's desktop
+   ellipsis, because a protocol name is user-file text bounded at 64. Scoped
+   under this tab; no shared declaration changes, and no rule here redeclares
+   the row's grid tracks or areas (hotspotReportsCss.test.ts). */
+.sr-hsr-tab .sr-wx-row.is-typical .sr-wx-label { font-weight: 700; }
+.sr-hsr-proto .sr-wx-label { white-space: normal; overflow-wrap: anywhere; text-overflow: clip; }
+.sr-hsr-proto .sr-wx-row { align-items: start; }
+.sr-hsr-proto .sr-wx-track { margin-top: 0.3rem; }
+/* The overview: the count block, then the two ranked lists in a self-collapsing
+   grid over a hairline ground, so the rule between them shows whether they sit
+   side by side or stacked. */
+.sr-hsr-sum { padding: 18px 20px 16px; display: flex; flex-direction: column; gap: 12px; }
+.sr-hsr-total { display: flex; align-items: baseline; flex-wrap: wrap; gap: 2px 8px; margin: 0; }
+.sr-hsr-total b { font-size: 1.75rem; font-weight: 700; letter-spacing: -0.02em; line-height: 1.05; color: var(--sr-text); font-variant-numeric: tabular-nums; }
+.sr-hsr-total span { font-size: 0.8125rem; color: var(--sr-text-muted); }
+.sr-hsr-split { max-width: 36rem; min-width: 0; }
+/* "Not yet known" is the dashed outline, the app's "not checked" mark. */
+.sr-hsr-seg--unk { height: 100%; flex: none; background: var(--sr-surface); border: 1px dashed var(--sr-border-medium); border-radius: 0 4px 4px 0; min-width: 6px; }
+.sr-hsr-ranks { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(19rem, 100%), 1fr)); gap: 1px; background: var(--sr-border-subtle); border-top: 1px solid var(--sr-border-subtle); }
+.sr-hsr-rank { background: var(--sr-surface); padding: 14px 8px 10px; min-width: 0; }
+.sr-hsr-rank .sr-hsr-sub { padding: 0 12px; margin-bottom: 6px; }
+.sr-hsr-rank ol { list-style: none; margin: 0; padding: 0; }
+.sr-hsr-sole { font-size: 0.8125rem; line-height: 1.55; color: var(--sr-text); margin: 0; padding: 0 12px 4px; overflow-wrap: anywhere; }
+.sr-hsr-rankrow {
+  display: grid; grid-template-columns: 1.6rem minmax(0, 1fr) auto 14px;
+  grid-template-areas: "num name fig chev" "num meta fig chev";
+  column-gap: 10px; row-gap: 1px; align-items: start;
+  width: 100%; text-align: left; padding: 8px 12px;
+  border: 0; border-radius: 8px; background: none; color: inherit; cursor: pointer;
+  font-family: inherit;
+  transition: background-color 120ms ease-out;
+}
+.sr-hsr-rank-num { grid-area: num; font-size: 0.75rem; color: var(--sr-text-muted); text-align: right; font-variant-numeric: tabular-nums; padding-top: 2px; }
+.sr-hsr-rank-name { grid-area: name; font-size: 0.84375rem; font-weight: 600; line-height: 1.4; color: var(--sr-text); overflow-wrap: anywhere; min-width: 0; }
+.sr-hsr-rankrow .sr-hsr-meta { grid-area: meta; }
+.sr-hsr-rank-fig { grid-area: fig; font-size: 0.9375rem; font-weight: 700; color: var(--sr-text); font-variant-numeric: tabular-nums; white-space: nowrap; padding-top: 1px; }
+/* The unit is in the DOM after the figure and visually hidden while the list's
+   heading names it; the phone tier shows it. */
+.sr-hsr-rank-unit { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
+.sr-hsr-rank-chev { grid-area: chev; color: var(--sr-border-medium); margin-top: 4px; transition: color 120ms ease-out; }
+@media (hover: hover) {
+  .sr-hsr-chev:where(:not(:disabled)):hover { background: var(--sr-surface-subtle); color: var(--sr-text); }
+  .sr-hsr-opt:hover { background: var(--sr-surface-subtle); }
+  .sr-hsr-rankrow:hover { background: var(--sr-surface-subtle); }
+  .sr-hsr-rankrow:hover .sr-hsr-rank-chev { color: var(--sr-text); }
+  .sr-hsr-ll-cl > a:hover { background: var(--sr-accent-bg); }
+}
+/* The report: a size container, so one column or two is decided by the
+   report's OWN width, not the viewport (a wide window at 200% text stacks as a
+   phone does). `container-type` is containment as well as a query anchor (ui.md
+   v1.0.23): the report becomes the containing block for its absolutely
+   positioned descendants, which are the `.sr-only` spans, the map's own
+   controls (inside the map's `position: relative` box) and the SpeciesLinks
+   fallback glyphs (inside their own `position: relative` slots), and it sets no
+   z-index; the picker's listbox sits outside it. MEASURED THRESHOLDS
+   (hotspot-reports decisions.md D-07, both engines, classic and overlay
+   scrollbars): the life list's wide row stops fitting below 27em with eBird's
+   longest name tokens, so the list stacks at 28em and under; the report goes
+   two columns only where its list column can hold that wide row, so its
+   threshold is the 24rem rail, the 16px gap, the 2px card border and 28em,
+   rounded up: 53.25em. Held by hotspotReportsCss.test.ts. */
+.sr-hsr-report { container-type: inline-size; container-name: sr-hsr-report; display: flex; flex-direction: column; gap: 16px; }
+.sr-hsr-hero { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 16px 36px; padding: 20px 22px; }
+.sr-hsr-ident { flex: 1 1 22rem; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.sr-hsr-eyebrow { font-size: 0.6875rem; letter-spacing: 0.06em; text-transform: uppercase; }
+.sr-hsr-name { font-size: 1.375rem; font-weight: 700; letter-spacing: -0.015em; line-height: 1.25; margin: 0; color: var(--sr-text); overflow-wrap: anywhere; outline: none; scroll-margin-top: 72px; }
+.sr-hsr-totals { flex: 1 1 20rem; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.sr-hsr-figs { display: flex; flex-wrap: wrap; gap: 8px 32px; }
+.sr-hsr-fig { display: flex; flex-direction: column; min-width: 0; }
+.sr-hsr-fig-label { font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: var(--sr-text-muted); margin-bottom: 2px; }
+.sr-hsr-fig-value { font-size: 1.625rem; font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; color: var(--sr-text); font-variant-numeric: tabular-nums; }
+.sr-hsr-fig-value--key { color: var(--sr-accent); }
+.sr-hsr-rule { font-size: 0.71875rem; line-height: 1.5; color: var(--sr-text-muted); max-width: 62ch; margin: 0; }
+/* The jump row: the Statistics jump-nav's chip, shown only while the report is
+   one column, where the long list sits above the other sections. */
+.sr-hsr-jump { display: none; flex-wrap: wrap; gap: 6px; }
+.sr-hsr-chip { font-size: 0.71875rem; font-weight: 500; color: var(--sr-text-muted); text-decoration: none; padding: 4px 10px; border-radius: 100px; background: var(--sr-surface-subtle); border: 1px solid var(--sr-border); white-space: nowrap; }
+.sr-hsr-body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 24rem); gap: 16px; align-items: start; }
+.sr-hsr-rail { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+@container sr-hsr-report (max-width: 53.25em) {
+  .sr-hsr-body { grid-template-columns: minmax(0, 1fr); }
+  .sr-hsr-jump { display: flex; }
+}
+/* The life list at the location: the Life Lists ledger row on five tracks, a
+   size container of its own so the row stacks by the LIST's width. The column
+   header row is visual only (`aria-hidden`); each cell carries its own words
+   for assistive technology, and the stacked form shows them. */
+.sr-hsr-lead { padding: 12px 18px 11px; border-bottom: 1px solid var(--sr-border-subtle); }
+.sr-hsr-count { font-size: 0.8125rem; line-height: 1.5; color: var(--sr-text-muted); margin: 0; outline: none; }
+.sr-hsr-count b { font-weight: 700; color: var(--sr-text); font-variant-numeric: tabular-nums; }
+.sr-hsr-ll { container-type: inline-size; container-name: sr-hsr-ll; }
+.sr-hsr-ll-list { list-style: none; margin: 0; padding: 0; }
+.sr-hsr-ll-row, .sr-hsr-ll-cols {
+  display: grid;
+  grid-template-columns: 2.5rem minmax(0, 1fr) 5.6rem 1.5rem 5.25rem;
+  grid-template-areas: "num name date link on";
+  column-gap: 14px; row-gap: 2px; align-items: start;
+  padding: 11px 18px 12px;
+  border-bottom: 1px solid var(--sr-border-subtle);
+}
+.sr-hsr-ll-row:last-child { border-bottom: 0; }
+.sr-hsr-ll-cols { padding-top: 7px; padding-bottom: 7px; background: var(--sr-surface-faint); font-size: 0.625rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--sr-text-muted); }
+.sr-hsr-ll-cols .c-name { grid-area: name; }
+.sr-hsr-ll-cols .c-date { grid-area: date; }
+.sr-hsr-ll-cols .c-on { grid-area: on; text-align: right; }
+.sr-hsr-ll-num { grid-area: num; font-size: 0.75rem; color: var(--sr-text-muted); text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; padding-top: 2px; }
+.sr-hsr-ll-name { grid-area: name; min-width: 0; padding-top: 1px; }
+.sr-hsr-ll-name .sr-birdname { width: 100%; max-width: 100%; }
+.sr-hsr-ll-name .sr-birdname-row { flex-wrap: wrap; }
+.sr-hsr-ll-name .sr-birdname-sci { white-space: normal; overflow-wrap: anywhere; }
+.sr-hsr-ll-meta { display: contents; }
+.sr-hsr-ll-date { grid-area: date; font-size: 0.75rem; font-weight: 600; color: var(--sr-text); white-space: nowrap; font-variant-numeric: tabular-nums; padding-top: 2px; }
+.sr-hsr-ll-link { grid-area: link; display: flex; justify-content: center; }
+/* The checklist mark: the shared ChecklistLink (compact) in a 1.5rem box, the
+   anchor reached as this box's child because ChecklistLink takes no class. */
+.sr-hsr-ll-cl { display: inline-flex; width: 1.5rem; height: 1.5rem; }
+.sr-hsr-ll-cl > a { width: 100%; height: 100%; justify-content: center; border-radius: 6px; transition: background-color 120ms ease-out; }
+.sr-hsr-ll-cl > a:focus-visible { background: var(--sr-accent-bg); outline-offset: 1px; box-shadow: none; }
+.sr-hsr-ll-dash { display: inline-flex; align-items: center; justify-content: center; width: 1.5rem; height: 1.5rem; font-size: 0.75rem; color: var(--sr-text-muted); }
+.sr-hsr-ll-on { grid-area: on; display: flex; flex-direction: column; align-items: stretch; gap: 4px; padding-top: 2px; min-width: 0; }
+.sr-hsr-ll-on-fig { font-size: 0.75rem; color: var(--sr-text-muted); text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.sr-hsr-ll-on-fig b { font-weight: 600; color: var(--sr-text); }
+.sr-hsr-ll-words { display: none; }
+/* The share bar: reinforcement beside a printed figure, slate not the accent,
+   with no motion (up to 100 are on screen at once). */
+.sr-hsr-ll-bar { height: 3px; border-radius: 2px; background: var(--sr-border); overflow: hidden; }
+.sr-hsr-ll-bar i { display: block; height: 100%; min-width: 2px; border-radius: 2px; background: var(--sr-chart-slate); }
+.sr-hsr-empty { padding: 26px 18px; font-size: 0.8125rem; color: var(--sr-text-muted); text-align: center; margin: 0; }
+@container sr-hsr-ll (max-width: 28em) {
+  .sr-hsr-ll-cols { display: none; }
+  .sr-hsr-ll-row { grid-template-columns: 1.9rem minmax(0, 1fr) max(44px, 1.5rem); grid-template-areas: "num name link" "num meta link"; column-gap: 8px; }
+  .sr-hsr-ll-meta { grid-area: meta; display: block; min-width: 0; font-size: 0.75rem; line-height: 1.5; color: var(--sr-text-muted); }
+  .sr-hsr-ll-date, .sr-hsr-ll-on { padding-top: 0; }
+  .sr-hsr-ll-date { white-space: normal; }
+  .sr-hsr-ll-on { display: inline; }
+  .sr-hsr-ll-on-fig { white-space: normal; }
+  .sr-hsr-ll-words { display: inline; }
+  .sr-hsr-ll-bar { display: none; }
+  .sr-hsr-ll-link { align-self: center; }
+  .sr-hsr-ll-cl, .sr-hsr-ll-dash { width: max(44px, 1.5rem); height: max(44px, 1.5rem); }
+}
+/* The map. Its height lives in this ONE class, which the Suspense fallback
+   shares, so the page does not move when the lazy map chunk lands. The pin
+   reads the map's own pin tokens; the centre dot is the theme-neutral white
+   (`--sr-switch-thumb`) the pins' glyph contrast was measured against. */
+.sr-hsr-map { height: 232px; position: relative; background: var(--sr-surface-subtle); }
+.sr-hsr-pin { display: block; pointer-events: none; }
+.sr-hsr-pin-body { fill: var(--sr-map-pin-visited); stroke: var(--sr-map-pin-stroke); stroke-width: 1.5; }
+.sr-hsr-pin-dot { fill: var(--sr-switch-thumb); }
+/* Facts: a definition list whose label and value wrap apart when they must. */
+.sr-hsr-facts { display: flex; flex-direction: column; margin: 0; }
+.sr-hsr-fact { display: flex; flex-wrap: wrap; gap: 0 12px; padding: 8px 0; border-bottom: 1px solid var(--sr-border-subtle); }
+.sr-hsr-fact:first-child { padding-top: 0; }
+.sr-hsr-fact:last-child { border-bottom: 0; padding-bottom: 0; }
+.sr-hsr-fact dt { flex: 0 0 8.75rem; max-width: 100%; font-size: 0.75rem; line-height: 1.5; color: var(--sr-text-muted); }
+.sr-hsr-fact dd { flex: 1 1 9rem; min-width: 0; margin: 0; font-size: 0.8125rem; line-height: 1.5; color: var(--sr-text); overflow-wrap: break-word; }
+.sr-hsr-fact dd b { font-weight: 600; font-variant-numeric: tabular-nums; }
+.sr-hsr-fact dd small { display: block; font-size: 0.71875rem; color: var(--sr-text-muted); }
+.sr-hsr-media { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 0 0 6px; padding: 0; list-style: none; }
+.sr-hsr-media li { display: inline-flex; align-items: center; gap: 6px; font-size: 0.8125rem; color: var(--sr-text); }
+.sr-hsr-media b { font-weight: 600; font-variant-numeric: tabular-nums; }
+.sr-hsr-media-glyph { flex-shrink: 0; color: var(--sr-text-muted); }
+.sr-hsr-stack { display: flex; flex-direction: column; gap: 10px; }
+.sr-hsr-gap { height: 16px; }
 
 @media (max-width: 640px) {
   .sr-header { padding-top: 24px !important; }
@@ -7318,6 +7590,31 @@ select:focus-visible {
   .sr-lfl-link { align-self: center; }
   .sr-lfl-cl, .sr-lfl-link .sr-lfl-dash { width: max(44px, 1.5rem); height: max(44px, 1.5rem); }
   .sr-lfl-place { margin-top: 2px; }
+  /* Hotspot Reports (hotspot-reports design-spec "Phone"): the picker's label
+     above a full-width field at the touch floor, ranked rows with the figure on
+     its own line and its unit shown, tighter card padding, the map at 200px,
+     and the paging and jump chips at the touch height. The shared distribution
+     row takes its shipped phone form from the rules above. */
+  .sr-hsr-picker { flex: 1 1 100%; }
+  .sr-hsr-field { min-height: 2.75rem; padding-right: 0; }
+  .sr-hsr-chev { width: 2.75rem; height: 2.75rem; }
+  .sr-hsr-opt { min-height: 2.75rem; }
+  .sr-hsr-list { max-height: 20rem; }
+  .sr-hsr-sum { padding: 14px; }
+  .sr-hsr-rank { padding: 12px 2px 8px; }
+  .sr-hsr-rankrow { grid-template-columns: 1.6rem minmax(0, 1fr) 14px; grid-template-areas: "num name chev" "num meta chev" "num fig chev"; min-height: 2.75rem; }
+  .sr-hsr-rank-fig { font-size: 0.8125rem; padding-top: 2px; white-space: normal; }
+  .sr-hsr-rank-unit { position: static; width: auto; height: auto; margin: 0; overflow: visible; clip: auto; white-space: normal; font-weight: 500; color: var(--sr-text-muted); }
+  .sr-hsr-hero { padding: 16px 14px; gap: 14px 24px; }
+  .sr-hsr-name { font-size: 1.25rem; }
+  .sr-hsr-fig-value { font-size: 1.5rem; }
+  .sr-hsr-sechead { padding: 12px 14px 10px; }
+  .sr-hsr-secbody { padding: 12px 14px 14px; }
+  .sr-hsr-lead { padding: 11px 14px 10px; }
+  .sr-hsr-ll-row { padding: 10px 12px 11px; }
+  .sr-hsr-map { height: 200px; }
+  .sr-hsr-proto .sr-wx-track { margin-top: 0; }
+  .sr-hsr-chip { min-height: 2.75rem; }
 
   .sr-tg-table, .sr-tg-table tbody, .sr-tg-table tr, .sr-tg-table td { display: block; }
   .sr-tg-table thead { display: none; }
@@ -8286,14 +8583,18 @@ select:focus-visible {
    keeps `overflow: auto` only as a fallback for a window too short to hold the
    foot at all. The column and the gate are pinned as resolved cascade values in
    TabNav.test.tsx; that the row is actually on screen is a browser measurement.
-   THE CAP IS 528px, the user's choice at the live preview (it was 460px): the
-   whole sheet measured at 1x on a notched iPhone with the iOS inset (393x852,
-   34px inset, all eleven tabs visible: the body's 418px plus the foot, the
-   padding and the border) in WebKit and Chromium, so at the default text size
-   every destination shows with no scrolling on every notched width. 70dvh still
-   binds first on the short SE screens, which scroll. */
+   THE CAP IS min(73dvh, 616px), both terms MEASURED (hotspot-reports
+   decisions.md D-08, the user's direction at that design review): the whole
+   sheet at 1x on a notched iPhone with the iOS inset (393x852, 34px inset, all
+   thirteen tabs, nine rows in the body: the body's 506px plus the foot's 61px,
+   the padding and the border) is 616px in WebKit and in Chromium, and 73 is the
+   smallest whole dvh that holds 616px of 852px, so at the default text size
+   every destination shows with nothing to scroll on the reference phone. The
+   viewport term still binds first on the short SE screens, which scroll with
+   Settings pinned in the foot. A destination added later owes a new
+   measurement of both terms and of TabNav.test.tsx's constant. */
 .sr-nav-sheet {
-  width: 100%; max-height: min(70dvh, 528px);
+  width: 100%; max-height: min(73dvh, 616px);
   display: flex; flex-direction: column;
   background: var(--sr-surface);
   border-top: 1px solid var(--sr-border);

@@ -1,0 +1,27 @@
+built thresholds: report 53.25em, list 28em (mode: expect-fixed)
+PASS  chromium More sheet holds every destination without scrolling  9 rows, 506/506
+PASS  chromium the replaced cap is seen to scroll (the leg can reject a revert)  506/418
+PASS  chromium 100% the wide life-list row fits above 28em  worst 0px
+PASS  chromium 100% two columns fit above 53.25em  worst 0px
+PASS  chromium 100% the detector sees a forced overflow  311.59px
+PASS  chromium 150% the wide life-list row fits above 28em  worst 0px
+PASS  chromium 150% two columns fit above 53.25em  worst 0px
+PASS  chromium 150% the detector sees a forced overflow  430.39px
+PASS  chromium 200% the wide life-list row fits above 28em  worst 0px
+PASS  chromium 200% two columns fit above 53.25em  worst 0px
+PASS  chromium 200% the detector sees a forced overflow  549.19px
+PASS  webkit More sheet holds every destination without scrolling  9 rows, 506/506
+PASS  webkit the replaced cap is seen to scroll (the leg can reject a revert)  506/418
+PASS  webkit 100% the wide life-list row fits above 28em  worst 0px
+PASS  webkit 100% two columns fit above 53.25em  worst 0px
+PASS  webkit 100% the detector sees a forced overflow  311.59px
+PASS  webkit 150% the wide life-list row fits above 28em  worst 0px
+PASS  webkit 150% two columns fit above 53.25em  worst 0px
+PASS  webkit 150% the detector sees a forced overflow  430.39px
+PASS  webkit 200% the wide life-list row fits above 28em  worst 0px
+PASS  webkit 200% two columns fit above 53.25em  worst 0px
+PASS  webkit 200% the detector sees a forced overflow  549.19px
+PASS  windows leg measured every configuration  540 measured, 344 windows expected
+PASS  no window configuration failed  0 of 344
+540 configurations measured; all green
+fixed rc=0 seconds=181

@@ -264,7 +264,9 @@ describe('the rename: the entry is Plan, never Predict (FR-05, FR-06, QA-05, QA-
     expect(section).toContain(`**${PLAN_COPY.actionLabel}**`)
     expect(/\bPredict\b/.test(section)).toBe(false)
     const src = read('docs/HELP.md')
-    expect(src).toContain("The small location-picker map in the Weather tab's Plan form has no row at all.")
+    // hotspot-reports: the sentence now names the report's map beside the Plan
+    // form's, which carries no corner row either (HotspotReportMap.tsx).
+    expect(src).toContain("The small location-picker map in the Weather tab's Plan form and the map in a Hotspot Reports report have no row at all.")
     expect(src).not.toContain("Weather tab's Predict mode")
     // No published sentence in the three files names the entry or the form Predict;
     // the word Predicted as the tide label stays legal.

@@ -1,0 +1,1511 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Hotspot Reports: design direction (SnowRaven)</title>
+<style>
+/* ============================================================================
+   TOKENS. Copied verbatim from frontend/src/globals.css (:root and
+   [data-theme="dark"]), the subset this surface touches. Every color below
+   this block is a var(--sr-*) reference; nothing is minted for this feature.
+   ========================================================================== */
+:root {
+  --sr-text-scale: 1;
+  --sr-ctl-floor: 16px;
+  --sr-label-optical: calc(11 / 12);
+
+  --sr-bg: #F9FAFB;
+  --sr-surface: #FFFFFF;
+  --sr-surface-subtle: #F4F4F5;
+  --sr-surface-faint: #FAFAFA;
+
+  --sr-text: #0F1117;
+  --sr-text-muted: #6B6B74;
+  --sr-text-disabled: #A1A1AA;
+  --sr-text-gray: #6B7280;
+
+  --sr-border: #E4E4E7;
+  --sr-border-subtle: #F4F4F5;
+  --sr-border-medium: #C4C4CE;
+  --sr-border-input: #8A8A91;
+
+  --sr-accent: #277448;
+  --sr-accent-strong: #1A5C38;
+  --sr-accent-bg: #E8F5EE;
+  --sr-accent-bg-hover: #F0FAF4;
+  --sr-accent-border: rgba(39,116,72,0.25);
+  --sr-accent-border-strong: rgba(39,116,72,0.7);
+  --sr-on-accent: #FFFFFF;
+
+  --sr-gray-400: #8E8E96;
+  --sr-chart-slate: #94A3B8;
+  --sr-chart-blue-dark: #1D4ED8;
+
+  --sr-map-pin-visited: #2D8653;
+  --sr-map-pin-stroke: #3F3F46;
+
+  --sr-card-shadow: 0 1px 4px rgba(15,17,23,0.06), 0 4px 16px rgba(15,17,23,0.04);
+  --sr-sticky-shadow: 0 3px 6px -2px rgba(15,17,23,0.12);
+  --sr-nav-bar-shadow: 0 -3px 6px -2px rgba(15,17,23,0.12);
+  --sr-scrim: rgba(15,17,23,0.36);
+
+  --font-sans: 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
+}
+[data-theme="dark"] {
+  --sr-bg: #09090B;
+  --sr-surface: #18181B;
+  --sr-surface-subtle: #27272A;
+  --sr-surface-faint: #1C1C1F;
+
+  --sr-text: #F4F4F5;
+  --sr-text-muted: #A1A1AA;
+  --sr-text-disabled: #52525B;
+  --sr-text-gray: #8A8A92;
+
+  --sr-border: #27272A;
+  --sr-border-subtle: #1F1F23;
+  --sr-border-medium: #3F3F46;
+  --sr-border-input: #707078;
+
+  --sr-accent: #34D399;
+  --sr-accent-strong: #34D399;
+  --sr-accent-bg: #052E16;
+  --sr-accent-bg-hover: #064E3B;
+  --sr-accent-border: rgba(52,211,153,0.2);
+  --sr-accent-border-strong: rgba(52,211,153,0.5);
+  --sr-on-accent: #052E16;
+
+  --sr-gray-400: #6E6E78;
+  --sr-chart-slate: #94A3B8;
+  --sr-chart-blue-dark: #3B82F6;
+
+  --sr-map-pin-visited: #2D8653;
+  --sr-map-pin-stroke: #3F3F46;
+
+  --sr-card-shadow: 0 1px 4px rgba(2,2,4,0.4), 0 4px 16px rgba(2,2,4,0.25);
+  --sr-sticky-shadow: 0 3px 8px -2px rgba(2,2,4,0.60);
+  --sr-nav-bar-shadow: 0 -3px 8px -2px rgba(2,2,4,0.60);
+  --sr-scrim: rgba(9,9,11,0.6);
+}
+
+/* ============================================================================
+   BASE. The app's html/body rules, the global focus ring, .sr-only.
+   ========================================================================== */
+*, *::before, *::after { box-sizing: border-box; }
+html { background-color: var(--sr-bg); font-size: calc(100% * var(--sr-text-scale, 1)); }
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--sr-text);
+  background-color: var(--sr-bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+button { font: inherit; color: inherit; }
+svg { display: block; }
+h1, h2, h3, h4, p, dl, dd { margin: 0; }
+ol, ul { margin: 0; padding: 0; list-style: none; }
+
+button:focus-visible,
+a:focus-visible,
+[role="tab"]:focus-visible,
+[role="button"]:focus-visible,
+[tabindex]:focus-visible {
+  outline: 3px solid var(--sr-accent);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 6px rgba(45, 134, 83, 0.12);
+}
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border-width: 0;
+}
+
+/* ============================================================================
+   SHELL. The responsive nav at sidebar density and at phone density, copied
+   from globals.css so the tab is seen sitting where it will sit, thirteenth
+   destination included.
+   ========================================================================== */
+.sr-shell { display: flex; flex: 1; min-width: 0; min-height: 100vh; }
+.sr-shell--phone { flex-direction: column; min-height: 0; }
+.sr-content { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.sr-nav-col {
+  flex-shrink: 0; align-self: flex-start;
+  position: sticky; top: 0; height: 100vh;
+  display: flex; flex-direction: column;
+  background: var(--sr-surface);
+  border-right: 1px solid var(--sr-border);
+  width: 13.5rem;
+  padding: 14px 10px 10px;
+  overflow-y: auto;
+}
+.sr-nav-brand { display: flex; align-items: center; gap: 9px; padding: 2px 6px 0; margin-bottom: 2px; }
+.sr-nav-brand svg { flex-shrink: 0; }
+.sr-nav-word { font-size: 1.0625rem; font-weight: 700; letter-spacing: -0.4px; margin: 0; white-space: nowrap; }
+.sr-nav-word span { color: var(--sr-accent); }
+.sr-nav-tagline { font-size: 0.6875rem; line-height: 1.45; color: var(--sr-text-muted); margin: 5px 6px 14px; padding: 0; }
+.sr-nav-search {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%; min-height: 32px; margin: 0 0 10px;
+  padding: 0 8px 0 9px;
+  border: 1px solid var(--sr-border-input);
+  border-radius: 8px;
+  background: var(--sr-surface-faint);
+  color: var(--sr-text-muted);
+  font-family: inherit; font-size: 0.84375rem; font-weight: 500; text-align: left;
+  cursor: pointer;
+  transition: background-color 120ms ease-out, border-color 120ms ease-out, color 120ms ease-out;
+}
+.sr-nav-search > svg { flex-shrink: 0; }
+.sr-nav-search-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sr-nav-search-hint {
+  flex-shrink: 0; display: inline-flex; align-items: center; gap: 2px;
+  padding: 1px 5px; border-radius: 4px;
+  border: 1px solid var(--sr-border-medium); background: var(--sr-surface-subtle);
+  color: var(--sr-text-muted); font-size: 0.625rem; font-weight: 700; letter-spacing: 0.02em;
+}
+.sr-nav-list { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.sr-nav-group { display: flex; flex-direction: column; gap: 2px; }
+.sr-nav-item {
+  position: relative;
+  display: flex; align-items: center; gap: 10px;
+  width: 100%; min-height: 34px;
+  padding: 7px 10px;
+  border: 0; border-radius: 8px;
+  background: none;
+  color: var(--sr-text-muted);
+  font-family: inherit; font-size: 0.84375rem; font-weight: 500; text-align: left;
+  cursor: pointer;
+  transition: background-color 120ms ease-out, color 120ms ease-out;
+}
+.sr-nav-item > svg { flex-shrink: 0; }
+.sr-nav-item span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sr-nav-item--active, .sr-nav-item--active:hover { background: var(--sr-accent-bg); color: var(--sr-accent); font-weight: 600; }
+.sr-nav-item--active::before {
+  content: ""; position: absolute; left: 0; top: 50%;
+  width: 3px; height: 60%; border-radius: 0 2px 2px 0;
+  background: var(--sr-accent);
+  transform: translateY(-50%);
+}
+.sr-nav-sep { height: 1px; background: var(--sr-border); margin: 8px 4px; border: 0; flex-shrink: 0; }
+.sr-nav-spacer { flex: 1; min-height: 18px; }
+.sr-nav-collapse {
+  display: flex; align-items: center; gap: 10px;
+  width: 100%; min-height: 32px; padding: 6px 10px;
+  border: 0; border-radius: 8px; background: none;
+  color: var(--sr-text-muted);
+  font-family: inherit; font-size: 0.75rem; font-weight: 600;
+  cursor: pointer;
+  transition: background-color 120ms ease-out, color 120ms ease-out;
+}
+@media (hover: hover) {
+  .sr-nav-search:hover { background: var(--sr-surface-subtle); border-color: var(--sr-text-muted); color: var(--sr-text); }
+  .sr-nav-item:hover { background: var(--sr-surface-subtle); color: var(--sr-text); }
+  .sr-nav-collapse:hover { background: var(--sr-surface-subtle); color: var(--sr-text); }
+  .sr-navbar-cell:hover { background: var(--sr-surface-subtle); }
+}
+
+/* Phone header and bottom bar. */
+.sr-header { display: flex; flex-direction: column; align-items: center; padding: 24px 24px 0; flex-shrink: 0; }
+.sr-header-brand { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 6px; width: 100%; max-width: 100%; min-width: 0; }
+.sr-header-brand > svg { flex-shrink: 0; }
+.sr-header-title { display: flex; flex: 0 1 auto; flex-wrap: wrap; justify-content: center; max-width: 100%; min-width: 0; font-size: 1.625rem; font-weight: 700; letter-spacing: -0.6px; margin: 0; }
+.sr-header-title > span { white-space: nowrap; }
+.sr-header-title .ac { color: var(--sr-accent); }
+.sr-header-tag { font-size: 0.875rem; color: var(--sr-text-muted); margin-bottom: 20px; text-align: center; }
+.sr-navbar {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 1200;
+  display: grid; grid-template-columns: repeat(5, minmax(0, 1fr));
+  background: var(--sr-surface);
+  border-top: 1px solid var(--sr-border);
+  box-shadow: var(--sr-nav-bar-shadow);
+  container-type: inline-size;
+}
+.sr-navbar-cell {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  min-height: 52px; padding: 7px 3px 8px;
+  border: 0; background: none; cursor: pointer;
+  color: var(--sr-text-muted);
+  font-family: inherit;
+  transition: background-color 120ms ease-out, color 120ms ease-out;
+}
+.sr-navbar-cell--active { color: var(--sr-accent); }
+.sr-navbar-cell--active .sr-navbar-glyph { background: var(--sr-accent-bg); }
+.sr-navbar-glyph { display: flex; align-items: center; justify-content: center; width: 40px; height: 26px; border-radius: 13px; transition: background-color 140ms ease-out; }
+.sr-navbar-label {
+  font-size: 0.625rem; font-weight: 600; line-height: 1.15; text-align: center;
+  white-space: normal; overflow-wrap: break-word;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.sr-navbar-cell--active .sr-navbar-label { font-weight: 700; }
+@container (max-width: 17rem) { .sr-navbar-label { display: none; } }
+
+/* The More sheet, verbatim from globals.css. In the app the root is
+   position: fixed and the cap reads dvh; in this mockup the phone frame is the
+   viewport, so the root is absolute inside the frame and the cap reads the
+   frame's own height (--mk-h). --mk-cap-vh and --mk-cap-px are the two terms
+   of `min(<v>dvh, <px>)`. */
+.sr-nav-sheet-root {
+  position: absolute; inset: 0; z-index: 1260;
+  background: var(--sr-scrim);
+  display: flex; align-items: flex-end;
+  opacity: 0; transition: opacity 160ms ease-out;
+  pointer-events: none;
+}
+.sr-nav-sheet-root--open { opacity: 1; pointer-events: auto; }
+.sr-nav-sheet {
+  width: 100%; max-height: min(calc(var(--mk-h) * var(--mk-cap-vh)), var(--mk-cap-px));
+  display: flex; flex-direction: column;
+  background: var(--sr-surface);
+  border-top: 1px solid var(--sr-border);
+  border-radius: 16px 16px 0 0;
+  box-shadow: var(--sr-card-shadow);
+  padding: 0 0 14px;
+  overflow: auto;
+  transform: translateY(100%);
+  transition: transform 220ms cubic-bezier(0.2, 0, 0, 1);
+}
+.sr-nav-sheet-root--open .sr-nav-sheet { transform: translateY(0); }
+.sr-nav-sheet-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 8px 10px 0; }
+.sr-nav-sheet-foot { flex: none; padding: 0 10px; }
+.sr-nav-sheet-handle { width: 36px; height: 4px; border-radius: 2px; background: var(--sr-border-medium); margin: 4px auto 8px; }
+.sr-nav-sheet h2 { font-size: 1rem; font-weight: 700; margin: 0 0 8px; padding: 0 6px; letter-spacing: -0.01em; }
+.sr-nav-sheet .sr-nav-item { min-height: 44px; font-size: 0.9375rem; }
+.sr-nav-sheet .sr-nav-search { min-height: 44px; font-size: 0.9375rem; }
+/* .sr-ios-app, simulated: the 34px home-indicator inset on the bar and sheet. */
+.mk-ios .sr-navbar { padding-bottom: calc(6px + 34px); }
+.mk-ios .sr-nav-sheet { padding-bottom: calc(14px + 34px); }
+
+main { outline: none; flex: 1; display: flex; flex-direction: column; }
+.sr-panel { max-width: 1280px; margin-inline: auto; width: 100%; display: flex; flex-direction: column; align-items: center; padding: 40px 24px 24px; }
+.sr-panel > * { width: 100%; max-width: 1100px; }
+
+/* ============================================================================
+   SHARED PRIMITIVES, restated from the app: BirdName, ChecklistLink,
+   HotspotLink (full-name form), the distribution row (.sr-wx-*), the Statistics
+   hotspot partition (.sr-hs-*), the Projects link (.sr-proj-link), the Life
+   Lists paging controls, .sr-touch-target.
+   ========================================================================== */
+.sr-touch-target { display: inline-flex; align-items: center; justify-content: center; }
+
+.sr-birdname { display: inline-flex; flex-direction: column; gap: 1px; min-width: 0; vertical-align: top; }
+.sr-birdname-row { display: flex; align-items: center; min-width: 0; }
+.sr-birdname-link { font: inherit; font-weight: 500; color: var(--sr-text); background: none; border: 0; padding: 0; margin: 0; cursor: pointer; text-decoration: none; text-align: left; }
+.sr-birdname-link:hover, .sr-birdname-link:focus-visible { color: var(--sr-accent); text-decoration: underline; }
+.sr-birdname-md .sr-birdname-link { font-size: 0.84375rem; }
+.sr-birdname-sci { font-style: italic; color: var(--sr-text-gray); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sr-birdname-md .sr-birdname-sci { font-size: 0.71875rem; }
+.sr-species-links { display: inline-flex; align-items: center; gap: 5px; margin-left: 6px; vertical-align: middle; }
+.sr-species-link { opacity: 0.75; display: inline-flex; align-items: center; padding: 5px; margin: -5px; transition: opacity 120ms ease-out; }
+.sr-species-link:hover, .sr-species-link:focus-visible { opacity: 1; }
+.sr-favicon-slot { display: inline-flex; width: 14px; height: 14px; align-items: center; justify-content: center; flex-shrink: 0; color: var(--sr-text); }
+
+/* ChecklistLink with a visible date label, and HotspotLink's full-name form:
+   accent text, the external glyph bound to the last word. */
+.sr-cl-date, .sr-hotlink { color: var(--sr-accent); text-decoration: none; }
+.sr-cl-date { font-weight: 600; white-space: nowrap; }
+.sr-cl-date:hover, .sr-hotlink:hover { text-decoration: underline; }
+.sr-cl-date svg, .sr-hotlink svg { display: inline-block; vertical-align: baseline; margin-left: 4px; }
+.sr-hotlink-last { display: inline-block; white-space: nowrap; }
+
+.sr-proj-link { background: none; border: none; padding: 0; font: inherit; color: var(--sr-accent); text-decoration: underline; cursor: pointer; }
+.sr-proj-link:focus-visible { outline: 2px solid var(--sr-accent); outline-offset: 2px; border-radius: 3px; box-shadow: none; }
+
+/* Statistics' hotspot partition, reused for the count block: figures over an
+   aria-hidden bar with no text inside it. */
+.sr-hs-figs { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 2px 16px; margin-bottom: 8px; min-width: 0; }
+.sr-hs-fig { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0 6px; min-width: 0; }
+.sr-hs-fig--end { margin-left: auto; justify-content: flex-end; text-align: right; }
+.sr-hs-pct { font-size: 1rem; font-weight: 700; letter-spacing: -0.01em; line-height: 1.1; color: var(--sr-text); font-variant-numeric: tabular-nums; }
+.sr-hs-figlab { font-size: 0.6875rem; color: var(--sr-text-muted); }
+.sr-hs-bar { height: 20px; border-radius: 4px; overflow: hidden; display: flex; background: var(--sr-surface-subtle); }
+.sr-hs-seg--hot { height: 100%; background: var(--sr-chart-blue-dark); min-width: 3px; transform-origin: left center; animation: sr-hs-fill 240ms cubic-bezier(0.2, 0, 0, 1); }
+.sr-hs-seg--pers { flex: 1; height: 100%; background: var(--sr-surface-subtle); }
+@keyframes sr-hs-fill { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+.sr-hs-status { display: flex; align-items: flex-start; gap: 0.5rem; font-size: 0.8125rem; line-height: 1.5; color: var(--sr-text); min-width: 0; overflow-wrap: break-word; }
+.sr-hs-glyph { flex-shrink: 0; margin-top: 0.1875rem; color: var(--sr-text-muted); }
+.sr-hs-lines { min-width: 0; }
+.sr-hs-line { margin: 0; }
+.sr-hs-sofar { font-size: 0.75rem; color: var(--sr-text-muted); margin: 2px 0 0; }
+
+/* The distribution row (Statistics Weather section and Species Detail Weather
+   card), base tier, verbatim. No positive min-width anywhere but the fill. */
+.sr-wx-row { display: grid; grid-template-columns: auto minmax(0, 8.5rem) minmax(0, 1fr) auto; align-items: center; gap: 0 0.5rem; min-height: 1.375rem; min-width: 0; }
+.sr-wx-row.no-glyph { grid-template-columns: minmax(0, 8.5rem) minmax(0, 1fr) auto; }
+.sr-wx-rows { display: flex; flex-direction: column; gap: 0.25rem; }
+.sr-wx-glyph { font-size: 0.875rem; line-height: 1; width: 1.25rem; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; color: var(--sr-text-muted); }
+.sr-wx-label { font-size: 0.6875rem; color: var(--sr-text); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sr-wx-row.is-zero .sr-wx-label { color: var(--sr-text-muted); }
+.sr-wx-track { height: 8px; border-radius: 4px; background: var(--sr-surface-subtle); overflow: hidden; min-width: 0; }
+.sr-wx-track.is-empty { background: transparent; border: 1px dashed var(--sr-border-medium); height: 8px; }
+.sr-wx-fill { display: block; height: 100%; border-radius: 4px; background: var(--sr-accent); min-width: 3px; width: var(--w, 0%); animation: sr-wx-grow 300ms cubic-bezier(0.2, 0, 0, 1) both; }
+@keyframes sr-wx-grow { from { width: 0; } to { width: var(--w, 0%); } }
+.sr-wx-count { font-size: 0.6875rem; color: var(--sr-text-muted); text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.sr-wx-count b { color: var(--sr-text); font-weight: 600; }
+.sr-wx-row.is-zero .sr-wx-count b { color: var(--sr-text-muted); font-weight: 400; }
+
+/* Life Lists paging controls, verbatim. */
+.sr-lfl-paging { display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; padding: 14px 18px; border-top: 1px solid var(--sr-border-subtle); }
+.sr-lfl-next { height: 36px; padding: 0 15px; border-radius: 8px; font-family: inherit; font-size: 0.8125rem; font-weight: 600; cursor: pointer; border: 1px solid var(--sr-border-medium); background: var(--sr-surface); color: var(--sr-text); transition: background-color 120ms ease-out, border-color 120ms ease-out; }
+.sr-lfl-all { height: 36px; padding: 0 15px; border-radius: 8px; font-family: inherit; font-size: 0.8125rem; font-weight: 600; cursor: pointer; border: 1px solid transparent; background: none; color: var(--sr-accent); transition: background-color 120ms ease-out; }
+.sr-lfl-showing { font-size: 0.71875rem; color: var(--sr-text-muted); font-variant-numeric: tabular-nums; }
+@media (hover: hover) {
+  .sr-lfl-next:hover { background: var(--sr-surface-subtle); }
+  .sr-lfl-all:hover { background: var(--sr-accent-bg); }
+}
+
+/* ============================================================================
+   HOTSPOT REPORTS (.sr-hsr-*). The new family. Everything here is built from
+   registers the app already has: the house tab header, the Region picker's
+   combobox at the Species Detail hero height, SectionCard and SectionHead, the
+   Life Lists ledger row, the distribution row, the hotspot partition.
+   ========================================================================== */
+.sr-hsr-tab { display: flex; flex-direction: column; gap: 16px; }
+.sr-hsr-head { display: flex; align-items: flex-start; gap: 10px; }
+.sr-hsr-head-tile { width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0; background: var(--sr-accent-bg); color: var(--sr-accent); display: flex; align-items: center; justify-content: center; }
+.sr-hsr-head h2 { font-size: 1.125rem; font-weight: 700; margin: 0 0 2px; color: var(--sr-text); letter-spacing: -0.01em; }
+.sr-hsr-head p { font-size: 0.8125rem; color: var(--sr-text-muted); margin: 0; line-height: 1.5; }
+
+/* ── The location picker ────────────────────────────────────────────────────
+   LifeListsRegionPicker's anatomy (search glyph, input as the combobox, chevron
+   Button, a flat listbox of plain role="option" rows keyed on their index) at
+   the 40px hero register, because here it chooses the whole page. */
+.sr-hsr-pickrow { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; min-width: 0; }
+.sr-hsr-label { font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--sr-text-muted); --sr-ctl-rem: 0.875rem; --sr-label-ratio: calc(11 / 14); }
+.sr-hsr-picker { position: relative; flex: 0 1 34rem; min-width: 0; z-index: 20; }
+.sr-hsr-field {
+  display: flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 4px 0 12px;
+  border: 1.5px solid var(--sr-border-input); border-radius: 8px;
+  background: var(--sr-surface); color: var(--sr-text);
+  transition: border-color 120ms ease-out, box-shadow 120ms ease-out;
+}
+.sr-hsr-field:focus-within { border-color: var(--sr-accent); box-shadow: 0 0 0 4px rgba(45, 134, 83, 0.12); }
+.sr-hsr-field-glyph { flex-shrink: 0; color: var(--sr-text-muted); }
+.sr-hsr-input {
+  flex: 1 1 auto; min-width: 0; border: 0; outline: 0; background: transparent; color: inherit;
+  font-family: inherit; font-size: 0.875rem; --sr-ctl-rem: 0.875rem; font-weight: 600; padding: 7px 0;
+  text-overflow: ellipsis;
+}
+.sr-hsr-input::placeholder { color: var(--sr-text-muted); font-weight: 500; }
+.sr-hsr-chev {
+  flex-shrink: 0; width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center;
+  border: 0; background: none; padding: 0; color: var(--sr-text-muted); border-radius: 6px; cursor: pointer;
+  transition: background-color 120ms ease-out;
+}
+.sr-hsr-chev-glyph { transition: transform 140ms ease-out; }
+.sr-hsr-chev[aria-expanded="true"] .sr-hsr-chev-glyph { transform: rotate(180deg); }
+.sr-hsr-field.is-disabled { background: var(--sr-surface-subtle); border-color: var(--sr-border); color: var(--sr-text-disabled); }
+.sr-hsr-field.is-disabled .sr-hsr-field-glyph, .sr-hsr-field.is-disabled .sr-hsr-chev { color: var(--sr-text-disabled); cursor: not-allowed; }
+.sr-hsr-input:disabled { color: var(--sr-text-disabled); -webkit-text-fill-color: var(--sr-text-disabled); opacity: 1; }
+/* The listbox: origin-aware, 140ms ease-out from the field's own corner; close
+   is instant; the global reduced-motion block makes the open instant too. */
+.sr-hsr-list {
+  position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 1200; margin: 0; padding: 4px;
+  max-height: 24rem; overflow: auto; overscroll-behavior: contain;
+  background: var(--sr-surface); border: 1px solid var(--sr-border); border-radius: 10px; box-shadow: var(--sr-card-shadow);
+  transform-origin: top left;
+  animation: sr-hsr-list-in 140ms cubic-bezier(0.2, 0, 0, 1) both;
+}
+@keyframes sr-hsr-list-in { from { opacity: 0; transform: scaleY(0.92); } to { opacity: 1; transform: none; } }
+.sr-hsr-opt { display: flex; align-items: flex-start; gap: 8px; min-height: 2.5rem; padding: 6px 10px; border-radius: 6px; cursor: pointer; }
+.sr-hsr-opt-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.sr-hsr-opt-name { font-size: 0.8125rem; line-height: 1.4; color: var(--sr-text); overflow-wrap: anywhere; }
+.sr-hsr-opt--all .sr-hsr-opt-name, .sr-hsr-noname { font-style: italic; }
+.sr-hsr-opt-check { flex-shrink: 0; color: var(--sr-accent); margin-top: 3px; }
+.sr-hsr-opt[aria-selected="true"] .sr-hsr-opt-name { font-weight: 600; color: var(--sr-accent); }
+.sr-hsr-opt.is-active { background: var(--sr-surface-subtle); outline: 2px solid var(--sr-accent); outline-offset: -2px; }
+.sr-hsr-more, .sr-hsr-nomatch { padding: 8px 10px 9px; font-size: 0.75rem; line-height: 1.45; color: var(--sr-text-muted); }
+.sr-hsr-more { margin-top: 3px; border-top: 1px solid var(--sr-border-subtle); }
+@media (hover: hover) {
+  .sr-hsr-chev:where(:not(:disabled)):hover { background: var(--sr-surface-subtle); color: var(--sr-text); }
+  .sr-hsr-opt:hover { background: var(--sr-surface-subtle); }
+}
+
+/* The meta line shared by a picker row, a ranked row and the report header:
+   kind (a glyph AND its word, or nothing at all), place, Location ID for
+   namesakes, checklist count. Monochrome; the kind is never a hue. */
+.sr-hsr-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 0 6px; font-size: 0.71875rem; line-height: 1.45; color: var(--sr-text-muted); min-width: 0; }
+.sr-hsr-meta > span { display: inline-flex; align-items: center; gap: 6px; min-width: 0; overflow-wrap: anywhere; }
+.sr-hsr-dot { color: var(--sr-text-muted); }
+.sr-hsr-kind { display: inline-flex; align-items: center; gap: 4px; font-weight: 600; color: var(--sr-text-muted); min-width: 0; }
+.sr-hsr-kind-glyph { flex-shrink: 0; }
+.sr-hsr-locid { font-variant-numeric: tabular-nums; }
+
+/* ── Content swap: overview <-> report. The view's one child is keyed on what
+   is selected, so this replays only when the selection changed (the hotspot
+   share block's own entrance, same curve and distance). */
+.sr-hsr-view > * { animation: sr-hsr-in 160ms cubic-bezier(0.16, 1, 0.3, 1); }
+@keyframes sr-hsr-in { from { opacity: 0; transform: translateY(0.1875rem); } to { opacity: 1; transform: translateY(0); } }
+
+/* ── Cards ── */
+.sr-hsr-card { background: var(--sr-surface); border: 1px solid var(--sr-border); border-radius: 12px; overflow: hidden; box-shadow: var(--sr-card-shadow); min-width: 0; }
+.sr-hsr-sechead { display: flex; align-items: center; gap: 8px; padding: 14px 18px 12px; border-bottom: 1px solid var(--sr-border-subtle); }
+.sr-hsr-sectile { width: 28px; height: 28px; border-radius: 7px; flex-shrink: 0; background: var(--sr-accent-bg); color: var(--sr-accent); display: flex; align-items: center; justify-content: center; }
+.sr-hsr-sechead h4 { font-size: 0.8125rem; font-weight: 600; color: var(--sr-text); margin: 0; outline: none; }
+.sr-hsr-secbody { padding: 14px 18px 16px; }
+.sr-hsr-sub { font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--sr-text-muted); margin: 0; }
+.sr-hsr-divider { height: 1px; background: var(--sr-border-subtle); margin: 14px 0; }
+.sr-hsr-body-text { font-size: 0.8125rem; line-height: 1.55; color: var(--sr-text); margin: 0; }
+.sr-hsr-body-text b { font-weight: 600; font-variant-numeric: tabular-nums; }
+.sr-hsr-note { font-size: 0.71875rem; line-height: 1.5; color: var(--sr-text-muted); margin: 0; }
+.sr-hsr-note b { font-weight: 600; color: var(--sr-text); font-variant-numeric: tabular-nums; }
+.sr-hsr-grouphead { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 2px 12px; margin: 0 0 4px; min-width: 0; }
+.sr-hsr-den { font-size: 0.6875rem; color: var(--sr-text-muted); }
+.sr-hsr-den b { color: var(--sr-text); font-weight: 600; font-variant-numeric: tabular-nums; }
+.sr-hsr-typical { font-size: 0.75rem; line-height: 1.5; color: var(--sr-text-muted); margin: 0 0 8px; }
+.sr-hsr-typical b { color: var(--sr-text); font-weight: 600; }
+.sr-wx-row.is-typical .sr-wx-label { font-weight: 700; }
+/* A protocol name is user-file text bounded at 64 characters: it wraps here
+   rather than taking the row's desktop ellipsis. Scoped to this tab. */
+.sr-hsr-proto .sr-wx-label { white-space: normal; overflow-wrap: anywhere; text-overflow: clip; }
+.sr-hsr-proto .sr-wx-row { align-items: start; }
+.sr-hsr-proto .sr-wx-track { margin-top: 0.3rem; }
+
+/* ── Overview ── */
+.sr-hsr-sum { padding: 18px 20px 16px; display: flex; flex-direction: column; gap: 12px; }
+.sr-hsr-total { display: flex; align-items: baseline; flex-wrap: wrap; gap: 2px 8px; margin: 0; }
+.sr-hsr-total b { font-size: 1.75rem; font-weight: 700; letter-spacing: -0.02em; line-height: 1.05; color: var(--sr-text); font-variant-numeric: tabular-nums; }
+.sr-hsr-total span { font-size: 0.8125rem; color: var(--sr-text-muted); }
+.sr-hsr-split { max-width: 36rem; min-width: 0; }
+.sr-hsr-seg--unk { height: 100%; flex: none; background: var(--sr-surface); border: 1px dashed var(--sr-border-medium); border-radius: 0 4px 4px 0; min-width: 6px; }
+.sr-hsr-ranks { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(19rem, 100%), 1fr)); gap: 1px; background: var(--sr-border-subtle); border-top: 1px solid var(--sr-border-subtle); }
+.sr-hsr-rank { background: var(--sr-surface); padding: 14px 8px 10px; min-width: 0; }
+.sr-hsr-rank .sr-hsr-sub { padding: 0 12px; margin-bottom: 6px; }
+.sr-hsr-rankrow {
+  display: grid; grid-template-columns: 1.6rem minmax(0, 1fr) auto 14px;
+  grid-template-areas: "num name fig chev" "num meta fig chev";
+  column-gap: 10px; row-gap: 1px; align-items: start;
+  width: 100%; text-align: left; padding: 8px 12px;
+  border: 0; border-radius: 8px; background: none; color: inherit; cursor: pointer;
+  font-family: inherit;
+  transition: background-color 120ms ease-out;
+}
+.sr-hsr-rank-num { grid-area: num; font-size: 0.75rem; color: var(--sr-text-muted); text-align: right; font-variant-numeric: tabular-nums; padding-top: 2px; }
+.sr-hsr-rank-name { grid-area: name; font-size: 0.84375rem; font-weight: 600; line-height: 1.4; color: var(--sr-text); overflow-wrap: anywhere; min-width: 0; }
+.sr-hsr-rankrow .sr-hsr-meta { grid-area: meta; }
+.sr-hsr-rank-fig { grid-area: fig; font-size: 0.9375rem; font-weight: 700; color: var(--sr-text); font-variant-numeric: tabular-nums; white-space: nowrap; padding-top: 1px; }
+.sr-hsr-rank-unit { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
+.sr-hsr-rank-chev { grid-area: chev; color: var(--sr-border-medium); margin-top: 4px; transition: color 120ms ease-out; }
+@media (hover: hover) {
+  .sr-hsr-rankrow:hover { background: var(--sr-surface-subtle); }
+  .sr-hsr-rankrow:hover .sr-hsr-rank-chev { color: var(--sr-text); }
+}
+
+/* ── Report ── */
+.sr-hsr-report { container-type: inline-size; container-name: sr-hsr-report; display: flex; flex-direction: column; gap: 16px; }
+.sr-hsr-hero { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 16px 36px; padding: 20px 22px; }
+.sr-hsr-ident { flex: 1 1 22rem; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.sr-hsr-eyebrow { font-size: 0.6875rem; letter-spacing: 0.06em; text-transform: uppercase; }
+.sr-hsr-name { font-size: 1.375rem; font-weight: 700; letter-spacing: -0.015em; line-height: 1.25; margin: 0; color: var(--sr-text); overflow-wrap: anywhere; outline: none; scroll-margin-top: 72px; }
+.sr-hsr-totals { flex: 1 1 20rem; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.sr-hsr-figs { display: flex; flex-wrap: wrap; gap: 8px 32px; }
+.sr-hsr-fig { display: flex; flex-direction: column; min-width: 0; }
+.sr-hsr-fig-label { font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: var(--sr-text-muted); margin-bottom: 2px; }
+.sr-hsr-fig-value { font-size: 1.625rem; font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; color: var(--sr-text); font-variant-numeric: tabular-nums; }
+.sr-hsr-fig-value--key { color: var(--sr-accent); }
+.sr-hsr-rule { font-size: 0.71875rem; line-height: 1.5; color: var(--sr-text-muted); max-width: 62ch; margin: 0; }
+
+/* The jump row: the Statistics jump-nav's own chip, shown only while the
+   report is one column, where the long list sits above the other sections. */
+.sr-hsr-jump { display: none; flex-wrap: wrap; gap: 6px; }
+.sr-hsr-jump a { font-size: 0.71875rem; font-weight: 500; color: var(--sr-text-muted); text-decoration: none; padding: 4px 10px; border-radius: 100px; background: var(--sr-surface-subtle); border: 1px solid var(--sr-border); white-space: nowrap; }
+
+.sr-hsr-body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 24rem); gap: 16px; align-items: start; }
+.sr-hsr-rail { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+@container sr-hsr-report (max-width: 55em) {
+  .sr-hsr-body { grid-template-columns: minmax(0, 1fr); }
+  .sr-hsr-jump { display: flex; }
+}
+
+/* The life list at the location: the Life Lists ledger's row, five tracks. */
+.sr-hsr-lead { padding: 12px 18px 11px; border-bottom: 1px solid var(--sr-border-subtle); }
+.sr-hsr-count { font-size: 0.8125rem; line-height: 1.5; color: var(--sr-text-muted); margin: 0; outline: none; }
+.sr-hsr-count b { font-weight: 700; color: var(--sr-text); font-variant-numeric: tabular-nums; }
+.sr-hsr-ll { container-type: inline-size; container-name: sr-hsr-ll; }
+.sr-hsr-ll-row, .sr-hsr-ll-cols {
+  display: grid;
+  grid-template-columns: 2.5rem minmax(0, 1fr) 5.6rem 1.5rem 5.25rem;
+  grid-template-areas: "num name date link on";
+  column-gap: 14px; row-gap: 2px; align-items: start;
+  padding: 11px 18px 12px;
+  border-bottom: 1px solid var(--sr-border-subtle);
+}
+.sr-hsr-ll-row:last-child { border-bottom: 0; }
+.sr-hsr-ll-cols { padding-top: 7px; padding-bottom: 7px; background: var(--sr-surface-faint); font-size: 0.625rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--sr-text-muted); }
+.sr-hsr-ll-cols .c-name { grid-area: name; }
+.sr-hsr-ll-cols .c-date { grid-area: date; }
+.sr-hsr-ll-cols .c-on { grid-area: on; text-align: right; }
+.sr-hsr-ll-num { grid-area: num; font-size: 0.75rem; color: var(--sr-text-muted); text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; padding-top: 2px; }
+.sr-hsr-ll-name { grid-area: name; min-width: 0; padding-top: 1px; }
+.sr-hsr-ll-name .sr-birdname { width: 100%; max-width: 100%; }
+.sr-hsr-ll-name .sr-birdname-row { flex-wrap: wrap; }
+.sr-hsr-ll-name .sr-birdname-sci { white-space: normal; overflow-wrap: anywhere; }
+.sr-hsr-ll-meta { display: contents; }
+.sr-hsr-ll-date { grid-area: date; font-size: 0.75rem; font-weight: 600; color: var(--sr-text); white-space: nowrap; font-variant-numeric: tabular-nums; padding-top: 2px; }
+.sr-hsr-ll-link { grid-area: link; display: flex; justify-content: center; }
+.sr-hsr-ll-cl { display: inline-flex; align-items: center; justify-content: center; width: 1.5rem; height: 1.5rem; border-radius: 6px; color: var(--sr-accent); text-decoration: none; transition: background-color 120ms ease-out; }
+.sr-hsr-ll-cl:hover, .sr-hsr-ll-cl:focus-visible { background: var(--sr-accent-bg); }
+.sr-hsr-ll-cl:focus-visible { outline-offset: 1px; box-shadow: none; }
+.sr-hsr-ll-on { grid-area: on; display: flex; flex-direction: column; align-items: stretch; gap: 4px; padding-top: 2px; min-width: 0; }
+.sr-hsr-ll-on-fig { font-size: 0.75rem; color: var(--sr-text-muted); text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.sr-hsr-ll-on-fig b { font-weight: 600; color: var(--sr-text); }
+.sr-hsr-ll-words { display: none; }
+.sr-hsr-ll-bar { height: 3px; border-radius: 2px; background: var(--sr-border); overflow: hidden; }
+.sr-hsr-ll-bar i { display: block; height: 100%; min-width: 2px; border-radius: 2px; background: var(--sr-chart-slate); }
+.sr-hsr-empty { padding: 26px 18px; font-size: 0.8125rem; color: var(--sr-text-muted); text-align: center; margin: 0; }
+/* The row stacks by the LIST's own width, so a wide window at 200% text and
+   the phone both get it. Stacked, each figure carries its own words and the
+   column header row is gone. */
+@container sr-hsr-ll (max-width: 30em) {
+  .sr-hsr-ll-cols { display: none; }
+  .sr-hsr-ll-row { grid-template-columns: 1.9rem minmax(0, 1fr) max(44px, 1.5rem); grid-template-areas: "num name link" "num meta link"; column-gap: 8px; }
+  .sr-hsr-ll-meta { grid-area: meta; display: block; min-width: 0; font-size: 0.75rem; line-height: 1.5; color: var(--sr-text-muted); }
+  .sr-hsr-ll-date, .sr-hsr-ll-on { padding-top: 0; }
+  .sr-hsr-ll-date { white-space: normal; }
+  .sr-hsr-ll-on { display: inline; }
+  .sr-hsr-ll-on-fig { white-space: normal; }
+  .sr-hsr-ll-words { display: inline; }
+  .sr-hsr-ll-bar { display: none; }
+  .sr-hsr-ll-link { align-self: center; }
+  .sr-hsr-ll-cl { width: max(44px, 1.5rem); height: max(44px, 1.5rem); }
+}
+
+/* The map. Its height lives in this ONE class, which the Suspense fallback
+   shares, so the page does not move when the lazy map chunk lands. */
+.sr-hsr-map { height: 232px; position: relative; background: var(--sr-surface-subtle); }
+.sr-hsr-map svg { width: 100%; height: 100%; }
+.sr-hsr-nomap { display: flex; align-items: flex-start; gap: 0.5rem; }
+
+/* Facts: a definition list whose label and value wrap apart when they must. */
+.sr-hsr-facts { display: flex; flex-direction: column; }
+.sr-hsr-fact { display: flex; flex-wrap: wrap; gap: 0 12px; padding: 8px 0; border-bottom: 1px solid var(--sr-border-subtle); }
+.sr-hsr-fact:first-child { padding-top: 0; }
+.sr-hsr-fact:last-child { border-bottom: 0; padding-bottom: 0; }
+.sr-hsr-fact dt { flex: 0 0 8.75rem; max-width: 100%; font-size: 0.75rem; line-height: 1.5; color: var(--sr-text-muted); }
+.sr-hsr-fact dd { flex: 1 1 9rem; min-width: 0; font-size: 0.8125rem; line-height: 1.5; color: var(--sr-text); }
+.sr-hsr-fact dd b { font-weight: 600; font-variant-numeric: tabular-nums; }
+.sr-hsr-fact dd small { display: block; font-size: 0.71875rem; color: var(--sr-text-muted); }
+.sr-hsr-media { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 0 0 6px; }
+.sr-hsr-media li { display: inline-flex; align-items: center; gap: 6px; font-size: 0.8125rem; color: var(--sr-text); }
+.sr-hsr-media b { font-weight: 600; font-variant-numeric: tabular-nums; }
+.sr-hsr-media-glyph { flex-shrink: 0; color: var(--sr-text-muted); }
+.sr-hsr-stack { display: flex; flex-direction: column; gap: 10px; }
+.sr-hsr-gap { height: 16px; }
+
+/* ============================================================================
+   PHONE TIER. In the shipped stylesheet every rule below lives INSIDE the
+   established <=640px block. Here it is scoped to `.mk-phone` so the phone
+   frames render it on a wide window.
+   ========================================================================== */
+.mk-phone .sr-panel { padding: 20px 12px 16px; }
+.mk-phone .sr-touch-target { min-height: 2.75rem; }
+.mk-phone .sr-input-16 { font-size: max(var(--sr-ctl-floor), var(--sr-ctl-rem, 0.75rem)) !important; }
+.mk-phone .sr-ctl-label { font-size: max(calc(var(--sr-ctl-floor) * var(--sr-label-ratio, 1)), calc(var(--sr-ctl-rem, 0.75rem) * var(--sr-label-ratio, 1))) !important; }
+.mk-phone .sr-hsr-picker { flex: 1 1 100%; }
+.mk-phone .sr-hsr-field { min-height: 2.75rem; padding-right: 0; }
+.mk-phone .sr-hsr-chev { width: 2.75rem; height: 2.75rem; }
+.mk-phone .sr-hsr-opt { min-height: 2.75rem; }
+.mk-phone .sr-hsr-list { max-height: 20rem; }
+.mk-phone .sr-hsr-sum { padding: 14px 14px 14px; }
+.mk-phone .sr-hsr-rank { padding: 12px 2px 8px; }
+.mk-phone .sr-hsr-rankrow { grid-template-columns: 1.6rem minmax(0, 1fr) 14px; grid-template-areas: "num name chev" "num meta chev" "num fig chev"; min-height: 2.75rem; }
+.mk-phone .sr-hsr-rank-fig { font-size: 0.8125rem; padding-top: 2px; }
+.mk-phone .sr-hsr-rank-unit { position: static; width: auto; height: auto; margin: 0; overflow: visible; clip: auto; font-weight: 500; color: var(--sr-text-muted); }
+.mk-phone .sr-hsr-hero { padding: 16px 14px; gap: 14px 24px; }
+.mk-phone .sr-hsr-name { font-size: 1.25rem; }
+.mk-phone .sr-hsr-fig-value { font-size: 1.5rem; }
+.mk-phone .sr-hsr-sechead { padding: 12px 14px 10px; }
+.mk-phone .sr-hsr-secbody { padding: 12px 14px 14px; }
+.mk-phone .sr-hsr-lead { padding: 11px 14px 10px; }
+.mk-phone .sr-hsr-ll-row { padding: 10px 12px 11px; }
+.mk-phone .sr-hsr-map { height: 200px; }
+.mk-phone .sr-lfl-paging { padding: 12px; }
+.mk-phone .sr-lfl-paging .sr-lfl-next, .mk-phone .sr-lfl-paging .sr-lfl-all { min-height: 2.75rem; height: auto; }
+/* The distribution row's shipped phone tier: identity on line one, the rail on
+   line two, the label wrapping instead of ellipsizing. */
+.mk-phone .sr-wx-row { grid-template-columns: auto minmax(0, 1fr) auto; row-gap: 0.25rem; padding-bottom: 0.25rem; }
+.mk-phone .sr-wx-row > .sr-wx-glyph { grid-area: 1 / 1; }
+.mk-phone .sr-wx-row > .sr-wx-label { grid-area: 1 / 2; white-space: normal; overflow: hidden; text-overflow: clip; overflow-wrap: anywhere; }
+.mk-phone .sr-wx-row > .sr-wx-count { grid-area: 1 / 3; }
+.mk-phone .sr-wx-row > .sr-wx-track { grid-area: 2 / 1 / 3 / 4; }
+.mk-phone .sr-wx-row.no-glyph { grid-template-columns: minmax(0, 1fr) auto; }
+.mk-phone .sr-wx-row.no-glyph > .sr-wx-label { grid-area: 1 / 1; }
+.mk-phone .sr-wx-row.no-glyph > .sr-wx-count { grid-area: 1 / 2; }
+.mk-phone .sr-wx-row.no-glyph > .sr-wx-track { grid-area: 2 / 1 / 3 / 3; }
+.mk-phone .sr-wx-rows { gap: 0.375rem; }
+.mk-phone .sr-hsr-proto .sr-wx-track { margin-top: 0; }
+
+/* ============================================================================
+   REDUCED MOTION. The app's global block, verbatim.
+   ========================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ============================================================================
+   MOCKUP CHROME (.mk-*). Not part of the app: the review bar, the phone
+   frames, the stand-in map drawing (the real map is <SnowMap> on the app's
+   always-light basemap, so these few tints are the same in both themes).
+   ========================================================================== */
+:root { --mk-map-land: #F1EFE9; --mk-map-water: #CCD9DF; --mk-map-park: #DDE8D6; --mk-map-road: #FFFFFF; --mk-map-edge: #D9D5CC; --mk-map-ink: #5F646D; --mk-map-ctl: #FFFFFF; }
+.mk-bar { position: sticky; top: 0; z-index: 2000; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; padding: 8px 14px; background: var(--sr-surface); border-bottom: 1px solid var(--sr-border); box-shadow: var(--sr-sticky-shadow); font-size: 11.5px; color: var(--sr-text-muted); }
+.mk-bar-title { font-weight: 700; color: var(--sr-text); letter-spacing: 0.02em; text-transform: uppercase; font-size: 10px; margin-right: 4px; }
+.mk-group { display: inline-flex; align-items: center; gap: 4px; }
+.mk-group > span { margin-right: 2px; }
+.mk-seg { display: inline-flex; border: 1px solid var(--sr-border-medium); border-radius: 6px; overflow: hidden; background: var(--sr-surface); }
+.mk-seg button { border: 0; background: none; padding: 3px 8px; font-size: 11px; font-weight: 500; color: var(--sr-text-muted); cursor: pointer; }
+.mk-seg button + button { border-left: 1px solid var(--sr-border-medium); }
+.mk-seg button[aria-pressed="true"] { background: var(--sr-accent-bg); color: var(--sr-accent); font-weight: 600; }
+.mk-seg button:focus-visible { outline-offset: -3px; }
+.mk-phoneframe { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 28px 12px 40px; }
+.mk-phone { --mk-h: 852px; --mk-cap-vh: 0.73; --mk-cap-px: 616px; position: relative; flex: none; width: 393px; max-width: 100%; height: var(--mk-h); overflow: hidden; border: 1px solid var(--sr-border-medium); border-radius: 28px; background: var(--sr-bg); box-shadow: var(--sr-card-shadow); }
+.mk-phone[data-w="320"] { --mk-h: 568px; width: 320px; border-radius: 18px; }
+.mk-phone[data-cap="today"] { --mk-cap-vh: 0.70; --mk-cap-px: 528px; }
+.mk-phone-scroll { height: 100%; overflow-y: auto; overflow-x: hidden; display: flex; flex-direction: column; padding-bottom: var(--sr-navbar-h, 60px); }
+.mk-phone-scroll main { flex: 1 0 auto; }
+.mk-ios::after { content: ""; position: absolute; left: 50%; bottom: 8px; width: 134px; height: 5px; margin-left: -67px; border-radius: 3px; background: var(--sr-text); opacity: 0.85; z-index: 1300; pointer-events: none; }
+.mk-states { max-width: 1100px; margin: 0 auto; padding: 32px 24px 64px; display: flex; flex-direction: column; gap: 22px; }
+.mk-states h2 { font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--sr-text-muted); }
+.mk-states h3 { font-size: 0.75rem; font-weight: 600; color: var(--sr-text-muted); margin-bottom: 6px; }
+.mk-note { font-size: 0.75rem; color: var(--sr-text-muted); line-height: 1.5; max-width: 82ch; }
+.mk-open { max-width: 34rem; }
+.mk-open .sr-hsr-list { animation: none; position: static; max-height: none; margin-top: 4px; }
+.mk-pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(20rem, 100%), 1fr)); gap: 22px; align-items: start; }
+.mk-hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<!-- Review bar. Not part of the app. -->
+<div class="mk-bar" role="region" aria-label="Mockup controls">
+  <span class="mk-bar-title">Mockup</span>
+  <span class="mk-group"><span>Show</span><span class="mk-seg" role="group" aria-label="Page shown" data-opt="page"><button aria-pressed="true" data-v="overview">Overview</button><button aria-pressed="false" data-v="hotspot">Hotspot report</button><button aria-pressed="false" data-v="personal">Thin personal location</button></span></span>
+  <span class="mk-group"><span>Viewport</span><span class="mk-seg" role="group" aria-label="Viewport" data-opt="view"><button aria-pressed="true" data-v="desktop">Desktop</button><button aria-pressed="false" data-v="393">Phone 393</button><button aria-pressed="false" data-v="320">Phone 320</button></span></span>
+  <span class="mk-group"><span>Theme</span><span class="mk-seg" role="group" aria-label="Theme" data-opt="theme"><button aria-pressed="true" data-v="light">Light</button><button aria-pressed="false" data-v="dark">Dark</button></span></span>
+  <span class="mk-group"><span>Text size</span><span class="mk-seg" role="group" aria-label="Text size" data-opt="scale"><button aria-pressed="true" data-v="1">100%</button><button aria-pressed="false" data-v="1.5">150%</button><button aria-pressed="false" data-v="2">200%</button></span></span>
+  <span class="mk-group"><span>Kinds</span><span class="mk-seg" role="group" aria-label="Hotspot classification" data-opt="kinds"><button aria-pressed="true" data-v="answered">Answered</button><button aria-pressed="false" data-v="partial">Some unanswered</button><button aria-pressed="false" data-v="nokey">No eBird key</button></span></span>
+  <span class="mk-group"><span>ML export</span><span class="mk-seg" role="group" aria-label="Macaulay Library export" data-opt="ml"><button aria-pressed="true" data-v="ready">Saved</button><button aria-pressed="false" data-v="none">None</button></span></span>
+  <span class="mk-group" id="mkSheetGroup"><span>More sheet</span><span class="mk-seg" role="group" aria-label="More sheet" data-opt="sheet"><button aria-pressed="true" data-v="closed">Closed</button><button aria-pressed="false" data-v="open">Open</button></span><span class="mk-seg" role="group" aria-label="More sheet height cap" data-opt="cap"><button aria-pressed="true" data-v="proposed">Cap raised to fit</button><button aria-pressed="false" data-v="today">Today's cap, scrolls</button></span></span>
+</div>
+
+<!-- Desktop shell: sidebar nav + content. -->
+<div id="stageDesktop">
+  <div class="sr-shell">
+    <div class="sr-nav-col">
+      <div class="sr-nav-brand">
+        <span data-raven="22"></span>
+        <h1 class="sr-nav-word">Snow<span>Raven</span></h1>
+      </div>
+      <p class="sr-nav-tagline">Self-hosted birding tools and data explorer</p>
+      <button type="button" class="sr-nav-search" aria-keyshortcuts="Meta+K Control+K"><span data-icon="search" data-size="15" data-sw="2.25"></span><span class="sr-nav-search-label">Search</span><span class="sr-nav-search-hint" aria-hidden="true">&#8984;K</span></button>
+      <nav aria-label="Main navigation" class="sr-nav-list">
+        <div role="tablist" aria-orientation="vertical" class="sr-nav-group" id="navDesktop"></div>
+      </nav>
+      <div class="sr-nav-spacer"></div>
+      <button type="button" class="sr-nav-collapse" aria-expanded="true" aria-label="Collapse navigation"><span data-icon="panelleft" data-size="16" data-sw="2"></span><span>Collapse</span></button>
+    </div>
+    <div class="sr-content">
+      <main id="sr-main-desktop" tabindex="-1">
+        <div role="tabpanel" id="panel-hotspot-reports" aria-label="Hotspot Reports" class="sr-panel" data-mount="desktop"></div>
+      </main>
+    </div>
+  </div>
+</div>
+
+<!-- Phone shell. 393 x 852 is the reference phone the More sheet is measured on
+     (with the 34px home-indicator inset); 320 x 568 is the narrow floor. -->
+<div id="stagePhone" class="mk-phoneframe mk-hidden">
+  <div class="mk-phone mk-ios" id="phone" data-w="393" data-cap="proposed">
+    <div class="mk-phone-scroll sr-shell sr-shell--phone" id="phoneScroll">
+      <header class="sr-header">
+        <div class="sr-header-brand">
+          <span data-raven="30"></span>
+          <h1 class="sr-header-title"><span>Snow</span><span class="ac">Raven</span></h1>
+        </div>
+        <p class="sr-header-tag">Self-hosted birding tools and data explorer</p>
+      </header>
+      <main id="sr-main-phone" tabindex="-1">
+        <div role="tabpanel" aria-label="Hotspot Reports" class="sr-panel" data-mount="phone"></div>
+      </main>
+    </div>
+    <div class="sr-navbar" id="navPhone"></div>
+    <div class="sr-nav-sheet-root" id="sheetRoot" role="dialog" aria-modal="true" aria-label="More destinations" inert>
+      <div class="sr-nav-sheet" id="sheet">
+        <div class="sr-nav-sheet-body" id="sheetBody"></div>
+        <div class="sr-nav-sheet-foot" id="sheetFoot"></div>
+      </div>
+    </div>
+  </div>
+  <p class="mk-note" id="sheetReadout" aria-live="polite"></p>
+</div>
+
+<!-- The frames the live page cannot hold still. -->
+<section class="mk-states" aria-label="Frames held still">
+  <h2>Frames held still</h2>
+  <p class="mk-note">The page above is live: open the Location picker and type, choose a place from the picker or from either ranked list, choose Overview to come back. Every place opens a report; the two written by hand are in the Show group. Links out (eBird checklists, the hotspot page, the species marks) are drawn and inert here. The map is a drawing standing in for the app's own map component, which loads real tiles only once a place with coordinates is chosen. Below are the states that a live control cannot hold open for a screenshot.</p>
+  <div class="mk-pair">
+    <div>
+      <h3>The picker open, nothing typed, with Some unanswered (a selection of the rows, in the list's own order): Overview first, then every place by name. A kind is a glyph and its word, or nothing at all when eBird has not answered. Two places named Home in the same county each show their Location ID; the two named Lake Trail are told apart by county. The long name is cut at 200 characters with a written ellipsis.</h3>
+      <div class="mk-open" id="frameOpen"></div>
+    </div>
+    <div>
+      <h3>Typed "home": matching reads the name, the place and the full state name. The first matching place is the active row.</h3>
+      <div class="mk-open" id="frameQuery"></div>
+      <h3 style="margin-top: 18px">The end of the list when more places match than are drawn: one line that is not an option, which the arrow keys never land on.</h3>
+      <div class="mk-open" id="frameMore"></div>
+      <h3 style="margin-top: 18px">Typed "zzyzx": nothing matches. Overview stays.</h3>
+      <div class="mk-open" id="frameNone"></div>
+    </div>
+  </div>
+  <div class="mk-pair">
+    <div>
+      <h3>Count block, every location classified</h3>
+      <div class="sr-hsr-card"><div class="sr-hsr-sum" id="frameCountA"></div></div>
+    </div>
+    <div>
+      <h3>Count block, eBird has not answered for one region: the known figures stay and the third is named with its reason</h3>
+      <div class="sr-hsr-card"><div class="sr-hsr-sum" id="frameCountB"></div></div>
+    </div>
+    <div>
+      <h3>Count block with no eBird key and nothing stored: no place is called a hotspot or personal, and the reason stands in for the split</h3>
+      <div class="sr-hsr-card"><div class="sr-hsr-sum" id="frameCountC"></div></div>
+    </div>
+    <div>
+      <h3>A backup with no location in it: one sentence, the picker natively disabled on Overview, nothing else</h3>
+      <div id="frameNoLoc"></div>
+    </div>
+  </div>
+</section>
+
+<script>
+/* ============================================================================
+   Icons: lucide paths (24 viewBox, round caps), inlined. `mappinned` is the
+   proposed tab glyph (lucide MapPinned, used nowhere else in the app); `mappin`
+   and `star` are the kind marks (the Map Explorer already draws a star on a
+   personal location's pin).
+   ========================================================================== */
+const ICONS = {
+  listchecks: '<path d="m3 17 2 2 4-4"/><path d="m3 7 2 2 4-4"/><path d="M13 6h8"/><path d="M13 12h8"/><path d="M13 18h8"/>',
+  clipboard: '<rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/>',
+  camera: '<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/>',
+  mic: '<path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/>',
+  video: '<path d="m16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.87a.5.5 0 0 0-.752-.432L16 10.5"/><rect x="2" y="6" width="14" height="12" rx="2"/>',
+  external: '<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>',
+  weather: '<path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/>',
+  cloudsun: '<path d="M12 2v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="M20 12h2"/><path d="m19.07 4.93-1.41 1.41"/><path d="M15.947 12.65a4 4 0 0 0-5.925-4.128"/><path d="M13 22H7a5 5 0 1 1 4.9-6H13a3 3 0 0 1 0 6Z"/>',
+  stats: '<line x1="18" x2="18" y1="20" y2="10"/><line x1="12" x2="12" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="14"/>',
+  map: '<polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" y1="3" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="21"/>',
+  book: '<path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/>',
+  calendar: '<path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/><path d="M16 18h.01"/>',
+  target: '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>',
+  images: '<path d="M18 22H4a2 2 0 0 1-2-2V6"/><path d="m22 13-1.296-1.296a2.41 2.41 0 0 0-3.408 0L11 18"/><circle cx="12" cy="8" r="2"/><rect width="16" height="16" x="6" y="2" rx="2"/>',
+  dna: '<path d="m10 16 1.5 1.5"/><path d="m14 8-1.5-1.5"/><path d="M15 2c-1.798 1.998-2.518 3.995-2.807 5.993"/><path d="m16.5 10.5 1 1"/><path d="m17 6-2.891-2.891"/><path d="M2 15c6.667-6 13.333 0 20-6"/><path d="m20 9 .891.891"/><path d="M3.109 14.109 4 15"/><path d="m6.5 12.5 1 1"/><path d="m7 18 2.891 2.891"/><path d="M9 22c1.798-1.998 2.518-3.995 2.807-5.993"/>',
+  comparer: '<path d="M21 6H3"/><path d="M10 12H3"/><path d="M10 18H3"/><polyline points="15 12 18 15 21 12"/><path d="M18 6v9"/>',
+  tag: '<path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/>',
+  settings: '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
+  search: '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+  panelleft: '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/><path d="m16 15-3-3 3-3"/>',
+  more: '<circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>',
+  globe: '<circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/>',
+  library: '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M7 7v10"/><path d="M11 7v10"/><path d="m15 7 2 10"/>',
+  chevron: '<path d="m6 9 6 6 6-6"/>',
+  chevronright: '<path d="m9 18 6-6-6-6"/>',
+  check: '<path d="M20 6 9 17l-5-5"/>',
+  mappin: '<path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/>',
+  star: '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>',
+  mappinned: '<path d="M18 8c0 3.613-3.869 7.429-5.393 8.795a1 1 0 0 1-1.214 0C9.87 15.429 6 11.613 6 8a6 6 0 0 1 12 0"/><circle cx="12" cy="8" r="2"/><path d="M8.714 14h-3.71a1 1 0 0 0-.948.683l-2.004 6A1 1 0 0 0 3 22h18a1 1 0 0 0 .948-1.316l-2-6a1 1 0 0 0-.949-.684h-3.712"/>',
+  info: '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
+  plus: '<path d="M5 12h14"/><path d="M12 5v14"/>',
+  minus: '<path d="M5 12h14"/>',
+};
+const RAVEN = 'M 150.79 440.77 L 176.47 435.39 L 197.48 429.33 L 213.04 423.88 L 245.73 409.97 L 270.63 397.28 L 296.30 381.80 L 318.09 366.18 L 336.57 350.44 L 352.33 334.58 L 367.31 316.20 L 379.08 297.53 L 385.19 285.08 L 389.91 273.41 L 395.34 253.95 L 396.99 244.61 L 398.12 232.16 L 397.64 214.27 L 393.73 194.04 L 386.46 169.91 L 384.84 159.02 L 385.60 149.68 L 388.70 139.57 L 394.35 130.77 L 399.02 125.85 L 405.25 120.87 L 417.70 113.66 L 430.15 109.05 L 445.71 105.74 L 451.93 105.05 L 464.38 105.06 L 473.72 106.67 L 484.62 111.08 L 485.38 110.77 L 485.11 101.44 L 483.21 95.21 L 479.17 87.44 L 473.72 81.39 L 464.38 74.65 L 449.60 68.35 L 437.93 65.33 L 410.69 60.66 L 402.71 53.19 L 392.02 45.17 L 381.12 38.75 L 373.34 35.08 L 354.67 28.85 L 339.10 26.17 L 322.76 25.37 L 311.09 26.27 L 297.08 28.66 L 288.52 31.10 L 273.74 37.43 L 262.07 44.46 L 253.51 51.19 L 244.65 60.19 L 234.69 73.42 L 226.06 88.21 L 215.97 110.77 L 198.93 152.79 L 199.81 153.14 L 210.71 148.11 L 230.16 141.75 L 241.83 139.37 L 254.28 138.31 L 267.51 138.63 L 281.50 141.12 L 293.19 144.94 L 303.31 150.17 L 311.57 155.91 L 321.42 166.02 L 327.70 175.36 L 332.88 187.08 L 335.35 196.37 L 336.92 208.82 L 336.90 218.94 L 334.38 236.06 L 328.50 255.51 L 319.29 274.96 L 307.20 294.01 L 289.43 316.20 L 271.40 335.03 L 248.84 355.96 L 146.83 440.71 L 147.68 441.18 Z M 361.37 83.54 L 355.44 83.04 L 349.39 79.65 L 345.70 75.76 L 340.28 67.20 L 335.99 63.61 L 331.05 60.97 L 331.32 60.45 L 343.77 60.10 L 354.67 61.50 L 367.12 66.26 L 376.07 72.64 L 374.90 74.46 L 367.89 80.74 Z M 384.80 96.77 L 381.12 97.22 L 379.95 96.77 L 389.68 89.61 L 398.24 84.87 L 409.14 81.06 L 423.14 79.17 L 436.37 79.99 L 446.49 82.49 L 458.16 88.01 L 465.16 93.23 L 467.68 95.99 L 466.72 96.57 L 440.26 94.09 L 416.92 93.78 L 399.02 94.86 Z M 27.07 486.63 L 42.63 480.11 L 57.41 472.78 L 83.87 457.96 L 111.11 441.03 L 146.90 416.35 L 188.78 384.68 L 227.05 353.61 L 252.69 330.99 L 266.74 317.42 L 278.01 305.31 L 291.95 288.19 L 298.64 278.72 L 306.04 266.40 L 311.49 255.51 L 315.26 246.17 L 317.53 239.17 L 319.92 228.27 L 321.08 218.94 L 321.06 210.38 L 320.04 201.82 L 318.42 194.81 L 315.25 187.03 L 311.19 180.03 L 307.72 175.36 L 302.53 170.13 L 295.53 164.95 L 286.97 160.39 L 276.07 156.55 L 269.07 154.98 L 260.51 153.84 L 248.84 153.69 L 231.72 155.87 L 220.82 158.88 L 212.26 162.07 L 203.81 166.02 L 195.15 171.24 L 186.59 177.15 L 176.64 185.48 L 162.41 200.26 L 153.88 211.15 L 143.79 226.74 L 136.73 239.17 L 125.74 261.73 L 109.38 300.64 L 78.90 379.23 L 79.98 379.55 L 90.87 375.49 L 106.44 367.80 L 123.56 357.64 L 148.46 339.41 L 149.24 339.06 L 149.37 339.55 L 133.67 359.67 L 120.96 373.01 L 107.66 384.68 L 87.69 397.91 L 62.88 436.82 L 44.33 463.27 L 26.62 485.84 Z';
+function icon(name, size, sw, cls) {
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"${cls ? ` class="${cls}"` : ''}>${ICONS[name]}</svg>`;
+}
+document.querySelectorAll('[data-icon]').forEach(el => { el.outerHTML = icon(el.dataset.icon, el.dataset.size, el.dataset.sw); });
+document.querySelectorAll('[data-raven]').forEach(el => { const s = el.dataset.raven; el.outerHTML = `<svg width="${s}" height="${s}" viewBox="0 0 512 512" aria-hidden="true" focusable="false" style="color: var(--sr-accent)"><path fill="currentColor" fill-rule="evenodd" clip-rule="evenodd" d="${RAVEN}"/></svg>`; });
+
+const fmt = n => n.toLocaleString('en-US');
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const pl = (n, one, many) => (n === 1 ? one : many);
+/* lib/statsFormat fmtSharePct: a nonzero share never prints a bare "0%". */
+function sharePct(n, total) { if (n === 0 || total === 0) return '0%'; const p = Math.round(n / total * 100); return p === 0 ? '<1%' : p + '%'; }
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const DAY = (y, m, d) => Math.round(Date.UTC(y, m - 1, d) / 864e5);
+function fmtDay(day) { const d = new Date(day * 864e5); return `${MONTHS[d.getUTCMonth()]} ${d.getUTCDate()}, ${d.getUTCFullYear()}`; }
+const yearOf = day => new Date(day * 864e5).getUTCFullYear();
+/* Largest-remainder scaling, so every invented distribution sums to its total. */
+function scale(weights, total) {
+  const sum = weights.reduce((a, b) => a + b, 0);
+  const raw = weights.map(w => w / sum * total), out = raw.map(Math.floor);
+  let left = total - out.reduce((a, b) => a + b, 0);
+  raw.map((r, i) => [r - out[i], i]).sort((a, b) => b[0] - a[0]).forEach(([, i]) => { if (left > 0) { out[i]++; left--; } });
+  return out;
+}
+
+/* ============================================================================
+   Navigation roster: today's twelve, with Hotspot Reports between Breeding
+   Codes and Checklists (the user's direction at the design review,
+   decisions.md D-03). The first four are the phone bar's cells.
+   ========================================================================== */
+const TABS = [
+  ['weather', 'Weather', 'weather'], ['birding-stats', 'Statistics', 'stats'], ['map-explorer', 'Map Explorer', 'map'],
+  ['species-detail', 'Species Detail', 'book'], ['calendar', 'Calendar', 'calendar'], ['targets', 'Targets', 'target'],
+  ['life-list', 'Multimedia', 'images'], ['breeding-codes', 'Breeding Codes', 'dna'], ['hotspot-reports', 'Hotspot Reports', 'mappinned'],
+  ['checklists', 'Checklists', 'clipboard'], ['life-lists', 'Life Lists', 'listchecks'],
+  ['comparer', 'List Comparer', 'comparer'], ['named-birds', 'Named Birds', 'tag'],
+];
+const HERE = 'hotspot-reports';
+(function renderNav() {
+  const row = ([id, label, ic], size, sw) => `<button type="button" role="tab" aria-selected="${id === HERE}" tabindex="${id === HERE ? 0 : -1}" class="sr-nav-item${id === HERE ? ' sr-nav-item--active' : ''}">${icon(ic, size, sw)}<span>${label}</span></button>`;
+  const settings = (size, sw) => `<button type="button" role="tab" aria-selected="false" tabindex="-1" class="sr-nav-item">${icon('settings', size, sw)}<span>Settings</span></button>`;
+  document.getElementById('navDesktop').innerHTML = TABS.map(t => row(t, 15, 2.25)).join('') + `<hr class="sr-nav-sep" aria-hidden="true">` + settings(15, 2.25);
+  let b = '';
+  for (const [, label, ic] of TABS.slice(0, 4)) b += `<button type="button" class="sr-navbar-cell" aria-label="${label}"><span class="sr-navbar-glyph">${icon(ic, 20, 2)}</span><span class="sr-navbar-label" aria-hidden="true">${label}</span></button>`;
+  b += `<button type="button" class="sr-navbar-cell sr-navbar-cell--active" id="moreCell" aria-label="More destinations" aria-haspopup="dialog" aria-expanded="false"><span class="sr-navbar-glyph">${icon('more', 20, 2)}</span><span class="sr-navbar-label" aria-hidden="true">More</span></button>`;
+  document.getElementById('navPhone').innerHTML = b;
+  document.getElementById('sheetBody').innerHTML = `<div class="sr-nav-sheet-handle" aria-hidden="true"></div><button type="button" class="sr-nav-search">${icon('search', 17, 2.1)}<span class="sr-nav-search-label">Search</span></button><h2>More</h2>` + TABS.slice(4).map(t => row(t, 17, 2.1)).join('');
+  document.getElementById('sheetFoot').innerHTML = `<hr class="sr-nav-sep" aria-hidden="true">` + settings(17, 2.1);
+})();
+
+/* ============================================================================
+   Fixture: an invented North Bay birder's eBird backup. 214 locations: 61 that
+   eBird lists as hotspots and 153 personal ones. Place names are made up; the
+   counties and states are real. Eight of the places are in Nevada, the region
+   the "Some unanswered" state leaves without an answer.
+   ========================================================================== */
+const LONG_NAME = 'Point Estero Headlands Coastal Trail, from the north parking area past the lighthouse overlook to the tidepool stairs, including the cypress grove, the old dairy pond, and the fenced plover exclosure on the south beach (restricted access; stay on the boardwalk at all times)';
+const LOCATION_NAME_MAX_CHARS = 200, PICKER_OPTION_CAP = 200;
+/* [name, county, state code, truth, checklists, species, id?, flags?] */
+const CORE = [
+  ['Heron Slough Regional Shoreline', 'Marin', 'US-CA', 'hotspot', 412, 126, 'L1182264', 'C'],
+  ['Home', 'Marin', 'US-CA', 'personal', 1204, 97, 'L8841207'],
+  ['Home', 'Marin', 'US-CA', 'personal', 318, 71, 'L2290315'],
+  ['Willow Camp Lagoon', 'Marin', 'US-CA', 'hotspot', 152, 121],
+  ['Pickleweed Marsh Levee Loop', 'Marin', 'US-CA', 'hotspot', 189, 109],
+  ['Saltgrass Point Wildlife Area', 'Solano', 'US-CA', 'hotspot', 131, 118],
+  ['Coyote Brush Ridge Open Space Preserve', 'Sonoma', 'US-CA', 'hotspot', 143, 104],
+  ['Otter Landing County Park', 'Marin', 'US-CA', 'hotspot', 96, 112],
+  ['Cedar Narrows Reservoir', 'Contra Costa', 'US-CA', 'hotspot', 74, 96],
+  ['Lake Trail', 'Marin', 'US-CA', 'hotspot', 88, 83],
+  ['Lake Trail', 'Sonoma', 'US-CA', 'personal', 12, 34],
+  ['Office parking lot oaks', 'San Francisco', 'US-CA', 'personal', 266, 44],
+  ["Mom's place, Santa Rosa", 'Sonoma', 'US-CA', 'personal', 84, 49],
+  ['Estero Vista Ranch gate', 'Marin', 'US-CA', 'personal', 57, 78],
+  ['Quail Hollow Farm Road', 'Sonoma', 'US-CA', 'personal', 71, 66],
+  ['Mallard Bend Sewage Ponds', 'Yolo', 'US-CA', 'hotspot', 38, 87],
+  ['Creekside lot behind the firehouse, Lagunitas', 'Marin', 'US-CA', 'personal', 23, 31, 'L30417756', 'D'],
+  [LONG_NAME, 'Marin', 'US-CA', 'hotspot', 41, 92],
+  ['Washoe Flats Wetland Park', 'Washoe', 'US-NV', 'hotspot', 6, 52],
+  ['Truckee River trail, east end', 'Washoe', 'US-NV', 'personal', 3, 19],
+  ['', 'Marin', 'US-CA', 'personal', 1, 6],
+  ['Petrel Cove Jetty', 'Sonoma', 'US-CA', 'hotspot', 47, 81],
+  ['Skyline Hawk Watch Knoll', 'Marin', 'US-CA', 'hotspot', 64, 58],
+  ['Black Oak Saddle Fire Road', 'Marin', 'US-CA', 'hotspot', 33, 61],
+];
+const ROOTS = ['Alder', 'Buckeye', 'Cinder', 'Dipper', 'Egret', 'Fennel', 'Gull Rock', 'Harrier', 'Iris', 'Juniper', 'Kestrel', 'Lupine', 'Madrone', 'Nettle', 'Osprey', 'Pelican', 'Quarry', 'Rail', 'Sedge', 'Tule', 'Umber', 'Vireo', 'Willet', 'Yarrow'];
+const HOT_SUF = ['Creek Trailhead', 'Marsh Overlook'];
+const PERS_SUF = ['Lane yard', 'Road pullout', 'Street school field', 'Court cul-de-sac', 'Drive, mile 2 turnout', 'Way trailhead parking'];
+const COUNTIES = ['Marin', 'Sonoma', 'Napa', 'Solano', 'Contra Costa', 'Alameda', 'San Mateo', 'Yolo'];
+const STATE_NAMES = { 'US-CA': 'California', 'US-NV': 'Nevada' };
+const LOCS = [];
+(function buildLocations() {
+  const add = (name, county, st, truth, c, s, id, flag) => {
+    const truncated = name.length > LOCATION_NAME_MAX_CHARS;
+    LOCS.push({ name: truncated ? name.slice(0, LOCATION_NAME_MAX_CHARS) : name, truncated, county, st, truth, c, s,
+      id: id || 'L' + (3000000 + LOCS.length * 7919), place: `${county}, ${st.slice(3)}`, flag: flag || '' });
+  };
+  CORE.forEach(r => add(...r));
+  for (let i = 0; i < 190; i++) {
+    const hot = i < 47, nv = hot ? i >= 45 : i >= 186;
+    const j = hot ? i : i - 47;
+    const name = hot ? `${ROOTS[j % 24]} ${HOT_SUF[Math.floor(j / 24)]}` : `${ROOTS[j % 24]} ${PERS_SUF[Math.floor(j / 24)]}`;
+    add(name, nv ? 'Washoe' : COUNTIES[i % COUNTIES.length], nv ? 'US-NV' : 'US-CA', hot ? 'hotspot' : 'personal', 1 + (i * 7) % 29, 8 + (i * 13) % 50);
+  }
+  LOCS.forEach((l, ord) => { l.ord = ord; l.hay = `${l.name}\n${l.place}\n${STATE_NAMES[l.st] || ''}`.toLowerCase(); });
+})();
+/* FR-20: name, then place, then Location ID; unnamed locations last. */
+const PICKER_ORDER = LOCS.map(l => l.ord).sort((a, b) => {
+  const A = LOCS[a], B = LOCS[b];
+  if ((A.name === '') !== (B.name === '')) return A.name === '' ? 1 : -1;
+  return A.name.localeCompare(B.name) || A.place.localeCompare(B.place) || (A.id < B.id ? -1 : 1);
+});
+PICKER_ORDER.forEach((ord, i) => {
+  const same = o => o !== undefined && LOCS[o].name === LOCS[ord].name && LOCS[o].place === LOCS[ord].place;
+  LOCS[ord].showId = same(PICKER_ORDER[i - 1]) || same(PICKER_ORDER[i + 1]);
+});
+const ORD_C = LOCS.findIndex(l => l.flag === 'C'), ORD_D = LOCS.findIndex(l => l.flag === 'D');
+
+/* The bird list, commonest first for a bayshore patch, as eBird names them. */
+const MASTER = [
+  ['Mallard', 'Anas platyrhynchos'], ['American Coot', 'Fulica americana'], ['Song Sparrow', 'Melospiza melodia'], ['Black Phoebe', 'Sayornis nigricans'],
+  ['Red-winged Blackbird', 'Agelaius phoeniceus'], ['Great Egret', 'Ardea alba'], ['Snowy Egret', 'Egretta thula'], ['Western Gull', 'Larus occidentalis'],
+  ['Canada Goose', 'Branta canadensis'], ['American Crow', 'Corvus brachyrhynchos'], ["Anna's Hummingbird", 'Calypte anna'], ['Turkey Vulture', 'Cathartes aura'],
+  ['Double-crested Cormorant', 'Nannopterum auritum'], ['Great Blue Heron', 'Ardea herodias'], ['White-crowned Sparrow', 'Zonotrichia leucophrys'], ['California Towhee', 'Melozone crissalis'],
+  ['House Finch', 'Haemorhous mexicanus'], ['Marsh Wren', 'Cistothorus palustris'], ['Killdeer', 'Charadrius vociferus'], ['Willet', 'Tringa semipalmata'],
+  ['Common Raven', 'Corvus corax'], ['Mourning Dove', 'Zenaida macroura'], ['Red-tailed Hawk', 'Buteo jamaicensis'], ['California Scrub-Jay', 'Aphelocoma californica'],
+  ['Bushtit', 'Psaltriparus minimus'], ['Yellow-rumped Warbler', 'Setophaga coronata'], ['Golden-crowned Sparrow', 'Zonotrichia atricapilla'], ['Northern Shoveler', 'Spatula clypeata'],
+  ['American Avocet', 'Recurvirostra americana'], ['Black-necked Stilt', 'Himantopus mexicanus'], ['Least Sandpiper', 'Calidris minutilla'], ['Western Sandpiper', 'Calidris mauri'],
+  ['Marbled Godwit', 'Limosa fedoa'], ['Ring-billed Gull', 'Larus delawarensis'], ['California Gull', 'Larus californicus'], ['Gadwall', 'Mareca strepera'],
+  ['American Wigeon', 'Mareca americana'], ['Bufflehead', 'Bucephala albeola'], ['Ruddy Duck', 'Oxyura jamaicensis'], ['Pied-billed Grebe', 'Podilymbus podiceps'],
+  ['Common Yellowthroat', 'Geothlypis trichas'], ['Northern Harrier', 'Circus hudsonius'], ['White-tailed Kite', 'Elanus leucurus'], ['American Kestrel', 'Falco sparverius'],
+  ['Savannah Sparrow', 'Passerculus sandwichensis'], ['Lesser Goldfinch', 'Spinus psaltria'], ['European Starling', 'Sturnus vulgaris'], ["Brewer's Blackbird", 'Euphagus cyanocephalus'],
+  ['Western Meadowlark', 'Sturnella neglecta'], ['Northern Mockingbird', 'Mimus polyglottos'], ['Chestnut-backed Chickadee', 'Poecile rufescens'], ['Ruby-crowned Kinglet', 'Corthylio calendula'],
+  ["Bewick's Wren", 'Thryomanes bewickii'], ['Spotted Towhee', 'Pipilo maculatus'], ['Dark-eyed Junco', 'Junco hyemalis'], ['American Robin', 'Turdus migratorius'],
+  ['Barn Swallow', 'Hirundo rustica'], ['Tree Swallow', 'Tachycineta bicolor'], ['Cliff Swallow', 'Petrochelidon pyrrhonota'], ['Violet-green Swallow', 'Tachycineta thalassina'],
+  ["Forster's Tern", 'Sterna forsteri'], ['Caspian Tern', 'Hydroprogne caspia'], ['Brown Pelican', 'Pelecanus occidentalis'], ['American White Pelican', 'Pelecanus erythrorhynchos'],
+  ['Long-billed Curlew', 'Numenius americanus'], ['Greater Yellowlegs', 'Tringa melanoleuca'], ['Dunlin', 'Calidris alpina'], ['Long-billed Dowitcher', 'Limnodromus scolopaceus'],
+  ['Black-bellied Plover', 'Pluvialis squatarola'], ['Semipalmated Plover', 'Charadrius semipalmatus'], ['Northern Pintail', 'Anas acuta'], ['Cinnamon Teal', 'Spatula cyanoptera'],
+  ['Greater Scaup', 'Aythya marila'], ['Lesser Scaup', 'Aythya affinis'], ['Canvasback', 'Aythya valisineria'], ['Common Goldeneye', 'Bucephala clangula'],
+  ['Surf Scoter', 'Melanitta perspicillata'], ['Western Grebe', 'Aechmophorus occidentalis'], ["Clark's Grebe", 'Aechmophorus clarkii'], ['Eared Grebe', 'Podiceps nigricollis'],
+  ['Horned Grebe', 'Podiceps auritus'], ['Belted Kingfisher', 'Megaceryle alcyon'], ['Osprey', 'Pandion haliaetus'], ["Cooper's Hawk", 'Astur cooperii'],
+  ['Red-shouldered Hawk', 'Buteo lineatus'], ["Say's Phoebe", 'Sayornis saya'], ['Northern Flicker', 'Colaptes auratus'], ["Nuttall's Woodpecker", 'Dryobates nuttallii'],
+  ['Downy Woodpecker', 'Dryobates pubescens'], ['Hermit Thrush', 'Catharus guttatus'], ['Cedar Waxwing', 'Bombycilla cedrorum'], ['American Pipit', 'Anthus rubescens'],
+  ["Lincoln's Sparrow", 'Melospiza lincolnii'], ['Fox Sparrow', 'Passerella iliaca'], ['American Goldfinch', 'Spinus tristis'], ['Orange-crowned Warbler', 'Leiothlypis celata'],
+  ["Townsend's Warbler", 'Setophaga townsendi'], ["Hutton's Vireo", 'Vireo huttoni'], ['Oak Titmouse', 'Baeolophus inornatus'], ['Western Bluebird', 'Sialia mexicana'],
+  ['Black-crowned Night Heron', 'Nycticorax nycticorax'], ['Green Heron', 'Butorides virescens'], ['Virginia Rail', 'Rallus limicola'], ['Sora', 'Porzana carolina'],
+  ["Ridgway's Rail", 'Rallus obsoletus'], ["Wilson's Snipe", 'Gallinago delicata'], ['Spotted Sandpiper', 'Actitis macularius'], ['Lesser Yellowlegs', 'Tringa flavipes'],
+  ['Short-billed Dowitcher', 'Limnodromus griseus'], ['Sanderling', 'Calidris alba'], ['Glaucous-winged Gull', 'Larus glaucescens'], ['Short-billed Gull', 'Larus brachyrhynchus'],
+  ["Bonaparte's Gull", 'Chroicocephalus philadelphia'], ['Elegant Tern', 'Thalasseus elegans'], ['Peregrine Falcon', 'Falco peregrinus'], ['Merlin', 'Falco columbarius'],
+  ['Sharp-shinned Hawk', 'Accipiter striatus'], ['Bald Eagle', 'Haliaeetus leucocephalus'], ['Great Horned Owl', 'Bubo virginianus'], ['Eurasian Collared-Dove', 'Streptopelia decaocto'],
+  ['Rock Pigeon', 'Columba livia'], ['Wild Turkey', 'Meleagris gallopavo'], ['California Quail', 'Callipepla californica'], ['Cackling Goose', 'Branta hutchinsii'],
+  ['Greater White-fronted Goose', 'Anser albifrons'], ['Wood Duck', 'Aix sponsa'], ['Hooded Merganser', 'Lophodytes cucullatus'], ['Common Merganser', 'Mergus merganser'],
+  ['Red-breasted Merganser', 'Mergus serrator'], ['Blue-winged Teal', 'Spatula discors'], ['Eurasian Wigeon', 'Mareca penelope'], ['American Bittern', 'Botaurus lentiginosus'],
+  ['White-faced Ibis', 'Plegadis chihi'], ['Red-necked Phalarope', 'Phalaropus lobatus'], ['Burrowing Owl', 'Athene cunicularia'], ['Short-eared Owl', 'Asio flammeus'],
+  ['Golden Eagle', 'Aquila chrysaetos'], ['Ferruginous Hawk', 'Buteo regalis'], ['Western Kingbird', 'Tyrannus verticalis'], ['Ash-throated Flycatcher', 'Myiarchus cinerascens'],
+  ["Wilson's Warbler", 'Cardellina pusilla'], ['Black-headed Grosbeak', 'Pheucticus melanocephalus'], ['Tricolored Blackbird', 'Agelaius tricolor'], ['Great-tailed Grackle', 'Quiscalus mexicanus'],
+  ['Least Tern', 'Sternula antillarum'],
+];
+
+/* The app's own weather vocabulary (lib/weatherDisplay.ts, lib/weatherStats.ts),
+   sky in its display order, clearest first. */
+const SKY = [['☀️', 'Clear'], ['🌤️', 'Few clouds'], ['⛅', 'Scattered clouds'], ['🌥️', 'Broken clouds'], ['☁️', 'Overcast'], ['🌫️', 'Fog'], ['🌦️', 'Drizzle'], ['🌧️', 'Rain'], ['❄️', 'Snow'], ['⛈️', 'Thunderstorm'], ['🌡️', 'Other']];
+const TEMP_BANDS = ['Below 32°F', '32 to 44°F', '45 to 54°F', '55 to 64°F', '65 to 74°F', '75 to 84°F', '85°F and up'];
+const WIND_BANDS = ['Calm', 'Mostly calm', 'Light breeze', 'Gentle breeze', 'Moderate breeze', 'Fresh breeze', 'Strong breeze', 'Near gale', 'Gale'];
+const SKY_T = [22, 27, 14, 9, 13, 7, 2, 2, 0, 0, 0], TEMP_T = [0, 6, 29, 38, 17, 4, 0], WIND_T = [9, 17, 26, 21, 11, 3, 1, 0, 0];
+const MONTH_T = [41, 36, 39, 52, 47, 21, 16, 22, 31, 38, 35, 34];
+const WEATHER_FLOOR = 10; /* WEATHER_SPECIES_MIN_CHECKLISTS, read from the one constant in the app */
+
+/* The two reports written by hand. Every other place is derived from its
+   totals by the same shapes, so any row in the mockup opens a believable page. */
+const OVERRIDES = {
+  C: {
+    first: DAY(2014, 5, 4), latest: DAY(2026, 10, 31),
+    protocols: [['Traveling', 268], ['Stationary', 118], ['Incidental', 21], ['Area', 4], ['Nocturnal Flight Call Count', 1]],
+    complete: { complete: 371, known: 404, unknown: 8 },
+    readable: 96, unreadable: 2, sky: SKY_T, temp: TEMP_T, wind: WIND_T,
+    months: MONTH_T, years: [[2014, 9], [2015, 14], [2016, 22], [2017, 31], [2018, 38], [2019, 47], [2020, 58], [2021, 44], [2022, 36], [2023, 33], [2024, 29], [2025, 27], [2026, 24]],
+    counted: 398, minutes: 29850, big: 61, bigDay: DAY(2019, 4, 20), media: [214, 37, 3],
+  },
+  D: {
+    first: DAY(2023, 3, 9), latest: DAY(2026, 9, 27), noCoords: true,
+    protocols: [['Stationary', 14], ['Incidental', 6], [null, 3]],
+    complete: { complete: 20, known: 21, unknown: 2 },
+    readable: 6, unreadable: 1,
+    months: [1, 1, 3, 4, 4, 2, 1, 1, 3, 2, 1, 0], years: [[2023, 5], [2024, 7], [2025, 6], [2026, 5]],
+    counted: 17, minutes: 685, big: 14, bigDay: DAY(2025, 5, 3), media: [9, 2, 0],
+  },
+};
+function reportFor(loc) {
+  const o = OVERRIDES[loc.flag] || {}, C = loc.c, S = Math.min(loc.s, MASTER.length), hot = loc.truth === 'hotspot';
+  const first = o.first ?? DAY(2026 - Math.min(12, 1 + Math.ceil(C / 28)), 1 + (loc.ord * 5) % 12, 1 + (loc.ord * 11) % 27);
+  const latest = C === 1 ? first : (o.latest ?? DAY(2026, 10 - (loc.ord % 6), 27 - (loc.ord * 3) % 20));
+  const span = latest - first;
+  const key = i => i + (loc.ord * 37 + i * 53) % 23;
+  const idx = MASTER.map((_, i) => i).sort((a, b) => key(a) - key(b) || a - b).slice(0, S);
+  const rows = idx.map((mi, k) => {
+    const t = Math.max(0, (k - S * 0.25) / (S * 0.75));
+    return { name: MASTER[mi][0], sci: MASTER[mi][1], day: first + Math.floor(span * t * t),
+      n: Math.max(1, Math.min(C, Math.round(C * 0.92 * Math.pow(1 - k / S, 1.8)))),
+      id: 'S' + (61000000 + (loc.ord * 7919 + mi * 104729) % 190000000) };
+  }).sort((a, b) => b.day - a.day);
+  const protoT = hot ? [['Traveling', 65], ['Stationary', 29], ['Incidental', 5], ['Area', 1]] : [['Stationary', 58], ['Incidental', 27], ['Traveling', 15]];
+  const protocols = o.protocols ?? scale(protoT.map(p => p[1]), C).map((n, i) => [protoT[i][0], n]).filter(p => p[1] > 0).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  const unknown = Math.floor(C * 0.02), complete = o.complete ?? { unknown, known: C - unknown, complete: Math.round((C - unknown) * 0.92) };
+  const readable = o.readable ?? Math.round(C * 0.23), unreadable = o.unreadable ?? 0;
+  const wx = { readable, unreadable };
+  if (readable >= WEATHER_FLOOR) {
+    wx.sky = o.sky ?? scale(SKY_T, readable);
+    wx.temp = o.temp ?? scale(TEMP_T, readable - (readable > 20 ? 2 : 0));
+    wx.wind = o.wind ?? scale(WIND_T, readable - Math.round(readable * 0.08));
+  }
+  const months = o.months ?? scale(MONTH_T, C);
+  let years = o.years;
+  if (!years) {
+    const y0 = yearOf(first), y1 = yearOf(latest), w = [];
+    for (let y = y0; y <= y1; y++) w.push(1 + Math.min(y - y0, y1 - y) + (y === y1 ? 0.5 : 0));
+    years = scale(w, C).map((n, i) => [y0 + i, n]).filter(p => p[1] > 0);
+  }
+  const counted = o.counted ?? Math.round(C * 0.966), minutes = o.minutes ?? counted * (hot ? 75 : 26);
+  return { loc, C, S: rows.length, rows, first, latest, protocols, complete, wx, months, years, counted, minutes,
+    big: S > 0 ? { species: o.big ?? Math.max(1, Math.round(S * 0.48)), day: o.bigDay ?? first + Math.floor(span * 0.4), id: 'S' + (88000000 + loc.ord * 104729 % 90000000) } : null,
+    firstId: 'S' + (17000000 + loc.ord * 7919 % 9000000), latestId: 'S' + (271000000 + loc.ord * 7919 % 9000000),
+    media: o.media ?? [Math.round(C * 0.52), Math.round(C * 0.09), Math.round(C * 0.007)], coords: !o.noCoords };
+}
+</script>
+<script>
+/* ============================================================================
+   Copy. In the build every string here lives in lib/hotspotReportsCopy.ts and
+   every count-bearing sentence is generated, as these are.
+   ========================================================================== */
+const COPY = {
+  tabDescription: 'Your own record at any one place in your eBird backup, hotspot or personal location.',
+  pickerLabel: 'Location',
+  overview: 'Overview',
+  unnamed: 'Unnamed location',
+  placeholder: 'Type a place name, county, or state',
+  listLabel: 'Locations in your backup',
+  chevron: 'Show locations',
+  noMatch: 'No location matches.',
+  noLocations: 'Your eBird backup has no locations to report on.',
+  rule: 'Counted as Life Lists counts: subspecies fold into their species, and spuhs, slashes, hybrids, and species the exotic status check on Statistics found to be escapees are left out. Statistics and Map Explorer count a place by their own rules, so their numbers for this place can differ.',
+  noMap: 'Your backup has no coordinates for this location, so there is no map.',
+  noWeather: 'None of your checklists here carries a weather block.',
+  weatherSource: 'From the weather blocks in your own checklist comments here. Nothing is looked up.',
+  mlNone: 'Media counts need your Macaulay Library export.',
+  mlNote: 'Counted by the checklist each photo, recording, or video is linked to.',
+  reasons: {
+    nokey: 'No eBird API key is saved, so hotspots and personal locations cannot be told apart yet.',
+    partial: 'eBird has not answered for some of your regions yet.',
+  },
+};
+const more = (shown, total) => `Showing ${fmt(shown)} of ${fmt(total)} locations. Type to narrow.`;
+const announceLoc = (name, s, c) => `${name}: ${fmt(s)} species, ${fmt(c)} ${pl(c, 'checklist', 'checklists')}.`;
+const announceOverview = n => `Overview: ${fmt(n)} ${pl(n, 'location', 'locations')}.`;
+function hoursMinutes(min) { const h = Math.floor(min / 60), m = min % 60; return `${fmt(h)} ${pl(h, 'hour', 'hours')}${m ? ` ${m} ${pl(m, 'minute', 'minutes')}` : ''}`; }
+
+/* ============================================================================
+   State
+   ========================================================================== */
+const state = { view: 'desktop', kinds: 'answered', ml: 'ready', shown: 100 };
+let selected = null;                       /* a location ordinal; null is the overview */
+const combo = { open: false, query: '', active: 0, rows: [], matches: 0 };
+let seq = 0;
+
+/* FR-15: hotspot, personal, or not yet known (null). Never personal for want
+   of an answer. */
+function kindOf(loc) {
+  if (state.kinds === 'nokey') return null;
+  if (state.kinds === 'partial' && loc.st === 'US-NV') return null;
+  return loc.truth;
+}
+function share() {
+  let hot = 0, pers = 0, unk = 0;
+  for (const l of LOCS) { const k = kindOf(l); if (k === 'hotspot') hot++; else if (k === 'personal') pers++; else unk++; }
+  return { total: LOCS.length, hot, pers, unk };
+}
+const nameOf = loc => (loc.name === '' ? COPY.unnamed : loc.name + (loc.truncated ? '…' : ''));
+const nameHtml = loc => (loc.name === '' ? `<span class="sr-hsr-noname">${COPY.unnamed}</span>` : esc(nameOf(loc)));
+const selectedLabel = () => (selected === null ? COPY.overview : nameOf(LOCS[selected]));
+
+function kindTag(kind, extra) {
+  if (!kind) return '';
+  const hot = kind === 'hotspot';
+  return `<span class="sr-hsr-kind${extra ? ' ' + extra : ''}">${icon(hot ? 'mappin' : 'star', 12, 2.2, 'sr-hsr-kind-glyph')}${hot ? 'Hotspot' : 'Personal location'}</span>`;
+}
+/* kind · place · Location ID (namesakes only) · checklist count */
+function metaHtml(loc, withCount) {
+  const parts = [];
+  const k = kindTag(kindOf(loc));
+  if (k) parts.push(k);
+  if (loc.place) parts.push(esc(loc.place));
+  if (loc.showId) parts.push(`<span class="sr-hsr-locid">${esc(loc.id)}</span>`);
+  if (withCount) parts.push(`${fmt(loc.c)} ${pl(loc.c, 'checklist', 'checklists')}`);
+  return `<span class="sr-hsr-meta">${parts.map((p, i) => `<span>${p}${i < parts.length - 1 ? '<span class="sr-hsr-dot" aria-hidden="true">·</span>' : ''}</span>`).join('')}</span>`;
+}
+
+/* ============================================================================
+   The picker. Schema 3.3: one substring test per location over its bounded
+   haystack; at most PICKER_OPTION_CAP options; on an empty query the window
+   slides so the selected row is drawn.
+   ========================================================================== */
+function filterLocations(query, selectedOrd) {
+  const q = query.slice(0, 100).trim().toLowerCase();
+  if (q === '') {
+    const L = PICKER_ORDER.length;
+    let start = 0;
+    if (selectedOrd !== null) { const rank = PICKER_ORDER.indexOf(selectedOrd); if (rank >= PICKER_OPTION_CAP) start = Math.min(rank, L - PICKER_OPTION_CAP); }
+    return { ords: PICKER_ORDER.slice(start, start + PICKER_OPTION_CAP), matches: L };
+  }
+  const ords = []; let matches = 0;
+  for (const ord of PICKER_ORDER) if (LOCS[ord].hay.includes(q)) { matches++; if (ords.length < PICKER_OPTION_CAP) ords.push(ord); }
+  return { ords, matches };
+}
+function optionHtml(row, i, active, sel, idp) {
+  const cls = `sr-hsr-opt${row.ord === null ? ' sr-hsr-opt--all' : ''}${i === active ? ' is-active' : ''}`;
+  const main = row.ord === null
+    ? `<span class="sr-hsr-opt-name">${COPY.overview}</span><span class="sr-hsr-meta"><span>All ${fmt(LOCS.length)} locations</span></span>`
+    : `<span class="sr-hsr-opt-name">${nameHtml(LOCS[row.ord])}</span>${metaHtml(LOCS[row.ord], true)}`;
+  return `<div role="option" id="${idp}-opt-${i}" data-i="${i}" aria-selected="${sel}" class="${cls}"><span class="sr-hsr-opt-main">${main}</span>${sel ? icon('check', 13, 2.5, 'sr-hsr-opt-check') : ''}</div>`;
+}
+function listInner(rows, matches, active, selOrd, idp, queryEmpty) {
+  let h = rows.map((r, i) => optionHtml(r, i, active, r.ord === selOrd, idp)).join('');
+  const drawn = rows.length - 1;
+  if (matches === 0) h += `<div class="sr-hsr-nomatch">${COPY.noMatch}</div>`;
+  else if (matches > drawn) h += `<div class="sr-hsr-more">${more(drawn, matches)}</div>`;
+  return h;
+}
+function fieldHtml(idp, value, open, disabled, placeholder) {
+  return `<div class="sr-hsr-field${disabled ? ' is-disabled' : ''}">${icon('search', 15, 2.2, 'sr-hsr-field-glyph')}`
+    + `<input type="text" role="combobox" class="sr-hsr-input sr-input-16" id="${idp}-input" aria-labelledby="${idp}-label" aria-expanded="${open}" aria-controls="${idp}-list" aria-autocomplete="list" aria-haspopup="listbox" autocomplete="off" spellcheck="false" maxlength="100" value="${esc(value)}"${placeholder ? ` placeholder="${esc(placeholder)}"` : ''}${disabled ? ' disabled' : ''}>`
+    + `<button type="button" class="sr-hsr-chev sr-touch-target" id="${idp}-chev" aria-label="${COPY.chevron}" aria-expanded="${open}"${disabled ? ' disabled' : ''}>${icon('chevron', 15, 2.2, 'sr-hsr-chev-glyph')}</button></div>`;
+}
+
+/* ============================================================================
+   Overview
+   ========================================================================== */
+function countBlockHtml(sh, reasonKey) {
+  let h = `<p class="sr-hsr-total"><b>${fmt(sh.total)}</b><span>${pl(sh.total, 'location', 'locations')} in your backup</span></p>`;
+  const reason = reasonKey ? COPY.reasons[reasonKey] : '';
+  const settings = reasonKey === 'nokey' ? ` <button type="button" class="sr-proj-link">Add a key in Settings</button>` : '';
+  if (sh.hot + sh.pers === 0) {
+    /* Nothing classified at all: no split is drawn, so "0 personal locations"
+       is never on screen for a reader to take as a finding. */
+    h += `<div class="sr-hs-status">${icon('info', 14, 2.2, 'sr-hs-glyph')}<div class="sr-hs-lines"><p class="sr-hs-line">Whether each is a hotspot or a personal location is not yet known.</p><p class="sr-hs-sofar">${reason}${settings}</p></div></div>`;
+    return h;
+  }
+  h += `<div class="sr-hsr-split"><div class="sr-hs-figs"><span class="sr-hs-fig"><span class="sr-hs-pct">${fmt(sh.hot)}</span><span class="sr-hs-figlab">${pl(sh.hot, 'hotspot', 'hotspots')}</span></span><span class="sr-hs-fig sr-hs-fig--end"><span class="sr-hs-pct">${fmt(sh.pers)}</span><span class="sr-hs-figlab">${pl(sh.pers, 'personal location', 'personal locations')}</span></span></div>`;
+  h += `<div class="sr-hs-bar" aria-hidden="true"><div class="sr-hs-seg--hot" style="width: ${(sh.hot / sh.total * 100).toFixed(2)}%"></div><div class="sr-hs-seg--pers"></div>${sh.unk ? `<div class="sr-hsr-seg--unk" style="width: ${(sh.unk / sh.total * 100).toFixed(2)}%"></div>` : ''}</div></div>`;
+  if (sh.unk) h += `<div class="sr-hs-status">${icon('info', 14, 2.2, 'sr-hs-glyph')}<div class="sr-hs-lines"><p class="sr-hs-line"><b>${fmt(sh.unk)}</b> not yet known.</p><p class="sr-hs-sofar">${reason}${settings}</p></div></div>`;
+  return h;
+}
+const reasonKey = () => (state.kinds === 'answered' ? '' : state.kinds);
+function rankHtml(title, key, unit) {
+  /* FR-28 and FR-29: top ten, ties by the other figure, then name, then id. */
+  const other = key === 'c' ? 's' : 'c';
+  const top = LOCS.filter(l => l[key] > 0).sort((a, b) => b[key] - a[key] || b[other] - a[other] || a.name.localeCompare(b.name) || (a.id < b.id ? -1 : 1)).slice(0, 10);
+  let h = `<div class="sr-hsr-rank"><h3 class="sr-hsr-sub">${title}</h3><ol>`;
+  top.forEach((l, i) => {
+    h += `<li><button type="button" class="sr-hsr-rankrow" data-ord="${l.ord}"><span class="sr-hsr-rank-num" aria-hidden="true">${i + 1}</span><span class="sr-hsr-rank-name">${nameHtml(l)}</span>${metaHtml(l, false)}<span class="sr-hsr-rank-fig">${fmt(l[key])}<span class="sr-hsr-rank-unit"> ${pl(l[key], unit[0], unit[1])}</span></span>${icon('chevronright', 14, 2.2, 'sr-hsr-rank-chev')}</button></li>`;
+  });
+  return h + `</ol></div>`;
+}
+function overviewHtml() {
+  return `<div class="sr-hsr-card"><div class="sr-hsr-sum">${countBlockHtml(share(), reasonKey())}<p class="sr-hsr-note">Choose a place with the picker above, or from either list.</p></div>`
+    + `<div class="sr-hsr-ranks">${rankHtml('Most checklists', 'c', ['checklist', 'checklists'])}${rankHtml('Most species', 's', ['species', 'species'])}</div></div>`;
+}
+
+/* ============================================================================
+   Report
+   ========================================================================== */
+function birdName(name, sci) {
+  const mark = (dest, glyph) => `<a class="sr-species-link" href="#" data-mock aria-label="View ${esc(name)} on ${dest} (opens in a new tab)"><span class="sr-favicon-slot">${icon(glyph, 14, 2.2)}</span></a>`;
+  return `<span class="sr-birdname sr-birdname-md"><span class="sr-birdname-row"><button type="button" class="sr-birdname-link">${esc(name)}</button><span class="sr-species-links">${mark('eBird', 'globe')}${mark('Birds of the World', 'library')}</span></span><span class="sr-birdname-sci">${esc(sci)}</span></span>`;
+}
+const clDate = (day, id) => `<a class="sr-cl-date" href="#" data-mock aria-label="${fmtDay(day)}: open checklist on eBird (opens in a new tab)">${fmtDay(day)}${icon('external', 10, 2.5)}</a>`;
+function hotLink(loc) {
+  const name = nameOf(loc), cut = name.lastIndexOf(' ');
+  const lead = cut < 0 ? '' : name.slice(0, cut + 1), last = cut < 0 ? name : name.slice(cut + 1);
+  return `<a class="sr-hotlink" href="#" data-mock aria-label="Open ${esc(name)} on eBird (opens in a new tab)">${esc(lead)}<span class="sr-hotlink-last">${esc(last)}${icon('external', 13, 2.4)}</span></a>`;
+}
+function distRow(label, n, max, total, opt) {
+  const o = opt || {}, zero = n === 0;
+  return `<div class="sr-wx-row${o.glyph ? '' : ' no-glyph'}${zero ? ' is-zero' : ''}${o.typical ? ' is-typical' : ''}">`
+    + (o.glyph ? `<span class="sr-wx-glyph" aria-hidden="true">${o.glyph}</span>` : '')
+    + `<span class="sr-wx-label">${esc(label)}</span>`
+    + (zero ? `<div class="sr-wx-track is-empty" aria-hidden="true"></div>` : `<div class="sr-wx-track" aria-hidden="true"><span class="sr-wx-fill" style="--w: ${(n / max * 100).toFixed(2)}%"></span></div>`)
+    + `<span class="sr-wx-count"><b>${fmt(n)}</b>${o.share === false ? '' : ` <span aria-hidden="true">·</span> ${sharePct(n, total)}`}</span></div>`;
+}
+function distGroup(title, den, labels, counts, opt) {
+  const o = opt || {}, total = counts.reduce((a, b) => a + b, 0), max = Math.max(...counts, 1);
+  /* FR-48: the band with the most checklists; the earlier band wins a tie; no
+     typical value while this figure's own denominator is under the floor. */
+  const typical = o.typical && total >= WEATHER_FLOOR ? counts.indexOf(max) : -1;
+  let h = `<div class="sr-hsr-grouphead"><p class="sr-hsr-sub">${title}</p><span class="sr-hsr-den">${den}</span></div>`;
+  if (o.typical) h += typical >= 0 ? `<p class="sr-hsr-typical">Most common: <b>${esc(labels[typical])}</b></p>` : `<p class="sr-hsr-typical">Too few to name a most common one.</p>`;
+  h += `<div class="sr-wx-rows${o.cls ? ' ' + o.cls : ''}">${labels.map((l, i) => distRow(l, counts[i], max, total, { glyph: o.glyphs && o.glyphs[i], typical: i === typical, share: o.share })).join('')}</div>`;
+  return h;
+}
+function secHead(ic, title, id) { return `<div class="sr-hsr-sechead"><div class="sr-hsr-sectile">${icon(ic, 14, 2.2)}</div><h4 id="${id}" tabindex="-1">${title}</h4></div>`; }
+const MAP_SVG = `<svg viewBox="0 0 384 232" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false">
+  <rect width="384" height="232" style="fill: var(--mk-map-land)"/>
+  <path d="M0 132 C48 118 92 140 126 168 C150 188 168 214 176 232 L0 232 Z" style="fill: var(--mk-map-water)"/>
+  <path d="M126 168 C168 150 196 128 214 96 C226 74 250 60 290 58" style="fill: none; stroke: var(--mk-map-water); stroke-width: 9; stroke-linecap: round"/>
+  <path d="M150 62 C190 40 250 36 300 70 C330 92 318 140 276 152 C236 164 190 150 168 120 C154 100 140 78 150 62 Z" style="fill: var(--mk-map-park)"/>
+  <path d="M-4 86 C70 78 130 40 180 -4 M384 176 C320 178 250 200 214 236 M244 -4 C250 60 300 120 388 132" style="fill: none; stroke: var(--mk-map-edge); stroke-width: 5; stroke-linecap: round"/>
+  <path d="M-4 86 C70 78 130 40 180 -4 M384 176 C320 178 250 200 214 236 M244 -4 C250 60 300 120 388 132" style="fill: none; stroke: var(--mk-map-road); stroke-width: 3; stroke-linecap: round"/>
+  <g transform="translate(206 122)"><path d="M0 0 C-8 -10 -12 -16 -12 -23 A12 12 0 1 1 12 -23 C12 -16 8 -10 0 0 Z" style="fill: var(--sr-map-pin-visited); stroke: var(--sr-map-pin-stroke); stroke-width: 1.5"/><circle cx="0" cy="-23" r="4.2" style="fill: var(--mk-map-ctl)"/></g>
+  <g transform="translate(10 10)"><rect width="29" height="58" rx="4" style="fill: var(--mk-map-ctl); stroke: var(--mk-map-edge)"/><path d="M0 29h29" style="stroke: var(--mk-map-edge)"/><path d="M9.5 14.5h10M14.5 9.5v10M9.5 43.5h10" style="stroke: var(--mk-map-ink); stroke-width: 1.8; stroke-linecap: round"/></g>
+  <g transform="translate(10 198)"><circle cx="12" cy="12" r="11" style="fill: var(--mk-map-ctl); stroke: var(--mk-map-edge)"/><path d="M12 11v6M12 7.2v.4" style="stroke: var(--mk-map-ink); stroke-width: 1.8; stroke-linecap: round"/></g>
+</svg>`;
+
+function lifeListHtml(r) {
+  if (r.S === 0) return `<p class="sr-hsr-empty">No countable species at this location yet.</p>`;
+  const visible = r.rows.slice(0, Math.min(state.shown, r.S));
+  let h = `<div class="sr-hsr-ll"><div class="sr-hsr-ll-cols" aria-hidden="true"><span class="c-name">Species</span><span class="c-date">First here</span><span class="c-on">Of ${fmt(r.C)} ${pl(r.C, 'checklist', 'checklists')}</span></div><ol>`;
+  visible.forEach((s, i) => {
+    const pos = r.S - i;
+    h += `<li class="sr-hsr-ll-row"><div class="sr-hsr-ll-num" aria-hidden="true">${pos}</div>`
+      + `<div class="sr-hsr-ll-name"><span class="sr-only">${pos} of ${r.S}. </span>${birdName(s.name, s.sci)}</div>`
+      + `<div class="sr-hsr-ll-meta"><span class="sr-hsr-ll-date"><span class="sr-only">First recorded here </span>${fmtDay(s.day)}</span> `
+      + `<span class="sr-hsr-ll-on"><span class="sr-hsr-ll-on-fig"><span class="sr-only">On ${fmt(s.n)} of ${fmt(r.C)} ${pl(r.C, 'checklist', 'checklists')} here.</span><span aria-hidden="true"><span class="sr-hsr-ll-words">· on </span><b>${fmt(s.n)}</b><span class="sr-hsr-ll-words"> of ${fmt(r.C)} ${pl(r.C, 'checklist', 'checklists')}</span></span></span><span class="sr-hsr-ll-bar" aria-hidden="true"><i style="width: ${(s.n / r.C * 100).toFixed(2)}%"></i></span></span></div>`
+      + `<div class="sr-hsr-ll-link"><a class="sr-hsr-ll-cl" href="#" data-mock aria-label="Open checklist ${s.id} on eBird (opens in a new tab)">${icon('external', 11, 2.5)}</a></div></li>`;
+  });
+  h += `</ol></div>`;
+  if (r.S > visible.length) h += `<div class="sr-lfl-paging"><button type="button" class="sr-lfl-next sr-touch-target" data-act="next">Show next 100</button><button type="button" class="sr-lfl-all sr-touch-target" data-act="all">Show all (${fmt(r.S)})</button><span class="sr-lfl-showing">Showing 1&ndash;${fmt(visible.length)}</span></div>`;
+  return h;
+}
+function protocolHtml(r) {
+  const labels = r.protocols.map(p => p[0] === null ? 'No protocol recorded' : p[0]), counts = r.protocols.map(p => p[1]);
+  const c = r.complete;
+  let h = distGroup('By eBird protocol', `<b>${fmt(r.C)}</b> ${pl(r.C, 'checklist', 'checklists')}`, labels, counts, { cls: 'sr-hsr-proto' });
+  h += `<div class="sr-hsr-divider"></div><div class="sr-hsr-grouphead"><p class="sr-hsr-sub">Complete checklists</p></div>`;
+  if (c.known === 0) h += `<p class="sr-hsr-body-text">None of your checklists here says whether every species was reported.</p>`;
+  else h += `<p class="sr-hsr-body-text"><b>${sharePct(c.complete, c.known)}</b> complete: ${fmt(c.complete)} of the ${fmt(c.known)} ${pl(c.known, 'checklist that says', 'checklists that say')} whether every species was reported.${c.unknown ? ` ${fmt(c.unknown)} ${pl(c.unknown, 'does', 'do')} not say.` : ''}</p>`;
+  return h;
+}
+function weatherHtml(r) {
+  const w = r.wx;
+  if (w.readable + w.unreadable === 0) return `<p class="sr-hsr-body-text">${COPY.noWeather}</p>`;
+  let h = `<div class="sr-hsr-stack"><p class="sr-hsr-body-text"><b>${fmt(w.readable)}</b> of your ${fmt(r.C)} ${pl(r.C, 'checklist', 'checklists')} here ${pl(w.readable, 'carries', 'carry')} a weather block SnowRaven can read.${w.unreadable ? ` ${fmt(w.unreadable)} more ${pl(w.unreadable, 'carries', 'carry')} a block it could not read.` : ''}</p>`;
+  if (w.readable < WEATHER_FLOOR) return h + `<p class="sr-hsr-note">That is too few to summarize. Sky, temperature, and wind are shown once ${WEATHER_FLOOR} of your checklists here carry a block.</p></div>`;
+  h += `<p class="sr-hsr-note">${COPY.weatherSource}</p></div><div class="sr-hsr-divider"></div>`;
+  const den = (counts, noun) => `<b>${fmt(counts.reduce((a, b) => a + b, 0))}</b> with ${noun}`;
+  h += distGroup('By sky', den(w.sky, 'a sky condition'), SKY.map(s => s[1]), w.sky, { glyphs: SKY.map(s => s[0]), typical: true });
+  h += `<div class="sr-hsr-gap"></div>` + distGroup('By temperature', den(w.temp, 'a temperature'), TEMP_BANDS, w.temp, { typical: true });
+  h += `<div class="sr-hsr-gap"></div>` + distGroup('By wind', den(w.wind, 'a wind reading'), WIND_BANDS, w.wind, { typical: true });
+  return h;
+}
+function visitsHtml(r) {
+  let h = `<dl class="sr-hsr-facts">`;
+  if (r.first === r.latest) h += `<div class="sr-hsr-fact"><dt>Only visit</dt><dd>${clDate(r.first, r.firstId)}</dd></div>`;
+  else h += `<div class="sr-hsr-fact"><dt>First visit</dt><dd>${clDate(r.first, r.firstId)}</dd></div><div class="sr-hsr-fact"><dt>Latest visit</dt><dd>${clDate(r.latest, r.latestId)}</dd></div>`;
+  h += `<div class="sr-hsr-fact"><dt>Time birded</dt><dd>` + (r.counted === 0 ? `None of your checklists here recorded a duration.` : `<b>${hoursMinutes(r.minutes)}</b><small>over ${fmt(r.counted)} of ${fmt(r.C)} ${pl(r.C, 'checklist', 'checklists')} that recorded a duration</small>`) + `</dd></div>`;
+  if (r.big) h += `<div class="sr-hsr-fact"><dt>Most species on one checklist</dt><dd><b>${fmt(r.big.species)} species</b> on ${clDate(r.big.day, r.big.id)}</dd></div>`;
+  h += `</dl><div class="sr-hsr-divider"></div>`;
+  const dated = `<b>${fmt(r.C)}</b> dated ${pl(r.C, 'checklist', 'checklists')}`;
+  h += distGroup('Visits by month', dated, MONTHS, r.months, { share: false });
+  h += `<div class="sr-hsr-divider"></div>` + distGroup('Visits by year', dated, r.years.map(y => String(y[0])), r.years.map(y => y[1]), { share: false });
+  h += `<div class="sr-hsr-divider"></div><div class="sr-hsr-grouphead"><p class="sr-hsr-sub">Photos, audio, and video</p></div>`;
+  if (state.ml === 'none') h += `<p class="sr-hsr-body-text">${COPY.mlNone}</p>`;
+  else {
+    const [p, a, v] = r.media;
+    h += `<ul class="sr-hsr-media"><li>${icon('camera', 13, 2.2, 'sr-hsr-media-glyph')}<span><b>${fmt(p)}</b> ${pl(p, 'photo', 'photos')}</span></li><li>${icon('mic', 13, 2.2, 'sr-hsr-media-glyph')}<span><b>${fmt(a)}</b> ${pl(a, 'audio recording', 'audio recordings')}</span></li><li>${icon('video', 13, 2.2, 'sr-hsr-media-glyph')}<span><b>${fmt(v)}</b> ${pl(v, 'video', 'videos')}</span></li></ul><p class="sr-hsr-note">${COPY.mlNote}</p>`;
+  }
+  return h;
+}
+function reportHtml(loc) {
+  const r = reportFor(loc), kind = kindOf(loc), name = nameOf(loc);
+  const place = [loc.place ? esc(loc.place) : '', loc.showId ? `<span class="sr-hsr-locid">${esc(loc.id)}</span>` : ''].filter(Boolean);
+  let h = `<div class="sr-hsr-report">`;
+  h += `<header class="sr-hsr-card sr-hsr-hero"><div class="sr-hsr-ident">${kindTag(kind, 'sr-hsr-eyebrow')}`
+    + `<h3 class="sr-hsr-name" id="hsr-title" tabindex="-1">${kind === 'hotspot' ? hotLink(loc) : nameHtml(loc)}</h3>`
+    + (place.length ? `<span class="sr-hsr-meta">${place.map((p, i) => `<span>${p}${i < place.length - 1 ? '<span class="sr-hsr-dot" aria-hidden="true">·</span>' : ''}</span>`).join('')}</span>` : '') + `</div>`
+    + `<div class="sr-hsr-totals"><div class="sr-hsr-figs"><div class="sr-hsr-fig"><span class="sr-hsr-fig-label">Species</span><span class="sr-hsr-fig-value sr-hsr-fig-value--key">${fmt(r.S)}</span></div><div class="sr-hsr-fig"><span class="sr-hsr-fig-label">${pl(r.C, 'Checklist', 'Checklists')}</span><span class="sr-hsr-fig-value">${fmt(r.C)}</span></div></div><p class="sr-hsr-rule">${COPY.rule}</p></div></header>`;
+  h += `<nav class="sr-hsr-jump" aria-label="Jump to section">${[['hsr-sec-list', 'Life list'], ['hsr-sec-map', 'Map'], ['hsr-sec-proto', 'Protocols'], ['hsr-sec-wx', 'Weather'], ['hsr-sec-visits', 'Visits']].map(([id, t]) => `<a class="sr-touch-target" href="#${id}" data-jump="${id}">${t}</a>`).join('')}</nav>`;
+  h += `<div class="sr-hsr-body"><section class="sr-hsr-card" aria-labelledby="hsr-sec-list">${secHead('listchecks', 'Life list', 'hsr-sec-list')}`
+    + `<div class="sr-hsr-lead"><p class="sr-hsr-count" id="hsr-count" tabindex="-1"><b>${fmt(r.S)}</b> species at this location, newest first by the date you first recorded each one here, with how many of your ${fmt(r.C)} ${pl(r.C, 'checklist', 'checklists')} here include it.</p></div><div id="hsr-llwrap">${lifeListHtml(r)}</div></section>`;
+  h += `<div class="sr-hsr-rail">`;
+  h += `<section class="sr-hsr-card" aria-labelledby="hsr-sec-map">${secHead('mappin', 'Map', 'hsr-sec-map')}` + (r.coords
+    ? `<div class="sr-hsr-map" role="img" aria-label="Map showing ${esc(name)}">${MAP_SVG}</div>`
+    : `<div class="sr-hsr-secbody"><p class="sr-hsr-body-text">${COPY.noMap}</p></div>`) + `</section>`;
+  h += `<section class="sr-hsr-card" aria-labelledby="hsr-sec-proto">${secHead('clipboard', 'Checklists by protocol', 'hsr-sec-proto')}<div class="sr-hsr-secbody">${protocolHtml(r)}</div></section>`;
+  h += `<section class="sr-hsr-card" aria-labelledby="hsr-sec-wx">${secHead('cloudsun', 'Weather on your visits', 'hsr-sec-wx')}<div class="sr-hsr-secbody">${weatherHtml(r)}</div></section>`;
+  h += `<section class="sr-hsr-card" aria-labelledby="hsr-sec-visits">${secHead('calendar', 'Visits and media', 'hsr-sec-visits')}<div class="sr-hsr-secbody">${visitsHtml(r)}</div></section>`;
+  return h + `</div></div></div>`;
+}
+
+/* ============================================================================
+   The tab: built once, moved between the desktop panel and the phone frame so
+   there is one picker and one selection whatever the viewport.
+   ========================================================================== */
+const tab = document.createElement('div');
+tab.className = 'sr-hsr-tab';
+tab.innerHTML = `<div class="sr-hsr-head"><div class="sr-hsr-head-tile">${icon('mappinned', 15, 2.2)}</div><div><h2>Hotspot Reports</h2><p>${COPY.tabDescription}</p></div></div>`
+  + `<div class="sr-hsr-pickrow"><span class="sr-hsr-label sr-ctl-label" id="hsr-label">${COPY.pickerLabel}</span><div class="sr-hsr-picker" id="hsr-picker">${fieldHtml('hsr', COPY.overview, false, false, '')}<div class="sr-hsr-list" id="hsr-list" role="listbox" aria-label="${COPY.listLabel}" hidden></div></div></div>`
+  + `<div class="sr-only" role="status" aria-live="polite" id="hsr-live"></div><div class="sr-hsr-view" id="hsr-view"></div>`;
+const $ = id => tab.querySelector('#' + id);
+const input = $('hsr-input'), chev = $('hsr-chev'), listEl = tab.querySelector('.sr-hsr-list'), picker = $('hsr-picker'), view = $('hsr-view'), live = $('hsr-live');
+let suppressOpen = false;
+
+function renderList() {
+  const win = filterLocations(combo.query, selected);
+  combo.rows = [{ ord: null }, ...win.ords.map(ord => ({ ord }))];
+  combo.matches = win.matches;
+  listEl.innerHTML = listInner(combo.rows, win.matches, combo.active, selected, 'hsr');
+  syncActive();
+}
+function syncActive() {
+  listEl.querySelectorAll('.sr-hsr-opt').forEach((el, i) => el.classList.toggle('is-active', i === combo.active));
+  const el = combo.active >= 0 ? listEl.querySelector(`[data-i="${combo.active}"]`) : null;
+  if (el) {
+    input.setAttribute('aria-activedescendant', el.id);
+    /* Scroll inside the listbox only; scrollIntoView would also move the page. */
+    if (el.offsetTop < listEl.scrollTop) listEl.scrollTop = el.offsetTop - 4;
+    else if (el.offsetTop + el.offsetHeight > listEl.scrollTop + listEl.clientHeight) listEl.scrollTop = el.offsetTop + el.offsetHeight - listEl.clientHeight + 4;
+  } else input.removeAttribute('aria-activedescendant');
+}
+function openList() {
+  combo.open = true; combo.query = ''; input.value = ''; input.placeholder = COPY.placeholder;
+  const win = filterLocations('', selected);
+  combo.active = selected === null ? 0 : win.ords.indexOf(selected) + 1;
+  listEl.hidden = false;
+  input.setAttribute('aria-expanded', 'true'); chev.setAttribute('aria-expanded', 'true');
+  renderList();
+}
+function closeList() {
+  if (!combo.open) { input.value = selectedLabel(); return; }
+  combo.open = false; listEl.hidden = true; listEl.innerHTML = '';
+  input.value = selectedLabel(); input.placeholder = '';
+  input.setAttribute('aria-expanded', 'false'); chev.setAttribute('aria-expanded', 'false');
+  input.removeAttribute('aria-activedescendant');
+}
+function announce() {
+  const s = document.createElement('span');
+  s.dataset.seq = ++seq;
+  s.textContent = selected === null ? announceOverview(LOCS.length) : announceLoc(nameOf(LOCS[selected]), reportFor(LOCS[selected]).S, LOCS[selected].c);
+  live.replaceChildren(s);
+}
+function renderView() {
+  view.innerHTML = selected === null ? overviewHtml() : reportHtml(LOCS[selected]);
+}
+function select(ord, from) {
+  selected = ord; state.shown = 100;
+  closeList(); announce(); renderView(); syncPageSeg();
+  if (from === 'rank') {
+    /* FR-30: focus lands on the report's heading, never on the picker (focus
+       there opens its list) and never on the body. */
+    const t = tab.querySelector('#hsr-title');
+    if (t) t.focus();
+    const sc = scroller(); if (sc) sc.scrollTop = 0; else window.scrollTo({ top: 0 });
+  } else if (from === 'picker') { suppressOpen = true; input.focus(); suppressOpen = false; }
+}
+const scroller = () => (state.view === 'desktop' ? null : document.getElementById('phoneScroll'));
+
+input.addEventListener('focus', () => { if (!suppressOpen && !combo.open) openList(); });
+input.addEventListener('mousedown', () => { if (document.activeElement === input && !combo.open) openList(); });
+input.addEventListener('input', () => {
+  if (!combo.open) { combo.open = true; listEl.hidden = false; input.setAttribute('aria-expanded', 'true'); chev.setAttribute('aria-expanded', 'true'); }
+  combo.query = input.value;
+  const win = filterLocations(combo.query, selected);
+  combo.active = combo.query.trim() === '' ? 0 : (win.ords.length ? 1 : -1);
+  renderList();
+});
+input.addEventListener('keydown', e => {
+  if (!combo.open) { if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { openList(); e.preventDefault(); } return; }
+  const last = combo.rows.length - 1;
+  if (e.key === 'ArrowDown') { combo.active = Math.min(last, combo.active + 1); syncActive(); e.preventDefault(); }
+  else if (e.key === 'ArrowUp') { combo.active = Math.max(0, combo.active - 1); syncActive(); e.preventDefault(); }
+  else if (e.key === 'Home') { combo.active = 0; syncActive(); e.preventDefault(); }
+  else if (e.key === 'End') { combo.active = last; syncActive(); e.preventDefault(); }
+  else if (e.key === 'Enter') { if (combo.active >= 0) select(combo.rows[combo.active].ord, 'picker'); e.preventDefault(); }
+  else if (e.key === 'Escape') { closeList(); e.preventDefault(); e.stopPropagation(); }
+  else if (e.key === 'Tab') closeList();
+});
+chev.addEventListener('click', () => { if (combo.open) closeList(); else { openList(); suppressOpen = true; input.focus(); suppressOpen = false; } });
+listEl.addEventListener('mousedown', e => {
+  e.preventDefault();                       /* focus never leaves the input */
+  const opt = e.target.closest('[data-i]');
+  if (opt) select(combo.rows[+opt.dataset.i].ord, 'picker');
+});
+document.addEventListener('mousedown', e => { if (combo.open && !picker.contains(e.target)) closeList(); });
+picker.addEventListener('focusout', e => { if (combo.open && !picker.contains(e.relatedTarget)) closeList(); });
+
+tab.addEventListener('click', e => {
+  if (e.target.closest('[data-mock]')) { e.preventDefault(); return; }
+  const rank = e.target.closest('.sr-hsr-rankrow');
+  if (rank) { select(+rank.dataset.ord, 'rank'); return; }
+  const jump = e.target.closest('[data-jump]');
+  if (jump) { e.preventDefault(); const t = tab.querySelector('#' + jump.dataset.jump); t.closest('section').scrollIntoView({ block: 'start', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }); t.focus({ preventScroll: true }); return; }
+  const act = e.target.closest('[data-act]');
+  if (act && selected !== null) {
+    const r = reportFor(LOCS[selected]);
+    state.shown = act.dataset.act === 'all' ? r.S : state.shown + 100;
+    tab.querySelector('#hsr-llwrap').innerHTML = lifeListHtml(r);
+    const next = tab.querySelector('[data-act="next"]');
+    (state.shown < r.S && next ? next : tab.querySelector('#hsr-count')).focus();
+  }
+});
+
+/* ============================================================================
+   Review bar and the phone frame
+   ========================================================================== */
+const phone = document.getElementById('phone'), sheetRoot = document.getElementById('sheetRoot'), moreCell = document.getElementById('moreCell');
+function press(opt, v) { document.querySelectorAll(`[data-opt="${opt}"] button`).forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === v))); }
+function syncPageSeg() { press('page', selected === null ? 'overview' : selected === ORD_C ? 'hotspot' : selected === ORD_D ? 'personal' : ''); }
+function setView(v) {
+  state.view = v;
+  const isPhone = v !== 'desktop';
+  document.getElementById('stageDesktop').classList.toggle('mk-hidden', isPhone);
+  document.getElementById('stagePhone').classList.toggle('mk-hidden', !isPhone);
+  document.getElementById('mkSheetGroup').classList.toggle('mk-hidden', !isPhone);
+  if (isPhone) { phone.dataset.w = v; phone.classList.toggle('mk-ios', v === '393'); }
+  else setSheet(false);
+  closeList();
+  document.querySelector(`[data-mount="${isPhone ? 'phone' : 'desktop'}"]`).appendChild(tab);
+  if (isPhone) phone.style.setProperty('--sr-navbar-h', document.getElementById('navPhone').offsetHeight + 'px');
+}
+function setSheet(open) {
+  sheetRoot.classList.toggle('sr-nav-sheet-root--open', open);
+  sheetRoot.inert = !open;
+  moreCell.setAttribute('aria-expanded', String(open));
+  press('sheet', open ? 'open' : 'closed');
+  sheetReadout();
+}
+function sheetReadout() {
+  const out = document.getElementById('sheetReadout');
+  if (!sheetRoot.classList.contains('sr-nav-sheet-root--open')) { out.textContent = ''; return; }
+  const sheet = document.getElementById('sheet'), body = document.getElementById('sheetBody');
+  const over = body.scrollHeight - body.clientHeight;
+  out.textContent = `Measured in this browser: the sheet is ${Math.round(sheet.getBoundingClientRect().height)}px tall in a ${phone.dataset.w === '393' ? '393 x 852' : '320 x 568'} frame${phone.classList.contains('mk-ios') ? ' with the 34px home-indicator inset' : ''}. ${over > 0 ? `Its list scrolls by ${over}px; Settings stays pinned in the foot.` : 'Every destination shows with nothing to scroll; Settings is in the foot.'}`;
+}
+document.querySelector('.mk-bar').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  const opt = b.closest('[data-opt]').dataset.opt, v = b.dataset.v;
+  press(opt, v);
+  if (opt === 'theme') document.documentElement.dataset.theme = v;
+  else if (opt === 'scale') { document.documentElement.style.setProperty('--sr-text-scale', v); if (state.view !== 'desktop') setView(state.view); sheetReadout(); }
+  else if (opt === 'view') setView(v);
+  else if (opt === 'kinds') { state.kinds = v; if (combo.open) renderList(); renderView(); frames(); }
+  else if (opt === 'ml') { state.ml = v; renderView(); }
+  else if (opt === 'sheet') setSheet(v === 'open');
+  else if (opt === 'cap') { phone.dataset.cap = v; sheetReadout(); }
+  else if (opt === 'page') {
+    state.ml = v === 'personal' ? 'none' : 'ready'; press('ml', state.ml);
+    select(v === 'overview' ? null : v === 'hotspot' ? ORD_C : ORD_D, 'bar');
+    const sc = scroller(); if (sc) sc.scrollTop = 0;
+  }
+});
+moreCell.addEventListener('click', () => setSheet(!sheetRoot.classList.contains('sr-nav-sheet-root--open')));
+sheetRoot.addEventListener('mousedown', e => { if (e.target === sheetRoot) setSheet(false); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && sheetRoot.classList.contains('sr-nav-sheet-root--open')) setSheet(false); });
+
+/* ============================================================================
+   The frames held still, drawn by the same functions as the live page.
+   ========================================================================== */
+function pickerFrame(id, value, rows, matches, active, placeholder) {
+  document.getElementById(id).innerHTML = `<div class="sr-hsr-picker" inert>${fieldHtml(id, value, true, false, placeholder)}<div class="sr-hsr-list" role="listbox" aria-label="${COPY.listLabel}">${listInner(rows, matches, active, null, id)}</div></div>`;
+}
+function frames() {
+  const saved = state.kinds;
+  const byName = n => LOCS.filter(l => l.name.startsWith(n)).map(l => l.ord);
+  const pick = ['Black Oak', 'Cedar Narrows', 'Creekside lot', 'Heron Slough', 'Home', 'Lake Trail', 'Point Estero', 'Truckee River', 'Washoe Flats'].flatMap(byName).concat(LOCS.findIndex(l => l.name === ''));
+  const ordered = PICKER_ORDER.filter(o => pick.includes(o));
+  state.kinds = 'partial';
+  pickerFrame('frameOpen', '', [{ ord: null }, ...ordered.map(ord => ({ ord }))], ordered.length, 0, COPY.placeholder);
+  const home = filterLocations('home', null);
+  pickerFrame('frameQuery', 'home', [{ ord: null }, ...home.ords.map(ord => ({ ord }))], home.matches, 1, '');
+  const tail = PICKER_ORDER.slice(PICKER_OPTION_CAP - 2, PICKER_OPTION_CAP);
+  document.getElementById('frameMore').innerHTML = `<div class="sr-hsr-picker" inert><div class="sr-hsr-list" role="listbox" aria-label="${COPY.listLabel}">${tail.map((ord, i) => optionHtml({ ord }, 199 + i, -1, false, 'frameMore')).join('')}<div class="sr-hsr-more">${more(PICKER_OPTION_CAP, LOCS.length)}</div></div></div>`;
+  pickerFrame('frameNone', 'zzyzx', [{ ord: null }], 0, -1, '');
+  state.kinds = 'answered'; document.getElementById('frameCountA').innerHTML = countBlockHtml(share(), '');
+  state.kinds = 'partial'; document.getElementById('frameCountB').innerHTML = countBlockHtml(share(), 'partial');
+  state.kinds = 'nokey'; document.getElementById('frameCountC').innerHTML = countBlockHtml(share(), 'nokey');
+  state.kinds = saved;
+  document.getElementById('frameNoLoc').innerHTML = `<div class="sr-hsr-tab" inert><div class="sr-hsr-pickrow"><span class="sr-hsr-label">${COPY.pickerLabel}</span><div class="sr-hsr-picker">${fieldHtml('frameNoLoc', COPY.overview, false, true, '')}</div></div><p class="sr-hsr-body-text">${COPY.noLocations}</p></div>`;
+}
+
+setView(window.innerWidth < 700 ? '393' : 'desktop');
+press('view', state.view);
+renderView();
+frames();
+</script>
+</body>
+</html>

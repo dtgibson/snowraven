@@ -1,0 +1,9 @@
+
+ RUN  v4.1.12 /Users/developer/devwork/snowraven/frontend
+
+
+ Test Files  1 passed (1)
+      Tests  20 passed (20)
+   Start at  01:52:18
+   Duration  19.69s (transform 70ms, setup 20ms, import 67ms, tests 19.48s, environment 0ms)
+

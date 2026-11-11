@@ -26,7 +26,7 @@
 //
 // Its reach, stated so it is not over-read: these four surfaces' own padding
 // only, in globals.css, at the two width tiers. Layout (the bar's label
-// container query reading the content box, the sheet's 528px cap) is a browser
+// container query reading the content box, the sheet's measured cap) is a browser
 // measurement and is covered elsewhere (navCss.test.ts, TabNav.test.tsx).
 // The per-side and the Android-twin rules for the whole stylesheet are
 // safeAreaPerSide.test.ts and androidInsetsCss.test.ts.

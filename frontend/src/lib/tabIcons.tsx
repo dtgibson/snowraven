@@ -24,7 +24,7 @@
 // Entry-chunk safety: this file imports `react` types and `lucide-react` only,
 // both of which App.tsx already carries. entryChunk.test.ts is the live guard.
 
-import { BookOpen, BarChart2, Images, Dna, Tag, ClipboardList, CalendarDays, Target, ListChecks } from 'lucide-react'
+import { BookOpen, BarChart2, Images, Dna, Tag, ClipboardList, CalendarDays, Target, ListChecks, MapPinned } from 'lucide-react'
 import type { Tab } from './tabLayout'
 
 export interface TabIconProps {
@@ -94,6 +94,12 @@ export const TAB_ICONS: Record<Tab, TabIcon> = {
   // Multimedia's `Images`.
   'life-lists': ({ size, strokeWidth }) => (
     <ListChecks size={size} strokeWidth={strokeWidth} aria-hidden="true" />
+  ),
+  // Hotspot Reports. lucide `MapPinned` (a pin over a folded map): used nowhere
+  // else in the app, distinct in the rail from the Map Explorer's hand-drawn
+  // folded map, which carries no pin (hotspot-reports decisions.md D-01).
+  'hotspot-reports': ({ size, strokeWidth }) => (
+    <MapPinned size={size} strokeWidth={strokeWidth} aria-hidden="true" />
   ),
   'comparer': ({ size, strokeWidth }) => (
     <svg {...svgProps(size, strokeWidth)}>

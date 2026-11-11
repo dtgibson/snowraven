@@ -93,14 +93,15 @@ describe('in-app Help TOC ↔ docs/HELP.md parity', () => {
     expect(headingIds.find(h => h.level === '###' && h.text === 'Life Lists')!.id).toBe('life-lists-2')
   })
 
-  it('covers all 19 sections, including the three that were unreachable before v0.5.75', () => {
+  it('covers all 20 sections, including the three that were unreachable before v0.5.75', () => {
     // 16 until the command palette added Search after Getting Started, 17 until
-    // targets-tab added Targets between Calendar and Map Explorer. The count
-    // is asserted rather than derived so that ADDING a section is a deliberate,
-    // reviewable act: the parity test above would happily accept a section that
-    // was added to both sides by accident.
-    expect(mdSections).toHaveLength(19)
-    expect(tocTopLevel).toHaveLength(19)
+    // targets-tab added Targets between Calendar and Map Explorer, 19 until
+    // hotspot-reports added Hotspot Reports between Breeding Codes and
+    // Checklists. The count is asserted rather than derived so that ADDING a
+    // section is a deliberate, reviewable act: the parity test above would
+    // happily accept a section that was added to both sides by accident.
+    expect(mdSections).toHaveLength(20)
+    expect(tocTopLevel).toHaveLength(20)
     for (const label of ['Calendar', 'Using SnowRaven offline', 'Updating SnowRaven', 'Search', 'Targets']) {
       expect(tocTopLevel.map(t => t.label)).toContain(label)
     }

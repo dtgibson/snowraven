@@ -1,0 +1,26 @@
+
+ RUN  v4.1.12 /Users/developer/devwork/snowraven/frontend
+
+ ❯ src/lib/lifeListsLinearity.test.ts (20 tests | 1 failed) 24070ms
+     × pass 2R (the region assets), every row its own species, 20 counties in 4 states 819ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/lib/lifeListsLinearity.test.ts > the Life Lists derivation is linear in rows (NFR-01, QA-44) > pass 2R (the region assets), every row its own species, 20 counties in 4 states
+AssertionError: expected 22.07985411267914 to be less than or equal to 20
+ ❯ src/lib/lifeListsLinearity.test.ts:233:100
+    231|         expect(js.size).toBe(n)
+    232|         expect(jl.has(large[10 * n - 1].checklistId)).toBe(true)
+    233|         expect(quotient(() => deriveRegionAssets(small, js), () => der…
+       |                                                                                                    ^
+    234|       })
+    235|     }
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 512 passed | 5 skipped (518)
+      Tests  1 failed | 11165 passed | 7 skipped (11173)
+   Start at  01:45:36
+   Duration  106.87s (transform 39.95s, setup 6.98s, import 115.83s, tests 435.42s, environment 112.98s)
+

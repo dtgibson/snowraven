@@ -3,6 +3,7 @@ paths:
   - "frontend/src/lib/commentBlocks*.ts"
   - "frontend/src/lib/weatherBlockParse*.ts"
   - "frontend/src/lib/weatherStats*.ts"
+  - "website/tools/gen-demo-data.mjs"
   - "frontend/src/lib/weatherFormatter*"
   - "frontend/src/lib/tideFormatter*"
   - "frontend/src/lib/tide.ts"

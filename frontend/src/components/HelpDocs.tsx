@@ -43,6 +43,7 @@ const TOC: { id: string; label: string; sub: boolean }[] = [
   { id: 'targets',              label: 'Targets',                sub: false },
   { id: 'multimedia',           label: 'Multimedia',             sub: false },
   { id: 'breeding-codes',       label: 'Breeding Codes',         sub: false },
+  { id: 'hotspot-reports',      label: 'Hotspot Reports',        sub: false },
   { id: 'checklists',           label: 'Checklists',             sub: false },
   { id: 'life-lists',           label: 'Life Lists',             sub: false },
   { id: 'list-comparer',        label: 'List Comparer',          sub: false },

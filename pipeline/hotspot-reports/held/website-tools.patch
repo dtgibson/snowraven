@@ -1,0 +1,1291 @@
+diff --git a/frontend/src/lib/hotspotReportsDemoData.test.ts b/frontend/src/lib/hotspotReportsDemoData.test.ts
+new file mode 100644
+index 0000000..93a902e
+--- /dev/null
++++ b/frontend/src/lib/hotspotReportsDemoData.test.ts
+@@ -0,0 +1,178 @@
++/// <reference types="node" />
++// The demo dataset every website and App Store screenshot is captured from
++// (hotspot-reports FR-62, QA-60; schema.md section 14), read through the app's
++// OWN parser and statistics rather than described. `buildDemoData()` is the
++// generator's pure core (website/tools/gen-demo-data.mjs): nothing here reads
++// the gitignored website/tools/demo-data/ folder, so these rows hold on a fresh
++// clone and in CI, and a regeneration that would photograph a Weather summary
++// below its floor goes red here before any frame is captured.
++import { describe, it, expect } from 'vitest'
++import { readFileSync } from 'node:fs'
++import {
++  buildDemoData, FRAMED_LOCATION_ID, LOCS, WEATHER_BLOCK_EVERY,
++} from '../../../website/tools/gen-demo-data.mjs'
++import { parseEbirdObservations, streamCsvRows } from './parseEbirdObservations'
++import { computeChecklists } from './birdingStats'
++import { computeWeatherStats, WEATHER_SPECIES_MIN_CHECKLISTS } from './weatherStats'
++import type { WeatherDistRow } from './weatherStats'
++import { hasAnyWeatherField, parseWeatherBlock } from './weatherBlockParse'
++import type { WeatherRecord } from './weatherBlockParse'
++import { findBlockSpans, hasSnowravenWeatherBlock, stripWeatherTideBlocks } from './commentBlocks'
++import { decodeEntities } from './commentText'
++import { ATTRIBUTION, CONDITION_EMOJI } from './weatherFormatter'
++
++const WITH = buildDemoData()
++const WITHOUT = buildDemoData({ weather: false })
++
++const OBS = parseEbirdObservations(WITH.ebirdCsv)
++const FRAMED_OBS = OBS.filter(o => o.locationId === FRAMED_LOCATION_ID)
++const FRAMED_CHECKLISTS = computeChecklists(FRAMED_OBS)
++const WEATHER = computeWeatherStats(FRAMED_CHECKLISTS, FRAMED_OBS)
++
++/** Each submission's comment in the dataset WITHOUT the post-pass. */
++const PLAIN_COMMENT = new Map(
++  parseEbirdObservations(WITHOUT.ebirdCsv).map(o => [o.submissionId, o.checklistComments ?? '']),
++)
++
++const denominator = (rows: readonly WeatherDistRow[]): number => rows.reduce((n, r) => n + r.checklists, 0)
++const bandsUsed = (rows: readonly WeatherDistRow[]): number => rows.reduce((n, r) => n + (r.checklists > 0 ? 1 : 0), 0)
++
++/** Every row of a CSV text through the app's own reader, copied out of its
++ *  reused row array. */
++function csvRows(text: string): string[][] {
++  const out: string[][] = []
++  for (const row of streamCsvRows(text)) out.push([...row])
++  return out
++}
++
++/** "07:45 AM" -> minutes after midnight, for the date order the schema names. */
++function minutesOf(time: string | null): number {
++  const m = /^(\d{2}):(\d{2}) (AM|PM)$/.exec(time ?? '')
++  if (!m) throw new Error(`unexpected time ${time}`)
++  return (Number(m[1]) % 12 + (m[3] === 'PM' ? 12 : 0)) * 60 + Number(m[2])
++}
++
++describe('the demo dataset the screenshots are captured from (QA-60)', () => {
++  it('holds several locations, at least two of which share a State/Province code', () => {
++    const byState = new Map<string, Set<string>>()
++    for (const o of OBS) {
++      const state = o.stateProvince ?? ''
++      if (!byState.has(state)) byState.set(state, new Set())
++      byState.get(state)!.add(o.locationId)
++    }
++    expect(new Set(OBS.map(o => o.locationId))).toEqual(new Set(LOCS.map(l => l.locId)))
++    expect(LOCS.length).toBeGreaterThanOrEqual(3)
++    expect([...byState.entries()].filter(([state, ids]) => state !== '' && ids.size >= 2).length).toBeGreaterThan(0)
++  })
++
++  it('carries at least the floor of readable weather blocks at the framed location, and no unreadable one', () => {
++    expect(FRAMED_CHECKLISTS.length).toBeGreaterThan(0)
++    expect(WEATHER.unreadableCount).toBe(0)
++    expect(WEATHER.foundCount).toBe(WEATHER.readableCount)
++    expect(WEATHER.readableCount).toBeGreaterThanOrEqual(WEATHER_SPECIES_MIN_CHECKLISTS)
++    expect(WEATHER.readableCount).toBe(Math.ceil(FRAMED_CHECKLISTS.length / WEATHER_BLOCK_EVERY))
++  })
++
++  it('gives sky condition, temperature and wind each a denominator at or above the floor, spread over several bands', () => {
++    const axes = [
++      ['sky condition', WEATHER.byCondition],
++      ['temperature', WEATHER.byTempBand],
++      ['wind', WEATHER.byWindBand],
++    ] as const
++    for (const [axis, rows] of axes) {
++      expect(denominator(rows), axis).toBeGreaterThanOrEqual(WEATHER_SPECIES_MIN_CHECKLISTS)
++      expect(bandsUsed(rows), axis).toBeGreaterThanOrEqual(3)
++    }
++  })
++
++  it('writes every block in the formatter\'s form: each field reads back, under a daytime header glyph, with the attribution last', () => {
++    const fields = Object.keys(parseWeatherBlock('')) as Array<keyof WeatherRecord>
++    expect(fields.length).toBe(10)
++    let checked = 0
++    for (const c of FRAMED_CHECKLISTS) {
++      const comment = c.checklistComments
++      const rec = parseWeatherBlock(comment)
++      if (!hasAnyWeatherField(rec)) continue
++      checked++
++      expect(fields.filter(f => rec[f] === null), c.submissionId).toEqual([])
++      expect(rec.dayNight, c.submissionId).toBe('day')
++
++      const spans = findBlockSpans(comment)
++      expect(spans.length, c.submissionId).toBe(1)
++      const span = decodeEntities(comment).slice(spans[0].start, spans[0].end)
++      // The exact presentation conditionEmoji() writes, variation selector
++      // included, then the collapsed line break: a header the parser would
++      // still match (it ignores U+FE0F) but the formatter never writes fails.
++      expect(CONDITION_EMOJI.filter(e => span.startsWith(`${e} `)).length, c.submissionId).toBe(1)
++      expect(span.endsWith(ATTRIBUTION), c.submissionId).toBe(true)
++      // Hiding the block leaves exactly the prose the checklist had before.
++      expect(stripWeatherTideBlocks(comment), c.submissionId)
++        .toBe(decodeEntities(PLAIN_COMMENT.get(c.submissionId) ?? '').trim())
++    }
++    expect(checked).toBe(WEATHER.readableCount)
++    // Some of them follow prose, so the strip comparison is not only ever ''.
++    expect(FRAMED_CHECKLISTS.filter(c => hasAnyWeatherField(parseWeatherBlock(c.checklistComments))
++      && (PLAIN_COMMENT.get(c.submissionId) ?? '') !== '').length).toBeGreaterThan(0)
++  })
++
++  it('puts blocks only at the framed location, on every WEATHER_BLOCK_EVERY-th of its checklists in date order', () => {
++    const all = computeChecklists(OBS)
++    const withBlock = all.filter(c => hasSnowravenWeatherBlock(c.checklistComments))
++    expect(withBlock.length).toBe(WEATHER.readableCount)
++    expect(withBlock.filter(c => c.locationId !== FRAMED_LOCATION_ID)).toEqual([])
++
++    const ordered = [...FRAMED_CHECKLISTS].sort((a, b) =>
++      a.date.localeCompare(b.date) || minutesOf(a.time) - minutesOf(b.time) || a.submissionId.localeCompare(b.submissionId))
++    const positions = ordered.flatMap((c, i) => (hasSnowravenWeatherBlock(c.checklistComments) ? [i] : []))
++    expect(positions).toEqual(ordered.flatMap((_, i) => (i % WEATHER_BLOCK_EVERY === 0 ? [i] : [])))
++  })
++
++  it('changes Checklist Comments and nothing else when the post-pass is on, and leaves the ML export byte-identical', () => {
++    const off = csvRows(WITHOUT.ebirdCsv)
++    const on = csvRows(WITH.ebirdCsv)
++    expect(on.length).toBe(off.length)
++    expect(on[0]).toEqual(off[0])
++    const ci = off[0].indexOf('Checklist Comments')
++    expect(ci).toBeGreaterThan(-1)
++
++    const otherCells: string[] = []
++    const notAppended: number[] = []
++    const changedSubs = new Set<string>()
++    let changedRows = 0
++    for (let i = 1; i < off.length; i++) {
++      if (on[i].length !== off[i].length) { otherCells.push(`row ${i}: ${on[i].length} cells, was ${off[i].length}`); continue }
++      for (let j = 0; j < off[i].length; j++) {
++        if (j !== ci && on[i][j] !== off[i][j]) otherCells.push(`row ${i} ${off[0][j]}`)
++      }
++      if (on[i][ci] !== off[i][ci]) {
++        changedRows++
++        changedSubs.add(on[i][0])
++        if (!on[i][ci].startsWith(off[i][ci])) notAppended.push(i)
++      }
++    }
++    expect(otherCells).toEqual([])
++    expect(notAppended).toEqual([])
++    // Non-vacuity: the column did change, on every row of every block-bearing
++    // checklist and on no other.
++    expect(changedSubs.size).toBe(WEATHER.readableCount)
++    expect(changedRows).toBe(FRAMED_OBS.filter(o => changedSubs.has(o.submissionId)).length)
++
++    expect(WITH.mlCsv === WITHOUT.mlCsv).toBe(true)
++    expect(WITH.mlCsv.length).toBeGreaterThan(0)
++  })
++})
++
++describe('the generator source (CLAUDE.md, the non-ASCII literal rule)', () => {
++  it('holds no literal non-ASCII character: the weather emoji, the degree sign and the curly apostrophes are written as escapes', () => {
++    const src = readFileSync(new URL('../../../website/tools/gen-demo-data.mjs', import.meta.url), 'utf8')
++    const lines = src.split('\n')
++    expect(lines.length, 'the source was read').toBeGreaterThan(100)
++    const offending = lines
++      .map((line, i) => ({ line, n: i + 1 }))
++      .filter(({ line }) => [...line].some(ch => ch.charCodeAt(0) > 0x7f))
++    expect(offending).toEqual([])
++    // And the output does carry them, so the source row is not vacuous.
++    expect(WITH.ebirdCsv).toMatch(/\p{Extended_Pictographic}\uFE0F/u)
++    expect(WITH.ebirdCsv).toContain('\u00B0F')
++  })
++})
+diff --git a/website/tools/README.md b/website/tools/README.md
+index 385e9f0..26231fe 100644
+--- a/website/tools/README.md
++++ b/website/tools/README.md
+@@ -32,6 +32,13 @@ npx playwright install chromium webkit    # webkit is for verify/, below
+    node gen-demo-data.mjs        # -> ./demo-data/{ebird-backup,ml-export}.csv + metadata + map-defaults
+    ```
+ 
++   Every third checklist at the framed location (Jamaica Bay Wildlife Refuge)
++   carries a weather block in the app's own format, so the Hotspot Reports frame
++   has a Weather summary. The dataset itself is `buildDemoData()`, a pure
++   function the script exports; `frontend/src/lib/hotspotReportsDemoData.test.ts`
++   reads it through the app's parser, so a change here that drops below the
++   app's floors fails the frontend suite rather than a capture.
++
+ 2. **Run SnowRaven against the demo data — not your real data.** Build the frontend so
+    the backend serves it, then start the backend with `SR_DATA_DIR` pointed at the
+    demo dataset:
+@@ -109,6 +116,13 @@ npx playwright install chromium webkit    # webkit is for verify/, below
+    `marks/` (see `marks/PROVENANCE.md`), never request them, and fail any frame
+    that would show a fallback glyph where a mark belongs.
+ 
++   The Hotspot Reports frame shows each location's kind, which the app reads
++   from an eBird hotspot lookup (`/map/hotspot-region`, one per State/Province
++   code). Its context, and only its context, answers that lookup inside the
++   browser with the demo dataset's own location ids, blocks every other
++   eBird-backed request, and fails the run if a region was never asked or
++   anything else was (`installHotspotRegionRoutes` in `capture-lib.mjs`).
++
+    If `backend/.env` carries no usable OpenWeather key, add `WEATHER_REPLAY=1`
+    to serve the weather shot from the app's stored replay result instead of a
+    live call. Note that unlike the App Store capture, the website weather shot's
+@@ -137,9 +151,12 @@ identical, then:
+ BASE=http://localhost:1620 node capture-appstore.mjs   # -> ../../appstore/screenshots/raw/{iphone-6.9,ipad-13,iphone-duo}/*.png
+ ```
+ 
+-- Six shots per device family (Map Explorer with the Jamaica Bay popup open,
+-  Statistics, Weather & Tide, Calendar, Species Detail, Breeding Codes), light
+-  theme. The upload order is the composer's, below.
++- One shot per entry in the script's `SHOTS` list, per device family (Map
++  Explorer with the Jamaica Bay popup open, Statistics, Weather & Tide,
++  Calendar, Species Detail, Breeding Codes, and Hotspot Reports with Jamaica
++  Bay Wildlife Refuge's report open), light theme. The upload order is the
++  composer's, below, and a raw frame is composed only once its `FRAMES` table
++  gives it a caption.
+ - Sizes: iPhone 6.9-inch `1320x2868` (viewport 440x956 at scale 3) and iPad
+   13-inch `2064x2752` (viewport 1032x1376 at scale 2) — the one required size
+   per family App Store Connect accepts and scales down (re-verify the
+diff --git a/website/tools/capture-appstore.mjs b/website/tools/capture-appstore.mjs
+index 4c3ac68..85dd134 100644
+--- a/website/tools/capture-appstore.mjs
++++ b/website/tools/capture-appstore.mjs
+@@ -80,7 +80,8 @@
+ import { chromium } from 'playwright';
+ import { mkdirSync } from 'node:fs';
+ import sharp from 'sharp';
+-import { GL, makePage, selectTab, buildProvenanceStub, installProvenanceRoutes, assertBackendServesDemoData, loadSiteMarks, assertMarksInFrame } from './capture-lib.mjs';
++import { GL, makePage, selectTab, buildProvenanceStub, installProvenanceRoutes, assertBackendServesDemoData, loadSiteMarks, assertMarksInFrame, installHotspotRegionRoutes, openHotspotReport } from './capture-lib.mjs';
++import { FRAMED_LOCATION } from './gen-demo-data.mjs';
+ 
+ const BASE = process.env.BASE || 'http://localhost:1620';
+ const CHECKLIST = process.env.CHECKLIST || 'S354229002'; // coastal -> shows tide
+@@ -341,6 +342,30 @@ async function shotBreeding(p, fam) {
+   }
+ }
+ 
++// 7 · Hotspot Reports (hotspot-reports, FR-62): the report for the framed
++// location (gen-demo-data.mjs FRAMED_LOCATION, Jamaica Bay Wildlife Refuge,
++// whose checklists carry the demo dataset's weather blocks), from the top. The
++// frame shows each location's kind, so this shot's context answers the app's
++// hotspot lookup inside the browser with the demo dataset's own location ids
++// and counts the requests (installHotspotRegionRoutes in capture-lib.mjs); a
++// region it never answered, or any other eBird-backed request, fails the shot
++// and so the run. The answers are per context, kept here by context so the
++// shot reads the ones its own context installed.
++const hotspotLookupsByContext = new WeakMap();
++async function hotspotRoutes(ctx) {
++  hotspotLookupsByContext.set(ctx, await installHotspotRegionRoutes(ctx));
++}
++async function shotHotspotReports(p) {
++  const lookups = hotspotLookupsByContext.get(p.context());
++  if (!lookups) throw new Error('the hotspot lookup answers were not installed on this context');
++  await selectTab(p, 'Hotspot Reports');
++  await p.waitForLoadState('networkidle').catch(() => {});
++  await p.waitForTimeout(4200);
++  await lookups.waitForAnswers(p);
++  await openHotspotReport(p, FRAMED_LOCATION.name);
++  log('hotspot lookups answered in the browser:', lookups.assertAnswered());
++}
++
+ const SHOTS = [
+   ['01-map-explorer.png', shotMap, null],
+   ['02-statistics.png', shotStats, statsRoutes],
+@@ -348,6 +373,7 @@ const SHOTS = [
+   ['04-calendar.png', shotCalendar, null],
+   ['05-species-detail.png', shotSpecies, null],
+   ['06-breeding-codes.png', shotBreeding, null],
++  ['07-hotspot-reports.png', shotHotspotReports, hotspotRoutes],
+ ];
+ 
+ const RUN_SHOTS = SHOTS.filter(([file]) => !ONLY_SHOT || file.startsWith(ONLY_SHOT));
+diff --git a/website/tools/capture-lib.mjs b/website/tools/capture-lib.mjs
+index 8e1821b..39af70b 100644
+--- a/website/tools/capture-lib.mjs
++++ b/website/tools/capture-lib.mjs
+@@ -7,6 +7,7 @@
+ import { readFileSync, statSync } from 'node:fs';
+ import { join } from 'node:path';
+ import { fileURLToPath } from 'node:url';
++import { demoHotspotIdsByRegion } from './gen-demo-data.mjs';
+ 
+ // Chromium flags for headless WebGL (the MapLibre maps render through
+ // SwiftShader) plus hidden scrollbars so captures are clean.
+@@ -394,9 +395,10 @@ export async function buildProvenanceStub(base, csvUrl) {
+  *  <img> still is, so the scoping rule stands. capture.mjs installed this on
+  *  every context until the capture-provenance-route-scope fix and shipped four
+  *  website shots that way. Both consumers now pass it per shot (each script's
+- *  `statsRoutes`). The one other route either script registers is the per-shot
+- *  WEATHER_REPLAY abort on the weather context, whose frame has no mark; that
+- *  one is intentional. */
++ *  `statsRoutes`). The other routes either script registers are the per-shot
++ *  WEATHER_REPLAY abort on the weather context, whose frame has no mark, and
++ *  installHotspotRegionRoutes below, on the Hotspot Reports contexts only;
++ *  both are intentional. */
+ export async function installProvenanceRoutes(ctx, stub) {
+   await ctx.route('**/checklists/**', async (route) => {
+     const m = route.request().url().match(/\/checklists\/(S\d+)/);
+@@ -410,3 +412,139 @@ export async function installProvenanceRoutes(ctx, stub) {
+     else await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+   });
+ }
++
++// ---- demo hotspot-lookup answers (shared by both capture scripts) ----
++//
++// The Hotspot Reports frame shows each location's KIND (a public hotspot or a
++// personal location), which the app reads from its shared hotspot Set: one
++// GET /map/hotspot-region?regionCode=<State/Province code> per region in the
++// backup (lib/hotspotSet.ts), which the backend answers by asking eBird with
++// ITS key and returning a JSON list of location ids. A capture must never send
++// an eBird request with a real key, so these lookups are answered INSIDE the
++// browser, with the demo dataset's own location ids for that region
++// (demoHotspotIdsByRegion in gen-demo-data.mjs; every demo place is a real
++// public hotspot), and counted.
++//
++// Two more answers ride with them:
++//   * The Set's stored document, /settings/hotspot-regions-v1
++//     (lib/hotspotRegionCache.ts): a GET finds nothing, so the lookup really
++//     runs on every capture and is counted, and a write is accepted and
++//     discarded, so the stub's answer never lands in the demo store (where the
++//     next run would read it back as a fresh stored answer and ask nothing).
++//   * Every OTHER eBird-backed backend path (the rest of /map/, /checklists/,
++//     and the per-checklist /weather/ and /tide/ lookups) is ABORTED in the
++//     browser and recorded: the Hotspot Reports frame needs none of them, so
++//     one appearing is a change in what the tab asks for, and the shot fails
++//     rather than letting it reach the backend's key.
++// /taxonomy/codes is not answered here: the frame's bird marks need the real
++// codes, and the backend serves them from its own copy of the taxonomy (which
++// it refreshes from eBird at most weekly, as it does for every capture).
++//
++// SCOPE IT, exactly as installProvenanceRoutes above says: only on the
++// Hotspot Reports contexts. Registering any route on a context cancels every
++// cross-origin <img> load in it; the frame's species marks are served by the
++// init script, not loaded, so they are unaffected.
++//
++// Returns { waitForAnswers(p), assertAnswered() }. assertAnswered() throws
++// CaptureNetworkError when an expected region was never asked, a region the
++// demo dataset does not hold was asked, or a stray eBird-backed request was
++// blocked; otherwise it returns the counts as a log line.
++
++/** The frame's network posture was not the one its job planned. */
++export class CaptureNetworkError extends Error {
++  constructor(message) { super(message); this.name = 'CaptureNetworkError'; }
++}
++
++const HOTSPOT_REGION_PATH = '/map/hotspot-region';
++const HOTSPOT_STORE_PATH = '/settings/hotspot-regions-v1';
++const isEbirdBacked = (pathname) =>
++  pathname.startsWith('/map/') || pathname.startsWith('/checklists/') || /^\/(?:weather|tide)\/S\d+$/.test(pathname);
++
++export async function installHotspotRegionRoutes(ctx, idsByRegion = demoHotspotIdsByRegion()) {
++  const asked = new Map();
++  const unexpected = new Set();
++  const strays = [];
++  await ctx.route((url) => isEbirdBacked(url.pathname) && url.pathname !== HOTSPOT_REGION_PATH, async (route) => {
++    strays.push(new URL(route.request().url()).pathname);
++    await route.abort();
++  });
++  await ctx.route((url) => url.pathname === HOTSPOT_REGION_PATH, async (route) => {
++    const region = new URL(route.request().url()).searchParams.get('regionCode') ?? '';
++    asked.set(region, (asked.get(region) ?? 0) + 1);
++    const ids = Object.hasOwn(idsByRegion, region) ? idsByRegion[region] : null;
++    if (!ids) unexpected.add(region);
++    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(ids ?? []) });
++  });
++  await ctx.route((url) => url.pathname === HOTSPOT_STORE_PATH, async (route) => {
++    if (route.request().method() === 'GET') await route.fulfill({ status: 404, contentType: 'application/json', body: '{"detail":"Not Found"}' });
++    else await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
++  });
++
++  const expected = Object.keys(idsByRegion).sort();
++  const unanswered = () => expected.filter(r => !asked.has(r));
++  return {
++    /** Wait until every expected region has been answered at least once. */
++    async waitForAnswers(p, timeoutMs = 30000) {
++      const deadline = Date.now() + timeoutMs;
++      while (unanswered().length && Date.now() < deadline) await p.waitForTimeout(100);
++    },
++    assertAnswered() {
++      const problems = [];
++      const missing = unanswered();
++      if (missing.length) problems.push(`the app never asked for ${missing.join(', ')}, so the frame's kinds did not come from these answers`);
++      if (unexpected.size) problems.push(`the app asked for ${[...unexpected].join(', ')}, which the demo dataset does not hold`);
++      if (strays.length) problems.push(`blocked ${strays.length} other eBird-backed request(s) the frame should not make: ${[...new Set(strays)].join(', ')}`);
++      if (problems.length) throw new CaptureNetworkError(`hotspot lookups: ${problems.join('; ')}`);
++      return [...asked].sort(([a], [b]) => a.localeCompare(b)).map(([r, n]) => `${r} x${n}`).join(', ');
++    },
++  };
++}
++
++// ---- Hotspot Reports: open one location's report ----
++//
++// The built tab's DOM contract: the overview's ranked rows are
++// button.sr-hsr-rankrow, each with an accessible name that starts with its
++// location's name; the picker is input.sr-hsr-input[role="combobox"], whose
++// listbox (.sr-hsr-list[role="listbox"]) holds .sr-hsr-opt[role="option"]
++// options, chosen on mousedown; a chosen location renders .sr-hsr-report with
++// its name in .sr-hsr-name.
++//
++// Presses the location's ranked row when the overview shows one, else types the
++// name's first word into the picker and presses Enter (clicking the option if
++// Enter did not choose it). THROWS unless the report that opens is that
++// location's: a report for the wrong place is a wrong-but-plausible frame.
++// Then lets the report settle, leaves nothing focused (no focus ring, no open
++// listbox in the frame) and scrolls to the top.
++export async function openHotspotReport(p, name, { timeoutMs = 15000 } = {}) {
++  const leading = new RegExp('^' + name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
++  const opened = (timeout) => p.waitForFunction(
++    (n) => [...document.querySelectorAll('.sr-hsr-report .sr-hsr-name')]
++      .some(el => el.getClientRects().length > 0 && (el.textContent || '').trim().startsWith(n)),
++    name,
++    { timeout },
++  ).then(() => true, () => false);
++
++  const row = p.locator('button.sr-hsr-rankrow').and(p.getByRole('button', { name: leading })).first();
++  if (await row.waitFor({ state: 'visible', timeout: 5000 }).then(() => true, () => false)) {
++    await row.click();
++  } else {
++    const input = p.locator('input.sr-hsr-input[role="combobox"]').first();
++    await input.waitFor({ state: 'visible', timeout: timeoutMs });
++    await input.click();
++    await input.fill(name.split(' ')[0]);
++    const option = p.locator('.sr-hsr-list[role="listbox"] .sr-hsr-opt[role="option"]').filter({ hasText: leading }).first();
++    await option.waitFor({ state: 'visible', timeout: timeoutMs });
++    await input.press('Enter');
++    if (!(await opened(3000))) await option.click();
++  }
++  if (!(await opened(timeoutMs))) throw new Error(`the Hotspot Reports report for "${name}" did not open`);
++
++  await p.waitForLoadState('networkidle').catch(() => {});
++  await p.waitForTimeout(2500); // the report's map and figures settle
++  await p.evaluate(() => {
++    const a = document.activeElement;
++    if (a instanceof HTMLElement && a !== document.body) a.blur();
++    window.scrollTo(0, 0);
++  });
++  await p.waitForTimeout(500);
++}
+diff --git a/website/tools/capture.mjs b/website/tools/capture.mjs
+index 4eb7662..1c6ee01 100644
+--- a/website/tools/capture.mjs
++++ b/website/tools/capture.mjs
+@@ -15,7 +15,8 @@
+ // Output: ./shots/*.png  (then run process-img.mjs to make the WebP assets).
+ import { chromium } from 'playwright';
+ import { mkdirSync } from 'node:fs';
+-import { GL, makePage, selectTab, buildProvenanceStub, installProvenanceRoutes, assertBackendServesDemoData, loadSiteMarks, assertMarksInFrame, MarksInFrameError } from './capture-lib.mjs';
++import { GL, makePage, selectTab, buildProvenanceStub, installProvenanceRoutes, assertBackendServesDemoData, loadSiteMarks, assertMarksInFrame, MarksInFrameError, installHotspotRegionRoutes, openHotspotReport, CaptureNetworkError } from './capture-lib.mjs';
++import { FRAMED_LOCATION } from './gen-demo-data.mjs';
+ import { applyCaptureExitCode, requireWeatherCaptureReady, runRequiredCapture, waitForWeatherCaptureReady } from './weather-capture.mjs';
+ 
+ const BASE = process.env.BASE || 'http://localhost:1620';
+@@ -110,9 +111,10 @@ const requiredFailures = [];
+ // from committed copies through an init script, which is not a route, so they are
+ // never cross-origin loads for the stub to cancel, and the "First species
+ // ever" card photographs the two site icons an online user sees. The rule
+-// still stands for any other cross-origin <img> a frame may hold. The only
+-// other route in this file is the per-shot WEATHER_REPLAY abort on the weather
+-// context, whose frame has no mark; that one is intentional and stays.
++// still stands for any other cross-origin <img> a frame may hold. The other
++// routes in this file are the per-shot WEATHER_REPLAY abort on the weather
++// context, whose frame has no mark, and the hotspot lookup answers on the
++// Hotspot Reports context (below); both are intentional and stay.
+ const provenanceStub = await buildProvenanceStub(BASE, new URL('./demo-data/ebird-backup.csv', import.meta.url));
+ const statsRoutes = (ctx) => installProvenanceRoutes(ctx, provenanceStub);
+ 
+@@ -136,6 +138,9 @@ async function tab(name, file, { theme = 'light', vp = DESKTOP_VP, settle = 4000
+     // A wrong mark fails the RUN, not only the shot, so the run cannot report
+     // success with the previous run's PNG for this frame still in shots/.
+     if (e instanceof MarksInFrameError) requiredFailures.push(`${file}: ${reason}`);
++    // So does a frame whose network posture was not the one its job planned (a
++    // hotspot lookup it did not answer, or a blocked eBird-backed request).
++    else if (e instanceof CaptureNetworkError) requiredFailures.push(`${file}: ${reason}`);
+   }
+   await ctx.close();
+ }
+@@ -150,6 +155,24 @@ await tab('Statistics', 'stats-dark.png', { theme: 'dark', clipH: 900, routes: s
+ await tab('Map Explorer', 'map-light.png', { settle: 6000, clipH: 900 });
+ await tab('Map Explorer', 'map-dark.png', { theme: 'dark', settle: 6000, clipH: 900 });
+ await tab('Breeding Codes', 'breeding-light.png', { settle: 4200, clipH: 900 });
++// Hotspot Reports (hotspot-reports, FR-62): the report for the framed location
++// (gen-demo-data.mjs FRAMED_LOCATION, Jamaica Bay Wildlife Refuge, whose
++// checklists carry the demo dataset's weather blocks), from the top. The
++// frame shows each location's kind, so THIS context answers the app's hotspot
++// lookup inside the browser with the demo dataset's own location ids and
++// counts the requests (installHotspotRegionRoutes in capture-lib.mjs); a
++// region it never answered, or any other eBird-backed request, fails the run.
++let hotspotLookups = null;
++await tab('Hotspot Reports', 'hotspot-reports-light.png', {
++  settle: 4200,
++  clipH: 900,
++  routes: async (ctx) => { hotspotLookups = await installHotspotRegionRoutes(ctx); },
++  prep: async (p) => {
++    await hotspotLookups.waitForAnswers(p);
++    await openHotspotReport(p, FRAMED_LOCATION.name);
++    log('hotspot lookups answered in the browser:', hotspotLookups.assertAnswered());
++  },
++});
+ await tab('Multimedia', 'media-light.png', { settle: 4200, clipH: 900 });
+ // Calendar and Named Birds both shipped after the previous capture (v0.5.23) and
+ // had never been photographed. Calendar is deliberately zero-network (it computes
+diff --git a/website/tools/gen-demo-data.d.mts b/website/tools/gen-demo-data.d.mts
+new file mode 100644
+index 0000000..c6bc5eb
+--- /dev/null
++++ b/website/tools/gen-demo-data.d.mts
+@@ -0,0 +1,46 @@
++// Types for gen-demo-data.mjs, so the frontend guard
++// (frontend/src/lib/hotspotReportsDemoData.test.ts) imports the generator's
++// pure core with types.
++
++export interface DemoLocation {
++  readonly name: string
++  readonly locId: string
++  readonly lat: number
++  readonly lng: number
++  readonly county: string
++  readonly state: string
++  readonly coastal: boolean
++}
++
++/** The ten public hotspots the demo birder visits. */
++export const LOCS: readonly DemoLocation[]
++/** The location whose checklists carry the weather blocks. */
++export const FRAMED_LOCATION_ID: string
++export const FRAMED_LOCATION: DemoLocation
++/** The post-pass gives every this-many-th checklist at the framed location a block. */
++export const WEATHER_BLOCK_EVERY: number
++
++/** Region code -> the demo location ids in it, sorted. */
++export function demoHotspotIdsByRegion(): Record<string, string[]>
++
++export interface DemoDataOptions {
++  /** Append weather blocks at the framed location. Default true. */
++  weather?: boolean
++  /** Default FRAMED_LOCATION_ID. */
++  framedLocationId?: string
++}
++
++export interface DemoData {
++  ebirdCsv: string
++  mlCsv: string
++  summary: {
++    ebirdRows: number
++    species: number
++    checklists: number
++    mlRows: number
++    weatherBlocks: number
++    framedLocation: string
++  }
++}
++
++export function buildDemoData(options?: DemoDataOptions): DemoData
+diff --git a/website/tools/gen-demo-data.mjs b/website/tools/gen-demo-data.mjs
+index b3c8c4f..95713c4 100644
+--- a/website/tools/gen-demo-data.mjs
++++ b/website/tools/gen-demo-data.mjs
+@@ -1,23 +1,37 @@
+ // Generates a synthetic eBird backup + Macaulay Library export for screenshots.
+ // Fictional birder at well-known PUBLIC northeast-US hotspots. No real personal data.
+ // Deterministic (seeded) so reruns are stable. Output -> ./demo-data/
+-import { mkdirSync, writeFileSync } from 'node:fs';
++//
++// The dataset is a PURE FUNCTION, buildDemoData(), returning the two CSV texts,
++// so a test can read it through the app's own parser with no dependence on the
++// gitignored demo-data/ folder (frontend/src/lib/hotspotReportsDemoData.test.ts).
++// The file writes are the thin command-line wrapper at the bottom, which runs
++// only when this file is executed directly (`node gen-demo-data.mjs`); importing
++// it (the test, the capture scripts) writes nothing.
++//
++// The file is plain ASCII on purpose: every non-ASCII character it emits (the
++// curly apostrophes in three species names, the en dash in Age/Sex, the degree
++// sign, the weather emoji) is written as an escape, because an editing tool can
++// silently swap a literal for a look-alike or drop an invisible U+FE0F. The
++// test above holds the source to that.
++import { mkdirSync, realpathSync, writeFileSync } from 'node:fs';
+ import { fileURLToPath } from 'node:url';
+ import { dirname, join } from 'node:path';
+ 
+-const __dir = dirname(fileURLToPath(import.meta.url));
+-const OUT = join(__dir, 'demo-data');
+-mkdirSync(OUT, { recursive: true });
+-
+ // ---- seeded PRNG (mulberry32) ----
+-let _s = 0x9e3779b9;
+-function rnd() { _s |= 0; _s = (_s + 0x6D2B79F5) | 0; let t = Math.imul(_s ^ (_s >>> 15), 1 | _s); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }
+-const pick = (a) => a[Math.floor(rnd() * a.length)];
+-const rint = (lo, hi) => lo + Math.floor(rnd() * (hi - lo + 1));
+-const chance = (p) => rnd() < p;
++// A factory rather than module state, so every buildDemoData() call starts
++// from the same seed and the function stays pure. The main generator's
++// sequence is exactly the one this file has always drawn.
++function mulberry32(seed) {
++  let s = seed;
++  return function rnd() { s |= 0; s = (s + 0x6D2B79F5) | 0; let t = Math.imul(s ^ (s >>> 15), 1 | s); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
++}
++const MAIN_SEED = 0x9e3779b9;
+ 
+ // ---- public hotspots (real places; coords approximate) ----
+-const LOCS = [
++// Frozen and exported: the capture scripts answer the app's hotspot lookup
++// with exactly these ids (demoHotspotIdsByRegion below).
++export const LOCS = Object.freeze([
+   { name: 'Central Park', locId: 'L191106', lat: 40.7813, lng: -73.9665, county: 'New York', state: 'US-NY', coastal: false },
+   { name: 'Prospect Park', locId: 'L109516', lat: 40.6602, lng: -73.9690, county: 'Kings', state: 'US-NY', coastal: false },
+   { name: 'Jamaica Bay Wildlife Refuge', locId: 'L152773', lat: 40.6188, lng: -73.8233, county: 'Queens', state: 'US-NY', coastal: true },
+@@ -28,7 +42,25 @@ const LOCS = [
+   { name: 'Cape May Point SP', locId: 'L137800', lat: 38.9319, lng: -74.9610, county: 'Cape May', state: 'US-NJ', coastal: true },
+   { name: 'Sandy Hook', locId: 'L295658', lat: 40.4376, lng: -73.9916, county: 'Monmouth', state: 'US-NJ', coastal: true },
+   { name: 'Garret Mountain Reservation', locId: 'L207514', lat: 40.9168, lng: -74.1490, county: 'Passaic', state: 'US-NJ', coastal: false },
+-];
++].map(l => Object.freeze(l)));
++
++// Every demo location is in New York or New Jersey, so one zone serves the
++// weather blocks' sunrise and sunset.
++const DEMO_TIME_ZONE = 'America/New_York';
++
++/** The location the Hotspot Reports frame opens, and the one whose checklists
++ *  carry weather blocks (schema 14). The Designer may name another. */
++export const FRAMED_LOCATION_ID = 'L152773';
++export const FRAMED_LOCATION = LOCS.find(l => l.locId === FRAMED_LOCATION_ID);
++
++/** Region code -> the demo location ids in it, sorted: the answer a capture
++ *  gives the app's hotspot lookup, since every demo place is a public hotspot. */
++export function demoHotspotIdsByRegion() {
++  const out = {};
++  for (const l of LOCS) (out[l.state] ??= []).push(l.locId);
++  for (const ids of Object.values(out)) ids.sort();
++  return out;
++}
+ 
+ // ---- species pool: real eBird names so taxonomy/codes resolve. {c: common, s: scientific, t: taxonomic order, ab: abundance 1..5, seas: months active, br: breeding-prone} ----
+ const ALLM = [1,2,3,4,5,6,7,8,9,10,11,12];
+@@ -76,7 +108,7 @@ const SP = [
+   ['Great Black-backed Gull','Larus marinus',2490,3,ALLM,1],
+   ['Least Tern','Sternula antillarum',2550,2,[5,6,7,8],1],
+   ['Common Tern','Sterna hirundo',2570,3,[5,6,7,8,9],1],
+-  ['Forster’s Tern','Sterna forsteri',2580,2,[5,8,9],0],
++  ['Forster\u2019s Tern','Sterna forsteri',2580,2,[5,8,9],0],
+   ['Common Loon','Gavia immer',2600,2,[1,2,3,4,11,12],0],
+   ['Northern Gannet','Morus bassanus',2650,2,[1,2,3,4,11,12],0],
+   ['Double-crested Cormorant','Nannopterum auritum',2700,4,[3,4,5,6,7,8,9,10,11],1],
+@@ -90,7 +122,7 @@ const SP = [
+   ['Turkey Vulture','Cathartes aura',2960,4,[3,4,5,6,7,8,9,10,11],1],
+   ['Osprey','Pandion haliaetus',3000,3,[4,5,6,7,8,9],1],
+   ['Northern Harrier','Circus hudsonius',3050,2,[1,3,4,9,10,11,12],0],
+-  ['Cooper’s Hawk','Astur cooperii',3100,3,ALLM,1],
++  ['Cooper\u2019s Hawk','Astur cooperii',3100,3,ALLM,1],
+   ['Bald Eagle','Haliaeetus leucocephalus',3150,2,ALLM,1],
+   ['Red-shouldered Hawk','Buteo lineatus',3200,2,[1,2,3,4,9,10,11,12],1],
+   ['Red-tailed Hawk','Buteo jamaicensis',3250,4,ALLM,1],
+@@ -133,7 +165,7 @@ const SP = [
+   ['Golden-crowned Kinglet','Regulus satrapa',4540,2,[1,3,4,10,11,12],0],
+   ['Eastern Bluebird','Sialia sialis',4600,3,ALLM,1],
+   ['Veery','Catharus fuscescens',4620,2,[5,6,7,8,9],1],
+-  ['Swainson’s Thrush','Catharus ustulatus',4640,2,[5,9],0],
++  ['Swainson\u2019s Thrush','Catharus ustulatus',4640,2,[5,9],0],
+   ['Hermit Thrush','Catharus guttatus',4660,3,[1,3,4,10,11,12],0],
+   ['Wood Thrush','Hylocichla mustelina',4680,2,[5,6,7,8],1],
+   ['American Robin','Turdus migratorius',4700,5,ALLM,1],
+@@ -187,32 +219,6 @@ const SP = [
+ // ---- ML media: subset of species get photo/audio/video coverage ----
+ const FORMATS = ['Photo','Photo','Photo','Photo','Audio','Video'];
+ 
+-// ---- generate checklists ----
+-const startY = 2024, startM = 0; // Jan 2024
+-const endDate = new Date(2026, 5, 1); // ~Jun 2026
+-// S<seq>, deliberately ABOVE eBird's live allocation (v1.0.4). These were
+-// S1845xxxxx, a plausibly-real range: a reviewer or user who imports the demo
+-// data with their own eBird key runs the live exotic-status pass against those
+-// ids, which may collide with strangers' real public checklists. Screenshot
+-// capture never sent those requests (the Playwright stub answers every lookup
+-// before it leaves the machine), so this is about the dataset being IMPORTED,
+-// not photographed. At S9xxxxxxxxx they 404 cleanly instead.
+-//
+-// The value stays within the app's own `^S[0-9]{1,15}$` id guard, so the demo
+-// data still exercises every shipped code path. It also gives capture-appstore's
+-// demo-dataset guard a STRUCTURAL marker: no real export carries ids this high,
+-// so "every submission id is >= 9e9" distinguishes this dataset from a real one
+-// without pinning a species or checklist count that legitimately moves.
+-//
+-// Changing this base does NOT disturb the rest of the dataset: ids are handed
+-// out by this counter and never drawn from the seeded PRNG, so every other
+-// field is byte-identical across the change.
+-let subSeq = 9000000000;
+-const seenFirst = new Set();
+-const ebirdRows = [];
+-const mlRows = [];
+-let mlSeq = 612000000;
+-
+ function fmtTime(h, m) { const ap = h < 12 ? 'AM' : 'PM'; let hh = h % 12; if (hh === 0) hh = 12; return `${String(hh).padStart(2,'0')}:${String(m).padStart(2,'0')} ${ap}`; }
+ function csvEsc(v) { v = String(v ?? ''); return /[",\n]/.test(v) ? '"' + v.replace(/"/g,'""') + '"' : v; }
+ 
+@@ -228,152 +234,435 @@ const CHK_COMMENTS = [
+   'Incoming tide concentrated the shorebirds.','Family outing, easy pace.',
+ ];
+ 
+-// month -> rough abundance bias by season handled via species.seas membership.
+-let d = new Date(startY, startM, 3, 7, 0);
+-while (d < endDate) {
+-  // 1-3 checklists this iteration step (~ every 4 days)
+-  const nChk = chance(0.5) ? 1 : (chance(0.6) ? 2 : 3);
+-  for (let c = 0; c < nChk; c++) {
+-    const loc = pick(LOCS);
+-    const month = d.getMonth() + 1;
+-    const traveling = chance(0.7);
+-    const protocol = traveling ? 'Traveling' : (chance(0.85) ? 'Stationary' : 'Incidental');
+-    const dur = traveling ? rint(45, 150) : rint(20, 75);
+-    const dist = traveling ? (Math.round((dur / 60) * (rnd() * 2 + 1) * 100) / 100) : '';
+-    const nobs = chance(0.6) ? 1 : rint(2, 4);
+-    const allObs = chance(0.9) ? 1 : 0;
+-    const subId = 'S' + (subSeq++);
+-    const dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+-    const sh = rint(6, 16), sm = pick([0,5,10,15,20,30,40,45,50]);
+-    const timeStr = fmtTime(sh, sm);
+-    const chkComment = chance(0.35) ? pick(CHK_COMMENTS) : '';
+-
+-    // candidate species in season for this location type
+-    let pool = SP.filter(sp => sp[4].includes(month) && (loc.coastal || (sp[1] !== 'shorebird')));
+-    // coastal species more likely at coastal locs; reduce waterbirds inland
+-    pool = pool.filter(sp => loc.coastal ? true : ![2400,2550,2570,2580,2600,2650,1800,1850,1870,1950,2000,2050,2070,2250,2270,5620].includes(sp[2]));
+-    // species count on this checklist, weighted by abundance
+-    const target = rint(8, Math.min(34, pool.length));
+-    const chosen = new Set();
+-    let guard = 0;
+-    while (chosen.size < target && guard < target * 6) {
+-      guard++;
+-      const sp = pick(pool);
+-      // weight by abundance
+-      if (rnd() < sp[3] / 5) chosen.add(sp);
+-    }
+-    for (const sp of chosen) {
+-      const [common, sci, tax, ab, seas, brPron] = sp;
+-      const presenceOnly = chance(0.06);
+-      const count = presenceOnly ? 'X' : String(Math.max(1, Math.round((rnd() ** 2) * (ab * 6))));
+-      let breeding = '';
+-      const breedingSeason = month >= 4 && month <= 7;
+-      if (brPron && breedingSeason && chance(0.16)) {
+-        breeding = pick(['S','S7','P','T','C','N','CF','FL','ON','NB','NY','FY','CN']);
++const EB_HEADER = ['Submission ID','Common Name','Scientific Name','Taxonomic Order','Count','State/Province','County','Location ID','Location','Latitude','Longitude','Date','Time','Protocol','Duration (Min)','All Obs Reported','Distance Traveled (km)','Area Covered (ha)','Number of Observers','Breeding Code','Observation Details','Checklist Comments','ML Catalog Numbers'];
++const ML_HEADER = ['ML Catalog Number','Format','Common Name','Scientific Name','Background Species','Caption','Recordist','Date','Year','Month','Day','Time','Country','Country-State-County','State','County','Locality','Latitude','Longitude','Age/Sex','Behaviors','Playback','Captive','Collected','Specimen ID','Home Archive Catalog Number','Recorder','Microphone','Accessory','Partner Institution','eBird Checklist ID','Unconfirmed','Air Temp(\u00B0C)','Water Temp(\u00B0C)','Media notes','Observation Details','Parent Species','eBird Species Code','Taxon Category','Taxonomic Sort','Recordist 2','Average Community Rating','Number of Ratings','Asset Tags','Original Image Height','Original Image Width'];
++
++/**
++ * Build the demo dataset. Pure: the same options always return the same text.
++ *
++ *   weather            append weather blocks at the framed location (default
++ *                      true). `false` reproduces the dataset as it was before
++ *                      the blocks existed, byte for byte, which is what the
++ *                      test compares against.
++ *   framedLocationId   the location whose checklists carry the blocks.
++ *
++ * Returns { ebirdCsv, mlCsv, summary }.
++ */
++export function buildDemoData({ weather = true, framedLocationId = FRAMED_LOCATION_ID } = {}) {
++  const framed = LOCS.find(l => l.locId === framedLocationId);
++  if (!framed) throw new Error(`framedLocationId ${framedLocationId} is not a demo location`);
++
++  const rnd = mulberry32(MAIN_SEED);
++  const pick = (a) => a[Math.floor(rnd() * a.length)];
++  const rint = (lo, hi) => lo + Math.floor(rnd() * (hi - lo + 1));
++  const chance = (p) => rnd() < p;
++
++  // ---- generate checklists ----
++  const startY = 2024, startM = 0; // Jan 2024
++  const endDate = new Date(2026, 5, 1); // ~Jun 2026
++  // S<seq>, deliberately ABOVE eBird's live allocation (v1.0.4). These were
++  // S1845xxxxx, a plausibly-real range: a reviewer or user who imports the demo
++  // data with their own eBird key runs the live exotic-status pass against those
++  // ids, which may collide with strangers' real public checklists. Screenshot
++  // capture never sent those requests (the Playwright stub answers every lookup
++  // before it leaves the machine), so this is about the dataset being IMPORTED,
++  // not photographed. At S9xxxxxxxxx they 404 cleanly instead.
++  //
++  // The value stays within the app's own `^S[0-9]{1,15}$` id guard, so the demo
++  // data still exercises every shipped code path. It also gives capture-appstore's
++  // demo-dataset guard a STRUCTURAL marker: no real export carries ids this high,
++  // so "every submission id is >= 9e9" distinguishes this dataset from a real one
++  // without pinning a species or checklist count that legitimately moves.
++  //
++  // Changing this base does NOT disturb the rest of the dataset: ids are handed
++  // out by this counter and never drawn from the seeded PRNG, so every other
++  // field is byte-identical across the change.
++  let subSeq = 9000000000;
++  const seenFirst = new Set();
++  const ebirdRows = [];
++  const mlRows = [];
++  let mlSeq = 612000000;
++
++  // month -> rough abundance bias by season handled via species.seas membership.
++  let d = new Date(startY, startM, 3, 7, 0);
++  while (d < endDate) {
++    // 1-3 checklists this iteration step (~ every 4 days)
++    const nChk = chance(0.5) ? 1 : (chance(0.6) ? 2 : 3);
++    for (let c = 0; c < nChk; c++) {
++      const loc = pick(LOCS);
++      const month = d.getMonth() + 1;
++      const traveling = chance(0.7);
++      const protocol = traveling ? 'Traveling' : (chance(0.85) ? 'Stationary' : 'Incidental');
++      const dur = traveling ? rint(45, 150) : rint(20, 75);
++      const dist = traveling ? (Math.round((dur / 60) * (rnd() * 2 + 1) * 100) / 100) : '';
++      const nobs = chance(0.6) ? 1 : rint(2, 4);
++      const allObs = chance(0.9) ? 1 : 0;
++      const subId = 'S' + (subSeq++);
++      const dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
++      const sh = rint(6, 16), sm = pick([0,5,10,15,20,30,40,45,50]);
++      const timeStr = fmtTime(sh, sm);
++      const chkComment = chance(0.35) ? pick(CHK_COMMENTS) : '';
++
++      // candidate species in season for this location type
++      let pool = SP.filter(sp => sp[4].includes(month) && (loc.coastal || (sp[1] !== 'shorebird')));
++      // coastal species more likely at coastal locs; reduce waterbirds inland
++      pool = pool.filter(sp => loc.coastal ? true : ![2400,2550,2570,2580,2600,2650,1800,1850,1870,1950,2000,2050,2070,2250,2270,5620].includes(sp[2]));
++      // species count on this checklist, weighted by abundance
++      const target = rint(8, Math.min(34, pool.length));
++      const chosen = new Set();
++      let guard = 0;
++      while (chosen.size < target && guard < target * 6) {
++        guard++;
++        const sp = pick(pool);
++        // weight by abundance
++        if (rnd() < sp[3] / 5) chosen.add(sp);
+       }
+-      const spComment = chance(0.07) ? pick(COMMENTS) : '';
+-      // media: ~ for some species/observations
+-      let mlIds = '';
+-      if (chance(0.05)) {
+-        const nMedia = chance(0.8) ? 1 : 2;
+-        const ids = [];
+-        for (let k = 0; k < nMedia; k++) {
+-          const id = (mlSeq++);
+-          ids.push(id);
+-          const fmt = pick(FORMATS);
+-          mlRows.push({ id, fmt, common, sci, date: dateStr, loc, tax, sub: subId });
++      for (const sp of chosen) {
++        const [common, sci, tax, ab, seas, brPron] = sp;
++        const presenceOnly = chance(0.06);
++        const count = presenceOnly ? 'X' : String(Math.max(1, Math.round((rnd() ** 2) * (ab * 6))));
++        let breeding = '';
++        const breedingSeason = month >= 4 && month <= 7;
++        if (brPron && breedingSeason && chance(0.16)) {
++          breeding = pick(['S','S7','P','T','C','N','CF','FL','ON','NB','NY','FY','CN']);
++        }
++        const spComment = chance(0.07) ? pick(COMMENTS) : '';
++        // media: ~ for some species/observations
++        let mlIds = '';
++        if (chance(0.05)) {
++          const nMedia = chance(0.8) ? 1 : 2;
++          const ids = [];
++          for (let k = 0; k < nMedia; k++) {
++            const id = (mlSeq++);
++            ids.push(id);
++            const fmt = pick(FORMATS);
++            mlRows.push({ id, fmt, common, sci, date: dateStr, loc, tax, sub: subId });
++          }
++          mlIds = ids.join(' ');
+         }
+-        mlIds = ids.join(' ');
++        ebirdRows.push([
++          subId, common, sci, tax, count, loc.state, loc.county, loc.locId, loc.name,
++          loc.lat.toFixed(4), loc.lng.toFixed(4), dateStr, timeStr, protocol, dur, allObs,
++          dist, '', nobs, breeding, spComment, chkComment, mlIds,
++        ]);
++        seenFirst.add(common);
+       }
+-      ebirdRows.push([
+-        subId, common, sci, tax, count, loc.state, loc.county, loc.locId, loc.name,
+-        loc.lat.toFixed(4), loc.lng.toFixed(4), dateStr, timeStr, protocol, dur, allObs,
+-        dist, '', nobs, breeding, spComment, chkComment, mlIds,
+-      ]);
+-      seenFirst.add(common);
+     }
++    d = new Date(d.getTime() + rint(2, 6) * 86400000);
+   }
+-  d = new Date(d.getTime() + rint(2, 6) * 86400000);
+-}
+ 
+-// ---- inject a few individually-named birds (for the Named Birds tab demo) ----
+-// Tag several checklists of the most-observed species with [name:...] so the
+-// showcase shows individuals tracked over time. Synthetic only; spreads each
+-// bird's sightings across its date range. Observation Details is column index 20.
+-{
+-  const SP_IDX = 20;
+-  const byCommon = new Map();
+-  for (const r of ebirdRows) {
+-    if (!byCommon.has(r[1])) byCommon.set(r[1], []);
+-    byCommon.get(r[1]).push(r);
+-  }
+-  const ranked = [...byCommon.values()].sort((a, b) => b.length - a.length);
+-  const namedPlan = [
+-    { name: 'Stumpy', note: 'one-legged regular' },
+-    { name: 'Old-Blue', note: 'blue/silver colour band' },
+-    { name: 'Notch', note: 'notched tail feather' },
+-  ];
+-  for (let i = 0; i < namedPlan.length && i < ranked.length; i++) {
+-    const rows = ranked[i].slice().sort((a, b) => a[11].localeCompare(b[11]));
+-    const step = Math.max(1, Math.floor(rows.length / 5));
+-    const tag = `[name:${namedPlan[i].name}] ${namedPlan[i].note}`;
+-    for (let j = 0, n = 0; j < rows.length && n < 5; j += step, n++) {
+-      rows[j][SP_IDX] = rows[j][SP_IDX] ? `${rows[j][SP_IDX]}; ${tag}` : tag;
++  // ---- inject a few individually-named birds (for the Named Birds tab demo) ----
++  // Tag several checklists of the most-observed species with [name:...] so the
++  // showcase shows individuals tracked over time. Synthetic only; spreads each
++  // bird's sightings across its date range. Observation Details is column index 20.
++  {
++    const SP_IDX = 20;
++    const byCommon = new Map();
++    for (const r of ebirdRows) {
++      if (!byCommon.has(r[1])) byCommon.set(r[1], []);
++      byCommon.get(r[1]).push(r);
++    }
++    const ranked = [...byCommon.values()].sort((a, b) => b.length - a.length);
++    const namedPlan = [
++      { name: 'Stumpy', note: 'one-legged regular' },
++      { name: 'Old-Blue', note: 'blue/silver colour band' },
++      { name: 'Notch', note: 'notched tail feather' },
++    ];
++    for (let i = 0; i < namedPlan.length && i < ranked.length; i++) {
++      const rows = ranked[i].slice().sort((a, b) => a[11].localeCompare(b[11]));
++      const step = Math.max(1, Math.floor(rows.length / 5));
++      const tag = `[name:${namedPlan[i].name}] ${namedPlan[i].note}`;
++      for (let j = 0, n = 0; j < rows.length && n < 5; j += step, n++) {
++        rows[j][SP_IDX] = rows[j][SP_IDX] ? `${rows[j][SP_IDX]}; ${tag}` : tag;
++      }
+     }
+   }
++
++  // ---- weather blocks at the framed location (hotspot-reports, schema 14) ----
++  // A post-pass over finished rows, drawing nothing from `rnd`: every other
++  // cell, every Submission ID and every ML row is what it was without it.
++  const weatherBlocks = weather ? appendWeatherBlocks(ebirdRows, framed) : 0;
++
++  // ---- write eBird backup ----
++  const ebirdCsv = [EB_HEADER.join(',')].concat(ebirdRows.map(r => r.map(csvEsc).join(','))).join('\n') + '\n';
++
++  // ---- write ML export ----
++  const mlOut = mlRows.map(m => {
++    const [y, mo, da] = m.date.split('-');
++    const row = new Array(ML_HEADER.length).fill('');
++    row[0] = m.id; row[1] = m.fmt; row[2] = m.common; row[3] = m.sci;
++    row[6] = 'Robin Hartley'; row[7] = m.date; row[8] = y; row[9] = String(+mo); row[10] = String(+da);
++    row[12] = 'United States'; row[13] = `United States/${m.loc.state.replace('US-','')}/${m.loc.county}`;
++    row[14] = m.loc.state.replace('US-',''); row[15] = m.loc.county; row[16] = m.loc.name;
++    row[17] = m.loc.lat.toFixed(4); row[18] = m.loc.lng.toFixed(4);
++    row[30] = m.sub; // eBird Checklist ID: the checklist this media came from
++    row[39] = String(m.tax);
++    // Time (HMM/HHMM); audio biased to the dawn chorus
++    const hr = m.fmt === 'Audio' ? rint(5, 8) : rint(6, 18);
++    const mn = pick([0, 5, 10, 15, 20, 30, 40, 45, 50]);
++    row[11] = `${hr}${String(mn).padStart(2, '0')}`;
++    // Age/Sex: stills usually annotated, audio rarely (en dash + per-individual count)
++    if (m.fmt !== 'Audio' ? chance(0.9) : chance(0.35)) {
++      const cls = pick(['Adult','Adult','Adult','Adult','Adult Male','Adult Female','Adult Female','Immature','Juvenile','Unknown']);
++      let ageSex = `${cls} \u2013 1`;
++      if (chance(0.12)) ageSex += `; ${pick(['Juvenile','Immature','Adult Female','Adult Male'])} \u2013 1`;
++      row[19] = ageSex;
++    }
++    // Behaviors: multi-valued ("; "-joined), audio biased to vocalizations
++    if (chance(0.4)) {
++      const vocab = m.fmt === 'Audio'
++        ? ['Song','Call','Vocalizing']
++        : ['Flying','Foraging or Eating','Preening, Scratching, or Bathing','Carrying Food','Nest Building','Feeding Young','Courtship, Display, or Copulation'];
++      const b = new Set([pick(vocab)]);
++      if (chance(0.25)) b.add(pick(vocab));
++      row[20] = [...b].join('; ');
++    }
++    // Community rating (biased high) + number of ratings
++    row[41] = (3 + rnd() * 2).toFixed(2);
++    row[42] = String(rint(2, 40));
++    return row.map(csvEsc).join(',');
++  });
++  const mlCsv = [ML_HEADER.join(',')].concat(mlOut).join('\n') + '\n';
++
++  return {
++    ebirdCsv,
++    mlCsv,
++    summary: {
++      ebirdRows: ebirdRows.length,
++      species: new Set(ebirdRows.map(r => r[1])).size,
++      checklists: new Set(ebirdRows.map(r => r[0])).size,
++      mlRows: mlRows.length,
++      weatherBlocks,
++      framedLocation: framed.name,
++    },
++  };
+ }
+ 
+-// ---- write eBird backup ----
+-const EB_HEADER = ['Submission ID','Common Name','Scientific Name','Taxonomic Order','Count','State/Province','County','Location ID','Location','Latitude','Longitude','Date','Time','Protocol','Duration (Min)','All Obs Reported','Distance Traveled (km)','Area Covered (ha)','Number of Observers','Breeding Code','Observation Details','Checklist Comments','ML Catalog Numbers'];
+-const ebCsv = [EB_HEADER.join(',')].concat(ebirdRows.map(r => r.map(csvEsc).join(','))).join('\n') + '\n';
+-writeFileSync(join(OUT, 'ebird-backup.csv'), ebCsv);
+-
+-// ---- write ML export ----
+-const ML_HEADER = ['ML Catalog Number','Format','Common Name','Scientific Name','Background Species','Caption','Recordist','Date','Year','Month','Day','Time','Country','Country-State-County','State','County','Locality','Latitude','Longitude','Age/Sex','Behaviors','Playback','Captive','Collected','Specimen ID','Home Archive Catalog Number','Recorder','Microphone','Accessory','Partner Institution','eBird Checklist ID','Unconfirmed','Air Temp(°C)','Water Temp(°C)','Media notes','Observation Details','Parent Species','eBird Species Code','Taxon Category','Taxonomic Sort','Recordist 2','Average Community Rating','Number of Ratings','Asset Tags','Original Image Height','Original Image Width'];
+-const mlOut = mlRows.map(m => {
+-  const [y, mo, da] = m.date.split('-');
+-  const row = new Array(ML_HEADER.length).fill('');
+-  row[0] = m.id; row[1] = m.fmt; row[2] = m.common; row[3] = m.sci;
+-  row[6] = 'Robin Hartley'; row[7] = m.date; row[8] = y; row[9] = String(+mo); row[10] = String(+da);
+-  row[12] = 'United States'; row[13] = `United States/${m.loc.state.replace('US-','')}/${m.loc.county}`;
+-  row[14] = m.loc.state.replace('US-',''); row[15] = m.loc.county; row[16] = m.loc.name;
+-  row[17] = m.loc.lat.toFixed(4); row[18] = m.loc.lng.toFixed(4);
+-  row[30] = m.sub; // eBird Checklist ID — the checklist this media came from
+-  row[39] = String(m.tax);
+-  // Time (HMM/HHMM); audio biased to the dawn chorus
+-  const hr = m.fmt === 'Audio' ? rint(5, 8) : rint(6, 18);
+-  const mn = pick([0, 5, 10, 15, 20, 30, 40, 45, 50]);
+-  row[11] = `${hr}${String(mn).padStart(2, '0')}`;
+-  // Age/Sex — stills usually annotated, audio rarely (en-dash + per-individual count)
+-  if (m.fmt !== 'Audio' ? chance(0.9) : chance(0.35)) {
+-    const cls = pick(['Adult','Adult','Adult','Adult','Adult Male','Adult Female','Adult Female','Immature','Juvenile','Unknown']);
+-    let ageSex = `${cls} – 1`;
+-    if (chance(0.12)) ageSex += `; ${pick(['Juvenile','Immature','Adult Female','Adult Male'])} – 1`;
+-    row[19] = ageSex;
++// ---- the weather post-pass ----
++//
++// WHAT IT WRITES. The app's own weather block (frontend/src/lib/weatherFormatter.ts,
++// formatWeather) as an eBird export delivers it: the formatter's lines in its
++// order, the SnowRaven attribution last, with every line break collapsed the
++// way eBird's CSV export collapses a pasted one, into two spaces (every real
++// export shape in frontend/src/lib/commentBlocksStripGolden.json reads that
++// way). Appended after any prose the checklist comment already has, separated
++// by one such collapsed break. A .mjs cannot import the formatter, so the
++// vocabulary below is copied from it; the test reads every block back through
++// the app's parser and fails on any drift that costs a field.
++//
++// WHICH CHECKLISTS. Every WEATHER_BLOCK_EVERY-th checklist at the framed
++// location in date order (date, then start time, then id), starting with the
++// first: 14 of the 42 at Jamaica Bay Wildlife Refuge. That clears the app's
++// floor of 10 (WEATHER_SPECIES_MIN_CHECKLISTS) on all three figures the
++// Hotspot Reports tab draws, sky, temperature and wind, since every block
++// carries all of them.
++//
++// WHAT IT DRAWS FROM. Its own generator (WEATHER_SEED), never the main one, so
++// adding or removing it moves nothing else. Every block is a DAYTIME block (no
++// moon glyph), a simplification: a checklist that ran past sunset would carry a
++// moon in a real block.
++export const WEATHER_BLOCK_EVERY = 3;
++const WEATHER_SEED = 0x5eed3a7e;
++const EXPORT_LINE_BREAK = '  ';
++const ATTRIBUTION = 'Weather generated by <a href="https://github.com/dtgibson/snowraven">SnowRaven</a>';
++const COL = { sub: 0, loc: 7, date: 11, time: 12, duration: 14, checklistComments: 21 };
++
++// conditionEmoji()'s glyphs, by OpenWeather condition id, with the formatter's
++// exact presentation: U+FE0F on every glyph except U+26C5.
++const CONDITIONS = {
++  thunder: { id: 200, description: 'thunderstorm with light rain', emoji: '\u26C8\uFE0F' },
++  drizzle: { id: 300, description: 'light intensity drizzle', emoji: '\u{1F326}\uFE0F' },
++  rain: { id: 500, description: 'light rain', emoji: '\u{1F327}\uFE0F' },
++  snow: { id: 600, description: 'light snow', emoji: '\u2744\uFE0F' },
++  mist: { id: 701, description: 'mist', emoji: '\u{1F32B}\uFE0F' },
++  clear: { id: 800, description: 'clear sky', emoji: '\u2600\uFE0F' },
++  few: { id: 801, description: 'few clouds', emoji: '\u{1F324}\uFE0F' },
++  scattered: { id: 802, description: 'scattered clouds', emoji: '\u26C5' },
++  broken: { id: 803, description: 'broken clouds', emoji: '\u{1F325}\uFE0F' },
++  overcast: { id: 804, description: 'overcast clouds', emoji: '\u2601\uFE0F' },
++};
++// Cloud cover consistent with each condition: OpenWeather's own 800-804 tiers,
++// and a mostly covered sky for anything wet or misty.
++const CLOUD_RANGE = { 800: [0, 10], 801: [11, 25], 802: [26, 50], 803: [51, 84], 804: [85, 100] };
++const WET_CLOUD_RANGE = [75, 100];
++
++// The formatter's BEAUFORT table (mph, inclusive upper bound) and CARDINALS.
++const BEAUFORT = [[1, 'Calm'], [3, 'Mostly calm'], [7, 'Light breeze'], [12, 'Gentle breeze'], [18, 'Moderate breeze'], [24, 'Fresh breeze'], [31, 'Strong breeze'], [38, 'Near gale'], [Infinity, 'Gale']];
++const CARDINALS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
++
++// Typical New York City daily low and high by month, in degrees F.
++const MONTH_NORMALS_F = [
++  null, [27, 39], [29, 42], [35, 50], [45, 62], [54, 72], [64, 80],
++  [70, 85], [69, 84], [61, 76], [50, 65], [41, 54], [32, 44],
++];
++
++function weightedPick(entries, r) {
++  let total = 0;
++  for (const [, w] of entries) total += w;
++  let x = r() * total;
++  for (const [v, w] of entries) { if ((x -= w) < 0) return v; }
++  return entries[entries.length - 1][0];
++}
++
++function conditionFor(month, r) {
++  const entries = [
++    [CONDITIONS.clear, 4], [CONDITIONS.few, 4], [CONDITIONS.scattered, 3], [CONDITIONS.broken, 2],
++    [CONDITIONS.overcast, 2], [CONDITIONS.mist, 1], [CONDITIONS.rain, 1], [CONDITIONS.drizzle, 1],
++  ];
++  if (month === 12 || month <= 3) entries.push([CONDITIONS.snow, 1]);
++  if (month >= 6 && month <= 8) entries.push([CONDITIONS.thunder, 1]);
++  return weightedPick(entries, r);
++}
++
++function windDescription(mph) {
++  for (const [threshold, label] of BEAUFORT) if (mph <= threshold) return label;
++  return 'Gale';
++}
++
++// formatRange(): one value when every hour agreed, else "low - high".
++function formatRange(values, unit) {
++  const lo = Math.min(...values);
++  const hi = Math.max(...values);
++  return lo === hi ? `${lo}${unit}` : `${lo} - ${hi}${unit}`;
++}
++
++// formatLocalTime(): "6:16am", in the zone the checklist was in.
++const LOCAL_TIME = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: DEMO_TIME_ZONE });
++function formatLocalTime(ms) {
++  const parts = LOCAL_TIME.formatToParts(new Date(ms));
++  const part = (type) => parts.find(p => p.type === type).value;
++  return `${part('hour')}:${part('minute')}${part('dayPeriod').toLowerCase()}`;
++}
++
++// Sunrise and sunset as UTC instants, from NOAA's general solar position
++// approximation (good to a minute or two at these latitudes).
++function sunTimes(dateStr, lat, lng) {
++  const [y, m, d] = dateStr.split('-').map(Number);
++  const dayStart = Date.UTC(y, m - 1, d);
++  const doy = Math.round((dayStart - Date.UTC(y, 0, 1)) / 86400000) + 1;
++  const g = (2 * Math.PI / 365) * (doy - 1);
++  const eqtime = 229.18 * (0.000075 + 0.001868 * Math.cos(g) - 0.032077 * Math.sin(g) - 0.014615 * Math.cos(2 * g) - 0.040849 * Math.sin(2 * g));
++  const decl = 0.006918 - 0.399912 * Math.cos(g) + 0.070257 * Math.sin(g) - 0.006758 * Math.cos(2 * g) + 0.000907 * Math.sin(2 * g) - 0.002697 * Math.cos(3 * g) + 0.00148 * Math.sin(3 * g);
++  const phi = lat * Math.PI / 180;
++  const zenith = 90.833 * Math.PI / 180;
++  const ha = Math.acos(Math.cos(zenith) / (Math.cos(phi) * Math.cos(decl)) - Math.tan(phi) * Math.tan(decl)) * 180 / Math.PI;
++  const minutes = (sign) => 720 - 4 * (lng + sign * ha) - eqtime;
++  return { sunrise: dayStart + minutes(1) * 60000, sunset: dayStart + minutes(-1) * 60000 };
++}
++
++/** "07:45 AM" -> minutes after midnight. */
++function minutesOf(time) {
++  const m = /^(\d{2}):(\d{2}) (AM|PM)$/.exec(time);
++  if (!m) throw new Error(`unexpected checklist time ${time}`);
++  return (Number(m[1]) % 12 + (m[3] === 'PM' ? 12 : 0)) * 60 + Number(m[2]);
++}
++
++function clamp(v, lo, hi) { return Math.min(hi, Math.max(lo, v)); }
++
++/** One block, for one checklist, from the weather generator `r`. */
++function weatherBlockFor({ date, time, duration }, loc, r) {
++  const month = Number(date.slice(5, 7));
++  const start = minutesOf(time);
++  // One sampled hour per clock hour the checklist touches, as the app samples.
++  const hours = [];
++  for (let h = Math.floor(start / 60); h * 60 < start + Math.max(1, duration); h++) hours.push(h);
++
++  const cond = conditionFor(month, r);
++  const wet = !(cond.id in CLOUD_RANGE);
++  const [cloudLo, cloudHi] = wet ? WET_CLOUD_RANGE : CLOUD_RANGE[cond.id];
++  const [low, high] = MONTH_NORMALS_F[month];
++  const offset = Math.round((r() * 2 - 1) * 6);
++  const baseHumidity = wet ? 85 + Math.floor(r() * 12) : 40 + Math.floor(r() * 45);
++  const cloud0 = cloudLo + Math.floor(r() * (cloudHi - cloudLo + 1));
++  const windBase = 2 + Math.floor(r() * 15) + (loc.coastal ? 2 : 0);
++  const dirBase = Math.floor(r() * 360);
++
++  const temps = [], winds = [], dirs = [], clouds = [], hums = [], dews = [];
++  hours.forEach((h, k) => {
++    const diurnal = clamp((h - 5) / 10, 0, 1);
++    const t = Math.round(low + (high - low) * diurnal + offset);
++    const hum = clamp(baseHumidity - 4 * k, 20, 100);
++    temps.push(t);
++    hums.push(hum);
++    dews.push(Math.round(t - (100 - hum) * 0.36));
++    clouds.push(k === 0 ? cloud0 : clamp(cloud0 + Math.round((r() * 2 - 1) * 8), cloudLo, cloudHi));
++    winds.push(Math.max(0, windBase + Math.round((r() * 2 - 1) * 3)));
++    dirs.push(((dirBase + Math.round((r() * 2 - 1) * 30)) % 360 + 360) % 360);
++  });
++
++  const beaufortRank = new Map(BEAUFORT.map(([, label], i) => [label, i]));
++  const windWords = [...new Set(winds.map(windDescription))].sort((a, b) => beaufortRank.get(a) - beaufortRank.get(b));
++  const directions = [...new Set(dirs.map(deg => CARDINALS[Math.round(deg / 45) % 8]))];
++  const sun = sunTimes(date, loc.lat, loc.lng);
++  const condition = cond.description[0].toUpperCase() + cond.description.slice(1).toLowerCase();
++
++  return [
++    cond.emoji,
++    condition,
++    `Temperature: ${formatRange(temps, '\u00B0F')}`,
++    `Wind: ${windWords.join(' - ')}`,
++    `Wind Direction: ${directions.join(' - ')}`,
++    `Cloud Cover: ${formatRange(clouds, '%')}`,
++    `Humidity: ${formatRange(hums, '%')}`,
++    `Dew point: ${formatRange(dews, '\u00B0F')}`,
++    `Sunrise: ${formatLocalTime(sun.sunrise)}`,
++    `Sunset: ${formatLocalTime(sun.sunset)}`,
++    ATTRIBUTION,
++  ].join(EXPORT_LINE_BREAK);
++}
++
++/** Append a block to every row of every WEATHER_BLOCK_EVERY-th checklist at
++ *  `loc`, in date order. Returns how many checklists received one. */
++function appendWeatherBlocks(ebirdRows, loc) {
++  const rowsBySub = new Map();
++  for (const row of ebirdRows) {
++    if (row[COL.loc] !== loc.locId) continue;
++    const sub = row[COL.sub];
++    if (!rowsBySub.has(sub)) rowsBySub.set(sub, []);
++    rowsBySub.get(sub).push(row);
+   }
+-  // Behaviors — multi-valued ("; "-joined), audio biased to vocalizations
+-  if (chance(0.4)) {
+-    const vocab = m.fmt === 'Audio'
+-      ? ['Song','Call','Vocalizing']
+-      : ['Flying','Foraging or Eating','Preening, Scratching, or Bathing','Carrying Food','Nest Building','Feeding Young','Courtship, Display, or Copulation'];
+-    const b = new Set([pick(vocab)]);
+-    if (chance(0.25)) b.add(pick(vocab));
+-    row[20] = [...b].join('; ');
++  const subs = [...rowsBySub.keys()].sort((a, b) => {
++    const ra = rowsBySub.get(a)[0], rb = rowsBySub.get(b)[0];
++    return ra[COL.date].localeCompare(rb[COL.date])
++      || minutesOf(ra[COL.time]) - minutesOf(rb[COL.time])
++      || a.localeCompare(b);
++  });
++  const r = mulberry32(WEATHER_SEED);
++  let blocks = 0;
++  for (let i = 0; i < subs.length; i += WEATHER_BLOCK_EVERY) {
++    const rows = rowsBySub.get(subs[i]);
++    const first = rows[0];
++    const block = weatherBlockFor({ date: first[COL.date], time: first[COL.time], duration: Number(first[COL.duration]) }, loc, r);
++    for (const row of rows) {
++      const prose = row[COL.checklistComments];
++      row[COL.checklistComments] = prose ? `${prose}${EXPORT_LINE_BREAK}${block}` : block;
++    }
++    blocks++;
+   }
+-  // Community rating (biased high) + number of ratings
+-  row[41] = (3 + rnd() * 2).toFixed(2);
+-  row[42] = String(rint(2, 40));
+-  return row.map(csvEsc).join(',');
+-});
+-const mlCsv = [ML_HEADER.join(',')].concat(mlOut).join('\n') + '\n';
+-writeFileSync(join(OUT, 'ml-export.csv'), mlCsv);
+-
+-// ---- metadata + map defaults ----
+-writeFileSync(join(OUT, 'metadata.json'), JSON.stringify({
+-  ebird: { filename: 'MyEBirdData.csv', uploadedAt: '2026-06-01T12:00:00Z' },
+-  ml: { filename: 'ML__2026-06-01T00-00_USER4741544.csv', uploadedAt: '2026-06-01T12:00:00Z' },
+-}, null, 0));
+-writeFileSync(join(OUT, 'map-defaults.json'), JSON.stringify({ lat: 40.73, lng: -73.95, dist: 5 }));
+-
+-const species = new Set(ebirdRows.map(r => r[1]));
+-console.log(`eBird rows: ${ebirdRows.length}, species: ${species.size}, checklists: ${new Set(ebirdRows.map(r=>r[0])).size}, ML rows: ${mlRows.length}`);
++  return blocks;
++}
++
++// ---- command-line wrapper: write ./demo-data/ ----
++// Runs only when this file is the script node was asked to run, compared by
++// real path so a symlinked checkout (or macOS's /tmp) still matches.
++function isMain() {
++  if (!process.argv[1]) return false;
++  try { return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url)); } catch { return false; }
++}
++
++if (isMain()) {
++  const OUT = join(dirname(fileURLToPath(import.meta.url)), 'demo-data');
++  mkdirSync(OUT, { recursive: true });
++  const { ebirdCsv, mlCsv, summary } = buildDemoData();
++  writeFileSync(join(OUT, 'ebird-backup.csv'), ebirdCsv);
++  writeFileSync(join(OUT, 'ml-export.csv'), mlCsv);
++
++  // ---- metadata + map defaults ----
++  writeFileSync(join(OUT, 'metadata.json'), JSON.stringify({
++    ebird: { filename: 'MyEBirdData.csv', uploadedAt: '2026-06-01T12:00:00Z' },
++    ml: { filename: 'ML__2026-06-01T00-00_USER4741544.csv', uploadedAt: '2026-06-01T12:00:00Z' },
++  }, null, 0));
++  writeFileSync(join(OUT, 'map-defaults.json'), JSON.stringify({ lat: 40.73, lng: -73.95, dist: 5 }));
++
++  console.log(`eBird rows: ${summary.ebirdRows}, species: ${summary.species}, checklists: ${summary.checklists}, ML rows: ${summary.mlRows}, weather blocks: ${summary.weatherBlocks} (${summary.framedLocation})`);
++}
+diff --git a/website/tools/process-img.mjs b/website/tools/process-img.mjs
+index 4122bfc..0ef416c 100644
+--- a/website/tools/process-img.mjs
++++ b/website/tools/process-img.mjs
+@@ -13,6 +13,7 @@ const jobs = [
+   ['map-dark.png', 'map-dark.webp', 1500, 78],
+   ['species-light.png', 'species.webp', 1600, 84],
+   ['breeding-light.png', 'breeding.webp', 1600, 84],
++  ['hotspot-reports-light.png', 'hotspot-reports.webp', 1600, 84],
+   ['media-light.png', 'multimedia.webp', 1600, 84],
+   ['calendar-light.png', 'calendar.webp', 1600, 84],
+   ['named-birds-light.png', 'named-birds.webp', 1600, 84],

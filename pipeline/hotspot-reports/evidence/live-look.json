@@ -1,0 +1,614 @@
+{
+ "requests": [
+  {
+   "engine": "chromium",
+   "overview": {
+    "region": 2,
+    "codes": 0,
+    "tiles": 0,
+    "foreign": []
+   },
+   "afterFirstReport": {
+    "codes": 1,
+    "tiles": 6
+   },
+   "afterSecondLocation": {
+    "codes": 2
+   },
+   "backToFirst": {
+    "codes": 2
+   },
+   "ebirdBlocked": [],
+   "hosts": [
+    "127.0.0.1:1631",
+    "tiles.openfreemap.org"
+   ]
+  },
+  {
+   "engine": "webkit",
+   "overview": {
+    "region": 2,
+    "codes": 0,
+    "tiles": 0,
+    "foreign": []
+   },
+   "afterFirstReport": {
+    "codes": 1,
+    "tiles": 6
+   },
+   "afterSecondLocation": {
+    "codes": 2
+   },
+   "backToFirst": {
+    "codes": 2
+   },
+   "ebirdBlocked": [],
+   "hosts": [
+    "127.0.0.1:1631",
+    "tiles.openfreemap.org"
+   ]
+  }
+ ],
+ "reflow": [
+  {
+   "engine": "chromium",
+   "theme": "light",
+   "vw": 320,
+   "scale": 2,
+   "view": "overview",
+   "scrollW": 320,
+   "worst": 0,
+   "where": "",
+   "oneColumn": false,
+   "jumpShown": false
+  },
+  {
+   "engine": "chromium",
+   "theme": "light",
+   "vw": 320,
+   "scale": 2,
+   "view": "report-stress",
+   "scrollW": 320,
+   "worst": 0,
+   "where": "",
+   "oneColumn": true,
+   "jumpShown": true
+  },
+  {
+   "engine": "chromium",
+   "theme": "light",
+   "vw": 320,
+   "scale": 1,
+   "view": "overview",
+   "scrollW": 320,
+   "worst": 0,
+   "where": "",
+   "oneColumn": false,
+   "jumpShown": false
+  },
+  {
+   "engine": "chromium",
+   "theme": "light",
+   "vw": 320,
+   "scale": 1,
+   "view": "report-stress",
+   "scrollW": 320,
+   "worst": 0,
+   "where": "",
+   "oneColumn": true,
+   "jumpShown": true
+  },
+  {
+   "engine": "chromium",
+   "theme": "light",
+   "vw": 393,
+   "scale": 2,
+   "view": "overview",
+   "scrollW": 393,
+   "worst": 0,
+   "where": "",
+   "oneColumn": false,
+   "jumpShown": false
+  },
+  {
+   "engine": "chromium",
+   "theme": "light",
+   "vw": 393,
+   "scale": 2,
+   "view": "report-stress",
+   "scrollW": 393,
+   "worst": 0,
+   "where": "",
+   "oneColumn": true,
+   "jumpShown": true
+  },
+  {
+   "engine": "chromium",
+   "theme": "light",
+   "vw": 800,
+   "scale": 2,
+   "view": "overview",
+   "scrollW": 800,
+   "worst": 73.02,
+   "where": "sr-hsr-rank-unit",
+   "oneColumn": false,
+   "jumpShown": false
+  },
+  {
+   "engine": "chromium",
+   "theme": "light",
+   "vw": 800,
+   "scale": 2,
+   "view": "report-stress",
+   "scrollW": 800,
+   "worst": 0,
+   "where": "",
+   "oneColumn": true,
+   "jumpShown": true
+  },
+  {
+   "engine": "chromium",
+   "theme": "light",
+   "vw": 1280,
+   "scale": 2,
+   "view": "overview",
+   "scrollW": 1280,
+   "worst": 73.02,
+   "where": "sr-hsr-rank-unit",
+   "oneColumn": false,
+   "jumpShown": false
+  },
+  {
+   "engine": "chromium",
+   "theme": "light",
+   "vw": 1280,
+   "scale": 2,
+   "view": "report-stress",
+   "scrollW": 1280,
+   "worst": 0,
+   "where": "",
+   "oneColumn": true,
+   "jumpShown": true
+  },
+  {
+   "engine": "chromium",
+   "theme": "dark",
+   "vw": 320,
+   "scale": 2,
+   "view": "overview",
+   "scrollW": 320,
+   "worst": 0,
+   "where": "",
+   "oneColumn": false,
+   "jumpShown": false
+  },
+  {
+   "engine": "chromium",
+   "theme": "dark",
+   "vw": 320,
+   "scale": 2,
+   "view": "report-stress",
+   "scrollW": 320,
+   "worst": 0,
+   "where": "",
+   "oneColumn": true,
+   "jumpShown": true
+  },
+  {
+   "engine": "chromium",
+   "theme": "dark",
+   "vw": 320,
+   "scale": 1,
+   "view": "overview",
+   "scrollW": 320,
+   "worst": 0,
+   "where": "",
+   "oneColumn": false,
+   "jumpShown": false
+  },
+  {
+   "engine": "chromium",
+   "theme": "dark",
+   "vw": 320,
+   "scale": 1,
+   "view": "report-stress",
+   "scrollW": 320,
+   "worst": 0,
+   "where": "",
+   "oneColumn": true,
+   "jumpShown": true
+  },
+  {
+   "engine": "chromium",
+   "theme": "dark",
+   "vw": 393,
+   "scale": 2,
+   "view": "overview",
+   "scrollW": 393,
+   "worst": 0,
+   "where": "",
+   "oneColumn": false,
+   "jumpShown": false
+  },
+  {
+   "engine": "chromium",
+   "theme": "dark",
+   "vw": 393,
+   "scale": 2,
+   "view": "report-stress",
+   "scrollW": 393,
+   "worst": 0,
+   "where": "",
+   "oneColumn": true,
+   "jumpShown": true
+  },
+  {
+   "engine": "chromium",
+   "theme": "dark",
+   "vw": 800,
+   "scale": 2,
+   "view": "overview",
+   "scrollW": 800,
+   "worst": 73.02,
+   "where": "sr-hsr-rank-unit",
+   "oneColumn": false,
+   "jumpShown": false
+  },
+  {
+   "engine": "chromium",
+   "theme": "dark",
+   "vw": 800,
+   "scale": 2,
+   "view": "report-stress",
+   "scrollW": 800,
+   "worst": 0,
+   "where": "",
+   "oneColumn": true,
+   "jumpShown": true
+  },
+  {
+   "engine": "chromium",
+   "theme": "dark",
+   "vw": 1280,
+   "scale": 2,
+   "view": "overview",
+   "scrollW": 1280,
+   "worst": 73.02,
+   "where": "sr-hsr-rank-unit",
+   "oneColumn": false,
+   "jumpShown": false
+  },
+  {
+   "engine": "chromium",
+   "theme": "dark",
+   "vw": 1280,
+   "scale": 2,
+   "view": "report-stress",
+   "scrollW": 1280,
+   "worst": 0,
+   "where": "",
+   "oneColumn": true,
+   "jumpShown": true
+  },
+  {
+   "engine": "webkit",
+   "theme": "light",
+   "vw": 320,
+   "scale": 2,
+   "view": "overview",
+   "scrollW": 320,
+   "worst": 0,
+   "where": "",
+   "oneColumn": false,
+   "jumpShown": false
+  },
+  {
+   "engine": "webkit",
+   "theme": "light",
+   "vw": 320,
+   "scale": 2,
+   "view": "report-stress",
+   "scrollW": 320,
+   "worst": 0,
+   "where": "",
+   "oneColumn": true,
+   "jumpShown": true
+  },
+  {
+   "engine": "webkit",
+   "theme": "light",
+   "vw": 320,
+   "scale": 1,
+   "view": "overview",
+   "scrollW": 320,
+   "worst": 0,
+   "where": "",
+   "oneColumn": false,
+   "jumpShown": false
+  },
+  {
+   "engine": "webkit",
+   "theme": "light",
+   "vw": 320,
+   "scale": 1,
+   "view": "report-stress",
+   "scrollW": 320,
+   "worst": 0,
+   "where": "",
+   "oneColumn": true,
+   "jumpShown": true
+  },
+  {
+   "engine": "webkit",
+   "theme": "light",
+   "vw": 393,
+   "scale": 2,
+   "view": "overview",
+   "scrollW": 393,
+   "worst": 0,
+   "where": "",
+   "oneColumn": false,
+   "jumpShown": false
+  },
+  {
+   "engine": "webkit",
+   "theme": "light",
+   "vw": 393,
+   "scale": 2,
+   "view": "report-stress",
+   "scrollW": 393,
+   "worst": 0,
+   "where": "",
+   "oneColumn": true,
+   "jumpShown": true
+  },
+  {
+   "engine": "webkit",
+   "theme": "light",
+   "vw": 800,
+   "scale": 2,
+   "view": "overview",
+   "scrollW": 800,
+   "worst": 72.97,
+   "where": "sr-hsr-rank-unit",
+   "oneColumn": false,
+   "jumpShown": false
+  },
+  {
+   "engine": "webkit",
+   "theme": "light",
+   "vw": 800,
+   "scale": 2,
+   "view": "report-stress",
+   "scrollW": 800,
+   "worst": 0,
+   "where": "",
+   "oneColumn": true,
+   "jumpShown": true
+  },
+  {
+   "engine": "webkit",
+   "theme": "light",
+   "vw": 1280,
+   "scale": 2,
+   "view": "overview",
+   "scrollW": 1280,
+   "worst": 72.97,
+   "where": "sr-hsr-rank-unit",
+   "oneColumn": false,
+   "jumpShown": false
+  },
+  {
+   "engine": "webkit",
+   "theme": "light",
+   "vw": 1280,
+   "scale": 2,
+   "view": "report-stress",
+   "scrollW": 1280,
+   "worst": 0,
+   "where": "",
+   "oneColumn": true,
+   "jumpShown": true
+  },
+  {
+   "engine": "webkit",
+   "theme": "dark",
+   "vw": 320,
+   "scale": 2,
+   "view": "overview",
+   "scrollW": 320,
+   "worst": 0,
+   "where": "",
+   "oneColumn": false,
+   "jumpShown": false
+  },
+  {
+   "engine": "webkit",
+   "theme": "dark",
+   "vw": 320,
+   "scale": 2,
+   "view": "report-stress",
+   "scrollW": 320,
+   "worst": 0,
+   "where": "",
+   "oneColumn": true,
+   "jumpShown": true
+  },
+  {
+   "engine": "webkit",
+   "theme": "dark",
+   "vw": 320,
+   "scale": 1,
+   "view": "overview",
+   "scrollW": 320,
+   "worst": 0,
+   "where": "",
+   "oneColumn": false,
+   "jumpShown": false
+  },
+  {
+   "engine": "webkit",
+   "theme": "dark",
+   "vw": 320,
+   "scale": 1,
+   "view": "report-stress",
+   "scrollW": 320,
+   "worst": 0,
+   "where": "",
+   "oneColumn": true,
+   "jumpShown": true
+  },
+  {
+   "engine": "webkit",
+   "theme": "dark",
+   "vw": 393,
+   "scale": 2,
+   "view": "overview",
+   "scrollW": 393,
+   "worst": 0,
+   "where": "",
+   "oneColumn": false,
+   "jumpShown": false
+  },
+  {
+   "engine": "webkit",
+   "theme": "dark",
+   "vw": 393,
+   "scale": 2,
+   "view": "report-stress",
+   "scrollW": 393,
+   "worst": 0,
+   "where": "",
+   "oneColumn": true,
+   "jumpShown": true
+  },
+  {
+   "engine": "webkit",
+   "theme": "dark",
+   "vw": 800,
+   "scale": 2,
+   "view": "overview",
+   "scrollW": 800,
+   "worst": 72.97,
+   "where": "sr-hsr-rank-unit",
+   "oneColumn": false,
+   "jumpShown": false
+  },
+  {
+   "engine": "webkit",
+   "theme": "dark",
+   "vw": 800,
+   "scale": 2,
+   "view": "report-stress",
+   "scrollW": 800,
+   "worst": 0,
+   "where": "",
+   "oneColumn": true,
+   "jumpShown": true
+  },
+  {
+   "engine": "webkit",
+   "theme": "dark",
+   "vw": 1280,
+   "scale": 2,
+   "view": "overview",
+   "scrollW": 1280,
+   "worst": 72.97,
+   "where": "sr-hsr-rank-unit",
+   "oneColumn": false,
+   "jumpShown": false
+  },
+  {
+   "engine": "webkit",
+   "theme": "dark",
+   "vw": 1280,
+   "scale": 2,
+   "view": "report-stress",
+   "scrollW": 1280,
+   "worst": 0,
+   "where": "",
+   "oneColumn": true,
+   "jumpShown": true
+  }
+ ],
+ "a11y": [
+  {
+   "engine": "chromium",
+   "liveIdle": "- status",
+   "liveAfter": "- status: \"Jamaica Bay Wildlife Refuge: 143 species, 42 checklists.\"",
+   "firstRow": "- listitem:\n  - text: 143 of 143.\n  - button \"Common Loon\"\n  - text: Gavia immer First recorded here Nov 4, 2025 On 3 of 42 checklists here.\n  - link \"Open checklist S9000000288 on eBird (opens in a new tab)\":\n    - /url: https://ebird.org/checklist/S9000000288",
+   "colsAriaHidden": "true",
+   "jumpVisible": true,
+   "focused": {
+    "tag": "H4",
+    "text": "Weather on your visits"
+   }
+  },
+  {
+   "engine": "webkit",
+   "liveIdle": "- status",
+   "liveAfter": "- status: \"Jamaica Bay Wildlife Refuge: 143 species, 42 checklists.\"",
+   "firstRow": "- listitem:\n  - text: 143 of 143.\n  - button \"Common Loon\"\n  - text: Gavia immer First recorded here Nov 4, 2025 On 3 of 42 checklists here.\n  - link \"Open checklist S9000000288 on eBird (opens in a new tab)\":\n    - /url: https://ebird.org/checklist/S9000000288",
+   "colsAriaHidden": "true",
+   "jumpVisible": true,
+   "focused": {
+    "tag": "H4",
+    "text": "Weather on your visits"
+   }
+  }
+ ],
+ "map": [
+  {
+   "engine": "chromium",
+   "theme": "light",
+   "label": "Map showing Jamaica Bay Wildlife Refuge",
+   "canvas": true,
+   "marker": true,
+   "popup": false,
+   "buttons": [
+    "Zoom in",
+    "Zoom out"
+   ],
+   "tiles": 6
+  },
+  {
+   "engine": "chromium",
+   "theme": "dark",
+   "label": "Map showing Jamaica Bay Wildlife Refuge",
+   "canvas": true,
+   "marker": true,
+   "popup": false,
+   "buttons": [
+    "Zoom in",
+    "Zoom out"
+   ],
+   "tiles": 6
+  },
+  {
+   "engine": "webkit",
+   "theme": "light",
+   "label": "Map showing Jamaica Bay Wildlife Refuge",
+   "canvas": true,
+   "marker": true,
+   "popup": false,
+   "buttons": [
+    "Zoom in",
+    "Zoom out"
+   ],
+   "tiles": 6
+  },
+  {
+   "engine": "webkit",
+   "theme": "dark",
+   "label": "Map showing Jamaica Bay Wildlife Refuge",
+   "canvas": true,
+   "marker": true,
+   "popup": false,
+   "buttons": [
+    "Zoom in",
+    "Zoom out"
+   ],
+   "tiles": 6
+  }
+ ]
+}

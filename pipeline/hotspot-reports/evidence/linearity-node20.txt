@@ -1,0 +1,53 @@
+
+ RUN  v4.1.12 /Users/developer/devwork/snowraven/frontend
+
+stdout | src/lib/hotspotReportsLinearity.test.ts > the Hotspot Reports passes are linear in rows (NFR-02, QA-64) > pass I, every row its own location, checklist and species (limit from L log L)
+LINEARITY pass I distinct: 11.66 raw 11.66 limit 27.4 ratio 0.43 small 0.398ms
+
+stdout | src/lib/hotspotReportsLinearity.test.ts > the Hotspot Reports passes are linear in rows (NFR-02, QA-64) > pass I, every row its own location, 200 species (limit from L log L)
+LINEARITY pass I 200 species: 11.90 raw 11.90 limit 27.4 ratio 0.43 small 0.403ms
+
+ ✓ src/lib/hotspotReportsLinearity.test.ts > the Hotspot Reports passes are linear in rows (NFR-02, QA-64) > pass I, every row its own location, checklist and species (limit from L log L) 89ms
+ ✓ src/lib/hotspotReportsLinearity.test.ts > the Hotspot Reports passes are linear in rows (NFR-02, QA-64) > pass I, every row its own location, 200 species (limit from L log L) 336ms
+stdout | src/lib/hotspotReportsLinearity.test.ts > the Hotspot Reports passes are linear in rows (NFR-02, QA-64) > pass I, one location holds every row (flat limit)
+LINEARITY pass I one location: 9.52 raw 9.52 limit 20.0 ratio 0.48 small 0.102ms
+
+stdout | src/lib/hotspotReportsLinearity.test.ts > the Hotspot Reports passes are linear in rows (NFR-02, QA-64) > pass I, 300 locations, the realistic shape (flat limit)
+LINEARITY pass I realistic: 8.05 raw 8.05 limit 20.0 ratio 0.40 small 0.141ms
+
+ ✓ src/lib/hotspotReportsLinearity.test.ts > the Hotspot Reports passes are linear in rows (NFR-02, QA-64) > pass I, one location holds every row (flat limit) 100ms
+ ✓ src/lib/hotspotReportsLinearity.test.ts > the Hotspot Reports passes are linear in rows (NFR-02, QA-64) > pass I, 300 locations, the realistic shape (flat limit) 213ms
+stdout | src/lib/hotspotReportsLinearity.test.ts > the Hotspot Reports passes are linear in rows (NFR-02, QA-64) > the facts and weather, one location with every checklist carrying a block (limit from C log C)
+LINEARITY facts and weather: 10.87 raw 10.87 limit 28.9 ratio 0.38 small 2.267ms
+
+ ✓ src/lib/hotspotReportsLinearity.test.ts > the Hotspot Reports passes are linear in rows (NFR-02, QA-64) > the facts and weather, one location with every checklist carrying a block (limit from C log C) 815ms
+stdout | src/lib/hotspotReportsLinearity.test.ts > the Hotspot Reports passes are linear in rows (NFR-02, QA-64) > the per-keystroke filter, every row its own location, names at the bound sharing a prefix (flat limit)
+LINEARITY filter: 10.67 raw 10.67 limit 20.0 ratio 0.53 small 2.732ms
+
+ ✓ src/lib/hotspotReportsLinearity.test.ts > the Hotspot Reports passes are linear in rows (NFR-02, QA-64) > the per-keystroke filter, every row its own location, names at the bound sharing a prefix (flat limit) 375ms
+stdout | src/lib/hotspotReportsLinearity.test.ts > the Hotspot Reports passes are linear in rows (NFR-02, QA-64) > the species rule over 500 and 5,000 species at one location (limit from S log S)
+LINEARITY species rule: 14.78 raw 14.78 limit 27.4 ratio 0.54 small 0.273ms
+
+ ✓ src/lib/hotspotReportsLinearity.test.ts > the Hotspot Reports passes are linear in rows (NFR-02, QA-64) > the species rule over 500 and 5,000 species at one location (limit from S log S) 127ms
+stdout | src/lib/hotspotReportsLinearity.test.ts > the Hotspot Reports passes are linear in rows (NFR-02, QA-64) > the ML join, each asset citing its own checklist at one of 200 locations (flat limit)
+LINEARITY ML join: 11.48 raw 11.48 limit 20.0 ratio 0.57 small 0.148ms
+
+ ✓ src/lib/hotspotReportsLinearity.test.ts > the Hotspot Reports passes are linear in rows (NFR-02, QA-64) > the ML join, each asset citing its own checklist at one of 200 locations (flat limit) 175ms
+stdout | src/lib/hotspotReportsLinearity.test.ts > the Hotspot Reports passes are linear in rows (NFR-02, QA-64) > the overview totals and ranks over 500 and 5,000 locations with 50 escapee species (flat limit)
+LINEARITY overview: 6.64 raw 6.64 limit 20.0 ratio 0.33 small 0.308ms
+
+ ✓ src/lib/hotspotReportsLinearity.test.ts > the Hotspot Reports passes are linear in rows (NFR-02, QA-64) > the overview totals and ranks over 500 and 5,000 locations with 50 escapee species (flat limit) 123ms
+stdout | src/lib/hotspotReportsLinearity.test.ts > the Hotspot Reports passes are linear in rows (NFR-02, QA-64) > the escapee confirmation, 50 published names whose carriers grow (flat limit, 300 / 3,000)
+LINEARITY escapee confirmation: 12.19 raw 12.19 limit 20.0 ratio 0.61 small 0.115ms
+
+ ✓ src/lib/hotspotReportsLinearity.test.ts > the Hotspot Reports passes are linear in rows (NFR-02, QA-64) > the escapee confirmation, 50 published names whose carriers grow (flat limit, 300 / 3,000) 157ms
+ ✓ src/lib/hotspotReportsLinearity.test.ts > the linearity rows can reject a quadratic (non-vacuity) > pass I with a linear search over the records exceeds its limit 600ms
+ ✓ src/lib/hotspotReportsLinearity.test.ts > the linearity rows can reject a quadratic (non-vacuity) > the facts with an array-search dedupe exceed their limit 592ms
+ ✓ src/lib/hotspotReportsLinearity.test.ts > the linearity rows can reject a quadratic (non-vacuity) > the ML join with an array-search lookup exceeds its limit 347ms
+ ✓ src/lib/hotspotReportsLinearity.test.ts > the overview at 150,000 distinct locations (QA-65) > derives, ranks ten per list and windows at most 200 options 500ms
+
+ Test Files  1 passed (1)
+      Tests  14 passed (14)
+   Start at  00:15:56
+   Duration  4.84s (transform 166ms, setup 14ms, import 193ms, tests 4.55s, environment 0ms)
+

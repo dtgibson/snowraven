@@ -22,6 +22,13 @@
 // re-captured and diffed against the previous fixture first: one insertion per
 // platform, naming Life Lists and no other tab, everything else byte-identical.
 //
+// AND A SECOND TAB-LAYOUT ROW HAS JOINED, ON PURPOSE (hotspot-reports): each
+// platform's markup gained exactly the Hotspot Reports row, between Breeding
+// Codes and Checklists. Re-captured twice (identical) through this file's own
+// render and diffed against the previous fixture first, row by row: one
+// inserted row per platform, naming Hotspot Reports and no other tab, equal to
+// the Checklists row with its label swapped, everything else byte-identical.
+//
 // On these three platforms the gate is false, so the section and its lazy
 // chunk are never reached; the section's own iOS rendering is covered by
 // AlertsSection.test.tsx and settingsSectionOrder.test.tsx.

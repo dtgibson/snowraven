@@ -132,6 +132,16 @@ describe('the passive provenance path can never reach the network (FR-35, QA-40)
     // life-list-region-filter: the region passes and their copy reach nothing
     // that can make a request (QA-01, QA-28).
     'lib/lifeListsRegion.ts',
+    // hotspot-reports (QA-10, NFR-05): the index, the picker filter, the
+    // per-location derivation, the passive reader and the copy. The kind module
+    // is deliberately NOT here: it imports hotspotSet.ts, which reaches
+    // transport by design, and the source scan in hotspotReportsNetwork.test.ts
+    // is what bounds it.
+    'lib/hotspotReports.ts',
+    'lib/hotspotReportsPicker.ts',
+    'lib/hotspotReportsLocation.ts',
+    'lib/hotspotReportsProvenance.ts',
+    'lib/hotspotReportsCopy.ts',
   ]) {
     it(`${root} statically reaches no network module`, () => {
       expect(networkReach(root)).toEqual([])
@@ -143,6 +153,7 @@ describe('the passive provenance path can never reach the network (FR-35, QA-40)
     // reintroduce the dependency by the back door.
     expect(closure('lib/useProvenanceLookup.ts')).not.toContain('lib/useExoticProvenance.ts')
     expect(closure('lib/lifeListsProvenance.ts')).not.toContain('lib/useExoticProvenance.ts')
+    expect(closure('lib/hotspotReportsProvenance.ts')).not.toContain('lib/useExoticProvenance.ts')
   })
 
   it('the passive reader really does reach the store and the model', () => {
@@ -157,6 +168,10 @@ describe('the passive provenance path can never reach the network (FR-35, QA-40)
     const lifeLists = closure('lib/lifeListsProvenance.ts')
     expect(lifeLists).toContain('lib/exoticProvenanceCache.ts')
     expect(lifeLists).toContain('lib/exoticProvenance.ts')
+    // The Hotspot Reports reader likewise (hotspot-reports schema section 6).
+    const hotspotReports = closure('lib/hotspotReportsProvenance.ts')
+    expect(hotspotReports).toContain('lib/exoticProvenanceCache.ts')
+    expect(hotspotReports).toContain('lib/storage.ts')
   })
 
   it('the walker DOES detect a network module when one is genuinely reachable', () => {
@@ -239,11 +254,58 @@ describe('Life Lists reads the rule passively (life-lists-tab FR-14, QA-15)', ()
   })
 })
 
+describe('Hotspot Reports reads the rule passively (hotspot-reports QA-10, NFR-05)', () => {
+  // The tab reaches `transport` BY DESIGN for its one `/taxonomy/codes` batch,
+  // and through hotspotSet.ts for the shared hotspot Set, so the whole-closure
+  // assertion does not transfer. What holds: provenance comes through the
+  // passive reader, the controller is never reached, and the cover index is
+  // never built in any of the feature's files.
+  const FEATURE_FILES = [
+    'lib/hotspotReports.ts', 'lib/hotspotReportsPicker.ts', 'lib/hotspotReportsLocation.ts',
+    'lib/hotspotReportsKind.ts', 'lib/hotspotReportsProvenance.ts', 'lib/hotspotReportsCopy.ts',
+    'components/hotspotReports/HotspotReportsTab.tsx', 'components/hotspotReports/HotspotReportsPicker.tsx',
+    'components/hotspotReports/HotspotReportsOverview.tsx', 'components/hotspotReports/HotspotReport.tsx',
+    'components/hotspotReports/HotspotReportHeader.tsx', 'components/hotspotReports/HotspotReportLifeList.tsx',
+    'components/hotspotReports/HotspotReportSections.tsx', 'components/hotspotReports/HotspotReportsParts.tsx',
+    'components/hotspotReports/HotspotReportMap.tsx',
+  ]
+
+  it('the tab reads provenance through its passive reader, which reaches the store, and never reaches the controller', () => {
+    const code = stripComments(readFileSync(resolve(SRC, 'components/hotspotReports/HotspotReportsTab.tsx'), 'utf8'))
+    expect(code).toContain("from '../../lib/hotspotReportsProvenance'")
+    const tab = closure('components/hotspotReports/HotspotReportsTab.tsx')
+    expect(tab).not.toContain('lib/useExoticProvenance.ts')
+    // Positive legs: the tab reaches the reader, and the reader the store.
+    expect(tab).toContain('lib/hotspotReportsProvenance.ts')
+    expect(closure('lib/hotspotReportsProvenance.ts')).toContain('lib/exoticProvenanceCache.ts')
+    // And the tab's closure is one that CAN reach the network (the codes batch,
+    // the hotspot Set), so the controller's absence above is not a walker that
+    // resolved nothing.
+    expect(networkReach('components/hotspotReports/HotspotReportsTab.tsx')).toContain('lib/transport.ts')
+  })
+
+  it('a SYMBOL scan, not a graph edge: no Hotspot Reports file names buildCoverIndex or useExoticProvenance', () => {
+    // `buildCoverIndex` is exported by exoticProvenance.ts, which a passive
+    // reader may reach, so this cannot be a module-graph assertion. Every file
+    // of the feature is scanned, comments stripped, for either identifier.
+    for (const f of FEATURE_FILES) {
+      const code = stripComments(readFileSync(resolve(SRC, f), 'utf8'))
+      expect(code.length, `${f} was read`).toBeGreaterThan(200)
+      expect(code, `${f} names buildCoverIndex (symbol scan)`).not.toContain('buildCoverIndex')
+      expect(code, `${f} names useExoticProvenance (symbol scan)`).not.toContain('useExoticProvenance')
+    }
+    // Non-vacuity for the scan itself: the same strip-and-scan finds the symbol
+    // where it genuinely is.
+    const lifeListsReader = stripComments(readFileSync(resolve(SRC, 'lib/lifeListsProvenance.ts'), 'utf8'))
+    expect(lifeListsReader).toContain('buildCoverIndex(')
+  })
+})
+
 describe('only Statistics initiates a provenance request (FR-17, QA-22)', () => {
   it('useExoticProvenance is imported by exactly one component', () => {
     // A shared hook mounted outside Statistics would silently make some other
     // tab a requester. Enumerating the importers is what keeps that visible.
-    const roots = ['components/BirdingStats.tsx', 'components/Calendar.tsx', 'components/MapExplorer.tsx', 'components/SpeciesDetail.tsx', 'components/lifeLists/LifeListsTab.tsx']
+    const roots = ['components/BirdingStats.tsx', 'components/Calendar.tsx', 'components/MapExplorer.tsx', 'components/SpeciesDetail.tsx', 'components/lifeLists/LifeListsTab.tsx', 'components/hotspotReports/HotspotReportsTab.tsx']
     const importers = roots.filter(r => closure(r).has('lib/useExoticProvenance.ts'))
     expect(importers).toEqual(['components/BirdingStats.tsx'])
   })

@@ -17,6 +17,8 @@ paths:
   - "frontend/src/lib/exotic*.ts"
   - "frontend/src/lib/lifeLists*.ts"
   - "frontend/src/components/lifeLists/**"
+  - "frontend/src/lib/hotspotReports*.ts"
+  - "frontend/src/components/hotspotReports/**"
   - "frontend/src/lib/statsFormat*.ts"
   - "frontend/src/assets/ebird-taxonomy.json"
   - "backend/routers/taxonomy.py"

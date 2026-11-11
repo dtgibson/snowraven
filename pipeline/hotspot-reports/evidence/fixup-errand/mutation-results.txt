@@ -1,0 +1,64 @@
+BASELINE  rc=0 tests=84 passed=84 failed=0 file-errors=0
+
+M1 cols header loses aria-hidden  [src/components/hotspotReports/HotspotReportLifeList.tsx]
+  rc=1 tests=26 passed=25 failed=1 restored-to-real=True
+   RED  a report (FR-31 to FR-56, QA-24, QA-25, QA-31, QA-32, QA-40, QA-77) the life list's column header row is visual only: aria-hidden, while each row carries its words (FR-37, QA-37)
+
+M2a name bound 200 -> 199  [src/lib/hotspotReports.ts]
+  rc=1 tests=29 passed=28 failed=1 restored-to-real=True
+   RED  name, place and coordinates come from the first checklist (FR-12, QA-12, QA-13) the name bound is the schema's 200: a 200-character name is kept whole, a 201-character one is cut to 200
+
+M2b name bound 200 -> 201  [src/lib/hotspotReports.ts]
+  rc=1 tests=29 passed=28 failed=1 restored-to-real=True
+   RED  name, place and coordinates come from the first checklist (FR-12, QA-12, QA-13) the name bound is the schema's 200: a 200-character name is kept whole, a 201-character one is cut to 200
+
+M3a protocol bound 64 -> 63  [src/lib/hotspotReportsLocation.ts]
+  rc=1 tests=26 passed=25 failed=1 restored-to-real=True
+   RED  checklists by protocol (FR-42, FR-43, QA-41, QA-42) the protocol-name bound is the schema's 64: a 64-character label is kept whole, a 65-character one is cut to 64
+
+M3b protocol bound 64 -> 65  [src/lib/hotspotReportsLocation.ts]
+  rc=1 tests=26 passed=25 failed=1 restored-to-real=True
+   RED  checklists by protocol (FR-42, FR-43, QA-41, QA-42) the protocol-name bound is the schema's 64: a 64-character label is kept whole, a 65-character one is cut to 64
+
+M4a ranked list renders when empty  [src/components/hotspotReports/HotspotReportsOverview.tsx]
+  rc=1 tests=26 passed=25 failed=1 restored-to-real=True
+   RED  the ranked lists in all three shapes: many, one, none (FR-30, ui.md v1.0.3) none: when no location has a countable species the species block renders nothing, heading included
+
+M4b sole species sentence renders at zero  [src/components/hotspotReports/HotspotReportsOverview.tsx]
+  rc=1 tests=26 passed=25 failed=1 restored-to-real=True
+   RED  the ranked lists in all three shapes: many, one, none (FR-30, ui.md v1.0.3) one location with no countable species: the checklists sentence, and no species block at all
+
+M5 live node keeps its identity  [src/components/hotspotReports/HotspotReportsTab.tsx]
+  rc=1 tests=26 passed=24 failed=2 restored-to-real=True
+   RED  the overview (FR-26 to FR-30, QA-26 to QA-30) a ranked-row press, then a picker choice of the same place, replaces the live node each time (QA-25, two routes)
+   RED  a report (FR-31 to FR-56, QA-24, QA-25, QA-31, QA-32, QA-40, QA-77) choosing by pointer shows the name in the input, keeps focus in the picker, and announces once
+
+M6a media formats swapped (both seams agree, wrongly)  [src/lib/hotspotReports.ts]
+  rc=1 tests=3 passed=1 failed=2 restored-to-real=True
+   RED  the Hotspot Reports derivation under the tauri storage seam (QA-71) reads both files through the seam and derives the oracle's figures
+   RED  the Hotspot Reports derivation under the web storage seam (QA-71) reads both files through the seam and derives the oracle's figures
+
+M6b web/Pi read drops the last record  [src/lib/storage.ts]
+  rc=1 tests=3 passed=1 failed=2 restored-to-real=True
+   RED  the Hotspot Reports derivation under the web storage seam (QA-71) reads both files through the seam and derives the oracle's figures
+   RED  the two seams agree (QA-71) derive identical output for the same fixture under the Tauri and web/Pi seams
+
+M6c Tauri read drops the last record  [src/lib/storage.ts]
+  rc=1 tests=3 passed=1 failed=2 restored-to-real=True
+   RED  the Hotspot Reports derivation under the tauri storage seam (QA-71) reads both files through the seam and derives the oracle's figures
+   RED  the two seams agree (QA-71) derive identical output for the same fixture under the Tauri and web/Pi seams
+
+AFTER     rc=0 tests=84 passed=84 failed=0
+
+SUMMARY
+    1 red  restored=True  M1 cols header loses aria-hidden
+    1 red  restored=True  M2a name bound 200 -> 199
+    1 red  restored=True  M2b name bound 200 -> 201
+    1 red  restored=True  M3a protocol bound 64 -> 63
+    1 red  restored=True  M3b protocol bound 64 -> 65
+    1 red  restored=True  M4a ranked list renders when empty
+    1 red  restored=True  M4b sole species sentence renders at zero
+    2 red  restored=True  M5 live node keeps its identity
+    2 red  restored=True  M6a media formats swapped (both seams agree, wrongly)
+    2 red  restored=True  M6b web/Pi read drops the last record
+    2 red  restored=True  M6c Tauri read drops the last record

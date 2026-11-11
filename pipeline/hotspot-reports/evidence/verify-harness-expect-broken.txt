@@ -1,0 +1,4 @@
+built thresholds: report 53.25em, list 28em (mode: expect-broken)
+expect-broken: 266 of 344 window configurations fail with both container queries neutered
+HARNESS DISCRIMINATES
+broken rc=0 seconds=84

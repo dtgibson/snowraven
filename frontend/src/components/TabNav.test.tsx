@@ -459,8 +459,9 @@ describe('the More sheet', () => {
 // of a list then capped at min(70dvh, 460px). When Targets made that list eight
 // rows, Settings fell past the cap on every notched iPhone, under the home
 // indicator, with no scroll cue, and larger text did the same with fewer rows.
-// The cap is now 528px, the user's choice at the live preview, so at the
-// default text size the whole list fits as well (the row below pins why).
+// The cap is now min(73dvh, 616px), both terms measured for thirteen tabs
+// (hotspot-reports decisions.md D-08), so at the default text size the whole
+// list fits as well (the row below holds it as a property at 616px).
 //
 // THE CLAIM GUARDED HERE is the structure that takes the row count and the text
 // scale out of the question: the sheet is a flex column; every row but Settings
@@ -647,8 +648,8 @@ describe('the More sheet keeps Settings in view at any row count and any text sc
     fireEvent.click(screen.getByRole('button', { name: 'More destinations' }))
   }
 
-  // From one visible tab (the sheet holds Settings alone) to all eleven (seven
-  // rows plus Settings, the shipped default): every row count the sheet can show.
+  // From one visible tab (the sheet holds Settings alone) to every tab in the
+  // roster below: every row count the sheet can show.
   const LAYOUTS = ROSTER.map((_, i) => [...ROSTER.slice(0, i + 1), SETTINGS])
 
   it.each(LAYOUTS.map(items => [items.length - 1, items] as const))(
@@ -703,16 +704,22 @@ describe('the More sheet keeps Settings in view at any row count and any text sc
     // page, and it is tall enough for the whole sheet at the default text size.
     // SHEET_AT_1X_PX is a MEASUREMENT, not a number to derive here: the sheet's
     // full height at 1x on a notched iPhone with the iOS inset (393x852, 34px
-    // inset, all eleven tabs visible), read in WebKit and Chromium (the body's
-    // 418px, the foot, the padding and the border). jsdom has no layout and the
-    // heading's line height is font-dependent, so it cannot be computed from the
-    // declarations. A cap below it makes the list scroll at 1x on every notched
-    // width, which the old 460px did; a larger one is harmless. The viewport
-    // term stays 70dvh, which binds first on the short SE screens.
-    const SHEET_AT_1X_PX = 528
-    const cap = /^min\(\s*70dvh\s*,\s*(\d+(?:\.\d+)?)px\s*\)$/.exec(onSheet.value('max-height') ?? '')
-    expect(cap, `the sheet cap is not min(70dvh, <px>): ${onSheet.value('max-height')}`).not.toBeNull()
-    expect(Number(cap![1]), 'the cap no longer holds the whole sheet at 1x on a notched iPhone').toBeGreaterThanOrEqual(SHEET_AT_1X_PX)
+    // inset, all thirteen tabs, nine rows in the body), read in WebKit and
+    // Chromium on the built app: the body's 506px, the foot's 61px, the 48px of
+    // padding and the border (hotspot-reports decisions.md D-08). jsdom has no
+    // layout and the heading's line height is font-dependent, so it cannot be
+    // computed from the declarations. The row is a PROPERTY over both terms of
+    // the cap: a pixel term below the measured sheet, or a viewport term whose
+    // share of the reference phone's 852px falls below it, makes the list
+    // scroll at 1x on that phone, and either goes red here. It still cannot see
+    // the content grow: a destination added later owes a new measurement and a
+    // new constant (ui.md, the v1.0.45 rule).
+    const SHEET_AT_1X_PX = 616
+    const REFERENCE_PHONE_HEIGHT_PX = 852
+    const cap = /^min\(\s*(\d+(?:\.\d+)?)dvh\s*,\s*(\d+(?:\.\d+)?)px\s*\)$/.exec(onSheet.value('max-height') ?? '')
+    expect(cap, `the sheet cap is not min(<v>dvh, <px>): ${onSheet.value('max-height')}`).not.toBeNull()
+    expect(Number(cap![2]), 'the pixel term no longer holds the whole sheet at 1x on a notched iPhone').toBeGreaterThanOrEqual(SHEET_AT_1X_PX)
+    expect(Number(cap![1]) / 100 * REFERENCE_PHONE_HEIGHT_PX, 'the viewport term no longer holds the whole sheet on the reference phone').toBeGreaterThanOrEqual(SHEET_AT_1X_PX)
 
     const onBody = resolvedNav(body, ['overflow-y', 'flex-shrink', 'min-height', 'max-height', 'display'])
     expect(onBody.unparsed).toEqual([])

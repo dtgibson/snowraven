@@ -1070,6 +1070,81 @@ describe('entry-chunk exclusion (NFR-03 / QA-30)', () => {
     expect(appSrc).toContain("import('./components/lifeLists/LifeListsTab')")
   })
 
+  // ── The Hotspot Reports tab (hotspot-reports NFR-09, schema section 9). Lazy
+  // like every tab: only its registry entries in lib/tabLayout.ts and
+  // lib/tabIcons.tsx ride the entry chunk. Its map is a SECOND lazy chunk
+  // inside it, so the map file is off the tab's static graph as well as App's.
+  // Negatives first, then the positive legs proving each subtree really does
+  // reach what they exclude (testing.md v1.0.23).
+  const HOTSPOT_REPORTS_TAB_FILES = [
+    'components/hotspotReports/HotspotReportsTab.tsx',
+    'components/hotspotReports/HotspotReportsPicker.tsx',
+    'components/hotspotReports/HotspotReportsOverview.tsx',
+    'components/hotspotReports/HotspotReport.tsx',
+    'components/hotspotReports/HotspotReportHeader.tsx',
+    'components/hotspotReports/HotspotReportLifeList.tsx',
+    'components/hotspotReports/HotspotReportSections.tsx',
+    'components/hotspotReports/HotspotReportsParts.tsx',
+    // The six lib modules, the copy module among them.
+    'lib/hotspotReports.ts',
+    'lib/hotspotReportsPicker.ts',
+    'lib/hotspotReportsLocation.ts',
+    'lib/hotspotReportsKind.ts',
+    'lib/hotspotReportsProvenance.ts',
+    'lib/hotspotReportsCopy.ts',
+  ]
+  const HOTSPOT_REPORTS_MAP = 'components/hotspotReports/HotspotReportMap.tsx'
+
+  it.each([...HOTSPOT_REPORTS_TAB_FILES, HOTSPOT_REPORTS_MAP])('%s is off the App static closure (hotspot-reports)', file => {
+    expect(has(file)).toBe(false)
+  })
+
+  it('the Hotspot Reports subtree reaches every one of its own files, and no map, county geometry or chart library', () => {
+    const sub = closureFrom(resolve(SRC, 'components/hotspotReports/HotspotReportsTab.tsx'))
+    for (const file of HOTSPOT_REPORTS_TAB_FILES) {
+      expect(hasIn(sub.files, file), `Hotspot Reports must reach ${file}`).toBe(true)
+    }
+    expect(maplibreIn(sub.externals)).toEqual([])
+    expect([...sub.externals].filter(s => s === 'recharts' || s.startsWith('recharts/'))).toEqual([])
+    expect(hasIn(sub.files, 'assets/us-counties.json')).toBe(false)
+    expect(hasIn(sub.files, 'lib/countyGeometry.ts')).toBe(false)
+    expect(hasIn(sub.files, 'components/SnowMap.tsx')).toBe(false)
+    // The registry entries are the tab's only entry-chunk footprint.
+    expect(has('lib/tabLayout.ts')).toBe(true)
+    expect(has('lib/tabIcons.tsx')).toBe(true)
+    const appCode = stripComments(readFileSync(APP, 'utf8'))
+    expect(appCode).toContain("import('./components/hotspotReports/HotspotReportsTab')")
+    // Not warmed at idle (schema section 9, the Life Lists precedent): the one
+    // call of the importer is the lazy() line.
+    expect(appCode.split('importHotspotReports()').length - 1).toBe(1)
+    expect(appCode).toContain('lazy(() => importHotspotReports()')
+  })
+
+  it('the report map is off the tab\'s static graph, reached only through import(), and IS where maplibre lives', () => {
+    const sub = closureFrom(resolve(SRC, 'components/hotspotReports/HotspotReportsTab.tsx'))
+    expect(hasIn(sub.files, HOTSPOT_REPORTS_MAP)).toBe(false)
+    // The lazy edge is real: the report names the map module inside import().
+    const report = stripComments(readFileSync(resolve(SRC, 'components/hotspotReports/HotspotReport.tsx'), 'utf8'))
+    expect(report).toContain("import('./HotspotReportMap')")
+    // Positive leg, so the negative cannot pass by a rename: the closure FROM
+    // the map file reaches maplibre and the shared map component.
+    const map = closureFrom(resolve(SRC, HOTSPOT_REPORTS_MAP))
+    expect(maplibreIn(map.externals).length).toBeGreaterThan(0)
+    expect(maplibreIn(map.externals)).toContain('react-map-gl/maplibre')
+    expect(hasIn(map.files, 'components/SnowMap.tsx')).toBe(true)
+  })
+
+  it('the distribution row is shared with Statistics, and the Statistics weather section is NOT on the tab\'s graph (schema 8.1)', () => {
+    const sub = closureFrom(resolve(SRC, 'components/hotspotReports/HotspotReportsTab.tsx'))
+    expect(hasIn(sub.files, 'components/WeatherStatsSection.tsx')).toBe(false)
+    // Positive legs: the extracted row is on this tab's graph AND on Statistics',
+    // and Statistics still reaches the section that used to hold it.
+    expect(hasIn(sub.files, 'components/WeatherDistRow.tsx')).toBe(true)
+    const stats = closureFrom(resolve(SRC, 'components/BirdingStats.tsx'))
+    expect(hasIn(stats.files, 'components/WeatherDistRow.tsx')).toBe(true)
+    expect(hasIn(stats.files, 'components/WeatherStatsSection.tsx')).toBe(true)
+  })
+
   it('the refusal registry stays on the entry graph without dragging the bar-chart parser onto it', () => {
     // uploadGuard.ts is on App's graph through Settings.tsx, and it now owns the
     // bar-chart filename rules too. It takes the parser's outcome TYPE only

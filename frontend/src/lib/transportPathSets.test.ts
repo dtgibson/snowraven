@@ -78,6 +78,24 @@ describe('transport path sets exclude the checklist path (FR-28)', () => {
     expect(CACHED_GET_PATHS.has('/map/county-species')).toBe(false)
   })
 
+  it('each set holds EXACTLY its pinned members, so an addition is a deliberate edit of this row (hotspot-reports QA-62)', () => {
+    // The rows above check named members and named absences, which leaves any
+    // NEW path added to either set green. Pinned as sorted literals read from
+    // transport.ts as it stands; a feature that adds a path (Hotspot Reports
+    // adds none, schema section 11) changes this row on purpose, with its reason.
+    expect([...CACHED_GET_PATHS].sort()).toEqual([
+      '/map/hotspots',
+      '/map/recent-obs',
+    ])
+    expect([...EBIRD_GATED_PATHS].sort()).toEqual([
+      '/map/county-day-obs',
+      '/map/county-species',
+      '/map/hotspot-region',
+      '/map/hotspots',
+      '/map/recent-obs',
+    ])
+  })
+
   it('/map/hotspot-region is gated and stays out of the short-TTL cache (hotspot-share-stat, FR-28, QA-30)', () => {
     // lib/hotspotRegionCache.ts is this path's one caching layer (persisted, 30
     // days, in-flight dedupe); the gate still owns its pacing.
