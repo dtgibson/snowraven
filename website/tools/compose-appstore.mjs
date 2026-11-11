@@ -73,6 +73,7 @@ export const FRAMES = Object.freeze([
   Object.freeze({ file: '05-species-detail.png', tab: 'Species Detail', desc: 'Your whole history with one bird' }),
   Object.freeze({ file: '03-weather-tide.png', tab: 'Weather', desc: 'A weather and tide summary for a checklist' }),
   Object.freeze({ file: '06-breeding-codes.png', tab: 'Breeding Codes', desc: 'Breeding evidence by species and code' }),
+  Object.freeze({ file: '07-hotspot-reports.png', tab: 'Hotspot Reports', desc: 'Your own record at any one place' }),
 ]);
 
 // The band. #0c1f17, #9fb3a7, #59d499 and the white are website/styles.css's

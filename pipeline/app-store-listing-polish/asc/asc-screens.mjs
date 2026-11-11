@@ -20,7 +20,7 @@
 // route: API 4.5.1 added the Duo only to the App Asset Library).
 //
 // A set is replaced WHOLE and IN ORDER (v1.0.4): every existing screenshot in
-// the slot is removed, then the six frames go up in FRAMES order, then the
+// the slot is removed, then the frames go up in FRAMES order, then the
 // order is pinned explicitly. Read-back: order by position, file name, byte
 // size, spec/dimensions, delivery state, md5 where the API has one, and a
 // decoded-pixel comparison of Apple's processed PNG against the local file
@@ -35,7 +35,7 @@ import { api, get, getAll, short } from './asc-lib.mjs';
 const REPO = fileURLToPath(new URL('../../../', import.meta.url)).replace(/\/$/, '');
 const APP = '6787719977';
 // Upload order: FRAMES in website/tools/compose-appstore.mjs.
-const ORDER = ['01-map-explorer', '02-statistics', '04-calendar', '05-species-detail', '03-weather-tide', '06-breeding-codes'];
+const ORDER = ['01-map-explorer', '02-statistics', '04-calendar', '05-species-detail', '03-weather-tide', '06-breeding-codes', '07-hotspot-reports'];
 const FAMILIES = {
   'iphone-6.9': { legacy: 'APP_IPHONE_67', group: 'IPHONE_DYNAMIC_ISLAND_LARGE_PROFILE', w: 1320, h: 2868, via: 'legacy' },
   'ipad-13': { legacy: 'APP_IPAD_PRO_3GEN_129', group: 'IPAD_13_PROFILE', w: 2064, h: 2752, via: 'legacy' },

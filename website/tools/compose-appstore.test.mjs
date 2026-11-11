@@ -30,6 +30,7 @@ const APPROVED = [
   ['05-species-detail.png', 'Species Detail', 'Your whole history with one bird'],
   ['03-weather-tide.png', 'Weather', 'A weather and tide summary for a checklist'],
   ['06-breeding-codes.png', 'Breeding Codes', 'Breeding evidence by species and code'],
+  ['07-hotspot-reports.png', 'Hotspot Reports', 'Your own record at any one place'],
 ];
 
 const pngsIn = (dir) => readdirSync(dir).filter(f => /\.png$/i.test(f)).sort();

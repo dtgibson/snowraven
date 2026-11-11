@@ -32,7 +32,7 @@ import { readFileSync } from 'node:fs'
 import { DEFAULT_TAB_ORDER, TAB_LABELS } from './tabLayout'
 
 /** Flip to true in the copy commit that applies the held pairs after the yes. */
-const APPLIED = false
+const APPLIED = true
 
 const read = (p: string) => readFileSync(new URL(`../../../${p}`, import.meta.url), 'utf8')
 

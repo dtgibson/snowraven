@@ -50,7 +50,7 @@ follow the website and README register (one or two sentences per tab, in tab
 order, no operating detail, no reassurance, no offline claim), so a copy change
 to those surfaces is a copy change here in the same release.
 
-## Description (3,471 / 4,000)
+## Description (3,733 / 4,000)
 
 ```
 SnowRaven is a birding data explorer for the records you already keep. It reads your eBird and Macaulay Library exports and gives you weather and tides for your checklists, your history with every species, life-list statistics and an interactive map, on your own device.
@@ -64,6 +64,7 @@ WHAT'S INSIDE
 • Calendar: a year of your birding as twelve month grids, each day shaded by how many species you saw. Fold the years together, or narrow it to a single species.
 • Multimedia: your life list as a media checklist: which species you have photographed, recorded and filmed, and which you still need.
 • Breeding Codes: every species you have recorded breeding evidence for, as a matrix against eBird's breeding codes, colored by evidence tier.
+• Hotspot Reports: your own record at any one place you have birded, an eBird hotspot or one of your personal locations: your life list there, a map, your checklists by protocol, and the weather on your visits from the weather blocks in your checklist comments.
 • Checklists: your checklists as whole outings: search every comment you have written, and filter by what an outing has.
 • Life Lists: lists every species you have recorded along with its first checklist and place, everywhere or in one country, state, or county you have birded, and turns into a photo, audio, or video life list, or any combination of them.
 • List Comparer: two life lists side by side, or any two public checklists: what they share and what only one has.
@@ -97,7 +98,7 @@ compatibility terms, which the voice rules allow in keywords.
 ## Screenshots
 
 Three sets, one per App Store Connect slot, each in this order. All three use
-the same six frames and captions:
+the same seven frames and captions:
 
 | # | Raw capture | Display line | Second line |
 |---|---|---|---|
@@ -107,6 +108,7 @@ the same six frames and captions:
 | 4 | `05-species-detail.png` | Species Detail | Your whole history with one bird |
 | 5 | `03-weather-tide.png` | Weather | A weather and tide summary for a checklist |
 | 6 | `06-breeding-codes.png` | Breeding Codes | Breeding evidence by species and code |
+| 7 | `07-hotspot-reports.png` | Hotspot Reports | Your own record at any one place |
 
 Each frame is the committed capture on SnowRaven's dark green band with the
 raven mark, the tab's name and one line saying what it shows; composed by

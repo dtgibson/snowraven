@@ -15,7 +15,8 @@
 // Output: ./shots/*.png  (then run process-img.mjs to make the WebP assets).
 import { chromium } from 'playwright';
 import { mkdirSync } from 'node:fs';
-import { GL, makePage, selectTab, buildProvenanceStub, installProvenanceRoutes, assertBackendServesDemoData, loadSiteMarks, assertMarksInFrame, MarksInFrameError } from './capture-lib.mjs';
+import { GL, makePage, selectTab, buildProvenanceStub, installProvenanceRoutes, assertBackendServesDemoData, loadSiteMarks, assertMarksInFrame, MarksInFrameError, installHotspotRegionRoutes, openHotspotReport, CaptureNetworkError, installKeyPresenceMock } from './capture-lib.mjs';
+import { FRAMED_LOCATION } from './gen-demo-data.mjs';
 import { applyCaptureExitCode, requireWeatherCaptureReady, runRequiredCapture, waitForWeatherCaptureReady } from './weather-capture.mjs';
 
 const BASE = process.env.BASE || 'http://localhost:1620';
@@ -110,18 +111,22 @@ const requiredFailures = [];
 // from committed copies through an init script, which is not a route, so they are
 // never cross-origin loads for the stub to cancel, and the "First species
 // ever" card photographs the two site icons an online user sees. The rule
-// still stands for any other cross-origin <img> a frame may hold. The only
-// other route in this file is the per-shot WEATHER_REPLAY abort on the weather
-// context, whose frame has no mark; that one is intentional and stays.
+// still stands for any other cross-origin <img> a frame may hold. The other
+// routes in this file are the per-shot WEATHER_REPLAY abort on the weather
+// context, whose frame has no mark, and the hotspot lookup answers on the
+// Hotspot Reports context (below); both are intentional and stay.
 const provenanceStub = await buildProvenanceStub(BASE, new URL('./demo-data/ebird-backup.csv', import.meta.url));
 const statsRoutes = (ctx) => installProvenanceRoutes(ctx, provenanceStub);
 
 // --- generic data tab ---
-async function tab(name, file, { theme = 'light', vp = DESKTOP_VP, settle = 4000, clipH = 900, prep = null, routes = null } = {}) {
+// `pre` runs after the page loads and before the tab is chosen (the Life Lists
+// shot visits Statistics first); `prep` runs once the tab has settled.
+async function tab(name, file, { theme = 'light', vp = DESKTOP_VP, settle = 4000, clipH = 900, prep = null, routes = null, pre = null } = {}) {
   const { ctx, p } = await page(theme, vp);
   try {
     if (routes) await routes(ctx);
     await p.goto(BASE, { waitUntil: 'domcontentloaded' });
+    if (pre) await pre(p);
     await selectTab(p, name);
     await p.waitForLoadState('networkidle').catch(() => {});
     await p.waitForTimeout(settle);
@@ -136,12 +141,21 @@ async function tab(name, file, { theme = 'light', vp = DESKTOP_VP, settle = 4000
     // A wrong mark fails the RUN, not only the shot, so the run cannot report
     // success with the previous run's PNG for this frame still in shots/.
     if (e instanceof MarksInFrameError) requiredFailures.push(`${file}: ${reason}`);
+    // So does a frame whose network posture was not the one its job planned (a
+    // hotspot lookup it did not answer, or a blocked eBird-backed request).
+    else if (e instanceof CaptureNetworkError) requiredFailures.push(`${file}: ${reason}`);
   }
   await ctx.close();
 }
 
-await tab('Statistics', 'stats-light.png', { clipH: 900, routes: statsRoutes });
-await tab('Statistics', 'stats-dark.png', { theme: 'dark', clipH: 900, routes: statsRoutes });
+// The Statistics frames wait for the stubbed escapee pass to finish, so they
+// photograph its settled "Exotic status checked" state, never its progress.
+const statsSettled = async (p) => {
+  await p.waitForFunction(() => /Exotic status checked across/i.test(document.querySelector('main')?.innerText || ''), undefined, { timeout: 120000 });
+  await p.waitForTimeout(1500);
+};
+await tab('Statistics', 'stats-light.png', { clipH: 900, routes: statsRoutes, prep: statsSettled });
+await tab('Statistics', 'stats-dark.png', { theme: 'dark', clipH: 900, routes: statsRoutes, prep: statsSettled });
 // RAISED FROM 860 at website-screenshot-sizing: the website renders every
 // feature figure in a 16:9 box, and an asset that is not 16:9 would be cropped
 // by object-fit. 860 of a 1600 viewport is 1.86:1, so a 4% crop would have
@@ -150,6 +164,25 @@ await tab('Statistics', 'stats-dark.png', { theme: 'dark', clipH: 900, routes: s
 await tab('Map Explorer', 'map-light.png', { settle: 6000, clipH: 900 });
 await tab('Map Explorer', 'map-dark.png', { theme: 'dark', settle: 6000, clipH: 900 });
 await tab('Breeding Codes', 'breeding-light.png', { settle: 4200, clipH: 900 });
+// Hotspot Reports (hotspot-reports, FR-62): the report for the framed location
+// (gen-demo-data.mjs FRAMED_LOCATION, Jamaica Bay Wildlife Refuge, whose
+// checklists carry the demo dataset's weather blocks), from the top. The
+// frame shows each location's kind, so THIS context answers the app's hotspot
+// lookup inside the browser with the demo dataset's own location ids and
+// counts the requests (installHotspotRegionRoutes in capture-lib.mjs); a
+// region it never answered, or any other eBird-backed request, fails the run.
+let hotspotLookups = null;
+await tab('Hotspot Reports', 'hotspot-reports-light.png', {
+  settle: 4200,
+  clipH: 900,
+  // Key presence is mocked too, or a keyless rig photographs the tab with no kinds.
+  routes: async (ctx) => { await installKeyPresenceMock(ctx); hotspotLookups = await installHotspotRegionRoutes(ctx); },
+  prep: async (p) => {
+    await hotspotLookups.waitForAnswers(p);
+    await openHotspotReport(p, FRAMED_LOCATION.name);
+    log('hotspot lookups answered in the browser:', hotspotLookups.assertAnswered());
+  },
+});
 await tab('Multimedia', 'media-light.png', { settle: 4200, clipH: 900 });
 // Calendar and Named Birds both shipped after the previous capture (v0.5.23) and
 // had never been photographed. Calendar is deliberately zero-network (it computes
@@ -176,14 +209,23 @@ await tab('Calendar', 'calendar-light.png', { settle: 4200, clipH: 900, prep: as
 // the frame 16:9, and it is page tone, not lost content.
 await tab('Named Birds', 'named-birds-light.png', { settle: 4200, clipH: 900 });
 
-// Species Detail — select a common species
-await tab('Species Detail', 'species-light.png', { settle: 4200, clipH: 980, prep: async (p) => {
+// Life Lists (life-lists-tab, 1.0.63), after the stubbed Statistics escapee
+// pass has finished in the same page, so the tab reads a settled check rather
+// than its not-finished line.
+await tab('Life Lists', 'life-lists-light.png', { settle: 4200, clipH: 900, routes: statsRoutes, pre: async (p) => {
+  await selectTab(p, 'Statistics');
+  await statsSettled(p);
+} });
+
+// Species Detail: Wood Thrush, the bird the published frame shows (DECISIONS.md
+// v1.0.52), clipped at 900 so the asset is 16:9 like every feature figure.
+await tab('Species Detail', 'species-light.png', { settle: 4200, clipH: 900, prep: async (p) => {
   const inp = await p.$('input[role="combobox"]') || await p.$('main input');
   if (!inp) return;
-  await inp.click(); await inp.fill('Northern Cardinal'); await p.waitForTimeout(900);
+  await inp.click(); await inp.fill('Wood Thrush'); await p.waitForTimeout(900);
   for (const o of await p.$$('[role="option"], li, button')) {
     const t = (await o.textContent() || '').trim();
-    if (/^Northern Cardinal/i.test(t) && t.length < 60) { await o.click().catch(() => {}); break; }
+    if (/^Wood Thrush/i.test(t) && t.length < 60) { await o.click().catch(() => {}); break; }
   }
   await p.waitForTimeout(800); await p.keyboard.press('Escape').catch(() => {});
 } });
@@ -198,6 +240,7 @@ await (async () => {
     await p.goto(BASE, { waitUntil: 'domcontentloaded' });
     await selectTab(p, 'Statistics');
     await p.waitForLoadState('networkidle').catch(() => {}); await p.waitForTimeout(4000);
+    await statsSettled(p);
     // FULL viewport height, not the old 860 of 880. The phone navigation is a
     // FIXED bar at the bottom of the screen now, measured at 56.5px on this
     // viewport, so a clip 20px short of the bottom cut it in half: the icons

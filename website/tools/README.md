@@ -32,6 +32,13 @@ npx playwright install chromium webkit    # webkit is for verify/, below
    node gen-demo-data.mjs        # -> ./demo-data/{ebird-backup,ml-export}.csv + metadata + map-defaults
    ```
 
+   Every third checklist at the framed location (Jamaica Bay Wildlife Refuge)
+   carries a weather block in the app's own format, so the Hotspot Reports frame
+   has a Weather summary. The dataset itself is `buildDemoData()`, a pure
+   function the script exports; `frontend/src/lib/hotspotReportsDemoData.test.ts`
+   reads it through the app's parser, so a change here that drops below the
+   app's floors fails the frontend suite rather than a capture.
+
 2. **Run SnowRaven against the demo data — not your real data.** Build the frontend so
    the backend serves it, then start the backend with `SR_DATA_DIR` pointed at the
    demo dataset:
@@ -109,6 +116,13 @@ npx playwright install chromium webkit    # webkit is for verify/, below
    `marks/` (see `marks/PROVENANCE.md`), never request them, and fail any frame
    that would show a fallback glyph where a mark belongs.
 
+   The Hotspot Reports frame shows each location's kind, which the app reads
+   from an eBird hotspot lookup (`/map/hotspot-region`, one per State/Province
+   code). Its context, and only its context, answers that lookup inside the
+   browser with the demo dataset's own location ids, blocks every other
+   eBird-backed request, and fails the run if a region was never asked or
+   anything else was (`installHotspotRegionRoutes` in `capture-lib.mjs`).
+
    If `backend/.env` carries no usable OpenWeather key, add `WEATHER_REPLAY=1`
    to serve the weather shot from the app's stored replay result instead of a
    live call. Note that unlike the App Store capture, the website weather shot's
@@ -137,9 +151,12 @@ identical, then:
 BASE=http://localhost:1620 node capture-appstore.mjs   # -> ../../appstore/screenshots/raw/{iphone-6.9,ipad-13,iphone-duo}/*.png
 ```
 
-- Six shots per device family (Map Explorer with the Jamaica Bay popup open,
-  Statistics, Weather & Tide, Calendar, Species Detail, Breeding Codes), light
-  theme. The upload order is the composer's, below.
+- One shot per entry in the script's `SHOTS` list, per device family (Map
+  Explorer with the Jamaica Bay popup open, Statistics, Weather & Tide,
+  Calendar, Species Detail, Breeding Codes, and Hotspot Reports with Jamaica
+  Bay Wildlife Refuge's report open), light theme. The upload order is the
+  composer's, below, and a raw frame is composed only once its `FRAMES` table
+  gives it a caption.
 - Sizes: iPhone 6.9-inch `1320x2868` (viewport 440x956 at scale 3) and iPad
   13-inch `2064x2752` (viewport 1032x1376 at scale 2) — the one required size
   per family App Store Connect accepts and scales down (re-verify the

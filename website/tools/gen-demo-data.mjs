@@ -1,23 +1,37 @@
 // Generates a synthetic eBird backup + Macaulay Library export for screenshots.
 // Fictional birder at well-known PUBLIC northeast-US hotspots. No real personal data.
 // Deterministic (seeded) so reruns are stable. Output -> ./demo-data/
-import { mkdirSync, writeFileSync } from 'node:fs';
+//
+// The dataset is a PURE FUNCTION, buildDemoData(), returning the two CSV texts,
+// so a test can read it through the app's own parser with no dependence on the
+// gitignored demo-data/ folder (frontend/src/lib/hotspotReportsDemoData.test.ts).
+// The file writes are the thin command-line wrapper at the bottom, which runs
+// only when this file is executed directly (`node gen-demo-data.mjs`); importing
+// it (the test, the capture scripts) writes nothing.
+//
+// The file is plain ASCII on purpose: every non-ASCII character it emits (the
+// curly apostrophes in three species names, the en dash in Age/Sex, the degree
+// sign, the weather emoji) is written as an escape, because an editing tool can
+// silently swap a literal for a look-alike or drop an invisible U+FE0F. The
+// test above holds the source to that.
+import { mkdirSync, realpathSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
-const __dir = dirname(fileURLToPath(import.meta.url));
-const OUT = join(__dir, 'demo-data');
-mkdirSync(OUT, { recursive: true });
-
 // ---- seeded PRNG (mulberry32) ----
-let _s = 0x9e3779b9;
-function rnd() { _s |= 0; _s = (_s + 0x6D2B79F5) | 0; let t = Math.imul(_s ^ (_s >>> 15), 1 | _s); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }
-const pick = (a) => a[Math.floor(rnd() * a.length)];
-const rint = (lo, hi) => lo + Math.floor(rnd() * (hi - lo + 1));
-const chance = (p) => rnd() < p;
+// A factory rather than module state, so every buildDemoData() call starts
+// from the same seed and the function stays pure. The main generator's
+// sequence is exactly the one this file has always drawn.
+function mulberry32(seed) {
+  let s = seed;
+  return function rnd() { s |= 0; s = (s + 0x6D2B79F5) | 0; let t = Math.imul(s ^ (s >>> 15), 1 | s); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+}
+const MAIN_SEED = 0x9e3779b9;
 
 // ---- public hotspots (real places; coords approximate) ----
-const LOCS = [
+// Frozen and exported: the capture scripts answer the app's hotspot lookup
+// with exactly these ids (demoHotspotIdsByRegion below).
+export const LOCS = Object.freeze([
   { name: 'Central Park', locId: 'L191106', lat: 40.7813, lng: -73.9665, county: 'New York', state: 'US-NY', coastal: false },
   { name: 'Prospect Park', locId: 'L109516', lat: 40.6602, lng: -73.9690, county: 'Kings', state: 'US-NY', coastal: false },
   { name: 'Jamaica Bay Wildlife Refuge', locId: 'L152773', lat: 40.6188, lng: -73.8233, county: 'Queens', state: 'US-NY', coastal: true },
@@ -28,7 +42,25 @@ const LOCS = [
   { name: 'Cape May Point SP', locId: 'L137800', lat: 38.9319, lng: -74.9610, county: 'Cape May', state: 'US-NJ', coastal: true },
   { name: 'Sandy Hook', locId: 'L295658', lat: 40.4376, lng: -73.9916, county: 'Monmouth', state: 'US-NJ', coastal: true },
   { name: 'Garret Mountain Reservation', locId: 'L207514', lat: 40.9168, lng: -74.1490, county: 'Passaic', state: 'US-NJ', coastal: false },
-];
+].map(l => Object.freeze(l)));
+
+// Every demo location is in New York or New Jersey, so one zone serves the
+// weather blocks' sunrise and sunset.
+const DEMO_TIME_ZONE = 'America/New_York';
+
+/** The location the Hotspot Reports frame opens, and the one whose checklists
+ *  carry weather blocks (schema 14). The Designer may name another. */
+export const FRAMED_LOCATION_ID = 'L152773';
+export const FRAMED_LOCATION = LOCS.find(l => l.locId === FRAMED_LOCATION_ID);
+
+/** Region code -> the demo location ids in it, sorted: the answer a capture
+ *  gives the app's hotspot lookup, since every demo place is a public hotspot. */
+export function demoHotspotIdsByRegion() {
+  const out = {};
+  for (const l of LOCS) (out[l.state] ??= []).push(l.locId);
+  for (const ids of Object.values(out)) ids.sort();
+  return out;
+}
 
 // ---- species pool: real eBird names so taxonomy/codes resolve. {c: common, s: scientific, t: taxonomic order, ab: abundance 1..5, seas: months active, br: breeding-prone} ----
 const ALLM = [1,2,3,4,5,6,7,8,9,10,11,12];
@@ -76,7 +108,7 @@ const SP = [
   ['Great Black-backed Gull','Larus marinus',2490,3,ALLM,1],
   ['Least Tern','Sternula antillarum',2550,2,[5,6,7,8],1],
   ['Common Tern','Sterna hirundo',2570,3,[5,6,7,8,9],1],
-  ['Forster’s Tern','Sterna forsteri',2580,2,[5,8,9],0],
+  ['Forster\u2019s Tern','Sterna forsteri',2580,2,[5,8,9],0],
   ['Common Loon','Gavia immer',2600,2,[1,2,3,4,11,12],0],
   ['Northern Gannet','Morus bassanus',2650,2,[1,2,3,4,11,12],0],
   ['Double-crested Cormorant','Nannopterum auritum',2700,4,[3,4,5,6,7,8,9,10,11],1],
@@ -90,7 +122,7 @@ const SP = [
   ['Turkey Vulture','Cathartes aura',2960,4,[3,4,5,6,7,8,9,10,11],1],
   ['Osprey','Pandion haliaetus',3000,3,[4,5,6,7,8,9],1],
   ['Northern Harrier','Circus hudsonius',3050,2,[1,3,4,9,10,11,12],0],
-  ['Cooper’s Hawk','Astur cooperii',3100,3,ALLM,1],
+  ['Cooper\u2019s Hawk','Astur cooperii',3100,3,ALLM,1],
   ['Bald Eagle','Haliaeetus leucocephalus',3150,2,ALLM,1],
   ['Red-shouldered Hawk','Buteo lineatus',3200,2,[1,2,3,4,9,10,11,12],1],
   ['Red-tailed Hawk','Buteo jamaicensis',3250,4,ALLM,1],
@@ -133,7 +165,7 @@ const SP = [
   ['Golden-crowned Kinglet','Regulus satrapa',4540,2,[1,3,4,10,11,12],0],
   ['Eastern Bluebird','Sialia sialis',4600,3,ALLM,1],
   ['Veery','Catharus fuscescens',4620,2,[5,6,7,8,9],1],
-  ['Swainson’s Thrush','Catharus ustulatus',4640,2,[5,9],0],
+  ['Swainson\u2019s Thrush','Catharus ustulatus',4640,2,[5,9],0],
   ['Hermit Thrush','Catharus guttatus',4660,3,[1,3,4,10,11,12],0],
   ['Wood Thrush','Hylocichla mustelina',4680,2,[5,6,7,8],1],
   ['American Robin','Turdus migratorius',4700,5,ALLM,1],
@@ -187,32 +219,6 @@ const SP = [
 // ---- ML media: subset of species get photo/audio/video coverage ----
 const FORMATS = ['Photo','Photo','Photo','Photo','Audio','Video'];
 
-// ---- generate checklists ----
-const startY = 2024, startM = 0; // Jan 2024
-const endDate = new Date(2026, 5, 1); // ~Jun 2026
-// S<seq>, deliberately ABOVE eBird's live allocation (v1.0.4). These were
-// S1845xxxxx, a plausibly-real range: a reviewer or user who imports the demo
-// data with their own eBird key runs the live exotic-status pass against those
-// ids, which may collide with strangers' real public checklists. Screenshot
-// capture never sent those requests (the Playwright stub answers every lookup
-// before it leaves the machine), so this is about the dataset being IMPORTED,
-// not photographed. At S9xxxxxxxxx they 404 cleanly instead.
-//
-// The value stays within the app's own `^S[0-9]{1,15}$` id guard, so the demo
-// data still exercises every shipped code path. It also gives capture-appstore's
-// demo-dataset guard a STRUCTURAL marker: no real export carries ids this high,
-// so "every submission id is >= 9e9" distinguishes this dataset from a real one
-// without pinning a species or checklist count that legitimately moves.
-//
-// Changing this base does NOT disturb the rest of the dataset: ids are handed
-// out by this counter and never drawn from the seeded PRNG, so every other
-// field is byte-identical across the change.
-let subSeq = 9000000000;
-const seenFirst = new Set();
-const ebirdRows = [];
-const mlRows = [];
-let mlSeq = 612000000;
-
 function fmtTime(h, m) { const ap = h < 12 ? 'AM' : 'PM'; let hh = h % 12; if (hh === 0) hh = 12; return `${String(hh).padStart(2,'0')}:${String(m).padStart(2,'0')} ${ap}`; }
 function csvEsc(v) { v = String(v ?? ''); return /[",\n]/.test(v) ? '"' + v.replace(/"/g,'""') + '"' : v; }
 
@@ -228,152 +234,435 @@ const CHK_COMMENTS = [
   'Incoming tide concentrated the shorebirds.','Family outing, easy pace.',
 ];
 
-// month -> rough abundance bias by season handled via species.seas membership.
-let d = new Date(startY, startM, 3, 7, 0);
-while (d < endDate) {
-  // 1-3 checklists this iteration step (~ every 4 days)
-  const nChk = chance(0.5) ? 1 : (chance(0.6) ? 2 : 3);
-  for (let c = 0; c < nChk; c++) {
-    const loc = pick(LOCS);
-    const month = d.getMonth() + 1;
-    const traveling = chance(0.7);
-    const protocol = traveling ? 'Traveling' : (chance(0.85) ? 'Stationary' : 'Incidental');
-    const dur = traveling ? rint(45, 150) : rint(20, 75);
-    const dist = traveling ? (Math.round((dur / 60) * (rnd() * 2 + 1) * 100) / 100) : '';
-    const nobs = chance(0.6) ? 1 : rint(2, 4);
-    const allObs = chance(0.9) ? 1 : 0;
-    const subId = 'S' + (subSeq++);
-    const dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-    const sh = rint(6, 16), sm = pick([0,5,10,15,20,30,40,45,50]);
-    const timeStr = fmtTime(sh, sm);
-    const chkComment = chance(0.35) ? pick(CHK_COMMENTS) : '';
-
-    // candidate species in season for this location type
-    let pool = SP.filter(sp => sp[4].includes(month) && (loc.coastal || (sp[1] !== 'shorebird')));
-    // coastal species more likely at coastal locs; reduce waterbirds inland
-    pool = pool.filter(sp => loc.coastal ? true : ![2400,2550,2570,2580,2600,2650,1800,1850,1870,1950,2000,2050,2070,2250,2270,5620].includes(sp[2]));
-    // species count on this checklist, weighted by abundance
-    const target = rint(8, Math.min(34, pool.length));
-    const chosen = new Set();
-    let guard = 0;
-    while (chosen.size < target && guard < target * 6) {
-      guard++;
-      const sp = pick(pool);
-      // weight by abundance
-      if (rnd() < sp[3] / 5) chosen.add(sp);
-    }
-    for (const sp of chosen) {
-      const [common, sci, tax, ab, seas, brPron] = sp;
-      const presenceOnly = chance(0.06);
-      const count = presenceOnly ? 'X' : String(Math.max(1, Math.round((rnd() ** 2) * (ab * 6))));
-      let breeding = '';
-      const breedingSeason = month >= 4 && month <= 7;
-      if (brPron && breedingSeason && chance(0.16)) {
-        breeding = pick(['S','S7','P','T','C','N','CF','FL','ON','NB','NY','FY','CN']);
-      }
-      const spComment = chance(0.07) ? pick(COMMENTS) : '';
-      // media: ~ for some species/observations
-      let mlIds = '';
-      if (chance(0.05)) {
-        const nMedia = chance(0.8) ? 1 : 2;
-        const ids = [];
-        for (let k = 0; k < nMedia; k++) {
-          const id = (mlSeq++);
-          ids.push(id);
-          const fmt = pick(FORMATS);
-          mlRows.push({ id, fmt, common, sci, date: dateStr, loc, tax, sub: subId });
-        }
-        mlIds = ids.join(' ');
-      }
-      ebirdRows.push([
-        subId, common, sci, tax, count, loc.state, loc.county, loc.locId, loc.name,
-        loc.lat.toFixed(4), loc.lng.toFixed(4), dateStr, timeStr, protocol, dur, allObs,
-        dist, '', nobs, breeding, spComment, chkComment, mlIds,
-      ]);
-      seenFirst.add(common);
-    }
-  }
-  d = new Date(d.getTime() + rint(2, 6) * 86400000);
-}
-
-// ---- inject a few individually-named birds (for the Named Birds tab demo) ----
-// Tag several checklists of the most-observed species with [name:...] so the
-// showcase shows individuals tracked over time. Synthetic only; spreads each
-// bird's sightings across its date range. Observation Details is column index 20.
-{
-  const SP_IDX = 20;
-  const byCommon = new Map();
-  for (const r of ebirdRows) {
-    if (!byCommon.has(r[1])) byCommon.set(r[1], []);
-    byCommon.get(r[1]).push(r);
-  }
-  const ranked = [...byCommon.values()].sort((a, b) => b.length - a.length);
-  const namedPlan = [
-    { name: 'Stumpy', note: 'one-legged regular' },
-    { name: 'Old-Blue', note: 'blue/silver colour band' },
-    { name: 'Notch', note: 'notched tail feather' },
-  ];
-  for (let i = 0; i < namedPlan.length && i < ranked.length; i++) {
-    const rows = ranked[i].slice().sort((a, b) => a[11].localeCompare(b[11]));
-    const step = Math.max(1, Math.floor(rows.length / 5));
-    const tag = `[name:${namedPlan[i].name}] ${namedPlan[i].note}`;
-    for (let j = 0, n = 0; j < rows.length && n < 5; j += step, n++) {
-      rows[j][SP_IDX] = rows[j][SP_IDX] ? `${rows[j][SP_IDX]}; ${tag}` : tag;
-    }
-  }
-}
-
-// ---- write eBird backup ----
 const EB_HEADER = ['Submission ID','Common Name','Scientific Name','Taxonomic Order','Count','State/Province','County','Location ID','Location','Latitude','Longitude','Date','Time','Protocol','Duration (Min)','All Obs Reported','Distance Traveled (km)','Area Covered (ha)','Number of Observers','Breeding Code','Observation Details','Checklist Comments','ML Catalog Numbers'];
-const ebCsv = [EB_HEADER.join(',')].concat(ebirdRows.map(r => r.map(csvEsc).join(','))).join('\n') + '\n';
-writeFileSync(join(OUT, 'ebird-backup.csv'), ebCsv);
+const ML_HEADER = ['ML Catalog Number','Format','Common Name','Scientific Name','Background Species','Caption','Recordist','Date','Year','Month','Day','Time','Country','Country-State-County','State','County','Locality','Latitude','Longitude','Age/Sex','Behaviors','Playback','Captive','Collected','Specimen ID','Home Archive Catalog Number','Recorder','Microphone','Accessory','Partner Institution','eBird Checklist ID','Unconfirmed','Air Temp(\u00B0C)','Water Temp(\u00B0C)','Media notes','Observation Details','Parent Species','eBird Species Code','Taxon Category','Taxonomic Sort','Recordist 2','Average Community Rating','Number of Ratings','Asset Tags','Original Image Height','Original Image Width'];
 
-// ---- write ML export ----
-const ML_HEADER = ['ML Catalog Number','Format','Common Name','Scientific Name','Background Species','Caption','Recordist','Date','Year','Month','Day','Time','Country','Country-State-County','State','County','Locality','Latitude','Longitude','Age/Sex','Behaviors','Playback','Captive','Collected','Specimen ID','Home Archive Catalog Number','Recorder','Microphone','Accessory','Partner Institution','eBird Checklist ID','Unconfirmed','Air Temp(°C)','Water Temp(°C)','Media notes','Observation Details','Parent Species','eBird Species Code','Taxon Category','Taxonomic Sort','Recordist 2','Average Community Rating','Number of Ratings','Asset Tags','Original Image Height','Original Image Width'];
-const mlOut = mlRows.map(m => {
-  const [y, mo, da] = m.date.split('-');
-  const row = new Array(ML_HEADER.length).fill('');
-  row[0] = m.id; row[1] = m.fmt; row[2] = m.common; row[3] = m.sci;
-  row[6] = 'Robin Hartley'; row[7] = m.date; row[8] = y; row[9] = String(+mo); row[10] = String(+da);
-  row[12] = 'United States'; row[13] = `United States/${m.loc.state.replace('US-','')}/${m.loc.county}`;
-  row[14] = m.loc.state.replace('US-',''); row[15] = m.loc.county; row[16] = m.loc.name;
-  row[17] = m.loc.lat.toFixed(4); row[18] = m.loc.lng.toFixed(4);
-  row[30] = m.sub; // eBird Checklist ID — the checklist this media came from
-  row[39] = String(m.tax);
-  // Time (HMM/HHMM); audio biased to the dawn chorus
-  const hr = m.fmt === 'Audio' ? rint(5, 8) : rint(6, 18);
-  const mn = pick([0, 5, 10, 15, 20, 30, 40, 45, 50]);
-  row[11] = `${hr}${String(mn).padStart(2, '0')}`;
-  // Age/Sex — stills usually annotated, audio rarely (en-dash + per-individual count)
-  if (m.fmt !== 'Audio' ? chance(0.9) : chance(0.35)) {
-    const cls = pick(['Adult','Adult','Adult','Adult','Adult Male','Adult Female','Adult Female','Immature','Juvenile','Unknown']);
-    let ageSex = `${cls} – 1`;
-    if (chance(0.12)) ageSex += `; ${pick(['Juvenile','Immature','Adult Female','Adult Male'])} – 1`;
-    row[19] = ageSex;
+/**
+ * Build the demo dataset. Pure: the same options always return the same text.
+ *
+ *   weather            append weather blocks at the framed location (default
+ *                      true). `false` reproduces the dataset as it was before
+ *                      the blocks existed, byte for byte, which is what the
+ *                      test compares against.
+ *   framedLocationId   the location whose checklists carry the blocks.
+ *
+ * Returns { ebirdCsv, mlCsv, summary }.
+ */
+export function buildDemoData({ weather = true, framedLocationId = FRAMED_LOCATION_ID } = {}) {
+  const framed = LOCS.find(l => l.locId === framedLocationId);
+  if (!framed) throw new Error(`framedLocationId ${framedLocationId} is not a demo location`);
+
+  const rnd = mulberry32(MAIN_SEED);
+  const pick = (a) => a[Math.floor(rnd() * a.length)];
+  const rint = (lo, hi) => lo + Math.floor(rnd() * (hi - lo + 1));
+  const chance = (p) => rnd() < p;
+
+  // ---- generate checklists ----
+  const startY = 2024, startM = 0; // Jan 2024
+  const endDate = new Date(2026, 5, 1); // ~Jun 2026
+  // S<seq>, deliberately ABOVE eBird's live allocation (v1.0.4). These were
+  // S1845xxxxx, a plausibly-real range: a reviewer or user who imports the demo
+  // data with their own eBird key runs the live exotic-status pass against those
+  // ids, which may collide with strangers' real public checklists. Screenshot
+  // capture never sent those requests (the Playwright stub answers every lookup
+  // before it leaves the machine), so this is about the dataset being IMPORTED,
+  // not photographed. At S9xxxxxxxxx they 404 cleanly instead.
+  //
+  // The value stays within the app's own `^S[0-9]{1,15}$` id guard, so the demo
+  // data still exercises every shipped code path. It also gives capture-appstore's
+  // demo-dataset guard a STRUCTURAL marker: no real export carries ids this high,
+  // so "every submission id is >= 9e9" distinguishes this dataset from a real one
+  // without pinning a species or checklist count that legitimately moves.
+  //
+  // Changing this base does NOT disturb the rest of the dataset: ids are handed
+  // out by this counter and never drawn from the seeded PRNG, so every other
+  // field is byte-identical across the change.
+  let subSeq = 9000000000;
+  const seenFirst = new Set();
+  const ebirdRows = [];
+  const mlRows = [];
+  let mlSeq = 612000000;
+
+  // month -> rough abundance bias by season handled via species.seas membership.
+  let d = new Date(startY, startM, 3, 7, 0);
+  while (d < endDate) {
+    // 1-3 checklists this iteration step (~ every 4 days)
+    const nChk = chance(0.5) ? 1 : (chance(0.6) ? 2 : 3);
+    for (let c = 0; c < nChk; c++) {
+      const loc = pick(LOCS);
+      const month = d.getMonth() + 1;
+      const traveling = chance(0.7);
+      const protocol = traveling ? 'Traveling' : (chance(0.85) ? 'Stationary' : 'Incidental');
+      const dur = traveling ? rint(45, 150) : rint(20, 75);
+      const dist = traveling ? (Math.round((dur / 60) * (rnd() * 2 + 1) * 100) / 100) : '';
+      const nobs = chance(0.6) ? 1 : rint(2, 4);
+      const allObs = chance(0.9) ? 1 : 0;
+      const subId = 'S' + (subSeq++);
+      const dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+      const sh = rint(6, 16), sm = pick([0,5,10,15,20,30,40,45,50]);
+      const timeStr = fmtTime(sh, sm);
+      const chkComment = chance(0.35) ? pick(CHK_COMMENTS) : '';
+
+      // candidate species in season for this location type
+      let pool = SP.filter(sp => sp[4].includes(month) && (loc.coastal || (sp[1] !== 'shorebird')));
+      // coastal species more likely at coastal locs; reduce waterbirds inland
+      pool = pool.filter(sp => loc.coastal ? true : ![2400,2550,2570,2580,2600,2650,1800,1850,1870,1950,2000,2050,2070,2250,2270,5620].includes(sp[2]));
+      // species count on this checklist, weighted by abundance
+      const target = rint(8, Math.min(34, pool.length));
+      const chosen = new Set();
+      let guard = 0;
+      while (chosen.size < target && guard < target * 6) {
+        guard++;
+        const sp = pick(pool);
+        // weight by abundance
+        if (rnd() < sp[3] / 5) chosen.add(sp);
+      }
+      for (const sp of chosen) {
+        const [common, sci, tax, ab, seas, brPron] = sp;
+        const presenceOnly = chance(0.06);
+        const count = presenceOnly ? 'X' : String(Math.max(1, Math.round((rnd() ** 2) * (ab * 6))));
+        let breeding = '';
+        const breedingSeason = month >= 4 && month <= 7;
+        if (brPron && breedingSeason && chance(0.16)) {
+          breeding = pick(['S','S7','P','T','C','N','CF','FL','ON','NB','NY','FY','CN']);
+        }
+        const spComment = chance(0.07) ? pick(COMMENTS) : '';
+        // media: ~ for some species/observations
+        let mlIds = '';
+        if (chance(0.05)) {
+          const nMedia = chance(0.8) ? 1 : 2;
+          const ids = [];
+          for (let k = 0; k < nMedia; k++) {
+            const id = (mlSeq++);
+            ids.push(id);
+            const fmt = pick(FORMATS);
+            mlRows.push({ id, fmt, common, sci, date: dateStr, loc, tax, sub: subId });
+          }
+          mlIds = ids.join(' ');
+        }
+        ebirdRows.push([
+          subId, common, sci, tax, count, loc.state, loc.county, loc.locId, loc.name,
+          loc.lat.toFixed(4), loc.lng.toFixed(4), dateStr, timeStr, protocol, dur, allObs,
+          dist, '', nobs, breeding, spComment, chkComment, mlIds,
+        ]);
+        seenFirst.add(common);
+      }
+    }
+    d = new Date(d.getTime() + rint(2, 6) * 86400000);
   }
-  // Behaviors — multi-valued ("; "-joined), audio biased to vocalizations
-  if (chance(0.4)) {
-    const vocab = m.fmt === 'Audio'
-      ? ['Song','Call','Vocalizing']
-      : ['Flying','Foraging or Eating','Preening, Scratching, or Bathing','Carrying Food','Nest Building','Feeding Young','Courtship, Display, or Copulation'];
-    const b = new Set([pick(vocab)]);
-    if (chance(0.25)) b.add(pick(vocab));
-    row[20] = [...b].join('; ');
+
+  // ---- inject a few individually-named birds (for the Named Birds tab demo) ----
+  // Tag several checklists of the most-observed species with [name:...] so the
+  // showcase shows individuals tracked over time. Synthetic only; spreads each
+  // bird's sightings across its date range. Observation Details is column index 20.
+  {
+    const SP_IDX = 20;
+    const byCommon = new Map();
+    for (const r of ebirdRows) {
+      if (!byCommon.has(r[1])) byCommon.set(r[1], []);
+      byCommon.get(r[1]).push(r);
+    }
+    const ranked = [...byCommon.values()].sort((a, b) => b.length - a.length);
+    const namedPlan = [
+      { name: 'Stumpy', note: 'one-legged regular' },
+      { name: 'Old-Blue', note: 'blue/silver colour band' },
+      { name: 'Notch', note: 'notched tail feather' },
+    ];
+    for (let i = 0; i < namedPlan.length && i < ranked.length; i++) {
+      const rows = ranked[i].slice().sort((a, b) => a[11].localeCompare(b[11]));
+      const step = Math.max(1, Math.floor(rows.length / 5));
+      const tag = `[name:${namedPlan[i].name}] ${namedPlan[i].note}`;
+      for (let j = 0, n = 0; j < rows.length && n < 5; j += step, n++) {
+        rows[j][SP_IDX] = rows[j][SP_IDX] ? `${rows[j][SP_IDX]}; ${tag}` : tag;
+      }
+    }
   }
-  // Community rating (biased high) + number of ratings
-  row[41] = (3 + rnd() * 2).toFixed(2);
-  row[42] = String(rint(2, 40));
-  return row.map(csvEsc).join(',');
-});
-const mlCsv = [ML_HEADER.join(',')].concat(mlOut).join('\n') + '\n';
-writeFileSync(join(OUT, 'ml-export.csv'), mlCsv);
 
-// ---- metadata + map defaults ----
-writeFileSync(join(OUT, 'metadata.json'), JSON.stringify({
-  ebird: { filename: 'MyEBirdData.csv', uploadedAt: '2026-06-01T12:00:00Z' },
-  ml: { filename: 'ML__2026-06-01T00-00_USER4741544.csv', uploadedAt: '2026-06-01T12:00:00Z' },
-}, null, 0));
-writeFileSync(join(OUT, 'map-defaults.json'), JSON.stringify({ lat: 40.73, lng: -73.95, dist: 5 }));
+  // ---- weather blocks at the framed location (hotspot-reports, schema 14) ----
+  // A post-pass over finished rows, drawing nothing from `rnd`: every other
+  // cell, every Submission ID and every ML row is what it was without it.
+  const weatherBlocks = weather ? appendWeatherBlocks(ebirdRows, framed) : 0;
 
-const species = new Set(ebirdRows.map(r => r[1]));
-console.log(`eBird rows: ${ebirdRows.length}, species: ${species.size}, checklists: ${new Set(ebirdRows.map(r=>r[0])).size}, ML rows: ${mlRows.length}`);
+  // ---- write eBird backup ----
+  const ebirdCsv = [EB_HEADER.join(',')].concat(ebirdRows.map(r => r.map(csvEsc).join(','))).join('\n') + '\n';
+
+  // ---- write ML export ----
+  const mlOut = mlRows.map(m => {
+    const [y, mo, da] = m.date.split('-');
+    const row = new Array(ML_HEADER.length).fill('');
+    row[0] = m.id; row[1] = m.fmt; row[2] = m.common; row[3] = m.sci;
+    row[6] = 'Robin Hartley'; row[7] = m.date; row[8] = y; row[9] = String(+mo); row[10] = String(+da);
+    row[12] = 'United States'; row[13] = `United States/${m.loc.state.replace('US-','')}/${m.loc.county}`;
+    row[14] = m.loc.state.replace('US-',''); row[15] = m.loc.county; row[16] = m.loc.name;
+    row[17] = m.loc.lat.toFixed(4); row[18] = m.loc.lng.toFixed(4);
+    row[30] = m.sub; // eBird Checklist ID: the checklist this media came from
+    row[39] = String(m.tax);
+    // Time (HMM/HHMM); audio biased to the dawn chorus
+    const hr = m.fmt === 'Audio' ? rint(5, 8) : rint(6, 18);
+    const mn = pick([0, 5, 10, 15, 20, 30, 40, 45, 50]);
+    row[11] = `${hr}${String(mn).padStart(2, '0')}`;
+    // Age/Sex: stills usually annotated, audio rarely (en dash + per-individual count)
+    if (m.fmt !== 'Audio' ? chance(0.9) : chance(0.35)) {
+      const cls = pick(['Adult','Adult','Adult','Adult','Adult Male','Adult Female','Adult Female','Immature','Juvenile','Unknown']);
+      let ageSex = `${cls} \u2013 1`;
+      if (chance(0.12)) ageSex += `; ${pick(['Juvenile','Immature','Adult Female','Adult Male'])} \u2013 1`;
+      row[19] = ageSex;
+    }
+    // Behaviors: multi-valued ("; "-joined), audio biased to vocalizations
+    if (chance(0.4)) {
+      const vocab = m.fmt === 'Audio'
+        ? ['Song','Call','Vocalizing']
+        : ['Flying','Foraging or Eating','Preening, Scratching, or Bathing','Carrying Food','Nest Building','Feeding Young','Courtship, Display, or Copulation'];
+      const b = new Set([pick(vocab)]);
+      if (chance(0.25)) b.add(pick(vocab));
+      row[20] = [...b].join('; ');
+    }
+    // Community rating (biased high) + number of ratings
+    row[41] = (3 + rnd() * 2).toFixed(2);
+    row[42] = String(rint(2, 40));
+    return row.map(csvEsc).join(',');
+  });
+  const mlCsv = [ML_HEADER.join(',')].concat(mlOut).join('\n') + '\n';
+
+  return {
+    ebirdCsv,
+    mlCsv,
+    summary: {
+      ebirdRows: ebirdRows.length,
+      species: new Set(ebirdRows.map(r => r[1])).size,
+      checklists: new Set(ebirdRows.map(r => r[0])).size,
+      mlRows: mlRows.length,
+      weatherBlocks,
+      framedLocation: framed.name,
+    },
+  };
+}
+
+// ---- the weather post-pass ----
+//
+// WHAT IT WRITES. The app's own weather block (frontend/src/lib/weatherFormatter.ts,
+// formatWeather) as an eBird export delivers it: the formatter's lines in its
+// order, the SnowRaven attribution last, with every line break collapsed the
+// way eBird's CSV export collapses a pasted one, into two spaces (every real
+// export shape in frontend/src/lib/commentBlocksStripGolden.json reads that
+// way). Appended after any prose the checklist comment already has, separated
+// by one such collapsed break. A .mjs cannot import the formatter, so the
+// vocabulary below is copied from it; the test reads every block back through
+// the app's parser and fails on any drift that costs a field.
+//
+// WHICH CHECKLISTS. Every WEATHER_BLOCK_EVERY-th checklist at the framed
+// location in date order (date, then start time, then id), starting with the
+// first: 14 of the 42 at Jamaica Bay Wildlife Refuge. That clears the app's
+// floor of 10 (WEATHER_SPECIES_MIN_CHECKLISTS) on all three figures the
+// Hotspot Reports tab draws, sky, temperature and wind, since every block
+// carries all of them.
+//
+// WHAT IT DRAWS FROM. Its own generator (WEATHER_SEED), never the main one, so
+// adding or removing it moves nothing else. Every block is a DAYTIME block (no
+// moon glyph), a simplification: a checklist that ran past sunset would carry a
+// moon in a real block.
+export const WEATHER_BLOCK_EVERY = 3;
+const WEATHER_SEED = 0x5eed3a7e;
+const EXPORT_LINE_BREAK = '  ';
+const ATTRIBUTION = 'Weather generated by <a href="https://github.com/dtgibson/snowraven">SnowRaven</a>';
+const COL = { sub: 0, loc: 7, date: 11, time: 12, duration: 14, checklistComments: 21 };
+
+// conditionEmoji()'s glyphs, by OpenWeather condition id, with the formatter's
+// exact presentation: U+FE0F on every glyph except U+26C5.
+const CONDITIONS = {
+  thunder: { id: 200, description: 'thunderstorm with light rain', emoji: '\u26C8\uFE0F' },
+  drizzle: { id: 300, description: 'light intensity drizzle', emoji: '\u{1F326}\uFE0F' },
+  rain: { id: 500, description: 'light rain', emoji: '\u{1F327}\uFE0F' },
+  snow: { id: 600, description: 'light snow', emoji: '\u2744\uFE0F' },
+  mist: { id: 701, description: 'mist', emoji: '\u{1F32B}\uFE0F' },
+  clear: { id: 800, description: 'clear sky', emoji: '\u2600\uFE0F' },
+  few: { id: 801, description: 'few clouds', emoji: '\u{1F324}\uFE0F' },
+  scattered: { id: 802, description: 'scattered clouds', emoji: '\u26C5' },
+  broken: { id: 803, description: 'broken clouds', emoji: '\u{1F325}\uFE0F' },
+  overcast: { id: 804, description: 'overcast clouds', emoji: '\u2601\uFE0F' },
+};
+// Cloud cover consistent with each condition: OpenWeather's own 800-804 tiers,
+// and a mostly covered sky for anything wet or misty.
+const CLOUD_RANGE = { 800: [0, 10], 801: [11, 25], 802: [26, 50], 803: [51, 84], 804: [85, 100] };
+const WET_CLOUD_RANGE = [75, 100];
+
+// The formatter's BEAUFORT table (mph, inclusive upper bound) and CARDINALS.
+const BEAUFORT = [[1, 'Calm'], [3, 'Mostly calm'], [7, 'Light breeze'], [12, 'Gentle breeze'], [18, 'Moderate breeze'], [24, 'Fresh breeze'], [31, 'Strong breeze'], [38, 'Near gale'], [Infinity, 'Gale']];
+const CARDINALS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+
+// Typical New York City daily low and high by month, in degrees F.
+const MONTH_NORMALS_F = [
+  null, [27, 39], [29, 42], [35, 50], [45, 62], [54, 72], [64, 80],
+  [70, 85], [69, 84], [61, 76], [50, 65], [41, 54], [32, 44],
+];
+
+function weightedPick(entries, r) {
+  let total = 0;
+  for (const [, w] of entries) total += w;
+  let x = r() * total;
+  for (const [v, w] of entries) { if ((x -= w) < 0) return v; }
+  return entries[entries.length - 1][0];
+}
+
+function conditionFor(month, r) {
+  const entries = [
+    [CONDITIONS.clear, 4], [CONDITIONS.few, 4], [CONDITIONS.scattered, 3], [CONDITIONS.broken, 2],
+    [CONDITIONS.overcast, 2], [CONDITIONS.mist, 1], [CONDITIONS.rain, 1], [CONDITIONS.drizzle, 1],
+  ];
+  if (month === 12 || month <= 3) entries.push([CONDITIONS.snow, 1]);
+  if (month >= 6 && month <= 8) entries.push([CONDITIONS.thunder, 1]);
+  return weightedPick(entries, r);
+}
+
+function windDescription(mph) {
+  for (const [threshold, label] of BEAUFORT) if (mph <= threshold) return label;
+  return 'Gale';
+}
+
+// formatRange(): one value when every hour agreed, else "low - high".
+function formatRange(values, unit) {
+  const lo = Math.min(...values);
+  const hi = Math.max(...values);
+  return lo === hi ? `${lo}${unit}` : `${lo} - ${hi}${unit}`;
+}
+
+// formatLocalTime(): "6:16am", in the zone the checklist was in.
+const LOCAL_TIME = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: DEMO_TIME_ZONE });
+function formatLocalTime(ms) {
+  const parts = LOCAL_TIME.formatToParts(new Date(ms));
+  const part = (type) => parts.find(p => p.type === type).value;
+  return `${part('hour')}:${part('minute')}${part('dayPeriod').toLowerCase()}`;
+}
+
+// Sunrise and sunset as UTC instants, from NOAA's general solar position
+// approximation (good to a minute or two at these latitudes).
+function sunTimes(dateStr, lat, lng) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const dayStart = Date.UTC(y, m - 1, d);
+  const doy = Math.round((dayStart - Date.UTC(y, 0, 1)) / 86400000) + 1;
+  const g = (2 * Math.PI / 365) * (doy - 1);
+  const eqtime = 229.18 * (0.000075 + 0.001868 * Math.cos(g) - 0.032077 * Math.sin(g) - 0.014615 * Math.cos(2 * g) - 0.040849 * Math.sin(2 * g));
+  const decl = 0.006918 - 0.399912 * Math.cos(g) + 0.070257 * Math.sin(g) - 0.006758 * Math.cos(2 * g) + 0.000907 * Math.sin(2 * g) - 0.002697 * Math.cos(3 * g) + 0.00148 * Math.sin(3 * g);
+  const phi = lat * Math.PI / 180;
+  const zenith = 90.833 * Math.PI / 180;
+  const ha = Math.acos(Math.cos(zenith) / (Math.cos(phi) * Math.cos(decl)) - Math.tan(phi) * Math.tan(decl)) * 180 / Math.PI;
+  const minutes = (sign) => 720 - 4 * (lng + sign * ha) - eqtime;
+  return { sunrise: dayStart + minutes(1) * 60000, sunset: dayStart + minutes(-1) * 60000 };
+}
+
+/** "07:45 AM" -> minutes after midnight. */
+function minutesOf(time) {
+  const m = /^(\d{2}):(\d{2}) (AM|PM)$/.exec(time);
+  if (!m) throw new Error(`unexpected checklist time ${time}`);
+  return (Number(m[1]) % 12 + (m[3] === 'PM' ? 12 : 0)) * 60 + Number(m[2]);
+}
+
+function clamp(v, lo, hi) { return Math.min(hi, Math.max(lo, v)); }
+
+/** One block, for one checklist, from the weather generator `r`. */
+function weatherBlockFor({ date, time, duration }, loc, r) {
+  const month = Number(date.slice(5, 7));
+  const start = minutesOf(time);
+  // One sampled hour per clock hour the checklist touches, as the app samples.
+  const hours = [];
+  for (let h = Math.floor(start / 60); h * 60 < start + Math.max(1, duration); h++) hours.push(h);
+
+  const cond = conditionFor(month, r);
+  const wet = !(cond.id in CLOUD_RANGE);
+  const [cloudLo, cloudHi] = wet ? WET_CLOUD_RANGE : CLOUD_RANGE[cond.id];
+  const [low, high] = MONTH_NORMALS_F[month];
+  const offset = Math.round((r() * 2 - 1) * 6);
+  const baseHumidity = wet ? 85 + Math.floor(r() * 12) : 40 + Math.floor(r() * 45);
+  const cloud0 = cloudLo + Math.floor(r() * (cloudHi - cloudLo + 1));
+  const windBase = 2 + Math.floor(r() * 15) + (loc.coastal ? 2 : 0);
+  const dirBase = Math.floor(r() * 360);
+
+  const temps = [], winds = [], dirs = [], clouds = [], hums = [], dews = [];
+  hours.forEach((h, k) => {
+    const diurnal = clamp((h - 5) / 10, 0, 1);
+    const t = Math.round(low + (high - low) * diurnal + offset);
+    const hum = clamp(baseHumidity - 4 * k, 20, 100);
+    temps.push(t);
+    hums.push(hum);
+    dews.push(Math.round(t - (100 - hum) * 0.36));
+    clouds.push(k === 0 ? cloud0 : clamp(cloud0 + Math.round((r() * 2 - 1) * 8), cloudLo, cloudHi));
+    winds.push(Math.max(0, windBase + Math.round((r() * 2 - 1) * 3)));
+    dirs.push(((dirBase + Math.round((r() * 2 - 1) * 30)) % 360 + 360) % 360);
+  });
+
+  const beaufortRank = new Map(BEAUFORT.map(([, label], i) => [label, i]));
+  const windWords = [...new Set(winds.map(windDescription))].sort((a, b) => beaufortRank.get(a) - beaufortRank.get(b));
+  const directions = [...new Set(dirs.map(deg => CARDINALS[Math.round(deg / 45) % 8]))];
+  const sun = sunTimes(date, loc.lat, loc.lng);
+  const condition = cond.description[0].toUpperCase() + cond.description.slice(1).toLowerCase();
+
+  return [
+    cond.emoji,
+    condition,
+    `Temperature: ${formatRange(temps, '\u00B0F')}`,
+    `Wind: ${windWords.join(' - ')}`,
+    `Wind Direction: ${directions.join(' - ')}`,
+    `Cloud Cover: ${formatRange(clouds, '%')}`,
+    `Humidity: ${formatRange(hums, '%')}`,
+    `Dew point: ${formatRange(dews, '\u00B0F')}`,
+    `Sunrise: ${formatLocalTime(sun.sunrise)}`,
+    `Sunset: ${formatLocalTime(sun.sunset)}`,
+    ATTRIBUTION,
+  ].join(EXPORT_LINE_BREAK);
+}
+
+/** Append a block to every row of every WEATHER_BLOCK_EVERY-th checklist at
+ *  `loc`, in date order. Returns how many checklists received one. */
+function appendWeatherBlocks(ebirdRows, loc) {
+  const rowsBySub = new Map();
+  for (const row of ebirdRows) {
+    if (row[COL.loc] !== loc.locId) continue;
+    const sub = row[COL.sub];
+    if (!rowsBySub.has(sub)) rowsBySub.set(sub, []);
+    rowsBySub.get(sub).push(row);
+  }
+  const subs = [...rowsBySub.keys()].sort((a, b) => {
+    const ra = rowsBySub.get(a)[0], rb = rowsBySub.get(b)[0];
+    return ra[COL.date].localeCompare(rb[COL.date])
+      || minutesOf(ra[COL.time]) - minutesOf(rb[COL.time])
+      || a.localeCompare(b);
+  });
+  const r = mulberry32(WEATHER_SEED);
+  let blocks = 0;
+  for (let i = 0; i < subs.length; i += WEATHER_BLOCK_EVERY) {
+    const rows = rowsBySub.get(subs[i]);
+    const first = rows[0];
+    const block = weatherBlockFor({ date: first[COL.date], time: first[COL.time], duration: Number(first[COL.duration]) }, loc, r);
+    for (const row of rows) {
+      const prose = row[COL.checklistComments];
+      row[COL.checklistComments] = prose ? `${prose}${EXPORT_LINE_BREAK}${block}` : block;
+    }
+    blocks++;
+  }
+  return blocks;
+}
+
+// ---- command-line wrapper: write ./demo-data/ ----
+// Runs only when this file is the script node was asked to run, compared by
+// real path so a symlinked checkout (or macOS's /tmp) still matches.
+function isMain() {
+  if (!process.argv[1]) return false;
+  try { return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url)); } catch { return false; }
+}
+
+if (isMain()) {
+  const OUT = join(dirname(fileURLToPath(import.meta.url)), 'demo-data');
+  mkdirSync(OUT, { recursive: true });
+  const { ebirdCsv, mlCsv, summary } = buildDemoData();
+  writeFileSync(join(OUT, 'ebird-backup.csv'), ebirdCsv);
+  writeFileSync(join(OUT, 'ml-export.csv'), mlCsv);
+
+  // ---- metadata + map defaults ----
+  writeFileSync(join(OUT, 'metadata.json'), JSON.stringify({
+    ebird: { filename: 'MyEBirdData.csv', uploadedAt: '2026-06-01T12:00:00Z' },
+    ml: { filename: 'ML__2026-06-01T00-00_USER4741544.csv', uploadedAt: '2026-06-01T12:00:00Z' },
+  }, null, 0));
+  writeFileSync(join(OUT, 'map-defaults.json'), JSON.stringify({ lat: 40.73, lng: -73.95, dist: 5 }));
+
+  console.log(`eBird rows: ${summary.ebirdRows}, species: ${summary.species}, checklists: ${summary.checklists}, ML rows: ${summary.mlRows}, weather blocks: ${summary.weatherBlocks} (${summary.framedLocation})`);
+}

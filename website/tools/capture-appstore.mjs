@@ -80,7 +80,8 @@
 import { chromium } from 'playwright';
 import { mkdirSync } from 'node:fs';
 import sharp from 'sharp';
-import { GL, makePage, selectTab, buildProvenanceStub, installProvenanceRoutes, assertBackendServesDemoData, loadSiteMarks, assertMarksInFrame } from './capture-lib.mjs';
+import { GL, makePage, selectTab, buildProvenanceStub, installProvenanceRoutes, assertBackendServesDemoData, loadSiteMarks, assertMarksInFrame, installHotspotRegionRoutes, openHotspotReport, installKeyPresenceMock } from './capture-lib.mjs';
+import { FRAMED_LOCATION } from './gen-demo-data.mjs';
 
 const BASE = process.env.BASE || 'http://localhost:1620';
 const CHECKLIST = process.env.CHECKLIST || 'S354229002'; // coastal -> shows tide
@@ -307,18 +308,21 @@ async function shotCalendar(p) {
   await p.waitForTimeout(500);
 }
 
-// 5 · Species Detail — Northern Cardinal (in the demo dataset).
-async function shotSpecies(p) {
+// 5 · Species Detail: Wood Thrush on the iPad, as its approved frame shows
+// (DECISIONS.md v1.0.52); Northern Cardinal on the iPhone and the Duo. Both
+// are in the demo dataset.
+async function shotSpecies(p, fam) {
+  const SPECIES = fam.key === 'ipad' ? 'Wood Thrush' : 'Northern Cardinal';
   await selectTab(p, 'Species Detail');
   await p.waitForTimeout(4200);
   const inp = await p.$('input[role="combobox"]') || await p.$('main input');
   if (!inp) throw new Error('species search input not found');
   await inp.click();
-  await inp.fill('Northern Cardinal');
+  await inp.fill(SPECIES);
   await p.waitForTimeout(900);
   for (const o of await p.$$('[role="option"], li, button')) {
     const t = (await o.textContent() || '').trim();
-    if (/^Northern Cardinal/i.test(t) && t.length < 60) { await o.click().catch(() => {}); break; }
+    if (t.toLowerCase().startsWith(SPECIES.toLowerCase()) && t.length < 60) { await o.click().catch(() => {}); break; }
   }
   await p.waitForTimeout(1200);
   await p.keyboard.press('Escape').catch(() => {});
@@ -341,6 +345,31 @@ async function shotBreeding(p, fam) {
   }
 }
 
+// 7 · Hotspot Reports (hotspot-reports, FR-62): the report for the framed
+// location (gen-demo-data.mjs FRAMED_LOCATION, Jamaica Bay Wildlife Refuge,
+// whose checklists carry the demo dataset's weather blocks), from the top. The
+// frame shows each location's kind, so this shot's context answers the app's
+// hotspot lookup inside the browser with the demo dataset's own location ids
+// and counts the requests (installHotspotRegionRoutes in capture-lib.mjs); a
+// region it never answered, or any other eBird-backed request, fails the shot
+// and so the run. The answers are per context, kept here by context so the
+// shot reads the ones its own context installed.
+const hotspotLookupsByContext = new WeakMap();
+async function hotspotRoutes(ctx) {
+  await installKeyPresenceMock(ctx); // or a keyless rig photographs no kinds
+  hotspotLookupsByContext.set(ctx, await installHotspotRegionRoutes(ctx));
+}
+async function shotHotspotReports(p) {
+  const lookups = hotspotLookupsByContext.get(p.context());
+  if (!lookups) throw new Error('the hotspot lookup answers were not installed on this context');
+  await selectTab(p, 'Hotspot Reports');
+  await p.waitForLoadState('networkidle').catch(() => {});
+  await p.waitForTimeout(4200);
+  await lookups.waitForAnswers(p);
+  await openHotspotReport(p, FRAMED_LOCATION.name);
+  log('hotspot lookups answered in the browser:', lookups.assertAnswered());
+}
+
 const SHOTS = [
   ['01-map-explorer.png', shotMap, null],
   ['02-statistics.png', shotStats, statsRoutes],
@@ -348,6 +377,7 @@ const SHOTS = [
   ['04-calendar.png', shotCalendar, null],
   ['05-species-detail.png', shotSpecies, null],
   ['06-breeding-codes.png', shotBreeding, null],
+  ['07-hotspot-reports.png', shotHotspotReports, hotspotRoutes],
 ];
 
 const RUN_SHOTS = SHOTS.filter(([file]) => !ONLY_SHOT || file.startsWith(ONLY_SHOT));

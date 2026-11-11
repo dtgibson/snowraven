@@ -7,6 +7,7 @@
 import { readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { demoHotspotIdsByRegion } from './gen-demo-data.mjs';
 
 // Chromium flags for headless WebGL (the MapLibre maps render through
 // SwiftShader) plus hidden scrollbars so captures are clean.
@@ -394,10 +395,31 @@ export async function buildProvenanceStub(base, csvUrl) {
  *  <img> still is, so the scoping rule stands. capture.mjs installed this on
  *  every context until the capture-provenance-route-scope fix and shipped four
  *  website shots that way. Both consumers now pass it per shot (each script's
- *  `statsRoutes`). The one other route either script registers is the per-shot
- *  WEATHER_REPLAY abort on the weather context, whose frame has no mark; that
- *  one is intentional. */
+ *  `statsRoutes`). The other routes either script registers are the per-shot
+ *  WEATHER_REPLAY abort on the weather context, whose frame has no mark, and
+ *  installHotspotRegionRoutes below, on the Hotspot Reports contexts only;
+ *  both are intentional. */
+// KEY PRESENCE, MOCKED IN THE BROWSER (as at life-lists-tab 1.0.63). On a rig
+// whose backend/.env carries no eBird key the app reports "No eBird key" and
+// never starts the stubbed escapee pass, and the Hotspot Reports tab shows no
+// kinds. Per .claude/rules/testing.md (v1.0.39), a harness driving the web/Pi
+// build mocks GET /settings/keys in the browser rather than posting a key to the
+// backend (whose key route writes backend/.env). The placeholder is a presence
+// signal only: on the web transport the frontend sends no key anywhere, and the
+// backend keeps using its own key or none. No value from the real response is
+// printed. Installed only on the contexts whose frame needs it.
+export async function installKeyPresenceMock(ctx) {
+  await ctx.route('**/settings/keys', async (route) => {
+    if (route.request().method() !== 'GET') return route.continue();
+    const res = await route.fetch();
+    const body = await res.json().catch(() => ({}));
+    if (!body.ebird) body.ebird = 'capture-presence-placeholder';
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+  });
+}
+
 export async function installProvenanceRoutes(ctx, stub) {
+  await installKeyPresenceMock(ctx);
   await ctx.route('**/checklists/**', async (route) => {
     const m = route.request().url().match(/\/checklists\/(S\d+)/);
     const species = (m && stub.get(m[1])) || [];
@@ -409,4 +431,140 @@ export async function installProvenanceRoutes(ctx, stub) {
     if (route.request().method() === 'GET') await route.fulfill({ status: 404, contentType: 'application/json', body: '{"detail":"Not Found"}' });
     else await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
   });
+}
+
+// ---- demo hotspot-lookup answers (shared by both capture scripts) ----
+//
+// The Hotspot Reports frame shows each location's KIND (a public hotspot or a
+// personal location), which the app reads from its shared hotspot Set: one
+// GET /map/hotspot-region?regionCode=<State/Province code> per region in the
+// backup (lib/hotspotSet.ts), which the backend answers by asking eBird with
+// ITS key and returning a JSON list of location ids. A capture must never send
+// an eBird request with a real key, so these lookups are answered INSIDE the
+// browser, with the demo dataset's own location ids for that region
+// (demoHotspotIdsByRegion in gen-demo-data.mjs; every demo place is a real
+// public hotspot), and counted.
+//
+// Two more answers ride with them:
+//   * The Set's stored document, /settings/hotspot-regions-v1
+//     (lib/hotspotRegionCache.ts): a GET finds nothing, so the lookup really
+//     runs on every capture and is counted, and a write is accepted and
+//     discarded, so the stub's answer never lands in the demo store (where the
+//     next run would read it back as a fresh stored answer and ask nothing).
+//   * Every OTHER eBird-backed backend path (the rest of /map/, /checklists/,
+//     and the per-checklist /weather/ and /tide/ lookups) is ABORTED in the
+//     browser and recorded: the Hotspot Reports frame needs none of them, so
+//     one appearing is a change in what the tab asks for, and the shot fails
+//     rather than letting it reach the backend's key.
+// /taxonomy/codes is not answered here: the frame's bird marks need the real
+// codes, and the backend serves them from its own copy of the taxonomy (which
+// it refreshes from eBird at most weekly, as it does for every capture).
+//
+// SCOPE IT, exactly as installProvenanceRoutes above says: only on the
+// Hotspot Reports contexts. Registering any route on a context cancels every
+// cross-origin <img> load in it; the frame's species marks are served by the
+// init script, not loaded, so they are unaffected.
+//
+// Returns { waitForAnswers(p), assertAnswered() }. assertAnswered() throws
+// CaptureNetworkError when an expected region was never asked, a region the
+// demo dataset does not hold was asked, or a stray eBird-backed request was
+// blocked; otherwise it returns the counts as a log line.
+
+/** The frame's network posture was not the one its job planned. */
+export class CaptureNetworkError extends Error {
+  constructor(message) { super(message); this.name = 'CaptureNetworkError'; }
+}
+
+const HOTSPOT_REGION_PATH = '/map/hotspot-region';
+const HOTSPOT_STORE_PATH = '/settings/hotspot-regions-v1';
+const isEbirdBacked = (pathname) =>
+  pathname.startsWith('/map/') || pathname.startsWith('/checklists/') || /^\/(?:weather|tide)\/S\d+$/.test(pathname);
+
+export async function installHotspotRegionRoutes(ctx, idsByRegion = demoHotspotIdsByRegion()) {
+  const asked = new Map();
+  const unexpected = new Set();
+  const strays = [];
+  await ctx.route((url) => isEbirdBacked(url.pathname) && url.pathname !== HOTSPOT_REGION_PATH, async (route) => {
+    strays.push(new URL(route.request().url()).pathname);
+    await route.abort();
+  });
+  await ctx.route((url) => url.pathname === HOTSPOT_REGION_PATH, async (route) => {
+    const region = new URL(route.request().url()).searchParams.get('regionCode') ?? '';
+    asked.set(region, (asked.get(region) ?? 0) + 1);
+    const ids = Object.hasOwn(idsByRegion, region) ? idsByRegion[region] : null;
+    if (!ids) unexpected.add(region);
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(ids ?? []) });
+  });
+  await ctx.route((url) => url.pathname === HOTSPOT_STORE_PATH, async (route) => {
+    if (route.request().method() === 'GET') await route.fulfill({ status: 404, contentType: 'application/json', body: '{"detail":"Not Found"}' });
+    else await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+  });
+
+  const expected = Object.keys(idsByRegion).sort();
+  const unanswered = () => expected.filter(r => !asked.has(r));
+  return {
+    /** Wait until every expected region has been answered at least once. */
+    async waitForAnswers(p, timeoutMs = 30000) {
+      const deadline = Date.now() + timeoutMs;
+      while (unanswered().length && Date.now() < deadline) await p.waitForTimeout(100);
+    },
+    assertAnswered() {
+      const problems = [];
+      const missing = unanswered();
+      if (missing.length) problems.push(`the app never asked for ${missing.join(', ')}, so the frame's kinds did not come from these answers`);
+      if (unexpected.size) problems.push(`the app asked for ${[...unexpected].join(', ')}, which the demo dataset does not hold`);
+      if (strays.length) problems.push(`blocked ${strays.length} other eBird-backed request(s) the frame should not make: ${[...new Set(strays)].join(', ')}`);
+      if (problems.length) throw new CaptureNetworkError(`hotspot lookups: ${problems.join('; ')}`);
+      return [...asked].sort(([a], [b]) => a.localeCompare(b)).map(([r, n]) => `${r} x${n}`).join(', ');
+    },
+  };
+}
+
+// ---- Hotspot Reports: open one location's report ----
+//
+// The built tab's DOM contract: the overview's ranked rows are
+// button.sr-hsr-rankrow, each with an accessible name that starts with its
+// location's name; the picker is input.sr-hsr-input[role="combobox"], whose
+// listbox (.sr-hsr-list[role="listbox"]) holds .sr-hsr-opt[role="option"]
+// options, chosen on mousedown; a chosen location renders .sr-hsr-report with
+// its name in .sr-hsr-name.
+//
+// Presses the location's ranked row when the overview shows one, else types the
+// name's first word into the picker and presses Enter (clicking the option if
+// Enter did not choose it). THROWS unless the report that opens is that
+// location's: a report for the wrong place is a wrong-but-plausible frame.
+// Then lets the report settle, leaves nothing focused (no focus ring, no open
+// listbox in the frame) and scrolls to the top.
+export async function openHotspotReport(p, name, { timeoutMs = 15000 } = {}) {
+  const leading = new RegExp('^' + name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  const opened = (timeout) => p.waitForFunction(
+    (n) => [...document.querySelectorAll('.sr-hsr-report .sr-hsr-name')]
+      .some(el => el.getClientRects().length > 0 && (el.textContent || '').trim().startsWith(n)),
+    name,
+    { timeout },
+  ).then(() => true, () => false);
+
+  const row = p.locator('button.sr-hsr-rankrow').and(p.getByRole('button', { name: leading })).first();
+  if (await row.waitFor({ state: 'visible', timeout: 5000 }).then(() => true, () => false)) {
+    await row.click();
+  } else {
+    const input = p.locator('input.sr-hsr-input[role="combobox"]').first();
+    await input.waitFor({ state: 'visible', timeout: timeoutMs });
+    await input.click();
+    await input.fill(name.split(' ')[0]);
+    const option = p.locator('.sr-hsr-list[role="listbox"] .sr-hsr-opt[role="option"]').filter({ hasText: leading }).first();
+    await option.waitFor({ state: 'visible', timeout: timeoutMs });
+    await input.press('Enter');
+    if (!(await opened(3000))) await option.click();
+  }
+  if (!(await opened(timeoutMs))) throw new Error(`the Hotspot Reports report for "${name}" did not open`);
+
+  await p.waitForLoadState('networkidle').catch(() => {});
+  await p.waitForTimeout(2500); // the report's map and figures settle
+  await p.evaluate(() => {
+    const a = document.activeElement;
+    if (a instanceof HTMLElement && a !== document.body) a.blur();
+    window.scrollTo(0, 0);
+  });
+  await p.waitForTimeout(500);
 }

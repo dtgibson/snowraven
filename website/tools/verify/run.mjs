@@ -62,6 +62,7 @@ const ORDER = [
   'verify-weather-species-rows.mjs',
   'verify-plan-daylabels.mjs',
   'verify-plan-readout.mjs',
+  'verify-hotspot-reports.mjs',
 ]
 
 // EVERY HARNESS GETS THE DIST, including the one that ignores it. A second
@@ -125,6 +126,13 @@ const BUDGET_MS = {
   // comparable weight takes the same 600 s rather than a tighter number
   // justified by a single quiet-machine reading.
   'verify-plan-daylabels.mjs': 600_000,
+  // Hotspot Reports (hotspot-reports, schema 10.3 and 13.4): the phone More
+  // sheet's legs and the two container thresholds, read from the built
+  // stylesheet, across three text scales of fit sweeps and 344 window
+  // configurations, in both engines. MEASURED 181 s on the dev Mac
+  // (pipeline/hotspot-reports/decisions.md D-18 and D-25), so this is 5x, the
+  // same 4x-or-more headroom the two plan harnesses carry for a shared runner.
+  'verify-hotspot-reports.mjs': 900_000,
 }
 const rawTimeout = Number(process.env.SR_VERIFY_TIMEOUT_MS)
 const OVERRIDE_MS = Number.isFinite(rawTimeout) && rawTimeout > 0 ? rawTimeout : null
