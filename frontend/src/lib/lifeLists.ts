@@ -285,8 +285,15 @@ function compareId(a: string, b: string): number {
  * one of that day (blank rows last, as FR-28 and QA-29 state), then minute
  * DESCENDING, then normalized name ascending. This is deliberately NOT the bare
  * reverse of `compareInstant`, which would put a blank row first.
+ *
+ * Its parameters are the three fields it reads, so the Hotspot Reports life
+ * list (hotspot-reports schema 8) sorts its own rows with this one comparator
+ * rather than a copy. A type-only widening: the emitted JavaScript is unchanged.
  */
-export function compareDisplay(a: LifeListRow, b: LifeListRow): number {
+export function compareDisplay(
+  a: Pick<LifeListRow, 'day' | 'minute' | 'name'>,
+  b: Pick<LifeListRow, 'day' | 'minute' | 'name'>,
+): number {
   if (a.day !== b.day) return a.day > b.day ? -1 : 1
   if (a.minute !== b.minute) {
     if (a.minute === null) return 1
