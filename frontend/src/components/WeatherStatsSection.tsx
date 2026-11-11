@@ -38,6 +38,7 @@ import { ArrowRight, CloudSun, Moon, Sun } from 'lucide-react'
 import { BirdName } from './BirdName'
 import { SpeciesCombobox } from './SpeciesCombobox'
 import { WeatherSpeciesRow } from './WeatherSpeciesRow'
+import { DistRow } from './WeatherDistRow'
 import { Divider, SubLabel } from './statsPrimitives'
 import { fmt, fmtSharePct } from '../lib/statsFormat'
 // EXTRACTED, NOT COPIED (species-detail-weather, FR-26). The labels, the sky
@@ -64,42 +65,11 @@ const STRONG_STYLE = { color: 'var(--sr-text)', fontWeight: 600 } as const
 
 // ── Rows ────────────────────────────────────────────────────────────────────
 
-/**
- * One distribution row: glyph, name, rail, count.
- *
- * Three states and each has its own SHAPE as well as its own text, because a
- * band you have never birded in and a band you have birded once must not look
- * alike. A non-zero count always paints (the fill carries a 3px floor inside an
- * `overflow: hidden` track, so it can never widen the row), and a non-zero share
- * that rounds to nothing prints "<1%" rather than "0%" -- the band below
- * freezing really does hold one outing.
- */
-function DistRow({ glyph, label, n, max, share }: {
-  glyph?: React.ReactNode
-  label: string
-  n: number
-  max: number
-  share: string
-}) {
-  const zero = n === 0
-  const w = max > 0 ? (n / max) * 100 : 0
-  return (
-    <div className={`sr-wx-row${glyph ? '' : ' no-glyph'}${zero ? ' is-zero' : ''}`}>
-      {glyph !== undefined && <span className="sr-wx-glyph" aria-hidden="true">{glyph}</span>}
-      <span className="sr-wx-label">{label}</span>
-      {zero
-        ? <div className="sr-wx-track is-empty" aria-hidden="true" />
-        : (
-          <div className="sr-wx-track" aria-hidden="true">
-            <span className="sr-wx-fill" style={{ ['--w' as string]: `${w.toFixed(2)}%` }} />
-          </div>
-        )}
-      <span className="sr-wx-count">
-        <b>{fmt(n)}</b> <span aria-hidden="true">·</span> {share}
-      </span>
-    </div>
-  )
-}
+// The distribution row moved out VERBATIM to `WeatherDistRow.tsx`
+// (hotspot-reports schema 8.1) so a second component surface renders the one
+// implementation; `WeatherDistRow.golden.test.tsx` pins this section's markup,
+// captured before the move. `DistGroup` stays here: its head prints this
+// section's own axis copy.
 
 function DistGroup({ title, axis, denominator, rows, footnote }: {
   title: string
