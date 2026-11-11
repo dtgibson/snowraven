@@ -97,7 +97,7 @@ italic at 0.71875rem `--sr-text-gray`.
   because Settings is appended after that order and is never part of it, while
   every other destination is peer to every other. The More sheet keeps that
   hairline and Settings in a pinned foot (below), and its cap,
-  `min(70dvh, 528px)`, is its measured height, so on a notched phone at the
+  `min(73dvh, 616px)`, is its measured height, so on a notched phone at the
   default text size every destination shows with nothing to scroll. Active state is
   `--sr-accent-bg` + `--sr-accent` + weight + a 3px leading accent bar, so three
   cues carry it and one of them is a shape. Nav-scale lucide icons run 15 to 20px
@@ -499,8 +499,12 @@ italic at 0.71875rem `--sr-text-gray`.
   time, a `1.5rem` link box, `minmax(0, 32%)` place, and an optional trailing
   cell, `column-gap: 14px`, rows divided by `--sr-border-subtle`. Every cell
   aligns to the row's FIRST line; a scientific name hangs beneath the common
-  name alone. No column header: the count sentence above the list names what the
-  date is. The position is the row's place on the list currently shown, counted
+  name alone. No column header while the count sentence above the list names
+  the row's one figure, the date. A ledger whose rows carry a second figure
+  (how many of a place's checklists include the species) takes one visual
+  header row at its wide form, `aria-hidden`, every cell still carrying its own
+  words for assistive technology and the stacked card spelling them out on
+  screen (`.sr-hsr-ll-cols`). The position is the row's place on the list currently shown, counted
   from the oldest (1, at the bottom) to the newest (N, the count sentence's
   figure, at the top) across the WHOLE list, so a second page continues where
   the first stopped and a narrowed list renumbers; it is derived at render, never
@@ -758,8 +762,16 @@ italic at 0.71875rem `--sr-text-gray`.
   stylesheet tier serve BOTH the Statistics Weather section and the Species Detail
   Weather card, deliberately: one set of layout rules, so a bird's chart and the
   tab's charts cannot drift apart. The consequence to carry: **a change to this
-  tier reaches both surfaces**, so a repair written for one is a repair to the
-  other, and "the other is untouched" is a measurement rather than a reading.
+  tier reaches every surface on it**, so a repair written for one is a repair to
+  the others, and "the others are untouched" is a measurement rather than a
+  reading. The band row itself, `DistRow` in `components/WeatherDistRow.tsx`,
+  also draws Hotspot Reports' weather, protocol, month and year groups on the
+  same tier, so the tier serves a third surface, and a markup golden
+  (`WeatherDistRow.golden.json`) holds the existing surfaces' rendering byte for
+  byte. Its `emphasis` form marks the most common band with a 700-weight label
+  beside a sentence naming it (two cues, neither a color); a label that is
+  user-file text, such as a protocol name, wraps instead of taking the desktop
+  ellipsis, scoped under the host's own class.
 - **A row whose trailing figure is incompressible takes its OWN row, at every width.**
   When a row carries two `nowrap` `auto` tracks (a count and a second figure beside
   it) inside a column narrower than the card, the width it needs depends on the width
