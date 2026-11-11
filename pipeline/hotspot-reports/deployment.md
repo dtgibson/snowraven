@@ -130,3 +130,42 @@ Run by The Deployer on the user's own answer at the release gate, relayed by the
 
 - The user's check of TestFlight 1.0.71 (1), the steps in the hand-back: launch, the widgets (FR-48, including the cold-start tap), and the new tab.
 - On a pass: re-read the App Store state, run the listing read-back and `asc-screens.mjs readback` once more, then `POST /v1/reviewSubmissions`, the item, and `submitted: true`; read back again after submitting; write the submission into the 1.0.71 App Store ledger entry.
+
+## Part three: the device check and the App Store submission (2026-11-11, 21:22 to 21:24 UTC; 13:22 to 13:24 PST)
+
+Run by The Deployer on the Guide's relay of the user's answers. App Store Connect was driven with the metadata key through `asc-lib.mjs` from scripts in the session scratchpad; no token, key, issuer or contact value was printed or written. No device or worktree was touched, and nothing was sent to fdroiddata.
+
+### The user's iPhone check of TestFlight 1.0.71 (1)
+
+Performed by the user on their own iPhone on 2026-11-11, before the submission (the v1.0.31 rule), and recorded as the user reported it, not observed:
+
+- The exact uploaded build 1.0.71 (1) was installed from TestFlight and opened.
+- The More sheet and Hotspot Reports steps pass, in the user's words: "The new hotspots tab works".
+- **The widget steps (2 to 4: adding a Nearby Lifers and a Media Targets widget, tapping each through, and the cold-start tap after a force-quit) were NOT checked this time**, by the user's decision at the gate ("Submit it"), with the reason that nothing in 1.0.71 touches the widgets, the vendored tao or any native iOS code. The user asked why the widgets were affected; the Guide answered that they are not, and that those steps are the routine per-build check.
+
+### Steps
+
+1. **Re-read before submitting** (21:22 UTC, `evidence/ship/asc-1.0.71-submit.txt`): record `c4244b1b` `PREPARE_FOR_SUBMISSION`, build 1.0.71.1 `22d9d6f4` `VALID` attached, `AFTER_APPROVAL`, no phased release, no earliest release date; 35 version records (the others `READY_FOR_SALE`); 10 review submissions, all `COMPLETE`. **`READBACK 1.0.71: ALL SAME`**, and `asc-screens.mjs readback` **ALL MATCH, 21 of 21** (`screenshots-readback-1.0.71-before-submit.txt`).
+2. **Submission** (guarded by the same checks in the script): `POST /v1/reviewSubmissions` (201), `POST /v1/reviewSubmissionItems` (201), `PATCH` `submitted: true` (200). **`2c61c50a-b09a-4f79-8b5b-b94676a60a0f`, `WAITING_FOR_REVIEW`, submitted 2026-11-11 21:23:20 UTC (13:23 PST)**, its one item `READY_FOR_REVIEW`; the record reads **`WAITING_FOR_REVIEW`**, `AFTER_APPROVAL`, no phased release.
+3. **After submitting** (21:23 UTC): `READBACK 1.0.71: ALL SAME`; screenshots ALL MATCH, 21 of 21 (`screenshots-readback-1.0.71-after-submit.txt`); 35 version records (1.0.71 `WAITING_FOR_REVIEW`, 34 `READY_FOR_SALE`), 11 review submissions (this one waiting, 10 `COMPLETE`), 95 trains, 103 builds, every build `VALID`; from 1.0.13 on, the same 25 trains without a record of their own that the ledger accounts for.
+4. **Final read of the other legs** (21:24 UTC): release `442144590` is Latest with its seven assets (the DMG, the updater bundle and its signature, the Windows installer and its signature, `latest.json`, the Android APK); `latest.json` served from `releases/latest/download` reads 1.0.71 with `darwin-aarch64`, `darwin-x86_64` and `windows-x86_64`; https://snowraven.dtgibson.com/ answers 200 with `index.html` byte-identical to the committed file at v1.0.71; F-Droid unchanged since 19:48 UTC (no 1.0.71 entry in fdroiddata `master`, newest recipe commit `08a40a3d`; the logs for 10000711/2/4 answer 404; f-droid.org publishes 1.0.68, 1.0.61 and 1.0.60), so 1.0.71 is **included and this tag not yet built**.
+5. **`RELEASE_LEDGER.md`**: the 1.0.71 App Store entry extended with the submission and the device check as recorded above, and the 1.0.71 Android entry extended with the read after submitting; append-only, ASCII, the em-dash count unchanged.
+
+### State at the hand-back (2026-11-11, about 21:25 UTC; 13:25 PST)
+
+| Leg | State |
+|---|---|
+| App Store | 1.0.71 record `c4244b1b`, build 1.0.71.1, submission `2c61c50a` `WAITING_FOR_REVIEW`, `AFTER_APPROVAL`, no phased release |
+| TestFlight | 1.0.71.1 `22d9d6f4` `VALID`; the user's iPhone check passed for the app and the new tab; widgets not checked this time |
+| Mac, Windows, `latest.json` | live at 1.0.71 (release `442144590`, Latest) |
+| Android GitHub APK | 1.0.71 attached, signer `42a3576e...996a`; Partial (emulator) |
+| F-Droid | 1.0.71 included and this tag not yet built; nothing sent |
+| Website | live at 1.0.71 with the approved Hotspot Reports row and frame |
+| Ledger | every entry above written |
+
+### Still open, for the next ship
+
+- **App Review of 1.0.71.** The next ship re-reads its state and writes the outcome into the 1.0.71 entry; a rejection stalls only the App Store leg.
+- **F-Droid.** The bot has not yet added 1.0.71; 1.0.70 is in the recipe but not yet built. A keep-latest sweep may leave 1.0.70 superseded on F-Droid by 1.0.71. The next ship's three-read records it.
+- **The widgets on 1.0.71 were not device-checked**; the next build that touches the widgets, the vendored tao or native iOS code owes the full widget steps.
+- **For the Chronicler:** the timing-ratio rows in `lifeListsLinearity.test.ts` stay red on the shared CI runner (five rows on the run of record, up to 2.2 times their limits), as on `main` since 1.0.70 (life-list-region-filter D-12); the committed capture tools gained the key-presence mock and the Life Lists job this release, which closes the 1.0.70 note that they had none; the iPhone App Store Species Detail frame was found stale at this ship ("Splits and lumps 10 species" against the app's 11) and is replaced.

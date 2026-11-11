@@ -1,0 +1,114 @@
+== state before submitting
+read at 2026-11-11T21:22:16.422Z (GET only)
+version records: 35 {"PREPARE_FOR_SUBMISSION":1,"READY_FOR_SALE":34}
+record 1.0.70: 21fd36c0-c21b-4988-8b1b-7c43ba55dbb7 READY_FOR_SALE/READY_FOR_DISTRIBUTION AFTER_APPROVAL
+record 1.0.71: c4244b1b-938e-4ab3-a801-7f5b8f74e35c PREPARE_FOR_SUBMISSION/PREPARE_FOR_SUBMISSION AFTER_APPROVAL
+review submissions: 10 {"COMPLETE":10}
+build 22d9d6f4-2280-448c-9f04-56ad18916e0f: 1.0.71.1 VALID expired=false usesNonExemptEncryption=false uploaded 2026-11-11T11:32:29-08:00
+== listing read-back before submitting
+READBACK 1.0.71 at 2026-11-11T21:22:18.075Z: record c4244b1b-938e-4ab3-a801-7f5b8f74e35c PREPARE_FOR_SUBMISSION, releaseType AFTER_APPROVAL, earliestReleaseDate null
+  same copyright (16 / expected 16)
+  phased release: none
+  build: 22d9d6f4-2280-448c-9f04-56ad18916e0f 1.0.71.1 VALID expired=false usesNonExemptEncryption=false
+  localizations: en-US d376d394-e264-4f49-af19-ca68e91acaff
+  same description (3733 / expected 3733)
+  same keywords (97 / expected 97)
+  same promotionalText (137 / expected 137)
+  same marketingUrl (30 / expected 30)
+  same supportUrl (37 / expected 37)
+  same whatsNew (376 / expected 376)
+  whatsNew sha256 bdca85410170c779ff612991916b84c2bc7cee2d31db52a0ad6d9cc22e0d5719
+  same review notes (3898 / expected 3898)
+  review contact: contactFirstName present, contactLastName present, contactPhone present, contactEmail present; demoAccountRequired false; demo name none
+  appInfo 01f24c09-089a-436e-b0f9-44b6cb56d982 READY_FOR_SALE: primary REFERENCE secondary WEATHER
+  same   name (01f24c09) (9 / expected 9)
+  same   subtitle (01f24c09) (27 / expected 27)
+  same   privacyPolicyUrl (01f24c09) (43 / expected 43)
+    age rating 01f24c09-089a-436e-b0f9-44b6cb56d982 (READY_FOR_SALE): 30 fields {"false":11,"NONE":16,"null":3}; null: kidsAgeBand, gracRatingClassificationNumber, developerAgeRatingInfoUrl; true: none; socialMedia false; socialMediaAgeRestricted false
+  appInfo 767116c7-8b09-4c11-a52a-ab77bdb197fe PREPARE_FOR_SUBMISSION: primary REFERENCE secondary WEATHER
+  same   name (767116c7) (9 / expected 9)
+  same   subtitle (767116c7) (27 / expected 27)
+  same   privacyPolicyUrl (767116c7) (43 / expected 43)
+    age rating 767116c7-8b09-4c11-a52a-ab77bdb197fe (PREPARE_FOR_SUBMISSION): 30 fields {"false":11,"NONE":16,"null":3}; null: kidsAgeBand, gracRatingClassificationNumber, developerAgeRatingInfoUrl; true: none; socialMedia false; socialMediaAgeRestricted false
+READBACK 1.0.71: ALL SAME
+rc=0
+== submit (dry run)
+read at 2026-11-11T21:23:05.516Z: record c4244b1b-938e-4ab3-a801-7f5b8f74e35c 1.0.71 PREPARE_FOR_SUBMISSION/PREPARE_FOR_SUBMISSION AFTER_APPROVAL
+  guard ok: record is 1.0.71
+  guard ok: record PREPARE_FOR_SUBMISSION
+  guard ok: AFTER_APPROVAL, no earliest release date
+  guard ok: no phased release
+  guard ok: build 1.0.71.1 VALID attached
+  guard ok: no review submission open (10, all COMPLETE)
+dry run: would POST /v1/reviewSubmissions, POST /v1/reviewSubmissionItems, PATCH submitted=true
+== submit (execute)
+read at 2026-11-11T21:23:15.226Z: record c4244b1b-938e-4ab3-a801-7f5b8f74e35c 1.0.71 PREPARE_FOR_SUBMISSION/PREPARE_FOR_SUBMISSION AFTER_APPROVAL
+  guard ok: record is 1.0.71
+  guard ok: record PREPARE_FOR_SUBMISSION
+  guard ok: AFTER_APPROVAL, no earliest release date
+  guard ok: no phased release
+  guard ok: build 1.0.71.1 VALID attached
+  guard ok: no review submission open (10, all COMPLETE)
+POST /v1/reviewSubmissions -> 201 2c61c50a-b09a-4f79-8b5b-b94676a60a0f READY_FOR_REVIEW
+POST /v1/reviewSubmissionItems -> 201 MmM2MWM1MGEtYjA5YS00Zjc5LThiNWItYjk0Njc2YTYwYTBmfDZ8ODk1MDc1ODA1 READY_FOR_REVIEW
+PATCH /v1/reviewSubmissions/2c61c50a-b09a-4f79-8b5b-b94676a60a0f submitted=true -> 200 WAITING_FOR_REVIEW submitted 2026-11-11T21:23:20.426Z
+read back: submission 2c61c50a-b09a-4f79-8b5b-b94676a60a0f WAITING_FOR_REVIEW submitted 2026-11-11T21:23:20.426Z platform IOS
+  item MmM2MWM1MGEtYjA5YS00Zjc5LThiNWItYjk0Njc2YTYwYTBmfDZ8ODk1MDc1ODA1 READY_FOR_REVIEW
+read back: record c4244b1b-938e-4ab3-a801-7f5b8f74e35c 1.0.71 WAITING_FOR_REVIEW/WAITING_FOR_REVIEW AFTER_APPROVAL
+== listing read-back after submitting
+READBACK 1.0.71 at 2026-11-11T21:23:36.380Z: record c4244b1b-938e-4ab3-a801-7f5b8f74e35c WAITING_FOR_REVIEW, releaseType AFTER_APPROVAL, earliestReleaseDate null
+  same copyright (16 / expected 16)
+  phased release: none
+  build: 22d9d6f4-2280-448c-9f04-56ad18916e0f 1.0.71.1 VALID expired=false usesNonExemptEncryption=false
+  localizations: en-US d376d394-e264-4f49-af19-ca68e91acaff
+  same description (3733 / expected 3733)
+  same keywords (97 / expected 97)
+  same promotionalText (137 / expected 137)
+  same marketingUrl (30 / expected 30)
+  same supportUrl (37 / expected 37)
+  same whatsNew (376 / expected 376)
+  whatsNew sha256 bdca85410170c779ff612991916b84c2bc7cee2d31db52a0ad6d9cc22e0d5719
+  same review notes (3898 / expected 3898)
+  review contact: contactFirstName present, contactLastName present, contactPhone present, contactEmail present; demoAccountRequired false; demo name none
+  appInfo 01f24c09-089a-436e-b0f9-44b6cb56d982 READY_FOR_SALE: primary REFERENCE secondary WEATHER
+  same   name (01f24c09) (9 / expected 9)
+  same   subtitle (01f24c09) (27 / expected 27)
+  same   privacyPolicyUrl (01f24c09) (43 / expected 43)
+    age rating 01f24c09-089a-436e-b0f9-44b6cb56d982 (READY_FOR_SALE): 30 fields {"false":11,"NONE":16,"null":3}; null: kidsAgeBand, gracRatingClassificationNumber, developerAgeRatingInfoUrl; true: none; socialMedia false; socialMediaAgeRestricted false
+  appInfo 767116c7-8b09-4c11-a52a-ab77bdb197fe WAITING_FOR_REVIEW: primary REFERENCE secondary WEATHER
+  same   name (767116c7) (9 / expected 9)
+  same   subtitle (767116c7) (27 / expected 27)
+  same   privacyPolicyUrl (767116c7) (43 / expected 43)
+    age rating 767116c7-8b09-4c11-a52a-ab77bdb197fe (WAITING_FOR_REVIEW): 30 fields {"false":11,"NONE":16,"null":3}; null: kidsAgeBand, gracRatingClassificationNumber, developerAgeRatingInfoUrl; true: none; socialMedia false; socialMediaAgeRestricted false
+READBACK 1.0.71: ALL SAME
+rc=0
+== full survey after submitting
+app 6787719977
+version records: 35
+  by state: {"WAITING_FOR_REVIEW":1,"READY_FOR_SALE":34}
+  1.0.71  c4244b1b-938e-4ab3-a801-7f5b8f74e35c WAITING_FOR_REVIEW / WAITING_FOR_REVIEW AFTER_APPROVAL created 2026-11-11T11:46:36-08:00
+  1.0.70  21fd36c0-c21b-4988-8b1b-7c43ba55dbb7 READY_FOR_SALE / READY_FOR_DISTRIBUTION AFTER_APPROVAL created 2026-11-10T11:30:57-08:00
+  1.0.69  ec491213-6cf7-4dd5-9d8b-51bdcfeb420c READY_FOR_SALE / READY_FOR_DISTRIBUTION AFTER_APPROVAL created 2026-11-09T12:10:57-08:00
+  1.0.68  280db18b-3dfa-4a8b-b8af-4b8332586bd5 READY_FOR_SALE / READY_FOR_DISTRIBUTION AFTER_APPROVAL created 2026-11-08T19:23:02-08:00
+  1.0.66  ab6360bc-24b3-4816-bf84-88967df06507 READY_FOR_SALE / READY_FOR_DISTRIBUTION AFTER_APPROVAL created 2026-11-07T18:09:27-08:00
+  1.0.63  e48a104b-0542-4c8c-b304-26059fa3bc61 READY_FOR_SALE / READY_FOR_DISTRIBUTION AFTER_APPROVAL created 2026-11-06T16:17:15-08:00
+  1.0.61  1ff37081-0999-4eb7-8dbd-d44771e04b1c READY_FOR_SALE / READY_FOR_DISTRIBUTION AFTER_APPROVAL created 2026-11-03T11:50:46-08:00
+  1.0.60  c8841bbd-add8-48e5-82d8-614527e0b43f READY_FOR_SALE / READY_FOR_DISTRIBUTION AFTER_APPROVAL created 2026-10-22T18:14:50-07:00
+TestFlight trains: 95
+builds: 103, by processingState: {"VALID":103}
+  build 1.0.71 (1.0.71.1) 22d9d6f4-2280-448c-9f04-56ad18916e0f VALID expired=false uploaded 2026-11-11T11:32:29-08:00
+  build 1.0.70 (1.0.70.1) 7d4682f8-0c5d-47cf-8223-20b6178c834d VALID expired=false uploaded 2026-11-10T10:25:49-08:00
+  build 1.0.69 (1.0.69.1) f9d5df4a-a8ca-4f4d-bc53-7cba08686821 VALID expired=false uploaded 2026-11-09T09:20:18-08:00
+  build 1.0.68 (1.0.68.1) fcb30cde-150e-42d8-8de9-0dd7848e79f9 VALID expired=false uploaded 2026-11-08T18:48:31-08:00
+  build 1.0.67 (1.0.67.1) 6614dec9-8b21-4165-b870-d94ff330d05f VALID expired=false uploaded 2026-11-08T15:51:11-08:00
+  build 1.0.66 (1.0.66.1) 32038a0c-057a-4753-bdb1-451e5dcf3acd VALID expired=false uploaded 2026-11-08T08:16:41-08:00
+trains from 1.0.13 on with no record of their own (25): 1.0.15, 1.0.16, 1.0.18, 1.0.20, 1.0.22, 1.0.25, 1.0.26, 1.0.29, 1.0.33, 1.0.37, 1.0.39, 1.0.41, 1.0.42, 1.0.43, 1.0.44, 1.0.46, 1.0.48, 1.0.49, 1.0.52, 1.0.54, 1.0.58, 1.0.62, 1.0.64, 1.0.65, 1.0.67
+train 1.0.71 exists: true | record 1.0.71 exists: true
+recent review submissions:
+  2c61c50a-b09a-4f79-8b5b-b94676a60a0f WAITING_FOR_REVIEW submitted 2026-11-11T21:23:20.426Z
+  a3be255f-96f0-4ecb-be38-47b280079833 COMPLETE submitted 2026-11-10T19:31:54.377Z
+  25b4b840-9414-4633-87b4-16f4faf4a674 COMPLETE submitted 2026-11-09T20:12:44.212Z
+  a22d8c52-386e-46ab-9ac7-85fe40e88174 COMPLETE submitted 2026-11-09T03:23:53.169Z
+  51af3019-9ba7-4db1-a4df-d390a7ce7901 COMPLETE submitted 2026-11-08T16:43:57.93Z
+  33624506-edfa-4d5c-9cc7-806b0d3a7866 COMPLETE submitted 2026-11-08T04:01:55.492Z
+1.0.70 record 21fd36c0-c21b-4988-8b1b-7c43ba55dbb7: READY_FOR_SALE / READY_FOR_DISTRIBUTION, release AFTER_APPROVAL, build 1.0.70.1 VALID
