@@ -1,0 +1,126 @@
+ 0:04  up 4 days, 23:16, 3 users, load averages: 1.63 1.83 28.75
+built thresholds: report 53.25em, list 28em (mode: expect-fixed)
+PASS  chromium More sheet holds every destination without scrolling  9 rows, 506/506
+PASS  chromium the replaced cap is seen to scroll (the leg can reject a revert)  506/418
+PASS  chromium 100% the wide life-list row fits above 28em  worst 0px
+PASS  chromium 100% two columns fit above 53.25em  worst 0px
+MEASURE chromium glance 100% {"2":{"body":272,"predicted":272},"3":{"body":416,"predicted":416},"4":{"body":560,"predicted":560},"5":{"body":704,"predicted":704},"facts":{"body":644,"predicted":644}} worst ink 0px
+PASS  chromium 100% At a glance: no ink past a tile, a fact or the card across every track change  worst 0px
+PASS  chromium 100% every tile label is one line wherever the tiles are two or more across  0 configurations wrapped a label
+PASS  chromium 100% every fact's term and value sit side by side wherever the facts are two across  0 configurations stacked a fact
+PASS  chromium 100% each track appeared where its minimum says  {"2":{"body":272,"predicted":272},"3":{"body":416,"predicted":416},"4":{"body":560,"predicted":560},"5":{"body":704,"predicted":704},"facts":{"body":644,"predicted":644}}
+PASS  chromium 100% the detector sees a forced overflow  121.59px
+PASS  chromium 125% the wide life-list row fits above 28em  worst 0px
+PASS  chromium 125% two columns fit above 53.25em  worst 0px
+MEASURE chromium glance 125% {"2":{"body":336,"predicted":336},"3":{"body":512,"predicted":512},"4":{"body":688,"predicted":688},"5":{"body":864,"predicted":864},"facts":{"body":796,"predicted":796}} worst ink 0px
+PASS  chromium 125% At a glance: no ink past a tile, a fact or the card across every track change  worst 0px
+PASS  chromium 125% every tile label is one line wherever the tiles are two or more across  0 configurations wrapped a label
+PASS  chromium 125% every fact's term and value sit side by side wherever the facts are two across  0 configurations stacked a fact
+PASS  chromium 125% each track appeared where its minimum says  {"2":{"body":336,"predicted":336},"3":{"body":512,"predicted":512},"4":{"body":688,"predicted":688},"5":{"body":864,"predicted":864},"facts":{"body":796,"predicted":796}}
+PASS  chromium 125% the detector sees a forced overflow  133px
+PASS  chromium 150% the wide life-list row fits above 28em  worst 0px
+PASS  chromium 150% two columns fit above 53.25em  worst 0px
+MEASURE chromium glance 150% {"2":{"body":400,"predicted":400},"3":{"body":608,"predicted":608},"4":{"body":816,"predicted":816},"5":{"body":1024,"predicted":1024},"facts":{"body":948,"predicted":948}} worst ink 0.02px
+PASS  chromium 150% At a glance: no ink past a tile, a fact or the card across every track change  worst 0.02px
+PASS  chromium 150% every tile label is one line wherever the tiles are two or more across  0 configurations wrapped a label
+PASS  chromium 150% every fact's term and value sit side by side wherever the facts are two across  0 configurations stacked a fact
+PASS  chromium 150% each track appeared where its minimum says  {"2":{"body":400,"predicted":400},"3":{"body":608,"predicted":608},"4":{"body":816,"predicted":816},"5":{"body":1024,"predicted":1024},"facts":{"body":948,"predicted":948}}
+PASS  chromium 150% the detector sees a forced overflow  144.39px
+PASS  chromium 200% the wide life-list row fits above 28em  worst 0px
+PASS  chromium 200% two columns fit above 53.25em  worst 0px
+MEASURE chromium glance 200% {"2":{"body":528,"predicted":528},"3":{"body":800,"predicted":800},"4":{"body":1072,"predicted":1072},"5":{"body":1344,"predicted":1344},"facts":{"body":1252,"predicted":1252}} worst ink 0px
+PASS  chromium 200% At a glance: no ink past a tile, a fact or the card across every track change  worst 0px
+PASS  chromium 200% every tile label is one line wherever the tiles are two or more across  0 configurations wrapped a label
+PASS  chromium 200% every fact's term and value sit side by side wherever the facts are two across  0 configurations stacked a fact
+PASS  chromium 200% each track appeared where its minimum says  {"2":{"body":528,"predicted":528},"3":{"body":800,"predicted":800},"4":{"body":1072,"predicted":1072},"5":{"body":1344,"predicted":1344},"facts":{"body":1252,"predicted":1252}}
+PASS  chromium 200% the detector sees a forced overflow  167.19px
+MEASURE chromium windows classic 100% two columns from 1133px (report 53.375em)
+PASS  chromium classic 100% the coupled pair flips inside the windows swept  at 1133px, report 53.375em against 53.25em
+MEASURE chromium windows classic 125% two columns from 1399px (report 53.300em)
+PASS  chromium classic 125% the coupled pair flips inside the windows swept  at 1399px, report 53.300em against 53.25em
+MEASURE chromium windows classic 150% two columns from never (the report cannot reach 53.25em under the 1280px panel)
+PASS  chromium classic 150% one column at every window  null
+MEASURE chromium windows classic 200% two columns from never (the report cannot reach 53.25em under the 1280px panel)
+PASS  chromium classic 200% one column at every window  null
+MEASURE chromium windows overlay 100% two columns from 1117px (report 53.313em)
+PASS  chromium overlay 100% the coupled pair flips inside the windows swept  at 1117px, report 53.313em against 53.25em
+MEASURE chromium windows overlay 125% two columns from 1385px (report 53.350em)
+PASS  chromium overlay 125% the coupled pair flips inside the windows swept  at 1385px, report 53.350em against 53.25em
+MEASURE chromium windows overlay 150% two columns from never (the report cannot reach 53.25em under the 1280px panel)
+PASS  chromium overlay 150% one column at every window  null
+MEASURE chromium windows overlay 200% two columns from never (the report cannot reach 53.25em under the 1280px panel)
+PASS  chromium overlay 200% one column at every window  null
+MEASURE chromium phone Jamaica Bay  100% width:glanceBody/tiles/facts/labelLines 320:242/1t/1f/1l 340:262/1t/1f/1l 360:282/2t/1f/1l 375:297/2t/1f/1l 390:312/2t/1f/1l 414:336/2t/1f/1l 430:352/2t/1f/1l 480:402/2t/1f/1l 540:462/3t/1f/1l 600:522/3t/1f/1l 640:562/4t/1f/1l
+MEASURE chromium phone Demo place 0 100% width:glanceBody/tiles/facts/labelLines 320:242/1t/1f/1l 340:262/1t/1f/1l 360:282/2t/1f/1l 375:297/2t/1f/1l 390:312/2t/1f/1l 414:336/2t/1f/1l 430:352/2t/1f/1l 480:402/2t/1f/1l 540:462/3t/1f/1l 600:522/3t/1f/1l 640:562/4t/1f/1l
+MEASURE chromium phone Jamaica Bay  125% width:glanceBody/tiles/facts/labelLines 320:242/1t/1f/1l 340:262/1t/1f/1l 360:282/1t/1f/1l 375:297/1t/1f/1l 390:312/1t/1f/1l 414:336/2t/1f/1l 430:352/2t/1f/1l 480:402/2t/1f/1l 540:462/2t/1f/1l 600:522/3t/1f/1l 640:562/3t/1f/1l
+MEASURE chromium phone Demo place 0 125% width:glanceBody/tiles/facts/labelLines 320:242/1t/1f/1l 340:262/1t/1f/1l 360:282/1t/1f/1l 375:297/1t/1f/1l 390:312/1t/1f/1l 414:336/2t/1f/1l 430:352/2t/1f/1l 480:402/2t/1f/1l 540:462/2t/1f/1l 600:522/3t/1f/1l 640:562/3t/1f/1l
+MEASURE chromium phone Jamaica Bay  150% width:glanceBody/tiles/facts/labelLines 320:242/1t/1f/1l 340:262/1t/1f/1l 360:282/1t/1f/1l 375:297/1t/1f/1l 390:312/1t/1f/1l 414:336/1t/1f/1l 430:352/1t/1f/1l 480:402/2t/1f/1l 540:462/2t/1f/1l 600:522/2t/1f/1l 640:562/2t/1f/1l
+MEASURE chromium phone Demo place 0 150% width:glanceBody/tiles/facts/labelLines 320:242/1t/1f/1l 340:262/1t/1f/1l 360:282/1t/1f/1l 375:297/1t/1f/1l 390:312/1t/1f/1l 414:336/1t/1f/1l 430:352/1t/1f/1l 480:402/2t/1f/1l 540:462/2t/1f/1l 600:522/2t/1f/1l 640:562/2t/1f/1l
+MEASURE chromium phone Jamaica Bay  200% width:glanceBody/tiles/facts/labelLines 320:242/1t/1f/1l 340:262/1t/1f/1l 360:282/1t/1f/1l 375:297/1t/1f/1l 390:312/1t/1f/1l 414:336/1t/1f/1l 430:352/1t/1f/1l 480:402/1t/1f/1l 540:462/1t/1f/1l 600:522/1t/1f/1l 640:562/2t/1f/1l
+MEASURE chromium phone Demo place 0 200% width:glanceBody/tiles/facts/labelLines 320:242/1t/1f/1l 340:262/1t/1f/1l 360:282/1t/1f/1l 375:297/1t/1f/1l 390:312/1t/1f/1l 414:336/1t/1f/1l 430:352/1t/1f/1l 480:402/1t/1f/1l 540:462/1t/1f/1l 600:522/1t/1f/1l 640:562/2t/1f/1l
+PASS  webkit More sheet holds every destination without scrolling  9 rows, 506/506
+PASS  webkit the replaced cap is seen to scroll (the leg can reject a revert)  506/418
+PASS  webkit 100% the wide life-list row fits above 28em  worst 0px
+PASS  webkit 100% two columns fit above 53.25em  worst 0px
+MEASURE webkit glance 100% {"2":{"body":272,"predicted":272},"3":{"body":416,"predicted":416},"4":{"body":560,"predicted":560},"5":{"body":704,"predicted":704},"facts":{"body":644,"predicted":644}} worst ink 0px
+PASS  webkit 100% At a glance: no ink past a tile, a fact or the card across every track change  worst 0px
+PASS  webkit 100% every tile label is one line wherever the tiles are two or more across  0 configurations wrapped a label
+PASS  webkit 100% every fact's term and value sit side by side wherever the facts are two across  0 configurations stacked a fact
+PASS  webkit 100% each track appeared where its minimum says  {"2":{"body":272,"predicted":272},"3":{"body":416,"predicted":416},"4":{"body":560,"predicted":560},"5":{"body":704,"predicted":704},"facts":{"body":644,"predicted":644}}
+PASS  webkit 100% the detector sees a forced overflow  121.59px
+PASS  webkit 125% the wide life-list row fits above 28em  worst 0px
+PASS  webkit 125% two columns fit above 53.25em  worst 0px
+MEASURE webkit glance 125% {"2":{"body":336,"predicted":336},"3":{"body":512,"predicted":512},"4":{"body":688,"predicted":688},"5":{"body":864,"predicted":864},"facts":{"body":796,"predicted":796}} worst ink 0px
+PASS  webkit 125% At a glance: no ink past a tile, a fact or the card across every track change  worst 0px
+PASS  webkit 125% every tile label is one line wherever the tiles are two or more across  0 configurations wrapped a label
+PASS  webkit 125% every fact's term and value sit side by side wherever the facts are two across  0 configurations stacked a fact
+PASS  webkit 125% each track appeared where its minimum says  {"2":{"body":336,"predicted":336},"3":{"body":512,"predicted":512},"4":{"body":688,"predicted":688},"5":{"body":864,"predicted":864},"facts":{"body":796,"predicted":796}}
+PASS  webkit 125% the detector sees a forced overflow  133px
+PASS  webkit 150% the wide life-list row fits above 28em  worst 0px
+PASS  webkit 150% two columns fit above 53.25em  worst 0px
+MEASURE webkit glance 150% {"2":{"body":400,"predicted":400},"3":{"body":608,"predicted":608},"4":{"body":816,"predicted":816},"5":{"body":1024,"predicted":1024},"facts":{"body":948,"predicted":948}} worst ink 0px
+PASS  webkit 150% At a glance: no ink past a tile, a fact or the card across every track change  worst 0px
+PASS  webkit 150% every tile label is one line wherever the tiles are two or more across  0 configurations wrapped a label
+PASS  webkit 150% every fact's term and value sit side by side wherever the facts are two across  0 configurations stacked a fact
+PASS  webkit 150% each track appeared where its minimum says  {"2":{"body":400,"predicted":400},"3":{"body":608,"predicted":608},"4":{"body":816,"predicted":816},"5":{"body":1024,"predicted":1024},"facts":{"body":948,"predicted":948}}
+PASS  webkit 150% the detector sees a forced overflow  144.39px
+PASS  webkit 200% the wide life-list row fits above 28em  worst 0px
+PASS  webkit 200% two columns fit above 53.25em  worst 0px
+MEASURE webkit glance 200% {"2":{"body":528,"predicted":528},"3":{"body":800,"predicted":800},"4":{"body":1072,"predicted":1072},"5":{"body":1344,"predicted":1344},"facts":{"body":1252,"predicted":1252}} worst ink 0px
+PASS  webkit 200% At a glance: no ink past a tile, a fact or the card across every track change  worst 0px
+PASS  webkit 200% every tile label is one line wherever the tiles are two or more across  0 configurations wrapped a label
+PASS  webkit 200% every fact's term and value sit side by side wherever the facts are two across  0 configurations stacked a fact
+PASS  webkit 200% each track appeared where its minimum says  {"2":{"body":528,"predicted":528},"3":{"body":800,"predicted":800},"4":{"body":1072,"predicted":1072},"5":{"body":1344,"predicted":1344},"facts":{"body":1252,"predicted":1252}}
+PASS  webkit 200% the detector sees a forced overflow  167.19px
+MEASURE webkit windows classic 100% two columns from 1133px (report 53.375em)
+PASS  webkit classic 100% the coupled pair flips inside the windows swept  at 1133px, report 53.375em against 53.25em
+MEASURE webkit windows classic 125% two columns from 1399px (report 53.300em)
+PASS  webkit classic 125% the coupled pair flips inside the windows swept  at 1399px, report 53.300em against 53.25em
+MEASURE webkit windows classic 150% two columns from never (the report cannot reach 53.25em under the 1280px panel)
+PASS  webkit classic 150% one column at every window  null
+MEASURE webkit windows classic 200% two columns from never (the report cannot reach 53.25em under the 1280px panel)
+PASS  webkit classic 200% one column at every window  null
+MEASURE webkit windows overlay 100% two columns from 1117px (report 53.313em)
+PASS  webkit overlay 100% the coupled pair flips inside the windows swept  at 1117px, report 53.313em against 53.25em
+MEASURE webkit windows overlay 125% two columns from 1385px (report 53.350em)
+PASS  webkit overlay 125% the coupled pair flips inside the windows swept  at 1385px, report 53.350em against 53.25em
+MEASURE webkit windows overlay 150% two columns from never (the report cannot reach 53.25em under the 1280px panel)
+PASS  webkit overlay 150% one column at every window  null
+MEASURE webkit windows overlay 200% two columns from never (the report cannot reach 53.25em under the 1280px panel)
+PASS  webkit overlay 200% one column at every window  null
+MEASURE webkit phone Jamaica Bay  100% width:glanceBody/tiles/facts/labelLines 320:242/1t/1f/1l 340:262/1t/1f/1l 360:282/2t/1f/1l 375:297/2t/1f/1l 390:312/2t/1f/1l 414:336/2t/1f/1l 430:352/2t/1f/1l 480:402/2t/1f/1l 540:462/3t/1f/1l 600:522/3t/1f/1l 640:562/4t/1f/1l
+MEASURE webkit phone Demo place 0 100% width:glanceBody/tiles/facts/labelLines 320:242/1t/1f/1l 340:262/1t/1f/1l 360:282/2t/1f/1l 375:297/2t/1f/1l 390:312/2t/1f/1l 414:336/2t/1f/1l 430:352/2t/1f/1l 480:402/2t/1f/1l 540:462/3t/1f/1l 600:522/3t/1f/1l 640:562/4t/1f/1l
+MEASURE webkit phone Jamaica Bay  125% width:glanceBody/tiles/facts/labelLines 320:242/1t/1f/1l 340:262/1t/1f/1l 360:282/1t/1f/1l 375:297/1t/1f/1l 390:312/1t/1f/1l 414:336/2t/1f/1l 430:352/2t/1f/1l 480:402/2t/1f/1l 540:462/2t/1f/1l 600:522/3t/1f/1l 640:562/3t/1f/1l
+MEASURE webkit phone Demo place 0 125% width:glanceBody/tiles/facts/labelLines 320:242/1t/1f/1l 340:262/1t/1f/1l 360:282/1t/1f/1l 375:297/1t/1f/1l 390:312/1t/1f/1l 414:336/2t/1f/1l 430:352/2t/1f/1l 480:402/2t/1f/1l 540:462/2t/1f/1l 600:522/3t/1f/1l 640:562/3t/1f/1l
+MEASURE webkit phone Jamaica Bay  150% width:glanceBody/tiles/facts/labelLines 320:242/1t/1f/1l 340:262/1t/1f/1l 360:282/1t/1f/1l 375:297/1t/1f/1l 390:312/1t/1f/1l 414:336/1t/1f/1l 430:352/1t/1f/1l 480:402/2t/1f/1l 540:462/2t/1f/1l 600:522/2t/1f/1l 640:562/2t/1f/1l
+MEASURE webkit phone Demo place 0 150% width:glanceBody/tiles/facts/labelLines 320:242/1t/1f/1l 340:262/1t/1f/1l 360:282/1t/1f/1l 375:297/1t/1f/1l 390:312/1t/1f/1l 414:336/1t/1f/1l 430:352/1t/1f/1l 480:402/2t/1f/1l 540:462/2t/1f/1l 600:522/2t/1f/1l 640:562/2t/1f/1l
+MEASURE webkit phone Jamaica Bay  200% width:glanceBody/tiles/facts/labelLines 320:242/1t/1f/1l 340:262/1t/1f/1l 360:282/1t/1f/1l 375:297/1t/1f/1l 390:312/1t/1f/1l 414:336/1t/1f/1l 430:352/1t/1f/1l 480:402/1t/1f/1l 540:462/1t/1f/1l 600:522/1t/1f/1l 640:562/2t/1f/1l
+MEASURE webkit phone Demo place 0 200% width:glanceBody/tiles/facts/labelLines 320:242/1t/1f/1l 340:262/1t/1f/1l 360:282/1t/1f/1l 375:297/1t/1f/1l 390:312/1t/1f/1l 414:336/1t/1f/1l 430:352/1t/1f/1l 480:402/1t/1f/1l 540:462/1t/1f/1l 600:522/1t/1f/1l 640:562/2t/1f/1l
+PASS  the only eBird-backed path asked for is the shared hotspot lookup, answered by the stub  64 hotspot-region lookups answered by the stub, 0 other (); 32 requests to other hosts refused in the browser
+PASS  windows leg measured every configuration  608 of 608 window configurations measured
+PASS  phone leg measured every configuration  176 of 176 phone configurations measured
+PASS  no window configuration failed  0 of the 608 measured
+PASS  no phone configuration failed  0 of the 176 measured
+2044 configurations measured (608 of them windows, 176 phones) in 386 s; all green
+rc=0
+ 0:11  up 4 days, 23:23, 3 users, load averages: 1.81 1.91 19.08

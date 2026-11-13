@@ -1,0 +1,48 @@
+built thresholds: report 53.25em, list 28em (mode: expect-broken)
+MEASURE chromium windows classic 100% two columns from 621px (report 34.875em)
+MEASURE chromium windows classic 125% two columns from 621px (report 27.900em)
+MEASURE chromium windows classic 150% two columns from 641 (the report cannot reach 53.25em under the 1280px panel)
+MEASURE chromium windows classic 200% two columns from 641 (the report cannot reach 53.25em under the 1280px panel)
+MEASURE chromium windows overlay 100% two columns from 621px (report 35.813em)
+MEASURE chromium windows overlay 125% two columns from 621px (report 28.650em)
+MEASURE chromium windows overlay 150% two columns from 641 (the report cannot reach 53.25em under the 1280px panel)
+MEASURE chromium windows overlay 200% two columns from 641 (the report cannot reach 53.25em under the 1280px panel)
+MEASURE chromium phone Jamaica Bay  100% width:glanceBody/tiles/facts/labelLines 320:242/4t/2f/3l 340:262/4t/2f/3l 360:282/4t/2f/3l 375:297/4t/2f/3l 390:312/4t/2f/2l 414:336/4t/2f/2l 430:352/4t/2f/2l 480:402/4t/2f/2l 540:462/4t/2f/2l 600:522/4t/2f/2l 640:562/4t/2f/1l
+MEASURE chromium phone Demo place 0 100% width:glanceBody/tiles/facts/labelLines 320:242/4t/2f/3l 340:262/4t/2f/3l 360:282/4t/2f/3l 375:297/4t/2f/3l 390:312/4t/2f/2l 414:336/4t/2f/2l 430:352/4t/2f/2l 480:402/4t/2f/2l 540:462/4t/2f/2l 600:522/4t/2f/2l 640:562/4t/2f/1l
+MEASURE chromium phone Jamaica Bay  125% width:glanceBody/tiles/facts/labelLines 320:242/4t/2f/4l 340:262/4t/2f/3l 360:282/4t/2f/3l 375:297/4t/2f/3l 390:312/4t/2f/3l 414:336/4t/2f/3l 430:352/4t/2f/3l 480:402/4t/2f/2l 540:462/4t/2f/2l 600:522/4t/2f/2l 640:562/4t/2f/2l
+MEASURE chromium phone Demo place 0 125% width:glanceBody/tiles/facts/labelLines 320:242/4t/2f/4l 340:262/4t/2f/3l 360:282/4t/2f/3l 375:297/4t/2f/3l 390:312/4t/2f/3l 414:336/4t/2f/3l 430:352/4t/2f/3l 480:402/4t/2f/2l 540:462/4t/2f/2l 600:522/4t/2f/2l 640:562/4t/2f/2l
+ALLOWED chromium phone Jamaica Bay  150% 320px sr-hsr-ll-name 2.63px
+MEASURE chromium phone Jamaica Bay  150% width:glanceBody/tiles/facts/labelLines 320:242/4t/2f/5l 340:262/4t/2f/4l 360:282/4t/2f/4l 375:297/4t/2f/4l 390:312/4t/2f/3l 414:336/4t/2f/3l 430:352/4t/2f/3l 480:402/4t/2f/3l 540:462/4t/2f/2l 600:522/4t/2f/2l 640:562/4t/2f/2l
+MEASURE chromium phone Demo place 0 150% width:glanceBody/tiles/facts/labelLines 320:242/4t/2f/5l 340:262/4t/2f/4l 360:282/4t/2f/4l 375:297/4t/2f/4l 390:312/4t/2f/3l 414:336/4t/2f/3l 430:352/4t/2f/3l 480:402/4t/2f/3l 540:462/4t/2f/2l 600:522/4t/2f/2l 640:562/4t/2f/2l
+ALLOWED chromium phone Jamaica Bay  200% 320px sr-hsr-ll-name 67.81px, sr-hsr-ll-name 42.31px, sr-hsr-ll-name 35.95px, sr-hsr-ll-name 46.39px
+ALLOWED chromium phone Jamaica Bay  200% 340px sr-hsr-ll-name 47.81px, sr-hsr-ll-name 22.31px, sr-hsr-ll-name 15.95px, sr-hsr-ll-name 26.39px
+ALLOWED chromium phone Jamaica Bay  200% 360px sr-hsr-ll-name 27.81px, sr-hsr-ll-name 2.31px, sr-hsr-ll-name 6.39px
+ALLOWED chromium phone Jamaica Bay  200% 375px sr-hsr-ll-name 12.81px
+MEASURE chromium phone Jamaica Bay  200% width:glanceBody/tiles/facts/labelLines 320:242/4t/2f/6l 340:262/4t/2f/6l 360:282/4t/2f/5l 375:297/4t/2f/5l 390:312/4t/2f/5l 414:336/4t/2f/4l 430:352/4t/2f/4l 480:402/4t/2f/3l 540:462/4t/2f/3l 600:522/4t/2f/3l 640:562/4t/2f/2l
+MEASURE chromium phone Demo place 0 200% width:glanceBody/tiles/facts/labelLines 320:242/4t/2f/6l 340:262/4t/2f/6l 360:282/4t/2f/5l 375:297/4t/2f/5l 390:312/4t/2f/5l 414:336/4t/2f/4l 430:352/4t/2f/4l 480:402/4t/2f/3l 540:462/4t/2f/3l 600:522/4t/2f/3l 640:562/4t/2f/2l
+MEASURE webkit windows classic 100% two columns from 621px (report 34.875em)
+MEASURE webkit windows classic 125% two columns from 621px (report 27.900em)
+MEASURE webkit windows classic 150% two columns from 641 (the report cannot reach 53.25em under the 1280px panel)
+MEASURE webkit windows classic 200% two columns from 641 (the report cannot reach 53.25em under the 1280px panel)
+MEASURE webkit windows overlay 100% two columns from 621px (report 35.813em)
+MEASURE webkit windows overlay 125% two columns from 621px (report 28.650em)
+MEASURE webkit windows overlay 150% two columns from 641 (the report cannot reach 53.25em under the 1280px panel)
+MEASURE webkit windows overlay 200% two columns from 641 (the report cannot reach 53.25em under the 1280px panel)
+MEASURE webkit phone Jamaica Bay  100% width:glanceBody/tiles/facts/labelLines 320:242/4t/2f/3l 340:262/4t/2f/3l 360:282/4t/2f/3l 375:297/4t/2f/3l 390:312/4t/2f/2l 414:336/4t/2f/2l 430:352/4t/2f/2l 480:402/4t/2f/2l 540:462/4t/2f/2l 600:522/4t/2f/2l 640:562/4t/2f/1l
+MEASURE webkit phone Demo place 0 100% width:glanceBody/tiles/facts/labelLines 320:242/4t/2f/3l 340:262/4t/2f/3l 360:282/4t/2f/3l 375:297/4t/2f/3l 390:312/4t/2f/2l 414:336/4t/2f/2l 430:352/4t/2f/2l 480:402/4t/2f/2l 540:462/4t/2f/2l 600:522/4t/2f/2l 640:562/4t/2f/1l
+MEASURE webkit phone Jamaica Bay  125% width:glanceBody/tiles/facts/labelLines 320:242/4t/2f/4l 340:262/4t/2f/3l 360:282/4t/2f/3l 375:297/4t/2f/3l 390:312/4t/2f/3l 414:336/4t/2f/3l 430:352/4t/2f/3l 480:402/4t/2f/2l 540:462/4t/2f/2l 600:522/4t/2f/2l 640:562/4t/2f/2l
+MEASURE webkit phone Demo place 0 125% width:glanceBody/tiles/facts/labelLines 320:242/4t/2f/4l 340:262/4t/2f/3l 360:282/4t/2f/3l 375:297/4t/2f/3l 390:312/4t/2f/3l 414:336/4t/2f/3l 430:352/4t/2f/3l 480:402/4t/2f/2l 540:462/4t/2f/2l 600:522/4t/2f/2l 640:562/4t/2f/2l
+ALLOWED webkit phone Jamaica Bay  150% 320px sr-hsr-ll-name 2.66px
+MEASURE webkit phone Jamaica Bay  150% width:glanceBody/tiles/facts/labelLines 320:242/4t/2f/5l 340:262/4t/2f/4l 360:282/4t/2f/4l 375:297/4t/2f/4l 390:312/4t/2f/3l 414:336/4t/2f/3l 430:352/4t/2f/3l 480:402/4t/2f/3l 540:462/4t/2f/2l 600:522/4t/2f/2l 640:562/4t/2f/2l
+MEASURE webkit phone Demo place 0 150% width:glanceBody/tiles/facts/labelLines 320:242/4t/2f/5l 340:262/4t/2f/4l 360:282/4t/2f/4l 375:297/4t/2f/4l 390:312/4t/2f/3l 414:336/4t/2f/3l 430:352/4t/2f/3l 480:402/4t/2f/3l 540:462/4t/2f/2l 600:522/4t/2f/2l 640:562/4t/2f/2l
+ALLOWED webkit phone Jamaica Bay  200% 320px sr-hsr-ll-name 67.71px, sr-hsr-ll-name 42.20px, sr-hsr-ll-name 35.85px, sr-hsr-ll-name 46.27px, sr-hsr-ll-name 67.72px, sr-hsr-ll-name 46.28px
+ALLOWED webkit phone Jamaica Bay  200% 340px sr-hsr-ll-name 47.71px, sr-hsr-ll-name 22.20px, sr-hsr-ll-name 15.85px, sr-hsr-ll-name 26.27px, sr-hsr-ll-name 47.72px, sr-hsr-ll-name 26.28px
+ALLOWED webkit phone Jamaica Bay  200% 360px sr-hsr-ll-name 27.71px, sr-hsr-ll-name 2.20px, sr-hsr-ll-name 6.27px, sr-hsr-ll-name 27.72px, sr-hsr-ll-name 6.28px
+ALLOWED webkit phone Jamaica Bay  200% 375px sr-hsr-ll-name 12.71px, sr-hsr-ll-name 12.72px
+MEASURE webkit phone Jamaica Bay  200% width:glanceBody/tiles/facts/labelLines 320:242/4t/2f/6l 340:262/4t/2f/6l 360:282/4t/2f/5l 375:297/4t/2f/5l 390:312/4t/2f/5l 414:336/4t/2f/4l 430:352/4t/2f/4l 480:402/4t/2f/3l 540:462/4t/2f/3l 600:522/4t/2f/3l 640:562/4t/2f/2l
+MEASURE webkit phone Demo place 0 200% width:glanceBody/tiles/facts/labelLines 320:242/4t/2f/6l 340:262/4t/2f/6l 360:282/4t/2f/5l 375:297/4t/2f/5l 390:312/4t/2f/5l 414:336/4t/2f/4l 430:352/4t/2f/4l 480:402/4t/2f/3l 540:462/4t/2f/3l 600:522/4t/2f/3l 640:562/4t/2f/2l
+PASS  the only eBird-backed path asked for is the shared hotspot lookup, answered by the stub  48 hotspot-region lookups answered by the stub, 0 other (); 24 requests to other hosts refused in the browser
+expect-broken: 500 of the 608 window configurations measured (608 declared) fail with both container queries neutered; 176 of the 176 phone configurations measured (176 declared) fail with the glance grids held wide and the rail moved after the list; 374 s
+HARNESS DISCRIMINATES
+rc=0
+20:12  up 4 days, 19:24, 3 users, load averages: 506.45 502.77 475.68

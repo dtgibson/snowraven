@@ -126,13 +126,18 @@ const BUDGET_MS = {
   // comparable weight takes the same 600 s rather than a tighter number
   // justified by a single quiet-machine reading.
   'verify-plan-daylabels.mjs': 600_000,
-  // Hotspot Reports (hotspot-reports, schema 10.3 and 13.4): the phone More
-  // sheet's legs and the two container thresholds, read from the built
-  // stylesheet, across three text scales of fit sweeps and 344 window
-  // configurations, in both engines. MEASURED 181 s on the dev Mac
-  // (pipeline/hotspot-reports/decisions.md D-18 and D-25), so this is 5x, the
-  // same 4x-or-more headroom the two plan harnesses carry for a shared runner.
-  'verify-hotspot-reports.mjs': 900_000,
+  // Hotspot Reports (hotspot-reports, schema 10.3 and 13.4; hotspot-report-
+  // order-and-stats D-08 and D-09): the phone More sheet's legs, the two
+  // container thresholds read from the built stylesheet, the At a glance
+  // grids swept across every track change, 608 window configurations at the
+  // four shipped text scales and 176 phone configurations, in both engines.
+  // MEASURED 570 s on the dev Mac with its one-minute load near 470 from other
+  // work (181 s on a quiet machine before the At a glance and phone legs were
+  // added, pipeline/hotspot-reports/decisions.md D-18) and 386 s on a quiet
+  // machine (load near 2, hotspot-report-order-and-stats D-11), so 1,800 s is
+  // about 3x the loaded reading and 4.7x the quiet one, the 4x-or-more the plan
+  // harnesses carry for a shared runner. CI's job bound counts it (D-12).
+  'verify-hotspot-reports.mjs': 1_800_000,
 }
 const rawTimeout = Number(process.env.SR_VERIFY_TIMEOUT_MS)
 const OVERRIDE_MS = Number.isFinite(rawTimeout) && rawTimeout > 0 ? rawTimeout : null

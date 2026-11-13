@@ -11,10 +11,13 @@ import type { ObservationEntry } from '../types'
 import { row, checklist } from '../test/hotspotReportsRows'
 import { buildLocationIndex } from './hotspotReports'
 import {
-  applySpeciesRule, deriveLocationFacts, weatherView,
-  DURATION_MAX_MIN, PROTOCOL_NAME_MAX_CHARS, PROTOCOL_ROWS_MAX, REPORT_YEAR_ROWS_MAX,
+  applySpeciesRule, deriveLocationFacts, glanceView, mostRecordedView, weatherView,
+  DISTANCE_MAX_KM, DURATION_MAX_MIN, PROTOCOL_NAME_MAX_CHARS, PROTOCOL_ROWS_MAX, REPORT_YEAR_ROWS_MAX, TOP_SPECIES_MAX,
+  type LocationLifeRow,
 } from './hotspotReportsLocation'
-import { computeChecklists, computeDurationBins } from './birdingStats'
+import { computeChecklists, computeDurationBins, computeEffort } from './birdingStats'
+import { dayKey } from './lifeLists'
+import { isNonCountableForm, normalizeSpeciesName } from './speciesUtils'
 import { computeWeatherStats, WEATHER_SPECIES_MIN_CHECKLISTS } from './weatherStats'
 import { CONDITION_DISPLAY_ORDER } from './weatherDisplay'
 import { formatWeather, type HourlyResponse } from './weatherFormatter'
@@ -364,5 +367,364 @@ describe('weather from the location\'s own blocks (FR-45 to FR-49, QA-44 to QA-4
     const view = weatherView(thinWind)
     if (view.state !== 'full') throw new Error('expected the full state')
     expect([view.wind.denominator, view.wind.typical]).toEqual([4, null])
+  })
+})
+
+// ── The opening figures (hotspot-report-order-and-stats D-02 to D-06) ────────
+//
+// Every species figure here is held to what the LIFE LIST implies, computed in
+// the test from the raw rows rather than from the module's own arrays: the
+// per-checklist count is the life-list species carried on that checklist on a
+// row with a countable form and a valid date (FR-36), never the roll-up's
+// `speciesCount`, and a species' checklist figure is the distinct checklists
+// carrying it on a countable-form row (FR-37). The date figures are held to an
+// oracle outside the module too (Date.UTC day numbers, used only here).
+
+function rng(seed: number): () => number {
+  let s = seed
+  return () => { s = (s * 1103515245 + 12345) & 0x7fffffff; return s / 0x7fffffff }
+}
+
+const NAMES = ['Song Sparrow', 'Blue Jay', 'Mute Swan', 'gull sp.', "Red-tailed Hawk (Harlan's)", 'Red-tailed Hawk',
+  'Mallard x American Black Duck (hybrid)', 'Wood Duck', 'American Robin', 'Northern Cardinal', 'Cedar Waxwing', 'Tree Swallow']
+const DURATIONS = [null, -5, 0, 0, 1, 30, 60, 125, DURATION_MAX_MIN, DURATION_MAX_MIN + 1]
+const DATES = ['2024-05-01', '2024-05-02', '', 'n/a', '2023-12-31', '2024-02-31', '2019-07-04', '2024-05-01']
+
+/** A generated location L1 (and a decoy L2 that must never be counted). */
+function generated(seed: number): ObservationEntry[] {
+  const r = rng(seed)
+  const out: ObservationEntry[] = []
+  const C = 1 + Math.floor(r() * 30)
+  for (let c = 0; c < C; c++) {
+    const species = Array.from({ length: 1 + Math.floor(r() * 6) }, () => NAMES[Math.floor(r() * NAMES.length)])
+    out.push(...checklist({
+      submissionId: `S${seed}${String(c).padStart(3, '0')}`,
+      date: DATES[Math.floor(r() * DATES.length)],
+      duration: DURATIONS[Math.floor(r() * DURATIONS.length)],
+      species,
+    }))
+  }
+  out.push(...checklist({ submissionId: 'S9999', locationId: 'L2', duration: 30, species: ['Song Sparrow', 'Blue Jay'] }))
+  return out
+}
+
+/** Per Submission ID at L1: the life-list species it carries under FR-36. */
+function impliedCounts(rows: readonly ObservationEntry[], life: ReadonlySet<string>): Map<string, number> {
+  const on = new Map<string, Set<string>>()
+  for (const o of rows) {
+    if (o.locationId !== 'L1' || o.submissionId === '') continue
+    if (!on.has(o.submissionId)) on.set(o.submissionId, new Set())
+    if (dayKey(o.date) === null || isNonCountableForm(o.commonName)) continue
+    const n = normalizeSpeciesName(o.commonName)
+    if (life.has(n)) on.get(o.submissionId)!.add(n)
+  }
+  return new Map([...on].map(([s, set]) => [s, set.size]))
+}
+
+/** Species per hour as the life list implies it: every checklist at L1 whose
+ *  duration is above zero and at most the bound, zero-species ones included. */
+function impliedPerHour(rows: readonly ObservationEntry[], life: ReadonlySet<string>): { mean: number; counted: number } | null {
+  const counts = impliedCounts(rows, life)
+  const duration = new Map<string, number | null>()
+  for (const o of rows) if (o.locationId === 'L1' && !duration.has(o.submissionId)) duration.set(o.submissionId, o.duration ?? null)
+  let sum = 0
+  let n = 0
+  for (const [sub, d] of duration) {
+    if (typeof d !== 'number' || d <= 0 || d > 1440) continue
+    sum += (counts.get(sub) ?? 0) / (d / 60)
+    n += 1
+  }
+  return n === 0 ? null : { mean: sum / n, counted: n }
+}
+
+/** Per life-list name at L1: distinct checklists carrying it on a countable-form row. */
+function impliedFigures(rows: readonly ObservationEntry[], life: ReadonlySet<string>): Map<string, number> {
+  const subs = new Map<string, Set<string>>()
+  for (const o of rows) {
+    if (o.locationId !== 'L1' || o.submissionId === '' || isNonCountableForm(o.commonName)) continue
+    const n = normalizeSpeciesName(o.commonName)
+    if (!life.has(n)) continue
+    if (!subs.has(n)) subs.set(n, new Set())
+    subs.get(n)!.add(o.submissionId)
+  }
+  return new Map([...subs].map(([n, s]) => [n, s.size]))
+}
+
+describe('species per hour follows the one species rule (D-03)', () => {
+  it('equals what the life list implies over a generated corpus, escapees and all', () => {
+    let drawn = 0
+    for (let seed = 1; seed <= 120; seed++) {
+      const rows = generated(seed)
+      const esc: ReadonlySet<string> = seed % 3 === 0 ? new Set(['Mute Swan']) : NONE
+      const { species } = report(rows, 'L1', esc)
+      const life = new Set(species.rows.map(r => r.name))
+      const oracle = impliedPerHour(rows, life)
+      if (oracle === null) { expect(species.perHour).toBeNull(); continue }
+      drawn += 1
+      expect(species.perHour!.counted).toBe(oracle.counted)
+      expect(species.perHour!.mean).toBeCloseTo(oracle.mean, 9)
+    }
+    // Non-vacuity: most seeds draw the figure.
+    expect(drawn).toBeGreaterThan(60)
+  })
+
+  it('a timed checklist with no species under the rule is in the mean at zero; Statistics leaves it out', () => {
+    // The decided case (D-03): S2 is a real hour that recorded only a spuh.
+    const rows = [
+      ...checklist({ submissionId: 'S1', duration: 60, species: ['Song Sparrow', 'Blue Jay'] }),
+      ...checklist({ submissionId: 'S2', duration: 60, species: ['gull sp.'] }),
+    ]
+    const { species } = report(rows)
+    expect(species.perHour).toEqual({ mean: 1, counted: 2 })
+    // Statistics' Key metrics figure (Count all forms off) rests on S1 alone.
+    const stats = computeEffort(computeChecklists(rows.filter(o => !isNonCountableForm(o.commonName))))
+    expect(stats.sppPerHour).toBe(2)
+  })
+
+  it('an escapee lowers the rate; a duration of 0, blank, negative or over the bound rests nothing', () => {
+    const rows = [
+      ...checklist({ submissionId: 'S1', duration: 30, species: ['Mute Swan', 'Song Sparrow'] }),
+      ...checklist({ submissionId: 'S2', duration: 0, species: ['Song Sparrow'] }),
+      ...checklist({ submissionId: 'S3', duration: null, species: ['Song Sparrow'] }),
+      ...checklist({ submissionId: 'S4', duration: -10, species: ['Song Sparrow'] }),
+      ...checklist({ submissionId: 'S5', duration: DURATION_MAX_MIN + 1, species: ['Song Sparrow'] }),
+      ...checklist({ submissionId: 'S6', duration: DURATION_MAX_MIN, species: ['Song Sparrow'] }),
+    ]
+    expect(report(rows).species.perHour).toEqual({ mean: (4 + 1 / 24) / 2, counted: 2 })
+    expect(report(rows, 'L1', new Set(['Mute Swan'])).species.perHour).toEqual({ mean: (2 + 1 / 24) / 2, counted: 2 })
+    // Time birded counts the 0 the rate leaves out, which is what the note's
+    // "above zero" is for.
+    expect(report(rows).facts.timeBirded.counted).toBe(3)
+  })
+})
+
+describe('recorded once and the most-recorded species read the life list\'s own figure (D-05)', () => {
+  const byTop = (a: LocationLifeRow, b: LocationLifeRow) => b.checklists - a.checklists || a.name.localeCompare(b.name)
+
+  it('recorded once equals the life-list rows whose figure is 1, and the raw oracle, over a generated corpus', () => {
+    for (let seed = 1; seed <= 120; seed++) {
+      const rows = generated(seed)
+      const { species } = report(rows, 'L1', seed % 2 ? new Set(['Song Sparrow']) : NONE)
+      const figures = impliedFigures(rows, new Set(species.rows.map(r => r.name)))
+      expect(species.rows.map(r => [r.name, r.checklists])).toEqual(species.rows.map(r => [r.name, figures.get(r.name)]))
+      expect(species.recordedOnce).toBe([...figures.values()].filter(n => n === 1).length)
+    }
+  })
+
+  it('the top ten equal a stable sort of the life list cut at ten, row for row, over a corpus full of ties', () => {
+    let cut = 0
+    for (let seed = 1; seed <= 80; seed++) {
+      const r = rng(seed * 7)
+      const rows: ObservationEntry[] = []
+      const S = 1 + Math.floor(r() * 30)
+      for (let c = 0; c < 6; c++) {
+        const names = Array.from({ length: S }, (_, k) => `Species ${String.fromCharCode(65 + (k % 26))}${Math.floor(k / 26)}`).filter(() => r() < 0.5)
+        if (names.length > 0) rows.push(...checklist({ submissionId: `S${c}`, date: `2024-0${1 + c}-01`, species: names }))
+      }
+      if (rows.length === 0) continue
+      const { species } = report(rows)
+      const oracle = [...species.rows].sort(byTop).slice(0, TOP_SPECIES_MAX)
+      expect(species.top).toEqual(oracle)
+      for (let i = 0; i < species.top.length; i++) expect(species.top[i]).toBe(oracle[i])
+      if (species.rows.length > TOP_SPECIES_MAX) cut += 1
+    }
+    expect(cut).toBeGreaterThan(20)
+    expect(TOP_SPECIES_MAX).toBe(10)
+  })
+
+  it('two names that compare equal keep the life list\'s own order, as a stable sort would', () => {
+    // A composed and a decomposed spelling of one name are two life-list rows
+    // that localeCompare calls equal: the only input on which "after an equal
+    // row" and "before it" differ. Written as escapes (testing.md).
+    const composed = 'Caf\u00e9 Warbler'
+    const decomposed = 'Cafe\u0301 Warbler'
+    expect(composed).not.toBe(decomposed)
+    expect(composed.localeCompare(decomposed)).toBe(0)
+    const rows = checklist({ submissionId: 'S1', date: '2024-01-01', species: [composed, decomposed, 'Wood Duck'] })
+    const { species } = report(rows)
+    expect(species.rows.map(r => r.name)).toContain(decomposed)
+    expect(species.top).toEqual([...species.rows].sort(byTop))
+    expect(species.top.map(r => r.name)).toEqual([...species.rows].sort(byTop).map(r => r.name))
+  })
+
+  it('a tie at the tenth place is cut by name, and an escapee never appears', () => {
+    // Twelve species on one checklist each beside one on two: the tie among the
+    // twelve is cut by name order after the leader.
+    const twelve = Array.from({ length: 12 }, (_, k) => `Bird ${String.fromCharCode(76 - k)}`)
+    const rows = [
+      ...checklist({ submissionId: 'S1', date: '2024-01-01', species: [...twelve.slice(0, 6), 'Mute Swan', 'Wood Duck'] }),
+      ...checklist({ submissionId: 'S2', date: '2024-01-02', species: [...twelve.slice(6), 'Mute Swan', 'Wood Duck'] }),
+    ]
+    const { species } = report(rows, 'L1', new Set(['Mute Swan']))
+    expect(species.top.map(r => r.name)).toEqual(['Wood Duck', ...[...twelve].sort((a, b) => a.localeCompare(b)).slice(0, 9)])
+    expect(species.top.map(r => r.checklists)).toEqual([2, 1, 1, 1, 1, 1, 1, 1, 1, 1])
+  })
+})
+
+describe('the date figures: days, years and the longest gap (D-04)', () => {
+  const at = (dates: string[]) => report(dates.map((d, i) => row({ submissionId: `S${i}`, date: d })))
+
+  it('days birded counts distinct dates of dated checklists; years state their count and span', () => {
+    const { facts } = at(['2020-01-05', '2020-01-05', '2021-03-01', 'bad', '', '2019-12-31'])
+    expect(facts.daysBirded).toBe(3)
+    expect(facts.yearSpan).toEqual({ count: 3, first: 2019, last: 2021 })
+    expect(at(['x']).facts.yearSpan).toBeNull()
+    expect(at(['2024-05-01']).facts.yearSpan).toEqual({ count: 1, first: 2024, last: 2024 })
+  })
+
+  it('counts calendar days by integer arithmetic across leap days, century years and a DST change', () => {
+    expect(at(['2024-02-28', '2024-03-01']).facts.longestGap).toEqual({ days: 2, from: 20240228, to: 20240301 })
+    expect(at(['2023-02-28', '2023-03-01']).facts.longestGap!.days).toBe(1)
+    expect(at(['1900-02-28', '1900-03-01']).facts.longestGap!.days).toBe(1)
+    expect(at(['2000-02-28', '2000-03-01']).facts.longestGap!.days).toBe(2)
+    // US daylight saving began 2024-03-10: two days, never 1.96 or 2.04.
+    expect(at(['2024-03-09', '2024-03-11']).facts.longestGap!.days).toBe(2)
+    expect(at(['2016-06-11', '2016-08-27']).facts.longestGap!.days).toBe(77)
+    expect(at(['2019-12-20', '2020-02-03']).facts.longestGap!.days).toBe(45)
+  })
+
+  it('the earliest pair wins a tie; one date, or none, has no gap', () => {
+    expect(at(['2024-01-21', '2024-01-01', '2024-01-11']).facts.longestGap).toEqual({ days: 10, from: 20240101, to: 20240111 })
+    expect(at(['2024-01-01']).facts.longestGap).toBeNull()
+    expect(at(['2024-01-01', '2024-01-01']).facts.longestGap).toBeNull()
+    expect(at(['', 'bad']).facts.longestGap).toBeNull()
+  })
+
+  it('a day past its month never yields a negative gap, and a year 0000 date is left out of the gap only', () => {
+    // 2024-02-31 is a key dayKey admits and civil arithmetic reads as Mar 2.
+    const odd = at(['2024-02-25', '2024-02-31', '2024-03-02', '2024-03-10']).facts
+    expect(odd.daysBirded).toBe(4)
+    expect(odd.longestGap).toEqual({ days: 8, from: 20240302, to: 20240310 })
+    const zero = at(['0000-06-01', '2020-01-01', '2020-01-05']).facts
+    expect(zero.daysBirded).toBe(3)
+    expect(zero.longestGap).toEqual({ days: 4, from: 20200101, to: 20200105 })
+  })
+
+  it('agrees with a Date.UTC oracle over generated real calendar dates from 1900 to 2100', () => {
+    const r = rng(41)
+    for (let t = 0; t < 200; t++) {
+      const n = 2 + Math.floor(r() * 12)
+      const dates = Array.from({ length: n }, () => {
+        const ms = Date.UTC(1900, 0, 1) + Math.floor(r() * 73_000) * 86_400_000
+        return new Date(ms).toISOString().slice(0, 10)
+      })
+      const days = [...new Set(dates)].map(d => Date.UTC(+d.slice(0, 4), +d.slice(5, 7) - 1, +d.slice(8, 10)) / 86_400_000).sort((a, b) => a - b)
+      let best = 0
+      for (let i = 1; i < days.length; i++) best = Math.max(best, days[i] - days[i - 1])
+      const gap = at(dates).facts.longestGap
+      expect(gap === null ? 0 : gap.days).toBe(best)
+    }
+  })
+})
+
+describe('distance traveled under its stated bound (D-02)', () => {
+  const at = (distances: (number | null)[]) => report(distances.map((d, i) => row({ submissionId: `S${i}`, distance: d })))
+
+  it('sums usable kilometers: 0 counts, the bound is inclusive, and blank, negative, non-finite and over-bound cells are left out', () => {
+    const { facts } = at([1, 2.5, 0, -1, null, DISTANCE_MAX_KM, DISTANCE_MAX_KM + 0.001, Infinity, Number.NaN, -Infinity])
+    expect(facts.distance).toEqual({ km: 2403.5, counted: 4 })
+  })
+
+  it('the bound is the decision\'s 2,400 kilometers, pinned by behaviour at the edge', () => {
+    expect(at([2400]).facts.distance.counted).toBe(1)
+    expect(at([2400.0001]).facts.distance.counted).toBe(0)
+    // D-02 derives it from FR-53's bound: 24 hours at 100 km/h.
+    expect(DISTANCE_MAX_KM).toBe((DURATION_MAX_MIN / 60) * 100)
+  })
+})
+
+describe('what a place shows at a glance: the many / one / none rule (design-refinement "Thin places")', () => {
+  const view = (rows: ObservationEntry[], esc: ReadonlySet<string> = NONE) => {
+    const { facts, species } = report(rows, 'L1', esc)
+    return glanceView(facts, species)
+  }
+
+  it('a full place draws every tile and both species rows', () => {
+    const v = view([
+      ...checklist({ submissionId: 'S1', date: '2020-01-01', duration: 60, species: ['Song Sparrow', 'Blue Jay'] }),
+      ...checklist({ submissionId: 'S2', date: '2021-06-01', duration: 30, species: ['Song Sparrow'] }),
+      ...checklist({ submissionId: 'S3', date: '2022-06-01', duration: 90, species: ['Song Sparrow', 'Wood Duck'] }),
+    ])
+    expect(v.days).toEqual({ days: 3, dated: 3 })
+    expect(v.years).toEqual({ count: 3, first: 2020, last: 2022 })
+    expect(v.perHour).toMatchObject({ counted: 3, aboveZero: false })
+    expect(v.recordedOnce).toEqual({ once: 2, species: 3 })
+    expect(v.gap).toEqual({ days: 517, from: 20200101, to: 20210601 })
+    expect(v.distance).toEqual({ km: 3, counted: 3 })
+    // The oldest row is the list's position 1: of the two first seen on
+    // 2020-01-01, the life list's own order puts Song Sparrow last.
+    expect(v.species).toMatchObject({ kind: 'pair', first: { name: 'Song Sparrow', position: 1 }, newest: { name: 'Wood Duck', position: 3 } })
+  })
+
+  it('one dated checklist: no days, years or gap tile', () => {
+    const v = view([
+      ...checklist({ submissionId: 'S1', date: '2020-01-01', species: ['Song Sparrow', 'Blue Jay'] }),
+      ...checklist({ submissionId: 'S2', date: 'bad', species: ['Song Sparrow'] }),
+    ])
+    expect([v.days, v.years, v.gap]).toEqual([null, null, null])
+  })
+
+  it('a duration of 0 beside a timed one says "above zero"; no duration above zero draws no rate', () => {
+    expect(view([
+      ...checklist({ submissionId: 'S1', duration: 0, species: ['Song Sparrow'] }),
+      ...checklist({ submissionId: 'S2', duration: 60, species: ['Song Sparrow'] }),
+    ]).perHour).toEqual({ mean: 1, counted: 1, aboveZero: true })
+    expect(view([
+      ...checklist({ submissionId: 'S1', duration: 0, species: ['Song Sparrow'] }),
+      ...checklist({ submissionId: 'S2', duration: null, species: ['Song Sparrow'] }),
+    ]).perHour).toBeNull()
+  })
+
+  it('one species: a single "only" row and no recorded-once tile; two species first seen together: neither row', () => {
+    const one = view([
+      ...checklist({ submissionId: 'S1', date: '2020-01-01', species: ['Song Sparrow'] }),
+      ...checklist({ submissionId: 'S2', date: '2020-02-01', species: ['Song Sparrow'] }),
+    ])
+    expect(one.species).toMatchObject({ kind: 'only', row: { name: 'Song Sparrow' } })
+    expect(one.recordedOnce).toBeNull()
+    const together = view([
+      ...checklist({ submissionId: 'S1', date: '2020-01-01', species: ['Song Sparrow', 'Blue Jay'] }),
+      ...checklist({ submissionId: 'S2', date: '2020-02-01', species: ['Song Sparrow'] }),
+    ])
+    expect(together.species).toBeNull()
+    expect(together.recordedOnce).toEqual({ once: 1, species: 2 })
+  })
+
+  it('no countable species: no rate, no recorded once, no species rows; fewer than three dates: no gap; no usable distance: no row', () => {
+    const v = view([
+      ...checklist({ submissionId: 'S1', date: '2020-01-01', duration: 60, distance: null, species: ['gull sp.'] }),
+      ...checklist({ submissionId: 'S2', date: '2020-03-01', duration: 60, distance: -1, species: ['duck sp.'] }),
+    ])
+    expect([v.perHour, v.recordedOnce, v.species, v.gap, v.distance]).toEqual([null, null, null, null, null])
+    expect(v.days).toEqual({ days: 2, dated: 2 })
+  })
+
+  it('a place where no tile applies draws none', () => {
+    const v = view(checklist({ submissionId: 'S1', date: 'bad', duration: null, species: ['Song Sparrow'] }))
+    expect([v.days, v.years, v.perHour, v.recordedOnce, v.gap]).toEqual([null, null, null, null, null])
+  })
+})
+
+describe('the most-recorded section in all three shapes: many, one, none', () => {
+  const view = (rows: ObservationEntry[]) => {
+    const { facts, species } = report(rows)
+    return mostRecordedView(facts, species)
+  }
+
+  it('many: the life list\'s top rows; one species: the one row; one checklist or no countable species: nothing', () => {
+    const many = view([
+      ...checklist({ submissionId: 'S1', species: ['Song Sparrow', 'Blue Jay'] }),
+      ...checklist({ submissionId: 'S2', species: ['Song Sparrow'] }),
+    ])
+    expect(many).toMatchObject({ kind: 'list', rows: [{ name: 'Song Sparrow', checklists: 2 }, { name: 'Blue Jay', checklists: 1 }] })
+    expect(view([
+      ...checklist({ submissionId: 'S1', species: ['Song Sparrow'] }),
+      ...checklist({ submissionId: 'S2', species: ['Song Sparrow', 'gull sp.'] }),
+    ])).toMatchObject({ kind: 'one', row: { name: 'Song Sparrow', checklists: 2 } })
+    expect(view(checklist({ submissionId: 'S1', species: ['Song Sparrow', 'Blue Jay'] }))).toBeNull()
+    expect(view([
+      ...checklist({ submissionId: 'S1', species: ['gull sp.'] }),
+      ...checklist({ submissionId: 'S2', species: ['duck sp.'] }),
+    ])).toBeNull()
   })
 })

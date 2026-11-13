@@ -1,0 +1,121 @@
+{
+ "method": "One snapshot of the four product files taken once; each mutation an exact single-match replace that must change the file; the named suites run; every file restored from the snapshot and its sha256 checked against the intended content after each mutation and at the end (shasum -c: all OK). No git command inside the harness.",
+ "results": [
+  {
+   "mutation": "BASELINE (unmutated)",
+   "rc": 0,
+   "tail": [
+    " Test Files  4 passed (4)",
+    "      Tests  103 passed (103)",
+    "   Start at  19:41:57",
+    "   Duration  27.08s (transform 7.78s, setup 2.27s, import 15.71s, tests 4.95s, environment 6.74s)"
+   ]
+  },
+  {
+   "mutation": "gap tie goes to the later pair",
+   "rc": 1,
+   "red": true,
+   "failing": [
+    "× the earliest pair wins a tie; one date, or none, has no gap 30ms"
+   ]
+  },
+  {
+   "mutation": "rate leaves out a zero-species checklist (Statistics rule)",
+   "rc": 1,
+   "red": true,
+   "failing": [
+    "× equals what the life list implies over a generated corpus, escapees and all 13ms",
+    "× a timed checklist with no species under the rule is in the mean at zero; Statistics leaves it out 11ms"
+   ]
+  },
+  {
+   "mutation": "distance bound exclusive",
+   "rc": 1,
+   "red": true,
+   "failing": [
+    "× sums usable kilometers: 0 counts, the bound is inclusive, and blank, negative, non-finite and over-bound cells are left out 27ms",
+    "× the bound is the decision's 2,400 kilometers, pinned by behaviour at the edge 4ms"
+   ]
+  },
+  {
+   "mutation": "top ten inserts before an equal row",
+   "rc": 0,
+   "red": false,
+   "failing": []
+  },
+  {
+   "mutation": "species rows drawn when first seen together",
+   "rc": 1,
+   "red": true,
+   "failing": [
+    "× one species: a single \"only\" row and no recorded-once tile; two species first seen together: neither row 17ms"
+   ]
+  },
+  {
+   "mutation": "most-recorded drawn at one checklist",
+   "rc": 1,
+   "red": true,
+   "failing": [
+    "× many: the life list's top rows; one species: the one row; one checklist or no countable species: nothing 13ms",
+    "× Most-recorded species ranks the life list's own figure; it and its chip are present exactly when there is something to rank 233ms"
+   ]
+  },
+  {
+   "mutation": "gap drawn with two dates",
+   "rc": 1,
+   "red": true,
+   "failing": [
+    "× no countable species: no rate, no recorded once, no species rows; fewer than three dates: no gap; no usable distance: no row 18ms"
+   ]
+  },
+  {
+   "mutation": "every chip drawn, section or not",
+   "rc": 1,
+   "red": true,
+   "failing": [
+    "× Most-recorded species ranks the life list's own figure; it and its chip are present exactly when there is something to rank 272ms"
+   ]
+  },
+  {
+   "mutation": "two columns back to the list first",
+   "rc": 1,
+   "red": true,
+   "failing": [
+    "× two columns put the 24rem rail first and the life list second 10ms"
+   ]
+  },
+  {
+   "mutation": "facts track minimum loosened to 16rem",
+   "rc": 1,
+   "red": true,
+   "failing": [
+    "× the tiles and the facts collapse by their own track minima, as measured in the built app (D-08) 10ms"
+   ]
+  },
+  {
+   "mutation": "per-hour note loses \"above zero\"",
+   "rc": 1,
+   "red": true,
+   "failing": [
+    "× states each denominator in the approved words 4ms"
+   ]
+  },
+  {
+   "mutation": "time birded average dropped",
+   "rc": 1,
+   "red": true,
+   "failing": [
+    "× states each denominator in the approved words 19ms",
+    "× At a glance opens the report with its tiles and facts, each stating its denominator 144ms"
+   ]
+  },
+  {
+   "mutation": "top ten inserts before an equal row (re-run after the equal-names row was added)",
+   "rc": 1,
+   "red": true,
+   "failing": [
+    "× two names that compare equal keep the life list's own order, as a stable sort would"
+   ]
+  }
+ ]
+}

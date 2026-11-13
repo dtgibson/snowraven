@@ -1,0 +1,12 @@
+# First pass, before the probe waited for the 160ms entrance animation (WebKit jitter, kept for the record)
+
+rc=0
+configurations with no overhang before: 686 (3078 rows)
+sizes (row heights and widths, every box width and height, line counts, list height) differing across the four runs: 0
+configurations differing, per pair of runs: {'b1 vs b2': 4, 'a1 vs a2': 6, 'b1 vs a1': 7, 'b2 vs a2': 6}
+largest position difference, same build twice (pre-fix): 0.03 px; (fixed): 0.06 px; pre-fix against fixed: 0.03 px
+configurations with any difference in any pair, by engine: {'chromium': 0, 'webkit': 10}
+consistent shifts (both before runs agree, both after runs agree, the pairs differ): 1 ['webkit window overlay 150% 641']
+23:45  up 4 days, 22:57, 3 users, load averages: 3.32 12.81 102.86
+
+[exited with code 0]

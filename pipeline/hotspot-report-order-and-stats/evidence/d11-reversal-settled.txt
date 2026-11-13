@@ -1,0 +1,27 @@
+b1 rc=0 696 configurations; eBird-backed answered by the stub 48 (other than the hotspot lookup: 0); other hosts refused 24
+a1 rc=0 696 configurations; eBird-backed answered by the stub 48 (other than the hotspot lookup: 0); other hosts refused 24
+b2 rc=0 696 configurations; eBird-backed answered by the stub 48 (other than the hotspot lookup: 0); other hosts refused 24
+a2 rc=0 696 configurations; eBird-backed answered by the stub 48 (other than the hotspot lookup: 0); other hosts refused 24
+configurations with no overhang before: 686 (3078 rows)
+sizes (row heights and widths, every box width and height, line counts, list height) differing across the four runs: 0
+configurations differing, per pair of runs: {'b1 vs b2': 0, 'a1 vs a2': 0, 'b1 vs a1': 0, 'b2 vs a2': 0}
+largest position difference, same build twice (pre-fix): 0 px; (fixed): 0 px; pre-fix against fixed: 0 px
+configurations with any difference in any pair, by engine: {'chromium': 0, 'webkit': 0}
+consistent shifts (both before runs agree, both after runs agree, the pairs differ): 0 []
+no name overhang before: 686 configurations, 3078 life-list rows; identical after (every row height, cell, name box, name line boxes and mark boxes to 0.01px, and the list height): 686; differing: 0
+no name overhang before: 686 configurations, 3078 life-list rows; identical after (every row height, cell, name box, name line boxes and mark boxes to 0.01px, and the list height): 686; differing: 0
+name overhang before: 10 configurations
+name overhang before: 10 configurations
+  chromium phone Jamaica Bay  200% 320: before 67.81px, after 0px
+  webkit phone Jamaica Bay  200% 320: before 67.72px, after 0px
+  chromium phone Jamaica Bay  200% 340: before 47.81px, after 0px
+  webkit phone Jamaica Bay  200% 340: before 47.72px, after 0px
+  chromium phone Jamaica Bay  200% 360: before 27.81px, after 0px
+  webkit phone Jamaica Bay  200% 360: before 27.72px, after 0px
+  chromium phone Jamaica Bay  200% 375: before 12.81px, after 0px
+  webkit phone Jamaica Bay  200% 375: before 12.72px, after 0px
+  webkit phone Jamaica Bay  150% 320: before 2.66px, after 0px
+  chromium phone Jamaica Bay  150% 320: before 2.63px, after 0px
+requests: {'ebirdBacked': (48, 48), 'otherEbird': (0, 0), 'refusedHosts': (24, 24)}
+worst name overhang after, every configuration: 0px
+ 0:04  up 4 days, 23:16, 3 users, load averages: 1.76 1.87 29.40

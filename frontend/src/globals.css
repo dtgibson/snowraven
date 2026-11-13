@@ -6377,8 +6377,9 @@ select:focus-visible {
 /* ── The Hotspot Reports tab (hotspot-reports, `.sr-hsr-*`) ────────────────
    A quiet reading page: the house tab header, one picker that chooses the page,
    then either the overview card (the count block and two ranked lists) or one
-   location's report (a header band, a jump row while one column, the life list
-   and a rail of four section cards). Built from registers the app already has:
+   location's report (a header band, the At a glance card, a jump row while one
+   column, a rail of compact section cards and the life list last). Built from
+   registers the app already has:
    the Region picker's combobox at the 40px hero register, the Statistics
    hotspot partition (`.sr-hs-*`), the Life Lists ledger row and pager
    (`.sr-lfl-paging`), and the shared distribution row (`.sr-wx-*`). Colour is
@@ -6538,7 +6539,10 @@ select:focus-visible {
    longest name tokens, so the list stacks at 28em and under; the report goes
    two columns only where its list column can hold that wide row, so its
    threshold is the 24rem rail, the 16px gap, the 2px card border and 28em,
-   rounded up: 53.25em. Held by hotspotReportsCss.test.ts. */
+   rounded up: 53.25em. The two tracks traded sides when the life list moved
+   last (hotspot-report-order-and-stats), so the list column is the width it
+   was and the pair re-measured in the built app is unchanged (that run's
+   decisions.md D-08). Held by hotspotReportsCss.test.ts. */
 .sr-hsr-report { container-type: inline-size; container-name: sr-hsr-report; display: flex; flex-direction: column; gap: 16px; }
 .sr-hsr-hero { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 16px 36px; padding: 20px 22px; }
 .sr-hsr-ident { flex: 1 1 22rem; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
@@ -6552,10 +6556,13 @@ select:focus-visible {
 .sr-hsr-fig-value--key { color: var(--sr-accent); }
 .sr-hsr-rule { font-size: 0.71875rem; line-height: 1.5; color: var(--sr-text-muted); max-width: 62ch; margin: 0; }
 /* The jump row: the Statistics jump-nav's chip, shown only while the report is
-   one column, where the long list sits above the other sections. */
+   one column, after At a glance, carrying a reader past the compact sections
+   to the long list at the end. */
 .sr-hsr-jump { display: none; flex-wrap: wrap; gap: 6px; }
 .sr-hsr-chip { font-size: 0.71875rem; font-weight: 500; color: var(--sr-text-muted); text-decoration: none; padding: 4px 10px; border-radius: 100px; background: var(--sr-surface-subtle); border: 1px solid var(--sr-border); white-space: nowrap; }
-.sr-hsr-body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 24rem); gap: 16px; align-items: start; }
+/* Two columns: the rail first and the life list second, in the DOM and on
+   screen, so the list is last in reading order with no `order` or grid-area. */
+.sr-hsr-body { display: grid; grid-template-columns: minmax(0, 24rem) minmax(0, 1fr); gap: 16px; align-items: start; }
 .sr-hsr-rail { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 @container sr-hsr-report (max-width: 53.25em) {
   .sr-hsr-body { grid-template-columns: minmax(0, 1fr); }
@@ -6588,6 +6595,14 @@ select:focus-visible {
 .sr-hsr-ll-name .sr-birdname { width: 100%; max-width: 100%; }
 .sr-hsr-ll-name .sr-birdname-row { flex-wrap: wrap; }
 .sr-hsr-ll-name .sr-birdname-sci { white-space: normal; overflow-wrap: anywhere; }
+/* eBird's longest unbreakable tokens ("Laughingthrush", "MacGillivray's",
+   "Superciliaried") are wider than this cell at 320 to 375px with 150% and
+   200% text, and ran into the link column by up to 67.81px (shipped in 1.0.71;
+   hotspot-report-order-and-stats decisions.md D-08, D-10, D-11), so the common
+   name may break inside a word as a last resort. The cell is bounded by its
+   grid track, so `anywhere` cannot collapse it (ui.md v1.0.14), and where a
+   name already fits nothing moves (measured to 0.01px, D-11). */
+.sr-hsr-ll-name .sr-birdname-link, .sr-hsr-ll-name .sr-birdname-text { overflow-wrap: anywhere; }
 .sr-hsr-ll-meta { display: contents; }
 .sr-hsr-ll-date { grid-area: date; font-size: 0.75rem; font-weight: 600; color: var(--sr-text); white-space: nowrap; font-variant-numeric: tabular-nums; padding-top: 2px; }
 .sr-hsr-ll-link { grid-area: link; display: flex; justify-content: center; }
@@ -6627,15 +6642,60 @@ select:focus-visible {
 .sr-hsr-pin { display: block; pointer-events: none; }
 .sr-hsr-pin-body { fill: var(--sr-map-pin-visited); stroke: var(--sr-map-pin-stroke); stroke-width: 1.5; }
 .sr-hsr-pin-dot { fill: var(--sr-switch-thumb); }
-/* Facts: a definition list whose label and value wrap apart when they must. */
-.sr-hsr-facts { display: flex; flex-direction: column; margin: 0; }
-.sr-hsr-fact { display: flex; flex-wrap: wrap; gap: 0 12px; padding: 8px 0; border-bottom: 1px solid var(--sr-border-subtle); }
-.sr-hsr-fact:first-child { padding-top: 0; }
-.sr-hsr-fact:last-child { border-bottom: 0; padding-bottom: 0; }
+/* At a glance (hotspot-report-order-and-stats design-refinement): two
+   definition lists in a column, count tiles over fact rows. */
+.sr-hsr-glance { display: flex; flex-direction: column; gap: 14px; }
+/* Tiles: as many 8rem tracks as fit (the longest label, "SPECIES PER HOUR",
+   stays on one line in one), and a short set stretches across the row
+   (auto-fit; only wholly empty tracks collapse, so a wrapped last row keeps the
+   columns above it). Nothing in a tile is nowrap. Re-measured in the built app
+   (decisions.md D-08). */
+.sr-hsr-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(8rem, 100%), 1fr)); gap: 14px 16px; margin: 0; min-width: 0; }
+.sr-hsr-tile { display: flex; flex-direction: column; min-width: 0; }
+.sr-hsr-tile dt { overflow-wrap: break-word; }
+.sr-hsr-tile-value { font-size: 1.25rem; font-weight: 700; letter-spacing: -0.02em; line-height: 1.15; color: var(--sr-text); font-variant-numeric: tabular-nums; margin: 0 0 3px; }
+.sr-hsr-tile-unit { font-size: 0.8125rem; font-weight: 600; letter-spacing: 0; margin-left: 4px; }
+/* Facts: a definition list whose label and value wrap apart when they must, in
+   one column or two where each can hold a 19rem row (the 8.75rem term, the
+   12px gap and the value's 9rem basis); the 34% term caps it at two, and DOM
+   order is row order, so the rows read across. Each row's rule is on its top
+   edge, so the first row's rule is the divider under the tiles and the last
+   row leaves none behind; with no tiles the facts stand alone in one column
+   with no rule above the first. Re-measured in the built app (D-08). */
+.sr-hsr-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(max(19rem, 34%), 100%), 1fr)); column-gap: 36px; margin: 0 0 -9px; min-width: 0; }
+.sr-hsr-fact { display: flex; flex-wrap: wrap; gap: 0 12px; min-width: 0; padding: 9px 0; border-top: 1px solid var(--sr-border-subtle); }
+.sr-hsr-glance > .sr-hsr-facts:first-child { grid-template-columns: minmax(0, 1fr); }
+.sr-hsr-glance > .sr-hsr-facts:first-child > .sr-hsr-fact:first-child { border-top: 0; padding-top: 0; }
 .sr-hsr-fact dt { flex: 0 0 8.75rem; max-width: 100%; font-size: 0.75rem; line-height: 1.5; color: var(--sr-text-muted); }
 .sr-hsr-fact dd { flex: 1 1 9rem; min-width: 0; margin: 0; font-size: 0.8125rem; line-height: 1.5; color: var(--sr-text); overflow-wrap: break-word; }
 .sr-hsr-fact dd b { font-weight: 600; font-variant-numeric: tabular-nums; }
 .sr-hsr-fact dd small { display: block; font-size: 0.71875rem; color: var(--sr-text-muted); }
+/* A bird and its date on one fact row: the pair wraps as two items, and the
+   name wraps inside its own cell, scoped here (the shared BirdName rules stay
+   as they are, ui.md v1.0.48). */
+.sr-hsr-fact-sp { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 10px; }
+.sr-hsr-fact-sp .sr-birdname { max-width: 100%; }
+.sr-hsr-fact-sp .sr-birdname-row { flex-wrap: wrap; }
+/* Most-recorded species: at most ten rows on two tracks, the rank (visual
+   only; the ordered list carries the position) and the bird over its figure,
+   which sits on its own line at every width, so no row carries an
+   incompressible trailing figure (ui.md v1.0.22). */
+.sr-hsr-toplead { margin-bottom: 10px; }
+.sr-hsr-toplist { list-style: none; margin: 0; padding: 0; }
+.sr-hsr-toprow { display: grid; grid-template-columns: 1.6rem minmax(0, 1fr); column-gap: 10px; align-items: start; padding: 7px 0; border-bottom: 1px solid var(--sr-border-subtle); }
+.sr-hsr-toprow:first-child { padding-top: 0; }
+.sr-hsr-toprow:last-child { border-bottom: 0; padding-bottom: 0; }
+.sr-hsr-top-num { font-size: 0.75rem; color: var(--sr-text-muted); text-align: right; font-variant-numeric: tabular-nums; padding-top: 2px; }
+.sr-hsr-top-main { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.sr-hsr-top-main .sr-birdname { max-width: 100%; }
+.sr-hsr-top-main .sr-birdname-row { flex-wrap: wrap; }
+/* eBird's longest unbreakable token ("Laughingthrush") is wider than this cell
+   at 320px and 200% text (8.2px over, both engines, decisions.md D-08), so the
+   name may break inside a word as a last resort: the cell is bounded by its
+   grid track, so `anywhere` cannot collapse it (ui.md v1.0.14). */
+.sr-hsr-top-main .sr-birdname-link, .sr-hsr-top-main .sr-birdname-text { overflow-wrap: anywhere; }
+.sr-hsr-top-fig { font-size: 0.75rem; line-height: 1.5; color: var(--sr-text-muted); }
+.sr-hsr-top-fig b { font-weight: 600; color: var(--sr-text); font-variant-numeric: tabular-nums; }
 .sr-hsr-media { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 0 0 6px; padding: 0; list-style: none; }
 .sr-hsr-media li { display: inline-flex; align-items: center; gap: 6px; font-size: 0.8125rem; color: var(--sr-text); }
 .sr-hsr-media b { font-weight: 600; font-variant-numeric: tabular-nums; }

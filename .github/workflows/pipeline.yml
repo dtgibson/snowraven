@@ -33,15 +33,23 @@ jobs:
     # neither green nor red. The runner bounds each harness itself, so this is
     # the outer bound on the whole job, never the working one.
     #
-    # The arithmetic, restated because the previous value was derived from a
-    # per-harness bound that no longer holds for every harness: five harnesses
-    # at the 180 s default plus `verify-plan-readout.mjs` at its declared 600 s
-    # is a 25 min gate worst case, and the measured rest of this job (install,
-    # lint, the vitest suite, the build, the browser download) was 13 min on the
-    # 1.0.30 tag commit. 40 keeps real headroom over that sum; a healthy run is
-    # about 20 min. Recompute this when a harness is added or a budget changes,
-    # rather than trusting the number.
-    timeout-minutes: 40
+    # The arithmetic, recounted when `verify-hotspot-reports.mjs` took a
+    # 1,800 s budget (hotspot-report-order-and-stats decisions.md D-12). The
+    # gate's worst case is every harness at its own bound in `run.mjs`: six at
+    # the 180 s default (1,080 s), `verify-plan-readout.mjs` and
+    # `verify-plan-daylabels.mjs` at 600 s each (1,200 s), and
+    # `verify-hotspot-reports.mjs` at 1,800 s: 4,080 s, 68 min. The measured
+    # rest of this job is 944 s, about 16 min: 888 s from setup to the end of
+    # the vitest step on 2026-11-11 (the run at 2253d047), plus 56 s for the
+    # build, the tooling install and the browser download on the last green run
+    # (1.0.67), the newest that reached them. 68 + 16 is 84 min; 90 keeps real
+    # headroom over that sum. A healthy run is now about 35 to 45 min (1.0.67's
+    # gate took 485 s before the Hotspot Reports harness existed, and that
+    # harness measured 570 to 590 s on the dev Mac under heavy load), which is
+    # why the previous 40 could no longer hold even a green job. Recompute this
+    # when a harness is added or a budget changes, rather than trusting the
+    # number.
+    timeout-minutes: 90
     defaults:
       run:
         working-directory: frontend
