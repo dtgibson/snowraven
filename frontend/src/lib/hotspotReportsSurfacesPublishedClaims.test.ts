@@ -82,6 +82,26 @@ function pairs(surface: Surface): { n: number; before: string; after: string }[]
 
 const count = (hay: string, needle: string) => hay.split(needle).length - 1
 
+/** Later approved edits to text one of the pairs above wrote. The held blocks
+ *  stay the record of what 1.0.71 wrote, so a later release names its own change
+ *  here rather than rewriting them, and the applied-state row reads each AFTER
+ *  block with these replacements made. Each `was` must occur exactly once in its
+ *  surface's AFTER blocks, so an entry cannot quietly match nothing. */
+const SUPERSEDED: readonly { surface: Surface; was: string; now: string; by: string }[] = [
+  {
+    surface: 'website',
+    was: `alt="The Hotspot Reports tab showing one hotspot's report: its name and kind, its species and checklist totals with the counting rule beneath them, its life list newest first with how many of the place's checklists include each species, a map with one pin, and its checklists by eBird protocol."`,
+    now: `alt="The Hotspot Reports tab showing one hotspot's totals and an at a glance summary, above its map and life list."`,
+    by: 'hotspot-report-order-and-stats, 1.0.72: the recaptured frame\'s alt text, approved by the user on 2026-11-13 (decisions.md D-16)',
+  },
+]
+
+function superseded(surface: Surface, after: string): string {
+  let text = after
+  for (const e of SUPERSEDED.filter(x => x.surface === surface)) text = text.replace(e.was, e.now)
+  return text
+}
+
 /** The surface as it will read once the copy is applied: the real file after
  *  the yes, the held pairs applied in memory before it. */
 function published(surface: Surface): string {
@@ -172,10 +192,16 @@ describe('the held copy for the Hotspot Reports tab', () => {
     }
   })
 
-  it.runIf(APPLIED)('once applied, every AFTER block occurs exactly once in its published file', () => {
+  it.runIf(APPLIED)('once applied, every AFTER block occurs exactly once in its published file, with later approved edits made', () => {
     for (const s of Object.keys(SURFACES) as Surface[]) {
       const real = read(SURFACES[s])
-      for (const p of pairs(s)) expect(count(real, p.after), `${s} ${p.n}`).toBe(1)
+      for (const p of pairs(s)) expect(count(real, superseded(s, p.after)), `${s} ${p.n}`).toBe(1)
+    }
+    for (const e of SUPERSEDED) {
+      const afters = pairs(e.surface).map(p => p.after).join('')
+      expect(count(afters, e.was), `"${e.by}" replaces text one ${e.surface} AFTER block holds once`).toBe(1)
+      expect(count(read(SURFACES[e.surface]), e.was), `the replaced ${e.surface} text is gone from the published file`).toBe(0)
+      expect(count(read(SURFACES[e.surface]), e.now), `the approved ${e.surface} text is in the published file once`).toBe(1)
     }
   })
 
