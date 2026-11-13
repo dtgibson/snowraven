@@ -1,0 +1,1 @@
+Hotspot Reports now opens each place's report with an at a glance summary and puts the life list last.

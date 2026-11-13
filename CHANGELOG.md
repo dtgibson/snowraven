@@ -2,6 +2,20 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [1.0.72] - 2026-11-13
+
+### Changed
+- **Hotspot Reports now opens each place's report with an at a glance summary and puts the life list last.** At a glance gathers the place's own figures, and a short most-recorded species list sits just above the life list. Nothing new is looked up online or saved.
+
+### Fixed
+- On a phone with large text, long bird names in a place's life list now wrap instead of running into the checklist link beside them.
+
+### Internal
+- `lib/hotspotReportsLocation.ts` derives the new figures from fields the report already reads, under the tab's one species rule, and `docs/HELP.md` describes the new order and the figures.
+- `website/tools/verify/verify-hotspot-reports.mjs` covers the new order, all four text sizes and phone widths; its budget in the verification gate rises to 1,800 seconds, and the CI job's bound to 90 minutes.
+- The website's Hotspot Reports screenshot and the three App Store Hotspot Reports frames are recaptured from the demo data.
+- The F-Droid changelog for this release is three identical files, one per processor-type build (`10000721.txt`, `10000722.txt`, `10000724.txt`), and the in-repo F-Droid recipe names 1.0.72.
+
 ## [1.0.71] - 2026-11-11
 
 ### Added
