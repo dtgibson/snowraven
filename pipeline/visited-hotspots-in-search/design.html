@@ -1,0 +1,1526 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SnowRaven Search: your locations</title>
+<style>
+/* ==========================================================================
+   MOCKUP PRESENTATION CHROME (.mk-*)
+   The annotation layer around the app. A different register on purpose (a
+   serif display face, warm paper) so the rendered app inside the frame is
+   never confused with the commentary around it. Sized in px, so the in-app
+   text size switch moves the app and leaves the commentary alone. No webfont
+   and no external request of any kind: this file is fully self-contained.
+   ========================================================================== */
+:root {
+  --mk-display: 'Iowan Old Style', 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, serif;
+  --mk-body: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Helvetica, sans-serif;
+  --mk-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace;
+  --mk-ease: cubic-bezier(0.2, 0, 0, 1);
+  --mk-paper:   #FBFAF7;
+  --mk-paper-2: #F3F2EC;
+  --mk-ink:     #1B2119;
+  --mk-ink-soft:#5A6157;
+  --mk-line:    #DFDDD3;
+  --mk-accent:  #1A5C38;
+  --mk-new:     #7A4A0C;
+}
+*, *::before, *::after { box-sizing: border-box; }
+html { background: var(--mk-paper); font-size: 16px; }
+body {
+  margin: 0; font-family: var(--mk-body); font-size: 14px; line-height: 1.5; color: var(--mk-ink);
+  background:
+    radial-gradient(1100px 520px at 82% -12%, rgba(26, 92, 56, 0.085), transparent 62%),
+    radial-gradient(760px 420px at 4% 6%, rgba(138, 84, 16, 0.055), transparent 58%),
+    linear-gradient(180deg, var(--mk-paper) 0%, var(--mk-paper-2) 100%);
+  background-attachment: fixed;
+  -webkit-font-smoothing: antialiased;
+}
+.mk-wrap { max-width: 1400px; margin: 0 auto; padding: 0 28px; }
+.mk-top { padding: 22px 0 14px; }
+.mk-eyebrow { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--mk-accent); margin: 0 0 8px; }
+.mk-title { font-family: var(--mk-display); font-weight: 400; font-size: 36px; line-height: 1.08; letter-spacing: -0.015em; margin: 0 0 8px; }
+.mk-lede { font-family: var(--mk-display); font-size: 17px; line-height: 1.5; color: var(--mk-ink-soft); max-width: 104ch; margin: 0; }
+
+.mk-bar { position: sticky; top: 0; z-index: 60; background: rgba(251, 250, 247, 0.95); border-top: 1px solid var(--mk-line); border-bottom: 1px solid var(--mk-line); }
+.mk-bar-in { max-width: 1400px; margin: 0 auto; padding: 9px 28px; display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: center; }
+.mk-grp { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.mk-grp > span { font-size: 10px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; color: var(--mk-ink-soft); }
+.mk-seg { display: inline-flex; flex-wrap: wrap; background: var(--mk-paper-2); border: 1px solid var(--mk-line); border-radius: 9px; padding: 2px; gap: 2px; }
+.mk-seg button, .mk-btn, .mk-chip {
+  font: inherit; font-size: 12px; font-weight: 600; color: var(--mk-ink-soft); cursor: pointer;
+  border: 0; background: none; border-radius: 7px; padding: 5px 10px;
+  transition: background-color 120ms ease-out, color 120ms ease-out, border-color 120ms ease-out;
+}
+.mk-seg button:hover { color: var(--mk-ink); }
+.mk-seg button[aria-pressed="true"] { background: #FFFEFB; color: var(--mk-ink); box-shadow: 0 1px 2px rgba(27, 33, 25, 0.14); }
+.mk-btn { border: 1px solid var(--mk-line); background: #FFFEFB; color: var(--mk-ink); }
+.mk-btn:hover { border-color: var(--mk-ink-soft); }
+.mk-btn--go { background: var(--mk-accent); border-color: var(--mk-accent); color: #FFFEFB; }
+.mk-btn--go:hover { background: #134A2C; border-color: #134A2C; }
+.mk-check { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--mk-ink-soft); cursor: pointer; }
+.mk-seg button:focus-visible, .mk-btn:focus-visible, .mk-chip:focus-visible, .mk-check input:focus-visible { outline: 2px solid var(--mk-accent); outline-offset: 2px; }
+
+.mk-try { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 16px 0 12px; }
+.mk-try > span { font-family: var(--mk-display); font-size: 16px; color: var(--mk-ink-soft); margin-right: 4px; }
+.mk-chip { border: 1px solid var(--mk-line); background: #FFFEFB; color: var(--mk-ink); display: inline-flex; align-items: baseline; gap: 7px; padding: 6px 11px; border-radius: 999px; }
+.mk-chip:hover { border-color: var(--mk-accent); }
+.mk-chip code { font-family: var(--mk-mono); font-size: 12px; font-weight: 700; color: var(--mk-accent); }
+.mk-chip small { font-size: 11.5px; font-weight: 500; color: var(--mk-ink-soft); }
+
+.mk-frame { box-sizing: content-box; margin: 0 auto; max-width: 100%; border: 1px solid var(--mk-line); border-radius: 12px; overflow: hidden; background: #FFFEFB; box-shadow: 0 1px 2px rgba(27, 33, 25, 0.06), 0 18px 44px -18px rgba(27, 33, 25, 0.28); }
+.mk-titlebar { display: flex; align-items: center; gap: 6px; padding: 8px 12px; border-bottom: 1px solid var(--mk-line); background: var(--mk-paper-2); font-size: 11px; color: var(--mk-ink-soft); }
+.mk-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--mk-line); display: inline-block; }
+.mk-titlebar span { margin-left: 8px; font-family: var(--mk-mono); }
+.mk-readout { display: flex; flex-wrap: wrap; gap: 4px 18px; align-items: center; margin: 12px 0 0; font-size: 12px; color: var(--mk-ink-soft); }
+.mk-readout b { font-weight: 700; color: var(--mk-ink); }
+.mk-out { font-family: var(--mk-mono); font-size: 11.5px; color: var(--mk-ink); }
+.mk-cap { font-family: var(--mk-display); font-size: 15.5px; line-height: 1.55; color: var(--mk-ink-soft); max-width: 78ch; margin: 8px 0 0; }
+.mk-cap b { color: var(--mk-ink); font-weight: 600; }
+
+.mk-sec { padding: 46px 0 6px; }
+.mk-h2 { font-family: var(--mk-display); font-weight: 400; font-size: 27px; letter-spacing: -0.01em; margin: 0 0 6px; }
+.mk-sub { font-family: var(--mk-display); font-size: 16px; line-height: 1.55; color: var(--mk-ink-soft); max-width: 74ch; margin: 0 0 20px; }
+.mk-new { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 0 34px; margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--mk-line); }
+.mk-new li { padding: 13px 0 14px; border-bottom: 1px solid var(--mk-line); font-size: 13.5px; line-height: 1.5; color: var(--mk-ink-soft); }
+.mk-new li b { display: block; font-family: var(--mk-display); font-weight: 400; font-size: 17px; color: var(--mk-ink); margin-bottom: 2px; }
+.mk-specs { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(660px, 100%), 1fr)); gap: 26px 24px; align-items: start; }
+.mk-specs--phone { grid-template-columns: repeat(auto-fill, minmax(min(322px, 100%), 322px)); }
+.mk-spec { margin: 0; min-width: 0; }
+.mk-spec figcaption { font-size: 12.5px; line-height: 1.45; color: var(--mk-ink-soft); margin: 0 0 8px; }
+.mk-spec figcaption b { display: block; font-family: var(--mk-display); font-weight: 400; font-size: 17px; color: var(--mk-ink); }
+.mk-spec-box { box-sizing: content-box; border: 1px solid var(--mk-line); border-radius: 10px; overflow: hidden; }
+.mk-h3 { font-size: 11px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; color: var(--mk-ink-soft); margin: 30px 0 12px; }
+.mk-foot { margin: 50px 0 0; padding: 18px 0 60px; border-top: 1px solid var(--mk-line); font-size: 12.5px; color: var(--mk-ink-soft); max-width: 90ch; }
+.mk-note { font-family: var(--mk-display); font-size: 15px; line-height: 1.5; color: var(--mk-ink-soft); border-left: 2px solid var(--mk-line); padding: 2px 0 2px 12px; margin: 6px 0 0; max-width: 56ch; }
+@media (max-width: 700px) {
+  .mk-wrap, .mk-bar-in { padding-left: 14px; padding-right: 14px; }
+  .mk-title { font-size: 30px; }
+  .mk-bar { position: static; }
+}
+
+/* ==========================================================================
+   THE RENDERED APP
+   Tokens are copied from frontend/src/globals.css (:root and
+   [data-theme="dark"]). This feature introduces NO new token. Classes prefixed
+   .sr- are the shipped ones; the few rules this feature adds are marked NEW.
+   ========================================================================== */
+.sr-app {
+  --sr-bg: #F9FAFB;
+  --sr-surface: #FFFFFF;
+  --sr-surface-subtle: #F4F4F5;
+  --sr-surface-faint: #FAFAFA;
+  --sr-text: #0F1117;
+  --sr-text-muted: #6B6B74;
+  --sr-text-gray: #6B7280;
+  --sr-text-disabled: #A1A1AA;
+  --sr-border: #E4E4E7;
+  --sr-border-subtle: #F4F4F5;
+  --sr-border-medium: #C4C4CE;
+  --sr-border-input: #8A8A91;
+  --sr-accent: #277448;
+  --sr-accent-strong: #1A5C38;
+  --sr-accent-bg: #E8F5EE;
+  --sr-accent-bg-hover: #F0FAF4;
+  --sr-accent-border: rgba(39,116,72,0.25);
+  --sr-on-accent: #FFFFFF;
+  --sr-card-shadow: 0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+  --sr-nav-bar-shadow: 0 -3px 6px -2px rgba(15,17,23,0.12);
+  --sr-scrim: rgba(15,17,23,0.36);
+  --sr-ctl-floor: 16px;
+  /* The shipped face. A deliberate, long-standing deviation from the Weft
+     doctrine's display-face rule: pipeline/design-system.md wins on specifics. */
+  --font-sans: 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
+  font-family: var(--font-sans);
+  font-size: 1rem; line-height: 1.5;
+  color: var(--sr-text); background: var(--sr-bg);
+}
+.sr-app[data-theme="dark"] {
+  --sr-bg: #09090B;
+  --sr-surface: #18181B;
+  --sr-surface-subtle: #27272A;
+  --sr-surface-faint: #1C1C1F;
+  --sr-text: #F4F4F5;
+  --sr-text-muted: #A1A1AA;
+  --sr-text-gray: #8A8A92;
+  --sr-text-disabled: #52525B;
+  --sr-border: #27272A;
+  --sr-border-subtle: #1F1F23;
+  --sr-border-medium: #3F3F46;
+  --sr-border-input: #707078;
+  --sr-accent: #34D399;
+  --sr-accent-strong: #34D399;
+  --sr-accent-bg: #052E16;
+  --sr-accent-bg-hover: #064E3B;
+  --sr-accent-border: rgba(52,211,153,0.2);
+  --sr-on-accent: #052E16;
+  --sr-card-shadow: 0 1px 4px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.25);
+  --sr-nav-bar-shadow: 0 -3px 8px -2px rgba(2,2,4,0.60);
+  --sr-scrim: rgba(9,9,11,0.6);
+}
+.sr-app button { font-family: inherit; }
+:where(.sr-app) :where(p, h2, h3) { margin: 0; }
+.sr-app svg { display: block; }
+
+.sr-stage {
+  /* MOCKUP ONLY: the stage stands in for the window. The shipped
+     `position: fixed` overlay is `position: absolute` here, its `11vh` is
+     11% of the stage height, and the shipped `@media (max-width: 640px)` phone
+     rules are `@container mkstage` rules below. Nothing else differs. */
+  position: relative; overflow: hidden;
+  container-type: inline-size; container-name: mkstage;
+  isolation: isolate;
+}
+
+.sr-shell { display: flex; align-items: flex-start; height: 100%; }
+
+/* ---- shipped: nav column (sidebar + rail) -------------------------------- */
+.sr-nav-col {
+  flex-shrink: 0; align-self: stretch;
+  display: flex; flex-direction: column;
+  background: var(--sr-surface);
+  border-right: 1px solid var(--sr-border);
+  width: 13.5rem; padding: 14px 10px 10px; overflow: hidden;
+}
+.sr-nav-col--rail { width: 3.75rem; padding: 14px 6px 10px; align-items: center; }
+.sr-nav-brand { display: flex; align-items: center; gap: 9px; padding: 2px 6px 0; margin-bottom: 2px; }
+.sr-nav-col--rail .sr-nav-brand { padding: 2px 0 0; justify-content: center; }
+.sr-nav-brand svg { flex-shrink: 0; }
+.sr-nav-word { font-size: 1.0625rem; font-weight: 700; letter-spacing: -0.4px; margin: 0; white-space: nowrap; }
+.sr-nav-word span { color: var(--sr-accent); }
+.sr-nav-tagline { font-size: 0.6875rem; line-height: 1.45; color: var(--sr-text-muted); margin: 5px 6px 12px; }
+.sr-nav-col--rail .sr-nav-brandgap { height: 14px; }
+.sr-nav-list { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.sr-nav-item {
+  position: relative; display: flex; align-items: center; gap: 10px;
+  width: 100%; min-height: 34px; padding: 7px 10px;
+  border: 0; border-radius: 8px; background: none;
+  color: var(--sr-text-muted); font-family: inherit;
+  font-size: 0.84375rem; font-weight: 500; text-align: left; cursor: pointer;
+  transition: background-color 120ms ease-out, color 120ms ease-out;
+}
+.sr-nav-item > svg { flex-shrink: 0; }
+.sr-nav-item span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sr-nav-item:hover { background: var(--sr-surface-subtle); color: var(--sr-text); }
+.sr-nav-item--active, .sr-nav-item--active:hover {
+  background: var(--sr-accent-bg); color: var(--sr-accent); font-weight: 600;
+}
+.sr-nav-item--active::before {
+  content: ""; position: absolute; left: 0; top: 50%;
+  width: 3px; height: 60%; border-radius: 0 2px 2px 0;
+  background: var(--sr-accent); transform: translateY(-50%);
+}
+.sr-nav-col--rail .sr-nav-item { width: 40px; height: 40px; min-height: 40px; padding: 0; justify-content: center; gap: 0; }
+.sr-nav-col--rail .sr-nav-item span { display: none; }
+.sr-nav-col--rail .sr-nav-item--active::before { left: -6px; height: 22px; }
+.sr-nav-sep { height: 1px; background: var(--sr-border); margin: 8px 4px; border: 0; flex-shrink: 0; }
+.sr-nav-col--rail .sr-nav-sep { width: 28px; margin: 8px auto; }
+.sr-nav-spacer { flex: 1; min-height: 18px; }
+
+/* ---- shipped: phone bottom bar + More sheet ------------------------------ */
+.sr-navbar {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 1200;
+  display: grid; grid-template-columns: repeat(5, minmax(0, 1fr));
+  background: var(--sr-surface); border-top: 1px solid var(--sr-border);
+  box-shadow: var(--sr-nav-bar-shadow);
+}
+.sr-navbar-cell {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  min-height: 52px; padding: 7px 3px 8px; border: 0; background: none; cursor: pointer;
+  color: var(--sr-text-muted); font-family: inherit;
+  transition: background-color 120ms ease-out, color 120ms ease-out;
+}
+.sr-navbar-cell--active { color: var(--sr-accent); }
+.sr-navbar-cell--active .sr-navbar-glyph { background: var(--sr-accent-bg); }
+.sr-navbar-glyph { display: flex; align-items: center; justify-content: center; width: 40px; height: 26px; border-radius: 13px; }
+.sr-navbar-label { font-size: 0.625rem; font-weight: 600; line-height: 1.15; text-align: center; }
+.sr-navbar-cell--active .sr-navbar-label { font-weight: 700; }
+.sr-nav-sheet-root {
+  position: absolute; inset: 0; z-index: 1260;
+  background: var(--sr-scrim); display: flex; align-items: flex-end;
+}
+.sr-nav-sheet {
+  width: 100%; max-height: 70%; background: var(--sr-surface);
+  border-top: 1px solid var(--sr-border); border-radius: 16px 16px 0 0;
+  box-shadow: var(--sr-card-shadow); padding: 8px 10px 14px; overflow: auto;
+}
+.sr-nav-sheet-handle { width: 36px; height: 4px; border-radius: 2px; background: var(--sr-border-medium); margin: 4px auto 8px; }
+.sr-nav-sheet h2 { font-size: 1rem; font-weight: 700; margin: 0 0 8px; padding: 0 6px; letter-spacing: -0.01em; }
+.sr-nav-sheet .sr-nav-item { min-height: 44px; font-size: 0.9375rem; }
+
+/* ---- shipped: the page behind the overlay -------------------------------- */
+.sr-content { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
+.sr-page { padding: 22px 26px; }
+.sr-page-head { display: flex; align-items: center; gap: 11px; margin-bottom: 18px; }
+.sr-page-tile {
+  width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0;
+  background: var(--sr-accent-bg); color: var(--sr-accent);
+  display: flex; align-items: center; justify-content: center;
+}
+.sr-page-title { font-size: 1.125rem; font-weight: 700; letter-spacing: -0.01em; margin: 0; }
+.sr-page-sub { font-size: 0.8125rem; color: var(--sr-text-muted); margin: 2px 0 0; }
+.sr-card {
+  background: var(--sr-surface); border: 1px solid var(--sr-border);
+  border-radius: 12px; box-shadow: var(--sr-card-shadow); padding: 16px 18px; margin-bottom: 14px;
+}
+.sr-card h3 { font-size: 0.84375rem; font-weight: 700; margin: 0 0 10px; }
+.sr-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 6px 0; border-bottom: 1px solid var(--sr-border-subtle); }
+.sr-row:last-child { border-bottom: 0; }
+.sr-row b { font-size: 0.84375rem; font-weight: 500; }
+.sr-row i { font-size: 0.71875rem; font-style: italic; color: var(--sr-text-muted); }
+.sr-row em { font-size: 0.75rem; font-style: normal; color: var(--sr-text-muted); font-variant-numeric: tabular-nums; }
+
+/* ==========================================================================
+   SHIPPED: the Search entry control (.sr-nav-search)
+   One control, three sizes -- exactly the way .sr-nav-item is one row at
+   three densities. It deliberately does NOT reuse .sr-nav-item: it is not a
+   destination, and it must read as "typing happens here".
+   ========================================================================== */
+.sr-nav-search {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%; min-height: 32px; margin: 0 0 10px;
+  padding: 0 8px 0 9px;
+  border: 1px solid var(--sr-border-input);   /* the form-control boundary token: >=3:1 non-text */
+  border-radius: 8px;
+  background: var(--sr-surface-faint);
+  color: var(--sr-text-muted); font-family: inherit;
+  font-size: 0.84375rem; font-weight: 500; text-align: left; cursor: pointer;
+  transition: background-color 120ms ease-out, border-color 120ms ease-out, color 120ms ease-out;
+}
+.sr-nav-search:hover { background: var(--sr-surface-subtle); border-color: var(--sr-text-muted); color: var(--sr-text); }
+.sr-nav-search > svg { flex-shrink: 0; }
+.sr-nav-search-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sr-nav-search-hint {
+  flex-shrink: 0; display: inline-flex; align-items: center; gap: 2px;
+  padding: 1px 5px; border-radius: 4px;
+  border: 1px solid var(--sr-border-medium); background: var(--sr-surface-subtle);
+  color: var(--sr-text-muted); font-size: 0.625rem; font-weight: 700; letter-spacing: 0.02em;
+}
+/* Rail: the icon alone, at the rail's own 40px box, named by the shipped tooltip.
+   THE BOX CHROME GOES WITH THE LABEL. Boxed chrome around a label-hidden control
+   reads as an empty box -- the same rule the shared ToggleSwitch already applies
+   when it drops to `bare`. What says "this is not a destination" here is the
+   structural hairline below it, borrowed from the one separator the nav already
+   has: Settings is appended after the saved order and is never part of it, and
+   neither is this. */
+.sr-nav-col--rail .sr-nav-search {
+  width: 40px; height: 40px; min-height: 40px;
+  padding: 0; justify-content: center; gap: 0; margin-bottom: 0;
+  border: 0; background: none; border-radius: 8px;
+}
+.sr-nav-col--rail .sr-nav-search:hover { background: var(--sr-surface-subtle); color: var(--sr-text); }
+.sr-nav-col--rail .sr-nav-search-label,
+.sr-nav-col--rail .sr-nav-search-hint { display: none; }
+/* More sheet: the same control at the sheet's 44px touch posture. */
+.sr-nav-sheet .sr-nav-search { min-height: 44px; font-size: 0.9375rem; margin-bottom: 10px; }
+
+
+.sr-phone-head { display: none; align-items: center; gap: 8px; padding: 10px 14px; background: var(--sr-surface); border-bottom: 1px solid var(--sr-border); }
+.sr-content { overflow: auto; height: 100%; }
+@container mkstage (max-width: 640px) {
+  .sr-phone-head { display: flex; }
+  .sr-page { padding: 16px 14px 80px; }
+}
+
+/* ---- a stand-in for the shipped Hotspot Reports and Species Detail pages --
+   Only enough of each to show where a choice lands. Neither page changes. */
+.sr-hsr-pickrow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-bottom: 16px; }
+.sr-hsr-label { font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--sr-text-muted); }
+.sr-hsr-field { flex: 0 1 34rem; min-width: 0; display: flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 10px 0 12px; border: 1.5px solid var(--sr-border-input); border-radius: 8px; background: var(--sr-surface); color: var(--sr-text-muted); }
+.sr-hsr-field b { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.875rem; font-weight: 600; color: var(--sr-text); }
+.sr-hsr-name { font-size: 1.375rem; font-weight: 700; letter-spacing: -0.015em; line-height: 1.25; overflow-wrap: anywhere; }
+.sr-hsr-meta { font-size: 0.71875rem; line-height: 1.45; color: var(--sr-text-muted); margin-top: 3px; overflow-wrap: anywhere; }
+.sr-hsr-totals { display: flex; flex-wrap: wrap; gap: 6px 28px; margin-top: 14px; }
+.sr-hsr-totals div { display: flex; align-items: baseline; gap: 6px; }
+.sr-hsr-totals b { font-size: 1.25rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.sr-hsr-totals span { font-size: 0.75rem; color: var(--sr-text-muted); }
+.sr-row b { min-width: 0; overflow-wrap: anywhere; }
+.sr-row span { flex: 1; min-width: 0; }
+.sr-row span small { display: block; font-size: 0.71875rem; color: var(--sr-text-muted); }
+
+/* ==========================================================================
+   SHIPPED: the Search overlay (.sr-palette-*), from frontend/src/globals.css
+   ========================================================================== */
+.sr-palette-root {
+  position: absolute;            /* SHIPPED: position: fixed */
+  inset: 0; z-index: 1280;
+  background: var(--sr-scrim);
+  display: flex; align-items: flex-start; justify-content: center;
+  padding: var(--mk-11vh, 80px) 16px 16px;   /* SHIPPED: 11vh 16px 16px */
+  animation: sr-palette-scrim-in 160ms ease-out;
+}
+.sr-palette-panel {
+  display: flex; flex-direction: column;
+  width: min(100%, 36rem);
+  max-height: min(34rem, 100%);
+  background: var(--sr-surface); color: var(--sr-text);
+  border: 1px solid var(--sr-border); border-radius: 14px;
+  box-shadow: var(--sr-card-shadow);
+  overflow: hidden;
+  transform-origin: top center;
+  animation: sr-palette-in 140ms cubic-bezier(0.2, 0, 0, 1);
+}
+@keyframes sr-palette-scrim-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes sr-palette-in {
+  from { opacity: 0; transform: scaleY(0.98); }
+  to   { opacity: 1; transform: scaleY(1); }
+}
+.sr-palette-head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 12px; flex-shrink: 0;
+  border-bottom: 1px solid var(--sr-border-subtle);
+}
+.sr-palette-field { position: relative; flex: 1; min-width: 0; display: flex; }
+.sr-palette-field > svg {
+  position: absolute; left: 11px; top: 50%; transform: translateY(-50%);
+  color: var(--sr-text-muted); pointer-events: none;
+}
+.sr-palette-input {
+  width: 100%; height: 2.5rem; min-width: 0;
+  padding: 0 12px 0 34px; margin: 0;
+  border: 1.5px solid var(--sr-border-input); border-radius: 8px;
+  background: var(--sr-surface); color: var(--sr-text);
+  font-family: inherit; font-size: 1rem; font-weight: 500;
+  --sr-ctl-rem: 1rem;
+  transition: border-color 120ms ease-out;
+}
+.sr-palette-input::placeholder { color: var(--sr-text-muted); font-weight: 400; opacity: 1; }
+/* The shipped global input ring, unchanged. */
+.sr-app input:focus-visible {
+  outline: 2px solid var(--sr-accent); outline-offset: 0;
+  border-color: var(--sr-accent) !important;
+  box-shadow: 0 0 0 4px rgba(45, 134, 83, 0.12);
+}
+.sr-palette-close {
+  flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;
+  width: 2.5rem; height: 2.5rem; padding: 0;
+  border: 0; border-radius: 8px; background: none;
+  color: var(--sr-text-muted); cursor: pointer;
+  transition: background-color 120ms ease-out, color 120ms ease-out;
+}
+.sr-palette-close:hover { background: var(--sr-surface-subtle); color: var(--sr-text); }
+.sr-app button:focus-visible {
+  outline: 3px solid var(--sr-accent); outline-offset: 3px;
+  box-shadow: 0 0 0 6px rgba(45, 134, 83, 0.12);
+}
+.sr-palette-results {
+  flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+  padding-bottom: 4px;
+}
+.sr-palette-group {
+  padding: 11px 14px 5px;
+  font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--sr-text-muted);
+}
+.sr-palette-results [role="listbox"] > [role="group"]:first-child > .sr-palette-group { padding-top: 8px; }
+.sr-palette-row {
+  display: flex; align-items: center; gap: 10px;
+  min-height: 2.25rem; padding: 9px 14px;
+  cursor: pointer; color: var(--sr-text-muted);
+  transition: background-color 120ms ease-out;
+}
+.sr-palette-row:hover { background: var(--sr-surface-subtle); }
+.sr-palette-row--active {
+  background: var(--sr-accent-bg-hover);
+  outline: 2px solid var(--sr-accent); outline-offset: -2px;
+  transition: none;
+}
+.sr-palette-row--active .sr-palette-row-icon { color: var(--sr-accent); }
+.sr-palette-row-icon { flex-shrink: 0; display: flex; color: var(--sr-text-muted); }
+.sr-palette-row-name {
+  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 0.875rem; font-weight: 500; color: var(--sr-text);
+}
+.sr-palette-row-sci {
+  flex: 0 1 auto; max-width: 40%; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: right;
+  font-size: 0.71875rem; font-style: italic; color: var(--sr-text-muted);
+}
+.sr-palette-note {
+  margin: 4px 14px 0; padding: 9px 0 4px;
+  border-top: 1px solid var(--sr-border-subtle);
+  font-size: 0.75rem; line-height: 1.5; color: var(--sr-text-muted);
+}
+.sr-palette-status { display: block; }
+.sr-palette-status-line {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 10px 14px 12px;
+  font-size: 0.8125rem; line-height: 1.55; color: var(--sr-text-muted);
+  overflow-wrap: anywhere;
+}
+.sr-palette-status-line > svg { flex-shrink: 0; margin-top: 2px; }
+.spin { animation: spin 0.7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.sr-palette-foot {
+  flex-shrink: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px;
+  padding: 8px 14px; background: var(--sr-surface-faint);
+  border-top: 1px solid var(--sr-border-subtle);
+  font-size: 0.6875rem; color: var(--sr-text-muted);
+}
+.sr-palette-legend { display: inline-flex; align-items: center; gap: 5px; }
+.sr-palette-kbd {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 1.25rem; height: 1.125rem; padding: 0 4px;
+  border: 1px solid var(--sr-border-medium); border-radius: 4px;
+  background: var(--sr-surface-subtle); color: var(--sr-text-muted);
+  font-family: inherit; font-size: 0.625rem; font-weight: 700; line-height: 1;
+}
+
+/* ==========================================================================
+   NEW in this feature. Everything below, and nothing above, is added.
+   ========================================================================== */
+
+/* NEW 1. The location row. Two lines at EVERY width: the name, then the place
+   label and (only on a full tie) the Location ID. The name wraps and is never
+   cut by CSS, because eBird names share long openings and differ at the end
+   ("Don Edwards San Francisco Bay NWR--..."). The place sits on its own line
+   so no width, text size or name length can squeeze it: the pair that could
+   not shrink together is removed instead of tuned. Block layout, not a column
+   flex, which WebKit can leave at a stale width after a text size change. */
+.sr-palette-row--loc { padding-top: 7px; padding-bottom: 7px; }
+.sr-palette-loc { flex: 1; min-width: 0; display: block; }
+.sr-palette-loc-name {
+  display: block;
+  font-size: 0.875rem; font-weight: 500; line-height: 1.4; color: var(--sr-text);
+  overflow-wrap: anywhere;
+}
+.sr-palette-loc-name--unnamed { font-style: italic; }
+.sr-palette-loc-meta {
+  display: block; margin-top: 1px;
+  font-size: 0.71875rem; line-height: 1.45; color: var(--sr-text-muted);
+  overflow-wrap: anywhere;
+}
+.sr-palette-loc-id { font-variant-numeric: tabular-nums; }
+/* On the highlighted row the place and ID take the full ink. They are what tell
+   namesakes apart, and --sr-text-muted on the highlight fill is 3.79:1 in the
+   dark theme (4.95:1 light); --sr-text is 8.84:1 and 17.69:1. */
+.sr-palette-row--active .sr-palette-loc-meta { color: var(--sr-text); }
+
+/* NEW 2. The cap line moves INSIDE its own group, as that group's last child,
+   so each line directly follows the rows it is about. Its look is the shipped
+   .sr-palette-note above, unchanged. The one addition: when another group
+   follows, the line gets clear air beneath it, so it reads as the end of the
+   group above and never as the opening of the group below. */
+.sr-palette-results [role="group"]:not(:last-child) > .sr-palette-note { margin-bottom: 8px; }
+
+/* NEW 3. The narrow-field hint. The placeholder keeps the full wording. Where
+   the field is too narrow to show it whole, the placeholder is hidden and one
+   short word is drawn in its place. The question asked is "how wide is my
+   box" for one fixed string, which a container query can answer; the em term
+   tracks the text size and the px term covers the 16px phone floor. */
+.sr-palette-field { container-type: inline-size; container-name: sr-palette-field; font-size: 1rem; }
+.sr-palette-hint {
+  display: none; position: absolute; left: 35.5px; top: 50%; transform: translateY(-50%);
+  pointer-events: none; white-space: nowrap;
+  font-size: 1rem; font-weight: 400; color: var(--sr-text-muted);
+}
+@container sr-palette-field (max-width: 27em) or (max-width: 432px) {
+  .sr-palette-input::placeholder { color: transparent; }
+  .sr-palette-input:placeholder-shown + .sr-palette-hint { display: block; }
+}
+
+/* ---- SHIPPED phone tier (a @media (max-width: 640px) block in the app) ---- */
+@container mkstage (max-width: 640px) {
+  .sr-palette-root { padding: 0; align-items: stretch; }
+  .sr-palette-panel { width: 100%; height: 100%; max-height: 100%; border: 0; border-radius: 0; }
+  .sr-palette-head { padding: 10px 12px; }
+  .sr-palette-row { min-height: 2.75rem; }
+  .sr-palette-close { width: 2.75rem; height: 2.75rem; }
+  .sr-input-16 { font-size: max(var(--sr-ctl-floor), var(--sr-ctl-rem, 0.75rem)) !important; }
+  /* NEW: the hint follows the input's own phone floor. */
+  .sr-palette-hint { font-size: max(var(--sr-ctl-floor), 1rem); }
+}
+
+/* Held frames: a panel shown on its own, with no scrim and no entrance. */
+.mk-spec .sr-stage { background: var(--sr-bg); padding: 14px; }
+.mk-spec .sr-palette-panel { animation: none; width: 100%; max-height: 100%; }
+.mk-spec--phone .sr-stage { padding: 0; }
+.mk-spec .sr-palette-row { cursor: default; }
+
+@media (prefers-reduced-motion: reduce) {
+  .sr-palette-root, .sr-palette-panel { animation: none; }
+  .sr-palette-row, .sr-palette-close, .sr-nav-search, .sr-nav-item, .sr-navbar-cell, .sr-palette-input { transition: none; }
+  .spin { animation: none; }
+  .mk-seg button, .mk-btn, .mk-chip { transition: none; }
+}
+.mk-rm .sr-palette-root, .mk-rm .sr-palette-panel { animation: none !important; }
+.mk-rm .sr-palette-row, .mk-rm .sr-palette-close, .mk-rm .sr-nav-search, .mk-rm .sr-nav-item, .mk-rm .sr-palette-input { transition: none !important; }
+.mk-rm .spin { animation: none !important; }
+.mk-noanim .sr-palette-root, .mk-noanim .sr-palette-panel { animation: none; }
+</style>
+</head>
+<body>
+
+<div class="mk-wrap">
+  <header class="mk-top">
+    <p class="mk-eyebrow">SnowRaven &middot; Search &middot; first design direction</p>
+    <h1 class="mk-title">Search now finds your places</h1>
+    <p class="mk-lede">The Search you already have, with one new group under Species: the locations in your own eBird backup, hotspots and personal locations alike. Choose one and Hotspot Reports opens on it. Nothing that is there today moves.</p>
+  </header>
+</div>
+
+<div class="mk-bar" role="group" aria-label="Mockup controls">
+  <div class="mk-bar-in">
+    <div class="mk-grp"><span>Theme</span>
+      <div class="mk-seg" data-key="theme">
+        <button type="button" data-v="light">Light</button><button type="button" data-v="dark">Dark</button>
+      </div>
+    </div>
+    <div class="mk-grp"><span>Window</span>
+      <div class="mk-seg" data-key="win">
+        <button type="button" data-v="desk">Desktop</button><button type="button" data-v="p393">Phone 393</button><button type="button" data-v="p320">Phone 320</button>
+      </div>
+    </div>
+    <div class="mk-grp"><span>Text size</span>
+      <div class="mk-seg" data-key="scale">
+        <button type="button" data-v="1">100%</button><button type="button" data-v="1.5">150%</button><button type="button" data-v="2">200%</button>
+      </div>
+    </div>
+    <div class="mk-grp"><span>eBird backup</span>
+      <div class="mk-seg" data-key="backup">
+        <button type="button" data-v="ready">Loaded</button><button type="button" data-v="pending">Being read</button><button type="button" data-v="none">None saved</button><button type="button" data-v="unloadable">Would not load</button><button type="button" data-v="locfailed">Locations failed</button><button type="button" data-v="arriving">Locations arriving</button>
+      </div>
+    </div>
+    <div class="mk-grp">
+      <button type="button" class="mk-btn mk-btn--go" id="openbtn">Open Search</button>
+      <label class="mk-check"><input type="checkbox" id="rm"> Reduced motion</label>
+    </div>
+  </div>
+</div>
+
+<div class="mk-wrap">
+  <div class="mk-try" id="try"><span>Type in the field, or try:</span></div>
+
+  <div class="mk-frame" id="frame">
+    <div class="mk-titlebar"><i class="mk-dot"></i><i class="mk-dot"></i><i class="mk-dot"></i><span id="framelabel"></span></div>
+    <div id="stage"></div>
+  </div>
+  <div class="mk-readout" id="readout"></div>
+  <p class="mk-cap" id="cap"></p>
+
+  <section class="mk-sec">
+    <h2 class="mk-h2">What is new, and only this</h2>
+    <p class="mk-sub">Everything else in the overlay is the shipped one, rule for rule.</p>
+    <ul class="mk-new">
+      <li><b>A third group, Locations</b>Under Species, in the same list. The arrow keys run straight through all three groups and Enter opens the highlighted row.</li>
+      <li><b>A place reads as a place</b>The name on one line, the county and state beneath it. Long names wrap in full, because eBird names differ at the end.</li>
+      <li><b>Namesakes stay apart</b>Same name in different counties: the county tells them apart. Same name and same county: each row adds its Location ID.</li>
+      <li><b>Each cut is said where it happens</b>When a group stops at 50, its line sits under that group's last row, so two lines can show at once without confusion.</li>
+      <li><b>One sentence about your backup</b>Species and locations come from one file, so one sentence speaks for both.</li>
+      <li><b>A short hint on a narrow field</b>The full wording stays where it fits. On a phone the field reads Search.</li>
+    </ul>
+  </section>
+
+  <section class="mk-sec">
+    <h2 class="mk-h2">Frames held still</h2>
+    <p class="mk-sub">The same overlay, frozen in the states worth comparing side by side. They follow the theme and text size switches above. Nothing in them is live.</p>
+    <h3 class="mk-h3">Results</h3>
+    <div class="mk-specs" id="specs-results"></div>
+    <h3 class="mk-h3">What Search says about your backup</h3>
+    <div class="mk-specs" id="specs-status"></div>
+    <h3 class="mk-h3">At 320 pixels wide</h3>
+    <div class="mk-specs mk-specs--phone" id="specs-phone"></div>
+  </section>
+
+  <p class="mk-foot">A mockup, not the app: the page behind the overlay is a stand-in drawn only far enough to show where a choice lands, and bird-code ranking is not modeled. The places are a made-up Bay Area birder's, with real-sounding names; the birds and their scientific names are real. Every color is one of the app's own tokens.</p>
+</div>
+
+<script>
+(function () {
+'use strict';
+
+/* =====================================================================
+   COPY. The strings of schema section 6, as lib/paletteCopy.ts will hold
+   them. Non-ASCII characters are written as escapes.
+   ===================================================================== */
+var SPECIES_CAP = 50;
+var LOCATION_CAP = 50;
+var NAME_MAX = 200;
+var ELLIPSIS = '\u2026';
+var UNNAMED = 'Unnamed location';
+var COPY = {
+  controlLabel: 'Search',
+  inputLabel: 'Search destinations, species, and locations',
+  placeholder: 'Search destinations, species, and locations',
+  placeholderShort: 'Search',
+  closeLabel: 'Close search',
+  groupDestinations: 'Destinations',
+  groupSpecies: 'Species',
+  groupLocations: 'Locations',
+  groupBackup: 'Species and locations',
+  speciesLoading: 'Reading your eBird backup.',
+  speciesNoBackup: 'Searching species and locations needs your eBird backup. Upload MyEBirdData.csv in Settings \u2192 Default Files \u2192 eBird Backup.',
+  loadError: "Couldn't load your eBird backup. Re-upload MyEBirdData.csv in Settings \u2192 Default Files \u2192 eBird Backup.",
+  noMatches: 'Nothing matches that search.',
+  legendMove: 'Move', legendOpen: 'Open', legendClose: 'Close'
+};
+function speciesCapLine(cap) { return 'Showing the first ' + cap + ' matches. Keep typing to narrow them.'; }
+function locationCapLine(cap) { return 'Showing the first ' + cap + ' locations. Keep typing to narrow them.'; }
+
+/* =====================================================================
+   DATA
+   ===================================================================== */
+var RAVEN = 'M 150.79 440.77 L 176.47 435.39 L 197.48 429.33 L 213.04 423.88 L 245.73 409.97 L 270.63 397.28 L 296.30 381.80 L 318.09 366.18 L 336.57 350.44 L 352.33 334.58 L 367.31 316.20 L 379.08 297.53 L 385.19 285.08 L 389.91 273.41 L 395.34 253.95 L 396.99 244.61 L 398.12 232.16 L 397.64 214.27 L 393.73 194.04 L 386.46 169.91 L 384.84 159.02 L 385.60 149.68 L 388.70 139.57 L 394.35 130.77 L 399.02 125.85 L 405.25 120.87 L 417.70 113.66 L 430.15 109.05 L 445.71 105.74 L 451.93 105.05 L 464.38 105.06 L 473.72 106.67 L 484.62 111.08 L 485.38 110.77 L 485.11 101.44 L 483.21 95.21 L 479.17 87.44 L 473.72 81.39 L 464.38 74.65 L 449.60 68.35 L 437.93 65.33 L 410.69 60.66 L 402.71 53.19 L 392.02 45.17 L 381.12 38.75 L 373.34 35.08 L 354.67 28.85 L 339.10 26.17 L 322.76 25.37 L 311.09 26.27 L 297.08 28.66 L 288.52 31.10 L 273.74 37.43 L 262.07 44.46 L 253.51 51.19 L 244.65 60.19 L 234.69 73.42 L 226.06 88.21 L 215.97 110.77 L 198.93 152.79 L 199.81 153.14 L 210.71 148.11 L 230.16 141.75 L 241.83 139.37 L 254.28 138.31 L 267.51 138.63 L 281.50 141.12 L 293.19 144.94 L 303.31 150.17 L 311.57 155.91 L 321.42 166.02 L 327.70 175.36 L 332.88 187.08 L 335.35 196.37 L 336.92 208.82 L 336.90 218.94 L 334.38 236.06 L 328.50 255.51 L 319.29 274.96 L 307.20 294.01 L 289.43 316.20 L 271.40 335.03 L 248.84 355.96 L 146.83 440.71 L 147.68 441.18 Z M 361.37 83.54 L 355.44 83.04 L 349.39 79.65 L 345.70 75.76 L 340.28 67.20 L 335.99 63.61 L 331.05 60.97 L 331.32 60.45 L 343.77 60.10 L 354.67 61.50 L 367.12 66.26 L 376.07 72.64 L 374.90 74.46 L 367.89 80.74 Z M 384.80 96.77 L 381.12 97.22 L 379.95 96.77 L 389.68 89.61 L 398.24 84.87 L 409.14 81.06 L 423.14 79.17 L 436.37 79.99 L 446.49 82.49 L 458.16 88.01 L 465.16 93.23 L 467.68 95.99 L 466.72 96.57 L 440.26 94.09 L 416.92 93.78 L 399.02 94.86 Z M 27.07 486.63 L 42.63 480.11 L 57.41 472.78 L 83.87 457.96 L 111.11 441.03 L 146.90 416.35 L 188.78 384.68 L 227.05 353.61 L 252.69 330.99 L 266.74 317.42 L 278.01 305.31 L 291.95 288.19 L 298.64 278.72 L 306.04 266.40 L 311.49 255.51 L 315.26 246.17 L 317.53 239.17 L 319.92 228.27 L 321.08 218.94 L 321.06 210.38 L 320.04 201.82 L 318.42 194.81 L 315.25 187.03 L 311.19 180.03 L 307.72 175.36 L 302.53 170.13 L 295.53 164.95 L 286.97 160.39 L 276.07 156.55 L 269.07 154.98 L 260.51 153.84 L 248.84 153.69 L 231.72 155.87 L 220.82 158.88 L 212.26 162.07 L 203.81 166.02 L 195.15 171.24 L 186.59 177.15 L 176.64 185.48 L 162.41 200.26 L 153.88 211.15 L 143.79 226.74 L 136.73 239.17 L 125.74 261.73 L 109.38 300.64 L 78.90 379.23 L 79.98 379.55 L 90.87 375.49 L 106.44 367.80 L 123.56 357.64 L 148.46 339.41 L 149.24 339.06 L 149.37 339.55 L 133.67 359.67 L 120.96 373.01 L 107.66 384.68 L 87.69 397.91 L 62.88 436.82 L 44.33 463.27 L 26.62 485.84 Z';
+
+/* TAB_LABELS, in DEFAULT_TAB_ORDER, with Settings appended. */
+var DESTS = [
+  { id: 'weather',         label: 'Weather' },
+  { id: 'birding-stats',   label: 'Statistics' },
+  { id: 'map-explorer',    label: 'Map Explorer' },
+  { id: 'species-detail',  label: 'Species Detail' },
+  { id: 'calendar',        label: 'Calendar' },
+  { id: 'targets',         label: 'Targets' },
+  { id: 'life-list',       label: 'Multimedia' },
+  { id: 'breeding-codes',  label: 'Breeding Codes' },
+  { id: 'hotspot-reports', label: 'Hotspot Reports' },
+  { id: 'checklists',      label: 'Checklists' },
+  { id: 'life-lists',      label: 'Life Lists' },
+  { id: 'comparer',        label: 'List Comparer' },
+  { id: 'named-birds',     label: 'Named Birds' },
+  { id: 'settings',        label: 'Settings' }
+];
+function destLabel(id) { for (var i = 0; i < DESTS.length; i++) if (DESTS[i].id === id) return DESTS[i].label; return id; }
+
+/* A Bay Area birder's list. Common name, scientific name. */
+var SPECIES = [
+  ['Acorn Woodpecker','Melanerpes formicivorus'],
+  ["Allen's Hummingbird",'Selasphorus sasin'],
+  ['American Avocet','Recurvirostra americana'],
+  ['American Coot','Fulica americana'],
+  ['American Crow','Corvus brachyrhynchos'],
+  ['American Goldfinch','Spinus tristis'],
+  ['American Kestrel','Falco sparverius'],
+  ['American Robin','Turdus migratorius'],
+  ['American White Pelican','Pelecanus erythrorhynchos'],
+  ['American Wigeon','Mareca americana'],
+  ["Anna's Hummingbird",'Calypte anna'],
+  ['Ash-throated Flycatcher','Myiarchus cinerascens'],
+  ['Band-tailed Pigeon','Patagioenas fasciata'],
+  ['Barn Owl','Tyto alba'],
+  ['Barn Swallow','Hirundo rustica'],
+  ['Bay-breasted Warbler','Setophaga castanea'],
+  ['Belted Kingfisher','Megaceryle alcyon'],
+  ["Bewick's Wren",'Thryomanes bewickii'],
+  ['Black Phoebe','Sayornis nigricans'],
+  ['Black-crowned Night Heron','Nycticorax nycticorax'],
+  ['Black-necked Stilt','Himantopus mexicanus'],
+  ['Black-throated Gray Warbler','Setophaga nigrescens'],
+  ["Brandt's Cormorant",'Urile penicillatus'],
+  ["Brewer's Blackbird",'Euphagus cyanocephalus'],
+  ['Brown Creeper','Certhia americana'],
+  ['Brown Pelican','Pelecanus occidentalis'],
+  ['Bufflehead','Bucephala albeola'],
+  ["Bullock's Oriole",'Icterus bullockii'],
+  ['Bushtit','Psaltriparus minimus'],
+  ['California Gull','Larus californicus'],
+  ['California Quail','Callipepla californica'],
+  ['California Scrub-Jay','Aphelocoma californica'],
+  ['California Towhee','Melozone crissalis'],
+  ['Canada Goose','Branta canadensis'],
+  ['Caspian Tern','Hydroprogne caspia'],
+  ["Cassin's Vireo",'Vireo cassinii'],
+  ['Cedar Waxwing','Bombycilla cedrorum'],
+  ['Chestnut-backed Chickadee','Poecile rufescens'],
+  ['Cinnamon Teal','Spatula cyanoptera'],
+  ['Cliff Swallow','Petrochelidon pyrrhonota'],
+  ['Common Goldeneye','Bucephala clangula'],
+  ['Common Merganser','Mergus merganser'],
+  ['Common Raven','Corvus corax'],
+  ['Common Yellowthroat','Geothlypis trichas'],
+  ["Cooper's Hawk",'Astur cooperii'],
+  ['Dark-eyed Junco','Junco hyemalis'],
+  ['Double-crested Cormorant','Nannopterum auritum'],
+  ['Downy Woodpecker','Dryobates pubescens'],
+  ['Dunlin','Calidris alpina'],
+  ['Eared Grebe','Podiceps nigricollis'],
+  ['Elegant Tern','Thalasseus elegans'],
+  ['Eurasian Collared-Dove','Streptopelia decaocto'],
+  ['European Starling','Sturnus vulgaris'],
+  ["Forster's Tern",'Sterna forsteri'],
+  ['Fox Sparrow','Passerella iliaca'],
+  ['Gadwall','Mareca strepera'],
+  ['Golden-crowned Kinglet','Regulus satrapa'],
+  ['Golden-crowned Sparrow','Zonotrichia atricapilla'],
+  ['Great Blue Heron','Ardea herodias'],
+  ['Great Egret','Ardea alba'],
+  ['Great Horned Owl','Bubo virginianus'],
+  ['Greater Yellowlegs','Tringa melanoleuca'],
+  ['Green Heron','Butorides virescens'],
+  ['Hairy Woodpecker','Dryobates villosus'],
+  ['Hermit Thrush','Catharus guttatus'],
+  ['Hermit Warbler','Setophaga occidentalis'],
+  ['Hooded Merganser','Lophodytes cucullatus'],
+  ['House Finch','Haemorhous mexicanus'],
+  ['House Sparrow','Passer domesticus'],
+  ["Hutton's Vireo",'Vireo huttoni'],
+  ['Killdeer','Charadrius vociferus'],
+  ['Least Sandpiper','Calidris minutilla'],
+  ['Lesser Goldfinch','Spinus psaltria'],
+  ['Lesser Scaup','Aythya affinis'],
+  ['Long-billed Curlew','Numenius americanus'],
+  ['Long-billed Dowitcher','Limnodromus scolopaceus'],
+  ["MacGillivray's Warbler",'Geothlypis tolmiei'],
+  ['Mallard','Anas platyrhynchos'],
+  ['Marbled Godwit','Limosa fedoa'],
+  ['Marsh Wren','Cistothorus palustris'],
+  ['Merlin','Falco columbarius'],
+  ['Mourning Dove','Zenaida macroura'],
+  ['Nashville Warbler','Leiothlypis ruficapilla'],
+  ['Northern Flicker','Colaptes auratus'],
+  ['Northern Harrier','Circus hudsonius'],
+  ['Northern Mockingbird','Mimus polyglottos'],
+  ['Northern Pintail','Anas acuta'],
+  ['Northern Shoveler','Spatula clypeata'],
+  ["Nuttall's Woodpecker",'Dryobates nuttallii'],
+  ['Oak Titmouse','Baeolophus inornatus'],
+  ['Orange-crowned Warbler','Leiothlypis celata'],
+  ['Osprey','Pandion haliaetus'],
+  ['Pacific-slope Flycatcher','Empidonax difficilis'],
+  ['Palm Warbler','Setophaga palmarum'],
+  ['Peregrine Falcon','Falco peregrinus'],
+  ['Pied-billed Grebe','Podilymbus podiceps'],
+  ['Pygmy Nuthatch','Sitta pygmaea'],
+  ['Red-breasted Nuthatch','Sitta canadensis'],
+  ['Red-shouldered Hawk','Buteo lineatus'],
+  ['Red-tailed Hawk','Buteo jamaicensis'],
+  ['Red-winged Blackbird','Agelaius phoeniceus'],
+  ['Ring-billed Gull','Larus delawarensis'],
+  ['Ruby-crowned Kinglet','Corthylio calendula'],
+  ['Ruddy Duck','Oxyura jamaicensis'],
+  ['Rufous Hummingbird','Selasphorus rufus'],
+  ['Savannah Sparrow','Passerculus sandwichensis'],
+  ["Say's Phoebe",'Sayornis saya'],
+  ['Semipalmated Plover','Charadrius semipalmatus'],
+  ['Snowy Egret','Egretta thula'],
+  ['Snowy Plover','Charadrius nivosus'],
+  ['Song Sparrow','Melospiza melodia'],
+  ['Spotted Sandpiper','Actitis macularius'],
+  ['Spotted Towhee','Pipilo maculatus'],
+  ["Steller's Jay",'Cyanocitta stelleri'],
+  ['Surf Scoter','Melanitta perspicillata'],
+  ["Swainson's Thrush",'Catharus ustulatus'],
+  ["Townsend's Warbler",'Setophaga townsendi'],
+  ['Tree Swallow','Tachycineta bicolor'],
+  ['Turkey Vulture','Cathartes aura'],
+  ['Varied Thrush','Ixoreus naevius'],
+  ['Violet-green Swallow','Tachycineta thalassina'],
+  ['Wandering Tattler','Tringa incana'],
+  ['Warbling Vireo','Vireo gilvus'],
+  ['Western Bluebird','Sialia mexicana'],
+  ['Western Grebe','Aechmophorus occidentalis'],
+  ['Western Gull','Larus occidentalis'],
+  ['Western Meadowlark','Sturnella neglecta'],
+  ['Western Sandpiper','Calidris mauri'],
+  ['White-crowned Sparrow','Zonotrichia leucophrys'],
+  ['White-tailed Kite','Elanus leucurus'],
+  ['Willet','Tringa semipalmata'],
+  ["Wilson's Warbler",'Cardellina pusilla'],
+  ['Wrentit','Chamaea fasciata'],
+  ['Yellow Warbler','Setophaga petechia'],
+  ['Yellow-billed Magpie','Pica nuttalli'],
+  ['Yellow-rumped Warbler','Setophaga coronata'],
+  ["Yellow-rumped Warbler (Audubon's)",'Setophaga coronata auduboni'],
+  ['Yellow-rumped Warbler (Myrtle)','Setophaga coronata coronata']
+];
+
+/* The same birder's locations: Location ID, name, county, state or province.
+   Hotspots and personal locations alike, and nothing on a row says which. */
+var LONG_NAME = 'Stevens Creek Trail from Crittenden Lane out to the bay, counting the salt pond levee loop past the pump house, the burrowing owl mounds, the old duck club blind at the creek mouth, and the tower line back along the frontage road to the kite lot';
+var RAW_LOCS = [
+  ['L8421733',  'Backyard', 'Santa Clara', 'CA'],
+  ['L19034127', 'Backyard', 'Santa Clara', 'CA'],
+  ['L20158833', "Grandpa's backyard, Arcata", 'Humboldt', 'CA'],
+  ['L2318845',  "Mom's feeder, Eugene", 'Lane', 'OR'],
+  ['L2283456',  'Central Park', 'Santa Clara', 'CA'],
+  ['L1513344',  'Central Park', 'San Mateo', 'CA'],
+  ['L191106',   'Central Park', 'New York', 'NY'],
+  ['L385231',   'Don Edwards San Francisco Bay NWR--Environmental Education Center', 'Santa Clara', 'CA'],
+  ['L712266',   'Don Edwards San Francisco Bay NWR--Alviso Marina County Park', 'Santa Clara', 'CA'],
+  ['L1094877',  'Don Edwards San Francisco Bay NWR--Visitor Center and La Riviere Marsh', 'Alameda', 'CA'],
+  ['L1437901',  'Arastradero Preserve', 'Santa Clara', 'CA'],
+  ['L207393',   'Palo Alto Baylands--Duck Pond', 'Santa Clara', 'CA'],
+  ['L1289774',  'Palo Alto Baylands--Byxbee Park', 'Santa Clara', 'CA'],
+  ['L286712',   'Charleston Slough', 'Santa Clara', 'CA'],
+  ['L594123',   'Shoreline Lake', 'Santa Clara', 'CA'],
+  ['L4479210',  'Sunnyvale Water Pollution Control Plant', 'Santa Clara', 'CA'],
+  ['L369408',   'Calero Reservoir', 'Santa Clara', 'CA'],
+  ['L1168542',  'Ed Levin County Park--Calaveras Road', 'Santa Clara', 'CA'],
+  ['L6712340',  'Stevens Creek Trail--Crittenden Lane', 'Santa Clara', 'CA'],
+  ['L22871905', LONG_NAME, 'Santa Clara', 'CA'],
+  ['L5521098',  'Rancho San Antonio Open Space Preserve', 'Santa Clara', 'CA'],
+  ['L483920',   'Vasona Lake County Park', 'Santa Clara', 'CA'],
+  ['L3390155',  'Almaden Lake Park', 'Santa Clara', 'CA'],
+  ['L901245',   'Coyote Valley Open Space Preserve', 'Santa Clara', 'CA'],
+  ['L2157846',  'Lake Cunningham Park', 'Santa Clara', 'CA'],
+  ['L7745310',  'Ulistac Natural Area', 'Santa Clara', 'CA'],
+  ['L128450',   'Pescadero Marsh Natural Preserve', 'San Mateo', 'CA'],
+  ['L246813',   'Pillar Point Harbor', 'San Mateo', 'CA'],
+  ['L399021',   'Coyote Point Recreation Area', 'San Mateo', 'CA'],
+  ['L2839471',  'Bedwell Bayfront Park', 'San Mateo', 'CA'],
+  ['L668213',   'Half Moon Bay--Venice Beach', 'San Mateo', 'CA'],
+  ['L5090437',  'Edgewood County Park', 'San Mateo', 'CA'],
+  ['L754109',   'Radio Road Ponds', 'San Mateo', 'CA'],
+  ['L161092',   'Coyote Hills Regional Park', 'Alameda', 'CA'],
+  ['L227815',   "Hayward Regional Shoreline--Frank's Dump", 'Alameda', 'CA'],
+  ['L343219',   'Lake Merritt', 'Alameda', 'CA'],
+  ['L1873325',  'Arrowhead Marsh', 'Alameda', 'CA'],
+  ['L4102276',  'Sunol Regional Wilderness', 'Alameda', 'CA'],
+  ['L959137',   'Lake Elizabeth', 'Alameda', 'CA'],
+  ['L610438',   'Mount Diablo State Park--Mitchell Canyon', 'Contra Costa', 'CA'],
+  ['L283377',   'Tilden Regional Park--Jewel Lake', 'Contra Costa', 'CA'],
+  ['L1750062',  'Point Isabel Regional Shoreline', 'Contra Costa', 'CA'],
+  ['L152733',   'Golden Gate Park--Stow Lake', 'San Francisco', 'CA'],
+  ['L1291746',  'Golden Gate Park--Bison Paddock', 'San Francisco', 'CA'],
+  ['L270118',   'Lands End', 'San Francisco', 'CA'],
+  ['L813905',   "Heron's Head Park", 'San Francisco', 'CA'],
+  ['L2460551',  'Crissy Field Marsh', 'San Francisco', 'CA'],
+  ['L124367',   'Point Reyes NS--Abbotts Lagoon', 'Marin', 'CA'],
+  ['L197702',   'Point Reyes NS--Lighthouse', 'Marin', 'CA'],
+  ['L519084',   'Bolinas Lagoon--Pine Gulch Creek', 'Marin', 'CA'],
+  ['L316450',   'Las Gallinas Valley Sanitary District Ponds', 'Marin', 'CA'],
+  ['L1035629',  'Rodeo Lagoon', 'Marin', 'CA'],
+  ['L146221',   'Bodega Bay--Doran Beach', 'Sonoma', 'CA'],
+  ['L734518',   'Shollenberger Park', 'Sonoma', 'CA'],
+  ['L209946',   'Moss Landing--Jetty Road', 'Monterey', 'CA'],
+  ['L433870',   'Elkhorn Slough--Kirby Park', 'Monterey', 'CA'],
+  ['L1678204',  'Point Pinos', 'Monterey', 'CA'],
+  ['L288049',   'Natural Bridges State Beach', 'Santa Cruz', 'CA'],
+  ['L3267715',  '', 'Santa Cruz', 'CA'],
+  ['L189477',   'Sacramento NWR--Auto Tour Route', 'Glenn', 'CA'],
+  ['L361184',   'Merced NWR--Auto Tour Route', 'Merced', 'CA'],
+  ['L1482230',  'San Luis NWR--Waterfowl Tour Route', 'Merced', 'CA'],
+  ['L247390',   'Cosumnes River Preserve', 'Sacramento', 'CA'],
+  ['L452906',   'Yolo Bypass Wildlife Area--Auto Tour', 'Yolo', 'CA'],
+  ['L699053',   'Staten Island Road', 'San Joaquin', 'CA'],
+  ['L343681',   'Mono Lake County Park', 'Mono', 'CA'],
+  ['L276445',   'Yosemite NP--Tuolumne Meadows', 'Tuolumne', 'CA'],
+  ['L1120987',  'Sierra Valley--Marble Hot Springs Road', 'Plumas', 'CA'],
+  ['L870332',   'Lake Tahoe--Taylor Creek', 'El Dorado', 'CA'],
+  ['L134590',   'Arcata Marsh and Wildlife Sanctuary', 'Humboldt', 'CA'],
+  ['L207644',   'Salton Sea--Sonny Bono NWR Headquarters', 'Imperial', 'CA'],
+  ['L358812',   'Bolsa Chica Ecological Reserve', 'Orange', 'CA'],
+  ['L1947308',  'Morro Bay State Park--Marina', 'San Luis Obispo', 'CA'],
+  ['L159443',   'Malheur NWR--Headquarters', 'Harney', 'OR'],
+  ['L128530',   'Bosque del Apache NWR--Flight Deck', 'Socorro', 'NM'],
+  ['L123565',   'Cape May Point State Park', 'Cape May', 'NJ'],
+  ['L207391',   'Magee Marsh--Boardwalk', 'Ottawa', 'OH'],
+  ['L129109',   'Santa Ana NWR', 'Hidalgo', 'TX'],
+  ['L598732',   'Patagonia Lake State Park', 'Santa Cruz', 'AZ'],
+  ['L164543',   'Point Pelee National Park--Tip', 'Essex', 'ON']
+];
+/* A hand-built file, for one held frame only: 200 characters with no space,
+   twice, in one county, so both rows carry their Location ID. */
+var STRESS_NAME = new Array(27).join('SaltPondA9');
+var STRESS_LOCS = [
+  ['L000000123456789', STRESS_NAME, 'Northwest Arctic', 'AK'],
+  ['L000000123456790', STRESS_NAME, 'Northwest Arctic', 'AK']
+];
+
+/* ---- the location index: the tab's rules, restated for the mockup -------- */
+function boundText(s, max) {
+  if (s.length <= max) return { text: s, truncated: false };
+  var cut = max, c = s.charCodeAt(cut - 1);
+  if (c >= 0xD800 && c <= 0xDBFF) cut -= 1;       /* never end on a lone surrogate */
+  return { text: s.slice(0, cut), truncated: true };
+}
+function placeOf(county, st) {
+  if (county && st) return county + ', ' + st;
+  return county || st || '';
+}
+function buildIndex(raw) {
+  var rows = raw.map(function (r) {
+    var b = boundText(r[1], NAME_MAX);
+    return { locationId: r[0], name: b.text, truncated: b.truncated, place: placeOf(r[2], r[3]), showId: false };
+  });
+  rows.sort(function (a, b) {
+    if ((a.name === '') !== (b.name === '')) return a.name === '' ? 1 : -1;   /* unnamed last */
+    return a.name.localeCompare(b.name) || a.place.localeCompare(b.place) ||
+      (a.locationId < b.locationId ? -1 : a.locationId > b.locationId ? 1 : 0);
+  });
+  for (var i = 1; i < rows.length; i++) {
+    if (rows[i].name.localeCompare(rows[i - 1].name) === 0 && rows[i].place.localeCompare(rows[i - 1].place) === 0) {
+      rows[i].showId = true; rows[i - 1].showId = true;
+    }
+  }
+  rows.forEach(function (r) { r.search = (r.name === '' ? UNNAMED : r.name).toLowerCase(); });
+  return rows;
+}
+var LOCS = buildIndex(RAW_LOCS);
+var STRESS = buildIndex(STRESS_LOCS);
+function displayName(r) { return r.name === '' ? UNNAMED : (r.truncated ? r.name + ELLIPSIS : r.name); }
+function matchLocations(index, q, cap) {
+  var out = [], truncated = false;
+  if (!q || q.length > NAME_MAX) return { rows: out, truncated: false };
+  for (var i = 0; i < index.length; i++) {
+    if (index[i].search.indexOf(q) === -1) continue;
+    if (out.length === cap) { truncated = true; break; }
+    out.push(index[i]);
+  }
+  return { rows: out, truncated: truncated };
+}
+
+/* =====================================================================
+   ICONS: the shipped TAB_ICONS glyphs plus lucide Search, X, Loader2,
+   AlertCircle, Upload, ChevronDown. Inline, no icon request.
+   ===================================================================== */
+function svg(size, sw, body, extra) {
+  return '<svg width="' + size + '" height="' + size + '" viewBox="0 0 24 24" fill="none" ' +
+    'stroke="currentColor" stroke-width="' + sw + '" stroke-linecap="round" stroke-linejoin="round" ' +
+    'aria-hidden="true"' + (extra || '') + '>' + body + '</svg>';
+}
+var GLYPH = {
+  'weather':        '<path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/>',
+  'birding-stats':  '<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>',
+  'map-explorer':   '<polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" y1="3" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="21"/>',
+  'species-detail': '<path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/>',
+  'calendar':       '<path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/><path d="M16 18h.01"/>',
+  'life-list':      '<path d="M18 22H4a2 2 0 0 1-2-2V6"/><path d="m22 13-1.296-1.296a2.41 2.41 0 0 0-3.408 0L11 18"/><circle cx="12" cy="8" r="2"/><rect width="16" height="16" x="6" y="2" rx="2"/>',
+  'breeding-codes': '<path d="m10 16 1.5 1.5"/><path d="m14 8-1.5-1.5"/><path d="M15 2c-1.798 1.998-2.518 3.995-2.807 5.993"/><path d="m16.5 10.5 1 1"/><path d="m17 6-2.891-2.891"/><path d="M2 15c3.333-3 6.667-3 10-3"/><path d="m20 9 .891.891"/><path d="M3.109 14.109 4 15"/><path d="m6.5 12.5 1 1"/><path d="m7 18 2.891 2.891"/><path d="M9 22c1.798-1.998 2.518-3.995 2.807-5.993"/>',
+  'checklists':     '<rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/>',
+  'comparer':       '<path d="M21 6H3"/><path d="M10 12H3"/><path d="M10 18H3"/><polyline points="15 12 18 15 21 12"/><path d="M18 6v9"/>',
+  'named-birds':    '<path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/>',
+  'settings':       '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
+  'search':         '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+  'close':          '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+  'spinner':        '<path d="M21 12a9 9 0 1 1-6.219-8.56"/>',
+  'alert':          '<circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/>',
+  'upload':         '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><path d="M12 3v13"/>'
+};
+GLYPH['targets'] = '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>';
+GLYPH['life-lists'] = '<path d="m3 17 2 2 4-4"/><path d="m3 7 2 2 4-4"/><path d="M13 6h8"/><path d="M13 12h8"/><path d="M13 18h8"/>';
+GLYPH['hotspot-reports'] = '<path d="M18 8c0 3.613-3.869 7.429-5.393 8.795a1 1 0 0 1-1.214 0C9.87 15.429 6 11.613 6 8a6 6 0 0 1 12 0"/><circle cx="12" cy="8" r="2"/><path d="M8.714 14h-3.71a1 1 0 0 0-.948.683l-2.004 6A1 1 0 0 0 3 22h18a1 1 0 0 0 .948-1.316l-2-6a1 1 0 0 0-.949-.684h-3.712"/>';
+GLYPH['chevron'] = '<path d="m6 9 6 6 6-6"/>';
+function icon(id, size, sw, extra) { return svg(size, sw, GLYPH[id], extra); }
+var NAV_ICON = { sidebar: { size: 15, sw: 2.25 }, rail: { size: 18, sw: 2 }, sheet: { size: 17, sw: 2.1 }, bar: { size: 20, sw: 2 } };
+
+function esc(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+/* =====================================================================
+   THE ROWS. buildSearchRows: the shipped destination and species rows,
+   then the location rows appended after them. Then the one sentence.
+   ===================================================================== */
+function buildModel(query, backup, index) {
+  var q = query.trim().toLowerCase();
+  var rows = [];
+  DESTS.forEach(function (d) {
+    if (!q || d.label.toLowerCase().indexOf(q) !== -1) rows.push({ kind: 'tab', id: d.id, label: d.label });
+  });
+  var destinationCount = rows.length;
+  var speciesReady = backup === 'ready' || backup === 'locfailed' || backup === 'arriving';
+  var speciesTruncated = false, locationsTruncated = false;
+  if (q && speciesReady) {
+    var matched = SPECIES.filter(function (s) {
+      return s[0].toLowerCase().indexOf(q) !== -1 || s[1].toLowerCase().indexOf(q) !== -1;
+    }).sort(function (a, b) { return a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0; });
+    if (matched.length > SPECIES_CAP) { speciesTruncated = true; matched.length = SPECIES_CAP; }
+    matched.forEach(function (s) { rows.push({ kind: 'species', name: s[0], sciName: s[1] }); });
+  }
+  var speciesCount = rows.length - destinationCount;
+  if (q && backup === 'ready') {
+    var m = matchLocations(index || LOCS, q, LOCATION_CAP);
+    locationsTruncated = m.truncated;
+    m.rows.forEach(function (r) {
+      rows.push({ kind: 'location', locationId: r.locationId, name: r.name, truncated: r.truncated, place: r.place, showId: r.showId, shown: displayName(r) });
+    });
+  }
+  var locationCount = rows.length - destinationCount - speciesCount;
+
+  /* Exactly one sentence or none, in the order of schema 4.3. */
+  var msg = null, glyph = null, heading = null;
+  if (backup === 'pending') { msg = COPY.speciesLoading; glyph = 'spinner'; heading = COPY.groupBackup; }
+  else if (backup === 'none') { msg = COPY.speciesNoBackup; glyph = 'upload'; heading = COPY.groupBackup; }
+  else if (backup === 'unloadable') { msg = COPY.loadError; glyph = 'alert'; heading = COPY.groupBackup; }
+  else if (backup === 'locfailed') { msg = COPY.loadError; glyph = 'alert'; heading = COPY.groupLocations; }
+  else if (backup === 'arriving' && q && rows.length === 0) { msg = COPY.speciesLoading; glyph = 'spinner'; heading = COPY.groupLocations; }
+  else if (q && rows.length === 0) { msg = COPY.noMatches; }
+
+  return { rows: rows, destinationCount: destinationCount, speciesCount: speciesCount, locationCount: locationCount,
+           speciesTruncated: speciesTruncated, locationsTruncated: locationsTruncated, msg: msg, glyph: glyph, heading: heading };
+}
+
+/* =====================================================================
+   RENDER: the overlay
+   ===================================================================== */
+function optionMarkup(row, i, active, idp) {
+  var cls = 'sr-palette-row' + (row.kind === 'location' ? ' sr-palette-row--loc' : '') + (active ? ' sr-palette-row--active' : '');
+  var o = '<div class="' + cls + '" id="' + idp + '-option-' + i + '" role="option" aria-selected="' + (active ? 'true' : 'false') + '" data-i="' + i + '">';
+  if (row.kind === 'tab') {
+    o += '<span class="sr-palette-row-icon">' + icon(row.id, NAV_ICON.sheet.size, NAV_ICON.sheet.sw) + '</span>';
+    o += '<span class="sr-palette-row-name">' + esc(row.label) + '</span>';
+  } else if (row.kind === 'species') {
+    o += '<span class="sr-palette-row-name">' + esc(row.name) + '</span>';
+    if (row.sciName) o += '<span class="sr-palette-row-sci">' + esc(row.sciName) + '</span>';
+  } else {
+    /* NEW. Name, then place, then the Location ID on a full tie: the reading
+       order and the accessible name's order. Plain text, nothing interactive. */
+    o += '<span class="sr-palette-loc">';
+    o += '<span class="sr-palette-loc-name' + (row.name === '' ? ' sr-palette-loc-name--unnamed' : '') + '">' + esc(row.shown) + '</span> ';
+    if (row.place || row.showId) {
+      o += '<span class="sr-palette-loc-meta">';
+      if (row.place) o += '<span>' + esc(row.place) + '</span>';
+      if (row.place && row.showId) o += ' <span aria-hidden="true">&middot;</span> ';
+      if (row.showId) o += '<span class="sr-palette-loc-id">' + esc(row.locationId) + '</span>';
+      o += '</span>';
+    }
+    o += '</span>';
+  }
+  return o + '</div>';
+}
+function listMarkup(m, activeIdx, idp) {
+  var h = '<div id="' + idp + '-listbox" role="listbox" aria-label="' + esc(COPY.inputLabel) + '">';
+  var i = 0, n;
+  if (m.destinationCount > 0) {
+    h += '<div role="group" aria-label="' + COPY.groupDestinations + '">';
+    h += '<div class="sr-palette-group" role="presentation">' + COPY.groupDestinations + '</div>';
+    for (n = 0; n < m.destinationCount; n++, i++) h += optionMarkup(m.rows[i], i, i === activeIdx, idp);
+    h += '</div>';
+  }
+  if (m.speciesCount > 0) {
+    h += '<div role="group" aria-label="' + COPY.groupSpecies + '"' + (m.speciesTruncated ? ' aria-describedby="' + idp + '-cap-species"' : '') + '>';
+    h += '<div class="sr-palette-group" role="presentation">' + COPY.groupSpecies + '</div>';
+    for (n = 0; n < m.speciesCount; n++, i++) h += optionMarkup(m.rows[i], i, i === activeIdx, idp);
+    if (m.speciesTruncated) h += '<div class="sr-palette-note" id="' + idp + '-cap-species" role="presentation">' + esc(speciesCapLine(SPECIES_CAP)) + '</div>';
+    h += '</div>';
+  }
+  if (m.locationCount > 0) {
+    h += '<div role="group" aria-label="' + COPY.groupLocations + '"' + (m.locationsTruncated ? ' aria-describedby="' + idp + '-cap-locations"' : '') + '>';
+    h += '<div class="sr-palette-group" role="presentation">' + COPY.groupLocations + '</div>';
+    for (n = 0; n < m.locationCount; n++, i++) h += optionMarkup(m.rows[i], i, i === activeIdx, idp);
+    if (m.locationsTruncated) h += '<div class="sr-palette-note" id="' + idp + '-cap-locations" role="presentation">' + esc(locationCapLine(LOCATION_CAP)) + '</div>';
+    h += '</div>';
+  }
+  h += '</div>';
+  if (m.msg && m.heading) h += '<div class="sr-palette-group">' + esc(m.heading) + '</div>';
+  return h;
+}
+function statusMarkup(m) {
+  if (!m.msg) return '';
+  var g = '';
+  if (m.glyph === 'spinner') g = icon('spinner', 14, 2.1, ' class="spin"');
+  else if (m.glyph) g = icon(m.glyph, 14, 2.1);
+  return '<span class="sr-palette-status-line">' + g + '<span>' + esc(m.msg) + '</span></span>';
+}
+function headMarkup(idp, query, interactive) {
+  var h = '<div class="sr-palette-head"><div class="sr-palette-field">' + icon('search', 17, 2.1);
+  h += '<input class="sr-palette-input sr-input-16" type="text" id="' + idp + '-input"' +
+       (interactive ? ' tabindex="0"' : ' tabindex="-1" readonly') +
+       ' role="combobox" aria-label="' + esc(COPY.inputLabel) + '" aria-expanded="true" aria-controls="' + idp + '-listbox"' +
+       ' aria-autocomplete="list" aria-haspopup="listbox" placeholder="' + esc(COPY.placeholder) + '"' +
+       ' autocomplete="off" autocapitalize="off" spellcheck="false" value="' + esc(query) + '">';
+  /* NEW. Decorative: the input keeps its full accessible name and placeholder. */
+  h += '<span class="sr-palette-hint" aria-hidden="true">' + COPY.placeholderShort + '</span>';
+  h += '</div><button type="button" class="sr-palette-close" id="' + idp + '-close"' + (interactive ? ' tabindex="0"' : ' tabindex="-1"') +
+       ' aria-label="' + COPY.closeLabel + '">' + icon('close', 17, 2.2) + '</button></div>';
+  return h;
+}
+function footMarkup() {
+  return '<div class="sr-palette-foot">' +
+    '<span class="sr-palette-legend"><kbd class="sr-palette-kbd">\u2191</kbd><kbd class="sr-palette-kbd">\u2193</kbd>' + COPY.legendMove + '</span>' +
+    '<span class="sr-palette-legend"><kbd class="sr-palette-kbd">\u21B5</kbd>' + COPY.legendOpen + '</span>' +
+    '<span class="sr-palette-legend"><kbd class="sr-palette-kbd">Esc</kbd>' + COPY.legendClose + '</span></div>';
+}
+function panelMarkup(idp, query, m, activeIdx, interactive, showFoot) {
+  return headMarkup(idp, query, interactive) +
+    '<div class="sr-palette-results" id="' + idp + '-results">' +
+      '<div id="' + idp + '-listwrap">' + listMarkup(m, activeIdx, idp) + '</div>' +
+      '<div class="sr-palette-status" role="status" id="' + idp + '-status">' + statusMarkup(m) + '</div>' +
+    '</div>' + (showFoot ? footMarkup() : '');
+}
+
+/* =====================================================================
+   RENDER: the app behind the overlay (a stand-in, see the footer note)
+   ===================================================================== */
+function hash(s) { var h = 7; for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 100003; return h; }
+var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+function fakeDate(seed) { var h = hash(seed); return MONTHS[h % 12] + ' ' + (1 + h % 27) + ', ' + (2016 + h % 11); }
+function locStats(id) {
+  var h = hash(id), yard = id === 'L8421733' || id === 'L19034127';
+  var checklists = yard ? 310 + h % 400 : 1 + h % 96;
+  var species = Math.min(SPECIES.length, yard ? 71 + h % 20 : 6 + Math.round(Math.sqrt(checklists) * 11) + h % 9);
+  return { checklists: checklists, species: species };
+}
+function findLoc(id) { for (var i = 0; i < LOCS.length; i++) if (LOCS[i].locationId === id) return LOCS[i]; return null; }
+
+function brand(size) {
+  return '<svg width="' + size + '" height="' + size + '" viewBox="0 0 512 512" aria-hidden="true" focusable="false" style="color:var(--sr-accent)">' +
+    '<path fill="currentColor" stroke="none" d="' + RAVEN + '"/></svg>';
+}
+function entryControl(rail) {
+  var g = rail ? NAV_ICON.rail : NAV_ICON.sidebar;
+  return '<button type="button" class="sr-nav-search" id="nav-search" tabindex="0" aria-keyshortcuts="Meta+K Control+K"' +
+    (rail ? ' aria-label="' + COPY.controlLabel + '"' : '') + '>' + icon('search', g.size, g.sw) +
+    '<span class="sr-nav-search-label">' + COPY.controlLabel + '</span>' +
+    '<span class="sr-nav-search-hint" aria-hidden="true">' + (IS_MAC ? '\u2318K' : 'Ctrl K') + '</span></button>';
+}
+function navColumn(rail) {
+  var g = rail ? NAV_ICON.rail : NAV_ICON.sidebar;
+  var h = '<div class="sr-nav-col' + (rail ? ' sr-nav-col--rail' : '') + '"><div class="sr-nav-brand">' + brand(rail ? 22 : 20);
+  if (!rail) h += '<p class="sr-nav-word">Snow<span>Raven</span></p>';
+  h += '</div>';
+  h += rail ? '<div class="sr-nav-brandgap"></div>' : '<p class="sr-nav-tagline">Self-hosted birding tools and data explorer</p>';
+  h += entryControl(rail);
+  if (rail) h += '<hr class="sr-nav-sep" aria-hidden="true">';
+  h += '<nav class="sr-nav-list" aria-label="Destinations">';
+  DESTS.forEach(function (d) {
+    if (d.id === 'settings') h += '<hr class="sr-nav-sep" aria-hidden="true">';
+    var active = d.id === S.page.tab;
+    h += '<button type="button" tabindex="-1" data-tab="' + d.id + '" class="sr-nav-item' + (active ? ' sr-nav-item--active' : '') + '"' +
+         (rail ? ' aria-label="' + esc(d.label) + '"' : '') + '>' + icon(d.id, g.size, g.sw) + '<span>' + esc(d.label) + '</span></button>';
+  });
+  return h + '</nav><div class="sr-nav-spacer"></div></div>';
+}
+function pageHead(tab, sub) {
+  return '<div class="sr-page-head"><span class="sr-page-tile">' + icon(tab, 16, 2.1) + '</span><div>' +
+    '<h2 class="sr-page-title">' + esc(destLabel(tab)) + '</h2>' + (sub ? '<p class="sr-page-sub">' + esc(sub) + '</p>' : '') + '</div></div>';
+}
+function hotspotPage(locId) {
+  var loc = locId ? findLoc(locId) : null;
+  var h = pageHead('hotspot-reports', 'Your own record at any one place in your eBird backup, hotspot or personal location.');
+  h += '<div class="sr-hsr-pickrow"><span class="sr-hsr-label">Location</span><div class="sr-hsr-field">' + icon('search', 15, 2.2) +
+       '<b>' + esc(loc ? displayName(loc) : 'Overview') + '</b>' + icon('chevron', 15, 2.2) + '</div></div>';
+  if (loc) {
+    var st = locStats(loc.locationId);
+    h += '<div class="sr-card"><h3 class="sr-hsr-name">' + esc(displayName(loc)) + '</h3>';
+    h += '<p class="sr-hsr-meta">' + esc(loc.place) + (loc.showId ? ' &middot; ' + esc(loc.locationId) : '') + '</p>';
+    h += '<div class="sr-hsr-totals"><div><b>' + st.species + '</b><span>species</span></div><div><b>' + st.checklists + '</b><span>' + (st.checklists === 1 ? 'checklist' : 'checklists') + '</span></div></div></div>';
+    h += '<div class="sr-card"><h3>Life list here</h3>';
+    var start = hash(loc.locationId) % SPECIES.length;
+    for (var k = 0; k < Math.min(6, st.species); k++) {
+      var s = SPECIES[(start + k * 17) % SPECIES.length];
+      h += '<div class="sr-row"><b>' + esc(s[0]) + '</b><i>' + esc(s[1]) + '</i><em>' + fakeDate(loc.locationId + s[0]) + '</em></div>';
+    }
+    h += '</div>';
+  } else {
+    var ranked = LOCS.filter(function (l) { return l.name !== ''; }).map(function (l) { return { l: l, n: locStats(l.locationId).checklists }; })
+      .sort(function (a, b) { return b.n - a.n; }).slice(0, 6);
+    h += '<div class="sr-card"><h3>Most checklists</h3>';
+    ranked.forEach(function (r) {
+      h += '<div class="sr-row"><span><b>' + esc(displayName(r.l)) + '</b><small>' + esc(r.l.place) + (r.l.showId ? ' &middot; ' + esc(r.l.locationId) : '') + '</small></span><em>' + r.n + '</em></div>';
+    });
+    h += '</div>';
+  }
+  return h;
+}
+function speciesPage(name) {
+  var s = SPECIES[0];
+  for (var i = 0; i < SPECIES.length; i++) if (SPECIES[i][0] === name) s = SPECIES[i];
+  var n = 3 + hash(s[0]) % 140;
+  return pageHead('species-detail', '') +
+    '<div class="sr-card"><h3 class="sr-hsr-name">' + esc(s[0]) + '</h3><p class="sr-hsr-meta"><i>' + esc(s[1]) + '</i></p>' +
+    '<div class="sr-hsr-totals"><div><b>' + n + '</b><span>checklists</span></div><div><b>' + (1 + hash(s[1]) % 14) + '</b><span>counties</span></div></div></div>' +
+    '<div class="sr-card"><h3>First and latest</h3>' +
+    '<div class="sr-row"><b>First seen</b><em>' + fakeDate(s[0] + 'a') + '</em></div>' +
+    '<div class="sr-row"><b>Most recent</b><em>Nov ' + (1 + hash(s[0]) % 11) + ', 2026</em></div></div>';
+}
+function genericPage(tab) {
+  return pageHead(tab, '') + '<p class="mk-note">Only Search, and the page a location or a bird opens, are drawn in this mockup. ' + esc(destLabel(tab)) + ' itself does not change.</p>';
+}
+function pageBehind() {
+  var p = S.page, body = p.tab === 'hotspot-reports' ? hotspotPage(p.loc) : p.tab === 'species-detail' ? speciesPage(p.species) : genericPage(p.tab);
+  return '<div class="sr-content"><div class="sr-phone-head">' + brand(20) + '<p class="sr-nav-word">Snow<span>Raven</span></p></div><div class="sr-page">' + body + '</div></div>';
+}
+function phoneBar() {
+  var h = '<div class="sr-navbar">';
+  DESTS.slice(0, 4).forEach(function (d) {
+    var active = d.id === S.page.tab;
+    h += '<button type="button" tabindex="-1" data-tab="' + d.id + '" class="sr-navbar-cell' + (active ? ' sr-navbar-cell--active' : '') + '">' +
+         '<span class="sr-navbar-glyph">' + icon(d.id, NAV_ICON.bar.size, NAV_ICON.bar.sw) + '</span><span class="sr-navbar-label">' + esc(d.label) + '</span></button>';
+  });
+  return h + '<button type="button" tabindex="-1" class="sr-navbar-cell" id="more-cell"><span class="sr-navbar-glyph">' +
+    svg(NAV_ICON.bar.size, NAV_ICON.bar.sw, '<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>') +
+    '</span><span class="sr-navbar-label">More</span></button></div>';
+}
+
+/* =====================================================================
+   THE LIVE STAGE
+   ===================================================================== */
+var IS_MAC = /Mac|iPhone|iPad/.test(navigator.platform || '');
+var COARSE = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+var WIN = { desk: { w: 1180, h: 660 }, p393: { w: 393, h: 760 }, p320: { w: 320, h: 620 } };
+var S = {
+  theme: 'light', win: 'desk', scale: 1, backup: 'ready', rm: false,
+  open: true, query: 'cal', activeIdx: -1,
+  page: { tab: 'species-detail', species: 'Marbled Godwit', loc: null },
+  lastAction: ''
+};
+var stage = document.getElementById('stage'), frame = document.getElementById('frame');
+var readout = document.getElementById('readout'), cap = document.getElementById('cap');
+var framelabel = document.getElementById('framelabel');
+var cur = buildModel('', 'ready'), shownMsg = null;
+
+function density() {
+  var w = frame.clientWidth, root = 16 * S.scale;
+  if (w <= 640) return 'phone';
+  return w - 13.5 * root >= 640 ? 'sidebar' : 'rail';
+}
+function renderStage(animate) {
+  document.documentElement.style.fontSize = (16 * S.scale) + 'px';
+  var win = WIN[S.win];
+  frame.style.width = win.w + 'px';
+  var d = density();
+  var h = '<div class="sr-app' + (S.rm ? ' mk-rm' : '') + (animate ? '' : ' mk-noanim') + '" data-theme="' + S.theme + '">' +
+          '<div class="sr-stage" style="height:' + win.h + 'px; --mk-11vh:' + Math.round(win.h * 0.11) + 'px">';
+  h += '<div class="sr-shell" style="height:100%">' + (d !== 'phone' ? navColumn(d === 'rail') : '') + pageBehind() + '</div>';
+  if (d === 'phone') h += phoneBar();
+  if (S.open) {
+    cur = buildModel(S.query, S.backup);
+    shownMsg = cur.msg;
+    h += '<div class="sr-palette-root" id="pal-root"><div class="sr-palette-panel" id="pal-panel" role="dialog" aria-modal="true" aria-label="' + esc(COPY.inputLabel) + '">' +
+         panelMarkup('pal', S.query, cur, S.activeIdx, true, !COARSE && d !== 'phone') + '</div></div>';
+  }
+  stage.innerHTML = h + '</div></div>';
+  framelabel.textContent = 'SnowRaven \u00B7 ' + (d === 'phone' ? 'phone' : d) + ' \u00B7 ' + S.theme + ' \u00B7 text ' + Math.round(S.scale * 100) + '%';
+  wireStage();
+  paintReadout();
+}
+/* A keystroke re-draws the list only. The field, and the status region, stay
+   the same elements: the region is always present and only its child changes. */
+function renderResults() {
+  cur = buildModel(S.query, S.backup);
+  var wrap = document.getElementById('pal-listwrap'), status = document.getElementById('pal-status'), input = document.getElementById('pal-input');
+  if (!wrap) return;
+  wrap.innerHTML = listMarkup(cur, S.activeIdx, 'pal');
+  if (cur.msg !== shownMsg) { status.innerHTML = statusMarkup(cur); shownMsg = cur.msg; }
+  if (S.activeIdx >= 0) input.setAttribute('aria-activedescendant', 'pal-option-' + S.activeIdx);
+  else input.removeAttribute('aria-activedescendant');
+  paintReadout();
+}
+function reveal(i) {
+  var el = document.getElementById('pal-option-' + i), sc = document.getElementById('pal-results');
+  if (!el || !sc) return;
+  var er = el.getBoundingClientRect(), sr = sc.getBoundingClientRect();
+  if (er.top < sr.top) sc.scrollTop -= sr.top - er.top;
+  else if (er.bottom > sr.bottom) sc.scrollTop += er.bottom - sr.bottom;
+}
+function setActive(i) { S.activeIdx = i; renderResults(); if (i >= 0) reveal(i); }
+function focusInput() {
+  var input = document.getElementById('pal-input');
+  if (!input) return;
+  input.focus({ preventScroll: true });
+  try { input.setSelectionRange(input.value.length, input.value.length); } catch (e) { /* not every input supports it */ }
+}
+function choose(i) {
+  var row = cur.rows[i];
+  if (!row) return;
+  if (row.kind === 'tab') {
+    S.page = { tab: row.id, species: S.page.species, loc: null };
+    S.lastAction = 'Opened ' + row.label + '.';
+  } else if (row.kind === 'species') {
+    S.page = { tab: 'species-detail', species: row.name, loc: null };
+    S.lastAction = 'Opened Species Detail on ' + row.name + '.';
+  } else {
+    S.page = { tab: 'hotspot-reports', species: S.page.species, loc: row.locationId };
+    S.lastAction = 'Opened Hotspot Reports on ' + row.shown + (row.place ? ' (' + row.place + (row.showId ? ', ' + row.locationId : '') + ')' : '') + '.';
+  }
+  closePalette(true);
+}
+function closePalette(chosen) {
+  if (!chosen) S.lastAction = 'Closed. Focus goes back to the control that opened Search.';
+  S.open = false; S.query = ''; S.activeIdx = -1;
+  renderStage(false);
+  var opener = document.getElementById('nav-search');
+  if (opener && !COARSE) opener.focus({ preventScroll: true });
+}
+function openPalette(query, quiet) {
+  S.open = true; S.query = query || ''; S.activeIdx = -1;
+  if (!quiet) S.lastAction = S.query ? 'Searching for \u201C' + S.query + '\u201D.' : 'Search opened. Nothing typed: destinations only, exactly as today.';
+  renderStage(true);
+  if (!COARSE) focusInput();
+}
+function wireStage() {
+  var input = document.getElementById('pal-input'), root = document.getElementById('pal-root'), panel = document.getElementById('pal-panel');
+  var opener = document.getElementById('nav-search'), more = document.getElementById('more-cell');
+  if (opener) opener.addEventListener('click', function () { openPalette(''); });
+  if (more) more.addEventListener('click', function () { openPalette(''); });
+  Array.prototype.forEach.call(stage.querySelectorAll('[data-tab]'), function (b) {
+    b.addEventListener('click', function () {
+      if (S.open) return;
+      S.page = { tab: b.getAttribute('data-tab'), species: S.page.species, loc: null };
+      S.lastAction = 'Opened ' + destLabel(S.page.tab) + ' from the navigation.';
+      renderStage(false);
+    });
+  });
+  if (!input) return;
+  input.addEventListener('input', function () {
+    S.query = input.value; S.activeIdx = -1;            /* every query change resets the highlight */
+    S.lastAction = S.query.trim() ? 'Searching for \u201C' + S.query.trim() + '\u201D.' : 'Nothing typed: destinations only, exactly as today.';
+    renderResults();
+    document.getElementById('pal-results').scrollTop = 0;
+  });
+  input.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowDown') { e.preventDefault(); setActive(Math.min(S.activeIdx + 1, cur.rows.length - 1)); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setActive(Math.max(S.activeIdx - 1, -1)); }
+    else if (e.key === 'Enter') { e.preventDefault(); if (cur.rows.length) choose(S.activeIdx >= 0 ? S.activeIdx : 0); }
+  });
+  document.getElementById('pal-close').addEventListener('click', function () { closePalette(false); });
+  root.addEventListener('mousedown', function (e) { if (e.target === root) closePalette(false); });
+  document.getElementById('pal-results').addEventListener('click', function (e) {
+    var el = e.target.closest ? e.target.closest('[role="option"]') : null;
+    if (el) choose(parseInt(el.getAttribute('data-i'), 10));
+  });
+  /* The overlay's two tab stops, and only those. */
+  panel.addEventListener('keydown', function (e) {
+    if (e.key !== 'Tab') return;
+    e.preventDefault();
+    (document.activeElement === input ? document.getElementById('pal-close') : input).focus();
+  });
+}
+function paintReadout() {
+  var act = S.activeIdx >= 0 && cur.rows[S.activeIdx] ? cur.rows[S.activeIdx] : null;
+  var actText = !act ? 'none' : act.kind === 'tab' ? act.label : act.kind === 'species' ? act.name : act.shown;
+  var h = '';
+  if (S.open) {
+    h += '<span><b>Rows</b> <span class="mk-out">' + cur.destinationCount + '</span> destinations, <span class="mk-out">' + cur.speciesCount +
+         '</span> species, <span class="mk-out">' + cur.locationCount + '</span> locations</span>' +
+         '<span><b>Highlighted</b> <span class="mk-out">' + esc(actText.length > 44 ? actText.slice(0, 44) + ELLIPSIS : actText) + '</span></span>';
+    if (S.backup === 'arriving') h += '<span><button type="button" class="mk-btn" id="arrive">Let the locations join</button></span>';
+  } else {
+    h += '<span><b>Search is closed.</b> Press ' + (IS_MAC ? 'Cmd' : 'Ctrl') + ' K, the Search control, or Open Search above.</span>';
+  }
+  readout.innerHTML = h;
+  var arrive = document.getElementById('arrive');
+  if (arrive) arrive.addEventListener('click', function () {
+    /* The first-frame case: location rows join after every existing row, and
+       the highlight is left exactly where it is. */
+    S.backup = 'ready'; S.lastAction = 'The location rows joined below. No row above them moved and the highlight stayed put.';
+    syncBar(); renderResults();
+    if (!COARSE) focusInput();
+  });
+  cap.innerHTML = '<b>' + esc(S.lastAction) + '</b> ' + (S.open
+    ? 'Type in the field. The up and down arrows cross all three groups and stop at the ends, Enter opens the highlighted row or the first one, Escape closes.'
+    : 'This is where the choice landed.');
+}
+
+/* =====================================================================
+   FRAMES HELD STILL
+   ===================================================================== */
+var specSeq = 0;
+function specimen(o) {
+  var idp = 'spec' + (specSeq++);
+  var m = buildModel(o.query, o.backup || 'ready', o.index);
+  var phone = !!o.phone;
+  var style = o.height ? ' style="height:' + o.height + 'px"' : '';
+  return '<figure class="mk-spec' + (phone ? ' mk-spec--phone' : '') + '"><figcaption><b>' + esc(o.title) + '</b>' + esc(o.note) + '</figcaption>' +
+    '<div class="mk-spec-box"><div class="sr-app" data-theme="' + S.theme + '"><div class="sr-stage"' + style + (o.scrollTo ? ' data-scroll="' + o.scrollTo + '" data-idp="' + idp + '"' : '') + '>' +
+    '<div class="sr-palette-panel" inert aria-hidden="true">' +
+    panelMarkup(idp, o.query, m, o.active === 'loc' ? m.destinationCount + m.speciesCount : o.active == null ? -1 : o.active, false, !phone) + '</div></div></div></div></figure>';
+}
+function renderSpecs() {
+  specSeq = 0;
+  document.getElementById('specs-results').innerHTML =
+    specimen({ title: 'All three kinds at once', note: 'A destination, then birds, then places. The third place is found in the middle of a word: Ecological.', query: 'cal', active: 'loc' }) +
+    specimen({ title: 'Same name, different places', note: 'Three Central Parks. The county and state under each name tell them apart, so no ID is needed.', query: 'central' }) +
+    specimen({ title: 'Same name, same place', note: 'Two yards, both called Backyard, both in Santa Clara County. Only these rows add the Location ID.', query: 'back', active: 2 }) +
+    specimen({ title: 'A very long name', note: 'A name past 200 characters is cut there with a written ellipsis, and what is left wraps in full instead of being clipped to one line.', query: 'stevens' }) +
+    specimen({ title: 'A place with no name', note: 'Reads Unnamed location, in italics as on Hotspot Reports, and is found by typing part of that wording.', query: 'unnamed' }) +
+    specimen({ title: 'Both lists cut at 50: the species line', note: 'Scrolled to where Species ends. Its line sits under its own last row, before the Locations heading.', query: 'a', height: 380, scrollTo: 'species' }) +
+    specimen({ title: 'Both lists cut at 50: the locations line', note: 'The same search, scrolled to the end. The second line closes the Locations group.', query: 'a', height: 380, scrollTo: 'end' });
+  document.getElementById('specs-status').innerHTML =
+    specimen({ title: 'Your backup is being read', note: 'Destinations work at once. One sentence speaks for birds and places together.', query: 'li', backup: 'pending' }) +
+    specimen({ title: 'No backup saved', note: 'The shipped sentence, now naming both things the backup feeds.', query: 'li', backup: 'none' }) +
+    specimen({ title: 'A saved backup that would not load', note: 'The app-wide sentence, unchanged. Never reported as no backup.', query: 'li', backup: 'unloadable' }) +
+    specimen({ title: 'Birds loaded, places could not be prepared', note: 'Rare. Birds still answer. The sentence sits under the Locations heading, so it is clear which half is speaking.', query: 'marsh', backup: 'locfailed' }) +
+    specimen({ title: 'Places one frame behind', note: 'Only on an open where the backup was already read. If nothing else matches yet, Search says it is reading instead of saying nothing matches.', query: 'pinos', backup: 'arriving' }) +
+    specimen({ title: 'Nothing matches', note: 'The shipped sentence, shown only once birds and places have both answered.', query: 'zzz' });
+  document.getElementById('specs-phone').innerHTML =
+    specimen({ title: 'All three kinds', note: 'The field reads Search here: the full wording does not fit.', query: 'cal', phone: true, height: 568 }) +
+    specimen({ title: 'Namesakes', note: 'Place and ID keep their own line at any text size.', query: 'back', phone: true, height: 568 }) +
+    specimen({ title: 'Nothing typed', note: 'Destinations only, exactly as today.', query: '', phone: true, height: 568 }) +
+    specimen({ title: 'No backup saved', note: 'The longest sentence wraps inside the sheet.', query: 'hot', backup: 'none', phone: true, height: 568 }) +
+    specimen({ title: 'A hand-built file', note: '200 characters with no space, twice in one county. The name breaks to fit; place and ID stay whole.', query: 'salt', index: STRESS, phone: true, height: 568 });
+  Array.prototype.forEach.call(document.querySelectorAll('[data-scroll]'), function (st) {
+    var sc = st.querySelector('.sr-palette-results'), idp = st.getAttribute('data-idp');
+    if (st.getAttribute('data-scroll') === 'end') { sc.scrollTop = sc.scrollHeight; return; }
+    var note = document.getElementById(idp + '-cap-species');
+    if (note) sc.scrollTop += note.getBoundingClientRect().top - sc.getBoundingClientRect().top - 150;
+  });
+}
+
+/* =====================================================================
+   THE MOCKUP'S OWN CONTROLS
+   ===================================================================== */
+function syncBar() {
+  Array.prototype.forEach.call(document.querySelectorAll('.mk-seg'), function (seg) {
+    var key = seg.getAttribute('data-key');
+    Array.prototype.forEach.call(seg.querySelectorAll('button'), function (b) {
+      b.setAttribute('aria-pressed', String(S[key]) === b.getAttribute('data-v') ? 'true' : 'false');
+    });
+  });
+}
+Array.prototype.forEach.call(document.querySelectorAll('.mk-seg button'), function (b) {
+  b.addEventListener('click', function () {
+    var key = b.parentNode.getAttribute('data-key'), v = b.getAttribute('data-v');
+    S[key] = key === 'scale' ? parseFloat(v) : v;
+    if (key === 'backup') {
+      S.activeIdx = -1;
+      if (!S.open) { S.open = true; S.query = 'marsh'; }
+      S.lastAction = { ready: 'The backup is loaded.', pending: 'The backup is still being read.', none: 'No backup is saved.',
+        unloadable: 'A backup is saved but would not load.', locfailed: 'Birds loaded, but the places could not be prepared.',
+        arriving: 'The location rows are held back, as on the first frame of an open.' }[v];
+    }
+    syncBar(); renderStage(false);
+    if (key !== 'backup') renderSpecs();
+    if (S.open && !COARSE && key === 'backup') focusInput();
+  });
+});
+document.getElementById('openbtn').addEventListener('click', function () { openPalette(''); });
+document.getElementById('rm').addEventListener('change', function (e) { S.rm = e.target.checked; renderStage(false); });
+
+var TRY = [
+  ['', 'nothing typed', 'destinations only'],
+  ['cal', 'cal', 'all three kinds'],
+  ['central', 'central', 'same name, different places'],
+  ['back', 'back', 'same name, same place'],
+  ['a', 'a', 'both lists cut at 50'],
+  ['stevens', 'stevens', 'a very long name'],
+  ['unnamed', 'unnamed', 'a place with no name'],
+  ['zzz', 'zzz', 'nothing matches']
+];
+(function () {
+  var host = document.getElementById('try');
+  TRY.forEach(function (t) {
+    var b = document.createElement('button');
+    b.type = 'button'; b.className = 'mk-chip';
+    b.innerHTML = '<code>' + esc(t[1]) + '</code><small>' + esc(t[2]) + '</small>';
+    b.addEventListener('click', function () {
+      if (S.backup !== 'ready' && S.backup !== 'arriving') { S.backup = 'ready'; syncBar(); }
+      openPalette(t[0]);
+    });
+    host.appendChild(b);
+  });
+})();
+
+document.addEventListener('keydown', function (e) {
+  if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) {
+    e.preventDefault();
+    if (S.open) closePalette(false); else openPalette('');
+  } else if (e.key === 'Escape' && S.open) {
+    e.preventDefault(); closePalette(false);
+  }
+});
+/* For the verification script only: any window size, not just the three above. */
+window.mkSetWindow = function (w, hgt) { WIN.custom = { w: w, h: hgt }; S.win = 'custom'; syncBar(); renderStage(false); };
+var resizeTimer = 0;
+window.addEventListener('resize', function () {
+  window.clearTimeout(resizeTimer);
+  resizeTimer = window.setTimeout(function () { renderStage(false); }, 120);
+});
+
+/* The first view: one search that reaches all three kinds, opened where the
+   new group is, with the first place highlighted as if arrowed to. */
+(function () {
+  var m0 = buildModel(S.query, S.backup);
+  S.activeIdx = m0.destinationCount + m0.speciesCount;
+  S.lastAction = 'One search, three kinds: a destination, ' + m0.speciesCount + ' birds, and ' + m0.locationCount + ' of your places. The list is scrolled to the new group, with the first place highlighted.';
+})();
+syncBar();
+renderStage(true);
+(function () { var sc = document.getElementById('pal-results'); if (sc) sc.scrollTop = sc.scrollHeight; })();
+renderSpecs();
+})();
+</script>
+</body>
+</html>
