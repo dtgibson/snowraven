@@ -18,6 +18,7 @@ paths:
   - "frontend/src/lib/tabLayout.ts"
   - "frontend/src/lib/lifeListsCopy.ts"
   - "frontend/src/lib/hotspotReportsCopy.ts"
+  - "frontend/src/lib/paletteCopy.ts"
   - "frontend/src/lib/pageList.ts"
   - "frontend/src/lib/icloud/icloudCopy.ts"
   - "frontend/src/lib/rootMarkers.ts"
