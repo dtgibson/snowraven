@@ -223,3 +223,23 @@ The Guide's decision on the stop: re-run the failed job of the run of record ONC
    | pass 2R, 200 species repeated | 20.14 / 20 (1.01) | 20.71 / 20 (1.04) |
 
    The pass-2R own-species-and-pair row's history on GitHub's runner: 44.88 / 20 (2.24x) on 1.0.71's run of record, 42.73 / 20 (2.14x) on `43552440645` (`2cef2329`, 1.0.72's closeout), 48.16 / 20 (2.41x) on attempt 1 here, 30.67 / 20 (1.53x) on attempt 2. **The rule as answered (G-03) is met by attempt 2, and the accepted run is a re-run of the same commit, not a new commit's run.** Recorded beside D-12 as well. `./release.sh` started after this reading.
+12. **Desktop.** `CI=true zsh -lc ./release.sh` from this worktree, alone on the machine (no other release process; keychain `no-timeout`), clean tree at `ca1df882` (06:52:27 to 06:57:21 UTC), **exit 0**: `Releasing v1.0.73: tag=23dc1dab HEAD=ca1df882`; iCloud profile OK (to 2044-08-27); the bundle version (1.0.73), iCloud entitlements and embedded profile verified; the final DMG signed, notarized and stapled; the Windows installer fetched from CI and signed locally. Tauri's own "skipping app notarization" line is the usual one; `release.sh` notarizes the DMG itself.
+   - **Release `445090496`**, https://github.com/dtgibson/snowraven/releases/tag/v1.0.73, published 2026-11-14 06:57:21 UTC, not a draft or pre-release, **Latest**.
+
+     | Asset | Bytes | SHA-256 |
+     |---|---|---|
+     | `latest.json` | 1,852 | `f982e0cdf719a85385858022c6b32501d19f7c8aa044e0d1638e2630f00cc4e5` |
+     | `SnowRaven-updater.app.tar.gz` | 31,354,899 | `586ca99ab2b20175cb68f72f58aad17866d36a18b274b573d7d3455687a719f8` |
+     | `SnowRaven-updater.app.tar.gz.sig` | 408 | `a0417c7bab8e0f3f814570170f79090c9314d15db7698d163979fad8fb5fa05c` |
+     | `SnowRaven_1.0.73_universal.dmg` | 31,693,329 | `615d2734efd51fddd8b9cbe98c29b3d3178e08f3c917b4f5bd8d07bfaeeb62ec` |
+     | `SnowRaven_1.0.73_x64-setup.exe` | 10,284,127 | `e767536f54c7019b08a3fa28f99d378f515297a2517c562acb425f55ec29d381` |
+     | `SnowRaven_1.0.73_x64-setup.exe.sig` | 420 | `2b9a2abdaaa9ddaa974817d33aadb9d12c68fd2fbea4790ff678ff8ef89713e3` |
+     | `SnowRaven_1.0.73_android_universal.apk` (step 13) | 79,386,242 | `548b8687ddb682854d25537c7d7ec4c17f6aa155b35dacc7045e4380fb530f99` |
+
+   - **The DMG, downloaded back from the release:** `codesign --verify --verbose=2` valid on disk and satisfies its Designated Requirement; `xcrun stapler validate` worked; `spctl -a -t open --context context:primary-signature -vv` **accepted, source=Notarized Developer ID**, origin the team's Developer ID Application (8QKC3L2FKP); `hdiutil verify` checksum VALID.
+   - **`latest.json`:** version 1.0.73, `pub_date` 2026-11-14T06:57:17Z; `darwin-aarch64` and `darwin-x86_64` identical, on `.../v1.0.73/SnowRaven-updater.app.tar.gz`; `windows-x86_64` on `.../v1.0.73/SnowRaven_1.0.73_x64-setup.exe`; each signature equals its `.sig` asset, and **both verify VALID** (the file and the trusted comment) against the updater public key in `tauri.conf.json` (key id `f80c63fb3b636306`) with a scratch Node verifier (BLAKE2b-512 prehash, Ed25519), which reads a one-byte-changed installer INVALID.
+   - **The updater bundle** unpacks to `SnowRaven.app` 1.0.73, a universal executable (`x86_64 arm64`), and passes `codesign --verify --deep --strict`.
+   - **The published installer is byte-identical** to run `43565659858`'s artifact (`cmp`), the tag's own Windows run.
+13. **Android attach.** `ANDROID_DEVICE_CHECK=partial ANDROID_CHECKED_SHA256=548b8687...0f99 scripts/android/attach.sh <signed.apk>` **exit 0**: signer equals the keystore's certificate, byte-identical to the checked file, `com.dtgibson.snowraven 1.0.73 (1000073)`, signer `42a3576e445bda4a994793f2ffa056663113275c9805eb2f6cffdc252375996a`; uploaded as **`SnowRaven_1.0.73_android_universal.apk`** (asset `746624472`, 79,386,242 bytes, 06:58:40 UTC), downloaded back byte-identical, and the release's own asset digest reads `sha256:548b8687...0f99`. **Device check: Partial on API 36 emulator evidence, under the standing decision** (the user owns no Android device).
+
+**Phase 1 is complete**: the GitHub release carries `latest.json`, and App Store Connect shows build 1.0.73 (1) `VALID` (step 6).
