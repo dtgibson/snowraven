@@ -44,6 +44,9 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { SPECIES_CAP, buildPaletteRows } from './paletteRows'
 import type { AlphaCodeTable } from './alphaCodes'
+import { LOCATION_CAP, buildLocationSearchIndex, matchLocations } from './paletteLocations'
+import { normalizeSpeciesQuery } from './speciesMatch'
+import { row } from '../test/hotspotReportsRows'
 
 const read = (p: string) => readFileSync(new URL(`../../../${p}`, import.meta.url), 'utf8')
 
@@ -332,5 +335,81 @@ describe('every code HELP publishes as an example finds the bird HELP names (QA-
   it('GUARD THE GUARD: a code from another name, published as an example, would fail', () => {
     // `goos` is eBird's code from Goosander, a name SnowRaven never shows.
     expect(species(['Common Merganser'], 'goos')).toEqual([])
+  })
+})
+
+// ── visited-hotspots-in-search: the location claims, held to the code ────────
+//
+// FR-37 and FR-38. Each passage is extracted by its own heading, each claim is
+// asserted to EXIST before it is checked, and each is held to the code that
+// implements it: the matched field to `matchLocations` over a real index, the
+// hidden-tab sentence to App.tsx's route, and the cut to `LOCATION_CAP` built
+// into the matcher rather than re-spelled.
+
+/** The body of one `useCallback` in App.tsx, by the name it is assigned to. */
+function appCallback(name: string): string {
+  const app = read('frontend/src/App.tsx')
+  const start = app.indexOf(`const ${name} = useCallback(`)
+  expect(start, `App.tsx defines ${name}`).toBeGreaterThan(-1)
+  const end = app.indexOf('}, [', start)
+  expect(end).toBeGreaterThan(start)
+  return app.slice(start, end)
+}
+
+describe('HELP states location search as shipped (visited-hotspots-in-search FR-37, FR-38)', () => {
+  const search = helpSearchSection()
+  const MATCHED = /A location is matched on its name, anywhere in it, ignoring capitals; its county, its state or province and its Location ID are not matched\./
+  const HIDDEN = /Choosing one opens Hotspot Reports on that place, even if you have hidden that tab\./
+  const CUT = /The species and the locations each stop after a fixed number of results\./
+
+  it('the Search passage makes the three location claims', () => {
+    expect(search).toMatch(MATCHED)
+    expect(search).toMatch(HIDDEN)
+    expect(search).toMatch(CUT)
+    expect(search).toMatch(/public eBird hotspots and your personal locations alike, and only those/)
+    expect(search).toMatch(/crossing from destinations into species and from species into locations/)
+    expect(search).toMatch(/\*\*Searching species and locations needs your eBird backup\.\*\*/)
+  })
+
+  it('the location cut is published as a property, never as LOCATION_CAP\'s number', () => {
+    expect(search).not.toMatch(new RegExp(String.raw`\b${LOCATION_CAP}\b`))
+    // GUARD THE GUARD: a sentence that re-spelled it would trip this.
+    expect(new RegExp(String.raw`\b${LOCATION_CAP}\b`).test(`Location results are capped at the first ${LOCATION_CAP}.`)).toBe(true)
+  })
+
+  it('the matched field is the name: the real matcher finds a place by its name in any case, and never by its county, state or Location ID', () => {
+    const ix = buildLocationSearchIndex([
+      row({ submissionId: 'S1', locationId: 'L100', location: 'Jamaica Bay Wildlife Refuge', county: 'Queens', stateProvince: 'US-NY' }),
+    ])
+    const hits = (raw: string) => matchLocations(ix, normalizeSpeciesQuery(raw)).rows.length
+    expect([hits('wildlife'), hits('WILDLIFE'), hits('bay wild')]).toEqual([1, 1, 1])
+    expect([hits('queens'), hits('ny'), hits('us-ny'), hits('l100')]).toEqual([0, 0, 0, 0])
+  })
+
+  it('App.tsx\'s location route never reads the hidden set, so the hidden-tab sentence is true', () => {
+    for (const name of ['openLocationFromPalette', 'navigateToHotspotReport']) {
+      const body = appCallback(name)
+      for (const probe of ['tabLayout', 'hidden', 'visibleTabs', 'setTabLayout']) expect(body.includes(probe), `${name} reads ${probe}`).toBe(false)
+    }
+    expect(appCallback('navigateToHotspotReport')).toContain("setActiveTab('hotspot-reports')")
+  })
+
+  it('GUARD THE GUARD: the sentences a careless edit would leave fail these rows', () => {
+    expect(HIDDEN.test('Choosing one opens Hotspot Reports on that place.')).toBe(false)
+    expect(MATCHED.test('A location is matched on its name, county or state.')).toBe(false)
+  })
+
+  it('Default Files names Search\'s location results, and the Hotspot Reports section says a report opens from Search', () => {
+    expect(helpPassage('### eBird backup')).toMatch(/Search's species and location results read it too/)
+    expect(read('docs/HELP.md')).toMatch(/You can also open a place's report from Search: type part of its name and choose it among the locations\./)
+  })
+
+  it('the closing paragraph still says Search asks for nothing and stores nothing', () => {
+    expect(search).toMatch(/Search asks eBird and other outside services for nothing, and it stores nothing\./)
+    expect(search).toMatch(/The report a location opens is the Hotspot Reports tab/)
+  })
+
+  it('ACCESSIBILITY.md names locations in the arrow-key crossing', () => {
+    expect(read('ACCESSIBILITY.md')).toMatch(/crossing from the destinations into the species and from the species into the locations without a separate keystroke/)
   })
 })

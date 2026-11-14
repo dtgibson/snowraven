@@ -617,6 +617,42 @@ describe('entry-chunk exclusion (NFR-03 / QA-30)', () => {
     expect(maplibreIn(pal.externals)).toEqual([])
   })
 
+  // ── Search's location results (visited-hotspots-in-search NFR-04, NFR-16, QA-44;
+  // schema section 7). The two new modules ride the overlay's lazy chunk; each
+  // negative is paired with a positive on the overlay's own closure.
+  it('the location modules are OFF the entry graph', () => {
+    expect(has('lib/paletteLocations.ts')).toBe(false)
+    expect(has('lib/paletteLocationsLoad.ts')).toBe(false)
+  })
+
+  it('and the overlay really does reach them, and through them the tab\'s pure lib modules', () => {
+    const pal = closureFrom(resolve(SRC, 'components/CommandPalette.tsx'))
+    expect(hasIn(pal.files, 'lib/paletteLocations.ts')).toBe(true)
+    expect(hasIn(pal.files, 'lib/paletteLocationsLoad.ts')).toBe(true)
+    expect(hasIn(pal.files, 'lib/hotspotReports.ts')).toBe(true)
+    expect(hasIn(pal.files, 'lib/hotspotReportsCopy.ts')).toBe(true)
+  })
+
+  it('the overlay reaches no component of the Hotspot Reports tab, no map and no maplibre', () => {
+    const pal = closureFrom(resolve(SRC, 'components/CommandPalette.tsx'))
+    const tabComponents = [...pal.files].map(f => f.replace(/\\/g, '/')).filter(f => f.includes('/components/hotspotReports/'))
+    expect(tabComponents).toEqual([])
+    expect(hasIn(pal.files, 'components/SnowMap.tsx')).toBe(false)
+    expect(maplibreIn(pal.externals)).toEqual([])
+  })
+
+  it('the location modules\' own closure reaches no transport, storage, lib/tauri service or component', () => {
+    for (const root of ['lib/paletteLocations.ts', 'lib/paletteLocationsLoad.ts']) {
+      const sub = closureFrom(resolve(SRC, root))
+      const rel = [...sub.files].map(f => f.replace(/\\/g, '/'))
+      expect(rel.filter(f => /\/lib\/(?:transport|storage)\.ts$/.test(f) || f.includes('/lib/tauri/') || f.includes('/components/')), root).toEqual([])
+      expect([...sub.externals].filter(e => e.startsWith('@tauri-apps') || e === 'react' || e.startsWith('react-')), root).toEqual([])
+      // Non-vacuity: the walk really entered the tab's lib modules.
+      expect(hasIn(sub.files, 'lib/paletteLocations.ts'), root).toBe(true)
+      expect(hasIn(sub.files, 'lib/hotspotReports.ts'), root).toBe(true)
+    }
+  })
+
   it('the palette adds no BirdName edge, which is the honest form of NFR-01', () => {
     // PRD CORRECTION, and it is deliberate rather than an oversight. NFR-01 and
     // QA-57 say `<BirdName>` is off App.tsx's entry graph. That is TRUE of

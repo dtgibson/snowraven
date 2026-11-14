@@ -58,6 +58,18 @@
 //    form-control exclusion in `.claude/rules/bird-names.md` and
 //    `pipeline/design-system.md`, not a shortcut. The eBird and Birds of the
 //    World link marks are reached by opening the species.
+//
+// ── LOCATIONS (visited-hotspots-in-search). A third group after Species: every
+//    location in the user's own eBird backup, matched on its name, each opening
+//    the Hotspot Reports tab on that place through `onOpenLocation`. The half is
+//    ARMED ONLY WHEN THAT PROP IS PASSED (App.tsx always passes it; the Alerts
+//    inbox row's precedent), so a render without it does no location work and
+//    draws the shipped markup. The index is derived from the parse the species
+//    half already loaded (lib/paletteLocations.ts), at most once per file and
+//    never before the first frame when it would otherwise precede it
+//    (lib/paletteLocationsLoad.ts). The location half makes no read and no
+//    request of its own. A location row is plain escaped text: no `HotspotLink`,
+//    no anchor, no control, and its option id is the index like every other row.
 
 import { Button } from './ui/Button'
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
@@ -73,11 +85,11 @@ import { highlightOnCodeArrival } from '../lib/speciesMatch'
 import { loadAlphaCodes } from '../lib/alphaCodesAsset'
 import { useAlphaCodes } from '../lib/useAlphaCodes'
 import {
-  buildPaletteRows,
+  buildSearchRows,
   SPECIES_CAP,
   type PaletteNavItem,
-  type PaletteRow,
-  type PaletteRowsResult,
+  type SearchRow,
+  type SearchRowsResult,
 } from '../lib/paletteRows'
 import {
   PALETTE_SPECIES_SUPERSEDED,
@@ -85,7 +97,16 @@ import {
   resolvePaletteSpecies,
   type ResolvedSpecies,
 } from '../lib/paletteSpeciesLoad'
-import { PALETTE_COPY, speciesCapLine } from '../lib/paletteCopy'
+import {
+  LOCATION_CAP,
+  LOCATION_INDEX_FAILED,
+  locationSearchIndexFor,
+  type LocationSearchIndex,
+} from '../lib/paletteLocations'
+import { afterFirstFrame, locationsAtAnswer } from '../lib/paletteLocationsLoad'
+import { displayName } from '../lib/hotspotReportsCopy'
+import type { ObservationEntry } from '../types'
+import { PALETTE_COPY, locationCapLine, speciesCapLine } from '../lib/paletteCopy'
 import { resolveChordHint } from '../lib/paletteHint'
 // Imported from where it lives for every surface that says a stored file would
 // not load, and never re-exported through paletteCopy.ts: FR-35 requires this
@@ -103,8 +124,23 @@ import type { Tab } from '../lib/tabLayout'
  * and QA-33's "never present at the same time as either" is a property of the
  * type rather than of the render.
  */
+/** The decorative separator between a location's place and its Location ID. */
+const MIDDLE_DOT = '\u00B7'
+
 const SPECIES_PENDING = 'palette-species-pending'
 type SpeciesHalf = ResolvedSpecies | typeof SPECIES_PENDING | undefined
+
+/** The location half: null while there is no answer for the current file. */
+type LocationsHalf = LocationSearchIndex | typeof LOCATION_INDEX_FAILED | null
+
+/** The derivation, guarded: a throw is the FR-25 state, never a rejection. */
+function safely(derive: () => LocationsHalf | undefined): LocationsHalf | undefined {
+  try {
+    return derive()
+  } catch {
+    return LOCATION_INDEX_FAILED
+  }
+}
 
 export interface CommandPaletteProps {
   /** `App.tsx`'s `navItems`, unchanged. The palette holds no destination list. */
@@ -122,14 +158,35 @@ export interface CommandPaletteProps {
    *  web/Pi the gate is false and the palette is unchanged. Called right after
    *  `onClose`, so App hands the palette's own opener to the sheet. */
   onOpenInbox?: () => void
+  /** visited-hotspots-in-search: App's wrapper, which collapses a fullscreen Map
+   *  Explorer and opens Hotspot Reports on the Location ID. Its presence ARMS the
+   *  location half; without it the overlay is exactly the shipped one. */
+  onOpenLocation?: (locationId: string) => void
 }
 
-export function CommandPalette({ items, onSelectTab, onOpenSpecies, onClose, onOpenInbox }: CommandPaletteProps) {
+export function CommandPalette({ items, onSelectTab, onOpenSpecies, onClose, onOpenInbox, onOpenLocation }: CommandPaletteProps) {
   const panelRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const [query, setQuery] = useState('')
   const [activeIdx, setActiveIdx] = useState(-1)
   const [species, setSpecies] = useState<SpeciesHalf>(undefined)
+  const [locations, setLocations] = useState<LocationsHalf>(null)
+  const armed = onOpenLocation !== undefined
+  // The parse whose locations are still to be derived, held from the species
+  // answer's commit until the frame after it (schema 4.2, decisions.md E-08).
+  // Cleared with the files epoch and dropped on unmount, so a derivation for a
+  // file that is gone is never started or adopted.
+  const [pendingObs, setPendingObs] = useState<readonly ObservationEntry[] | null>(null)
+  // The location half's generation (decisions.md E-10, security F-1). Bumped
+  // SYNCHRONOUSLY when the files epoch changes (the epoch effect runs at the
+  // epoch's own commit); a deferred derivation captures it when it is queued and
+  // adopts its result only if it is unchanged when it fires. The effect cleanup
+  // alone cannot cover this: the reset of `pendingObs` is a later render, and a
+  // task the next frame queued before it would otherwise put a replaced or
+  // cleared file's places back. Closing Search needs no bump: unmounting runs
+  // that cleanup in the same commit. The purge-generation pattern: capture
+  // before, check on completion.
+  const locationsGen = useRef(0)
   const filesEpoch = useFilesEpoch()
 
   const inboxEntry = useInboxEntry()
@@ -175,6 +232,9 @@ export function CommandPalette({ items, onSelectTab, onOpenSpecies, onClose, onO
   // parse lands.
   useEffect(() => {
     let alive = true
+    // Supersede any derivation still queued for the previous file (E-10). First,
+    // before any state update, so it is in force from this commit on.
+    locationsGen.current += 1
     // FR-34 and FR-37 together, and this is the whole reason the loading line is
     // armed HERE rather than in the initial state. The `role="status"` region
     // must already be in the accessibility tree, EMPTY, in the commit before its
@@ -187,31 +247,69 @@ export function CommandPalette({ items, onSelectTab, onOpenSpecies, onClose, onO
     // answer.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setSpecies(SPECIES_PENDING)
+    // The location half leaves in the SAME update the species half goes pending,
+    // so a replaced file's location rows leave with its species rows (FR-23),
+    // and a derivation still waiting for its frame is cancelled with them.
+    setLocations(null)
+    setPendingObs(null)
+    // `buildIndex` is called exactly when the load succeeded, with the cache's
+    // own array, so it is where the location half learns which parse to read.
+    // The shipped resolver is reused as it stands.
+    const loaded: { obs: readonly ObservationEntry[] | null } = { obs: null }
     // No `.catch`, deliberately: `resolvePaletteSpecies` never rejects, and that
     // is a property of its shape rather than a hope about it (its docstring owns
     // the claim and names the one boundary it does not close). If an exception is
-    // ever added there, this call site owes a `.catch`.
+    // ever added there, this call site owes a `.catch`. The location work inside
+    // the `.then` cannot throw out of it: `safely` turns a throw into FR-25's state.
     void resolvePaletteSpecies({
       getFilesStatus: () => storage.getFilesStatus(),
       loadObservations: loadEbirdObservations,
-      buildIndex: speciesIndexFor,
+      buildIndex: obs => { loaded.obs = obs; return speciesIndexFor(obs) },
       isCurrent: () => alive,
     }).then(next => {
       if (!alive || next === PALETTE_SPECIES_SUPERSEDED) return
       setSpecies(next)
+      const obs = loaded.obs
+      if (!armed || !Array.isArray(next) || obs === null) return
+      // A memo hit costs nothing and joins in the species update. A miss is
+      // NEVER derived in the task that commits the species rows: it waits for
+      // the frame after that commit (the effect below), so no existing task gets
+      // longer (decisions.md E-08, the Guide's decision of 2026-11-13).
+      const now = safely(() => locationsAtAnswer(obs))
+      if (now !== undefined) setLocations(now)
+      else setPendingObs(obs)
     })
     return () => { alive = false }
-  }, [filesEpoch])
+  }, [filesEpoch, armed])
+
+  // The derivation, in its own task after the frame that presented the species
+  // commit (schema 4.2's mechanism): this effect runs after that commit, and
+  // `afterFirstFrame` runs the work in a task queued from the next frame's
+  // callback, after that frame is painted. Its cleanup cancels it on unmount and
+  // whenever `pendingObs` changes (a files-epoch change clears it). The cleanup
+  // runs only when that change COMMITS, so the callback also checks the
+  // generation it was queued under (E-10): a derivation for a superseded parse
+  // neither runs nor stores nor shows its result.
+  useEffect(() => {
+    if (pendingObs === null) return
+    const gen = locationsGen.current
+    return afterFirstFrame(() => {
+      if (locationsGen.current !== gen) return
+      setLocations(safely(() => locationSearchIndexFor(pendingObs)) ?? LOCATION_INDEX_FAILED)
+      setPendingObs(null)
+    })
+  }, [pendingObs])
 
   // ── The rows ──────────────────────────────────────────────────────────────
 
   const index = Array.isArray(species) ? species : null
+  const locationIndex = armed && locations !== null && locations !== LOCATION_INDEX_FAILED ? locations : null
   const current = useMemo(
-    () => buildPaletteRows({ items, index, query, inbox, alphaCodes }),
-    [items, index, query, inbox, alphaCodes],
+    () => buildSearchRows({ items, index, query, inbox, alphaCodes, locations: locationIndex }),
+    [items, index, query, inbox, alphaCodes, locationIndex],
   )
-  const { rows, destinationCount, speciesTruncated } = current
-  const speciesCount = rows.length - destinationCount
+  const { rows, destinationCount, speciesCount, speciesTruncated, locationsTruncated } = current
+  const locationCount = rows.length - destinationCount - speciesCount
 
   // Clamped rather than trusted: `rows` shrinks as the user types and grows when
   // the index lands mid-session, and an index left pointing past the end would
@@ -228,7 +326,10 @@ export function CommandPalette({ items, onSelectTab, onOpenSpecies, onClose, onO
   const [alphaSeen, setAlphaSeen] = useState(alphaCodes)
   if (alphaSeen !== alphaCodes) {
     setAlphaSeen(alphaCodes)
-    const before = buildPaletteRows({ items, index, query, inbox, alphaCodes: alphaSeen })
+    const before = buildSearchRows({ items, index, query, inbox, alphaCodes: alphaSeen, locations: locationIndex })
+    // Species rows only on both sides (FR-18): a highlighted location keeps its
+    // row when the species rows are unchanged, and is cleared, never moved,
+    // when they change.
     const next = highlightOnCodeArrival(
       active, destinationCount, speciesRowNames(before), speciesRowNames(current),
     )
@@ -243,7 +344,7 @@ export function CommandPalette({ items, onSelectTab, onOpenSpecies, onClose, onO
     document.getElementById(optionId(active))?.scrollIntoView?.({ block: 'nearest' })
   }, [active, optionId])
 
-  const choose = useCallback((row: PaletteRow) => {
+  const choose = useCallback((row: SearchRow) => {
     // Every selection closes through the SAME `onClose` the backdrop, the close
     // button, Escape and a second chord press use (FR-11, QA-11).
     if (row.kind === 'inbox') {
@@ -255,9 +356,10 @@ export function CommandPalette({ items, onSelectTab, onOpenSpecies, onClose, onO
       return
     }
     if (row.kind === 'tab') onSelectTab(row.id)
+    else if (row.kind === 'location') onOpenLocation?.(row.locationId)
     else onOpenSpecies(row.name)
     onClose()
-  }, [onSelectTab, onOpenSpecies, onClose, onOpenInbox])
+  }, [onSelectTab, onOpenSpecies, onClose, onOpenInbox, onOpenLocation])
 
   const onInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     // CLAMPED, NEVER WRAPPED (FR-39, PRD Open Question 11), matching the shipped
@@ -291,17 +393,32 @@ export function CommandPalette({ items, onSelectTab, onOpenSpecies, onClose, onO
   // Exactly one of the four, or none. The `pending` marker and the three settled
   // values are one state, so the loading line cannot outlive the answer (FR-34).
 
+  //
+  // visited-hotspots-in-search FR-20 to FR-25 (schema 4.3): species and
+  // locations come from one backup and share these sentences. Two more rows
+  // speak for the location half alone, under its own heading: the derivation
+  // failed for a backup that loaded (FR-25), and the first-frame window in which
+  // a typed query has species answered and locations still to come, where "no
+  // match" would be premature (FR-22).
+  const typed = query.trim() !== ''
+  const locationsFailed = armed && Array.isArray(species) && locations === LOCATION_INDEX_FAILED
+  const locationsPending = armed && Array.isArray(species) && locations === null && typed && rows.length === 0
+
   const statusMessage: string | null =
     species === SPECIES_PENDING ? PALETTE_COPY.speciesLoading
       : species === null ? PALETTE_COPY.speciesNoBackup
       : species === PALETTE_SPECIES_UNLOADABLE ? EBIRD_BACKUP_LOAD_ERROR
-      : query.trim() !== '' && rows.length === 0 ? PALETTE_COPY.noMatches
+      : locationsFailed ? EBIRD_BACKUP_LOAD_ERROR
+      : locationsPending ? PALETTE_COPY.speciesLoading
+      : typed && rows.length === 0 ? PALETTE_COPY.noMatches
       : null
 
   const statusGlyph =
     species === SPECIES_PENDING ? 'loading'
       : species === null ? 'upload'
       : species === PALETTE_SPECIES_UNLOADABLE ? 'error'
+      : locationsFailed ? 'error'
+      : locationsPending ? 'loading'
       : null
 
   // The message is a SEQUENCE-KEYED child, so an identical repeat is still a
@@ -327,6 +444,20 @@ export function CommandPalette({ items, onSelectTab, onOpenSpecies, onClose, onO
   // speaking. `noMatches` is NOT a species-half sentence: it is about the whole
   // query, so it gets no heading (design-spec Interaction Note 7).
   const speciesHasSentence = species === SPECIES_PENDING || species === null || species === PALETTE_SPECIES_UNLOADABLE
+  // The heading over a sentence names the half that is speaking: both halves
+  // for a backup state, the location half alone for its own two rows.
+  const sentenceHeading = speciesCount === 0 && speciesHasSentence ? PALETTE_COPY.groupBackup
+    : locationCount === 0 && (locationsFailed || locationsPending) ? PALETTE_COPY.groupLocations
+    : null
+
+  // DD-3: each cap line is the last child of its own group, tied to it by
+  // `aria-describedby`, so with a third group below Species each line follows
+  // the rows it is about. Ids are the overlay's per-instance prefix plus a fixed
+  // word, never file text. Unarmed, the species line keeps its shipped place
+  // after the listbox, where it already follows the last rows (decisions.md E-02).
+  const capSpeciesId = `${uid}-cap-species`
+  const capLocationsId = `${uid}-cap-locations`
+  const speciesLineInGroup = armed && speciesTruncated
 
   const hint = resolveChordHint()
 
@@ -373,6 +504,11 @@ export function CommandPalette({ items, onSelectTab, onOpenSpecies, onClose, onO
               autoComplete="off"
               spellCheck={false}
             />
+            {/* DD-2: drawn in the placeholder's place only where a container
+                query finds the field too narrow for the full wording. It is
+                decorative: the input keeps its full placeholder and accessible
+                name, and this span takes no pointer events and no focus. */}
+            <span className="sr-palette-hint" aria-hidden="true">{PALETTE_COPY.placeholderShort}</span>
           </div>
           <Button
             type="button"
@@ -402,24 +538,49 @@ export function CommandPalette({ items, onSelectTab, onOpenSpecies, onClose, onO
               </div>
             )}
             {speciesCount > 0 && (
-              <div role="group" aria-label={PALETTE_COPY.groupSpecies}>
+              <div
+                role="group"
+                aria-label={PALETTE_COPY.groupSpecies}
+                aria-describedby={speciesLineInGroup ? capSpeciesId : undefined}
+              >
                 <div className="sr-palette-group" role="presentation">{PALETTE_COPY.groupSpecies}</div>
-                {rows.slice(destinationCount).map((row, i) => {
+                {rows.slice(destinationCount, destinationCount + speciesCount).map((row, i) => {
                   const idx = destinationCount + i
                   return (
                     <Option key={rowKey(row)} row={row} active={active === idx} id={optionId(idx)} onChoose={choose} />
                   )
                 })}
+                {speciesLineInGroup && (
+                  <div className="sr-palette-note" role="presentation" id={capSpeciesId}>{speciesCapLine(SPECIES_CAP)}</div>
+                )}
+              </div>
+            )}
+            {locationCount > 0 && (
+              <div
+                role="group"
+                aria-label={PALETTE_COPY.groupLocations}
+                aria-describedby={locationsTruncated ? capLocationsId : undefined}
+              >
+                <div className="sr-palette-group" role="presentation">{PALETTE_COPY.groupLocations}</div>
+                {rows.slice(destinationCount + speciesCount).map((row, i) => {
+                  const idx = destinationCount + speciesCount + i
+                  return (
+                    <Option key={rowKey(row)} row={row} active={active === idx} id={optionId(idx)} onChoose={choose} />
+                  )
+                })}
+                {locationsTruncated && (
+                  <div className="sr-palette-note" role="presentation" id={capLocationsId}>{locationCapLine(LOCATION_CAP)}</div>
+                )}
               </div>
             )}
           </div>
 
-          {speciesTruncated && (
+          {speciesTruncated && !speciesLineInGroup && (
             <p className="sr-palette-note">{speciesCapLine(SPECIES_CAP)}</p>
           )}
 
-          {speciesCount === 0 && speciesHasSentence && (
-            <div className="sr-palette-group">{PALETTE_COPY.groupSpecies}</div>
+          {sentenceHeading !== null && (
+            <div className="sr-palette-group">{sentenceHeading}</div>
           )}
 
           {/* ALWAYS MOUNTED, EMPTY UNTIL IT HAS A SENTENCE. All padding and
@@ -466,14 +627,20 @@ export function CommandPalette({ items, onSelectTab, onOpenSpecies, onClose, onO
   )
 }
 
-/** The species rows' names, in order: what FR-25 compares across the code data's arrival. */
-function speciesRowNames(r: PaletteRowsResult): string[] {
-  return r.rows.slice(r.destinationCount).map(row => (row.kind === 'species' ? row.name : ''))
+/** The species rows' names, in order: what FR-25 compares across the code data's
+ *  arrival. Species rows ONLY, so location rows can never make the two lists
+ *  differ (visited-hotspots-in-search FR-18). */
+function speciesRowNames(r: SearchRowsResult): string[] {
+  return r.rows
+    .slice(r.destinationCount, r.destinationCount + r.speciesCount)
+    .map(row => (row.kind === 'species' ? row.name : ''))
 }
 
-/** A React key that is unique across both groups without leaning on the index. */
-function rowKey(row: PaletteRow): string {
+/** A React key that is unique across the groups without leaning on the index.
+ *  A key is never written to the DOM; ids are the index (FR-19). */
+function rowKey(row: SearchRow): string {
   if (row.kind === 'inbox') return 'inbox'
+  if (row.kind === 'location') return `location:${row.locationId}`
   return row.kind === 'tab' ? `tab:${row.id}` : `species:${row.name}`
 }
 
@@ -495,12 +662,38 @@ function rowKey(row: PaletteRow): string {
 function Option({
   row, active, id, onChoose,
 }: {
-  row: PaletteRow
+  row: SearchRow
   active: boolean
   id: string
-  onChoose: (row: PaletteRow) => void
+  onChoose: (row: SearchRow) => void
 }) {
   const className = 'sr-palette-row' + (active ? ' sr-palette-row--active' : '')
+  if (row.kind === 'location') {
+    // DD-1: the name over its place, the Hotspot Reports picker's two-line row.
+    // The name wraps and is never cut by CSS (its 200-unit safety bound and
+    // written ellipsis come from the data). Content order is the accessible
+    // name's order: name, place, then the Location ID on a full tie (FR-13);
+    // the middle dot between place and ID is hidden from assistive technology.
+    // Escaped text only: no link, no control, no id or key from file text.
+    const meta = row.place !== '' || row.showId
+    return (
+      <div id={id} role="option" aria-selected={active} className={className + ' sr-palette-row--loc'} onClick={() => onChoose(row)}>
+        <span className="sr-palette-loc">
+          <span className={'sr-palette-loc-name' + (row.name === '' ? ' sr-palette-loc-name--unnamed' : '')}>
+            {displayName(row.name, row.truncated)}
+          </span>
+          {meta ? ' ' : null}
+          {meta && (
+            <span className="sr-palette-loc-meta">
+              {row.place !== '' && <span>{row.place}</span>}
+              {row.place !== '' && row.showId && <>{' '}<span aria-hidden="true">{MIDDLE_DOT}</span>{' '}</>}
+              {row.showId && <span className="sr-palette-loc-id">{row.locationId}</span>}
+            </span>
+          )}
+        </span>
+      </div>
+    )
+  }
   if (row.kind === 'inbox') {
     // The count pill is aria-hidden; the option's own name carries the count.
     return (

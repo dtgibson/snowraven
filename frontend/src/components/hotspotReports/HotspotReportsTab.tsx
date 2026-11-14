@@ -68,19 +68,36 @@ const EMPTY_OBS: readonly ObservationEntry[] = []
 export interface HotspotReportsTabProps {
   onGoToSettings: () => void
   onOpenSpecies?: (commonName: string) => void
+  /** visited-hotspots-in-search FR-29: a Location ID chosen in Search, held by
+   *  App until this tab consumes it once and calls `onRequestedLocationConsumed`. */
+  requestedLocationId?: string
+  onRequestedLocationConsumed?: () => void
 }
 
-export function HotspotReportsTab({ onGoToSettings, onOpenSpecies }: HotspotReportsTabProps) {
+export function HotspotReportsTab({
+  onGoToSettings, onOpenSpecies, requestedLocationId, onRequestedLocationConsumed,
+}: HotspotReportsTabProps) {
   const filesEpoch = useFilesEpoch()
   const [phase, setPhase] = useState<Phase>({ tag: 'loading' })
+  // The files epoch the last terminal phase was set for (visited-hotspots-in-
+  // search, schema 5.2). A request and a file change reaching this tab in one
+  // commit would otherwise be consumed against the previous file's index.
+  const settledEpoch = useRef<number | null>(null)
   // A Location ID, or null for the overview. Session only (FR-58).
   const [selectedId, setSelectedId] = useState<string | null>(null)
   // Advances on every selection change (picker, ranked row), never on an epoch:
-  // it re-keys the announcement, replays the view's entrance, and restarts the
-  // life list's pager.
+  // it replays the view's entrance and restarts the life list's pager.
   const [selectionSeq, setSelectionSeq] = useState(0)
+  // Re-keys the announcement. It advances with `selectionSeq` on the picker and
+  // ranked-row paths, so their DOM behavior is as shipped, and on its own when
+  // Search re-chooses the location already shown, which announces once more and
+  // changes nothing else (visited-hotspots-in-search FR-30).
+  const [announceSeq, setAnnounceSeq] = useState(0)
   const [announcement, setAnnouncement] = useState<string | null>(null)
   const [focusHeadingSeq, setFocusHeadingSeq] = useState(0)
+  // Advances when a Search request selects a location, to bring the report's
+  // header into view after that commit (FR-30).
+  const [revealSeq, setRevealSeq] = useState(0)
   const headingRef = useRef<HTMLHeadingElement>(null)
   const viewRef = useRef<HTMLDivElement>(null)
   // The resolved taxon codes for names this epoch's reports have shown. A Map,
@@ -101,18 +118,19 @@ export function HotspotReportsTab({ onGoToSettings, onOpenSpecies }: HotspotRepo
         // A rejection lands in the catch: UNKNOWN, never the setup panel.
         const status = await storage.getFilesStatus()
         if (cancelled) return
-        if (!status.ebird) { setPhase({ tag: 'setup-required' }); setSelectedId(null); return }
+        if (!status.ebird) { settledEpoch.current = filesEpoch; setPhase({ tag: 'setup-required' }); setSelectedId(null); return }
         // loadMLExport resolves null on a read OR a parse failure; the .catch is
         // defense in depth, so an optional ML failure is never blamed on the backup.
         const [ebird, ml] = await Promise.all([loadEbirdObservations(), loadMLExport().catch(() => null)])
         if (cancelled) return
-        if (!ebird) { setPhase({ tag: 'error', message: EBIRD_BACKUP_LOAD_ERROR }); setSelectedId(null); return }
+        if (!ebird) { settledEpoch.current = filesEpoch; setPhase({ tag: 'error', message: EBIRD_BACKUP_LOAD_ERROR }); setSelectedId(null); return }
         const index = buildLocationIndex(ebird.observations)
         // The metadata record tells "no file" from "unreadable" (FR-09, FR-55).
         const media: Media = !status.ml
           ? { tag: 'none' }
           : ml ? { tag: 'ready', counts: deriveMediaCounts(ml.rows, index) } : { tag: 'unreadable' }
         if (cancelled) return
+        settledEpoch.current = filesEpoch
         setPhase({ tag: 'ready', observations: ebird.observations, index, media })
         // A selection the new backup still holds re-derives in place; one it
         // lacks is dropped silently, with no message (FR-57, QA-55).
@@ -122,7 +140,7 @@ export function HotspotReportsTab({ onGoToSettings, onOpenSpecies }: HotspotRepo
         asked.current = new Set()
         setCodes(new Map())
       } catch {
-        if (!cancelled) { setPhase({ tag: 'error', message: EBIRD_BACKUP_LOAD_ERROR }); setSelectedId(null) }
+        if (!cancelled) { settledEpoch.current = filesEpoch; setPhase({ tag: 'error', message: EBIRD_BACKUP_LOAD_ERROR }); setSelectedId(null) }
       }
     }
     void load()
@@ -212,17 +230,62 @@ export function HotspotReportsTab({ onGoToSettings, onOpenSpecies }: HotspotRepo
     )
   }, [selectionSeq])
 
-  /** The one selection handler for the picker and the ranked rows (FR-24, FR-25, FR-30). */
-  const select = (next: number | null, from: 'picker' | 'ranked') => {
+  /** The one selection handler for the picker, the ranked rows and a Search
+   *  request (FR-24, FR-25, FR-30; visited-hotspots-in-search FR-30). */
+  const select = (next: number | null, from: 'picker' | 'ranked' | 'search') => {
     if (index === null || totals === null) return
     const rec = next === null ? null : index.locations[next]
-    setSelectedId(rec === null ? null : rec.locationId)
-    setSelectionSeq(s => s + 1)
+    const id = rec === null ? null : rec.locationId
+    // Search re-choosing the location already shown announces it once more and
+    // changes nothing else: no entrance replay, the life list keeps its page.
+    const reselect = from === 'search' && id !== null && id === selectedId
+    if (!reselect) {
+      setSelectedId(id)
+      setSelectionSeq(s => s + 1)
+    }
+    setAnnounceSeq(s => s + 1)
     setAnnouncement(rec === null
       ? announceOverview(index.locations.length)
       : announceLocation(displayName(rec.name, rec.truncated), totals[rec.ord], index.checklistCount[rec.ord]))
     if (from === 'ranked' && rec !== null) setFocusHeadingSeq(s => s + 1)
+    if (from === 'search' && rec !== null) setRevealSeq(s => s + 1)
   }
+
+  // ── A location chosen in Search (visited-hotspots-in-search, schema 5.2) ──
+  // Held until the phase has settled for the CURRENT files epoch, then consumed
+  // exactly once: ready selects it through `select` (or, for an ID the new file
+  // lacks, shows the overview with no message and no announcement, FR-31);
+  // setup-required and error drop it silently (FR-29 c). The Location ID's only
+  // use is a `Map` lookup on the index this tab already built (FR-29 e); a
+  // request never builds an index. Nothing here can change the active tab.
+  const selectRef = useRef(select)
+  useLayoutEffect(() => { selectRef.current = select })
+  const queuedRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (requestedLocationId === undefined) { queuedRef.current = null; return }
+    if (phase.tag === 'loading' || settledEpoch.current !== filesEpoch) return
+    if (queuedRef.current === requestedLocationId) return
+    queuedRef.current = requestedLocationId
+    const id = requestedLocationId
+    const settledIndex = phase.tag === 'ready' ? phase.index : null
+    // A microtask, as the species route does, so the selection's state updates
+    // are not applied synchronously inside this effect.
+    queueMicrotask(() => {
+      if (settledIndex !== null) {
+        const ord = settledIndex.ordById.get(id)
+        if (ord !== undefined) selectRef.current(ord, 'search')
+        else setSelectedId(null)
+      }
+      onRequestedLocationConsumed?.()
+    })
+  }, [phase, requestedLocationId, filesEpoch, onRequestedLocationConsumed])
+
+  // FR-30: the report's header in view without the user scrolling, after the
+  // commit that rendered it. Never smooth; a no-op on a hidden panel.
+  useLayoutEffect(() => {
+    if (revealSeq === 0) return
+    headingRef.current?.closest('header')?.scrollIntoView?.({ block: 'nearest' })
+  }, [revealSeq])
 
   const header = (
     <div className="sr-hsr-head">
@@ -275,7 +338,7 @@ export function HotspotReportsTab({ onGoToSettings, onOpenSpecies }: HotspotRepo
       {/* Always mounted while ready, before its first message; holds only the
           sentence, in a sequence-keyed child so a repeat is still announced. */}
       <div className="sr-only" role="status" aria-live="polite">
-        {announcement !== null ? <span key={selectionSeq}>{announcement}</span> : null}
+        {announcement !== null ? <span key={announceSeq}>{announcement}</span> : null}
       </div>
       {noLocations ? (
         <p className="sr-hsr-body-text">{NO_LOCATIONS}</p>

@@ -12,15 +12,18 @@
 // not reachable by the arrow keys (FR-41, QA-40), so putting them in the array
 // that `activeIdx` walks is exactly the mistake to avoid.
 //
-// Off the entry graph. Its value imports are `speciesMatch` and `alphaCodes`,
-// both also off it (`alphaCodes` reaches only `speciesUtils`, which is already
-// on it); the rest are type imports and are erased.
+// Off the entry graph. Its value imports are `speciesMatch`, `alphaCodes` and
+// `paletteLocations`, all also off it (`alphaCodes` reaches only `speciesUtils`,
+// which is already on it; `paletteLocations` reaches the Hotspot Reports tab's
+// pure lib modules and no component, map or transport, `entryChunk.test.ts`);
+// the rest are type imports and are erased.
 
 import type { Tab } from './tabLayout'
 import type { TabIcon } from './tabIcons'
 import { compareSpeciesName, type SpeciesIndexEntry } from './speciesIndex'
 import { matchesSpeciesQuery, normalizeSpeciesQuery, rankSpeciesMatches } from './speciesMatch'
 import { alphaCodeHits, type AlphaCodeTable } from './alphaCodes'
+import { LOCATION_CAP, matchLocations, type LocationSearchIndex } from './paletteLocations'
 
 /**
  * A destination, in the shape `App.tsx` already builds for the navigation.
@@ -125,4 +128,72 @@ export function buildPaletteRows(input: PaletteRowsInput): PaletteRowsResult {
   }
 
   return { rows, destinationCount, speciesTruncated }
+}
+
+// ── The third group: locations (visited-hotspots-in-search, schema section 3) ──
+//
+// A WRAPPER, NOT AN EDIT. `buildPaletteRows`, `PaletteRow` and `SPECIES_CAP` stay
+// exactly as they shipped, and `buildSearchRows` calls the shipped function and
+// appends. So the first `destinationCount + speciesCount` rows ARE that
+// function's output for every query, and `rows[0]` (Enter's choice when nothing
+// is highlighted) is a location only when no destination and no species
+// matched: R5 and FR-16 are properties of this code rather than of a test.
+//
+// `SearchRow` widens `PaletteRow` rather than `PaletteRow` gaining a kind, so the
+// shipped type every existing consumer narrows over is unchanged
+// (decisions.md, E-01).
+
+/** A location row: what the row shows and what the request carries (FR-06). */
+export interface LocationRow {
+  kind: 'location'
+  locationId: string
+  name: string
+  truncated: boolean
+  place: string
+  showId: boolean
+}
+
+export type SearchRow = PaletteRow | LocationRow
+
+export interface SearchRowsInput extends PaletteRowsInput {
+  /** The location index, or null/absent: exactly `buildPaletteRows`' rows. */
+  locations?: LocationSearchIndex | null
+  /** Overridable for tests; production always uses `LOCATION_CAP`. */
+  locationCap?: number
+}
+
+export interface SearchRowsResult {
+  rows: SearchRow[]
+  destinationCount: number
+  /** The rows after the destinations and before the locations. */
+  speciesCount: number
+  speciesTruncated: boolean
+  /** True when more locations matched than the cap admitted (FR-12). */
+  locationsTruncated: boolean
+}
+
+/**
+ * The shipped rows plus the location group. An empty or whitespace-only query
+ * yields no location row (FR-09), because the match refuses an empty query.
+ */
+export function buildSearchRows(input: SearchRowsInput): SearchRowsResult {
+  const base = buildPaletteRows(input)
+  const rows: SearchRow[] = base.rows
+  const speciesCount = rows.length - base.destinationCount
+  let locationsTruncated = false
+  const locations = input.locations ?? null
+  if (locations !== null) {
+    const m = matchLocations(locations, normalizeSpeciesQuery(input.query), input.locationCap ?? LOCATION_CAP)
+    locationsTruncated = m.truncated
+    for (const r of m.rows) {
+      rows.push({ kind: 'location', locationId: r.locationId, name: r.name, truncated: r.truncated, place: r.place, showId: r.showId })
+    }
+  }
+  return {
+    rows,
+    destinationCount: base.destinationCount,
+    speciesCount,
+    speciesTruncated: base.speciesTruncated,
+    locationsTruncated,
+  }
 }

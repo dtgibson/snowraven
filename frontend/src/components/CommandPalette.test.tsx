@@ -378,7 +378,7 @@ describe('the live region (FR-37, QA-36)', () => {
     expect(region).toBeTruthy()
 
     await act(async () => { gate.resolve(NO_FILES as unknown as typeof EBIRD_STORED); await Promise.resolve() })
-    await waitFor(() => expect(region.textContent).toContain('Searching species needs your eBird backup'))
+    await waitFor(() => expect(region.textContent).toContain('Searching species and locations needs your eBird backup'))
     expect(document.querySelector('[role="status"]')).toBe(region)
   })
 

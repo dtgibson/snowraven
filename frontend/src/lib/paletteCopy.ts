@@ -27,18 +27,32 @@
 export const PALETTE_COPY = {
   /** The nav's entry-point control, at all three densities. */
   controlLabel: 'Search',
-  /** The query input's accessible name, the dialog's, and the listbox's. */
-  inputLabel: 'Search destinations and species',
-  /** State-voiced, naming what the control searches rather than commanding. */
-  placeholder: 'Search destinations and species',
+  /** The query input's accessible name, the dialog's, and the listbox's. Names
+   *  all three kinds of result (visited-hotspots-in-search FR-36). */
+  inputLabel: 'Search destinations, species, and locations',
+  /** State-voiced, naming what the control searches rather than commanding.
+   *  Where the field is too narrow to show it whole, a container query hides it
+   *  and draws `placeholderShort` instead (design DD-2); this stays the
+   *  attribute's value at every width. */
+  placeholder: 'Search destinations, species, and locations',
+  /** DD-2: the decorative narrow-field hint. Its own key, not `controlLabel`,
+   *  so the nav label and the field hint can change apart. */
+  placeholderShort: 'Search',
   closeLabel: 'Close search',
   groupDestinations: 'Destinations',
   groupSpecies: 'Species',
+  /** True of a personal location, so never "Hotspots" (FR-08). */
+  groupLocations: 'Locations',
+  /** The heading over a backup-state sentence: species and locations come from
+   *  one backup and share one state (FR-20). */
+  groupBackup: 'Species and locations',
   /** FR-34. The species half only; destinations are never blocked by it. */
   speciesLoading: 'Reading your eBird backup.',
-  /** FR-33. Reuses the shipped setup wording and names the exact Settings path. */
+  /** FR-33, and visited-hotspots-in-search FR-20 (b). Reuses the shipped setup
+   *  wording and names the exact Settings path. The key keeps its name so the
+   *  existing delivery rows keep reading it. */
   speciesNoBackup:
-    'Searching species needs your eBird backup. Upload MyEBirdData.csv in Settings → Default Files → eBird Backup.',
+    'Searching species and locations needs your eBird backup. Upload MyEBirdData.csv in Settings → Default Files → eBird Backup.',
   /** FR-36. Says NOTHING about species, so it is distinguishable from the three above. */
   noMatches: 'Nothing matches that search.',
   legendMove: 'Move',
@@ -62,4 +76,14 @@ export const PALETTE_COPY = {
  */
 export function speciesCapLine(cap: number): string {
   return `Showing the first ${cap} matches. Keep typing to narrow them.`
+}
+
+/**
+ * visited-hotspots-in-search FR-12's cap line, as a function of
+ * `LOCATION_CAP` (lib/paletteLocations.ts) for the same reason as the species
+ * line above: the sentence and the slice cannot disagree. Written for a plural
+ * cap, which is every shipped configuration.
+ */
+export function locationCapLine(cap: number): string {
+  return `Showing the first ${cap} locations. Keep typing to narrow them.`
 }

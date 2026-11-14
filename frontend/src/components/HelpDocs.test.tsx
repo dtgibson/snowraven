@@ -301,12 +301,12 @@ it('yields focus to Search above Help, then resumes containment when Search clos
   expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Close documentation' }))
 
   fireEvent.keyDown(window, { key: 'k', ctrlKey: true })
-  const query = screen.getByRole('combobox', { name: 'Search destinations and species' })
+  const query = screen.getByRole('combobox', { name: 'Search destinations, species, and locations' })
   query.focus()
   expect(document.activeElement).toBe(query)
 
   fireEvent.keyDown(query, { key: 'Escape' })
-  expect(screen.queryByRole('dialog', { name: 'Search destinations and species' })).toBeNull()
+  expect(screen.queryByRole('dialog', { name: 'Search destinations, species, and locations' })).toBeNull()
   expect(screen.getByRole('dialog', { name: 'SnowRaven Documentation' })).toBeTruthy()
 
   screen.getByRole('button', { name: 'Covered app control' }).focus()

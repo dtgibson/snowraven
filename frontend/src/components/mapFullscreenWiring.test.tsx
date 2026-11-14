@@ -314,8 +314,12 @@ describe('the shared implementation (FR-07, QA-08)', () => {
     // FR-23 / QA-29. The Map Explorer's fullscreen boolean, its scroll lock and
     // its chrome `inert` are not read, not shared and not modified: z-index 1200
     // plus a focus trap INSIDE the overlay is what replaces App's cooperation.
+    // visited-hotspots-in-search E-09: App now imports `MapTabShowingProvider`
+    // from the hook's module and provides WHICH TAB IS SHOWING, state App already
+    // owns, so a Search result on another tab releases an expanded map. It still
+    // calls no hook, provides no fullscreen state and touches no panel class.
     const app = read('src/App.tsx')
-    expect(app).not.toMatch(/useMapFullscreen|MapFullscreenProvider|sr-map-fs-panel/)
+    expect(app).not.toMatch(/useMapFullscreen\(|MapFullscreenProvider|sr-map-fs-panel/)
     for (const file of ['src/lib/useMapFullscreen.ts', 'src/lib/useFocusTrap.ts', 'src/components/map/MapCornerControls.tsx']) {
       expect(read(file), `${file} must not touch the storage seam`).not.toMatch(/storage\.(get|set)Setting/)
     }

@@ -12,7 +12,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { render, screen, fireEvent, cleanup } from '@testing-library/react'
 import { useEffect, useRef, useState } from 'react'
-import { useMapFullscreen, MAP_FS_PANEL_CLASS } from './useMapFullscreen'
+import { useMapFullscreen, MAP_FS_PANEL_CLASS, MapTabShowingProvider } from './useMapFullscreen'
 import { useFocusTrap } from './useFocusTrap'
 
 /**
@@ -526,5 +526,89 @@ describe('the four teardown paths (FR-24, QA-30)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'open species from the county popup' }))
     expect(expandedNow()).toBe(false)
     expect(document.body.style.overflow).toBe('')
+  })
+})
+
+// ── Leaving the host's tab by a route that changes nothing in it ────────────
+// visited-hotspots-in-search FR-28 / QA-28, decisions.md E-09. Every tab stays
+// mounted and is hidden with `display: none`, so a Search result on another tab
+// (a location from any host; a species from Statistics or a Named Birds card)
+// changes nothing inside the host: no `active` drop, no `resetKey` change, no
+// unmount. The tab-showing input App.tsx provides around each host's panel is
+// what releases it. `TabbedApp` is that shape: the host's panel wrapped in
+// `MapTabShowingProvider value={tab === 'host'}`, and the route a plain tab
+// switch, as `openLocationFromPalette` is for the host.
+
+function TabbedApp(props: { resetKey?: string; baseClass: string }) {
+  const [tab, setTab] = useState<'host' | 'hotspot-reports'>('host')
+  return (
+    <>
+      <button type="button" onClick={() => setTab('hotspot-reports')}>choose a location in Search</button>
+      <button type="button" onClick={() => setTab('host')}>back to the host tab</button>
+      <div style={{ display: tab === 'host' ? 'block' : 'none' }}>
+        <MapTabShowingProvider value={tab === 'host'}>
+          <Host baseClass={props.baseClass} resetKey={props.resetKey} />
+        </MapTabShowingProvider>
+      </div>
+    </>
+  )
+}
+
+describe('leaving the host tab releases the lock and collapses the map (FR-28, QA-28, E-09)', () => {
+  // One roster, one row per real host, each with that host's own options: the
+  // Species Detail map's `resetKey` is the selected species (unchanged by a
+  // location choice), and Statistics' and Named Birds' maps pass none.
+  const HOSTS: [string, { baseClass: string; resetKey?: string }][] = [
+    ['Species Detail', { baseClass: 'sr-map-container', resetKey: 'Varied Thrush' }],
+    ['Statistics', { baseClass: 'sr-geo-map' }],
+    ['Named Birds', { baseClass: 'sr-named-map' }],
+  ]
+
+  it.each(HOSTS)('%s: the route away releases the lock and collapses, and the map is collapsed on return', (_host, opts) => {
+    document.body.style.overflow = ''
+    render(<TabbedApp {...opts} />)
+    fireEvent.click(toggle())
+    expect(document.body.style.overflow).toBe('hidden')
+    expect(container().className).toContain(MAP_FS_PANEL_CLASS)
+
+    fireEvent.click(screen.getByRole('button', { name: 'choose a location in Search' }))
+    expect(document.body.style.overflow).toBe('')
+    expect(container().className).not.toContain(MAP_FS_PANEL_CLASS)
+    // The document Escape listener went with it.
+    expect(() => fireEvent.keyDown(document, { key: 'Escape' })).not.toThrow()
+
+    fireEvent.click(screen.getByRole('button', { name: 'back to the host tab' }))
+    expect(container().className).toBe(opts.baseClass)
+    expect(document.body.style.overflow).toBe('')
+    // And the control works again from there.
+    fireEvent.click(toggle())
+    expect(expandedNow()).toBe(true)
+    expect(document.body.style.overflow).toBe('hidden')
+  })
+
+  it('a map in the tab that is STILL showing does not collapse when its host re-renders (guarding the guard)', () => {
+    function Rerendering() {
+      const [n, setN] = useState(0)
+      return (
+        <>
+          <button type="button" onClick={() => setN(v => v + 1)}>re-render {n}</button>
+          <MapTabShowingProvider value>
+            <Host baseClass="sr-geo-map" />
+          </MapTabShowingProvider>
+        </>
+      )
+    }
+    render(<Rerendering />)
+    fireEvent.click(toggle())
+    fireEvent.click(screen.getByRole('button', { name: /^re-render/ }))
+    fireEvent.click(screen.getByRole('button', { name: /^re-render/ }))
+    expect(expandedNow()).toBe(true)
+    expect(document.body.style.overflow).toBe('hidden')
+  })
+
+  it('a mount outside any provider behaves as before: showing by default', () => {
+    render(<Host baseClass="sr-geo-map" />)
+    fireEvent.click(toggle())
+    expect(expandedNow()).toBe(true)
   })
 })

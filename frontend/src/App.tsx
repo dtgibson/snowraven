@@ -53,6 +53,9 @@ import { resolveBacklogRows, BACKLOG_SUPERSEDED, type ResolvedBacklogRows } from
 import { useEmbeddedMediaPreference } from './lib/useEmbeddedMediaPreference'
 import { useMapPanelChrome } from './lib/mapPanelChrome'
 import { usePaletteHotkey } from './lib/usePaletteHotkey'
+// Already on the entry graph through NamedBirdRow (mapFullscreenEntrySafe.test.ts):
+// the tab-showing input of the embedded maps' fullscreen (decisions.md E-09).
+import { MapTabShowingProvider } from './lib/useMapFullscreen'
 import { restoreOpenerFocus, type PaletteOpener } from './lib/paletteFocus'
 import { releaseLaunch } from './lib/launch'
 
@@ -320,6 +323,17 @@ export default function App() {
 
   const clearRequestedSpecies = useCallback(() => setRequestedSpecies(undefined), [])
 
+  // Open Hotspot Reports on one location (visited-hotspots-in-search FR-29): a
+  // single-use request carrying only the Location ID, consumed by the tab once
+  // its phase has settled for the current file, then cleared. The species
+  // route's shape, line for line; a later choice before consumption replaces it.
+  const [requestedLocation, setRequestedLocation] = useState<string | undefined>(undefined)
+  const navigateToHotspotReport = useCallback((locationId: string) => {
+    setActiveTab('hotspot-reports')
+    setRequestedLocation(locationId)
+  }, [])
+  const clearRequestedLocation = useCallback(() => setRequestedLocation(undefined), [])
+
   // ── The command palette ────────────────────────────────────────────────────
   //
   // Focus return (FR-12) uses the shipped ModalDialog trigger-getter contract and
@@ -394,6 +408,16 @@ export default function App() {
     setMapFullscreen(false)
     navigateToSpeciesDetail(name)
   }, [navigateToSpeciesDetail])
+
+  // visited-hotspots-in-search FR-26 to FR-28: `openSpeciesFromPalette` with the
+  // other tab, the same sequence of state changes, so a fullscreen Map Explorer
+  // is collapsed first and an expanded embedded map ends where the species route
+  // leaves it. It never reads or writes the hidden set: a hidden Hotspot Reports
+  // tab is shown for the visit, as a hidden Species Detail is (FR-27).
+  const openLocationFromPalette = useCallback((locationId: string) => {
+    setMapFullscreen(false)
+    navigateToHotspotReport(locationId)
+  }, [navigateToHotspotReport])
 
   // Persist the layout durably per platform: storage seam on desktop (file-backed,
   // survives relaunch), localStorage on web/Pi (durable there and read synchronously
@@ -1461,12 +1485,14 @@ export default function App() {
         }}
       >
         {mountedTabs.has('named-birds') && (
-          <NamedBirds
-            onGoToSettings={() => setActiveTab('settings')}
-            filesVersion={filesVersion}
-            onOpenSpecies={navigateToSpeciesDetail}
-            embedAllowed={embedAllowed}
-          />
+          <MapTabShowingProvider value={activeTab === 'named-birds'}>
+            <NamedBirds
+              onGoToSettings={() => setActiveTab('settings')}
+              filesVersion={filesVersion}
+              onOpenSpecies={navigateToSpeciesDetail}
+              embedAllowed={embedAllowed}
+            />
+          </MapTabShowingProvider>
         )}
       </div>
 
@@ -1506,7 +1532,12 @@ export default function App() {
       >
         {mountedTabs.has('hotspot-reports') && (
           <Suspense fallback={<TabLoading label="Loading hotspot reports…" />}>
-            <HotspotReportsTab onGoToSettings={() => setActiveTab('settings')} onOpenSpecies={navigateToSpeciesDetail} />
+            <HotspotReportsTab
+              onGoToSettings={() => setActiveTab('settings')}
+              onOpenSpecies={navigateToSpeciesDetail}
+              requestedLocationId={requestedLocation}
+              onRequestedLocationConsumed={clearRequestedLocation}
+            />
           </Suspense>
         )}
       </div>
@@ -1591,16 +1622,18 @@ export default function App() {
         }}
       >
         {mountedTabs.has('species-detail') && (
-          <Suspense fallback={<TabLoading label="Loading species detail…" />}>
-            <SpeciesDetail
-              onGoToSettings={() => setActiveTab('settings')}
-              onGoToWeather={() => setActiveTab('weather')}
-              filesVersion={filesVersion}
-              requestedSpecies={requestedSpecies}
-              onRequestedSpeciesConsumed={clearRequestedSpecies}
-              embedAllowed={embedAllowed}
-            />
-          </Suspense>
+          <MapTabShowingProvider value={activeTab === 'species-detail'}>
+            <Suspense fallback={<TabLoading label="Loading species detail…" />}>
+              <SpeciesDetail
+                onGoToSettings={() => setActiveTab('settings')}
+                onGoToWeather={() => setActiveTab('weather')}
+                filesVersion={filesVersion}
+                requestedSpecies={requestedSpecies}
+                onRequestedSpeciesConsumed={clearRequestedSpecies}
+                embedAllowed={embedAllowed}
+              />
+            </Suspense>
+          </MapTabShowingProvider>
         )}
       </div>
 
@@ -1661,13 +1694,15 @@ export default function App() {
         }}
       >
         {mountedTabs.has('birding-stats') && (
-          <Suspense fallback={<TabLoading label="Loading charts…" />}>
-            <BirdingStats
-              onGoToSettings={() => setActiveTab('settings')}
-              onGoToWeather={() => setActiveTab('weather')}
-              onOpenSpecies={navigateToSpeciesDetail}
-            />
-          </Suspense>
+          <MapTabShowingProvider value={activeTab === 'birding-stats'}>
+            <Suspense fallback={<TabLoading label="Loading charts…" />}>
+              <BirdingStats
+                onGoToSettings={() => setActiveTab('settings')}
+                onGoToWeather={() => setActiveTab('weather')}
+                onOpenSpecies={navigateToSpeciesDetail}
+              />
+            </Suspense>
+          </MapTabShowingProvider>
         )}
       </div>
 
@@ -1787,6 +1822,7 @@ export default function App() {
             items={navItems}
             onSelectTab={selectTabFromPalette}
             onOpenSpecies={openSpeciesFromPalette}
+            onOpenLocation={openLocationFromPalette}
             onClose={closePalette}
             onOpenInbox={openInboxFromPalette}
           />

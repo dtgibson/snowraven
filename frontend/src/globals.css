@@ -8817,7 +8817,11 @@ select:focus-visible {
   padding: 12px; flex-shrink: 0;
   border-bottom: 1px solid var(--sr-border-subtle);
 }
-.sr-palette-field { position: relative; flex: 1; min-width: 0; display: flex; }
+.sr-palette-field {
+  position: relative; flex: 1; min-width: 0; display: flex;
+  /* DD-2's query anchor; argued at .sr-palette-hint below. */
+  container-type: inline-size; container-name: sr-palette-field; font-size: 1rem;
+}
 .sr-palette-field > svg {
   position: absolute; left: 11px; top: 50%; transform: translateY(-50%);
   color: var(--sr-text-muted); pointer-events: none;
@@ -8836,6 +8840,27 @@ select:focus-visible {
   transition: border-color 120ms ease-out;
 }
 .sr-palette-input::placeholder { color: var(--sr-text-muted); font-weight: 400; }
+/* DD-2, the narrow-field hint. The placeholder keeps the full wording at every
+   width; where the field is too narrow to show it whole, the placeholder is made
+   transparent and one short decorative word is drawn in its place. The question
+   is "how wide is my box" for one fixed string, which a container query
+   answers (ui.md v1.0.22, v1.0.23): the em term tracks the text size, the px
+   term covers the phone tier's 16px floor. `container-type` is containment as
+   well as an anchor, checked: the field is already `position: relative` and the
+   containing block of its one absolutely positioned child (the Search glyph),
+   holds no z-index, and takes its inline size from `flex: 1`, so inline-size
+   containment changes nothing it lays out. `left: 35.5px` is the input's 34px
+   left padding plus its 1.5px border. The anchor's three declarations sit on
+   .sr-palette-field above. */
+.sr-palette-hint {
+  display: none; position: absolute; left: 35.5px; top: 50%; transform: translateY(-50%);
+  pointer-events: none; white-space: nowrap;
+  font-size: 1rem; font-weight: 400; color: var(--sr-text-muted);
+}
+@container sr-palette-field (max-width: 27em) or (max-width: 432px) {
+  .sr-palette-input::placeholder { color: transparent; }
+  .sr-palette-input:placeholder-shown + .sr-palette-hint { display: block; }
+}
 .sr-palette-close {
   flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;
   width: 2.5rem; height: 2.5rem; padding: 0;
@@ -8894,6 +8919,32 @@ select:focus-visible {
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: right;
   font-size: 0.71875rem; font-style: italic; color: var(--sr-text-muted);
 }
+/* The location row (visited-hotspots-in-search, design DD-1): the Hotspot
+   Reports picker's name-over-meta option. The name WRAPS in full and is never
+   cut by CSS -- eBird names share long openings and differ at the end, and its
+   200-unit safety bound and written ellipsis come from the data. The meta line
+   (place, and the Location ID on a full tie) is its own block, so no width, text
+   size or name length can squeeze it. Block layout inside one flex item, not a
+   column flex, which WebKit can leave at a stale width after a text-size change
+   (ui.md, v1.0.38). */
+.sr-palette-row--loc { padding-top: 7px; padding-bottom: 7px; }
+.sr-palette-loc { flex: 1; min-width: 0; display: block; }
+.sr-palette-loc-name {
+  display: block;
+  font-size: 0.875rem; font-weight: 500; line-height: 1.4; color: var(--sr-text);
+  overflow-wrap: anywhere;
+}
+.sr-palette-loc-name--unnamed { font-style: italic; }
+.sr-palette-loc-meta {
+  display: block; margin-top: 1px;
+  font-size: 0.71875rem; line-height: 1.45; color: var(--sr-text-muted);
+  overflow-wrap: anywhere;
+}
+.sr-palette-loc-id { font-variant-numeric: tabular-nums; }
+/* DD-4: on the highlighted row the place and ID take the full ink. They are
+   what tell namesakes apart, and --sr-text-muted on the highlight fill is 3.79:1
+   in the dark theme by the token values; --sr-text is 8.84:1 and 17.69:1. */
+.sr-palette-row--active .sr-palette-loc-meta { color: var(--sr-text); }
 
 /* ---- non-option lines: the cap note and the status region ---------------- */
 .sr-palette-note {
@@ -8901,6 +8952,11 @@ select:focus-visible {
   border-top: 1px solid var(--sr-border-subtle);
   font-size: 0.75rem; line-height: 1.5; color: var(--sr-text-muted);
 }
+/* DD-3: with locations armed, each cap line is the last child of its own
+   role="group", tied to it by aria-describedby. When another group follows, the
+   line gets clear air beneath it, so it reads as the end of the group above and
+   never as the opening of the group below. */
+.sr-palette-results [role="group"]:not(:last-child) > .sr-palette-note { margin-bottom: 8px; }
 /* The role="status" region is ALWAYS mounted and EMPTY until it has a sentence:
    a live region created together with its first message never announces. All
    padding and typography live on the child line, so the idle region computes to
@@ -8956,6 +9012,13 @@ select:focus-visible {
   .sr-palette-head { padding: 10px 12px; }
   .sr-palette-row { min-height: 2.75rem; }
   .sr-palette-close { width: 2.75rem; height: 2.75rem; }
+  /* DD-2: the hint follows the input's own phone floor (.sr-input-16 resolves
+     max(var(--sr-ctl-floor), 1rem) for it). Written with the floor's value
+     rather than the variable because paletteCss.test.ts holds every --sr-*
+     reference in this section to the two theme blocks, and the floor is a
+     length declared once on :root; paletteLocationsCss.test.ts compares this
+     16px with --sr-ctl-floor so the two declarations cannot drift. */
+  .sr-palette-hint { font-size: max(16px, 1rem); }
   /* The panel reaches the bottom edge here, so the footer strip needs the home
      indicator's inset of its own; the root's top inset is handled above. */
   .sr-ios-app .sr-palette-foot { padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px)); }

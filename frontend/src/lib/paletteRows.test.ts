@@ -8,6 +8,9 @@ import { buildPaletteRows, SPECIES_CAP, type PaletteNavItem } from './paletteRow
 import { speciesCapLine } from './paletteCopy'
 import type { SpeciesIndexEntry } from './speciesIndex'
 import type { TabIcon } from './tabIcons'
+import { buildSearchRows } from './paletteRows'
+import { buildLocationSearchIndex } from './paletteLocations'
+import { row as obsRow } from '../test/hotspotReportsRows'
 
 const icon = (() => null) as unknown as TabIcon
 
@@ -242,5 +245,58 @@ describe('no code data gives exactly the rows this function always gave (species
     // The pre-change order, stated as values: alphabetical by common name.
     expect(names(buildPaletteRows({ items: ITEMS, index: [...INDEX].reverse(), query: 'warb', alphaCodes: null })))
       .toEqual(['Bay-breasted Warbler', 'Warbling Vireo', "Wilson's Warbler"])
+  })
+})
+
+// ── visited-hotspots-in-search: the third group, by a wrapper (schema section 3) ──
+//
+// QA-16 is a STRUCTURAL comparison between two calls of the shipped function,
+// never a restated expectation: with locations present, the first
+// destinationCount + speciesCount rows are `buildPaletteRows`' rows.
+
+describe('buildSearchRows wraps the shipped rows (FR-16, NFR-05, QA-09, QA-16)', () => {
+  const LOCATIONS = buildLocationSearchIndex([
+    obsRow({ submissionId: 'S1', locationId: 'L1', location: 'Warbler Woods', county: 'Kings', stateProvince: 'US-NY' }),
+    obsRow({ submissionId: 'S2', locationId: 'L2', location: 'Calendar Islands', county: 'Cumberland', stateProvince: 'US-ME' }),
+    obsRow({ submissionId: 'S3', locationId: 'L3', location: 'Robin Hood Marsh', county: 'Kings', stateProvince: 'US-NY' }),
+  ])
+  const QUERIES = ['', '   ', 'a', 'cal', 'warb', 'robin', 'stat', 'zzqxv', 'WARB', 'settings', 'woods', 'islands']
+
+  it.each(QUERIES)('%j: without locations it is exactly buildPaletteRows', q => {
+    const shipped = buildPaletteRows({ items: ITEMS, index: INDEX, query: q })
+    const wrapped = buildSearchRows({ items: ITEMS, index: INDEX, query: q })
+    expect(wrapped.rows).toEqual(shipped.rows)
+    expect(wrapped.destinationCount).toBe(shipped.destinationCount)
+    expect(wrapped.speciesTruncated).toBe(shipped.speciesTruncated)
+    expect(wrapped.speciesCount).toBe(shipped.rows.length - shipped.destinationCount)
+    expect(wrapped.locationsTruncated).toBe(false)
+  })
+
+  it.each(QUERIES)('%j: with locations, the leading rows are buildPaletteRows\' rows and locations only follow', q => {
+    const shipped = buildPaletteRows({ items: ITEMS, index: INDEX, query: q, cap: 2 })
+    const wrapped = buildSearchRows({ items: ITEMS, index: INDEX, query: q, cap: 2, locations: LOCATIONS })
+    const lead = wrapped.destinationCount + wrapped.speciesCount
+    expect(wrapped.rows.slice(0, lead)).toEqual(shipped.rows)
+    expect(wrapped.speciesTruncated).toBe(shipped.speciesTruncated)
+    expect(wrapped.rows.slice(lead).every(r => r.kind === 'location')).toBe(true)
+    // Enter's choice with nothing highlighted is rows[0]: a location only when
+    // nothing else matched.
+    if (shipped.rows.length > 0) expect(wrapped.rows[0]).toEqual(shipped.rows[0])
+  })
+
+  it('an empty and a whitespace-only query yield no location row (FR-09)', () => {
+    for (const q of ['', '   ', '\t']) {
+      expect(buildSearchRows({ items: ITEMS, index: INDEX, query: q, locations: LOCATIONS }).rows.some(r => r.kind === 'location')).toBe(false)
+    }
+  })
+
+  it('carries what a row shows and what the request needs, and the location cut', () => {
+    const r = buildSearchRows({ items: ITEMS, index: INDEX, query: 'o', locations: LOCATIONS, locationCap: 2 })
+    expect(r.rows.filter(x => x.kind === 'location')).toEqual([
+      { kind: 'location', locationId: 'L3', name: 'Robin Hood Marsh', truncated: false, place: 'Kings, NY', showId: false },
+      { kind: 'location', locationId: 'L1', name: 'Warbler Woods', truncated: false, place: 'Kings, NY', showId: false },
+    ])
+    expect(r.locationsTruncated).toBe(false)
+    expect(buildSearchRows({ items: ITEMS, index: INDEX, query: 'a', locations: LOCATIONS, locationCap: 2 }).locationsTruncated).toBe(true)
   })
 })

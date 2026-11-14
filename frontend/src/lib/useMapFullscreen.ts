@@ -68,6 +68,22 @@ export function useMapFullscreenContext(): MapFullscreen | null {
   return useContext(MapFullscreenContext)
 }
 
+/**
+ * Whether the tab a map lives in is the one showing (visited-hotspots-in-search
+ * FR-28, decisions.md E-09). App.tsx provides it around the panels of the three
+ * map hosts (Species Detail, Statistics, Named Birds) as `activeTab === tab`.
+ * Every tab stays MOUNTED once opened and is only hidden with `display: none`,
+ * so leaving a tab by a route that changes nothing inside it (a Search result,
+ * the species route out of Statistics' county popup or Named Birds) used to
+ * leave an expanded map's body scroll lock on the page over the destination tab,
+ * and the map still expanded on return. With this, leaving the tab by ANY route
+ * collapses the map and releases the lock, the Escape listener and the trap.
+ * Default `true`: a mount outside any provider (a suite, a future host not yet
+ * wrapped) behaves exactly as before.
+ */
+const MapTabShowingContext = createContext(true)
+export const MapTabShowingProvider = MapTabShowingContext.Provider
+
 export interface UseMapFullscreenOptions {
   /** The element that expands. Also the focus-trap root, so every control the
    *  overlay contains (base switcher, zoom, attribution, marker buttons, popup
@@ -99,6 +115,20 @@ export function useMapFullscreen({
   const [raw, setRaw] = useState<{ on: boolean; key: string | number | null | undefined }>(
     () => ({ on: false, key: resetKey }),
   )
+  // The host's tab showing (MapTabShowingProvider). When it turns false the
+  // stored state is cleared DURING RENDER (React's documented alternative to an
+  // effect that calls setState): React re-runs this render with the cleared state
+  // before committing, so the commit that hides the tab is already collapsed and
+  // its effects release the lock, the Escape listener and the trap, with no
+  // frame in which they outlive the tab. And because the STATE is cleared rather
+  // than masked, returning to the tab shows the map collapsed, as the species
+  // route leaves Species Detail, rather than re-expanding it.
+  const showing = useContext(MapTabShowingContext)
+  const [shownBefore, setShownBefore] = useState(showing)
+  if (shownBefore !== showing) {
+    setShownBefore(showing)
+    if (!showing) setRaw(p => (p.on ? { on: false, key: p.key } : p))
+  }
   const expanded = active && raw.on && raw.key === resetKey
 
   // The toggle now rendering for this map, as STATE rather than a ref. NOT the
@@ -156,7 +186,8 @@ export function useMapFullscreen({
   // assumed to be '' — same shape as the Map Explorer's shipped lock. The two
   // can never co-occur (different tabs), and capture-and-restore is what makes
   // that not need to be true. Because `expanded` is derived, this releases on an
-  // `active` drop and a `resetKey` change as well as on a collapse and unmount.
+  // `active` drop, a `resetKey` change and the host's tab being hidden, as well
+  // as on a collapse and unmount.
   useEffect(() => {
     if (!expanded) return
     const prev = document.body.style.overflow
@@ -164,17 +195,19 @@ export function useMapFullscreen({
     return () => { document.body.style.overflow = prev }
   }, [expanded])
 
-  // WHY THE TAB CANNOT BE LEFT WHILE A MAP IS EXPANDED, which is what makes the
-  // three FR-24 exits the complete set. The panel is `position: fixed; inset: 0`
-  // at z-index 1200 with an opaque ground, and neither `.sr-header` nor the tab
-  // nav is positioned or z-indexed, so the chrome is painted under it and takes
-  // no clicks; the trap below holds Tab inside the overlay, so the tab nav and
-  // the z-index-1300 skip link are unreachable by keyboard too. Every remaining
-  // way out is an in-map action, and each has its exit above. If that ever
-  // stopped being true — a positioned header, a new always-on-top control — the
-  // body scroll lock would outlive the tab it belongs to, so this is stated
-  // rather than left to be re-derived. It is also the one assumption here that
-  // only a browser can confirm.
+  // THE TAB CAN BE LEFT WHILE A MAP IS EXPANDED, and the tab-showing input above
+  // is what makes that safe. The original argument here was that it could not:
+  // the panel is `position: fixed; inset: 0` at z-index 1200 with an opaque
+  // ground, the chrome is painted under it, and the trap below holds Tab inside
+  // the overlay, so every way out was an in-map action with its own exit. Search
+  // (Cmd-K) broke that premise without touching the chrome: it is a later modal
+  // that opens above the map and can choose a destination on another tab, and a
+  // destination that changes nothing in this tab (a location, from any of the
+  // three hosts; a species, from Statistics or a Named Birds card) left the
+  // scroll lock on the page over the destination tab and the map expanded on
+  // return (visited-hotspots-in-search QA-28, measured in Chromium and WebKit).
+  // Since E-09 the lock is tied to the tab showing, so no route out can leave it
+  // behind, whatever the next new route is.
   //
   // Unlike the Map Explorer, the surface behind this overlay is a live page in
   // the same panel rather than a `display: none` sibling, so the trap cannot
