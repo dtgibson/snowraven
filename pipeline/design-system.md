@@ -739,6 +739,30 @@ italic at 0.71875rem `--sr-text-gray`.
   (`var(--sr-ms-date)`) so the tier mapping stays in the stylesheet. No
   decorative affirmations: a check on a set that only shows achieved items says
   nothing. `.sr-ms-*` is the exemplar.
+- **Opening summary card (a scoped report's own figures, counts over dated
+  facts):** a SectionCard with its own section head directly under the report's
+  header, holding two definition lists in a column 14px apart, and repeating no
+  figure the header shows. **Counts are tiles:** the header's micro-caps figure
+  label over a 1.25rem / 700 tabular figure in `--sr-text` (never the accent,
+  which stays the header's), a word unit at 0.8125rem / 600 after it, and the
+  denominator beneath in the 0.71875rem `--sr-text-muted` note register,
+  wrapping freely; nothing in a tile is `nowrap`. The grid is
+  `repeat(auto-fit, minmax(min(8rem, 100%), 1fr))`: `auto-fit`, unlike the
+  uniform badge set, because these tiles are not one set of equals and three
+  should stretch across a wide card rather than sit in three of seven tracks.
+  **Dated or linked facts are term-and-value rows** (a muted 8.75rem term
+  beside its value, wrapping apart when they must) on
+  `repeat(auto-fit, minmax(min(max(19rem, 34%), 100%), 1fr))`, where the 34%
+  term caps the grid at two columns with no query; each row's rule is on its
+  TOP edge, with no bottom rule, so the first row's rule divides the facts from
+  the tiles and a self-collapsing grid leaves no stray line under its last row.
+  Every figure states its denominator. A figure that would only restate what a
+  thin scope already shows is withheld rather than drawn trivially (days and
+  years at one dated checklist, a longest gap below three dates, a first and a
+  newest that share a date); with no tile left the facts stand alone in one
+  column with no rule above the first row. Both track minimums are measured in
+  the built app at every shipped text scale. Hotspot Reports' At a glance card
+  (`.sr-hsr-glance`) is the exemplar. No new tokens.
 - **Distribution rows (a set of named bands, each with a count and a bar):** one row
   per band, always every band, in a fixed domain order that does not re-sort with the
   data. Desktop is a four-column grid `auto minmax(0, 8.5rem) minmax(0, 1fr) auto` --

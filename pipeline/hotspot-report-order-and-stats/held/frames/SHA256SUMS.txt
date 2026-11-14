@@ -1,0 +1,12 @@
+21dcc6b84c49daa717cb0699c670623768f52a9850bbf7d85511b9990f3984bc  website-hotspot-reports.after.webp
+c9078338df049306390ace801271ac7603e29aa217e0c5f0f5902b886ee471d9  website-hotspot-reports.before.webp
+2ce35745e4255db03de49474e1681445155c4acadf1bb45d8bef3f71a94590ae  appstore-ipad-13-07-hotspot-reports.after.png
+27591d4cdc0bbfa31649f3826a2602cc15dd88ba303444267b2e5d8b587918df  appstore-ipad-13-07-hotspot-reports.before.png
+fce84ebba80d6a7738b7703b459d56f8d446386fd7b493a9081f6eabf1eb6d52  appstore-iphone-6.9-07-hotspot-reports.after.png
+ddc080b6fc250723266c276586540001396cf21e8fd5b4a81f0ef6a4c79ae8fc  appstore-iphone-6.9-07-hotspot-reports.before.png
+7da55063cabc91fe5986ec31b1ffd61a41ee6ad78191617b5519d19e031470f2  appstore-iphone-duo-07-hotspot-reports.after.png
+71c6cce310a1d0c85610013dc9517bf40ea42b260b656336e1bf45a39d70d6f4  appstore-iphone-duo-07-hotspot-reports.before.png
+2d459f5505829c20779c180cdeb5dd724302cfc3578db953ecf6cbf75dd95c40  raw/ipad-13-07-hotspot-reports.raw.after.png
+dadab7b57735281daf5fe2609f6ff149f1c58a9dfacbffdfddcf9f8e59247bbf  raw/iphone-6.9-07-hotspot-reports.raw.after.png
+495e9d59a82120789b11c1b541a3cae90c1a140c74695d16d877393fc8d171fa  raw/iphone-duo-07-hotspot-reports.raw.after.png
+716f026df95380e5e73390f21201d934dfea7177a8f7534f5170f3e184e89e54  raw/website-hotspot-reports-light.raw.after.png

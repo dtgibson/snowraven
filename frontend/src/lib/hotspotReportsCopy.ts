@@ -14,6 +14,9 @@
 
 import { TAB_LABELS } from './tabLayout'
 import type { KindReason } from './hotspotReportsKind'
+import { formatDate, formatDateRange } from './formatDate'
+import { KM_TO_MI } from './birdingStats'
+import { TOP_SPECIES_MAX } from './hotspotReportsLocation'
 
 export { SHOW_NEXT_LABEL, showAllLabel, showingLabel } from './lifeListsCopy'
 
@@ -144,22 +147,31 @@ export const RULE_SENTENCE =
   `Counted as ${TAB_LABELS['life-lists']} counts: subspecies fold into their species, and spuhs, slashes, hybrids, and species the exotic status check on ${TAB_LABELS['birding-stats']} found to be escapees are left out. ${TAB_LABELS['birding-stats']} and ${TAB_LABELS['map-explorer']} count a place by their own rules, so their numbers for this place can differ.`
 
 export const JUMP_NAV_LABEL = 'Jump to section'
-export type ReportSection = 'list' | 'map' | 'protocols' | 'weather' | 'visits'
-/** The sections below the header, in reading order (FR-31). */
-export const REPORT_SECTIONS: readonly ReportSection[] = ['list', 'map', 'protocols', 'weather', 'visits']
+export type ReportSection = 'glance' | 'map' | 'visits' | 'weather' | 'protocols' | 'top' | 'list'
+/** The sections below the header, in reading order at every width (FR-31 as
+ *  modified by hotspot-report-order-and-stats): the opening figures first, the
+ *  life list last. `top` is drawn only where it has something to rank. */
+export const REPORT_SECTIONS: readonly ReportSection[] = ['glance', 'map', 'visits', 'weather', 'protocols', 'top', 'list']
+/** The sections after the jump row, in reading order. Every one has a chip and
+ *  nothing before the row does (D-02). */
+export type JumpSection = Exclude<ReportSection, 'glance'>
+export const JUMP_SECTIONS: readonly JumpSection[] = ['map', 'visits', 'weather', 'protocols', 'top', 'list']
 export const SECTION_TITLES: Readonly<Record<ReportSection, string>> = {
-  list: 'Life list',
+  glance: 'At a glance',
   map: 'Map',
-  protocols: 'Checklists by protocol',
-  weather: 'Weather on your visits',
   visits: 'Visits and media',
-}
-export const JUMP_CHIPS: Readonly<Record<ReportSection, string>> = {
+  weather: 'Weather on your visits',
+  protocols: 'Checklists by protocol',
+  top: 'Most-recorded species',
   list: 'Life list',
+}
+export const JUMP_CHIPS: Readonly<Record<JumpSection, string>> = {
   map: 'Map',
-  protocols: 'Protocols',
-  weather: 'Weather',
   visits: 'Visits',
+  weather: 'Weather',
+  protocols: 'Protocols',
+  top: 'Most recorded',
+  list: 'Life list',
 }
 
 // The life list (FR-37, FR-38)
@@ -242,14 +254,85 @@ export const WEATHER_GROUPS = {
 export const MOST_COMMON = 'Most common: '
 export const TOO_FEW_TYPICAL = 'Too few to name a most common one.'
 
-// Visits and media (FR-51 to FR-55)
+// At a glance (hotspot-report-order-and-stats design-refinement "At a glance")
+
+/** The tile labels, in the order drawn. The register uppercases them on
+ *  screen; the text itself is sentence case. */
+export const TILE_LABELS = {
+  days: 'Days birded',
+  years: 'Years birded',
+  perHour: 'Species per hour',
+  once: 'Recorded once',
+  gap: 'Longest gap',
+} as const
+/** Days birded's denominator: all dated, or "{D} of {C} checklists with a valid date". */
+export function daysNote(dated: number, total: number): string {
+  return dated === total
+    ? `from ${formatCount(dated)} dated ${plural(dated, 'checklist', 'checklists')}`
+    : `from ${formatCount(dated)} of ${formatCount(total)} ${plural(total, 'checklist', 'checklists')} with a valid date`
+}
+/** Years birded's line: the span, or the one year. */
+export function yearsNote(first: number, last: number): string {
+  return first === last ? String(first) : `${first} to ${last}`
+}
+/** A rate to one decimal ("18.4"), with locale grouping. */
+export function perHourFigure(mean: number): string {
+  return mean.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+}
+/** Species per hour's denominator (decisions.md D-03). `aboveZero` when it rests
+ *  on fewer checklists than Time birded, so the two denominators never read as
+ *  a disagreement. */
+export function perHourNote(counted: number, total: number, aboveZero: boolean): string {
+  const tail = aboveZero ? 'with a duration above zero' : 'with a duration'
+  return counted === 1
+    ? `from the 1 checklist here ${tail}`
+    : `averaged over ${formatCount(counted)} of ${formatCount(total)} ${plural(total, 'checklist', 'checklists')} ${tail}`
+}
+/** Recorded once's line. Drawn only with two or more species. */
+export function onceNote(species: number): string {
+  return `of ${formatCount(species)} species, each on 1 checklist`
+}
+/** Longest gap's unit, a word after the figure. */
+export function gapUnit(days: number): string {
+  return plural(days, 'day', 'days')
+}
+/**
+ * Longest gap's line, the two dates either side: "Jun 11 to Aug 27, 2016" in one
+ * year, "Dec 20, 2019 to Feb 3, 2020" across two, following the date-format
+ * preference. It is `formatDateRange`'s shared collapse with "to" for its
+ * separator; should that separator ever change, the two dates are written whole.
+ */
+export function gapNote(fromIso: string, toIso: string): string {
+  const range = formatDateRange(fromIso, toIso)
+  const sep = ' \u2013 '
+  const at = range.indexOf(sep)
+  if (at < 0 || range.indexOf(sep, at + 1) >= 0) return `${formatDate(fromIso)} to ${formatDate(toIso)}`
+  return `${range.slice(0, at)} to ${range.slice(at + sep.length)}`
+}
+
+/** A distance in kilometers as miles to one decimal, always "miles" (so no "1
+ *  miles"); a total above zero that rounds to 0.0 reads "less than 0.1 miles"
+ *  (D-02: summed in kilometers, converted once here with the shared KM_TO_MI). */
+export function milesLabel(km: number): string {
+  const text = (km * KM_TO_MI).toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+  return km > 0 && text === '0.0' ? 'less than 0.1 miles' : `${text} miles`
+}
+/** Distance traveled's denominator, with the average when more than one recorded one. */
+export function distanceNote(counted: number, total: number, km: number): string {
+  const head = `over ${formatCount(counted)} of ${formatCount(total)} ${plural(total, 'checklist', 'checklists')} that recorded a distance`
+  return counted > 1 ? `${head}, ${milesLabel(km / counted)} on average` : head
+}
 
 export const FACT_TERMS = {
   first: 'First visit',
   latest: 'Latest visit',
   only: 'Only visit',
   time: 'Time birded',
+  distance: 'Distance traveled',
   biggest: 'Most species on one checklist',
+  firstSpecies: 'First species here',
+  newestSpecies: 'Newest species here',
+  onlySpecies: 'Only species here',
 } as const
 export const NO_DATED = 'None of your checklists here has a valid date.'
 export const NO_DURATION = 'None of your checklists here recorded a duration.'
@@ -262,14 +345,36 @@ export function hoursMinutes(totalMinutes: number): string {
   const hours = `${formatCount(h)} ${plural(h, 'hour', 'hours')}`
   return r === 0 ? hours : `${hours} ${r} ${plural(r, 'minute', 'minutes')}`
 }
-export function timeBirdedNote(counted: number, total: number): string {
-  return `over ${formatCount(counted)} of ${formatCount(total)} ${plural(total, 'checklist', 'checklists')} that recorded a duration`
+/** FR-53's denominator, with the average length (minutes over counted, in the
+ *  same form) when more than one checklist recorded a duration. */
+export function timeBirdedNote(counted: number, total: number, minutes: number): string {
+  const head = `over ${formatCount(counted)} of ${formatCount(total)} ${plural(total, 'checklist', 'checklists')} that recorded a duration`
+  return counted > 1 ? `${head}, ${hoursMinutes(minutes / counted)} on average` : head
 }
 /** FR-54: "{n} species" then the dated checklist link. */
 export function biggestLabel(species: number): string {
   return `${formatCount(species)} species`
 }
 export const BIGGEST_JOIN = ' on '
+
+// Most-recorded species (design-refinement "Most-recorded species")
+
+/** The lead line: the ten of more than ten, or all of two to ten. "ten" is
+ *  TOP_SPECIES_MAX in words; the suite holds the two together. */
+export function topLead(species: number, checklists: number): string {
+  const c = `${formatCount(checklists)} ${plural(checklists, 'checklist', 'checklists')}`
+  return species > TOP_SPECIES_MAX
+    ? `The ten species on the most of your ${c} here.`
+    : `Your ${formatCount(species)} species here, by how many of your ${c} here include each.`
+}
+/** Between a row's checklist figure and its share; `aria-hidden` on screen. */
+export const TOP_SHARE_SEP = ' \u00b7'
+/** The one-species form after the bird's name: "{Bird} is the only species here, on {n} of {C} checklists." */
+export function soleTopTail(n: number, checklists: number): string {
+  return ` is the only species here, on ${formatCount(n)} of ${formatCount(checklists)} ${plural(checklists, 'checklist', 'checklists')}.`
+}
+
+// Visits and media (FR-52, FR-55)
 export const MONTHS_TITLE = 'Visits by month'
 export const YEARS_TITLE = 'Visits by year'
 /** FR-52's denominator: all dated, or "{dated} of {C} checklists with a valid date". */

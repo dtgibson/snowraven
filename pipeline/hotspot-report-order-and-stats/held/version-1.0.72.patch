@@ -1,0 +1,167 @@
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index 1c4e5a7..060c823 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -2,6 +2,20 @@
+ 
+ All notable changes to SnowRaven are documented here.
+ 
++## [1.0.72] - 2026-11-13
++
++### Changed
++- **Hotspot Reports now opens each place's report with an at a glance summary and puts the life list last.** At a glance gathers the place's own figures, and a short most-recorded species list sits just above the life list. Nothing new is looked up online or saved.
++
++### Fixed
++- On a phone with large text, long bird names in a place's life list now wrap instead of running into the checklist link beside them.
++
++### Internal
++- `lib/hotspotReportsLocation.ts` derives the new figures from fields the report already reads, under the tab's one species rule, and `docs/HELP.md` describes the new order and the figures.
++- `website/tools/verify/verify-hotspot-reports.mjs` covers the new order, all four text sizes and phone widths; its budget in the verification gate rises to 1,800 seconds, and the CI job's bound to 90 minutes.
++- The website's Hotspot Reports screenshot and the three App Store Hotspot Reports frames are recaptured from the demo data.
++- The F-Droid changelog for this release is three identical files, one per processor-type build (`10000721.txt`, `10000722.txt`, `10000724.txt`), and the in-repo F-Droid recipe names 1.0.72.
++
+ ## [1.0.71] - 2026-11-11
+ 
+ ### Added
+diff --git a/fastlane/metadata/android/en-US/changelogs/10000721.txt b/fastlane/metadata/android/en-US/changelogs/10000721.txt
+new file mode 100644
+index 0000000..4d0f73a
+--- /dev/null
++++ b/fastlane/metadata/android/en-US/changelogs/10000721.txt
+@@ -0,0 +1 @@
++Hotspot Reports now opens each place's report with an at a glance summary and puts the life list last.
+diff --git a/fastlane/metadata/android/en-US/changelogs/10000722.txt b/fastlane/metadata/android/en-US/changelogs/10000722.txt
+new file mode 100644
+index 0000000..4d0f73a
+--- /dev/null
++++ b/fastlane/metadata/android/en-US/changelogs/10000722.txt
+@@ -0,0 +1 @@
++Hotspot Reports now opens each place's report with an at a glance summary and puts the life list last.
+diff --git a/fastlane/metadata/android/en-US/changelogs/10000724.txt b/fastlane/metadata/android/en-US/changelogs/10000724.txt
+new file mode 100644
+index 0000000..4d0f73a
+--- /dev/null
++++ b/fastlane/metadata/android/en-US/changelogs/10000724.txt
+@@ -0,0 +1 @@
++Hotspot Reports now opens each place's report with an at a glance summary and puts the life list last.
+diff --git a/frontend/package-lock.json b/frontend/package-lock.json
+index 484da69..4e88ddb 100644
+--- a/frontend/package-lock.json
++++ b/frontend/package-lock.json
+@@ -1,12 +1,12 @@
+ {
+   "name": "frontend",
+-  "version": "1.0.71",
++  "version": "1.0.72",
+   "lockfileVersion": 3,
+   "requires": true,
+   "packages": {
+     "": {
+       "name": "frontend",
+-      "version": "1.0.71",
++      "version": "1.0.72",
+       "license": "AGPL-3.0-only",
+       "dependencies": {
+         "@tauri-apps/api": "^2",
+diff --git a/frontend/package.json b/frontend/package.json
+index fc00491..29f8e11 100644
+--- a/frontend/package.json
++++ b/frontend/package.json
+@@ -1,7 +1,7 @@
+ {
+   "name": "frontend",
+   "private": true,
+-  "version": "1.0.71",
++  "version": "1.0.72",
+   "license": "AGPL-3.0-only",
+   "type": "module",
+   "engines": {
+diff --git a/pipeline/android-release/fdroid/com.dtgibson.snowraven.yml b/pipeline/android-release/fdroid/com.dtgibson.snowraven.yml
+index f5b7541..dee6bd1 100644
+--- a/pipeline/android-release/fdroid/com.dtgibson.snowraven.yml
++++ b/pipeline/android-release/fdroid/com.dtgibson.snowraven.yml
+@@ -19,8 +19,8 @@ RepoType: git
+ Repo: https://github.com/dtgibson/snowraven.git
+ 
+ Builds:
+-  - versionName: 1.0.71
+-    versionCode: 10000711
++  - versionName: 1.0.72
++    versionCode: 10000721
+     commit: 2ac51b1ca1ba2b644ed0e90346f6c23dac5f7a52
+     timeout: 10800
+     sudo:
+@@ -44,8 +44,8 @@ Builds:
+     build: sh scripts/android/build-apk.sh
+     ndk: r27c
+ 
+-  - versionName: 1.0.71
+-    versionCode: 10000712
++  - versionName: 1.0.72
++    versionCode: 10000722
+     commit: 2ac51b1ca1ba2b644ed0e90346f6c23dac5f7a52
+     timeout: 10800
+     sudo:
+@@ -69,8 +69,8 @@ Builds:
+     build: sh scripts/android/build-apk.sh
+     ndk: r27c
+ 
+-  - versionName: 1.0.71
+-    versionCode: 10000714
++  - versionName: 1.0.72
++    versionCode: 10000724
+     commit: 2ac51b1ca1ba2b644ed0e90346f6c23dac5f7a52
+     timeout: 10800
+     sudo:
+@@ -101,5 +101,5 @@ VercodeOperation:
+   - 10 * %c + 2
+   - 10 * %c + 4
+ UpdateCheckData: src-tauri/tauri.conf.json|"versionCode":\s*(\d+)|.|"version":\s*"([\d.]+)"
+-CurrentVersion: 1.0.71
+-CurrentVersionCode: 10000714
++CurrentVersion: 1.0.72
++CurrentVersionCode: 10000724
+diff --git a/src-tauri/tauri.conf.json b/src-tauri/tauri.conf.json
+index c3a666f..2468c13 100644
+--- a/src-tauri/tauri.conf.json
++++ b/src-tauri/tauri.conf.json
+@@ -1,7 +1,7 @@
+ {
+   "$schema": "https://schema.tauri.app/config/2",
+   "productName": "SnowRaven",
+-  "version": "1.0.71",
++  "version": "1.0.72",
+   "identifier": "com.snowraven",
+   "build": {
+     "frontendDist": "../frontend/dist",
+@@ -77,7 +77,7 @@
+       "minimumSystemVersion": "16.0"
+     },
+     "android": {
+-      "versionCode": 1000071
++      "versionCode": 1000072
+     },
+     "icon": [
+       "icons/32x32.png",
+diff --git a/website/index.html b/website/index.html
+index 02059eb..99fdf49 100644
+--- a/website/index.html
++++ b/website/index.html
+@@ -45,7 +45,7 @@
+       <a class="brand" href="#top" aria-label="SnowRaven home">
+         <img class="brand-mark" src="assets/logo.svg" alt="" width="28" height="28" />
+         <span class="brand-name">Snow<span class="brand-accent">Raven</span></span>
+-        <span class="version-pill" aria-label="Version 1.0.71">v1.0.71</span>
++        <span class="version-pill" aria-label="Version 1.0.72">v1.0.72</span>
+       </a>
+ 
+       <nav class="primary-nav" aria-label="Primary">
+@@ -562,7 +562,7 @@
+         Tides from NOAA Tides &amp; Currents. The weather lookup mirrors the format pioneered by
+         <a href="https://raincrow.app" target="_blank" rel="noopener">raincrow.app</a>.
+       </p>
+-      <p class="footer-version">SnowRaven v1.0.71 · Free &amp; open source</p>
++      <p class="footer-version">SnowRaven v1.0.72 · Free &amp; open source</p>
+     </div>
+   </footer>
+ </body>

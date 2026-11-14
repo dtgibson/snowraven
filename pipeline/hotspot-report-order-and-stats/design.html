@@ -1,0 +1,976 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Hotspot report order and stats: design direction (SnowRaven)</title>
+<style>
+/* ============================================================================
+   TOKENS. Copied verbatim from frontend/src/globals.css (:root and
+   [data-theme="dark"]), the subset this surface touches. Every color below
+   this block is a var(--sr-*) reference; nothing is minted for this change.
+   ========================================================================== */
+:root {
+  --sr-text-scale: 1;
+  --sr-ctl-floor: 16px;
+  --sr-label-optical: calc(11 / 12);
+
+  --sr-bg: #F9FAFB;
+  --sr-surface: #FFFFFF;
+  --sr-surface-subtle: #F4F4F5;
+  --sr-surface-faint: #FAFAFA;
+
+  --sr-text: #0F1117;
+  --sr-text-muted: #6B6B74;
+  --sr-text-disabled: #A1A1AA;
+  --sr-text-gray: #6B7280;
+
+  --sr-border: #E4E4E7;
+  --sr-border-subtle: #F4F4F5;
+  --sr-border-medium: #C4C4CE;
+  --sr-border-input: #8A8A91;
+
+  --sr-accent: #277448;
+  --sr-accent-strong: #1A5C38;
+  --sr-accent-bg: #E8F5EE;
+  --sr-accent-border: rgba(39,116,72,0.25);
+  --sr-accent-border-strong: rgba(39,116,72,0.7);
+  --sr-on-accent: #FFFFFF;
+
+  --sr-chart-slate: #94A3B8;
+  --sr-map-pin-visited: #2D8653;
+  --sr-map-pin-stroke: #3F3F46;
+  --sr-switch-thumb: #FFFFFF;
+
+  --sr-card-shadow: 0 1px 4px rgba(15,17,23,0.06), 0 4px 16px rgba(15,17,23,0.04);
+
+  --font-sans: 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
+
+  /* Mockup only: a drawn stand-in for the always-light basemap. */
+  --mk-map-land: #EEF0EA; --mk-map-water: #C9DCEA; --mk-map-park: #DCE9D2;
+  --mk-map-road: #FFFFFF; --mk-map-edge: #D3D6CF; --mk-map-ctl: #FFFFFF; --mk-map-ink: #3F3F46;
+}
+[data-theme="dark"] {
+  --sr-bg: #09090B;
+  --sr-surface: #18181B;
+  --sr-surface-subtle: #27272A;
+  --sr-surface-faint: #1C1C1F;
+
+  --sr-text: #F4F4F5;
+  --sr-text-muted: #A1A1AA;
+  --sr-text-disabled: #52525B;
+  --sr-text-gray: #8A8A92;
+
+  --sr-border: #27272A;
+  --sr-border-subtle: #1F1F23;
+  --sr-border-medium: #3F3F46;
+  --sr-border-input: #707078;
+
+  --sr-accent: #34D399;
+  --sr-accent-strong: #34D399;
+  --sr-accent-bg: #052E16;
+  --sr-accent-border: rgba(52,211,153,0.2);
+  --sr-accent-border-strong: rgba(52,211,153,0.5);
+  --sr-on-accent: #052E16;
+
+  --sr-chart-slate: #94A3B8;
+  --sr-map-pin-visited: #2D8653;
+  --sr-map-pin-stroke: #3F3F46;
+  --sr-switch-thumb: #FFFFFF;
+
+  --sr-card-shadow: 0 1px 4px rgba(2,2,4,0.4), 0 4px 16px rgba(2,2,4,0.25);
+}
+
+/* ============================================================================
+   BASE. The app's html/body rules, the global focus ring, .sr-only, and the
+   global reduced-motion block.
+   ========================================================================== */
+*, *::before, *::after { box-sizing: border-box; }
+html { background-color: var(--sr-bg); font-size: calc(100% * var(--sr-text-scale, 1)); }
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--sr-text);
+  background-color: var(--sr-bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+button { font: inherit; color: inherit; }
+svg { display: block; }
+h1, h2, h3, h4, p, dl, dd { margin: 0; }
+ol, ul { margin: 0; padding: 0; list-style: none; }
+button:focus-visible, a:focus-visible, [tabindex]:focus-visible {
+  outline: 3px solid var(--sr-accent);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 6px rgba(45, 134, 83, 0.12);
+}
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border-width: 0; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+}
+
+/* ============================================================================
+   SHIPPED, UNCHANGED. Copied from frontend/src/globals.css as built in 1.0.71:
+   the tab panel, the tab header, the picker's closed field, the report's
+   cards, header band, jump chips, life list, map, facts, media, and the shared
+   pieces they stand on (BirdName, ChecklistLink, HotspotLink, the distribution
+   row, the Life Lists pager).
+   ========================================================================== */
+.sr-panel { margin-inline: auto; width: 100%; display: flex; flex-direction: column; align-items: center; padding: 40px 24px 24px; }
+.sr-panel > * { width: 100%; max-width: 1100px; }
+.sr-touch-target { display: inline-flex; align-items: center; justify-content: center; }
+
+.sr-hsr-tab { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.sr-hsr-head { display: flex; align-items: flex-start; gap: 10px; }
+.sr-hsr-head-tile { width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0; background: var(--sr-accent-bg); color: var(--sr-accent); display: flex; align-items: center; justify-content: center; }
+.sr-hsr-head h2 { font-size: 1.125rem; font-weight: 700; margin: 0 0 2px; color: var(--sr-text); letter-spacing: -0.01em; }
+.sr-hsr-head p { font-size: 0.8125rem; color: var(--sr-text-muted); margin: 0; line-height: 1.5; }
+.sr-hsr-pickrow { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; min-width: 0; }
+.sr-hsr-label { font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--sr-text-muted); --sr-ctl-rem: 0.875rem; --sr-label-ratio: var(--sr-label-optical); }
+.sr-hsr-picker { position: relative; flex: 0 1 34rem; min-width: 0; }
+.sr-hsr-field { display: flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 4px 0 12px; border: 1.5px solid var(--sr-border-input); border-radius: 8px; background: var(--sr-surface); color: var(--sr-text); }
+.sr-hsr-field-glyph { flex-shrink: 0; color: var(--sr-text-muted); }
+.sr-hsr-input { flex: 1 1 auto; min-width: 0; font-size: 0.875rem; --sr-ctl-rem: 0.875rem; font-weight: 600; padding: 7px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sr-hsr-chev { flex-shrink: 0; width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; color: var(--sr-text-muted); border-radius: 6px; }
+
+.sr-hsr-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 0 6px; font-size: 0.71875rem; line-height: 1.45; color: var(--sr-text-muted); min-width: 0; }
+.sr-hsr-meta > span { display: inline-flex; align-items: center; gap: 6px; min-width: 0; overflow-wrap: anywhere; }
+.sr-hsr-dot { color: var(--sr-text-muted); }
+.sr-hsr-kind { display: inline-flex; align-items: center; gap: 4px; font-weight: 600; color: var(--sr-text-muted); min-width: 0; }
+.sr-hsr-kind-glyph { flex-shrink: 0; }
+.sr-hsr-card { background: var(--sr-surface); border: 1px solid var(--sr-border); border-radius: 12px; overflow: hidden; box-shadow: var(--sr-card-shadow); min-width: 0; }
+.sr-hsr-sechead { display: flex; align-items: center; gap: 8px; padding: 14px 18px 12px; border-bottom: 1px solid var(--sr-border-subtle); }
+.sr-hsr-sectile { width: 28px; height: 28px; border-radius: 7px; flex-shrink: 0; background: var(--sr-accent-bg); color: var(--sr-accent); display: flex; align-items: center; justify-content: center; }
+.sr-hsr-sechead h4 { font-size: 0.8125rem; font-weight: 600; color: var(--sr-text); margin: 0; outline: none; scroll-margin-top: 72px; }
+.sr-hsr-secbody { padding: 14px 18px 16px; }
+.sr-hsr-sub { font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--sr-text-muted); margin: 0; }
+.sr-hsr-divider { height: 1px; background: var(--sr-border-subtle); margin: 14px 0; }
+.sr-hsr-body-text { font-size: 0.8125rem; line-height: 1.55; color: var(--sr-text); margin: 0; overflow-wrap: break-word; }
+.sr-hsr-body-text b { font-weight: 600; font-variant-numeric: tabular-nums; }
+.sr-hsr-note { font-size: 0.71875rem; line-height: 1.5; color: var(--sr-text-muted); margin: 0; }
+.sr-hsr-note b { font-weight: 600; color: var(--sr-text); font-variant-numeric: tabular-nums; }
+.sr-hsr-grouphead { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 2px 12px; margin: 0 0 4px; min-width: 0; }
+.sr-hsr-den { font-size: 0.6875rem; color: var(--sr-text-muted); }
+.sr-hsr-den b { color: var(--sr-text); font-weight: 600; font-variant-numeric: tabular-nums; }
+.sr-hsr-typical { font-size: 0.75rem; line-height: 1.5; color: var(--sr-text-muted); margin: 0 0 8px; }
+.sr-hsr-typical b { color: var(--sr-text); font-weight: 600; }
+.sr-hsr-tab .sr-wx-row.is-typical .sr-wx-label { font-weight: 700; }
+.sr-hsr-proto .sr-wx-label { white-space: normal; overflow-wrap: anywhere; text-overflow: clip; }
+.sr-hsr-proto .sr-wx-row { align-items: start; }
+.sr-hsr-proto .sr-wx-track { margin-top: 0.3rem; }
+
+.sr-hsr-report { container-type: inline-size; container-name: sr-hsr-report; display: flex; flex-direction: column; gap: 16px; }
+.sr-hsr-hero { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 16px 36px; padding: 20px 22px; }
+.sr-hsr-ident { flex: 1 1 22rem; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.sr-hsr-eyebrow { font-size: 0.6875rem; letter-spacing: 0.06em; text-transform: uppercase; }
+.sr-hsr-name { font-size: 1.375rem; font-weight: 700; letter-spacing: -0.015em; line-height: 1.25; margin: 0; color: var(--sr-text); overflow-wrap: anywhere; outline: none; scroll-margin-top: 72px; }
+.sr-hsr-totals { flex: 1 1 20rem; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.sr-hsr-figs { display: flex; flex-wrap: wrap; gap: 8px 32px; }
+.sr-hsr-fig { display: flex; flex-direction: column; min-width: 0; }
+.sr-hsr-fig-label { font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: var(--sr-text-muted); margin-bottom: 2px; }
+.sr-hsr-fig-value { font-size: 1.625rem; font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; color: var(--sr-text); font-variant-numeric: tabular-nums; }
+.sr-hsr-fig-value--key { color: var(--sr-accent); }
+.sr-hsr-rule { font-size: 0.71875rem; line-height: 1.5; color: var(--sr-text-muted); max-width: 62ch; margin: 0; }
+.sr-hsr-jump { display: none; flex-wrap: wrap; gap: 6px; }
+.sr-hsr-chip { font-size: 0.71875rem; font-weight: 500; color: var(--sr-text-muted); text-decoration: none; padding: 4px 10px; border-radius: 100px; background: var(--sr-surface-subtle); border: 1px solid var(--sr-border); white-space: nowrap; }
+.sr-hsr-body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 24rem); gap: 16px; align-items: start; }
+.sr-hsr-rail { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+@container sr-hsr-report (max-width: 53.25em) {
+  .sr-hsr-body { grid-template-columns: minmax(0, 1fr); }
+  .sr-hsr-jump { display: flex; }
+}
+.sr-hsr-lead { padding: 12px 18px 11px; border-bottom: 1px solid var(--sr-border-subtle); }
+.sr-hsr-count { font-size: 0.8125rem; line-height: 1.5; color: var(--sr-text-muted); margin: 0; outline: none; }
+.sr-hsr-count b { font-weight: 700; color: var(--sr-text); font-variant-numeric: tabular-nums; }
+.sr-hsr-ll { container-type: inline-size; container-name: sr-hsr-ll; }
+.sr-hsr-ll-list { list-style: none; margin: 0; padding: 0; }
+.sr-hsr-ll-row, .sr-hsr-ll-cols {
+  display: grid;
+  grid-template-columns: 2.5rem minmax(0, 1fr) 5.6rem 1.5rem 5.25rem;
+  grid-template-areas: "num name date link on";
+  column-gap: 14px; row-gap: 2px; align-items: start;
+  padding: 11px 18px 12px;
+  border-bottom: 1px solid var(--sr-border-subtle);
+}
+.sr-hsr-ll-row:last-child { border-bottom: 0; }
+.sr-hsr-ll-cols { padding-top: 7px; padding-bottom: 7px; background: var(--sr-surface-faint); font-size: 0.625rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--sr-text-muted); }
+.sr-hsr-ll-cols .c-name { grid-area: name; }
+.sr-hsr-ll-cols .c-date { grid-area: date; }
+.sr-hsr-ll-cols .c-on { grid-area: on; text-align: right; }
+.sr-hsr-ll-num { grid-area: num; font-size: 0.75rem; color: var(--sr-text-muted); text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; padding-top: 2px; }
+.sr-hsr-ll-name { grid-area: name; min-width: 0; padding-top: 1px; }
+.sr-hsr-ll-name .sr-birdname { width: 100%; max-width: 100%; }
+.sr-hsr-ll-name .sr-birdname-row { flex-wrap: wrap; }
+.sr-hsr-ll-name .sr-birdname-sci { white-space: normal; overflow-wrap: anywhere; }
+.sr-hsr-ll-meta { display: contents; }
+.sr-hsr-ll-date { grid-area: date; font-size: 0.75rem; font-weight: 600; color: var(--sr-text); white-space: nowrap; font-variant-numeric: tabular-nums; padding-top: 2px; }
+.sr-hsr-ll-link { grid-area: link; display: flex; justify-content: center; }
+.sr-hsr-ll-cl { display: inline-flex; width: 1.5rem; height: 1.5rem; }
+.sr-hsr-ll-cl > a { display: inline-flex; align-items: center; width: 100%; height: 100%; justify-content: center; border-radius: 6px; color: var(--sr-accent); transition: background-color 120ms ease-out; }
+.sr-hsr-ll-cl > a:focus-visible { background: var(--sr-accent-bg); outline-offset: 1px; box-shadow: none; }
+.sr-hsr-ll-on { grid-area: on; display: flex; flex-direction: column; align-items: stretch; gap: 4px; padding-top: 2px; min-width: 0; }
+.sr-hsr-ll-on-fig { font-size: 0.75rem; color: var(--sr-text-muted); text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.sr-hsr-ll-on-fig b { font-weight: 600; color: var(--sr-text); }
+.sr-hsr-ll-words { display: none; }
+.sr-hsr-ll-bar { height: 3px; border-radius: 2px; background: var(--sr-border); overflow: hidden; }
+.sr-hsr-ll-bar i { display: block; height: 100%; min-width: 2px; border-radius: 2px; background: var(--sr-chart-slate); }
+.sr-hsr-empty { padding: 26px 18px; font-size: 0.8125rem; color: var(--sr-text-muted); text-align: center; margin: 0; }
+@container sr-hsr-ll (max-width: 28em) {
+  .sr-hsr-ll-cols { display: none; }
+  .sr-hsr-ll-row { grid-template-columns: 1.9rem minmax(0, 1fr) max(44px, 1.5rem); grid-template-areas: "num name link" "num meta link"; column-gap: 8px; }
+  .sr-hsr-ll-meta { grid-area: meta; display: block; min-width: 0; font-size: 0.75rem; line-height: 1.5; color: var(--sr-text-muted); }
+  .sr-hsr-ll-date, .sr-hsr-ll-on { padding-top: 0; }
+  .sr-hsr-ll-date { white-space: normal; }
+  .sr-hsr-ll-on { display: inline; }
+  .sr-hsr-ll-on-fig { white-space: normal; }
+  .sr-hsr-ll-words { display: inline; }
+  .sr-hsr-ll-bar { display: none; }
+  .sr-hsr-ll-link { align-self: center; }
+  .sr-hsr-ll-cl { width: max(44px, 1.5rem); height: max(44px, 1.5rem); }
+}
+.sr-hsr-map { height: 232px; position: relative; background: var(--sr-surface-subtle); }
+.sr-hsr-map svg { width: 100%; height: 100%; }
+.sr-hsr-facts { display: flex; flex-direction: column; margin: 0; }
+.sr-hsr-fact { display: flex; flex-wrap: wrap; gap: 0 12px; padding: 8px 0; border-bottom: 1px solid var(--sr-border-subtle); }
+.sr-hsr-fact:first-child { padding-top: 0; }
+.sr-hsr-fact:last-child { border-bottom: 0; padding-bottom: 0; }
+.sr-hsr-fact dt { flex: 0 0 8.75rem; max-width: 100%; font-size: 0.75rem; line-height: 1.5; color: var(--sr-text-muted); }
+.sr-hsr-fact dd { flex: 1 1 9rem; min-width: 0; margin: 0; font-size: 0.8125rem; line-height: 1.5; color: var(--sr-text); overflow-wrap: break-word; }
+.sr-hsr-fact dd b { font-weight: 600; font-variant-numeric: tabular-nums; }
+.sr-hsr-fact dd small { display: block; font-size: 0.71875rem; color: var(--sr-text-muted); }
+.sr-hsr-media { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 0 0 6px; padding: 0; list-style: none; }
+.sr-hsr-media li { display: inline-flex; align-items: center; gap: 6px; font-size: 0.8125rem; color: var(--sr-text); }
+.sr-hsr-media b { font-weight: 600; font-variant-numeric: tabular-nums; }
+.sr-hsr-media-glyph { flex-shrink: 0; color: var(--sr-text-muted); }
+.sr-hsr-stack { display: flex; flex-direction: column; gap: 10px; }
+.sr-hsr-gap { height: 16px; }
+
+.sr-birdname { display: inline-flex; flex-direction: column; gap: 1px; min-width: 0; vertical-align: top; }
+.sr-birdname-row { display: flex; align-items: center; min-width: 0; }
+.sr-birdname-link { font: inherit; font-weight: 500; color: var(--sr-text); background: none; border: 0; padding: 0; margin: 0; cursor: pointer; text-decoration: none; text-align: left; }
+.sr-birdname-md .sr-birdname-link { font-size: 0.84375rem; }
+.sr-birdname-sci { font-style: italic; color: var(--sr-text-gray); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sr-birdname-md .sr-birdname-sci { font-size: 0.71875rem; }
+.sr-species-links { display: inline-flex; align-items: center; gap: 5px; margin-left: 6px; vertical-align: middle; }
+.sr-species-link { opacity: 0.75; display: inline-flex; align-items: center; padding: 5px; margin: -5px; transition: opacity 120ms ease-out; }
+.sr-species-link:focus-visible { opacity: 1; }
+.sr-favicon-slot { display: inline-flex; width: 14px; height: 14px; align-items: center; justify-content: center; flex-shrink: 0; color: var(--sr-text); }
+.sr-birdname-link:focus-visible { color: var(--sr-accent); text-decoration: underline; }
+.sr-cl-date, .sr-hotlink { color: var(--sr-accent); text-decoration: none; }
+.sr-cl-date { font-weight: 600; white-space: nowrap; }
+.sr-cl-date svg, .sr-hotlink svg { display: inline-block; vertical-align: baseline; margin-left: 4px; }
+.sr-hotlink-last { display: inline-block; white-space: nowrap; }
+
+.sr-wx-row { display: grid; grid-template-columns: auto minmax(0, 8.5rem) minmax(0, 1fr) auto; align-items: center; gap: 0 0.5rem; min-height: 1.375rem; min-width: 0; }
+.sr-wx-row.no-glyph { grid-template-columns: minmax(0, 8.5rem) minmax(0, 1fr) auto; }
+.sr-wx-rows { display: flex; flex-direction: column; gap: 0.25rem; }
+.sr-wx-glyph { font-size: 0.875rem; line-height: 1; width: 1.25rem; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; color: var(--sr-text-muted); }
+.sr-wx-label { font-size: 0.6875rem; color: var(--sr-text); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sr-wx-row.is-zero .sr-wx-label { color: var(--sr-text-muted); }
+.sr-wx-track { height: 8px; border-radius: 4px; background: var(--sr-surface-subtle); overflow: hidden; min-width: 0; }
+.sr-wx-track.is-empty { background: transparent; border: 1px dashed var(--sr-border-medium); height: 8px; }
+.sr-wx-fill { display: block; height: 100%; border-radius: 4px; background: var(--sr-accent); min-width: 3px; width: var(--w, 0%); }
+.mk-enter .sr-wx-fill { animation: sr-wx-grow 300ms cubic-bezier(0.2, 0, 0, 1) both; }
+@keyframes sr-wx-grow { from { width: 0; } to { width: var(--w, 0%); } }
+.sr-wx-count { font-size: 0.6875rem; color: var(--sr-text-muted); text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.sr-wx-count b { color: var(--sr-text); font-weight: 600; }
+.sr-wx-row.is-zero .sr-wx-count b { color: var(--sr-text-muted); font-weight: 400; }
+
+.sr-lfl-paging { display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; padding: 14px 18px; border-top: 1px solid var(--sr-border-subtle); }
+.sr-lfl-next { height: 36px; padding: 0 15px; border-radius: 8px; font-family: inherit; font-size: 0.8125rem; font-weight: 600; cursor: pointer; border: 1px solid var(--sr-border-medium); background: var(--sr-surface); color: var(--sr-text); transition: background-color 120ms ease-out, border-color 120ms ease-out; }
+.sr-lfl-all { height: 36px; padding: 0 15px; border-radius: 8px; font-family: inherit; font-size: 0.8125rem; font-weight: 600; cursor: pointer; border: 1px solid transparent; background: none; color: var(--sr-accent); transition: background-color 120ms ease-out; }
+.sr-lfl-showing { font-size: 0.71875rem; color: var(--sr-text-muted); font-variant-numeric: tabular-nums; }
+
+/* The view's entrance, shipped: 160ms, opacity with a 3px rise, replayed only
+   when the selected place changes (the app runs it through the Web Animations
+   API and skips it under reduced motion). */
+.mk-enter { animation: sr-hsr-in 160ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+@keyframes sr-hsr-in { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+
+@media (hover: hover) {
+  .sr-birdname-link:hover { color: var(--sr-accent); text-decoration: underline; }
+  .sr-species-link:hover { opacity: 1; }
+  .sr-cl-date:hover, .sr-hotlink:hover { text-decoration: underline; }
+  .sr-hsr-ll-cl > a:hover { background: var(--sr-accent-bg); }
+  .sr-lfl-next:hover { background: var(--sr-surface-subtle); }
+  .sr-lfl-all:hover { background: var(--sr-accent-bg); }
+}
+
+/* ============================================================================
+   NEW IN THIS CHANGE. Three additions, all built from registers above.
+   (1) The two columns trade places, so the life list is last in the DOM and
+       last in reading order: the rail of compact sections on the left, the
+       list on the right. Same tracks, same pair of thresholds.
+   (2) The opening figures card, "At a glance": two definition lists, tiles
+       over facts. Counts are tiles in the header band's own figure
+       register (micro-caps label over a figure) one step down, each with its
+       denominator in the note register. Dated and linked facts are the
+       shipped fact rows, moved up from Visits and media.
+   (3) Offered, drawn only when switched on in the review bar: two short
+       ranked lists in the ranked-row register.
+   ========================================================================== */
+.sr-hsr-report--next .sr-hsr-body { grid-template-columns: minmax(0, 24rem) minmax(0, 1fr); }
+@container sr-hsr-report (max-width: 53.25em) {
+  .sr-hsr-report--next .sr-hsr-body { grid-template-columns: minmax(0, 1fr); }
+}
+.sr-hsr-glance { display: flex; flex-direction: column; gap: 14px; }
+/* Tiles: as many 8rem tracks as fit, and a short set stretches across the row
+   (auto-fit), so three figures fill a wide card instead of huddling at its
+   edge. A wrapped last row keeps the tracks of the rows above it. */
+.sr-hsr-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(8rem, 100%), 1fr)); gap: 14px 16px; margin: 0; min-width: 0; }
+/* Facts under the tiles: one column, or two where each can hold a 19rem row.
+   The 34% term caps it at two, so the pairs read across (first and latest
+   visit, time and biggest checklist, first and newest species). DOM order is
+   row order. Each row's rule is on its top edge, so the first row's rule is
+   the divider under the tiles and the last row leaves none behind. */
+.sr-hsr-glance > .sr-hsr-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(max(19rem, 34%), 100%), 1fr)); column-gap: 36px; margin-bottom: -9px; }
+.sr-hsr-glance > .sr-hsr-facts > .sr-hsr-fact { border-bottom: 0; border-top: 1px solid var(--sr-border-subtle); padding: 9px 0; }
+/* No tiles (a place with one undated or untimed visit): the facts stand alone,
+   one column, with no rule above the first. */
+.sr-hsr-glance > .sr-hsr-facts:first-child { grid-template-columns: minmax(0, 1fr); }
+.sr-hsr-glance > .sr-hsr-facts:first-child > .sr-hsr-fact:first-child { border-top: 0; padding-top: 0; }
+.sr-hsr-tile { display: flex; flex-direction: column; min-width: 0; }
+.sr-hsr-tile dt { overflow-wrap: break-word; }
+.sr-hsr-tile-value { font-size: 1.25rem; font-weight: 700; letter-spacing: -0.02em; line-height: 1.15; color: var(--sr-text); font-variant-numeric: tabular-nums; margin: 0 0 3px; }
+.sr-hsr-tile-unit { font-size: 0.8125rem; font-weight: 600; letter-spacing: 0; margin-left: 4px; }
+/* A bird and its date on one fact row: the pair wraps as two items, and the
+   name wraps inside its own cell (the shared BirdName rules stay as they are). */
+.sr-hsr-fact-sp { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 10px; }
+.sr-hsr-fact-sp .sr-birdname { max-width: 100%; }
+.sr-hsr-fact-sp .sr-birdname-row { flex-wrap: wrap; }
+.sr-hsr-toplead { margin-bottom: 10px; }
+.sr-hsr-toplist { list-style: none; margin: 0; padding: 0; }
+.sr-hsr-toprow { display: grid; grid-template-columns: 1.6rem minmax(0, 1fr); column-gap: 10px; align-items: start; padding: 7px 0; border-bottom: 1px solid var(--sr-border-subtle); }
+.sr-hsr-toprow:first-child { padding-top: 0; }
+.sr-hsr-toprow:last-child { border-bottom: 0; padding-bottom: 0; }
+.sr-hsr-top-num { font-size: 0.75rem; color: var(--sr-text-muted); text-align: right; font-variant-numeric: tabular-nums; padding-top: 2px; }
+.sr-hsr-top-main { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.sr-hsr-top-main .sr-birdname { max-width: 100%; }
+.sr-hsr-top-main .sr-birdname-row { flex-wrap: wrap; }
+.sr-hsr-top-fig { font-size: 0.75rem; line-height: 1.5; color: var(--sr-text-muted); }
+.sr-hsr-top-fig b { font-weight: 600; color: var(--sr-text); font-variant-numeric: tabular-nums; }
+
+/* ============================================================================
+   PHONE TIER. In the build these are the app's own @media (max-width: 640px)
+   rules, unchanged. They are scoped to .mk-phone here so the phone frames
+   render on a wide window.
+   ========================================================================== */
+.mk-phone .sr-panel { padding: 20px 24px 16px; }
+.mk-phone .sr-touch-target { min-height: 2.75rem; }
+.mk-phone .sr-hsr-label { font-size: max(calc(var(--sr-ctl-floor) * var(--sr-label-ratio, 1)), calc(var(--sr-ctl-rem, 0.75rem) * var(--sr-label-ratio, 1))); }
+.mk-phone .sr-hsr-input { font-size: max(var(--sr-ctl-floor), var(--sr-ctl-rem, 0.75rem)); }
+.mk-phone .sr-hsr-picker { flex: 1 1 100%; }
+.mk-phone .sr-hsr-field { min-height: 2.75rem; padding-right: 0; }
+.mk-phone .sr-hsr-chev { width: 2.75rem; height: 2.75rem; }
+.mk-phone .sr-hsr-hero { padding: 16px 14px; gap: 14px 24px; }
+.mk-phone .sr-hsr-name { font-size: 1.25rem; }
+.mk-phone .sr-hsr-fig-value { font-size: 1.5rem; }
+.mk-phone .sr-hsr-sechead { padding: 12px 14px 10px; }
+.mk-phone .sr-hsr-secbody { padding: 12px 14px 14px; }
+.mk-phone .sr-hsr-lead { padding: 11px 14px 10px; }
+.mk-phone .sr-hsr-ll-row { padding: 10px 12px 11px; }
+.mk-phone .sr-hsr-map { height: 200px; }
+.mk-phone .sr-hsr-proto .sr-wx-track { margin-top: 0; }
+.mk-phone .sr-hsr-chip { min-height: 2.75rem; }
+.mk-phone .sr-lfl-paging { padding: 12px; }
+.mk-phone .sr-lfl-paging .sr-lfl-next, .mk-phone .sr-lfl-paging .sr-lfl-all { min-height: 2.75rem; height: auto; }
+.mk-phone .sr-wx-row { grid-template-columns: auto minmax(0, 1fr) auto; row-gap: 0.25rem; padding-bottom: 0.25rem; }
+.mk-phone .sr-wx-row > .sr-wx-glyph { grid-area: 1 / 1; }
+.mk-phone .sr-wx-row > .sr-wx-label { grid-area: 1 / 2; white-space: normal; overflow: hidden; text-overflow: clip; overflow-wrap: anywhere; }
+.mk-phone .sr-wx-row > .sr-wx-count { grid-area: 1 / 3; }
+.mk-phone .sr-wx-row > .sr-wx-track { grid-area: 2 / 1 / 3 / 4; }
+.mk-phone .sr-wx-row.no-glyph { grid-template-columns: minmax(0, 1fr) auto; }
+.mk-phone .sr-wx-row.no-glyph > .sr-wx-label { grid-area: 1 / 1; }
+.mk-phone .sr-wx-row.no-glyph > .sr-wx-count { grid-area: 1 / 2; }
+.mk-phone .sr-wx-row.no-glyph > .sr-wx-track { grid-area: 2 / 1 / 3 / 3; }
+.mk-phone .sr-wx-rows { gap: 0.375rem; }
+
+/* ============================================================================
+   MOCKUP CHROME (.mk-*). Not part of the app: the review bar, the frames, and
+   the length readout under each phone. Sized in px so the Text size switch
+   scales the app inside the frames and leaves these controls alone.
+   ========================================================================== */
+.mk-bar { position: sticky; top: 0; z-index: 50; background: var(--sr-surface); border-bottom: 1px solid var(--sr-border); box-shadow: var(--sr-card-shadow); padding: 8px 16px 9px; font-size: 13px; line-height: 1.4; }
+.mk-bar-inner { max-width: 1320px; margin: 0 auto; display: flex; flex-direction: column; gap: 6px; }
+.mk-bar-title { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+.mk-bar-title strong { font-size: 14px; font-weight: 700; letter-spacing: -0.01em; }
+.mk-bar-title span { font-size: 12px; color: var(--sr-text-muted); }
+.mk-row { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; }
+.mk-group { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; }
+.mk-group-label { font-size: 10.5px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--sr-text-muted); }
+.mk-seg { display: inline-flex; flex-wrap: wrap; gap: 2px; padding: 2px; border-radius: 7px; background: var(--sr-surface-subtle); }
+.mk-seg button, .mk-pill { font-size: 12px; line-height: 1.2; min-height: 26px; padding: 4px 10px; border-radius: 5px; border: 1px solid transparent; background: none; color: var(--sr-text-muted); cursor: pointer; transition: background-color 120ms ease-out, color 120ms ease-out, border-color 120ms ease-out; }
+.mk-seg button[aria-pressed="true"] { background: var(--sr-surface); border-color: var(--sr-border); color: var(--sr-text); font-weight: 600; }
+.mk-pill { border-radius: 15px; border: 1.5px solid var(--sr-border); background: var(--sr-surface); padding: 4px 11px; }
+.mk-pill[aria-pressed="true"] { background: var(--sr-accent-bg); border-color: var(--sr-accent-border-strong); color: var(--sr-accent); font-weight: 600; }
+.mk-offer { border-top: 1px dashed var(--sr-border-medium); padding-top: 6px; }
+.mk-offer-note { font-size: 12px; color: var(--sr-text-muted); flex: 1 1 260px; min-width: 0; }
+@media (hover: hover) {
+  .mk-seg button:hover, .mk-pill:hover { color: var(--sr-text); }
+  .mk-len-seg:hover { filter: brightness(0.96); }
+}
+
+.mk-stage { padding: 22px 16px 60px; }
+.mk-cols { display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-start; gap: 28px 32px; }
+.mk-col { display: flex; flex-direction: column; gap: 10px; min-width: 0; max-width: 100%; }
+.mk-col-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; font-size: 13px; color: var(--sr-text-muted); }
+.mk-tag { font-size: 10.5px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; padding: 2px 8px; border-radius: 10px; background: var(--sr-surface-subtle); border: 1px solid var(--sr-border); color: var(--sr-text); }
+.mk-tag--next { background: var(--sr-accent-bg); border-color: var(--sr-accent-border-strong); color: var(--sr-accent); }
+.mk-hscroll { max-width: 100%; overflow-x: auto; }
+.mk-device { border: 1px solid var(--sr-border-medium); border-radius: 18px; overflow: hidden; background: var(--sr-bg); box-shadow: var(--sr-card-shadow); }
+.mk-device--window { border-radius: 10px; }
+.mk-scroll { height: 660px; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; background: var(--sr-bg); }
+.mk-device--window .mk-scroll { height: 720px; }
+.mk-scroll:focus-visible { outline-offset: -3px; box-shadow: none; }
+.mk-len { display: flex; flex-direction: column; gap: 8px; font-size: 12px; line-height: 1.45; color: var(--sr-text-muted); }
+.mk-len strong { color: var(--sr-text); font-weight: 700; font-variant-numeric: tabular-nums; }
+.mk-len-bar { display: flex; height: 26px; border-radius: 6px; overflow: hidden; border: 1px solid var(--sr-border-medium); background: var(--sr-surface); }
+.mk-len-seg { flex: none; height: 100%; padding: 0; border: 0; border-right: 1px solid var(--sr-border-medium); background: var(--sr-surface-subtle); color: var(--sr-text-muted); font-size: 10.5px; font-weight: 600; white-space: nowrap; overflow: hidden; cursor: pointer; }
+.mk-len-seg:last-child { border-right: 0; }
+.mk-len-seg--list { background: var(--sr-accent); color: var(--sr-on-accent); }
+.mk-len-seg--new { background: var(--sr-accent-bg); color: var(--sr-accent); }
+.mk-len-seg:focus-visible { outline-offset: -3px; box-shadow: none; }
+.mk-len-table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+.mk-len-table th, .mk-len-table td { padding: 2px 0; text-align: left; font-weight: 400; border-bottom: 1px solid var(--sr-border-subtle); }
+.mk-len-table td { text-align: right; padding-left: 10px; white-space: nowrap; }
+.mk-len-table tr.is-list th, .mk-len-table tr.is-list td { color: var(--sr-text); font-weight: 700; }
+.mk-foot { max-width: 760px; margin: 26px auto 0; font-size: 12px; line-height: 1.55; color: var(--sr-text-muted); }
+@media (max-width: 480px) {
+  .mk-bar { position: static; }
+  .mk-stage { padding: 14px 0 40px; }
+  .mk-col-head, .mk-len, .mk-foot { padding: 0 12px; }
+  .mk-device.mk-phone { border-left: 0; border-right: 0; border-radius: 0; }
+  .mk-phone .mk-scroll { height: auto; overflow: visible; }
+}
+</style>
+</head>
+<body>
+
+<div class="mk-bar" role="region" aria-label="Review controls, not part of SnowRaven">
+  <div class="mk-bar-inner">
+    <div class="mk-bar-title">
+      <strong>Hotspot report: life list last, figures first (approved 2026-11-12)</strong>
+      <span>Review controls. Nothing in this bar is part of SnowRaven.</span>
+    </div>
+    <div class="mk-row">
+      <div class="mk-group"><span class="mk-group-label" id="l-show">Show</span>
+        <div class="mk-seg" role="group" aria-labelledby="l-show" data-key="show">
+          <button type="button" data-v="both">Both</button><button type="button" data-v="before">Today</button><button type="button" data-v="after">Proposed</button>
+        </div></div>
+      <div class="mk-group"><span class="mk-group-label" id="l-vp">Width</span>
+        <div class="mk-seg" role="group" aria-labelledby="l-vp" data-key="vp">
+          <button type="button" data-v="390">Phone 390</button><button type="button" data-v="320">Phone 320</button><button type="button" data-v="760">Narrow window</button><button type="button" data-v="wide">Wide window</button>
+        </div></div>
+      <div class="mk-group"><span class="mk-group-label" id="l-place">Place</span>
+        <div class="mk-seg" role="group" aria-labelledby="l-place" data-key="place">
+          <button type="button" data-v="hot">Hotspot, 126 species</button><button type="button" data-v="two">2 checklists</button><button type="button" data-v="one">1 checklist</button>
+        </div></div>
+    </div>
+    <div class="mk-row">
+      <div class="mk-group"><span class="mk-group-label" id="l-theme">Theme</span>
+        <div class="mk-seg" role="group" aria-labelledby="l-theme" data-key="theme">
+          <button type="button" data-v="light">Light</button><button type="button" data-v="dark">Dark</button>
+        </div></div>
+      <div class="mk-group"><span class="mk-group-label" id="l-scale">Text size</span>
+        <div class="mk-seg" role="group" aria-labelledby="l-scale" data-key="scale">
+          <button type="button" data-v="1">100%</button><button type="button" data-v="2">200%</button>
+        </div></div>
+      <div class="mk-group"><span class="mk-group-label" id="l-jump">Jump row</span>
+        <div class="mk-seg" role="group" aria-labelledby="l-jump" data-key="jump">
+          <button type="button" data-v="below">After the figures</button><button type="button" data-v="above">Under the header</button><button type="button" data-v="none">None</button>
+        </div></div>
+    </div>
+    <div class="mk-row mk-offer">
+      <div class="mk-group"><span class="mk-group-label" id="l-set">Figures</span>
+        <div class="mk-seg" role="group" aria-labelledby="l-set" data-key="preset">
+          <button type="button" data-v="pick">Approved</button><button type="button" data-v="rec">Opening set only</button><button type="button" data-v="all">Everything offered</button>
+        </div></div>
+      <div class="mk-group" role="group" aria-label="Offered figures, one at a time" id="offerPills"></div>
+      <p class="mk-offer-note" id="offerNote"></p>
+    </div>
+  </div>
+</div>
+
+<main class="mk-stage" id="stage"></main>
+
+<script>
+/* ============================================================================
+   Icons: lucide paths, inlined (no icon library is loaded).
+   ========================================================================== */
+const ICONS = {
+  listchecks: '<path d="m3 17 2 2 4-4"/><path d="m3 7 2 2 4-4"/><path d="M13 6h8"/><path d="M13 12h8"/><path d="M13 18h8"/>',
+  listordered: '<path d="M11 5h10"/><path d="M11 12h10"/><path d="M11 19h10"/><path d="M4 4h1v5"/><path d="M4 9h2"/><path d="M6.5 20H3.4c0-1 2.6-1.925 2.6-3.5a1.5 1.5 0 0 0-2.6-1.02"/>',
+  hash: '<line x1="4" x2="20" y1="9" y2="9"/><line x1="4" x2="20" y1="15" y2="15"/><line x1="10" x2="8" y1="3" y2="21"/><line x1="16" x2="14" y1="3" y2="21"/>',
+  clipboard: '<rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/>',
+  camera: '<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/>',
+  mic: '<path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/>',
+  video: '<path d="m16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.87a.5.5 0 0 0-.752-.432L16 10.5"/><rect x="2" y="6" width="14" height="12" rx="2"/>',
+  external: '<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>',
+  cloudsun: '<path d="M12 2v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="M20 12h2"/><path d="m19.07 4.93-1.41 1.41"/><path d="M15.947 12.65a4 4 0 0 0-5.925-4.128"/><path d="M13 22H7a5 5 0 1 1 4.9-6H13a3 3 0 0 1 0 6Z"/>',
+  stats: '<line x1="18" x2="18" y1="20" y2="10"/><line x1="12" x2="12" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="14"/>',
+  calendar: '<path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/><path d="M16 18h.01"/>',
+  search: '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+  globe: '<circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/>',
+  library: '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M7 7v10"/><path d="M11 7v10"/><path d="m15 7 2 10"/>',
+  chevron: '<path d="m6 9 6 6 6-6"/>',
+  mappin: '<path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/>',
+  star: '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>',
+  mappinned: '<path d="M18 8c0 3.613-3.869 7.429-5.393 8.795a1 1 0 0 1-1.214 0C9.87 15.429 6 11.613 6 8a6 6 0 0 1 12 0"/><circle cx="12" cy="8" r="2"/><path d="M8.714 14h-3.71a1 1 0 0 0-.948.683l-2.004 6A1 1 0 0 0 3 22h18a1 1 0 0 0 .948-1.316l-2-6a1 1 0 0 0-.949-.684h-3.712"/>',
+};
+function icon(name, size, sw, cls) {
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"${cls ? ` class="${cls}"` : ''}>${ICONS[name]}</svg>`;
+}
+const fmt = n => n.toLocaleString('en-US');
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const pl = (n, one, many) => (n === 1 ? one : many);
+function sharePct(n, total) { if (n === 0 || total === 0) return '0%'; const p = Math.round(n / total * 100); return p === 0 ? '<1%' : p + '%'; }
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const DAY = (y, m, d) => Math.round(Date.UTC(y, m - 1, d) / 864e5);
+function fmtDay(day) { const d = new Date(day * 864e5); return `${MONTHS[d.getUTCMonth()]} ${d.getUTCDate()}, ${d.getUTCFullYear()}`; }
+function hoursMinutes(min) { const m = Math.round(min), h = Math.floor(m / 60), r = m % 60; if (h === 0) return `${fmt(r)} ${pl(r, 'minute', 'minutes')}`; const hours = `${fmt(h)} ${pl(h, 'hour', 'hours')}`; return r === 0 ? hours : `${hours} ${r} ${pl(r, 'minute', 'minutes')}`; }
+
+/* ============================================================================
+   Fixture. An invented North Bay birder's record at three places. The place
+   names are made up; the counties and the birds are real. The hotspot is the
+   place the 1.0.71 design review used, so "Today" reads as it shipped.
+   ========================================================================== */
+const MASTER = [
+  ['Mallard', 'Anas platyrhynchos'], ['American Coot', 'Fulica americana'], ['Song Sparrow', 'Melospiza melodia'], ['Black Phoebe', 'Sayornis nigricans'],
+  ['Red-winged Blackbird', 'Agelaius phoeniceus'], ['Great Egret', 'Ardea alba'], ['Snowy Egret', 'Egretta thula'], ['Western Gull', 'Larus occidentalis'],
+  ['Canada Goose', 'Branta canadensis'], ['American Crow', 'Corvus brachyrhynchos'], ["Anna's Hummingbird", 'Calypte anna'], ['Turkey Vulture', 'Cathartes aura'],
+  ['Double-crested Cormorant', 'Nannopterum auritum'], ['Great Blue Heron', 'Ardea herodias'], ['White-crowned Sparrow', 'Zonotrichia leucophrys'], ['California Towhee', 'Melozone crissalis'],
+  ['House Finch', 'Haemorhous mexicanus'], ['Marsh Wren', 'Cistothorus palustris'], ['Killdeer', 'Charadrius vociferus'], ['Willet', 'Tringa semipalmata'],
+  ['Common Raven', 'Corvus corax'], ['Mourning Dove', 'Zenaida macroura'], ['Red-tailed Hawk', 'Buteo jamaicensis'], ['California Scrub-Jay', 'Aphelocoma californica'],
+  ['Bushtit', 'Psaltriparus minimus'], ['Yellow-rumped Warbler', 'Setophaga coronata'], ['Golden-crowned Sparrow', 'Zonotrichia atricapilla'], ['Northern Shoveler', 'Spatula clypeata'],
+  ['American Avocet', 'Recurvirostra americana'], ['Black-necked Stilt', 'Himantopus mexicanus'], ['Least Sandpiper', 'Calidris minutilla'], ['Western Sandpiper', 'Calidris mauri'],
+  ['Marbled Godwit', 'Limosa fedoa'], ['Ring-billed Gull', 'Larus delawarensis'], ['California Gull', 'Larus californicus'], ['Gadwall', 'Mareca strepera'],
+  ['American Wigeon', 'Mareca americana'], ['Bufflehead', 'Bucephala albeola'], ['Ruddy Duck', 'Oxyura jamaicensis'], ['Pied-billed Grebe', 'Podilymbus podiceps'],
+  ['Common Yellowthroat', 'Geothlypis trichas'], ['Northern Harrier', 'Circus hudsonius'], ['White-tailed Kite', 'Elanus leucurus'], ['American Kestrel', 'Falco sparverius'],
+  ['Savannah Sparrow', 'Passerculus sandwichensis'], ['Lesser Goldfinch', 'Spinus psaltria'], ['European Starling', 'Sturnus vulgaris'], ["Brewer's Blackbird", 'Euphagus cyanocephalus'],
+  ['Western Meadowlark', 'Sturnella neglecta'], ['Northern Mockingbird', 'Mimus polyglottos'], ['Chestnut-backed Chickadee', 'Poecile rufescens'], ['Ruby-crowned Kinglet', 'Corthylio calendula'],
+  ["Bewick's Wren", 'Thryomanes bewickii'], ['Spotted Towhee', 'Pipilo maculatus'], ['Dark-eyed Junco', 'Junco hyemalis'], ['American Robin', 'Turdus migratorius'],
+  ['Barn Swallow', 'Hirundo rustica'], ['Tree Swallow', 'Tachycineta bicolor'], ['Cliff Swallow', 'Petrochelidon pyrrhonota'], ['Violet-green Swallow', 'Tachycineta thalassina'],
+  ["Forster's Tern", 'Sterna forsteri'], ['Caspian Tern', 'Hydroprogne caspia'], ['Brown Pelican', 'Pelecanus occidentalis'], ['American White Pelican', 'Pelecanus erythrorhynchos'],
+  ['Long-billed Curlew', 'Numenius americanus'], ['Greater Yellowlegs', 'Tringa melanoleuca'], ['Dunlin', 'Calidris alpina'], ['Long-billed Dowitcher', 'Limnodromus scolopaceus'],
+  ['Black-bellied Plover', 'Pluvialis squatarola'], ['Semipalmated Plover', 'Charadrius semipalmatus'], ['Northern Pintail', 'Anas acuta'], ['Cinnamon Teal', 'Spatula cyanoptera'],
+  ['Greater Scaup', 'Aythya marila'], ['Lesser Scaup', 'Aythya affinis'], ['Canvasback', 'Aythya valisineria'], ['Common Goldeneye', 'Bucephala clangula'],
+  ['Surf Scoter', 'Melanitta perspicillata'], ['Western Grebe', 'Aechmophorus occidentalis'], ["Clark's Grebe", 'Aechmophorus clarkii'], ['Eared Grebe', 'Podiceps nigricollis'],
+  ['Horned Grebe', 'Podiceps auritus'], ['Belted Kingfisher', 'Megaceryle alcyon'], ['Osprey', 'Pandion haliaetus'], ["Cooper's Hawk", 'Astur cooperii'],
+  ['Red-shouldered Hawk', 'Buteo lineatus'], ["Say's Phoebe", 'Sayornis saya'], ['Northern Flicker', 'Colaptes auratus'], ["Nuttall's Woodpecker", 'Dryobates nuttallii'],
+  ['Downy Woodpecker', 'Dryobates pubescens'], ['Hermit Thrush', 'Catharus guttatus'], ['Cedar Waxwing', 'Bombycilla cedrorum'], ['American Pipit', 'Anthus rubescens'],
+  ["Lincoln's Sparrow", 'Melospiza lincolnii'], ['Fox Sparrow', 'Passerella iliaca'], ['American Goldfinch', 'Spinus tristis'], ['Orange-crowned Warbler', 'Leiothlypis celata'],
+  ["Townsend's Warbler", 'Setophaga townsendi'], ["Hutton's Vireo", 'Vireo huttoni'], ['Oak Titmouse', 'Baeolophus inornatus'], ['Western Bluebird', 'Sialia mexicana'],
+  ['Black-crowned Night Heron', 'Nycticorax nycticorax'], ['Green Heron', 'Butorides virescens'], ['Virginia Rail', 'Rallus limicola'], ['Sora', 'Porzana carolina'],
+  ["Ridgway's Rail", 'Rallus obsoletus'], ["Wilson's Snipe", 'Gallinago delicata'], ['Spotted Sandpiper', 'Actitis macularius'], ['Lesser Yellowlegs', 'Tringa flavipes'],
+  ['Short-billed Dowitcher', 'Limnodromus griseus'], ['Sanderling', 'Calidris alba'], ['Glaucous-winged Gull', 'Larus glaucescens'], ['Short-billed Gull', 'Larus brachyrhynchus'],
+  ["Bonaparte's Gull", 'Chroicocephalus philadelphia'], ['Elegant Tern', 'Thalasseus elegans'], ['Peregrine Falcon', 'Falco peregrinus'], ['Merlin', 'Falco columbarius'],
+  ['Sharp-shinned Hawk', 'Accipiter striatus'], ['Bald Eagle', 'Haliaeetus leucocephalus'], ['Great Horned Owl', 'Bubo virginianus'], ['Eurasian Collared-Dove', 'Streptopelia decaocto'],
+  ['Rock Pigeon', 'Columba livia'], ['Wild Turkey', 'Meleagris gallopavo'], ['California Quail', 'Callipepla californica'], ['Cackling Goose', 'Branta hutchinsii'],
+  ['Greater White-fronted Goose', 'Anser albifrons'], ['Wood Duck', 'Aix sponsa'], ['Hooded Merganser', 'Lophodytes cucullatus'], ['Common Merganser', 'Mergus merganser'],
+  ['Red-breasted Merganser', 'Mergus serrator'], ['Blue-winged Teal', 'Spatula discors'], ['Eurasian Wigeon', 'Mareca penelope'], ['American Bittern', 'Botaurus lentiginosus'],
+  ['White-faced Ibis', 'Plegadis chihi'], ['Red-necked Phalarope', 'Phalaropus lobatus'], ['Burrowing Owl', 'Athene cunicularia'], ['Short-eared Owl', 'Asio flammeus'],
+  ['Golden Eagle', 'Aquila chrysaetos'], ['Ferruginous Hawk', 'Buteo regalis'], ['Western Kingbird', 'Tyrannus verticalis'], ['Ash-throated Flycatcher', 'Myiarchus cinerascens'],
+  ["Wilson's Warbler", 'Cardellina pusilla'], ['Black-headed Grosbeak', 'Pheucticus melanocephalus'], ['Tricolored Blackbird', 'Agelaius tricolor'], ['Great-tailed Grackle', 'Quiscalus mexicanus'],
+  ['Least Tern', 'Sternula antillarum'],
+];
+const SCI = Object.fromEntries(MASTER);
+const SKY = [['☀️', 'Clear'], ['🌤️', 'Few clouds'], ['⛅', 'Scattered clouds'], ['🌥️', 'Broken clouds'], ['☁️', 'Overcast'], ['🌫️', 'Fog'], ['🌦️', 'Drizzle'], ['🌧️', 'Rain'], ['❄️', 'Snow'], ['⛈️', 'Thunderstorm'], ['🌡️', 'Other']];
+const TEMP_BANDS = ['Below 32°F', '32 to 44°F', '45 to 54°F', '55 to 64°F', '65 to 74°F', '75 to 84°F', '85°F and up'];
+const WIND_BANDS = ['Calm', 'Mostly calm', 'Light breeze', 'Gentle breeze', 'Moderate breeze', 'Fresh breeze', 'Strong breeze', 'Near gale', 'Gale'];
+const WEATHER_FLOOR = 10;
+
+function buildHotspot() {
+  const C = 412, S = 126, first = DAY(2014, 5, 4), latest = DAY(2026, 10, 31), span = latest - first;
+  const key = i => i + (i * 53) % 23;
+  const idx = MASTER.map((_, i) => i).sort((a, b) => key(a) - key(b) || a - b).slice(0, S);
+  const rows = idx.map((mi, k) => {
+    const t = Math.max(0, (k - S * 0.25) / (S * 0.75));
+    return { name: MASTER[mi][0], sci: MASTER[mi][1], day: first + Math.floor(span * t * t),
+      n: Math.max(1, Math.min(C, Math.round(C * 0.92 * Math.pow(1 - k / S, 2.4)))), id: 'S' + (61000000 + (mi * 104729) % 190000000) };
+  }).sort((a, b) => b.day - a.day);
+  const count = (name, n, y, m, d) => ({ name, sci: SCI[name], count: n, day: DAY(y, m, d), id: 'S' + (90000000 + n * 7919) });
+  return {
+    name: 'Heron Slough Regional Shoreline', kind: 'hotspot', place: 'Marin, CA', coords: true, C, S, rows, dated: C,
+    first, latest, firstId: 'S17000000', latestId: 'S271000000',
+    protocols: [['Traveling', 268], ['Stationary', 118], ['Incidental', 21], ['Area', 4], ['Nocturnal Flight Call Count', 1]],
+    complete: { complete: 371, known: 404, unknown: 8 },
+    wx: { readable: 96, unreadable: 2, sky: [22, 27, 14, 9, 13, 7, 2, 2, 0, 0, 0], temp: [0, 6, 29, 38, 17, 4, 0], wind: [9, 17, 26, 21, 11, 3, 1, 0, 0] },
+    months: [41, 36, 39, 52, 47, 21, 16, 22, 31, 38, 35, 34],
+    years: [[2014, 9], [2015, 14], [2016, 22], [2017, 31], [2018, 38], [2019, 47], [2020, 58], [2021, 44], [2022, 36], [2023, 33], [2024, 29], [2025, 27], [2026, 24]],
+    counted: 398, minutes: 29850, big: { species: 61, day: DAY(2019, 4, 20), id: 'S88000000' }, media: [214, 37, 3],
+    days: 371, yearCount: 13, yFirst: 2014, yLast: 2026, sph: { value: '14.2', n: 398 },
+    dist: { miles: '312.4', n: 268, avg: '1.2' }, gap: { days: 77, from: 'Jun 11', to: 'Aug 27, 2016' },
+    party: { avg: '1.4', n: 409, solo: 291, max: 12 },
+    counts: [count('Western Sandpiper', 2400, 2019, 11, 12), count('Dunlin', 1850, 2021, 1, 6), count('American Avocet', 720, 2018, 12, 3), count('Marbled Godwit', 610, 2022, 10, 14),
+      count('American Coot', 540, 2017, 1, 21), count('Least Sandpiper', 480, 2020, 9, 2), count('Northern Shoveler', 430, 2019, 12, 28), count('Willet', 365, 2021, 10, 30),
+      count('Canada Goose', 310, 2023, 11, 19), count('Ruddy Duck', 280, 2024, 1, 12)],
+  };
+}
+function sparse(o) {
+  const rows = o.rows.map(([name, sci, day, n], i) => ({ name, sci, day, n, id: 'S' + (o.seed + i * 7919) }));
+  return Object.assign({ coords: true, S: rows.length, rows, wx: { readable: 0, unreadable: 0 } }, o, { rows });
+}
+const A = DAY(2024, 3, 14), B = DAY(2025, 11, 2), T = DAY(2025, 8, 9);
+const PLACES = {
+  hot: buildHotspot(),
+  two: sparse({
+    name: 'Quail Hollow Farm Road', kind: 'personal', place: 'Sonoma, CA', C: 2, dated: 2, seed: 152300000,
+    rows: [['Varied Thrush', 'Ixoreus naevius', B, 1], ['Golden-crowned Sparrow', 'Zonotrichia atricapilla', B, 1], ['California Quail', 'Callipepla californica', A, 2],
+      ['Wild Turkey', 'Meleagris gallopavo', A, 1], ['Acorn Woodpecker', 'Melanerpes formicivorus', A, 1], ['Oak Titmouse', 'Baeolophus inornatus', A, 1],
+      ['Western Bluebird', 'Sialia mexicana', A, 1], ['Red-shouldered Hawk', 'Buteo lineatus', A, 1], ['Spotted Towhee', 'Pipilo maculatus', A, 1],
+      ['California Scrub-Jay', 'Aphelocoma californica', A, 1], ['Turkey Vulture', 'Cathartes aura', A, 1]],
+    first: A, latest: B, firstId: 'S164500221', latestId: 'S248117390',
+    protocols: [['Incidental', 1], ['Traveling', 1]], complete: { complete: 1, known: 2, unknown: 0 },
+    months: [0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0], years: [[2024, 1], [2025, 1]],
+    counted: 1, minutes: 35, big: { species: 9, day: A, id: 'S164500221' }, media: [4, 0, 0],
+    days: 2, yearCount: 2, yFirst: 2024, yLast: 2025, sph: { value: '15.4', n: 1 },
+    dist: { miles: '0.8', n: 1, avg: null }, gap: null, party: { avg: '1', n: 2, solo: 2, max: 1 },
+    counts: [['California Quail', 14, A], ['Wild Turkey', 9, A], ['Golden-crowned Sparrow', 6, B], ['Acorn Woodpecker', 4, A], ['Western Bluebird', 3, A], ['California Scrub-Jay', 2, A],
+      ['Oak Titmouse', 2, A], ['Spotted Towhee', 2, A], ['Turkey Vulture', 2, A], ['Red-shouldered Hawk', 1, A]].map(([name, n, day], i) => ({ name, count: n, day, id: 'S' + (164500221 + (day === B ? 83617169 : 0)) })),
+  }),
+  one: sparse({
+    name: 'Truckee River trail, east end', kind: 'personal', place: 'Washoe, NV', C: 1, dated: 1, seed: 231400000,
+    rows: [['Osprey', 'Pandion haliaetus', T, 1], ['Common Merganser', 'Mergus merganser', T, 1], ['American Dipper', 'Cinclus mexicanus', T, 1],
+      ['Belted Kingfisher', 'Megaceryle alcyon', T, 1], ["Steller's Jay", 'Cyanocitta stelleri', T, 1], ['Mountain Chickadee', 'Poecile gambeli', T, 1]],
+    first: T, latest: T, firstId: 'S231400887', latestId: 'S231400887',
+    protocols: [['Incidental', 1]], complete: { complete: 0, known: 1, unknown: 0 },
+    months: [0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0], years: [[2025, 1]],
+    counted: 0, minutes: 0, big: { species: 6, day: T, id: 'S231400887' }, media: [2, 0, 0],
+    days: 1, yearCount: 1, yFirst: 2025, yLast: 2025, sph: null, dist: null, gap: null, party: { avg: '2', n: 1, solo: 0, max: 2 },
+    counts: [['Common Merganser', 4, T], ['Mountain Chickadee', 3, T], ["Steller's Jay", 2, T], ['American Dipper', 1, T], ['Belted Kingfisher', 1, T], ['Osprey', 1, T]].map(([name, n, day]) => ({ name, count: n, day, id: 'S231400887' })),
+  }),
+};
+const RULE = 'Counted as Life Lists counts: subspecies fold into their species, and spuhs, slashes, hybrids, and species the exotic status check on Statistics found to be escapees are left out. Statistics and Map Explorer count a place by their own rules, so their numbers for this place can differ.';
+
+/* ============================================================================
+   State. Everything here is the review bar's; none of it is product state.
+   ========================================================================== */
+const OFFERED = [
+  ['distance', 'Distance traveled', 'pick'], ['once', 'Recorded once', 'pick'], ['gap', 'Longest gap', 'pick'],
+  ['top', 'Most-recorded species (ten)', 'pick'], ['party', 'Party size', 'skip'], ['counts', 'Highest counts (ten)', 'skip'],
+];
+const state = { show: window.innerWidth < 880 ? 'after' : 'both', vp: '390', place: 'hot', theme: 'light', scale: '1', jump: 'below', off: {}, showAll: false };
+/* Opens in the state the user approved on 2026-11-12: the four accepted
+   offered figures on, Party size and Highest counts off. */
+OFFERED.forEach(([k, , verdict]) => { state.off[k] = verdict === 'pick'; });
+const presetOf = () => {
+  const on = OFFERED.filter(([k]) => state.off[k]).map(([k]) => k).join();
+  if (on === '') return 'rec';
+  if (on === OFFERED.filter(o => o[2] === 'pick').map(o => o[0]).join()) return 'pick';
+  return on === OFFERED.map(o => o[0]).join() ? 'all' : '';
+};
+
+/* ============================================================================
+   Shared pieces, as the product components render them.
+   ========================================================================== */
+function birdName(name, sci, showSci) {
+  /* BirdName: the name opens Species Detail; the two marks open eBird and Birds
+     of the World. The marks are drawn here as the bundled fallback glyphs (a
+     circle and a square), because this page loads nothing from outside. */
+  const mark = (dest, glyph) => `<a class="sr-species-link" href="#" data-mock aria-label="View ${esc(name)} on ${dest} (opens in a new tab)"><span class="sr-favicon-slot">${icon(glyph, 14, 2.2)}</span></a>`;
+  return `<span class="sr-birdname sr-birdname-md"><span class="sr-birdname-row"><button type="button" class="sr-birdname-link">${esc(name)}</button><span class="sr-species-links">${mark('eBird', 'globe')}${mark('Birds of the World', 'library')}</span></span>${showSci ? `<span class="sr-birdname-sci">${esc(sci)}</span>` : ''}</span>`;
+}
+const clDate = day => `<a class="sr-cl-date" href="#" data-mock aria-label="${fmtDay(day)}: open checklist on eBird (opens in a new tab)">${fmtDay(day)}${icon('external', 10, 2.5)}</a>`;
+function hotLink(name) {
+  const cut = name.lastIndexOf(' '), lead = cut < 0 ? '' : name.slice(0, cut + 1), last = cut < 0 ? name : name.slice(cut + 1);
+  return `<a class="sr-hotlink" href="#" data-mock aria-label="Open ${esc(name)} on eBird (opens in a new tab)">${esc(lead)}<span class="sr-hotlink-last">${esc(last)}${icon('external', 13, 2.4)}</span></a>`;
+}
+function distRow(label, n, max, total, o) {
+  const zero = n === 0;
+  return `<div class="sr-wx-row${o.glyph ? '' : ' no-glyph'}${zero ? ' is-zero' : ''}${o.typical ? ' is-typical' : ''}">`
+    + (o.glyph ? `<span class="sr-wx-glyph" aria-hidden="true">${o.glyph}</span>` : '')
+    + `<span class="sr-wx-label">${esc(label)}</span>`
+    + (zero ? `<div class="sr-wx-track is-empty" aria-hidden="true"></div>` : `<div class="sr-wx-track" aria-hidden="true"><span class="sr-wx-fill" style="--w: ${(n / max * 100).toFixed(2)}%"></span></div>`)
+    + `<span class="sr-wx-count"><b>${fmt(n)}</b>${o.share === false ? '' : ` <span aria-hidden="true">·</span> ${sharePct(n, total)}`}</span></div>`;
+}
+function distGroup(title, den, labels, counts, opt) {
+  const o = opt || {}, total = counts.reduce((a, b) => a + b, 0), max = Math.max(...counts, 1);
+  const typical = o.typical && total >= WEATHER_FLOOR ? counts.indexOf(max) : -1;
+  let h = `<div class="sr-hsr-grouphead"><p class="sr-hsr-sub">${title}</p><span class="sr-hsr-den">${den}</span></div>`;
+  if (o.typical) h += typical >= 0 ? `<p class="sr-hsr-typical">Most common: <b>${esc(labels[typical])}</b></p>` : `<p class="sr-hsr-typical">Too few to name a most common one.</p>`;
+  return h + `<div class="sr-wx-rows${o.cls ? ' ' + o.cls : ''}">${labels.map((l, i) => distRow(l, counts[i], max, total, { glyph: o.glyphs && o.glyphs[i], typical: i === typical, share: o.share })).join('')}</div>`;
+}
+const MAP_SVG = `<svg viewBox="0 0 384 232" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false">
+  <rect width="384" height="232" style="fill: var(--mk-map-land)"/>
+  <path d="M0 132 C48 118 92 140 126 168 C150 188 168 214 176 232 L0 232 Z" style="fill: var(--mk-map-water)"/>
+  <path d="M126 168 C168 150 196 128 214 96 C226 74 250 60 290 58" style="fill: none; stroke: var(--mk-map-water); stroke-width: 9; stroke-linecap: round"/>
+  <path d="M150 62 C190 40 250 36 300 70 C330 92 318 140 276 152 C236 164 190 150 168 120 C154 100 140 78 150 62 Z" style="fill: var(--mk-map-park)"/>
+  <path d="M-4 86 C70 78 130 40 180 -4 M384 176 C320 178 250 200 214 236 M244 -4 C250 60 300 120 388 132" style="fill: none; stroke: var(--mk-map-edge); stroke-width: 5; stroke-linecap: round"/>
+  <path d="M-4 86 C70 78 130 40 180 -4 M384 176 C320 178 250 200 214 236 M244 -4 C250 60 300 120 388 132" style="fill: none; stroke: var(--mk-map-road); stroke-width: 3; stroke-linecap: round"/>
+  <g transform="translate(206 122)"><path d="M0 0 C-8 -10 -12 -16 -12 -23 A12 12 0 1 1 12 -23 C12 -16 8 -10 0 0 Z" style="fill: var(--sr-map-pin-visited); stroke: var(--sr-map-pin-stroke); stroke-width: 1.5"/><circle cx="0" cy="-23" r="4.2" style="fill: var(--sr-switch-thumb)"/></g>
+  <g transform="translate(10 10)"><rect width="29" height="58" rx="4" style="fill: var(--mk-map-ctl); stroke: var(--mk-map-edge)"/><path d="M0 29h29" style="stroke: var(--mk-map-edge)"/><path d="M9.5 14.5h10M14.5 9.5v10M9.5 43.5h10" style="stroke: var(--mk-map-ink); stroke-width: 1.8; stroke-linecap: round"/></g>
+</svg>`;
+const secHead = (ic, title, id) => `<div class="sr-hsr-sechead"><div class="sr-hsr-sectile">${icon(ic, 14, 2.2)}</div><h4 id="${id}" tabindex="-1">${title}</h4></div>`;
+const section = (id, ic, title, body, flush) => `<section class="sr-hsr-card" aria-labelledby="${id}" data-sec="${title}">${secHead(ic, title, id)}${flush ? body : `<div class="sr-hsr-secbody">${body}</div>`}</section>`;
+const checklists = n => `${fmt(n)} ${pl(n, 'checklist', 'checklists')}`;
+
+function headerHtml(r, p) {
+  const kind = r.kind === 'hotspot'
+    ? `<span class="sr-hsr-kind sr-hsr-eyebrow">${icon('mappin', 12, 2.2, 'sr-hsr-kind-glyph')}Hotspot</span>`
+    : `<span class="sr-hsr-kind sr-hsr-eyebrow">${icon('star', 12, 2.2, 'sr-hsr-kind-glyph')}Personal location</span>`;
+  return `<header class="sr-hsr-card sr-hsr-hero" data-sec="Header"><div class="sr-hsr-ident">${kind}`
+    + `<h3 class="sr-hsr-name" id="${p}-title" tabindex="-1">${r.kind === 'hotspot' ? hotLink(r.name) : esc(r.name)}</h3>`
+    + `<span class="sr-hsr-meta"><span>${esc(r.place)}</span></span></div>`
+    + `<div class="sr-hsr-totals"><div class="sr-hsr-figs"><div class="sr-hsr-fig"><span class="sr-hsr-fig-label">Species</span><span class="sr-hsr-fig-value sr-hsr-fig-value--key">${fmt(r.S)}</span></div><div class="sr-hsr-fig"><span class="sr-hsr-fig-label">${pl(r.C, 'Checklist', 'Checklists')}</span><span class="sr-hsr-fig-value">${fmt(r.C)}</span></div></div><p class="sr-hsr-rule">${RULE}</p></div></header>`;
+}
+function lifeListCaption(S, C) {
+  if (S === 1) return C === 1 ? ' species at this location, on your 1 checklist here.' : ` species at this location, with how many of your ${fmt(C)} checklists here include it.`;
+  return C === 1 ? ' species at this location, newest first by the date you first recorded each one here, all on your 1 checklist here.'
+    : ` species at this location, newest first by the date you first recorded each one here, with how many of your ${fmt(C)} checklists here include it.`;
+}
+function lifeListSection(r, p) {
+  const visible = r.rows.slice(0, state.showAll ? r.S : Math.min(100, r.S));
+  let h = `<div class="sr-hsr-lead"><p class="sr-hsr-count" tabindex="-1"><b>${fmt(r.S)}</b>${lifeListCaption(r.S, r.C)}</p></div>`;
+  h += `<div class="sr-hsr-ll"><div class="sr-hsr-ll-cols" aria-hidden="true"><span class="c-name">Species</span><span class="c-date">First here</span><span class="c-on">Of ${checklists(r.C)}</span></div><ol class="sr-hsr-ll-list">`;
+  visible.forEach((s, i) => {
+    const pos = r.S - i;
+    h += `<li class="sr-hsr-ll-row"><span class="sr-hsr-ll-num" aria-hidden="true">${pos}</span>`
+      + `<div class="sr-hsr-ll-name"><span class="sr-only">${pos} of ${r.S}. </span>${birdName(s.name, s.sci, true)}</div>`
+      + `<div class="sr-hsr-ll-meta"><span class="sr-hsr-ll-date"><span class="sr-only">First recorded here </span>${fmtDay(s.day)}</span> `
+      + `<span class="sr-hsr-ll-on"><span class="sr-hsr-ll-on-fig"><span class="sr-only">On ${fmt(s.n)} of ${checklists(r.C)} here.</span><span aria-hidden="true"><span class="sr-hsr-ll-words">· on </span><b>${fmt(s.n)}</b><span class="sr-hsr-ll-words"> of ${checklists(r.C)}</span></span></span><span class="sr-hsr-ll-bar" aria-hidden="true"><i style="width: ${(s.n / r.C * 100).toFixed(2)}%"></i></span></span></div>`
+      + `<div class="sr-hsr-ll-link"><span class="sr-hsr-ll-cl"><a href="#" data-mock aria-label="Open checklist ${s.id} on eBird (opens in a new tab)">${icon('external', 11, 2.5)}</a></span></div></li>`;
+  });
+  h += `</ol></div>`;
+  if (r.S > visible.length) h += `<div class="sr-lfl-paging"><button type="button" class="sr-lfl-next sr-touch-target" data-act="all">Show next 100</button><button type="button" class="sr-lfl-all sr-touch-target" data-act="all">Show all (${fmt(r.S)})</button><span class="sr-lfl-showing">Showing 1&ndash;${fmt(visible.length)}</span></div>`;
+  return section(`${p}-sec-list`, 'listchecks', 'Life list', h, true);
+}
+function mapSection(r, p) {
+  return section(`${p}-sec-map`, 'mappin', 'Map', r.coords ? `<div class="sr-hsr-map" role="img" aria-label="Map showing ${esc(r.name)}">${MAP_SVG}</div>` : `<p class="sr-hsr-body-text">Your backup has no coordinates for this location, so there is no map.</p>`, r.coords);
+}
+function protocolSection(r, p) {
+  const c = r.complete;
+  let h = distGroup('By eBird protocol', `<b>${fmt(r.C)}</b> ${pl(r.C, 'checklist', 'checklists')}`, r.protocols.map(x => x[0]), r.protocols.map(x => x[1]), { cls: 'sr-hsr-proto' });
+  h += `<div class="sr-hsr-divider"></div><div class="sr-hsr-grouphead"><p class="sr-hsr-sub">Complete checklists</p></div>`;
+  h += `<p class="sr-hsr-body-text"><b>${sharePct(c.complete, c.known)}</b> complete: ${fmt(c.complete)} of the ${fmt(c.known)} ${pl(c.known, 'checklist that says', 'checklists that say')} whether every species was reported.${c.unknown ? ` ${fmt(c.unknown)} ${pl(c.unknown, 'does', 'do')} not say.` : ''}</p>`;
+  return section(`${p}-sec-proto`, 'clipboard', 'Checklists by protocol', h);
+}
+function weatherSection(r, p) {
+  const w = r.wx;
+  let h;
+  if (w.readable + w.unreadable === 0) h = `<p class="sr-hsr-body-text">None of your checklists here carries a weather block.</p>`;
+  else {
+    h = `<div class="sr-hsr-stack"><p class="sr-hsr-body-text"><b>${fmt(w.readable)}</b> of your ${checklists(r.C)} here ${pl(w.readable, 'carries', 'carry')} a weather block SnowRaven can read.${w.unreadable ? ` ${fmt(w.unreadable)} more ${pl(w.unreadable, 'carries', 'carry')} a block it could not read.` : ''}</p>`
+      + `<p class="sr-hsr-note">From the weather blocks in your own checklist comments here. Nothing is looked up.</p></div><div class="sr-hsr-divider"></div>`;
+    const den = (counts, noun) => `<b>${fmt(counts.reduce((a, b) => a + b, 0))}</b> with ${noun}`;
+    h += distGroup('By sky', den(w.sky, 'a sky condition'), SKY.map(s => s[1]), w.sky, { glyphs: SKY.map(s => s[0]), typical: true });
+    h += `<div class="sr-hsr-gap"></div>` + distGroup('By temperature', den(w.temp, 'a temperature'), TEMP_BANDS, w.temp, { typical: true });
+    h += `<div class="sr-hsr-gap"></div>` + distGroup('By wind', den(w.wind, 'a wind reading'), WIND_BANDS, w.wind, { typical: true });
+  }
+  return section(`${p}-sec-wx`, 'cloudsun', 'Weather on your visits', h);
+}
+/* The fact rows that ship today in Visits and media (FR-51, FR-53, FR-54). In
+   the proposal the same rows open the report, with the average added to Time
+   birded and nothing else about them changed. */
+const fact = (term, dd, cls) => `<div class="sr-hsr-fact"><dt>${term}</dt><dd${cls ? ` class="${cls}"` : ''}>${dd}</dd></div>`;
+function visitFacts(r) {
+  return r.first === r.latest ? fact('Only visit', clDate(r.first)) : fact('First visit', clDate(r.first)) + fact('Latest visit', clDate(r.latest));
+}
+function timeFact(r, withAverage) {
+  if (r.counted === 0) return fact('Time birded', 'None of your checklists here recorded a duration.');
+  const avg = withAverage && r.counted > 1 ? `, ${hoursMinutes(r.minutes / r.counted)} on average` : '';
+  return fact('Time birded', `<b>${hoursMinutes(r.minutes)}</b><small>over ${fmt(r.counted)} of ${checklists(r.C)} that recorded a duration${avg}</small>`);
+}
+const biggestFact = r => (r.big ? fact('Most species on one checklist', `<b>${fmt(r.big.species)} species</b> on ${clDate(r.big.day)}`) : '');
+function visitsSection(r, p, withFacts) {
+  let h = '';
+  if (withFacts) h += `<dl class="sr-hsr-facts">${visitFacts(r)}${timeFact(r, false)}${biggestFact(r)}</dl><div class="sr-hsr-divider"></div>`;
+  const dated = `<b>${fmt(r.dated)}</b> dated ${pl(r.dated, 'checklist', 'checklists')}`;
+  h += distGroup('Visits by month', dated, MONTHS, r.months, { share: false });
+  h += `<div class="sr-hsr-divider"></div>` + distGroup('Visits by year', dated, r.years.map(y => String(y[0])), r.years.map(y => y[1]), { share: false });
+  const [ph, au, vi] = r.media;
+  h += `<div class="sr-hsr-divider"></div><div class="sr-hsr-grouphead"><p class="sr-hsr-sub">Photos, audio, and video</p></div>`
+    + `<ul class="sr-hsr-media"><li>${icon('camera', 13, 2.2, 'sr-hsr-media-glyph')}<span><b>${fmt(ph)}</b> ${pl(ph, 'photo', 'photos')}</span></li><li>${icon('mic', 13, 2.2, 'sr-hsr-media-glyph')}<span><b>${fmt(au)}</b> ${pl(au, 'audio recording', 'audio recordings')}</span></li><li>${icon('video', 13, 2.2, 'sr-hsr-media-glyph')}<span><b>${fmt(vi)}</b> ${pl(vi, 'video', 'videos')}</span></li></ul><p class="sr-hsr-note">Counted by the checklist each photo, recording, or video is linked to.</p>`;
+  return section(`${p}-sec-visits`, 'calendar', 'Visits and media', h);
+}
+const jumpRow = chips => `<nav class="sr-hsr-jump" aria-label="Jump to section">${chips.map(([id, t]) => `<a class="sr-hsr-chip sr-touch-target" href="#${id}" data-jump="${id}">${t}</a>`).join('')}</nav>`;
+
+/* ============================================================================
+   TODAY: the report as built in 1.0.71. Header, jump row, life list, then the
+   rail: map, protocols, weather, visits and media.
+   ========================================================================== */
+function beforeHtml(r, p) {
+  return `<div class="sr-hsr-report">${headerHtml(r, p)}`
+    + jumpRow([[`${p}-sec-list`, 'Life list'], [`${p}-sec-map`, 'Map'], [`${p}-sec-proto`, 'Protocols'], [`${p}-sec-wx`, 'Weather'], [`${p}-sec-visits`, 'Visits']])
+    + `<div class="sr-hsr-body">${lifeListSection(r, p)}<div class="sr-hsr-rail">${mapSection(r, p)}${protocolSection(r, p)}${weatherSection(r, p)}${visitsSection(r, p, true)}</div></div></div>`;
+}
+
+/* ============================================================================
+   PROPOSED: header (unchanged), At a glance, the jump row (one chip for each
+   section after it), then the rail (map, visits and media, weather, protocols)
+   and the life list last.
+   ========================================================================== */
+function tile(label, value, note, unit) {
+  return `<div class="sr-hsr-tile"><dt class="sr-hsr-fig-label">${label}</dt><dd class="sr-hsr-tile-value">${value}${unit ? `<span class="sr-hsr-tile-unit">${unit}</span>` : ''}</dd><dd class="sr-hsr-note">${note}</dd></div>`;
+}
+function glanceSection(r, p) {
+  const off = state.off, tiles = [], rows = [];
+  /* Tiles: counts. A figure that would only restate a single visit is not drawn. */
+  if (r.dated >= 2) {
+    tiles.push(tile('Days birded', fmt(r.days), r.dated === r.C ? `from ${fmt(r.dated)} dated checklists` : `from ${fmt(r.dated)} of ${checklists(r.C)} with a valid date`));
+    tiles.push(tile('Years birded', fmt(r.yearCount), r.yFirst === r.yLast ? String(r.yFirst) : `${r.yFirst} to ${r.yLast}`));
+  }
+  if (r.sph) tiles.push(tile('Species per hour', r.sph.value, r.sph.n === 1 ? `from the 1 checklist here with a duration` : `averaged over ${fmt(r.sph.n)} of ${checklists(r.C)} with a duration`));
+  if (off.once && r.C >= 2 && r.S >= 2) { const once = r.rows.filter(s => s.n === 1).length; tiles.push(tile('Recorded once', fmt(once), `of ${fmt(r.S)} species, each on 1 checklist`)); }
+  if (off.gap && r.gap) tiles.push(tile('Longest gap', fmt(r.gap.days), `${r.gap.from} to ${r.gap.to}`, pl(r.gap.days, 'day', 'days')));
+  /* Rows: dated and linked facts. */
+  rows.push(visitFacts(r), timeFact(r, true));
+  if (off.distance && r.dist) rows.push(fact('Distance traveled', `<b>${r.dist.miles} miles</b><small>over ${fmt(r.dist.n)} of ${checklists(r.C)} that recorded a distance${r.dist.avg ? `, ${r.dist.avg} miles on average` : ''}</small>`));
+  rows.push(biggestFact(r));
+  /* First and newest species: the life list's own bottom and top rows. One
+     species is one row; two rows from the same checklist say nothing, so
+     neither is drawn. */
+  const oldest = r.rows[r.S - 1], newest = r.rows[0];
+  const sp = s => `${birdName(s.name, s.sci, false)}${clDate(s.day)}`;
+  if (r.S === 1) rows.push(fact('Only species here', sp(newest), 'sr-hsr-fact-sp'));
+  else if (r.S > 1 && oldest.day !== newest.day) rows.push(fact('First species here', sp(oldest), 'sr-hsr-fact-sp'), fact('Newest species here', sp(newest), 'sr-hsr-fact-sp'));
+  if (off.party && r.party) {
+    const y = r.party;
+    rows.push(fact('Party size', y.max === 1
+      ? `Alone on ${y.n === r.C ? `all ${checklists(r.C)}` : `the ${fmt(y.n)} of ${checklists(r.C)} that recorded a party size`}.`
+      : y.n === 1 ? `<b>${y.max} observers</b> on your 1 checklist here.`
+        : `<b>${y.avg} observers</b> on average<small>over ${fmt(y.n)} of ${checklists(r.C)} that recorded a party size. Alone on ${fmt(y.solo)} (${sharePct(y.solo, y.n)}). Largest party: ${y.max}.</small>`));
+  }
+  const body = `<div class="sr-hsr-glance">${tiles.length ? `<dl class="sr-hsr-tiles">${tiles.join('')}</dl>` : ''}<dl class="sr-hsr-facts">${rows.join('')}</dl></div>`;
+  return section(`${p}-sec-glance`, 'stats', 'At a glance', body);
+}
+function topSection(r, p) {
+  /* Offered. A ranking needs something to rank: nothing at one checklist (every
+     species ties at one), a sentence at one species. */
+  if (r.C < 2 || r.S === 0) return '';
+  const top = r.rows.slice().sort((a, b) => b.n - a.n || a.name.localeCompare(b.name)).slice(0, 10);
+  const lead = `<p class="sr-hsr-note sr-hsr-toplead">${r.S > 10 ? 'The ten species on the most' : `Your ${fmt(r.S)} species here, by how many`} of your ${checklists(r.C)} here${r.S > 10 ? '.' : ' include each.'}</p>`;
+  const body = r.S === 1 ? `<p class="sr-hsr-body-text">${esc(top[0].name)} is the only species here, on ${fmt(top[0].n)} of ${checklists(r.C)}.</p>`
+    : lead + `<ol class="sr-hsr-toplist">${top.map((s, i) => `<li class="sr-hsr-toprow"><span class="sr-hsr-top-num" aria-hidden="true">${i + 1}</span><div class="sr-hsr-top-main">${birdName(s.name, s.sci, false)}<span class="sr-hsr-top-fig">on <b>${fmt(s.n)}</b> of ${checklists(r.C)} · ${sharePct(s.n, r.C)}</span></div></li>`).join('')}</ol>`;
+  return section(`${p}-sec-top`, 'listordered', 'Most-recorded species', body);
+}
+function countsSection(r, p) {
+  if (!r.counts || r.counts.length === 0) return '';
+  const body = r.counts.length === 1 ? `<p class="sr-hsr-body-text">Your highest count here is <b>${fmt(r.counts[0].count)}</b> ${esc(r.counts[0].name)} on ${clDate(r.counts[0].day)}.</p>`
+    : `<p class="sr-hsr-note sr-hsr-toplead">Each species' largest count on one checklist here${r.counts.length === 10 ? ', the ten highest' : ''}.</p><ol class="sr-hsr-toplist">${r.counts.map((s, i) => `<li class="sr-hsr-toprow"><span class="sr-hsr-top-num" aria-hidden="true">${i + 1}</span><div class="sr-hsr-top-main">${birdName(s.name, s.sci, false)}<span class="sr-hsr-top-fig"><b>${fmt(s.count)}</b> on ${clDate(s.day)}</span></div></li>`).join('')}</ol>`;
+  return section(`${p}-sec-counts`, 'hash', 'Highest counts', body);
+}
+function afterHtml(r, p) {
+  const top = state.off.top ? topSection(r, p) : '', counts = state.off.counts ? countsSection(r, p) : '';
+  const chips = [[`${p}-sec-map`, 'Map'], [`${p}-sec-visits`, 'Visits'], [`${p}-sec-wx`, 'Weather'], [`${p}-sec-proto`, 'Protocols']];
+  if (top) chips.push([`${p}-sec-top`, 'Most recorded']);
+  if (counts) chips.push([`${p}-sec-counts`, 'Highest counts']);
+  chips.push([`${p}-sec-list`, 'Life list']);
+  const jump = state.jump === 'none' ? '' : jumpRow(chips), glance = glanceSection(r, p);
+  return `<div class="sr-hsr-report sr-hsr-report--next">${headerHtml(r, p)}${state.jump === 'above' ? jump + glance : glance + jump}`
+    + `<div class="sr-hsr-body"><div class="sr-hsr-rail">${mapSection(r, p)}${visitsSection(r, p, false)}${weatherSection(r, p)}${protocolSection(r, p)}${top}${counts}</div>${lifeListSection(r, p)}</div></div>`;
+}
+
+/* ============================================================================
+   The frames. One tab panel per frame: the house tab header, the picker's
+   closed field (inert here; the Place switch stands in for it), the report.
+   ========================================================================== */
+function tabHtml(r, variant, enter) {
+  const p = variant === 'before' ? 'b' : 'a';
+  return `<div class="sr-panel"><div class="sr-hsr-tab">`
+    + `<div class="sr-hsr-head"><div class="sr-hsr-head-tile">${icon('mappinned', 15, 2.2)}</div><div><h2>Hotspot Reports</h2><p>Your own record at any one place in your eBird backup, hotspot or personal location.</p></div></div>`
+    + `<div class="sr-hsr-pickrow" inert><span class="sr-hsr-label">Location</span><div class="sr-hsr-picker"><div class="sr-hsr-field">${icon('search', 15, 2.2, 'sr-hsr-field-glyph')}<span class="sr-hsr-input">${esc(r.name)}</span><span class="sr-hsr-chev">${icon('chevron', 15, 2.2)}</span></div></div></div>`
+    + `<div class="sr-hsr-view${enter ? ' mk-enter' : ''}">${variant === 'before' ? beforeHtml(r, p) : afterHtml(r, p)}</div></div></div>`;
+}
+const VP = { 390: { w: 390, phone: true, name: 'iPhone, 390 wide' }, 320: { w: 320, phone: true, name: 'smallest phone, 320 wide' }, 760: { w: 760, phone: false, name: 'narrow window, 760 wide' }, wide: { w: 1180, phone: false, name: 'wide window, 1180 wide' } };
+const stage = document.getElementById('stage');
+let lastPlace = null;
+function render(keepScroll) {
+  const scroll = {};
+  if (keepScroll) stage.querySelectorAll('.mk-col').forEach(c => { scroll[c.dataset.variant] = c.querySelector('.mk-scroll').scrollTop; });
+  const r = PLACES[state.place], vp = VP[state.vp], enter = lastPlace !== state.place;
+  lastPlace = state.place;
+  const variants = state.show === 'both' ? ['before', 'after'] : [state.show];
+  stage.innerHTML = `<div class="mk-cols">` + variants.map(v => `<section class="mk-col" data-variant="${v}" aria-label="${v === 'before' ? 'Today' : 'Proposed'}" style="width: min(${vp.w}px, 100%)">`
+    + `<div class="mk-col-head">${v === 'before' ? `<span class="mk-tag">Today</span><span>As shipped in 1.0.71, ${vp.name}</span>` : `<span class="mk-tag mk-tag--next">Proposed</span><span>Figures first, life list last, ${vp.name}</span>`}</div>`
+    + `<div class="mk-hscroll"><div class="mk-device${vp.phone ? ' mk-phone' : ' mk-device--window'}" style="width: ${vp.phone ? '100%' : vp.w + 'px'}"><div class="mk-scroll" tabindex="0" role="region" aria-label="${v === 'before' ? 'Today' : 'Proposed'}: the Hotspot Reports tab">${tabHtml(r, v, enter)}</div></div></div>`
+    + `<div class="mk-len"></div></section>`).join('') + `</div>`
+    + `<p class="mk-foot">The map is a drawing, the bird names open nothing here, and the two marks beside each name are the app's fallback glyphs, because this page loads nothing from outside. Paging and the jump chips work. The numbers under each phone are measured from this page as drawn; the built app will differ by a little.</p>`;
+  if (keepScroll) stage.querySelectorAll('.mk-col').forEach(c => { if (scroll[c.dataset.variant] !== undefined) c.querySelector('.mk-scroll').scrollTop = scroll[c.dataset.variant]; });
+  syncBar();
+  requestAnimationFrame(measure);
+}
+
+/* ============================================================================
+   Mockup only: how far down each part starts, drawn to one scale for both
+   frames, so the cost of every added figure is a number and a picture.
+   ========================================================================== */
+function measure() {
+  const cols = [...stage.querySelectorAll('.mk-col')];
+  const data = cols.map(col => {
+    const report = col.querySelector('.sr-hsr-report'), top = report.getBoundingClientRect().top;
+    const parts = [...report.querySelectorAll('[data-sec]')].map(el => ({ el, label: el.dataset.sec, at: Math.round(el.getBoundingClientRect().top - top) }));
+    return { col, parts, total: report.offsetHeight, twoCol: getComputedStyle(report.querySelector('.sr-hsr-body')).gridTemplateColumns.trim().split(/\s+/).length > 1 };
+  });
+  const max = Math.max(...data.map(d => d.total));
+  const screen = VP[state.vp].phone ? 660 : 720;
+  data.forEach(d => {
+    const box = d.col.querySelector('.mk-len'), list = d.parts.find(x => x.label === 'Life list'), glance = d.parts.find(x => x.label === 'At a glance');
+    if (d.twoCol) { box.innerHTML = `<p>Two columns at this width: the compact sections run down the ${d.col.dataset.variant === 'before' ? 'right' : 'left'} and the life list down the ${d.col.dataset.variant === 'before' ? 'left' : 'right'}, both in view from the top.${glance ? ` The opening figures span the full width and are <strong>${fmt(glance.el.offsetHeight)}</strong> px tall.` : ''}</p>`; return; }
+    const ext = d.parts.map((x, i) => ({ ...x, h: (i + 1 < d.parts.length ? d.parts[i + 1].at : d.total) - x.at }));
+    const after = d.col.dataset.variant === 'after';
+    const others = d.parts.filter(x => x.label !== 'Header' && x.label !== 'Life list' && x.label !== 'At a glance');
+    const line = after
+      ? `The life list starts <strong>${fmt(list.at)}</strong> px down, about <strong>${(list.at / screen).toFixed(1)}</strong> screens. The opening figures are <strong>${fmt(glance.el.offsetHeight)}</strong> px tall.`
+      : `The life list starts <strong>${fmt(list.at)}</strong> px down and runs <strong>${fmt(list.el.offsetHeight)}</strong> px. The other sections start <strong>${fmt(others[0].at)}</strong> px down, about <strong>${(others[0].at / screen).toFixed(1)}</strong> screens.`;
+    box.innerHTML = `<p>${line}</p>`
+      + `<div class="mk-len-bar" role="group" aria-label="The report's parts, to scale">${ext.map((x, i) => `<button type="button" class="mk-len-seg${x.label === 'Life list' ? ' mk-len-seg--list' : x.label === 'At a glance' ? ' mk-len-seg--new' : ''}" style="width: ${(x.h / max * 100).toFixed(3)}%" data-seg="${i}" title="${x.label}: starts ${fmt(x.at)} px down, ${fmt(x.el.offsetHeight)} px tall" aria-label="Scroll to ${x.label}">${x.label}</button>`).join('')}</div>`
+      + `<table class="mk-len-table"><tbody>${ext.map(x => `<tr${x.label === 'Life list' ? ' class="is-list"' : ''}><th scope="row">${x.label}</th><td>starts ${fmt(x.at)} px</td><td>${fmt(x.el.offsetHeight)} px tall</td></tr>`).join('')}</tbody></table>`;
+    box.querySelectorAll('[data-seg]').forEach(b => {
+      if (b.scrollWidth > b.clientWidth) b.textContent = '';
+      b.addEventListener('click', () => scrollToEl(ext[+b.dataset.seg].el));
+    });
+  });
+}
+function scrollToEl(el) {
+  const sc = el.closest('.mk-scroll'), smooth = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (sc.scrollHeight > sc.clientHeight + 1) sc.scrollTo({ top: sc.scrollTop + el.getBoundingClientRect().top - sc.getBoundingClientRect().top - 10, behavior: smooth ? 'smooth' : 'auto' });
+  else el.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'start' });
+}
+
+/* ============================================================================
+   Wiring
+   ========================================================================== */
+document.getElementById('offerPills').innerHTML = OFFERED.map(([k, label]) => `<button type="button" class="mk-pill" data-off="${k}">${label}</button>`).join('');
+function syncBar() {
+  const cur = { show: state.show, vp: state.vp, place: state.place, theme: state.theme, scale: state.scale, jump: state.jump, preset: presetOf() };
+  document.querySelectorAll('.mk-seg').forEach(seg => seg.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(cur[seg.dataset.key] === b.dataset.v))));
+  document.querySelectorAll('[data-off]').forEach(b => b.setAttribute('aria-pressed', String(state.off[b.dataset.off])));
+  const on = OFFERED.filter(([k]) => state.off[k]).length;
+  const preset = presetOf();
+  document.getElementById('offerNote').textContent = state.show === 'before' ? 'These figures appear in the proposal only. Choose Proposed or Both to see them.'
+    : preset === 'pick' ? 'Approved on 2026-11-12: the opening set plus distance traveled, recorded once, longest gap, and the most-recorded species. Party size and Highest counts were offered and left out.'
+      : preset === 'rec' ? 'The opening set alone, as first compared. The approved design adds the first four figures in this row.'
+        : `Not the approved set: ${on} offered ${pl(on, 'figure is', 'figures are')} on, kept here to show what was compared.`;
+}
+document.querySelector('.mk-bar').addEventListener('click', e => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  if (b.dataset.off) { state.off[b.dataset.off] = !state.off[b.dataset.off]; render(true); return; }
+  const key = b.parentElement.dataset.key;
+  if (!key) return;
+  if (key === 'preset') { OFFERED.forEach(([k, , rec]) => { state.off[k] = b.dataset.v === 'all' || (b.dataset.v === 'pick' && rec === 'pick'); }); render(true); return; }
+  state[key] = b.dataset.v;
+  if (key === 'theme') { document.documentElement.dataset.theme = state.theme; syncBar(); return; }
+  if (key === 'scale') document.documentElement.style.setProperty('--sr-text-scale', state.scale);
+  if (key === 'place') state.showAll = false;
+  render(key === 'show' || key === 'jump');
+});
+stage.addEventListener('click', e => {
+  const jump = e.target.closest('[data-jump]');
+  if (jump) {
+    e.preventDefault();
+    const h = stage.querySelector('#' + jump.dataset.jump);
+    scrollToEl(h.closest('section'));
+    h.focus({ preventScroll: true });
+    return;
+  }
+  if (e.target.closest('[data-mock]')) { e.preventDefault(); return; }
+  if (e.target.closest('[data-act="all"]')) { state.showAll = true; render(true); }
+});
+window.addEventListener('resize', () => requestAnimationFrame(measure));
+render(false);
+</script>
+</body>
+</html>

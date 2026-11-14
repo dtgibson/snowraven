@@ -12,6 +12,8 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import * as copy from './hotspotReportsCopy'
 import { TAB_LABELS } from './tabLayout'
+import { TOP_SPECIES_MAX } from './hotspotReportsLocation'
+import { getDateFormatPref, setDateFormatPref } from './formatDate'
 
 const COUNTS = [0, 1, 2]
 
@@ -33,15 +35,23 @@ function corpus(): string[] {
       copy.hoursMinutes(a * 60 + a), `${a} ${copy.biggestLabel(a)}`, copy.earlierYearsLabel(1900 + a),
       `${a}${copy.NOT_YET_KNOWN_TAIL}`, copy.weatherBelowFloor(a + 9), copy.announceOverview(a),
       `${a} ${copy.MEDIA_UNITS.photo(a)}, ${a} ${copy.MEDIA_UNITS.audio(a)}, ${a} ${copy.MEDIA_UNITS.video(a)}`,
-      `${a} ${copy.checklistsNoun(a)}`)
+      `${a} ${copy.checklistsNoun(a)}`,
+      // At a glance (hotspot-report-order-and-stats): the tiles' figures with
+      // their units, the distance figure, and the one-species sentence.
+      `${a} ${copy.gapUnit(a)}`, copy.milesLabel(a), copy.milesLabel(a / 10), copy.yearsNote(2020, 2020 + a),
+      `Song Sparrow${copy.soleTopTail(a + 2, a + 2)}`, `Song Sparrow${copy.soleTopTail(1, a + 2)}`)
   }
+  for (const species of [2, 3, 10, 11, 12]) out.push(copy.onceNote(species))
+  for (const c of [2, 3]) for (const species of [2, 9, 10, 11]) out.push(copy.topLead(species, c))
   for (const total of [1, 2, 3]) {
     out.push(copy.announceLocation('Home', 0, total), copy.announceLocation('Home', 1, total), copy.announceLocation('Home', 2, total))
     for (let part = 0; part <= total; part++) {
       out.push(`${copy.datedDenominator(part, total).figure}${copy.datedDenominator(part, total).tail}`)
       if (part >= 1) {
         out.push(copy.onChecklistsSr(part, total), `on ${part}${copy.ofChecklistsTail(total)}`, copy.positionPrefix(part, total),
-          copy.timeBirdedNote(part, total), `${part}${copy.lifeListCaption(part, total)}`, `${total}${copy.lifeListCaption(total, part)}`)
+          copy.timeBirdedNote(part, total, part * 60), `${part}${copy.lifeListCaption(part, total)}`, `${total}${copy.lifeListCaption(total, part)}`,
+          copy.distanceNote(part, total, part * 1.5), copy.daysNote(part, total),
+          copy.perHourNote(part, total, false), copy.perHourNote(part, total, true))
       }
       for (let more = 0; part + more <= total; more++) {
         if (part + more >= 1) out.push(`${part}${copy.weatherCoverage(part, total, more)}`)
@@ -95,6 +105,81 @@ describe('count-bearing sentences agree in number (NFR-11, QA-72)', () => {
     expect(copy.hoursMinutes(121)).toBe('2 hours 1 minute')
     expect(copy.weatherCoverage(1, 30, 1)).toBe(' of your 30 checklists here carries a weather block SnowRaven can read. 1 more carries a block it could not read.')
     expect(copy.completeSentence(4, 5, 2)).toBe(' complete: 4 of the 5 checklists that say whether every species was reported. 2 do not say.')
+  })
+})
+
+describe('the At a glance and Most-recorded strings (hotspot-report-order-and-stats design-refinement, Content Notes)', () => {
+  it('states each denominator in the approved words', () => {
+    expect(copy.daysNote(10, 10)).toBe('from 10 dated checklists')
+    expect(copy.daysNote(398, 412)).toBe('from 398 of 412 checklists with a valid date')
+    expect(copy.yearsNote(2009, 2024)).toBe('2009 to 2024')
+    expect(copy.yearsNote(2024, 2024)).toBe('2024')
+    expect(copy.perHourNote(398, 412, false)).toBe('averaged over 398 of 412 checklists with a duration')
+    expect(copy.perHourNote(397, 412, true)).toBe('averaged over 397 of 412 checklists with a duration above zero')
+    expect(copy.perHourNote(1, 4, false)).toBe('from the 1 checklist here with a duration')
+    expect(copy.perHourNote(1, 4, true)).toBe('from the 1 checklist here with a duration above zero')
+    expect(copy.onceNote(126)).toBe('of 126 species, each on 1 checklist')
+    expect(copy.timeBirdedNote(398, 412, 398 * 75)).toBe('over 398 of 412 checklists that recorded a duration, 1 hour 15 minutes on average')
+    expect(copy.timeBirdedNote(1, 412, 75)).toBe('over 1 of 412 checklists that recorded a duration')
+    expect(copy.topLead(126, 412)).toBe('The ten species on the most of your 412 checklists here.')
+    expect(copy.topLead(4, 12)).toBe('Your 4 species here, by how many of your 12 checklists here include each.')
+    expect(copy.soleTopTail(5, 7)).toBe(' is the only species here, on 5 of 7 checklists.')
+    expect(copy.TOP_SHARE_SEP).toBe(' \u00b7')
+  })
+
+  it('the lead line says "ten" exactly when the list is cut at TOP_SPECIES_MAX', () => {
+    expect(TOP_SPECIES_MAX).toBe(10)
+    expect(copy.topLead(TOP_SPECIES_MAX, 20)).toContain(`Your ${TOP_SPECIES_MAX} species`)
+    expect(copy.topLead(TOP_SPECIES_MAX + 1, 20)).toContain('The ten species')
+  })
+
+  it('a rate to one decimal; a gap in days with its own unit', () => {
+    expect(copy.perHourFigure(18.44)).toBe('18.4')
+    expect(copy.perHourFigure(0)).toBe('0.0')
+    expect(copy.perHourFigure(1234.56)).toBe('1,234.6')
+    expect([copy.gapUnit(1), copy.gapUnit(2), copy.gapUnit(77)]).toEqual(['day', 'days', 'days'])
+  })
+
+  it('miles to one decimal from kilometers, always "miles", and a sliver reads "less than 0.1 miles"', () => {
+    // 502.75 km is 312.4 miles; 1 km is 0.6 miles; nothing is 0.0 miles.
+    expect(copy.milesLabel(502.75)).toBe('312.4 miles')
+    expect(copy.milesLabel(1.6093)).toBe('1.0 miles')
+    expect(copy.milesLabel(1)).toBe('0.6 miles')
+    expect(copy.milesLabel(0)).toBe('0.0 miles')
+    expect(copy.milesLabel(0.05)).toBe('less than 0.1 miles')
+    expect(copy.milesLabel(0.0805)).toBe('0.1 miles')
+    expect(copy.distanceNote(3, 10, 30)).toBe(`over 3 of 10 checklists that recorded a distance, ${copy.milesLabel(10)} on average`)
+    expect(copy.distanceNote(1, 10, 30)).toBe('over 1 of 10 checklists that recorded a distance')
+    // No figure the label can write reads "1 miles".
+    for (let tenths = 0; tenths < 50; tenths++) expect(copy.milesLabel(tenths / 10 / 0.621371)).not.toMatch(/(?:^|[^.\d])1 miles/)
+  })
+
+  it('the gap line is the two dates either side, collapsed as the date format collapses a range, with "to"', () => {
+    const before = getDateFormatPref()
+    try {
+      setDateFormatPref('month-first')
+      expect(copy.gapNote('2016-06-11', '2016-08-27')).toBe('Jun 11 to Aug 27, 2016')
+      expect(copy.gapNote('2019-12-20', '2020-02-03')).toBe('Dec 20, 2019 to Feb 3, 2020')
+      expect(copy.gapNote('2016-06-11', '2016-06-27')).toBe('Jun 11 to 27, 2016')
+      setDateFormatPref('day-first')
+      expect(copy.gapNote('2016-06-11', '2016-08-27')).toBe('11 Jun to 27 Aug 2016')
+      setDateFormatPref('iso')
+      expect(copy.gapNote('2019-12-20', '2020-02-03')).toBe('2019-12-20 to 2020-02-03')
+    } finally {
+      setDateFormatPref(before)
+    }
+  })
+})
+
+describe('the report sections and the jump row (FR-31 as modified)', () => {
+  it('reads glance first and the life list last, and the jump sections are exactly the ones after the glance', () => {
+    expect(copy.REPORT_SECTIONS[0]).toBe('glance')
+    expect(copy.REPORT_SECTIONS[copy.REPORT_SECTIONS.length - 1]).toBe('list')
+    expect(copy.JUMP_SECTIONS).toEqual(copy.REPORT_SECTIONS.slice(1))
+    expect(copy.JUMP_SECTIONS.map(s => copy.JUMP_CHIPS[s])).toEqual(['Map', 'Visits', 'Weather', 'Protocols', 'Most recorded', 'Life list'])
+    expect(copy.REPORT_SECTIONS.map(s => copy.SECTION_TITLES[s])).toEqual([
+      'At a glance', 'Map', 'Visits and media', 'Weather on your visits', 'Checklists by protocol', 'Most-recorded species', 'Life list',
+    ])
   })
 })
 

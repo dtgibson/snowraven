@@ -281,7 +281,13 @@ describe('a report (FR-31 to FR-56, QA-24, QA-25, QA-31, QA-32, QA-40, QA-77)', 
     await choose(container, 'Jamaica Bay')
     const report = container.querySelector('.sr-hsr-report')!
     const order = [...report.querySelectorAll('.sr-hsr-hero, .sr-hsr-jump, section h4')].map(e => e.className === '' ? e.textContent : e.className.split(' ').pop())
-    expect(order).toEqual(['sr-hsr-hero', 'sr-hsr-jump', 'Life list', 'Map', 'Checklists by protocol', 'Weather on your visits', 'Visits and media'])
+    // FR-31 as modified (hotspot-report-order-and-stats): the opening figures
+    // under the header, the jump row after them, the life list last.
+    expect(order).toEqual(['sr-hsr-hero', 'At a glance', 'sr-hsr-jump', 'Map', 'Visits and media', 'Weather on your visits', 'Checklists by protocol', 'Most-recorded species', 'Life list'])
+    // In two columns the rail comes first and the list second, in the DOM.
+    const body = report.querySelector('.sr-hsr-body')!
+    expect([...body.children].map(c => c.className)).toEqual(['sr-hsr-rail', 'sr-hsr-card'])
+    expect(body.lastElementChild!.querySelector('h4')!.textContent).toBe('Life list')
     expect(report.querySelector('.sr-hsr-rule')!.textContent).toBe(RULE_SENTENCE)
     expect([...report.querySelectorAll('.sr-hsr-fig-value')].map(e => e.textContent)).toEqual(['3', '2'])
     expect(report.querySelectorAll('input, select').length).toBe(0)
@@ -322,13 +328,87 @@ describe('a report (FR-31 to FR-56, QA-24, QA-25, QA-31, QA-32, QA-40, QA-77)', 
     await choose(container, 'Jamaica Bay')
     const nav = container.querySelector('nav[aria-label="Jump to section"]')!
     const chips = [...nav.querySelectorAll('a')]
-    expect(chips.map(a => a.textContent)).toEqual(['Life list', 'Map', 'Protocols', 'Weather', 'Visits'])
+    expect(chips.map(a => a.textContent)).toEqual(['Map', 'Visits', 'Weather', 'Protocols', 'Most recorded', 'Life list'])
     for (const a of chips) expect(a.getAttribute('tabindex')).toBe('0')
+    // Every section after the row has a chip and nothing before it does: the
+    // chips' targets are exactly the headings that follow the row in the DOM.
+    const headings = [...container.querySelectorAll('.sr-hsr-report section h4')]
+    const after = headings.filter(h => nav.compareDocumentPosition(h) & Node.DOCUMENT_POSITION_FOLLOWING)
+    expect(chips.map(a => a.getAttribute('href'))).toEqual(after.map(h => `#${h.id}`))
+    expect(headings.length - after.length).toBe(1)
     Element.prototype.scrollIntoView = vi.fn()
     const before = container.querySelector('.sr-hsr-fig-value')!.textContent
-    fireEvent.click(chips[3])
+    fireEvent.click(chips[2])
     expect(document.activeElement!.textContent).toBe('Weather on your visits')
     expect(container.querySelector('.sr-hsr-fig-value')!.textContent).toBe(before)
+    fireEvent.click(chips[chips.length - 1])
+    expect(document.activeElement!.textContent).toBe('Life list')
+  })
+
+  it('At a glance opens the report with its tiles and facts, each stating its denominator', async () => {
+    const { container } = await ready()
+    await choose(container, 'Jamaica Bay')
+    const glance = container.querySelector('.sr-hsr-glance')!
+    const tiles = [...glance.querySelectorAll('.sr-hsr-tile')].map(t => [...t.children].map(c => c.textContent))
+    expect(tiles).toEqual([
+      ['Days birded', '2', 'from 2 dated checklists'],
+      ['Years birded', '2', '2024 to 2025'],
+      ['Species per hour', '2.0', 'averaged over 2 of 2 checklists with a duration'],
+      ['Recorded once', '2', 'of 3 species, each on 1 checklist'],
+    ])
+    const facts = [...glance.querySelectorAll('.sr-hsr-fact')].map(f => f.querySelector('dt')!.textContent)
+    expect(facts).toEqual(['First visit', 'Latest visit', 'Time birded', 'Distance traveled', 'Most species on one checklist', 'First species here', 'Newest species here'])
+    expect(glance.textContent).toContain('over 2 of 2 checklists that recorded a duration, 1 hour on average')
+    expect(glance.textContent).toContain('1.2 miles')
+    expect(glance.textContent).toContain('over 2 of 2 checklists that recorded a distance, 0.6 miles on average')
+    // The species rows are the life list's own oldest and newest rows, as BirdName.
+    const sp = [...glance.querySelectorAll('.sr-hsr-fact-sp')]
+    expect(sp.map(d => d.querySelector('.sr-birdname-link, .sr-birdname-text')!.textContent)).toEqual(['Song Sparrow', 'Mute Swan'])
+    // Visits and media keeps its name and lost its facts.
+    const visits = [...container.querySelectorAll('section')].find(sec => sec.querySelector('h4')!.textContent === 'Visits and media')!
+    expect(visits.querySelector('.sr-hsr-facts')).toBeNull()
+    expect(visits.textContent).toContain('Visits by month')
+  })
+
+  it('Most-recorded species ranks the life list\'s own figure; it and its chip are present exactly when there is something to rank', async () => {
+    const { container } = await ready()
+    await choose(container, 'Jamaica Bay')
+    const top = [...container.querySelectorAll('section')].find(sec => sec.querySelector('h4')!.textContent === 'Most-recorded species')!
+    expect(top.querySelector('.sr-hsr-toplead')!.textContent).toBe('Your 3 species here, by how many of your 2 checklists here include each.')
+    const rows = [...top.querySelectorAll('ol.sr-hsr-toplist > li')]
+    expect(rows.map(r => r.querySelector('.sr-birdname-link, .sr-birdname-text')!.textContent)).toEqual(['Song Sparrow', 'Blue Jay', 'Mute Swan'])
+    expect(rows[0].querySelector('.sr-hsr-top-fig')!.textContent).toBe('on 2 of 2 checklists \u00b7 100%')
+    for (const r of rows) expect(r.querySelector('.sr-hsr-top-num')!.getAttribute('aria-hidden')).toBe('true')
+    // Each row equals its row in the life list.
+    const life = new Map([...container.querySelectorAll('.sr-hsr-ll-row')].map(r => [
+      r.querySelector('.sr-birdname-link, .sr-birdname-text')!.textContent, r.querySelector('.sr-hsr-ll-on-fig b')!.textContent,
+    ]))
+    for (const r of rows) expect(r.querySelector('.sr-hsr-top-fig b')!.textContent).toBe(life.get(r.querySelector('.sr-birdname-link, .sr-birdname-text')!.textContent))
+    // One checklist: no section, no heading, no chip.
+    await choose(container, 'Backyard')
+    expect([...container.querySelectorAll('section h4')].map(h => h.textContent)).not.toContain('Most-recorded species')
+    expect([...container.querySelectorAll('nav[aria-label="Jump to section"] a')].map(a => a.textContent)).toEqual(['Map', 'Visits', 'Weather', 'Protocols', 'Life list'])
+    // ... and its At a glance: one visit, one species, no average clauses.
+    const glance = container.querySelector('.sr-hsr-glance')!
+    expect([...glance.querySelectorAll('.sr-hsr-tile dt')].map(d => d.textContent)).toEqual(['Species per hour'])
+    expect(glance.querySelector('.sr-hsr-tile .sr-hsr-note')!.textContent).toBe('from the 1 checklist here with a duration')
+    expect([...glance.querySelectorAll('.sr-hsr-fact dt')].map(d => d.textContent)).toEqual(['Only visit', 'Time birded', 'Distance traveled', 'Most species on one checklist', 'Only species here'])
+    expect(glance.textContent).not.toContain('on average')
+  })
+
+  it('a place with exactly one species and several checklists says so in one sentence, with no list', async () => {
+    H.observations = [
+      ...checklist({ submissionId: 'S1', locationId: 'L5', location: 'Home', date: '2024-01-01', species: ['Song Sparrow'] }),
+      ...checklist({ submissionId: 'S2', locationId: 'L5', location: 'Home', date: '2024-02-01', species: ['Song Sparrow', 'gull sp.'] }),
+      ...checklist({ submissionId: 'S3', locationId: 'L6', location: 'Pond', species: ['Blue Jay'] }),
+    ]
+    const { container } = await ready()
+    await choose(container, 'Home')
+    const top = [...container.querySelectorAll('section')].find(sec => sec.querySelector('h4')!.textContent === 'Most-recorded species')!
+    expect(top.querySelector('ol')).toBeNull()
+    const p = top.querySelector('.sr-hsr-secbody > p')!
+    expect(p.querySelector('.sr-birdname-link, .sr-birdname-text')!.textContent).toBe('Song Sparrow')
+    expect(p.lastChild!.textContent).toBe(' is the only species here, on 2 of 2 checklists.')
   })
 
   it('a hotspot\'s name links to eBird; a personal location\'s is text', async () => {

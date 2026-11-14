@@ -1,0 +1,5 @@
+rules pre-fix build 2078 now 2079
+removed 0 added 1
+utilities-layer rules pre-fix build 82 now 82 identical True
+changed rules whose selector is not .sr-hsr-*: []
++  | .sr-hsr-ll-name .sr-birdname-link,.sr-hsr-ll-name .sr-birdname-text { overflow-wrap:anywhere }

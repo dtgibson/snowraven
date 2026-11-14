@@ -33,17 +33,19 @@ import { DEFAULT_TAB_ORDER, TAB_LABELS } from './tabLayout'
 import { WEATHER_SPECIES_MIN_CHECKLISTS } from './weatherStats'
 import { PICKER_OPTION_CAP } from './hotspotReportsPicker'
 import { RANKED_LIST_SIZE, buildLocationIndex, deriveMediaCounts, speciesTotals } from './hotspotReports'
-import { DURATION_MAX_MIN, PROTOCOL_ROWS_MAX } from './hotspotReportsLocation'
+import {
+  DISTANCE_MAX_KM, DURATION_MAX_MIN, PROTOCOL_ROWS_MAX, TOP_SPECIES_MAX, applySpeciesRule, deriveLocationFacts,
+} from './hotspotReportsLocation'
 import { kindOf } from './hotspotReportsKind'
 import type { HotspotResolution, RegionResolution } from './hotspotSet'
 import {
   BLANK_PROTOCOL, COMPLETE_HEAD, FACT_TERMS, KIND_WORDS, MEDIA_HEAD, MONTHS_TITLE, OTHER_PROTOCOLS,
   OVERVIEW_LABEL, PICKER_LABEL, RANK_HEADINGS, REPORT_SECTIONS, RULE_SENTENCE, SECTION_TITLES,
-  SHOW_NEXT_LABEL, TOTAL_LABELS, UNNAMED_LOCATION, YEARS_TITLE, showAllLabel,
+  SHOW_NEXT_LABEL, TILE_LABELS, TOTAL_LABELS, UNNAMED_LOCATION, YEARS_TITLE, formatCount, showAllLabel,
 } from './hotspotReportsCopy'
 import { PAGE_SIZE } from './pageList'
 import { COUNT_FORMS_TOGGLE_LABEL } from './countabilityCopy'
-import { computeChecklists, computeGeo, filterObservations } from './birdingStats'
+import { computeChecklists, computeEffort, computeGeo, filterObservations } from './birdingStats'
 import { buildHotspotPersonalStats } from './hotspotColorModes'
 import { checklist, mlRow } from '../test/hotspotReportsRows'
 
@@ -237,8 +239,23 @@ describe("Help's Hotspot Reports section", () => {
     expect(text).toContain(`two totals, **${TOTAL_LABELS.species}** and **${TOTAL_LABELS.checklists(2)}**, with one line under them stating the counting rule.`)
     const titles = REPORT_SECTIONS.map(s => SECTION_TITLES[s])
     expect(text).toContain(`${NUMBER_WORDS[titles.length]} sections follow: ${serialList(titles)}.`)
-    // And each section has its own bold-led paragraph, under the same title.
-    for (const t of titles) expect(text, t).toContain(`\n**${t}.**`)
+    // And each section has its own bold-led paragraph, under the same title,
+    // in the order the report reads (hotspot-report-order-and-stats).
+    const at = titles.map(t => text.indexOf(`\n**${t}.**`))
+    for (let i = 0; i < titles.length; i++) expect(at[i], titles[i]).toBeGreaterThan(-1)
+    expect([...at].sort((a, b) => a - b)).toEqual(at)
+  })
+
+  it('says the life list comes last, the opening figures first, and where the jump row sits (FR-31 as modified)', () => {
+    const p = paragraph(passage(), 'The report')
+    expect(REPORT_SECTIONS[0]).toBe('glance')
+    expect(REPORT_SECTIONS[REPORT_SECTIONS.length - 1]).toBe('list')
+    expect(p).toContain(`${SECTION_TITLES.top} is left out at a place with one checklist, or with no species that counts.`)
+    expect(p).toContain(`Where the report is wide enough, ${SECTION_TITLES.glance} runs across the top, and under it the other sections stack on the left while the life list runs down the right;`)
+    expect(p).toContain(`the sections stack in that order, the life list last, and a row of links under ${SECTION_TITLES.glance} jumps to each section after it, moving keyboard focus to its heading.`)
+    // The old order's sentences are gone.
+    expect(passage()).not.toContain('the life list runs down the left')
+    expect(passage()).not.toContain('Five sections follow')
   })
 
   it("states the life list's paging from PAGE_SIZE and the pager's own labels, and its in-place dating (FR-34, FR-37)", () => {
@@ -272,13 +289,35 @@ describe("Help's Hotspot Reports section", () => {
     for (const n of numbers) expect(Number(n)).toBe(F)
   })
 
-  it('names the facts as the tab renders them and the duration bound from DURATION_MAX_MIN (FR-51 to FR-54)', () => {
-    const p = paragraph(passage(), SECTION_TITLES.visits)
-    for (const term of [FACT_TERMS.first, FACT_TERMS.latest, FACT_TERMS.only, FACT_TERMS.time, FACT_TERMS.biggest, MONTHS_TITLE, YEARS_TITLE, MEDIA_HEAD]) {
-      expect(p, term).toContain(`**${term}**`)
-    }
+  it('names every At a glance tile and fact as the tab renders them, with the duration and distance bounds from their constants (FR-51 to FR-54, D-02)', () => {
+    const p = paragraph(passage(), SECTION_TITLES.glance)
+    for (const term of [...Object.values(TILE_LABELS), ...Object.values(FACT_TERMS)]) expect(p, term).toContain(`**${term}**`)
     expect(DURATION_MAX_MIN % 60).toBe(0)
     expect(p).toContain(`(not blank, not negative, and at most ${DURATION_MAX_MIN / 60} hours)`)
+    expect(p).toContain(`a distance counts when it is not blank, not negative, and at most ${formatCount(DISTANCE_MAX_KM)} kilometers, and the row is left out when none here recorded one.`)
+    expect(p).toContain('so a checklist that recorded a duration and no species that counts is in the average at zero.')
+    expect(p).toContain('once you have birded here on three or more dates.')
+    // The facts left Visits and media, which keeps its distributions and media.
+    const v = paragraph(passage(), SECTION_TITLES.visits)
+    for (const term of [MONTHS_TITLE, YEARS_TITLE, MEDIA_HEAD]) expect(v, term).toContain(`**${term}**`)
+    for (const term of Object.values(FACT_TERMS)) expect(v.includes(`**${term}**`), term).toBe(false)
+  })
+
+  it('states the most-recorded list\'s size from TOP_SPECIES_MAX and its figure as the life list\'s own', () => {
+    const p = paragraph(passage(), SECTION_TITLES.top)
+    expect(p).toContain(`Up to ${TOP_SPECIES_MAX} species from the life list, ranked by how many of your checklists here include each, which is the figure the life list itself shows,`)
+    expect(p).toContain('a tie goes by name.')
+  })
+
+  it('says Statistics applies no distance bound and counts species per hour by its own rule, beside the other differences', () => {
+    const text = passage()
+    const i = text.indexOf('\nTwo figures under At a glance also differ from their Statistics counterparts by rule.')
+    expect(i, 'the explanation exists (non-vacuity)').toBeGreaterThan(-1)
+    // It sits with the other stated differences, after the species-rule paragraphs.
+    expect(i).toBeGreaterThan(text.indexOf('\nTwo other tabs count species at a place by rules of their own'))
+    const p = text.slice(i + 1, text.indexOf('\n\n', i + 1))
+    expect(p).toContain('where the Statistics figure leaves such a checklist out.')
+    expect(p).toContain(`Distance traveled leaves out a distance above ${formatCount(DISTANCE_MAX_KM)} kilometers, while Statistics applies no distance bound,`)
   })
 
   it('says media counts follow the linked checklist, never the place in the ML export (FR-55)', () => {
@@ -370,6 +409,22 @@ describe('the behaviour the section describes', () => {
     expect(index.checklistCount[ord('L3')]).toBe(2)
     expect(statistics(false).checklists('L3')).toBe(1)
     expect(statistics(true).checklists('L3')).toBe(2)
+  })
+
+  it('Statistics sums a distance past the bound and leaves a timed checklist with no species out of its rate; this tab does the reverse of each', () => {
+    const rows = [
+      ...checklist({ submissionId: 'T1', locationId: 'L9', duration: 60, distance: 3, species: ['Song Sparrow', 'Blue Jay'] }),
+      ...checklist({ submissionId: 'T2', locationId: 'L9', duration: 60, distance: DISTANCE_MAX_KM + 100, species: ['gull sp.'] }),
+    ]
+    const ix = buildLocationIndex(rows)
+    const facts = deriveLocationFacts(ix, rows, ix.ordById.get('L9')!)
+    const tab = applySpeciesRule(facts, new Set())
+    const stats = computeEffort(computeChecklists(filterObservations(rows, false)))
+    const statsAllForms = computeEffort(computeChecklists(filterObservations(rows, true)))
+    expect(facts.distance).toEqual({ km: 3, counted: 1 })
+    expect(statsAllForms.distanceCount).toBe(2)
+    expect(tab.perHour).toEqual({ mean: 1, counted: 2 })
+    expect(stats.sppPerHour).toBe(2)
   })
 
   it('media follow the checklist each item is linked to, never the place written in the ML export', () => {

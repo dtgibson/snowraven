@@ -15,8 +15,19 @@
 // shipped `computeWeatherStats`, called with that location's checklists only),
 // H7 the species rule, H11 the protocol-name bound. No regex and none of the
 // search primitives whose absence case scans to the end of a string; the suite
-// asserts that absence with comments stripped. No `Date` is constructed and no
-// count of calendar days is taken (schema 4.4).
+// asserts that absence with comments stripped. No `Date` is constructed.
+//
+// THE OPENING FIGURES (hotspot-report-order-and-stats decisions.md D-03 to
+// D-06) add no read over file text: they read the numeric `duration` and
+// `distance` cells and the integer day keys the checklist loop already holds.
+// Every loop they add is driven by a COUNT of things in the file (checklists,
+// distinct dates, life-list rows), never by a number read from it: the longest
+// gap sorts the distinct dates and takes one difference per neighbouring pair
+// in integer civil-day arithmetic (`civilDaysFrom`, Hinnant's days_from_civil),
+// so a span of 9,999 years costs what a span of one day does. That is the one
+// count of calendar days this module takes; it never goes through `Date` or a
+// millisecond difference, so CLAUDE.md's rounding rule for midnights has
+// nothing to round.
 
 import type { ChecklistEntry, ObservationEntry } from '../types'
 import { computeChecklists } from './birdingStats'
@@ -26,8 +37,9 @@ import {
 } from './weatherStats'
 import { inDisplayOrder } from './weatherDisplay'
 import { protocolName } from './checklistMeta'
+import { civilDaysFrom } from './formatDate'
 import {
-  compareDisplay, compareInstant, dayKey, firstSightingRecord, minuteOf12h,
+  compareDisplay, compareInstant, dayKey, dayToIso, firstSightingRecord, minuteOf12h,
   type FirstSighting,
 } from './lifeLists'
 import { boundText, isEligibleRow, type LocationIndex } from './hotspotReports'
@@ -44,6 +56,22 @@ export const REPORT_YEAR_ROWS_MAX = 100
  *  own constant is module-private). Held to it by a behavioral row in the
  *  suite, never by restating the number there. */
 export const DURATION_MAX_MIN = 1440
+/** A checklist's distance (kilometers, as eBird exports it) is usable from 0 to
+ *  this many inclusive: 24 hours, FR-53's bound, at 100 km/h. A plausibility
+ *  ceiling so one corrupt cell cannot become the place's total, not a judgement
+ *  of a long driving count (hotspot-report-order-and-stats decisions.md D-02). */
+export const DISTANCE_MAX_KM = 2400
+/** NFR-03: the most-recorded list is at most this many rows. */
+export const TOP_SPECIES_MAX = 10
+
+/** FR-53's usable duration: a number, not negative, at most DURATION_MAX_MIN. */
+function usableDuration(d: number | null): d is number {
+  return typeof d === 'number' && d >= 0 && d <= DURATION_MAX_MIN
+}
+/** D-02's usable distance: a finite number from 0 to DISTANCE_MAX_KM inclusive. */
+function usableDistance(d: number | null): d is number {
+  return typeof d === 'number' && Number.isFinite(d) && d >= 0 && d <= DISTANCE_MAX_KM
+}
 
 // ── Shapes ───────────────────────────────────────────────────────────────────
 
@@ -90,6 +118,17 @@ export interface LocationFacts {
   readonly months: readonly number[]
   readonly years: readonly YearRow[]
   readonly timeBirded: { readonly minutes: number; readonly counted: number }
+  /** The distinct dates among dated checklists (day keys, so an undated one adds none). */
+  readonly daysBirded: number
+  /** The distinct years with a dated checklist: how many, the first and the last. */
+  readonly yearSpan: { readonly count: number; readonly first: number; readonly last: number } | null
+  /** The most days between two neighbouring distinct dates, by integer civil-day
+   *  arithmetic; `from` and `to` are the day keys either side, the earliest such
+   *  pair winning a tie. Null when no two dates are a day or more apart. Whether
+   *  it is DRAWN (three or more distinct dates) is `glanceView`'s rule. */
+  readonly longestGap: { readonly days: number; readonly from: number; readonly to: number } | null
+  /** D-02: the sum of the usable distances in kilometers, and how many there were. */
+  readonly distance: { readonly km: number; readonly counted: number }
   readonly species: readonly SpeciesFact[]
   /** Per checklist: distinct species with an eligible row there, escapees included. */
   readonly checklistSpecies: Int32Array
@@ -119,6 +158,15 @@ export interface LocationSpecies {
   /** FR-54, or null when no checklist here has a species under the rule.
    *  `day` is the checklist's day key, 0 when it is undated. */
   readonly biggest: { readonly checklist: ChecklistEntry; readonly species: number; readonly day: number } | null
+  /** Species per hour (decisions.md D-03): the mean, over every checklist whose
+   *  usable duration is above zero, of its species under the rule (the same
+   *  per-checklist counts FR-54 reads, zero included) per hour. Null with none. */
+  readonly perHour: { readonly mean: number; readonly counted: number } | null
+  /** Life-list rows whose own checklist figure (FR-37) is exactly 1. */
+  readonly recordedOnce: number
+  /** At most TOP_SPECIES_MAX life-list rows, by their checklist figure
+   *  descending, then name by locale compare: each is the row itself. */
+  readonly top: readonly LocationLifeRow[]
 }
 
 const NO_OBSERVATIONS: readonly ObservationEntry[] = []
@@ -167,6 +215,13 @@ export function deriveLocationFacts(index: LocationIndex, obs: readonly Observat
   let latest: VisitRef | null = null
   let minutes = 0
   let counted = 0
+  let km = 0
+  let distanceCounted = 0
+  // Distinct dates, as integer day keys (D-04): the Days birded figure and the
+  // longest gap's input. At most one entry per checklist.
+  const days = new Set<number>()
+  let firstYear = 0
+  let lastYear = 0
   const checklistDay = new Int32Array(C)
   const checklistMinute = new Int32Array(C)
   const checklistIndex = new Map<string, number>()
@@ -180,16 +235,21 @@ export function deriveLocationFacts(index: LocationIndex, obs: readonly Observat
     else if (c.allObsReported === false) known += 1
     else unknown += 1
     const d = c.duration
-    if (typeof d === 'number' && d >= 0 && d <= DURATION_MAX_MIN) { minutes += d; counted += 1 }
+    if (usableDuration(d)) { minutes += d; counted += 1 }
+    const dist = c.distance
+    if (usableDistance(dist)) { km += dist; distanceCounted += 1 }
     const minute = minuteOf12h(c.time)
     checklistMinute[ci] = minute === null ? -1 : minute
     const day = dayKey(c.date)
     if (day === null) continue
     checklistDay[ci] = day
     datedChecklists += 1
+    days.add(day)
     months[Math.floor(day / 100) % 100 - 1] += 1
     const year = Math.floor(day / 10000)
     yearCounts.set(year, (yearCounts.get(year) ?? 0) + 1)
+    if (yearCounts.size === 1 || year < firstYear) firstYear = year
+    if (yearCounts.size === 1 || year > lastYear) lastYear = year
     const at: VisitRef = { submissionId: c.submissionId, day, minute }
     if (first === null) first = at
     else {
@@ -264,6 +324,10 @@ export function deriveLocationFacts(index: LocationIndex, obs: readonly Observat
     months,
     years: yearRows(yearCounts),
     timeBirded: { minutes, counted },
+    daysBirded: days.size,
+    yearSpan: yearCounts.size === 0 ? null : { count: yearCounts.size, first: firstYear, last: lastYear },
+    longestGap: longestGap(days),
+    distance: { km, counted: distanceCounted },
     species,
     checklistSpecies,
     checklistDay,
@@ -313,6 +377,34 @@ function yearRows(counts: ReadonlyMap<number, number>): YearRow[] {
   return out
 }
 
+/**
+ * D-04: the longest gap between neighbouring distinct dates. Each day key is
+ * taken to its civil day number once (`civilDaysFrom`, integer arithmetic over
+ * the key's own Y/M/D; no `Date`), the pairs are sorted by that number, and the
+ * gap is one subtraction per neighbouring pair: O(D log D) in the distinct
+ * dates, independent of how many days the dates span. Sorting by the civil
+ * number rather than the key keeps every difference non-negative for the one
+ * key shape that is not a calendar date, a day past its month's end
+ * (`2024-02-31`, which `dayKey` admits and civil arithmetic reads as Mar 2); two
+ * keys on one civil day are a gap of 0, never drawn. A key whose year is 0000
+ * has no civil day (`civilDaysFrom` refuses it) and is left out of the gap.
+ * Strictly greater replaces, so the earliest pair wins a tie.
+ */
+function longestGap(days: ReadonlySet<number>): LocationFacts['longestGap'] {
+  const civil: { readonly at: number; readonly day: number }[] = []
+  for (const day of days) {
+    const at = civilDaysFrom(dayToIso(day))
+    if (at !== null) civil.push({ at, day })
+  }
+  civil.sort((a, b) => a.at - b.at || a.day - b.day)
+  let best: { days: number; from: number; to: number } | null = null
+  for (let i = 1; i < civil.length; i++) {
+    const span = civil[i].at - civil[i - 1].at
+    if (span > 0 && (best === null || span > best.days)) best = { days: span, from: civil[i - 1].day, to: civil[i].day }
+  }
+  return best
+}
+
 // ── applySpeciesRule (schema 4.2, FR-33 to FR-38, FR-54) ──────────────────────
 
 type MutableLifeRow = { -readonly [K in keyof LocationLifeRow]: LocationLifeRow[K] }
@@ -344,11 +436,113 @@ export function applySpeciesRule(facts: LocationFacts, escapees: ReadonlySet<str
     if (counts[ci] <= 0) continue
     if (best < 0 || counts[ci] > counts[best] || (counts[ci] === counts[best] && earlierChecklist(facts, ci, best))) best = ci
   }
+
+  // D-03: species per hour from the SAME per-checklist counts, over every
+  // checklist whose usable duration is above zero. A timed checklist with no
+  // species under the rule is a real outing that counted nothing, so it stays
+  // in the mean at zero (Statistics' own figure leaves such a checklist out).
+  let rate = 0
+  let timed = 0
+  for (let ci = 0; ci < counts.length; ci++) {
+    const d = facts.checklists[ci].duration
+    if (!usableDuration(d) || d === 0) continue
+    rate += counts[ci] / (d / 60)
+    timed += 1
+  }
+
+  // D-05: the two figures read off the life list's own rows.
+  let recordedOnce = 0
+  for (const r of rows) if (r.checklists === 1) recordedOnce += 1
+
   return {
     rows,
     total: rows.length,
     biggest: best < 0 ? null : { checklist: facts.checklists[best], species: counts[best], day: facts.checklistDay[best] },
+    perHour: timed === 0 ? null : { mean: rate / timed, counted: timed },
+    recordedOnce,
+    top: topRows(rows),
   }
+}
+
+/** The most-recorded order: the checklist figure descending, then name. */
+function compareTop(a: LocationLifeRow, b: LocationLifeRow): number {
+  return a.checklists !== b.checklists ? b.checklists - a.checklists : a.name.localeCompare(b.name)
+}
+
+/**
+ * D-05: the first TOP_SPECIES_MAX rows in `compareTop` order, by insertion into
+ * a list that never holds more than TOP_SPECIES_MAX + 1 rows, so the cost is
+ * linear in the life list (at most eleven comparisons a row) rather than a sort
+ * of all of it. A row equal to one already held goes after it, which is what a
+ * stable sort then a cut would give; the suite holds the two equal.
+ */
+function topRows(rows: readonly LocationLifeRow[]): LocationLifeRow[] {
+  const top: LocationLifeRow[] = []
+  for (const r of rows) {
+    if (top.length === TOP_SPECIES_MAX && compareTop(r, top[top.length - 1]) >= 0) continue
+    let at = top.length
+    while (at > 0 && compareTop(r, top[at - 1]) < 0) at -= 1
+    top.splice(at, 0, r)
+    if (top.length > TOP_SPECIES_MAX) top.pop()
+  }
+  return top
+}
+
+// ── The opening figures, as drawn (design-refinement "At a glance") ───────────
+
+export type GlanceSpecies =
+  | { readonly kind: 'only'; readonly row: LocationLifeRow }
+  | { readonly kind: 'pair'; readonly first: LocationLifeRow; readonly newest: LocationLifeRow }
+
+/** Which At a glance figures a place shows, with their numbers. A null member
+ *  is not drawn: the many / one / none rule applied to figures. The fact rows
+ *  the shipped tab already drew (visits, time birded, the biggest checklist)
+ *  are read from the facts and the species directly, as before. */
+export interface GlanceView {
+  readonly days: { readonly days: number; readonly dated: number } | null
+  readonly years: { readonly count: number; readonly first: number; readonly last: number } | null
+  /** `aboveZero` when the figure rests on fewer checklists than Time birded
+   *  counts, which happens exactly when a checklist recorded a duration of 0. */
+  readonly perHour: { readonly mean: number; readonly counted: number; readonly aboveZero: boolean } | null
+  readonly recordedOnce: { readonly once: number; readonly species: number } | null
+  readonly gap: { readonly days: number; readonly from: number; readonly to: number } | null
+  readonly distance: { readonly km: number; readonly counted: number } | null
+  readonly species: GlanceSpecies | null
+}
+
+export function glanceView(facts: LocationFacts, species: LocationSpecies): GlanceView {
+  const C = facts.checklists.length
+  const S = species.total
+  const twoDated = facts.datedChecklists >= 2
+  let lifeRows: GlanceSpecies | null = null
+  if (S === 1) lifeRows = { kind: 'only', row: species.rows[0] }
+  else if (S > 1 && species.rows[S - 1].day !== species.rows[0].day) {
+    // The oldest row is the list's last (position 1), the newest its first.
+    lifeRows = { kind: 'pair', first: species.rows[S - 1], newest: species.rows[0] }
+  }
+  return {
+    days: twoDated ? { days: facts.daysBirded, dated: facts.datedChecklists } : null,
+    years: twoDated && facts.yearSpan !== null ? facts.yearSpan : null,
+    perHour: species.perHour !== null && S > 0
+      ? { mean: species.perHour.mean, counted: species.perHour.counted, aboveZero: species.perHour.counted < facts.timeBirded.counted }
+      : null,
+    recordedOnce: C >= 2 && S >= 2 ? { once: species.recordedOnce, species: S } : null,
+    gap: facts.daysBirded >= 3 ? facts.longestGap : null,
+    distance: facts.distance.counted > 0 ? facts.distance : null,
+    species: lifeRows,
+  }
+}
+
+/** The Most-recorded section (the many / one / none rule): a list with two or
+ *  more species, one sentence with exactly one, and nothing at all at one
+ *  checklist (every species ties at one) or with no countable species. */
+export type MostRecordedView =
+  | { readonly kind: 'list'; readonly rows: readonly LocationLifeRow[] }
+  | { readonly kind: 'one'; readonly row: LocationLifeRow }
+
+export function mostRecordedView(facts: LocationFacts, species: LocationSpecies): MostRecordedView | null {
+  if (facts.checklists.length < 2 || species.total === 0) return null
+  return species.total === 1 ? { kind: 'one', row: species.rows[0] } : { kind: 'list', rows: species.top }
 }
 
 function earlierChecklist(facts: LocationFacts, a: number, b: number): boolean {

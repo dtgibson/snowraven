@@ -51,9 +51,9 @@
     "family": "iphone-6.9",
     "position": 7,
     "file": "appstore/screenshots/iphone-6.9/07-hotspot-reports.png",
-    "bytes": 437185,
-    "md5": "21f6376e29067534d7db97de6b112908",
-    "sha256": "ddc080b6fc250723266c276586540001396cf21e8fd5b4a81f0ef6a4c79ae8fc"
+    "bytes": 416330,
+    "md5": "737bda9f7b7290006cecacf60c33af0b",
+    "sha256": "fce84ebba80d6a7738b7703b459d56f8d446386fd7b493a9081f6eabf1eb6d52"
   },
   {
     "family": "ipad-13",
@@ -107,9 +107,9 @@
     "family": "ipad-13",
     "position": 7,
     "file": "appstore/screenshots/ipad-13/07-hotspot-reports.png",
-    "bytes": 536441,
-    "md5": "1bceb9f37259d6e1f5f456c21270dfd5",
-    "sha256": "27591d4cdc0bbfa31649f3826a2602cc15dd88ba303444267b2e5d8b587918df"
+    "bytes": 600798,
+    "md5": "9f1703576812beb434215906a9b77a6d",
+    "sha256": "2ce35745e4255db03de49474e1681445155c4acadf1bb45d8bef3f71a94590ae"
   },
   {
     "family": "iphone-duo",
@@ -163,8 +163,8 @@
     "family": "iphone-duo",
     "position": 7,
     "file": "appstore/screenshots/iphone-duo/07-hotspot-reports.png",
-    "bytes": 510546,
-    "md5": "0271e136fcca5c435ee6b0001964bd3e",
-    "sha256": "71c6cce310a1d0c85610013dc9517bf40ea42b260b656336e1bf45a39d70d6f4"
+    "bytes": 497785,
+    "md5": "117320266f58a5a1ff1b3d28c6ce5b58",
+    "sha256": "7da55063cabc91fe5986ec31b1ffd61a41ee6ad78191617b5519d19e031470f2"
   }
 ]

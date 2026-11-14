@@ -1,0 +1,36 @@
+rules HEAD 2057 now 2079
+removed 5 added 27
+utilities-layer rules HEAD 82 now 82 identical True
+changed rules whose selector is not .sr-hsr-*: []
+-  | .sr-hsr-body { grid-template-columns:minmax(0,1fr) minmax(0,24rem);align-items:start;gap:16px;display:grid }
+-  | .sr-hsr-fact { border-bottom:1px solid var(--sr-border-subtle);flex-wrap:wrap;gap:0 12px;padding:8px 0;display:flex }
+-  | .sr-hsr-fact:first-child { padding-top:0 }
+-  | .sr-hsr-fact:last-child { border-bottom:0;padding-bottom:0 }
+-  | .sr-hsr-facts { flex-direction:column;margin:0;display:flex }
++  | .sr-hsr-body { grid-template-columns:minmax(0,24rem) minmax(0,1fr);align-items:start;gap:16px;display:grid }
++  | .sr-hsr-fact { border-top:1px solid var(--sr-border-subtle);flex-wrap:wrap;gap:0 12px;min-width:0;padding:9px 0;display:flex }
++  | .sr-hsr-fact-sp { flex-wrap:wrap;align-items:baseline;gap:0 10px;display:flex }
++  | .sr-hsr-fact-sp .sr-birdname { max-width:100% }
++  | .sr-hsr-fact-sp .sr-birdname-row { flex-wrap:wrap }
++  | .sr-hsr-facts { grid-template-columns:repeat(auto-fit,minmax(min(max(19rem,34%),100%),1fr));column-gap:36px;min-width:0;margin:0 0 -9px;display:grid }
++  | .sr-hsr-glance { flex-direction:column;gap:14px;display:flex }
++  | .sr-hsr-glance>.sr-hsr-facts:first-child { grid-template-columns:minmax(0,1fr) }
++  | .sr-hsr-glance>.sr-hsr-facts:first-child>.sr-hsr-fact:first-child { border-top:0;padding-top:0 }
++  | .sr-hsr-ll-name .sr-birdname-link,.sr-hsr-ll-name .sr-birdname-text { overflow-wrap:anywhere }
++  | .sr-hsr-tile { flex-direction:column;min-width:0;display:flex }
++  | .sr-hsr-tile dt { overflow-wrap:break-word }
++  | .sr-hsr-tile-unit { letter-spacing:0;margin-left:4px;font-size:.8125rem;font-weight:600 }
++  | .sr-hsr-tile-value { letter-spacing:-.02em;color:var(--sr-text);font-variant-numeric:tabular-nums;margin:0 0 3px;font-size:1.25rem;font-weight:700;line-height:1. }
++  | .sr-hsr-tiles { grid-template-columns:repeat(auto-fit,minmax(min(8rem,100%),1fr));gap:14px 16px;min-width:0;margin:0;display:grid }
++  | .sr-hsr-top-fig { color:var(--sr-text-muted);font-size:.75rem;line-height:1.5 }
++  | .sr-hsr-top-fig b { color:var(--sr-text);font-variant-numeric:tabular-nums;font-weight:600 }
++  | .sr-hsr-top-main { flex-direction:column;gap:1px;min-width:0;display:flex }
++  | .sr-hsr-top-main .sr-birdname { max-width:100% }
++  | .sr-hsr-top-main .sr-birdname-link,.sr-hsr-top-main .sr-birdname-text { overflow-wrap:anywhere }
++  | .sr-hsr-top-main .sr-birdname-row { flex-wrap:wrap }
++  | .sr-hsr-top-num { color:var(--sr-text-muted);text-align:right;font-variant-numeric:tabular-nums;padding-top:2px;font-size:.75rem }
++  | .sr-hsr-toplead { margin-bottom:10px }
++  | .sr-hsr-toplist { margin:0;padding:0;list-style:none }
++  | .sr-hsr-toprow { border-bottom:1px solid var(--sr-border-subtle);grid-template-columns:1.6rem minmax(0,1fr);align-items:start;column-gap:10px;padding:7px 0;d }
++  | .sr-hsr-toprow:first-child { padding-top:0 }
++  | .sr-hsr-toprow:last-child { border-bottom:0;padding-bottom:0 }

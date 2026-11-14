@@ -31,6 +31,18 @@
 // and the ML join with its checklist lookup as an array search. Each must
 // exceed its row's limit at the same legs. A capped replica over 1,000 rows
 // runs first, so a hang cannot sit behind the timeout (testing.md v1.0.33).
+//
+// THE OPENING FIGURES (hotspot-report-order-and-stats decisions.md D-04 to
+// D-07) extend two passes and add rows for them: the facts over a location
+// whose every checklist is its own date (the distinct-date sort at volume, its
+// C log C limit), the facts at one checklist count over a span of days and a
+// span of 9,998 years (the gap is one subtraction per neighbouring pair, so the
+// SPAN must not move the cost: security.md v1.0.30's loop driven by a number
+// read from the file), and the species rule's existing row, whose fixture puts
+// every species on one checklist so the top-ten selection runs at volume on
+// ties broken by name, with every checklist timed so the rate loop runs too.
+// Two more mutants: the gap walked day by day across the span, and the top ten
+// ranked by counting, for each row, the rows ahead of it.
 
 import { describe, it, expect } from 'vitest'
 import type { ObservationEntry } from '../types'
@@ -39,7 +51,7 @@ import { bestPerCallCpuMs } from '../test/cpuTiming'
 import { row, mlRow } from '../test/hotspotReportsRows'
 import { formatWeather, type HourlyResponse } from './weatherFormatter'
 import { buildLocationIndex, deriveMediaCounts, rankLocations, speciesTotals, type LocationIndex } from './hotspotReports'
-import { applySpeciesRule, deriveLocationFacts } from './hotspotReportsLocation'
+import { applySpeciesRule, deriveLocationFacts, type LocationLifeRow } from './hotspotReportsLocation'
 import { filterLocations } from './hotspotReportsPicker'
 import { confirmEscapeesIndexed } from './hotspotReportsProvenance'
 import { normalizeSpeciesName, isNonCountableForm } from './speciesUtils'
@@ -110,6 +122,41 @@ function realistic(n: number): ObservationEntry[] {
   })
 }
 
+/** One location whose every checklist (three rows) is its own date, so the
+ *  distinct-date sort runs over every checklist. Dates count up one day at a
+ *  time from 1900-01-01 with 28-day months, always a real calendar date. */
+function ownDates(n: number): ObservationEntry[] {
+  const out: ObservationEntry[] = []
+  for (let i = 0; i < n; i++) {
+    const c = Math.floor(i / 3)
+    out.push(row({
+      submissionId: ['S', String(1_000_000 + c)].join(''), locationId: 'L1',
+      commonName: ['Species ', String(i % 150)].join(''),
+      date: [String(1900 + Math.floor(c / 336)), '-', pad(1 + (Math.floor(c / 28) % 12), 2), '-', pad(1 + (c % 28), 2)].join(''),
+      duration: 1 + (c % 300), distance: (c % 50) / 10,
+    }))
+  }
+  return out
+}
+
+/** The span row's legs: SPAN_CHECKLISTS checklists at one location, the same
+ *  rows and the same distinct-date count, on consecutive days from 2000-01-01
+ *  ('days') or one a year from 0001 to 9999 ('years'). */
+const SPAN_CHECKLISTS = 2_000
+const SPAN_LIMIT = 3
+function spanned(n: number, shape: 'days' | 'years'): ObservationEntry[] {
+  const out: ObservationEntry[] = []
+  for (let c = 0; c < n; c++) {
+    const date = shape === 'days'
+      ? new Date(Date.UTC(2000, 0, 1) + c * 86_400_000).toISOString().slice(0, 10)
+      : [pad(1 + Math.floor((c * 9998) / (n - 1)), 4), '-06-15'].join('')
+    for (let k = 0; k < 3; k++) {
+      out.push(row({ submissionId: ['S', String(1_000_000 + c)].join(''), locationId: 'L1', commonName: ['Species ', String((c + k) % 90)].join(''), date }))
+    }
+  }
+  return out
+}
+
 const TZ = 'America/New_York'
 function blockFor(i: number): string {
   const h: HourlyResponse = {
@@ -174,7 +221,30 @@ describe('the Hotspot Reports passes are linear in rows (NFR-02, QA-64)', () => 
     check('filter', measure(() => run(is), () => run(il)), LIMIT)
   }, TIMEOUT_MS)
 
+  it('the facts, one location whose every checklist is its own date, timed and with a distance (limit from C log C)', () => {
+    const [s, l] = [ownDates(SMALL), ownDates(LARGE)]
+    const [is, il] = [buildLocationIndex(s), buildLocationIndex(l)]
+    const [cs, cl] = [is.checklistCount[0], il.checklistCount[0]]
+    // Non-vacuity: every checklist is a distinct date, so the sort sees them all.
+    expect(deriveLocationFacts(il, l, 0).daysBirded).toBe(cl)
+    expect(deriveLocationFacts(il, l, 0).distance.counted).toBe(cl)
+    check('facts own dates', measure(() => deriveLocationFacts(is, s, 0), () => deriveLocationFacts(il, l, 0)), sortLimit(cs, cl))
+  }, TIMEOUT_MS)
+
+  it('the facts\' date figures do not grow with the span the dates cover (span limit)', () => {
+    const [days, years] = [spanned(SPAN_CHECKLISTS, 'days'), spanned(SPAN_CHECKLISTS, 'years')]
+    const [id, iy] = [buildLocationIndex(days), buildLocationIndex(years)]
+    // Non-vacuity: the two legs hold the same checklists and distinct dates,
+    // and the second really spans millennia.
+    const [fd, fy] = [deriveLocationFacts(id, days, 0), deriveLocationFacts(iy, years, 0)]
+    expect([fd.daysBirded, fy.daysBirded]).toEqual([SPAN_CHECKLISTS, SPAN_CHECKLISTS])
+    expect(fy.yearSpan!.last - fy.yearSpan!.first).toBeGreaterThan(9_000)
+    check('facts over a span', measure(() => deriveLocationFacts(id, days, 0), () => deriveLocationFacts(iy, years, 0)), SPAN_LIMIT)
+  }, TIMEOUT_MS)
+
   it('the species rule over 500 and 5,000 species at one location (limit from S log S)', () => {
+    // Every species is on exactly one checklist and every checklist is timed:
+    // the top ten are all ties cut by name, and the rate loop runs (D-05, D-03).
     const build = (n: number) => {
       const rows = Array.from({ length: n }, (_, i) => row({
         submissionId: ['S', String(Math.floor(i / 4))].join(''), locationId: 'L1', commonName: ['Species ', String(i)].join(''),
@@ -276,7 +346,60 @@ function mutantJoin(ml: readonly MLExportRow[], checklists: readonly [string, nu
   return hits
 }
 
+/** The longest gap walked one day at a time from the first date to the last,
+ *  a plausible implementation whose cost is the SPAN, a number read from the
+ *  file, rather than the count of dates. */
+function mutantGapWalk(obs: readonly ObservationEntry[]): number {
+  const at = new Set<number>()
+  let lo = Infinity
+  let hi = -Infinity
+  for (const o of obs) {
+    const y = Number(o.date.slice(0, 4)), m = Number(o.date.slice(5, 7)), d = Number(o.date.slice(8, 10))
+    const t = new Date(0)
+    t.setUTCFullYear(y, m - 1, d)
+    const day = Math.round(t.getTime() / 86_400_000)
+    at.add(day)
+    if (day < lo) lo = day
+    if (day > hi) hi = day
+  }
+  let best = 0
+  let run = 0
+  for (let day = lo; day <= hi; day++) {
+    if (at.has(day)) { best = Math.max(best, run + 1); run = 0 } else run += 1
+  }
+  return best
+}
+
+/** The top ten ranked by counting, for each row, the rows that sort ahead of
+ *  it. Names compare by code unit here, so the mutant's large leg stays cheap
+ *  enough to time; the quadratic is its structure, not its comparator. */
+function mutantTop(rows: readonly LocationLifeRow[]): LocationLifeRow[] {
+  const ranked: [number, LocationLifeRow][] = []
+  for (const a of rows) {
+    let ahead = 0
+    for (const b of rows) if (b.checklists > a.checklists || (b.checklists === a.checklists && b.name < a.name)) ahead++
+    if (ahead < 10) ranked.push([ahead, a])
+  }
+  return ranked.sort((x, y) => x[0] - y[0]).map(x => x[1])
+}
+
 describe('the linearity rows can reject a quadratic (non-vacuity)', () => {
+  it('the longest gap walked day by day exceeds the span limit', () => {
+    mutantGapWalk(spanned(200, 'years'))
+    const [days, years] = [spanned(SPAN_CHECKLISTS, 'days'), spanned(SPAN_CHECKLISTS, 'years')]
+    expect(measure(() => mutantGapWalk(days), () => mutantGapWalk(years)).quotient).toBeGreaterThan(SPAN_LIMIT)
+  }, TIMEOUT_MS)
+
+  it('the top ten ranked by counting the rows ahead exceeds its limit', () => {
+    const build = (n: number) => {
+      const rows = Array.from({ length: n }, (_, i) => row({ submissionId: ['S', String(Math.floor(i / 4))].join(''), locationId: 'L1', commonName: ['Species ', String(i)].join('') }))
+      return applySpeciesRule(deriveLocationFacts(buildLocationIndex(rows), rows, 0), new Set()).rows
+    }
+    mutantTop(build(1_000))
+    const [rs, rl] = [build(SMALL), build(LARGE)]
+    expect(measure(() => mutantTop(rs), () => mutantTop(rl)).quotient).toBeGreaterThan(sortLimit(SMALL, LARGE))
+  }, TIMEOUT_MS)
+
   it('pass I with a linear search over the records exceeds its limit', () => {
     mutantPassI(everyRowItsOwn(1_000, null))
     const [s, l] = [everyRowItsOwn(SMALL, null), everyRowItsOwn(LARGE, null)]
