@@ -205,3 +205,21 @@ Run by The Deployer on the user's answers at the release gate, relayed by the Gu
 | App Store | nothing written; 1.0.72 (`e674c73b`) still `WAITING_FOR_REVIEW` (submission `b8a1dfc7`), read 06:40 UTC; no 1.0.73 record; 97 trains, 105 builds, every build `VALID`; 1.0.73 now has a train and, until phase 2, no record (the 26th such train, the other 25 accounted for in the ledger) |
 | F-Droid | nothing sent; not re-read since part one |
 | Ledger | not yet written for 1.0.73 |
+
+### The CI stop and the re-run (the Guide's decision, 2026-11-14 06:41 UTC)
+
+The Guide's decision on the stop: re-run the failed job of the run of record ONCE and judge the new reading by the user's rule exactly as written; the 2.41 reading is not accepted and the rule is not changed.
+
+10. **`gh run rerun 43566222841 --failed`** at 06:41:38 UTC (attempt 2 of the same run, the same commit `ad2871bc`; only the Frontend job re-ran, Backend's attempt-1 success stands). **The second reading the Guide asked to note, Pipeline `43567511505` on the record-only commit `f7cd2877` (same app code), does not exist:** the workflow's concurrency group (`pipeline-${{ github.ref }}`, `cancel-in-progress: true`) cancelled it when the re-run was queued on the same ref.
+11. **Attempt 2 finished 06:51:23 UTC, red at the test step: 4 failed, 11,366 passed, 29 skipped (11,399); every failure a `lifeListsLinearity.test.ts` timing row under twice its limit; `paletteLocationsLinearity.test.ts` 9 of 9 and `alphaCodes.test.ts` 15 of 15 passed; nothing else failed.** Build and the real-engine gate were skipped after the red test step, as on every run since 1.0.67.
+
+   | Row | Attempt 1 (stopped) | Attempt 2 (accepted) |
+   |---|---|---|
+   | pass 1, every row its own species | 22.27 / 20 (1.11) | 21.43 / 20 (1.07) |
+   | pass 1R, own species and own (state, county) | 29.87 / 25.55 (1.17) | passed |
+   | **pass 2R, own species and own (state, county)** | **48.16 / 20 (2.41)** | **30.67 / 20 (1.53)** |
+   | pass 2R, 20 counties in 4 states | 20.82 / 20 (1.04) | 22.07 / 20 (1.10) |
+   | pass 1R, 200 species repeated | 27.25 / 25.55 (1.07) | passed |
+   | pass 2R, 200 species repeated | 20.14 / 20 (1.01) | 20.71 / 20 (1.04) |
+
+   The pass-2R own-species-and-pair row's history on GitHub's runner: 44.88 / 20 (2.24x) on 1.0.71's run of record, 42.73 / 20 (2.14x) on `43552440645` (`2cef2329`, 1.0.72's closeout), 48.16 / 20 (2.41x) on attempt 1 here, 30.67 / 20 (1.53x) on attempt 2. **The rule as answered (G-03) is met by attempt 2, and the accepted run is a re-run of the same commit, not a new commit's run.** Recorded beside D-12 as well. `./release.sh` started after this reading.
