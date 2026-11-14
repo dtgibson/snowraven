@@ -1,0 +1,1 @@
+Search now finds the places in your eBird backup and opens each one's Hotspot Reports page.

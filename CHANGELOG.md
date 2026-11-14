@@ -2,6 +2,18 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [1.0.73] - 2026-11-13
+
+### Added
+- **Search now finds the places in your eBird backup and opens each one's Hotspot Reports page.**
+
+### Fixed
+- Choosing a bird in Search while a map on Statistics or Named Birds is fullscreen no longer leaves the page unable to scroll.
+
+### Internal
+- New `lib/paletteLocations.ts` and `lib/paletteLocationsLoad.ts` derive Search's places once per eBird backup, and Hotspot Reports takes a requested place from Search; `lib/useMapFullscreen.ts` gains `MapTabShowingProvider`, so an embedded map's fullscreen ends when its tab stops showing. `docs/HELP.md` and `ACCESSIBILITY.md` describe the new group, and the security, UI and maps rule files gate the new modules.
+- The F-Droid changelog for this release is three identical files, one per processor-type build (`10000731.txt`, `10000732.txt`, `10000734.txt`), and the in-repo F-Droid recipe names 1.0.73.
+
 ## [1.0.72] - 2026-11-13
 
 ### Changed
