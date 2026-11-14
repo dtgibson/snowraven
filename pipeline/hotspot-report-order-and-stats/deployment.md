@@ -146,3 +146,31 @@ Run by The Deployer on the user's "Confirm: ship 1.0.72 now" (D-15), relayed by 
 
 - The user's check of TestFlight 1.0.72 (1): install it and open it; in Hotspot Reports choose a place, and the report opens with the at a glance summary under the header and the life list last. No widget steps: nothing in 1.0.72 touches the widgets, the vendored tao or native iOS code.
 - On a pass: re-read the App Store state, run the listing read-back and `asc-screens.mjs readback` once more, then `POST /v1/reviewSubmissions`, the item, and `submitted: true`; read back again after submitting; write the submission into the 1.0.72 App Store ledger entry.
+
+## Part four: the device check and the App Store submission (2026-11-14, 03:15 to 03:17 UTC; 2026-11-13 19:15 to 19:17 PST)
+
+Run by The Deployer on the Guide's relay of the user's answer. App Store Connect was driven with the metadata key through `asc-lib.mjs` from a script in the session scratchpad; no token, key, issuer or contact value was printed or written. No device or worktree was touched, and nothing was sent to fdroiddata.
+
+### The user's iPhone check of TestFlight 1.0.72 (1)
+
+Asked to install the exact uploaded build, open it, and choose a place in Hotspot Reports, with the report opening on the at a glance card and the life list last, the user answered **"Looks good"** (`decisions.md` D-18). No widget steps were asked: nothing in 1.0.72 touches the widgets, the vendored tao or native iOS code.
+
+### Steps
+
+1. **Re-read before submitting** (03:15 UTC): record `e674c73b` `PREPARE_FOR_SUBMISSION`, build 1.0.72.1 `6288dd5d` `VALID` attached, `AFTER_APPROVAL`, no phased release, no earliest release date; 36 version records (1.0.72 `PREPARE_FOR_SUBMISSION`, the other 35 `READY_FOR_SALE`), so nothing was in review; 10 review submissions, all `COMPLETE`. **`READBACK 1.0.72: ALL SAME`** (What's New exactly the approved 102 characters, SHA-256 `315cf23f...fe96`; promotional text, description, keywords, URLs, copyright, review notes, name, subtitle, privacy policy URL and categories equal to the repo; age rating unchanged on both app infos). **`asc-screens.mjs readback` ALL MATCH, 21 of 21**, seven frames in each set (`evidence/ship/screenshots-readback-1.0.72-before-submit.txt`). No field differed, so nothing was restored.
+2. **Submission** (guarded by the same checks in the script): `POST /v1/reviewSubmissions` (201), `POST /v1/reviewSubmissionItems` (201), `PATCH` `submitted: true` (200). **`b8a1dfc7-61c6-4e21-9d6b-916859cd7b9b`, `WAITING_FOR_REVIEW`, submitted 2026-11-14 03:16:07 UTC (2026-11-13 19:16 PST)**, its one item `READY_FOR_REVIEW`; the record reads **`WAITING_FOR_REVIEW`**, `AFTER_APPROVAL`, no phased release.
+3. **After submitting** (03:16 UTC): `READBACK 1.0.72: ALL SAME`; screenshots ALL MATCH, 21 of 21 (`evidence/ship/screenshots-readback-1.0.72-after-submit.txt`); 36 version records (1.0.72 `WAITING_FOR_REVIEW`, 35 `READY_FOR_SALE`), 11 review submissions (this one waiting, 10 `COMPLETE`), 96 trains, 104 builds, every build `VALID`; from 1.0.13 on, the same 25 trains without a record of their own that the ledger accounts for.
+4. **F-Droid, read again** (03:16:47 UTC): unchanged from part three. f-droid.org publishes 1.0.68, 1.0.61 and 1.0.60 (`suggestedVersionCode` 10000684); fdroiddata `master` `CurrentVersion` 1.0.71 / 10000714 (newest recipe commit still `1cd59422`), entries through 1.0.71 and none for 1.0.72; logs for 10000701/2/4 `Successfully built`, those for 10000711/2/4 and 10000721/2/4 answer 404.
+5. **`RELEASE_LEDGER.md`**: the 1.0.72 App Store entry extended with the device check and the submission (append-only, ASCII, the file's em-dash count unchanged).
+
+### State at the end of this part
+
+| Leg | State |
+|---|---|
+| Website | live at 1.0.72 with the approved frame and alt text |
+| macOS, Windows, updater | release `444876008`, Latest |
+| Android (GitHub APK) | attached, signer `42a3576e...996a`; Partial (emulator) |
+| iOS TestFlight | 1.0.72.1 `6288dd5d` VALID; the user's check passed ("Looks good") |
+| App Store | record `e674c73b` submitted as `b8a1dfc7`, `WAITING_FOR_REVIEW`, release on approval |
+| F-Droid | nothing sent; 1.0.70 included and built, not yet published; 1.0.71 and 1.0.72 included and this tag not yet built |
+| Ledger | written for 1.0.72 on both stores |
