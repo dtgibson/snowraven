@@ -262,6 +262,41 @@ italic at 0.71875rem `--sr-text-gray`.
   only the open listbox and bubbles once closed, so a hosting sheet or
   fullscreen surface keeps its own Escape behavior. `.sr-input-16` rides the
   `className` prop onto the `<input>` itself.
+- **Search overlay results (the app-level type-to-go list):** one
+  `role="listbox"` holding a `role="group"` per kind (Destinations, Species,
+  Locations), each with its `.sr-palette-group` heading as a
+  `role="presentation"` child; a group renders only when it has rows, an empty
+  query shows Destinations alone, and a new kind is a new group at the end, so
+  every position a user has learned above it holds. **A row that names a place
+  is two lines at every width** (`.sr-palette-row--loc`): the name (0.875rem /
+  500 / `--sr-text`) over a meta line (0.71875rem / `--sr-text-muted`, not
+  italic, since italic is the scientific name's mark) holding the place label
+  and, only where name and place both tie, the ID in tabular figures after an
+  `aria-hidden` middle dot. Both lines are block boxes inside one flex item
+  (never a column flex, which WebKit leaves at a stale width after a text-size
+  change), wrap with `overflow-wrap: anywhere`, and are never cut by CSS,
+  because place names share long openings and differ at the end. No glyph, no
+  `aria-label` (the name comes from the content), nothing interactive inside an
+  option. It is the Hotspot Reports picker's name-over-meta option, so the row
+  chosen in Search is the row met on the tab. **On the highlighted row,
+  secondary text takes `--sr-text`:** `--sr-text-muted` on
+  `--sr-accent-bg-hover` is 3.79:1 in the dark theme, and the meta is what tells
+  namesakes apart. **A cap line is the last child of its own group:** a
+  `div.sr-palette-note` with `role="presentation"` and an index-built id that
+  the group names in `aria-describedby`, so it follows its own rows in reading
+  order, describes that group to assistive technology and is never an option;
+  when another group follows, it takes `margin-bottom: 8px` so it reads as the
+  end of the group above. **A placeholder too long for a narrow field is
+  swapped, not clipped:** the field is an inline-size container, and under
+  `(max-width: 27em) or (max-width: 432px)` the placeholder turns transparent
+  and a decorative `aria-hidden`, `pointer-events: none` span holding one short
+  word ("Search") draws in its place while the input is empty. The placeholder
+  attribute and every accessible name keep the full wording; the `em` term
+  tracks the text size and the `px` term covers the phone tier's 16px floor,
+  and the hint's phone size `max(16px, 1rem)` is held equal to
+  `--sr-ctl-floor` by a guard. New wording re-measures both terms in the built
+  app under a classic scrollbar. `.sr-palette-*` is the exemplar. No new
+  tokens.
 - **A preference whose copy multiplies:** when N independent switches mean 2^N
   labels, generate every string from ONE ordered manifest plus pure functions —
   the switch labels, their accessible names, the primary button, and the sentence
