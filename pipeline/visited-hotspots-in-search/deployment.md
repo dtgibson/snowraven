@@ -153,3 +153,55 @@ Install TestFlight build **1.0.73 (1)**, the exact uploaded build, on your iPhon
 3. Confirm Hotspot Reports opens on that place's report.
 
 No widget steps: nothing in 1.0.73 touches the widgets, the vendored tao or any native iOS code (the merge brought none either: under `src-tauri/` it changed only `tauri.conf.json` and 1.0.72's two plist stamps, and this build changes nothing under `src-tauri/` but the version set).
+
+## Part two: the release, phase 1 (2026-11-13 PST 22:16 onward; 2026-11-14 UTC 06:16 onward)
+
+Run by The Deployer on the user's answers at the release gate, relayed by the Guide and recorded as G-01 to G-03 in `decisions.md`: "Confirm: release 1.0.73 now"; the App Store route "Roll 1.0.72 into 1.0.73" with the combined What's New approved (phase 2); and the CI rule extended to `paletteLocationsLinearity.test.ts` timing rows under twice their limit. Phase 1 is every leg up to and including the TestFlight upload; nothing is written to App Store Connect in this phase. No physical device and no iOS simulator is touched (the Guide's direction for this phase); the local Android emulator only.
+
+0. **Starting state** (06:17 UTC, 22:17 PST): `git fetch origin --tags`: `origin/main` still `2cef2329`, no `v1.0.73` on origin, newest release `v1.0.72`, no workflow running; no `release.sh`, `notarytool`, `altool`, `xcodebuild`, `tauri` or `gradle` process (the 1.0.72 `log stream` PID 78124 still running, left alone); keychain `no-timeout` (unlocked). The local date is still 2026-11-13, so the CHANGELOG date stands.
+1. **`2d5fbbeb`** `docs(pipeline): the 1.0.73 release sign-off and the CI allowance` (G-01 to G-03 here; the D-12 extension appended under D-12 in `pipeline/life-list-region-filter/decisions.md`).
+2. **Tag.** Annotated **`v1.0.73`** (tag object `37b316a2901c3e22fe07c5dcffcaf27fb945afeb`) on the release commit **`23dc1dabec44f278fb69e7c3b14cf3710f6d7d01`**; at the tag `tauri.conf.json` reads 1.0.73 / 1000073 and `10000731/2/4.txt` are present. Pushed alone at 06:18:00 UTC. Windows Build `43565659858` and Android Build `43565659875` started on it.
+3. **`b73bc44b`** `fix(fdroid): the recipe names v1.0.73's commit` (`fdroidRecipe`, `fastlaneMetadata`, `androidVersionSource` 57 of 57), then **`main` pushed as a fast-forward**, `2cef2329..b73bc44b`, at 06:18:13 UTC (`origin/main` re-read at `2cef2329` immediately before). Pipeline `43565677820` and Pages `43565677867` started on it.
+4. **Website** (Pages `43565677867` success): https://snowraven.dtgibson.com/ answers 200 with last-modified 06:18:34 GMT, its `index.html` byte-identical to the committed file (`v1.0.73` pill, `aria-label="Version 1.0.73"`, `SnowRaven v1.0.73` footer).
+5. **iOS** (during the CI wait; logs in the session scratchpad under `deploy/`):
+   - Root `npm ci` in this worktree (it had no root `node_modules`); the three shims (`xcodebuild`, `xcrun`, `swift`) recreated in the scratchpad and first on `PATH`; Xcode 27.2, `xcrun --sdk iphoneos --show-sdk-version` 27.2; no earlier archive existed in this worktree (`src-tauri/gen/apple/build` absent), so nothing needed moving aside. iOS icons: all 36 PNGs `hasAlpha: no`.
+   - **The widget extension's Swift tests were not run this time:** they run on an iOS simulator, and the Guide's direction for this phase excludes any simulator. Nothing in 1.0.73 touches the widgets, their Swift sources or any native iOS code.
+   - `tauri ios build --export-method app-store-connect --build-number 1`, outside the Bash sandbox through a login shell with the three signing variables mapped (06:18:55 to 06:21:58 UTC; the cold Rust build took 1 min 31 s): **`** BUILD SUCCEEDED **`**, and Tauri's own export refused with the skill's third wording ("No Account for Team "Tauri"", "No profiles for 'com.dtgibson.snowraven' / '...widgets' were found"), expected. The fresh archive reads **1.0.73 / 1.0.73.1** (created 22:21:55 PST); `vtool -show-build`: `platform IOS`, minos 16.0, sdk 27.2; all 9 `swift-rs` libraries `platform 2` (iOS), so the `swift` shim held on the cold target. The build re-quoted the two `PRODUCT_NAME` lines in `project.pbxproj`; restored to HEAD.
+   - The archived `snowraven_widgets.appex` was `not signed at all`; signed ad hoc with its entitlements, it lists `group.com.dtgibson.snowraven`.
+   - Manual `xcodebuild -exportArchive` with `~/.tauri/snowraven-ios-export-options.plist`: **`** EXPORT SUCCEEDED **`**. `DistributionSummary.plist`: both bundles at 1.0.73 (1.0.73.1), Apple Distribution `1861F7A4`, team `8QKC3L2FKP`; the app on "SnowRaven iOS App Store iCloud AppGroup 20260924" with the App Group, `icloud-container-environment` Production, the container and ubiquity identifiers and `CloudDocuments`; the appex on "SnowRaven Widgets App Store" with the App Group and nothing else. IPA SHA-256 `6b7dbe326551669de2d419c9a7423861ee40577bce3f47950c5ecc2909a56743` (16,549,717 bytes).
+   - **`altool --validate-app`: `VERIFY SUCCEEDED with no errors`** (06:22:48 to 06:23:40 UTC); **`--upload-app`: `UPLOAD SUCCEEDED with no errors`** (06:23:47 to 06:24:41 UTC), **Delivery UUID `1c7b8d90-8313-4048-8e0d-bb6f1f3782ba`** (plus the routine `CDUploaderStateInfoResumeFilePath` line).
+   - The stamp (`snowraven_iOS/Info.plist` 1.0.73 / 1.0.73.1, the widget extension's `CFBundleVersion` 1.0.73.1; `iosSceneManifest`, `iosWidgetManifest`, `iosAlertsManifest` 67 of 67) committed as **`ad2871bc`** `chore(ios): stamp iOS 1.0.73 build 1` and pushed at 06:24:56 UTC (`b73bc44b..ad2871bc`). Its Pipeline run, `43566222841`, is the run of record.
+6. **TestFlight** (GET only, 06:35:51 UTC): build **1.0.73.1**, id **`1c7b8d90-8313-4048-8e0d-bb6f1f3782ba`**, on the new train 1.0.73 (`7305c35c`), **`VALID`**, uploaded 22:25:28 PST, min OS 16.0. Nothing was written to App Store Connect.
+7. **CI on the tag's commit `23dc1dab`:** **Windows Build `43565659858` success** and **Android Build `43565659875` success** (06:36:59 UTC). Pipeline `43565677820` on `b73bc44b` was cancelled by the stamp push, as the skill expects.
+8. **The run of record, Pipeline `43566222841` on the stamp `ad2871bc`** (finished 06:37:10 UTC), judged under D-12 as extended by G-03: Backend **green**; Frontend **red, 6 failed, 11,364 passed, 29 skipped (11,399); 1 file failed, 522 passed, 5 skipped**. `paletteLocationsLinearity.test.ts` passed (9 of 9) and nothing outside `lifeListsLinearity.test.ts` failed. Every failure is a `lifeListsLinearity.test.ts` timing row:
+
+   | Row | Reading / limit | Times the limit |
+   |---|---|---|
+   | pass 1, every row its own species | 22.27 / 20 | 1.11 |
+   | pass 1R, every row its own species and (state, county) | 29.87 / 25.55 | 1.17 |
+   | **pass 2R, every row its own species and (state, county)** | **48.16 / 20** | **2.41** |
+   | pass 2R, every row its own species, 20 counties in 4 states | 20.82 / 20 | 1.04 |
+   | pass 1R, 200 species repeated, every row its own (state, county) | 27.25 / 25.55 | 1.07 |
+   | pass 2R, 200 species repeated, every row its own (state, county) | 20.14 / 20 | 1.01 |
+
+   **One row is over twice its limit, so the run of record is NOT accepted under the rule as answered: the release stops here, before `./release.sh`, and goes back to the Guide with these numbers.** The same row read 42.73 / 20 (2.14x) on `43552440645` (`2cef2329`, 1.0.72's closeout) and 44.88 / 20 (2.24x) on 1.0.71's run of record; this release touches no Life Lists file. Locally the full suite passed twice on this tree (section 3 and section 8 of part one).
+9. **Android, the parts that publish nothing** (the build shell as the skill lists; `SNOWRAVEN_ANDROID_SIGNER_SHA256` set to the recorded digest):
+   - `preflight.sh` **exit 0**, every check `ok`; its one warning (HEAD is not the tag's commit) is expected. Run `43565659875`'s artifact `SnowRaven_1.0.73_android_universal_unsigned.apk` (SHA-256 `d9768a524efe120a6145c486bbc032ae8d471f728a6f3192ee5445e484edddf5`), `com.dtgibson.snowraven` 1.0.73 / 1000073, not debuggable.
+   - `sign.sh` **exit 0**: v2 and v3 (v1 off); signer equals the keystore's certificate and the recorded digest: **`Signer #1 certificate SHA-256 digest: 42a3576e445bda4a994793f2ffa056663113275c9805eb2f6cffdc252375996a`** (DN `CN=SnowRaven, O=Dave Gibson`). **Signed APK SHA-256 `548b8687ddb682854d25537c7d7ec4c17f6aa155b35dacc7045e4380fb530f99`**, kept at the path `sign.sh` printed and copied byte-identical to the session scratchpad (`deploy/apk/`). No password was printed or passed on a command line.
+   - **Emulator check** on the local API 36 image only (`sr-api36-phone`, port 5554, headless, `-gpu host`, `-no-snapshot-save`; every `adb` call addressed to `emulator-5554` by serial; no device listing taken; SnowRaven not installed before). The exact signed bytes (hash re-read equal) installed: `versionName` 1.0.73, `versionCode` 1000073, minSdk 26, targetSdk 36; cold start `Status: ok`, `COLD`, 544 ms. It opened to the Welcome screen; "Explore the app first" drew Weather with both key notices; the More sheet listed Search and all nine destinations, Hotspot Reports among them, with Settings in its foot; **Search, opened from the More sheet with "pond" typed, drew the new "Species and locations" heading and the no-backup sentence for species and locations**; Hotspot Reports drew its eBird Backup Required state (`evidence/ship/api36-1.0.73-*.png`). The crash buffer held 40 lines from the emulator's boot before the install (cleared then, as on the 1.0.70 first boot) and **0 after** the screens; the main log held no `FATAL EXCEPTION`; the app was alive at the end. Nothing was sent to eBird or OpenWeather. The emulator was stopped.
+   - **WebView:** `com.google.android.webview` 133.0.6943.137: **WebView 133, unchanged since the last measurement.**
+   - **Not attached:** `attach.sh` needs the `v1.0.73` GitHub release, which `./release.sh` creates, and that is held by the stop above.
+
+### State at this stop (2026-11-14, 06:41 UTC; 2026-11-13 22:41 PST)
+
+| Leg | State |
+|---|---|
+| Tag | `v1.0.73` (tag object `37b316a2`) on `23dc1dab`, pushed |
+| `main` | at `ad2871bc` (the stamp), plus this record once pushed |
+| Website | live at 1.0.73 (Pages `43565677867`); its download links point at `releases/latest`, which still serves 1.0.72 |
+| macOS, Windows, updater | **not released**: `./release.sh` not run; no `v1.0.73` GitHub release; `latest.json` still 1.0.72; the Windows installer exists only as the tag's CI artifact (`43565659858`) |
+| Android | CI artifact signed (signer `42a3576e...996a`, SHA-256 `548b8687...0f99`), emulator check done; **not attached** |
+| iOS TestFlight | 1.0.73.1 `1c7b8d90` **VALID**; the user's iPhone check passed (G-04) |
+| App Store | nothing written; 1.0.72 (`e674c73b`) still `WAITING_FOR_REVIEW` (submission `b8a1dfc7`), read 06:40 UTC; no 1.0.73 record; 97 trains, 105 builds, every build `VALID`; 1.0.73 now has a train and, until phase 2, no record (the 26th such train, the other 25 accounted for in the ledger) |
+| F-Droid | nothing sent; not re-read since part one |
+| Ledger | not yet written for 1.0.73 |
